@@ -386,8 +386,8 @@ std::unique_ptr<VideoOverlayWindowViews> VideoOverlayWindowViews::Create(
 
   // The 2024 updated controls use dark mode colors.
   if (Use2024UI()) {
-    overlay_window->SetColorModeOverride(ui::ColorProviderKey::ColorMode::kDark,
-                                         /*background_color=*/std::nullopt);
+    overlay_window->SetColorModeOverride(
+        ui::ColorProviderKey::ColorMode::kDark);
   }
 
   overlay_window->CalculateAndUpdateWindowBounds();
@@ -906,6 +906,7 @@ void VideoOverlayWindowViews::UpdateControlsVisibility(bool is_visible,
     }
     GetControlsContainerView()->layer()->SetOpacity(wanted_visibility ? 1.0
                                                                       : 0.0);
+    GetControlsContainerView()->SetVisible(wanted_visibility);
   }
 }
 
@@ -2403,12 +2404,17 @@ void VideoOverlayWindowViews::OnGestureEvent(ui::GestureEvent* event) {
     return;
   }
 
-  // Hide the live caption dialog if it's visible and the user taps outside of
-  // it.
-  if (live_caption_dialog_ && live_caption_dialog_->GetVisible() &&
-      !GetLiveCaptionDialogBounds().Contains(event->location()) &&
-      !GetLiveCaptionButtonBounds().Contains(event->location())) {
-    SetLiveCaptionDialogVisibility(false);
+  if (live_caption_dialog_ && live_caption_dialog_->GetVisible()) {
+    if (!GetLiveCaptionDialogBounds().Contains(event->location())) {
+      // Hide the live caption dialog if it's visible and the user taps outside
+      // of it.
+      SetLiveCaptionDialogVisibility(false);
+      event->SetHandled();
+      return;
+    }
+
+    // Otherwise, let the live caption dialog handle the gesture.
+    live_caption_dialog_->OnGestureTapEvent(event);
     return;
   }
 

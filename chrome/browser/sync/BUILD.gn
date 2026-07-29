@@ -30,8 +30,8 @@ source_set("sync") {
     "local_or_syncable_bookmark_sync_service_factory.h",
     "prefs/chrome_syncable_prefs_database.cc",
     "prefs/chrome_syncable_prefs_database.h",
-    "prefs/cross_device_pref_tracker_factory.cc",
-    "prefs/cross_device_pref_tracker_factory.h",
+    "prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.cc",
+    "prefs/cross_device_pref_tracker/cross_device_pref_tracker_factory.h",
     "send_tab_to_self_sync_service_factory.cc",
     "send_tab_to_self_sync_service_factory.h",
     "session_sync_service_factory.cc",
@@ -53,7 +53,6 @@ source_set("sync") {
     "user_event_service_factory.cc",
     "user_event_service_factory.h",
   ]
-
   public_deps = [
     ":factories",
     "//base",
@@ -85,12 +84,14 @@ source_set("sync") {
     "//chrome/app:generated_resources",
     "//chrome/app:generated_resources_grit",
     "//chrome/browser:browser_process",
+    "//chrome/browser/history",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/plus_addresses",
     "//chrome/browser/signin",
     "//chrome/browser/ui/sync",
     "//chrome/browser/ui/toolbar",
     "//chrome/browser/webauthn",
+    "//chrome/browser/webdata_services",
 
     # TODO(crbug.com/374910357): Investigate for a better dependency injection.
     "//chrome/browser/autofill",
@@ -132,8 +133,8 @@ source_set("sync") {
     "//components/spellcheck/browser",
     "//components/strings:components_strings_grit",
     "//components/sync_bookmarks",
-    "//components/sync_preferences:cross_device_pref_tracker",
     "//components/sync_preferences:features",
+    "//components/sync_preferences/cross_device_pref_tracker",
     "//components/sync_user_events",
     "//components/user_manager",
     "//components/variations/service",

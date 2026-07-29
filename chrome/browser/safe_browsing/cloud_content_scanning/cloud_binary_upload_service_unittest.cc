@@ -28,6 +28,7 @@
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_analysis_request.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/multipart_uploader.h"
+#include "chrome/browser/safe_browsing/cloud_content_scanning/resumable_uploader.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
@@ -56,7 +57,6 @@ enterprise_connectors::CloudAnalysisSettings CloudAnalysisSettingsWithUrl(
 }  // namespace
 
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
@@ -115,6 +115,8 @@ class FakeConnectorUploadRequest : public ConnectorUploadRequest {
 
 class FakeConnectorUploadRequestFactory : public ConnectorUploadRequestFactory {
  public:
+  FakeConnectorUploadRequestFactory() = default;
+
   FakeConnectorUploadRequestFactory(
       bool should_succeed,
       std::optional<enterprise_connectors::ContentAnalysisResponse> response,
@@ -131,6 +133,7 @@ class FakeConnectorUploadRequestFactory : public ConnectorUploadRequestFactory {
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       ConnectorUploadRequest::Callback callback) override {
+    called_ = true;
     return std::make_unique<FakeConnectorUploadRequest>(
         should_succeed_, response_, http_status_, std::move(callback));
   }
@@ -146,6 +149,7 @@ class FakeConnectorUploadRequestFactory : public ConnectorUploadRequestFactory {
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       ConnectorUploadRequest::Callback callback) override {
+    called_ = true;
     return std::make_unique<FakeConnectorUploadRequest>(
         should_succeed_, response_, http_status_, std::move(callback));
   }
@@ -159,32 +163,38 @@ class FakeConnectorUploadRequestFactory : public ConnectorUploadRequestFactory {
       const std::string& histogram_suffix,
       const net::NetworkTrafficAnnotationTag& traffic_annotation,
       ConnectorUploadRequest::Callback callback) override {
+    called_ = true;
     return std::make_unique<FakeConnectorUploadRequest>(
         should_succeed_, response_, http_status_, std::move(callback));
   }
 
+  bool called() const { return called_; }
+
  private:
-  bool should_succeed_;
-  int http_status_;
-  std::optional<enterprise_connectors::ContentAnalysisResponse> response_;
+  bool should_succeed_ = true;
+  int http_status_ = net::HTTP_OK;
+  std::optional<enterprise_connectors::ContentAnalysisResponse> response_ =
+      enterprise_connectors::ContentAnalysisResponse();
+  bool called_ = false;
 };
 
 class CloudBinaryUploadServiceTest : public ::testing::Test {
  public:
   CloudBinaryUploadServiceTest()
-      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
-        fake_factory_(true,
-                      enterprise_connectors::ContentAnalysisResponse(),
-                      net::HTTP_OK) {
+      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
     MultipartUploadRequest::RegisterFactoryForTests(&fake_factory_);
 
     // Since we have mocked the MultipartUploadRequest, we don't need a
     // URLLoaderFactory, so pass nullptr here.
     service_ = std::make_unique<CloudBinaryUploadService>(nullptr, &profile_);
-    scoped_feature_list_.InitAndEnableFeature(
-        safe_browsing::kLocalIpAddressInEvents);
+    scoped_feature_list_.InitWithFeatures(
+        {safe_browsing::kLocalIpAddressInEvents,
+         enterprise_connectors::kDlpScanPastedImages},
+        {});
   }
-  ~CloudBinaryUploadServiceTest() override {
+
+  void TearDown() override {
+    ResumableUploadRequest::RegisterFactoryForTests(nullptr);
     MultipartUploadRequest::RegisterFactoryForTests(nullptr);
   }
 
@@ -244,14 +254,13 @@ class CloudBinaryUploadServiceTest : public ::testing::Test {
       request->set_device_token("fake_device_token");
     }
     ON_CALL(*request, GetRequestData(_))
-        .WillByDefault(
-            Invoke([](BinaryUploadService::Request::DataCallback callback) {
-              BinaryUploadService::Request::Data data;
-              data.contents = "contents";
-              data.size = data.contents.size();
-              std::move(callback).Run(BinaryUploadService::Result::SUCCESS,
-                                      std::move(data));
-            }));
+        .WillByDefault([](BinaryUploadService::Request::DataCallback callback) {
+          BinaryUploadService::Request::Data data;
+          data.contents = "contents";
+          data.size = data.contents.size();
+          std::move(callback).Run(BinaryUploadService::Result::SUCCESS,
+                                  std::move(data));
+        });
 
     return request;
   }
@@ -297,14 +306,14 @@ TEST_F(CloudBinaryUploadServiceTest, FailsForLargeFile) {
   request->set_analysis_connector(
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
-      .WillByDefault(Invoke(
+      .WillByDefault(
           [file_path](BinaryUploadService::Request::DataCallback callback) {
             BinaryUploadService::Request::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(BinaryUploadService::Result::FILE_TOO_LARGE,
                                     std::move(data));
-          }));
+          });
   UploadForDeepScanning(std::move(request));
 
   content::RunAllTasksUntilIdle();
@@ -336,14 +345,14 @@ TEST_F(CloudBinaryUploadServiceTest, FailsForEncryptedFile) {
   request->set_analysis_connector(
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
-      .WillByDefault(Invoke(
+      .WillByDefault(
           [file_path](BinaryUploadService::Request::DataCallback callback) {
             BinaryUploadService::Request::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(BinaryUploadService::Result::FILE_ENCRYPTED,
                                     std::move(data));
-          }));
+          });
   UploadForDeepScanning(std::move(request));
 
   content::RunAllTasksUntilIdle();
@@ -374,14 +383,14 @@ TEST_F(CloudBinaryUploadServiceTest, PassesForEncryptedFileIfEnabled) {
   request->set_analysis_connector(
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED);
   ON_CALL(*request, GetRequestData(_))
-      .WillByDefault(Invoke(
+      .WillByDefault(
           [file_path](BinaryUploadService::Request::DataCallback callback) {
             BinaryUploadService::Request::Data data;
             data.path = file_path;
             data.size = 4;  // Must not be zero.
             std::move(callback).Run(BinaryUploadService::Result::FILE_ENCRYPTED,
                                     std::move(data));
-          }));
+          });
   UploadForDeepScanning(std::move(request));
 
   // TODO(crbug.com/418020892): Use BrowserTaskEnvironment::RunUntilIdle()
@@ -444,6 +453,84 @@ TEST_F(CloudBinaryUploadServiceTest, PasteSucceeds) {
   content::RunAllTasksUntilIdle();
 
   EXPECT_EQ(scanning_result, BinaryUploadService::Result::SUCCESS);
+}
+
+TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableSucceeds) {
+  FakeConnectorUploadRequestFactory resumable_factory{
+      /*should_succeed=*/true, enterprise_connectors::ContentAnalysisResponse(),
+      net::HTTP_OK};
+  ResumableUploadRequest::RegisterFactoryForTests(&resumable_factory);
+
+  BinaryUploadService::Result scanning_result;
+  enterprise_connectors::ContentAnalysisResponse scanning_response;
+
+  auto settings = enterprise_connectors::CloudAnalysisSettings();
+  auto request = std::make_unique<NiceMock<MockRequest>>(
+      base::BindLambdaForTesting(
+          [&](BinaryUploadService::Result result,
+              enterprise_connectors::ContentAnalysisResponse response) {
+            scanning_result = result;
+            scanning_response = response;
+          }),
+      std::move(settings));
+  request->set_device_token("fake_device_token");
+  request->set_analysis_connector(
+      enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY);
+  ON_CALL(*request, GetRequestData(_))
+      .WillByDefault([](BinaryUploadService::Request::DataCallback callback) {
+        BinaryUploadService::Request::Data data;
+        data.contents = "contents";
+        data.size = data.contents.size();
+        std::move(callback).Run(BinaryUploadService::Result::SUCCESS,
+                                std::move(data));
+      });
+
+  UploadForDeepScanning(std::move(request));
+  content::RunAllTasksUntilIdle();
+
+  EXPECT_TRUE(resumable_factory.called());
+  EXPECT_EQ(scanning_result, BinaryUploadService::Result::SUCCESS);
+
+  ResumableUploadRequest::RegisterFactoryForTests(nullptr);
+}
+
+TEST_F(CloudBinaryUploadServiceTest, PasteImageResumableFails) {
+  FakeConnectorUploadRequestFactory resumable_factory{
+      /*should_succeed=*/false,
+      enterprise_connectors::ContentAnalysisResponse(), net::HTTP_OK};
+  ResumableUploadRequest::RegisterFactoryForTests(&resumable_factory);
+
+  BinaryUploadService::Result scanning_result;
+  enterprise_connectors::ContentAnalysisResponse scanning_response;
+
+  auto settings = enterprise_connectors::CloudAnalysisSettings();
+  auto request = std::make_unique<NiceMock<MockRequest>>(
+      base::BindLambdaForTesting(
+          [&](BinaryUploadService::Result result,
+              enterprise_connectors::ContentAnalysisResponse response) {
+            scanning_result = result;
+            scanning_response = response;
+          }),
+      std::move(settings));
+  request->set_device_token("fake_device_token");
+  request->set_analysis_connector(
+      enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY);
+  ON_CALL(*request, GetRequestData(_))
+      .WillByDefault([](BinaryUploadService::Request::DataCallback callback) {
+        BinaryUploadService::Request::Data data;
+        data.contents = "contents";
+        data.size = data.contents.size();
+        std::move(callback).Run(BinaryUploadService::Result::SUCCESS,
+                                std::move(data));
+      });
+
+  UploadForDeepScanning(std::move(request));
+  content::RunAllTasksUntilIdle();
+
+  EXPECT_TRUE(resumable_factory.called());
+  EXPECT_EQ(scanning_result, BinaryUploadService::Result::UPLOAD_FAILURE);
+
+  ResumableUploadRequest::RegisterFactoryForTests(nullptr);
 }
 
 TEST_F(CloudBinaryUploadServiceTest, FailsWhenUploadFails) {

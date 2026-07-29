@@ -576,6 +576,7 @@ _CROSSBENCH_TANGOR = frozenset([
     ]),
 ])
 
+# pylint: disable=line-too-long
 _CROSSBENCH_WEBVIEW = frozenset([
     _crossbench_loading(
         estimated_runtime=750,
@@ -588,8 +589,7 @@ _CROSSBENCH_WEBVIEW = frozenset([
             '--repetitions=50',
             '--cool-down-threshold=moderate',
             '--stories=cnn',
-        ]
-    ),
+        ]),
     _crossbench_embedder(
         estimated_runtime=900,
         arguments=[
@@ -604,9 +604,9 @@ _CROSSBENCH_WEBVIEW = frozenset([
             '--cool-down-threshold=moderate',
             '--http-request-timeout=15s',
             '--action-runner=android',
-        ]
-    ),
+        ]),
 ])
+# pylint: enable=line-too-long
 
 _CHROME_HEALTH_BENCHMARK_CONFIGS_DESKTOP = PerfSuite(
     [_GetBenchmarkConfig('system_health.common_desktop')])
@@ -1085,7 +1085,7 @@ ANDROID_PIXEL_TANGOR = PerfPlatform(
     executables=_ANDROID_DEFAULT_EXECUTABLE_CONFIGS,
     crossbench=_CROSSBENCH_TANGOR)
 ANDROID_GO_WEMBLEY = PerfPlatform('android-go-wembley-perf', 'Android U',
-                                  _ANDROID_GO_BENCHMARK_CONFIGS, 15, 'android')
+                                  _ANDROID_GO_BENCHMARK_CONFIGS, 13, 'android')
 ANDROID_GO_WEMBLEY_WEBVIEW = PerfPlatform(
     'android-go-wembley_webview-perf', 'Android U',
     _ANDROID_GO_WEBVIEW_BENCHMARK_CONFIGS, 20, 'android')
@@ -1164,6 +1164,25 @@ WIN_10_LOW_END_HP_CANDIDATE = PerfPlatform(
     _WIN_10_LOW_END_HP_CANDIDATE_BENCHMARK_CONFIGS,
     1,
     'win',
+    is_fyi=True)
+WIN_DELL_PRO_16 = PerfPlatform(
+    'win-dell-pro-16-perf',
+    'Windows Dell Pro 16 Laptop with Intel Core Ultra 7 255U',
+    PerfSuite([
+        _GetBenchmarkConfig('system_health.common_desktop'),
+        _GetBenchmarkConfig('system_health.memory_desktop'),
+        _GetBenchmarkConfig('v8.browsing_desktop'),
+        _GetBenchmarkConfig('v8.browsing_desktop-future'),
+        _GetBenchmarkConfig('wasmpspdfkit'),
+        _GetBenchmarkConfig('webrtc'),
+    ]),
+    2,
+    'win',
+    executables=frozenset([_views_perftests()]),
+    crossbench=frozenset([
+        _speedometer2_crossbench(),
+        _speedometer3_crossbench(),
+    ]),
     is_fyi=True)
 CHROMEOS_KEVIN_PERF_FYI = PerfPlatform('chromeos-kevin-perf-fyi',
                                        '',

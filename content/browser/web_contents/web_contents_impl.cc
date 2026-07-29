@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #include "content/browser/web_contents/web_contents_impl.h"
 
 #include <stddef.h>
@@ -93,6 +95,7 @@
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/permissions/permission_util.h"
+#include "content/browser/preloading/prefetch/prefetch_request.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
 #include "content/browser/preloading/preloading.h"
@@ -2636,6 +2639,11 @@ void WebContentsImpl::Discard(base::OnceClosure on_discarded_cb) {
   if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
     NOTREACHED();
   }
+  if (WasDiscarded()) {
+    // TODO(crbug.com/441841249): Consider updating `on_discarded_cb` to return
+    // a bool to indicate whether the operation completed successfully.
+    return;
+  }
 
   AboutToBeDiscarded(this);
   notify_disconnection_ = false;
@@ -3013,6 +3021,10 @@ bool WebContentsImpl::HasRecentInteraction() {
   // event, e.g. validating that a WebUI message that requires a gesture is
   // actually attached to a gesture.
   return delta <= kMaxInterval;
+}
+
+base::TimeTicks WebContentsImpl::GetLastInteractionTimeTicks() {
+  return last_interaction_time_;
 }
 
 WebContents::ScopedIgnoreInputEvents WebContentsImpl::IgnoreInputEvents(
@@ -3696,8 +3708,8 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
   prefs.prefers_reduced_motion = gfx::Animation::PrefersReducedMotion();
 
   const auto* const theme = ui::NativeTheme::GetInstanceForWeb();
-  prefers_reduced_transparency_ = theme->GetPrefersReducedTransparency();
-  inverted_colors_ = theme->GetInvertedColors();
+  prefers_reduced_transparency_ = theme->prefers_reduced_transparency();
+  inverted_colors_ = theme->inverted_colors();
   prefs.prefers_reduced_transparency = prefers_reduced_transparency_;
   prefs.inverted_colors = inverted_colors_;
 
@@ -5316,8 +5328,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   // TODO(crbug.com/40234240): Instead of filtering out the guest case here,
   // check it and drop prerender requests before starting prerendering.
   std::unique_ptr<WebContentsImpl> new_contents;
-  if (base::FeatureList::IsEnabled(blink::features::kPrerender2InNewTab) &&
-      !is_guest) {
+  if (!is_guest) {
     new_contents =
         GetPrerenderHostRegistry()->TakePreCreatedWebContentsForNewTabIfExists(
             params, create_params);
@@ -7999,7 +8010,7 @@ blink::ColorProviderColorMaps WebContentsImpl::GetColorProviderColorMaps()
   ui::ColorProviderKey::ForcedColors forced_colors =
       forced_colors_source->GetForcedColors();
   if (forced_colors == ui::ColorProviderKey::ForcedColors::kNone) {
-    forced_colors = ui::ColorProviderKey::ForcedColors::kActive;
+    forced_colors = ui::ColorProviderKey::ForcedColors::kSystem;
   }
 
   return blink::ColorProviderColorMaps{
@@ -8930,6 +8941,10 @@ void WebContentsImpl::RunFileChooser(
     // Do not allow background tab to open file chooser.
     return;
   }
+  if (!delegate_->IsContentsActive(this)) {
+    // Do not allow inactive tabs to open file chooser.
+    return;
+  }
   if (active_file_chooser_) {
     // Only allow one active file chooser at one time.
     return;
@@ -9107,6 +9122,14 @@ std::vector<WebContents*> WebContentsImpl::GetInnerWebContents() {
 }
 
 WebContentsImpl* WebContentsImpl::GetResponsibleWebContents() {
+  if (delegate_) {
+    WebContentsImpl* responsible_from_delegate = static_cast<WebContentsImpl*>(
+        delegate_->GetResponsibleWebContents(this));
+    if (responsible_from_delegate) {
+      return responsible_from_delegate;
+    }
+  }
+
   return FromRenderFrameHostImpl(
       GetPrimaryMainFrame()->GetOutermostMainFrameOrEmbedder());
 }
@@ -11607,8 +11630,8 @@ void WebContentsImpl::HandleColorRelatedStateChanges() {
   }
 
   if (const auto* const theme = ui::NativeTheme::GetInstanceForWeb();
-      prefers_reduced_transparency_ != theme->GetPrefersReducedTransparency() ||
-      inverted_colors_ != theme->GetInvertedColors() ||
+      prefers_reduced_transparency_ != theme->prefers_reduced_transparency() ||
+      inverted_colors_ != theme->inverted_colors() ||
       GetContentClient()
           ->browser()
           ->WebPreferencesNeedUpdateForColorRelatedStateChanges(
@@ -11973,7 +11996,7 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
     std::optional<PrefetchPriority> priority,
     scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
     base::WeakPtr<PreloadingAttempt> attempt,
-    std::optional<PreloadingHoldbackStatus> holdback_status_override,
+    PreloadingHoldbackStatus holdback_status_override,
     std::optional<base::TimeDelta> ttl) {
   PrefetchService* prefetch_service =
       BrowserContextImpl::From(GetBrowserContext())->GetPrefetchService();
@@ -11983,13 +12006,13 @@ std::unique_ptr<PrefetchHandle> WebContentsImpl::StartPrefetch(
 
   PrefetchType prefetch_type(PreloadingTriggerType::kEmbedder,
                              use_prefetch_proxy);
-  auto container = std::make_unique<PrefetchContainer>(
+  auto request = PrefetchRequest::CreateBrowserInitiated(
       *this, prefetch_url, prefetch_type, embedder_histogram_suffix, referrer,
       referring_origin, std::move(no_vary_search_hint), std::move(priority),
       std::move(preload_pipeline_info), std::move(attempt),
       holdback_status_override, std::move(ttl));
 
-  return prefetch_service->AddPrefetchContainerWithHandle(std::move(container));
+  return prefetch_service->AddPrefetchRequestWithHandle(std::move(request));
 }
 
 std::unique_ptr<PrerenderHandle> WebContentsImpl::StartPrerendering(

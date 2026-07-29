@@ -11,10 +11,12 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "content/browser/preloading/prefetch/prefetch_key.h"
+#include "content/browser/preloading/prefetch/prefetch_params.h"
 #include "content/browser/preloading/prefetch/prefetch_type.h"
 #include "content/browser/preloading/speculation_rules/speculation_rules_tags.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/preloading.h"
 #include "net/http/http_no_vary_search_data.h"
 #include "net/http/http_request_headers.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -30,8 +32,8 @@ class PreloadPipelineInfo;
 class PreloadPipelineInfoImpl;
 class PreloadingAttempt;
 class RenderFrameHostImpl;
+class WebContents;
 enum class PrefetchPriority;
-enum class PreloadingHoldbackStatus;
 
 // `PrefetchRendererInitiatorInfo` or `PrefetchBrowserInitiatorInfo` is created
 // and attached to `PrefetchRequest` for a renderer-initiated or
@@ -67,7 +69,6 @@ class CONTENT_EXPORT PrefetchRendererInitiatorInfo final {
     return devtools_navigation_token_;
   }
   ukm::SourceId ukm_source_id() const { return ukm_source_id_; }
-  size_t url_hash() const { return url_hash_; }
 
  private:
   // The RenderFrameHostId/PrefetchDocumentManager of the Document that
@@ -80,9 +81,6 @@ class CONTENT_EXPORT PrefetchRendererInitiatorInfo final {
   std::optional<base::UnguessableToken> devtools_navigation_token_;
 
   ukm::SourceId ukm_source_id_;
-
-  // Used by metrics for equality checks.
-  size_t url_hash_;
 };
 
 // For browser-initiated prefetches.
@@ -126,7 +124,63 @@ class CONTENT_EXPORT PrefetchBrowserInitiatorInfo final {
 // callers to construct `PrefetchRequest` instead of `PrefetchContainer`.
 class CONTENT_EXPORT PrefetchRequest final {
  public:
+  // For renderer-initiated prefetch.
+  static std::unique_ptr<const PrefetchRequest> CreateRendererInitiated(
+      RenderFrameHostImpl& referring_render_frame_host,
+      const blink::DocumentToken& referring_document_token,
+      const GURL& url,
+      const PrefetchType& prefetch_type,
+      const blink::mojom::Referrer& referrer,
+      std::optional<SpeculationRulesTags> speculation_rules_tags,
+      std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+      std::optional<PrefetchPriority> priority,
+      base::WeakPtr<PrefetchDocumentManager> prefetch_document_manager,
+      scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
+      base::WeakPtr<PreloadingAttempt> attempt = nullptr);
+
+  // For browser-initiated prefetch.
+  // We can pass the referring origin of prefetches via `referring_origin` if
+  // necessary.
+  static std::unique_ptr<const PrefetchRequest> CreateBrowserInitiated(
+      WebContents& referring_web_contents,
+      const GURL& url,
+      const PrefetchType& prefetch_type,
+      const std::string& embedder_histogram_suffix,
+      const blink::mojom::Referrer& referrer,
+      const std::optional<url::Origin>& referring_origin,
+      std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+      std::optional<PrefetchPriority> priority,
+      scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
+      base::WeakPtr<PreloadingAttempt> attempt = nullptr,
+      PreloadingHoldbackStatus holdback_status_override =
+          PreloadingHoldbackStatus::kUnspecified,
+      std::optional<base::TimeDelta> ttl = std::nullopt);
+
+  // For browser-initiated prefetch that doesn't depend on web
+  // contents. We can pass the referring origin of prefetches via
+  // `referring_origin` if necessary.
+  static std::unique_ptr<const PrefetchRequest>
+  CreateBrowserInitiatedWithoutWebContents(
+      BrowserContext* browser_context,
+      const GURL& url,
+      const PrefetchType& prefetch_type,
+      const std::string& embedder_histogram_suffix,
+      const blink::mojom::Referrer& referrer,
+      bool javascript_enabled,
+      const std::optional<url::Origin>& referring_origin,
+      std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+      std::optional<PrefetchPriority> priority,
+      base::WeakPtr<PreloadingAttempt> attempt = nullptr,
+      const net::HttpRequestHeaders& additional_headers = {},
+      std::unique_ptr<PrefetchRequestStatusListener> request_status_listener =
+          nullptr,
+      base::TimeDelta ttl = PrefetchContainerDefaultTtlInPrefetchService(),
+      bool should_append_variations_header = true,
+      bool should_disable_block_until_head_timeout = false);
+
+  // Use `Create*()` above instead.
   PrefetchRequest(
+      base::PassKey<PrefetchRequest>,
       const PrefetchType& prefetch_type,
       const PrefetchKey& key,
       const std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
@@ -140,11 +194,12 @@ class CONTENT_EXPORT PrefetchRequest final {
       std::optional<SpeculationRulesTags> speculation_rules_tags,
       const net::HttpRequestHeaders& additional_headers,
       base::TimeDelta ttl,
-      std::optional<PreloadingHoldbackStatus> holdback_status_override,
+      PreloadingHoldbackStatus holdback_status_override,
       bool should_append_variations_header,
       bool should_disable_block_until_head_timeout,
       std::variant<PrefetchRendererInitiatorInfo, PrefetchBrowserInitiatorInfo>
           info);
+
   ~PrefetchRequest();
 
   const PrefetchType& prefetch_type() const { return prefetch_type_; }
@@ -174,8 +229,7 @@ class CONTENT_EXPORT PrefetchRequest final {
     return additional_headers_;
   }
   const base::TimeDelta& ttl() const { return ttl_; }
-  const std::optional<PreloadingHoldbackStatus>& holdback_status_override()
-      const {
+  PreloadingHoldbackStatus holdback_status_override() const {
     return holdback_status_override_;
   }
   bool should_append_variations_header() const {
@@ -255,7 +309,7 @@ class CONTENT_EXPORT PrefetchRequest final {
   // field is non-null if and only if this is created by SpeculationRules
   // prefech. These are assumed to have been validated by the time this is
   // constructed.
-  std::optional<SpeculationRulesTags> speculation_rules_tags_;
+  const std::optional<SpeculationRulesTags> speculation_rules_tags_;
 
   // -------- Parameters that can have non-default values only for
   // -------- browser-initiated prefetches:
@@ -268,12 +322,13 @@ class CONTENT_EXPORT PrefetchRequest final {
   // Time-to-live (TTL) for this prefetched data. Currently, this is configured
   // for browser-initiated prefetch that doesn't depend on web content.
   // Default value is `PrefetchContainerDefaultTtlInPrefetchService()`.
-  base::TimeDelta ttl_;
+  const base::TimeDelta ttl_;
 
-  // If set, this value is used to override holdback status derived by the
-  // normal process. It is set to `attempt_` on
-  // PrefetchService::CheckAndSetPrefetchHoldbackStatus().
-  const std::optional<PreloadingHoldbackStatus> holdback_status_override_;
+  // If not `PreloadingHoldbackStatus::kUnspecified`, this value is used to
+  // override holdback status derived by the normal process. It is set to
+  // `attempt_` on PrefetchService::CheckAndSetPrefetchHoldbackStatus(). Default
+  // value is `PreloadingHoldbackStatus::kUnspecified`.
+  const PreloadingHoldbackStatus holdback_status_override_;
 
   // Whether to add the X-Client-Data header with experiment IDs from field
   // trials. This will not be applied to redirects. Currently, this is

@@ -861,12 +861,9 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
         mMetrics = metrics;
         if (mMetrics == null) {
             // mMetrics can be null if the native counterpart never created an underlying native
-            // component for this request. In this scenario, initialize the mMetrics with sentinel
-            // values. This is not ideal, but this is how Cronet historically behaved and so we
-            // cannot change this behavior without running the risk of breaking apps.
-            mMetrics =
-                    new CronetMetrics(
-                            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, false, 0, 0);
+            // component for this request. Make sure we provide users with a non-null metrics object
+            // as some users would be broken otherwise.
+            mMetrics = CronetMetrics.empty();
         }
         mQuicConnectionMigrationAttempted = quicConnectionMigrationAttempted;
         mQuicConnectionMigrationSuccessful = quicConnectionMigrationSuccessful;
@@ -1066,7 +1063,19 @@ public class CronetBidirectionalStream extends ExperimentalBidirectionalStream {
                 failureReason,
                 mMetrics.getSocketReused(),
                 ImplVersion.getCronetVersion(),
-                NativeCronetEngineBuilderImpl.getCronetSource());
+                NativeCronetEngineBuilderImpl.getCronetSource(),
+                CronetMetrics.getDateDeltaMillisOrDefault(
+                        mMetrics.getDnsStart(), mMetrics.getDnsEnd(), /* defaultValue= */ -1),
+                CronetMetrics.getDateDeltaMillisOrDefault(
+                        mMetrics.getSslStart(), mMetrics.getSslEnd(), /* defaultValue= */ -1),
+                CronetMetrics.getDateDeltaMillisOrDefault(
+                        mMetrics.getConnectStart(),
+                        mMetrics.getConnectEnd(),
+                        /* defaultValue= */ -1),
+                CronetMetrics.getDateDeltaMillisOrDefault(
+                        mMetrics.getRequestStart(),
+                        mMetrics.getSendingStart(),
+                        /* defaultValue= */ -1));
     }
 
     public void setOnDestroyedCallbackForTesting(Runnable onDestroyedCallbackForTesting) {

@@ -36,14 +36,12 @@ ci/android-bfcache-rel
 ci/android-binary-size-generator
 ci/android-desktop-15-x64-fyi-rel
 ci/android-desktop-arm64-archive-rel
-ci/android-desktop-arm64-binary-size-generator
 ci/android-desktop-arm64-compile-dbg
 ci/android-desktop-arm64-compile-rel
 ci/android-desktop-arm64-deterministic-dbg
 ci/android-desktop-arm64-deterministic-rel
 ci/android-desktop-arm64-official
 ci/android-desktop-x64-archive-rel
-ci/android-desktop-x64-binary-size-generator
 ci/android-desktop-x64-compile-dbg
 ci/android-desktop-x64-compile-rel
 ci/android-desktop-x64-deterministic-dbg

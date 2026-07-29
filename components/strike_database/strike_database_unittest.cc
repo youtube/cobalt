@@ -13,12 +13,12 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/proto/strike_data.pb.h"
 #include "components/leveldb_proto/public/proto_database.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
+#include "components/strike_database/strike_data.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace autofill {
+namespace strike_database {
 namespace {
 
 // Note: This class is NOT the same as test_strike_database.h. This is an
@@ -316,4 +316,4 @@ TEST_F(StrikeDatabaseTest, LastUpdateTimestamp) {
   ClearAllProtoStrikes();
 }
 
-}  // namespace autofill
+}  // namespace strike_database

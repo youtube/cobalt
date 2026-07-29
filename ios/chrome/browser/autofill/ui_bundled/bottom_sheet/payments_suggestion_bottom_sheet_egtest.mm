@@ -21,7 +21,6 @@
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_matchers.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
@@ -111,7 +110,6 @@ id<GREYMatcher> KeyboardAccessoryCreditCardSuggestionChip() {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
-  config.features_enabled.push_back(kIOSKeyboardAccessoryUpgradeForIPad);
   config.features_enabled.push_back(
       autofill::features::kAutofillEnableCvcStorageAndFilling);
   if ([self isRunningTest:@selector
@@ -859,6 +857,11 @@ void CheckAutofillSuggestionAcceptedIndexMetricsCount(
 // Tests that the payment sheet doesn't spam after filling from the KA on an
 // autofocused field This ensures that crbug.com/389077460 doesn't happen.
 - (void)testFillingFromKeyboardOnAutofocus {
+  // TODO(crbug.com/443234028): Test is flaky on iPad.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_SKIPPED(@"Test skipped on iPad.");
+  }
+
   // Clear the credit cards to remove the default local cards that aren't needed
   // for this test case.
   [AutofillAppInterface clearCreditCardStore];

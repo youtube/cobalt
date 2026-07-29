@@ -1105,6 +1105,12 @@ void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete(int result) {
         request_->cookie_partition_key(), CookieSourceType::kHTTP,
         &returned_status);
 
+    // Log if the resulting cookie is partitioned, if a cookie was created.
+    if (cookie) {
+      base::UmaHistogramBoolean("Cookie.SetCookieContainsPartitioned",
+                                cookie->IsPartitioned());
+    }
+
     std::optional<CanonicalCookie> cookie_to_return = std::nullopt;
     if (returned_status.IsInclude()) {
       DCHECK(cookie);
@@ -2020,10 +2026,6 @@ void URLRequestHttpJob::RecordCompletionHistograms(CompletionCause reason) {
     } else {
       base::UmaHistogramTimes("Net.HttpJob.TotalTimeNotCached", total_time);
       if (response_info_->was_mdl_match) {
-        base::UmaHistogramCustomCounts(
-            "Net.HttpJob.IpProtection.AllowListMatch.BytesSent",
-            GetTotalSentBytes(), 1, 50000000, 50);
-
         base::UmaHistogramCustomCounts(
             "Net.HttpJob.IpProtection.AllowListMatch.PrefilterBytesRead.Net",
             prefilter_bytes_read(), 1, 50000000, 50);

@@ -17,6 +17,7 @@
 #include "base/command_line.h"
 #include "base/containers/enum_set.h"
 #include "base/containers/fixed_flat_set.h"
+#include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -136,6 +137,8 @@
 namespace network {
 
 namespace {
+
+BASE_FEATURE(kDelayedCookieNotification, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Cannot use 0, because this means "default" in
 // mojo::core::Core::CreateDataPipe
@@ -1142,10 +1145,14 @@ void URLLoader::OnResponseStarted(net::URLRequest* url_request, int net_error) {
         internal::FetchKeepAliveRequestNetworkMetricType::kOnResponse);
   }
 
-  // Use `true` to force sending the cookie accessed update now. This is because
-  // for navigations the CookieObserver might get torn down by the time the
-  // request completes.
-  ReportFlaggedResponseCookies(true);
+  // Wait to report for main frame navigations. This is because handling the
+  // cookie notification contends with ReadyToCommitNavigation, which is in the
+  // critical path for loading. Additionally, cookie observers for navigations
+  // now outlive the NavigationRequest.
+  bool delay_cookie_call =
+      url_request_->isolation_info().IsMainFrameRequest() &&
+      base::FeatureList::IsEnabled(kDelayedCookieNotification);
+  ReportFlaggedResponseCookies(!delay_cookie_call);
 
   if (net_error != net::OK) {
     NotifyCompleted(net_error);
@@ -1312,6 +1319,13 @@ void URLLoader::ContinueOnResponseStarted() {
       // treat the response as "text/plain".  This is the most secure option.
       response_->mime_type.assign("text/plain");
     }
+  }
+
+  // If client-side content decoding is requested, store the types of decoding
+  // to be used with the Durable Message so it can decode on retrieval.
+  if (devtools_durable_message_) {
+    devtools_durable_message_->SetClientDecodingTypes(
+        response_->client_side_content_decoding_types);
   }
 
   // If client-side content decoding is requested and either ORB or MIME

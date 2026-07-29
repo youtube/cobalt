@@ -189,10 +189,10 @@ void NavigateEvent::intercept(NavigationInterceptOptions* options,
           MakeGarbageCollected<ConsoleMessage>(
               mojom::blink::ConsoleMessageSource::kJavaScript,
               mojom::blink::ConsoleMessageLevel::kWarning,
-              "The \"" + options->focusReset().AsString() + "\" value for " +
-                  "intercept()'s focusReset option "
-                  "will override the previously-passed value of \"" +
-                  focus_reset_behavior_->AsString() + "\"."));
+              StrCat({"The \"", options->focusReset().AsStringView(),
+                      "\" value for intercept()'s focusReset option will "
+                      "override the previously-passed value of \"",
+                      focus_reset_behavior_->AsStringView(), "\"."})));
     }
     focus_reset_behavior_ = options->focusReset();
   }
@@ -204,10 +204,10 @@ void NavigateEvent::intercept(NavigationInterceptOptions* options,
           MakeGarbageCollected<ConsoleMessage>(
               mojom::blink::ConsoleMessageSource::kJavaScript,
               mojom::blink::ConsoleMessageLevel::kWarning,
-              "The \"" + options->scroll().AsString() + "\" value for " +
-                  "intercept()'s scroll option "
-                  "will override the previously-passed value of \"" +
-                  scroll_behavior_->AsString() + "\"."));
+              StrCat({"The \"", options->scroll().AsStringView(),
+                      "\" value for intercept()'s scroll option will override "
+                      "the previously-passed value of \"",
+                      scroll_behavior_->AsStringView(), "\"."})));
     }
     scroll_behavior_ = options->scroll();
   }
@@ -301,8 +301,8 @@ void NavigateEvent::Redirect(const String& url_string,
 void NavigateEvent::MaybeCommitImmediately(ScriptState* script_state) {
   delayed_load_start_task_handle_ = PostDelayedCancellableTask(
       *DomWindow()->GetTaskRunner(TaskType::kInternalLoading), FROM_HERE,
-      WTF::BindOnce(&NavigateEvent::DelayedLoadStartTimerFired,
-                    WrapWeakPersistent(this)),
+      BindOnce(&NavigateEvent::DelayedLoadStartTimerFired,
+               WrapWeakPersistent(this)),
       kDelayLoadStart);
 
   if (navigation_action_precommit_handlers_list_.empty()) {

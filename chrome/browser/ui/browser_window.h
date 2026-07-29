@@ -246,6 +246,9 @@ class BrowserWindow : public ui::BaseWindow {
   // changed.
   virtual void UpdateDevTools(content::WebContents* inspected_web_contents) = 0;
 
+  // Returns true if the browser window can dock a DevTools panel.
+  virtual bool CanDockDevTools() const = 0;
+
   // Update any loading animations running in the window. |is_visible| is true
   // if the window is visible.
   virtual void UpdateLoadingAnimations(bool is_visible) = 0;
@@ -544,9 +547,10 @@ class BrowserWindow : public ui::BaseWindow {
   GetWebContentsModalDialogHostFor(content::WebContents* web_contents) = 0;
 
   // Construct a BrowserWindow implementation for the specified |browser|.
-  static BrowserWindow* CreateBrowserWindow(std::unique_ptr<Browser> browser,
-                                            bool user_gesture,
-                                            bool in_tab_dragging);
+  static std::unique_ptr<BrowserWindow, BrowserWindowDeleter>
+  CreateBrowserWindow(Browser* browser,
+                      bool user_gesture,
+                      bool in_tab_dragging);
 
   virtual void ShowAvatarBubbleFromAvatarButton(bool is_source_accelerator) = 0;
 
@@ -651,11 +655,10 @@ class BrowserWindow : public ui::BaseWindow {
   virtual BrowserView* AsBrowserView() = 0;
 
  protected:
-  // Synchronously destroys the Browser.
-  // TODO(crbug.com/413168662): This can be removed once the ownership structure
-  // is updated and Browser owns BrowserWindow.
-  friend class Browser;
-  virtual void DestroyBrowser() = 0;
+  friend struct BrowserWindowDeleter;
+  // Deletes `this`. Note BrowserWindow will no longer be valid after this
+  // returns.
+  virtual void DeleteBrowserWindow() = 0;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_H_

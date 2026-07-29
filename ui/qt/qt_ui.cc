@@ -20,6 +20,7 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/scoped_environment_variable_override.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -47,8 +48,7 @@
 #include "ui/linux/linux_ui.h"
 #include "ui/linux/linux_ui_delegate.h"
 #include "ui/linux/nav_button_provider.h"
-#include "ui/native_theme/native_theme_aura.h"
-#include "ui/native_theme/native_theme_base.h"
+#include "ui/qt/native_theme_qt.h"
 #include "ui/qt/qt_interface.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/shell_dialogs/select_file_policy.h"
@@ -127,50 +127,6 @@ gfx::FontRenderParams::Hinting QtHintingToGfxHinting(
 
 }  // namespace
 
-class QtNativeTheme : public ui::NativeThemeAura {
- public:
-  explicit QtNativeTheme(QtInterface* shim)
-      : ui::NativeThemeAura(/*use_overlay_scrollbars=*/false,
-                            /*should_only_use_dark_colors=*/false,
-                            ui::SystemTheme::kQt),
-        shim_(shim) {}
-  QtNativeTheme(const QtNativeTheme&) = delete;
-  QtNativeTheme& operator=(const QtNativeTheme&) = delete;
-  ~QtNativeTheme() override = default;
-
-  void ThemeChanged(bool prefer_dark_theme) {
-    set_use_dark_colors(IsForcedDarkMode() || prefer_dark_theme);
-    set_preferred_color_scheme(CalculatePreferredColorScheme());
-
-    NotifyOnNativeThemeUpdated();
-  }
-
-  // ui::NativeTheme:
-  DISABLE_CFI_VCALL
-  void PaintFrameTopArea(cc::PaintCanvas* canvas,
-                         State state,
-                         const gfx::Rect& rect,
-                         const FrameTopAreaExtraParams& frame_top_area,
-                         ColorScheme color_scheme) const override {
-    auto image = shim_->DrawHeader(
-        rect.width(), rect.height(), frame_top_area.default_background_color,
-        frame_top_area.is_active ? ColorState::kNormal : ColorState::kInactive,
-        frame_top_area.use_custom_frame);
-    SkImageInfo image_info = SkImageInfo::Make(
-        image.width, image.height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    SkBitmap bitmap;
-    bitmap.installPixels(
-        image_info, image.data_argb.Take(), image_info.minRowBytes(),
-        [](void* data, void*) { free(data); }, nullptr);
-    bitmap.setImmutable();
-    canvas->drawImage(cc::PaintImage::CreateFromBitmap(std::move(bitmap)),
-                      rect.x(), rect.y());
-  }
-
- private:
-  raw_ptr<QtInterface> const shim_;
-};
-
 QtUi::QtUi(ui::LinuxUi* fallback_linux_ui)
     : fallback_linux_ui_(fallback_linux_ui) {}
 
@@ -201,26 +157,6 @@ ui::SelectFileDialog* QtUi::CreateSelectFileDialog(
 DISABLE_CFI_DLSYM
 DISABLE_CFI_VCALL
 bool QtUi::Initialize() {
-  base::FilePath path;
-  if (!base::PathService::Get(base::DIR_MODULE, &path)) {
-    return false;
-  }
-  void* libqt_shim = nullptr;
-  auto load_libqt_shim = [&](int qt_version) -> bool {
-    auto file_name = base::StringPrintf("libqt%d_shim.so", qt_version);
-    if ((libqt_shim = LoadLibrary(path.Append(file_name)))) {
-      qt_version_ = qt_version;
-    }
-    return libqt_shim;
-  };
-  PreferQt6() ? load_libqt_shim(6) || load_libqt_shim(5)
-              : load_libqt_shim(5) || load_libqt_shim(6);
-  if (!libqt_shim) {
-    return false;
-  }
-  void* create_qt_interface = dlsym(libqt_shim, "CreateQtInterface");
-  DCHECK(create_qt_interface);
-
   // Under certain conditions, a hang may occur in libICE when reading from the
   // ICE connection.  Chrome doesn't use QT's session save/restore capabilities
   // and instead manages it's own sessions, so this is not needed anyway.  Unset
@@ -234,6 +170,7 @@ bool QtUi::Initialize() {
   // [3] https://crbug.com/396193145
   base::ScopedEnvironmentVariableOverride qt_xcb_no_xi2("QT_XCB_NO_XI2", "1");
 
+  // Set up command line.
   auto cmd_line = *base::CommandLine::ForCurrentProcess();
   if (auto* delegate = ui::LinuxUiDelegate::GetInstance()) {
     // Ensure QT is initialized with the same display server protocol as Chrome.
@@ -253,9 +190,33 @@ bool QtUi::Initialize() {
     }
   }
   cmd_line_ = CopyCmdLine(cmd_line);
+
+  // Create shim.
+  base::FilePath path;
+  if (!base::PathService::Get(base::DIR_MODULE, &path)) {
+    return false;
+  }
+  void* libqt_shim = nullptr;
+  auto load_libqt_shim = [&](int qt_version) -> bool {
+    auto file_name = base::StringPrintf("libqt%d_shim.so", qt_version);
+    if ((libqt_shim = LoadLibrary(path.Append(file_name)))) {
+      qt_version_ = qt_version;
+    }
+    return libqt_shim;
+  };
+  PreferQt6() ? load_libqt_shim(6) || load_libqt_shim(5)
+              : load_libqt_shim(5) || load_libqt_shim(6);
+  if (!libqt_shim) {
+    return false;
+  }
+  void* create_qt_interface = dlsym(libqt_shim, "CreateQtInterface");
+  DCHECK(create_qt_interface);
   shim_.reset((reinterpret_cast<decltype(&CreateQtInterface)>(
       create_qt_interface)(this, &cmd_line_.argc, cmd_line_.argv.data())));
-  native_theme_ = std::make_unique<QtNativeTheme>(shim_.get());
+
+  // Initialize native theme.
+  native_theme_ = std::make_unique<NativeThemeQt>(shim_.get());
+
   ui::ColorProviderManager::Get().AppendColorProviderInitializer(
       base::BindRepeating(&QtUi::AddNativeColorMixer, base::Unretained(this)));
   ScaleFactorMaybeChangedImpl();
@@ -393,8 +354,8 @@ QtUi::WindowFrameAction QtUi::GetWindowFrameAction(
 
 std::vector<std::string> QtUi::GetCmdLineFlagsForCopy() const {
   return {std::string(switches::kUiToolkitFlag) + "=qt",
-          std::string(switches::kQtVersionFlag) + "=" +
-              base::NumberToString(qt_version_)};
+          base::StrCat({switches::kQtVersionFlag, "=",
+                        base::NumberToString(qt_version_)})};
 }
 
 DISABLE_CFI_VCALL

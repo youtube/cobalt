@@ -14,7 +14,6 @@ Example usage:
 
 import argparse
 import csv
-import hashlib
 import json
 import glob
 import logging
@@ -25,7 +24,6 @@ import statistics
 import subprocess
 import sys
 import tempfile
-import time
 from typing import Dict, List, Union
 
 import android_profile_tool
@@ -62,31 +60,7 @@ class StepRecorder:
   """Records steps and timings."""
 
   def __init__(self):
-    self.timings = []
-    self._previous_step = ('', 0.0)
     self._error_recorded = False
-
-  def BeginStep(self, name):
-    """Marks a beginning of the next step in the generator.
-
-    Args:
-      name: The name of the step.
-    """
-    self.EndStep()
-    self._previous_step = (name, time.time())
-    logging.info('Running step: %s', name)
-
-  def EndStep(self):
-    """Records successful completion of the current step.
-
-    This is optional if the step is immediately followed by another BeginStep.
-    """
-    if self._previous_step[0]:
-      elapsed = time.time() - self._previous_step[1]
-      logging.info('Step %s took %f seconds', self._previous_step[0], elapsed)
-      self.timings.append((self._previous_step[0], elapsed))
-
-    self._previous_step = ('', 0.0)
 
   def FailStep(self, message=None):
     """Marks that a particular step has failed.
@@ -96,11 +70,9 @@ class StepRecorder:
     Args:
       message: An optional explanation as to why the step failed.
     """
-    logging.error('STEP FAILED!!')
     if message:
       logging.error(message)
     self._error_recorded = True
-    self.EndStep()
 
   def ErrorRecorded(self):
     """True if FailStep has been called."""
@@ -145,6 +117,51 @@ class StepRecorder:
     return process
 
 
+def _MakePublicTarget(internal_target):
+  if 'google' in internal_target:
+    return internal_target.replace('_google', '')
+  return internal_target.replace('_apk', '_public_apk')
+
+
+def _GetApkFromTarget(target):
+  _camel_case = ''.join(x.capitalize() for x in target.lower().split('_'))
+  _camel_case = _camel_case.replace('Webview', 'WebView')
+  return _camel_case.replace('Apk', '.apk')
+
+
+def _GetWebViewTargetAndApk(public, arch):
+  target = 'trichrome_webview_google_apk'
+  if public:
+    target = _MakePublicTarget(target)
+  apk = _GetApkFromTarget(target)
+  if 'Trichrome' in apk and '64' in arch:
+    # Trichrome has a 6432.apk suffix for arm64 and x64 builds.
+    apk = apk.replace('.apk', '6432.apk')
+    target = target.replace('_apk', '_64_32_apk')
+  return target, apk
+
+
+def _GetChromeTargetAndBrowserName(arch):
+  # Always use public targets since the bots only use public targets.
+  target = 'trichrome_chrome_bundle'
+  if arch == 'arm64':
+    target = 'trichrome_chrome_64_32_bundle'
+  # e.g. trichrome_chrome_bundle -> android-trichrome-chrome-bundle
+  return target, 'android-' + target.replace('_', '-')
+
+
+def _RemoveBlanks(src_file, dest_file):
+  """A utility to remove blank lines from a file.
+
+  Args:
+    src_file: The name of the file to remove the blanks from.
+    dest_file: The name of the file to write the output without blanks.
+  """
+  assert src_file != dest_file, 'Source and destination need to be distinct'
+  with open(src_file) as src, open(dest_file, 'w') as dest:
+    dest.writelines(line for line in src if line.strip())
+
+
 class ClankCompiler:
   """Handles compilation of clank."""
 
@@ -161,16 +178,15 @@ class ClankCompiler:
     self._ninja_command += ['-C']
 
     # WebView targets
-    self._webview_target, webview_apk = self._GetWebViewTargetAndApk(
+    self._webview_target, webview_apk = _GetWebViewTargetAndApk(
         options.public, options.arch)
     self.webview_apk_path = str(out_dir / 'apks' / webview_apk)
     self.webview_installer_path = str(self._out_dir / 'bin' /
                                       self._webview_target)
 
     # Chrome targets
-    self._chrome_target, chrome_apk = self._GetChromeTargetAndApk(
-        options.public)
-    self.chrome_apk_path = str(out_dir / 'apks' / chrome_apk)
+    self._chrome_target, self.chrome_browser_name = (
+        _GetChromeTargetAndBrowserName(options.arch))
 
     self._libchrome_target = orderfile_shared.GetLibchromeTarget(options.arch)
     self.lib_chrome_so = orderfile_shared.GetLibchromeSoPath(
@@ -205,7 +221,7 @@ class ClankCompiler:
       instrumented: (bool) Whether we want to build an instrumented binary.
       target: (str) The name of the ninja target to build.
     """
-    self._step_recorder.BeginStep('Compile %s' % target)
+    logging.info('Compile %s' % target)
     gn_args = self._GenerateGnArgs(instrumented)
     self._step_recorder.RunCommand([
         sys.executable,
@@ -272,36 +288,6 @@ class ClankCompiler:
       self._ForceRelink()
     self._Build(instrumented, self._libchrome_target)
 
-  @staticmethod
-  def _MakePublicTarget(internal_target):
-    if 'google' in internal_target:
-      return internal_target.replace('_google', '')
-    return internal_target.replace('_apk', '_public_apk')
-
-  @staticmethod
-  def _GetApkFromTarget(target):
-    _camel_case = ''.join(x.capitalize() for x in target.lower().split('_'))
-    _camel_case = _camel_case.replace('Webview', 'WebView')
-    return _camel_case.replace('Apk', '.apk')
-
-  @staticmethod
-  def _GetWebViewTargetAndApk(public, arch):
-    target = 'trichrome_webview_google_apk'
-    if public:
-      target = ClankCompiler._MakePublicTarget(target)
-    apk = ClankCompiler._GetApkFromTarget(target)
-    if 'Trichrome' in apk and '64' in arch:
-      # Trichrome has a 6432.apk suffix for arm64 and x64 builds.
-      apk = apk.replace('.apk', '6432.apk')
-    return target, apk
-
-  @staticmethod
-  def _GetChromeTargetAndApk(public):
-    target = 'trichrome_chrome_google_apk'
-    if public:
-      target = ClankCompiler._MakePublicTarget(target)
-    return target, ClankCompiler._GetApkFromTarget(target)
-
 
 class OrderfileGenerator:
   """A utility for generating a new orderfile for Clank.
@@ -313,6 +299,40 @@ class OrderfileGenerator:
 
   # Previous orderfile_generator debug files would be overwritten.
   _DIRECTORY_FOR_DEBUG_FILES = '/tmp/orderfile_generator_debug_files'
+
+  def __init__(self, options):
+    self._options = options
+    self._instrumented_out_dir = (
+        _OUT_PATH / f'orderfile_{self._options.arch}_instrumented_out')
+
+    self._uninstrumented_out_dir = (
+        _OUT_PATH / f'orderfile_{self._options.arch}_uninstrumented_out')
+    self._no_orderfile_out_dir = (
+        _OUT_PATH / f'orderfile_{self._options.arch}_no_orderfile_out')
+
+    self._PrepareOrderfilePaths()
+
+    if options.profile:
+      self._host_profile_root = _SRC_PATH / 'profile_data'
+      device = self._SetDevice()
+      self._profiler = android_profile_tool.AndroidProfileTool(
+          str(self._host_profile_root),
+          device,
+          debug=self._options.streamline_for_debugging,
+          verbosity=self._options.verbosity)
+      if options.pregenerated_profiles:
+        self._profiler.SetPregeneratedProfiles(
+            glob.glob(options.pregenerated_profiles))
+    else:
+      assert not options.pregenerated_profiles, (
+          '--pregenerated-profiles cannot be used with --skip-profile')
+      assert not options.profile_save_dir, (
+          '--profile-save-dir cannot be used with --skip-profile')
+
+    self._output_data = {}
+    self._step_recorder = StepRecorder()
+    self._compiler = None
+    assert _SRC_PATH.is_dir(), 'No src directory found'
 
   def _PrepareOrderfilePaths(self):
     if self._options.public:
@@ -354,51 +374,6 @@ class OrderfileGenerator:
         return device
     raise Exception('No device running Android Q+ found to build trichrome.')
 
-  def __init__(self, options):
-    self._options = options
-    self._instrumented_out_dir = (
-        _OUT_PATH / f'orderfile_{self._options.arch}_instrumented_out')
-
-    self._uninstrumented_out_dir = (
-        _OUT_PATH / f'orderfile_{self._options.arch}_uninstrumented_out')
-    self._no_orderfile_out_dir = (
-        _OUT_PATH / f'orderfile_{self._options.arch}_no_orderfile_out')
-
-    self._PrepareOrderfilePaths()
-
-    if options.profile:
-      self._host_profile_root = _SRC_PATH / 'profile_data'
-      device = self._SetDevice()
-      self._profiler = android_profile_tool.AndroidProfileTool(
-          str(self._host_profile_root),
-          device,
-          debug=self._options.streamline_for_debugging,
-          verbosity=self._options.verbosity)
-      if options.pregenerated_profiles:
-        self._profiler.SetPregeneratedProfiles(
-            glob.glob(options.pregenerated_profiles))
-    else:
-      assert not options.pregenerated_profiles, (
-          '--pregenerated-profiles cannot be used with --skip-profile')
-      assert not options.profile_save_dir, (
-          '--profile-save-dir cannot be used with --skip-profile')
-
-    self._output_data = {}
-    self._step_recorder = StepRecorder()
-    self._compiler = None
-    assert _SRC_PATH.is_dir(), 'No src directory found'
-
-  @staticmethod
-  def _RemoveBlanks(src_file, dest_file):
-    """A utility to remove blank lines from a file.
-
-    Args:
-      src_file: The name of the file to remove the blanks from.
-      dest_file: The name of the file to write the output without blanks.
-    """
-    assert src_file != dest_file, 'Source and destination need to be distinct'
-    with open(src_file) as src, open(dest_file, 'w') as dest:
-      dest.writelines(line for line in src if line.strip())
 
   def _GenerateAndProcessProfile(self):
     """Invokes a script to merge the per-thread traces into one file.
@@ -406,7 +381,7 @@ class OrderfileGenerator:
     The produced list of offsets is saved in
     self._GetUnpatchedOrderfileFilename().
     """
-    self._step_recorder.BeginStep('Generate Profile Data')
+    logging.info('Generate Profile Data')
     files = []
     logging.getLogger().setLevel(logging.DEBUG)
 
@@ -418,9 +393,13 @@ class OrderfileGenerator:
 
     assert self._compiler is not None, (
         'A valid compiler is needed to generate profiles.')
+    if self._options.profile_webview:
+      apk_or_browser = self._compiler.webview_apk_path
+    else:
+      apk_or_browser = self._compiler.chrome_browser_name
     files = orderfile_shared.CollectProfiles(
-        self._profiler, self._options.profile_webview,
-        self._options.arch, self._compiler.chrome_apk_path,
+        self._profiler,
+        self._options.profile_webview, self._options.arch, apk_or_browser,
         str(self._instrumented_out_dir), self._compiler.webview_installer_path)
     self._MaybeSaveProfile()
     self._ProcessPhasedOrderfile(files)
@@ -436,7 +415,7 @@ class OrderfileGenerator:
     Args:
       file: Profile files pulled locally.
     """
-    self._step_recorder.BeginStep('Process Phased Orderfile')
+    logging.info('Process Phased Orderfile')
     assert self._compiler is not None
     ordered_symbols, symbols_size = orderfile_shared.ProcessProfiles(
         files, self._compiler.lib_chrome_so)
@@ -454,12 +433,12 @@ class OrderfileGenerator:
   def _AddDummyFunctions(self):
     # TODO(crbug.com/340534475): Stop writing the `unpatched_orderfile` and
     # saving it locally.
-    self._step_recorder.BeginStep('Add dummy functions')
+    logging.info('Add dummy functions')
     orderfile_shared.AddDummyFunctions(self._GetUnpatchedOrderfileFilename(),
                                        self._GetPathToOrderfile())
 
   def _VerifySymbolOrder(self):
-    self._step_recorder.BeginStep('Verify Symbol Order')
+    logging.info('Verify Symbol Order')
     assert self._compiler is not None
     return check_orderfile.ExtractAndVerifySymbolOrder(
         self._compiler.lib_chrome_so, self._GetPathToOrderfile())
@@ -469,13 +448,13 @@ class OrderfileGenerator:
     Args:
       apk: Path to the apk.
     """
-    self._step_recorder.BeginStep("Running system_health.webview_startup")
+    logging.info('Running system_health.webview_startup')
     try:
       chromium_out_dir = os.path.abspath(
           os.path.join(os.path.dirname(apk), '..'))
-      browser = self._profiler._GetBrowserFromApk(apk)
+      browser = android_profile_tool.GetBrowserFromApk(apk)
       out_dir = tempfile.mkdtemp()
-      self._profiler._RunCommand([
+      android_profile_tool.RunCommand([
           'tools/perf/run_benchmark', '--device', self._profiler._device.serial,
           '--browser', browser, '--output-format=csv', '--output-dir', out_dir,
           '--chromium-output-directory', chromium_out_dir, '--reset-results',
@@ -514,7 +493,7 @@ class OrderfileGenerator:
       results: ([int]) Values of native code memory footprint in bytes from the
                        benchmark results.
     """
-    self._step_recorder.BeginStep("Running orderfile.memory_mobile")
+    logging.info('Running orderfile.memory_mobile')
     try:
       out_dir = tempfile.mkdtemp()
       cmd = [
@@ -523,7 +502,7 @@ class OrderfileGenerator:
           '--reset-results', '--browser-executable', apk,
           'orderfile.memory_mobile'
       ] + ['-v'] * self._options.verbosity
-      self._profiler._RunCommand(cmd)
+      android_profile_tool.RunCommand(cmd)
 
       out_file_path = os.path.join(out_dir, 'results.csv')
       if not os.path.exists(out_file_path):
@@ -562,7 +541,7 @@ class OrderfileGenerator:
     Returns:
       results: Speedometer2.0 results samples in milliseconds.
     """
-    self._step_recorder.BeginStep("Running Speedometer2.0.")
+    logging.info('Running Speedometer2.0.')
     try:
       out_dir = tempfile.mkdtemp()
       cmd = [
@@ -572,7 +551,7 @@ class OrderfileGenerator:
           'speedometer2'
       ] + ['-v'] * self._options.verbosity
 
-      self._profiler._RunCommand(cmd)
+      android_profile_tool.RunCommand(cmd)
       out_file_path = os.path.join(out_dir, 'histograms.json')
       if not os.path.exists(out_file_path):
         raise Exception('Results file not found!')
@@ -626,9 +605,9 @@ class OrderfileGenerator:
       # Build APK to be installed on the device.
       self._compiler.CompileChromeApk(instrumented=False, force_relink=True)
       benchmark_results[_RESULTS_KEY_SPEEDOMETER] = self._PerformanceBenchmark(
-          self._compiler.chrome_apk_path)
+          self._compiler.chrome_browser_name)
       benchmark_results['orderfile.memory_mobile'] = (
-          self._NativeCodeMemoryBenchmark(self._compiler.chrome_apk_path))
+          self._NativeCodeMemoryBenchmark(self._compiler.chrome_browser_name))
       if self._options.profile_webview:
         self._compiler.CompileWebViewApk(instrumented=False, force_relink=True)
         self._profiler.InstallAndSetWebViewProvider(
@@ -681,8 +660,8 @@ class OrderfileGenerator:
       self._GenerateAndProcessProfile()
 
     if self._options.profile:
-      self._RemoveBlanks(self._GetUnpatchedOrderfileFilename(),
-                         self._GetPathToOrderfile())
+      _RemoveBlanks(self._GetUnpatchedOrderfileFilename(),
+                    self._GetPathToOrderfile())
     self._AddDummyFunctions()
     if not self.CompileAndVerify():
       return False
@@ -692,7 +671,6 @@ class OrderfileGenerator:
           self.RunBenchmark(self._uninstrumented_out_dir),
           self.RunBenchmark(self._no_orderfile_out_dir, no_orderfile=True))
 
-    self._step_recorder.EndStep()
     return not self._step_recorder.ErrorRecorded()
 
   def CompileAndVerify(self):
@@ -704,8 +682,7 @@ class OrderfileGenerator:
     return self._VerifySymbolOrder()
 
   def GetReportingData(self):
-    """Get a dictionary of reporting data (timings, output hashes)"""
-    self._output_data['timings'] = self._step_recorder.timings
+    """Get a dictionary of reporting data."""
     return self._output_data
 
 

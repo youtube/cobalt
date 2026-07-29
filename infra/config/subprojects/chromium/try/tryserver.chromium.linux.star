@@ -241,14 +241,6 @@ try_.builder(
 )
 
 try_.builder(
-    name = "linux-blink-wpt-3pcd-fyi-rel",
-    mirrors = ["ci/linux-blink-wpt-3pcd-fyi-rel"],
-    gn_args = "ci/linux-blink-wpt-3pcd-fyi-rel",
-    contact_team_email = "potassium-engprod-team@twosync.google.com",
-    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-)
-
-try_.builder(
     name = "linux-centipede-asan-rel",
     branch_selector = branches.selector.LINUX_BRANCHES,
     executable = "recipe:chromium/fuzz",
@@ -1077,6 +1069,7 @@ gpu.try_.optional_tests_builder(
     builderless = True,
     ssd = None,
     free_space = None,
+    alerts_enabled = False,
     contact_team_email = "chrome-gpu-infra@google.com",
     main_list_view = "try",
     max_concurrent_builds = 7,

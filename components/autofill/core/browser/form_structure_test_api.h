@@ -19,8 +19,6 @@ namespace autofill {
 // Exposes some testing operations for FormStructure.
 class FormStructureTestApi {
  public:
-  using ShouldBeParsedParams = FormStructure::ShouldBeParsedParams;
-
   explicit FormStructureTestApi(FormStructure& form_structure)
       : form_structure_(form_structure) {}
 
@@ -33,11 +31,6 @@ class FormStructureTestApi {
     form_structure_->fields_.push_back(
         std::make_unique<AutofillField>(std::move(field)));
     return *form_structure_->fields_.back();
-  }
-
-  [[nodiscard]] bool ShouldBeParsed(ShouldBeParsedParams params = {},
-                                    LogManager* log_manager = nullptr) {
-    return form_structure_->ShouldBeParsed(params, log_manager);
   }
 
   // Set the heuristic and server types for each field. The `heuristic_types`
@@ -67,16 +60,6 @@ class FormStructureTestApi {
   }
 
   void AssignSections() { autofill::AssignSections(form_structure_->fields_); }
-
-  FieldCandidatesMap ParseFieldTypesWithPatterns(
-      ParsingContext& context) const {
-    return form_structure_->ParseFieldTypesWithPatterns(context);
-  }
-
-  void AssignBestFieldTypes(const FieldCandidatesMap& field_type_map,
-                            HeuristicSource heuristic_source) {
-    form_structure_->AssignBestFieldTypes(field_type_map, heuristic_source);
-  }
 
  private:
   const raw_ref<FormStructure> form_structure_;

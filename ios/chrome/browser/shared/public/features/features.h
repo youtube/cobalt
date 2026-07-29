@@ -17,9 +17,6 @@ namespace base {
 class TimeDelta;
 }  // namespace base
 
-// Feature flag to enable the Keyboard Accessory Upgrade for iPads.
-BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryUpgradeForIPad);
-
 // Test-only: Feature flag used to verify that EG2 can trigger flags. Must be
 // always disabled by default, because it is used to verify that enabling
 // features in tests works.
@@ -652,9 +649,6 @@ bool IsContentPushNotificationsProvisionalRegistrationOnly();
 // change.
 bool IsContentPushNotificationsSetUpListRegistrationOnly();
 
-// Whether or not the Keyboard Accessory Upgrade feature is enabled.
-bool IsKeyboardAccessoryUpgradeEnabled();
-
 // Whether the liquid glass effect is enabled. Returns true on iOS 26+ if the
 // Keyboard Accessory Upgrade feature is enabled (pre KA upgrade code is about
 // to be deprecated, so we're not adding liquid glass support to it). Returns
@@ -737,18 +731,6 @@ BASE_DECLARE_FEATURE(kHomeMemoryImprovements);
 // Whether Home memory improvements are enabled.
 bool IsHomeMemoryImprovementsEnabled();
 
-// Feature flag to enable account confirmation snackbar on startup.
-BASE_DECLARE_FEATURE(kIdentityConfirmationSnackbar);
-
-// Feature params to specify how much time between identity confirmation
-// snackbar triggers to avoid over-prompting. Overridable through Finch.
-extern const base::FeatureParam<base::TimeDelta>
-    kIdentityConfirmationMinDisplayInterval1;
-extern const base::FeatureParam<base::TimeDelta>
-    kIdentityConfirmationMinDisplayInterval2;
-extern const base::FeatureParam<base::TimeDelta>
-    kIdentityConfirmationMinDisplayInterval3;
-
 // Feature flag to enable the registration of customized UITrait arrays. This
 // feature flag is related to the effort to remove invocations of
 // 'traitCollectionDidChange' which was deprecated in iOS 17.
@@ -773,11 +755,6 @@ extern const base::FeatureParam<base::TimeDelta>
 // Feature flag to control force-migrating the primary managed account to its
 // own separate profile.
 BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration);
-
-// Kill switch to turn off `kSeparateProfilesForManagedAccounts`, even if
-// multiple profiles already exist.
-// DO NOT CHECK DIRECTLY, use AreSeparateProfilesForManagedAccountsEnabled()!
-BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsKillSwitch);
 
 // Feature to control resyncing the omaha ping timer on foregrounding.
 BASE_DECLARE_FEATURE(kOmahaResyncTimerOnForeground);

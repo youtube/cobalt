@@ -46,6 +46,7 @@
 #include "chrome/browser/extensions/startup_helper.h"
 #include "chrome/browser/first_run/first_run.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
+#include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/nuke_profile_directory_utils.h"
@@ -141,7 +142,7 @@
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_installation_manager.h"
+#include "chrome/browser/web_applications/isolated_web_apps/install/isolated_web_app_installation_manager.h"
 #endif
 
 using content::BrowserThread;
@@ -1491,6 +1492,16 @@ void StartupBrowserCreator::ProcessCommandLineWithProfile(
     LOG(ERROR) << "Failed to load the profile.";
     return;
   }
+
+  // Trigger immediate policy refresh when Chrome is already running.
+  // Useful for testing or forcing policy updates without waiting for
+  // the next scheduled refresh.
+  if (command_line.HasSwitch(switches::kRefreshPlatformPolicy)) {
+    g_browser_process->browser_policy_connector()->RefreshPlatformPolicies();
+    // Return early to prevent opening a new browser window.
+    return;
+  }
+
   Profiles last_opened_profiles;
 #if !BUILDFLAG(IS_CHROMEOS)
   // On ChromeOS multiple profiles doesn't apply.
@@ -1640,6 +1651,10 @@ StartupProfilePathInfo GetStartupProfilePath(
             .mode = StartupProfileMode::kBrowserWindow};
   }
 
+#if !BUILDFLAG(IS_CHROMEOS)
+  auto has_tabs =
+      StartupTabProviderImpl().HasCommandLineTabs(command_line, cur_dir);
+#endif  // !BUILDFLAG(IS_CHROMEOS)
   if (command_line.HasSwitch(switches::kProfileEmail)) {
     // Use GetSwitchValueNative() rather than GetSwitchValueASCII() to support
     // non-ASCII email addresses.
@@ -1658,13 +1673,20 @@ StartupProfilePathInfo GetStartupProfilePath(
         return {.path = profile_dir,
                 .mode = StartupProfileMode::kBrowserWindow};
       }
-      if (base::FeatureList::IsEnabled(features::kCreateProfileIfNoneExists) &&
-          command_line.HasSwitch(switches::kCreateProfileEmailIfNotExists)) {
-        // Return the profile picker instead of choosing a default profile.
-        // TODO (crbug.com/395127068): Investigate why the email sometimes does
-        // not get prefilled.
-        return {.path = base::FilePath(),
-                .mode = StartupProfileMode::kProfilePicker};
+      if (command_line.HasSwitch(switches::kCreateProfileEmailIfNotExists)) {
+#if !BUILDFLAG(IS_CHROMEOS)
+        if (has_tabs != CommandLineTabsPresent::kNo) {
+          ProfilePicker::SetOpenCommandLineUrlsInNextProfileOpened(true);
+        }
+#endif
+        if (base::FeatureList::IsEnabled(
+                features::kCreateProfileIfNoneExists)) {
+          // Return the profile picker instead of choosing a default profile.
+          // TODO (crbug.com/395127068): Investigate why the email sometimes
+          // does not get prefilled.
+          return {.path = base::FilePath(),
+                  .mode = StartupProfileMode::kProfilePicker};
+        }
       }
     }
   }
@@ -1682,8 +1704,6 @@ StartupProfilePathInfo GetStartupProfilePath(
   // URLs are provided or if we aren't able to extract them at this stage (e.g.
   // we need a profile to access search engine preferences and attempt to
   // resolve a query into a URL), open them in the last profile, instead.
-  auto has_tabs =
-      StartupTabProviderImpl().HasCommandLineTabs(command_line, cur_dir);
   if (has_tabs != CommandLineTabsPresent::kNo) {
     return {.path = profile_manager->GetLastUsedProfileDir(),
             .mode = StartupProfileMode::kBrowserWindow};

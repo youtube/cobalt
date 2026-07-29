@@ -93,16 +93,25 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
       return gpu::ContextResult::kFatalFailure;
     }
   } else {
-    scoped_refptr<gles2::FeatureInfo> feature_info = new gles2::FeatureInfo(
+    auto feature_info = base::MakeRefCounted<gles2::FeatureInfo>(
         manager->gpu_driver_bug_workarounds(), manager->gpu_feature_info());
-    context_group_ = new gles2::ContextGroup(
+    context_group_ = base::MakeRefCounted<gles2::ContextGroup>(
         manager->gpu_preferences(), CreateMemoryTracker(),
         manager->shader_translator_cache(),
-        manager->framebuffer_completeness_cache(), feature_info, false,
+        manager->framebuffer_completeness_cache(), feature_info,
         manager->watchdog() /* progress_reporter */,
         manager->gpu_feature_info(), manager->discardable_manager(),
         manager->passthrough_discardable_manager(),
         manager->shared_image_manager());
+  }
+
+  // If the `fail_if_major_perf_caveat` context creation attribute was true
+  // and we are using a software renderer, fail.
+  if (init_params.attribs.fail_if_major_perf_caveat &&
+      context_group_->feature_info()->feature_flags().is_software_webgl) {
+    LOG(ERROR) << "ContextResult::kFatalFailure: "
+                  "fail_if_major_perf_caveat + software gl";
+    return gpu::ContextResult::kFatalFailure;
   }
 
 #if BUILDFLAG(IS_MAC)
@@ -118,9 +127,10 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
 
   command_buffer_ = std::make_unique<CommandBufferService>(
       this, context_group_->memory_tracker());
-  gles2_decoder_ = gles2::GLES2Decoder::Create(
+  auto decoder = gles2::GLES2Decoder::Create(
       this, command_buffer_.get(), manager->outputter(), context_group_.get());
-  set_decoder_context(std::unique_ptr<DecoderContext>(gles2_decoder_));
+  gles2_decoder_ = decoder.get();
+  set_decoder_context(std::move(decoder));
 
   scoped_sync_point_client_state_ =
       channel_->scheduler()->CreateSyncPointClientState(
@@ -210,7 +220,8 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
     if (!context) {
       context = gl::init::CreateGLContext(
           share_group_.get(), surface_.get(),
-          GenerateGLContextAttribsForDecoder(init_params.attribs,
+          GenerateGLContextAttribsForDecoder(init_params.attribs.context_type,
+                                             init_params.attribs.gpu_preference,
                                              context_group_.get()));
       if (!context) {
         // TODO(piman): This might not be fatal, we could recurse into
@@ -237,9 +248,11 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
            gl::GetGLImplementation() == gl::kGLImplementationStubGL);
     context = base::MakeRefCounted<GLContextVirtual>(
         share_group_.get(), context.get(), gles2_decoder_->AsWeakPtr());
-    if (!context->Initialize(surface_.get(),
-                             GenerateGLContextAttribsForDecoder(
-                                 init_params.attribs, context_group_.get()))) {
+    if (!context->Initialize(
+            surface_.get(),
+            GenerateGLContextAttribsForDecoder(
+                init_params.attribs.context_type,
+                init_params.attribs.gpu_preference, context_group_.get()))) {
       // The real context created above for the default offscreen surface
       // might not be compatible with this surface.
       context = nullptr;
@@ -253,7 +266,8 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
   } else {
     context = gl::init::CreateGLContext(
         share_group_.get(), surface_.get(),
-        GenerateGLContextAttribsForDecoder(init_params.attribs,
+        GenerateGLContextAttribsForDecoder(init_params.attribs.context_type,
+                                           init_params.attribs.gpu_preference,
                                            context_group_.get()));
     if (!context) {
       // TODO(piman): This might not be fatal, we could recurse into
@@ -288,8 +302,8 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
 
   // Initialize the decoder with either the view or pbuffer GLContext.
   auto result = gles2_decoder_->Initialize(
-      surface_, context, /*offscreen=*/true, gpu::gles2::DisallowedFeatures(),
-      init_params.attribs);
+      surface_, context, /*offscreen=*/true, init_params.attribs.context_type,
+      init_params.attribs.lose_context_when_out_of_memory);
   if (result != gpu::ContextResult::kSuccess) {
     DLOG(ERROR) << "Failed to initialize decoder.";
     return result;
@@ -352,9 +366,8 @@ base::WeakPtr<CommandBufferStub> GLES2CommandBufferStub::AsWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
-void GLES2CommandBufferStub::OnGpuSwitched(
-    gl::GpuPreference active_gpu_heuristic) {
-  client().OnGpuSwitched(active_gpu_heuristic);
+void GLES2CommandBufferStub::OnGpuSwitched() {
+  client().OnGpuSwitched();
 }
 
 void GLES2CommandBufferStub::CreateGpuFenceFromHandle(

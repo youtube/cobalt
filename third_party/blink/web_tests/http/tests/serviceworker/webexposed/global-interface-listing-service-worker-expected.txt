@@ -1834,6 +1834,7 @@ interface SecurityPolicyViolationEvent : Event
     getter disposition
     getter documentURI
     getter effectiveDirective
+    getter evalHash
     getter lineNumber
     getter originalPolicy
     getter referrer
@@ -2059,7 +2060,6 @@ interface TrustedTypePolicyFactory : EventTarget
     getter defaultPolicy
     getter emptyHTML
     getter emptyScript
-    getter onbeforecreatepolicy
     method constructor
     method createPolicy
     method getAttributeType
@@ -2068,7 +2068,6 @@ interface TrustedTypePolicyFactory : EventTarget
     method isHTML
     method isScript
     method isScriptURL
-    setter onbeforecreatepolicy
 interface URL
     static method canParse
     static method parse
@@ -2880,7 +2879,7 @@ interface WebGL2RenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTMLElement2D
+    method texHTML2D
     method texImage2D
     method texImage3D
     method texParameterf
@@ -3385,7 +3384,7 @@ interface WebGLRenderingContext
     method stencilOp
     method stencilOpSeparate
     method texElement2D
-    method texHTMLElement2D
+    method texHTML2D
     method texImage2D
     method texParameterf
     method texParameteri

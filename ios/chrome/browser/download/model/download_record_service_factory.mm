@@ -7,7 +7,7 @@
 #import <memory>
 
 #import "base/files/file_path.h"
-#import "ios/chrome/browser/download/model/download_record_service.h"
+#import "ios/chrome/browser/download/model/download_record_service_impl.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 
 DownloadRecordServiceFactory* DownloadRecordServiceFactory::GetInstance() {
@@ -24,14 +24,12 @@ DownloadRecordService* DownloadRecordServiceFactory::GetForProfile(
 
 DownloadRecordServiceFactory::DownloadRecordServiceFactory()
     : ProfileKeyedServiceFactoryIOS("IOSDownloadRecordService",
-                                    ProfileSelection::kOwnInstanceInIncognito) {
-}
+                                    ProfileSelection::kRedirectedInIncognito) {}
 
 DownloadRecordServiceFactory::~DownloadRecordServiceFactory() = default;
 
 std::unique_ptr<KeyedService>
 DownloadRecordServiceFactory::BuildServiceInstanceFor(
-    web::BrowserState* context) const {
-  ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
-  return std::make_unique<DownloadRecordService>(profile->GetStatePath());
+    ProfileIOS* profile) const {
+  return std::make_unique<DownloadRecordServiceImpl>(profile->GetStatePath());
 }

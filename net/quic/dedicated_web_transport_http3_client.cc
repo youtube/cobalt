@@ -45,7 +45,7 @@ constexpr int kCustomCertificateMaxValidityDays = 14;
 constexpr base::TimeDelta kMaxCloseTimeout = base::Seconds(2);
 
 // Enables custom congestion control for WebTransport over HTTP/3.
-BASE_FEATURE(WebTransportCongestionControl, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebTransportCongestionControl, base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<quic::CongestionControlType>::Option
     kWebTransportCongestionControlAlgorithms[] = {
         {quic::kCubicBytes, "CUBIC"},
@@ -240,10 +240,11 @@ class DedicatedWebTransportHttp3ClientSession
     return stream_ptr;
   }
 
-  void OnDatagramProcessed(std::optional<quic::MessageStatus> status) override {
+  void OnDatagramProcessed(
+      std::optional<quic::DatagramStatus> status) override {
     client_->OnDatagramProcessed(
-        status.has_value() ? std::optional<quic::MessageStatus>(*status)
-                           : std::optional<quic::MessageStatus>());
+        status.has_value() ? std::optional<quic::DatagramStatus>(*status)
+                           : std::optional<quic::DatagramStatus>());
   }
 
  private:
@@ -990,7 +991,7 @@ void DedicatedWebTransportHttp3Client::OnConnectionClosed(
 }
 
 void DedicatedWebTransportHttp3Client::OnDatagramProcessed(
-    std::optional<quic::MessageStatus> status) {
+    std::optional<quic::DatagramStatus> status) {
   visitor_->OnDatagramProcessed(status);
 }
 

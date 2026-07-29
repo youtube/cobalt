@@ -78,7 +78,6 @@ class Layer;
 
 namespace blink {
 
-class Canvas2DDrawElementOption;
 class CanvasImageSource;
 class ComputedStyle;
 class Element;
@@ -111,6 +110,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
     ~Factory() override = default;
 
     CanvasRenderingContext* Create(
+        ExecutionContext* execution_context,
         CanvasRenderingContextHost* host,
         const CanvasContextCreationAttributesCore& attrs) override;
 
@@ -179,6 +179,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   }
 
   // CanvasRenderingContext implementation
+  void Reset() override;
   bool IsComposited() const override;
   scoped_refptr<CanvasResource> PaintRenderingResultsToResource(
       SourceDrawingBuffer source_buffer,
@@ -191,7 +192,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
     }
 
     int buffer_count = 0;
-    auto* provider = GetResourceProviderForCanvas2D();
+    auto* provider = GetResourceProvider();
     if (provider) {
       buffer_count = 1;
       if (provider->IsAccelerated()) {
@@ -232,27 +233,23 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void drawElement(Element* element,
                    double x,
                    double y,
-                   Canvas2DDrawElementOption* options,
                    ExceptionState& exception_state);
   void drawElement(Element* element,
                    double x,
                    double y,
                    double dwidth,
                    double dheight,
-                   Canvas2DDrawElementOption* options,
                    ExceptionState& exception_state);
-  void drawHTMLElement(Element* element,
-                       double x,
-                       double y,
-                       Canvas2DDrawElementOption* options,
-                       ExceptionState& exception_state);
-  void drawHTMLElement(Element* element,
-                       double x,
-                       double y,
-                       double dwidth,
-                       double dheight,
-                       Canvas2DDrawElementOption* options,
-                       ExceptionState& exception_state);
+  void drawHTML(Element* element,
+                double x,
+                double y,
+                ExceptionState& exception_state);
+  void drawHTML(Element* element,
+                double x,
+                double y,
+                double dwidth,
+                double dheight,
+                ExceptionState& exception_state);
   void setHitTestRegions(VectorOf<CanvasElementHitTestRegion> hit_test_regions,
                          ExceptionState& exception_state);
 
@@ -295,7 +292,6 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   }
 
   CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() override;
-  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override;
   void SetCanvas2DResourceProviderForTesting(
       std::unique_ptr<CanvasResourceProvider> provider,
       const gfx::Size& size);
@@ -303,6 +299,10 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   // TODO(crbug.com/352263194): Migrate canvas_rendering_context_2d_test.cc
   // callsites and make this method private.
   CanvasHibernationHandler* GetHibernationHandler() const;
+
+  CanvasResourceProvider* GetResourceProviderForTesting() const {
+    return GetResourceProvider();
+  }
 
  protected:
   HTMLCanvasElement* HostAsHTMLCanvasElement() const final;
@@ -325,6 +325,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   FRIEND_TEST_ALL_PREFIXES(CanvasRenderingContext2DTestAccelerated,
                            PrepareMailboxWhenContextIsLostWithFailedRestore);
 
+  CanvasResourceProvider* GetResourceProvider() const override;
   void Dispose() override;
 
   std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider();
@@ -336,7 +337,6 @@ class MODULES_EXPORT CanvasRenderingContext2D final
                            double y,
                            std::optional<double> dwidth,
                            std::optional<double> dheight,
-                           Canvas2DDrawElementOption* options,
                            ExceptionState& exception_state);
 
   void PruneLocalFontCache(size_t target_size);
@@ -367,7 +367,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void DropAndRecreateExistingCanvas2DResourceProvider() override;
 
   // This method should be called only when `resource_provider_` is null.
-  void RecreateCanvasResourceProviderForCanvas2D();
+  CanvasResourceProvider* RecreateCanvasResourceProviderForCanvas2D();
 
   FilterOperations filter_operations_;
   HashMap<String, FontDescription> fonts_resolved_using_current_style_;

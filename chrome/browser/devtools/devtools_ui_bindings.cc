@@ -108,6 +108,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/cpp/simple_url_loader_stream_consumer.h"
@@ -1080,7 +1081,7 @@ void DevToolsUIBindings::DispatchHttpRequest(
     DispatchCallback callback,
     const DevToolsDispatchHttpRequestParams& params) {
   http_service_registry_->Request(
-      profile_, params.service, params.path, params.method, params.body,
+      profile_, params,
       base::BindOnce(&DevToolsUIBindings::OnHttpRequestPerformed,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
@@ -1967,6 +1968,17 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
         features::kDevToolsGdpProfilesStarterBadgeEnabled.Get());
     response_dict.Set("devToolsGdpProfiles", std::move(gdp_profiles_dict));
   }
+
+  response_dict.Set(
+      "devToolsLiveEdit",
+      base::Value::Dict().Set("enabled", base::FeatureList::IsEnabled(
+                                             ::features::kDevToolsLiveEdit)));
+
+  response_dict.Set(
+      "devToolsIndividualRequestThrottling",
+      base::Value::Dict().Set(
+          "enabled", base::FeatureList::IsEnabled(
+                         ::features::kDevToolsIndividualRequestThrottling)));
 
   base::Value response = base::Value(std::move(response_dict));
   std::move(callback).Run(&response);

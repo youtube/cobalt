@@ -33,10 +33,27 @@ using namespace clang::ast_matchers;
 
 namespace {
 
+// Specifies how `EmitContainerPointerRewrites()` should behave.
+enum class ContainerPointerRewritesMode {
+  // When `container` is not (and will not be) a span, but is fed into a
+  // spanified context (e.g. a spanified function), `container` must be
+  // wrapped in `base::span()`.
+  kWrapWithBaseSpan,
+
+  // When `container` will be a span, but is positioned on a frontier
+  // (and must have `.data()` appended), `container` should not be
+  // re-wrapped in `base::span`.
+  kDontWrapWithBaseSpan,
+};
+
 // Forward declarations
 std::string GetArraySize(const clang::ArrayTypeLoc& array_type_loc,
                          const clang::SourceManager& source_manager,
                          const clang::ASTContext& ast_context);
+clang::SourceLocation EmitContainerPointerRewrites(
+    const MatchFinder::MatchResult& result,
+    std::string_view key,
+    ContainerPointerRewritesMode mode);
 
 // For debugging/assertions. Dump the match result to stderr.
 void DumpMatchResult(const MatchFinder::MatchResult& result) {
@@ -168,12 +185,13 @@ AST_MATCHER_P(clang::FunctionDecl,
               parm_var_decl_matcher) {
   const clang::FunctionDecl& function_decl = Node;
 
-  unsigned num_params = function_decl.getNumParams();
+  const unsigned num_params = function_decl.getNumParams();
   bool is_matching = false;
   clang::ast_matchers::internal::BoundNodesTreeBuilder result;
   for (unsigned i = 0; i < num_params; i++) {
     const clang::ParmVarDecl* param = function_decl.getParamDecl(i);
-    clang::ast_matchers::internal::BoundNodesTreeBuilder param_matches;
+    clang::ast_matchers::internal::BoundNodesTreeBuilder param_matches(
+        *Builder);
     if (parm_var_decl_matcher.matches(*param, Finder, &param_matches)) {
       is_matching = true;
       result.addMatch(param_matches);
@@ -731,6 +749,40 @@ clang::SourceRange getSourceRange(const MatchFinder::MatchResult& result) {
                   "\n";
   DumpMatchResult(result);
   assert(false && "Unexpected match in getSourceRange()");
+}
+
+// Unwraps typedef type locs and/or elaborated type locs, and returns the body
+// type loc.
+//
+// Note that using-declared types are also represented with typedef types in
+// clang, so this function works for both 'typedef' and 'using' declarations.
+//
+// Example TypeLoc structures:
+//     // Given T2 where typedef int T1; using T2 = T1;
+//     ElaboratedTypeLoc('T2')
+//       --(getNamedTypeLoc)--> TypedefTypeLoc('T2')
+//         --(getTypedefNameDecl)--> ElaboratedTypeLoc('T1')
+//           --(getNamedTypeLoc)--> TypedefTypeLoc('T1')
+//             --(getTypedefNameDecl)--> BuiltinTypeLoc('int')
+//     => returns BuiltinTypeLoc('int').
+//
+//     // Given base::raw_ptr<int>,
+//     ElaboratedTypeLoc('base::raw_ptr<int>')
+//       --(getNamedTypeLoc)--> TemplateSpecializationTypeLoc('raw_ptr<int>')
+//         --(getArgLoc)--> TemplateArgumentLoc('int')
+//     => returns TemplateSpecializationTypeLoc('raw_ptr<int>').
+clang::TypeLoc UnwrapTypedefTypeLoc(clang::TypeLoc type_loc) {
+  while (const clang::ElaboratedTypeLoc elaborated_type_loc =
+             type_loc.getAs<clang::ElaboratedTypeLoc>()) {
+    type_loc = elaborated_type_loc.getNamedTypeLoc();
+    if (const clang::TypedefTypeLoc typedef_type_loc =
+            type_loc.getAs<clang::TypedefTypeLoc>()) {
+      const clang::TypedefNameDecl* typedef_name_decl =
+          typedef_type_loc.getTypedefNameDecl();
+      type_loc = typedef_name_decl->getTypeSourceInfo()->getTypeLoc();
+    }
+  }
+  return type_loc;
 }
 
 std::string getNodeFromPointerTypeLoc(const clang::PointerTypeLoc* type_loc,
@@ -1300,23 +1352,28 @@ void EraseMemberCall(const std::string& node,
 // Return a replacement that appends `.data()` to the matched expression.
 void AppendDataCall(const MatchFinder::MatchResult& result) {
   const clang::SourceManager& source_manager = *result.SourceManager;
+  const std::string key = GetRHS(result);
   auto rep_range = clang::SourceRange(getSourceRange(result).getEnd());
 
   std::string replacement_text = ".data()";
 
   if (result.Nodes.getNodeAs<clang::Expr>("unaryOperator")) {
-    // Insert enclosing parenthesis for expressions with UnaryOperators
-    auto begin_range = clang::SourceRange(getSourceRange(result).getBegin());
-    EmitReplacement(GetRHS(result),
-                    GetReplacementDirective(begin_range, "(", source_manager,
-                                            kAppendDataCallPrecedence));
-    replacement_text = ").data()";
+    if (result.Nodes.getNodeAs<clang::Expr>("container_buff_address")) {
+      rep_range = EmitContainerPointerRewrites(
+          result, key, ContainerPointerRewritesMode::kDontWrapWithBaseSpan);
+    } else {
+      // Insert enclosing parenthesis for expressions with UnaryOperators
+      auto begin_range = clang::SourceRange(getSourceRange(result).getBegin());
+      EmitReplacement(key,
+                      GetReplacementDirective(begin_range, "(", source_manager,
+                                              kAppendDataCallPrecedence));
+      replacement_text = ").data()";
+    }
   }
 
   EmitReplacement(
-      GetRHS(result),
-      GetReplacementDirective(rep_range, replacement_text, source_manager,
-                              -kAppendDataCallPrecedence));
+      key, GetReplacementDirective(rep_range, replacement_text, source_manager,
+                                   -kAppendDataCallPrecedence));
 }
 
 // Given that we want to emit `.subspan(expr)`,
@@ -1351,90 +1408,145 @@ void RewriteExprForSubspan(const clang::Expr* expr,
   }
 }
 
-// Handle the case where we match `&container[<offset>]` being used as a buffer.
-void EmitContainerPointerRewrites(const MatchFinder::MatchResult& result,
-                                  const std::string& key) {
-  auto replacement_range =
-      GetNodeOrCrash<clang::UnaryOperator>(
-          result, "container_buff_address",
-          "`container_buff_address` previously expected here")
-          ->getSourceRange();
-  replacement_range.setEnd(replacement_range.getEnd().getLocWithOffset(1));
-  const auto& container_decl_ref = *GetNodeOrCrash<clang::DeclRefExpr>(
-      result, "container_decl_ref",
-      "`container_buff_address` implies `container_decl_ref`");
+// Helper function for `EmitContainerPointerRewrites()`.
+//
+// A `&container[offset]` could either be
+// *  a C-style array subscript or
+// *  something with `operator[]` defined.
+//
+// This function helps find the right bracket in either case.
+clang::SourceLocation FindRightBracket(const MatchFinder::MatchResult& result,
+                                       const clang::Expr* subscript_expr) {
+  if (const auto* array_subscript_expr =
+          clang::dyn_cast<clang::ArraySubscriptExpr>(subscript_expr)) {
+    return array_subscript_expr->getRBracketLoc();
+  } else if (const auto* operator_subscript_expr =
+                 clang::dyn_cast<clang::CXXOperatorCallExpr>(subscript_expr)) {
+    return operator_subscript_expr->getRParenLoc();
+  }
+  llvm::errs() << "Error: no matching cast for `subscript_expr` in "
+               << __FUNCTION__ << "\n";
+  DumpMatchResult(result);
+  assert(false);
+}
 
-  std::string container_name = container_decl_ref.getNameInfo().getAsString();
-  std::string replacement_text;
+// Helper function for `EmitContainerPointerRewrites()`.
+//
+// Same motivation as `FindRightBracket()`; returns the expression inside the
+// square brackets.
+const clang::Expr* GetIndexExprForSubspan(
+    const MatchFinder::MatchResult& result,
+    const clang::Expr* subscript_expr) {
+  if (const auto* array_subscript_expr =
+          clang::dyn_cast<clang::ArraySubscriptExpr>(subscript_expr)) {
+    return array_subscript_expr->getIdx();
+  } else if (const auto* operator_subscript_expr =
+                 clang::dyn_cast<clang::CXXOperatorCallExpr>(subscript_expr)) {
+    assert(operator_subscript_expr->getNumArgs() == 2u);
+
+    // Call `IgnoreImpCasts()` to see past the implicit promotion to
+    // `...::size_type` and see the "original" type of the expression.
+    return operator_subscript_expr->getArg(1u)->IgnoreImpCasts();
+  }
+  llvm::errs() << "Error: no matching cast for `subscript_expr` in "
+               << __FUNCTION__ << "\n";
+  DumpMatchResult(result);
+  assert(false);
+}
+
+// Handles `&container[offset]` being used as a buffer.
+//
+// To handle a value passed into a newly spanified function:
+// 1. replaces `&` with `base::span<T>(`
+// 2. replaces `[` with `).subspan(`
+// 3. fixes up the `offset` expression if necessary
+// 4. replaces `]` with `)`
+//
+// To handle a frontier value inside a newly spanified function:
+// [skip step 1]
+// 2. replaces `[` with `.subspan(`
+// etc.
+//
+// Returns the source location just beyond the right-hand bracket.
+clang::SourceLocation EmitContainerPointerRewrites(
+    const MatchFinder::MatchResult& result,
+    std::string_view key,
+    ContainerPointerRewritesMode mode) {
+  const clang::SourceManager& source_manager = *result.SourceManager;
+  const clang::LangOptions& lang_opts = result.Context->getLangOpts();
+  auto replacement_range = GetNodeOrCrash<clang::UnaryOperator>(
+                               result, "unaryOperator", __FUNCTION__)
+                               ->getSourceRange();
+
+  // Stretch across the `&`.
+  replacement_range.setEnd(replacement_range.getBegin().getLocWithOffset(1));
+
+  const auto* subscript_expr =
+      GetNodeOrCrash<clang::Expr>(result, "subscript_expr", __FUNCTION__);
+
+  std::string_view declref_bind_name = "container_decl_ref";
+  std::string_view subspan_opener = ").subspan(";
+  if (mode == ContainerPointerRewritesMode::kDontWrapWithBaseSpan) {
+    declref_bind_name = "rhs_expr";
+    subspan_opener = ".subspan(";
+  }
+
+  const auto& container_decl_ref =
+      *GetNodeOrCrash<clang::Expr>(result, declref_bind_name, __FUNCTION__);
+  const clang::SourceLocation left_bracket =
+      GetExprRange(container_decl_ref, source_manager, lang_opts).getEnd();
+  clang::SourceLocation right_bracket =
+      FindRightBracket(result, subscript_expr);
 
   // Special case: we detected and bound a zero offset (`&buf[0]`).
-  // We need not emit a `.subspan(...)`.
+  // Rather than emit a `.subspan(...)`, we delete the subscript
+  // expression entirely.
   if (result.Nodes.getNodeAs<clang::IntegerLiteral>("zero_container_offset")) {
-    replacement_text = container_name;
-  } else {
-    // Dance around the offset expression and emit one replacement on
-    // either side of it:
-    // `base::span<T>(container_decl_ref).subspan(` <offset> `)`
-
-    // Ready and emit the first replacement; pull the replacement
-    // range back to the opening bracket of the container.
-    replacement_range.setEnd(
-        container_decl_ref.getSourceRange().getBegin().getLocWithOffset(
-            container_name.length() + 1u));
-    const auto& contained_type = *GetNodeOrCrash<clang::QualType>(
-        result, "contained_type",
-        "`container_buff_address` implies `contained_type`");
-    replacement_text = llvm::formatv(
-        "base::span<{0}>({1}).subspan(",
-        GetTypeAsString(contained_type, *result.Context), container_name);
-    std::string replacement_directive = GetReplacementDirective(
-        replacement_range, std::move(replacement_text), *result.SourceManager);
-    EmitReplacement(key, replacement_directive);
-
-    // Ready the second replacement; advance the replacement range to
-    // the closing bracket (beyond the offset expression).
-    if (const auto* container_subscript =
-            result.Nodes.getNodeAs<clang::CXXOperatorCallExpr>(
-                "container_subscript")) {
-      // 1. implicit `this` arg and
-      // 2. the subscript expression.
-      if (container_subscript->getNumArgs() != 2u) {
-        llvm::errs() << "\nError: matched `operator[]`, expected exactly two "
-                        "args, but got "
-                     << container_subscript->getNumArgs() << "!\n";
-        DumpMatchResult(result);
-        assert(false && "apparently bogus `operator[]`");
-      }
-
-      // Call `IgnoreImpCasts()` to see past the implicit promotion to
-      // `...::size_type` and look at the "original" type of the
-      // expression.
-      RewriteExprForSubspan(container_subscript->getArg(1u)->IgnoreImpCasts(),
-                            result, key);
-
-      replacement_range = {
-          container_subscript->getRParenLoc(),
-          container_subscript->getRParenLoc().getLocWithOffset(1)};
-    } else {
-      // This is a C-style array.
-      const auto& c_style_array_with_subscript =
-          *GetNodeOrCrash<clang::ArraySubscriptExpr>(
-              result, "c_style_array_with_subscript",
-              "expected when `container_subscript` is not bound");
-      replacement_range = {
-          c_style_array_with_subscript.getEndLoc(),
-          c_style_array_with_subscript.getEndLoc().getLocWithOffset(1)};
-      const auto* subscript = GetNodeOrCrash<clang::Expr>(
-          result, "c_style_array_subscript",
-          "expected when `container_subscript` is not bound");
-      RewriteExprForSubspan(subscript, result, key);
-    }
-    // Close the call to `.subspan()`.
-    replacement_text = ")";
+    EmitReplacement(key, GetReplacementDirective(replacement_range, "",
+                                                 *result.SourceManager));
+    replacement_range = {left_bracket, right_bracket.getLocWithOffset(1)};
+    EmitReplacement(key, GetReplacementDirective(replacement_range, "",
+                                                 *result.SourceManager));
+    return right_bracket.getLocWithOffset(1);
   }
-  std::string replacement_directive = GetReplacementDirective(
-      replacement_range, std::move(replacement_text), *result.SourceManager);
-  EmitReplacement(key, replacement_directive);
+
+  // Step 1
+  if (mode == ContainerPointerRewritesMode::kWrapWithBaseSpan) {
+    // Emit the opening `base::span(`.
+    const auto& contained_type = *GetNodeOrCrash<clang::QualType>(
+        result, "contained_type", __FUNCTION__);
+    EmitReplacement(
+        key,
+        GetReplacementDirective(
+            replacement_range,
+            llvm::formatv("base::span<{0}>(",
+                          GetTypeAsString(contained_type, *result.Context)),
+            source_manager));
+  } else {
+    // Just delete the `&`.
+    EmitReplacement(key,
+                    GetReplacementDirective(
+                        replacement_range,
+                        // Mysteriously, emitting a pure deletion replacement
+                        // also eats the preceding comma in our test cases.
+                        " ", source_manager));
+  }
+
+  // Step 2
+  EmitReplacement(key, GetReplacementDirective(
+                           {left_bracket, left_bracket.getLocWithOffset(1)},
+                           std::string(subspan_opener), source_manager));
+
+  // Step 3
+  const clang::Expr* index = GetIndexExprForSubspan(result, subscript_expr);
+  assert(index);
+  RewriteExprForSubspan(index, result, key);
+
+  // Step 4
+  EmitReplacement(key, GetReplacementDirective(
+                           {right_bracket, right_bracket.getLocWithOffset(1)},
+                           ")", source_manager));
+  return right_bracket.getLocWithOffset(1);
 }
 
 // Handles code that passes address to a local variable as a single element
@@ -1654,7 +1766,7 @@ void EmitCArrayIterCallExpr(const std::string& key,
                                       kBaseAutoSpanificationHelperIncludePath));
 }
 
-std::string getNodeFromSizeExpr(const clang::Expr* size_expr,
+std::string GetNodeFromSizeExpr(const clang::Expr* size_expr,
                                 const MatchFinder::MatchResult& result) {
   const clang::SourceManager& source_manager = *result.SourceManager;
   const std::string key = NodeKey(size_expr, source_manager);
@@ -1697,7 +1809,8 @@ std::string getNodeFromSizeExpr(const clang::Expr* size_expr,
   }
 
   if (result.Nodes.getNodeAs<clang::UnaryOperator>("container_buff_address")) {
-    EmitContainerPointerRewrites(result, key);
+    EmitContainerPointerRewrites(
+        result, key, ContainerPointerRewritesMode::kWrapWithBaseSpan);
   }
 
   EmitReplacement(key, GetIncludeDirective(replacement_range, source_manager));
@@ -2564,6 +2677,88 @@ void RewriteComparisonWithCArrayIter(const MatchFinder::MatchResult& result) {
   EmitEdge(rhs, lhs);
 }
 
+// When a function declaration (= function type) gets rewritten, rewrites
+// variables of a function pointer type to which the function is assigned.
+//
+// Example:
+//     // function declaration being spanified
+//     int* func(int* arg);
+//     // function pointer variable to be spanified
+//     int* (*var)(int* arg) = func;
+// In the following implementation, `var` is called LHS and `func` is called
+// RHS.
+//
+// Tests are in: func-ptr-var-original.cc
+void RewriteFunctionPointerType(const MatchFinder::MatchResult& result) {
+  const clang::VarDecl* lhs_var_decl = GetNodeOrCrash<clang::VarDecl>(
+      result, "lhs_funcptrvardecl",
+      "The rewriting target variable of function pointer type must be bound.");
+
+  // Get the FunctionProtoTypeLoc of the LHS variable.
+  clang::FunctionProtoTypeLoc lhs_func_proto_type_loc;
+  {
+    const clang::TypeLoc var_type_loc =
+        UnwrapTypedefTypeLoc(lhs_var_decl->getTypeSourceInfo()->getTypeLoc());
+    if (var_type_loc.getAs<clang::AutoTypeLoc>() ||
+        var_type_loc.getAs<clang::DecltypeTypeLoc>()) {
+      return;  // No need to rewrite auto/decltype types.
+    }
+    const clang::PointerTypeLoc pointer_type_loc =
+        var_type_loc.getAs<clang::PointerTypeLoc>();
+    assert(pointer_type_loc && "Failed to get a PointerTypeLoc.");
+    clang::TypeLoc pointee_type_loc = pointer_type_loc.getPointeeLoc();
+    // Unwrap paren type locs.
+    while (clang::ParenTypeLoc paren_type_loc =
+               pointee_type_loc.getAs<clang::ParenTypeLoc>()) {
+      pointee_type_loc = paren_type_loc.getInnerLoc();
+    }
+    lhs_func_proto_type_loc =
+        pointee_type_loc.getAs<clang::FunctionProtoTypeLoc>();
+  }
+  assert(lhs_func_proto_type_loc && "Failed to get a FunctionProtoTypeLoc.");
+
+  // RHS matches with one of the parameter types or the return type of the
+  // function declaration. Rewrite the one matched.
+  const std::string& rhs_key = GetRHS(result);
+
+  // LHS matches with the function pointer type variable (not a parameter type
+  // nor return type unlike RHS). Find the parameter or return type
+  // corresponding to the RHS match, and rewrite it.
+  std::string lhs_key;
+  if (const clang::ParmVarDecl* rhs_parm_var_decl =
+          result.Nodes.getNodeAs<clang::ParmVarDecl>("rhs_begin")) {
+    // One of the function parameter types matches on RHS.
+    const unsigned parm_index = rhs_parm_var_decl->getFunctionScopeIndex();
+    const clang::ParmVarDecl* lhs_parm_var_decl =
+        lhs_func_proto_type_loc.getParam(parm_index);
+    const clang::TypeLoc lhs_parm_type_loc = UnwrapTypedefTypeLoc(
+        lhs_parm_var_decl->getTypeSourceInfo()->getTypeLoc());
+    if (lhs_parm_type_loc.getAs<clang::ArrayTypeLoc>()) {
+      lhs_key = getNodeFromFunctionArrayParameter(&lhs_parm_type_loc,
+                                                  lhs_parm_var_decl, result);
+    } else if (lhs_parm_type_loc.getAs<clang::PointerTypeLoc>()) {
+      lhs_key = getNodeFromDecl(lhs_parm_var_decl, result);
+    } else if (const clang::TemplateSpecializationTypeLoc lhs_raw_ptr_type_loc =
+                   lhs_parm_type_loc
+                       .getAs<clang::TemplateSpecializationTypeLoc>()) {
+      lhs_key = getNodeFromRawPtrTypeLoc(&lhs_raw_ptr_type_loc, result);
+    } else {
+      assert(false && "Unknown kind of clang::TypeLoc at `lhs_parm_type_loc`");
+    }
+  } else {
+    // The function return type matches on RHS.
+    const clang::PointerTypeLoc lhs_return_type_loc =
+        lhs_func_proto_type_loc.getReturnLoc().getAs<clang::PointerTypeLoc>();
+    assert(lhs_return_type_loc);
+    lhs_key = getNodeFromPointerTypeLoc(&lhs_return_type_loc, result);
+  }
+
+  // Whenever RHS (function type) is rewritten, LHS (function pointer type)
+  // should be rewritten, too.
+  EmitEdge(lhs_key, rhs_key);
+  EmitEdge(rhs_key, lhs_key);
+}
+
 // Spanifies the matched function parameter/return type, and connects relevant
 // function declarations (forward declarations and overridden methods) to each
 // other bidirectionally per the matched function parameter/return type. Note
@@ -2617,7 +2812,7 @@ void RewriteComparisonWithCArrayIter(const MatchFinder::MatchResult& result) {
 //
 // A: Yes, it does suffice. But it's hard to build because GetRHS takes
 // `result` as the argument. When we find a match for arg1 at [2], we no longer
-// have `result` for arg1 at [1]. It's easier to create node_arg1_{1st,2nd] than
+// have `result` for arg1 at [1]. It's easier to create node_arg1_{1st,2nd} than
 // saving the results of GetRHS somewhere and retrieving it.
 void RewriteFunctionParamAndReturnType(const MatchFinder::MatchResult& result) {
   const clang::SourceManager& source_manager = *result.SourceManager;
@@ -2818,12 +3013,14 @@ std::string GetRHSImpl(const MatchFinder::MatchResult& result) {
 
   if (const clang::Expr* size_expr =
           result.Nodes.getNodeAs<clang::Expr>("size_node")) {
-    return getNodeFromSizeExpr(size_expr, result);
+    return GetNodeFromSizeExpr(size_expr, result);
   }
 
   // Not supposed to get here.
   llvm::errs() << "\n"
-                  "Error: getRHS() encountered an unexpected match.\n"
+                  "Error: "
+               << __FUNCTION__
+               << " encountered an unexpected match.\n"
                   "Expected one of : \n"
                   "  - rhs_type_loc\n"
                   "  - rhs_raw_ptr_type_loc\n"
@@ -2833,7 +3030,7 @@ std::string GetRHSImpl(const MatchFinder::MatchResult& result) {
                   "  - size_node\n"
                   "\n";
   DumpMatchResult(result);
-  assert(false && "Unexpected match in getRHS()");
+  assert(false);
 }
 
 // Extracts the rhs node from the match result.
@@ -3034,17 +3231,16 @@ class Spanifier {
                     optionally(
                         hasDescendant(integerLiteral(equals(0u))
                                           .bind("zero_container_offset"))))
-                    .bind("container_subscript"),
+                    .bind("subscript_expr"),
                 arraySubscriptExpr(
                     hasBase(
                         declRefExpr(to(varDecl(hasType(arrayType(hasElementType(
                                         qualType().bind("contained_type")))))))
                             .bind("container_decl_ref")),
-                    hasIndex(expr().bind("c_style_array_subscript")),
                     optionally(hasIndex(integerLiteral(equals(0u))
                                             .bind("zero_container_offset"))))
-                    .bind("c_style_array_with_subscript"))))
-            .bind("container_buff_address");
+                    .bind("subscript_expr"))))
+            .bind("unaryOperator");
 
     // T* a = buf.data();
     auto member_data_call =
@@ -3140,7 +3336,9 @@ class Spanifier {
                                  isExpansionInSystemHeader(),
                                  raw_ptr_plugin::isInExternCContext())))),
                        cxxNullPtrLiteralExpr().bind("nullptr_expr"),
-                       cxxNewExpr(), buff_address_from_container,
+                       cxxNewExpr(),
+                       expr(buff_address_from_container)
+                           .bind("container_buff_address"),
                        buff_address_from_single_var))
                 .bind("size_node")),
         reinterpret_cast_wrapper);
@@ -3155,6 +3353,38 @@ class Spanifier {
     auto get_calls_on_raw_ptr = cxxMemberCallExpr(
         callee(cxxMethodDecl(hasName("get"), ofClass(hasName("raw_ptr")))),
         has(memberExpr(has(rhs_expr))));
+
+    // Much the same as `buff_address_from_container` above. This reuses
+    // the same business logic in `EmitContainerPointerRewrites()`, but
+    // specifically covers frontier parameters that already came from
+    // nodes without size information.
+    //
+    // There are two obstacles to total unification:
+    // 1. The call site of `EmitContainerPointerRewrites()` is hard to
+    //    position. We need a key, and depending on the usage mode
+    //    (this site, or the size nodes matched by
+    //    `buff_address_from_container`), the surrounding plumbing
+    //    also needs to change.
+    // 2. The different bindings are hard to unify. Unification is also
+    //    unlikely to greatly improve readability.
+    auto index_into_pointer =
+        unaryOperator(
+            hasOperatorName("&"),
+            hasUnaryOperand(anyOf(
+                arraySubscriptExpr(
+                    hasBase(declRefExpr(to(rhs_var)).bind("rhs_expr")),
+                    optionally(hasIndex(integerLiteral(equals(0u))
+                                            .bind("zero_container_offset"))))
+                    .bind("subscript_expr"),
+                cxxOperatorCallExpr(
+                    callee(functionDecl(hasName("operator[]"))),
+                    hasArgument(0, hasType(raw_ptr_type)),
+                    hasDescendant(declRefExpr(to(rhs_var)).bind("rhs_expr")),
+                    optionally(
+                        hasDescendant(integerLiteral(equals(0u))
+                                          .bind("zero_container_offset"))))
+                    .bind("subscript_expr"))))
+            .bind("unaryOperator");
 
     auto rhs_exprs_without_size_nodes =
         expr(ignoringParenCasts(anyOf(
@@ -3173,7 +3403,8 @@ class Spanifier {
                      callee(cxxMethodDecl(ofClass(hasName("raw_ptr")))),
                      hasOperatorName("++"), hasArgument(0, rhs_expr))
                      .bind("raw_ptr_operator++"),
-                 get_calls_on_raw_ptr)),
+                 get_calls_on_raw_ptr,
+                 expr(index_into_pointer).bind("container_buff_address"))),
              reinterpret_cast_wrapper)
             .bind("span_frontier");
 
@@ -3353,7 +3584,7 @@ class Spanifier {
     // a = fct();
     // a = reinterpret_cast<>(b);
     // a = (cond) ? expr1 : expr2;
-    auto assignement_relationship = traverse(
+    auto assignment_relationship = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
         binaryOperation(hasOperatorName("="),
                         hasOperands(lhs_expr_variations,
@@ -3361,18 +3592,18 @@ class Spanifier {
                                           conditionalOperator(hasTrueExpression(
                                               rhs_expr_variations)))),
                         unless(isExpansionInSystemHeader())));
-    Match(assignement_relationship, MatchAdjacency);
+    Match(assignment_relationship, MatchAdjacency);
 
     // Creates the edge from lhs to false_expr in a ternary conditional
     // operator.
-    auto assignement_relationship2 = traverse(
+    auto assignment_relationship2 = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
         binaryOperation(hasOperatorName("="),
                         hasOperands(lhs_expr_variations,
                                     conditionalOperator(hasFalseExpression(
                                         rhs_expr_variations))),
                         unless(isExpansionInSystemHeader())));
-    Match(assignement_relationship2, MatchAdjacency);
+    Match(assignment_relationship2, MatchAdjacency);
 
     // Supports:
     // T* temp = member;
@@ -3392,17 +3623,6 @@ class Spanifier {
             unless(isExpansionInSystemHeader())));
     Match(var_construction, MatchAdjacency);
 
-    // Supports:
-    // it == std::begin(c_array)
-    // it != std::end(c_array)
-    auto equality_op =
-        traverse(clang::TK_IgnoreUnlessSpelledInSource,
-                 binaryOperation(
-                     anyOf(hasOperatorName("=="), hasOperatorName("!=")),
-                     hasOperands(ignoringParenCasts(lhs_expr_variations),
-                                 ignoringParenCasts(c_array_iter_call_expr))));
-    Match(equality_op, RewriteComparisonWithCArrayIter);
-
     // Creates the edge from lhs to false_expr in a ternary conditional
     // operator.
     auto var_construction2 = traverse(
@@ -3415,6 +3635,17 @@ class Spanifier {
                     hasFalseExpression(rhs_expr_variations)))))))),
             unless(isExpansionInSystemHeader())));
     Match(var_construction2, MatchAdjacency);
+
+    // Supports:
+    // it == std::begin(c_array)
+    // it != std::end(c_array)
+    auto equality_op =
+        traverse(clang::TK_IgnoreUnlessSpelledInSource,
+                 binaryOperation(
+                     anyOf(hasOperatorName("=="), hasOperatorName("!=")),
+                     hasOperands(ignoringParenCasts(lhs_expr_variations),
+                                 ignoringParenCasts(c_array_iter_call_expr))));
+    Match(equality_op, RewriteComparisonWithCArrayIter);
 
     // Supports:
     // return member;
@@ -3519,20 +3750,58 @@ class Spanifier {
                  unless(cxxOperatorCallExpr(hasOperatorName("=")))));
     Match(call_expr, MatchAdjacency);
 
+    // Function pointer types to arbitrary function types, including typedef
+    // types and using-aliased types to function pointer types. No restriction
+    // to parameter types and return type, but the following queries require
+    // the function type to be compatible with the RHS function type.
+    auto fct_ptr_type = type(hasUnqualifiedDesugaredType(
+        pointerType(pointee(ignoringParens(functionProtoType())))));
+
+    // Function declaration with pointer/array/raw_ptr parameter types and/or
+    // pointer return type.
+    //
+    // Note that this query matches each of parameter types and return type
+    // respectively.
+    auto fct_decl =
+        functionDecl(
+            eachOf(forEachParmVarDecl(rhs_param),
+                   hasReturnTypeLoc(pointer_type_loc.bind("rhs_type_loc"))),
+            unless(exclusions))
+            .bind("fct_decl");
+    auto fct_decl_expr = expr(ignoringParenCasts(declRefExpr(to(fct_decl))));
+
+    // Supports:
+    //     void (*var)(int*) = func;
+    //     int* (*var)() = func;
+    // and equivalent typedef/using variants like:
+    //     using FuncType = void (*)(int*);
+    //     FuncType var = func;
+    auto fct_ptr_var_construction = traverse(
+        clang::TK_IgnoreUnlessSpelledInSource,
+        varDecl(hasType(fct_ptr_type), has(fct_decl_expr), unless(exclusions))
+            .bind("lhs_funcptrvardecl"));
+    Match(fct_ptr_var_construction, RewriteFunctionPointerType);
+
+    // Supports:
+    //     void (*var)(int*); var = func;
+    //     int* (*var)(); var = func;
+    // and equivalent typedef/using variants like:
+    //     typedef int* (*FuncType)();
+    //     FuncType var;
+    //     var = func;
+    auto fct_ptr_var_assignment = traverse(
+        clang::TK_IgnoreUnlessSpelledInSource,
+        binaryOperator(hasOperatorName("="),
+                       hasLHS(declRefExpr(
+                           to(varDecl(hasType(fct_ptr_type), unless(exclusions))
+                                  .bind("lhs_funcptrvardecl")))),
+                       hasRHS(fct_decl_expr)));
+    Match(fct_ptr_var_assignment, RewriteFunctionPointerType);
+
     // Map function declaration signature to function definition signature;
     // This is problematic in the case of callbacks defined in function.
-    auto fct_decls_params =
-        traverse(clang::TK_IgnoreUnlessSpelledInSource,
-                 functionDecl(forEachParmVarDecl(rhs_param), unless(exclusions))
-                     .bind("fct_decl"));
-    Match(fct_decls_params, RewriteFunctionParamAndReturnType);
-
-    auto fct_decls_returns = traverse(
-        clang::TK_IgnoreUnlessSpelledInSource,
-        functionDecl(hasReturnTypeLoc(pointer_type_loc.bind("rhs_type_loc")),
-                     unless(exclusions))
-            .bind("fct_decl"));
-    Match(fct_decls_returns, RewriteFunctionParamAndReturnType);
+    auto fct_decls = traverse(clang::TK_IgnoreUnlessSpelledInSource, fct_decl);
+    Match(fct_decls, RewriteFunctionParamAndReturnType);
   }
 
  private:

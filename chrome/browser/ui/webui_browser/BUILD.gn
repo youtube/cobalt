@@ -13,6 +13,7 @@ source_set("feature_flag") {
 source_set("webui_browser") {
   sources = [
     "browser_elements_webui_browser.h",
+    "find_bar_owner_webui_browser.h",
     "webui_browser_side_panel_ui.h",
     "webui_browser_ui.h",
     "webui_browser_window.h",
@@ -40,9 +41,12 @@ source_set("impl") {
     "bookmark_bar_page_handler.cc",
     "bookmark_bar_page_handler.h",
     "browser_elements_webui_browser.cc",
+    "find_bar_owner_webui_browser.cc",
     "webui_browser.cc",
     "webui_browser_client_view.cc",
     "webui_browser_client_view.h",
+    "webui_browser_modal_dialog_host.cc",
+    "webui_browser_modal_dialog_host.h",
     "webui_browser_page_handler.cc",
     "webui_browser_page_handler.h",
     "webui_browser_side_panel_ui.cc",
@@ -88,6 +92,10 @@ source_set("impl") {
     "//ui/views/controls/webview",
     "//ui/webui/tracked_element",
   ]
+
+  if (is_chromeos) {
+    deps += [ "//chrome/browser/ui/ash/system_web_apps" ]
+  }
 
   if (is_mac) {
     deps += [

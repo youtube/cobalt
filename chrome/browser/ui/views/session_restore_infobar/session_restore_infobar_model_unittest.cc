@@ -19,43 +19,67 @@
 namespace session_restore_infobar {
 
 class SessionRestoreInfobarModelTest : public testing::Test {
- protected:
-  SessionRestoreInfobarModelTest() = default;
-
-  ~SessionRestoreInfobarModelTest() override = default;
-
-  void SetUp() override {
-    ChromeBrowserMainExtraPartsProfiles::
-        EnsureBrowserContextKeyedServiceFactoriesBuilt();
-    RegisterProfilePrefs(/*is_signin_profile=*/false,
-                         g_browser_process->GetApplicationLocale(),
-                         prefs_.registry());
-  }
-
-  sync_preferences::TestingPrefServiceSyncable prefs_;
+ private:
+  content::BrowserTaskEnvironment task_environment_;
 };
 
+TEST_F(SessionRestoreInfobarModelTest, CreateAndAccessModel) {
+  TestingProfile profile;
+  auto model =
+      std::make_unique<SessionRestoreInfobarModel>(profile, false, false);
+  EXPECT_TRUE(model);
+}
+
 TEST_F(SessionRestoreInfobarModelTest, GetSessionRestoreMessageValue_Prefs) {
-  // Pass the test's preference service to the model.
-  SessionRestoreInfobarModel model(prefs_);
+  TestingProfile profile;
+  SessionRestoreInfobarModel model(profile, false, false);
 
   // Test case 1: ContinueWhereLeftOff.
-  prefs_.SetInteger(prefs::kRestoreOnStartup, 1);
+  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 1);
   EXPECT_EQ(SessionRestoreInfobarModel::SessionRestoreMessageValue::
                 ContinueWhereLeftOff,
             model.GetSessionRestoreMessageValue());
 
   // Test case 2: OpenSpecificPages.
-  prefs_.SetInteger(prefs::kRestoreOnStartup, 4);
+  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 4);
   EXPECT_EQ(
       SessionRestoreInfobarModel::SessionRestoreMessageValue::OpenSpecificPages,
       model.GetSessionRestoreMessageValue());
 
   // Test case 3: OpenNewTabPage.
-  prefs_.SetInteger(prefs::kRestoreOnStartup, 5);
+  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 5);
   EXPECT_EQ(
       SessionRestoreInfobarModel::SessionRestoreMessageValue::OpenNewTabPage,
       model.GetSessionRestoreMessageValue());
+}
+
+TEST_F(SessionRestoreInfobarModelTest, GetUntouchedSessionRestoreDefaultPref) {
+  TestingProfile profile;
+  auto model =
+      std::make_unique<SessionRestoreInfobarModel>(profile, false, false);
+  // Make sure the session restore preference is untouched.
+  EXPECT_TRUE(model->IsDefaultSessionRestorePref());
+  // Change session restore to default value.
+  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, 4);
+  // Because the preference has been touched, default restore should be false.
+  EXPECT_FALSE(model->IsDefaultSessionRestorePref());
+}
+
+TEST_F(SessionRestoreInfobarModelTest,
+       GetUntouchedSessionRestoreDefaultPref_SetToDefault) {
+  TestingProfile profile;
+  auto model =
+      std::make_unique<SessionRestoreInfobarModel>(profile, false, false);
+  // Make sure the session restore preference is untouched.
+  EXPECT_TRUE(model->IsDefaultSessionRestorePref());
+
+  // Get the default value of the pref.
+  int default_value = profile.GetPrefs()->GetInteger(prefs::kRestoreOnStartup);
+  // Explicitly set session restore to its default value.
+  profile.GetPrefs()->SetInteger(prefs::kRestoreOnStartup, default_value);
+  // Because the preference has been explicitly set, even to the default value,
+  // default restore should be false.
+  EXPECT_FALSE(model->IsDefaultSessionRestorePref());
 }
 
 }  // namespace session_restore_infobar

@@ -11,7 +11,9 @@
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing_factory.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_copy_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
+#include "gpu/command_buffer/service/shared_image/shared_memory_copy_strategy.h"
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/test_image_backing.h"
 #include "gpu/ipc/common/surface_handle.h"
@@ -103,7 +105,10 @@ class CompoundImageBackingTest : public testing::Test {
  public:
   CompoundImageBackingTest()
       : memory_tracker_(base::MakeRefCounted<MemoryTracker>()),
-        memory_type_tracker_(memory_tracker_) {}
+        memory_type_tracker_(memory_tracker_),
+        copy_manager_(base::MakeRefCounted<SharedImageCopyManager>()) {
+    copy_manager_->AddStrategy(std::make_unique<SharedMemoryCopyStrategy>());
+  }
 
   bool HasGpuBacking(CompoundImageBacking* backing) {
     for (const auto& element : backing->elements_) {
@@ -135,15 +140,13 @@ class CompoundImageBackingTest : public testing::Test {
   }
 
   SharedMemoryImageBacking* GetShmImageBacking(CompoundImageBacking* backing) {
-    auto* shm_backing =
-        backing->GetElement(SharedImageAccessStream::kMemory).backing.get();
+    auto* shm_backing = backing->GetShmElement().backing.get();
     CHECK_EQ(shm_backing->GetType(), SharedImageBackingType::kSharedMemory);
     return static_cast<SharedMemoryImageBacking*>(shm_backing);
   }
 
   bool GetShmHasLatestContent(CompoundImageBacking* backing) {
-    return backing->HasLatestContent(
-        backing->GetElement(SharedImageAccessStream::kMemory));
+    return backing->HasLatestContent(backing->GetShmElement());
   }
 
   bool GetGpuHasLatestContent(CompoundImageBacking* backing) {
@@ -162,10 +165,11 @@ class CompoundImageBackingTest : public testing::Test {
     constexpr gfx::BufferUsage buffer_usage =
         gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
 
-    return CompoundImageBacking::CreateSharedMemory(
-        &test_factory_, Mailbox::Generate(), viz::SinglePlaneFormat::kRGBA_8888,
-        size, gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
-        usage, "TestLabel", buffer_usage);
+    return CompoundImageBacking::CreateSharedMemoryForTesting(
+        &test_factory_, copy_manager_, Mailbox::Generate(),
+        viz::SinglePlaneFormat::kRGBA_8888, size, gfx::ColorSpace(),
+        kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType, usage, "TestLabel",
+        buffer_usage);
   }
 
   std::unique_ptr<SharedImageBacking> CreateMultiplanarCompoundBacking() {
@@ -173,9 +177,10 @@ class CompoundImageBackingTest : public testing::Test {
     constexpr gfx::BufferUsage buffer_usage =
         gfx::BufferUsage::SCANOUT_CPU_READ_WRITE;
 
-    return CompoundImageBacking::CreateSharedMemory(
-        &test_factory_, Mailbox::Generate(), viz::MultiPlaneFormat::kNV12, size,
-        gfx::ColorSpace(), kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
+    return CompoundImageBacking::CreateSharedMemoryForTesting(
+        &test_factory_, copy_manager_, Mailbox::Generate(),
+        viz::MultiPlaneFormat::kNV12, size, gfx::ColorSpace(),
+        kTopLeft_GrSurfaceOrigin, kOpaque_SkAlphaType,
         SharedImageUsageSet(
             {SHARED_IMAGE_USAGE_DISPLAY_READ, SHARED_IMAGE_USAGE_SCANOUT}),
         "TestLabel", buffer_usage);
@@ -186,6 +191,7 @@ class CompoundImageBackingTest : public testing::Test {
   MemoryTypeTracker memory_type_tracker_;
   SharedImageManager manager_;
   TestSharedImageBackingFactory test_factory_;
+  scoped_refptr<SharedImageCopyManager> copy_manager_;
 };
 
 TEST_F(CompoundImageBackingTest, References) {

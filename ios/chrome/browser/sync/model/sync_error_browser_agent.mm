@@ -6,7 +6,6 @@
 
 #import "components/password_manager/core/browser/password_form_manager.h"
 #import "components/password_manager/core/browser/password_manager.h"
-#import "components/sync/base/features.h"
 #import "components/sync/service/sync_user_settings.h"
 #import "ios/chrome/app/profile/profile_init_stage.h"
 #import "ios/chrome/app/profile/profile_state.h"
@@ -127,6 +126,10 @@ void SyncErrorBrowserAgent::BrowserDestroyed(Browser* browser) {
   DCHECK_EQ(browser, browser_);
   [profile_state_observer_ disconnect];
   profile_state_observer_ = nil;
+  for (int i = 0; i < browser->GetWebStateList()->count(); ++i) {
+    RemovePasswordFormManagerObserver(
+        browser->GetWebStateList()->GetWebStateAt(i));
+  }
   browser->GetWebStateList()->RemoveObserver(this);
   browser->RemoveObserver(this);
 }
@@ -187,6 +190,8 @@ void SyncErrorBrowserAgent::WebStateListDidChange(
   }
 }
 
+#pragma mark - web::WebStateObserver
+
 void SyncErrorBrowserAgent::WebStateDestroyed(web::WebState* web_state) {
   web_state_observations_.RemoveObservation(web_state);
   RemovePasswordFormManagerObserver(web_state);
@@ -197,15 +202,15 @@ void SyncErrorBrowserAgent::WebStateRealized(web::WebState* web_state) {
   CreateReSignInInfoBarDelegate(web_state);
 }
 
+#pragma mark - password_manager::PasswordFormManagerObserver
+
 void SyncErrorBrowserAgent::OnPasswordFormParsed(
     password_manager::PasswordFormManager* form_manager) {
   web::WebState* active_web_state =
       browser_->GetWebStateList()->GetActiveWebState();
   ProfileIOS* profile = browser_->GetProfile();
   if (active_web_state && active_web_state->IsRealized() &&
-      UserActionRequiredToFixPasswordSyncError(profile) &&
-      base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultInfobarImprovements)) {
+      UserActionRequiredToFixPasswordSyncError(profile)) {
     DisplaySyncErrors(profile, active_web_state, sync_presenter_provider_,
                       SyncErrorInfoBarTrigger::kPasswordFormParsed);
   }
@@ -258,7 +263,7 @@ void SyncErrorBrowserAgent::AddPasswordFormManagerObserver(
   password_manager::PasswordFormCache* password_form_cache =
       GetPasswordFormCacheFromWebState(web_state);
   if (password_form_cache) {
-    password_form_cache->SetObserver(weak_ptr_factory_.GetWeakPtr());
+    password_form_cache->AddObserver(this);
   }
 }
 
@@ -269,6 +274,6 @@ void SyncErrorBrowserAgent::RemovePasswordFormManagerObserver(
   password_manager::PasswordFormCache* password_form_cache =
       GetPasswordFormCacheFromWebState(web_state);
   if (password_form_cache) {
-    password_form_cache->ResetObserver();
+    password_form_cache->RemoveObserver(this);
   }
 }

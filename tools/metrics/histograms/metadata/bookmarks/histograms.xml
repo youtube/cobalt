@@ -22,12 +22,6 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
-<variants name="BookmarksFileType">
-  <variant name=".Account" summary="JSON file containing account bookmarks."/>
-  <variant name=".LocalOrSyncable"
-      summary="JSON file containing local-or-syncable bookmarks."/>
-</variants>
-
 <histogram name="BookmarkManager.CommandExecuted" enum="BookmarkManagerCommand"
     expires_after="never">
 <!-- expires-never: part of top-line metric (internal: go/chrome-browser-nsm) -->
@@ -69,7 +63,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.AddedPerProfileType" enum="BrowserProfileType"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-privacy-core@google.com</owner>
   <summary>
@@ -89,7 +83,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Bookmarks.Android.BackendLoadTime.{JavaBookmarkBackendClients}"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2026-09-14">
   <owner>wylieb@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -245,7 +239,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.BookmarksExistInStorageType.{SubtreeSelection}"
-    enum="BookmarksExistInStorageType" expires_after="2025-12-28">
+    enum="BookmarksExistInStorageType" expires_after="2026-03-01">
   <owner>rsult@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -274,7 +268,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.Count.OnProfileLoad3" units="bookmarks"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>mamir@chromium.org</owner>
   <summary>
     The total number of bookmarks a user has saved, excluding folders. Recorded
@@ -318,19 +312,8 @@ chromium-metrics-reviews@google.com.
   <summary>How users add a new bookmark.</summary>
 </histogram>
 
-<histogram name="Bookmarks.IdsReassigned.OnProfileLoad{BookmarksFileType}"
-    enum="BooleanReassigned" expires_after="2025-08-17">
-  <owner>mastiz@chromium.org</owner>
-  <owner>arthurmilchior@chromium.org</owner>
-  <summary>
-    Logs whether or not bookmark node IDs were reassigned when loading the
-    {BookmarksFileType}. Recorded on profile load.
-  </summary>
-  <token key="BookmarksFileType" variants="BookmarksFileType"/>
-</histogram>
-
 <histogram name="Bookmarks.LaunchLocation" enum="BookmarkLaunchLocation"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>ianwen@chromium.org</owner>
   <summary>Logs a UI location from which a bookmark is launched.</summary>
 </histogram>
@@ -721,7 +704,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UsageCountPerProfileType" enum="BrowserProfileType"
-    expires_after="2025-12-28">
+    expires_after="2026-03-01">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-privacy-core@google.com</owner>
   <summary>

@@ -48,6 +48,7 @@
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/views/controls/separator.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/view.h"
 #include "ui/views/view_utils.h"
@@ -55,6 +56,10 @@
 #include "ui/views/widget/widget_observer.h"
 #include "ui/views/window/client_view.h"
 #include "ui/views/window/hit_test_utils.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "chrome/browser/ui/fullscreen_util_mac.h"
+#endif
 
 using views::View;
 using web_modal::ModalDialogHostObserver;
@@ -245,7 +250,7 @@ BrowserViewLayout::BrowserViewLayout(
     views::View* unified_side_panel,
     views::View* right_aligned_side_panel_separator,
     views::View* side_panel_rounded_corner,
-    views::View* contents_separator)
+    views::View* top_container_separator)
     : delegate_(std::move(delegate)),
       browser_view_(browser_view),
       window_scrim_(window_scrim),
@@ -258,11 +263,11 @@ BrowserViewLayout::BrowserViewLayout(
       infobar_container_(infobar_container),
       contents_container_(contents_container),
       multi_contents_view_(multi_contents_view),
-      left_aligned_side_panel_separator_(left_aligned_side_panel_separator),
       unified_side_panel_(unified_side_panel),
+      left_aligned_side_panel_separator_(left_aligned_side_panel_separator),
       right_aligned_side_panel_separator_(right_aligned_side_panel_separator),
       side_panel_rounded_corner_(side_panel_rounded_corner),
-      contents_separator_(contents_separator),
+      top_container_separator_(top_container_separator),
       tab_strip_(tab_strip_region_view_->tab_strip()),
       dialog_host_(std::make_unique<BrowserModalDialogHostViews>(this)) {}
 
@@ -605,11 +610,33 @@ void BrowserViewLayout::LayoutBookmarkAndInfoBars(gfx::Rect& available_bounds,
 
   if (delegate_->IsContentsSeparatorEnabled() &&
       (toolbar_->GetVisible() || bookmark_bar_) && available_bounds.y() > 0) {
-    SetViewVisibility(contents_separator_, true);
-    const int separator_height =
-        contents_separator_->GetPreferredSize().height();
-    contents_separator_->SetBounds(available_bounds.x(), available_bounds.y(),
-                                   available_bounds.width(), separator_height);
+    int separator_height = 0;
+    if (multi_contents_view_) {
+      // Show top container separator when infobar is visible and for immersive
+      // full screen without always showing toolbar.
+      SetViewVisibility(
+          top_container_separator_,
+          IsInfobarVisible() || IsImmersiveModeEnabledWithoutToolbar());
+
+      if (top_container_separator_->GetVisible()) {
+        separator_height =
+            top_container_separator_->GetPreferredSize().height();
+        top_container_separator_->SetBounds(
+            available_bounds.x(), available_bounds.y(),
+            available_bounds.width(), separator_height);
+      }
+      // If the loading bar will be shown, it's supposed to replace the
+      // separator in the content area.
+      multi_contents_view_->SetShouldShowTopSeparator(
+          !loading_bar_ && !top_container_separator_->GetVisible());
+    } else {
+      separator_height = top_container_separator_->GetPreferredSize().height();
+      SetViewVisibility(top_container_separator_, true);
+      top_container_separator_->SetBounds(
+          available_bounds.x(), available_bounds.y(), available_bounds.width(),
+          separator_height);
+    }
+
     if (loading_bar_) {
       SetViewVisibility(loading_bar_, true);
       loading_bar_->SetBounds(available_bounds.x(), available_bounds.y() - 2,
@@ -619,7 +646,10 @@ void BrowserViewLayout::LayoutBookmarkAndInfoBars(gfx::Rect& available_bounds,
     }
     available_bounds.set_y(available_bounds.y() + separator_height);
   } else {
-    SetViewVisibility(contents_separator_, false);
+    SetViewVisibility(top_container_separator_, false);
+    if (multi_contents_view_) {
+      multi_contents_view_->SetShouldShowTopSeparator(false);
+    }
     if (loading_bar_) {
       SetViewVisibility(loading_bar_, false);
     }
@@ -649,7 +679,7 @@ void BrowserViewLayout::LayoutBookmarkBar(gfx::Rect& available_bounds) {
     // TODO(crbug.com/41344902): Remove once the pixel canvas is enabled on
     // all aura platforms.
     if (top_container_ == bookmark_bar_->parent()) {
-      top_container_->ReorderChildView(contents_separator_,
+      top_container_->ReorderChildView(top_container_separator_,
                                        top_container_->children().size());
     }
   }
@@ -725,13 +755,12 @@ BrowserViewLayout::CalculateContentsContainerLayout(
   SidePanel* side_panel = views::AsViewClass<SidePanel>(unified_side_panel_);
 
   const bool side_panel_right_aligned = side_panel->IsRightAligned();
-  const bool is_in_split = delegate_->IsActiveTabSplit();
   views::View* side_panel_separator =
       side_panel_right_aligned ? right_aligned_side_panel_separator_.get()
                                : left_aligned_side_panel_separator_.get();
-  CHECK(side_panel_separator);
   const int separator_width =
-      is_in_split ? 0 : side_panel_separator->GetPreferredSize().width();
+      !side_panel_separator ? 0
+                            : side_panel_separator->GetPreferredSize().width();
 
   // Side panel occupies some of the container's space. The side panel should
   // never occupy more space than is available in the content window, and
@@ -817,49 +846,50 @@ void BrowserViewLayout::LayoutContentsContainerView(
 
   BrowserViewLayout::ContentsContainerLayoutResult layout_result =
       CalculateContentsContainerLayout(available_bounds);
-  const bool is_in_split = delegate_->IsActiveTabSplit();
 
-  if (is_in_split) {
-    UpdateSplitViewInsets();
-  }
   contents_container_->SetBoundsRect(layout_result.contents_container_bounds);
 
   if (unified_side_panel_) {
     unified_side_panel_->SetBoundsRect(layout_result.side_panel_bounds);
   }
-  if (right_aligned_side_panel_separator_) {
+
+  if (multi_contents_view_) {
+    multi_contents_view_->SetShouldShowLeadingSeparator(
+        layout_result.side_panel_visible &&
+        (layout_result.side_panel_right_aligned == base::i18n::IsRTL()));
+
+    multi_contents_view_->SetShouldShowTrailingSeparator(
+        layout_result.side_panel_visible &&
+        (layout_result.side_panel_right_aligned != base::i18n::IsRTL()));
+  } else {
     SetViewVisibility(right_aligned_side_panel_separator_,
                       layout_result.side_panel_visible &&
-                          layout_result.side_panel_right_aligned &&
-                          !is_in_split);
+                          layout_result.side_panel_right_aligned);
     right_aligned_side_panel_separator_->SetBoundsRect(
         layout_result.separator_bounds);
-  }
-  if (left_aligned_side_panel_separator_) {
     SetViewVisibility(left_aligned_side_panel_separator_,
                       layout_result.side_panel_visible &&
-                          !layout_result.side_panel_right_aligned &&
-                          !is_in_split);
+                          !layout_result.side_panel_right_aligned);
     left_aligned_side_panel_separator_->SetBoundsRect(
         layout_result.separator_bounds);
-  }
 
-  if (side_panel_rounded_corner_) {
     SetViewVisibility(side_panel_rounded_corner_,
-                      layout_result.side_panel_visible && !is_in_split);
+                      layout_result.side_panel_visible);
     if (layout_result.side_panel_visible) {
       // Adjust the rounded corner bounds based on the side panel bounds.
       const int corner_size =
           side_panel_rounded_corner_->GetPreferredSize().width();
+
+      const int top_separator_height = views::Separator::kThickness;
       if (layout_result.contents_container_after_side_panel) {
         side_panel_rounded_corner_->SetBounds(
             layout_result.side_panel_bounds.right(),
-            layout_result.side_panel_bounds.y() - views::Separator::kThickness,
+            layout_result.side_panel_bounds.y() - top_separator_height,
             corner_size, corner_size);
       } else {
         side_panel_rounded_corner_->SetBounds(
             layout_result.side_panel_bounds.x() - corner_size,
-            layout_result.side_panel_bounds.y() - views::Separator::kThickness,
+            layout_result.side_panel_bounds.y() - top_separator_height,
             corner_size, corner_size);
       }
     }
@@ -909,52 +939,32 @@ int BrowserViewLayout::GetMinWebContentsWidth() const {
   int min_width =
       kMainBrowserContentsMinimumWidth -
       unified_side_panel_->GetMinimumSize().width() -
-      right_aligned_side_panel_separator_->GetPreferredSize().width();
+      (right_aligned_side_panel_separator_
+           ? right_aligned_side_panel_separator_->GetPreferredSize().width()
+           : 0);
 
   // When in split view, the minimum width of the contents is higher.
-  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
-    min_width = std::max(
-        min_width, 2 * browser_view_->multi_contents_view()->GetMinViewWidth());
+  if (multi_contents_view_) {
+    min_width =
+        std::max(min_width, 2 * multi_contents_view_->GetMinViewWidth());
   }
   DCHECK_GE(min_width, 0);
   return min_width;
+}
+
+bool BrowserViewLayout::IsImmersiveModeEnabledWithoutToolbar() const {
+  return delegate_->GetImmersiveModeController()->IsEnabled()
+#if BUILDFLAG(IS_MAC)
+         &&
+         !fullscreen_utils::IsAlwaysShowToolbarEnabled(browser_view_->browser())
+#endif
+      ;
 }
 
 bool BrowserViewLayout::IsInfobarVisible() const {
   return !infobar_container_->IsEmpty() &&
          (!browser_view_->IsFullscreen() ||
           !infobar_container_->ShouldHideInFullscreen());
-}
-
-// When in split view, the outline at the top should replace the content
-// separator. This represents the visual separation between top container and
-// the contents area. The exception to this is immersive full screen with
-// no toolbar or presence of infobar. Similarly the insets for the left and
-// right of the split view is determined by the side panel.
-void BrowserViewLayout::UpdateSplitViewInsets() {
-  SidePanel* side_panel = views::AsViewClass<SidePanel>(unified_side_panel_);
-  bool has_side_panel = side_panel->GetVisible();
-  bool is_right_aligned = side_panel->IsRightAligned();
-  bool is_in_full_screen = browser_view_->IsFullscreen();
-  bool has_infobar = infobar_container_->GetVisible();
-
-  CHECK(multi_contents_view_);
-
-  multi_contents_view_->start_contents_view_inset()
-      .set_left(has_side_panel && !is_right_aligned
-                    ? 0
-                    : MultiContentsView::kSplitViewContentInset)
-      .set_top(!is_in_full_screen && !has_infobar
-                   ? 0
-                   : MultiContentsView::kSplitViewContentInset);
-
-  multi_contents_view_->end_contents_view_inset()
-      .set_right(has_side_panel && is_right_aligned
-                     ? 0
-                     : MultiContentsView::kSplitViewContentInset)
-      .set_top(!is_in_full_screen && !has_infobar
-                   ? 0
-                   : MultiContentsView::kSplitViewContentInset);
 }
 
 bool BrowserViewLayout::IsVerticalTabsEnabled() const {

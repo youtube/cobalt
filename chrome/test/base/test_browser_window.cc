@@ -138,6 +138,10 @@ std::vector<StatusBubble*> TestBrowserWindow::GetStatusBubbles() {
   return {};
 }
 
+bool TestBrowserWindow::CanDockDevTools() const {
+  return true;
+}
+
 gfx::Rect TestBrowserWindow::GetRestoredBounds() const {
   return gfx::Rect();
 }
@@ -257,6 +261,10 @@ views::WebView* TestBrowserWindow::GetContentsWebView() {
 
 BrowserView* TestBrowserWindow::AsBrowserView() {
   return nullptr;
+}
+
+void TestBrowserWindow::DeleteBrowserWindow() {
+  delete this;
 }
 
 ShowTranslateBubbleResult TestBrowserWindow::ShowTranslateBubble(

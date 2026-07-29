@@ -8,8 +8,8 @@
 #import "base/strings/escape.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #import "components/plus_addresses/core/common/features.h"
-#import "components/plus_addresses/grit/plus_addresses_strings.h"
 #import "components/plus_addresses/plus_address_test_utils.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
@@ -18,7 +18,6 @@
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_matchers.h"
 #import "ios/chrome/browser/plus_addresses/ui/plus_address_app_interface.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
@@ -129,10 +128,6 @@ void CheckPlusAddressCellVisibility(std::u16string chip_button_text,
            {"server-url", {fakeLocalUrl}},
            {"manage-url", {fakeLocalUrl}},
        }}});
-
-  // Enable the Keyboard Accessory Upgrade feature.
-  config.features_enabled_and_params.push_back(
-      {kIOSKeyboardAccessoryUpgradeForIPad, {}});
 
   return config;
 }

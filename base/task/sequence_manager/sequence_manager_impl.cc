@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
+
 #ifdef UNSAFE_BUFFERS_BUILD
 // TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
 #pragma allow_unsafe_buffers
@@ -64,9 +66,7 @@ class TracedBaseValue : public trace_event::ConvertableToTraceFormat {
 
   void AppendAsTraceFormat(std::string* out) const override {
     if (!value_.is_none()) {
-      std::string tmp;
-      JSONWriter::Write(value_, &tmp);
-      *out += tmp;
+      *out += WriteJson(value_).value_or("");
     } else {
       *out += "{}";
     }
@@ -1140,9 +1140,7 @@ TaskQueue::Handle SequenceManagerImpl::CreateTaskQueue(
 std::string SequenceManagerImpl::DescribeAllPendingTasks() const {
   Value::Dict value =
       AsValueWithSelectorResult(nullptr, /* force_verbose */ true);
-  std::string result;
-  JSONWriter::Write(value, &result);
-  return result;
+  return WriteJson(value).value_or("");
 }
 
 void SequenceManagerImpl::AddDestructionObserver(

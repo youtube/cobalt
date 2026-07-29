@@ -139,6 +139,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &download::features::kSmartSuggestionForLargeDownloads,
     &base::features::kCollectAndroidFrameTimelineMetrics,
     &download::features::kDownloadNotificationServiceUnifiedAPI,
+    &features::kAndroidAnimatedProgressBarInBrowser,
     &features::kAndroidAnimatedProgressBarInViz,
     &features::kAndroidBcivBottomControls,
     &features::kAndroidBrowserControlsInViz,
@@ -196,7 +197,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAdaptiveButtonInTopToolbarCustomizationV2,
     &kAdaptiveButtonInTopToolbarPageSummary,
     &kAllowTabClosingUponMinimization,
-    &kAndroidAnimatedProgressBarInBrowser,
     &kAndroidAppIntegration,
     &kAndroidAppIntegrationV2,
     &kNewTabPageCustomization,
@@ -243,6 +243,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidWindowPopupPredictFinalBounds,
     &kAndroidWindowPopupResizeAfterSpawn,
     &kAndroidXRUsesSurfaceControl,
+    &kAndroidZoomIndicator,
     &kAnimatedGifRefactor,
     &kAnimatedImageDragShadow,
     &kAnnotatedPageContentsVirtualStructure,
@@ -324,9 +325,9 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kEducationalTipDefaultBrowserPromoCard,
     &kEmptyTabListAnimationKillSwitch,
     &kEnableXAxisActivityTransition,
+    &kEnableEscapeHandlingForSecondaryActivities,
     &kExperimentsForAgsa,
     &kFloatingSnackbar,
-    &kForceBrowserControlsUponExitingFullscreen,
     &kForceTranslucentNotificationTrampoline,
     &kFullscreenInsetsApiMigration,
     &kFullscreenInsetsApiMigrationOnAutomotive,
@@ -402,6 +403,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kSearchInCCTIfEnabledByEmbedder,
     &kSearchInCCTAlternateTapHandlingIfEnabledByEmbedder,
     &kSearchResumptionModuleAndroid,
+    &kSettingsMultiColumn,
     &kSettingsSingleActivity,
     &kShareCustomActionsInCCT,
     &kShowCloseAllIncognitoTabsButton,
@@ -465,7 +467,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &permissions::features::kPermissionSiteSettingsRadioButton,
     &plus_addresses::features::kPlusAddressesEnabled,
     &plus_addresses::features::kPlusAddressAndroidOpenGmsCoreManagementPage,
-    &privacy_sandbox::kAlwaysBlock3pcsIncognito,
     &privacy_sandbox::kDisplayWildcardInContentSettings,
     &privacy_sandbox::kFingerprintingProtectionUx,
     &privacy_sandbox::kIpProtectionUx,
@@ -506,6 +507,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &webapps::features::kWebApkInstallFailureNotification,
     &webapps::features::kAndroidMinimalUiLargeScreen,
     &webapps::features::kAndroidWindowControlsOverlay,
+    &webapps::features::kAndroidWebAppMenuButton,
     &base::features::kPostGetMyMemoryStateToBackground,
 };
 
@@ -539,10 +541,6 @@ BASE_FEATURE(kAdaptiveButtonInTopToolbarPageSummary,
 BASE_FEATURE(kAllowTabClosingUponMinimization,
              "AllowTabClosingUponMinimization",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kAndroidAnimatedProgressBarInBrowser,
-             "AndroidAnimatedProgressBarInBrowser",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidAppIntegration,
              "AndroidAppIntegration",
@@ -727,6 +725,10 @@ BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn,
 BASE_FEATURE(kAndroidXRUsesSurfaceControl,
              "AndroidWindowPopupResizeAfterSpawn",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAndroidZoomIndicator,
+             "AndroidZoomIndicator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAnimatedGifRefactor,
              "AnimatedGifRefactor",
@@ -955,6 +957,10 @@ BASE_FEATURE(kCleanupLegacyTabState,
              "CleanupLegacyTabState",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDiscardPageWithCrashedSubframePolicy,
+             "DiscardPageWithCrashedSubframePolicy",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kDontAutoHideBrowserControls,
              "DontAutoHideBrowserControls",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1065,16 +1071,16 @@ BASE_FEATURE(kEnableXAxisActivityTransition,
              "EnableXAxisActivityTransition",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kEnableEscapeHandlingForSecondaryActivities,
+             "EnableEscapeHandlingForSecondaryActivities",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kExperimentsForAgsa,
              "ExperimentsForAgsa",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kFloatingSnackbar,
              "FloatingSnackbar",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kForceBrowserControlsUponExitingFullscreen,
-             "ForceBrowserControlsUponExitingFullscreen",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kForceTranslucentNotificationTrampoline,
@@ -1339,6 +1345,10 @@ BASE_FEATURE(kRobustWindowManagement,
 
 BASE_FEATURE(kRobustWindowManagementExperimental,
              "RobustWindowManagementExperimental",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSettingsMultiColumn,
+             "SettingsMultiColumn",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSettingsSingleActivity,

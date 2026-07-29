@@ -70,59 +70,80 @@ class RegionalCapabilitiesMetricsProviderTest : public testing::Test {
  protected:
   base::HistogramTester histogram_tester_;
   RegionalCapabilitiesMetricsProvider metrics_provider_;
+  TestingProfileManager profile_manager_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;
-  TestingProfileManager profile_manager_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-TEST_F(RegionalCapabilitiesMetricsProviderTest, NoProfiles) {
+TEST_F(RegionalCapabilitiesMetricsProviderTest, NoProfiles_Default) {
   metrics_provider_.ProvideCurrentSessionData(nullptr);
 
   histogram_tester_.ExpectUniqueSample(
-      "RegionalCapabilities.ActiveRegionalProgram",
+      "RegionalCapabilities.ActiveRegionalProgram2",
       ActiveRegionalProgram::kDefault, 1);
 }
 
-TEST_F(RegionalCapabilitiesMetricsProviderTest, SingleProfile_Default) {
+TEST_F(RegionalCapabilitiesMetricsProviderTest, SingleDefault_Default) {
   CreateProfileWithCountry("profile1", country_codes::CountryId("US"));
 
   metrics_provider_.ProvideCurrentSessionData(nullptr);
 
   histogram_tester_.ExpectUniqueSample(
-      "RegionalCapabilities.ActiveRegionalProgram",
+      "RegionalCapabilities.ActiveRegionalProgram2",
       ActiveRegionalProgram::kDefault, 1);
 }
 
-TEST_F(RegionalCapabilitiesMetricsProviderTest, SingleProfile_Waffle) {
+TEST_F(RegionalCapabilitiesMetricsProviderTest, SingleWaffle_Waffle) {
   CreateProfileWithCountry("profile1", country_codes::CountryId("FR"));
 
   metrics_provider_.ProvideCurrentSessionData(nullptr);
 
   histogram_tester_.ExpectUniqueSample(
-      "RegionalCapabilities.ActiveRegionalProgram",
+      "RegionalCapabilities.ActiveRegionalProgram2",
       ActiveRegionalProgram::kWaffle, 1);
 }
 
-TEST_F(RegionalCapabilitiesMetricsProviderTest, MultipleProfiles_Same) {
+// Skip on platforms that don't have a system profile.
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+TEST_F(RegionalCapabilitiesMetricsProviderTest,
+       SystemProfileAndWaffle_Waffle) {
+  profile_manager_.CreateSystemProfile();
+  CreateProfileWithCountry("profile1", country_codes::CountryId("FR"));
+
+  metrics_provider_.ProvideCurrentSessionData(nullptr);
+
+  histogram_tester_.ExpectUniqueSample(
+      "RegionalCapabilities.ActiveRegionalProgram2",
+      ActiveRegionalProgram::kWaffle, 1);
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
+
+TEST_F(RegionalCapabilitiesMetricsProviderTest, MultipleWaffle_Waffle) {
   CreateProfileWithCountry("profile1", country_codes::CountryId("FR"));
   CreateProfileWithCountry("profile2", country_codes::CountryId("FR"));
 
   metrics_provider_.ProvideCurrentSessionData(nullptr);
 
   histogram_tester_.ExpectUniqueSample(
-      "RegionalCapabilities.ActiveRegionalProgram",
+      "RegionalCapabilities.ActiveRegionalProgram2",
       ActiveRegionalProgram::kWaffle, 1);
 }
 
-TEST_F(RegionalCapabilitiesMetricsProviderTest, MultipleProfiles_Different) {
-  CreateProfileWithCountry("profile1", country_codes::CountryId("FR"));
-  CreateProfileWithCountry("profile2", country_codes::CountryId("US"));
+TEST_F(RegionalCapabilitiesMetricsProviderTest, DefaultAndWaffle_Waffle) {
+  CreateProfileWithCountry("profile1", country_codes::CountryId("US"));
+  CreateProfileWithCountry("profile2", country_codes::CountryId("FR"));
+
   metrics_provider_.ProvideCurrentSessionData(nullptr);
+
   histogram_tester_.ExpectUniqueSample(
-      "RegionalCapabilities.ActiveRegionalProgram",
-      ActiveRegionalProgram::kMixed, 1);
+      "RegionalCapabilities.ActiveRegionalProgram2",
+      ActiveRegionalProgram::kWaffle, 1);
 }
+
+// There is no test case for multiple non-default programs, because this isn't
+// currently possible: Android is single-profile, and Desktop only supports
+// Waffle.
 
 }  // namespace regional_capabilities

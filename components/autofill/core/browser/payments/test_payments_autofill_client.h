@@ -38,6 +38,9 @@ class AutofillClient;
 #if !BUILDFLAG(IS_IOS)
 class AutofillDriver;
 #endif  // !BUILDFLAG(IS_IOS)
+class AutofillProgressDialogController;
+class CardUnmaskOtpInputDialogController;
+class CardUnmaskPromptController;
 class CreditCardCvcAuthenticator;
 class CreditCardOtpAuthenticator;
 class TouchToFillDelegate;
@@ -128,6 +131,22 @@ class TestPaymentsAutofillClient : public PaymentsAutofillClient {
       base::OnceCallback<void(const std::string&)>
           confirm_unmask_challenge_option_callback,
       base::OnceClosure cancel_unmasking_closure) override;
+
+#if BUILDFLAG(IS_IOS)
+  std::unique_ptr<AutofillProgressDialogController> ExtractProgressDialogModel()
+      override {
+    return nullptr;
+  }
+
+  std::unique_ptr<CardUnmaskOtpInputDialogController>
+  ExtractOtpInputDialogModel() override {
+    return nullptr;
+  }
+
+  CardUnmaskPromptController* GetCardUnmaskPromptModel() override {
+    return nullptr;
+  }
+#endif
 
   bool GetMandatoryReauthOptInPromptWasShown();
 

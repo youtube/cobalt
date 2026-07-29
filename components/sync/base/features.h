@@ -69,6 +69,12 @@ BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSignInPromos);
 // kEnablePreferencesAccountStorage is enabled.
 BASE_DECLARE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences);
 
+// Enables syncing of flight reservations coming from Google Wallet.
+BASE_DECLARE_FEATURE(kSyncWalletFlightReservations);
+
+// Enables syncing of vehicle registrations coming from Google Wallet.
+BASE_DECLARE_FEATURE(kSyncWalletVehicleRegistrations);
+
 // Normally, if kReplaceSyncPromosWithSignInPromos is disabled,
 // UserSelectableType::kBookmarks is disabled by default upon sign-in. This
 // flag makes the type enabled by default, for manual testing.
@@ -159,25 +165,11 @@ inline constexpr base::FeatureParam<int>
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
-// Enables a set of improvements to the existing trusted vault error infobar on
-// iOS (displaying it on pages with password forms, adjusting display time,
-// adding dismiss conditions, adding a notification pause after dismissal).
-BASE_DECLARE_FEATURE(kSyncTrustedVaultInfobarImprovements);
-#endif  // BUILDFLAG(IS_IOS)
-
-#if BUILDFLAG(IS_IOS)
 // Enables a message improvements to the existing trusted vault error infobar
 // (informing users that fixing the error will help them to start syncing their
 // passwords).
 BASE_DECLARE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements);
 #endif  // BUILDFLAG(IS_IOS)
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-// Enables syncing of flight reservations coming from Google Wallet.
-BASE_DECLARE_FEATURE(kSyncWalletFlightReservations);
-// Enables syncing of vehicle registrations coming from Google Wallet.
-BASE_DECLARE_FEATURE(kSyncWalletVehicleRegistrations);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_DECLARE_FEATURE(kSyncDetermineAccountManagedStatus);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,

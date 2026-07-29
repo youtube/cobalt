@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/global_media_controls/cast_device_list_host.h"
 #include "chrome/browser/ui/global_media_controls/media_notification_device_provider_impl.h"
 #include "chrome/browser/ui/global_media_controls/presentation_request_notification_producer.h"
@@ -92,7 +93,7 @@ bool IsWebContentsFocused(content::WebContents* web_contents) {
   // If the given WebContents is not in the focused window, then it's not
   // focused. Note that we know a Browser is focused because otherwise the user
   // could not interact with the MediaDialogView.
-  if (BrowserList::GetInstance()->GetLastActive() != browser) {
+  if (GetLastActiveBrowserWindowInterfaceWithAnyProfile() != browser) {
     return false;
   }
   return browser->tab_strip_model()->GetActiveWebContents() == web_contents;
@@ -668,16 +669,19 @@ bool MediaNotificationService::IsIdBlocked(
     return false;
   }
 
-  auto* host = glic_keyed_service->host().webui_contents();
-  if (!host) {
-    return false;
-  }
+  // Block if the request came from any glic instance.
+  for (glic::Host* host : glic_keyed_service->GetAllHosts()) {
+    if (!host->webui_contents()) {
+      continue;
+    }
 
-  std::vector<content::WebContents*> inner_contents =
-      host->GetInnerWebContents();
-  if (inner_contents.size() == 1ul) {
-    return content::MediaSession::GetRequestIdFromWebContents(inner_contents[0])
-               .ToString() == request_id;
+    std::vector<content::WebContents*> inner_contents =
+        host->webui_contents()->GetInnerWebContents();
+    if (inner_contents.size() == 1ul &&
+        content::MediaSession::GetRequestIdFromWebContents(inner_contents[0])
+                .ToString() == request_id) {
+      return true;
+    }
   }
 #endif
   return false;

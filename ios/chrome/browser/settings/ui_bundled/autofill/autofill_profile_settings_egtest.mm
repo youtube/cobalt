@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
+#import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_egtest_util.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -54,8 +55,9 @@ struct DisplayStringIDToExpectedResult {
 NSString* const kCountryForSelection = @"Germany";
 
 constexpr base::TimeDelta kSnackbarAppearanceTimeout = base::Seconds(5);
-// kSnackbarDisappearanceTimeout = MDCSnackbarMessageDurationMax + 1
-constexpr base::TimeDelta kSnackbarDisappearanceTimeout = base::Seconds(10 + 1);
+
+constexpr base::TimeDelta kSnackbarDisappearanceTimeout =
+    kSnackbarMessageTestDuration + base::Seconds(1);
 
 const DisplayStringIDToExpectedResult kExpectedFields[] = {
     {IDS_IOS_AUTOFILL_FULLNAME, @"John H. Doe"},
@@ -829,8 +831,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
   [[EarlGrey selectElementWithMatcher:MigrateToAccountButton()]
       performAction:grey_tap()];
   // Wait for the snackbar to appear.
-  id<GREYMatcher> snackbar_matcher =
-      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier");
+  id<GREYMatcher> snackbar_matcher = chrome_test_util::SnackbarViewMatcher();
   ConditionBlock wait_for_appearance = ^{
     NSError* error = nil;
     [[EarlGrey selectElementWithMatcher:snackbar_matcher]
@@ -926,8 +927,7 @@ id<GREYMatcher> SettingsToolbarDoneButton() {
       performAction:grey_tap()];
 
   // Wait for the snackbar to appear.
-  id<GREYMatcher> snackbar_matcher =
-      grey_accessibilityID(@"MDCSnackbarMessageTitleAutomationIdentifier");
+  id<GREYMatcher> snackbar_matcher = chrome_test_util::SnackbarViewMatcher();
   ConditionBlock wait_for_appearance = ^{
     NSError* error = nil;
     [[EarlGrey selectElementWithMatcher:snackbar_matcher]

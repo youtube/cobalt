@@ -5,21 +5,35 @@
 #ifndef CHROME_BROWSER_GLIC_WIDGET_GLIC_SIDE_PANEL_UI_H_
 #define CHROME_BROWSER_GLIC_WIDGET_GLIC_SIDE_PANEL_UI_H_
 
+#include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "chrome/browser/glic/host/glic.mojom-forward.h"
+#include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_ui_embedder.h"
+#include "chrome/browser/glic/host/host.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
+namespace tabs {
+class TabInterface;
+}
+
 namespace glic {
 
+class GlicInstance;
+
 // A stub implementation of GlicUiEmbedder for side panel UIs.
-class GlicSidePanelUi : public GlicUiEmbedder {
+class GlicSidePanelUi : public GlicUiEmbedder, public Host::Delegate {
  public:
-  GlicSidePanelUi();
+  GlicSidePanelUi(base::WeakPtr<tabs::TabInterface> tab,
+                  GlicInstance& instance);
   ~GlicSidePanelUi() override;
 
   // GlicUiEmbedder:
+  Host::Delegate* GetHostDelegate() override;
+  void Show() override;
+  std::unique_ptr<views::View> CreateView() override;
+
+  // Host::Delegate:
   const mojom::PanelState& GetPanelState() const override;
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
@@ -34,6 +48,10 @@ class GlicSidePanelUi : public GlicUiEmbedder {
 
  private:
   mojom::PanelState panel_state_;
+
+  base::WeakPtr<tabs::TabInterface> tab_;
+  // Owns this.
+  raw_ref<GlicInstance> instance_;
 };
 
 }  // namespace glic

@@ -85,19 +85,21 @@ content::GlobalRenderFrameHostToken CreateFrameToken() {
 
 base::expected<void, std::string> ConvertAIPageContentToProto(
     blink::mojom::AIPageContentPtr& root_content,
-    AIPageContentResult& page_content) {
+    AIPageContentResult& page_content,
+    const std::optional<GURL>& main_frame_url = {}) {
   auto main_frame_token = CreateFrameToken();
   AIPageContentMap page_content_map;
   page_content_map[main_frame_token] = std::move(root_content);
+
+  const GURL main_url = main_frame_url.value_or(GURL("https://example.com"));
 
   auto get_render_frame_info = base::BindLambdaForTesting(
       [&](int, blink::FrameToken token) -> std::optional<RenderFrameInfo> {
         if (token == main_frame_token.frame_token) {
           RenderFrameInfo render_frame_info;
           render_frame_info.global_frame_token = main_frame_token;
-          render_frame_info.source_origin =
-              url::Origin::Create(GURL("https://example.com"));
-          render_frame_info.url = GURL("https://example.com");
+          render_frame_info.source_origin = url::Origin::Create(main_url);
+          render_frame_info.url = main_url;
           render_frame_info.serialized_server_token =
               main_frame_token.frame_token.ToString();
           render_frame_info.media_data = CreateMediaData();
@@ -461,6 +463,35 @@ TEST(PageContentProtoUtilTest, TitleSet) {
   EXPECT_EQ("Page Title", page_content.proto.main_frame_data().title());
 }
 
+TEST(PageContentProtoUtilTest, MainFrameUrlSet) {
+  constexpr std::string_view kCases[] = {"https://example.com",
+                                         "http://example.com", "about:blank"};
+  for (const auto url : kCases) {
+    SCOPED_TRACE(url);
+    const GURL gurl(url);
+
+    auto root_content = CreatePageContent();
+
+    AIPageContentResult page_content;
+    EXPECT_TRUE(ConvertAIPageContentToProto(root_content, page_content, gurl)
+                    .has_value());
+    EXPECT_TRUE(page_content.proto.main_frame_data().has_url());
+    EXPECT_EQ(gurl, page_content.proto.main_frame_data().url());
+  }
+}
+
+TEST(PageContentProtoUtilTest, MainFrameDataUrlSet) {
+  const GURL data_url("data:text/plain,Hello");
+
+  auto root_content = CreatePageContent();
+
+  AIPageContentResult page_content;
+  EXPECT_TRUE(ConvertAIPageContentToProto(root_content, page_content, data_url)
+                  .has_value());
+  EXPECT_TRUE(page_content.proto.main_frame_data().has_url());
+  EXPECT_EQ("data:", page_content.proto.main_frame_data().url());
+}
+
 TEST(PageContentProtoUtilTest, MediaDataSet) {
   auto root_content = CreatePageContent();
 
@@ -590,21 +621,21 @@ TEST(PageContentProtoUtilTest, ConvertIframeData) {
   auto iframe_data = blink::mojom::AIPageContentIframeData::New();
   iframe_data->frame_token = iframe_token.frame_token;
   iframe_data->likely_ad_frame = true;
-  iframe_data->local_frame_data = blink::mojom::AIPageContentFrameData::New();
-  iframe_data->local_frame_data->frame_interaction_info =
+  auto frame_data = blink::mojom::AIPageContentFrameData::New();
+  frame_data->frame_interaction_info =
       blink::mojom::AIPageContentFrameInteractionInfo::New();
-  iframe_data->local_frame_data->frame_interaction_info->selection =
+  frame_data->frame_interaction_info->selection =
       blink::mojom::AIPageContentSelection::New();
-  iframe_data->local_frame_data->frame_interaction_info->selection
-      ->selected_text = "selected text";
-  iframe_data->local_frame_data->frame_interaction_info->selection
-      ->start_dom_node_id = 1;
-  iframe_data->local_frame_data->frame_interaction_info->selection
-      ->end_dom_node_id = 2;
-  iframe_data->local_frame_data->frame_interaction_info->selection
-      ->start_offset = 3;
-  iframe_data->local_frame_data->frame_interaction_info->selection->end_offset =
-      4;
+  frame_data->frame_interaction_info->selection->selected_text =
+      "selected text";
+  frame_data->frame_interaction_info->selection->start_dom_node_id = 1;
+  frame_data->frame_interaction_info->selection->end_dom_node_id = 2;
+  frame_data->frame_interaction_info->selection->start_offset = 3;
+  frame_data->frame_interaction_info->selection->end_offset = 4;
+  iframe_data->content =
+      blink::mojom::AIPageContentIframeContent::NewLocalFrameData(
+          std::move(frame_data));
+
   root_content->root_node->children_nodes.back()
       ->content_attributes->iframe_data = std::move(iframe_data);
 

@@ -365,6 +365,28 @@ void ProfileImportProcess::DetermineSourceOfImportCandidate() {
   }
 }
 
+bool ProfileImportProcess::requires_user_prompt() const {
+  switch (import_type_) {
+    case AutofillProfileImportType::kNewProfile:
+    case AutofillProfileImportType::kConfirmableMerge:
+    case AutofillProfileImportType::kConfirmableMergeAndSilentUpdate:
+    case AutofillProfileImportType::kProfileMigration:
+    case AutofillProfileImportType::kProfileMigrationAndSilentUpdate:
+    case AutofillProfileImportType::kHomeAndWorkSuperset:
+    case AutofillProfileImportType::kNameEmailSuperset:
+    case AutofillProfileImportType::kHomeWorkNameEmailMerge:
+      return true;
+    case AutofillProfileImportType::kDuplicateImport:
+    case AutofillProfileImportType::kSilentUpdate:
+    case AutofillProfileImportType::kSuppressedNewProfile:
+    case AutofillProfileImportType::kSuppressedConfirmableMergeAndSilentUpdate:
+    case AutofillProfileImportType::kSuppressedConfirmableMerge:
+      return false;
+    case AutofillProfileImportType::kImportTypeUnspecified:
+      NOTREACHED();
+  }
+}
+
 void ProfileImportProcess::MaybeSetMigrationCandidate(
     std::optional<AutofillProfile>& migration_candidate,
     const AutofillProfile& profile) const {
@@ -409,6 +431,11 @@ void ProfileImportProcess::ApplyImport() {
     // 3. `kAccountNameEmail` superset import prompt
     // 4. Merging the `kAccountNameEmail` profile with a H/W profile prompt
     address_data_manager_->AddProfile(*confirmed_import_candidate_);
+    if (import_type() == AutofillProfileImportType::kHomeAndWorkSuperset) {
+      // Remove the original H/W profile since a superset was just saved.
+      CHECK(merge_candidate_->IsHomeAndWorkProfile());
+      address_data_manager_->RemoveProfile(merge_candidate_->guid());
+    }
   }
 }
 
@@ -612,17 +639,10 @@ int ProfileImportProcess::CollectedEditedTypeHistograms() const {
           *import_candidate_, *confirmed_import_candidate_, app_locale_);
   // Log edited types.
   for (const ProfileValueDifference& difference : edit_difference) {
-    if (import_type_ == AutofillProfileImportType::kNewProfile) {
-      autofill_metrics::LogNewProfileEditedType(difference.type);
-    } else if (is_confirmable_update()) {
-      autofill_metrics::LogProfileUpdateEditedType(difference.type);
-    } else if (is_migration()) {
-      autofill_metrics::LogProfileMigrationEditedType(difference.type);
-    } else {
-      CHECK_EQ(import_type(), AutofillProfileImportType::kHomeAndWorkSuperset);
-      autofill_metrics::LogHomeAndWorkSupersetEditedType(difference.type);
-    }
+    autofill_metrics::LogProfileImportTypeEditedType(import_type(),
+                                                     difference.type);
   }
+
   return edit_difference.size();
 }
 

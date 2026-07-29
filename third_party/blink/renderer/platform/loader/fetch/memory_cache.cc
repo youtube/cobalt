@@ -121,7 +121,7 @@ static constexpr base::TimeDelta kDefaultStrongReferencePruneDelay =
 
 // Feature to control the duration for which a strong reference may remain
 // in the MemoryCache after its last access.
-BASE_FEATURE(MemoryCacheChangeStrongReferencePruneDelay,
+BASE_FEATURE(kMemoryCacheChangeStrongReferencePruneDelay,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Parameter defining the delay after which a strong reference is removed
@@ -131,6 +131,9 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kMemoryCacheChangeStrongReferencePruneDelay,
                    "strong_reference_prune_delay",
                    kDefaultStrongReferencePruneDelay);
+
+static constexpr char kPageSavedResourceStrongReferenceSize[] =
+    "Blink.MemoryCache.PageSavedResourceStrongReferenceSize2";
 
 MemoryCache* ReplaceMemoryCacheForTesting(MemoryCache* cache) {
   MemoryCache::Get();
@@ -506,6 +509,8 @@ void MemoryCache::SaveTieredStrongReference(Resource* resource) {
 void MemoryCache::SavePageResourceStrongReferences(
     HeapVector<Member<Resource>> resources) {
   DCHECK(base::FeatureList::IsEnabled(features::kMemoryCacheStrongReference));
+  base::UmaHistogramCustomCounts(kPageSavedResourceStrongReferenceSize,
+                                 resources.size(), 0, 200, 50);
   for (Resource* resource : resources) {
     resource->UpdateMemoryCacheLastAccessedTime();
     strong_references_.AppendOrMoveToLast(resource);

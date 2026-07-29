@@ -548,12 +548,6 @@ const char kFwupdDeveloperModeDescription[] =
     "Allows display and installation in UI of unauthenticated firmware by "
     "disabling all checks.";
 
-const char kTransferableResourcePassAlphaTypeDirectlyName[] =
-    "TransferableResource pass alpha type directly";
-const char kTransferableResourcePassAlphaTypeDirectlyDescription[] =
-    "Enables Transferableresource passing the SkAlphaType dierctly rather than "
-    "flattening it to premul/unpremul";
-
 #if BUILDFLAG(IS_ANDROID)
 const char kDisableInstanceLimitName[] = "Disable Instance Limit";
 const char kDisableInstanceLimitDescription[] =
@@ -679,6 +673,12 @@ const char kIsolatedSandboxedIframesDescription[] =
     "header, even in the main frame. The affected sandboxed documents can be "
     "grouped into processes based on their URL's site or origin. The default "
     "grouping when enabled is per-site.";
+
+const char kAutofillAndPasswordsInSameSurfaceName[] =
+    "Allow Autofill and Passwords in the same dropdown";
+const char kAutofillAndPasswordsInSameSurfaceDescription[] =
+    "Enables a refactoring allowing to add password/passkey suggestions into "
+    "Autofill dropdowns alongside addresses, etc.";
 
 #if BUILDFLAG(IS_ANDROID)
 const char kAutofillAndroidDesktopSuppressAccessoryOnEmptyName[] =
@@ -961,14 +961,6 @@ const char kAutofillShowBubblesBasedOnPrioritiesDescription[] =
     "When enabled, the autofill and the password manager bubbles would be"
     "shown based on their respective priorities compared to each other";
 
-const char kAutofillRequireCvcForPossibleCardUpdateName[] =
-    "Require CVC for possible card update on upload save";
-const char kAutofillRequireCvcForPossibleCardUpdateDescription[] =
-    "When enabled, if credit card upload save encounters a card with the same "
-    "four digits as an existing server card but a different expiration date, "
-    "it requires that CVC was found in the flow before offering to save/update "
-    "the card.";
-
 const char kAutofillSharedStorageServerCardDataName[] =
     "Enable storing autofill server card data in the shared storage database";
 const char kAutofillSharedStorageServerCardDataDescription[] =
@@ -1125,6 +1117,14 @@ const char kSearchInCCTAlternateTapHandlingName[] =
     "Search in Chrome Custom Tabs Alternate Tap Handling";
 const char kSearchInCCTAlternateTapHandlingDescription[] =
     "Search in Chrome Custom Tabs Alternate Tap Handling";
+
+const char kSettingsMultiColumnName[] =
+    "Use MultiColumn mode in Chrome settings";
+const char kSettingsMultiColumnDescription[] =
+    "If the window of the clank is large enough, settings page will have two "
+    "column style, the main menu will be put at the left pane, and detailed "
+    "page will be shown at the right pane. This is expected to be used with "
+    "settings-single-activity mode.";
 
 const char kSettingsSingleActivityName[] =
     "Use SingleActivity mode in Chrome settings";
@@ -1531,6 +1531,13 @@ const char kDesktopPWAsSubAppsDescription[] =
     "Enable installed PWAs to create shortcuts by installing their sub apps. "
     "Prototype implementation of: "
     "https://github.com/ivansandrk/multi-apps/blob/main/explainer.md";
+
+const char kDevToolsIndividualRequestThrottlingName[] =
+    "Enable individual request throttling in DevTools";
+const char kDevToolsIndividualRequestThrottlingDescription[] =
+    "Enables a new feature in DevTools' network panel to apply network "
+    "conditions to individual requests, extending the per-request blocking "
+    "behavior.";
 
 const char kDesktopPWAsScopeExtensionsName[] = "Desktop PWA Scope Extensions";
 const char kDesktopPWAsScopeExtensionsDescription[] =
@@ -3071,6 +3078,12 @@ const char kContextualSuggestionsAblateOthersWhenPresentName[] =
 const char kContextualSuggestionsAblateOthersWhenPresentDescription[] =
     "Makes contextual search suggestions exclusive in zero suggest.";
 
+const char kContextualSuggestionsUiImprovementsName[] =
+    "Contextual suggestions UI improvements";
+const char kContextualSuggestionsUiImprovementsDescription[] =
+    "Enables UI improvements for contextual suggestions (e.g. icon and "
+    "animation).";
+
 const char kOmniboxContextualSearchOnFocusSuggestionsName[] =
     "Omnibox contextual search on focus suggestions";
 const char kOmniboxContextualSearchOnFocusSuggestionsDescription[] =
@@ -3126,12 +3139,6 @@ const char kOmniboxDynamicMaxAutocompleteName[] =
 const char kOmniboxDynamicMaxAutocompleteDescription[] =
     "Configures the maximum number of autocomplete matches displayed in the "
     "Omnibox UI dynamically based on the number of URL matches.";
-
-const char kOmniboxRestoreInvisibleFocusOnlyName[] =
-    "Omnibox Restore Invisible Focus Only";
-const char kOmniboxRestoreInvisibleFocusOnlyDescription[] =
-    "Only restore omnibox focus if invisible focus is used. Implemented for "
-    "Split View (#side-by-side).";
 
 const char kOptimizationGuideDebugLogsName[] =
     "Enable optimization guide debug logs";
@@ -3417,11 +3424,6 @@ const char kPowerBookmarkBackendName[] = "Power bookmark backend";
 const char kPowerBookmarkBackendDescription[] =
     "Enables storing additional metadata to support power bookmark features.";
 
-const char kSpeculationRulesPrerenderingTargetHintName[] =
-    "Speculation Rules API target hint";
-const char kSpeculationRulesPrerenderingTargetHintDescription[] =
-    "Enable target_hint param on Speculation Rules API for prerendering.";
-
 const char kSubframeProcessReuseThresholds[] =
     "Subframe process reuse thresholds";
 const char kSubframeProcessReuseThresholdsDescription[] =
@@ -3537,10 +3539,6 @@ const char kRcapsDynamicProfileCountryName[] = "Dynamic Profile Country";
 const char kRcapsDynamicProfileCountryDescription[] =
     "When enabled, Chrome updates the country associated with "
     "the profile on open";
-
-const char kRustyPngName[] = "Rust-based PNG image handling";
-const char kRustyPngDescription[] =
-    "When enabled, uses Rust `png` crate to decode and encode PNG images.";
 
 const char kQuicName[] = "Experimental QUIC protocol";
 const char kQuicDescription[] = "Enable experimental QUIC protocol support.";
@@ -4350,6 +4348,11 @@ const char kVcWebApiName[] = "VC web API";
 const char kVcWebApiDescription[] =
     "Allows web API support for video conferencing on Chromebooks.";
 
+const char kVerifyQWACsName[] = "Verify QWACs";
+const char kVerifyQWACsDescription[] =
+    "Enables verification of qualified certificates for website authentication "
+    "as described in ETSI TS 119 411-5 V2.1.1 (2025-02).";
+
 const char kVideoPictureInPictureControlsUpdate2024Name[] =
     "Video picture-in-picture controls update 2024";
 const char kVideoPictureInPictureControlsUpdate2024Description[] =
@@ -4428,13 +4431,6 @@ const char kWebAuthnImmediateGetDescription[] =
     "navigator.credentials.get() request. This will return a NotAllowedError "
     "if there are no credentials for a given get request. The request can also "
     "request passwords.";
-
-#if BUILDFLAG(IS_MAC)
-const char kWebAuthnLargeBlobForICloudKeychainName[] =
-    "Enable Large Blob support for iCloud Keychain.";
-const char kWebAuthnLargeBlobForICloudKeychainDescription[] =
-    "Enables Large Blob support for iCloud Keychain in MacOS.";
-#endif
 
 const char kWebBluetoothName[] = "Web Bluetooth";
 const char kWebBluetoothDescription[] =
@@ -4867,6 +4863,10 @@ const char kAndroidTipsNotificationsName[] = "Android Tips Notifications";
 const char kAndroidTipsNotificationsDescription[] =
     "Enable tips notifications for supported features on Android.";
 
+const char kAndroidZoomIndicatorName[] = "Android Zoom Indicator";
+const char kAndroidZoomIndicatorDescription[] =
+    "Enable zoom indicator on Android.";
+
 const char kAnimatedImageDragShadowName[] =
     "Enable animated image drag shadow on Android.";
 const char kAnimatedImageDragShadowDescription[] =
@@ -5122,6 +5122,11 @@ const char kEnableCommandLineOnNonRootedName[] =
 const char kEnableCommandLineOnNoRootedDescription[] =
     "Enable reading command line file on non-rooted devices (DANGEROUS).";
 
+const char kEnableEscapeHandlingForSecondaryActivitiesName[] =
+    "Enable escape handling for secondary activities and native pages.";
+const char kEnableEscapeHandlingForSecondaryActivitiesDescription[] =
+    "Enables handling escape events on secondary activities and native pages.";
+
 const char kEnableClipboardDataControlsAndroidName[] =
     "Enable enterprise data controls.";
 const char kEnableClipboardDataControlsAndroidDescription[] =
@@ -5237,6 +5242,11 @@ const char kSegmentationPlatformEphemeralCardRankerName[] =
 const char kSegmentationPlatformEphemeralCardRankerDescription[] =
     "Enable the Ephemeral Card ranker for the segmentation platform service "
     "to rank home modules on Android.";
+
+const char kMediaCodecLowDelayModeName[] = "MediaCodec low delay mode";
+const char kMediaCodecLowDelayModeDescription[] =
+    "Allows selection of low latency MediaCodec instances for video "
+    "decoding when low delay is requested by the underlying stream.";
 
 const char kMediaPickerAdoptionStudyName[] = "Android Media Picker Adoption";
 const char kMediaPickerAdoptionStudyDescription[] =
@@ -5928,6 +5938,12 @@ const char kNtpTabGroupsModuleName[] = "NTP Tab Groups Module";
 const char kNtpTabGroupsModuleDescription[] =
     "Shows the Tab Groups module on the New Tab Page.";
 
+const char kNtpTabGroupsModuleZeroStateName[] =
+    "NTP Tab Groups Zero State Card";
+const char kNtpTabGroupsModuleZeroStateDescription[] =
+    "Enables the zero-state card for the Tab Groups Module on the New Tab "
+    "Page.";
+
 const char kNtpWallpaperSearchButtonName[] = "NTP Wallpaper Search Button";
 const char kNtpWallpaperSearchButtonDescription[] =
     "Enables entry point on New Tab Page for Customize Chrome Side Panel "
@@ -6321,6 +6337,11 @@ const char kEnableExclusiveAccessManagerName[] =
 const char kEnableExclusiveAccessManagerDescription[] =
     "Enables the integrated handling of the fullscreen, pointer and keyboard "
     "locks. Unifies the UI for the mentioned features.";
+
+const char kAndroidWebAppMenuButtonName[] = "Enable minimal ui menu button";
+const char kAndroidWebAppMenuButtonDescription[] =
+    "Display minimal ui menu button for PWAs on devices that support "
+    "desktop windowing.";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Windows, Mac and Android  --------------------------------------------------
@@ -7959,19 +7980,6 @@ const char kSingleCaCertVerificationPhase2Name[] =
 const char kSingleCaCertVerificationPhase2Description[] =
     "Use a single CA cert for server's cert verification, no fallback.";
 
-const char kCrosMallName[] = "ChromeOS App Mall";
-const char kCrosMallDescription[] =
-    "Enables an app to discover and install other apps.";
-
-const char kCrosMallManagedName[] = "ChromeOS App Mall for managed users";
-const char kCrosMallManagedDescription[] =
-    "Enables the Mall app for managed users. Only has an effect when the "
-    "#cros-mall flag is enabled.";
-
-const char kCrosMallUrlName[] = "ChromeOS App Mall URL";
-const char kCrosMallUrlDescription[] =
-    "Customize the URL used for the ChromeOS App Mall.";
-
 const char kCrosSeparateGeoApiKeyName[] =
     "Use ChromeOS-specific API keys for location resolution";
 const char kCrosSeparateGeoApiKeyDescription[] =
@@ -8133,6 +8141,13 @@ const char kLocalNetworkAccessChecksWebRTCDescription[] =
     "#local-network-access-check flag to also be enabled "
     "See: https://chromestatus.com/feature/5065884686876672";
 
+const char kLocalNetworkAccessChecksWebSocketsName[] =
+    "Local Network Access Checks for WebSockets";
+const char kLocalNetworkAccessChecksWebSocketsDescription[] =
+    "Enable Local Network Access checks for WebSockets. Requires the "
+    "#local-network-access-check flag to also be enabled "
+    "See: https://chromestatus.com/feature/5197681148428288";
+
 #if BUILDFLAG(IS_ANDROID)
 const char kTaskManagerClankName[] = "Task Manager on Clank";
 const char kTaskManagerClankDescription[] =
@@ -8269,11 +8284,6 @@ const char kWebXrWebGpuBindingName[] = "WebXR/WebGPU Binding";
 const char kWebXrWebGpuBindingDescription[] =
     "Enables rendering with WebGPU for WebXR sessions. WebXR Projection "
     "Layers must be also be enabled to use this feature.";
-const char kWebXRDepthPerformanceName[] = "WebXR Depth Performance";
-const char kWebXRDepthPerformanceDescription[] =
-    "Enables various minor improvements to the WebXR depth-sensing feature "
-    "designed to give pages more control over the performance impact of using "
-    "the depth-sensing feature";
 const char kWebXrInternalsName[] = "WebXR Internals Debugging Page";
 const char kWebXrInternalsDescription[] =
     "Enables the webxr-internals developer page which can be used to help "

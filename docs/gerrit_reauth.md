@@ -61,6 +61,35 @@ If you’re behind a corporate network or network proxy, your system’s auto
 configured timezone might be incorrect. If this is the case, go to your system’s
 settings and set timezone and/or time manually.
 
+### Latest Git
+
+Ensure you have the latest version of Git (or at least later than 2.46.0). Use
+the package manager for your system or download from the [Git
+website](https://git-scm.com/downloads). (Note: if you are on Ubuntu LTS you may
+need to follow the instructions on the Git website to install from PPA)
+
+### Latest depot_tools
+
+Ensure you
+[have depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up)
+installed and configured on PATH.
+
+Then run:
+
+```
+update_depot_tools
+```
+
+### Git config for Gerrit
+
+Make sure your Git is configured for Gerrit. You only need to do this once.
+
+```
+git cl creds-check --global
+```
+
+Please follow the prompts from the tool and resolve any issues.
+
 ## Performing ReAuth
 
 You can ReAuth with a locally attached security key, or over an SSH or remote
@@ -74,11 +103,8 @@ when you start your day.
 This is for completing ReAuth when you're using a machine with a locally
 attached security key.
 
-First, ensure you have the latest depot_tools:
-
-```
-update_depot_tools
-```
+First, make sure you have the [latest depot_tools](#latest-depot_tools) and
+have [set up Git to access Gerrit](#git-config-for-gerrit).
 
 Then, check if you're already logged in (this is likely if you have already
 logged in with depot_tools):
@@ -116,15 +142,11 @@ This is for completing ReAuth when:
 - You SSH or remote desktop into a remote development machine (where the
   chromium/src checkout lives)
 
-First, ensure you
-[have the latest depot_tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up)
-installed on **both** local and remote machines.
+First, make sure you have the [latest depot_tools](#latest-depot_tools)
+installed on **both local and remote** machines.
 
-Note, you need to ensure depot_tools is on PATH (see the above link).
-
-```
-update_depot_tools
-```
+Then, make sure you have
+[set up Git to access](#git-config-for-gerrit).
 
 Then, ensure you're logged into Gerrit on the **remote machine**. You can check
 this by running:
@@ -364,3 +386,19 @@ passkeys won't satisfy ReAuth requirement (e.g. when uploading code, doing code
 reviews).
 
 You can still add and use other 2SV methods to sign into your Google account.
+
+**What should I expect to see when ReAuth is required?**
+
+ReAuth is required every 20 hours. When ReAuth is required you will see the
+following error when performing Gerrit remote operations like uploading CLs:
+
+```
+ReAuth is required
+
+If you are running this in a development environment, you can fix this by running:
+
+git credential-luci reauth
+```
+
+You will need to run `git credential-luci reauth` every 20 hours to avoid or
+resolve this issue. We recommend you ReAuth when you start your day.

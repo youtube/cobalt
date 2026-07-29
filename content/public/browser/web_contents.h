@@ -33,6 +33,7 @@
 #include "content/public/browser/prefetch_priority.h"
 #include "content/public/browser/preloading.h"
 #include "content/public/browser/preloading_trigger_type.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/save_page_type.h"
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/visibility.h"
@@ -51,6 +52,7 @@
 #include "third_party/perfetto/include/perfetto/tracing/traced_value_forward.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/ax_enums.mojom-forward.h"
+#include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/platform/inspect/ax_api_type.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/gfx/geometry/rect.h"
@@ -135,6 +137,7 @@ class UnownedInnerWebContentsClient;
 class WebContentsDelegate;
 class WebUI;
 struct DropData;
+struct GlobalRenderFrameHostId;
 struct MHTMLGenerationParams;
 class PreloadingAttempt;
 #if BUILDFLAG(IS_ANDROID)
@@ -771,8 +774,8 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   // processed in the renderer and acknowledged by the Browser, or if the
   // discarded WebContents' renderer was proactively terminated.
   // Discard can fail if attempted on a WebContents with a speculative RFH that
-  // has a navigation waiting to commit.
-  // TODO(crbug.com/433627400): Consider updating `on_discarded_cb` to return a
+  // has a navigation waiting to commit or it is already discarded.
+  // TODO(crbug.com/441841249): Consider updating `on_discarded_cb` to return a
   // bool to indicate whether the operation completed successfully.
   virtual void Discard(base::OnceClosure on_discarded_cb) = 0;
 
@@ -1538,6 +1541,9 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   // user activation work: crbug.com/848778
   virtual bool HasRecentInteraction() = 0;
 
+  // Returns the time ticks of the last user interaction.
+  virtual base::TimeTicks GetLastInteractionTimeTicks() = 0;
+
   // Causes the WebContents to ignore input events for at least as long as the
   // token exists. In the event of multiple calls, input events will be ignored
   // until all tokens have been destroyed.
@@ -1654,7 +1660,7 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   // - `attempt` is used to record some metrics associated with this prefetch
   //   request.
   // - `holdback_status_override` is used to override holdback status, if
-  //   specified.
+  //   not `PreloadingHoldbackStatus::kUnspecified`.
   // - `ttl`: TTL; `PrefetchService` holds prefetch in `ttl`. Uses default value
   // if `std::nullopt`.
   // - Returns `PrefetchHandle` to control prefetch resources. This can be
@@ -1670,7 +1676,7 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
       std::optional<PrefetchPriority> priority,
       scoped_refptr<PreloadPipelineInfo> preload_pipeline_info,
       base::WeakPtr<PreloadingAttempt> attempt,
-      std::optional<PreloadingHoldbackStatus> holdback_status_override,
+      PreloadingHoldbackStatus holdback_status_override,
       std::optional<base::TimeDelta> ttl) = 0;
 
   // Starts an embedder triggered (browser-initiated) prerendering page and

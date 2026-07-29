@@ -39,6 +39,7 @@
 #include "chrome/browser/contextual_cueing/mock_contextual_cueing_service.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/glic_metrics.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -71,6 +72,7 @@
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
+#include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/variations/synthetic_trial_registry.h"
@@ -114,6 +116,8 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicApiTestUserStatusCheckTest",
       "GlicApiTestWithOneTabMoreDebounceDelay",
       "GlicGetHostCapabilityApiTest",
+      "GlicApiTestWithDefaultTabContextDisabled",
+      "GlicApiTestWithDefaultTabContextEnabled",
   };
 }
 
@@ -188,6 +192,28 @@ class GlicApiTestWithOneTab : public GlicApiTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class GlicApiTestWithDefaultTabContextEnabled : public GlicApiTestWithOneTab {
+ public:
+  GlicApiTestWithDefaultTabContextEnabled() {
+    feature_list_.InitWithFeatures({features::kGlicDefaultTabContextSetting},
+                                   {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class GlicApiTestWithDefaultTabContextDisabled : public GlicApiTestWithOneTab {
+ public:
+  GlicApiTestWithDefaultTabContextDisabled() {
+    feature_list_.InitWithFeatures({},
+                                   {features::kGlicDefaultTabContextSetting});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
 // Test fixture that preloads the web client before starting the test.
 class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
  public:
@@ -240,7 +266,7 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
 
     // Preload the web client.
     RunTestSequence(WaitForShow(kGlicButtonElementId), ResetMemoryPressure(),
-                    ObserveState(glic::test::internal::kWebUiState, &host()),
+                    ObserveState(glic::test::internal::kWebUiState, GetHost()),
                     CreateAndWarmGlic(),
                     WaitForState(glic::test::internal::kWebUiState,
                                  mojom::WebUiState::kReady),
@@ -403,6 +429,22 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testInitializeFailsWindowOpen) {
   WaitForWebUiState(mojom::WebUiState::kReady);
 }
 
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithDefaultTabContextDisabled,
+                       testDefaultTabContextApiIsUndefinedWhenFeatureDisabled) {
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithDefaultTabContextEnabled,
+                       testGetDefaultTabContextPermissionState) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kGlicDefaultTabContextEnabled, false);
+  ExecuteJsTest();
+
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kGlicDefaultTabContextEnabled, true);
+  ContinueJsTest();
+}
+
 // TODO(crbug.com/409042450): This is a flaky on MSAN.
 #if defined(SLOW_BINARY)
 #define MAYBE_testReload DISABLED_testReload
@@ -412,7 +454,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testInitializeFailsWindowOpen) {
 IN_PROC_BROWSER_TEST_F(GlicApiTest, MAYBE_testReload) {
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest({
       .params = base::Value(
           base::Value::Dict().Set("failWith", "reloadAfterInitialize")),
@@ -425,7 +467,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, MAYBE_testReload) {
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testReloadWebUi) {
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
   ExecuteJsTest();
@@ -436,11 +478,11 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testReloadWebUi) {
   ExecuteJsTest();
 
   ASSERT_TRUE(base::test::RunUntil(
-      [&]() { return host().GetPageHandlersForTesting().size() == 1; }));
+      [&]() { return GetHost()->GetPageHandlersForTesting().size() == 1; }));
   // Reloading the WebUI should trigger loading a second page handler.
   // That page handler should become the primary page handler.
   // This assertion is a regression test for b/418258791.
-  ASSERT_TRUE(host().GetPrimaryPageHandlerForTesting());
+  ASSERT_TRUE(GetHost()->GetPrimaryPageHandlerForTesting());
 }
 
 // The client navigates to the 'sorry' page before it finishes initialize().
@@ -448,7 +490,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testReloadWebUi) {
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testSorryPageBeforeInitialize) {
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest({
       .params = base::Value(base::Value::Dict().Set(
           "failWith", "navigateToSorryPageBeforeInitialize")),
@@ -471,7 +513,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testSorryPageBeforeInitialize) {
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testSorryPageAfterInitialize) {
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest({
       .params = base::Value(base::Value::Dict().Set(
           "failWith", "navigateToSorryPageAfterInitialize")),
@@ -494,7 +536,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testSorryPageAfterInitialize) {
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testInitializeFailsAfterReload) {
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest({
       .params = base::Value(
           base::Value::Dict().Set("failWith", "reloadAfterInitialize")),
@@ -514,7 +556,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithFastTimeout, testNoClientCreated) {
   base::HistogramTester histogram_tester;
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest();
   listener.WaitForWebUiState(mojom::WebUiState::kError);
   // Note that the client does receive the bootstrap message, but never calls
@@ -533,7 +575,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithFastTimeout, testNoBootstrap) {
   base::HistogramTester histogram_tester;
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest();
   listener.WaitForWebUiState(mojom::WebUiState::kError);
   histogram_tester.ExpectUniqueSample("Glic.Host.WebClientState.OnDestroy",
@@ -548,7 +590,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithFastTimeout, testInitializeTimesOut) {
   base::HistogramTester histogram_tester;
   RunTestSequence(
       OpenGlicWindow(GlicWindowMode::kDetached, GlicInstrumentMode::kNone));
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   ExecuteJsTest({
       .params = base::Value(base::Value::Dict().Set("failWith", "timeout")),
   });
@@ -1320,7 +1362,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestSystemSettingsTest,
 
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testNavigateToDifferentClientPage) {
   base::HistogramTester histogram_tester;
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents));
   listener.WaitForWebUiState(mojom::WebUiState::kReady);
@@ -1347,7 +1389,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithFastTimeout,
 #else
   // Client loads, and navigates to a new URL. We try to load the client again,
   // but it fails.
-  WebUIStateListener listener(&host());
+  WebUIStateListener listener(GetHost());
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents));
   listener.WaitForWebUiState(mojom::WebUiState::kReady);
@@ -1399,8 +1441,79 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
   ExecuteJsTest();
 }
 
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
+                       testPinTabsStatePersistWhenClosePanelAndReopen) {
+  const int tab_id =
+      GetTabId(browser()->tab_strip_model()->GetActiveWebContents());
+  RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
+
+  ExecuteJsTest({.params = base::Value(base::Value::Dict().Set(
+                     "tabId", base::NumberToString(tab_id)))});
+
+  RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
+                                 GlicInstrumentMode::kHostAndContents));
+  ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
+                       testPinTabsStatePersistWhenClientRestarts) {
+  const int tab_id =
+      GetTabId(browser()->tab_strip_model()->GetActiveWebContents());
+  RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
+
+  ExecuteJsTest(
+      {.params = base::Value(base::Value::Dict()
+                                 .Set("tabId", base::NumberToString(tab_id))
+                                 .Set("isFirstRun", true))});
+
+  WebUIStateListener listener(GetHost());
+  window_controller().Reload();
+  listener.WaitForWebUiState(mojom::WebUiState::kUninitialized);
+
+  ExecuteJsTest(
+      {.params = base::Value(base::Value::Dict().Set("isFirstRun", false))});
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTest, testPinTabsFailsWhenIncognitoWindow) {
+  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
+  RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
+                                 GlicInstrumentMode::kHostAndContents));
+
+  // Open a new incognito window.
+  auto* incognito = CreateIncognitoBrowser();
+  const GURL page_url = InProcessBrowserTest::embedded_test_server()->GetURL(
+      "/glic/browser_tests/test.html");
+  RunTestSequence(
+      AddInstrumentedTab(kSecondTab, page_url, std::nullopt, incognito));
+  const int incognito_tab_id =
+      GetTabId(incognito->tab_strip_model()->GetActiveWebContents());
+
+  ExecuteJsTest(
+      {.params = base::Value(base::Value::Dict().Set(
+           "incognitoTabId", base::NumberToString(incognito_tab_id)))});
+}
+
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testUnpinTabsFailsWhenNotPinned) {
   // Unpinning a tab that is not pinned should fail.
+  const int tab_id =
+      GetTabId(browser()->tab_strip_model()->GetActiveWebContents());
+  RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
+
+  ExecuteJsTest({.params = base::Value(base::Value::Dict().Set(
+                     "tabId", base::NumberToString(tab_id)))});
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testUnpinAllTabs) {
+  const int tab_id =
+      GetTabId(browser()->tab_strip_model()->GetActiveWebContents());
+  RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
+
+  ExecuteJsTest({.params = base::Value(base::Value::Dict().Set(
+                     "tabId", base::NumberToString(tab_id)))});
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
+                       testPinTabsHaveNoEffectOnFocusedTab) {
   const int tab_id =
       GetTabId(browser()->tab_strip_model()->GetActiveWebContents());
   RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
@@ -1440,6 +1553,45 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testUnpinTabsThatNavigateInBackground) {
       NavigateWebContents(kFirstTab,
                           embedded_https_test_server().GetURL(
                               "b.com", "/test_data/page.html?changedOne")));
+  ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
+                       testTabDataUpdateOnUrlChangeForPinnedTab) {
+  const int tab_id =
+      GetTabId(browser()->tab_strip_model()->GetActiveWebContents());
+  RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
+
+  ExecuteJsTest({.params = base::Value(base::Value::Dict().Set(
+                     "tabId", base::NumberToString(tab_id)))});
+
+  // Navigate to another page in the first tab.
+  GURL new_url = embedded_test_server()->GetURL(
+      "/glic/browser_tests/test.html?changed=true");
+  RunTestSequence(NavigateWebContents(kFirstTab, new_url));
+
+  ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
+                       testTabDataUpdateOnFaviconChangeForPinnedTab) {
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+  const int tab_id = GetTabId(web_contents);
+  RunTestSequence(AddInstrumentedTab(kSecondTab, page_url()));
+
+  ExecuteJsTest({.params = base::Value(base::Value::Dict().Set(
+                     "tabId", base::NumberToString(tab_id)))});
+
+  // Add favicon to the webcontents.
+  const char* script =
+      "var link = document.createElement('link');"
+      "link.rel = 'icon';"
+      "link.href= '../../../glic/youtube_favicon_16x16.png';"
+      "document.head.appendChild(link);";
+  ASSERT_TRUE(content::ExecJs(web_contents, script));
+
   ContinueJsTest();
 }
 
@@ -1671,7 +1823,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
 
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
                        testSendsViewChangeRequestOnTaskIconOrGlicButtonToggle) {
-  CurrentViewListener listener(&host());
+  CurrentViewListener listener(GetHost());
   listener.WaitForCurrentView(mojom::CurrentView::kConversation);
   StartTaskAndShowActorTaskIcon();
   ExecuteJsTest();

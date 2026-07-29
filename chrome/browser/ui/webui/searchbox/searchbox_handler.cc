@@ -99,6 +99,8 @@ constexpr char kGoogleKeepNoteIconResourceName[] =
     "//resources/cr_components/searchbox/icons/note.svg";
 constexpr char kGoogleSitesIconResourceName[] =
     "//resources/cr_components/searchbox/icons/sites.svg";
+constexpr char kGoogleLensMonochromeLogoIcon[] =
+    "//resources/cr_components/searchbox/icons/camera.svg";
 #endif
 const char* kHistoryIconResourceName = "//resources/images/icon_history.svg";
 const char* kIncognitoIconResourceName =
@@ -442,7 +444,8 @@ searchbox::mojom::AutocompleteResultPtr CreateAutocompleteResult(
       input,
       CreateSuggestionGroupsMap(result, prefs, result.suggestion_groups_map()),
       CreateAutocompleteMatches(result, edit_model, bookmark_model,
-                                result.suggestion_groups_map(), turl_service));
+                                result.suggestion_groups_map(), turl_service),
+      base::UTF8ToUTF16(result.smart_compose_inline_hint()));
 }
 
 }  // namespace
@@ -480,6 +483,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       // Composebox.
       {"addContext", IDS_NTP_COMPOSE_ADD_CONTEXT},
       {"addContextTitle", IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE},
+      {"addImage", IDS_NTP_COMPOSE_ADD_IMAGE},
+      {"addTab", IDS_NTP_COMPOSE_ADD_TAB},
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
       {"searchboxComposeButtonTitle", IDS_NTP_COMPOSE_ENTRYPOINT_A11Y_LABEL},
       {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
@@ -506,6 +511,8 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
        IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED},
       {"composeboxFileUploadFailed", IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED},
       {"composeboxFileUploadExpired", IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED},
+      {"menu", IDS_MENU},
+      {"uploadFile", IDS_NTP_COMPOSE_UPLOAD_FILE},
   };
   source->AddLocalizedStrings(kStrings);
   source->AddString("searchboxComposePlaceholder",
@@ -659,6 +666,9 @@ std::string SearchboxHandler::ActionVectorIconToResourceName(
       icon.name == vector_icons::kGoogleGLogoMonochromeIcon.name) {
     return kGoogleGIconResourceName;
   }
+  if (icon.name == vector_icons::kGoogleLensMonochromeLogoIcon.name) {
+    return kGoogleLensMonochromeLogoIcon;
+  }
 #endif
   if (icon.name == omnibox::kIncognitoIcon.name ||
       icon.name == omnibox::kIncognitoCr2023Icon.name) {
@@ -705,6 +715,10 @@ std::string SearchboxHandler::ActionVectorIconToResourceName(
   if (icon.name == omnibox::kStarActiveIcon.name ||
       icon.name == omnibox::kStarActiveChromeRefreshIcon.name) {
     return kStarActiveIconResourceName;
+  }
+  if (icon.name == vector_icons::kHistoryIcon.name ||
+      icon.name == vector_icons::kHistoryChromeRefreshIcon.name) {
+    return kHistoryIconResourceName;
   }
   if (icon.name == omnibox::kSubdirectoryArrowRightIcon.name) {
     // The subdirectory arrow right icon is used for contextual suggestions only

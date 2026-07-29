@@ -24,6 +24,7 @@
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/gfx/image/image.h"
 #include "url/gurl.h"
 
 class Profile;
@@ -83,14 +84,6 @@ class ActorKeyedService : public KeyedService {
                       std::vector<std::unique_ptr<ToolRequest>>&& actions,
                       PerformActionsCallback callback);
 
-  // TODO(crbug.com/411462297): DEPRECATED - to be replaced with PerformActions.
-  // Executes an actor action.
-  void ExecuteAction(
-      TaskId task_id,
-      std::vector<std::unique_ptr<ToolRequest>>&& actions,
-      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
-          callback);
-
   // Stops a task by its ID, `success` determines if the task was finished
   // successfully or ended early.
   void StopTask(TaskId task_id, bool success);
@@ -108,6 +101,7 @@ class ActorKeyedService : public KeyedService {
   // Returns an acting task on provided `tab`. A null TaskId is returned if no
   // task is acting on `tab`.
   TaskId IsAnyTaskActingOnTab(const tabs::TabInterface& tab) const;
+
   Profile* GetProfile();
 
   using TabObservationResult = base::expected<
@@ -132,9 +126,11 @@ class ActorKeyedService : public KeyedService {
   using CredentialSelectedCallback = base::RepeatingCallback<void(
       webui::mojom::SelectCredentialDialogResponsePtr)>;
   using RequestToShowCredentialSelectionDialogSubscriberCallback =
-      base::RepeatingCallback<void(TaskId,
-                                   const std::vector<actor_login::Credential>&,
-                                   CredentialSelectedCallback)>;
+      base::RepeatingCallback<void(
+          TaskId,
+          const base::flat_map<std::string, gfx::Image>& icons,
+          const std::vector<actor_login::Credential>&,
+          CredentialSelectedCallback)>;
   base::CallbackListSubscription
   AddRequestToShowCredentialSelectionDialogSubscriberCallback(
       RequestToShowCredentialSelectionDialogSubscriberCallback callback);
@@ -143,6 +139,7 @@ class ActorKeyedService : public KeyedService {
   // for the given task.
   void NotifyRequestToShowCredentialSelectionDialog(
       TaskId task_id,
+      const base::flat_map<std::string, gfx::Image>& icons,
       const std::vector<actor_login::Credential>& credentials);
 
   // Callback for when a credential is selected.
@@ -158,32 +155,12 @@ class ActorKeyedService : public KeyedService {
   base::WeakPtr<ActorKeyedService> GetWeakPtr();
 
  private:
-  // Called when the actor coordinator has finished an action which required
-  // task creation.
-  void OnActionFinished(
-      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
-          callback,
-      TaskId task_id,
-      actor::mojom::ActionResultPtr action_result,
-      std::optional<size_t> index_of_failed_action,
-      std::vector<ActionResultWithLatencyInfo> action_results);
-
   // The callback used for ExecutorEngine::Act.
   void OnActionsFinished(
       PerformActionsCallback callback,
       actor::mojom::ActionResultPtr action_result,
       std::optional<size_t> index_of_failed_action,
       std::vector<ActionResultWithLatencyInfo> action_results);
-
-  void ConvertToBrowserActionResult(
-      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
-          callback,
-      TaskId task_id,
-      int32_t tab_id,
-      const GURL& url,
-      actor::mojom::ActionResultPtr action_result,
-      std::vector<ActionResultWithLatencyInfo> action_results,
-      TabObservationResult context_result);
 
   // Needs to be declared before the tasks, as they will indirectly have a
   // reference to it. This ensures the correct destruction order.

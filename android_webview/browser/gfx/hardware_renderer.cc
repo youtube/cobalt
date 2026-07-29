@@ -63,7 +63,7 @@
 namespace android_webview {
 namespace {
 
-BASE_FEATURE(DrawAndSwapInjectLatency, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDrawAndSwapInjectLatency, base::FEATURE_DISABLED_BY_DEFAULT);
 
 class ScopedAcquireExternalContext {
  public:

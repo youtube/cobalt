@@ -88,6 +88,14 @@ BASE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 );
 
+BASE_FEATURE(kSyncWalletFlightReservations,
+             "SyncWalletFlightReservations",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncWalletVehicleRegistrations,
+             "SyncWalletVehicleRegistrations",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableBookmarksSelectedTypeOnSigninForTesting,
              "EnableBookmarksSelectedTypeOnSigninForTesting",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -153,26 +161,10 @@ BASE_FEATURE(kSyncEnablePasswordsSyncErrorMessageAlternative,
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kSyncTrustedVaultInfobarImprovements,
-             "SyncTrustedVaultInfobarImprovements",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_IOS)
-
-#if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements,
              "SyncTrustedVaultInfobarMessageImprovements",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_IOS)
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-BASE_FEATURE(kSyncWalletFlightReservations,
-             "SyncWalletFlightReservations",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSyncWalletVehicleRegistrations,
-             "SyncWalletVehicleRegistrations",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kSyncDetermineAccountManagedStatus,
              "SyncDetermineAccountManagedStatus",

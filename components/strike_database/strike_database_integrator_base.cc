@@ -17,12 +17,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
-#include "components/autofill/core/browser/proto/strike_data.pb.h"
-#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
+#include "components/strike_database/strike_data.pb.h"
 #include "components/strike_database/strike_database_base.h"
+#include "components/strike_database/strike_database_features.h"
 
-namespace autofill {
+namespace strike_database {
 
 StrikeDatabaseIntegratorBase::StrikeDatabaseIntegratorBase(
     StrikeDatabaseBase* strike_database)
@@ -35,7 +35,7 @@ StrikeDatabaseIntegratorBase::GetStrikeDatabaseDecision(
     std::string_view id) const {
   CheckIdUniqueness(id);
 
-  if (base::FeatureList::IsEnabled(features::kDisableAutofillStrikeSystem)) {
+  if (base::FeatureList::IsEnabled(features::kDisableStrikeSystem)) {
     // Debug/test user has disabled the strike database.
     return StrikeDatabaseDecision::kDoNotBlock;
   }
@@ -286,4 +286,4 @@ StrikeDatabaseIntegratorBase::GetRequiredDelaySinceLastStrike() const {
   return std::nullopt;
 }
 
-}  // namespace autofill
+}  // namespace strike_database

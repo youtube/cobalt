@@ -107,10 +107,12 @@ struct SelectAccountIntent: WidgetConfigurationIntent {
 
   // Returns the gaiaID linked to the account.
   func gaia() -> String? {
-    guard let gaia = account?.id
-    else { return nil }
+    return account?.id
+  }
 
-    return gaia
+  // Returns the email linked to the account.
+  func email() -> String? {
+    return account?.email
   }
 
   // Returns a boolean used to check if the account was deleted from device.

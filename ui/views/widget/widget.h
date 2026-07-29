@@ -34,7 +34,7 @@
 #include "ui/display/types/display_constants.h"
 #include "ui/events/event_source.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
-#include "ui/gfx/native_window_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/native_theme/native_theme_observer.h"
 #include "ui/views/focus/focus_manager.h"
@@ -1435,8 +1435,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Sets an override for `color_mode` when `GetColorProvider()` is requested.
   // e.g. if set to kDark, colors will always be for the dark theme.
   void SetColorModeOverride(
-      std::optional<ui::ColorProviderKey::ColorMode> color_mode,
-      std::optional<ui::ColorId> background_color);
+      std::optional<ui::ColorProviderKey::ColorMode> color_mode);
+
+  // Sets the background color for the widget. This color is used before the
+  // view paints anything.
+  void SetBackgroundColor(std::optional<ui::ColorId> background_color);
 
   // ui::ColorProviderSource:
   const ui::ColorProvider* GetColorProvider() const override;
@@ -1598,6 +1601,8 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // a non_client_view_ present or not. This will *replace* the current client
   // contents view, possibly removing and destroying that view.
   void SetClientContentsViewInternal(std::unique_ptr<View> view);
+
+  ui::ColorId GetBackgroundColorId() const;
 
   static DisableActivationChangeHandlingType
       g_disable_activation_change_handling_;

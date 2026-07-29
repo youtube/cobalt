@@ -32,7 +32,7 @@ inline int64_t ApplyBucket(int64_t value) {
   return ukm::GetExponentialBucketMinForCounts1000(value);
 }
 
-BASE_FEATURE(AvoidUnnecessaryForcedLayoutMeasurements,
+BASE_FEATURE(kAvoidUnnecessaryForcedLayoutMeasurements,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace
@@ -701,7 +701,7 @@ void LocalFrameUkmAggregator::EndForcedLayout(
       break;
 
     case DocumentUpdateReason::kCanvas:
-    case DocumentUpdateReason::kCanvasDrawElement:
+    case DocumentUpdateReason::kCanvasDrawHTML:
     case DocumentUpdateReason::kPlugin:
     case DocumentUpdateReason::kSVGImage:
       sub_metric = kContentDocumentUpdate;

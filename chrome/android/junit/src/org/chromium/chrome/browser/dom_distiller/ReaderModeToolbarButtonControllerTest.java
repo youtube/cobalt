@@ -5,9 +5,8 @@
 package org.chromium.chrome.browser.dom_distiller;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -142,6 +141,7 @@ public class ReaderModeToolbarButtonControllerTest {
         assertEquals(
                 "Hide Reading Mode",
                 controller.getButtonDataForTesting().getButtonSpec().getContentDescription());
+        assertTrue(controller.getButtonDataForTesting().getButtonSpec().isChecked());
 
         // Simulate the url changing to something else, and verify that the button was swapped back.
         when(mMockTab.getUrl()).thenReturn(new GURL("http://test.com"));
@@ -165,27 +165,5 @@ public class ReaderModeToolbarButtonControllerTest {
         assertEquals(
                 R.string.reader_mode_cpa_button_text,
                 controller.getButtonDataForTesting().getButtonSpec().getActionChipLabelResId());
-    }
-
-    @Test
-    @EnableFeatures(DomDistillerFeatures.READER_MODE_DISTILL_IN_APP)
-    public void testBottomSheetShownOnUrlChange() {
-        ReaderModeToolbarButtonController controller = createController();
-
-        // Verify URL changes for non-distilled pages do nothing.
-        when(mMockTab.getUrl()).thenReturn(new GURL("http://test.com"));
-        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(false);
-        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
-        verify(mBottomSheetController, times(0)).requestShowContent(any(), eq(true));
-
-        // Verify URL changes for distilled pages show the bottom sheet.
-        when(mMockTab.getUrl()).thenReturn(new GURL("chrome-distiller://test"));
-        when(mDomDistillerUrlUtilsJni.isDistilledPage(any())).thenReturn(true);
-        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
-        verify(mBottomSheetController).requestShowContent(any(), eq(true));
-
-        // Verify URL updates for the same URL don't trigger again.
-        controller.getTabSupplierObserverForTesting().onUrlUpdated(mMockTab);
-        verify(mBottomSheetController, times(1)).requestShowContent(any(), eq(true));
     }
 }

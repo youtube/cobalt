@@ -71,6 +71,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   }
 
   r.SITE_SETTINGS_ALL = r.SITE_SETTINGS.createChild('all');
+  r.SITE_SETTINGS_ALL.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_SITE_DETAILS =
       r.SITE_SETTINGS_ALL.createChild('/content/siteDetails');
 
@@ -81,15 +82,19 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   // routes.
   r.SITE_SETTINGS_ADS = r.SITE_SETTINGS.createChild('ads');
   r.SITE_SETTINGS_AR = r.SITE_SETTINGS.createChild('ar');
+  r.SITE_SETTINGS_AR.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_AUTOMATIC_DOWNLOADS =
       r.SITE_SETTINGS.createChild('automaticDownloads');
+  r.SITE_SETTINGS_AUTOMATIC_DOWNLOADS.hasMigratedToPlugin = true;
   if (loadTimeData.getBoolean('autoPictureInPictureEnabled')) {
     r.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE =
         r.SITE_SETTINGS.createChild('autoPictureInPicture');
+    r.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE.hasMigratedToPlugin = true;
   }
   if (loadTimeData.getBoolean('capturedSurfaceControlEnabled')) {
     r.SITE_SETTINGS_CAPTURED_SURFACE_CONTROL =
         r.SITE_SETTINGS.createChild('capturedSurfaceControl');
+    r.SITE_SETTINGS_CAPTURED_SURFACE_CONTROL.hasMigratedToPlugin = true;
   }
   // <if expr="is_chromeos">
   if (loadTimeData.getBoolean('enableSmartCardReadersContentSetting')) {
@@ -100,15 +105,20 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_AUTO_VERIFY = r.SITE_SETTINGS.createChild('autoVerify');
   r.SITE_SETTINGS_BACKGROUND_SYNC =
       r.SITE_SETTINGS.createChild('backgroundSync');
+  r.SITE_SETTINGS_BACKGROUND_SYNC.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_CAMERA = r.SITE_SETTINGS.createChild('camera');
   r.SITE_SETTINGS_CLIPBOARD = r.SITE_SETTINGS.createChild('clipboard');
+  r.SITE_SETTINGS_CLIPBOARD.hasMigratedToPlugin = true;
   if (loadTimeData.getBoolean('enableHandTrackingContentSetting')) {
     r.SITE_SETTINGS_HAND_TRACKING = r.SITE_SETTINGS.createChild('handTracking');
+    r.SITE_SETTINGS_HAND_TRACKING.hasMigratedToPlugin = true;
   }
   r.SITE_SETTINGS_IDLE_DETECTION = r.SITE_SETTINGS.createChild('idleDetection');
+  r.SITE_SETTINGS_IDLE_DETECTION.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_IMAGES = r.SITE_SETTINGS.createChild('images');
   r.SITE_SETTINGS_MIXEDSCRIPT = r.SITE_SETTINGS.createChild('insecureContent');
   r.SITE_SETTINGS_JAVASCRIPT = r.SITE_SETTINGS.createChild('javascript');
+  r.SITE_SETTINGS_JAVASCRIPT.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER = r.SITE_SETTINGS.createChild('v8');
   if (loadTimeData.getBoolean('enableKeyboardLockPrompt')) {
     r.SITE_SETTINGS_KEYBOARD_LOCK = r.SITE_SETTINGS.createChild('keyboardLock');
@@ -116,18 +126,22 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   }
   r.SITE_SETTINGS_SOUND = r.SITE_SETTINGS.createChild('sound');
   r.SITE_SETTINGS_SENSORS = r.SITE_SETTINGS.createChild('sensors');
+  r.SITE_SETTINGS_SENSORS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_LOCATION = r.SITE_SETTINGS.createChild('location');
   r.SITE_SETTINGS_LOCATION.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_MICROPHONE = r.SITE_SETTINGS.createChild('microphone');
   r.SITE_SETTINGS_NOTIFICATIONS = r.SITE_SETTINGS.createChild('notifications');
   r.SITE_SETTINGS_NOTIFICATIONS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_POPUPS = r.SITE_SETTINGS.createChild('popups');
+  r.SITE_SETTINGS_POPUPS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_MIDI_DEVICES = r.SITE_SETTINGS.createChild('midiDevices');
+  r.SITE_SETTINGS_MIDI_DEVICES.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_USB_DEVICES = r.SITE_SETTINGS.createChild('usbDevices');
   r.SITE_SETTINGS_HID_DEVICES = r.SITE_SETTINGS.createChild('hidDevices');
   r.SITE_SETTINGS_SERIAL_PORTS = r.SITE_SETTINGS.createChild('serialPorts');
   if (loadTimeData.getBoolean('enableWebPrintingContentSetting')) {
     r.SITE_SETTINGS_WEB_PRINTING = r.SITE_SETTINGS.createChild('webPrinting');
+    r.SITE_SETTINGS_WEB_PRINTING.hasMigratedToPlugin = true;
   }
   if (loadTimeData.getBoolean('enableWebBluetoothNewPermissionsBackend')) {
     r.SITE_SETTINGS_BLUETOOTH_DEVICES =
@@ -142,6 +156,7 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   if (loadTimeData.getBoolean('enablePaymentHandlerContentSetting')) {
     r.SITE_SETTINGS_PAYMENT_HANDLER =
         r.SITE_SETTINGS.createChild('paymentHandler');
+    r.SITE_SETTINGS_PAYMENT_HANDLER.hasMigratedToPlugin = true;
   }
   if (loadTimeData.getBoolean('enableFederatedIdentityApiContentSetting')) {
     r.SITE_SETTINGS_FEDERATED_IDENTITY_API =
@@ -150,18 +165,23 @@ function addPrivacyChildRoutes(r: Partial<SettingsRoutes>) {
   r.SITE_SETTINGS_SITE_DATA = r.SITE_SETTINGS.createChild('siteData');
   r.SITE_SETTINGS_SITE_DATA.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_VR = r.SITE_SETTINGS.createChild('vr');
+  r.SITE_SETTINGS_VR.hasMigratedToPlugin = true;
   if (loadTimeData.getBoolean('enableExperimentalWebPlatformFeatures')) {
     r.SITE_SETTINGS_BLUETOOTH_SCANNING =
         r.SITE_SETTINGS.createChild('bluetoothScanning');
+    r.SITE_SETTINGS_BLUETOOTH_SCANNING.hasMigratedToPlugin = true;
   }
 
   r.SITE_SETTINGS_WINDOW_MANAGEMENT =
       r.SITE_SETTINGS.createChild('windowManagement');
+  r.SITE_SETTINGS_WINDOW_MANAGEMENT.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_FILE_SYSTEM_WRITE = r.SITE_SETTINGS.createChild('filesystem');
   r.SITE_SETTINGS_FILE_SYSTEM_WRITE_DETAILS =
       r.SITE_SETTINGS_FILE_SYSTEM_WRITE.createChild('siteDetails');
   r.SITE_SETTINGS_LOCAL_FONTS = r.SITE_SETTINGS.createChild('localFonts');
+  r.SITE_SETTINGS_LOCAL_FONTS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_STORAGE_ACCESS = r.SITE_SETTINGS.createChild('storageAccess');
+  r.SITE_SETTINGS_STORAGE_ACCESS.hasMigratedToPlugin = true;
   r.SITE_SETTINGS_AUTOMATIC_FULLSCREEN =
       r.SITE_SETTINGS.createChild('automaticFullScreen');
   r.SITE_SETTINGS_AUTOMATIC_FULLSCREEN.hasMigratedToPlugin = true;

@@ -632,6 +632,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="4042941173059740150"><ph name="SITE_ETLD_PLUS_ONE" /> сайтына <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> көмегімен өту</translation>
 <translation id="4044708993631234325">Төменгі парақша</translation>
 <translation id="4045441967987592849">Қайта ашу</translation>
+<translation id="4049920046559074950"><ph name="INSTANCE_TITLE" />: басқа опциялар</translation>
 <translation id="4052419222954753986">{NUMBER_OF_TABS,plural, =1{Ортақ қойындылар топтарындағы жаңа әрекет орын алған <ph name="TABS_COUNT_ONE" /> стандартты қойынды}other{Ортақ қойындылар топтарындағы жаңа әрекет орын алған <ph name="TABS_COUNT_MANY" /> стандартты қойынды}}</translation>
 <translation id="405365679581583349">Google Play Services қолданбасын жаңартыңыз</translation>
 <translation id="405399507749852140">Қандай да бір сайтта баға төмендесе, сізге хабарланады.</translation>
@@ -1830,6 +1831,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="930124987204876019">Тарихты, cookie файлдарын, сайт деректерін, кэшті жою…</translation>
 <translation id="938850635132480979">Қате: <ph name="ERROR_CODE" /></translation>
 <translation id="939598580284253335">Құпия фразаны енгізу</translation>
+<translation id="945522503751344254">Пікір жіберу</translation>
 <translation id="95817756606698420">Chrome браузері <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> жүйесін Қытайда іздеу үшін пайдалана алады. Мұны <ph name="BEGIN_LINK" />Параметрлер<ph name="END_LINK" /> бөлімінен өзгертуге болады.</translation>
 <translation id="961856697154696964">Браузер деректерін жою</translation>
 <translation id="963246339335003378">Тапсырмалар реттегішін ашу</translation>
