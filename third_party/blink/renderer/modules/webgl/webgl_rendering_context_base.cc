@@ -64,6 +64,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/geometry/dom_rect_read_only.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_host.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/canvas/image_data.h"
@@ -1710,15 +1711,6 @@ bool WebGLRenderingContextBase::PushFrameWithCopy() {
   return submitted_frame;
 }
 
-void WebGLRenderingContextBase::FinalizeFrame(FlushReason) {
-  if (Host()->LowLatencyEnabled()) {
-    // PaintRenderingResultsToCanvas will export drawing buffer if the resource
-    // provider is single buffered.  Otherwise it will copy the drawing buffer.
-    PaintRenderingResultsToCanvas(kBackBuffer);
-  }
-  marked_canvas_dirty_ = false;
-}
-
 void WebGLRenderingContextBase::OnErrorMessage(const char* message,
                                                int32_t id) {
   if (synthesized_errors_to_console_)
@@ -1886,6 +1878,23 @@ WebGLRenderingContextBase::PaintRenderingResultsToCanvas(
     SourceDrawingBuffer source_buffer) {
   bool dont_care = false;
   return PaintRenderingResultsToCanvasInternal(source_buffer, dont_care);
+}
+
+scoped_refptr<CanvasResource>
+WebGLRenderingContextBase::PaintRenderingResultsToResource(
+    bool was_dirty,
+    bool has_dispatcher,
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  if (was_dirty) {
+    Host()->GetOrCreateCanvasResourceProvider();
+  }
+  PaintRenderingResultsToCanvas(source_buffer);
+  if (has_dispatcher && was_dirty &&
+      Host()->GetOrCreateCanvasResourceProvider()) {
+    return ResourceProvider()->ProduceCanvasResource(reason);
+  }
+  return nullptr;
 }
 
 CanvasResourceProvider*
@@ -6669,8 +6678,7 @@ bool WebGLRenderingContextBase::IsDrawElementEligible(
   return true;
 }
 
-void WebGLRenderingContextBase::texElement2D(ScriptState* script_state,
-                                             GLenum target,
+void WebGLRenderingContextBase::texElement2D(GLenum target,
                                              GLint level,
                                              GLint internalformat,
                                              GLenum format,
@@ -6736,6 +6744,25 @@ void WebGLRenderingContextBase::texElement2D(ScriptState* script_state,
   GetCurrentUnpackState(params);
 
   DrawElementImage(image_for_render, params, exception_state);
+}
+
+void WebGLRenderingContextBase::setHitTestRegions(
+    VectorOf<CanvasElementHitTestRegion> hit_test_regions,
+    ExceptionState& exception_state) {
+  VectorOf<HTMLCanvasElement::ElementHitTestRegion> result;
+  for (const auto& region : hit_test_regions) {
+    if (!IsDrawElementEligible(region->element(), GL_TEXTURE_2D,
+                               exception_state)) {
+      return;
+    }
+    result.push_back(
+        MakeGarbageCollected<HTMLCanvasElement::ElementHitTestRegion>(
+            region->element(),
+            gfx::RectF(region->rect()->x(), region->rect()->y(),
+                       region->rect()->width(), region->rect()->height())));
+  }
+
+  canvas()->SetHitTestRegions(std::move(result));
 }
 
 void WebGLRenderingContextBase::texSubImage2D(
@@ -9040,7 +9067,7 @@ void WebGLRenderingContextBase::Trace(Visitor* visitor) const {
   CanvasRenderingContext::Trace(visitor);
 }
 
-int WebGLRenderingContextBase::ExternallyAllocatedBufferCountPerPixel() {
+int WebGLRenderingContextBase::AllocatedBufferCountPerPixel() {
   if (isContextLost())
     return 0;
 
@@ -9060,6 +9087,10 @@ int WebGLRenderingContextBase::ExternallyAllocatedBufferCountPerPixel() {
     } else if (attribs->depth() || attribs->stencil()) {
       buffer_count += 1;  // regular depth/stencil buffer
     }
+  }
+
+  if (Host()->ResourceProvider()) {
+    buffer_count++;
   }
 
   return buffer_count;

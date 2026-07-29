@@ -28,6 +28,7 @@
 #include "ui/views/win/hwnd_util.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+namespace pdf::infobar {
 namespace {
 
 void RecordUserInteractionHistogram(PdfInfoBarUserInteraction interaction) {
@@ -94,8 +95,6 @@ bool PdfInfoBarDelegate::Accept() {
 #else
 #error PdfInfoBarDelegate should only be created on Windows or MacOS
 #endif
-  // TODO(crbug.com/396202897): record metrics when the user accepts, dismisses,
-  // or ignores the infobar, and whether opening the system UI succeeds.
   return ConfirmInfoBarDelegate::Accept();
 }
 
@@ -104,3 +103,5 @@ void PdfInfoBarDelegate::InfoBarDismissed() {
   RecordUserInteractionHistogram(PdfInfoBarUserInteraction::kDismissed);
   ConfirmInfoBarDelegate::InfoBarDismissed();
 }
+
+}  // namespace pdf::infobar

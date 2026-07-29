@@ -2855,6 +2855,12 @@ gfx::Rect Element::VisibleBoundsInLocalRoot() const {
     return gfx::Rect();
   }
 
+  // TODO(crbug.com/41417572): Flag-guard. Remove once this change lands safely
+  // in stable.
+  if (RuntimeEnabledFeatures::ClipElementVisibleBoundsInLocalRootEnabled()) {
+    return VisibleBoundsRespectingClipsInLocalRoot();
+  }
+
   // We don't use absoluteBoundingBoxRect() because it can return an gfx::Rect
   // larger the actual size by 1px. crbug.com/470503
   PhysicalRect rect(
@@ -3074,7 +3080,11 @@ bool Element::toggleAttribute(const AtomicString& qualified_name,
   // https://dom.spec.whatwg.org/#dom-element-toggleattribute
   // 1. If qualifiedName does not match the Name production in XML, then throw
   // an "InvalidCharacterError" DOMException.
-  if (!Document::IsValidName(qualified_name)) {
+  bool is_valid =
+      RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled()
+          ? Document::IsValidAttributeLocalNameNewSpec(qualified_name)
+          : Document::IsValidName(qualified_name);
+  if (!is_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
         "'" + qualified_name + "' is not a valid attribute name.");
@@ -3254,7 +3264,7 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
   } else if (HasTagName(html_names::kATag) && name == html_names::kHrefAttr) {
     // <a> element is a potential scroll marker, set flag to check and update if
     // needed.
-    GetDocument().SetNeedsScrollMarkerGroupRelationsUpdate();
+    GetDocument().SetNeedsScrollTargetGroupRelationsUpdate();
   } else if (name == html_names::kPartAttr) {
     part().DidUpdateAttributeValue(params.old_value, params.new_value);
     GetDocument().GetStyleEngine().PartChangedForElement(*this);
@@ -4696,14 +4706,14 @@ StyleRecalcChange Element::RecalcOwnStyle(
     GetDocument().GetStyleEngine().MarkCountersDirty();
   }
 
-  if ((!old_style || old_style->ScrollMarkerContainNone()) && new_style &&
-      !new_style->ScrollMarkerContainNone()) {
-    GetDocument().AddScrollMarkerGroup(&EnsureScrollMarkerGroupData());
+  if ((!old_style || old_style->ScrollTargetGroupNone()) && new_style &&
+      !new_style->ScrollTargetGroupNone()) {
+    GetDocument().AddScrollTargetGroup(&EnsureScrollTargetGroupData());
   }
 
-  if (old_style && !old_style->ScrollMarkerContainNone() && new_style &&
-      new_style->ScrollMarkerContainNone()) {
-    RemoveScrollMarkerGroupData();
+  if (old_style && !old_style->ScrollTargetGroupNone() && new_style &&
+      new_style->ScrollTargetGroupNone()) {
+    RemoveScrollTargetGroupData();
   }
 
   bool old_style_has_scroll_marker_group =
@@ -4742,7 +4752,23 @@ StyleRecalcChange Element::RecalcOwnStyle(
   if (!child_change.ReattachLayoutTree() &&
       (GetForceReattachLayoutTree() || NeedsReattachLayoutTree() ||
        ComputedStyle::NeedsReattachLayoutTree(*this, old_style, new_style))) {
-    child_change = child_change.ForceReattachLayoutTree();
+    if (style_recalc_context.anchor_evaluator == nullptr) {
+      child_change = child_change.ForceReattachLayoutTree();
+    } else {
+      // position-try-fallbacks should not have style changes that causes layout
+      // tree changes. If they do, it is probably the ComputedStyle diff in
+      // NeedsReattachLayoutTree() that incorrectly detects a diff without an
+      // actual computed value change. If we ForceReattachLayoutTree() on the
+      // child_change here, we could end up accessing a destroyed LayoutObject
+      // in layout.
+      //
+      // Ideally, this should have been a NOTREACHED(), but if we have
+      // StyleImage with ErrorOccurred(), or if the resource is not allowed to
+      // be cached, the diffing of the content property will return true for
+      // NeedsReattachLayoutTree() even if the computed value is the same.
+      CHECK(!GetForceReattachLayoutTree());
+      CHECK(!NeedsReattachLayoutTree());
+    }
   }
 
   if (diff == ComputedStyle::Difference::kEqual) {
@@ -6685,8 +6711,9 @@ std::optional<QualifiedName> Element::ParseAttributeName(
     const AtomicString& qualified_name,
     ExceptionState& exception_state) {
   AtomicString prefix, local_name;
-  if (!Document::ParseQualifiedName(qualified_name, prefix, local_name,
-                                    exception_state)) {
+  if (!Document::ParseQualifiedName(
+          qualified_name, prefix, local_name, exception_state,
+          Document::QualifiedNameParsingMode::kParsingAttribute)) {
     return std::nullopt;
   }
   DCHECK(!exception_state.HadException());
@@ -7199,6 +7226,10 @@ void Element::UpdateSelectionOnFocus(
     if (this == frame->Selection()
                     .ComputeVisibleSelectionInDOMTreeDeprecated()
                     .RootEditableElement()) {
+      if (!options->preventScroll() &&
+          RuntimeEnabledFeatures::RevealSelectionInIframeEnabled()) {
+        frame->Selection().RevealSelection();
+      }
       return;
     }
 
@@ -9213,6 +9244,10 @@ Element* Element::GetStyledPseudoElement(
     return container_pseudo;
   }
 
+  if (pseudo_id == kPseudoIdViewTransitionGroupChildren) {
+    return container_pseudo->GetPseudoElement(pseudo_id, view_transition_name);
+  }
+
   auto* wrapper_pseudo = container_pseudo->GetPseudoElement(
       kPseudoIdViewTransitionImagePair, view_transition_name);
   if (!wrapper_pseudo || pseudo_id == kPseudoIdViewTransitionImagePair) {
@@ -10008,7 +10043,6 @@ void Element::DidAddAttribute(const QualifiedName& name,
     UpdateId(g_null_atom, value);
   }
   probe::DidModifyDOMAttr(this, name, value);
-  DispatchSubtreeModifiedEvent();
 }
 
 void Element::DidModifyAttribute(const QualifiedName& name,
@@ -10032,7 +10066,6 @@ void Element::DidRemoveAttribute(const QualifiedName& name,
   AttributeChanged(AttributeModificationParams(
       name, old_value, g_null_atom, AttributeModificationReason::kDirectly));
   probe::DidRemoveDOMAttr(this, name);
-  DispatchSubtreeModifiedEvent();
 }
 
 static bool NeedsURLResolutionForInlineStyle(const Element& element,
@@ -11240,11 +11273,27 @@ void Element::RecalcTransitionPseudoTreeStyle(
           PseudoId::kPseudoIdViewTransitionGroup, view_transition_name);
     }
 
-    PseudoElement* container_pseudo =
-        parent ? parent->UpdatePseudoElement(
-                     kPseudoIdViewTransitionGroup, style_recalc_change,
-                     style_recalc_context, view_transition_name)
-               : nullptr;
+    // If the parent is not a ::view-transition element, we need a
+    // ::view-transition-group-children container.
+    if (parent && parent != transition_pseudo) {
+      bool needs_reattach = parent->NeedsReattachLayoutTree();
+      parent = parent->UpdatePseudoElement(
+          kPseudoIdViewTransitionGroupChildren, style_recalc_change,
+          style_recalc_context, parent->view_transition_name());
+      if (!parent) {
+        continue;
+      }
+      if (needs_reattach) {
+        parent->SetNeedsReattachLayoutTree();
+      }
+    } else {
+      parent = transition_pseudo;
+    }
+
+    PseudoElement* container_pseudo = parent->UpdatePseudoElement(
+        kPseudoIdViewTransitionGroup, style_recalc_change, style_recalc_context,
+        view_transition_name);
+
     if (!container_pseudo) {
       continue;
     }
@@ -11610,7 +11659,10 @@ void Element::SetAttributeHinted(AtomicString local_name,
                                  WTF::AtomicStringTable::WeakResult hint,
                                  String value,
                                  ExceptionState& exception_state) {
-  if (!Document::IsValidName(local_name)) {
+  bool is_valid = RuntimeEnabledFeatures::RelaxDOMValidNamesEnabled()
+                      ? Document::IsValidAttributeLocalNameNewSpec(local_name)
+                      : Document::IsValidName(local_name);
+  if (!is_valid) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidCharacterError,
         "'" + local_name + "' is not a valid attribute name.");
@@ -11845,33 +11897,33 @@ AnchorPositionScrollData* Element::GetAnchorPositionScrollData() const {
   return nullptr;
 }
 
-ScrollMarkerGroupData& Element::EnsureScrollMarkerGroupData() {
+ScrollMarkerGroupData& Element::EnsureScrollTargetGroupData() {
   return EnsureElementRareData().EnsureScrollMarkerGroupData(this);
 }
 
-void Element::RemoveScrollMarkerGroupData() {
+void Element::RemoveScrollTargetGroupData() {
   if (ElementRareDataVector* data = GetElementRareData()) {
     if (ScrollMarkerGroupData* scroll_marker_group_data =
             data->GetScrollMarkerGroupData()) {
       scroll_marker_group_data->ClearFocusGroup();
-      GetDocument().RemoveScrollMarkerGroup(scroll_marker_group_data);
+      GetDocument().RemoveScrollTargetGroup(scroll_marker_group_data);
       data->RemoveScrollMarkerGroupData();
     }
   }
 }
 
-ScrollMarkerGroupData* Element::GetScrollMarkerGroupData() const {
+ScrollMarkerGroupData* Element::GetScrollTargetGroupData() const {
   if (const ElementRareDataVector* data = GetElementRareData()) {
     return data->GetScrollMarkerGroupData();
   }
   return nullptr;
 }
 
-void Element::SetScrollMarkerGroupContainerData(ScrollMarkerGroupData* data) {
+void Element::SetScrollTargetGroupContainerData(ScrollMarkerGroupData* data) {
   return EnsureElementRareData().SetScrollMarkerGroupContainerData(data);
 }
 
-ScrollMarkerGroupData* Element::GetScrollMarkerGroupContainerData() const {
+ScrollMarkerGroupData* Element::GetScrollTargetGroupContainerData() const {
   if (const ElementRareDataVector* data = GetElementRareData()) {
     return data->GetScrollMarkerGroupContainerData();
   }
@@ -11948,8 +12000,12 @@ Element* Element::ImplicitAnchorElement() const {
 
 bool Element::RecalcSelfOrAncestorHasContainerTiming() const {
   DCHECK(RuntimeEnabledFeatures::ContainerTimingEnabled());
-  if (IsHTMLElement() && FastHasAttribute(html_names::kContainertimingAttr)) {
-    return true;
+  if (IsHTMLElement()) {
+    if (FastHasAttribute(html_names::kContainertimingAttr)) {
+      return true;
+    } else if (FastHasAttribute(html_names::kContainertimingIgnoreAttr)) {
+      return false;
+    }
   }
   Node* parent = parentNode();
   if (parent && parent->SelfOrAncestorHasContainerTiming()) {
@@ -11963,7 +12019,8 @@ void Element::UpdateDescendantHasContainerTiming(bool has_container_timing) {
   Element* element = ElementTraversal::FirstChild(*this);
   while (element) {
     if (element->IsHTMLElement()) {
-      if (element->FastHasAttribute(html_names::kContainertimingAttr)) {
+      if (element->FastHasAttribute(html_names::kContainertimingAttr) ||
+          element->FastHasAttribute(html_names::kContainertimingIgnoreAttr)) {
         element = ElementTraversal::NextSkippingChildren(*element, this);
         continue;
       }
@@ -11990,7 +12047,8 @@ void Element::UpdateDescendantHasContainerTiming(bool has_container_timing) {
 bool Element::DoesChildContainerTimingNeedChange(const Node& node) const {
   auto* element = DynamicTo<Element>(node);
   if (element && element->IsHTMLElement() &&
-      (element->FastHasAttribute(html_names::kContainertimingAttr))) {
+      (element->FastHasAttribute(html_names::kContainertimingAttr) ||
+       element->FastHasAttribute(html_names::kContainertimingIgnoreAttr))) {
     return false;
   }
   return SelfOrAncestorHasContainerTiming() !=

@@ -280,8 +280,15 @@ class StreamRequester : public HttpStreamRequest::Delegate {
 
   HttpStreamRequest* RequestStream(HttpStreamPool& pool) {
     const HttpStreamKey stream_key = GetStreamKey();
-    request_ = pool.RequestStream(
-        this,
+    const auto net_log = NetLogWithSource::Make(
+        pool.http_network_session()->net_log(), NetLogSourceType::URL_REQUEST);
+    request_ = std::make_unique<HttpStreamRequest>(
+        /*helper=*/nullptr,
+        /*websocket_handshake_stream_create_helper=*/nullptr, net_log,
+        HttpStreamRequest::StreamType::HTTP_STREAM);
+    pool.HandleStreamRequest(
+        request_.get(),
+        /*delegate=*/this,
         HttpStreamPoolRequestInfo(
             stream_key.destination(), stream_key.privacy_mode(),
             stream_key.socket_tag(), stream_key.network_anonymization_key(),
@@ -293,9 +300,7 @@ class StreamRequester : public HttpStreamRequest::Delegate {
                 pool.http_network_session()->net_log(),
                 NetLogSourceType::HTTP_STREAM_JOB_CONTROLLER)),
         priority_, allowed_bad_certs_, enable_ip_based_pooling_,
-        enable_alternative_services_,
-        NetLogWithSource::Make(pool.http_network_session()->net_log(),
-                               NetLogSourceType::URL_REQUEST));
+        enable_alternative_services_);
     Group* group = pool.GetGroupForTesting(stream_key);
     AttemptManager* attempt_manager =
         group ? group->attempt_manager() : nullptr;
@@ -366,9 +371,6 @@ class StreamRequester : public HttpStreamRequest::Delegate {
   }
 
   void OnQuicBroken() override {}
-
-  void OnSwitchesToHttpStreamPool(
-      HttpStreamPoolRequestInfo request_info) override {}
 
   HttpStream* stream() {
     CHECK(stream_);
@@ -1174,13 +1176,26 @@ TEST_F(HttpStreamPoolAttemptManagerTest, RequestCanceledBeforeAttemptSuccess) {
 
   endpoint_request->add_endpoint(
       ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint());
-  endpoint_request->CallOnServiceEndpointRequestFinished(OK);
+  endpoint_request->CallOnServiceEndpointsUpdated();
 
+  // Reset the request to cancel. Associated AttemptManager and Group should
+  // complete eventually.
   requester.ResetRequest();
-  RunUntilIdle();
+  ASSERT_TRUE(requester.associated_attempt_manager()->is_shutting_down());
 
-  Group& group = pool().GetOrCreateGroupForTesting(requester.GetStreamKey());
-  ASSERT_EQ(group.IdleStreamSocketCount(), 1u);
+  // Ensure invoking service endpoint callbacks does nothing on the associated
+  // AttemptManager.
+  CHECK(endpoint_request);
+  endpoint_request->add_endpoint(
+      ServiceEndpointBuilder().add_v4("192.0.2.2").endpoint());
+  endpoint_request->CallOnServiceEndpointsUpdated();
+  ASSERT_TRUE(requester.associated_attempt_manager()->is_shutting_down());
+
+  endpoint_request->CallOnServiceEndpointRequestFinished(OK);
+  ASSERT_TRUE(requester.associated_attempt_manager()->is_shutting_down());
+
+  WaitForAttemptManagerComplete(requester.associated_attempt_manager().get());
+  ASSERT_FALSE(pool().GetGroupForTesting(requester.GetStreamKey()));
 }
 
 // Tests that canceling a limit ignoring request doesn't result in hitting a
@@ -2376,8 +2391,10 @@ TEST_F(HttpStreamPoolAttemptManagerTest, CancelAttemptOnSSLConfigChangeNoJobs) {
     raw_requester->RequestStream(pool());
     ASSERT_FALSE(raw_requester->result().has_value());
   }
-  AttemptManager* manager =
-      pool().GetGroupForTesting(stream_key)->attempt_manager();
+  base::WeakPtr<AttemptManager> manager = pool()
+                                              .GetGroupForTesting(stream_key)
+                                              ->attempt_manager()
+                                              ->GetWeakPtrForTesting();
   ASSERT_EQ(manager->RequestJobCount(), 2u);
   ASSERT_EQ(manager->NotifiedRequestJobCount(), 0u);
   ASSERT_EQ(manager->TcpBasedAttemptCount(), 2u);
@@ -2388,12 +2405,13 @@ TEST_F(HttpStreamPoolAttemptManagerTest, CancelAttemptOnSSLConfigChangeNoJobs) {
   // Cancel requests. This should remove all jobs from the corresponding group.
   // Ensure that the job and attempt manager are still alive since there are
   // in-flight attempts.
-  requesters.clear();
-  manager = pool().GetGroupForTesting(stream_key)->attempt_manager();
-  ASSERT_TRUE(manager);
+  for (const auto& requester : requesters) {
+    requester->ResetRequest();
+  }
+  ASSERT_TRUE(manager->is_shutting_down());
   ASSERT_EQ(manager->RequestJobCount(), 0u);
   ASSERT_EQ(manager->NotifiedRequestJobCount(), 0u);
-  ASSERT_EQ(manager->TcpBasedAttemptCount(), 2u);
+  ASSERT_EQ(manager->TcpBasedAttemptCount(), 0u);
 
   // Trigger an SSLConfig change. This should cancel in-flight attempts.
   ssl_config_service()->NotifySSLContextConfigChange();
@@ -2926,18 +2944,19 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
   StreamRequester requester_b;
   requester_b.set_destination("https://example.test").RequestStream(pool());
 
-  // Call CallOnServiceEndpointsUpdated(). The corresponding AttemptManager will
-  // destroy ServiceEndpointRequest.
+  // Call CallOnServiceEndpointsUpdated(). The AttemptManager should use the
+  // existing SPDY session.
   endpoint_request
       ->add_endpoint(
           ServiceEndpointBuilder().add_ip_endpoint(kCommonEndPoint).endpoint())
       .CallOnServiceEndpointsUpdated();
-  CHECK(!endpoint_request);
 
   requester_b.WaitForResult();
 
   EXPECT_THAT(requester_b.result(), Optional(IsOk()));
   ASSERT_EQ(pool().TotalActiveStreamCount(), 1u);
+  FastForwardUntilNoTasksRemain();
+  CHECK(!endpoint_request);
 }
 
 TEST_F(HttpStreamPoolAttemptManagerTest,
@@ -3342,6 +3361,7 @@ TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectSpdySessionAvailable) {
 
   int rv = preconnector.Preconnect(pool());
   EXPECT_THAT(rv, IsOk());
+  EXPECT_EQ(pool().JobControllerCountForTesting(), 0u);
 }
 
 TEST_F(HttpStreamPoolAttemptManagerTest, PreconnectActiveStreamsAvailable) {
@@ -4769,14 +4789,14 @@ TEST_F(HttpStreamPoolAttemptManagerTest, AlternativeSerivcesDisabled) {
 TEST_F(HttpStreamPoolAttemptManagerTest,
        AlternativeServicesDisabledThenEnabled) {
   resolver()
-      ->AddFakeRequest()
-      ->add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
       .CompleteStartSynchronously(OK);
 
-  SequencedSocketData tcp_data;
-  // Stall forever.
-  tcp_data.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
-  socket_factory()->AddSocketDataProvider(&tcp_data);
+  // TCP attempt stall forever.
+  SequencedSocketData tcp_data1;
+  tcp_data1.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
+  socket_factory()->AddSocketDataProvider(&tcp_data1);
 
   // Start a request that disables alternative services and cancel it
   // immediately.
@@ -4787,6 +4807,11 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
   requester1.ResetRequest();
 
   AddQuicData();
+
+  // TCP attempt stall forever.
+  SequencedSocketData tcp_data2;
+  tcp_data2.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
+  socket_factory()->AddSocketDataProvider(&tcp_data2);
 
   // Start another request that enables alternative services. It should complete
   // with a new QUIC session.

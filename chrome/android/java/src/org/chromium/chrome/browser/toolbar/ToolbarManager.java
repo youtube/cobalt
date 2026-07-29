@@ -1172,7 +1172,6 @@ public class ToolbarManager
 
         mProgressBarCoordinator =
                 new LoadProgressCoordinator(mActivityTabProvider, mToolbar.getProgressBar());
-        mToolbar.addUrlExpansionObserver(statusBarColorController);
         mToolbar.setToolbarColorObserver(statusBarColorController);
 
         mActivityTabTabObserver =
@@ -1719,7 +1718,8 @@ public class ToolbarManager
                             mWindowAndroid.getInsetObserver(),
                             controlContainerTranslationSupplier,
                             controlContainerHeightSupplier,
-                            keyboardAccessoryStateSupplier.getIsSheetShowingSupplier());
+                            keyboardAccessoryStateSupplier.getIsSheetShowingSupplier(),
+                            this::isUrlBarFocused);
         }
     }
 
@@ -2179,6 +2179,10 @@ public class ToolbarManager
             mUpdateMenuItemHelper.registerObserver(mMenuStateObserver);
         }
 
+        if (mExtensionToolbarManager != null) {
+            mExtensionToolbarManager.initializeWithNative();
+        }
+
         mInitializedWithNative = true;
         mTabModelSelector.getCurrentTabModelSupplier().addObserver(mCurrentTabModelObserver);
         refreshSelectedTab(mActivityTabProvider.get());
@@ -2325,7 +2329,6 @@ public class ToolbarManager
             mTabStripHeightObserver = null;
         }
         mTabStripHeightSupplier = null;
-        mToolbar.removeUrlExpansionObserver(mStatusBarColorController);
         mToolbar.destroy();
         mToolbarLongPressMenuHandler.destroy();
 
@@ -2823,7 +2826,9 @@ public class ToolbarManager
                 && DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity)) {
             mActionModeController.startHideAnimation();
         }
-        if (previousTab != tab || wasIncognitoBranded != isIncognitoBranded) {
+        // NOTE: Here we're not checking if isIncognitoBranded has changed because it's redundant
+        // when we're already checking if tab has changed.
+        if (previousTab != tab) {
             int defaultPrimaryColor =
                     SurfaceColorUpdateUtils.getDefaultThemeColor(mActivity, isIncognitoBranded);
             int primaryColor =

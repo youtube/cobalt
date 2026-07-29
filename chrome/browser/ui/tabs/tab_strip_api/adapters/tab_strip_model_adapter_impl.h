@@ -7,6 +7,7 @@
 
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/tab_strip_model_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/tabs/public/tab_collection.h"
 
 namespace tabs_api {
 
@@ -16,7 +17,7 @@ class TabStripModelAdapterImpl : public TabStripModelAdapter {
  public:
   explicit TabStripModelAdapterImpl(TabStripModel* tab_strip_model)
       : tab_strip_model_(tab_strip_model) {}
-  TabStripModelAdapterImpl(const TabStripModelAdapterImpl&) = delete;
+  TabStripModelAdapterImpl(const TabStripModelAdapterImpl&&) = delete;
   TabStripModelAdapterImpl operator=(const TabStripModelAdapterImpl&) = delete;
   ~TabStripModelAdapterImpl() override {}
 
@@ -27,6 +28,7 @@ class TabStripModelAdapterImpl : public TabStripModelAdapter {
   void CloseTab(size_t tab_index) override;
   std::optional<int> GetIndexForHandle(tabs::TabHandle tab_handle) override;
   void ActivateTab(size_t index) override;
+  mojom::TabCollectionContainerPtr GetTabStripTopology() override;
 
  private:
   raw_ptr<TabStripModel> tab_strip_model_;

@@ -116,7 +116,6 @@ after discussions on the right group.
       <annotation id="ftl_messaging_client_receive_messages"/>
       <annotation id="ftl_messaging_client_send_messages"/>
       <annotation id="ftl_registration_manager"/>
-      <annotation id="remoting_log_to_server"/>
       <annotation id="remoting_provision_corp_machine"/>
       <annotation id="omnibox_result_change"/>
       <annotation id="browser_switcher_ieem_sitelist"/>
@@ -379,6 +378,7 @@ after discussions on the right group.
       <annotation id="notification_telemetry"/>
       <annotation id="corp_register_support_host_request"/>
       <annotation id="zero_state_suggestions_model_execution"/>
+      <annotation id="certificate_verifier_2qwac_loader"/>
     </sender>
   </group>
   <group name="Admin Features" hidden="true">
@@ -413,7 +413,6 @@ after discussions on the right group.
       <annotation id="gcm_connection_factory"/>
       <annotation id="gcm_registration"/>
       <annotation id="gcm_unregistration"/>
-      <annotation id="web_push_message"/>
       <annotation id="per_user_topic_registration_request"/>
     </sender>
   </group>

@@ -243,6 +243,7 @@
 <translation id="1972325230031091483">आपको ज़्यादा तेज़ी से ब्राउज़ करने का अनुभव मिलता है, क्योंकि कॉन्टेंट आपके हाल ही में देखे गए वेब पेज के हिसाब से लोड होता है</translation>
 <translation id="1974060860693918893">ऐडवांस सेटिंग</translation>
 <translation id="1977621687170192347">"अन्य ऐप्लिकेशन के लिंक, गुप्त मोड में खोलने के लिए पूछें" को चालू करें.</translation>
+<translation id="1979055159547313322"><ph name="USER_EMAIL" /> खाते को <ph name="HOSTED_DOMAIN" /> मैनेज करता है. यह कुछ जानकारी को ऐक्सेस कर सकता है. जैसे,</translation>
 <translation id="1979188886349613713">ऐसे फ़ाइल एक्सटेंशन शामिल करें जो वेबसाइट ने तय नहीं किए हैं</translation>
 <translation id="1980417445547898121">{count,plural, =1{इस iPhone पर, दूसरे डिवाइस से हाल ही में इस्तेमाल किया जा रहा {count} टैब देखें}one{इस iPhone पर, दूसरे डिवाइस से हाल ही में इस्तेमाल किया जा रहा {count} टैब देखें}other{इस iPhone पर, दूसरे डिवाइस से हाल ही में इस्तेमाल किए जा रहे {count} टैब देखें}}</translation>
 <translation id="1981118202195772574">मोबाइल</translation>
@@ -264,6 +265,7 @@
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> खाते को <ph name="HOSTED_DOMAIN" /> मैनेज करता है. यह कुछ जानकारी देख सकता है. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">नया आइटम</translation>
 <translation id="2049727122989709386"><ph name="COUNT" /> खातों में ऐसे पासवर्ड का इस्तेमाल हो रहा है जो किसी दूसरे खाते के पासवर्ड से मेल खाता है</translation>
+<translation id="2054044186557130763"><ph name="NAME" /> <ph name="EMAIL" /> के तौर पर साइन इन करें. इसे आपका संगठन मैनेज करता है.</translation>
 <translation id="2059166748188874810">नगरपालिका</translation>
 <translation id="2060638295449304809">यह पता सिर्फ़ इस डिवाइस में सेव किया गया है. अपने दूसरे डिवाइसों पर इसका इस्तेमाल करने के लिए, इसे अपने Google खाते <ph name="USER_EMAIL" /> में सेव करें</translation>
 <translation id="20638360198452347">यूनिट टाइप चुनने की सुविधा</translation>
@@ -381,6 +383,7 @@
 <translation id="2513103768503127042">आपको अपने टैब ग्रुप यहां दिखेंगे</translation>
 <translation id="251837347827266434">आपको साइन आउट कर दिया जाएगा, टैब बंद हो जाएंगे, और ब्राउज़िंग डेटा मिटा दिया जाएगा</translation>
 <translation id="2520787026086861736">इसे बंद करने के लिए, <ph name="BEGIN_LINK" />AutoFill &amp; Passwords<ph name="END_LINK" /> पर जाएं</translation>
+<translation id="2523295204312809179">किसी टैब ग्रुप को बंद करने पर, वह यहां अपने-आप सेव हो जाता है</translation>
 <translation id="2529021024822217800">सभी खोलें</translation>
 <translation id="2536991091671391962">सेव किए गए पासवर्ड को किसी भी डिवाइस पर इस्तेमाल किया जा सकता है. <ph name="EMAIL" /> के लिए ये पासवर्ड, Google Password Manager में सेव किए गए हैं.</translation>
 <translation id="2538103551183528357">पासवर्ड छिपाया गया</translation>
@@ -612,6 +615,7 @@
 <translation id="3572607909481582402">आपके Google खाते में</translation>
 <translation id="3575234738189584619">Lens की मदद से खोजें</translation>
 <translation id="3575426792457739946">इस सूची में, लोड की गई सभी प्रोफ़ाइलें शामिल की गई हैं.</translation>
+<translation id="3578866308944526475"><ph name="EMAIL" /> को आपका संगठन मैनेज करता है.</translation>
 <translation id="3581564640715911333">दूसरी भाषाओं में पेजों का अनुवाद करने की सुविधा दें</translation>
 <translation id="3587885837929752825">आपका संगठन यह मैनेज करता है कि आपके पास अपने Google खाते में किस तरह का डेटा सेव करने की अनुमति है.</translation>
 <translation id="3588820906588687999">इमेज को 'नए टैब' में खोलें</translation>
@@ -879,6 +883,9 @@
 <translation id="4669618761237477717">आपके संगठन के मुताबिक, यह ज़रूरी है कि आप निजी तौर पर ब्राउज़ करें. गुप्त मोड में, टैब ग्रुप सिंक नहीं किए जाते.
 <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="467189612236587057">फ़ोन कॉल करके, कारोबार से बातचीत करें</translation>
+<translation id="4673565891421389203">मैनेज किए जा रहे खाते से साइन इन करने पर, आपको अपने संगठन से जुड़े ब्राउज़िंग डेटा को अपने अन्य ब्राउज़िंग डेटा से अलग करने में मदद मिलती है. इस डेटा में टैब, इतिहास, और पासवर्ड शामिल हैं.
+
+       यह चुनें कि इस डिवाइस पर मौजूद ब्राउज़िंग डेटा के साथ क्या करना है.</translation>
 <translation id="4682496302933121474">पेज का अनुवाद पाना है?</translation>
 <translation id="4682686630151240767">1. iPhone की सेटिंग खोलें</translation>
 <translation id="4699172675775169585">कैश इमेज और फ़ाइलें</translation>
@@ -887,6 +894,7 @@
 <translation id="4719927025381752090">अनुवाद करना ऑफ़र करें</translation>
 <translation id="4720530280568305198">चुना गया कॉन्टेंट एक नए टैब में खुल गया है</translation>
 <translation id="472259426228234149">कीमत: 100 से 180 डॉलर के बीच</translation>
+<translation id="4735849923335729414"><ph name="EMAIL" /> के तौर पर साइन इन करें. इसे आपका संगठन मैनेज करता है.</translation>
 <translation id="473775607612524610">अपडेट करें</translation>
 <translation id="474209246745757965">कैमरे की मदद से खरीदारी करें और टेक्स्ट का अनुवाद करें</translation>
 <translation id="4742407542027196863">पासवर्ड मैनेज करें…</translation>
@@ -959,8 +967,10 @@
 <translation id="4985921635659180565">फ़ाइल मिटाने के लिए शेड्यूल करने के बाद, इसे रद्द नहीं किया जा सकता.</translation>
 <translation id="498624032394115435">जिन लोगों के पास यह लिंक है वे हर टैब में बदलाव कर सकते हैं.</translation>
 <translation id="4989065233040279145"><ph name="FILENAME" /> को सेव करने की जगह चुनें</translation>
+<translation id="499122600724363620"><ph name="NAME" />, <ph name="EMAIL" /> को आपका संगठन मैनेज करता है.</translation>
 <translation id="4992255726304765516">टैब ग्रुप का रंग <ph name="COLOR" /></translation>
 <translation id="5005498671520578047">पासवर्ड कॉपी करें</translation>
+<translation id="5009127379503001909">ब्राउज़ करना जारी रखें</translation>
 <translation id="5012914568031465281">कीमत ट्रैक नहीं की जा सकी.</translation>
 <translation id="5016420433031926653"><ph name="USER_EMAIL" /> को भेजें</translation>
 <translation id="5017529052065664584">पिछले 15 मिनट का</translation>
@@ -1018,6 +1028,7 @@
 <translation id="5234094073825090254">{count,plural, =1{आपके Google खाते, {email} में बुकमार्क सेव किया गया.}one{आपके Google खाते, {email} में बुकमार्क सेव किया गया.}other{आपके Google खाते, {email} में बुकमार्क सेव किए गए.}}</translation>
 <translation id="5234764350956374838">खारिज करें</translation>
 <translation id="5238596603078743134"><ph name="BEGIN_BOLD" /><ph name="USERNAME" /><ph name="END_BOLD" /> के पास अब Google Password Manager की मदद से, आपके उपयोगकर्ता नाम और पासवर्ड का इस्तेमाल करके <ph name="BEGIN_BOLD" /><ph name="WEBSITE" /><ph name="END_BOLD" /> में साइन इन करने की सुविधा है.</translation>
+<translation id="5241106044372754566">फ़िलहाल <ph name="NAME" />, <ph name="EMAIL" /> को चुना गया है. इसे आपका संगठन मैनेज करता है. कोई खाता चुनें.</translation>
 <translation id="5242899254250321823">वेबसाइट पर पासवर्ड बदलें</translation>
 <translation id="5248640482715684545">यह साइट किसी दूसरे ऐप्लिकेशन को खोलने की कोशिश कर रही है.</translation>
 <translation id="5250371859659394278">अज्ञात सोर्स से मिला</translation>
@@ -1026,6 +1037,7 @@
 <translation id="5275912569557792098"><ph name="USER_NAME" /> (<ph name="USER_EMAIL" />) ने आपसे टैब ग्रुप में शामिल होने का अनुरोध किया है. जिन लोगों के पास यह लिंक है वे हर टैब में बदलाव कर सकते हैं. इसलिए, सावधानी से शामिल हों. लिंक 48 घंटों के बाद काम नहीं करते हैं.</translation>
 <translation id="5279600392753459966">सभी को ब्लॉक करें</translation>
 <translation id="5282340693022193851">कीमत को ट्रैक करने की सुविधा से जुड़ी सूचनाएं पाने के लिए, iOS की सेटिंग में जाकर सूचनाएं पाने की सुविधा चालू करें.</translation>
+<translation id="528857768909044842">यहां टैब ग्रुप सेव किए जाते हैं</translation>
 <translation id="5294624619177114121">मोबाइल नोटिफ़िकेशन</translation>
 <translation id="5295239312320826323">क्या आप <ph name="USER_EMAIL" /> खाता हटाना चाहते हैं?</translation>
 <translation id="5300589172476337783">दिखाएं</translation>
@@ -1220,6 +1232,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="6100617279104942061"><ph name="USER_EMAIL" /> के तौर पर साइन इन किया गया. इस बटन से सेटिंग खुलती है.</translation>
 <translation id="6103540626693881831">डिवाइस पर पासवर्ड एन्क्रिप्ट (सुरक्षित) करना</translation>
 <translation id="611361228753138223">इस डिवाइस पर, हाल ही में विज़िट की गई साइटें</translation>
+<translation id="611705554202268369">टैब ग्रुप में किसी टैब को जोड़ने के लिए उसे दबाकर रखें</translation>
 <translation id="6122191549521593678">ऑनलाइन</translation>
 <translation id="6122831415929794347">क्या आप सुरक्षित ब्राउज़िंग की सुविधा का इस्तेमाल बंद करना चाहते हैं?</translation>
 <translation id="6123514585040403489">आपके टैब बंद हो जाएंगे</translation>
@@ -1285,6 +1298,9 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="6339793034470834130">Web Inspector का इस्तेमाल करने के लिए, अपने कंप्यूटर पर केबल की मदद से Safari से कनेक्ट करें और Develop मेन्यू से अपने iPhone को ऐक्सेस करें. आपके पास कंप्यूटर पर Safari की सेटिंग के Advanced सेक्शन में जाकर, develop मेन्यू को चालू करने का विकल्प होता है.</translation>
 <translation id="6340285871011301182">चुने गए टेक्स्ट का अनुवाद उपलब्ध नहीं है.</translation>
 <translation id="6340526405444716530">मनमुताबिक बनाना</translation>
+<translation id="6341140761912903432">मैनेज किए जा रहे खाते से साइन इन करने पर, आपको अपने संगठन से जुड़े ब्राउज़िंग डेटा को अपने अन्य ब्राउज़िंग डेटा से अलग करने में मदद मिलती है. इस डेटा में टैब, इतिहास, और पासवर्ड शामिल हैं.
+
+       आपके मौजूदा ब्राउज़िंग डेटा को अलग रखा जाएगा. इसका इस्तेमाल करने के लिए, मैनेज किए जा रहे अपने खाते से साइन आउट करें.</translation>
 <translation id="6342069812937806050">अभी</translation>
 <translation id="6344533709188026708">काम के लिए अलग स्पेस</translation>
 <translation id="6347953390226388422">{count,plural, =1{यह पता आपके Google खाते (<ph name="USER_EMAIL" />) और इस डिवाइस से मिटा दिया जाएगा.}one{ये पते आपके Google खाते (<ph name="USER_EMAIL" />) और इस डिवाइस से मिटा दिए जाएंगे.}other{ये पते आपके Google खाते (<ph name="USER_EMAIL" />) और इस डिवाइस से मिटा दिए जाएंगे.}}</translation>
@@ -1465,6 +1481,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">हमेशा</translation>
 <translation id="6983306615164277634">जगह बदलने के लिए, पता बार को दबाकर रखें.</translation>
+<translation id="6987201788018524855">उन मददगार सुविधाओं के बारे में जानें जो आपने अब तक इस्तेमाल नहीं की हैं</translation>
 <translation id="6990519590575500580">Facetime</translation>
 <translation id="6998251471716094661">प्रॉडक्ट की कीमतें ट्रैक करें. साथ ही, किसी भी साइट पर मौजूद प्रॉडक्ट की कीमत में गिरावट आने पर सूचनाएं पाएं</translation>
 <translation id="7004032350256606903">आपका संगठन चाहता है कि आप निजी मोड में ब्राउज़ करें.
@@ -1842,6 +1859,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="8535368836838588657">पासवर्ड दिखाएं</translation>
 <translation id="8545276357312221485">अपने डिफ़ॉल्ट ब्राउज़र की सेटिंग देखें</translation>
 <translation id="854938212724803178">आपका एक पासवर्ड या तो हैक हुआ है या चोरी हुआ है. सुरक्षित रहने के लिए इस समस्या को अभी ठीक करें.</translation>
+<translation id="8551311254462607218">पता बार में मौजूद, Google Lens के कैमरा आइकॉन पर टैप करें</translation>
 <translation id="8556590991644167667">{count,plural, =1{आपने {count} चेतावनी खारिज की}one{आपने {count} चेतावनी खारिज की}other{आपने {count} चेतावनियां खारिज कीं}}</translation>
 <translation id="8558046478684552694">ग्रुप बंद करें.</translation>
 <translation id="8560253818350321773">अक्सर इस्तेमाल किए जाने वाले आइटम पहले दिखाएं.</translation>
@@ -1957,6 +1975,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="8923178205567790913">पासवर्ड</translation>
 <translation id="892776311701544612">ज़्यादा जानें…</translation>
 <translation id="8928133177108699615">डेस्कटॉप</translation>
+<translation id="8928426232677696166">फ़िलहाल <ph name="EMAIL" /> को चुना गया है. इसे आपका संगठन मैनेज करता है. कोई खाता चुनें.</translation>
 <translation id="894191600409472540">मज़बूत पासवर्ड बनाएं</translation>
 <translation id="8943780400130412484">नया डाउनलोड शुरू करें?</translation>
 <translation id="8944844131570002190">जगह की जानकारी की सेटिंग खोलें…</translation>
@@ -1984,6 +2003,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="9032405509996909363">ब्राउज़िंग डेटा मिटाने की पुष्टि करें</translation>
 <translation id="9039373489628511875">बैंडविड्थ</translation>
 <translation id="9042893549633094279">निजता और सुरक्षा</translation>
+<translation id="9055291197094969722">अपने खुले हुए टैब व्यवस्थित करने और बेहतर तरीके काम करने के लिए टैब ग्रुप बनाएं</translation>
 <translation id="9055580485132823283">{password_count} पासवर्ड, {passkey_count} पासकी, और उन साइटों और ऐप्लिकेशन की सूची को मिटा दिया जाएगा जिनके लिए, आपने साइन-इन करने के क्रेडेंशियल कभी भी सेव न करने का विकल्प चुना है. साइटों और ऐप्लिकेशन के लिए बनाए गए किसी भी खाते को मिटाया नहीं जाएगा.</translation>
 <translation id="9057030985451135243">शेयर किए गए टैब ग्रुप के बारे में जानें</translation>
 <translation id="9057972802061533987">फ़ॉलो नहीं किया जा सकता. कोई गड़बड़ी हुई.</translation>

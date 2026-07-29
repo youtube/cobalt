@@ -1322,7 +1322,7 @@ CSSPrimitiveValue* ConsumeAlphaValue(CSSParserTokenStream& stream,
 bool CanConsumeCalcValue(CalculationResultCategory category,
                          CSSParserMode css_parser_mode) {
   return category == kCalcLength || category == kCalcPercent ||
-         category == kCalcLengthFunction || category == kCalcIntrinsicSize ||
+         category == kCalcLengthFunction ||
          (css_parser_mode == kSVGAttributeMode && category == kCalcNumber);
 }
 
@@ -3211,6 +3211,12 @@ CSSValue* ConsumeAxis(CSSParserTokenStream& stream,
 
 CSSValue* ConsumeIntrinsicSizeLonghand(CSSParserTokenStream& stream,
                                        const CSSParserContext& context) {
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() &&
+      css_parsing_utils::IdentMatches<CSSValueID::kFromElement>(
+          stream.Peek().Id())) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
+
   if (css_parsing_utils::IdentMatches<CSSValueID::kNone>(stream.Peek().Id())) {
     return css_parsing_utils::ConsumeIdent(stream);
   }
