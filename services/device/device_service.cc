@@ -22,7 +22,9 @@
 #include "services/device/geolocation/public_ip_address_location_notifier.h"
 #include "services/device/power_monitor/power_monitor_message_broadcaster.h"
 #include "services/device/public/mojom/battery_monitor.mojom.h"
+#if defined(IS_SERIAL_ENABLED_PLATFORM)
 #include "services/device/serial/serial_port_manager_impl.h"
+#endif
 #include "services/device/time_zone_monitor/time_zone_monitor.h"
 #include "services/device/vibration/vibration_manager_impl.h"
 #include "services/device/wake_lock/wake_lock_provider.h"
@@ -335,6 +337,7 @@ void DeviceService::BindWakeLockProvider(
 
 void DeviceService::BindUsbDeviceManager(
     mojo::PendingReceiver<mojom::UsbDeviceManager> receiver) {
+#if !BUILDFLAG(IS_COBALT)
   const auto& binder_override = internal::GetUsbDeviceManagerBinderOverride();
   if (binder_override) {
     binder_override.Run(std::move(receiver));
@@ -348,10 +351,14 @@ void DeviceService::BindUsbDeviceManager(
     usb_device_manager_ = std::make_unique<usb::DeviceManagerImpl>();
 
   usb_device_manager_->AddReceiver(std::move(receiver));
+#else
+  NOTREACHED() << "WebUSB is not supported on Cobalt.";
+#endif
 }
 
 void DeviceService::BindUsbDeviceManagerTest(
     mojo::PendingReceiver<mojom::UsbDeviceManagerTest> receiver) {
+#if !BUILDFLAG(IS_COBALT)
   // TODO(crbug.com/40141825): usb::DeviceManagerImpl depends on the
   // permission_broker service on Chromium OS. We will need to redirect
   // connections for LaCrOS here.
@@ -364,6 +371,9 @@ void DeviceService::BindUsbDeviceManagerTest(
   }
 
   usb_device_manager_test_->BindReceiver(std::move(receiver));
+#else
+  NOTREACHED() << "WebUSB is not supported on Cobalt.";
+#endif
 }
 
 #if BUILDFLAG(IS_ANDROID)
