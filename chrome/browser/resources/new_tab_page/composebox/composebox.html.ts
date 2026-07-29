@@ -14,7 +14,7 @@ export function getHtml(this: ComposeboxElement) {
   <div class="gradient gradient-outer-glow"></div>
   <div class="gradient"></div>
   <div class="background"></div>
-  <div id="composebox">
+  <div id="composebox" tabindex="-1" @keydown="${this.onKeydown_}">
     <div id="inputContainer">
       <textarea autocomplete="off" id="input"
           type="search" spellcheck="false"
@@ -25,6 +25,7 @@ export function getHtml(this: ComposeboxElement) {
             id="imageUploadButton"
             iron-icon="composebox:imageUpload"
             title="$i18n{composeboxImageUploadButtonTitle}"
+            .disabled="${this.inputsDisabled_}"
             @click="${this.openImageUpload_}">
         </cr-icon-button>
         <cr-icon-button
@@ -32,6 +33,7 @@ export function getHtml(this: ComposeboxElement) {
             id="fileUploadButton"
             iron-icon="composebox:fileUpload"
             title="$i18n{composeboxFileUploadButtonTitle}"
+            .disabled="${this.inputsDisabled_}"
             @click="${this.openFileUpload_}">
         </cr-icon-button>
       </div>
@@ -46,7 +48,8 @@ export function getHtml(this: ComposeboxElement) {
       class="action-icon icon-arrow-upward"
       id="submitIcon"
       title="$i18n{composeboxSubmitButtonTitle}"
-      @click="${this.onSubmitClick_}">
+      @click="${this.onSubmitClick_}"
+      ?disabled="${!this.submitEnabled_}">
     </cr-icon-button>
   </div>
   <ntp-composebox-file-carousel

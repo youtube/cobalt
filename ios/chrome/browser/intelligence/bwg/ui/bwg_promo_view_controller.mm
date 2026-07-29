@@ -5,25 +5,23 @@
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller.h"
 
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_consent_mutator.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/bwg_constants.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_promo_view_controller_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_ui_utils.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/promo_style/promo_style_view_controller_delegate.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/public/provider/chrome/browser/font/font_api.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 
 // Main Stack view insets and spacing.
-const CGFloat kMainStackHorizontalInset = 20.0;
+const CGFloat kMainStackHorizontalInset = 24.0;
 const CGFloat kMainStackSpacing = 8.0;
-
-// Horizontal padding for the main title and sub title.
-const CGFloat kMainTitleHorizontalPadding = 8.0;
 
 // Icons size.
 const CGFloat kIconSize = 20.0;
@@ -42,8 +40,6 @@ const CGFloat kContentHorizontalStackSpacing = 8.0;
 const CGFloat kTitleBodyVerticalSpacing = 4.0;
 // Padding within the vertical title body stack view.
 const CGFloat kTitleBodyBoxContentPadding = 12.0;
-// Spacing after the subTitle.
-const CGFloat kSpacingAfterSubTitle = 16.0;
 
 // Size of the outer box containing the icon.
 const CGFloat kOuterBoxSize = 64.0;
@@ -51,19 +47,11 @@ const CGFloat kOuterBoxSize = 64.0;
 // Height of the separator line.
 const CGFloat kSeparatorHeight = 1.0;
 
+// Spacing between the scrollView and the buttons.
+const CGFloat kSpacingScrollViewAndButtons = 24.0;
+
 // Spacing between primary and secondary buttons.
 const CGFloat kSpacingPrimarySecondaryButtons = 0.0;
-
-// TODO(crbug.com/414778685): Add strings.
-// String constants for UI elements.
-NSString* const kBWGPromoMainTitleText = @"Lorem ipsum dolor sit amet.";
-NSString* const kBWGPromoSubTitleText =
-    @"Lorem ipsum dolor sit amet, consecte tur adipiscing purposes. Sed do.";
-NSString* const kBWGPromoFirstBoxTitleText = @"Sed do.";
-NSString* const kBWGPromoFirstBoxBodyText =
-    @"Lorem ipsum dolor sit amet, consecte tur adipiscing purposes.";
-NSString* const kBWGPromoSecondBoxTitleText = @"consecte tur adipiscing";
-NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
 
 }  // namespace
 
@@ -83,7 +71,7 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+  self.view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
   self.navigationItem.hidesBackButton = YES;
   [self setupStackViews];
 }
@@ -111,6 +99,8 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
   [self configureMainStackView];
   [self configureContentStackView];
   [_mainStackView addArrangedSubview:_contentScrollView];
+  [_mainStackView setCustomSpacing:kSpacingScrollViewAndButtons
+                         afterView:_contentScrollView];
   [self configureButtons];
 }
 
@@ -119,7 +109,8 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
   UIView* wrapperContainer = [[UIView alloc] init];
   wrapperContainer.translatesAutoresizingMaskIntoConstraints = NO;
   UIView* separator = [[UIView alloc] init];
-  separator.backgroundColor = [UIColor colorNamed:kGrey500Color];
+  // TODO(crbug.com/428624319): Change separator color.
+  separator.backgroundColor = [UIColor colorNamed:kGrey800Color];
   separator.translatesAutoresizingMaskIntoConstraints = NO;
   [wrapperContainer addSubview:separator];
   [NSLayoutConstraint activateConstraints:@[
@@ -154,6 +145,7 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
 - (void)configureContentStackView {
   _contentScrollView = [[UIScrollView alloc] init];
   _contentScrollView.translatesAutoresizingMaskIntoConstraints = NO;
+  _contentScrollView.showsVerticalScrollIndicator = NO;
 
   _contentStackView = [[UIStackView alloc] init];
   _contentStackView.axis = UILayoutConstraintAxisVertical;
@@ -162,8 +154,7 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
 
   [_contentScrollView addSubview:_contentStackView];
 
-  AddSameConstraintsWithInsets(_contentStackView, _contentScrollView,
-                               NSDirectionalEdgeInsetsMake(0, 0, 0, 0));
+  AddSameConstraints(_contentStackView, _contentScrollView);
 
   [NSLayoutConstraint activateConstraints:@[
     [_contentStackView.widthAnchor
@@ -171,14 +162,22 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
   ]];
 
   [_contentStackView addArrangedSubview:[self createMainTitle]];
-  UIView* subTitle = [self createSubTitle];
-  [_contentStackView addArrangedSubview:subTitle];
-  [_contentStackView setCustomSpacing:kSpacingAfterSubTitle afterView:subTitle];
 
-  UIView* firstIconContainer = [self createIconContainerView];
-  UIStackView* firstTitleBodyStackView =
-      [self createContentDescriptionWithTitle:kBWGPromoFirstBoxTitleText
-                                         body:kBWGPromoFirstBoxBodyText];
+  UIImageSymbolConfiguration* config = [UIImageSymbolConfiguration
+      configurationWithPointSize:kIconSize
+                          weight:UIImageSymbolWeightMedium];
+
+  UIImageView* firstIconImageView = [[UIImageView alloc]
+      initWithImage:CustomSymbolWithConfiguration(kTextSearchSymbol, config)];
+
+  UIView* firstIconContainer =
+      [self createIconContainerView:firstIconImageView];
+  UIStackView* firstTitleBodyStackView = [self
+      createContentDescriptionWithTitle:l10n_util::GetNSString(
+                                            IDS_IOS_BWG_PROMO_FIRST_BOX_TITLE)
+
+                                   body:l10n_util::GetNSString(
+                                            IDS_IOS_BWG_PROMO_FIRST_BOX_BODY)];
   UIStackView* firstContentHorizontalStackView =
       [self createContentHorizontalStackViewWithIconContainer:firstIconContainer
                                                titleBodyStack:
@@ -188,10 +187,17 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
   UIView* separatorView = [self createSeparatorView];
   [_contentStackView addArrangedSubview:separatorView];
 
-  UIView* secondIconContainer = [self createIconContainerView];
-  UIStackView* secondTitleBodyStackView =
-      [self createContentDescriptionWithTitle:kBWGPromoSecondBoxTitleText
-                                         body:kBWGPromoSecondBoxBodyText];
+  UIImageView* secondIconImageView = [[UIImageView alloc]
+      initWithImage:DefaultSymbolWithConfiguration(kListBulletSymbol, config)];
+
+  UIView* secondIconContainer =
+      [self createIconContainerView:secondIconImageView];
+  UIStackView* secondTitleBodyStackView = [self
+      createContentDescriptionWithTitle:l10n_util::GetNSString(
+                                            IDS_IOS_BWG_PROMO_SECOND_BOX_TITLE)
+
+                                   body:l10n_util::GetNSString(
+                                            IDS_IOS_BWG_PROMO_SECOND_BOX_BODY)];
   UIStackView* secondContentHorizontalStackView = [self
       createContentHorizontalStackViewWithIconContainer:secondIconContainer
                                          titleBodyStack:
@@ -201,44 +207,80 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
 
 // Creates the main title.
 - (UIView*)createMainTitle {
-  UILabel* mainTitleLabel = [[UILabel alloc] init];
-  mainTitleLabel.text = kBWGPromoMainTitleText;
-  mainTitleLabel.textAlignment = NSTextAlignmentCenter;
-  mainTitleLabel.adjustsFontSizeToFitWidth = YES;
-  mainTitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-
-  mainTitleLabel.font =
-      PreferredFontForTextStyle(UIFontTextStyleTitle2, UIFontWeightBold);
-
+  UILabel* mainTitleLabel = [self createGradientMainTitleLabel];
   UIView* titleContainerView = [[UIView alloc] init];
   titleContainerView.translatesAutoresizingMaskIntoConstraints = NO;
 
   [titleContainerView addSubview:mainTitleLabel];
 
-  AddSameConstraintsWithInsets(
-      mainTitleLabel, titleContainerView,
-      NSDirectionalEdgeInsetsMake(0, kMainTitleHorizontalPadding, 0,
-                                  kMainTitleHorizontalPadding));
+  AddSameConstraints(mainTitleLabel, titleContainerView);
   return titleContainerView;
 }
 
-// Creates the sub title.
-- (UIView*)createSubTitle {
-  UILabel* subTitleLabel = [[UILabel alloc] init];
-  subTitleLabel.text = kBWGPromoSubTitleText;
-  subTitleLabel.numberOfLines = 2;
-  subTitleLabel.textAlignment = NSTextAlignmentCenter;
-  subTitleLabel.adjustsFontSizeToFitWidth = YES;
-  subTitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-  subTitleLabel.textColor = [UIColor colorNamed:kGrey800Color];
-  subTitleLabel.font =
-      PreferredFontForTextStyle(UIFontTextStyleHeadline, UIFontWeightRegular);
+// Create a gradient main title label.
+- (UILabel*)createGradientMainTitleLabel {
+  UILabel* mainTitleLabel = [[UILabel alloc] init];
+  mainTitleLabel.textAlignment = NSTextAlignmentCenter;
+  mainTitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+  mainTitleLabel.numberOfLines = 0;
+  UIFont* labelFont =
+      PreferredFontForTextStyle(UIFontTextStyleTitle1, UIFontWeightSemibold);
+  mainTitleLabel.font = labelFont;
 
-  return subTitleLabel;
+  NSString* mainTitleString =
+      l10n_util::GetNSString(IDS_IOS_BWG_PROMO_MAIN_TITLE);
+  NSString* gradientSubstring =
+      l10n_util::GetNSString(IDS_IOS_BWG_PROMO_GRADIENT_TEXT);
+  NSMutableAttributedString* attributedString =
+      [[NSMutableAttributedString alloc] initWithString:mainTitleString];
+
+  CGSize mainTitleTextSize = [attributedString size];
+  CAGradientLayer* gradientLayer = [CAGradientLayer layer];
+  gradientLayer.colors = [self createGradientColorsArray];
+  gradientLayer.startPoint = CGPointMake(0, 0.5);
+  gradientLayer.endPoint = CGPointMake(0.8, 0.5);
+  gradientLayer.frame =
+      CGRectMake(0, 0, mainTitleTextSize.width, labelFont.pointSize);
+
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:mainTitleTextSize];
+  UIImage* textImage = [renderer
+      imageWithActions:^(UIGraphicsImageRendererContext* rendererContext) {
+        [gradientLayer renderInContext:rendererContext.CGContext];
+      }];
+
+  UIColor* gradientColor = [UIColor colorWithPatternImage:textImage];
+  NSRange gradientRange = [mainTitleString rangeOfString:gradientSubstring];
+  [attributedString addAttribute:NSForegroundColorAttributeName
+                           value:gradientColor
+                           range:gradientRange];
+
+  UIFont* gradientStringFont =
+      ios::provider::GetBrandedProductMediumFont(labelFont.pointSize);
+  [attributedString addAttribute:NSFontAttributeName
+                           value:gradientStringFont
+                           range:gradientRange];
+
+  mainTitleLabel.attributedText = attributedString;
+  return mainTitleLabel;
 }
 
-// Creates the iconBox container view with the  inner box and icon.
-- (UIView*)createIconContainerView {
+// Create an array of colors representing a gradient color palette.
+- (NSArray*)createGradientColorsArray {
+  NSArray<UIColor*>* colors = @[
+    [UIColor colorNamed:kBlue400Color], [UIColor colorNamed:kBlue700Color],
+    [UIColor colorNamed:kBlue300Color]
+  ];
+
+  NSMutableArray<id>* gradientColorArray = [[NSMutableArray alloc] init];
+  for (UIColor* color in colors) {
+    [gradientColorArray addObject:static_cast<id>(color.CGColor)];
+  }
+  return gradientColorArray;
+}
+
+// Creates the iconBox container view with the inner box and icon.
+- (UIView*)createIconContainerView:(UIImageView*)iconImageView {
   UIView* iconBox = [[UIView alloc] init];
   iconBox.backgroundColor = [UIColor colorNamed:kFaviconBackgroundColor];
   iconBox.clipsToBounds = YES;
@@ -249,7 +291,7 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
   innerBox.layer.cornerRadius = kInnerBoxCornerRadius;
   innerBox.clipsToBounds = YES;
   innerBox.translatesAutoresizingMaskIntoConstraints = NO;
-  innerBox.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+  innerBox.backgroundColor = [UIColor colorNamed:kSolidWhiteColor];
   [iconBox addSubview:innerBox];
 
   AddSameConstraintsWithInsets(
@@ -257,16 +299,14 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
       NSDirectionalEdgeInsetsMake(kInnerBoxPadding, kInnerBoxPadding,
                                   kInnerBoxPadding, kInnerBoxPadding));
 
-  UIImageView* clockIconImageView = [[UIImageView alloc]
-      initWithImage:DefaultSymbolWithPointSize(kClockSymbol, kIconSize)];
-  clockIconImageView.contentMode = UIViewContentModeScaleAspectFit;
-  clockIconImageView.translatesAutoresizingMaskIntoConstraints = NO;
-  [innerBox addSubview:clockIconImageView];
+  iconImageView.contentMode = UIViewContentModeScaleAspectFit;
+  iconImageView.translatesAutoresizingMaskIntoConstraints = NO;
+  [innerBox addSubview:iconImageView];
 
   [NSLayoutConstraint activateConstraints:@[
-    [clockIconImageView.centerXAnchor
+    [iconImageView.centerXAnchor
         constraintEqualToAnchor:innerBox.centerXAnchor],
-    [clockIconImageView.centerYAnchor
+    [iconImageView.centerYAnchor
         constraintEqualToAnchor:innerBox.centerYAnchor],
     [innerBox.widthAnchor constraintEqualToConstant:kWhiteInnerSize],
     [innerBox.heightAnchor constraintEqualToConstant:kWhiteInnerSize],
@@ -344,8 +384,8 @@ NSString* const kBWGPromoSecondBoxBodyText = @"orem ipsum dolor sit amet..";
 // Creates the secondary button.
 - (UIButton*)createSecondaryButton {
   UIButton* secondaryButton = [BWGUIUtils
-      createSecondaryButtonWithTitle:
-          l10n_util::GetNSString(IDS_IOS_BWG_FIRST_RUN_SECONDARY_BUTTON)];
+      createSecondaryButtonWithTitle:l10n_util::GetNSString(
+                                         IDS_IOS_BWG_PROMO_SECONDARY_BUTTON)];
   [secondaryButton addTarget:self
                       action:@selector(didTapSecondaryButton:)
             forControlEvents:UIControlEventTouchUpInside];

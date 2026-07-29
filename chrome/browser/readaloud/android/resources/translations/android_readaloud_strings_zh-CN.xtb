@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">更多选项</translation>
 <translation id="565342223183747919">点按即可切换播放模式</translation>
 <translation id="5694491020339060116">播放速度菜单</translation>
+<translation id="5961164658295696940">点按即可展开播放器以查看更多选项</translation>
 <translation id="5965409657393819302">技术问题</translation>
 <translation id="6218961554829577610">不喜欢这个声音</translation>
 <translation id="6315170314923504164">语音</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">正在加载…</translation>
 <translation id="6889157801232138307">“读出此网页的内容”播放器</translation>
 <translation id="7051308646573997571">珊瑚红色</translation>
-<translation id="7112750136794557642">点按即可展开播放器以查看更多选项。</translation>
 <translation id="7138678301420049075">其他</translation>
 <translation id="7221920857098237570">柔和</translation>
 <translation id="7237590978482584900">轻松</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">平静</translation>
 <translation id="8756370108715456837">与事实不符</translation>
 <translation id="8953618380150219653">“读出此网页的内容”播放器已全屏打开。</translation>
+<translation id="9087782179025630211">拖动条控件。已过去 <ph name="ELAPSED" />，共 <ph name="TOTAL" />。</translation>
 <translation id="978117257931832348">低音</translation>
 </translationbundle>

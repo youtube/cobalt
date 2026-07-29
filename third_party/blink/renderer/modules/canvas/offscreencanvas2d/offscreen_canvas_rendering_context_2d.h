@@ -80,8 +80,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   int Width() const final;
   int Height() const final;
 
-  bool CanCreateCanvas2dResourceProvider() const final;
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider() const;
+  bool CanCreateCanvas2dResourceProvider() final;
   CanvasResourceProvider* GetCanvasResourceProvider() const;
 
   // Offscreen canvas doesn't have any notion of image orientation.
@@ -159,7 +158,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   void FinalizeFrame(FlushReason) final;
 
   bool IsPaintable() const final;
-  bool IsCanvas2DBufferValid() const override;
+  bool IsCanvas2DBufferValid() override;
 
   scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason);
 

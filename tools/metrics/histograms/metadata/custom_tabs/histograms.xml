@@ -76,6 +76,50 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="CustomTabs.AdaptiveToolbarButton.ChosenRanking" units="rank"
+    expires_after="2025-09-25">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the ranking of the toolbar button variant picked up for display. It
+    will be either 0 or 1. Recorded when the suggested list of variants are
+    checked in the filtering process. Android only.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.AdaptiveToolbarButton.FallbackUi"
+    enum="AdaptiveToolbarButtonVariant" expires_after="2025-09-25">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the variant of adaptive toolbar button when its fallback UI was
+    clicked. The fallback UI becomes available in the form of overflow menu or
+    Message UI when when the button itself was hidden due to various reasons.
+    Recorded when the user click the fallback UI. Android only.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.AdaptiveToolbarButton.HiddenReason"
+    enum="CustomTabsMtbHiddenReason" expires_after="2025-09-25">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the reason the Adaptive toolbar button was hidden in Custom Tabs.
+    Recorded when the toolbar layout is initialized/updated, or adaptive toolbar
+    button is updated on the toolbar. Android only.
+  </summary>
+</histogram>
+
+<histogram name="CustomTabs.AdaptiveToolbarButton.Shown"
+    enum="AdaptiveToolbarButtonVariant" expires_after="2025-09-25">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the variant of adaptive toolbar button shown on the CCT toolbar.
+    Recorded when the visibility of the button is determined. Android only.
+  </summary>
+</histogram>
+
 <histogram name="CustomTabs.AndroidBrowserHelper.Version" units="versioncode"
     expires_after="2026-05-21">
   <owner>hattorij@google.com</owner>
@@ -132,7 +176,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.AuthView.UrlParams" units="bit field"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -318,7 +362,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.FeatureUsage" enum="CustomTabsFeatureUsed"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>donnd@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -489,7 +533,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.MayLaunchUrlType" enum="MayLaunchUrlType"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>lizeb@chromium.org</owner>
   <summary>
     Android only. Which flavors of mayLaunchUrl() were used before a tab launch.
@@ -504,7 +548,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Minimized.MinimizeSuccess" enum="Boolean"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>sinansahin@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -548,7 +592,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Navigation.FinishReason" enum="FinishReason"
-    expires_after="2025-10-29">
+    expires_after="2025-12-28">
   <owner>adelm@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -663,7 +707,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Prefetch.PrefetchCalled" enum="Boolean"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>taiyo@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -750,7 +794,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.SpareRenderer" enum="Boolean"
-    expires_after="2025-10-28">
+    expires_after="2025-12-28">
   <owner>adelm@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -781,7 +825,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.Startup.StartedNavigationEarly" enum="Boolean"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>mthiesse@chromium.org</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -854,7 +898,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.TimeElapsedSinceMinimized.Destroyed" units="s"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>katzz@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -1003,7 +1047,7 @@ chromium-metrics-reviews@google.com.
     enum="TwaLaunchHandlerClientMode" expires_after="2026-05-01">
   <owner>tkachenkoo@google.com</owner>
   <owner>sselyvon@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the client mode of a web app launched through Trusted Web Activity.
     Client mode is a part of Launch Handler API. Recorded on Trusted Web
@@ -1015,7 +1059,7 @@ chromium-metrics-reviews@google.com.
     enum="TwaLaunchHandlerFailureReason" expires_after="2026-05-01">
   <owner>tkachenkoo@google.com</owner>
   <owner>sselyvon@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the verification failure that caused launch queue to not be notified
     in Trusted Web Activity, if any. Recorded on Trusted Web Activity startup if
@@ -1027,7 +1071,7 @@ chromium-metrics-reviews@google.com.
     enum="TwaLaunchHandlerFileHandling" expires_after="2026-05-01">
   <owner>tkachenkoo@google.com</owner>
   <owner>sselyvon@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the usage of file handling API in Trusted Web Activities, as part of
     Launch Handler API. Recorded on Trusted Web Activity startup if the Launch

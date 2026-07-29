@@ -10,10 +10,14 @@
 
 #include "base/check_is_test.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram.h"
+#include "base/metrics/histogram_base.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/strings/strcat.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
@@ -24,7 +28,6 @@
 #include "content/browser/renderer_host/policy_container_host.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/keep_alive_request_tracker.h"
@@ -43,6 +46,7 @@
 #include "services/network/public/mojom/early_hints.mojom.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "services/network/public/mojom/url_request.mojom.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/features.h"
 
 namespace features {
@@ -66,6 +70,18 @@ const base::FeatureParam<base::TimeDelta> kMaxRetryAge{
 
 namespace content {
 namespace {
+
+// Very simple ThreadChecker to use as a static variable. Used because using
+// `base::ThreadChecker` directly is not permitted and the static keyword cannot
+// be applied to THREAD_CHECKER. When not under DCHECK this class will be empty
+// and do nothing.
+class WrappedThreadChecker {
+ public:
+  void Check() { DCHECK_CALLED_ON_VALID_THREAD(thread_checker); }
+
+ private:
+  THREAD_CHECKER(thread_checker);
+};
 
 constexpr net::NetworkTrafficAnnotationTag kKeepAliveRetryAnnotationTag =
     net::DefineNetworkTrafficAnnotation("keepalive_fetch_retry", R"(
@@ -196,64 +212,6 @@ bool IsRedirectAllowedByCSP(
                       has_followed_redirect, empty_source_location, disposition,
                       /*is_form_submission=*/false)
       .IsAllowed();
-}
-
-bool LiveDocumentWithSameNetworkIsolationKeyExists(
-    const net::NetworkIsolationKey& key) {
-  bool live_document_with_same_key_exists = false;
-  for (WebContentsImpl* web_contents : WebContentsImpl::GetAllWebContents()) {
-    web_contents->GetPrimaryMainFrame()->ForEachRenderFrameHostWithAction(
-        [&live_document_with_same_key_exists,
-         &key](RenderFrameHost* render_frame_host) {
-          if (!render_frame_host->IsActive()) {
-            return RenderFrameHost::FrameIterationAction::kSkipChildren;
-          }
-          if (render_frame_host->GetNetworkIsolationKey() == key) {
-            live_document_with_same_key_exists = true;
-            return RenderFrameHost::FrameIterationAction::kStop;
-          }
-          return RenderFrameHost::FrameIterationAction::kContinue;
-        });
-    if (live_document_with_same_key_exists) {
-      break;
-    }
-  }
-  return live_document_with_same_key_exists;
-}
-
-bool IsNetErrorEligibleForRetry(int net_error) {
-  // Check if the error we encountered is likely transient / can succeed with
-  // another attempt.
-  return  // Generic transient errors.
-      net_error == net::ERR_TIMED_OUT ||
-      net_error == net::ERR_CONNECTION_TIMED_OUT ||
-      net_error == net::ERR_CONNECTION_CLOSED ||
-      net_error == net::ERR_CONNECTION_REFUSED ||
-      net_error == net::ERR_CONNECTION_RESET ||
-      net_error == net::ERR_CONNECTION_FAILED ||
-      net_error == net::ERR_ADDRESS_UNREACHABLE ||
-      net_error == net::ERR_NETWORK_CHANGED ||
-      // Proxy/tunnel-specific connection issues.
-      net_error == net::ERR_TUNNEL_CONNECTION_FAILED ||
-      net_error == net::ERR_PROXY_CONNECTION_FAILED ||
-      net_error == net::ERR_SOCKS_CONNECTION_FAILED ||
-      net_error == net::ERR_HTTP2_PING_FAILED ||
-      net_error == net::ERR_HTTP2_PROTOCOL_ERROR ||
-      net_error == net::ERR_QUIC_PROTOCOL_ERROR ||
-      // DNS failures.
-      net_error == net::ERR_NAME_NOT_RESOLVED ||
-      net_error == net::ERR_INTERNET_DISCONNECTED ||
-      net_error == net::ERR_NAME_RESOLUTION_FAILED;
-}
-
-bool IsServerGuaranteedToBeNotReachedYet(int net_error) {
-  return net_error == net::ERR_CONNECTION_REFUSED ||
-         net_error == net::ERR_ADDRESS_UNREACHABLE ||
-         net_error == net::ERR_TUNNEL_CONNECTION_FAILED ||
-         net_error == net::ERR_PROXY_CONNECTION_FAILED ||
-         net_error == net::ERR_SOCKS_CONNECTION_FAILED ||
-         net_error == net::ERR_NAME_NOT_RESOLVED ||
-         net_error == net::ERR_NAME_RESOLUTION_FAILED;
 }
 
 }  // namespace
@@ -428,7 +386,7 @@ KeepAliveURLLoader::KeepAliveURLLoader(
     WeakDocumentPtr weak_document_ptr,
     net::NetworkIsolationKey network_isolation_key,
     std::optional<ukm::SourceId> ukm_source_id,
-    BrowserContext* browser_context,
+    StoragePartitionImpl* storage_partition,
     URLLoaderThrottlesGetter throttles_getter,
     base::PassKey<KeepAliveURLLoaderService>,
     std::unique_ptr<KeepAliveAttributionRequestHelper>
@@ -455,7 +413,7 @@ KeepAliveURLLoader::KeepAliveURLLoader(
                                   // `this` owns `request_tracker_`, so it is
                                   // safe to use.
                                   base::Unretained(this)))),
-      browser_context_(browser_context),
+      storage_partition_(storage_partition),
       initial_url_(resource_request.url),
       last_url_(resource_request.url),
       throttles_getter_(throttles_getter),
@@ -464,7 +422,7 @@ KeepAliveURLLoader::KeepAliveURLLoader(
   CHECK(network_loader_factory_);
   CHECK(policy_container_host_);
   CHECK(!resource_request.trusted_params);
-  CHECK(browser_context_);
+  CHECK(storage_partition_);
   TRACE_EVENT("loading", "KeepAliveURLLoader::KeepAliveURLLoader", "request_id",
               request_id_, "url", last_url_);
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("loading", "KeepAliveURLLoader",
@@ -513,7 +471,8 @@ void KeepAliveURLLoader::StartInternal(bool is_retry) {
     }
   }
 
-  GetContentClient()->browser()->OnKeepaliveRequestStarted(browser_context_);
+  GetContentClient()->browser()->OnKeepaliveRequestStarted(
+      storage_partition_->browser_context());
 
   // Asks the network service to create a URL loader with passed in params.
   url_loader_ = blink::ThrottlingURLLoader::CreateLoaderAndStart(
@@ -949,31 +908,14 @@ bool KeepAliveURLLoader::IsEligibleForRetry(
   if (!completion_status.has_value()) {
     // No completion status. This can only happen when we hit the renderer
     // disconnect timeout before getting any results. The request should be
-    // eligible to retry, except if explicitly opting in to retry only if the
-    // server is guaranteed to be not reached yet. We can't guarantee that in
-    // this case, because we don't know if the server has been reached yet or
-    // not.
-    return !retry_options->retry_only_if_server_unreached;
+    // eligible to retry.
+    return true;
   }
 
-  if (completion_status->resolve_error_info.is_secure_network_error) {
-    // Don't retry if the error was a secure DNS network error,
-    // since the retry may interfere with the captive portal probe state.
-    // TODO(crbug.com/40104002): Explore how to allow retries for secure
-    // DNS network errors without interfering with the captive portal
-    // probe state.
-    return false;
-  }
-
-  if (retry_options->retry_only_if_server_unreached) {
-    // Only retry in this case if we've never encountered redirect yet (since if
-    // we've been redirected, we must have reached the redirector server
-    // before), and the error indicates that the server is not reached yet.
-    return !did_encounter_redirect_ &&
-           IsServerGuaranteedToBeNotReachedYet(completion_status->error_code);
-  }
-
-  return IsNetErrorEligibleForRetry(completion_status->error_code);
+  CHECK_NE(completion_status->error_code, net::OK);
+  // All errors should be retried, to prevent the fetch callers inferring
+  // anything about the error code.
+  return true;
 }
 
 bool KeepAliveURLLoader::MaybeScheduleRetry(
@@ -1021,12 +963,11 @@ void KeepAliveURLLoader::AttemptRetryIfAllowed() {
   // key as the initiator of the load, to avoid privacy concerns of revealing
   // information about the user (that their browser is up, and their current
   // IP address) to the destination origin, while there is no active document.
-  if (!LiveDocumentWithSameNetworkIsolationKeyExists(network_isolation_key_)) {
+  if (!storage_partition_->GetActiveDocumentCount(network_isolation_key_)) {
     // No active document with the same NetworkIsolationKey exists. Wait until
     // we see such a document, or delete ourselves when we can't attempt a retry
-    // anymore (we reached the max age of retries).
-    // TODO(crbug.com/417930271): Implement the
-    // same-NetworkIsolationKey-Document trigger.
+    // anymore (we reached the max age of retries, which will run self-deletion
+    // when we first scheduled the retry attempt).
     retry_state_ = RetryState::kWaitingForSameNetworkIsolationKeyDocument;
     return;
   }
@@ -1056,6 +997,20 @@ void KeepAliveURLLoader::AttemptRetryIfAllowed() {
                               base::Unretained(this)));
 
   StartInternal(/*is_retry=*/true);
+}
+
+void KeepAliveURLLoader::DidObserveNewlyActiveDocumentWithNIK(
+    const net::NetworkIsolationKey& nik) {
+  if (nik == network_isolation_key_ &&
+      retry_state_ == RetryState::kWaitingForSameNetworkIsolationKeyDocument) {
+    // We previously wanted to retry but couldn't due to there being no active
+    // document with the same Network Isolation Key. Now that we observe such a
+    // document, we can attempt the retry.
+    retry_state_ = RetryState::kRetryScheduled;
+    GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(&KeepAliveURLLoader::AttemptRetryIfAllowed,
+                                  base::Unretained(this)));
+  }
 }
 
 bool KeepAliveURLLoader::HasReceivedResponse() const {
@@ -1394,9 +1349,44 @@ void KeepAliveURLLoader::LogFetchKeepAliveRequestMetric(
         request_state_name == "Retried" || request_state_name == "Succeeded" ||
         request_state_name == "Failed");
 
-  base::UmaHistogramEnumeration(base::StrCat({"FetchKeepAlive.Requests2.",
-                                              request_state_name, ".Browser"}),
-                                sample_type);
+  const std::string histogram_name = base::StrCat(
+      {"FetchKeepAlive.Requests2.", request_state_name, ".Browser"});
+
+  // When under the experiment keep a local cache of resolved histograms to
+  // avoid contention on the global lock that is taken by histogram functions.
+  if (base::features::IsReducePPMsEnabled()) {
+    static base::NoDestructor<
+        absl::flat_hash_map<std::string, base::HistogramBase*>>
+        histograms;
+
+    // Verify that `histograms` is not read/modified by more than one thread.
+    // Since it's static it will be used by any code that calls into the
+    // function.
+    static WrappedThreadChecker* thread_checker = new WrappedThreadChecker;
+    thread_checker->Check();
+
+    auto it = histograms->find(histogram_name);
+    if (it != histograms->end()) {
+      it->second->Add(static_cast<int32_t>(sample_type));
+    } else {
+      // TODO(crbug.com/424432184): This is messy and leaks information from
+      // LinearHistogram. If the experiment succeeds implement
+      // GetUmaHistogramEnumerationFactory before cleaning up the flag.
+      int32_t max_value =
+          static_cast<int32_t>(FetchKeepAliveRequestMetricType::kMaxValue);
+      base::HistogramBase* histo = base::LinearHistogram::FactoryGet(
+          histogram_name, /*minimum=*/1,
+          /*maximum=*/max_value + 1,
+          /*bucket_count=*/max_value + 2,
+          base::HistogramBase::kUmaTargetedHistogramFlag);
+      histo->Add(static_cast<int32_t>(sample_type));
+
+      (*histograms)[histogram_name] = histo;
+    }
+  } else {
+    base::UmaHistogramEnumeration(histogram_name, sample_type);
+  }
+
   if (bool is_context_detached = !GetInitiator();
       request_state_name == "Started" || request_state_name == "Succeeded") {
     base::UmaHistogramBoolean(

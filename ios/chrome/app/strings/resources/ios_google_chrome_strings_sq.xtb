@@ -89,6 +89,7 @@ Provo të presësh për disa minuta para se të dalësh nga ajo. Nëse del tani,
 <translation id="2957447865124070833">Zgjidh <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Shto faqeshënuesit te Chrome</translation>
 <translation id="3030414234702425231">Duke qenë se po del nga një llogari e menaxhuar nga <ph name="SIGNOUT_MANAGED_DOMAIN" />, të dhënat e tua të Chrome do të fshihen nga kjo pajisje. Të dhënat e tua do të mbeten në "Llogarinë tënde të Google".</translation>
+<translation id="3042447686908081308">Importo te Chrome</translation>
 <translation id="3051521853355903257">Menaxho fjalëkalimet në Chrome</translation>
 <translation id="309672519329227863">Qasu te fjalëkalimet e tua të Chrome etj. nëpër aplikacione të tjera.</translation>
 <translation id="3109170945534582468">Veprimet në Chrome</translation>
@@ -315,6 +316,7 @@ Të dhënat e tua janë enkriptuar me frazën tënde të kalimit më <ph name="T
 <translation id="855027533751209304">Këshillë për Chrome: Kërko për ato që shikon</translation>
 <translation id="8558480467877843976">Tani mund të përdorësh Chrome sa herë që shfleton ose troket te lidhjet në mesazhe, dokumente dhe aplikacione të tjera.</translation>
 <translation id="8603022514504485810">"Menaxheri i fjalëkalimeve i Google" nuk mund t'i kontrollonte të gjitha fjalëkalimet. Provo përsëri nesër ose <ph name="BEGIN_LINK" />kontrollo fjalëkalimet në "Llogarinë tënde të Google".<ph name="END_LINK" /></translation>
+<translation id="8610372330814566250">Përdor fjalëkalimet, historikun, faqeshënuesit dhe kartat e tua të kreditit nga Safari në Chrome</translation>
 <translation id="8630122478628016441">Aktivizo "Kyç skedat 'e fshehta' kur mbyll Chrome".</translation>
 <translation id="8673726683583791503">Bli me "Lenten e Google"</translation>
 <translation id="8765470054473112089">Kur shkruan në shiritin e adresës ose në kutinë e kërkimit, Chrome i dërgon ato që shkruan te motori i parazgjedhur i kërkimit për të marrë sugjerime më të mira. Kjo është joaktive në modalitetin "e fshehtë".</translation>
@@ -336,6 +338,7 @@ Të dhënat e tua janë enkriptuar me frazën tënde të kalimit më <ph name="T
 <translation id="9176561303811134420">Menaxho mënyrat e pagesës në Chrome</translation>
 <translation id="9181628561061032322">Hap skedat e fundit në Chrome.</translation>
 <translation id="948597495737267756">Hap faqen "Historiku i Chrome".</translation>
+<translation id="954347330803595209">Importo të dhënat e tua për të përdorur fjalëkalimet, historikun, faqeshënuesit dhe kartat e kreditit në Chrome</translation>
 <translation id="97300214378190234">Përdor Chrome sa herë që troket te lidhjet në aplikacione të tjera.</translation>
 <translation id="997929539742564806">Identifikohu me shpejtësi në aplikacione dhe sajte duke plotësuar automatikisht fjalëkalimet dhe çelësat e kalimit nga Chrome</translation>
 <translation id="998677222109959694">Menaxho cilësimet e Chrome</translation>

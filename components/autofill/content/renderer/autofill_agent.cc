@@ -270,6 +270,9 @@ bool ShowPredictions(const WebDocument& document,
         field.heuristic_type,
         (!field.autofill_ai_type.empty() ? "\nautofill ai type: " : ""),
         (!field.autofill_ai_type.empty() ? field.autofill_ai_type : ""),
+        (!field.attribute_types.empty() ? "\nautofill ai attribute types: "
+                                        : ""),
+        (!field.attribute_types.empty() ? field.attribute_types : ""),
         (!field.format_string.empty() ? "\nformat string: " : ""),
         (!field.format_string.empty() ? field.format_string : ""),
         "\nlabel: ",
@@ -348,6 +351,8 @@ bool ShowPredictions(const WebDocument& document,
           option_labels,
           "\noption values: ",
           option_values,
+          "\nax node id: ",
+          base::NumberToString(field_data.form_control_ax_id()),
       });
     }
 
@@ -386,6 +391,8 @@ bool ShowPredictions(const WebDocument& document,
   return true;
 }
 
+// TODO(crbug.com/402071086): Remove when AutofillIgnoreCheckableElements is
+// removed.
 bool IsCheckableElement(const WebFormControlElement& element) {
   using enum blink::mojom::FormControlType;
   return element && (element.FormControlTypeForAutofill() == kInputCheckbox ||
@@ -1787,6 +1794,12 @@ void AutofillAgent::HidePopup() {
     return;
   }
 
+  // The browser code also calls `ClearPreviewedForm` on hiding the popup.
+  // However, there can be instances in which the render frame is already
+  // switched out by the time this call happens. If that render frame is later
+  // retrieved from BFCache, the preview is still active. Clearing preview here
+  // prevents that.
+  ClearPreviewedForm();
   if (auto* autofill_driver = unsafe_autofill_driver()) {
     autofill_driver->HidePopup();
   }
@@ -2060,7 +2073,7 @@ void AutofillAgent::JavaScriptChangedValue(WebFormControlElement element,
             std::ranges::find(fields, form_util::GetFieldRendererId(element),
                               &FormFieldData::renderer_id);
         it != fields.end()) {
-      it->set_value(element.Value().Utf16());
+      it->set_value(element.Value().Utf16().substr(0, kMaxStringLength));
       it->set_is_autofilled(element.IsAutofilled());
       form_util::MaybeUpdateUserInput(
           *it, form_util::GetFieldRendererId(element), field_data_manager());

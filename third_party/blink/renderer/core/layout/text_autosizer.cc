@@ -36,6 +36,7 @@
 
 #include "base/containers/span.h"
 #include "base/memory/ptr_util.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -277,8 +278,7 @@ static bool BlockSuppressesAutosizing(const LayoutBlock* block) {
   if (BlockHeightConstrained(block))
     return true;
 
-  if (RuntimeEnabledFeatures::TextAutoSizingDisabledOnFlexboxEnabled() &&
-      block->IsFlexItem()) {
+  if (block->IsFlexItem()) {
     block->GetDocument().CountUse(WebFeature::kTextAutoSizingDisabledOnFlexbox);
     return true;
   }
@@ -657,7 +657,8 @@ void TextAutosizer::UpdatePageInfo() {
 
   PageInfo previous_page_info(page_info_);
   page_info_.setting_enabled_ =
-      document_->GetSettings()->GetTextAutosizingEnabled();
+      document_->GetSettings()->GetTextAutosizingEnabled() &&
+      !base::FeatureList::IsEnabled(blink::features::kForceOffTextAutosizing);
 
   if (!page_info_.setting_enabled_ || document_->Printing()) {
     page_info_.page_needs_autosizing_ = false;

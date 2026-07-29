@@ -79,6 +79,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/cells/enhanced_safe_browsing_inline_promo_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/cells/settings_check_item.h"
 #import "ios/chrome/browser/settings/ui_bundled/cells/settings_image_detail_text_item.h"
+#import "ios/chrome/browser/settings/ui_bundled/content_settings/content_settings_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/content_settings/content_settings_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/default_browser/default_browser_settings_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/downloads/downloads_settings_coordinator.h"
@@ -190,6 +191,7 @@ struct EnhancedSafeBrowsingActivePromoData
 @interface SettingsTableViewController () <
     AddressBarPreferenceCoordinatorDelegate,
     BooleanObserver,
+    ContentSettingsCoordinatorDelegate,
     DiscoverFeedVisibilityObserver,
     DownloadsSettingsCoordinatorDelegate,
     EnhancedSafeBrowsingInlinePromoDelegate,
@@ -205,7 +207,8 @@ struct EnhancedSafeBrowsingActivePromoData
     PrivacyCoordinatorDelegate,
     SafetyCheckCoordinatorDelegate,
     SearchEngineObserving,
-    SyncObserverModelBridge> {
+    SyncObserverModelBridge,
+    TabsSettingsCoordinatorDelegate> {
   // The browser where the settings are being displayed.
   raw_ptr<Browser> _browser;
   // The profile for `_browser`. Never off the record.
@@ -233,6 +236,9 @@ struct EnhancedSafeBrowsingActivePromoData
   // The item related to the safety check.
   SettingsCheckItem* _safetyCheckItem;
   SigninCoordinator* _signinAndHistorySyncCoordinator;
+
+  // Content settings coordinator.
+  ContentSettingsCoordinator* _contentSettingsCoordinator;
 
   GoogleServicesSettingsCoordinator* _googleServicesSettingsCoordinator;
   ManageSyncSettingsCoordinator* _manageSyncSettingsCoordinator;
@@ -407,10 +413,6 @@ struct EnhancedSafeBrowsingActivePromoData
         [[NotificationsSettingsObserver alloc] initWithPrefService:prefService
                                                         localState:localState];
     _notificationsObserver.delegate = self;
-
-    // TODO(crbug.com/41344225): -loadModel should not be called from
-    // initializer. A possible fix is to move this call to -viewDidLoad.
-    [self loadModel];
   }
   return self;
 }
@@ -434,6 +436,8 @@ struct EnhancedSafeBrowsingActivePromoData
 
   self.navigationItem.largeTitleDisplayMode =
       UINavigationItemLargeTitleDisplayModeAlways;
+
+  [self loadModel];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -1327,8 +1331,7 @@ struct EnhancedSafeBrowsingActivePromoData
     }
     case SettingsItemTypeContentSettings:
       base::RecordAction(base::UserMetricsAction("Settings.ContentSettings"));
-      controller =
-          [[ContentSettingsTableViewController alloc] initWithBrowser:_browser];
+      [self showContentSettings];
       break;
     case SettingsItemTypeDownloadsSettings:
       base::RecordAction(base::UserMetricsAction("Settings.DownloadsSettings"));
@@ -1485,11 +1488,30 @@ struct EnhancedSafeBrowsingActivePromoData
   _manageSyncSettingsCoordinator = nil;
 }
 
+// Stops and cleans up the TabsSettingsCoordinator.
+- (void)stopTabsCoordinator {
+  [_tabsCoordinator stop];
+  _tabsCoordinator.delegate = nil;
+  _tabsCoordinator = nil;
+}
+
+- (void)showContentSettings {
+  if (_contentSettingsCoordinator &&
+      self.navigationController.topViewController != self) {
+    base::debug::DumpWithoutCrashing();
+  }
+
+  _contentSettingsCoordinator = [[ContentSettingsCoordinator alloc]
+      initWithBaseNavigationController:self.navigationController
+                               browser:_browser];
+  _contentSettingsCoordinator.delegate = self;
+  [_contentSettingsCoordinator start];
+}
+
 - (void)showGoogleServices {
   if (_googleServicesSettingsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1506,7 +1528,6 @@ struct EnhancedSafeBrowsingActivePromoData
 - (void)showTabsSettings {
   if (_tabsCoordinator && self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1515,6 +1536,7 @@ struct EnhancedSafeBrowsingActivePromoData
   _tabsCoordinator = [[TabsSettingsCoordinator alloc]
       initWithBaseNavigationController:self.navigationController
                                browser:_browser];
+  _tabsCoordinator.delegate = self;
   [_tabsCoordinator start];
 }
 
@@ -1522,7 +1544,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_addressBarPreferenceCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1539,7 +1560,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_manageSyncSettingsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1556,7 +1576,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_passwordsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1574,7 +1593,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_safetyCheckCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1635,7 +1653,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_notificationsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1653,7 +1670,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_privacyCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1783,6 +1799,7 @@ struct EnhancedSafeBrowsingActivePromoData
 }
 
 - (void)signinIPHDismissed {
+  // TODO(crbug.com/427478234): This event should be fired by the mediator.
   _featureEngagementTracker->Dismissed(
       feature_engagement::kIPHiOSReplaceSyncPromosWithSignInPromos);
   _bubblePresenter = nil;
@@ -1912,7 +1929,6 @@ struct EnhancedSafeBrowsingActivePromoData
   if (_downloadsSettingsCoordinator &&
       self.navigationController.topViewController != self) {
     base::debug::DumpWithoutCrashing();
-    return;
   }
 
   // Stop the coordinator before restarting it, if it exists.
@@ -1991,6 +2007,7 @@ struct EnhancedSafeBrowsingActivePromoData
     return NO;
   }
 
+  // TODO(crbug.com/427478234): This event should be fired by the mediator.
   bool promoIsTriggered = tracker->ShouldTriggerHelpUI(
       feature_engagement::kIPHiOSInlineEnhancedSafeBrowsingPromoFeature);
   CHECK(promoIsTriggered);
@@ -2052,8 +2069,7 @@ struct EnhancedSafeBrowsingActivePromoData
                                                 promoAction:promoAction
                                         optionalHistorySync:YES
                                             fullscreenPromo:NO
-                                       continuationProvider:
-                                           DoNothingContinuationProvider()];
+                                       continuationProvider:provider];
   _signinAndHistorySyncCoordinator.signinCompletion =
       ^(SigninCoordinatorResult result, id<SystemIdentity> identity) {
         [weakSelf didFinishSignin];
@@ -2100,6 +2116,9 @@ struct EnhancedSafeBrowsingActivePromoData
   [self removeEnhancedSafeBrowsingPromoFETDataIfNeeded];
 
   // Stop children coordinators.
+  [_contentSettingsCoordinator stop];
+  _contentSettingsCoordinator = nil;
+
   [_googleServicesSettingsCoordinator stop];
   _googleServicesSettingsCoordinator.delegate = nil;
   _googleServicesSettingsCoordinator = nil;
@@ -2119,8 +2138,7 @@ struct EnhancedSafeBrowsingActivePromoData
 
   [self stopManageSyncSettingsCoordinator];
 
-  [_tabsCoordinator stop];
-  _tabsCoordinator = nil;
+  [self stopTabsCoordinator];
 
   [_addressBarPreferenceCoordinator stop];
   _addressBarPreferenceCoordinator.delegate = nil;
@@ -2311,6 +2329,10 @@ struct EnhancedSafeBrowsingActivePromoData
 #pragma mark - PrefObserverDelegate
 
 - (void)onPreferenceChanged:(const std::string&)preferenceName {
+  // If the model hasn't been created yet, no need to update anything.
+  if (!self.tableViewModel) {
+    return;
+  }
   if (preferenceName == prefs::kVoiceSearchLocale) {
     voice::SpeechInputLocaleConfig* localeConfig =
         voice::SpeechInputLocaleConfig::GetInstance();
@@ -2358,6 +2380,15 @@ struct EnhancedSafeBrowsingActivePromoData
     // changing.
     [self reloadData];
   }
+}
+
+#pragma mark - ContentSettingsCoordinatorDelegate
+
+- (void)contentSettingsCoordinatorViewControllerWasRemoved:
+    (ContentSettingsCoordinator*)coordinator {
+  DCHECK_EQ(_contentSettingsCoordinator, coordinator);
+  [_contentSettingsCoordinator stop];
+  _contentSettingsCoordinator = nil;
 }
 
 #pragma mark - GoogleServicesSettingsCoordinatorDelegate
@@ -2476,6 +2507,13 @@ struct EnhancedSafeBrowsingActivePromoData
     (ManageSyncSettingsCoordinator*)coordinator {
   DCHECK_EQ(_manageSyncSettingsCoordinator, coordinator);
   [self stopManageSyncSettingsCoordinator];
+}
+
+#pragma mark - TabsSettingsCoordinatorDelegate
+
+- (void)tabsSettingsCoordinatorDidRemove:(TabsSettingsCoordinator*)coordinator {
+  DCHECK_EQ(coordinator, _tabsCoordinator);
+  [self stopTabsCoordinator];
 }
 
 #pragma mark - NotificationsSettingsObserverDelegate

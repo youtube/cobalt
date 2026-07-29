@@ -56,6 +56,9 @@ using EntryInfo = SqlPersistentStore::EntryInfo;
 using Error = SqlPersistentStore::Error;
 using EntryInfoOrError = SqlPersistentStore::EntryInfoOrError;
 using OptionalEntryInfoOrError = SqlPersistentStore::OptionalEntryInfoOrError;
+using EntryInfoWithIdAndKey = SqlPersistentStore::EntryInfoWithIdAndKey;
+using OptionalEntryInfoWithIdAndKey =
+    SqlPersistentStore::OptionalEntryInfoWithIdAndKey;
 
 using InitResultOrError = base::expected<InitResult, Error>;
 
@@ -100,6 +103,21 @@ void PopulateTraceDetails(const EntryInfo& entry_info,
 }
 void PopulateTraceDetails(const std::optional<EntryInfo>& entry_info,
                           perfetto::TracedDictionary& dict) {
+  if (entry_info) {
+    PopulateTraceDetails(*entry_info, dict);
+  } else {
+    dict.Add("entry_info", "not found");
+  }
+}
+void PopulateTraceDetails(const EntryInfoWithIdAndKey& result,
+                          perfetto::TracedDictionary& dict) {
+  PopulateTraceDetails(result.info, dict);
+  dict.Add("res_id", result.res_id);
+  dict.Add("key", result.key.string());
+}
+void PopulateTraceDetails(
+    const std::optional<EntryInfoWithIdAndKey>& entry_info,
+    perfetto::TracedDictionary& dict) {
   if (entry_info) {
     PopulateTraceDetails(*entry_info, dict);
   } else {
@@ -256,6 +274,18 @@ class Backend {
                           const base::UnguessableToken& token);
   Error DeleteLiveEntry(const CacheEntryKey& key);
   Error DeleteAllEntries();
+  Error DeleteLiveEntriesBetween(base::Time initial_time,
+                                 base::Time end_time,
+                                 std::set<CacheEntryKey> excluded_keys);
+  Error UpdateEntryLastUsed(const CacheEntryKey& key, base::Time last_used);
+  Error UpdateEntryHeaderAndLastUsed(const CacheEntryKey& key,
+                                     const base::UnguessableToken& token,
+                                     base::Time last_used,
+                                     scoped_refptr<net::IOBuffer> buffer,
+                                     int64_t header_size_delta);
+
+  OptionalEntryInfoWithIdAndKey OpenLatestEntryBeforeResId(
+      int64_t res_id_cursor);
 
  private:
   void DatabaseErrorCallback(int error, sql::Statement* statement);
@@ -273,6 +303,21 @@ class Backend {
   Error DeleteLiveEntryInternal(const CacheEntryKey& key,
                                 bool& corruption_detected);
   Error DeleteAllEntriesInternal();
+  Error DeleteLiveEntriesBetweenInternal(base::Time initial_time,
+                                         base::Time end_time,
+                                         std::set<CacheEntryKey> excluded_keys,
+                                         bool& corruption_detected);
+  Error UpdateEntryLastUsedInternal(const CacheEntryKey& key,
+                                    base::Time last_used);
+  Error UpdateEntryHeaderAndLastUsedInternal(
+      const CacheEntryKey& key,
+      const base::UnguessableToken& token,
+      base::Time last_used,
+      scoped_refptr<net::IOBuffer> buffer,
+      int64_t header_size_delta);
+  OptionalEntryInfoWithIdAndKey OpenLatestEntryBeforeResIdInternal(
+      int64_t res_id_cursor,
+      Error& error_out);
 
   // Updates the in-memory `store_status_` by `entry_count_delta` and
   // `total_size_delta`. If the update results in an overflow or a negative
@@ -950,6 +995,352 @@ Error Backend::DeleteAllEntriesInternal() {
   return Error::kOk;
 }
 
+Error Backend::DeleteLiveEntriesBetween(base::Time initial_time,
+                                        base::Time end_time,
+                                        std::set<CacheEntryKey> excluded_keys) {
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.DeleteLiveEntriesBetween",
+                     "data", [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("initial_time", initial_time);
+                       dict.Add("end_time", end_time);
+                       dict.Add("excluded_keys_size", excluded_keys.size());
+                       PopulateTraceDetails(store_status_, dict);
+                     });
+  base::ElapsedTimer timer;
+  // Flag to indicate if we encounter signs of database corruption. In
+  // DeleteLiveEntriesBetween, database corruption is ignored.
+  bool corruption_detected = false;
+  Error result = DeleteLiveEntriesBetweenInternal(
+      initial_time, end_time, std::move(excluded_keys), corruption_detected);
+  RecordTimeAndErrorResultHistogram(
+      "DeleteLiveEntriesBetween", timer.Elapsed(),
+      corruption_detected ? Error::kInvalidData : result);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.DeleteLiveEntriesBetween",
+                   "result", [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     PopulateTraceDetails(result, store_status_, dict);
+                   });
+  return result;
+}
+
+Error Backend::DeleteLiveEntriesBetweenInternal(
+    base::Time initial_time,
+    base::Time end_time,
+    std::set<CacheEntryKey> excluded_keys,
+    bool& corruption_detected) {
+  CheckDatabaseInitStatus();
+  sql::Transaction transaction(&db_);
+  if (!transaction.Begin()) {
+    return Error::kFailedToStartTransaction;
+  }
+
+  std::vector<int64_t> res_ids_to_be_deleted;
+  std::vector<base::UnguessableToken> tokens_to_be_deleted;
+  int64_t entry_count_delta = 0;
+  base::CheckedNumeric<int64_t> total_size_delta = 0;
+  {
+    constexpr char kSqlSelectResourcesForEviction[] =
+        // clang-format off
+        "SELECT "
+          "res_id,"       // 0
+          "token_high,"   // 1
+          "token_low,"    // 2
+          "bytes_usage,"  // 3
+          "cache_key "    // 4
+        "FROM resources "
+        "WHERE "
+          "last_used>=? AND "  // 0
+          "last_used<? AND "   // 1
+          "doomed=?";          // 2
+    // clang-format on
+    // Intentionally DCHECK() for performance
+    DCHECK(db_.IsSQLValid(kSqlSelectResourcesForEviction));
+    sql::Statement statement(
+        db_.GetCachedStatement(SQL_FROM_HERE, kSqlSelectResourcesForEviction));
+    statement.BindTime(0, initial_time);
+    statement.BindTime(1, end_time);
+    statement.BindBool(2, false);
+    while (statement.Step()) {
+      if (excluded_keys.contains(CacheEntryKey(statement.ColumnString(4)))) {
+        continue;
+      }
+      --entry_count_delta;
+      res_ids_to_be_deleted.push_back(statement.ColumnInt64(0));
+      auto maybe_token = ToUnguessableToken(statement.ColumnInt64(1),
+                                            statement.ColumnInt64(2));
+      if (maybe_token) {
+        tokens_to_be_deleted.push_back(*maybe_token);
+        total_size_delta -= statement.ColumnInt64(3);
+      } else {
+        corruption_detected = true;
+      }
+    }
+  }
+
+  // TODO(crbug.com/422065015): delete body data from the `blobs` table using
+  // `tokens_to_be_deleted`.
+
+  // Delete the selected entries from the `resources` table.
+  for (const auto& res_id : res_ids_to_be_deleted) {
+    constexpr char kSqlDeleteFromResources[] =
+        "DELETE FROM resources WHERE res_id=?";
+    // Intentionally DCHECK() for performance
+    DCHECK(db_.IsSQLValid(kSqlDeleteFromResources));
+    sql::Statement statement(
+        db_.GetCachedStatement(SQL_FROM_HERE, kSqlDeleteFromResources));
+    statement.BindInt64(0, res_id);
+    if (!statement.Run()) {
+      return Error::kFailedToExecute;
+    }
+  }
+
+  // If we detected corruption, or if the size update calculation overflowed,
+  // our metadata is suspect. We recover by recalculating everything from
+  // scratch.
+  if (corruption_detected || !total_size_delta.IsValid()) {
+    corruption_detected = true;
+    return RecalculateStoreStatusAndCommitTransaction(transaction)
+               ? Error::kOk
+               : Error::kFailedToCommitTransaction;
+  }
+
+  // Update the in-memory and on-disk store status (entry count and total size)
+  // and commit the transaction.
+  if (!UpdateStoreStatusAndCommitTransaction(transaction, entry_count_delta,
+                                             total_size_delta.ValueOrDie())) {
+    return Error::kFailedToCommitTransaction;
+  }
+
+  return Error::kOk;
+}
+
+Error Backend::UpdateEntryLastUsed(const CacheEntryKey& key,
+                                   base::Time last_used) {
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.UpdateEntryLastUsed", "data",
+                     [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("key", key.string());
+                       dict.Add("last_used", last_used);
+                     });
+  base::ElapsedTimer timer;
+  auto result = UpdateEntryLastUsedInternal(key, last_used);
+  RecordTimeAndErrorResultHistogram("UpdateEntryLastUsed", timer.Elapsed(),
+                                    result);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.UpdateEntryLastUsed", "result",
+                   [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     PopulateTraceDetails(result, dict);
+                   });
+  return result;
+}
+
+Error Backend::UpdateEntryLastUsedInternal(const CacheEntryKey& key,
+                                           base::Time last_used) {
+  CheckDatabaseInitStatus();
+  sql::Transaction transaction(&db_);
+  if (!transaction.Begin()) {
+    return Error::kFailedToStartTransaction;
+  }
+  int64_t change_count = 0;
+  {
+    constexpr char kSqlUpdateResourceLastUsed[] =
+        // clang-format off
+        "UPDATE resources "
+        "SET "
+          "last_used=? "      // 0
+        "WHERE "
+          "cache_key=? AND "  // 1
+          "doomed=?";         // 2
+    // clang-format on
+    // Intentionally DCHECK() for performance
+    DCHECK(db_.IsSQLValid(kSqlUpdateResourceLastUsed));
+    sql::Statement statement(
+        db_.GetCachedStatement(SQL_FROM_HERE, kSqlUpdateResourceLastUsed));
+    statement.BindTime(0, last_used);
+    statement.BindString(1, key.string());
+    statement.BindBool(2, false);  // doomed
+    if (!statement.Run()) {
+      return Error::kFailedToExecute;
+    }
+    change_count = db_.GetLastChangeCount();
+  }
+  if (!transaction.Commit()) {
+    return Error::kFailedToCommitTransaction;
+  }
+  return change_count == 0 ? Error::kNotFound : Error::kOk;
+}
+
+Error Backend::UpdateEntryHeaderAndLastUsed(const CacheEntryKey& key,
+                                            const base::UnguessableToken& token,
+                                            base::Time last_used,
+                                            scoped_refptr<net::IOBuffer> buffer,
+                                            int64_t header_size_delta) {
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.UpdateEntryHeaderAndLastUsed",
+                     "data", [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("key", key.string());
+                       dict.Add("token", token.ToString());
+                       dict.Add("last_used", last_used);
+                       dict.Add("header_size_delta", header_size_delta);
+                       PopulateTraceDetails(store_status_, dict);
+                     });
+  base::ElapsedTimer timer;
+  auto result = UpdateEntryHeaderAndLastUsedInternal(
+      key, token, last_used, std::move(buffer), header_size_delta);
+  RecordTimeAndErrorResultHistogram("UpdateEntryHeaderAndLastUsed",
+                                    timer.Elapsed(), result);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.UpdateEntryHeaderAndLastUsed",
+                   "result", [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     PopulateTraceDetails(result, store_status_, dict);
+                   });
+  return result;
+}
+
+Error Backend::UpdateEntryHeaderAndLastUsedInternal(
+    const CacheEntryKey& key,
+    const base::UnguessableToken& token,
+    base::Time last_used,
+    scoped_refptr<net::IOBuffer> buffer,
+    int64_t header_size_delta) {
+  CHECK(buffer);
+  CheckDatabaseInitStatus();
+
+  sql::Transaction transaction(&db_);
+  if (!transaction.Begin()) {
+    return Error::kFailedToStartTransaction;
+  }
+  {
+    constexpr char kSqlUpdateResourceBodySize[] =
+        // clang-format off
+        "UPDATE resources "
+        "SET "
+          "last_used=?, "                // 0
+          "bytes_usage=bytes_usage+?, "  // 1
+          "head=? "                      // 2
+        "WHERE "
+          "cache_key=? AND "             // 3
+          "token_high=? AND "            // 4
+          "token_low=? AND "             // 5
+          "doomed=? "                    // 6
+        "RETURNING "
+          "bytes_usage";                 // 0
+    // clang-format on
+    // Intentionally DCHECK() for performance
+    DCHECK(db_.IsSQLValid(kSqlUpdateResourceBodySize));
+    sql::Statement statement(
+        db_.GetCachedStatement(SQL_FROM_HERE, kSqlUpdateResourceBodySize));
+    statement.BindTime(0, last_used);
+    statement.BindInt64(1, header_size_delta);
+    statement.BindBlob(2, buffer->span());
+    statement.BindString(3, key.string());
+    statement.BindInt64(4, TokenHigh(token));
+    statement.BindInt64(5, TokenLow(token));
+    statement.BindBool(6, false);  // doomed
+    if (statement.Step()) {
+      const int64_t bytes_usage = statement.ColumnInt64(0);
+      if (bytes_usage < static_cast<int64_t>(buffer->size()) +
+                            static_cast<int64_t>(key.string().size())) {
+        // This indicates data corruption in the database.
+        // TODO(crbug.com/422065015): If this error is observed in UMA,
+        // implement recovery logic.
+        return Error::kInvalidData;
+      }
+    } else {
+      return Error::kNotFound;
+    }
+  }
+  if (!UpdateStoreStatusAndCommitTransaction(
+          transaction,
+          /*entry_count_delta=*/0,
+          /*total_size_delta=*/header_size_delta)) {
+    return Error::kFailedToCommitTransaction;
+  }
+
+  return Error::kOk;
+}
+
+OptionalEntryInfoWithIdAndKey Backend::OpenLatestEntryBeforeResId(
+    int64_t res_id_cursor) {
+  TRACE_EVENT_BEGIN1("disk_cache", "SqlBackend.OpenLatestEntryBeforeResId",
+                     "data", [&](perfetto::TracedValue trace_context) {
+                       auto dict = std::move(trace_context).WriteDictionary();
+                       dict.Add("res_id_cursor", res_id_cursor);
+                     });
+  base::ElapsedTimer timer;
+  Error error = Error::kOk;
+  auto result = OpenLatestEntryBeforeResIdInternal(res_id_cursor, error);
+  RecordTimeAndErrorResultHistogram("OpenLatestEntryBeforeResId",
+                                    timer.Elapsed(), error);
+  TRACE_EVENT_END1("disk_cache", "SqlBackend.OpenLatestEntryBeforeResId",
+                   "result", [&](perfetto::TracedValue trace_context) {
+                     auto dict = std::move(trace_context).WriteDictionary();
+                     PopulateTraceDetails(result, dict);
+                     PopulateTraceDetails(error, dict);
+                   });
+  return result;
+}
+
+OptionalEntryInfoWithIdAndKey Backend::OpenLatestEntryBeforeResIdInternal(
+    int64_t res_id_cursor,
+    Error& error_out) {
+  CheckDatabaseInitStatus();
+
+  constexpr char kSqlSelectResources[] =
+      // clang-format off
+      "SELECT "
+        "res_id,"      // 0
+        "token_high,"  // 1
+        "token_low,"   // 2
+        "last_used,"   // 3
+        "body_end,"    // 4
+        "cache_key,"   // 5
+        "head "        // 6
+      "FROM resources "
+      "WHERE "
+        "res_id<? AND "  // 0
+        "doomed=? "      // 1
+      "ORDER BY res_id DESC";
+  // clang-format on
+  // Intentionally DCHECK() for performance.
+  DCHECK(db_.IsSQLValid(kSqlSelectResources));
+  sql::Statement statement(
+      db_.GetCachedStatement(SQL_FROM_HERE, kSqlSelectResources));
+  statement.BindInt64(0, res_id_cursor);
+  statement.BindBool(1, false);
+  while (statement.Step()) {
+    auto maybe_token =
+        ToUnguessableToken(statement.ColumnInt64(1), statement.ColumnInt64(2));
+    if (!maybe_token) {
+      // If OpenNextEntry encounters invalid data, it records it in a histogram
+      // and ignores the data.
+      error_out = Error::kInvalidData;
+      continue;
+    }
+
+    EntryInfoWithIdAndKey result;
+    result.res_id = statement.ColumnInt64(0);
+    result.key = CacheEntryKey(statement.ColumnString(5));
+    auto& entry_info = result.info;
+    entry_info.token = *maybe_token;
+    entry_info.last_used = statement.ColumnTime(3);
+    entry_info.body_end = statement.ColumnInt64(4);
+    base::span<const uint8_t> blob_span = statement.ColumnBlob(6);
+    if (blob_span.size() > std::numeric_limits<int>::max()) {
+      // If OpenNextEntry encounters invalid data, it records it in a histogram
+      // and ignores the data.
+      error_out = Error::kInvalidData;
+      continue;
+    }
+    entry_info.head = base::MakeRefCounted<net::GrowableIOBuffer>();
+    entry_info.head->SetCapacity(blob_span.size());
+    entry_info.head->span().copy_from_nonoverlapping(blob_span);
+    entry_info.opened = true;
+    return result;
+  }
+  return std::nullopt;
+}
+
 bool Backend::UpdateStoreStatusAndCommitTransaction(
     sql::Transaction& transaction,
     int64_t entry_count_delta,
@@ -1114,7 +1505,39 @@ class SqlPersistentStoreImpl : public SqlPersistentStore {
     backend_.AsyncCall(&Backend::DeleteAllEntries)
         .Then(WrapCallback(std::move(callback)));
   }
+  void DeleteLiveEntriesBetween(base::Time initial_time,
+                                base::Time end_time,
+                                std::set<CacheEntryKey> excluded_keys,
+                                ErrorCallback callback) override {
+    backend_.AsyncCall(&Backend::DeleteLiveEntriesBetween)
+        .WithArgs(initial_time, end_time, std::move(excluded_keys))
+        .Then(WrapCallback(std::move(callback)));
+  }
+  void UpdateEntryLastUsed(const CacheEntryKey& key,
+                           base::Time last_used,
+                           ErrorCallback callback) override {
+    backend_.AsyncCall(&Backend::UpdateEntryLastUsed)
+        .WithArgs(key, last_used)
+        .Then(WrapCallback(std::move(callback)));
+  }
+  void UpdateEntryHeaderAndLastUsed(const CacheEntryKey& key,
+                                    const base::UnguessableToken& token,
+                                    base::Time last_used,
+                                    scoped_refptr<net::IOBuffer> buffer,
+                                    int64_t header_size_delta,
+                                    ErrorCallback callback) override {
+    backend_.AsyncCall(&Backend::UpdateEntryHeaderAndLastUsed)
+        .WithArgs(key, token, last_used, std::move(buffer), header_size_delta)
+        .Then(WrapCallback(std::move(callback)));
+  }
 
+  void OpenLatestEntryBeforeResId(
+      int64_t res_id_cursor,
+      OptionalEntryInfoWithIdAndKeyCallback callback) override {
+    backend_.AsyncCall(&Backend::OpenLatestEntryBeforeResId)
+        .WithArgs(res_id_cursor)
+        .Then(WrapCallback(std::move(callback)));
+  }
   int64_t MaxFileSize() const override { return max_file_size_; }
   int64_t MaxSize() const override { return max_size_; }
   void GetEntryCount(Int32Callback callback) const override {
@@ -1172,5 +1595,13 @@ SqlPersistentStore::EntryInfo::~EntryInfo() = default;
 SqlPersistentStore::EntryInfo::EntryInfo(EntryInfo&&) = default;
 SqlPersistentStore::EntryInfo& SqlPersistentStore::EntryInfo::operator=(
     EntryInfo&&) = default;
+
+SqlPersistentStore::EntryInfoWithIdAndKey::EntryInfoWithIdAndKey() = default;
+SqlPersistentStore::EntryInfoWithIdAndKey::~EntryInfoWithIdAndKey() = default;
+SqlPersistentStore::EntryInfoWithIdAndKey::EntryInfoWithIdAndKey(
+    EntryInfoWithIdAndKey&&) = default;
+SqlPersistentStore::EntryInfoWithIdAndKey&
+SqlPersistentStore::EntryInfoWithIdAndKey::operator=(EntryInfoWithIdAndKey&&) =
+    default;
 
 }  // namespace disk_cache

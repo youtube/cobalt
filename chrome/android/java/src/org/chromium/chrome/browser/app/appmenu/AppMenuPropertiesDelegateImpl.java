@@ -28,6 +28,7 @@ import androidx.core.graphics.drawable.DrawableCompat;
 import com.google.common.primitives.UnsignedLongs;
 
 import org.chromium.base.CallbackController;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
@@ -35,7 +36,6 @@ import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.supplier.Supplier;
-import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
@@ -942,35 +942,14 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
     public void onMenuDismissed() {}
 
     @Override
-    public int getFooterResourceId() {
-        return 0;
+    public @Nullable View buildFooterView(AppMenuHandler appMenuHandler) {
+        return null;
     }
 
     @Override
-    public int getHeaderResourceId() {
-        return 0;
+    public @Nullable View buildHeaderView() {
+        return null;
     }
-
-    @Override
-    public int getGroupDividerId() {
-        return R.id.divider_line_id;
-    }
-
-    @Override
-    public boolean shouldShowFooter(int maxMenuHeight) {
-        return true;
-    }
-
-    @Override
-    public boolean shouldShowHeader(int maxMenuHeight) {
-        return true;
-    }
-
-    @Override
-    public void onFooterViewInflated(AppMenuHandler appMenuHandler, View view) {}
-
-    @Override
-    public void onHeaderViewInflated(AppMenuHandler appMenuHandler, View view) {}
 
     @Override
     public boolean shouldShowIconBeforeItem() {
@@ -1109,7 +1088,7 @@ public abstract class AppMenuPropertiesDelegateImpl implements AppMenuProperties
                         && !shouldShowReaderModePrefs(currentTab)
                         && currentTab != null
                         && currentTab.getWebContents() != null
-                        && !BuildConfig.IS_DESKTOP_ANDROID;
+                        && !DeviceInfo.isDesktop();
 
         if (!itemVisible) return null;
 

@@ -45,6 +45,7 @@
 #import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
+#import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -94,6 +95,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
 // The injected Contextual Panel entrypoint view;
 @property(nonatomic, strong) UIView* contextualPanelEntrypointView;
+
+// The injected reader mode chip view.
+@property(nonatomic, strong) UIView* readerModeChipView;
 
 // The injected placeholder view;
 @property(nonatomic, strong) UIView* placeholderView;
@@ -177,6 +181,11 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   _contextualPanelEntrypointView = contextualPanelEntrypointView;
 }
 
+- (void)setReaderModeChipView:(UIView*)readerModeChipView {
+  DCHECK(!self.readerModeChipView);
+  _readerModeChipView = readerModeChipView;
+}
+
 - (void)setPlaceholderType:(LocationBarPlaceholderType)placeholderType {
   if (placeholderType == _placeholderType) {
     return;
@@ -190,6 +199,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 - (void)switchToEditing:(BOOL)editing {
   self.editView.hidden = !editing;
   self.locationBarSteadyView.hidden = editing;
+}
+
+- (id<PageActionMenuEntryPointCommands>)pageActionMenuEntryPointHandler {
+  return _pageActionMenuEntrypointView;
 }
 
 - (void)setIncognito:(BOOL)incognito {
@@ -233,6 +246,10 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   return self.locationBarSteadyView.badgeViewVisibilityDelegate;
 }
 
+- (id<ReaderModeChipVisibilityDelegate>)readerModeChipVisibilityDelegate {
+  return self.locationBarSteadyView.readerModeChipVisibilityDelegate;
+}
+
 - (void)setHelpCommandsHandler:(id<HelpCommands>)helpCommandsHandler {
   _helpCommandsHandler = helpCommandsHandler;
 }
@@ -253,6 +270,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
   DCHECK(self.badgeView) << "The badge view must be set at this point";
   [self.locationBarSteadyView setBadgeView:self.badgeView];
+  if (self.readerModeChipView) {
+    [self.locationBarSteadyView setReaderModeChipView:self.readerModeChipView];
+  }
 
   if (IsPageActionMenuEnabled()) {
     _pageActionMenuEntrypointView = [[PageActionMenuEntrypointView alloc] init];
@@ -262,7 +282,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
         forControlEvents:UIControlEventTouchUpInside];
     [self.layoutGuideCenter referenceView:_pageActionMenuEntrypointView
                                 underName:kPageActionMenuEntrypointGuide];
-  } else if (IsLensOverlayAvailable(_profilePrefs)) {
+  }
+
+  if (IsLensOverlayAvailable(_profilePrefs)) {
     _lensOverlayPlaceholderView = [[LensOverlayEntrypointButton alloc]
         initWithProfilePrefs:_profilePrefs];
     [self.layoutGuideCenter referenceView:_lensOverlayPlaceholderView
@@ -1026,6 +1048,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
 
 // Creates and shows the lens overlay UI.
 - (void)openLensOverlay {
+  // TODO(crbug.com/427478234): This event should be fired by the mediator.
   if (self.tracker) {
     self.tracker->NotifyEvent(
         feature_engagement::events::kLensOverlayEntrypointUsed);

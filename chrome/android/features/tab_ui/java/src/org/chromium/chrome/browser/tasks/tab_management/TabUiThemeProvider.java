@@ -74,10 +74,9 @@ public class TabUiThemeProvider {
      * @return The favicon background color.
      */
     public static @ColorInt int getFaviconBackgroundColor(Context context, boolean isIncognito) {
-        return context.getColor(
-                isIncognito
-                        ? R.color.favicon_background_color_incognito
-                        : R.color.favicon_background_color);
+        return isIncognito
+                ? context.getColor(R.color.favicon_background_color_incognito)
+                : SemanticColorUtils.getColorSurfaceBright(context);
     }
 
     /**
@@ -516,7 +515,7 @@ public class TabUiThemeProvider {
             Context context, boolean showFavicon) {
         return showFavicon
                 ? SemanticColorUtils.getColorSurfaceBright(context)
-                : SemanticColorUtils.getColorSurfaceContainerLow(context);
+                : ContextCompat.getColor(context, R.color.tab_group_favicon_quater_empty_fill_color);
     }
 
     /**

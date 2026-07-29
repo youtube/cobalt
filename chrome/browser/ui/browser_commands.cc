@@ -96,6 +96,7 @@
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_session.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/split_tab_util.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -742,7 +743,7 @@ void MaybeShowFeatureBackNavigationMenuPromo(Browser* browser,
   }
 
   if (should_show_feature_promo) {
-    browser->window()->MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHBackNavigationMenuFeature);
   }
 }
@@ -1283,7 +1284,8 @@ void DuplicateSplit(Browser* browser, split_tabs::SplitTabId split) {
                                          active_index));
   model->AddToNewSplit(duplicated_tab_indices,
                        split_tabs::SplitTabVisualData(
-                           *(model->GetSplitData(split)->visual_data())));
+                           *(model->GetSplitData(split)->visual_data())),
+                       split_tabs::SplitTabCreatedSource::kDuplicateSplit);
 }
 
 bool CanDuplicateTabAt(const Browser* browser, int index) {
@@ -1349,14 +1351,14 @@ void GroupTab(Browser* browser) {
       TabStripModel::ContextMenuCommand::CommandToggleGrouped);
 }
 
-void NewSplitTab(Browser* browser) {
+void NewSplitTab(Browser* browser, split_tabs::SplitTabCreatedSource source) {
   TabStripModel* const tab_strip_model = browser->tab_strip_model();
   const int active_index = tab_strip_model->active_index();
   tab_strip_model->delegate()->AddTabAt(
       GURL(chrome::kChromeUISplitViewNewTabPageURL), active_index + 1, true,
       tab_strip_model->GetTabGroupForTab(active_index));
   tab_strip_model->AddToNewSplit({active_index},
-                                 split_tabs::SplitTabVisualData());
+                                 split_tabs::SplitTabVisualData(), source);
 }
 
 void AddNewTabToGroup(Browser* browser) {
@@ -1640,7 +1642,7 @@ void MoveTabsToReadLater(Browser* browser,
     model->AddOrReplaceEntry(url, base::UTF16ToUTF8(title),
                              reading_list::EntrySource::ADDED_VIA_CURRENT_APP,
                              /*estimated_read_time=*/base::TimeDelta());
-    browser->window()->MaybeShowFeaturePromo(
+    BrowserUserEducationInterface::From(browser)->MaybeShowFeaturePromo(
         feature_engagement::kIPHReadingListDiscoveryFeature);
     base::UmaHistogramEnumeration(
         "ReadingList.BookmarkBarState.OnEveryAddToReadingList",
@@ -1823,13 +1825,14 @@ void ShowTranslateBubble(Browser* browser) {
 }
 
 void ManagePasswordsForPage(Browser* browser) {
-  browser->window()->NotifyFeaturePromoFeatureUsed(
+  auto* const user_education = BrowserUserEducationInterface::From(browser);
+  user_education->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHPasswordsManagementBubbleAfterSaveFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
-  browser->window()->NotifyFeaturePromoFeatureUsed(
+  user_education->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHPasswordsManagementBubbleDuringSigninFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
-  browser->window()->NotifyFeaturePromoFeatureUsed(
+  user_education->NotifyFeaturePromoFeatureUsed(
       feature_engagement::kIPHPasswordManagerShortcutFeature,
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   WebContents* web_contents =
@@ -2454,7 +2457,8 @@ void ExecLensOverlay(Browser* browser) {
       LensSearchController::FromTabWebContents(web_contents);
   CHECK(controller);
   controller->OpenLensOverlay(lens::LensOverlayInvocationSource::kAppMenu);
-  browser->window()->NotifyNewBadgeFeatureUsed(lens::features::kLensOverlay);
+  BrowserUserEducationInterface::From(browser)->NotifyNewBadgeFeatureUsed(
+      lens::features::kLensOverlay);
 }
 
 void ExecLensRegionSearch(Browser* browser) {

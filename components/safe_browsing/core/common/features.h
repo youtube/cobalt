@@ -31,10 +31,6 @@ BASE_DECLARE_FEATURE(kBundledSecuritySettings);
 // Enables adding warning shown timestamp to client safe browsing report.
 BASE_DECLARE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport);
 
-// Expand allowlist usage beyond CSPP allowlist by using the high confidence
-// allowlist as well.
-BASE_DECLARE_FEATURE(kClientSideDetectionAcceptHCAllowlist);
-
 // Create a response containing the brand and the intent of the page using the
 // on-device model LLM.
 BASE_DECLARE_FEATURE(kClientSideDetectionBrandAndIntentForScamDetection);
@@ -182,6 +178,10 @@ extern const base::FeatureParam<int>
 
 // Enables reporting of external app redirects
 BASE_DECLARE_FEATURE(kExternalAppRedirectTelemetry);
+
+// Replace the high confidence allowlist check gating notification warnings with
+// a check of the global cache list specific to safe notification sites.
+BASE_DECLARE_FEATURE(kGlobalCacheListForGatingNotificationProtections);
 
 // Communicated to the server to determine DBSC on google.com. This
 // allows us to slice metrics by google.com DBSC state without any

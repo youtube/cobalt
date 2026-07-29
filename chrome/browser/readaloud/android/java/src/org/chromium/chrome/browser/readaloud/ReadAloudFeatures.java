@@ -96,6 +96,10 @@ public final class ReadAloudFeatures {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.READALOUD_AUDIO_OVERVIEWS_FEEDBACK);
     }
 
+    public static int getAudioOverviewsSpeedAdditionPercentage() {
+        return ChromeFeatureList.sReadAloudAudioOverviewsSpeedAdditionPercentage.getValue();
+    }
+
     public static @IneligibilityReason int getIneligibilityReason() {
         return sIneligibilityReason;
     }
@@ -120,6 +124,10 @@ public final class ReadAloudFeatures {
     public static boolean isInMultiWindowAndDisabled(Activity activity) {
         return activity.isInMultiWindowMode()
                 && !ChromeFeatureList.isEnabled(ChromeFeatureList.READALOUD_IN_MULTI_WINDOW);
+    }
+
+    public static boolean shouldSkipAudioOverviewsDisclaimerWhenPossible() {
+      return ChromeFeatureList.isEnabled(ChromeFeatureList.READALOUD_AUDIO_OVERVIEWS_SKIP_DISCLAIMER_WHEN_POSSIBLE);
     }
 
     /** Returns true if Read Aloud tap to seek is enabled. */

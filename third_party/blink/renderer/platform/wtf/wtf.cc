@@ -42,7 +42,7 @@
 #include "third_party/blink/renderer/platform/wtf/thread_specific.h"
 #include "third_party/blink/renderer/platform/wtf/threading.h"
 
-namespace WTF {
+namespace blink {
 
 namespace {
 
@@ -69,7 +69,7 @@ bool IsMainThread() {
 constinit thread_local bool g_is_main_thread = false;
 #endif
 
-void Initialize() {
+void InitializeWtf() {
   // WTF, and Blink in general, cannot handle being re-initialized.
   // Make that explicit here.
   CHECK(!g_initialized);
@@ -83,9 +83,9 @@ void Initialize() {
 
   internal::InitializeDoubleConverter();
 
-  internal::InitializeMainThreadStackEstimate();
+  WTF::internal::InitializeMainThreadStackEstimate();
   AtomicString::Init();
-  StringStatics::Init();
+  WTF::StringStatics::Init();
 }
 
-}  // namespace WTF
+}  // namespace blink

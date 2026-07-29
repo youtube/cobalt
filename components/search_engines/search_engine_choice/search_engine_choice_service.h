@@ -7,8 +7,6 @@
 
 #include <optional>
 
-#include "base/debug/stack_trace.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
@@ -111,6 +109,12 @@ class SearchEngineChoiceService : public KeyedService {
       bool is_regular_profile,
       const TemplateURLService& template_url_service);
 
+  // Records the specified choice screen condition at profile initialization.
+  void RecordStaticEligibility(SearchEngineChoiceScreenConditions condition);
+
+  // Records the specified choice screen condition for relevant navigations.
+  void RecordDynamicEligibility(SearchEngineChoiceScreenConditions condition);
+
   // Returns key information needed to show a search engine choice screen, like
   // the template URLs for the engines to show. See
   // `search_engines::ChoiceScreenData` for more details.
@@ -192,9 +196,10 @@ class SearchEngineChoiceService : public KeyedService {
   // in runtime (different runs can still return different values, though).
   std::optional<int> country_id_cache_;
 
-  // Used to track caller of `MaybeRecordChoiceScreenDisplayState()` to debug
-  // some unmet expectations, see b/344899110.
-  std::unique_ptr<base::debug::StackTrace> display_state_record_caller_;
+  // Used to track whether `MaybeRecordChoiceScreenDisplayState()` has already
+  // been called for this profile, to monitor the prevalence of some unexpected
+  // behaviour, see crbug.com/390272573.
+  bool has_recorded_display_state_ = false;
 
   base::WeakPtrFactory<SearchEngineChoiceService> weak_ptr_factory_{this};
 };

@@ -21,7 +21,6 @@
 #include "base/dcheck_is_on.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_span.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -33,11 +32,14 @@
 #include "pdf/document_layout.h"
 #include "pdf/document_metadata.h"
 #include "pdf/loader/document_loader.h"
+#include "pdf/pdf_caret.h"
+#include "pdf/pdf_caret_client.h"
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_form_filler.h"
 #include "pdf/pdfium/pdfium_page.h"
 #include "pdf/pdfium/pdfium_print.h"
 #include "pdf/pdfium/pdfium_range.h"
+#include "pdf/region_data.h"
 #include "printing/mojom/print.mojom-forward.h"
 #include "services/screen_ai/buildflags/buildflags.h"
 #include "third_party/pdfium/public/cpp/fpdf_scopers.h"
@@ -142,7 +144,9 @@ using AddSearchResultCallback = base::RepeatingCallback<void(PDFiumRange)>;
 // This class implements a PDF rendering engine using the PDFium library.
 //
 // Many methods in this class are virtual to facilitate testing.
-class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
+class PDFiumEngine : public DocumentLoader::Client,
+                     public IFSDK_PAUSE,
+                     public PdfCaretClient {
  public:
   // Maximum number of parameters a nameddest view can contain.
   static constexpr size_t kMaxViewParams = 4;
@@ -493,6 +497,12 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   void OnDocumentComplete() override;
   void OnDocumentCanceled() override;
 
+  // PdfCaretClient:
+  int GetCharCount(int page_index) const override;
+  std::vector<gfx::Rect> GetScreenRectsForChar(int page_index,
+                                               int char_index) const override;
+  void InvalidateRect(const gfx::Rect& rect) override;
+
 #if defined(PDF_ENABLE_XFA)
   void UpdatePageCount();
 #endif  // defined(PDF_ENABLE_XFA)
@@ -643,16 +653,6 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
     int char_index = -1;
     int form_type = FPDF_FORMFIELD_UNKNOWN;
     PDFiumPage::LinkTarget target;
-  };
-
-  struct RegionData {
-    RegionData(base::span<uint8_t> buffer, size_t stride);
-    RegionData(RegionData&&) noexcept;
-    RegionData& operator=(RegionData&&) noexcept;
-    ~RegionData();
-
-    base::raw_span<uint8_t> buffer;  // Never empty.
-    size_t stride;
   };
 
   friend class FormFillerTest;
@@ -849,6 +849,9 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   void FillPageSides(int progressive_index);
 
   void PaintPageShadow(size_t progressive_index, SkBitmap& image_data);
+
+  // Draw the text caret. No-op if `caret_` is nullptr.
+  void DrawCaret(size_t progressive_index, SkBitmap& image_data) const;
 
   // Highlight visible find results and selections.
   void DrawSelections(size_t progressive_index, SkBitmap& image_data) const;
@@ -1276,6 +1279,9 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   bool read_only_ = false;
 
   PDFiumPrint print_;
+
+  // The text caret on the PDF, excluding AcroForms.
+  std::unique_ptr<PdfCaret> caret_;
 
   // The list of text fragments to highlight on the PDF.
   std::vector<PDFiumRange> text_fragment_highlights_;

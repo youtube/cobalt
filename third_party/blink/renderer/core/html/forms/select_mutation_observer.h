@@ -11,6 +11,9 @@
 
 namespace blink {
 
+// This is similar to SummaryDescendantsObserver which fills a similar purpose
+// for <summary>.  They could in theory share a small amount of common code,
+// but such a refactoring would probably harm code readability too much.
 class SelectMutationObserver : public MutationObserver::Delegate {
  public:
   explicit SelectMutationObserver(HTMLSelectElement& select);
@@ -28,27 +31,19 @@ class SelectMutationObserver : public MutationObserver::Delegate {
   void MaybeAddDescendantTextInput(Node* node);
   void MaybeRemoveDescendantTextInput(Node* node);
   void AddDescendantDisallowedErrorToNode(Node& node);
-  String GetMessageForReason(
-      SelectElementAccessibilityIssueReason issue_reason);
-  String FormatElementMessage(const String& element,
-                              const String& article,
-                              const String& example);
-  String FormatInteractiveElementMessage(const String& element,
-                                         const String& article,
-                                         const String& context);
   bool IsAllowedInteractiveElement(Node& node);
   bool IsInteractiveElement(const Node& node);
-  void RecordIssueByType(SelectElementAccessibilityIssueReason issue_reason);
-  SelectElementAccessibilityIssueReason CheckForIssue(const Node& descendant);
+  void RecordIssueByType(ElementAccessibilityIssueReason issue_reason);
+  ElementAccessibilityIssueReason CheckForIssue(const Node& descendant);
   bool IsAllowedDescendantOfSelect(const Node& descendant, const Node& parent);
   bool IsAllowedDescendantOfOptgroup(const Node& descendant,
                                      const Node& parent);
   bool IsAllowedDescendantOfButton(const Node& descendant);
-  SelectElementAccessibilityIssueReason CheckDescedantOfOption(
+  ElementAccessibilityIssueReason CheckDescedantOfOption(
       const Node& descendant);
   bool HasTabIndexAttribute(const Node& node);
   bool IsContenteditable(const Node& node);
-  SelectElementAccessibilityIssueReason TraverseAncestorsAndCheckDescendant(
+  ElementAccessibilityIssueReason TraverseAncestorsAndCheckDescendant(
       const Node& descendant);
   bool IsWhitespaceOrEmpty(const Node& node);
   bool IsAllowedPhrasingContent(const Node& node);

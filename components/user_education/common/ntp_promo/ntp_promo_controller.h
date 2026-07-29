@@ -10,12 +10,10 @@
 #include "base/auto_reset.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
-#include "components/user_education/common/feature_promo/feature_promo_registry.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_registry.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
 #include "components/user_education/common/user_education_data.h"
 #include "components/user_education/common/user_education_storage_service.h"
-#include "ui/menus/simple_menu_model.h"
 
 namespace user_education {
 
@@ -51,11 +49,14 @@ class NtpPromoController {
                      UserEducationStorageService& storage_service);
 
   // Provides ordered lists of eligible and completed promos, intended to be
-  // displayed by the NTP.
-  NtpShowablePromos GetShowablePromos();
+  // displayed by the NTP. May update prefs as a side effect.
+  NtpShowablePromos GenerateShowablePromos();
 
   // Called in response to an NTP promo activation.
   void OnPromoClicked(NtpPromoIdentifier id);
+
+  // Returns the duration for which a promo can be shown after completion.
+  base::TimeDelta GetCompletedPromoShowDurationForTest() const;
 
  private:
   const raw_ref<NtpPromoRegistry> registry_;

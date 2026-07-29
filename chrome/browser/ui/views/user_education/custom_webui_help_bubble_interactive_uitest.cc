@@ -152,13 +152,12 @@ class TestContentBrowserClient : public ChromeContentBrowserClient {
     // This code is copied loosely from
     // `content::RegisterWebUIControllerInterfaceBinder()`.
     using Interface = custom_help_bubble::mojom::CustomHelpBubbleHandlerFactory;
-    map->Add<Interface>(
-        base::BindRepeating([](content::RenderFrameHost* host,
-                               mojo::PendingReceiver<Interface> receiver) {
-          CHECK(!host->GetParentOrOuterDocument());
-          CHECK((content::internal::SafeDownCastAndBindInterface<
-                 Interface, TestWebUIHelpBubbleController>(host, receiver)));
-        }));
+    map->Add<Interface>([](content::RenderFrameHost* host,
+                           mojo::PendingReceiver<Interface> receiver) {
+      CHECK(!host->GetParentOrOuterDocument());
+      CHECK((content::internal::SafeDownCastAndBindInterface<
+             Interface, TestWebUIHelpBubbleController>(host, receiver)));
+    });
   }
 };
 
@@ -379,7 +378,7 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_Snooze) {
 }
 
 IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_PressEsc) {
-  gfx::NativeView native_view = gfx::NativeView();
+  const views::Widget* widget = nullptr;
   RunTestSequence(
       MaybeShowPromo(kCustomWebUIHelpBubbleTestFeature,
                      CustomHelpBubbleShown{
@@ -388,13 +387,12 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_PressEsc) {
                               CustomWebUIHelpBubble::kWebViewIdForTesting),
       IfView(
           CustomWebUIHelpBubble::kHelpBubbleIdForTesting,
-          [&native_view](const views::View* view) {
-            native_view = view->GetWidget()->GetNativeView();
-            return !view->GetWidget()->IsActive();
+          [&widget](const views::View* view) {
+            widget = view->GetWidget();
+            return !widget->IsActive();
           },
           Then(ObserveState(views::test::kCurrentWidgetFocus),
-               WaitForState(views::test::kCurrentWidgetFocus,
-                            std::ref(native_view)))),
+               WaitForState(views::test::kCurrentWidgetFocus, widget))),
       SendAccelerator(CustomWebUIHelpBubble::kHelpBubbleIdForTesting,
                       ui::Accelerator(ui::VKEY_ESCAPE, ui::MODIFIER_NONE)),
       WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
@@ -409,8 +407,8 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_Abort) {
       WaitForShow(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       WithView(kBrowserViewElementId,
                [](BrowserView* browser_view) {
-                 browser_view->AbortFeaturePromo(
-                     kCustomWebUIHelpBubbleTestFeature);
+                 BrowserUserEducationInterface::From(browser_view->browser())
+                     ->AbortFeaturePromo(kCustomWebUIHelpBubbleTestFeature);
                }),
       WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       CheckIsDismissed(kCustomWebUIHelpBubbleTestFeature, false));
@@ -424,9 +422,10 @@ IN_PROC_BROWSER_TEST_F(CustomWebUIHelpBubbleUiTest, ShowPromo_FeatureUsed) {
       WaitForShow(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       WithView(kBrowserViewElementId,
                [](BrowserView* browser_view) {
-                 browser_view->NotifyFeaturePromoFeatureUsed(
-                     kCustomWebUIHelpBubbleTestFeature,
-                     FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+                 BrowserUserEducationInterface::From(browser_view->browser())
+                     ->NotifyFeaturePromoFeatureUsed(
+                         kCustomWebUIHelpBubbleTestFeature,
+                         FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
                }),
       WaitForHide(CustomWebUIHelpBubble::kHelpBubbleIdForTesting),
       CheckIsDismissed(kCustomWebUIHelpBubbleTestFeature, true));

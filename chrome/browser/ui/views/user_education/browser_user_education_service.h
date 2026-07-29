@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "chrome/browser/profiles/profile.h"
-#include "components/user_education/common/feature_promo/feature_promo_controller.h"
 
 namespace user_education {
 class FeaturePromoControllerCommon;
@@ -16,6 +15,7 @@ class FeaturePromoRegistry;
 class HelpBubbleDelegate;
 class HelpBubbleFactoryRegistry;
 class NewBadgeRegistry;
+class NtpPromoRegistry;
 class TutorialRegistry;
 }  // namespace user_education
 
@@ -32,6 +32,7 @@ extern void MaybeRegisterChromeNewBadges(
     user_education::NewBadgeRegistry& registry);
 extern void MaybeRegisterChromeTutorials(
     user_education::TutorialRegistry& registry);
+extern void MaybeRegisterNtpPromos(user_education::NtpPromoRegistry& registry);
 
 // Creates (or doesn't create) a FeaturePromoController for the specified
 // `browser_view`. Not all browser windows can do promos; specifically,

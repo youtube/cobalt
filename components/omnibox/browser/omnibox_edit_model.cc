@@ -40,6 +40,7 @@
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
+#include "components/omnibox/browser/contextual_search_provider.h"
 #include "components/omnibox/browser/history_fuzzy_provider.h"
 #include "components/omnibox/browser/history_url_provider.h"
 #include "components/omnibox/browser/keyword_provider.h"
@@ -1704,14 +1705,33 @@ gfx::Image OmniboxEditModel::GetMatchIconIfExtension(
 
 std::u16string OmniboxEditModel::GetSuggestionGroupHeaderText(
     const std::optional<omnibox::GroupId>& suggestion_group_id) const {
-  bool force_hide_row_header =
-      OmniboxFieldTrial::IsHideSuggestionGroupHeadersEnabledInContext(
-          autocomplete_controller()->input().current_page_classification());
+  if (suggestion_group_id.has_value()) {
+    bool force_hide_row_header =
+        OmniboxFieldTrial::IsHideSuggestionGroupHeadersEnabledInContext(
+            autocomplete_controller()->input().current_page_classification());
+    auto header_text =
+        autocomplete_controller()->result().GetHeaderForSuggestionGroup(
+            suggestion_group_id.value());
 
-  return suggestion_group_id.has_value() && !force_hide_row_header
-             ? autocomplete_controller()->result().GetHeaderForSuggestionGroup(
-                   suggestion_group_id.value())
-             : u"";
+    // Show contextual search suggestion group header if the Lens action has
+    // been moved to the Omnibox toolbelt.
+    bool has_toolbelt_lens_action =
+        autocomplete_controller()->contextual_search_provider() &&
+        autocomplete_controller()
+            ->contextual_search_provider()
+            ->HasToolbeltLensAction();
+    if (suggestion_group_id.value() == omnibox::GROUP_CONTEXTUAL_SEARCH &&
+        has_toolbelt_lens_action) {
+      // TODO(khalidpeer): Make direct use of `header_text` once we start
+      //     receiving a non-empty contextual search header from the server.
+      return header_text.empty()
+                 ? l10n_util::GetStringUTF16(
+                       IDS_CONTEXTUAL_SEARCH_OPEN_LENS_ACTION_LABEL)
+                 : header_text;
+    }
+    return force_hide_row_header ? u"" : header_text;
+  }
+  return u"";
 }
 
 bool OmniboxEditModel::PopupIsOpen() const {
@@ -1910,6 +1930,10 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
   switch (popup_selection_.state) {
     case OmniboxPopupSelection::NORMAL: {
       int available_actions_count = 0;
+      if (line + 1 < autocomplete_controller()->result().size() &&
+          autocomplete_controller()->result().match_at(line + 1).IsToolbelt()) {
+        additional_message_id = IDS_ACC_OMNIBOX_TOOLBELT_NEXT_SUFFIX;
+      }
       if (OmniboxPopupSelection(line, OmniboxPopupSelection::KEYWORD_MODE)
               .IsControlPresentOnMatch(autocomplete_controller()->result(),
                                        GetPrefService())) {
@@ -1987,7 +2011,7 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
       additional_message_id = IDS_ACC_THUMBS_DOWN_SUGGESTION_FOCUSED_PREFIX;
       break;
     case OmniboxPopupSelection::FOCUSED_BUTTON_REMOVE_SUGGESTION:
-      additional_message_id = match.IsIPHSuggestion()
+      additional_message_id = match.IsIphSuggestion()
                                   ? IDS_ACC_DISMISS_CHROME_TIP_FOCUSED_PREFIX
                                   : IDS_ACC_REMOVE_SUGGESTION_FOCUSED_PREFIX;
       break;
@@ -2032,7 +2056,7 @@ OmniboxEditModel::MaybeGetPopupAccessibilityLabelForIPHSuggestion() {
   if (next_line < autocomplete_controller()->result().size()) {
     const AutocompleteMatch& next_match =
         autocomplete_controller()->result().match_at(next_line);
-    if (next_match.IsIPHSuggestion()) {
+    if (next_match.IsIphSuggestion()) {
       label =
           l10n_util::GetStringFUTF16(IDS_ACC_CHROME_TIP, next_match.contents);
 

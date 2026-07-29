@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/core/style/paint_order_array.h"
 #include "third_party/blink/renderer/core/style/shadow_list.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 #include "third_party/blink/renderer/platform/fonts/text_fragment_paint_info.h"
 #include "third_party/blink/renderer/platform/geometry/stroke_data.h"
 #include "third_party/blink/renderer/platform/graphics/draw_looper_builder.h"
@@ -258,7 +259,7 @@ void PrepareSvgPaints(const TextPainter::SvgTextPaintState& state,
                                 &state]() -> const ComputedStyle& {
     if (state.IsPaintingSelection()) {
       if (const ComputedStyle* pseudo_selection_style =
-              layout_parent.GetSelectionStyle()) {
+              layout_parent.StyleRef().HighlightData().Selection()) {
         return *pseudo_selection_style;
       }
     }
@@ -480,25 +481,12 @@ void TextPainter::SetEmphasisMark(const AtomicString& emphasis_mark,
   }
 }
 
-void TextPainter::PaintDecorationLine(
-    const TextDecorationInfo& decoration_info,
-    const Color& line_color,
-    const TextFragmentPaintInfo* fragment_paint_info) {
-  DecorationLinePainter decoration_painter(graphics_context_, decoration_info);
-  if (fragment_paint_info &&
-      decoration_info.TargetStyle().TextDecorationSkipInk() ==
-          ETextDecorationSkipInk::kAuto) {
-    // In order to ignore intersects less than 0.5px, inflate by -0.5.
-    gfx::RectF decoration_bounds = decoration_info.Bounds();
-    decoration_bounds.Inset(gfx::InsetsF::VH(0.5, 0));
-    ClipDecorationsStripe(
-        *fragment_paint_info,
-        decoration_info.InkSkipClipUpper(decoration_bounds.y()),
-        decoration_bounds.height(),
-        std::min(decoration_info.ResolvedThickness(),
-                 kDecorationClipMaxDilation));
-  }
+void TextPainter::PaintDecorationLine(const TextDecorationInfo& decoration_info,
+                                      const Color& line_color,
+                                      const AutoDarkMode& auto_dark_mode) {
+  const DecorationGeometry& geometry = decoration_info.GetGeometry();
 
+  DecorationLinePainter decoration_painter(graphics_context_);
   if (svg_text_paint_state_.has_value() &&
       !decoration_info.HasDecorationOverride()) {
     SvgPaints paints;
@@ -509,27 +497,36 @@ void TextPainter::PaintDecorationLine(
     const OrderedPaints ordered_paints =
         OrderPaints(paints, state.Style().PaintOrder());
     DrawPaintOrderPasses(ordered_paints, [&](const cc::PaintFlags& flags) {
-      decoration_painter.Paint(line_color, &flags);
+      decoration_painter.Paint(geometry, line_color, auto_dark_mode, &flags);
     });
   } else {
-    decoration_painter.Paint(line_color, nullptr);
+    decoration_painter.Paint(geometry, line_color, auto_dark_mode, nullptr);
   }
 }
 
-void TextPainter::ClipDecorationsStripe(
-    const TextFragmentPaintInfo& fragment_paint_info,
-    float upper,
-    float stripe_width,
-    float dilation) {
+void TextPainter::ClipDecorationLine(
+    const DecorationGeometry& geometry,
+    float text_baseline,
+    const TextFragmentPaintInfo& fragment_paint_info) {
   if (fragment_paint_info.from >= fragment_paint_info.to ||
-      !fragment_paint_info.shape_result)
+      !fragment_paint_info.shape_result) {
     return;
+  }
+
+  // In order to ignore intersects less than 0.5px, inflate by -0.5.
+  gfx::RectF decoration_bounds = DecorationLinePainter::Bounds(geometry);
+  decoration_bounds.Inset(gfx::InsetsF::VH(0.5, 0));
+
+  const float upper = decoration_bounds.y() - text_baseline;
+  const float stripe_width = decoration_bounds.height();
 
   Vector<Font::TextIntercept> text_intercepts;
   font_.GetTextIntercepts(fragment_paint_info, graphics_context_.FillFlags(),
                           std::make_tuple(upper, upper + stripe_width),
                           text_intercepts);
 
+  const float dilation =
+      std::min(geometry.Thickness(), kDecorationClipMaxDilation);
   for (auto intercept : text_intercepts) {
     gfx::PointF clip_origin(text_origin_);
     gfx::RectF clip_rect(

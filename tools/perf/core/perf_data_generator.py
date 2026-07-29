@@ -238,7 +238,45 @@ FYI_BUILDERS = {
             'pool': 'chrome.tests',
         },
     },
+    'fuchsia-perf-nsn-pgo': {
+        'tests': [{
+            'isolate':
+            'performance_web_engine_test_suite',
+            'extra_args':
+            ['--output-format=histograms', '--experimental-tbmv3-metrics'] +
+            bot_platforms.FUCHSIA_EXEC_ARGS['nelson'],
+            'type':
+            TEST_TYPES.TELEMETRY,
+        }],
+        'platform':
+        'fuchsia-wes',
+        'dimension': {
+            'cpu': None,
+            'device_type': 'Nelson',
+            'os': 'Fuchsia',
+            'pool': 'chrome.tests',
+        },
+    },
     'fuchsia-perf-shk': {
+        'tests': [{
+            'isolate':
+            'performance_web_engine_test_suite',
+            'extra_args':
+            ['--output-format=histograms', '--experimental-tbmv3-metrics'] +
+            bot_platforms.FUCHSIA_EXEC_ARGS['sherlock'],
+            'type':
+            TEST_TYPES.TELEMETRY,
+        }],
+        'platform':
+        'fuchsia-wes',
+        'dimension': {
+            'cpu': None,
+            'device_type': 'Sherlock',
+            'os': 'Fuchsia',
+            'pool': 'chrome.tests',
+        },
+    },
+    'fuchsia-perf-shk-pgo': {
         'tests': [{
             'isolate':
             'performance_web_engine_test_suite',
@@ -554,7 +592,7 @@ BUILDERS = {
         }],
         'dimension': {
             'cpu': 'x86-64',
-            'os': 'Windows-10',
+            'os': 'Windows-10-19045',
             'pool': 'chrome.tests',
         },
         'perf_trigger':

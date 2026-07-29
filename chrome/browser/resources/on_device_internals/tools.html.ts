@@ -12,6 +12,7 @@ export function getHtml(this: ToolsElement) {
 <div class="performance-class">
   Device performance class: <strong>${this.performanceClassText_}</strong>
 </div>
+
 <cr-input id="modelInput" label="Model directory" placeholder="/tmp/model"
     ?disabled="${this.isLoading_()}"
     error-message="${this.error_}" ?invalid="${this.error_.length}" autofocus>
@@ -19,8 +20,18 @@ export function getHtml(this: ToolsElement) {
       @click="${this.onLoadClick_}">
     Load
   </cr-button>
+  <cr-button slot="suffix" ?disabled="${this.isLoading_()}"
+      @click="${this.onLoadDefaultClick_}">
+    Load Default
+  </cr-button>
 </cr-input>
+
 <div class="model-options">
+  <cr-checkbox ?hidden="${!this.showPlatformModelCheckbox_}"
+      ?checked="${this.usePlatformModel_}"
+      @checked-changed="${this.onUsePlatformModelChanged_}">
+    Use ChromeOS Platform Model
+  </cr-checkbox>
   <select id="performanceHintSelect" class="md-select"
       value="${this.performanceHint_}" @change="${this.onPerformanceHintChange_}">
     <option value="kHighestQuality">Highest Quality</option>

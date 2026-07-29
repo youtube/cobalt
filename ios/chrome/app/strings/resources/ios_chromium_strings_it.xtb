@@ -9,6 +9,7 @@
 <translation id="1115463765356382667">Completa le azioni suggerite di seguito per usare al meglio Chromium.</translation>
 <translation id="1140315115515116765">Usa Chromium per impostazione predefinita per ottenere facilmente approfondimenti sul prezzo</translation>
 <translation id="1185134272377778587">Informazioni su Chromium</translation>
+<translation id="1229234641991056119">Usa le password, la cronologia, i preferiti e le carte di credito di Safari in Chromium</translation>
 <translation id="1257458525759135959">Per salvare le immagini, tocca Impostazioni e consenti a Chromium di aggiungere le tue foto</translation>
 <translation id="1260702988262336471">Apri il menu Chromium</translation>
 <translation id="12739128458173458">Per inviare questa scheda a un altro dispositivo, accedi a Chromium su entrambi i dispositivi.</translation>
@@ -174,6 +175,7 @@ Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Ch
 <translation id="5203244847421322551">Salva e compila automaticamente le password in Chromium</translation>
 <translation id="5224391634244552924">Nessuna password salvata. Chromium può controllare le password quando le salvi.</translation>
 <translation id="5259423875997548710">Cerca immagini in Chromium.</translation>
+<translation id="5284913972719948193">Importa i tuoi dati per utilizzare password, cronologia, preferiti e carte di credito su Chromium</translation>
 <translation id="5308226104666789935">Chromium non può controllare la disponibilità di aggiornamenti</translation>
 <translation id="5311557153294205270">Aggiunge gli URL inseriti ai preferiti in Chromium.</translation>
 <translation id="5383251701169024761">Scegli Chromium per la compilazione automatica per recuperare facilmente le tue password salvate nelle altre app.</translation>
@@ -307,6 +309,7 @@ Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphr
 <translation id="865600487977764604">Ti protegge su Chromium e potrebbe essere utilizzata per migliorare la tua sicurezza in altre app Google se hai eseguito l'accesso.</translation>
 <translation id="8663480472502753423">Mantieni Chromium aggiornato</translation>
 <translation id="8685813584220679697">Accedi a questo sito e a Chromium.</translation>
+<translation id="8698780336333802489">Importa in Chromium</translation>
 <translation id="8730503818204408000">Apre l'impostazione di Chromium per impostare Chromium come browser predefinito.</translation>
 <translation id="8754966941001340678">Chromium consiglia la Protezione avanzata</translation>
 <translation id="8759037115129007407">Al momento il tuo membro del gruppo Famiglia non può ricevere password. Chiedi di aggiornare Chromium e sincronizzare le sue password. <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>

@@ -12,6 +12,11 @@
 #include "base/memory/raw_ptr.h"
 
 class Profile;
+class TabAndroid;
+
+namespace base {
+class Token;
+}  // namespace base
 
 namespace tab_groups {
 class TabGroupId;
@@ -42,26 +47,36 @@ class TabCollectionTabModelImpl {
   int GetTabCountRecursive(JNIEnv* env) const;
 
   // Returns the recursive index of the given tab, or -1 if not found.
-  int GetIndexOfTabRecursive(
-      JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& j_tab_android) const;
+  int GetIndexOfTabRecursive(JNIEnv* env, TabAndroid* j_tab_android) const;
 
   // Recurses until reaching the given index. Returns null if not found.
-  base::android::ScopedJavaLocalRef<jobject> GetTabAtIndexRecursive(
-      JNIEnv* env,
-      size_t index) const;
+  TabAndroid* GetTabAtIndexRecursive(JNIEnv* env, size_t index) const;
+
+  // Moves a tab updating its group or pinned state if applicable.
+  int MoveTabRecursive(JNIEnv* env,
+                       size_t current_index,
+                       size_t new_index,
+                       const std::optional<base::Token>& j_new_tab_group_id,
+                       bool new_is_pinned);
 
   // Adds a tab to the tab model.
   void AddTabRecursive(JNIEnv* env,
-                       const jni_zero::JavaParamRef<jobject>& j_tab_android,
+                       TabAndroid* tab,
                        size_t index,
-                       const jni_zero::JavaParamRef<jobject>& j_tab_group_id,
+                       const std::optional<base::Token>& j_tab_group_id,
                        bool is_pinned);
+
+  // Removes a list of tabs from the tab model.
+  void RemoveTabRecursive(JNIEnv* env, TabAndroid* tab);
+
+  // Returns the count of tabs in a group. Returns 0 if not group not found.
+  size_t GetTabCountForGroup(JNIEnv* env, const base::Token& token);
 
  private:
   // Returns a safe index for adding or moving a single tab without it changing
   // state.
-  size_t GetSafeIndex(size_t proposed_index,
+  size_t GetSafeIndex(bool is_move,
+                      size_t proposed_index,
                       const std::optional<tab_groups::TabGroupId>& tab_group_id,
                       bool is_pinned) const;
   std::optional<tab_groups::TabGroupId> GetGroupIdAt(size_t index) const;

@@ -164,15 +164,13 @@ if (_is_default_toolchain) {
   android_resources("chrome_base_module_resources") {
     sources = [
       "java/res_base/anim/no_anim.xml",
-      "java/res_base/drawable-v26/ic_launcher.xml",
-      "java/res_base/drawable-v26/ic_launcher_round.xml",
+      "java/res_base/drawable/ic_launcher.xml",
+      "java/res_base/drawable/ic_launcher_round.xml",
       "java/res_base/font/chrome_google_sans.xml",
       "java/res_base/font/chrome_google_sans_bold.xml",
       "java/res_base/font/chrome_google_sans_medium.xml",
       "java/res_base/font/chrome_google_sans_text.xml",
       "java/res_base/font/chrome_google_sans_text_medium.xml",
-      "java/res_base/values/ic_launcher_alias.xml",
-      "java/res_base/values/ic_launcher_round_alias.xml",
       "java/res_base/values/values.xml",
       "java/res_base/xml/network_security_config.xml",
       "java/res_chromium_base/drawable/themed_app_icon.xml",
@@ -396,6 +394,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/data_sharing:internal_library_java",
       "//chrome/browser/data_sharing:java",
       "//chrome/browser/data_sharing:shared_image_tiles_java",
+      "//chrome/browser/data_sharing:versioning_java",
       "//chrome/browser/device:java",
       "//chrome/browser/device_reauth/android:java",
       "//chrome/browser/devtools/android:java",
@@ -485,8 +484,8 @@ if (_is_default_toolchain) {
       "//chrome/browser/signin/services/android:java",
       "//chrome/browser/single_tab/android:java",
       "//chrome/browser/ssl/android:java",
-      "//chrome/browser/supervised_user:supervised_user_service_platform_delegate_java",
       "//chrome/browser/supervised_user:supervised_user_service_bridge_java",
+      "//chrome/browser/supervised_user:supervised_user_service_platform_delegate_java",
       "//chrome/browser/supervised_user:website_parent_approval_java",
       "//chrome/browser/sync/android:java",
       "//chrome/browser/sync/android:ui_java",
@@ -3269,10 +3268,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/partnerbookmarks:jni_headers",
       "//chrome/browser/webid:jni_headers",
     ]
-
-    if (enable_extensions_core) {
-      public_deps += [ "//chrome/browser/ui/android/extensions:jni_headers" ]
-    }
   }
 
   source_set("chrome_test_util") {
@@ -3409,7 +3404,7 @@ if (_is_default_toolchain) {
   template("libchrome_impl") {
     chrome_common_shared_library(target_name) {
       sources = [ "../browser/android/chrome_entry_point.cc" ]
-      deps = []
+      deps = [ "//base:jni_onload" ]
       if (defined(invoker.deps)) {
         deps += invoker.deps
       }
@@ -3455,6 +3450,7 @@ template("libmonochrome_tmpl") {
     sources = [ "../browser/android/monochrome_entry_point.cc" ]
     deps = [
       "//android_webview",
+      "//base:jni_onload",
       "//components/crash/android:crashpad_main",
     ]
     if (defined(invoker.deps)) {

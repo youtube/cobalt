@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Повеќе опции</translation>
 <translation id="565342223183747919">Допрете за да го смените „Режимот на пуштање“</translation>
 <translation id="5694491020339060116">Мени за брзина на репродукција</translation>
+<translation id="5961164658295696940">Допрете за да се прошири плеерот за повеќе опции</translation>
 <translation id="5965409657393819302">Технички проблем</translation>
 <translation id="6218961554829577610">Не ми се допадна гласот</translation>
 <translation id="6315170314923504164">Глас</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Се вчитува…</translation>
 <translation id="6889157801232138307">Плеер на „Слушајте ја страницава“</translation>
 <translation id="7051308646573997571">Корална</translation>
-<translation id="7112750136794557642">Допрете за да се прошири плеерот за повеќе опции.</translation>
 <translation id="7138678301420049075">Друго</translation>
 <translation id="7221920857098237570">Нежен</translation>
 <translation id="7237590978482584900">Весел</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Тивок</translation>
 <translation id="8756370108715456837">Фактички неточно</translation>
 <translation id="8953618380150219653">Плеерот на „Слушајте ја страницава“ се отвори со целосна висина.</translation>
+<translation id="9087782179025630211">Контроли за барање. Поминато време: <ph name="ELAPSED" /> од <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Длабок</translation>
 </translationbundle>

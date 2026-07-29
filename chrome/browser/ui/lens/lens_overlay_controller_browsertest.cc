@@ -108,6 +108,8 @@
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility_api.h"
 #include "components/permissions/test/permission_request_observer.h"
+#include "components/policy/core/browser/browser_policy_connector.h"
+#include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
@@ -246,14 +248,6 @@ constexpr char kCheckSidePanelThumbnailShownScript[] =
     "const imageSrc = thumbnailRoot.getElementById('image').src;"
     "return window.getComputedStyle(thumbContainer).display !== 'none' && "
     "       imageSrc.startsWith('data:image/jpeg');})();";
-
-constexpr char kCheckSidePanelToastShownScript[] =
-    "(function() {const appRoot = "
-    "document.getElementsByTagName('lens-side-panel-app')[0].shadowRoot;"
-    "const toast = appRoot.getElementById('messageToast');"
-    "const toastStyle = window.getComputedStyle(toast);"
-    "return toastStyle.visibility !== 'hidden' && "
-    "        toastStyle.opacity !== 0;})();";
 
 constexpr char kHistoryStateScript[] =
     "(function() {history.replaceState({'test':1}, 'test'); "
@@ -729,6 +723,11 @@ class LensOverlayControllerBrowserTest : public InProcessBrowserTest {
   void SetUp() override {
     ASSERT_TRUE(embedded_test_server()->InitializeAndListen());
     SetupFeatureList();
+    policy_provider_.SetDefaultReturns(
+        /*is_initialization_complete_return=*/true,
+        /*is_first_policy_load_complete_return=*/true);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
+        &policy_provider_);
     InProcessBrowserTest::SetUp();
   }
 
@@ -779,7 +778,8 @@ class LensOverlayControllerBrowserTest : public InProcessBrowserTest {
          {lens::features::kLensOverlayLatencyOptimizations,
           {{"enable-early-start-query-flow-optimization", "true"}}},
          {lens::features::kLensOverlaySurvey, {}},
-         {lens::features::kLensOverlaySidePanelOpenInNewTab, {}}},
+         {lens::features::kLensOverlaySidePanelOpenInNewTab, {}},
+         {lens::features::kLensOverlayBackToPage, {}}},
         /*disabled_features=*/{
             lens::features::kLensOverlaySimplifiedSelection});
   }
@@ -975,11 +975,16 @@ class LensOverlayControllerBrowserTest : public InProcessBrowserTest {
                                              web_contents->GetURL());
   }
 
+  policy::MockConfigurationPolicyProvider* policy_provider() {
+    return &policy_provider_;
+  }
+
  protected:
   base::test::ScopedFeatureList feature_list_;
   raw_ptr<MockHatsService> mock_hats_service_ = nullptr;
   // The words returned by the mock objects response.
   std::vector<std::string> ocr_response_words_;
+  testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
 };
 
 }  // namespace
@@ -2821,7 +2826,6 @@ IN_PROC_BROWSER_TEST_F(
       [&]() { return controller->state() == State::kOverlay; }));
   EXPECT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
   EXPECT_TRUE(controller->GetOverlayViewForTesting()->GetVisible());
-  int tabs = browser()->tab_strip_model()->count();
 
   controller->IssueSearchBoxRequestForTesting(
       kTestTime, "green", AutocompleteMatchType::Type::SEARCH_WHAT_YOU_TYPED,
@@ -2864,6 +2868,7 @@ IN_PROC_BROWSER_TEST_F(
   const GURL nav_url = embedded_test_server()->GetURL(relative_url);
 
   // Simulate a cross-origin navigation on the results frame.
+  ui_test_utils::AllBrowserTabAddedWaiter add_tab;
   EXPECT_TRUE(content::ExecJs(
       results_frame, content::JsReplace(kSameTabLinkClickScript, nav_url),
       content::EvalJsOptions::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
@@ -2878,19 +2883,20 @@ IN_PROC_BROWSER_TEST_F(
                                                         ->GetPrimaryPage());
   EXPECT_FALSE(manager);
 
-  // It should not open a new tab as this URL matched exactly what is loaded on
-  // the page.
-  EXPECT_EQ(tabs, browser()->tab_strip_model()->count());
-  // Verify that the side panel searchbox displays a toast.
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return content::EvalJs(controller->GetSidePanelWebContentsForTesting(),
-                           kCheckSidePanelToastShownScript)
-        .ExtractBool();
-  }));
+  // Verify the new tab has the URL.
+  content::WebContents* new_tab = add_tab.Wait();
+  EXPECT_TRUE(content::WaitForLoadStop(new_tab));
+  EXPECT_EQ(new_tab->GetLastCommittedURL(), nav_url);
+
+  // Verify the loading state was never set.
+  EXPECT_EQ(test_side_panel_coordinator->side_panel_loading_set_to_true_, 0);
+  EXPECT_EQ(test_side_panel_coordinator->side_panel_loading_set_to_false_, 0);
+
+  // Record the text directive result.
   histogram_tester.ExpectTotalCount("Lens.Overlay.TextDirectiveResult", 1);
   histogram_tester.ExpectUniqueSample(
       "Lens.Overlay.TextDirectiveResult",
-      lens::LensOverlayTextDirectiveResult::kNotFoundOnPage, 1);
+      lens::LensOverlayTextDirectiveResult::kOpenedInNewTab, 1);
 }
 
 // TODO(crbug.com/413042395): This test is not testing overlay logic, but
@@ -2921,7 +2927,6 @@ IN_PROC_BROWSER_TEST_F(
       [&]() { return controller->state() == State::kOverlay; }));
   EXPECT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
   EXPECT_TRUE(controller->GetOverlayViewForTesting()->GetVisible());
-  int tabs = browser()->tab_strip_model()->count();
 
   controller->IssueSearchBoxRequestForTesting(
       kTestTime, "green", AutocompleteMatchType::Type::SEARCH_WHAT_YOU_TYPED,
@@ -2964,6 +2969,7 @@ IN_PROC_BROWSER_TEST_F(
   const GURL nav_url = embedded_test_server()->GetURL(relative_url);
 
   // Simulate a cross-origin navigation on the results frame.
+  ui_test_utils::AllBrowserTabAddedWaiter add_tab;
   EXPECT_TRUE(content::ExecJs(
       results_frame, content::JsReplace(kSameTabLinkClickScript, nav_url),
       content::EvalJsOptions::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
@@ -2978,19 +2984,20 @@ IN_PROC_BROWSER_TEST_F(
                                                         ->GetPrimaryPage());
   EXPECT_FALSE(manager);
 
-  // It should not open a new tab as this URL matched exactly what is loaded on
-  // the page.
-  EXPECT_EQ(tabs, browser()->tab_strip_model()->count());
-  // Verify that the side panel searchbox displays a toast.
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return content::EvalJs(controller->GetSidePanelWebContentsForTesting(),
-                           kCheckSidePanelToastShownScript)
-        .ExtractBool();
-  }));
+  // Verify the new tab has the URL.
+  content::WebContents* new_tab = add_tab.Wait();
+  EXPECT_TRUE(content::WaitForLoadStop(new_tab));
+  EXPECT_EQ(new_tab->GetLastCommittedURL(), nav_url);
+
+  // Verify the loading state was never set.
+  EXPECT_EQ(test_side_panel_coordinator->side_panel_loading_set_to_true_, 0);
+  EXPECT_EQ(test_side_panel_coordinator->side_panel_loading_set_to_false_, 0);
+
+  // Record the text directive result.
   histogram_tester.ExpectTotalCount("Lens.Overlay.TextDirectiveResult", 1);
   histogram_tester.ExpectUniqueSample(
       "Lens.Overlay.TextDirectiveResult",
-      lens::LensOverlayTextDirectiveResult::kNotFoundOnPage, 1);
+      lens::LensOverlayTextDirectiveResult::kOpenedInNewTab, 1);
 }
 
 // TODO(crbug.com/413042395): This test is not testing overlay logic, but
@@ -3665,7 +3672,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   EXPECT_EQ(controller->get_selected_region_for_testing(), kTestRegion);
   EXPECT_FALSE(controller->get_selected_text_for_region());
   EXPECT_EQ(fake_query_controller->last_queried_region(), kTestRegion);
-  EXPECT_FALSE(fake_query_controller->last_queried_region_bytes().has_value());
+  EXPECT_TRUE(fake_query_controller->last_queried_region_bytes().has_value());
   EXPECT_EQ(fake_query_controller->last_lens_selection_type(),
             lens::REGION_SEARCH);
 
@@ -4531,36 +4538,49 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, FindBarClosesOverlay) {
       [&]() { return controller->state() == State::kOff; }));
 }
 
-// Even though this policy is deprecated, it is still used by some enterprise
-// customers.
-IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
-                       DeprecatedEnterprisePolicy) {
-  Profile* profile = browser()->profile();
-
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, EnterprisePolicy) {
   // The default policy is to allow the feature to be enabled.
   EXPECT_TRUE(browser()
                   ->GetFeatures()
                   .lens_overlay_entry_point_controller()
                   ->IsEnabled());
 
-  profile->GetPrefs()->SetInteger(
-      lens::prefs::kLensOverlaySettings,
-      static_cast<int>(lens::prefs::LensOverlaySettingsPolicyValue::kDisabled));
+  // If GenAiDefaultSettings is set, the feature enablement should
+  // fallback to GenAiDefaultSettings setting.
+  policy::PolicyMap policies;
+  policies.Set("GenAiDefaultSettings", policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(2), nullptr);
+  policy_provider()->UpdateChromePolicy(policies);
   EXPECT_FALSE(browser()
                    ->GetFeatures()
                    .lens_overlay_entry_point_controller()
                    ->IsEnabled());
 
-  profile->GetPrefs()->SetInteger(
-      lens::prefs::kLensOverlaySettings,
-      static_cast<int>(lens::prefs::LensOverlaySettingsPolicyValue::kEnabled));
+  policies.Set("LensOverlaySettings", policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(1), nullptr);
+  policy_provider()->UpdateChromePolicy(policies);
+  EXPECT_FALSE(browser()
+                   ->GetFeatures()
+                   .lens_overlay_entry_point_controller()
+                   ->IsEnabled());
+
+  policies.Set("LensOverlaySettings", policy::POLICY_LEVEL_MANDATORY,
+               policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+               base::Value(0), nullptr);
+  policy_provider()->UpdateChromePolicy(policies);
   EXPECT_TRUE(browser()
                   ->GetFeatures()
                   .lens_overlay_entry_point_controller()
                   ->IsEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, EnterprisePolicy) {
+// This policy was not released and should be cleaned up.
+// TODO(crbug.com/427723401): Remove this test with GenAiLensOverlaySettings
+// cleanup.
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
+                       UnreleasedEnterprisePolicy) {
   Profile* profile = browser()->profile();
 
   // The default policy is to allow the feature to be enabled.
@@ -5340,6 +5360,7 @@ class LensOverlayControllerBrowserPDFTest
   std::vector<base::test::FeatureRef> GetDisabledFeatures() const override {
     auto disabled = PDFExtensionTestBase::GetDisabledFeatures();
     disabled.emplace_back(lens::features::kLensOverlayContextualSearchbox);
+    disabled.emplace_back(lens::features::kLensOverlayKeyboardSelection);
     return disabled;
   }
 

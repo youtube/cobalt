@@ -15,11 +15,14 @@
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/html/canvas/ukm_parameters.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
 #include "ui/gfx/geometry/size.h"
+
+namespace cc {
+class Layer;
+}
 
 namespace blink {
 
@@ -33,10 +36,16 @@ class PlainTextPainter;
 class StaticBitmapImage;
 class UniqueFontSelector;
 
-class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
-                                               public CanvasResourceHost,
-                                               public CanvasImageSource,
-                                               public ImageBitmapSource {
+enum class RasterModeHint {
+  kPreferGPU,
+  kPreferCPU,
+};
+
+class CORE_EXPORT CanvasRenderingContextHost
+    : public GarbageCollectedMixin,
+      public CanvasResourceProvider::Delegate,
+      public CanvasImageSource,
+      public ImageBitmapSource {
  public:
   enum class HostType {
     kNone,
@@ -70,6 +79,10 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
   virtual void UpdateMemoryUsage() = 0;
   virtual size_t GetMemoryUsage() const = 0;
 
+  // Initialize the indicated cc::Layer with the HTMLCanvasElement's CSS
+  // properties. This is a no-op if `this` is not an HTMLCanvasElement.
+  virtual void InitializeLayerWithCSSProperties(cc::Layer* layer) {}
+
   // If WebGL1 is disabled by enterprise policy or command line switch.
   virtual bool IsWebGL1Enabled() const = 0;
   // If WebGL2 is disabled by enterprise policy or command line switch.
@@ -88,27 +101,25 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
 
   virtual bool ShouldAccelerate2dContext() const = 0;
 
-  virtual void Commit(scoped_refptr<CanvasResource>&& canvas_resource,
-                      const SkIRect& damage_rect);
-
   virtual UkmParameters GetUkmParameters() = 0;
 
   bool IsValidImageSize() const;
   bool IsPaintable() const;
 
-  bool PrintedInCurrentTask() const final;
+  virtual bool IsHibernating() const { return false; }
+
+  virtual bool LowLatencyEnabled() const { return false; }
+
+  virtual void SetTransferToGPUTextureWasInvoked() {}
 
   // Required by template functions in WebGLRenderingContextBase
   int width() const { return Size().width(); }
   int height() const { return Size().height(); }
 
-  // Partial CanvasResourceHost implementation
+  // Partial CanvasResourceProvider::Delegate implementation
   void InitializeForRecording(cc::PaintCanvas*) const final;
-  virtual CanvasResourceProvider*
-  GetOrCreateCanvasResourceProviderForCanvas2D();
-  virtual void PageVisibilityChanged();
 
-  CanvasResourceProvider* GetOrCreateCanvasResourceProviderForWebGPU();
+  virtual void PageVisibilityChanged();
 
   bool IsWebGL() const;
   bool IsWebGPU() const;
@@ -123,6 +134,10 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
   // Actual RasterMode used for rendering 2d primitives.
   RasterMode GetRasterModeForCanvas2D() const;
 
+  virtual bool IsPageVisible() const = 0;
+  virtual void SetNeedsCompositingUpdate() = 0;
+  virtual void ClearCanvas2DLayerTexture() {}
+
   // blink::CanvasImageSource
   bool IsOffscreenCanvas() const override;
   bool IsAccelerated() const override;
@@ -130,58 +145,24 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
   // ImageBitmapSource implementation
   ImageBitmapSourceStatus CheckUsability() const override;
 
-  // This method attempts to ensure that the canvas' resource exists on the GPU.
-  // A HTMLCanvasElement can downgrade itself from GPU to CPU when readback
-  // occurs too frequently, so a canvas may exist on the CPU even if the browser
-  // is normally GPU-capable.
-  // Returns true if the canvas resources live on the GPU. If the canvas needed
-  // to be migrated off of the CPU, the canvas resource provider and canvas 2D
-  // layer bridge will be destroyed and recreated; when this occurs, any
-  // existing pointers to these objects will be invalidated. If the canvas
-  // resource provider did not exist at all, it may be created.
-  virtual bool EnableAccelerationForCanvas2D() = 0;
+  virtual CanvasResourceProvider* GetResourceProviderForCanvas2D() const = 0;
 
-  bool IsContextLost() const override;
+  gfx::Size Size() const { return size_; }
+  virtual void SetSize(gfx::Size size) { size_ = size; }
 
-  CanvasResourceProvider* GetResourceProviderForWebGPU() const {
-    CHECK(IsWebGPU());
-    return resource_provider_for_webgpu_.get();
-  }
-  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override {
-    CHECK(IsRenderingContext2D());
-    return resource_provider_for_canvas2d_.get();
-  }
-  CanvasResourceProvider* GetResourceProviderForImageBitmap() const {
-    CHECK(IsImageBitmapRenderingContext());
-    return resource_provider_for_image_bitmap_.get();
-  }
+  bool ShouldTryToUseGpuRaster() const;
+  void SetPreferred2DRasterMode(RasterModeHint);
 
-  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
-      std::unique_ptr<CanvasResourceProvider>) override;
-  virtual void DiscardResources();
+  virtual std::unique_ptr<CanvasResourceProvider>
+      ReplaceResourceProviderForCanvas2D(
+          std::unique_ptr<CanvasResourceProvider>) = 0;
+
+  virtual void DiscardResources() = 0;
 
   void FlushRecordingForCanvas2D(FlushReason reason);
 
  protected:
   ~CanvasRenderingContextHost() override = default;
-
-  // `resource_provider_` must be null.
-  void SetResourceProviderForCanvas2D(
-      std::unique_ptr<CanvasResourceProvider> resource_provider) {
-    CHECK(IsRenderingContext2D());
-    CHECK(!resource_provider_for_canvas2d_);
-    resource_provider_for_canvas2d_ = std::move(resource_provider);
-    UpdateMemoryUsage();
-  }
-
-  // `resource_provider_` must be null.
-  void SetResourceProviderForImageBitmap(
-      std::unique_ptr<CanvasResourceProvider> resource_provider) {
-    CHECK(IsImageBitmapRenderingContext());
-    CHECK(!resource_provider_for_image_bitmap_);
-    resource_provider_for_image_bitmap_ = std::move(resource_provider);
-    UpdateMemoryUsage();
-  }
 
   scoped_refptr<StaticBitmapImage> CreateTransparentImage() const;
 
@@ -195,19 +176,13 @@ class CORE_EXPORT CanvasRenderingContextHost : public GarbageCollectedMixin,
 
   Member<PlainTextPainter> plain_text_painter_;
   Member<UniqueFontSelector> unique_font_selector_;
-  // `did_fail_to_create_resource_provider_` prevents repeated attempts in
-  // allocating resources after the first attempt failed.
-  bool did_fail_to_create_resource_provider_ = false;
 
  private:
-  void CreateCanvasResourceProvider2D();
-  void CreateCanvasResourceProviderWebGPU();
 
-  std::unique_ptr<CanvasResourceProvider> resource_provider_for_canvas2d_;
-  std::unique_ptr<CanvasResourceProvider> resource_provider_for_image_bitmap_;
-  std::unique_ptr<CanvasResourceProvider> resource_provider_for_webgpu_;
   bool did_record_canvas_size_to_uma_ = false;
   HostType host_type_ = HostType::kNone;
+  gfx::Size size_;
+  RasterModeHint preferred_2d_raster_mode_ = RasterModeHint::kPreferCPU;
 };
 
 }  // namespace blink

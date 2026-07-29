@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "pdf/pdfium/pdfium_engine.h"
 
 #include <math.h>
@@ -22,6 +17,7 @@
 
 #include "base/auto_reset.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
@@ -54,6 +50,7 @@
 #include "pdf/loader/document_loader_impl.h"
 #include "pdf/loader/url_loader.h"
 #include "pdf/loader/url_loader_wrapper_impl.h"
+#include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_transform.h"
 #include "pdf/pdfium/pdfium_api_string_buffer_adapter.h"
@@ -64,6 +61,7 @@
 #include "pdf/pdfium/pdfium_permissions.h"
 #include "pdf/pdfium/pdfium_text_fragment_finder.h"
 #include "pdf/pdfium/pdfium_unsupported_features.h"
+#include "pdf/region_data.h"
 #include "printing/mojom/print.mojom-shared.h"
 #include "printing/units.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
@@ -605,6 +603,10 @@ PDFiumEngine::PDFiumEngine(PDFiumEngineClient* client,
   IFSDK_PAUSE::version = 1;
   IFSDK_PAUSE::user = nullptr;
   IFSDK_PAUSE::NeedToPauseNow = Pause_NeedToPauseNow;
+
+  if (features::kPdfInk2TextHighlighting.Get() && !client_->IsPrintPreview()) {
+    caret_ = std::make_unique<PdfCaret>(this);
+  }
 }
 
 PDFiumEngine::~PDFiumEngine() {
@@ -613,9 +615,8 @@ PDFiumEngine::~PDFiumEngine() {
                                 base::TimeTicks::Now() - engine_creation_time_);
   }
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-  // `searchifier_` is created when at least one page needs searchify.
-  if (searchifier_) {
-    base::UmaHistogramBoolean("PDF.SearchifySuccessful", has_searchify_text_);
+  if (searchifier_ && searchifier_->PerformedOCR()) {
+    base::UmaHistogramBoolean("PDF.SearchifySuccessful2", has_searchify_text_);
   }
 
   // Should be reset before document is unloaded.
@@ -661,6 +662,10 @@ void PDFiumEngine::PluginSizeUpdated(const gfx::Size& size) {
   CalculateVisiblePages();
   OnSelectionPositionChanged();
 
+  if (caret_) {
+    caret_->OnGeometryChanged();
+  }
+
   if (document_pending_) {
     // This method may be called in a `blink::ScriptForbiddenScope` context,
     // which imposes certain restrictions on clients. Complete the work
@@ -685,6 +690,9 @@ void PDFiumEngine::ScrolledToXPosition(int position) {
   client_->CaretChanged(caret_rect_);
 
   OnSelectionPositionChanged();
+  if (caret_) {
+    caret_->OnGeometryChanged();
+  }
 }
 
 void PDFiumEngine::ScrolledToYPosition(int position) {
@@ -699,6 +707,9 @@ void PDFiumEngine::ScrolledToYPosition(int position) {
   client_->CaretChanged(caret_rect_);
 
   OnSelectionPositionChanged();
+  if (caret_) {
+    caret_->OnGeometryChanged();
+  }
 }
 
 void PDFiumEngine::PrePaint() {
@@ -931,6 +942,27 @@ void PDFiumEngine::OnDocumentCanceled() {
     OnDocumentComplete();
 }
 
+int PDFiumEngine::GetCharCount(int page_index) const {
+  CHECK(PageIndexInBounds(page_index));
+  return pages_[page_index]->GetCharCount();
+}
+
+std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForChar(
+    int page_index,
+    int char_index) const {
+  CHECK(PageIndexInBounds(page_index));
+  PDFiumPage* page = pages_[page_index].get();
+  CHECK(page->IsCharIndexInBounds(char_index));
+
+  PDFiumRange range(page, char_index, 1);
+  return range.GetScreenRects(GetVisibleRect().origin(), current_zoom_,
+                              GetCurrentOrientation());
+}
+
+void PDFiumEngine::InvalidateRect(const gfx::Rect& rect) {
+  client_->Invalidate(rect);
+}
+
 void PDFiumEngine::FinishLoadingDocument() {
   // Note that doc_loader_->IsDocumentComplete() may not be true here if
   // called via `OnDocumentCanceled()`.
@@ -986,6 +1018,13 @@ void PDFiumEngine::FinishLoadingDocument() {
   }
 
   client_->DocumentLoadComplete();
+
+  // TODO(crbug.com/427242881): Figure out when to enter caret browsing mode.
+  // For now, just enter it after the document loads.
+  if (caret_ && !pages_.empty() && pages_[0]->GetCharCount()) {
+    // TODO(crbug.com/427778119): Set caret blink interval.
+    caret_->SetVisibility(true);
+  }
 }
 
 void PDFiumEngine::UnsupportedFeature(const std::string& feature) {
@@ -3248,6 +3287,7 @@ void PDFiumEngine::FinishPaint(size_t progressive_index, SkBitmap& image_data) {
   // Paint the page shadows.
   PaintPageShadow(progressive_index, image_data);
 
+  DrawCaret(progressive_index, image_data);
   DrawSelections(progressive_index, image_data);
   form_highlights_.clear();
 
@@ -3345,6 +3385,26 @@ void PDFiumEngine::PaintPageShadow(size_t progressive_index,
   gfx::Rect page_rect = shadow_rect;
   page_rect.Inset(ScaleToCeiledInsets(insets, current_zoom_));
   DrawPageShadow(page_rect, shadow_rect, dirty_in_screen, image_data);
+}
+
+void PDFiumEngine::DrawCaret(size_t progressive_index,
+                             SkBitmap& image_data) const {
+  if (!caret_) {
+    return;
+  }
+
+  CHECK_LT(progressive_index, progressive_paints_.size());
+
+  const gfx::Rect& dirty_in_screen =
+      progressive_paints_[progressive_index].rect();
+
+  const std::optional<RegionData> region =
+      GetRegion(dirty_in_screen.origin(), image_data);
+  if (!region.has_value()) {
+    return;
+  }
+
+  caret_->MaybeDrawCaret(region.value(), dirty_in_screen);
 }
 
 void PDFiumEngine::DrawSelections(size_t progressive_index,
@@ -3677,16 +3737,6 @@ bool PDFiumEngine::MouseDownState::Matches(
   return true;
 }
 
-PDFiumEngine::RegionData::RegionData(base::span<uint8_t> buffer, size_t stride)
-    : buffer(buffer), stride(stride) {}
-
-PDFiumEngine::RegionData::RegionData(RegionData&&) noexcept = default;
-
-PDFiumEngine::RegionData& PDFiumEngine::RegionData::operator=(
-    RegionData&&) noexcept = default;
-
-PDFiumEngine::RegionData::~RegionData() = default;
-
 void PDFiumEngine::DeviceToPage(int page_index,
                                 const gfx::PointF& device_point,
                                 double* page_x,
@@ -3791,9 +3841,8 @@ void PDFiumEngine::DrawHighlightOnPage(
   }
 }
 
-std::optional<PDFiumEngine::RegionData> PDFiumEngine::GetRegion(
-    const gfx::Point& location,
-    SkBitmap& image_data) const {
+std::optional<RegionData> PDFiumEngine::GetRegion(const gfx::Point& location,
+                                                  SkBitmap& image_data) const {
   if (image_data.isNull()) {
     DCHECK(plugin_size().IsEmpty());
     return std::nullopt;
@@ -3810,12 +3859,15 @@ std::optional<PDFiumEngine::RegionData> PDFiumEngine::GetRegion(
   }
 
   size_t stride = image_data.rowBytes();
-  UNSAFE_TODO({
-    base::span<uint8_t> buffer_span(buffer, image_data.height() * stride);
-    size_t x_offset = location.x() + page_offset_.x();
-    size_t offset = location.y() * stride + x_offset * 4;
-    return PDFiumEngine::RegionData(buffer_span.subspan(offset), stride);
-  });
+  size_t x_offset = location.x() + page_offset_.x();
+  size_t offset = location.y() * stride + x_offset * 4;
+  // SAFETY: Skia guarantees image_data.height() * image_data.rowBytes() is the
+  // exact size of the allocated pixel buffer, including row padding. However,
+  // Skia does not have a span-based API for this.
+  // TODO(crbug.com/357905831): Switch to SkSpan when possible.
+  UNSAFE_BUFFERS(
+      base::span<uint8_t> buffer_span(buffer, image_data.height() * stride));
+  return RegionData(buffer_span.subspan(offset), stride);
 }
 
 void PDFiumEngine::OnSelectionTextChanged() {

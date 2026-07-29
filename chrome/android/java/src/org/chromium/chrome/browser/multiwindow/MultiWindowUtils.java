@@ -33,6 +33,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.SysUtils;
@@ -65,8 +66,8 @@ import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.components.messages.PrimaryActionClickBehavior;
 import org.chromium.components.ukm.UkmRecorder;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.util.XrUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -106,6 +107,18 @@ public class MultiWindowUtils implements ActivityStateListener {
     private Boolean mTabbedActivity2TaskRunning;
     private WeakReference<ChromeTabbedActivity> mLastResumedTabbedActivity;
     private boolean mIsInMultiWindowModeForTesting;
+
+    @IntDef({
+        PersistedInstanceType.ANY,
+        PersistedInstanceType.ACTIVE,
+        PersistedInstanceType.INACTIVE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface PersistedInstanceType {
+        int ANY = 0;
+        int ACTIVE = 1;
+        int INACTIVE = 2;
+    }
 
     // Note: these values must match the AndroidMultiWindowActivityType enum in enums.xml.
     @IntDef({MultiWindowActivityType.ENTER, MultiWindowActivityType.EXIT})
@@ -204,21 +217,18 @@ public class MultiWindowUtils implements ActivityStateListener {
             return TabWindowManager.MAX_SELECTORS_S;
         }
 
-        Context context = ContextUtils.getApplicationContext();
-        if (DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)) {
-            int memoryThresholdMb =
-                    ChromeFeatureList.sDisableInstanceLimitMemoryThresholdMb.getValue();
-            boolean isAboveMemoryThreshold =
-                    SysUtils.amountOfPhysicalMemoryKB()
-                            >= memoryThresholdMb * ConversionUtils.KILOBYTES_PER_MEGABYTE;
-            if (isAboveMemoryThreshold) {
-                return ChromeFeatureList.sDisableInstanceLimitMaxCount.getValue();
-            } else {
-                return TabWindowManager.MAX_SELECTORS_S;
-            }
+        if (DeviceInfo.isDesktop() || XrUtils.isXrDevice()) {
+            return TabWindowManager.MAX_SELECTORS;
         }
 
-        return TabWindowManager.MAX_SELECTORS;
+        int memoryThresholdMb = ChromeFeatureList.sDisableInstanceLimitMemoryThresholdMb.getValue();
+        boolean isAboveMemoryThreshold =
+                SysUtils.amountOfPhysicalMemoryKB()
+                        >= memoryThresholdMb * ConversionUtils.KILOBYTES_PER_MEGABYTE;
+        if (isAboveMemoryThreshold) {
+            return ChromeFeatureList.sDisableInstanceLimitMaxCount.getValue();
+        }
+        return TabWindowManager.MAX_SELECTORS_S;
     }
 
     /** Returns the singleton instance of MultiWindowUtils. */
@@ -440,7 +450,7 @@ public class MultiWindowUtils implements ActivityStateListener {
     public static int getInstanceCount() {
         if (sInstanceCountForTesting != null) return sInstanceCountForTesting;
         int count = 0;
-        Set<Integer> ids = MultiInstanceManagerApi31.getPersistedInstanceIds();
+        Set<Integer> ids = MultiInstanceManagerApi31.getAllPersistedInstanceIds();
         for (Integer id : ids) {
             if (isRestorableInstance(id)) {
                 count++;
@@ -508,11 +518,6 @@ public class MultiWindowUtils implements ActivityStateListener {
                         if (a instanceof ChromeTabbedActivity) return a;
                     }
                 }
-                assert false
-                        : "Should have found the ChromeTabbedActivity of the visible task."
-                                + " Activities in this task: "
-                                + activityNameBuilder;
-                break;
             }
         }
         return null;
@@ -850,7 +855,7 @@ public class MultiWindowUtils implements ActivityStateListener {
 
         SparseIntArray windowIdsOfRunningTabbedActivities =
                 MultiInstanceManagerApi31.getWindowIdsOfRunningTabbedActivities();
-        for (int i : MultiInstanceManagerApi31.getPersistedInstanceIds()) {
+        for (int i : MultiInstanceManagerApi31.getAllPersistedInstanceIds()) {
             // Exclude instance IDs of non-running activities.
             if (windowIdsOfRunningTabbedActivities.indexOfValue(i) < 0) continue;
             if (MultiWindowUtils.readLastAccessedTime(i)

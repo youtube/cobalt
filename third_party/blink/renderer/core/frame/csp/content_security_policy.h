@@ -57,10 +57,6 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-namespace WTF {
-class OrdinalNumber;
-}
-
 namespace blink {
 
 class AuditsIssue;
@@ -79,6 +75,29 @@ using RedirectStatus = ResourceRequest::RedirectStatus;
 using network::mojom::blink::CSPDirectiveName;
 
 using CSPCheckResult = network::CSPCheckResult;
+
+inline constexpr char kSyntheticResponseBlockedResourceCountHistogramName[] =
+    "ServiceWorker.SyntheticResponse.BlockedResourceCount";
+inline constexpr char kSyntheticResponseBlockedSrcTypeHistogramName[] =
+    "ServiceWorker.SyntheticResponse.BlockedSrcType";
+inline constexpr char
+    kSyntheticResponseBlockedInlineResourceTypeHistogramName[] =
+        "ServiceWorker.SyntheticResponse.BlockedInlineResourceType";
+
+// The src type which is blocked due to the synthetic response. This is a subset
+// of `CSPDirectiveName`.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(SyntheticResponseBlockedSrcType)
+enum class SyntheticResponseBlockedSrcType {
+  kUnspecified = 0,
+  kScriptSrcElm = 1,
+  kWorkerSrc = 2,
+  kMaxValue = kWorkerSrc,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/service/enums.xml:SyntheticResponseBlockedSrcType)
 
 //  A delegate interface to implement violation reporting, support for some
 //  directives and other miscellaneous functionality.
@@ -141,14 +160,22 @@ class CORE_EXPORT ContentSecurityPolicy final
   // https://w3c.github.io/webappsec-csp/#should-block-inline
   // Its possible values are listed in:
   // https://w3c.github.io/webappsec-csp/#effective-directive-for-inline-check
+  //
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(InlineType)
   enum class InlineType {
-    kNavigation,
-    kScript,
-    kScriptAttribute,
-    kScriptSpeculationRules,  // TODO(https://crbug.com/1382361): Standardize.
-    kStyle,
-    kStyleAttribute
+    kNavigation = 0,
+    kScript = 1,
+    kScriptAttribute = 2,
+    kScriptSpeculationRules =
+        3,  // TODO(https://crbug.com/1382361): Standardize.
+    kStyle = 4,
+    kStyleAttribute = 5,
+    kMaxValue = kStyleAttribute,
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/service/enums.xml:ContentSecurityPolicyInlineType)
 
   // CheckHeaderType can be passed to Allow*FromSource methods to control which
   // types of CSP headers are checked.
@@ -507,6 +534,7 @@ class CORE_EXPORT ContentSecurityPolicy final
   // attribute are blocked. This is a special mode for the synthetic response
   // experiment.
   bool disallow_script_for_synthetic_response_ = false;
+  size_t blocked_count_for_synthetic_response_ = 0;
 };
 
 }  // namespace blink

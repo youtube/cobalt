@@ -587,7 +587,6 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
   // If its cross thread, then the sync token was already verified.
   image = AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
       client_shared_image, GetSyncToken(), texture_id_for_image,
-      client_shared_image->size(), client_shared_image->format(),
       GetAlphaType(), client_shared_image->color_space(),
       context_provider_wrapper_, owning_thread_ref_, owning_thread_task_runner_,
       std::move(release_callback));
@@ -736,14 +735,13 @@ scoped_refptr<ExternalCanvasResource> ExternalCanvasResource::Create(
     viz::TransferableResource::ResourceSource resource_source,
     gfx::HDRMetadata hdr_metadata,
     viz::ReleaseCallback release_callback,
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
-    base::WeakPtr<CanvasResourceProvider> provider) {
+    base::WeakPtr<WebGraphicsContext3DProviderWrapper>
+        context_provider_wrapper) {
   TRACE_EVENT0("blink", "ExternalCanvasResource::Create");
   CHECK(client_si);
   auto resource = AdoptRef(new ExternalCanvasResource(
       std::move(client_si), sync_token, resource_source, hdr_metadata,
-      std::move(release_callback), std::move(context_provider_wrapper),
-      std::move(provider)));
+      std::move(release_callback), std::move(context_provider_wrapper)));
   return resource->IsValid() ? resource : nullptr;
 }
 
@@ -754,10 +752,6 @@ ExternalCanvasResource::~ExternalCanvasResource() {
     // no longer exists and it is not possible to do cleanup of any GPU
     // context-associated state.
     return;
-  }
-
-  if (Provider()) {
-    Provider()->OnDestroyResource();
   }
 
   if (release_callback_) {
@@ -791,9 +785,9 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
 
   return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
       client_si_, GetSyncToken(), /*shared_image_texture_id=*/0u,
-      client_si_->size(), client_si_->format(), GetAlphaType(),
-      client_si_->color_space(), context_provider_wrapper_, owning_thread_ref_,
-      owning_thread_task_runner_, std::move(release_callback));
+      GetAlphaType(), client_si_->color_space(), context_provider_wrapper_,
+      owning_thread_ref_, owning_thread_task_runner_,
+      std::move(release_callback));
 }
 
 const gpu::SyncToken
@@ -833,9 +827,8 @@ ExternalCanvasResource::ExternalCanvasResource(
     viz::TransferableResource::ResourceSource resource_source,
     gfx::HDRMetadata hdr_metadata,
     viz::ReleaseCallback out_callback,
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
-    base::WeakPtr<CanvasResourceProvider> provider)
-    : CanvasResource(std::move(provider)),
+    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper)
+    : CanvasResource(/*provider=*/nullptr),
       client_si_(std::move(client_si)),
       context_provider_wrapper_(std::move(context_provider_wrapper)),
       sync_token_(sync_token),
@@ -921,7 +914,6 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSwapChain::Bitmap() {
 
   return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
       back_buffer_shared_image_, GetSyncToken(), shared_texture_id,
-      back_buffer_shared_image_->size(), back_buffer_shared_image_->format(),
       GetAlphaType(), back_buffer_shared_image_->color_space(),
       context_provider_wrapper_, owning_thread_ref_, owning_thread_task_runner_,
       std::move(release_callback));

@@ -6,6 +6,7 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/common/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//components/services/on_device_translation/buildflags/features.gni")
+import("//components/signin/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 # This target should be the default place for adding public interface things
@@ -235,12 +236,14 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/commerce",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/favicon",
+    "//chrome/browser/feature_engagement",
     "//chrome/browser/file_system_access",
     "//chrome/browser/ip_protection",
     "//chrome/browser/media/router",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/omnibox",
     "//chrome/browser/optimization_guide",
+    "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/permissions",
     "//chrome/browser/persisted_state_db",
     "//chrome/browser/plus_addresses",
@@ -325,9 +328,11 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ui/global_error",
       "//chrome/browser/ui/global_media_controls",
       "//chrome/browser/ui/media_router",
+      "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/webui/signin",
       "//chrome/browser/ui/webui/signin:login",
+      "//chrome/browser/user_education",
     ]
   }
 
@@ -387,6 +392,10 @@ source_set("profiles_extra_parts_impl") {
 
   if (enable_on_device_translation) {
     deps += [ "//chrome/browser/on_device_translation" ]
+  }
+
+  if (enable_dice_support) {
+    deps += [ "//chrome/browser/ui/signin" ]
   }
 }
 

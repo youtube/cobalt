@@ -34,12 +34,17 @@ class BrowserContext;
 }  // namespace content
 
 namespace actor {
+namespace ui {
+class ActorUiStateManagerInterface;
+}
 
 // This class owns all ActorTasks for a given profile. ActorTasks are kept in
 // memory until the process is destroyed.
 class ActorKeyedService : public KeyedService {
  public:
-  explicit ActorKeyedService(Profile* profile);
+  explicit ActorKeyedService(
+      Profile* profile,
+      std::unique_ptr<ui::ActorUiStateManagerInterface> ui_state_manager);
   ActorKeyedService(const ActorKeyedService&) = delete;
   ActorKeyedService& operator=(const ActorKeyedService&) = delete;
   ~ActorKeyedService() override;
@@ -48,26 +53,34 @@ class ActorKeyedService : public KeyedService {
   static ActorKeyedService* Get(content::BrowserContext* context);
 
   // Starts tracking an existing task. Returns the new task ID.
-  TaskId AddTask(std::unique_ptr<ActorTask> task);
+  TaskId AddActiveTask(std::unique_ptr<ActorTask> task);
 
-  // In the future we may want to return a more limited or const-version of
-  // ActorTasks. The purpose of this method is to get information about tasks,
-  // not to modify them.
-  const std::map<TaskId, std::unique_ptr<ActorTask>>& GetTasks();
+  const std::map<TaskId, const ActorTask*> GetActiveTasks();
+  const std::map<TaskId, const ActorTask*> GetInactiveTasks();
 
-  // Executes an actor action. The first action in a task must be navigate.
-  void ExecuteAction(
-      optimization_guide::proto::BrowserAction action,
-      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
-          callback);
+  // Starts a new task with an execution engine and returns the new task's id.
+  TaskId CreateTask();
 
-  // Starts a new task and fires `callback` when the task is ready. Implicitly
-  // calls AddTask.
+  // Executes the given actions using the execution engine. The actions proto
+  // must explicitly specify the task_id of an existing task started using
+  // CreateTask. Once all actions have been completed, returns the ActionsResult
+  // proto which includes new observations and an error code for the first
+  // failed action.
+  // TODO(crbug.com/411462297): The result doesn't yet include observations.
   void PerformActions(
       optimization_guide::proto::Actions actions,
       base::OnceCallback<void(optimization_guide::proto::ActionsResult)>
           callback);
 
+  // TODO(crbug.com/411462297): DEPRECATED - to be replaced with PerformActions.
+  // Executes an actor action.
+  void ExecuteAction(
+      optimization_guide::proto::BrowserAction action,
+      base::OnceCallback<void(optimization_guide::proto::BrowserActionResult)>
+          callback);
+
+  // TODO(crbug.com/411462297): DEPRECATED - to be replaced with CreateTask
+  // above.
   // Starts a new task using the execution engine and fires
   // `callback` when the task is ready. Implicitly calls AddTask.
   void StartTask(
@@ -85,13 +98,18 @@ class ActorKeyedService : public KeyedService {
   // The associated journal for the associated profile.
   AggregatedJournal& GetJournal() LIFETIME_BOUND { return journal_; }
 
+  // The associated ActorUiStateManager for the associated profile.
+  ui::ActorUiStateManagerInterface* GetActorUiStateManager();
+
+  // Called whenever an actor task state changes.
+  void OnActorTaskStateChanged(TaskId task_id, ActorTask::State task_state);
+
  private:
   // Start task is currently asynchronous.
   // TODO(crbug.com/411462297): This is a short term hack. Eventually StartTask
   // will become synchronous.
   void FinishStartTask(
       tabs::TabHandle handle,
-      optimization_guide::proto::BrowserStartTask task,
       base::OnceCallback<
           void(optimization_guide::proto::BrowserStartTaskResult)> callback);
 
@@ -117,8 +135,14 @@ class ActorKeyedService : public KeyedService {
           callback,
       optimization_guide::proto::ActionsResult result);
 
-  // In the future we may want to divide this between active and inactive tasks.
-  std::map<TaskId, std::unique_ptr<ActorTask>> tasks_;
+  std::map<TaskId, std::unique_ptr<ActorTask>> active_tasks_;
+  // Stores completed tasks. May want to add cancelled tasks in the future.
+  std::map<TaskId, std::unique_ptr<ActorTask>> inactive_tasks_;
+
+  std::unique_ptr<ui::ActorUiStateManagerInterface> actor_ui_state_manager_;
+
+  // Holds subscriptions for ActorTask callbacks.
+  std::vector<base::CallbackListSubscription> actor_task_subscriptions_;
 
   TaskId::Generator next_task_id_;
 

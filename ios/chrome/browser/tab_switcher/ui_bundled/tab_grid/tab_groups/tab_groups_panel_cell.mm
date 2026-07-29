@@ -31,9 +31,6 @@ const CGFloat kDotSize = 14;
 @implementation TabGroupsPanelCell {
   // The main stack view that contains subviews.
   UIStackView* _stackView;
-  // The FacePileProvider, responsible for providing and managing the
-  // FacePileView and ensuring its updates.
-  id<FacePileProviding> _facePileProvider;
   // Spacer view used when `facePile` is added to the `_stackView`.
   UIView* _spacerFacePileView;
 }
@@ -108,7 +105,7 @@ const CGFloat kDotSize = 14;
   _faviconsGrid.favicon2 = nil;
   _faviconsGrid.favicon3 = nil;
   _faviconsGrid.favicon4 = nil;
-  self.facePile = nil;
+  self.facePileProvider = nil;
   self.item = nil;
 }
 
@@ -161,7 +158,7 @@ const CGFloat kDotSize = 14;
 #pragma mark - Setters
 
 - (void)setFacePileProvider:(id<FacePileProviding>)facePileProvider {
-  if (_facePileProvider == facePileProvider) {
+  if ([_facePileProvider isEqualFacePileProviding:facePileProvider]) {
     return;
   }
   _facePileProvider = facePileProvider;

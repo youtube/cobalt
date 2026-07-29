@@ -16,6 +16,7 @@
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/extensions/window_controller_list.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/split_tab_visual_data.h"
@@ -123,14 +124,11 @@ enum class NavigationScheme {
   kMaxValue = kOther,
 };
 
-// TODO(b/361838438) Remove this. The code should consistently use
-// ExtensionBrowserWindow but during the transition code uses both that and
-// Browser* and we need to convert between the two.
-//
-// Guaranteed non-null when the extensions system is still attached to the
-// Browser (callers shouldn't need to null check).
-WindowController* WindowControllerFromBrowser(Browser* browser) {
-  return browser->GetFeatures().extension_window_controller();
+// Guaranteed non-null for any initialized browser window when the extensions
+// system is still attached to the Browser (callers shouldn't need to null
+// check).
+WindowController* WindowControllerFromBrowser(BrowserWindowInterface* browser) {
+  return BrowserExtensionWindowController::From(browser);
 }
 
 Browser* CreateBrowser(Profile* profile, bool user_gesture) {
@@ -428,7 +426,8 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
     navigate_params.navigated_or_inserted_contents->SetInitialFocus();
 
   if (split) {
-    tab_strip->AddToNewSplit({new_index}, split_tabs::SplitTabVisualData());
+    tab_strip->AddToNewSplit({new_index}, split_tabs::SplitTabVisualData(),
+                             split_tabs::SplitTabCreatedSource::kExtensionsApi);
   }
 
   ExtensionTabUtil::ScrubTabBehavior scrub_tab_behavior =
@@ -507,12 +506,12 @@ int ExtensionTabUtil::GetTabId(const WebContents* web_contents) {
   return sessions::SessionTabHelper::IdForTab(web_contents).id();
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 int ExtensionTabUtil::GetWindowIdOfTab(const WebContents* web_contents) {
   return sessions::SessionTabHelper::IdForWindowContainingTab(web_contents)
       .id();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 // static
 std::string ExtensionTabUtil::GetBrowserWindowTypeText(Browser& browser) {
   return WindowControllerFromBrowser(&browser)->GetWindowTypeText();
@@ -531,6 +530,7 @@ api::tabs::Tab ExtensionTabUtil::CreateTabObject(
   api::tabs::Tab tab_object;
   tab_object.id = GetTabId(contents);
   tab_object.index = tab_index;
+  tab_object.window_id = GetWindowIdOfTab(contents);
   return tab_object;
 #else
   if (!tab_strip)
@@ -1152,8 +1152,9 @@ bool ExtensionTabUtil::IsWebContentsInContext(
 GURL ExtensionTabUtil::ResolvePossiblyRelativeURL(const std::string& url_string,
                                                   const Extension* extension) {
   GURL url = GURL(url_string);
-  if (!url.is_valid() && extension)
+  if (!url.is_valid() && extension) {
     url = extension->ResolveExtensionURL(url_string);
+  }
 
   return url;
 }

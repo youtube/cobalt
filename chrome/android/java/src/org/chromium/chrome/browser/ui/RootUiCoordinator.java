@@ -152,7 +152,6 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils.EdgeToEdgeDebuggingInfo;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils.MissingNavbarInsetsReason;
-import org.chromium.chrome.browser.ui.extensions.ExtensionService;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
@@ -241,8 +240,6 @@ public class RootUiCoordinator
 
     protected @Nullable FindToolbarManager mFindToolbarManager;
     private @Nullable FindToolbarObserver mFindToolbarObserver;
-
-    private @Nullable ExtensionService mExtensionService;
 
     private OverlayPanelManager mOverlayPanelManager;
     private OverlayPanelManager.OverlayPanelManagerObserver mOverlayPanelManagerObserver;
@@ -350,6 +347,7 @@ public class RootUiCoordinator
     private AutomotiveBackButtonToolbarCoordinator mAutomotiveBackButtonToolbarCoordinator;
     protected AdaptiveToolbarUiCoordinator mAdaptiveToolbarUiCoordinator;
     private final @Nullable ObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
+    private @Nullable ToolbarControlContainer mToolbarContainer;
 
     /**
      * Create a new {@link RootUiCoordinator} for the given activity.
@@ -563,7 +561,7 @@ public class RootUiCoordinator
         mEdgeToEdgeManager = edgeToEdgeManager;
         mBottomControlsStacker =
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
-        mTopControlsStacker = new TopControlsStacker();
+        mTopControlsStacker = new TopControlsStacker(mBrowserControlsManager);
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
     }
 
@@ -640,13 +638,9 @@ public class RootUiCoordinator
             if (mMicStateObserver != null && mToolbarManager.getVoiceRecognitionHandler() != null) {
                 mToolbarManager.getVoiceRecognitionHandler().removeObserver(mMicStateObserver);
             }
+            mTopControlsStacker.removeControl(mToolbarContainer);
             mToolbarManager.destroy();
             mToolbarManager = null;
-        }
-
-        if (mExtensionService != null) {
-            mExtensionService.destroy();
-            mExtensionService = null;
         }
 
         if (mAdaptiveToolbarUiCoordinator != null) {
@@ -789,7 +783,6 @@ public class RootUiCoordinator
     public void onInflationComplete() {
         mScrimManager = buildScrimWidget();
         mScrimManagerSupplier.set(mScrimManager);
-        mExtensionService = ExtensionService.maybeCreate(mProfileSupplier);
         initFindToolbarManager();
         initializeToolbar();
     }
@@ -1404,7 +1397,9 @@ public class RootUiCoordinator
         try (TraceEvent te = TraceEvent.scoped("RootUiCoordinator.initializeToolbar")) {
             final View controlContainer = mActivity.findViewById(R.id.control_container);
             assert controlContainer != null;
-            ToolbarControlContainer toolbarContainer = (ToolbarControlContainer) controlContainer;
+            mToolbarContainer = (ToolbarControlContainer) controlContainer;
+            mTopControlsStacker.addControl(mToolbarContainer);
+
             Callback<Boolean> urlFocusChangedCallback =
                     hasFocus -> {
                         if (mOnOmniboxFocusChangedListener != null) {
@@ -1416,7 +1411,7 @@ public class RootUiCoordinator
                         mOmniboxFocusStateSupplier.set(hasFocus);
                     };
             if (getDesktopWindowStateManager() != null) {
-                toolbarContainer.setAppInUnfocusedDesktopWindow(
+                mToolbarContainer.setAppInUnfocusedDesktopWindow(
                         getDesktopWindowStateManager().isInUnfocusedDesktopWindow());
             }
 
@@ -1500,7 +1495,7 @@ public class RootUiCoordinator
                             mBrowserControlsManager,
                             mFullscreenManager,
                             mEdgeToEdgeControllerSupplier,
-                            toolbarContainer,
+                            mToolbarContainer,
                             mCompositorViewHolderSupplier.get(),
                             urlFocusChangedCallback,
                             mTopUiThemeColorProvider,
@@ -1510,7 +1505,6 @@ public class RootUiCoordinator
                             mActivityTabProvider,
                             mScrimManager,
                             mActionModeControllerCallback,
-                            mExtensionService,
                             mFindToolbarManager,
                             mProfileSupplier,
                             mBookmarkModelSupplier,
@@ -2003,11 +1997,10 @@ public class RootUiCoordinator
     }
 
     /**
-     * @return The {@link ExtensionService} that handles extensions. null if extensions are not
-     *     supported on this build.
+     * @return The {@link TopControlsStacker} that handles all layers for this instance.
      */
-    public @Nullable ExtensionService getExtensionService() {
-        return mExtensionService;
+    public TopControlsStacker getTopControlsStacker() {
+        return mTopControlsStacker;
     }
 
     /**

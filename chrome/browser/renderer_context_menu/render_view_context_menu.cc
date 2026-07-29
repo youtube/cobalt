@@ -101,9 +101,11 @@
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webauthn/context_menu_helper.h"
@@ -4041,8 +4043,8 @@ void RenderViewContextMenu::ExecOpenCompose() {
         autofill::FieldGlobalId(
             frame_token, autofill::FieldRendererId(params_.field_renderer_id)),
         compose::ComposeManagerImpl::UiEntryPoint::kContextMenu);
-    GetBrowser()->window()->NotifyNewBadgeFeatureUsed(
-        compose::features::kEnableCompose);
+    BrowserUserEducationInterface::From(GetBrowser())
+        ->NotifyNewBadgeFeatureUsed(compose::features::kEnableCompose);
   } else {
     compose::LogOpenComposeDialogResult(
         compose::OpenComposeDialogResult::kNoContentAutofillDriver);
@@ -4253,15 +4255,19 @@ void RenderViewContextMenu::ExecSearchLensForImage(int event_flags) {
     return;
   }
 
-  bool entered_through_keyboard =
-      IsLensOptionEnteredThroughKeyboard(event_flags);
+  // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
+  // lands.
+  bool use_keyboard_accessibility_fallback =
+      IsLensOptionEnteredThroughKeyboard(event_flags) &&
+      !lens::features::IsLensOverlayKeyboardSelectionEnabled();
   bool lens_overlay_for_image_search_enabled =
       GetBrowser()
           ->GetFeatures()
           .lens_overlay_entry_point_controller()
           ->IsEnabled() &&
       lens::features::UseLensOverlayForImageSearch();
-  if (lens_overlay_for_image_search_enabled && !entered_through_keyboard) {
+  if (lens_overlay_for_image_search_enabled &&
+      !use_keyboard_accessibility_fallback) {
     lens::RecordAmbientSearchQuery(
         lens::AmbientSearchEntryPoint::
             CONTEXT_MENU_SEARCH_IMAGE_WITH_LENS_OVERLAY);
@@ -4283,9 +4289,10 @@ void RenderViewContextMenu::ExecSearchLensForImage(int event_flags) {
         weak_pointer_factory_.GetWeakPtr(), std::move(chrome_render_frame),
         tab_bounds, view_bounds, device_scale_factor));
   } else {
-    // When the Lens image search feature is entered via the context menu
-    // with a Keyboard action, use the Lens region search flow through
-    // core_tab_helper instead of the Lens Overlay flow.
+    // If keyboard selection in Lens Overlay is disabled, when the Lens image
+    // search feature is entered via the context menu with a Keyboard action,
+    // use the Lens region search flow through core_tab_helper instead of the
+    // Lens Overlay flow.
     lens::RecordAmbientSearchQuery(
         lens_overlay_for_image_search_enabled
             ? lens::AmbientSearchEntryPoint::
@@ -4328,17 +4335,18 @@ void RenderViewContextMenu::ExecRegionSearch(
           ->GetFeatures()
           .lens_overlay_entry_point_controller()
           ->IsEnabled();
-  // If Lens overlay is enabled, but the user triggered the context menu
-  // option via keyboard, use the Lens region search flow (with results
-  // forced into a new tab) instead of the Lens Overlay flow.
-  // TODO(crbug/353984457): Clean this branching when the new server
-  // results flow is ready.
-  bool entered_through_keyboard =
-      IsLensOptionEnteredThroughKeyboard(event_flags);
+  // If Lens overlay is enabled but keyboard selection is disabled and the user
+  // triggered the context menu option via keyboard, use the Lens region search
+  // flow (with results forced into a new tab) instead of the Lens Overlay flow.
+  // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
+  // lands.
+  bool use_keyboard_accessibility_fallback =
+      IsLensOptionEnteredThroughKeyboard(event_flags) &&
+      !lens::features::IsLensOverlayKeyboardSelectionEnabled();
   if (lens_overlay_for_region_search_enabled) {
     UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
         GetBrowserContext(), lens::features::kLensOverlay);
-    if (!entered_through_keyboard) {
+    if (!use_keyboard_accessibility_fallback) {
       lens::RecordAmbientSearchQuery(
           lens::AmbientSearchEntryPoint::
               CONTEXT_MENU_SEARCH_REGION_WITH_LENS_OVERLAY);
@@ -4354,9 +4362,9 @@ void RenderViewContextMenu::ExecRegionSearch(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // If Lens fullscreen search is enabled, we want to send every region search
   // as a fullscreen capture.
-  // TODO(crbug/353984457): Clean this branching when the new server
-  // results flow is ready.
-  const bool use_fullscreen_capture = entered_through_keyboard;
+  // TODO(crbug.com/428031945): Clean up once LensOverlayKeyboardSelection
+  // lands.
+  const bool use_fullscreen_capture = use_keyboard_accessibility_fallback;
 
   if (!lens_region_search_controller_) {
     lens_region_search_controller_ =
@@ -4817,8 +4825,9 @@ void RenderViewContextMenu::OpenLinkInSplitView() {
         params_.link_url, new_tab_index, false,
         tab_strip_model->GetTabGroupForTab(active_index));
     tabs::TabInterface* new_tab = tab_strip_model->GetTabAtIndex(new_tab_index);
-    tab_strip_model->AddToNewSplit({new_tab_index},
-                                   split_tabs::SplitTabVisualData());
+    tab_strip_model->AddToNewSplit(
+        {new_tab_index}, split_tabs::SplitTabVisualData(),
+        split_tabs::SplitTabCreatedSource::kLinkContextMenu);
     tab_strip_model->ActivateTabAt(tab_strip_model->GetIndexOfTab(new_tab));
   }
 }

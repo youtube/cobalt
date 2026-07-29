@@ -19,8 +19,6 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 
-class GaiaId;
-
 namespace crosapi {
 
 // The ash-chrome implementation of the Login crosapi interface.
@@ -42,10 +40,6 @@ class LoginAsh : public mojom::Login {
   void BindReceiver(mojo::PendingReceiver<mojom::Login> receiver);
 
   // crosapi::mojom::Login:
-  void LockManagedGuestSession(
-      LockManagedGuestSessionCallback callback) override;
-  void LockCurrentSession(LockCurrentSessionCallback callback) override;
-  void EndSharedSession(EndSharedSessionCallback callback) override;
   void AddExternalLogoutRequestObserver(
       mojo::PendingRemote<mojom::ExternalLogoutRequestObserver> observer)
       override;
@@ -68,53 +62,6 @@ class LoginAsh : public mojom::Login {
   void REMOVED_12(const std::string& password,
                   REMOVED_12Callback callback) override;
 
-  // Launches a managed guest session if one is set up via the admin console.
-  // If there are several managed guest sessions set up, it will launch the
-  // first available one.
-  // If a password is provided, the Managed Guest Session will be lockable and
-  // can be unlocked by providing the same password to
-  // `UnlockManagedGuestSession()`.
-  void LaunchManagedGuestSession(const std::optional<std::string>& password,
-                                 OptionalErrorCallback callback);
-  // Deprecated. Use `UnlockCurrentSession()` below.
-  void UnlockManagedGuestSession(const std::string& password,
-                                 OptionalErrorCallback callback);
-
-  // Starts a ChromeOS Managed Guest Session which will host the shared user
-  // sessions. An initial shared session is entered with `password` as the
-  // password. When this shared session is locked, it can only be unlocked by
-  // calling `UnlockSharedSession()` with the same password.
-  void LaunchSharedManagedGuestSession(const std::string& password,
-                                       OptionalErrorCallback callback);
-  // Enters the shared session with the given password. If the session is
-  // locked, it can only be unlocked by calling `UnlockSharedSession()` with
-  // the same password.
-  // Fails if  there is already a shared session running. Can only be called
-  // from the lock screen.
-  void EnterSharedSession(const std::string& password,
-                          OptionalErrorCallback callback);
-  // Unlocks the shared session with the provided password. Fails if the
-  // password does not match the one provided to
-  // `LaunchSharedManagedGuestSession()` or `EnterSharedSession()`.
-  // Fails if  there is no existing shared session. Can only be called from the
-  // lock screen.
-  void UnlockSharedSession(const std::string& password,
-                           OptionalErrorCallback callback);
-
-  // Launches a SAML user session with the provided email, gaiaId, password
-  // and oauth_code cookie.
-  void LaunchSamlUserSession(const std::string& email,
-                             const GaiaId& gaia_id,
-                             const std::string& password,
-                             const std::string& oauth_code,
-                             OptionalErrorCallback callback);
-  // Unlocks the current session. The session has to be either a user session or
-  // a Managed Guest Session launched by `LaunchManagedGuestSession()` with a
-  // password. The session will unlock if `password` matches the one provided
-  // to at launch.
-  void UnlockCurrentSession(const std::string& password,
-                            OptionalErrorCallback callback);
-
   // Adds an observer for the external logout done events.
   void AddExternalLogoutDoneObserver(ExternalLogoutDoneObserver* observer);
   // Required for the below `base::ObserverList`:
@@ -126,17 +73,6 @@ class LoginAsh : public mojom::Login {
   void NotifyOnRequestExternalLogout();
 
  private:
-  void OnScreenLockerAuthenticate(OptionalErrorCallback callback, bool success);
-  void OnOptionalErrorCallbackComplete(OptionalErrorCallback callback,
-                                       const std::optional<std::string>& error);
-  std::optional<std::string> CanLaunchSession();
-  std::optional<std::string> LockSession(
-      std::optional<user_manager::UserType> user_type = std::nullopt);
-  std::optional<std::string> CanUnlockSession(
-      std::optional<user_manager::UserType> user_type = std::nullopt);
-  void UnlockSession(const std::string& password,
-                     OptionalErrorCallback callback);
-
   mojo::ReceiverSet<mojom::Login> receivers_;
 
   // Support any number of observers.

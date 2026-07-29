@@ -54,11 +54,13 @@
 #import "ios/chrome/browser/omnibox/model/chrome_omnibox_client_ios.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_position_browser_agent.h"
 #import "ios/chrome/browser/omnibox/model/omnibox_position/omnibox_state_provider.h"
-#import "ios/chrome/browser/omnibox/model/placeholder_service.h"
-#import "ios/chrome/browser/omnibox/model/placeholder_service_factory.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
+#import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service_factory.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_focus_delegate.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
+#import "ios/chrome/browser/reader_mode/coordinator/reader_mode_chip_coordinator.h"
+#import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -72,6 +74,7 @@
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
 #import "ios/chrome/browser/shared/public/commands/load_query_commands.h"
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_commands.h"
+#import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/search_image_with_lens_command.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
@@ -124,6 +127,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 // Coordinator for the contextual panel entrypoint.
 @property(nonatomic, strong)
     ContextualPanelEntrypointCoordinator* contextualPanelEntrypointCoordinator;
+// Coordinator for the reader mode chip.
+@property(nonatomic, strong)
+    ReaderModeChipCoordinator* readerModeChipCoordinator;
 // Coordinator for the omnibox.
 @property(nonatomic, strong) OmniboxCoordinator* omniboxCoordinator;
 @property(nonatomic, strong) LocationBarMediator* mediator;
@@ -248,6 +254,17 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
         didMoveToParentViewController:self.viewController];
   }
 
+  if (IsReaderModeAvailable()) {
+    self.readerModeChipCoordinator = [[ReaderModeChipCoordinator alloc]
+        initWithBaseViewController:self.viewController
+                           browser:self.browser];
+    self.readerModeChipCoordinator.visibilityDelegate =
+        self.viewController.readerModeChipVisibilityDelegate;
+    [self.readerModeChipCoordinator start];
+    [self.viewController setReaderModeChipView:self.readerModeChipCoordinator
+                                                   .viewController.view];
+  }
+
   // Create button factory that wil be used by the ViewController to get
   // BadgeButtons for a BadgeType.
   BadgeButtonFactory* buttonFactory = [[BadgeButtonFactory alloc] init];
@@ -320,10 +337,16 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     return;
   }
   [self.browser->GetCommandDispatcher() stopDispatchingToTarget:self];
+  [self.browser->GetCommandDispatcher()
+      stopDispatchingToTarget:self.viewController
+                                  .pageActionMenuEntryPointHandler];
 
   [self.contextualPanelEntrypointCoordinator stop];
   self.contextualPanelEntrypointCoordinator.delegate = nil;
   self.contextualPanelEntrypointCoordinator = nil;
+
+  [self.readerModeChipCoordinator stop];
+  self.readerModeChipCoordinator = nil;
 
   // The popup has to be destroyed before the location bar.
   [self.omniboxCoordinator stop];
@@ -387,6 +410,13 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 - (void)setLensOverlayVisible:(BOOL)lensOverlayVisible {
   self.badgeViewController.forceDisabled = lensOverlayVisible;
   [self.viewController setLensOverlayVisible:lensOverlayVisible];
+}
+
+- (void)setPageActionMenuEntryPointDispatcher {
+  [self.browser->GetCommandDispatcher()
+      startDispatchingToTarget:self.viewController
+                                   .pageActionMenuEntryPointHandler
+                   forProtocol:@protocol(PageActionMenuEntryPointCommands)];
 }
 
 #pragma mark - LoadQueryCommands

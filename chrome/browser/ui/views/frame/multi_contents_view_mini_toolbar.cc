@@ -7,6 +7,8 @@
 #include <optional>
 
 #include "base/i18n/rtl.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
@@ -95,13 +97,14 @@ MultiContentsViewMiniToolbar::MultiContentsViewMiniToolbar(
   domain_label_->SetElideBehavior(gfx::ELIDE_HEAD);
   domain_label_->SetTruncateLength(20);
   domain_label_->SetSubpixelRenderingEnabled(false);
+  domain_label_->SetEnabledColor(kColorMulitContentsViewMiniToolbarForeground);
+  domain_label_->SetBackgroundColor(kColorToolbar);
   alert_state_indicator_ = AddChildView(std::make_unique<views::ImageView>());
   alert_state_indicator_->SetProperty(views::kFlexBehaviorKey,
                                       icon_flex_spec.WithOrder(2));
   menu_button_ = AddChildView(views::CreateVectorImageButtonWithNativeTheme(
       base::RepeatingClosure(), kBrowserToolsChromeRefreshIcon, 16,
-      kColorSidePanelHeaderButtonIcon,
-      kColorSidePanelHeaderButtonIconDisabled));
+      kColorMulitContentsViewMiniToolbarForeground));
   menu_button_->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kPreferred,
@@ -353,11 +356,14 @@ void MultiContentsViewMiniToolbar::UpdateFavicon(TabRendererData tab_data) {
 }
 
 void MultiContentsViewMiniToolbar::OpenSplitViewMenu() {
+  base::RecordAction(
+      base::UserMetricsAction("DesktopSplitView_OpenMiniToolbarMenu"));
+
   TabStripModel* const model = browser_view_->browser()->tab_strip_model();
   const int index = model->GetIndexOfWebContents(web_contents_);
   menu_model_ = std::make_unique<SplitTabMenuModel>(
       browser_view_->browser()->tab_strip_model(),
-      SplitTabMenuModel::CloseTabMenuItem::kCloseSpecifiedTab, index);
+      SplitTabMenuModel::MenuSource::kMiniToolbar, index);
   menu_runner_ = std::make_unique<views::MenuRunner>(
       menu_model_.get(), views::MenuRunner::HAS_MNEMONICS);
   menu_runner_->RunMenuAt(menu_button_->GetWidget(),

@@ -28,7 +28,22 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_types.h"
+#include "ui/gfx/buffer_usage_util.h"
 #include "ui/gfx/gpu_memory_buffer.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_io_surface.h"
+#endif
+
+#if BUILDFLAG(IS_OZONE)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
+#include "ui/ozone/public/client_native_pixmap_factory_ozone.h"
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_dxgi.h"
+#endif
 
 namespace gpu {
 
@@ -219,6 +234,52 @@ uint32_t ComputeTextureTargetForSharedImage(
 }  // namespace
 
 // static
+std::unique_ptr<GpuMemoryBufferImpl>
+ClientSharedImage::CreateGpuMemoryBufferImplFromHandle(
+    gfx::GpuMemoryBufferHandle handle,
+    const gfx::Size& size,
+    gfx::BufferFormat format,
+    gfx::BufferUsage usage,
+    GpuMemoryBufferImpl::CopyNativeBufferToShMemCallback
+        copy_native_buffer_to_shmem_callback,
+    scoped_refptr<base::UnsafeSharedMemoryPool> pool) {
+  switch (handle.type) {
+    case gfx::SHARED_MEMORY_BUFFER:
+      return GpuMemoryBufferImplSharedMemory::CreateFromHandle(
+          std::move(handle), size, format, usage, base::DoNothing());
+#if BUILDFLAG(IS_MAC)
+    case gfx::IO_SURFACE_BUFFER:
+      return GpuMemoryBufferImplIOSurface::CreateFromHandle(
+          std::move(handle), size, format, usage, base::DoNothing());
+#endif
+#if BUILDFLAG(IS_OZONE)
+    case gfx::NATIVE_PIXMAP: {
+      // NOTE: This is not used beyond the lifetime of CreateFromHandle().
+      auto client_native_pixmap_factory =
+          ui::CreateClientNativePixmapFactoryOzone();
+      return GpuMemoryBufferImplNativePixmap::CreateFromHandle(
+          client_native_pixmap_factory.get(), std::move(handle), size, format,
+          usage, base::DoNothing());
+    }
+#endif
+#if BUILDFLAG(IS_WIN)
+    case gfx::DXGI_SHARED_HANDLE:
+      return GpuMemoryBufferImplDXGI::CreateFromHandle(
+          std::move(handle), size, format, usage, base::DoNothing(),
+          std::move(copy_native_buffer_to_shmem_callback), std::move(pool));
+#endif
+#if BUILDFLAG(IS_ANDROID)
+    case gfx::ANDROID_HARDWARE_BUFFER:
+      return nullptr;
+#endif
+    default:
+      // TODO(dcheng): Remove default case (https://crbug.com/676224).
+      NOTREACHED() << gfx::BufferFormatToString(format) << ", "
+                   << gfx::BufferUsageToString(usage);
+  }
+}
+
+// static
 std::unique_ptr<ClientSharedImage::ScopedMapping>
 ClientSharedImage::ScopedMapping::Create(
     SharedImageMetadata metadata,
@@ -331,19 +392,14 @@ ClientSharedImage::ClientSharedImage(
       sii_holder_(std::move(sii_holder)),
       texture_target_(exported_si.texture_target_) {
   if (exported_si.buffer_handle_) {
-#if BUILDFLAG(IS_WIN)
-    gpu_memory_buffer_manager_ =
-        std::make_unique<HelperGpuMemoryBufferManager>(this);
-#else
-    gpu_memory_buffer_manager_ = nullptr;
-#endif
-    gpu_memory_buffer_ =
-        GpuMemoryBufferSupport().CreateGpuMemoryBufferImplFromHandle(
-            std::move(exported_si.buffer_handle_.value()), metadata_.size,
-            viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
-                metadata_.format),
-            exported_si.buffer_usage_.value(), base::DoNothing(),
-            gpu_memory_buffer_manager_.get());
+    gpu_memory_buffer_ = CreateGpuMemoryBufferImplFromHandle(
+        std::move(exported_si.buffer_handle_.value()), metadata_.size,
+        viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
+            metadata_.format),
+        exported_si.buffer_usage_.value(),
+        base::BindRepeating(
+            &ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
+            base::Unretained(this)));
   }
   CHECK(!mailbox_.IsZero());
   CHECK(sii_holder_);
@@ -360,19 +416,14 @@ ClientSharedImage::ClientSharedImage(ExportedSharedImage exported_si)
       buffer_usage_(exported_si.buffer_usage_),
       texture_target_(exported_si.texture_target_) {
   if (exported_si.buffer_handle_) {
-#if BUILDFLAG(IS_WIN)
-    gpu_memory_buffer_manager_ =
-        std::make_unique<HelperGpuMemoryBufferManager>(this);
-#else
-    gpu_memory_buffer_manager_ = nullptr;
-#endif
-    gpu_memory_buffer_ =
-        GpuMemoryBufferSupport().CreateGpuMemoryBufferImplFromHandle(
-            std::move(exported_si.buffer_handle_.value()), metadata_.size,
-            viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
-                metadata_.format),
-            exported_si.buffer_usage_.value(), base::DoNothing(),
-            gpu_memory_buffer_manager_.get());
+    gpu_memory_buffer_ = CreateGpuMemoryBufferImplFromHandle(
+        std::move(exported_si.buffer_handle_.value()), metadata_.size,
+        viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
+            metadata_.format),
+        exported_si.buffer_usage_.value(),
+        base::BindRepeating(
+            &ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
+            base::Unretained(this)));
   }
   CHECK(!mailbox_.IsZero());
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -391,23 +442,16 @@ ClientSharedImage::ClientSharedImage(
       metadata_(info.meta),
       debug_label_(info.debug_label),
       creation_sync_token_(sync_token),
-      gpu_memory_buffer_manager_(
-#if BUILDFLAG(IS_WIN)
-          std::make_unique<HelperGpuMemoryBufferManager>(this)
-#else
-          nullptr
-#endif
-              ),
-      gpu_memory_buffer_(
-          GpuMemoryBufferSupport().CreateGpuMemoryBufferImplFromHandle(
-              std::move(handle_info.handle),
-              handle_info.size,
-              viz::SharedImageFormatToBufferFormatRestrictedUtils::
-                  ToBufferFormat(handle_info.format),
-              handle_info.buffer_usage,
-              base::DoNothing(),
-              gpu_memory_buffer_manager_.get(),
-              std::move(shared_memory_pool))),
+      gpu_memory_buffer_(CreateGpuMemoryBufferImplFromHandle(
+          std::move(handle_info.handle),
+          handle_info.size,
+          viz::SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
+              handle_info.format),
+          handle_info.buffer_usage,
+          base::BindRepeating(
+              &ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
+              base::Unretained(this)),
+          std::move(shared_memory_pool))),
       buffer_usage_(handle_info.buffer_usage),
       sii_holder_(std::move(sii_holder)) {
   CHECK(!mailbox.IsZero());
@@ -421,6 +465,7 @@ ClientSharedImage::ClientSharedImage(const Mailbox& mailbox,
                                      const SharedImageInfo& info)
     : mailbox_(mailbox), metadata_(info.meta), debug_label_(info.debug_label) {
   CHECK(!mailbox.IsZero());
+  texture_target_ = GL_TEXTURE_2D;
 }
 
 ClientSharedImage::~ClientSharedImage() {
@@ -479,14 +524,6 @@ gfx::GpuMemoryBufferHandle ClientSharedImage::CloneGpuMemoryBufferHandle()
   CHECK(gpu_memory_buffer_);
   return gpu_memory_buffer_->CloneHandle();
 }
-
-#if BUILDFLAG(IS_APPLE)
-void ClientSharedImage::SetColorSpaceOnNativeBuffer(
-    const gfx::ColorSpace& color_space) {
-  CHECK(gpu_memory_buffer_);
-  gpu_memory_buffer_->SetColorSpace(color_space);
-}
-#endif
 
 uint32_t ClientSharedImage::GetTextureTarget() {
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -627,6 +664,12 @@ scoped_refptr<ClientSharedImage> ClientSharedImage::CreateSoftwareForTesting() {
 
 // static
 scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
+    const SharedImageMetadata& metadata) {
+  return CreateForTesting(metadata, GL_TEXTURE_2D);  // IN-TEST
+}
+
+// static
+scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
     viz::SharedImageFormat format,
     uint32_t texture_target) {
   SharedImageMetadata metadata;
@@ -679,38 +722,27 @@ scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
   return client_si;
 }
 
-ClientSharedImage::HelperGpuMemoryBufferManager::HelperGpuMemoryBufferManager(
-    ClientSharedImage* client_shared_image)
-    : client_shared_image_(client_shared_image) {
-  CHECK(client_shared_image_);
-}
-
-ClientSharedImage::HelperGpuMemoryBufferManager::
-    ~HelperGpuMemoryBufferManager() = default;
-
-void ClientSharedImage::HelperGpuMemoryBufferManager::CopyGpuMemoryBufferAsync(
+void ClientSharedImage::CopyNativeGmbToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion memory_region,
     base::OnceCallback<void(bool)> callback) {
   // Lazily create the |task_runner_|.
-  if (!task_runner_) {
-    task_runner_ =
+  if (!copy_native_buffer_to_shmem_task_runner_) {
+    copy_native_buffer_to_shmem_task_runner_ =
         base::ThreadPool::CreateSingleThreadTaskRunner({base::MayBlock()});
-    CHECK(*task_runner_);
+    CHECK(copy_native_buffer_to_shmem_task_runner_);
   }
 
-  if (!(*task_runner_)->BelongsToCurrentThread()) {
-    (*task_runner_)
-        ->PostTask(
-            FROM_HERE,
-            base::BindOnce(&ClientSharedImage::HelperGpuMemoryBufferManager::
-                               CopyGpuMemoryBufferAsync,
-                           base::Unretained(this), std::move(buffer_handle),
-                           std::move(memory_region), std::move(callback)));
+  if (!copy_native_buffer_to_shmem_task_runner_->BelongsToCurrentThread()) {
+    copy_native_buffer_to_shmem_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ClientSharedImage::CopyNativeGmbToSharedMemoryAsync,
+                       base::Unretained(this), std::move(buffer_handle),
+                       std::move(memory_region), std::move(callback)));
     return;
   }
 
-  auto sii = GetSharedImageInterface();
+  auto sii = sii_holder_->Get();
   if (!sii) {
     DLOG(WARNING) << "No SharedImageInterface.";
     std::move(callback).Run(false);
@@ -720,12 +752,6 @@ void ClientSharedImage::HelperGpuMemoryBufferManager::CopyGpuMemoryBufferAsync(
       std::move(buffer_handle), std::move(memory_region),
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback),
                                                   /*result=*/false));
-}
-
-// Access the SharedImageInterface via the SharedImageInterfaceHolder.
-scoped_refptr<SharedImageInterface>
-ClientSharedImage::HelperGpuMemoryBufferManager::GetSharedImageInterface() {
-  return client_shared_image_->sii_holder_->Get();
 }
 
 ExportedSharedImage::ExportedSharedImage() = default;

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/auto_reset.h"
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
@@ -100,6 +101,7 @@
 #include "content/browser/scoped_active_url.h"
 #include "content/browser/security/coop/cross_origin_opener_policy_reporter.h"
 #include "content/browser/service_worker/service_worker_client.h"
+#include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
 #include "content/browser/shared_storage/shared_storage_header_observer.h"
@@ -3179,8 +3181,6 @@ void NavigationRequest::StartNavigation() {
   removed_request_headers_.clear();
 
   throttle_registry_ = std::make_unique<NavigationThrottleRegistryImpl>(this);
-  throttle_runner_ = std::make_unique<NavigationThrottleRunner>(
-      throttle_registry_.get(), navigation_id_, IsInPrimaryMainFrame());
 
   // For prerendered page activation, CommitDeferringConditions have already run
   // at the beginning of the navigation, so we won't run them again.
@@ -3258,11 +3258,6 @@ void NavigationRequest::ResetForCrossDocumentRestart() {
           common_params_->url.spec(), "Net Error Code", net_error_);
     }
   }
-
-  // Reset `throttle_runner_` and `throttle_registry_` in the reversed order of
-  // their creation as `throttle_runner_` has a pointer to `throttle_registry_`.
-  throttle_runner_.reset();
-  throttle_registry_.reset();
 
   // Reset the state of the NavigationRequest, and the navigation_handle_id.
   StopCommitTimeout();
@@ -5156,7 +5151,13 @@ void NavigationRequest::OnRequestFailedInternal(
   // try to delete this NavigationRequest along with it.
   render_frame_host_ = std::nullopt;
 
-  ssl_info_ = status.ssl_info;
+  // Do not update ssl_info_ on HTTP_RESPONSE_CODE_FAILURE (e.g., HTTP 4xx/5xx
+  // errors). In these cases, URLLoaderCompletionStatus does not have ssl_info.
+  // The existing ssl_info_ should be preserved by design, so the certificate is
+  // retained for error pages, ensuring correct security UI and metrics.
+  if (status.error_code != net::ERR_HTTP_RESPONSE_CODE_FAILURE) {
+    ssl_info_ = status.ssl_info;
+  }
 
   devtools_instrumentation::OnNavigationRequestFailed(*this, status);
 
@@ -7870,28 +7871,31 @@ void NavigationRequest::Resume(NavigationThrottle* resuming_throttle) {
   DCHECK(resuming_throttle);
   CHECK(!is_resuming_) << "This call does not support re-entrancy.";
   EnterChildTraceEvent("Resume", this);
-  is_resuming_ = true;
 
-  // Stop watching for response body changes to ensure that the response body
-  // callback isn't called later in the throttle's lifetime with a response body
-  // that is not relevant to the throttle.
-  if (response_body_watcher_) {
-    CHECK(response_body_callback_);
-    response_body_watcher_.reset();
-    base::WeakPtr<NavigationRequest> this_ptr(weak_factory_.GetWeakPtr());
-    std::move(response_body_callback_).Run(std::string());
-    if (this_ptr.WasInvalidated()) {
-      // TODO(https://crbug.com/411238078): Replace the debug code with a
-      // comment once we ensure that this is the root cause.
-      SCOPED_CRASH_KEY_STRING32("Bug411238078", "throttle",
-                                resuming_throttle->GetNameForLogging());
-      base::debug::DumpWithoutCrashing();
-      return;
+  if (1u == throttle_registry_->GetDeferringThrottles().size()) {
+    is_resuming_ = true;
+
+    // Stop watching for response body changes to ensure that the response body
+    // callback isn't called later in the throttle's lifetime with a response
+    // body that is not relevant to the throttle.
+    if (response_body_watcher_) {
+      CHECK(response_body_callback_);
+      response_body_watcher_.reset();
+      base::WeakPtr<NavigationRequest> this_ptr(weak_factory_.GetWeakPtr());
+      std::move(response_body_callback_).Run(std::string());
+      if (this_ptr.WasInvalidated()) {
+        // TODO(https://crbug.com/411238078): Replace the debug code with a
+        // comment once we ensure that this is the root cause.
+        SCOPED_CRASH_KEY_STRING32("Bug411238078", "throttle",
+                                  resuming_throttle->GetNameForLogging());
+        base::debug::DumpWithoutCrashing();
+        return;
+      }
     }
-  }
 
-  is_resuming_ = false;
-  throttle_runner_->ResumeProcessingNavigationEvent(resuming_throttle);
+    is_resuming_ = false;
+  }
+  throttle_registry_->ResumeProcessingNavigationEvent(resuming_throttle);
   // DO NOT ADD CODE AFTER THIS, as the NavigationHandle might have been deleted
   // by the previous call.
 }
@@ -7900,7 +7904,8 @@ void NavigationRequest::CancelDeferredNavigation(
     NavigationThrottle* cancelling_throttle,
     NavigationThrottle::ThrottleCheckResult result) {
   DCHECK(cancelling_throttle);
-  DCHECK_EQ(cancelling_throttle, throttle_runner_->GetDeferringThrottle());
+  DCHECK(throttle_registry_->GetDeferringThrottles().contains(
+      cancelling_throttle));
   CancelDeferredNavigationInternal(result);
 }
 
@@ -8021,7 +8026,7 @@ void NavigationRequest::WillStartRequest() {
       {"Navigation.ProcessNavigationThrottlesTime.WillStartRequest.",
        IsInMainFrame() ? "MainFrame" : "SubFrame"}));
   // Notify each throttle of the request.
-  throttle_runner_->ProcessNavigationEvent(
+  throttle_registry_->ProcessNavigationEvent(
       NavigationThrottleEvent::kWillStartRequest);
   // DO NOT ADD CODE AFTER THIS, as the NavigationHandle might have been deleted
   // by the previous call.
@@ -8054,7 +8059,7 @@ void NavigationRequest::WillRedirectRequest(
   }
 
   // Notify each throttle of the request.
-  throttle_runner_->ProcessNavigationEvent(
+  throttle_registry_->ProcessNavigationEvent(
       NavigationThrottleEvent::kWillRedirectRequest);
   // DO NOT ADD CODE AFTER THIS, as the NavigationHandle might have been deleted
   // by the previous call.
@@ -8067,7 +8072,7 @@ void NavigationRequest::WillFailRequest() {
   processing_navigation_throttle_ = true;
 
   // Notify each throttle of the request.
-  throttle_runner_->ProcessNavigationEvent(
+  throttle_registry_->ProcessNavigationEvent(
       NavigationThrottleEvent::kWillFailRequest);
   // DO NOT ADD CODE AFTER THIS, as the NavigationHandle might have been deleted
   // by the previous call.
@@ -8086,7 +8091,7 @@ void NavigationRequest::WillProcessResponse() {
   base::WeakPtr<NavigationRequest> this_ptr(weak_factory_.GetWeakPtr());
 
   // Notify each throttle of the response.
-  throttle_runner_->ProcessNavigationEvent(
+  throttle_registry_->ProcessNavigationEvent(
       NavigationThrottleEvent::kWillProcessResponse);
 
   // `this` may have been deleted by the previous call.
@@ -8115,7 +8120,7 @@ void NavigationRequest::WillCommitWithoutUrlLoader() {
   SetState(WILL_COMMIT_WITHOUT_URL_LOADER);
   processing_navigation_throttle_ = true;
 
-  throttle_runner_->ProcessNavigationEvent(
+  throttle_registry_->ProcessNavigationEvent(
       NavigationThrottleEvent::kWillCommitWithoutUrlLoader);
 }
 
@@ -8471,6 +8476,50 @@ NavigationRequest::TakeWebFeaturesToLog() {
   std::vector<blink::mojom::WebFeature> result;
   result.swap(web_features_to_log_);
   return result;
+}
+
+void NavigationRequest::set_keep_alive_url_loader_factory_context(
+    base::WeakPtr<KeepAliveURLLoaderService::FactoryContext> factory_context) {
+  if (did_set_keep_alive_url_loader_factory_context_for_testing_) {
+    // A unit test set a fake context already. Use that instead of the passed in
+    // context.
+    CHECK_IS_TEST();
+    CHECK(keep_alive_url_loader_factory_context_);
+    CHECK_NE(keep_alive_url_loader_factory_context_.get(),
+             factory_context.get());
+    return;
+  }
+  CHECK(!keep_alive_url_loader_factory_context_);
+  keep_alive_url_loader_factory_context_ = factory_context;
+}
+
+void NavigationRequest::set_fetch_later_loader_factory_context(
+    base::WeakPtr<KeepAliveURLLoaderService::FactoryContext> factory_context) {
+  if (did_set_fetch_later_url_loader_factory_context_for_testing_) {
+    // A unit test set a fake context already. Use that instead of the passed in
+    // context.
+    CHECK_IS_TEST();
+    CHECK(fetch_later_loader_factory_context_);
+    CHECK_NE(fetch_later_loader_factory_context_.get(), factory_context.get());
+    return;
+  }
+  fetch_later_loader_factory_context_ = factory_context;
+}
+
+void NavigationRequest::SetKeepAliveURLLoaderFactoryContextForTesting(
+    base::WeakPtr<KeepAliveURLLoaderService::FactoryContext> factory_context) {
+  CHECK(!keep_alive_url_loader_factory_context_);
+  did_set_keep_alive_url_loader_factory_context_for_testing_ = true;
+  keep_alive_url_loader_factory_context_ = factory_context;
+  CHECK(keep_alive_url_loader_factory_context_);
+}
+
+void NavigationRequest::SetFetchLaterLoaderFactoryContextForTesting(
+    base::WeakPtr<KeepAliveURLLoaderService::FactoryContext> factory_context) {
+  CHECK(!fetch_later_loader_factory_context_);
+  did_set_fetch_later_url_loader_factory_context_for_testing_ = true;
+  fetch_later_loader_factory_context_ = factory_context;
+  CHECK(fetch_later_loader_factory_context_);
 }
 
 void NavigationRequest::ReadyToCommitNavigation(bool is_error) {
@@ -11089,7 +11138,7 @@ void NavigationRequest::CreateWebUIIfNeeded(RenderFrameHostImpl* frame_host) {
 }
 
 bool NavigationRequest::IsDeferred() {
-  return throttle_runner_->GetDeferringThrottle() != nullptr;
+  return !throttle_registry_->GetDeferringThrottles().empty();
 }
 
 void NavigationRequest::OnResponseBodyReady(MojoResult) {

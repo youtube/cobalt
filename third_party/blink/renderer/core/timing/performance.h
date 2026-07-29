@@ -36,13 +36,13 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_function.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/dom_high_res_time_stamp.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/loader/frame_loader_types.h"
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
-#include "third_party/blink/renderer/core/timing/performance_navigation_timing.h"
 #include "third_party/blink/renderer/core/timing/performance_paint_timing.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
@@ -67,6 +67,7 @@ class EventCounts;
 class ExceptionState;
 class ExecutionContext;
 class LargestContentfulPaint;
+class InteractionContentfulPaint;
 class LayoutShift;
 class MemoryInfo;
 class MemoryMeasurement;
@@ -78,6 +79,7 @@ class PerformanceMark;
 class PerformanceMarkOptions;
 class PerformanceMeasure;
 class PerformanceNavigation;
+class PerformanceNavigationTiming;
 class PerformanceObserver;
 class PerformanceTiming;
 class ScriptState;
@@ -219,6 +221,7 @@ class CORE_EXPORT Performance : public EventTarget {
   void AddToLayoutShiftBuffer(LayoutShift&);
 
   void AddLargestContentfulPaint(LargestContentfulPaint*);
+  void AddInteractionContentfulPaint(InteractionContentfulPaint*);
 
   void AddSoftNavigationToPerformanceTimeline(SoftNavigationEntry*);
 
@@ -405,6 +408,7 @@ class CORE_EXPORT Performance : public EventTarget {
   unsigned element_timing_buffer_max_size_;
   PerformanceEntryVector layout_shift_buffer_;
   PerformanceEntryVector largest_contentful_paint_buffer_;
+  PerformanceEntryVector interaction_contentful_paint_buffer_;
   PerformanceEntryVector longtask_buffer_;
   PerformanceEntryVector visibility_state_buffer_;
   PerformanceEntryVector back_forward_cache_restoration_buffer_;

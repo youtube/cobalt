@@ -666,7 +666,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest, ContentScriptExtensionAPIs) {
   // Navigate to an extension page that will fire the event events.js is
   // listening for.
   ui_test_utils::NavigateToURLWithDisposition(
-      browser(), extension->ResolveExtensionURL("fire_event.html"),
+      browser(), extension->GetResourceURL("fire_event.html"),
       WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui_test_utils::BROWSER_TEST_NO_WAIT);
   EXPECT_TRUE(catcher.GetNextResult());
@@ -982,7 +982,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest,
   content::WebContents* tab_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
-  EXPECT_EQ(new_tab_override->ResolveExtensionURL("newtab.html"),
+  EXPECT_EQ(new_tab_override->GetResourceURL("newtab.html"),
             tab_contents->GetPrimaryMainFrame()->GetLastCommittedURL());
   EXPECT_FALSE(listener.was_satisfied());
   listener.Reset();
@@ -1394,6 +1394,26 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiTest,
   ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
 }
 
+// Verifies how the storage API works with content scripts with mixed access
+// levels. The test sets different access levels for various storage areas and
+// confirms a content script can access permitted areas and is denied access to
+// restricted ones.
+IN_PROC_BROWSER_TEST_F(ContentScriptApiTest, StorageApiAllowMixedAccessTest) {
+  // The extension verifies expectations in its background context and
+  // initializes state, which will be used by the content script below.
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  ASSERT_TRUE(
+      RunExtensionTest("content_scripts/storage_api_allow_mixed_access"))
+      << message_;
+
+  // Open a url to run the content script. The content script
+  // then continues the test, so we need a separate ResultCatcher.
+  ResultCatcher catcher;
+  GURL url(embedded_test_server()->GetURL("/extensions/test_file.html"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+  ASSERT_TRUE(catcher.GetNextResult()) << catcher.message();
+}
+
 // Regression test for https://crbug.com/1449796 - verifying that the IPC
 // verification doesn't incorrectly think that an IPC from a content script
 // running in an MHTML frame is malicious (in this scenario the `source_url`
@@ -1620,8 +1640,9 @@ void ContentScriptRelatedFrameTest::SetUpOnMainThread() {
            }]
          })";
   const char* extra_property = "";
-  if (IncludeMatchOriginAsFallback())
+  if (IncludeMatchOriginAsFallback()) {
     extra_property = R"("match_origin_as_fallback": true,)";
+  }
   std::string manifest =
       base::StringPrintf(kContentScriptManifest, extra_property);
   test_extension_dir_.WriteManifest(manifest);
@@ -2362,7 +2383,7 @@ IN_PROC_BROWSER_TEST_F(ContentScriptApiFencedFrameTest,
   content::WebContents* tab_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 
-  GURL extension_test_url = extension->ResolveExtensionURL("test.html");
+  GURL extension_test_url = extension->GetResourceURL("test.html");
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), extension_test_url));
 
   EXPECT_EQ(extension_test_url,

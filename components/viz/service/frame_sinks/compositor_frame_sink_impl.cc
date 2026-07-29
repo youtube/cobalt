@@ -153,31 +153,10 @@ void CompositorFrameSinkImpl::SubmitCompositorFrame(
     uint64_t submit_time) {
   // Non-root surface frames should not have display transform hint.
   DCHECK_EQ(gfx::OVERLAY_TRANSFORM_NONE, frame.metadata.display_transform_hint);
-  SubmitCompositorFrameInternal(local_surface_id, std::move(frame),
-                                std::move(hit_test_region_list), submit_time,
-                                SubmitCompositorFrameSyncCallback());
-}
 
-void CompositorFrameSinkImpl::SubmitCompositorFrameSync(
-    const LocalSurfaceId& local_surface_id,
-    CompositorFrame frame,
-    std::optional<HitTestRegionList> hit_test_region_list,
-    uint64_t submit_time,
-    SubmitCompositorFrameSyncCallback callback) {
-  SubmitCompositorFrameInternal(local_surface_id, std::move(frame),
-                                std::move(hit_test_region_list), submit_time,
-                                std::move(callback));
-}
-
-void CompositorFrameSinkImpl::SubmitCompositorFrameInternal(
-    const LocalSurfaceId& local_surface_id,
-    CompositorFrame frame,
-    std::optional<HitTestRegionList> hit_test_region_list,
-    uint64_t submit_time,
-    mojom::CompositorFrameSink::SubmitCompositorFrameSyncCallback callback) {
   const auto result = support_->MaybeSubmitCompositorFrame(
       local_surface_id, std::move(frame), std::move(hit_test_region_list),
-      submit_time, std::move(callback));
+      submit_time);
   if (result == SubmitResult::ACCEPTED)
     return;
 
@@ -204,8 +183,8 @@ void CompositorFrameSinkImpl::NotifyNewLocalSurfaceIdExpectedWhilePaused() {
 
 void CompositorFrameSinkImpl::BindLayerContext(
     mojom::PendingLayerContextPtr context,
-    bool draw_mode_is_gpu) {
-  support_->BindLayerContext(*context, draw_mode_is_gpu);
+    mojom::LayerContextSettingsPtr settings) {
+  support_->BindLayerContext(*context, std::move(settings));
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -219,8 +198,8 @@ void CompositorFrameSinkImpl::OnClientConnectionLost() {
   // has done something invalid and the connection to the client was terminated.
   // Destroy |this| to free up resources as it's no longer useful.
   FrameSinkId frame_sink_id = support_->frame_sink_id();
-  support_->frame_sink_manager()->DestroyCompositorFrameSink(frame_sink_id,
-                                                             base::DoNothing());
+  support_->frame_sink_manager()->DestroyCompositorFrameSink(
+      frame_sink_id, std::nullopt, base::DoNothing());
 }
 
 }  // namespace viz

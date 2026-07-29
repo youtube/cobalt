@@ -33,9 +33,6 @@ import '../settings_page/settings_section.js';
 import '../settings_page_styles.css.js';
 // <if expr="not is_chromeos">
 import '../default_browser_page/default_browser_page.js';
-// </if>
-// <if expr="not chromeos_ash">
-import '../languages_page/languages.js';
 
 // </if>
 
@@ -55,7 +52,7 @@ import {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 import type {SettingsIdleLoadElement} from '../controls/settings_idle_load.js';
 import {loadTimeData} from '../i18n_setup.js';
 // <if expr="not chromeos_ash">
-import type {LanguageHelper, LanguagesModel} from '../languages_page/languages_types.js';
+import type {LanguagesModel} from '../languages_page/languages_types.js';
 // </if>
 import {pageVisibility} from '../page_visibility.js';
 import type {PageVisibility} from '../page_visibility.js';
@@ -67,8 +64,8 @@ import {MAX_PRIVACY_GUIDE_PROMO_IMPRESSION, PrivacyGuideBrowserProxyImpl} from '
 import {routes} from '../route.js';
 import type {Route} from '../router.js';
 import {RouteObserverMixin, Router} from '../router.js';
-import type {SearchResult} from '../search_settings.js';
-import {getSearchManager} from '../search_settings.js';
+import {combineSearchResults, getSearchManager} from '../search_settings.js';
+import type {SettingsPlugin} from '../settings_main/settings_plugin.js';
 import {MainPageMixin} from '../settings_page/main_page_mixin.js';
 
 import {getTemplate} from './basic_page.html.js';
@@ -77,7 +74,8 @@ const SettingsBasicPageElementBase =
     PrefsMixin(MainPageMixin(RouteObserverMixin(PrivacyGuideAvailabilityMixin(
         WebUiListenerMixin(I18nMixin(PolymerElement))))));
 
-export class SettingsBasicPageElement extends SettingsBasicPageElementBase {
+export class SettingsBasicPageElement extends SettingsBasicPageElementBase
+    implements SettingsPlugin {
   static get is() {
     return 'settings-basic-page';
   }
@@ -94,8 +92,6 @@ export class SettingsBasicPageElement extends SettingsBasicPageElementBase {
        * 'settings-languages' instance.
        */
       languages: Object,
-
-      languageHelper: Object,
       // </if>
 
       /**
@@ -179,7 +175,6 @@ export class SettingsBasicPageElement extends SettingsBasicPageElementBase {
 
   // <if expr="not chromeos_ash">
   declare languages?: LanguagesModel;
-  declare languageHelper: LanguageHelper;
   // </if>
   declare private pageVisibility_: PageVisibility;
   declare inSearchMode: boolean;
@@ -275,12 +270,13 @@ export class SettingsBasicPageElement extends SettingsBasicPageElementBase {
   }
 
   /**
+   * SettingsPlugin implementation
    * Queues a task to search the basic sections, then another for the advanced
    * sections.
    * @param query The text to search for.
    * @return A signal indicating that searching finished.
    */
-  searchContents(query: string): Promise<SearchResult> {
+  async searchContents(query: string) {
     const basicPage = this.shadowRoot!.querySelector<HTMLElement>('#basicPage');
     assert(basicPage);
     const whenSearchDone = [
@@ -293,20 +289,9 @@ export class SettingsBasicPageElement extends SettingsBasicPageElementBase {
       }));
     }
 
-    return Promise.all(whenSearchDone).then(function(requests) {
-      // Combine the SearchRequests results to a single SearchResult object.
-      return {
-        canceled: requests.some(function(r) {
-          return r.canceled;
-        }),
-        didFindMatches: requests.some(function(r) {
-          return r.didFindMatches();
-        }),
-        // All requests correspond to the same user query, so only need to check
-        // one of them.
-        wasClearSearch: requests[0].isSame(''),
-      };
-    });
+    const requests = await Promise.all(whenSearchDone);
+    // Combine the SearchRequest objects to a single SearchResult object.
+    return combineSearchResults(requests.map(r => r.getSearchResult()));
   }
 
   // <if expr="chromeos_ash">

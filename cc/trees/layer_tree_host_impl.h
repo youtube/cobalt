@@ -335,6 +335,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<EventsMetricsManager::ScopedMonitor>
   GetScopedEventMetricsMonitor(
       EventsMetricsManager::ScopedMonitor::DoneCallback done_callback) override;
+  void DidScrollForMetrics() override;
   void NotifyInputEvent(bool is_fling) override;
   bool HasAnimatedScrollbars() const override;
   // Already overridden for BrowserControlsOffsetManagerClient which declares a
@@ -840,8 +841,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   void SetActiveURL(const GURL& url, ukm::SourceId source_id);
 
-  void SetUkmSmoothnessDestination(
-      base::WritableSharedMemoryMapping ukm_smoothness_data);
   void SetUkmDroppedFramesDestination(
       base::WritableSharedMemoryMapping ukm_dropped_frames_data);
 

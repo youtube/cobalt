@@ -1452,6 +1452,7 @@ AutocompleteMatch::GetOmniboxEventResultType(int action_index) const {
       case OmniboxActionId::STARTER_PACK_BOOKMARKS:
       case OmniboxActionId::STARTER_PACK_HISTORY:
       case OmniboxActionId::STARTER_PACK_TABS:
+      case OmniboxActionId::STARTER_PACK_AI_MODE:
         return OmniboxEventProto::Suggestion::STARTER_PACK;
       case OmniboxActionId::UNKNOWN:
       case OmniboxActionId::LAST:
@@ -1624,7 +1625,7 @@ int AutocompleteMatch::GetSortingOrder() const {
     return 8;
   }
 
-  if (IsIPHSuggestion()) {
+  if (IsIphSuggestion()) {
     return 9;
   }
 
@@ -1727,8 +1728,14 @@ bool AutocompleteMatch::IsTrendSuggestion() const {
   return subtypes.contains(/*omnibox::SUBTYPE_TRENDS=*/143);
 }
 
-bool AutocompleteMatch::IsIPHSuggestion() const {
+bool AutocompleteMatch::IsIphSuggestion() const {
   return iph_type != IphType::kNone;
+}
+
+bool AutocompleteMatch::HasAction(OmniboxActionId action_id) const {
+  return std::ranges::any_of(actions, [&](const auto& action) {
+    return action && action->ActionId() == action_id;
+  });
 }
 
 bool AutocompleteMatch::IsContextualSearchSuggestion() const {

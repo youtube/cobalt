@@ -869,6 +869,16 @@ Called by update_autofill_enums.py.-->
              value edited"/>
   <int value="12097"
       label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: Autofilled value accepted"/>
+  <int value="12864"
+      label="ADDRESS_HOME_ZIP_PREFIX: Not autofilled or autofilled value
+             edited"/>
+  <int value="12865"
+      label="ADDRESS_HOME_ZIP_PREFIX: Autofilled value accepted"/>
+  <int value="12928"
+      label="ADDRESS_HOME_ZIP_SUFFIX: Not autofilled or autofilled value
+             edited"/>
+  <int value="12929"
+      label="ADDRESS_HOME_ZIP_SUFFIX: Autofilled value accepted"/>
 </enum>
 
 <enum name="AutofillDeveloperEngagement">
@@ -1180,6 +1190,10 @@ Called by update_autofill_enums.py.-->
   <int value="2977" label="VEHICLE_PLATE_STATE: accepted"/>
   <int value="3024" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: edited"/>
   <int value="3025" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: accepted"/>
+  <int value="3216" label="ADDRESS_HOME_ZIP_PREFIX: edited"/>
+  <int value="3217" label="ADDRESS_HOME_ZIP_PREFIX: accepted"/>
+  <int value="3232" label="ADDRESS_HOME_ZIP_SUFFIX: edited"/>
+  <int value="3233" label="ADDRESS_HOME_ZIP_SUFFIX: accepted"/>
 </enum>
 
 <enum name="AutofillEmailOrLoyaltyCardAcceptanceMetricValue">
@@ -2023,6 +2037,8 @@ Called by update_autofill_enums.py.-->
   <int value="185" label="VEHICLE_YEAR"/>
   <int value="186" label="VEHICLE_PLATE_STATE"/>
   <int value="189" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID"/>
+  <int value="201" label="ADDRESS_HOME_ZIP_PREFIX"/>
+  <int value="202" label="ADDRESS_HOME_ZIP_SUFFIX"/>
 </enum>
 
 <enum name="AutofillFilledCardInformationBubbleFieldClicked">
@@ -2480,8 +2496,8 @@ Called by update_autofill_enums.py.-->
   <int value="6" label="ConfirmableMergeAndSilentUpdate"/>
   <int value="7" label="SuppressedConfirmableMerge"/>
   <int value="8" label="SuppressedConfirmableMergeAndSilentUpdate"/>
-  <int value="9" label="SilentUpdateForIncompleteProfile"/>
-  <int value="10" label="UnusableIncompleteProfile"/>
+  <int value="9" label="SilentUpdateForIncompleteProfile (deprecated)"/>
+  <int value="10" label="UnusableIncompleteProfile (deprecated)"/>
   <int value="11" label="ProfileMigration"/>
   <int value="12" label="ProfileMigrationAndSilentUpdate"/>
   <int value="13" label="HomeAndWorkSuperset"/>
@@ -2504,6 +2520,12 @@ Called by update_autofill_enums.py.-->
   <int value="6" label="EditedToDifferentTokenOfOtherProfile"/>
   <int value="7" label="EditedValueCleared"/>
   <int value="8" label="EditedFallback"/>
+</enum>
+
+<enum name="AutofillPromptStatus">
+  <int value="0" label="Address and credit card"/>
+  <int value="1" label="Address only"/>
+  <int value="2" label="Credit card only"/>
 </enum>
 
 <enum name="AutofillProviderPackageName">
@@ -3250,20 +3272,44 @@ Called by update_autofill_enums.py.-->
 <!-- LINT.IfChange(CardBenefitFormEvent) -->
 
 <enum name="CardBenefitFormEvent">
+  <int value="0"
+      label="Suggestions containing cards with a benefit available were shown
+             (once)"/>
   <int value="1"
       label="Suggestions containing cards with a benefit available were shown
              when the user had two or more server cards (once)"/>
+  <int value="2"
+      label="Suggestion of a masked server card with a benefit available was
+             selected (once)"/>
   <int value="4"
       label="Suggestion of a masked server card with a benefit available was
              selected when the user had two or more server cards, and at
              least one had a benefit available (once)"/>
+  <int value="5"
+      label="Suggestion of a masked server card without a benefit available
+             was selected when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
+  <int value="6"
+      label="Suggestion of a masked server card with a benefit available was
+             filled (once)"/>
   <int value="8"
       label="Suggestion of a masked server card with a benefit available was
              filled when the user had two or more server cards, and at least
              one had a benefit available (once)"/>
+  <int value="9"
+      label="Suggestion of a masked server card without a benefit available
+             was filled when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
+  <int value="10"
+      label="Suggestion of a masked server card with a benefit available was
+             submitted (once)"/>
   <int value="12"
       label="Suggestion of a masked server card with a benefit available was
              submitted when the user had two or more server cards, and at
+             least one had a benefit available (once)"/>
+  <int value="13"
+      label="Suggestion of a masked server card without a benefit available
+             was submitted when the user had two or more server cards, and at
              least one had a benefit available (once)"/>
 </enum>
 
@@ -3295,6 +3341,12 @@ Called by update_autofill_enums.py.-->
   <int value="0" label="Not shown"/>
   <int value="1" label="Unchecked"/>
   <int value="2" label="Checked"/>
+</enum>
+
+<enum name="CountedSubmissionType">
+  <int value="0" label="HtmlEvent"/>
+  <int value="1" label="Programmatic"/>
+  <int value="2" label="Can't Parse"/>
 </enum>
 
 <enum name="CreditCardSeamlessFill">
@@ -3652,6 +3704,10 @@ Called by update_autofill_enums.py.-->
   <int value="745" label="VEHICLE_PLATE_STATE: Accepted"/>
   <int value="756" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: Ignored"/>
   <int value="757" label="EMAIL_OR_LOYALTY_MEMBERSHIP_ID: Accepted"/>
+  <int value="804" label="ADDRESS_HOME_ZIP_PREFIX: Ignored"/>
+  <int value="805" label="ADDRESS_HOME_ZIP_PREFIX: Accepted"/>
+  <int value="808" label="ADDRESS_HOME_ZIP_SUFFIX: Ignored"/>
+  <int value="809" label="ADDRESS_HOME_ZIP_SUFFIX: Accepted"/>
 </enum>
 
 <!-- LINT.IfChange(FormSubmissionOutcomeIOS) -->
@@ -4101,10 +4157,11 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <enum name="TouchToFill.LoyaltyCard.Outcome">
-  <int value="0" label="Loyalty card selected from the sheet"/>
-  <int value="1" label="Google Wallet settings option is selected"/>
-  <int value="2" label="Manage loyalty cards option selected"/>
-  <int value="3" label="Bottom sheet dismissed"/>
+  <int value="0" label="Affiliated loyalty card selected"/>
+  <int value="1" label="Non-affiliated loyalty card selected"/>
+  <int value="2" label="Google Wallet settings option is selected"/>
+  <int value="3" label="Manage loyalty cards option selected"/>
+  <int value="4" label="Bottom sheet dismissed"/>
 </enum>
 
 <enum name="TouchToFill.PaymentMethod.TriggerOutcome">

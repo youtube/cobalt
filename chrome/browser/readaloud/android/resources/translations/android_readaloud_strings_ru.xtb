@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Ещё</translation>
 <translation id="565342223183747919">Нажмите, чтобы переключить режим воспроизведения</translation>
 <translation id="5694491020339060116">Меню скорости воспроизведения</translation>
+<translation id="5961164658295696940">Нажмите, чтобы развернуть проигрыватель на весь экран и воспользоваться другими функциями.</translation>
 <translation id="5965409657393819302">Технические неполадки</translation>
 <translation id="6218961554829577610">Не нравится голос</translation>
 <translation id="6315170314923504164">Микрофон</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Загрузка…</translation>
 <translation id="6889157801232138307">Проигрыватель функции "Озвучить эту страницу"</translation>
 <translation id="7051308646573997571">Коралловый</translation>
-<translation id="7112750136794557642">Нажмите, чтобы развернуть проигрыватель на весь экран и воспользоваться другими функциями.</translation>
 <translation id="7138678301420049075">Другое</translation>
 <translation id="7221920857098237570">мягкий</translation>
 <translation id="7237590978482584900">беззаботный</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">спокойный</translation>
 <translation id="8756370108715456837">Противоречит фактам</translation>
 <translation id="8953618380150219653">Проигрыватель функции "Озвучить эту страницу" развернут полностью.</translation>
+<translation id="9087782179025630211">Ползунок. Прошло <ph name="ELAPSED" /> из <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Низкий тон</translation>
 </translationbundle>

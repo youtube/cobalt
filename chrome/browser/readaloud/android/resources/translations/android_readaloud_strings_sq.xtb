@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Më shumë opsione</translation>
 <translation id="565342223183747919">Trokit për të ndërruar modalitetin e luajtjes</translation>
 <translation id="5694491020339060116">Menyja e shpejtësisë së luajtjes</translation>
+<translation id="5961164658295696940">Trokit për të zgjeruar luajtësin për më shumë opsione</translation>
 <translation id="5965409657393819302">Problem teknik</translation>
 <translation id="6218961554829577610">Nuk më pëlqeu zëri</translation>
 <translation id="6315170314923504164">Voice</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Po ngarkohet...</translation>
 <translation id="6889157801232138307">Luajtësi "Dëgjoje këtë faqe"</translation>
 <translation id="7051308646573997571">Korali</translation>
-<translation id="7112750136794557642">Trokit për të zgjeruar luajtësin për më shumë opsione.</translation>
 <translation id="7138678301420049075">Tjetër</translation>
 <translation id="7221920857098237570">I butë</translation>
 <translation id="7237590978482584900">I freskët</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">I qetë</translation>
 <translation id="8756370108715456837">E pasaktë në lidhje me faktet</translation>
 <translation id="8953618380150219653">Luajtësi "Dëgjoje këtë faqe" u hap në gjatësi të plotë.</translation>
+<translation id="9087782179025630211">Kontrolli i kërkimit. Kanë kaluar <ph name="ELAPSED" /> nga <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Me ton të ulët</translation>
 </translationbundle>

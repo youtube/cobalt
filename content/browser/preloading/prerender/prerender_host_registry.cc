@@ -29,6 +29,7 @@
 #include "content/browser/preloading/prerender/prerender_metrics.h"
 #include "content/browser/preloading/prerender/prerender_navigation_utils.h"
 #include "content/browser/preloading/prerender/prerender_new_tab_handle.h"
+#include "content/browser/preloading/speculation_rules/speculation_rules_util.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -1186,6 +1187,8 @@ FrameTreeNodeId PrerenderHostRegistry::FindPotentialHostToActivate(
       matchable_hosts.push_back(host.get());
     }
   }
+  RecordPotentialPrerenderProcessReuse(!matchable_hosts.empty(),
+                                       navigation_request.GetURL());
   if (matchable_hosts.empty()) {
     return FrameTreeNodeId();
   }
@@ -1196,7 +1199,6 @@ FrameTreeNodeId PrerenderHostRegistry::FindPotentialHostToActivate(
   base::UmaHistogramCounts100(
       "Prerender.Experimental.MatchableHostCountOnActivation",
       matchable_hosts.size());
-
   // Cannot activate if prerendering navigation has not started yet.
   if (!host->GetInitialNavigationId().has_value()) {
     CancelHost(host->frame_tree_node_id(),
@@ -1870,18 +1872,9 @@ PrerenderHostRegistry::GetPrerenderLimitGroup(
     case PreloadingTriggerType::kSpeculationRuleFromIsolatedWorld:
     case PreloadingTriggerType::kSpeculationRuleFromAutoSpeculationRules:
       CHECK(eagerness.has_value());
-      switch (eagerness.value()) {
-        // Separate the limits of speculation rules into two categories:
-        // immediate, which are triggered immediately after adding the rule, and
-        // non-immediate(moderate, conservative), which wait for a specific user
-        // action to trigger, aiming to apply the appropriate corresponding
-        // limits for these attributes.
-        case blink::mojom::SpeculationEagerness::kImmediate:
-          return PrerenderLimitGroup::kSpeculationRulesImmediate;
-        case blink::mojom::SpeculationEagerness::kModerate:
-        case blink::mojom::SpeculationEagerness::kConservative:
-          return PrerenderLimitGroup::kSpeculationRulesNonImmediate;
-      }
+      return IsImmediateSpeculationEagerness(eagerness.value())
+                 ? PrerenderLimitGroup::kSpeculationRulesImmediate
+                 : PrerenderLimitGroup::kSpeculationRulesNonImmediate;
     case PreloadingTriggerType::kEmbedder:
       return PrerenderLimitGroup::kEmbedder;
   }
@@ -2053,6 +2046,40 @@ void PrerenderHostRegistry::CancelHostsByOriginFilter(
   if (!ids_to_be_deleted.empty()) {
     CancelHosts(ids_to_be_deleted, PrerenderCancellationReason(final_status));
   }
+}
+
+void PrerenderHostRegistry::RecordPotentialPrerenderProcessReuse(
+    bool kHasMatchableHosts,
+    const GURL& navigation_url) {
+  static constexpr char kPrerenderProcessReuseUMAName[] =
+      "Prerender.Experimental.PrerenderProcessReuseAvailability";
+  if (kHasMatchableHosts) {
+    base::UmaHistogramEnumeration(
+        kPrerenderProcessReuseUMAName,
+        PrerenderProcessReuseAvailability::kHasMatchableHosts);
+    return;
+  }
+  bool has_same_origin_host =
+      std::find_if(prerender_host_by_frame_tree_node_id_.begin(),
+                   prerender_host_by_frame_tree_node_id_.end(),
+                   [&navigation_url](const auto& pair) {
+                     return pair.second->IsUrlSameOrigin(navigation_url);
+                   }) != prerender_host_by_frame_tree_node_id_.end();
+  bool has_same_site_host =
+      std::find_if(prerender_host_by_frame_tree_node_id_.begin(),
+                   prerender_host_by_frame_tree_node_id_.end(),
+                   [&navigation_url](const auto& pair) {
+                     return pair.second->IsUrlSameSite(navigation_url);
+                   }) != prerender_host_by_frame_tree_node_id_.end();
+  PrerenderProcessReuseAvailability availability =
+      PrerenderProcessReuseAvailability::kNoSameOriginOrSiteHosts;
+  if (has_same_origin_host) {
+    availability = PrerenderProcessReuseAvailability::kHasSameOriginHosts;
+  } else if (has_same_site_host) {
+    availability = PrerenderProcessReuseAvailability::kHasSameSiteHosts;
+  }
+
+  base::UmaHistogramEnumeration(kPrerenderProcessReuseUMAName, availability);
 }
 
 }  // namespace content

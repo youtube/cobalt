@@ -639,8 +639,6 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   void drawingBufferStorage(GLenum sizedformat, GLsizei width, GLsizei height);
 
-  void commit();
-
   ScriptPromise<IDLUndefined> makeXRCompatible(ScriptState*, ExceptionState&);
   bool IsXRCompatible() const;
 
@@ -713,6 +711,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   bool IsComposited() const override { return true; }
   bool IsAccelerated() const override;
   bool UsingSwapChain() const override;
+  bool CanUseDrawingBufferSIWithoutCopyForLowLatency();
   void PageVisibilityChanged() override;
   void SizeChanged() override;
   std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider()
@@ -1961,8 +1960,12 @@ class MODULES_EXPORT WebGLRenderingContextBase
                                 Platform::ContextType context_type,
                                 Platform::GraphicsInfo* graphics_info);
 
+  scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource(
+      SourceDrawingBuffer source_buffer,
+      bool export_only_if_update);
+
   CanvasResourceProvider* GetOrCreateCanvasResourceProvider();
-  CanvasResourceProvider* PaintRenderingResultsToCanvas(
+  CanvasResourceProvider* PaintRenderingResultsToResourceProvider(
       SourceDrawingBuffer source_buffer,
       bool* resource_provider_was_updated = nullptr);
   void TexImageHelperMediaVideoFrame(

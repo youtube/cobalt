@@ -209,28 +209,28 @@ class BrowserFeaturePromoController2xUiTestBase
   }
 
   auto PressEscAndWaitForClose(ElementSpecifier spec) {
-    auto native_view =
-        base::MakeRefCounted<base::RefCountedData<gfx::NativeView>>(
-            gfx::NativeView());
+    auto widget =
+        base::MakeRefCounted<base::RefCountedData<const views::Widget*>>(
+            nullptr);
     return Steps(
         WaitForShow(spec),
         IfView(
             spec,
-            [native_view](const views::View* view) {
-              native_view.get()->data = view->GetWidget()->GetNativeView();
+            [widget](const views::View* view) {
+              widget.get()->data = view->GetWidget();
               return !view->GetWidget()->IsActive();
             },
             Then(ObserveState(views::test::kCurrentWidgetFocus),
-                 WaitForState(
-                     views::test::kCurrentWidgetFocus,
-                     [native_view]() { return native_view.get()->data; }))),
+                 WaitForState(views::test::kCurrentWidgetFocus,
+                              [widget]() { return widget.get()->data; }))),
         SendAccelerator(spec,
                         ui::Accelerator(ui::VKEY_ESCAPE, ui::MODIFIER_NONE)),
         WaitForHide(spec));
   }
 
   user_education::FeaturePromoController* promo_controller() const {
-    return browser()->window()->GetFeaturePromoControllerForTesting();
+    return BrowserUserEducationInterface::From(browser())
+        ->GetFeaturePromoControllerForTesting();
   }
 
  protected:
@@ -538,15 +538,18 @@ INSTANTIATE_V2X_TEST(BrowserFeaturePromoController2xLiveTrackerUiTest);
 // Regression test with live tracker for https://crbug.com/396344371
 IN_PROC_BROWSER_TEST_P(BrowserFeaturePromoController2xLiveTrackerUiTest,
                        ShowPromoTwice) {
-  RunTestSequence(WithView(kBrowserViewElementId,
-                           [](BrowserView* browser_view) {
-                             browser_view->MaybeShowFeaturePromo(kFeature);
-                           }),
-                  WithView(kBrowserViewElementId,
-                           [](BrowserView* browser_view) {
-                             browser_view->MaybeShowFeaturePromo(kFeature);
-                           }),
-                  WaitForPromo(kFeature));
+  RunTestSequence(
+      WithView(kBrowserViewElementId,
+               [](BrowserView* browser_view) {
+                 BrowserUserEducationInterface::From(browser_view->browser())
+                     ->MaybeShowFeaturePromo(kFeature);
+               }),
+      WithView(kBrowserViewElementId,
+               [](BrowserView* browser_view) {
+                 BrowserUserEducationInterface::From(browser_view->browser())
+                     ->MaybeShowFeaturePromo(kFeature);
+               }),
+      WaitForPromo(kFeature));
 }
 
 // Using the base interactive browser test re-enables window activation
@@ -568,7 +571,8 @@ class BrowserFeaturePromoController20CanShowPromoForElementUiTest
         spec,
         [this](ui::TrackedElement* anchor) {
           return static_cast<BrowserFeaturePromoController20*>(
-                     browser()->window()->GetFeaturePromoControllerForTesting())
+                     BrowserUserEducationInterface::From(browser())
+                         ->GetFeaturePromoControllerForTesting())
               ->CanShowPromoForElement(anchor);
         },
         expected);
@@ -611,8 +615,7 @@ IN_PROC_BROWSER_TEST_F(BrowserFeaturePromoController20ActivationUiTest,
                  widget->Activate();
                }),
       // Wait for widget activation to move to the new widget.
-      WaitForState(views::test::kCurrentWidgetFocus,
-                   [&widget]() { return widget->GetNativeView(); }),
+      WaitForState(views::test::kCurrentWidgetFocus, widget.get()),
       // Verify that we can no longer show the promo, since the browser is not
       // the active window.
       CheckCanShowPromoForElement(

@@ -37,6 +37,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="141901961143729572">Fikirlərinizi paylaşın</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome güncəlləndi. Son versiya üçün yenidən başladın. Cari tablar təkrar açılacaq.}=1{Chrome güncəlləndi. Son versiya üçün yenidən başladın. Cari tablar təkrar açılacaq. Anonim pəncərə yenidən açılmayacaq.}other{Chrome güncəlləndi. Son versiya üçün yenidən başladın. Cari tablar təkrar açılacaq. # anonim pəncərə yenidən açılmayacaq.}}</translation>
 <translation id="1434626383986940139">Chrome Canary Tətbiqləri</translation>
+<translation id="1439793550875056299">Chrome-u bərkidin</translation>
 <translation id="146866447420868597">Chrome-a daxil olunsun?</translation>
 <translation id="1492280395845991349">Chrome güncəllənməsini yekunlaşdırmaq üçün yenidən başladın</translation>
 <translation id="1497802159252041924">Quraşdırma xətası: <ph name="INSTALL_ERROR" /></translation>
@@ -122,6 +123,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2569974318947988067">Chrome naviqasiyaları HTTPS-ə təkmilləşdirməyə cəhd edəcək</translation>
 <translation id="2571392474191184472">Təşkilatınız Chrome-u idarə edir</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> artıq bu Chrome profilinə daxil olub. Baxışınızı ayrı saxlamaq üçün Chrome sizin üçün öz profilinizi yarada bilər.</translation>
+<translation id="2579190314336775785">Parollar yalnız Chrome xaricində silinə bilər</translation>
 <translation id="2580411288591421699">Hazırda istifadə olunan Google Chrome versiyasını quraşdıra bilməzsiniz. Lütfən, Google Chrome'u qapadın və yenidən cəhd edin.</translation>
 <translation id="2586406160782125153">Brauzinq datanız bu cihazdan silinəcək. Datanı sonradan bərpa etmək üçün Chrome'a <ph name="USER_EMAIL" /> kimi daxil olun.</translation>
 <translation id="259935314519650377">Endirilmiş quraşdırıcı keşlənmədi. Xəta: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -270,6 +272,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome brauzeri yavaşladan tabı durdurmağı tövsiyə edir}other{Chrome brauzeri yavaşladan tabları durdurmağı tövsiyə edir}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Fərdiləşdirmə və digər funksiyaları əldə etmək üçün Chrome-u Veb və Tətbiq fəaliyyəti, habelə əlaqələndirilmiş Google xidmətlərinə daxil edin</translation>
+<translation id="4334241893986177674">Bu skrinşotu axtarın</translation>
 <translation id="4334294535648607276">Endirmə tamamlandı.</translation>
 <translation id="4337324600316876133">Google Chrome güncəlləmələri əldə etmək üçün macOS 12 və ya yeni versiya tələb olunur. Bu kompüter macOS 11 istifadə edir.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> Chrome'a əlavə edildi</translation>
@@ -355,6 +358,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Başlatma xətası: quraşdırıcını administrator kimi deyil, adi istifadəçi kimi işə salın.</translation>
 <translation id="5596627076506792578">Əlavə seçimlər</translation>
+<translation id="5600352656975192682">İstənilən vaxt tez daxil olmaq üçün Chrome-u tapşırıqlar panelinə bərkidin</translation>
 <translation id="5602351063754773347">Chrome onu silməyinizi tövsiyə edir. <ph name="BEGIN_LINK" />Dəstəklənən artırmalar haqqında ətraflı məlumat əldə edin<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Chrome profilləri ilə bütün Chrome elementlərinizi ayıra bilərsiniz. Dostlarınız və ailəniz üçün profillər yaradın, yaxud iş və əyləncə olaraq ayırın.</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> təlükəli ola bilər, bu səbəbdən Chrome onu blok etdi.</translation>

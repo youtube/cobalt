@@ -8,6 +8,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
+#import "ios/chrome/browser/saved_tab_groups/ui/face_pile_providing.h"
 #import "ios/chrome/browser/share_kit/model/sharing_state.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_constants.h"
@@ -21,6 +22,19 @@
 #import "ui/gfx/ios/uikit_util.h"
 
 using tab_groups::SharingState;
+
+namespace {
+
+// Menu identifiers.
+// Try to address a crash related to UIMenu and UIAction handling by UIKit
+// (see http://crbug.com/424069384). The fix ensures UIMenu objects have
+// non-empty titles and unique identifiers.
+NSString* kSharedActionsMenuIdentifier = @"kSharedActionsMenuIdentifier";
+NSString* kEditActionsMenuIdentifier = @"kEditActionsMenuIdentifier";
+NSString* kDestructiveActionsMenuIdentifier =
+    @"kDestructiveActionsMenuIdentifier";
+
+}  // namespace
 
 @implementation TabGroupIndicatorView {
   // Stores the tab group informations.
@@ -46,6 +60,8 @@ using tab_groups::SharingState;
   BOOL _shareAvailable;
   // Sharing state of the saved tab group.
   SharingState _sharingState;
+  // Face pile provider.
+  id<FacePileProviding> _facePileProvider;
 }
 
 - (instancetype)init {
@@ -97,16 +113,18 @@ using tab_groups::SharingState;
   [self configureMenuButton];
 }
 
-- (void)setFacePileView:(UIView*)facePileView {
-  if (_facePileView == facePileView) {
+- (void)setFacePileProvider:(id<FacePileProviding>)facePileProvider {
+  if (_facePileProvider == facePileProvider) {
     return;
   }
 
-  if (_stackView == _facePileView.superview) {
+  _facePileProvider = facePileProvider;
+
+  if ([_facePileView isDescendantOfView:self]) {
     [_facePileView removeFromSuperview];
   }
 
-  _facePileView = facePileView;
+  _facePileView = _facePileProvider.facePileView;
 
   if (_facePileView) {
     _facePileView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -220,7 +238,7 @@ using tab_groups::SharingState;
   if ([sharedActions count] > 0) {
     [menuElements addObject:[UIMenu menuWithTitle:@""
                                             image:nil
-                                       identifier:nil
+                                       identifier:kSharedActionsMenuIdentifier
                                           options:UIMenuOptionsDisplayInline
                                          children:[sharedActions copy]]];
   }
@@ -240,7 +258,7 @@ using tab_groups::SharingState;
   }
   [menuElements addObject:[UIMenu menuWithTitle:@""
                                           image:nil
-                                     identifier:nil
+                                     identifier:kEditActionsMenuIdentifier
                                         options:UIMenuOptionsDisplayInline
                                        children:[editActions copy]]];
 
@@ -282,11 +300,12 @@ using tab_groups::SharingState;
           [weakSelf.mutator deleteGroupWithConfirmation:NO];
         }]];
   }
-  [menuElements addObject:[UIMenu menuWithTitle:@""
-                                          image:nil
-                                     identifier:nil
-                                        options:UIMenuOptionsDisplayInline
-                                       children:[destructiveActions copy]]];
+  [menuElements
+      addObject:[UIMenu menuWithTitle:@""
+                                image:nil
+                           identifier:kDestructiveActionsMenuIdentifier
+                              options:UIMenuOptionsDisplayInline
+                             children:[destructiveActions copy]]];
 
   _menuButton.menu = [UIMenu menuWithChildren:[menuElements copy]];
 }

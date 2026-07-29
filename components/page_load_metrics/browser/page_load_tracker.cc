@@ -199,6 +199,18 @@ void DispatchObserverTimingCallbacks(PageLoadMetricsObserverInterface* observer,
   if (new_timing.connect_end && !last_timing.connect_end) {
     observer->OnConnectEnd(new_timing);
   }
+  if (new_timing.user_timing_mark_fully_loaded !=
+      last_timing.user_timing_mark_fully_loaded) {
+    observer->OnUserTimingMarkFullyLoaded(new_timing);
+  }
+  if (new_timing.user_timing_mark_fully_visible !=
+      last_timing.user_timing_mark_fully_visible) {
+    observer->OnUserTimingMarkFullyVisible(new_timing);
+  }
+  if (new_timing.user_timing_mark_interactive !=
+      last_timing.user_timing_mark_interactive) {
+    observer->OnUserTimingMarkInteractive(new_timing);
+  }
 }
 
 internal::PageLoadTrackerPageType CalculatePageType(
@@ -1120,13 +1132,11 @@ void PageLoadTracker::UpdateFeaturesUsage(
   }
 }
 
-void PageLoadTracker::SetUpSharedMemoryForUkms(
-    base::ReadOnlySharedMemoryRegion smoothness_memory,
+void PageLoadTracker::SetUpSharedMemoryForDroppedFrames(
     base::ReadOnlySharedMemoryRegion dropped_frames_memory) {
-  DCHECK(smoothness_memory.IsValid() && dropped_frames_memory.IsValid());
+  DCHECK(dropped_frames_memory.IsValid());
   for (auto& observer : observers_) {
-    observer->SetUpSharedMemoryForUkms(smoothness_memory,
-                                       dropped_frames_memory);
+    observer->SetUpSharedMemoryForDroppedFrames(dropped_frames_memory);
   }
 }
 

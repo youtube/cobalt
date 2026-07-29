@@ -42,6 +42,8 @@ ContextProperties ContextImplOrt::GetContextProperties() {
       std::numeric_limits<int32_t>::max();
 
   static constexpr SupportedRanks kMaxRank = SupportedRanks::UpTo(8);
+  static constexpr SupportedRanks kMaxNonScalarRank =
+      SupportedRanks::NonScalarUpTo(8);
 
   static constexpr SupportedDataTypes kFloat16To32Int32To64{
       OperandDataType::kFloat32, OperandDataType::kFloat16,
@@ -57,14 +59,18 @@ ContextProperties ContextImplOrt::GetContextProperties() {
       /*tensor_byte_length_limit=*/kTensorByteLengthLimit,
       {/*input=*/SupportedDataTypes::All(),
        /*constant=*/SupportedDataTypes::All(),
-       /*arg_min_max_input=*/{},
-       /*arg_min_max_output=*/{},
+       /*arg_min_max_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       // ONNX ArgMin/Max only supports int64 output, int32 output is supported
+       // by inserting a cast operator.
+       /*arg_min_max_output=*/DataTypeConstraint::kInt32To64,
        /*batch_normalization_input=*/{},
        /*batch_normalization_mean=*/{},
        /*cast_input=*/{SupportedDataTypes::All(), kMaxRank},
        /*clamp_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
-       /*concat_inputs=*/{},
+       /*concat_inputs=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
        /*conv2d_input=*/{DataTypeConstraint::kFloat16To32, {3, 8}},
        /*conv2d_bias=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
@@ -88,17 +94,26 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*min_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*pow_input=*/{kFloat16To32Int32To64, kMaxRank},
-       /*equal_input=*/{},
-       /*greater_input=*/{},
-       /*greater_or_equal_input=*/{},
-       /*lesser_input=*/{},
-       /*lesser_or_equal_input=*/{},
-       /*not_equal_input=*/{},
-       /*logical_and_input=*/{},
-       /*logical_or_input=*/{},
-       /*logical_xor_input=*/{},
-       /*logical_not_input=*/{},
-       /*logical_output=*/{},
+       /*equal_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*greater_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*greater_or_equal_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*lesser_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*lesser_or_equal_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*not_equal_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*logical_and_input=*/
+       {DataTypeConstraint::kUint8, kMaxRank},
+       /*logical_or_input=*/
+       {DataTypeConstraint::kUint8, kMaxRank},
+       /*logical_xor_input=*/
+       {DataTypeConstraint::kUint8, kMaxRank},
+       /*logical_not_input=*/{DataTypeConstraint::kUint8, kMaxRank},
+       /*logical_output=*/DataTypeConstraint::kUint8,
        /*abs_input=*/{DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*ceil_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*cos_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
@@ -116,12 +131,17 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        /*elu_input=*/{},
        /*expand_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
-       /*gather_input=*/{},
-       /*gather_indices=*/{},
-       /*gather_elements_input=*/{},
-       /*gather_elements_indices=*/{},
-       /*gather_nd_input=*/{},
-       /*gather_nd_indices=*/{},
+       /*gather_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       /*gather_indices=*/{DataTypeConstraint::kInt32To64, kMaxRank},
+       /*gather_elements_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       /*gather_elements_indices=*/
+       {DataTypeConstraint::kInt32To64, kMaxNonScalarRank},
+       /*gather_nd_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       /*gather_nd_indices=*/
+       {DataTypeConstraint::kInt32To64, kMaxNonScalarRank},
        /*gelu_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*gemm_a=*/
        {DataTypeConstraint::kFloat16To32Ints32To64, SupportedRanks::Exactly(2)},
@@ -170,20 +190,28 @@ ContextProperties ContextImplOrt::GetContextProperties() {
        // https://github.com/microsoft/onnxruntime/issues/24285
        /*reshape_input=*/
        {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
-       /*reverse_input=*/{},
-       /*scatter_elements_input=*/{},
-       /*scatter_elements_indices=*/{},
-       /*scatter_nd_input=*/{},
-       /*scatter_nd_indices=*/{},
-       /*scatter_nd_updates=*/{},
+       /*reverse_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
+       /*scatter_elements_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       /*scatter_elements_indices=*/
+       {DataTypeConstraint::kInt32To64, kMaxNonScalarRank},
+       /*scatter_nd_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
+       /*scatter_nd_indices=*/
+       {DataTypeConstraint::kInt32To64, kMaxNonScalarRank},
+       /*scatter_nd_updates=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*sigmoid_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*slice_input=*/{},
+       /*slice_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*softmax_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
        /*softplus_input=*/{},
        /*softsign_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*split_input=*/{},
+       /*split_input=*/
+       {DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxNonScalarRank},
        /*tanh_input=*/{DataTypeConstraint::kFloat16To32, kMaxRank},
-       /*tile_input=*/{},
+       /*tile_input=*/{DataTypeConstraint::kAllDataTypesAtLeast8bits, kMaxRank},
        /*transpose_input=*/{SupportedDataTypes::All(), kMaxRank},
        /*triangular_input=*/{},
        /*where_condition=*/{},

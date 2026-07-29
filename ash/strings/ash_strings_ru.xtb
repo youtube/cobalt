@@ -300,7 +300,7 @@
 <translation id="1957958912175573503">Выберите язык</translation>
 <translation id="1961239773406905488">Предварительный просмотр для камеры выключен</translation>
 <translation id="1961832440516943645"><ph name="DATE" />, <ph name="TIME" /></translation>
-<translation id="1962969542251276847">Блокировать экран</translation>
+<translation id="1962969542251276847">Заблок. экран</translation>
 <translation id="1967970931040389207">Включить точку доступа</translation>
 <translation id="1969011864782743497"><ph name="DEVICE_NAME" /> (USB)</translation>
 <translation id="1971815855639997522">Рабочий стол и окна удалены. Нажмите Ctrl + Z, чтобы отменить последнее действие.</translation>
@@ -606,7 +606,6 @@
 <translation id="3033545621352269033">Включено</translation>
 <translation id="3033912566804961911">Объединить с рабочим столом <ph name="DESK_NAME" /></translation>
 <translation id="3036649622769666520">Открытие файлов</translation>
-<translation id="3038571455154067151">Чтобы войти, введите родительский код доступа Family Link.</translation>
 <translation id="3039939407102840004">Заряд батареи стилуса составляет <ph name="PERCENTAGE" /> процентов.</translation>
 <translation id="304097922505898963">Открыть приложение "Сочетания клавиш"</translation>
 <translation id="304417730895741346">Открытые приложения находятся на панели запуска. Там их можно закрепить. Для этого нажмите на приложение правой кнопкой мыши или коснитесь двумя пальцами сенсорной панели.</translation>
@@ -2029,7 +2028,7 @@
 <translation id="7600875258240007829">Показать все уведомления</translation>
 <translation id="7601417191446344542">Напоминать включить микрофон?</translation>
 <translation id="7602187221150705972">Поиск эмодзи, GIF и не только</translation>
-<translation id="7607002721634913082">Приостановлен</translation>
+<translation id="7607002721634913082">Приостановлено</translation>
 <translation id="7609951632080598826">Календарь: <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="7611213136657090146">Камера переподключена.</translation>
 <translation id="7613620083300976559">Включить элементы управления</translation>

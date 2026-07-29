@@ -117,6 +117,22 @@ const base::FeatureParam<DevToolsFreestylerUserTier>
         /*default_value=*/DevToolsFreestylerUserTier::kPublic,
         &devtools_freestyler_user_tier_options};
 
+// Whether the DevTools AI Code Completion is enabled.
+BASE_FEATURE(kDevToolsAiCodeCompletion,
+             "DevToolsAiCodeCompletion",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<std::string> kDevToolsAiCodeCompletionModelId{
+    &kDevToolsAiCodeCompletion, "aida_model_id",
+    /*default_value=*/""};
+const base::FeatureParam<double> kDevToolsAiCodeCompletionTemperature{
+    &kDevToolsAiCodeCompletion, "aida_temperature",
+    /*default_value=*/-1};
+const base::FeatureParam<DevToolsFreestylerUserTier>
+    kDevToolsAiCodeCompletionUserTier{
+        &kDevToolsAiCodeCompletion, "user_tier",
+        /*default_value=*/DevToolsFreestylerUserTier::kPublic,
+        &devtools_freestyler_user_tier_options};
+
 // Whether an infobar is shown when the process is shared.
 BASE_FEATURE(kDevToolsSharedProcessInfobar,
              "DevToolsSharedProcessInfobar",
@@ -136,22 +152,11 @@ BASE_FEATURE(kDevToolsAnimationStylesInStylesTab,
              "DevToolsAnimationStylesInStylesTab",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Whether DevTools will attempt to automatically connect Workspace folders.
-// See http://go/chrome-devtools:automatic-workspace-folders-design for details.
-BASE_FEATURE(kDevToolsAutomaticFileSystems,
-             "DevToolsAutomaticFileSystems",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Whether DevTools will attempt to load project settings from a well-known
 // URI. See https://goo.gle/devtools-json-design for additional details.
 // This is enabled by default starting with M-136.
 BASE_FEATURE(kDevToolsWellKnown,
              "DevToolsWellKnown",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Whether DevTools will offer the new CSS value tracing UI.
-BASE_FEATURE(kDevToolsCssValueTracing,
-             "DevToolsCssValueTracing",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether the DevTools AI generated annotation labels in timeline are enabled.

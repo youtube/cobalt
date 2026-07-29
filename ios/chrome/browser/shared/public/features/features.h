@@ -47,10 +47,6 @@ SegmentedDefaultBrowserExperimentTypeEnabled();
 // Feature flag to enable the Keyboard Accessory Upgrade for iPads.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryUpgradeForIPad);
 
-// Feature flag to enable the Keyboard Accessory Upgrade with a shorter manual
-// fill menu.
-BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryUpgradeShortManualFillMenu);
-
 // Test-only: Feature flag used to verify that EG2 can trigger flags. Must be
 // always disabled by default, because it is used to verify that enabling
 // features in tests works.
@@ -332,6 +328,7 @@ extern const char kNTPMIAEntrypointParam[];
 extern const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[];
 extern const char kNTPMIAEntrypointParamOmniboxContainedInline[];
 extern const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[];
+extern const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[];
 
 // Feature flag to change the MIA entrypoint in NTP.
 BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
@@ -523,14 +520,8 @@ extern const char kDeliveredNAUMaxPerSession[];
 // Feature flag to enable a more stable fullscreen.
 BASE_DECLARE_FEATURE(kFullscreenImprovement);
 
-// Feature flag to enable Tab Group Sync.
-BASE_DECLARE_FEATURE(kTabGroupSync);
-
 // Whether the tab groups should be syncing.
 bool IsTabGroupSyncEnabled();
-
-// Feature flag to enable Tab Group Indicator.
-BASE_DECLARE_FEATURE(kTabGroupIndicator);
 
 // Whether the Tab Group Indicator feature is enabled.
 bool IsTabGroupIndicatorEnabled();
@@ -543,6 +534,13 @@ bool IsNewSyncOptInIllustration();
 
 // Feature flag to disable Lens LVF features.
 BASE_DECLARE_FEATURE(kDisableLensCamera);
+
+// Feature flag that allows the Auto-deletion feature to clear all downloaded
+// files scheduled for deletion on every application startup, regardless of when
+// the file was downloaded. This feature is intended for testing-only.
+BASE_DECLARE_FEATURE(kDownloadAutoDeletionClearFilesOnEveryStartup);
+
+bool isDownloadAutoDeletionTestingFeatureEnabled();
 
 // YES when the Downloads Auto Deletion feature is enabled.
 BASE_DECLARE_FEATURE(kDownloadAutoDeletionFeatureEnabled);
@@ -659,10 +657,6 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 
 // Whether or not the Keyboard Accessory Upgrade feature is enabled.
 bool IsKeyboardAccessoryUpgradeEnabled();
-
-// Whether or not the kIOSKeyboardAccessoryUpgradeShortManualFillMenu feature is
-// enabled.
-bool IsKeyboardAccessoryUpgradeWithShortManualFillMenuEnabled();
 
 // Feature for the Magic Stack.
 BASE_DECLARE_FEATURE(kMagicStack);
@@ -784,6 +778,16 @@ bool IsBlueDotOnToolsMenuButtoneEnabled();
 // Feature flag to assign each managed account to its own separate profile.
 // DO NOT CHECK DIRECTLY, use AreSeparateProfilesForManagedAccountsEnabled()!
 BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccounts);
+
+// Feature param for kSeparateProfilesForManagedAccountsForceMigration to
+// specify how much time to wait before force-migrating the primary managed
+// account to its own separate profile.
+extern const base::FeatureParam<base::TimeDelta>
+    kMultiProfileMigrationGracePeriod;
+
+// Feature flag to control force-migrating the primary managed account to its
+// own separate profile.
+BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration);
 
 // Kill switch to turn off `kSeparateProfilesForManagedAccounts`, even if
 // multiple profiles already exist.
@@ -1078,10 +1082,6 @@ BASE_DECLARE_FEATURE(kFeedbackIncludeGWSVariations);
 
 // Whether the feature to include GWS variations in feedback is enabled.
 bool IsFeedbackIncludeGWSVariationsEnabled();
-
-// Feature flag enabling checking a propensity model before showing a default
-// browser promo.
-BASE_DECLARE_FEATURE(kDefaultBrowserPromoPropensityModel);
 
 // Whether the `kDefaultBrowserPromoPropensityModel` feature is enabled.
 bool IsDefaultBrowserPromoPropensityModelEnabled();

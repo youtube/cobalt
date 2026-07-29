@@ -39,6 +39,7 @@
 <translation id="1547469039832541117">Lõpetab esiletõstetud ülesande.</translation>
 <translation id="1553461853655228091">Chromium vajab luba teie kaamerale juurdepääsemiseks, et luua teid ümbritsevast 3D-kaart</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Seda laiendust enam ei toetata. Chromium soovitab selle eemaldada.}other{Neid laiendusi ei toetata enam. Chromium soovitab need eemaldada.}}</translation>
+<translation id="1562320819937089394">Kinnita Chromium</translation>
 <translation id="1574377791422810894">Chromiumi ohutustööriistad</translation>
 <translation id="1594928384848033697">Chromium soovib kustutada teie Paroolihalduri andmed. Selle lubamiseks sisestage oma Windowsi parool.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administraator nõuab, et käivitaksite Chromiumi värskenduse rakendamiseks uuesti}=1{Administraator nõuab, et käivitaksite Chromiumi värskenduse rakendamiseks uuesti. Teie inkognito akent ei avata uuesti.}other{Administraator nõuab, et käivitaksite Chromiumi värskenduse rakendamiseks uuesti. Teie # inkognito akent ei avata uuesti.}}</translation>
@@ -247,6 +248,7 @@
 <translation id="4281844954008187215">Teenusetingimused</translation>
 <translation id="4285930937574705105">Installimine ebaõnnestus tundmatu vea tõttu. Kui Chromium praegu töötab, siis sulgege see ja proovige uuesti.</translation>
 <translation id="4304713468139749426">Paroolihaldur</translation>
+<translation id="4334241893986177674">Otsige sellelt ekraanipildilt</translation>
 <translation id="4334294535648607276">Allalaadimine on lõpule viidud.</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> nõuab, et loete enne selle seadme kasutamist läbi järgmised teenusetingimused ja nõustute nendega. Need tingimused ei laienda, muuda ega piira Chromium OS-i tingimusi.</translation>
 <translation id="4407044323746248786">Kas väljuda Chromiumist ikkagi?</translation>
@@ -520,6 +522,7 @@ Chromium ei saa teie seadeid taastada.</translation>
 <translation id="8004582292198964060">Brauser</translation>
 <translation id="8010081455002666927">Automaatne tuvastus</translation>
 <translation id="8013436988911883588">Kui annate Chromiumile juurdepääsu, saavad veebisaidid küsida teilt juurdepääsuluba.</translation>
+<translation id="8031714377769448844">Kinnitage Chromium tegumiribale, et sellele igal ajal kiiresti juurde pääseda.</translation>
 <translation id="80471789339884597">Täname teid installimise eest. Enne brauseri <ph name="BUNDLE_NAME" /> kasutamist peate taaskäivitama kõik brauserid.</translation>
 <translation id="8054112667659782652">Kuva alati pildiotsingu otsetee</translation>
 <translation id="8077498902115777962">Keela Chromiumi akendeta taustal käitamine</translation>
@@ -575,6 +578,7 @@ Chromium ei saa teie seadeid taastada.</translation>
 <translation id="8704119203788522458">See on teie Chromium</translation>
 <translation id="8719993436687031146">Kas logida Chromiumi sisse?</translation>
 <translation id="8747073452963259673">otsinguala vasak alanurk: <ph name="LEFT" />% vasakul, <ph name="BOTTOM" />% all</translation>
+<translation id="8768722695577490596">Paroole saab kustutada ainult väljaspool Chromiumi.</translation>
 <translation id="878572486461146056">Installimisviga: teie võrguadministraator on kehtestanud rühmareegli, mis takistab installimist: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium vajab selle saidi puhul luba, et teie kaamerale ja mikrofonile juurde pääseda</translation>
 <translation id="8818550178040858407">Kas logida Chromiumi sisse?</translation>

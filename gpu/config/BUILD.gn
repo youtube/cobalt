@@ -13,14 +13,6 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-group("config") {
-  if (is_component_build) {
-    public_deps = [ "//gpu" ]
-  } else {
-    public_deps = [ ":config_sources" ]
-  }
-}
-
 process_json_outputs = [
   "$target_gen_dir/gpu_driver_bug_list_arrays_and_structs_autogen.h",
   "$target_gen_dir/gpu_driver_bug_list_autogen.cc",
@@ -87,39 +79,6 @@ action("workaround_list") {
   }
 }
 
-source_set("export") {
-  sources = [ "gpu_config_export.h" ]
-}
-
-if (enable_vulkan) {
-  # TODO(crbug.com/422797572): This component doesn't use separate export,
-  # which is problematic. Once //gpu/config becomes its own component it
-  # should be possible to merge it into //gpu/config.
-  component("vulkan_info") {
-    sources = [
-      "vulkan_info.cc",
-      "vulkan_info.h",
-    ]
-
-    configs += [ "//gpu:gpu_implementation" ]
-
-    deps = [ "//gpu/ipc/common:vulkan_interface" ]
-    public_deps = [
-      ":export",
-      "//third_party/vulkan-headers/src:vulkan_headers",
-      "//ui/gfx",
-    ]
-
-    # surpass linke error 4217. It is because vulkan_info depends on
-    # //gpu/ipc/common:vulkan_interface and //gpu/ipc/common:vulkan_interface"
-    # depends on this target.
-    # TODO(penghuang): Fix this link error
-    if (is_win && is_component_build) {
-      ldflags = [ "/IGNORE:4217" ]
-    }
-  }
-}
-
 source_set("webgpu_blocklist_impl") {
   sources = [
     "webgpu_blocklist_impl.cc",
@@ -131,16 +90,13 @@ source_set("webgpu_blocklist_impl") {
   public_deps = [ "//third_party/dawn/include/dawn:cpp_headers" ]
 }
 
-source_set("config_sources") {
-  # External code should depend on this via //gpu/config above rather than
-  # depending on this directly or the component build will break.
-  visibility = [ "//gpu/*" ]
-
+component("config") {
   sources = [
     "device_perf_info.cc",
     "device_perf_info.h",
     "gpu_blocklist.cc",
     "gpu_blocklist.h",
+    "gpu_config_export.h",
     "gpu_control_list.cc",
     "gpu_control_list.h",
     "gpu_crash_keys.cc",
@@ -185,15 +141,14 @@ source_set("config_sources") {
 
   sources += process_json_outputs
 
-  configs += [ "//gpu:gpu_implementation" ]
+  defines = [ "GPU_CONFIG_IMPLEMENTATION" ]
 
-  public_deps = [
-    ":export",
-    "//components/crash/core/common:crash_key",
-  ]
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  public_deps = [ "//components/crash/core/common:crash_key" ]
 
   if (enable_vulkan) {
-    public_deps += [ ":vulkan_info" ]
+    public_deps += [ "//gpu/vulkan" ]
   }
 
   deps = [
@@ -202,7 +157,7 @@ source_set("config_sources") {
     "//build:branding_buildflags",
     "//build:chromecast_buildflags",
     "//components/miracle_parameter/common",
-    "//gpu/command_buffer/common:common_sources",
+    "//gpu/command_buffer/common",
     "//gpu/ipc/common:gpu_preferences_interface",
     "//gpu/vulkan:buildflags",
     "//services/webnn/public/mojom:features",
@@ -215,6 +170,10 @@ source_set("config_sources") {
     "//ui/gl:gl_headers",
     "//ui/gl/init",
   ]
+
+  if (enable_vulkan) {
+    deps += [ "//gpu/ipc/common:vulkan_interface" ]
+  }
 
   if (use_dawn || skia_use_dawn) {
     public_deps += [ "//third_party/dawn/include/dawn:headers" ]

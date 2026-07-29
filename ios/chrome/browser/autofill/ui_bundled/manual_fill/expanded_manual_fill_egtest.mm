@@ -26,6 +26,7 @@
 #import "net/test/embedded_test_server/default_handlers.h"
 #import "ui/base/l10n/l10n_util.h"
 
+using chrome_test_util::ActionSheetItemWithAccessibilityLabelId;
 using chrome_test_util::ButtonWithAccessibilityLabelId;
 using manual_fill::ChipButton;
 using manual_fill::ExpandedManualFillHeaderView;
@@ -228,23 +229,13 @@ id<GREYMatcher> AutofillFormButton() {
 
 @implementation ExpandedManualFillTestCase
 
-- (BOOL)shouldEnableKeyboardAccessoryUpgradeShortManualFillMenuFeature {
-  return YES;
-}
-
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config;
   config.relaunch_policy = ForceRelaunchByCleanShutdown;
 
   // Enable the Keyboard Accessory Upgrade feature.
   config.features_enabled.push_back(kIOSKeyboardAccessoryUpgradeForIPad);
-  if ([self shouldEnableKeyboardAccessoryUpgradeShortManualFillMenuFeature]) {
-    config.features_enabled.push_back(
-        kIOSKeyboardAccessoryUpgradeShortManualFillMenu);
-  } else {
-    config.features_disabled.push_back(
-        kIOSKeyboardAccessoryUpgradeShortManualFillMenu);
-  }
+
   config.features_disabled.push_back(
       plus_addresses::features::kPlusAddressesEnabled);
 
@@ -319,7 +310,7 @@ id<GREYMatcher> AutofillFormButton() {
 
   // Acknowledge concerns using other passwords on a website.
   id<GREYMatcher> confirmDialogButton =
-      grey_allOf(ButtonWithAccessibilityLabelId(
+      grey_allOf(ActionSheetItemWithAccessibilityLabelId(
                      IDS_IOS_CONFIRM_USING_OTHER_PASSWORD_CONTINUE),
                  grey_interactable(), nullptr);
   [[EarlGrey selectElementWithMatcher:confirmDialogButton]
@@ -590,27 +581,6 @@ id<GREYMatcher> AutofillFormButton() {
       performAction:grey_tap()];
   [[EarlGrey selectElementWithMatcher:AutofillFormButton()]
       assertWithMatcher:grey_notVisible()];
-}
-
-@end
-
-// Rerun all the tests in this file but with
-// `kIOSKeyboardAccessoryUpgradeShortManualFillMenu` disabled. This is done to
-// ensure that regressions aren't introduced.
-@interface ExpandedManualFillKeyboardAccessoryUpgradeShortManualFillMenuDisabledTestCase
-    : ExpandedManualFillTestCase
-
-@end
-
-@implementation ExpandedManualFillKeyboardAccessoryUpgradeShortManualFillMenuDisabledTestCase
-
-- (BOOL)shouldEnableKeyboardAccessoryUpgradeShortManualFillMenuFeature {
-  return NO;
-}
-
-// This causes the test case to actually be detected as a test case. The actual
-// tests are all inherited from the parent class.
-- (void)testEmpty {
 }
 
 @end

@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">ज़्यादा विकल्प</translation>
 <translation id="565342223183747919">प्लेबैक मोड बदलने के लिए टैप करें</translation>
 <translation id="5694491020339060116">वीडियो चलाने की स्पीड दिखाने वाला मेन्यू</translation>
+<translation id="5961164658295696940">ज़्यादा विकल्प देखने के लिए, टैप करके प्लेयर को बड़ा करें</translation>
 <translation id="5965409657393819302">तकनीकी समस्या</translation>
 <translation id="6218961554829577610">आवाज़ पसंद नहीं आई</translation>
 <translation id="6315170314923504164">Voice</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">लोड हो रहा है…</translation>
 <translation id="6889157801232138307">“इस पेज का कॉन्टेंट सुनें” प्लेयर</translation>
 <translation id="7051308646573997571">मूंगे जैसा रंग</translation>
-<translation id="7112750136794557642">प्लेयर को बड़ा करके ज़्यादा विकल्प देखने के लिए टैप करें.</translation>
 <translation id="7138678301420049075">अन्य</translation>
 <translation id="7221920857098237570">विनम्र आवाज़</translation>
 <translation id="7237590978482584900">ताज़गी भरी आवाज़</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">शांत टोन वाली आवाज़</translation>
 <translation id="8756370108715456837">तथ्यों के हिसाब से सही नहीं है</translation>
 <translation id="8953618380150219653">“इस पेज का कॉन्टेंट सुनें” प्लेयर पूरी स्क्रीन पर खुला है.</translation>
+<translation id="9087782179025630211">कंट्रोल करें. <ph name="TOTAL" /> में से <ph name="ELAPSED" /> पूरे हो गए हैं.</translation>
 <translation id="978117257931832348">कम पिच वाली आवाज़</translation>
 </translationbundle>

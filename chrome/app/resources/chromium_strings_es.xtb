@@ -41,6 +41,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="1547469039832541117">Finaliza la tarea resaltada.</translation>
 <translation id="1553461853655228091">Para crear un mapa 3D de tu entorno, Chromium necesita permiso para acceder a tu cámara</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Esta extensión ya no se admite. Chromium te recomienda que la elimines.}other{Estas extensiones ya no se admiten. Chromium te recomienda que las elimines.}}</translation>
+<translation id="1562320819937089394">Fijar Chromium</translation>
 <translation id="1574377791422810894">Herramientas de seguridad de Chromium</translation>
 <translation id="1594928384848033697">Chromium quiere eliminar tus datos del Gestor de contraseñas. Introduce tu contraseña de Windows para permitirlo.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Tu administrador pide que reinicies Chromium para aplicar una actualización}=1{Tu administrador pide que reinicies Chromium para aplicar una actualización. La ventana de Incógnito no se volverá a abrir.}other{Tu administrador pide que reinicies Chromium para aplicar una actualización. Las # ventanas de Incógnito no se volverán a abrir.}}</translation>
@@ -421,7 +422,7 @@ Es posible que algunas funciones no estén disponibles y que no se guarden los c
 <translation id="656935081669708576">Puedes cambiar de perfil para ver las contraseñas de otro perfil de Chromium</translation>
 <translation id="6570579332384693436">Para corregir errores ortográficos, Chromium envía a Google el texto que escribes en los campos de texto</translation>
 <translation id="6598877126913850652">Ir a los ajustes de notificaciones de Chromium</translation>
-<translation id="6600016381025017075">Buscar cualquier cosa en esta página</translation>
+<translation id="6600016381025017075">Busca cualquier elemento de esta página</translation>
 <translation id="6613594504749178791">Los cambios se aplicarán la próxima vez que reinicies Chromium.</translation>
 <translation id="665732753414869868">Chromium necesita el permiso de la cámara para crear un mapa 3D de tu entorno</translation>
 <translation id="6669284030132180248">Si también guardas los marcadores en tu cuenta de Google, puedes hacer un seguimiento de los precios de los productos en Chromium y recibir una notificación cuando bajen</translation>
@@ -523,6 +524,7 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="8004582292198964060">Navegador</translation>
 <translation id="8010081455002666927">Detección automática</translation>
 <translation id="8013436988911883588">Una vez que Chromium tenga acceso, los sitios web podrán solicitarlo también.</translation>
+<translation id="8031714377769448844">Fija Chromium en la barra de tareas para acceder rápidamente a él en cualquier momento</translation>
 <translation id="80471789339884597">Gracias por realizar la instalación. Debes reiniciar todos tus navegadores para poder usar <ph name="BUNDLE_NAME" />.</translation>
 <translation id="8054112667659782652">Mostrar siempre el acceso directo a la búsqueda por imágenes</translation>
 <translation id="8077498902115777962">Inhabilitar que Chromium se ejecute en segundo plano en las aplicaciones</translation>
@@ -578,6 +580,7 @@ Chromium no puede recuperar tu configuración.</translation>
 <translation id="8704119203788522458">Aquí tienes tu navegador Chromium</translation>
 <translation id="8719993436687031146">¿Iniciar sesión en Chromium?</translation>
 <translation id="8747073452963259673">esquina inferior izquierda del área de búsqueda: un <ph name="LEFT" /> % a la izquierda y un <ph name="BOTTOM" /> % abajo</translation>
+<translation id="8768722695577490596">Las contraseñas solo se pueden eliminar fuera de Chromium</translation>
 <translation id="878572486461146056">Error de instalación: tu administrador de red ha aplicado una política de grupo que impide la instalación: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium necesita permiso para acceder a la cámara y al micrófono en este sitio web</translation>
 <translation id="8818550178040858407">¿Iniciar sesión en Chromium?</translation>

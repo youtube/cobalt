@@ -14,7 +14,6 @@ import static org.chromium.base.test.transit.ViewSpec.viewSpec;
 import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.test.espresso.Espresso;
 
 import org.chromium.base.test.transit.Facility;
 import org.chromium.base.test.transit.Station;
@@ -59,10 +58,11 @@ public class TabSwitcherListEditorFacility<HostStationT extends TabSwitcherStati
     }
 
     private String getSelectionModeNumberText() {
-        if (getNumTabsSelected() == 0) {
-            return "Select tabs";
+        int totalItemCount = mTabIdsSelected.size() + mTabGroupsSelected.size();
+        if (totalItemCount == 0) {
+            return "Select items";
         } else {
-            return TabGroupUtil.getNumberOfTabsString(getNumTabsSelected());
+            return TabGroupUtil.getNumberOfItemsString(totalItemCount);
         }
     }
 
@@ -80,11 +80,6 @@ public class TabSwitcherListEditorFacility<HostStationT extends TabSwitcherStati
             totalTabs += tabGroupIds.size();
         }
         return totalTabs;
-    }
-
-    /** Presses back to exit the facility. */
-    public void pressBackToExit() {
-        mHostStation.exitFacilitySync(this, Espresso::pressBack);
     }
 
     /** Add a tab in the grid to the selection. */
@@ -118,8 +113,10 @@ public class TabSwitcherListEditorFacility<HostStationT extends TabSwitcherStati
 
     /** Open the app menu, which looks different while selecting tabs. */
     public TabListEditorAppMenu<HostStationT> openAppMenuWithEditor() {
-        return mHostStation.enterFacilitySync(
-                new TabListEditorAppMenu<>(this), mHostStation.menuButtonElement.getClickTrigger());
+        return mHostStation
+                .menuButtonElement
+                .clickTo()
+                .enterFacility(new TabListEditorAppMenu<>(this));
     }
 
     /**

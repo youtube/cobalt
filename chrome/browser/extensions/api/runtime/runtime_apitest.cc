@@ -19,6 +19,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extension_action_test_helper.h"
 #include "chrome/common/url_constants.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -548,7 +549,7 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_EQ("about:blank", GetActiveUrl(browser()));
 
   // Navigate to an extension page.
-  const GURL extension_page_url = extension->ResolveExtensionURL("page.html");
+  const GURL extension_page_url = extension->GetResourceURL("page.html");
   content::RenderFrameHost* new_host =
       ui_test_utils::NavigateToURL(browser(), extension_page_url);
   ASSERT_TRUE(new_host);
@@ -656,7 +657,7 @@ IN_PROC_BROWSER_TEST_P(BackgroundPageOnlyRuntimeApiTest,
   const Extension* extension = LoadExtension(dir.UnpackedPath());
   ASSERT_TRUE(extension);
 
-  GURL new_tab_url = extension->ResolveExtensionURL("index.htm");
+  GURL new_tab_url = extension->GetResourceURL("index.htm");
   {
     content::TestNavigationObserver nav_observer(new_tab_url);
     nav_observer.StartWatchingNewWebContents();
@@ -701,18 +702,24 @@ class RuntimeGetContextsApiTest : public ExtensionApiTest {
 
   void SetUpOnMainThread() override {
     ExtensionApiTest::SetUpOnMainThread();
+    SetUpExtension();
+  }
 
+  void TearDownOnMainThread() override {
+    extension_ = nullptr;
+    ExtensionApiTest::TearDownOnMainThread();
+  }
+
+  // Don't create a side panel context because desktop Android doesn't support
+  // that. It's tested separately below.
+  virtual void SetUpExtension() {
     static constexpr char kManifest[] =
         R"({
              "name": "Get Contexts",
              "version": "0.1",
              "manifest_version": 3,
-             "permissions": ["offscreen", "sidePanel"],
-             "side_panel": {
-               "default_path": "side_panel.html"
-             },
+             "permissions": ["offscreen"],
              "devtools_page": "devtools.html",
-             "action": {},
              "background": {
                "service_worker": "background.js"
              }
@@ -724,13 +731,6 @@ class RuntimeGetContextsApiTest : public ExtensionApiTest {
                         "<html>Hello, world!</html>");
     test_dir_.WriteFile(FILE_PATH_LITERAL("offscreen.html"),
                         "<html>Hello, offscreen world!</html>");
-    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.html"),
-                        R"(<html>
-                             Hello, side panel!
-                             <script src="side_panel.js"></script>
-                           </html>)");
-    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.js"),
-                        "chrome.test.sendMessage('panel opened');");
     test_dir_.WriteFile(FILE_PATH_LITERAL("devtools.html"),
                         R"(<html>
                              Hello, developer tools!
@@ -820,8 +820,8 @@ class RuntimeGetContextsApiTest : public ExtensionApiTest {
 
   const Extension& extension() const { return *extension_; }
 
- private:
-  raw_ptr<const Extension, DanglingUntriaged> extension_ = nullptr;
+ protected:
+  raw_ptr<const Extension> extension_ = nullptr;
   TestExtensionDir test_dir_;
 };
 
@@ -872,7 +872,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest,
                                                              extension().id());
   // In order to be able to call the API, we need to open a new tab to an
   // extension resource.
-  const GURL extension_page_url = extension().ResolveExtensionURL("page.html");
+  const GURL extension_page_url = extension().GetResourceURL("page.html");
   content::RenderFrameHost* new_host =
       ui_test_utils::NavigateToURL(browser(), extension_page_url);
   ASSERT_TRUE(new_host);
@@ -891,7 +891,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest,
 IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, FilterMatching) {
   // Currently, there is only one context: the background service worker. Also
   // open a tab-based context.
-  const GURL extension_page_url = extension().ResolveExtensionURL("page.html");
+  const GURL extension_page_url = extension().GetResourceURL("page.html");
   content::RenderFrameHost* new_host =
       ui_test_utils::NavigateToURL(browser(), extension_page_url);
   ASSERT_TRUE(new_host);
@@ -959,7 +959,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, FilterMatching) {
 // Tests retrieving tab contexts using `chrome.runtime.getContexts()`.
 IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetTabContext) {
   // Open a new extension tab.
-  const GURL frame_url = extension().ResolveExtensionURL("page.html");
+  const GURL frame_url = extension().GetResourceURL("page.html");
   content::RenderFrameHost* new_host =
       ui_test_utils::NavigateToURL(browser(), frame_url);
   ASSERT_TRUE(new_host);
@@ -1034,7 +1034,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetOffscreenDocumentContext) {
   std::string expected_document_id =
       ExtensionApiFrameIdMap::GetDocumentId(offscreen_frame_host).ToString();
   std::string expected_frame_url =
-      extension().ResolveExtensionURL("offscreen.html").spec();
+      extension().GetResourceURL("offscreen.html").spec();
   std::string expected_origin = extension().origin().Serialize();
 
   // Query for offscreen document contexts. There should only be one.
@@ -1062,8 +1062,40 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetOffscreenDocumentContext) {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
+class RuntimeGetContextsSidePanelTest : public RuntimeGetContextsApiTest {
+ public:
+  void SetUpExtension() override {
+    static constexpr char kManifest[] =
+        R"({
+             "name": "Get Contexts",
+             "version": "0.1",
+             "manifest_version": 3,
+             "permissions": ["sidePanel"],
+             "side_panel": {
+               "default_path": "side_panel.html"
+             },
+             "action": {},
+             "background": {
+               "service_worker": "background.js"
+             }
+           })";
+    test_dir_.WriteManifest(kManifest);
+    test_dir_.WriteFile(FILE_PATH_LITERAL("background.js"),
+                        "// Intentionally blank");
+    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.html"),
+                        R"(<html>
+                             Hello, side panel!
+                             <script src="side_panel.js"></script>
+                           </html>)");
+    test_dir_.WriteFile(FILE_PATH_LITERAL("side_panel.js"),
+                        "chrome.test.sendMessage('panel opened');");
+    extension_ = LoadExtension(test_dir_.UnpackedPath());
+    ASSERT_TRUE(extension_);
+  }
+};
+
 // Tests retrieving a side panel context from the `runtime.getContexts()` API.
-IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetSidePanelContext) {
+IN_PROC_BROWSER_TEST_F(RuntimeGetContextsSidePanelTest, GetSidePanelContext) {
   // Set the side panel to open on toolbar action click. This makes it easier
   // to trigger.
   static constexpr char kSetUpSidePanelScript[] =
@@ -1103,7 +1135,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest, GetSidePanelContext) {
   std::string expected_document_id =
       ExtensionApiFrameIdMap::GetDocumentId(panel_frame_host).ToString();
   std::string expected_frame_url =
-      extension().ResolveExtensionURL("side_panel.html").spec();
+      extension().GetResourceURL("side_panel.html").spec();
   std::string expected_origin = extension().origin().Serialize();
 
   base::Value side_panel_contexts =
@@ -1162,7 +1194,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest,
   ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
 
   // Open a tab on-the-record to one of the extension's pages.
-  GURL regular_url = extension->ResolveExtensionURL("regular.html");
+  GURL regular_url = extension->GetResourceURL("regular.html");
   content::RenderFrameHost* regular_host =
       ui_test_utils::NavigateToURL(browser(), regular_url);
   ASSERT_TRUE(regular_host);
@@ -1170,7 +1202,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest,
   // Open up an incognito tab to another extension page, and wait for the
   // incognito version of the extension to start up.
   ready_listener.Reset();
-  GURL incognito_url = extension->ResolveExtensionURL("incognito.html");
+  GURL incognito_url = extension->GetResourceURL("incognito.html");
   Browser* incognito_browser = OpenURLOffTheRecord(profile(), incognito_url);
   ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
 
@@ -1245,7 +1277,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest,
   ASSERT_TRUE(extension);
 
   // Open an on-the-record tab to an extension page.
-  GURL regular_url = extension->ResolveExtensionURL("regular.html");
+  GURL regular_url = extension->GetResourceURL("regular.html");
   content::RenderFrameHost* regular_host =
       ui_test_utils::NavigateToURL(browser(), regular_url);
   ASSERT_TRUE(regular_host);
@@ -1254,7 +1286,7 @@ IN_PROC_BROWSER_TEST_F(RuntimeGetContextsApiTest,
   // to open contexts in an incognito profile (which means all contexts just
   // open in the same profile). There's one exception to this: an embedded web-
   // accessible iframe in an incognito tab. Make it so.
-  GURL incognito_url = extension->ResolveExtensionURL("incognito.html");
+  GURL incognito_url = extension->GetResourceURL("incognito.html");
   Browser* incognito_browser = OpenURLOffTheRecord(
       profile(), embedded_test_server()->GetURL("example.com", "/simple.html"));
   // Inject a script to add an iframe and navigate it to the extension's
@@ -1387,7 +1419,7 @@ IN_PROC_BROWSER_TEST_P(GetContextsWithDeveloperToolsOpened,
   ASSERT_EQ(open_docked, is_docked);
 
   // Extract the extension host from the devtools web contents.
-  GURL expected_frame_url = extension().ResolveExtensionURL("devtools.html");
+  GURL expected_frame_url = extension().GetResourceURL("devtools.html");
   auto is_extension_frame =
       [expected_frame_url](content::RenderFrameHost* rfh) {
         return rfh->GetLastCommittedURL() == expected_frame_url;

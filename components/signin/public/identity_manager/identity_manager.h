@@ -185,6 +185,10 @@ class IdentityManager : public KeyedService,
   void RemoveObserver(Observer* observer);
 
 #if BUILDFLAG(IS_IOS)
+  // Whether a batch of primary account changes is in progress. See
+  // `OnEndBatchOfPrimaryAccountChanges()`.
+  bool IsBatchOfPrimaryAccountChangesInProgress();
+
   // Starts a batch of primary account changes by setting
   // `batch_of_primary_account_changes_in_progress_` to `true`. As long as the
   // batch is running, `OnEndBatchOfPrimaryAccountChanges()` are not sent when
@@ -522,9 +526,8 @@ class IdentityManager : public KeyedService,
   // Else refreshes all accounts with refresh tokens if they are stale. See
   // RefreshAccountInfoIfStale(const CoreAccountId&).
   // TODO(crbug.com/40284908): Remove |j_core_account_id| from parameters.
-  void RefreshAccountInfoIfStale(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& j_core_account_id);
+  void RefreshAccountInfoIfStale(JNIEnv* env,
+                                 const CoreAccountId& j_core_account_id);
 
   // Returns true if the browser allows the primary account to be cleared.
   jboolean IsClearPrimaryAccountAllowed(JNIEnv* env) const;

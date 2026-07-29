@@ -345,6 +345,8 @@ void OnDownloadDialogClosed(
       std::move(callback).Run(DownloadConfirmationResult::CANCELED,
                               ui::SelectedFileInfo());
       break;
+    case DownloadLocationDialogResult::CONFIRMED_WITHOUT_USER_INPUT:
+      [[fallthrough]];
     case DownloadLocationDialogResult::DUPLICATE_DIALOG:
       // TODO(xingliu): Figure out the dialog behavior on multiple downloads.
       // Currently we just let other downloads continue, which doesn't make
@@ -692,7 +694,9 @@ bool ChromeDownloadManagerDelegate::DetermineDownloadTarget(
 #if BUILDFLAG(IS_ANDROID)
   if (base::android::BuildInfo::GetInstance()->is_desktop()) {
     action = DownloadPathReservationTracker::UNIQUIFY;
-  } else if (download->IsTransient()) {
+  }
+
+  if (download->IsTransient()) {
     if (download_path.empty() && download->GetMimeType() == pdf::kPDFMimeType &&
         !download->IsMustDownload()) {
       if (profile_->IsOffTheRecord() && download->GetDownloadFile() &&

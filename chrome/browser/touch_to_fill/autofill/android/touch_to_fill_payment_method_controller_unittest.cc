@@ -65,7 +65,6 @@ class MockTouchToFillDelegateAndroidImpl
   explicit MockTouchToFillDelegateAndroidImpl(
       TestBrowserAutofillManager* autofill_manager)
       : TouchToFillDelegateAndroidImpl(autofill_manager) {
-    ON_CALL(*this, GetManager).WillByDefault(Return(autofill_manager));
     ON_CALL(*this, ShouldShowScanCreditCard).WillByDefault(Return(true));
   }
   ~MockTouchToFillDelegateAndroidImpl() override = default;
@@ -77,9 +76,8 @@ class MockTouchToFillDelegateAndroidImpl
   MOCK_METHOD(bool, IsShowingTouchToFill, (), (override));
   MOCK_METHOD(bool,
               IntendsToShowTouchToFill,
-              (FormGlobalId, FieldGlobalId, const FormData&),
+              (FormGlobalId, FieldGlobalId),
               (override));
-  MOCK_METHOD(TestBrowserAutofillManager*, GetManager, (), (override));
   MOCK_METHOD(bool, ShouldShowScanCreditCard, (), (override));
   MOCK_METHOD(void, ScanCreditCard, (), (override));
   MOCK_METHOD(void, OnCreditCardScanned, (const CreditCard& card), (override));

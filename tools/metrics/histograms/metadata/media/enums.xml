@@ -352,6 +352,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="kGetProcessAudioDeviceIdsReturnedEmpty"/>
   <int value="7" label="kErrorConfiguringSampleRate"/>
   <int value="8" label="kErrorConfiguringFramesPerBuffer"/>
+  <int value="9" label="kErrorCreatingTapDescription"/>
 </enum>
 
 <enum name="CdmCapabilityQueryStatus">
@@ -1076,6 +1077,13 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Not specified"/>
   <int value="1" label="Include"/>
   <int value="2" label="Exclude"/>
+</enum>
+
+<enum name="GetDisplayMediaSystemWindowOrExcludeConstraint">
+  <int value="0" label="Not specified"/>
+  <int value="1" label="System"/>
+  <int value="2" label="Window"/>
+  <int value="3" label="Exclude"/>
 </enum>
 
 <enum name="GetDisplayMediaTransientActivation">

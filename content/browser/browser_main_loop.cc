@@ -24,6 +24,7 @@
 #include "base/memory/memory_pressure_monitor.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/no_destructor.h"
@@ -853,6 +854,11 @@ int BrowserMainLoop::PreCreateThreads() {
   // happen.
   SiteIsolationPolicy::ApplyGlobalIsolatedOrigins();
 
+  // Record whether the current site isolation configuration is "Site Per
+  // Process" or a stricter mode, such as "Strict Origin Isolation."
+  base::UmaHistogramBoolean("SiteIsolation.IsSitePerProcessOrStricter",
+                            SiteIsolationPolicy::IsSitePerProcessOrStricter());
+
   // Generate the browser process salt. This is then accessible by calls to
   // GetPseudonymizationSalt in the browser process. This generation is only
   // needed in the browser process, because for other processes it is
@@ -874,10 +880,10 @@ void BrowserMainLoop::CreateStartupTasks() {
 
   startup_task_runner_ = std::make_unique<StartupTaskRunner>(
       base::BindOnce(&BrowserStartupComplete),
-      GetUIThreadTaskRunner({BrowserTaskType::kDefault}));
+      GetUIThreadTaskRunner({BrowserTaskType::kStartup}));
 #else
   startup_task_runner_ = std::make_unique<StartupTaskRunner>(
-      base::OnceCallback<void(int)>(),
+      base::OnceCallback<void(int, base::TimeDelta)>(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif
   StartupTask pre_create_threads = base::BindOnce(

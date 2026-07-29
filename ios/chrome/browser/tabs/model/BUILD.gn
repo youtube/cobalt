@@ -38,6 +38,7 @@ source_set("tabs_internal") {
     "//components/autofill/ios/form_util",
     "//components/breadcrumbs/core:status",
     "//components/commerce/ios/browser",
+    "//components/data_sharing/public:features",
     "//components/favicon/core",
     "//components/favicon/ios",
     "//components/history/core/browser",
@@ -83,6 +84,8 @@ source_set("tabs_internal") {
     "//ios/chrome/browser/infobars/model",
     "//ios/chrome/browser/infobars/model:badge",
     "//ios/chrome/browser/infobars/model/overlays",
+    "//ios/chrome/browser/intelligence/bwg/model:tab_helper",
+    "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/itunes_urls/model",
     "//ios/chrome/browser/language/model",
     "//ios/chrome/browser/lens/model",
@@ -104,6 +107,7 @@ source_set("tabs_internal") {
     "//ios/chrome/browser/policy_url_blocking/model",
     "//ios/chrome/browser/prerender/model",
     "//ios/chrome/browser/reader_mode/model",
+    "//ios/chrome/browser/reader_mode/model:features",
     "//ios/chrome/browser/reading_list/model",
     "//ios/chrome/browser/safe_browsing/model",
     "//ios/chrome/browser/safe_browsing/model/tailored_security",
@@ -190,6 +194,40 @@ source_set("synced_tabs") {
   ]
 }
 
+source_set("tab_sync_util") {
+  sources = [
+    "tab_sync_util.h",
+    "tab_sync_util.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/synced_sessions/model",
+  ]
+}
+
+source_set("features") {
+  sources = [
+    "features.cc",
+    "features.h",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("dependency_installer") {
+  sources = [
+    "tabs_dependency_installer.h",
+    "tabs_dependency_installer.mm",
+    "tabs_dependency_installer_bridge.h",
+    "tabs_dependency_installer_bridge.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/web/public",
+    "//ios/web/public:web_state_observer",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -198,8 +236,11 @@ source_set("unit_tests") {
     "tab_sync_util_unittest.mm",
     "tab_title_util_unittest.mm",
     "tabs_closer_unittest.mm",
+    "tabs_dependency_installer_bridge_unittest.mm",
+    "tabs_dependency_installer_unittest.mm",
   ]
   deps = [
+    ":dependency_installer",
     ":model",
     ":synced_tabs",
     ":tab_sync_util",
@@ -241,16 +282,5 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//third_party/ocmock",
     "//ui/base",
-  ]
-}
-
-source_set("tab_sync_util") {
-  sources = [
-    "tab_sync_util.h",
-    "tab_sync_util.mm",
-  ]
-  deps = [
-    "//base",
-    "//ios/chrome/browser/synced_sessions/model",
   ]
 }

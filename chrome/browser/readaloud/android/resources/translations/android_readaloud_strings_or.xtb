@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">ଅଧିକ ବିକଳ୍ପ</translation>
 <translation id="565342223183747919">ପ୍ଲେବେକ ମୋଡକୁ ସ୍ୱିଚ କରିବା ପାଇଁ ଟାପ କରନ୍ତୁ</translation>
 <translation id="5694491020339060116">ପ୍ଲେବେକ ସ୍ପିଡ ମେନୁ</translation>
+<translation id="5961164658295696940">ଅଧିକ ବିକଳ୍ପ ପାଇଁ ପ୍ଲେୟାରକୁ ବିସ୍ତାର କରିବାକୁ ଟାପ କରନ୍ତୁ</translation>
 <translation id="5965409657393819302">ଟେକ୍ନିକାଲ ସମସ୍ୟା</translation>
 <translation id="6218961554829577610">ଭଏସକୁ ପସନ୍ଦ କରିନାହାଁନ୍ତି</translation>
 <translation id="6315170314923504164">Voice</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">ଲୋଡ୍ ହେଉଛି…</translation>
 <translation id="6889157801232138307">“ଏହି ପୃଷ୍ଠାର ବିଷୟବସ୍ତୁକୁ ଶୁଣନ୍ତୁ” ପ୍ଲେୟାର</translation>
 <translation id="7051308646573997571">Coral</translation>
-<translation id="7112750136794557642">ଅଧିକ ବିକଳ୍ପ ପାଇଁ ପ୍ଲେୟାରକୁ ବିସ୍ତାର କରିବାକୁ ଟାପ କରନ୍ତୁ।</translation>
 <translation id="7138678301420049075">ଅନ୍ୟ</translation>
 <translation id="7221920857098237570">ଧିରେ</translation>
 <translation id="7237590978482584900">ଆନନ୍ଦିତ</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">ଶାନ୍ତ</translation>
 <translation id="8756370108715456837">ତଥ୍ୟ ଅନୁସାରେ ସଠିକ ନୁହେଁ</translation>
 <translation id="8953618380150219653">ପୂର୍ଣ୍ଣ ଉଚ୍ଚତାରେ “ଏହି ପୃଷ୍ଠାକୁ ଶୁଣନ୍ତୁ” ପ୍ଲେୟାର ଖୋଲାଯାଇଛି।</translation>
+<translation id="9087782179025630211">ନିୟନ୍ତ୍ରଣ ଖୋଜନ୍ତୁ। <ph name="TOTAL" />ରୁ <ph name="ELAPSED" /> ବିତିଯାଇଛି।</translation>
 <translation id="978117257931832348">ନିମ୍ନ-ପିଚ</translation>
 </translationbundle>

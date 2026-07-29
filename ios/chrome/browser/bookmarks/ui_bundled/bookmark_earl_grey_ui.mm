@@ -305,9 +305,9 @@ id<GREYMatcher> SearchIconButton() {
       performAction:grey_tap()];
 
   // Tap on Open All.
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(buttonLabelId)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::AlertItemWithAccessibilityLabelId(
+                     buttonLabelId)] performAction:grey_tap()];
 }
 
 - (void)verifyContextMenuForSingleURLWithEditEnabled:(BOOL)editEnabled {
@@ -596,9 +596,9 @@ id<GREYMatcher> SearchIconButton() {
                                    [BookmarkEarlGreyUI contextBarMoreString])]
       performAction:grey_tap()];
 
-  [[EarlGrey
-      selectElementWithMatcher:ButtonWithAccessibilityLabelId(menuButtonId)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     menuButtonId)] performAction:grey_tap()];
 
   // Verify that the edit page (editor) is present.
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(editorId)]

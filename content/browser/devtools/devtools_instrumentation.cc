@@ -36,6 +36,7 @@
 #include "content/browser/devtools/protocol/tracing_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
+#include "content/browser/devtools/shared_worker_devtools_agent_host.h"
 #include "content/browser/devtools/web_contents_devtools_agent_host.h"
 #include "content/browser/devtools/worker_devtools_manager.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
@@ -2683,7 +2684,7 @@ void DidReceiveFedCmNetworkResponse(
 
   DispatchToAgents(
       frame_tree_node_id, &protocol::NetworkHandler::LoadingComplete,
-      devtools_request_id, protocol::Network::ResourceTypeEnum::Other, status);
+      devtools_request_id, protocol::Network::ResourceTypeEnum::FedCM, status);
 }
 
 void OnFencedFrameReportRequestSent(

@@ -28,14 +28,16 @@ LogicalLineBuilder::LogicalLineBuilder(InlineNode node,
                                        const ConstraintSpace& constraint_space,
                                        const InlineBreakToken* break_token,
                                        InlineLayoutStateStack* state_stack,
-                                       InlineChildLayoutContext* context)
+                                       InlineChildLayoutContext* context,
+                                       bool should_scale_line_height)
     : node_(node),
       constraint_space_(constraint_space),
       break_token_(break_token),
       box_states_(state_stack),
       context_(context),
       baseline_type_(node.Style().GetFontBaseline()),
-      quirks_mode_(node.GetDocument().InLineHeightQuirksMode()) {}
+      quirks_mode_(node.GetDocument().InLineHeightQuirksMode()),
+      should_scale_line_height_(should_scale_line_height) {}
 
 void LogicalLineBuilder::CreateLine(LineInfo* line_info,
                                     LogicalLineItems* line_box,
@@ -51,7 +53,7 @@ void LogicalLineBuilder::CreateLine(LineInfo* line_info,
       node_, line_style, baseline_type_, quirks_mode_, line_box);
 #if EXPENSIVE_DCHECKS_ARE_ON()
   if (main_line_helper) {
-    main_line_helper->CheckBoxStates(*line_info);
+    main_line_helper->CheckBoxStates(*line_info, should_scale_line_height_);
   }
 #endif
 
@@ -140,13 +142,16 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
       }
       DCHECK(item_result.shape_result);
 
+      float block_scale = item_result.fit_text_scale.is_scaled_inline_only
+                              ? 1.0f
+                              : item_result.fit_text_scale.scale;
       if (quirks_mode_) [[unlikely]] {
         box->EnsureTextMetrics(*item.Style(), *box->font, baseline_type_);
       }
 
       // Take all used fonts into account if 'line-height: normal'.
       if (box->include_used_fonts) {
-        box->AccumulateUsedFonts(item_result.shape_result.Get());
+        box->AccumulateUsedFonts(item_result.shape_result.Get(), block_scale);
       }
 
       DCHECK(item.TextType() == TextItemType::kNormal ||
@@ -154,10 +159,11 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
       if (item_result.is_hyphenated) [[unlikely]] {
         DCHECK(item_result.hyphen);
         LayoutUnit hyphen_inline_size = item_result.hyphen.InlineSize();
-        line_box->AddChild(item, item_result, item_result.TextOffset(),
-                           box->text_top,
-                           item_result.inline_size - hyphen_inline_size,
-                           box->text_height, item.BidiLevel());
+        line_box->AddChild(
+            item, item_result, item_result.TextOffset(), box->text_top,
+            LayoutUnit((item_result.inline_size - hyphen_inline_size) *
+                       item_result.fit_text_scale.scale),
+            box->text_height, item.BidiLevel());
         PlaceHyphen(item_result, hyphen_inline_size, line_box, box);
       } else if (node_.IsTextCombine()) [[unlikely]] {
         // We make combined text at block offset 0 with 1em height.
@@ -170,7 +176,9 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
                            item.BidiLevel());
       } else {
         line_box->AddChild(item, item_result, item_result.TextOffset(),
-                           box->text_top, item_result.inline_size,
+                           box->text_top,
+                           LayoutUnit(item_result.inline_size *
+                                      item_result.fit_text_scale.scale),
                            box->text_height, item.BidiLevel());
       }
 
@@ -224,21 +232,18 @@ InlineBoxState* LogicalLineBuilder::HandleItemResults(
               ? WritingDirectionMode(constraint_space_.GetWritingMode(),
                                      item.Direction())
               : constraint_space_.GetWritingDirection();
-
-      line_box->AddChild(item.GetLayoutObject(), item.BidiLevel(),
-                         writing_direction);
+      line_box->AddChild(
+          LogicalLineItem::OutOfFlowPositioned(item, writing_direction));
       has_out_of_flow_positioned_items_ = true;
     } else if (item.Type() == InlineItem::kFloating) {
       if (item_result.positioned_float) {
         if (!item_result.positioned_float->break_before_token) {
-          DCHECK(item_result.positioned_float->layout_result);
-          line_box->AddChild(item_result.positioned_float->layout_result,
-                             item_result.positioned_float->bfc_offset,
-                             item.BidiLevel());
+          line_box->AddChild(LogicalLineItem::PositionedFloat(
+              item, item_result.positioned_float));
         }
       } else {
-        line_box->AddChild(item.GetLayoutObject(), item.BidiLevel(),
-                           item_result.Start());
+        line_box->AddChild(
+            LogicalLineItem::UnpositionedFloat(item, item_result.Start()));
       }
       has_floating_items_ = true;
       has_relative_positioned_items_ |=
@@ -354,10 +359,11 @@ void LogicalLineBuilder::PlaceHyphen(const InlineItemResult& item_result,
   DCHECK(item_result.hyphen);
   DCHECK_EQ(hyphen_inline_size, item_result.hyphen.InlineSize());
   const InlineItem& item = *item_result.item;
+  hyphen_inline_size *= item_result.fit_text_scale.scale;
   line_box->AddChild(
       item, ShapeResultView::Create(&item_result.hyphen.GetShapeResult()),
-      item_result.hyphen.Text(), box->text_top, hyphen_inline_size,
-      box->text_height, item.BidiLevel());
+      item_result.hyphen.Text(), item_result.fit_text_scale, box->text_top,
+      hyphen_inline_size, box->text_height, item.BidiLevel());
 }
 
 InlineBoxState* LogicalLineBuilder::PlaceAtomicInline(
@@ -541,8 +547,11 @@ void LogicalLineBuilder::PlaceRubyAnnotation(
                      /* on_end_edge */ false, annotation_line);
 
   auto* line_items = MakeGarbageCollected<LogicalLineItems>();
+  // text-grow and text-shrink don't support ruby annotations now.
+  constexpr bool kShouldScaleLineHeight = false;
   LogicalLineBuilder annotation_builder(node_, constraint_space_, nullptr,
-                                        &logical_column.state_stack, context_);
+                                        &logical_column.state_stack, context_,
+                                        kShouldScaleLineHeight);
   if (item_result.ruby_column->is_continuation &&
       !annotation_line.Results().empty()) {
     CHECK(break_token_->RubyData());
@@ -587,7 +596,7 @@ void LogicalLineBuilder::BidiReorder(
   // A sentinel value for items that are opaque to bidi reordering. Should be
   // larger than the maximum resolved level.
   constexpr UBiDiLevel kOpaqueBidiLevel = 0xff;
-  DCHECK_GT(kOpaqueBidiLevel, UBIDI_MAX_EXPLICIT_LEVEL + 1);
+  static_assert(kOpaqueBidiLevel > UBIDI_MAX_EXPLICIT_LEVEL + 1);
 
   // The base direction level is used for the items that should ignore its
   // original level and just use the paragraph level, as trailing opaque

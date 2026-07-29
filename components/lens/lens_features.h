@@ -140,6 +140,11 @@ BASE_DECLARE_FEATURE(kLensOverlayPermissionBubbleAlt);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayBackToPage);
 
+// Enables the search not found on page toast when a user clicks a citation for
+// the current page they are viewing but the text was not found.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSearchNotFoundOnPageToast);
+
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<std::string> kHomepageURLForLens;
@@ -815,6 +820,12 @@ extern int GetTranslateTextReceivedTimeout();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetShouldCopyAsImage();
 
+// Whether the visual selection updates are enabled. This is true if the
+// visual selection updates feature flag is enabled or if the omnibox
+// suggestions feature flag is enabled.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayVisualSelectionUpdatesEnabled();
+
 // Whether to enable the border glow for the visual selection updates. Enabling
 // this will disable the shimmer animation.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -993,6 +1004,10 @@ bool IsLensOverlayPermissionBubbleAltEnabled();
 // Whether the back to live page functionality is enabled in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayBackToPageEnabled();
+
+// Whether to enable the not found on page toast.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensSearchNotFoundOnPageToastEnabled();
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

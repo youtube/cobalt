@@ -37,6 +37,7 @@
 <translation id="141901961143729572">의견 공유</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome 업데이트가 완료되었습니다. 다시 실행하면 바로 최신 버전을 사용할 수 있습니다. 이후에 현재 탭이 다시 열립니다.}=1{Chrome 업데이트가 완료되었습니다. 다시 실행하면 바로 최신 버전을 사용할 수 있습니다. 이후에 현재 탭이 다시 열립니다. 시크릿 창은 다시 열리지 않습니다.}other{Chrome 업데이트가 완료되었습니다. 다시 실행하면 바로 최신 버전을 사용할 수 있습니다. 이후에 현재 탭이 다시 열립니다. 시크릿 창 #개는 다시 열리지 않습니다.}}</translation>
 <translation id="1434626383986940139">Chrome Canary 앱</translation>
+<translation id="1439793550875056299">Chrome 고정</translation>
 <translation id="146866447420868597">Chrome에 로그인하시겠습니까?</translation>
 <translation id="1492280395845991349">다시 실행하여 Chrome 업데이트 완료</translation>
 <translation id="1497802159252041924">설치 오류: <ph name="INSTALL_ERROR" /></translation>
@@ -124,6 +125,7 @@
 <translation id="2569974318947988067">Chrome에서 탐색을 HTTPS로 업그레이드하려고 시도합니다</translation>
 <translation id="2571392474191184472">조직에서 Chrome을 관리합니다.</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" />님이 이미 Chrome 프로필에 로그인되어 있습니다. 인터넷 사용 기록을 별도로 보관하기 위해 Chrome에서 나만의 프로필을 만들 수 있습니다.</translation>
+<translation id="2579190314336775785">비밀번호는 Chrome 외부에서만 삭제할 수 있습니다</translation>
 <translation id="2580411288591421699">현재 실행 중인 Chrome과 동일한 버전은 설치할 수 없습니다. Chrome을 닫고 다시 시도하세요.</translation>
 <translation id="2586406160782125153">인터넷 사용 기록이 기기에서 삭제됩니다. 나중에 데이터를 가져오려면 Chrome에 <ph name="USER_EMAIL" />(으)로 로그인하세요.</translation>
 <translation id="259935314519650377">다운로드한 설치 프로그램을 캐시할 수 없습니다. 오류(<ph name="UNPACK_CACHING_ERROR_CODE" />)가 발생했습니다.</translation>
@@ -271,6 +273,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}other{브라우저 속도를 저하시키는 탭을 일시중지하는 것이 좋습니다}}</translation>
 <translation id="4328355335528187361">Chrome 개발자(mDNS-In)</translation>
 <translation id="4329315893554541805">맞춤설정 및 기타 기능을 사용하려면 웹 및 앱 활동 그리고 연결된 Google 서비스에 Chrome을 포함하세요</translation>
+<translation id="4334241893986177674">이 스크린샷을 검색합니다.</translation>
 <translation id="4334294535648607276">다운로드가 완료되었습니다.</translation>
 <translation id="4337324600316876133">향후 Chrome 업데이트를 받으려면 macOS 12 이상이 필요합니다. 이 컴퓨터에서는 macOS 11을 사용 중입니다.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" />이(가) Chrome에 추가됨</translation>
@@ -358,6 +361,7 @@ Chrome에서 설정을 복구할 수 없습니다.</translation>
 <translation id="5566025111015594046">Chrome(mDNS-In)</translation>
 <translation id="5579324208890605088">시작 오류: 관리자가 아닌 일반 사용자로 설치 프로그램을 실행하세요.</translation>
 <translation id="5596627076506792578">옵션 더보기</translation>
+<translation id="5600352656975192682">언제든지 빠르게 액세스할 수 있도록 Chrome을 작업 표시줄에 고정하세요.</translation>
 <translation id="5602351063754773347">Chrome에서 삭제할 것을 권장합니다. <ph name="BEGIN_LINK" />지원되는 확장 프로그램에 대해 자세히 알아보기<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Chrome 프로필을 사용하면 모든 Chrome 데이터를 분리할 수 있습니다. 친구와 가족을 위한 프로필을 만들거나 업무용과 개인용 프로필을 구분하세요</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" />은(는) 위험할 수 있으므로 Chrome에서 차단했습니다.</translation>

@@ -241,7 +241,19 @@ GlicMetrics::GlicMetrics(Profile* profile, GlicEnabling* enabling)
 }
 GlicMetrics::~GlicMetrics() = default;
 
+void GlicMetrics::OnFreAccepted() {
+  // Store the current time in a instance variable.
+  fre_accepted_time_ = base::TimeTicks::Now();
+}
+
 void GlicMetrics::OnUserInputSubmitted(mojom::WebClientMode mode) {
+  if (!fre_accepted_time_.is_null()) {
+    base::TimeDelta delta = base::TimeTicks::Now() - fre_accepted_time_;
+    base::UmaHistogramLongTimes("Glic.FreToFirstQueryTime", delta);
+    base::UmaHistogramCustomTimes("Glic.FreToFirstQueryTimeMax24H", delta,
+                                  base::Milliseconds(1), base::Hours(24), 50);
+    fre_accepted_time_ = base::TimeTicks();
+  }
   base::UmaHistogramEnumeration(
       "Glic.Session.InputSubmit.BrowserActiveState",
       browser_activity_observer_->GetBrowserActiveState());
@@ -527,6 +539,13 @@ void GlicMetrics::OnGlicScrollComplete(bool success) {
   }
   scroll_input_submitted_time_ = base::TimeTicks();
   scroll_input_mode_ = mojom::WebClientMode::kUnknown;
+}
+
+void GlicMetrics::LogClosedCaptionsShown() {
+  CHECK(base::FeatureList::IsEnabled(features::kGlicClosedCaptioning));
+  bool pref_enabled =
+      profile_->GetPrefs()->GetBoolean(prefs::kGlicClosedCaptioningEnabled);
+  base::UmaHistogramBoolean("Glic.Response.ClosedCaptionsShown", pref_enabled);
 }
 
 void GlicMetrics::SetControllers(GlicWindowController* window_controller,

@@ -209,8 +209,8 @@ class StyleBuilderConverter {
       const CSSValue&);
   static GridTrackSize ConvertGridTrackSize(StyleResolverState&,
                                             const CSSValue&);
-  static NGGridTrackList ConvertGridTrackSizeList(StyleResolverState&,
-                                                  const CSSValue&);
+  static GridTrackList ConvertGridTrackSizeList(StyleResolverState&,
+                                                const CSSValue&);
   static std::optional<Length> ConvertItemTolerance(const StyleResolverState&,
                                                     const CSSValue&);
   static StyleHyphenateLimitChars ConvertHyphenateLimitChars(
@@ -429,6 +429,9 @@ class StyleBuilderConverter {
       StyleResolverState&,
       const CSSValue&);
   static FitText ConvertFitText(StyleResolverState&, const CSSValue&);
+
+  static ScopedCSSNameList* ConvertTimelineTriggerName(StyleResolverState&,
+                                                       const CSSValue&);
 };
 
 template <typename T>
@@ -548,7 +551,7 @@ struct ResolveColorValueContext {
   STACK_ALLOCATED();
 
  public:
-  const CSSLengthResolver& length_resolver;
+  const CSSToLengthConversionData& conversion_data;
   const TextLinkColors& text_link_colors;
   const mojom::blink::ColorScheme used_color_scheme =
       mojom::blink::ColorScheme::kLight;

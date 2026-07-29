@@ -6,10 +6,10 @@ include_rules = [
     "+third_party/blink/renderer/modules/mediastream",
     "+third_party/blink/renderer/modules/modules_export.h",
     "+third_party/blink/renderer/modules/peerconnection",
+    "+third_party/blink/renderer/modules/permissions/permission_utils.h",
     "+third_party/blink/renderer/modules/p2p",
     "+third_party/blink/renderer/modules/webrtc",
 
-    "+base/hash/md5.h",
     "+base/lazy_instance.h",
     "+base/power_monitor/power_observer.h",
     # TODO(crbug.com/787254): Replace StringPrintf uses here.
@@ -19,6 +19,7 @@ include_rules = [
     "+base/threading/thread.h",
     "+base/unguessable_token.h",
     "+base/values.h",
+    "+crypto/hash.h",
     "+crypto/openssl_util.h",
     "+components/webrtc/thread_wrapper.h",
     "+media/base",
@@ -32,6 +33,7 @@ include_rules = [
     "+net/quic/chromium",
     "+net/quic",
     "+net/test",
+    "+services/network/public/cpp/ip_address_space_util.h",
     "+services/metrics/public/cpp/ukm_builders.h",
 ]
 

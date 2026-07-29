@@ -122,10 +122,10 @@ static bool IsCrLfOrTabChar(UChar c) {
 
 std::optional<mojom::blink::ManifestFileHandler::LaunchType>
 FileHandlerLaunchTypeFromString(const std::string& launch_type) {
-  if (WTF::EqualIgnoringASCIICase(String(launch_type), "single-client")) {
+  if (EqualIgnoringASCIICase(String(launch_type), "single-client")) {
     return mojom::blink::ManifestFileHandler::LaunchType::kSingleClient;
   }
-  if (WTF::EqualIgnoringASCIICase(String(launch_type), "multiple-clients")) {
+  if (EqualIgnoringASCIICase(String(launch_type), "multiple-clients")) {
     return mojom::blink::ManifestFileHandler::LaunchType::kMultipleClients;
   }
   return std::nullopt;
@@ -195,7 +195,7 @@ std::optional<std::vector<liburlpattern::Part>> ParsePatternInitField(
     return std::vector<liburlpattern::Part>();
   }
 
-  StringUTF8Adaptor utf8(value);
+  StringUtf8Adaptor utf8(value);
   auto parse_result = liburlpattern::Parse(
       utf8.AsStringView(),
       [](std::string_view input) { return std::string(input); });
@@ -219,7 +219,7 @@ std::optional<std::vector<liburlpattern::Part>> ParsePatternInitField(
 String EscapePatternString(const StringView& input) {
   std::string result;
   result.reserve(input.length());
-  StringUTF8Adaptor utf8(input);
+  StringUtf8Adaptor utf8(input);
   liburlpattern::EscapePatternStringAndAppend(utf8.AsStringView(), result);
   return String(result);
 }
@@ -1661,9 +1661,13 @@ ManifestParser::ParseProtocolHandler(const JSONObject* object) {
   String error_message;
   bool is_valid_protocol = protocol.has_value();
 
+  ProtocolHandlerSecurityLevel security_level =
+      execution_context_->IsIsolatedContext()
+          ? ProtocolHandlerSecurityLevel::kIsolatedAppFeatures
+          : ProtocolHandlerSecurityLevel::kStrict;
   if (is_valid_protocol &&
       !VerifyCustomHandlerScheme(protocol.value(), error_message,
-                                 ProtocolHandlerSecurityLevel::kStrict)) {
+                                 security_level)) {
     AddErrorInfo(error_message);
     is_valid_protocol = false;
   }
@@ -1692,7 +1696,7 @@ ManifestParser::ParseProtocolHandler(const JSONObject* object) {
     KURL full_url(manifest_url_, tokenless_url);
 
     if (!VerifyCustomHandlerURLSyntax(full_url, manifest_url_, user_url,
-                                      error_message)) {
+                                      security_level, error_message)) {
       AddErrorInfo(error_message);
       is_valid_url = false;
     }

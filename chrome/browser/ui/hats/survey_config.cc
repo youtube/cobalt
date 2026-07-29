@@ -23,11 +23,13 @@
 #include "components/plus_addresses/features.h"
 #include "components/plus_addresses/plus_address_hats_utils.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/variations/service/google_groups_manager.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/download/download_warning_desktop_hats_utils.h"
 #include "components/password_manager/core/browser/features/password_features.h"  // nogncheck
+#include "components/password_manager/core/browser/features/password_manager_features_util.h"  // nogncheck
 #include "components/performance_manager/public/features.h"  // nogncheck
 #include "components/permissions/constants.h"                // nogncheck
 #include "components/safe_browsing/core/common/features.h"   // nogncheck
@@ -46,12 +48,18 @@ constexpr char kHatsSurveyTriggerAutofillAddressUserPerception[] =
     "autofill-address-users-perception";
 constexpr char kHatsSurveyTriggerAutofillAddressUserDeclinedSuggestion[] =
     "autofill-address-users-perception";
+constexpr char kHatsSurveyTriggerAutofillAddressUserDeclinedSave[] =
+    "autofill-address-user-declined-save";
 constexpr char kHatsSurveyTriggerAutofillCreditCardUserPerception[] =
     "autofill-credit-card-users-perception";
 constexpr char kHatsSurveyTriggerAutofillPasswordUserPerception[] =
     "autofill-password-users-perception";
 constexpr char kHatsSurveyTriggerAutofillCard[] = "autofill-card";
 constexpr char kHatsSurveyTriggerAutofillPassword[] = "autofill-password";
+constexpr char kHatsSurveyTriggerDiceWebSigninAccepted[] =
+    "dice-web-signin-accepted";
+constexpr char kHatsSurveyTriggerDiceWebSigninDeclined[] =
+    "dice-web-signin-declined";
 constexpr char kHatsSurveyTriggerDownloadWarningBubbleBypass[] =
     "download-warning-bubble-bypass";
 constexpr char kHatsSurveyTriggerDownloadWarningBubbleHeed[] =
@@ -69,6 +77,12 @@ constexpr char kHatsSurveyTriggerLensOverlayResults[] = "lens-overlay-results";
 constexpr char kHatsSurveyTriggerNtpModules[] = "ntp-modules";
 constexpr char kHatsSurveyTriggerNtpPhotosModuleOptOut[] =
     "ntp-photos-module-opt-out";
+constexpr char kHatsSurveyTriggerPasswordChangeCanceled[] =
+    "password-change-canceled";
+constexpr char kHatsSurveyTriggerPasswordChangeError[] =
+    "password-change-error";
+constexpr char kHatsSurveyTriggerPasswordChangeSuccess[] =
+    "password-change-success";
 constexpr char kHatsSurveyTriggerPerformanceControlsPPM[] = "performance-ppm";
 // The permission prompt trigger permits configuring multiple triggers
 // simultaneously. Each trigger increments a counter at the end -->
@@ -426,6 +440,10 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       kHatsSurveyTriggerAutofillAddressUserDeclinedSuggestion, std::nullopt);
 
   survey_configs.emplace_back(
+      &::autofill::features::kAutofillAddressUserDeclinedSaveSurvey,
+      kHatsSurveyTriggerAutofillAddressUserDeclinedSave);
+
+  survey_configs.emplace_back(
       &::autofill::features::kAutofillCreditCardUserPerceptionSurvey,
       kHatsSurveyTriggerAutofillCreditCardUserPerception, std::nullopt,
       std::vector<std::string>{},
@@ -453,6 +471,13 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   survey_configs.emplace_back(
       &features::kHappinessTrackingSurveysForWallpaperSearch,
       kHatsSurveyTriggerWallpaperSearch);
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+  survey_configs.emplace_back(&switches::kChromeIdentitySurvey,
+                              kHatsSurveyTriggerDiceWebSigninAccepted);
+  survey_configs.emplace_back(&switches::kChromeIdentitySurvey,
+                              kHatsSurveyTriggerDiceWebSigninDeclined);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
   // Compose surveys.
@@ -614,6 +639,48 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   merchant_trust_learn_survey_config.probability =
       page_info::kMerchantTrustLearnSurveyProbability.Get();
   survey_configs.push_back(merchant_trust_learn_survey_config);
+
+  // Automated password change surveys.
+  survey_configs.emplace_back(
+      &password_manager::features::kImprovedPasswordChangeService,
+      kHatsSurveyTriggerPasswordChangeSuccess,
+      password_manager::features::kPasswordChangeSuccessSurveyTriggerId.Get(),
+      /*product_specific_bits_data_fields=*/
+      std::vector<std::string>{password_manager::features_util::
+                                   kPasswordChangeSuggestedPasswordsAdoption},
+      /*product_specific_string_data_fields=*/
+      std::vector<std::string>{
+          password_manager::features_util::
+              kPasswordChangeBreachedPasswordsCount,
+          password_manager::features_util::kPasswordChangeSavedPasswordsCount,
+          password_manager::features_util::kPasswordChangeRuntime});
+  survey_configs.emplace_back(
+      &password_manager::features::kImprovedPasswordChangeService,
+      kHatsSurveyTriggerPasswordChangeError,
+      password_manager::features::kPasswordChangeErrorSurveyTriggerId.Get(),
+      /*product_specific_bits_data_fields=*/
+      std::vector<std::string>{password_manager::features_util::
+                                   kPasswordChangeSuggestedPasswordsAdoption},
+      /*product_specific_string_data_fields=*/
+      std::vector<std::string>{
+          password_manager::features_util::
+              kPasswordChangeBreachedPasswordsCount,
+          password_manager::features_util::kPasswordChangeSavedPasswordsCount,
+          password_manager::features_util::kPasswordChangeRuntime});
+  survey_configs.emplace_back(
+      &password_manager::features::kImprovedPasswordChangeService,
+      kHatsSurveyTriggerPasswordChangeCanceled,
+      password_manager::features::kPasswordChangeCanceledSurveyTriggerId.Get(),
+      /*product_specific_bits_data_fields=*/
+      std::vector<std::string>{password_manager::features_util::
+                                   kPasswordChangeSuggestedPasswordsAdoption},
+      /*product_specific_string_data_fields=*/
+      std::vector<std::string>{
+          password_manager::features_util::
+              kPasswordChangeBreachedPasswordsCount,
+          password_manager::features_util::kPasswordChangeSavedPasswordsCount,
+          password_manager::features_util::kPasswordChangeRuntime});
+
 #else
   survey_configs.emplace_back(&chrome::android::kChromeSurveyNextAndroid,
                               kHatsSurveyTriggerAndroidStartupSurvey);

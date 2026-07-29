@@ -288,4 +288,40 @@ BnplFetchUrlResponseDetails& BnplFetchUrlResponseDetails::operator=(
     BnplFetchUrlResponseDetails&&) = default;
 BnplFetchUrlResponseDetails::~BnplFetchUrlResponseDetails() = default;
 
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::
+    GetDetailsForUpdateBnplPaymentInstrumentRequestDetails() = default;
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::
+    GetDetailsForUpdateBnplPaymentInstrumentRequestDetails(
+        const GetDetailsForUpdateBnplPaymentInstrumentRequestDetails&) =
+        default;
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails&
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::operator=(
+    const GetDetailsForUpdateBnplPaymentInstrumentRequestDetails& other) =
+    default;
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::
+    GetDetailsForUpdateBnplPaymentInstrumentRequestDetails(
+        GetDetailsForUpdateBnplPaymentInstrumentRequestDetails&&) = default;
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails&
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::operator=(
+    GetDetailsForUpdateBnplPaymentInstrumentRequestDetails&&) = default;
+GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::
+    ~GetDetailsForUpdateBnplPaymentInstrumentRequestDetails() = default;
+
+UpdateBnplPaymentInstrumentRequestDetails::
+    UpdateBnplPaymentInstrumentRequestDetails() = default;
+UpdateBnplPaymentInstrumentRequestDetails::
+    UpdateBnplPaymentInstrumentRequestDetails(
+        const UpdateBnplPaymentInstrumentRequestDetails&) = default;
+UpdateBnplPaymentInstrumentRequestDetails&
+UpdateBnplPaymentInstrumentRequestDetails::operator=(
+    const UpdateBnplPaymentInstrumentRequestDetails& other) = default;
+UpdateBnplPaymentInstrumentRequestDetails::
+    UpdateBnplPaymentInstrumentRequestDetails(
+        UpdateBnplPaymentInstrumentRequestDetails&&) = default;
+UpdateBnplPaymentInstrumentRequestDetails&
+UpdateBnplPaymentInstrumentRequestDetails::operator=(
+    UpdateBnplPaymentInstrumentRequestDetails&&) = default;
+UpdateBnplPaymentInstrumentRequestDetails::
+    ~UpdateBnplPaymentInstrumentRequestDetails() = default;
+
 }  // namespace autofill::payments

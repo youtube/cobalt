@@ -13,6 +13,7 @@ source_set("coordinator") {
     ":options",
     "//ios/chrome/browser/reader_mode/model",
     "//ios/chrome/browser/reader_mode/ui",
+    "//ios/chrome/browser/reader_mode/ui:constants",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
@@ -20,6 +21,19 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/tabs/model",
     "//ios/web/public",
+  ]
+}
+
+source_set("chip") {
+  sources = [
+    "reader_mode_chip_coordinator.h",
+    "reader_mode_chip_coordinator.mm",
+  ]
+  deps = [
+    "//ios/chrome/browser/reader_mode/ui:chip",
+    "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/public/commands",
   ]
 }
 
@@ -33,9 +47,14 @@ source_set("options") {
   ]
   deps = [
     "//base",
+    "//components/dom_distiller/ios",
+    "//ios/chrome/browser/dom_distiller/model",
+    "//ios/chrome/browser/reader_mode/model",
+    "//ios/chrome/browser/reader_mode/ui:constants",
     "//ios/chrome/browser/reader_mode/ui:options",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/web_state_list",
     "//ios/chrome/browser/shared/public/commands",
   ]
 }

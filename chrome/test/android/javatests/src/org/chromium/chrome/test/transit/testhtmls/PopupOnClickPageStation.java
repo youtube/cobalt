@@ -47,10 +47,9 @@ public class PopupOnClickPageStation extends WebPageStation {
         PopupOnClickPageStation newPage =
                 new Builder<>(PopupOnClickPageStation::new)
                         .initFrom(this)
-                        .withIsOpeningTabs(1)
-                        .withIsSelectingTabs(1)
+                        .initOpeningNewTab()
                         .build();
-        return travelToSync(newPage, linkToPopup.getClickTrigger());
+        return linkToPopup.clickTo().arriveAt(newPage);
     }
 
     /** Opens a sample page as a pop-up with bounds and expects a new window to open. */
@@ -71,7 +70,6 @@ public class PopupOnClickPageStation extends WebPageStation {
      * message to be shown.
      */
     public PopupBlockedMessageFacility clickLinkAndExpectPopupBlockedMessage() {
-        return enterFacilitySync(
-                new PopupBlockedMessageFacility<>(1), linkToPopup.getClickTrigger());
+        return linkToPopup.clickTo().enterFacility(new PopupBlockedMessageFacility<>(1));
     }
 }

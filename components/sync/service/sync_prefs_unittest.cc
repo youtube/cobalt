@@ -24,7 +24,6 @@
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/protocol/nigori_specifics.pb.h"
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
-#include "extensions/buildflags/buildflags.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -484,21 +483,19 @@ TEST_F(SyncPrefsTest,
                             switches::kEnablePreferencesAccountStorage},
       /*disabled_features=*/{});
 
-  // All except history-guarded types should be enabled.
-  UserSelectableTypeSet expected_types{
-      UserSelectableType::kBookmarks,
-      UserSelectableType::kProductComparison,
-      UserSelectableType::kReadingList,
-      UserSelectableType::kPasswords,
-      UserSelectableType::kAutofill,
-      UserSelectableType::kPayments,
-      UserSelectableType::kPreferences,
-      UserSelectableType::kExtensions,
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-      // kThemes is not supported on mobile.
-      UserSelectableType::kThemes,
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  };
+  // All except history-guarded types should be enabled. `kCookies` is also
+  // listed because it isn't supported in transport mode.
+  const UserSelectableTypeSet expected_types = Difference(
+      UserSelectableTypeSet::All(), {
+                                        UserSelectableType::kHistory,
+                                        UserSelectableType::kSavedTabGroups,
+                                        UserSelectableType::kTabs,
+                                        UserSelectableType::kCookies,
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+                                        // kThemes is not supported on mobile.
+                                        UserSelectableType::kThemes,
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+                                    });
 
   EXPECT_THAT(sync_prefs_->GetSelectedTypesForAccount(gaia_id_),
               ContainerEq(expected_types));

@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Sampaikan pendapat Anda</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome selesai diupdate. Anda dapat menggunakan versi terbaru segera setelah diluncurkan kembali. Setelah itu, tab saat ini akan dibuka kembali.}=1{Chrome selesai diupdate. Anda dapat menggunakan versi terbaru segera setelah diluncurkan kembali. Setelah itu, tab saat ini akan dibuka kembali. Jendela Samaran Anda tidak akan dibuka kembali.}other{Chrome selesai diupdate. Anda dapat menggunakan versi terbaru segera setelah diluncurkan kembali. Setelah itu, tab saat ini akan dibuka kembali. # jendela Samaran Anda tidak akan dibuka kembali.}}</translation>
 <translation id="1434626383986940139">Aplikasi Chrome Canary</translation>
+<translation id="1439793550875056299">Sematkan Chrome</translation>
 <translation id="146866447420868597">Login ke Chrome?</translation>
 <translation id="1492280395845991349">Luncurkan kembali untuk menyelesaikan update Chrome</translation>
 <translation id="1497802159252041924">Error saat penginstalan: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome akan mencoba mengupgrade navigasi ke HTTPS</translation>
 <translation id="2571392474191184472">Organisasi Anda mengelola Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> telah login ke profil Chrome ini. Agar penjelajahan Anda tetap terpisah, Chrome dapat membuat profil tersendiri untuk Anda.</translation>
+<translation id="2579190314336775785">Sandi hanya dapat dihapus di luar Chrome</translation>
 <translation id="2580411288591421699">Tak dapat memasang Google Chrome dengan versi yang sama dengan yang sedang aktif. Tutup dulu, baru coba lagi.</translation>
 <translation id="2586406160782125153">Tindakan ini akan menghapus data browsing dari perangkat ini. Untuk mengambil data nanti, login ke Chrome sebagai <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Gagal menyimpan cache penginstal yang didownload. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome Merekomendasikan untuk Menjeda Tab yang Memperlambat Browser Anda}other{Chrome Merekomendasikan untuk Menjeda Tab yang Memperlambat Browser Anda}}</translation>
 <translation id="4328355335528187361">Google Chrome Dev (mDNS-In)</translation>
 <translation id="4329315893554541805">Untuk mendapatkan personalisasi dan fitur lainnya, sertakan Chrome dalam Aktivitas Web &amp; Aplikasi serta layanan Google tertaut</translation>
+<translation id="4334241893986177674">Telusuri screenshot ini</translation>
 <translation id="4334294535648607276">Download selesai.</translation>
 <translation id="4337324600316876133">Untuk mendapatkan update Google Chrome berikutnya, Anda memerlukan macOS 12 atau yang lebih baru. Komputer ini menggunakan macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> telah ditambahkan ke Chrome</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Error saat sistem dimulai: jalankan penginstal sebagai pengguna biasa, bukan sebagai administrator.</translation>
 <translation id="5596627076506792578">Opsi lainnya</translation>
+<translation id="5600352656975192682">Sematkan Chrome ke taskbar untuk mengaksesnya dengan cepat kapan saja</translation>
 <translation id="5602351063754773347">Chrome merekomendasikan agar Anda menghapusnya. <ph name="BEGIN_LINK" />Pelajari lebih lanjut ekstensi yang didukung<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Dengan profil Chrome, Anda dapat memisahkan semua data Chrome Anda. Buat profil untuk teman dan keluarga, atau pisahkan antara aktivitas kerja dan hiburan.</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> mungkin berbahaya, sehingga Chrome memblokirnya.</translation>

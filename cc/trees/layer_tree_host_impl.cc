@@ -70,7 +70,6 @@
 #include "cc/metrics/lcd_text_metrics_reporter.h"
 #include "cc/metrics/submit_info.h"
 #include "cc/metrics/ukm_dropped_frames_data.h"
-#include "cc/metrics/ukm_smoothness_data.h"
 #include "cc/paint/display_item_list.h"
 #include "cc/paint/paint_worklet_job.h"
 #include "cc/paint/paint_worklet_layer_painter.h"
@@ -1157,6 +1156,10 @@ std::unique_ptr<EventsMetricsManager::ScopedMonitor>
 LayerTreeHostImpl::GetScopedEventMetricsMonitor(
     EventsMetricsManager::ScopedMonitor::DoneCallback done_callback) {
   return events_metrics_manager_.GetScopedMonitor(std::move(done_callback));
+}
+
+void LayerTreeHostImpl::DidScrollForMetrics() {
+  return events_metrics_manager_.set_did_scroll(true);
 }
 
 void LayerTreeHostImpl::NotifyInputEvent(bool is_fling) {
@@ -2319,24 +2322,21 @@ void LayerTreeHostImpl::ReclaimResources(
   // it to the GPU process to free up the memory.
   MaybeFlushPendingWork();
 
-  if (base::FeatureList::IsEnabled(
-          features::kReclaimResourcesDelayedFlushInBackground)) {
-    // There are cases where the release callbacks executed from the call above
-    // don't actually free the GPU resource from this thread. For instance, for
-    // TextureLayer,
-    // TextureLayer::TransferableResourceHolder::~TransferableResourceHolder()
-    // posts a task to the main thread, and so flushing here is not sufficient.
-    //
-    // Ideally, we would not rely on a time-based delay, but given layering,
-    // threading and possibly unknown cases where the release can jump from
-    // thread to thread, this is likely a more practical solution. See
-    // crbug.com/1449271 for an example.
-    GetTaskRunner()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&LayerTreeHostImpl::MaybeFlushPendingWork,
-                       weak_factory_.GetWeakPtr()),
-        base::Seconds(1));
-  }
+  // There are cases where the release callbacks executed from the call above
+  // don't actually free the GPU resource from this thread. For instance, for
+  // TextureLayer,
+  // TextureLayer::TransferableResourceHolder::~TransferableResourceHolder()
+  // posts a task to the main thread, and so flushing here is not sufficient.
+  //
+  // Ideally, we would not rely on a time-based delay, but given layering,
+  // threading and possibly unknown cases where the release can jump from
+  // thread to thread, this is likely a more practical solution. See
+  // crbug.com/1449271 for an example.
+  GetTaskRunner()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&LayerTreeHostImpl::MaybeFlushPendingWork,
+                     weak_factory_.GetWeakPtr()),
+      base::Seconds(1));
 }
 
 void LayerTreeHostImpl::MaybeFlushPendingWork() {
@@ -4047,7 +4047,7 @@ void LayerTreeHostImpl::SetVisible(bool visible) {
   }
 
   // If we just became visible, we have to ensure that we draw high res tiles,
-  // to prevent checkerboard/low res flashes.
+  // to prevent checkerboard flashes.
   if (visible_) {
     // TODO(crbug.com/40410467): Replace with RequiresHighResToDraw.
     SetRequiresHighResToDraw();
@@ -4666,7 +4666,6 @@ void LayerTreeHostImpl::WillScrollContent(ElementId element_id) {
 void LayerTreeHostImpl::DidScrollContent(ElementId element_id,
                                          bool animated,
                                          const gfx::Vector2dF& scroll_delta) {
-  events_metrics_manager_.set_did_scroll(true);
   scroll_accumulated_this_frame_ += scroll_delta;
   frame_max_scroll_delta_ =
       std::max(std::abs(scroll_delta.x()), std::abs(scroll_delta.y()));
@@ -5958,11 +5957,6 @@ void LayerTreeHostImpl::SetActiveURL(const GURL& url, ukm::SourceId source_id) {
   // The source id has already been associated to the URL.
   compositor_frame_reporting_controller_->SetSourceId(source_id);
   frame_sorter_.Reset(/*reset_fcp=*/true);
-}
-
-void LayerTreeHostImpl::SetUkmSmoothnessDestination(
-    base::WritableSharedMemoryMapping ukm_smoothness_data) {
-  ukm_smoothness_mapping_ = std::move(ukm_smoothness_data);
 }
 
 void LayerTreeHostImpl::SetUkmDroppedFramesDestination(

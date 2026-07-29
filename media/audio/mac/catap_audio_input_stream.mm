@@ -221,6 +221,7 @@ CatapAudioInputStream::CatapAudioInputStream(
       default_output_device_id_(default_output_device_id) {
   CHECK(device_id_ == AudioDeviceDescription::kLoopbackInputDeviceId ||
         device_id == AudioDeviceDescription::kLoopbackWithMuteDeviceId ||
+        device_id == AudioDeviceDescription::kLoopbackWithMuteDeviceIdCast ||
         device_id == AudioDeviceDescription::kLoopbackWithoutChromeId ||
         device_id == AudioDeviceDescription::kLoopbackAllDevicesId);
   CHECK(!log_callback_.is_null());
@@ -228,6 +229,10 @@ CatapAudioInputStream::CatapAudioInputStream(
 
   // Only mono and stereo audio is supported.
   CHECK(params_.channels() == 1 || params_.channels() == 2);
+
+  SendLogMessage("%s({device_id=%s}, {default_device=[%s]}, {params=[%s]})",
+                 __func__, device_id.c_str(), default_output_device_id.c_str(),
+                 params.AsHumanReadableString().c_str());
 }
 
 CatapAudioInputStream::~CatapAudioInputStream() {
@@ -238,6 +243,8 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("audio", "CatapAudioInputStream::Open");
   base::ElapsedTimer timer;
+
+  SendLogMessage("%s() => deviceId: %s", __func__, device_id_.c_str());
 
   if (is_device_open_) {
     ReportOpenStatus(OpenStatus::kErrorDeviceAlreadyOpen, timer.Elapsed());
@@ -261,78 +268,31 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
     }
   }
 
-  // The allocation and initialization of CATapDescription has been split into
-  // the steps a-f to enable debugging of a flaky test.
+  // Default initialization: Mix all processes to a stereo stream except the
+  // given processes. The default output device is selected below unless the
+  // device ID specifies that all devices should be captured.
+  tap_description_ =
+      [[CATapDescription alloc] initStereoGlobalTapButExcludeProcesses:
+                                    process_audio_device_ids_to_exclude];
 
-  // a. Allocate the CATapDescription instance.
-  //    Store it in a temporary variable first to allow immediate validation.
-  CATapDescription* new_tap_description = [[CATapDescription alloc] init];
-
-  // b. Check if allocation was successful.
-  //    If alloc returns nil, it means memory allocation failed.
-  if (new_tap_description == nil) {
-    SendLogMessage("%s => Failed to allocate CATapDescription.", __func__);
-    return OpenOutcome::kFailed;
-  }
-
-  // c. Verify the actual runtime class of the allocated object.
-  //    This is the most critical check for an "unrecognized selector" when the
-  //    API is known to exist. It catches cases where 'alloc' might return an
-  //    object of an unexpected type due to subtle runtime issues.
-  if (![new_tap_description isKindOfClass:[CATapDescription class]]) {
-    SendLogMessage("%s => Allocated object is of unexpected class.", __func__);
-    return OpenOutcome::kFailed;
-  }
-
-  // d. Double-check if the allocated object responds to the specific
-  //    initializers. While logically redundant if step 3 passes and the OS
-  //    version is correct, this directly tests the "unrecognized selector"
-  //    condition.
-  if (![new_tap_description respondsToSelector:@selector
-                            (initStereoGlobalTapButExcludeProcesses:)]) {
-    SendLogMessage("%s => CATapDescription instance does not respond to "
-                   "initStereoGlobalTapButExcludeProcesses:.",
-                   __func__);
-    return OpenOutcome::kFailed;
-  }
-  if (![new_tap_description
-          respondsToSelector:@selector(initExcludingProcesses:
-                                                 andDeviceUID:withStream:)]) {
-    SendLogMessage("%s => CATapDescription instance does not respond to "
-                   "initExcludingProcesses:andDeviceUID:withStream:.",
-                   __func__);
-    return OpenOutcome::kFailed;
-  }
-
-  // e. Perform the actual initialization if all preceding checks pass.
-  if (device_id_ == AudioDeviceDescription::kLoopbackAllDevicesId ||
-      base::FeatureList::IsEnabled(kMacCatapCaptureAllDevices)) {
-    // Mix all processes to a stereo stream except the given processes.
-    tap_description_ =
-        [new_tap_description initStereoGlobalTapButExcludeProcesses:
-                                 process_audio_device_ids_to_exclude];
-  } else {
-    // Mix all process audio streams destined for the selected device stream
-    // except the given processes.
-    tap_description_ = [new_tap_description
-        initExcludingProcesses:process_audio_device_ids_to_exclude
-                  andDeviceUID:[NSString stringWithUTF8String:
-                                             default_output_device_id_.c_str()]
-                    withStream:0];
-  }
-
-  // f. Check if the initialization itself succeeded.
-  //    An 'init' method can return nil if initialization fails internally for
-  //    some reason.
   if (tap_description_ == nil) {
+    ReportOpenStatus(OpenStatus::kErrorCreatingTapDescription, timer.Elapsed());
     SendLogMessage("%s => CATapDescription initialization failed.", __func__);
     return OpenOutcome::kFailed;
+  }
+
+  if (device_id_ != AudioDeviceDescription::kLoopbackAllDevicesId &&
+      !base::FeatureList::IsEnabled(kMacCatapCaptureAllDevices)) {
+    // Select the default output device.
+    tap_description_.deviceUID = @(default_output_device_id_.c_str());
+    tap_description_.stream = @(0);
   }
 
   if (params_.channels() == 1) {
     [tap_description_ setMono:YES];
   }
-  if (device_id_ == AudioDeviceDescription::kLoopbackWithMuteDeviceId) {
+  if (device_id_ == AudioDeviceDescription::kLoopbackWithMuteDeviceId ||
+      device_id_ == AudioDeviceDescription::kLoopbackWithMuteDeviceIdCast) {
     // No audio is sent to the hardware (e.g, speakers) while the audio is
     // captured.
     [tap_description_ setMuteBehavior:CATapMuted];
@@ -428,6 +388,7 @@ AudioInputStream::OpenOutcome CatapAudioInputStream::Open() {
 void CatapAudioInputStream::Start(AudioInputCallback* callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("audio", "CatapAudioInputStream::Start");
+  SendLogMessage("%s()", __func__);
   base::ElapsedTimer timer;
   CHECK(callback);
   CHECK(is_device_open_);
@@ -448,6 +409,7 @@ void CatapAudioInputStream::Start(AudioInputCallback* callback) {
 void CatapAudioInputStream::Stop() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("audio", "CatapAudioInputStream::Stop");
+  SendLogMessage("%s()", __func__);
   base::ElapsedTimer timer;
   if (!sink_) {
     return;
@@ -477,6 +439,7 @@ void CatapAudioInputStream::Stop() {
 void CatapAudioInputStream::Close() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("audio", "CatapAudioInputStream::Close");
+  SendLogMessage("%s() => deviceId: %s", __func__, device_id_.c_str());
   base::ElapsedTimer timer;
   Stop();
 
@@ -733,6 +696,8 @@ AudioInputStream* CreateCatapAudioInputStream(
                                      std::move(close_callback),
                                      default_output_device_id);
   }
+  log_callback.Run("CatapAudioInputStream::CreateCatapAudioInputStream() Catap "
+                   "not supported");
   return nullptr;
 }
 

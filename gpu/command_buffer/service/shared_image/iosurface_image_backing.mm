@@ -1028,7 +1028,6 @@ bool IOSurfaceImageBacking::SkiaGraphiteDawnMetalRepresentation::
 
 IOSurfaceImageBacking::IOSurfaceImageBacking(
     gfx::ScopedIOSurface io_surface,
-    gfx::GenericSharedMemoryId io_surface_id,
     const Mailbox& mailbox,
     viz::SharedImageFormat format,
     const gfx::Size& size,
@@ -1058,7 +1057,6 @@ IOSurfaceImageBacking::IOSurfaceImageBacking(
       io_surface_size_(IOSurfaceGetWidth(io_surface_.get()),
                        IOSurfaceGetHeight(io_surface_.get())),
       io_surface_format_(IOSurfaceGetPixelFormat(io_surface_.get())),
-      io_surface_id_(io_surface_id),
       dawn_texture_cache_(base::MakeRefCounted<DawnSharedTextureCache>()),
       gl_target_(gl_target),
       framebuffer_attachment_angle_(framebuffer_attachment_angle),
@@ -1066,6 +1064,9 @@ IOSurfaceImageBacking::IOSurfaceImageBacking(
   CHECK(io_surface_);
   CHECK(!is_thread_safe ||
         base::FeatureList::IsEnabled(features::kIOSurfaceMultiThreading));
+
+  // Set the color space for the underlying IOSurface when it's used as overlay.
+  gfx::IOSurfaceSetColorSpace(io_surface_.get(), color_space);
 
   // If this will be bound to different GL backends, then make RetainGLTexture
   // and ReleaseGLTexture actually create and destroy the texture.
@@ -1296,34 +1297,6 @@ base::trace_event::MemoryAllocatorDump* IOSurfaceImageBacking::OnMemoryDump(
   dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
                   base::trace_event::MemoryAllocatorDump::kUnitsBytes,
                   static_cast<uint64_t>(size_bytes));
-
-  // The client tracing id is to identify the GpuMemoryBuffer client that
-  // created the allocation. For CVPixelBufferRefs, there is no corresponding
-  // GpuMemoryBuffer, so use an invalid client id.
-  if (usage().Has(SHARED_IMAGE_USAGE_MACOS_VIDEO_TOOLBOX)) {
-    client_tracing_id =
-        base::trace_event::MemoryDumpManager::kInvalidTracingProcessId;
-  }
-
-  // Create an edge using the GMB GenericSharedMemoryId if the image is not
-  // anonymous. Otherwise, add another nested node to account for the anonymous
-  // IOSurface.
-  if (io_surface_id_.is_valid()) {
-    auto guid = GetGenericSharedGpuMemoryGUIDForTracing(client_tracing_id,
-                                                        io_surface_id_);
-    pmd->CreateSharedGlobalAllocatorDump(guid);
-    pmd->AddOwnershipEdge(dump->guid(), guid);
-  } else {
-    std::string anonymous_dump_name = dump_name + "/anonymous-iosurface";
-    base::trace_event::MemoryAllocatorDump* anonymous_dump =
-        pmd->CreateAllocatorDump(anonymous_dump_name);
-    anonymous_dump->AddScalar(
-        base::trace_event::MemoryAllocatorDump::kNameSize,
-        base::trace_event::MemoryAllocatorDump::kUnitsBytes,
-        static_cast<uint64_t>(size_bytes));
-    anonymous_dump->AddScalar("width", "pixels", size().width());
-    anonymous_dump->AddScalar("height", "pixels", size().height());
-  }
 
   return dump;
 }

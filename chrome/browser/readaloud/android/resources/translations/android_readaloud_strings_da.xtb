@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Flere valgmuligheder</translation>
 <translation id="565342223183747919">Tryk for at skifte afspilningstilstand</translation>
 <translation id="5694491020339060116">Menu for afspilningshastighed</translation>
+<translation id="5961164658295696940">Tryk for at udvide afspilleren og se flere valgmuligheder</translation>
 <translation id="5965409657393819302">Teknisk problem</translation>
 <translation id="6218961554829577610">Jeg kunne ikke lide stemmen</translation>
 <translation id="6315170314923504164">Stemme</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Indlæser…</translation>
 <translation id="6889157801232138307">Afspilleren "Lyt til denne side"</translation>
 <translation id="7051308646573997571">Koralrød</translation>
-<translation id="7112750136794557642">Tryk for at udvide afspilleren og se flere valgmuligheder.</translation>
 <translation id="7138678301420049075">Andet</translation>
 <translation id="7221920857098237570">Blid</translation>
 <translation id="7237590978482584900">Luftig</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Rolig</translation>
 <translation id="8756370108715456837">Ikke faktuelt korrekt</translation>
 <translation id="8953618380150219653">Afspilleren "Lyt til denne side" er åbnet i fuld højde.</translation>
+<translation id="9087782179025630211">Skydebjælke. <ph name="ELAPSED" /> af <ph name="TOTAL" /> er gået.</translation>
 <translation id="978117257931832348">Dyb stemme</translation>
 </translationbundle>

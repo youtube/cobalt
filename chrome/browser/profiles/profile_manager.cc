@@ -241,7 +241,7 @@ void ProfileSizeTask(const base::FilePath& path, int enabled_app_count) {
 
   size = base::ComputeDirectorySize(path);
   size_MB = static_cast<int>(size / kBytesInOneMB);
-  UMA_HISTOGRAM_COUNTS_10000("Profile.TotalSizeRecursive", size_MB);
+  UMA_HISTOGRAM_COUNTS_100000("Profile.TotalSizeRecursive", size_MB);
 
   size = ComputeFilesSize(path, FILE_PATH_LITERAL("History"));
   size_MB = static_cast<int>(size / kBytesInOneMB);
@@ -1267,6 +1267,8 @@ void ProfileManager::AddKeepAlive(const Profile* profile,
     // the root cause is fixed.
     SCOPED_CRASH_KEY_STRING32("ProfileKeepAlive", "origin",
                               GetKeepAliveOriginName(origin));
+    SCOPED_CRASH_KEY_BOOL("ProfileKeepAlive", "profile_ever_loaded",
+                           ever_loaded_profiles_.contains(profile->GetPath()));
     base::debug::DumpWithoutCrashing();
     return;
   }

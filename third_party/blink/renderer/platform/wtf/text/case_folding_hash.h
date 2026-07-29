@@ -131,13 +131,13 @@ class CaseFoldingHash {
     // Save one branch inside each StringView by derefing the StringImpl,
     // and another branch inside the compare function by skipping the null
     // checks.
-    return DeprecatedEqualIgnoringCaseAndNullity(*a, *b);
+    return blink::DeprecatedEqualIgnoringCaseAndNullity(*a, *b);
   }
 
   static inline bool Equal(const char* a, const char* b) {
     DCHECK(a);
     DCHECK(b);
-    return DeprecatedEqualIgnoringCaseAndNullity(a, b);
+    return blink::DeprecatedEqualIgnoringCaseAndNullity(a, b);
   }
 
   static unsigned GetHash(const scoped_refptr<StringImpl>& key) {
@@ -150,13 +150,14 @@ class CaseFoldingHash {
   }
 
   static unsigned GetHash(const String& key) { return GetHash(key.Impl()); }
-  static unsigned GetHash(const AtomicString& key) {
+  static unsigned GetHash(const blink::AtomicString& key) {
     return GetHash(key.Impl());
   }
   static bool Equal(const String& a, const String& b) {
     return Equal(a.Impl(), b.Impl());
   }
-  static bool Equal(const AtomicString& a, const AtomicString& b) {
+  static bool Equal(const blink::AtomicString& a,
+                    const blink::AtomicString& b) {
     return (a == b) || Equal(a.Impl(), b.Impl());
   }
 

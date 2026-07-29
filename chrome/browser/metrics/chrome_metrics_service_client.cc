@@ -124,7 +124,6 @@
 #include "content/public/browser/histogram_fetcher.h"
 #include "content/public/browser/network_service_instance.h"
 #include "google_apis/google_api_keys.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 
@@ -275,8 +274,12 @@ std::unique_ptr<metrics::FileMetricsProvider> CreateFileMetricsProvider(
   using metrics::FileMetricsProvider;
 
   // Create an object to monitor files of metrics and include them in reports.
+  // `is_fre` can be true only on platforms that have FRE.
+  // TODO(crbug.com/407991309): For now, `is_fre` is only set to true in iOS.
+  // Add it also in Android.
   std::unique_ptr<FileMetricsProvider> file_metrics_provider(
-      new FileMetricsProvider(g_browser_process->local_state()));
+      new FileMetricsProvider(g_browser_process->local_state(),
+                              /*is_fre=*/false));
 
   base::FilePath user_data_dir;
   if (base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir)) {

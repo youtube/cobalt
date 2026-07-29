@@ -5,23 +5,20 @@
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog.h"
 
 #include "base/memory/raw_ptr.h"
-#include "base/run_loop.h"
-#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
 #include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
-#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
-#include "ui/views/controls/button/label_button.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget_observer.h"
 
@@ -30,9 +27,13 @@ namespace {
 class IncognitoClearBrowsingDataDialogTest : public InProcessBrowserTest {
  public:
   void OpenDialog(IncognitoClearBrowsingDataDialogInterface::Type type) {
-    incognito_browser_ = CreateIncognitoBrowser(browser()->profile());
+    incognito_browser_ = CreateIncognitoBrowser(GetProfile());
     auto* coordinator = GetCoordinator();
-    coordinator->Show(type);
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(incognito_browser_);
+    views::View* anchor_view =
+        browser_view->toolbar_button_provider()->GetAvatarToolbarButton();
+    coordinator->Show(type, anchor_view);
     EXPECT_TRUE(coordinator->IsShowing());
   }
 
@@ -48,8 +49,8 @@ class IncognitoClearBrowsingDataDialogTest : public InProcessBrowserTest {
   }
 
   IncognitoClearBrowsingDataDialogCoordinator* GetCoordinator() {
-    return IncognitoClearBrowsingDataDialogCoordinator::GetOrCreateForBrowser(
-        incognito_browser_);
+    return incognito_browser_->GetFeatures()
+        .incognito_clear_browsing_data_dialog_coordinator();
   }
 
  private:
@@ -155,8 +156,8 @@ IN_PROC_BROWSER_TEST_F(IncognitoClearBrowsingDataDialogTest,
   std::u16string current_tab_title;
   ui_test_utils::GetCurrentTabTitle(incognito_browser, &current_tab_title);
   EXPECT_EQ(u"about:blank", current_tab_title);
-  auto* coordinator = IncognitoClearBrowsingDataDialogCoordinator::FromBrowser(
-      incognito_browser);
+  auto* coordinator = incognito_browser->GetFeatures()
+                          .incognito_clear_browsing_data_dialog_coordinator();
   ASSERT_TRUE(coordinator->IsShowing());
 }
 

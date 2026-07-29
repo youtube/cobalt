@@ -212,6 +212,7 @@ component("base") {
     "bit_cast.h",
     "bits.h",
     "build_time.h",
+    "byte_count.h",
     "callback_list.cc",
     "callback_list.h",
     "cancelable_callback.h",
@@ -1218,6 +1219,8 @@ component("base") {
       "android/task_scheduler/task_traits_android.h",
       "android/thread_instruction_count.cc",
       "android/thread_instruction_count.h",
+      "android/yield_to_looper_checker.cc",
+      "android/yield_to_looper_checker.h",
       "debug/stack_trace_android.cc",
       "files/file_util_android.cc",
       "files/scoped_file_android.cc",
@@ -1325,8 +1328,8 @@ component("base") {
   }
   if (is_android || is_robolectric) {
     sources += [
-      "android/base_jni_onload.cc",
-      "android/base_jni_onload.h",
+      "android/base_jni_init.cc",
+      "android/base_jni_init.h",
       "android/callback_android.cc",
       "android/callback_android.h",
       "android/command_line_android.cc",
@@ -2502,6 +2505,18 @@ component("base") {
   }
 }
 
+if (is_android) {
+  # This source_set must end up in the root component of a shared library, and
+  # the NativeInitializationHook definition must also be in the root component.
+  source_set("jni_onload") {
+    sources = [
+      "android/jni_onload.cc",
+      "android/jni_onload.h",
+    ]
+    deps = [ ":base" ]
+  }
+}
+
 rust_bindgen("logging_log_severity_bindgen") {
   # TODO(danakj): Maybe combine all base bindgen targets, or all base/logging
   # ones even) into a single GN target? But the GN rule needs to handle multiple
@@ -3312,6 +3327,7 @@ test("base_unittests") {
     "bit_cast_unittest.cc",
     "bits_unittest.cc",
     "build_time_unittest.cc",
+    "byte_count_unittest.cc",
     "callback_list_unittest.cc",
     "cancelable_callback_unittest.cc",
     "check_is_test_unittest.cc",
@@ -3704,6 +3720,10 @@ test("base_unittests") {
   }
 
   fuzztests = [ "JSONReaderTest.CanParseAnythingWithoutCrashing" ]
+
+  if (is_clang) {
+    sources += [ "compiler_hardening_test.cc" ]
+  }
 
   defines = []
   frameworks = []

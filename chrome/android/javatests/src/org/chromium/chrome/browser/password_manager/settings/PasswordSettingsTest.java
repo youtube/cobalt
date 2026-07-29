@@ -29,7 +29,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -41,8 +40,8 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
-import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.chrome.test.R;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.prefs.PrefService;
@@ -60,10 +59,6 @@ import java.util.Set;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class PasswordSettingsTest {
-    private static final String OFFER_TO_SAVE_PASSWORDS_HISTOGRAM =
-            "PasswordManager.Settings.ToggleOfferToSavePasswords";
-    private static final String AUTO_SIGNIN_HISTOGRAM = "PasswordManager.Settings.ToggleAutoSignIn";
-
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
@@ -71,8 +66,8 @@ public class PasswordSettingsTest {
             new SettingsActivityTestRule<>(PasswordSettings.class);
 
     @Rule
-    public AutomotiveContextWrapperTestRule mAutomotiveContextWrapperTestRule =
-            new AutomotiveContextWrapperTestRule();
+    public OverrideContextWrapperTestRule mAutomotiveContextWrapperTestRule =
+            new OverrideContextWrapperTestRule();
 
     @Mock private PasswordCheck mPasswordCheck;
 
@@ -153,17 +148,9 @@ public class PasswordSettingsTest {
 
                     onOffSwitch.performClick();
                     assertFalse(getPrefService().getBoolean(Pref.CREDENTIALS_ENABLE_SERVICE));
-                    Assert.assertEquals(
-                            1,
-                            RecordHistogram.getHistogramValueCountForTesting(
-                                    OFFER_TO_SAVE_PASSWORDS_HISTOGRAM, 0));
 
                     onOffSwitch.performClick();
                     assertTrue(getPrefService().getBoolean(Pref.CREDENTIALS_ENABLE_SERVICE));
-                    Assert.assertEquals(
-                            1,
-                            RecordHistogram.getHistogramValueCountForTesting(
-                                    OFFER_TO_SAVE_PASSWORDS_HISTOGRAM, 1));
                 });
 
         mPasswordSettingsActivityTestRule.finishActivity();
@@ -296,17 +283,9 @@ public class PasswordSettingsTest {
 
                     onOffSwitch.performClick();
                     assertFalse(getPrefService().getBoolean(Pref.CREDENTIALS_ENABLE_AUTOSIGNIN));
-                    Assert.assertEquals(
-                            1,
-                            RecordHistogram.getHistogramValueCountForTesting(
-                                    AUTO_SIGNIN_HISTOGRAM, 0));
 
                     onOffSwitch.performClick();
                     assertTrue(getPrefService().getBoolean(Pref.CREDENTIALS_ENABLE_AUTOSIGNIN));
-                    Assert.assertEquals(
-                            1,
-                            RecordHistogram.getHistogramValueCountForTesting(
-                                    AUTO_SIGNIN_HISTOGRAM, 1));
                 });
 
         mPasswordSettingsActivityTestRule.finishActivity();

@@ -119,6 +119,7 @@ components/autofill/core/browser/form_parsing
 components/cast/named_message_port_connector
 components/cbor
 components/certificate_transparency
+components/component_updater/installer_policies
 components/domain_reliability
 components/enterprise/obfuscation/core
 components/gcm_driver
@@ -166,7 +167,6 @@ content/browser/device_sensors
 content/browser/fenced_frame
 content/browser/loader
 content/browser/renderer_host
-content/browser/renderer_host/pepper
 content/browser/sms
 content/browser/tracing
 content/child
@@ -175,12 +175,12 @@ content/public/android/junit/src/org/chromium/content/browser/input
 content/public/browser
 content/public/common
 content/renderer
-content/renderer/pepper
 content/test/gpu
 content/web_test/renderer
 device/gamepad
 device/vr/public/mojom
 docs
+docs/client_hints
 docs/design
 docs/enterprise
 docs/experiments
@@ -238,17 +238,6 @@ media/muxers
 media/test
 media/test/data
 media/test/data/hls
-native_client_sdk/doc_generated/migration
-native_client_sdk/doc_generated/reference/sandbox_internals
-native_client_sdk/src/build_tools
-native_client_sdk/src/build_tools/tests
-native_client_sdk/src/doc
-native_client_sdk/src/doc/doxygen
-native_client_sdk/src/doc/migration
-native_client_sdk/src/doc/reference/sandbox_internals
-native_client_sdk/src/gonacl_appengine/src
-native_client_sdk/src/tools/lib/tests/data
-native_client_sdk/src/tools/tests
 net/base/registry_controlled_domains
 net/data/fuzzer_dictionaries
 net/disk_cache/blockfile
@@ -263,7 +252,6 @@ ppapi
 ppapi/c/documentation
 ppapi/cpp/documentation
 ppapi/generators
-ppapi/native_client
 sandbox/linux/suid/client
 sandbox/policy/linux
 services/device/serial
@@ -672,7 +660,7 @@ third_party/rust/chromium_crates_io/vendor/itoa-v1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/itoa-v1/src
 third_party/rust/chromium_crates_io/vendor/jiff-tzdb-v0_1
 third_party/rust/chromium_crates_io/vendor/litemap-v0_8/src
-third_party/rust/chromium_crates_io/vendor/llguidance-v0_7
+third_party/rust/chromium_crates_io/vendor/llguidance-v1
 third_party/rust/chromium_crates_io/vendor/log-v0_4
 third_party/rust/chromium_crates_io/vendor/log-v0_4/.github/workflows
 third_party/rust/chromium_crates_io/vendor/miniz_oxide-v0_8
@@ -682,7 +670,7 @@ third_party/rust/chromium_crates_io/vendor/num-rational-v0_4
 third_party/rust/chromium_crates_io/vendor/num-traits-v0_2
 third_party/rust/chromium_crates_io/vendor/proc-macro2-v1
 third_party/rust/chromium_crates_io/vendor/proc-macro2-v1/.github/workflows
-third_party/rust/chromium_crates_io/vendor/prost-v0_13
+third_party/rust/chromium_crates_io/vendor/prost-v0_14
 third_party/rust/chromium_crates_io/vendor/qr_code-v2
 third_party/rust/chromium_crates_io/vendor/quote-v1
 third_party/rust/chromium_crates_io/vendor/quote-v1/.github/workflows

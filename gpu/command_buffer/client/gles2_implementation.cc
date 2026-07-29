@@ -46,7 +46,6 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "components/nacl/common/buildflags.h"
 #include "gpu/command_buffer/client/buffer_tracker.h"
 #include "gpu/command_buffer/client/gles2_cmd_helper.h"
 #include "gpu/command_buffer/client/gpu_control.h"
@@ -62,14 +61,11 @@
 #include "gpu/command_buffer/common/id_allocator.h"
 #include "gpu/command_buffer/common/swap_buffers_complete_params.h"
 #include "gpu/command_buffer/common/sync_token.h"
+#include "ui/gfx/color_space.h"
+#include "ui/gfx/ipc/color/gfx_param_traits.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gl/gpu_preference.h"
-
-#if !defined(__native_client__) && !BUILDFLAG(IS_MINIMAL_TOOLCHAIN)
-#include "ui/gfx/color_space.h"                 // nogncheck
-#include "ui/gfx/ipc/color/gfx_param_traits.h"  // nogncheck
-#endif
 
 #if defined(GPU_CLIENT_DEBUG)
 #define GPU_CLIENT_SINGLE_THREAD_CHECK() \
@@ -92,10 +88,7 @@
 //
 // If it was up to us we'd just always write to the destination but the OpenGL
 // spec defines the behavior of OpenGL functions, not us. :-(
-#if defined(__native_client__) || BUILDFLAG(IS_MINIMAL_TOOLCHAIN)
-#define GPU_CLIENT_VALIDATE_DESTINATION_INITALIZATION_ASSERT(v)
-#define GPU_CLIENT_DCHECK(v)
-#elif defined(GPU_DCHECK)
+#if defined(GPU_DCHECK)
 #define GPU_CLIENT_VALIDATE_DESTINATION_INITALIZATION_ASSERT(v) GPU_DCHECK(v)
 #define GPU_CLIENT_DCHECK(v) GPU_DCHECK(v)
 #elif defined(DCHECK)
@@ -2399,7 +2392,7 @@ void GLES2Implementation::BufferDataHelper(GLenum target,
   if (!ValidateSize("glBufferData", size))
     return;
 
-#if defined(MEMORY_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if defined(MEMORY_SANITIZER)
   // Do not upload uninitialized data. Even if it's not a bug, it can cause a
   // bogus MSan report during a readback later. This is because MSan doesn't
   // understand shared memory and would assume we were reading back the same

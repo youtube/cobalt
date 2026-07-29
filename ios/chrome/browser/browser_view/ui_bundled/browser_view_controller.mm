@@ -2260,6 +2260,10 @@ enum HeaderBehaviour {
 
             [weakSelf executeAndClearForegroundTabWasAddedCompletionBlock:YES];
           }));
+    } else {
+      if (isNTP && isIncognito) {
+        [omniboxHandler focusOmniboxForVoiceOver];
+      }
     }
     return;
   }
@@ -2782,6 +2786,10 @@ enum HeaderBehaviour {
   [_sideSwipeCoordinator setEnabled:YES];
   _lensOverlayVisible = NO;
   self.contentArea.accessibilityElementsHidden = self.contentAreaObstructed;
+}
+
+- (void)lensOverlayDidReadjustPresentation {
+  [self.omniboxCommandsHandler cancelOmniboxEdit];
 }
 
 - (NSDirectionalEdgeInsets)presentationInsetsForLensOverlay {

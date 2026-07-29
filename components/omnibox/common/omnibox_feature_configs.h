@@ -238,6 +238,9 @@ struct Toolbelt : Config<Toolbelt> {
   // input clears the zero suggest).
   bool keep_toolbelt_after_input;
 
+  // Whether the toolbelt is preserved after entering keyword mode.
+  bool keep_toolbelt_in_keyword_mode;
+
   // Whether the lens entrypoint action should stay unconditionally on the
   // toolbelt. When this is false, the regular triggering conditions apply
   // so the action can sometimes be included or sometimes not.
@@ -245,13 +248,19 @@ struct Toolbelt : Config<Toolbelt> {
 
   // Some of the variants we want to experiment with want a subset of actions.
   // For flexibility, may as well make all the actions finch params.
-  bool show_ai_search_action;
+
   // Disabling `show_lens_action` takes precedence over
   // `always_include_lens_action`.
-  bool show_lens_action;
-  bool show_bookmarks_action;
-  bool show_tabs_action;
-  bool show_history_action;
+  bool show_lens_action_on_non_ntp;
+  bool show_lens_action_on_ntp;
+  bool show_ai_mode_action_on_non_ntp;
+  bool show_ai_mode_action_on_ntp;
+  bool show_history_action_on_non_ntp;
+  bool show_history_action_on_ntp;
+  bool show_bookmarks_action_on_non_ntp;
+  bool show_bookmarks_action_on_ntp;
+  bool show_tabs_action_on_non_ntp;
+  bool show_tabs_action_on_ntp;
 };
 
 // If enabled, adjusts the indentation of the omnibox input and matches to fix

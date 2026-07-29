@@ -13,6 +13,7 @@
 #include <linux/net.h>
 #include <linux/userfaultfd.h>
 #include <sched.h>
+#include <signal.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
@@ -174,10 +175,6 @@ bool IsBaselinePolicyAllowed(int sysno) {
     case __NR_openat:
     case __NR_pwrite64:
     case __NR_rt_sigtimedwait:
-#if !defined(__LP64__)
-    // TODO(crbug.com/40528912): bionic has no plans to support 64-bit time_t on ILP32.
-    case __NR_rt_sigtimedwait_time64:
-#endif
     case __NR_sched_getparam:
     case __NR_sched_getscheduler:
     case __NR_sched_setscheduler:
@@ -255,13 +252,8 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
       return Allow();
     }
     // https://crbug.com/655299
-    if (sysno == __NR_clock_getres
-#if !defined(__LP64__)
-      // TODO(crbug.com/40528912): bionic has no plans to support 64-bit time_t on ILP32.
-      || sysno == __NR_clock_getres_time64
-#endif
-    ) {
-    return RestrictClockID();
+    if (sysno == __NR_clock_getres) {
+      return RestrictClockID();
     }
   }
 

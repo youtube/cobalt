@@ -16,10 +16,8 @@ namespace features {
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kBackForwardCacheUnblockPermissionRequest);
 
-#if !BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kKeyboardLockPrompt);
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kPermissionElementPromptPositioning);
@@ -49,16 +47,6 @@ BASE_DECLARE_FEATURE(kAllowMultipleOriginsForWebKioskPermissions);
 
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kPermissionDedicatedCpssSettingAndroid);
-
-COMPONENT_EXPORT(PERMISSIONS_COMMON)
-BASE_DECLARE_FEATURE(kApproximateGeolocationPermission);
-
-COMPONENT_EXPORT(PERMISSIONS_COMMON)
-extern const base::FeatureParam<bool>
-    kApproximateGeolocationPermissionSampleData;
-
-COMPONENT_EXPORT(PERMISSIONS_COMMON)
-extern const base::FeatureParam<int> kApproximateGeolocationPermissionPromptArm;
 
 #else
 

@@ -495,7 +495,7 @@ std::optional<std::string> CheckAndResolveLocale(std::string_view locale,
 }
 
 #if BUILDFLAG(IS_APPLE)
-std::string GetApplicationLocaleInternalMac(const std::string& pref_locale) {
+std::string GetApplicationLocaleInternalMac(std::string_view pref_locale) {
   // Use any override (Cocoa for the browser), otherwise use the preference
   // passed to the function.
   std::string app_locale = l10n_util::GetLocaleOverride();
@@ -512,7 +512,7 @@ std::string GetApplicationLocaleInternalMac(const std::string& pref_locale) {
 #endif
 
 #if !BUILDFLAG(IS_APPLE)
-std::string GetApplicationLocaleInternalNonMac(const std::string& pref_locale) {
+std::string GetApplicationLocaleInternalNonMac(std::string_view pref_locale) {
   std::vector<std::string> candidates;
 
   // We only use --lang and the app pref on Windows.  On Linux, we only
@@ -559,13 +559,12 @@ std::string GetApplicationLocaleInternalNonMac(const std::string& pref_locale) {
   // By default, use the application locale preference. This applies to ChromeOS
   // and linux systems without glib.
   if (!pref_locale.empty())
-    candidates.push_back(pref_locale);
+    candidates.emplace_back(pref_locale);
 #endif  // BUILDFLAG(IS_WIN)
 
-  std::vector<std::string>::const_iterator i = candidates.begin();
-  for (; i != candidates.end(); ++i) {
+  for (const std::string& candidate : candidates) {
     if (std::optional<std::string> resolved_locale =
-            CheckAndResolveLocale(*i)) {
+            CheckAndResolveLocale(candidate)) {
       return *resolved_locale;
     }
   }
@@ -581,7 +580,7 @@ std::string GetApplicationLocaleInternalNonMac(const std::string& pref_locale) {
 }
 #endif  // !BUILDFLAG(IS_APPLE)
 
-std::string GetApplicationLocaleInternal(const std::string& pref_locale) {
+std::string GetApplicationLocaleInternal(std::string_view pref_locale) {
 #if BUILDFLAG(IS_APPLE)
   return GetApplicationLocaleInternalMac(pref_locale);
 #else
@@ -589,16 +588,13 @@ std::string GetApplicationLocaleInternal(const std::string& pref_locale) {
 #endif
 }
 
-std::string GetApplicationLocale(const std::string& pref_locale,
+std::string GetApplicationLocale(std::string_view pref_locale,
                                  bool set_icu_locale) {
   const std::string locale = GetApplicationLocaleInternal(pref_locale);
-  if (set_icu_locale && !locale.empty())
+  if (set_icu_locale && !locale.empty()) {
     base::i18n::SetICUDefaultLocale(locale);
+  }
   return locale;
-}
-
-std::string GetApplicationLocale(const std::string& pref_locale) {
-  return GetApplicationLocale(pref_locale, true /* set_icu_locale */);
 }
 
 bool IsLocaleNameTranslated(std::string_view locale,
@@ -713,20 +709,20 @@ std::string NormalizeLocale(std::string_view locale) {
   return normalized_locale;
 }
 
-void GetParentLocales(const std::string& current_locale,
-                      std::vector<std::string>* parent_locales) {
-  std::string locale(NormalizeLocale(current_locale));
+std::vector<std::string> GetParentLocales(std::string_view current_locale) {
+  std::string locale = NormalizeLocale(current_locale);
 
   const int kNameCapacity = 256;
   char parent[kNameCapacity];
   base::strlcpy(parent, locale.c_str(), kNameCapacity);
-  parent_locales->push_back(parent);
+  std::vector<std::string> parent_locales = {parent};
   UErrorCode err = U_ZERO_ERROR;
   while (uloc_getParent(parent, parent, kNameCapacity, &err) > 0) {
     if (U_FAILURE(err))
       break;
-    parent_locales->push_back(parent);
+    parent_locales.push_back(parent);
   }
+  return parent_locales;
 }
 
 bool IsValidLocaleSyntax(std::string_view locale) {
@@ -1016,16 +1012,18 @@ const std::vector<std::string>& GetUserFacingUILocaleList() {
   return *available_locales;
 }
 
-void GetAcceptLanguagesForLocale(const std::string& display_locale,
-                                 std::vector<std::string>* locale_codes) {
+std::vector<std::string> GetAcceptLanguagesForLocale(
+    std::string_view display_locale) {
+  std::vector<std::string> result;
   for (std::string_view accept_language : kAcceptLanguageList) {
     if (!l10n_util::IsLocaleNameTranslated(accept_language, display_locale)) {
       // TODO(jungshik) : Put them at the end of the list with language codes
       // enclosed by brackets instead of skipping.
       continue;
     }
-    locale_codes->emplace_back(accept_language);
+    result.emplace_back(accept_language);
   }
+  return result;
 }
 
 void GetAcceptLanguages(std::vector<std::string>* locale_codes) {

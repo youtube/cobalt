@@ -138,6 +138,11 @@ TabAndroid* TabAndroid::FromWebContents(
 }
 
 // static
+TabAndroid* TabAndroid::FromTabHandle(tabs::TabHandle handle) {
+  return static_cast<TabAndroid*>(handle.Get());
+}
+
+// static
 TabAndroid* TabAndroid::GetNativeTab(JNIEnv* env, const JavaRef<jobject>& obj) {
   return reinterpret_cast<TabAndroid*>(Java_TabImpl_getNativePtr(env, obj));
 }
@@ -228,6 +233,11 @@ TabAndroid::GetWebContentsByteBuffer() {
 }
 
 base::android::ScopedJavaLocalRef<jobject> TabAndroid::GetJavaObject() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return weak_java_tab_.get(env);
+}
+
+base::android::ScopedJavaLocalRef<jobject> TabAndroid::GetJavaObject() const {
   JNIEnv* env = base::android::AttachCurrentThread();
   return weak_java_tab_.get(env);
 }
@@ -716,13 +726,9 @@ bool TabAndroid::IsSplit() const {
 
 std::optional<tab_groups::TabGroupId> TabAndroid::GetGroup() const {
   JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_token =
+  std::optional<base::Token> token =
       Java_TabImpl_getTabGroupId(env, weak_java_tab_.get(env));
-  if (j_token.is_null()) {
-    return std::nullopt;
-  }
-  return tab_groups::TabGroupId::FromRawToken(
-      base::android::TokenAndroid::FromJavaToken(env, j_token));
+  return tab_groups::TabGroupId::FromOptionalToken(token);
 }
 
 // Split tabs is currently desktop only.

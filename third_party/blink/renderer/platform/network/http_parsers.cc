@@ -116,12 +116,12 @@ blink::LoadingMode ConvertToBlink(LoadingMode in) {
 }
 
 // ===== Converters for other basic Blink types =====
-String ConvertToBlink(const std::string& in) {
-  return String::FromUTF8(in);
+::blink::String ConvertToBlink(const std::string& in) {
+  return ::blink::String::FromUTF8(in);
 }
 
-String ConvertToBlink(const std::optional<std::string>& in) {
-  return in ? String::FromUTF8(*in) : String();
+::blink::String ConvertToBlink(const std::optional<std::string>& in) {
+  return in ? ::blink::String::FromUTF8(*in) : ::blink::String();
 }
 
 ::blink::KURL ConvertToBlink(const GURL& in) {
@@ -188,7 +188,7 @@ blink::CSPSourceListPtr ConvertToBlink(const CSPSourceListPtr& source_list) {
   CHECK(source_list);
 
   Vector<blink::CSPSourcePtr> sources = ConvertToBlink(source_list->sources);
-  Vector<String> nonces = ConvertToBlink(source_list->nonces);
+  Vector<::blink::String> nonces = ConvertToBlink(source_list->nonces);
   Vector<blink::CSPHashSourcePtr> hashes = ConvertToBlink(source_list->hashes);
   Vector<blink::CSPHashSourcePtr> url_hashes =
       ConvertToBlink(source_list->url_hashes);
@@ -424,7 +424,7 @@ bool IsWhitespace(UChar chr) {
 // if |matcher| is nullptr, isWhitespace() is used.
 inline bool SkipWhiteSpace(const String& str,
                            unsigned& pos,
-                           WTF::CharacterMatchFunctionPtr matcher = nullptr) {
+                           CharacterMatchFunctionPtr matcher = nullptr) {
   unsigned len = str.length();
 
   if (matcher) {
@@ -502,7 +502,7 @@ bool IsContentDispositionAttachment(const String& content_disposition) {
 
 // https://html.spec.whatwg.org/C/#attr-meta-http-equiv-refresh
 bool ParseHTTPRefresh(const String& refresh,
-                      WTF::CharacterMatchFunctionPtr matcher,
+                      CharacterMatchFunctionPtr matcher,
                       base::TimeDelta& delay,
                       String& url) {
   unsigned len = refresh.length();
@@ -657,7 +657,7 @@ bool IsHTTPTabOrSpace(UChar c) {
 // Note that `mime_type` should already have been stripped of parameters by
 // `ExtractMIMETypeFromMediaType`.
 AtomicString MinimizedMIMEType(const AtomicString& mime_type) {
-  StringUTF8Adaptor mime_utf8(mime_type);
+  StringUtf8Adaptor mime_utf8(mime_type);
 
   if (IsSupportedJavascriptMimeType(mime_utf8.AsStringView())) {
     return AtomicString("text/javascript");
@@ -937,7 +937,7 @@ bool ParseMultipartHeadersFromBody(base::span<const uint8_t> bytes,
   // Copy headers listed in replaceHeaders to the response.
   for (const AtomicString& header : ReplaceHeaders()) {
     std::string value;
-    StringUTF8Adaptor adaptor(header);
+    StringUtf8Adaptor adaptor(header);
     std::string_view header_string_piece(adaptor.AsStringView());
     size_t iterator = 0;
 
@@ -978,7 +978,7 @@ bool ParseMultipartFormHeadersFromBody(base::span<const uint8_t> bytes,
   const AtomicString* const headerNamePointers[] = {
       &http_names::kContentDisposition, &http_names::kContentType};
   for (const AtomicString* headerNamePointer : headerNamePointers) {
-    StringUTF8Adaptor adaptor(*headerNamePointer);
+    StringUtf8Adaptor adaptor(*headerNamePointer);
     size_t iterator = 0;
     std::string_view headerNameStringPiece = adaptor.AsStringView();
     std::string value;
@@ -996,7 +996,7 @@ bool ParseContentRangeHeaderFor206(const String& content_range,
                                    int64_t* last_byte_position,
                                    int64_t* instance_length) {
   return net::HttpUtil::ParseContentRangeHeaderFor206(
-      StringUTF8Adaptor(content_range).AsStringView(), first_byte_position,
+      StringUtf8Adaptor(content_range).AsStringView(), first_byte_position,
       last_byte_position, instance_length);
 }
 

@@ -95,7 +95,6 @@ class CORE_EXPORT OffscreenCanvas final
   }
 
   CanvasResourceProvider* GetOrCreateResourceProviderForCanvas2D();
-  CanvasResourceProvider* GetOrCreateResourceProviderForImageBitmap();
 
   void SetFrameSinkId(uint32_t client_id, uint32_t sink_id) {
     client_id_ = client_id;
@@ -118,22 +117,6 @@ class CORE_EXPORT OffscreenCanvas final
   CanvasRenderingContext* RenderingContext() const override {
     return context_.Get();
   }
-
-  bool PushFrameIfNeeded();
-  bool PushFrame(scoped_refptr<CanvasResource>&& frame,
-                 const SkIRect& damage_rect) override;
-  void DidDraw(const SkIRect&) override;
-  using CanvasRenderingContextHost::DidDraw;
-  void Commit(scoped_refptr<CanvasResource>&& bitmap_image,
-              const SkIRect& damage_rect) override;
-  bool ShouldAccelerate2dContext() const override;
-  CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
-  void DiscardResourceDispatcher() override { frame_dispatcher_ = nullptr; }
-  UkmParameters GetUkmParameters() override;
-
-  // Partial CanvasResourceHost implementation
-  void NotifyGpuContextLost() override;
-  void SetNeedsCompositingUpdate() override {}
   // TODO(fserb): Merge this with HTMLCanvasElement::UpdateMemoryUsage
   void UpdateMemoryUsage() override;
   size_t GetMemoryUsage() const override;
@@ -144,9 +127,33 @@ class CORE_EXPORT OffscreenCanvas final
   void SetTransferToGPUTextureWasInvoked() override {
     transfer_to_gpu_texture_was_invoked_ = true;
   }
+  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider>) override;
+  void DiscardResources() override;
+  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override {
+    CHECK(IsRenderingContext2D());
+    return resource_provider_for_canvas2d_.get();
+  }
+
+  bool PushFrameIfNeeded();
+  bool PushFrame(scoped_refptr<CanvasResource>&& frame,
+                 const SkIRect& damage_rect) override;
+  void DidDraw(const SkIRect&) override;
+  using CanvasRenderingContextHost::DidDraw;
+  bool ShouldAccelerate2dContext() const override;
+  CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
+  void DiscardResourceDispatcher() override { frame_dispatcher_ = nullptr; }
+  UkmParameters GetUkmParameters() override;
+  bool IsWebGL1Enabled() const override { return true; }
+  bool IsWebGL2Enabled() const override { return true; }
+  bool IsWebGLBlocked() const override { return false; }
+
+  // CanvasResourceProvider::Delegate implementation
+  void NotifyGpuContextLost() override;
   bool TransferToGPUTextureWasInvoked() override {
     return transfer_to_gpu_texture_was_invoked_;
   }
+  void SetNeedsCompositingUpdate() override {}
 
   // EventTarget implementation
   const AtomicString& InterfaceName() const final {
@@ -181,16 +188,9 @@ class CORE_EXPORT OffscreenCanvas final
   }
   bool IsOpaque() const final;
 
-  // overrides CanvasRenderingContextHost::EnableAccelerationForCanvas2D()
-  bool EnableAccelerationForCanvas2D() final;
-
   DispatchEventResult HostDispatchEvent(Event* event) override {
     return DispatchEvent(*event);
   }
-
-  bool IsWebGL1Enabled() const override { return true; }
-  bool IsWebGL2Enabled() const override { return true; }
-  bool IsWebGLBlocked() const override { return false; }
 
   TextDirection GetTextDirection(const ComputedStyle*) override;
   void SetTextDirection(TextDirection direction) {
@@ -203,6 +203,15 @@ class CORE_EXPORT OffscreenCanvas final
   UniqueFontSelector* GetFontSelector() override;
 
   void Trace(Visitor*) const override;
+
+  // `resource_provider_` must be null.
+  void SetResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider> resource_provider) {
+    CHECK(IsRenderingContext2D());
+    CHECK(!resource_provider_for_canvas2d_);
+    resource_provider_for_canvas2d_ = std::move(resource_provider);
+    UpdateMemoryUsage();
+  }
 
   class ScopedInsideWorkerRAF {
     STACK_ALLOCATED();
@@ -275,6 +284,11 @@ class CORE_EXPORT OffscreenCanvas final
   bool is_neutered_ = false;
   bool origin_clean_ = true;
   bool disable_reading_from_canvas_ = false;
+
+  std::unique_ptr<CanvasResourceProvider> resource_provider_for_canvas2d_;
+  // `did_fail_to_create_resource_provider_` prevents repeated attempts in
+  // allocating resources after the first attempt failed.
+  bool did_fail_to_create_resource_provider_ = false;
 
   std::unique_ptr<CanvasResourceDispatcher> frame_dispatcher_;
 

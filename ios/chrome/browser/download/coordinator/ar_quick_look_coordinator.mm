@@ -15,7 +15,7 @@
 #import "ios/chrome/browser/download/model/ar_quick_look_tab_helper.h"
 #import "ios/chrome/browser/download/model/ar_quick_look_tab_helper_delegate.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installer_bridge.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 
 const char kIOSPresentQLPreviewControllerHistogram[] =
     "Download.IOSPresentQLPreviewControllerResult";
@@ -104,16 +104,8 @@ PresentQLPreviewController GetHistogramEnum(
 
 - (id<QLPreviewItem>)previewController:(QLPreviewController*)controller
                     previewItemAtIndex:(NSInteger)index {
-#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
-  // TODO(crbug.com/423946341): The Xcode 26 SDK moved ARQuickLookPreviewItem
-  // between frameworks in a way that breaks running the app on older iOS OSes
-  // when building with the new SDK. This is a simple workaround.
-  Class klass = NSClassFromString(@"ARQuickLookPreviewItem");
-  ARQuickLookPreviewItem* item = [[klass alloc] initWithFileAtURL:_sourceURL];
-#else
   ARQuickLookPreviewItem* item =
       [[ARQuickLookPreviewItem alloc] initWithFileAtURL:_sourceURL];
-#endif
   item.allowsContentScaling = _allowScaling;
   item.canonicalWebPageURL = _canonicalURL;
   return item;
@@ -134,27 +126,26 @@ PresentQLPreviewController GetHistogramEnum(
 
 @end
 
-@interface ARQuickLookCoordinator () <DependencyInstalling,
-                                      ARQuickLookTabHelperDelegate> {
+@interface ARQuickLookCoordinator () <TabsDependencyInstalling,
+                                      ARQuickLookTabHelperDelegate>
+@end
+
+@implementation ARQuickLookCoordinator {
   // Bridge which observes WebStateList and alerts this coordinator when this
   // needs to register the Mediator with a new WebState.
-  std::unique_ptr<WebStateDependencyInstallerBridge> _dependencyInstallerBridge;
+  std::unique_ptr<TabsDependencyInstallerBridge> _dependencyInstallerBridge;
   // The delegate passed to the QLPreviewController. It informs the WebState
   // that it may be hidden (during the presentation of the USDZ file) and it
   // serves as a data source for the preview controller.
   ARQuickLookPreviewControllerDelegate* _delegate;
 }
 
-@end
-
-@implementation ARQuickLookCoordinator
-
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
                                    browser:(Browser*)browser {
   if ((self = [super initWithBaseViewController:baseViewController
                                         browser:browser])) {
     _dependencyInstallerBridge =
-        std::make_unique<WebStateDependencyInstallerBridge>(
+        std::make_unique<TabsDependencyInstallerBridge>(
             self, browser->GetWebStateList());
   }
   return self;
@@ -168,7 +159,7 @@ PresentQLPreviewController GetHistogramEnum(
   _delegate = nil;
 }
 
-#pragma mark - DependencyInstalling methods
+#pragma mark - TabsDependencyInstalling methods
 
 - (void)installDependencyForWebState:(web::WebState*)webState {
   ARQuickLookTabHelper::GetOrCreateForWebState(webState)->set_delegate(self);

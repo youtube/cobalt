@@ -11,9 +11,6 @@
 
 namespace data_sharing::features {
 
-// Feature flag for enabling collaboration on automotive.
-BASE_DECLARE_FEATURE(kCollaborationAutomotive);
-
 // Feature flag for enabling collaboration in entreprise v2.
 BASE_DECLARE_FEATURE(kCollaborationEntrepriseV2);
 
@@ -30,7 +27,7 @@ BASE_DECLARE_FEATURE(kDataSharingJoinOnly);
 BASE_DECLARE_FEATURE(kDataSharingNonProductionEnvironment);
 
 // Feature flag for turning off the data types for shared tab groups when the
-// version is out of date.
+// version is out of date. Enabling the flag will turn off the data types.
 // Note: Do not clean up this feature as it is meant to be used in unforeseen
 // situations as a kill switch in future from finch when the shared tab groups
 // feature becomes incompatible for the current chrome client.
@@ -54,7 +51,18 @@ extern const base::FeatureParam<std::string> kActivityLogsURL;
 extern const base::FeatureParam<base::TimeDelta>
     kDataSharingGroupDataPeriodicPollingInterval;
 
+// Returns whether the data sharing functionality is enabled. This is true if
+// either the main data sharing feature (`kDataSharingFeature`) or the
+// join-only mode (`kDataSharingJoinOnly`) is enabled.
 bool IsDataSharingFunctionalityEnabled();
+
+// Returns whether the URL should be intercepted for versioning.
+// This returns false only when the client is considered out-of-date
+// (`kSharedDataTypesKillSwitch` is enabled) and the "Update Chrome" UI is
+// disabled. In this scenario, the navigation throttle will not be
+// installed, and the user will see the web fallback for the sharing URL.
+// Note : Don't use this method for other versioning related checks.
+bool ShouldInterceptUrlForVersioning();
 
 }  // namespace data_sharing::features
 

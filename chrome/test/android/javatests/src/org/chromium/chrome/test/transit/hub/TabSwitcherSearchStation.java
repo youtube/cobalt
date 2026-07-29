@@ -73,17 +73,17 @@ public class TabSwitcherSearchStation extends Station<SearchActivity> {
 
     public RegularTabSwitcherStation pressBackToRegularTabSwitcher(ChromeTabbedActivity activity) {
         assert !mIsIncognito;
-        return travelToSync(
-                RegularTabSwitcherStation.from(activity.getTabModelSelector()),
-                backButtonElement.getClickTrigger());
+        return backButtonElement
+                .clickTo()
+                .arriveAt(RegularTabSwitcherStation.from(activity.getTabModelSelector()));
     }
 
     public IncognitoTabSwitcherStation pressBackToIncognitoTabSwitcher(
             ChromeTabbedActivity activity) {
         assert mIsIncognito;
-        return travelToSync(
-                IncognitoTabSwitcherStation.from(activity.getTabModelSelector()),
-                backButtonElement.getClickTrigger());
+        return backButtonElement
+                .clickTo()
+                .arriveAt(IncognitoTabSwitcherStation.from(activity.getTabModelSelector()));
     }
 
     public void typeInOmnibox(String query) {
@@ -106,7 +106,7 @@ public class TabSwitcherSearchStation extends Station<SearchActivity> {
     public SuggestionFacility findSuggestion(
             @Nullable Integer index, @Nullable String title, @Nullable String text) {
         SUGGESTIONS_LIST.printFromRoot();
-        return enterFacilitySync(new SuggestionFacility(index, title, text), /* trigger= */ null);
+        return noopTo().enterFacility(new SuggestionFacility(index, title, text));
     }
 
     /** Expect suggestions with all the given |texts|. */
@@ -117,13 +117,13 @@ public class TabSwitcherSearchStation extends Station<SearchActivity> {
             allSuggestionFacilities.add(
                     new SuggestionFacility(/* index= */ null, /* title= */ null, prefix + text));
         }
-        enterFacilitiesSync(allSuggestionFacilities, /* trigger= */ null);
+        noopTo().enterFacilities(allSuggestionFacilities.toArray(new Facility[0]));
     }
 
     /** Expect a suggestion with the given |index| and |text|. */
     public SectionHeaderFacility findSectionHeaderByIndexAndText(int index, String text) {
         SUGGESTIONS_LIST.printFromRoot();
-        return enterFacilitySync(new SectionHeaderFacility(index, text), /* trigger= */ null);
+        return noopTo().enterFacility(new SectionHeaderFacility(index, text));
     }
 
     /** A suggestion in the search results. */
@@ -166,17 +166,15 @@ public class TabSwitcherSearchStation extends Station<SearchActivity> {
         }
 
         public WebPageStation openPage() {
-            return mHostStation.travelToSync(
-                    buildDestinationPageStation(), suggestionElement.getClickTrigger());
+            return suggestionElement.clickTo().arriveAt(buildDestinationPageStation());
         }
 
         public WebPageStation openPagePressingEnter() {
-            /* active= */ UrlBar urlBar1 = urlBarElement.get();
-            Condition.waitFor(new UrlBarHasFocusCondition(urlBar1, true));
-            return mHostStation.travelToSync(
-                    buildDestinationPageStation(),
-                    suggestionElement.getPerformTrigger(
-                            ViewActions.pressKey(KeyEvent.KEYCODE_ENTER)));
+            UrlBar urlBar = urlBarElement.get();
+            Condition.waitFor(new UrlBarHasFocusCondition(urlBar, /* active= */ true));
+            return urlBarElement
+                    .performViewActionTo(ViewActions.pressKey(KeyEvent.KEYCODE_ENTER))
+                    .arriveAt(buildDestinationPageStation());
         }
 
         private WebPageStation buildDestinationPageStation() {

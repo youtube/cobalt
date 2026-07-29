@@ -12,6 +12,7 @@
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -125,7 +126,12 @@ void HostFrameSinkManager::InvalidateFrameSinkId(
     // the platform window (eg. XWindow or HWND) get destroyed before the
     // platform window is destroyed.
     mojo::SyncCallRestrictions::ScopedAllowSyncCall allow_sync_call;
-    frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id);
+#if BUILDFLAG(IS_ANDROID)
+    SCOPED_UMA_HISTOGRAM_TIMER(
+        "Viz.SyncDestroyCompositorFrameSink.ExecutionTime");
+#endif
+    frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id,
+                                                    base::TimeTicks::Now());
 
     // Other synchronous IPCs continue to get processed while
     // DestroyCompositorFrameSink() is happening, so it's possible
@@ -165,8 +171,8 @@ void HostFrameSinkManager::CreateRootCompositorFrameSink(
   // If GL context is lost a new CompositorFrameSink will be created. Destroy
   // the old CompositorFrameSink first.
   if (data.has_created_compositor_frame_sink) {
-    frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id,
-                                                    base::DoNothing());
+    frame_sink_manager_->DestroyCompositorFrameSink(
+        frame_sink_id, base::TimeTicks::Now(), base::DoNothing());
   }
 
   data.is_root = true;
@@ -220,8 +226,8 @@ void HostFrameSinkManager::CreateFrameSink(
   // If GL context is lost a new CompositorFrameSink will be created. Destroy
   // the old CompositorFrameSink first.
   if (data.has_created_compositor_frame_sink) {
-    frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id,
-                                                    base::DoNothing());
+    frame_sink_manager_->DestroyCompositorFrameSink(
+        frame_sink_id, base::TimeTicks::Now(), base::DoNothing());
   }
 
   data.is_root = false;

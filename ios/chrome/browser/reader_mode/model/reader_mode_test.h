@@ -27,6 +27,10 @@ class ReaderModeTest : public PlatformTest {
   // Creates a fake web state for use in Reader Mode functions.
   std::unique_ptr<web::FakeWebState> CreateWebState();
 
+  // Controls for displaying Reading Mode UI on the fake web state.
+  void EnableReaderMode(web::WebState* web_state);
+  void DisableReaderMode(web::WebState* web_state);
+
   // Loads the web page with fake HTML content and commits the URL.
   void LoadWebpage(web::FakeWebState* web_state, const GURL& url);
 
@@ -45,6 +49,11 @@ class ReaderModeTest : public PlatformTest {
   TestProfileIOS* profile() { return profile_.get(); }
 
  private:
+  // Adds the given heuristic result to the Readability heuristic JavasScript
+  // callback for the specified frame.
+  void AddReadabilityHeuristicResultToFrame(ReaderModeHeuristicResult result,
+                                            web::FakeWebFrame* web_frame);
+
   web::WebTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -52,6 +61,7 @@ class ReaderModeTest : public PlatformTest {
   std::unique_ptr<TestProfileIOS> profile_;
 
   std::vector<std::unique_ptr<base::Value>> distiller_result_values_;
+  std::unique_ptr<base::Value> readability_heuristic_value_;
 };
 
 #endif  // IOS_CHROME_BROWSER_READER_MODE_MODEL_READER_MODE_TEST_H_

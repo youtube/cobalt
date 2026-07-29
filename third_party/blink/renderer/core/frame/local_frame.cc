@@ -297,7 +297,7 @@ inline float ParentCssZoomFactor(LocalFrame* frame) {
 // blob, so that it can be passed across processes.
 mojo::PendingRemote<mojom::blink::Blob> DataURLToBlob(const String& data_url) {
   auto blob_data = std::make_unique<BlobData>();
-  StringUTF8Adaptor data_url_utf8(data_url);
+  StringUtf8Adaptor data_url_utf8(data_url);
   blob_data->AppendBytes(base::as_byte_span(data_url_utf8));
   scoped_refptr<BlobDataHandle> blob_data_handle =
       BlobDataHandle::Create(std::move(blob_data), data_url_utf8.size());
@@ -345,8 +345,7 @@ void SetViewportSegmentVariablesForRect(StyleEnvironmentVariables& vars,
 mojom::blink::BlockingDetailsPtr CreateBlockingDetailsMojom(
     const FeatureAndJSLocationBlockingBFCache& blocking_details) {
   auto feature_location_to_report = mojom::blink::BlockingDetails::New();
-  feature_location_to_report->feature =
-      static_cast<uint32_t>(blocking_details.Feature());
+  feature_location_to_report->feature = blocking_details.Feature();
   // Zero line number and column number means no source location found.
   if (blocking_details.LineNumber() > 0 &&
       blocking_details.ColumnNumber() > 0) {

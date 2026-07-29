@@ -43,7 +43,6 @@ def rust_fyi_configs(*args):
     return list(args) + [
         "enable_rust_mojo",
         "enable_rust_mojom_bindings",
-        "enable_rust_png",
     ]
 
 ci.builder(
@@ -87,7 +86,7 @@ ci.builder(
             "rust_build_tests",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
         ],
     ),
     console_view_entry = consoles.console_view_entry(
@@ -136,7 +135,7 @@ ci.builder(
             "rust_build_tests",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
         ],
     ),
     console_view_entry = consoles.console_view_entry(
@@ -186,7 +185,7 @@ ci.builder(
             "rust_build_tests",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
         ],
     ),
     console_view_entry = consoles.console_view_entry(

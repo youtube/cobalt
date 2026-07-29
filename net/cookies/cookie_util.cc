@@ -68,14 +68,14 @@ base::Time MinNonNullTime() {
 //
 // * Time(1) if it's below the range FromUTCExploded() supports.
 // * Time::Max() if it's above the range FromUTCExploded() supports.
-bool SaturatedTimeFromUTCExploded(const base::Time::Exploded& exploded,
-                                  base::Time* out) {
+// * std::nullopt if the input does not have valid values.
+std::optional<base::Time> SaturatedTimeFromUTCExploded(
+    const base::Time::Exploded& exploded) {
   // Try to calculate the base::Time in the normal fashion.
-  if (base::Time::FromUTCExploded(exploded, out)) {
+  base::Time out;
+  if (base::Time::FromUTCExploded(exploded, &out)) {
     // Don't return Time(0) on success.
-    if (out->is_null())
-      *out = MinNonNullTime();
-    return true;
+    return out.is_null() ? MinNonNullTime() : out;
   }
 
   // base::Time::FromUTCExploded() has platform-specific limits:
@@ -88,19 +88,23 @@ bool SaturatedTimeFromUTCExploded(const base::Time::Exploded& exploded,
   //
   // Note that the following implementation is NOT perfect. It will accept
   // some invalid calendar dates in the out-of-range case.
-  if (!exploded.HasValidValues())
-    return false;
+  if (!exploded.HasValidValues()) {
+    return std::nullopt;
+  }
 
   if (exploded.year > base::Time::kExplodedMaxYear) {
-    *out = base::Time::Max();
-    return true;
+    return base::Time::Max();
   }
   if (exploded.year < base::Time::kExplodedMinYear) {
-    *out = MinNonNullTime();
-    return true;
+    return MinNonNullTime();
   }
 
-  return false;
+  return std::nullopt;
+}
+
+bool HasValidSecurePrefixAttributes(const GURL& url, bool secure) {
+  return secure &&
+         ProvisionalAccessScheme(url) != CookieAccessScheme::kNonCryptographic;
 }
 
 // Tests that a cookie has the attributes for a valid __Host- prefix without
@@ -109,12 +113,18 @@ bool HasValidHostPrefixAttributes(const GURL& url,
                                   bool secure,
                                   std::string_view domain,
                                   std::string_view path) {
-  if (!secure ||
-      ProvisionalAccessScheme(url) == CookieAccessScheme::kNonCryptographic ||
-      path != "/") {
+  if (!HasValidSecurePrefixAttributes(url, secure) || path != "/") {
     return false;
   }
   return domain.empty() || (url.HostIsIPAddress() && url.host() == domain);
+}
+
+// Tests that a cookie has the attributes for a valid __Http- prefix without
+// testing that the prefix is in the cookie name.
+bool HasValidHttpPrefixAttributes(const GURL& url,
+                                  bool secure,
+                                  bool http_only) {
+  return HasValidSecurePrefixAttributes(url, secure) && http_only;
 }
 
 struct ComputeSameSiteContextResult {
@@ -605,15 +615,11 @@ base::Time ParseCookieExpirationTime(std::string_view time_string) {
 
   // Note that clipping the date if it is outside of a platform-specific range
   // is permitted by: https://tools.ietf.org/html/rfc6265#section-5.2.1
-  base::Time result;
-  if (SaturatedTimeFromUTCExploded(exploded, &result))
-    return result;
-
-  // One of our values was out of expected range.  For well-formed input,
-  // the following check would be reasonable:
-  // NOTREACHED() << "Cookie exploded expiration failed: " << time_string;
-
-  return base::Time();
+  //
+  // For well-formed input, the following check would be reasonable:
+  // CHECK(SaturatedTimeFromUTCExploded(exploded))
+  //          << "Cookie exploded expiration failed: " << time_string;
+  return SaturatedTimeFromUTCExploded(exploded).value_or(base::Time());
 }
 
 std::string CanonPathWithString(const GURL& url, std::string_view path_string) {
@@ -754,8 +760,10 @@ bool IsOnPath(const std::string& cookie_path, const std::string& url_path) {
 }
 
 CookiePrefix GetCookiePrefix(const std::string& name) {
-  const char kSecurePrefix[] = "__Secure-";
-  const char kHostPrefix[] = "__Host-";
+  constexpr std::string_view kSecurePrefix("__Secure-");
+  constexpr std::string_view kHostPrefix("__Host-");
+  constexpr std::string_view kHttpPrefix("__Http-");
+  constexpr std::string_view kHostHttpPrefix("__HostHttp-");
 
   if (base::StartsWith(name, kSecurePrefix,
                        base::CompareCase::INSENSITIVE_ASCII)) {
@@ -765,28 +773,45 @@ CookiePrefix GetCookiePrefix(const std::string& name) {
                        base::CompareCase::INSENSITIVE_ASCII)) {
     return COOKIE_PREFIX_HOST;
   }
+  if (base::StartsWith(name, kHttpPrefix,
+                       base::CompareCase::INSENSITIVE_ASCII) &&
+      base::FeatureList::IsEnabled(features::kPrefixCookieHttp)) {
+    return COOKIE_PREFIX_HTTP;
+  }
+  if (base::StartsWith(name, kHostHttpPrefix,
+                       base::CompareCase::INSENSITIVE_ASCII) &&
+      base::FeatureList::IsEnabled(features::kPrefixCookieHostHttp)) {
+    return COOKIE_PREFIX_HOSTHTTP;
+  }
   return COOKIE_PREFIX_NONE;
 }
 
 bool IsCookiePrefixValid(CookiePrefix prefix,
                          const GURL& url,
                          const ParsedCookie& parsed_cookie) {
-  return IsCookiePrefixValid(prefix, url, parsed_cookie.IsSecure(),
-                             parsed_cookie.Domain().value_or(""),
-                             parsed_cookie.Path().value_or(""));
+  return IsCookiePrefixValid(
+      prefix, url, parsed_cookie.IsSecure(), parsed_cookie.IsHttpOnly(),
+      parsed_cookie.Domain().value_or(""), parsed_cookie.Path().value_or(""));
 }
 
 bool IsCookiePrefixValid(CookiePrefix prefix,
                          const GURL& url,
                          bool secure,
+                         bool http_only,
                          std::string_view domain,
                          std::string_view path) {
   if (prefix == COOKIE_PREFIX_SECURE) {
-    return secure && ProvisionalAccessScheme(url) !=
-                         CookieAccessScheme::kNonCryptographic;
+    return HasValidSecurePrefixAttributes(url, secure);
   }
   if (prefix == COOKIE_PREFIX_HOST) {
     return HasValidHostPrefixAttributes(url, secure, domain, path);
+  }
+  if (prefix == COOKIE_PREFIX_HTTP) {
+    return HasValidHttpPrefixAttributes(url, secure, http_only);
+  }
+  if (prefix == COOKIE_PREFIX_HOSTHTTP) {
+    return HasValidHttpPrefixAttributes(url, secure, http_only) &&
+           HasValidHostPrefixAttributes(url, secure, domain, path);
   }
   return true;
 }

@@ -86,10 +86,11 @@
 <translation id="2876628302275096482">Подробнее о том, <ph name="BEGIN_LINK" />как Chrome обеспечивает конфиденциальность ваших данных<ph name="END_LINK" />…</translation>
 <translation id="292371311537977079">Настройки Chrome</translation>
 <translation id="2923827943290349720">Блокировать доступ к вкладкам инкогнито при закрытии Chrome</translation>
-<translation id="2940565985148833945">Совет: используйте Объектив для поиска информации</translation>
+<translation id="2940565985148833945">Объектив для поиска</translation>
 <translation id="2957447865124070833">Выберите <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />.</translation>
 <translation id="2986402782150919988">Добавить закладки в Chrome</translation>
 <translation id="3030414234702425231">Вы выходите из аккаунта, которым управляет администратор домена <ph name="SIGNOUT_MANAGED_DOMAIN" />. Обратите внимание, что данные Chrome будут удалены с устройства, но останутся в вашем аккаунте Google.</translation>
+<translation id="3042447686908081308">Импортировать в Chrome</translation>
 <translation id="3051521853355903257">Изменить настройки паролей в Chrome</translation>
 <translation id="309672519329227863">Получайте доступ к паролям и другим данным Chrome в приложениях.</translation>
 <translation id="3109170945534582468">Действия Chrome</translation>
@@ -97,7 +98,7 @@
 <translation id="314782365035065913">Добавьте Chrome на панель Dock для быстрого доступа</translation>
 <translation id="3167189358072330585">Ваш аккаунт не поддерживается в Google Chrome. Обратитесь к администратору домена или войдите с помощью обычного аккаунта Google.</translation>
 <translation id="322254490661677575">Чтобы использовать и сохранять данные Chrome в аккаунте Google, введите кодовую фразу.</translation>
-<translation id="3282568296779691940">Аккаунт Chrome</translation>
+<translation id="3282568296779691940">Войдите в Chrome</translation>
 <translation id="3303503998967553377">Используйте действия Chrome в iOS</translation>
 <translation id="3348862487678490430">Добавить в список для чтения в Chrome</translation>
 <translation id="3357827134511189025">Входите в любые приложения, используя автозаполнение Chrome и сохраненные пароли и ключи доступа</translation>
@@ -281,7 +282,7 @@
 <translation id="787226752901403048">Чтобы делиться группами вкладок, присоединяться к ним и обсуждать идеи с другими пользователями, войдите в Chrome.</translation>
 <translation id="7897703007638178753">Недавние вкладки в Chrome</translation>
 <translation id="7948283758957877064">Что нового в Chrome</translation>
-<translation id="8000174216052461231">Совет: настройте максимальную защиту в Chrome</translation>
+<translation id="8000174216052461231">Максимальная защита</translation>
 <translation id="8006014511203279255">Открывайте ссылки в сообщениях и других приложениях с помощью Chrome.</translation>
 <translation id="8014670471808569312">Chrome предложит сохранить пароль.</translation>
 <translation id="8018153653741938705">Безопасная работа с Google Chrome</translation>
@@ -316,6 +317,7 @@
 <translation id="855027533751209304">Совет по работе с Chrome: ищите то, что видите</translation>
 <translation id="8558480467877843976">Теперь можно сделать так, что при переходе по ссылкам в сообщениях, документах и других приложениях будет открываться браузер Chrome.</translation>
 <translation id="8603022514504485810">Google Менеджеру паролей не удается проверить все пароли. Повторите попытку завтра или <ph name="BEGIN_LINK" />проверьте пароли в аккаунте Google<ph name="END_LINK" />.</translation>
+<translation id="8610372330814566250">Перенесите в Chrome пароли, историю, закладки и данные кредитных карт из Safari.</translation>
 <translation id="8630122478628016441">Включите параметр "Блокировать доступ к вкладкам инкогнито при закрытии Chrome".</translation>
 <translation id="8673726683583791503">Совершайте покупки с помощью Google Объектива</translation>
 <translation id="8765470054473112089">Когда вы вводите что-то в адресную строку или окно поиска, Chrome отправляет этот текст в поисковую систему по умолчанию, чтобы предлагать вам более подходящие подсказки. В режиме инкогнито эта функция не работает.</translation>
@@ -337,6 +339,7 @@
 <translation id="9176561303811134420">Настроить способы оплаты в Chrome</translation>
 <translation id="9181628561061032322">Открывает недавние вкладки в Chrome.</translation>
 <translation id="948597495737267756">Откроется страница с историей Chrome.</translation>
+<translation id="954347330803595209">Импортируйте в Chrome свои пароли, историю поиска, закладки и сведения о кредитных картах.</translation>
 <translation id="97300214378190234">Открывайте ссылки из приложений с помощью Chrome.</translation>
 <translation id="997929539742564806">Пароли и ключи доступа из Chrome будут вводиться автоматически. Это позволит быстро входить в аккаунты на сайтах и в приложениях.</translation>
 <translation id="998677222109959694">Открыть настройки Chrome</translation>

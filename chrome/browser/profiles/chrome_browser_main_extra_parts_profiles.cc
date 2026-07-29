@@ -28,6 +28,7 @@
 #include "chrome/browser/autofill/autofill_optimization_guide_factory.h"
 #include "chrome/browser/autofill/iban_manager_factory.h"
 #include "chrome/browser/autofill/merchant_promo_code_manager_factory.h"
+#include "chrome/browser/autofill/ml_log_router_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/valuables_data_manager_factory.h"
 #include "chrome/browser/background/background_contents_service_factory.h"
@@ -222,6 +223,7 @@
 #include "chrome/browser/ui/safety_hub/menu_notification_service_factory.h"
 #include "chrome/browser/ui/safety_hub/notification_permission_review_service_factory.h"
 #include "chrome/browser/ui/safety_hub/revoked_permissions_service_factory.h"
+#include "chrome/browser/ui/signin/dice_migration_service_factory.h"
 #include "chrome/browser/ui/tabs/pinned_tab_service_factory.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model_factory.h"
@@ -351,6 +353,7 @@
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_service_factory.h"
 #include "chrome/browser/usb/usb_connection_tracker_factory.h"
 #include "chrome/browser/user_education/user_education_service_factory.h"
+#include "chrome/browser/web_applications/isolated_web_apps/window_management/isolated_web_apps_opened_tabs_counter_service_factory.h"
 #include "components/commerce/core/proto/cart_db_content.pb.h"
 #include "components/commerce/core/proto/coupon_db_content.pb.h"
 #include "components/commerce/core/proto/discount_infos_db_content.pb.h"  // nogncheck
@@ -388,7 +391,6 @@
 #include "chrome/browser/ash/policy/skyvault/local_files_migration_manager.h"
 #include "chrome/browser/ash/scanner/scanner_keyed_service_factory.h"
 #include "chrome/browser/certificate_provider/certificate_provider_service_factory.h"
-#include "chrome/browser/chromeos/cros_apps/cros_apps_key_event_handler_factory.h"
 #include "chrome/browser/chromeos/enterprise/cloud_storage/one_drive_pref_observer.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_download_observer_factory.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager_factory.h"
@@ -486,8 +488,6 @@
 #include "apps/browser_context_keyed_service_factories.h"
 #include "chrome/browser/apps/platform_apps/api/browser_context_keyed_service_factories.h"
 #include "chrome/browser/apps/platform_apps/browser_context_keyed_service_factories.h"
-#include "chrome/browser/omnibox/omnibox_input_watcher_factory.h"
-#include "chrome/browser/omnibox/omnibox_suggestions_watcher_factory.h"
 #include "chrome/browser/speech/extension_api/tts_extension_api.h"
 #include "chrome/browser/sync_file_system/sync_file_system_service_factory.h"
 #include "chrome/browser/ui/web_applications/web_app_metrics_factory.h"
@@ -497,16 +497,18 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/chromeos/extensions/telemetry/api/telemetry_extension_api_browser_context_keyed_service_factories.h"
 #include "chrome/browser/extensions/api/chromeos_api_browser_context_keyed_service_factories.h"
-#endif
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/keyed_services/browser_context_keyed_service_factories.h"
+#include "chrome/browser/omnibox/omnibox_input_watcher_factory.h"
+#include "chrome/browser/omnibox/omnibox_suggestions_watcher_factory.h"
 #include "extensions/browser/browser_context_keyed_service_factories.h"
 #include "extensions/browser/extensions_browser_client.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/android/toolbar/extension_actions_bridge_factory.h"
+#include "chrome/browser/ui/android/extensions/extension_actions_bridge_factory.h"
 #endif
 #endif
 
@@ -716,6 +718,9 @@ void ChromeBrowserMainExtraPartsProfiles::
   autofill::AutofillOptimizationGuideFactory::GetInstance();
   autofill::IbanManagerFactory::GetInstance();
   autofill::MerchantPromoCodeManagerFactory::GetInstance();
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  autofill::MLLogRouterFactory::GetInstance();
+#endif
   autofill::PersonalDataManagerFactory::GetInstance();
   autofill::ValuablesDataManagerFactory::GetInstance();
 #if BUILDFLAG(IS_ANDROID)
@@ -822,12 +827,6 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif
   CookieControlsServiceFactory::GetInstance();
   CookieSettingsFactory::GetInstance();
-#if BUILDFLAG(IS_CHROMEOS)
-  if (base::FeatureList::IsEnabled(
-          chromeos::features::kCrosAppsBackgroundEventHandling)) {
-    CrosAppsKeyEventHandlerFactory::GetInstance();
-  }
-#endif
   DataTypeStoreServiceFactory::GetInstance();
 
 // TODO(b/352728209): Add back this service when reporting is supported on
@@ -845,6 +844,7 @@ void ChromeBrowserMainExtraPartsProfiles::
   DevToolsAndroidBridge::Factory::GetInstance();
 #endif
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  DiceMigrationServiceFactory::GetInstance();
   DiceResponseHandlerFactory::GetInstance();
   DiceWebSigninInterceptorFactory::GetInstance();
 #endif
@@ -1041,6 +1041,9 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   MicrosoftAuthServiceFactory::GetInstance();
 #endif
+#if !BUILDFLAG(IS_ANDROID) && defined(USE_AURA)
+  IsolatedWebAppsOpenedTabsCounterServiceFactory::GetInstance();
+#endif
   NavigationPredictorKeyedServiceFactory::GetInstance();
 #if BUILDFLAG(CHROME_ROOT_STORE_CERT_MANAGEMENT_UI)
   net::ServerCertificateDatabaseServiceFactory::GetInstance();
@@ -1082,7 +1085,7 @@ void ChromeBrowserMainExtraPartsProfiles::
 #if !BUILDFLAG(IS_ANDROID)
   OfflineItemModelManagerFactory::GetInstance();
 #endif
-#if !BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   OmniboxInputWatcherFactory::GetInstance();
   OmniboxSuggestionsWatcherFactory::GetInstance();
 #endif

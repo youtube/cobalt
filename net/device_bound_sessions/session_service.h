@@ -10,6 +10,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "net/base/net_export.h"
+#include "net/device_bound_sessions/deletion_reason.h"
 #include "net/device_bound_sessions/registration_fetcher_param.h"
 #include "net/device_bound_sessions/session.h"
 #include "net/device_bound_sessions/session_access.h"
@@ -39,7 +40,7 @@ class NET_EXPORT SessionService {
     kInitializedService,  // Service is now initialized, refresh may still be
                           // needed.
     kUnreachable,         // Refresh endpoint was unreachable.
-    kServerError,         // Refresh endpoint eserved a transient error.
+    kServerError,         // Refresh endpoint served a transient error.
     kQuotaExceeded,       // Refresh quota exceeded.
     kFatalError,          // Refresh failed and session was terminated. No
                           // further refresh needed.
@@ -138,16 +139,17 @@ class NET_EXPORT SessionService {
   virtual void GetAllSessionsAsync(
       base::OnceCallback<void(const std::vector<SessionKey>&)> callback) = 0;
 
-  // Delete the session on `site` with `id`, notifying
+  // Delete the session matching `session_key`, notifying
   // `per_request_callback` about any deletions.
   virtual void DeleteSessionAndNotify(
-      const SchemefulSite& site,
-      const Session::Id& id,
+      DeletionReason reason,
+      const SessionKey& session_key,
       SessionService::OnAccessCallback per_request_callback) = 0;
 
   // Delete all sessions that match the filtering arguments. See
   // `device_bound_sessions.mojom` for details on the filtering logic.
   virtual void DeleteAllSessions(
+      DeletionReason reason,
       std::optional<base::Time> created_after_time,
       std::optional<base::Time> created_before_time,
       base::RepeatingCallback<bool(const url::Origin&,

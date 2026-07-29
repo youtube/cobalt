@@ -161,12 +161,6 @@ const char kAutofillPaymentsSheetV2Description[] =
     "When enabled, the V2 of the payments suggestion bottom sheet will be "
     "used.";
 
-const char kPasswordSuggestionBottomSheetV2Name[] =
-    "Enable the password suggestion bottom sheet V2";
-const char kPasswordSuggestionBottomSheetV2Description[] =
-    "When enabled, the V2 of the password suggestion bottom sheet will be "
-    "used.";
-
 const char kAutofillLocalSaveCardBottomSheetName[] =
     "Enable save card bottomsheet for local save";
 const char kAutofillLocalSaveCardBottomSheetDescription[] =
@@ -198,11 +192,6 @@ const char kAutofillShowManualFillForVirtualCardsName[] =
 const char kAutofillShowManualFillForVirtualCardsDescription[] =
     "When enabled, Autfoill will show the manual fill view directly on form "
     "focusing events for virtual cards.";
-
-const char kAutofillStickyInfobarName[] = "Sticky Autofill Infobar";
-const char kAutofillStickyInfobarDescription[] =
-    "Makes the Address Infobar sticky to only dismiss on navigation from user "
-    "gesture.";
 
 const char kAutofillThrottleDocumentFormScanName[] =
     "Throttle Autofill Document Form Scans";
@@ -404,6 +393,17 @@ const char kDataSharingJoinOnlyName[] = "Data Sharing Join Only";
 const char kDataSharingJoinOnlyDescription[] =
     "Enabled Data Sharing Joining flow related UI and features.";
 
+// LINT.IfChange(DataSharingVersioning)
+// Data Sharing versioning test scenarios.
+const char kDataSharingVersioningStatesName[] =
+    "Data Sharing Versioning Test Scenarios";
+const char kDataSharingVersioningStatesDescription[] =
+    "Testing multiple scenarios for versioning.";
+const char kDataSharingSharedDataTypesEnabled[] = "Version out-of-date, no UI";
+const char kDataSharingSharedDataTypesEnabledWithUi[] =
+    "Version out-of-date, show UI ";
+// LINT.ThenChange(//chrome/browser/flag_descriptions.cc:DataSharingVersioning)
+
 const char kDefaultBrowserBannerPromoName[] = "Default Browser banner promo";
 const char kDefaultBrowserBannerPromoDescription[] =
     "When enabled, the default browser banner promo will show when conditions "
@@ -432,6 +432,13 @@ const char kDetectMainThreadFreezeName[] = "Detect freeze in the main thread.";
 const char kDetectMainThreadFreezeDescription[] =
     "A crash report will be uploaded if the main thread is frozen more than "
     "the time specified by this flag.";
+
+extern const char kDownloadAutoDeletionClearFilesOnEveryStartupName[] =
+    "Enable Download Auto-Deletion Testing Mode";
+extern const char kDownloadAutoDeletionClearFilesOnEveryStartupDescription[] =
+    "When enabled, the Auto-deletion feature wil clear all downloaded files "
+    "scheduled for deletion on every application startup, regardless of when "
+    "the file was downloaded. This feature is intended for testing-only.";
 
 extern const char kDownloadAutoDeletionName[] = "Enable Download Auto Deletion";
 extern const char kDownloadAutoDeletionDescription[] =
@@ -493,6 +500,22 @@ const char kEnableFeedCardMenuSignInPromoName[] =
 const char kEnableFeedCardMenuSignInPromoDescription[] =
     "Display a sign-in promotion UI when signed out users click on "
     "personalization options within the feed card menu.";
+
+// LINT.IfChange(FingerprintingProtectionFlagDescriptions)
+const char kEnableFingerprintingProtectionBlocklistName[] =
+    "Enable Fingerprinting Protection Blocklist In Regular Browsing";
+const char kEnableFingerprintingProtectionBlocklistDescription[] =
+    "Enable Fingerprinting Protection which may block fingerprinting "
+    "resources from loading in a 3p context. This flag applies only outside of "
+    "Incognito mode.";
+
+const char kEnableFingerprintingProtectionBlocklistInIncognitoName[] =
+    "Enable Fingerprinting Protection Blocklist In Incognito";
+const char kEnableFingerprintingProtectionBlocklistInIncognitoDescription[] =
+    "Enable Fingerprinting Protection which may block fingerprinting "
+    "resources from loading in a 3p context. This flag applies only in "
+    "Incognito mode.";
+// LINT.ThenChange(//chrome/browser/flag_descriptions.cc:FingerprintingProtectionFlagDescriptions)
 
 const char kEnableTraitCollectionRegistrationName[] =
     "Enable Customizable Trait Registration";
@@ -668,13 +691,6 @@ const char kIOSKeyboardAccessoryUpgradeForIPadDescription[] =
     "When enabled, the upgraded keyboard accessory UI will be presented on "
     "iPads.";
 
-const char kIOSKeyboardAccessoryUpgradeShortManualFillMenuName[] =
-    "Enable the keyboard accessory upgrade on iOS with a shorter manual fill "
-    "menu";
-const char kIOSKeyboardAccessoryUpgradeShortManualFillMenuDescription[] =
-    "When enabled, the upgraded keyboard accessory UI will be presented with a "
-    "shorter manual fill menu.";
-
 const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
     "Remove section break for address detection.";
 const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[] =
@@ -816,10 +832,25 @@ extern const char
     kLensBlockFetchObjectsInteractionRPCsOnSeparateHandshakeDescription[] =
         "When enabled, RPCs are blocked on separate handshake.";
 
+extern const char kLensCameraNoStillOutputRequiredName[] =
+    "Lens camera avoids creating unused outputs";
+extern const char kLensCameraNoStillOutputRequiredDescription[] =
+    "When enabled, Lens camera doesn't create unused still output.";
+
+extern const char kLensCameraUnbinnedCaptureFormatsPreferredName[] =
+    "Lens camera prefers unbinned formats";
+extern const char kLensCameraUnbinnedCaptureFormatsPreferredDescription[] =
+    "When enabled, Lens camera prefers unbinned pixel formats.";
+
 const char kLensClearcutBackgroundUploadEnabledName[] =
     "Lens clearcut background upload";
 const char kLensClearcutBackgroundUploadEnabledDescription[] =
     "Enables uploading of clearcut logs in the background.";
+
+extern const char kLensContinuousZoomEnabledName[] =
+    "Enable Lens camera continuous zoom";
+extern const char kLensContinuousZoomEnabledDescription[] =
+    "When enabled, Lens camera supports continuous zoom.";
 
 const char kLensExactMatchesEnabledName[] = "Lens exact matches enabled";
 const char kLensExactMatchesEnabledDescription[] =
@@ -837,6 +868,11 @@ const char kLensGestureTextSelectionDisabledName[] =
     "Disable Lens gesture text selection";
 const char kLensGestureTextSelectionDisabledDescription[] =
     "When disabled, turns off gesture text selection.";
+
+const char kLensInitialLvfZoomLevel90PercentName[] =
+    "Initial Lens camera zoom 90 percent";
+const char kLensInitialLvfZoomLevel90PercentDescription[] =
+    "When enabled, sets the initial Lens camera zoom level to 90 percent.";
 
 const char kLensInkMultiSampleModeDisabledName[] =
     "Disable Lens Ink multi-sample mode";
@@ -937,6 +973,10 @@ const char kLensTranslateToggleModeEnabledName[] =
     "Lens translate toggle mode enabled";
 const char kLensTranslateToggleModeEnabledDescription[] =
     "Enables the translate toggle mode.";
+
+const char kLensTripleCameraEnabledName[] = "Enable Lens triple camera";
+const char kLensTripleCameraEnabledDescription[] =
+    "When enabled, Lens LVF uses virtual triple camera.";
 
 const char kLensUnaryApisWithHttpTransportEnabledName[] =
     "Lens unary APIs with HTTP transport enabled";
@@ -1250,6 +1290,16 @@ const char kReaderModePageEligibilityHeuristicDescription[] =
     "Enables Reader Mode heuristic to hide/show the tools menu entrypoint "
     "depending on page eligibility.";
 
+const char kReaderModeReadabilityHeuristicName[] =
+    "Enables Readability heuristic for Reader Mode";
+const char kReaderModeReadabilityHeuristicDescription[] =
+    "Enables Readability heuristic for Reader Mode UI.";
+
+const char kReaderModeReadabilityDistillerName[] =
+    "Enables Readability distiller for Reader Mode";
+const char kReaderModeReadabilityDistillerDescription[] =
+    "Enables Readability distiller for Reader Mode UI.";
+
 const char kRefactorToolbarsSizeName[] = "Refactor toolbars size";
 const char kRefactorToolbarsSizeDescription[] =
     "When enabled, the toolbars size does not use broadcaster but observers.";
@@ -1443,6 +1493,9 @@ const char kTabGroupSyncName[] = "Enable Tab Group Sync";
 const char kTabGroupSyncDescription[] =
     "When enabled, tab groups are synced between syncing devices. Requires "
     "#tab-groups-on-ipad to also be enabled on iPad.";
+
+const char kTaiyakiName[] = "Taiyaki";
+const char kTaiyakiDescription[] = "Enables Taiyaki.";
 
 const char kStartSurfaceName[] = "Start Surface";
 const char kStartSurfaceDescription[] =

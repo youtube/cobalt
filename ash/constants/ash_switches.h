@@ -314,14 +314,7 @@ COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kRlzPingDelay[];
 COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kRmaNotAllowed[];
 COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kSafeMode[];
 COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kSamlPasswordChangeUrl[];
-COMPONENT_EXPORT(ASH_CONSTANTS)
-extern const char kScannerDisclaimerDebugOverride[];
-COMPONENT_EXPORT(ASH_CONSTANTS)
-extern const char kScannerDisclaimerDebugOverrideReminder[];
-COMPONENT_EXPORT(ASH_CONSTANTS)
-extern const char kScannerDisclaimerDebugOverrideFull[];
 COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kScannerUpdateKey[];
-COMPONENT_EXPORT(ASH_CONSTANTS) extern const char kSealKey[];
 COMPONENT_EXPORT(ASH_CONSTANTS)
 extern const char kScheduledRebootGracePeriodInSecondsForTesting[];
 COMPONENT_EXPORT(ASH_CONSTANTS)

@@ -838,25 +838,6 @@ void WebGLRenderingContextBase::drawingBufferStorage(GLenum sizedformat,
                                        gfx::Size(width, height));
 }
 
-void WebGLRenderingContextBase::commit() {
-  if (!GetDrawingBuffer() || (Host() && Host()->IsOffscreenCanvas()))
-    return;
-
-  int width = GetDrawingBuffer()->Size().width();
-  int height = GetDrawingBuffer()->Size().height();
-
-  // Note: we commit only if (a) the paint operation succeeded and (b) it
-  // actually updated the returned resource provider.
-  bool resource_provider_was_updated = false;
-  auto* resource_provider = PaintRenderingResultsToCanvas(
-      kBackBuffer, &resource_provider_was_updated);
-  if (resource_provider && resource_provider_was_updated) {
-    Host()->Commit(resource_provider->ProduceCanvasResource(FlushReason::kNone),
-                   SkIRect::MakeWH(width, height));
-  }
-  MarkLayerComposited();
-}
-
 scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage(
     FlushReason reason) {
   if (!GetDrawingBuffer())
@@ -1670,11 +1651,8 @@ bool WebGLRenderingContextBase::PushFrame() {
   if (!must_paint_to_canvas_ && !must_clear_now)
     return false;
 
-  if (!Host()->LowLatencyEnabled() &&
-      GetDrawingBuffer()->IsUsingGpuCompositing()) {
-    // If LowLatency is not enabled, and it's using Gpu Compositing, it will try
-    // to export the mailbox, synctoken and callback mechanism for the
-    // compositor to present the frame in the offscrencanvas.
+  if (GetDrawingBuffer()->IsUsingGpuCompositing()) {
+    // Export the DrawingBuffer's SI directly if possible.
     if (PushFrameNoCopy())
       return true;
   }
@@ -1703,17 +1681,18 @@ void WebGLRenderingContextBase::Dispose() {
 bool WebGLRenderingContextBase::PushFrameWithCopy() {
   bool submitted_frame = false;
 
-  // Note: we push a frame only if (a) the paint operation succeeded and (b) it
-  // actually updated the resource provider.
+  // Note: we push a frame only if (a) there is fresh content to produce and
+  // (b) we successfully produced that content.
   bool resource_provider_was_updated = false;
-  auto* resource_provider = PaintRenderingResultsToCanvas(
+  auto* resource_provider = PaintRenderingResultsToResourceProvider(
       kBackBuffer, &resource_provider_was_updated);
   if (resource_provider && resource_provider_was_updated) {
     const int width = GetDrawingBuffer()->Size().width();
     const int height = GetDrawingBuffer()->Size().height();
+    auto size = SkIRect::MakeWH(width, height);
     submitted_frame = Host()->PushFrame(
         resource_provider->ProduceCanvasResource(FlushReason::kNon2DCanvas),
-        SkIRect::MakeWH(width, height));
+        size);
   }
   MarkLayerComposited();
   return submitted_frame;
@@ -1873,9 +1852,66 @@ void WebGLRenderingContextBase::MarkLayerComposited() {
 }
 
 bool WebGLRenderingContextBase::IsAccelerated() const {
-  auto* resource_provider = resource_provider_.get();
-  return resource_provider ? resource_provider->IsAccelerated()
-                           : Host()->ShouldTryToUseGpuRaster();
+  // This method is not supported for WebGL and should not be called.
+  NOTREACHED();
+}
+
+bool WebGLRenderingContextBase::
+    CanUseDrawingBufferSIWithoutCopyForLowLatency() {
+  if (!SharedGpuContext::IsGpuCompositingEnabled()) {
+    return false;
+  }
+
+  if (!Host()->LowLatencyEnabled()) {
+    return false;
+  }
+
+  // SharedGpuContext::IsGpuCompositingEnabled can potentially replace the
+  // context_provider_wrapper, so it's important to call that first as it can
+  // invalidate the weak pointer.
+  auto context_provider_wrapper = SharedGpuContext::ContextProviderWrapper();
+  auto size = Host()->Size();
+  auto format = GetSharedImageFormat();
+
+  bool using_webgl_image_chromium =
+      SharedGpuContext::MaySupportImageChromium() &&
+      (RuntimeEnabledFeatures::WebGLImageChromiumEnabled() ||
+       base::FeatureList::IsEnabled(features::kLowLatencyWebGLImageChromium));
+  if (!UsingSwapChain() && !using_webgl_image_chromium) {
+    return false;
+  }
+
+  if (!context_provider_wrapper) {
+    return false;
+  }
+
+  const auto& capabilities =
+      context_provider_wrapper->ContextProvider().GetCapabilities();
+  if (size.width() > capabilities.max_texture_size ||
+      size.height() > capabilities.max_texture_size) {
+    return false;
+  }
+
+  const auto& shared_image_capabilities =
+      context_provider_wrapper->ContextProvider()
+          .SharedImageInterface()
+          ->GetCapabilities();
+
+  const gfx::BufferFormat buffer_format =
+      viz::SinglePlaneSharedImageFormatToBufferFormat(format);
+  bool gmb_allowed =
+      gpu::IsImageSizeValidForGpuMemoryBufferFormat(size, buffer_format) &&
+      gpu::IsImageFromGpuMemoryBufferFormatSupported(buffer_format,
+                                                     capabilities);
+
+  // Either swap_chain or gpu memory buffer should be enabled for this be used.
+  // TODO(crbug.com/404887530) : Remove or Rename `gmb_allowed` since
+  // CanvasResourceProvider no longer uses GMBs.
+  if (!shared_image_capabilities.shared_image_swap_chain && !gmb_allowed) {
+    return false;
+  }
+
+  return true;
 }
 
 bool WebGLRenderingContextBase::UsingSwapChain() const {
@@ -1892,12 +1928,39 @@ void WebGLRenderingContextBase::SizeChanged() {
   resource_provider_.reset();
 }
 
+scoped_refptr<ExternalCanvasResource>
+WebGLRenderingContextBase::ExportLowLatencyCanvasResource(
+    SourceDrawingBuffer source_buffer,
+    bool export_only_if_update) {
+  CHECK(Host()->LowLatencyEnabled());
+
+  if (isContextLost() || !GetDrawingBuffer()) {
+    return nullptr;
+  }
+
+  bool must_clear_now = ClearIfComposited(kClearCallerOther) != kSkipped;
+
+  if (!must_paint_to_canvas_ && !must_clear_now && export_only_if_update) {
+    return nullptr;
+  }
+
+  must_paint_to_canvas_ = false;
+
+  return GetDrawingBuffer()->ExportLowLatencyCanvasResource();
+}
+
 scoped_refptr<StaticBitmapImage>
 WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
+  if (CanUseDrawingBufferSIWithoutCopyForLowLatency()) {
+    auto resource = ExportLowLatencyCanvasResource(
+        source_buffer, /*export_only_if_update=*/false);
+    return resource ? resource->Bitmap() : nullptr;
+  }
+
   CanvasResourceProvider* provider =
-      PaintRenderingResultsToCanvas(source_buffer);
+      PaintRenderingResultsToResourceProvider(source_buffer);
 
   return provider ? provider->Snapshot(reason) : nullptr;
 }
@@ -1908,12 +1971,15 @@ WebGLRenderingContextBase::PaintRenderingResultsToResource(
     bool has_dispatcher,
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
-  if (was_dirty) {
-    GetOrCreateCanvasResourceProvider();
+  if (CanUseDrawingBufferSIWithoutCopyForLowLatency()) {
+    return ExportLowLatencyCanvasResource(source_buffer,
+                                          /*export_only_if_update=*/false);
   }
-  PaintRenderingResultsToCanvas(source_buffer);
-  if (has_dispatcher && was_dirty && GetOrCreateCanvasResourceProvider()) {
-    return resource_provider_.get()->ProduceCanvasResource(reason);
+
+  auto* resource_provider =
+      PaintRenderingResultsToResourceProvider(source_buffer);
+  if (has_dispatcher && was_dirty && resource_provider) {
+    return resource_provider->ProduceCanvasResource(reason);
   }
   return nullptr;
 }
@@ -1935,26 +2001,12 @@ WebGLRenderingContextBase::CreateCanvasResourceProvider() {
   // rect tracking in the shared image system to enforce this.
   constexpr auto kShouldInitialize =
       CanvasResourceProvider::ShouldInitialize::kNo;
+  CHECK(!CanUseDrawingBufferSIWithoutCopyForLowLatency());
   if (SharedGpuContext::IsGpuCompositingEnabled() &&
       Host()->LowLatencyEnabled()) {
-    // If LowLatency is enabled, we need a resource that is able to perform well
-    // in such mode. It will first try a PassThrough provider and, if that is
-    // not possible, it will try a SharedImage with the appropriate flags.
-    bool using_swapchain = UsingSwapChain();
-    bool using_webgl_image_chromium =
-        SharedGpuContext::MaySupportImageChromium() &&
-        (RuntimeEnabledFeatures::WebGLImageChromiumEnabled() ||
-         base::FeatureList::IsEnabled(features::kLowLatencyWebGLImageChromium));
-    if (using_swapchain || using_webgl_image_chromium) {
-      // If either SwapChain is enabled or WebGLImage mode is enabled, we can
-      // try a passthrough provider.
-      DCHECK(Host()->LowLatencyEnabled());
-      provider = CanvasResourceProvider::CreatePassThroughProvider(
-          Host()->Size(), format, alpha_type, color_space,
-          SharedGpuContext::ContextProviderWrapper(), Host());
-    }
+    // If LowLatency is enabled, we need a resource that is able to perform
+    // well in such mode. Try a SharedImage with the appropriate flags.
     if (!provider) {
-      // If PassThrough failed, try a SharedImage with usage display enabled.
       gpu::SharedImageUsageSet shared_image_usage_flags =
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
       provider = CanvasResourceProvider::CreateSharedImageProvider(
@@ -2018,11 +2070,14 @@ WebGLRenderingContextBase::GetOrCreateCanvasResourceProvider() {
 }
 
 CanvasResourceProvider*
-WebGLRenderingContextBase::PaintRenderingResultsToCanvas(
+WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
     SourceDrawingBuffer source_buffer,
     bool* resource_provider_was_updated /*=nullptr*/) {
-  TRACE_EVENT0("blink",
-               "WebGLRenderingContextBase::PaintRenderingResultsToCanvas");
+  CHECK(!CanUseDrawingBufferSIWithoutCopyForLowLatency());
+
+  TRACE_EVENT0(
+      "blink",
+      "WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider");
   if (resource_provider_was_updated != nullptr) {
     *resource_provider_was_updated = false;
   }
@@ -2052,23 +2107,6 @@ WebGLRenderingContextBase::PaintRenderingResultsToCanvas(
       GetOrCreateCanvasResourceProvider();
   if (!resource_provider)
     return nullptr;
-
-  if (resource_provider->GetType() ==
-      CanvasResourceProvider::ResourceProviderType::kPassThrough) {
-    // The passthrough provider should be created only in low-latency mode.
-    CHECK(Host()->LowLatencyEnabled());
-
-    // Single buffered passthrough resource provider doesn't have backing
-    // texture. We need to export the backbuffer mailbox directly without
-    // copying.
-    resource_provider->ImportResource(
-        GetDrawingBuffer()->ExportLowLatencyCanvasResource(
-            resource_provider->CreateWeakPtr()));
-    if (resource_provider_was_updated != nullptr) {
-      *resource_provider_was_updated = true;
-    }
-    return resource_provider;
-  }
 
   ScopedPixelLocalStorageInterrupt scoped_pls_interrupt(this);
   // TODO(sunnyps): Why is a texture restorer needed? See if it can be removed.

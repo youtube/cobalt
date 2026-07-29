@@ -6,17 +6,20 @@
 
 #include <algorithm>
 
+#include "base/strings/string_util.h"
+
 namespace payments::facilitated {
 
 PaymentLinkValidator::PaymentLinkValidator()
     : valid_prefixes_{
           // NOTE: The valid prefixes list may change over time. This list is
           // expected to be finalized and aligned with the requirements of the
-          // eWallet push payment project.
+          // eWallet push payment project and A2A payment project.
           // dd: bit.ly/html-payment-link-dd (Payment Link Examples section and
           // Security section)
           "duitnow://paynet.com.my", "shopeepay://shopeepay.com.my",
-          "tngd://tngdigital.com.my"} {}
+          "tngd://tngdigital.com.my",
+          "https://www.itmx.co.th/facilitated-payment/prompt-pay"} {}
 
 PaymentLinkValidator::~PaymentLinkValidator() = default;
 
@@ -41,7 +44,26 @@ PaymentLinkValidator::Scheme PaymentLinkValidator::GetScheme(
   if (payment_link_url.scheme() == "tngd") {
     return Scheme::kTngd;
   }
+  if (payment_link_url.path() == "/facilitated-payment/prompt-pay" &&
+      base::StartsWith(payment_link_url.spec(),
+                       "https://www.itmx.co.th/facilitated-payment/prompt-pay",
+                       base::CompareCase::SENSITIVE)) {
+    return Scheme::kPromptPay;
+  }
   return Scheme::kInvalid;
+}
+
+GURL PaymentLinkValidator::SanitizeForPaymentAppRetrieval(
+    const GURL& payment_link_url) {
+  GURL::Replacements replacements;
+
+  replacements.ClearQuery();
+  replacements.ClearRef();
+  replacements.ClearPort();
+  replacements.ClearUsername();
+  replacements.ClearPassword();
+
+  return payment_link_url.ReplaceComponents(replacements);
 }
 
 }  // namespace payments::facilitated

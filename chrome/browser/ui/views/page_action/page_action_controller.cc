@@ -22,6 +22,51 @@ namespace page_actions {
 
 using PassKey = base::PassKey<PageActionController>;
 
+ScopedPageActionActivity::ScopedPageActionActivity(
+    PageActionController& controller,
+    actions::ActionId action_id)
+    : controller_(&controller), action_id_(action_id) {
+  RegisterWillDestroyControllerCallback();
+}
+
+ScopedPageActionActivity::ScopedPageActionActivity(
+    ScopedPageActionActivity&& other) noexcept
+    : controller_(other.controller_), action_id_(other.action_id_) {
+  RegisterWillDestroyControllerCallback();
+  other.controller_ = nullptr;
+}
+
+ScopedPageActionActivity& ScopedPageActionActivity::operator=(
+    ScopedPageActionActivity&& other) noexcept {
+  if (controller_) {
+    controller_->DecrementActivityCounter(action_id_);
+  }
+
+  action_id_ = other.action_id_;
+  controller_ = other.controller_;
+  RegisterWillDestroyControllerCallback();
+  other.controller_ = nullptr;
+  return *this;
+}
+
+ScopedPageActionActivity::~ScopedPageActionActivity() {
+  if (controller_) {
+    controller_->DecrementActivityCounter(action_id_);
+  }
+}
+
+void ScopedPageActionActivity::RegisterWillDestroyControllerCallback() {
+  if (controller_) {
+    on_will_destroy_controller_subscription_ =
+        controller_->RegisterOnWillDestroyCallback(base::BindOnce(
+            [](ScopedPageActionActivity* activity,
+               PageActionController& controller) {
+              activity->controller_ = nullptr;
+            },
+            base::Unretained(this)));
+  }
+}
+
 PageActionControllerImpl::PageActionControllerImpl(
     PinnedToolbarActionsModel* pinned_actions_model,
     PageActionModelFactory* page_action_model_factory,
@@ -34,7 +79,9 @@ PageActionControllerImpl::PageActionControllerImpl(
   }
 }
 
-PageActionControllerImpl::~PageActionControllerImpl() = default;
+PageActionControllerImpl::~PageActionControllerImpl() {
+  on_will_destroy_callback_list_.Notify(*this);
+}
 
 void PageActionControllerImpl::Initialize(
     tabs::TabInterface& tab_interface,
@@ -84,6 +131,8 @@ void PageActionControllerImpl::Register(actions::ActionId action_id,
       CreateModel(action_id, is_ephemeral);
   model->SetTabActive(PassKey(), is_tab_active);
   page_actions_.emplace(action_id, std::move(model));
+  // Initialize counter to 0
+  activity_counters_[action_id] = 0;
 }
 
 void PageActionControllerImpl::Show(actions::ActionId action_id) {
@@ -104,12 +153,31 @@ void PageActionControllerImpl::ShowSuggestionChip(actions::ActionId action_id,
                                                   SuggestionChipConfig config) {
   PageActionModelInterface& model = FindPageActionModel(action_id);
   model.SetSuggestionChipConfig(PassKey(), config);
-  model.SetShowSuggestionChip(PassKey(), /*show=*/true);
+  model.SetShouldShowSuggestionChip(PassKey(), /*show=*/true);
 }
 
 void PageActionControllerImpl::HideSuggestionChip(actions::ActionId action_id) {
-  FindPageActionModel(action_id).SetShowSuggestionChip(PassKey(),
-                                                       /*show=*/false);
+  FindPageActionModel(action_id).SetShouldShowSuggestionChip(PassKey(),
+                                                             /*show=*/false);
+}
+
+ScopedPageActionActivity PageActionControllerImpl::AddActivity(
+    actions::ActionId action_id) {
+  auto& counter = activity_counters_[action_id];
+  ++counter;
+  FindPageActionModel(action_id).SetActionActive(PassKey(), true);
+  return ScopedPageActionActivity(*this, action_id);
+}
+
+void PageActionControllerImpl::DecrementActivityCounter(
+    actions::ActionId action_id) {
+  auto it = activity_counters_.find(action_id);
+  CHECK(it != activity_counters_.end());
+  --it->second;
+  CHECK_GE(it->second, 0);
+  if (it->second == 0) {
+    FindPageActionModel(action_id).SetActionActive(PassKey(), false);
+  }
 }
 
 void PageActionControllerImpl::ActionItemChanged(
@@ -273,7 +341,8 @@ PageActionControllerImpl::CreatePageMetricsRecorder(
 }
 
 base::RepeatingCallback<void(PageActionTrigger)>
-PageActionControllerImpl::GetClickCallback(actions::ActionId action_id) {
+PageActionControllerImpl::GetClickCallback(base::PassKey<PageActionView>,
+                                           actions::ActionId action_id) {
   return base::BindRepeating(&PageActionControllerImpl::RecordClickMetric,
                              weak_factory_.GetWeakPtr(), action_id);
 }
@@ -296,6 +365,28 @@ int PageActionControllerImpl::GetVisibleEphemeralPageActionsCount() const {
     }
   }
   return visible_ephemeral_page_actions_count;
+}
+
+base::CallbackListSubscription
+PageActionControllerImpl::RegisterOnWillDestroyCallback(
+    base::OnceCallback<void(PageActionController&)> callback) {
+  return on_will_destroy_callback_list_.Add(std::move(callback));
+}
+
+void PageActionControllerImpl::RegisterIsChipShowingChangedCallback(
+    base::PassKey<PageActionView>,
+    actions::ActionId action_id,
+    PageActionView* page_action_view) {
+  CHECK(page_action_view);
+  page_action_view->SetIsChipShowingChangedCallback(
+      base::BindRepeating(&PageActionControllerImpl::OnIsChipShowingChanged,
+                          weak_factory_.GetWeakPtr(), action_id));
+}
+
+void PageActionControllerImpl::OnIsChipShowingChanged(
+    actions::ActionId action_id,
+    bool is_chip_showing) {
+  FindPageActionModel(action_id).SetIsChipShowing(PassKey(), is_chip_showing);
 }
 
 std::ostream& operator<<(std::ostream& os, const SuggestionChipConfig& config) {

@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.touch_to_fill.payments;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.Matchers.is;
@@ -27,6 +28,7 @@ import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCred
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCreditCardSuggestion;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createLocalCreditCard;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createVirtualCreditCard;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BACK_PRESS_HANDLER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties.ON_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties.TEXT_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.CURRENT_SCREEN;
@@ -58,6 +60,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.NON_TRANSFORMING_LOYALTY_CARD_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.ON_LOYALTY_CARD_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.ALL_LOYALTY_CARDS_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.ALL_TERMS_LABEL_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.CARD_BENEFITS_TERMS_AVAILABLE;
@@ -65,6 +68,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -314,6 +318,7 @@ public class TouchToFillPaymentMethodViewTest {
     public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
 
     @Mock private Callback<Integer> mDismissCallback;
+    @Mock private Runnable mBackPressHandler;
     @Mock private FillableItemCollectionInfo mItemCollectionInfo;
     @Mock private TouchToFillResourceProvider mResourceProvider;
 
@@ -342,6 +347,7 @@ public class TouchToFillPaymentMethodViewTest {
                                     .with(VISIBLE, false)
                                     .with(CURRENT_SCREEN, HOME_SCREEN)
                                     .with(SHEET_ITEMS, new ModelList())
+                                    .with(BACK_PRESS_HANDLER, mBackPressHandler)
                                     .with(DISMISS_HANDLER, mDismissCallback)
                                     .build();
                     mTouchToFillPaymentMethodView =
@@ -1092,6 +1098,59 @@ public class TouchToFillPaymentMethodViewTest {
         waitForEvent(actionCallback).run();
     }
 
+    @Test
+    @MediumTest
+    public void testAllLoyaltyCardsScreen() {
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    ModelList allLoyaltyCards = new ModelList();
+                    allLoyaltyCards.add(
+                            new ListItem(
+                                    LOYALTY_CARD,
+                                    createLoyaltyCardModel(CVS_LOYALTY_CARD, actionCallback)));
+                    mTouchToFillPaymentMethodModel.set(CURRENT_SCREEN, ALL_LOYALTY_CARDS_SCREEN);
+                    mTouchToFillPaymentMethodModel.set(SHEET_ITEMS, allLoyaltyCards);
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        ViewGroup allLoyaltyCardsScreen =
+                mTouchToFillPaymentMethodView
+                        .getContentView()
+                        .findViewById(R.id.touch_to_fill_payment_method_all_loyalty_cards_screen);
+        assertNotNull(allLoyaltyCardsScreen);
+
+        TextView allLoyaltyCardsScreenTitle =
+                allLoyaltyCardsScreen.findViewById(R.id.all_loyalty_cards_screen_title);
+        assertThat(
+                allLoyaltyCardsScreenTitle.getText().toString(),
+                is(getString(R.string.autofill_bottom_sheet_all_loyalty_cards_screen_title)));
+
+        // Verify that 1 loyalty card is displayed.
+        RecyclerView allLoyaltyCardsContainer =
+                allLoyaltyCardsScreen.findViewById(R.id.touch_to_fill_all_loyalty_cards_list);
+        assertThat(allLoyaltyCardsContainer.getAdapter().getItemCount(), is(1));
+
+        // Verify that the correct data is displayed for the loyalty card.
+        View loyaltyCardItem = allLoyaltyCardsContainer.getChildAt(0);
+        TextView loyaltyCardNumber = loyaltyCardItem.findViewById(R.id.loyalty_card_number);
+        assertThat(
+                loyaltyCardNumber.getText().toString(),
+                is(CVS_LOYALTY_CARD.getLoyaltyCardNumber()));
+        TextView merchantName = loyaltyCardItem.findViewById(R.id.merchant_name);
+        assertThat(merchantName.getText().toString(), is(CVS_LOYALTY_CARD.getMerchantName()));
+
+        // Verify that the loyalty card is clickable.
+        onView(withText(CVS_LOYALTY_CARD.getLoyaltyCardNumber()))
+                .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
+        waitForEvent(actionCallback).run();
+
+        onView(withId(R.id.all_loyalty_cards_back_image_button))
+                .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
+        waitForEvent(mBackPressHandler).run();
+    }
+
     private RecyclerView getCreditCardSuggestions() {
         return mTouchToFillPaymentMethodView
                 .getContentView()
@@ -1144,7 +1203,7 @@ public class TouchToFillPaymentMethodViewTest {
             AutofillSuggestion suggestion,
             FillableItemCollectionInfo collectionInfo,
             Runnable actionCallback) {
-        PaymentsPayload payload = (PaymentsPayload) suggestion.getPayload();
+        PaymentsPayload payload = suggestion.getPaymentsPayload();
         PropertyModel.Builder creditCardSuggestionModelBuilder =
                 new PropertyModel.Builder(NON_TRANSFORMING_CREDIT_CARD_SUGGESTION_KEYS)
                         .with(MAIN_TEXT, suggestion.getLabel())

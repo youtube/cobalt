@@ -43,7 +43,7 @@ linnan@chromium.org
 fleimgruber@google.com
 jihadghanna@google.com
 jkeitel@google.com
-jsaul@google.com
+osaul@google.com
 schwering@google.com
 vidhanj@google.com
 vsemeniuk@google.com
@@ -117,7 +117,6 @@ jeffreycohen@chromium.org
 tbansal@chromium.org
 guiperez@google.com
 # cookie
-bingler@chromium.org
 cfredric@chromium.org
 # cras
 yuhsuan@chromium.org
@@ -132,8 +131,7 @@ hansberry@chromium.org
 julietlevesque@google.com
 bhartmire@google.com
 # crostini
-davidmunro@google.com
-philpearson@google.com
+drmasquatch@google.com
 # cryptohome
 jorgelo@chromium.org
 hcyang@google.com
@@ -244,6 +242,7 @@ toyoshim@chromium.org
 # memory
 lizeb@chromium.org
 joenotcharles@google.com
+thiabaud@google.com
 # mobile
 ender@google.com
 mthiesse@chromium.org
@@ -307,7 +306,6 @@ jonross@chromium.org
 dullweber@chromium.org
 olivierli@chromium.org
 bzielinski@google.com
-orrb@google.com
 junis@google.com
 # page
 csharrison@chromium.org
@@ -376,6 +374,7 @@ rsult@google.com
 xiaohuic@chromium.org
 # quota
 ayui@chromium.org
+leimy@chromium.org
 # readaloud
 andreaxg@google.com
 basiaz@google.com

@@ -9,7 +9,6 @@ static_library("service") {
     "active_devices_provider.h",
     "backend_migrator.cc",
     "backend_migrator.h",
-    "configure_context.cc",
     "configure_context.h",
     "data_type_controller.cc",
     "data_type_controller.h",
@@ -117,8 +116,6 @@ static_library("service") {
     "//components/sync/invalidations",
     "//components/version_info",
     "//components/version_info:generate_version_info",
-    "//crypto",
-    "//extensions/buildflags",
     "//services/network/public/cpp",
     "//ui/base",
   ]

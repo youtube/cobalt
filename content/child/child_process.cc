@@ -14,12 +14,15 @@
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/threading/hang_watcher.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_id_name_manager.h"
 #include "build/build_config.h"
 #include "build/config/compiler/compiler_buildflags.h"
 #include "content/child/child_thread_impl.h"
 #include "content/common/process_visibility_tracker.h"
 #include "mojo/public/cpp/bindings/interface_endpoint_client.h"
 #include "sandbox/policy/sandbox_type.h"
+#include "services/network/public/cpp/features.h"
+#include "services/network/scheduler/network_service_task_scheduler.h"
 #include "services/tracing/public/cpp/trace_startup.h"
 #include "third_party/blink/public/common/features.h"
 
@@ -104,8 +107,6 @@ ChildProcess::ChildProcess(base::ThreadType io_thread_type,
     initialized_thread_pool_ = true;
   }
 
-  tracing::InitTracingPostFeatureList(/*enable_consumer=*/false);
-
   // Ensure the visibility tracker is created on the main thread.
   ProcessVisibilityTracker::GetInstance();
 
@@ -122,6 +123,21 @@ ChildProcess::ChildProcess(base::ThreadType io_thread_type,
   // of process.
   thread_options.thread_type = base::ThreadType::kDisplayCritical;
 #endif
+
+  // If the NetworkServiceTaskScheduler feature is enabled and this is the main
+  // thread for the Network Service Utility process, configure the
+  // SequenceManager with specific settings for network service task scheduler.
+  // This ensures the network thread's task scheduling is handled by the
+  // experimental scheduler infrastructure.
+  if (base::FeatureList::IsEnabled(
+          network::features::kNetworkServiceTaskScheduler) &&
+      base::ThreadIdNameManager::GetInstance()->GetName(
+          base::PlatformThread::CurrentId()) ==
+          std::string_view("network.CrUtilityMain")) {
+    network::NetworkServiceTaskScheduler::ConfigureSequenceManager(
+        thread_options);
+  }
+
   CHECK(io_thread_->StartWithOptions(std::move(thread_options)));
   io_thread_runner_ = io_thread_->task_runner();
 }

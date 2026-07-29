@@ -90,6 +90,7 @@
 <translation id="2957447865124070833"><ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /> को चुनें</translation>
 <translation id="2986402782150919988">Chrome में बुकमार्क जोड़ें</translation>
 <translation id="3030414234702425231">क्‍योंकि आप <ph name="SIGNOUT_MANAGED_DOMAIN" /> की ओर से प्रबंधित खाते से साइन आउट कर रहे हैं, इसलिए आपका Chrome डेटा इस डिवाइस से मिट जाएगा. आपका डेटा आपके Google खाते में बना रहेगा.</translation>
+<translation id="3042447686908081308">Chrome में इंपोर्ट करें</translation>
 <translation id="3051521853355903257">Chrome में पासवर्ड मैनेज करें</translation>
 <translation id="309672519329227863">अन्य ऐप्लिकेशन में, अपने Chrome पासवर्ड वगैरह ऐक्सेस करें.</translation>
 <translation id="3109170945534582468">Chrome ऐक्शन</translation>
@@ -316,6 +317,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="855027533751209304">Chrome से जुड़ी सलाह: स्क्रीन पर दिख रही किसी भी चीज़ के बारे में खोजें</translation>
 <translation id="8558480467877843976">अब मैसेज, दस्तावेज़ों, और अन्य ऐप्लिकेशन में मौजूद लिंक को खोलकर सीधे Chrome पर जाया जा सकता है.</translation>
 <translation id="8603022514504485810">Google Password Manager सभी पासवर्ड की जांच नहीं कर सका. कृपया कल फिर से कोशिश करें या <ph name="BEGIN_LINK" />अपने Google खाते में सेव किए गए पासवर्ड की जांच करें.<ph name="END_LINK" /></translation>
+<translation id="8610372330814566250">Chrome में Safari के पासवर्ड, इतिहास, बुकमार्क, और क्रेडिट कार्ड की जानकारी का इस्तेमाल करें</translation>
 <translation id="8630122478628016441">“Chrome बंद करने पर, गुप्त टैब लॉक करें” को चालू करें.</translation>
 <translation id="8673726683583791503">Google Lens की मदद से खरीदारी करें</translation>
 <translation id="8765470054473112089">पता बार या खोज बॉक्स में आपके टाइप किए गए टेक्स्ट को Chrome आपके डिफ़ॉल्ट सर्च इंजन को भेजता है, ताकि बेहतर सुझाव पाए जा सकें. यह सुविधा गुप्त मोड में काम नहीं करती.</translation>
@@ -337,6 +339,7 @@ Chrome के अनुभव को बेहतर बनाने के ल�
 <translation id="9176561303811134420">Chrome में पेमेंट का तरीका मैनेज करें</translation>
 <translation id="9181628561061032322">Chrome में हाल ही के टैब खोलता है.</translation>
 <translation id="948597495737267756">इससे आपका Chrome इतिहास पेज खुलता है.</translation>
+<translation id="954347330803595209">Chrome पर अपने पासवर्ड, इतिहास, बुकमार्क, और क्रेडिट कार्ड इस्तेमाल करने के लिए, अपना डेटा इंपोर्ट करें</translation>
 <translation id="97300214378190234">अन्य ऐप्लिकेशन में मिले लिंक पर टैप करके, किसी भी समय Chrome का इस्तेमाल करें.</translation>
 <translation id="997929539742564806">ऐप्लिकेशन और साइटों में तेज़ी से साइन इन करें. इसके लिए, Chrome में सेव किए गए पासवर्ड और पासकी ऑटोमैटिक भरने की सुविधा का इस्तेमाल करें</translation>
 <translation id="998677222109959694">Chrome की सेटिंग मैनेज करें</translation>

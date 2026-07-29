@@ -183,10 +183,9 @@ void ReadbackContextTexture::OnMailboxReadyInternal() {
     impl_on_gpu_->ReadbackDone();
   }
 
-  request_->SendResult(std::make_unique<CopyOutputTextureResult>(
-      request_->result_format(), result_rect_,
-      CopyOutputResult::TextureResult(mailbox_, color_space_),
-      CopyOutputResult::ReleaseCallbacks()));
+  request_->SendResult(std::make_unique<CopyOutputSharedImageResult>(
+      request_->result_format(), result_rect_, mailbox_, color_space_,
+      "OnMailboxReadyInternal", CopyOutputResult::ReleaseCallbacks()));
 }
 
 CopyOutputResultSkiaYUV::CopyOutputResultSkiaYUV(

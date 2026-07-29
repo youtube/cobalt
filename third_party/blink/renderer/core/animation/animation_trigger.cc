@@ -108,20 +108,17 @@ bool ValidateBoundary(ExecutionContext* execution_context,
 }
 
 AnimationTrigger::AnimationTrigger(AnimationTimeline* timeline,
-                                   Type type,
+                                   Behavior behavior,
                                    RangeBoundary* range_start,
                                    RangeBoundary* range_end,
                                    RangeBoundary* exit_range_start,
                                    RangeBoundary* exit_range_end)
     : timeline_(timeline),
-      type_(type),
+      behavior_(behavior),
       range_start_(range_start),
       range_end_(range_end),
       exit_range_start_(exit_range_start),
       exit_range_end_(exit_range_end) {
-  if (timeline_) {
-    timeline_->AddAnimationTrigger(this);
-  }
   // A default trigger will need to trip immediately.
   Update();
 }
@@ -146,7 +143,7 @@ AnimationTrigger* AnimationTrigger::Create(ExecutionContext* execution_context,
     timeline = &To<LocalDOMWindow>(execution_context)->document()->Timeline();
   }
   return MakeGarbageCollected<AnimationTrigger>(
-      timeline, options->type(), options->rangeStart(), options->rangeEnd(),
+      timeline, options->behavior(), options->rangeStart(), options->rangeEnd(),
       options->exitRangeStart(), options->exitRangeEnd());
 }
 
@@ -372,27 +369,27 @@ void AnimationTrigger::Update() {
 void AnimationTrigger::UpdateInternal(State old_state, State new_state) {
   UpdateType update_type = UpdateType::kNone;
 
-  switch (type_.AsEnum()) {
-    case Type::Enum::kOnce:
+  switch (behavior_.AsEnum()) {
+    case Behavior::Enum::kOnce:
       if (new_state == State::kPrimary) {
         update_type = UpdateType::kUnpause;
       }
       break;
-    case Type::Enum::kRepeat:
+    case Behavior::Enum::kRepeat:
       if (new_state == State::kPrimary) {
         update_type = UpdateType::kPlay;
       } else {
         update_type = UpdateType::kReset;
       }
       break;
-    case Type::Enum::kAlternate:
+    case Behavior::Enum::kAlternate:
       if (old_state == State::kIdle) {
         update_type = UpdateType::kPlay;
       } else {
         update_type = UpdateType::kReverse;
       }
       break;
-    case Type::Enum::kState:
+    case Behavior::Enum::kState:
       if (new_state == State::kPrimary) {
         update_type = UpdateType::kUnpause;
       } else {
@@ -421,18 +418,18 @@ void AnimationTrigger::HandlePostTripAdd(Animation* animation,
     return;
   }
 
-  switch (type_.AsEnum()) {
-    case Type::Enum::kOnce:
+  switch (behavior_.AsEnum()) {
+    case Behavior::Enum::kOnce:
       animation->PlayInternal(Animation::AutoRewind::kEnabled, exception_state);
       break;
-    case Type::Enum::kRepeat:
+    case Behavior::Enum::kRepeat:
       animation->ResetPlayback();
       animation->SetPausedForTrigger(true);
       break;
-    case Type::Enum::kAlternate:
+    case Behavior::Enum::kAlternate:
       animation->ReverseInternal(exception_state);
       break;
-    case Type::Enum::kState:
+    case Behavior::Enum::kState:
       animation->PauseInternal(exception_state);
       animation->SetPausedForTrigger(true);
   };
@@ -447,6 +444,10 @@ void AnimationTrigger::addAnimation(Animation* animation,
   animation->PauseInternal(exception_state);
   if (exception_state.HadException()) {
     return;
+  }
+
+  if (timeline_ && animations_.empty()) {
+    timeline_->AddAnimationTrigger(this);
   }
 
   if (state_ == State::kIdle) {
@@ -465,6 +466,10 @@ void AnimationTrigger::addAnimation(Animation* animation,
 void AnimationTrigger::removeAnimation(Animation* animation) {
   animations_.erase(animation);
   animation->RemoveTrigger(this);
+
+  if (timeline_ && animations_.empty()) {
+    timeline_->RemoveAnimationTrigger(this);
+  }
 }
 
 void AnimationTrigger::UpdateAnimations(
@@ -477,6 +482,11 @@ void AnimationTrigger::UpdateAnimations(
     }
     UpdateAnimation(animation, update_type);
   }
+}
+
+bool AnimationTrigger::CanTrigger() {
+  return timeline_ && timeline_->IsActive() &&
+         (state_ == State::kIdle || behavior_ != Behavior::Enum::kOnce);
 }
 
 }  // namespace blink

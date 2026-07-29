@@ -309,7 +309,9 @@ CSSValue* ConsumeDescriptor(StyleRule::RuleType rule_type,
     case StyleRule::kStartingStyle:
     case StyleRule::kMixin:
     case StyleRule::kApplyMixin:
+    case StyleRule::kContents:
     case StyleRule::kPositionTry:
+    case StyleRule::kCustomMedia:
       // TODO(andruud): Handle other descriptor types here.
       // Note that we can reach this path through @supports at-rule(...).
       return nullptr;
@@ -378,6 +380,12 @@ CSSValue* AtRuleDescriptorParser::ParseFontFaceDescriptor(
     case AtRuleDescriptorID::FontFeatureSettings:
       parsed_value =
           css_parsing_utils::ConsumeFontFeatureSettings(stream, context);
+      break;
+    case AtRuleDescriptorID::FontVariationSettings:
+      if (RuntimeEnabledFeatures::FontVariationSettingsDescriptorEnabled()) {
+        parsed_value =
+            css_parsing_utils::ConsumeFontVariationSettings(stream, context);
+      }
       break;
     case AtRuleDescriptorID::AscentOverride:
     case AtRuleDescriptorID::DescentOverride:

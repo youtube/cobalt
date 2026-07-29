@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">கூடுதல் விருப்பங்கள்</translation>
 <translation id="565342223183747919">வீடியோவின் இயக்கப் பயன்முறையை மாற்ற தட்டுங்கள்</translation>
 <translation id="5694491020339060116">பிளேபேக் வேகத்திற்கான மெனு</translation>
+<translation id="5961164658295696940">பிளேயரை விரிவாக்கி கூடுதல் விருப்பங்களைப் பார்க்க தட்டவும்</translation>
 <translation id="5965409657393819302">தொழில்நுட்பச் சிக்கல்</translation>
 <translation id="6218961554829577610">குரல் பிடிக்கவில்லை</translation>
 <translation id="6315170314923504164">Voice</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">ஏற்றுகிறது...</translation>
 <translation id="6889157801232138307">“இந்தப் பக்கத்தைப் படி” பிளேயர்</translation>
 <translation id="7051308646573997571">பவளம்</translation>
-<translation id="7112750136794557642">பிளேயரை விரிவாக்கி கூடுதல் விருப்பங்களைப் பார்க்க, தட்டவும்.</translation>
 <translation id="7138678301420049075">மற்றவை</translation>
 <translation id="7221920857098237570">மென்மை</translation>
 <translation id="7237590978482584900">சுகம்</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">காம்</translation>
 <translation id="8756370108715456837">உண்மை இல்லை</translation>
 <translation id="8953618380150219653">“இந்தப் பக்கத்தைப் படி” பிளேயர் முழு உயரத்தில் திறக்கப்பட்டது.</translation>
+<translation id="9087782179025630211">நகர்தல் கட்டுப்பாடு. <ph name="TOTAL" /> இல் <ph name="ELAPSED" /> முடிந்துவிட்டது.</translation>
 <translation id="978117257931832348">லோ பிட்ச்</translation>
 </translationbundle>

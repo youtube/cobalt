@@ -1076,7 +1076,7 @@ TEST_F(ExtensionServiceTest, LoadAllExtensionsFromDirectorySuccess) {
   EXPECT_EQ(std::string(good1), loaded_extensions()[1]->id());
   EXPECT_EQ(std::string("My extension 2"), loaded_extensions()[1]->name());
   EXPECT_EQ(std::string(), loaded_extensions()[1]->description());
-  EXPECT_EQ(loaded_extensions()[1]->ResolveExtensionURL("background.html"),
+  EXPECT_EQ(loaded_extensions()[1]->GetResourceURL("background.html"),
             BackgroundInfo::GetBackgroundURL(loaded_extensions()[1].get()));
   EXPECT_TRUE(
       ContentScriptsInfo::GetContentScripts(loaded_extensions()[1].get())
@@ -4684,7 +4684,7 @@ TEST_F(ExtensionServiceTest, PolicyBlockedPermissionExtensionUpdate) {
   {
     // Block one of the required permissions of 'permissions_blocklist2'.
     ManagementPrefUpdater pref(profile_->GetTestingPrefService());
-    pref.AddBlockedPermission("*", "downloads");
+    pref.AddBlockedPermission("*", "cookies");
   }
 
   // Install 'permissions_blocklist' again, should be updated.
@@ -4748,22 +4748,20 @@ TEST_F(ExtensionServiceTest, PolicyBlockedPermissionPolicyUpdate) {
 
   std::unique_ptr<const PermissionSet> active_permissions =
       prefs()->GetDesiredActivePermissions(ext1);
-  EXPECT_TRUE(
-      active_permissions->HasAPIPermission(APIPermissionID::kDownloads));
+  EXPECT_TRUE(active_permissions->HasAPIPermission(APIPermissionID::kCookie));
 
-  // Set policy to block 'downloads' permission.
+  // Set policy to block 'cookies' permission.
   {
     ManagementPrefUpdater pref(profile_->GetTestingPrefService());
-    pref.AddBlockedPermission("*", "downloads");
+    pref.AddBlockedPermission("*", "cookies");
   }
 
   task_environment()->RunUntilIdle();
 
-  // 'ext1' should still be enabled, but with 'downloads' permission revoked.
+  // 'ext1' should still be enabled, but with 'cookies' permission revoked.
   EXPECT_TRUE(registry->enabled_extensions().GetByID(ext1));
   active_permissions = prefs()->GetDesiredActivePermissions(ext1);
-  EXPECT_FALSE(
-      active_permissions->HasAPIPermission(APIPermissionID::kDownloads));
+  EXPECT_FALSE(active_permissions->HasAPIPermission(APIPermissionID::kCookie));
 
   // 'ext2' should be disabled because one of its required permissions is
   // blocked.
@@ -8617,25 +8615,6 @@ TEST_F(ExtensionServiceTest, ReloadingExtensionFromNotification) {
   ASSERT_TRUE(registry_observer.WaitForExtensionLoaded());
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-// Regression test for crbug.com/460699. Ensure PluginManager doesn't crash even
-// if OnExtensionUnloaded is invoked twice in succession.
-TEST_F(ExtensionServiceTest, PluginManagerCrash) {
-  InitializeEmptyExtensionService();
-  PluginManager manager(profile());
-
-  // Load an extension using a NaCl module.
-  const Extension* extension =
-      PackAndInstallCRX(data_dir().AppendASCII("native_client"), INSTALL_NEW);
-  registrar()->DisableExtension(extension->id(),
-                                {disable_reason::DISABLE_USER_ACTION});
-
-  // crbug.com/708230: This will cause OnExtensionUnloaded to be called
-  // redundantly for a disabled extension.
-  registrar()->BlockAllExtensions();
-}
-#endif  // BUILDFLAG(ENABLE_PLUGINS)
 
 // Test that blocking extension doesn't trigger unload notification for disabled
 // extensions. (crbug.com/708230)

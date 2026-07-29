@@ -9,6 +9,7 @@
 <translation id="1115463765356382667">Chromium-dan maksimum yararlanmaq üçün aşağıdakı əməliyyatları tamamlayın.</translation>
 <translation id="1140315115515116765">Qiymət məlumatlarını asanlıqla əldə etmək üçün defolt olaraq Chromium istifadə edin</translation>
 <translation id="1185134272377778587">Chromium haqqında</translation>
+<translation id="1229234641991056119">Chromium-da Safari parollarınızı, tarixçənizi, əlfəcinlərinizi və kredit kartlarınızı istifadə edin</translation>
 <translation id="1257458525759135959">Şəkilləri yadda saxlamaq üçün, Ayarlara toxunaraq Chromium'a fotolarınıza əlavə etmək icazəsi verin</translation>
 <translation id="1260702988262336471">Chromium menyusunu açın</translation>
 <translation id="12739128458173458">Bu tabı başqa cihaza göndərmək üçün hər iki cihazda Chromium-a daxil olun.</translation>
@@ -174,6 +175,7 @@ Bu ayarı dəyişmək üçün <ph name="BEGIN_LINK" />hesabda Chromium datasın�
 <translation id="5203244847421322551">Chromium-da parolları yadda saxlayın və avtomatik doldurun</translation>
 <translation id="5224391634244552924">Yadda saxlanmış parol yoxdur. Parollarınızı yadda saxladıqda Chromium onları yoxlaya bilər.</translation>
 <translation id="5259423875997548710">Chromium-da vizualları axtarın.</translation>
+<translation id="5284913972719948193">Chromium-da parolları, tarixçəni, əlfəcinləri və kredit kartlarını istifadə etmək üçün datanızı import edin</translation>
 <translation id="5308226104666789935">Chromium güncəlləmələri yoxlaya bilmir</translation>
 <translation id="5311557153294205270">Daxil edilən URL-ləri Chromium-dakı əlfəcinlərinizə əlavə edir.</translation>
 <translation id="5383251701169024761">Yadda saxlanılmış parolları digər tətbiqlərdə asanlıqla əldə etmək məqsədilə Avtodoldurma üçün Chromium seçin.</translation>
@@ -307,6 +309,7 @@ Yalnız parol ifadəsini bilən şəxs şifrələnmiş datanı oxuya bilər. Goo
 <translation id="865600487977764604">Daxil olduğunuzda Chromium'da sizi qoruyur və digər Google tətbiqlərində təhlükəsizliyinizi artırmaq üçün istifadə edilə bilər.</translation>
 <translation id="8663480472502753423">Chromium'u yeni saxlayın</translation>
 <translation id="8685813584220679697">Bu sayta və Chromium'a daxil olun.</translation>
+<translation id="8698780336333802489">Chromium-a import edin</translation>
 <translation id="8730503818204408000">Chromium-u defolt brauzer təyin etmək üçün Chromium ayarı açılır.</translation>
 <translation id="8754966941001340678">Chromium təkmil qoruma tövsiyə edir</translation>
 <translation id="8759037115129007407">Ailə üzvü parol qəbul edə bilmir. Chromium-u güncəlləməsini və parolları sinxronlaşdırmasını istəyin. <ph name="BEGIN_LINK" />Ətraflı məlumat<ph name="END_LINK" /></translation>

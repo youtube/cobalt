@@ -47,6 +47,11 @@ import java.util.function.Function;
 public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
     private static final String TAG = "ChoiceDialogCoordntr";
 
+    // Number of blocked Chrome sessions after which we suppress the blocking dialog. This is
+    // intended as an escape hatch to mitigate potential bugs.
+    @VisibleForTesting
+    public static final int ESCAPE_HATCH_BLOCK_LIMIT = 10;
+
     // TODO(b/365100489): Refactor this coordinator to implement the dialog's custom view fully
     // using the standard chromium MVC patterns. This class is a temporary shortcut.
     interface ViewHolder {
@@ -176,7 +181,7 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
         mViewHolder.updateViewForType(dialogType);
 
         switch (dialogType) {
-            case DialogType.LOADING, DialogType.CHOICE_LAUNCH -> {
+            case DialogType.CHOICE_LAUNCH -> {
                 mModel.set(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, false);
                 mModel.set(
                         ModalDialogProperties.APP_MODAL_DIALOG_BACK_PRESS_HANDLER,
@@ -186,16 +191,12 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
                 mModel.set(
                         ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                         mContext.getString(R.string.next));
-                mModel.set(
-                        ModalDialogProperties.POSITIVE_BUTTON_DISABLED,
-                        dialogType == DialogType.LOADING);
             }
             case DialogType.CHOICE_CONFIRM -> {
                 mModel.set(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true);
                 mModel.set(
                         ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                         mContext.getString(R.string.done));
-                mModel.set(ModalDialogProperties.POSITIVE_BUTTON_DISABLED, false);
                 mEmptyBackPressedCallback.remove();
                 RecordUserAction.record("OsDefaultsChoiceDialogUnblocked");
             }
@@ -251,16 +252,14 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
         int blockCount =
                 ChromeSharedPreferences.getInstance()
                         .readInt(SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS);
-        int blockLimit =
-                SearchEnginesFeatureUtils.getInstance().clayBlockingEscapeHatchBlockLimit();
-        if (blockCount >= blockLimit) {
+        if (blockCount >= ESCAPE_HATCH_BLOCK_LIMIT) {
             if (SearchEnginesFeatureUtils.getInstance().isChoiceApisDebugEnabled()) {
                 Log.i(
                         TAG,
                         "The dialog is suppressed: Escape Hatch triggered, blocked %d times"
                                 + " (limit=%d).",
                         blockCount,
-                        blockLimit);
+                        ESCAPE_HATCH_BLOCK_LIMIT);
             }
             return DialogSuppressionStatus.SUPPRESSED_ESCAPE_HATCH;
         }
@@ -316,7 +315,7 @@ public class ChoiceDialogCoordinator implements ChoiceDialogMediator.Delegate {
             TextView message = mView.findViewById(R.id.choice_dialog_message);
 
             switch (dialogType) {
-                case DialogType.LOADING, DialogType.CHOICE_LAUNCH -> {
+                case DialogType.CHOICE_LAUNCH -> {
                     illustration.setImageResource(R.drawable.blocking_choice_dialog_illustration);
                     title.setText(R.string.blocking_choice_dialog_first_title);
                     message.setText(R.string.blocking_choice_dialog_first_message);

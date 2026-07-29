@@ -447,6 +447,10 @@
       "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-002.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-005.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-001.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
+      "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
       "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
       "fast/deprecated-flexbox/line-clamp-crash.html",
       "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
@@ -560,7 +564,7 @@
       "--blink-settings=preferredColorScheme=0,forceDarkModeEnabled=true",
       "--dark-mode-settings=ImageClassifierPolicy=1"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "dark-mode-default",
@@ -580,7 +584,7 @@
     "args": [
       "--blink-settings=preferredColorScheme=0,forceDarkModeEnabled=true"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "dark-mode-images-filter-all",
@@ -600,7 +604,7 @@
       "--blink-settings=preferredColorScheme=0,forceDarkModeEnabled=true",
       "--dark-mode-settings=ImagePolicy=0"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "dark-mode-images-filter-none",
@@ -620,7 +624,7 @@
       "--blink-settings=preferredColorScheme=0,forceDarkModeEnabled=true",
       "--dark-mode-settings=ImagePolicy=1"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "dbsc-enabled",
@@ -663,24 +667,6 @@
       "alexnj@google.com",
       "chikamune@chromium.org"
     ]
-  },
-  {
-    "prefix": "delegates-focus-text-control-disabled",
-    "owners": [
-      "dizhangg@google.com"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/shadow-dom/focus/text-selection-with-delegatesFocus-text-control.html"
-    ],
-    "args": [
-      "--disable-features=DelegatesFocusTextControlFix"
-    ],
-    "expires": "Jul 1, 2025"
   },
   {
     "prefix": "devtools-improved-network-error",
@@ -744,6 +730,12 @@
       "external/wpt/css/css-overflow/line-clamp",
       "external/wpt/css/css-overflow/parsing",
       "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-001.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-005.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-001.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
+      "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
       "fast/overflow"
     ],
     "args": [
@@ -1351,7 +1343,7 @@
     "args": [
       "--enable-blink-features=MeasureMemory,ForceEagerMeasureMemory"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2027"
   },
   {
     "prefix": "force-renderer-accessibility",
@@ -1422,7 +1414,7 @@
       "--enable-blink-features=ForcedColors",
       "--enable-blink-features=CSSGapDecoration"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "fractional-scroll-offsets",
@@ -1547,7 +1539,7 @@
     "args": [
       "--enable-gpu-rasterization"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "never"
   },
   {
     "prefix": "hdr",
@@ -1676,7 +1668,7 @@
     "expires": "never"
   },
   {
-    "prefix": "interest-target-no-partial-interest",
+    "prefix": "interest-for-no-partial-interest",
     "owners": [
       "masonf@chromium.org"
     ],
@@ -1686,10 +1678,10 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/html/semantics/the-button-element/interest-target"
+      "external/wpt/html/semantics/the-button-element/interest-for"
     ],
     "args": [
-      "--enable-blink-features=HTMLInterestTargetNoPartialInterest,HTMLInterestTargetAttribute"
+      "--enable-blink-features=HTMLInterestForNoPartialInterest,HTMLInterestForAttribute"
     ],
     "expires": "Dec 1, 2025"
   },
@@ -1886,25 +1878,24 @@
     ]
   },
   {
-    "prefix": "lna",
+    "prefix": "lna-webrtc",
     "platforms": [
       "Linux",
       "Mac",
       "Win"
     ],
     "bases": [
-      "external/wpt/fetch/local-network-access"
+      "fast/peerconnection"
     ],
     "args": [
-      "--enable-features=LocalNetworkAccessChecks:LocalNetworkAccessChecksWarn/false"
+      "--enable-features=LocalNetworkAccessChecks,LocalNetworkAccessChecksWebRTC"
     ],
-    "exclusive_tests": "ALL",
     "owners": [
       "cthomp@chromium.org",
       "hchao@chromium.org",
       "chrome-secure-web-and-net@chromium.org"
     ],
-    "expires": "Oct 2, 2025"
+    "expires": "Dec 2, 2025"
   },
   {
     "prefix": "log-dns-prefetch-and-preconnect",
@@ -2055,6 +2046,19 @@
       "--use-gpu-in-tests"
     ],
     "expires": "Dec 1, 2024"
+  },
+  {
+    "prefix": "network-service-task-scheduler",
+    "owners": ["hayato@chromium.org"],
+    "platforms": ["Android", "Mac", "Win", "Linux"],
+    "bases": [
+      "external/wpt/fetch/api/",
+      "external/wpt/loading/"
+    ],
+    "args": [
+      "--enable-features=NetworkServiceTaskScheduler:url_loader/true"
+    ],
+    "expires": "Jun 20, 2026"
   },
   "This suite is incompatible with the default WPT Origin Isolation mode of ",
   "Site Isolation (see",
@@ -2471,29 +2475,6 @@
     ],
     "args": [
       "--disable-features=LocalNetworkAccessChecks"
-    ],
-    "exclusive_tests": "ALL",
-    "owners": [
-      "cthomp@chromium.org",
-      "hchao@chromium.org",
-      "chrome-secure-web-and-net@chromium.org"
-    ],
-    "expires": "July 31, 2025"
-  },
-  {
-    "prefix": "pna-permission",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/fetch/private-network-access"
-    ],
-    "args": [
-      "--enable-features=PrivateNetworkAccessPermissionPrompt",
-      "--disable-features=LocalNetworkAccessChecks",
-      "--enable-blink-features=PrivateNetworkAccessPermissionPrompt"
     ],
     "exclusive_tests": "ALL",
     "owners": [
@@ -5032,7 +5013,7 @@
     "args": [
       "--js-flags=--wasm-tiering-budget=100 --allow-natives-syntax"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "never"
   },
   {
     "prefix": "web-bluetooth-new-permissions-backend",
@@ -5053,10 +5034,12 @@
     ],
     "expires": "Jan 1, 2026"
   },
+  "--webauthn-remote-desktop-support can be toggled with enterprise policies, ",
+  "so we need to support this long term.",
   {
     "prefix": "webauthn-remote-desktop-client-override",
     "owners": [
-      "martinkr@chromium.org"
+      "chrome-webauthn@google.com"
     ],
     "platforms": [
       "Linux",
@@ -5069,7 +5052,7 @@
     "args": [
       "--webauthn-remote-desktop-support"
     ],
-    "expires": "Jul 1, 2025"
+    "expires": "never"
   },
   "This individual test must be run separately from others, because it makes a",
   "huge memory allocation that often causes OOM if other tests have run in the",
@@ -5906,5 +5889,25 @@
       "--force-color-profile=display-p3-d65"
     ],
     "expires": "Jul 1, 2026"
+  },
+  {
+    "prefix": "script-src-hashes-v1-enabled",
+    "owners": [
+      "carlosil@chromium.org",
+      "meacer@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/content-security-policy/unsafe-eval/tentative",
+      "external/wpt/content-security-policy/script-src/tentative"
+    ],
+    "args": [
+      "--enable-features=ScriptSrcHashesV1"
+    ],
+    "expires": "Aug 1, 2025"
   }
 ]

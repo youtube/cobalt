@@ -143,6 +143,7 @@ public class TabGroupListMediatorUnitTest {
     @Mock private MessagingBackendService mMessagingBackendService;
     @Mock private Runnable mFinishBlocking;
     @Mock private DataSharingTabManager mDataSharingTabManager;
+    @Mock private PersistentVersioningMessageMediator mPersistentVersioningMessageMediator;
 
     @Captor private ArgumentCaptor<TabModelObserver> mTabModelObserver;
     @Captor private ArgumentCaptor<TabGroupSyncService.Observer> mTabGroupSyncObserverCaptor;
@@ -167,6 +168,7 @@ public class TabGroupListMediatorUnitTest {
     private Context mContext;
     private SharedGroupTestHelper mSharedGroupTestHelper;
     private SyncedGroupTestHelper mSyncedGroupTestHelper;
+    private TabGroupRemovedMessageMediator mTabGroupRemovedMessageMediator;
 
     @Before
     public void setUp() {
@@ -188,6 +190,9 @@ public class TabGroupListMediatorUnitTest {
         when(mCollaborationService.getServiceStatus()).thenReturn(mServiceStatus);
         when(mServiceStatus.isAllowedToJoin()).thenReturn(true);
         when(mDataSharingService.getUiDelegate()).thenReturn(mDataSharingUiDelegate);
+
+        mTabGroupRemovedMessageMediator =
+                new TabGroupRemovedMessageMediator(mContext, mMessagingBackendService, mModelList);
     }
 
     private TabGroupListMediator createMediator() {
@@ -207,7 +212,9 @@ public class TabGroupListMediatorUnitTest {
                         mActionConfirmationManager,
                         mSyncService,
                         /* enableContainment= */ true,
-                        mDataSharingTabManager);
+                        mDataSharingTabManager,
+                        mTabGroupRemovedMessageMediator,
+                        mPersistentVersioningMessageMediator);
         verify(mSyncService).addSyncStateChangedListener(mSyncStateChangedListenerCaptor.capture());
         return mediator;
     }
@@ -917,6 +924,12 @@ public class TabGroupListMediatorUnitTest {
         when(mMessagingBackendService.getMessages(any())).thenReturn(List.of());
         mSyncStateChangedListenerCaptor.getValue().syncStateChanged();
         assertEquals(0, mModelList.size());
+    }
+
+    @Test
+    public void testPersistentVersioningMessagePossiblyQueued() {
+        createMediator();
+        verify(mPersistentVersioningMessageMediator, times(2)).queueMessageIfNeeded();
     }
 
     private PersistentMessage makeTabGroupRemovedMessage(String messageId, String groupName) {

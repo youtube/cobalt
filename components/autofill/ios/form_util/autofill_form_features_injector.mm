@@ -45,6 +45,11 @@ void SetAutofillFormFeatureFlags(WebFrame* web_frame) {
                          features::kAutofillAcrossIframesIosThrottling));
 
   AutofillFormFeaturesJavaScriptFeature::GetInstance()
+      ->SetAutofillIgnoreCheckableElements(
+          web_frame, base::FeatureList::IsEnabled(
+                         features::kAutofillIgnoreCheckableElements));
+
+  AutofillFormFeaturesJavaScriptFeature::GetInstance()
       ->SetAutofillIsolatedContentWorld(
           web_frame,
           base::FeatureList::IsEnabled(kAutofillIsolatedWorldForJavascriptIos));
@@ -68,6 +73,11 @@ void SetAutofillFormFeatureFlags(WebFrame* web_frame) {
       ->SetAutofillReportFormSubmissionErrors(
           web_frame,
           base::FeatureList::IsEnabled(kAutofillReportFormSubmissionErrors));
+
+  AutofillFormFeaturesJavaScriptFeature::GetInstance()
+      ->SetAutofillCountFormSubmissionInRenderer(
+          web_frame,
+          base::FeatureList::IsEnabled(kAutofillCountFormSubmissionInRenderer));
 }
 
 AutofillFormFeaturesInjector::~AutofillFormFeaturesInjector() = default;

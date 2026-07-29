@@ -90,6 +90,7 @@
 <translation id="2957447865124070833"><ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />-г сонгоно уу</translation>
 <translation id="2986402782150919988">Chrome-д хавчуурга нэмэх</translation>
 <translation id="3030414234702425231">Та <ph name="SIGNOUT_MANAGED_DOMAIN" />-н удирддаг бүртгэлээс гарч байгаа тул таны Chrome-н өгөгдлийг энэ төхөөрөмжөөс устгана. Таны өгөгдөл таны Google Бүртгэлд хэвээр үлдэнэ.</translation>
+<translation id="3042447686908081308">Chrome руу импортлох</translation>
 <translation id="3051521853355903257">Нууц үгнүүдийг Chrome-д удирдах</translation>
 <translation id="309672519329227863">Бусад аппаас Chrome-н нууц үгнүүд болон бусад зүйлдээ хандаарай.</translation>
 <translation id="3109170945534582468">Chrome-н үйлдлүүд</translation>
@@ -316,6 +317,7 @@
 <translation id="855027533751209304">Chrome-н зөвлөгөө: Харж буй зүйлээсээ хайгаарай</translation>
 <translation id="8558480467877843976">Та одоо мессеж, документ болон бусад апп дахь холбоосыг үзэх эсвэл товшихын тулд Chrome-г хүссэн үедээ ашиглах боломжтой.</translation>
 <translation id="8603022514504485810">Google Password Manager бүх нууц үгийг шалгаж чадсангүй. Маргааш дахин оролдох эсвэл <ph name="BEGIN_LINK" />Google Бүртгэл дэх нууц үгнүүдээ шалгана уу<ph name="END_LINK" /></translation>
+<translation id="8610372330814566250">Safari-н нууц үг, түүх, хавчуурга, кредит картаа Chrome-д ашиглаарай</translation>
 <translation id="8630122478628016441">“Таныг Chrome-г хаахад нууцлалтай табуудыг түгжих”-ийг асаана уу.</translation>
 <translation id="8673726683583791503">Google Lens-р дэлгүүрээс хайх</translation>
 <translation id="8765470054473112089">Таныг хаяг оруулах хэсэг эсвэл хайх хэсэгт бичих үед Chrome илүү сайн зөвлөмж авахын тулд таны бичсэн зүйлийг өгөгдмөл хайлтын системд тань илгээдэг. Энэ нь Нууцлалтай горимд унтраалттай.</translation>
@@ -337,6 +339,7 @@
 <translation id="9176561303811134420">Chrome-д төлбөрийн хэрэгслүүдийг удирдах</translation>
 <translation id="9181628561061032322">Chrome-н саяхны табуудыг нээнэ.</translation>
 <translation id="948597495737267756">Таны Chrome-н түүхийн хуудсыг нээнэ.</translation>
+<translation id="954347330803595209">Chrome дээр нууц үг, түүх, хавчуурга, кредит картаа ашиглахын тулд өгөгдлөө импортолно уу</translation>
 <translation id="97300214378190234">Бусад аппад холбооснуудыг товших бүрдээ Chrome-г ашиглана уу.</translation>
 <translation id="997929539742564806">Chrome-н нууц үг, нэвтрэх түлхүүрээ автоматаар бөглөж апп, сайтад түргэн нэвтэрнэ үү</translation>
 <translation id="998677222109959694">Chrome-н тохиргоог удирдах</translation>

@@ -10,6 +10,8 @@
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/renderer/supervised_user/supervised_user_error_page_controller_delegate.h"
+#include "components/supervised_user/core/common/features.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "content/public/renderer/render_frame.h"
 #include "gin/handle.h"
 #include "gin/object_template_builder.h"
@@ -18,7 +20,7 @@
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-microtask-queue.h"
 
-gin::WrapperInfo SupervisedUserErrorPageController::kWrapperInfo = {
+gin::DeprecatedWrapperInfo SupervisedUserErrorPageController::kWrapperInfo = {
     gin::kEmbedderNativeGin};
 
 void SupervisedUserErrorPageController::Install(
@@ -83,8 +85,19 @@ void SupervisedUserErrorPageController::RequestUrlAccessLocal() {
 #if BUILDFLAG(IS_ANDROID)
 void SupervisedUserErrorPageController::LearnMore() {
   if (delegate_) {
-    delegate_->LearnMore();
+    delegate_->LearnMore(
+        base::BindOnce(&SupervisedUserErrorPageController::OnLearnMore,
+                       weak_factory_.GetWeakPtr()));
   }
+}
+
+void SupervisedUserErrorPageController::OnLearnMore() {
+  // Navigate to the learn more resource from the error page in the same tab,
+  // while also allowing the user to go back.
+  std::string js =
+      base::StrCat({"window.location.href = '",
+                    supervised_user::kDeviceFiltersHelpCenterUrl, "';"});
+  render_frame_->ExecuteJavaScript(base::ASCIIToUTF16(js));
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -101,11 +114,15 @@ void SupervisedUserErrorPageController::OnRequestUrlAccessRemote(bool success) {
 gin::ObjectTemplateBuilder
 SupervisedUserErrorPageController::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return gin::Wrappable<SupervisedUserErrorPageController>::
+  return gin::DeprecatedWrappable<SupervisedUserErrorPageController>::
       GetObjectTemplateBuilder(isolate)
           .SetMethod("goBack", &SupervisedUserErrorPageController::GoBack)
           .SetMethod("requestUrlAccessRemote",
                      &SupervisedUserErrorPageController::RequestUrlAccessRemote)
           .SetMethod("requestUrlAccessLocal",
-                     &SupervisedUserErrorPageController::RequestUrlAccessLocal);
+                     &SupervisedUserErrorPageController::RequestUrlAccessLocal)
+#if BUILDFLAG(IS_ANDROID)
+          .SetMethod("learnMore", &SupervisedUserErrorPageController::LearnMore)
+#endif  // BUILDFLAG(IS_ANDROID)
+      ;
 }

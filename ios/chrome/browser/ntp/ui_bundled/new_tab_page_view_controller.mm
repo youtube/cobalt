@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_view_controller.h"
 
+#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
 #import <algorithm>
@@ -23,6 +24,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/discover_feed_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_header_view_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_wrapper_view_controller.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_content_delegate.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
@@ -53,6 +55,10 @@ const CGFloat kFeedContainerMinimumHeight = 1000;
 // Added height to the feed container so that it doesn't end abruptly on
 // overscroll.
 const CGFloat kFeedContainerExtraHeight = 500;
+
+// The spacing for the quick actions buttons.
+const CGFloat kQuickActionSpacingTop = 3.0;
+const CGFloat kQuickActionSpacingBotttom = 19.0;
 
 // Vertical spacing between modules.
 CGFloat SpaceBetweenModules() {
@@ -182,6 +188,8 @@ CGFloat SpaceBetweenModules() {
   // The view controller holding the NTP quick actions buttons.
   // Only created when the fakebox buttons are replaced.
   NewTabPageQuickActionsViewController* _quickActionsViewController;
+  // Whether MIA is allowed by policy.
+  BOOL _MIAAllowedByPolicy;
 }
 
 // Properties synthesized from NewTabPageConsumer.
@@ -265,6 +273,8 @@ CGFloat SpaceBetweenModules() {
     };
     [self registerForTraitChanges:traits withHandler:handler];
   }
+
+  [self.mutator checkNewBadgeEligibility];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -668,6 +678,10 @@ CGFloat SpaceBetweenModules() {
         viewController == self.feedHeaderViewController) {
       heightAboveFeed += SpaceBetweenModules();
     }
+
+    if (viewController == _quickActionsViewController) {
+      heightAboveFeed += kQuickActionSpacingBotttom;
+    }
   }
   return heightAboveFeed;
 }
@@ -812,6 +826,14 @@ CGFloat SpaceBetweenModules() {
   _backgroundImage = backgroundImage;
 
   [self updateBackgroundImageView];
+}
+
+- (void)updateBackgroundWithColorPalette:(NewTabPageColorPalette*)colorPalette {
+  // TODO(crbug.com/421925819): Apply color palette to NTP UI elements.
+}
+
+- (void)setMIAAllowedByPolicy:(BOOL)policyAllowed {
+  _MIAAllowedByPolicy = policyAllowed;
 }
 
 #pragma mark - UIScrollViewDelegate
@@ -1078,7 +1100,7 @@ CGFloat SpaceBetweenModules() {
 // Whether the quick actions button row is visible.
 - (BOOL)quickActionsVisible {
   return self.headerViewController.isGoogleDefaultSearchEngine &&
-         ShouldShowQuickActionsRow();
+         ShouldShowQuickActionsRow() && _MIAAllowedByPolicy;
 }
 
 // Returns YES if scroll should be skipped when focusing the omnibox.
@@ -1259,7 +1281,9 @@ CGFloat SpaceBetweenModules() {
     self.fakeOmniboxConstraints = @[
       [viewBelowHeader.topAnchor
           constraintEqualToAnchor:self.headerViewController.view.bottomAnchor
-                         constant:SpaceBetweenModules()],
+                         constant:self.quickActionsVisible
+                                      ? kQuickActionSpacingTop
+                                      : SpaceBetweenModules()],
     ];
   }
   [NSLayoutConstraint activateConstraints:self.fakeOmniboxConstraints];
@@ -1509,11 +1533,16 @@ CGFloat SpaceBetweenModules() {
     NSUInteger headerIndex =
         [self.viewControllersAboveFeed indexOfObject:self.headerViewController];
     for (NSUInteger index = startIndex; index > headerIndex + 1; --index) {
+      BOOL isQuickActions = _quickActionsViewController ==
+                            self.viewControllersAboveFeed[index - 1];
       UIView* view = self.viewControllersAboveFeed[index].view;
       UIView* viewAbove = self.viewControllersAboveFeed[index - 1].view;
+
+      CGFloat spacingToUse =
+          isQuickActions ? kQuickActionSpacingBotttom : SpaceBetweenModules();
       [NSLayoutConstraint activateConstraints:@[
         [view.topAnchor constraintEqualToAnchor:viewAbove.bottomAnchor
-                                       constant:SpaceBetweenModules()],
+                                       constant:spacingToUse],
       ]];
     }
   }

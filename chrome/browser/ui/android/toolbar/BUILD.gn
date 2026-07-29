@@ -29,6 +29,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarCaptureType.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarDataProvider.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarFeatures.java",
+    "java/src/org/chromium/chrome/browser/toolbar/ToolbarHairlineView.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarIntentMetadata.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarLongPressMenuHandler.java",
     "java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java",
@@ -63,6 +64,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/toolbar/bottom/BottomControlsViewBinder.java",
     "java/src/org/chromium/chrome/browser/toolbar/bottom/ScrollingBottomViewResourceFrameLayout.java",
     "java/src/org/chromium/chrome/browser/toolbar/bottom/ScrollingBottomViewSceneLayer.java",
+    "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionToolbarCoordinator.java",
     "java/src/org/chromium/chrome/browser/toolbar/home_button/HomeButton.java",
     "java/src/org/chromium/chrome/browser/toolbar/home_button/HomeButtonCoordinator.java",
     "java/src/org/chromium/chrome/browser/toolbar/home_page_button/HomePageButtonData.java",
@@ -170,6 +172,7 @@ android_library("java") {
     "//chrome/browser/ui/android/appmenu:java",
     "//chrome/browser/ui/android/desktop_windowing:java",
     "//chrome/browser/ui/android/edge_to_edge:java",
+    "//chrome/browser/ui/android/extensions:java",
     "//chrome/browser/ui/android/favicon:java",
     "//chrome/browser/ui/android/favicon:java_resources",
     "//chrome/browser/ui/android/layouts:java",
@@ -234,18 +237,15 @@ android_library("java") {
 
   if (enable_extensions_core) {
     sources += [
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionAction.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionButtonProperties.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionButtonViewBinder.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListCoordinator.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java",
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopupContents.java",
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionsBridge.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionToolbarCoordinatorImpl.java",
       "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuButtonCoordinator.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java",
     ]
-
-    srcjar_deps += [ "//extensions/browser:extension_action_enums" ]
 
     deps += [
       "//base/version_info/android:version_constants_java",
@@ -253,6 +253,7 @@ android_library("java") {
       "//components/embedder_support/android:web_contents_delegate_java",
       "//components/thin_webview:factory_java",
       "//components/thin_webview:java",
+      "//extensions/browser:extension_action_enums",
     ]
   }
 }
@@ -265,14 +266,6 @@ generate_jni("jni_headers") {
     "java/src/org/chromium/chrome/browser/toolbar/top/ResourceFactory.java",
     "java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarSceneLayer.java",
   ]
-
-  if (enable_extensions_core) {
-    sources += [
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionAction.java",
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopupContents.java",
-      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionsBridge.java",
-    ]
-  }
 }
 
 android_resources("java_resources") {
@@ -329,6 +322,7 @@ android_resources("java_resources") {
     "java/res/drawable-xxxhdpi/incognito_small.png",
     "java/res/drawable-xxxhdpi/popup_bg_bottom.9.png",
     "java/res/drawable/chrome_extension.xml",
+    "java/res/drawable/extensions_menu_bg_tinted.xml",
     "java/res/drawable/home_surface_search_box_background.xml",
     "java/res/drawable/ic_close_all_tabs.xml",
     "java/res/drawable/ic_switch_out_of_incognito.xml",
@@ -356,6 +350,7 @@ android_resources("java_resources") {
     "java/res/layout/control_container.xml",
     "java/res/layout/extension_action_button.xml",
     "java/res/layout/extension_toolbar_container.xml",
+    "java/res/layout/extensions_menu.xml",
     "java/res/layout/home_page_buttons_layout.xml",
     "java/res/layout/menu_button.xml",
     "java/res/layout/navigation_popup_item.xml",
@@ -458,6 +453,7 @@ robolectric_library("junit") {
     "//chrome/browser/ui/android/desktop_windowing:java",
     "//chrome/browser/ui/android/edge_to_edge:java",
     "//chrome/browser/ui/android/edge_to_edge/internal:java",
+    "//chrome/browser/ui/android/extensions:java",
     "//chrome/browser/ui/android/layouts:java",
     "//chrome/browser/ui/android/native_page:java",
     "//chrome/browser/ui/android/omnibox:java",
@@ -484,6 +480,7 @@ robolectric_library("junit") {
     "//third_party/android_deps:espresso_java",
     "//third_party/android_deps:guava_android_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_appcompat_appcompat_java",
     "//third_party/androidx:androidx_appcompat_appcompat_resources_java",
     "//third_party/androidx:androidx_coordinatorlayout_coordinatorlayout_java",
     "//third_party/androidx:androidx_core_core_java",
@@ -506,6 +503,9 @@ robolectric_library("junit") {
   ]
 
   if (enable_extensions_core) {
-    sources += [ "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediatorTest.java" ]
+    sources += [
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediatorTest.java",
+      "java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinatorTest.java",
+    ]
   }
 }

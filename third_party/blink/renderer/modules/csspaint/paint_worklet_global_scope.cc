@@ -39,7 +39,7 @@ bool ParseInputArguments(v8::Local<v8::Context> context,
                          v8::Local<v8::Object> constructor,
                          Vector<CSSSyntaxDefinition>* input_argument_types,
                          ExceptionState& exception_state) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   TryRethrowScope rethrow_scope(isolate, exception_state);
 
   if (RuntimeEnabledFeatures::CSSPaintAPIArgumentsEnabled()) {
@@ -76,7 +76,7 @@ PaintRenderingContext2DSettings* ParsePaintRenderingContext2DSettings(
     v8::Local<v8::Context> context,
     v8::Local<v8::Object> constructor,
     ExceptionState& exception_state) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   TryRethrowScope rethrow_scope(isolate, exception_state);
 
   v8::Local<v8::Value> context_settings_value;
@@ -136,7 +136,7 @@ PaintWorkletGlobalScope::~PaintWorkletGlobalScope() = default;
 
 void PaintWorkletGlobalScope::Dispose() {
   DCHECK(IsContextThread());
-  if (!WTF::IsMainThread()) {
+  if (!IsMainThread()) {
     if (PaintWorkletProxyClient* proxy_client =
             PaintWorkletProxyClient::From(Clients()))
       proxy_client->Dispose();
@@ -146,7 +146,7 @@ void PaintWorkletGlobalScope::Dispose() {
   }
   WorkletGlobalScope::Dispose();
 
-  if (WTF::IsMainThread()) {
+  if (IsMainThread()) {
     // For off-the-main-thread paint worklet, this will be called in
     // WorkerThread::PrepareForShutdownOnWorkerThread().
     NotifyContextDestroyed();
@@ -228,7 +228,7 @@ void PaintWorkletGlobalScope::registerPaint(const ScriptState* script_state,
       input_argument_types, context_settings, this);
   paint_definitions_.Set(name, definition);
 
-  if (!WTF::IsMainThread()) {
+  if (!IsMainThread()) {
     PaintWorkletProxyClient* proxy_client =
         PaintWorkletProxyClient::From(Clients());
     proxy_client->RegisterCSSPaintDefinition(name, definition, exception_state);
@@ -247,7 +247,7 @@ CSSPaintDefinition* PaintWorkletGlobalScope::FindDefinition(
 }
 
 double PaintWorkletGlobalScope::devicePixelRatio() const {
-  return WTF::IsMainThread()
+  return IsMainThread()
              ? GetFrame()->DevicePixelRatio()
              : PaintWorkletProxyClient::From(Clients())->DevicePixelRatio();
 }
@@ -258,8 +258,9 @@ void PaintWorkletGlobalScope::Trace(Visitor* visitor) const {
 }
 
 void PaintWorkletGlobalScope::RegisterWithProxyClientIfNeeded() {
-  if (registered_ || WTF::IsMainThread())
+  if (registered_ || IsMainThread()) {
     return;
+  }
 
   if (PaintWorkletProxyClient* proxy_client =
           PaintWorkletProxyClient::From(Clients())) {

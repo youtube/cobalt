@@ -35,6 +35,7 @@
 #include "content/browser/renderer_host/navigation_entry_impl.h"
 #include "content/browser/renderer_host/navigation_entry_restore_context_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/navigation_throttle_runner.h"
 #include "content/browser/renderer_host/navigation_type.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
@@ -21591,16 +21592,17 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTestNoServer,
   // and gets deferred by RendererCancellationThrottle after that. Wait for the
   // first NavigationThrottle deferral.
   base::RunLoop run_loop;
-  NavigationThrottleRunner* throttle_runner =
-      request->GetNavigationThrottleRunnerForTesting();
-  throttle_runner->set_first_deferral_callback_for_testing(
+  NavigationThrottleRunner& throttle_runner =
+      request->GetNavigationThrottleRegistryForTesting()
+          ->GetNavigationThrottleRunnerForTesting();
+  throttle_runner.set_first_deferral_callback_for_testing(
       run_loop.QuitClosure());
   run_loop.Run();
 
   // Check that the deferral is caused by RendererCancellationThrottle.
   EXPECT_TRUE(request->IsDeferredForTesting());
   EXPECT_STREQ("RendererCancellationThrottle",
-               throttle_runner->GetDeferringThrottle()->GetNameForLogging());
+               throttle_runner.GetDeferringThrottle()->GetNameForLogging());
   EXPECT_EQ(request->state(), NavigationRequest::WILL_PROCESS_RESPONSE);
 
   // Unblock the JS task in the renderer by sending the response for the sync
@@ -21660,16 +21662,17 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTestNoServer,
   // and gets deferred by RendererCancellationThrottle after that. Wait for the
   // first NavigationThrottle deferral.
   base::RunLoop run_loop;
-  NavigationThrottleRunner* throttle_runner =
-      request->GetNavigationThrottleRunnerForTesting();
-  throttle_runner->set_first_deferral_callback_for_testing(
+  NavigationThrottleRunner& throttle_runner =
+      request->GetNavigationThrottleRegistryForTesting()
+          ->GetNavigationThrottleRunnerForTesting();
+  throttle_runner.set_first_deferral_callback_for_testing(
       run_loop.QuitClosure());
   run_loop.Run();
 
   // Check that the deferral is caused by RendererCancellationThrottle.
   EXPECT_TRUE(request->IsDeferredForTesting());
   EXPECT_STREQ("RendererCancellationThrottle",
-               throttle_runner->GetDeferringThrottle()->GetNameForLogging());
+               throttle_runner.GetDeferringThrottle()->GetNameForLogging());
   EXPECT_EQ(request->state(), NavigationRequest::WILL_PROCESS_RESPONSE);
 
   // Kill the renderer process that started the navigation.
@@ -21738,16 +21741,17 @@ IN_PROC_BROWSER_TEST_P(
   // and gets deferred by RendererCancellationThrottle after that. Wait for the
   // first NavigationThrottle deferral.
   base::RunLoop run_loop;
-  NavigationThrottleRunner* throttle_runner =
-      request->GetNavigationThrottleRunnerForTesting();
-  throttle_runner->set_first_deferral_callback_for_testing(
+  NavigationThrottleRunner& throttle_runner =
+      request->GetNavigationThrottleRegistryForTesting()
+          ->GetNavigationThrottleRunnerForTesting();
+  throttle_runner.set_first_deferral_callback_for_testing(
       run_loop.QuitClosure());
   run_loop.Run();
 
   // Check that the deferral is caused by RendererCancellationThrottle.
   EXPECT_TRUE(request->IsDeferredForTesting());
   EXPECT_STREQ("RendererCancellationThrottle",
-               throttle_runner->GetDeferringThrottle()->GetNameForLogging());
+               throttle_runner.GetDeferringThrottle()->GetNameForLogging());
   EXPECT_EQ(request->state(), NavigationRequest::WILL_PROCESS_RESPONSE);
 
   // Verify that we will be notified about the unresponsive renderer.
@@ -22572,7 +22576,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
   // navigation to `url_b2` after the `url_b1` navigation is in the
   // "pending commit" stage, so that both navigations can exist at the same
   // time (the previous NavigationRequest had already been moved to the
-  //"pending commit" speculative RFH, and they both use the same speculative
+  // "pending commit" speculative RFH, and they both use the same speculative
   // RFH).
   TestNavigationManager b1_nav(shell()->web_contents(), url_b1);
   TestNavigationManager b2_nav(shell()->web_contents(), url_b2);
@@ -23262,6 +23266,244 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_FALSE(exit_observer.did_exit_normally());
     EXPECT_FALSE(root->current_frame_host()->IsRenderFrameLive());
   }
+}
+
+// See also tests `IframeNavigateFrameToErrorPage` below and
+// `FencedFrameRootNavigateFrameToErrorPage` in
+// `FencedFrameParameterizedBrowserTest`.
+IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
+                       NavigateMainFrameToErrorPage) {
+  GURL main_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  NavigationControllerImpl& controller = static_cast<NavigationControllerImpl&>(
+      shell()->web_contents()->GetController());
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+
+  EXPECT_EQ(1, controller.GetEntryCount());
+  NavigationEntryImpl* entry = controller.GetLastCommittedEntry();
+  EXPECT_EQ(main_url, entry->GetURL());
+  int starting_entry_id = entry->GetUniqueID();
+
+  // Navigate the main frame to the error page.
+  // Note: the custom error page HTML is loaded with this URL, but the URL
+  // actually points to a normal page, not an error page.
+  GURL error_url(embedded_test_server()->GetURL(
+      "/navigation_controller/simple_page_2.html"));
+  {
+    FrameNavigateParamsCapturer capturer(root);
+    controller.NavigateFrameToErrorPage(
+        root->current_frame_host(), error_url,
+        "<html><body><p>kaboom</p></body></html>");
+    capturer.Wait();
+    ASSERT_TRUE(capturer.is_error_page());
+  }
+
+  // There should still be only 1 entry, but the entry has changed.
+  EXPECT_EQ(controller.GetEntryCount(), 1);
+  EXPECT_EQ(root->current_frame_host()->GetLastCommittedURL(), error_url);
+  EXPECT_TRUE(root->current_frame_host()->IsErrorDocument());
+  EXPECT_NE(controller.GetLastCommittedEntry()->GetUniqueID(),
+            starting_entry_id);
+
+  // Make sure the main frame is on the error page.
+  EXPECT_EQ(EvalJs(root, "document.getElementsByTagName('p')[0].textContent"),
+            "kaboom");
+  EXPECT_EQ(controller.GetLastCommittedEntry()->GetURL(), error_url);
+
+  // Reload the main frame.
+  {
+    FrameNavigateParamsCapturer capturer(root);
+    EXPECT_TRUE(ExecJs(root, "location.reload();"));
+    capturer.Wait();
+    ASSERT_FALSE(capturer.is_error_page());
+  }
+
+  // We've reloaded the URL specified when loading the error page, but we're
+  // loading the real document at that URL instead of an error document.
+  EXPECT_EQ(controller.GetEntryCount(), 1);
+  EXPECT_EQ(controller.GetLastCommittedEntry()->GetURL(), error_url);
+  EXPECT_EQ(root->current_frame_host()->GetLastCommittedURL(), error_url);
+  EXPECT_FALSE(root->current_frame_host()->IsErrorDocument());
+  EXPECT_EQ(EvalJs(root->current_frame_host(),
+                   "document.getElementsByTagName('p')[0].textContent"),
+            "Simple page 2.\n\n\n");
+}
+
+// This test is similar to the
+// `FencedFrameParameterizedBrowserTest.FencedFrameRootNavigateFrameToErrorPage`
+// test. However, iframe does not have its own NavigationController while fenced
+// frame does.
+IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
+                       IframeNavigateFrameToErrorPage) {
+  GURL main_url(
+      embedded_test_server()->GetURL("a.test",
+                                     "/cross_site_iframe_factory.html?a.test("
+                                     "a.test)"));
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
+                            ->GetPrimaryFrameTree()
+                            .root();
+  EXPECT_EQ(root->child_count(), 1U);
+
+  FrameTreeNode* iframe_node = root->child_at(0);
+  EXPECT_EQ(iframe_node->navigator().controller().GetEntryCount(), 1);
+
+  int starting_entry_id = iframe_node->navigator()
+                              .controller()
+                              .GetLastCommittedEntry()
+                              ->GetUniqueID();
+
+  // Navigate the iframe to an error page. The navigation type is
+  // `NAVIGATION_TYPE_AUTO_SUBFRAME`, so the frame tree NavigationController
+  // will not create a new navigation entry.
+  // Note: the custom error page HTML is loaded with this URL, but the URL
+  // actually points to a normal page, not an error page.
+  GURL iframe_error_url(embedded_test_server()->GetURL(
+      "c.test", "/navigation_controller/simple_page_2.html"));
+  TestFrameNavigationObserver error_observer(iframe_node->current_frame_host());
+  iframe_node->navigator().controller().NavigateFrameToErrorPage(
+      iframe_node->current_frame_host(), iframe_error_url,
+      "<html><body><p>kaboom</p></body></html>");
+  error_observer.Wait();
+
+  EXPECT_EQ(iframe_node->navigator().controller().GetEntryCount(), 1);
+  EXPECT_EQ(iframe_node->current_frame_host()->GetLastCommittedURL(),
+            iframe_error_url);
+  EXPECT_TRUE(iframe_node->current_frame_host()->IsErrorDocument());
+
+  // To be extra sure we're on the error page, grab the HTML content we expect.
+  EXPECT_EQ(
+      EvalJs(iframe_node, "document.getElementsByTagName('p')[0].textContent"),
+      "kaboom");
+
+  // The navigation entry ID does not change after iframe error page navigation.
+  int error_entry_id = iframe_node->navigator()
+                           .controller()
+                           .GetLastCommittedEntry()
+                           ->GetUniqueID();
+  EXPECT_EQ(error_entry_id, starting_entry_id);
+
+  // The frame tree NavigationController should still have the main frame URL in
+  // its last committed entry.
+  EXPECT_EQ(
+      iframe_node->navigator().controller().GetLastCommittedEntry()->GetURL(),
+      main_url);
+
+  // We can't go back or forward in the iframe.
+  EXPECT_FALSE(iframe_node->navigator().controller().CanGoBack());
+  EXPECT_FALSE(iframe_node->navigator().controller().CanGoForward());
+
+  // When we perform a reload, the last navigation entry from the main frame
+  // navigation controller should be used.
+  TestFrameNavigationObserver reload_observer(iframe_node);
+  EXPECT_TRUE(ExecJs(iframe_node, "location.reload();"));
+  reload_observer.Wait();
+  EXPECT_EQ(iframe_node->navigator().controller().GetEntryCount(), 1);
+  EXPECT_EQ(iframe_node->navigator()
+                .controller()
+                .GetLastCommittedEntry()
+                ->GetUniqueID(),
+            error_entry_id);
+
+  // We've reloaded the URL specified when loading the error page, but we're
+  // loading the real document at that URL instead of an error document.
+  EXPECT_EQ(iframe_node->current_frame_host()->GetLastCommittedURL(),
+            iframe_error_url);
+  EXPECT_FALSE(iframe_node->current_frame_host()->IsErrorDocument());
+  EXPECT_EQ(EvalJs(iframe_node->current_frame_host(),
+                   "document.getElementsByTagName('p')[0].textContent"),
+            "Simple page 2.\n\n\n");
+
+  // The frame tree NavigationController should still have the main frame URL in
+  // its last committed entry after reload.
+  EXPECT_EQ(
+      iframe_node->navigator().controller().GetLastCommittedEntry()->GetURL(),
+      main_url);
+}
+
+// Test the active document count per NetworkIsolationKey with some navigation
+// cases.
+IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
+                       ActiveDocumentCountPerNetworkIsolationKey) {
+  GURL url_a(embedded_test_server()->GetURL("a.com", "/title1.html"));
+  GURL url_b(embedded_test_server()->GetURL("b.com", "/title2.html"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/page_with_iframe.html"));
+
+  // Navigate to `url_a`.
+  ASSERT_TRUE(NavigateToURL(shell(), url_a));
+  StoragePartitionImpl* storage_partition = static_cast<StoragePartitionImpl*>(
+      contents()->GetPrimaryMainFrame()->GetStoragePartition());
+  net::NetworkIsolationKey nik_a =
+      contents()->GetPrimaryMainFrame()->GetNetworkIsolationKey();
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 1);
+
+  // Navigate cross-site to `url_b`
+  ASSERT_TRUE(NavigateToURL(shell(), url_b));
+  net::NetworkIsolationKey nik_b =
+      contents()->GetPrimaryMainFrame()->GetNetworkIsolationKey();
+  ASSERT_NE(nik_a, nik_b);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 1);
+
+  // Open an about:blank popup, which should be same-origin with `url_b`.
+  Shell* new_shell = OpenPopup(shell(), GURL(url::kAboutBlankURL), "foo");
+  EXPECT_TRUE(new_shell);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 2);
+
+  // Navigate same-origin to `url_b`.
+  ASSERT_TRUE(NavigateToURL(new_shell, url_b));
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 2);
+
+  // Navigate cross-origin to `url_c`, which has a same-origin iframe.
+  ASSERT_TRUE(NavigateToURL(new_shell, url_c));
+  RenderFrameHostImpl* rfh_c_main_frame = static_cast<RenderFrameHostImpl*>(
+      new_shell->web_contents()->GetPrimaryMainFrame());
+  net::NetworkIsolationKey nik_c = rfh_c_main_frame->GetNetworkIsolationKey();
+  ASSERT_NE(nik_a, nik_c);
+  ASSERT_NE(nik_b, nik_c);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 1);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_c), 2);
+
+  // Navigate the iframe to `url_a`. It will have a NetworkIsolationKey that's
+  // different from a main frame `url_a`, since it's embedded under the `url_c`
+  // origin.
+  EXPECT_TRUE(NavigateToURLFromRenderer(rfh_c_main_frame->child_at(0), url_a));
+  net::NetworkIsolationKey nik_a_under_c = rfh_c_main_frame->child_at(0)
+                                               ->current_frame_host()
+                                               ->GetNetworkIsolationKey();
+  ASSERT_NE(nik_a, nik_a_under_c);
+  ASSERT_NE(nik_b, nik_a_under_c);
+  ASSERT_NE(nik_c, nik_a_under_c);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 1);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_c), 1);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a_under_c), 1);
+
+  // Close the popup, which will delete the popup main frame and iframe.
+  new_shell->Close();
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 1);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_c), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a_under_c), 0);
+
+  // Navigate back to `url_a`.
+  TestNavigationObserver back_load_observer(contents());
+  NavigationControllerImpl& controller =
+      static_cast<NavigationControllerImpl&>(contents()->GetController());
+  controller.GoBack();
+  back_load_observer.Wait();
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a), 1);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_b), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_c), 0);
+  ASSERT_EQ(storage_partition->GetActiveDocumentCount(nik_a_under_c), 0);
 }
 
 class IgnoreDuplicateNavsBrowserTest

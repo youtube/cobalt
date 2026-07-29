@@ -16,6 +16,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/headless/test/headless_browser_test_utils.h"
 #include "components/headless/select_file_dialog/headless_select_file_dialog.h"
+#include "components/headless/test/shared_test_util.h"
 #include "content/public/common/content_switches.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/network/public/cpp/network_switches.h"
@@ -35,35 +36,76 @@ static const char kDumpTestResult[] = "dump-test-result";
 }  // namespace switches
 
 namespace {
-static const base::FilePath kTestsScriptRoot(
-    FILE_PATH_LITERAL("chrome/browser/headless/test/data/protocol"));
+static const base::FilePath kTestDataDir(
+    FILE_PATH_LITERAL("chrome/browser/headless/test/data"));
+static const base::FilePath kSharedTestDataDir(
+    FILE_PATH_LITERAL("components/headless/test/data"));
+
+constexpr char kProtocolTestDir[] = "protocol";
 }  // namespace
 
 HeadlessModeProtocolBrowserTest::HeadlessModeProtocolBrowserTest() = default;
 HeadlessModeProtocolBrowserTest::~HeadlessModeProtocolBrowserTest() = default;
+
+base::FilePath HeadlessModeProtocolBrowserTest::GetTestDataDir() {
+  return IsSharedTestScript() ? kSharedTestDataDir : kTestDataDir;
+}
+
+base::FilePath HeadlessModeProtocolBrowserTest::GetScriptPath() {
+  base::FilePath src_dir;
+  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
+  return src_dir.Append(GetTestDataDir())
+      .AppendASCII(kProtocolTestDir)
+      .AppendASCII(GetScriptName());
+}
+
+bool HeadlessModeProtocolBrowserTest::IsSharedTestScript() {
+  return headless::IsSharedTestScript(GetScriptName());
+}
+
+void HeadlessModeProtocolBrowserTest::SetUp() {
+  LoadTestMetaInfo();
+  HeadlessModeDevTooledBrowserTest::SetUp();
+}
 
 void HeadlessModeProtocolBrowserTest::SetUpCommandLine(
     base::CommandLine* command_line) {
   command_line->AppendSwitchASCII(::network::switches::kHostResolverRules,
                                   "MAP *.test 127.0.0.1");
   HeadlessModeDevTooledBrowserTest::SetUpCommandLine(command_line);
+
+  test_meta_info_.AppendToCommandLine(*command_line);
 }
 
 base::Value::Dict HeadlessModeProtocolBrowserTest::GetPageUrlExtraParams() {
   return base::Value::Dict();
 }
 
-void HeadlessModeProtocolBrowserTest::RunTestScript(
-    std::string_view script_name) {
-  test_folder_ = "/protocol/";
-  script_name_ = script_name;
-  RunTest();
+void HeadlessModeProtocolBrowserTest::LoadTestMetaInfo() {
+  base::FilePath script_path = GetScriptPath();
+  std::string script_body;
+  CHECK(base::ReadFileToString(script_path, &script_body))
+      << "script_path=" << script_path;
+
+  auto test_meta_info = TestMetaInfo::FromString(script_body);
+  CHECK(test_meta_info.has_value()) << test_meta_info.error();
+
+  test_meta_info_ = test_meta_info.value();
+}
+
+void HeadlessModeProtocolBrowserTest::StartEmbeddedTestServer() {
+  embedded_test_server()->ServeFilesFromSourceDirectory(
+      "third_party/blink/web_tests/http/tests/inspector-protocol");
+
+  if (IsSharedTestScript()) {
+    embedded_test_server()->ServeFilesFromSourceDirectory(GetTestDataDir());
+  }
+
+  CHECK(embedded_test_server()->Start());
 }
 
 void HeadlessModeProtocolBrowserTest::RunDevTooledTest() {
-  embedded_test_server()->ServeFilesFromSourceDirectory(
-      "third_party/blink/web_tests/http/tests/inspector-protocol");
-  ASSERT_TRUE(embedded_test_server()->Start());
+  StartEmbeddedTestServer();
 
   scoped_refptr<content::DevToolsAgentHost> agent_host =
       content::DevToolsAgentHost::GetOrCreateFor(web_contents_.get());
@@ -98,21 +140,11 @@ void HeadlessModeProtocolBrowserTest::RunDevTooledTest() {
 
 void HeadlessModeProtocolBrowserTest::OnLoadEventFired(
     const base::Value::Dict& params) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  base::FilePath src_dir;
-  CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
-  base::FilePath test_path =
-      src_dir.Append(kTestsScriptRoot).AppendASCII(script_name_);
-  std::string script;
-  if (!base::ReadFileToString(test_path, &script)) {
-    ADD_FAILURE() << "Unable to read test in " << test_path;
-    FinishAsyncTest();
-    return;
-  }
+  std::string script_name = GetScriptName();
   GURL test_url = embedded_test_server()->GetURL("harness.test",
-                                                 "/protocol/" + script_name_);
+                                                 "/protocol/" + script_name);
   GURL target_url =
-      embedded_test_server()->GetURL("127.0.0.1", "/protocol/" + script_name_);
+      embedded_test_server()->GetURL("127.0.0.1", "/protocol/" + script_name);
 
   base::Value::Dict test_params;
   test_params.Set("test", test_url.spec());
@@ -152,18 +184,10 @@ void HeadlessModeProtocolBrowserTest::OnEvaluateResult(
   FinishAsyncTest();
 }
 
-// TODO(crbug.com/40253719): Move similar code in //headless/test to a shared
-// location in //components/devtools/test.
 void HeadlessModeProtocolBrowserTest::ProcessTestResult(
     const std::string& test_result) {
   base::ScopedAllowBlockingForTesting allow_blocking;
-
-  base::FilePath src_dir;
-  ASSERT_TRUE(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &src_dir));
-  base::FilePath expectation_path =
-      src_dir.Append(kTestsScriptRoot)
-          .AppendASCII(script_name_.substr(0, script_name_.length() - 3) +
-                       "-expected.txt");
+  base::FilePath expectation_path = GetTestExpectationFilePath(GetScriptPath());
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kResetResults)) {
@@ -206,31 +230,13 @@ void HeadlessModeProtocolBrowserTest::OnConsoleAPICalled(
   }
 }
 
-// This is a very simple command line switches parser intended to process '--'
-// separated switches with or without values. It will not process nested command
-// line switches specifications like --js-flags=--expose-gc. Use with caution!
-void HeadlessModeProtocolBrowserTest::AppendCommandLineExtras(
-    base::CommandLine* command_line,
-    std::string_view extras) {
-  std::vector<std::string> switches = base::SplitStringUsingSubstr(
-      extras, "--", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-
-  for (const auto& a_switch : switches) {
-    if (size_t pos = a_switch.find('=', 1); pos != std::string::npos) {
-      command_line->AppendSwitchASCII(a_switch.substr(0, pos),
-                                      a_switch.substr(pos + 1));
-    } else {
-      command_line->AppendSwitch(a_switch);
-    }
-  }
-}
-
 HEADLESS_MODE_PROTOCOL_TEST(DomFocus, "input/dom-focus.js")
 HEADLESS_MODE_PROTOCOL_TEST(FocusEvent, "input/focus-event.js")
 
 // Flaky crbug/1431857
 HEADLESS_MODE_PROTOCOL_TEST(DISABLED_FocusBlurNotifications,
                             "input/focus-blur-notifications.js")
+
 // TODO(crbug.com/40257054): Re-enable this test
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #define MAYBE_InputClipboardOps DISABLED_InputClipboardOps
@@ -304,62 +310,58 @@ HEADLESS_MODE_PROTOCOL_TEST_F(HeadlessModeScreencastTest,
                               "sanity/screencast-viewport.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(LargeBrowserWindowSize,
-                            "sanity/large-browser-window-size.js")
+                            "shared/large-browser-window-size.js")
 
 // These currently fail on Mac, see https://crbug.com/1488010
 #if !BUILDFLAG(IS_MAC)
 HEADLESS_MODE_PROTOCOL_TEST(MinimizeRestoreWindow,
-                            "sanity/minimize-restore-window.js")
+                            "shared/minimize-restore-window.js")
 HEADLESS_MODE_PROTOCOL_TEST(MaximizeRestoreWindow,
-                            "sanity/maximize-restore-window.js")
+                            "shared/maximize-restore-window.js")
 HEADLESS_MODE_PROTOCOL_TEST(FullscreenRestoreWindow,
-                            "sanity/fullscreen-restore-window.js")
+                            "shared/fullscreen-restore-window.js")
 #endif  // !BUILDFLAG(IS_MAC)
 
 // This currently fails on Mac, see https://crbug.com/416088625
 #if !BUILDFLAG(IS_MAC)
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    MaximizedWindowSize,
-    "sanity/maximized-window-size.js",
-    "--screen-info={1600x1200}")
+HEADLESS_MODE_PROTOCOL_TEST(MaximizedWindowSize,
+                            "shared/maximized-window-size.js")
 #endif  // !BUILDFLAG(IS_MAC)
 
 // This currently fails on Mac, see https://crbug.com/1500046
 #if !BUILDFLAG(IS_MAC)
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    FullscreenWindowSize,
-    "sanity/fullscreen-window-size.js",
-    "--screen-info={1600x1200}")
+HEADLESS_MODE_PROTOCOL_TEST(FullscreenWindowSize,
+                            "shared/fullscreen-window-size.js")
 #endif  // !BUILDFLAG(IS_MAC)
 
 HEADLESS_MODE_PROTOCOL_TEST(PrintToPdfTinyPage,
-                            "sanity/print-to-pdf-tiny-page.js")
+                            "shared/print-to-pdf-tiny-page.js")
 
-HEADLESS_MODE_PROTOCOL_TEST(RequestFullscreen, "sanity/request-fullscreen.js")
+HEADLESS_MODE_PROTOCOL_TEST(RequestFullscreen, "shared/request-fullscreen.js")
+
+// Fails on all platforms, see https://crbug.com/429035133
+HEADLESS_MODE_PROTOCOL_TEST(DISABLED_RequestFullscreenOnSecondaryScreen,
+                            "shared/request-fullscreen-on-secondary-screen.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(CreateTargetPosition,
-                            "sanity/create-target-position.js")
+                            "shared/create-target-position.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(CreateTargetWindowState,
-                            "sanity/create-target-window-state.js")
+                            "shared/create-target-window-state.js")
 
 HEADLESS_MODE_PROTOCOL_TEST(DocumentVisibilityState,
-                            "sanity/document-visibility-state.js")
+                            "shared/document-visibility-state.js")
 
 // Headless Mode uses Ozone only when running on Linux.
 #if BUILDFLAG(IS_LINUX)
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    OzoneScreenSizeOverride,
-    "sanity/ozone-screen-size-override.js",
-    "--ozone-override-screen-size=1234,5678")
+HEADLESS_MODE_PROTOCOL_TEST(OzoneScreenSizeOverride,
+                            "sanity/ozone-screen-size-override.js")
 #endif
 
 // This currently results in an unexpected screen orientation type,
 // see http://crbug.com/398150465.
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    MultipleScreenDetails,
-    "sanity/multiple-screen-details.js",
-    "--screen-info={label=#1}{600x800 label='#2'}")
+HEADLESS_MODE_PROTOCOL_TEST(MultipleScreenDetails,
+                            "shared/multiple-screen-details.js")
 
 // TODO(crbug.com/40283476): MoveWindowBetweenScreens is failing on Mac
 #if !BUILDFLAG(IS_MAC)
@@ -367,16 +369,11 @@ HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
 #else
 #define MAYBE_MoveWindowBetweenScreens DISABLED_MoveWindowBetweenScreens
 #endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_MoveWindowBetweenScreens,
+                            "shared/move-window-between-screens.js")
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    MAYBE_MoveWindowBetweenScreens,
-    "sanity/move-window-between-screens.js",
-    "--screen-info={label='#1'}{label='#2'}{0,600 label='#3'}{label='#4'}")
-
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    WindowOpenOnSecondaryScreen,
-    "sanity/window-open-on-secondary-screen.js",
-    "--screen-info={label='#1'}{label='#2'} --disable-popup-blocking")
+HEADLESS_MODE_PROTOCOL_TEST(WindowOpenOnSecondaryScreen,
+                            "sanity/window-open-on-secondary-screen.js")
 
 // TODO(crbug.com/40283476): CreateTargetSecondaryScreen is failing on Mac
 #if !BUILDFLAG(IS_MAC)
@@ -384,33 +381,19 @@ HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
 #else
 #define MAYBE_CreateTargetSecondaryScreen DISABLED_CreateTargetSecondaryScreen
 #endif
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_CreateTargetSecondaryScreen,
+                            "shared/create-target-secondary-screen.js")
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    MAYBE_CreateTargetSecondaryScreen,
-    "sanity/create-target-secondary-screen.js",
-    "--screen-info={label='#1'}{label='#2'}")
+HEADLESS_MODE_PROTOCOL_TEST(WindowOpenPopupPlacement,
+                            "sanity/window-open-popup-placement.js")
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    WindowOpenPopupPlacement,
-    "sanity/window-open-popup-placement.js",
-    "--screen-info={1600x1200} --disable-popup-blocking")
+HEADLESS_MODE_PROTOCOL_TEST(WindowSizeSwitchHandling,
+                            "sanity/window-size-switch-handling.js")
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    WindowSizeSwitchHandling,
-    "sanity/window-size-switch-handling.js",
-    "--screen-info={1600x1200} --window-size=700,500")
+HEADLESS_MODE_PROTOCOL_TEST(WindowSizeSwitchLargerThanScreen,
+                            "sanity/window-size-switch-larger-than-screen.js")
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    WindowSizeSwitchLargerThanScreen,
-    "sanity/window-size-switch-larger-than-screen.js",
-    "--screen-info={800x600} --window-size=1600,1200")
-
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    WindowScreenAvail,
-    "sanity/window-screen-avail.js",
-    "--screen-info={800x600"
-    " workAreaLeft=10 workAreaRight=90"
-    " workAreaTop=20 workAreaBottom=80}")
+HEADLESS_MODE_PROTOCOL_TEST(WindowScreenAvail, "shared/window-screen-avail.js")
 
 // TODO(crbug.com/424797525): Fails Mac 13.
 #if BUILDFLAG(IS_MAC)
@@ -419,11 +402,8 @@ HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
 #define MAYBE_StartFullscreenSwitch StartFullscreenSwitch
 #endif
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    MAYBE_StartFullscreenSwitch,
-    "sanity/start-fullscreen-switch.js",
-    "--screen-info={1600x1200}"
-    "--start-fullscreen")
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_StartFullscreenSwitch,
+                            "sanity/start-fullscreen-switch.js")
 
 // TODO(crbug.com/423951863): Fails on Linux and Mac.
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -432,10 +412,7 @@ HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
 #define MAYBE_StartFullscreenSwitchScaled StartFullscreenSwitchScaled
 #endif
 
-HEADLESS_MODE_PROTOCOL_TEST_WITH_COMMAND_LINE_EXTRAS(
-    MAYBE_StartFullscreenSwitchScaled,
-    "sanity/start-fullscreen-switch-scaled.js",
-    "--screen-info={3000x2000 devicePixelRatio=2.0}"
-    "--start-fullscreen")
+HEADLESS_MODE_PROTOCOL_TEST(MAYBE_StartFullscreenSwitchScaled,
+                            "sanity/start-fullscreen-switch-scaled.js")
 
 }  // namespace headless

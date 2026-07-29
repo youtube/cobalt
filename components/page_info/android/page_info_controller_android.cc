@@ -30,6 +30,7 @@
 #include "content/public/common/content_switches.h"
 #include "device/vr/buildflags/buildflags.h"
 #include "services/network/public/cpp/features.h"
+#include "ui/android/ui_android_features.h"
 #include "url/origin.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -83,22 +84,16 @@ PageInfoControllerAndroid::PageInfoControllerAndroid(
 
 PageInfoControllerAndroid::~PageInfoControllerAndroid() = default;
 
-void PageInfoControllerAndroid::Destroy(JNIEnv* env,
-                                        const JavaParamRef<jobject>& obj) {
+void PageInfoControllerAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
-void PageInfoControllerAndroid::RecordPageInfoAction(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    jint action) {
+void PageInfoControllerAndroid::RecordPageInfoAction(JNIEnv* env, jint action) {
   presenter_->RecordPageInfoAction(
       static_cast<page_info::PageInfoAction>(action));
 }
 
-void PageInfoControllerAndroid::UpdatePermissions(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+void PageInfoControllerAndroid::UpdatePermissions(JNIEnv* env) {
   presenter_->UpdatePermissions();
 }
 
@@ -142,6 +137,9 @@ void PageInfoControllerAndroid::SetPermissionInfo(
   permissions_to_display.push_back(ContentSettingsType::IMAGES);
   permissions_to_display.push_back(ContentSettingsType::JAVASCRIPT);
   permissions_to_display.push_back(ContentSettingsType::POPUPS);
+  if (base::FeatureList::IsEnabled(ui::kAndroidWindowManagementWebApi)) {
+    permissions_to_display.push_back(ContentSettingsType::WINDOW_MANAGEMENT);
+  }
   permissions_to_display.push_back(ContentSettingsType::ADS);
   permissions_to_display.push_back(
       ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER);

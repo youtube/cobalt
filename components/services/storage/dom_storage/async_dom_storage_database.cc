@@ -66,18 +66,18 @@ void AsyncDomStorageDatabase::RewriteDB(StatusCallback callback) {
 void AsyncDomStorageDatabase::RunBatchDatabaseTasks(
     RunBatchTasksContext context,
     std::vector<BatchDatabaseTask> tasks,
-    base::OnceCallback<void(leveldb::Status)> callback) {
+    base::OnceCallback<void(DbStatus)> callback) {
   RunDatabaseTask(base::BindOnce(
                       [](RunBatchTasksContext context,
                          std::vector<BatchDatabaseTask> tasks,
-                         const DomStorageDatabase& db) {
+                         const DomStorageDatabase& db) -> DbStatus {
                         leveldb::WriteBatch batch;
                         // TODO(crbug.com/40245293): Remove this after debugging
                         // is complete.
                         base::debug::Alias(&context);
                         size_t batch_task_count = tasks.size();
                         size_t iteration_count = 0;
-                        size_t current_batch_size = 0;
+                        size_t current_batch_size = batch.ApproximateSize();
                         base::debug::Alias(&batch_task_count);
                         base::debug::Alias(&iteration_count);
                         base::debug::Alias(&current_batch_size);
@@ -88,7 +88,7 @@ void AsyncDomStorageDatabase::RunBatchDatabaseTasks(
                               batch.ApproximateSize() - current_batch_size;
                           base::UmaHistogramCustomCounts(
                               "Storage.DomStorage."
-                              "BatchTaskGrowthSizeBytes",
+                              "BatchTaskGrowthSizeBytes2",
                               growth, 1, 100 * 1024 * 1024, 50);
                           const size_t kTargetBatchSizesMB[] = {20, 100, 500};
                           for (size_t batch_size_mb : kTargetBatchSizesMB) {
@@ -98,11 +98,12 @@ void AsyncDomStorageDatabase::RunBatchDatabaseTasks(
                                 batch.ApproximateSize() >= target_batch_size) {
                               base::UmaHistogramCounts10000(
                                   base::StringPrintf("Storage.DomStorage."
-                                                     "IterationsToReach%zuMB",
+                                                     "IterationsToReach%zuMB2",
                                                      batch_size_mb),
                                   iteration_count);
                             }
                           }
+                          current_batch_size = batch.ApproximateSize();
                         }
                         return db.Commit(&batch);
                       },
@@ -122,7 +123,7 @@ void AsyncDomStorageDatabase::RemoveCommitter(Committer* source) {
 
 void AsyncDomStorageDatabase::InitiateCommit(Committer* source) {
   std::vector<Commit> commits;
-  std::vector<base::OnceCallback<void(leveldb::Status)>> commit_dones;
+  std::vector<base::OnceCallback<void(DbStatus)>> commit_dones;
   size_t total_data_size = 0u;
   if (base::FeatureList::IsEnabled(kCoalesceStorageAreaCommits)) {
     commits.reserve(committers_.size());
@@ -148,8 +149,8 @@ void AsyncDomStorageDatabase::InitiateCommit(Committer* source) {
                                  /*buckets=*/100);
 
   auto run_all = base::BindOnce(
-      [](std::vector<base::OnceCallback<void(leveldb::Status)>> callbacks,
-         leveldb::Status status) {
+      [](std::vector<base::OnceCallback<void(DbStatus)>> callbacks,
+         DbStatus status) {
         for (auto& callback : callbacks) {
           std::move(callback).Run(status);
         }
@@ -191,7 +192,7 @@ void AsyncDomStorageDatabase::InitiateCommit(Committer* source) {
 void AsyncDomStorageDatabase::OnDatabaseOpened(
     StatusCallback callback,
     base::SequenceBound<DomStorageDatabase> database,
-    leveldb::Status status) {
+    DbStatus status) {
   database_ = std::move(database);
   std::vector<BoundDatabaseTask> tasks;
   std::swap(tasks, tasks_to_run_on_open_);

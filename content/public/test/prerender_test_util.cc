@@ -57,6 +57,8 @@ std::string ConvertEagernessToString(
   switch (eagerness) {
     case blink::mojom::SpeculationEagerness::kImmediate:
       return "immediate";
+    case blink::mojom::SpeculationEagerness::kEager:
+      return "eager";
     case blink::mojom::SpeculationEagerness::kModerate:
       return "moderate";
     case blink::mojom::SpeculationEagerness::kConservative:
@@ -491,11 +493,13 @@ PrerenderTestHelper::~PrerenderTestHelper() = default;
 
 void PrerenderTestHelper::RegisterServerRequestMonitor(
     net::test_server::EmbeddedTestServer* http_server) {
+  EXPECT_FALSE(http_server->Started());
   http_server->RegisterRequestMonitor(base::BindRepeating(
       &PrerenderTestHelper::MonitorResourceRequest, base::Unretained(this)));
 }
 void PrerenderTestHelper::RegisterServerRequestMonitor(
     net::test_server::EmbeddedTestServer& test_server) {
+  EXPECT_FALSE(test_server.Started());
   test_server.RegisterRequestMonitor(base::BindRepeating(
       &PrerenderTestHelper::MonitorResourceRequest, base::Unretained(this)));
 }

@@ -10,6 +10,7 @@ import("//tools/grit/repack.gni")
 import("//ui/base/ui_features.gni")
 
 assert(enable_extensions_core)
+assert(!is_fuchsia)
 
 # If enable_extensions is true then enable_guest_view must also be true.
 assert(!enable_extensions || enable_guest_view)
@@ -166,6 +167,7 @@ static_library("test_support") {
     "//components/user_prefs",
     "//content/public/common",
     "//content/test:test_support",
+    "//crypto:test_support",
     "//extensions/browser",
     "//extensions/browser:test_support",
     "//extensions/browser/api",

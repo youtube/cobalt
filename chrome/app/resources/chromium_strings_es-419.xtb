@@ -39,6 +39,7 @@
 <translation id="1547469039832541117">Finaliza la tarea destacada.</translation>
 <translation id="1553461853655228091">Chromium necesita permiso para acceder a la cámara a fin de crear un mapa 3D de tu entorno</translation>
 <translation id="1555494096857516577">{NUM_EXTENSIONS,plural, =1{Esta extensión ya no es compatible. Chromium te recomienda quitarla.}other{Estas extensiones ya no son compatibles. Chromium te recomienda quitarlas.}}</translation>
+<translation id="1562320819937089394">Fijar Chromium</translation>
 <translation id="1574377791422810894">Herramientas de seguridad de Chromium</translation>
 <translation id="1594928384848033697">Chromium quiere borrar tus datos del Administrador de contraseñas. Para permitirlo, escribe tu contraseña de Windows.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Tu administrador necesita que reinicies Chromium para aplicar una actualización}=1{Tu administrador necesita que reinicies Chromium para aplicar una actualización. No se volverá a abrir la ventana de incógnito.}other{Tu administrador necesita que reinicies Chromium para aplicar una actualización. No se volverán a abrir las # ventanas de incógnito.}}</translation>
@@ -245,6 +246,7 @@
 <translation id="4281844954008187215">Condiciones del Servicio</translation>
 <translation id="4285930937574705105">No se pudo completar la instalación debido a un error no identificado. Si Chromium se está ejecutando en este momento, ciérralo e intenta nuevamente.</translation>
 <translation id="4304713468139749426">Administrador de contraseñas</translation>
+<translation id="4334241893986177674">Buscar esta captura de pantalla</translation>
 <translation id="4334294535648607276">Descarga completa</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> requiere que leas y aceptes las siguientes Condiciones del Servicio antes de usar este dispositivo. Estas condiciones no amplían, modifican ni limitan las Condiciones de Chromium OS.</translation>
 <translation id="4407044323746248786">¿Deseas salir de Chromium de todos modos?</translation>
@@ -514,6 +516,7 @@
 <translation id="8004582292198964060">Navegador</translation>
 <translation id="8010081455002666927">Detección automática</translation>
 <translation id="8013436988911883588">Una vez que Chromium tenga acceso, los sitios web podrán solicitarte acceso.</translation>
+<translation id="8031714377769448844">Fija Chromium a la barra de tareas para acceder rápidamente en cualquier momento</translation>
 <translation id="80471789339884597">Gracias por instalar <ph name="BUNDLE_NAME" />. Debes reiniciar todos los navegadores antes de usarlo.</translation>
 <translation id="8054112667659782652">Mostrar siempre el atajo de Búsqueda con imágenes</translation>
 <translation id="8077498902115777962">Inhabilitar la ejecución de Chromium en segundo plano para las apps</translation>
@@ -569,6 +572,7 @@
 <translation id="8704119203788522458">Este es tu Chromium</translation>
 <translation id="8719993436687031146">¿Quieres acceder a Chromium?</translation>
 <translation id="8747073452963259673">esquina inferior izquierda del área de búsqueda: izquierda <ph name="LEFT" />%, inferior <ph name="BOTTOM" />%</translation>
+<translation id="8768722695577490596">Las contraseñas solo se pueden borrar fuera de Chromium</translation>
 <translation id="878572486461146056">Error de instalación: El administrador de red aplicó una política de grupo que impide la instalación (<ph name="INSTALL_ERROR" />).</translation>
 <translation id="8796602469536043152">Chromium necesita permiso para acceder a tu cámara y micrófono para este sitio</translation>
 <translation id="8818550178040858407">¿Quieres acceder a Chromium?</translation>

@@ -858,8 +858,16 @@ class LayerTreeHostContextTestDontUseLostResources
   void SetupTree() override {
     auto* ri = child_context_provider_->RasterInterface();
 
+    auto si_size = gfx::Size(4, 4);
+    gpu::SharedImageMetadata metadata;
+    metadata.format = viz::SinglePlaneFormat::kRGBA_8888;
+    metadata.size = si_size;
+    metadata.color_space = gfx::ColorSpace::CreateSRGB();
+    metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
+    metadata.alpha_type = kOpaque_SkAlphaType;
+    metadata.usage = gpu::SharedImageUsageSet();
     scoped_refptr<gpu::ClientSharedImage> shared_image =
-        gpu::ClientSharedImage::CreateForTesting();
+        gpu::ClientSharedImage::CreateForTesting(metadata);
 
     gpu::SyncToken sync_token;
     ri->GenSyncTokenCHROMIUM(sync_token.GetData());
@@ -913,18 +921,18 @@ class LayerTreeHostContextTestDontUseLostResources
     video_scaled_hw->SetIsDrawable(true);
     root->AddChild(video_scaled_hw);
 
-    color_video_frame_ = VideoFrame::CreateColorFrame(
-        gfx::Size(4, 4), 0x80, 0x80, 0x80, base::TimeDelta());
+    color_video_frame_ = VideoFrame::CreateColorFrame(si_size, 0x80, 0x80, 0x80,
+                                                      base::TimeDelta());
     ASSERT_TRUE(color_video_frame_);
     hw_video_frame_ = VideoFrame::WrapSharedImage(
         media::PIXEL_FORMAT_ARGB, shared_image, sync_token,
-        media::VideoFrame::ReleaseMailboxCB(), gfx::Size(4, 4),
-        gfx::Rect(0, 0, 4, 4), gfx::Size(4, 4), base::TimeDelta());
+        media::VideoFrame::ReleaseMailboxCB(), si_size, gfx::Rect(si_size),
+        si_size, base::TimeDelta());
     ASSERT_TRUE(hw_video_frame_);
     scaled_hw_video_frame_ = VideoFrame::WrapSharedImage(
         media::PIXEL_FORMAT_ARGB, shared_image, sync_token,
-        media::VideoFrame::ReleaseMailboxCB(), gfx::Size(4, 4),
-        gfx::Rect(0, 0, 3, 2), gfx::Size(4, 4), base::TimeDelta());
+        media::VideoFrame::ReleaseMailboxCB(), si_size, gfx::Rect(0, 0, 3, 2),
+        si_size, base::TimeDelta());
     ASSERT_TRUE(scaled_hw_video_frame_);
 
     color_frame_provider_.set_frame(color_video_frame_);
@@ -1432,6 +1440,7 @@ class UIResourceLostEviction : public UIResourceLostTestSimple {
         ui_resource2_ = nullptr;
         ui_resource3_ = nullptr;
         EndTest();
+        test_ended_ = true;
         break;
       case 4:
         NOTREACHED();
@@ -1439,6 +1448,12 @@ class UIResourceLostEviction : public UIResourceLostTestSimple {
   }
 
   void DidSetVisibleOnImplTree(LayerTreeHostImpl* impl, bool visible) override {
+    // LayerTreeTest will change the visibility of the tree to false as part of
+    // tearing down the LayerTreeHost. sii_ and other resources will already be
+    // destroyed.
+    if (test_ended_) {
+      return;
+    }
     if (!visible) {
       // All resources should have been evicted.
       ASSERT_EQ(0u, sii_->shared_image_count());
@@ -1524,6 +1539,7 @@ class UIResourceLostEviction : public UIResourceLostTestSimple {
  private:
   std::unique_ptr<FakeScopedUIResource> ui_resource2_;
   std::unique_ptr<FakeScopedUIResource> ui_resource3_;
+  bool test_ended_ = false;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(UIResourceLostEviction);
@@ -1566,6 +1582,7 @@ class UIResourceFreedIfLostWhileExported : public LayerTreeHostContextTest {
 
   void DeleteAndEndTest() {
     ui_resource_->DeleteResource();
+    ui_resource_.reset();
     EndTest();
   }
 

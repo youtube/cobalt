@@ -56,6 +56,7 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   ChangePasswordFormFinder* form_finder() { return form_finder_.get(); }
   content::WebContents* executor() { return executor_.get(); }
   PasswordChangeUIController* ui_controller() { return ui_controller_.get(); }
+  std::u16string generated_password() { return generated_password_; }
   void SetCustomUIController(
       std::unique_ptr<PasswordChangeUIController> controller) {
     ui_controller_ = std::move(controller);
@@ -74,11 +75,9 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   void OnPasswordFormSubmission(content::WebContents* web_contents) override;
   void OnOtpFieldDetected(content::WebContents* web_contents) override;
   void OnPrivacyNoticeAccepted() override;
+  void OnPasswordChangeDeclined() override;
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
-  std::u16string GetDisplayOrigin() const override;
-  const std::u16string& GetUsername() const override;
-  const std::u16string& GetGeneratedPassword() const override;
 
   void OnTabWillDetach(tabs::TabInterface* tab_interface,
                        tabs::TabInterface::DetachReason reason);
@@ -92,6 +91,8 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
   void OnChangeFormSubmissionVerified(bool result);
 
   bool IsPrivacyNoticeAcknowledged() const;
+
+  std::u16string GetDisplayOrigin() const;
 
   const GURL change_password_url_;
   const std::u16string username_;
@@ -118,7 +119,12 @@ class PasswordChangeDelegateImpl : public PasswordChangeDelegate {
 
   base::ObserverList<Observer, /*check_empty=*/true> observers_;
 
+  // The time when the initial dialog was displayed to the user.
+  base::Time leak_dialog_display_time_;
+  // The time when the user started the password change flow.
   base::Time flow_start_time_;
+  // The time when the password change form was found.
+  base::Time change_password_form_found_time_;
 
   // The controller for password change views.
   std::unique_ptr<PasswordChangeUIController> ui_controller_;

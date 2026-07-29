@@ -90,6 +90,7 @@ Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, ši
 <translation id="2957447865124070833">Atlasiet <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />.</translation>
 <translation id="2986402782150919988">Grāmatzīmju pievienošana pārlūkā Chrome</translation>
 <translation id="3030414234702425231">Jūs izrakstāties no konta, kas tiek pārvaldīts domēnā <ph name="SIGNOUT_MANAGED_DOMAIN" />, tādēļ jūsu Chrome dati tiks dzēsti no šīs ierīces. Dati joprojām būs pieejami jūsu Google kontā.</translation>
+<translation id="3042447686908081308">Importēt pārlūkā Chrome</translation>
 <translation id="3051521853355903257">Paroļu pārvaldība pārlūkā Chrome</translation>
 <translation id="309672519329227863">Piekļūstiet savām Chrome parolēm un citiem datiem dažādās lietotnēs.</translation>
 <translation id="3109170945534582468">Darbības pārlūkā Chrome</translation>
@@ -316,6 +317,7 @@ Jūsu dati tika šifrēti, izmantojot jūsu ieejas frāzi, šādā datumā: <ph 
 <translation id="855027533751209304">Chrome padoms: meklējiet redzamo saturu</translation>
 <translation id="8558480467877843976">Tagad varat izmantot Chrome ikreiz, kad pārlūkojat saturu vai pieskaraties saitēm ziņojumos, dokumentos un citās lietotnēs.</translation>
 <translation id="8603022514504485810">Google paroļu pārvaldnieks nevarēja pārbaudīt visas paroles. Mēģiniet vēlreiz rīt vai <ph name="BEGIN_LINK" />pārbaudiet paroles savā Google kontā<ph name="END_LINK" />.</translation>
+<translation id="8610372330814566250">Izmantojiet savas Safari paroles, vēsturi, grāmatzīmes un kredītkartes pārlūkā Chrome.</translation>
 <translation id="8630122478628016441">Ieslēdziet iestatījumu “Bloķēt inkognito cilnes, kad pārlūks Chrome tiek aizvērts”.</translation>
 <translation id="8673726683583791503">Iepirkšanās, izmantojot Google Lens</translation>
 <translation id="8765470054473112089">Kad rakstāt adreses joslā vai meklēšanas lodziņā, pārlūks Chrome nosūta ierakstīto tekstu jūsu noklusējuma meklētājprogrammai, lai iegūtu labākus ieteikumus. Inkognito režīmā šis iestatījums ir izslēgts.</translation>
@@ -337,6 +339,7 @@ Jūsu dati tika šifrēti, izmantojot jūsu ieejas frāzi, šādā datumā: <ph 
 <translation id="9176561303811134420">Maksājumu veidu pārvaldīšana pārlūkā Chrome</translation>
 <translation id="9181628561061032322">Pārlūkā Chrome atver nesen atvērtās cilnes.</translation>
 <translation id="948597495737267756">Atver pārlūka Chrome vēstures lapu.</translation>
+<translation id="954347330803595209">Importējiet savus datus, lai pārlūkā Chrome izmantotu paroles, vēsturi, grāmatzīmes un kredītkartes.</translation>
 <translation id="97300214378190234">Izmantojiet pārlūku Chrome ikreiz, kad pieskaraties saitēm citās lietotnēs.</translation>
 <translation id="997929539742564806">Ātri pierakstieties lietotnēs un vietnēs, automātiski aizpildot paroles un piekļuves atslēgas no pārlūka Chrome.</translation>
 <translation id="998677222109959694">Pārvaldīt Chrome iestatījumus</translation>

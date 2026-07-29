@@ -518,7 +518,7 @@ clang::SourceRange getExprRange(const clang::Expr* expr,
 
   return {
       expr->getBeginLoc(),
-      clang::Lexer::getLocForEndOfToken(expr->getExprLoc(), 0u, source_manager,
+      clang::Lexer::getLocForEndOfToken(expr->getEndLoc(), 0u, source_manager,
                                         lang_options),
   };
 }
@@ -1323,17 +1323,12 @@ static void EmitSingleVariableSpan(const std::string& key,
                          ampersand_loc, 0u, source_manager, lang_opts)};
 
   EmitReplacement(key, GetReplacementDirective(
-                           ampersand_range, "base::SpanFromSingleElement(",
+                           ampersand_range, "base::span_from_ref(",
                            source_manager, kEmitSingleVariableSpanPrecedence));
   EmitReplacement(
       key, GetReplacementDirective(
                getExprRange(operand_expr, source_manager, lang_opts).getEnd(),
                ")", source_manager, -kEmitSingleVariableSpanPrecedence));
-
-  // Include the header for `base::SpanFromSingleElement()`.
-  EmitReplacement(
-      key, GetIncludeDirective(operand_expr->getSourceRange(), source_manager,
-                               kBaseAutoSpanificationHelperIncludePath));
 }
 
 // Rewrites unsafe third-party member function calls to helper macro calls.
@@ -1571,15 +1566,15 @@ void RewriteUnaryOperation(const MatchFinder::MatchResult& result) {
   clang::SourceRange end_replacement_range;
 
   if (is_prefix) {
-    begin_insert_text = "base::preIncrementSpan(";
-    // Replace the '++' with "base::preIncrementSpan(".
+    begin_insert_text = "base::PreIncrementSpan(";
+    // Replace the '++' with "base::PreIncrementSpan(".
     begin_replacement_range = op_token_range;
     // Insert ")" at the end of the operand.
     end_replacement_range =
         clang::SourceRange(operand_range.getEnd(), operand_range.getEnd());
   } else {
-    begin_insert_text = "base::postIncrementSpan(";
-    // Insert "base::postIncrementSpan(" at the beginning of the operand.
+    begin_insert_text = "base::PostIncrementSpan(";
+    // Insert "base::PostIncrementSpan(" at the beginning of the operand.
     begin_replacement_range =
         clang::SourceRange(operand_range.getBegin(), operand_range.getBegin());
     // Replace "++"" with ")".
@@ -2271,7 +2266,8 @@ std::string getNodeFromArrayDecl(const clang::TypeLoc* type_loc,
   std::string additional_replacement;
   if (init_string_literal) {
     assert(original_element_type->isAnyCharacterType());
-    if (original_element_type.isConstant(ast_context)) {
+    if (original_element_type.isConstant(ast_context) ||
+        IsConstexpr(array_decl)) {
       replacement_text = llvm::formatv(
           "{0} {1}", GetStringViewType(new_element_type, ast_context),
           array_variable_as_string);
@@ -2731,16 +2727,27 @@ class Spanifier {
         frontier_exclusions,
         hasAncestor(cxxRecordDecl(anyOf(hasName("raw_ptr"), hasName("span")))));
 
-    // Exclude literal strings as these need to become string_view
-    auto pointer_type = pointerType(pointee(qualType(unless(
+    // Matches a pointer type, including `auto*`, but not `auto` which deduces
+    // to a pointer type.
+    auto non_auto_pointer_type = pointerType(pointee(qualType(unless(
         anyOf(qualType(hasDeclaration(
                   cxxRecordDecl(raw_ptr_plugin::isAnonymousStructOrUnion()))),
               hasUnqualifiedDesugaredType(
                   anyOf(functionType(), memberPointerType(), voidType())),
+              // Exclude literal strings as these need to become string_view.
               hasCanonicalType(
                   anyOf(asString("const char"), asString("const wchar_t"),
                         asString("const char8_t"), asString("const char16_t"),
                         asString("const char32_t"))))))));
+    // Matches a pointer type, including `auto` which deduces to a pointer type.
+    auto pointer_type =
+        type(anyOf(non_auto_pointer_type,
+                   autoType(hasDeducedType(qualType(non_auto_pointer_type)))));
+
+    // Matches a pointer type loc without a restriction like `pointer_type`,
+    // which excludes certain pointer types.
+    auto pointer_type_loc = loc(qualType(anyOf(
+        pointerType(), autoType(hasDeducedType(qualType(pointerType()))))));
 
     auto raw_ptr_type = qualType(
         hasDeclaration(classTemplateSpecializationDecl(hasName("raw_ptr"))));
@@ -2793,11 +2800,11 @@ class Spanifier {
                   asString("const char32_t"))))))));
 
     auto rhs_call_expr = callExpr(callee(
-        functionDecl(hasReturnTypeLoc(pointerTypeLoc().bind("rhs_type_loc")),
+        functionDecl(hasReturnTypeLoc(pointer_type_loc.bind("rhs_type_loc")),
                      exclude_literal_strings, unless(exclusions))));
 
     auto lhs_call_expr = callExpr(callee(
-        functionDecl(hasReturnTypeLoc(pointerTypeLoc().bind("lhs_type_loc")),
+        functionDecl(hasReturnTypeLoc(pointer_type_loc.bind("lhs_type_loc")),
                      exclude_literal_strings, unless(exclusions))));
 
     auto lhs_expr = expr(anyOf(declRefExpr(to(anyOf(lhs_var, lhs_param))),
@@ -2916,7 +2923,7 @@ class Spanifier {
                                            .bind("unsafe_function_decl")))
                            .bind("unsafe_function_call_expr"),
                        callExpr(callee(functionDecl(
-                           hasReturnTypeLoc(pointerTypeLoc()),
+                           hasReturnTypeLoc(pointer_type_loc),
                            anyOf(raw_ptr_plugin::isInThirdPartyLocation(),
                                  isExpansionInSystemHeader(),
                                  raw_ptr_plugin::isInExternCContext())))),
@@ -2979,7 +2986,8 @@ class Spanifier {
                  // Unsafe pointer arithmetic:
                  binaryOperation(
                      anyOf(hasOperatorName("+="), hasOperatorName("+")),
-                     hasLHS(lhs_expr_variations)),
+                     hasLHS(lhs_expr_variations),
+                     hasRHS(expr(hasType(isInteger())))),
                  unaryOperator(hasOperatorName("++"),
                                hasUnaryOperand(lhs_expr_variations)),
                  // Unsafe base::raw_ptr arithmetic:
@@ -3197,7 +3205,7 @@ class Spanifier {
                 conditionalOperator(hasTrueExpression(rhs_expr_variations))))),
             unless(isExpansionInSystemHeader()),
             forFunction(functionDecl(
-                hasReturnTypeLoc(pointerTypeLoc().bind("lhs_type_loc")),
+                hasReturnTypeLoc(pointer_type_loc.bind("lhs_type_loc")),
                 unless(exclusions))))
             .bind("lhs_stmt"));
     Match(returned_var_or_member, MatchAdjacency);
@@ -3210,7 +3218,7 @@ class Spanifier {
                        hasFalseExpression(rhs_expr_variations))),
                    unless(isExpansionInSystemHeader()),
                    forFunction(functionDecl(
-                       hasReturnTypeLoc(pointerTypeLoc().bind("lhs_type_loc")),
+                       hasReturnTypeLoc(pointer_type_loc.bind("lhs_type_loc")),
                        unless(exclusions))))
             .bind("lhs_stmt"));
     Match(returned_var_or_member2, MatchAdjacency);
@@ -3297,7 +3305,7 @@ class Spanifier {
 
     auto fct_decls_returns = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
-        functionDecl(hasReturnTypeLoc(pointerTypeLoc().bind("rhs_type_loc")),
+        functionDecl(hasReturnTypeLoc(pointer_type_loc.bind("rhs_type_loc")),
                      unless(exclusions))
             .bind("fct_decl"));
     Match(fct_decls_returns, RewriteFunctionParamAndReturnType);

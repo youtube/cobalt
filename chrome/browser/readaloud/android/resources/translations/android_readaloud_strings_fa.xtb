@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">گزینه‌های بیشتر</translation>
 <translation id="565342223183747919">برای عوض کردن حالت بازپخش، تک‌ضرب بزنید</translation>
 <translation id="5694491020339060116">منو سرعت بازپخش</translation>
+<translation id="5961164658295696940">برای دیدن گزینه‌های بیشتر، با تک‌ضرب زدن پخش‌کننده را ازهم باز کنید</translation>
 <translation id="5965409657393819302">مشکل فنی</translation>
 <translation id="6218961554829577610">صدا را نپسندیدم</translation>
 <translation id="6315170314923504164">صدا</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">درحال بارگیری…</translation>
 <translation id="6889157801232138307">پخش‌کننده «خواندن این صفحه»</translation>
 <translation id="7051308646573997571">مرجانی</translation>
-<translation id="7112750136794557642">برای دیدن گزینه‌های بیشتر، با تک‌ضرب زدن پخش‌کننده را ازهم باز کنید.</translation>
 <translation id="7138678301420049075">دیگر</translation>
 <translation id="7221920857098237570">آرام</translation>
 <translation id="7237590978482584900">سرزنده</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">آرامش‌بخش</translation>
 <translation id="8756370108715456837">حقیقتاً نادرست</translation>
 <translation id="8953618380150219653">پخش‌کننده «خواندن این صفحه» به‌صورت کامل باز شد.</translation>
+<translation id="9087782179025630211">کنترل جستجو. <ph name="ELAPSED" /> از <ph name="TOTAL" /> سپری شد.</translation>
 <translation id="978117257931832348">بم</translation>
 </translationbundle>

@@ -9,10 +9,12 @@ import android.app.Activity;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.TabId;
+import org.chromium.chrome.browser.tab_ui.SuggestionLifecycleObserverHandler;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherGroupSuggestionService;
 import org.chromium.chrome.browser.tab_ui.TabSwitcherGroupSuggestionService.SuggestionLifecycleObserver;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -35,39 +37,45 @@ public class TabSwitcherGroupSuggestionServiceFactory {
      */
     public static TabSwitcherGroupSuggestionService build(
             Activity activity,
-            ObservableSupplier<TabGroupModelFilter> currentTabGroupModelFilterSupplier,
+            ObservableSupplier<@Nullable TabGroupModelFilter> currentTabGroupModelFilterSupplier,
             Profile profile,
             TabListHighlighter tabListHighlighter,
             TabGroupSuggestionMessageService messageService) {
         assert ChromeFeatureList.sTabSwitcherGroupSuggestionsAndroid.isEnabled();
+        assert !profile.isOffTheRecord();
+
         @WindowId int windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(activity);
 
-        SuggestionLifecycleObserver lifecycleObserver =
-                getObserver(tabListHighlighter, messageService);
+        SuggestionLifecycleObserverHandler handler =
+                initObserver(tabListHighlighter, messageService);
 
         return new TabSwitcherGroupSuggestionService(
-                windowId, currentTabGroupModelFilterSupplier, profile, lifecycleObserver);
+                windowId, currentTabGroupModelFilterSupplier, profile, handler);
     }
 
-    private static SuggestionLifecycleObserver getObserver(
+    private static SuggestionLifecycleObserverHandler initObserver(
             TabListHighlighter tabListHighlighter,
             TabGroupSuggestionMessageService messageService) {
-        return new SuggestionLifecycleObserver() {
-            @Override
-            public void onAnySuggestionResponse() {
-                tabListHighlighter.unhighlightTabs();
-            }
+        SuggestionLifecycleObserverHandler handler = new SuggestionLifecycleObserverHandler();
+        SuggestionLifecycleObserver observer =
+                new SuggestionLifecycleObserver() {
+                    @Override
+                    public void onAnySuggestionResponse() {
+                        tabListHighlighter.unhighlightTabs();
+                    }
 
-            @Override
-            public void onSuggestionIgnored() {
-                messageService.dismissMessage(CallbackUtils.emptyRunnable());
-            }
+                    @Override
+                    public void onSuggestionIgnored() {
+                        messageService.dismissMessage(CallbackUtils.emptyRunnable());
+                    }
 
-            @Override
-            public void onShowSuggestion(List<@TabId Integer> tabIds) {
-                tabListHighlighter.highlightTabs(new HashSet<>(tabIds));
-                messageService.addGroupMessageForTabs(tabIds, this);
-            }
-        };
+                    @Override
+                    public void onShowSuggestion(List<@TabId Integer> tabIdsSortedByIndex) {
+                        tabListHighlighter.highlightTabs(new HashSet<>(tabIdsSortedByIndex));
+                        messageService.addGroupMessageForTabs(tabIdsSortedByIndex, handler);
+                    }
+                };
+        handler.initialize(observer);
+        return handler;
     }
 }

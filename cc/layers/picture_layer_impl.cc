@@ -343,11 +343,11 @@ void PictureLayerImpl::AppendQuads(const AppendQuadsContext& context,
           color = DebugColors::HighResTileBorderColor();
           width = DebugColors::HighResTileBorderWidth(device_scale_factor);
         } else if (iter->contents_scale_key() > max_contents_scale) {
-          color = DebugColors::ExtraHighResTileBorderColor();
-          width = DebugColors::ExtraHighResTileBorderWidth(device_scale_factor);
+          color = DebugColors::AboveHighResTileBorderColor();
+          width = DebugColors::AboveHighResTileBorderWidth(device_scale_factor);
         } else {
-          color = DebugColors::ExtraLowResTileBorderColor();
-          width = DebugColors::ExtraLowResTileBorderWidth(device_scale_factor);
+          color = DebugColors::BelowHighResTileBorderColor();
+          width = DebugColors::BelowHighResTileBorderWidth(device_scale_factor);
         }
       } else {
         color = DebugColors::MissingTileBorderColor();
@@ -596,9 +596,9 @@ bool PictureLayerImpl::UpdateTiles() {
 
   // Remove any non-ideal tilings that were not used last time we generated
   // quads to save memory and processing time. Note that pending tree should
-  // only have one or two tilings (high and low res), so only clean up the
-  // active layer. This cleans it up here in case AppendQuads didn't run.
-  // If it did run, this would not remove any additional tilings.
+  // only have the high-res tiling, so only clean up the active layer. This
+  // cleans it up here in case AppendQuads didn't run.  If it did run, this
+  // would not remove any additional tilings.
   if (layer_tree_impl()->IsActiveTree())
     CleanUpTilingsOnActiveLayer(last_append_quads_tilings_);
 

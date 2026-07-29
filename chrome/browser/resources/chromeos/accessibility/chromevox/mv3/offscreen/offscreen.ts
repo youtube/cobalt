@@ -2,16 +2,45 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {EarconEngine} from '../background/earcon_engine.js';
+import {SRE} from '/chromevox/mv3/third_party/sre/sre_browser.js';
+import {BridgeHelper} from '/common/bridge_helper.js';
+
 import {BackgroundBridge} from '../common/background_bridge.js';
+import {BridgeConstants} from '../common/bridge_constants.js';
 import {InternalKeyEvent} from '../common/internal_key_event.js';
 import {LearnModeBridge} from '../common/learn_mode_bridge.js';
-import {OffscreenCommandType} from '../common/offscreen_command_type.js';
+import type {ClipboardData, StateWithMaxCellHeight} from '../common/offscreen_bridge_constants.js';
 
+import {EarconEngine} from './earcon_engine.js';
 import {LibLouisWorker} from './liblouis_worker.js';
 
-type MessageSender = chrome.runtime.MessageSender;
-type SendResponse = (value: any) => void;
+const TARGET = BridgeConstants.Offscreen.TARGET;
+const Action = BridgeConstants.Offscreen.Action;
+
+/**
+ * Tracks the state of ChromeVox initialization.
+ */
+class OffscreenChromeVoxState {
+  static instance?: OffscreenChromeVoxState;
+  ready: boolean = false;
+
+  constructor() {
+    BridgeHelper.registerHandler(
+        TARGET, Action.CHROMEVOX_READY, () => {this.ready = true});
+  }
+
+  static init(): void {
+    if (OffscreenChromeVoxState.instance) {
+      throw 'Error: trying to create two instances of singleton ' +
+          'OffscreenChromeVoxState.';
+    }
+    OffscreenChromeVoxState.instance = new OffscreenChromeVoxState();
+  }
+
+  static isReady(): boolean {
+    return this.instance?.ready || false;
+  };
+}
 
 /**
  * Handles keydown and keyup events on the document and sends serialized key
@@ -71,25 +100,12 @@ class OffscreenLearnModeKeyboardHandler {
   static instance?: OffscreenLearnModeKeyboardHandler;
 
   constructor() {
-    // Add listeners to chrome.runtime
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: chrome.runtime.MessageSender,
-         _sendResponse: SendResponse) =>
-            this.handleMessageFromLearnMode_(message));
-  }
-
-  private handleMessageFromLearnMode_(message: any|undefined): boolean {
-    switch (message.command) {
-      case OffscreenCommandType.LEARN_MODE_REGISTER_LISTENERS:
-        this.registerListeners_();
-        break;
-      case OffscreenCommandType.LEARN_MODE_REMOVE_LISTENERS:
-        this.removeListeners_();
-        break;
-    }
-    // Returns false as the response is not asynchronous and the callback does
-    // not need to be kept alive.
-    return false;
+    BridgeHelper.registerHandler(
+        TARGET, Action.LEARN_MODE_REGISTER_LISTENERS,
+        () => this.registerListeners_());
+    BridgeHelper.registerHandler(
+        TARGET, Action.LEARN_MODE_REMOVE_LISTENERS,
+        () => this.removeListeners_());
   }
 
   static init(): void {
@@ -151,23 +167,9 @@ class OffscreenClipboardHandler {
     document.addEventListener(
         'copy', event => this.onClipboardCopyEvent_(event));
 
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: MessageSender,
-         sendResponse: SendResponse) =>
-            this.handleMessageFromServiceWorker_(message, sendResponse));
-  }
-
-  private handleMessageFromServiceWorker_(
-      message: any|undefined, sendResponse: SendResponse): boolean {
-    switch (message['command']) {
-      case OffscreenCommandType.ON_CLIPBOARD_DATA_CHANGED:
-        const forceRead = message['forceRead'] as boolean;
-        this.onClipboardDataChanged_(sendResponse, forceRead);
-        break;
-    }
-    // Returns false as the response is not asynchronous and the callback does
-    // not need to be kept alive.
-    return false;
+    BridgeHelper.registerHandler(
+        TARGET, Action.ON_CLIPBOARD_DATA_CHANGED,
+        (forceRead: boolean) => this.onClipboardDataChanged_(forceRead));
   }
 
   static init(): void {
@@ -199,10 +201,9 @@ class OffscreenClipboardHandler {
    * the call to ClipboardHandler.instance.readNextClipboardDataChange in the
    * service worker.
    */
-  private onClipboardDataChanged_(
-      sendResponse: SendResponse, forceRead: boolean): void {
+  private onClipboardDataChanged_(forceRead: boolean): ClipboardData {
     if (!forceRead && !this.lastClipboardEvent_) {
-      return;
+      return {};
     }
 
     const eventType = this.lastClipboardEvent_;
@@ -215,7 +216,7 @@ class OffscreenClipboardHandler {
     const clipboardContent = textarea.value;
     textarea.remove();
 
-    sendResponse({eventType, clipboardContent});
+    return {eventType, clipboardContent};
   }
 }
 
@@ -225,27 +226,16 @@ class OffscreenSpeechSynthesis {
   constructor() {
     if (window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = () => {
-        BackgroundBridge.LocaleOutputHelper.onVoicesChanged();
-        BackgroundBridge.PrimaryTts.onVoicesChanged();
+        if (OffscreenChromeVoxState.isReady()) {
+          BackgroundBridge.LocaleOutputHelper.onVoicesChanged();
+          BackgroundBridge.PrimaryTts.onVoicesChanged();
+        }
       };
     }
 
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: MessageSender,
-         sendResponse: SendResponse) =>
-            this.handleMessageFromServiceWorker_(message, sendResponse));
-  }
-
-  private handleMessageFromServiceWorker_(
-      message: any|undefined, sendResponse: SendResponse): boolean {
-    switch (message['command']) {
-      case OffscreenCommandType.SHOULD_SET_DEFAULT_VOICE:
-        this.shouldSetDefaultVoice_(sendResponse);
-        break;
-    }
-    // Returns false as the response is not asynchronous and the callback does
-    // not need to be kept alive.
-    return false;
+    BridgeHelper.registerHandler(
+        TARGET, Action.SHOULD_SET_DEFAULT_VOICE,
+        () => this.shouldSetDefaultVoice_());
   }
 
   static init(): void {
@@ -258,12 +248,11 @@ class OffscreenSpeechSynthesis {
 
   // If the SpeechSynthesis API is not available it indicates we are
   // in chromecast and the default voice must be set.
-  private shouldSetDefaultVoice_(sendResponse: SendResponse): void {
+  private shouldSetDefaultVoice_(): boolean {
     if (!window.speechSynthesis) {
-      sendResponse(true);
-      return;
+      return true;
     }
-    sendResponse(false);
+    return false;
   }
 }
 
@@ -271,22 +260,10 @@ class OffscreenBrailleDisplayManager {
   static instance?: OffscreenBrailleDisplayManager;
 
   constructor() {
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: MessageSender,
-         sendResponse: SendResponse) =>
-            this.handleMessageFromServiceWorker_(message, sendResponse));
-  }
-
-  private handleMessageFromServiceWorker_(
-      message: any|undefined, sendResponse: SendResponse): boolean {
-    switch (message['command']) {
-      case OffscreenCommandType.IMAGE_DATA_FROM_URL:
-        this.getImageDataFromUrl_(message, sendResponse);
-        // Returns true as the response is asynchronous and the callback
-        // must be kept alive.
-        return true;
-    }
-    return false;
+    BridgeHelper.registerHandler(
+        TARGET, Action.IMAGE_DATA_FROM_URL,
+        (imageDataUrl: string, imageState: StateWithMaxCellHeight) =>
+            this.getImageDataFromUrl_(imageDataUrl, imageState));
   }
 
   static init(): void {
@@ -298,37 +275,71 @@ class OffscreenBrailleDisplayManager {
         new OffscreenBrailleDisplayManager();
   }
 
-  getImageDataFromUrl_(message: any, sendResponse: SendResponse): void {
-    const {imageDataUrl, imageState: {rows, columns, cellWidth, cellHeight}} =
-        message;
-
+  getImageDataFromUrl_(
+      imageDataUrl: string, imageState: StateWithMaxCellHeight): Promise<string> {
+    const {rows, columns, cellWidth, cellHeight} = imageState;
     const imgElement = document.createElement('img');
     imgElement.src = imageDataUrl;
-    imgElement.onload = () => {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d')!;
-      canvas.width = columns * cellWidth;
-      canvas.height = rows * cellHeight;
-      context.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
-      const imageData: Uint8ClampedArray =
+    return new Promise(resolve => {
+      imgElement.onload = () => {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d')!;
+        canvas.width = columns * cellWidth;
+        canvas.height = rows * cellHeight;
+        context.drawImage(imgElement, 0, 0, canvas.width, canvas.height);
+        const imageData: Uint8ClampedArray =
           context.getImageData(0, 0, canvas.width, canvas.height).data;
 
-      // Serialize the Uint8ClampedArray in order to send via chrome's message
-      // passing API.
-      let binary = '';
-      for (let i = 0; i < imageData.length; i++) {
-        binary += String.fromCharCode(imageData[i]);
-      }
-      sendResponse({data: window.btoa(binary), length: imageData.length});
-    }
+        // Serialize the Uint8ClampedArray in order to send via chrome's message
+        // passing API.
+        let binary = '';
+        for (let i = 0; i < imageData.length; i++) {
+          binary += String.fromCharCode(imageData[i]);
+        }
+        resolve(window.btoa(binary));
+      };
+    });
   }
 }
 
+class OffscreenMathHandler {
+  static instance?: OffscreenMathHandler;
+
+  constructor() {
+    BridgeHelper.registerHandler(
+        TARGET, Action.SRE_MOVE, (keyCode: number) => this.sreMove(keyCode));
+
+    BridgeHelper.registerHandler(
+        TARGET, Action.SRE_WALK, (mathml: string) => this.sreWalk(mathml));
+  }
+
+  static init(): void {
+    if (OffscreenMathHandler.instance) {
+      throw 'Error: trying to create two instances of singleton ' +
+          'OffscreenMathHandler.';
+    }
+    OffscreenMathHandler.instance = new OffscreenMathHandler();
+  }
+
+  sreMove(keyCode: number): string {
+    return SRE.move(keyCode);
+  }
+
+  sreWalk(mathml: string): string {
+    return SRE.walk(mathml);
+  }
+}
+
+
+// OffscreenChromeVoxState.init() must be called before ChromeVox
+// finishes initialization.
+OffscreenChromeVoxState.init();
 
 OffscreenBackgroundKeyboardHandler.init();
 OffscreenLearnModeKeyboardHandler.init();
 OffscreenClipboardHandler.init();
 OffscreenSpeechSynthesis.init();
 OffscreenBrailleDisplayManager.init();
+OffscreenMathHandler.init();
 EarconEngine.init();
 LibLouisWorker.init();

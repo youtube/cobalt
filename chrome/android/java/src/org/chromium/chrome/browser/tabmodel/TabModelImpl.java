@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableList;
 
 import org.chromium.base.MathUtils;
 import org.chromium.base.ObserverList;
+import org.chromium.base.Token;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -339,11 +340,11 @@ public class TabModelImpl extends TabModelJniBridge {
 
     @Override
     public void moveTab(int id, int newIndex) {
-        newIndex = MathUtils.clamp(newIndex, 0, mTabs.size());
+        newIndex = MathUtils.clamp(newIndex, 0, mTabs.size() - 1);
 
         int curIndex = TabModelUtils.getTabIndexById(this, id);
 
-        if (curIndex == INVALID_TAB_INDEX || curIndex == newIndex || curIndex + 1 == newIndex) {
+        if (curIndex == INVALID_TAB_INDEX || curIndex == newIndex) {
             return;
         }
 
@@ -351,7 +352,6 @@ public class TabModelImpl extends TabModelJniBridge {
         commitAllTabClosures();
 
         Tab tab = mTabs.remove(curIndex);
-        if (curIndex < newIndex) --newIndex;
 
         assert tab != null : "Attempting to move a tab that is null.";
         mTabs.add(newIndex, tab);
@@ -381,90 +381,19 @@ public class TabModelImpl extends TabModelJniBridge {
         // TODO(crbug.com/426530785): Implement this method.
     }
 
-    private @Nullable Tab findTabInAllTabModels(int tabId) {
-        Tab tab = mModelDelegate.getModel(isIncognito()).getTabById(tabId);
-        if (tab != null) return tab;
-        return mModelDelegate.getModel(!isIncognito()).getTabById(tabId);
-    }
-
-    private @Nullable Tab findNearbyNotClosingTab(int closingIndex) {
-        if (closingIndex > 0) {
-            // Search for the first tab before the closing tab.
-            for (int i = closingIndex - 1; i >= 0; i--) {
-                Tab tab = getTabAtChecked(i);
-                if (!tab.isClosing()) {
-                    return tab;
-                }
-            }
-        }
-        // If this is the first tab or all tabs before the closing tab are closed then search the
-        // other direction.
-        for (int i = closingIndex + 1; i < mTabs.size(); i++) {
-            Tab tab = getTabAtChecked(i);
-            if (!tab.isClosing()) {
-                return tab;
-            }
-        }
-        return null;
-    }
-
     @Override
     public @Nullable Tab getNextTabIfClosed(int id, boolean uponExit) {
         if (mIsArchivedTabModel) return null;
-        return getNextTabIfClosed(id, uponExit, TabCloseType.SINGLE);
-    }
-
-    /**
-     * See public getNextTabIfClosed documentation
-     *
-     * @param tabCloseType the type of tab closure occurring. This is used to avoid searching for a
-     *     nearby tab when closing all tabs.
-     */
-    private @Nullable Tab getNextTabIfClosed(
-            int id, boolean uponExit, @TabCloseType int tabCloseType) {
-        Tab tabToClose = getTabById(id);
-        Tab currentTab = TabModelUtils.getCurrentTab(this);
-        if (tabToClose == null) return currentTab;
-
-        final boolean useCurrentTab =
-                tabToClose != currentTab && currentTab != null && !currentTab.isClosing();
-
-        int closingTabIndex = indexOf(tabToClose);
-        Tab nearbyTab = null;
-        if (tabCloseType != TabCloseType.ALL && !useCurrentTab) {
-            nearbyTab = findNearbyNotClosingTab(closingTabIndex);
-        }
-        Tab parentTab = findTabInAllTabModels(tabToClose.getParentId());
-        Tab nextMostRecentTab = null;
-        if (uponExit) {
-            nextMostRecentTab = TabModelUtils.getMostRecentTab(this, id);
-        }
-
-        // Determine which tab to select next according to these rules:
-        //   * If closing a background tab, keep the current tab selected.
-        //   * Otherwise, if closing the tab upon exit select the next most recent tab.
-        //   * Otherwise, if not in overview mode, select the parent tab if it exists.
-        //   * Otherwise, select a nearby tab if one exists.
-        //   * Otherwise, if closing the last incognito tab, select the current normal tab.
-        //   * Otherwise, select nothing.
-        Tab nextTab = null;
-        if (!isActiveModel()) {
-            nextTab = TabModelUtils.getCurrentTab(mModelDelegate.getCurrentModel());
-        } else if (useCurrentTab) {
-            nextTab = currentTab;
-        } else if (nextMostRecentTab != null && !nextMostRecentTab.isClosing()) {
-            nextTab = nextMostRecentTab;
-        } else if (parentTab != null
-                && !parentTab.isClosing()
-                && mNextTabPolicySupplier.get() == NextTabPolicy.HIERARCHICAL) {
-            nextTab = parentTab;
-        } else if (nearbyTab != null && !nearbyTab.isClosing()) {
-            nextTab = nearbyTab;
-        } else if (isIncognito()) {
-            nextTab = TabModelUtils.getCurrentTab(mModelDelegate.getModel(false));
-        }
-
-        return nextTab != null && nextTab.isClosing() ? null : nextTab;
+        Tab tab = getTabById(id);
+        if (tab == null) return mCurrentTabSupplier.get();
+        return TabModelImplUtil.getNextTabIfClosed(
+                this,
+                mModelDelegate,
+                mCurrentTabSupplier,
+                mNextTabPolicySupplier,
+                Collections.singletonList(tab),
+                uponExit,
+                TabCloseType.SINGLE);
     }
 
     @Override
@@ -880,14 +809,20 @@ public class TabModelImpl extends TabModelJniBridge {
         assert selectionType == TabSelectionType.FROM_CLOSE
                 || selectionType == TabSelectionType.FROM_EXIT;
 
-        final int closingTabId = tab.getId();
         final int closingTabIndex = indexOf(tab);
 
         Tab currentTabInModel = TabModelUtils.getCurrentTab(this);
         Tab adjacentTabInModel = getTabAt(closingTabIndex == 0 ? 1 : closingTabIndex - 1);
         Tab nextTab =
                 recommendedNextTab == null
-                        ? getNextTabIfClosed(closingTabId, /* uponExit= */ false, tabCloseType)
+                        ? TabModelImplUtil.getNextTabIfClosed(
+                                this,
+                                mModelDelegate,
+                                mCurrentTabSupplier,
+                                mNextTabPolicySupplier,
+                                Collections.singletonList(tab),
+                                /* uponExit= */ false,
+                                tabCloseType)
                         : recommendedNextTab;
 
         // TODO(dtrainor): Update the list of undoable tabs instead of committing it.
@@ -895,11 +830,7 @@ public class TabModelImpl extends TabModelJniBridge {
 
         // Cancel or mute any media currently playing.
         if (pauseMedia) {
-            WebContents webContents = tab.getWebContents();
-            if (webContents != null) {
-                webContents.suspendAllMediaPlayers();
-                webContents.setAudioMuted(true);
-            }
+            TabUtils.pauseMedia(tab);
         }
 
         mTabs.remove(tab);
@@ -918,6 +849,7 @@ public class TabModelImpl extends TabModelJniBridge {
         if (nextTab != currentTabInModel) {
             if (nextIsIncognito != isIncognito()) {
                 mIndex = indexOf(adjacentTabInModel);
+                mCurrentTabSupplier.set(adjacentTabInModel);
             }
 
             TabModel nextModel = mModelDelegate.getModel(nextIsIncognito);
@@ -1006,34 +938,55 @@ public class TabModelImpl extends TabModelJniBridge {
     }
 
     @Override
-    public void moveTabToIndex(int index, int newIndex) {
-        Tab tab = getTabAt(index);
-        if (tab != null) {
-            TabGroupModelFilter filter = TabModelUtils.getTabGroupModelFilterByTab(tab);
-            assumeNonNull(filter);
-            MoveTabUtils.moveSingleTab(this, filter, tab, index, newIndex);
-        }
+    public void moveTabToIndex(Tab tab, int newIndex) {
+        TabGroupModelFilter filter = mModelDelegate.getFilter(isIncognitoBranded());
+        MoveTabUtils.moveSingleTab(this, filter, tab, newIndex);
     }
 
     @Override
-    public List<Tab> getTabsNavigatedInTimeWindow(long beginTimeMs, long endTimeMs) {
-        List<Tab> tabList = new ArrayList<>();
-        for (Tab tab : mTabs) {
-            if (tab.isCustomTab()) continue;
+    public void moveGroupToIndex(Token tabGroupId, int newIndex) {
+        TabGroupModelFilter filter = mModelDelegate.getFilter(isIncognitoBranded());
+        if (!filter.tabGroupExists(tabGroupId)) return;
+        MoveTabUtils.moveTabGroup(this, filter, tabGroupId, newIndex);
+    }
 
-            final long recentNavigationTime = tab.getLastNavigationCommittedTimestampMillis();
-            if (recentNavigationTime >= beginTimeMs && recentNavigationTime < endTimeMs) {
-                tabList.add(tab);
+    @Override
+    public List<Tab> getAllTabs() {
+        return mTabs;
+    }
+
+    // This is only for TabListInterface, prefer calling TabGroupModelFilter methods.
+    @Override
+    protected @Nullable Token addTabsToGroup(@Nullable Token tabGroupId, List<Tab> tabs) {
+        if (tabs.isEmpty()) return null;
+
+        TabGroupModelFilter filter = mModelDelegate.getFilter(isIncognitoBranded());
+        if (tabGroupId == null) {
+            // TODO(crbug.com/427929717): Ensure any pinned tabs get unpinned.
+            ungroup(tabs);
+            Tab destinationTab = tabs.get(0);
+            filter.mergeListOfTabsToGroup(tabs, destinationTab, false);
+            return destinationTab.getTabGroupId();
+        }
+        List<Tab> tabsInGroup = filter.getTabsInGroup(tabGroupId);
+        if (tabsInGroup.isEmpty()) return null;
+
+        // TODO(crbug.com/427929717): Ensure any pinned tabs get unpinned.
+        List<Tab> tabsToGroup = new ArrayList<>();
+        for (Tab tab : tabs) {
+            if (!tabsInGroup.contains(tab)) {
+                tabsToGroup.add(tab);
             }
         }
-
-        return tabList;
+        // Ungroup the tabs first to ensure they are not in any groups.
+        ungroup(tabsToGroup);
+        filter.mergeListOfTabsToGroup(tabsToGroup, tabsInGroup.get(0), false);
+        return tabsInGroup.get(0).getTabGroupId();
     }
 
     @Override
-    public Tab[] getAllTabs() {
-        Tab[] tabs = new Tab[mTabs.size()];
-        return mTabs.toArray(tabs);
+    protected TabUngrouper getTabUngrouper() {
+        return mModelDelegate.getFilter(isIncognitoBranded()).getTabUngrouper();
     }
 
     private void notifyOnFinishingMultipleTabClosure(

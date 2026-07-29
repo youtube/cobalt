@@ -57,13 +57,14 @@ using IntListAttributeCallbackList = base::RepeatingCallbackList<void(
 
 // An object that manages the accessibility interface for a View.
 //
-// The default accessibility properties of a View is determined by calling
-// |View::GetAccessibleNodeData()|, which is overridden by many |View|
-// subclasses. |ViewAccessibility| lets you override these for a particular
-// view.
+// The accessibility attributes of a View are set by calling the various setters
+// on ViewAccessibility.
 //
-// In most cases, subclasses of |ViewAccessibility| own the |AXPlatformNode|
+// In most cases, subclasses of `ViewAccessibility` own the `AXPlatformNode`
 // that implements the native accessibility APIs on a specific platform.
+//
+// TODO(crbug.com/40672441): Update the comment about AXPlatformNode once
+// ViewsAX is completed.
 class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
  public:
   using AccessibilityEventsCallback =
@@ -79,10 +80,8 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
   ViewAccessibility& operator=(const ViewAccessibility&) = delete;
   ~ViewAccessibility() override;
 
-  // Modifies |node_data| to reflect the current accessible state of the
-  // associated View, taking any custom overrides into account
-  // (see OverrideFocus, etc. below).
-  virtual void GetAccessibleNodeData(ui::AXNodeData* node_data) const;
+  // Retrieves the accessibility data in the cache.
+  void GetAccessibleNodeData(ui::AXNodeData* node_data) const;
 
   virtual void NotifyEvent(ax::mojom::Event event_type, bool send_native_event);
 
@@ -96,9 +95,7 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
   }
 
   //
-  // The following methods get or set accessibility attributes (in the owning
-  // View's AXNodeData), overrideing any identical attributes which might have
-  // been set by the owning View in its View::GetAccessibleNodeData() method.
+  // The following methods get or set accessibility attributes.
   //
   // Note that accessibility string attributes are only used if non-empty, so
   // you can't override a string with the empty string.
@@ -515,6 +512,18 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
 
   virtual Widget* GetWidget() const;
 
+  // Returns the ViewAccessibility object associated with the parent view (or
+  // virtual view). Returns nullptr if this is the root view or the parent is
+  // not set yet.
+  // TODO(crbug.com/40672441): Rename to GetParent once ViewsAX is completed and
+  // AXVirtualView no longer needs to extend AXPlatformNodeDelegate.
+  virtual ViewAccessibility* GetViewAccessibilityParent() const;
+
+  // Returns the ViewAccessibility object associated with the first ancestor
+  // view (or virtual view) that is not ignored. Returns nullptr if this is the
+  // root view or the parent is not set yet.
+  ViewAccessibility* GetUnignoredParent() const;
+
   //
   // Methods for managing virtual views.
   //
@@ -552,6 +561,14 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
   // present, or no virtual descendant has been marked as focused, returns the
   // native accessibility object associated with this view.
   gfx::NativeViewAccessible GetFocusedDescendant();
+
+  // Returns the ViewAccessibility children. Since virtual children have a
+  // higher priority than real children (views), this function returns them
+  // first if any. If there are no virtual children, it returns the
+  // ViewAccessibility objects associated with the children of the `view_`.
+  std::vector<raw_ptr<ViewAccessibility>> GetChildren() const;
+
+  virtual std::string GetDebugString() const;
 
   // If true, moves accessibility focus to an ancestor.
   void set_propagate_focus_to_ancestor(bool value) {
@@ -592,7 +609,7 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
   }
 
   // This mechanism allows views to listen for changes in the accessibility
-  // properties of other views. It facilitates communication between views that
+  // attributes of other views. It facilitates communication between views that
   // depend on each other's accessibility attributes, ensuring they can respond
   // to updates effectively. For examples of how to do this, see
   // view_accessibility_unittest.cc.
@@ -680,14 +697,7 @@ class VIEWS_EXPORT ViewAccessibility : public WidgetObserver {
 
   void SetDataForClosedWidget(ui::AXNodeData* data) const;
 
-  // Contains data that is populated by the setters in this class.
-  // This member is tied to the ViewsAX project. Which is introducing a new
-  // system to set accessible properties in a "push" fashion (instead of pull).
-  // Authors are encouraged to start using it today, and it will eventually
-  // replace the old system. For now, while the migration to the new system
-  // happens, we allow the old system to coexist with he new one by just
-  // unioning the data from both systems. This is done in
-  // GetAccessibleNodeData().
+  // Contains data that is populated by the accessibility attributes setters.
   ui::AXNodeData data_;
 
   // Used to determine if a View should be ignored by accessibility clients by

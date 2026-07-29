@@ -247,19 +247,20 @@ void LoginOnUff() {
     config.relaunch_policy = ForceRelaunchByKilling;
   }
 
-  if ([self isRunningTest:@selector(testPasswordBreachEventReported)]) {
+  if ([self
+          isRunningTest:@selector(DISABLED_testPasswordBreachEventReported)]) {
     config.features_enabled.push_back(
         password_manager::features::kMarkAllCredentialsAsLeaked);
   }
 
 // TODO(crbug.com/371189341): Test fails on device.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
   if ([self isRunningTest:@selector
             (testPasswordGenerationWhileSignedInWithError)]) {
     config.features_enabled.push_back(
         syncer::kSyncTrustedVaultInfobarImprovements);
   }
-#endif  // TARGET_IPHONE_SIMULATOR
+#endif  // TARGET_OS_SIMULATOR
 
   // The proactive password suggestion bottom sheet isn't tested here, it
   // is tested in its own suite in password_suggestion_egtest.mm.
@@ -288,9 +289,10 @@ void LoginOnUff() {
 }
 
 - (std::optional<std::string_view>)enterpriseReportingEventForTest {
-  if ([self isRunningTest:@selector(testLoginEventReported)]) {
+  if ([self isRunningTest:@selector(FLAKY_testLoginEventReported)]) {
     return "loginEvent";
-  } else if ([self isRunningTest:@selector(testPasswordBreachEventReported)]) {
+  } else if ([self isRunningTest:@selector
+                   (DISABLED_testPasswordBreachEventReported)]) {
     return "passwordBreachEvent";
   }
   return std::nullopt;
@@ -508,7 +510,7 @@ void LoginOnUff() {
 
 // Tests password generation flow.
 // TODO(crbug.com/40260214): The test fails on simulator.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testPasswordGeneration FLAKY_testPasswordGeneration
 #else
 #define MAYBE_testPasswordGeneration testPasswordGeneration
@@ -583,7 +585,7 @@ void LoginOnUff() {
 // Tests that password generation is not offered for signed in users with
 // passwords toggle disabled.
 // TODO(crbug.com/371189341): Test fails on device.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testPasswordGenerationWhileSignedInWithPasswordsDisabled \
   testPasswordGenerationWhileSignedInWithPasswordsDisabled
 #else
@@ -626,7 +628,7 @@ void LoginOnUff() {
 // Tests that password generation is not offered for signed in users with an
 // encryption error; missing passphrase.
 // TODO(crbug.com/371189341): Test fails on device.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testPasswordGenerationWhileSignedInWithError \
   testPasswordGenerationWhileSignedInWithError
 #else
@@ -803,8 +805,9 @@ void LoginOnUff() {
                                 password:passwordValue];
 }
 
+// TODO(crbug.com/428877349): Re-enable after fixing the test flakiness.
 // Tests that a login event is reported to an enterprise connector.
-- (void)testLoginEventReported {
+- (void)FLAKY_testLoginEventReported {
   [self loadLoginPage];
 
   // Simulate login.
@@ -835,7 +838,8 @@ void LoginOnUff() {
 }
 
 // Tests that a password breach event is reported to an enterprise connector.
-- (void)testPasswordBreachEventReported {
+// TODO(crbug.com/429140546): flaky on chromium/ci/ios-simulator-noncq.
+- (void)DISABLED_testPasswordBreachEventReported {
   [self loadLoginPage];
 
   // Simulate login.

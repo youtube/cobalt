@@ -35,6 +35,7 @@
 <translation id="141901961143729572">Kerro mielipiteesi</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chromen päivitys on valmis. Voit käyttää uusinta versiota heti, kun käynnistät sovelluksen uudelleen. Sen jälkeen nykyiset välilehdet avautuvat uudelleen.}=1{Chromen päivitys on valmis. Voit käyttää uusinta versiota heti, kun käynnistät sovelluksen uudelleen. Sen jälkeen nykyiset välilehdet avautuvat uudelleen. Incognito-ikkunaasi ei avata uudelleen.}other{Chromen päivitys on valmis. Voit käyttää uusinta versiota heti, kun käynnistät sovelluksen uudelleen. Sen jälkeen nykyiset välilehdet avautuvat uudelleen. # incognito-ikkunaasi ei avata uudelleen.}}</translation>
 <translation id="1434626383986940139">Chrome Canary -sovellukset</translation>
+<translation id="1439793550875056299">Kiinnitä Chrome</translation>
 <translation id="146866447420868597">Haluatko kirjautua Chromeen?</translation>
 <translation id="1492280395845991349">Viimeistele Chrome-päivitys käynnistämällä se uudelleen</translation>
 <translation id="1497802159252041924">Asennusvirhe: <ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome yrittää päivittää siirtymiset HTTPS:ään</translation>
 <translation id="2571392474191184472">Organisaatiosi ylläpitää Chromea</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> on jo kirjautunut tähän Chrome-profiiliin. Chrome voi luoda sinulle oman profiilin, jotta selaamisesi pysyy erillään.</translation>
+<translation id="2579190314336775785">Salasanat voi poistaa vain Chromen ulkopuolella</translation>
 <translation id="2580411288591421699">Ei voi asentaa samaa Google Chromen versiota, joka tällä hetkellä on käytössä. Sulje Google Chrome ja yritä uudelleen.</translation>
 <translation id="2586406160782125153">Selaustiedot poistetaan tältä laitteelta. Jos haluat palauttaa tiedot myöhemmin, kirjaudu Chromeen käyttäjänä <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Ladatun asennusohjelman siirtäminen välimuistiin epäonnistui. Virhe: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -268,6 +270,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome suosittelee selainta hidastavan välilehden keskeyttämistä}other{Chrome suosittelee selainta hidastavien välilehtien keskeyttämistä}}</translation>
 <translation id="4328355335528187361">Google Chromen kehittäjäversio (saapuva mDNS)</translation>
 <translation id="4329315893554541805">Voit käyttää personointia ja muita ominaisuuksia, kun lisäät Chromen verkko- ja sovellustoimintaan ja linkitettyihin Googlen palveluihin</translation>
+<translation id="4334241893986177674">Hae tätä kuvakaappausta</translation>
 <translation id="4334294535648607276">Lataus on valmis.</translation>
 <translation id="4337324600316876133">Sinulla on oltava macOS 12 tai uudempi, jotta saat tulevia Google Chromen päivityksiä. Tällä tietokoneella on macOS 11.</translation>
 <translation id="4343195214584226067"><ph name="EXTENSION_NAME" /> on lisätty Chromeen</translation>
@@ -351,6 +354,7 @@
 <translation id="5566025111015594046">Google Chrome (saapuva mDNS)</translation>
 <translation id="5579324208890605088">Käynnistysvirhe: Suorita asennusohjelma tavallisena käyttäjänä, ei järjestelmänvalvojana.</translation>
 <translation id="5596627076506792578">Lisäasetukset</translation>
+<translation id="5600352656975192682">Kiinnitä Chromium tehtäväpalkkiin, niin voit käyttää sitä nopeasti milloin tahansa</translation>
 <translation id="5602351063754773347">Chrome suosittelee poistamaan sen. <ph name="BEGIN_LINK" />Lue lisää tuetuista laajennuksista<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Kun käytät Chrome-profiileja, voit pitää kaiken Chrome-sisällön erillään. Luo profiileja kavereita ja perhettä varten tai tee ero työn ja hauskanpidon välille.</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> voi olla vaarallinen, joten Chrome on estänyt sen.</translation>

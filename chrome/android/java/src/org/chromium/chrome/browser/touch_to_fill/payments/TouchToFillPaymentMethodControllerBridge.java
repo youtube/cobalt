@@ -15,7 +15,8 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.autofill.AutofillFallbackSurfaceLauncher;
-import org.chromium.chrome.browser.autofill.settings.SettingsNavigationHelper;
+import org.chromium.chrome.browser.autofill.GoogleWalletLauncher;
+import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.lang.ref.WeakReference;
@@ -77,7 +78,8 @@ class TouchToFillPaymentMethodControllerBridge
     @Override
     public void showGoogleWalletSettings() {
         if (mContext.get() != null) {
-            SettingsNavigationHelper.showGoogleWalletSettings(mContext.get());
+            GoogleWalletLauncher.openGoogleWalletPassesSettings(
+                    mContext.get(), mContext.get().getPackageManager());
         }
     }
 
@@ -109,7 +111,7 @@ class TouchToFillPaymentMethodControllerBridge
     }
 
     @Override
-    public void loyaltyCardSuggestionSelected(String loyaltyCard) {
+    public void loyaltyCardSuggestionSelected(LoyaltyCard loyaltyCard) {
         if (mNativeTouchToFillPaymentMethodViewController != 0) {
             TouchToFillPaymentMethodControllerBridgeJni.get()
                     .loyaltyCardSuggestionSelected(
@@ -146,6 +148,6 @@ class TouchToFillPaymentMethodControllerBridge
 
         void loyaltyCardSuggestionSelected(
                 long nativeTouchToFillPaymentMethodViewController,
-                @JniType("std::string") String loyaltyCardNumber);
+                @JniType("LoyaltyCard") LoyaltyCard loyaltyCardNumber);
     }
 }

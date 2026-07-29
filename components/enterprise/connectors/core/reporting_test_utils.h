@@ -73,8 +73,12 @@ class EventReportValidatorBase {
       const std::string& expected_profile_username,
       const std::string& expected_profile_identifier);
 
-  // TODO(crbug.com/396437152): Use password reuse event proto instead of raw
-  // json string for validation.
+  void ExpectPasswordReuseEvent(
+      chrome::cros::reporting::proto::SafeBrowsingPasswordReuseEvent
+          expected_password_reuse_event);
+
+  // TODO(crbug.com/396437152): Delete this method once proto migration is
+  // complete.
   void ExpectPasswordReuseEvent(const std::string& expected_url,
                                 const std::string& expected_username,
                                 bool expected_is_phishing_url,
@@ -82,8 +86,12 @@ class EventReportValidatorBase {
                                 const std::string& expected_profile_username,
                                 const std::string& expected_profile_identifier);
 
-  // TODO(crbug.com/396437063): Use password changed event proto instead of raw
-  // json string for validation.
+  void ExpectPasswordChangedEvent(
+      chrome::cros::reporting::proto::SafeBrowsingPasswordChangedEvent
+          expected_password_changed_event);
+
+  // TODO(crbug.com/396437063): Delete this method once proto migration is
+  // complete.
   void ExpectPassowrdChangedEvent(
       const std::string& expected_username,
       const std::string& expected_profile_username,

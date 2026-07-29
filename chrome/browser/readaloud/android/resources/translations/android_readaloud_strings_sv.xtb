@@ -40,6 +40,7 @@
 <translation id="5596627076506792578">Fler alternativ</translation>
 <translation id="565342223183747919">Tryck för att byta uppspelningsläge</translation>
 <translation id="5694491020339060116">Meny för uppspelningshastighet</translation>
+<translation id="5961164658295696940">Tryck för att utöka spelaren för att se fler alternativ</translation>
 <translation id="5965409657393819302">Tekniska problem</translation>
 <translation id="6218961554829577610">Gillade inte rösten</translation>
 <translation id="6315170314923504164">Mikrofon</translation>
@@ -52,7 +53,6 @@
 <translation id="6846298663435243399">Läser in …</translation>
 <translation id="6889157801232138307">Spelaren Lyssna på den här sidan</translation>
 <translation id="7051308646573997571">Korallröd</translation>
-<translation id="7112750136794557642">Tryck för att utöka spelaren för att se fler alternativ.</translation>
 <translation id="7138678301420049075">Övrigt</translation>
 <translation id="7221920857098237570">Mjuk</translation>
 <translation id="7237590978482584900">Sorglös</translation>
@@ -67,5 +67,6 @@
 <translation id="8481839122437406573">Lugn</translation>
 <translation id="8756370108715456837">Innehåller faktafel</translation>
 <translation id="8953618380150219653">Spelaren Lyssna på den här sidan har öppnats över hela skärmen.</translation>
+<translation id="9087782179025630211">Sökreglage. <ph name="ELAPSED" /> av <ph name="TOTAL" /> har förflutit.</translation>
 <translation id="978117257931832348">Låg tonhöjd</translation>
 </translationbundle>

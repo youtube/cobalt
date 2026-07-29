@@ -7,8 +7,9 @@ import("//build/rust/rust_static_library.gni")
 
 source_set("safari_data_importer") {
   sources = [
-    "safari_data_import_manager.cc",
-    "safari_data_import_manager.h",
+    "bookmark_parser.cc",
+    "bookmark_parser.h",
+    "history_callback_from_rust.h",
     "safari_data_importer.cc",
     "safari_data_importer.h",
   ]
@@ -16,8 +17,11 @@ source_set("safari_data_importer") {
   deps = [
     ":zip_ffi_glue",
     "//base",
+    "//components/bookmarks/browser",
+    "//components/history/core/browser",
     "//components/password_manager/core/browser/import:importer",
     "//components/password_manager/core/browser/ui",
+    "//components/reading_list/core",
     "//components/user_data_importer/common",
   ]
 }
@@ -38,10 +42,11 @@ rust_static_library("zip_ffi_glue") {
 
 copy("test_archive_files") {
   sources = [
-    "Bookmarks.html",
-    "History.json",
-    "Passwords.csv",
-    "PaymentCards.json",
+    "//components/test/data/user_data_importer/Bookmarks.html",
+    "//components/test/data/user_data_importer/History - Profile 2.json",
+    "//components/test/data/user_data_importer/History.json",
+    "//components/test/data/user_data_importer/Passwords.csv",
+    "//components/test/data/user_data_importer/PaymentCards.json",
   ]
   outputs = [ "$target_out_dir/{{source_file_part}}" ]
 }
@@ -52,6 +57,7 @@ zip("test_archive") {
   inputs = [
     "$target_out_dir/Bookmarks.html",
     "$target_out_dir/History.json",
+    "$target_out_dir/History - Profile 2.json",
     "$target_out_dir/Passwords.csv",
     "$target_out_dir/PaymentCards.json",
   ]
@@ -75,24 +81,34 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//components/affiliations/core/browser:test_support",
+    "//components/autofill/core/browser:test_support",
+    "//components/bookmarks/browser",
+    "//components/bookmarks/test",
+    "//components/history/core/browser",
+    "//components/history/core/test",
     "//components/password_manager/core/browser/import:csv",
     "//components/password_manager/core/browser/import:importer",
     "//components/password_manager/core/browser/password_store:test_support",
     "//components/password_manager/core/browser/ui",
     "//components/password_manager/core/browser/ui:credential_ui_entry",
     "//components/password_manager/core/common:constants",
+    "//components/reading_list/core:test_support",
     "//mojo/public/cpp/bindings",
     "//testing/gmock",
     "//testing/gtest",
   ]
 
   if (is_ios) {
+    public_deps = [ "//components/user_data_importer/ios" ]
     deps += [
       ":test_archive_bundle_data",
       "//components/password_manager/services/csv_password/ios:fake_password_parser_service",
     ]
   } else {
     data_deps = [ ":test_archive" ]
-    deps += [ "//components/password_manager/services/csv_password:fake_password_parser_service" ]
+    deps += [
+      "//components/password_manager/services/csv_password:fake_password_parser_service",
+      "//components/user_data_importer/content",
+    ]
   }
 }

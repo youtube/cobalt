@@ -138,20 +138,10 @@ BASE_FEATURE(kOnDeviceHeadProviderIncognito,
 BASE_FEATURE(kOnDeviceHeadProviderNonIncognito,
              "OmniboxOnDeviceHeadProviderNonIncognito",
              ENABLED);
-BASE_FEATURE(kOnDeviceHeadProviderKorean,
-             "OmniboxOnDeviceHeadProviderKorean",
-             DISABLED);
 BASE_FEATURE(kOnDeviceTailModel, "OmniboxOnDeviceTailModel", DISABLED);
 BASE_FEATURE(kOnDeviceTailEnableEnglishModel,
              "OmniboxOnDeviceTailEnableEnglishModel",
              ENABLED);
-
-// If enabled, the relevant AutocompleteProviders will store "title" data in
-// AutocompleteMatch::contents and "URL" data in AutocompleteMatch::description
-// for URL-based omnibox suggestions (see crbug.com/1202964 for more details).
-BASE_FEATURE(kStoreTitleInContentsAndUrlInDescription,
-             "OmniboxStoreTitleInContentsAndUrlInDescription",
-             DISABLED);
 
 // Feature used to fetch document suggestions.
 BASE_FEATURE(kDocumentProvider,
@@ -185,11 +175,6 @@ BASE_FEATURE(kDocumentProviderEnterpriseEligibilityWhenUnknown,
 BASE_FEATURE(kDocumentProviderNoSyncRequirement,
              "OmniboxDocumentProviderNoSyncRequirement",
              ENABLED);
-
-// Feature to determine if the HQP should double as a domain provider by
-// suggesting up to the provider limit for each of the user's highly visited
-// domains.
-BASE_FEATURE(kDomainSuggestions, "OmniboxDomainSuggestions", DISABLED);
 
 // If enabled, the omnibox popup is not presented until the mouse button is
 // released.

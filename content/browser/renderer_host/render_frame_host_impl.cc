@@ -240,7 +240,6 @@
 #include "net/base/schemeful_site.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/net_buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "render_frame_host_impl.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -334,10 +333,6 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "content/browser/renderer_host/popup_menu_helper_mac.h"
-#endif
-
-#if BUILDFLAG(ENABLE_PPAPI)
-#include "content/browser/renderer_host/render_frame_host_impl_ppapi_support.h"
 #endif
 
 #if BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
@@ -484,6 +479,8 @@ RendererEvictionReasonToNotRestoredReason(
     case blink::mojom::RendererEvictionReason::kBroadcastChannelOnMessage:
       return BackForwardCacheMetrics::NotRestoredReason::
           kBroadcastChannelOnMessage;
+    case blink::mojom::RendererEvictionReason::kSharedWorkerMessage:
+      return BackForwardCacheMetrics::NotRestoredReason::kSharedWorkerMessage;
   }
   NOTREACHED();
 }
@@ -2675,6 +2672,16 @@ RenderFrameHostImpl::~RenderFrameHostImpl() {
 
   SetLastCommittedSiteInfo(UrlInfo());
 
+  if (lifecycle_state_ == LifecycleStateImpl::kActive) {
+    // It's possible to destruct an active RFH when e.g. closing a tab. We
+    // should update the NIK count to not include this RFH anymore.
+    // TODO(crbug.com/40693086): Remove this when it's no longer possible to
+    // destruct an active RFH (i.e. we've changed the state to non-active for
+    // all cases).
+    GetStoragePartition()->DecrementActiveDocumentCount(
+        GetNetworkIsolationKey());
+  }
+
   g_token_frame_map.Get().erase(frame_token_);
 
   // Ensure that the render process host has been notified that all media
@@ -3924,9 +3931,10 @@ bool RenderFrameHostImpl::AccessibilityIsWebContentSource() {
 
 ui::AXPlatformNodeId RenderFrameHostImpl::GetOrCreateAXNodeUniqueId(
     ui::AXNodeID ax_node_id) {
-  auto iter = ax_unique_ids_.find(ax_node_id);
-  if (iter == ax_unique_ids_.end()) {
-    iter = ax_unique_ids_.emplace(ax_node_id, ui::AXUniqueId::Create()).first;
+  auto [iter, inserted] =
+      ax_unique_ids_.try_emplace(ax_node_id, ui::AXUniqueId::CreateInvalid());
+  if (inserted) {
+    iter->second = ui::AXUniqueId::Create();
   }
   return iter->second;
 }
@@ -4004,11 +4012,11 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
     // the browser directly (omnibox, bookmarks, ...).
     PolicyContainerPolicies policies;
 
-    // Main frames created by the browser are treated as belonging the `local`
-    // address space, so that they can make requests to any address space
-    // unimpeded. The only way to execute code in such a context is to inject it
-    // via DevTools, WebView APIs, or extensions; it is impossible to do so with
-    // Web Platform means only.
+    // Main frames created by the browser are treated as belonging the
+    // `loopback` address space, so that they can make requests to any address
+    // space unimpeded. The only way to execute code in such a context is to
+    // inject it via DevTools, WebView APIs, or extensions; it is impossible to
+    // do so with Web Platform means only.
     //
     // See also https://crbug.com/1191161.
     //
@@ -4021,7 +4029,7 @@ void RenderFrameHostImpl::InitializePolicyContainerHost(
     DCHECK(IsOutermostMainFrame());
     if (!renderer_initiated_creation_of_main_frame &&
         lifecycle_state_ != LifecycleStateImpl::kPrerendering) {
-      policies.ip_address_space = network::mojom::IPAddressSpace::kLocal;
+      policies.ip_address_space = network::mojom::IPAddressSpace::kLoopback;
     }
 
     SetPolicyContainerHost(
@@ -4929,10 +4937,24 @@ void RenderFrameHostImpl::DidNavigate(
     navigation_request->frame_tree_node()->set_not_on_initial_empty_document();
   }
 
+  if (lifecycle_state_ == LifecycleStateImpl::kActive) {
+    // The NIK might change after this, so decrement the count for the current
+    // NIK.
+    GetStoragePartition()->DecrementActiveDocumentCount(
+        GetNetworkIsolationKey());
+  }
+
   isolation_info_ = ComputeIsolationInfoInternal(
       GetLastCommittedOrigin(), isolation_info_.request_type(),
       navigation_request->is_credentialless(),
       navigation_request->ComputeFencedFrameNonce());
+
+  if (lifecycle_state_ == LifecycleStateImpl::kActive) {
+    // The NIK might have changed after the above call, so increment the count
+    // for the new NIK.
+    GetStoragePartition()->IncrementActiveDocumentCount(
+        GetNetworkIsolationKey());
+  }
 
   // Separately, update the frame's last successful URL except for net error
   // pages, since those do not end up in the correct process after transfers
@@ -5416,6 +5438,13 @@ void RenderFrameHostImpl::SetOriginDependentStateOfNewFrame(
       new_frame_origin, net::IsolationInfo::RequestType::kOther,
       IsCredentialless(),
       /*fenced_frame_nonce_for_navigation=*/std::nullopt);
+  if (lifecycle_state_ == LifecycleStateImpl::kActive) {
+    // Increment the document count if the newly created RenderFrameHost is
+    // active. Note that it's necessary to check if we're active, since
+    // prerendering RFHs can also call this function.
+    GetStoragePartition()->IncrementActiveDocumentCount(
+        GetNetworkIsolationKey());
+  }
   // The `is_potentially_trustworthy_unique_origin` bit should be inherited from
   // the creator frame if it exists. Note that we do this even when the new
   // frame is sandboxed, following `DocumentLoader::CaclculateOrigin()`.
@@ -5911,8 +5940,7 @@ RenderFrameHostImpl::BackForwardCacheDisablingFeatures
 RenderFrameHostImpl::GetBackForwardCacheDisablingFeatures() const {
   BackForwardCacheDisablingFeatures features;
   for (const auto& details : GetBackForwardCacheBlockingDetails()) {
-    features.Put(static_cast<blink::scheduler::WebSchedulerTrackedFeature>(
-        details->feature));
+    features.Put(details->feature);
   }
   return features;
 }
@@ -5932,7 +5960,7 @@ RenderFrameHostImpl::GetBackForwardCacheBlockingDetails() const {
     // Browser reported features do not have JS location details. Create a
     // blocking details struct with only the feature filled.
     auto details_ptr = blink::mojom::BlockingDetails::New();
-    details_ptr->feature = static_cast<uint32_t>(it.first);
+    details_ptr->feature = it.first;
     combined_details_list.push_back(std::move(details_ptr));
   }
   return combined_details_list;
@@ -12634,12 +12662,13 @@ void RenderFrameHostImpl::FailedNavigation(
   blink::mojom::PolicyContainerPtr policy_container =
       navigation_request->CreatePolicyContainerForBlink();
 
-  SendCommitFailedNavigation(navigation_client, navigation_request,
-                             common_params.Clone(), commit_params.Clone(),
-                             has_stale_copy_in_cache, error_code,
-                             extended_error_code, error_page_content,
-                             std::move(subresource_loader_factories),
-                             document_token, std::move(policy_container));
+  SendCommitFailedNavigation(
+      navigation_client, navigation_request, common_params.Clone(),
+      commit_params.Clone(), has_stale_copy_in_cache, error_code,
+      extended_error_code, error_page_content,
+      std::move(subresource_loader_factories), document_token,
+      navigation_request->devtools_navigation_token(),
+      std::move(policy_container));
 
   // TODO(crbug.com/40149432): support UKM source creation for failed
   // navigations too.
@@ -12770,6 +12799,12 @@ void RenderFrameHostImpl::BindBlobUrlStoreAssociatedReceiver(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   auto* storage_partition_impl =
       static_cast<StoragePartitionImpl*>(GetStoragePartition());
+
+  std::optional<GURL> top_level_blob_document_url;
+  if (GetLastCommittedURL().SchemeIsBlob() && IsOutermostMainFrame()) {
+    top_level_blob_document_url = GetLastCommittedURL();
+  }
+
   storage_partition_impl->GetBlobUrlRegistry()->AddReceiver(
       GetStorageKey(), GetLastCommittedOrigin(),
       GetProcess()->GetDeprecatedID(), std::move(receiver),
@@ -12784,6 +12819,7 @@ void RenderFrameHostImpl::BindBlobUrlStoreAssociatedReceiver(
             return frame->IsFullCookieAccessAllowed();
           },
           weak_ptr_factory_.GetWeakPtr()),
+      std::move(top_level_blob_document_url),
       !(GetContentClient()->browser()->IsBlobUrlPartitioningEnabled(
           GetBrowserContext())));
 }
@@ -12972,15 +13008,6 @@ void RenderFrameHostImpl::UpdateAccessibilityMode() {
     // platform nodes corresponding to the blink nodes will have the same IDs.
   }
 }
-
-#if BUILDFLAG(ENABLE_PPAPI)
-RenderFrameHostImplPpapiSupport& RenderFrameHostImpl::GetPpapiSupport() {
-  if (!ppapi_support_) {
-    ppapi_support_ = std::make_unique<RenderFrameHostImplPpapiSupport>(*this);
-  }
-  return *ppapi_support_;
-}
-#endif
 
 void RenderFrameHostImpl::RequestAXTreeSnapshot(
     AXTreeSnapshotCallback callback,
@@ -15307,7 +15334,21 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
                                ? UrlInfo()
                                : navigation_request->GetUrlInfo());
 
+  if (lifecycle_state_ == LifecycleStateImpl::kActive) {
+    // The NIK might change after this, so decrement the count for the current
+    // NIK.
+    GetStoragePartition()->DecrementActiveDocumentCount(
+        GetNetworkIsolationKey());
+  }
+
   isolation_info_ = navigation_request->isolation_info_for_subresources();
+
+  if (lifecycle_state_ == LifecycleStateImpl::kActive) {
+    // The NIK might have changed after the above call, so increment the count
+    // for the new NIK.
+    GetStoragePartition()->IncrementActiveDocumentCount(
+        GetNetworkIsolationKey());
+  }
 
   // Navigations in the same document and page activations do not create a new
   // document.
@@ -15481,6 +15522,12 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
     NavigationTransitionUtils::SetSameDocumentNavigationEntryScreenshotToken(
         *(navigation_request.get()),
         same_document_params->navigation_entry_screenshot_destination);
+  }
+
+  // The navigation entry ID isn't updated until the call to DidNavigate(), so
+  // this call to UpdateState() will target the previous navigation entry.
+  if (params->previous_page_state.has_value()) {
+    UpdateState(params->previous_page_state.value());
   }
 
   // Grab the navigation's timestamps and ukm builder for recording metrics at
@@ -16137,6 +16184,7 @@ void RenderFrameHostImpl::SendCommitFailedNavigation(
     std::unique_ptr<blink::PendingURLLoaderFactoryBundle>
         subresource_loader_factories,
     const blink::DocumentToken& document_token,
+    const base::UnguessableToken& devtools_navigation_token,
     blink::mojom::PolicyContainerPtr policy_container) {
   DCHECK(navigation_client && navigation_request);
   DCHECK_NE(GURL(), common_params->url);
@@ -16163,7 +16211,7 @@ void RenderFrameHostImpl::SendCommitFailedNavigation(
         has_stale_copy_in_cache, error_code, extended_error_code,
         navigation_request->GetResolveErrorInfo(), error_page_content,
         std::move(subresource_loader_factories), document_token,
-        std::move(policy_container),
+        devtools_navigation_token, std::move(policy_container),
         GetContentClient()->browser()->GetAlternativeErrorPageOverrideInfo(
             navigation_request->GetURL(), this, GetBrowserContext(),
             error_code),
@@ -17932,10 +17980,14 @@ void RenderFrameHostImpl::SetLifecycleState(LifecycleStateImpl new_state) {
       new_state != LifecycleStateImpl::kActive) {
     GetSiteInstance()->DecrementActiveDocumentCount(
         last_committed_url_derived_site_info_);
+    GetStoragePartition()->DecrementActiveDocumentCount(
+        GetNetworkIsolationKey());
   } else if (old_state != LifecycleStateImpl::kActive &&
              new_state == LifecycleStateImpl::kActive) {
     GetSiteInstance()->IncrementActiveDocumentCount(
         last_committed_url_derived_site_info_);
+    GetStoragePartition()->IncrementActiveDocumentCount(
+        GetNetworkIsolationKey());
   }
 
   // Unset the |has_pending_lifecycle_state_update_| value once the

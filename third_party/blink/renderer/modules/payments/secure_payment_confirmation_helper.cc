@@ -10,7 +10,6 @@
 #include "third_party/blink/public/mojom/payments/payment_request.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_network_or_issuer_information.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_credential_instrument.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_payment_entity_logo.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_secure_payment_confirmation_request.h"
@@ -106,6 +105,13 @@ SecurePaymentConfirmationHelper::ParseSecurePaymentConfirmationData(
     return nullptr;
   }
   if (request->instrument()->hasDetails() &&
+      request->instrument()->details().empty()) {
+    exception_state.ThrowTypeError(
+        "The \"secure-payment-confirmation\" method requires the "
+        "\"instrument.details\" field, if present, to be non-empty.");
+    return nullptr;
+  }
+  if (request->instrument()->hasDetails() &&
       request->instrument()->details().length() > kMaxInstrumentDetailsLength) {
     exception_state.ThrowTypeError(
         "The \"secure-payment-confirmation\" method requires the string "
@@ -141,52 +147,6 @@ SecurePaymentConfirmationHelper::ParseSecurePaymentConfirmationData(
       !blink::RuntimeEnabledFeatures::SecurePaymentConfirmationOptOutEnabled(
           &execution_context)) {
     request->setShowOptOut(false);
-  }
-
-  if (request->hasNetworkInfo()) {
-    if (request->networkInfo()->name().empty()) {
-      exception_state.ThrowTypeError(
-          "The \"secure-payment-confirmation\" method requires a non-empty "
-          "\"networkInfo.name\" field.");
-      return nullptr;
-    }
-
-    if (request->networkInfo()->icon().empty()) {
-      exception_state.ThrowTypeError(
-          "The \"secure-payment-confirmation\" method requires a non-empty "
-          "\"networkInfo.icon\" field.");
-      return nullptr;
-    }
-
-    if (!KURL(request->networkInfo()->icon()).IsValid()) {
-      exception_state.ThrowTypeError(
-          "The \"secure-payment-confirmation\" method requires a valid URL in "
-          "the \"networkInfo.icon\" field.");
-      return nullptr;
-    }
-  }
-
-  if (request->hasIssuerInfo()) {
-    if (request->issuerInfo()->name().empty()) {
-      exception_state.ThrowTypeError(
-          "The \"secure-payment-confirmation\" method requires a non-empty "
-          "\"issuerInfo.name\" field.");
-      return nullptr;
-    }
-
-    if (request->issuerInfo()->icon().empty()) {
-      exception_state.ThrowTypeError(
-          "The \"secure-payment-confirmation\" method requires a non-empty "
-          "\"issuerInfo.icon\" field.");
-      return nullptr;
-    }
-
-    if (!KURL(request->issuerInfo()->icon()).IsValid()) {
-      exception_state.ThrowTypeError(
-          "The \"secure-payment-confirmation\" method requires a valid URL in "
-          "the \"issuerInfo.icon\" field.");
-      return nullptr;
-    }
   }
 
   if (request->hasPaymentEntitiesLogos()) {

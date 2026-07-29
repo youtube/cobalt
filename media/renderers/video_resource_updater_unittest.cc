@@ -25,7 +25,6 @@
 #include "components/viz/test/test_shared_image_interface_provider.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/common/mailbox.h"
-#include "gpu/ipc/client/client_shared_image_interface.h"
 #include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "skia/ext/skcolorspace_primaries.h"
@@ -227,6 +226,7 @@ class VideoResourceUpdaterTest : public testing::Test {
 
     gpu::SharedImageMetadata metadata;
     metadata.format = si_format;
+    metadata.size = size;
     metadata.color_space = gfx::ColorSpace::CreateSRGB();
     metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
     metadata.alpha_type = kOpaque_SkAlphaType;

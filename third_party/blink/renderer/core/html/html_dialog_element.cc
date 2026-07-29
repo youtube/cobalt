@@ -460,7 +460,7 @@ bool HTMLDialogElement::IsKeyboardFocusableSlow(
   }
   // Interest invoker targets with partial interest aren't keyboard focusable.
   if (IsInPartialInterestPopover()) {
-    CHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
+    CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
         GetDocument().GetExecutionContext()));
     return false;
   }
@@ -542,8 +542,7 @@ void HTMLDialogElement::showModal(ExceptionState& exception_state,
         "The dialog is already open as a Popover, and therefore cannot be "
         "opened as a modal dialog.");
   }
-  if (!GetDocument().IsActive() &&
-      RuntimeEnabledFeatures::TopLayerInactiveDocumentExceptionsEnabled()) {
+  if (!GetDocument().IsActive()) {
     return exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Invalid for dialogs within documents that are not fully active.");
@@ -682,10 +681,6 @@ void HTMLDialogElement::SetFocusForDialog() {
 bool HTMLDialogElement::DispatchToggleEvents(bool opening,
                                              Element* source,
                                              bool asModal) {
-  if (!RuntimeEnabledFeatures::DialogElementToggleEventsEnabled()) {
-    return true;
-  }
-
   String old_state = opening ? "closed" : "open";
   String new_state = opening ? "open" : "closed";
 

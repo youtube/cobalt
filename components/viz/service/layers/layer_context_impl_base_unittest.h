@@ -31,6 +31,8 @@ class LayerContextImplTest : public testing::Test {
   static constexpr float kDefaultExternalPageScaleFactor = 1.0f;
   static constexpr float kDefaultDeviceScaleFactor = 1.0f;
   static constexpr float kDefaultPaintedDeviceScaleFactor = 1.0f;
+  static constexpr float kDefaultTopControlsShownRatio = 1.0f;
+  static constexpr float kDefaultBottomControlsShownRatio = 1.0f;
   static const FrameSinkId kDefaultFrameSinkId;
   static const LocalSurfaceId kDefaultLocalSurfaceId;
   static const SurfaceId kDefaultSurfaceId;
@@ -189,7 +191,8 @@ class LayerContextImplTest : public testing::Test {
 
  protected:
   cc::LayerImpl* GetLayerFromActiveTree(int layer_id);
-  void RecreateLayerContextImplWithParams(bool draw_mode_is_gpu);
+  void RecreateLayerContextImplWithSettings(
+      mojom::LayerContextSettingsPtr settings);
 
   FakeCompositorFrameSinkClient dummy_client_;
   FrameSinkManagerImpl frame_sink_manager_;

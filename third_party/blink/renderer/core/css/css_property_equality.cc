@@ -465,10 +465,10 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.GridTemplateRows() == b.GridTemplateRows();
     case CSSPropertyID::kHeight:
       return a.Height() == b.Height();
-    case CSSPropertyID::kInterestTargetShowDelay:
-      return a.InterestTargetShowDelay() == b.InterestTargetShowDelay();
-    case CSSPropertyID::kInterestTargetHideDelay:
-      return a.InterestTargetHideDelay() == b.InterestTargetHideDelay();
+    case CSSPropertyID::kInterestShowDelay:
+      return a.InterestShowDelay() == b.InterestShowDelay();
+    case CSSPropertyID::kInterestHideDelay:
+      return a.InterestHideDelay() == b.InterestHideDelay();
     case CSSPropertyID::kHyphenateCharacter:
       return a.HyphenationString() == b.HyphenationString();
     case CSSPropertyID::kHyphenateLimitChars:
@@ -971,6 +971,13 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     // be defined for them.
     case CSSPropertyID::kScrollTimelineAxis:
     case CSSPropertyID::kScrollTimelineName:
+    case CSSPropertyID::kTimelineTriggerBehavior:
+    case CSSPropertyID::kTimelineTriggerName:
+    case CSSPropertyID::kTimelineTriggerRangeStart:
+    case CSSPropertyID::kTimelineTriggerRangeEnd:
+    case CSSPropertyID::kTimelineTriggerExitRangeStart:
+    case CSSPropertyID::kTimelineTriggerExitRangeEnd:
+    case CSSPropertyID::kTimelineTriggerTimeline:
     case CSSPropertyID::kViewTimelineAxis:
     case CSSPropertyID::kViewTimelineInset:
     case CSSPropertyID::kViewTimelineName:
@@ -1265,7 +1272,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kCornerBlockStartShape:
     case CSSPropertyID::kCornerBlockEndShape:
     case CSSPropertyID::kInset:
-    case CSSPropertyID::kInterestTargetDelay:
+    case CSSPropertyID::kInterestDelay:
     case CSSPropertyID::kFlex:
     case CSSPropertyID::kFlexFlow:
     case CSSPropertyID::kFont:
@@ -1341,7 +1348,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kAnimationTriggerExitRangeEnd:
     case CSSPropertyID::kAnimationTimeline:
     case CSSPropertyID::kAnimationTimingFunction:
-    case CSSPropertyID::kAnimationTriggerType:
+    case CSSPropertyID::kAnimationTriggerBehavior:
     case CSSPropertyID::kAnimationTriggerTimeline:
     case CSSPropertyID::kContain:
     case CSSPropertyID::kContainerName:

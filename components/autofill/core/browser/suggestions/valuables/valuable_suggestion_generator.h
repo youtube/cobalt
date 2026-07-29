@@ -16,15 +16,16 @@ namespace autofill {
 
 // Generates loyalty card suggestions for given `origin`. Loyalty cards are
 // extracted from the `valuables_manager`.
-std::vector<Suggestion> GetLoyaltyCardSuggestions(
-    const ValuablesDataManager& valuables_manager,
-    const GURL& url);
-
-// Extends `email_suggestions` with loyalty cards suggestions.
-void ExtendEmailSuggestionsWithLoyaltyCardSuggestions(
-    std::vector<Suggestion>& email_suggestions,
+std::vector<Suggestion> GetSuggestionsForLoyaltyCards(
     const ValuablesDataManager& valuables_manager,
     const GURL& url,
     bool trigger_field_is_autofilled);
+
+// Extends `email_suggestions` with loyalty cards suggestions.
+void ExtendEmailSuggestionsWithLoyaltyCardSuggestions(
+    const ValuablesDataManager& valuables_manager,
+    const GURL& url,
+    bool trigger_field_is_autofilled,
+    std::vector<Suggestion>& email_suggestions);
 }  // namespace autofill
 #endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_SUGGESTIONS_VALUABLES_VALUABLE_SUGGESTION_GENERATOR_H_

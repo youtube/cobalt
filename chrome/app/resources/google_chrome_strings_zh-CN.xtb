@@ -35,6 +35,7 @@
 <translation id="141901961143729572">分享您的想法</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome 已完成更新。重新启动即可使用最新版本。重启后，Chrome 会自动重新打开您的所有当前标签页。}=1{Chrome 已完成更新。重新启动即可使用最新版本。重启后，Chrome 会自动重新打开您的所有当前标签页，但不会重新打开您的无痕式窗口。}other{Chrome 已完成更新。重新启动即可使用最新版本。重启后，Chrome 会自动重新打开您的所有当前标签页，但不会重新打开您的 # 个无痕式窗口。}}</translation>
 <translation id="1434626383986940139">Chrome Canary 应用</translation>
+<translation id="1439793550875056299">固定 Chrome</translation>
 <translation id="146866447420868597">登录 Chrome？</translation>
 <translation id="1492280395845991349">重新启动即可完成 Chrome 更新</translation>
 <translation id="1497802159252041924">安装时出错：<ph name="INSTALL_ERROR" /></translation>
@@ -120,6 +121,7 @@
 <translation id="2569974318947988067">Chrome 会尝试将导航路径升级到 HTTPS</translation>
 <translation id="2571392474191184472">贵组织负责管理 Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" />已登录此 Chrome 个人资料。Chrome 可为您创建一份专属的个人资料，以将您的浏览数据与该用户的浏览数据分隔开来。</translation>
+<translation id="2579190314336775785">密码只能在 Chrome 之外删除</translation>
 <translation id="2580411288591421699">无法安装与当前运行版本相同的 Google Chrome 浏览器。请关闭 Google Chrome 浏览器，然后重试。</translation>
 <translation id="2586406160782125153">这会从这台设备上删除您的浏览数据。如果日后想要检索您的数据，届时请以 <ph name="USER_EMAIL" /> 的身份登录 Chrome。</translation>
 <translation id="259935314519650377">未能缓存所下载的安装程序。错误：<ph name="UNPACK_CACHING_ERROR_CODE" />。</translation>
@@ -267,6 +269,7 @@
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome 建议您暂停导致浏览器运行缓慢的标签页}other{Chrome 建议您暂停导致浏览器运行缓慢的标签页}}</translation>
 <translation id="4328355335528187361">Google Chrome 开发者版 (mDNS-In)</translation>
 <translation id="4329315893554541805">若要获得个性化体验和其他功能，请在“网络与应用活动记录”和关联的 Google 服务中包含 Chrome</translation>
+<translation id="4334241893986177674">搜索此屏幕截图</translation>
 <translation id="4334294535648607276">下载完毕。</translation>
 <translation id="4337324600316876133">若要接收后续 Google Chrome 更新，您需要使用 macOS 12 或更高版本。该电脑目前使用的是 macOS 11。</translation>
 <translation id="4343195214584226067">“<ph name="EXTENSION_NAME" />”已添加到 Chrome</translation>
@@ -308,7 +311,7 @@
 <translation id="4885446229353981848">始终显示 Google 智能镜头快捷方式</translation>
 <translation id="4891791193823137474">让 Google Chrome 浏览器在后台运行</translation>
 <translation id="4895437082222824641">在 Chrome 新标签页中打开链接(&amp;T)</translation>
-<translation id="4918844574251943176">图片已复制</translation>
+<translation id="4918844574251943176">已复制图片</translation>
 <translation id="492720062778050435">Chrome 建议您检查此扩展程序</translation>
 <translation id="4953650215774548573">将Google Chrome设为默认浏览器</translation>
 <translation id="495931528404527476">在 Chrome 中</translation>
@@ -350,6 +353,7 @@
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">启动错误：请以普通用户身份（非管理员身份）运行安装程序。</translation>
 <translation id="5596627076506792578">更多选项</translation>
+<translation id="5600352656975192682">将 Chrome 固定到任务栏，即可随时快速访问</translation>
 <translation id="5602351063754773347">Chrome 建议您移除它。<ph name="BEGIN_LINK" />详细了解受支持的扩展程序<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">通过使用不同的 Chrome 个人资料，您可以将各种 Chrome 信息分开，例如为朋友和家人创建专属个人资料，或是将工作和娱乐分开。</translation>
 <translation id="565744775970812598"><ph name="FILE_NAME" /> 可能存在危险，因此 Chrome 已将其拦截。</translation>

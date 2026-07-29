@@ -40,12 +40,12 @@
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/browser/web/model/web_navigation_util.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installer_bridge.h"
 #import "ios/chrome/common/NSString+Chromium.h"
 #import "ios/chrome/common/app_group/app_group_constants.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -260,9 +260,6 @@ const base::TimeDelta kCloseLensViewTimeout = base::Seconds(10);
     DCHECK(featureTracker);
     featureTracker->NotifyEvent(
         feature_engagement::events::kLensButtonKeyboardUsed);
-  } else if (entrypoint == LensEntrypoint::NewTabPage) {
-    GetApplicationContext()->GetLocalState()->SetInteger(
-        prefs::kNTPLensEntryPointNewBadgeShownCount, INT_MAX);
   }
 
   if (!isIncognito) {

@@ -34,7 +34,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_VULKAN)
-#include "gpu/config/vulkan_info.h"
+#include "gpu/vulkan/vulkan_info.h"
 #endif
 
 namespace gpu {
@@ -358,6 +358,10 @@ struct GPU_CONFIG_EXPORT GPUInfo {
 #if BUILDFLAG(IS_WIN)
   GPUDevice* FindGpuByLuid(DWORD low_part, LONG high_part);
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(ENABLE_VULKAN)
+  std::vector<uint8_t> SerializeVulkanInfo() const;
+#endif
 
   // The amount of time taken to get from the process starting to the message
   // loop being pumped.

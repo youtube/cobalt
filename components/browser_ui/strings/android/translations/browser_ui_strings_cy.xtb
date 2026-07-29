@@ -36,6 +36,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="1409338233051621926">Tapiwch Apiau yna tapiwch Apiau diofyn</translation>
 <translation id="1415402041810619267">Mae'r URL wedi'i gwtogi</translation>
 <translation id="1415855080660575082">Gadewch i Chrome rannu'ch tabiau diweddar gyda'ch dyfais i'w gweld yn rhestr apiau a chanlyniadau chwilio eich dyfais. Gallwch droi hwn ymlaen neu ei ddiffodd yng ngosodiadau Chrome.</translation>
+<translation id="1432650420699700107">Gall gwefannau ofyn am gael cysylltu ag unrhyw ddyfais ar eich rhwydwaith lleol</translation>
 <translation id="1448064542941920355">Pellhau</translation>
 <translation id="1464044141348608623">Peidio â chaniatáu i wefannau wybod pan fyddwch wrthi'n defnyddio'ch dyfais</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> wefan}zero{<ph name="SITE_COUNT" /> gwefannau}two{<ph name="SITE_COUNT" /> wefan}few{<ph name="SITE_COUNT" /> gwefan}many{<ph name="SITE_COUNT" /> gwefan}other{<ph name="SITE_COUNT" /> gwefan}}</translation>
@@ -60,6 +61,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="1703666494654169921">Peidio â chaniatáu i wefannau ddefnyddio dyfeisiau neu ddata rhithwirionedd</translation>
 <translation id="1704230497453185209">Peidio â chaniatáu i wefannau chwarae sain</translation>
 <translation id="1717218214683051432">Synwyryddion symudiad</translation>
+<translation id="1717996979683942279">Pan fydd ymlaen, gall gwefannau ofyn i reoli ffenestri ar eich holl sgriniau. Pan fydd wedi'i ddiffodd, ni all gwefannau reoli ffenestri ar eich holl sgriniau.</translation>
 <translation id="1743802530341753419">Gofyn cyn caniatáu i wefannau gysylltu â dyfais (argymhellir)</translation>
 <translation id="1777815584158991902">Dalen waelod ffrwd darganfod</translation>
 <translation id="1779089405699405702">Datgodiwr lluniau</translation>
@@ -68,6 +70,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="1799920918471566157">Awgrymiadau Chrome</translation>
 <translation id="1816835383954230954">Pan fydd ymlaen, mae Chrome yn rhedeg yn gyflymach a dylai nodweddion sy'n defnyddio JavaScript weithio fel y'u dyluniwyd. Pan fydd wedi'i ddiffodd, mae hyn yn lleihau perfformiad ond yn gwneud V8 yn fwy ymwrthol i ymosodiadau.</translation>
 <translation id="1818308510395330587">I ganiatáu i <ph name="APP_NAME" /> ddefnyddio AR, trowch y camera ymlaen yn <ph name="BEGIN_LINK" />Gosodiadau Android<ph name="END_LINK" />.</translation>
+<translation id="1881806992065048905">Ymddangosiad tudalen tab newydd y ddalen waelod</translation>
 <translation id="1887786770086287077">Mae mynediad lleoliad wedi'i ddiffodd ar gyfer y ddyfais hon. Trowch ef ymlaen yn <ph name="BEGIN_LINK" />Gosodiadau Android<ph name="END_LINK" />.</translation>
 <translation id="1906181697255754968">Mae gwefannau fel arfer yn cyrchu ffeiliau a ffolderi ar eich dyfais ar gyfer nodweddion megis cadw eich gwaith yn awtomatig</translation>
 <translation id="1915307458270490472">Dod â'r sgwrs i ben</translation>
@@ -116,6 +119,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Caniateir <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, ac <ph name="NUM_MORE" /> arall}zero{Caniateir <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall}two{Caniateir <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall}few{Caniateir <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall}many{Caniateir <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall}other{Caniateir <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall}}</translation>
 <translation id="2410940059315936967">Gall gwefan rydych yn ymweld â hi fewnosod cynnwys o wefannau eraill, er enghraifft lluniau, hysbysebion a thestun. Gelwir cwcis a osodwyd gan wefannau eraill yn gwcis trydydd parti.</translation>
+<translation id="2433507940547922241">Gwedd</translation>
 <translation id="2434158240863470628">Mae'r lawrlwythiad wedi'i gwblhau <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Rydych wedi caniatáu i'r wefan hon ddefnyddio cwcis trydydd parti dros dro, sy'n golygu llai o amddiffyniad pori ond mae nodweddion y wefan yn fwy tebygol o weithio yn ôl y disgwyl. <ph name="BEGIN_LINK" />Anfon adborth<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">Mae'n bosib na fydd nodweddion ar rai gwefannau yn gweithio yn y modd anhysbys</translation>
@@ -128,6 +132,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="2490684707762498678">Rheolir gan <ph name="APP_NAME" /></translation>
 <translation id="2498359688066513246">Help ac adborth</translation>
 <translation id="2501278716633472235">Mynd yn ôl</translation>
+<translation id="2533138527374486328">Pan fydd ymlaen, gall gwefannau ofyn am gysylltu ag unrhyw ddyfais ar eich rhwydwaith lleol. Pan fydd wedi'i ddiffodd, ni all gwefannau gysylltu â dyfeisiau ar eich rhwydwaith lleol.</translation>
 <translation id="2546283357679194313">Cwcis a data gwefan</translation>
 <translation id="2570922361219980984">Mae mynediad lleoliad hefyd wedi'i ddiffodd ar gyfer y ddyfais hon. Trowch ef ymlaen yn <ph name="BEGIN_LINK" />Gosodiadau Android<ph name="END_LINK" />.</translation>
 <translation id="257931822824936280">Wedi'i ehangu - cliciwch i grebachu.</translation>
@@ -151,6 +156,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="2789132527330338807">Gall gwefannau ofyn i greu map 3D o'ch amgylchoedd neu olrhain lleoliad camera</translation>
 <translation id="2790501146643349491">Pan fydd wedi'i droi ymlaen, gall gwefannau a gaewyd yn ddiweddar orffen anfon a derbyn data. Pan fydd wedi'i ddiffodd, ni all gwefannau a gaewyd yn ddiweddar orffen anfon a derbyn data.</translation>
 <translation id="2795716239552913152">Mae gwefannau fel arfer yn defnyddio'ch lleoliad ar gyfer nodweddion neu wybodaeth berthnasol, fel newyddion lleol neu siopau cyfagos</translation>
+<translation id="2800760947029405028">Uwchlwytho llun</translation>
 <translation id="2802908157808345702">Peidio â chaniatáu i wefannau anfon ffenestri naid a defnyddio ailgyfeiriadau</translation>
 <translation id="2814830417943086299">Mae Chrome bellach yn dangos eich tabiau diweddar yn rhestr apiau a chanlyniadau chwilio eich dyfais. Gallwch ddiffodd hwn unrhyw bryd yng ngosodiadau Chrome.</translation>
 <translation id="2822354292072154809">Ydych yn siŵr eich bod am ailosod yr holl ganiatadau gwefan ar gyfer <ph name="CHOSEN_OBJECT_NAME" />?</translation>
@@ -166,6 +172,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="2968755619301702150">Gwyliwr tystysgrifau</translation>
 <translation id="2979365474350987274">Mae cwcis trydydd parti yn gyfyngedig</translation>
 <translation id="2990583317361835189">Peidio â chaniatáu i wefannau ddefnyddio synwyryddion symudiad</translation>
+<translation id="3004438526346162184">Gall gwefannau ddefnyddio'r nodwedd hon i reoli ffenestri ar eich holl sgriniau</translation>
 <translation id="3008272652534848354">Ailosod caniatadau</translation>
 <translation id="301521992641321250">Rhwystrwyd yn awtomatig</translation>
 <translation id="3064871050034234884">Gall gwefannau chwarae sain</translation>
@@ -236,6 +243,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="3779154269823594982">Newid cyfrineiriau</translation>
 <translation id="3797520601150691162">Peidio â defnyddio'r thema dywyll ar gyfer gwefan benodol</translation>
 <translation id="3803367742635802571">Mae'n bosib y bydd gwefannau y byddwch yn ymweld â nhw yn peidio â gweithio fel y'u cynlluniwyd</translation>
+<translation id="3816118180265633665">Lliwiau Chrome</translation>
 <translation id="381841723434055211">Rhifau ffôn</translation>
 <translation id="3826050100957962900">Mewngofnodi trydydd parti</translation>
 <translation id="3835233591525155343">Eich defnydd dyfais</translation>
@@ -254,6 +262,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="3955321697524543127">Peidio â chaniatáu i wefannau gysylltu â dyfeisiau USB</translation>
 <translation id="3965467402665811906">Gall gwefannau ofyn am gael defnyddio gwybodaeth y maent wedi'u cadw amdanoch chi</translation>
 <translation id="3967822245660637423">Lawrlwytho wedi'i gwblhau</translation>
+<translation id="3969869202926863008">Mynediad rhwydwaith lleol</translation>
 <translation id="3981465354637804599">Mae gwefannau fel arfer yn dangos hysbysebion fel y gallant ddarparu cynnwys neu wasanaethau'n ddi-dâl. Ond, mae'n hysbys bod rhai gwefannau yn dangos hysbysebion ymwthiol neu gamarweiniol.</translation>
 <translation id="3987993985790029246">Copïo'r ddolen</translation>
 <translation id="3991845972263764475"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / ?</translation>
@@ -320,6 +329,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="4882919381756638075">Mae gwefannau fel arfer yn defnyddio'ch meicroffon ar gyfer nodweddion cyfathrebu megis sgwrsio fideo</translation>
 <translation id="4883854917563148705">Methu ag ailosod gosodiadau a reolir</translation>
 <translation id="4887024562049524730">Gofyn cyn caniatáu i wefannau ddefnyddio'ch dyfais rhithwirionedd a'ch data (argymhellir)</translation>
+<translation id="4934780484581617878">Rheoli ffenestri</translation>
 <translation id="4936863036653376783">Byddwch yn gweld eich grwpiau yn yr adran grwpiau tab ar draws eich holl ddyfeisiau</translation>
 <translation id="4945443401464700059">Mae <ph name="SITE" /> wedi'i rhwystro rhag defnyddio eich gwybodaeth ar</translation>
 <translation id="4953688446973710931">Pan fydd wedi'i droi ymlaen, gall gwefannau ofyn am lawrlwytho mwy nag un ffeil yn awtomatig. Pan fydd wedi'i ddiffodd, ni all gwefannau lawrlwytho mwy nag un ffeil yn awtomatig.</translation>
@@ -327,6 +337,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="4972737347717125191">Gall gwefannau ofyn am gael defnyddio dyfeisiau rhithwirionedd a'u data</translation>
 <translation id="497421865427891073">Mynd ymlaen</translation>
 <translation id="4976702386844183910">Ymwelwyd ddiwethaf <ph name="DATE" /></translation>
+<translation id="4978178243417029856">Dysgu rhagor am y ffrwd darganfod</translation>
 <translation id="4994033804516042629">Ni chanfuwyd unrhyw gysylltiadau</translation>
 <translation id="4996978546172906250">Rhannu drwy</translation>
 <translation id="5001526427543320409">Cwcis trydydd parti</translation>
@@ -422,6 +433,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="5968921426641056619">Rhowch gyfeiriad gwe</translation>
 <translation id="5975083100439434680">Pellhau</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">Troi'r ffrwd darganfod ymlaen</translation>
 <translation id="6015775454662021376">Rheoli mynediad y wefan hon at eich dyfais</translation>
 <translation id="6040143037577758943">Cau</translation>
 <translation id="6042308850641462728">Mwy</translation>
@@ -429,6 +441,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="6071501408666570960">Mae'n bosib eich bod wedi'ch allgofnodi o'r wefan hon</translation>
 <translation id="6085954183010297841">Tynnu mynediad golygu ffeiliau? <ph name="FILE" /></translation>
 <translation id="6120483543004435978">Pan fydd wedi'i droi ymlaen, gall gwefannau ofyn am gael gwybod pryd rydych yn defnyddio'ch dyfais yn weithredol. Pan fydd wedi'i ddiffodd, ni all gwefannau wybod pryd rydych yn defnyddio'ch dyfais yn weithredol.</translation>
+<translation id="615886654739818377">Peidio â chaniatáu i wefannau reoli ffenestri ar eich holl sgriniau</translation>
 <translation id="6165508094623778733">Dysgu rhagor</translation>
 <translation id="6171020522141473435">Pan fydd wedi'i droi ymlaen, gall gwefannau ofyn am gael defnyddio dyfeisiau Bluetooth. Pan fydd wedi'i ddiffodd, ni all gwefannau ddefnyddio dyfeisiau Bluetooth.</translation>
 <translation id="6177128806592000436">Nid yw eich cysylltiad â'r wefan hon yn ddiogel</translation>
@@ -450,6 +463,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="6398765197997659313">Gadael y sgrîn lawn</translation>
 <translation id="640163077447496506">Yn darfod heddiw</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">Casgliadau Thema</translation>
 <translation id="6439114592976064011">Rhwystro gwefannau rhag defnyddio eich dyfais rhithwrionedd a'i data</translation>
 <translation id="6447842834002726250">Cwcis</translation>
 <translation id="6452138246455930388">Gostyngiad pris ar eich tab agored, o <ph name="OLD_PRICE" /> i <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -461,8 +475,10 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="6545864417968258051">Sganio Bluetooth</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{Mae <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, ac <ph name="NUM_MORE" /> arall wedi'u rhwystro}zero{Mae <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall wedi'u rhwystro}two{Mae <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall wedi'u rhwystro}few{Mae <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall wedi'u rhwystro}many{Mae <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall wedi'u rhwystro}other{Mae <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, a <ph name="NUM_MORE" /> arall wedi'u rhwystro}}</translation>
 <translation id="6554732001434021288">Ymwelwyd ddiwethaf <ph name="NUM_DAYS" /> o ddiwrnodau yn ôl</translation>
+<translation id="6557290421156335491">Fy llwybrau byr</translation>
 <translation id="656065428026159829">Gweld rhagor</translation>
 <translation id="6561560012278703671">Defnyddiwch negeseuon tawelach (mae'n rhwystro anogwyr hysbysiadau rhag torri ar eich traws)</translation>
+<translation id="6565144332292237355">Gall gwefannau ddefnyddio'r nodwedd hon i chwilio am a chysylltu ag unrhyw ddyfais ar eich rhwydwaith lleol</translation>
 <translation id="6593061639179217415">Gwefan bwrdd gwaith</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{Caniateir cwcis ar gyfer <ph name="RWS_MEMBERS_COUNT" /> wefan <ph name="RWS_OWNER" />}zero{Caniateir cwcis ar gyfer <ph name="RWS_MEMBERS_COUNT" /> gwefan <ph name="RWS_OWNER" />}two{Caniateir cwcis ar gyfer <ph name="RWS_MEMBERS_COUNT" /> wefan <ph name="RWS_OWNER" />}few{Caniateir cwcis ar gyfer <ph name="RWS_MEMBERS_COUNT" /> gwefan <ph name="RWS_OWNER" />}many{Caniateir cwcis ar gyfer <ph name="RWS_MEMBERS_COUNT" /> gwefan <ph name="RWS_OWNER" />}other{Caniateir cwcis ar gyfer <ph name="RWS_MEMBERS_COUNT" /> gwefan <ph name="RWS_OWNER" />}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
@@ -508,8 +524,10 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="7188508872042490670">Data gwefan ar y ddyfais</translation>
 <translation id="7201549776650881587">Bydd y weithred hon yn dileu'r holl ddata a chwcis sy'n cael eu storio gan bob gwefan o dan <ph name="ORIGIN" /> neu gan ei ap ar eich sgrîn Hafan</translation>
 <translation id="7203150201908454328">Wedi'i ehangu</translation>
+<translation id="7213166370492037743">Peidiwch â chaniatáu i wefannau gysylltu ag unrhyw ddyfais ar eich rhwydwaith lleol</translation>
 <translation id="7219254577985949841">Dileu data gwefan?</translation>
 <translation id="723171743924126238">Dewis lluniau</translation>
+<translation id="7243246278722455312">Dalen waelod addasu eich tudalen tab newydd</translation>
 <translation id="7243308994586599757">Mae opsiynau ar gael yn agos at waelod y sgrîn</translation>
 <translation id="7250468141469952378">Mae <ph name="ITEM_COUNT" /> wedi'u dewis</translation>
 <translation id="7260727271532453612">Caniateir <ph name="PERMISSION_1" /> a <ph name="PERMISSION_2" /></translation>
@@ -549,6 +567,7 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="7791543448312431591">Ychwanegu</translation>
 <translation id="780301667611848630">Dim diolch</translation>
 <translation id="7804248752222191302">Mae gwefan yn defnyddio'ch camera</translation>
+<translation id="7805832099057502789">Ymddangosiad dalen waelod tudalen tab newydd wedi'i hagor ar uchder llawn</translation>
 <translation id="7807060072011926525">Darperir gan Google</translation>
 <translation id="7815680994978050279">Rhwystrwyd lawrlwythiad peryglus</translation>
 <translation id="7835852323729233924">Chwarae cyfryngau</translation>
@@ -568,9 +587,11 @@ Mae Advanced Protection yn rheoli'r gosodiadau Chrome hyn:
 <translation id="802154636333426148">Wedi methu â lawrlwytho</translation>
 <translation id="8042586301629853791">Trefnu yn ôl:</translation>
 <translation id="8051193500142930381">Ni fydd nodweddion sydd angen camera yn gweithio</translation>
+<translation id="8056330801132235235">Diofyn Chrome</translation>
 <translation id="8067883171444229417">Chwarae'r fideo</translation>
 <translation id="8068648041423924542">Methu â dewis tystysgrif.</translation>
 <translation id="8077120325605624147">Gall unrhyw wefan yr ymwelwch â hi ddangos unrhyw hysbyseb i chi</translation>
+<translation id="80798452873915119">Gall gwefannau ofyn i reoli ffenestri ar eich holl sgriniau</translation>
 <translation id="8087000398470557479">Mae'r cynnwys hwn yn dod o <ph name="DOMAIN_NAME" />, sy'n cael ei ddarparu gan Google.</translation>
 <translation id="8088603949666785339">Rhagor o opsiynau yn y <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Gweld tabiau yn eich rhestr apiau</translation>

@@ -28,6 +28,7 @@
 #include "components/permissions/features.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/permissions/permission_uma_util.h"
+#include "components/permissions/request_type.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -180,6 +181,16 @@ class EmbeddedPermissionPromptInteractiveTest
     }));
   }
 
+  auto CheckLastSampleAndResetTester(
+      std::unique_ptr<base::HistogramTester>& tester,
+      const std::string& view_name,
+      base::HistogramBase::Sample32 sample) {
+    return Steps(Do([=, &tester]() {
+      tester->ExpectUniqueSample(view_name, sample, 1);
+      tester = std::make_unique<base::HistogramTester>();
+    }));
+  }
+
   auto CheckNoUkmEntriesSinceLastCheck() {
     return Steps(Check([this]() {
       size_t entry_count =
@@ -316,6 +327,46 @@ class EmbeddedPermissionPromptInteractiveTest
                                                CONTENT_SETTING_ASK)));
   }
 
+  void TestAllowThisTimeFlow(
+      const std::string& element_id,
+      const std::vector<ContentSettingsType>& content_settings_types) {
+    RunTestSequence(
+        InstrumentTab(kWebContentsElementId),
+        NavigateWebContents(kWebContentsElementId, GetURL()),
+
+        // Initially the Ask view is displayed.
+        ClickOnPEPCElement(element_id),
+        InAnyContext(
+            WaitForShow(EmbeddedPermissionPromptBaseView::kMainViewId)),
+
+        // After allowing this time, the content setting is updated accordingly.
+        PushPEPCPromptButton(EmbeddedPermissionPromptAskView::kAllowThisTimeId),
+        CheckContentSettingsValue(content_settings_types,
+                                  CONTENT_SETTING_ALLOW),
+
+        // The PreviouslyGranted view is displayed since the permission is
+        // granted.
+        ClickOnPEPCElement(element_id),
+        InAnyContext(
+            WaitForShow(EmbeddedPermissionPromptBaseView::kMainViewId)),
+
+        // Click on "Continue Allowing" and observe the content setting remains
+        // the same.
+        PushPEPCPromptButton(
+            EmbeddedPermissionPromptPreviouslyGrantedView::kContinueAllowingId),
+        CheckContentSettingsValue(content_settings_types,
+                                  CONTENT_SETTING_ALLOW),
+        // After the last tab is closed, since the last grant was one-time,
+        // ensure the content setting is reset.
+        Do([this]() {
+          browser()->tab_strip_model()->GetActiveWebContents()->Close();
+        }),
+        // This has to be immediate, because otherwise closing the browser will
+        // detach the profile.
+        WithoutDelay(CheckContentSettingsValue(content_settings_types,
+                                               CONTENT_SETTING_ASK)));
+  }
+
   void TestPromptElementText(
       ContentSetting camera_setting,
       ContentSetting mic_setting,
@@ -359,6 +410,58 @@ class EmbeddedPermissionPromptInteractiveTest
                 })));
 
     RunTestSequence(std::move(steps));
+  }
+
+  void TestPromptDismissViaXButton(const std::string& request_type_string,
+                                   const std::string& element_id) {
+    base::HistogramTester tester;
+    RunTestSequence(
+        InstrumentTab(kWebContentsElementId),
+        NavigateWebContents(kWebContentsElementId, GetURL()),
+        ClickOnPEPCElement(element_id),
+        InAnyContext(
+            WaitForShow(EmbeddedPermissionPromptBaseView::kMainViewId)),
+        InAnyContext(
+            PressButton(views::BubbleFrameView::kCloseButtonElementId)),
+        WaitForHide(EmbeddedPermissionPromptBaseView::kMainViewId), Do([&]() {
+          tester.ExpectUniqueSample(
+              base::StrCat({"Permissions.Prompt.", request_type_string,
+                            ".ElementAnchoredBubble.DismissedReason"}),
+              permissions::DismissedReason::kDismissedXButton, 1);
+        }));
+  }
+
+  auto TestPromptDismissViaScrim(const std::string& request_type_string,
+                                 const std::string& element_id) {
+    base::HistogramTester tester;
+    views::NamedWidgetShownWaiter waiter(
+        views::test::AnyWidgetTestPasskey{},
+        "EmbeddedPermissionPromptContentScrimWidget");
+    RunTestSequence(
+        InstrumentTab(kWebContentsElementId),
+        NavigateWebContents(kWebContentsElementId, GetURL()),
+        ClickOnPEPCElement(element_id),
+        InAnyContext(
+            WaitForShow(EmbeddedPermissionPromptBaseView::kMainViewId)),
+        Do([&]() {
+          auto* scrim_view =
+              static_cast<EmbeddedPermissionPromptContentScrimView*>(
+                  waiter.WaitIfNeededAndGet()->GetContentsView());
+          scrim_view->OnMousePressed(ui::MouseEvent(
+              ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+              ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON, 0));
+        }),
+        WaitForHide(EmbeddedPermissionPromptBaseView::kMainViewId), Do([&]() {
+          tester.ExpectUniqueSample(
+              base::StrCat({"Permissions.Prompt.", request_type_string,
+                            ".ElementAnchoredBubble.DismissedReason"}),
+              permissions::DismissedReason::kDismissedScrim, 1);
+        }));
+  }
+
+  auto DismissPromptByClickingCloseButton(
+      permissions::RequestType request_type) {
+    return Steps();
   }
 
   void TestPartialPermissionsLabel(ContentSetting camera_setting,
@@ -467,6 +570,28 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
 }
 
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestAllowThisTimeFlowMicrophone) {
+  TestAllowThisTimeFlow("microphone", {ContentSettingsType::MEDIASTREAM_MIC});
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestAllowThisTimeFlowCamera) {
+  TestAllowThisTimeFlow("camera", {ContentSettingsType::MEDIASTREAM_CAMERA});
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestAllowThisTimeFlowGeolocation) {
+  TestAllowThisTimeFlow("geolocation", {ContentSettingsType::GEOLOCATION});
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestAllowThisTimeFlowCameraMicrophone) {
+  TestAllowThisTimeFlow("camera-microphone",
+                        {ContentSettingsType::MEDIASTREAM_CAMERA,
+                         ContentSettingsType::MEDIASTREAM_MIC});
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        TestPartialPermissionsLabels) {
   RunTestSequence(InstrumentTab(kWebContentsElementId),
                   NavigateWebContents(kWebContentsElementId, GetURL()));
@@ -542,6 +667,8 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        TestPepcHistograms) {
   base::HistogramTester tester;
+  std::unique_ptr<base::HistogramTester> variant_tester =
+      std::make_unique<base::HistogramTester>();
   RunTestSequence(
       InstrumentTab(kWebContentsElementId),
       NavigateWebContents(kWebContentsElementId, GetURL()),
@@ -552,6 +679,12 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           permissions::RequestTypeForUma::PERMISSION_MEDIASTREAM_CAMERA,
           /*accepted_count=*/1, /*accepted_once_count=*/0),
 
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.VideoCapture.ElementAnchoredBubble.Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kAsk)),
+
       // Now the "allow" view is displayed. Neither clicking "continue allowing"
       // or "stop allowing" records any additional histograms.
       DoPromptAndCheckHistograms(
@@ -560,11 +693,23 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           tester, permissions::RequestTypeForUma::PERMISSION_MEDIASTREAM_CAMERA,
           /*accepted_count=*/1, /*accepted_once_count=*/0),
 
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.VideoCapture.ElementAnchoredBubble.Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kPreviouslyGranted)),
+
       DoPromptAndCheckHistograms(
           "camera",
           EmbeddedPermissionPromptPreviouslyGrantedView::kStopAllowingId,
           tester, permissions::RequestTypeForUma::PERMISSION_MEDIASTREAM_CAMERA,
           /*accepted_count=*/1, /*accepted_once_count=*/0),
+
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.VideoCapture.ElementAnchoredBubble.Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kPreviouslyGranted)),
 
       // Other permissions are not affected, check that the microphone
       // permission has no histograms.
@@ -585,6 +730,12 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           /*accepted_count=*/0,
           /*accepted_once_count=*/1),
 
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.AudioCapture.ElementAnchoredBubble.Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kAsk)),
+
       // Showing a combined prompt at this point will result in a "previously
       // blocked" screen which won't record new histograms.
       DoPromptAndCheckHistograms(
@@ -594,6 +745,14 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           permissions::RequestTypeForUma::MULTIPLE_AUDIO_AND_VIDEO_CAPTURE,
           /*accepted_count=*/0,
           /*accepted_once_count=*/0),
+
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.AudioAndVideoCapture.ElementAnchoredBubble."
+          "Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kPreviouslyDenied)),
+
       CheckHistogram(
           tester,
           permissions::PermissionUmaUtil::kPermissionsPromptAcceptedOnce,
@@ -621,6 +780,13 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           /*accepted_count=*/1,
           /*accepted_once_count=*/0),
 
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.AudioAndVideoCapture.ElementAnchoredBubble."
+          "Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kAsk)),
+
       Do([&, this]() {
         SetContentSetting(ContentSettingsType::MEDIASTREAM_CAMERA,
                           CONTENT_SETTING_DEFAULT);
@@ -634,6 +800,13 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
           permissions::RequestTypeForUma::MULTIPLE_AUDIO_AND_VIDEO_CAPTURE,
           /*accepted_count=*/1,
           /*accepted_once_count=*/1),
+
+      CheckLastSampleAndResetTester(
+          variant_tester,
+          "Permissions.Prompt.AudioAndVideoCapture.ElementAnchoredBubble."
+          "Variant",
+          static_cast<base::HistogramBase::Sample32>(
+              permissions::ElementAnchoredBubbleVariant::kAsk)),
 
       // Check that all other histograms are unmodified.
       CheckHistogram(
@@ -776,6 +949,63 @@ IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest, TestPepcUkm) {
           permissions::ElementAnchoredBubbleVariant::kPreviouslyGranted, 0));
 }
 
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedXButtonUmaCamera) {
+  TestPromptDismissViaXButton(
+      permissions::PermissionUmaUtil::GetRequestTypeString(
+          permissions::RequestType::kCameraStream),
+      "camera");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedXButtonUmaMicrophone) {
+  TestPromptDismissViaXButton(
+      permissions::PermissionUmaUtil::GetRequestTypeString(
+          permissions::RequestType::kMicStream),
+      "microphone");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedXButtonUmaGeolocation) {
+  TestPromptDismissViaXButton(
+      permissions::PermissionUmaUtil::GetRequestTypeString(
+          permissions::RequestType::kGeolocation),
+      "geolocation");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedXButtonUmaCameraMicrophone) {
+  TestPromptDismissViaXButton("AudioAndVideoCapture", "camera-microphone");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedScrimUmaCamera) {
+  TestPromptDismissViaScrim(
+      permissions::PermissionUmaUtil::GetRequestTypeString(
+          permissions::RequestType::kCameraStream),
+      "camera");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedScrimUmaMicrophone) {
+  TestPromptDismissViaScrim(
+      permissions::PermissionUmaUtil::GetRequestTypeString(
+          permissions::RequestType::kMicStream),
+      "microphone");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedScrimUmaGeolocation) {
+  TestPromptDismissViaScrim(
+      permissions::PermissionUmaUtil::GetRequestTypeString(
+          permissions::RequestType::kGeolocation),
+      "geolocation");
+}
+
+IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
+                       TestDismissedScrimUmaCameraMicrophone) {
+  TestPromptDismissViaScrim("AudioAndVideoCapture", "camera-microphone");
+}
 IN_PROC_BROWSER_TEST_P(EmbeddedPermissionPromptInteractiveTest,
                        TestOsSystemPromptTransition) {
   base::AutoReset<bool> mock_system_prompt =

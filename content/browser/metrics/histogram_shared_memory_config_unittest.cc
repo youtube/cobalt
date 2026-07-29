@@ -52,14 +52,8 @@ TEST(HistogramSharedMemoryConfigTest, PassOnCommandLineIsEnabled) {
 
   EXPECT_TRUE(
       HistogramSharedMemory::PassOnCommandLineIsEnabled(PROCESS_TYPE_RENDERER));
-
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_FALSE(
-      HistogramSharedMemory::PassOnCommandLineIsEnabled(PROCESS_TYPE_GPU));
-#else   // !BUILDFLAG(IS_CHROMEOS)
   EXPECT_TRUE(
       HistogramSharedMemory::PassOnCommandLineIsEnabled(PROCESS_TYPE_GPU));
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
   EXPECT_FALSE(
@@ -96,8 +90,6 @@ INSTANTIATE_TEST_SUITE_P(
         {PROCESS_TYPE_ZYGOTE, "ZygoteMetrics", 64 << 10},
         {PROCESS_TYPE_SANDBOX_HELPER, "SandboxHelperMetrics", 64 << 10},
         {PROCESS_TYPE_GPU, "GpuMetrics", 256 << 10},
-        {PROCESS_TYPE_PPAPI_PLUGIN, "PpapiPluginMetrics", 64 << 10},
-        {PROCESS_TYPE_PPAPI_BROKER, "PpapiBrokerMetrics", 64 << 10},
     })));
 
 }  // namespace content

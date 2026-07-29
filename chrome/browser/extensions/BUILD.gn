@@ -9,10 +9,10 @@ import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//chrome/common/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
-import("//components/nacl/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//pdf/features.gni")
+import("//ppapi/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//rlz/buildflags/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
@@ -27,8 +27,6 @@ source_set("extensions") {
   # TODO(https://crbug.com/356905053): When files support being built on
   # desktop android, move them here, outside the if (enable_extensions) block.
   sources = [
-    "account_extension_tracker.cc",
-    "account_extension_tracker.h",
     "active_install_data.cc",
     "active_install_data.h",
     "activity_log/activity_action_constants.cc",
@@ -116,6 +114,7 @@ source_set("extensions") {
     "api/identity/web_auth_flow_info_bar_delegate.h",
     "api/instance_id/instance_id_api.cc",
     "api/instance_id/instance_id_api.h",
+    "api/management/chrome_management_api_delegate.cc",
     "api/management/chrome_management_api_delegate.h",
     "api/messaging/chrome_messaging_delegate.cc",
     "api/messaging/chrome_messaging_delegate.h",
@@ -162,6 +161,8 @@ source_set("extensions") {
     "api/storage/syncable_settings_storage.cc",
     "api/storage/syncable_settings_storage.h",
     "api/tabs/tabs_constants.h",
+    "api/tabs/tabs_windows_api.cc",
+    "api/tabs/tabs_windows_api.h",
     "api/tabs/windows_util.cc",
     "api/tabs/windows_util.h",
     "api/top_sites/top_sites_api.cc",
@@ -184,6 +185,8 @@ source_set("extensions") {
     "bookmarks/bookmarks_features.h",
     "bookmarks/bookmarks_helpers.cc",
     "bookmarks/bookmarks_helpers.h",
+    "browser_extension_window_controller.cc",
+    "browser_extension_window_controller.h",
     "chrome_app_icon.cc",
     "chrome_app_icon.h",
     "chrome_app_icon_delegate.h",
@@ -306,20 +309,14 @@ source_set("extensions") {
     "extension_service.h",
     "extension_special_storage_policy.cc",
     "extension_special_storage_policy.h",
-    "extension_sync_data.cc",
-    "extension_sync_data.h",
-    "extension_sync_service.cc",
-    "extension_sync_service.h",
-    "extension_sync_service_factory.cc",
-    "extension_sync_service_factory.h",
-    "extension_sync_util.cc",
-    "extension_sync_util.h",
     "extension_tab_util.cc",
     "extension_tab_util.h",
     "extension_telemetry_service_verdict_handler.cc",
     "extension_telemetry_service_verdict_handler.h",
     "extension_ui_util.cc",
     "extension_ui_util.h",
+    "extension_uninstall_dialog.cc",
+    "extension_uninstall_dialog.h",
     "extension_util.cc",
     "extension_util.h",
     "extension_view.h",
@@ -439,8 +436,18 @@ source_set("extensions") {
     "standard_management_policy_provider.h",
     "startup_helper.cc",
     "startup_helper.h",
-    "sync_bundle.cc",
-    "sync_bundle.h",
+    "sync/account_extension_tracker.cc",
+    "sync/account_extension_tracker.h",
+    "sync/extension_sync_data.cc",
+    "sync/extension_sync_data.h",
+    "sync/extension_sync_service.cc",
+    "sync/extension_sync_service.h",
+    "sync/extension_sync_service_factory.cc",
+    "sync/extension_sync_service_factory.h",
+    "sync/extension_sync_util.cc",
+    "sync/extension_sync_util.h",
+    "sync/sync_bundle.cc",
+    "sync/sync_bundle.h",
     "system_display/display_info_provider.h",
     "tab_helper.cc",
     "tab_helper.h",
@@ -487,6 +494,7 @@ source_set("extensions") {
     "//chrome/browser/devtools",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/supervised_user",
   ]
   deps = [
     "//base",
@@ -515,10 +523,13 @@ source_set("extensions") {
     "//chrome/browser/resources:component_extension_resources",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/safe_browsing:metrics_collector",
+    "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/autofill",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/extensions",
     "//chrome/browser/ui/safety_hub",
     "//chrome/browser/ui/toolbar",
+    "//chrome/browser/ui/unowned_user_data",
     "//chrome/common",
     "//chrome/common/safe_browsing:proto",
     "//components/bookmarks/browser",
@@ -574,9 +585,11 @@ source_set("extensions") {
     "//third_party/zlib/google:zip",
     "//ui/base/accelerators/global_accelerator_listener",
     "//ui/menus",
+    "//ui/native_window_tracker",
     "//ui/shell_dialogs",
   ]
   public_deps = [
+    "//chrome/browser/supervised_user",
     "//chrome/browser/upgrade_detector",
     "//components/safe_browsing/core/browser/db:util",
     "//components/signin/core/browser",
@@ -595,6 +608,8 @@ source_set("extensions") {
       "api/management/chrome_management_api_delegate_android.cc",
       "api/tabs/tabs_api_stub.cc",
       "api/tabs/tabs_api_stub.h",
+      "api/tabs/tabs_event_router_android.cc",
+      "api/tabs/tabs_event_router_android.h",
       "extension_disabled_ui_android.cc",
       "extension_error_ui_android.cc",
       "extension_error_ui_android.h",
@@ -604,6 +619,8 @@ source_set("extensions") {
     deps += [ "//chrome/browser/ui/android/tab_model" ]
   } else {
     sources += [ "api/chrome_extensions_api_client_non_android.cc" ]
+    public_deps += [ "//components/app_icon_loader" ]
+    deps += [ "//chrome/browser/ui/user_education" ]
   }
 
   if (!is_chromeos) {
@@ -747,14 +764,10 @@ source_set("extensions") {
       "api/tabs/tabs_api.h",
       "api/tabs/tabs_event_router.cc",
       "api/tabs/tabs_event_router.h",
-      "api/tabs/tabs_windows_api.cc",
-      "api/tabs/tabs_windows_api.h",
       "api/tabs/windows_event_router.cc",
       "api/tabs/windows_event_router.h",
       "app_tab_helper.cc",
       "app_tab_helper.h",
-      "browser_extension_window_controller.cc",
-      "browser_extension_window_controller.h",
       "chrome_app_sorting.cc",
       "chrome_app_sorting.h",
       "chrome_extension_host_delegate.cc",
@@ -773,8 +786,6 @@ source_set("extensions") {
       "extension_disabled_ui_desktop.cc",
       "extension_error_ui_desktop.cc",
       "extension_error_ui_desktop.h",
-      "extension_uninstall_dialog.cc",
-      "extension_uninstall_dialog.h",
       "extension_view_host_web_modal_handler.cc",
       "extension_view_host_web_modal_handler.h",
       "external_install_error_desktop.cc",
@@ -893,13 +904,13 @@ source_set("extensions") {
       "//chrome/browser/prefs:util",
       "//chrome/browser/profiles:profile_util",
       "//chrome/browser/reading_list",
+      "//chrome/browser/resource_coordinator",
       "//chrome/browser/search",
       "//chrome/browser/search/background",
       "//chrome/browser/search_engine_choice",
       "//chrome/browser/search_engines",
       "//chrome/browser/sync",
       "//chrome/browser/themes",
-      "//chrome/browser/ui:browser_navigator_params_headers",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/apps",
       "//chrome/browser/ui/browser_window",
@@ -979,7 +990,6 @@ source_set("extensions") {
       "//components/language/core/language_model",
       "//components/live_caption:constants",
       "//components/media_device_salt",
-      "//components/nacl/common:buildflags",
       "//components/navigation_interception",
       "//components/net_log",
       "//components/onc",
@@ -1549,6 +1559,8 @@ static_library("test_support") {
   testonly = true
 
   sources = [
+    "chrome_extension_test_notification_observer.cc",
+    "chrome_extension_test_notification_observer.h",
     "chrome_test_extension_loader.cc",
     "chrome_test_extension_loader.h",
     "extension_action_test_util.cc",
@@ -1589,6 +1601,7 @@ static_library("test_support") {
     "//components/sessions",
     "//components/signin/public/identity_manager:test_support",
     "//components/value_store:test_support",
+    "//content/test:test_support",
     "//extensions:test_support",
     "//services/data_decoder/public/cpp:test_support",
     "//testing/gmock",
@@ -1600,8 +1613,6 @@ static_library("test_support") {
       "api/messaging/native_messaging_test_util.h",
       "api/passwords_private/test_passwords_private_delegate.cc",
       "api/passwords_private/test_passwords_private_delegate.h",
-      "chrome_extension_test_notification_observer.cc",
-      "chrome_extension_test_notification_observer.h",
       "menu_manager_test_observer.cc",
       "menu_manager_test_observer.h",
       "mock_crx_installer.cc",
@@ -1624,7 +1635,6 @@ static_library("test_support") {
       "//components/crx_file",
       "//components/safe_browsing/core/browser/db:v4_test_util",
       "//content/public/browser",
-      "//content/test:test_support",
       "//extensions:test_support",
       "//extensions/browser",
       "//extensions/browser:test_support",

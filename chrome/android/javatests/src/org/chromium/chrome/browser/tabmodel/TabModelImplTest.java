@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -24,6 +25,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.Token;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -36,6 +38,7 @@ import org.chromium.chrome.browser.media.MediaCaptureDevicesDispatcherAndroidJni
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
@@ -46,7 +49,6 @@ import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** Tests for {@link TabModelImpl}. */
@@ -216,6 +218,91 @@ public class TabModelImplTest {
                     Tab tab = mTabModelJni.getTabAt(0);
                     assertNotNull(tab);
                     assertEquals(url, tab.getUrl());
+                    assertEquals(
+                            TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                            tab.getTabLaunchTypeAtCreation());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testDuplicateTab() {
+        String url = "https://www.chromium.org/chromium-projects/";
+        WebPageStation page = mPage.loadWebPageProgrammatically(url);
+        page.openNewTabFast();
+        // 0:Tab0 (tabToDuplicate) | 1:Tab1
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(2, mTabModelJni.getCount());
+                    int index = 0;
+                    Tab tabToDuplicate = mTabModelJni.getTabAt(index);
+                    GURL gurl = new GURL(url);
+                    assertEquals(gurl, tabToDuplicate.getUrl());
+                    assertNull(tabToDuplicate.getTabGroupId());
+
+                    mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    // 0:Tab0 (tabToDuplicate) | 1:Tab2 (duplicatedTab) | 2:Tab1
+                    assertEquals(3, mTabModelJni.getCount());
+
+                    Tab duplicatedTab = mTabModelJni.getTabAt(index + 1);
+                    assertEquals(tabToDuplicate.getId(), duplicatedTab.getParentId());
+                    assertEquals(gurl, duplicatedTab.getUrl());
+                    assertEquals(
+                            TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                            duplicatedTab.getTabLaunchTypeAtCreation());
+                    assertNull(tabToDuplicate.getTabGroupId());
+                    assertNull(duplicatedTab.getTabGroupId());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testDuplicateTab_InsideTabGroup() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(2, filter);
+        // 0:Tab0 | Group0: 1:Tab1 (tabToDuplicate), 2:Tab2
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    int index = 1;
+                    Tab tabToDuplicate = mTabModelJni.getTabAt(index);
+                    assertNotNull(tabToDuplicate.getTabGroupId());
+
+                    mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    // 0:Tab0 | Group0: 1:Tab1 (tabToDuplicate), 2:Tab3 (duplicatedTab), 3:Tab2
+                    assertEquals(4, mTabModelJni.getCount());
+
+                    Tab duplicatedTab = mTabModelJni.getTabAt(index + 1);
+                    assertEquals(tabToDuplicate.getId(), duplicatedTab.getParentId());
+                    assertEquals(tabToDuplicate.getTabGroupId(), duplicatedTab.getTabGroupId());
+                    assertEquals(
+                            TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                            duplicatedTab.getTabLaunchTypeAtCreation());
+                });
+
+        Tab tabOutsideGroup = createTab();
+        // 0:Tab0 | Group0: 1:Tab1, 2:Tab3 , 3:Tab2 (tabToDuplicate) | 4:Tab4
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(5, mTabModelJni.getCount());
+                    int index = 3;
+                    Tab tabToDuplicate = mTabModelJni.getTabAt(index);
+                    assertNotNull(tabToDuplicate.getTabGroupId());
+
+                    mTabModelJni.duplicateTabForTesting(tabToDuplicate);
+                    // 0:Tab0 | Group0: 1:Tab1, 2:Tab3 , 3:Tab2 (tabToDuplicate) | 4:Tab4
+                    assertEquals(6, mTabModelJni.getCount());
+                    assertEquals(tabOutsideGroup, mTabModelJni.getTabAt(5));
+
+                    Tab duplicatedTab = mTabModelJni.getTabAt(index + 1);
+                    assertEquals(tabToDuplicate.getId(), duplicatedTab.getParentId());
+                    assertEquals(tabToDuplicate.getTabGroupId(), duplicatedTab.getTabGroupId());
+                    assertEquals(
+                            TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                            duplicatedTab.getTabLaunchTypeAtCreation());
                 });
     }
 
@@ -246,7 +333,7 @@ public class TabModelImplTest {
         TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    List<Tab> group0 = Arrays.asList(mTabModelJni.getAllTabs());
+                    List<Tab> group0 = mTabModelJni.getAllTabs();
                     filter.mergeListOfTabsToGroup(group0, group0.get(0), false);
                 });
         createTab();
@@ -412,6 +499,290 @@ public class TabModelImplTest {
 
     @Test
     @SmallTest
+    public void testMoveGroupToIndex() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        List<Tab> g0 = createTabGroup(3, filter); // 1 2 3
+        createTab(); // 4
+        List<Tab> g1 = createTabGroup(2, filter); // 5 6
+        // 0:Tab0 | G0(1:Tab1, 2:Tab2, 3:Tab3) | 4:Tab4 | G1(5:Tab5, 6:Tab6)
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(7, mTabModelJni.getCount());
+
+                    // Requested index is inside tab group (left to right, insert at the end)
+                    int requestedIndex = 3;
+                    int firstValidIndex = 4;
+                    assertMoveTabGroup(g1, requestedIndex, firstValidIndex);
+                    // 0:Tab0 | G0(1:Tab1, 2:Tab2, 3:Tab3) | G1(4:Tab5, 5:Tab6) | 6:Tab4
+
+                    // No-op (right to left)
+                    requestedIndex = 2;
+                    assertMoveTabGroup(g1, requestedIndex, firstValidIndex);
+
+                    // No-op (right to left)
+                    requestedIndex = 3;
+                    assertMoveTabGroup(g1, requestedIndex, firstValidIndex);
+
+                    // Simple move (left to right)
+                    requestedIndex = 1;
+                    firstValidIndex = 1;
+                    assertMoveTabGroup(g1, requestedIndex, firstValidIndex);
+                    // 0:Tab0 | G1(1:Tab5, 2:Tab6) | G0(3:Tab1, 4:Tab2, 5:Tab3) | 6:Tab4
+
+                    // Requested index is inside group (left to right, insert at the end)
+                    requestedIndex = 5;
+                    firstValidIndex = 4;
+                    assertMoveTabGroup(g1, requestedIndex, firstValidIndex);
+                    // 0:Tab0 | G0(1:Tab1, 2:Tab2, 3:Tab3) | G1(4:Tab5, 5:Tab6) | 6:Tab4
+
+                    // No-op (left to right)
+                    requestedIndex = 4;
+                    firstValidIndex = 1;
+                    assertMoveTabGroup(g0, requestedIndex, firstValidIndex);
+
+                    // Simple move (right to left)
+                    requestedIndex = 0;
+                    assertMoveTabGroup(g0, requestedIndex, requestedIndex);
+                    // G0(0:Tab1, 1:Tab2, 2:Tab3) | 3:Tab0 | G1(4:Tab5, 5:Tab6) | 6:Tab4
+
+                    // Requested index is inside group (right to left, insert in front)
+                    requestedIndex = 4;
+                    assertMoveTabGroup(g0, requestedIndex, firstValidIndex);
+                    // 0:Tab0 | G0(1:Tab1, 2:Tab2, 3:Tab3) | G1(4:Tab5, 5:Tab6) | 6:Tab4
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testMoveGroupToIndex_TabGroupOf1() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        List<Tab> g0 = createTabGroup(1, filter); // 1
+        createTab(); // 2
+        List<Tab> g1 = createTabGroup(3, filter); // 3 4 5
+        // 0:Tab0 | G0(1:Tab1) | 2:Tab2 | G1(3:Tab3, 4:Tab4, 5:Tab5)
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(6, mTabModelJni.getCount());
+
+                    int requestedIndex = 4;
+                    int expectedFirstIndex = 2;
+                    assertMoveTabGroup(g0, requestedIndex, expectedFirstIndex);
+                    // 0:Tab0 | 1:Tab2 | G0(2:Tab1) | G1(3:Tab3, 4:Tab4, 5:Tab5)
+
+                    // No-op
+                    requestedIndex = 3;
+                    assertMoveTabGroup(g0, requestedIndex, expectedFirstIndex);
+
+                    // No-op
+                    requestedIndex = 4;
+                    assertMoveTabGroup(g0, requestedIndex, expectedFirstIndex);
+
+                    requestedIndex = 5;
+                    assertMoveTabGroup(g0, requestedIndex, requestedIndex);
+                    // 0:Tab0 | 1:Tab2 | G1(2:Tab3, 3:Tab4, 4:Tab5) | G0(5:Tab1)
+
+                    // No-op
+                    requestedIndex = 3;
+                    expectedFirstIndex = 5;
+                    assertMoveTabGroup(g0, requestedIndex, expectedFirstIndex);
+
+                    // No-op
+                    requestedIndex = 4;
+                    assertMoveTabGroup(g0, requestedIndex, expectedFirstIndex);
+
+                    requestedIndex = 2;
+                    assertMoveTabGroup(g0, requestedIndex, requestedIndex);
+                    // 0:Tab0 | 1:Tab2 | G0(2:Tab1) | G1(3:Tab3, 4:Tab4, 5:Tab5)
+
+                    requestedIndex = 0;
+                    assertMoveTabGroup(g0, requestedIndex, requestedIndex);
+                    // G0(0:Tab1) | 1:Tab0 | 2:Tab2 | G1(3:Tab3, 4:Tab4, 5:Tab5)
+
+                    requestedIndex = 2;
+                    assertMoveTabGroup(g0, requestedIndex, requestedIndex);
+                    // 0:Tab0 | 1:Tab2 | G0(2:Tab1) | G1(3:Tab3, 4:Tab4, 5:Tab5)
+
+                    assertMoveTabGroup(g1, requestedIndex, requestedIndex);
+                    // 0:Tab0 | 1:Tab2 | G1(2:Tab3, 3:Tab4, 4:Tab5) | G0(5:Tab1)
+
+                    requestedIndex = 5;
+                    expectedFirstIndex = 3;
+                    assertMoveTabGroup(g1, requestedIndex, expectedFirstIndex);
+                    // 0:Tab0 | 1:Tab2 | G0(2:Tab1) | G1(3:Tab3, 4:Tab4, 5:Tab5)
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testAddTabsToGroup() {
+        createTabs(2);
+        // 0:Tab0 | 1:Tab1 | 2:Tab2
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+                    assertNull(tab1.getTabGroupId());
+                    assertNull(tab2.getTabGroupId());
+
+                    List<Tab> tabsToGroup = new ArrayList<>();
+                    tabsToGroup.add(tab1);
+                    tabsToGroup.add(tab2);
+
+                    Token groupId = mTabModelJni.addTabsToGroup(null, tabsToGroup);
+                    assertNotNull(groupId);
+
+                    assertEquals(groupId, tab1.getTabGroupId());
+                    assertEquals(groupId, tab2.getTabGroupId());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testAddTabsToGroup_existingGroup() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(2, filter);
+        Tab tab3 = createTab();
+        // 0:Tab0 | Group0: 1:Tab1, 2:Tab2 | 3:Tab3
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(4, mTabModelJni.getCount());
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+                    assertNotNull(tab1.getTabGroupId());
+                    assertEquals(tab1.getTabGroupId(), tab2.getTabGroupId());
+                    assertNull(tab3.getTabGroupId());
+
+                    Token groupId = tab1.getTabGroupId();
+                    List<Tab> tabsToGroup = List.of(tab3);
+
+                    Token returnedGroupId = mTabModelJni.addTabsToGroup(groupId, tabsToGroup);
+                    assertEquals(groupId, returnedGroupId);
+
+                    assertEquals(groupId, tab1.getTabGroupId());
+                    assertEquals(groupId, tab2.getTabGroupId());
+                    assertEquals(groupId, tab3.getTabGroupId());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testAddTabsToGroup_existingGroup_someTabsAlreadyInGroup() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(2, filter);
+        Tab tab3 = createTab();
+        // 0:Tab0 | Group0: 1:Tab1, 2:Tab2 | 3:Tab3
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(4, mTabModelJni.getCount());
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+                    assertNotNull(tab1.getTabGroupId());
+                    assertEquals(tab1.getTabGroupId(), tab2.getTabGroupId());
+                    assertNull(tab3.getTabGroupId());
+
+                    Token groupId = tab1.getTabGroupId();
+                    List<Tab> tabsToGroup = List.of(tab2, tab3);
+
+                    Token returnedGroupId = mTabModelJni.addTabsToGroup(groupId, tabsToGroup);
+                    assertEquals(groupId, returnedGroupId);
+
+                    assertEquals(groupId, tab1.getTabGroupId());
+                    assertEquals(groupId, tab2.getTabGroupId());
+                    assertEquals(groupId, tab3.getTabGroupId());
+                    assertEquals(3, filter.getTabCountForGroup(groupId));
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testAddTabsToGroup_existingGroup_someTabsInAnotherGroup() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(2, filter); // Group A: Tab1, Tab2
+        createTabGroup(2, filter); // Group B: Tab3, Tab4
+        // 0:Tab0 | GroupA: 1:Tab1, 2:Tab2 | GroupB: 3:Tab3, 4:Tab4
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(5, mTabModelJni.getCount());
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab3 = mTabModelJni.getTabAt(3);
+                    Tab tab4 = mTabModelJni.getTabAt(4);
+
+                    Token groupAId = tab1.getTabGroupId();
+                    Token groupBId = tab3.getTabGroupId();
+                    assertNotNull(groupAId);
+                    assertNotNull(groupBId);
+                    assertNotEquals(groupAId, groupBId);
+                    assertEquals(groupBId, tab4.getTabGroupId());
+
+                    List<Tab> tabsToGroup = List.of(tab3);
+                    Token returnedGroupId = mTabModelJni.addTabsToGroup(groupAId, tabsToGroup);
+                    assertEquals(groupAId, returnedGroupId);
+
+                    assertEquals(groupAId, tab3.getTabGroupId());
+                    assertEquals(groupBId, tab4.getTabGroupId());
+                    assertEquals(3, filter.getTabCountForGroup(groupAId));
+                    assertEquals(1, filter.getTabCountForGroup(groupBId));
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testAddTabsToGroup_invalidGroupId() {
+        createTabs(2);
+        // 0:Tab0 | 1:Tab1 | 2:Tab2
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+                    assertNull(tab1.getTabGroupId());
+                    assertNull(tab2.getTabGroupId());
+
+                    List<Tab> tabsToGroup = List.of(tab1, tab2);
+                    Token invalidGroupId = Token.createRandom();
+
+                    Token returnedGroupId =
+                            mTabModelJni.addTabsToGroup(invalidGroupId, tabsToGroup);
+                    assertNull(returnedGroupId);
+
+                    assertNull(tab1.getTabGroupId());
+                    assertNull(tab2.getTabGroupId());
+                });
+    }
+
+    @Test
+    @SmallTest
+    public void testUngroup() {
+        TabGroupModelFilter filter = mPage.getTabGroupModelFilter();
+        createTabGroup(2, filter);
+        // 0:Tab0 | Group0: 1:Tab1, 2:Tab2
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(3, mTabModelJni.getCount());
+                    Tab tab1 = mTabModelJni.getTabAt(1);
+                    Tab tab2 = mTabModelJni.getTabAt(2);
+                    assertNotNull(tab1.getTabGroupId());
+                    assertEquals(tab1.getTabGroupId(), tab2.getTabGroupId());
+
+                    List<Tab> tabsToUngroup = List.of(tab1, tab2);
+                    mTabModelJni.ungroup(tabsToUngroup);
+
+                    assertNull(tab1.getTabGroupId());
+                    assertNull(tab2.getTabGroupId());
+                });
+    }
+
+    @Test
+    @SmallTest
     public void testGetAllTabs() {
         RegularNewTabPageStation secondTab = mPage.openNewTabFast();
         secondTab.openNewTabFast();
@@ -419,8 +790,8 @@ public class TabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertEquals(3, mTabModelJni.getCount());
-                    Tab[] tabs = mTabModelJni.getAllTabs();
-                    assertEquals(3, tabs.length);
+                    List<Tab> tabs = mTabModelJni.getAllTabs();
+                    assertEquals(3, tabs.size());
                 });
     }
 
@@ -433,12 +804,12 @@ public class TabModelImplTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertEquals(3, mTabModelJni.getCount());
-                    Tab[] tabs = mTabModelJni.getAllTabs();
-                    assertEquals(3, tabs.length);
+                    List<Tab> tabs = mTabModelJni.getAllTabs();
+                    assertEquals(3, tabs.size());
 
                     int i = 0;
                     for (Tab tab : mTabModelJni) {
-                        assertEquals(tabs[i], tab);
+                        assertEquals(tabs.get(i), tab);
                         i++;
                     }
                 });
@@ -469,20 +840,91 @@ public class TabModelImplTest {
                 });
     }
 
+    @Test
+    @SmallTest
+    public void testCloseIncognitoTabSwitchesToNormalModelAndUpdatesIncognitoIndex() {
+        TabModel incognitoTabModel =
+                mActivityTestRule.getActivity().getTabModelSelector().getModel(true);
+        TabModel normalTabModel =
+                mActivityTestRule.getActivity().getTabModelSelector().getModel(false);
+
+        Tab regularTab = createTab();
+        assertEquals(2, normalTabModel.getCount()); // Initial blank page + new tab
+        assertEquals(0, incognitoTabModel.getCount());
+
+        mPage = Journeys.createIncognitoTabsWithWebPages(mPage, List.of(mTestUrl, mTestUrl));
+        assertEquals(2, incognitoTabModel.getCount());
+
+        // Switch to the incognito model and select the first incognito tab.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mActivityTestRule.getActivity().getTabModelSelector().selectModel(true);
+                    incognitoTabModel.setIndex(0, TabSelectionType.FROM_USER);
+                });
+        assertTrue(incognitoTabModel.isActiveModel());
+        assertEquals(0, incognitoTabModel.index());
+
+        Tab incognitoTab1 = incognitoTabModel.getTabAt(0);
+        Tab incognitoTab2 = incognitoTabModel.getTabAt(1);
+        assertNotNull(incognitoTab1);
+        assertNotNull(incognitoTab2);
+
+        // Close the first incognito tab (which is currently selected).
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    incognitoTabModel
+                            .getTabRemover()
+                            .closeTabs(
+                                    TabClosureParams.closeTab(incognitoTab1)
+                                            .recommendedNextTab(regularTab)
+                                            .build(),
+                                    /* allowDialog= */ false);
+                });
+
+        // Verify that the regular model is now active and the regular tab is selected.
+        assertFalse(incognitoTabModel.isActiveModel());
+        assertTrue(normalTabModel.isActiveModel());
+        assertEquals(regularTab, normalTabModel.getCurrentTabSupplier().get());
+
+        assertEquals(1, incognitoTabModel.getCount());
+        assertEquals(incognitoTab2, incognitoTabModel.getTabAt(0));
+        assertEquals(0, incognitoTabModel.index());
+        assertEquals(incognitoTab2, incognitoTabModel.getCurrentTabSupplier().get());
+    }
+
     private void assertMoveTabToIndex(
             int oldIndex, int newIndex, int expectedIndex, boolean movingInsideGroup) {
         Tab oldIndexTab = mTabModelJni.getTabAt(oldIndex);
         assert movingInsideGroup || oldIndexTab.getTabGroupId() == null
                 : "This is not a single tab movement";
-        mTabModelJni.moveTabToIndex(oldIndex, newIndex);
+        mTabModelJni.moveTabToIndex(oldIndexTab, newIndex);
         assertEquals(oldIndexTab, mTabModelJni.getTabAt(expectedIndex));
     }
 
-    private void createTabGroup(int numberOfTabs, TabGroupModelFilter filter) {
+    private void assertMoveTabGroup(List<Tab> tabs, int requestedIndex, int firstValidIndex) {
+        Token tabGroupId = tabs.get(0).getTabGroupId();
+        mTabModelJni.moveGroupToIndex(tabGroupId, requestedIndex);
+
+        int size = tabs.size();
+        for (int i = 0; i < size; i++) {
+            Tab movedTab = mTabModelJni.getTabAt(firstValidIndex + i);
+            assertEquals(
+                    "Tab at index " + (firstValidIndex + i) + " has wrong group ID.",
+                    tabGroupId,
+                    movedTab.getTabGroupId());
+            assertEquals(
+                    "Tab at index " + (firstValidIndex + i) + " is not the correct tab.",
+                    tabs.get(i),
+                    movedTab);
+        }
+    }
+
+    private List<Tab> createTabGroup(int numberOfTabs, TabGroupModelFilter filter) {
         List<Tab> tabs = new ArrayList<>();
         for (int i = 0; i < numberOfTabs; i++) tabs.add(createTab());
         ThreadUtils.runOnUiThreadBlocking(
                 () -> filter.mergeListOfTabsToGroup(tabs, tabs.get(0), false));
+        return tabs;
     }
 
     private Tab createTab() {

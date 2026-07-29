@@ -12,7 +12,6 @@
 #include "content/public/common/sandboxed_process_launcher_delegate.h"
 #include "content/public/common/zygote/zygote_buildflags.h"
 #include "media/gpu/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -28,6 +27,11 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/assistant/buildflags.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "media/gpu/buildflags.h"
+#include "media/media_buildflags.h"
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/process_requirement.h"
@@ -72,20 +76,22 @@ UtilitySandboxedProcessLauncherDelegate::
       sandbox_type_ == sandbox::mojom::Sandbox::kOnDeviceModelExecution ||
       sandbox_type_ == sandbox::mojom::Sandbox::kCdm ||
       sandbox_type_ == sandbox::mojom::Sandbox::kPrintCompositor ||
-#if BUILDFLAG(ENABLE_PPAPI) && !BUILDFLAG(IS_WIN)
-      sandbox_type_ == sandbox::mojom::Sandbox::kPpapi ||
-#endif
 #if BUILDFLAG(IS_FUCHSIA)
       sandbox_type_ == sandbox::mojom::Sandbox::kVideoCapture ||
 #endif
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
       sandbox_type_ == sandbox::mojom::Sandbox::kHardwareVideoDecoding ||
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
       sandbox_type_ == sandbox::mojom::Sandbox::kHardwareVideoEncoding ||
-#endif
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_CHROMEOS)
       sandbox_type_ == sandbox::mojom::Sandbox::kIme ||
       sandbox_type_ == sandbox::mojom::Sandbox::kTts ||
       sandbox_type_ == sandbox::mojom::Sandbox::kNearby ||
+      sandbox_type_ == sandbox::mojom::Sandbox::kShapeDetection ||
 #if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
       sandbox_type_ == sandbox::mojom::Sandbox::kLibassistant ||
 #endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
@@ -153,6 +159,7 @@ ZygoteCommunication* UtilitySandboxedProcessLauncherDelegate::GetZygote() {
       sandbox_type_ == sandbox::mojom::Sandbox::kIme ||
       sandbox_type_ == sandbox::mojom::Sandbox::kTts ||
       sandbox_type_ == sandbox::mojom::Sandbox::kNearby ||
+      sandbox_type_ == sandbox::mojom::Sandbox::kShapeDetection ||
 #if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
       sandbox_type_ == sandbox::mojom::Sandbox::kLibassistant ||
 #endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)

@@ -46,6 +46,7 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_ui_browser_interface_broker_registry.h"
 #include "content/public/browser/web_ui_controller_interface_binder.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -90,6 +91,7 @@
 #include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals.mojom.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals_ui.h"
+#include "chrome/browser/ui/webui/autofill_ml_internals/autofill_ml_internals_ui.h"
 #include "chrome/browser/ui/webui/commerce/product_specifications_ui.h"
 #include "chrome/browser/ui/webui/commerce/shopping_insights_side_panel_ui.h"
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons.mojom.h"
@@ -132,10 +134,12 @@
 #include "chrome/browser/ui/webui/web_app_internals/web_app_internals.mojom.h"
 #include "chrome/browser/ui/webui/web_app_internals/web_app_internals_ui.h"
 #include "chrome/browser/ui/webui/webui_gallery/webui_gallery_ui.h"
+#include "components/autofill/core/browser/ml_model/logging/autofill_ml_internals.mojom.h"
 #include "components/commerce/core/mojom/product_specifications.mojom.h"
 #include "components/commerce/core/mojom/shopping_service.mojom.h"  // nogncheck crbug.com/1125897
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/page_image_service/mojom/page_image_service.mojom.h"
+#include "components/search/ntp_composebox_fieldtrial.h"
 #include "components/search/ntp_features.h"
 #include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
 #include "ui/webui/resources/cr_components/customize_color_scheme_mode/customize_color_scheme_mode.mojom.h"
@@ -258,7 +262,6 @@
 #include "chrome/browser/ui/webui/ash/emoji/emoji_search_proxy.h"
 #include "chrome/browser/ui/webui/ash/emoji/emoji_ui.h"
 #include "chrome/browser/ui/webui/ash/emoji/new_window_proxy.mojom.h"
-#include "chrome/browser/ui/webui/ash/emoji/seal.mojom.h"
 #include "chrome/browser/ui/webui/ash/enterprise_reporting/enterprise_reporting.mojom.h"
 #include "chrome/browser/ui/webui/ash/enterprise_reporting/enterprise_reporting_ui.h"
 #include "chrome/browser/ui/webui/ash/extended_updates/extended_updates.mojom.h"
@@ -705,7 +708,7 @@ void PopulateChromeWebUIFrameBinders(
         file_suggestion::mojom::MicrosoftFilesPageHandler, NewTabPageUI>(map);
   }
 
-  if (ntp_features::IsNtpComposeboxEnabled()) {
+  if (ntp_composebox_fieldtrial::FeatureConfig::Get().enabled) {
     RegisterWebUIControllerInterfaceBinder<
         composebox::mojom::ComposeboxPageHandler, NewTabPageUI>(map);
   }
@@ -773,12 +776,15 @@ void PopulateChromeWebUIFrameBinders(
       AppServiceInternalsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
+      ::autofill_ml_internals::mojom::PageHandler, AutofillMlInternalsUI>(map);
+
+  RegisterWebUIControllerInterfaceBinder<
       access_code_cast::mojom::PageHandlerFactory,
       media_router::AccessCodeCastUI>(map);
 
   // TODO(crbug.com/398926117): Create a generic mechanism for these interfaces.
   map->Add<metrics_reporter::mojom::PageMetricsHost>(
-      base::BindRepeating(&BindMetricsReporterService));
+      &BindMetricsReporterService);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
@@ -1148,8 +1154,6 @@ void PopulateChromeWebUIFrameBinders(
 
   RegisterWebUIControllerInterfaceBinder<
       new_window_proxy::mojom::NewWindowProxy, ash::EmojiUI>(map);
-  RegisterWebUIControllerInterfaceBinder<seal::mojom::SealService,
-                                         ash::EmojiUI>(map);
 
   if (base::FeatureList::IsEnabled(features::kSkyVault) &&
       base::FeatureList::IsEnabled(features::kSkyVaultV2)) {

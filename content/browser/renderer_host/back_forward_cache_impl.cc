@@ -213,7 +213,8 @@ WebSchedulerTrackedFeatures GetDisallowedWebSchedulerTrackedFeatures() {
           WebSchedulerTrackedFeature::kWebSocket,
           WebSchedulerTrackedFeature::kWebTransport,
           WebSchedulerTrackedFeature::kWebXR,
-          WebSchedulerTrackedFeature::kParserAborted};
+          WebSchedulerTrackedFeature::kParserAborted,
+          WebSchedulerTrackedFeature::kSharedWorkerMessage};
 }
 WebSchedulerTrackedFeatures GetInjectionWebSchedulerTrackedFeatures() {
   return {WebSchedulerTrackedFeature::kInjectedJavascript,
@@ -491,7 +492,7 @@ void MarkNoWithSingleFeature(BackForwardCacheCanStoreDocumentResult* result,
                              WebSchedulerTrackedFeature feature) {
   BackForwardCacheCanStoreDocumentResult::BlockingDetailsMap map;
   auto details_ptr = blink::mojom::BlockingDetails::New();
-  details_ptr->feature = static_cast<uint32_t>(feature);
+  details_ptr->feature = feature;
   map[feature].push_back(std::move(details_ptr));
   result->NoDueToFeatures(std::move(map));
 }

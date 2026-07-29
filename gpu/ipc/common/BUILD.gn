@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/config/ui.gni")
-import("//components/nacl/toolchain.gni")
 import("//gpu/vulkan/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
@@ -51,21 +50,17 @@ source_set("command_buffer_traits_sources") {
 
   public_deps = [
     ":export",
-    "//gpu/command_buffer/common:common_sources",
+    "//gpu/command_buffer/common",
     "//ipc",
     "//ui/gfx/ipc",
   ]
 
   deps = [
     "//base",
-    "//gpu/ipc/common:vulkan_ycbcr_info",
     "//ui/gfx/ipc/buffer_types",
     "//ui/gfx/ipc/geometry",
+    "//ui/gfx/ipc/skia",
   ]
-
-  if (!is_nacl && !is_minimal_toolchain) {
-    deps += [ "//ui/gfx/ipc/skia" ]
-  }
 }
 
 source_set("memory_stats_sources") {
@@ -116,7 +111,10 @@ source_set("ipc_common_sources") {
       "gpu_memory_buffer_impl_dxgi.cc",
       "gpu_memory_buffer_impl_dxgi.h",
     ]
-    libs = [ "d3d11.lib" ]
+    libs = [
+      "d3d11.lib",
+      "dxguid.lib",
+    ]
   }
   if (use_ozone) {
     sources += [
@@ -142,7 +140,6 @@ source_set("ipc_common_sources") {
     ":memory_stats_sources",
     ":shared_image_pool_client_interface",
     ":surface_handle_type",
-    ":vulkan_ycbcr_info",
     "//ipc",
     "//url/ipc:url_ipc",
   ]
@@ -150,9 +147,8 @@ source_set("ipc_common_sources") {
   deps = [
     "//base",
     "//components/viz/common:shared_image_format",
-    "//gpu/command_buffer/client:client_gmb_manager",
-    "//gpu/command_buffer/common:common_sources",
-    "//gpu/config:config_sources",
+    "//gpu/command_buffer/common",
+    "//gpu/config",
     "//third_party/libyuv",
     "//ui/base",
     "//ui/gfx:color_space",
@@ -161,6 +157,7 @@ source_set("ipc_common_sources") {
     "//ui/gfx/ipc/buffer_types",
     "//ui/gfx/ipc/color",
     "//ui/gfx/ipc/geometry",
+    "//ui/gfx/ipc/skia",
     "//ui/gl",
   ]
 
@@ -169,7 +166,10 @@ source_set("ipc_common_sources") {
       "gpu_memory_buffer_impl_io_surface.cc",
       "gpu_memory_buffer_impl_io_surface.h",
     ]
-    frameworks = [ "IOSurface.framework" ]
+    frameworks = [
+      "IOSurface.framework",
+      "CoreFoundation.framework",
+    ]
   }
 
   if (is_ios && target_platform == "iphoneos") {
@@ -177,10 +177,6 @@ source_set("ipc_common_sources") {
       "ios/be_layer_hierarchy_transport.cc",
       "ios/be_layer_hierarchy_transport.h",
     ]
-  }
-
-  if (!is_nacl && !is_minimal_toolchain) {
-    deps += [ "//ui/gfx/ipc/skia" ]
   }
 
   if (is_android) {
@@ -206,16 +202,6 @@ source_set("surface_handle_type") {
   public = [ "surface_handle.h" ]
 
   public_deps = [ "//ui/gfx:native_widget_types" ]
-}
-
-component("vulkan_ycbcr_info") {
-  sources = [
-    "vulkan_ycbcr_info.cc",
-    "vulkan_ycbcr_info.h",
-  ]
-  public_deps = [ ":export" ]
-  deps = [ "//base" ]
-  configs += [ "//gpu:gpu_implementation" ]
 }
 
 source_set("vulkan_types") {
@@ -266,7 +252,7 @@ mojom("gpu_channel_mojom") {
       ]
       traits_headers = [ "context_creation_attribs_mojom_traits.h" ]
       traits_sources = [ "context_creation_attribs_mojom_traits.cc" ]
-      traits_public_deps = [ "//gpu/command_buffer/common:common_base_sources" ]
+      traits_public_deps = [ "//gpu/command_buffer/common" ]
     },
     {
       types = [
@@ -285,7 +271,7 @@ mojom("gpu_channel_mojom") {
       ]
       traits_headers = [ "command_buffer_mojom_traits.h" ]
       traits_sources = [ "command_buffer_mojom_traits.cc" ]
-      traits_public_deps = [ "//gpu/command_buffer/common:common_sources" ]
+      traits_public_deps = [ "//gpu/command_buffer/common" ]
     },
     {
       types = [
@@ -295,7 +281,7 @@ mojom("gpu_channel_mojom") {
         },
       ]
       traits_headers = [ "scheduling_priority_mojom_traits.h" ]
-      traits_public_deps = [ "//gpu/command_buffer/common:common_base_sources" ]
+      traits_public_deps = [ "//gpu/command_buffer/common" ]
     },
     {
       types = [
@@ -315,21 +301,6 @@ mojom("gpu_channel_mojom") {
   export_class_attribute = "GPU_EXPORT"
   export_header = "gpu/gpu_export.h"
   cpp_configs = [ "//gpu:gpu_implementation" ]
-}
-
-mojom("gmb_interface") {
-  generate_java = true
-  visibility = [
-    "//gpu/*",
-    "//services/*",
-  ]
-  sources = [ "client_gmb_interface.mojom" ]
-  deps = [
-    ":surface_handle",
-    "//mojo/public/mojom/base",
-    "//ui/gfx/geometry/mojom",
-    "//ui/gfx/mojom",
-  ]
 }
 
 mojom("shared_image_pool_client_interface") {
@@ -434,7 +405,7 @@ mojom("interfaces") {
         },
       ]
       traits_headers = [ "context_result_mojom_traits.h" ]
-      traits_public_deps = [ "//gpu/command_buffer/common:common_base_sources" ]
+      traits_public_deps = [ "//gpu/command_buffer/common" ]
     },
     {
       types = [
@@ -479,7 +450,7 @@ mojom("interfaces") {
       traits_sources = [ "gpu_feature_info_mojom_traits.cc" ]
       traits_headers = [ "gpu_feature_info_mojom_traits.h" ]
       traits_public_deps = [
-        "//gpu/config:config_sources",
+        "//gpu/config",
         "//ui/gfx/geometry/mojom",
       ]
     },
@@ -525,7 +496,7 @@ mojom("interfaces") {
       traits_sources = [ "gpu_info_mojom_traits.cc" ]
       traits_headers = [ "gpu_info_mojom_traits.h" ]
       traits_public_deps = [
-        "//gpu/config:config_sources",
+        "//gpu/config",
         "//ui/gfx/geometry/mojom",
       ]
     },
@@ -722,7 +693,7 @@ mojom("interfaces") {
         traits_sources = [ "luid_mojom_traits.cc" ]
         traits_public_deps = [
           ":mojom_traits",
-          "//gpu/config:config_sources",
+          "//gpu/config",
         ]
       },
     ]
@@ -791,54 +762,49 @@ mojom("gpu_preferences_interface") {
   ]
 }
 
-mojom("vulkan_interface") {
-  generate_java = true
-  webui_module_path = "/"
-  generate_legacy_js_bindings = true
+if (enable_vulkan) {
+  mojom("vulkan_interface") {
+    generate_java = true
+    webui_module_path = "/"
+    generate_legacy_js_bindings = true
 
-  # TODO(crbug.com/40122851): This interface code is used by some javascript
-  # targets even when vulkan isn't enabled, but the C++ fuzzer code will fail
-  # to compile if the headers aren't available.
-  if (!enable_vulkan) {
-    enable_mojolpm_fuzzing = false
+    sources = [
+      "vulkan_info.mojom",
+      "vulkan_types.mojom",
+    ]
+
+    public_deps = [ "//mojo/public/mojom/base" ]
+
+    js_generate_struct_deserializers = true
+
+    # This imports the |generated_vulkan_type_mappings| definition used below.
+    import("//gpu/ipc/common/generated_vulkan_type_mappings.gni")
+    cpp_typemaps = [
+      {
+        types = [
+          {
+            mojom = "gpu.mojom.VulkanPhysicalDeviceInfo"
+            cpp = "::gpu::VulkanPhysicalDeviceInfo"
+          },
+          {
+            mojom = "gpu.mojom.VulkanInfo"
+            cpp = "::gpu::VulkanInfo"
+          },
+        ]
+        traits_headers = [ "vulkan_info_mojom_traits.h" ]
+      },
+      {
+        types = generated_vulkan_type_mappings
+        traits_sources = [ "vulkan_types_mojom_traits.cc" ]
+        traits_headers = [ "vulkan_types_mojom_traits.h" ]
+        traits_public_deps = [ ":vulkan_types" ]
+      },
+    ]
+
+    export_class_attribute = "GPU_EXPORT"
+    export_header = "gpu/gpu_export.h"
+    cpp_configs = [ "//gpu:gpu_implementation" ]
   }
-
-  sources = [
-    "vulkan_info.mojom",
-    "vulkan_types.mojom",
-  ]
-
-  public_deps = [ "//mojo/public/mojom/base" ]
-
-  js_generate_struct_deserializers = true
-
-  # This imports the |generated_vulkan_type_mappings| definition used below.
-  import("//gpu/ipc/common/generated_vulkan_type_mappings.gni")
-  cpp_typemaps = [
-    {
-      types = [
-        {
-          mojom = "gpu.mojom.VulkanPhysicalDeviceInfo"
-          cpp = "::gpu::VulkanPhysicalDeviceInfo"
-        },
-        {
-          mojom = "gpu.mojom.VulkanInfo"
-          cpp = "::gpu::VulkanInfo"
-        },
-      ]
-      traits_headers = [ "vulkan_info_mojom_traits.h" ]
-    },
-    {
-      types = generated_vulkan_type_mappings
-      traits_sources = [ "vulkan_types_mojom_traits.cc" ]
-      traits_headers = [ "vulkan_types_mojom_traits.h" ]
-      traits_public_deps = [ ":vulkan_types" ]
-    },
-  ]
-
-  export_class_attribute = "GPU_EXPORT"
-  export_header = "gpu/gpu_export.h"
-  cpp_configs = [ "//gpu:gpu_implementation" ]
 }
 
 mojom("test_interfaces") {
@@ -874,10 +840,14 @@ source_set("mojom_traits") {
     ":interfaces_shared",
     ":memory_stats_sources",
     ":surface_handle_type",
-    ":vulkan_ycbcr_info",
-    "//gpu/command_buffer/common:common_base_sources",
+    "//gpu/command_buffer/common",
     "//mojo/public/cpp/bindings:bindings",
   ]
+
+  if (enable_vulkan) {
+    public_deps += [ "//gpu/vulkan" ]
+  }
+
   if (is_android) {
     sources += [ "vulkan_ycbcr_info_mojom_traits.h" ]
   }

@@ -32,6 +32,9 @@ declare_args() {
   # The default linker everywhere else.
   use_lld = is_clang && current_os != "zos"
 
+  # If false, build using C++20; otherwise, build using C++23.
+  use_cxx23 = false
+
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
   optimize_for_size =
@@ -44,6 +47,12 @@ declare_args() {
   # builds on Linux that could use a different version of the compiler.
   # With GCC, warnings in no-Chromium code are always not treated as errors.
   treat_warnings_as_errors = true
+
+  # How clang should report warnings, either false to report in the usual
+  # manner, or true to add source range information to the diagnostics in
+  # a form suitable for subsequent processing with scripts. With GCC, or
+  # on Windows, the warning format is not affected.
+  diagnostics_print_source_range_info = false
 
   # How many symbols to include in the build. This affects the performance of
   # the build since the symbols are large and dealing with them is slow.
@@ -243,7 +252,7 @@ enable_arm_cfi_table = is_android && !is_component_build && current_cpu == "arm"
 # deterministic builds to reduce compile times, so this is less relevant for
 # official builders.
 strip_absolute_paths_from_debug_symbols_default =
-    is_android || is_fuchsia || is_nacl || (is_win && use_lld) || is_linux ||
+    is_android || is_fuchsia || (is_win && use_lld) || is_linux ||
     is_chromeos || (is_apple && !enable_dsyms)
 
 # If the platform uses stripped absolute paths by default, then we don't expose
@@ -306,7 +315,7 @@ if (symbol_level == -1) {
     # info or variable info, so we can leave that out to speed up the build.
     # Sanitizers also require symbols for filename suppressions to work.
     symbol_level = 1
-  } else if ((!is_nacl && !is_linux && !is_chromeos && !is_fuchsia &&
+  } else if ((!is_linux && !is_chromeos && !is_fuchsia &&
               current_os != "aix") || is_debug || is_castos ||
              is_cast_android) {
     # Linux builds slower by having symbols as part of the target binary,

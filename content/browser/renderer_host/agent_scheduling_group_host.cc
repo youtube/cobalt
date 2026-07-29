@@ -27,10 +27,6 @@
 #include "third_party/blink/public/mojom/shared_storage/shared_storage_worklet_service.mojom.h"
 #include "third_party/blink/public/mojom/worker/worklet_global_scope_creation_params.mojom.h"
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-#include "content/public/browser/browser_message_filter.h"
-#endif
-
 namespace content {
 
 namespace {
@@ -241,20 +237,6 @@ void AgentSchedulingGroupHost::OnAssociatedInterfaceRequest(
       &*process_, bad_message::ASGH_ASSOCIATED_INTERFACE_REQUEST);
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-void AgentSchedulingGroupHost::AddFilter(BrowserMessageFilter* filter) {
-  DCHECK(filter);
-  // When MBI mode is disabled, we forward these kinds of requests straight to
-  // the underlying `RenderProcessHost`.
-  if (GetMBIMode() == features::MBIMode::kLegacy) {
-    process_->AddFilter(filter);
-    return;
-  }
-
-  channel_->AddFilter(filter->GetFilter());
-}
-#endif
-
 RenderProcessHost* AgentSchedulingGroupHost::GetProcess() {
   // `process_` can still be accessed here even if `state_` has been set to
   // `kRenderProcessHostDestroyed`. This is because a `RenderProcessHostImpl` is
@@ -451,8 +433,7 @@ void AgentSchedulingGroupHost::SetUpIPC() {
     // TODO(crbug.com/40142495): Add necessary filters.
     // Most of the filters currently installed on the process-wide channel are:
     // 1. "Process-bound", that is, they do not handle messages sent using ASG,
-    // 2. Pepper/NaCl-related, that are going away, and are not supported, or
-    // 3. Related to Android WebViews, which are not currently supported.
+    // 2. Related to Android WebViews, which are not currently supported.
 
     channel_->GetRemoteAssociatedInterface(&mojo_remote_);
   }

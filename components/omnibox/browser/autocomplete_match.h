@@ -195,6 +195,7 @@ struct AutocompleteMatch {
     };
     // clang-format on
 
+    ACMatchClassification() = default;
     ACMatchClassification(size_t offset, int style)
         : offset(offset), style(style) {}
 
@@ -202,10 +203,10 @@ struct AutocompleteMatch {
                            const ACMatchClassification&) = default;
 
     // Offset within the string that this classification starts
-    size_t offset;
+    size_t offset = 0;
 
     // Contains a bitmask of flags defined in enum Style.
-    int style;
+    int style = 0;
   };
 
   // SuggestTiles are used specifically with TILE_NAVSUGGEST matches.
@@ -533,7 +534,10 @@ struct AutocompleteMatch {
 
   // Checks if this match is an informational IPH suggestion based on the match
   // and provider type.
-  bool IsIPHSuggestion() const;
+  bool IsIphSuggestion() const;
+
+  // Checks if this match has an attached action with the given `action_id`.
+  bool HasAction(OmniboxActionId action_id) const;
 
   // Checks if this match is a contextual search suggestion to be fulfilled
   // by lens in the side panel.

@@ -580,6 +580,10 @@ void NoDeleteBrowsingDataDialogHistogram(
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
 
   // Set history pref to false.
   [ChromeEarlGrey setBoolValue:NO
@@ -698,6 +702,13 @@ void NoDeleteBrowsingDataDialogHistogram(
                  grey_text(l10n_util::GetNSString(
                      IDS_IOS_CLEAR_BROWSING_DATA_TIME_RANGE_SELECTOR_TITLE))]
       performAction:grey_tap()];
+
+  // TODO(crbug.com/428928323): Investigate why the keyboard appears and remove
+  // this workaround when it's not needed anymore.
+  // On iOS 26, the keyboard appears when the 'Time Range' button is tapped and
+  // it hides the elements behind. Close the keyboard by typing a return key.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+
   [[EarlGrey
       selectElementWithMatcher:
           PopupCellMenuItemWithTimeRange(l10n_util::GetNSString(

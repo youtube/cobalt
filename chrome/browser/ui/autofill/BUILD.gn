@@ -31,6 +31,7 @@ source_set("autofill") {
     "//base",
     "//base:i18n",
     "//chrome/browser:global_features",
+    "//chrome/browser/feature_engagement",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/autofill/payments",
@@ -194,6 +195,7 @@ source_set("impl") {
       "//chrome/app/vector_icons",
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/feedback",
+      "//chrome/browser/profiles:profile_util",
       "//chrome/browser/promos:utils",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/promos:utils",
@@ -295,12 +297,14 @@ source_set("unit_tests") {
       "address_editor_controller_unittest.cc",
       "autofill_field_promo_controller_impl_unittest.cc",
       "autofill_popup_controller_impl_unittest.cc",
-      "delete_address_profile_dialog_controller_impl_unittest.cc",
-      "edit_address_profile_dialog_controller_impl_unittest.cc",
       "save_address_bubble_controller_unittest.cc",
       "update_address_bubble_controller_unittest.cc",
     ]
-    deps += [ "//chrome/browser/ui/hats:test_support" ]
+    deps += [
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/hats:test_support",
+      "//chrome/browser/ui/user_education",
+    ]
   }
 }
 
@@ -351,6 +355,8 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/sync:factories",
       "//chrome/browser/ui",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/browser_window:browser_window",
+      "//chrome/browser/ui/user_education",
       "//chrome/common:constants",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
@@ -440,6 +446,8 @@ if (!is_android) {
       "address_bubbles_controller_browsertest.cc",
       "autofill_ai/save_or_update_autofill_ai_data_controller_impl_browsertest.cc",
       "autofill_context_menu_manager_browsertest.cc",
+      "delete_address_profile_dialog_controller_impl_browsertest.cc",
+      "edit_address_profile_dialog_controller_impl_browsertest.cc",
     ]
 
     deps = [
@@ -454,6 +462,7 @@ if (!is_android) {
       "//chrome/browser/plus_addresses",
       "//chrome/browser/sync",
       "//chrome/browser/ui",
+      "//chrome/browser/ui/browser_window",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//components/autofill/content/browser:test_support",

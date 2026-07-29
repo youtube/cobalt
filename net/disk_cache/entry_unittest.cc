@@ -25,6 +25,7 @@
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/blockfile/backend_impl.h"
 #include "net/disk_cache/blockfile/entry_impl.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
@@ -36,9 +37,24 @@
 #include "net/disk_cache/simple/simple_synchronous_entry.h"
 #include "net/disk_cache/simple/simple_test_util.h"
 #include "net/disk_cache/simple/simple_util.h"
+#include "net/disk_cache/sql/sql_backend_constants.h"
 #include "net/test/gtest_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Some tests use methods that are not implemented in SQLBackend. Therefore,
+// this macro is used to skip such tests.
+// TODO(crbug.com/422065015): Remove this macro once such methods are
+// implemented.
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+#define SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED()                                 \
+  if (GetParam() == BackendToTest::kSql) {                                    \
+    LOG(INFO) << "Skipping test for SQL backend as it's not implemented yet"; \
+    return;                                                                   \
+  }
+#else
+#define SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED()
+#endif
 
 using net::test::IsError;
 using net::test::IsOk;
@@ -66,14 +82,14 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void ExternalSyncIO();
   void ExternalAsyncIO();
   void ReleaseBuffer(int stream_index);
-  void StreamAccess();
+  void StreamAccess(int num_streams);
   void GetKey();
   void GetTimes(int stream_index);
   void GrowData(int stream_index);
   void TruncateData(int stream_index);
   void ZeroLengthIO(int stream_index);
   void Buffering();
-  void SizeAtCreate();
+  void SizeAtCreate(int num_stream);
   void SizeChanges(int stream_index);
   void ReuseEntry(int size, int stream_index);
   void InvalidData(int stream_index);
@@ -114,6 +130,19 @@ class DiskCacheGenericEntryTest
       public testing::WithParamInterface<BackendToTest> {
  protected:
   DiskCacheGenericEntryTest();
+
+  int SupportedStreamCount() {
+    switch (GetParam()) {
+      case BackendToTest::kBlockfile:
+      case BackendToTest::kMemory:
+      case BackendToTest::kSimple:
+        return kStreamCount;
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+      case BackendToTest::kSql:
+        return disk_cache::kSqlBackendStreamCount;
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
+    }
+  }
 };
 
 DiskCacheGenericEntryTest::DiskCacheGenericEntryTest() {
@@ -351,6 +380,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, InternalAsyncIO) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   InternalAsyncIO();
 }
@@ -545,6 +575,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, ExternalAsyncIO) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   ExternalAsyncIO();
 }
@@ -582,25 +613,24 @@ TEST_P(DiskCacheGenericEntryTest, ReleaseBuffer) {
   if (backend_to_test() == BackendToTest::kBlockfile) {
     cache_impl_->SetFlags(disk_cache::kNoBuffering);
   }
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     ReleaseBuffer(i);
   }
 }
 
-void DiskCacheEntryTest::StreamAccess() {
+void DiskCacheEntryTest::StreamAccess(int num_streams) {
   disk_cache::Entry* entry = nullptr;
   ASSERT_THAT(CreateEntry("the first key", &entry), IsOk());
   ASSERT_TRUE(nullptr != entry);
 
   const int kBufferSize = 1024;
-  const int kNumStreams = 3;
-  std::array<scoped_refptr<net::IOBuffer>, kNumStreams> reference_buffers;
+  std::vector<scoped_refptr<net::IOBuffer>> reference_buffers(num_streams);
   for (auto& reference_buffer : reference_buffers) {
     reference_buffer = CacheTestCreateAndFillBuffer(kBufferSize, false);
   }
   auto buffer1 = base::MakeRefCounted<net::IOBufferWithSize>(kBufferSize);
-  for (int i = 0; i < kNumStreams; i++) {
+  for (int i = 0; i < num_streams; i++) {
     EXPECT_EQ(
         kBufferSize,
         WriteData(entry, i, 0, reference_buffers[i].get(), kBufferSize, false));
@@ -611,7 +641,7 @@ void DiskCacheEntryTest::StreamAccess() {
               buffer1->first(kBufferSize));
   }
   EXPECT_EQ(net::ERR_INVALID_ARGUMENT,
-            ReadData(entry, kNumStreams, 0, buffer1.get(), kBufferSize));
+            ReadData(entry, num_streams, 0, buffer1.get(), kBufferSize));
   entry->Close();
 
   // Open the entry and read it in chunks, including a read past the end.
@@ -622,7 +652,7 @@ void DiskCacheEntryTest::StreamAccess() {
   static_assert(kFinalReadSize < kReadBufferSize,
                 "should be exactly two reads");
   auto buffer2 = base::MakeRefCounted<net::IOBufferWithSize>(kReadBufferSize);
-  for (int i = 0; i < kNumStreams; i++) {
+  for (int i = 0; i < num_streams; i++) {
     std::ranges::fill(buffer2->span(), 0);
     EXPECT_EQ(kReadBufferSize,
               ReadData(entry, i, 0, buffer2.get(), kReadBufferSize));
@@ -644,7 +674,7 @@ void DiskCacheEntryTest::StreamAccess() {
 
 TEST_P(DiskCacheGenericEntryTest, StreamAccess) {
   InitCache();
-  StreamAccess();
+  StreamAccess(SupportedStreamCount());
 }
 
 void DiskCacheEntryTest::GetKey() {
@@ -733,7 +763,7 @@ void DiskCacheEntryTest::GetTimes(int stream_index) {
 
 TEST_P(DiskCacheGenericEntryTest, GetTimes) {
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     GetTimes(i);
   }
@@ -823,7 +853,7 @@ void DiskCacheEntryTest::GrowData(int stream_index) {
 
 TEST_P(DiskCacheGenericEntryTest, GrowData) {
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     GrowData(i);
   }
@@ -901,7 +931,7 @@ void DiskCacheEntryTest::TruncateData(int stream_index) {
 
 TEST_P(DiskCacheGenericEntryTest, TruncateData) {
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     TruncateData(i);
   }
@@ -952,7 +982,7 @@ void DiskCacheEntryTest::ZeroLengthIO(int stream_index) {
 
 TEST_P(DiskCacheGenericEntryTest, ZeroLengthIO) {
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     ReleaseBuffer(i);
   }
@@ -965,6 +995,7 @@ TEST_F(DiskCacheEntryTest, ZeroLengthIONoBuffer) {
 }
 
 TEST_P(DiskCacheGenericEntryTest, ReadDataWithNegativeOffset) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
 
   std::string key("the first key");
@@ -1074,20 +1105,20 @@ TEST_F(DiskCacheEntryTest, BufferingNoBuffer) {
 }
 
 // Checks that entries are zero length when created.
-void DiskCacheEntryTest::SizeAtCreate() {
+void DiskCacheEntryTest::SizeAtCreate(int num_stream) {
   const char key[]  = "the first key";
   disk_cache::Entry* entry;
   ASSERT_THAT(CreateEntry(key, &entry), IsOk());
 
-  const int kNumStreams = 3;
-  for (int i = 0; i < kNumStreams; ++i)
+  for (int i = 0; i < num_stream; ++i) {
     EXPECT_EQ(0, entry->GetDataSize(i));
+  }
   entry->Close();
 }
 
 TEST_P(DiskCacheGenericEntryTest, SizeAtCreate) {
   InitCache();
-  SizeAtCreate();
+  SizeAtCreate(SupportedStreamCount());
 }
 
 // Some extra tests to make sure that buffering works properly when changing
@@ -1188,7 +1219,7 @@ void DiskCacheEntryTest::SizeChanges(int stream_index) {
 
 TEST_P(DiskCacheGenericEntryTest, SizeChanges) {
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     SizeChanges(i);
   }
@@ -1229,7 +1260,7 @@ void DiskCacheEntryTest::ReuseEntry(int size, int stream_index) {
 TEST_P(DiskCacheGenericEntryTest, ReuseExternalEntry) {
   SetMaxSize(200 * 1024);
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     ReuseEntry(20 * 1024, i);
   }
@@ -1238,7 +1269,7 @@ TEST_P(DiskCacheGenericEntryTest, ReuseExternalEntry) {
 TEST_P(DiskCacheGenericEntryTest, ReuseInternalEntry) {
   SetMaxSize(100 * 1024);
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     ReuseEntry(10 * 1024, i);
   }
@@ -1317,7 +1348,7 @@ void DiskCacheEntryTest::InvalidData(int stream_index) {
 
 TEST_P(DiskCacheGenericEntryTest, InvalidData) {
   InitCache();
-  for (int i = 0; i < kStreamCount; ++i) {
+  for (int i = 0; i < SupportedStreamCount(); ++i) {
     EXPECT_THAT(DoomAllEntries(), IsOk());
     InvalidData(i);
   }
@@ -1387,6 +1418,7 @@ void DiskCacheEntryTest::DoomNormalEntry() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, DoomEntry) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   DoomNormalEntry();
 }
@@ -1464,7 +1496,7 @@ void DiskCacheEntryTest::DoomedEntry(int stream_index) {
 TEST_P(DiskCacheGenericEntryTest, DoomedEntry) {
   InitCache();
 
-  int stream_limit = kStreamCount;
+  int stream_limit = SupportedStreamCount();
   if (backend_to_test() == BackendToTest::kSimple) {
     // Stream 2 is excluded because the implementation does not support
     // writing to it on a doomed entry, if it was previously lazily omitted.
@@ -1610,6 +1642,7 @@ void DiskCacheEntryTest::BasicSparseIO() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, BasicSparseIO) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   BasicSparseIO();
 }
@@ -1635,6 +1668,7 @@ void DiskCacheEntryTest::HugeSparseIO() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, HugeSparseIO) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   HugeSparseIO();
 }
@@ -1663,6 +1697,7 @@ void DiskCacheEntryTest::LargeOffsetSparseIO() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, LargeOffsetSparseIO) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   // The test only works on SimpleCache and Memory Cache now since other backend
   // does not support 2GB+ offset for 32 bits architecture.
   // TODO(crbug.com/391398191): Expand the test target to all cache backend.
@@ -1753,11 +1788,13 @@ void DiskCacheEntryTest::GetAvailableRangeTest() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, GetAvailableRange) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   GetAvailableRangeTest();
 }
 
 TEST_P(DiskCacheGenericEntryTest, GetAvailableRangeForLargeOffset) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   // The test only works on SimpleCache and Memory Cache now since other backend
   // does not support 2GB+ offset for 32 bits architecture.
   // TODO(crbug.com/391398191): Expand the test target to all cache backend.
@@ -2179,6 +2216,7 @@ void DiskCacheEntryTest::UpdateSparseEntry() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, UpdateSparseEntry) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   UpdateSparseEntry();
 }
@@ -2239,6 +2277,7 @@ void DiskCacheEntryTest::DoomSparseEntry() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, DoomSparseEntry) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   if (backend_to_test() == BackendToTest::kBlockfile) {
     UseCurrentThread();
   }
@@ -2406,6 +2445,7 @@ void DiskCacheEntryTest::PartialSparseEntry() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, PartialSparseEntry) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   PartialSparseEntry();
 }
@@ -2445,6 +2485,7 @@ void DiskCacheEntryTest::SparseInvalidArg() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, SparseInvalidArg) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
   SparseInvalidArg();
 }
@@ -2491,6 +2532,7 @@ void DiskCacheEntryTest::SparseClipEnd(int64_t max_index,
 }
 
 TEST_P(DiskCacheGenericEntryTest, SparseClipEnd) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   InitCache();
 
   // Blockfile refuses to deal with sparse indices over 64GiB.
@@ -5096,6 +5138,7 @@ void DiskCacheEntryTest::SparseOffset64Bit() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, SparseOffset64Bit) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   // https://crbug.com/946436 is the memory backend version.
   InitCache();
   SparseOffset64Bit();
@@ -5205,6 +5248,7 @@ void DiskCacheEntryTest::SparseReadLength0() {
 }
 
 TEST_P(DiskCacheGenericEntryTest, SparseReadLength0) {
+  SKIP_IF_SQL_BACKEND_NOT_IMPLEMENTED();
   // https://crbug.com/392690731 is the simple backend bug.
   InitCache();
   SparseReadLength0();
@@ -5239,6 +5283,38 @@ TEST_F(DiskCacheEntryTest, BlockFileKeyLenCalc) {
             disk_cache::kMaxInternalKeyLength + 1);
 }
 
+// nullptr is only acceptable to pass to WriteData with writes of length 0;
+// everything else should fail explicitly.
+TEST_P(DiskCacheGenericEntryTest, WriteDataNulBuf) {
+  InitCache();
+
+  disk_cache::Entry* entry = nullptr;
+  ASSERT_THAT(CreateEntry("key", &entry), IsOk());
+  ASSERT_TRUE(entry != nullptr);
+
+  const int kSize = 10;
+  auto buffer = CacheTestCreateAndFillBuffer(kSize, /*no_nulls=*/false);
+
+  for (int stream = 0; stream < SupportedStreamCount(); ++stream) {
+    EXPECT_EQ(net::ERR_INVALID_ARGUMENT,
+              WriteData(entry, stream, /*offset=*/0,
+                        /*buf=*/nullptr, kSize, /*truncate=*/false));
+    EXPECT_EQ(net::ERR_INVALID_ARGUMENT,
+              WriteData(entry, stream, /*offset=*/0,
+                        /*buf=*/nullptr, kSize, /*truncate=*/true));
+
+    // Make sure that buf=nullptr, len=0 can truncate right.
+    EXPECT_EQ(kSize,
+              WriteData(entry, stream, /*offset=*/0,
+                        /*buf=*/buffer.get(), kSize, /*truncate=*/false));
+    EXPECT_EQ(kSize, entry->GetDataSize(stream));
+    EXPECT_EQ(0, WriteData(entry, stream, /*offset=*/0,
+                           /*buf=*/nullptr, /*=*/0, /*truncate=*/true));
+    EXPECT_EQ(0, entry->GetDataSize(stream));
+  }
+  entry->Close();
+}
+
 class DiskCacheSimplePrefetchTest : public DiskCacheEntryTest {
  public:
   DiskCacheSimplePrefetchTest() = default;
@@ -5250,8 +5326,8 @@ class DiskCacheSimplePrefetchTest : public DiskCacheEntryTest {
     DiskCacheEntryTest::SetUp();
   }
 
-  void SetupFullAndTrailerPrefetch(int full_size,
-                                   int trailer_speculative_size) {
+  void SetupFullAndTrailerPrefetch(uint32_t full_size,
+                                   uint32_t trailer_speculative_size) {
     std::map<std::string, std::string> params;
     params[disk_cache::kSimpleCacheFullPrefetchBytesParam] =
         base::NumberToString(full_size);
@@ -5261,7 +5337,9 @@ class DiskCacheSimplePrefetchTest : public DiskCacheEntryTest {
         disk_cache::kSimpleCachePrefetchExperiment, params);
   }
 
-  void SetupFullPrefetch(int size) { SetupFullAndTrailerPrefetch(size, 0); }
+  void SetupFullPrefetch(uint32_t size) {
+    SetupFullAndTrailerPrefetch(size, 0);
+  }
 
   void InitCacheAndCreateEntry(const std::string& key) {
     SetBackendToTest(BackendToTest::kSimple);
@@ -5279,8 +5357,8 @@ class DiskCacheSimplePrefetchTest : public DiskCacheEntryTest {
   virtual net::CacheType SimpleCacheType() const { return net::DISK_CACHE; }
 
   void InitCacheAndCreateEntryWithNoCrc(const std::string& key) {
-    const int kHalfSize = kEntrySize / 2;
-    const int kRemSize = kEntrySize - kHalfSize;
+    constexpr uint32_t kHalfSize = kEntrySize / 2;
+    constexpr uint32_t kRemSize = kEntrySize - kHalfSize;
 
     SetBackendToTest(BackendToTest::kSimple);
     InitCache();
@@ -5296,8 +5374,8 @@ class DiskCacheSimplePrefetchTest : public DiskCacheEntryTest {
     // so that the only difference between here and InitCacheAndCreateEntry()
     // would be whether the result has a checkum or not.
     auto second_half = base::MakeRefCounted<net::IOBufferWithSize>(kRemSize);
-    second_half->span().copy_from(payload_->span().subspan(
-        static_cast<size_t>(kHalfSize), static_cast<size_t>(kRemSize)));
+    second_half->span().copy_from(
+        payload_->span().subspan(kHalfSize, kRemSize));
     ASSERT_EQ(kRemSize, WriteData(entry, 1, kHalfSize, second_half.get(),
                                   kRemSize, false));
     entry->Close();
@@ -5638,7 +5716,12 @@ INSTANTIATE_TEST_SUITE_P(
     DiskCacheGenericEntryTest,
     testing::Values(BackendToTest::kBlockfile,
                     BackendToTest::kSimple,
-                    BackendToTest::kMemory),
+                    BackendToTest::kMemory
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+                    ,
+                    BackendToTest::kSql
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
+                    ),
     [](const testing::TestParamInfo<BackendToTest>& info) {
       return DiskCacheTestWithCache::BackendToTestName(info.param);
     });

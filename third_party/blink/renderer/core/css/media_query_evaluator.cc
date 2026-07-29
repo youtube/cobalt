@@ -1574,9 +1574,9 @@ static bool ScrollableMediaFeatureEval(const MediaQueryExpValue& value,
   }
 }
 
-static bool ScrollDirectionMediaFeatureEval(const MediaQueryExpValue& value,
-                                            MediaQueryOperator op,
-                                            const MediaValues& media_values) {
+static bool DirectionMediaFeatureEval(const MediaQueryExpValue& value,
+                                      MediaQueryOperator op,
+                                      const MediaValues& media_values) {
   if (!value.IsValid()) {
     return media_values.ScrollDirection();
   }
@@ -1584,8 +1584,6 @@ static bool ScrollDirectionMediaFeatureEval(const MediaQueryExpValue& value,
   switch (value.Id()) {
     case CSSValueID::kNone:
       return !media_values.ScrollDirection();
-    case CSSValueID::kAny:
-      return media_values.ScrollDirection();
     case CSSValueID::kTop:
       return media_values.ScrollDirectionVertical() ==
              ContainerScrollDirection::kStart;

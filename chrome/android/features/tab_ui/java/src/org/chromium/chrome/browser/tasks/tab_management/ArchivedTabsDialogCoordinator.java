@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.tasks.tab_management;
 
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
@@ -22,8 +24,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.util.Function;
 import androidx.recyclerview.widget.RecyclerView;
@@ -37,6 +37,10 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.EnsuresNonNull;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.tabmodel.ArchivedTabModelOrchestrator;
 import org.chromium.chrome.browser.back_press.BackPressManager;
@@ -70,7 +74,7 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
-import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarController;
+import org.chromium.chrome.browser.undo_tab_close_snackbar.SavedTabGroupUndoBarController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -99,9 +103,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@NullMarked
 public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarManageable {
 
     private static final int ANIM_DURATION_MS = 250;
+    public static final String COMPONENT_NAME = "ArchivedTabsDialog";
 
     /** Interface exposing functionality to the menu items for the archived tabs dialog */
     public interface ArchiveDelegate {
@@ -179,6 +185,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                     TabClosureParams.closeTabs(tabs).build(),
                                     /* allowDialog= */ false);
                     closeArchivedTabGroups(tabGroupSyncIds);
+                    mUndoBarController.queueUndoBar(tabs, tabGroupSyncIds);
                     RecordHistogram.recordCount1000Histogram(
                             "Tabs.CloseArchivedTabsMenuItem.TabCount", tabs.size());
                     RecordUserAction.record("Tabs.CloseArchivedTabsMenuItem");
@@ -226,13 +233,13 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
             new GridCardOnClickListenerProvider() {
                 @Nullable
                 @Override
-                public TabActionListener openTabGridDialog(@NonNull Tab tab) {
+                public TabActionListener openTabGridDialog(Tab tab) {
                     return null;
                 }
 
                 @Nullable
                 @Override
-                public TabActionListener openTabGridDialog(@NonNull String syncId) {
+                public TabActionListener openTabGridDialog(String syncId) {
                     return new TabActionListener() {
                         @Override
                         public void run(
@@ -245,7 +252,9 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                 View view,
                                 String syncId,
                                 @Nullable MotionEventInfo triggeringMotion) {
+                            assumeNonNull(mTabGroupSyncService);
                             SavedTabGroup savedTabGroup = mTabGroupSyncService.getGroup(syncId);
+                            assumeNonNull(savedTabGroup);
                             mIsOpeningLastItem =
                                     getArchivedTabCount() == savedTabGroup.savedTabs.size();
 
@@ -254,6 +263,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                             mPaneManagerSupplier
                                                     .get()
                                                     .getPaneForId(PaneId.TAB_SWITCHER);
+                            assumeNonNull(tabSwitcherPaneBase);
                             Callback<Integer> requestOpenTabGroupDialog =
                                     (rootId) -> {
                                         hide(
@@ -269,7 +279,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                     syncId,
                                     mTabGroupSyncService,
                                     mTabGroupUiActionHandlerSupplier.get(),
-                                    mCurrentTabGroupModelFilterSupplier.get(),
+                                    assumeNonNull(mCurrentTabGroupModelFilterSupplier.get()),
                                     requestOpenTabGroupDialog);
                             RecordUserAction.record("TabGroups.RestoreSingleTabGroup");
                             RecordHistogram.recordCount1000Histogram(
@@ -283,6 +293,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 public void onTabSelecting(int tabId, boolean fromActionButton) {
                     mIsOpeningLastItem = getArchivedTabCount() == 1;
                     Tab tab = mArchivedTabModel.getTabById(tabId);
+                    assumeNonNull(tab);
                     mArchivedTabModelOrchestrator
                             .getTabArchiver()
                             .unarchiveAndRestoreTabs(
@@ -323,11 +334,19 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 @Override
                 public void onTabGroupRemoved(LocalTabGroupId localId, @TriggerSource int source) {
                     refreshArchivedTabList();
+
+                    if (mTabActionState == TabActionState.SELECTABLE) {
+                        moveToState(TabActionState.CLOSABLE);
+                    }
                 }
 
                 @Override
                 public void onTabGroupRemoved(String syncId, @TriggerSource int source) {
                     refreshArchivedTabList();
+
+                    if (mTabActionState == TabActionState.SELECTABLE) {
+                        moveToState(TabActionState.CLOSABLE);
+                    }
                 }
             };
 
@@ -379,39 +398,39 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 }
             };
 
-    private final @NonNull Activity mActivity;
-    private final @NonNull ArchivedTabModelOrchestrator mArchivedTabModelOrchestrator;
-    private final @NonNull TabModel mArchivedTabModel;
-    private final @NonNull BrowserControlsStateProvider mBrowserControlsStateProvider;
-    private final @NonNull TabContentManager mTabContentManager;
+    private final Activity mActivity;
+    private final ArchivedTabModelOrchestrator mArchivedTabModelOrchestrator;
+    private final TabModel mArchivedTabModel;
+    private final BrowserControlsStateProvider mBrowserControlsStateProvider;
+    private final TabContentManager mTabContentManager;
     private final @TabListMode int mMode;
-    private final @NonNull ViewGroup mRootView;
-    private final @NonNull SnackbarManager mSnackbarManager;
-    private final @NonNull TabCreator mRegularTabCreator;
-    private final @NonNull BackPressManager mBackPressManager;
-    private final @NonNull TabArchiveSettings mTabArchiveSettings;
-    private final @NonNull ModalDialogManager mModalDialogManager;
-    private final @NonNull UndoBarController mUndoBarController;
-    private final @NonNull ActionConfirmationDialog mActionConfirmationDialog;
-    private final @NonNull ViewGroup mDialogView;
-    private final @NonNull ViewGroup mTabSwitcherView;
-    private final @NonNull FadingShadowView mShadowView;
+    private final ViewGroup mRootView;
+    private final SnackbarManager mSnackbarManager;
+    private final TabCreator mRegularTabCreator;
+    private final BackPressManager mBackPressManager;
+    private final TabArchiveSettings mTabArchiveSettings;
+    private final ModalDialogManager mModalDialogManager;
+    private final SavedTabGroupUndoBarController mUndoBarController;
+    private final ActionConfirmationDialog mActionConfirmationDialog;
+    private final ViewGroup mDialogView;
+    private final ViewGroup mTabSwitcherView;
+    private final FadingShadowView mShadowView;
     private final @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
-    private final @NonNull ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier;
+    private final ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeSupplier;
     private final @Nullable TabGroupSyncService mTabGroupSyncService;
-    private final @NonNull Supplier<PaneManager> mPaneManagerSupplier;
-    private final @NonNull Supplier<TabGroupUiActionHandler> mTabGroupUiActionHandlerSupplier;
-    private final @NonNull ObservableSupplier<TabGroupModelFilter>
+    private final Supplier<PaneManager> mPaneManagerSupplier;
+    private final Supplier<TabGroupUiActionHandler> mTabGroupUiActionHandlerSupplier;
+    private final ObservableSupplier<@Nullable TabGroupModelFilter>
             mCurrentTabGroupModelFilterSupplier;
-    private final @NonNull DestroyChecker mDestroyChecker = new DestroyChecker();
+    private final DestroyChecker mDestroyChecker = new DestroyChecker();
 
     private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
     private TabListRecyclerView mDialogRecyclerView;
     private WeakReference<TabListRecyclerView> mTabSwitcherRecyclerView;
     private @TabActionState int mTabActionState = TabActionState.CLOSABLE;
-    private TabListEditorCoordinator mTabListEditorCoordinator;
+    private @Nullable TabListEditorCoordinator mTabListEditorCoordinator;
     private OnTabSelectingListener mOnTabSelectingListener;
-    private PropertyModel mIphMessagePropertyModel;
+    private @Nullable PropertyModel mIphMessagePropertyModel;
     private int mSnackbarOverrideToken;
     private boolean mIsOpeningLastItem;
     private boolean mIsShowing;
@@ -437,24 +456,24 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
      *     TabGroupModelFilter}.
      */
     public ArchivedTabsDialogCoordinator(
-            @NonNull Activity activity,
-            @NonNull ArchivedTabModelOrchestrator archivedTabModelOrchestrator,
-            @NonNull BrowserControlsStateProvider browserControlsStateProvider,
-            @NonNull TabContentManager tabContentManager,
+            Activity activity,
+            ArchivedTabModelOrchestrator archivedTabModelOrchestrator,
+            BrowserControlsStateProvider browserControlsStateProvider,
+            TabContentManager tabContentManager,
             @TabListMode int mode,
-            @NonNull ViewGroup rootView,
-            @NonNull ViewGroup tabSwitcherView,
-            @NonNull SnackbarManager snackbarManager,
-            @NonNull TabCreator regularTabCreator,
-            @NonNull BackPressManager backPressManager,
-            @NonNull TabArchiveSettings tabArchiveSettings,
-            @NonNull ModalDialogManager modalDialogManager,
+            ViewGroup rootView,
+            ViewGroup tabSwitcherView,
+            SnackbarManager snackbarManager,
+            TabCreator regularTabCreator,
+            BackPressManager backPressManager,
+            TabArchiveSettings tabArchiveSettings,
+            ModalDialogManager modalDialogManager,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
-            @NonNull ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
+            ObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @Nullable TabGroupSyncService tabGroupSyncService,
-            @NonNull Supplier<PaneManager> paneManagerSupplier,
-            @NonNull Supplier<TabGroupUiActionHandler> tabGroupUiActionHandlerSupplier,
-            @NonNull ObservableSupplier<TabGroupModelFilter> currentTabGroupModelFilterSupplier) {
+            Supplier<PaneManager> paneManagerSupplier,
+            Supplier<TabGroupUiActionHandler> tabGroupUiActionHandlerSupplier,
+            ObservableSupplier<@Nullable TabGroupModelFilter> currentTabGroupModelFilterSupplier) {
         mActivity = activity;
         mBrowserControlsStateProvider = browserControlsStateProvider;
         mTabContentManager = tabContentManager;
@@ -473,11 +492,11 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                         .getTabModelSelector()
                         .getModel(/* incognito= */ false);
         mUndoBarController =
-                new UndoBarController(
+                new SavedTabGroupUndoBarController(
                         mActivity,
                         mArchivedTabModelOrchestrator.getTabModelSelector(),
                         /* snackbarManageable= */ this,
-                        /* dialogVisibilitySupplier= */ null);
+                        tabGroupSyncService);
         mTabSwitcherView = tabSwitcherView;
 
         // Inflate the dialog view and hook it up
@@ -521,6 +540,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     }
 
     /** Hides the dialog. */
+    @SuppressWarnings("NullAway")
     public void destroy() {
         mDestroyChecker.checkNotDestroyed();
         mDestroyChecker.destroy();
@@ -551,10 +571,10 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         }
 
         mTabArchiveSettings.removeObserver(mTabArchiveSettingsObserver);
-        mUndoBarController.destroy();
     }
 
     private void tearDownTabListEditorCoordinator() {
+        assumeNonNull(mTabListEditorCoordinator);
         mTabListEditorCoordinator.destroy();
         mTabListEditorCoordinator = null;
     }
@@ -566,10 +586,17 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
      */
     public void show(OnTabSelectingListener onTabSelectingListener) {
         if (mIsShowing) return;
+        showInternal(onTabSelectingListener);
+    }
+
+    @Initializer
+    private void showInternal(OnTabSelectingListener onTabSelectingListener) {
         mIsShowing = true;
-        mTabSwitcherRecyclerView =
-                new WeakReference<>(mTabSwitcherView.findViewById(R.id.tab_list_recycler_view));
-        mTabSwitcherRecyclerView.get().setBlockTouchInput(true);
+        TabListRecyclerView tabListRecyclerView =
+                mTabSwitcherView.findViewById(R.id.tab_list_recycler_view);
+        assumeNonNull(tabListRecyclerView);
+        mTabSwitcherRecyclerView = new WeakReference<>(tabListRecyclerView);
+        tabListRecyclerView.setBlockTouchInput(true);
 
         boolean tabListFirstShown = false;
         if (mTabListEditorCoordinator == null) {
@@ -579,7 +606,6 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
 
         mOnTabSelectingListener = onTabSelectingListener;
         mArchivedTabModelOrchestrator.getTabCountSupplier().addObserver(mTabCountObserver);
-        mUndoBarController.initialize();
 
         TabListEditorController controller = mTabListEditorCoordinator.getController();
         controller.setLifecycleObserver(mTabListEditorLifecycleObserver);
@@ -707,6 +733,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         animateOut(
                 animationDuration,
                 () -> {
+                    assumeNonNull(mTabListEditorCoordinator);
                     mTabListEditorCoordinator.removeTabListItemSizeChangedObserver(
                             mTabListItemSizeChangedObserver);
                     TabListEditorController controller = mTabListEditorCoordinator.getController();
@@ -716,6 +743,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     }
 
     void hideInternal() {
+        assumeNonNull(mTabListEditorCoordinator);
         TabListEditorController controller = mTabListEditorCoordinator.getController();
         controller.setLifecycleObserver(null);
         mBackPressManager.removeHandler(mTabListEditorCoordinator.getController());
@@ -723,12 +751,16 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         mArchivedTabModelOrchestrator.getTabCountSupplier().removeObserver(mTabCountObserver);
         mSnackbarOverrideToken = TokenHolder.INVALID_TOKEN;
         mIsShowing = false;
-        mTabSwitcherRecyclerView.get().setBlockTouchInput(false);
+        TabListRecyclerView recyclerView = mTabSwitcherRecyclerView.get();
+        if (recyclerView != null) {
+            recyclerView.setBlockTouchInput(false);
+        }
         mTabSwitcherRecyclerView.clear();
     }
 
     void moveToState(@TabActionState int tabActionState) {
         mTabActionState = tabActionState;
+        assumeNonNull(mTabListEditorCoordinator);
         mTabListEditorCoordinator.getController().setTabActionState(mTabActionState);
         updateTitle();
 
@@ -755,10 +787,13 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                 R.plurals.archived_tabs_dialog_title,
                                 numInactiveTabs,
                                 numInactiveTabs);
+        assumeNonNull(mTabListEditorCoordinator);
         mTabListEditorCoordinator.getController().setToolbarTitle(title);
     }
 
+    @EnsuresNonNull("mTabListEditorCoordinator")
     private void createTabListEditorCoordinator() {
+        // TODO(crbug.com/417467809): Plumb the actual UndoBar trigger interface when available.
         mTabListEditorCoordinator =
                 new TabListEditorCoordinator(
                         mActivity,
@@ -770,7 +805,8 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                                 .getTabGroupModelFilterProvider()
                                 .getCurrentTabGroupModelFilterSupplier(),
                         mTabContentManager,
-                        /* clientTabListRecyclerViewPositionSetter= */ null,
+                        /* clientTabListRecyclerViewPositionSetter= */ CallbackUtils
+                                .emptyCallback(),
                         mMode,
                         /* displayGroups= */ true,
                         mSnackbarManager,
@@ -780,7 +816,9 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                         mModalDialogManager,
                         mDesktopWindowStateManager,
                         /* edgeToEdgeSupplier= */ null,
-                        CreationMode.FULL_SCREEN);
+                        CreationMode.FULL_SCREEN,
+                        mUndoBarController,
+                        COMPONENT_NAME);
     }
 
     @VisibleForTesting
@@ -864,6 +902,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                         /* areTabsBeingOpened= */ false);
         for (String syncId : tabGroupSyncIds) {
             mTabGroupUiActionHandlerSupplier.get().openTabGroup(syncId);
+            assumeNonNull(mTabListEditorCoordinator);
             mTabListEditorCoordinator.removeListItem(
                     UiType.TAB_GROUP, TabListEditorItemSelectionId.createTabGroupSyncId(syncId));
         }
@@ -877,6 +916,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
 
     private void onIphDismissClicked(@MessageType int messageType) {
         mTabArchiveSettings.markDialogIphDismissed();
+        assumeNonNull(mTabListEditorCoordinator);
         mTabListEditorCoordinator.removeSpecialListItem(
                 UiType.MESSAGE, MessageService.MessageType.ARCHIVED_TABS_IPH_MESSAGE);
         RecordUserAction.record("Tabs.ArchivedTabsDialogIphDismissed");
@@ -890,11 +930,13 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     }
 
     private void refreshArchivedTabList() {
+        assumeNonNull(mTabListEditorCoordinator);
         mTabListEditorCoordinator.resetWithListOfTabs(
                 TabModelUtils.convertTabListToListOfTabs(mArchivedTabModel),
                 getArchivedTabGroupSyncIds(),
                 /* quickMode= */ false);
         if (mTabArchiveSettings.shouldShowDialogIph()) {
+            assumeNonNull(mIphMessagePropertyModel);
             mTabListEditorCoordinator.addSpecialListItem(
                     0, UiType.MESSAGE, mIphMessagePropertyModel);
         }
@@ -904,7 +946,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     public static CharSequence getIphDescription(
             Context context, TabArchiveSettings tabArchiveSettings) {
         int archiveTimeDeltaDays = tabArchiveSettings.getArchiveTimeDeltaDays();
-        int autoDeleteTimeDeletaDays = tabArchiveSettings.getAutoDeleteTimeDeltaDays();
+        int autoDeleteTimeDeltaMonths = tabArchiveSettings.getAutoDeleteTimeDeltaMonths();
         String settingsTitle =
                 context.getString(R.string.archived_tab_iph_card_subtitle_settings_title);
         // The auto-delete section is blank when the feature param is disabled.
@@ -912,14 +954,15 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
                 tabArchiveSettings.isAutoDeleteEnabled()
                         ? context.getString(
                                 R.string.archived_tab_iph_card_subtitle_autodelete_section,
-                                autoDeleteTimeDeletaDays)
+                                autoDeleteTimeDeltaMonths)
                         : "";
+        int iphCardSubtitleRes =
+                ChromeFeatureList.sAndroidTabDeclutterArchiveTabGroups.isEnabled()
+                        ? R.string.archived_tab_iph_card_subtitle_with_tab_groups
+                        : R.string.archived_tab_iph_card_subtitle;
         String description =
                 context.getString(
-                        R.string.archived_tab_iph_card_subtitle,
-                        archiveTimeDeltaDays,
-                        autoDeleteTitle,
-                        settingsTitle);
+                        iphCardSubtitleRes, archiveTimeDeltaDays, autoDeleteTitle, settingsTitle);
 
         SpannableString ss = new SpannableString(description);
         ForegroundColorSpan fcs =
@@ -953,8 +996,9 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
     }
 
     private int getSyncedTabGroupTabsCount(List<String> archivedTabGroupSyncIds) {
-        int tabGroupTabCount = 0;
+        if (mTabGroupSyncService == null) return 0;
 
+        int tabGroupTabCount = 0;
         for (String syncGroupId : archivedTabGroupSyncIds) {
             SavedTabGroup savedTabGroup = mTabGroupSyncService.getGroup(syncGroupId);
 
@@ -971,6 +1015,7 @@ public class ArchivedTabsDialogCoordinator implements SnackbarManager.SnackbarMa
         if (mTabGroupSyncService != null) {
             for (String syncGroupId : archivedTabGroupSyncIds) {
                 mTabGroupSyncService.updateArchivalStatus(syncGroupId, false);
+                assumeNonNull(mTabListEditorCoordinator);
                 mTabListEditorCoordinator.removeListItem(
                         UiType.TAB_GROUP,
                         TabListEditorItemSelectionId.createTabGroupSyncId(syncGroupId));

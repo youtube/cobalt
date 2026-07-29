@@ -46,10 +46,12 @@
 #include "components/services/on_device_translation/public/cpp/features.h"
 #include "components/services/on_device_translation/test/test_util.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/browsing_data_remover_test_util.h"
 #include "content/public/test/url_loader_interceptor.h"
+#include "net/base/filename_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/features_generated.h"
@@ -172,6 +174,7 @@ std::string_view GetCanCreateTranslatorResultString(
     case CanCreateTranslatorResult::kNoServiceCrashed:
     case CanCreateTranslatorResult::kNoDisallowedByPolicy:
     case CanCreateTranslatorResult::kNoExceedsServiceCountLimitation:
+    case CanCreateTranslatorResult::kNoInvalidStoragePartition:
       return "unavailable";
   }
 }
@@ -226,6 +229,14 @@ class OnDeviceTranslationBrowserTest : public InProcessBrowserTest {
         ->GetLastCommittedOrigin();
   }
 
+  content::RenderProcessHost* GetRenderProcessHost() {
+    return browser()
+        ->tab_strip_model()
+        ->GetActiveWebContents()
+        ->GetPrimaryMainFrame()
+        ->GetProcess();
+  }
+
   // Navigates to an empty page.
   void NavigateToEmptyPage() {
     CHECK(ui_test_utils::NavigateToURL(
@@ -251,12 +262,16 @@ class OnDeviceTranslationBrowserTest : public InProcessBrowserTest {
                               const std::string_view targetLang,
                               CanCreateTranslatorResult expected_result) {
     NavigateToEmptyPage();
+
+    content::RenderProcessHost* render_process_host = GetRenderProcessHost();
+    CHECK(render_process_host);
+
     // Call TranslationAvailable() via mojo interface to verify the detailed
     // result.
     mojo::Remote<blink::mojom::TranslationManager> remote;
     TestSupportsUserData fake_user_data;
-    TranslationManagerImpl::Bind(GetBrowserContext(), &fake_user_data,
-                                 GetLastCommittedOrigin(),
+    TranslationManagerImpl::Bind(render_process_host, GetBrowserContext(),
+                                 &fake_user_data, GetLastCommittedOrigin(),
                                  remote.BindNewPipeAndPassReceiver());
     base::RunLoop run_loop;
     remote->TranslationAvailable(
@@ -872,7 +887,7 @@ class OnDeviceTranslationProgressMonitorBrowserTest
     OnDeviceTranslationBrowserTest::SetUpOnMainThread();
     NavigateToEmptyPage();
     translation_manager_ = std::make_unique<MockTranslationManagerImpl>(
-        GetBrowserContext(), GetLastCommittedOrigin());
+        GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
 
     // Setup a ComponentUpdateService to be used by the TranslationManager.
     EXPECT_CALL(*translation_manager_, GetComponentUpdateService())
@@ -1137,8 +1152,8 @@ IN_PROC_BROWSER_TEST_F(
   mock_component_manager.InstallMockTranslateKitComponent();
   NavigateToEmptyPage();
 
-  auto manager =
-      MockTranslationManagerImpl(GetBrowserContext(), GetLastCommittedOrigin());
+  auto manager = MockTranslationManagerImpl(
+      GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
 
   // Simulate the download of an additional language pack (Japanese) by another
   // site.
@@ -1168,8 +1183,8 @@ IN_PROC_BROWSER_TEST_F(
   mock_component_manager.InstallMockTranslateKitComponent();
   NavigateToEmptyPage();
 
-  auto manager =
-      MockTranslationManagerImpl(GetBrowserContext(), GetLastCommittedOrigin());
+  auto manager = MockTranslationManagerImpl(
+      GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
 
   // Simulate the download of an additional language pack (Japanese) by another
   // site.
@@ -1231,8 +1246,8 @@ IN_PROC_BROWSER_TEST_F(OnDeviceTranslationBrowserTest,
   mock_component_manager.InstallMockTranslateKitComponent();
   NavigateToEmptyPage();
 
-  auto manager =
-      MockTranslationManagerImpl(GetBrowserContext(), GetLastCommittedOrigin());
+  auto manager = MockTranslationManagerImpl(
+      GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
   mock_component_manager.ExpectCallRegisterLanguagePackComponentAndInstall(
       {LanguagePackKey::kEn_Es});
   EXPECT_CALL(manager, GetTranslatorDownloadDelay()).Times(0);
@@ -1252,8 +1267,8 @@ IN_PROC_BROWSER_TEST_F(OnDeviceTranslationBrowserTest,
   mock_component_manager.InstallMockTranslateKitComponent();
   NavigateToEmptyPage();
 
-  auto manager =
-      MockTranslationManagerImpl(GetBrowserContext(), GetLastCommittedOrigin());
+  auto manager = MockTranslationManagerImpl(
+      GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
 
   EXPECT_CALL(manager, GetTranslatorDownloadDelay()).Times(0);
   EXPECT_NE(EvalJsCatchingError(R"(
@@ -1300,8 +1315,8 @@ IN_PROC_BROWSER_TEST_F(OnDeviceTranslationCrashingLangBrowserTest,
   mock_component_manager.ExpectCallRegisterTranslateKitComponentAndInstall();
   NavigateToEmptyPage();
 
-  MockTranslationManagerImpl manager(GetBrowserContext(),
-                                     GetLastCommittedOrigin());
+  MockTranslationManagerImpl manager(
+      GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
   manager.SetCrashesAllowed(true);
 
   auto console_observer =
@@ -1332,8 +1347,8 @@ IN_PROC_BROWSER_TEST_F(OnDeviceTranslationCrashingLangBrowserTest,
   mock_component_manager.InstallMockTranslateKitComponent();
   NavigateToEmptyPage();
 
-  MockTranslationManagerImpl manager(GetBrowserContext(),
-                                     GetLastCommittedOrigin());
+  MockTranslationManagerImpl manager(
+      GetRenderProcessHost(), GetBrowserContext(), GetLastCommittedOrigin());
   manager.SetCrashesAllowed(true);
 
   // Tries to call availability() for the fake language code `crash`. This
@@ -1596,6 +1611,54 @@ IN_PROC_BROWSER_TEST_F(OnDeviceTranslationBrowserTest,
   mock_component_manager.InstallMockLanguagePack(LanguagePackKey::kEn_Ja);
   TestCanTranslateResult(
       "en", "ja", CanCreateTranslatorResult::kAfterDownloadLibraryNotReady);
+}
+
+// Tests the behavior when the Translator API is accessed from an invalid
+// storage partition.
+IN_PROC_BROWSER_TEST_F(OnDeviceTranslationBrowserTest,
+                       CanTranslateInvalidStoragePartition) {
+  MockComponentManager mock_component_manager(GetTempDir());
+  mock_component_manager.InstallMockTranslateKitComponent();
+  mock_component_manager.InstallMockLanguagePack(LanguagePackKey::kEn_Ja);
+
+  // Create a guest browser profile in order to access a non-default storage
+  // partition, and navigate to an empty page.
+  Browser* guest_browser = CreateGuestBrowser();
+  ASSERT_TRUE(guest_browser);
+
+  guest_browser->profile()->GetPrefs()->SetString(
+      language::prefs::kSelectedLanguages, "ja");
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      guest_browser, embedded_https_test_server().GetURL("/empty.html")));
+
+  mojo::Remote<blink::mojom::TranslationManager> remote;
+  TestSupportsUserData fake_user_data;
+
+  content::RenderProcessHost* process_host = guest_browser->tab_strip_model()
+                                                 ->GetActiveWebContents()
+                                                 ->GetPrimaryMainFrame()
+                                                 ->GetProcess();
+  const url::Origin last_committed_origin = guest_browser->tab_strip_model()
+                                                ->GetActiveWebContents()
+                                                ->GetPrimaryMainFrame()
+                                                ->GetLastCommittedOrigin();
+
+  TranslationManagerImpl::Bind(process_host, GetBrowserContext(),
+                               &fake_user_data, last_committed_origin,
+                               remote.BindNewPipeAndPassReceiver());
+
+  // Check the availability result.
+  base::RunLoop run_loop;
+  remote->TranslationAvailable(
+      TranslatorLanguageCode::New(std::string("en")),
+      TranslatorLanguageCode::New(std::string("ja")),
+      base::BindLambdaForTesting([&](CanCreateTranslatorResult result) {
+        EXPECT_EQ(result,
+                  CanCreateTranslatorResult::kNoInvalidStoragePartition);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
 }
 
 // Test the behavior of availability() when the language is not supported.
@@ -2384,4 +2447,42 @@ IN_PROC_BROWSER_TEST_F(
   TestSimpleTranslationWorks(browser(), "en", "ja");
 }
 
+// Tests the behavior of the Translator API on a page with a file scheme URL.
+IN_PROC_BROWSER_TEST_F(OnDeviceTranslationBrowserTest, FileSchemeUrl) {
+  MockComponentManager mock_component_manager(GetTempDir());
+  mock_component_manager.ExpectCallRegisterTranslateKitComponentAndInstall();
+  mock_component_manager.ExpectCallRegisterLanguagePackComponentAndInstall(
+      {LanguagePackKey::kEn_Ja});
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath empty_html_path = temp_dir.GetPath().AppendASCII("empty.html");
+  ASSERT_TRUE(base::WriteFile(empty_html_path, "<html></html>"));
+  base::FilePath empty2_html_path =
+      temp_dir.GetPath().AppendASCII("empty2.html");
+  ASSERT_TRUE(base::WriteFile(empty2_html_path, "<html></html>"));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), net::FilePathToFileURL(empty_html_path)));
+
+  // The language pack for Japanese needs to be downloaded.
+  TestTranslationAvailable(browser(), "en", "ja", "downloadable");
+
+  // Create a translator.
+  EXPECT_EQ(EvalJsCatchingError(R"(
+      window._translator = await Translator.create({
+        sourceLanguage: 'en',
+        targetLanguage: 'ja',
+      });
+      return await window._translator.translate('hello');
+    )"),
+            "en to ja: hello");
+
+  // After creating a translator, the language pair should be available.
+  TestTranslationAvailable(browser(), "en", "ja", "available");
+
+  // Navigate to another file URL. The availability should be reset.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), net::FilePathToFileURL(empty2_html_path)));
+  TestTranslationAvailable(browser(), "en", "ja", "downloadable");
+}
 }  // namespace on_device_translation

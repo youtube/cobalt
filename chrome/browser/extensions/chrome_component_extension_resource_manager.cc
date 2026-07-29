@@ -23,7 +23,6 @@
 #include "extensions/common/constants.h"
 #include "extensions/common/extension_id.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -46,10 +45,6 @@
 #include "chrome/browser/pdf/pdf_extension_util.h"
 #include "chrome/grit/pdf_resources_map.h"
 #endif  // BUILDFLAG(ENABLE_PDF)
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-#include "chrome/grit/tts_engine_resources_map.h"
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 
 namespace extensions {
 
@@ -157,10 +152,6 @@ ChromeComponentExtensionResourceManager::Data::Data() {
         std::move(pdf_viewer_replacements);
   }
 #endif
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-  AddComponentResourceEntries(kTtsEngineResources);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 }
 
 void ChromeComponentExtensionResourceManager::Data::AddComponentResourceEntries(

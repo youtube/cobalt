@@ -18,7 +18,6 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_paths_internal.h"
 #include "media/media_buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/path_utils.h"
@@ -110,29 +109,6 @@ bool GetChromeOsCrdDataDirInternal(base::FilePath* result,
 base::FilePath& GetInvalidSpecifiedUserDataDirInternal() {
   static base::NoDestructor<base::FilePath> s;
   return *s;
-}
-
-// Gets the path for internal plugins.
-bool GetInternalPluginsDirectory(base::FilePath* result) {
-#if BUILDFLAG(ENABLE_PPAPI)
-#if BUILDFLAG(IS_MAC)
-  // If called from Chrome, get internal plugins from a subdirectory of the
-  // framework.
-  if (base::apple::AmIBundled()) {
-    *result = chrome::GetFrameworkBundlePath();
-    DCHECK(!result->empty());
-    *result = result->Append("Internet Plug-Ins");
-    return true;
-  }
-  // In tests, just look in the module directory (below).
-#endif  //  BUILDFLAG(IS_MAC)
-
-  // The rest of the world expects plugins in the module directory.
-  return base::PathService::Get(base::DIR_MODULE, result);
-#else  // BUILDFLAG(ENABLE_PPAPI)
-  // PPAPI plugins are not enabled, so don't return an internal plugins path.
-  return false;
-#endif
 }
 
 // Gets the path for bundled implementations of components. Note that these
@@ -325,11 +301,6 @@ bool PathProvider(int key, base::FilePath* result) {
       cur = cur.Append(FILE_PATH_LITERAL("Dictionaries"));
       create_dir = true;
       break;
-    case chrome::DIR_INTERNAL_PLUGINS:
-      if (!GetInternalPluginsDirectory(&cur)) {
-        return false;
-      }
-      break;
     case chrome::DIR_COMPONENTS:
       if (!GetComponentDirectory(&cur)) {
         return false;
@@ -346,45 +317,6 @@ bool PathProvider(int key, base::FilePath* result) {
         return false;
       }
       cur = cur.Append(FILE_PATH_LITERAL("script.log"));
-      break;
-    // PNaCl is currenly installable via the component updater or by being
-    // simply built-in.  DIR_PNACL_BASE is used as the base directory for
-    // installation via component updater.  DIR_PNACL_COMPONENT will be
-    // the final location of pnacl, which is a subdir of DIR_PNACL_BASE.
-    case chrome::DIR_PNACL_BASE:
-      if (!base::PathService::Get(chrome::DIR_USER_DATA, &cur)) {
-        return false;
-      }
-      cur = cur.Append(FILE_PATH_LITERAL("pnacl"));
-      break;
-    // Where PNaCl files are ultimately located.  The default finds the files
-    // inside the InternalPluginsDirectory / build directory, as if it
-    // was shipped along with chrome.  The value can be overridden
-    // if it is installed via component updater.
-    case chrome::DIR_PNACL_COMPONENT:
-#if BUILDFLAG(IS_MAC)
-      // PNaCl really belongs in the InternalPluginsDirectory but actually
-      // copying it there would result in the files also being shipped, which
-      // we don't want yet. So for now, just find them in the directory where
-      // they get built.
-      if (!base::PathService::Get(base::DIR_EXE, &cur)) {
-        return false;
-      }
-      if (base::apple::AmIBundled()) {
-        // If we're called from chrome, it's beside the app (outside the
-        // app bundle), if we're called from a unittest, we'll already be
-        // outside the bundle so use the exe dir.
-        // exe_dir gave us .../Chromium.app/Contents/MacOS/Chromium.
-        cur = cur.DirName();
-        cur = cur.DirName();
-        cur = cur.DirName();
-      }
-#else
-      if (!GetInternalPluginsDirectory(&cur)) {
-        return false;
-      }
-#endif
-      cur = cur.Append(FILE_PATH_LITERAL("pnacl"));
       break;
 
 #if BUILDFLAG(ENABLE_WIDEVINE)

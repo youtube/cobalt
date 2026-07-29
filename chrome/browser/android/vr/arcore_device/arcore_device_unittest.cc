@@ -250,15 +250,10 @@ class StubCompositorFrameSink
       std::optional<viz::HitTestRegionList> hit_test_region_list,
       uint64_t submit_time) override {}
   void DidNotProduceFrame(const viz::BeginFrameAck& begin_frame_ack) override {}
-  void SubmitCompositorFrameSync(
-      const viz::LocalSurfaceId& local_surface_id,
-      viz::CompositorFrame frame,
-      std::optional<viz::HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      SubmitCompositorFrameSyncCallback callback) override {}
   void NotifyNewLocalSurfaceIdExpectedWhilePaused() override {}
   void BindLayerContext(viz::mojom::PendingLayerContextPtr context,
-                        bool draw_mode_is_gpu) override {}
+                        viz::mojom::LayerContextSettingsPtr settings) override {
+  }
   void SetThreads(const std::vector<viz::Thread>& threads) override {}
 
   // mojom::ExternalBeginFrameController implementation.

@@ -82,6 +82,7 @@
 #include "components/page_image_service/image_service_handler.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/search/ntp_composebox_fieldtrial.h"
 #include "components/search/ntp_features.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
@@ -495,17 +496,15 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddString("composeboxImageFileTypes", "image/*");
   source->AddString("composeboxAttachmentFileTypes", ".pdf,application/pdf");
   source->AddInteger("composeboxFileMaxSize", 1000000);
+  source->AddInteger("composeboxFileMaxCount", 1);
 
   source->AddBoolean(
       "searchboxShowComposeEntrypoint",
-      (base::FeatureList::IsEnabled(
-           ntp_features::kNtpSearchboxComposeEntrypoint) ||
-       base::FeatureList::IsEnabled(ntp_features::kNtpSearchboxComposebox)) &&
-          omnibox::IsMiaAllowedByPolicy(profile->GetPrefs()));
-  source->AddBoolean(
-      "searchboxShowComposebox",
-      base::FeatureList::IsEnabled(ntp_features::kNtpSearchboxComposebox) &&
-          omnibox::IsMiaAllowedByPolicy(profile->GetPrefs()));
+      ntp_composebox_fieldtrial::IsNtpSearchboxComposeEntrypointEnabled() &&
+          omnibox::IsAimAllowedByPolicy(profile->GetPrefs()));
+  source->AddBoolean("searchboxShowComposebox",
+                     ntp_composebox_fieldtrial::FeatureConfig::Get().enabled &&
+                         omnibox::IsAimAllowedByPolicy(profile->GetPrefs()));
 
   SearchboxHandler::SetupWebUIDataSource(
       source, profile,
@@ -753,8 +752,10 @@ void NewTabPageUI::BindInterface(
       std::move(pending_receiver),
       std::make_unique<ComposeboxQueryController>(
           IdentityManagerFactory::GetForProfile(profile_),
-          g_browser_process->shared_url_loader_factory(),
-          chrome::GetChannel()));
+          g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
+          g_browser_process->GetApplicationLocale(),
+          TemplateURLServiceFactory::GetForProfile(profile_)),
+      web_contents());
 }
 
 void NewTabPageUI::BindInterface(

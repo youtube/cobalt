@@ -708,7 +708,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Engagement{Context}.{Container}"
-    enum="SiteEngagementServiceEngagementType" expires_after="2025-10-26">
+    enum="SiteEngagementServiceEngagementType" expires_after="2025-12-28">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -1527,19 +1527,6 @@ chromium-metrics-reviews@google.com.
     resources loading for the web app, so any usage could trigger this UMA.
     Warning: this histogram was expired from 2024-05-08 to 2024-06-12; data may
     be missing.
-  </summary>
-</histogram>
-
-<histogram name="WebApp.Isolated.UnsupportedIPPValue" enum="BooleanValid"
-    expires_after="2025-12-31">
-  <owner>bylica@google.com</owner>
-  <owner>pwa-commercial@google.com</owner>
-  <owner>iwa-team@google.com</owner>
-  <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
-  <summary>
-    Records when printers return capability values unsupported by the current
-    chromium implementation. This could happen if the standard changes and the
-    implementation didn't keep up with those changes.
   </summary>
 </histogram>
 
@@ -2384,7 +2371,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Webapp.SystemApps.FreshInstallDuration" units="ms"
     expires_after="2026-01-05">
   <owner>renkens@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records the time taken to perform a fresh install of all system web apps. It
     measures the time from when we dispatch a call to install them, until we get
@@ -2397,7 +2384,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Webapp.SystemApps.IconsAreHealthyInSession"
     enum="BooleanSuccess" expires_after="2025-12-08">
   <owner>renkens@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records whether system web app icons are healthy for each user session that
     has system web apps installed. Failure indicates that at least one app has
@@ -2408,7 +2395,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Webapp.SystemApps.IconsFixedOnReinstall" enum="BooleanSuccess"
     expires_after="2025-12-08">
   <owner>renkens@google.com</owner>
-  <owner>cros-web-apps-team@google.com</owner>
+  <owner>lt-web-apps-team@google.com</owner>
   <summary>
     Records whether a reinstall fixes previously broken system web app icons.
     This is recorded during icon check after a reinstall (when icons were broken
@@ -2502,7 +2489,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.WebAppUrlLoaderPrepareForLoadResult"
-    enum="WebAppUrlLoaderResult" expires_after="2025-10-26">
+    enum="WebAppUrlLoaderResult" expires_after="2025-12-28">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>Records the result of WebAppUrlLoader::PrepareForLoad().</summary>

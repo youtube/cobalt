@@ -488,7 +488,6 @@ source_set("browser_sources") {
     "video_capture_service.h",
     "video_picture_in_picture_window_controller.h",
     "visibility.h",
-    "vpn_service_proxy.h",
     "weak_document_ptr.cc",
     "weak_document_ptr.h",
     "web_authentication_delegate.cc",
@@ -549,13 +548,6 @@ source_set("browser_sources") {
         [ "//third_party/webrtc/modules/desktop_capture:pipewire_config" ]
   }
 
-  if (content_enable_legacy_ipc) {
-    sources += [
-      "browser_message_filter.cc",
-      "browser_message_filter.h",
-    ]
-  }
-
   public_deps = [
     "//base",
     "//build:chromecast_buildflags",
@@ -571,6 +563,7 @@ source_set("browser_sources") {
     "//media/mojo/mojom:remoting",
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/system",
+    "//ppapi/buildflags",
     "//sandbox/policy/mojom",
     "//services/audio/public/mojom",
     "//services/cert_verifier/public/mojom",
@@ -640,14 +633,6 @@ source_set("browser_sources") {
       "plugin_service.h",
       "plugin_service_filter.h",
     ]
-  }
-
-  if (enable_ppapi) {
-    sources += [
-      "browser_ppapi_host.h",
-      "pepper_vpn_provider_resource_host_proxy.h",
-    ]
-    deps += [ "//ppapi/c" ]
   }
 
   if (is_posix || is_fuchsia) {

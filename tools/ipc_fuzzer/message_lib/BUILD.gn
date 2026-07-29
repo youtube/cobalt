@@ -2,9 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//components/nacl/features.gni")
-import("//ppapi/buildflags/buildflags.gni")
-
 static_library("ipc_message_lib") {
   testonly = true
   configs += [ "//tools/ipc_fuzzer:ipc_fuzzer_tool_config" ]
@@ -12,7 +9,6 @@ static_library("ipc_message_lib") {
     "//base",
     "//chrome/common",
     "//chrome/common/safe_browsing:proto",
-    "//components/nacl/common:buildflags",
     "//components/safe_browsing/core/common",
     "//components/spellcheck/common",
     "//content/child",
@@ -29,9 +25,6 @@ static_library("ipc_message_lib") {
   if (is_win) {
     public_deps += [ "//chrome/chrome_elf:test_stubs" ]
   }
-  if (enable_ppapi) {
-    public_deps += [ "//ppapi/proxy:ipc" ]
-  }
   sources = [
     "all_messages.h",
     "message_cracker.h",
@@ -42,7 +35,4 @@ static_library("ipc_message_lib") {
     "message_names.cc",
     "message_names.h",
   ]
-  if (enable_nacl) {
-    public_deps += [ "//components/nacl/common" ]
-  }
 }

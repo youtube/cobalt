@@ -25,18 +25,25 @@ class TouchToFillPaymentMethodProperties {
             new PropertyModel.WritableBooleanPropertyKey("visible");
     static final PropertyModel.WritableIntPropertyKey CURRENT_SCREEN =
             new PropertyModel.WritableIntPropertyKey("current_screen");
-    public static final PropertyModel.ReadableObjectPropertyKey<ModelList> SHEET_ITEMS =
-            new PropertyModel.ReadableObjectPropertyKey("sheet_items");
+    public static final PropertyModel.WritableObjectPropertyKey<ModelList> SHEET_ITEMS =
+            new PropertyModel.WritableObjectPropertyKey("sheet_items");
+    static final PropertyModel.ReadableObjectPropertyKey<Runnable> BACK_PRESS_HANDLER =
+            new PropertyModel.ReadableObjectPropertyKey<>("back_press_handler");
     static final PropertyModel.ReadableObjectPropertyKey<Callback<Integer>> DISMISS_HANDLER =
             new PropertyModel.ReadableObjectPropertyKey<>("dismiss_handler");
 
-    static final PropertyKey[] ALL_KEYS = {VISIBLE, CURRENT_SCREEN, SHEET_ITEMS, DISMISS_HANDLER};
+    static final PropertyKey[] ALL_KEYS = {
+        VISIBLE, CURRENT_SCREEN, SHEET_ITEMS, BACK_PRESS_HANDLER, DISMISS_HANDLER
+    };
 
     // Identifies different screens that can be dynamically displayed by the payments TTF bottom
     // sheet.
     @interface ScreenId {
         // The initial bottom sheet screen which offers the user to fill data into the form.
         int HOME_SCREEN = 0;
+
+        // The screen displaying all loyalty cards of a user.
+        int ALL_LOYALTY_CARDS_SCREEN = 1;
     }
 
     @interface ItemType {

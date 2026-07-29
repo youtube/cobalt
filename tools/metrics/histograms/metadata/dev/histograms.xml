@@ -79,7 +79,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.DeveloperResourceLoaded"
-    enum="DevToolsDeveloperResourceLoaded" expires_after="M140">
+    enum="DevToolsDeveloperResourceLoaded" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <summary>
@@ -114,7 +114,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.DeveloperResourceScheme"
-    enum="DevToolsDeveloperResourceScheme" expires_after="M140">
+    enum="DevToolsDeveloperResourceScheme" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <summary>
@@ -152,7 +152,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.ExperimentDisabledAtLaunch"
-    enum="DevtoolsExperiments" expires_after="2025-10-26">
+    enum="DevtoolsExperiments" expires_after="2025-12-28">
   <owner>yangguo@google.com</owner>
   <owner>changhaohan@google.com</owner>
   <summary>
@@ -231,7 +231,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.IssueCreated" enum="DevToolsIssueCreated"
-    expires_after="2025-09-14">
+    expires_after="M150">
   <owner>yangguo@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <component>1519296</component>
@@ -241,7 +241,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.IssuesPanelIssueExpanded"
-    enum="DevToolsIssuesPanelIssueExpanded" expires_after="2025-08-10">
+    enum="DevToolsIssuesPanelIssueExpanded" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <component>1519296</component>
@@ -251,7 +251,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.IssuesPanelOpenedFrom"
-    enum="DevToolsIssuesPanelOpenedFrom" expires_after="2025-08-10">
+    enum="DevToolsIssuesPanelOpenedFrom" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <component>1519296</component>
@@ -261,7 +261,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.IssuesPanelResourceOpened"
-    enum="DevToolsIssuesPanelResourceOpened" expires_after="2025-08-10">
+    enum="DevToolsIssuesPanelResourceOpened" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <component>1519296</component>
@@ -305,7 +305,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.Launch{DevToolsLaunchPanels}" units="ms"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>yangguo@google.com</owner>
   <owner>bmeurer@google.com</owner>
   <summary>
@@ -330,7 +330,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.NetworkPanelResponsePreviewOpened"
-    enum="DevToolsMediaType" expires_after="2025-11-02">
+    enum="DevToolsMediaType" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
   <summary>
@@ -354,6 +354,26 @@ chromium-metrics-reviews@google.com.
   <owner>yangguo@google.com</owner>
   <owner>bmeurer@google.com</owner>
   <summary>Specified DevTools panel was shown.</summary>
+</histogram>
+
+<histogram name="DevTools.PerformanceAI.MainThreadActivityResponseSize"
+    units="count" expires_after="2026-06-16">
+  <owner>jacktfranklin@google.com</owner>
+  <owner>alexrudenko@google.com</owner>
+  <summary>
+    The size (in bytes) of the response of the `getMainThreadActivity` function
+    in the Performance Insights agent.
+  </summary>
+</histogram>
+
+<histogram name="DevTools.PerformanceAI.NetworkRequestDetailResponseSize"
+    units="count" expires_after="2026-06-16">
+  <owner>jacktfranklin@google.com</owner>
+  <owner>alexrudenko@google.com</owner>
+  <summary>
+    The size (in bytes) of the response of the `getNetworkRequestDetail`
+    function in the Performance Insights agent.
+  </summary>
 </histogram>
 
 <histogram name="DevTools.PerformanceAI.NetworkSummaryResponseSize"
@@ -459,7 +479,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.SourcesPanelFileDebugged" enum="DevToolsMediaType"
-    expires_after="M140">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
   <component>1456920</component>
@@ -471,7 +491,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.SourcesPanelFileOpened" enum="DevToolsMediaType"
-    expires_after="M140">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
   <component>1456920</component>
@@ -499,7 +519,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="DevTools.TraceLoad" units="ms" expires_after="2025-10-26">
+<histogram name="DevTools.TraceLoad" units="ms" expires_after="2025-12-28">
   <owner>paulirish@google.com</owner>
   <owner>jacktfranklin@google.com</owner>
   <owner>victorporof@google.com</owner>

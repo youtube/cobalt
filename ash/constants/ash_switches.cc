@@ -939,18 +939,9 @@ const char kSafeMode[] = "safe-mode";
 // TODO(crbug.com/40618074): Remove when the bug is fixed.
 const char kSamlPasswordChangeUrl[] = "saml-password-change-url";
 
-// Selects which type of disclaimer should be shown for Scanner for debugging.
-const char kScannerDisclaimerDebugOverride[] =
-    "scanner-disclaimer-debug-override";
-const char kScannerDisclaimerDebugOverrideReminder[] = "reminder";
-const char kScannerDisclaimerDebugOverrideFull[] = "full";
-
 // New modular design for the shelf with apps separated into a hotseat UI and
 // smaller shelf in clamshell mode.
 const char kShelfHotseat[] = "shelf-hotseat";
-
-// Supply secret key for Seal feature.
-const char kSealKey[] = "seal-key";
 
 // Testing grace period for DeviceScheduledReboot policy. Useful for tast tests.
 // See `ShouldSkipRebootDueToGracePeriod` in scheduled_task_util.h.

@@ -11,12 +11,18 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/bind.h"
+#include "base/test/gtest_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/android/fake_modal_dialog_manager_bridge.h"
 #include "ui/android/window_android.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/dialog_model.h"
 
 namespace ui {
+
+namespace {
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kCheckboxId);
+}  // namespace
 
 class ModalDialogWrapperTest : public testing::Test {
  protected:
@@ -34,18 +40,30 @@ class ModalDialogWrapperTest : public testing::Test {
       base::OnceClosure cancel_callback = base::DoNothing(),
       ui::ButtonStyle cancel_button_style = ui::ButtonStyle::kDefault,
       base::OnceClosure close_callback = base::DoNothing(),
-      std::optional<mojom::DialogButton> override_button = std::nullopt) {
+      std::optional<mojom::DialogButton> override_button = std::nullopt,
+      const std::vector<std::u16string>& paragraphs = {u"paragraph"},
+      bool with_checkbox = false,
+      bool checkbox_is_checked = false) {
     ui::DialogModel::Builder dialog_builder;
-    dialog_builder.SetTitle(u"title")
-        .AddParagraph(ui::DialogModelLabel(u"paragraph"))
-        .AddOkButton(std::move(ok_callback),
-                     // The button style is now applied from the parameter.
-                     ui::DialogModel::Button::Params().SetLabel(u"ok").SetStyle(
-                         ok_button_style));
+    dialog_builder.SetTitle(u"title");
+
+    for (const auto& paragraph_text : paragraphs) {
+      dialog_builder.AddParagraph(ui::DialogModelLabel(paragraph_text));
+    }
+
+    if (with_checkbox) {
+      dialog_builder.AddCheckbox(
+          kCheckboxId, ui::DialogModelLabel(u"checkbox label"),
+          ui::DialogModelCheckbox::Params().SetIsChecked(checkbox_is_checked));
+    }
+
+    dialog_builder.AddOkButton(
+        std::move(ok_callback),
+        ui::DialogModel::Button::Params().SetLabel(u"ok").SetStyle(
+            ok_button_style));
     if (cancel_button) {
       dialog_builder.AddCancelButton(
           std::move(cancel_callback),
-          // The button style is also applied here.
           ui::DialogModel::Button::Params().SetLabel(u"cancel").SetStyle(
               cancel_button_style));
     }
@@ -235,6 +253,119 @@ TEST_F(ModalDialogWrapperTest, ModalButtonsOverriddenNegative) {
             ui::ModalDialogWrapper::ModalDialogButtonStyles::
                 kPrimaryOutlineNegativeFilled);
   EXPECT_FALSE(dialog_destroyed_);
+}
+
+TEST_F(ModalDialogWrapperTest, ParagraphsAreSetAndReplaced) {
+  std::vector<std::u16string> paragraphs = {u"This is the first paragraph.",
+                                            u"This is the second paragraph."};
+
+  auto dialog_model_1 = CreateDialogModel(
+      /*ok_callback=*/base::DoNothing(),
+      /*ok_button_style=*/ui::ButtonStyle::kDefault,
+      /*cancel_button=*/false,
+      /*cancel_callback=*/base::DoNothing(),
+      /*cancel_button_style=*/ui::ButtonStyle::kDefault,
+      /*close_callback=*/base::DoNothing(),
+      /*override_button=*/std::nullopt,
+      /*paragraphs=*/paragraphs);
+
+  ModalDialogWrapper::ShowTabModal(std::move(dialog_model_1), window_->get());
+
+  std::vector<std::u16string> displayed_paragraphs_1 =
+      fake_dialog_manager_->GetMessageParagraphs();
+  ASSERT_EQ(displayed_paragraphs_1.size(), 2u);
+  EXPECT_EQ(displayed_paragraphs_1.front(), paragraphs.front());
+  EXPECT_EQ(displayed_paragraphs_1.back(), paragraphs.back());
+
+  // Remove the last element and confirm the behavior.
+  paragraphs.pop_back();
+
+  auto dialog_model_2 = CreateDialogModel(
+      /*ok_callback=*/base::DoNothing(),
+      /*ok_button_style=*/ui::ButtonStyle::kDefault,
+      /*cancel_button=*/false,
+      /*cancel_callback=*/base::DoNothing(),
+      /*cancel_button_style=*/ui::ButtonStyle::kDefault,
+      /*close_callback=*/base::DoNothing(),
+      /*override_button=*/std::nullopt,
+      /*paragraphs=*/paragraphs);
+
+  ModalDialogWrapper::ShowTabModal(std::move(dialog_model_2), window_->get());
+
+  std::vector<std::u16string> displayed_paragraphs_2 =
+      fake_dialog_manager_->GetMessageParagraphs();
+  ASSERT_EQ(displayed_paragraphs_2.size(), 1u);
+  EXPECT_EQ(displayed_paragraphs_2.front(), paragraphs.front());
+}
+
+TEST_F(ModalDialogWrapperTest, Checkbox_InitialStateUnchecked) {
+  auto dialog_model = CreateDialogModel(
+      /*ok_callback=*/base::DoNothing(),
+      /*ok_button_style=*/ui::ButtonStyle::kDefault,
+      /*cancel_button=*/false,
+      /*cancel_callback=*/base::DoNothing(),
+      /*cancel_button_style=*/ui::ButtonStyle::kDefault,
+      /*close_callback=*/base::DoNothing(),
+      /*override_button=*/std::nullopt,
+      /*paragraphs=*/{u"paragraph"},
+      /*with_checkbox=*/true);
+  ModalDialogWrapper::ShowTabModal(std::move(dialog_model), window_->get());
+
+  EXPECT_FALSE(fake_dialog_manager_->IsCheckboxChecked());
+}
+
+TEST_F(ModalDialogWrapperTest, Checkbox_InitialStateChecked) {
+  auto dialog_model = CreateDialogModel(
+      /*ok_callback=*/base::DoNothing(),
+      /*ok_button_style=*/ui::ButtonStyle::kDefault,
+      /*cancel_button=*/false,
+      /*cancel_callback=*/base::DoNothing(),
+      /*cancel_button_style=*/ui::ButtonStyle::kDefault,
+      /*close_callback=*/base::DoNothing(),
+      /*override_button=*/std::nullopt,
+      /*paragraphs=*/{u"paragraph"},
+      /*with_checkbox=*/true,
+      /*checkbox_is_checked=*/true);
+  ModalDialogWrapper::ShowTabModal(std::move(dialog_model), window_->get());
+
+  EXPECT_TRUE(fake_dialog_manager_->IsCheckboxChecked());
+}
+
+TEST_F(ModalDialogWrapperTest, Checkbox_StateSynchronizedAfterToggle) {
+  auto dialog_model = CreateDialogModel(
+      /*ok_callback=*/base::DoNothing(),
+      /*ok_button_style=*/ui::ButtonStyle::kDefault,
+      /*cancel_button=*/false,
+      /*cancel_callback=*/base::DoNothing(),
+      /*cancel_button_style=*/ui::ButtonStyle::kDefault,
+      /*close_callback=*/base::DoNothing(),
+      /*override_button=*/std::nullopt,
+      /*paragraphs=*/{u"paragraph"},
+      /*with_checkbox=*/true);
+  // Get a raw pointer to the model before it's moved.
+  auto* dialog_model_ptr = dialog_model.get();
+
+  ModalDialogWrapper::ShowTabModal(std::move(dialog_model), window_->get());
+
+  // Verify initial state.
+  EXPECT_FALSE(fake_dialog_manager_->IsCheckboxChecked());
+  EXPECT_FALSE(
+      dialog_model_ptr->GetCheckboxByUniqueId(kCheckboxId)->is_checked());
+
+  // Simulate a UI click on the checkbox.
+  fake_dialog_manager_->ToggleCheckbox();
+
+  // Verify both the Java model (via fake manager) and C++ model are updated.
+  EXPECT_TRUE(fake_dialog_manager_->IsCheckboxChecked());
+  EXPECT_TRUE(
+      dialog_model_ptr->GetCheckboxByUniqueId(kCheckboxId)->is_checked());
+
+  // Toggle it back.
+  fake_dialog_manager_->ToggleCheckbox();
+
+  EXPECT_FALSE(fake_dialog_manager_->IsCheckboxChecked());
+  EXPECT_FALSE(
+      dialog_model_ptr->GetCheckboxByUniqueId(kCheckboxId)->is_checked());
 }
 
 }  // namespace ui

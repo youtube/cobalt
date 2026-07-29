@@ -25,6 +25,7 @@ animationRangeStart
 animationTimeline
 animationTimingFunction
 animationTrigger
+animationTriggerBehavior
 animationTriggerExitRange
 animationTriggerExitRangeEnd
 animationTriggerExitRangeStart
@@ -32,7 +33,6 @@ animationTriggerRange
 animationTriggerRangeEnd
 animationTriggerRangeStart
 animationTriggerTimeline
-animationTriggerType
 appRegion
 appearance
 ascentOverride
@@ -278,9 +278,9 @@ insetInline
 insetInlineEnd
 insetInlineStart
 interactivity
-interestTargetDelay
-interestTargetHideDelay
-interestTargetShowDelay
+interestDelay
+interestHideDelay
+interestShowDelay
 interpolateSize
 isolation
 item
@@ -535,6 +535,13 @@ textWrap
 textWrapMode
 textWrapStyle
 timelineScope
+timelineTriggerBehavior
+timelineTriggerExitRangeEnd
+timelineTriggerExitRangeStart
+timelineTriggerName
+timelineTriggerRangeEnd
+timelineTriggerRangeStart
+timelineTriggerTimeline
 top
 touchAction
 transform

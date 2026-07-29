@@ -4,12 +4,13 @@
 
 #import "ios/chrome/browser/home_customization/model/background_customization_configuration_item.h"
 
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "url/gurl.h"
 
 @implementation BackgroundCustomizationConfigurationItem {
   CollectionImage _collectionImage;
-  HomeCustomizationBackgroundStyle _backgroundType;
+  HomeCustomizationBackgroundStyle _backgroundStyle;
   NSString* _configurationID;
   UIColor* _backgroundColor;
 }
@@ -19,10 +20,10 @@
   self = [super init];
   if (self) {
     _collectionImage = collectionImage;
-    _backgroundType = HomeCustomizationBackgroundStyle::kPreset;
+    _backgroundStyle = HomeCustomizationBackgroundStyle::kPreset;
     _configurationID = [NSString
         stringWithFormat:@"%@_%ld_%@", kBackgroundCellIdentifier,
-                         _backgroundType,
+                         _backgroundStyle,
                          base::SysUTF8ToNSString(
                              base::NumberToString(collectionImage.asset_id))];
   }
@@ -32,10 +33,10 @@
 - (instancetype)initWithBackgroundColor:(UIColor*)backgroundColor {
   self = [super init];
   if (self) {
-    _backgroundType = HomeCustomizationBackgroundStyle::kColor;
+    _backgroundStyle = HomeCustomizationBackgroundStyle::kColor;
     _configurationID = [NSString
         stringWithFormat:@"%@_%ld_%@", kBackgroundCellIdentifier,
-                         _backgroundType, backgroundColor.description];
+                         _backgroundStyle, backgroundColor.description];
     _backgroundColor = backgroundColor;
   }
   return self;
@@ -57,8 +58,8 @@
 
 #pragma mark - BackgroundCustomizationConfiguration
 
-- (HomeCustomizationBackgroundStyle)backgroundType {
-  return _backgroundType;
+- (HomeCustomizationBackgroundStyle)backgroundStyle {
+  return _backgroundStyle;
 }
 
 - (NSString*)configurationID {

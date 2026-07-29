@@ -252,12 +252,17 @@ class ChromeFileSystemAccessPermissionContextTest : public testing::Test {
         base::AutoReset<std::optional<base::FilePath>> profile_path_override)
         : profile_path_override_(std::move(profile_path_override)) {}
 
-    explicit ScopedHomeDirOverride(base::FilePath home_dir)
-        : home_dir_override_(
-              std::make_optional<base::ScopedPathOverride>(base::DIR_HOME,
-                                                           std::move(home_dir),
-                                                           true,
-                                                           true)) {}
+    explicit ScopedHomeDirOverride(base::FilePath home_dir,
+                                   bool should_skip_check = false) {
+      if (should_skip_check) {
+        home_dir_override_.emplace(base::DIR_HOME, std::move(home_dir),
+                                   /*should_skip_check=*/true);
+      } else {
+        home_dir_override_.emplace(base::DIR_HOME, std::move(home_dir),
+                                   /*is_absolute=*/true,
+                                   /*create=*/true);
+      }
+    }
 
    private:
     std::optional<base::AutoReset<std::optional<base::FilePath>>>
@@ -466,13 +471,14 @@ class ChromeFileSystemAccessPermissionContextTest : public testing::Test {
 
   // Overrides the home directory. Prefer to use this over a
   // `base::ScopedPathOverride` of base::DIR_HOME.
-  ScopedHomeDirOverride OverrideHomeDir(const base::FilePath& home_dir) {
+  ScopedHomeDirOverride OverrideHomeDir(const base::FilePath& home_dir,
+                                        bool should_skip_check = false) {
 #if BUILDFLAG(IS_CHROMEOS)
     // ChromeOS has special logic to handle the base::DIR_HOME path key.
     return ScopedHomeDirOverride(
         permission_context_->OverrideProfilePathForTesting(home_dir));
 #else
-    return ScopedHomeDirOverride(home_dir);
+    return ScopedHomeDirOverride(home_dir, should_skip_check);
 #endif
   }
 
@@ -3493,3 +3499,49 @@ TEST_F(ChromeFileSystemAccessPermissionContextTest,
 }
 
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+
+#if BUILDFLAG(IS_WIN)
+// Regression test for crbug.com/428455312.
+// `GetUserDocumentsDirectory()` may return invalid paths on Windows by calling
+// `SHGetFolderPath()` Windows OS API, which may return a path value that customers and
+// enterprises can override to be an invalid path like "C:PC\\Documents".
+TEST_F(ChromeFileSystemAccessPermissionContextTest,
+       ConfirmSensitiveEntryAccess_DontBlockOnInvalidPath) {
+  base::FilePath home_dir(FILE_PATH_LITERAL("C:PC\\Documents"));
+  ScopedHomeDirOverride home_override =
+      OverrideHomeDir(home_dir, /*should_skip_check=*/true);
+  ResetBlockPath();
+
+  // The path should not have any effect, and path like the `temp_dir_` should
+  // not be blocked. There should be no crash either.
+  EXPECT_EQ(ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathInfo(temp_dir_.GetPath()),
+                HandleType::kDirectory, UserAction::kOpen),
+            SensitiveDirectoryResult::kAllowed);
+}
+#endif  // BUILDFLAG(IS_WIN)
+
+#if !BUILDFLAG(IS_CHROMEOS)
+// ChromeOS doesn't use the same method for setting the home path override.
+TEST_F(ChromeFileSystemAccessPermissionContextTest,
+       ConfirmSensitiveEntryAccess_NonAbsolutePath) {
+  base::FilePath home_dir(FILE_PATH_LITERAL("./"));
+  base::FilePath absolute_home_dir = base::MakeAbsoluteFilePath(home_dir);
+  ScopedHomeDirOverride home_override =
+      OverrideHomeDir(home_dir, /*should_skip_check=*/true);
+  ResetBlockPath();
+
+  // The home path itself should not be allowed.
+  EXPECT_EQ(ConfirmSensitiveEntryAccessSync(
+                permission_context(), PathInfo(absolute_home_dir),
+                HandleType::kDirectory, UserAction::kOpen),
+            SensitiveDirectoryResult::kAbort);
+
+  // The path inside home directory itself should be allowed.
+  EXPECT_EQ(
+      ConfirmSensitiveEntryAccessSync(
+          permission_context(), PathInfo(absolute_home_dir.AppendASCII("foo")),
+          HandleType::kDirectory, UserAction::kOpen),
+      SensitiveDirectoryResult::kAllowed);
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)

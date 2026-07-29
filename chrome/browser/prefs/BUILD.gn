@@ -291,6 +291,7 @@ source_set("impl") {
     ]
   } else {
     deps += [
+      "//chrome/browser/actor/ui",
       "//chrome/browser/contextual_cueing",
       "//chrome/browser/promos:utils",
       "//chrome/browser/screen_ai:prefs",
@@ -300,10 +301,12 @@ source_set("impl") {
       "//chrome/browser/sharing_hub",
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/extensions",
+      "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/send_tab_to_self",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/views/side_panel",
+      "//chrome/browser/user_education",
       "//components/headless/policy",
       "//components/live_caption",
       "//components/live_caption:live_translate",
@@ -330,7 +333,7 @@ source_set("impl") {
   }
 
   if (enable_on_device_translation) {
-    deps += [ "//chrome/browser/on_device_translation:prefs" ]
+    deps += [ "//chrome/browser/on_device_translation" ]
   }
 
   if (enterprise_data_controls) {

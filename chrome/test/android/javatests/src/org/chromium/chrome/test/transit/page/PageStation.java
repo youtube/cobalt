@@ -14,7 +14,6 @@ import android.view.View;
 import android.widget.ImageButton;
 
 import org.chromium.base.supplier.Supplier;
-import org.chromium.base.test.transit.Transition.Trigger;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
 import org.chromium.chrome.R;
@@ -101,11 +100,7 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
     /** Shortcut to open a new tab programmatically as if selecting "New Tab" from the app menu. */
     public RegularNewTabPageStation openNewTabFast() {
         return ChromeTriggers.invokeCustomMenuActionTo(R.id.new_tab_menu_id, this)
-                .arriveAt(
-                        RegularNewTabPageStation.newBuilder()
-                                .withIsOpeningTabs(1)
-                                .withIsSelectingTabs(1)
-                                .build());
+                .arriveAt(RegularNewTabPageStation.newBuilder().initOpeningNewTab().build());
     }
 
     /**
@@ -114,11 +109,7 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
      */
     public IncognitoNewTabPageStation openNewIncognitoTabFast() {
         return ChromeTriggers.invokeCustomMenuActionTo(R.id.new_incognito_tab_menu_id, this)
-                .arriveAt(
-                        IncognitoNewTabPageStation.newBuilder()
-                                .withIsOpeningTabs(1)
-                                .withIsSelectingTabs(1)
-                                .build());
+                .arriveAt(IncognitoNewTabPageStation.newBuilder().initOpeningNewTab().build());
     }
 
     /** Shortcut to select a different tab programmatically. */
@@ -134,8 +125,7 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
                         pageStationFactory
                                 .get()
                                 .withIncognito(tabToSelect.isIncognitoBranded())
-                                .withIsOpeningTabs(0)
-                                .withIsSelectingTabs(1)
+                                .initSelectingExistingTab()
                                 .build());
     }
 
@@ -172,8 +162,7 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
                                         .getTabCreator(mIsIncognito)
                                         .launchUrl(url, TabLaunchType.FROM_LINK))
                 .arriveAt(
-                        builder.withIsOpeningTabs(1)
-                                .withIsSelectingTabs(1)
+                        builder.initOpeningNewTab()
                                 .withIncognito(mIsIncognito)
                                 .withExpectedUrlSubstring(url)
                                 .build());
@@ -204,18 +193,18 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
         ToolbarSwipeCoordinates coords =
                 new ToolbarSwipeCoordinates(toolbarElement.get(), directionRight);
 
-        T destination = destinationBuilder.initFrom(this).withIsSelectingTabs(1).build();
-        return travelToSync(
-                destination,
-                () ->
-                        TouchCommon.performDrag(
-                                toolbarElement.get(),
-                                coords.mFromX,
-                                coords.mToX,
-                                coords.mY,
-                                coords.mY,
-                                ToolbarSwipeCoordinates.STEP_COUNT,
-                                500));
+        T destination = destinationBuilder.initFrom(this).initSelectingExistingTab().build();
+        return runTo(
+                        () ->
+                                TouchCommon.performDrag(
+                                        toolbarElement.get(),
+                                        coords.mFromX,
+                                        coords.mToX,
+                                        coords.mY,
+                                        coords.mY,
+                                        ToolbarSwipeCoordinates.STEP_COUNT,
+                                        500))
+                .arriveAt(destination);
     }
 
     /** Start moving to next tab by swiping the toolbar left, but do not finish the swipe. */
@@ -234,7 +223,7 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
         long downTime = SystemClock.uptimeMillis();
         Activity activity = getActivity();
 
-        Trigger firstPartTrigger =
+        Runnable firstPartTrigger =
                 () -> {
                     TouchCommon.dragStart(activity, coords.mFromX, coords.mY, downTime);
                     TouchCommon.dragTo(
@@ -246,11 +235,11 @@ public class PageStation extends BasePageStation<ChromeTabbedActivity> {
                             ToolbarSwipeCoordinates.STEP_COUNT,
                             downTime);
                 };
-        Trigger secondPartTrigger =
+        Runnable secondPartTrigger =
                 () -> {
                     TouchCommon.dragEnd(activity, coords.mToX, coords.mY, downTime);
                 };
-        return enterFacilitySync(new SwipingToTabFacility(secondPartTrigger), firstPartTrigger);
+        return runTo(firstPartTrigger).enterFacility(new SwipingToTabFacility(secondPartTrigger));
     }
 
     private static class ToolbarSwipeCoordinates {

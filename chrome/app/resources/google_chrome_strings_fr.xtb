@@ -36,6 +36,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles, et les modifica
 <translation id="141901961143729572">Donnez-nous votre avis</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{La mise à jour de Chrome est terminée. Elle sera disponible dès que vous relancerez le navigateur. Vos onglets actuels s'ouvriront alors de nouveau.}=1{La mise à jour de Chrome est terminée. Elle sera disponible dès que vous relancerez le navigateur. Vos onglets actuels s'ouvriront alors de nouveau. La fenêtre de navigation privée ne sera pas rouverte.}one{La mise à jour de Chrome est terminée. Elle sera disponible dès que vous relancerez le navigateur. Vos onglets actuels s'ouvriront alors de nouveau. # fenêtre de navigation privée ne sera pas rouverte.}other{La mise à jour de Chrome est terminée. Elle sera disponible dès que vous relancerez le navigateur. Vos onglets actuels s'ouvriront alors de nouveau. Les # fenêtres de navigation privée ne seront pas rouvertes.}}</translation>
 <translation id="1434626383986940139">Applications Chrome Canary</translation>
+<translation id="1439793550875056299">Épingler Chrome</translation>
 <translation id="146866447420868597">Se connecter à Chrome ?</translation>
 <translation id="1492280395845991349">Relancer pour terminer la mise à jour de Chrome</translation>
 <translation id="1497802159252041924">Erreur d'installation : <ph name="INSTALL_ERROR" /></translation>
@@ -123,6 +124,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles, et les modifica
 <translation id="2569974318947988067">Chrome tentera de faire passer la navigation en HTTPS</translation>
 <translation id="2571392474191184472">Votre organisation gère Chrome</translation>
 <translation id="2574930892358684005">L'utilisateur <ph name="EXISTING_USER" /> est déjà connecté à ce profil Chrome. Chrome peut vous créer un profil de navigation individuel.</translation>
+<translation id="2579190314336775785">Les mots de passe ne peuvent être supprimés qu'en dehors de Chrome</translation>
 <translation id="2580411288591421699">Impossible d'installer la version de Google Chrome qui est en cours d'exécution. Fermez Google Chrome et réessayez.</translation>
 <translation id="2586406160782125153">Cette action aura pour effet de supprimer vos données de navigation de cet appareil. Pour récupérer vos données ultérieurement, connectez-vous à Chrome en tant que <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Échec de la mise en cache du programme d'installation téléchargé. Erreur : <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -271,6 +273,7 @@ Certaines fonctionnalités ne seront peut-être pas disponibles, et les modifica
 <translation id="4326552909330437744">{NUM_TABS,plural, =1{Chrome recommande de suspendre l'onglet qui ralentit votre navigateur}one{Chrome recommande de suspendre l'onglet qui ralentit votre navigateur}other{Chrome recommande de suspendre les onglets qui ralentissent votre navigateur}}</translation>
 <translation id="4328355335528187361">Google Chrome pour les développeurs (mDNS-In)</translation>
 <translation id="4329315893554541805">Pour bénéficier de la personnalisation et d'autres fonctionnalités, ajoutez Chrome à l'activité sur le Web et les applications ainsi qu'aux services Google associés</translation>
+<translation id="4334241893986177674">Rechercher dans cette capture d'écran</translation>
 <translation id="4334294535648607276">Le téléchargement a bien été effectué.</translation>
 <translation id="4337324600316876133">Vous devez disposer de macOS 12 ou d'une version ultérieure pour recevoir les futures mises à jour de Google Chrome. macOS 11 est installé sur cet ordinateur.</translation>
 <translation id="4343195214584226067">L'extension <ph name="EXTENSION_NAME" /> a été ajoutée à Chrome</translation>
@@ -358,6 +361,7 @@ Google Chrome ne peut pas récupérer vos paramètres.</translation>
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Erreur au démarrage : Veuillez exécuter le programme d'installation en tant qu'utilisateur standard, et non en tant qu'administrateur.</translation>
 <translation id="5596627076506792578">Plus d'options</translation>
+<translation id="5600352656975192682">Épinglez Chrome à la barre des tâches pour y accéder rapidement à tout moment</translation>
 <translation id="5602351063754773347">Chrome vous recommande de la supprimer. <ph name="BEGIN_LINK" />En savoir plus sur les extensions prises en charge<ph name="END_LINK" /></translation>
 <translation id="5649156266046089790">Utilisez les profils Chrome pour différencier toutes vos données Chrome. Créez des profils pour vos amis et votre famille, ou créez un profil pour travailler et un autre pour vous divertir.</translation>
 <translation id="565744775970812598">Chrome a bloqué <ph name="FILE_NAME" />, car ce fichier peut être dangereux.</translation>

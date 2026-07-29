@@ -606,7 +606,6 @@ De lo contrario, el panel táctil integrado se volverá a habilitar dentro de <p
 <translation id="3033545621352269033">Sí</translation>
 <translation id="3033912566804961911">Combinar con <ph name="DESK_NAME" /></translation>
 <translation id="3036649622769666520">Abrir archivos</translation>
-<translation id="3038571455154067151">Para acceder, ingresa el código de acceso parental de Family Link.</translation>
 <translation id="3039939407102840004">El nivel de la batería de la pluma stylus es del <ph name="PERCENTAGE" />%.</translation>
 <translation id="304097922505898963">Abrir la app de Combinaciones de teclas</translation>
 <translation id="304417730895741346">Las apps que fijaste y abriste están en la barra. Para fijar una app a la barra, haz clic con el botón derecho en la app o presiona el panel táctil con dos dedos.</translation>
@@ -2311,7 +2310,7 @@ Para apagarlo, vuelve a mantener presionado el botón de encendido.</translation
 <translation id="851458219935658693">Está seleccionado el botón que muestra las ventanas del escritorio actual</translation>
 <translation id="851660987304951246">Usa Help me read para resumir contenido o hacer preguntas rápidamente</translation>
 <translation id="8517041960877371778">Tu <ph name="DEVICE_TYPE" /> podría no cargarse si el dispositivo está encendido.</translation>
-<translation id="8519329096920173967">Buscar en mi pantalla con Google Lens</translation>
+<translation id="8519329096920173967">Buscar contenido de mi pantalla con Google Lens</translation>
 <translation id="8535393432370007982">Deshacer el orden por color</translation>
 <translation id="8536886494750559755">Mostrar la configuración de Quick Share. Visible para todos durante <ph name="TIME_REMAINING" />.</translation>
 <translation id="8539803091108018926">Se copió el texto en el Portapapeles</translation>

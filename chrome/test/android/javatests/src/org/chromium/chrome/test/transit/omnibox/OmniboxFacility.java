@@ -12,8 +12,6 @@ import static org.chromium.base.test.transit.ViewSpec.viewSpec;
 
 import android.view.View;
 
-import androidx.test.espresso.Espresso;
-
 import org.chromium.base.test.transit.Facility;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
@@ -90,13 +88,8 @@ public class OmniboxFacility extends Facility<PageStation> {
 
     /** Enter text into the omnibox. */
     public OmniboxEnteredTextFacility typeText(String textToTypeAndExpect) {
-        return mHostStation.enterFacilitySync(
-                new OmniboxEnteredTextFacility(this, textToTypeAndExpect),
-                urlBarElement.getTypeTextTrigger(textToTypeAndExpect));
-    }
-
-    /** Press back expecting the Omnibox to be closed. */
-    public void pressBackToClose() {
-        mHostStation.exitFacilitySync(this, Espresso::pressBack);
+        return urlBarElement
+                .typeTextTo(textToTypeAndExpect)
+                .enterFacility(new OmniboxEnteredTextFacility(this, textToTypeAndExpect));
     }
 }

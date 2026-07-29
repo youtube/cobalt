@@ -90,7 +90,7 @@ MediaControlTrackSelectorListElement::MediaControlTrackSelectorListElement(
     : MediaControlPopupMenuElement(media_controls), is_video_(is_video) {
   setAttribute(html_names::kRoleAttr, AtomicString("menu"));
   setAttribute(html_names::kAriaLabelAttr,
-               WTF::AtomicString(GetLocale().QueryString(
+               AtomicString(GetLocale().QueryString(
                    IDS_MEDIA_OVERFLOW_MENU_TRACK_SELECTION_SUBMENU_TITLE)));
   if (is_video) {
     SetShadowPseudoId(
@@ -125,7 +125,7 @@ void MediaControlTrackSelectorListElement::DefaultEventHandler(Event& event) {
   } else if (event.type() == event_type_names::kChange) {
     // Identify which input element was selected and select the corresponding
     // track.
-    Node* target = event.RawTarget()->ToNode();
+    Node* target = event.target()->ToNode();
     if (!target || !target->IsElementNode()) {
       return;
     }

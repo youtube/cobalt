@@ -40,6 +40,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -57,8 +58,10 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeSystemBarColorHelper;
 import org.chromium.components.browser_ui.edge_to_edge.WindowSystemBarColorHelper;
@@ -67,7 +70,6 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.DOMUtils;
-import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.DeviceRestriction;
@@ -82,13 +84,13 @@ import java.util.concurrent.TimeoutException;
 @SuppressLint("NewApi")
 public class TabbedNavigationBarColorControllerTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
-
-    @Rule public EmbeddedTestServerRule mTestServerRule = new EmbeddedTestServerRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private static final int ANIMATION_CHECK_INTERVAL_MS = 100;
     private static final int ANIMATION_MAX_TIMEOUT_MS = 2000;
 
+    private WebPageStation mPage;
     private Window mWindow;
     private @ColorInt int mRegularNavigationColor;
     private @ColorInt int mDarkNavigationColor;
@@ -98,7 +100,7 @@ public class TabbedNavigationBarColorControllerTest {
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         mWindow = mActivityTestRule.getActivity().getWindow();
         Context context = mActivityTestRule.getActivity();
         mRegularNavigationColor = SemanticColorUtils.getBottomSystemNavColor(context);
@@ -148,6 +150,10 @@ public class TabbedNavigationBarColorControllerTest {
     @Test
     @SmallTest
     @DisableFeatures(ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN)
+    // TODO(crbug.com/428056054): Do not read color from system window bars on B+.
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            message = "crbug.com/428056054")
     public void testToggleIncognito() {
         assertEquals(
                 "Navigation bar should match the tab background on normal tabs.",
@@ -189,7 +195,9 @@ public class TabbedNavigationBarColorControllerTest {
                 mWindow.getNavigationBarColor());
 
         String url =
-                mTestServerRule.getServer().getURL("/content/test/data/media/video-player.html");
+                mActivityTestRule
+                        .getTestServer()
+                        .getURL("/content/test/data/media/video-player.html");
         mActivityTestRule.loadUrl(url);
         ChromeTabbedActivity activity = mActivityTestRule.getActivity();
         FullscreenToggleObserver observer = new FullscreenToggleObserver();
@@ -214,6 +222,10 @@ public class TabbedNavigationBarColorControllerTest {
     @Test
     @MediumTest
     @DisableFeatures(ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN)
+    // TODO(crbug.com/428056054): Do not read color from system window bars on B+.
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            message = "crbug.com/428056054")
     public void testSetNavigationBarScrimFraction() {
         assertEquals(
                 "Navigation bar should match the tab background on normal tabs.",

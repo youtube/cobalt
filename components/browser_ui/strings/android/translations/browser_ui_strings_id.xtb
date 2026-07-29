@@ -36,6 +36,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="1409338233051621926">Ketuk Aplikasi, lalu ketuk Aplikasi default</translation>
 <translation id="1415402041810619267">URL dipotong</translation>
 <translation id="1415855080660575082">Izinkan Chrome membagikan tab terbaru ke perangkat Anda agar Anda dapat melihatnya di daftar aplikasi dan hasil penelusuran perangkat. Anda dapat mengaktifkan atau menonaktifkannya di setelan Chrome.</translation>
+<translation id="1432650420699700107">Situs dapat meminta terhubung ke perangkat apa pun di jaringan lokal Anda</translation>
 <translation id="1448064542941920355">Kurangi zoom</translation>
 <translation id="1464044141348608623">Jangan izinkan situs mengetahui saat Anda aktif menggunakan perangkat</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> situs}other{<ph name="SITE_COUNT" /> situs}}</translation>
@@ -60,6 +61,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="1703666494654169921">Jangan izinkan situs menggunakan perangkat atau data virtual reality</translation>
 <translation id="1704230497453185209">Jangan izinkan situs memutar suara</translation>
 <translation id="1717218214683051432">Sensor gerakan</translation>
+<translation id="1717996979683942279">Jika diaktifkan, situs dapat meminta untuk mengelola jendela di semua layar Anda. Jika dinonaktifkan, situs tidak dapat mengelola jendela di semua layar Anda.</translation>
 <translation id="1743802530341753419">Tanya sebelum mengizinkan situs terhubung ke perangkat (disarankan)</translation>
 <translation id="1777815584158991902">Panel bawah feed Discover</translation>
 <translation id="1779089405699405702">Pendekode gambar</translation>
@@ -68,6 +70,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="1799920918471566157">Tips untuk Chrome</translation>
 <translation id="1816835383954230954">Jika diaktifkan, Chrome berjalan lebih cepat dan fitur yang menggunakan JavaScript akan berfungsi sebagaimana mestinya. Jika dinonaktifkan, performa akan berkurang tetapi akan membuat V8 lebih tahan terhadap serangan.</translation>
 <translation id="1818308510395330587">Untuk mengizinkan <ph name="APP_NAME" /> menggunakan Augmented Reality (AR), aktifkan juga kamera di <ph name="BEGIN_LINK" />Setelan Android<ph name="END_LINK" />.</translation>
+<translation id="1881806992065048905">Panel bawah tampilan halaman tab baru</translation>
 <translation id="1887786770086287077">Akses lokasi dinonaktifkan untuk perangkat ini. Aktifkan di <ph name="BEGIN_LINK" />Setelan Android<ph name="END_LINK" />.</translation>
 <translation id="1906181697255754968">Situs biasanya mengakses file dan folder di perangkat Anda untuk fitur seperti penyimpanan tugas otomatis</translation>
 <translation id="1915307458270490472">Akhiri</translation>
@@ -116,6 +119,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, dan <ph name="NUM_MORE" /> lainnya diizinkan}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, dan <ph name="NUM_MORE" /> lainnya diizinkan}}</translation>
 <translation id="2410940059315936967">Situs yang Anda buka dapat menyematkan konten dari situs lain, misalnya gambar, iklan, dan teks. Cookie yang disetel oleh situs lain ini disebut cookie pihak ketiga.</translation>
+<translation id="2433507940547922241">Tampilan</translation>
 <translation id="2434158240863470628">Download selesai <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">Anda mengizinkan situs ini menggunakan cookie pihak ketiga untuk sementara. Dengan demikian, Anda mendapatkan lebih sedikit perlindungan terhadap penjelajahan, tetapi fitur situs cenderung berfungsi seperti yang diharapkan. <ph name="BEGIN_LINK" />Kirim masukan<ph name="END_LINK" /></translation>
 <translation id="244264527810019436">Fitur di beberapa situs mungkin tidak berfungsi dalam mode Samaran</translation>
@@ -128,6 +132,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="2490684707762498678">Dikelola oleh <ph name="APP_NAME" /></translation>
 <translation id="2498359688066513246">Bantuan &amp; masukan</translation>
 <translation id="2501278716633472235">Kembali</translation>
+<translation id="2533138527374486328">Jika diaktifkan, situs dapat meminta untuk terhubung ke perangkat apa pun di jaringan lokal Anda. Jika dinonaktifkan, situs tidak dapat terhubung ke perangkat di jaringan lokal Anda.</translation>
 <translation id="2546283357679194313">Cookie dan data situs</translation>
 <translation id="2570922361219980984">Akses lokasi juga dinonaktifkan untuk perangkat ini. Aktifkan di <ph name="BEGIN_LINK" />Setelan Android<ph name="END_LINK" />.</translation>
 <translation id="257931822824936280">Diperluas - klik untuk menciutkan</translation>
@@ -151,6 +156,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="2789132527330338807">Situs dapat meminta untuk membuat peta 3D untuk area di sekeliling Anda atau melacak posisi kamera</translation>
 <translation id="2790501146643349491">Jika diaktifkan, situs yang baru saja ditutup dapat menyelesaikan pengiriman dan penerimaan data. Jika dinonaktifkan, situs yang baru saja ditutup tidak dapat menyelesaikan pengiriman atau penerimaan data.</translation>
 <translation id="2795716239552913152">Situs biasanya menggunakan lokasi Anda untuk fitur atau informasi yang relevan, seperti berita lokal atau toko terdekat</translation>
+<translation id="2800760947029405028">Upload gambar</translation>
 <translation id="2802908157808345702">Jangan izinkan situs mengirim pop-up dan menggunakan pengalihan</translation>
 <translation id="2814830417943086299">Chrome kini menampilkan tab terbaru di daftar aplikasi dan hasil penelusuran perangkat Anda. Anda dapat menonaktifkannya kapan saja di setelan Chrome.</translation>
 <translation id="2822354292072154809">Yakin ingin menyetel ulang semua izin situs untuk <ph name="CHOSEN_OBJECT_NAME" />?</translation>
@@ -166,6 +172,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="2968755619301702150">Penampil sertifikat</translation>
 <translation id="2979365474350987274">Cookie pihak ketiga dibatasi</translation>
 <translation id="2990583317361835189">Jangan izinkan situs menggunakan sensor gerakan</translation>
+<translation id="3004438526346162184">Situs dapat menggunakan fitur ini untuk mengelola jendela di semua layar Anda</translation>
 <translation id="3008272652534848354">Reset izin</translation>
 <translation id="301521992641321250">Diblokir secara otomatis</translation>
 <translation id="3064871050034234884">Situs dapat memutar suara</translation>
@@ -236,6 +243,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="3779154269823594982">Ubah sandi</translation>
 <translation id="3797520601150691162">Jangan terapkan tema gelap untuk situs tertentu</translation>
 <translation id="3803367742635802571">Situs yang Anda buka mungkin tidak berfungsi sebagaimana mestinya</translation>
+<translation id="3816118180265633665">Warna Chrome</translation>
 <translation id="381841723434055211">Nomor telepon</translation>
 <translation id="3826050100957962900">Login pihak ketiga</translation>
 <translation id="3835233591525155343">Penggunaan perangkat Anda</translation>
@@ -254,6 +262,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="3955321697524543127">Jangan izinkan situs terhubung ke perangkat USB</translation>
 <translation id="3965467402665811906">Situs dapat meminta untuk menggunakan informasi tentang Anda yang disimpan situs</translation>
 <translation id="3967822245660637423">Download selesai</translation>
+<translation id="3969869202926863008">Akses jaringan lokal</translation>
 <translation id="3981465354637804599">Situs biasanya menampilkan iklan agar dapat menyediakan konten atau layanan tanpa biaya. Namun, beberapa situs dikenal menampilkan iklan yang mengganggu atau menyesatkan.</translation>
 <translation id="3987993985790029246">Salin link</translation>
 <translation id="3991845972263764475"><ph name="BYTES_DOWNLOADED_WITH_UNITS" /> / ?</translation>
@@ -320,6 +329,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="4882919381756638075">Situs biasanya menggunakan mikrofon Anda untuk fitur komunikasi seperti video chat</translation>
 <translation id="4883854917563148705">Setelan yang dikelola tidak dapat direset</translation>
 <translation id="4887024562049524730">Tanyakan sebelum mengizinkan situs untuk menggunakan perangkat dan data virtual reality Anda (direkomendasikan)</translation>
+<translation id="4934780484581617878">Pengelolaan jendela</translation>
 <translation id="4936863036653376783">Anda akan menemukan grup di bagian grup tab di semua perangkat Anda</translation>
 <translation id="4945443401464700059"><ph name="SITE" /> diblokir agar tidak dapat menggunakan informasi Anda di</translation>
 <translation id="4953688446973710931">JIka diaktifkan, situs dapat meminta untuk otomatis mendownload beberapa file. Jika dinonaktifkan, situs tidak dapat otomatis mendownload beberapa file.</translation>
@@ -327,6 +337,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="4972737347717125191">Situs dapat meminta untuk menggunakan perangkat dan data virtual reality</translation>
 <translation id="497421865427891073">Maju</translation>
 <translation id="4976702386844183910">Terakhir dibuka <ph name="DATE" /></translation>
+<translation id="4978178243417029856">Pelajari lebih lanjut feed Discover</translation>
 <translation id="4994033804516042629">Kontak tidak ditemukan</translation>
 <translation id="4996978546172906250">Bagikan dengan</translation>
 <translation id="5001526427543320409">Cookie pihak ketiga</translation>
@@ -422,6 +433,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="5968921426641056619">Masukkan alamat web</translation>
 <translation id="5975083100439434680">Perkecil</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
+<translation id="5998071268779572583">Aktifkan feed Discover</translation>
 <translation id="6015775454662021376">Mengontrol akses situs ini ke perangkat Anda</translation>
 <translation id="6040143037577758943">Tutup</translation>
 <translation id="6042308850641462728">Lainnya</translation>
@@ -429,6 +441,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="6071501408666570960">Anda mungkin akan logout dari situs ini</translation>
 <translation id="6085954183010297841">Hapus pemberian izin edit file? <ph name="FILE" /></translation>
 <translation id="6120483543004435978">Jika diaktifkan, situs dapat meminta untuk mengetahui saat Anda aktif menggunakan perangkat. Jika dinonaktifkan, situs tidak dapat mengetahui saat Anda aktif menggunakan perangkat.</translation>
+<translation id="615886654739818377">Jangan izinkan situs mengelola jendela di semua layar Anda</translation>
 <translation id="6165508094623778733">Pelajari selengkapnya</translation>
 <translation id="6171020522141473435">Jika diaktifkan, situs dapat meminta untuk menggunakan perangkat Bluetooth. Jika dinonaktifkan, situs tidak dapat menggunakan perangkat Bluetooth.</translation>
 <translation id="6177128806592000436">Sambungan Anda ke situs ini tidak aman</translation>
@@ -450,6 +463,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="6398765197997659313">Keluar dari tampilan layar penuh</translation>
 <translation id="640163077447496506">Berakhir hari ini</translation>
 <translation id="6405650995156823521"><ph name="FIRST_PART" /> • <ph name="SECOND_PART" /></translation>
+<translation id="6413980879783180524">Kumpulan Tema</translation>
 <translation id="6439114592976064011">Blokir situs agar tidak menggunakan perangkat dan data virtual reality Anda</translation>
 <translation id="6447842834002726250">Cookie</translation>
 <translation id="6452138246455930388">Penurunan harga di tab yang terbuka, dari <ph name="OLD_PRICE" /> menjadi <ph name="NEW_PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN_NAME" /></translation>
@@ -461,8 +475,10 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="6545864417968258051">Pemindaian Bluetooth</translation>
 <translation id="6552800053856095716">{PERMISSIONS_SUMMARY_BLOCKED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, dan <ph name="NUM_MORE" /> lainnya diblokir}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, dan <ph name="NUM_MORE" /> lainnya diblokir}}</translation>
 <translation id="6554732001434021288">Terakhir dibuka <ph name="NUM_DAYS" /> hari lalu</translation>
+<translation id="6557290421156335491">Pintasan saya</translation>
 <translation id="656065428026159829">Lihat lebih banyak</translation>
 <translation id="6561560012278703671">Gunakan notifikasi yang lebih tenang (memblokir pop-up notifikasi agar tidak mengganggu Anda)</translation>
+<translation id="6565144332292237355">Situs dapat menggunakan fitur ini untuk mencari dan terhubung ke perangkat apa pun di jaringan lokal Anda</translation>
 <translation id="6593061639179217415">Situs desktop</translation>
 <translation id="659938948789980540">{COUNT,plural, =1{Cookie diizinkan untuk <ph name="RWS_MEMBERS_COUNT" /> situs di <ph name="RWS_OWNER" />}other{Cookie diizinkan untuk <ph name="RWS_MEMBERS_COUNT" /> situs di <ph name="RWS_OWNER" />}}</translation>
 <translation id="6608650720463149374"><ph name="GIGABYTES" /> GB</translation>
@@ -508,8 +524,10 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="7188508872042490670">Data situs di perangkat</translation>
 <translation id="7201549776650881587">Tindakan ini akan menghapus semua data dan cookie yang disimpan oleh semua situs di bawah <ph name="ORIGIN" /> atau oleh aplikasinya di Layar utama</translation>
 <translation id="7203150201908454328">Diperluas</translation>
+<translation id="7213166370492037743">Jangan izinkan situs terhubung ke perangkat apa pun di jaringan lokal Anda</translation>
 <translation id="7219254577985949841">Hapus data situs?</translation>
 <translation id="723171743924126238">Pilih gambar</translation>
+<translation id="7243246278722455312">Sheet bawah sesuaikan halaman tab baru</translation>
 <translation id="7243308994586599757">Opsi terdapat di dekat bagian bawah layar</translation>
 <translation id="7250468141469952378"><ph name="ITEM_COUNT" /> dipilih</translation>
 <translation id="7260727271532453612"><ph name="PERMISSION_1" /> dan <ph name="PERMISSION_2" /> diizinkan</translation>
@@ -549,6 +567,7 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="7791543448312431591">Tambahkan</translation>
 <translation id="780301667611848630">Lain kali</translation>
 <translation id="7804248752222191302">Situs menggunakan kamera Anda</translation>
+<translation id="7805832099057502789">Panel bawah tampilan halaman tab baru terbuka sepenuhnya</translation>
 <translation id="7807060072011926525">Disediakan oleh Google</translation>
 <translation id="7815680994978050279">Download berbahaya diblokir</translation>
 <translation id="7835852323729233924">Media yang sedang diputar</translation>
@@ -568,9 +587,11 @@ Perlindungan Lanjutan mengontrol setelan Chrome berikut:
 <translation id="802154636333426148">Download gagal</translation>
 <translation id="8042586301629853791">Urutkan menurut:</translation>
 <translation id="8051193500142930381">Fitur yang memerlukan kamera tidak akan berfungsi</translation>
+<translation id="8056330801132235235">Default Chrome</translation>
 <translation id="8067883171444229417">Putar video</translation>
 <translation id="8068648041423924542">Tidak dapat memilih sertifikat.</translation>
 <translation id="8077120325605624147">Setiap situs yang Anda buka dapat menampilkan iklan apa pun kepada Anda</translation>
+<translation id="80798452873915119">Situs dapat meminta untuk mengelola jendela di semua layar</translation>
 <translation id="8087000398470557479">Konten ini dari <ph name="DOMAIN_NAME" />, dikirimkan oleh Google.</translation>
 <translation id="8088603949666785339">Opsi lainnya di <ph name="BANNER_TITLE" /></translation>
 <translation id="8112925981674547014">Lihat tab di daftar aplikasi Anda</translation>

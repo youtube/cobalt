@@ -921,6 +921,8 @@ class ComputedStyle final : public ComputedStyleBase {
   }
   bool HasDashArray() const { return !StrokeDashArray()->data.empty(); }
 
+  bool IsCaretColorAuto() const { return CaretColor().IsAutoColor(); }
+
   // accent-color
   // An empty optional means the accent-color is 'auto'
   std::optional<blink::Color> AccentColorResolved() const;
@@ -1125,7 +1127,7 @@ class ComputedStyle final : public ComputedStyleBase {
   }
 
   // Grid axis utility functions, usable in Grid and Masonry.
-  const NGGridTrackList& AutoTracks(
+  const GridTrackList& AutoTracks(
       GridTrackSizingDirection track_direction) const {
     return (track_direction == kForColumns) ? GridAutoColumns()
                                             : GridAutoRows();
@@ -1344,7 +1346,7 @@ class ComputedStyle final : public ComputedStyleBase {
            BorderBottomWidth();
   }
   bool HasBorderDecoration() const {
-    return HasBorder() || BorderImage().HasImage();
+    return HasBorder() || BorderImage().HasImage() || HasBorderShape();
   }
   bool HasBorderRadius() const {
     if (!BorderTopLeftRadius().Width().IsZero()) {

@@ -603,7 +603,8 @@ TEST_F(AIPageContentAgentTest, IFrameWithContent) {
   auto* iframe_doc = iframe_element->contentDocument();
   ASSERT_TRUE(iframe_doc);
 
-  iframe_doc->body()->setInnerHTML("<body>inside iframe</body>");
+  iframe_doc->body()->SetInnerHTMLWithoutTrustedTypes(
+      "<body>inside iframe</body>");
 
   GetAIPageContent();
 
@@ -2385,7 +2386,7 @@ TEST_F(AIPageContentAgentTest, MetaTags) {
   // test this case.
   auto& document = *helper_.LocalMainFrame()->GetFrame()->GetDocument();
   document.getElementById(AtomicString("nullcontent"))
-      ->setAttribute(html_names::kContentAttr, WTF::g_null_atom);
+      ->setAttribute(html_names::kContentAttr, g_null_atom);
 
   mojom::blink::AIPageContentOptions options;
   options.max_meta_elements = 32;
@@ -3680,6 +3681,55 @@ TEST_F(AIPageContentAgentTest, DisabledInheritance) {
 
   const auto& button = *fieldset.children_nodes.at(0);
   CheckHitTestableButNotInteractive(button);
+}
+
+TEST_F(AIPageContentAgentTest, Fieldset) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      R"HTML(
+      <body>
+        <form>
+          <fieldset>
+            <button type="submit"></button>
+          </fieldset>
+        </form>
+      </body>
+      )HTML",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContentWithActionableElements();
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+
+  const auto& form = *root.children_nodes.at(0);
+  CheckHitTestableButNotInteractive(form);
+  ASSERT_EQ(form.children_nodes.size(), 1u);
+
+  const auto& fieldset = *form.children_nodes.at(0);
+  CheckHitTestableButNotInteractive(fieldset);
+}
+
+TEST_F(AIPageContentAgentTest, ShadowDOMInInput) {
+  frame_test_helpers::LoadHTMLString(
+      helper_.LocalMainFrame(),
+      R"HTML(
+      <body>
+        <input type=range></input>
+      </body>
+      )HTML",
+      url_test_helpers::ToKURL("http://foobar.com"));
+
+  GetAIPageContentWithActionableElements();
+  const auto& root = ContentRootNode();
+  ASSERT_EQ(root.children_nodes.size(), 1u);
+
+  const auto& input = *root.children_nodes.at(0);
+  ASSERT_TRUE(input.content_attributes->node_interaction_info);
+  EXPECT_TRUE(input.content_attributes->node_interaction_info->is_clickable);
+
+  EXPECT_NE(input.children_nodes.size(), 0u);
+  const auto& shadow_div = *input.children_nodes.at(0);
+  CheckHitTestableButNotInteractive(shadow_div);
 }
 
 TEST_F(AIPageContentAgentTest, DisabledOption) {

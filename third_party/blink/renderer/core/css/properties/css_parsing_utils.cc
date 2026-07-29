@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/core/css/css_font_family_value.h"
 #include "third_party/blink/renderer/core/css/css_font_feature_value.h"
 #include "third_party/blink/renderer/core/css/css_font_style_range_value.h"
+#include "third_party/blink/renderer/core/css/css_font_variation_value.h"
 #include "third_party/blink/renderer/core/css/css_function_value.h"
 #include "third_party/blink/renderer/core/css/css_gap_decoration_property_utils.h"
 #include "third_party/blink/renderer/core/css/css_gradient_value.h"
@@ -110,6 +111,7 @@ namespace blink {
 
 using cssvalue::CSSBracketedValueList;
 using cssvalue::CSSFontFeatureValue;
+using cssvalue::CSSFontVariationValue;
 
 namespace css_parsing_utils {
 namespace {
@@ -770,8 +772,12 @@ CSSFunctionValue* ConsumeFilterFunction(CSSParserTokenStream& stream,
       } else if (filter_type == CSSValueID::kBrightness) {
         // FIXME (crbug.com/397061): Support calc expressions like
         // calc(10% + 0.5)
-        parsed_value = ConsumePercent(stream, context,
-                                      CSSPrimitiveValue::ValueRange::kAll);
+        parsed_value = ConsumePercent(
+            stream, context,
+            RuntimeEnabledFeatures::
+                    CSSFilterBrightnessNonNegativePercentageEnabled()
+                ? CSSPrimitiveValue::ValueRange::kNonNegative
+                : CSSPrimitiveValue::ValueRange::kAll);
         if (!parsed_value) {
           parsed_value = ConsumeNumber(
               stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
@@ -1444,7 +1450,8 @@ static CSSPrimitiveValue* ConsumeMathFunctionAngle(
     double minimum_value,
     double maximum_value) {
   MathFunctionParser math_parser(stream, context,
-                                 CSSPrimitiveValue::ValueRange::kAll);
+                                 CSSPrimitiveValue::ValueRange::kAll,
+                                 CSSMathExpressionNode::Flags());
   if (const CSSMathFunctionValue* calculation = math_parser.Value()) {
     if (calculation->Category() != kCalcAngle) {
       return nullptr;
@@ -1470,7 +1477,8 @@ static CSSPrimitiveValue* ConsumeMathFunctionAngle(
     CSSParserTokenStream& stream,
     const CSSParserContext& context) {
   MathFunctionParser math_parser(stream, context,
-                                 CSSPrimitiveValue::ValueRange::kAll);
+                                 CSSPrimitiveValue::ValueRange::kAll,
+                                 CSSMathExpressionNode::Flags());
   if (const CSSMathFunctionValue* calculation = math_parser.Value()) {
     if (calculation->Category() != kCalcAngle) {
       return nullptr;
@@ -1523,7 +1531,8 @@ CSSPrimitiveValue* ConsumeTime(CSSParserTokenStream& stream,
     }
     return nullptr;
   }
-  MathFunctionParser math_parser(stream, context, value_range);
+  MathFunctionParser math_parser(stream, context, value_range,
+                                 CSSMathExpressionNode::Flags());
   if (const CSSMathFunctionValue* calculation = math_parser.Value()) {
     if (calculation->Category() == kCalcTime) {
       return math_parser.ConsumeValue();
@@ -1550,7 +1559,8 @@ CSSPrimitiveValue* ConsumeResolution(CSSParserTokenStream& stream,
   }
 
   MathFunctionParser math_parser(stream, context,
-                                 CSSPrimitiveValue::ValueRange::kNonNegative);
+                                 CSSPrimitiveValue::ValueRange::kNonNegative,
+                                 CSSMathExpressionNode::Flags());
   const CSSMathFunctionValue* math_value = math_parser.Value();
   if (math_value && math_value->IsResolution()) {
     return math_parser.ConsumeValue();
@@ -1605,11 +1615,10 @@ CSSIdentifierValue* ConsumeIdentRange(CSSParserTokenStream& stream,
   return ConsumeIdent(stream);
 }
 
-namespace {
-
 // https://drafts.csswg.org/css-values-5/#ident
 CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream& stream,
                                        const CSSParserContext& context) {
+  CHECK(RuntimeEnabledFeatures::CSSIdentFunctionEnabled());
   if (stream.Peek().FunctionId() != CSSValueID::kIdent) {
     return nullptr;
   }
@@ -1648,8 +1657,6 @@ CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream& stream,
   return MakeGarbageCollected<CSSFunctionValue>(
       CSSValueID::kIdent, CSSValueList::kSpaceSeparator, std::move(values));
 }
-
-}  // namespace
 
 CSSCustomIdentValue* ConsumeCustomIdent(CSSParserTokenStream& stream,
                                         const CSSParserContext& context) {
@@ -4521,12 +4528,22 @@ CSSValue* ConsumeSingleTimelineAxis(CSSParserTokenStream& stream) {
                       CSSValueID::kY>(stream);
 }
 
-CSSValue* ConsumeSingleTimelineName(CSSParserTokenStream& stream,
-                                    const CSSParserContext& context) {
+CSSValue* ConsumeNoneOrDashIdent(CSSParserTokenStream& stream,
+                                 const CSSParserContext& context) {
   if (CSSValue* value = ConsumeIdent<CSSValueID::kNone>(stream)) {
     return value;
   }
   return ConsumeDashedIdent(stream, context);
+}
+
+CSSValue* ConsumeSingleTimelineName(CSSParserTokenStream& stream,
+                                    const CSSParserContext& context) {
+  return ConsumeNoneOrDashIdent(stream, context);
+}
+
+CSSValue* ConsumeSingleTimelineTriggerName(CSSParserTokenStream& stream,
+                                           const CSSParserContext& context) {
+  return ConsumeNoneOrDashIdent(stream, context);
 }
 
 namespace {
@@ -4569,7 +4586,7 @@ CSSValue* ConsumeAnimationTriggerValue(CSSPropertyID property,
                                        CSSParserTokenStream& stream,
                                        const CSSParserContext& context) {
   switch (property) {
-    case CSSPropertyID::kAnimationTriggerType:
+    case CSSPropertyID::kAnimationTriggerBehavior:
       return css_parsing_utils::ConsumeIdent<
           CSSValueID::kOnce, CSSValueID::kRepeat, CSSValueID::kAlternate,
           CSSValueID::kState>(stream);
@@ -6063,30 +6080,14 @@ CSSValue* ConsumeFontWeight(CSSParserTokenStream& stream,
   return CombineToRangeList(start_weight, end_weight);
 }
 
-CSSValue* ConsumeFontFeatureSettings(CSSParserTokenStream& stream,
-                                     const CSSParserContext& context) {
-  if (stream.Peek().Id() == CSSValueID::kNormal) {
-    return ConsumeIdent(stream);
-  }
-  CSSValueList* settings = CSSValueList::CreateCommaSeparated();
-  do {
-    CSSFontFeatureValue* font_feature_value =
-        ConsumeFontFeatureTag(stream, context);
-    if (!font_feature_value) {
-      return nullptr;
-    }
-    settings->Append(*font_feature_value);
-  } while (ConsumeCommaIncludingWhitespace(stream));
-  return settings;
-}
-
-CSSFontFeatureValue* ConsumeFontFeatureTag(CSSParserTokenStream& stream,
-                                           const CSSParserContext& context) {
-  // Feature tag name consists of 4-letter characters.
+template <typename T>
+T* ConsumeFontSettingsTagAndValue(CSSParserTokenStream& stream,
+                                  const CSSParserContext& context) {
+  // Tag name consists of 4-letter characters.
   const unsigned kTagNameLength = 4;
 
   const CSSParserToken& token = stream.Peek();
-  // Feature tag name comes first
+  // Tag name comes first for both features and variations.
   if (token.GetType() != kStringToken) {
     return nullptr;
   }
@@ -6105,8 +6106,8 @@ CSSFontFeatureValue* ConsumeFontFeatureTag(CSSParserTokenStream& stream,
   }
 
   CSSPrimitiveValue* tag_value = nullptr;
-  // Feature tag values could follow: <integer> | on | off
-  if (CSSPrimitiveValue* value = ConsumeInteger(stream, context, 0)) {
+  // Tag values could follow: <integer> | on | off
+  if (CSSPrimitiveValue* value = ConsumeInteger(stream, context)) {
     tag_value = value;
   } else if (stream.Peek().Id() == CSSValueID::kOn ||
              stream.Peek().Id() == CSSValueID::kOff) {
@@ -6117,7 +6118,37 @@ CSSFontFeatureValue* ConsumeFontFeatureTag(CSSParserTokenStream& stream,
     tag_value =
         CSSNumericLiteralValue::Create(1, CSSPrimitiveValue::UnitType::kNumber);
   }
-  return MakeGarbageCollected<CSSFontFeatureValue>(tag, tag_value);
+  return MakeGarbageCollected<T>(tag, tag_value);
+}
+
+template <typename T>
+CSSValue* ConsumeFontSettings(CSSParserTokenStream& stream,
+                              const CSSParserContext& context) {
+  if (stream.Peek().Id() == CSSValueID::kNormal) {
+    return ConsumeIdent(stream);
+  }
+
+  CSSValueList* settings = CSSValueList::CreateCommaSeparated();
+
+  do {
+    T* font_settings = ConsumeFontSettingsTagAndValue<T>(stream, context);
+    if (!font_settings) {
+      return nullptr;
+    }
+    settings->Append(*font_settings);
+  } while (ConsumeCommaIncludingWhitespace(stream));
+
+  return settings;
+}
+
+CSSValue* ConsumeFontFeatureSettings(CSSParserTokenStream& stream,
+                                     const CSSParserContext& context) {
+  return ConsumeFontSettings<CSSFontFeatureValue>(stream, context);
+}
+
+CSSValue* ConsumeFontVariationSettings(CSSParserTokenStream& stream,
+                                       const CSSParserContext& context) {
+  return ConsumeFontSettings<CSSFontVariationValue>(stream, context);
 }
 
 CSSIdentifierValue* ConsumeFontVariantCSS21(CSSParserTokenStream& stream) {
@@ -6301,6 +6332,16 @@ bool IsGridTrackFixedSized(const CSSValue& value) {
          IsGridBreadthFixedSized(max_value);
 }
 
+bool IsGridTrackFixedSizedOrAuto(const CSSValue& value) {
+  if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+    CSSValueID value_id = identifier_value->GetValueID();
+    if (value_id == CSSValueID::kAuto) {
+      return true;
+    }
+  }
+  return IsGridTrackFixedSized(value);
+}
+
 CSSValue* ConsumeGridTrackSize(CSSParserTokenStream& stream,
                                const CSSParserContext& context) {
   const auto& token_id = stream.Peek().FunctionId();
@@ -6396,12 +6437,13 @@ bool AppendLineNames(CSSParserTokenStream& stream,
   return false;
 }
 
-bool ConsumeGridTrackRepeatFunction(CSSParserTokenStream& stream,
-                                    const CSSParserContext& context,
-                                    bool is_subgrid_track_list,
-                                    CSSValueList& list,
-                                    bool& is_auto_repeat,
-                                    bool& all_tracks_are_fixed_sized) {
+bool ConsumeGridTrackRepeatFunction(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    bool is_subgrid_track_list,
+    CSSValueList& list,
+    bool& is_auto_repeat,
+    bool& all_tracks_are_auto_repeat_or_fixed_sized) {
   DCHECK_EQ(stream.Peek().GetType(), kFunctionToken);
   CSSParserTokenStream::BlockGuard guard(stream);
   stream.ConsumeWhitespace();
@@ -6449,8 +6491,21 @@ bool ConsumeGridTrackRepeatFunction(CSSParserTokenStream& stream,
       if (!track_size) {
         return false;
       }
-      if (all_tracks_are_fixed_sized) {
-        all_tracks_are_fixed_sized = IsGridTrackFixedSized(*track_size);
+      if (all_tracks_are_auto_repeat_or_fixed_sized) {
+        // Whether repeat(auto-fill, auto) should be allowed, and if it should
+        // apply to both grid and masonry is still in discussion in the CSSWG.
+        //
+        // TODO(almaher): Make adjustments once a resolution is made [1].
+        //
+        // [1] https://github.com/w3c/csswg-drafts/issues/10915
+        if (is_auto_repeat &&
+            RuntimeEnabledFeatures::CSSMasonryLayoutEnabled()) {
+          all_tracks_are_auto_repeat_or_fixed_sized =
+              IsGridTrackFixedSizedOrAuto(*track_size);
+        } else {
+          all_tracks_are_auto_repeat_or_fixed_sized =
+              IsGridTrackFixedSized(*track_size);
+        }
       }
       repeated_values->Append(*track_size);
       ++number_of_tracks;
@@ -6658,7 +6713,7 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
   bool allow_repeat =
       is_subgrid_track_list || track_list_type == TrackListType::kGridTemplate;
   bool seen_auto_repeat = false;
-  bool all_tracks_are_fixed_sized = true;
+  bool all_tracks_are_auto_repeat_or_fixed_sized = true;
   auto IsRangeAtEnd = [](CSSParserTokenStream& stream) -> bool {
     return stream.AtEnd() || stream.Peek().GetType() == kDelimiterToken;
   };
@@ -6671,7 +6726,7 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
       }
       if (!ConsumeGridTrackRepeatFunction(
               stream, context, is_subgrid_track_list, *values, is_auto_repeat,
-              all_tracks_are_fixed_sized)) {
+              all_tracks_are_auto_repeat_or_fixed_sized)) {
         return nullptr;
       }
       stream.ConsumeWhitespace();
@@ -6686,8 +6741,9 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
       if (is_subgrid_track_list) {
         return nullptr;
       }
-      if (all_tracks_are_fixed_sized) {
-        all_tracks_are_fixed_sized = IsGridTrackFixedSized(*value);
+      if (all_tracks_are_auto_repeat_or_fixed_sized) {
+        all_tracks_are_auto_repeat_or_fixed_sized =
+            IsGridTrackFixedSized(*value);
       }
 
       values->Append(*value);
@@ -6695,7 +6751,7 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
       return nullptr;
     }
 
-    if (seen_auto_repeat && !all_tracks_are_fixed_sized) {
+    if (seen_auto_repeat && !all_tracks_are_auto_repeat_or_fixed_sized) {
       return nullptr;
     }
     if (!allow_grid_line_names &&
@@ -7388,8 +7444,6 @@ const CSSValuePair* ConsumeShapeCommandControlPoint(
 cssvalue::CSSShapeValue* ConsumeBasicShapeShape(
     CSSParserTokenStream& args,
     const CSSParserContext& context) {
-  CHECK(RuntimeEnabledFeatures::CSSShapeFunctionEnabled());
-
   // shape() = shape( <'fill-rule'>? ...
   WindRule wind_rule = RULE_NONZERO;
   if (args.Peek().Id() == CSSValueID::kEvenodd) {
@@ -7619,21 +7673,16 @@ cssvalue::CSSShapeValue* ConsumeBasicShapeShape(
               const CSSValue* radius_y = ConsumeLengthOrPercent(
                   args, context, CSSPrimitiveValue::ValueRange::kAll);
 
-              has_direction_agnostic_radius =
-                  RuntimeEnabledFeatures::
-                      CSSShapeFunctionDirectionAgnosticArcEnabled() &&
-                  !radius_y;
+              has_direction_agnostic_radius = !radius_y;
               if (!radius_y) {
                 radius_y = radius_x;
               }
 
               radius = MakeGarbageCollected<CSSValuePair>(
                   radius_x, radius_y,
-                  RuntimeEnabledFeatures::
-                              CSSShapeFunctionDirectionAgnosticArcEnabled() &&
-                          !has_direction_agnostic_radius
-                      ? CSSValuePair::kKeepIdenticalValues
-                      : CSSValuePair::kDropIdenticalValues);
+                  has_direction_agnostic_radius
+                      ? CSSValuePair::kDropIdenticalValues
+                      : CSSValuePair::kKeepIdenticalValues);
               break;
             }
             // https://drafts.csswg.org/css-shapes-2/#typedef-shape-arc-sweep
@@ -7851,11 +7900,8 @@ CSSValue* ConsumeOffsetPath(CSSParserTokenStream& stream,
 
   CSSValue* offset_path = ConsumeRay(stream, context);
   if (!offset_path) {
-    offset_path = ConsumeBasicShape(
-        stream, context, AllowPathValue::kForbid,
-        RuntimeEnabledFeatures::CSSShapeFunctionOffsetPathEnabled()
-            ? AllowShapeValue::kAllow
-            : AllowShapeValue::kForbid);
+    offset_path = ConsumeBasicShape(stream, context, AllowPathValue::kForbid,
+                                    AllowShapeValue::kAllow);
   }
   if (!offset_path) {
     offset_path = ConsumeUrl(stream, context);
@@ -8044,8 +8090,7 @@ CSSValue* ConsumeBasicShape(CSSParserTokenStream& stream,
                allow_path == AllowPathValue::kAllow) {
       shape = ConsumeBasicShapePath(stream);
     } else if (id == CSSValueID::kShape &&
-               allow_shape == AllowShapeValue::kAllow &&
-               RuntimeEnabledFeatures::CSSShapeFunctionEnabled()) {
+               allow_shape == AllowShapeValue::kAllow) {
       shape = ConsumeBasicShapeShape(stream, context);
     } else if (id == CSSValueID::kRect &&
                allow_rect == AllowBasicShapeRectValue::kAllow) {

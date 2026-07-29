@@ -7,6 +7,7 @@ package org.chromium.chrome.browser;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 import static org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlocker.IS_INCOGNITO_SELECTED;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
@@ -108,6 +109,7 @@ import org.chromium.chrome.browser.crypto.CipherFactory;
 import org.chromium.chrome.browser.data_sharing.DataSharingIntentUtils;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabGroupUtils;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
+import org.chromium.chrome.browser.data_sharing.ui.versioning.VersioningMessageBanner;
 import org.chromium.chrome.browser.device.DeviceClassManager;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.download.DownloadNotificationService;
@@ -259,6 +261,7 @@ import org.chromium.chrome.browser.tasks.tab_management.TabsSettings;
 import org.chromium.chrome.browser.tasks.tab_management.archived_tabs_auto_delete_promo.ArchivedTabsAutoDeletePromoManager;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
 import org.chromium.chrome.browser.toolbar.top.tab_strip.StripVisibilityState;
 import org.chromium.chrome.browser.ui.AppLaunchDrawBlocker;
@@ -267,12 +270,12 @@ import org.chromium.chrome.browser.ui.RootUiCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
-import org.chromium.chrome.browser.ui.extensions.ExtensionKeybindingRegistry;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.IntentOrigin;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
+import org.chromium.chrome.browser.undo_tab_close_snackbar.TabUndoBarController;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarController;
 import org.chromium.chrome.browser.usage_stats.UsageStatsService;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
@@ -291,6 +294,7 @@ import org.chromium.components.embedder_support.util.UrlUtilitiesJni;
 import org.chromium.components.external_intents.ExternalNavigationHandler;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.profile_metrics.BrowserProfileType;
@@ -479,7 +483,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
     private final AppLaunchDrawBlocker mAppLaunchDrawBlocker;
 
     private @Nullable MultiInstanceManager mMultiInstanceManager;
-    private UndoBarController mUndoBarPopupController;
+    private TabUndoBarController mUndoBarPopupController;
     private LayoutManagerChrome mLayoutManager;
     private ViewGroup mContentContainer;
     private ToolbarControlContainer mControlContainer;
@@ -557,8 +561,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
     private SuggestionEventObserver mSuggestionEventObserver;
     private GroupSuggestionsPromotionCoordinator mGroupSuggestionsPromotionCoordinator;
     private @Nullable ArchivedTabsAutoDeletePromoManager mArchivedTabsAutoDeletePromoManager;
-
-    @Nullable private ExtensionKeybindingRegistry mExtensionKeybindingRegistry;
 
     private final LazyOneshotSupplier<@Nullable XrSceneCoreSessionManager>
             mXrSceneCoreSessionManagerSupplier =
@@ -883,7 +885,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                             mRootUiCoordinator::getTopUiThemeColorProvider,
                             createHubLayoutDependencyHolder(),
                             getCompositorViewHolderSupplier(),
-                            getContentView(),
+                            getContentView().findViewById(R.id.coordinator),
                             getToolbarManager(),
                             mRootUiCoordinator.getScrimManager().getScrimVisibilitySupplier());
             mLayoutStateProviderSupplier.set(mLayoutManager);
@@ -934,7 +936,8 @@ public class ChromeTabbedActivity extends ChromeActivity {
                             mRootUiCoordinator.getDataSharingTabManager(),
                             mRootUiCoordinator.getBottomSheetController(),
                             mRootUiCoordinator.getShareDelegateSupplier(),
-                            getXrSpaceModeObservableSupplier());
+                            getXrSpaceModeObservableSupplier(),
+                            mRootUiCoordinator.getTopControlsStacker());
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -1365,10 +1368,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
                                             .getTabGroupModelFilter(false));
                 }
             }
-
-            mExtensionKeybindingRegistry =
-                    ExtensionKeybindingRegistry.maybeCreate(
-                            getProfileProviderSupplier().get().getOriginalProfile());
 
             initiateArchivedTabsAutoDeletePromoManager();
         }
@@ -2683,7 +2682,7 @@ public class ChromeTabbedActivity extends ChromeActivity {
                 };
 
         mUndoBarPopupController =
-                new UndoBarController(this, mTabModelSelector, this, dialogVisibilitySupplier);
+                new TabUndoBarController(this, mTabModelSelector, this, dialogVisibilitySupplier);
 
         // TODO(crbug.com/376668040): Remove this once enough time has passed
         // most clients have upgraded to have colors.
@@ -3036,7 +3035,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
                                         TabLaunchType.FROM_CHROME_UI),
                 getModalDialogManager(),
                 getSnackbarManager(),
-                mRootUiCoordinator.getExtensionService(),
                 mRootUiCoordinator.getIncognitoReauthControllerSupplier(),
                 mRootUiCoordinator.getReadAloudControllerSupplier());
     }
@@ -3110,31 +3108,34 @@ public class ChromeTabbedActivity extends ChromeActivity {
             return;
         }
 
-        LauncherShortcutActivity.updateIncognitoShortcut(
-                ChromeTabbedActivity.this, mTabModelProfileSupplier.get());
+        Activity activity = ChromeTabbedActivity.this;
+        Profile profile = mTabModelProfileSupplier.get();
+        MessageDispatcher messageDispatcher = MessageDispatcherProvider.from(getWindowAndroid());
+
+        LauncherShortcutActivity.updateIncognitoShortcut(activity, profile);
 
         ChromeSurveyController.initialize(
-                mTabModelSelector,
-                getLifecycleDispatcher(),
-                ChromeTabbedActivity.this,
-                MessageDispatcherProvider.from(getWindowAndroid()),
-                mTabModelProfileSupplier.get());
+                mTabModelSelector, getLifecycleDispatcher(), activity, messageDispatcher, profile);
 
         PrivacySandboxSurveyController.initialize(
                 mTabModelSelector,
                 getLifecycleDispatcher(),
-                ChromeTabbedActivity.this,
-                MessageDispatcherProvider.from(getWindowAndroid()),
+                activity,
+                messageDispatcher,
                 getActivityTabProvider(),
-                mTabModelProfileSupplier.get());
+                profile);
 
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.HEADLESS_TAB_MODEL)) {
-            Profile profile = getProfileProviderSupplier().get().getOriginalProfile();
+            Profile originalProfile = getProfileProviderSupplier().get().getOriginalProfile();
             TabWindowManagerSingleton.getInstance()
-                    .keepAllTabModelsLoaded(mMultiInstanceManager, profile, getTabModelSelector());
+                    .keepAllTabModelsLoaded(
+                            mMultiInstanceManager, originalProfile, getTabModelSelector());
         } else {
             mMultiInstanceManager.cleanupSyncedTabGroupsIfOnlyInstance(mTabModelSelector);
         }
+
+        VersioningMessageBanner.maybeShow(
+                activity, messageDispatcher, getModalDialogManager(), profile);
 
         if (mAuxiliarySearchController != null) {
             mAuxiliarySearchController.onDeferredStartup();
@@ -3183,7 +3184,12 @@ public class ChromeTabbedActivity extends ChromeActivity {
         }
         if (mWindowId == INVALID_WINDOW_ID) {
             Log.i(TAG, "Window ID not allocated. Finishing the activity");
-            Toast.makeText(this, R.string.max_number_of_windows, Toast.LENGTH_LONG).show();
+            String text =
+                    getResources()
+                            .getString(
+                                    R.string.max_number_of_windows,
+                                    MultiWindowUtils.getMaxInstances());
+            Toast.makeText(this, text, Toast.LENGTH_LONG).show();
             recordMaxWindowLimitExceededHistogram(/* limitExceeded= */ true);
             return false;
         } else {
@@ -3202,6 +3208,13 @@ public class ChromeTabbedActivity extends ChromeActivity {
         recordMaxWindowLimitExceededHistogram(/* limitExceeded= */ false);
 
         return super.isStartedUpCorrectly(intent);
+    }
+
+    /**
+     * @return The allocated windowId of the activity for testing purposes.
+     */
+    public int getWindowIdForTesting() {
+        return mWindowId;
     }
 
     private void logIntentInfo(Intent intent) {
@@ -3984,11 +3997,6 @@ public class ChromeTabbedActivity extends ChromeActivity {
             mGroupSuggestionsPromotionCoordinator = null;
         }
 
-        if (mExtensionKeybindingRegistry != null) {
-            mExtensionKeybindingRegistry.destroy();
-            mExtensionKeybindingRegistry = null;
-        }
-
         if (mXrSceneCoreSessionManagerSupplier.hasValue()
                 && mXrSceneCoreSessionManagerSupplier.get() != null) {
             var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
@@ -4028,8 +4036,11 @@ public class ChromeTabbedActivity extends ChromeActivity {
 
         if (Boolean.TRUE.equals(result)) return result;
 
-        if (mExtensionKeybindingRegistry != null) {
-            if (mExtensionKeybindingRegistry.handleKeyEvent(event)) {
+        ExtensionToolbarCoordinator extensionToolbarCoordinator =
+                mRootUiCoordinator.getToolbarManager().getExtensionToolbarCoordinator();
+        if (extensionToolbarCoordinator != null) {
+            // Handle extension shortcuts.
+            if (extensionToolbarCoordinator.dispatchKeyEvent(event)) {
                 result = true;
             }
         }

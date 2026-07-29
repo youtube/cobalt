@@ -29,6 +29,7 @@ source_set("flags") {
     "//components/enterprise/connectors/core",
     "//components/feature_engagement/public",
     "//components/feed:feature_list",
+    "//components/fingerprinting_protection_filter/common:features",
     "//components/history/core/browser",
     "//components/ntp_tiles",
     "//components/omnibox/browser",
@@ -42,6 +43,7 @@ source_set("flags") {
     "//components/payments/core",
     "//components/policy:generated",
     "//components/policy/core/common:common_constants",
+    "//components/regional_capabilities",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/ios/browser/web_ui:features",
     "//components/search",
@@ -139,8 +141,11 @@ source_set("client_side") {
     "//components/variations",
     "//ios/chrome/app:tests_hook",
     "//ios/chrome/browser/first_run/ui_bundled:field_trial",
+    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/variations/model:store",
+    "//ios/chrome/common",
   ]
 }
 

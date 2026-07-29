@@ -336,6 +336,11 @@ class GlicApiTest : public NonInteractiveGlicTest {
 
 class GlicApiTestWithOneTab : public GlicApiTest {
  public:
+  GlicApiTestWithOneTab() {
+    scoped_feature_list_.InitWithFeatures({features::kGlicClosedCaptioning},
+                                          /*disabled_features=*/{});
+  }
+
   void SetUpOnMainThread() override {
     GlicApiTest::SetUpOnMainThread();
 
@@ -353,6 +358,9 @@ class GlicApiTestWithOneTab : public GlicApiTest {
   }
 
   std::unique_ptr<base::HistogramTester> histogram_tester;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
@@ -884,39 +892,29 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testEnableDragResize) {
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents));
   ExecuteJsTest();
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return window_controller().GetGlicWidget()->widget_delegate()->CanResize();
-  }));
+  RunTestSequence(WaitForCanResizeEnabled(/*enabled=*/true));
 }
 
-// This test is flaky on Mac (crbug.com/414584725).
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_testDisableDragResize DISABLED_testDisableDragResize
-#else
-#define MAYBE_testDisableDragResize testDisableDragResize
-#endif
-IN_PROC_BROWSER_TEST_F(GlicApiTest, MAYBE_testDisableDragResize) {
+IN_PROC_BROWSER_TEST_F(GlicApiTest, testDisableDragResize) {
   // Check the default resize setting here.
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents),
-                  ExpectUserCanResize(true));
+                  WaitForCanResizeEnabled(/*enabled=*/true));
   ExecuteJsTest();
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return !window_controller().GetGlicWidget()->widget_delegate()->CanResize();
-  }));
+  RunTestSequence(WaitForCanResizeEnabled(/*enabled=*/false));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testInitiallyNotResizable) {
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents));
   ExecuteJsTest();
-  RunTestSequence(InAnyContext(ExpectUserCanResize(false)));
+  RunTestSequence(WaitForCanResizeEnabled(/*enabled=*/false));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTabAndContextualCueing,
                        testGetZeroStateSuggestions) {
   EXPECT_CALL(*mock_cueing_service(),
-              GetContextualGlicZeroStateSuggestions(_, _, _, _))
+              GetContextualGlicZeroStateSuggestionsForFocusedTab(_, _, _, _))
       .Times(1);
 
   ExecuteJsTest();
@@ -925,7 +923,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTabAndContextualCueing,
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTabAndContextualCueing,
                        testGetZeroStateSuggestionsFailsWhenHidden) {
   EXPECT_CALL(*mock_cueing_service(),
-              GetContextualGlicZeroStateSuggestions(_, _, _, _))
+              GetContextualGlicZeroStateSuggestionsForFocusedTab(_, _, _, _))
       .Times(0);
 
   ExecuteJsTest();
@@ -1108,7 +1106,14 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testGetDisplayMedia) {
   ExecuteJsTest();
 }
 
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testJournal) {
+  ExecuteJsTest();
+}
+
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testMetrics) {
+  browser()->profile()->GetPrefs()->SetBoolean(
+      prefs::kGlicClosedCaptioningEnabled, true);
+
   ExecuteJsTest();
   // Sleeping here is needed so that the calls made from the web client are
   // handled by the browser before the check below.
@@ -1116,6 +1121,9 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testMetrics) {
   histogram_tester->ExpectUniqueSample(
       "Glic.Sharing.ActiveTabSharingState.OnUserInputSubmitted",
       ActiveTabSharingState::kTabContextPermissionNotGranted, 1);
+
+  histogram_tester->ExpectUniqueSample("Glic.Response.ClosedCaptionsShown",
+                                       true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testScrollToFindsText) {
@@ -1533,7 +1541,8 @@ class MAYBE_GlicApiTestWithOneTabMoreDebounceDelay
         {{
             features::kGlicTabFocusDataDedupDebounce,
             {
-                {features::kGlicTabFocusDataDebounceDelayMs.name, "100"},
+                // Set an arbitrarily high debounce delay to avoid flakiness.
+                {features::kGlicTabFocusDataDebounceDelayMs.name, "1000"},
             },
         }},
         /*disabled_features=*/

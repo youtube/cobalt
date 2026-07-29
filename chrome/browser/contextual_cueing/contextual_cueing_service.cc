@@ -200,8 +200,9 @@ bool ContextualCueingService::IsPageTypeEligibleForContextualSuggestions(
   }
 
   // Search results pages are not eligible.
-  if (template_url_service_ &&
-      template_url_service_->ExtractSearchMetadata(url)) {
+  if (!kAllowContextualSuggestionsForSearchResultsPages.Get() &&
+      (template_url_service_ &&
+       template_url_service_->ExtractSearchMetadata(url))) {
     return false;
   }
 
@@ -297,11 +298,12 @@ void ContextualCueingService::PrepareToFetchContextualGlicZeroStateSuggestions(
 #endif
 }
 
-void ContextualCueingService::GetContextualGlicZeroStateSuggestions(
-    content::WebContents* web_contents,
-    bool is_fre,
-    std::optional<std::vector<std::string>> supported_tools,
-    GlicSuggestionsCallback callback) {
+void ContextualCueingService::
+    GetContextualGlicZeroStateSuggestionsForFocusedTab(
+        content::WebContents* web_contents,
+        bool is_fre,
+        std::optional<std::vector<std::string>> supported_tools,
+        GlicSuggestionsCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!base::FeatureList::IsEnabled(kGlicZeroStateSuggestions)) {

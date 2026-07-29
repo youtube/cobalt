@@ -9,6 +9,7 @@
 <translation id="1115463765356382667">Каб карыстацца ўсімі магчымасцямі Chromium, выканайце гэтыя дзеянні.</translation>
 <translation id="1140315115515116765">Зрабіце Chromium стандартным браўзерам для зручнага прагляду статыстыкі цэн</translation>
 <translation id="1185134272377778587">Пра Chromium</translation>
+<translation id="1229234641991056119">Вы можаце выкарыстоўваць паролі Safari, гісторыю, закладкі і крэдытныя карткі ў Chromium</translation>
 <translation id="1257458525759135959">Каб магчы захоўваць відарысы, націсніце "Налады" і дазвольце Chromium дадаваць вашы фота</translation>
 <translation id="1260702988262336471">Адкрыйце меню Chromium</translation>
 <translation id="12739128458173458">Каб адправіць гэту ўкладку з адной прылады на іншую, увайдзіце ў Chromium на абедзвюх.</translation>
@@ -174,6 +175,7 @@
 <translation id="5203244847421322551">Захоўваць і аўтаматычна запаўняць паролі ў Chromium</translation>
 <translation id="5224391634244552924">Няма захаваных пароляў. Chromium можа правяраць толькі захаваныя паролі.</translation>
 <translation id="5259423875997548710">Дазваляе выканаць візуальны пошук у Chromium.</translation>
+<translation id="5284913972719948193">Імпартуйце ў Chromium вашы даныя і выкарыстоўвайце свае паролі, гісторыю, закладкі і звесткі аб крэдытных картках</translation>
 <translation id="5308226104666789935">Браўзеру Chromium не ўдаецца праверыць наяўнасць абнаўленняў</translation>
 <translation id="5311557153294205270">Дадае ўведзеныя URL-адрасы ў закладкі ў Chromium.</translation>
 <translation id="5383251701169024761">Для зручнага аўтазапаўнення захаваных пароляў у іншых праграмах выкарыстоўвайце Chromium</translation>
@@ -307,6 +309,7 @@
 <translation id="865600487977764604">Абараняе вас у браўзеры Chromium і можа выкарыстоўвацца для паляпшэння бяспекі ў іншых праграмах Google, калі вы ўвайшлі ва ўліковы запіс.</translation>
 <translation id="8663480472502753423">Падтрымка актуальнага стану Chromium</translation>
 <translation id="8685813584220679697">Выканайце ўваход на сайт і ў Chromium.</translation>
+<translation id="8698780336333802489">Імпартаваць у Chromium</translation>
 <translation id="8730503818204408000">Адкрывае наладу Chromium, якая дазваляе зрабіць Chromium стандартным браўзерам.</translation>
 <translation id="8754966941001340678">Chromium рэкамендуе палепшаную абарону</translation>
 <translation id="8759037115129007407">Удзельнік сямейнай групы зараз не можа атрымліваць паролі. Папрасіце яго абнавіць Chromium і сінхранізаваць паролі. <ph name="BEGIN_LINK" />Даведацца больш<ph name="END_LINK" /></translation>

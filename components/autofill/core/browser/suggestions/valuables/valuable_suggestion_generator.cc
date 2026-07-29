@@ -26,6 +26,28 @@ Suggestion::LetterMonochromeIcon CreateFallbackSuggestionIcon(
       base::UTF8ToUTF16(merchant_name.substr(0, 1)));
 }
 
+Suggestion CreateUndoOrClearFormSuggestion() {
+#if BUILDFLAG(IS_IOS)
+  std::u16string value =
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_CLEAR_FORM_MENU_ITEM);
+  // TODO(crbug.com/40266549): iOS still uses Clear Form logic, replace with
+  // Undo.
+  Suggestion suggestion(value, SuggestionType::kUndoOrClear);
+  suggestion.icon = Suggestion::Icon::kClear;
+#else
+  std::u16string value = l10n_util::GetStringUTF16(IDS_AUTOFILL_UNDO_MENU_ITEM);
+  if constexpr (BUILDFLAG(IS_ANDROID)) {
+    value = base::i18n::ToUpper(value);
+  }
+  Suggestion suggestion(value, SuggestionType::kUndoOrClear);
+  suggestion.icon = Suggestion::Icon::kUndo;
+#endif
+  // TODO(crbug.com/40266549): update "Clear Form" a11y announcement to "Undo"
+  suggestion.acceptance_a11y_announcement =
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_A11Y_ANNOUNCE_CLEARED_FORM);
+  return suggestion;
+}
+
 // Set the URL for the loyalty card icon image or fallback icon to be shown in
 // the `suggestion`.
 void SetLoyaltyCardIconURL(Suggestion& suggestion,
@@ -35,8 +57,6 @@ void SetLoyaltyCardIconURL(Suggestion& suggestion,
   if constexpr (BUILDFLAG(IS_ANDROID)) {
     suggestion.custom_icon = Suggestion::CustomIconUrl(icon_url);
   } else {
-    // TODO(crbug.com/404437008): Check that the pointer is always valid once a
-    // default icon is available.
     if (const gfx::Image* image =
             valuables_manager.GetCachedValuableImageForUrl(icon_url)) {
       suggestion.custom_icon = *image;
@@ -51,6 +71,8 @@ Suggestion CreateManageLoyaltyCardsSuggestion() {
   Suggestion suggestion(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_LOYALTY_CARDS),
       SuggestionType::kManageLoyaltyCard);
+  suggestion.voice_over =
+      l10n_util::GetStringUTF16(IDS_AUTOFILL_MANAGE_LOYALTY_CARDS_A11Y_HINT);
   suggestion.icon = Suggestion::Icon::kSettings;
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   suggestion.trailing_icon = Suggestion::Icon::kGoogleWallet;
@@ -72,7 +94,6 @@ Suggestion CreateLoyaltyCardSuggestion(
   suggestion.payload = Suggestion::Guid(loyalty_card.id().value());
   SetLoyaltyCardIconURL(suggestion, loyalty_card.program_logo(),
                         valuables_manager, loyalty_card.merchant_name());
-  // The IPH is only available on Desktop.
   suggestion.iph_metadata = Suggestion::IPHMetadata(
       &feature_engagement::kIPHAutofillEnableLoyaltyCardsFeature);
   return suggestion;
@@ -91,11 +112,26 @@ std::vector<Suggestion> CreateSuggestionsFromLoyaltyCards(
   return suggestions;
 }
 
+// Returns non loyalty cards suggestions which are displayed below loyalty cards
+// suggestions in the Autofill popup. `trigger_field_is_autofilled` is used to
+// conditionally add suggestion for clearing autofilled field.
+std::vector<Suggestion> GetLoyaltyCardsFooterSuggestions(
+    bool trigger_field_is_autofilled) {
+  std::vector<Suggestion> footer_suggestions;
+  footer_suggestions.emplace_back(SuggestionType::kSeparator);
+  if (trigger_field_is_autofilled) {
+    footer_suggestions.push_back(CreateUndoOrClearFormSuggestion());
+  }
+  footer_suggestions.push_back(CreateManageLoyaltyCardsSuggestion());
+  return footer_suggestions;
+}
+
 }  // namespace
 
-std::vector<Suggestion> GetLoyaltyCardSuggestions(
+std::vector<Suggestion> GetSuggestionsForLoyaltyCards(
     const ValuablesDataManager& valuables_manager,
-    const GURL& url) {
+    const GURL& url,
+    bool trigger_field_is_autofilled) {
   std::vector<LoyaltyCard> all_loyalty_cards =
       valuables_manager.GetLoyaltyCardsToSuggest();
   if (all_loyalty_cards.empty()) {
@@ -104,17 +140,27 @@ std::vector<Suggestion> GetLoyaltyCardSuggestions(
 
   auto non_affiliated_cards = std::ranges::stable_partition(
       all_loyalty_cards, [&](const LoyaltyCard& card) {
-        return card.HasMatchingMerchantDomain(url);
+        return card.GetAffiliationCategory(url) ==
+               LoyaltyCard::AffiliationCategory::kAffiliated;
       });
   // SAFETY: Bounds information contained in vector iterators.
   UNSAFE_BUFFERS(std::vector<LoyaltyCard> affiliated_cards(
       all_loyalty_cards.begin(), non_affiliated_cards.begin()));
   // If no submenu is needed.
-  if (affiliated_cards.empty() || non_affiliated_cards.empty()) {
+
+#if BUILDFLAG(IS_ANDROID)
+  const bool generate_flat_suggestions = true;
+#else
+  const bool generate_flat_suggestions =
+      affiliated_cards.empty() || non_affiliated_cards.empty();
+#endif
+
+  if (generate_flat_suggestions) {
     std::vector<Suggestion> suggestions =
         CreateSuggestionsFromLoyaltyCards(all_loyalty_cards, valuables_manager);
-    suggestions.emplace_back(SuggestionType::kSeparator);
-    suggestions.push_back(CreateManageLoyaltyCardsSuggestion());
+    std::ranges::move(
+        GetLoyaltyCardsFooterSuggestions(trigger_field_is_autofilled),
+        std::back_inserter(suggestions));
     return suggestions;
   }
 
@@ -134,16 +180,17 @@ std::vector<Suggestion> GetLoyaltyCardSuggestions(
 #endif
   submenu_suggestion.children = CreateSuggestionsFromLoyaltyCards(
       valuables_manager.GetLoyaltyCardsToSuggest(), valuables_manager);
-  suggestions.emplace_back(SuggestionType::kSeparator);
-  suggestions.push_back(CreateManageLoyaltyCardsSuggestion());
+  std::ranges::move(
+      GetLoyaltyCardsFooterSuggestions(trigger_field_is_autofilled),
+      std::back_inserter(suggestions));
   return suggestions;
 }
 
 void ExtendEmailSuggestionsWithLoyaltyCardSuggestions(
-    std::vector<Suggestion>& email_suggestions,
     const ValuablesDataManager& valuables_manager,
     const GURL& url,
-    bool trigger_field_is_autofilled) {
+    bool trigger_field_is_autofilled,
+    std::vector<Suggestion>& email_suggestions) {
   std::vector<LoyaltyCard> all_loyalty_cards =
       valuables_manager.GetLoyaltyCardsToSuggest();
   CHECK(!email_suggestions.empty());
@@ -169,17 +216,18 @@ void ExtendEmailSuggestionsWithLoyaltyCardSuggestions(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   submenu_suggestion.icon = Suggestion::Icon::kGoogleWalletMonochrome;
 #endif
-  std::ranges::stable_partition(all_loyalty_cards,
-                                [&](const LoyaltyCard& card) {
-                                  return card.HasMatchingMerchantDomain(url);
-                                });
+  std::ranges::stable_partition(
+      all_loyalty_cards, [&](const LoyaltyCard& card) {
+        return card.GetAffiliationCategory(url) ==
+               LoyaltyCard::AffiliationCategory::kAffiliated;
+      });
   submenu_suggestion.children =
       CreateSuggestionsFromLoyaltyCards(all_loyalty_cards, valuables_manager);
   submenu_suggestion.children.emplace_back(SuggestionType::kSeparator);
   submenu_suggestion.children.emplace_back(
       CreateManageLoyaltyCardsSuggestion());
   // There is at least one email, separator and manage addresses suggestion.
-  CHECK_GE(int(email_suggestions.size()), 3);
+  CHECK_GE(email_suggestions.size(), 3u);
   if (trigger_field_is_autofilled) {
     CHECK_EQ(email_suggestions[email_suggestions.size() - 2].type,
              SuggestionType::kUndoOrClear);

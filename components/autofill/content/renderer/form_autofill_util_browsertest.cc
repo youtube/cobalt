@@ -218,7 +218,8 @@ class FormAutofillUtilsTest : public content::RenderViewTest {
   FormAutofillUtilsTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
-        {features::kAutofillReplaceCachedWebElementsByRendererIds},
+        {features::kAutofillReplaceCachedWebElementsByRendererIds,
+         features::kAutofillIgnoreCheckableElements},
         /*disabled_features=*/{});
   }
   ~FormAutofillUtilsTest() override = default;
@@ -264,11 +265,13 @@ TEST_F(FormAutofillUtilsTest, ExtractFormData_FormControlTypes) {
       <button type=kButtonPopover>Foo</button>
       <fieldset></fieldset>
       <input type=button>
+      <input type=checkbox>
       <input type=color>
       <input type=datetime-local>
       <input type=file>
       <input type=hidden>
       <input type=image>
+      <input type=radio>
       <input type=range>
       <input type=reset>
       <input type=submit>
@@ -279,12 +282,10 @@ TEST_F(FormAutofillUtilsTest, ExtractFormData_FormControlTypes) {
 
       <!-- These form controls are extracted. -->
       <input>
-      <input type=checkbox>
       <input type=email>
       <input type=month>
       <input type=number>
       <input type=password>
-      <input type=radio>
       <input type=search>
       <input type=tel>
       <input type=text>
@@ -297,12 +298,11 @@ TEST_F(FormAutofillUtilsTest, ExtractFormData_FormControlTypes) {
   FormData form_data =
       *ExtractFormData(GetFormElementById(GetDocument(), "form-id"));
   using enum FormControlType;
-  EXPECT_THAT(
-      form_data.fields(),
-      FormControlTypesAre(kInputText, kInputCheckbox, kInputEmail, kInputMonth,
-                          kInputNumber, kInputPassword, kInputRadio,
-                          kInputSearch, kInputTelephone, kInputText, kInputUrl,
-                          kInputDate, kSelectOne, kTextArea));
+  EXPECT_THAT(form_data.fields(),
+              FormControlTypesAre(kInputText, kInputEmail, kInputMonth,
+                                  kInputNumber, kInputPassword, kInputSearch,
+                                  kInputTelephone, kInputText, kInputUrl,
+                                  kInputDate, kSelectOne, kTextArea));
 }
 
 // Tests that WebFormElementToFormData() sets the
@@ -2191,13 +2191,12 @@ TEST_F(FormAutofillUtilsTest, ExtractFormData_OwnedForm) {
       Optional(Property(
           &FormData::fields,
           ElementsAre(Property(&FormFieldData::name, u"text_input"),
-                      Property(&FormFieldData::name, u"check_input"),
                       Property(&FormFieldData::name, u"number_input"),
                       Property(&FormFieldData::name, u"select_input")))));
   histogram_tester.ExpectTotalCount("Autofill.ExtractFormUnowned.FieldCount2",
                                     0);
   histogram_tester.ExpectUniqueSample("Autofill.ExtractFormOwned.FieldCount2",
-                                      4, 1);
+                                      3, 1);
 }
 
 TEST_F(FormAutofillUtilsTest, ExtractFormData_UnownedForm) {
@@ -2219,12 +2218,11 @@ TEST_F(FormAutofillUtilsTest, ExtractFormData_UnownedForm) {
       Optional(Property(
           &FormData::fields,
           ElementsAre(Property(&FormFieldData::name, u"text_input"),
-                      Property(&FormFieldData::name, u"check_input"),
                       Property(&FormFieldData::name, u"number_input"),
                       Property(&FormFieldData::name, u"select_input")))));
   histogram_tester.ExpectTotalCount("Autofill.ExtractFormOwned.FieldCount2", 0);
   histogram_tester.ExpectUniqueSample("Autofill.ExtractFormUnowned.FieldCount2",
-                                      4, 1);
+                                      3, 1);
 }
 
 // Tests that GetOwnedFormControls() doesn't return disconnected elements.
@@ -2592,6 +2590,56 @@ TEST_F(
                   document, price_regex, label_regex,
                   /*number_of_ancestor_levels_to_search=*/6)
                   .empty());
+}
+
+// Fixture for testing that forms can[not] be extracted on certain URLs.
+class FormAutofillUtilsTest_AdmissibleUrls
+    : public FormAutofillUtilsTest,
+      public testing::WithParamInterface<std::pair<std::string_view, bool>> {
+ public:
+  std::string_view Url() const { return GetParam().first; }
+  bool extractable() const { return GetParam().second; }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    FormAutofillUtilsTest_AdmissibleUrls,
+    testing::Values(std::pair("https://foo.com", true),
+                    std::pair("http://foo.com", true),
+                    std::pair("about:srcdoc", true),
+                    std::pair("data:text/html,blabla", true),
+                    std::pair("about:blank", false),
+                    std::pair("chrome:new-tab-page", false),
+                    std::pair("chrome://autofill-internals", false)));
+
+// Tests that <div contenteditable> can be extracted from admissible URLs.
+TEST_P(FormAutofillUtilsTest_AdmissibleUrls, ExtractFormData) {
+  LoadHTMLWithUrlOverride(R"(
+    "<form id=f><input></form>"
+  )",
+                          Url());
+  std::optional<FormData> form =
+      ExtractFormData(GetFormElementById(GetDocument(), "f"));
+  if (extractable()) {
+    EXPECT_NE(form, std::nullopt);
+  } else {
+    EXPECT_EQ(form, std::nullopt);
+  }
+}
+
+// Tests that <div contenteditable> can be extracted from admissible URLs.
+TEST_P(FormAutofillUtilsTest_AdmissibleUrls, FindFormForContentEditable) {
+  LoadHTMLWithUrlOverride(R"(
+    "<div id=ce contenteditable></div>"
+  )",
+                          Url());
+  std::optional<FormData> form =
+      FindFormForContentEditable(GetDocument().GetElementById("ce"));
+  if (extractable()) {
+    EXPECT_NE(form, std::nullopt);
+  } else {
+    EXPECT_EQ(form, std::nullopt);
+  }
 }
 
 }  // namespace

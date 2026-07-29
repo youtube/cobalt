@@ -15,7 +15,8 @@
 
 namespace blink {
 
-gin::WrapperInfo RemoteObject::kWrapperInfo = {gin::kEmbedderNativeGin};
+gin::DeprecatedWrapperInfo RemoteObject::kWrapperInfo = {
+    gin::kEmbedderNativeGin};
 
 namespace {
 
@@ -292,12 +293,8 @@ v8::Local<v8::Value> MojomToJSValue(
 }
 }  // namespace
 
-RemoteObject::RemoteObject(v8::Isolate* isolate,
-                           RemoteObjectGatewayImpl* gateway,
-                           int32_t object_id)
-    : gin::NamedPropertyInterceptor(isolate, this),
-      gateway_(gateway),
-      object_id_(object_id) {}
+RemoteObject::RemoteObject(RemoteObjectGatewayImpl* gateway, int32_t object_id)
+    : gateway_(gateway), object_id_(object_id) {}
 
 RemoteObject::~RemoteObject() {
   if (gateway_) {
@@ -310,7 +307,8 @@ RemoteObject::~RemoteObject() {
 
 gin::ObjectTemplateBuilder RemoteObject::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return gin::Wrappable<RemoteObject>::GetObjectTemplateBuilder(isolate)
+  return gin::DeprecatedWrappable<RemoteObject>::GetObjectTemplateBuilder(
+             isolate)
       .AddNamedPropertyInterceptor();
 }
 

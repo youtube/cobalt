@@ -1809,7 +1809,7 @@ void AXObject::SerializeInlineTextBox(ui::AXNodeData* node_data) const {
 
   ax::mojom::blink::NameFrom name_from;
   AXObjectVector name_objects;
-  String name = GetName(name_from, &name_objects);
+  String name = GetName(name_from, &name_objects, nullptr);
   DCHECK_EQ(name_from, ax::mojom::blink::NameFrom::kContents);
   node_data->SetNameFrom(ax::mojom::blink::NameFrom::kContents);
 
@@ -1918,7 +1918,7 @@ void AXObject::SerializeNameAndDescriptionAttributes(
     ui::AXNodeData* node_data) const {
   ax::mojom::blink::NameFrom name_from;
   AXObjectVector name_objects;
-  String name = GetName(name_from, &name_objects);
+  String name = GetName(name_from, &name_objects, nullptr);
 
   if (name_from == ax::mojom::blink::NameFrom::kAttributeExplicitlyEmpty) {
     node_data->AddStringAttribute(ax::mojom::blink::StringAttribute::kName,
@@ -2181,7 +2181,7 @@ void AXObject::SerializeMathContent(ui::AXNodeData* node_data) const {
       node_data->role == ax::mojom::blink::Role::kMathMLMath) {
     TruncateAndAddStringAttribute(
         node_data, ax::mojom::blink::StringAttribute::kMathContent,
-        element->innerHTML(), kMaxStaticTextLength);
+        element->GetInnerHTMLString(), kMaxStaticTextLength);
   }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
 }
@@ -2674,15 +2674,15 @@ void AXObject::SerializeComputedDetailsRelation(
     return;
   }
 
-  // Add aria-details for a interest target.
-  if (AXObject* interest_popover = GetInterestTargetForInvoker()) {
+  // Add aria-details for a interest for.
+  if (AXObject* interest_popover = GetInterestForTargetPopover()) {
     // Add state even if the target is hidden.
-    node_data->AddState(ax::mojom::blink::State::kHasInterestTarget);
+    node_data->AddState(ax::mojom::blink::State::kHasInterestFor);
     if (interest_popover->IsVisible()) {
       node_data->AddIntListAttribute(
           ax::mojom::blink::IntListAttribute::kDetailsIds,
           {static_cast<int32_t>(interest_popover->AXObjectID())});
-      node_data->SetDetailsFrom(ax::mojom::blink::DetailsFrom::kInterestTarget);
+      node_data->SetDetailsFrom(ax::mojom::blink::DetailsFrom::kInterestFor);
       return;
     }
   }
@@ -2781,10 +2781,6 @@ AXObject* AXObject::GetPopoverTargetForInvoker() const {
 // attribute is a valid command b) not the next element in the DOM (depth first
 // search order), and c) either not a hint or a rich hint.
 AXObject* AXObject::GetCommandForElement() const {
-  if (!RuntimeEnabledFeatures::HTMLCommandAttributesEnabled()) {
-    return nullptr;
-  }
-
   auto* button_element = DynamicTo<HTMLButtonElement>(GetElement());
   if (!button_element) {
     return nullptr;
@@ -2837,20 +2833,27 @@ AXObject* AXObject::GetCommandForElement() const {
   return nullptr;
 }
 
-// Interest target invoking elements should have details relationships with
-// their interest target, when that interest target is a) visible, b) is rich,
-// and c) not the next element in the DOM (depth first search order).
-AXObject* AXObject::GetInterestTargetForInvoker() const {
+// Interest for invoking elements (with the `interestfor` attribute) should
+// have details relationships with their target, when that interest target is
+// a) a popover, b) visible, c) is "rich", and d) not the next element in the
+// DOM (depth first search order).
+AXObject* AXObject::GetInterestForTargetPopover() const {
   if (!GetElement()) {
     return nullptr;
   }
 
-  if (!RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
+  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
           GetElement()->GetDocument().GetExecutionContext())) {
     return nullptr;
   }
 
-  Element* popover = GetElement()->InterestTargetElement();
+  // Only return if the target is a popover.
+  HTMLElement* popover =
+      DynamicTo<HTMLElement>(GetElement()->InterestForElement());
+  if (!popover || !popover->IsPopover()) {
+    return nullptr;
+  }
+
   if (ElementTraversal::NextSkippingChildren(*GetElement()) == popover) {
     // The next element is already the popover.
     return nullptr;
@@ -4930,7 +4933,8 @@ String AXObject::SimplifyName(const String& str,
 String AXObject::ComputedName(ax::mojom::blink::NameFrom* name_from_out) const {
   ax::mojom::blink::NameFrom name_from;
   AXObjectVector name_objects;
-  return GetName(name_from_out ? *name_from_out : name_from, &name_objects);
+  return GetName(name_from_out ? *name_from_out : name_from, &name_objects,
+                 nullptr);
 }
 
 bool AXObject::IsNameProhibited() const {
@@ -4987,7 +4991,8 @@ bool AXObject::IsNameProhibited() const {
 }
 
 String AXObject::GetName(ax::mojom::blink::NameFrom& name_from,
-                         AXObject::AXObjectVector* name_objects) const {
+                         AXObject::AXObjectVector* name_objects,
+                         AXObject::NameSources* name_sources) const {
   HeapHashSet<Member<const AXObject>> visited;
   AXRelatedObjectVector related_objects;
 
@@ -4996,23 +5001,13 @@ String AXObject::GetName(ax::mojom::blink::NameFrom& name_from,
   name_from = ax::mojom::blink::NameFrom::kNone;
   String text = TextAlternative(
       /*recursive=*/false, /*aria_label_or_description_root=*/nullptr, visited,
-      name_from, &related_objects, /*name_sources=*/nullptr);
+      name_from, &related_objects, name_sources);
 
   if (name_objects) {
     name_objects->clear();
     for (NameSourceRelatedObject* related_object : related_objects)
       name_objects->push_back(related_object->object);
   }
-
-  return SimplifyName(text, name_from);
-}
-
-String AXObject::GetName(NameSources* name_sources) const {
-  AXObjectSet visited;
-  ax::mojom::blink::NameFrom name_from;
-  AXRelatedObjectVector tmp_related_objects;
-  String text = TextAlternative(false, nullptr, visited, name_from,
-                                &tmp_related_objects, name_sources);
 
   return SimplifyName(text, name_from);
 }

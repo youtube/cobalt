@@ -534,6 +534,8 @@ static_library("browser") {
     "payments/payments_requests/get_details_for_create_card_request.h",
     "payments/payments_requests/get_details_for_enrollment_request.cc",
     "payments/payments_requests/get_details_for_enrollment_request.h",
+    "payments/payments_requests/get_details_for_update_bnpl_payment_instrument_request.cc",
+    "payments/payments_requests/get_details_for_update_bnpl_payment_instrument_request.h",
     "payments/payments_requests/get_iban_upload_details_request.cc",
     "payments/payments_requests/get_iban_upload_details_request.h",
     "payments/payments_requests/get_unmask_details_request.cc",
@@ -548,6 +550,8 @@ static_library("browser") {
     "payments/payments_requests/unmask_card_request.h",
     "payments/payments_requests/unmask_iban_request.cc",
     "payments/payments_requests/unmask_iban_request.h",
+    "payments/payments_requests/update_bnpl_payment_instrument_request.cc",
+    "payments/payments_requests/update_bnpl_payment_instrument_request.h",
     "payments/payments_requests/update_virtual_card_enrollment_request.cc",
     "payments/payments_requests/update_virtual_card_enrollment_request.h",
     "payments/payments_requests/upload_card_request.cc",
@@ -617,6 +621,8 @@ static_library("browser") {
     "suggestions/addresses/address_suggestion_generator.h",
     "suggestions/payments/iban_suggestion_generator.cc",
     "suggestions/payments/iban_suggestion_generator.h",
+    "suggestions/payments/merchant_promo_code_suggestion_generator.cc",
+    "suggestions/payments/merchant_promo_code_suggestion_generator.h",
     "suggestions/payments/payments_suggestion_generator.cc",
     "suggestions/payments/payments_suggestion_generator.h",
     "suggestions/suggestion.cc",
@@ -767,6 +773,7 @@ static_library("browser") {
 
   if (is_android) {
     sources += [
+      "data_model/valuables/android/loyalty_card_android.h",
       "payments/autofill_save_iban_ui_info.cc",
       "payments/autofill_save_iban_ui_info.h",
       "ui/addresses/android/autofill_address_editor_ui_info_android.cc",
@@ -826,6 +833,8 @@ static_library("browser") {
       "ml_model/field_classification_model_executor.h",
       "ml_model/field_classification_model_handler.cc",
       "ml_model/field_classification_model_handler.h",
+      "ml_model/logging/ml_log_router.cc",
+      "ml_model/logging/ml_log_router.h",
     ]
   }
 
@@ -859,6 +868,7 @@ static_library("browser") {
 
   if (build_with_tflite_lib) {
     public_deps += [
+      "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
       "//third_party/tflite",
       "//third_party/tflite:tflite_public_headers",
       "//third_party/tflite_support",
@@ -1093,6 +1103,8 @@ static_library("test_support") {
     "payments/payments_requests/create_bnpl_payment_instrument_request_test_api.h",
     "payments/payments_requests/get_details_for_create_bnpl_payment_instrument_request_test_api.h",
     "payments/payments_requests/get_details_for_create_card_request_test_api.h",
+    "payments/payments_requests/get_details_for_update_bnpl_payment_instrument_request_test_api.h",
+    "payments/payments_requests/update_bnpl_payment_instrument_request_test_api.h",
     "payments/test/autofill_payments_test_utils.cc",
     "payments/test/autofill_payments_test_utils.h",
     "payments/test/mock_bnpl_manager.cc",
@@ -1234,6 +1246,11 @@ static_library("test_support") {
       "//third_party/blink/public/common",
     ]
   }
+
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//build/config/compiler:wglobal_constructors",
+  ]
 }
 
 bundle_data("unit_tests_bundle_data") {
@@ -1442,14 +1459,17 @@ source_set("unit_tests") {
     "payments/payments_requests/get_details_for_create_bnpl_payment_instrument_request_unittest.cc",
     "payments/payments_requests/get_details_for_create_card_request_unittest.cc",
     "payments/payments_requests/get_details_for_enrollment_request_unittest.cc",
+    "payments/payments_requests/get_details_for_update_bnpl_payment_instrument_request_unittest.cc",
     "payments/payments_requests/get_iban_upload_details_request_unittest.cc",
     "payments/payments_requests/unmask_card_request_unittest.cc",
     "payments/payments_requests/unmask_iban_request_unittest.cc",
+    "payments/payments_requests/update_bnpl_payment_instrument_request_unittest.cc",
     "payments/payments_requests/update_virtual_card_enrollment_request_unittest.cc",
     "payments/payments_requests/upload_card_request_unittest.cc",
     "payments/payments_requests/upload_iban_request_unittest.cc",
     "payments/payments_service_url_unittest.cc",
     "payments/payments_util_unittest.cc",
+    "payments/save_and_fill_manager_impl_unittest.cc",
     "payments/virtual_card_enroll_metrics_logger_unittest.cc",
     "payments/virtual_card_enrollment_manager_unittest.cc",
     "payments/wait_for_signal_or_timeout_unittest.cc",
@@ -1466,6 +1486,7 @@ source_set("unit_tests") {
     "studies/autofill_experiments_unittest.cc",
     "suggestions/addresses/address_suggestion_generator_unittest.cc",
     "suggestions/payments/iban_suggestion_generator_unittest.cc",
+    "suggestions/payments/merchant_promo_code_suggestion_generator_unittest.cc",
     "suggestions/payments/payments_suggestion_generator_unittest.cc",
     "suggestions/valuables/valuable_suggestion_generator_unittest.cc",
     "ui/addresses/autofill_address_util_unittest.cc",

@@ -39,7 +39,7 @@
         start-icon="settings20:lightbulb"
 </if>
 <if expr="_google_chrome">
-        start-icon="settings-internal:spark"
+        start-icon="[[spark_]]"
 </if>
         label="$i18n{glicRowLabel}"
         on-click="onGlicPageClick_">
@@ -146,7 +146,7 @@
                 on-shortcut-updated="onFocusToggleShortcutUpdated_">
             </cr-shortcut-input>
           </div>
-          <settings-toggle-button
+          <settings-toggle-button class="hr"
               id="closedCaptionsToggle"
               hidden="[[!closedCaptionsFeatureEnabled_]]"
               pref="{{prefs.glic.closed_captioning_enabled}}"

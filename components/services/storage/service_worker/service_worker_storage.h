@@ -28,12 +28,15 @@
 #include "components/services/storage/public/mojom/service_worker_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_policy_update.mojom.h"
 #include "components/services/storage/service_worker/service_worker_database.h"
-#include "components/services/storage/service_worker/service_worker_resource_ops.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 
 namespace storage {
 
+class ServiceWorkerDiskCache;
+class ServiceWorkerResourceMetadataWriterImpl;
+class ServiceWorkerResourceReaderImpl;
+class ServiceWorkerResourceWriterImpl;
 class ServiceWorkerStorageControlImplTest;
 
 namespace service_worker_storage_unittest {
@@ -67,7 +70,8 @@ class ServiceWorkerStorage {
    public:
     StorageSharedBuffer();
     StorageSharedBuffer(bool enable_registered_storage_keys,
-                        bool enable_registration_scopes);
+                        bool enable_registration_scopes,
+                        bool enable_find_registration_result);
     StorageSharedBuffer(const StorageSharedBuffer&) = delete;
     StorageSharedBuffer& operator=(const StorageSharedBuffer&) = delete;
 
@@ -83,16 +87,33 @@ class ServiceWorkerStorage {
     std::map<blink::StorageKey, std::vector<GURL>> TakeRegistrationScopes()
         LOCKS_EXCLUDED(lock_);
 
+    void PutFindRegistrationResult(
+        const GURL& client_url,
+        const blink::StorageKey& key,
+        mojom::ServiceWorkerFindRegistrationResultPtr find_registration_result)
+        LOCKS_EXCLUDED(lock_);
+    mojom::ServiceWorkerFindRegistrationResultPtr TakeFindRegistrationResult(
+        const GURL& client_url,
+        const blink::StorageKey& key) LOCKS_EXCLUDED(lock_);
+
+    bool enable_find_registration_result() const {
+      return enable_find_registration_result_;
+    }
+
    private:
     friend class base::RefCountedThreadSafe<StorageSharedBuffer>;
     ~StorageSharedBuffer();
 
     const bool enable_registered_storage_keys_;
     const bool enable_registration_scopes_;
+    const bool enable_find_registration_result_;
     std::optional<std::vector<blink::StorageKey>> GUARDED_BY(lock_)
         registered_keys_;
     std::map<blink::StorageKey, std::vector<GURL>> GUARDED_BY(lock_)
         registration_scopes_;
+    std::map<std::pair<GURL, blink::StorageKey>,
+             mojom::ServiceWorkerFindRegistrationResultPtr>
+        GUARDED_BY(lock_) find_registration_results_;
     base::Lock lock_;
   };
 
@@ -351,6 +372,10 @@ class ServiceWorkerStorage {
   void GetPurgingResourceIdsForTest(ResourceIdsCallback callback);
   void GetPurgeableResourceIdsForTest(ResourceIdsCallback callback);
   void GetUncommittedResourceIdsForTest(ResourceIdsCallback callback);
+  StorageSharedBuffer& storage_shared_buffer() {
+    // storage_shared_buffer_  always exists.
+    return *storage_shared_buffer_;
+  }
 
  private:
   friend class ServiceWorkerStorageControlImplTest;

@@ -2107,7 +2107,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Mdns.{ServiceType}" enum="MdnsQueryType"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>nmuggli@google.com</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -5241,7 +5241,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.IpProtection.GetProbabilisticRevealTokensResult"
-    enum="ProbabilisticRevealTokensResult" expires_after="2025-09-01">
+    enum="ProbabilisticRevealTokensResult" expires_after="2025-12-21">
   <owner>ryankalla@google.com</owner>
   <owner>kiln-eng@google.com</owner>
   <owner>src/chrome/browser/ip_protection/OWNERS</owner>
@@ -5274,7 +5274,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.IpProtection.IsProbabilisticRevealTokenAvailableOnInitialRequest"
-    enum="BooleanSuccess" expires_after="2025-09-01">
+    enum="BooleanSuccess" expires_after="2025-12-21">
   <owner>ryankalla@google.com</owner>
   <owner>kiln-eng@google.com</owner>
   <owner>src/chrome/browser/ip_protection/OWNERS</owner>
@@ -5292,7 +5292,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.IpProtection.IsProbabilisticRevealTokenAvailableOnSubsequentRequest"
-    enum="BooleanSuccess" expires_after="2025-09-01">
+    enum="BooleanSuccess" expires_after="2025-12-21">
   <owner>ryankalla@google.com</owner>
   <owner>kiln-eng@google.com</owner>
   <owner>src/chrome/browser/ip_protection/OWNERS</owner>
@@ -5333,7 +5333,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.IpProtection.ProbabilisticRevealTokenRandomizationTime"
-    units="ms" expires_after="2025-09-01">
+    units="ms" expires_after="2025-12-21">
   <owner>ryankalla@google.com</owner>
   <owner>kiln-eng@google.com</owner>
   <owner>src/chrome/browser/ip_protection/OWNERS</owner>
@@ -5345,7 +5345,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.IpProtection.ProbabilisticRevealTokensRequestTime"
-    units="ms" expires_after="2025-09-01">
+    units="ms" expires_after="2025-12-21">
   <owner>ryankalla@google.com</owner>
   <owner>kiln-eng@google.com</owner>
   <owner>src/chrome/browser/ip_protection/OWNERS</owner>
@@ -5471,7 +5471,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.IpProtection.QuicProxiesFailed"
-    units="requests" expires_after="2025-10-26">
+    units="requests" expires_after="2025-12-28">
   <owner>djmitche@chromium.org</owner>
   <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
@@ -5598,7 +5598,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.IpProtection.{ProxyLayer}.TokenExpirationRate"
-    units="tokens" expires_after="2025-10-26">
+    units="tokens" expires_after="2025-12-28">
   <owner>djmitche@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -5615,7 +5615,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.IpProtection.{ProxyLayer}.TokenSpendRate"
-    units="tokens" expires_after="2025-10-26">
+    units="tokens" expires_after="2025-12-28">
   <owner>djmitche@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
@@ -5704,7 +5704,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.NetworkLoaderCompletionTime2.{Source}"
-    units="ms" expires_after="2025-10-26">
+    units="ms" expires_after="2025-12-28">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -5851,7 +5851,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.SlopBucket.DisabledReason"
-    enum="SlopBucketDisabledReason" expires_after="2024-10-23">
+    enum="SlopBucketDisabledReason" expires_after="2025-12-23">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -5859,21 +5859,27 @@ chromium-metrics-reviews@google.com.
     recorded when SlopBucket is disabled by feature setting. Recorded when
     SlopBucket is first needed, and at most once every 24 hours afterwards. Also
     recorded immediately if SlopBucket is disabled due to memory pressure.
+
+    Warning: this histogram was expired from 2024-10-23 to 2025-06-24; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="NetworkService.SlopBucket.PeakChunksAllocated" units="chunks"
-    expires_after="2024-10-23">
+    expires_after="2025-12-23">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
     The peak number of chunks allocated for a request. Recorded once per request
     that made use of SlopBucket, when it is completed.
+
+    Warning: this histogram was expired from 2024-10-23 to 2025-06-24; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram name="NetworkService.SlopBucket.RequestedPriority"
-    enum="NetRequestPriority" expires_after="2024-10-23">
+    enum="NetRequestPriority" expires_after="2025-12-23">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -5882,6 +5888,9 @@ chromium-metrics-reviews@google.com.
     not receive a SlopBucket, but they are still recorded here. Recorded once
     per request that attempts to make use of SlopBucket, ie. it filled up its
     mojo pipe and SlopBucket was enabled.
+
+    Warning: this histogram was expired from 2024-10-23 to 2025-06-24; data may
+    be missing.
   </summary>
 </histogram>
 
@@ -5949,7 +5958,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.URLLoader.CloneDeviceBoundSessionAccessObserver"
-    units="microseconds" expires_after="2025-10-26">
+    units="microseconds" expires_after="2025-12-28">
   <owner>horo@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

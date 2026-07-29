@@ -200,14 +200,6 @@ BASE_FEATURE(kCapturedSurfaceControlKillswitch,
              "CapturedSurfaceControlKillswitch",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables a CHECK in RendererDidNavigate to ensure that session
-// history navigations commit in the expected SiteInstance when the
-// document sequence number matches. Helps detect navigation process
-// mismatches and potential security issues.
-BASE_FEATURE(kCheckSiteInstanceOnHistoryNavigation,
-             "CheckSiteInstanceOnHistoryNavigation",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Clear the window.name property for the top-level cross-site navigations that
 // swap BrowsingContextGroups(BrowsingInstances).
 BASE_FEATURE(kClearCrossSiteCrossBrowsingContextGroupWindowName,
@@ -791,7 +783,7 @@ BASE_FEATURE(kPrivateNetworkAccessRespectPreflightResults,
 // See: https://wicg.github.io/private-network-access/#cors-preflight
 BASE_FEATURE(kPrivateNetworkAccessSendPreflights,
              "PrivateNetworkAccessSendPreflights",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables origin-keyed processes by default, unless origins opt out using
 // Origin-Agent-Cluster: ?0. This feature only takes effect if the Blink feature
@@ -1304,6 +1296,11 @@ BASE_FEATURE(kElementCaptureOfOtherTabs,
 BASE_FEATURE(kEnableExperimentalWebAssemblyJSPI,
              "WebAssemblyExperimentalJSPI",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Enables WebAssembly Shared-Everything Threads.
+BASE_FEATURE(kEnableExperimentalWebAssemblySharedEverything,
+             "WebAssemblyExperimentalSharedEverything",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable WebAssembly lazy compilation (JIT on first call).
 BASE_FEATURE(kWebAssemblyLazyCompilation,

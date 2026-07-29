@@ -268,8 +268,7 @@ Element* TreeScope::ElementForHitTest(Node* node, HitTestPointType type) const {
   if (!node || node->IsDocumentNode())
     return nullptr;
   Element* element;
-  if ((node->IsPseudoElement() && !node->IsScrollMarkerPseudoElement()) ||
-      node->IsTextNode()) {
+  if (node->IsPseudoElement() || node->IsTextNode()) {
     element = node->ParentOrShadowHostElement();
   } else {
     element = To<Element>(node);
@@ -572,7 +571,7 @@ Element* TreeScope::AdjustedFocusedElement() const {
   if (!element)
     return nullptr;
 
-  // https://github.com/flackr/carousel/tree/main/scroll-marker#what-is-the-documentactiveelement-of-a-focused-pseudo-element
+  // https://drafts.csswg.org/css-overflow-5/#active-element
   if (auto* scroll_marker = DynamicTo<ScrollMarkerPseudoElement>(element)) {
     CHECK(scroll_marker->ScrollMarkerGroup());
     element = &scroll_marker->ScrollMarkerGroup()->UltimateOriginatingElement();

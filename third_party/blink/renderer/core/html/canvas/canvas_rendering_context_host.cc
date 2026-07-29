@@ -35,9 +35,20 @@
 
 namespace blink {
 
+namespace {
+
+bool CanUseGPU() {
+  base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper =
+      SharedGpuContext::ContextProviderWrapper();
+  return context_provider_wrapper &&
+         !context_provider_wrapper->ContextProvider().IsContextLost();
+}
+
+}  // namespace
+
 CanvasRenderingContextHost::CanvasRenderingContextHost(HostType host_type,
                                                        const gfx::Size& size)
-    : CanvasResourceHost(size), host_type_(host_type) {}
+    : host_type_(host_type), size_(size) {}
 
 void CanvasRenderingContextHost::Trace(Visitor* visitor) const {
   visitor->Trace(plain_text_painter_);
@@ -80,11 +91,6 @@ CanvasRenderingContextHost::CreateTransparentImage() const {
   return UnacceleratedStaticBitmapImage::Create(surface->makeImageSnapshot());
 }
 
-void CanvasRenderingContextHost::Commit(scoped_refptr<CanvasResource>&&,
-                                        const SkIRect&) {
-  NOTIMPLEMENTED();
-}
-
 bool CanvasRenderingContextHost::IsValidImageSize() const {
   const gfx::Size size = Size();
   if (size.IsEmpty()) {
@@ -113,10 +119,6 @@ bool CanvasRenderingContextHost::IsPaintable() const {
          IsValidImageSize();
 }
 
-bool CanvasRenderingContextHost::PrintedInCurrentTask() const {
-  return RenderingContext() && RenderingContext()->did_print_in_current_task();
-}
-
 void CanvasRenderingContextHost::InitializeForRecording(
     cc::PaintCanvas* canvas) const {
   if (RenderingContext())
@@ -138,158 +140,6 @@ bool CanvasRenderingContextHost::IsRenderingContext2D() const {
 bool CanvasRenderingContextHost::IsImageBitmapRenderingContext() const {
   return RenderingContext() &&
          RenderingContext()->IsImageBitmapRenderingContext();
-}
-
-CanvasResourceProvider*
-CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForCanvas2D() {
-  CHECK(IsRenderingContext2D());
-  auto* provider = GetResourceProviderForCanvas2D();
-  if (!provider && !did_fail_to_create_resource_provider_) {
-    if (IsValidImageSize()) {
-      CreateCanvasResourceProvider2D();
-      provider = GetResourceProviderForCanvas2D();
-    }
-    if (!provider) {
-      did_fail_to_create_resource_provider_ = true;
-    } else if (provider->IsValid()) {
-      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
-                                provider->IsAccelerated());
-      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                    provider->GetType());
-    }
-  }
-  return provider;
-}
-
-CanvasResourceProvider*
-CanvasRenderingContextHost::GetOrCreateCanvasResourceProviderForWebGPU() {
-  CHECK(IsWebGPU());
-  auto* provider = GetResourceProviderForWebGPU();
-  if (!provider && !did_fail_to_create_resource_provider_) {
-    if (IsValidImageSize()) {
-      CreateCanvasResourceProviderWebGPU();
-      provider = GetResourceProviderForWebGPU();
-    }
-    if (!provider) {
-      did_fail_to_create_resource_provider_ = true;
-    } else if (provider->IsValid()) {
-      base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
-                                provider->IsAccelerated());
-      base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                    provider->GetType());
-    }
-  }
-  return provider;
-}
-
-void CanvasRenderingContextHost::CreateCanvasResourceProviderWebGPU() {
-  CHECK(!GetResourceProviderForWebGPU());
-
-  if (SharedGpuContext::IsGpuCompositingEnabled()) {
-    resource_provider_for_webgpu_ =
-        CanvasResourceProvider::CreateWebGPUImageProvider(
-            Size(), GetRenderingContextFormat(), GetRenderingContextAlphaType(),
-            GetRenderingContextColorSpace(), gpu::SharedImageUsageSet(), this);
-    UpdateMemoryUsage();
-  }
-}
-
-void CanvasRenderingContextHost::CreateCanvasResourceProvider2D() {
-  CHECK(!GetResourceProviderForCanvas2D());
-
-  base::WeakPtr<CanvasResourceDispatcher> dispatcher =
-      GetOrCreateResourceDispatcher()
-          ? GetOrCreateResourceDispatcher()->GetWeakPtr()
-          : nullptr;
-
-  std::unique_ptr<CanvasResourceProvider> provider;
-  const SkAlphaType alpha_type = GetRenderingContextAlphaType();
-  const viz::SharedImageFormat format = GetRenderingContextFormat();
-  const gfx::ColorSpace color_space = GetRenderingContextColorSpace();
-  const bool use_gpu = ShouldTryToUseGpuRaster() && ShouldAccelerate2dContext();
-  constexpr auto kShouldInitialize =
-      CanvasResourceProvider::ShouldInitialize::kCallClear;
-  if (use_gpu && LowLatencyEnabled()) {
-    // If we can use the gpu and low latency is enabled, we will try to use a
-    // SwapChain if possible.
-    provider = CanvasResourceProvider::CreateSwapChainProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), this);
-    // If SwapChain failed or it was not possible, we will try a SharedImage
-    // with a set of flags trying to add Usage Display and Usage Scanout and
-    // Concurrent Read and Write if possible.
-    if (!provider) {
-      gpu::SharedImageUsageSet shared_image_usage_flags =
-          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-      if (SharedGpuContext::MaySupportImageChromium() &&
-          (RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled() ||
-           base::FeatureList::IsEnabled(
-               features::kLowLatencyCanvas2dImageChromium))) {
-        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-        shared_image_usage_flags |=
-            gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
-      }
-      provider = CanvasResourceProvider::CreateSharedImageProvider(
-          Size(), format, alpha_type, color_space, kShouldInitialize,
-          SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-          shared_image_usage_flags, this);
-    }
-  } else if (use_gpu) {
-    // First try to be optimized for displaying on screen. In the case we are
-    // hardware compositing, we also try to enable the usage of the image as
-    // scanout buffer (overlay)
-    gpu::SharedImageUsageSet shared_image_usage_flags =
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-    if (SharedGpuContext::MaySupportImageChromium() &&
-        RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
-      shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-    }
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-        shared_image_usage_flags, this);
-  } else if (SharedGpuContext::MaySupportImageChromium() &&
-             RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
-    // In this case, we are using CPU raster and GPU compositing and native
-    // mappable buffers are supported. Try to use a
-    // CanvasResourceProviderSharedImage, which if successful will result in
-    // using a SharedImage that can be mapped onto the CPU for software raster
-    // writes and then read by the display compositor (and potentially used as
-    // an overlay).
-    const gpu::SharedImageUsageSet shared_image_usage_flags =
-        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-    provider = CanvasResourceProvider::CreateSharedImageProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize,
-        SharedGpuContext::ContextProviderWrapper(), RasterMode::kCPU,
-        shared_image_usage_flags, this);
-  }
-
-  // If either of the other modes failed and / or it was not possible to do, we
-  // will backup with a software SharedImage, and if that was not possible with
-  // a Bitmap provider.
-  if (!provider && !SharedGpuContext::IsGpuCompositingEnabled()) {
-    // In this case, we are using CPU raster and CPU compositing. Create a
-    // CanvasResourceProvider that uses a SharedImage backed by a shared-memory
-    // buffer that can be written by canvas raster and read by the compositor.
-    provider =
-        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-            Size(), format, alpha_type, color_space, kShouldInitialize,
-            SharedGpuContext::SharedImageInterfaceProvider(), this);
-  }
-  if (!provider) {
-    // The final fallback is to raster into a bitmap that will then either be
-    // uploaded into GPU memory (for GPU compositing) or copied into the Viz
-    // process (for software compositing).
-    provider = CanvasResourceProvider::CreateBitmapProvider(
-        Size(), format, alpha_type, color_space, kShouldInitialize, this);
-  }
-
-  if (provider) {
-    provider->SetResourceRecyclingEnabled(true);
-  }
-
-  resource_provider_for_canvas2d_ = std::move(provider);
-  UpdateMemoryUsage();
 }
 
 SkAlphaType CanvasRenderingContextHost::GetRenderingContextAlphaType() const {
@@ -408,30 +258,14 @@ bool CanvasRenderingContextHost::ContextHasOpenLayers(
          context->LayerCount() != 0;
 }
 
-bool CanvasRenderingContextHost::IsContextLost() const {
-  CanvasRenderingContext* context = RenderingContext();
-  return !context || context->isContextLost();
+void CanvasRenderingContextHost::SetPreferred2DRasterMode(RasterModeHint hint) {
+  // TODO(junov): move code that switches between CPU and GPU rasterization
+  // to here.
+  preferred_2d_raster_mode_ = hint;
 }
 
-std::unique_ptr<CanvasResourceProvider>
-CanvasRenderingContextHost::ReplaceResourceProviderForCanvas2D(
-    std::unique_ptr<CanvasResourceProvider> new_resource_provider) {
-  CHECK(IsRenderingContext2D());
-  std::unique_ptr<CanvasResourceProvider> old_resource_provider =
-      std::move(resource_provider_for_canvas2d_);
-  resource_provider_for_canvas2d_ = std::move(new_resource_provider);
-  UpdateMemoryUsage();
-  if (old_resource_provider) {
-    old_resource_provider->SetCanvasResourceHost(nullptr);
-  }
-  return old_resource_provider;
-}
-
-void CanvasRenderingContextHost::DiscardResources() {
-  resource_provider_for_canvas2d_ = nullptr;
-  resource_provider_for_image_bitmap_ = nullptr;
-  resource_provider_for_webgpu_ = nullptr;
-  UpdateMemoryUsage();
+bool CanvasRenderingContextHost::ShouldTryToUseGpuRaster() const {
+  return preferred_2d_raster_mode_ == RasterModeHint::kPreferGPU && CanUseGPU();
 }
 
 void CanvasRenderingContextHost::FlushRecordingForCanvas2D(FlushReason reason) {

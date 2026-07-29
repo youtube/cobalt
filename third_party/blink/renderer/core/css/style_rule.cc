@@ -49,6 +49,7 @@
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/css_supports_rule.h"
 #include "third_party/blink/renderer/core/css/css_view_transition_rule.h"
+#include "third_party/blink/renderer/core/css/media_list.h"
 #include "third_party/blink/renderer/core/css/parser/container_query_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
@@ -69,6 +70,7 @@
 #include "third_party/blink/renderer/core/css/style_sheet_contents.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
+#include "third_party/blink/renderer/platform/heap/visitor.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
 
@@ -178,8 +180,14 @@ void StyleRuleBase::Trace(Visitor* visitor) const {
     case kApplyMixin:
       To<StyleRuleApplyMixin>(this)->TraceAfterDispatch(visitor);
       return;
+    case kContents:
+      To<StyleRuleContentsStatement>(this)->TraceAfterDispatch(visitor);
+      return;
     case kPositionTry:
       To<StyleRulePositionTry>(this)->TraceAfterDispatch(visitor);
+      return;
+    case kCustomMedia:
+      To<StyleRuleCustomMedia>(this)->TraceAfterDispatch(visitor);
       return;
   }
   DUMP_WILL_BE_NOTREACHED();
@@ -268,9 +276,14 @@ void StyleRuleBase::FinalizeGarbageCollectedObject() {
     case kApplyMixin:
       To<StyleRuleApplyMixin>(this)->~StyleRuleApplyMixin();
       return;
+    case kContents:
+      To<StyleRuleContentsStatement>(this)->~StyleRuleContentsStatement();
+      return;
     case kPositionTry:
       To<StyleRulePositionTry>(this)->~StyleRulePositionTry();
       return;
+    case kCustomMedia:
+      To<StyleRuleCustomMedia>(this)->~StyleRuleCustomMedia();
   }
   NOTREACHED();
 }
@@ -319,6 +332,8 @@ StyleRuleBase* StyleRuleBase::Copy() const {
     case kFunction:
     case kMixin:
     case kApplyMixin:
+    case kContents:
+    case kCustomMedia:
       NOTREACHED();
     case kContainer:
       return To<StyleRuleContainer>(this)->Copy();
@@ -442,6 +457,8 @@ CSSRule* StyleRuleBase::CreateCSSOMWrapper(wtf_size_t position_hint,
     case kCharset:
     case kMixin:
     case kApplyMixin:
+    case kContents:
+    case kCustomMedia:
       NOTREACHED();
   }
   if (parent_rule) {
@@ -655,6 +672,7 @@ StyleRuleBase* StyleRuleBase::Renest(StyleRule* new_parent) {
       return this;
     case kMixin:
     case kApplyMixin:
+    case kContents:
       // The parent pointers in mixins don't really matter;
       // they are always replaced during application anyway.
       return this;
@@ -699,6 +717,7 @@ StyleRuleBase* StyleRuleBase::Renest(StyleRule* new_parent) {
     case kCharset:
     case kViewTransition:
     case kPositionTry:
+    case kCustomMedia:
       // Cannot have any child rules.
       return this;
   }
@@ -1041,11 +1060,31 @@ void StyleRuleMixin::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(fake_parent_rule_);
 }
 
-StyleRuleApplyMixin::StyleRuleApplyMixin(AtomicString name)
-    : StyleRuleBase(kApplyMixin), name_(std::move(name)) {}
-
 void StyleRuleApplyMixin::TraceAfterDispatch(blink::Visitor* visitor) const {
   StyleRuleBase::TraceAfterDispatch(visitor);
+  visitor->Trace(fake_parent_rule_for_declarations_);
+}
+
+void StyleRuleContentsStatement::TraceAfterDispatch(
+    blink::Visitor* visitor) const {
+  StyleRuleBase::TraceAfterDispatch(visitor);
+  visitor->Trace(fake_parent_rule_for_fallback_);
+}
+
+StyleRuleCustomMedia::StyleRuleCustomMedia(AtomicString name,
+                                           MediaQuerySet* media_query_set)
+    : StyleRuleBase(kCustomMedia),
+      name_(std::move(name)),
+      value_(media_query_set) {}
+
+StyleRuleCustomMedia::StyleRuleCustomMedia(AtomicString name, bool value)
+    : StyleRuleBase(kCustomMedia), name_(std::move(name)), value_(value) {}
+
+void StyleRuleCustomMedia::TraceAfterDispatch(blink::Visitor* visitor) const {
+  StyleRuleBase::TraceAfterDispatch(visitor);
+  if (IsMediaQueryValue()) {
+    visitor->Trace(std::get<Member<const MediaQuerySet>>(value_));
+  }
 }
 
 }  // namespace blink

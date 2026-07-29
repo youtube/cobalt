@@ -4,10 +4,14 @@
 
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_quick_actions_view_controller.h"
 
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 
 namespace {
 
@@ -22,6 +26,10 @@ const CGFloat kButtonCornerRadius = 24.0;
 
 // The sise of the quick actions symbols.
 const CGFloat kSymbolPointSize = 18.0;
+
+// The color used to match the fakebox background.
+NSString* const kFakeboxMatchingBackgroundColor =
+    @"fake_omnibox_bottom_gradient_color";
 
 }  // namespace
 
@@ -40,13 +48,20 @@ const CGFloat kSymbolPointSize = 18.0;
       activateConstraints:@[ [_buttonStackView.heightAnchor
                               constraintEqualToConstant:kQuickActionsHeight] ]];
 
-  _incognitoButton = [self createButtonWithSymbolName:kIncognitoSymbol];
+  BOOL showIncognito = GetNTPMIAEntrypointVariation() !=
+                       NTPMIAEntrypointVariation::kEnlargedFakeboxNoIncognito;
+  if (showIncognito) {
+    _incognitoButton = [self createButtonWithSymbolName:kIncognitoSymbol];
+    [_buttonStackView addArrangedSubview:_incognitoButton];
+  }
+
   _voiceSearchButton = [self createButtonWithSymbolName:kVoiceSymbol];
   _lensButton = [self createButtonWithSymbolName:kCameraLensSymbol];
 
-  [_buttonStackView addArrangedSubview:_incognitoButton];
   [_buttonStackView addArrangedSubview:_voiceSearchButton];
   [_buttonStackView addArrangedSubview:_lensButton];
+
+  [self setupQuickActionsButtonsAccessibility];
 
   [_lensButton addTarget:self
                   action:@selector(openLensViewFinder)
@@ -68,6 +83,18 @@ const CGFloat kSymbolPointSize = 18.0;
 
 #pragma mark - Private
 
+- (void)setupQuickActionsButtonsAccessibility {
+  _incognitoButton.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_ACCNAME_NEW_INCOGNITO_TAB);
+  _incognitoButton.accessibilityIdentifier = kNTPIncognitoQuickActionIdentifier;
+  _lensButton.accessibilityLabel = l10n_util::GetNSString(IDS_IOS_ACCNAME_LENS);
+  _lensButton.accessibilityIdentifier = kNTPLensQuickActionIdentifier;
+  _voiceSearchButton.accessibilityLabel =
+      l10n_util::GetNSString(IDS_IOS_ACCNAME_VOICE_SEARCH);
+  _voiceSearchButton.accessibilityIdentifier =
+      kNTPVoiceSearchQuickActionIdentifier;
+}
+
 // Creates a new horizontal button stack view.
 - (UIStackView*)createButtonStackView {
   UIStackView* stackView = [[UIStackView alloc] init];
@@ -84,7 +111,7 @@ const CGFloat kSymbolPointSize = 18.0;
 - (UIButton*)createButtonWithSymbolName:(NSString*)symbolName {
   UIButton* button = [[UIButton alloc] init];
   button.translatesAutoresizingMaskIntoConstraints = NO;
-  button.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+  button.backgroundColor = [self buttonBackgroundColor];
   button.layer.cornerRadius = kButtonCornerRadius;
   button.tintColor = [UIColor colorNamed:kGrey700Color];
   UIImage* icon = CustomSymbolWithPointSize(symbolName, kSymbolPointSize);
@@ -112,6 +139,17 @@ const CGFloat kSymbolPointSize = 18.0;
 
 - (void)openIncognitoSearch {
   [self.NTPShortcutsHandler openIncognitoSearch];
+}
+
+// Returns the color needed for the background of the button.
+- (UIColor*)buttonBackgroundColor {
+  if (GetNTPMIAEntrypointVariation() ==
+      NTPMIAEntrypointVariation::kOmniboxContainedSingleButton) {
+    return [UIColor colorNamed:kBackgroundColor];
+  }
+
+  // All other treatments use the same color as the fakebox.
+  return [UIColor colorNamed:kFakeboxMatchingBackgroundColor];
 }
 
 @end
