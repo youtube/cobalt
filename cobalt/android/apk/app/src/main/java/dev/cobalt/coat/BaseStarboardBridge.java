@@ -92,8 +92,6 @@ public class BaseStarboardBridge {
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
 
-  private long mAppStartTimestamp = 0;
-
   private final Map<String, CobaltService.Factory> mCobaltServiceFactories = new HashMap<>();
   private final Map<String, CobaltService> mCobaltServices = new ConcurrentHashMap<>();
 
@@ -703,28 +701,14 @@ public class BaseStarboardBridge {
     return response.data;
   }
 
-  /** Returns the application start timestamp. */
-  protected void measureAppStartTimestamp() {
-    if (mAppStartTimestamp != 0) {
-      return;
-    }
-    Activity activity = mActivityHolder.get();
-    if (!(activity instanceof BaseCobaltActivity)) {
-      return;
-    }
-    long javaStartTimestamp = ((BaseCobaltActivity) activity).getAppStartTimestamp();
-    long javaStopTimestamp = System.nanoTime();
-    long appStartDuration =
-        (javaStopTimestamp - javaStartTimestamp) / mTimeNanosecondsPerMicrosecond;
-
-    long cppTimestamp = BaseStarboardBridgeJni.get().currentMonotonicTime();
-    mAppStartTimestamp = cppTimestamp - appStartDuration;
-  }
-
-  // Returns the saved app start timestamp.
+  // Returns the app start timestamp in microseconds.
   @CalledByNative
   protected long getAppStartTimestamp() {
-    return mAppStartTimestamp;
+    Activity activity = mActivityHolder.get();
+    if (activity instanceof BaseCobaltActivity) {
+      return ((BaseCobaltActivity) activity).getAppStartTimestamp() / 1000L;
+    }
+    return 0;
   }
 
   @CalledByNative

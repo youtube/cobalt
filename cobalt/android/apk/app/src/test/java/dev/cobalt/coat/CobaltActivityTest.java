@@ -281,6 +281,7 @@ public class CobaltActivityTest {
 
   @Before
   public void setUp() {
+    AppEventBridgeJni.setInstanceForTesting(mock(AppEventBridge.Natives.class));
     StartupGuard.getInstance().disarm();
   }
 

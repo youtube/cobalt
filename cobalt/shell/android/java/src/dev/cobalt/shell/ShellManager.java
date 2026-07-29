@@ -46,8 +46,6 @@ public class ShellManager {
 
     private Context mContext;
 
-    private boolean mIsActivityVisible;
-
     /**
      * Constructor for inflating via XML.
      */
@@ -57,13 +55,6 @@ public class ShellManager {
             sNatives = ShellManagerJni.get();
         }
         sNatives.init(this);
-    }
-
-    public void onActivityVisible(boolean visible) {
-        mIsActivityVisible = visible;
-        if (mActiveShell != null) {
-            mActiveShell.onActivityVisible(visible);
-        }
     }
 
     public Context getContext() {
@@ -155,9 +146,6 @@ public class ShellManager {
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
             mContentViewRenderView.setCurrentWebContents(webContents);
-            if (mIsActivityVisible) {
-                webContents.updateWebContentsVisibility(Visibility.VISIBLE);
-            }
         }
     }
 
@@ -176,6 +164,7 @@ public class ShellManager {
     public void destroy() {
         // Remove active shell (Currently single shell support only available).
         if (mActiveShell != null) {
+            mActiveShell.close();
             removeShell(mActiveShell);
         }
         if (mContentViewRenderView != null) {
