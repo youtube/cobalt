@@ -215,6 +215,17 @@ Called by update_autofill_enums.py.-->
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h:AutofillAiOptInStatus) -->
 
+<!-- LINT.IfChange(AutofillAiPrefMigrationStatus) -->
+
+<enum name="AutofillAiPrefMigrationStatus">
+  <int value="0" label="Pref migrated (set to true)"/>
+  <int value="1" label="Pref migrated (set to false)"/>
+  <int value="2" label="Pref already set"/>
+  <int value="3" label="Pref not migrated (account keyed pref never set)"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h:AutofillAiPrefMigrationStatus) -->
+
 <enum name="AutofillAlternativeNameFieldValueCharacterSet">
   <int value="0" label="Katakana"/>
   <int value="1" label="Hiragana"/>
@@ -998,43 +1009,6 @@ Called by update_autofill_enums.py.-->
              value edited"/>
   <int value="13185"
       label="FLIGHT_RESERVATION_DEPARTURE_DATE: Autofilled value accepted"/>
-</enum>
-
-<enum name="AutofillDynamicElementType">
-  <int value="0" label="ButtonButton"/>
-  <int value="1" label="ButtonSubmit"/>
-  <int value="2" label="ButtonReset"/>
-  <int value="3" label="ButtonPopover"/>
-  <int value="4" label="Fieldset"/>
-  <int value="5" label="InputButton"/>
-  <int value="6" label="InputCheckbox"/>
-  <int value="7" label="InputColor"/>
-  <int value="8" label="InputDate"/>
-  <int value="9" label="InputDatetimeLocal"/>
-  <int value="10" label="InputEmail"/>
-  <int value="11" label="InputFile"/>
-  <int value="12" label="InputHidden"/>
-  <int value="13" label="InputImage"/>
-  <int value="14" label="InputMonth"/>
-  <int value="15" label="InputNumber"/>
-  <int value="16" label="InputPassword"/>
-  <int value="17" label="InputRadio"/>
-  <int value="18" label="InputRange"/>
-  <int value="19" label="InputReset"/>
-  <int value="20" label="InputSearch"/>
-  <int value="21" label="InputSubmit"/>
-  <int value="22" label="InputTelephone"/>
-  <int value="23" label="InputText"/>
-  <int value="24" label="InputTime"/>
-  <int value="25" label="InputUrl"/>
-  <int value="26" label="InputWeek"/>
-  <int value="27" label="Output"/>
-  <int value="28" label="SelectOne"/>
-  <int value="29" label="SelectMultiple"/>
-  <int value="30" label="TextArea"/>
-  <int value="31" label="Form"/>
-  <int value="32" label="Other"/>
-  <int value="33" label="Null"/>
 </enum>
 
 <enum name="AutofilledFieldUserEditingStatus">
@@ -4234,12 +4208,6 @@ Called by update_autofill_enums.py.-->
   <int value="2" label="Expiration Date Formatted"/>
 </enum>
 
-<enum name="RelativePosition">
-  <int value="0" label="Ranked higher"/>
-  <int value="1" label="Ranked lower"/>
-  <int value="2" label="Ranked same"/>
-</enum>
-
 <enum name="RendererFillSkipReason">
   <int value="0" label="Unfillable"/>
   <int value="1" label="No value to fill"/>
@@ -4368,7 +4336,7 @@ Called by update_autofill_enums.py.-->
   <int value="36" label="Virtual credit card entry"/>
   <int value="37" label="(Obsolete) Credit card field-by-field filling"/>
   <int value="38" label="Iban entry"/>
-  <int value="39" label="Create new plus address"/>
+  <int value="39" label="(Obsolete) Create new plus address"/>
   <int value="40" label="Fill existing plus address"/>
   <int value="41" label="Merchant promo code entry"/>
   <int value="42" label="See promo code details"/>
@@ -4381,12 +4349,12 @@ Called by update_autofill_enums.py.-->
   <int value="49" label="Devtools test addresses"/>
   <int value="50" label="Devtools test address entry"/>
   <int value="51" label="Devtools test address by country entry"/>
-  <int value="52" label="Create new plus address inline"/>
+  <int value="52" label="(Obsolete) Create new plus address inline"/>
   <int value="53" label="(Obsolete) Retrieve Autofill AI suggestions"/>
   <int value="54" label="(Obsolete) Autofill AI loading state"/>
   <int value="55" label="Autofill AI filling suggestion"/>
   <int value="56" label="(Obsolete) Autofill AI feedback"/>
-  <int value="57" label="Plus address error"/>
+  <int value="57" label="(Obsolete) Plus address error"/>
   <int value="58" label="(Obsolete) Autofill AI details"/>
   <int value="59" label="(Obsolete) Autofill AI error"/>
   <int value="60" label="(Obsolete) Edit Autofill AI information"/>

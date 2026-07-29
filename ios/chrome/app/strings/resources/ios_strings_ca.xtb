@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Cerca amb el mode IA</translation>
 <translation id="3557336313807607643">Afegeix als contactes</translation>
 <translation id="355765753469272474">Desfés</translation>
+<translation id="3565012355885596568">No s'han pogut carregar les imatges</translation>
 <translation id="3565930036634619844">Pestanya. <ph name="TAB_INDEX" /> de <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">Al teu Compte de Google</translation>
 <translation id="3575234738189584619">Cerca amb Lens</translation>
@@ -1314,6 +1315,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6045460247888249350">Afegeix un títol</translation>
 <translation id="6052269326659653305">Canvia de perfil</translation>
 <translation id="605721222689873409">AA</translation>
+<translation id="6058415747854995776">Fes un vídeo</translation>
 <translation id="6059830886158432458">Controla les teves històries i la teva activitat aquí</translation>
 <translation id="6066301408025741299">Toca per cancel·lar.</translation>
 <translation id="6074656473835429958">Rep notificacions</translation>
@@ -1815,6 +1817,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="7866872729285243843">Per accedir a la llista de lectura des de tots els dispositius, activa l'opció Llista de lectura a la configuració.</translation>
 <translation id="7874107544081154809">Emplena automàticament el formulari amb <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">Mostra les baixades</translation>
+<translation id="7882689957034389473">Fes una foto</translation>
 <translation id="7883882164760409935">Tens contrasenyes reutilitzades.</translation>
 <translation id="7887174313503389866">Fes una visita guiada pels controls principals de privadesa i seguretat. Per veure més possibilitats, ves a cada opció de configuració.</translation>
 <translation id="7887198238286927132">Amb la finalitat de protegir la teva privadesa, Chrome no emplenarà aquest camp automàticament.</translation>
@@ -1998,6 +2001,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="8551311254462607218">A la barra d'adreces, toca la icona de càmera de Google Lens</translation>
 <translation id="8556590991644167667">{count,plural, =1{Has ignorat {count} advertiment}other{Has ignorat {count} advertiments}}</translation>
 <translation id="8558046478684552694">Tanca el grup.</translation>
+<translation id="8559858985063901027">Claus d'accés</translation>
 <translation id="8560253818350321773">Mostra primer els elements que s'utilitzen més sovint.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Hi ha {count} opció de contrasenya disponible a sobre del teclat.}other{Hi ha {count} opcions de contrasenya disponibles a sobre del teclat.}}</translation>
 <translation id="8564894539416715395">Pàgina Pestanya nova</translation>

@@ -67,12 +67,8 @@ void FilteringNetworkManager::StartUpdating() {
 
   if (!start_updating_called_) {
     start_updating_called_ = true;
-    network_manager_for_signaling_thread_->SubscribeNetworksChanged(
-        [weak_this = GetWeakPtr()] {
-          if (weak_this) {
-            weak_this->OnNetworksChanged();
-          }
-        });
+    network_manager_for_signaling_thread_->SignalNetworksChanged.connect(
+        this, &FilteringNetworkManager::OnNetworksChanged);
   }
 
   // Update |pending_network_update_| and |start_count_| before calling
@@ -168,9 +164,7 @@ void FilteringNetworkManager::OnPermissionStatus(bool granted) {
 
 void FilteringNetworkManager::OnNetworksChanged() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (!network_manager_for_signaling_thread_) {
-    return;
-  }
+  DCHECK(network_manager_for_signaling_thread_);
 
   pending_network_update_ = false;
 
@@ -190,7 +184,7 @@ void FilteringNetworkManager::OnNetworksChanged() {
   std::vector<std::unique_ptr<webrtc::Network>> copied_networks;
   copied_networks.reserve(networks.size());
   for (const webrtc::Network* network : networks) {
-    auto copied_network = std::make_unique<webrtc::Network>(*network);
+    std::unique_ptr<webrtc::Network> copied_network = network->Clone();
     copied_network->set_default_local_address_provider(this);
     copied_network->set_mdns_responder_provider(this);
     copied_networks.push_back(std::move(copied_network));
@@ -235,7 +229,7 @@ void FilteringNetworkManager::FireEventIfStarted() {
 }
 
 void FilteringNetworkManager::SendNetworksChangedSignal() {
-  NotifyNetworksChanged();
+  SignalNetworksChanged();
 }
 
 }  // namespace blink

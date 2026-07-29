@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">ხელოვნური ინტელექტის რეჟიმის მეშვეობით ძიება</translation>
 <translation id="3557336313807607643">კონტაქტებში დამატება</translation>
 <translation id="355765753469272474">მოქმ. გაუქმება</translation>
+<translation id="3565012355885596568">სურათები ვერ ჩაიტვირთა</translation>
 <translation id="3565930036634619844">ჩანართი. <ph name="TAB_INDEX" /> / <ph name="NUMBER_OF_TABS" />-დან.</translation>
 <translation id="3572607909481582402">თქვენს Google ანგარიშში</translation>
 <translation id="3575234738189584619">Lens-ით ძიება</translation>
@@ -1314,6 +1315,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6045460247888249350">დაამატეთ სათაური</translation>
 <translation id="6052269326659653305">პროფილის გადართვა</translation>
 <translation id="605721222689873409">წწ</translation>
+<translation id="6058415747854995776">ვიდეოს გადაღება</translation>
 <translation id="6059830886158432458">აქ შეგიძლიათ მართოთ ამბები და აქტივობა</translation>
 <translation id="6066301408025741299">შეეხეთ გასაუქმებლად.</translation>
 <translation id="6074656473835429958">შეტყობინებების მიღება</translation>
@@ -1815,6 +1817,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7866872729285243843">თქვენს საკითხავ სიაზე თქვენი ყველა მოწყობილობიდან წვდომისთვის პარამეტრებიდან ჩართეთ „საკითხავი სია“.</translation>
 <translation id="7874107544081154809">ავტომატური შევსების ფორმა <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">ჩამოტვირთვების ჩვენება</translation>
+<translation id="7882689957034389473">ფოტოს გადაღება</translation>
 <translation id="7883882164760409935">ხელახლა გამოყენებული პაროლები გაქვთ.</translation>
 <translation id="7887174313503389866">გაიარეთ ინტერაქტიური ტური კონფიდენციალურობისა და უსაფრთხოების მართვის საკვანძო საშუალებების თემაზე. სხვა ვარიანტებისთვის გადადით ცალკეულ პარამეტრებზე.</translation>
 <translation id="7887198238286927132">თქვენი კონფიდენციალურობის დაცვის მიზნით, Chrome არ შეავსებს ავტომატურად ამ ველს.</translation>
@@ -1998,6 +2001,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8551311254462607218">მისამართთა ზოლში შეეხეთ Google Lens-ის კამერის ხატულას</translation>
 <translation id="8556590991644167667">{count,plural, =1{თქვენ დახურეთ {count} გაფრთხილება}other{თქვენ დახურეთ {count} გაფრთხილება}}</translation>
 <translation id="8558046478684552694">ჯგუფის დახურვა.</translation>
+<translation id="8559858985063901027">წვდომის გასაღებები</translation>
 <translation id="8560253818350321773">ჯერ გამოჩნდეს ხშირად გამოყენებული ერთეულები.</translation>
 <translation id="8561999115126307258">{count,plural, =1{კლავიატურის ზემოთ ხელმისაწვდომია {count} ვარიანტი პაროლისთვის.}other{კლავიატურის ზემოთ ხელმისაწვდომია {count} ვარიანტი პაროლისთვის.}}</translation>
 <translation id="8564894539416715395">ახალი ჩანართის გვერდი</translation>

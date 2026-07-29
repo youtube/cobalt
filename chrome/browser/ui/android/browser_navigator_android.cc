@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_navigator_params_utils.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
@@ -35,6 +36,14 @@ bool ValidNavigateParams(NavigateParams* params) {
     // Don't navigate when the profile is shutting down.
     return false;
   }
+
+  // If OFF_THE_RECORD disposition does not require a new window,
+  // convert it into NEW_FOREGROUND_TAB.
+  if (params->disposition == WindowOpenDisposition::OFF_THE_RECORD &&
+      params->initiating_profile->IsOffTheRecord()) {
+    params->disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  }
+
   return true;
 }
 
@@ -42,8 +51,32 @@ bool ValidNavigateParams(NavigateParams* params) {
 void GetOrCreateBrowserWindowForDisposition(
     NavigateParams* params,
     base::OnceCallback<void(BrowserWindowInterface*)> callback) {
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), params->browser));
+  raw_ptr<Profile> profile = params->initiating_profile;
+  switch (params->disposition) {
+    case WindowOpenDisposition::OFF_THE_RECORD:
+      // The existing profile was already checked and is not OTR
+      // so we get an OTR profile and create a new window.
+      profile = profile->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+      [[fallthrough]];
+    case WindowOpenDisposition::NEW_WINDOW: {
+      BrowserWindowCreateParams create_params(*profile, params->user_gesture);
+      CreateBrowserWindow(std::move(create_params), std::move(callback));
+      break;
+    }
+    case WindowOpenDisposition::NEW_BACKGROUND_TAB:
+      [[fallthrough]];
+    case WindowOpenDisposition::NEW_FOREGROUND_TAB:
+      [[fallthrough]];
+    case WindowOpenDisposition::CURRENT_TAB: {
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(std::move(callback), params->browser));
+      break;
+    }
+    default:
+      NOTIMPLEMENTED();
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(std::move(callback), nullptr));
+  }
 }
 
 // Helper to create/locate tabs.
@@ -89,14 +122,21 @@ raw_ptr<tabs::TabInterface> GetOrCreateTabForDisposition(
       params->source_contents = new_tab->GetContents();
       return new_tab;
     }
-    case WindowOpenDisposition::CURRENT_TAB: {
-      // If no source WebContents was specified, use the active one.
-      if (!params->source_contents) {
-        raw_ptr<tabs::TabInterface> active_tab = tab_list->GetActiveTab();
-        params->source_contents = active_tab->GetContents();
-        return active_tab;
+    case WindowOpenDisposition::CURRENT_TAB:
+      if (params->source_contents) {
+        return tabs::TabInterface::GetFromContents(params->source_contents);
       }
-      return tabs::TabInterface::GetFromContents(params->source_contents);
+      // Otherwise use the active tab.
+      [[fallthrough]];
+    case WindowOpenDisposition::OFF_THE_RECORD:
+      // A new incognito window has already been created with a new tab.
+      [[fallthrough]];
+    case WindowOpenDisposition::NEW_WINDOW: {
+      // A new tab is already created when the new window is created on Android.
+      // Just get the active tab.
+      raw_ptr<tabs::TabInterface> active_tab = tab_list->GetActiveTab();
+      params->source_contents = active_tab->GetContents();
+      return active_tab;
     }
     default:
       NOTIMPLEMENTED();
@@ -143,10 +183,10 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
   if (!ValidNavigateParams(params)) {
     return nullptr;
   }
-  // Only handles dispositions that do not create new tabs.
-  if (params->disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB &&
-      params->disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB &&
-      params->disposition != WindowOpenDisposition::CURRENT_TAB) {
+  // Only handles dispositions that do not create new windows.
+  if (params->disposition != WindowOpenDisposition::CURRENT_TAB &&
+      params->disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB &&
+      params->disposition != WindowOpenDisposition::NEW_FOREGROUND_TAB) {
     return nullptr;
   }
   auto tab = GetOrCreateTabForDisposition(params->browser, params);

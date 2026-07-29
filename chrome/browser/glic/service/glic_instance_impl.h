@@ -176,6 +176,12 @@ class GlicInstanceImpl : public GlicInstance,
       glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) override;
   void InterruptActorTask(actor::TaskId task_id) override;
   void UninterruptActorTask(actor::TaskId task_id) override;
+  void CreateActorTab(
+      actor::TaskId task_id,
+      bool open_in_background,
+      const std::optional<int32_t>& initiator_tab_id,
+      const std::optional<int32_t>& initiator_window_id,
+      glic::mojom::WebClientHandler::CreateActorTabCallback callback) override;
   void FetchZeroStateSuggestions(
       bool is_first_run,
       std::optional<std::vector<std::string>> supported_tools,
@@ -224,6 +230,7 @@ class GlicInstanceImpl : public GlicInstance,
   // Test support.
   void CloseAllEmbeddersForTesting();
   views::View* GetActiveEmbedderGlicViewForTesting();
+  std::string DescribeForTesting();
 
   // ActorTaskDelegate:
   void OnTabAddedToTask(actor::TaskId task_id,
@@ -304,6 +311,8 @@ class GlicInstanceImpl : public GlicInstance,
       std::vector<std::string> returned_suggestions);
   void MaybeDeactivateEmbedder(EmbedderKey key);
 
+  bool ShouldPinOnBind() const;
+
   void MaybeActivateForegroundEmbedder();
   EmbedderEntry& BindTab(tabs::TabInterface* tab);
   // For any pinned tab not already bound to a conversation bind it to this one.
@@ -323,7 +332,6 @@ class GlicInstanceImpl : public GlicInstance,
 
   base::WeakPtr<InstanceCoordinatorDelegate> coordinator_delegate_;
   InstanceId id_;
-  GlicInstanceMetrics instance_metrics_;
 
   // The single source of truth for all embedders.
   // A tabs::TabInterface* key is a tab-bound side panel.
@@ -358,9 +366,14 @@ class GlicInstanceImpl : public GlicInstance,
   // The source of truth sharing manager for the instance.
   GlicStablePinningDelegatingSharingManager sharing_manager_;
 
+  // GlicInstanceMetrics ctor requires the sharing_manager_ above, so it must be
+  // declared after it to prevent memory errors.
+  GlicInstanceMetrics instance_metrics_;
+
   // Tracks the last non-hidden panel state kind for the instance. This is
   // useful for responding to changes in attached/detached state.
-  mojom::PanelStateKind last_non_hidden_panel_state_kind_;
+  mojom::PanelStateKind last_non_hidden_panel_state_kind_ =
+      mojom::PanelStateKind::kAttached;
   mojom::WebClientMode interaction_mode_ = mojom::WebClientMode::kText;
 
   base::ScopedObservation<BrowserList, BrowserListObserver>

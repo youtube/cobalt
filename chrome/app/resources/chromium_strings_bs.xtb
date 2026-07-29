@@ -237,6 +237,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="370962675267501463">{COUNT,plural, =0{Vaš administrator traži da ponovo pokrenete Chromium radi primjene ovog ažuriranja}=1{Vaš administrator traži da ponovo pokrenete Chromium radi primjene ovog ažuriranja. Vaš anonimni prozor se neće ponovo otvoriti.}one{Vaš administrator traži da ponovo pokrenete Chromium radi primjene ovog ažuriranja. Vaš # anonimni prozor se neće ponovo otvoriti.}few{Vaš administrator traži da ponovo pokrenete Chromium radi primjene ovog ažuriranja. Vaša # anonimna prozora se neće ponovo otvoriti.}other{Vaš administrator traži da ponovo pokrenete Chromium radi primjene ovog ažuriranja. Vaših # anonimnih prozora se neće ponovo otvoriti.}}</translation>
 <translation id="3713809861844741608">Otvori link u novoj &amp;kartici Chromiuma</translation>
 <translation id="3728124580182886854">Povežite Chromium i druge Googleove usluge radi personalizacije i u druge svrhe</translation>
+<translation id="3729187154190517324">Produbljivanje pretraživanja dodavanjem više kartica, fajlova i alata putem dugmeta "Dodajte karticu i drugo".</translation>
 <translation id="3788675262216168505">Upravljajte profilima u Chromiumu</translation>
 <translation id="3790262771324122253">Saznajte zašto Chromium blokira neka preuzimanja</translation>
 <translation id="379589255253486813">Chromium će vas obavijestiti ako nešto budete trebali pregledati</translation>
@@ -358,6 +359,7 @@ Neke funkcije možda neće biti dostupne i promjene postavki se neće sačuvati.
 <translation id="5286907366254680517">Otkriveno</translation>
 <translation id="5294316920224716406">Prilikom pregledanja u anonimnom načinu rada Chromium će vas upozoriti prije učitavanja web lokacije putem nesigurne veze</translation>
 <translation id="5313228254328109263">Interna usluga za ažuriranje Chromiuma</translation>
+<translation id="5346389065299425353">Produbite pretraživanje dodavanjem više kartica, fajlova i alata</translation>
 <translation id="5352264705793813212">Chromium je pronašao neke sigurnosne preporuke koje trebate pregledati</translation>
 <translation id="5352361688875342522">Drugi profili u Chromiumu</translation>
 <translation id="5358375970380395591">Prijavljujete se s upravljanim računom i dajete njegovom administratoru kontrolu nad svojim Chromium profilom. Vaši podaci iz Chromiuma, kao što su vaše aplikacije, oznake, historija, lozinke i druge postavke, trajno će se vezati za račun <ph name="USER_NAME" />. Moći ćete izbrisati ove podatke na kontrolnoj tabli Google računa, ali nećete moći povezati ove podatke s drugim računom. <ph name="LEARN_MORE" /></translation>
@@ -534,6 +536,7 @@ Moguće je da neke funkcije neće biti dostupne. Odredite drugi direktorij profi
 <translation id="7274695763216404502">Zakačeno! Ponovo koristite pretraživanje pomoću slika s alatne trake</translation>
 <translation id="7288567540154601580">Kartice i ekstenzije</translation>
 <translation id="7295544978856094497">{NUM_EXTENSIONS,plural, =1{Chromium preporučuje da je uklonite}one{Chromium preporučuje da ih uklonite}few{Chromium preporučuje da ih uklonite}other{Chromium preporučuje da ih uklonite}}</translation>
+<translation id="7296334833518879294">Da dijelite zvuk sistema, otvorite Postavke sistema i dozvolite "Snimanje samo zvuka sistema" za Chromium. Zatim ćete morati ponovo pokrenuti Chromium.</translation>
 <translation id="7309928523159922338">Mjerenje oglasa omogućava web lokacijama koje posjećujete da zatraže informaciju iz Chromiuma koja će im pomoći da izmjere performanse svojih oglasa. Mjerenje oglasa ograničava unakrsno praćenje web lokacija prenoseći minimalnu količinu informacija između njih.</translation>
 <translation id="731795002583552498">Ažuriranje Chromiuma</translation>
 <translation id="7318036098707714271">Vaš fajl s postavkama je oštećen ili nevažeći.

@@ -70,6 +70,9 @@ class LensComposeboxController {
   // Adds the visual selection context to the compose box context carousel.
   void AddVisualSelectionContext(const std::string& image_data_url);
 
+  // Clears the visual selection context.
+  void ClearVisualSelectionContext();
+
   // Deletes the context associated with the given id.
   void DeleteContext(const base::UnguessableToken& id);
 
@@ -123,8 +126,9 @@ class LensComposeboxController {
       const std::string& image_data_url,
       bool is_deletable);
 
-  // Clears the visual selection context.
-  void ClearVisualSelectionContext();
+  // Returns true if there is a pending region in the composebox, or there
+  // is an active region selection in the overlay.
+  bool HasRegionSelection() const;
 
   // Owns this.
   const raw_ptr<LensSearchController> lens_search_controller_;

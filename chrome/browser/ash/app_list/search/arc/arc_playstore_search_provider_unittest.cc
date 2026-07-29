@@ -41,14 +41,15 @@ class ArcPlayStoreSearchProviderTest : public AppListTestBase {
   void SetUp() override {
     arc_app_test_.PreProfileSetUp();
     AppListTestBase::SetUp();
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
     controller_ = std::make_unique<::test::TestAppListControllerDelegate>();
   }
 
   void TearDown() override {
     controller_.reset();
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     AppListTestBase::TearDown();
+    arc_app_test_.PostProfileTearDown();
   }
 
  protected:

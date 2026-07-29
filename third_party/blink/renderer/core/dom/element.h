@@ -252,6 +252,15 @@ enum class CommandEventType {
   kToggleMenu,
   kHideMenu,
   kShowMenu,
+  // Scroll
+  kPageUp,
+  kPageDown,
+  kPageLeft,
+  kPageRight,
+  kPageBlockStart,
+  kPageBlockEnd,
+  kPageInlineStart,
+  kPageInlineEnd,
 };
 
 // Defaults for the `interestfor` API's `normal` value.
@@ -1199,6 +1208,17 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       Element* new_focused_element,
       InputDeviceCapabilities* source_capabilities = nullptr);
 
+  static bool IsScrollCommand(CommandEventType command) {
+    return command == CommandEventType::kPageUp ||
+           command == CommandEventType::kPageDown ||
+           command == CommandEventType::kPageLeft ||
+           command == CommandEventType::kPageRight ||
+           command == CommandEventType::kPageBlockStart ||
+           command == CommandEventType::kPageBlockEnd ||
+           command == CommandEventType::kPageInlineStart ||
+           command == CommandEventType::kPageInlineEnd;
+  }
+
   // This allows customization of how Invoker Commands are handled, per element.
   // See: crbug.com/1490919, https://open-ui.org/components/invokers.explainer/
   virtual bool IsValidBuiltinCommand(HTMLElement& invoker,
@@ -1209,8 +1229,17 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
                                      CommandEventType command) {
     CHECK(command != CommandEventType::kCustom &&
           command != CommandEventType::kNone);
+
+    // Handle scroll commands
+    if (IsScrollCommand(command)) {
+      return HandleScrollCommand(command);
+    }
+
     return false;
   }
+
+  // Helper method to handle scroll commands
+  bool HandleScrollCommand(CommandEventType command);
 
   // These are slightly different than e.g. checking popover->popoverOpen(),
   // because they also catch the case where the element *was* open as a popover
@@ -1666,9 +1695,14 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   virtual void SetActive(bool active);
   virtual void SetHovered(bool hovered);
 
-  // Classes overriding this method can return true when an element has
-  // been determined to be from an ad. Returns false by default.
-  virtual bool IsAdRelated() const { return false; }
+  // Manages the element's ad-related status.
+  //
+  // `HTMLFrameOwnerElement` manages its ad status separately. Therefore:
+  // 1. `SetIsAdRelated()` should not be called on a frame owner.
+  // 2. `IsAdRelated()` is overridden by `HTMLFrameOwnerElement` to return its
+  //    own frame-derived status.
+  void SetIsAdRelated();
+  virtual bool IsAdRelated() const;
 
   void NotifyInlineStyleMutation();
 

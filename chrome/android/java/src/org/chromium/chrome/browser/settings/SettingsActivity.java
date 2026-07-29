@@ -21,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -282,7 +283,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         if (ChromeFeatureList.sSearchInSettings.isEnabled()) {
             mSearchCoordinator =
                     new SettingsSearchCoordinator(
-                            this, this::getUseMultiColumn, mMultiColumnSettings);
+                            this, this::getUseMultiColumn, mMultiColumnSettings, mItemDecorations);
             mSearchCoordinator.initializeSearchUi();
         }
 
@@ -428,6 +429,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             // Force a re-inflation of all views to ensure they pick up the new theme.
             reInflateViews(fragment);
         }
+        applyMainSettingsFragmentDecoration((MainSettings) fragment);
     }
 
     /**
@@ -462,39 +464,70 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             fragment.requireContext()
                     .getTheme()
                     .applyStyle(R.style.ThemeOverlay_Chromium_Settings_MainPanel, true);
+            applyMainSettingsFragmentDecoration((MainSettings) fragment);
             return;
         }
 
         fragment.requireContext()
                 .getTheme()
                 .applyStyle(R.style.ThemeOverlay_Chromium_Settings_Containment, true);
-        // Posting this runnable ensures the RecyclerView has completed its layout pass before
-        // updating backgrounds.
-        fragment.getListView()
-                .post(
-                        () -> {
-                            ContainmentItemController controller =
-                                    new ContainmentItemController(SettingsActivity.this);
-                            ContainmentItemDecoration itemDecoration =
-                                    mItemDecorations.get(fragment);
-                            if (itemDecoration == null) {
-                                itemDecoration = new ContainmentItemDecoration(controller);
-                                mItemDecorations.put(fragment, itemDecoration);
-                                fragment.getListView().addItemDecoration(itemDecoration);
-                            }
-                            itemDecoration.updatePreferenceStyles(
-                                    controller.generatePreferenceStyles(
-                                            SettingsUtils.getVisiblePreferences(
-                                                    fragment.getPreferenceScreen())));
-                            fragment.getListView().invalidateItemDecorations();
 
-                            // Force a re-inflation of all views to ensure they pick up the new
-                            // theme.
-                            reInflateViews(fragment);
+        final var recyclerView = fragment.getListView();
+        if (recyclerView == null) return;
+
+        recyclerView
+                .getViewTreeObserver()
+                .addOnGlobalLayoutListener(
+                        new ViewTreeObserver.OnGlobalLayoutListener() {
+                            @Override
+                            public void onGlobalLayout() {
+                                // Remove the listener immediately to ensure it only runs once.
+                                recyclerView
+                                        .getViewTreeObserver()
+                                        .removeOnGlobalLayoutListener(this);
+
+                                ContainmentItemController controller =
+                                        new ContainmentItemController(SettingsActivity.this);
+                                ContainmentItemDecoration itemDecoration =
+                                        mItemDecorations.get(fragment);
+                                if (itemDecoration == null) {
+                                    itemDecoration = new ContainmentItemDecoration(controller);
+                                    mItemDecorations.put(fragment, itemDecoration);
+                                    recyclerView.addItemDecoration(itemDecoration);
+                                }
+                                itemDecoration.updatePreferenceStyles(
+                                        controller.generatePreferenceStyles(
+                                                SettingsUtils.getVisiblePreferences(
+                                                        fragment.getPreferenceScreen())));
+                                recyclerView.invalidateItemDecorations();
+
+                                // Force a re-inflation of all views to ensure they pick up the new
+                                // theme.
+                                reInflateViews(fragment);
+                            }
                         });
     }
 
+    private void applyMainSettingsFragmentDecoration(MainSettings mainSettings) {
+        int verticalMargin =
+                getResources()
+                        .getDimensionPixelSize(R.dimen.settings_item_container_vertical_margin);
+        int leftMargin = getResources().getDimensionPixelSize(R.dimen.settings_item_margin);
+        float radius =
+                getResources()
+                        .getDimensionPixelSize(R.dimen.settings_item_rounded_corner_radius_default);
+        int selectedBackgroundColor =
+                SemanticColorUtils.getSettingsMainMenuSelectedBackgroundColor(
+                        mainSettings.requireContext());
+        mainSettings.setMultiColumnSettings(
+                mMultiColumnSettings,
+                new SelectionDecoration(
+                        verticalMargin, leftMargin, radius, selectedBackgroundColor));
+    }
+
     private void reInflateViews(PreferenceFragmentCompat fragment) {
+        if (fragment.getListView() == null) return;
+
         var adapter = fragment.getListView().getAdapter();
         fragment.getListView().setAdapter(null);
         fragment.getListView().setAdapter(adapter);

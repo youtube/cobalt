@@ -20,6 +20,7 @@ import org.chromium.chrome.browser.tab.TabAssociatedApp;
 import org.chromium.chrome.browser.tab.TabStateExtractor;
 import org.chromium.chrome.browser.tab.WebContentsState;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tabwindow.WindowId;
@@ -30,6 +31,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /** Saves Java-accessible data for use in C++. */
 @JNINamespace("tabs")
@@ -42,31 +44,51 @@ public class TabStoragePackager {
     private static class TabModelInfo {
         public final @WindowId int windowId;
         public final @TabModelType int tabModelType;
-        public final @Nullable Tab activeTab;
+        public final Supplier<@Nullable Tab> activeTabSupplier;
 
         /**
          * @param windowId The {@link WindowId} the {@link TabModel} is associated with.
          * @param tabModelType The type of tab model being saved.
-         * @param activeTab The active tab in the tab model.
+         * @param activeTabSupplier The supplier of the active tab in the tab model.
          */
         TabModelInfo(
-                @WindowId int windowId, @TabModelType int tabModelType, @Nullable Tab activeTab) {
+                @WindowId int windowId,
+                @TabModelType int tabModelType,
+                Supplier<@Nullable Tab> activeTabSupplier) {
             this.windowId = windowId;
             this.tabModelType = tabModelType;
-            this.activeTab = activeTab;
+            this.activeTabSupplier = activeTabSupplier;
+        }
+
+        /** Returns a unique tag for the window the {@link TabModel} is associated with. */
+        String getWindowTag() {
+            switch (tabModelType) {
+                case TabModelType.INCOGNITO:
+                case TabModelType.REGULAR: // Fall through.
+                    assert windowId != TabWindowManager.INVALID_WINDOW_ID
+                            : "Regular or incognito tab model must have a valid window ID.";
+                    return Integer.toString(windowId);
+                case TabModelType.ARCHIVED:
+                    return ArchivedTabModelOrchestrator.ARCHIVED_TAB_SELECTOR_UNIQUE_TAG;
+                default:
+                    assert false : "Unknown tab model type: " + tabModelType;
+                    return "";
+            }
         }
 
         /**
          * @param windowId The {@link WindowId} the {@link TabModel} is associated with.
          * @param isOffTheRecord Whether the tab model is off the record.
-         * @param activeTab The active tab in the tab model.
+         * @param activeTabSupplier The supplier of the active tab in the tab model.
          */
         public static TabModelInfo createForWindowScopedModel(
-                @WindowId int windowId, boolean isOffTheRecord, @Nullable Tab activeTab) {
+                @WindowId int windowId,
+                boolean isOffTheRecord,
+                Supplier<@Nullable Tab> activeTabSupplier) {
             return new TabModelInfo(
                     windowId,
                     isOffTheRecord ? TabModelType.INCOGNITO : TabModelType.REGULAR,
-                    activeTab);
+                    activeTabSupplier);
         }
 
         /**
@@ -77,7 +99,7 @@ public class TabStoragePackager {
             return new TabModelInfo(
                     TabWindowManager.INVALID_WINDOW_ID,
                     TabModelType.ARCHIVED,
-                    /* activeTab= */ null);
+                    /* activeTabSupplier= */ () -> null);
         }
     }
 
@@ -131,12 +153,14 @@ public class TabStoragePackager {
         }
         assert tabModel != null && selector != null;
 
+        configureRemoveFromCacheOnDestroy(tabModel, collection);
+
         @WindowId
         int windowId = TabWindowManagerSingleton.getInstance().getWindowIdForSelector(selector);
         assert windowId != TabWindowManager.INVALID_WINDOW_ID;
 
         return TabModelInfo.createForWindowScopedModel(
-                windowId, tabModel.isOffTheRecord(), tabModel.getCurrentTabSupplier().get());
+                windowId, tabModel.isOffTheRecord(), tabModel.getCurrentTabSupplier());
     }
 
     @Nullable
@@ -151,6 +175,8 @@ public class TabStoragePackager {
         TabStripCollection archivedCollection = tabModel.getTabStripCollection();
         if (!Objects.equals(archivedCollection, collection)) return null;
 
+        configureRemoveFromCacheOnDestroy(tabModel, collection);
+
         return TabModelInfo.createForArchivedModel();
     }
 
@@ -164,7 +190,35 @@ public class TabStoragePackager {
                         mNativeTabStoragePackager,
                         info.windowId,
                         info.tabModelType,
-                        info.activeTab);
+                        info.activeTabSupplier.get());
+    }
+
+    @CalledByNative
+    public boolean isOffTheRecord(
+            @JniType("Profile*") Profile profile,
+            @JniType("const TabStripCollection*") TabStripCollection collection) {
+        TabModelInfo info = getTabModelInfo(profile, collection);
+        return info.tabModelType == TabModelType.INCOGNITO;
+    }
+
+    @CalledByNative
+    public @JniType("std::string") String getWindowTag(
+            @JniType("Profile*") Profile profile,
+            @JniType("const TabStripCollection*") TabStripCollection collection) {
+        TabModelInfo info = getTabModelInfo(profile, collection);
+        return info.getWindowTag();
+    }
+
+    private void configureRemoveFromCacheOnDestroy(
+            TabModel tabModel, TabStripCollection collection) {
+        tabModel.addObserver(
+                new TabModelObserver() {
+                    @Override
+                    public void onDestroy() {
+                        mTabModelInfoMap.remove(collection);
+                        tabModel.removeObserver(this);
+                    }
+                });
     }
 
     @NativeMethods

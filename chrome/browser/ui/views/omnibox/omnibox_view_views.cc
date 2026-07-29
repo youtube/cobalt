@@ -888,7 +888,7 @@ bool OmniboxViewViews::HandleEarlyTabActions(const ui::KeyEvent& event) {
     return false;
   }
 
-  if (controller()->edit_model()->PopupIsOpen()) {
+  if (controller()->IsPopupOpen()) {
     controller()->edit_model()->OnTabPressed(event.IsShiftDown());
     return true;
   } else {
@@ -1356,7 +1356,7 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
   PermitExternalProtocolHandler();
 
   // Clear focus of buttons, but do not clear keyword mode.
-  if (controller()->edit_model()->PopupIsOpen()) {
+  if (controller()->IsPopupOpen()) {
     OmniboxPopupSelection selection =
         controller()->edit_model()->GetPopupSelection();
     if (selection.state != OmniboxPopupSelection::KEYWORD_MODE) {
@@ -1561,7 +1561,7 @@ bool OmniboxViewViews::SkipDefaultKeyEventProcessing(
     //    details on this case.
     if ((controller()->edit_model()->is_keyword_hint() &&
          !event.IsShiftDown()) ||
-        controller()->edit_model()->PopupIsOpen() ||
+        controller()->IsPopupOpen() ||
         (GetAiModePageActionIconView() &&
          !GetFocusManager()->keyboard_accessible())) {
       return true;
@@ -1665,29 +1665,25 @@ void OmniboxViewViews::OnBlur() {
     RevertAll();
   }
 
-  // If the full WebUI popup is enabled, it's expected to take focus.
-  // In this case, we should NOT close the popup when the omnibox view
-  // is blurred, because the focus is simply moving to the popup itself.
-  if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
-    controller()->edit_model()->OnWillKillFocus();
+  controller()->edit_model()->OnWillKillFocus();
 
-    // If ZeroSuggest is active, and there is evidence that there is a text
-    // update to show, revert to ensure that update is shown now.  Otherwise,
-    // at least call CloseOmniboxPopup(), so that if ZeroSuggest is in the
-    // midst of running but hasn't yet opened the popup, it will be halted.
-    // If we fully reverted in this case, we'd lose the cursor/highlight
-    // information saved above.
-    if (!controller()->edit_model()->user_input_in_progress() &&
-        controller()->edit_model()->PopupIsOpen() &&
-        GetText() != controller()->edit_model()->GetPermanentDisplayText()) {
-      RevertAll();
-    } else {
-      CloseOmniboxPopup();
-    }
-
-    // Tell the model to reset itself.
-    controller()->edit_model()->OnKillFocus();
+  // If ZeroSuggest is active, and there is evidence that there is a text
+  // update to show, revert to ensure that update is shown now.  Otherwise,
+  // at least call CloseOmniboxPopup(), so that if ZeroSuggest is in the
+  // midst of running but hasn't yet opened the popup, it will be halted.
+  // If we fully reverted in this case, we'd lose the cursor/highlight
+  // information saved above.
+  if (!controller()->edit_model()->user_input_in_progress() &&
+      controller()->IsPopupOpen() &&
+      GetText() != controller()->edit_model()->GetPermanentDisplayText()) {
+    RevertAll();
+  } else {
+    CloseOmniboxPopup();
   }
+
+  // Tell the model to reset itself.
+  controller()->edit_model()->OnKillFocus();
+
   // Deselect the text. Ensures the cursor is an I-beam.
   SetSelectedRange(gfx::Range(GetCursorPosition()));
 
@@ -1955,7 +1951,7 @@ bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
       }
       base::UmaHistogramEnumeration(kOpenMatchWithKeyboardModifiersMetricName,
                                     metric_value);
-      if (controller()->edit_model()->PopupIsOpen() && !control) {
+      if (controller()->IsPopupOpen() && !control) {
         // Normal case of pressing <return> when the popup is open.
         controller()->edit_model()->OpenSelection(
             controller()->edit_model()->GetPopupSelection(), event.time_stamp(),
@@ -1991,7 +1987,7 @@ bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
       break;
 
     case ui::VKEY_DELETE:
-      if (shift && controller()->edit_model()->PopupIsOpen()) {
+      if (shift && controller()->IsPopupOpen()) {
         controller()->edit_model()->TryDeletingPopupLine(
             controller()->edit_model()->GetPopupSelection().line);
       }
@@ -2082,7 +2078,7 @@ bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
       break;
 
     case ui::VKEY_SPACE: {
-      if (!controller()->edit_model()->PopupIsOpen()) {
+      if (!controller()->IsPopupOpen()) {
         // If the popup is not open and the page action icon has "fake" focus
         // (see comments in `HandleEarlyTabActions`), have `OmniboxEditModel`
         // open a `kNoMatch`/`FOCUSED_BUTTON_AIM` selection.
@@ -2516,7 +2512,7 @@ bool OmniboxViewViews::ShouldShowAimPlaceholderText() const {
   // focused and the popup selection state is normal (i.e. no popup buttons are
   // focused and we are not in keyword mode). The hint text will be shown on NTP
   // open by default, unless this option is explicitly disabled.
-  bool ntp_open = !controller()->edit_model()->PopupIsOpen() &&
+  bool ntp_open = !controller()->IsPopupOpen() &&
                   !controller()->edit_model()->user_input_in_progress();
   bool hide_text_on_ntp_open =
       omnibox_feature_configs::AiModeOmniboxEntryPoint::Get()

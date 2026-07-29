@@ -2330,6 +2330,10 @@ chromium-metrics-reviews@google.com.
   <int value="1407" label="DefaultIdleDetectionSetting"/>
   <int value="1408" label="IdleDetectionAllowedForUrls"/>
   <int value="1409" label="IdleDetectionBlockedForUrls"/>
+  <int value="1410" label="PreciseGeolocationAllowedForUrls"/>
+  <int value="1411" label="GeolocationBlockedForUrls"/>
+  <int value="1412" label="PdfXfaFormsEnabled"/>
+  <int value="1413" label="CameraSaveLocation"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">
@@ -2554,18 +2558,6 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Re-registration triggered"/>
   <int value="1" label="Re-registration successful"/>
   <int value="2" label="Re-registration unsuccessful"/>
-</enum>
-
-<enum name="EnterpriseUserSessionLogins">
-  <summary>
-    Types of sign-in events as defined in
-    chrome/browser/ash/login/enterprise_user_session_metrics.h
-  </summary>
-  <int value="0" label="Regular user"/>
-  <int value="1" label="Manual public session"/>
-  <int value="2" label="Automatic public session"/>
-  <int value="3" label="Manual kiosk session"/>
-  <int value="4" label="Automatic kiosk session"/>
 </enum>
 
 <enum name="IdleTimeoutCase">

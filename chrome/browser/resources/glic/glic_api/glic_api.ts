@@ -367,12 +367,24 @@ export declare interface GlicBrowserHost {
   getActorTaskState?(taskId: number): ObservableValue<ActorTaskState>;
 
   /**
+   * Creates a new tab for acting, using the initiator tab and window to
+   * determine the window the tab will be created in. Returns the TabData for
+   * the newly created tab (which may be empty in case of failure).
+   *
+   * taskId: Is the actor task id associated with this request. Note: this is
+   * used only to associate this call with a task in the journal; the new tab
+   * isn't associated with the task until an action is performed on the tab.
+   */
+  createActorTab?(taskId: number, createActorTabOptions: CreateActorTabOptions):
+      Promise<TabData>;
+
+  /**
    * Returns the observable state of TabData for the given tab.
    * Note that updates are only sent for a subset of changes to the tab.
    *
-   * WARNING: The current implementation within Chrome makes this unsuitable for
-   * general use. Only tabs involved with actor tasks are supported.
-   * The observable remains open even if there's no tab.
+   * WARNING: The current implementation within Chrome makes this unsuitable
+   * for general use. Only tabs involved with actor tasks are supported. The
+   * observable remains open even if there's no tab.
    * @todo Generalize this to work with non-actor tabs.
    * @todo Complete the observable when tabs are removed.
    */
@@ -447,6 +459,12 @@ export declare interface GlicBrowserHost {
    * is focused instead.
    */
   openGlicSettingsPage?(options?: OpenSettingsOptions): void;
+
+  /**
+   * Opens a tab to the password manager settings page. If an open tab already
+   * has the page loaded, it is focused instead.
+   */
+  openPasswordManagerSettingsPage?(): void;
 
   /** Requests the closing of the panel containing the web client. */
   closePanel?(): Promise<void>;
@@ -935,6 +953,23 @@ export declare interface CreateTabOptions {
   openInBackground?: boolean;
   /** The windowId of the window where the new tab should be created at. */
   windowId?: string;
+}
+
+/** Holds optional parameters for `GlicBrowserHost#createActorTab`. */
+export declare interface CreateActorTabOptions {
+  /** The tabId of the tab from which the conversation turn was initiated. */
+  initiatorTabId?: string;
+  /**
+   * The windowId of the window which the conversation turn was initiated.
+   * This may differ from the initiatorTabId's current window if the tab is
+   * moved to a different window or closed.
+   */
+  initiatorWindowId?: string;
+  /**
+   * Determines if the new tab should be created in the background or not. If
+   * not provided, defaults to `false`.
+   */
+  openInBackground?: boolean;
 }
 
 /**
@@ -1914,6 +1949,8 @@ export declare interface Credential {
   // The original website or application for which this credential was saved
   // for.
   sourceSiteOrApp: string;
+  // The origin for which this credential was requested.
+  requestOrigin?: string;
   // The optional icon for the credential, encoded as a PNG image.
   getIcon?(): Promise<Blob>;
 }
@@ -2214,6 +2251,10 @@ export enum ActorTaskStopReason {
   STOPPED_BY_USER = 1,
   // Actor task was stopped because the model reported a failure.
   MODEL_ERROR = 2,
+  // Actor task was stopped by choosing a new conversation.
+  USER_STARTED_NEW_CHAT = 3,
+  // Actor task was stopped by choosing a previous conversation.
+  USER_LOADED_PREVIOUS_CHAT = 4,
 }
 
 ///////////////////////////////////////////////

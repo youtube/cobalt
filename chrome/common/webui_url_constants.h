@@ -54,6 +54,7 @@ inline constexpr char kChromeUIAppsWithDeprecationDialogURL[] =
     "chrome://apps?showDeletionDialog=";
 inline constexpr char kChromeUIAppsWithForceInstalledDeprecationDialogURL[] =
     "chrome://apps?showForceInstallDialog=";
+inline constexpr char kChromeUIAutofillAiPath[] = "/enhancedAutofill";
 inline constexpr char kChromeUIAutofillPath[] = "/autofill";
 inline constexpr char kChromeUIAutofillInternalsHost[] = "autofill-internals";
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -443,8 +444,6 @@ inline constexpr char kChromeUIAppInstallDialogURL[] =
 inline constexpr char kChromeUIArcOverviewTracingHost[] =
     "arc-overview-tracing";
 inline constexpr char kChromeUIArcPowerControlHost[] = "arc-power-control";
-inline constexpr char kChromeUIAudioHost[] = "audio";
-inline constexpr char kChromeUIAudioURL[] = "chrome://audio/";
 inline constexpr char kChromeUIBluetoothPairingHost[] = "bluetooth-pairing";
 inline constexpr char kChromeUIBluetoothPairingURL[] =
     "chrome://bluetooth-pairing/";
@@ -684,6 +683,8 @@ inline constexpr char kPasskeysSubPage[] = "passkeys";
 inline constexpr char kPasswordCheckSubPage[] = "passwords/check?start=true";
 inline constexpr char kPasswordManagerSubPage[] = "passwords";
 inline constexpr char kPaymentsSubPage[] = "payments";
+inline constexpr char kIdentityDocsSubPage[] = "identityDocs";
+inline constexpr char kTravelSubPage[] = "travel";
 inline constexpr char kPeopleSubPage[] = "people";
 inline constexpr char kPerformanceSubPage[] = "performance";
 inline constexpr char kPrintingSettingsSubPage[] = "printing";
@@ -705,6 +706,7 @@ inline constexpr char kSyncSetupSubPage[] = "syncSetup";
 inline constexpr char kSyncSetupAdvancedSubPage[] = "syncSetup/advanced";
 inline constexpr char kTriggeredResetProfileSettingsSubPage[] =
     "triggeredResetProfileSettings";
+inline constexpr char kYourSavedInfoSubPage[] = "yourSavedInfo";
 
 #if BUILDFLAG(IS_WIN)
 inline constexpr char kCleanupSubPage[] = "cleanup";

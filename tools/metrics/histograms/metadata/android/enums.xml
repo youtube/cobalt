@@ -1321,7 +1321,7 @@ chromium-metrics-reviews@google.com.
   <int value="49" label="SaveCardFailure"/>
   <int value="50" label="VirtualCardEnrollFailure"/>
   <int value="51" label="PromptHatsQuickDelete"/>
-  <int value="52" label="PromptHatsSafetyHub"/>
+  <int value="52" label="DEPRECATED: PromptHatsSafetyHub"/>
   <int value="53" label="DefaultBrowserPromo"/>
   <int value="54" label="TabRemovedThroughCollaboration"/>
   <int value="55" label="TabNavigatedThroughCollaboration"/>
@@ -1954,6 +1954,8 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="SequenceTransferredBackFromViz"/>
   <int value="13" label="WebContentsIgnoringInputEvents"/>
   <int value="14" label="RIRDelegateConnectionNotSetup"/>
+  <int value="15" label="SharedMemoryUnavailable"/>
+  <int value="16" label="PositiveEventAndDownTimeDelta"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/android/transfer_input_to_viz_result.h:TransferInputToVizResult)-->
@@ -2730,8 +2732,8 @@ chromium-metrics-reviews@google.com.
   <int value="100" label="staticGetSafeBrowsingPrivacyPolicyUrl"/>
   <int value="101" label="staticIsMultiProcessEnabled"/>
   <int value="102" label="staticGetVariationsHeader"/>
-  <int value="103" label="staticSetDefaultTrafficStatsTag"/>
-  <int value="104" label="staticSetDefaultTrafficStatsUid"/>
+  <int value="103" label="(Obsolete) staticSetDefaultTrafficStatsTag"/>
+  <int value="104" label="(Obsolete) staticSetDefaultTrafficStatsUid"/>
   <int value="105" label="staticSetRendererLibraryPrefetchMode"/>
   <int value="106" label="staticGetRendererLibraryPrefetchMode"/>
   <int value="107" label="getDefaultCookieManager"/>

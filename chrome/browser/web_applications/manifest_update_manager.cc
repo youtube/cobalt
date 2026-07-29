@@ -30,6 +30,7 @@
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -248,7 +249,8 @@ void ManifestUpdateManager::MaybeUpdate(
     return;
   }
 
-  if (provider_->registrar_unsafe().IsIsolated(*app_id)) {
+  if (provider_->registrar_unsafe().AppMatches(*app_id,
+                                               WebAppFilter::IsIsolatedApp())) {
     // Manifests of Isolated Web Apps are only updated when a new version of the
     // app is installed.
     NotifyResult(url, *app_id, ManifestUpdateResult::kAppIsIsolatedWebApp);
@@ -360,7 +362,6 @@ void ManifestUpdateManager::OnManifestSilentUpdateComplete(
   update_stages_.erase(update_stage_it);
   bool update_silent_or_pending;
   switch (completion_info.result) {
-    case ManifestSilentUpdateCheckResult::kAppNotInstalled:
     case ManifestSilentUpdateCheckResult::kAppUpdateFailedDuringInstall:
     case ManifestSilentUpdateCheckResult::kSystemShutdown:
     case ManifestSilentUpdateCheckResult::kAppUpToDate:
@@ -371,6 +372,7 @@ void ManifestUpdateManager::OnManifestSilentUpdateComplete(
     case ManifestSilentUpdateCheckResult::kInvalidPendingUpdateInfo:
     case ManifestSilentUpdateCheckResult::kUserNavigated:
     case ManifestSilentUpdateCheckResult::kManifestToWebAppInstallInfoError:
+    case ManifestSilentUpdateCheckResult::kAppNotAllowedToUpdate:
       update_silent_or_pending = false;
       break;
     case ManifestSilentUpdateCheckResult::kAppOnlyHasSecurityUpdate:

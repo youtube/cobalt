@@ -837,8 +837,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="568" label="SVGPathSegDOM"/>
   <int value="569" label="SVGTransformListConsolidate"/>
   <int value="570" label="SVGAnimatedTransformListBaseVal"/>
-  <int value="571" label="QuotedAnimationName"/>
-  <int value="572" label="QuotedKeyframesRule"/>
+  <int value="571" label="OBSOLETE_QuotedAnimationName"/>
+  <int value="572" label="OBSOLETE_QuotedKeyframesRule"/>
   <int value="573" label="SrcsetDroppedCandidate"/>
   <int value="574" label="WindowPostMessage"/>
   <int value="575" label="WindowPostMessageWithLegacyTargetOriginArgument"/>
@@ -5638,8 +5638,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5072" label="FencedFrameCanLoadOpaqueURL"/>
   <int value="5073"
       label="V8Performance_Memory_AttributeGetter_NotLockedToSite"/>
-  <int value="5074" label="PartitionedPopin_OpenAttempt"/>
-  <int value="5075" label="PartitionedPopin_Opened"/>
+  <int value="5074" label="OBSOLETE_PartitionedPopin_OpenAttempt"/>
+  <int value="5075" label="OBSOLETE_PartitionedPopin_Opened"/>
   <int value="5076"
       label="OBSOLETE_V8AISummarizer_SharedContext_AttributeGetter"/>
   <int value="5077" label="OBSOLETE_V8AISummarizer_Type_AttributeGetter"/>
@@ -5665,8 +5665,9 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5093" label="OBSOLETE_V8AIAssistant_Destroy_Method"/>
   <int value="5094" label="OBSOLETE_V8AIAssistant_Prompt_Method"/>
   <int value="5095" label="OBSOLETE_V8AIAssistant_PromptStreaming_Method"/>
-  <int value="5096" label="V8Window_PopinContextTypesSupported_Method"/>
-  <int value="5097" label="V8Window_PopinContextType_Method"/>
+  <int value="5096"
+      label="OBSOLETE_V8Window_PopinContextTypesSupported_Method"/>
+  <int value="5097" label="OBSOLETE_V8Window_PopinContextType_Method"/>
   <int value="5098" label="WebAuthentication_AttestationFormats"/>
   <int value="5099" label="CssDisplayPropertyMultipleValues"/>
   <int value="5100" label="DocumentPolicyExpectNoLinkedResources"/>
@@ -6349,6 +6350,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5716" label="AnimationSvgNonCompositedTypes"/>
   <int value="5717" label="AnimationSvgCompositedTypes"/>
   <int value="5718" label="AttributionReportingXhr"/>
+  <int value="5719" label="DidUseServerHttpAuthOnCrossPartitionRequest"/>
+  <int value="5720" label="LcpCandidateRemovedWhilePaintTimePending"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6482,7 +6485,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="120" label="DigitalCredentialsGet"/>
   <int value="121" label="MediaPlaybackWhileNotVisible"/>
   <int value="122" label="AllScreensCapture"/>
-  <int value="123" label="PartitionedPopins"/>
+  <int value="123" label="Deprecated: PartitionedPopins"/>
   <int value="124" label="WebAppInstallation"/>
   <int value="125" label="ControlledFrame"/>
   <int value="126" label="DirectSocketsPrivate"/>
@@ -8097,8 +8100,8 @@ Called by update_use_counter_css.py.-->
   <int value="837" label="corner-end-start-shape"/>
   <int value="838" label="corner-end-end-shape"/>
   <int value="839" label="reading-order"/>
-  <int value="840" label="column-rule-outset"/>
-  <int value="841" label="row-rule-outset"/>
+  <int value="840" label="column-rule-inset"/>
+  <int value="841" label="row-rule-inset"/>
   <int value="842" label="corner-shape"/>
   <int value="843" label="scroll-target-group"/>
   <int value="844" label="row-rule-style"/>
@@ -8145,17 +8148,17 @@ Called by update_use_counter_css.py.-->
   <int value="885" label="font-language-override"/>
   <int value="886" label="ruby-overhang"/>
   <int value="887" label="rule-break"/>
-  <int value="888" label="rule-outset"/>
+  <int value="888" label="rule-inset"/>
   <int value="889" label="column-rule-visibility-items"/>
   <int value="890" label="row-rule-visibility-items"/>
-  <int value="891" label="column-rule-edge-start-outset"/>
-  <int value="892" label="column-rule-edge-end-outset"/>
-  <int value="893" label="column-rule-interior-start-outset"/>
-  <int value="894" label="column-rule-interior-end-outset"/>
-  <int value="895" label="row-rule-edge-start-outset"/>
-  <int value="896" label="row-rule-edge-end-outset"/>
-  <int value="897" label="row-rule-interior-start-outset"/>
-  <int value="898" label="row-rule-interior-end-outset"/>
+  <int value="891" label="column-rule-edge-start-inset"/>
+  <int value="892" label="column-rule-edge-end-inset"/>
+  <int value="893" label="column-rule-interior-start-inset"/>
+  <int value="894" label="column-rule-interior-end-inset"/>
+  <int value="895" label="row-rule-edge-start-inset"/>
+  <int value="896" label="row-rule-edge-end-inset"/>
+  <int value="897" label="row-rule-interior-start-inset"/>
+  <int value="898" label="row-rule-interior-end-inset"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->

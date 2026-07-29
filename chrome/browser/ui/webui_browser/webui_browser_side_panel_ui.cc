@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_waiter.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
@@ -33,18 +34,26 @@ WebUIBrowserSidePanelUI::WebUIBrowserSidePanelUI(Browser* browser)
   // coordinators are constructed prior to this call. For the remaining
   // global entries, we should either move construction to
   // BrowserWindowFeatures::Init() or else explicitly disable support.
-  SidePanelUtil::PopulateGlobalEntries(browser, GetWindowRegistry());
+  SidePanelUtil::PopulateGlobalEntries(browser,
+                                       SidePanelRegistry::From(browser));
 }
 
 WebUIBrowserSidePanelUI::~WebUIBrowserSidePanelUI() = default;
 
 void WebUIBrowserSidePanelUI::Close(SidePanelEntry::PanelType panel_type) {
+  Close(/*suppress_animations=*/true, panel_type,
+        SidePanelEntryHideReason::kSidePanelClosed);
+}
+
+void WebUIBrowserSidePanelUI::Close(bool suppress_animations,
+                                    SidePanelEntry::PanelType panel_type,
+                                    SidePanelEntryHideReason reason) {
   if (!IsSidePanelShowing(panel_type)) {
     return;
   }
 
   if (SidePanelEntry* entry = GetEntryForUniqueKey(*current_key(panel_type))) {
-    entry->OnEntryWillHide(SidePanelEntryHideReason::kSidePanelClosed);
+    entry->OnEntryWillHide(reason);
   }
   // Asynchronously close the side panel in webshell.
   // WebUI then notifies the browser when the side panel is actually closed
@@ -71,11 +80,6 @@ void WebUIBrowserSidePanelUI::DisableAnimationsForTesting() {}
 
 void WebUIBrowserSidePanelUI::SetNoDelaysForTesting(
     bool no_delays_for_testing) {}
-
-void WebUIBrowserSidePanelUI::Close(bool suppress_animations,
-                                    SidePanelEntry::PanelType panel_type) {
-  Close(panel_type);
-}
 
 content::WebContents* WebUIBrowserSidePanelUI::GetWebContentsForId(
     SidePanelEntryId entry_id) const {
@@ -196,7 +200,8 @@ void WebUIBrowserSidePanelUI::MaybeShowEntryOnTabStripModelChanged(
     current_side_panel_view_.reset();
   }
 
-  Close(/*suppress_animations=*/true, panel_type);
+  Close(/*suppress_animations=*/true, panel_type,
+        SidePanelEntryHideReason::kSidePanelClosed);
 }
 
 void WebUIBrowserSidePanelUI::OnSidePanelClosed(
@@ -219,7 +224,8 @@ void WebUIBrowserSidePanelUI::OnSidePanelClosed(
         SidePanelEntry::PanelType::kContent);
   }
 
-  window_registry_->ResetActiveEntryFor(SidePanelEntry::PanelType::kContent);
+  SidePanelRegistry::From(browser())->ResetActiveEntryFor(
+      SidePanelEntry::PanelType::kContent);
 
   current_side_panel_view_.reset();
   // TODO(webium): Clear cached views for registry entries for global and

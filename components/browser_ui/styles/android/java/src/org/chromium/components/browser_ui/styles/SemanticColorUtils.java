@@ -154,6 +154,11 @@ public class SemanticColorUtils {
         return resolve(R.attr.colorSurfaceContainerHigh, context);
     }
 
+    /** Returns the semantic color value that corresponds to settings_container_background_color. */
+    public static @ColorInt int getSettingsContainerBackgroundColor(Context context) {
+        return getColorSurfaceBright(context);
+    }
+
     /** Returns the surface color value of the conceptual toolbar_background_primary. */
     public static @ColorInt int getToolbarBackgroundPrimary(Context context) {
         return getDefaultBgColor(context);
@@ -285,6 +290,11 @@ public class SemanticColorUtils {
     /** Returns the surface color value of the conceptual floating snackbar background color. */
     public static @ColorInt int getFloatingSnackbarBackgroundColor(Context context) {
         return resolve(R.attr.colorSurfaceContainerHigh, context);
+    }
+
+    /** Returns teh semantic color values for selected items in the settings main menu. */
+    public static @ColorInt int getSettingsMainMenuSelectedBackgroundColor(Context context) {
+        return resolve(R.attr.colorSecondaryContainer, context);
     }
 
     public static void setBottomSystemNavDividerColorForTesting(@ColorInt int value) {

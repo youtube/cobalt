@@ -75,14 +75,15 @@ class WebApkManagerTest : public apps::AppRegistryCache::Observer,
   void SetUp() override {
     arc_app_test_.PreProfileSetUp();
     profile_ = std::make_unique<TestingProfile>();
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
     web_app::test::AwaitStartWebAppProviderAndSubsystems(profile());
   }
 
   void TearDown() override {
     webapk_manager_.reset();
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     profile_.reset();
+    arc_app_test_.PostProfileTearDown();
   }
 
   void StartWebApkManager() {

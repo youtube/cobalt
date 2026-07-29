@@ -1146,7 +1146,7 @@ targets.mixin(
             # to refer to the S23 specifically, while "kalama" is for the entire
             # S23 family.
             "device_type": "dm1q",
-            "device_os": "UP1A.231005.007",
+            "device_os": "AP3A.240905.015.A2",
             "device_os_type": "user",
             "os": "Android",
             "pool": "chromium.tests.gpu",
@@ -1628,7 +1628,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "gpu": "8086:e20c-25.0.7",
-            "os": "Ubuntu-22.04",
+            "os": "Ubuntu-24.04",
             "display_attached": "1",
             "pool": "chromium.tests.gpu.experimental",
         },

@@ -104,8 +104,8 @@
 #include "components/policy/core/browser/configuration_policy_handler_list.h"
 #include "components/policy/core/browser/configuration_policy_handler_parameters.h"
 #include "components/policy/core/browser/gen_ai_default_settings_policy_handler.h"
-#include "components/policy/core/browser/url_blocklist_policy_handler.h"
-#include "components/policy/core/browser/url_scheme_list_policy_handler.h"
+#include "components/policy/core/browser/url_list/url_blocklist_policy_handler.h"
+#include "components/policy/core/browser/url_list/url_scheme_list_policy_handler.h"
 #include "components/policy/core/common/policy_details.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_pref_names.h"
@@ -190,6 +190,7 @@
 #include "chrome/browser/ash/platform_keys/key_permissions/key_permissions_policy_handler.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_pref_names.h"
 #include "chrome/browser/ash/policy/handlers/app_launch_automation_policy_handler.h"
+#include "chrome/browser/ash/policy/handlers/camera_save_location_policy_handler.h"
 #include "chrome/browser/ash/policy/handlers/configuration_policy_handler_ash.h"
 #include "chrome/browser/ash/policy/handlers/contextual_google_integrations_policies_handler.h"
 #include "chrome/browser/ash/policy/handlers/multi_screen_capture_policy_handler.h"
@@ -772,6 +773,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kPdfViewerOutOfProcessIframeEnabled,
     prefs::kPdfViewerOutOfProcessIframeEnabled,
     base::Value::Type::BOOLEAN },
+#if BUILDFLAG(IS_CHROMEOS)
+  { key::kPdfXfaFormsEnabled,
+    prefs::kPdfXfaFormsEnabled,
+    base::Value::Type::BOOLEAN },
+#endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // BUILDFLAG(ENABLE_PDF)
   { key::kPolicyRefreshRate,
     policy_prefs::kUserPolicyRefreshRate,
@@ -971,6 +977,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDefaultGeolocationSetting,
     prefs::kManagedDefaultGeolocationSetting,
     base::Value::Type::INTEGER },
+  { key::kPreciseGeolocationAllowedForUrls,
+    prefs::kManagedPreciseGeolocationAllowedForUrls,
+    base::Value::Type::LIST },
+  { key::kGeolocationBlockedForUrls,
+    prefs::kManagedGeolocationBlockedForUrls,
+    base::Value::Type::LIST },
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   { key::kMandatoryExtensionsForIncognitoNavigation,
     prefs::kMandatoryExtensionsForIncognitoNavigation,
@@ -3263,6 +3275,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           chrome_schema));
   handlers->AddHandler(std::make_unique<DriveFileSyncAvailablePolicyHandler>());
   handlers->AddHandler(std::make_unique<ScreenCaptureLocationPolicyHandler>());
+  handlers->AddHandler(std::make_unique<CameraSaveLocationPolicyHandler>());
   handlers->AddHandler(
       std::make_unique<ContextualGoogleIntegrationsPoliciesHandler>(
           chrome_schema));

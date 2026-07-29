@@ -14,13 +14,18 @@
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/autofill/core/common/autofill_test_utils.h"
+#include "components/device_reauth/device_authenticator.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/password_manager/core/browser/actor_login/test/actor_login_test_util.h"
+#include "components/password_manager/core/browser/actor_login/test/mock_actor_login_quality_logger.h"
+#include "components/password_manager/core/browser/fake_form_fetcher.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/mock_password_form_cache.h"
 #include "components/password_manager/core/browser/mock_password_manager.h"
 #include "components/password_manager/core/browser/password_form_cache.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
+#include "components/password_manager/core/browser/password_save_manager_impl.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
 #include "components/password_manager/core/browser/stub_password_manager_driver.h"
@@ -39,17 +44,32 @@
 
 namespace actor_login {
 
+using autofill::FormData;
+using device_reauth::DeviceAuthenticator;
+using password_manager::FakeFormFetcher;
 using password_manager::MockPasswordFormCache;
 using password_manager::MockPasswordManager;
 using password_manager::PasswordFormManager;
 using password_manager::PasswordManagerDriver;
 using password_manager::PasswordManagerInterface;
+using password_manager::PasswordSaveManagerImpl;
+using testing::_;
+using testing::Eq;
 using testing::NiceMock;
 using testing::Return;
+using testing::ReturnRef;
+using testing::WithArg;
 
 namespace {
 
 constexpr char kTestUrl[] = "https://example.com/login";
+constexpr char16_t kTestUsername[] = u"username";
+
+template <bool success>
+void PostResponse(base::OnceCallback<void(bool)> callback) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), success));
+}
 
 class FakePasswordManagerClient
     : public password_manager::StubPasswordManagerClient {
@@ -58,6 +78,10 @@ class FakePasswordManagerClient
               GetPasswordManager,
               (),
               (override, const));
+  MOCK_METHOD(bool,
+              IsReauthBeforeFillingRequired,
+              (DeviceAuthenticator*),
+              (override));
 
   FakePasswordManagerClient() {
     profile_store_ = base::MakeRefCounted<password_manager::TestPasswordStore>(
@@ -93,10 +117,20 @@ class MockPasswordManagerDriver
  public:
   MockPasswordManagerDriver() = default;
   ~MockPasswordManagerDriver() override = default;
+  MOCK_METHOD(const url::Origin&,
+              GetLastCommittedOrigin,
+              (),
+              (const, override));
 
+  MOCK_METHOD(bool, IsInPrimaryMainFrame, (), (const, override));
+  MOCK_METHOD(bool, IsNestedWithinFencedFrame, (), (const, override));
   MOCK_METHOD(password_manager::PasswordManagerInterface*,
               GetPasswordManager,
               (),
+              (override));
+  MOCK_METHOD(void,
+              CheckViewAreaVisible,
+              (autofill::FieldRendererId, base::OnceCallback<void(bool)>),
               (override));
 };
 
@@ -152,6 +186,10 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
+  base::WeakPtr<MockActorLoginQualityLogger> mqls_logger() {
+    return mock_mqls_logger.AsWeakPtr();
+  }
+
   void SetUpActorCredentialFillerDeps() {
     SetUpGetCredentialsDeps();
     ON_CALL(mock_password_manager_, GetClient())
@@ -171,6 +209,20 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
         .WillByDefault(Return(&mock_password_manager_));
   }
 
+  std::unique_ptr<PasswordFormManager> CreateFormManagerWithParsedForm(
+      const url::Origin& origin,
+      const autofill::FormData& form_data,
+      MockPasswordManagerDriver& mock_driver) {
+    auto form_manager = std::make_unique<PasswordFormManager>(
+        &client_, mock_driver.AsWeakPtr(), form_data, &form_fetcher_,
+        std::make_unique<PasswordSaveManagerImpl>(&client_),
+        /*metrics_recorder=*/nullptr);
+    // Force form parsing, otherwise there will be no parsed observed form.
+    form_manager->DisableFillingServerPredictionsForTesting();
+    form_fetcher_.NotifyFetchCompleted();
+    return form_manager;
+  }
+
  protected:
   FakePasswordManagerClient client_;
   // `raw_ptr` because `WebContentsUserData` owns it
@@ -179,6 +231,10 @@ class ActorLoginDelegateImplTest : public ChromeRenderViewHostTestHarness {
   NiceMock<MockPasswordFormCache> mock_form_cache_;
   std::vector<std::unique_ptr<PasswordFormManager>> form_managers_;
   MockPasswordManagerDriver mock_driver_;
+  FakeFormFetcher form_fetcher_;
+  autofill::test::AutofillUnitTestEnvironment autofill_test_environment_{
+      {.disable_server_communication = true}};
+  MockActorLoginQualityLogger mock_mqls_logger;
 
   // Tab setup
   MockBrowserWindowInterface mock_browser_window_interface_;
@@ -196,10 +252,24 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentialsSuccess_FeatureOn) {
   EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(1);
 
   base::test::TestFuture<CredentialsOrError> future;
-  delegate_->GetCredentials(future.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), future.GetCallback());
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_TRUE(future.Get().value().empty());
+}
+
+TEST_F(ActorLoginDelegateImplTest, GetCredentialsLogsDomainAndLanguage) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      password_manager::features::kActorLogin);
+  SetUpGetCredentialsDeps();
+  EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(1);
+
+  const GURL kUrl = GURL("https://example.com");
+  content::WebContentsTester* web_contents_tester =
+      content::WebContentsTester::For(web_contents());
+  web_contents_tester->NavigateAndCommit(kUrl);
+  EXPECT_CALL(*mqls_logger(), SetDomainAndLanguage(_, Eq(kUrl)));
+  delegate_->GetCredentials(mqls_logger(), base::DoNothing());
 }
 
 TEST_F(ActorLoginDelegateImplTest, GetCredentials_FeatureOff) {
@@ -207,7 +277,7 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentials_FeatureOff) {
   scoped_feature_list.InitAndDisableFeature(
       password_manager::features::kActorLogin);
   base::test::TestFuture<CredentialsOrError> future;
-  delegate_->GetCredentials(future.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), future.GetCallback());
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_TRUE(future.Get().value().empty());
@@ -216,15 +286,15 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentials_FeatureOff) {
 TEST_F(ActorLoginDelegateImplTest, GetCredentialsServiceBusy) {
   base::test::ScopedFeatureList scoped_feature_list(
       password_manager::features::kActorLogin);
-  SetUpGetCredentialsDeps();
+  SetUpActorCredentialFillerDeps();
   EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(1);
 
   // Start the first request.
   base::test::TestFuture<CredentialsOrError> first_future;
-  delegate_->GetCredentials(first_future.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), first_future.GetCallback());
   // Immediately try to start a second request, which should fail.
   base::test::TestFuture<CredentialsOrError> second_future;
-  delegate_->GetCredentials(second_future.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), second_future.GetCallback());
 
   ASSERT_FALSE(second_future.Get().has_value());
   EXPECT_EQ(second_future.Get().error(), ActorLoginError::kServiceBusy);
@@ -241,7 +311,8 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLogin_FeatureOff) {
   Credential credential = CreateTestCredential(u"username", url, origin);
 
   base::test::TestFuture<LoginStatusResultOrError> future;
-  delegate_->AttemptLogin(credential, false, future.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          future.GetCallback());
 
   ASSERT_FALSE(future.Get().has_value());
   // When the ActorLogin features is disabled, the delegate returns
@@ -260,10 +331,29 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLogin_FeatureOn) {
   EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(1);
 
   base::test::TestFuture<LoginStatusResultOrError> future;
-  delegate_->AttemptLogin(credential, false, future.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          future.GetCallback());
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_EQ(future.Get().value(), LoginStatusResult::kErrorNoSigninForm);
+}
+
+TEST_F(ActorLoginDelegateImplTest, AttemptLoginLogsDomainAndLanguage) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      password_manager::features::kActorLogin);
+  GURL url = GURL("https://example.com");
+  url::Origin origin = url::Origin::Create(url);
+  Credential credential = CreateTestCredential(u"username", url, origin);
+
+  SetUpActorCredentialFillerDeps();
+
+  EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(1);
+
+  content::WebContentsTester* web_contents_tester =
+      content::WebContentsTester::For(web_contents());
+  web_contents_tester->NavigateAndCommit(url);
+  EXPECT_CALL(*mqls_logger(), SetDomainAndLanguage(_, Eq(url)));
+  delegate_->AttemptLogin(credential, false, mqls_logger(), base::DoNothing());
 }
 
 TEST_F(ActorLoginDelegateImplTest, AttemptLoginServiceBusy_FeatureOn) {
@@ -278,14 +368,16 @@ TEST_F(ActorLoginDelegateImplTest, AttemptLoginServiceBusy_FeatureOn) {
 
   // Start the first request (`AttemptLogin`).
   base::test::TestFuture<LoginStatusResultOrError> first_future;
-  delegate_->AttemptLogin(credential, false, first_future.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          first_future.GetCallback());
   // Immediately try to start a second request of the same type.
   base::test::TestFuture<LoginStatusResultOrError> second_future;
-  delegate_->AttemptLogin(credential, false, second_future.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          second_future.GetCallback());
 
   // Immediately try to start a `GetCredentials` request (different type).
   base::test::TestFuture<CredentialsOrError> third_future;
-  delegate_->GetCredentials(third_future.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), third_future.GetCallback());
 
   // Both second and third request should be rejected as any request makes the
   // service busy.
@@ -308,12 +400,12 @@ TEST_F(ActorLoginDelegateImplTest, CallbacksAreResetAfterCompletion_FeatureOn) {
 
   // First `GetCredentials` call.
   base::test::TestFuture<CredentialsOrError> future1;
-  delegate_->GetCredentials(future1.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), future1.GetCallback());
   ASSERT_TRUE(future1.Get().has_value());
 
   // Second `GetCredentials` call should now be possible.
   base::test::TestFuture<CredentialsOrError> future2;
-  delegate_->GetCredentials(future2.GetCallback());
+  delegate_->GetCredentials(mqls_logger(), future2.GetCallback());
   ASSERT_TRUE(future2.Get().has_value());
 
   GURL url = GURL(kTestUrl);
@@ -322,12 +414,14 @@ TEST_F(ActorLoginDelegateImplTest, CallbacksAreResetAfterCompletion_FeatureOn) {
 
   // First `AttemptLogin` call.
   base::test::TestFuture<LoginStatusResultOrError> future3;
-  delegate_->AttemptLogin(credential, false, future3.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          future3.GetCallback());
   ASSERT_TRUE(future3.Get().has_value());
 
   // Second `AttemptLogin` call should now be possible.
   base::test::TestFuture<LoginStatusResultOrError> future4;
-  delegate_->AttemptLogin(credential, false, future4.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          future4.GetCallback());
   ASSERT_TRUE(future4.Get().has_value());
 }
 
@@ -344,10 +438,11 @@ TEST_F(ActorLoginDelegateImplTest, GetCredentialsAndAttemptLogin) {
   auto get_credentials_callback =
       base::BindLambdaForTesting([&](CredentialsOrError result) {
         ASSERT_TRUE(result.has_value());
-        delegate_->AttemptLogin(credential, false, future.GetCallback());
+        delegate_->AttemptLogin(credential, false, mqls_logger(),
+                                future.GetCallback());
       });
 
-  delegate_->GetCredentials(get_credentials_callback);
+  delegate_->GetCredentials(mqls_logger(), get_credentials_callback);
 
   ASSERT_TRUE(future.Get().has_value());
   EXPECT_EQ(future.Get().value(), LoginStatusResult::kErrorNoSigninForm);
@@ -365,10 +460,10 @@ TEST_F(ActorLoginDelegateImplTest,
 
   base::test::TestFuture<CredentialsOrError> future;
   delegate_->AttemptLogin(
-      credential, false,
+      credential, false, mqls_logger(),
       base::BindLambdaForTesting([&](LoginStatusResultOrError result) {
         ASSERT_TRUE(result.has_value());
-        delegate_->GetCredentials(future.GetCallback());
+        delegate_->GetCredentials(mqls_logger(), future.GetCallback());
       }));
   ASSERT_TRUE(future.Get().has_value());
 }
@@ -384,7 +479,8 @@ TEST_F(ActorLoginDelegateImplTest, WebContentsDestroyedDuringAttemptLogin) {
   EXPECT_CALL(mock_form_cache_, GetFormManagers()).Times(1);
 
   base::test::TestFuture<LoginStatusResultOrError> future;
-  delegate_->AttemptLogin(credential, false, future.GetCallback());
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          future.GetCallback());
 
   delegate_ = nullptr;
   // This should invoke `WebContentsDestroyed`.
@@ -393,6 +489,53 @@ TEST_F(ActorLoginDelegateImplTest, WebContentsDestroyedDuringAttemptLogin) {
   // The callback should never be invoked because the
   // delegate was destroyed.
   EXPECT_FALSE(future.IsReady());
+}
+
+// If the window is not active and reauth before filling is required,
+// `AttemptLogin` should return LoginStatusResult::kErrorDeviceReauthRequired.
+TEST_F(ActorLoginDelegateImplTest, FillingReauthRequiredWindowNotActive) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(/*enabled_features=*/
+                                {password_manager::features::kActorLogin,
+                                 password_manager::features::
+                                     kActorLoginReauthTaskRefocus},
+                                /*disabled_features=*/{});
+  const url::Origin origin = url::Origin::Create(GURL(kTestUrl));
+  const Credential credential =
+      CreateTestCredential(kTestUsername, origin.GetURL(), origin);
+  const FormData form_data = CreateSigninFormData(origin.GetURL());
+  std::vector<password_manager::PasswordForm> saved_forms;
+  saved_forms.push_back(
+      CreateSavedPasswordForm(origin.GetURL(), kTestUsername));
+  form_fetcher_.SetBestMatches(saved_forms);
+
+  // Make sure that all the conditions for filling are fulfilled.
+  ON_CALL(mock_driver_, GetLastCommittedOrigin())
+      .WillByDefault(ReturnRef(origin));
+  ON_CALL(mock_driver_, IsInPrimaryMainFrame).WillByDefault(Return(true));
+  ON_CALL(mock_driver_, IsNestedWithinFencedFrame).WillByDefault(Return(false));
+  ON_CALL(mock_driver_, CheckViewAreaVisible)
+      .WillByDefault(WithArg<1>(&PostResponse<true>));
+
+  std::vector<std::unique_ptr<PasswordFormManager>> form_managers;
+  form_managers.push_back(
+      CreateFormManagerWithParsedForm(origin, form_data, mock_driver_));
+
+  SetUpActorCredentialFillerDeps();
+
+  EXPECT_CALL(mock_form_cache_, GetFormManagers)
+      .WillRepeatedly(Return(base::span(form_managers)));
+  EXPECT_CALL(client_, IsReauthBeforeFillingRequired).WillOnce(Return(true));
+
+  EXPECT_CALL(mock_browser_window_interface_, IsActive).WillOnce(Return(false));
+
+  base::test::TestFuture<LoginStatusResultOrError> future;
+  delegate_->AttemptLogin(credential, false, mqls_logger(),
+                          future.GetCallback());
+
+  ASSERT_TRUE(future.Get().has_value());
+  EXPECT_EQ(future.Get().value(),
+            LoginStatusResult::kErrorDeviceReauthRequired);
 }
 
 }  // namespace actor_login

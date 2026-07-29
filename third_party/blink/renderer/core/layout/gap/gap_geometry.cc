@@ -63,31 +63,30 @@ bool GapGeometry::IsMultiColSpanner(wtf_size_t gap_index,
   return false;
 }
 
-LayoutUnit GapGeometry::ComputeEndOutset(
-    const ComputedStyle& style,
-    wtf_size_t gap_index,
-    wtf_size_t intersection_index,
-    const Vector<LayoutUnit>& intersections,
-    bool is_column_gap,
-    bool is_main,
-    LayoutUnit cross_width) const {
+LayoutUnit GapGeometry::ComputeEndInset(const ComputedStyle& style,
+                                        wtf_size_t gap_index,
+                                        wtf_size_t intersection_index,
+                                        const Vector<LayoutUnit>& intersections,
+                                        bool is_column_gap,
+                                        bool is_main,
+                                        LayoutUnit cross_width) const {
   // Outset values are used to offset the end points of gap decorations.
   // Percentage values are resolved against the crossing gap width of the
   // intersection point.
-  // https://drafts.csswg.org/css-gaps-1/#propdef-column-rule-outset
+  // https://drafts.csswg.org/css-gaps-1/#propdef-column-rule-inset
   if (IsEdgeIntersection(gap_index, intersection_index, intersections.size(),
                          is_main, intersections)) {
-    return ValueForLength((is_column_gap ? style.ColumnRuleEdgeEndOutset()
-                                         : style.RowRuleEdgeEndOutset()),
+    return ValueForLength((is_column_gap ? style.ColumnRuleEdgeEndInset()
+                                         : style.RowRuleEdgeEndInset()),
                           cross_width);
   } else {
-    return ValueForLength((is_column_gap ? style.ColumnRuleInteriorEndOutset()
-                                         : style.RowRuleInteriorEndOutset()),
+    return ValueForLength((is_column_gap ? style.ColumnRuleInteriorEndInset()
+                                         : style.RowRuleInteriorEndInset()),
                           cross_width);
   }
 }
 
-LayoutUnit GapGeometry::ComputeStartOutset(
+LayoutUnit GapGeometry::ComputeStartInset(
     const ComputedStyle& style,
     wtf_size_t gap_index,
     wtf_size_t intersection_index,
@@ -98,15 +97,15 @@ LayoutUnit GapGeometry::ComputeStartOutset(
   // Outset values are used to offset the end points of gap decorations.
   // Percentage values are resolved against the crossing gap width of the
   // intersection point.
-  // https://drafts.csswg.org/css-gaps-1/#propdef-column-rule-outset
+  // https://drafts.csswg.org/css-gaps-1/#propdef-column-rule-inset
   if (IsEdgeIntersection(gap_index, intersection_index, intersections.size(),
                          is_main, intersections)) {
-    return ValueForLength((is_column_gap ? style.ColumnRuleEdgeStartOutset()
-                                         : style.RowRuleEdgeStartOutset()),
+    return ValueForLength((is_column_gap ? style.ColumnRuleEdgeStartInset()
+                                         : style.RowRuleEdgeStartInset()),
                           cross_width);
   } else {
-    return ValueForLength((is_column_gap ? style.ColumnRuleInteriorStartOutset()
-                                         : style.RowRuleInteriorStartOutset()),
+    return ValueForLength((is_column_gap ? style.ColumnRuleInteriorStartInset()
+                                         : style.RowRuleInteriorStartInset()),
                           cross_width);
   }
 }
@@ -418,18 +417,41 @@ bool GapGeometry::IsEdgeIntersection(
       return intersection_index == last_intersection_index;
     }
   } else if (GetContainerType() == ContainerType::kMultiColumn) {
-    // For now, all multicol intersections are considered edge intersections,
-    // now that we place intersections before any row gaps rather than at the
-    // middle of row gaps.
+    DCHECK(!is_main_gap);
+    DCHECK_GE(intersection_count, 2u);
+    DCHECK_LE(intersection_count, 3u);
+
+    // All `CrossGap`s in multicol have either 2 or 3 intersections. 2 in cases
+    // where it is not adjacent to a spanner, and 3 when it is. This is because
+    // each spanner creates two main gaps (start and end), both of which
+    // intersect with the cross gap. So cross gaps that don't intersect a
+    // spanner will only have a start intersection and an end intersection,
+    // which will be at the end of the content or before a row gap. On the other
+    // hand, cross gaps adjacent to a spanner will have a start intersection, as
+    // well as an intersection at the start and end of the spanner.
+    //
+    // For multicol cross-axis gaps:
+    // - First, determine the edge state of the gap (start, end, or both).
+    // - Based on this state, decide which intersections qualify as edges:
+    //     * kBoth: All (2 or 3) intersections are considered edges.
+    //     * kStart: Only the first intersection is an edge.
+    //     * kEnd: Only the last intersection is an edge, or the last two if
+    //     there are three intersections in this gap (since there is an adjacent
+    //     spanner in that case).
+    //
     // TODO(crbug.com/446616449): This might change depending on the spec
     // discussions happening in the linked bug, but it is trending to being this
-    // way.
-    DCHECK(!is_main_gap);
-
+    // way. https://github.com/w3c/csswg-drafts/issues/12784.
     CrossGap::EdgeIntersectionState cross_gap_edge_state =
         GetCrossGaps()[gap_index].GetEdgeIntersectionState();
-    CHECK_EQ(cross_gap_edge_state, CrossGap::EdgeIntersectionState::kBoth);
-    return true;
+    if (cross_gap_edge_state == CrossGap::EdgeIntersectionState::kBoth) {
+      return true;
+    } else if (cross_gap_edge_state ==
+               CrossGap::EdgeIntersectionState::kStart) {
+      return intersection_index == 0;
+    } else if (cross_gap_edge_state == CrossGap::EdgeIntersectionState::kEnd) {
+      return intersection_index != 0;
+    }
   }
 
   return false;

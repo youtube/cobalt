@@ -497,6 +497,7 @@ static_library("ui") {
     "//components/metrics:content",
     "//components/metrics/debug",
     "//components/metrics/debug:resources",
+    "//components/metrics/private_metrics",
     "//components/metrics/structured/buildflags",
     "//components/metrics_services_manager",
     "//components/navigation_metrics",
@@ -633,6 +634,7 @@ static_library("ui") {
     "//third_party/blink/public:resources",
     "//third_party/blink/public/common",
     "//third_party/brotli:dec",
+    "//third_party/federated_compute:confidential_compute",
     "//third_party/icu",
     "//third_party/leveldatabase",
     "//third_party/re2",
@@ -661,7 +663,6 @@ static_library("ui") {
     "//ui/shell_dialogs",
     "//ui/snapshot",
     "//ui/strings",
-    "//ui/surface",
     "//ui/webui",
     "//v8:v8_version",
   ]
@@ -683,7 +684,10 @@ static_library("ui") {
     # Desktop-Android-only dependencies.
     if (is_desktop_android) {
       sources += [ "//chrome/browser/ui/android/browser_navigator_android.cc" ]
-      deps += [ "//chrome/browser/ui/android/extensions/windowing/internal" ]
+      deps += [
+        "//chrome/browser/ui/android/extensions/windowing/internal",
+        "//chrome/browser/ui/browser_window:create_browser_window",
+      ]
     }
   }
 
@@ -1178,10 +1182,6 @@ static_library("ui") {
       "webui/media_router/media_router_internals_webui_message_handler.cc",
       "webui/media_router/media_router_internals_webui_message_handler.h",
       "webui/media_router/web_contents_display_observer.h",
-      "webui/metrics_reporter/metrics_reporter.cc",
-      "webui/metrics_reporter/metrics_reporter.h",
-      "webui/metrics_reporter/metrics_reporter_service.cc",
-      "webui/metrics_reporter/metrics_reporter_service.h",
       "webui/new_tab_page/new_tab_page_handler.cc",
       "webui/new_tab_page/new_tab_page_handler.h",
       "webui/new_tab_page/new_tab_page_ui.cc",
@@ -1208,6 +1208,8 @@ static_library("ui") {
       "webui/ntp_microsoft_auth/ntp_microsoft_auth_response_capture_navigation_throttle.h",
       "webui/ntp_microsoft_auth/ntp_microsoft_auth_untrusted_ui.cc",
       "webui/ntp_microsoft_auth/ntp_microsoft_auth_untrusted_ui.h",
+      "webui/omnibox_popup/omnibox_popup_aim_handler.cc",
+      "webui/omnibox_popup/omnibox_popup_aim_handler.h",
       "webui/omnibox_popup/omnibox_popup_ui.cc",
       "webui/omnibox_popup/omnibox_popup_ui.h",
       "webui/omnibox_popup/omnibox_popup_web_contents_helper.cc",
@@ -1288,6 +1290,8 @@ static_library("ui") {
       "webui/settings/saved_info_handler.h",
       "webui/settings/search_engines_handler.cc",
       "webui/settings/search_engines_handler.h",
+      "webui/settings/security_settings_provider.cc",
+      "webui/settings/security_settings_provider.h",
       "webui/settings/settings_clear_browsing_data_handler.cc",
       "webui/settings/settings_clear_browsing_data_handler.h",
       "webui/settings/settings_localized_strings_privacy_sandbox_provider.cc",
@@ -1435,6 +1439,7 @@ static_library("ui") {
       "//chrome/browser/signin:signin_promo",
       "//chrome/browser/subscription_eligibility",
       "//chrome/browser/ui/browser_window:create_browser_window",
+      "//chrome/browser/ui/contextual_search",
       "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/passwords/bubble_controllers",
@@ -1464,7 +1469,9 @@ static_library("ui") {
       "//chrome/browser/ui/web_applications:launch_utils",
       "//chrome/browser/ui/webui/access_code_cast",
       "//chrome/browser/ui/webui/access_code_cast:impl",
+      "//chrome/browser/ui/webui/omnibox_popup/mojom",
       "//chrome/browser/usb",
+      "//chrome/browser/webauthn:local_credential_management",
 
       # No reason for this dependencies be out of alphabetical order.
       "//chrome/browser/content_extraction",
@@ -1558,6 +1565,8 @@ static_library("ui") {
       "//chrome/browser/ui/webui/customize_buttons",
       "//chrome/browser/ui/webui/customize_buttons:impl",
       "//chrome/browser/ui/webui/infobar_internals",
+      "//chrome/browser/ui/webui/metrics_reporter",
+      "//chrome/browser/ui/webui/metrics_reporter:impl",
       "//chrome/browser/ui/webui/new_tab_footer",
       "//chrome/browser/ui/webui/new_tab_footer:impl",
       "//chrome/browser/ui/webui/new_tab_page/action_chips",
@@ -3848,8 +3857,6 @@ static_library("ui") {
       "views/frame/layout/browser_view_layout_params.h",
       "views/frame/main_background_region_view.cc",
       "views/frame/main_background_region_view.h",
-      "views/frame/main_container_view.cc",
-      "views/frame/main_container_view.h",
       "views/frame/multi_contents_background_view.cc",
       "views/frame/multi_contents_background_view.h",
       "views/frame/multi_contents_drop_target_view.cc",
@@ -3870,6 +3877,8 @@ static_library("ui") {
       "views/frame/scrim_view.h",
       "views/frame/scrim_view_controller.cc",
       "views/frame/scrim_view_controller.h",
+      "views/frame/shadow_overlay_view.cc",
+      "views/frame/shadow_overlay_view.h",
       "views/frame/system_menu_model_builder.cc",
       "views/frame/system_menu_model_builder.h",
       "views/frame/system_menu_model_delegate.cc",
@@ -4677,6 +4686,7 @@ static_library("ui") {
       "//base",
       "//chrome/browser:main_extra_parts",
       "//chrome/browser/actor/resources:browser_resources",
+      "//chrome/browser/actor/ui/task_list_bubble:controller",
       "//chrome/browser/apps:icon_standardizer",
       "//chrome/browser/infobars",
       "//chrome/browser/profiles/keep_alive",
@@ -5282,8 +5292,8 @@ static_library("ui") {
     ]
 
     deps += [
-      "//chrome/common/safe_browsing:proto",
       "//components/safe_browsing/core/browser/password_protection:password_protection_metrics_util",
+      "//components/safe_browsing/core/common/proto:crx_info_proto",
       "//components/safe_browsing/core/common/proto:csd_proto",
     ]
   }
@@ -5400,6 +5410,7 @@ static_library("ui") {
       "webui/settings/glic_handler.h",
     ]
     deps += [
+      "//chrome/browser/actor/ui/task_list_bubble:controller",
       "//chrome/browser/ai",
       "//chrome/browser/background/glic",
       "//chrome/browser/glic",
@@ -5612,6 +5623,7 @@ if (!is_android) {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/browser_window",
+      "//components/keep_alive_registry",
     ]
   }
 
@@ -5625,6 +5637,22 @@ if (!is_android) {
       ":browser_list",
       "//base",
       "//chrome/browser/ui/tabs:tab_strip",
+    ]
+  }
+
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    sources = [ "browser_manager_service_browsertest.cc" ]
+    deps = [
+      "//base",
+      "//chrome/browser",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/test:test_support",
+      "//testing/gmock",
     ]
   }
 }

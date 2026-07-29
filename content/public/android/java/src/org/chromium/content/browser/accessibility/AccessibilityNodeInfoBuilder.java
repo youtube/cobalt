@@ -406,11 +406,12 @@ public class AccessibilityNodeInfoBuilder {
         node.setTooltipText(tooltipText);
         node.setExpandedState(expandedState);
 
-        // Deliberately don't call setLiveRegion because TalkBack speaks the entire region anytime
-        // it changes. Instead Chrome will call announceLiveRegionText() only on the nodes that
-        // change. This approach is deprecated, so when the experimental flag is enabled, use live
-        // regions as expected.
-        if (ContentFeatureMap.isEnabled(ContentFeatureList.ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE)) {
+        // If we have enabled WINDOW_CONTENT_CHANGED live region events or deprecated
+        // TYPE_ANNOUNCEMENT, we should properly mark live region root nodes. Otherwise, we choose
+        // to use AnnounceLiveRegionText() to make this announcement for us.
+        if (ContentFeatureMap.isEnabled(ContentFeatureList.ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE)
+                || ContentFeatureMap.isEnabled(
+                        ContentFeatureList.ACCESSIBILITY_IMPROVE_LIVE_REGION_ANNOUNCE)) {
             node.setLiveRegion(liveRegion);
         }
 
@@ -486,6 +487,18 @@ public class AccessibilityNodeInfoBuilder {
             node.setContentDescription(computedText);
         } else {
             node.setText(computedText);
+
+            // Though actions are generally set elsewhere, we make an exception here in order to
+            // stay consistent with when we supply `text` on a node. In these cases, we can
+            // confidently state there is text selection available via
+            // WebContentsAccessibilityAndroid::SetSelection.
+            if (computedText.length() > 0
+                    && ContentFeatureMap.isEnabled(
+                            ContentFeatureList
+                                    .ACCESSIBILITY_SET_SELECTABLE_ON_ALL_NODES_WITH_TEXT)) {
+                node.addAction(ACTION_SET_SELECTION);
+                node.setTextSelectable(true);
+            }
         }
 
         recordTimeToCreateSpannables(now);
@@ -637,11 +650,13 @@ public class AccessibilityNodeInfoBuilder {
             int rowIndex,
             int rowSpan,
             int columnIndex,
-            int columnSpan,
-            boolean heading) {
+            int columnSpan) {
+        // TODO(crbug.com/443079218): convert to CollectionItemInfo.Builder to remove need for
+        // setting
+        // heading param.
         node.setCollectionItemInfo(
                 AccessibilityNodeInfoCompat.CollectionItemInfoCompat.obtain(
-                        rowIndex, rowSpan, columnIndex, columnSpan, heading));
+                        rowIndex, rowSpan, columnIndex, columnSpan, /* heading= */ false));
     }
 
     @CalledByNative

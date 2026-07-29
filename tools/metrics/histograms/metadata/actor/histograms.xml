@@ -46,6 +46,9 @@ chromium-metrics-reviews@google.com.
       summary="Some error in chrome caused the task to stop."/>
   <variant name="Completed" summary="Completed."/>
   <variant name="ModelError" summary="Model error."/>
+  <variant name="NewChat" summary="User selected a new chat."/>
+  <variant name="PreviousChat" summary="User selected a previous chat."/>
+  <variant name="Shutdown" summary="Chrome was being shut down."/>
   <variant name="TabDetached" summary="The acting tab was closed."/>
 </variants>
 
@@ -99,6 +102,24 @@ chromium-metrics-reviews@google.com.
   <summary>
     The result of trying to resolve a DomNode's geometry. Recorded when
     PageTargets are converted.
+  </summary>
+</histogram>
+
+<histogram name="Actor.Download.DirectDownloadTriggered" enum="Boolean"
+    expires_after="2026-10-29">
+  <owner>masnoble@google.com</owner>
+  <owner>johannhof@google.com</owner>
+  <summary>
+    Recorded when a direct download is triggered by an actor task.
+  </summary>
+</histogram>
+
+<histogram name="Actor.Download.SaveAsDialogTriggered" enum="Boolean"
+    expires_after="2026-10-29">
+  <owner>masnoble@google.com</owner>
+  <owner>johannhof@google.com</owner>
+  <summary>
+    Recorded when a 'save as' download dialog is triggered by an actor task.
   </summary>
 </histogram>
 
@@ -178,8 +199,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the size of the allow list of origins which the actor can navigate
     to for the given task. These origins come from server actions or when a
-    navigation confirmation request is granted. Recorded every time the actor
-    navigates the main frame.
+    navigation confirmation request is granted. Recorded at the end of every
+    task.
   </summary>
 </histogram>
 
@@ -193,6 +214,17 @@ chromium-metrics-reviews@google.com.
     navigation was deferred until confirmation. False means the navigation was
     allowed to continue without gating. Recorded whenever the actor navigates
     the main frame.
+  </summary>
+</histogram>
+
+<histogram name="Actor.NavigationGating.ConfirmedListSize" units="origins"
+    expires_after="2026-03-30">
+  <owner>dylancutler@google.com</owner>
+  <owner>johannhof@google.com</owner>
+  <summary>
+    Records the size of the list of sensitive origins on the optimization guide
+    blocklist that the user confirmed the actor can interact with. Recorded at
+    the end of every task.
   </summary>
 </histogram>
 
@@ -214,6 +246,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records when actor navigation gating is applied to a cross-site navigation.
     Recorded when the actor navigates the main frame and origin gating applies.
+  </summary>
+</histogram>
+
+<histogram name="Actor.NavigationGating.GatingDecision" enum="GatingDecision"
+    expires_after="2026-03-30">
+  <owner>tquintanilla@google.com</owner>
+  <owner>dylancutler@google.com</owner>
+  <summary>
+    Records the outcome of actor navigation gating decisions. Recorded every
+    time the actor attempts to navigate to a new URL and the origin gating
+    feature is enabled.
   </summary>
 </histogram>
 
@@ -264,6 +307,17 @@ chromium-metrics-reviews@google.com.
   <owner>bokan@google.com</owner>
   <owner>chrome-synapse-team@google.com</owner>
   <summary>Number of tabs to observe in PerformActions response.</summary>
+</histogram>
+
+<histogram name="Actor.RendererPageStability.Outcome"
+    enum="PageStabilityOutcome" expires_after="2026-08-11">
+  <owner>linnan@google.com</owner>
+  <owner>bokan@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>
+    Records the reason for page stability on renderer side. Recorded when the
+    stability check is complete. Only recorded if NotifyWhenStable() is called.
+  </summary>
 </histogram>
 
 <histogram name="Actor.Task.Count.{StoppedReason}" units="count"
@@ -362,7 +416,7 @@ chromium-metrics-reviews@google.com.
   <summary>
     Recorded when a task makes a state transition from the old state
     ({OldState}) to the new state ({NewState}). This captures the number of
-    actions the task took in the first {OldState}.
+    actions the task made in the first state ({OldState}) before the transition.
   </summary>
   <token key="OldState" variants="ActorTaskState"/>
   <token key="NewState" variants="ActorTaskState"/>

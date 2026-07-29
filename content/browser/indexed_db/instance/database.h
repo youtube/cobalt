@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
@@ -26,9 +27,7 @@
 #include "content/browser/indexed_db/indexed_db_value.h"
 #include "content/browser/indexed_db/instance/backing_store.h"
 #include "content/browser/indexed_db/instance/connection_coordinator.h"
-#include "content/browser/indexed_db/instance/factory_client.h"
 #include "content/browser/indexed_db/instance/pending_connection.h"
-#include "content/browser/indexed_db/list_set.h"
 #include "content/common/content_export.h"
 #include "third_party/blink/public/common/indexeddb/indexeddb_key.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-forward.h"
@@ -90,7 +89,7 @@ class CONTENT_EXPORT Database {
   BuildLockRequestsForTransaction(blink::mojom::IDBTransactionMode mode,
                                   const std::set<int64_t>& scope) const;
 
-  const list_set<Connection*>& connections() const { return connections_; }
+  const std::list<Connection*>& connections() const { return connections_; }
 
   size_t GetNumTransactionsAcrossAllConnections() const;
 
@@ -104,8 +103,9 @@ class CONTENT_EXPORT Database {
 
   void ScheduleOpenConnection(std::unique_ptr<PendingConnection> connection);
 
-  void ScheduleDeleteDatabase(std::unique_ptr<FactoryClient> factory_client,
-                              base::OnceClosure on_deletion_complete);
+  void ScheduleDeleteDatabase(
+      mojo::AssociatedRemote<blink::mojom::IDBFactoryClient> factory_client,
+      base::OnceClosure on_deletion_complete);
 
   // Number of connections that have progressed passed initial open call.
   size_t ConnectionCount() const { return connections_.size(); }
@@ -201,7 +201,7 @@ class CONTENT_EXPORT Database {
     if (connections_.empty()) {
       OpenInternal();
     }
-    connections_.insert(connection);
+    connections_.push_back(connection);
   }
 
   bool CanBeDestroyed();
@@ -278,7 +278,9 @@ class CONTENT_EXPORT Database {
       mojo::Remote<storage::mojom::IndexedDBClientStateChecker>
           client_state_checker,
       base::UnguessableToken client_token,
-      int scheduling_priority);
+      int scheduling_priority,
+      // Not called during a force close.
+      base::OnceClosure on_connection_close = {});
 
   // Ack that one of the connections notified with a "versionchange" event did
   // not promptly close. Therefore a "blocked" event should be fired at the
@@ -292,7 +294,8 @@ class CONTENT_EXPORT Database {
 
   // This can only be called when the given connection is closed and no longer
   // has any transaction objects.
-  void ConnectionClosed(Connection* connection);
+  void ConnectionClosed(base::OnceClosure forward_on_close,
+                        Connection& connection);
 
   // In rare cases there are a very large number of queued
   // requests/transactions, so calculations related to blocking or blocked
@@ -321,7 +324,8 @@ class CONTENT_EXPORT Database {
   // The object that owns `this`.
   raw_ref<BucketContext> bucket_context_;
 
-  list_set<Connection*> connections_;
+  // `list` because iteration order is important.
+  std::list<Connection*> connections_;
 
   // True once `ForceCloseAndRunTasks()` is called.
   bool force_closing_ = false;

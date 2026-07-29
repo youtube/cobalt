@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Buscar con el Modo IA</translation>
 <translation id="3557336313807607643">Agregar a contactos</translation>
 <translation id="355765753469272474">Deshacer</translation>
+<translation id="3565012355885596568">No se pudieron cargar las imágenes</translation>
 <translation id="3565930036634619844">Pestaña. <ph name="TAB_INDEX" /> de <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">En tu Cuenta de Google</translation>
 <translation id="3575234738189584619">Buscar con Lens</translation>
@@ -963,7 +964,7 @@
 <translation id="4769198578611055647">Te ayuda a acceder a las llaves de acceso guardadas en cualquier dispositivo</translation>
 <translation id="4782952780741793211">Código de confirmación:</translation>
 <translation id="4787847736989526091"><ph name="VALUE" />, <ph name="ADDITIONAL_INFO" /></translation>
-<translation id="478808905805139173">¿Quieres abrirlo en Incógnito?</translation>
+<translation id="478808905805139173">¿Abrir en modo Incógnito?</translation>
 <translation id="479208892659046780">Tus sitios principales</translation>
 <translation id="4792385443586519711">Nombre de la editorial</translation>
 <translation id="479628432297359449">¿Quieres detener la descarga?</translation>
@@ -1314,6 +1315,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="6045460247888249350">Agrega un título</translation>
 <translation id="6052269326659653305">Cambiar de perfil</translation>
 <translation id="605721222689873409">AA</translation>
+<translation id="6058415747854995776">Grabar video</translation>
 <translation id="6059830886158432458">Controla tus noticias y actividad aquí</translation>
 <translation id="6066301408025741299">Presiona para cancelar.</translation>
 <translation id="6074656473835429958">Recibe notificaciones</translation>
@@ -1815,6 +1817,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="7866872729285243843">Para obtener tu Lista de lectura en todos tus dispositivos, activa "Lista de lectura" en la configuración.</translation>
 <translation id="7874107544081154809">Autocompletar formulario con <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">Mostrar descargas</translation>
+<translation id="7882689957034389473">Tomar foto</translation>
 <translation id="7883882164760409935">Tienes contraseñas reutilizadas.</translation>
 <translation id="7887174313503389866">Realiza una visita guiada de los controles de seguridad y privacidad más importantes. Para ver más opciones, ve a la configuración individual.</translation>
 <translation id="7887198238286927132">Para proteger tu privacidad, Chrome no completará este campo de forma automática.</translation>
@@ -1849,7 +1852,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="798991908416757345">Los grupos de pestañas no están disponibles</translation>
 <translation id="7993170188789685695">Presiona dos veces para cerrar esta notificación.</translation>
 <translation id="7996239959906074962">Configuración…</translation>
-<translation id="8001561107130904792">Uso compartido de contenido de la página</translation>
+<translation id="8001561107130904792">Compartir el contenido de la página</translation>
 <translation id="800361585186029508">Abre las URL ingresadas en Google Chrome.</translation>
 <translation id="8005666035647241369">En el Administrador de contraseñas de Google en este dispositivo</translation>
 <translation id="8010488806779226127">Explora funciones que pueden ayudarte a hacer más mientras navegas</translation>
@@ -1998,6 +2001,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="8551311254462607218">En la barra de direcciones, presiona el ícono de la cámara de Google Lens</translation>
 <translation id="8556590991644167667">{count,plural, =1{Descartaste {count} advertencia}other{Descartaste {count} advertencias}}</translation>
 <translation id="8558046478684552694">Cerrar grupo.</translation>
+<translation id="8559858985063901027">Claves de acceso</translation>
 <translation id="8560253818350321773">Muestra primero los elementos que se usan con frecuencia.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Hay {count} opción de contraseña disponible arriba del teclado.}other{Hay {count} opciones de contraseña disponibles arriba del teclado.}}</translation>
 <translation id="8564894539416715395">Página Nueva pestaña</translation>

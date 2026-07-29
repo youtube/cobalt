@@ -11,6 +11,7 @@
 
 #include "base/check.h"
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
@@ -21,6 +22,7 @@
 #include "base/notimplemented.h"
 #include "base/state_transitions.h"
 #include "base/trace_event/trace_event.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "base/types/id_type.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -28,6 +30,7 @@
 #include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/browser_action_util.h"
+#include "chrome/browser/actor/safety_list_manager.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/navigate_tool_request.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
@@ -55,6 +58,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "ui/event_dispatcher.h"
 #include "url/origin.h"
 
@@ -71,17 +75,39 @@ namespace actor {
 
 namespace {
 
+const RenderFrameHost* GetPrimaryMainFrame(
+    content::NavigationHandle& navigation_handle) {
+  return navigation_handle.GetWebContents()->GetPrimaryMainFrame();
+}
+
 void PostTaskForActCallback(
     ActorTask::ActCallback callback,
     mojom::ActionResultPtr result,
     std::optional<size_t> index_of_failed_action,
     std::vector<ActionResultWithLatencyInfo> action_results) {
-  UMA_HISTOGRAM_ENUMERATION("Actor.ExecutionEngine.Action.ResultCode",
-                            result->code);
+  // Using a sparse histogram instead of a linear (i.e. enumeration) histogram
+  // here because, the linear histograms are limited to 1000 values in
+  // base/metrics/histogram.cc.
+  base::UmaHistogramSparse("Actor.ExecutionEngine.Action.ResultCode",
+                           base::to_underlying(result->code));
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback), std::move(result),
                      index_of_failed_action, std::move(action_results)));
+}
+
+// Helper to determine if we should gate and thus send an IPC when navigtating
+// to a new origin. See note on `kGlicNavigationGatingUseSiteNotOrigin`.
+bool IsSameForNewOriginNavigationGating(const url::Origin& reference_origin,
+                                        const GURL& navigation_url) {
+  CHECK(base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating));
+
+  if (kGlicNavigationGatingUseSiteNotOrigin.Get()) {
+    return net::SchemefulSite::IsSameSite(reference_origin.GetURL(),
+                                          navigation_url);
+  }
+
+  return reference_origin.IsSameOriginWith(navigation_url);
 }
 
 }  // namespace
@@ -131,8 +157,10 @@ std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
 
 ExecutionEngine::~ExecutionEngine() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  UMA_HISTOGRAM_COUNTS_1000("Actor.NavigationGating.AllowListSize",
-                            allowed_navigation_origins_.size());
+  base::UmaHistogramCounts1000("Actor.NavigationGating.AllowListSize",
+                               allowed_navigation_origins_.size());
+  base::UmaHistogramCounts1000("Actor.NavigationGating.ConfirmedListSize",
+                               user_confirmed_blocklisted_origins_.size());
 
   RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
 }
@@ -198,43 +226,53 @@ bool ExecutionEngine::ShouldGateNavigation(
   if (!base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
     return false;
   }
-  std::optional<bool> should_apply =
-      ShouldGateNavigationInternal(navigation_handle, std::move(callback));
 
-  if (should_apply.has_value()) {
-    LogNavigationGating(navigation_handle.GetInitiatorOrigin(),
-                        navigation_handle.GetURL(), should_apply.value());
+  CHECK(navigation_handle.GetNavigatingFrameType() ==
+            content::FrameType::kPrimaryMainFrame ||
+        navigation_handle.GetNavigatingFrameType() ==
+            content::FrameType::kPrerenderMainFrame);
+
+  GatingDecision decision =
+      ShouldGateNavigationInternal(navigation_handle, std::move(callback));
+  if (decision == GatingDecision::kNeedsAsyncCheck) {
+    return true;
   }
-  return should_apply.value_or(true);
+
+  bool applied_gate = decision == GatingDecision::kBlockByStaticList;
+  LogNavigationGating(
+      /*initiator_origin=*/GetPrimaryMainFrame(navigation_handle)
+          ->GetLastCommittedOrigin(),
+      navigation_handle.GetURL(), applied_gate);
+  return applied_gate;
 }
 
-std::optional<bool> ExecutionEngine::ShouldGateNavigationInternal(
+ExecutionEngine::GatingDecision ExecutionEngine::ShouldGateNavigationInternal(
     content::NavigationHandle& navigation_handle,
     ExecutionEngine::NavigationDecisionCallback callback) {
+  CHECK(!navigation_handle.HasCommitted());
   base::ScopedUmaHistogramTimer timer(
       "Actor.NavigationGating.TimeElapsedForGating");
 
-  // Assumes the initiator origin is safe since it is currently being actuated
-  // on.
-  const std::optional<url::Origin>& initiator_origin =
-      navigation_handle.GetInitiatorOrigin();
-  if (initiator_origin &&
-      initiator_origin->IsSameOriginWith(
-          url::Origin::Create(navigation_handle.GetURL()))) {
-    return false;
+  const GURL source_url =
+      GetPrimaryMainFrame(navigation_handle)->GetLastCommittedURL();
+  const GURL& destination_url = navigation_handle.GetURL();
+  const GatingDecision decision =
+      DetermineGatingDecision(source_url, destination_url);
+  base::UmaHistogramEnumeration("Actor.NavigationGating.GatingDecision",
+                                decision);
+  if (decision == GatingDecision::kBlockByStaticList) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), /*may_continue=*/false));
+  } else if (decision == GatingDecision::kNeedsAsyncCheck) {
+    bool skip_prompt = navigation_handle.IsInPrerenderedMainFrame();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ExecutionEngine::CheckNavigationBlocklist, GetWeakPtr(),
+                       navigation_handle.GetInitiatorOrigin(), destination_url,
+                       skip_prompt, std::move(callback)));
   }
-  // Do not prompt user for permission in pre-rendered frames.
-  bool skip_prompt = navigation_handle.IsInPrerenderedMainFrame();
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::BindOnce(&ExecutionEngine::CheckNavigationBlocklist, GetWeakPtr(),
-                     navigation_handle.GetInitiatorOrigin(),
-                     navigation_handle.GetURL(), skip_prompt,
-                     std::move(callback)));
-
-  // We do not yet know if we should apply the gate or not, so return nullopt.
-  return std::nullopt;
+  return decision;
 }
 
 void ExecutionEngine::LogNavigationGating(
@@ -253,11 +291,58 @@ void ExecutionEngine::LogNavigationGating(
   }
 }
 
+ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
+    const GURL& source_url,
+    const GURL& destination_url) const {
+  url::Origin destination_origin = url::Origin::Create(destination_url);
+  const SafetyListManager& safety_list_manager =
+      *SafetyListManager::GetInstance();
+
+  if (url::IsSameOriginWith(source_url, destination_url)) {
+    // The static blocklist can still block same-origin navigations. A wildcard
+    // source entry like `[*, foo.com]` will block a `foo.com -> foo.com`
+    // navigation. The reasoning is that a URL globally blocked as a
+    // destination should not be reachable from anywhere, including itself.
+    // Conversely, a source-specific entry like `[foo.com, *]` will *not* block
+    // a `foo.com -> foo.com` navigation. This is because a global block on
+    // navigations *from* a URL is intended to prevent leaving that origin, not
+    // moving within it.
+    return safety_list_manager.get_blocked_list()
+                   .ContainsUrlPairWithWildcardSource(source_url,
+                                                      destination_url)
+               ? GatingDecision::kBlockByStaticList
+               : GatingDecision::kAllowSameOrigin;
+  }
+
+  if (safety_list_manager.get_blocked_list().ContainsUrlPair(source_url,
+                                                             destination_url)) {
+    return GatingDecision::kBlockByStaticList;
+  }
+
+  if (safety_list_manager.get_allowed_list().ContainsUrlPair(source_url,
+                                                             destination_url)) {
+    return GatingDecision::kAllowByStaticList;
+  }
+
+  return GatingDecision::kNeedsAsyncCheck;
+}
+
 void ExecutionEngine::CheckNavigationBlocklist(
     const std::optional<url::Origin>& initiator_origin,
     const GURL& navigation_url,
     bool skip_prompt,
     ExecutionEngine::NavigationDecisionCallback callback) {
+  // Check previously confirmed origins on the sensitive blocklist. If the user
+  // has previously confirmed the origin is allowed, we should proceed and not
+  // double prompt.
+  for (const auto& origin : user_confirmed_blocklisted_origins_) {
+    if (origin.IsSameOriginWith(navigation_url)) {
+      OnNavigationBlocklistDecision(initiator_origin, navigation_url,
+                                    skip_prompt, std::move(callback),
+                                    /*not_on_blocklist=*/true);
+      return;
+    }
+  }
   auto [callback1, callback2] = base::SplitOnceCallback(std::move(callback));
   if (ShouldBlockNavigationUrlForOriginGating(
           navigation_url, profile_,
@@ -280,10 +365,20 @@ void ExecutionEngine::OnNavigationBlocklistDecision(
     bool skip_prompt,
     ExecutionEngine::NavigationDecisionCallback callback,
     bool not_on_blocklist) {
-  // If not blocked by blocklist, check if it's on the allowlist.
+  // If not blocked by blocklist, check if it's in origin the actor has
+  // previously interacted with or received instructions from the server to
+  // interact with.
   if (not_on_blocklist) {
+    if (initiator_origin && IsSameForNewOriginNavigationGating(
+                                initiator_origin.value(), navigation_url)) {
+      LogNavigationGating(initiator_origin, navigation_url,
+                          /*applied_gate=*/false);
+      std::move(callback).Run(/*may_continue=*/true);
+      return;
+    }
+
     for (const auto& origin : allowed_navigation_origins_) {
-      if (origin.IsSameOriginWith(navigation_url)) {
+      if (IsSameForNewOriginNavigationGating(origin, navigation_url)) {
         LogNavigationGating(initiator_origin, navigation_url,
                             /*applied_gate=*/false);
         std::move(callback).Run(/*may_continue=*/true);
@@ -320,6 +415,7 @@ void ExecutionEngine::OnNavigationBlocklistDecision(
   // Otherwise if the site is blocked, present a user confirmation dialog to
   // continue.
   SendUserConfirmationDialogRequest(url::Origin::Create(navigation_url),
+                                    /*for_blocklisted_origin=*/true,
                                     std::move(callback));
 }
 
@@ -331,7 +427,9 @@ void ExecutionEngine::HandleNavigationToNewOrigin(
     return;
   }
   if (kGlicPromptUserForNavigationToNewOrigins.Get()) {
-    SendUserConfirmationDialogRequest(navigation_origin, std::move(callback));
+    SendUserConfirmationDialogRequest(navigation_origin,
+                                      /*for_blocklisted_origin=*/false,
+                                      std::move(callback));
     return;
   }
   SendNavigationConfirmationRequest(navigation_origin, std::move(callback));
@@ -373,6 +471,7 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
 
 void ExecutionEngine::SendUserConfirmationDialogRequest(
     const url::Origin& navigation_origin,
+    bool for_blocklisted_origin,
     ExecutionEngine::NavigationDecisionCallback callback) {
   if (!task_->delegate()) {
     std::move(callback).Run(/*may_continue=*/false);
@@ -381,11 +480,13 @@ void ExecutionEngine::SendUserConfirmationDialogRequest(
   task_->delegate()->RequestToShowUserConfirmationDialog(
       task_->id(), navigation_origin,
       base::BindOnce(&ExecutionEngine::OnPromptUserToConfirmNavigationDecision,
-                     GetWeakPtr(), navigation_origin, std::move(callback)));
+                     GetWeakPtr(), navigation_origin, for_blocklisted_origin,
+                     std::move(callback)));
 }
 
 void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
     url::Origin navigation_origin,
+    bool for_blocklisted_origin,
     ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::UserConfirmationDialogResponsePtr response) {
   if (response->result->is_permission_granted()) {
@@ -393,7 +494,14 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
     UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
                           permission_granted);
     if (permission_granted) {
-      allowed_navigation_origins_.insert(std::move(navigation_origin));
+      allowed_navigation_origins_.insert(url::Origin(navigation_origin));
+      // We update both lists in the `for_blocklisted_origin` case so that we do
+      // not have to double-confirm this origin when we invoke
+      // ExecutionEngine::HandleNavigationToNewOrigin.
+      if (for_blocklisted_origin) {
+        user_confirmed_blocklisted_origins_.insert(
+            url::Origin(navigation_origin));
+      }
     }
     std::move(callback).Run(permission_granted);
     return;
@@ -406,6 +514,10 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
 void ExecutionEngine::UserTakeover(
     mojom::ActionResultCode takeover_response_code,
     base::OnceCallback<void(bool)> callback) {
+  if (takeover_response_code == mojom::ActionResultCode::kFilePickerTriggered) {
+    base::UmaHistogramBoolean("Actor.Download.SaveAsDialogTriggered", true);
+  }
+
   CancelOngoingActions(takeover_response_code);
 
   // Cancel any existing user takeover callback
@@ -459,6 +571,16 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK_EQ(task_->GetState(), ActorTask::State::kActing);
 
+  {
+    JournalDetailsBuilder journal_details;
+    for (size_t i = 0; i < actions.size(); ++i) {
+      journal_details.Add(absl::StrFormat("Actions[%d]", i),
+                          actions[i]->JournalEvent());
+    }
+    journal_->Log(GURL::EmptyGURL(), task_->id(), "ExecutionEngine::Act",
+                  std::move(journal_details).Build());
+  }
+
   if (!action_sequence_.empty()) {
     journal_->Log(
         actions[0]->GetURLForJournal(), task_->id(), "Act Failed",
@@ -506,6 +628,7 @@ void ExecutionEngine::KickOffNextAction() {
   CHECK_LT(next_action_index_, action_sequence_.size());
 
   SetState(State::kStartAction);
+  action_start_time_ = base::TimeTicks::Now();
 
   if (GetNextAction().RequiresUrlCheckInCurrentTab()) {
     SafetyChecksForNextAction();
@@ -546,9 +669,11 @@ void ExecutionEngine::OnMayActOnTabDecision(
       DidFinishAsyncSafetyChecks(evaluated_origin, /*may_act=*/true);
       return;
     case MayActOnUrlBlockReason::kOptimizationGuideBlock:
-      if (base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
+      if (base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating) &&
+          kGlicPromptUserForSensitiveNavigations.Get()) {
         SendUserConfirmationDialogRequest(
             evaluated_origin,
+            /*for_blocklisted_origin=*/true,
             base::BindOnce(&ExecutionEngine::DidFinishAsyncSafetyChecks,
                            GetWeakPtr(), evaluated_origin));
         return;
@@ -638,7 +763,6 @@ void ExecutionEngine::ExecuteNextAction() {
   CHECK(tool_controller_);
 
   ++next_action_index_;
-  action_start_time_ = base::TimeTicks::Now();
 
   SetState(State::kToolCreateAndVerify);
   tool_controller_->CreateToolAndValidate(
@@ -829,7 +953,7 @@ void ExecutionEngine::RequestToShowAutofillSuggestions(
 }
 
 void ExecutionEngine::AddWritableMainframeOrigins(
-    const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins) {
+    const ExecutionEngine::AllowedOriginSet& added_writable_mainframe_origins) {
   if (!base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
     return;
   }

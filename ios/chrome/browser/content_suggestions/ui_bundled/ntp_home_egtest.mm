@@ -237,7 +237,8 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 }
 
 - (void)tearDownHelper {
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationPortrait error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationPortrait
+                                   error:nil];
   [SearchEnginesAppInterface setSearchEngineTo:self.defaultSearchEngine];
 
   [self resetCustomizationPrefs];
@@ -403,8 +404,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
       performAction:grey_tap()];
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_replaceText(URL)];
+  [ChromeEarlGreyUI replaceTextInOmnibox:URL];
 
   // The first suggestion is a search, the second suggestion is the URL.
   id<GREYMatcher> rowMatcher = grey_allOf(
@@ -443,8 +443,8 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
       assertWithMatcher:OmniboxWidth(fakeOmniboxWidth)];
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationLandscapeLeft
-                                error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeLeft
+                                   error:nil];
 
   [ChromeEarlGreyUI waitForAppToIdle];
 
@@ -478,8 +478,8 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 
   [ChromeEarlGreyUI openSettingsMenu];
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationLandscapeLeft
-                                error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeLeft
+                                   error:nil];
 
   [ChromeEarlGreyUI waitForAppToIdle];
 
@@ -516,8 +516,8 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::FakeOmnibox()]
       assertWithMatcher:OmniboxWidthBetween(NTPWidth + 1, 2)];
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationLandscapeLeft
-                                error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeLeft
+                                   error:nil];
 
   UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
   UIEdgeInsets safeArea = collectionView.safeAreaInsets;
@@ -627,8 +627,8 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   UICollectionView* collectionView = [NewTabPageAppInterface collectionView];
   [self testNTPInitialPositionAndContent:collectionView];
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationLandscapeRight
-                                error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeRight
+                                   error:nil];
   [self testNTPInitialPositionAndContent:collectionView];
 
   [[EarlGrey selectElementWithMatcher:chrome_test_util::NTPCollectionView()]
@@ -811,8 +811,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
       assertWithMatcher:grey_sufficientlyVisible()];
 
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_replaceText(URL)];
+  [ChromeEarlGreyUI replaceTextInOmnibox:URL];
   // TODO(crbug.com/40916974): Use simulatePhysicalKeyboardEvent until
   // replaceText can properly handle \n.
   [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\n" flags:0];
@@ -1081,12 +1080,13 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
 
   [self testNTPInitialPositionAndContent:collectionView];
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationLandscapeRight
-                                error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationLandscapeRight
+                                   error:nil];
 
   [self testNTPInitialPositionAndContent:collectionView];
 
-  [EarlGrey rotateDeviceToOrientation:UIDeviceOrientationPortrait error:nil];
+  [EarlGrey rotateInterfaceToOrientation:UIInterfaceOrientationPortrait
+                                   error:nil];
 
   [self testNTPInitialPositionAndContent:collectionView];
 }
@@ -1255,8 +1255,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   // Focus the omnibox and type some text into it.
   [self focusFakebox];
   NSString* omniboxText = @"Some text";
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_replaceText(omniboxText)];
+  [ChromeEarlGreyUI replaceTextInOmnibox:omniboxText];
 
   // Check that the omnibox contains the inputted text.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
@@ -1276,8 +1275,7 @@ bool AreNumbersEqual(CGFloat num1, CGFloat num2) {
   // Focus the omnibox and type some text into it.
   [self focusFakebox];
   NSString* omniboxText = @"Some text";
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]
-      performAction:grey_replaceText(omniboxText)];
+  [ChromeEarlGreyUI replaceTextInOmnibox:omniboxText];
 
   // Check that the omnibox contains the inputted text.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::Omnibox()]

@@ -12,6 +12,7 @@
 #import "components/webauthn/core/browser/passkey_model.h"
 #import "components/webauthn/ios/passkey_java_script_feature.h"
 #import "ios/web/public/js_messaging/script_message.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
 
 namespace {
@@ -51,7 +52,61 @@ class [[maybe_unused, nodiscard]] ScopedAllowPasskeyCreationInfobar {
   raw_ptr<IOSPasskeyClient> client_;
 };
 
+bool IsOriginValidForRelyingPartyId(const url::Origin& origin,
+                                    const std::string& rp_id) {
+  if (rp_id.empty()) {
+    return false;
+  }
+
+  // TODO(crbug.com/460485600): Implement proper rp_id/origin validation.
+  //                            See content related origin implementation:
+  // https://chromium-review.googlesource.com/c/chromium/src/+/4973980
+  return true;
+}
+
 }  // namespace
+
+PasskeyTabHelper::RequestParams::RequestParams()
+    : user_verification_(device::UserVerificationRequirement::kPreferred) {}
+
+PasskeyTabHelper::RequestParams::RequestParams(
+    const std::string& frame_id,
+    device::PublicKeyCredentialRpEntity rp_entity,
+    std::vector<uint8_t> challenge,
+    device::UserVerificationRequirement user_verification)
+    : frame_id_(frame_id),
+      rp_entity_(std::move(rp_entity)),
+      challenge_(std::move(challenge)),
+      user_verification_(user_verification) {}
+
+PasskeyTabHelper::RequestParams::RequestParams(
+    PasskeyTabHelper::RequestParams&& other) = default;
+
+PasskeyTabHelper::RequestParams::~RequestParams() {}
+
+PasskeyTabHelper::AssertionRequestParams::AssertionRequestParams(
+    RequestParams request_params,
+    std::vector<device::PublicKeyCredentialDescriptor> allow_credentials)
+    : request_params_(std::move(request_params)),
+      allow_credentials_(std::move(allow_credentials)) {}
+
+PasskeyTabHelper::AssertionRequestParams::AssertionRequestParams(
+    PasskeyTabHelper::AssertionRequestParams&& other) = default;
+
+PasskeyTabHelper::AssertionRequestParams::~AssertionRequestParams() {}
+
+PasskeyTabHelper::RegistrationRequestParams::RegistrationRequestParams(
+    RequestParams request_params,
+    device::PublicKeyCredentialUserEntity user_entity,
+    std::vector<device::PublicKeyCredentialDescriptor> exclude_credentials)
+    : request_params_(std::move(request_params)),
+      user_entity_(std::move(user_entity)),
+      exclude_credentials_(std::move(exclude_credentials)) {}
+
+PasskeyTabHelper::RegistrationRequestParams::RegistrationRequestParams(
+    PasskeyTabHelper::RegistrationRequestParams&& other) = default;
+
+PasskeyTabHelper::RegistrationRequestParams::~RegistrationRequestParams() {}
 
 PasskeyTabHelper::~PasskeyTabHelper() = default;
 
@@ -87,16 +142,62 @@ void PasskeyTabHelper::HandleGetResolvedEvent(
   }
 }
 
+void PasskeyTabHelper::HandleGetRequestedEvent(AssertionRequestParams params) {
+  web::WebFrame* web_frame = GetWebFrame(params.request_params_);
+  if (!web_frame) {
+    return;
+  }
+
+  if (!IsOriginValidForRelyingPartyId(web_frame->GetSecurityOrigin(),
+                                      params.request_params_.rp_entity_.id)) {
+    PasskeyJavaScriptFeature::GetInstance()->DeferToRenderer(web_frame);
+    return;
+  }
+
+  // TODO(crbug.com/385174410): Handle this event.
+  PasskeyJavaScriptFeature::GetInstance()->DeferToRenderer(web_frame);
+}
+
+void PasskeyTabHelper::HandleCreateRequestedEvent(
+    RegistrationRequestParams params) {
+  web::WebFrame* web_frame = GetWebFrame(params.request_params_);
+  if (!web_frame) {
+    return;
+  }
+
+  if (!IsOriginValidForRelyingPartyId(web_frame->GetSecurityOrigin(),
+                                      params.request_params_.rp_entity_.id)) {
+    PasskeyJavaScriptFeature::GetInstance()->DeferToRenderer(web_frame);
+    return;
+  }
+
+  // TODO(crbug.com/385174410): Handle this event.
+  PasskeyJavaScriptFeature::GetInstance()->DeferToRenderer(web_frame);
+}
+
 PasskeyTabHelper::PasskeyTabHelper(web::WebState* web_state,
                                    webauthn::PasskeyModel* passkey_model,
                                    std::unique_ptr<IOSPasskeyClient> client)
-    : passkey_model_(CHECK_DEREF(passkey_model)), client_(std::move(client)) {
+    : passkey_model_(CHECK_DEREF(passkey_model)),
+      web_state_(web_state->GetWeakPtr()),
+      client_(std::move(client)) {
   CHECK(client_);
-  CHECK(web_state);
   web_state->AddObserver(this);
+}
 
-  PasskeyJavaScriptFeature::GetInstance()->SetAllowModalLogin(
-      web_state, client_->IsModalLoginWithShimAllowed());
+web::WebFrame* PasskeyTabHelper::GetWebFrame(
+    const RequestParams& request_params) const {
+  web::WebState* web_state = web_state_.get();
+  if (!web_state) {
+    return nullptr;
+  }
+
+  web::WebFramesManager* web_frames_manager =
+      PasskeyJavaScriptFeature::GetInstance()->GetWebFramesManager(web_state);
+
+  return web_frames_manager
+             ? web_frames_manager->GetFrameWithId(request_params.frame_id_)
+             : nullptr;
 }
 
 void PasskeyTabHelper::AddNewPasskey(
@@ -107,13 +208,6 @@ void PasskeyTabHelper::AddNewPasskey(
 }
 
 // WebStateObserver
-
-void PasskeyTabHelper::DidFinishNavigation(
-    web::WebState* web_state,
-    web::NavigationContext* navigation_context) {
-  PasskeyJavaScriptFeature::GetInstance()->SetAllowModalLogin(
-      web_state, client_->IsModalLoginWithShimAllowed());
-}
 
 void PasskeyTabHelper::WebStateDestroyed(web::WebState* web_state) {
   web_state->RemoveObserver(this);

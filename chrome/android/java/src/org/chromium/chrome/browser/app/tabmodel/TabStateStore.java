@@ -52,6 +52,7 @@ public class TabStateStore implements TabPersistentStore {
     private final TabStateStorageService mTabStateStorageService;
     private final TabCreatorManager mTabCreatorManager;
     private final TabModelSelector mTabModelSelector;
+    private final String mWindowTag;
     private final TabStateAttributes.Observer mAttributesObserver =
             this::onTabStateDirtinessChanged;
     private final ObserverList<TabPersistentStoreObserver> mObservers = new ObserverList<>();
@@ -105,9 +106,7 @@ public class TabStateStore implements TabPersistentStore {
 
                     CollectionSaveForwarder forwarder =
                             CollectionSaveForwarder.createForTabGroup(
-                                    destinationTab.getProfile(),
-                                    groupId,
-                                    collection);
+                                    destinationTab.getProfile(), groupId, collection);
                     mGroupForwarderMap.put(groupId, forwarder);
                 }
 
@@ -122,18 +121,18 @@ public class TabStateStore implements TabPersistentStore {
                 @Override
                 public void didChangeTabGroupCollapsed(
                         Token tabGroupId, boolean isCollapsed, boolean animate) {
-                    saveTabGroup(tabGroupId);
+                    saveTabGroupPayload(tabGroupId);
                 }
 
                 @Override
                 public void didChangeTabGroupColor(
                         Token tabGroupId, @TabGroupColorId int newColor) {
-                    saveTabGroup(tabGroupId);
+                    saveTabGroupPayload(tabGroupId);
                 }
 
                 @Override
                 public void didChangeTabGroupTitle(Token tabGroupId, @Nullable String newTitle) {
-                    saveTabGroup(tabGroupId);
+                    saveTabGroupPayload(tabGroupId);
                 }
             };
 
@@ -142,15 +141,18 @@ public class TabStateStore implements TabPersistentStore {
      * @param tabModelSelector The {@link TabModelSelector} to observe changes in. Regardless of the
      *     mode this store is in, this will be the real selector with real models. This should be
      *     treated as a read only object, no modifications should go through it.
+     * @param windowTag The window tag to use for the window.
      * @param tabCreatorManager Used to create new tabs on initial load. This may return real
      *     creators, or faked out creators if in non-authoritative mode.
      */
     public TabStateStore(
             TabStateStorageService tabStateStorageService,
             TabModelSelector tabModelSelector,
+            String windowTag,
             TabCreatorManager tabCreatorManager) {
         mTabStateStorageService = tabStateStorageService;
         mTabModelSelector = tabModelSelector;
+        mWindowTag = windowTag;
         mTabCreatorManager = tabCreatorManager;
     }
 
@@ -296,6 +298,10 @@ public class TabStateStore implements TabPersistentStore {
     }
 
     private void saveTab(Tab tab) {
+        // If a tab is not in a closing or destroyed state we shouldn't save it. Tabs that are
+        // not attached to a parent collection will not be restored at startup and shouldn't be
+        // saved. If the tab becomes attached to a collection later it will be saved then.
+        if (tab.isDestroyed() || tab.isClosing() || !tab.hasParentCollection()) return;
         mTabStateStorageService.saveTabData(tab);
     }
 
@@ -343,7 +349,9 @@ public class TabStateStore implements TabPersistentStore {
 
     private void loadAllTabsFromService() {
         long loadStartTime = SystemClock.elapsedRealtime();
-        mTabStateStorageService.loadAllData(data -> onDataLoaded(data, loadStartTime));
+        // TODO(crbug.com/458335579): Figure out incognito.
+        mTabStateStorageService.loadAllData(
+                mWindowTag, /* isOffTheRecord= */ false, data -> onDataLoaded(data, loadStartTime));
     }
 
     private void onDataLoaded(StorageLoadedData data, long loadStartTime) {
@@ -446,10 +454,10 @@ public class TabStateStore implements TabPersistentStore {
                 .createFrozenTab(tabState, tabId, index);
     }
 
-    private void saveTabGroup(Token tabGroupId) {
+    private void saveTabGroupPayload(Token tabGroupId) {
         CollectionSaveForwarder forwarder = mGroupForwarderMap.get(tabGroupId);
         if (forwarder == null) return;
-        forwarder.save();
+        forwarder.savePayload();
     }
 
     private void initVisualDataTracking() {

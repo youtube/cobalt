@@ -436,7 +436,7 @@ TEST_F(AppContextMenuTest, ArcMenu) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   const auto& app_info = arc_app_test.fake_apps()[1];
   const std::string app_id = ArcAppTest::GetAppId(*app_info);
@@ -545,7 +545,9 @@ TEST_F(AppContextMenuTest, ArcMenu) {
   menu = GetContextMenuModel(item.get());
   EXPECT_EQ(nullptr, menu);
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 TEST_F(AppContextMenuTest, ArcMenuShortcut) {
@@ -553,7 +555,7 @@ TEST_F(AppContextMenuTest, ArcMenuShortcut) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   const arc::mojom::ShortcutInfo& shortcut_info =
       arc_app_test.fake_shortcuts()[0];
@@ -614,7 +616,9 @@ TEST_F(AppContextMenuTest, ArcMenuShortcut) {
       EXPECT_EQ(ui::PADDED_SEPARATOR, menu->GetSeparatorTypeAt(index));
   }
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 TEST_F(AppContextMenuTest, ArcMenuStickyItem) {
@@ -622,7 +626,7 @@ TEST_F(AppContextMenuTest, ArcMenuStickyItem) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   arc_app_test.app_instance()->SendRefreshAppList(arc_app_test.fake_apps());
 
@@ -658,7 +662,9 @@ TEST_F(AppContextMenuTest, ArcMenuStickyItem) {
     }
   }
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 // In suspended state app does not have launch item.
@@ -667,7 +673,7 @@ TEST_F(AppContextMenuTest, ArcMenuSuspendedItem) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   std::vector<arc::mojom::AppInfoPtr> apps;
   apps.emplace_back(arc_app_test.fake_apps()[0]->Clone())->suspended = true;
@@ -698,7 +704,9 @@ TEST_F(AppContextMenuTest, ArcMenuSuspendedItem) {
       EXPECT_EQ(ui::PADDED_SEPARATOR, menu->GetSeparatorTypeAt(index));
   }
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 TEST_F(AppContextMenuTest, CommandIdsMatchEnumsForHistograms) {

@@ -1742,7 +1742,8 @@ void XRSession::MaybeRequestFrame() {
     if (init->hasBaseLayer()) {
       will_have_valid_render_state = !!init->baseLayer();
     } else if (init->hasLayers()) {
-      will_have_valid_render_state = init->layers()->size() > 0;
+      will_have_valid_render_state =
+          init->layers() && init->layers()->size() > 0;
     }
   }
 
@@ -2217,6 +2218,11 @@ void XRSession::OnFrame(double timestamp,
     layer_shared_image_manager_.SetSharedImages(
         layers_enabled_ ? nullptr : render_state_->GetFirstLayer(),
         std::move(shared_images));
+
+    // Dispatch the "redraw" event for layers that should be updated.
+    if (layers_enabled_) {
+      render_state_->MaybeDispatchRedrawEvents();
+    }
 
     // Don't allow frames to be processed if the session's visibility state is
     // "hidden".

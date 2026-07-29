@@ -4,19 +4,26 @@
 
 #import "ios/chrome/browser/composebox/coordinator/composebox_coordinator.h"
 
+#import "components/omnibox/browser/omnibox_pref_names.h"
+#import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_coordinator.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_navigation_mediator.h"
+#import "ios/chrome/browser/composebox/public/composebox_input_plate_position.h"
+#import "ios/chrome/browser/composebox/public/composebox_theme.h"
+#import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_dismiss_animator.h"
 #import "ios/chrome/browser/composebox/ui/composebox_present_animator.h"
 #import "ios/chrome/browser/composebox/ui/composebox_view_controller.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
+#import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/web/public/web_state.h"
 
@@ -52,9 +59,13 @@
 }
 
 - (void)start {
-  _viewController = [[ComposeboxViewController alloc] init];
+  _viewController =
+      [[ComposeboxViewController alloc] initWithTheme:[self createTheme]];
   _viewController.modalPresentationStyle = UIModalPresentationCustom;
   _viewController.transitioningDelegate = self;
+  if (self.isOffTheRecord) {
+    _viewController.view.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+  }
   _viewController.delegate = self;
 
   UrlLoadingBrowserAgent* urlLoadingBrowserAgent =
@@ -72,7 +83,8 @@
                          browser:self.browser
                       entrypoint:_entrypoint
                            query:_query
-                       URLLoader:_navigationMediator];
+                       URLLoader:_navigationMediator
+                           theme:[self createTheme]];
   _aimComposeboxCoordinator.omniboxPopupPresenterDelegate = _viewController;
   [_aimComposeboxCoordinator start];
 
@@ -137,6 +149,25 @@
   id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
   [commands hideComposeboxImmediately:immediately];
+}
+
+- (ComposeboxTheme*)createTheme {
+  return [[ComposeboxTheme alloc]
+      initWithInputPlatePosition:[self inputPlatePositionPreference]];
+}
+
+- (ComposeboxInputPlatePosition)inputPlatePositionPreference {
+  if (IsComposeboxForceTopEnabled()) {
+    return ComposeboxInputPlatePosition::kTop;
+  }
+
+  if (IsBottomOmniboxAvailable() &&
+      GetApplicationContext()->GetLocalState()->GetBoolean(
+          omnibox::kIsOmniboxInBottomPosition)) {
+    return ComposeboxInputPlatePosition::kBottom;
+  }
+
+  return ComposeboxInputPlatePosition::kTop;
 }
 
 @end

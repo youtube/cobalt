@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Bilatu AA moduarekin</translation>
 <translation id="3557336313807607643">Gehitu kontaktuetan</translation>
 <translation id="355765753469272474">Desegin</translation>
+<translation id="3565012355885596568">Ezin izan dira kargatu irudiak</translation>
 <translation id="3565930036634619844">Fitxa. <ph name="NUMBER_OF_TABS" /> fitxatatik <ph name="TAB_INDEX" />garrena.</translation>
 <translation id="3572607909481582402">Google-ko kontuan daudenak</translation>
 <translation id="3575234738189584619">Bilatu Lens bidez</translation>
@@ -1314,6 +1315,7 @@
 <translation id="6045460247888249350">Gehitu izen bat</translation>
 <translation id="6052269326659653305">Aldatu profila</translation>
 <translation id="605721222689873409">UU</translation>
+<translation id="6058415747854995776">Grabatu bideo bat</translation>
 <translation id="6059830886158432458">Kontrolatu istorioak eta jarduerak hemen</translation>
 <translation id="6066301408025741299">Sakatu bertan behera uzteko</translation>
 <translation id="6074656473835429958">Jaso jakinarazpenak</translation>
@@ -1815,6 +1817,7 @@
 <translation id="7866872729285243843">Irakurketa-zerrenda gailu guztietan eskura izateko, aktibatu Irakurketa-zerrenda ezarpenetan.</translation>
 <translation id="7874107544081154809">Bete <ph name="CELL_ACCESSIBILITY_LABEL" /> automatikoki inprimakian</translation>
 <translation id="7879275349003161544">Erakutsi deskargak</translation>
+<translation id="7882689957034389473">Atera argazkia</translation>
 <translation id="7883882164760409935">Beste nonbait erabilitako pasahitzak dauzkazu.</translation>
 <translation id="7887174313503389866">Egin pribatutasuna eta segurtasuna kontrolatzeko aukera garrantzitsuenei buruzko txango gidatu bat. Aukera gehiago ikusteko, joan ezarpen bakoitzera.</translation>
 <translation id="7887198238286927132">Zure pribatutasuna babesteko, Chrome-k ez du automatikoki beteko eremu hau.</translation>
@@ -1998,6 +2001,7 @@
 <translation id="8551311254462607218">Helbide-barran, sakatu Google Lens-en kameraren ikonoa</translation>
 <translation id="8556590991644167667">{count,plural, =1{{count} abisu baztertu duzu}other{{count} abisu baztertu dituzu}}</translation>
 <translation id="8558046478684552694">Itxi taldea.</translation>
+<translation id="8559858985063901027">Sarbide-gakoak</translation>
 <translation id="8560253818350321773">Erakutsi maiz erabiltzen diren elementuak lehenik.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Pasahitz {count} dago erabilgarri teklatuaren gainean.}other{{count} pasahitz daude erabilgarri teklatuaren gainean.}}</translation>
 <translation id="8564894539416715395">Fitxa berriaren orria</translation>

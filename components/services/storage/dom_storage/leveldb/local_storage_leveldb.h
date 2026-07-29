@@ -29,6 +29,13 @@ inline constexpr const uint8_t kWriteMetaPrefix[] = {'M', 'E', 'T', 'A', ':'};
 // The "META" prefix shared by both `kWriteMetaPrefix` and `kAccessMetaPrefix`.
 inline constexpr const uint8_t kMetaPrefix[] = {'M', 'E', 'T', 'A'};
 
+// The schema "VERSION" key.
+inline constexpr const uint8_t kLocalStorageLevelDBVersionKey[] = {
+    'V', 'E', 'R', 'S', 'I', 'O', 'N'};
+
+// LevelDB supports one schema version for local storage without migration.
+inline constexpr int64_t kLocalStorageLevelDBVersion = 1;
+
 // Reads and writes entries in the local storage LevelDB database with the
 // following schema:
 //
@@ -113,6 +120,16 @@ class LocalStorageLevelDB : public DomStorageDatabase {
   //  (3) The last access time from the "METAACCESS:" entry's value, which is a
   //      `LocalStorageAreaAccessMetaData` protobuf.
   StatusOr<Metadata> ReadAllMetadata() override;
+
+  // Writes LevelDB entries for map usage metadata.  Writes up to two entries
+  // for each map in `metadata.map_metadata`:
+  //
+  // (1) Writes a "META:" entry when the map's usage contains a last modified
+  //     time and total size.
+  //
+  // (2) Writes a "METAACCESS:" entry when the map's usage contains a last
+  //     accessed time.
+  DbStatus PutMetadata(Metadata metadata) override;
   DbStatus RewriteDB() override;
 
   // Test-only functions.

@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">एआई मोड की मदद से खोजें</translation>
 <translation id="3557336313807607643">संपर्कों में जोड़ें</translation>
 <translation id="355765753469272474">पहले जैसा करें</translation>
+<translation id="3565012355885596568">इमेज लोड नहीं की जा सकीं</translation>
 <translation id="3565930036634619844">टैब. <ph name="NUMBER_OF_TABS" /> में से <ph name="TAB_INDEX" />.</translation>
 <translation id="3572607909481582402">आपके Google खाते में</translation>
 <translation id="3575234738189584619">Lens की मदद से खोजें</translation>
@@ -1314,6 +1315,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="6045460247888249350">टाइटल जोड़ें</translation>
 <translation id="6052269326659653305">प्रोफ़ाइल बदलें</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">वीडियो बनाएं</translation>
 <translation id="6059830886158432458">अपनी खबरों और गतिविधि को यहां नियंत्रित करें</translation>
 <translation id="6066301408025741299">रद्द करने के लिए टैप करें.</translation>
 <translation id="6074656473835429958">सूचनाएं पाएं</translation>
@@ -1815,6 +1817,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="7866872729285243843">अपने सभी डिवाइसों पर रीडिंग लिस्ट देखने के लिए, सेटिंग में जाकर “रीडिंग लिस्ट” को चालू करें.</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> की मदद से अपने-आप फ़ॉर्म भरने की सुविधा पाएं</translation>
 <translation id="7879275349003161544">डाउनलोड किए गए आइटम दिखाएं</translation>
+<translation id="7882689957034389473">फ़ोटो लें</translation>
 <translation id="7883882164760409935">आपने एक ही पासवर्ड को कई खातों में इस्तेमाल किया है.</translation>
 <translation id="7887174313503389866">गाइड की मदद से, निजता और सुरक्षा से जुड़े मुख्य कंट्रोल के बारे में जानकारी पाएं. ज़्यादा विकल्पों के लिए, हर एक सेटिंग पर जाएं.</translation>
 <translation id="7887198238286927132">आपकी निजता को सुरक्षित रखने के लिए, Chrome इस फ़ील्ड को ऑटोमैटिक नहीं भरेगा.</translation>
@@ -1998,6 +2001,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="8551311254462607218">पता बार में मौजूद, Google Lens के कैमरा आइकॉन पर टैप करें</translation>
 <translation id="8556590991644167667">{count,plural, =1{आपने {count} चेतावनी खारिज की}one{आपने {count} चेतावनी खारिज की}other{आपने {count} चेतावनियां खारिज कीं}}</translation>
 <translation id="8558046478684552694">ग्रुप बंद करें.</translation>
+<translation id="8559858985063901027">पासवर्ड</translation>
 <translation id="8560253818350321773">अक्सर इस्तेमाल किए जाने वाले आइटम पहले दिखाएं.</translation>
 <translation id="8561999115126307258">{count,plural, =1{पासवर्ड के लिए {count} तरीका, आपके कीबोर्ड के ऊपर उपलब्ध है.}one{पासवर्ड के लिए {count} तरीका, आपके कीबोर्ड के ऊपर उपलब्ध है.}other{पासवर्ड के लिए {count} तरीके, आपके कीबोर्ड के ऊपर उपलब्ध हैं.}}</translation>
 <translation id="8564894539416715395">नया टैब पेज</translation>

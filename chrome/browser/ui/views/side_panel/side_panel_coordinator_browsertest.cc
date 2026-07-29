@@ -297,18 +297,7 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
   }
 
   SidePanelRegistry* global_registry() {
-    return coordinator()->GetWindowRegistry();
-  }
-
-  int MaybeAdjustWidthForNewLayout(int expected_width) {
-    if (!base::FeatureList::IsEnabled(features::kTabbedBrowserUseNewLayout)) {
-      return expected_width;
-    }
-    // In the new layout, the contents pane cannot shrink beyond a certain size.
-    return std::min(expected_width,
-                    browser()->GetBrowserView().width() -
-                        (BrowserViewLayout::kMainBrowserContentsMinimumWidth +
-                         views::Separator::kThickness));
+    return SidePanelRegistry::From(browser());
   }
 
   std::vector<raw_ptr<SidePanelRegistry, DanglingUntriaged>>
@@ -475,15 +464,11 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidth) {
 
   // Verify the side panel width is capped at two thirds of the browser width.
   EXPECT_EQ(browser()->GetBrowserView().contents_height_side_panel()->width(),
-            MaybeAdjustWidthForNewLayout(two_thirds_browser_width));
+            two_thirds_browser_width);
 }
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
                        ReadAnythingSidePanelWidthNotCappedAtTwoThirds) {
-  if (base::FeatureList::IsEnabled(features::kTabbedBrowserUseNewLayout)) {
-    GTEST_SKIP();
-  }
-
   Init();
   // Set side panel to left-aligned so positive resize increments mean an
   // increase in side panel width.
@@ -634,8 +619,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidthMaxMin) {
       browser()->GetBrowserView().GetLocalBounds().width();
   const int two_thirds_browser_width = browser_width * 2 / 3;
   const int expected_width =
-      std::max(MaybeAdjustWidthForNewLayout(two_thirds_browser_width),
-               side_panel->GetMinimumSize().width());
+      std::max(two_thirds_browser_width, side_panel->GetMinimumSize().width());
   EXPECT_EQ(expected_width, side_panel->width());
 
   // the web contents width will either be it's min width or 1/3 the browser
@@ -707,7 +691,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidthRTL) {
   views::test::RunScheduledLayout(&browser()->GetBrowserView());
   EXPECT_EQ(side_panel->width(), starting_width);
 
-  const int increment = 50;
+  const int increment = 20;
   side_panel->OnResize(increment, true);
   views::test::RunScheduledLayout(&browser()->GetBrowserView());
   EXPECT_EQ(side_panel->width(), starting_width - increment);
@@ -720,8 +704,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidthRTL) {
 
   side_panel->OnResize(increment, true);
   views::test::RunScheduledLayout(&browser()->GetBrowserView());
-  EXPECT_EQ(side_panel->width(),
-            MaybeAdjustWidthForNewLayout(starting_width + increment));
+  EXPECT_EQ(side_panel->width(), starting_width + increment);
 }
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
@@ -1801,9 +1784,8 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   SidePanel* side_panel = browser_view->contents_height_side_panel();
   ASSERT_TRUE(side_panel);
 
-  SidePanelEntry* bookmarks_entry =
-      coordinator()->GetWindowRegistry()->GetEntryForKey(
-          SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  SidePanelEntry* const bookmarks_entry = global_registry()->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
   ASSERT_TRUE(bookmarks_entry);
 
   // Set a custom default width for the bookmarks side panel.
@@ -1833,13 +1815,12 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   SidePanel* side_panel = browser_view->contents_height_side_panel();
   ASSERT_TRUE(side_panel);
 
-  SidePanelEntry* bookmarks_entry =
-      coordinator()->GetWindowRegistry()->GetEntryForKey(
-          SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  SidePanelEntry* const bookmarks_entry = global_registry()->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
   ASSERT_TRUE(bookmarks_entry);
 
   const int kTestDefaultContentWidth = 450;
-  const int kUserPreferredWidth = 550;
+  const int kUserPreferredWidth = 510;
   bookmarks_entry->SetDefaultContentWidthForTesting(kTestDefaultContentWidth);
 
   // Set a user preference for bookmarks.
@@ -1854,8 +1835,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   // Verify the side panel uses the users preferred width even if the custom
   // width is set.
   EXPECT_TRUE(side_panel->GetVisible());
-  EXPECT_EQ(side_panel->width(),
-            MaybeAdjustWidthForNewLayout(kUserPreferredWidth));
+  EXPECT_EQ(side_panel->width(), kUserPreferredWidth);
 }
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
@@ -1867,9 +1847,8 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   coordinator()->DisableAnimationsForTesting();
 
   // Ensure the bookmarks side panel does not have a custom default width.
-  SidePanelEntry* bookmarks_entry =
-      coordinator()->GetWindowRegistry()->GetEntryForKey(
-          SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
+  SidePanelEntry* const bookmarks_entry = global_registry()->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntryId::kBookmarks));
   ASSERT_TRUE(bookmarks_entry);
   bookmarks_entry->SetDefaultContentWidthForTesting(
       SidePanelEntry::kSidePanelDefaultContentWidth);
@@ -2639,4 +2618,87 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorLoadingContentTest,
       nullptr);
   EXPECT_TRUE(
       coordinator()->IsSidePanelEntryShowing(loading_content_entry2_->key()));
+}
+
+namespace {
+class HidingReasonObserver : public SidePanelEntryObserver {
+ public:
+  HidingReasonObserver() = default;
+  ~HidingReasonObserver() override = default;
+
+  void OnEntryWillHide(SidePanelEntry* entry,
+                       SidePanelEntryHideReason reason) override {
+    last_entry_will_hide_reason_ = reason;
+  }
+
+  std::optional<SidePanelEntryHideReason> last_entry_will_hide_reason_;
+};
+}  // namespace
+
+IN_PROC_BROWSER_TEST_F(
+    SidePanelCoordinatorTest,
+    EntryWillHideOnTabSwitchWithBackgroundedReasonToTabWithActiveSidePanel) {
+  Init();
+  coordinator()->DisableAnimationsForTesting();
+
+  HidingReasonObserver observer;
+  SidePanelEntry* first_tab_entry = contextual_registries_[0]->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights));
+  ASSERT_TRUE(first_tab_entry);
+  base::ScopedObservation<SidePanelEntry, SidePanelEntryObserver>
+      first_tab_observation(&observer);
+  first_tab_observation.Observe(first_tab_entry);
+
+  // Show contextual panel in first tab.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  coordinator()->Show(SidePanelEntry::Id::kShoppingInsights);
+  EXPECT_TRUE(coordinator()->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights)));
+
+  // Show contextual panel in second tab.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  coordinator()->Show(SidePanelEntry::Id::kLens);
+  EXPECT_TRUE(coordinator()->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kLens)));
+
+  // Switch back to the first tab.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  EXPECT_TRUE(coordinator()->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights)));
+
+  // Switch to the second tab and verify the hide reason.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  EXPECT_TRUE(coordinator()->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kLens)));
+  EXPECT_THAT(observer.last_entry_will_hide_reason_,
+              testing::Optional(SidePanelEntryHideReason::kBackgrounded));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    SidePanelCoordinatorTest,
+    EntryWillHideOnTabSwitchWithBackgroundedReasonToTabWithoutActiveSidePanel) {
+  Init();
+  coordinator()->DisableAnimationsForTesting();
+
+  HidingReasonObserver observer;
+  SidePanelEntry* first_tab_entry = contextual_registries_[0]->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights));
+  ASSERT_TRUE(first_tab_entry);
+  base::ScopedObservation<SidePanelEntry, SidePanelEntryObserver>
+      first_tab_observation(&observer);
+  first_tab_observation.Observe(first_tab_entry);
+
+  // Show contextual panel in first tab.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  coordinator()->Show(SidePanelEntry::Id::kShoppingInsights);
+  EXPECT_TRUE(coordinator()->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights)));
+
+  // Switch to the second tab. The panel should hide as this tab does not have
+  // the contextual entry and no global entry has been shown.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  EXPECT_FALSE(
+      coordinator()->IsSidePanelShowing(SidePanelEntry::PanelType::kContent));
+  EXPECT_THAT(observer.last_entry_will_hide_reason_,
+              testing::Optional(SidePanelEntryHideReason::kBackgrounded));
 }

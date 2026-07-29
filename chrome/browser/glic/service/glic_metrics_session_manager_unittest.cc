@@ -419,4 +419,101 @@ TEST_F(GlicMetricsSessionManagerTest, Events_NotRecordedBeforeSessionStarts) {
   histogram_tester_.ExpectTotalCount("Glic.Instance.Session.HadEvent", 0);
 }
 
+TEST_F(GlicMetricsSessionManagerTest,
+       MultipleTabsPinned_NoResponse_RecordsFalse) {
+  StartSession();
+  metrics_->session_manager().SetPinnedTabCount(3);
+
+  metrics_.reset();  // End session
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Instance.Session.MultipleTabsPinnedInAnyTurn", false, 1);
+  histogram_tester_.ExpectUniqueSample("Glic.Instance.Session.MaxPinnedTabs", 3,
+                                       1);
+}
+
+TEST_F(GlicMetricsSessionManagerTest,
+       SingleTabPinned_WithResponse_RecordsFalse) {
+  StartSession();
+  metrics_->session_manager().SetPinnedTabCount(1);
+  metrics_->OnUserInputSubmitted(mojom::WebClientMode::kText);
+
+  metrics_.reset();  // End session
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Instance.Session.MultipleTabsPinnedInAnyTurn", false, 1);
+  histogram_tester_.ExpectUniqueSample("Glic.Instance.Session.MaxPinnedTabs", 1,
+                                       1);
+}
+
+TEST_F(GlicMetricsSessionManagerTest,
+       MultipleResponses_OneWithMultipleTabs_RecordsTrue) {
+  StartSession();
+  metrics_->session_manager().SetPinnedTabCount(1);
+  metrics_->OnUserInputSubmitted(mojom::WebClientMode::kText);
+  metrics_->session_manager().SetPinnedTabCount(3);
+  metrics_->OnUserInputSubmitted(mojom::WebClientMode::kText);
+  metrics_->session_manager().SetPinnedTabCount(1);
+  metrics_->OnUserInputSubmitted(mojom::WebClientMode::kText);
+
+  metrics_.reset();  // End session
+
+  histogram_tester_.ExpectUniqueSample(
+      "Glic.Instance.Session.MultipleTabsPinnedInAnyTurn", true, 1);
+  histogram_tester_.ExpectUniqueSample("Glic.Instance.Session.MaxPinnedTabs", 3,
+                                       1);
+}
+
+TEST_F(GlicMetricsSessionManagerTest, RecordsSessionDurations) {
+  StartSession();
+  // Session has been active and visible for kStartTimeout (30s).
+
+  // Stay in this state for another 10 minutes.
+  task_environment_.FastForwardBy(base::Minutes(10));
+  // Total active/visible so far: 10m 30s.
+
+  // Become inactive (but still visible) for 5 minutes.
+  metrics_->OnActivationChanged(false);
+  task_environment_.FastForwardBy(base::Minutes(5));
+
+  // Become active again for 15 minutes.
+  metrics_->OnActivationChanged(true);
+  task_environment_.FastForwardBy(base::Minutes(15));
+
+  // Become hidden (and thus inactive) for 2 minutes.
+  metrics_->OnActivationChanged(false);
+  metrics_->OnVisibilityChanged(false);
+  task_environment_.FastForwardBy(base::Minutes(2));
+
+  // End the session.
+  metrics_.reset();
+
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.Instance.Session.Duration",
+      kStartTimeout + base::Minutes(10 + 5 + 15 + 2), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.Instance.Session.TotalActiveDuration",
+      kStartTimeout + base::Minutes(10 + 15), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.Instance.Session.TotalInactiveDuration", base::Minutes(5 + 2), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.Instance.Session.TotalVisibleDuration",
+      kStartTimeout + base::Minutes(10 + 5 + 15), 1);
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.Instance.Session.TotalHiddenDuration", base::Minutes(2), 1);
+
+  // Uninterrupted Active Durations
+  histogram_tester_.ExpectTimeBucketCount(
+      "Glic.Instance.Session.UninterruptedActiveDuration",
+      kStartTimeout + base::Minutes(10), 1);
+  histogram_tester_.ExpectTimeBucketCount(
+      "Glic.Instance.Session.UninterruptedActiveDuration", base::Minutes(15),
+      1);
+
+  // Uninterrupted Visible Duration
+  histogram_tester_.ExpectUniqueTimeSample(
+      "Glic.Instance.Session.UninterruptedVisibleDuration",
+      kStartTimeout + base::Minutes(10 + 5 + 15), 1);
+}
+
 }  // namespace glic

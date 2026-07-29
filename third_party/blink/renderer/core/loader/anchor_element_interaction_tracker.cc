@@ -566,7 +566,10 @@ void AnchorElementInteractionTracker::ViewportIntersectionUpdate(
   }
   Vector<KURL> to_be_removed;
   for (const auto& anchor : left_viewport) {
-    to_be_removed.push_back(anchor->Href());
+    KURL url = GetHrefEligibleForPreloading(*anchor);
+    if (!url.IsEmpty()) {
+      to_be_removed.push_back(std::move(url));
+    }
   }
   eager_viewport_heuristics_candidates_.RemoveAll(to_be_removed);
 
@@ -574,14 +577,17 @@ void AnchorElementInteractionTracker::ViewportIntersectionUpdate(
   const base::TimeTicks now = clock_->NowTicks();
   for (const auto& anchor : entered_viewport) {
     LocalFrame* frame = anchor->GetDocument().GetFrame();
-    if (!frame->IsMainFrame() || !frame->View()) {
+    if (!frame || !frame->IsMainFrame() || !frame->View()) {
       continue;
     }
-
+    KURL url = GetHrefEligibleForPreloading(*anchor);
+    if (url.IsEmpty()) {
+      continue;
+    }
     eager_viewport_heuristics_candidates_.insert(
-        anchor->Href(), EagerViewportHeuristicsCandidate{
-                            .anchor_id = AnchorElementId(*anchor),
-                            .timestamp = now + EagerViewportPresentTime()});
+        url, EagerViewportHeuristicsCandidate{
+                 .anchor_id = AnchorElementId(*anchor),
+                 .timestamp = now + EagerViewportPresentTime()});
     has_added = true;
   }
   if (has_added && !eager_viewport_heuristic_timer_.IsActive()) {

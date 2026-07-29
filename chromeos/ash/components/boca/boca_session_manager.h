@@ -178,12 +178,13 @@ class BocaSessionManager
         const std::map<std::string, ::boca::StudentStatus>& activities);
 
     virtual void OnReceiverInvalidation();
+
+    virtual void OnPresentStudentScreenDisconnected();
   };
   // CrosNetworkConfigObserver
-  void OnNetworkStateChanged(
-      chromeos::network_config::mojom::NetworkStatePropertiesPtr network_state)
-      override;
-
+  void OnActiveNetworksChanged(
+      std::vector<chromeos::network_config::mojom::NetworkStatePropertiesPtr>
+          networks) override;
   // signin::IdentityManager::Observer
   void OnRefreshTokenUpdatedForAccount(const CoreAccountInfo& info) override;
   void OnIdentityManagerShutdown(
@@ -227,6 +228,8 @@ class BocaSessionManager
 
   // Triggered by SWA delegate to notify app reload events.
   virtual void NotifyAppReload();
+
+  void NotifyPresentStudentScreenDisconnected();
 
   virtual bool disabled_on_non_managed_network();
 
@@ -293,9 +296,9 @@ class BocaSessionManager
   SEQUENCE_CHECKER(sequence_checker_);
 
   void LoadInitialNetworkState();
-  void OnNetworkStateFetched(
-      std::vector<chromeos::network_config::mojom::NetworkStatePropertiesPtr>
-          networks);
+  bool IsNetworkManaged(
+      chromeos::network_config::mojom::NetworkStatePropertiesPtr&
+          network_state);
   bool IsProfileActive();
   bool IsSessionActive(const ::boca::Session* session);
   bool IsSessionTakeOver(const ::boca::Session* previous_session,
@@ -317,8 +320,7 @@ class BocaSessionManager
   void StopSendingStudentHeartbeatRequests();
   void SendStudentHeartbeatRequest();
   void HandleCaptionNotification();
-  void UpdateNetworkRestriction(
-      chromeos::network_config::mojom::NetworkStatePropertiesPtr network_state);
+  bool HasNetworkRestriction(bool has_active_managed_network);
   void NotifySodaStatusListeners(SodaStatus status);
 
   void CloseAllCaptions();

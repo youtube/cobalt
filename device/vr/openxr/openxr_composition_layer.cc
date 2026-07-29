@@ -94,6 +94,9 @@ XrResult OpenXrCompositionLayer::CreateSwapchain(XrSession session,
   swapchain_create_info.arraySize = 1;
   swapchain_create_info.format = graphics_binding_->GetSwapchainFormat(session);
 
+  swapchain_create_info.createFlags = creation_data_->read_only_data->is_static
+                                          ? XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT
+                                          : 0;
   swapchain_create_info.width = swapchain_image_size_.width();
   swapchain_create_info.height = swapchain_image_size_.height();
   swapchain_create_info.mipCount = 1;
@@ -106,6 +109,7 @@ XrResult OpenXrCompositionLayer::CreateSwapchain(XrSession session,
       xrCreateSwapchain(session, &swapchain_create_info, &color_swapchain));
 
   color_swapchain_ = color_swapchain;
+  needs_redraw_ = true;
 
   RETURN_IF_XR_FAILED(graphics_binding_->EnumerateSwapchainImages(*this));
 
@@ -115,6 +119,10 @@ XrResult OpenXrCompositionLayer::CreateSwapchain(XrSession session,
 void OpenXrCompositionLayer::DestroySwapchain(gpu::SharedImageInterface* sii) {
   // In case we still hold an active swapchain image.
   ReleaseActiveSwapchainImage();
+
+  // Reset rendered state.
+  needs_redraw_ = false;
+  is_rendered_ = false;
 
   // As long as we have a context provider we need to destroy any SharedImages
   // that may exist.
@@ -148,6 +156,8 @@ XrResult OpenXrCompositionLayer::ActivateSwapchainImage(
   RETURN_IF_XR_FAILED(xrWaitSwapchainImage(color_swapchain_, &wait_info));
 
   has_active_swapchain_image_ = true;
+  // The current active swapchain image has not yet been rendered.
+  is_rendered_ = false;
   graphics_binding_->OnSwapchainImageActivated(*this, sii);
   return XR_SUCCESS;
 }
@@ -199,6 +209,37 @@ void OpenXrCompositionLayer::UpdateActiveSwapchainImageSize(
     graphics_binding_->ResizeSharedBuffer(*this, *GetActiveSwapchainImage(),
                                           sii);
   }
+}
+
+const gfx::Rect OpenXrCompositionLayer::GetSubImageViewport(
+    XrEyeVisibility eye) const {
+  gfx::Rect info{0, 0, static_cast<int>(read_only_data().texture_width),
+                 static_cast<int>(read_only_data().texture_height)};
+  if (read_only_data().layout ==
+      device::mojom::XRLayerLayout::kStereoLeftRight) {
+    info.set_width(info.width() / 2);
+    if (eye == XR_EYE_VISIBILITY_RIGHT) {
+      info.set_x(info.width());
+    }
+  } else if (read_only_data().layout ==
+             device::mojom::XRLayerLayout::kStereoTopBottom) {
+    info.set_height(info.height() / 2);
+    if (eye == XR_EYE_VISIBILITY_RIGHT) {
+      info.set_y(info.height());
+    }
+  }
+  return info;
+}
+
+std::vector<XrEyeVisibility> OpenXrCompositionLayer::GetXrEyesForComposition()
+    const {
+  if (read_only_data().layout ==
+          device::mojom::XRLayerLayout::kStereoTopBottom ||
+      read_only_data().layout ==
+          device::mojom::XRLayerLayout::kStereoLeftRight) {
+    return {XR_EYE_VISIBILITY_LEFT, XR_EYE_VISIBILITY_RIGHT};
+  }
+  return {XR_EYE_VISIBILITY_BOTH};
 }
 
 }  // namespace device

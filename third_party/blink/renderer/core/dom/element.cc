@@ -158,6 +158,7 @@
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
+#include "third_party/blink/renderer/core/html/display_ad_element_monitor.h"
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_field_set_element.h"
@@ -223,6 +224,7 @@
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_size.h"
 #include "third_party/blink/renderer/core/sanitizer/sanitizer_api.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
+#include "third_party/blink/renderer/core/scroll/scroll_types.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/speculation_rules/document_speculation_rules.h"
@@ -257,6 +259,7 @@
 #include "third_party/blink/renderer/platform/restriction_target_id.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/bidi_paragraph.h"
+#include "third_party/blink/renderer/platform/text/writing_mode_utils.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
@@ -333,6 +336,38 @@ class DisplayLockStyleScope {
   Element* element_;
   bool did_update_children_ = false;
 };
+
+ScrollDirectionPhysical GetPhysicalDirectionForCommand(
+    CommandEventType command,
+    const ComputedStyle& style) {
+  if (command == CommandEventType::kPageUp) {
+    return kScrollUp;
+  } else if (command == CommandEventType::kPageDown) {
+    return kScrollDown;
+  } else if (command == CommandEventType::kPageLeft) {
+    return kScrollLeft;
+  } else if (command == CommandEventType::kPageRight) {
+    return kScrollRight;
+  } else {
+    LogicalToPhysical<bool> mapping(
+        style.GetWritingDirection(),
+        command == CommandEventType::kPageInlineStart,
+        command == CommandEventType::kPageInlineEnd,
+        command == CommandEventType::kPageBlockStart,
+        command == CommandEventType::kPageBlockEnd);
+
+    if (mapping.Top()) {
+      return kScrollUp;
+    } else if (mapping.Bottom()) {
+      return kScrollDown;
+    } else if (mapping.Left()) {
+      return kScrollLeft;
+    } else if (mapping.Right()) {
+      return kScrollRight;
+    }
+  }
+  NOTREACHED();
+}
 
 bool IsRootEditableElementWithCounting(const Element& element) {
   bool is_editable = IsRootEditableElement(element);
@@ -2996,6 +3031,33 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
       cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
+bool Element::HandleScrollCommand(CommandEventType command) {
+  DCHECK(RuntimeEnabledFeatures::HTMLCommandForScrollCommandsEnabled());
+
+  if (!InActiveDocument()) {
+    return false;
+  }
+
+  GetDocument().UpdateStyleAndLayoutForNode(this,
+                                            DocumentUpdateReason::kJavaScript);
+
+  LayoutBox* box = GetLayoutBoxForScrolling();
+  if (!box) {
+    return false;
+  }
+
+  // TODO(457939344): Support root scroller.
+  PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea();
+  if (!scrollable_area) {
+    return false;
+  }
+
+  ScrollDirectionPhysical physical_direction =
+      GetPhysicalDirectionForCommand(command, *box->Style());
+
+  return scrollable_area->ScrollByPageWithSnap(physical_direction);
+}
+
 gfx::Rect Element::BoundsInWidget() const {
   GetDocument().EnsurePaintLocationDataValidForNode(
       this, DocumentUpdateReason::kUnknown);
@@ -3968,6 +4030,11 @@ Node::InsertionNotificationRequest Element::InsertedInto(
       if (auto* context = rare_data->GetDisplayLockContext()) {
         context->ElementConnected();
       }
+
+      if (DisplayAdElementMonitor* ad_monitor =
+              rare_data->GetDisplayAdElementMonitor()) {
+        ad_monitor->EnsureStarted();
+      }
     }
 
     ProcessElementRenderBlocking(GetIdAttribute());
@@ -4147,6 +4214,11 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
         // invoker. Set that invoker to the no-interest state.
         invoker->ChangeInterestState(this, InterestState::kNoInterest);
       }
+    }
+
+    if (DisplayAdElementMonitor* ad_monitor =
+            data->GetDisplayAdElementMonitor()) {
+      ad_monitor->OnElementRemovedOrUntagged();
     }
   }
 
@@ -5185,6 +5257,12 @@ StyleRecalcChange Element::RecalcOwnStyle(
     }
   }
   SetComputedStyle(new_style);
+
+  if (new_style && (GetDocument().documentElement() == this) &&
+      GetDocument().GetLayoutView()->SetScrollbarSizesForViewportUnits(
+          new_style->UnconditionalScrollbarSize())) {
+    GetDocument().GetStyleEngine().UpdateViewportSize();
+  }
 
   if ((!old_style && new_style && new_style->GetCounterDirectives()) ||
       (old_style && new_style &&
@@ -8327,6 +8405,19 @@ bool Element::ActivateDisplayLockIfNeeded(DisplayLockActivationReason reason) {
     }
   }
   return activated;
+}
+
+void Element::SetIsAdRelated() {
+  DCHECK(!IsA<HTMLFrameOwnerElement>(this));
+
+  EnsureElementRareData().EnsureDisplayAdElementMonitor(this);
+}
+
+bool Element::IsAdRelated() const {
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->GetDisplayAdElementMonitor();
+  }
+  return false;
 }
 
 bool Element::HasUndoStack() const {

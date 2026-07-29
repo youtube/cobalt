@@ -170,15 +170,16 @@ class ArcInputOverlayManagerTest : public ChromeAshTestBase {
  protected:
   // ChromeAshTestBase:
   void SetUp() override {
-    ChromeAshTestBase::SetUp();
-    arc_test_input_overlay_manager_ =
-        base::WrapUnique(new TestArcInputOverlayManager());
-
     arc_app_test_.set_wait_compatibility_mode(true);
     arc_app_test_.PreProfileSetUp();
 
+    ChromeAshTestBase::SetUp();
+
+    arc_test_input_overlay_manager_ =
+        base::WrapUnique(new TestArcInputOverlayManager());
+
     profile_ = std::make_unique<TestingProfile>();
-    arc_app_test_.SetUp(profile_.get());
+    arc_app_test_.PostProfileSetUp(profile_.get());
 
     SimulatedAppInstalled(task_environment(), arc_app_test_,
                           kEnabledPackageName,
@@ -191,11 +192,12 @@ class ArcInputOverlayManagerTest : public ChromeAshTestBase {
   }
 
   void TearDown() override {
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     profile_.reset();
     arc_test_input_overlay_manager_->Shutdown();
     arc_test_input_overlay_manager_.reset();
     ChromeAshTestBase::TearDown();
+    arc_app_test_.PostProfileTearDown();
   }
 
   std::unique_ptr<ArcInputOverlayManager> arc_test_input_overlay_manager_;

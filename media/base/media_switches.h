@@ -65,6 +65,7 @@ MEDIA_EXPORT extern const char
 MEDIA_EXPORT extern const char kUseFakeDeviceForMediaStream[];
 MEDIA_EXPORT extern const char kUseFakeMjpegDecodeAccelerator[];
 MEDIA_EXPORT extern const char kUseFileForFakeAudioCapture[];
+MEDIA_EXPORT extern const char kUseFileForNeuralResidualEchoEstimatorModel[];
 MEDIA_EXPORT extern const char kUseFileForFakeVideoCapture[];
 MEDIA_EXPORT extern const char kVideoThreads[];
 
@@ -222,7 +223,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kGlobalMediaControlsUpdatedUI);
 #if !BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaRemotingWithoutFullscreen);
 #endif
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kGlobalMediaControlsPictureInPicture);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kGlobalMediaControlsSeamlessTransfer);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kHardwareMediaKeyHandling);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kHardwareSecureDecryption);
@@ -335,7 +335,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kVSyncMjpegDecoding);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kV4L2H264TemporalLayerHWEncoding);
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoBlitColorAccuracy);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoPictureInPictureControlsUpdate2024);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCastVideoEncoderFrameDrop);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebCodecsVideoEncoderFrameDrop);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebRTCHardwareVideoEncoderFrameDrop);
@@ -350,7 +349,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowEnhancedPipTransition);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableAudioMonitoringOnAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kContextMenuPictureInPictureAndroid);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableSurfaceInputForAndroidVEA);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSurfaceInputForAndroidVEA);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecBlockModel);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecLowDelayMode);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaControlsExpandGesture);

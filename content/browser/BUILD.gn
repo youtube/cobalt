@@ -43,8 +43,8 @@ if (is_android) {
     ]
     deps = [
       "//third_party/rust/font_types/v0_10:lib",
-      "//third_party/rust/read_fonts/v0_35:lib",
-      "//third_party/rust/skrifa/v0_37:lib",
+      "//third_party/rust/read_fonts/v0_36:lib",
+      "//third_party/rust/skrifa/v0_39:lib",
     ]
   }
 }
@@ -59,7 +59,6 @@ source_set("browser") {
   visibility = [
     ":content_sms_parser_fuzzer",
     ":for_content_tests",  # See top of //content/BUILD.gn for why.
-    ":partitioned_popins_policy_fuzzer",
     "//content/app:*",
     "//content/public/browser:browser_sources",
     "//content/test/fuzzer:ad_auction_headers_util_fuzzer",
@@ -489,8 +488,6 @@ source_set("browser") {
     "attribution_reporting/attribution_data_host_manager_impl.h",
     "attribution_reporting/attribution_debug_report.cc",
     "attribution_reporting/attribution_debug_report.h",
-    "attribution_reporting/attribution_features.cc",
-    "attribution_reporting/attribution_features.h",
     "attribution_reporting/attribution_host.cc",
     "attribution_reporting/attribution_host.h",
     "attribution_reporting/attribution_info.cc",
@@ -1385,6 +1382,8 @@ source_set("browser") {
     "media/capture/desktop_streams_registry_impl.cc",
     "media/capture/desktop_streams_registry_impl.h",
     "permissions/permission_descriptor_util.cc",
+    "web_contents_based_canceller.cc",
+    "web_contents_based_canceller.h",
 
     # TODO(crbug.com/202736352): This is built even if enable_screen_capture is
     # false. Consider better separation of the screen capture and the other
@@ -1976,10 +1975,6 @@ source_set("browser") {
     "renderer_host/page_impl.h",
     "renderer_host/page_lifecycle_state_manager.cc",
     "renderer_host/page_lifecycle_state_manager.h",
-    "renderer_host/partitioned_popins/partitioned_popins_navigation_throttle.cc",
-    "renderer_host/partitioned_popins/partitioned_popins_navigation_throttle.h",
-    "renderer_host/partitioned_popins/partitioned_popins_policy.cc",
-    "renderer_host/partitioned_popins/partitioned_popins_policy.h",
     "renderer_host/policy_container_host.cc",
     "renderer_host/policy_container_host.h",
     "renderer_host/private_network_access_util.cc",
@@ -2362,8 +2357,6 @@ source_set("browser") {
     "web_contents/file_chooser_impl.h",
     "web_contents/java_script_dialog_commit_deferring_condition.cc",
     "web_contents/java_script_dialog_commit_deferring_condition.h",
-    "web_contents/partitioned_popins_controller.cc",
-    "web_contents/partitioned_popins_controller.h",
     "web_contents/slow_web_preference_cache.cc",
     "web_contents/slow_web_preference_cache.h",
     "web_contents/web_contents_impl.cc",
@@ -2978,10 +2971,12 @@ source_set("browser") {
   # built depending on the available implementations for each platform.
   if (enable_screen_capture) {
     sources += [
+      "media/capture/capture_util.h",
       "media/capture/frame_sink_video_capture_device.cc",
       "media/capture/frame_sink_video_capture_device.h",
       "media/capture/pip_screen_capture_coordinator.cc",
       "media/capture/pip_screen_capture_coordinator.h",
+      "media/capture/pip_screen_capture_coordinator_proxy.h",
       "media/capture/sub_capture_target_id_web_contents_helper.cc",
       "media/capture/sub_capture_target_id_web_contents_helper.h",
       "media/capture/web_contents_auto_scaler.cc",
@@ -3018,6 +3013,8 @@ source_set("browser") {
     }
     if (is_mac) {
       sources += [
+        "media/capture/capture_util_mac.h",
+        "media/capture/capture_util_mac.mm",
         "media/capture/desktop_capture_device_mac.cc",
         "media/capture/desktop_capture_device_mac.h",
         "media/capture/io_surface_capture_device_base_mac.cc",
@@ -3027,10 +3024,10 @@ source_set("browser") {
         "media/capture/native_screen_capture_picker_mac.mm",
         "media/capture/pip_screen_capture_coordinator_impl.cc",
         "media/capture/pip_screen_capture_coordinator_impl.h",
+        "media/capture/pip_screen_capture_coordinator_proxy_impl.cc",
+        "media/capture/pip_screen_capture_coordinator_proxy_impl.h",
         "media/capture/screen_capture_kit_device_mac.h",
         "media/capture/screen_capture_kit_device_mac.mm",
-        "media/capture/screen_capture_kit_device_utils_mac.h",
-        "media/capture/screen_capture_kit_device_utils_mac.mm",
         "media/capture/screen_capture_kit_fullscreen_module.h",
         "media/capture/screen_capture_kit_fullscreen_module.mm",
         "media/capture/views_widget_video_capture_device_mac.cc",
@@ -3795,22 +3792,4 @@ fuzzer_test("clear_site_data_handler_fuzzer") {
   sources = [ "browsing_data/clear_site_data_handler_fuzzer.cc" ]
   deps = [ "//content/test:test_support" ]
   seed_corpus = "//content/test/data/fuzzer_corpus/clear_site_data/"
-}
-
-fuzzer_test("partitioned_popins_policy_fuzzer") {
-  sources =
-      [ "renderer_host/partitioned_popins/partitioned_popins_policy_fuzzer.cc" ]
-  deps = [
-    # This parser depends on `./renderer_host/partitioned_popins/partitioned_popins_policy.h`
-    # from `:browser`.
-    #
-    # However `:browser` doesn't properly declare its dependency on
-    # `//content/public/renderer:renderer_sources`, causing linker errors if
-    # it was used alone.
-    # As a result, we depend on both here:
-    ":browser",
-    "//content/public/browser:browser_sources",
-    "//content/public/renderer:renderer_sources",
-  ]
-  seed_corpus = "//content/test/data/fuzzer_corpus/partitioned_popin_policy/"
 }

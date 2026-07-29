@@ -402,7 +402,6 @@ void ImeAdapterAndroid::FinishComposingText(JNIEnv* env) {
 
 bool ImeAdapterAndroid::InsertMediaFromURL(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& obj,
     const base::android::JavaParamRef<jstring>& url) {
   auto* input_handler = GetFocusedFrameWidgetInputHandler();
   if (!input_handler) {
@@ -638,6 +637,16 @@ std::vector<ui::ImeTextSpan> ImeAdapterAndroid::GetImeTextSpansFromJava(
             });
 
   return ime_text_spans;
+}
+
+void ImeAdapterAndroid::PerformSpellCheck(JNIEnv* env) {
+  RenderFrameHostImpl* rfh =
+      static_cast<RenderFrameHostImpl*>(GetFocusedFrame());
+  if (!rfh) {
+    return;
+  }
+
+  rfh->GetAssociatedLocalFrame()->PerformSpellCheck();
 }
 
 }  // namespace content

@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">Presiona Apps y, luego, Apps predeterminadas</translation>
 <translation id="1415402041810619267">URL acortada</translation>
 <translation id="1415855080660575082">Permite que Chrome comparta tus pestañas recientes con tu dispositivo para verlas en los resultados de la búsqueda y en la lista de apps del dispositivo. Puedes activar o desactivar esta opción en la configuración de Chrome.</translation>
+<translation id="1420688843103859429">Navega hacia atrás y adelante deslizando dos dedos en el panel táctil</translation>
 <translation id="1432650420699700107">Los sitios pueden solicitar permiso para conectarse a cualquier dispositivo de tu red local</translation>
 <translation id="1448064542941920355">Reducir zoom</translation>
 <translation id="1464044141348608623">No permitir que los sitios sepan en qué momento estás usando activamente el dispositivo</translation>
@@ -218,7 +219,6 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="3285500645985761267">Permitir que los sitios relacionados vean tu actividad en el grupo</translation>
 <translation id="3295019059349372795">Capítulo 11: La maravillosa Ciudad Esmeralda de Oz</translation>
 <translation id="3295602654194328831">Ocultar información</translation>
-<translation id="3328801116991980348">Información del sitio</translation>
 <translation id="3333961966071413176">Todos los contactos</translation>
 <translation id="3360338140203645771">¿Quieres borrar el zoom guardado?</translation>
 <translation id="3362437373201486687">Buscando dispositivos Bluetooth</translation>
@@ -243,6 +243,7 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="3611658447322220736">Permitir que los sitios cerrados recientemente terminen de enviar y recibir datos</translation>
 <translation id="3619294456800709762">Permitir que los sitios ingresen automáticamente al modo de pantalla en pantalla</translation>
 <translation id="3628308229821498208">Búsquedas sugeridas</translation>
+<translation id="363748948745453283">Usa la ubicación aproximada</translation>
 <translation id="3641456520301071208">Los sitios pueden solicitar tu ubicación</translation>
 <translation id="3658847490588580244">Hoja inferior del navegador predeterminado</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> sitio en el grupo de sitios de <ph name="RWS_OWNER" /> puede ver tu actividad en el grupo}other{<ph name="RWS_MEMBERS_COUNT" /> sitios en el grupo de sitios de <ph name="RWS_OWNER" /> pueden ver tu actividad en el grupo}}</translation>
@@ -433,8 +434,10 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="5750869797196646528">Seguimiento de manos</translation>
 <translation id="5753570386948603678">Borrar del historial</translation>
 <translation id="5771720122942595109">Bloqueado: <ph name="PERMISSION_1" /></translation>
+<translation id="5792627621688759634">Desliza el dedo para pasar de página con un panel táctil</translation>
 <translation id="5801457289562671820">Valor recomendado por tu organización</translation>
 <translation id="5804241973901381774">Permisos</translation>
+<translation id="5817042798620209981">Información del sitio, diálogo</translation>
 <translation id="5822675474983796325">Hoja inferior de personalización de la página de nueva pestaña abierta en tamaño completo</translation>
 <translation id="5833899990800318936">No permitir que los sitios usen JavaScript</translation>
 <translation id="583673505367439042">Permitir que los sitios soliciten permiso para editar archivos y carpetas del dispositivo</translation>
@@ -675,7 +678,7 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="8487700953926739672">Disponible sin conexión</translation>
 <translation id="848952951823693243">Solicitar siempre el sitio móvil</translation>
 <translation id="8492822722330266509">Permitir que los sitios abran ventanas emergentes y usen redireccionamientos</translation>
-<translation id="8499083585497694743">Dejar de silenciar el micrófono</translation>
+<translation id="8499083585497694743">Activar el micrófono</translation>
 <translation id="8514955299594277296">No permitir que los sitios guarden datos en tu dispositivo (no recomendado)</translation>
 <translation id="851751545965956758">Impedir que los sitios se conecten a los dispositivos</translation>
 <translation id="8525306231823319788">Pantalla completa</translation>

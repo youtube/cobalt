@@ -2699,14 +2699,7 @@ CSSValue* ComputedStyleUtils::ValueForAnimationTimeline(
   }
   if (timeline.IsName()) {
     const ScopedCSSName& scoped_name = timeline.GetName();
-    const AtomicString& name = scoped_name.GetName();
-    // Serialize as <string> if the value is not a valid <custom-ident>.
-    if (css_parsing_utils::IsCSSWideKeyword(name) ||
-        EqualIgnoringASCIICase(name, "auto") ||
-        EqualIgnoringASCIICase(name, "none")) {
-      return MakeGarbageCollected<CSSStringValue>(name);
-    }
-    return MakeGarbageCollected<CSSCustomIdentValue>(name);
+    return ValueForAnimationName(scoped_name.GetName());
   }
   if (timeline.IsView()) {
     const StyleTimeline::ViewData& view_data = timeline.GetView();
@@ -2841,6 +2834,61 @@ CSSValue* ComputedStyleUtils::ValueForTimelineTriggerTimelineList(
           : Vector<StyleTimeline>{CSSAnimationData::
                                       InitialTimelineTriggerSource()},
       &ValueForAnimationTimeline, style);
+}
+
+CSSValue* ComputedStyleUtils::ValueForAnimationName(const AtomicString& name) {
+  // Serialize as <string> if the value is not a valid <custom-ident>.
+  if (name.empty()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+  if (css_parsing_utils::IsValidIdentAnimationName(name)) {
+    return MakeGarbageCollected<CSSCustomIdentValue>(name);
+  }
+  return MakeGarbageCollected<CSSStringValue>(name);
+}
+
+CSSValue* ComputedStyleUtils::ValueForAnimationNameList(
+    const CSSAnimationData* animation_data,
+    const ComputedStyle& style) {
+  CSSValueList* list = CSSValueList::CreateCommaSeparated();
+  if (animation_data) {
+    for (AtomicString name : animation_data->NameList()) {
+      list->Append(*ValueForAnimationName(name));
+    }
+  } else {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+  }
+  return list;
+}
+
+bool ComputedStyleUtils::AnimationNameIsTimingFunction(
+    const AtomicString& name) {
+  return EqualIgnoringASCIICase(name, "linear") ||
+         EqualIgnoringASCIICase(name, "ease") ||
+         EqualIgnoringASCIICase(name, "ease-in") ||
+         EqualIgnoringASCIICase(name, "ease-out") ||
+         EqualIgnoringASCIICase(name, "ease-in-out") ||
+         EqualIgnoringASCIICase(name, "step-start") ||
+         EqualIgnoringASCIICase(name, "step-end");
+}
+
+bool ComputedStyleUtils::AnimationNameIsFillMode(const AtomicString& name) {
+  return EqualIgnoringASCIICase(name, "none") ||
+         EqualIgnoringASCIICase(name, "forwards") ||
+         EqualIgnoringASCIICase(name, "backwards") ||
+         EqualIgnoringASCIICase(name, "both");
+}
+
+bool ComputedStyleUtils::AnimationNameIsDirection(const AtomicString& name) {
+  return EqualIgnoringASCIICase(name, "normal") ||
+         EqualIgnoringASCIICase(name, "reverse") ||
+         EqualIgnoringASCIICase(name, "alternate") ||
+         EqualIgnoringASCIICase(name, "alternate-reverse");
+}
+
+bool ComputedStyleUtils::AnimationNameIsPlayState(const AtomicString& name) {
+  return EqualIgnoringASCIICase(name, "running") ||
+         EqualIgnoringASCIICase(name, "paused");
 }
 
 CSSValueList* ComputedStyleUtils::ValuesForBorderRadiusCorner(
@@ -3969,7 +4017,7 @@ CSSValueList* ComputedStyleUtils::ValuesForShorthandProperty(
   return list;
 }
 
-CSSValueList* ComputedStyleUtils::ValuesForGapDecorationRuleOutsetShorthand(
+CSSValueList* ComputedStyleUtils::ValuesForGapDecorationRuleInsetShorthand(
     const StylePropertyShorthand& shorthand,
     const ComputedStyle& style,
     const LayoutObject* layout_object,
@@ -3979,33 +4027,33 @@ CSSValueList* ComputedStyleUtils::ValuesForGapDecorationRuleOutsetShorthand(
   CHECK_EQ(shorthand.length(), 4u);
   CHECK(shorthand.properties()[0]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kEdgeStartOutset)));
+          direction, CSSGapDecorationPropertyType::kEdgeStartInset)));
   CHECK(shorthand.properties()[1]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kEdgeEndOutset)));
+          direction, CSSGapDecorationPropertyType::kEdgeEndInset)));
   CHECK(shorthand.properties()[2]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kInteriorStartOutset)));
+          direction, CSSGapDecorationPropertyType::kInteriorStartInset)));
   CHECK(shorthand.properties()[3]->IDEquals(
       CSSGapDecorationUtils::GetLonghandProperty(
-          direction, CSSGapDecorationPropertyType::kInteriorEndOutset)));
+          direction, CSSGapDecorationPropertyType::kInteriorEndInset)));
 
-  const CSSValue* rule_edge_start_outset_value =
+  const CSSValue* rule_edge_start_inset_value =
       shorthand.properties()[0]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
-  const CSSValue* rule_edge_end_outset_value =
+  const CSSValue* rule_edge_end_inset_value =
       shorthand.properties()[1]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
-  const CSSValue* rule_interior_start_outset_value =
+  const CSSValue* rule_interior_start_inset_value =
       shorthand.properties()[2]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
-  const CSSValue* rule_interior_end_outset_value =
+  const CSSValue* rule_interior_end_inset_value =
       shorthand.properties()[3]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
 
   // All 4 properties must be specified.
-  if (!rule_edge_start_outset_value || !rule_edge_end_outset_value ||
-      !rule_interior_start_outset_value || !rule_interior_end_outset_value) {
+  if (!rule_edge_start_inset_value || !rule_edge_end_inset_value ||
+      !rule_interior_start_inset_value || !rule_interior_end_inset_value) {
     return nullptr;
   }
 
@@ -4013,11 +4061,11 @@ CSSValueList* ComputedStyleUtils::ValuesForGapDecorationRuleOutsetShorthand(
   CSSValueList* interior_values_list = CSSValueList::CreateSpaceSeparated();
   CSSValueList* full_list = CSSValueList::CreateSlashSeparated();
 
-  edge_values_list->Append(*rule_edge_start_outset_value);
-  edge_values_list->Append(*rule_edge_end_outset_value);
+  edge_values_list->Append(*rule_edge_start_inset_value);
+  edge_values_list->Append(*rule_edge_end_inset_value);
 
-  interior_values_list->Append(*rule_interior_start_outset_value);
-  interior_values_list->Append(*rule_interior_end_outset_value);
+  interior_values_list->Append(*rule_interior_start_inset_value);
+  interior_values_list->Append(*rule_interior_end_inset_value);
 
   full_list->Append(*edge_values_list);
   full_list->Append(*interior_values_list);
@@ -4356,8 +4404,7 @@ CSSValueList* ComputedStyleUtils::ValuesForGridTemplateShorthand(
       template_area_values);
 }
 
-const CSSValue*
-ComputedStyleUtils::ValuesForBidirectionalGapRuleOutsetShorthand(
+const CSSValue* ComputedStyleUtils::ValuesForBidirectionalGapRuleInsetShorthand(
     const StylePropertyShorthand& shorthand,
     const ComputedStyle& style,
     const LayoutObject* layout_object,
@@ -4389,7 +4436,7 @@ ComputedStyleUtils::ValuesForBidirectionalGapRuleOutsetShorthand(
       shorthand.properties()[7]->CSSValueFromComputedStyle(
           style, layout_object, allow_visited_style, value_phase);
 
-  // The `rule-outset` shorthand is bi-directional, so the values should be
+  // The `rule-inset` shorthand is bi-directional, so the values should be
   // equivalent.
   //
   // https://drafts.csswg.org/css-gaps-1/#outset
@@ -4750,6 +4797,11 @@ CSSValue* ComputedStyleUtils::ValueForIntrinsicLength(
     const StyleIntrinsicLength& intrinsic_length) {
   if (intrinsic_length.IsNoOp()) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+
+  if (intrinsic_length.MatchesElement()) {
+    DCHECK(RuntimeEnabledFeatures::ResponsiveIframesEnabled());
+    return CSSIdentifierValue::Create(CSSValueID::kFromElement);
   }
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();

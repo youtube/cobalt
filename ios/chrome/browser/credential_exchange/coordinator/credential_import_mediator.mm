@@ -4,7 +4,9 @@
 
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_import_mediator.h"
 
+#import "components/password_manager/core/browser/import/import_results.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
+#import "components/webauthn/core/browser/passkey_model.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_importer.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_import_consumer.h"
 #import "ios/chrome/browser/data_import/public/import_data_item.h"
@@ -32,14 +34,16 @@
                    userEmail:(std::string)userEmail
      savedPasswordsPresenter:
          (std::unique_ptr<password_manager::SavedPasswordsPresenter>)
-             savedPasswordsPresenter {
+             savedPasswordsPresenter
+                passkeyModel:(webauthn::PasskeyModel*)passkeyModel {
   self = [super init];
   if (self) {
     _savedPasswordsPresenter = std::move(savedPasswordsPresenter);
     _savedPasswordsPresenter->Init();
     _credentialImporter = [[CredentialImporter alloc]
                initWithDelegate:self
-        savedPasswordsPresenter:_savedPasswordsPresenter.get()];
+        savedPasswordsPresenter:_savedPasswordsPresenter.get()
+                   passkeyModel:passkeyModel];
     [_credentialImporter prepareImport:UUID];
     _delegate = delegate;
     _userEmail = std::move(userEmail);
@@ -60,6 +64,7 @@
 
 - (void)startImportingCredentialsWithSecurityDomainSecrets:
     (NSArray<NSData*>*)securityDomainSecrets {
+  [_consumer importStarted];
   [_credentialImporter
       startImportingCredentialsWithSecurityDomainSecrets:securityDomainSecrets];
 }
@@ -75,12 +80,20 @@
                                    count:passwordCount]];
   [_consumer
       setImportDataItem:[[ImportDataItem alloc]
-                            // TODO(crbug.com/450982128): Add passkey type.
-                            initWithType:ImportDataItemType::kBookmarks
+                            initWithType:ImportDataItemType::kPasskeys
                                   status:ImportDataItemImportStatus::kReady
                                    count:passkeyCount]];
 
   [_delegate showImportScreen];
+}
+
+- (void)onPasswordsImported:(const password_manager::ImportResults&)results {
+  // TODO(crbug.com/450982128): Handle displaying errors.
+  [_consumer
+      setImportDataItem:[[ImportDataItem alloc]
+                            initWithType:ImportDataItemType::kPasswords
+                                  status:ImportDataItemImportStatus::kImported
+                                   count:results.number_imported]];
 }
 
 @end

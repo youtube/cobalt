@@ -5,6 +5,8 @@
 package org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip.PinnedTabStripProperties.ANIMATION_MANAGER;
+import static org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip.PinnedTabStripProperties.IS_VISIBILITY_ANIMATION_RUNNING_SUPPLIER;
 import static org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip.PinnedTabStripProperties.IS_VISIBLE;
 import static org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip.PinnedTabStripProperties.SCROLL_TO_POSITION;
 
@@ -18,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -42,6 +45,8 @@ import org.chromium.ui.recyclerview.widget.ItemTouchHelper2;
 public class PinnedTabStripCoordinator {
     private final PinnedTabStripMediator mMediator;
     private final TabListRecyclerView mPinnedTabsRecyclerView;
+    private final ObservableSupplierImpl<Boolean> mIsVisibilityAnimationRunningSupplier;
+    private final PinnedTabStripAnimationManager mAnimationManager;
 
     /**
      * Constructor for PinnedTabStripCoordinator.
@@ -68,10 +73,16 @@ public class PinnedTabStripCoordinator {
                                         parentView,
                                         /* attachToParent= */ false);
         TabListModel pinnedTabsModelList = new TabListModel();
+        mIsVisibilityAnimationRunningSupplier = new ObservableSupplierImpl<>(false);
+        mAnimationManager = new PinnedTabStripAnimationManager(mPinnedTabsRecyclerView);
         PropertyModel pinnedTabStripPropertyModel =
                 new PropertyModel.Builder(PinnedTabStripProperties.ALL_KEYS)
                         .with(IS_VISIBLE, false)
                         .with(SCROLL_TO_POSITION, -1)
+                        .with(ANIMATION_MANAGER, mAnimationManager)
+                        .with(
+                                IS_VISIBILITY_ANIMATION_RUNNING_SUPPLIER,
+                                mIsVisibilityAnimationRunningSupplier)
                         .build();
 
         // Setup the adapter.
@@ -127,6 +138,11 @@ public class PinnedTabStripCoordinator {
     /** Returns the {@link TabListRecyclerView} for the pinned tabs strip. */
     public TabListRecyclerView getPinnedTabsRecyclerView() {
         return mPinnedTabsRecyclerView;
+    }
+
+    /** Returns a supplier that indicates whether the pinned tab strip is animating. */
+    public ObservableSupplier<Boolean> getIsVisibilityAnimationRunningSupplier() {
+        return mIsVisibilityAnimationRunningSupplier;
     }
 
     /** Called when the pinned tabs strip is scrolled. */

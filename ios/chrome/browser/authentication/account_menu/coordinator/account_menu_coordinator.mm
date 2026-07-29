@@ -338,7 +338,7 @@ void maybeShowSettingsIPH(Browser* browser) {
 
 - (void)didTapAddAccount {
   auto style = SigninContextStyle::kDefault;
-  auto accessPoint = signin_metrics::AccessPoint::kAccountMenu;
+  auto accessPoint = signin_metrics::AccessPoint::kAccountMenuSwitchAccount;
   if (_addAccountSigninCoordinator.viewWillPersist) {
     return;
   }
@@ -384,7 +384,8 @@ void maybeShowSettingsIPH(Browser* browser) {
   AuthenticationFlow* authenticationFlow = [[AuthenticationFlow alloc]
                initWithBrowser:self.browser
                       identity:identity
-                   accessPoint:signin_metrics::AccessPoint::kAccountMenu
+                   accessPoint:signin_metrics::AccessPoint::
+                                   kAccountMenuSwitchAccount
           precedingHistorySync:NO
              postSignInActions:
                  {PostSignInAction::kShowIdentityConfirmationSnackbar}
@@ -442,8 +443,8 @@ void maybeShowSettingsIPH(Browser* browser) {
   }
   trusted_vault::SecurityDomainId securityDomainID =
       trusted_vault::SecurityDomainId::kChromeSync;
-  syncer::TrustedVaultUserActionTriggerForUMA trigger =
-      syncer::TrustedVaultUserActionTriggerForUMA::kAccountMenu;
+  trusted_vault::TrustedVaultUserActionTriggerForUMA trigger =
+      trusted_vault::TrustedVaultUserActionTriggerForUMA::kAccountMenu;
   SigninTrustedVaultDialogIntent intent =
       SigninTrustedVaultDialogIntentFetchKeys;
   CHECK(!_trustedVaultReauthenticationCoordinator, base::NotFatalUntil::M145);
@@ -466,8 +467,8 @@ void maybeShowSettingsIPH(Browser* browser) {
   }
   trusted_vault::SecurityDomainId securityDomainID =
       trusted_vault::SecurityDomainId::kChromeSync;
-  syncer::TrustedVaultUserActionTriggerForUMA trigger =
-      syncer::TrustedVaultUserActionTriggerForUMA::kAccountMenu;
+  trusted_vault::TrustedVaultUserActionTriggerForUMA trigger =
+      trusted_vault::TrustedVaultUserActionTriggerForUMA::kAccountMenu;
   SigninTrustedVaultDialogIntent intent =
       SigninTrustedVaultDialogIntentDegradedRecoverability;
   CHECK(!_trustedVaultReauthenticationCoordinator, base::NotFatalUntil::M145);
@@ -522,7 +523,7 @@ void maybeShowSettingsIPH(Browser* browser) {
   }
   [_addAccountSigninCoordinator stop];
   signin_metrics::AccessPoint accessPoint =
-      signin_metrics::AccessPoint::kAccountMenu;
+      signin_metrics::AccessPoint::kAccountMenuSwitchAccount;
   signin_metrics::PromoAction promoAction =
       signin_metrics::PromoAction::PROMO_ACTION_NO_SIGNIN_PROMO;
   SigninContextStyle style = SigninContextStyle::kDefault;

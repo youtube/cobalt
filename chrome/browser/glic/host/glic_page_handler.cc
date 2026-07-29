@@ -104,6 +104,8 @@
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/window_open_disposition.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/geometry/mojom/geometry.mojom.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/widget/widget.h"
@@ -597,6 +599,30 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                                                std::move(callback));
   }
 
+  void OpenLinkInPopup(const ::GURL& url,
+                       int32_t popup_width,
+                       int32_t popup_height) override {
+    if (!url.SchemeIsHTTPOrHTTPS()) {
+      return;
+    }
+
+    content::WebContents* parent_web_contents = page_handler_->webui_contents();
+    gfx::NativeView native_view = parent_web_contents->GetContentNativeView();
+    const display::Display& display =
+        display::Screen::Get()->GetDisplayNearestView(native_view);
+    const gfx::Rect work_area = display.work_area();
+
+    // Calculate the center coordinates.
+    const int x = work_area.x() + (work_area.width() - popup_width) / 2;
+    const int y = work_area.y() + (work_area.height() - popup_height) / 2;
+
+    NavigateParams params(profile_, url, ui::PAGE_TRANSITION_LINK);
+    params.disposition = WindowOpenDisposition::NEW_POPUP;
+    params.opened_by_another_window = true;
+    params.window_features.bounds = gfx::Rect(x, y, popup_width, popup_height);
+    Navigate(&params);
+  }
+
   void WebClientCreated(
       ::mojo::PendingRemote<glic::mojom::WebClient> web_client,
       WebClientCreatedCallback callback) override {
@@ -798,10 +824,13 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
             actor_service->GetPolicyChecker().can_act_on_web();
       }
     }
-    state->enable_activate_tab =
-        base::FeatureList::IsEnabled(features::kGlicActivateTabApi);
+    state->enable_activate_tab = base::FeatureList::IsEnabled(
+        glic::mojom::features::kGlicActivateTabApi);
     state->enable_get_tab_by_id =
         base::FeatureList::IsEnabled(features::kGlicGetTabByIdApi);
+    state->enable_open_password_manager_settings_page =
+        base::FeatureList::IsEnabled(
+            features::kGlicOpenPasswordManagerSettingsPageApi);
 
     std::move(callback).Run(std::move(state));
   }
@@ -872,6 +901,14 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
             base::UserMetricsAction("GlicSessionSettingsOpened.Default"));
         break;
     }
+  }
+
+  void OpenPasswordManagerSettingsPage() override {
+    if (!base::FeatureList::IsEnabled(
+            features::kGlicOpenPasswordManagerSettingsPageApi)) {
+      return;
+    }
+    ::glic::OpenPasswordManagerSettingsPage(profile_);
   }
 
   void ClosePanel() override { host().ClosePanel(page_handler_); }
@@ -1076,11 +1113,22 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     host().instance_delegate().UninterruptActorTask(actor::TaskId(task_id));
   }
 
-  void ActivateTab(int32_t tab_id) override {
-    if (!base::FeatureList::IsEnabled(features::kGlicActivateTabApi)) {
+  void CreateActorTab(int32_t task_id,
+                      bool open_in_background,
+                      std::optional<int32_t> initiator_tab_id,
+                      std::optional<int32_t> initiator_window_id,
+                      CreateActorTabCallback callback) override {
+    if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
+      receiver_.ReportBadMessage(
+          "StopActorTask cannot be called without GlicActor enabled.");
       return;
     }
+    host().instance_delegate().CreateActorTab(
+        actor::TaskId(task_id), open_in_background, initiator_tab_id,
+        initiator_window_id, std::move(callback));
+  }
 
+  void ActivateTab(int32_t tab_id) override {
     tabs::TabInterface* tab = tabs::TabHandle(tab_id).Get();
     if (!tab) {
       return;
@@ -1090,6 +1138,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       return;
     }
 
+    glic_service_->metrics()->OnActivateTabFromInstance(tab);
     contents->GetDelegate()->ActivateContents(contents);
   }
 
@@ -1757,7 +1806,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     for (const auto& credential : credentials) {
       mojo_credentials.push_back(actor::webui::mojom::Credential::New(
           credential.id.value(), base::UTF16ToUTF8(credential.username),
-          base::UTF16ToUTF8(credential.source_site_or_app)));
+          base::UTF16ToUTF8(credential.source_site_or_app),
+          credential.request_origin));
     }
     base::flat_map<std::string, SkBitmap> mojo_icons;
     for (const auto& [site_or_app, image] : icons) {

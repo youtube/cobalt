@@ -19,11 +19,9 @@ class ScriptState;
 class WritableStream;
 
 class PatchSupplement : public GarbageCollected<PatchSupplement>,
-                        public Supplement<Document> {
+                        public GarbageCollectedMixin {
  public:
-  explicit PatchSupplement(Document& document)
-      : Supplement<Document>(document) {}
-  static const char kSupplementName[];
+  PatchSupplement() = default;
 
   // Supplement functionality.
   static PatchSupplement* From(Document&);

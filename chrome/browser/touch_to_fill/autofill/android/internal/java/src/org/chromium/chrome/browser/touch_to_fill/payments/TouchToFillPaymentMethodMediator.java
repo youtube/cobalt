@@ -12,10 +12,10 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_SELECTION_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.NON_TRANSFORMING_BNPL_ISSUER_CONTEXT_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ON_ISSUER_CLICK_ACTION;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.APPLY_LINK_DEACTIVATED_STYLE;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.HIDE_OPTIONS_LINK_TEXT;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.ON_LINK_CLICK_CALLBACK;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.TERMS_TEXT_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressTermsProperties.APPLY_LINK_DEACTIVATED_STYLE;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressTermsProperties.HIDE_OPTIONS_LINK_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressTermsProperties.ON_LINK_CLICK_CALLBACK;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressTermsProperties.TERMS_TEXT_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.IS_ENABLED;
@@ -53,8 +53,8 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ALL_LOYALTY_CARDS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_ISSUER;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_FOOTER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_HEADER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_TERMS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_TOS_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ERROR_DESCRIPTION;
@@ -111,8 +111,8 @@ import org.chromium.chrome.browser.touch_to_fill.common.TouchToFillResourceProvi
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodComponent.Delegate;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.AllLoyaltyCardsItemProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerTosTextItemProperties;
-import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressTermsProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ErrorDescriptionProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.FooterProperties;
@@ -214,6 +214,22 @@ class TouchToFillPaymentMethodMediator {
         int MAX_VALUE = DISMISS;
     }
 
+    /**
+     * The Buy Now, Pay Later (BNPL) issuers.
+     *
+     * <p>Entries should not be renumbered and numeric values should never be reused. Needs to stay
+     * in sync with BnplIssuerId in enums.xml.
+     */
+    @IntDef({BnplIssuer.AFFIRM, BnplIssuer.ZIP, BnplIssuer.AFTERPAY, BnplIssuer.KLARNA})
+    @Retention(RetentionPolicy.SOURCE)
+    @interface BnplIssuer {
+        int AFFIRM = 0;
+        int ZIP = 1;
+        int AFTERPAY = 2;
+        int KLARNA = 3;
+        int MAX_VALUE = KLARNA;
+    }
+
     @VisibleForTesting
     static final String TOUCH_TO_FILL_CREDIT_CARD_OUTCOME_HISTOGRAM =
             "Autofill.TouchToFill.CreditCard.Outcome2";
@@ -256,6 +272,14 @@ class TouchToFillPaymentMethodMediator {
     @VisibleForTesting
     static final String TOUCH_TO_FILL_NUMBER_OF_AFFILIATED_LOYALTY_CARDS_SHOWN =
             "Autofill.TouchToFill.LoyaltyCard.NumberOfAffiliatedLoyaltyCardsShown";
+
+    @VisibleForTesting
+    static final String TOUCH_TO_FILL_BNPL_SELECT_ISSUER_SCREEN_LINKED_ISSUER_SELECTED =
+            "Autofill.TouchToFill.Bnpl.SelectIssuerScreen.LinkedIssuerSelected";
+
+    @VisibleForTesting
+    static final String TOUCH_TO_FILL_BNPL_SELECT_ISSUER_SCREEN_UNLINKED_ISSUER_SELECTED =
+            "Autofill.TouchToFill.Bnpl.SelectIssuerScreen.UnlinkedIssuerSelected";
 
     // LINT.IfChange
     private static final String WALLET_LINK_TEXT = "wallet.google.com";
@@ -566,7 +590,7 @@ class TouchToFillPaymentMethodMediator {
                         createProgressIconModel(
                                 R.string
                                         .autofill_pending_dialog_loading_accessibility_description)));
-        progressScreenModel.add(buildFooterForBnplSelectionProgress(/* isInProgress= */ true));
+        progressScreenModel.add(buildTermsForBnplSelectionProgress(/* isInProgress= */ true));
 
         mModel.set(SHEET_ITEMS, progressScreenModel);
         mModel.set(
@@ -609,7 +633,7 @@ class TouchToFillPaymentMethodMediator {
             sheetItems.add(new ListItem(BNPL_ISSUER, createBnplIssuerContextModel(issuerContext)));
         }
 
-        sheetItems.add(buildFooterForBnplSelectionProgress(/* isInProgress= */ false));
+        sheetItems.add(buildTermsForBnplSelectionProgress(/* isInProgress= */ false));
 
         mModel.set(
                 SHEET_CONTENT_DESCRIPTION_ID,
@@ -875,12 +899,22 @@ class TouchToFillPaymentMethodMediator {
         mDelegate.bnplSuggestionSelected(suggestion.getPaymentsPayload().getExtractedAmount());
     }
 
-    private void onAcceptedBnplIssuer(String issuerId) {
+    private void onAcceptedBnplIssuer(String issuerId, boolean isLinked) {
         if (!mInputProtector.shouldInputBeProcessed()) {
             return;
         }
         showProgressScreen();
         mDelegate.onBnplIssuerSuggestionSelected(issuerId);
+
+        @BnplIssuer Integer issuer = getEnumFromBnplIssuerId(issuerId);
+        if (issuer != null) {
+            RecordHistogram.recordEnumeratedHistogram(
+                    isLinked
+                            ? TOUCH_TO_FILL_BNPL_SELECT_ISSUER_SCREEN_LINKED_ISSUER_SELECTED
+                            : TOUCH_TO_FILL_BNPL_SELECT_ISSUER_SCREEN_UNLINKED_ISSUER_SELECTED,
+                    issuer,
+                    BnplIssuer.MAX_VALUE);
+        }
     }
 
     private void onErrorOkPressed() {
@@ -974,7 +1008,10 @@ class TouchToFillPaymentMethodMediator {
                         .with(ISSUER_LINKED, issuerContext.isLinked())
                         .with(
                                 ON_ISSUER_CLICK_ACTION,
-                                () -> this.onAcceptedBnplIssuer(issuerContext.getIssuerId()))
+                                () ->
+                                        this.onAcceptedBnplIssuer(
+                                                issuerContext.getIssuerId(),
+                                                issuerContext.isLinked()))
                         .with(APPLY_ISSUER_DEACTIVATED_STYLE, !issuerContext.isEligible());
         return bnplIssuerModelBuilder.build();
     }
@@ -1156,10 +1193,10 @@ class TouchToFillPaymentMethodMediator {
                         .build());
     }
 
-    private ListItem buildFooterForBnplSelectionProgress(boolean isInProgress) {
+    private ListItem buildTermsForBnplSelectionProgress(boolean isInProgress) {
         return new ListItem(
-                BNPL_SELECTION_PROGRESS_FOOTER,
-                new PropertyModel.Builder(BnplSelectionProgressFooterProperties.ALL_KEYS)
+                BNPL_SELECTION_PROGRESS_TERMS,
+                new PropertyModel.Builder(BnplSelectionProgressTermsProperties.ALL_KEYS)
                         .with(TERMS_TEXT_ID, R.string.autofill_bnpl_issuer_bottom_sheet_terms_label)
                         .with(
                                 HIDE_OPTIONS_LINK_TEXT,
@@ -1211,6 +1248,21 @@ class TouchToFillPaymentMethodMediator {
                 TOUCH_TO_FILL_LOYALTY_CARD_OUTCOME_HISTOGRAM,
                 outcome,
                 TouchToFillIbanOutcome.MAX_VALUE);
+    }
+
+    private static @Nullable @BnplIssuer Integer getEnumFromBnplIssuerId(String issuerId) {
+        switch (issuerId) {
+            case "affirm":
+                return BnplIssuer.AFFIRM;
+            case "zip":
+                return BnplIssuer.ZIP;
+            case "afterpay":
+                return BnplIssuer.AFTERPAY;
+            case "klarna":
+                return BnplIssuer.KLARNA;
+        }
+        assert false : "Unknown BNPL issuer ID: " + issuerId;
+        return null;
     }
 
     void setInputProtectorForTesting(InputProtector inputProtector) {

@@ -49,7 +49,6 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="DohProviderId">
-  <variant name="AlekBergNl." summary="alekberg.net Amsterdam."/>
   <variant name="CleanBrowsingAdult." summary="CleanBrowsing adult filter."/>
   <variant name="CleanBrowsingFamily." summary="CleanBrowsing family filter."/>
   <variant name="CleanBrowsingSecure." summary="CleanBrowsing secure filter."/>
@@ -229,6 +228,45 @@ chromium-metrics-reviews@google.com.
   <variant name="PrerenderThrottle"/>
   <variant name="SubresourceRedirectThrottle"/>
 </variants>
+
+<histogram name="CertificateType2.{BRValidity}.{ChainPosition}.{Algorithm}"
+    units="units" expires_after="never">
+<!-- expires-never: histograms are used to assess policy -->
+
+<!-- https://crbug.com/732640#c5 -->
+
+  <owner>mattm@chromium.org</owner>
+  <owner>src/net/cert/OWNERS</owner>
+  <summary>
+    Information about the certificate algorithms and sizes in use on the web, to
+    examine compliance with the CA/Browser Forum requirements and security best
+    practice. This histogram considers the notBefore as the issuance date, for
+    purposes of what requirements apply. {BRValidity}
+
+    Records the size in bits of the key for certificates with chain position
+    {ChainPosition} and algorithm {Algorithm}.
+  </summary>
+  <token key="BRValidity">
+    <variant name="BR"
+        summary="The *leaf* certificate of the chain expires after 2013-12-31
+                 and was issued on or after 2012-07-01, as judged by the
+                 notBefore, meaning that it should be in scope for the
+                 Baseline Requirement's key size requirements."/>
+    <variant name="NonBR"
+        summary="The *leaf* certificate of the chain expires on or before
+                 2013-12-31 or was issued before 2012-07-01."/>
+  </token>
+  <token key="ChainPosition">
+    <variant name="Intermediate" summary="Intermediate"/>
+    <variant name="Leaf" summary="Leaf"/>
+    <variant name="Root" summary="Root"/>
+  </token>
+  <token key="Algorithm">
+    <variant name="ECDSA" summary="ECDSA"/>
+    <variant name="RSA" summary="RSA"/>
+    <variant name="Unknown" summary="SPKI unrecognized by cert library"/>
+  </token>
+</histogram>
 
 <histogram name="Crypto.SecureEnclaveOperation.Mac.{Operation}.Error"
     enum="MacSecurityFrameworkOSStatus" expires_after="2025-10-05">
@@ -1272,7 +1310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.ResponseFreshnessIsZero" enum="Boolean"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>hayato@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -1565,7 +1603,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CertVerifier.DoVerifyOnWorkerThreadTime{HostType}"
-    units="ms" expires_after="2026-03-08">
+    units="ms" expires_after="2026-05-10">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -3082,6 +3120,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Net.DNS.UpgradeConfig.InsecureUpgradeWithFallbackSucceeded"
+    enum="Boolean" expires_after="2026-05-31">
+  <owner>kaklilu@chromium.org</owner>
+  <owner>awillia@chromium.org</owner>
+  <owner>src/net/dns/OWNERS</owner>
+  <summary>
+    Recorded if upgrading to DoH from insecure DNS was attempted, failed, then
+    succeeded using the fallback DoH server config. This is only emitted when
+    Secure DNS is used in automatic-with-doh-fallback mode. We also only try
+    using the fallback if and the system DNS provider was not in Chrome's
+    supported DoH provider list.
+  </summary>
+</histogram>
+
 <histogram name="Net.DNS.UpgradeConfigFailed.LocalNameserverState"
     enum="DnsConfigLocalNameserverState" expires_after="2026-10-24">
   <owner>kaklilu@chromium.org</owner>
@@ -3416,7 +3468,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpNoVarySearch.HasUnrecognizedKeys" enum="Boolean"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>jbroman@chromium.org</owner>
   <owner>liviutinta@chromium.org</owner>
   <summary>
@@ -4155,7 +4207,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction.StreamAddressFamily"
-    enum="AddressFamily" expires_after="2026-03-08">
+    enum="AddressFamily" expires_after="2026-05-10">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -4208,7 +4260,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction{HostType}.RetryReason"
-    enum="HttpNetworkTransactionRetryReason" expires_after="2026-03-08">
+    enum="HttpNetworkTransactionRetryReason" expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>Log the reason when HttpNetworkTransaction retries.</summary>
@@ -5248,25 +5300,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.QuicSession.ConnectionTypeFromSelf" enum="AddressFamily"
-    expires_after="2023-09-17">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/net/quic/OWNERS</owner>
-  <summary>The IP Address family of this connection, as seen locally.</summary>
-</histogram>
-
-<histogram name="Net.QuicSession.ConnectRandomPortRequiringConfirmation"
-    units="RTTs" expires_after="2024-02-11">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/net/quic/OWNERS</owner>
-  <summary>
-    Samples of the number of round-trips needed by a QUIC connection before a
-    request could be sent by the client, when handshake confirmation was
-    required. (The operating system randomly selected a source port for the
-    connection.)
-  </summary>
-</histogram>
-
 <histogram name="Net.QuicSession.Connect{QuicPortSelection}" units="RTTs"
     expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
@@ -5395,7 +5428,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.FindMatchingIpSessionResult{ServerType}"
-    enum="QuicFindMatchingIpSessionResult" expires_after="2026-03-08">
+    enum="QuicFindMatchingIpSessionResult" expires_after="2026-05-10">
   <owner>fayang@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -7225,7 +7258,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.{ProtocolType}.HasTrafficAnnotation{HostType}"
-    enum="Boolean" expires_after="2026-03-08">
+    enum="Boolean" expires_after="2026-05-10">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7242,7 +7275,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SessionCreate.{ProtocolType}.TrafficAnnotation{HostType}"
-    enum="TrafficAnnotationUniqueIdHash" expires_after="2026-03-08">
+    enum="TrafficAnnotationUniqueIdHash" expires_after="2026-05-10">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7931,7 +7964,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{MethodName}.PostingDelay"
-    units="microseconds" expires_after="2026-03-08">
+    units="microseconds" expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7969,7 +8002,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{MethodName}.{TimeType}"
-    units="microseconds" expires_after="2026-03-08">
+    units="microseconds" expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7990,7 +8023,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.DeleteDoomedEntriesCount" units="entries"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8004,7 +8037,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.ExclusiveOperationDelay" units="microseconds"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8017,7 +8050,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.FakeIndexFileError"
-    enum="SqlDiskCacheFakeIndexFileError" expires_after="2026-03-08">
+    enum="SqlDiskCacheFakeIndexFileError" expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8028,7 +8061,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.NormalOperationDelay" units="microseconds"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8041,7 +8074,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.OptimisticWrite.Result"
-    enum="SqlDiskCacheStoreError" expires_after="2026-03-08">
+    enum="SqlDiskCacheStoreError" expires_after="2026-05-10">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8320,7 +8353,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpConnectAttempt.Latency.Error" units="ms"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8945,7 +8978,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SimpleCache.{CacheInstance}CreationToIndex" units="ms"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>morlovich@chromium.org</owner>
   <owner>wanderview@chromium.org</owner>
   <summary>
@@ -8981,7 +9014,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SimpleCache.{CacheInstance}DiskCloseLatency" units="ms"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>morlovich@chromium.org</owner>
   <owner>wanderview@chromium.org</owner>
   <summary>
@@ -9001,7 +9034,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SimpleCache.{CacheInstance}DiskDoomLatency" units="ms"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>morlovich@chromium.org</owner>
   <owner>wanderview@chromium.org</owner>
   <summary>
@@ -9021,7 +9054,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SimpleCache.{CacheInstance}DiskWriteLatency" units="ms"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>morlovich@chromium.org</owner>
   <owner>wanderview@chromium.org</owner>
   <summary>
@@ -9031,7 +9064,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SimpleCache.{CacheInstance}EntryCreationTime" units="ms"
-    expires_after="2026-03-08">
+    expires_after="2026-05-10">
   <owner>morlovich@chromium.org</owner>
   <owner>wanderview@chromium.org</owner>
   <summary>

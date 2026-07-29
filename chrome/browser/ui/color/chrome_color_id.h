@@ -244,6 +244,9 @@
   E_CPONLY(kColorNewTabPageButtonForeground) \
   E_CPONLY(kColorNewTabPageCartModuleDiscountChipBackground) \
   E_CPONLY(kColorNewTabPageCartModuleDiscountChipForeground) \
+  E_CPONLY(kColorNewTabPageActionChipTextBody) \
+  E_CPONLY(kColorNewTabPageActionChipTextTitle) \
+  E_CPONLY(kColorNewTabPageActionChipDeepSearchIcon) \
   E_CPONLY(kColorNewTabPageChipBackground) \
   E_CPONLY(kColorNewTabPageChipForeground) \
   E_CPONLY(kColorComposeboxBackground) \
@@ -262,8 +265,9 @@
   E_CPONLY(kColorComposeboxOutlineHcm) \
   E_CPONLY(kColorComposeboxRecentTabChipOutline) \
   E_CPONLY(kColorComposeboxScrimBackground) \
-  E_CPONLY(kColorComposeboxSubmitButton) \
+  E_CPONLY(kColorComposeboxSubmitButtonBackground) \
   E_CPONLY(kColorComposeboxSuggestionActivity) \
+  E_CPONLY(kColorComposeboxTabSelectorButtonSelected) \
   E_CPONLY(kColorComposeboxTypeAhead) \
   E_CPONLY(kColorComposeboxTypeAheadChip) \
   E_CPONLY(kColorComposeboxUploadButton) \
@@ -276,6 +280,7 @@
   E_CPONLY(kColorComposeboxFileCarouselDivider) \
   E_CPONLY(kColorComposeboxContextEntrypointTextDisabled) \
   E_CPONLY(kColorComposeboxContextEntrypointHoverBackground) \
+  E_CPONLY(kColorComposeboxLink) \
   E_CPONLY(kColorNewTabPageControlBackgroundHovered) \
   E_CPONLY(kColorNewTabPageControlBackgroundSelected) \
   E_CPONLY(kColorNewTabPageFirstRunBackground) \
@@ -371,6 +376,12 @@
   E_CPONLY(kColorOmniboxChipInkDropRipple) \
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorBackground) \
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorForeground) \
+  E_CPONLY(kColorOmniboxComposeboxChipBackground) \
+  E_CPONLY(kColorOmniboxComposeboxDivider) \
+  E_CPONLY(kColorOmniboxComposeboxFaviconBackground) \
+  E_CPONLY(kColorOmniboxComposeboxForegroundDisabled) \
+  E_CPONLY(kColorOmniboxComposeboxPrimaryAction) \
+  E_CPONLY(kColorOmniboxComposeboxSubmitButtonBackground) \
   E_CPONLY(kColorOmniboxContextEntrypointHoverBackground) \
   E_CPONLY(kColorOmniboxContextEntrypointText) \
   E_CPONLY(kColorOmniboxIconBackground) \
@@ -457,11 +468,9 @@
   /* Picture-in-Picture window colors. */ \
   E_CPONLY(kColorPipWindowBackToTabButtonBackground) \
   E_CPONLY(kColorPipWindowBackground) \
-  E_CPONLY(kColorPipWindowControlsBackground) \
   E_CPONLY(kColorPipWindowTopBarBackground) \
   E_CPONLY(kColorPipWindowForeground) \
   E_CPONLY(kColorPipWindowForegroundInactive) \
-  E_CPONLY(kColorPipWindowHangUpButtonForeground) \
   E_CPONLY(kColorPipWindowScrimFull) \
   E_CPONLY(kColorPipWindowScrimTopGradientStart) \
   E_CPONLY(kColorPipWindowScrimTopGradientEnd) \

@@ -35,7 +35,6 @@
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/base/dragdrop/drop_target_event.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom-forward.h"
-#include "ui/base/dragdrop/os_exchange_data.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_types.h"
@@ -62,8 +61,6 @@
 #include "ui/views/paint_info.h"
 #include "ui/views/view_targeter.h"
 #include "ui/views/views_export.h"
-
-using ui::OSExchangeData;
 
 class BrowserView;
 class InfoBarView;
@@ -104,10 +101,13 @@ class InputMethod;
 class Layer;
 class LayerTreeOwner;
 class NativeTheme;
+class OSExchangeData;
 class PaintContext;
 class ThemeProvider;
 class TransformRecorder;
 }  // namespace ui
+
+using ui::OSExchangeData;
 
 namespace views {
 
@@ -487,7 +487,7 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // return the actual passed-in type.
   template <typename T>
   T* AddChildView(std::unique_ptr<T> view) {
-    DCHECK(!view->owned_by_client())
+    CHECK(!view->owned_by_client())
         << "This should only be called if the client is passing ownership of "
            "|view| to the parent View.";
     CHECK_CLASS_HAS_METADATA(T)
@@ -495,7 +495,7 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   }
   template <typename T>
   T* AddChildViewAt(std::unique_ptr<T> view, size_t index) {
-    DCHECK(!view->owned_by_client())
+    CHECK(!view->owned_by_client())
         << "This should only be called if the client is passing ownership of "
            "|view| to the parent View.";
     CHECK_CLASS_HAS_METADATA(T)
@@ -545,7 +545,7 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   //                to eliminate the uses of the old RemoveChildView().
   template <typename T>
   std::unique_ptr<T> RemoveChildViewT(T* view) {
-    DCHECK(!view->owned_by_client())
+    CHECK(!view->owned_by_client())
         << "This should only be called if the client doesn't already have "
            "ownership of |view|.";
     DCHECK(base::Contains(children_, view));

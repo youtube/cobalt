@@ -135,12 +135,30 @@ bool InputTransferHandlerAndroid::OnTouchEvent(
     }
   }
 
-  const bool is_transferred_back_sequence = delta > 0;
-  if (is_transferred_back_sequence) {
+  const viz::VizTouchState* touch_state = GetVizTouchState();
+
+  if (!touch_state) {
+    EmitTransferResultHistogramAndTraceEvent(
+        TransferInputToVizResult::kSharedMemoryUnavailable);
+    return false;  // Fallback to Browser handling
+  }
+
+  // Check if this sequence was just transferred back from Viz.
+  int64_t last_transferred_back =
+      touch_state->last_transferred_back_down_time_ms.load(
+          std::memory_order_acquire);
+  if (last_transferred_back != 0 &&
+      event.GetRawDownTime().ToUptimeMillis() == last_transferred_back) {
     EmitTransferResultHistogramAndTraceEvent(
         TransferInputToVizResult::kSequenceTransferredBackFromViz);
     // We don't want to retransfer this sequence which was transferred back from
     // Viz.
+    return false;
+  }
+
+  if (delta > 0) {
+    EmitTransferResultHistogramAndTraceEvent(
+        TransferInputToVizResult::kPositiveEventAndDownTimeDelta);
     return false;
   }
 
@@ -218,10 +236,6 @@ bool InputTransferHandlerAndroid::FilterRedundantDownEvent(
   return event.GetRawDownTime() <= cached_transferred_sequence_down_time_ms_;
 }
 
-void InputTransferHandlerAndroid::OnDetachedFromWindow() {
-  cached_transferred_sequence_event_time_us_.reset();
-}
-
 void InputTransferHandlerAndroid::RequestInputBack(
     RequestInputBackReason reason) {
   requested_input_back_ = true;
@@ -231,18 +245,17 @@ void InputTransferHandlerAndroid::RequestInputBack(
 
 bool InputTransferHandlerAndroid::IsTouchSequencePotentiallyActiveOnViz()
     const {
-  return cached_transferred_sequence_event_time_us_.has_value();
+  const viz::VizTouchState* touch_state = GetVizTouchState();
+  return touch_state &&
+         touch_state->is_sequence_active.load(std::memory_order_acquire);
 }
 
-// In some cases where Viz might drop sequence the touch end is not received
-// here.
-// TOOD(crbug.com/448836551): Make Viz forward touch end for dropped
-// sequences to Browser.
-void InputTransferHandlerAndroid::OnTouchEnd(base::TimeTicks event_time) {
-  if (cached_transferred_sequence_event_time_us_.has_value() &&
-      *cached_transferred_sequence_event_time_us_ < event_time) {
-    cached_transferred_sequence_event_time_us_.reset();
-  }
+const viz::VizTouchState* InputTransferHandlerAndroid::GetVizTouchState()
+    const {
+  viz::HostFrameSinkManager* frame_sink_manager =
+      content::GetHostFrameSinkManager();
+  return frame_sink_manager ? frame_sink_manager->GetVizTouchStatePtr()
+                            : nullptr;
 }
 
 void InputTransferHandlerAndroid::OnStartDroppingSequence(
@@ -318,7 +331,6 @@ void InputTransferHandlerAndroid::ConsumeEventsUntilCancel(
     // The touch sequence transferred by system probably corresponds to this
     // down. Resend state and updated transferred sequence timestamps.
     cached_transferred_sequence_down_time_ms_ = event.GetRawDownTime();
-    cached_transferred_sequence_event_time_us_ = event.GetEventTime();
     client_->SendStateOnTouchTransfer(event,
                                       last_sent_browser_would_have_handled_);
   }
@@ -344,7 +356,6 @@ void InputTransferHandlerAndroid::OnTouchTransferredSuccessfully(
   CHECK_EQ(handler_state_, HandlerState::kIdle);
   handler_state_ = HandlerState::kConsumeEventsUntilCancel;
   cached_transferred_sequence_down_time_ms_ = event.GetRawDownTime();
-  cached_transferred_sequence_event_time_us_ = event.GetEventTime();
   last_sent_browser_would_have_handled_ = browser_would_have_handled;
   client_->SendStateOnTouchTransfer(event, browser_would_have_handled);
   // Corresponding to the `ACTION_DOWN` event which initiated the touch
@@ -361,13 +372,6 @@ InputTransferHandlerAndroid::InputObserver::~InputObserver() = default;
 void InputTransferHandlerAndroid::InputObserver::OnInputEvent(
     const RenderWidgetHost& host,
     const blink::WebInputEvent& event) {
-  if (blink::WebInputEvent::IsTouchEventType(event.GetType())) {
-    const auto& touch_event =
-        *(static_cast<const blink::WebTouchEvent*>(&event));
-    if (touch_event.IsTouchSequenceEnd()) {
-      transfer_handler_->OnTouchEnd(event.TimeStamp());
-    }
-  }
 }
 
 }  // namespace content

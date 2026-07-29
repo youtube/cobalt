@@ -16,27 +16,37 @@
 #import "ios/chrome/browser/reader_mode/ui/reader_mode_chip_visibility_delegate.h"
 
 @protocol ContextualPanelEntrypointMutator;
+@protocol ContextualPanelEntrypointVisibilityDelegate;
 @protocol LocationBarBadgeMutator;
+@class IncognitoBadgeViewController;
 @class LayoutGuideCenter;
 
 // View controller for the location bar badge.
 @interface LocationBarBadgeViewController
-    : UIViewController <ContextualPanelEntrypointVisibilityDelegate,
+    : UIViewController <IncognitoBadgeViewVisibilityDelegate,
                         LocationBarBadgeConsumer,
                         ContextualPanelEntrypointConsumer,
+                        ContextualPanelEntrypointVisibilityDelegate,
                         FullscreenUIElement>
 
 // This view controller's LayoutGuideCenter.
 @property(nonatomic, strong) LayoutGuideCenter* layoutGuideCenter;
+
 // This view controller's Contextual Panel Entrypoint mutator.
 @property(nonatomic, weak) id<ContextualPanelEntrypointMutator>
     contextualPanelEntryPointMutator;
+
 // This view controller's Location Bar Badge mutator.
 @property(nonatomic, weak) id<LocationBarBadgeMutator> mutator;
+
 // TODO(crbug.com/429140788): Remove after migration.
 // The entrypoint visibility delegate.
 @property(nonatomic, weak) id<ContextualPanelEntrypointVisibilityDelegate>
     visibilityDelegate;
+
+// The view controller displaying the incognito badge. Nil for non-incognito.
+@property(nonatomic, strong)
+    IncognitoBadgeViewController* incognitoBadgeViewController;
 
 // Returns the anchor point in window coordinates for the entrypoint's IPH,
 // depending on if the omnibox is at the top or bottom. Since the badge is

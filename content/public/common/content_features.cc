@@ -19,6 +19,11 @@ namespace features {
 
 // All features in alphabetical order.
 
+// Marks navigations as aborted when the NavigationHandle is destroyed mid
+// navigation, likely due to a tab closure. This is a kill switch.
+BASE_FEATURE(kAbortNavigationsFromTabClosures,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Kill switch to guard additional security checks performed by the browser
 // process on opaque origins, such as when verifying source origins for
 // postMessage. See https://crbug.com/40109437.
@@ -159,8 +164,13 @@ BASE_FEATURE(kBackForwardCacheMemoryControls,
 );
 
 #if BUILDFLAG(IS_ANDROID)
-// Enables getting screenshots as shared images for back forward transitions.
+// Enables getting screenshots as shared images for back forward transitions
+// in cross-document navigations.
 BASE_FEATURE(kBackForwardTransitionsCrossDocSharedImage,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Enables getting screenshots as shared images for back forward transitions
+// to native pages.
+BASE_FEATURE(kBackForwardTransitionsNativePageSharedImage,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -274,6 +284,16 @@ const base::FeatureParam<bool> kCreateSpeculativeRFHFilterRestore{
 const base::FeatureParam<int> kCreateSpeculativeRFHDelayMs{
     &kDeferSpeculativeRFHCreation, "create_speculative_rfh_delay_ms", 0};
 
+// Delay the destructions of RenderFrameHostImpls during a navigation (on
+// Unload) or frame Detach, by delaying the call to
+// PendingDeletionCheckCompletedOnSubTree.
+BASE_FEATURE(kDelayRfhDestructionsOnUnloadAndDetach,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta>
+    kRfhDestructionsOnUnloadAndDetachTaskDelay{
+        &kDelayRfhDestructionsOnUnloadAndDetach, "task_delay",
+        base::TimeDelta()};
+
 // When a device bound session
 // (https://github.com/w3c/webappsec-dbsc/blob/main/README.md) is
 // terminated, evict pages with cache-control:no-store from the
@@ -366,7 +386,13 @@ BASE_FEATURE(kWebRtcHWEncoding,
 
 // Enables a discard operation on WebContents to free associated resources.
 // Eliminates the need to destroy the WebContents object to free its resources.
-BASE_FEATURE(kWebContentsDiscard, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebContentsDiscard,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 // When this feature is enabled, partial storage cleanup will be
 // disabled for the GPU disk cache. (Performance improvement)
@@ -424,7 +450,7 @@ BASE_FEATURE(kFedCmDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the spec-compliant 'error' attribute in IdentityCredentialError while
 // deprecating the legacy 'code' attribute.
-BASE_FEATURE(kFedCmErrorAttribute, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFedCmErrorAttribute, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables usage of the FedCM IdP Registration API.
 BASE_FEATURE(kFedCmIdPRegistration, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -659,13 +685,6 @@ BASE_FEATURE(kOriginIsolationHeader, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // History navigation in response to horizontal overscroll (aka gesture-nav).
 BASE_FEATURE(kOverscrollHistoryNavigation, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Partitioned Popins must have a Popin-Policy in their top-frame HTTP Response
-// that permits the opener origin. This feature disables that check for purposes
-// of testing only, this must never be enabled by default in any context.
-// See https://explainers-by-googlers.github.io/partitioned-popins/
-BASE_FEATURE(kPartitionedPopinsHeaderPolicyBypass,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables additional ChildProcessSecurityPolicy enforcements for PDF renderer
 // processes, including blocking storage and cookie access for them.
@@ -1264,6 +1283,14 @@ const base::FeatureParam<bool> kAccessibilityDeprecateJavaNodeCacheDisableCache{
 BASE_FEATURE(kAccessibilityDeprecateTypeAnnounce,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, WINDOW_CONTENT_CHANGED events will be sent for each
+// LIVE_REGION_NODE_CHANGED rather than TYPE_ANNOUNCEMENT.
+// kAccessibilityDeprecateTypeAnnounce also encompasses ariaNotify, whereas this
+// flag does not. This flag focuses solely on the LIVE_REGION_NODE_CHANGED
+// generated events.
+BASE_FEATURE(kAccessibilityImproveLiveRegionAnnounce,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the second iteration of AccessibilityPageZoom, which continues
 // the work completed in the first experiment and the subsequent fast-follow.
 // This version of the experiment explores enabling OS-level adjustments.
@@ -1272,6 +1299,11 @@ BASE_FEATURE(kAccessibilityPageZoomV2, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables populating the supplemental description information via the
 // Android supplemental description API.
 BASE_FEATURE(kAccessibilityPopulateSupplementalDescriptionApi,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, set selectable on all nodes with text, and support
+// ACTION_SET_SELECTION.
+BASE_FEATURE(kAccessibilitySetSelectableOnAllNodesWithText,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of a unified code path for AXTree snapshots.
@@ -1285,6 +1317,8 @@ BASE_FEATURE(kAccessibilityManageBroadcastReceiverOnBackground,
 // Enables the ability to specify a platform-specific zoom scaling that will
 // apply transparently to all pages.
 BASE_FEATURE(kAndroidDesktopZoomScaling, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kAndroidDesktopZoomScalingFactor{
+    &kAndroidDesktopZoomScaling, "desktop-zoom-scaling-factor", 100};
 
 // Enable open PDF inline on Android.
 BASE_FEATURE(kAndroidOpenPdfInline, base::FEATURE_ENABLED_BY_DEFAULT);

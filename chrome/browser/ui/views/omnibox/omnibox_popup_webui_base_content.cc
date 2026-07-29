@@ -11,7 +11,9 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_aim_presenter.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
@@ -97,13 +99,17 @@ void OmniboxPopupWebUIBaseContent::ShowCustomContextMenu(
     std::unique_ptr<ui::MenuModel> menu_model) {
   ConvertPointToScreen(this, &point);
   context_menu_ = std::make_unique<OmniboxContextMenu>(
-      GetWidget(), location_bar_view_->browser());
+      GetWidget(), location_bar_view_->GetOmniboxPopupFileSelector(),
+      location_bar_view_->GetOmniboxPopupAimPresenter()
+          ->GetWebUIContent()
+          ->GetWebContents());
   context_menu_->RunMenuAt(point, ui::mojom::MenuSourceType::kMouse);
 }
 
 void OmniboxPopupWebUIBaseContent::ResizeDueToAutoResize(
     content::WebContents* source,
     const gfx::Size& new_size) {
+  WebView::ResizeDueToAutoResize(source, new_size);
   if (GetVisible()) {
     popup_presenter_->SetWidgetContentHeight(new_size.height());
   }
@@ -116,7 +122,8 @@ bool OmniboxPopupWebUIBaseContent::HandleKeyboardEvent(
       event.windows_key_code == ui::VKEY_ESCAPE) {
     return controller_->edit_model()->OnEscapeKeyPressed();
   }
-  return false;
+  return unhandled_keyboard_event_handler_.HandleKeyboardEvent(
+      event, GetFocusManager());
 }
 
 void OmniboxPopupWebUIBaseContent::SetContentURL(std::string_view url) {

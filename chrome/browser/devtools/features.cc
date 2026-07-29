@@ -108,7 +108,7 @@ const base::FeatureParam<DevToolsFreestylerUserTier>
         &devtools_freestyler_user_tier_options};
 
 // Whether the DevTools AI Code Completion is enabled.
-BASE_FEATURE(kDevToolsAiCodeCompletion, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsAiCodeCompletion, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kDevToolsAiCodeCompletionModelId{
     &kDevToolsAiCodeCompletion, "aida_model_id",
     /*default_value=*/""};
@@ -192,13 +192,14 @@ const base::FeatureParam<bool> kDevToolsAiPromptApiAllowWithoutGpu{
 BASE_FEATURE(kDevToolsStartingStyleDebugging, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether Network panel should use Durable Messages to preserve network bodies.
-BASE_FEATURE(kDevToolsEnableDurableMessages, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDevToolsEnableDurableMessages, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether the policy dialog should be shown instead of greying out the
 // Developer Tools toggle.
 // TODO(crbug.com/442892562): Remove this flag once the feature is launched.
-BASE_FEATURE(kDevToolsShowPolicyDialog,
-             "DevToolsShowPolicyDialog",
+BASE_FEATURE(kDevToolsShowPolicyDialog, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDevToolsAiAssistanceContextSelectionAgent,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace features

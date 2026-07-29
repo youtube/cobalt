@@ -27,6 +27,7 @@
 #import "components/autofill/core/browser/filling/form_filler.h"
 #import "components/autofill/core/browser/form_structure.h"
 #import "components/autofill/core/browser/foundations/autofill_driver_router.h"
+#import "components/autofill/core/common/autofill_debug_features.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/field_data_manager.h"
 #import "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
@@ -198,6 +199,14 @@ AutofillDriverIOS* AutofillDriverIOS::GetParent() {
   return parent_.get();
 }
 
+bool AutofillDriverIOS::IsActive() const {
+  return true;  // iOS has no MPArch.
+}
+
+bool AutofillDriverIOS::IsEmbedded() const {
+  return false;  // iOS has no MPArch.
+}
+
 AutofillClient& AutofillDriverIOS::GetAutofillClient() {
   return *client_;
 }
@@ -208,11 +217,6 @@ BrowserAutofillManager& AutofillDriverIOS::GetAutofillManager() {
 
 ukm::SourceId AutofillDriverIOS::GetPageUkmSourceId() const {
   return ukm::GetSourceIdForWebStateDocument(web_state_);
-}
-
-// Return true as iOS has no MPArch.
-bool AutofillDriverIOS::IsActive() const {
-  return true;
 }
 
 bool AutofillDriverIOS::HasSharedAutofillPermission() const {
@@ -310,8 +314,8 @@ void AutofillDriverIOS::ApplyFieldAction(
   }
 }
 
-void AutofillDriverIOS::ExtractForm(
-    FormGlobalId form_id,
+void AutofillDriverIOS::ExtractFormWithField(
+    FieldGlobalId field_id,
     base::OnceCallback<void(AutofillDriver*, const std::optional<FormData>&)>
         final_handler) {
   if (!web_frame()) {
@@ -323,12 +327,12 @@ void AutofillDriverIOS::ExtractForm(
     // TODO(crbug.com/455870070): Introduce a `fetchForm` method in the agent
     // that would extract a single form only given the renderer id and replace
     // the call to `fetchFormsFiltered()` with it.
-    router_->ExtractForm(
+    router_->ExtractFormWithField(
         [](autofill::AutofillDriver& request_target,
-           FormRendererId form_renderer_id,
+           FieldRendererId field_renderer_id,
            AutofillDriverRouter::RendererFormHandler renderer_form_handler) {
           auto completion_handler = base::BindOnce(
-              [&](FormRendererId form_renderer_id,
+              [&](FieldRendererId field_renderer_id,
                   AutofillDriverRouter::RendererFormHandler
                       renderer_form_handler,
                   std::optional<std::vector<FormData>> forms) {
@@ -336,13 +340,16 @@ void AutofillDriverIOS::ExtractForm(
                   std::move(renderer_form_handler).Run(std::nullopt);
                   return;
                 }
-                auto it = std::ranges::find(*forms, form_renderer_id,
-                                            &FormData::renderer_id);
+                auto it =
+                    std::ranges::find_if(*forms, [&](const FormData& form) {
+                      return base::Contains(form.fields(), field_renderer_id,
+                                            &FormFieldData::renderer_id);
+                    });
                 std::move(renderer_form_handler)
                     .Run(it == forms->end() ? std::nullopt
                                             : std::optional(std::move(*it)));
               },
-              form_renderer_id, std::move(renderer_form_handler));
+              field_renderer_id, std::move(renderer_form_handler));
 
           auto& source = static_cast<AutofillDriverIOS&>(request_target);
           [source.bridge_ fetchFormsFiltered:NO
@@ -350,7 +357,7 @@ void AutofillDriverIOS::ExtractForm(
                                      inFrame:source.web_frame()
                            completionHandler:std::move(completion_handler)];
         },
-        form_id, WithNewVersion(std::move(final_handler)));
+        field_id, WithNewVersion(std::move(final_handler)));
   } else {
     std::move(final_handler).Run(nullptr, std::nullopt);
   }
@@ -361,7 +368,7 @@ void AutofillDriverIOS::ExposeDomNodeIdsInAllFrames() {}
 void AutofillDriverIOS::SendTypePredictionsToRenderer(
     const FormStructure& form) {
   CHECK(base::FeatureList::IsEnabled(
-      features::test::kAutofillShowTypePredictions));
+      features::debug::kAutofillShowTypePredictions));
   auto callback = [](AutofillDriver& driver,
                      const std::vector<FormDataPredictions>& preds) {
     web::WebFrame* frame = cast(&driver)->web_frame();

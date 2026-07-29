@@ -944,6 +944,7 @@ Google налог можда има друге облике историје п�
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> картица – <ph name="URL_LIST" />}one{<ph name="TAB_COUNT_MANY" /> картица – <ph name="URL_LIST" />}few{<ph name="TAB_COUNT_MANY" /> картице – <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> картица – <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">Приватност</translation>
 <translation id="504456571576643789">Шта треба имати у виду</translation>
+<translation id="5056587122125565772">Направи слику</translation>
 <translation id="506254248375231072">Нема картица</translation>
 <translation id="5075939510584558547">Сачувајте без шифровања</translation>
 <translation id="5085038751173179818">Пријавите се на овај сајт и у Chrome да би вам обележивачи и други садржај били доступни на свим уређајима</translation>
@@ -1053,7 +1054,9 @@ Google налог можда има друге облике историје п�
 <translation id="5596627076506792578">Још опција</translation>
 <translation id="5599455543593328020">Режим без архивирања</translation>
 <translation id="5601180634394228718">Још подешавања која користе податке за побољшање доживљаја Chrome-а потражите у <ph name="BEGIN_LINK" />Google услугама<ph name="END_LINK" />.</translation>
+<translation id="5601924940067278327">Приступајте картицама и другом садржају на свим уређајима</translation>
 <translation id="5611398002774823980">Сачувај на налогу</translation>
+<translation id="5613381935190035031">Да би вам картице и други садржај били доступни на свим уређајима, пријавите се у Chrome као <ph name="EMAIL" /></translation>
 <translation id="5614625640221885312">Пријавите се да бисте приступали обележивачима, лозинкама и другом садржају на свим уређајима</translation>
 <translation id="5619633276517849615">Организација је укључила Безбедно прегледање</translation>
 <translation id="5620163320393916465">Нема сачуваних лозинки</translation>
@@ -1698,6 +1701,7 @@ Google налог можда има друге облике историје п�
 <translation id="8110024788458304985">Помозите нам да побољшамо функције и учинак Chrome ОС-а</translation>
 <translation id="8110087112193408731">Желите ли да се Chrome активности приказују у Дигиталном благостању?</translation>
 <translation id="8118117428362942925">Ако ти треба помоћ, питај родитеља (<ph name="PARENT_NAME" />)</translation>
+<translation id="8118151008374483324">Да би вам картице и други садржај били доступни на свим уређајима, пријавите се у Chrome</translation>
 <translation id="8120286190326371840">Нема угрожених лозинки на овом уређају</translation>
 <translation id="8122623268651408616">Сортира се према најновијем</translation>
 <translation id="8127542551745560481">Измените почетну страницу</translation>
@@ -1955,6 +1959,7 @@ Google налог можда има друге облике историје п�
 <translation id="9212845824145208577">Не можете да одете ниже. Пробајте да почнете са мање висине на страници.</translation>
 <translation id="9218430445555521422">Подеси као подразумевано</translation>
 <translation id="9219103736887031265">Слике</translation>
+<translation id="9222198206152536936">Да би вам картице и други садржај били доступни на свим уређајима, пријавите се као <ph name="EMAIL" /></translation>
 <translation id="924447568950697217">Поставите Chrome за подразумевани прегледач</translation>
 <translation id="926205370408745186">Уклоните Chrome активности из Дигиталног благостања</translation>
 <translation id="927968626442779827">Користите Lite режим у Google Chrome-у</translation>

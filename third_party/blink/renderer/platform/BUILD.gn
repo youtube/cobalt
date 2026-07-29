@@ -185,8 +185,8 @@ rust_static_library("font_format_check") {
   cxx_bindings = [ crate_root ]
   deps = [
     "//third_party/rust/font_types/v0_10:lib",
-    "//third_party/rust/read_fonts/v0_35:lib",
-    "//third_party/rust/skrifa/v0_37:lib",
+    "//third_party/rust/read_fonts/v0_36:lib",
+    "//third_party/rust/skrifa/v0_39:lib",
   ]
 }
 
@@ -2395,8 +2395,6 @@ source_set("blink_platform_unittests_sources") {
     "transforms/affine_transform_test.cc",
     "transforms/rotation_test.cc",
     "transforms/transform_operations_test.cc",
-    "video_capture/gpu_memory_buffer_test_support.cc",
-    "video_capture/gpu_memory_buffer_test_support.h",
     "video_capture/video_capture_impl_test.cc",
     "weborigin/known_ports_test.cc",
     "weborigin/kurl_test.cc",
@@ -2504,7 +2502,6 @@ source_set("blink_platform_unittests_sources") {
     "//ui/gfx",
     "//ui/gfx:test_support",
     "//ui/gfx/geometry",
-    "//ui/gfx/geometry/mojom:test_interfaces_blink",
     "//ui/gfx/mojom:test_interfaces_blink",
     "//url",
     "//url:url_test_support",

@@ -11,7 +11,6 @@
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
-class SidePanelCoordinator;
 class SidePanelEntryScope;
 class SidePanelRegistry;
 
@@ -26,16 +25,36 @@ class WebView;
 
 namespace contextual_tasks {
 
+class ContextualTask;
 class ContextualTasksContextController;
+class ContextualTasksUiService;
 class ContextualTasksWebView;
 
 class ContextualTasksSidePanelCoordinator {
  public:
+  // A data structure to hold the cache and state of the side panel per thread.
+  struct WebContentsCacheItem {
+    WebContentsCacheItem(std::unique_ptr<content::WebContents> wc,
+                         std::optional<base::Uuid> task,
+                         bool open);
+    ~WebContentsCacheItem();
+    WebContentsCacheItem(const WebContentsCacheItem&) = delete;
+    WebContentsCacheItem& operator=(const WebContentsCacheItem&) = delete;
+
+    // Own the WebContents from the side panel.
+    std::unique_ptr<content::WebContents> web_contents;
+
+    // The cached WebContents can be either associated with a task, or without a
+    // task in zero state.
+    std::optional<base::Uuid> task_id;
+
+    // Whether the side panel is open.
+    bool is_open;
+  };
   DECLARE_USER_DATA(ContextualTasksSidePanelCoordinator);
 
-  ContextualTasksSidePanelCoordinator(
-      BrowserWindowInterface* browser_window,
-      SidePanelCoordinator* side_panel_coordinator);
+  explicit ContextualTasksSidePanelCoordinator(
+      BrowserWindowInterface* browser_window);
   ContextualTasksSidePanelCoordinator(
       const ContextualTasksSidePanelCoordinator&) = delete;
   ContextualTasksSidePanelCoordinator& operator=(
@@ -69,6 +88,16 @@ class ContextualTasksSidePanelCoordinator {
   content::WebContents* GetActiveWebContentsForTesting();
 
  private:
+  // Get the task associated with the active tab.
+  std::optional<ContextualTask> GetCurrentTask();
+
+  // Hide or show side panel base on open state of the current task.
+  void UpdateSidePanelVisibility();
+
+  // Update the open state of the current task.
+  // Do nothing if no task is found.
+  void UpdateOpenStateForCurrentTask(bool is_open);
+
   int GetPreferredDefaultSidePanelWidth();
 
   // Update the associated WebContents for active tab.
@@ -84,17 +113,20 @@ class ContextualTasksSidePanelCoordinator {
   // associated with the current tab.
   content::WebContents* MaybeGetOrCreateSidePanelWebContentsForActiveTab();
 
+  // Hide/Unhide the side panel and don't update any task associated with it.
+  void Hide();
+  void Unhide();
+
   // Browser window of the current side panel.
   const raw_ptr<BrowserWindowInterface> browser_window_ = nullptr;
 
   // Subscription to listen for tab change.
   base::CallbackListSubscription active_tab_subscription_;
 
-  // `side_panel_coordinator_` is expected to outlife this class.
-  const raw_ptr<SidePanelCoordinator> side_panel_coordinator_ = nullptr;
-
   // Context controller to query task information.
   const raw_ptr<ContextualTasksContextController> context_controller_;
+
+  const raw_ptr<ContextualTasksUiService> ui_service_;
 
   // WebView of the current side panel. It's owned by side panel framework so
   // weak pointer is needed in case it's destroyed. The WebContents in the
@@ -104,8 +136,11 @@ class ContextualTasksSidePanelCoordinator {
   // WebContents cache for each task.
   // It's okay to assume there is only 1 WebContents per task per window.
   // Different windows do not share the WebContents with the same task.
-  std::map<base::Uuid, std::unique_ptr<content::WebContents>>
+  std::vector<std::unique_ptr<WebContentsCacheItem>>
       task_id_to_web_contents_cache_;
+
+  // Finds a WebContentsCacheItem by task_id. Returns nullptr if not found.
+  WebContentsCacheItem* FindWebContentsCacheItem(const base::Uuid& task_id);
 
   ui::ScopedUnownedUserData<ContextualTasksSidePanelCoordinator>
       scoped_unowned_user_data_;

@@ -59,6 +59,16 @@ public class TabListEditorLayoutBinder {
                     view.findViewById(R.id.action_view_layout);
             @CreationMode int creationMode = model.get(TabListEditorProperties.CREATION_MODE);
             actionViewLayout.setCreationMode(creationMode);
+        } else if (TabListEditorProperties.DONE_BUTTON_VISIBILITY == propertyKey) {
+            view.getToolbar()
+                    .getActionViewLayout()
+                    .setDoneButtonVisibility(
+                            model.get(TabListEditorProperties.DONE_BUTTON_VISIBILITY));
+        } else if (propertyKey == TabListEditorProperties.DONE_BUTTON_CLICK_HANDLER) {
+            view.getToolbar()
+                    .getActionViewLayout()
+                    .setDoneButtonOnClickListener(
+                            model.get(TabListEditorProperties.DONE_BUTTON_CLICK_HANDLER));
         }
     }
 }

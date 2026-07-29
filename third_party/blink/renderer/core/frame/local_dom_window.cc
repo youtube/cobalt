@@ -2340,38 +2340,6 @@ DOMWindow* LocalDOMWindow::open(v8::Isolate* isolate,
   WebWindowFeatures window_features =
       GetWindowFeaturesFromString(features, entered_window);
 
-  if (window_features.is_partitioned_popin) {
-    UseCounter::Count(*entered_window,
-                      WebFeature::kPartitionedPopin_OpenAttempt);
-    if (!IsFeatureEnabled(
-            network::mojom::PermissionsPolicyFeature::kPartitionedPopins,
-            ReportOptions::kReportOnFailure)) {
-      exception_state.ThrowSecurityError(
-          "Permissions-Policy: `popin` access denied.",
-          "Permissions-Policy: `popin` access denied.");
-      return nullptr;
-    }
-    if (entered_window->GetFrame()->GetPage()->IsPartitionedPopin()) {
-      exception_state.ThrowSecurityError(
-          "Partitioned popins cannot open their own popin.",
-          "Partitioned popins cannot open their own popin.");
-      return nullptr;
-    }
-    if (entered_window->Url().Protocol() != g_https_atom) {
-      exception_state.ThrowSecurityError(
-          "Partitioned popins must be opened from https URLs.",
-          "Partitioned popins must be opened from https URLs.");
-      return nullptr;
-    }
-    // We prevent redirections via PartitionedPopinsNavigationThrottle.
-    if (completed_url.Protocol() != g_https_atom) {
-      exception_state.ThrowSecurityError(
-          "Partitioned popins can only open https URLs.",
-          "Partitioned popins can only open https URLs.");
-      return nullptr;
-    }
-  }
-
   // In fenced frames, we should always use `noopener`.
   if (GetFrame()->IsInFencedFrameTree()) {
     window_features.noopener = true;
@@ -2570,10 +2538,9 @@ void LocalDOMWindow::Trace(Visitor* visitor) const {
   visitor->Trace(crash_report_storage_);
   visitor->Trace(closewatcher_stack_);
   visitor->Trace(soft_navigation_heuristics_);
-  UniversalGlobalScope::Trace(visitor);
   DOMWindow::Trace(visitor);
   ExecutionContext::Trace(visitor);
-  Supplementable<LocalDOMWindow>::Trace(visitor);
+  Supplementable<LocalDOMWindow, 48>::Trace(visitor);
 }
 
 bool LocalDOMWindow::CrossOriginIsolatedCapability() const {
@@ -2736,7 +2703,7 @@ void LocalDOMWindow::SetHasBeenRevealed(bool revealed) {
     return;
   has_been_revealed_ = revealed;
   CHECK(document_);
-  ViewTransitionSupplement::From(*document_)->DidChangeRevealState();
+  document_->GetViewTransitions().DidChangeRevealState();
 }
 
 void LocalDOMWindow::UpdateEventListenerCountsToDocumentForReuseIfNeeded() {
