@@ -23,6 +23,7 @@
 #include "base/cpu.h"
 #endif
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #endif
@@ -30,6 +31,11 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_version.h"
 #endif
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/player.h"  // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> parent of 8a2a3f65cfa (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace switches {
 
@@ -529,6 +535,35 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowAgcInTandem{
 const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
     &kEnforceSystemEchoCancellation, "allow_ns_in_tandem", false};
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
+// audio write duration during SbPlayer prerolling.
+// For example, '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/1s'.
+// TODO: b/433993748 - Disable CobaltAudioWriteDuration and make kAudioWriteDurationLocal to base::Microseconds(kSbPlayerWriteDurationLocal).
+BASE_FEATURE(kCobaltAudioWriteDuration,
+             "CobaltAudioWriteDuration",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
+    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
+const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
+    &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, Cobalt uses AndroidOverlay for SbPlayer, otherwise it uses VideoSurfaceView.
+BASE_FEATURE(kCobaltUsingAndroidOverlay,
+             "CobaltUsingAndroidOverlay",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+// Bypass Mojo for media pipeline in Cobalt single-process mode.
+BASE_FEATURE(kCobaltBypassMojoForMedia,
+             "CobaltBypassMojoForMedia",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, Cobalt routes media frame buffer allocations into Starboard's
+// media memory pool via Chromium M126+ ExternalMemoryAllocator interface.
+BASE_FEATURE(kCobaltUseExternalMediaMemoryPool,
+             "CobaltUseExternalMediaMemoryPool",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
 // To control running audio communication effect on Chrome OS Audio Server.
