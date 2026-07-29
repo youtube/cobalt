@@ -73,7 +73,7 @@
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/coordinator/tab_strip_coordinator.h"
+#import "ios/chrome/browser/tab_switcher/tab_strip/coordinator/tab_strip_coordinator.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_util.h"
 #import "ios/chrome/browser/tabs/ui_bundled/foreground_tab_animation_view.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
@@ -383,12 +383,10 @@ class BrowserViewControllerTest : public BlockCleanupTest {
   void LoadNTP(web::WebState* web_state) {
     web::FakeWebState fake_web_state;
     fake_web_state.SetVisibleURL(GURL("chrome://newtab/"));
-    web::WebStateObserver* NTPHelper =
-        (web::WebStateObserver*)NewTabPageTabHelper::FromWebState(web_state);
     // Use the fake_web_state to fake the NTPHelper into believing that the NTP
     // has been loaded.
-    NTPHelper->PageLoaded(&fake_web_state,
-                          web::PageLoadCompletionStatus::SUCCESS);
+    NewTabPageTabHelper::FromWebState(web_state)->PageLoaded(
+        &fake_web_state, web::PageLoadCompletionStatus::SUCCESS);
   }
 
   void ExpectNewTabInsertionAnimation(bool animated, ProceduralBlock block) {

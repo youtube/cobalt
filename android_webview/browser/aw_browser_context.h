@@ -16,6 +16,7 @@
 #include "android_webview/browser/aw_context_permissions_delegate.h"
 #include "android_webview/browser/aw_origin_matched_header.h"
 #include "android_webview/browser/aw_permission_manager.h"
+#include "android_webview/browser/aw_preconnector.h"
 #include "android_webview/browser/aw_ssl_host_state_delegate.h"
 #include "android_webview/browser/file_system_access/aw_file_system_access_permission_context.h"
 #include "android_webview/browser/network_service/aw_proxy_config_monitor.h"
@@ -154,7 +155,7 @@ class AwBrowserContext : public content::BrowserContext,
       override;
   std::unique_ptr<content::ZoomLevelDelegate> CreateZoomLevelDelegate(
       const base::FilePath& partition_path) override;
-  std::string GetExtraHeadersForUrl(const GURL& url) override;
+  net::HttpRequestHeaders GetExtraHeadersForUrl(const GURL& url) override;
 
   // visitedlink::VisitedLinkDelegate implementation.
   void RebuildTable(const scoped_refptr<URLEnumerator>& enumerator) override;
@@ -254,7 +255,7 @@ class AwBrowserContext : public content::BrowserContext,
 
   // Map of extra headers for specific URLs supplied through the loadUrl(String,
   // Map) API.
-  std::map<std::string, std::string> extra_headers_for_urls_;
+  std::map<std::string, net::HttpRequestHeaders> extra_headers_for_urls_;
 
   base::android::ScopedJavaGlobalRef<jobject> obj_;
 
@@ -268,6 +269,7 @@ class AwBrowserContext : public content::BrowserContext,
   std::unique_ptr<CookieManager> cookie_manager_;
 
   std::unique_ptr<AwPrefetchManager> prefetch_manager_;
+  std::unique_ptr<AwPreconnector> preconnector_;
 
   // The IO thread client that should be used by service workers.
   base::android::ScopedJavaGlobalRef<jobject> sw_io_thread_client_;

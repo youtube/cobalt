@@ -73,6 +73,7 @@
 #include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/form_saver_impl.h"
+#include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #include "components/password_manager/core/browser/move_password_to_account_store_helper.h"
 #include "components/password_manager/core/browser/password_bubble_experiment.h"
 #include "components/password_manager/core/browser/password_form_manager_for_ui.h"
@@ -289,6 +290,13 @@ void ManagePasswordsUIController::OnUpdatePasswordSubmitted(
   DestroyPopups();
   save_fallback_timer_.Stop();
   passwords_data_.OnUpdatePassword(std::move(form_manager));
+
+  // Trigger `passwords_data_` updates so the state is correct after password
+  // change, but do not display any bubbles.
+  if (IsPasswordChangeOngoing()) {
+    return;
+  }
+
   bubble_status_ = BubbleStatus::SHOULD_POP_UP;
   UpdateBubbleAndIconVisibility();
 }
@@ -503,7 +511,8 @@ void ManagePasswordsUIController::OnCredentialLeak(
     ClearPopUpFlagForBubble();
   }
 
-  if (password_manager::IsPasswordChangeSupported(details.leak_type)) {
+  if (password_manager::IsPasswordChangeSupported(details.leak_type) &&
+      !password_manager::IsPasswordSavedAsBackup(details.leak_type)) {
     auto* password_change_service = GetPasswordChangeService(web_contents());
     CHECK(password_change_service);
 
@@ -968,33 +977,20 @@ void ManagePasswordsUIController::HandlePasswordRecoveryFinished(
   }
 
   if (password_backup == password) {
-    base::UmaHistogramEnumeration(
-        "PasswordManager.PasswordChangeRecoveryFlow",
-        password_manager::PasswordChangeRecoveryFlowState::
-            kPrimaryPasswordUpdated);
-    ukm::builders::PasswordManager_ChangeRecovery(
-        web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId())
-        .SetPasswordChangeRecoveryFlow(
-            static_cast<int>(password_manager::PasswordChangeRecoveryFlowState::
-                                 kPrimaryPasswordUpdated))
-        .Record(ukm::UkmRecorder::Get());
+    password_manager::metrics_util::LogPrimaryPasswordUpdatedWithBackup(
+        web_contents()->GetPrimaryMainFrame()->GetPageUkmSourceId());
     MaybeTriggerPasswordChangeDelayedSurvey(web_contents()->GetWeakPtr());
   }
 }
 
 void ManagePasswordsUIController::SavePassword(const std::u16string& username,
                                                const std::u16string& password) {
-  if (const password_manager::PasswordForm* changed_password_credentials =
-          password_manager_util::FindLoginWithChangedPassword(
-              *passwords_data_.form_manager());
-      changed_password_credentials &&
-      changed_password_credentials->GetPasswordBackup().has_value()) {
-    // If the new password to be saved should override a backup password,
-    // this function sets an empty backup to the submitted form.
-    passwords_data_.form_manager()->OnRemovePasswordBackupNote();
+  if (const password_manager::PasswordForm* changed_password_form_with_backup =
+          password_manager_util::FindChangedPasswordLoginWithBackup(
+              *passwords_data_.form_manager())) {
     HandlePasswordRecoveryFinished(
         username, password,
-        changed_password_credentials->GetPasswordBackup().value());
+        changed_password_form_with_backup->GetPasswordBackup().value());
   }
   UpdatePasswordFormUsernameAndPassword(username, password,
                                         passwords_data_.form_manager());
@@ -1325,9 +1321,12 @@ void ManagePasswordsUIController::UpdatePasswordIconAndBubbleState(
                                *passwords_action_item);
 
   if (show_bubble) {
+    PasswordBubbleViewBase::CloseCurrentBubble();
     // This will detach any existing bubble so OnBubbleHidden() isn't called.
     weak_ptr_factory_.InvalidateWeakPtrs();
-    ShowBubbleWithoutUserInteraction();
+    passwords_action_item->SetIsShowingBubble(true);
+    PasswordBubbleViewBase::ShowBubble(
+        web_contents(), LocationBarBubbleDelegateView::AUTOMATIC);
     // If the bubble appeared then the status is updated in OnBubbleShown().
     ClearPopUpFlagForBubble();
   }

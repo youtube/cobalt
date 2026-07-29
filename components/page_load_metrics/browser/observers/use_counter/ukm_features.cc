@@ -113,12 +113,6 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kLazyLoadFrameLoadingAttributeEager,
           WebFeature::kLazyLoadImageLoadingAttributeLazy,
           WebFeature::kLazyLoadImageLoadingAttributeEager,
-          WebFeature::kDOMSubtreeModifiedEvent,
-          WebFeature::kDOMNodeInsertedEvent,
-          WebFeature::kDOMNodeRemovedEvent,
-          WebFeature::kDOMNodeRemovedFromDocumentEvent,
-          WebFeature::kDOMNodeInsertedIntoDocumentEvent,
-          WebFeature::kDOMCharacterDataModifiedEvent,
           WebFeature::kWebOTP,
           WebFeature::kBaseWithCrossOriginHref,
           WebFeature::kWakeLockAcquireScreenLock,
@@ -469,6 +463,9 @@ UseCounterMetricsRecorder::GetAllowedUkmFeatures() {
           WebFeature::kCredentialManagerStoreFederatedCredential,
           WebFeature::kCredentialManagerGetLegacyFederatedCredential,
           WebFeature::kClearSiteData,
+          WebFeature::kXSLProcessingInstruction,
+          WebFeature::kXSLTProcessor,
+          WebFeature::kXMLExternalResourceLoad,
           // NOTE: before adding new use counters here, verify in UMA that their
           // emissions are very rare, e.g. <1% of page loads.
       }));

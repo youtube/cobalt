@@ -235,6 +235,13 @@
                     completionIdentity:completionIdentity];
 }
 
+- (BOOL)isAtRiskOfASWViewBug {
+  // This coordinator has no view of its own. So we only need to check whether
+  // the coordinator currently started’s view may have disappeared silently.
+  return self.addAccountCoordinator.isAtRiskOfASWViewBug ||
+         self.reauthCoordinator.isAtRiskOfASWViewBug;
+}
+
 #pragma mark - AnimatedCoordinator
 
 - (void)stopAnimated:(BOOL)animated {
@@ -395,15 +402,16 @@
 
 // Starts the sign-in flow.
 - (void)startSignIn {
-  AuthenticationFlow* authenticationFlow =
-      [[AuthenticationFlow alloc] initWithBrowser:self.browser
-                                         identity:self.selectedIdentity
-                                      accessPoint:self.accessPoint
-                             precedingHistorySync:YES
-                                postSignInActions:PostSignInActionSet()
-                         presentingViewController:self.navigationController
-                                       anchorView:nil
-                                       anchorRect:CGRectNull];
+  AuthenticationFlow* authenticationFlow = [[AuthenticationFlow alloc]
+               initWithBrowser:self.browser
+                      identity:self.selectedIdentity
+                   accessPoint:self.accessPoint
+          precedingHistorySync:YES
+             postSignInActions:
+                 {PostSignInAction::kShowIdentityConfirmationSnackbar}
+      presentingViewController:self.navigationController
+                    anchorView:nil
+                    anchorRect:CGRectNull];
   [self.consistencyPromoSigninMediator
       signinWithAuthenticationFlow:authenticationFlow];
 }
@@ -451,6 +459,10 @@
 
 - (void)consistencyDefaultAccountCoordinatorOpenIdentityChooser:
     (ConsistencyDefaultAccountCoordinator*)coordinator {
+  if (self.accountChooserCoordinator) {
+    // This can occur if the user double tap on the button.
+    return;
+  }
   self.accountChooserCoordinator = [[ConsistencyAccountChooserCoordinator alloc]
       initWithBaseViewController:self.navigationController
                          browser:self.browser

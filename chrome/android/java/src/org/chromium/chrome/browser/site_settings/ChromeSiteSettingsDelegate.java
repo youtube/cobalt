@@ -403,12 +403,6 @@ public class ChromeSiteSettingsDelegate implements SiteSettingsDelegate {
     }
 
     @Override
-    public boolean shouldShowPrivacySandboxRwsUi() {
-        return ChromeFeatureList.isEnabled(
-                ChromeFeatureList.PRIVACY_SANDBOX_RELATED_WEBSITE_SETS_UI);
-    }
-
-    @Override
     public void getBrowsingDataModel(Callback<BrowsingDataModel> callback) {
         BrowsingDataBridge.buildBrowsingDataModelFromDisk(
                 mProfile,
@@ -435,6 +429,11 @@ public class ChromeSiteSettingsDelegate implements SiteSettingsDelegate {
     @Override
     public boolean isPermissionAutorevocationEnabled() {
         return UserPrefs.get(mProfile).getBoolean(Pref.UNUSED_SITE_PERMISSIONS_REVOCATION_ENABLED);
+    }
+
+    @Override
+    public boolean isRelatedWebsiteSetsUiEnabled() {
+        return ChromeFeatureList.isEnabled(ChromeFeatureList.RELATED_WEBSITE_SETS_UI);
     }
 
     @Override

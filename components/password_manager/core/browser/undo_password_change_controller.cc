@@ -14,9 +14,11 @@
 #include "base/task/sequenced_task_runner.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/common/password_form_fill_data.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_manager_driver.h"
+#include "components/password_manager/core/browser/password_manager_interface.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_suggestion_generator.h"
 #include "url/origin.h"
@@ -59,17 +61,27 @@ void UndoPasswordChangeController::OnTroubleSigningInClicked(
 
   base::UmaHistogramEnumeration(
       kPasswordChangeRecoveryFlowStateHistogram,
-      PasswordChangeRecoveryFlowState::kTroubleSigningInClicked);
+      password_manager::metrics_util::PasswordChangeRecoveryFlowState::
+          kTroubleSigningInClicked);
   ukm::builders::PasswordManager_ChangeRecovery(ukm_source_id_)
-      .SetPasswordChangeRecoveryFlow(
-          static_cast<int>(password_manager::PasswordChangeRecoveryFlowState::
-                               kTroubleSigningInClicked))
+      .SetPasswordChangeRecoveryFlow(static_cast<int>(
+          password_manager::metrics_util::PasswordChangeRecoveryFlowState::
+              kTroubleSigningInClicked))
       .Record(ukm::UkmRecorder::Get());
 }
 
 void UndoPasswordChangeController::OnLoginPotentiallyFailed(
     PasswordManagerDriver* driver,
     const PasswordForm& login_form) {
+  auto password_field_it = std::ranges::find(
+      login_form.form_data.fields(), login_form.password_element_renderer_id,
+      &autofill::FormFieldData::renderer_id);
+  // Ignore forms where we couldn't possibly fill passwords. This is most likely
+  // a false positive failed login detection.
+  if (password_field_it == login_form.form_data.fields().end() ||
+      !password_field_it->is_focusable()) {
+    return;
+  }
   driver_ = driver->AsWeakPtr();
   failed_login_form_ = login_form;
   password_form_cache_ = driver_->GetPasswordManager()->GetPasswordFormCache();
@@ -110,11 +122,12 @@ void UndoPasswordChangeController::OnSuggestionsHidden() {
 
     base::UmaHistogramEnumeration(
         kPasswordChangeRecoveryFlowStateHistogram,
-        PasswordChangeRecoveryFlowState::kProactiveRecoveryPopupShown);
+        password_manager::metrics_util::PasswordChangeRecoveryFlowState::
+            kProactiveRecoveryPopupShown);
     ukm::builders::PasswordManager_ChangeRecovery(ukm_source_id_)
-        .SetPasswordChangeRecoveryFlow(
-            static_cast<int>(password_manager::PasswordChangeRecoveryFlowState::
-                                 kProactiveRecoveryPopupShown))
+        .SetPasswordChangeRecoveryFlow(static_cast<int>(
+            password_manager::metrics_util::PasswordChangeRecoveryFlowState::
+                kProactiveRecoveryPopupShown))
         .Record(ukm::UkmRecorder::Get());
   }
   FinishObserving();

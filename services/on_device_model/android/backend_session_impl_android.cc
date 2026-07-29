@@ -14,6 +14,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/functional/callback.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/on_device_model/android/on_device_model_bridge.h"
@@ -21,7 +22,8 @@
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "services/on_device_model/android/jni_headers/AiCoreSession_jni.h"
+#include "services/on_device_model/android/jni_headers/AiCoreSessionWrapper_jni.h"
+#include "services/on_device_model/android/jni_headers/GenerateOptionsHelper_jni.h"
 #include "services/on_device_model/android/jni_headers/InputPieceHelper_jni.h"
 
 namespace on_device_model {
@@ -34,7 +36,7 @@ BackendSessionImplAndroid::BackendSessionImplAndroid(
 
 BackendSessionImplAndroid::~BackendSessionImplAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_AiCoreSession_onNativeDestroyed(env, java_session_);
+  Java_AiCoreSessionWrapper_onNativeDestroyed(env, java_session_);
 }
 
 void BackendSessionImplAndroid::Append(
@@ -56,6 +58,12 @@ void BackendSessionImplAndroid::Generate(
   responder_.Bind(std::move(response));
 
   JNIEnv* env = base::android::AttachCurrentThread();
+  // There isn't a generic mojo utility for converting c++ mojo struct to java,
+  // so disassemble the struct here and reassemble it in java.
+  // Only passing the parameters that are supported on Android.
+  base::android::ScopedJavaLocalRef<jobject> java_generate_options =
+      Java_GenerateOptionsHelper_create(env, input->max_output_tokens);
+
   std::vector<base::android::ScopedJavaLocalRef<jobject>> java_inputs;
   for (const auto& piece : context_input_pieces_) {
     if (std::holds_alternative<ml::Token>(piece)) {
@@ -71,8 +79,9 @@ void BackendSessionImplAndroid::Generate(
     }
   }
 
-  Java_AiCoreSession_generate(
+  Java_AiCoreSessionWrapper_generate(
       env, java_session_, reinterpret_cast<intptr_t>(this),
+      java_generate_options,
       base::android::ToJavaArrayOfObjects(env, java_inputs));
   std::move(on_complete).Run();
 }
@@ -120,16 +129,22 @@ void BackendSessionImplAndroid::OnResponse(const std::string& response) {
   responder_->OnResponse(std::move(chunk));
 }
 
-void BackendSessionImplAndroid::OnComplete() {
+void BackendSessionImplAndroid::OnComplete(GenerateResult generate_result) {
+  base::UmaHistogramEnumeration("OnDeviceModel.Android.GenerateResult",
+                                generate_result);
   responder_->OnComplete(on_device_model::mojom::ResponseSummary::New());
   responder_.reset();
 }
 
-void JNI_AiCoreSession_OnComplete(JNIEnv* env, jlong backend_session) {
-  reinterpret_cast<BackendSessionImplAndroid*>(backend_session)->OnComplete();
+void JNI_AiCoreSessionWrapper_OnComplete(JNIEnv* env,
+                                         jlong backend_session,
+                                         jint j_generate_result) {
+  reinterpret_cast<BackendSessionImplAndroid*>(backend_session)
+      ->OnComplete(static_cast<BackendSessionImplAndroid::GenerateResult>(
+          j_generate_result));
 }
 
-void JNI_AiCoreSession_OnResponse(
+void JNI_AiCoreSessionWrapper_OnResponse(
     JNIEnv* env,
     jlong backend_session,
     const jni_zero::JavaParamRef<jstring>& j_response) {

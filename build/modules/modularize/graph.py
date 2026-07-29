@@ -15,14 +15,19 @@ import re
 _INCLUDES = re.compile(r'#\s*include(_next)?\s*<([^>]+)>')
 
 
+class CompileStatus(enum.Enum):
+  NotCompiled = 1
+  Success = 2
+  Failure = 3
+
+
 class IncludeDir(enum.Enum):
   # Ordered by include order for clang
   LibCxx = 1
   Builtin = 2
-  DarwinBasic = 3
-  DarwinFoundation = 4
-  CStandardLibrary = 5
-  Sysroot = 6
+  SysrootModule = 3
+  Sysroot = 4
+  Framework = 5
 
   def __lt__(self, other):
     return self.value < other.value
@@ -44,6 +49,9 @@ class Header:
   next: None | Header = None
   root_module: None | str = None
   textual: bool = False
+  umbrella: bool = False
+  compile_status: CompileStatus = CompileStatus.NotCompiled
+
   deps: list[HeaderRef] = dataclasses.field(default_factory=list)
   direct_deps: set[Header] = dataclasses.field(default_factory=set)
   # Here, None means no exports, and the empty list means 'export *'

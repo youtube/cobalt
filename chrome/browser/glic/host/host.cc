@@ -5,6 +5,8 @@
 #include "chrome/browser/glic/host/host.h"
 
 #include "base/containers/to_vector.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
@@ -50,6 +52,7 @@ void Host::CreateContents() {
   }
 }
 
+// TODO(crbug.com/422442409): Send the CurrentView to the panel about to open.
 void Host::PanelWillOpen(mojom::InvocationSource invocation_source) {
   CHECK(delegate_);
   invocation_source_ = invocation_source;
@@ -306,4 +309,24 @@ void Host::NotifyZeroStateSuggestion(
   }
 }
 
+void Host::SendViewChangeRequest(mojom::ViewChangeRequestPtr change_request) {
+  if (GetPrimaryWebClient()) {
+    GetPrimaryWebClient()->RequestViewChange(std::move(change_request));
+  }
+}
+
+void Host::OnViewChanged(GlicWebClientAccess* client,
+                         mojom::CurrentView new_view) {
+  if (client != GetPrimaryWebClient()) {
+    return;
+  }
+  if (primary_current_view_ != new_view) {
+    primary_current_view_ = new_view;
+    observers_.Notify(&Observer::OnViewChanged, primary_current_view_);
+  }
+}
+
+mojom::CurrentView Host::GetPrimaryCurrentView() {
+  return primary_current_view_;
+}
 }  // namespace glic

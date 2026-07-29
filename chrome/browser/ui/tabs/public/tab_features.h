@@ -13,6 +13,8 @@
 #include "chrome/common/buildflags.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
+class AskBeforeHttpDialogController;
+class CollaborationMessagingPageActionController;
 class FileSystemAccessPageActionController;
 class FromGWSNavigationAndKeepAliveRequestObserver;
 class IntentPickerViewPageActionController;
@@ -24,12 +26,19 @@ class Profile;
 class PwaInstallPageActionController;
 class ReadAnythingSidePanelController;
 class SidePanelRegistry;
-class TabCaptureContentsBorderHelper;
 class TabResourceUsageTabHelper;
 class TabUIHelper;
 class TranslatePageActionController;
 class QwacWebContentsObserver;
 class ManagePasswordsPageActionController;
+
+namespace autofill {
+class BubbleManager;
+}  // namespace autofill
+
+namespace actor {
+class ActorTabData;
+}  // namespace actor
 
 namespace actor::ui {
 class ActorUiTabControllerInterface;
@@ -264,6 +273,14 @@ class TabFeatures {
     return tab_creation_metrics_controller_.get();
   }
 
+  autofill::BubbleManager* autofill_bubble_manager() {
+    return autofill_bubble_manager_.get();
+  }
+
+  AskBeforeHttpDialogController* ask_before_http_dialog_controller() {
+    return ask_before_http_dialog_controller_.get();
+  }
+
   // Called exactly once to initialize features.
   void Init(TabInterface& tab, Profile* profile);
 
@@ -376,6 +393,10 @@ class TabFeatures {
   std::unique_ptr<tab_groups::CollaborationMessagingTabData>
       collaboration_messaging_tab_data_;
 
+  // Responsible for managing the "Show Collaboration History" page action.
+  std::unique_ptr<CollaborationMessagingPageActionController>
+      collaboration_messaging_page_action_controller_;
+
 #if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::GlicTabIndicatorHelper> glic_tab_indicator_helper_;
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -405,8 +426,12 @@ class TabFeatures {
   std::unique_ptr<TabCreationMetricsController>
       tab_creation_metrics_controller_;
 
-  std::unique_ptr<TabCaptureContentsBorderHelper>
-      tab_capture_contents_border_helper_;
+  std::unique_ptr<autofill::BubbleManager> autofill_bubble_manager_;
+
+  std::unique_ptr<AskBeforeHttpDialogController>
+      ask_before_http_dialog_controller_;
+
+  std::unique_ptr<actor::ActorTabData> actor_tab_data_;
 
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};

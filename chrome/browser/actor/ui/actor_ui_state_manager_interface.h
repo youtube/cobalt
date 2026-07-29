@@ -19,25 +19,26 @@ namespace actor::ui {
 using UiCompleteCallback =
     base::OnceCallback<void(::actor::mojom::ActionResultPtr)>;
 
-// ExpiryPeriod from when the user completes a task and when it should no longer
-// show on the ui
-// TODO(crbug.com/428014205): This is a placeholder value atm.
-static constexpr base::TimeDelta kCompletedTaskExpiryDelay = base::Minutes(3);
 static constexpr base::TimeDelta kProfileScopedUiUpdateDebounceDelay =
     base::Milliseconds(500);
 
 class ActorUiStateManagerInterface {
  public:
-  // TODO(crbug.com/428014205): Once UX is determined for multiple tasks, states
-  // here may change.
+  // TODO(crbug.com/424495020): This behavior will need to be revisited once
+  // multiple tasks come into play. If there are multiple tasks where some tasks
+  // are complete but some tasks are paused, the current behavior is that
+  // kCheckTasks takes precedence over kCompleteTasks. For M3 this is not an
+  // issue since there are not multiple tasks.
   enum class UiState {
     // There are no active Actor tasks on this profile.
     kInactive,
     // There are active Actor tasks on this profile.
     kActive,
-    // There are Actor tasks that need attention, this includes Actor pause &
-    // completed tasks within the kCompletedTaskExpiryDelay.
+    // There are Actor tasks that need attention, this includes Actor paused.
     kCheckTasks,
+    // There are Actor tasks that are complete within the
+    // kCompletedTaskExpiryDelay.
+    kCompleteTasks,
   };
   virtual ~ActorUiStateManagerInterface() = default;
 
@@ -51,18 +52,22 @@ class ActorUiStateManagerInterface {
   virtual ActorUiTabControllerInterface* GetUiTabController(
       tabs::TabInterface* tab) = 0;
 
+  // Shows toast that notifies user the Actor is working in the background.
+  // Shows a maximum of kToastShownMax per profile.
+  virtual void MaybeShowToast(BrowserWindowInterface* bwi) = 0;
+
 #if BUILDFLAG(ENABLE_GLIC)
-  // Called on glic window (floaty) state change. Receives new state and the
-  // last active window before the floaty became active.
+  // Called on glic window (floaty) state change OR view change.
   virtual void OnGlicUpdateFloatyState(
       glic::GlicWindowController::State floaty_state,
-      BrowserWindowInterface* bwi) = 0;
+      glic::mojom::CurrentView current_view) = 0;
 
   // Register for this callback to detect changes to the glic floaty status and
   // UiState.
   using FloatyTaskStateChangeCallback =
       base::RepeatingCallback<void(ActorUiStateManagerInterface::UiState,
-                                   glic::GlicWindowController::State)>;
+                                   glic::GlicWindowController::State,
+                                   glic::mojom::CurrentView)>;
   virtual base::CallbackListSubscription RegisterFloatyTaskStateChange(
       FloatyTaskStateChangeCallback callback) = 0;
 #endif

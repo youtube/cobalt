@@ -230,7 +230,7 @@ TEST_F(UndoPasswordChangeControllerTest, OnTroubleSigningIn) {
   const auto password_details = GetSuggestionDetails(credential);
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
-  const auto expected_metric_state = password_manager::
+  const auto expected_metric_state = password_manager::metrics_util::
       PasswordChangeRecoveryFlowState::kTroubleSigningInClicked;
 
   controller_.OnSuggestionSelected(credential);
@@ -338,6 +338,20 @@ TEST_F(UndoPasswordChangeControllerTest, OnLoginPotentiallyFailedFlagOff) {
 }
 
 TEST_F(UndoPasswordChangeControllerTest,
+       OnLoginPotentiallyFailed_UnfocusablePassword) {
+  base::test::ScopedFeatureList feature_list(features::kShowRecoveryPassword);
+  best_match_form_.SetPasswordBackupNote(kBackupPassword);
+  auto form_manager = CreateFormManager(best_match_form_);
+  test_api(failed_login_form_.form_data)
+      .fields()[kPasswordFieldIndex]
+      .set_is_focusable(false);
+
+  controller_.OnLoginPotentiallyFailed(&driver_, failed_login_form_);
+
+  EXPECT_FALSE(controller_.failed_login_form());
+}
+
+TEST_F(UndoPasswordChangeControllerTest,
        OnLoginPotentiallyFailedNoBackupIgnored) {
   base::test::ScopedFeatureList feature_list(features::kShowRecoveryPassword);
   auto form_manager = CreateFormManager(best_match_form_);
@@ -424,7 +438,7 @@ TEST_F(UndoPasswordChangeControllerTest, OnSuggestionsHidden) {
   base::RunLoop run_loop;
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
-  const auto expected_metric_state = password_manager::
+  const auto expected_metric_state = password_manager::metrics_util::
       PasswordChangeRecoveryFlowState::kProactiveRecoveryPopupShown;
 
   controller_.OnLoginPotentiallyFailed(&driver_, failed_login_form_);

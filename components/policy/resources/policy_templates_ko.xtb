@@ -3233,6 +3233,11 @@ Microsoft Outlook 카드에는 추가 관리자 구성이 필요합니다. Chrom
           유효한 URL 패턴을 자세히 알아보려면 https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns 페이지를 참고하세요. 와일드 카드(<ph name="WILDCARD_VALUE" />)를 사용할 수 있습니다.</translation>
 <translation id="3273221114520206906">기본 자바 스크립트 설정</translation>
 <translation id="3278042410658310805">로그인 화면에서 음성 피드백을 사용 중지하고 사용자가 일시적으로 사용 설정할 수 있도록 허용</translation>
+<translation id="3279532732818711062">정책을 설정하면 명시된 출처에서 Device Attributes API를 사용하여 기기 속성(예: 일련번호, 호스트 이름)을 가져올 수 있습니다.
+
+출처는 <ph name="ISOLATED_WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 정책을 사용하여 강제 설치된 분리형 웹 앱(버전 125 이후), 키오스크 앱으로 설정된 웹 애플리케이션 또는 <ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" /> 정책을 사용하여 강제 설치된 웹 애플리케이션(버전 140 이전)과 일치해야 합니다. Device Attributes API 사양은 https://wicg.github.io/WebApiDevice/device_attributes를 참고하세요.
+
+유효한 <ph name="URL_LABEL" /> 패턴(버전 127 이후)에 관해 자세히 알아보려면 링크(https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns)를 참고하세요. <ph name="WILDCARD_VALUE" /> 기호는 이 정책에 허용되는 값이 아닙니다.</translation>
 <translation id="328347261792478720">브라우저에서 기본적으로 사용자에게 맞춤설정된 미디어 추천을 표시합니다. 정책을 사용 중지하면 사용자에게 이러한 추천이 표시되지 않습니다. 정책을 사용 설정하거나 설정하지 않으면 사용자에게 미디어 추천이 표시됩니다.</translation>
 <translation id="3284094172359247914">WebUSB API 사용 조정</translation>
 <translation id="3285231260918855067">워터마크 텍스트의 윤곽선 불투명도로, 0(투명)에서 100(불투명) 사이입니다.</translation>
@@ -4305,6 +4310,7 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
 <translation id="4051723201852944592">창 오클루전 사용 설정</translation>
 <translation id="4052529125939620019">시작 시 CryptoToken 구성요소 확장 프로그램 로드</translation>
 <translation id="4053157306171963473">기기 활동 시간 보고 사용 중지</translation>
+<translation id="4053168888967633418">기기 속성 설정</translation>
 <translation id="4056842786707010434">새 브라우징 컨텍스트 그룹이 생성되는 크로스 사이트 최상위 탐색에서 window.name을 삭제하도록 허용할지 여부를 선택합니다.</translation>
 <translation id="4056910949759281379">SPDY 프로토콜 사용 중지</translation>
 <translation id="4057442294431066708">이 정책은 키 재매핑 하위 페이지에서 이벤트를 F11/F12로 재매핑하기 위해 선택된 단축키 옵션을 제어합니다. 이 설정은 ChromeOS 키보드에만 적용되며, 정책을 설정하지 않으면 기본적으로 사용 중지됩니다.</translation>
@@ -11532,13 +11538,6 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />와 충돌�
 
       정책을 사용 중지하면 등록된 기기에서 버전 정보를 보고하지 않습니다.</translation>
 <translation id="8934296213794658971">Gemini 통합 설정</translation>
-<translation id="8934485887744460569"><ph name="PRODUCT_NAME" />에서 기본적인 생성형 AI 모델을 다운로드하고 로컬에서 추론에 사용하는 방법을 구성합니다. 
-
-정책을 허용됨(0)으로 설정하거나 설정하지 않으면 모델이 자동으로 다운로드되어 추론에 사용됩니다.
-
-정책을 사용 안함(1)으로 설정하면 모델이 다운로드되지 않습니다.
-
-<ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />에서 모델 다운로드를 사용 중지할 수도 있습니다.</translation>
 <translation id="8937282917198525844"> M81부터 표준 양식 컨트롤 요소(예: &lt;select&gt;, &lt;button&gt;, &lt;input type=date&gt;)의 디자인이 새로워졌으며, 접근성 및 플랫폼 동일성이 개선되었습니다. 이 정책은 M84까지 이전의 '기존' 양식 컨트롤 요소를 복원합니다.
 
       정책이 True로 설정되면 모든 사이트에서 '기존' 양식 컨트롤 요소가 사용됩니다.

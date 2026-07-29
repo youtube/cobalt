@@ -141,6 +141,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &download::features::kSmartSuggestionForLargeDownloads,
     &base::features::kCollectAndroidFrameTimelineMetrics,
     &download::features::kDownloadNotificationServiceUnifiedAPI,
+    &features::kAndroidAnimatedCompositedProgressBar,
     &features::kAndroidBcivBottomControls,
     &features::kAndroidBrowserControlsInViz,
     &features::kAndroidWebAppLaunchHandler,
@@ -194,6 +195,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &history_clusters::internal::kJourneys,
     &history_clusters::internal::kOmniboxAction,
     &media::kAutoPictureInPictureAndroid,
+    &media::kContextMenuPictureInPictureAndroid,
     &kAccountForSuppressedKeyboardInsets,
     &kAdaptiveButtonInTopToolbarCustomizationV2,
     &kAdaptiveButtonInTopToolbarPageSummary,
@@ -235,10 +237,12 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidTabDeclutterPerformanceImprovements,
     &kAndroidTabSkipSaveTabsKillswitch,
     &kAndroidThemeModule,
+    &kAndroidThemeResourceProvider,
     &kAndroidToolbarScrollAblation,
     &kAndroidUseAdminsForEnterpriseInfo,
     &kAndroidWindowPopupLargeScreen,
     &kAndroidWindowPopupResizeAfterSpawn,
+    &kAndroidXRUsesSurfaceControl,
     &kAnimatedGifRefactor,
     &kAnimatedImageDragShadow,
     &kAppSpecificHistory,
@@ -333,6 +337,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kHubSlideAnimation,
     &kLegacyTabStateDeprecation,
     &kLockBackPressHandlerAtStart,
+    &kLockTopControlsOnLargeTablets,
     &kIncognitoScreenshot,
     &kInstanceSwitcherV2,
     &kKeyboardEscBackNavigation,
@@ -385,6 +390,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kReloadTabUiResourcesIfChanged,
     &kRemoveTabFocusOnShowingAndSelect,
     &kRightEdgeGoesForwardGestureNav,
+    &kRobustWindowManagement,
     &kSearchInCCT,
     &kSearchInCCTAlternateTapHandling,
     &kSearchInCCTIfEnabledByEmbedder,
@@ -422,6 +428,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTestDefaultEnabled,
     &kThirdPartyDisableChromeAutofillSettingsScreen,
     &kToolbarPhoneAnimationRefactor,
+    &kToolbarSnapshotRefactor,
     &kToolbarTabletResizeRefactor,
     &kTopControlsRefactor,
     &kTouchToSearchCallout,
@@ -458,10 +465,10 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &privacy_sandbox::kPrivacySandboxActivityTypeStorage,
     &privacy_sandbox::kPrivacySandboxAdsApiUxEnhancements,
     &privacy_sandbox::kPrivacySandboxAdsNoticeCCT,
-    &privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
     &privacy_sandbox::kPrivacySandboxSettings4,
     &privacy_sandbox::kPrivacySandboxAdTopicsContentParity,
     &privacy_sandbox::kPrivacySandboxSentimentSurvey,
+    &privacy_sandbox::kRelatedWebsiteSetsUi,
     &privacy_sandbox::kTrackingProtectionUserBypassPwa,
     &privacy_sandbox::kTrackingProtectionUserBypassPwaTrigger,
     &safe_browsing::kHashPrefixRealTimeLookups,
@@ -675,6 +682,10 @@ BASE_FEATURE(kAndroidThemeModule,
              "AndroidThemeModule",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAndroidThemeResourceProvider,
+             "AndroidThemeResourceProvider",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAndroidToolbarScrollAblation,
              "AndroidToolbarScrollAblation",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -690,6 +701,10 @@ BASE_FEATURE(kAndroidWindowPopupLargeScreen,
 BASE_FEATURE(kAndroidWindowPopupResizeAfterSpawn,
              "AndroidWindowPopupResizeAfterSpawn",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAndroidXRUsesSurfaceControl,
+             "AndroidWindowPopupResizeAfterSpawn",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAnimatedGifRefactor,
              "AnimatedGifRefactor",
@@ -1048,7 +1063,7 @@ BASE_FEATURE(kGroupNewTabWithParent,
 
 BASE_FEATURE(kHeadlessTabModel,
              "HeadlessTabModel",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHistoryPaneAndroid,
              "HistoryPaneAndroid",
@@ -1065,6 +1080,10 @@ BASE_FEATURE(kLegacyTabStateDeprecation,
 BASE_FEATURE(kLockBackPressHandlerAtStart,
              "LockBackPressHandlerAtStart",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLockTopControlsOnLargeTablets,
+             "LockTopControlsOnLargeTablets",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIncognitoScreenshot,
              "IncognitoScreenshot",
@@ -1113,7 +1132,7 @@ BASE_FEATURE(kMvcUpdateViewWhenModelChanged,
 
 BASE_FEATURE(kNativePageTransitionHardwareCapture,
              "NativePageTransitionHardwareCapture",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNavBarColorAnimation,
              "NavBarColorAnimation",
@@ -1270,6 +1289,10 @@ BASE_FEATURE(kRightEdgeGoesForwardGestureNav,
              "RightEdgeGoesForwardGestureNav",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kRobustWindowManagement,
+             "RobustWindowManagement",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSettingsSingleActivity,
              "SettingsSingleActivity",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1400,6 +1423,10 @@ BASE_FEATURE(kThirdPartyDisableChromeAutofillSettingsScreen,
 
 BASE_FEATURE(kToolbarPhoneAnimationRefactor,
              "ToolbarPhoneAnimationRefactor",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kToolbarSnapshotRefactor,
+             "ToolbarSnapshotRefactor",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kToolbarTabletResizeRefactor,

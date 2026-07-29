@@ -460,8 +460,7 @@ BASE_FEATURE(kContextMenuCopyVideoFrame,
 );
 
 // Enables the "Save Video Frame As" context menu item.
-BASE_FEATURE(kContextMenuSaveVideoFrameAs,
-             "ContextMenuSaveVideoFrameAs",
+BASE_FEATURE(ContextMenuSaveVideoFrameAs,
 #if BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
@@ -1124,6 +1123,11 @@ BASE_FEATURE(kAutoPictureInPictureAndroid,
              "AutoPictureInPictureAndroid",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables Picture-in-Picture menu item on the video context menu on Android.
+BASE_FEATURE(kContextMenuPictureInPictureAndroid,
+             "ContextMenuPictureInPictureAndroid",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables block model (LinearBlock) on supported devices.
 BASE_FEATURE(kMediaCodecBlockModel,
              "MediaCodecBlockModel",
@@ -1761,6 +1765,9 @@ BASE_FEATURE(kD3D12VideoDecoder,
 // Expiry: When enabled by default.
 BASE_FEATURE(kD3D12VideoEncodeAccelerator,
              "D3D12VideoEncodeAccelerator",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kD3D12VideoEncodeAcceleratorL1T3,
+             "D3D12VideoEncodeAcceleratorL1T3",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 

@@ -45,7 +45,8 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManagerTestUtils;
 import org.chromium.chrome.browser.homepage.HomepageTestRule;
 import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
 import org.chromium.chrome.browser.tab.TabStateBrowserControlsVisibilityDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.chrome.test.util.browser.suggestions.SuggestionsDependenciesRule;
@@ -65,7 +66,10 @@ import java.util.concurrent.TimeoutException;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE, "hide-scrollbars"})
 @DoNotBatch(reason = "Affect nav settings")
 @EnableFeatures({
-    "BackForwardTransitions:transition_from_native_pages/true/transition_to_native_pages/true"
+    "BackForwardTransitions"
+            + ":transition_from_native_pages/true"
+            + "/transition_to_native_pages/true"
+            + "/min-required-physical-ram-mb/0"
 })
 @DisableIf.Build(supported_abis_includes = "x86", message = "https://crbug.com/337886037")
 @DisableIf.Build(supported_abis_includes = "x86_64", message = "https://crbug.com/337886037")
@@ -74,7 +78,8 @@ public class ScreenshotCaptureTest {
     public final SuggestionsDependenciesRule mSuggestionsDeps = new SuggestionsDependenciesRule();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule public HomepageTestRule mHomepageTestRule = new HomepageTestRule();
 
@@ -163,7 +168,7 @@ public class ScreenshotCaptureTest {
 
     private void navigatingAwayFromNtpToNormalPage()
             throws IOException, TimeoutException, InterruptedException {
-        mActivityTestRule.startMainActivityWithURL(UrlConstants.NTP_URL);
+        mActivityTestRule.startOnNtp();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
         NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
 
@@ -203,7 +208,9 @@ public class ScreenshotCaptureTest {
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testNavigatingAwayFromNativeBookmarkToNormalPage(boolean nightModeEnabled)
             throws IOException, TimeoutException, InterruptedException {
-        mActivityTestRule.startMainActivityWithURL(UrlConstants.BOOKMARKS_URL);
+        mActivityTestRule
+                .startOnUrlTo(UrlConstants.BOOKMARKS_URL)
+                .executeTriggerWithoutTransition();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
 
         CallbackHelper callbackHelper = new CallbackHelper();
@@ -243,7 +250,7 @@ public class ScreenshotCaptureTest {
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testNavigatingAwayFromNtpToWebUiPage(boolean nightModeEnabled)
             throws IOException, TimeoutException, InterruptedException {
-        mActivityTestRule.startMainActivityWithURL(UrlConstants.NTP_URL);
+        mActivityTestRule.startOnNtp();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
         NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
 
@@ -286,7 +293,7 @@ public class ScreenshotCaptureTest {
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testNavigatingBackToNtpFromNormalPage(boolean nightModeEnabled)
             throws IOException, TimeoutException, InterruptedException {
-        mActivityTestRule.startMainActivityWithURL(UrlConstants.NTP_URL);
+        mActivityTestRule.startOnNtp();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
         NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
 
@@ -327,7 +334,7 @@ public class ScreenshotCaptureTest {
             throws Throwable {
         ThreadUtils.runOnUiThreadBlocking(
                 TabStateBrowserControlsVisibilityDelegate::disablePageLoadDelayForTests);
-        mActivityTestRule.startMainActivityWithURL(UrlConstants.NTP_URL);
+        mActivityTestRule.startOnNtp();
         ChromeTabbedActivity activity = mActivityTestRule.getActivity();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
         NewTabPageTestUtils.waitForNtpLoaded(activity.getActivityTab());
@@ -339,8 +346,9 @@ public class ScreenshotCaptureTest {
         FullscreenManagerTestUtils.scrollBrowserControls(activity, false);
 
         FullscreenManagerTestUtils.waitForBrowserControlsPosition(activity, -browserControlsHeight);
-        GestureNavigationTestUtils mNavUtils = new GestureNavigationTestUtils(mActivityTestRule::getActivity);
-        mNavUtils.swipeFromEdgeAndHold(/* leftEdge= */ true);
+        GestureNavigationTestUtils navUtils =
+                new GestureNavigationTestUtils(mActivityTestRule::getActivity);
+        navUtils.swipeFromEdgeAndHold(/* leftEdge= */ true);
 
         CallbackHelper callbackHelper = new CallbackHelper();
         mActivityTestRule
@@ -357,7 +365,7 @@ public class ScreenshotCaptureTest {
                             callbackHelper.notifyCalled();
                         });
         callbackHelper.waitForOnly();
-        ThreadUtils.runOnUiThreadBlocking(() -> mNavUtils.getNavigationHandler().release(true));
+        ThreadUtils.runOnUiThreadBlocking(() -> navUtils.getNavigationHandler().release(true));
         // Wait animation to be finished. Reduce flakiness caused by being destroyed during a
         // running animation.
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
@@ -366,7 +374,7 @@ public class ScreenshotCaptureTest {
     @Test
     @MediumTest
     public void testNotCaptureSadTab() throws TimeoutException, InterruptedException {
-        mActivityTestRule.startMainActivityWithURL(mTestServer.getURL(TEST_PAGE));
+        mActivityTestRule.startOnUrl(mTestServer.getURL(TEST_PAGE));
         WebContentsUtils.crashTabAndWait(mActivityTestRule.getWebContents());
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
 
@@ -406,7 +414,7 @@ public class ScreenshotCaptureTest {
     @DisabledTest(message = "https://crbug.com/357833738")
     public void testNavigateToNTPByHomeButton()
             throws InterruptedException, IOException, TimeoutException {
-        mActivityTestRule.startMainActivityWithURL(mTestServer.getURL(TEST_PAGE));
+        mActivityTestRule.startOnUrl(mTestServer.getURL(TEST_PAGE));
 
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
 

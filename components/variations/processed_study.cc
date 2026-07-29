@@ -16,6 +16,7 @@
 #include "base/version.h"
 #include "components/variations/proto/study.pb.h"
 #include "entropy_provider.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "variations_layers.h"
 
 namespace variations {
@@ -68,7 +69,8 @@ bool ValidateVersionNumbers(const Study& study) {
 
 // Validates that all experiment names in the study are valid.
 bool ValidateExperimentNames(const Study& study) {
-  std::set<std::string> experiment_names;
+  absl::flat_hash_set<std::string_view> experiment_names;
+  experiment_names.reserve(study.experiment().size());
   for (const auto& experiment : study.experiment()) {
     if (experiment.name().empty()) {
       LogInvalidReason(InvalidStudyReason::kMissingExperimentName);
@@ -193,6 +195,37 @@ bool ValidateAndComputeTotalProbability(
   return true;
 }
 
+// Validates the study type enums.
+bool ValidateStudyTypeEnums(const Study& study) {
+  // Note: These enums are specifically defined as `features.enum_type = OPEN`,
+  // meaning unknown values are present as integers on the original field. This
+  // allows us to validate them using IsValid() without needing to use proto
+  // reflection (which is more expensive) on unknown values.
+  if (study.has_consistency() &&
+      !Study::Consistency_IsValid(study.consistency())) {
+    LogInvalidReason(InvalidStudyReason::kUnsupportedStudyConsistency);
+    DVLOG(1) << study.name()
+             << " has an unsupported consistency: " << study.consistency();
+    return false;
+  }
+  if (study.has_activation_type() &&
+      !Study::ActivationType_IsValid(study.activation_type())) {
+    LogInvalidReason(InvalidStudyReason::kUnsupportedStudyActivationType);
+    DVLOG(1) << study.name() << " has an unsupported activation type: "
+             << study.activation_type();
+    return false;
+  }
+  if (study.activation_type() == Study::STICKY_AFTER_QUERY &&
+      study.consistency() != Study::PERMANENT) {
+    LogInvalidReason(InvalidStudyReason::kInvalidConsistencyForStickyStudy);
+    DVLOG(1) << study.name() << " has invalid consistency ("
+             << study.consistency()
+             << ") for activation type STICKY_AFTER_QUERY";
+    return false;
+  }
+  return true;
+}
+
 // Validates the sanity of |study| and computes the total probability and
 // whether all assignments are to a single group.
 bool ValidateStudyAndComputeTotalProbability(
@@ -211,6 +244,12 @@ bool ValidateStudyAndComputeTotalProbability(
     return false;
   }
 
+  if (study.has_expiry_date()) {
+    LogInvalidReason(InvalidStudyReason::kUnsupportedExpiryDate);
+    DVLOG(1) << study.name() << " uses the unsupported expiry_date field.";
+    return false;
+  }
+
   if (!ValidateVersionNumbers(study)) {
     return false;
   }
@@ -220,6 +259,10 @@ bool ValidateStudyAndComputeTotalProbability(
   }
 
   if (!ValidateFeatureNames(study)) {
+    return false;
+  }
+
+  if (!ValidateStudyTypeEnums(study)) {
     return false;
   }
 
@@ -268,16 +311,18 @@ bool ProcessedStudy::Init(const Study* study) {
 
 int ProcessedStudy::GetExperimentIndexByName(const std::string& name) const {
   for (int i = 0; i < study_->experiment_size(); ++i) {
-    if (study_->experiment(i).name() == name)
+    if (study_->experiment(i).name() == name) {
       return i;
+    }
   }
 
   return -1;
 }
 
 const std::string_view ProcessedStudy::GetDefaultExperimentName() const {
-  if (study_->default_experiment_name().empty())
+  if (study_->default_experiment_name().empty()) {
     return kGenericDefaultExperimentName;
+  }
 
   return study_->default_experiment_name();
 }

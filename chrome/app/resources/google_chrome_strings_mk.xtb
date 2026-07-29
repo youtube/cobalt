@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">Сите задачи</translation>
 <translation id="3018957014024118866">Избриши ги и податоците од Chrome (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">Рестартирај за да се ажурира &amp;ChromeOS Flex</translation>
+<translation id="3037517125981011456">Прикажува prompt за најава на Chrome</translation>
 <translation id="3037838751736561277">Google Chrome е во заднински режим.</translation>
 <translation id="3038232873781883849">Се чека инсталирање…</translation>
 <translation id="3045032126857188731">Јазик на преводот: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@
 <translation id="4747730611090640388">Chrome може да ги процени вашите интереси.  Подоцна, сајтот што го посетувате може да побара од Chrome да ги види вашите интереси за да ги персонализира рекламите што ги гледате.</translation>
 <translation id="475321580758063259">Ажурирајте го Chrome за да продолжите да ги користите податоците од Chrome во вашата сметка на Google <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="4754614261631455953">Google Chrome Канари (mDNS-In)</translation>
+<translation id="4756182432527369254">Ги забрзува сајтовите со софтверот V8 на Chrome, но го прави Chrome малку понеотпорен на напади</translation>
 <translation id="479167709087336770">Услугава ја користи истата проверка на правопис што се користи и во „Пребарување на Google“. Текстот што ќе го напишете во прелистувачот се испраќа до Google. Ваквото однесување може да го смените во поставки во секое време.</translation>
 <translation id="4793679854893018356">Дознајте како Chrome ве штити</translation>
 <translation id="4828579605166583682">Google Chrome се обидува да ги замени постојните лозинки. За да го дозволите тоа, внесете ја вашата лозинка за Windows.</translation>
@@ -407,6 +409,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="5980111191913430208">Екстензии, апликации и теми од непознати извори може да му наштетат на вашиот уред. Chrome препорачува да ги инсталирате само од <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /></translation>
 <translation id="6003112304606738118">Се презема… Уште <ph name="HOURS" /> ч.</translation>
 <translation id="6008161919456049856">Вашите лозинки, начини на плаќање и адреси што сте ги зачувале во вашата сметка на Google ќе се отстранат од уредов. За да ги користите повторно во Chrome, најавете се пак.</translation>
+<translation id="6009821354356307391">Поставете дополнително прашање</translation>
 <translation id="6014316319780893079">Со <ph name="BEGIN_LINK" />алатките од Chrome<ph name="END_LINK" />, може да прелистувате безбедно и да ја контролирате ситуацијата</translation>
 <translation id="6022659036123304283">Направете го Chrome свој</translation>
 <translation id="6025087594896450715">Google Chrome ќе се рестартира за <ph name="REMAINING_TIME" /></translation>
@@ -601,6 +604,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="8342675569599923794">Датотекава е опасна, па затоа Chrome ја блокираше.</translation>
 <translation id="8349094670477064572">Ќе ги зачувувате и ќе ги користите лозинките и друго во вашата сметка на Google секогаш кога сте најавени на Chrome. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Преведи на</translation>
+<translation id="8366770919198174997">Ја намалува изведбата, но го прави Chrome поотпорен на напади</translation>
 <translation id="8370517070665726704">Авторски права <ph name="YEAR" /> Google LLC. Сите права се задржани.</translation>
 <translation id="8387459386171870978">Продолжете да користите Chrome</translation>
 <translation id="8394720698884623075">Ги проверува URL-адресите во список со небезбедни сајтови меморирани во Chrome</translation>
@@ -645,6 +649,7 @@ Google Chrome не може да ги обнови вашите поставки
 <translation id="8843516219908676469">Chrome подобро ги разбира формуларите и може да ги пополнува автоматски побрзо за вас</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome препорачува да ја отстраните}one{Chrome препорачува да ги отстраните}other{Chrome препорачува да ги отстраните}}</translation>
 <translation id="8862326446509486874">Немате соодветни права за инсталирање на системско ниво. Обидете се да го извршите инсталаторот повторно како администратор.</translation>
+<translation id="8865415417596392024">Податоци од Chrome во вашата сметка</translation>
 <translation id="8883862939660515976">Прашајте ја Google Lens за сликава</translation>
 <translation id="8914504000324227558">Рестартирајте го Chrome</translation>
 <translation id="8922193594870374009">За да испратите број од <ph name="ORIGIN" /> до телефонот со Android, најавете се на Chrome на двата уреда.</translation>

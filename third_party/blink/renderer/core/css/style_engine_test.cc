@@ -173,8 +173,8 @@ void StyleEngineTest::ApplyRuleSetInvalidation(TreeScope& tree_scope,
           kHTMLStandardMode, SecureContextMode::kInsecureContext));
   sheet->ParseString(css_text);
   HeapHashSet<Member<RuleSet>> rule_sets;
-  RuleSet& rule_set =
-      sheet->EnsureRuleSet(MediaQueryEvaluator(GetDocument().GetFrame()));
+  RuleSet& rule_set = sheet->EnsureRuleSet(
+      MediaQueryEvaluator(GetDocument().GetFrame()), /*mixins=*/{});
   rule_set.CompactRulesIfNeeded();
   rule_sets.insert(&rule_set);
   SelectorFilter selector_filter;
@@ -5487,6 +5487,95 @@ TEST_F(StyleEngineTest, NestingUseCountNotStartingWithAmpersand) {
   EXPECT_TRUE(GetDocument().IsUseCounted(WebFeature::kCSSNesting));
 }
 
+TEST_F(StyleEngineTest, UseCounter_CSSPseudoParentInScope) {
+  // & in @scope should trigger the counter.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @scope {
+        & { color: green; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+
+  // & in @scope with a selector should trigger the counter.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @scope (.foo) {
+        & { color: green; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+
+  // & not in @scope should not trigger the counter.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      div {
+        & { color: green; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+
+  // No & in @scope should not trigger the counter.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @scope {
+        div { color: green; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+
+  // & in a nested rule inside @scope should not trigger the counter,
+  // as it's not a direct child of the @scope rule.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @scope {
+        div {
+          & { color: green; }
+        }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+
+  // Complex selector with & in @scope should trigger the counter.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @scope {
+        .foo, &:hover { color: green; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+
+  // & in :is() should trigger the counter.
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+      @scope {
+        .foo, :is(&) { color: green; }
+      }
+    </style>
+  )HTML");
+  UpdateAllLifecyclePhases();
+  EXPECT_TRUE(IsUseCounted(WebFeature::kCSSPseudoParentInScope));
+  ClearUseCounter(WebFeature::kCSSPseudoParentInScope);
+}
+
 TEST_F(StyleEngineTest, SystemFontsObeyDefaultFontSize) {
   // <input> get assigned "font: -webkit-small-control" in the UA sheet.
   Element* body = GetDocument().body();
@@ -7292,7 +7381,8 @@ TEST_F(StyleEngineTest, CreateUnconnectedRuleSet) {
   sheet->Contents()->ClearRuleSet();
   EXPECT_FALSE(sheet->Contents()->HasRuleSet());
 
-  RuleSet* rule_set = GetStyleEngine().CreateUnconnectedRuleSet(*sheet);
+  RuleSet* rule_set =
+      GetStyleEngine().CreateUnconnectedRuleSet(*sheet, /*mixins=*/{});
   ASSERT_TRUE(rule_set);
   rule_set->AssertCompacted();
   EXPECT_EQ(2u, rule_set->ClassRules(AtomicString("a")).size());
@@ -7313,7 +7403,8 @@ TEST_F(StyleEngineTest, CreateUnconnectedRuleSetMedia) {
   CSSStyleSheet* sheet =
       To<HTMLStyleElement>(GetDocument().getElementById(AtomicString("style")))
           ->sheet();
-  EXPECT_FALSE(GetStyleEngine().CreateUnconnectedRuleSet(*sheet));
+  EXPECT_FALSE(
+      GetStyleEngine().CreateUnconnectedRuleSet(*sheet, /*mixins=*/{}));
 }
 
 TEST_F(StyleEngineTest, HasComplexSafaAreaConstraints) {
@@ -7465,122 +7556,6 @@ TEST_F(StyleEngineTest, MissingVarArgument_IdentFunctionDisabled) {
     <div></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-}
-
-TEST_F(StyleEngineTest, CSSVarFallbackCycleCounter) {
-  ScopedCSSShortCircuitVarAttrForTest scoped_feature(false);
-
-  // No fallback.
-  ClearUseCounter(WebFeature::kCSSVarFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: var(--invalid);
-      }
-    </style>
-    <div></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSVarFallbackCycle));
-
-  // Invalid var() in a fallback that's used.
-  ClearUseCounter(WebFeature::kCSSVarFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: var(--invalid, var(--invalid2));
-      }
-    </style>
-    <div></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSVarFallbackCycle));
-
-  // Cycle in used fallback.
-  ClearUseCounter(WebFeature::kCSSVarFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: var(--invalid, var(--x));
-      }
-    </style>
-    <div></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSVarFallbackCycle));
-
-  // Cycle in unused fallback.
-  ClearUseCounter(WebFeature::kCSSVarFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: var(--y, var(--x));
-        --y: 10px;
-      }
-    </style>
-    <div></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(IsUseCounted(WebFeature::kCSSVarFallbackCycle));
-}
-
-TEST_F(StyleEngineTest, CSSAttrFallbackCycleCounter) {
-  ScopedCSSShortCircuitVarAttrForTest scoped_feature(false);
-
-  // No fallback.
-  ClearUseCounter(WebFeature::kCSSAttrFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: attr(data-foo type(*));
-      }
-    </style>
-    <div data-foo="attr(data-invalid type(*))"></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSAttrFallbackCycle));
-
-  // Invalid var() in a fallback that's used.
-  ClearUseCounter(WebFeature::kCSSAttrFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: attr(data-foo type(*));
-      }
-    </style>
-    <div
-      data-foo="attr(data-invalid type(*), attr(data-invalid2 type(*)))"></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSAttrFallbackCycle));
-
-  // Cycle in used fallback.
-  ClearUseCounter(WebFeature::kCSSAttrFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: attr(data-foo type(*));
-      }
-    </style>
-    <div data-foo="attr(data-invalid type(*), attr(data-foo type(*)))"></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(IsUseCounted(WebFeature::kCSSAttrFallbackCycle));
-
-  // Cycle in unused fallback.
-  ClearUseCounter(WebFeature::kCSSAttrFallbackCycle);
-  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>
-      div {
-        --x: attr(data-foo type(*));
-      }
-    </style>
-    <div
-      data-foo="attr(data-bar type(*), attr(data-foo type(*)))"
-      data-bar="10px"></div>
-  )HTML");
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(IsUseCounted(WebFeature::kCSSAttrFallbackCycle));
 }
 
 }  // namespace blink

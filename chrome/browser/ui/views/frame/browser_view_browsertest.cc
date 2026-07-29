@@ -39,6 +39,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view_drop_target_controller.h"
 #include "chrome/browser/ui/views/frame/scrim_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -64,6 +65,7 @@
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/drop_data.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/scoped_accessibility_mode_override.h"
@@ -72,8 +74,11 @@
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
 #include "ui/accessibility/platform/ax_platform_node_test_helper.h"
+#include "ui/base/buildflags.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/gfx/geometry/point.h"
 #include "url/url_constants.h"
 
 #if defined(USE_AURA)
@@ -102,7 +107,9 @@ class BrowserViewTest : public InProcessBrowserTest {
   }
 
   views::WebView* devtools_web_view() {
-    return browser_view()->GetDevToolsWebViewForTest();
+    return browser_view()
+        ->GetActiveContentsContainerView()
+        ->GetDevtoolsWebView();
   }
 
   ContentsContainerView* contents_container_view() {
@@ -111,6 +118,16 @@ class BrowserViewTest : public InProcessBrowserTest {
 
   views::WebView* contents_web_view() {
     return browser_view()->contents_web_view();
+  }
+
+  content::WebContents* active_web_contents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
+  }
+
+  ScrimView* active_contents_scrim_view() {
+    return browser_view()
+        ->GetActiveContentsContainerView()
+        ->GetContentsScrimView();
   }
 
   SidePanel* side_panel() { return browser_view()->unified_side_panel(); }
@@ -278,10 +295,10 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
       browser_view()->GetContentsContainerForTest()->GetLocalBounds();
   gfx::Rect small_bounds(10, 20, 30, 40);
 
-  browser_view()->UpdateDevTools();
+  browser_view()->UpdateDevTools(active_web_contents());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(full_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
   // Docked.
   OpenDevToolsWindow(true);
@@ -291,22 +308,22 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
   SetDevToolsBounds(small_bounds);
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(small_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools();
+  browser_view()->UpdateDevTools(active_web_contents());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(small_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
   CloseDevToolsWindow();
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(full_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools();
+  browser_view()->UpdateDevTools(active_web_contents());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(full_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 }
 
 // Verifies that page and devtools WebViews are being correctly laid out
@@ -330,22 +347,22 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsUndockedUpdatesBrowserWindow) {
   SetDevToolsBounds(small_bounds);
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(small_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools();
+  browser_view()->UpdateDevTools(active_web_contents());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(small_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
   CloseDevToolsWindow();
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(full_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
-  browser_view()->UpdateDevTools();
+  browser_view()->UpdateDevTools(active_web_contents());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
-  EXPECT_EQ(full_bounds, contents_container_view()->bounds());
+  EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 }
 
 void SetDevToolsWindowSizePrefs(Browser* browser,
@@ -623,18 +640,18 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, ScrimForTabModal) {
 
   // Showing a tab modal dialog will enable the content scrim.
   TabModalConfirmDialog::Create(std::move(delegate), contents);
-  EXPECT_TRUE(browser_view()->contents_scrim_view()->GetVisible());
+  EXPECT_TRUE(active_contents_scrim_view()->GetVisible());
 
   // Goes to a second tab will disable the content scrim.
   ASSERT_TRUE(
       AddTabAtIndex(1, GURL(url::kAboutBlankURL), ui::PAGE_TRANSITION_LINK));
-  EXPECT_FALSE(browser_view()->contents_scrim_view()->GetVisible());
+  EXPECT_FALSE(active_contents_scrim_view()->GetVisible());
 
   // Switch back to the page that has a modal dialog.
   browser()->tab_strip_model()->ActivateTabAt(
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kMouse));
-  EXPECT_TRUE(browser_view()->contents_scrim_view()->GetVisible());
+  EXPECT_TRUE(active_contents_scrim_view()->GetVisible());
 
   // Closing the tab disables the content scrim.
   chrome::CloseWebContents(browser(),
@@ -688,6 +705,18 @@ class SideBySideBrowserViewTest : public InProcessBrowserTest {
     return BrowserView::GetBrowserViewForBrowser(browser());
   }
 
+  ContentsContainerView* active_contents_container_view() {
+    return browser_view()
+        ->multi_contents_view()
+        ->GetActiveContentsContainerView();
+  }
+
+  ContentsContainerView* inactive_contents_container_view() {
+    return browser_view()
+        ->multi_contents_view()
+        ->GetInactiveContentsContainerView();
+  }
+
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -724,6 +753,134 @@ IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest, SplitViewActiveIndexTest) {
   EXPECT_EQ(
       browser_view()->multi_contents_view()->GetActiveContentsView(),
       browser_view()->multi_contents_view()->end_contents_view_for_testing());
+}
+
+// Verifies that page and devtools WebViews are being correctly laid out
+// when DevTools is opened/closed/updated while docked.
+IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest,
+                       DevToolsDockedRemainsOpenInWithFocusInSplit) {
+  // Add enough tabs to create two split views.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  // Add tabs to splits.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  browser()->tab_strip_model()->ActivateTabAt(2);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {3}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  browser()->tab_strip_model()->ActivateTabAt(0);
+
+  // Verify neither devtools is visible.
+  EXPECT_FALSE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_FALSE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+
+  // Open devtools for the active side of the split and verify it exists only
+  // for the active side.
+  DevToolsWindowTesting::OpenDevToolsWindowSync(browser(), true);
+  EXPECT_TRUE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_FALSE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+
+  // Activate to the inactive side and verify it stayed open on the appropriate
+  // side of the split.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  EXPECT_FALSE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_TRUE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+
+  // Activate to the other split and verify no devtools are seen.
+  browser()->tab_strip_model()->ActivateTabAt(2);
+  EXPECT_FALSE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_FALSE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+
+  // Switch back to the split where devtools is open and verify is is still
+  // visible.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  EXPECT_FALSE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_TRUE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+
+  // Verify two devtools can be seen at once (one for each side of a split).
+  DevToolsWindowTesting::OpenDevToolsWindowSync(browser(), true);
+  EXPECT_TRUE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_TRUE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+}
+
+// Verifies that page and devtools WebViews are being correctly laid out
+// when DevTools is opened/closed/updated while docked.
+IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest,
+                       DevToolsRemainsCorrectlyDockedAfterSwappingSplit) {
+  // Add enough tabs to create two split views.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  // Add tabs to splits.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  browser()->tab_strip_model()->ActivateTabAt(0);
+
+  // Open devtools for the active side of the split and verify it exists only
+  // for the active side.
+  DevToolsWindowTesting::OpenDevToolsWindowSync(browser(), true);
+  EXPECT_TRUE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_FALSE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+
+  // Reverse the split and verify the correct side has devtools.
+  browser_view()->multi_contents_view()->OnSwap();
+  EXPECT_TRUE(
+      active_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+  EXPECT_FALSE(
+      inactive_contents_container_view()->GetDevtoolsWebView()->GetVisible());
+}
+
+// TODO(crbug.com/425715421): Re-enable when wayland supports drag and drop
+#if !BUILDFLAG(IS_OZONE_WAYLAND)
+#define MAYBE_DragNotSupportedInFullscreen DragNotSupportedInFullscreen
+#else
+#define MAYBE_DragNotSupportedInFullscreen DISABLED_DragNotSupportedInFullscreen
+#endif
+IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest,
+                       MAYBE_DragNotSupportedInFullscreen) {
+  // Add enough tabs to create two split views.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  // Add tabs to splits.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  // Make fullscreen
+  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+
+  // Attempt to start a drag
+  content::DropData drop_data;
+  drop_data.url = GURL("https://mail.google.com");
+  const gfx::Rect bounds = browser_view()->GetBoundsInScreen();
+  const gfx::PointF point(bounds.left_center().x() + 10,
+                          bounds.left_center().y());
+  browser_view()->PreHandleDragUpdate(drop_data, point);
+
+  EXPECT_FALSE(browser_view()
+                   ->multi_contents_view()
+                   ->drop_target_controller()
+                   .IsDropTimerRunningForTesting());
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -1076,7 +1233,8 @@ class BrowserViewScrimPixelTest : public UiBrowserTest {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
     browser()->window()->Show();
     BrowserView::GetBrowserViewForBrowser(browser())
-        ->contents_scrim_view()
+        ->GetActiveContentsContainerView()
+        ->GetContentsScrimView()
         ->SetVisible(true);
   }
 

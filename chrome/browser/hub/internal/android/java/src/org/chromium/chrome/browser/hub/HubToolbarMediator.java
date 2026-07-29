@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.ResolutionType;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 
@@ -56,6 +57,8 @@ public class HubToolbarMediator {
         HubSearchEntrypoint.INCOGNITO_SEARCHBOX,
         HubSearchEntrypoint.REGULAR_LOUPE,
         HubSearchEntrypoint.INCOGNITO_LOUPE,
+        HubSearchEntrypoint.TAB_GROUPS_SEARCHBOX,
+        HubSearchEntrypoint.TAB_GROUPS_LOUPE,
         HubSearchEntrypoint.NUM_ENTRIES
     })
     public @interface HubSearchEntrypoint {
@@ -63,9 +66,11 @@ public class HubToolbarMediator {
         int INCOGNITO_SEARCHBOX = 1;
         int REGULAR_LOUPE = 2;
         int INCOGNITO_LOUPE = 3;
+        int TAB_GROUPS_SEARCHBOX = 4;
+        int TAB_GROUPS_LOUPE = 5;
 
         // Be sure to also update enums.xml when updating these values.
-        int NUM_ENTRIES = 4;
+        int NUM_ENTRIES = 6;
     }
 
     // LINT.ThenChange(/tools/metrics/histograms/metadata/android/enums.xml:HubSearchEntrypoint)
@@ -86,7 +91,8 @@ public class HubToolbarMediator {
                     // Only show the search box visuals in the tab switcher and incognito panes.
                     @PaneId int focusedPaneId = pane.getPaneId();
                     if (focusedPaneId != PaneId.TAB_SWITCHER
-                            && focusedPaneId != PaneId.INCOGNITO_TAB_SWITCHER) {
+                            && focusedPaneId != PaneId.INCOGNITO_TAB_SWITCHER
+                            && maybeExcludeHubSearchForTabGroupsPane(focusedPaneId)) {
                         mPropertyModel.set(APPLY_DELAY_FOR_SEARCH_BOX_ANIMATION, true);
                         mPropertyModel.set(SEARCH_BOX_VISIBLE, false);
                         mPropertyModel.set(SEARCH_LOUPE_VISIBLE, false);
@@ -288,6 +294,8 @@ public class HubToolbarMediator {
         boolean enabled = hubSearchEnabledState == null ? true : hubSearchEnabledState;
         mPropertyModel.set(HUB_SEARCH_ENABLED_STATE, enabled);
 
+        // TODO(crbug.com/436529097): Decouple the search loupe from the menu button container on
+        // the tab groups pane so it can be displayed.
         mPropertyModel.set(MENU_BUTTON_VISIBLE, focusedPane.getMenuButtonVisible());
 
         boolean isIncognito = focusedPaneId == PaneId.INCOGNITO_TAB_SWITCHER;
@@ -321,33 +329,51 @@ public class HubToolbarMediator {
                         .setIncognito(mPropertyModel.get(IS_INCOGNITO))
                         .setResolutionType(ResolutionType.OPEN_IN_CHROME)
                         .build());
-        recordHubSearchEntrypointHistogram(
-                mPropertyModel.get(SEARCH_BOX_VISIBLE), mPropertyModel.get(IS_INCOGNITO));
+        recordHubSearchEntrypointHistogram(mPropertyModel.get(SEARCH_BOX_VISIBLE));
     }
 
     private void onCurrentTabChange(@Nullable Tab tab) {
         mPropertyModel.set(BACK_BUTTON_ENABLED, tab != null);
     }
 
-    private void recordHubSearchEntrypointHistogram(boolean isSearchBox, boolean isIncognito) {
+    private void recordHubSearchEntrypointHistogram(boolean isSearchBox) {
         // Based on the ComponentCallback#onConfigurationChanged logic for hub search, it is implied
         // that the search box and search loupe visibilities have opposite behaviors at any time.
         @HubSearchEntrypoint int action;
+        @PaneId int focusedPaneId = mPaneManager.getFocusedPaneSupplier().get().getPaneId();
 
-        if (isIncognito) {
-            action =
-                    isSearchBox
-                            ? HubSearchEntrypoint.INCOGNITO_SEARCHBOX
-                            : HubSearchEntrypoint.INCOGNITO_LOUPE;
-        } else {
-            action =
-                    isSearchBox
-                            ? HubSearchEntrypoint.REGULAR_SEARCHBOX
-                            : HubSearchEntrypoint.REGULAR_LOUPE;
+        switch (focusedPaneId) {
+            case PaneId.INCOGNITO_TAB_SWITCHER:
+                action =
+                        isSearchBox
+                                ? HubSearchEntrypoint.INCOGNITO_SEARCHBOX
+                                : HubSearchEntrypoint.INCOGNITO_LOUPE;
+                break;
+            case PaneId.TAB_SWITCHER:
+                action =
+                        isSearchBox
+                                ? HubSearchEntrypoint.REGULAR_SEARCHBOX
+                                : HubSearchEntrypoint.REGULAR_LOUPE;
+                break;
+            case PaneId.TAB_GROUPS:
+                action =
+                        isSearchBox
+                                ? HubSearchEntrypoint.TAB_GROUPS_SEARCHBOX
+                                : HubSearchEntrypoint.TAB_GROUPS_LOUPE;
+                break;
+            default:
+                assert false : "Invalid focused pane id " + focusedPaneId;
+                action = HubSearchEntrypoint.REGULAR_SEARCHBOX;
         }
 
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.HubSearch.SearchBoxEntrypointV2", action, HubSearchEntrypoint.NUM_ENTRIES);
+    }
+
+    private boolean maybeExcludeHubSearchForTabGroupsPane(@PaneId int focusedPaneId) {
+        if (!OmniboxFeatures.sAndroidHubSearchTabGroups.isEnabled()) return true;
+
+        return focusedPaneId != PaneId.TAB_GROUPS;
     }
 
     /** Test-only method to trigger configuration change for testing purposes. */

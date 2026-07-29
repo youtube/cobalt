@@ -120,8 +120,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiNewTabTest, Tabs) {
   // The test creates a tab and checks that the URL of the new tab
   // is that of the new tab page.  Make sure the pref that controls
   // this is set.
-  browser()->profile()->GetPrefs()->SetBoolean(
-      prefs::kHomePageIsNewTabPage, true);
+  profile()->GetPrefs()->SetBoolean(prefs::kHomePageIsNewTabPage, true);
 
   ASSERT_TRUE(RunExtensionTest("tabs/basics/crud")) << message_;
 }
@@ -272,8 +271,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiCaptureTest, MAYBE_CaptureVisibleTabJpeg) {
                                                     ReplyBehavior::kWillReply);
   auto get_device_pixel_ratio = [this, &device_pixel_handler](
                                     const std::string& message) {
-    content::WebContents* active_tab =
-        browser()->tab_strip_model()->GetActiveWebContents();
+    content::WebContents* active_tab = GetActiveWebContents();
     ASSERT_TRUE(active_tab);
     content::RenderWidgetHostView* view = active_tab->GetRenderWidgetHostView();
     ASSERT_TRUE(view);
@@ -299,8 +297,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiCaptureTest, MAYBE_CaptureVisibleTabPng) {
                                                     ReplyBehavior::kWillReply);
   auto get_device_pixel_ratio = [this, &device_pixel_handler](
                                     const std::string& message) {
-    content::WebContents* active_tab =
-        browser()->tab_strip_model()->GetActiveWebContents();
+    content::WebContents* active_tab = GetActiveWebContents();
     ASSERT_TRUE(active_tab);
     content::RenderWidgetHostView* view = active_tab->GetRenderWidgetHostView();
     ASSERT_TRUE(view);
@@ -340,8 +337,7 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiCaptureTest, MAYBE_CaptureVisibleFile) {
 #define MAYBE_CaptureVisibleDisabled CaptureVisibleDisabled
 #endif
 IN_PROC_BROWSER_TEST_P(ExtensionApiCaptureTest, MAYBE_CaptureVisibleDisabled) {
-  browser()->profile()->GetPrefs()->SetBoolean(prefs::kDisableScreenshots,
-                                               true);
+  profile()->GetPrefs()->SetBoolean(prefs::kDisableScreenshots, true);
   ASSERT_TRUE(RunExtensionTest("tabs/capture_visible_tab/test_disabled"))
       << message_;
 }
@@ -419,8 +415,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, MAYBE_UpdateWindowShowState) {
 IN_PROC_BROWSER_TEST_P(ExtensionApiTabTestWithContextType,
                        IncognitoDisabledByPref) {
   IncognitoModePrefs::SetAvailability(
-      browser()->profile()->GetPrefs(),
-      policy::IncognitoModeAvailability::kDisabled);
+      profile()->GetPrefs(), policy::IncognitoModeAvailability::kDisabled);
 
   // This makes sure that creating an incognito window fails due to pref
   // (policy) being set.
@@ -549,7 +544,7 @@ class IncognitoExtensionApiTabTest
 IN_PROC_BROWSER_TEST_P(IncognitoExtensionApiTabTest, Tabs) {
   bool is_incognito_enabled = GetParam().is_incognito_enabled;
   Browser* incognito_browser =
-      OpenURLOffTheRecord(browser()->profile(), GURL("about:blank"));
+      OpenURLOffTheRecord(profile(), GURL("about:blank"));
   std::string args = base::StringPrintf(
       R"({"isIncognito": %s, "windowId": %d})",
       base::ToString(is_incognito_enabled),

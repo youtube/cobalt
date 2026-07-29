@@ -374,7 +374,7 @@ IbanBubbleControllerImpl::IbanBubbleControllerImpl(
     : AutofillBubbleControllerBase(web_contents),
       content::WebContentsUserData<IbanBubbleControllerImpl>(*web_contents) {}
 
-IbanBubbleType IbanBubbleControllerImpl::GetBubbleType() const {
+IbanBubbleType IbanBubbleControllerImpl::GetIbanBubbleType() const {
   return current_bubble_type_;
 }
 
@@ -462,6 +462,15 @@ void IbanBubbleControllerImpl::DoShowBubble() {
   if (observer_for_testing_) {
     observer_for_testing_->OnBubbleShown();
   }
+}
+
+BubbleType IbanBubbleControllerImpl::GetBubbleType() const {
+  return BubbleType::kSaveIban;
+}
+
+base::WeakPtr<BubbleControllerBase>
+IbanBubbleControllerImpl::GetBubbleControllerBaseWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 Profile* IbanBubbleControllerImpl::GetProfile() {

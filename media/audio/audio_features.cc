@@ -38,10 +38,22 @@ BASE_FEATURE(kUseAAudioInput,
 // of using communication streams and managing the system-wide communication
 // route. This is not fully reliable on all Android devices.
 //
-// Requires `UseAAudioDriver`, `UseAAudioInput`, and an Android API level >=
-// `AAUDIO_MIN_API`, otherwise it will have no effect.
+// Requires `UseAAudioDriver` and `UseAAudioInput`, otherwise it will have no
+// effect.
 BASE_FEATURE(kAAudioPerStreamDeviceSelection,
              "AAudioPerStreamDeviceSelection",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Use buffer size from AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER for
+// optimal output frame size.
+BASE_FEATURE(kAlwaysUseAudioManagerOutputFramesPerBuffer,
+             "AlwaysUseAudioManagerOutputFramesPerBuffer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the AudioDeviceListener, which listens for changes to the list of
+// audio devices exposed by the OS.
+BASE_FEATURE(kAndroidAudioDeviceListener,
+             "AndroidAudioDeviceListener",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -57,6 +69,17 @@ BASE_FEATURE(kWebAudioRemoveAudioDestinationResampler,
 #else
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_MAC)
+// Enabling this feature will allow AudioManagerMac to generate AVFoundation
+// AudioOutputStreams instead of AUHALStreams in cases of multichannel audio.
+// MacOS will then "Spatialize" the audio for users on compatible Airpods. The
+// end result will give users the option to change modes on their Airpods (Off,
+// Fixed, Head Tracking).
+BASE_FEATURE(kMacAVFoundationPlayback,
+             "MacAVFoundationPlayback",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 }  // namespace features
 

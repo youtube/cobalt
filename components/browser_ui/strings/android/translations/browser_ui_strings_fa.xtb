@@ -443,6 +443,7 @@
 <translation id="5975083100439434680">دورنمایی کردن</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">روشن کردن فید یافته‌ها</translation>
+<translation id="6012967556075291653">میان‌بر سنجاق‌شده</translation>
 <translation id="6015775454662021376">کنترل کردن دسترسی این سایت به دستگاه</translation>
 <translation id="6040143037577758943">بستن</translation>
 <translation id="6042308850641462728">بیشتر</translation>
@@ -611,7 +612,7 @@
 <translation id="8116925261070264013">صامت‌شده</translation>
 <translation id="8117244575099414087">هرگاه روشن باشد، سایت‌ها می‌توانند از حسگرهای دستگاه شما استفاده کنند. هرگاه خاموش باشد، سایت‌ها نمی‌توانند از حسگرها استفاده کنند.</translation>
 <translation id="813082847718468539">مشاهدهٔ اطلاعات سایت</translation>
-<translation id="8131740175452115882">تأیید</translation>
+<translation id="8131740175452115882">تأیید کردن</translation>
 <translation id="8163152278172770963">سایت‌ها اجازه ندارند به‌طور خودکار به حالت تصویردرتصویر بروند</translation>
 <translation id="8168435359814927499">محتوا</translation>
 <translation id="818487310457576362">برای خارج شدن از حالت تمام‌صفحه، از کنار صفحه‌نمایش بکشید.</translation>
@@ -641,7 +642,7 @@
 <translation id="8447861592752582886">لغو مجوز دستگاه</translation>
 <translation id="8471525937465764768">‏سایت‌ها معمولاً برای ارائه ویژگی‌هایی مانند چاپ سند یا ذخیره در دستگاه ذخیره‌سازی به دستگاه‌های USB متصل می‌شوند</translation>
 <translation id="8473055640493819707">«<ph name="APP_NAME" />» قدیمی است. لطفاً این برنامه را دوباره نصب کنید.</translation>
-<translation id="847433688444405067">مرور بین دستگاه‌ها</translation>
+<translation id="847433688444405067">پیمایش بین دستگاه‌ها</translation>
 <translation id="8487700953926739672">امکان دسترسی به صورت آفلاین</translation>
 <translation id="848952951823693243">همیشه سایت ویژه تلفن همراه درخواست شود</translation>
 <translation id="8492822722330266509">سایت‌ها می‌توانند بالاپر ارسال کنند و از هدایت‌ها استفاده کنند</translation>

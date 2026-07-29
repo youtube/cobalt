@@ -45,6 +45,7 @@ import org.chromium.components.data_sharing.member_role.MemberRole;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.listmenu.ListMenuItemAdapter;
+import org.chromium.ui.listmenu.ListMenuUtils.AccessibilityListObserver;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.AnchoredPopupWindow.HorizontalOrientation;
@@ -85,7 +86,6 @@ public abstract class TabOverflowMenuCoordinator<T> {
         private final ComponentCallbacks mComponentCallbacks;
         private final @Nullable LifetimeAssert mLifetimeAssert = LifetimeAssert.create(this);
         private AnchoredPopupWindow mMenuWindow;
-        private boolean mSubmenuNavigationInProgress;
 
         OverflowMenuHolder(
                 RectProvider anchorViewRectProvider,
@@ -129,10 +129,6 @@ public abstract class TabOverflowMenuCoordinator<T> {
                                 // one, we need to manually call click listeners.
                                 if (model.containsKey(CLICK_LISTENER)
                                         && model.get(CLICK_LISTENER) != null) {
-                                    // Set mSubmenuNavigationInProgress to prevent the popup from
-                                    // being destroyed. It will be cleaned up in the DataSetObserver
-                                    // below.
-                                    mSubmenuNavigationInProgress = true;
                                     model.get(CLICK_LISTENER).onClick(mContentView);
                                     return;
                                 }
@@ -176,10 +172,6 @@ public abstract class TabOverflowMenuCoordinator<T> {
                     new DataSetObserver() {
                         @Override
                         public void onChanged() {
-                            if (mSubmenuNavigationInProgress) {
-                                mSubmenuNavigationInProgress = false;
-                                return;
-                            }
                             resize();
                         }
                     });
@@ -420,6 +412,9 @@ public abstract class TabOverflowMenuCoordinator<T> {
                         activity);
         buildCustomView(mMenuHolder.getContentView(), isIncognito);
         afterCreate();
+        modelList.addObserver(
+                new AccessibilityListObserver(
+                        mMenuHolder.getContentView(), /* headerModelList= */ null, modelList));
         mMenuHolder.show();
     }
 

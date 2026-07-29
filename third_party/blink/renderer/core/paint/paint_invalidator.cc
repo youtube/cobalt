@@ -17,7 +17,6 @@
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_shift_tracker.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/mobile_metrics/mobile_friendliness_checker.h"
 #include "third_party/blink/renderer/core/page/link_highlight.h"
@@ -149,9 +148,9 @@ void PaintInvalidator::UpdateLayoutShiftTracking(
   // TODO(crbug.com/1178618): We may want to do better than this. For now, just
   // don't report anything inside multicol containers.
   const auto* block_flow = DynamicTo<LayoutBlockFlow>(&box);
-  if (block_flow && block_flow->IsFragmentationContextRoot() &&
-      block_flow->IsLayoutNGObject())
+  if (block_flow && block_flow->IsFragmentationContextRoot()) {
     context.inside_opaque_layout_shift_root = true;
+  }
 
   bool should_create_containing_block_scope =
       // TODO(crbug.com/1178618): Support multiple-fragments.

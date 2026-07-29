@@ -85,7 +85,7 @@ BASE_FEATURE(kLensOverlayUpdatedClientContext,
 
 BASE_FEATURE(kLensSearchSidePanelNewFeedback,
              "LensSearchSidePanelNewFeedback",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the Lens Overlay omnibox entry point. This is a separate feature from
 // kLensOverlay so that the omnibox entry point can be disabled without a
@@ -145,6 +145,14 @@ BASE_FEATURE(kLensSearchAimM3,
 
 BASE_FEATURE(kLensOverlayEntrypointLabelAlt,
              "LensOverlayEntrypointLabelAlt",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayTextSelectionContextMenuEntrypoint,
+             "LensOverlayTextSelectionContextMenuEntrypoint",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLensOverlayForceEmptyCsbQuery,
+             "LensOverlayForceEmptyCsbQuery",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kLensOverlayMinRamMb{&kLensOverlay, "min_ram_mb",
@@ -1201,6 +1209,15 @@ bool IsLensOverlayStraightToSrpEnabled() {
 
 std::string GetStraightToSrpQuery() {
   return kLensOverlayStraightToSrpQuery.Get();
+}
+
+bool IsLensOverlayTextSelectionContextMenuEntrypointEnabled() {
+  return base::FeatureList::IsEnabled(
+      kLensOverlayTextSelectionContextMenuEntrypoint);
+}
+
+bool IsLensOverlayForceEmptyCsbQueryEnabled() {
+  return base::FeatureList::IsEnabled(kLensOverlayForceEmptyCsbQuery);
 }
 
 }  // namespace lens::features

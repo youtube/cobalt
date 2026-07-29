@@ -206,7 +206,9 @@ VariationsFieldTrialCreator::VariationsFieldTrialCreator(
       seed_store_(std::move(seed_store)),
       application_locale_(
           language::GetApplicationLocale(seed_store_->local_state())),
-      ui_string_overrider_(ui_string_overrider) {}
+      ui_string_overrider_(ui_string_overrider),
+      sticky_activation_manager_(seed_store_->local_state(),
+                                 client->IsStickyActivationEnabled()) {}
 
 VariationsFieldTrialCreator::~VariationsFieldTrialCreator() = default;
 
@@ -381,6 +383,7 @@ VariationsFieldTrialCreator::GetClientFilterableStateForVersion(
   permanent_consistency_country_initialized_ = true;
 
   state->policy_restriction = GetVariationPolicyRestriction(local_state());
+  state->is_sticky_activation_enabled = client_->IsStickyActivationEnabled();
   return state;
 }
 
@@ -652,8 +655,6 @@ CreateTrialsResult VariationsFieldTrialCreator::CreateTrialsFromSeed(
     base::FeatureList* feature_list,
     SafeSeedManagerBase* safe_seed_manager,
     std::unique_ptr<ClientFilterableState> client_state) {
-  // This histogram name uses "VariationsFieldTrialCreator" rather than
-  // "VariationsFieldTrialCreator" for consistency with historical data
   TRACE_EVENT0("startup", "VariationsFieldTrialCreator::CreateTrialsFromSeed");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!create_trials_from_seed_called_);
@@ -732,11 +733,13 @@ CreateTrialsResult VariationsFieldTrialCreator::CreateTrialsFromSeed(
   // directly to VariationsSeedProcessor (which is in components/variations and
   // not components/variations/service) as the variations component should not
   // depend on //ui/base.
-  VariationsSeedProcessor().CreateTrialsFromSeed(
-      seed, *client_state,
-      base::BindRepeating(&VariationsFieldTrialCreator::OverrideUIString,
-                          base::Unretained(this)),
-      entropy_providers, layers, feature_list);
+  VariationsSeedProcessor(sticky_activation_manager_)
+      .CreateTrialsFromSeed(
+          seed, *client_state,
+          base::BindRepeating(&VariationsFieldTrialCreator::OverrideUIString,
+                              base::Unretained(this)),
+          entropy_providers, layers, feature_list);
+  sticky_activation_manager_.StartMonitoring();
 
   VLOG(1) << "CreateTrialsFromSeed complete with "
           << "seed.version='" << seed.version() << "'";

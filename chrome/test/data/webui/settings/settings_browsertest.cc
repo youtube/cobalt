@@ -46,7 +46,6 @@ class SettingsBrowserTest : public WebUIMochaBrowserTest {
 #if BUILDFLAG(ENABLE_GLIC)
             features::kGlic, features::kTabstripComboButton,
 #endif
-            privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             privacy_sandbox::kFingerprintingProtectionUx},
         /*disabled_features=*/{
 #if BUILDFLAG(ENABLE_GLIC)
@@ -762,6 +761,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SyncAccountControl) {
 }
 #endif
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, SyncEncryptionOptions) {
+  RunTest("settings/sync_encryption_options_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, TabDiscardExceptionDialog) {
   RunTest("settings/tab_discard_exception_dialog_test.js", "mocha.run()");
 }
@@ -837,9 +840,8 @@ IN_PROC_BROWSER_TEST_F(SettingsAllSitesTest, WithoutRelatedWebsiteSetsData) {
           "runMochaSuite('WithoutRelatedWebsiteSetsData')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyGuidePromo) {
-  RunTest("settings/privacy_guide_promo_test.js",
-          "runMochaSuite('PrivacyGuidePromo')");
+IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyGuidePromoVisibility) {
+  RunTest("settings/privacy_guide_promo_visibility_test.js", "mocha.run()");
 }
 
 using SettingsClearBrowsingDataTest = SettingsBrowserTest;
@@ -913,13 +915,6 @@ using SettingsCookiesPageTest = SettingsBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, CookiesPageTest) {
   RunTest("settings/cookies_page_test.js", "runMochaSuite('CookiesPageTest')");
-}
-
-// TODO(crbug.com/370008370): Remove once AlwaysBlock3pcsIncognito launched.
-IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest,
-                       CookiesPageAlwaysBlock3pcsIncognitoDisabledTest) {
-  RunTest("settings/cookies_page_test.js",
-          "runMochaSuite('CookiesPageTest_alwaysBlock3pcsIncognitoDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsCookiesPageTest, ExceptionsList) {
@@ -1023,8 +1018,7 @@ class SettingsPrivacyGuideTest : public SettingsBrowserTest {
     scoped_feature_list_.InitWithFeatures(
         {features::kPrivacyGuideForceAvailable,
          content_settings::features::kTrackingProtection3pcd,
-         optimization_guide::features::kPrivacyGuideAiSettings,
-         privacy_sandbox::kAlwaysBlock3pcsIncognito},
+         optimization_guide::features::kPrivacyGuideAiSettings},
         {});
   }
 
@@ -1220,7 +1214,6 @@ class SettingsPrivacyPageTest : public SettingsBrowserTest {
             blink::features::kWebPrinting,
 #endif
             browsing_data::features::kDbdRevampDesktop,
-            privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi,
             permissions::features::kPermissionSiteSettingsRadioButton,
             privacy_sandbox::kFingerprintingProtectionUx,
             safe_browsing::kBundledSecuritySettings,
@@ -1274,10 +1267,6 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest,
                        IncognitoTrackingProtectionsSubpage) {
   RunTest("settings/privacy_page_test.js",
           "runMochaSuite('IncognitoTrackingProtectionsSubpage')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest, AllSitesSubpage) {
-  RunTest("settings/privacy_page_test.js", "runMochaSuite('AllSitesSubpage')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacyPageTest, PrivacyGuideRow) {

@@ -23,7 +23,6 @@
 #include "chrome/browser/extensions/user_scripts_test_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/guest_view/browser/guest_view_base.h"
 #include "components/guest_view/browser/guest_view_manager_delegate.h"
@@ -151,11 +150,6 @@ class ScriptInjectionTrackerBrowserTest : public ExtensionBrowserTest {
     content::SetupCrossSiteRedirector(embedded_test_server());
   }
 
-  // Returns the current active web contents.
-  content::WebContents* GetActiveWebContents() {
-    return browser()->tab_strip_model()->GetActiveWebContents();
-  }
-
   // Navigates to url for given `hostname` and `relative_url`. Returns whether
   // the navigation is in a new process compared to the currently active tab.
   [[nodiscard]] bool NavigateToURLInNewProcess(std::string_view hostname,
@@ -164,9 +158,7 @@ class ScriptInjectionTrackerBrowserTest : public ExtensionBrowserTest {
 
     // Opening the URL in a new tab should force it into a new process.
     GURL url = embedded_test_server()->GetURL(hostname, relative_url);
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+    NavigateToURLInNewTab(url);
 
     content::WebContents* new_web_contents = GetActiveWebContents();
     return original_web_contents->GetPrimaryMainFrame()->GetProcess() !=
@@ -242,7 +234,7 @@ IN_PROC_BROWSER_TEST_F(ScriptInjectionTrackerBrowserTest,
   // content scripts.
   content::WebContents* web_contents = GetActiveWebContents();
   content::RenderFrameHost* background_frame =
-      ProcessManager::Get(browser()->profile())
+      ProcessManager::Get(profile())
           ->GetBackgroundHostForExtension(extension->id())
           ->main_frame_host();
   EXPECT_EQ("This page has no title.",
@@ -1175,10 +1167,8 @@ IN_PROC_BROWSER_TEST_F(ScriptInjectionTrackerBrowserTest, HistoryPushState) {
 
   // Verify that content script has been injected.
   ASSERT_TRUE(listener.WaitUntilSatisfied());
-  content::RenderFrameHost* main_frame = browser()
-                                             ->tab_strip_model()
-                                             ->GetActiveWebContents()
-                                             ->GetPrimaryMainFrame();
+  content::RenderFrameHost* main_frame =
+      GetActiveWebContents()->GetPrimaryMainFrame();
   EXPECT_EQ("content script has run",
             content::EvalJs(main_frame, "document.body.innerText"));
 
@@ -1992,7 +1982,7 @@ class ScriptInjectionTrackerAppBrowserTest : public PlatformAppBrowserTest {
 
   guest_view::TestGuestViewManager* GetGuestViewManager() {
     return factory_.GetOrCreateTestGuestViewManager(
-        browser()->profile(),
+        profile(),
         ExtensionsAPIClient::Get()->CreateGuestViewManagerDelegate());
   }
 

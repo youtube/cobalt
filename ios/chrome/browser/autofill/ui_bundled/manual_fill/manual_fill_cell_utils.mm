@@ -565,13 +565,18 @@ UIView* CreateGraySeparatorForContainer(UIView* container) {
 }
 
 UIButton* CreateAutofillFormButton() {
-  UIButton* button = PrimaryActionButton(/*pointer_interaction_enabled=*/YES);
+  UIButton* button = PrimaryActionButton();
   button.accessibilityIdentifier =
       manual_fill::kExpandedManualFillAutofillFormButtonID;
   UIButtonConfiguration* buttonConfiguration = button.configuration;
   buttonConfiguration.contentInsets =
       NSDirectionalEdgeInsetsMake(kAutofillFormButtonVerticalInsets, 0,
                                   kAutofillFormButtonVerticalInsets, 0);
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    buttonConfiguration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+  }
+#endif
   button.configuration = buttonConfiguration;
 
   [button.heightAnchor
@@ -581,6 +586,7 @@ UIButton* CreateAutofillFormButton() {
   SetConfigurationTitle(
       button, l10n_util::GetNSString(
                   IDS_IOS_MANUAL_FALLBACK_AUTOFILL_FORM_BUTTON_TITLE));
+  button.titleLabel.textAlignment = NSTextAlignmentCenter;
 
   return button;
 }

@@ -220,6 +220,19 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/fre/metrics_enums.ts:GlicFreWebviewLoadAbortReason) -->
 
+<!-- LINT.IfChange(GlicGetContextFromFocusedTabError) -->
+
+<enum name="GlicGetContextFromFocusedTabError">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="PermissionDeniedWindowNotShowing"/>
+  <int value="2" label="TabNotFound"/>
+  <int value="3" label="PermissionDeniedContextPermissionNotEnabled"/>
+  <int value="4" label="PermissionDenied"/>
+  <int value="5" label="WebContentsChanged"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:GlicGetContextFromFocusedTabError) -->
+
 <!-- LINT.IfChange(GlicHotkeyUsage) -->
 
 <enum name="GlicHotkeyUsage">
@@ -255,6 +268,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="From the What's New page"/>
   <int value="10" label="User clicked sign-in and signed in"/>
   <int value="11" label="User shared a tab"/>
+  <int value="12" label="From the actor task icon"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:InvocationSource) -->
@@ -290,6 +304,18 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_profile_manager.h:GlicPrewarmingChecksResult) -->
+
+<!-- LINT.IfChange(GlicPrewarmingFreSource) -->
+
+<enum name="GlicPrewarmingFreSource">
+  <int value="0" label="What's New"/>
+  <int value="1" label="Nudge"/>
+  <int value="2" label="IPH"/>
+  <int value="3" label="Test"/>
+  <int value="4" label="Browser Command"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/public/glic_keyed_service.h:GlicPrewarmingFreSource) -->
 
 <!-- LINT.IfChange(GlicRequestEvent) -->
 
@@ -359,6 +385,10 @@ chromium-metrics-reviews@google.com.
   <int value="46" label="User shared a tab, attached, audio mode."/>
   <int value="47" label="User shared a tab, detached, text mode."/>
   <int value="48" label="User shared a tab, detached, audio mode."/>
+  <int value="49" label="Actor task icon, attached, text mode."/>
+  <int value="50" label="Actor task icon, attached, audio mode."/>
+  <int value="51" label="Actor task icon, detached, text mode."/>
+  <int value="52" label="Actor task icon, detached, audio mode."/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:ResponseSegmentation) -->
@@ -399,6 +429,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebClientMode) -->
 
+<!-- LINT.IfChange(GlicWebviewExitReason) -->
+
+<enum name="GlicWebviewExitReason">
+  <int value="0" label="Normal"/>
+  <int value="1" label="Abnormal"/>
+  <int value="2" label="Crash"/>
+  <int value="3" label="Kill"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/glic/webview.ts:WebviewExitReason) -->
+
 <!-- LINT.IfChange(LoadingStage) -->
 
 <enum name="LoadingStage">
@@ -417,6 +458,25 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Non-PDF main doc; PDF found"/>
   <int value="3" label="Non-PDF main doc; PDF not found"/>
 </enum>
+
+<!-- LINT.IfChange(PercentOverlap) -->
+
+<enum name="PercentOverlap">
+  <int value="0" label="0%"/>
+  <int value="1" label="10%"/>
+  <int value="2" label="20%"/>
+  <int value="3" label="30%"/>
+  <int value="4" label="40%"/>
+  <int value="5" label="50%"/>
+  <int value="6" label="60%"/>
+  <int value="7" label="70%"/>
+  <int value="8" label="80%"/>
+  <int value="9" label="90%"/>
+  <int value="10" label="100%"/>
+  <int value="11" label="No visible chrome browser"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:PercentOverlap) -->
 
 <!-- LINT.IfChange(PerformActionsErrorReason) -->
 
