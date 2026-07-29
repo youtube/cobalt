@@ -22,6 +22,10 @@ BASE_FEATURE(kCctSignInPrompt,
              "CctSignInPrompt",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kEnableSeamlessSignin,
+             "EnableSeamlessSignin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kForceHistoryOptInScreen,
              "ForceHistoryOptInScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -72,17 +76,6 @@ BASE_FEATURE(kSupportWebSigninAddSession,
              "SupportWebSigninAddSession",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// Enables the History Sync Opt-in on Desktop.
-BASE_FEATURE(kEnableHistorySyncOptin,
-             "EnableHistorySyncOptin",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// Enables the History Sync Opt-in from the tab helper entry point.
-BASE_FEATURE(kEnableHistorySyncOptinFromTabHelper,
-             "EnableHistorySyncOptinFromTabHelper",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // Move the step of browser Signin into the Sync header processing logic.
@@ -286,12 +279,16 @@ bool IsExtensionsExplicitBrowserSigninEnabled() {
 
 BASE_FEATURE(kSyncEnableBookmarksInTransportMode,
              "SyncEnableBookmarksInTransportMode",
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
+#if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // BUILDFLAG(IS_IOS)
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
 );
+
+BASE_FEATURE(kSkipRefreshTokenCheckInIdentityManager,
+             "SkipRefreshTokenCheckInIdentityManager",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kSignInPromoMaterialNextUI,
@@ -367,6 +364,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 BASE_FEATURE(kEnforceManagementDisclaimer,
              "EnforceManagementDisclaimer",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// The delay between policy registration retry.
+const base::FeatureParam<base::TimeDelta> kPolicyRegistrationRetryDelay{
+    &kEnforceManagementDisclaimer, "policy_registration_retry_delay",
+    base::Hours(8)};
 #endif
 
 #if BUILDFLAG(IS_WIN)

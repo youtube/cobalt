@@ -41,6 +41,7 @@
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_constants.h"
 #include "chrome/common/actor/actor_logging.h"
+#include "chrome/common/actor/journal_details_builder.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "content/public/browser/browser_context.h"
@@ -496,20 +497,29 @@ class ActorJournalFetchPageProgressListener
 
   void BeginScreenshot() override {
     screenshot_entry_ = journal_->CreatePendingAsyncEntry(
-        url_, task_id_, mojom::JournalTrack::kActor, "GrabScreenshot", "");
+        url_, task_id_, mojom::JournalTrack::kActor, "GrabScreenshot", {});
   }
 
   void EndScreenshot(std::optional<std::string> error) override {
-    screenshot_entry_->EndEntry(error.value_or(""));
+    if (error.has_value()) {
+      screenshot_entry_->EndEntry(
+          JournalDetailsBuilder().AddError(*error).Build());
+    } else {
+      screenshot_entry_->EndEntry({});
+    }
   }
 
   void BeginAPC() override {
     apc_entry_ = journal_->CreatePendingAsyncEntry(
-        url_, task_id_, mojom::JournalTrack::kActor, "GrabAPC", "");
+        url_, task_id_, mojom::JournalTrack::kActor, "GrabAPC", {});
   }
 
   void EndAPC(std::optional<std::string> error) override {
-    apc_entry_->EndEntry(error.value_or(""));
+    if (error.has_value()) {
+      apc_entry_->EndEntry(JournalDetailsBuilder().AddError(*error).Build());
+    } else {
+      apc_entry_->EndEntry({});
+    }
   }
 
  private:
@@ -646,6 +656,20 @@ void FillInTabObservation(
   if (fetch_result.annotated_page_content_result) {
     *tab_observation.mutable_annotated_page_content() =
         fetch_result.annotated_page_content_result->proto;
+    if (fetch_result.annotated_page_content_result->metadata) {
+      auto* proto_metadata = tab_observation.mutable_metadata();
+      const auto& mojom_metadata =
+          *fetch_result.annotated_page_content_result->metadata;
+      for (const auto& mojom_frame_metadata : mojom_metadata.frame_metadata) {
+        auto* proto_frame_metadata = proto_metadata->add_frame_metadata();
+        proto_frame_metadata->set_url(mojom_frame_metadata->url.spec());
+        for (const auto& mojom_meta_tag : mojom_frame_metadata->meta_tags) {
+          auto* proto_meta_tag = proto_frame_metadata->add_meta_tags();
+          proto_meta_tag->set_name(mojom_meta_tag->name);
+          proto_meta_tag->set_content(mojom_meta_tag->content);
+        }
+      }
+    }
   }
 }
 
@@ -674,7 +698,7 @@ void FetchCallback(
     auto* actor_service = actor::ActorKeyedService::Get(profile.get());
     actor_service->GetJournal().Log(
         GURL(), task_id, actor::mojom::JournalTrack::kActor, result.error(),
-        absl::StrFormat("tabId[%d]", tab_observation->id()));
+        JournalDetailsBuilder().Add("tabId", tab_observation->id()).Build());
     // For now record everything as a timeout.
     tab_observation->set_result(
         apc::TabObservation::TAB_OBSERVATION_SCREENSHOT_TIMEOUT);
@@ -742,7 +766,7 @@ void BuildActionsResultWithObservations(
   std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry> journal_entry =
       actor_service->GetJournal().CreatePendingAsyncEntry(
           GURL(), task.id(), actor::mojom::JournalTrack::kActor,
-          "BuildActionsResultWithObservations", "");
+          "BuildActionsResultWithObservations", {});
 
   auto response = std::make_unique<apc::ActionsResult>();
 
@@ -811,10 +835,13 @@ void BuildActionsResultWithObservations(
       tab_observation->set_id(handle.raw_value());
       tab_observation->set_result(
           apc::TabObservation::TAB_OBSERVATION_TAB_WENT_AWAY);
-      actor_service->GetJournal().Log(
-          GURL(), task.id(), actor::mojom::JournalTrack::kActor,
-          "TabObservationFailed",
-          absl::StrFormat("TabWentAway tabId[%d]", handle.raw_value()));
+      actor_service->GetJournal().Log(GURL(), task.id(),
+                                      actor::mojom::JournalTrack::kActor,
+                                      "TabObservationFailed",
+                                      JournalDetailsBuilder()
+                                          .Add("tabId", handle.raw_value())
+                                          .AddError("TabWentAway")
+                                          .Build());
     } else {
       tabs_to_fetch.insert(tab);
     }
@@ -854,43 +881,6 @@ apc::ActionsResult BuildErrorActionsResult(
   }
 
   return response;
-}
-
-base::expected<std::vector<std::unique_ptr<ToolRequest>>, size_t>
-BuildToolRequest(const optimization_guide::proto::BrowserAction& actions,
-                 tabs::TabInterface* deprecated_fallback_tab) {
-  TRACE_EVENT0("actor", "BuildToolRequest");
-  std::vector<std::unique_ptr<actor::ToolRequest>> requests;
-  requests.reserve(actions.actions_size());
-  for (int i = 0; i < actions.actions_size(); ++i) {
-    std::unique_ptr<actor::ToolRequest> request = actor::CreateToolRequest(
-        actions.actions().at(i), deprecated_fallback_tab);
-    if (request) {
-      requests.push_back(std::move(request));
-    } else {
-      return base::unexpected(base::checked_cast<size_t>(i));
-    }
-  }
-
-  return requests;
-}
-
-optimization_guide::proto::BrowserActionResult BuildBrowserActionResult(
-    mojom::ActionResultCode result_code,
-    int32_t tab_id) {
-  TRACE_EVENT0("actor", "BuildBrowserActionResult");
-  optimization_guide::proto::BrowserActionResult response;
-  response.set_action_result(static_cast<int32_t>(result_code));
-  response.set_tab_id(tab_id);
-  return response;
-}
-
-std::string ToBase64(const optimization_guide::proto::BrowserAction& actions) {
-  TRACE_EVENT0("actor", "BrowserActionToBase64");
-  size_t size = actions.ByteSizeLong();
-  std::vector<uint8_t> buffer(size);
-  actions.SerializeToArray(buffer.data(), size);
-  return base::Base64Encode(buffer);
 }
 
 std::string ToBase64(const optimization_guide::proto::Actions& actions) {

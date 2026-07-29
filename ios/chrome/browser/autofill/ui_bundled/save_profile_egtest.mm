@@ -252,19 +252,9 @@ void TypeTextInXframeField(NSString* fieldID, NSString* text) {
     config.features_enabled.push_back(kAutofillDedupeFormSubmission);
   }
 
-  if ([self isRunningTest:@selector(testSubmissionDetectionWithoutDeduping)]) {
+  if ([self isRunningTest:@selector
+            (DISABLED_testSubmissionDetectionWithoutDeduping)]) {
     config.features_disabled.push_back(kAutofillDedupeFormSubmission);
-  }
-
-  if ([self isRunningTest:@selector(testSubmissionDetection_inCaptureMode)]) {
-    config.features_enabled.push_back(
-        kAutofillFormSubmissionEventsInCaptureMode);
-  }
-
-  if ([self
-          isRunningTest:@selector(testSubmissionDetection_notInCaptureMode)]) {
-    config.features_disabled.push_back(
-        kAutofillFormSubmissionEventsInCaptureMode);
   }
 
   if ([self isRunningTest:@selector(testSubmissionErrorReporting_Enabled)]) {
@@ -963,12 +953,10 @@ void TypeTextInXframeField(NSString* fieldID, NSString* text) {
   [SigninEarlGrey signOut];
 }
 
-
-
-
+// TODO(crbug.com/444697263): Re-enable this test.
 // Tests that multiple submissions on the same form are not deduped when
 // deduping is disabled where all submissions are sent over to the browser.
-- (void)testSubmissionDetectionWithoutDeduping {
+- (void)DISABLED_testSubmissionDetectionWithoutDeduping {
   // Submit the form with `defaultPrevented` not considered and without
   // redirecting so the same form can be submitted multiple time.
   FullAddressFormPageParams params{.default_prevented = true,
@@ -1112,59 +1100,9 @@ void TypeTextInXframeField(NSString* fieldID, NSString* text) {
           forHistogram:@"Autofill.iOS.FormSubmission.OutcomeV2"]);
 }
 
-// Tests that submission is detected hence the infobar is displayed when the
-// "form" event behind the submission has its propagation entirely stopped via
-// stopImmediatePropagation() while the form submit event listener for Autofill
-// is set in capture mode.
-- (void)testSubmissionDetection_inCaptureMode {
-  // Sign-in so the profile can be saved into the account.
-  [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
 
-  // Submit the form with `defaultPrevented` not considered.
-  FullAddressFormPageParams params{.redirect = true,
-                                   .stop_immediate_propagation = true};
-  [self loadAndSubmitFullAddressFormWithParams:params];
 
-  // Wait on the infobar to be displayed after submission.
-  [InfobarEarlGreyUI waitUntilInfobarBannerVisibleOrTimeout:YES];
 
-  // Accept the banner to save the profile.
-  [[EarlGrey selectElementWithMatcher:BannerButtonMatcher()]
-      performAction:grey_tap()];
-
-  // Wait for the save profile dialog to appear.
-  [ChromeEarlGrey waitForMatcher:ModalButtonMatcher()];
-
-  // Save the profile.
-  [[EarlGrey selectElementWithMatcher:ModalButtonMatcher()]
-      performAction:grey_tap()];
-
-  // Ensure profile is saved.
-  GREYAssertEqual(1U, [AutofillAppInterface profilesCount],
-                  @"Profile should have been saved.");
-
-  [SigninEarlGrey signOut];
-}
-
-// Tests that submission isn't detected hence the infobar not displayed when the
-// "form" event behind the submission has its propagation entirely stopped via
-// stopImmediatePropagation() while the form submit event listener for Autofill
-// isn't set in capture mode.
-- (void)testSubmissionDetection_notInCaptureMode {
-  // Sign-in so the profile can be saved into the account.
-  [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
-
-  // Submit the form with the submit event propagation stopped via
-  // stopImmediatePropagation().
-  FullAddressFormPageParams params{.redirect = true,
-                                   .stop_immediate_propagation = true};
-  [self loadAndSubmitFullAddressFormWithParams:params];
-
-  // Make sure the infobar isn't displayed.
-  [InfobarEarlGreyUI waitUntilInfobarBannerVisibleOrTimeout:NO];
-
-  [SigninEarlGrey signOut];
-}
 
 // Tests submission count reporting with the scheduled task for the 2 types of
 // form submission, regular and programmatic.

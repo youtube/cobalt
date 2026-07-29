@@ -108,68 +108,52 @@ found in the LICENSE file.
       </ol>
     </div>
 
-    <div class="button-with-feedback">
-      <label for="next-exception-button" class="google-button">
-        <i class="material-icons">error</i> Next Exception
-      </label>
-      <input type="button" id="next-exception-button" class="hidden-element">
-      <span id="next-exception-feedback"
-            class="feedback-text hidden-element"></span>
+    <div class="google-button arrow-controls">
+      <i class="material-icons">error</i>
+      <span id="exception-feedback"
+            class="arrow-feedback">Exceptions (0/0)</span>
+      <i id="prev-exception-button"
+         class="material-icons arrow">keyboard_arrow_up</i>
+      <i id="next-exception-button"
+         class="material-icons arrow">keyboard_arrow_down</i>
     </div>
 
-    <div class="button-with-feedback">
-      <label for="prev-exception-button" class="google-button">
-        <i class="material-icons">error</i> Previous Exception
-      </label>
-      <input type="button" id="prev-exception-button" class="hidden-element">
-      <span id="prev-exception-feedback"
-            class="feedback-text hidden-element"></span>
+    <div class="google-button arrow-controls">
+      <i class="material-icons">rule</i>
+      <span id="test-feedback" class="arrow-feedback">Tests (0/0)</span>
+      <i id="prev-test-button"
+         class="material-icons arrow">keyboard_arrow_up</i>
+      <i id="next-test-button"
+         class="material-icons arrow">keyboard_arrow_down</i>
     </div>
 
-    <div class="button-with-feedback">
-      <label for="next-test-button" class="google-button">
-        <i class="material-icons">rule</i> Next Test
-      </label>
-      <input type="button" id="next-test-button" class="hidden-element">
-      <span id="next-test-feedback" class="feedback-text hidden-element"></span>
-    </div>
-
-    <div class="button-with-feedback">
-      <label for="prev-test-button" class="google-button">
-        <i class="material-icons">rule</i> Previous Test
-      </label>
-      <input type="button" id="prev-test-button" class="hidden-element">
-      <span id="prev-test-feedback" class="feedback-text hidden-element"></span>
-    </div>
-
-    <div id="checkbox-controls">
-      <div class="checkbox-column">
-        <label>
+    <div class="dropdown">
+      <div id="dropdown-header-settings" class="dropdown-header">
+        <i class="material-icons">settings</i> Settings
+      </div>
+      <ol id="dropdown-list-settings" class="dropdown-list hidden-element">
+        <li class="dropdown-item">
           <input type="checkbox" id="hide-date-time-checkbox">
-          <span>Hide Date &amp; Time</span>
-        </label>
-        <label>
+          <label>Hide Date & Time</label>
+        </li>
+        <li class="dropdown-item">
           <input type="checkbox" id="wrap-text-checkbox">
-          <span>Wrap Lines</span>
-        </label>
-      </div>
-      <div class="checkbox-column">
-        <label>
+          <label>Wrap Lines</label>
+        </li>
+        <li class="dropdown-item selected">
           <input type="checkbox" id="display-non-logcat-checkbox" checked>
-          <span>Show Non-Logcat Lines</span>
-        </label>
-        <label>
-          <input type="checkbox"
-                 id="always-show-activity-manager-checkbox" checked>
-          <span>Always Show ActivityManager</span>
-        </label>
-      </div>
-      <div class="checkbox-column">
-        <label>
+          <label>Show Non-Logcat Lines</label>
+        </li>
+        <li class="dropdown-item selected">
+          <input type="checkbox" id="always-show-activity-manager-checkbox"
+                 checked>
+          <label>Always Show ActivityManager</label>
+        </li>
+        <li class="dropdown-item">
           <input type="checkbox" id="toggle-dark-mode-checkbox">
-          <span>Dark Mode</span>
-        </label>
-      </div>
+          <label>Dark Mode</label>
+        </li>
+      </ol>
     </div>
   </div>
 

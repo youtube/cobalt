@@ -104,8 +104,7 @@ AutocompleteMatchType::Type GetAutocompleteMatchType(
       return AutocompleteMatchType::NAVSUGGEST_PERSONALIZED;
     default: {
       // Use `ACMatchType::SEARCH_SUGGEST_ENTITY` for categorical suggestions.
-      if (suggest_type == omnibox::TYPE_CATEGORICAL_QUERY &&
-          base::FeatureList::IsEnabled(omnibox::kCategoricalSuggestions)) {
+      if (suggest_type == omnibox::TYPE_CATEGORICAL_QUERY) {
         return AutocompleteMatchType::SEARCH_SUGGEST_ENTITY;
       }
       return AutocompleteMatchType::SEARCH_SUGGEST;
@@ -778,7 +777,7 @@ bool SearchSuggestionParser::ParseSuggestResults(
 
     // Store the metadata that came with the response in case we need to pass
     // it along with the prefetch query to Instant.
-    base::JSONWriter::Write(extras, &results->metadata);
+    results->metadata = base::WriteJson(extras).value_or("");
   }
 
   // Processed list of match subtypes, one vector per match.

@@ -3,21 +3,25 @@
 # found in the LICENSE file.
 
 import("//build/config/features.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 source_set("timestamped_pref_value") {
-  sources = [ "timestamped_pref_value/timestamped_pref_value.h" ]
+  sources = [ "timestamped_pref_value.h" ]
   deps = [ "//base" ]
   if (is_android) {
     sources += [
-      "timestamped_pref_value/android/timestamped_pref_value_bridge_android.cc",
-      "timestamped_pref_value/android/timestamped_pref_value_bridge_android.h",
+      "android/timestamped_pref_value_bridge_android.cc",
+      "android/timestamped_pref_value_bridge_android.h",
     ]
-    deps += [ "timestamped_pref_value/android:jni_headers" ]
+    deps += [ "android:jni_headers" ]
   }
 }
 
 source_set("cross_device_pref_tracker") {
   sources = [
+    "common_cross_device_pref_provider.cc",
+    "common_cross_device_pref_provider.h",
+    "cross_device_pref_provider.h",
     "cross_device_pref_tracker.cc",
     "cross_device_pref_tracker.h",
     "cross_device_pref_tracker_impl.cc",
@@ -30,4 +34,11 @@ source_set("cross_device_pref_tracker") {
     "//components/prefs",
     "//components/sync_device_info",
   ]
+
+  if (is_android) {
+    deps += [
+      "android:jni_headers",
+      "//third_party/jni_zero",
+    ]
+  }
 }

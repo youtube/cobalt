@@ -83,9 +83,9 @@ void MediaStreamVideoSource::AddTrack(
           ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
               &VideoTrackAdapter::DeliverEncodedVideoFrameOnVideoTaskRunner,
               GetTrackAdapter()));
-      auto new_sub_capture_target_version_on_video_callback =
+      auto new_capture_version_on_video_callback =
           ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
-              &VideoTrackAdapter::NewSubCaptureTargetVersionOnVideoTaskRunner,
+              &VideoTrackAdapter::NewCaptureVersionOnVideoTaskRunner,
               GetTrackAdapter()));
       VideoCaptureNotifyFrameDroppedCB frame_dropped_callback =
           ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
@@ -94,34 +94,15 @@ void MediaStreamVideoSource::AddTrack(
 
       MediaStreamVideoSourceCallbacks new_media_stream_callbacks;
 
-      // Callbacks are invoked from the IO thread. With
-      // UseThreadPoolForMediaStreamVideoTaskRunner disabled, the video task
-      // runner is the same as the IO thread and there is no need to post frames
-      // to the video task runner.
-      if (base::FeatureList::IsEnabled(
-              features::kUseThreadPoolForMediaStreamVideoTaskRunner)) {
-        new_media_stream_callbacks.deliver_frame_cb = base::BindPostTask(
-            video_task_runner(), std::move(deliver_frame_on_video_callback));
-        new_media_stream_callbacks.sub_capture_target_version_cb =
-            base::BindPostTask(
-                video_task_runner(),
-                std::move(new_sub_capture_target_version_on_video_callback));
-        new_media_stream_callbacks.frame_dropped_cb = base::BindPostTask(
-            video_task_runner(), std::move(frame_dropped_callback));
-        new_media_stream_callbacks.encoded_frame_cb = base::BindPostTask(
-            video_task_runner(),
-            std::move(deliver_encoded_frame_on_video_callback));
-        StartSourceImpl(std::move(new_media_stream_callbacks));
-      } else {
-        new_media_stream_callbacks.deliver_frame_cb =
-            deliver_frame_on_video_callback;
-        new_media_stream_callbacks.sub_capture_target_version_cb =
-            new_sub_capture_target_version_on_video_callback;
-        new_media_stream_callbacks.frame_dropped_cb = frame_dropped_callback;
-        new_media_stream_callbacks.encoded_frame_cb =
-            deliver_encoded_frame_on_video_callback;
-        StartSourceImpl(std::move(new_media_stream_callbacks));
-      }
+      // Callbacks are invoked from the IO thread.
+      new_media_stream_callbacks.deliver_frame_cb =
+          deliver_frame_on_video_callback;
+      new_media_stream_callbacks.capture_version_cb =
+          new_capture_version_on_video_callback;
+      new_media_stream_callbacks.frame_dropped_cb = frame_dropped_callback;
+      new_media_stream_callbacks.encoded_frame_cb =
+          deliver_encoded_frame_on_video_callback;
+      StartSourceImpl(std::move(new_media_stream_callbacks));
       break;
     }
     case STARTING:
@@ -562,20 +543,20 @@ bool MediaStreamVideoSource::SupportsEncodedOutput() const {
 void MediaStreamVideoSource::ApplySubCaptureTarget(
     media::mojom::blink::SubCaptureTargetType type,
     const base::Token& sub_capture_target,
-    uint32_t sub_capture_target_version,
+    uint32_t sub_capture_version,
     base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
         callback) {
   std::move(callback).Run(
       media::mojom::ApplySubCaptureTargetResult::kErrorGeneric);
 }
 
+media::CaptureVersion MediaStreamVideoSource::GetCaptureVersion() const {
+  return media::CaptureVersion();
+}
+
 std::optional<uint32_t>
 MediaStreamVideoSource::GetNextSubCaptureTargetVersion() {
   return std::nullopt;
-}
-
-uint32_t MediaStreamVideoSource::GetSubCaptureTargetVersion() const {
-  return 0;
 }
 
 VideoCaptureFeedbackCB MediaStreamVideoSource::GetFeedbackCallback() const {

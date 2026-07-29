@@ -13,10 +13,12 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
-#include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
-#include "chrome/browser/ui/views/frame/browser_non_client_frame_view_chromeos.h"
+#include "chrome/browser/ui/views/frame/browser_frame_view.h"
+#include "chrome/browser/ui/views/frame/browser_frame_view_chromeos.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -246,9 +248,8 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerChromeosWebAppBrowserTest,
   LaunchAppBrowser();
   ASSERT_FALSE(controller()->IsEnabled());
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  BrowserNonClientFrameViewChromeOS* frame_view =
-      static_cast<BrowserNonClientFrameViewChromeOS*>(
-          browser_view->GetWidget()->non_client_view()->frame_view());
+  BrowserFrameViewChromeOS* frame_view = static_cast<BrowserFrameViewChromeOS*>(
+      browser_view->GetWidget()->non_client_view()->frame_view());
   chromeos::FrameCaptionButtonContainerView* caption_button_container =
       frame_view->caption_button_container();
   chromeos::FrameCaptionButtonContainerView::TestApi frame_test_api(
@@ -404,22 +405,26 @@ IN_PROC_BROWSER_TEST_F(UpdateFullscreenTest, NoImmersiveUI) {
       LoadExtension(test_data_dir_.AppendASCII("windows/update_fullscreen")));
   ASSERT_TRUE(listener.WaitUntilSatisfied());
 
-  Browser* found_browser = nullptr;
+  BrowserWindowInterface* found_browser = nullptr;
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
-      if (!browser->window()->IsFullscreen()) {
-        continue;
-      }
+    bool exit_run_until = false;
+    ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+        [&](BrowserWindowInterface* browser) {
+          if (!browser->GetWindow()->IsFullscreen()) {
+            return true;  // continue iterating (inner lambda)
+          }
 
-      if (browser->GetWindowTitleForCurrentTab(/*include_app_name=*/false) !=
-          u"Hello") {
-        continue;
-      }
+          if (browser->GetBrowserForMigrationOnly()
+                  ->GetWindowTitleForCurrentTab(
+                      /*include_app_name=*/false) != u"Hello") {
+            return true;  // continue iterating (inner lambda)
+          }
 
-      found_browser = browser;
-      return true;
-    }
-    return false;
+          found_browser = browser;
+          exit_run_until = true;
+          return false;  // stop iterating (inner lambda)
+        });
+    return exit_run_until;
   }));
 
   ASSERT_NE(found_browser, nullptr);

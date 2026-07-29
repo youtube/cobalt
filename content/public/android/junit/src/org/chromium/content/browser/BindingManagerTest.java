@@ -9,6 +9,8 @@ import static android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL;
 import static android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW;
 import static android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.app.Activity;
 import android.app.Application;
 import android.content.ComponentName;
@@ -25,6 +27,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowLooper;
 
+import org.chromium.base.ChildBindingState;
 import org.chromium.base.process_launcher.ChildProcessConnection;
 import org.chromium.base.process_launcher.TestChildProcessConnection;
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -114,16 +117,17 @@ public class BindingManagerTest {
         checkConnections(connections, connected);
     }
 
-    private void checkConnections(
-            ChildProcessConnection[] connections, boolean[] connected) {
-        assert connections.length == connected.length;
+    private void checkConnections(ChildProcessConnection[] connections, boolean[] connected) {
+        assertThat(connections.length).isEqualTo(connected.length);
         for (int i = 0; i < connections.length; i++) {
             Assert.assertEquals(
+                    "isVisibleBindingBound check failed for connection " + i,
                     !ChildProcessConnection.supportNotPerceptibleBinding() && connected[i],
-                    connections[i].isVisibleBindingBound());
+                    connections[i].bindingStateCurrent() == ChildBindingState.VISIBLE);
             Assert.assertEquals(
+                    "isNotPerceptibleBindingBound check failed for connection " + i,
                     ChildProcessConnection.supportNotPerceptibleBinding() && connected[i],
-                    connections[i].isNotPerceptibleBindingBound());
+                    connections[i].bindingStateCurrent() == ChildBindingState.NOT_PERCEPTIBLE);
         }
     }
 
@@ -298,10 +302,13 @@ public class BindingManagerTest {
             // Verify that some of the moderate bindings have been dropped.
             for (int i = 0; i < connections.length; i++) {
                 Assert.assertEquals(
-                        message, i >= pair.second,
+                        message,
+                        i >= pair.second,
                         ChildProcessConnection.supportNotPerceptibleBinding()
-                                ? connections[i].isNotPerceptibleBindingBound()
-                                : connections[i].isVisibleBindingBound());
+                                ? connections[i].bindingStateCurrent()
+                                        == ChildBindingState.NOT_PERCEPTIBLE
+                                : connections[i].bindingStateCurrent()
+                                        == ChildBindingState.VISIBLE);
             }
         }
     }

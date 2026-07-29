@@ -31,6 +31,16 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Received activation"/>
 </enum>
 
+<!-- LINT.IfChange(AdvertisedAltSvcState) -->
+
+<enum name="AdvertisedAltSvcState">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="QuicNotBroken"/>
+  <int value="2" label="QuicBroken"/>
+</enum>
+
+<!-- LINT.ThenChange(//services/network/public/mojom/load_timing_internal_info.mojom:AdvertisedAltSvcState) -->
+
 <!-- LINT.IfChange(ConnectionReuseStatus) -->
 
 <enum name="ConnectionReuseStatus">
@@ -88,23 +98,6 @@ chromium-metrics-reviews@google.com.
   <int value="3"
       label="Ad Creative Origin Differs from Main Frame and Ad Not Throttled"/>
 </enum>
-
-<!-- LINT.IfChange(HeaderMismatchType) -->
-
-<enum name="HeaderMismatchType">
-  <int value="0" label="No mismatch"/>
-  <int value="1" label="Unexpected header found"/>
-  <int value="2" label="Header value mismatch"/>
-  <int value="3" label="Unexpected header found and header value mismatch"/>
-  <int value="4" label="Expected header not found"/>
-  <int value="5" label="Unexpected header found, expected header not found"/>
-  <int value="6" label="Header value mismatch, expected header not found"/>
-  <int value="7"
-      label="Unexpected header found, header value mismatch, expected header
-             not found"/>
-</enum>
-
-<!-- LINT.ThenChange(//components/page_load_metrics/google/browser/gws_page_load_metrics_observer.cc:HeaderMismatchType) -->
 
 <enum name="HeavyAdStatus2">
   <int value="0" label="Not heavy"/>
@@ -281,7 +274,7 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="Autofill Address"/>
   <int value="15" label="Save Card"/>
   <int value="16" label="(Deprecated) Send Tab to Self"/>
-  <int value="17" label="(Deprecated) Sharing Hub"/>
+  <int value="17" label="Sharing Hub"/>
   <int value="18" label="(Deprecated) Side Search"/>
   <int value="19" label="SMS Remote Fetcher"/>
   <int value="20" label="Translate"/>

@@ -188,6 +188,9 @@ void FocusNextTabGroup(Browser* browser);
 // Finds the previous tab group that isn't the current one in the tabstrip and
 // activates the first tab in the group.
 void FocusPreviousTabGroup(Browser* browser);
+// Takes all ungrouped tabs and places them in a new group.
+// Returns true if a group was made, and false otherwise.
+bool GroupAllUngroupedTabs(Browser* browser);
 
 void MuteSiteForKeyboardFocusedTab(Browser* browser);
 bool HasKeyboardFocusedTab(const Browser* browser);
@@ -313,7 +316,7 @@ void ExecuteUIDebugCommand(int id, const Browser* browser);
 
 std::optional<int> GetKeyboardFocusedTabIndex(const Browser* browser);
 
-void ShowIncognitoClearBrowsingDataDialog(Browser* browser);
+void ShowIncognitoClearBrowsingDataDialog(BrowserWindowInterface* bwi);
 void ShowIncognitoHistoryDisclaimerDialog(Browser* browser);
 bool ShouldInterceptChromeURLNavigationInIncognito(Browser* browser,
                                                    const GURL& url);

@@ -5,6 +5,7 @@
 #ifndef UI_AURA_TEST_TEST_WINDOWS_H_
 #define UI_AURA_TEST_TEST_WINDOWS_H_
 
+#include <optional>
 #include <string>
 
 #include "third_party/skia/include/core/SkColor.h"
@@ -23,27 +24,12 @@ namespace test {
 void SetEnvForTestWindows(Env* env);
 Env* GetEnvForTestWindows();
 
-// Creates a test window. It internally uses TestWindowBuilder.
-std::unique_ptr<Window> CreateTestWindow(WindowBuilderParams params = {},
-                                         Window* parent = nullptr);
-
-// Creates a test window. If parent window is nullptr, then the caller must take
-// ownership of the created window.
-// Deprecated: Use CreateTestWindow above.
-Window* CreateTestWindow(SkColor color,
-                         int id,
-                         const gfx::Rect& bounds,
-                         Window* parent);
-Window* CreateTestWindowWithDelegate(WindowDelegate* delegate,
-                                     int id,
-                                     const gfx::Rect& bounds,
-                                     Window* parent);
-Window* CreateTestWindowWithDelegateAndType(WindowDelegate* delegate,
-                                            client::WindowType type,
-                                            int id,
-                                            const gfx::Rect& bounds,
-                                            Window* parent,
-                                            bool show_on_creation);
+// Creates a test window. It internally uses TestWindowBuilder. If `color` is
+// specified, it'll create a test delegate that fills the content with the given
+// color.
+[[nodiscard]] std::unique_ptr<Window> CreateTestWindow(
+    WindowBuilderParams params = {},
+    std::optional<SkColor> color = std::nullopt);
 
 // Returns true if |upper| is above |lower| in the window stacking order.
 bool WindowIsAbove(Window* upper, Window* lower);

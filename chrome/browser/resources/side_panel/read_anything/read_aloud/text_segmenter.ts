@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import type {Sentence} from './read_aloud_types.js';
+
 // Wrapper class for Intl.Segmenter that manages Intl.Segmenter instances to
 // be used to segment text.
 export class TextSegmenter {
@@ -33,6 +35,34 @@ export class TextSegmenter {
     return Array.from(this.wordSegmenter_.segment(text))
         .filter(segment => segment.isWordLike)
         .length;
+  }
+
+
+  // Returns the end index of the first word in the given segment of text.
+  // If there are no words, returns 0.
+  getNextWordEnd(text: string): number {
+    try {
+      const segments = this.wordSegmenter_.segment(text);
+      for (const segment of segments) {
+        if (segment.isWordLike) {
+          return segment.index + segment.segment.length;
+        }
+      }
+    } catch (e) {
+      // Intl.Segmenter may throw an error for invalid locales.
+    }
+    return 0;
+  }
+
+
+  getSentences(text: string): Sentence[] {
+    const segments = this.sentenceSegmenter_.segment(text);
+    // TODO: crbug.com/440400392- Filter out "sentences" that are just
+    // punctuation.
+    // Map the iterable returned by Intl.Segmenter.segment to the Sentence
+    // custom type.
+    return Array.from(
+        segments, (segment) => ({text: segment.segment, index: segment.index}));
   }
 
   getAccessibleBoundary(text: string, maxTextLength: number): number {

@@ -76,9 +76,9 @@
 #include "components/autofill/core/browser/integrators/compose/mock_autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/mock_identity_credential_delegate.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/mock_otp_manager.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
-#include "components/autofill/core/browser/integrators/password_manager/mock_otp_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/mock_password_manager_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
@@ -206,6 +206,10 @@ ACTION_TEMPLATE(SaveArgElementsTo,
                 AND_1_VALUE_PARAMS(pointer)) {
   auto span = testing::get<k>(args);
   pointer->assign(span.begin(), span.end());
+}
+
+MATCHER_P(SameGlobalId, form_data, negation ? "does not equal" : "equals") {
+  return arg.global_id() == form_data.global_id();
 }
 
 gfx::Rect GetFakeCaretBounds(const FormFieldData& focused_field) {
@@ -994,6 +998,11 @@ class TestBrowserAutofillManager : public autofill::TestBrowserAutofillManager {
     return manager;
   }
 
+  autofill_metrics::FormEventLoggerBase* GetFormEventLoggerForTesting(
+      const AutofillField& field) {
+    return GetEventFormLogger(field);
+  }
+
   using autofill::TestBrowserAutofillManager::TestBrowserAutofillManager;
 
   using AutofillManager::GetCurrentPageLanguage;
@@ -1541,6 +1550,55 @@ class BrowserAutofillManagerTest : public testing::Test {
   std::unique_ptr<MockAutofillClient> client_;
   std::unique_ptr<MockAutofillDriver> driver_;
 };
+
+// Test that the correct logger is returned for an address field.
+TEST_F(BrowserAutofillManagerTest, GetEventFormLogger_Address) {
+  AutofillField field;
+  field.SetTypeTo(AutofillType(ADDRESS_HOME_STREET_ADDRESS), std::nullopt);
+  ASSERT_NE(manager().GetFormEventLoggerForTesting(field), nullptr);
+  EXPECT_EQ(manager()
+                .GetFormEventLoggerForTesting(field)
+                ->GetFormTypeNameForTesting(),
+            "Address");
+}
+
+// Test that the correct logger is returned for a credit card field.
+TEST_F(BrowserAutofillManagerTest, GetEventFormLogger_CreditCard) {
+  AutofillField field;
+  field.SetTypeTo(AutofillType(CREDIT_CARD_NUMBER), std::nullopt);
+  ASSERT_NE(manager().GetFormEventLoggerForTesting(field), nullptr);
+  EXPECT_EQ(manager()
+                .GetFormEventLoggerForTesting(field)
+                ->GetFormTypeNameForTesting(),
+            "CreditCard");
+}
+
+// Test that the correct logger is returned for a credit card field.
+TEST_F(BrowserAutofillManagerTest, GetEventFormLogger_CVC) {
+  AutofillField field;
+  field.SetTypeTo(AutofillType(CREDIT_CARD_STANDALONE_VERIFICATION_CODE),
+                  std::nullopt);
+  ASSERT_NE(manager().GetFormEventLoggerForTesting(field), nullptr);
+  EXPECT_EQ(manager()
+                .GetFormEventLoggerForTesting(field)
+                ->GetFormTypeNameForTesting(),
+            "CreditCard");
+}
+
+// Test that the correct logger is returned for a one time password field.
+TEST_F(BrowserAutofillManagerTest, GetEventFormLogger_OneTimePassword) {
+  AutofillField otp_field;
+  otp_field.SetTypeTo(AutofillType(ONE_TIME_CODE), std::nullopt);
+  EXPECT_EQ(manager().GetFormEventLoggerForTesting(otp_field), nullptr);
+}
+
+// Test that the correct logger is returned for a password field..
+TEST_F(BrowserAutofillManagerTest, GetEventFormLogger_Password) {
+  AutofillField otp_field;
+  otp_field.SetTypeTo(AutofillType(PASSWORD), std::nullopt);
+  // The password manager is not using the logging facilities autofill provides.
+  EXPECT_EQ(manager().GetFormEventLoggerForTesting(otp_field), nullptr);
+}
 
 // Test that calling OnFormsSeen consecutively with a different set of forms
 // will query for each separately.
@@ -2336,7 +2394,7 @@ TEST_F(BrowserAutofillManagerTestValuables,
   test_api(*form_structure)
       .SetFieldTypes({EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD},
                      {EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD});
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   FormsSeen({form_data});
   // TTF bottom sheet should not be shown when address suggestions are
@@ -2414,7 +2472,7 @@ TEST_F(BrowserAutofillManagerTestValuables,
   test_api(*form_structure)
       .SetFieldTypes({EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD},
                      {EMAIL_OR_LOYALTY_MEMBERSHIP_ID, PASSWORD});
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   FormsSeen({form_data});
   OnAskForValuesToFill(form_data, form_data.fields()[0]);
@@ -4596,7 +4654,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
-  manager().AddSeenFormStructure(std::move(form_structure_instance));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure_instance));
 
   // Simulate form submission.
   FormSubmitted(form);
@@ -4651,7 +4709,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
-  manager().AddSeenFormStructure(std::move(form_structure_instance));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure_instance));
 
   // Make API response with suggestions.
   AutofillQueryResponse response;
@@ -4764,7 +4822,7 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
-  manager().AddSeenFormStructure(std::move(form_structure_instance));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure_instance));
 
   // Make API response with suggestions.
   AutofillQueryResponse response;
@@ -5115,7 +5173,7 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   regex_predictions.ApplyTo(form_structure->fields());
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
-  manager().AddSeenFormStructure(std::move(form_structure_instance));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure_instance));
 
   // Second form on the page.
   FormData form2;
@@ -5139,7 +5197,7 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   regex_predictions.ApplyTo(form_structure2->fields());
   form_structure2->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                 LanguageCode(""), nullptr);
-  manager().AddSeenFormStructure(std::move(form_structure_instance2));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure_instance2));
 
   // Make API response with suggestions.
   AutofillQueryResponse response;
@@ -5214,7 +5272,7 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictions_ResetManager) {
                                                LanguageCode(""), nullptr);
   std::vector<FormSignature> signatures =
       test::GetEncodedSignatures(*form_structure);
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   AutofillQueryResponse response;
   auto* form_suggestion = response.add_form_suggestions();
@@ -5267,7 +5325,7 @@ TEST_F(BrowserAutofillManagerTest, DetermineHeuristicsWithOverallPrediction) {
     regex_predictions.ApplyTo(form_structure->fields());
     form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                  LanguageCode(""), nullptr);
-    manager().AddSeenFormStructure(std::move(form_structure));
+    test_api(manager()).AddSeenFormStructure(std::move(form_structure));
     return ptr;
   }();
 
@@ -6071,7 +6129,7 @@ TEST_F(BrowserAutofillManagerTest,
                                                UNKNOWN_TYPE);
   const std::vector<FieldType> server_types{NAME_FIRST, NAME_MIDDLE, NAME_LAST};
   test_api(*form_structure).SetFieldTypes(heuristic_types, server_types);
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   // Make sure the form can be autofilled.
   for (const FormFieldData& form_field : form.fields()) {
@@ -7025,7 +7083,7 @@ TEST_F(BrowserAutofillManagerTest, AutocompleteMetrics) {
   form_structure->RationalizeAndAssignSections(GeoIpCountryCode(""),
                                                LanguageCode(""), nullptr);
   test_api(*form_structure).SetFieldTypes(heuristic_types, server_types);
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   // Submit the form and verify that all metrics are collected correctly.
   base::HistogramTester histogram_tester;
@@ -7455,7 +7513,7 @@ class BrowserAutofillManagerTest_AutofillAi
       regex_predictions.ApplyTo(fs->fields());
       fs->RationalizeAndAssignSections(GeoIpCountryCode(""), LanguageCode(""),
                                        nullptr);
-      manager().AddSeenFormStructure(std::move(fs));
+      test_api(manager()).AddSeenFormStructure(std::move(fs));
     }
 
     // Make API response with suggestions.
@@ -7523,8 +7581,9 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi, ShowAutofillAiSuggestions) {
       Suggestion(SuggestionType::kFillAutofillAi)};
   EXPECT_CALL(delegate, GetSuggestions).WillOnce(Return(suggestions));
 
-  OnAskForValuesToFill(passport_form(), passport_form().fields().front(),
-                       AutofillSuggestionTriggerSource::kAutofillAi);
+  OnAskForValuesToFill(
+      passport_form(), passport_form().fields().front(),
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
   EXPECT_THAT(external_delegate()->suggestions(),
               ElementsAre(Field(&Suggestion::type,
                                 Eq(SuggestionType::kFillAutofillAi))));
@@ -7539,8 +7598,9 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi,
   SeeForm(/*may_run_model=*/false);
 
   EXPECT_CALL(*client().GetAutofillAiManager(), GetSuggestions).Times(0);
-  OnAskForValuesToFill(passport_form(), passport_form().fields().front(),
-                       AutofillSuggestionTriggerSource::kAutofillAi);
+  OnAskForValuesToFill(
+      passport_form(), passport_form().fields().front(),
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
@@ -7556,8 +7616,9 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi, ShowNoSuggestionsIfCollision) {
   EXPECT_CALL(*client().GetAutofillAiManager(), GetSuggestions)
       .WillOnce(Return(std::vector<Suggestion>{}));
 
-  OnAskForValuesToFill(passport_form(), passport_form().fields().front(),
-                       AutofillSuggestionTriggerSource::kAutofillAi);
+  OnAskForValuesToFill(
+      passport_form(), passport_form().fields().front(),
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
   EXPECT_THAT(external_delegate()->suggestions(), IsEmpty());
 }
 
@@ -7572,8 +7633,9 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi, AutofillAiIph) {
 
   EXPECT_CALL(client(), ShowAutofillFieldIphForFeature(
                             _, AutofillClient::IphFeature::kAutofillAi));
-  OnAskForValuesToFill(form, form.fields().front(),
-                       AutofillSuggestionTriggerSource::kAutofillAi);
+  OnAskForValuesToFill(
+      form, form.fields().front(),
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
 }
 
 // Tests that the Autofill AI IPH is not shown if there are Autofill
@@ -7590,8 +7652,9 @@ TEST_F(BrowserAutofillManagerTest_AutofillAi,
   EXPECT_CALL(client(), ShowAutofillFieldIphForFeature(
                             _, AutofillClient::IphFeature::kAutofillAi))
       .Times(0);
-  OnAskForValuesToFill(form, form.fields().front(),
-                       AutofillSuggestionTriggerSource::kAutofillAi);
+  OnAskForValuesToFill(
+      form, form.fields().front(),
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
 }
 
 // Tests that an Autofill profile is not imported into the address data manager
@@ -9358,12 +9421,19 @@ class BrowserAutofillManagerOtpSuggestionsTest
  protected:
   void SetUp() override {
     BrowserAutofillManagerTest::SetUp();
-    client().set_otp_delegate(std::make_unique<NiceMock<MockOtpDelegate>>());
+    otp_manager_ =
+        static_cast<MockOtpManager*>(test_api(manager()).set_otp_manager(
+            std::make_unique<NiceMock<MockOtpManager>>()));
+  }
+  void TearDown() override {
+    otp_manager_ = nullptr;
+    BrowserAutofillManagerTest::TearDown();
   }
 
-  MockOtpDelegate& otp_delegate() {
-    return static_cast<MockOtpDelegate&>(*client().GetOtpDelegate());
-  }
+  MockOtpManager& otp_manager() { return *otp_manager_; }
+
+ private:
+  raw_ptr<MockOtpManager> otp_manager_ = nullptr;
 };
 
 TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpSuggestions) {
@@ -9374,35 +9444,23 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpSuggestions) {
                              {.label = u"Enter captcha",
                               .form_control_type = FormControlType::kInputText},
                          }});
-  form.set_name(u"MyForm");
-  form.set_url(GURL("https://myform.com/form.html"));
 
   // Simulate form parsing results.
   auto form_structure = std::make_unique<FormStructure>(form);
   form_structure->field(0)->set_heuristic_type(
       HeuristicSource::kPasswordManagerMachineLearning,
       FieldType::ONE_TIME_CODE);
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   // Check that suggestions are offered for the first field if the OTP delegate
   // suggests that.
-  EXPECT_CALL(otp_delegate(),
-              IsFieldEligibleForOtpFilling(form.global_id(),
-                                           form.fields()[0].global_id()))
-      .WillOnce(Return(true));
   const std::vector<std::string> otp_values = {"123456"};
-  EXPECT_CALL(
-      otp_delegate(),
-      GetOtpSuggestions(form.global_id(), form.fields()[0].global_id(), _))
-      .WillOnce(RunOnceCallback<2>(otp_values));
+  EXPECT_CALL(otp_manager(), GetOtpSuggestions(_))
+      .WillOnce(RunOnceCallback<0>(otp_values));
   OnAskForValuesToFill(form, form.fields()[0]);
   EXPECT_TRUE(external_delegate()->on_suggestions_returned_seen());
 
   // Also check that there are no suggestions for the second field.
-  EXPECT_CALL(otp_delegate(),
-              IsFieldEligibleForOtpFilling(form.global_id(),
-                                           form.fields()[1].global_id()))
-      .WillOnce(Return(false));
   OnAskForValuesToFill(form, form.fields()[1]);
   EXPECT_FALSE(external_delegate()->on_suggestions_returned_seen());
 }
@@ -9411,18 +9469,18 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpFilling) {
   FormData form = test::GetFormData(
       {.fields = {{.label = u"Enter one time code",
                    .form_control_type = FormControlType::kInputText}}});
-  form.set_name(u"MyForm");
-  form.set_url(GURL("https://myform.com/form.html"));
+
+  // Simulate form parsing results.
   auto form_structure = std::make_unique<FormStructure>(form);
   form_structure->field(0)->set_heuristic_type(
       HeuristicSource::kPasswordManagerMachineLearning,
       FieldType::ONE_TIME_CODE);
-  manager().AddSeenFormStructure(std::move(form_structure));
+  test_api(manager()).AddSeenFormStructure(std::move(form_structure));
 
   std::u16string otp_value = u"123456";
-  OtpFillData otp_fill_data;
-  otp_fill_data[form.fields()[0].global_id()] = otp_value;
+  OtpFillData otp_fill_data = {{form.fields()[0].global_id(), otp_value}};
 
+  // Prepare to intercept the request to the renderer to fill the data.
   base::flat_map<FieldGlobalId, FieldType> expected_types = {
       {form.fields()[0].global_id(), ONE_TIME_CODE}};
   std::vector<FormFieldData> filled_fields;
@@ -9431,9 +9489,13 @@ TEST_F(BrowserAutofillManagerOtpSuggestionsTest, OtpFilling) {
                                         expected_types, _))
       .WillOnce(DoAll(SaveArgElementsTo<2>(&filled_fields),
                       Return(base::flat_set<FieldGlobalId>{})));
+
+  // Ask to fill the form.
   manager().FillOrPreviewForm(mojom::ActionPersistence::kFill, form,
                               form.fields()[0].global_id(), &otp_fill_data,
                               AutofillTriggerSource::kPopup);
+
+  // Verify that the right data is sent to the renderer.
   ASSERT_EQ(1u, filled_fields.size());
   EXPECT_EQ(form.fields()[0].global_id(), filled_fields[0].global_id());
   EXPECT_EQ(otp_value, filled_fields[0].value());

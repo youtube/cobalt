@@ -26,6 +26,7 @@
 #include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_popup_view.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
+#include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "components/omnibox/browser/search_provider.h"
 #include "components/omnibox/browser/test_location_bar_model.h"
@@ -41,7 +42,6 @@
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/url_formatter/url_fixer.h"
 #include "extensions/buildflags/buildflags.h"
-#include "omnibox_triggered_feature_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -55,6 +55,8 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/common/extension_features.h"  // nogncheck
 #endif
+
+static_assert(!BUILDFLAG(IS_IOS));
 
 using metrics::OmniboxEventProto;
 using Selection = OmniboxPopupSelection;
@@ -157,7 +159,7 @@ TEST_F(OmniboxEditModelTest, DISABLED_InlineAutocompleteText) {
   std::u16string text_before = u"he";
   std::u16string text_after = u"hel";
   OmniboxView::StateChanges state_changes{
-      &text_before, &text_after, 3, 3, false, true, false, false};
+      &text_before, &text_after, {3, 3}, false, true, false, false};
   model()->OnAfterPossibleChange(state_changes, true);
   EXPECT_EQ(std::u16string(), view()->inline_autocompletion());
   model()->OnPopupDataChanged(std::u16string(),
@@ -184,8 +186,6 @@ TEST_F(OmniboxEditModelTest, DISABLED_InlineAutocompleteText) {
   EXPECT_EQ(std::u16string(), view()->inline_autocompletion());
 }
 
-// iOS doesn't use elisions in the Omnibox textfield.
-#if !BUILDFLAG(IS_IOS)
 TEST_F(OmniboxEditModelTest, RespectUnelisionInZeroSuggest) {
   location_bar_model()->set_url(GURL("https://www.example.com/"));
   location_bar_model()->set_url_for_display(u"example.com");
@@ -210,7 +210,6 @@ TEST_F(OmniboxEditModelTest, RespectUnelisionInZeroSuggest) {
   EXPECT_FALSE(model()->user_input_in_progress());
   EXPECT_TRUE(view()->IsSelectAll());
 }
-#endif  // !BUILDFLAG(IS_IOS)
 
 TEST_F(OmniboxEditModelTest, RevertZeroSuggestTemporaryText) {
   location_bar_model()->set_url(GURL("https://www.example.com/"));
@@ -277,12 +276,7 @@ TEST_F(OmniboxEditModelTest, CurrentMatch) {
     model()->ResetDisplayTexts();
     model()->Revert();
 
-    // iOS doesn't do elision in the textfield view.
-#if BUILDFLAG(IS_IOS)
-    EXPECT_EQ(u"http://www.example.com/", view()->GetText());
-#else
     EXPECT_EQ(u"example.com", view()->GetText());
-#endif
 
     AutocompleteMatch match = model()->CurrentMatch(nullptr);
     EXPECT_EQ(AutocompleteMatchType::URL_WHAT_YOU_TYPED, match.type);
@@ -298,12 +292,7 @@ TEST_F(OmniboxEditModelTest, CurrentMatch) {
     model()->ResetDisplayTexts();
     model()->Revert();
 
-    // iOS doesn't do elision in the textfield view.
-#if BUILDFLAG(IS_IOS)
-    EXPECT_EQ(u"https://www.google.com/", view()->GetText());
-#else
     EXPECT_EQ(u"google.com", view()->GetText());
-#endif
 
     AutocompleteMatch match = model()->CurrentMatch(nullptr);
     EXPECT_EQ(AutocompleteMatchType::URL_WHAT_YOU_TYPED, match.type);
@@ -323,22 +312,12 @@ TEST_F(OmniboxEditModelTest, DisplayText) {
 
   EXPECT_TRUE(model()->CurrentTextIsURL());
 
-#if BUILDFLAG(IS_IOS)
-  // iOS OmniboxEditModel always provides the full URL as the OmniboxView
-  // permanent display text. Unelision should return false.
-  EXPECT_EQ(u"https://www.example.com/", model()->GetPermanentDisplayText());
-  EXPECT_EQ(u"https://www.example.com/", view()->GetText());
-  EXPECT_FALSE(model()->Unelide());
-  EXPECT_FALSE(model()->user_input_in_progress());
-  EXPECT_FALSE(view()->IsSelectAll());
-#else
   // Verify we can unelide and show the full URL properly.
   EXPECT_EQ(u"example.com", model()->GetPermanentDisplayText());
   EXPECT_EQ(u"example.com", view()->GetText());
   EXPECT_TRUE(model()->Unelide());
   EXPECT_FALSE(model()->user_input_in_progress());
   EXPECT_TRUE(view()->IsSelectAll());
-#endif
 
   EXPECT_EQ(u"https://www.example.com/", view()->GetText());
   EXPECT_TRUE(model()->CurrentTextIsURL());
@@ -458,8 +437,8 @@ TEST_F(OmniboxEditModelTest, ConsumeCtrlKeyOnRequestFocus) {
 // Tests the ctrl key is consumed on a ctrl-action (e.g. ctrl-c to copy)
 TEST_F(OmniboxEditModelTest, ConsumeCtrlKeyOnCtrlAction) {
   model()->control_key_state_ = TestOmniboxEditModel::DOWN;
-  OmniboxView::StateChanges state_changes{nullptr, nullptr, 0,     0,
-                                          false,   false,   false, false};
+  OmniboxView::StateChanges state_changes{nullptr, nullptr, {},   false,
+                                          false,   false,   false};
   model()->OnAfterPossibleChange(state_changes, false);
   EXPECT_EQ(model()->control_key_state_,
             TestOmniboxEditModel::DOWN_AND_CONSUMED);
@@ -483,10 +462,9 @@ TEST_F(OmniboxEditModelTest, KeywordModePreservesInlineAutocompleteText) {
   {
     EXPECT_TRUE(view()->GetText().empty());
     EXPECT_TRUE(model()->user_text().empty());
-    size_t start = 0, end = 0;
-    view()->GetSelectionBounds(&start, &end);
-    EXPECT_EQ(0U, start);
-    EXPECT_EQ(0U, end);
+    gfx::Range selection = view()->GetSelectionBounds();
+    EXPECT_EQ(0U, selection.start());
+    EXPECT_EQ(0U, selection.end());
   }
 }
 
@@ -643,7 +621,7 @@ TEST_F(OmniboxEditModelPopupTest, SetSelectedLine) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_TRUE(model()->IsPopupSelectionOnInitialLine());
   model()->SetPopupSelection(Selection(0), true, false);
@@ -749,7 +727,7 @@ TEST_F(OmniboxEditModelPopupTest, SetSelectedLineWithNoDefaultMatches) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
 
   model()->OnPopupResultChanged();
   EXPECT_EQ(Selection::kNoMatch, model()->GetPopupSelection().line);
@@ -784,7 +762,7 @@ TEST_F(OmniboxEditModelPopupTest, PopupPositionChanging) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_EQ(0u, model()->GetPopupSelection().line);
   // Test moving and wrapping down.
@@ -799,7 +777,7 @@ TEST_F(OmniboxEditModelPopupTest, PopupPositionChanging) {
   }
 }
 
-#if !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
+#if !BUILDFLAG(IS_ANDROID)
 TEST_F(OmniboxEditModelPopupTest, PopupStepSelection) {
   ACMatches matches;
   for (size_t i = 0; i < 6; ++i) {
@@ -846,7 +824,7 @@ TEST_F(OmniboxEditModelPopupTest, PopupStepSelection) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_EQ(0u, model()->GetPopupSelection().line);
 
@@ -908,10 +886,10 @@ TEST_F(OmniboxEditModelPopupTest, PopupStepSelection) {
   model()->OnUpOrDownPressed(true, true);
   EXPECT_EQ(Selection(5, Selection::NORMAL), model()->GetPopupSelection());
 }
-#endif  // !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-// Actions are not part of the selection stepping in Android and iOS at all.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Actions are not part of the selection stepping in Android at all.
+#if !BUILDFLAG(IS_ANDROID)
 TEST_F(OmniboxEditModelPopupTest, PopupStepSelectionWithActions) {
   omnibox_feature_configs::ScopedConfigForTesting<
       omnibox_feature_configs::Toolbelt>
@@ -953,7 +931,7 @@ TEST_F(OmniboxEditModelPopupTest, PopupStepSelectionWithActions) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_EQ(0u, model()->GetPopupSelection().line);
 
@@ -1057,7 +1035,7 @@ TEST_F(OmniboxEditModelPopupTest, PopupInlineAutocompleteAndTemporaryText) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
 
   // Simulate OmniboxController updating the popup, then check initial state.
@@ -1110,7 +1088,7 @@ TEST_F(OmniboxEditModelPopupTest, TestFocusFixing) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   model()->SetPopupSelection(Selection(0), true, false);
   // The default state should be unfocused.
@@ -1131,7 +1109,7 @@ TEST_F(OmniboxEditModelPopupTest, TestFocusFixing) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_EQ(Selection::FOCUSED_BUTTON_ACTION,
             model()->GetPopupSelection().state);
@@ -1151,7 +1129,7 @@ TEST_F(OmniboxEditModelPopupTest, TestFocusFixing) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_EQ(0U, model()->GetPopupSelection().line);
   EXPECT_EQ(Selection::NORMAL, model()->GetPopupSelection().state);
@@ -1167,7 +1145,7 @@ TEST_F(OmniboxEditModelPopupTest, TestFocusFixing) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   EXPECT_EQ(0U, model()->GetPopupSelection().line);
   EXPECT_EQ(Selection::NORMAL, model()->GetPopupSelection().state);
@@ -1180,8 +1158,8 @@ TEST_F(OmniboxEditModelPopupTest, TestFocusFixing) {
   EXPECT_EQ(Selection::NORMAL, model()->GetPopupSelection().state);
 }
 
-// Android and iOS handle actions and metrics differently from other platforms.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+// Android handles actions and metrics differently from other platforms.
+#if !BUILDFLAG(IS_ANDROID)
 TEST_F(OmniboxEditModelPopupTest, OpenActionSelectionLogsOmniboxEvent) {
   base::HistogramTester histogram_tester;
   ACMatches matches;
@@ -1205,7 +1183,7 @@ TEST_F(OmniboxEditModelPopupTest, OpenActionSelectionLogsOmniboxEvent) {
   result->SortAndCull(input, /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
   model()->OnPopupResultChanged();
   model()->OpenSelection(
       OmniboxPopupSelection(1, OmniboxPopupSelection::FOCUSED_BUTTON_ACTION));
@@ -1243,7 +1221,7 @@ TEST_F(OmniboxEditModelPopupTest, OpenThumbsDownSelectionShowsFeedback) {
                       /*template_url_service=*/nullptr,
                       triggered_feature_service(), /*is_lens_active=*/false,
                       /*can_show_contextual_suggestions=*/false,
-                      /*mia_enabled*/ false);
+                      /*mia_enabled=*/false, /*is_incognito=*/false);
 
   // Inform the model of the controller result set changes.
   model()->OnPopupResultChanged();
@@ -1304,7 +1282,7 @@ TEST_F(OmniboxEditModelPopupTest, OpenThumbsDownSelectionShowsFeedback) {
   EXPECT_EQ(FeedbackType::kNone, result->match_at(1)->feedback_type);
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID)
 // Tests the `GetMatchIcon()` method, verifying that a page favicon is used for
 // `URL_WHAT_YOU_TYPED` matches.
 TEST_F(OmniboxEditModelPopupTest,
@@ -1428,7 +1406,7 @@ TEST_F(OmniboxEditModelPopupTest,
   gfx::test::CheckColors(bitmap.getColor(0, 0),
                          image.ToSkBitmap()->getColor(0, 0));
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 // Tests the `GetMatchIcon()` method, verifying that the extension's icon is
@@ -1603,7 +1581,7 @@ TEST_F(OmniboxEditModelTest, IPv4AddressPartsCount) {
                            base::Bucket(4, 1)));
 }
 
-#if !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
+#if !BUILDFLAG(IS_ANDROID)
 // The keyword mode feature is only available on Desktop. Do not test on mobile.
 TEST_F(OmniboxEditModelTest, OpenTabMatch) {
   // When the match comes from the Open Tab Provider while in keyword mode,
@@ -1643,7 +1621,7 @@ TEST_F(OmniboxEditModelTest, OpenTabMatch) {
                                GURL(), std::u16string(), 0);
   EXPECT_EQ(disposition, WindowOpenDisposition::CURRENT_TAB);
 }
-#endif  // !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 TEST_F(OmniboxEditModelTest, LogAnswerUsed) {
   base::HistogramTester histogram_tester;

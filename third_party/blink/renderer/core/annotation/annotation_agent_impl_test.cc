@@ -9,8 +9,10 @@
 #include "base/containers/span.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "cc/base/features.h"
 #include "components/shared_highlighting/core/common/fragment_directives_constants.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -52,7 +54,24 @@ class AnnotationAgentImplTest : public SimTest {
 
  protected:
   AnnotationAgentImplTest()
-      : SimTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+      : SimTest(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
+    std::vector<base::test::FeatureRefAndParams> enabled_features = {
+        {
+            ::features::kProgrammaticScrollAnimationOverride,
+            {
+                {"cubic_bezier_x1", "0.4"},          //
+                {"cubic_bezier_y1", "0.0"},          //
+                {"cubic_bezier_x2", "0.0"},          //
+                {"cubic_bezier_y2", "1.0"},          //
+                {"max_animation_duration", "1.5s"},  //
+            }  //
+        }  //
+    };
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        std::move(enabled_features),
+        /*disabled_features=*/{});
+  }
 
   // Helper to create a range to some text within a single text node. Verifies
   // the Range selects the `expected` text.
@@ -244,6 +263,9 @@ class AnnotationAgentImplTest : public SimTest {
     return GetDocument().Markers().glic_animation_state_ ==
            DocumentMarkerController::GlicAnimationState::kNotStarted;
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests that the agent type is correctly set.
@@ -1238,6 +1260,39 @@ TEST_F(AnnotationAgentImplTest, NodeContentsBeginsWithLineBreak) {
   EXPECT_TRUE(ExpectInViewport(*element_foo));
 }
 
+TEST_F(AnnotationAgentImplTest, NodeWithDisplayContents) {
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+     <style>
+      #container {
+        position: absolute;
+        width: 200px;
+        height: 20px;
+        left: 0;
+        top: 20000px;
+      }
+    </style>
+    <body>
+      <div id="container">
+        <div id="contents" style="display: contents;">Text</div>
+      </div>
+    </body>
+  )HTML");
+
+  auto* div_with_display_contents =
+      GetDocument().body()->getElementById(AtomicString("contents"));
+  ASSERT_NE(div_with_display_contents, nullptr);
+  auto* agent = CreateNodeAgent(div_with_display_contents->GetDomNodeId());
+  // Produce a compositor frame. This should process the DOM mutations and
+  // finish attaching the agent.
+  Compositor().BeginFrame();
+  EXPECT_TRUE(agent->IsAttached());
+  agent->ScrollIntoView(/*applies_focus=*/false);
+  EXPECT_TRUE(ExpectInViewport(*div_with_display_contents->firstChild()));
+}
+
 // kTextFinder type annotations must not cause side-effects. Ensure they do not
 // expand a hidden=until-found element.
 TEST_F(AnnotationAgentImplTest, TextFinderDoesntMutateDom) {
@@ -1570,6 +1625,30 @@ TEST_F(AnnotationAgentImplTest, TextFinderDoesntFindOffscreenFixed) {
 
     EXPECT_TRUE(agent_foo->IsAttached());
   }
+}
+
+TEST_F(AnnotationAgentImplTest, TextFinderFindsAcrossDisplayContents) {
+  SimRequest request("https://example.com/test.html", "text/html");
+  LoadURL("https://example.com/test.html");
+  request.Complete(R"HTML(
+    <!DOCTYPE html>
+    <body>
+      <div id="1">
+        <div id="2" style="display: contents;">
+          <span>Hello </span>
+          <span>world!</span>
+        </div>
+      </div>
+    </body>
+  )HTML");
+  Compositor().BeginFrame();
+
+  auto* agent = CreateTextFinderAgent("Hello%20world!",
+                                      mojom::blink::AnnotationType::kTextFinder);
+  ASSERT_TRUE(agent->NeedsAttachment());
+
+  Compositor().BeginFrame();
+  EXPECT_TRUE(agent->IsAttached());
 }
 
 TEST_F(AnnotationAgentImplTest, GlicShouldAnimateScroll) {

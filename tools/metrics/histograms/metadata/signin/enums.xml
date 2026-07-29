@@ -741,6 +741,8 @@ chromium-metrics-reviews@google.com.
   <int value="50" label="Chromeos Family Link User Metrics provider"/>
   <int value="51" label="Enterprise Identity Service"/>
   <int value="52" label="Promotion Eligibility Checker"/>
+  <int value="53" label="Password Manager Leak Detection"/>
+  <int value="54" label="Android Management Client"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/identity_manager/oauth_consumer_ids.h:OAuthConsumerId) -->
@@ -1327,6 +1329,8 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/signin/dice_web_signin_interceptor.h:SinginInterceptSupervisionState) -->
 
+<!-- LINT.IfChange(SourceForRefreshTokenOperation) -->
+
 <enum name="SourceForRefreshTokenOperation">
   <int value="0" label="Unknown"/>
   <int value="1" label="TokenService::LoadCredentials"/>
@@ -1363,7 +1367,13 @@ chromium-metrics-reviews@google.com.
   <int value="24"
       label="AccountsPolicyManager::RemoveUnallowedAccounts from
              ProfileSeparationDomainExceptionList policy."/>
+  <int value="25"
+      label="DiceAccountReconcilorDelegate::RefreshTokensBoundToDifferentKeys
+             if the error is persistent and the source of the error is LSTs
+             bound to different keys."/>
 </enum>
+
+<!-- LINT.ThenChange(//components/signin/public/base/signin_metrics.h:SourceForRefreshTokenOperation) -->
 
 <!-- LINT.IfChange(SuppressedReason) -->
 

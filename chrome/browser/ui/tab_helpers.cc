@@ -144,6 +144,7 @@
 #include "components/search/ntp_features.h"
 #include "components/site_engagement/content/site_engagement_helper.h"
 #include "components/site_engagement/content/site_engagement_service.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/tracing/common/tracing_switches.h"
 #include "components/ukm/content/source_url_recorder.h"
 #include "components/webapps/browser/installable/installable_manager.h"
@@ -179,6 +180,8 @@
 #include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_android.h"
 #include "components/facilitated_payments/core/features/features.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
+#include "components/fingerprinting_protection_filter/interventions/browser/interventions_web_contents_helper.h"
+#include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/ip_protection/common/ip_protection_status.h"
 #include "components/page_load_metrics/browser/features.h"
 #include "components/sensitive_content/android/android_sensitive_content_client.h"
@@ -378,6 +381,13 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
         profile->IsIncognitoProfile());
   }
 
+  if (fingerprinting_protection_interventions::features::
+          ShouldBlockCanvasReadbackForIncognitoState(
+              profile->IsIncognitoProfile())) {
+    fingerprinting_protection_interventions::InterventionsWebContentsHelper::
+        CreateForWebContents(web_contents, profile->IsIncognitoProfile());
+  }
+
   // Only create the IpProtectionStatus if the User Bypass feature is enabled.
   if (net::features::kIpPrivacyEnableUserBypass.Get()) {
     ip_protection::IpProtectionStatus::CreateForWebContents(web_contents);
@@ -463,13 +473,11 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
         CreateForWebContents(web_contents);
 
 #if BUILDFLAG(IS_ANDROID)
-    // If enabled, save sensitivity data for each non-incognito non-custom
-    // android tab
+    // If enabled, save sensitivity data for each non-incognito android tab.
     // TODO(crbug.com/40276584): Consider moving check conditions or the
     // registration logic to sensitivity_persisted_tab_data_android.*
     if (!profile->IsOffTheRecord()) {
-      if (auto* tab = TabAndroid::FromWebContents(web_contents);
-          (tab && !tab->IsCustomTab())) {
+      if (auto* tab = TabAndroid::FromWebContents(web_contents); tab) {
         SensitivityPersistedTabDataAndroid::From(
             tab,
             base::BindOnce(
@@ -492,7 +500,17 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
           performance_manager::PerformanceManagerRegistry::GetInstance()) {
     pm_registry->SetPageType(web_contents, performance_manager::PageType::kTab);
   }
-  permissions::PermissionRequestManager::CreateForWebContents(web_contents);
+  // The tab interface is only needed on Desktop to support Split View.
+  tabs::TabInterface* desktop_tab_interface =
+#if BUILDFLAG(IS_ANDROID)
+      nullptr;
+#else
+      base::FeatureList::IsEnabled(features::kSideBySide)
+          ? tabs::TabInterface::MaybeGetFromContents(web_contents)
+          : nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
+  permissions::PermissionRequestManager::CreateForWebContents(
+      web_contents, desktop_tab_interface);
   permissions::PermissionRecoverySuccessRateTracker::CreateForWebContents(
       web_contents);
   // The PopupBlockerTabHelper has an implicit dependency on

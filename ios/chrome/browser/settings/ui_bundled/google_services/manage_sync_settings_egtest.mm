@@ -41,6 +41,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
+#import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
 #import "ui/base/l10n/l10n_util.h"
 
@@ -1221,8 +1222,6 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
   ExpectBatchUploadRecommendationItem(
       IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_BATCH_UPLOAD_ITEMS_ITEM, 2,
       fakeIdentity.userEmail);
-
-  // TODO(crbug.com/40072328): Test that items were actually moved.
 }
 
 // Tests that bulk upload moves the following data types to account:
@@ -1285,17 +1284,25 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
                      kBulkUploadTableViewPasswordsItemAccessibilityIdentifer)]
       performAction:chrome_test_util::TurnTableViewSwitchOn(NO)];
 
-  // Tap on the save button.
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityID(
-                                   kBulkUploadSaveButtonAccessibilityIdentifer)]
-      performAction:grey_tap()];
+  {
+    // Workaround for Earl Grey synchronization bug on iOS 26 that prevents
+    // snackbar detection. Temporarily disabling synchronization allows the
+    // view to be found.
+    ScopedSynchronizationDisabler disabler;
+
+    // Tap on the save button.
+    [[EarlGrey
+        selectElementWithMatcher:
+            grey_accessibilityID(kBulkUploadSaveButtonAccessibilityIdentifer)]
+        performAction:grey_tap()];
+
+    // Ensure the correct snackbar appears.
+    ExpectBatchUploadConfirmationSnackbar(2, fakeIdentity.userEmail);
+  }
 
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kManageSyncTableViewAccessibilityIdentifier)];
-  // Ensure the correct snackbar appears.
-  ExpectBatchUploadConfirmationSnackbar(2, fakeIdentity.userEmail);
 
   [ChromeEarlGreyUI waitForAppToIdle];
 
@@ -1304,8 +1311,6 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
   ExpectBatchUploadRecommendationItem(
       IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_BATCH_UPLOAD_PASSWORDS_ITEM, 1,
       fakeIdentity.userEmail);
-
-  // TODO(crbug.com/40072328): Test that items were actually moved.
 }
 
 // Tests that bulk upload moves the following data types to account:
@@ -1415,8 +1420,6 @@ void ExpectBatchUploadConfirmationSnackbar(int count, NSString* email) {
                                        kBatchUploadAccessibilityIdentifier),
                                    grey_minimumVisiblePercent(0.05), nil)]
       assertWithMatcher:grey_nil()];
-
-  // TODO(crbug.com/40072328): Test that items were actually moved.
 }
 
 // Tests that the batch upload card in account settings can be displayed without

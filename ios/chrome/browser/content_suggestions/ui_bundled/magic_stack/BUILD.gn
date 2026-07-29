@@ -20,6 +20,7 @@ source_set("public") {
 
 source_set("ranking_model") {
   sources = [
+    "magic_stack_ranking_model+testing.h",
     "magic_stack_ranking_model.h",
     "magic_stack_ranking_model.mm",
     "magic_stack_ranking_model_delegate.h",
@@ -30,9 +31,11 @@ source_set("ranking_model") {
     ":magic_stack",
     ":public",
     ":utils",
+    "//components/bookmarks/browser",
     "//components/commerce/core:feature_list",
     "//components/commerce/core:shopping_service",
     "//components/password_manager/core/common",
+    "//components/power_bookmarks/core",
     "//components/prefs",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/search",
@@ -63,6 +66,7 @@ source_set("ranking_model") {
     "//ios/chrome/browser/content_suggestions/ui_bundled/shop_card",
     "//ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption",
     "//ios/chrome/browser/content_suggestions/ui_bundled/tips",
+    "//ios/chrome/browser/default_browser/model:utils",
     "//ios/chrome/browser/lens/ui_bundled:lens_availability",
     "//ios/chrome/browser/lens/ui_bundled:lens_entrypoint",
     "//ios/chrome/browser/ntp/model:features",
@@ -147,6 +151,7 @@ source_set("cells") {
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells:most_visited_tiles",
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells:public",
     "//ios/chrome/browser/content_suggestions/ui_bundled/cells:shortcuts",
+    "//ios/chrome/browser/content_suggestions/ui_bundled/default_browser/ui",
     "//ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo",
     "//ios/chrome/browser/content_suggestions/ui_bundled/safety_check",
     "//ios/chrome/browser/content_suggestions/ui_bundled/send_tab_to_self",

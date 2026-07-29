@@ -27,10 +27,8 @@ class MockActorOverlayViewController : public ActorOverlayViewController {
               (override));
   MOCK_METHOD(void, AttachManagedWebViewToWindowController, (), (override));
   MOCK_METHOD(void, OnHoverStatusChanged, (bool is_hovering), (override));
-  MOCK_METHOD(void,
-              SetHandoffButtonHoverStatus,
-              (bool is_hovering),
-              (override));
+  MOCK_METHOD(void, SetScrimBackground, (bool is_visible), (override));
+  MOCK_METHOD(bool, IsHovering, (), (override));
 };
 
 }  // namespace actor::ui

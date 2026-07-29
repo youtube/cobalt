@@ -19,7 +19,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/scoped_observation_traits.h"
-#include "base/supports_user_data.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/expected.h"
@@ -127,7 +126,6 @@ class Browser : public TabStripModelObserver,
                 public WebContentsCollection::Observer,
                 public content::WebContentsDelegate,
                 public ChromeWebModalDialogManagerDelegate,
-                public base::SupportsUserData,
                 public BookmarkTabHelperObserver,
                 public zoom::ZoomObserver,
                 public ThemeServiceObserver,
@@ -742,8 +740,6 @@ class Browser : public TabStripModelObserver,
       content::WebContents& web_contents,
       content::PreloadingTriggerType trigger_type) override;
   bool ShouldShowStaleContentOnEviction(content::WebContents* source) override;
-  void MediaWatchTimeChanged(
-      const content::MediaPlayerWatchTime& watch_time) override;
   std::unique_ptr<content::EyeDropper> OpenEyeDropper(
       content::RenderFrameHost* frame,
       content::EyeDropperListener* listener) override;
@@ -1071,6 +1067,8 @@ class Browser : public TabStripModelObserver,
   void SetWebContentsBlocked(content::WebContents* web_contents,
                              bool blocked) override;
   web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost(
+      content::WebContents* web_contents) override;
+  void OnWebContentsModalDialogShown(
       content::WebContents* web_contents) override;
 
   // Overridden from BookmarkTabHelperObserver:

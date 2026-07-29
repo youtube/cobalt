@@ -22,6 +22,14 @@ inline constexpr std::string_view kCanvasSizeMetricName =
     "FingerprintingProtection.CanvasNoise.NoisedCanvasSize";
 inline constexpr std::string_view kCanvasOperationMetricName =
     "FingerprintingProtection.CanvasNoise.OperationTriggered";
+inline constexpr std::string_view kCanvasNoiseReadbacksPerContextMetricName =
+    "FingerprintingProtection.CanvasNoise.NoisedReadbacksPerContext";
+
+inline constexpr std::string_view kBlockCanvasReadbackErrorMessage =
+    "https://issues.chromium.org/issues/"
+    "new?component=1456351&title=Breakage%20due%20to%20blocked%20canvas"
+    "%20readback. The feature can be disabled through "
+    "chrome://flags/#enable-block-canvas-readback";
 
 enum class CanvasNoiseReason {
   kAllConditionsMet = 0,

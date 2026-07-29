@@ -47,6 +47,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/autocomplete_change_observer.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/find_result_waiter.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/download/public/common/download_item.h"
@@ -73,7 +74,6 @@
 #include "content/public/test/download_test_observer.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
-#include "net/base/filename_util.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_monster.h"
@@ -326,14 +326,11 @@ content::RenderFrameHost* NavigateToURLBlockUntilNavigationsComplete(
 
 base::FilePath GetTestFilePath(const base::FilePath& dir,
                                const base::FilePath& file) {
-  base::ScopedAllowBlockingForTesting allow_blocking;
-  base::FilePath path;
-  base::PathService::Get(chrome::DIR_TEST_DATA, &path);
-  return path.Append(dir).Append(file);
+  return chrome_test_utils::GetTestFilePath(dir, file);
 }
 
 GURL GetTestUrl(const base::FilePath& dir, const base::FilePath& file) {
-  return net::FilePathToFileURL(GetTestFilePath(dir, file));
+  return chrome_test_utils::GetTestUrl(dir, file);
 }
 
 bool GetRelativeBuildDirectory(base::FilePath* build_dir) {
@@ -581,10 +578,9 @@ bool IsBrowserActive(Browser* browser) {
 Browser* OpenNewEmptyWindowAndWaitUntilActivated(
     Profile* profile,
     bool should_trigger_session_restore) {
-  BrowserChangeObserver new_browser_observer(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   chrome::NewEmptyWindow(profile, should_trigger_session_restore);
-  Browser* new_browser = new_browser_observer.Wait();
+  Browser* new_browser = browser_created_observer.Wait();
   WaitUntilBrowserBecomeActive(new_browser);
   return new_browser;
 }
@@ -880,14 +876,11 @@ void WaitForHistoryToLoad(history::HistoryService* history_service) {
 }
 
 Browser* WaitForBrowserToOpen() {
-  return BrowserChangeObserver(nullptr,
-                               BrowserChangeObserver::ChangeType::kAdded)
-      .Wait();
+  return BrowserCreatedObserver().Wait();
 }
 
 void WaitForBrowserToClose(Browser* browser) {
-  BrowserChangeObserver(browser, BrowserChangeObserver::ChangeType::kRemoved)
-      .Wait();
+  BrowserDestroyedObserver(browser).Wait();
 }
 
 TabAddedWaiter::TabAddedWaiter(Browser* browser) {
@@ -946,35 +939,48 @@ void AllBrowserTabAddedWaiter::OnBrowserAdded(Browser* browser) {
   browser->tab_strip_model()->AddObserver(this);
 }
 
-BrowserChangeObserver::BrowserChangeObserver(Browser* browser, ChangeType type)
-    : browser_(browser), type_(type) {
-  BrowserList::AddObserver(this);
+BrowserDestroyedObserver::BrowserDestroyedObserver(
+    BrowserWindowInterface* browser)
+    : session_id_(browser ? std::make_optional(browser->GetSessionID())
+                          : std::nullopt) {
+  browser_list_observation_.Observe(BrowserList::GetInstance());
 }
 
-BrowserChangeObserver::~BrowserChangeObserver() {
-  BrowserList::RemoveObserver(this);
+BrowserDestroyedObserver::~BrowserDestroyedObserver() = default;
+
+void BrowserDestroyedObserver::Wait() {
+  if (!was_removed_) {
+    run_loop_.Run();
+  }
 }
 
-Browser* BrowserChangeObserver::Wait() {
-  run_loop_.Run();
-  return browser_;
-}
-
-void BrowserChangeObserver::OnBrowserAdded(Browser* browser) {
-  if (type_ == ChangeType::kAdded) {
-    browser_ = browser;
+void BrowserDestroyedObserver::OnBrowserRemoved(Browser* browser) {
+  if (!session_id_.has_value() ||
+      browser->GetSessionID() == session_id_.value()) {
+    was_removed_ = true;
     run_loop_.Quit();
   }
 }
 
-void BrowserChangeObserver::OnBrowserRemoved(Browser* browser) {
-  if (browser_ && browser_ != browser)
-    return;
+BrowserCreatedObserver::BrowserCreatedObserver() {
+  browser_list_observation_.Observe(BrowserList::GetInstance());
+}
 
-  if (type_ == ChangeType::kRemoved) {
-    browser_ = browser;
-    run_loop_.Quit();
+BrowserCreatedObserver::~BrowserCreatedObserver() = default;
+
+Browser* BrowserCreatedObserver::Wait() {
+  if (!browser_) {
+    run_loop_.Run();
   }
+  CHECK(browser_);
+  // Extract the Browser raw_ptr to mitigate risks of a dangling ref in the case
+  // clients close `browser_` before destroying this class.
+  return browser_.ExtractAsDangling();
+}
+
+void BrowserCreatedObserver::OnBrowserAdded(Browser* browser) {
+  browser_ = browser;
+  run_loop_.Quit();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

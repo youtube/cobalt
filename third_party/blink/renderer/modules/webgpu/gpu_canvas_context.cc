@@ -196,14 +196,18 @@ scoped_refptr<StaticBitmapImage> GPUCanvasContext::GetImage(FlushReason) {
   return SnapshotInternal(front_buffer_texture->GetTexture());
 }
 
-CanvasResourceProvider* GPUCanvasContext::GetOrCreateCanvasResourceProvider() {
+CanvasResourceProviderSharedImage*
+GPUCanvasContext::GetOrCreateCanvasResourceProvider() {
   auto* provider = resource_provider_.get();
   if (!provider && !did_fail_to_create_resource_provider_) {
     if (Host()->IsValidImageSize()) {
       if (SharedGpuContext::IsGpuCompositingEnabled()) {
+        // This code path could be used for compositing so add the necessary
+        // shared image usage flags.
         resource_provider_ = CanvasResourceProvider::CreateWebGPUImageProvider(
             Host()->Size(), GetSharedImageFormat(), GetAlphaType(),
-            GetColorSpace(), gpu::SharedImageUsageSet(), Host());
+            GetColorSpace(), swap_buffers_->GetSharedImageUsagesForDisplay(),
+            Host());
       }
       Host()->UpdateMemoryUsage();
       provider = resource_provider_.get();
@@ -220,7 +224,8 @@ CanvasResourceProvider* GPUCanvasContext::GetOrCreateCanvasResourceProvider() {
   return provider;
 }
 
-CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
+CanvasResourceProviderSharedImage*
+GPUCanvasContext::PaintRenderingResultsToCanvas(
     SourceDrawingBuffer source_buffer) {
   if (!swap_buffers_) {
     return resource_provider_.get();
@@ -232,8 +237,7 @@ CanvasResourceProvider* GPUCanvasContext::PaintRenderingResultsToCanvas(
     Host()->DiscardResources();
   }
 
-  CanvasResourceProvider* resource_provider =
-      GetOrCreateCanvasResourceProvider();
+  auto* resource_provider = GetOrCreateCanvasResourceProvider();
   if (!resource_provider) {
     return nullptr;
   }
@@ -281,7 +285,7 @@ scoped_refptr<StaticBitmapImage>
 GPUCanvasContext::PaintRenderingResultsToSnapshot(
     SourceDrawingBuffer source_buffer,
     FlushReason reason) {
-  CanvasResourceProvider* provider =
+  CanvasResourceProviderSharedImage* provider =
       PaintRenderingResultsToCanvas(source_buffer);
 
   return provider ? provider->Snapshot(reason) : nullptr;
@@ -867,7 +871,7 @@ void GPUCanvasContext::CopyToSwapTexture() {
 
 bool GPUCanvasContext::CopyTextureToResourceProvider(
     const wgpu::Texture& texture,
-    CanvasResourceProvider* resource_provider) const {
+    CanvasResourceProviderSharedImage* resource_provider) const {
 #if BUILDFLAG(USE_DAWN)
   DCHECK(resource_provider);
 

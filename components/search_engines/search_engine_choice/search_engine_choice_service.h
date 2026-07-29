@@ -19,6 +19,9 @@
 namespace policy {
 class PolicyService;
 }
+namespace signin {
+class IdentityManager;
+}
 namespace variations {
 class VariationsService;
 }
@@ -93,7 +96,8 @@ class SearchEngineChoiceService : public KeyedService {
       PrefService& profile_prefs,
       PrefService* local_state,
       regional_capabilities::RegionalCapabilitiesService& regional_capabilities,
-      TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver);
+      TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
+      signin::IdentityManager& identity_manager);
   ~SearchEngineChoiceService() override;
 
   // Runs the initialisation step for this service, checking consistency in the
@@ -171,7 +175,7 @@ class SearchEngineChoiceService : public KeyedService {
   Client& GetClientForTesting();
 
   enum class ChoiceStatus {
-    // Metedata indicates that a search engine choice has been made and is
+    // Metadata indicates that a search engine choice has been made and is
     // considered valid.
     kValid,
     // No search engine choice has been made yet.
@@ -197,6 +201,9 @@ class SearchEngineChoiceService : public KeyedService {
     // The current default search provider has a prepopulated ID that doesn't
     // match any of the preopulated engines currently available.
     kCurrentIsUnknownPrepopulated,
+    // The user is not eligible for the choice screen based on their account
+    // capabilities.
+    kAccountNotEligible,
   };
   ChoiceStatus EvaluateSearchProviderChoiceForTesting(
       const TemplateURLService& template_url_service);
@@ -261,6 +268,7 @@ class SearchEngineChoiceService : public KeyedService {
       regional_capabilities_service_;
   const raw_ref<TemplateURLPrepopulateData::Resolver>
       prepopulate_data_resolver_;
+  const raw_ref<signin::IdentityManager> identity_manager_;
   base::ObserverList<Observer> observers_;
 
   // Used to track whether `MaybeRecordChoiceScreenDisplayState()` has already

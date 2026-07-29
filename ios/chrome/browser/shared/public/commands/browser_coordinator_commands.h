@@ -8,6 +8,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 
+enum class AIMPrototypeEntrypoint;
 namespace base {
 class ScopedClosureRunner;
 }
@@ -53,6 +54,13 @@ enum class TrustedVaultUserActionTriggerForUMA;
 
 // Shows the online help page in a tab.
 - (void)showHelpPage;
+
+// Shows the AIM prototype.
+- (void)showAIMPrototypeFromEntrypoint:(AIMPrototypeEntrypoint)entryPoint
+                             withQuery:(NSString*)query;
+
+// Hides the AIM prototype.
+- (void)hideAIMPrototype;
 
 // Shows the activity indicator overlay that appears over the view to prevent
 // interaction with the web page until the returned value is destructed.
@@ -138,6 +146,9 @@ enum class TrustedVaultUserActionTriggerForUMA;
 // entry point from which the trusted vault reauth has been triggered.
 - (void)performReauthToRetrieveTrustedVaultKey:
     (syncer::TrustedVaultUserActionTriggerForUMA)trigger;
+
+// Forces fullscreen mode which means that toolbars are collapsed.
+- (void)forceFullscreenMode;
 
 @end
 

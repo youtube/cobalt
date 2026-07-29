@@ -354,12 +354,18 @@ TEST_F(ExtendedDesktopTest, Capture) {
   aura::test::EventCountDelegate r1_d2;
   aura::test::EventCountDelegate r2_d1;
 
-  std::unique_ptr<aura::Window> r1_w1(aura::test::CreateTestWindowWithDelegate(
-      &r1_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r1_w2(aura::test::CreateTestWindowWithDelegate(
-      &r1_d2, 0, gfx::Rect(10, 100, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r2_w1(aura::test::CreateTestWindowWithDelegate(
-      &r2_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[1]));
+  std::unique_ptr<aura::Window> r1_w1(
+      aura::test::CreateTestWindow({.delegate = &r1_d1,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 10, 100, 100}}));
+  std::unique_ptr<aura::Window> r1_w2(
+      aura::test::CreateTestWindow({.delegate = &r1_d2,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 100, 100, 100}}));
+  std::unique_ptr<aura::Window> r2_w1(
+      aura::test::CreateTestWindow({.delegate = &r2_d1,
+                                    .parent = root_windows[1].get(),
+                                    .bounds = {10, 10, 100, 100}}));
 
   r1_w1->SetCapture();
 
@@ -421,12 +427,18 @@ TEST_F(ExtendedDesktopTest, CaptureEventLocation) {
   aura::test::EventCountDelegate r1_d2;
   aura::test::EventCountDelegate r2_d1;
 
-  std::unique_ptr<aura::Window> r1_w1(aura::test::CreateTestWindowWithDelegate(
-      &r1_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r1_w2(aura::test::CreateTestWindowWithDelegate(
-      &r1_d2, 0, gfx::Rect(10, 100, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r2_w1(aura::test::CreateTestWindowWithDelegate(
-      &r2_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[1]));
+  std::unique_ptr<aura::Window> r1_w1(
+      aura::test::CreateTestWindow({.delegate = &r1_d1,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 10, 100, 100}}));
+  std::unique_ptr<aura::Window> r1_w2(
+      aura::test::CreateTestWindow({.delegate = &r1_d2,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 100, 100, 100}}));
+  std::unique_ptr<aura::Window> r2_w1(
+      aura::test::CreateTestWindow({.delegate = &r2_d1,
+                                    .parent = root_windows[1].get(),
+                                    .bounds = {10, 10, 100, 100}}));
 
   r1_w1->SetCapture();
 
@@ -453,12 +465,18 @@ TEST_F(ExtendedDesktopTest, CaptureEventLocationHighDPI) {
   aura::test::EventCountDelegate r1_d2;
   aura::test::EventCountDelegate r2_d1;
 
-  std::unique_ptr<aura::Window> r1_w1(aura::test::CreateTestWindowWithDelegate(
-      &r1_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r1_w2(aura::test::CreateTestWindowWithDelegate(
-      &r1_d2, 0, gfx::Rect(10, 100, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r2_w1(aura::test::CreateTestWindowWithDelegate(
-      &r2_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[1]));
+  std::unique_ptr<aura::Window> r1_w1(
+      aura::test::CreateTestWindow({.delegate = &r1_d1,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 10, 100, 100}}));
+  std::unique_ptr<aura::Window> r1_w2(
+      aura::test::CreateTestWindow({.delegate = &r1_d2,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 100, 100, 100}}));
+  std::unique_ptr<aura::Window> r2_w1(
+      aura::test::CreateTestWindow({.delegate = &r2_d1,
+                                    .parent = root_windows[1].get(),
+                                    .bounds = {10, 10, 100, 100}}));
 
   r1_w1->SetCapture();
 
@@ -485,12 +503,18 @@ TEST_F(ExtendedDesktopTest, CaptureEventLocationHighDPI_2) {
   aura::test::EventCountDelegate r1_d2;
   aura::test::EventCountDelegate r2_d1;
 
-  std::unique_ptr<aura::Window> r1_w1(aura::test::CreateTestWindowWithDelegate(
-      &r1_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r1_w2(aura::test::CreateTestWindowWithDelegate(
-      &r1_d2, 0, gfx::Rect(10, 100, 100, 100), root_windows[0]));
-  std::unique_ptr<aura::Window> r2_w1(aura::test::CreateTestWindowWithDelegate(
-      &r2_d1, 0, gfx::Rect(10, 10, 100, 100), root_windows[1]));
+  std::unique_ptr<aura::Window> r1_w1(
+      aura::test::CreateTestWindow({.delegate = &r1_d1,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 10, 100, 100}}));
+  std::unique_ptr<aura::Window> r1_w2(
+      aura::test::CreateTestWindow({.delegate = &r1_d2,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 100, 100, 100}}));
+  std::unique_ptr<aura::Window> r2_w1(
+      aura::test::CreateTestWindow({.delegate = &r2_d1,
+                                    .parent = root_windows[1].get(),
+                                    .bounds = {10, 10, 100, 100}}));
 
   r1_w1->SetCapture();
 
@@ -549,8 +573,11 @@ TEST_F(ExtendedDesktopTest, MoveWindowByMouseClick) {
 
   aura::Window::Windows root_windows = Shell::GetAllRootWindows();
   aura::test::EventCountDelegate delegate;
-  std::unique_ptr<aura::Window> window(aura::test::CreateTestWindowWithDelegate(
-      &delegate, 0, gfx::Rect(10, 10, 100, 100), root_windows[0]));
+  std::unique_ptr<aura::Window> window(
+      aura::test::CreateTestWindow({.delegate = &delegate,
+                                    .parent = root_windows[0].get(),
+                                    .bounds = {10, 10, 100, 100},
+                                    .window_id = 0}));
   MoveWindowByClickEventHandler event_handler(window.get());
   window->AddPreTargetHandler(&event_handler);
 
@@ -799,16 +826,18 @@ TEST_F(ExtendedDesktopTest, StayInSameRootWindow) {
   aura::Window* settings_bubble_container =
       Shell::GetPrimaryRootWindowController()->GetContainer(
           kShellWindowId_SettingBubbleContainer);
-  aura::Window* window = aura::test::CreateTestWindow({.window_id = 100},
-                                                      settings_bubble_container)
-                             .release();
+  aura::Window* window =
+      aura::test::CreateTestWindow(
+          {.parent = settings_bubble_container, .window_id = 100})
+          .release();
   window->SetBoundsInScreen(gfx::Rect(250, 10, 50, 50), GetSecondaryDisplay());
   EXPECT_EQ(root_windows[0], window->GetRootWindow());
 
   aura::Window* status_container =
       Shell::GetPrimaryRootWindowController()->GetContainer(
           kShellWindowId_ShelfContainer);
-  window = aura::test::CreateTestWindow({.window_id = 100}, status_container)
+  window = aura::test::CreateTestWindow(
+               {.parent = status_container, .window_id = 100})
                .release();
   window->SetBoundsInScreen(gfx::Rect(250, 10, 50, 50), GetSecondaryDisplay());
   EXPECT_EQ(root_windows[0], window->GetRootWindow());

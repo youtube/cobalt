@@ -86,7 +86,7 @@ std::optional<FieldTypeSet> GetFieldTypesToFillFromFillingProduct(
     case FillingProduct::kAddress: {
       static constexpr FieldTypeSet kFieldTypes = []() {
         FieldTypeSet field_types;
-        for (FieldType field_type : kAllFieldTypes) {
+        for (FieldType field_type : FieldTypeSet::all()) {
           if (IsAddressType(field_type)) {
             field_types.insert(field_type);
           }
@@ -98,7 +98,7 @@ std::optional<FieldTypeSet> GetFieldTypesToFillFromFillingProduct(
     case FillingProduct::kCreditCard: {
       static constexpr FieldTypeSet kFieldTypes = []() {
         FieldTypeSet field_types;
-        for (FieldType field_type : kAllFieldTypes) {
+        for (FieldType field_type : FieldTypeSet::all()) {
           if (FieldTypeGroupSet({FieldTypeGroup::kCreditCard,
                                  FieldTypeGroup::kStandaloneCvcField})
                   .contains(GroupTypeOfFieldType(field_type))) {
@@ -122,7 +122,7 @@ std::optional<FieldTypeSet> GetFieldTypesToFillFromFillingProduct(
     case FillingProduct::kPassword: {
       static constexpr FieldTypeSet kFieldTypes = []() {
         FieldTypeSet field_types;
-        for (FieldType field_type : kAllFieldTypes) {
+        for (FieldType field_type : FieldTypeSet::all()) {
           if (FieldTypeGroupSet({FieldTypeGroup::kUsernameField,
                                  FieldTypeGroup::kPasswordField})
                   .contains(GroupTypeOfFieldType(field_type))) {
@@ -1151,7 +1151,8 @@ FormFiller::ValueAndTypeAndOverride FormFiller::GetFieldFillingData(
             return {
                 GetFillingValueForCreditCard(
                     CHECK_DEREF(credit_card), manager_->client().GetAppLocale(),
-                    action_persistence, autofill_field, failure_to_fill),
+                    action_persistence, autofill_field,
+                    manager_->client().IsCvcSavingSupported(), failure_to_fill),
                 autofill_field.Type().GetCreditCardType()};
           },
           [&](const AugmentedFillingPayload::EntityPayload&

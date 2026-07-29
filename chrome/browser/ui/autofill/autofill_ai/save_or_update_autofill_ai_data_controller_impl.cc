@@ -5,13 +5,17 @@
 #include "chrome/browser/ui/autofill/autofill_ai/save_or_update_autofill_ai_data_controller_impl.h"
 
 #include <algorithm>
+#include <string>
 
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/types/optional_ref.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/autofill/autofill_ai/save_or_update_autofill_ai_data_controller.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_controller_base.h"
@@ -19,15 +23,21 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/grit/browser_resources.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_import_utils.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
+#include "components/autofill/core/common/autofill_features.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/visibility.h"
 #include "ui/base/l10n/l10n_util.h"
 
+// TODO(crbug.com/441742849): Refactor this class implementation and possibly
+// others to remove `chrome::FindBrowserWithTab()`.
 namespace autofill {
 
 namespace {
@@ -88,6 +98,20 @@ void EmitBubbleFunnelMetrics(
       close_reason);
 }
 
+std::u16string GetPrimaryAccountEmailFromProfile(Profile* profile) {
+  if (!profile) {
+    return std::u16string();
+  }
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager) {
+    return std::u16string();
+  }
+  return base::UTF8ToUTF16(
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+          .email);
+}
+
 }  // namespace
 
 SaveOrUpdateAutofillAiDataControllerImpl::
@@ -143,6 +167,12 @@ void SaveOrUpdateAutofillAiDataControllerImpl::SetupPrompt(
 
 void SaveOrUpdateAutofillAiDataControllerImpl::OnSaveButtonClicked() {
   OnBubbleClosed(AutofillAiBubbleClosedReason::kAccepted);
+}
+
+std::u16string
+SaveOrUpdateAutofillAiDataControllerImpl::GetPrimaryAccountEmail() const {
+  return GetPrimaryAccountEmailFromProfile(
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
 }
 
 bool SaveOrUpdateAutofillAiDataControllerImpl::IsSavePrompt() const {
@@ -267,6 +297,33 @@ std::u16string SaveOrUpdateAutofillAiDataControllerImpl::GetDialogTitle()
   NOTREACHED();
 }
 
+bool SaveOrUpdateAutofillAiDataControllerImpl::IsWalletableEntity() const {
+  return new_entity_->record_type() ==
+         EntityInstance::RecordType::kServerWallet;
+}
+
+void SaveOrUpdateAutofillAiDataControllerImpl::OnGoToWalletLinkClicked() {
+  if (Browser* browser = chrome::FindBrowserWithTab(web_contents())) {
+    reopen_bubble_when_web_contents_becomes_visible_ = true;
+    static constexpr std::string_view kWalletPassesUrl =
+        "https://wallet.google.com/wallet/passes";
+    ShowSingletonTab(browser, GURL(kWalletPassesUrl));
+  }
+}
+
+void SaveOrUpdateAutofillAiDataControllerImpl::OnVisibilityChanged(
+    content::Visibility visibility) {
+  // TODO(crbug.com/441742849): Consider moving this logic to
+  // `AutofillBubbleControllerBase`, for now keep it specific to this class to
+  // avoid interfeering with other bubbles in transactions.
+  AutofillBubbleControllerBase::OnVisibilityChanged(visibility);
+  if (visibility == content::Visibility::VISIBLE &&
+      reopen_bubble_when_web_contents_becomes_visible_) {
+    reopen_bubble_when_web_contents_becomes_visible_ = false;
+    QueueOrShowBubble();
+  }
+}
+
 void SaveOrUpdateAutofillAiDataControllerImpl::OnBubbleClosed(
     SaveOrUpdateAutofillAiDataController::AutofillAiBubbleClosedReason
         close_reason) {
@@ -274,7 +331,7 @@ void SaveOrUpdateAutofillAiDataControllerImpl::OnBubbleClosed(
   if (bubble_view()) {
     EmitBubbleFunnelMetrics(IsSavePrompt(), new_entity_->type(), close_reason);
   }
-  set_bubble_view(nullptr);
+  ResetBubbleViewAndInformBubbleManager(/*show_next_bubble=*/true);
   UpdatePageActionIcon();
   if (!save_prompt_acceptance_callback_.is_null()) {
     std::move(save_prompt_acceptance_callback_)
@@ -292,9 +349,9 @@ SaveOrUpdateAutofillAiDataControllerImpl::GetPageActionIconType() {
 
 void SaveOrUpdateAutofillAiDataControllerImpl::DoShowBubble() {
   Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  set_bubble_view(browser->window()
-                      ->GetAutofillBubbleHandler()
-                      ->ShowSaveAutofillAiDataBubble(web_contents(), this));
+  SetBubbleView(browser->window()
+                    ->GetAutofillBubbleHandler()
+                    ->ShowSaveAutofillAiDataBubble(web_contents(), this));
   CHECK(bubble_view());
 }
 

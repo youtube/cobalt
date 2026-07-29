@@ -109,6 +109,7 @@
 #include "mojo/public/cpp/system/invitation.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "net/first_party_sets/local_set_declaration.h"
+#include "sandbox/policy/linux/landlock_util.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
 #include "sandbox/policy/switches.h"
@@ -1036,7 +1037,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   if (process_type.empty()) {
     // Check if Landlock is supported.
-    sandbox::policy::SandboxLinux::ReportLandlockStatus();
+    sandbox::policy::ReportLandlockStatus();
   }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
@@ -1182,7 +1183,7 @@ int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
 
     auto* provider = delegate_->CreateVariationsIdsProvider();
     if (!provider) {
-      variations::VariationsIdsProvider::Create(
+      variations::VariationsIdsProvider::CreateInstance(
           variations::VariationsIdsProvider::Mode::kUseSignedInState);
     }
 
@@ -1207,9 +1208,19 @@ int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
       base::HangWatcher::GetInstance()->Start();
     }
 
+#if BUILDFLAG(IS_ANDROID)
+    // WebView may have already initialized perfetto, so check if we should do
+    // it here.
+    if (delegate_->ShouldInitializePerfetto(invoked_in_browser)) {
+      tracing::InitTracingPostFeatureList(
+          /*enable_consumer=*/true, /*will_trace_thread_restart=*/false,
+          base::BindRepeating(&ShouldAllowSystemTracingConsumer));
+    }
+#else
     tracing::InitTracingPostFeatureList(
         /*enable_consumer=*/true, /*will_trace_thread_restart=*/false,
         base::BindRepeating(&ShouldAllowSystemTracingConsumer));
+#endif
 
     // The FeatureList needs to be created before starting the ThreadPool.
     StartBrowserThreadPool();

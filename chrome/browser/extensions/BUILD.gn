@@ -1716,6 +1716,7 @@ source_set("chrome_extensions_browser_client") {
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/task_manager",
     "//chrome/browser/ui",
+    "//chrome/browser/usb",
     "//components/content_settings/core/browser",
     "//components/embedder_support:user_agent",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
@@ -1777,5 +1778,11 @@ source_set("chrome_extensions_browser_client") {
       "//chrome/browser/safe_browsing",
       "//components/safe_browsing/core/common:features",
     ]
+  }
+}
+
+if (is_android) {
+  java_cpp_enum("extension_context_menu_model_enums") {
+    sources = [ "extension_context_menu_model.h" ]
   }
 }

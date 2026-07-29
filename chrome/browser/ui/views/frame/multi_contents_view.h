@@ -40,6 +40,8 @@ namespace views {
 class WebView;
 }  // namespace views
 
+class MultiContentsBackgroundView;
+
 // MultiContentsView shows up to two contents web views side by side, and
 // manages their layout relative to each other.
 class MultiContentsView : public views::View,
@@ -192,8 +194,6 @@ class MultiContentsView : public views::View,
   static constexpr int kMinWebContentsWidth = 200;
   static constexpr double kMinWebContentsWidthPercentage = 0.1;
 
-  class BackgroundView;
-
   // LayoutDelegate:
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
@@ -230,7 +230,7 @@ class MultiContentsView : public views::View,
   raw_ptr<BrowserView> browser_view_;
   std::unique_ptr<MultiContentsViewDelegate> delegate_;
 
-  raw_ptr<BackgroundView> background_view_;
+  raw_ptr<MultiContentsBackgroundView> background_view_;
   ContentsSeparators contents_separators_;
 
   // Holds ContentsContainerViews, when not in a split view the second

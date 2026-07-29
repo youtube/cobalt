@@ -39,6 +39,9 @@ DWORD g_init_error = ERROR_SUCCESS;
 // here.
 DWORD g_status_info_length_mismatch = 0xC0000004;
 
+// Are symbolized in-process stack dumps enabled?
+bool g_in_process_stack_dumps_enabled = false;
+
 // Prints the exception call stack.
 // This is the unit tests exception filter.
 long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
@@ -308,6 +311,18 @@ class SymbolContext {
   Lock lock_;
 };
 
+// Raw output when symbols are not available.
+void OutputAddressesWithPrefix(std::ostream* os,
+                               cstring_view prefix_string,
+                               span<const void* const> addresses) {
+  for (const void* const addr : addresses) {
+    (*os) << prefix_string << "\t" << addr << "\n";
+    if (!os->good()) {
+      break;
+    }
+  }
+}
+
 }  // namespace
 
 bool EnableInProcessStackDumping() {
@@ -318,7 +333,18 @@ bool EnableInProcessStackDumping() {
   // Need to initialize symbols early in the process or else this fails on
   // swarming (since symbols are in different directory than in the exes) and
   // also release x64.
-  return InitializeSymbols();
+  g_in_process_stack_dumps_enabled = InitializeSymbols();
+  return g_in_process_stack_dumps_enabled;
+}
+
+bool InProcessStackDumpingEnabled() {
+  return g_in_process_stack_dumps_enabled;
+}
+
+bool DisableInProcessStackDumpingForTesting() {
+  g_previous_filter = SetUnhandledExceptionFilter(g_previous_filter);
+  g_in_process_stack_dumps_enabled = false;
+  return true;
 }
 
 NOINLINE size_t CollectStackTrace(span<const void*> trace) {
@@ -398,15 +424,18 @@ void StackTrace::PrintWithPrefixImpl(cstring_view prefix_string) const {
 void StackTrace::OutputToStreamWithPrefixImpl(
     std::ostream* os,
     cstring_view prefix_string) const {
-  SymbolContext* context = SymbolContext::GetInstance();
-  if (g_init_error != ERROR_SUCCESS) {
-    (*os) << "Error initializing symbols (" << g_init_error
-          << ").  Dumping unresolved backtrace:\n";
-    for (size_t i = 0; (i < count_) && os->good(); ++i) {
-      (*os) << prefix_string << "\t" << trace_[i] << "\n";
-    }
+  if (!InProcessStackDumpingEnabled()) {
+    (*os) << "Symbols not available. Dumping unresolved backtrace:\n";
+    OutputAddressesWithPrefix(os, prefix_string, addresses());
   } else {
-    context->OutputTraceToStream(addresses(), os, prefix_string);
+    SymbolContext* context = SymbolContext::GetInstance();
+    if (g_init_error != ERROR_SUCCESS) {
+      (*os) << "Error initializing symbols (" << g_init_error
+            << ").  Dumping unresolved backtrace:\n";
+      OutputAddressesWithPrefix(os, prefix_string, addresses());
+    } else {
+      context->OutputTraceToStream(addresses(), os, prefix_string);
+    }
   }
 }
 

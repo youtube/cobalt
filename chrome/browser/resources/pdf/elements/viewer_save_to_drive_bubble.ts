@@ -20,6 +20,8 @@ import {SaveToDriveBubbleRequestType, SaveToDriveState} from '../constants.js';
 import {getCss} from './viewer_save_to_drive_bubble.css.js';
 import {getHtml} from './viewer_save_to_drive_bubble.html.js';
 
+const DISMISS_TIMEOUT_MS = 5000;
+
 const ViewerSaveToDriveBubbleElementBase = I18nMixinLit(CrLitElement);
 
 export interface ViewerSaveToDriveBubbleElement {
@@ -44,9 +46,8 @@ export class ViewerSaveToDriveBubbleElement extends
 
   static override get properties() {
     return {
-      bytesToTransfer: {type: Number},
-      bytesTransferred: {type: Number},
-      fileName: {type: String},
+      docTitle: {type: String},
+      progress: {type: Object},
       state: {type: String},
 
       description_: {
@@ -58,24 +59,21 @@ export class ViewerSaveToDriveBubbleElement extends
         type: String,
         state: true,
       },
-
-      fileMetadata_: {
-        type: String,
-        state: true,
-      },
     };
   }
 
-  accessor bytesToTransfer: number = 0;
-  accessor bytesTransferred: number = 0;
-  accessor fileName: string = '';
+  accessor docTitle: string = '';
+  accessor progress: chrome.pdfViewerPrivate.SaveToDriveProgress = {
+    status: chrome.pdfViewerPrivate.SaveToDriveStatus.NOT_STARTED,
+    errorType: chrome.pdfViewerPrivate.SaveToDriveErrorType.NO_ERROR,
+  };
   accessor state: SaveToDriveState = SaveToDriveState.UNINITIALIZED;
   protected accessor description_: TrustedHTML = sanitizeInnerHtml('');
   protected accessor dialogTitle_: string = '';
-  protected accessor fileMetadata_: string = '';
 
   private anchor_: HTMLElement|null = null;
   private eventTracker_: EventTracker = new EventTracker();
+  private dismissTimeoutId_: number|null = null;
 
   override disconnectedCallback() {
     super.disconnectedCallback();
@@ -89,12 +87,38 @@ export class ViewerSaveToDriveBubbleElement extends
     }
   }
 
-  showAt(anchor: HTMLElement) {
+  // If `autoDismiss` is true, the bubble will be automatically dismissed after
+  // 5 seconds. However, if the bubble is already open manually, the timeout
+  // will be ignored.
+  showAt(anchor: HTMLElement, autoDismiss: boolean = false) {
+    if (this.$.dialog.open && autoDismiss && !this.dismissTimeoutId_) {
+      return;
+    }
     this.$.dialog.show();
     this.anchor_ = anchor;
     this.positionDialog_();
     this.$.dialog.focus();
+    this.eventTracker_.remove(window, 'resize');
     this.eventTracker_.add(window, 'resize', this.positionDialog_.bind(this));
+    if (autoDismiss) {
+      this.setDismissTimeout_();
+    }
+  }
+
+  protected getFileName_(): string {
+    return this.progress.fileName ?? this.docTitle;
+  }
+
+  protected getFileSizeBytes_(): number {
+    return this.progress.fileSizeBytes ?? 0;
+  }
+
+  protected getMetadata_(): string {
+    return this.progress.fileMetadata ?? '';
+  }
+
+  protected getUploadedBytes_(): number {
+    return this.progress.uploadedBytes ?? 0;
   }
 
   protected isSaveToDriveState_(state: SaveToDriveState): boolean {
@@ -121,6 +145,7 @@ export class ViewerSaveToDriveBubbleElement extends
         assertNotReached(`Invalid bubble action: ${this.state}`);
     }
     this.fire('save-to-drive-bubble-action', requestType);
+    this.$.dialog.close();
   }
 
   protected onCloseClick_() {
@@ -129,6 +154,10 @@ export class ViewerSaveToDriveBubbleElement extends
 
   protected onDialogClose_() {
     this.eventTracker_.removeAll();
+    if (this.dismissTimeoutId_) {
+      clearTimeout(this.dismissTimeoutId_);
+      this.dismissTimeoutId_ = null;
+    }
   }
 
   protected onFocusout_(e: FocusEvent) {
@@ -142,19 +171,6 @@ export class ViewerSaveToDriveBubbleElement extends
   private onStateChanged_() {
     this.updateDescription_();
     this.updateDialogTitle_();
-    // TODO(crbug.com/427451594): Replace the `fileMetadata_` switch statement
-    // below with translated strings from the browser process.
-    switch (this.state) {
-      case SaveToDriveState.UPLOADING:
-        this.fileMetadata_ = '304/503 KB · 4 seconds left';
-        break;
-      case SaveToDriveState.SUCCESS:
-        this.fileMetadata_ = '503 KB · Done';
-        break;
-      default:
-        this.fileMetadata_ = '';
-        break;
-    }
   }
 
   private positionDialog_() {
@@ -185,6 +201,13 @@ export class ViewerSaveToDriveBubbleElement extends
     }
   }
 
+  private setDismissTimeout_() {
+    this.dismissTimeoutId_ = setTimeout(() => {
+      this.dismissTimeoutId_ = null;
+      this.$.dialog.close();
+    }, DISMISS_TIMEOUT_MS);
+  }
+
   private updateDescription_() {
     switch (this.state) {
       case SaveToDriveState.UNINITIALIZED:
@@ -192,13 +215,11 @@ export class ViewerSaveToDriveBubbleElement extends
         this.description_ = window.trustedTypes!.emptyHTML;
         break;
       case SaveToDriveState.SUCCESS:
-        // TODO(crbug.com/427451594): Replace `PLACEHOLDER` with the folder name
-        // we get from the server.
         this.description_ =
             this.i18nAdvanced('saveToDriveDialogSuccessMessage', {
               tags: ['b'],
               substitutions: [
-                'PLACEHOLDER',
+                this.progress.parentFolderName ?? '',
               ],
             });
         break;

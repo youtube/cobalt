@@ -18,6 +18,8 @@
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_matchers.h"
+#import "ios/chrome/browser/passwords/model/features.h"
+#import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/clear_browsing_data/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_app_interface.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -48,6 +50,7 @@ using chrome_test_util::SettingsDoneButton;
 using chrome_test_util::SettingsMenuBackButton;
 using chrome_test_util::SettingsMenuPrivacyButton;
 using chrome_test_util::SettingsSignInRowMatcher;
+using policy_test_utils::MergePolicy;
 
 namespace {
 
@@ -62,6 +65,11 @@ enum MetricsServiceType {
 // Matcher for the Clear Browsing Data cell on the Privacy screen.
 id<GREYMatcher> ClearBrowsingDataCell() {
   return ButtonWithAccessibilityLabelId(IDS_IOS_CLEAR_BROWSING_DATA_TITLE);
+}
+
+// Matcher for the `Safari Import` button in the Settings menu.
+id<GREYMatcher> SafariImportButton() {
+  return ButtonWithAccessibilityLabelId(IDS_IOS_SETTINGS_SAFARI_IMPORT_TITLE);
 }
 
 }  // namespace
@@ -100,6 +108,9 @@ id<GREYMatcher> ClearBrowsingDataCell() {
   // clearing browsing history.
   [ChromeEarlGrey killWebKitNetworkProcess];
 
+  // Reset any policies that were set during the test.
+  policy_test_utils::ClearPolicies();
+
   [super tearDownHelper];
 }
 
@@ -107,6 +118,12 @@ id<GREYMatcher> ClearBrowsingDataCell() {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
   config.relaunch_policy = ForceRelaunchByCleanShutdown;
   config.features_enabled.push_back(kIOSQuickDelete);
+  if ([self isRunningTest:@selector
+            (testSafariImportButtonHiddenWhenAllBlocked)] ||
+      [self isRunningTest:@selector
+            (testSafariImportButtonVisibleWhenSomeBlocked)]) {
+    config.features_enabled.push_back(kImportPasswordsFromSafari);
+  }
 
   return config;
 }
@@ -397,6 +414,48 @@ id<GREYMatcher> ClearBrowsingDataCell() {
   // Verify that the Settings register keyboard commands.
   GREYAssertTrue([SettingsAppInterface settingsRegisteredKeyboardCommands],
                  @"Settings should register key commands when presented.");
+}
+
+// Tests that the Safari Import button is hidden if enterprise policies block
+// all forms of data import from Safari.
+- (void)testSafariImportButtonHiddenWhenAllBlocked {
+  if (@available(iOS 18.2, *)) {
+    MergePolicy(false, "AutofillCreditCardEnabled");
+    MergePolicy(false, "PasswordManagerEnabled");
+    MergePolicy(false, "EditBookmarksEnabled");
+    MergePolicy(true, "SavingBrowserHistoryDisabled");
+
+    [ChromeEarlGreyUI openSettingsMenu];
+
+    [[EarlGrey selectElementWithMatcher:SettingsCollectionView()]
+        performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)];
+
+    [[EarlGrey selectElementWithMatcher:SafariImportButton()]
+        assertWithMatcher:grey_notVisible()];
+  } else {
+    EARL_GREY_TEST_DISABLED(@"This test requires iOS 18.2 or later.");
+  }
+}
+
+// Tests that the Safari Import button remains visible if at least one data type
+// is not blocked from import by enterprise policies.
+- (void)testSafariImportButtonVisibleWhenSomeBlocked {
+  if (@available(iOS 18.2, *)) {
+    MergePolicy(true, "AutofillCreditCardEnabled");
+    MergePolicy(false, "PasswordManagerEnabled");
+    MergePolicy(false, "EditBookmarksEnabled");
+    MergePolicy(true, "SavingBrowserHistoryDisabled");
+
+    [ChromeEarlGreyUI openSettingsMenu];
+
+    [[EarlGrey selectElementWithMatcher:SettingsCollectionView()]
+        performAction:grey_scrollToContentEdge(kGREYContentEdgeBottom)];
+
+    [[EarlGrey selectElementWithMatcher:SafariImportButton()]
+        assertWithMatcher:grey_sufficientlyVisible()];
+  } else {
+    EARL_GREY_TEST_DISABLED(@"This test requires iOS 18.2 or later.");
+  }
 }
 
 @end

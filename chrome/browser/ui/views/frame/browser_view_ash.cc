@@ -8,6 +8,7 @@
 
 #include "base/check.h"
 #include "chrome/browser/ui/sad_tab_helper.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
@@ -15,8 +16,8 @@
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "chrome/browser/ui/views/sad_tab_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "components/search/ntp_features.h"
 #include "ui/compositor/layer.h"
-#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/controls/webview/webview.h"
 
@@ -43,7 +44,7 @@ void BrowserViewAsh::Layout(PassKey) {
   // in the layout or visibility of these contents (devtools opened, devtools
   // docked placement change, side panel open etc), we might need to update
   // which corners are currently rounded. See
-  // `BrowserNonClientFrameViewChromeOS::UpdateWindowRoundedCorners()` for more
+  // `BrowserFrameViewChromeOS::UpdateWindowRoundedCorners()` for more
   // details.
   DCHECK(GetWidget());
   GetWidget()->non_client_view()->frame_view()->UpdateWindowRoundedCorners();
@@ -69,16 +70,22 @@ void BrowserViewAsh::UpdateWindowRoundedCorners(
 
   window_scrim_view()->SetRoundedCorners(window_radii);
 
-  if (IsInSplitView()) {
-    // In a non-split view, browser's content (main web content, DevTools, NTP
-    // footer, etc.) extends into the rounded corners. However, in split view,
-    // the content is bordered, making it sufficient to simply round the
-    // background painted by multi_contents_view().
+  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
     const gfx::RoundedCornersF multi_contents_radii(
         0, 0, right_aligned_side_panel_showing ? 0 : window_radii.lower_right(),
         left_aligned_side_panel_showing ? 0 : window_radii.lower_left());
-    multi_contents_view()->SetBackgroundRadii(multi_contents_radii);
-    return;
+
+    if (multi_contents_view()->background_radii() != multi_contents_radii) {
+      multi_contents_view()->SetBackgroundRadii(multi_contents_radii);
+    }
+
+    if (IsInSplitView()) {
+      // In a non-split view, browser's content (main web content, DevTools, NTP
+      // footer, etc.) extends into the rounded corners. However, in split view,
+      // the content is bordered, making it sufficient to simply round the
+      // background painted by multi_contents_view().
+      return;
+    }
   }
 
   views::WebView *devtools_webview =
@@ -123,7 +130,11 @@ void BrowserViewAsh::UpdateWindowRoundedCorners(
       IsWindowControlsOverlayEnabled();
 
   auto* ntp_footer = GetActiveContentsContainerView()->new_tab_footer_view();
-  const bool is_ntp_footer_showing = ntp_footer->GetVisible();
+  bool is_ntp_footer_showing = false;
+  if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
+    is_ntp_footer_showing = ntp_footer->GetVisible();
+  }
+
   if (is_ntp_footer_showing) {
     const gfx::RoundedCornersF ntp_footer_radii(
         0, 0,

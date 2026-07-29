@@ -386,3 +386,50 @@ luci.builder_health_notifier(
     ignore_buckets = ["try"],
     notify_all_healthy = False,
 )
+
+luci.builder_health_notifier(
+    owner_email = "chrome-gpu-infra@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "angle-team@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "browser-automation-staff@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "cronet-team@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+luci.builder_health_notifier(
+    owner_email = "cronet-sheriff@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "bling-engprod@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "chrome-skia-graphite@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "chromeos-chrome-build@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)

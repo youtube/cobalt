@@ -74,9 +74,10 @@ class ModelExecutionFeaturesController
   ModelExecutionFeaturesController& operator=(
       const ModelExecutionFeaturesController&) = delete;
 
-  // Returns true if the opt-in setting should be shown for this profile for
+  // Returns the visibility state of the opt-in setting for this profile for the
   // given `feature`. This should only be called by settings UX.
-  bool IsSettingVisible(UserVisibleFeatureKey feature) const;
+  SettingsVisibilityResult GetSettingsVisibility(
+      UserVisibleFeatureKey feature) const;
 
   // Returns true if the `feature` should be currently enabled for this user.
   // Note that the return value here may not match the feature enable state on
@@ -120,6 +121,30 @@ class ModelExecutionFeaturesController
     kInvalidModelExecutionCapability,
   };
 
+  // Enumerates the reasons a feature might be enabled or not.
+  enum class FeatureCurrentlyEnabledResult {
+    kUnknown = 0,
+    // Not enabled because user is not signed-in.
+    kNotEnabledUnsignedUser = 1,
+    // Returned result as enabled because feature was enabled at startup.
+    kEnabledAtStartup = 2,
+    // Returned result as not enabled because feature was not enabled at
+    // startup.
+    kNotEnabledAtStartup = 3,
+    // Returned result as not enabled because feature was disabled by enterprise
+    // policy.
+    kNotEnabledEnterprisePolicy = 4,
+    // Returned result as not enabled because model execution capability was
+    // disabled for the user account.
+    kNotEnabledModelExecutionCapability = 5,
+    // Returned result as enabled because the feature has graduated from
+    // experimental AI settings.
+    kEnabledByGraduation = 6,
+    // Updates should match with FeatureCurrentlyEnabledResult enum in
+    // enums.xml.
+    kMaxValue = kEnabledByGraduation
+  };
+
   // Called when the feature-specific toggle pref is changed.
   void OnFeatureSettingPrefChanged(UserVisibleFeatureKey feature);
 
@@ -136,6 +161,9 @@ class ModelExecutionFeaturesController
       signin::IdentityManager* identity_manager) override;
 
   prefs::FeatureOptInState GetPrefState(UserVisibleFeatureKey feature) const;
+
+  FeatureCurrentlyEnabledResult GetFeatureEnabledState(
+      UserVisibleFeatureKey feature) const;
 
   // Returns the current validity result for user is eligible to be shown
   // settings for `feature`.

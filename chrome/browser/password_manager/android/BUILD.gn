@@ -289,8 +289,6 @@ robolectric_binary("password_manager_junit_tests") {
     "junit/src/org/chromium/chrome/browser/password_manager/PasswordStoreAndroidBackendDispatcherBridgeTest.java",
     "junit/src/org/chromium/chrome/browser/password_manager/PasswordStoreAndroidBackendReceiverBridgeTest.java",
     "junit/src/org/chromium/chrome/browser/password_manager/PasswordSyncControllerDelegateBridgeTest.java",
-    "junit/src/org/chromium/chrome/browser/password_manager/one_time_passwords/AndroidSmsOtpFetchDispatcherBridgeTest.java",
-    "junit/src/org/chromium/chrome/browser/password_manager/one_time_passwords/AndroidSmsOtpFetchReceiverBridgeTest.java",
     "junit/src/org/chromium/chrome/browser/password_manager/tests/utils/FakePasswordCheckupClientHelperTest.java",
   ]
 
@@ -314,8 +312,6 @@ robolectric_binary("password_manager_junit_tests") {
     "//chrome/browser/feedback/android:internal_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/loading_modal/android:java",
-    "//chrome/browser/password_manager/android/one_time_passwords:java",
-    "//chrome/browser/password_manager/android/one_time_passwords:sms_otp_fetching_interface_java",
     "//chrome/browser/password_manager/android/pwm_disabled:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
@@ -676,6 +672,5 @@ group("password_manager_android") {
     ":utils_jni_headers",
     "add_username_dialog:android",
     "grouped_affiliations:public",
-    "one_time_passwords:backend",
   ]
 }

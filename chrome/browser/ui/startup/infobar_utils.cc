@@ -11,6 +11,8 @@
 #include "chrome/browser/obsolete_system/obsolete_system.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/session_crashed_bubble.h"
 #include "chrome/browser/ui/startup/automation_infobar_delegate.h"
 #include "chrome/browser/ui/startup/bad_flags_prompt.h"
@@ -96,19 +98,19 @@ bool IsGpuTest() {
 #endif
 
 BASE_FEATURE(kShowTestThirdPartyCookiePhaseoutInfoBar,
-             "ShowTestThirdPartyCookiePhaseoutInfoBar",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace
 
-void AddInfoBarsIfNecessary(Browser* browser,
+void AddInfoBarsIfNecessary(BrowserWindowInterface* browser,
                             Profile* profile,
                             const base::CommandLine& startup_command_line,
                             chrome::startup::IsFirstRun is_first_run,
                             bool is_web_app,
                             bool is_post_crash_launch,
                             bool was_restarted) {
-  if (!browser || !profile || browser->tab_strip_model()->count() == 0) {
+  if (!browser || !profile ||
+      browser->GetFeatures().tab_strip_model()->count() == 0) {
     return;
   }
 
@@ -116,7 +118,7 @@ void AddInfoBarsIfNecessary(Browser* browser,
   bool show_bad_flags_security_warnings = ShouldShowBadFlagsSecurityWarnings();
 
   content::WebContents* web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetFeatures().tab_strip_model()->GetActiveWebContents();
   DCHECK(web_contents);
 
   if (show_bad_flags_security_warnings) {
@@ -150,9 +152,10 @@ void AddInfoBarsIfNecessary(Browser* browser,
   }
 
   // Web apps should not display the session restore bubble (crbug.com/1264121)
-  if (!is_web_app && HasPendingUncleanExit(browser->profile())) {
+  if (!is_web_app && HasPendingUncleanExit(browser->GetProfile())) {
     SessionCrashedBubble::ShowIfNotOffTheRecordProfile(
-        browser, /*skip_tab_checking=*/false);
+        browser,
+        /*skip_tab_checking=*/false);
   }
 
   // These info bars are not shown when the browser is being controlled by
@@ -198,10 +201,10 @@ void AddInfoBarsIfNecessary(Browser* browser,
   }
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-    if (auto* controller = g_browser_process->GetFeatures()
-                               ->installer_downloader_controller()) {
-      controller->MaybeShowInfoBar();
-    }
+  if (auto* controller =
+          g_browser_process->GetFeatures()->installer_downloader_controller()) {
+    controller->MaybeShowInfoBar();
+  }
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
@@ -230,9 +233,8 @@ void AddInfoBarsIfNecessary(Browser* browser,
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   if (base::FeatureList::IsEnabled(features::kSessionRestoreInfobar)) {
-    session_restore_infobar::SessionRestoreInfobarController controller(
+    session_restore_infobar::SessionRestoreInfobarController().MaybeShowInfoBar(
         *profile, was_restarted, is_post_crash_launch);
-    controller.CreateOrDestroySessionRestoreInfobar(*web_contents);
   }
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 

@@ -5,6 +5,7 @@ import './context_menu_entrypoint.js';
 import './composebox_dropdown.js';
 import './file_carousel.js';
 import './icons.html.js';
+import '//resources/cr_components/localized_link/localized_link.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import {getInstance as getAnnouncerInstance} from '//resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
@@ -20,6 +21,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
+import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
 import type {ComposeboxFile} from './common.js';
 import {getCss} from './composebox.css.js';
@@ -245,6 +247,13 @@ export class ComposeboxElement extends I18nMixinLit
                 this.files_.set(token, file);
 
                 if (status === FileUploadStatus.kUploadSuccessful) {
+                  // Query autocomplete to get contextual suggestions for file.
+                  if (this.showZps) {
+                    this.clearAutocompleteMatches_();
+                    this.lastQueriedInput_ = this.$.input.value;
+                    this.searchboxHandler_.queryAutocomplete(
+                        stringToMojoString16(this.$.input.value), false);
+                  }
                   const announcer = getAnnouncerInstance();
                   announcer.announce(
                       this.i18n('composeboxFileUploadCompleteText'));
@@ -299,19 +308,18 @@ export class ComposeboxElement extends I18nMixinLit
       this.submitEnabled_ = this.submitEnabled_ || this.files_.size > 0;
     }
 
-    if (changedPrivateProperties.has('input_')) {
-      // lastQueriedInput_ is used here since the input_ changes based on
-      // the selected match. If typed suggest is not enabled and input_ is used,
-      // the dropdown will hide if the user keys down over zps matches.
-      this.showDropdown_ = (this.showTypedSuggest_ && !!this.input_.trim()) ||
-          (this.showZps && !this.lastQueriedInput_);
+    // When the result initially gets set check if dropdown should show.
+    if (changedPrivateProperties.has('input_') ||
+        changedPrivateProperties.has('result_')) {
+      this.showDropdown_ = this.computeShowDropdown_();
     }
   }
 
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
-    if ((changedProperties as Map<PropertyKey, unknown>)
-            .has('showErrorScrim_') &&
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
+    if (changedPrivateProperties.has('showErrorScrim_') &&
         this.showErrorScrim_) {
       const announcer = getAnnouncerInstance();
       announcer.announce(this.errorMessage_);
@@ -321,8 +329,7 @@ export class ComposeboxElement extends I18nMixinLit
         dismissErrorButton.focus();
       }
     }
-    if ((changedProperties as Map<PropertyKey, unknown>)
-            .has('selectedMatchIndex_')) {
+    if (changedPrivateProperties.has('selectedMatchIndex_')) {
       if (this.selectedMatch_) {
         // Update the input.
         const text = mojoString16ToString(this.selectedMatch_.fillIntoEdit);
@@ -330,6 +337,19 @@ export class ComposeboxElement extends I18nMixinLit
         this.$.input.value = text;
         this.input_ = text;
         this.submitEnabled_ = true;
+      } else {
+        this.$.input.value = '';
+        this.input_ = '';
+        this.submitEnabled_ = false;
+      }
+    }
+    if (changedPrivateProperties.has('smartComposeInlineHint_')) {
+      if (this.smartComposeInlineHint_) {
+        this.adjustInputForSmartCompose();
+      } else {
+        // Unset the height override so input can expand through typing.
+        this.$.input.style.height =
+            'calc-size(fit-content, min(size + 4px, 190px))';
       }
     }
   }
@@ -352,6 +372,33 @@ export class ComposeboxElement extends I18nMixinLit
         this.i18n('composeboxCancelButtonTitle');
   }
 
+  private computeShowDropdown_() {
+    // Don't show dropdown if there's no results.
+    if (!this.result_?.matches?.length) {
+      return false;
+    }
+
+    if (this.showTypedSuggest_ && this.input_.trim()) {
+      return true;
+    }
+
+    // lastQueriedInput_ is used here since the input_ changes based on
+    // the selected match. If typed suggest is not enabled and input_ is used,
+    // the dropdown will hide if the user keys down over zps matches.
+    return this.showZps && !this.lastQueriedInput_;
+  }
+
+  protected shouldShowSuggestionActivityLink_() {
+    if (!this.result_ || !this.showDropdown_) {
+      return false;
+    }
+    return this.result_.matches.some((match) => match.isNoncannedAimSuggestion);
+  }
+
+  protected shouldShowSmartComposeInlineHint_() {
+    return !!this.smartComposeInlineHint_;
+  }
+
   protected onDeleteFile_(e: CustomEvent) {
     if (!e.detail.uuid || !this.files_.has(e.detail.uuid)) {
       return;
@@ -361,6 +408,9 @@ export class ComposeboxElement extends I18nMixinLit
         ([uuid, _]) => uuid !== e.detail.uuid));
     this.pageHandler_.deleteContext(e.detail.uuid);
     this.$.input.focus();
+    this.clearAutocompleteMatches_();
+    this.searchboxHandler_.queryAutocomplete(
+        stringToMojoString16(this.$.input.value), false);
   }
 
   protected onDismissErrorButtonClick_() {
@@ -414,6 +464,7 @@ export class ComposeboxElement extends I18nMixinLit
                                                    null,
           type: file.type,
           status: FileUploadStatus.kNotUploaded,
+          url: null,
         };
         this.files_ = new Map([...this.files_.entries(), [token, attachment]]);
 
@@ -425,6 +476,21 @@ export class ComposeboxElement extends I18nMixinLit
     // Clear the file input.
     input.value = '';
     this.$.input.focus();
+  }
+
+  protected async addTabContext_(
+      e: CustomEvent<{id: number, title: string, url: Url}>) {
+    const {token} = await this.pageHandler_.addTabContext(e.detail.id);
+
+    const attachment: ComposeboxFile = {
+      uuid: token,
+      name: e.detail.title,
+      objectUrl: null,
+      type: 'tab',
+      status: FileUploadStatus.kNotUploaded,
+      url: e.detail.url,
+    };
+    this.files_ = new Map([...this.files_.entries(), [token, attachment]]);
   }
 
   protected openImageUpload_() {
@@ -439,11 +505,16 @@ export class ComposeboxElement extends I18nMixinLit
     if (this.$.input.value.trim().length > 0 || this.files_.size > 0) {
       this.$.input.value = '';
       this.input_ = '';
+      this.lastQueriedInput_ = this.input_;
       this.files_ = new Map();
+      this.smartComposeInlineHint_ = '';
       this.submitEnabled_ = false;
       this.pageHandler_.clearFiles();
       this.$.input.focus();
       this.$.matches.unselect();
+      this.clearAutocompleteMatches_();
+      this.searchboxHandler_.queryAutocomplete(
+          stringToMojoString16(this.$.input.value), false);
     } else {
       this.closeComposebox_();
     }
@@ -455,6 +526,13 @@ export class ComposeboxElement extends I18nMixinLit
     const inputElement = e.target as HTMLInputElement;
     this.input_ = inputElement.value;
     this.lastQueriedInput_ = this.input_;
+    // This is done to stop any in progress providers before requerying
+    // for on-focus (zero-suggest) inputs. The searchbox doesn't allow
+    // zero-suggest requests to be made while the ACController is not
+    // done.
+    if (this.lastQueriedInput_ === '') {
+      this.clearAutocompleteMatches_();
+    }
     this.searchboxHandler_.queryAutocomplete(
         stringToMojoString16(this.$.input.value), false);
   }
@@ -467,9 +545,39 @@ export class ComposeboxElement extends I18nMixinLit
       'Escape',
       'PageDown',
       'PageUp',
+      'Tab',
     ];
 
     if (!KEYDOWN_HANDLED_KEYS.includes(e.key)) {
+      return;
+    }
+
+    if (this.shadowRoot.activeElement === this.$.input) {
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        return;
+      }
+      // TODO(crbug.com/444495048): Add test for tab selection logic.
+      if (e.key === 'Tab') {
+        // If focus leaves the input, unselect the first match.
+        if (e.shiftKey && this.selectedMatchIndex_ === 0) {
+          this.$.matches.unselect();
+        } else if (this.smartComposeInlineHint_) {
+          this.input_ = this.input_ + this.smartComposeInlineHint_;
+          this.$.input.value = this.input_;
+          this.smartComposeInlineHint_ = '';
+          e.preventDefault();
+        }
+        return;
+      }
+    }
+
+    if (e.key === 'Tab') {
+      // If focus goes past the last match, unselect the last match.
+      if (this.result_ && this.result_.matches) {
+        if (this.selectedMatchIndex_ === this.result_.matches.length - 1) {
+          this.$.matches.unselect();
+        }
+      }
       return;
     }
 
@@ -523,6 +631,13 @@ export class ComposeboxElement extends I18nMixinLit
     // Else, keep the composebox expanded.
     this.expanded_ = !this.isCollapsible;
     this.pageHandler_.focusChanged(false);
+  }
+
+  protected handleScroll_() {
+    const smartCompose =
+        this.shadowRoot.querySelector<HTMLElement>('#smartCompose');
+    const input = this.shadowRoot.querySelector<HTMLElement>('#input');
+    smartCompose!.scrollTop = input!.scrollTop;
   }
 
   private closeComposebox_() {
@@ -617,15 +732,40 @@ export class ComposeboxElement extends I18nMixinLit
     this.result_ = result;
     const hasMatches = this.result_?.matches?.length > 0;
     const firstMatch = hasMatches ? this.result_.matches[0] : null;
-    this.smartComposeInlineHint_ = this.result_.smartComposeInlineHint ?
-        mojoString16ToString(this.result_.smartComposeInlineHint) :
-        '';
     // Zero suggest matches are not allowed to be default. Therefore, this
     // makes sure zero suggest results aren't focused when they are returned.
     if (firstMatch && firstMatch.allowedToBeDefaultMatch) {
       this.$.matches.selectFirst();
     } else {
       this.$.matches.unselect();
+    }
+
+    // Populate the smart compose suggestion.
+    this.smartComposeInlineHint_ = this.result_.smartComposeInlineHint ?
+        mojoString16ToString(this.result_.smartComposeInlineHint) :
+        '';
+  }
+
+  private adjustInputForSmartCompose() {
+    // Checks the scroll height of the input + smart complete hint (ghost div)
+    // and updates the height of the actual input to be that height so the
+    // ghost text does not overflow.
+    const input = this.shadowRoot.querySelector<HTMLInputElement>('#input');
+    const smartCompose =
+        this.shadowRoot.querySelector<HTMLElement>('#smartCompose');
+
+    const ghostHeight = smartCompose!.scrollHeight;
+    const maxHeight = 190;
+    input!.style.height = `${Math.min(ghostHeight, maxHeight)}px`;
+
+    // If the height of the input + smart complete hint is greater than the max
+    // height, scroll the smart compose as the input will already scroll. Note
+    // there is an issue at the break point since the input will not have
+    // scrolled yet as it does not have enough content. The smart compose will
+    // display the ghost text below the input and it will be cut off. However,
+    // the current response only works for queries below the max height.
+    if (ghostHeight > maxHeight) {
+      smartCompose!.scrollTop = input!.scrollTop;
     }
   }
 }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #import "base/time/time.h"
+#import "components/commerce/core/shopping_service.h"
 #import "components/feature_engagement/public/feature_activation.h"
 #import "components/signin/internal/identity_manager/profile_oauth2_token_service_delegate.h"
 #import "ios/chrome/app/tests_hook.h"
@@ -67,6 +68,10 @@ std::unique_ptr<tab_groups::TabGroupSyncService> CreateTabGroupSyncService(
     ProfileIOS* profile) {
   return nullptr;
 }
+std::unique_ptr<commerce::ShoppingService> CreateShoppingService(
+    ProfileIOS* profile) {
+  return nullptr;
+}
 void DataSharingServiceHooks(
     data_sharing::DataSharingService* data_sharing_service) {}
 std::unique_ptr<ShareKitService> CreateShareKitService(
@@ -94,10 +99,6 @@ void SignalAppLaunched() {}
 
 base::TimeDelta PasswordCheckMinimumDuration() {
   return base::Seconds(3);
-}
-
-base::TimeDelta GetOverriddenSnackbarDuration() {
-  return base::Seconds(0);
 }
 
 std::unique_ptr<drive::DriveService> GetOverriddenDriveService() {

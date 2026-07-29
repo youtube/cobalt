@@ -52,6 +52,7 @@
 #include "components/autofill/core/common/autofill_regexes.h"
 #include "components/autofill/core/common/autofill_util.h"
 #include "components/autofill/core/common/dense_set.h"
+#include "components/autofill/core/common/form_field_data.h"
 
 namespace autofill {
 
@@ -151,8 +152,29 @@ void RegexMatchesCache::Put(RegexMatchesCache::Key key, bool value) {
   cache_.Put(key, value);
 }
 
+ParsingContext::ParsingContext(base::span<const FormFieldData> fields,
+                               GeoIpCountryCode client_country,
+                               LanguageCode page_language,
+                               PatternFile pattern_file,
+                               DenseSet<RegexFeature> active_features,
+                               LogManager* log_manager)
+    : name_overrides(GetParseableNames(fields)),
+      label_overrides(GetParseableLabels(fields)),
+      client_country(std::move(client_country)),
+      page_language(std::move(page_language)),
+      pattern_file(pattern_file),
+      active_features(active_features),
+      regex_cache(GetAutofillRegexCache()),
+      log_manager(log_manager) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillEnableCacheForRegexMatching)) {
+    matches_cache.emplace(
+        features::kAutofillEnableCacheForRegexMatchingCacheSizeParam.Get());
+  }
+}
+
 ParsingContext::ParsingContext(
-    base::span<const raw_ptr<const FormFieldData>> fields,
+    base::span<const std::unique_ptr<AutofillField>> fields,
     GeoIpCountryCode client_country,
     LanguageCode page_language,
     PatternFile pattern_file,
@@ -199,12 +221,10 @@ bool FormFieldParser::MatchesRegexWithCache(
 }
 
 // static
-void FormFieldParser::ParseFormFields(
-    ParsingContext& context,
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
-    FieldCandidatesMap& field_candidates) {
-  std::vector<raw_ptr<const FormFieldData>> processed_fields =
-      RemoveCheckableFields(fields);
+void FormFieldParser::ParseFormFields(ParsingContext& context,
+                                      base::span<const FormFieldData> fields,
+                                      FieldCandidatesMap& field_candidates) {
+  std::vector<FormFieldData> processed_fields = RemoveCheckableFields(fields);
 
   // Email pass.
   ParseFormFieldsPass(EmailFieldParser::Parse, context, processed_fields,
@@ -278,7 +298,7 @@ void FormFieldParser::ParseFormFields(
 
 // static
 void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
+    base::span<const FormFieldData> fields,
     FieldCandidatesMap& field_candidates,
     GeoIpCountryCode client_country,
     LogManager* log_manager) {
@@ -355,7 +375,7 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
   if (IsLoggingActive(log_manager)) {
     LogBuffer table_rows;
     for (const auto& field : fields) {
-      LOG_AF(table_rows) << Tr{} << "Field:" << *field;
+      LOG_AF(table_rows) << Tr{} << "Field:" << field;
     }
     for (const auto& f : wiped_fields) {
       LogBuffer name;
@@ -377,12 +397,10 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
   }
 }
 
-void FormFieldParser::ParseSingleFields(
-    ParsingContext& context,
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
-    FieldCandidatesMap& field_candidates) {
-  std::vector<raw_ptr<const FormFieldData>> processed_fields =
-      RemoveCheckableFields(fields);
+void FormFieldParser::ParseSingleFields(ParsingContext& context,
+                                        base::span<const FormFieldData> fields,
+                                        FieldCandidatesMap& field_candidates) {
+  std::vector<FormFieldData> processed_fields = RemoveCheckableFields(fields);
   // Merchant promo code pass.
   ParseFormFieldsPass(MerchantPromoCodeFieldParser::Parse, context,
                       processed_fields, field_candidates);
@@ -401,10 +419,9 @@ void FormFieldParser::ParseSingleFields(
 
 void FormFieldParser::ParseStandaloneLoyaltyCardFields(
     ParsingContext& context,
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
+    base::span<const FormFieldData> fields,
     FieldCandidatesMap& field_candidates) {
-  std::vector<raw_ptr<const FormFieldData>> processed_fields =
-      RemoveCheckableFields(fields);
+  std::vector<FormFieldData> processed_fields = RemoveCheckableFields(fields);
 
   if (base::FeatureList::IsEnabled(
           features::kAutofillEnableLoyaltyCardsFilling)) {
@@ -416,27 +433,25 @@ void FormFieldParser::ParseStandaloneLoyaltyCardFields(
 
 void FormFieldParser::ParseStandaloneCVCFields(
     ParsingContext& context,
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
+    base::span<const FormFieldData> fields,
     FieldCandidatesMap& field_candidates) {
-  std::vector<raw_ptr<const FormFieldData>> processed_fields =
-      RemoveCheckableFields(fields);
+  std::vector<FormFieldData> processed_fields = RemoveCheckableFields(fields);
   ParseFormFieldsPass(StandaloneCvcFieldParser::Parse, context,
                       processed_fields, field_candidates);
 }
 
 void FormFieldParser::ParseStandaloneEmailFields(
     ParsingContext& context,
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
+    base::span<const FormFieldData> fields,
     FieldCandidatesMap& field_candidates) {
-  std::vector<raw_ptr<const FormFieldData>> processed_fields =
-      RemoveCheckableFields(fields);
+  std::vector<FormFieldData> processed_fields = RemoveCheckableFields(fields);
   // Do not ignore fields with autocomplete attributes attempting to disable
   // autocomplete. Disabling autocomplete is a common practice on fields where
   // we don't want to offer email filling even if our heuristics match (e.g.
   // search input fields).
-  std::erase_if(processed_fields, [](const FormFieldData* field) {
-    return field->autocomplete_attribute() == "off" ||
-           field->autocomplete_attribute() == "false";
+  std::erase_if(processed_fields, [](const FormFieldData& field) {
+    return field.autocomplete_attribute() == "off" ||
+           field.autocomplete_attribute() == "false";
   });
 
   ParseFormFieldsPass(EmailFieldParser::Parse, context, processed_fields,
@@ -525,20 +540,29 @@ FormFieldParser::FieldMatchesMatchPatternRef(
 // static
 bool FormFieldParser::ParseField(
     ParsingContext& context,
-    AutofillScanner& scanner,
+    const FormFieldData& field,
     std::string_view regex_name,
     std::optional<FieldAndMatchInfo>* match,
     MatchParams (*projection)(const MatchParams&)) {
-  if (scanner.IsEnd()) {
-    return false;
-  }
-
-  const FormFieldData& field = scanner.Cursor();
   if (std::optional<MatchInfo> match_info = FieldMatchesMatchPatternRef(
           context, field, regex_name, {projection})) {
     if (match) {
       *match = {&field, *match_info};
     }
+    return true;
+  }
+  return false;
+}
+
+// static
+bool FormFieldParser::ParseField(
+    ParsingContext& context,
+    AutofillScanner& scanner,
+    std::string_view regex_name,
+    std::optional<FieldAndMatchInfo>* match,
+    MatchParams (*projection)(const MatchParams&)) {
+  if (!scanner.IsEnd() &&
+      ParseField(context, scanner.Cursor(), regex_name, match, projection)) {
     scanner.Advance();
     return true;
   }
@@ -553,7 +577,7 @@ bool FormFieldParser::ParseInAnyOrder(
   if (scanner.IsEnd()) {
     return fields_and_parsers.empty();
   }
-  auto original_pos = scanner.SaveCursor();
+  const AutofillScanner::Position original_pos = scanner.GetPosition();
   // The implementation tries matching every permutation `p` of parsers with the
   // scanners fields. While this has a terrible runtime for general n, the only
   // planned use cases are dates (2 or 3 components).
@@ -576,7 +600,7 @@ bool FormFieldParser::ParseInAnyOrder(
     if (matches) {
       return true;
     }
-    scanner.RewindTo(original_pos);
+    scanner.Restore(original_pos);
   } while (std::next_permutation(p.begin(), p.end()));
   for (const auto& [field, parser] : fields_and_parsers) {
     *field = nullptr;
@@ -653,23 +677,22 @@ void FormFieldParser::AddClassification(
 }
 
 // static
-std::vector<raw_ptr<const FormFieldData>>
-FormFieldParser::RemoveCheckableFields(
-    const std::vector<raw_ptr<const FormFieldData>>& fields) {
+std::vector<FormFieldData> FormFieldParser::RemoveCheckableFields(
+    base::span<const FormFieldData> fields) {
   // Set up a working copy of the fields to be processed.
-  std::vector<raw_ptr<const FormFieldData>> processed_fields;
+  std::vector<FormFieldData> processed_fields;
   for (const auto& field : fields) {
     // Ignore checkable fields as they interfere with parsers assuming context.
     // Eg., while parsing address, "Is PO box" checkbox after ADDRESS_LINE1
     // interferes with correctly understanding ADDRESS_LINE2.
     // Ignore fields marked as presentational, unless for 'select' fields (for
     // synthetic fields.)
-    if (IsCheckable(field->check_status()) ||
-        (field->role() == FormFieldData::RoleAttribute::kPresentation &&
-         !field->IsSelectElement())) {
+    if (IsCheckable(field.check_status()) ||
+        (field.role() == FormFieldData::RoleAttribute::kPresentation &&
+         !field.IsSelectElement())) {
       continue;
     }
-    processed_fields.push_back(field.get());
+    processed_fields.push_back(field);
   }
   return processed_fields;
 }
@@ -799,7 +822,7 @@ std::optional<FormFieldParser::MatchInfo> FormFieldParser::MatchInName(
 void FormFieldParser::ParseFormFieldsPass(
     ParseFunction parse,
     ParsingContext& context,
-    const std::vector<raw_ptr<const FormFieldData>>& fields,
+    base::span<const FormFieldData> fields,
     FieldCandidatesMap& field_candidates) {
   AutofillScanner scanner(fields);
   while (!scanner.IsEnd()) {

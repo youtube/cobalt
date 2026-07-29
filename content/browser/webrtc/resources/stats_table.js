@@ -28,10 +28,8 @@ export class StatsTable {
     statsTable.parentElement.firstElementChild.innerText =
         generateStatsLabel(report);
 
-    if (report.stats) {
-      this.addStatsToTable_(
-          statsTable, report.stats.timestamp, report.stats.values);
-    }
+    this.addStatsToTable_(
+        statsTable, report.timestamp, report);
   }
 
   clearStatsLists(peerConnectionElement) {
@@ -93,6 +91,7 @@ export class StatsTable {
    * @private
    */
   ensureStatsTable_(peerConnectionElement, report) {
+    const detailsId = peerConnectionElement.id + '-details-' + report.id;
     const tableId = peerConnectionElement.id + '-table-' + report.id;
     // Disable getElementById restriction here, since |tableId| is not
     // always a valid selector.
@@ -101,6 +100,7 @@ export class StatsTable {
     if (!table) {
       const container = this.ensureStatsTableContainer_(peerConnectionElement);
       const details = document.createElement('details');
+      details.id = detailsId;
       details.attributes['data-statsType'] = report.type;
       container.appendChild(details);
 
@@ -128,11 +128,8 @@ export class StatsTable {
    * @param {Array<string>} statsData An array of stats name and value pairs.
    * @private
    */
-  addStatsToTable_(statsTable, time, statsData) {
-    const definedMetrics = new Set();
-    for (let i = 0; i < statsData.length - 1; i = i + 2) {
-      definedMetrics.add(statsData[i]);
-    }
+  addStatsToTable_(statsTable, time, report) {
+    const definedMetrics = new Set(Object.keys(report));
     // For any previously reported metric that is no longer defined, replace its
     // now obsolete value with the magic string "(removed)".
     const metricsContainer = statsTable.firstChild;
@@ -156,9 +153,10 @@ export class StatsTable {
     // Add or update all "metric: value" that have a defined value.
     const date = new Date(time);
     this.updateStatsTableRow_(statsTable, 'timestamp', date.toLocaleString());
-    for (let i = 0; i < statsData.length - 1; i = i + 2) {
-      this.updateStatsTableRow_(statsTable, statsData[i], statsData[i + 1]);
-    }
+    Object.keys(report).forEach(property => {
+      if (['timestamp', 'id'].includes(property)) return;
+      this.updateStatsTableRow_(statsTable, property, report[property]);
+    });
   }
 
   /**

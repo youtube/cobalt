@@ -550,7 +550,7 @@ public final class ChildProcessLauncherHelperImpl {
         if (mDroppedStrongBingingDueToBackgrounding) return;
         ChildProcessConnection connection = assumeNonNull(mLauncher.getConnection());
         if (!connection.isConnected()) return;
-        if (connection.isStrongBindingBound()) {
+        if (connection.bindingStateCurrent() == ChildBindingState.STRONG) {
             connection.removeStrongBinding();
             mDroppedStrongBingingDueToBackgrounding = true;
         }
@@ -967,10 +967,13 @@ public final class ChildProcessLauncherHelperImpl {
                                 assert false;
                         }
                     };
-            if (System.currentTimeMillis() - mStartTimeMs < TIMEOUT_FOR_DELAY_BINDING_REMOVE_MS) {
-                LauncherThread.postDelayed(removeBindingRunnable, REMOVE_BINDING_DELAY_MS);
-            } else {
+            if ((isSpareRenderer
+                            && ContentFeatureList.sSpareRendererRemoveBindingNoTimeout.getValue())
+                    || System.currentTimeMillis() - mStartTimeMs
+                            >= TIMEOUT_FOR_DELAY_BINDING_REMOVE_MS) {
                 removeBindingRunnable.run();
+            } else {
+                LauncherThread.postDelayed(removeBindingRunnable, REMOVE_BINDING_DELAY_MS);
             }
         }
 

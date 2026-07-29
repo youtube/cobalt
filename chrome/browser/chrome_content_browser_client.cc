@@ -80,6 +80,7 @@
 #include "chrome/browser/defaults.h"
 #include "chrome/browser/device_api/device_service_impl.h"
 #include "chrome/browser/device_api/managed_configuration_service.h"
+#include "chrome/browser/devtools/features.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
@@ -530,7 +531,6 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "ash/multi_capture/multi_capture_service.h"
 #include "ash/shell.h"
 #include "base/debug/leak_annotations.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_scoped_file_access_delegate.h"
@@ -785,12 +785,10 @@ const char kAIManagerUserDataKey[] = "ai_manager";
 bool g_disable_advanced_protection_caching_for_tests = false;
 
 BASE_FEATURE(kSkipPagehideInCommitForDSENavigation,
-             "SkipPagehideInCommitForDSENavigation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Warm up the ServiceWorker registration for DSE.
 BASE_FEATURE(kPrewarmServiceWorkerRegistrationForDSE,
-             "PrewarmServiceWorkerRegistrationForDSE",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A small ChromeBrowserMainExtraParts that invokes a callback when threads are
@@ -1251,36 +1249,18 @@ void NotifyMultiCaptureStarted(const std::string& label,
                                content::BrowserContext* browser_context) {
   const url::Origin origin =
       url::Origin::Create(web_contents->GetLastCommittedURL());
-  if (app_id) {
-    CHECK_DEREF(ash::Shell::Get())
-        .multi_capture_service()
-        ->NotifyMultiCaptureStartedFromApp(
-            label, *app_id,
-            web_app::WebAppProvider::GetForWebContents(web_contents)
-                ->registrar_unsafe()
-                .GetAppShortName(*app_id),
-            origin);
+  CHECK(app_id);
 
-    if (base::FeatureList::IsEnabled(
-            chromeos::features::kMultiCaptureReworkedUsageIndicators)) {
-      CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
-                      GetForBrowserContext(web_contents->GetBrowserContext()))
-          .MultiCaptureStarted(label, *app_id);
-    }
-  }
+  CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
+                  GetForBrowserContext(web_contents->GetBrowserContext()))
+      .MultiCaptureStarted(label, *app_id);
 }
 
 void NotifyMultiCaptureStopped(const std::string& label,
                                content::BrowserContext* browser_context) {
-  CHECK_DEREF(ash::Shell::Get())
-      .multi_capture_service()
-      ->NotifyMultiCaptureStopped(label);
-  if (base::FeatureList::IsEnabled(
-          chromeos::features::kMultiCaptureReworkedUsageIndicators)) {
-    CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
-                    GetForBrowserContext(browser_context))
-        .MultiCaptureStopped(label);
-  }
+  CHECK_DEREF(multi_capture::MultiCaptureUsageIndicatorServiceFactory::
+                  GetForBrowserContext(browser_context))
+      .MultiCaptureStopped(label);
 }
 
 bool IsSubAppsPermissionGrantedByAdmins(content::WebContents* contents) {
@@ -1373,9 +1353,24 @@ bool IsDefaultSearchEngine(Profile* profile, const GURL& url) {
   const TemplateURL* default_search_engine =
       template_url_service->GetDefaultSearchProvider();
 
-  return default_search_engine &&
-         template_url_service->IsSearchResultsPageFromDefaultSearchProvider(
-             url);
+  if (!default_search_engine) {
+    return false;
+  }
+
+  if (template_url_service->IsSearchResultsPageFromDefaultSearchProvider(url)) {
+    return true;
+  }
+
+  if (base::FeatureList::IsEnabled(features::kConsiderDSEWarmUpPageAsSRP)) {
+    const GURL prewarm_url = GURL(features::kPrewarmUrl.Get());
+    if (prewarm_url.is_valid() && url == prewarm_url &&
+        template_url_service->GetDefaultSearchProviderOrigin().IsSameOriginWith(
+            prewarm_url)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace
@@ -1872,12 +1867,12 @@ void ChromeContentBrowserClient::RenderProcessWillLaunch(
   }
 }
 
-GURL ChromeContentBrowserClient::GetEffectiveURL(
+std::optional<GURL> ChromeContentBrowserClient::GetEffectiveURL(
     content::BrowserContext* browser_context,
     const GURL& url) {
   Profile* profile = Profile::FromBrowserContext(browser_context);
   if (!profile) {
-    return url;
+    return std::nullopt;
   }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1893,13 +1888,13 @@ GURL ChromeContentBrowserClient::GetEffectiveURL(
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (ChromeContentBrowserClientExtensionsPart::AreExtensionsDisabledForProfile(
           profile)) {
-    return url;
+    return std::nullopt;
   }
 
   return ChromeContentBrowserClientExtensionsPart::GetEffectiveURL(profile,
                                                                    url);
 #else
-  return url;
+  return std::nullopt;
 #endif
 }
 
@@ -1982,7 +1977,7 @@ bool ChromeContentBrowserClient::ShouldUseProcessPerSite(
 }
 
 bool ChromeContentBrowserClient::
-    ShouldReuseExistingProcessForNewMainFrameSiteInstance(
+    ShouldReuseAnyExistingProcessForNewMainFrameSiteInstance(
         content::BrowserContext* browser_context,
         const GURL& site_instance_original_url) {
   // When `kProcessPerSiteForDSE` is disabled,
@@ -4165,6 +4160,7 @@ std::tuple<bool, bool> GetForcedColorsForWebContent(
 #if !BUILDFLAG(IS_ANDROID)
 blink::mojom::PreferredColorScheme ToBlinkPreferredColorScheme(
     ui::NativeTheme::PreferredColorScheme native_theme_scheme) {
+  // Web content treats "no preference" as light mode.
   return (native_theme_scheme == ui::NativeTheme::PreferredColorScheme::kDark)
              ? blink::mojom::PreferredColorScheme::kDark
              : blink::mojom::PreferredColorScheme::kLight;
@@ -4913,6 +4909,11 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
           IsFingerprintingProtectionEnabledForIncognitoState(
               Profile::FromBrowserContext(web_contents->GetBrowserContext())
                   ->IsIncognitoProfile());
+
+  if (base::FeatureList::IsEnabled(::features::kDevToolsAiPromptApi) &&
+      web_contents->GetVisibleURL().SchemeIs(content::kChromeDevToolsScheme)) {
+    web_prefs->ai_prompt_api_enabled = true;
+  }
 }
 
 bool ChromeContentBrowserClientParts::OverrideWebPreferencesAfterNavigation(

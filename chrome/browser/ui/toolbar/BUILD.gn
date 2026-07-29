@@ -50,7 +50,6 @@ source_set("toolbar") {
       "toolbar_action_hover_card_types.h",
       "toolbar_action_view_controller.h",
       "toolbar_action_view_delegate.h",
-      "toolbar_actions_bar_bubble_delegate.h",
       "toolbar_pref_names.cc",
       "toolbar_pref_names.h",
     ]
@@ -245,8 +244,6 @@ source_set("test_support") {
     sources += [
       "test_toolbar_action_view_controller.cc",
       "test_toolbar_action_view_controller.h",
-      "test_toolbar_actions_bar_bubble_delegate.cc",
-      "test_toolbar_actions_bar_bubble_delegate.h",
     ]
     deps += [
       ":toolbar",

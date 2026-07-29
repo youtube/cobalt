@@ -9,6 +9,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
+#include "base/test/gtest_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -16,6 +17,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/observation/tab_strip_api_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_experiment_api.mojom.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_mojo_handler.h"
@@ -33,9 +35,25 @@
 
 // TODO(ffred): refactor this stuff. Maybe it makes more sense to have an
 // accumulator here instead of a test impl.
+// TODO(ffred): this is actually a e2e test. We should break up the tests into
+// integration (sync API) and e2e (mojo stuff).
+class ReallyVerySimpleSyncObserver
+    : public tabs_api::observation::TabStripApiObserver {
+ public:
+  ReallyVerySimpleSyncObserver() = default;
+  ~ReallyVerySimpleSyncObserver() override = default;
+
+  void OnTabEvents(
+      const std::vector<tabs_api::mojom::TabsEventPtr>& events) override {
+    num_callbacks++;
+  }
+
+  int num_callbacks = 0;
+};
+
 class TestTabStripClient : public tabs_api::mojom::TabsObserver {
  public:
-  void OnTabsCreated(tabs_api::mojom::OnTabsCreatedEventPtr& event) {
+  void OnTabsCreated(tabs_api::mojom::OnTabsCreatedEventPtr event) {
     for (auto& tab_created_container : event->tabs) {
       auto& tab = tab_created_container->tab;
       auto tab_id = tab->id;
@@ -49,7 +67,7 @@ class TestTabStripClient : public tabs_api::mojom::TabsObserver {
     }
   }
 
-  void OnTabMoved(tabs_api::mojom::OnTabMovedEventPtr& event) {
+  void OnNodeMoved(tabs_api::mojom::OnNodeMovedEventPtr event) {
     move_events.push_back(std::move(event));
   }
 
@@ -79,35 +97,35 @@ class TestTabStripClient : public tabs_api::mojom::TabsObserver {
     }
   }
 
-  void OnTabGroupCreated(tabs_api::mojom::OnTabGroupCreatedEventPtr& event) {
+  void OnCollectionCreated(tabs_api::mojom::OnCollectionCreatedEventPtr event) {
     // TODO(crbug.com/412955607): implement this.
-    group_events.push_back(std::move(event));
+    created_events.push_back(std::move(event));
   }
 
   void OnTabEvents(std::vector<tabs_api::mojom::TabsEventPtr> events) override {
     for (auto& event : events) {
       switch (event->which()) {
         case tabs_api::mojom::TabsEvent::Tag::kTabsCreatedEvent:
-          OnTabsCreated(event->get_tabs_created_event());
+          OnTabsCreated(std::move(event->get_tabs_created_event()));
           break;
         case tabs_api::mojom::TabsEvent::Tag::kTabsClosedEvent:
           OnTabsClosed(event->get_tabs_closed_event());
           break;
-        case tabs_api::mojom::TabsEvent::Tag::kTabMovedEvent:
-          OnTabMoved(event->get_tab_moved_event());
+        case tabs_api::mojom::TabsEvent::Tag::kNodeMovedEvent:
+          OnNodeMoved(std::move(event->get_node_moved_event()));
           break;
         case tabs_api::mojom::TabsEvent::Tag::kDataChangedEvent:
           OnDataChanged(event->get_data_changed_event());
           break;
-        case tabs_api::mojom::TabsEvent::Tag::kTabGroupCreatedEvent:
-          OnTabGroupCreated(event->get_tab_group_created_event());
+        case tabs_api::mojom::TabsEvent::Tag::kCollectionCreatedEvent:
+          OnCollectionCreated(std::move(event->get_collection_created_event()));
           break;
       }
     }
   }
 
-  std::vector<tabs_api::mojom::OnTabMovedEventPtr> move_events;
-  std::vector<tabs_api::mojom::OnTabGroupCreatedEventPtr> group_events;
+  std::vector<tabs_api::mojom::OnNodeMovedEventPtr> move_events;
+  std::vector<tabs_api::mojom::OnCollectionCreatedEventPtr> created_events;
 
   std::map<std::string, tabs_api::mojom::TabPtr> tabs;
 };
@@ -207,6 +225,52 @@ class TabStripServiceImplBrowserTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<TabStripServiceMojoHandler> tab_strip_service_mojo_handler_;
 };
+
+IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, SynchronousObserver) {
+  ReallyVerySimpleSyncObserver observer;
+
+  auto* service = tab_strip_service_mojo_handler_->GetTabStripService();
+  service->AddObserver(&observer);
+
+  ASSERT_EQ(0, observer.num_callbacks);
+
+  auto result = service->CreateTabAt(tabs_api::Position(0),
+                                     std::make_optional(GURL("www.foo.bear")));
+
+  ASSERT_TRUE(result.has_value());
+
+  ASSERT_EQ(1, observer.num_callbacks);
+}
+
+IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, PreventsReentrancy) {
+  auto* service = tab_strip_service_mojo_handler_->GetTabStripService();
+
+  class ReallyBadObserver : public tabs_api::observation::TabStripApiObserver {
+   public:
+    explicit ReallyBadObserver(tabs_api::TabStripService* service)
+        : service_(service) {}
+    ~ReallyBadObserver() override = default;
+
+    void OnTabEvents(
+        const std::vector<tabs_api::mojom::TabsEventPtr>& events) override {
+      auto _ = service_->GetTabs();
+    }
+
+   private:
+    raw_ptr<tabs_api::TabStripService> service_;
+  };
+
+  ReallyBadObserver observer(service);
+
+  service->AddObserver(&observer);
+
+  // We have a really bad observer that will attempt to re-enter. Assert that
+  // this is disallowed.
+  EXPECT_CHECK_DEATH([&] {
+    auto _ = service->CreateTabAt(tabs_api::Position(0),
+                                  std::make_optional(GURL("www.foo.bear")));
+  }());
+}
 
 IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, CreateTabAt) {
   mojo::Remote<TabStripService> remote;
@@ -538,7 +602,7 @@ IN_PROC_BROWSER_TEST_F(TabStripServiceImplBrowserTest, MoveTabIntoGroup) {
   EXPECT_EQ(model->group_model()->GetTabGroup(group_id)->tab_count(), 3);
 
   ASSERT_FALSE(observation->client.move_events.empty());
-  tabs_api::mojom::OnTabMovedEventPtr move_event;
+  tabs_api::mojom::OnNodeMovedEventPtr move_event;
   for (auto& event : observation->client.move_events) {
     if (event->id == to_move_id && event->to.parent_id().has_value() &&
         event->to.parent_id().value() == to_group_collection_id) {

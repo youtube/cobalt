@@ -16,9 +16,11 @@
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui_browser/bookmark_bar_page_handler.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_extensions_container.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_page_handler.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/tab_strip_api_resources_map.h"
 #include "chrome/grit/webui_browser_resources.h"
@@ -89,6 +91,16 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
                               IDR_WEBUI_BROWSER_WEBUI_BROWSER_HTML);
   source->AddResourcePaths(kTabStripApiResources);
 
+  static constexpr webui::LocalizedString kStrings[] = {
+      // Localized strings (alphabetical order).
+      {"appMenuTooltip", IDS_APPMENU_TOOLTIP},
+      {"tooltipExtensionsButton", IDS_TOOLTIP_EXTENSIONS_BUTTON},
+      {"tooltipNewTab", IDS_TOOLTIP_NEW_TAB},
+      {"tooltipReload", IDS_TOOLTIP_RELOAD},
+      {"tooltipStop", IDS_TOOLTIP_STOP},
+  };
+  source->AddLocalizedStrings(kStrings);
+
   SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui));
 }
 
@@ -104,6 +116,12 @@ void WebUIBrowserUI::BindInterface(
     mojo::PendingReceiver<bookmark_bar::mojom::PageHandlerFactory> receiver) {
   bookmark_bar_page_factory_receiver_.reset();
   bookmark_bar_page_factory_receiver_.Bind(std::move(receiver));
+}
+
+void WebUIBrowserUI::BindInterface(
+    mojo::PendingReceiver<extensions_bar::mojom::PageHandlerFactory> receiver) {
+  extensions_bar_page_factory_receiver_.reset();
+  extensions_bar_page_factory_receiver_.Bind(std::move(receiver));
 }
 
 void WebUIBrowserUI::BindInterface(
@@ -174,11 +192,20 @@ void WebUIBrowserUI::CreatePageHandler(
           std::move(receiver), std::move(page), web_ui(), browser_);
 }
 
+void WebUIBrowserUI::CreatePageHandler(
+    mojo::PendingRemote<extensions_bar::mojom::Page> page,
+    mojo::PendingReceiver<extensions_bar::mojom::PageHandler> receiver) {
+  static_cast<WebUIBrowserExtensionsContainer*>(
+      browser_window()->GetExtensionsContainer())
+      ->Bind(std::move(page), std::move(receiver));
+}
+
 const std::vector<ui::ElementIdentifier>&
 WebUIBrowserUI::GetKnownElementIdentifiers() const {
   static const std::vector<ui::ElementIdentifier> kKnownElementIdentifiers{
-      kContentsContainerViewElementId, kLocationBarElementId,
-      kToolbarAppMenuButtonElementId, kToolbarAvatarButtonElementId};
+      kContentsContainerViewElementId, kExtensionsMenuButtonElementId,
+      kLocationBarElementId,           kLocationIconElementId,
+      kToolbarAppMenuButtonElementId,  kToolbarAvatarButtonElementId};
   return kKnownElementIdentifiers;
 }
 

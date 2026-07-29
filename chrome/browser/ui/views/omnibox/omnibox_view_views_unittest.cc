@@ -33,6 +33,7 @@
 #include "chrome/browser/signin/chrome_signin_client_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/omnibox/chrome_omnibox_client.h"
+#include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/test_browser_window.h"
@@ -284,6 +285,10 @@ class TestLocationBar : public LocationBar {
     return location_bar_model_;
   }
   content::WebContents* GetWebContents() override { return nullptr; }
+  std::optional<bubble_anchor_util::AnchorConfiguration> GetChipAnchor()
+      override {
+    return {};
+  }
   void OnChanged() override {}
   void OnPopupVisibilityChanged() override {}
   void UpdateWithoutTabRestore() override {
@@ -559,10 +564,9 @@ TEST_F(OmniboxViewViewsTest, SelectWithShift_863543) {
                                 ui::EF_SHIFT_DOWN);
   omnibox_textfield()->OnKeyEvent(&shift_up_pressed);
 
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(23U, start);
-  EXPECT_EQ(0U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(23U, selection.start());
+  EXPECT_EQ(0U, selection.end());
   omnibox_view()->CheckUpdatePopupNotCalled();
 
   omnibox_view()->SetWindowTextAndCaretPos(text, 18U, false, false);
@@ -571,9 +575,9 @@ TEST_F(OmniboxViewViewsTest, SelectWithShift_863543) {
                                   ui::EF_SHIFT_DOWN);
   omnibox_textfield()->OnKeyEvent(&shift_down_pressed);
 
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(18U, start);
-  EXPECT_EQ(31U, end);
+  selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(18U, selection.start());
+  EXPECT_EQ(31U, selection.end());
   omnibox_view()->CheckUpdatePopupNotCalled();
 }
 
@@ -631,10 +635,9 @@ TEST_F(OmniboxViewViewsTest, EmojiPickerInsertion) {
       u"abc", OmniboxViewViews::InsertTextCursorBehavior::kMoveCursorAfterText);
   omnibox_textfield()->Scroll({2});
   {
-    size_t start, end;
-    omnibox_view()->GetSelectionBounds(&start, &end);
-    EXPECT_EQ(2u, start);
-    EXPECT_EQ(2u, end);
+    gfx::Range selection = omnibox_view()->GetSelectionBounds();
+    EXPECT_EQ(2u, selection.start());
+    EXPECT_EQ(2u, selection.end());
     EXPECT_EQ(2u, omnibox_view()->GetCursorPosition());
   }
 
@@ -642,10 +645,9 @@ TEST_F(OmniboxViewViewsTest, EmojiPickerInsertion) {
   // omnibox looses it.
   omnibox_textfield()->OnBlur();
   {
-    size_t start, end;
-    omnibox_view()->GetSelectionBounds(&start, &end);
-    EXPECT_EQ(2u, start);
-    EXPECT_EQ(2u, end);
+    gfx::Range selection = omnibox_view()->GetSelectionBounds();
+    EXPECT_EQ(2u, selection.start());
+    EXPECT_EQ(2u, selection.end());
     EXPECT_EQ(2u, omnibox_view()->GetCursorPosition());
   }
 
@@ -665,10 +667,9 @@ TEST_F(OmniboxViewViewsTest, EmojiPickerInsertion) {
       u"c",
       omnibox_view()->GetText());
   {
-    size_t start, end;
-    omnibox_view()->GetSelectionBounds(&start, &end);
-    EXPECT_EQ(4u, start);
-    EXPECT_EQ(4u, end);
+    gfx::Range selection = omnibox_view()->GetSelectionBounds();
+    EXPECT_EQ(4u, selection.start());
+    EXPECT_EQ(4u, selection.end());
     EXPECT_EQ(4u, omnibox_view()->GetCursorPosition());
   }
 }
@@ -1360,10 +1361,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, UnelideOnArrowKey) {
   omnibox_textfield_view()->OnKeyPressed(
       ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_RIGHT, 0));
   ExpectFullUrlDisplayed();
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(23U, start);
-  EXPECT_EQ(23U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(23U, selection.start());
+  EXPECT_EQ(23U, selection.end());
 
   // Blur to restore the elided URL, then click on the Omnibox again to refocus.
   BlurOmnibox();
@@ -1374,9 +1374,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, UnelideOnArrowKey) {
   omnibox_textfield_view()->OnKeyPressed(
       ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_LEFT, 0));
   ExpectFullUrlDisplayed();
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(12U, start);
-  EXPECT_EQ(12U, end);
+  selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(12U, selection.start());
+  EXPECT_EQ(12U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, UnelideOnHomeKey) {
@@ -1387,10 +1387,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, UnelideOnHomeKey) {
   omnibox_textfield_view()->OnKeyPressed(
       ui::KeyEvent(ui::EventType::kKeyPressed, ui::VKEY_HOME, 0));
   ExpectFullUrlDisplayed();
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(0U, start);
-  EXPECT_EQ(0U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(0U, selection.start());
+  EXPECT_EQ(0U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
@@ -1411,10 +1410,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
   EXPECT_EQ(u"https://foobar", omnibox_view()->GetText());
   EXPECT_FALSE(omnibox_view()->model()->user_input_in_progress());
 
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(14U, start);
-  EXPECT_EQ(14U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(14U, selection.start());
+  EXPECT_EQ(14U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, GestureTaps) {
@@ -1486,10 +1484,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, CaretPlacementByMouse) {
   // Verify the cursor position is https://www.ex|ample.com. It should be
   // between 'x' and 'a', because the click was after the second character of
   // the unelided text "example.com".
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(14U, start);
-  EXPECT_EQ(14U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(14U, selection.start());
+  EXPECT_EQ(14U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseDoubleClick) {
@@ -1504,10 +1501,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseDoubleClick) {
 
   // Verify that the selection is https://www.|example|.com, since the
   // double-click after the fourth character of the unelided text "example.com".
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(12U, start);
-  EXPECT_EQ(19U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(12U, selection.start());
+  EXPECT_EQ(19U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseSingleThenDoubleClick) {
@@ -1532,10 +1528,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseSingleThenDoubleClick) {
 
   // Verify that the selection is https://www.|example|.com, since the
   // double-click after the fourth character of the unelided text "example.com".
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(12U, start);
-  EXPECT_EQ(19U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(12U, selection.start());
+  EXPECT_EQ(19U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseSingleThenRightClick) {
@@ -1569,10 +1564,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseTripleClick) {
 
   // Verify that the whole full URL is selected.
   EXPECT_TRUE(omnibox_view()->IsSelectAll());
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(0U, start);
-  EXPECT_EQ(24U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(0U, selection.start());
+  EXPECT_EQ(24U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseClickDrag) {
@@ -1588,10 +1582,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseClickDrag) {
   EXPECT_TRUE(IsElidedUrlDisplayed());
 
   // Expect that ex|am|ple.com is the drag selected portion while dragging.
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(2U, start);
-  EXPECT_EQ(4U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(2U, selection.start());
+  EXPECT_EQ(4U, selection.end());
 
   omnibox_textfield()->OnMouseReleased(
       CreateMouseEvent(ui::EventType::kMouseReleased,
@@ -1600,9 +1593,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseClickDrag) {
 
   // Expect that https://www.ex|am|ple.com is the selected portion after the
   // user releases the mouse.
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(14U, start);
-  EXPECT_EQ(16U, end);
+  selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(14U, selection.start());
+  EXPECT_EQ(16U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
@@ -1622,10 +1615,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
   // Since the selection did not look like a URL, expect the following selected
   // selected portion after the user releases the mouse:
   // https://www.|exam|ple.com
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(16U, start);
-  EXPECT_EQ(12U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(16U, selection.start());
+  EXPECT_EQ(12U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
@@ -1645,10 +1637,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest,
   // Since the selection does look like a URL, expect the following selected
   // selected portion after the user releases the mouse:
   // |https://www.example.co|m
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(22U, start);
-  EXPECT_EQ(0U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(22U, selection.start());
+  EXPECT_EQ(0U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseDoubleClickDrag) {
@@ -1659,10 +1650,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseDoubleClickDrag) {
       CreateMouseEvent(ui::EventType::kMousePressed,
                        GetPointInTextAtXOffset(4 * kCharacterWidth)));
   ExpectFullUrlDisplayed();
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(12U, start);
-  EXPECT_EQ(19U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(12U, selection.start());
+  EXPECT_EQ(19U, selection.end());
 
   // Expect that negligible drags are ignored immediately after unelision, as
   // the text has likely shifted, and we don't want to accidentally change the
@@ -1671,9 +1661,9 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseDoubleClickDrag) {
   drag_point.Offset(1, 1);  // Offset test point one pixel in each dimension.
   omnibox_textfield()->OnMouseDragged(
       CreateMouseEvent(ui::EventType::kMouseDragged, drag_point));
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(12U, start);
-  EXPECT_EQ(19U, end);
+  selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(12U, selection.start());
+  EXPECT_EQ(19U, selection.end());
 
   // Expect that dragging to the fourth character of the full URL (between the
   // the 'p' and the 's' of https), will word-select the scheme, subdomain, and
@@ -1684,18 +1674,18 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, MouseDoubleClickDrag) {
       CreateMouseEvent(ui::EventType::kMouseDragged,
                        GetPointInTextAtXOffset(2 * kCharacterWidth)));
   ExpectFullUrlDisplayed();
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(19U, start);
-  EXPECT_EQ(0U, end);
+  selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(19U, selection.start());
+  EXPECT_EQ(0U, selection.end());
 
   // Expect the selection to stay the same after mouse-release.
   omnibox_textfield()->OnMouseReleased(
       CreateMouseEvent(ui::EventType::kMouseReleased,
                        GetPointInTextAtXOffset(2 * kCharacterWidth)));
   ExpectFullUrlDisplayed();
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(19U, start);
-  EXPECT_EQ(0U, end);
+  selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(19U, selection.start());
+  EXPECT_EQ(0U, selection.end());
 }
 
 TEST_F(OmniboxViewViewsSteadyStateElisionsTest, ReelideOnBlur) {
@@ -1763,9 +1753,8 @@ TEST_F(OmniboxViewViewsSteadyStateElisionsTest, UnelideFromModel) {
 
   omnibox_view()->model()->Unelide();
   EXPECT_TRUE(omnibox_view()->IsSelectAll());
-  size_t start, end;
-  omnibox_view()->GetSelectionBounds(&start, &end);
-  EXPECT_EQ(24U, start);
-  EXPECT_EQ(0U, end);
+  gfx::Range selection = omnibox_view()->GetSelectionBounds();
+  EXPECT_EQ(24U, selection.start());
+  EXPECT_EQ(0U, selection.end());
   ExpectFullUrlDisplayed();
 }

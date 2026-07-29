@@ -365,11 +365,13 @@ overflowX
 overflowY
 overlay
 overrideColors
+overscrollArea
 overscrollBehavior
 overscrollBehaviorBlock
 overscrollBehaviorInline
 overscrollBehaviorX
 overscrollBehaviorY
+overscrollPosition
 pad
 padding
 paddingBlock

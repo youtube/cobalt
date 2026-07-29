@@ -273,6 +273,9 @@ BASE_FEATURE(kBocaConfigureMaxStudents, base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int> kBocaMaxNumStudentsAllowed{
     &kBocaConfigureMaxStudents, "BocaMaxNumStudentsAllowed", 100};
 
+// Enables or disables use of the courseWorkMaterials API in the Boca app.
+BASE_FEATURE(kBocaCourseWorkMaterialApi, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCrosSwitcher, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Indicates whether the camera super resolution is supported. Note that this
@@ -498,7 +501,7 @@ BASE_FEATURE(kDemoModeAppResetWindowContainer,
 
 // Controls whether use a demo account (consumer account) to login Demo mode
 // session.
-BASE_FEATURE(kDemoModeSignIn, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDemoModeSignIn, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether demo mode applies CBX wallpaper logic.
 BASE_FEATURE(kDemoModeWallpaperUpdate, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1116,6 +1119,9 @@ BASE_FEATURE(kHomeButtonQuickAppAccess, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables a call-to-action label beside the home button.
 BASE_FEATURE(kHomeButtonWithText, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Helpful notifications for devices with Hybrid Chargers.
+BASE_FEATURE(kHybridChargerNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, allows the user to cycle between windows of an app using Alt + `.
 BASE_FEATURE(kSameAppWindowCycle, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2360,12 +2366,6 @@ BASE_FEATURE(kInputMethodDeadKeyFixForNoInputField,
 // When enabled, dead keys correctly emit the 'Dead' event on key down.
 BASE_FEATURE(kInputMethodDeadKeyFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables bug fix for right alt keys for Korean input method.
-// When enabled, Right Alt will immediately toggle between Korean and English on
-// key down.
-BASE_FEATURE(kInputMethodKoreanRightAltKeyDownFix,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables peripheral customization to be split per device.
 BASE_FEATURE(kPeripheralCustomization, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -2588,6 +2588,10 @@ bool IsBocaReceiverAppEnabled() {
 
 bool IsBocaConfigureMaxStudentsEnabled() {
   return base::FeatureList::IsEnabled(kBocaConfigureMaxStudents);
+}
+
+bool IsBocaCourseWorkMaterialApiEnabled() {
+  return base::FeatureList::IsEnabled(kBocaCourseWorkMaterialApi);
 }
 
 bool IsBrightnessControlInSettingsEnabled() {
@@ -3011,6 +3015,10 @@ bool IsHomeButtonQuickAppAccessEnabled() {
 
 bool IsHomeButtonWithTextEnabled() {
   return base::FeatureList::IsEnabled(kHomeButtonWithText);
+}
+
+bool IsHybridChargerNotificationsEnabled() {
+  return base::FeatureList::IsEnabled(kHybridChargerNotifications);
 }
 
 bool IsHostnameSettingEnabled() {

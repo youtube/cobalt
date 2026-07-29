@@ -438,6 +438,17 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/common/safe_url_pattern.cc',
+            'third_party/blink/common/safe_url_pattern_mojom_traits.cc',
+            'third_party/blink/common/service_worker/service_worker_router_rule_mojom_traits_unittest.cc',
+        ],
+        'allowed': [
+            # //third_party/liburlpattern
+            'liburlpattern::.+',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/common/shared_storage/module_script_downloader.cc',
         ],
         'allowed': [
@@ -738,6 +749,7 @@ _CONFIG = [
             'network_utils::.+',
             'origin_trials::.+',
             'paint_filter_builder::.+',
+            'paint_timing::.+',
             'root_scroller_util::.+',
             'scheduler::.+',
             'scroll_customization::.+',
@@ -1378,6 +1390,16 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/public/common/safe_url_pattern.h',
+            'third_party/blink/public/common/safe_url_pattern_mojom_traits.h',
+        ],
+        'allowed': [
+            # //third_party/liburlpattern
+            'liburlpattern::.+',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/public/web/web_document.h',
         ],
         'allowed': [
@@ -1393,6 +1415,15 @@ _CONFIG = [
         ],
         'allowed': [
             'ui::mojom::MenuSourceType',
+        ],
+    },
+    {
+        'paths': [
+            'third_party/blink/public/common/fingerprinting_protection/noise_token.h',
+        ],
+        'allowed': [
+            # Needed to expose a default constructor to Mojo for typemapping.
+            'mojo::DefaultConstruct',
         ],
     },
     {
@@ -2583,6 +2614,14 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/public/common/media/video_capture.h',
+        ],
+        'allowed': [
+            'media::CaptureVersion',
+        ]
+    },
+    {
+        'paths': [
             'third_party/blink/public/common/privacy_budget/identifiable_token.h',
         ],
         'allowed': [
@@ -2612,6 +2651,14 @@ _CONFIG = [
         ],
         'allowed': [
             'media::.+',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/public/web/modules/mediastream/media_stream_video_source.h'
+        ],
+        'allowed': [
+            'media::CaptureVersion',
         ]
     },
     {

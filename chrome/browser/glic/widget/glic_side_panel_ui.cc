@@ -5,20 +5,29 @@
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
 
 #include "base/notimplemented.h"
-#include "chrome/browser/glic/service/glic_instance.h"
+#include "chrome/browser/glic/public/glic_instance.h"
+#include "chrome/browser/glic/widget/glic_inactive_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "components/tabs/public/tab_interface.h"
 
 namespace glic {
 
-GlicSidePanelUi::GlicSidePanelUi(base::WeakPtr<tabs::TabInterface> tab,
+GlicSidePanelUi::GlicSidePanelUi(Profile* profile,
+                                 base::WeakPtr<tabs::TabInterface> tab,
                                  GlicInstance& instance)
-    : tab_(tab), instance_(instance) {}
+    : profile_(profile), tab_(tab), instance_(instance) {
+  if (tab_) {
+    coordinator_observation_.Observe(
+        tab_->GetTabFeatures()->glic_side_panel_coordinator());
+  }
+}
+
 GlicSidePanelUi::~GlicSidePanelUi() = default;
 
 Host::Delegate* GlicSidePanelUi::GetHostDelegate() {
@@ -26,7 +35,6 @@ Host::Delegate* GlicSidePanelUi::GetHostDelegate() {
 }
 
 const mojom::PanelState& GlicSidePanelUi::GetPanelState() const {
-  NOTIMPLEMENTED();
   return panel_state_;
 }
 
@@ -59,8 +67,19 @@ void GlicSidePanelUi::SetMinimumWidgetSize(const gfx::Size& size) {
 }
 
 bool GlicSidePanelUi::IsShowing() const {
-  NOTIMPLEMENTED();
-  return false;
+  if (!tab_) {
+    return false;
+  }
+  return panel_state_.kind == mojom::PanelState_Kind::kAttached;
+}
+
+// TODO(crbug.com/444293841): Support closing multi instance.
+void GlicSidePanelUi::VisibilityChanged(bool visible) {
+  if (visible) {
+    panel_state_.kind = mojom::PanelState_Kind::kAttached;
+  } else {
+    panel_state_.kind = mojom::PanelState_Kind::kHidden;
+  }
 }
 
 void GlicSidePanelUi::Show() {
@@ -72,13 +91,27 @@ void GlicSidePanelUi::Show() {
   side_panel_coordinator->Show(SidePanelEntry::Id::kGlic);
 }
 
+void GlicSidePanelUi::Close() {
+  if (!tab_ || !IsShowing()) {
+    return;
+  }
+  auto* side_panel_coordinator =
+      tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_coordinator();
+  side_panel_coordinator->Close();
+}
+
 std::unique_ptr<views::View> GlicSidePanelUi::CreateView() {
   auto glic_view = std::make_unique<GlicView>(
-      instance_->profile(), GlicWidget::GetInitialSize(), nullptr);
+      profile_, GlicWidget::GetInitialSize(), nullptr);
   // TODO(refactor): use the right host when we have multiple hosts
   glic_view->SetWebContents(instance_->host().webui_contents());
   glic_view->UpdateBackgroundColor();
   return glic_view;
+}
+
+std::unique_ptr<GlicUiEmbedder> GlicSidePanelUi::CreateInactiveEmbedder()
+    const {
+  return GlicInactiveSidePanelUi::From(*this);
 }
 
 }  // namespace glic

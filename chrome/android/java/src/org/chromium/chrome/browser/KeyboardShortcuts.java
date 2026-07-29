@@ -107,11 +107,11 @@ public class KeyboardShortcuts {
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_VIEW_SOURCE,
         KeyboardShortcutsSemanticMeaning.TASK_MANAGER,
         KeyboardShortcutsSemanticMeaning.SAVE_PAGE,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SHOW_DOWNLOADS,
+        KeyboardShortcutsSemanticMeaning.SHOW_DOWNLOADS,
         KeyboardShortcutsSemanticMeaning.OPEN_HISTORY,
         KeyboardShortcutsSemanticMeaning.HISTORY_GO_BACK,
         KeyboardShortcutsSemanticMeaning.HISTORY_GO_FORWARD,
-        KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CLEAR_BROWSING_DATA,
+        KeyboardShortcutsSemanticMeaning.CLEAR_BROWSING_DATA,
         KeyboardShortcutsSemanticMeaning.PRINT,
         KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BASIC_PRINT,
         KeyboardShortcutsSemanticMeaning.ZOOM_IN,
@@ -194,13 +194,13 @@ public class KeyboardShortcuts {
 
         // Downloads.
         int SAVE_PAGE = 43;
-        int NOT_IMPLEMENTED_SHOW_DOWNLOADS = 44;
+        int SHOW_DOWNLOADS = 44;
 
         // History.
         int OPEN_HISTORY = 45;
         int HISTORY_GO_BACK = 46;
         int HISTORY_GO_FORWARD = 47;
-        int NOT_IMPLEMENTED_CLEAR_BROWSING_DATA = 48;
+        int CLEAR_BROWSING_DATA = 48;
 
         // Print.
         int PRINT = 49;
@@ -540,7 +540,8 @@ public class KeyboardShortcuts {
                 KeyboardShortcutsSemanticMeaning.JUMP_TO_SEARCH,
                 new KeyCombo(KeyEvent.KEYCODE_E, KeyEvent.META_CTRL_ON),
                 R.string.keyboard_shortcut_search,
-                R.string.keyboard_shortcut_chrome_feature_group_header);
+                R.string.keyboard_shortcut_chrome_feature_group_header,
+                new KeyCombo[] {new KeyCombo(KeyEvent.KEYCODE_K, KeyEvent.META_CTRL_ON)});
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.FIND_IN_PAGE,
                 new KeyCombo(KeyEvent.KEYCODE_F, KeyEvent.META_CTRL_ON),
@@ -568,6 +569,11 @@ public class KeyboardShortcuts {
                 new KeyCombo(KeyEvent.KEYCODE_I, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON),
                 R.string.keyboard_shortcut_send_feedback,
                 R.string.keyboard_shortcut_chrome_feature_group_header);
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.SHOW_DOWNLOADS,
+                new KeyCombo(KeyEvent.KEYCODE_J, KeyEvent.META_CTRL_ON),
+                R.string.keyboard_shortcut_show_downloads,
+                R.string.keyboard_shortcut_chrome_feature_group_header);
 
         // History shortcuts
         new KeyboardShortcutDefinition(
@@ -589,6 +595,12 @@ public class KeyboardShortcuts {
                     new KeyCombo(KeyEvent.KEYCODE_FORWARD, NO_MODIFIER),
                     new KeyCombo(KeyEvent.KEYCODE_BUTTON_START, NO_MODIFIER)
                 });
+        new KeyboardShortcutDefinition(
+                KeyboardShortcutsSemanticMeaning.CLEAR_BROWSING_DATA,
+                new KeyCombo(
+                        KeyEvent.KEYCODE_DEL, (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
+                R.string.keyboard_shortcut_clear_browsing_data,
+                R.string.keyboard_shortcut_chrome_feature_group_header);
 
         // Top controls.
         new KeyboardShortcutDefinition(
@@ -740,12 +752,6 @@ public class KeyboardShortcuts {
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_VIEW_SOURCE,
                 new KeyCombo(KeyEvent.KEYCODE_U, KeyEvent.META_CTRL_ON));
-        new KeyboardShortcutDefinition(
-                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_SHOW_DOWNLOADS,
-                new KeyCombo(KeyEvent.KEYCODE_J, KeyEvent.META_CTRL_ON));
-        new KeyboardShortcutDefinition(
-                KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_CLEAR_BROWSING_DATA,
-                new KeyCombo(KeyEvent.KEYCODE_DEL, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.NOT_IMPLEMENTED_BASIC_PRINT,
                 new KeyCombo(KeyEvent.KEYCODE_P, KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON));
@@ -1098,6 +1104,14 @@ public class KeyboardShortcuts {
                 case KeyboardShortcutsSemanticMeaning.OPEN_HISTORY:
                     menuOrKeyboardActionController.onMenuOrKeyboardAction(
                             R.id.open_history_menu_id, false);
+                    return true;
+                case KeyboardShortcutsSemanticMeaning.SHOW_DOWNLOADS:
+                    menuOrKeyboardActionController.onMenuOrKeyboardAction(
+                            R.id.downloads_menu_id, false);
+                    return true;
+                case KeyboardShortcutsSemanticMeaning.CLEAR_BROWSING_DATA:
+                    menuOrKeyboardActionController.onMenuOrKeyboardAction(
+                            R.id.quick_delete_menu_id, false);
                     return true;
                 case KeyboardShortcutsSemanticMeaning.PRINT:
                     menuOrKeyboardActionController.onMenuOrKeyboardAction(R.id.print_id, false);

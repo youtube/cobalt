@@ -126,7 +126,6 @@
 
 // Browser Test for AppListClientImpl.
 using AppListClientImplBrowserTest = extensions::PlatformAppBrowserTest;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 
 namespace {
@@ -272,10 +271,9 @@ IN_PROC_BROWSER_TEST_F(AppListClientImplBrowserTest, ShowAppInfo) {
   EXPECT_TRUE(wm::GetTransientChildren(client->GetAppListWindow()).empty());
 
   // Open the app info dialog.
-  ui_test_utils::BrowserChangeObserver browser_opened(
-      nullptr, ui_test_utils::BrowserChangeObserver::ChangeType::kAdded);
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
   client->DoShowAppInfoFlow(profile(), app->id());
-  browser_opened.Wait();
+  browser_created_observer.Wait();
 
   Browser* settings_app =
       chrome::SettingsWindowManager::GetInstance()->FindBrowserForProfile(

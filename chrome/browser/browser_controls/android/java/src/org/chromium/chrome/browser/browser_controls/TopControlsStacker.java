@@ -6,9 +6,13 @@ package org.chromium.chrome.browser.browser_controls;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
+import org.chromium.cc.input.OffsetTag;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.components.browser_ui.util.BrowserControlsVisibilityDelegate;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -82,12 +86,17 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     private final Map<@TopControlType Integer, TopControlLayer> mControls;
 
     private final BrowserControlsSizer mBrowserControlsSizer;
-    private @BrowserControlsState int mBrowserControlsState;
+    private final BrowserControlsVisibilityDelegate mBrowserControlsVisibilityDelegate;
+    private final Callback<@BrowserControlsState Integer> mBrowserControlsStateCallback =
+            this::updateBrowserControlsState;
+    private @BrowserControlsState int mBrowserControlsState = BrowserControlsState.BOTH;
 
     private boolean mScrollingDisabled;
 
     private int mTotalHeight;
     private int mMinHeight;
+
+    private @Nullable OffsetTag mTopControlsOffsetTag;
 
     /**
      * Constructs the top controls stacker, which is used to calculate heights and offsets for any
@@ -98,7 +107,10 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     public TopControlsStacker(BrowserControlsSizer browserControlsSizer) {
         mControls = new HashMap<>();
         mBrowserControlsSizer = browserControlsSizer;
+        mBrowserControlsVisibilityDelegate = mBrowserControlsSizer.getBrowserVisibilityDelegate();
+
         mBrowserControlsSizer.addObserver(this);
+        mBrowserControlsVisibilityDelegate.addObserver(mBrowserControlsStateCallback);
     }
 
     /**
@@ -131,7 +143,11 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
     public void setScrollingDisabled(boolean disabled) {
         if (mScrollingDisabled == disabled) return;
         mScrollingDisabled = disabled;
-        updateTopControlsHeight();
+
+        // This call can potentially still change the browser control's shown ration when minHeight
+        // is updated when the controls is scrolled off, or when BrowserControlsState.HIDDEN.
+        // We intentionally disabling animation updates for those.
+        requestLayerUpdate(false);
     }
 
     /**
@@ -141,8 +157,6 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
      * @return The total height of all visible controls in pixels.
      */
     public int getVisibleTopControlsTotalHeight() {
-        // TODO(wenyufu): Introduce #requestLayerUpdate(boolean) to trigger height recalculation.
-        recalculateHeights();
         return mTotalHeight;
     }
 
@@ -153,9 +167,30 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
      * @return The min height of all visible controls in pixels.
      */
     public int getVisibleTopControlsMinHeight() {
-        // TODO(wenyufu): Introduce #requestLayerUpdate(boolean) to trigger height recalculation.
-        recalculateHeights();
         return mMinHeight;
+    }
+
+    /**
+     * Returns the current OffsetTag for the top controls provided by the {@link
+     * BrowserControlsStateProvider.Observer}.
+     *
+     * @return The OffsetTag for the top controls.
+     */
+    public @Nullable OffsetTag getTopControlsOffsetTag() {
+        return mTopControlsOffsetTag;
+    }
+
+    /**
+     * Trigger the browser controls height update based on the current layer status. If there's
+     * already an animated transition running, this call might cause it to skip to the end state.
+     *
+     * @param animate Whether animate the browser controls size change.
+     */
+    public void requestLayerUpdate(boolean animate) {
+        recalculateHeights();
+        updateTopControlsHeight(animate);
+
+        // Add more implementations here when necessary (e.g. offset calculation)
     }
 
     private void recalculateHeights() {
@@ -188,9 +223,22 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
         return false;
     }
 
-    private void updateTopControlsHeight() {
-        recalculateHeights();
+    private void updateTopControlsHeight(boolean requireAnimations) {
+        if (requireAnimations) {
+            mBrowserControlsSizer.setAnimateBrowserControlsHeightChanges(true);
+        }
         mBrowserControlsSizer.setTopControlsHeight(mTotalHeight, mMinHeight);
+        if (requireAnimations) {
+            mBrowserControlsSizer.setAnimateBrowserControlsHeightChanges(false);
+        }
+    }
+
+    private void updateBrowserControlsState(@BrowserControlsState int newState) {
+        if (mBrowserControlsState == newState) return;
+        mBrowserControlsState = newState;
+        if (mScrollingDisabled) {
+            requestLayerUpdate(false);
+        }
     }
 
     // BrowserControlsStateProvider.Observer implementation:
@@ -212,16 +260,22 @@ public class TopControlsStacker implements BrowserControlsStateProvider.Observer
             BrowserControlsOffsetTagsInfo offsetTagsInfo,
             @BrowserControlsState int constraints,
             boolean shouldUpdateOffsets) {
-        if (mBrowserControlsState == constraints) return;
+        // TODO(crbug.com/417238089): Consider pushing updated OffsetTags to TopControlLayers.
+        if (mTopControlsOffsetTag == offsetTagsInfo.getTopControlsOffsetTag()
+                && mBrowserControlsState == constraints) {
+            return;
+        }
+        mTopControlsOffsetTag = offsetTagsInfo.getTopControlsOffsetTag();
         mBrowserControlsState = constraints;
         if (mScrollingDisabled) {
-            updateTopControlsHeight();
+            requestLayerUpdate(false);
         }
     }
 
     /** Tear down |this| and clear all existing controls from the Map. */
     public void destroy() {
         mControls.clear();
+        mBrowserControlsVisibilityDelegate.removeObserver(mBrowserControlsStateCallback);
         mBrowserControlsSizer.removeObserver(this);
     }
 }

@@ -16,6 +16,10 @@ BASE_FEATURE(kSyncAutofillLoyaltyCard,
              "SyncAutofillLoyaltyCard",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSyncAutofillValuableSettings,
+             "SyncAutofillValuableSettings",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSyncMoveValuablesToProfileDb,
              "SyncMoveValuablesToProfileDb",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -96,6 +100,9 @@ BASE_FEATURE(kSyncWalletVehicleRegistrations,
              "SyncWalletVehicleRegistrations",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSpellcheckSeparateLocalAndAccountDictionaries,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableBookmarksSelectedTypeOnSigninForTesting,
              "EnableBookmarksSelectedTypeOnSigninForTesting",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -107,7 +114,11 @@ BASE_FEATURE(kSearchEngineAvoidFaviconOnlyCommits,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 BASE_FEATURE(kReadingListEnableSyncTransportModeUponSignIn,
              "ReadingListEnableSyncTransportModeUponSignIn",
+#if BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
 );
 
 bool IsReadingListAccountStorageEnabled() {

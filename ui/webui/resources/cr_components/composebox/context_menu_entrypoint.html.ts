@@ -18,20 +18,28 @@ export function getHtml(this: ContextMenuEntrypointElement) {
   </cr-button>
 
   <cr-action-menu id="menu" role-description="$i18n{menu}">
-    ${this.hasTabSuggestions_ ? html`
+    ${this.tabSuggestions_.length > 0 ? html`
       <h4 id="tabHeader">$i18n{addTab}</h4>
+      ${this.tabSuggestions_.map((tab, index) => html`
+        <button class="dropdown-item" title="${tab.title}"
+            data-index="${index}" @click="${this.addTabContext}">
+          <composebox-tab-favicon .url="${tab.url.url}">
+          </composebox-tab-favicon>
+          <span class="tab-title">${tab.title}</span>
+        </button>
+      `)}
       <hr/>
     `: ''}
-    <cr-button id="imageUpload" class="dropdown-item"
+    <button id="imageUpload" class="dropdown-item"
         @click="${this.openImageUpload}">
-      <cr-icon icon="composebox:imageUpload" slot="prefix-icon"></cr-icon>
+      <cr-icon icon="composebox:imageUpload"></cr-icon>
       $i18n{addImage}
-    </cr-button>
-    <cr-button id="fileUpload" class="dropdown-item"
+    </button>
+    <button id="fileUpload" class="dropdown-item"
         @click="${this.openFileUpload}">
-      <cr-icon icon="composebox:fileUpload" slot="prefix-icon"></cr-icon>
+      <cr-icon icon="composebox:fileUpload"></cr-icon>
       $i18n{uploadFile}
-    </cr-button>
+    </button>
   </cr-action-menu>
 <!--_html_template_end_-->`;
   // clang-format off

@@ -214,6 +214,11 @@ class AccountReconcilor
                            DeleteCookieForSyncingUser);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
                            PendingStateThenClearPrimaryAccount);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
+                           SetAccountsInCookiePersistentError);
+  FRIEND_TEST_ALL_PREFIXES(
+      AccountReconcilorDiceTest,
+      SetAccountsInCookiePersistentErrorRefreshTokensBoundToDifferentKeys);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorMirrorTest, TokensNotLoaded);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorMirrorTest,
                            StartReconcileCookiesDisabled);
@@ -452,7 +457,7 @@ class AccountReconcilor
       identity_manager_observer_{this};
 
   // The SigninClient associated with this reconcilor.
-  raw_ptr<SigninClient> client_;
+  raw_ptr<SigninClient, DanglingUntriaged> client_;
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   PrefChangeRegistrar pref_observer_;

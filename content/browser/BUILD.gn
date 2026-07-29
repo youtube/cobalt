@@ -159,6 +159,8 @@ source_set("browser") {
     "//components/viz/common",
     "//components/viz/host",
     "//components/web_package",
+    "//components/webauthn/core/browser:client_data",
+    "//components/webauthn/core/browser:common_utils",
     "//content:content_resources",
     "//content/browser/aggregation_service/proto:aggregatable_report_proto",
     "//content/browser/attribution_reporting:attribution_reporting_proto",
@@ -2433,8 +2435,6 @@ source_set("browser") {
     "web_ui_browser_interface_broker_registry.cc",
     "webauth/client_data_json.cc",
     "webauth/client_data_json.h",
-    "webauth/common_utils.cc",
-    "webauth/common_utils.h",
     "webauth/webauth_request_security_checker.cc",
     "webauth/webauth_request_security_checker.h",
     "webid/accounts_fetcher.cc",
@@ -2442,16 +2442,20 @@ source_set("browser") {
     "webid/autofill_source.cc",
     "webid/config_fetcher.cc",
     "webid/config_fetcher.h",
+    "webid/delegation/dns_request.cc",
+    "webid/delegation/dns_request.h",
+    "webid/delegation/email_verification_request.cc",
+    "webid/delegation/email_verification_request.h",
     "webid/delegation/federated_sd_jwt_handler.cc",
     "webid/delegation/federated_sd_jwt_handler.h",
     "webid/delegation/jwt_signer.cc",
     "webid/delegation/jwt_signer.h",
     "webid/delegation/sd_jwt.cc",
     "webid/delegation/sd_jwt.h",
+    "webid/disconnect_request.cc",
+    "webid/disconnect_request.h",
     "webid/fake_identity_request_dialog_controller.cc",
     "webid/fake_identity_request_dialog_controller.h",
-    "webid/federated_auth_disconnect_request.cc",
-    "webid/federated_auth_disconnect_request.h",
     "webid/flags.cc",
     "webid/flags.h",
     "webid/identity_provider_info.cc",
@@ -3718,7 +3722,7 @@ group("for_content_tests") {
 
 if (is_android) {
   java_cpp_enum("client_data_json_generated_enum") {
-    sources = [ "webauth/client_data_json.h" ]
+    sources = [ "//components/webauthn/core/browser/client_data_json.h" ]
   }
 }
 

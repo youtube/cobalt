@@ -27,7 +27,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/exclusive_access_bubble_views.h"
-#include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
+#include "chrome/browser/ui/views/frame/browser_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout_delegate.h"
 #include "chrome/browser/ui/views/frame/contents_layout_manager.h"
@@ -955,8 +955,9 @@ int BrowserViewLayout::GetMinWebContentsWidth() const {
 bool BrowserViewLayout::IsImmersiveModeEnabledWithoutToolbar() const {
   return delegate_->GetImmersiveModeController()->IsEnabled()
 #if BUILDFLAG(IS_MAC)
-         &&
-         !fullscreen_utils::IsAlwaysShowToolbarEnabled(browser_view_->browser())
+         && (!fullscreen_utils::IsAlwaysShowToolbarEnabled(
+                 browser_view_->browser()) ||
+             fullscreen_utils::IsInContentFullscreen(browser_view_->browser()))
 #endif
       ;
 }

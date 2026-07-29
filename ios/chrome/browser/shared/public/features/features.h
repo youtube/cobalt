@@ -302,6 +302,7 @@ extern const char kNTPMIAEntrypointParamOmniboxContainedSingleButton[];
 extern const char kNTPMIAEntrypointParamOmniboxContainedInline[];
 extern const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[];
 extern const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[];
+extern const char kNTPMIAEntrypointParamAIMInQuickActions[];
 
 // Feature flag to change the MIA entrypoint in NTP.
 BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
@@ -309,6 +310,10 @@ BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
 // When enabled the AIM ZPS entrypoint will open the AIM prototype which
 // contains temporary UI exploration for AIM.
 BASE_DECLARE_FEATURE(kAIMPrototype);
+
+// Variations of AIM prototype.
+extern const char kAIMPrototypeParam[];
+extern const char kAIMPrototypeParamAllOmniboxEntrypoints[];
 
 // Feature for the DRS prototype.
 BASE_DECLARE_FEATURE(kOmniboxDRSPrototype);
@@ -322,6 +327,14 @@ BASE_DECLARE_FEATURE(kRemoveExcessNTPs);
 
 // Feature flag / Kill Switch for TCRex.
 BASE_DECLARE_FEATURE(kTCRexKillSwitch);
+
+// When this flag is enabled, the tab grid will show an empty thumbnail for
+// tabs that don't have one.
+BASE_DECLARE_FEATURE(kTabGridEmptyThumbnail);
+
+// Returns YES when the tab grid should show an empty thumbnail for
+// tabs that don't have one.
+bool IsTabGridEmptyThumbnailUIEnabled();
 
 // When enabled uses new transitions in the TabGrid.
 BASE_DECLARE_FEATURE(kTabGridNewTransitions);
@@ -387,6 +400,9 @@ extern const char kBottomOmniboxDefaultSettingParamBottom[];
 extern const char kBottomOmniboxDefaultSettingParamSafariSwitcher[];
 // Feature flag to change the default position of the omnibox.
 BASE_DECLARE_FEATURE(kBottomOmniboxDefaultSetting);
+
+// Feature flag the "Hide Toolbar" button in the overflow menu.
+BASE_DECLARE_FEATURE(kHideToolbarsInOverflowMenu);
 
 // Feature flag to enable improvdements in the bottom omnibox.
 BASE_DECLARE_FEATURE(kBottomOmniboxEvolution);

@@ -3,6 +3,7 @@
 <translationbundle lang="ja">
 <translation id="1010283278930414892">このデバイスに保存されているパスワードはありません</translation>
 <translation id="1011749477052068769">ここに移動</translation>
+<translation id="1014083013111769343">リーディング モードの設定が画面全体に表示されています</translation>
 <translation id="1014147525163127655">このデバイスに <ph name="ORIGIN" /> のパスキーがありません</translation>
 <translation id="1016498331642356377">音声ですばやく検索します。このショートカットを編集するには、長押ししてください。</translation>
 <translation id="1028699632127661925"><ph name="DEVICE_NAME" /> に送信しています...</translation>
@@ -207,6 +208,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="197288927597451399">保存</translation>
 <translation id="1973912524893600642">データを残す</translation>
 <translation id="1974060860693918893">詳細設定</translation>
+<translation id="1982274314082047220">リーディング モードで上にスワイプすると設定が表示されます</translation>
 <translation id="1984087999855033707">電話番号</translation>
 <translation id="1984417487208496350">保護なし（非推奨）</translation>
 <translation id="1986685561493779662">この名前はすでに存在しています</translation>
@@ -307,7 +309,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2496180316473517155">閲覧履歴</translation>
 <translation id="2497852260688568942">同期は管理者により無効にされています</translation>
 <translation id="250020030759455918">Chrome での <ph name="SITE_NAME" /> のログイン ステータス、閲覧データ、サイトデータが表示されます。</translation>
-<translation id="2502798195266898572">リーディング モードのボトムシートが画面全体に表示されています</translation>
 <translation id="2510106555128151389">「<ph name="WEBAPK_NAME" />」をインストールしています...</translation>
 <translation id="2512234228327349533">購入オプションを検索</translation>
 <translation id="2513403576141822879">プライバシー、セキュリティ、データ収集に関連するその他の設定については、<ph name="BEGIN_LINK" />同期と Google サービス<ph name="END_LINK" />をご覧ください</translation>
@@ -429,6 +430,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2992473221983447149">画像の説明</translation>
 <translation id="2996291259634659425">パスフレーズの作成</translation>
 <translation id="2996809686854298943">URLが必要です</translation>
+<translation id="3024215143424744261">リーディング モードの設定を閉じました</translation>
 <translation id="3026955690410463085">リンクを含める</translation>
 <translation id="3027644380269727216">ユーザーのウェブサイト上でのアクティビティに基づいて提案されます。この設定は有効になっています。</translation>
 <translation id="3027950907978057636"><ph name="APP_LABEL" /> から</translation>
@@ -1128,13 +1130,11 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6255809143828972562">Chrome のツールを使って、自分で管理しながら安全にブラウジングできます</translation>
 <translation id="6264376385120300461">ダウンロードを続行</translation>
 <translation id="6264485186158353794">セキュリティで保護されたページに戻る</translation>
-<translation id="6267063201726531683">リーディング モードのボトムシート</translation>
 <translation id="6277522088822131679">ページの印刷中に問題が発生しました。もう一度お試しください。</translation>
 <translation id="6278428485366576908">モード</translation>
 <translation id="6291294824436685757">閲覧データの削除、削除するデータを選択します</translation>
 <translation id="6295158916970320988">すべてのサイト</translation>
 <translation id="629730747756840877">アカウント</translation>
-<translation id="6300697579369314762">リーディング モードのボトムシートが画面の下半分に表示されています</translation>
 <translation id="6301526076346731664">デベロッパー ツールを開く</translation>
 <translation id="6303969859164067831">ログアウトして同期をオフにする</translation>
 <translation id="6307241780749477694">このデバイスですべてのパスワードにアクセスできるようにするには、本人確認を行ってください</translation>
@@ -1314,6 +1314,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="696447261358045621">シークレット モードを終了</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{新しいアクティビティがある共有タブグループの <ph name="TABS_COUNT_ONE" /> 個のタブを表示}other{新しいアクティビティがある共有タブグループの <ph name="TABS_COUNT_MANY" /> 個のタブを表示}}</translation>
+<translation id="6971555615916967190">リーディング モードの設定が画面の下半分に表示されています</translation>
 <translation id="6971862865055170158">承認しない</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />、新しいタブまたは更新されたタブ</translation>
 <translation id="6976811588313110624">新しいショートカットを追加します。</translation>
@@ -1353,7 +1354,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="71503698506017927">Google Pay のお支払い方法と住所は、パスフレーズによる暗号化の対象には含まれません。
 
 この設定を変更するには、<ph name="BEGIN_LINK" />アカウントの Chrome データを削除<ph name="END_LINK" />します。</translation>
-<translation id="7151332203500147130">リーディング モードのボトムシートが閉じられました</translation>
 <translation id="7165972437814027679">Chrome で一部のファイルがブロックされる理由の詳細</translation>
 <translation id="7168323970702333693"><ph name="USER_NAME" /> としてログインしています。設定を開きます。</translation>
 <translation id="7173114856073700355">設定を開く</translation>
@@ -1501,7 +1501,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7791543448312431591">追加</translation>
 <translation id="7792388396321542707">共有を停止</translation>
 <translation id="780287761701992588">すべてのデバイスで同じブックマーク、パスワード、その他の設定を利用する</translation>
-<translation id="780301667611848630">キャンセル</translation>
+<translation id="780301667611848630">利用しない</translation>
 <translation id="7810647596859435254">アプリで開く…</translation>
 <translation id="7814066895362068701">{FILE_COUNT,plural, =1{すべてのファイル、リストの 1 件のファイル}other{すべてのファイル、リストの # 件のファイル}}</translation>
 <translation id="7815484226266492798">ロング スクリーンショット</translation>

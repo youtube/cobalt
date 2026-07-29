@@ -402,6 +402,16 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   };
   using ApplyMixinsStack = HeapVector<ApplyingMixin, 4>;
 
+  void ApplyMixin(StyleRule* parent_rule,
+                  StyleRuleApplyMixin* apply_mixin_rule,
+                  const MediaQueryEvaluator& medium,
+                  const MixinMap& mixins,
+                  AddRuleFlags add_rule_flags,
+                  const ContainerQuery* container_query,
+                  CascadeLayer* cascade_layer,
+                  const StyleScope* style_scope,
+                  ApplyMixinsStack& apply_mixins_stack);
+
   // Nonempty “apply_mixins_stack” means that we are currently adding this rule
   // as part of @apply in a mixin, and all rules we add must be
   // duplicated and reparented (to the uppermost one9. This is also propagated
@@ -496,6 +506,9 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   }
   base::span<const RuleData> SelectorFragmentAnchorRules() const {
     return selector_fragment_anchor_rules_;
+  }
+  base::span<const RuleData> ActiveViewTransitionRules() const {
+    return active_view_transition_rules_;
   }
   const HeapVector<Member<StyleRulePage>>& PageRules() const {
     return page_rules_;
@@ -779,6 +792,9 @@ class CORE_EXPORT RuleSet final : public GarbageCollected<RuleSet> {
   HeapVector<RuleData> part_pseudo_rules_;
   HeapVector<RuleData> slotted_pseudo_element_rules_;
   HeapVector<RuleData> selector_fragment_anchor_rules_;
+  // Separate bucket for :active-view-transition rules, to support a default
+  // view-transition-name in user-agent style.
+  HeapVector<RuleData> active_view_transition_rules_;
   HeapVector<RuleData> root_element_rules_;
   RuleFeatureSet features_;
   HeapVector<Member<StyleRulePage>> page_rules_;

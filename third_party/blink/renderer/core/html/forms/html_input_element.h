@@ -110,6 +110,8 @@ class CORE_EXPORT HTMLInputElement
   // Returns true if the type is email, number, password, search, tel, text,
   // or url.
   bool IsTextField() const;
+  // Returns true if type is text, search, url, tel, or password.
+  bool InputSupportsSelectionAPI() const;
   bool IsTelephone() const;
   // To override from TextControlElement
   bool IsAutoDirectionalityFormAssociated() const final;
@@ -291,6 +293,9 @@ class CORE_EXPORT HTMLInputElement
   void SetNonAttributeValue(const String&);
   void SetNonAttributeValueByUserEdit(const String&);
   void UpdateView();
+
+  void UpdateViewWithPendingNonConvertedValue();
+
   bool NeedsToUpdateViewValue() const { return needs_to_update_view_value_; }
   void SetInnerEditorValue(const String&) override;
 
@@ -489,6 +494,9 @@ class CORE_EXPORT HTMLInputElement
   AtomicString name_;
   // The value string in |value| value mode.
   String non_attribute_value_;
+  // Stores pending value string during parsing.
+  // Used by UpdateViewWithPendingNonConvertedValue().
+  String pending_non_converted_value_;
   unsigned size_;
   // https://html.spec.whatwg.org/C/#concept-input-value-dirty-flag
   unsigned has_dirty_value_ : 1;

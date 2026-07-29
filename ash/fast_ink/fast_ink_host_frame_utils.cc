@@ -37,17 +37,17 @@ std::unique_ptr<UiResource> AcquireUiResource(
     const gfx::Size& size,
     bool is_overlay_candidate,
     UiResourceManager* resource_manager,
-    gpu::Mailbox mailbox,
+    const scoped_refptr<gpu::ClientSharedImage>& shared_image,
     gpu::SyncToken sync_token) {
-  CHECK(!mailbox.IsZero());
+  CHECK(shared_image);
   std::unique_ptr<UiResource> resource = resource_manager->GetResourceToReuse(
       size, kFastInkSharedImageFormat, kFastInkUiSourceId);
 
   if (resource) {
-    CHECK(mailbox == resource->mailbox());
+    CHECK(shared_image == resource->client_shared_image());
   } else {
     resource = CreateUiResource(size, kFastInkUiSourceId, is_overlay_candidate,
-                                mailbox, sync_token);
+                                shared_image, sync_token);
   }
 
   return resource;
@@ -114,25 +114,23 @@ std::unique_ptr<UiResource> CreateUiResource(
     const gfx::Size& size,
     UiSourceId ui_source_id,
     bool is_overlay_candidate,
-    gpu::Mailbox mailbox,
+    const scoped_refptr<gpu::ClientSharedImage>& shared_image,
     gpu::SyncToken sync_token) {
   DCHECK(!size.IsEmpty());
   DCHECK(ui_source_id > 0);
-  CHECK(!mailbox.IsZero());
+  CHECK(shared_image);
 
-  auto resource = std::make_unique<UiResource>();
+  auto context_provider = GetContextProvider();
 
-  resource->context_provider = GetContextProvider();
-
-  if (!resource->context_provider) {
+  if (!context_provider) {
     LOG(ERROR) << "Failed to acquire a context provider";
     return nullptr;
   }
 
-  // This UiResource is operating on a shared SharedImage.
-  resource->SetExternallyOwnedMailbox(mailbox);
-  resource->sync_token = sync_token;
+  auto resource = std::make_unique<UiResource>(
+      context_provider->SharedImageInterface(), shared_image);
 
+  resource->sync_token = sync_token;
   resource->damaged = true;
   resource->is_overlay_candidate = is_overlay_candidate;
   resource->format = kFastInkSharedImageFormat;
@@ -162,26 +160,22 @@ std::unique_ptr<viz::CompositorFrame> CreateCompositorFrame(
           .size();
 
   // NOTE: `shared_image` is guaranteed to be non-null by contract of this
-  // method, and ClientSharedImage::mailbox() is guaranteed to be non-zero by
-  // contract of *that* method.
+  // method.
   CHECK(shared_image);
-  auto mailbox = shared_image->mailbox();
 
   // In auto_update mode, we use hardware overlays to render the content.
   auto resource = AcquireUiResource(buffer_size, auto_update, resource_manager,
-                                    mailbox, sync_token);
+                                    shared_image, sync_token);
 
   if (!resource) {
     return nullptr;
   }
 
   if (resource->damaged) {
-    DCHECK(resource->context_provider);
-    gpu::SharedImageInterface* sii =
-        resource->context_provider->SharedImageInterface();
-
-    sii->UpdateSharedImage(resource->sync_token, resource->mailbox());
-    resource->sync_token = sii->GenVerifiedSyncToken();
+    resource->shared_image_interface->UpdateSharedImage(
+        resource->sync_token, resource->client_shared_image()->mailbox());
+    resource->sync_token =
+        resource->shared_image_interface->GenVerifiedSyncToken();
     resource->damaged = false;
   }
 

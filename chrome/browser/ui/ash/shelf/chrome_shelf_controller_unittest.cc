@@ -107,8 +107,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/apps/chrome_app_delegate.h"
-#include "chrome/browser/ui/ash/multi_user/multi_profile_support.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
+#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_browser_adaptor.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "chrome/browser/ui/ash/shelf/app_service/app_service_app_window_shelf_item_controller.h"
@@ -507,6 +507,8 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     app_list::AppListSyncableServiceFactory::SetUseInTesting(true);
 
     BrowserWithTestWindowTest::SetUp();
+    MultiUserWindowManagerHelper::CreateInstance();
+
     // WallpaperControllerClientImpl should be created before Profile
     // instantiation happening in BrowserWithTestWindowTest::SetUp().
     // However, it should run after more global object set up, such as
@@ -714,6 +716,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     arc_test_.TearDown();
     shelf_controller_ = nullptr;
     wallpaper_controller_client_.reset();
+    MultiUserWindowManagerHelper::DeleteInstance();
     BrowserWithTestWindowTest::TearDown();
     ash::ConciergeClient::Shutdown();
     app_list::AppListSyncableServiceFactory::SetUseInTesting(false);

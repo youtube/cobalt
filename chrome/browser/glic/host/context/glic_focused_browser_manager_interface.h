@@ -7,11 +7,20 @@
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
-#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window.h"  // nogncheck
+
+namespace glic {
 
 // Responsible for managing which browser window is considered "focused".
 class GlicFocusedBrowserManagerInterface {
  public:
+  GlicFocusedBrowserManagerInterface() = default;
+  virtual ~GlicFocusedBrowserManagerInterface() = default;
+  GlicFocusedBrowserManagerInterface(
+      const GlicFocusedBrowserManagerInterface&) = delete;
+  GlicFocusedBrowserManagerInterface& operator=(
+      const GlicFocusedBrowserManagerInterface&) = delete;
+
   // Callback for changes to the focused browser window, or the candidate
   // to be focused.
   using FocusedBrowserChangedCallback =
@@ -33,5 +42,7 @@ class GlicFocusedBrowserManagerInterface {
   // browser that belongs to a different profile.
   virtual BrowserWindowInterface* GetActiveBrowser() const = 0;
 };
+
+}  // namespace glic
 
 #endif  // CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_FOCUSED_BROWSER_MANAGER_INTERFACE_H_

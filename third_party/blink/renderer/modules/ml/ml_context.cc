@@ -198,6 +198,8 @@ MLContext::MLContext(
       lost_property_(MakeGarbageCollected<LostProperty>(execution_context)),
       context_remote_(execution_context),
       properties_(std::move(create_context_success->context_properties)),
+      write_tensor_producer_(
+          std::move(create_context_success->write_tensor_producer)),
       webnn_handle_(std::move(create_context_success->context_handle)) {
   context_remote_.Bind(
       std::move(create_context_success->context_remote),
@@ -1490,10 +1492,9 @@ ScriptPromise<GPUBuffer> MLContext::exportToGPU(
     exception_state.ThrowTypeError(kContextWebGPUInteropUnsupportedError);
     return EmptyPromise();
   }
-  // TODO(crbug.com/345352987): Implement MLTensor's exportToGPU.
-  exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
-                                    "MLContext::exportToGPU is not supported.");
-  return EmptyPromise();
+
+  return tensor->ExportToGPUImpl(std::move(scoped_trace), script_state,
+                                 gpu_device_, exception_state);
 }
 
 }  // namespace blink

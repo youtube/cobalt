@@ -21,6 +21,7 @@
 #include "components/policy/policy_constants.h"
 #include "components/regional_capabilities/regional_capabilities_country_id.h"
 #include "components/regional_capabilities/regional_capabilities_switches.h"
+#include "components/regional_capabilities/regional_capabilities_test_utils.h"
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/search_engine_choice/buildflags.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
@@ -34,11 +35,16 @@
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_client.h"
 #include "components/search_engines/util.h"
+#include "components/variations/variations_switches.h"
 #include "components/webdata/common/web_database_service.h"
 #include "components/webdata/common/webdata_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 #include "ui/base/device_form_factor.h"
+
+#if BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
+#include "components/regional_capabilities/program_settings.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
+#endif
 
 namespace {
 
@@ -48,14 +54,25 @@ using search_engines::SearchEngineChoiceScreenConditions;
 using search_engines::SearchEngineChoiceWipeReason;
 using search_engines::SearchEnginesTestEnvironment;
 using search_engines::WipeSearchEngineChoicePrefs;
-using TemplateURLPrepopulateData::PrepopulatedEngine;
 using ChoiceStatus = search_engines::SearchEngineChoiceService::ChoiceStatus;
 
-struct PersistedState {
-  std::string country_code;
-  bool was_choice_made;
-  raw_ptr<const PrepopulatedEngine> dse;
-};
+#if BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
+constexpr regional_capabilities::ProgramSettings
+    kSettingsManagedUsersCanBeEligible{
+        .choice_screen_eligibility_config =
+            regional_capabilities::ChoiceScreenEligibilityConfig{
+                .managed_users_can_be_eligible = true,
+            },
+    };
+
+constexpr regional_capabilities::ProgramSettings
+    kSettingsManagedUsersCannotBeEligible{
+        .choice_screen_eligibility_config =
+            regional_capabilities::ChoiceScreenEligibilityConfig{
+                .managed_users_can_be_eligible = false,
+            },
+    };
+#endif  // BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
 
 class KeywordsDatabaseHolder {
  public:
@@ -138,27 +155,6 @@ class SearchEngineChoiceEligibilityTest
     keywords_db_holder_.reset();
   }
 
-  void ApplyPersistedState(PersistedState persisted_state) {
-    auto* command_line = base::CommandLine::ForCurrentProcess();
-    command_line->RemoveSwitch(switches::kSearchEngineChoiceCountry);
-    command_line->AppendSwitchASCII(switches::kSearchEngineChoiceCountry,
-                                    persisted_state.country_code);
-
-    if (persisted_state.was_choice_made) {
-      search_engines::MarkSearchEngineChoiceCompletedForTesting(
-          *pref_service());
-    }
-
-    FinalizeEnvironmentInit();
-
-    if (persisted_state.dse != nullptr) {
-      auto* turl = template_url_service().GetTemplateURLForKeyword(
-          persisted_state.dse->keyword);
-      ASSERT_TRUE(turl);
-      template_url_service().SetUserSelectedDefaultSearchProvider(turl);
-    }
-  }
-
   void PopulateLazyFactories(
       SearchEnginesTestEnvironment::ServiceFactories& lazy_factories,
       search_engines::InitServiceArgs args) override {
@@ -226,8 +222,6 @@ class SearchEngineChoiceEligibilityTest
  private:
   bool skip_search_engine_choice_service_init_ = false;
 
-  base::test::TaskEnvironment task_environment_{
-      base::test::TaskEnvironment::MainThreadType::UI};
   std::unique_ptr<KeywordsDatabaseHolder> keywords_db_holder_;
 };
 
@@ -432,6 +426,9 @@ TEST_F(SearchEngineChoiceEligibilityTest,
 
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       switches::kSearchEngineChoiceCountry, "JP");
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetCountryId(CountryId("JP"));
 
   // First, check the state with Google as the default search engine
   ASSERT_TRUE(
@@ -486,6 +483,9 @@ TEST_F(SearchEngineChoiceEligibilityTest,
 
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       switches::kSearchEngineChoiceCountry, "JP");
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetCountryId(CountryId("JP"));
 
   // A custom search engine will have a `prepopulate_id` of 0.
   const int kCustomSearchEnginePrepopulateId = 0;
@@ -501,7 +501,126 @@ TEST_F(SearchEngineChoiceEligibilityTest,
   EXPECT_EQ(GetDynamicConditions(),
             IfSupported(SearchEngineChoiceScreenConditions::kEligible));
 }
+
+TEST_F(SearchEngineChoiceEligibilityTest,
+       ChoiceScreenConditions_DontPromptForCustom_OutsideTaiyakiGeoLocation) {
+  if (!kPhoneFormFactors.Has(ui::GetDeviceFormFactor())) {
+    GTEST_SKIP();
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list{switches::kTaiyaki};
+
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      switches::kSearchEngineChoiceCountry, "JP");
+  // Explicitly set the variations country to a non-Taiyaki country to ensure
+  // that the choice screen is not triggered due to the user's current
+  // location.
+  static_cast<regional_capabilities::FakeRegionalCapabilitiesServiceClient&>(
+      regional_capabilities_service().GetClientForTesting())
+      .SetCountryId(CountryId("PL"));
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(
+          SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation));
+  // Do not check the dynamic conditions, as the choice screen would be
+  // suppressed before evaluating the dynamic conditions.
+}
 #endif  // BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
+class SearchEngineChoiceEligibilityOverriddenProgramSettingsTest
+    : public SearchEngineChoiceEligibilityTest {
+ public:
+  SearchEngineChoiceEligibilityOverriddenProgramSettingsTest() {
+    base::CommandLine::ForCurrentProcess()->RemoveSwitch(
+        switches::kSearchEngineChoiceCountry);
+  }
+
+  void SetProgram(
+      const regional_capabilities::ProgramSettings& program_settings) {
+    regional_capabilities_service().SetActiveProgramSettingsForTesting(
+        program_settings);
+  }
+
+  void SignIn(signin::Tribool can_make_choice_capability) {
+    AccountInfo account_info =
+        search_engines_test_environment_->identity_test_env()
+            .MakePrimaryAccountAvailable("test@example.com",
+                                         signin::ConsentLevel::kSignin);
+
+    AccountCapabilitiesTestMutator mutator(&account_info.capabilities);
+    switch (can_make_choice_capability) {
+      case signin::Tribool::kTrue:
+        mutator.set_can_make_chrome_search_engine_choice_screen_choice(true);
+        break;
+      case signin::Tribool::kFalse:
+        mutator.set_can_make_chrome_search_engine_choice_screen_choice(false);
+        break;
+      case signin::Tribool::kUnknown:
+        // Do nothing.
+        break;
+    }
+    search_engines_test_environment_->identity_test_env()
+        .UpdateAccountInfoForAccount(account_info);
+  }
+};
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCanBeEligible_SignedOut_Eligible) {
+  SetProgram(kSettingsManagedUsersCanBeEligible);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_SignedOut_Eligible) {
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_SignedInCapabilityUnknown_Eligible) {
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+  SignIn(/*can_make_choice_capability=*/signin::Tribool::kUnknown);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_SignedInCapabilityTrue_Eligible) {
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+  SignIn(/*can_make_choice_capability=*/signin::Tribool::kTrue);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_SignedInCapabilityFalse_NotEligible) {
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+  SignIn(/*can_make_choice_capability=*/signin::Tribool::kFalse);
+
+  EXPECT_EQ(
+      GetStaticConditions(),
+      IfSupported(SearchEngineChoiceScreenConditions::kAccountNotEligible));
+  EXPECT_EQ(
+      GetDynamicConditions(),
+      IfSupported(SearchEngineChoiceScreenConditions::kAccountNotEligible));
+}
+#endif  // BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
 
 // Specs for a multi-run test. Defines changes to on-device prefs, actions on
 // services, and expectation checks.

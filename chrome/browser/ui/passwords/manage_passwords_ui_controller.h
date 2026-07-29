@@ -154,6 +154,12 @@ class ManagePasswordsUIController
     return bubble_status_ == BubbleStatus::SHOULD_POP_UP;
   }
 
+  // Calls the bubble manager to show the bubble if bubble manager is enabled.
+  // Otherwise just shows the bubble.
+  // `user_action` indicates whether the bubble is opened via user action or
+  // automatically.
+  void QueueOrShowBubble(bool user_action);
+
   // virtual to be overridden in tests.
   virtual base::WeakPtr<PasswordsModelDelegate> GetModelDelegateProxy();
 
@@ -224,7 +230,7 @@ class ManagePasswordsUIController
 
   // BubbleControllerBase:
   void ShowBubble() override;
-  void HideBubble() override;
+  void HideBubble(bool show_next_bubble) override;
   autofill::BubbleType GetBubbleType() const override;
   bool IsShowingBubble() const override;
   bool IsMouseHovered() const override;
@@ -410,6 +416,14 @@ class ManagePasswordsUIController
 
   // Whether the mouse is currently hovering over the bubble.
   bool is_mouse_hovered_ = false;
+
+  // Indicates to the bubble manager whether to show the next bubble when the
+  // password manager bubble is hidden.
+  std::optional<bool> show_next_bubble_;
+
+  // Bool to indicate that the bubble is shown by the user gesture. This value
+  // is cached when the bubble is requested to be shown.
+  bool user_action_ = false;
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   bool was_biometric_authentication_for_filling_promo_shown_ = false;

@@ -379,11 +379,11 @@ void OmniboxViewViews::InstallPlaceholderText() {
     // If `keyword_placeholder()` is set, then the user is in a keyword mode
     // that has placeholder text, so display that.
     SetPlaceholderText(model()->keyword_placeholder());
-  } else if (model()->is_caret_visible()) {
-    // If the Omnibox is visibly focused, display the AI Mode placeholder text
-    // to suggest tabbing into AI Mode. Note, even if the AI placeholder text is
-    // installed, it will only be visible if ShouldShowAimPlaceholderText() is
-    // also true.
+  } else if (ShouldInstallAimPlaceholderText()) {
+    // If the Omnibox is visibly focused w/ AI Mode enabled, display the AI Mode
+    // placeholder text to suggest tabbing into AI Mode. Note, even if the AI
+    // placeholder text is installed, it will only be visible if
+    // ShouldShowAimPlaceholderText() is also true.
     SetPlaceholderText(
         l10n_util::GetStringUTF16(IDS_OMNIBOX_AIM_PLACEHOLDER_TEXT));
     // Override the AIM accessibility placeholder text, so that the tab icon is
@@ -468,12 +468,8 @@ void OmniboxViewViews::EnterKeywordModeForDefaultSearchProvider() {
       OmniboxEventProto::KEYBOARD_SHORTCUT);
 }
 
-void OmniboxViewViews::GetSelectionBounds(
-    std::u16string::size_type* start,
-    std::u16string::size_type* end) const {
-  const gfx::Range range = GetSelectedRange();
-  *start = static_cast<size_t>(range.start());
-  *end = static_cast<size_t>(range.end());
+gfx::Range OmniboxViewViews::GetSelectionBounds() const {
+  return GetSelectedRange();
 }
 
 void OmniboxViewViews::SelectAll(bool reversed) {
@@ -812,19 +808,18 @@ std::u16string_view OmniboxViewViews::GetSelectedText() const {
 }
 
 void OmniboxViewViews::UpdateAccessibleTextSelection() {
-  std::u16string::size_type entry_start;
-  std::u16string::size_type entry_end;
+  gfx::Range entry;
 
   if (saved_selection_for_focus_change_.IsValid()) {
-    entry_start = saved_selection_for_focus_change_.start();
-    entry_end = saved_selection_for_focus_change_.end();
+    entry = {saved_selection_for_focus_change_.start(),
+             saved_selection_for_focus_change_.end()};
   } else {
-    GetSelectionBounds(&entry_start, &entry_end);
+    entry = GetSelectionBounds();
   }
 
   GetViewAccessibility().SetTextSelStart(
-      entry_start + friendly_suggestion_text_prefix_length_);
-  GetViewAccessibility().SetTextSelEnd(entry_end +
+      entry.start() + friendly_suggestion_text_prefix_length_);
+  GetViewAccessibility().SetTextSelEnd(entry.end() +
                                        friendly_suggestion_text_prefix_length_);
 }
 
@@ -1081,8 +1076,7 @@ bool OmniboxViewViews::UnapplySteadyStateElisions(UnelisionGesture gesture) {
   }
 
   // Get the original selection bounds so we can adjust it later.
-  size_t start, end;
-  GetSelectionBounds(&start, &end);
+  gfx::Range selection = GetSelectionBounds();
 
   // Try to unelide. Early exit if there's no unelisions to perform.
   const std::u16string original_text = GetText();
@@ -1112,7 +1106,7 @@ bool OmniboxViewViews::UnapplySteadyStateElisions(UnelisionGesture gesture) {
     model()->ClassifyString(original_selected_text, &match, nullptr);
     const bool selection_classifes_as_search =
         AutocompleteMatch::IsSearchType(match.type);
-    if (start != end && gesture == UnelisionGesture::MOUSE_RELEASE &&
+    if (!selection.is_empty() && gesture == UnelisionGesture::MOUSE_RELEASE &&
         !selection_classifes_as_search) {
       // For user selections that look like a URL instead of a Search:
       // If we are uneliding at the end of a drag-select (on mouse release),
@@ -1120,15 +1114,15 @@ bool OmniboxViewViews::UnapplySteadyStateElisions(UnelisionGesture gesture) {
       // the new selection spans to the beginning of the unelided URL too.
       // i.e. google.com/maps => https://www.google.com/maps
       //      ^^^^^^^^^^         ^^^^^^^^^^^^^^^^^^^^^^
-      if (start != 0) {
-        start += offset;
+      if (selection.start() != 0) {
+        selection.set_start(selection.start() + offset);
       }
-      if (end != 0) {
-        end += offset;
+      if (selection.end() != 0) {
+        selection.set_end(selection.end() + offset);
       }
     } else {
-      start += offset;
-      end += offset;
+      selection.set_start(selection.start() + offset);
+      selection.set_end(selection.end() + offset);
     }
 
     // Since we are changing the text in the double-click event handler, we
@@ -1136,13 +1130,13 @@ bool OmniboxViewViews::UnapplySteadyStateElisions(UnelisionGesture gesture) {
     OffsetDoubleClickWord(offset);
   }
 
-  SetSelectedRange(gfx::Range(start, end));
+  SetSelectedRange(selection);
   return true;
 }
 
 void OmniboxViewViews::OnBeforePossibleChange() {
   // Record our state.
-  GetState(&state_before_change_);
+  state_before_change_ = GetState();
   ime_composing_before_change_ = IsIMEComposing();
 
   // User is editing or traversing the text, as opposed to moving
@@ -1153,8 +1147,7 @@ void OmniboxViewViews::OnBeforePossibleChange() {
 
 bool OmniboxViewViews::OnAfterPossibleChange(bool allow_keyword_ui_change) {
   // See if the text or selection have changed since OnBeforePossibleChange().
-  State new_state;
-  GetState(&new_state);
+  State new_state = GetState();
   OmniboxView::StateChanges state_changes =
       GetStateChanges(state_before_change_, new_state);
 
@@ -2011,9 +2004,7 @@ bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
         if (shift) {
           // After uneliding, we need to move the end of the selection range
           // to the beginning of the full unelided URL.
-          size_t start, end;
-          GetSelectionBounds(&start, &end);
-          SetSelectedRange(gfx::Range(start, 0));
+          SetSelectedRange(gfx::Range(GetSelectionBounds().start(), 0));
         } else {
           // After uneliding, move the caret to the beginning of the full
           // unelided URL.
@@ -2354,14 +2345,22 @@ void OmniboxViewViews::UpdatePlaceholderTextColor() {
   if (!GetColorProvider()) {
     return;
   }
+  bool dse_placeholder_installed = model()->keyword_placeholder().empty() &&
+      !ShouldInstallAimPlaceholderText();
   set_placeholder_text_color(GetColorProvider()->GetColor(
-      model()->keyword_placeholder().empty() && !model()->is_caret_visible()
-          ? kColorOmniboxText : kColorOmniboxTextDimmed));
+      dse_placeholder_installed ? kColorOmniboxText : kColorOmniboxTextDimmed));
+}
+
+bool OmniboxViewViews::ShouldInstallAimPlaceholderText() const {
+  return omnibox_feature_configs::AiModeOmniboxEntryPoint::Get().enabled &&
+         model()->is_caret_visible();
 }
 
 bool OmniboxViewViews::ShouldShowAimPlaceholderText() const {
-  // If the AIM button is not visible, the placeholder text is not shown.
-  if (!AimButtonVisible()) {
+  // If the hint text is hidden or the AIM button is not visible, the
+  // placeholder text is not shown.
+  if (omnibox_feature_configs::AiModeOmniboxEntryPoint::Get()
+          .hide_aim_hint_text || !AimButtonVisible()) {
     return false;
   }
   // The placeholder text should only be shown when the omnibox is visibly

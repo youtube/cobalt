@@ -25,6 +25,10 @@ namespace collaboration {
 class CollaborationService;
 }  // namespace collaboration
 
+namespace commerce {
+class ShoppingService;
+}  // namespace commerce
+
 namespace data_sharing {
 class DataSharingService;
 }  // namespace data_sharing
@@ -141,6 +145,11 @@ std::unique_ptr<TrustedVaultClientBackend> CreateTrustedVaultClientBackend();
 std::unique_ptr<tab_groups::TabGroupSyncService> CreateTabGroupSyncService(
     ProfileIOS* profile);
 
+// Allows overriding the ShoppingService factory. The real factory will be used
+// if this hook returns null.
+std::unique_ptr<commerce::ShoppingService> CreateShoppingService(
+    ProfileIOS* profile);
+
 // Allows additional test setup for the DataSharingService.
 void DataSharingServiceHooks(
     data_sharing::DataSharingService* data_sharing_service);
@@ -184,10 +193,6 @@ void SignalAppLaunched();
 // fast and making it flicker. Test targets do not have an artificial minimum
 // duration as it can make test flaky.
 base::TimeDelta PasswordCheckMinimumDuration();
-
-// Duration for snackbars. If the value is 0, the default value from
-// -[SnackbarMessage duration] should not be updated.
-base::TimeDelta GetOverriddenSnackbarDuration();
 
 // Returns a Drive service instance that should be used in EG tests. The real
 // instance will be used if this hook returns a nullptr.

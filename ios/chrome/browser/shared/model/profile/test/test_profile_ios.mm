@@ -36,14 +36,17 @@
 
 namespace {
 
+using PassKey = base::PassKey<TestProfileIOS>;
+
 // Assigns `testing_factories` to `profile`.
 void AssignTestingFactories(
+    PassKey pass_key,
     TestProfileIOS* profile,
     TestProfileIOS::TestingFactories testing_factories) {
   for (auto& item : testing_factories) {
     std::visit(
-        [profile](auto& p) {
-          p.first->SetTestingFactory(profile, std::move(p.second));
+        [pass_key, profile](auto& p) {
+          p.first->SetTestingFactory(pass_key, profile, std::move(p.second));
         },
         item.service_factory_and_testing_factory);
   }
@@ -53,27 +56,13 @@ void AssignTestingFactories(
 
 TestProfileIOS::TestingFactory::TestingFactory(
     ProfileKeyedServiceFactoryIOS* service_factory,
-    ProfileKeyedServiceFactoryIOS::ProfileTestingFactory testing_factory)
-    : service_factory_and_testing_factory(
-          std::make_pair(service_factory, std::move(testing_factory))) {}
-
-TestProfileIOS::TestingFactory::TestingFactory(
-    ProfileKeyedServiceFactoryIOS* service_factory,
-    ProfileKeyedServiceFactoryIOS::LegacyTestingFactory testing_factory)
+    ProfileKeyedServiceFactoryIOS::TestingFactory testing_factory)
     : service_factory_and_testing_factory(
           std::make_pair(service_factory, std::move(testing_factory))) {}
 
 TestProfileIOS::TestingFactory::TestingFactory(
     RefcountedProfileKeyedServiceFactoryIOS* service_factory,
-    RefcountedProfileKeyedServiceFactoryIOS::ProfileTestingFactory
-        testing_factory)
-    : service_factory_and_testing_factory(
-          std::make_pair(service_factory, std::move(testing_factory))) {}
-
-TestProfileIOS::TestingFactory::TestingFactory(
-    RefcountedProfileKeyedServiceFactoryIOS* service_factory,
-    RefcountedProfileKeyedServiceFactoryIOS::LegacyTestingFactory
-        testing_factory)
+    RefcountedProfileKeyedServiceFactoryIOS::TestingFactory testing_factory)
     : service_factory_and_testing_factory(
           std::make_pair(service_factory, std::move(testing_factory))) {}
 
@@ -107,7 +96,7 @@ TestProfileIOS::TestProfileIOS(const base::FilePath& state_path,
 
   ProfileDependencyManagerIOS::GetInstance()->MarkProfileLive(this);
 
-  AssignTestingFactories(this, std::move(testing_factories));
+  AssignTestingFactories(PassKey{}, this, std::move(testing_factories));
   profile_metrics::SetBrowserProfileType(
       this, profile_metrics::BrowserProfileType::kIncognito);
 
@@ -140,7 +129,7 @@ TestProfileIOS::TestProfileIOS(
 
   ProfileDependencyManagerIOS::GetInstance()->MarkProfileLive(this);
 
-  AssignTestingFactories(this, std::move(testing_factories));
+  AssignTestingFactories(PassKey{}, this, std::move(testing_factories));
   profile_metrics::SetBrowserProfileType(
       this, profile_metrics::BrowserProfileType::kRegular);
 
@@ -342,30 +331,14 @@ TestProfileIOS::Builder::~Builder() = default;
 
 TestProfileIOS::Builder& TestProfileIOS::Builder::AddTestingFactory(
     ProfileKeyedServiceFactoryIOS* service_factory,
-    ProfileKeyedServiceFactoryIOS::ProfileTestingFactory testing_factory) {
-  testing_factories_.emplace_back(service_factory, std::move(testing_factory));
-  return *this;
-}
-
-TestProfileIOS::Builder& TestProfileIOS::Builder::AddTestingFactory(
-    ProfileKeyedServiceFactoryIOS* service_factory,
-    ProfileKeyedServiceFactoryIOS::LegacyTestingFactory testing_factory) {
+    ProfileKeyedServiceFactoryIOS::TestingFactory testing_factory) {
   testing_factories_.emplace_back(service_factory, std::move(testing_factory));
   return *this;
 }
 
 TestProfileIOS::Builder& TestProfileIOS::Builder::AddTestingFactory(
     RefcountedProfileKeyedServiceFactoryIOS* service_factory,
-    RefcountedProfileKeyedServiceFactoryIOS::ProfileTestingFactory
-        testing_factory) {
-  testing_factories_.emplace_back(service_factory, std::move(testing_factory));
-  return *this;
-}
-
-TestProfileIOS::Builder& TestProfileIOS::Builder::AddTestingFactory(
-    RefcountedProfileKeyedServiceFactoryIOS* service_factory,
-    RefcountedProfileKeyedServiceFactoryIOS::LegacyTestingFactory
-        testing_factory) {
+    RefcountedProfileKeyedServiceFactoryIOS::TestingFactory testing_factory) {
   testing_factories_.emplace_back(service_factory, std::move(testing_factory));
   return *this;
 }

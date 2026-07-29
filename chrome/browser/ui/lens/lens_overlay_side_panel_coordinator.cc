@@ -70,6 +70,7 @@ namespace {
 inline constexpr char kChromeSideSearchVersionHeaderName[] =
     "X-Chrome-Side-Search-Version";
 inline constexpr char kChromeSideSearchVersionHeaderValue[] = "1";
+inline constexpr int kSidePanelPreferredDefaultWidth = 440;
 
 // Checks to see if the navigation is a same document navigation that is not in
 // the iframe. This is used to ignore navigations that are not relevant to the
@@ -453,6 +454,50 @@ void LensOverlaySidePanelCoordinator::OnAimMessage(
     const std::vector<uint8_t>& message) {
   // Pass the message to the LensComposeboxController to handle.
   GetLensComposeboxController()->OnAimMessage(message);
+}
+
+void LensOverlaySidePanelCoordinator::OnImageQueryWithEmptyText() {
+  // This flow is only triggered if at least one query was already issued.
+  if (!initialization_data_->currently_loaded_search_query_.has_value()) {
+    return;
+  }
+
+  // Copy the query but clear the text and URL.
+  auto query = initialization_data_->currently_loaded_search_query_.value();
+  query.search_query_text_ = std::string();
+  query.search_query_url_ = GURL();
+
+  // Update the selection type if it was previously a multimodal query.
+  // Otherwise leave it be.
+  if (query.lens_selection_type_ ==
+          lens::LensOverlaySelectionType::MULTIMODAL_SEARCH ||
+      query.lens_selection_type_ ==
+          lens::LensOverlaySelectionType::MULTIMODAL_SUGGEST_TYPEAHEAD ||
+      query.lens_selection_type_ ==
+          lens::LensOverlaySelectionType::MULTIMODAL_SUGGEST_ZERO_PREFIX ||
+      query.lens_selection_type_ ==
+          lens::LensOverlaySelectionType::MULTIMODAL_SELECTION_CLEAR) {
+    query.lens_selection_type_ =
+        lens::LensOverlaySelectionType::MULTIMODAL_SELECTION_CLEAR;
+  }
+
+  base::Time query_start_time = base::Time::Now();
+
+  // Clear any active selections on the page and then re-add selections for this
+  // query and update the selection, thumbnail and searchbox state.
+  GetLensOverlayController()->ClearAllSelections();
+
+  const bool query_has_image =
+      query.selected_region_ || !query.selected_region_bitmap_.drawsNothing();
+  CHECK(query_has_image);
+
+  std::optional<SkBitmap> selected_region_bitmap =
+      query.selected_region_bitmap_.drawsNothing()
+          ? std::nullopt
+          : std::make_optional<SkBitmap>(query.selected_region_bitmap_);
+  GetLensOverlayController()->IssueLensRequest(
+      query_start_time, query.selected_region_->Clone(),
+      query.lens_selection_type_, selected_region_bitmap);
 }
 
 void LensOverlaySidePanelCoordinator::OnScrollToMessage(
@@ -1100,9 +1145,7 @@ GURL LensOverlaySidePanelCoordinator::GetOpenInNewTabUrl() {
 }
 
 int LensOverlaySidePanelCoordinator::GetPreferredDefaultWidth() {
-  return lens::features::IsLensSearchSidePanelDefaultWidthChangeEnabled()
-             ? lens::features::GetLensSearchSidePanelDefaultWidth()
-             : SidePanelEntry::kSidePanelDefaultContentWidth;
+  return kSidePanelPreferredDefaultWidth;
 }
 
 base::RepeatingCallback<std::unique_ptr<ui::MenuModel>()>

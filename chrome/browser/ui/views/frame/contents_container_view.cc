@@ -84,7 +84,7 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     new_tab_footer_view_separator_ =
-        AddChildView(std::make_unique<ContentsSeparator>());
+        AddChildView(ContentsSeparator::CreateContentsSeparator());
     new_tab_footer_view_separator_->SetVisible(false);
     new_tab_footer_view_separator_->SetProperty(
         views::kElementIdentifierKey, kFooterWebViewSeparatorElementId);
@@ -212,16 +212,13 @@ void ContentsContainerView::UpdateBorderRoundedCorners() {
                    ? content_upper_rounded_corners
                    : content_rounded_corners;
 
+  contents_view_->SetBackgroundRadii(radii);
   contents_view_->holder()->SetCornerRadii(radii);
+  contents_scrim_view_->SetRoundedCorners(kContentRoundedCorners);
 
   if (new_tab_footer_view_) {
     new_tab_footer_view_->holder()->SetCornerRadii(
         content_lower_rounded_corners);
-  }
-
-  if (contents_scrim_view_->layer()->rounded_corner_radii() !=
-      kContentRoundedCorners) {
-    contents_scrim_view_->SetRoundedCorners(kContentRoundedCorners);
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -237,6 +234,7 @@ void ContentsContainerView::ClearBorderRoundedCorners() {
   devtools_web_view_->holder()->SetCornerRadii(kNoRoundedCorners);
   devtools_scrim_view_->SetRoundedCorners(kNoRoundedCorners);
 
+  contents_view_->SetBackgroundRadii(kNoRoundedCorners);
   contents_view_->holder()->SetCornerRadii(kNoRoundedCorners);
 
   if (new_tab_footer_view_) {
@@ -512,9 +510,13 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
 
   if (mini_toolbar_) {
     // |mini_toolbar_| should be offset in the bottom right corner, overlapping
-    // the outline.
+    // the outline. Shrink the available space by corner radius to ensure we
+    // have space to draw it at the corners.
+    views::SizeBounds available_space(width, height);
+    available_space.Enlarge(-ContentsContainerOutline::kCornerRadius,
+                            -ContentsContainerOutline::kCornerRadius);
     gfx::Size mini_toolbar_size =
-        mini_toolbar_->GetPreferredSize(views::SizeBounds(width, height));
+        mini_toolbar_->GetPreferredSize(available_space);
     const int offset_x = width - mini_toolbar_size.width();
     const int offset_y = height - mini_toolbar_size.height();
     const gfx::Rect mini_toolbar_rect =

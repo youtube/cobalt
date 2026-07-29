@@ -160,6 +160,7 @@
 <translation id="1087437665304381368">이 정책은 <ph name="PRODUCT_OS_NAME" /> 개발자 모드만 제어합니다. Android 개발자 옵션에 액세스하지 못하게 하려면 <ph name="DEVELOPER_TOOLS_DISABLED_POLICY_NAME" /> 정책을 설정해야 합니다.</translation>
 <translation id="1087707496788636333">Chrome Enterprise 정책 목록이 이동됩니다. 북마크를 <ph name="POLICY_DOCUMENTATION_URL" /> 페이지로 업데이트하세요.</translation>
 <translation id="1089150222292592899">SAML IdP 페이지에서 사용자 이름 자동 완성</translation>
+<translation id="1090430607214486535">중요</translation>
 <translation id="1091765729282771296">사이트에서 사용자에게 HID 기기 액세스를 요청하도록 허용</translation>
 <translation id="1095209545735032039">이 사이트에서 Serial API 차단</translation>
 <translation id="1096105751829466145">기본 검색 공급자</translation>
@@ -1549,6 +1550,7 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
 
 이 기기 정책은 기존 사용자 정책(<ph name="SECURITY_KEY_PERMIT_ATTESTATION_POLICY_NAME" />)과 동일하지만, 로그인 화면의 로그인 프로필에 대신 적용됩니다.</translation>
 <translation id="2089541797660774692">관리 브라우저 클라우드 보고 사용</translation>
+<translation id="2090280024671359587">텍스트 캡처 허용 및 AI 모델 개선</translation>
 <translation id="2090712407517297305">그룹으로 구성된 Chrome 방문 기록 페이지가 chrome://history/grouped에 표시됩니다.</translation>
 <translation id="2090939118981888335">정책을 사용 설정하면 데이터 압축 프록시가 허용됩니다. 정책을 사용 중지하면 프록시가 허용되지 않습니다.
 
@@ -3277,7 +3279,6 @@ Microsoft Outlook 카드에는 추가 관리자 구성이 필요합니다. Chrom
 <translation id="3285231260918855067">워터마크 텍스트의 윤곽선 불투명도로, 0(투명)에서 100(불투명) 사이입니다.</translation>
 <translation id="3286159327013237833">로그인 화면에서 자동 클릭 사용</translation>
 <translation id="3288595667065905535">배포 채널</translation>
-<translation id="3291940794983537008">DevTools 생성형 AI 기능 설정</translation>
 <translation id="3294430356898755483">정책을 설정하면 관리자가 사용자의 프린터 목록을 설정할 수 있습니다. 사용자가 처음 인쇄를 시도할 때 프린터를 선택하게 됩니다.
 
       정책 사용:
@@ -3408,6 +3409,7 @@ false로 설정된 경우 기존 및 신규 Crostini 컨테이너에 대한 루�
 정책을 설정하지 않으면 엄격 모드에서 상시 사용 설정 VPN이 활성화되고 VPN이 연결되지 않은 동안 브라우저 탐색이 차단됩니다.</translation>
 <translation id="3405997282295704902">사용자가 <ph name="PRODUCT_NAME" />을(를) 사용하도록 허용 안함</translation>
 <translation id="3406122462682235653">사용자에게 확인하지 않음(다운로드 즉시 시작)</translation>
+<translation id="3410534959501660670">텍스트 캡처 기능 설정</translation>
 <translation id="3411947169047929182">WebRTC 관련 구성 제어</translation>
 <translation id="341285788698114069">이 정책은 Windows에서 오디오 프로세서의 우선순위를 제어합니다.
       정책을 사용하면 오디오 프로세스가 일반적인 우선순위 이상으로 실행됩니다.
@@ -3871,11 +3873,6 @@ HTTPS용 RSA 인증서에 두 가지를 모두 포함해야 합니다.</translat
 콘텐츠 전송 앱이 제대로 작동하려면 테이크아웃을 통한 데이터 전송도 사용 설정해야 합니다. 자세한 내용은 https://support.google.com/a/answer/6364687에서 확인하세요.</translation>
 <translation id="3702518095257671450">원격 증명</translation>
 <translation id="3702647575225525306"><ph name="POLICY_NAME" />(한 줄 입력란은 지원 중단되었으며 삭제될 예정입니다. 아래의 여러 줄 입력란을 사용해 주세요.)</translation>
-<translation id="3711561721191203926">정책을 사용으로 설정하면 <ph name="PRIVATE_NETWORK_ACCESS" /> 검사에 실패하여 <ph name="DEV_TOOLS_NAME" />에 경고가 표시되어야 하는 경우 기본 요청이 대신 차단됩니다.
-
-정책을 사용 안함으로 설정하거나 설정하지 않으면 모든 <ph name="PRIVATE_NETWORK_ACCESS" /> 경고가 적용되지 않으며 요청이 차단되지 않습니다.
-
-<ph name="PRIVATE_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/private-network-access/를 참고하세요.</translation>
 <translation id="3711895659073496551">일시중지</translation>
 <translation id="3712861436661566358">프로필 분리 적용</translation>
 <translation id="3719826155360621982">홈페이지</translation>
@@ -4905,7 +4902,6 @@ false로 설정되면 확장 프로그램 및 플러그인 데이터가 수집�
 
       정책을 사용 안함으로 설정하거나 설정하지 않으면 등록된 기기에서 위치를 보고하지 않습니다.</translation>
 <translation id="4461400898496433231">IPv6 연결 가능성 확인을 재정의하지 않습니다. 기기가 전역 IPv6 호스트에 연결할 수 있을 때만 호스트 이름 변환을 위해 AAAA 레코드를 쿼리합니다.</translation>
-<translation id="4463467966408770621">DevTools 생성형 AI 기능을 허용하지 않습니다.</translation>
 <translation id="4463675333222095358">빠른 답변 단위 변환 사용 설정</translation>
 <translation id="4464365009416584564"><ph name="CHROME_SYNC_NAME" /> 사용 안함</translation>
 <translation id="4467952432486360968">제3자 쿠키 차단</translation>
@@ -6248,6 +6244,7 @@ URL 패턴 목록과 처리 유형 쌍을 받습니다. URL 패턴이 순서대�
 
 모든 처리 값에 대한 자세한 설명은 RFC 8828 섹션 5.2(https://tools.ietf.org/html/rfc8828.html#section-5.2)를 참고하세요.</translation>
 <translation id="5290940294294002042">사용자가 사용할 수 있거나 사용할 수 없는 플러그인 목록 지정</translation>
+<translation id="5292069729218406524">AI 모델 개선 없이 텍스트 캡처 허용</translation>
 <translation id="5293285950307241933">모든 로컬 사용자 데이터 삭제</translation>
 <translation id="5293619885162445352"><ph name="PEPPER_NAME" />에서 새 동영상 디코더를 사용하도록 허용합니다.</translation>
 <translation id="529457411593078576">첫 실행 중 CCT에 서비스 약관 사용 설정</translation>
@@ -7943,23 +7940,6 @@ Origin-Agent-Cluster: 헤더가 설정되지 않았을 때 M111의 기본값은 
 <translation id="6383774771168138899"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> 및 <ph name="MICROSOFT_365_NAME" />의 <ph name="CLOUD_UPLOAD_NAME" /> 흐름 구성</translation>
 <translation id="6384542789059421431">브라우저 측면 패널에 기본 검색엔진 결과 페이지 표시를 사용 설정합니다.</translation>
 <translation id="6389240462871677239">분리형 웹 앱 출처에서 제어된 프레임을 사용하도록 허용</translation>
-<translation id="6390338862225976270"><ph name="PRODUCT_NAME" />의 DevTools에 있는 이러한 기능은 생성형 AI 모델을 사용하여 추가 디버깅 정보를 제공합니다. 이러한 기능을 사용하려면 <ph name="PRODUCT_NAME" />에서 오류 메시지, 스택 트레이스, 코드 스니펫, 네트워크 요청과 같은 데이터를 수집하고 생성형 AI 모델을 실행하는 Google 소유의 서버로 이를 전송해야 합니다. 네트워크 요청의 응답 본문 또는 인증 및 쿠키 헤더는 서버로 전송되는 데이터에 포함되지 않습니다.
-
-0 = 이 기능을 사용하도록 허용하면서 Google에서 관련 데이터를 사용하여 AI 모델을 개선하도록 허용합니다. 관련 데이터에는 기능에 따라 프롬프트나 입력, 출력, 소스 자료, 서면 의견이 포함될 수 있습니다. AI 모델을 개선하기 위해 사람이 데이터를 검토할 수도 있습니다. 아래에 명시된 경우를 제외하고 0이 기본값입니다.
-
-1 = 기능을 사용하도록 허용하되 Google에서 사용자 콘텐츠(프롬프트, 입력, 출력, 소스 자료, 서면 의견 등)를 사용하여 모델을 개선하도록 허용하지 않습니다. 1은 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />에서 관리되는 기업 사용자 및 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />에서 관리되는 Education 계정의 기본값입니다.
-
-2 = 기능을 허용하지 않습니다.
-
-정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
-
-DevTools 생성형 AI 기능에는 다음이 포함됩니다.
-
-- 콘솔 통계: 콘솔 메시지를 설명하고, 콘솔 오류를 해결할 방법을 제안합니다.
-
-- AI 어시스턴스: CSS 스타일(버전 131 이상), 네트워크 요청, 성능, 파일(모두 버전 132 이상)을 이해하는 데 도움을 받습니다.
-
-생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="6394350458541421998">이 정책은 <ph name="PRODUCT_OS_NAME" /> 버전 29를 기준으로 지원 중단되었습니다. 대신 PresentationScreenDimDelayScale 정책을 사용해 주시기 바랍니다.</translation>
 <translation id="6397588391180665797">등록된 기기에서 사용자 네트워크 구성을 보고합니다.
 
@@ -8491,11 +8471,6 @@ false로 설정되면 Crostini 컨테이너로 포트 전달이 사용 중지됩
 
 <ph name="PRODUCT_NAME" />의 경우 정책은 기기가 <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" />으로 등록되어 있을 때만 적용됩니다.
 <ph name="PRODUCT_OS_NAME" />의 경우 정책이 항상 적용됩니다.</translation>
-<translation id="6720071484598746942">정책을 사용 설정하면 <ph name="LOCAL_NETWORK_ACCCESS" /> 검사에 실패하여 <ph name="DEV_TOOLS_NAME" />에 경고가 표시되어야 하는 경우 기본 요청이 대신 차단됩니다.
-
-정책을 사용 중지하거나 설정하지 않으면 <ph name="LOCAL_NETWORK_ACCESS" /> 요청에서 이러한 요청의 기본 처리를 사용합니다.
-
-<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 링크(https://wicg.github.io/local-network-access/)를 참고하세요.</translation>
 <translation id="6720330829631914048">하루가 시작된 이후 경과한 시간(24시간 형식)입니다.</translation>
 <translation id="6721252203593581486">타사 컨텍스트에서 WebSQL(예: 크로스 사이트 iframe)은 M97부터 기본적으로 사용 중지되며 M101에서 완전히 삭제됩니다.
           정책을 False로 설정하거나 설정하지 않으면 타사 컨텍스트에서 WebSQL이 사용 중지된 상태로 유지됩니다.
@@ -9857,6 +9832,7 @@ Kyber 제공 서비스는 이전 버전과 호환됩니다. 기존 TLS 서버 �
 <translation id="7713608076604149344">다운로드 제한</translation>
 <translation id="7713845740295404764">로그인/로그아웃 이벤트 보고</translation>
 <translation id="7715711044277116530">프레젠테이션 모드에서 화면 어둡게 하기 지연 시간이 조정되는 비율</translation>
+<translation id="7715838249298819250">텍스트 캡처 허용 안 함</translation>
 <translation id="7716020145539921591">이 정책은 지원 중단되었으므로 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책을 대신 사용하세요.
 
        정책을 설정하면 프록시 서버의 URL을 지정할 수 있습니다. 이 정책은 <ph name="PROXY_SETTINGS_POLICY_NAME" /> 정책을 지정하지 않고 <ph name="PROXY_MODE_POLICY_NAME" />에 <ph name="PROXY_MODE_ENUM_FIXED_SERVERS" /> 값을 선택한 경우에만 적용됩니다.
@@ -10549,6 +10525,17 @@ False로 설정하면 로그인 화면이 표시될 때 개인 정보 보호 화
 
       이 정책은 일반 사용자 계정에서는 무시됩니다.</translation>
 <translation id="8257863622304579015">네트워크 서비스 샌드박스 사용 설정</translation>
+<translation id="825834906982940588">이 정책은 <ph name="PRODUCT_OS_NAME" />의 텍스트 캡처 기능 설정을 제어합니다.
+
+0 = 이 기능을 사용하도록 허용하면서 Google에서 관련 데이터를 사용하여 AI 모델을 개선하도록 허용합니다. 관련 데이터에는 기능에 따라 프롬프트나 입력, 출력, 소스 자료, 서면 의견이 포함될 수 있습니다. AI 모델을 개선하기 위해 사람이 데이터를 검토할 수도 있습니다. 아래에 명시된 경우를 제외하고 0이 기본값입니다.
+
+1 = 기능을 사용하도록 허용하되 Google에서 사용자 콘텐츠(프롬프트, 입력, 출력, 소스 자료, 서면 의견 등)를 사용하여 모델을 개선하도록 허용하지 않습니다. 1은 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />에서 관리되는 기업 사용자 및 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />에서 관리되는 Education 계정의 기본값입니다.
+
+2 = 기능을 허용하지 않습니다.
+
+정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
+
+생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="8259375588339409826">Chromium과 Chrome은 같은 정책 조합을 지원합니다. 이 문서는 고지 없이 변경되거나 삭제될 수 있는 출시되지 않은 정책(즉, '지원' 항목은 아직 출시되지 않은 <ph name="PRODUCT_NAME" /> 버전을 가리킴)을 포함할 수 있으며, 보안 및 개인 정보 보호 속성에 관한 보장을 포함한 그 어떤 보장도 제공되지 않습니다.
 
 이 정책은 조직 내부용 <ph name="PRODUCT_NAME" />의 인스턴스를 설정할 때 사용하기 위한 것입니다. 조직 외부에서(예: 공개 배포 프로그램) 이러한 정책을 사용하면 멀웨어로 간주되어 Google 및 바이러스 백신 공급업체에 의해 멀웨어로 지정될 수 있습니다.
@@ -11187,7 +11174,6 @@ false로 설정되면 정책 데이터 및 정책을 가져오는 시간이 수�
       참고: 다음 페이지에서 사용 가능한 변수를 확인하세요. https://www.chromium.org/administrators/policy-list-3/user-data-directory-variables</translation>
 <translation id="8657543427358173663">Google 서비스에서 WebRTC 이벤트 로그 수집 허용</translation>
 <translation id="8659843732895043951">사이트에서 클립보드 허용</translation>
-<translation id="8660214745436301739">DevTools 생성형 AI 기능을 허용하고 AI 모델을 개선합니다.</translation>
 <translation id="8661297125441579970">데이터 이전 및 ARC를 허용하지 않습니다.</translation>
 <translation id="8661538142776716004">사이트 설정 삭제</translation>
 <translation id="8661980316738569557">고대비 사용 설정</translation>
@@ -11989,7 +11975,6 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />와 충돌�
       정책을 <ph name="ASSISTANT_ONBOARDING_MODE_EDUCATION" /> 값으로 설정하면 어시스턴트 온보딩 환경의 EDU 모드가 사용됩니다.</translation>
 <translation id="9191821120522935133">표시되지 않는 교차 출처 iframe 제한 허용</translation>
 <translation id="9192220384862917760">원격 액세스 호스트 차단을 사용 설정</translation>
-<translation id="9194693367692364911">AI 모델을 개선하지 않고 DevTools 생성형 AI 기능을 허용합니다.</translation>
 <translation id="9195766455191826480">보안 상태 보고 안함</translation>
 <translation id="9197238499850071076">기기가 이미 이후 버전을 실행하는 경우 기기를 <ph name="DEVICE_TARGET_VERSION_PREFIX_POLICY_NAME" />에 설정된 버전으로 롤백할지 지정합니다.
 

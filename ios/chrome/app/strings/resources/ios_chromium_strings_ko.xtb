@@ -4,7 +4,6 @@
 <translation id="1000436330784933699">여기에서 렌즈를 열 수 있습니다.</translation>
 <translation id="1042296835509784301">Chromium에서 비밀번호 관리자를 엽니다.</translation>
 <translation id="1047130070405668746">Chromium을 선택합니다.</translation>
-<translation id="1086486568852410168">Google 렌즈로 검색</translation>
 <translation id="1091252999271033193">Chromium에서 모바일 사이트를 매번 요청함을 의미합니다</translation>
 <translation id="1115463765356382667">아래의 추천 작업을 완료하여 Chromium을 최대한 활용합니다.</translation>
 <translation id="1185134272377778587">Chromium 정보</translation>
@@ -43,6 +42,7 @@
 <ph name="BEGIN_LINK" />자세히 알아보기<ph name="END_LINK" /></translation>
 <translation id="1847960401032164406">Chromium의 지도</translation>
 <translation id="1867772173333403444">4. Chromium을 선택합니다.</translation>
+<translation id="1965068424387304464">Chromium 도움말: 비밀번호 저장</translation>
 <translation id="2006345422933397527">Chromium에서 업데이트를 확인할 수 없습니다. 인터넷 연결 상태를 확인해 보세요.</translation>
 <translation id="2042889939382983733">Chromium 방문 기록 보기</translation>
 <translation id="2052320862053429062">Chromium에서는 온라인에 게시된 비밀번호 목록에 사용자의 비밀번호가 포함되어 있는지를 주기적으로 확인합니다. 이렇게 하면 비밀번호 및 사용자 이름이 암호화되어 Google을 포함해 누구도 읽을 수 없습니다.</translation>
@@ -119,6 +119,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="3816686541346279443">Chromium에서 비밀번호 저장을 제안합니다.</translation>
 <translation id="3827545470516145620">이 기기에 표준 보안 보호 조치가 적용되고 있습니다.</translation>
 <translation id="3833326979834193417">Chromium은 매일 자동으로 안전 확인을 실행하여 정보 유출 및 안전하지 않은 웹사이트 등으로부터 사용자를 보호합니다. 설정에서 안전 확인에 관해 자세히 알아볼 수 있습니다.</translation>
+<translation id="3837584850181228767">Chromium 도움말: 향상된 세이프 브라우징</translation>
 <translation id="3845223911364528001">파일을 업로드하려면 Chromium으로 돌아가세요.</translation>
 <translation id="3855938650519180865">Chromium의 새로운 기능</translation>
 <translation id="3886689467633467988">이 사이트 및 Chromium에 로그인하여 모든 기기에서 북마크 등을 사용하세요.</translation>

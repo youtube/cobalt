@@ -1663,6 +1663,13 @@ TEST_F(AuthenticatorRequestDialogControllerTest,
 // are split.
 TEST_F(AuthenticatorRequestDialogControllerTest,
        BleAdapterNeedsActionSplitsUsbAndQrSheets) {
+#if BUILDFLAG(IS_WIN)
+  device::FakeWinWebAuthnApi fake_win_webauthn_api;
+  device::WinWebAuthnApi::ScopedOverride win_webauthn_api_override(
+      &fake_win_webauthn_api);
+  fake_win_webauthn_api.set_version(4);
+#endif  // BUILDFLAG(IS_WIN)
+
   for (BleStatus ble_status :
        {BleStatus::kPendingPermissionRequest, BleStatus::kPermissionDenied,
         BleStatus::kOff, BleStatus::kOn}) {

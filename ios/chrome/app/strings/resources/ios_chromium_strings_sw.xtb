@@ -4,7 +4,6 @@
 <translation id="1000436330784933699">Unaweza kufungua Lenzi hapa.</translation>
 <translation id="1042296835509784301">Hufungua Kidhibiti cha Manenosiri kwenye Chromium.</translation>
 <translation id="1047130070405668746">Chagua Chromium</translation>
-<translation id="1086486568852410168">Tafuta ukitumia Lenzi ya Google</translation>
 <translation id="1091252999271033193">Hii inamaanisha kwamba Chromium itahitaji tovuti ya kifaa cha mkononi kila wakati.</translation>
 <translation id="1115463765356382667">Kamilisha vitendo hivi vilivyopendekezwa hapa chini ili unufaike zaidi na Chromium.</translation>
 <translation id="1185134272377778587">Kuhusu Chromium</translation>
@@ -43,6 +42,7 @@
 <ph name="BEGIN_LINK" />Pata maelezo zaidi<ph name="END_LINK" /></translation>
 <translation id="1847960401032164406">Ramani katika Chromium</translation>
 <translation id="1867772173333403444">4. Chagua Chromium</translation>
+<translation id="1965068424387304464">Kidokezo cha Chromium: Hifadhi Manenosiri</translation>
 <translation id="2006345422933397527">Chromium imeshindwa kukagua kama kuna masasisho. Jaribu kuangalia muunganisho wako wa Intaneti.</translation>
 <translation id="2042889939382983733">Kuangalia Historia Yako ya Chromium</translation>
 <translation id="2052320862053429062">Chromium hukagua mara kwa mara manenosiri yako ikilinganisha na orodha ambazo zimechapishwa mtandaoni. Wakati inafanya hivyo, manenosiri na majina yako ya mtumiaji huwa yamesimbwa kwa njia fiche, kwa hivyo hayawezi kusomwa na mtu mwingine, ikiwemo Google.</translation>
@@ -119,6 +119,7 @@ Jaribu kusubiri dakika chache kabla ya kubadilisha akaunti. Ukibadilisha akaunti
 <translation id="3816686541346279443">Chromium itakuomba kuhifadhi nenosiri lako.</translation>
 <translation id="3827545470516145620">Unapata ulinzi wa kawaida kwenye kifaa hiki</translation>
 <translation id="3833326979834193417">Chromium hutekeleza kiotomatiki Ukaguzi wa Usalama kila siku ili kukulinda dhidi ya ufichuzi haramu wa data, tovuti zisizo salama na mengine. Unaweza kupata maelezo zaidi kuhusu Ukaguzi wa Usalama kwenye Mipangilio.</translation>
+<translation id="3837584850181228767">Kidokezo cha Chromium: Kipengele cha Kuvinjari Salama Kilichoboreshwa</translation>
 <translation id="3845223911364528001">Rudi kwenye Chromium ili upakie faili yako</translation>
 <translation id="3855938650519180865">Mapya katika Chromium</translation>
 <translation id="3886689467633467988">Ingia katika tovuti hii na Chromium ili upate alamisho zako na zaidi kwenye vifaa vyako vyote.</translation>

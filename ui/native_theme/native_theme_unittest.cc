@@ -29,7 +29,7 @@ class TestNativeTheme : public NativeTheme {
   // NativeTheme:
   gfx::Size GetPartSize(Part part,
                         State state,
-                        const ExtraParams& extra) const override {
+                        const ExtraParams& extra_params) const override {
     return gfx::Size();
   }
   void Paint(cc::PaintCanvas* canvas,
@@ -37,10 +37,11 @@ class TestNativeTheme : public NativeTheme {
              Part part,
              State state,
              const gfx::Rect& rect,
-             const ExtraParams& extra,
-             ColorScheme color_scheme,
-             bool in_forced_colors,
-             const std::optional<SkColor>& accent_color) const override {}
+             const ExtraParams& extra_params,
+             bool forced_colors,
+             PreferredColorScheme color_scheme,
+             PreferredContrast contrast,
+             std::optional<SkColor> accent_color) const override {}
   bool SupportsNinePatch(Part part) const override { return false; }
   gfx::Size GetNinePatchCanvasSize(Part part) const override {
     return gfx::Size();
@@ -101,18 +102,14 @@ TEST(NativeThemeTest, TestColorProviderKeyForcedColors) {
   EXPECT_EQ(theme.GetForcedColorsKey(), ColorProviderKey::ForcedColors::kNone);
 }
 
-TEST(NativeThemeTest, TestCaretBlinkInterval) {
-  TestNativeTheme theme;
+TEST(NativeThemeTest, CaretBlinkInterval) {
+  auto* const native_theme = NativeTheme::GetInstanceForNativeUi();
+  static constexpr auto kNewInterval = base::Milliseconds(42);
+  native_theme->set_caret_blink_interval(kNewInterval);
+  EXPECT_EQ(native_theme->caret_blink_interval(), kNewInterval);
 
-  EXPECT_EQ(base::Milliseconds(500), theme.GetCaretBlinkInterval());
-
-  base::TimeDelta new_interval = base::Milliseconds(42);
-  theme.set_caret_blink_interval(new_interval);
-  EXPECT_EQ(new_interval, theme.GetCaretBlinkInterval());
-
-  new_interval = base::Milliseconds(0);
-  theme.set_caret_blink_interval(new_interval);
-  EXPECT_EQ(new_interval, theme.GetCaretBlinkInterval());
+  native_theme->set_caret_blink_interval(base::TimeDelta());
+  EXPECT_EQ(native_theme->caret_blink_interval(), base::TimeDelta());
 }
 
 }  // namespace ui

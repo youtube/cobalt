@@ -13,16 +13,28 @@
 namespace blink {
 
 class ExceptionState;
+class V8XREye;
 class WebGLRenderingContextBase;
 class WebGLTexture;
 class XRCamera;
+class XRCompositionLayer;
+class XRCylinderLayer;
+class XRCylinderLayerInit;
+class XREquirectLayer;
+class XREquirectLayerInit;
+class XRFrame;
+class XRLayerInit;
 class XRLightProbe;
 class XRSession;
 class XRView;
 class XRWebGLDepthInformation;
 class XRProjectionLayer;
 class XRProjectionLayerInit;
+class XRQuadLayer;
+class XRQuadLayerInit;
+class V8XRTextureType;
 class XRWebGLSubImage;
+class XRWebGLSwapChain;
 
 class XRWebGLBinding final : public ScriptWrappable, public XRGraphicsBinding {
   DEFINE_WRAPPERTYPEINFO();
@@ -40,9 +52,23 @@ class XRWebGLBinding final : public ScriptWrappable, public XRGraphicsBinding {
   XRProjectionLayer* createProjectionLayer(const XRProjectionLayerInit* init,
                                            ExceptionState& exception_state);
 
+  XRQuadLayer* createQuadLayer(const XRQuadLayerInit* init,
+                               ExceptionState& exception_state);
+
+  XREquirectLayer* createEquirectLayer(const XREquirectLayerInit* init,
+                                       ExceptionState& exception_state);
+
+  XRCylinderLayer* createCylinderLayer(const XRCylinderLayerInit* init,
+                                       ExceptionState& exception_state);
+
   XRWebGLSubImage* getViewSubImage(XRProjectionLayer* layer,
                                    XRView* view,
                                    ExceptionState& exception_state);
+
+  XRWebGLSubImage* getSubImage(XRCompositionLayer* layer,
+                               XRFrame* frame,
+                               V8XREye eye,
+                               ExceptionState& exception_state);
 
   WebGLTexture* getReflectionCubeMap(XRLightProbe*, ExceptionState&);
 
@@ -60,16 +86,22 @@ class XRWebGLBinding final : public ScriptWrappable, public XRGraphicsBinding {
   void Trace(Visitor*) const override;
 
  private:
-  bool CanCreateLayer(ExceptionState& exception_state);
+  bool ValidateSessionAndContext(ExceptionState&);
   bool ValidateLayerColorFormat(GLenum color_format,
                                 ExceptionState& exception_state);
   bool ValidateLayerDepthStencilFormat(GLenum depth_stencil_format,
                                        ExceptionState& exception_state);
+  bool CanCreateShapedLayer(const XRLayerInit*, ExceptionState&);
+  bool ValidateShapedLayerTextureType(const V8XRTextureType, ExceptionState&);
+  bool ValidateShapedLayerData(const XRLayerInit*, ExceptionState&);
   GLenum FormatForLayerFormat(GLenum format);
   GLenum InternalFormatForLayerFormat(GLenum format);
   GLenum TypeForLayerFormat(GLenum format);
 
+  XRWebGLSwapChain* GetSwapchainForLayer(XRCompositionLayer* layer);
+
   Member<WebGLRenderingContextBase> webgl_context_;
+
   bool webgl2_;
 };
 

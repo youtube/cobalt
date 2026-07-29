@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#define TODO_BASE_FEATURE_MACROS_NEED_MIGRATION
-
 #include "content/browser/media/capture/native_screen_capture_picker_mac.h"
 
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
@@ -13,11 +11,20 @@
 
 #include "base/features.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/task/bind_post_task.h"
 #include "base/timer/timer.h"
 #include "content/browser/media/capture/native_screen_capture_picker.h"
 #include "content/browser/media/capture/screen_capture_kit_device_mac.h"
 #include "content/public/browser/desktop_media_id.h"
 #include "media/capture/video/video_capture_device.h"
+
+// Enables the allowsChangingSelectedContent property on the native macOS
+// picker (SCContentSharingPicker). This allows users to select a new window or
+// screen to share without restarting the stream and enables the capture to
+// follow an app into its fullscreen presentation mode.
+// TODO(crbug.com/409475502): Remove this feature once it has been rolled out to
+// stable for a few milestones.
+BASE_FEATURE(kAllowChangingSelectedContent, base::FEATURE_DISABLED_BY_DEFAULT);
 
 using Source = webrtc::DesktopCapturer::Source;
 using PickerCallback = base::OnceCallback<void(Source)>;
@@ -67,12 +74,14 @@ void API_AVAILABLE(macos(14.0))
 
 API_AVAILABLE(macos(14.0))
 @interface PickerObserver : NSObject <SCContentSharingPickerObserver>
-- (instancetype)initWithPickerCallback:(PickerCallback)pickerCallback
-                        cancelCallback:(PickerCancelCallback)cancelCallback
-                         errorCallback:(PickerErrorCallback)errorCallback
-                        assignSourceId:(int)assignedSourceId
-                                  type:(content::DesktopMediaID::Type)type;
-@property(strong, readonly) SCContentFilter* contentFilter;
+- (void)updateWithPickerCallback:(PickerCallback)pickerCallback
+                  cancelCallback:(PickerCancelCallback)cancelCallback
+                   errorCallback:(PickerErrorCallback)errorCallback
+                  assignSourceId:(int)assignedSourceId
+                            type:(content::DesktopMediaID::Type)type;
+@property(strong, readonly)
+    NSMutableDictionary<NSNumber*, SCContentFilter*>* contentFilters;
+@property(strong) NSMapTable<SCStream*, NSNumber*>* streamToIdMapping;
 @end
 
 @implementation PickerObserver {
@@ -81,51 +90,79 @@ API_AVAILABLE(macos(14.0))
   PickerErrorCallback _errorCallback;
   int _assignedSourceId;
   content::DesktopMediaID::Type _type;
-  bool _receivedFirstResponse;
+  std::unordered_set<int> _receivedFirstResponse;
+  SEQUENCE_CHECKER(_sequenceChecker);
 }
 
-@synthesize contentFilter;
+@synthesize contentFilters;
+@synthesize streamToIdMapping;
 
-- (instancetype)initWithPickerCallback:(PickerCallback)pickerCallback
-                        cancelCallback:(PickerCancelCallback)cancelCallback
-                         errorCallback:(PickerErrorCallback)errorCallback
-                        assignSourceId:(int)assignedSourceId
-                                  type:(content::DesktopMediaID::Type)type {
-  if (self = [super init]) {
-    _pickerCallback = std::move(pickerCallback);
-    _cancelCallback = std::move(cancelCallback);
-    _errorCallback = std::move(errorCallback);
-    _assignedSourceId = assignedSourceId;
-    _type = type;
-    _receivedFirstResponse = false;
+- (instancetype)init {
+  if ((self = [super init])) {
+    contentFilters = [[NSMutableDictionary alloc] init];
+    streamToIdMapping = [NSMapTable strongToStrongObjectsMapTable];
   }
   return self;
+}
+
+- (void)updateWithPickerCallback:(PickerCallback)pickerCallback
+                  cancelCallback:(PickerCancelCallback)cancelCallback
+                   errorCallback:(PickerErrorCallback)errorCallback
+                  assignSourceId:(int)assignedSourceId
+                            type:(content::DesktopMediaID::Type)type {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  _pickerCallback = std::move(pickerCallback);
+  _cancelCallback = std::move(cancelCallback);
+  _errorCallback = std::move(errorCallback);
+  _assignedSourceId = assignedSourceId;
+  _type = type;
 }
 
 - (void)contentSharingPicker:(SCContentSharingPicker*)picker
          didUpdateWithFilter:(SCContentFilter*)filter
                    forStream:(SCStream*)stream {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  if (stream) {
+    if (NSNumber* sourceId = [streamToIdMapping objectForKey:stream]) {
+      contentFilters[sourceId] = filter;
+      VLOG(1) << "NSCPM::contentSharingPicker:didUpdateWithFilter: "
+                 "stream found in streamToIdMapping for sourceId "
+              << [sourceId intValue];
+    } else {
+      VLOG(1) << "NSCPM::contentSharingPicker:didUpdateWithFilter: "
+                 "stream not found in streamToIdMapping";
+    }
+    return;
+  }
+  if (!_pickerCallback) {
+    VLOG(1) << "NSCPM::contentSharingPicker:didUpdateWithFilter: "
+               "_pickerCallback is null for source_id = "
+            << _assignedSourceId;
+    return;
+  }
   VLOG(1) << "NSCPM::contentSharingPicker:didUpdateWithFilter: source_id = "
           << _assignedSourceId;
-  if (!_receivedFirstResponse) {
-    _receivedFirstResponse = true;
+  if (!_receivedFirstResponse.contains(_assignedSourceId)) {
+    _receivedFirstResponse.insert(_assignedSourceId);
     LogUpdateToUma(_type);
   }
-  contentFilter = filter;
+  contentFilters[@(_assignedSourceId)] = filter;
 
   Source source;
   source.id = _assignedSourceId;
-  if (_pickerCallback) {
-    std::move(_pickerCallback).Run(source);
-  }
+  std::move(_pickerCallback).Run(source);
 }
 
+// TODO(https://crbug.com/409475502): Handle `didCancelForStream` when it can be
+// called multiple times for a capture session when we will add support for
+// changing selected content.
 - (void)contentSharingPicker:(SCContentSharingPicker*)picker
           didCancelForStream:(SCStream*)stream {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   VLOG(1) << "NSCPM:contentSharingPicker:didCancelForStream: source_id = "
           << _assignedSourceId;
-  if (!_receivedFirstResponse) {
-    _receivedFirstResponse = true;
+  if (!_receivedFirstResponse.contains(_assignedSourceId)) {
+    _receivedFirstResponse.insert(_assignedSourceId);
     LogCancelToUma(_type);
   }
   if (_cancelCallback) {
@@ -134,12 +171,13 @@ API_AVAILABLE(macos(14.0))
 }
 
 - (void)contentSharingPickerStartDidFailWithError:(NSError*)error {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   VLOG(1) << "NSCPM::contentSharingPickerStartDidFailWithError: source_id = "
           << _assignedSourceId << ", code = " << [error code]
           << ", domain = " << [error domain]
           << ", description = " << [error localizedDescription];
-  if (!_receivedFirstResponse) {
-    _receivedFirstResponse = true;
+  if (!_receivedFirstResponse.contains(_assignedSourceId)) {
+    _receivedFirstResponse.insert(_assignedSourceId);
     LogErrorToUma(_type);
   }
   if (_errorCallback) {
@@ -152,8 +190,7 @@ namespace content {
 
 // When enabled, this allows you to change the maximum number of streams you can
 // share with the native picker to kMaxContentShareCountValue.
-BASE_FEATURE(MaxContentShareCount,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kMaxContentShareCount, base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int> kMaxContentShareCountValue = {
     &kMaxContentShareCount, "max_content_share_count", 50};
 
@@ -178,11 +215,19 @@ class API_AVAILABLE(macos(14.0)) NativeScreenCapturePickerMac
   void ScheduleCleanup(DesktopMediaID::Id id);
   void CleanupContentFilter(DesktopMediaID::Id id);
 
-  NSMutableDictionary<NSNumber*, PickerObserver*>* __strong picker_observers_;
-  // Cached content filters are needed so that a stream can be restarted without
-  // having to show the native picker again.
-  NSMutableDictionary<NSNumber*, SCContentFilter*>* __strong
-      cached_content_filters_;
+  // Callback called by `ScreenCaptureKitDeviceMac` on creating a new stream.
+  void UpdateStreamMap(DesktopMediaID::Id id, SCStream* stream);
+
+  // `active_source_ids_` keeps a track of the number of active capture
+  // sessions.
+  NSMutableSet<NSNumber*>* __strong active_source_ids_;
+
+  // There is only one picker observer which is assigned new callbacks and a new
+  // source id with a new getDisplayMedia request. Since while making a
+  // selection of the capture surface the rest of the UI becomes
+  // non-interactive, it is ensured that the callbacks are called for the right
+  // selection.
+  PickerObserver* __strong picker_observer_;
   std::unordered_map<DesktopMediaID::Id, base::OneShotTimer>
       cached_content_filters_cleanup_timers_;
   DesktopMediaID::Id next_id_ = 0;
@@ -191,8 +236,7 @@ class API_AVAILABLE(macos(14.0)) NativeScreenCapturePickerMac
 };
 
 NativeScreenCapturePickerMac::NativeScreenCapturePickerMac()
-    : picker_observers_([[NSMutableDictionary alloc] init]),
-      cached_content_filters_([[NSMutableDictionary alloc] init]) {
+    : active_source_ids_([[NSMutableSet alloc] init]) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
 }
 
@@ -211,23 +255,25 @@ void NativeScreenCapturePickerMac::Open(
         type == DesktopMediaID::Type::TYPE_WINDOW);
   if (@available(macOS 14.0, *)) {
     NSNumber* source_id = @(next_id_);
-    PickerObserver* picker_observer = [[PickerObserver alloc]
-        initWithPickerCallback:std::move(picker_callback)
-                cancelCallback:std::move(cancel_callback)
-                 errorCallback:std::move(error_callback)
-                assignSourceId:next_id_
-                          type:type];
-    picker_observers_[source_id] = picker_observer;
+    SCContentSharingPicker* picker = [SCContentSharingPicker sharedPicker];
+    if (!picker_observer_) {
+      picker_observer_ = [[PickerObserver alloc] init];
+      [picker addObserver:picker_observer_];
+    }
+    [picker_observer_ updateWithPickerCallback:std::move(picker_callback)
+                                cancelCallback:std::move(cancel_callback)
+                                 errorCallback:std::move(error_callback)
+                                assignSourceId:next_id_
+                                          type:type];
     std::move(created_callback).Run(next_id_);
     ++next_id_;
-    SCContentSharingPicker* picker = [SCContentSharingPicker sharedPicker];
-    [picker addObserver:picker_observer];
     picker.active = true;
     SCContentSharingPickerConfiguration* config = [picker defaultConfiguration];
-    // TODO(https://crbug.com/360781940): Add support for changing selected
-    // content. The problem to solve is how this should interact with stream
-    // restart.
-    config.allowsChangingSelectedContent = false;
+    if (base::FeatureList::IsEnabled(kAllowChangingSelectedContent)) {
+      config.allowsChangingSelectedContent = true;
+    } else {
+      config.allowsChangingSelectedContent = false;
+    }
     NSNumber* max_stream_count = @(kMaxContentShareCountValue.Get());
     if (type == DesktopMediaID::Type::TYPE_SCREEN) {
       config.allowedPickerModes = SCContentSharingPickerModeSingleDisplay;
@@ -251,27 +297,32 @@ void NativeScreenCapturePickerMac::Open(
   }
 }
 
+void NativeScreenCapturePickerMac::UpdateStreamMap(DesktopMediaID::Id id,
+                                                   SCStream* stream) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (@available(macOS 14.0, *)) {
+    if (!stream) {
+      return;
+    }
+
+    [[picker_observer_ streamToIdMapping] setObject:@(id) forKey:stream];
+
+    VLOG(1) << "NSCPM: UpdateStreamMap for source_id = " << id;
+  } else {
+    NOTREACHED();
+  }
+}
+
 void NativeScreenCapturePickerMac::Close(DesktopMediaID device_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (@available(macOS 14.0, *)) {
     ScheduleCleanup(device_id.id);
-    NSNumber* source_id = @(device_id.id);
-    PickerObserver* picker_observer = picker_observers_[source_id];
-    if (!picker_observer) {
-      VLOG(1) << "NSCPM: Closing source_id = " << device_id.id
-              << ", picker_observer = null";
-      return;
+    [active_source_ids_ removeObject:@(device_id.id)];
+    // Don't deactivate the picker if there are any active capture sessions.
+    if ([active_source_ids_ count] == 0) {
+      SCContentSharingPicker* picker = [SCContentSharingPicker sharedPicker];
+      picker.active = false;
     }
-    [picker_observers_ removeObjectForKey:source_id];
-    SCContentSharingPicker* picker = [SCContentSharingPicker sharedPicker];
-    [picker removeObserver:picker_observer];
-    // Don't deactivate the picker if there are any active picker observers.
-    if ([picker_observers_ count] > 0) {
-      VLOG(1) << "NSCPM: Closing source_id = " << device_id.id
-              << ", picker_observers_.count = " << [picker_observers_ count];
-      return;
-    }
-    picker.active = false;
     VLOG(1) << "NSCPM: Closing source_id = " << device_id.id;
   } else {
     NOTREACHED();
@@ -284,18 +335,17 @@ NativeScreenCapturePickerMac::CreateDevice(const DesktopMediaID& source) {
 
   cached_content_filters_cleanup_timers_.erase(source.id);
   NSNumber* source_id = @(source.id);
-  SCContentFilter* filter = cached_content_filters_[source_id];
-  if (!filter) {
-    PickerObserver* picker_observer = picker_observers_[source_id];
-    filter = [picker_observer contentFilter];
-    cached_content_filters_[source_id] = filter;
-  }
-
+  [active_source_ids_ addObject:source_id];
+  SCContentSharingPicker* picker = [SCContentSharingPicker sharedPicker];
+  picker.active = true;
   VLOG(1) << "NSCPM: CreateDevice: source_id = " << source.id
-          << ", cached_content_filters_.count = " <<
-      [cached_content_filters_ count];
-
-  return CreateScreenCaptureKitDeviceMac(source, filter);
+          << ", contentFilters.count = " <<
+      [[picker_observer_ contentFilters] count];
+  return CreateScreenCaptureKitDeviceMac(
+      source, [picker_observer_ contentFilters][source_id],
+      base::BindPostTaskToCurrentDefault(
+          base::BindOnce(&NativeScreenCapturePickerMac::UpdateStreamMap,
+                         weak_ptr_factory_.GetWeakPtr())));
 }
 
 void NativeScreenCapturePickerMac::ScheduleCleanup(DesktopMediaID::Id id) {
@@ -312,12 +362,32 @@ void NativeScreenCapturePickerMac::ScheduleCleanup(DesktopMediaID::Id id) {
 
 void NativeScreenCapturePickerMac::CleanupContentFilter(DesktopMediaID::Id id) {
   NSNumber* source_id = @(id);
-  [cached_content_filters_ removeObjectForKey:source_id];
+  [[picker_observer_ contentFilters] removeObjectForKey:source_id];
+
+  NSEnumerator* streamEnumerator =
+      [[picker_observer_ streamToIdMapping] keyEnumerator];
+  NSMutableArray* streamsToBeRemoved = [NSMutableArray array];
+  while (SCStream* stream = [streamEnumerator nextObject]) {
+    // Streams to be removed need to be stored in a separate array and cannot be
+    // directly removed in this loop because `NSMapTable` doesn't allow
+    // enumeration and mutation at the same time.
+    if ([[picker_observer_ streamToIdMapping] objectForKey:stream] ==
+        source_id) {
+      [streamsToBeRemoved addObject:stream];
+    }
+  }
+
+  for (SCStream* stream in streamsToBeRemoved) {
+    [[picker_observer_ streamToIdMapping] removeObjectForKey:stream];
+  }
+
   cached_content_filters_cleanup_timers_.erase(id);
 
   VLOG(1) << "NSCPM: CleanupContentFilter: source_id = " << id
-          << ", cached_content_filters_.count = " <<
-      [cached_content_filters_ count];
+          << ", contentFilters.count = " <<
+      [[picker_observer_ contentFilters] count]
+          << ", streamToIdMapping.count = " <<
+      [[picker_observer_ streamToIdMapping] count];
 }
 
 base::WeakPtr<NativeScreenCapturePicker>

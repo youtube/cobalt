@@ -299,22 +299,28 @@ webrtc::PeerConnectionInterface::RTCConfiguration ParseConfiguration(
         IceTransportPolicyFromEnum(configuration->iceTransports().AsEnum());
   }
 
-  if (configuration->bundlePolicy() == "max-compat") {
-    web_configuration.bundle_policy =
-        webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat;
-  } else if (configuration->bundlePolicy() == "max-bundle") {
-    web_configuration.bundle_policy =
-        webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
-  } else {
-    DCHECK_EQ(configuration->bundlePolicy(), "balanced");
+  switch (configuration->bundlePolicy().AsEnum()) {
+    case V8RTCBundlePolicy::Enum::kMaxCompat:
+      web_configuration.bundle_policy =
+          webrtc::PeerConnectionInterface::kBundlePolicyMaxCompat;
+      break;
+    case V8RTCBundlePolicy::Enum::kMaxBundle:
+      web_configuration.bundle_policy =
+          webrtc::PeerConnectionInterface::kBundlePolicyMaxBundle;
+      break;
+    case V8RTCBundlePolicy::Enum::kBalanced:
+      break;
   }
 
-  if (configuration->rtcpMuxPolicy() == "negotiate") {
-    web_configuration.rtcp_mux_policy =
-        webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate;
-    Deprecation::CountDeprecation(context, WebFeature::kRtcpMuxPolicyNegotiate);
-  } else {
-    DCHECK_EQ(configuration->rtcpMuxPolicy(), "require");
+  switch (configuration->rtcpMuxPolicy().AsEnum()) {
+    case V8RTCRtcpMuxPolicy::Enum::kNegotiate:
+      web_configuration.rtcp_mux_policy =
+          webrtc::PeerConnectionInterface::kRtcpMuxPolicyNegotiate;
+      Deprecation::CountDeprecation(context,
+                                    WebFeature::kRtcpMuxPolicyNegotiate);
+      break;
+    case V8RTCRtcpMuxPolicy::Enum::kRequire:
+      break;
   }
 
   if (configuration->hasIceServers()) {
@@ -633,10 +639,7 @@ RTCPeerConnection::RTCPeerConnection(
       peer_handler_unregistered_(true),
       closed_(true),
       suppress_events_(true),
-      encoded_insertable_streams_(encoded_insertable_streams),
-      rtp_transport_(RuntimeEnabledFeatures::RTCRtpTransportEnabled(context)
-                         ? MakeGarbageCollected<RTCRtpTransport>(context)
-                         : nullptr) {
+      encoded_insertable_streams_(encoded_insertable_streams) {
   LocalDOMWindow* window = To<LocalDOMWindow>(context);
 
   // WebRTC peer connections are not allowed in fenced frames.
@@ -686,7 +689,7 @@ RTCPeerConnection::RTCPeerConnection(
   auto* web_frame =
       static_cast<WebLocalFrame*>(WebFrame::FromCoreFrame(window->GetFrame()));
   if (!peer_handler_->Initialize(context, configuration, web_frame,
-                                 exception_state, rtp_transport_)) {
+                                 exception_state)) {
     DCHECK(exception_state.HadException());
     return;
   }
@@ -1988,9 +1991,6 @@ RTCDataChannel* RTCPeerConnection::createDataChannel(
     return nullptr;
 
   webrtc::DataChannelInit init;
-  // TODO(jiayl): remove the deprecated reliable field once Libjingle is updated
-  // to handle that.
-  init.reliable = false;
   init.ordered = data_channel_dict->ordered();
   ExecutionContext* context = ExecutionContext::From(script_state);
   if (data_channel_dict->hasMaxPacketLifeTime()) {
@@ -2010,19 +2010,16 @@ RTCDataChannel* RTCPeerConnection::createDataChannel(
     init.id = data_channel_dict->id();
   if (data_channel_dict->hasPriority()) {
     init.priority = [&] {
-      if (data_channel_dict->priority() == "very-low") {
-        return webrtc::PriorityValue(webrtc::Priority::kVeryLow);
+      switch (data_channel_dict->priority().AsEnum()) {
+        case V8RTCPriorityType::Enum::kVeryLow:
+          return webrtc::PriorityValue(webrtc::Priority::kVeryLow);
+        case V8RTCPriorityType::Enum::kLow:
+          return webrtc::PriorityValue(webrtc::Priority::kLow);
+        case V8RTCPriorityType::Enum::kMedium:
+          return webrtc::PriorityValue(webrtc::Priority::kMedium);
+        case V8RTCPriorityType::Enum::kHigh:
+          return webrtc::PriorityValue(webrtc::Priority::kHigh);
       }
-      if (data_channel_dict->priority() == "low") {
-        return webrtc::PriorityValue(webrtc::Priority::kLow);
-      }
-      if (data_channel_dict->priority() == "medium") {
-        return webrtc::PriorityValue(webrtc::Priority::kMedium);
-      }
-      if (data_channel_dict->priority() == "high") {
-        return webrtc::PriorityValue(webrtc::Priority::kHigh);
-      }
-      NOTREACHED();
     }();
   }
   // Checks from WebRTC specification section 6.1
@@ -2946,7 +2943,6 @@ void RTCPeerConnection::Trace(Visitor* visitor) const {
   visitor->Trace(dtls_transports_by_native_transport_);
   visitor->Trace(ice_transports_by_native_transport_);
   visitor->Trace(sctp_transport_);
-  visitor->Trace(rtp_transport_);
   EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   MediaStreamObserver::Trace(visitor);

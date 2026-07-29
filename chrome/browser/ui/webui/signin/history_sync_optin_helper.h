@@ -10,9 +10,10 @@
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/sync/sync_startup_tracker.h"
-#include "chrome/browser/ui/webui/signin/managed_user_profile_notice_ui.h"
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/tribool.h"
@@ -20,6 +21,7 @@
 class AccountStateFetcher;
 class Profile;
 class TurnSyncOnHelperPolicyFetchTracker;
+class ProfileManagementDisclaimerService;
 
 namespace signin {
 class IdentityManager;
@@ -84,17 +86,31 @@ class HistorySyncOptinPolicyHelper {
 
 // This is a skeleton for the class that shows the history sync optin screen,
 // potentially after the account management screen.
-// TODO(crbug.com/404806750):
-// 1) Fetch applicable policies for managed accounts.
-// 2) Incorporate spinner screens in the flow while we wait for the above
-// necessary information to be fetched.
+// TODO(crbug.com/404806750):Incorporate spinner screens in the flow while we
+// wait for the above necessary information to be fetched.
 class HistorySyncOptinHelper {
  public:
+  // The two contexts below are mutually exclusive.
+  // `kInProfilePicker`: The flow is running in the profile picker.
+  // `kInBrowser`: The flow is running in a browser window.
+  enum class LaunchContext : int { kInProfilePicker = 0, kInBrowser = 1 };
+
+  class Observer : public base::CheckedObserver {
+   public:
+    // Called when the HistorySyncOptinHelper completes its flow.
+    virtual void OnHistorySyncOptinHelperFlowFinished() {}
+
+   protected:
+    ~Observer() override = default;
+  };
+
   class Delegate {
    public:
     virtual ~Delegate() = default;
     // Displays the history sync optin screen.
-    virtual void ShowHistorySyncOptinScreen() = 0;
+    virtual void ShowHistorySyncOptinScreen(
+        Profile* profile,
+        base::OnceClosure history_optin_completed_closure) = 0;
     // Displays the account management screen.
     virtual void ShowAccountManagementScreen(
         signin::SigninChoiceCallback on_account_management_screen_closed) = 0;
@@ -105,17 +121,17 @@ class HistorySyncOptinHelper {
     virtual void FinishFlowWithoutHistorySyncOptin() = 0;
   };
 
-  // The two contexts below are mutually exclusive.
-  // `kInProfilePicker`: The flow is running in the profile picker.
-  // `kInBrowser`: The flow is running in a browser window.
-  enum class LaunchContext : int { kInProfilePicker = 0, kInBrowser = 1 };
+  static std::unique_ptr<HistorySyncOptinHelper> Create(
+      signin::IdentityManager* identity_manager,
+      Profile* profile,
+      const AccountInfo& account_info,
+      Delegate* delegate,
+      LaunchContext launch_context);
 
-  HistorySyncOptinHelper(signin::IdentityManager* identity_manager,
-                         Profile* profile,
-                         const AccountInfo& account_info,
-                         Delegate* delegate,
-                         LaunchContext launch_context);
-  ~HistorySyncOptinHelper();
+  virtual ~HistorySyncOptinHelper();
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   void StartHistorySyncOptinFlow();
 
@@ -128,30 +144,94 @@ class HistorySyncOptinHelper {
     return sync_startup_state_observer_.get();
   }
 
- private:
+ protected:
+  HistorySyncOptinHelper(signin::IdentityManager* identity_manager,
+                         Profile* profile,
+                         const AccountInfo& account_info,
+                         Delegate* delegate);
+
   void ResumeShowHistorySyncOptinScreenFlow(
       signin::Tribool maybe_managed_account);
-  void ShowHistorySyncOptinScreen();
-  void MaybeShowAccountManagementScreen(bool is_managed_account);
 
-  // Shows the account management screen.
-  void ShowAccountManagementScreen();
-  // Callback executed when the user makes a choice in the account management
-  // screen.
-  void OnAccountManagementScreenClosed(signin::SigninChoice result);
+  // Virtual methods for context-specific logic.
+  virtual bool DetermineManagementStatusAndShowManagementScreens() = 0;
+
+  void ShowHistorySyncOptinScreen();
+
+  void SetProfile(Profile* profile) { profile_ = profile; }
+
+  void FinishFlowWithoutHistorySyncOptin();
+
+  // Accessors.
+  Profile* profile() { return profile_.get(); }
+  const AccountInfo& account_info() const { return account_info_; }
+  Delegate* delegate() { return delegate_.get(); }
+  signin::Tribool maybe_managed_account() const {
+    return maybe_managed_account_;
+  }
+
+ private:
+  void NotifyFlowFinished();
 
   signin::Tribool AccountIsManaged(const AccountInfo& account_info);
 
+  base::ObserverList<Observer> observers_;
   raw_ptr<Profile> profile_;
   const AccountInfo account_info_;
   raw_ptr<Delegate> delegate_;
-  LaunchContext launch_context_;
   std::unique_ptr<AccountStateFetcher> account_state_fetcher_;
 
   std::unique_ptr<SyncServiceStartupStateObserver> sync_startup_state_observer_;
+  signin::Tribool maybe_managed_account_ = signin::Tribool::kUnknown;
+  base::WeakPtrFactory<HistorySyncOptinHelper> weak_ptr_factory_{this};
+};
+
+// `HistorySyncOptinHelper` implementation for the flow running in a browser
+// window.
+class HistorySyncOptinHelperInBrowser : public HistorySyncOptinHelper {
+ public:
+  HistorySyncOptinHelperInBrowser(signin::IdentityManager* identity_manager,
+                                  Profile* profile,
+                                  const AccountInfo& account_info,
+                                  Delegate* delegate);
+  ~HistorySyncOptinHelperInBrowser() override;
+
+ private:
+  // HistorySyncOptinHelper implementation:
+  bool DetermineManagementStatusAndShowManagementScreens() override;
+
+  void OnManagementAccepted(Profile* chosen_profile,
+                            bool management_required_by_policy);
+
+  raw_ptr<ProfileManagementDisclaimerService>
+      profile_management_disclaimer_service_;
+
+  base::WeakPtrFactory<HistorySyncOptinHelperInBrowser> weak_ptr_factory_{this};
+};
+
+// `HistorySyncOptinHelper` implementation for the flow running in the profile
+// picker.
+class HistorySyncOptinHelperInProfilePicker : public HistorySyncOptinHelper {
+ public:
+  HistorySyncOptinHelperInProfilePicker(
+      signin::IdentityManager* identity_manager,
+      Profile* profile,
+      const AccountInfo& account_info,
+      Delegate* delegate);
+  ~HistorySyncOptinHelperInProfilePicker() override;
+
+ private:
+  // HistorySyncOptinHelper implementation:
+  bool DetermineManagementStatusAndShowManagementScreens() override;
+
+  void MaybeShowAccountManagementScreen(bool is_managed_account);
+  void ShowAccountManagementScreen();
+  void OnAccountManagementScreenClosed(signin::SigninChoice result);
+
   std::unique_ptr<HistorySyncOptinPolicyHelper> policy_helper_;
 
-  base::WeakPtrFactory<HistorySyncOptinHelper> weak_ptr_factory_{this};
+  base::WeakPtrFactory<HistorySyncOptinHelperInProfilePicker> weak_ptr_factory_{
+      this};
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_SIGNIN_HISTORY_SYNC_OPTIN_HELPER_H_

@@ -8,6 +8,7 @@
 
 #include <array>
 #include <optional>
+#include <string_view>
 
 #include "base/feature_list.h"
 #include "base/logging.h"
@@ -24,6 +25,7 @@
 
 // AAudioStreamBuilder_setChannelMask was not introduced until API version 32.
 #define AAUDIO_CHANNEL_MASK_MIN_API 32
+#define AAUDIO_LOW_LATENCY_INPUT_MIN_API 30
 
 BASE_FEATURE(kAAudioInputLowLatencyModeByDefault,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -36,6 +38,25 @@ constexpr char kAAudioBufferSizeInFramesMetricsPrefix[] =
     "Media.Audio.Android.AAudioBufferSizeInFrames.";
 constexpr char kAAudioFramesPerDataCallbackMetricsPrefix[] =
     "Media.Audio.Android.AAudioFramesPerDataCallback.";
+constexpr char kAAudioFramesPerBurstMetricsPrefix[] =
+    "Media.Audio.Android.AAudioFramesPerBurst.";
+constexpr char kAAudioFramesPerBurstChangedMetricsPrefix[] =
+    "Media.Audio.Android.AAudioFramesPerBurstChanged.";
+
+std::string_view StreamTypeToStringView(AAudioStreamWrapper::StreamType type) {
+  return type == AAudioStreamWrapper::StreamType::kInput ? "Input" : "Output";
+}
+
+void LogSparseHistogram(std::string_view prefix,
+                        AAudioStreamWrapper::StreamType type,
+                        AudioLatency::Type latency_tag,
+                        int32_t value) {
+  const std::string_view direction = StreamTypeToStringView(type);
+  base::UmaHistogramSparse(base::StrCat({prefix, direction}), value);
+  base::UmaHistogramSparse(base::StrCat({prefix, direction, ".",
+                                         AudioLatency::ToString(latency_tag)}),
+                           value);
+}
 
 }  // namespace
 
@@ -188,12 +209,16 @@ AAudioStreamWrapper::AAudioStreamWrapper(DataCallback* callback,
   CHECK(params.IsValid());
   CHECK(callback_);
 
-  if (stream_type_ == StreamType::kInput &&
-      base::FeatureList::IsEnabled(kAAudioInputLowLatencyModeByDefault)) {
-    // Default to low latency for input streams.
-    performance_mode_ = AAUDIO_PERFORMANCE_MODE_LOW_LATENCY;
-  } else {
-    performance_mode_ = AAUDIO_PERFORMANCE_MODE_NONE;
+  performance_mode_ = AAUDIO_PERFORMANCE_MODE_NONE;
+
+  // There is a bug on Android 10 and below preventing us from using both low
+  // latency mode and a data callback at the same time.
+  if (__builtin_available(android AAUDIO_LOW_LATENCY_INPUT_MIN_API, *)) {
+    if (stream_type_ == StreamType::kInput &&
+        base::FeatureList::IsEnabled(kAAudioInputLowLatencyModeByDefault)) {
+      // Default to low latency for input streams.
+      performance_mode_ = AAUDIO_PERFORMANCE_MODE_LOW_LATENCY;
+    }
   }
 
   switch (params.latency_tag()) {
@@ -324,7 +349,9 @@ bool AAudioStreamWrapper::Open() {
   // After opening the stream, sets the effective buffer size to 3X the burst
   // size to prevent glitching if the burst is small (e.g. < 128). On some
   // devices you can get by with 1X or 2X, but 3X is safer.
-  int32_t frames_per_burst = AAudioStream_getFramesPerBurst(aaudio_stream_);
+  const int32_t frames_per_burst =
+      AAudioStream_getFramesPerBurst(aaudio_stream_);
+  frames_per_burst_on_open_ = frames_per_burst;
   int32_t size_requested = frames_per_burst * (frames_per_burst < 128 ? 3 : 2);
   AAudioStream_setBufferSizeInFrames(aaudio_stream_, size_requested);
 
@@ -334,25 +361,16 @@ bool AAudioStreamWrapper::Open() {
 
   const int32_t buffer_size =
       AAudioStream_getBufferSizeInFrames(aaudio_stream_);
-  const std::string audio_direction =
-      stream_type_ == StreamType::kInput ? "Input" : "Output";
-  base::UmaHistogramSparse(
-      base::StrCat({kAAudioBufferSizeInFramesMetricsPrefix, audio_direction}),
-      buffer_size);
-  base::UmaHistogramSparse(
-      base::StrCat({kAAudioBufferSizeInFramesMetricsPrefix, audio_direction,
-                    ".", media::AudioLatency::ToString(params_.latency_tag())}),
-      buffer_size);
+  LogSparseHistogram(kAAudioBufferSizeInFramesMetricsPrefix, stream_type_,
+                     params_.latency_tag(), buffer_size);
+
   const int32_t frames_per_data_callback =
       AAudioStream_getFramesPerDataCallback(aaudio_stream_);
-  base::UmaHistogramSparse(
-      base::StrCat(
-          {kAAudioFramesPerDataCallbackMetricsPrefix, audio_direction}),
-      frames_per_data_callback);
-  base::UmaHistogramSparse(
-      base::StrCat({kAAudioFramesPerDataCallbackMetricsPrefix, audio_direction,
-                    ".", media::AudioLatency::ToString(params_.latency_tag())}),
-      frames_per_data_callback);
+  LogSparseHistogram(kAAudioFramesPerDataCallbackMetricsPrefix, stream_type_,
+                     params_.latency_tag(), frames_per_data_callback);
+
+  LogSparseHistogram(kAAudioFramesPerBurstMetricsPrefix, stream_type_,
+                     params_.latency_tag(), frames_per_burst);
 
   return true;
 }
@@ -360,6 +378,10 @@ bool AAudioStreamWrapper::Open() {
 void AAudioStreamWrapper::Close() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!is_closed_);
+
+  if (aaudio_stream_) {
+    LogFramesPerBurstChangesToUma();
+  }
 
   Stop();
 
@@ -526,6 +548,25 @@ void AAudioStreamWrapper::EmitSetDeviceIdResultToHistogram(bool success) {
       base::StrCat({"Media.Audio.Android.AAudioSetDeviceId.", direction_string,
                     ".", success_string});
   base::UmaHistogramEnumeration(histogram_name, requested_device_.GetType());
+}
+
+void AAudioStreamWrapper::LogFramesPerBurstChangesToUma() {
+  const int32_t frames_per_burst_on_close =
+      AAudioStream_getFramesPerBurst(aaudio_stream_);
+  const std::string_view audio_direction = StreamTypeToStringView(stream_type_);
+
+  const bool frames_per_burst_changed =
+      frames_per_burst_on_close != frames_per_burst_on_open_;
+
+  base::UmaHistogramBoolean(
+      base::StrCat(
+          {kAAudioFramesPerBurstChangedMetricsPrefix, audio_direction}),
+      frames_per_burst_changed);
+
+  base::UmaHistogramBoolean(
+      base::StrCat({kAAudioFramesPerBurstChangedMetricsPrefix, audio_direction,
+                    ".", AudioLatency::ToString(params_.latency_tag())}),
+      frames_per_burst_changed);
 }
 
 }  // namespace media

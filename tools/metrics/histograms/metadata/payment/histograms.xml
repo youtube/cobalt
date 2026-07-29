@@ -227,7 +227,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PaymentRequest.PaymentHandlerInstallSuccess"
-    enum="BooleanSuccess" expires_after="2026-01-04">
+    enum="BooleanSuccess" expires_after="2026-03-08">
   <owner>rouslan@chromium.org</owner>
   <owner>web-payments-team@google.com</owner>
   <summary>
@@ -248,6 +248,17 @@ chromium-metrics-reviews@google.com.
     browser bound public key is provided to the authenticator. I.e., recorded
     after the user has clicked [Verify], but before the user has scanned their
     biometric.
+  </summary>
+</histogram>
+
+<histogram
+    name="PaymentRequest.SecurePaymentConfirmation.BrowserBoundKeyMetadataUpdate"
+    enum="Boolean" expires_after="2026-09-01">
+  <owner>darwinyang@chromium.org</owner>
+  <owner>chrome-payments-eng@google.com</owner>
+  <summary>
+    Whether updating the browser bound key metadata was successful or not.
+    Recorded after a browser bound key metadata update is attempted.
   </summary>
 </histogram>
 
@@ -317,7 +328,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SecurePaymentRequest.Transaction.Outcome"
-    enum="SecurePaymentRequestOutcome" expires_after="2025-12-31">
+    enum="SecurePaymentRequestOutcome" expires_after="2026-03-08">
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
   <summary>

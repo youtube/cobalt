@@ -27,6 +27,7 @@ public class SearchBarCoordinator {
             Context context, Callback<String> queryCallback, boolean autoFocusSearchBox) {
         mView = LayoutInflater.from(context).inflate(R.layout.download_search_bar, null);
         mEditText = mView.findViewById(R.id.search_text);
+        mEditText.setHint(R.string.download_manager_search);
         mClearButton = mView.findViewById(R.id.clear_text_button);
         mQueryCallback = queryCallback;
 
@@ -47,7 +48,7 @@ public class SearchBarCoordinator {
                     @Override
                     public void afterTextChanged(Editable s) {
                         mQueryCallback.onResult(s.toString());
-                        mClearButton.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE);
+                        mClearButton.setVisibility(s.length() > 0 ? View.VISIBLE : View.INVISIBLE);
                     }
                 });
 

@@ -383,7 +383,7 @@ bool DecodeSortableDouble(std::string_view& data, double* output) {
   base::byte_span_from_ref(base::allow_nonunique_obj, *output)
       .copy_from_nonoverlapping(base::byte_span_from_ref(host_bits));
 
-  if (std::isnan(*output)) {
+  if (std::isnan(*output) || (std::signbit(*output) && *output == -0.0)) {
     return false;
   }
   return true;
@@ -709,8 +709,11 @@ bool DecodeString(std::string_view* slice, std::u16string* value) {
     return true;
   }
 
+  if (slice->size() % sizeof(char16_t)) {
+    return false;
+  }
+
   // Backing store is UTF-16BE, convert to host endianness.
-  DCHECK(!(slice->size() % sizeof(char16_t)));
   size_t length = slice->size() / sizeof(char16_t);
   std::u16string decoded;
   decoded.reserve(length);

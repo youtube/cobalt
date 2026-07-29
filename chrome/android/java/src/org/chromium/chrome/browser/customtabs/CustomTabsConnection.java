@@ -1662,7 +1662,6 @@ public class CustomTabsConnection {
                 // Catching all exceptions is really bad, but we need it here,
                 // because Android exposes us to client bugs by throwing a variety
                 // of exceptions. See crbug.com/517023.
-                continue;
             }
         }
 
@@ -2023,7 +2022,7 @@ public class CustomTabsConnection {
     }
 
     public void setEngagementSignalsAvailableSupplier(
-            CustomTabsSessionToken session, Supplier<Boolean> supplier) {
+            CustomTabsSessionToken session, @Nullable Supplier<Boolean> supplier) {
         mClientManager.setEngagementSignalsAvailableSupplierForSession(
                 new SessionHolder<>(session), supplier);
     }

@@ -61,10 +61,21 @@ TEST(WebThemeEngineTest, NativeSystemThemeState) {
 }
 
 TEST(WebThemeEngineTest, NativeColorScheme) {
-  EXPECT_EQ(ui::NativeTheme::ColorScheme::kLight,
+  EXPECT_EQ(ui::NativeTheme::PreferredColorScheme::kLight,
             NativeColorScheme(blink::mojom::ColorScheme::kLight));
-  EXPECT_EQ(ui::NativeTheme::ColorScheme::kDark,
+  EXPECT_EQ(ui::NativeTheme::PreferredColorScheme::kDark,
             NativeColorScheme(blink::mojom::ColorScheme::kDark));
+}
+
+TEST(WebThemeEngineTest, NativeContrast) {
+  EXPECT_EQ(ui::NativeTheme::PreferredContrast::kMore,
+            NativeContrast(mojom::blink::PreferredContrast::kMore));
+  EXPECT_EQ(ui::NativeTheme::PreferredContrast::kLess,
+            NativeContrast(mojom::blink::PreferredContrast::kLess));
+  EXPECT_EQ(ui::NativeTheme::PreferredContrast::kNoPreference,
+            NativeContrast(mojom::blink::PreferredContrast::kNoPreference));
+  EXPECT_EQ(ui::NativeTheme::PreferredContrast::kCustom,
+            NativeContrast(mojom::blink::PreferredContrast::kCustom));
 }
 
 }  // namespace blink

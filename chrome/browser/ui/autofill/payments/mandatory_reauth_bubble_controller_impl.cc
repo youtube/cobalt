@@ -142,7 +142,7 @@ std::u16string MandatoryReauthBubbleControllerImpl::GetExplanationText() const {
 
 void MandatoryReauthBubbleControllerImpl::OnBubbleClosed(
     PaymentsUiClosedReason closed_reason) {
-  set_bubble_view(nullptr);
+  ResetBubbleViewAndInformBubbleManager(/*show_next_bubble=*/true);
 
 // After resetting the raw pointer to the view in the base class, the Android
 // view has to be deleted.
@@ -237,12 +237,12 @@ void MandatoryReauthBubbleControllerImpl::DoShowBubble() {
     java_controller_bridge_.Reset();
     return;
   }
-  set_bubble_view(view_android_.get());
+  SetBubbleView(view_android_.get());
 #else
   Browser* browser = chrome::FindBrowserWithTab(web_contents());
   AutofillBubbleHandler* autofill_bubble_handler =
       browser->window()->GetAutofillBubbleHandler();
-  set_bubble_view(autofill_bubble_handler->ShowMandatoryReauthBubble(
+  SetBubbleView(autofill_bubble_handler->ShowMandatoryReauthBubble(
       web_contents(), this, /*is_user_gesture=*/false, current_bubble_type_));
 #endif  // BUILDFLAG(IS_ANDROID)
 }

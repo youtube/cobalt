@@ -7,9 +7,11 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/form_parsing/autofill_scanner.h"
 #include "components/autofill/core/browser/form_parsing/form_field_parser.h"
 
 namespace autofill {
@@ -35,7 +37,7 @@ struct ClassifiedFieldSequence {
   // assigned in `assignments`.
   FieldTypeSet contained_types;
   // The index of the last field in the form which was assigned a field type.
-  size_t last_classified_field_index = 0u;
+  std::optional<AutofillScanner::Position> last_classified_field_index;
   // The score of a classification. Bigger is better. Tiebreaker in case two
   // `ClassifiedFieldSequence`s have the same number of classified fields.
   double score = 0.0;

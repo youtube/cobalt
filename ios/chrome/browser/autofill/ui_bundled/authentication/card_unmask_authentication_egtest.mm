@@ -150,7 +150,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
       waitForUIElementToAppearWithMatcher:CardUnmaskPromptNavigationBarTitle()];
 }
 
-- (void)testCardUnmaskAuthenticationSelectionIsShownForVirtualCard {
+// TODO(crbug.com/444083194): Test is flaky.
+- (void)FLAKY_testCardUnmaskAuthenticationSelectionIsShownForVirtualCard {
   [self showAuthenticationSelection];
 
   // Verify that the card unmask prompt was shown.
@@ -198,7 +199,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 
-- (void)testCardUnmaskAuthenticationSelectionCancel {
+// TODO(crbug.com/444060942): Test is flaky.
+- (void)DISABLED_testCardUnmaskAuthenticationSelectionCancel {
   [self showAuthenticationSelection];
 
   // Tap the cancel button.
@@ -211,7 +213,9 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
                       CardUnmaskPromptNavigationBarTitle()];
 }
 
-- (void)testCardUnmaskAuthenticationSelectionAcceptanceButtonIsSetInitially {
+// TODO(crbug.com/415865471): Fix test and re-enable.
+- (void)
+    DISABLED_testCardUnmaskAuthenticationSelectionAcceptanceButtonIsSetInitially {
   [self showAuthenticationSelection];
 
   // Ensure the "Send" button is present (since the first option, OTP, is pre
@@ -222,7 +226,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
                                    nil)];
 }
 
-- (void)testCardUnmaskAuthenticationSelectionAcceptanceButtonLabel {
+// TODO(crbug.com/415865471): Fix test and re-enable.
+- (void)DISABLED_testCardUnmaskAuthenticationSelectionAcceptanceButtonLabel {
   [self showAuthenticationSelection];
 
   // Verify selecting text message sets the acceptance button label to "Send".
@@ -246,7 +251,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
               nil)] assertWithMatcher:grey_sufficientlyVisible()];
 }
 
-- (void)testCardUnmaskAuthenticationSelectionShowsActivityIndicatorView {
+// TODO(crbug.com/444090218): Test is flaky.
+- (void)FLAKY_testCardUnmaskAuthenticationSelectionShowsActivityIndicatorView {
   [self showAuthenticationSelection];
 
   // Select the text message otp challenge option.
@@ -262,7 +268,8 @@ id<GREYMatcher> ActivityIndicatorMatcher() {
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 
-- (void)testDismissInputViaSwipe {
+// TODO(crbug.com/444091898): Test is flaky.
+- (void)DISABLED_testDismissInputViaSwipe {
   [self showAuthenticationSelection];
 
   // The initial access token has been used up, set another fake access token.

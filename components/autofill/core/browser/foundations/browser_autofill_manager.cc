@@ -96,8 +96,8 @@
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager_impl.h"
 #include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
-#include "components/autofill/core/browser/integrators/password_manager/otp_delegate.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/autofill_in_devtools_metrics.h"
@@ -437,10 +437,7 @@ bool IsTriggerSourceOnlyRelevantForCompose(
     case AutofillSuggestionTriggerSource::kiOS:
     case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
     case AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses:
-    case AutofillSuggestionTriggerSource::
-        kShowPromptAfterDialogClosedNonManualFallback:
     case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
-    case AutofillSuggestionTriggerSource::kAutofillAi:
     case AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess:
     case AutofillSuggestionTriggerSource::kProactivePasswordRecovery:
       return false;
@@ -782,7 +779,10 @@ BrowserAutofillManager::MetricsState::~MetricsState() {
 }
 
 BrowserAutofillManager::BrowserAutofillManager(AutofillDriver* driver)
-    : AutofillManager(driver) {}
+    : AutofillManager(driver),
+      otp_manager_(
+          new OtpManagerImpl(this,
+                             driver->GetAutofillClient().GetSmsOtpBackend())) {}
 
 BrowserAutofillManager::~BrowserAutofillManager() {
   // Process log events and record into UKM when the FormStructure is destroyed.
@@ -1103,6 +1103,7 @@ SuggestionsContext BrowserAutofillManager::BuildSuggestionsContext(
     const AutofillField* autofill_field,
     AutofillSuggestionTriggerSource trigger_source) {
   SuggestionsContext context;
+  context.trigger_source = trigger_source;
 
   // When Compose suggestions or manual fallback for plus addresses are
   // requested, there is no need to load Autofill suggestions.
@@ -1233,46 +1234,10 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     GenerateSuggestionsAndMaybeShowUIPhase1(form, field, trigger_source);
     return;
   }
-  // Suggestion generators lifespan should be limited to only when they are
-  // needed.
-  suggestion_generators_.clear();
-  // TODO(crbug.com/409962888): Populate `suggestion_generators_` here.
-  suggestion_generators_.push_back(
-      std::make_unique<AutofillAiSuggestionGenerator>(client()));
-  suggestion_generators_.push_back(std::make_unique<IbanSuggestionGenerator>());
-  suggestion_generators_.push_back(
-      std::make_unique<MerchantPromoCodeSuggestionGenerator>());
-  if (client().GetAutocompleteHistoryManager()) {
-    suggestion_generators_.push_back(
-        std::make_unique<AutocompleteSuggestionGenerator>(
-            client().GetAutocompleteHistoryManager()->GetProfileDatabase()));
-  }
-  if (client().GetValuablesDataManager()) {
-  suggestion_generators_.push_back(
-      std::make_unique<LoyaltyCardSuggestionGenerator>(
-          client().GetValuablesDataManager()->GetWeakPtr(),
-          client().GetLastCommittedPrimaryMainFrameURL()));
-  }
-  if (client().GetComposeDelegate()) {
-    suggestion_generators_.push_back(
-        std::make_unique<ComposeSuggestionGenerator>(
-            client().GetComposeDelegate(), trigger_source));
-  }
-  if (auto* delegate = client().GetIdentityCredentialDelegate()) {
-    if (auto suggestion_generator =
-            delegate->GetIdentityCredentialSuggestionGenerator()) {
-      suggestion_generators_.push_back(std::move(suggestion_generator));
-    }
-  }
-  if (PasswordManagerDelegate* password_delegate =
-          client().GetPasswordManagerDelegate(field.global_id())) {
-    suggestion_generators_.push_back(
-        std::make_unique<PasskeyAutofillSuggestionGenerator>(
-            *password_delegate));
-  }
 
   SuggestionsContext context = BuildSuggestionsContext(
       form, form_structure, field, autofill_field, trigger_source);
+  InitializeSuggestionGenerators(context, field.global_id());
 
   auto barrier_callback = base::BarrierCallback<
       std::pair<SuggestionGenerator::SuggestionDataSource,
@@ -1401,20 +1366,17 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2(
   std::ignore = GetCachedFormAndField(form.global_id(), field.global_id(),
                                       &form_structure, &autofill_field);
 
-  const OtpDelegate* otp_delegate = client().GetOtpDelegate();
-  bool eligible_for_otp_filling =
-      form_structure && autofill_field && otp_delegate &&
-      otp_delegate->IsFieldEligibleForOtpFilling(form_structure->global_id(),
-                                                 autofill_field->global_id());
-
   auto generate_suggestions_and_maybe_show_ui_phase3 = base::BindOnce(
       &BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3,
       weak_ptr_factory_.GetWeakPtr(), form, field, trigger_source, context,
       plus_addresses);
 
-  if (eligible_for_otp_filling) {
-    otp_delegate->GetOtpSuggestions(
-        form_structure->global_id(), autofill_field->global_id(),
+  // `otp_manager_` may not be instantiated on all platforms. If a focused field
+  // is not classified, `autofill_field` is null but the field may be filled by
+  // autocomplete.
+  if (otp_manager_ && autofill_field &&
+      autofill_field->Type().GetTypes().contains(ONE_TIME_CODE)) {
+    otp_manager_->GetOtpSuggestions(
         std::move(generate_suggestions_and_maybe_show_ui_phase3));
     return;
   }
@@ -1572,9 +1534,7 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase3(
   // include Compose or single field form suggestions. Manual fallbacks can't
   // trigger different suggestion types.
   const bool should_offer_other_suggestions =
-      suggestions.empty() && !IsAutofillManuallyTriggered(trigger_source) &&
-      trigger_source != AutofillSuggestionTriggerSource::
-                            kShowPromptAfterDialogClosedNonManualFallback;
+      suggestions.empty() && !IsAutofillManuallyTriggered(trigger_source);
 
   if (should_offer_other_suggestions &&
       (field.form_control_type() == FormControlType::kTextArea ||
@@ -2714,6 +2674,9 @@ void BrowserAutofillManager::Reset() {
   // The order below is relevant:
   // `credit_card_access_manager_` has a reference to `metrics_`.
   credit_card_access_manager_.reset();
+  // Forget cached OTPs after a navigation.
+  otp_manager_ = std::make_unique<OtpManagerImpl>(
+      this, driver().GetAutofillClient().GetSmsOtpBackend());
   metrics_.reset();
   AutofillManager::Reset();
   metrics_.emplace(this);
@@ -3404,6 +3367,8 @@ BrowserAutofillManager::GetEventFormLogger(const AutofillField& field) {
       return &metrics_->credit_card_form_event_logger;
     case FormType::kLoyaltyCardForm:
       return &metrics_->loyalty_card_form_event_logger;
+      // TODO(crbug.com/443693025): Add event logger for OTP fields
+    case FormType::kOneTimePasswordForm:
     case FormType::kPasswordForm:
     case FormType::kUnknownFormType:
       return nullptr;
@@ -3588,9 +3553,68 @@ void BrowserAutofillManager::SetFastCheckoutRunId(
       break;
     case FormType::kLoyaltyCardForm:
     case FormType::kPasswordForm:
+    case FormType::kOneTimePasswordForm:
     case FormType::kUnknownFormType:
       // FastCheckout only supports address and credit card forms.
       NOTREACHED();
+  }
+}
+
+void BrowserAutofillManager::InitializeSuggestionGenerators(
+    const SuggestionsContext& context,
+    FieldGlobalId field_id) {
+  // Suggestion generators lifespan should be limited to only when they are
+  // needed.
+  suggestion_generators_.clear();
+  const DenseSet<FillingProduct> relevant_filling_products =
+      context.GetFillingProductsToSuggest();
+
+  if (relevant_filling_products.contains(FillingProduct::kAutofillAi)) {
+    suggestion_generators_.push_back(
+        std::make_unique<AutofillAiSuggestionGenerator>(client()));
+  }
+  if (relevant_filling_products.contains(FillingProduct::kIban)) {
+    suggestion_generators_.push_back(
+        std::make_unique<IbanSuggestionGenerator>());
+  }
+  if (relevant_filling_products.contains(FillingProduct::kMerchantPromoCode)) {
+    suggestion_generators_.push_back(
+        std::make_unique<MerchantPromoCodeSuggestionGenerator>());
+  }
+  if (relevant_filling_products.contains(FillingProduct::kAutocomplete) &&
+      client().GetAutocompleteHistoryManager()) {
+    suggestion_generators_.push_back(
+        std::make_unique<AutocompleteSuggestionGenerator>(
+            client().GetAutocompleteHistoryManager()->GetProfileDatabase()));
+  }
+  if (relevant_filling_products.contains(FillingProduct::kLoyaltyCard) &&
+      client().GetValuablesDataManager()) {
+    suggestion_generators_.push_back(
+        std::make_unique<LoyaltyCardSuggestionGenerator>(
+            client().GetValuablesDataManager()->GetWeakPtr(),
+            client().GetLastCommittedPrimaryMainFrameURL()));
+  }
+  if (relevant_filling_products.contains(FillingProduct::kCompose) &&
+      client().GetComposeDelegate()) {
+    suggestion_generators_.push_back(
+        std::make_unique<ComposeSuggestionGenerator>(
+            client().GetComposeDelegate(), context.trigger_source));
+  }
+  if (relevant_filling_products.contains(FillingProduct::kIdentityCredential)) {
+    if (auto* delegate = client().GetIdentityCredentialDelegate()) {
+      if (auto suggestion_generator =
+              delegate->GetIdentityCredentialSuggestionGenerator()) {
+        suggestion_generators_.push_back(std::move(suggestion_generator));
+      }
+    }
+  }
+  if (relevant_filling_products.contains(FillingProduct::kPasskey)) {
+    if (PasswordManagerDelegate* password_delegate =
+            client().GetPasswordManagerDelegate(field_id)) {
+      suggestion_generators_.push_back(
+          std::make_unique<PasskeyAutofillSuggestionGenerator>(
+              *password_delegate));
+    }
   }
 }
 

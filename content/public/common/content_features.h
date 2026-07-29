@@ -29,8 +29,6 @@ namespace features {
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAdditionalOpaqueOriginEnforcements);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidCaptureKeyEvents);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDevToolsFrontend);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(
-    kAndroidEnableBackgroundMediaLargeFormFactors);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidFallbackToNextSlot);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout);
 CONTENT_EXPORT extern const base::FeatureParam<std::string>
@@ -278,9 +276,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebOTP);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebViewAsyncDrawOnly);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSpareRendererForSitePerProcess);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictOriginIsolation);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kSubframeProcessReuseThresholds);
-CONTENT_EXPORT extern const base::FeatureParam<double>
-    kSubframeProcessReuseMemoryThreshold;
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSubframePriorityContribution);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSuppressDifferentOriginSubframeJSDialogs);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSyntheticPointerActions);
@@ -302,7 +297,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kV8AndroidDesktopHighEndConfig);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebAppSystemMediaControls);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kWebAssemblyBaseline);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableExperimentalWebAssemblyJSPI);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kEnableExperimentalWebAssemblySharedEverything);
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
@@ -370,6 +364,9 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kEnableExclusiveAccessManager);
 #if BUILDFLAG(IS_ANDROID)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kKeyboardLockApiOnAndroid);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kIOThreadInteractiveThreadType);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kBoostThreadsPriorityDuringInputScenario);
 
 // Number of days to "store" IPH guardrails for navigation captured app launches
 // till they are cleared.

@@ -25,6 +25,47 @@ namespace ui {
 
 class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
  public:
+  NativeThemeWin(const NativeThemeWin&) = delete;
+  NativeThemeWin& operator=(const NativeThemeWin&) = delete;
+
+  // Closes cached theme handles so we can unload the DLL or update our UI
+  // for a theme change.
+  static void CloseHandles();
+
+  // NativeTheme:
+  gfx::Size GetPartSize(Part part,
+                        State state,
+                        const ExtraParams& extra_params) const override;
+  bool SupportsNinePatch(Part part) const override;
+  gfx::Size GetNinePatchCanvasSize(Part part) const override;
+  gfx::Rect GetNinePatchAperture(Part part) const override;
+  void Paint(cc::PaintCanvas* canvas,
+             const ui::ColorProvider* color_provider,
+             Part part,
+             State state,
+             const gfx::Rect& rect,
+             const ExtraParams& extra_params,
+             bool forced_colors,
+             PreferredColorScheme color_scheme,
+             PreferredContrast contrast,
+             std::optional<SkColor> accent_color) const override;
+  PreferredContrast CalculatePreferredContrast() const override;
+
+  PreferredColorScheme CalculatePreferredColorScheme() const;
+  void set_in_dark_mode_for_testing(bool in_dark_mode) {
+    in_dark_mode_ = in_dark_mode;
+  }
+
+ protected:
+  NativeThemeWin();
+  ~NativeThemeWin() override;
+
+  // NativeTheme:
+  void OnToolkitSettingsChanged(bool force_notify) override;
+
+ private:
+  friend class base::NoDestructor<NativeThemeWin>;
+
   enum ThemeName {
     BUTTON,
     LIST,
@@ -41,58 +82,14 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
     LAST
   };
 
-  NativeThemeWin(const NativeThemeWin&) = delete;
-  NativeThemeWin& operator=(const NativeThemeWin&) = delete;
-
-  // Closes cached theme handles so we can unload the DLL or update our UI
-  // for a theme change.
-  static void CloseHandles();
-
-  // NativeTheme implementation:
-  gfx::Size GetPartSize(Part part,
-                        State state,
-                        const ExtraParams& extra) const override;
-  void Paint(cc::PaintCanvas* canvas,
-             const ui::ColorProvider* color_provider,
-             Part part,
-             State state,
-             const gfx::Rect& rect,
-             const ExtraParams& extra,
-             ColorScheme color_scheme,
-             bool in_forced_colors,
-             const std::optional<SkColor>& accent_color) const override;
-  bool SupportsNinePatch(Part part) const override;
-  gfx::Size GetNinePatchCanvasSize(Part part) const override;
-  gfx::Rect GetNinePatchAperture(Part part) const override;
-  bool ShouldUseDarkColors() const override;
-
-  // On Windows, we look at the high contrast setting to calculate the color
-  // scheme. If high contrast is enabled, the preferred color scheme calculation
-  // will ignore the state of dark mode. Instead, preferred color scheme will be
-  // light or dark depending on the OS high contrast theme. If high contrast is
-  // off, the preferred color scheme calculation will be based of the state of
-  // dark mode.
-  PreferredColorScheme CalculatePreferredColorScheme() const override;
-
-  PreferredContrast CalculatePreferredContrast() const override;
-
- protected:
-  friend class NativeTheme;
-  friend class base::NoDestructor<NativeThemeWin>;
-
-  // NativeTheme:
-  void ConfigureWebInstance() override;
-  std::optional<base::TimeDelta> GetPlatformCaretBlinkInterval() const override;
-
-  NativeThemeWin();
-  ~NativeThemeWin() override;
-
- private:
   bool IsUsingHighContrastThemeInternal() const;
   void CloseHandlesInternal();
 
   // Called by `hwnd_subscription_`.
   void OnWndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+
+  // Updates `accent_color_`. If it changed, notifies callbacks.
+  void OnAccentColorMaybeChanged();
 
   // Update the locally cached set of system colors.
   void UpdateSystemColors();
@@ -100,7 +97,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
   // Painting functions that paint to PaintCanvas.
   void PaintMenuSeparator(cc::PaintCanvas* canvas,
                           const ColorProvider* color_provider,
-                          const MenuSeparatorExtraParams& params) const;
+                          const MenuSeparatorExtraParams& extra_params) const;
   void PaintMenuGutter(cc::PaintCanvas* canvas,
                        const ColorProvider* color_provider,
                        const gfx::Rect& rect) const;
@@ -114,7 +111,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
                    Part part,
                    State state,
                    const gfx::Rect& rect,
-                   const ExtraParams& extra) const;
+                   const ExtraParams& extra_params) const;
 
   // Create a temporary HDC, paint to that, clean up the alpha values in the
   // temporary HDC, and then blit the result to canvas.  This is to work around
@@ -123,14 +120,14 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
                      Part part,
                      State state,
                      const gfx::Rect& rect,
-                     const ExtraParams& extra) const;
+                     const ExtraParams& extra_params) const;
 
   // Various helpers to paint specific parts.
   void PaintButtonClassic(HDC hdc,
                           Part part,
                           State state,
                           RECT* rect,
-                          const ButtonExtraParams& extra) const;
+                          const ButtonExtraParams& extra_params) const;
   void PaintLeftMenuArrowThemed(HDC hdc,
                                 HANDLE handle,
                                 int part_id,
@@ -140,31 +137,33 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
                                   Part part,
                                   State state,
                                   RECT* rect) const;
-  void PaintScrollbarTrackClassic(SkCanvas* canvas,
-                                  HDC hdc,
-                                  RECT* rect,
-                                  const ScrollbarTrackExtraParams& extra) const;
+  void PaintScrollbarTrackClassic(
+      SkCanvas* canvas,
+      HDC hdc,
+      RECT* rect,
+      const ScrollbarTrackExtraParams& extra_params) const;
   void PaintHorizontalTrackbarThumbClassic(
       SkCanvas* canvas,
       HDC hdc,
       const RECT& rect,
-      const TrackbarExtraParams& extra) const;
-  void PaintProgressBarOverlayThemed(HDC hdc,
-                                     HANDLE handle,
-                                     RECT* bar_rect,
-                                     RECT* value_rect,
-                                     const ProgressBarExtraParams& extra) const;
+      const TrackbarExtraParams& extra_params) const;
+  void PaintProgressBarOverlayThemed(
+      HDC hdc,
+      HANDLE handle,
+      RECT* bar_rect,
+      RECT* value_rect,
+      const ProgressBarExtraParams& extra_params) const;
   void PaintTextFieldThemed(HDC hdc,
                             HANDLE handle,
                             HBRUSH bg_brush,
                             int part_id,
                             int state_id,
                             RECT* rect,
-                            const TextFieldExtraParams& extra) const;
+                            const TextFieldExtraParams& extra_params) const;
   void PaintTextFieldClassic(HDC hdc,
                              HBRUSH bg_brush,
                              RECT* rect,
-                             const TextFieldExtraParams& extra) const;
+                             const TextFieldExtraParams& extra_params) const;
 
   // Paints a theme part, with support for scene scaling in high-DPI mode.
   // |theme| is the theme handle. |hdc| is the handle for the device context.
@@ -182,35 +181,28 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
   // methods do further validation of the part and state that is required for
   // getting the size.
   static ThemeName GetThemeName(Part part);
-  static int GetWindowsPart(Part part, State state, const ExtraParams& extra);
-  static int GetWindowsState(Part part, State state, const ExtraParams& extra);
+  static int GetWindowsPart(Part part,
+                            State state,
+                            const ExtraParams& extra_params);
+  static int GetWindowsState(Part part,
+                             State state,
+                             const ExtraParams& extra_params);
 
-  HRESULT PaintFrameControl(HDC hdc,
-                            const gfx::Rect& rect,
-                            UINT type,
-                            UINT state,
-                            bool is_selected,
-                            State control_state) const;
+  void PaintFrameControl(HDC hdc,
+                         const gfx::Rect& rect,
+                         UINT type,
+                         UINT state,
+                         bool is_selected,
+                         State control_state) const;
 
   // Returns a handle to the theme data.
   HANDLE GetThemeHandle(ThemeName theme_name) const;
 
   void RegisterThemeRegkeyObserver();
-  void RegisterColorFilteringRegkeyObserver();
   void UpdateDarkModeStatus();
-  void UpdatePrefersReducedTransparency();
-  void UpdateInvertedColors();
 
-  // True if Windows supports dark mode. This does NOT indicate whether the
-  // system is in dark mode, only that it is supported by this version of
-  // Windows.
-  const bool supports_windows_dark_mode_;
-
-  // Dark Mode/Transparency registry key.
+  // Dark Mode registry key.
   base::win::RegKey hkcu_themes_regkey_;
-
-  // Inverted colors registry key
-  base::win::RegKey hkcu_color_filtering_regkey_;
 
   // A cache of open theme handles.
   mutable HANDLE theme_handles_[LAST];
@@ -221,10 +213,10 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeWin : public NativeTheme {
           base::BindRepeating(&NativeThemeWin::OnWndProc,
                               base::Unretained(this)));
 
-  // Used to notify the web native theme of changes to dark mode, high
-  // contrast, preferred color scheme, and preferred contrast.
-  std::unique_ptr<NativeTheme::ColorSchemeNativeThemeObserver>
-      color_scheme_observer_;
+  // Accent color subscription.
+  base::CallbackListSubscription accent_color_subscription_;
+
+  bool in_dark_mode_ = false;
 };
 
 }  // namespace ui

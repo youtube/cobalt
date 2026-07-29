@@ -399,10 +399,16 @@ public class ToolbarTablet extends ToolbarLayout {
         mToolbarWidthConsumers[ToolbarComponentId.BACK] = mBackButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.FORWARD] = mForwardButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.RELOAD] = mReloadButtonCoordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.LOCATION_BAR_MINIMUM] =
+                new LocationBarMinWidthConsumer();
+        mToolbarWidthConsumers[ToolbarComponentId.INCOGNITO_INDICATOR] =
+                mIncognitoIndicatorCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.ADAPTIVE_BUTTON] =
                 new OptionalButtonToolbarWidthConsumer();
         mToolbarWidthConsumers[ToolbarComponentId.TAB_SWITCHER] = tabSwitcherButtonCoordinator;
         mToolbarWidthConsumers[ToolbarComponentId.MENU] = menuButtonCoordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.PADDING] =
+                new ToolbarPaddingWidthConsumer(this, mStartPaddingWithButtons);
     }
 
     @Override
@@ -445,43 +451,30 @@ public class ToolbarTablet extends ToolbarLayout {
         super.onLayout(changed, left, top, right, bottom);
     }
 
-    // TODO(clhager): Remove this once all components are accounted for in the toolbar tablet
-    //  refactor.
-    @VisibleForTesting
-    int getWidthForStaticComponents() {
-        int width = 0;
-        // Account for the minimum width of the location bar.
-        width +=
-                (int)
-                        (MINIMUM_LOCATION_BAR_WIDTH_DP
-                                * getContext().getResources().getDisplayMetrics().density);
-        // Account for padding on the start and end of the toolbar.
-        width += 2 * mStartPaddingWithButtons;
-        return width;
-    }
-
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int width = MeasureSpec.getSize(widthMeasureSpec);
         if (isToolbarTabletResizeRefactorEnabled()) {
-            int width = MeasureSpec.getSize(widthMeasureSpec);
-            allocateAvailableToolbarWidth(
-                    mToolbarWidthConsumers, width - getWidthForStaticComponents());
-            this.setPaddingRelative(
-                    mStartPaddingWithButtons,
-                    getPaddingTop(),
-                    mStartPaddingWithButtons,
-                    getPaddingBottom());
+            allocateAvailableToolbarWidth(mToolbarWidthConsumers, width);
         } else {
             // Hide or show toolbar buttons if needed. With the introduction of multi-window on
             // Android N, the Activity can be < 600dp, in which case the toolbar buttons need to be
             // moved into the menu so that the location bar is usable. The buttons must be shown
             // in onMeasure() so that the location bar gets measured and laid out correctly.
             setToolbarButtonsVisible(
-                    MeasureSpec.getSize(widthMeasureSpec)
-                            >= DeviceFormFactor.getNonMultiDisplayMinimumTabletWidthPx(
-                                    getContext()));
+                    width >= DeviceFormFactor.getNonMultiDisplayMinimumTabletWidthPx(getContext()));
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+
+        // Trigger a second update if the incognito indicator was measured at a different width than
+        // originally expected, requiring another pass at allocating toolbar width.
+        // TODO(crbug.com/444068280): Revisit this approach to re-allocating width for variable
+        //  width components.
+        if (isToolbarTabletResizeRefactorEnabled()
+                && mIncognitoIndicatorCoordinator.needsUpdateBeforeShowing()) {
+            allocateAvailableToolbarWidth(mToolbarWidthConsumers, width);
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
     }
 
     @VisibleForTesting
@@ -572,6 +565,49 @@ public class ToolbarTablet extends ToolbarLayout {
     private void setOptionalButtonVisibility(boolean isVisible) {
         if (mOptionalButton == null) return;
         mOptionalButton.setVisibility(isVisible ? View.VISIBLE : View.GONE);
+    }
+
+    private class ToolbarPaddingWidthConsumer implements ToolbarWidthConsumer {
+        private final View mToolbarView;
+        private final int mHorizontalPadding;
+
+        ToolbarPaddingWidthConsumer(View toolbarView, int horizontalPadding) {
+            mToolbarView = toolbarView;
+            mHorizontalPadding = horizontalPadding;
+        }
+
+        @Override
+        public int updateVisibility(int availableWidth) {
+            assert availableWidth >= 0;
+            int paddingWidth = Math.min(availableWidth, 2 * mHorizontalPadding);
+            mToolbarView.setPaddingRelative(
+                    paddingWidth / 2, getPaddingTop(), paddingWidth / 2, getPaddingBottom());
+            return paddingWidth;
+        }
+
+        @Override
+        public int updateVisibilityWithAnimation(
+                int availableWidth, Collection<Animator> animators) {
+            return updateVisibility(availableWidth);
+        }
+    }
+
+    private class LocationBarMinWidthConsumer implements ToolbarWidthConsumer {
+        @Override
+        public int updateVisibility(int availableWidth) {
+            assert isToolbarTabletResizeRefactorEnabled();
+            return Math.min(
+                    availableWidth,
+                    (int)
+                            (MINIMUM_LOCATION_BAR_WIDTH_DP
+                                    * getContext().getResources().getDisplayMetrics().density));
+        }
+
+        @Override
+        public int updateVisibilityWithAnimation(
+                int availableWidth, Collection<Animator> animators) {
+            return updateVisibility(availableWidth);
+        }
     }
 
     private class OptionalButtonToolbarWidthConsumer implements ToolbarWidthConsumer {
@@ -680,11 +716,11 @@ public class ToolbarTablet extends ToolbarLayout {
                             mForwardButtonCoordinator.setVisibility(true);
                             mReloadButtonCoordinator.setVisibility(true);
                             mBackButtonCoordinator.setVisibility(true);
+                            mIncognitoIndicatorCoordinator.setVisibility(true);
                             // Set the padding at the start of the show animation so the toolbar
                             // buttons don't jump when the animation ends.
                             setStartPaddingBasedOnButtonVisibility(true);
                         }
-                        mIncognitoIndicatorCoordinator.setVisibility(mToolbarButtonsVisible);
                     }
 
                     @Override
@@ -699,6 +735,7 @@ public class ToolbarTablet extends ToolbarLayout {
                             mForwardButtonCoordinator.setVisibility(false);
                             mReloadButtonCoordinator.setVisibility(false);
                             mBackButtonCoordinator.setVisibility(false);
+                            mIncognitoIndicatorCoordinator.setVisibility(false);
                             // Set the padding at the end of the hide animation so the toolbar
                             // buttons don't jump when the animation starts.
                             setStartPaddingBasedOnButtonVisibility(false);
@@ -748,6 +785,7 @@ public class ToolbarTablet extends ToolbarLayout {
 
     void setIncognitoIndicatorCoordinatorForTesting(IncognitoIndicatorCoordinator coordinator) {
         mIncognitoIndicatorCoordinator = coordinator;
+        mToolbarWidthConsumers[ToolbarComponentId.INCOGNITO_INDICATOR] = coordinator;
     }
 
     void setForwardButtonCoordinatorForTesting(ForwardButtonCoordinator coordinator) {
@@ -768,5 +806,15 @@ public class ToolbarTablet extends ToolbarLayout {
     void setMenuButtonCoordinatorForTesting(MenuButtonCoordinator coordinator) {
         mMenuButtonCoordinator = coordinator;
         mToolbarWidthConsumers[ToolbarComponentId.MENU] = coordinator;
+    }
+
+    void ensurePaddingWidthConsumer() {
+        mToolbarWidthConsumers[ToolbarComponentId.PADDING] =
+                new ToolbarPaddingWidthConsumer(this, mStartPaddingWithButtons);
+    }
+
+    void ensureLocationBarMidWidthConsumer() {
+        mToolbarWidthConsumers[ToolbarComponentId.LOCATION_BAR_MINIMUM] =
+                new LocationBarMinWidthConsumer();
     }
 }

@@ -11,11 +11,13 @@
 #include <optional>
 #include <utility>
 
+#include "base/callback_list.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
@@ -35,34 +37,191 @@
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/native_theme/features/native_theme_features.h"
 #include "ui/native_theme/native_theme_observer.h"
+#include "ui/native_theme/os_settings_provider.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "ui/native_theme/native_theme_aura.h"
+#include "ui/native_theme/native_theme_mac.h"
+#elif defined(USE_AURA)
+#include "ui/native_theme/features/native_theme_features.h"
+#include "ui/native_theme/native_theme_aura.h"
+#include "ui/native_theme/native_theme_fluent.h"
+#if BUILDFLAG(IS_WIN)
+#include "ui/native_theme/native_theme_win.h"
+#endif
+#else
+#include "ui/native_theme/native_theme_mobile.h"
+#endif
 
 namespace ui {
 
-namespace {
-static constexpr base::TimeDelta kDefaultCaretBlinkInterval =
-    base::Milliseconds(500);
-}
-
 NativeTheme::MenuListExtraParams::MenuListExtraParams() = default;
-NativeTheme::TextFieldExtraParams::TextFieldExtraParams() = default;
 
 NativeTheme::MenuListExtraParams::MenuListExtraParams(
     const NativeTheme::MenuListExtraParams&) = default;
 
+NativeTheme::MenuListExtraParams& NativeTheme::MenuListExtraParams::operator=(
+    const NativeTheme::MenuListExtraParams&) = default;
+
+NativeTheme::TextFieldExtraParams::TextFieldExtraParams() = default;
+
 NativeTheme::TextFieldExtraParams::TextFieldExtraParams(
     const NativeTheme::TextFieldExtraParams&) = default;
 
-NativeTheme::MenuListExtraParams& NativeTheme::MenuListExtraParams::operator=(
-    const NativeTheme::MenuListExtraParams&) = default;
 NativeTheme::TextFieldExtraParams& NativeTheme::TextFieldExtraParams::operator=(
     const NativeTheme::TextFieldExtraParams&) = default;
 
-#if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_APPLE)
-// static
-bool NativeTheme::SystemDarkModeSupported() {
-  return false;
-}
+#if BUILDFLAG(IS_MAC)
+using NativeUiTheme = NativeThemeMac;
+using WebUiTheme = NativeThemeAura;
+#elif defined(USE_AURA)
+#if BUILDFLAG(IS_WIN)
+using NativeUiTheme = NativeThemeWin;
+#else
+using NativeUiTheme = NativeThemeAura;
 #endif
+NativeTheme* GetInstanceForWebImpl() {
+  static const bool use_fluent = IsFluentScrollbarEnabled();
+  if (use_fluent) {
+    static base::NoDestructor<NativeThemeFluent> s_web_theme;
+    return s_web_theme.get();
+  }
+  static base::NoDestructor<NativeThemeAura> s_web_theme(
+#if BUILDFLAG(IS_CHROMEOS)
+      true
+#else
+      IsOverlayScrollbarEnabledByFeatureFlag()
+#endif
+  );
+  return s_web_theme.get();
+}
+#else
+using NativeUiTheme = NativeThemeMobile;
+using WebUiTheme = NativeThemeMobile;
+#endif
+
+// static
+NativeTheme* NativeTheme::GetInstanceForNativeUi() {
+  static base::NoDestructor<NativeUiTheme> s_native_theme;
+  static bool initialized = false;
+  if (!initialized) {
+    s_native_theme->BeginObservingOsSettingChanges();
+    initialized = true;
+  }
+  return s_native_theme.get();
+}
+
+// static
+NativeTheme* NativeTheme::GetInstanceForWeb() {
+#if defined(USE_AURA)
+  NativeTheme* const native_theme = GetInstanceForWebImpl();
+#else
+  static base::NoDestructor<WebUiTheme> s_web_theme;
+  NativeTheme* const native_theme = s_web_theme.get();
+#endif
+  static bool initialized = false;
+  if (!initialized) {
+    GetInstanceForNativeUi()->SetAssociatedWebInstance(native_theme);
+    initialized = true;
+  }
+  return native_theme;
+}
+
+// static
+float NativeTheme::AdjustBorderWidthByZoom(float border_width,
+                                           float zoom_level) {
+  return std::max(std::floor(border_width * zoom_level), 1.0f);
+}
+
+// static
+float NativeTheme::AdjustBorderRadiusByZoom(Part part,
+                                            float border_radius,
+                                            float zoom) {
+  return (part == kCheckbox || part == kTextField || part == kPushButton)
+             ? AdjustBorderWidthByZoom(border_radius, zoom)
+             : border_radius;
+}
+
+int NativeTheme::GetPaintedScrollbarTrackInset() const {
+  return 0;
+}
+
+gfx::Insets NativeTheme::GetScrollbarSolidColorThumbInsets(Part part) const {
+  return {};
+}
+
+float NativeTheme::GetBorderRadiusForPart(Part part,
+                                          float width,
+                                          float height) const {
+  return 0;
+}
+
+SkColor NativeTheme::GetScrollbarThumbColor(
+    const ColorProvider* color_provider,
+    State state,
+    const ScrollbarThumbExtraParams& extra_params) const {
+  NOTREACHED();
+}
+
+SkColor NativeTheme::GetSystemButtonPressedColor(SkColor base_color) const {
+  return base_color;
+}
+
+void NativeTheme::BeginObservingOsSettingChanges() {
+  os_settings_changed_subscription_ =
+      OsSettingsProvider::RegisterOsSettingsChangedCallback(base::BindRepeating(
+          &NativeTheme::OnToolkitSettingsChanged, base::Unretained(this)));
+  UpdateVariablesForToolkitSettings();
+}
+
+void NativeTheme::AddObserver(NativeThemeObserver* observer) {
+  native_theme_observers_.AddObserver(observer);
+}
+
+void NativeTheme::RemoveObserver(NativeThemeObserver* observer) {
+  native_theme_observers_.RemoveObserver(observer);
+}
+
+void NativeTheme::NotifyOnNativeThemeUpdated() {
+  // This specific method is prone to being mistakenly called on the wrong
+  // sequence, because it is often invoked from a platform-specific event
+  // listener, and those events may be delivered on unexpected sequences.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  base::ElapsedTimer timer;
+  auto& color_provider_manager = ui::ColorProviderManager::Get();
+  const size_t initial_providers_initialized =
+      color_provider_manager.num_providers_initialized();
+
+  // Reset the ColorProviderManager's cache so that ColorProviders requested
+  // from this point onwards incorporate the changes to the system theme.
+  color_provider_manager.ResetColorProviderCache();
+
+  NotifyOnNativeThemeUpdatedImpl();
+
+  RecordNumColorProvidersInitializedDuringOnNativeThemeUpdated(
+      color_provider_manager.num_providers_initialized() -
+      initial_providers_initialized);
+  RecordTimeSpentProcessingOnNativeThemeUpdatedEvent(timer.Elapsed());
+}
+
+void NativeTheme::NotifyOnCaptionStyleUpdated() {
+  // This specific method is prone to being mistakenly called on the wrong
+  // sequence, because it is often invoked from a platform-specific event
+  // listener, and those events may be delivered on unexpected sequences.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  native_theme_observers_.Notify(&NativeThemeObserver::OnCaptionStyleUpdated);
+}
+
+void NativeTheme::NotifyOnPreferredContrastUpdated() {
+  // This specific method is prone to being mistakenly called on the wrong
+  // sequence, because it is often invoked from a platform-specific event
+  // listener, and those events may be delivered on unexpected sequences.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  NotifyOnPreferredContrastUpdatedImpl();
+}
 
 ColorProviderKey NativeTheme::GetColorProviderKey(
     scoped_refptr<ColorProviderKey::ThemeInitializerSupplier> custom_theme,
@@ -87,173 +246,25 @@ ColorProviderKey NativeTheme::GetColorProviderKey(
     return kForcedColorsMap.at(page_colors);
   };
 
-  const bool dark_mode =
-      forced_colors()
-          ? (preferred_color_scheme() == PreferredColorScheme::kDark)
-          : ShouldUseDarkColors();
   ui::ColorProviderKey key;
-  key.color_mode = dark_mode ? ColorProviderKey::ColorMode::kDark
-                             : ColorProviderKey::ColorMode::kLight;
+  key.color_mode = preferred_color_scheme() == PreferredColorScheme::kDark
+                       ? ColorProviderKey::ColorMode::kDark
+                       : ColorProviderKey::ColorMode::kLight;
   key.contrast_mode = preferred_contrast() == PreferredContrast::kMore
                           ? ColorProviderKey::ContrastMode::kHigh
                           : ColorProviderKey::ContrastMode::kNormal;
   key.forced_colors = get_forced_colors_key(forced_colors(), page_colors_);
-  key.system_theme = system_theme_;
+  key.system_theme = system_theme();
   key.frame_type = use_custom_frame ? ColorProviderKey::FrameType::kChromium
                                     : ColorProviderKey::FrameType::kNative;
   key.user_color_source = should_use_system_accent_color_
                               ? ColorProviderKey::UserColorSource::kAccent
                               : ColorProviderKey::UserColorSource::kBaseline;
-  key.user_color = user_color_;
-  key.scheme_variant = scheme_variant_;
+  key.user_color = user_color();
+  key.scheme_variant = scheme_variant();
   key.custom_theme = std::move(custom_theme);
 
   return key;
-}
-
-SkColor NativeTheme::GetSystemButtonPressedColor(SkColor base_color) const {
-  return base_color;
-}
-
-float NativeTheme::GetBorderRadiusForPart(Part part,
-                                          float width,
-                                          float height) const {
-  return 0;
-}
-
-void NativeTheme::AddObserver(NativeThemeObserver* observer) {
-  native_theme_observers_.AddObserver(observer);
-}
-
-void NativeTheme::RemoveObserver(NativeThemeObserver* observer) {
-  native_theme_observers_.RemoveObserver(observer);
-}
-
-void NativeTheme::NotifyOnNativeThemeUpdated() {
-  base::ElapsedTimer timer;
-  auto& color_provider_manager = ui::ColorProviderManager::Get();
-  const size_t initial_providers_initialized =
-      color_provider_manager.num_providers_initialized();
-
-  // This specific method is prone to being mistakenly called on the wrong
-  // sequence, because it is often invoked from a platform-specific event
-  // listener, and those events may be delivered on unexpected sequences.
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Reset the ColorProviderManager's cache so that ColorProviders requested
-  // from this point onwards incorporate the changes to the system theme.
-  color_provider_manager.ResetColorProviderCache();
-  native_theme_observers_.Notify(&NativeThemeObserver::OnNativeThemeUpdated,
-                                 this);
-
-  RecordNumColorProvidersInitializedDuringOnNativeThemeUpdated(
-      color_provider_manager.num_providers_initialized() -
-      initial_providers_initialized);
-  RecordTimeSpentProcessingOnNativeThemeUpdatedEvent(timer.Elapsed());
-}
-
-void NativeTheme::NotifyOnCaptionStyleUpdated() {
-  // This specific method is prone to being mistakenly called on the wrong
-  // sequence, because it is often invoked from a platform-specific event
-  // listener, and those events may be delivered on unexpected sequences.
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  native_theme_observers_.Notify(&NativeThemeObserver::OnCaptionStyleUpdated);
-}
-
-void NativeTheme::NotifyOnPreferredContrastUpdated() {
-  // This specific method is prone to being mistakenly called on the wrong
-  // sequence, because it is often invoked from a platform-specific event
-  // listener, and those events may be delivered on unexpected sequences.
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  native_theme_observers_.Notify(
-      &NativeThemeObserver::OnPreferredContrastChanged, this);
-}
-
-// static
-float NativeTheme::AdjustBorderWidthByZoom(float border_width,
-                                           float zoom_level) {
-  return std::max(std::floor(border_width * zoom_level), 1.0f);
-}
-
-// static
-float NativeTheme::AdjustBorderRadiusByZoom(Part part,
-                                            float border_radius,
-                                            float zoom) {
-  return (part == kCheckbox || part == kTextField || part == kPushButton)
-             ? AdjustBorderWidthByZoom(border_radius, zoom)
-             : border_radius;
-}
-
-base::TimeDelta NativeTheme::GetCaretBlinkInterval() const {
-  if (caret_blink_interval_.has_value()) {
-    return caret_blink_interval_.value();
-  }
-  std::optional<base::TimeDelta> platform_interval =
-      GetPlatformCaretBlinkInterval();
-  if (platform_interval.has_value()) {
-    return platform_interval.value();
-  }
-  return kDefaultCaretBlinkInterval;
-}
-
-NativeTheme::NativeTheme(ui::SystemTheme system_theme)
-    : should_use_dark_colors_(IsForcedDarkMode()),
-      system_theme_(system_theme),
-      forced_colors_(IsForcedHighContrast()),
-      preferred_color_scheme_(CalculatePreferredColorScheme()),
-      preferred_contrast_(CalculatePreferredContrast()) {}
-
-NativeTheme::~NativeTheme() = default;
-
-void NativeTheme::PaintMenuItemBackground(
-    cc::PaintCanvas* canvas,
-    const ColorProvider* color_provider,
-    State state,
-    const gfx::Rect& rect,
-    const MenuItemExtraParams& extra_params) const {
-  DCHECK(color_provider);
-  cc::PaintFlags flags;
-  switch (state) {
-    case NativeTheme::kNormal:
-    case NativeTheme::kDisabled: {
-      ui::ColorId id = kColorMenuBackground;
-#if BUILDFLAG(IS_CHROMEOS)
-      id = kColorAshSystemUIMenuBackground;
-#endif
-      flags.setColor(color_provider->GetColor(id));
-      break;
-    }
-    case NativeTheme::kHovered: {
-      ui::ColorId id = kColorMenuItemBackgroundSelected;
-#if BUILDFLAG(IS_CHROMEOS)
-      id = kColorAshSystemUIMenuItemBackgroundSelected;
-#endif
-      flags.setColor(color_provider->GetColor(id));
-      break;
-    }
-    default:
-      NOTREACHED() << "Invalid state " << state;
-  }
-  if (extra_params.corner_radius > 0) {
-    const SkScalar radius = SkIntToScalar(extra_params.corner_radius);
-    canvas->drawRoundRect(gfx::RectToSkRect(rect), radius, radius, flags);
-    return;
-  }
-  canvas->drawRect(gfx::RectToSkRect(rect), flags);
-}
-
-bool NativeTheme::ShouldUseDarkColors() const {
-  return should_use_dark_colors_;
-}
-
-NativeTheme::PreferredColorScheme NativeTheme::CalculatePreferredColorScheme()
-    const {
-  return ShouldUseDarkColors() ? NativeTheme::PreferredColorScheme::kDark
-                               : NativeTheme::PreferredColorScheme::kLight;
-}
-
-std::optional<base::TimeDelta> NativeTheme::GetPlatformCaretBlinkInterval()
-    const {
-  return std::nullopt;
 }
 
 void NativeTheme::SetPreferredContrast(
@@ -272,6 +283,18 @@ bool NativeTheme::IsForcedDarkMode() {
   return kIsForcedDarkMode;
 }
 
+NativeTheme::NativeTheme(ui::SystemTheme system_theme)
+    : system_theme_(system_theme),
+      forced_colors_(IsForcedHighContrast()),
+      page_colors_(forced_colors_ ? PageColors::kHighContrast
+                                  : PageColors::kOff),
+      preferred_color_scheme_(IsForcedDarkMode()
+                                  ? PreferredColorScheme::kDark
+                                  : PreferredColorScheme::kLight),
+      preferred_contrast_(CalculatePreferredContrast()) {}
+
+NativeTheme::~NativeTheme() = default;
+
 bool NativeTheme::IsForcedHighContrast() {
   static bool kIsForcedHighContrast =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -279,153 +302,211 @@ bool NativeTheme::IsForcedHighContrast() {
   return kIsForcedHighContrast;
 }
 
-NativeTheme::PreferredContrast NativeTheme::CalculatePreferredContrast() const {
-  return IsForcedHighContrast() ? PreferredContrast::kMore
-                                : PreferredContrast::kNoPreference;
-}
-
-std::optional<SkColor> NativeTheme::GetSystemThemeColor(
-    SystemThemeColor theme_color) const {
-  auto color = system_colors_.find(theme_color);
-  if (color != system_colors_.end()) {
-    return color->second;
+void NativeTheme::PaintMenuItemBackground(
+    cc::PaintCanvas* canvas,
+    const ColorProvider* color_provider,
+    State state,
+    const gfx::Rect& rect,
+    const MenuItemExtraParams& extra_params) const {
+  cc::PaintFlags flags;
+  const ColorId id = (state == kHovered)
+#if BUILDFLAG(IS_CHROMEOS)
+                         ? kColorAshSystemUIMenuItemBackgroundSelected
+                         : kColorAshSystemUIMenuBackground;
+#else
+                         ? kColorMenuItemBackgroundSelected
+                         : kColorMenuBackground;
+#endif
+  flags.setColor(color_provider->GetColor(id));
+  if (extra_params.corner_radius > 0) {
+    const SkScalar radius = SkIntToScalar(extra_params.corner_radius);
+    canvas->drawRoundRect(gfx::RectToSkRect(rect), radius, radius, flags);
+    return;
   }
-
-  return std::nullopt;
+  canvas->drawRect(gfx::RectToSkRect(rect), flags);
 }
 
-bool NativeTheme::HasDifferentSystemColors(
-    const std::map<NativeTheme::SystemThemeColor, SkColor>& colors) const {
-  return system_colors_ != colors;
-}
-
-void NativeTheme::set_system_colors(
-    const std::map<NativeTheme::SystemThemeColor, SkColor>& colors) {
-  system_colors_ = colors;
-}
-
-NativeTheme::ColorSchemeNativeThemeObserver::ColorSchemeNativeThemeObserver(
-    NativeTheme* theme_to_update)
-    : theme_to_update_(theme_to_update) {}
-
-NativeTheme::ColorSchemeNativeThemeObserver::~ColorSchemeNativeThemeObserver() =
-    default;
-
-void NativeTheme::ColorSchemeNativeThemeObserver::OnNativeThemeUpdated(
-    ui::NativeTheme* observed_theme) {
-  const bool new_inverted_colors = observed_theme->inverted_colors();
-  const base::TimeDelta new_caret_blink_interval =
-      observed_theme->GetCaretBlinkInterval();
-  bool notify_observers = false;
-
-  if (theme_to_update_->inverted_colors() != new_inverted_colors) {
-    theme_to_update_->set_inverted_colors(new_inverted_colors);
-    notify_observers = true;
-  }
-  if (theme_to_update_->GetCaretBlinkInterval() != new_caret_blink_interval) {
-    theme_to_update_->set_caret_blink_interval(new_caret_blink_interval);
-    notify_observers = true;
-  }
-
-  notify_observers |=
-      theme_to_update_->UpdateContrastRelatedStates(*observed_theme);
-
-  if (notify_observers) {
-    theme_to_update_->NotifyOnNativeThemeUpdated();
+void NativeTheme::OnToolkitSettingsChanged(bool force_notify) {
+  if (UpdateVariablesForToolkitSettings() || force_notify) {
+    NotifyOnNativeThemeUpdated();
   }
 }
 
-void NativeTheme::ColorSchemeNativeThemeObserver::OnPreferredContrastChanged(
-    ui::NativeTheme* observed_theme) {
-  if (theme_to_update_->UpdateContrastRelatedStates(*observed_theme)) {
-    theme_to_update_->NotifyOnNativeThemeUpdated();
+void NativeTheme::SetAssociatedWebInstance(
+    NativeTheme* associated_web_instance) {
+  if (associated_web_instance_ != associated_web_instance) {
+    associated_web_instance_ = associated_web_instance;
+    if (UpdateWebInstance()) {
+      associated_web_instance_->NotifyOnNativeThemeUpdatedImpl();
+    }
   }
 }
 
-bool NativeTheme::UpdateContrastRelatedStates(
-    const NativeTheme& observed_theme) {
-  bool new_forced_colors = observed_theme.forced_colors();
-  PageColors new_page_colors = observed_theme.page_colors();
-  PreferredContrast new_preferred_contrast =
-      observed_theme.preferred_contrast();
-  bool new_should_use_dark_colors = observed_theme.ShouldUseDarkColors();
-  PreferredColorScheme new_preferred_color_scheme =
-      observed_theme.preferred_color_scheme();
-  bool new_prefers_reduced_transparency =
-      observed_theme.prefers_reduced_transparency();
-  bool states_updated = false;
+bool NativeTheme::UpdateWebInstance() const {
+  if (!associated_web_instance_) {
+    return false;
+  }
+
+  bool new_forced_colors = forced_colors();
+  PreferredContrast new_preferred_contrast = preferred_contrast();
+  PreferredColorScheme new_preferred_color_scheme = preferred_color_scheme();
 
   const auto default_page_colors =
       new_forced_colors ? PageColors::kHighContrast : PageColors::kOff;
-  if (new_page_colors != default_page_colors) {
-    if (new_page_colors == PageColors::kOff) {
+  if (page_colors() != default_page_colors) {
+    if (page_colors() == PageColors::kOff) {
       new_forced_colors = false;
       new_preferred_contrast = PreferredContrast::kNoPreference;
-    } else if (new_page_colors != PageColors::kHighContrast) {
+    } else if (page_colors() != PageColors::kHighContrast) {
       // Set other states based on the selected theme (i.e. `kDusk`, `kDesert`,
       // `kNightSky`, `kWhite`, or `kAquatic`). This block is only executed when
       // one of these themes is chosen. `kHighContrast` is not a valid theme
       // here, as it is only available in forced colors mode.
-      CHECK_NE(new_page_colors, ui::NativeTheme::PageColors::kOff);
-      CHECK_NE(new_page_colors, ui::NativeTheme::PageColors::kHighContrast);
+      CHECK_NE(page_colors(), ui::NativeTheme::PageColors::kOff);
+      CHECK_NE(page_colors(), ui::NativeTheme::PageColors::kHighContrast);
       new_forced_colors = true;
       new_preferred_contrast = PreferredContrast::kMore;
     }
   }
 
-  if (forced_colors() != new_forced_colors) {
-    set_forced_colors(new_forced_colors);
-    states_updated = true;
-  }
-  if (page_colors() != new_page_colors) {
-    set_page_colors(new_page_colors);
-    states_updated = true;
-  }
   // Only update the color scheme if page colors is a selected theme.
-  if (new_page_colors != PageColors::kOff &&
-      new_page_colors != PageColors::kHighContrast) {
-    new_should_use_dark_colors = new_page_colors == PageColors::kNightSky ||
-                                 new_page_colors == PageColors::kDusk ||
-                                 new_page_colors == PageColors::kAquatic;
-    new_preferred_color_scheme = new_should_use_dark_colors
-                                     ? PreferredColorScheme::kDark
-                                     : PreferredColorScheme::kLight;
-  }
-  if (ShouldUseDarkColors() != new_should_use_dark_colors) {
-    set_use_dark_colors(new_should_use_dark_colors);
-    states_updated = true;
-  }
-  if (preferred_color_scheme() != new_preferred_color_scheme) {
-    set_preferred_color_scheme(new_preferred_color_scheme);
-    states_updated = true;
-  }
-  if (preferred_contrast() != new_preferred_contrast) {
-    SetPreferredContrast(new_preferred_contrast);
-    states_updated = true;
-  }
-  if (prefers_reduced_transparency() != new_prefers_reduced_transparency) {
-    set_prefers_reduced_transparency(new_prefers_reduced_transparency);
-    states_updated = true;
+  if (page_colors() != PageColors::kOff &&
+      page_colors() != PageColors::kHighContrast) {
+    const bool is_dark_theme = page_colors() == PageColors::kNightSky ||
+                               page_colors() == PageColors::kDusk ||
+                               page_colors() == PageColors::kAquatic;
+    new_preferred_color_scheme = is_dark_theme ? PreferredColorScheme::kDark
+                                               : PreferredColorScheme::kLight;
   }
 
-  return states_updated;
+  // NOTE: Intentionally does not copy the native "overlay scrollbar" setting to
+  // the web instance, as the web instance often wants to differ there.
+  // TODO(crbug.com/444399080): If we had a notion somewhere about "web wants
+  // overlay scrollbars even when native doesn't", we could probably copy the
+  // setting fearlessly here (and have that override it on the web instance
+  // side), making callers who want to toggle overlay scrollbars on/off globally
+  // simpler and safer.
+
+  // TODO(pkasting): The code duplication between this function and
+  // `UpdateVariablesForToolkitSettings()` is error-prone; e.g. it's easy to
+  // forget to update the web instance properly when adding a new member.
+  // Refactor to a settings struct or similar.
+
+  bool updated_web_instance = false;
+  if (associated_web_instance_->should_use_system_accent_color() !=
+      should_use_system_accent_color()) {
+    associated_web_instance_->should_use_system_accent_color_ =
+        should_use_system_accent_color();
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->forced_colors() != new_forced_colors) {
+    associated_web_instance_->forced_colors_ = new_forced_colors;
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->page_colors() != page_colors()) {
+    associated_web_instance_->page_colors_ = page_colors();
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->preferred_color_scheme() !=
+      new_preferred_color_scheme) {
+    associated_web_instance_->preferred_color_scheme_ =
+        new_preferred_color_scheme;
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->preferred_contrast() !=
+      new_preferred_contrast) {
+    associated_web_instance_->preferred_contrast_ = new_preferred_contrast;
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->prefers_reduced_transparency() !=
+      prefers_reduced_transparency()) {
+    associated_web_instance_->prefers_reduced_transparency_ =
+        prefers_reduced_transparency();
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->inverted_colors() != inverted_colors()) {
+    associated_web_instance_->inverted_colors_ = inverted_colors();
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->user_color() != user_color()) {
+    associated_web_instance_->user_color_ = user_color();
+    updated_web_instance = true;
+  }
+  if (associated_web_instance_->caret_blink_interval() !=
+      caret_blink_interval()) {
+    associated_web_instance_->caret_blink_interval_ = caret_blink_interval();
+    updated_web_instance = true;
+  }
+  return updated_web_instance;
 }
 
-int NativeTheme::GetPaintedScrollbarTrackInset() const {
-  return 0;
+NativeTheme::PreferredContrast NativeTheme::CalculatePreferredContrast() const {
+  return IsForcedHighContrast() ? PreferredContrast::kMore
+                                : PreferredContrast::kNoPreference;
 }
 
-gfx::Insets NativeTheme::GetScrollbarSolidColorThumbInsets(Part part) const {
-  return gfx::Insets();
+void NativeTheme::NotifyOnNativeThemeUpdatedImpl() {
+  // Update any associated web instance's settings before notifying observers,
+  // since those observers may attempt to override the web instance's settings
+  // (e.g. to implement web-content-specific forced colors).
+  const bool updated_web_instance = UpdateWebInstance();
+
+  native_theme_observers_.Notify(&NativeThemeObserver::OnNativeThemeUpdated,
+                                 this);
+
+  // If the web instance was modified above, also notify its observers. This is
+  // done last so any of our observers that modify the web instance will have
+  // already run.
+  //
+  // NOTE: If any above observers already called `NotifyOnNativeThemeUpdated()`
+  // on the web theme, this is unnecessary jank; however, it's not worth the
+  // hassle to try to detect this.
+  //
+  // TODO(pkasting): Adding a scoping object to batch updates would address
+  // this; see comments in header above accessors.
+  if (updated_web_instance) {
+    // Calling `NotifyOnNativeThemeUpdated()` here would unnecessarily churn the
+    // color provider cache.
+    associated_web_instance_->NotifyOnNativeThemeUpdatedImpl();
+  }
 }
 
-SkColor NativeTheme::GetScrollbarThumbColor(
-    const ui::ColorProvider& color_provider,
-    State state,
-    const ScrollbarThumbExtraParams& extra_params) const {
-  // A native theme using solid color scrollbar thumb must override this
-  // method.
-  NOTREACHED();
+void NativeTheme::NotifyOnPreferredContrastUpdatedImpl() {
+  const bool updated_web_instance = UpdateWebInstance();
+  native_theme_observers_.Notify(
+      &NativeThemeObserver::OnPreferredContrastChanged, this);
+  if (updated_web_instance) {
+    associated_web_instance_->NotifyOnPreferredContrastUpdatedImpl();
+  }
+}
+
+bool NativeTheme::UpdateVariablesForToolkitSettings() {
+  // This should not be called except in an instance that is monitoring OS
+  // setting changes. Otherwise, either:
+  //   * This is the associated web instance of another instance, and that
+  //     instance will update our members via `UpdateWebInstance()`, so updating
+  //     them here is both wasteful and potentially incorrect
+  //   * Or, whoever created this instance didn't call
+  //     `BeginObservingOsSettingChanges()` and should have
+  // Getting this right is important, because calling
+  // `OsSettingsProvider::Get()` in the renderer may not return the expected
+  // instance (see comments on that function), so we shouldn't be introducing
+  // new calls to it carelessly.
+  CHECK(os_settings_changed_subscription_);
+
+  // Calculate updated values.
+  const auto& os_settings_provider = OsSettingsProvider::Get();
+  const auto new_caret_blink_interval =
+      os_settings_provider.CaretBlinkInterval();
+
+  // Set updated values and see if anything changed.
+  bool updated = false;
+  if (caret_blink_interval() != new_caret_blink_interval) {
+    caret_blink_interval_ = new_caret_blink_interval;
+    updated = true;
+  }
+
+  return updated;
 }
 
 }  // namespace ui

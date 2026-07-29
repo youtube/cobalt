@@ -797,7 +797,7 @@ void BubbleDialogDelegate::UseCompactMargins() {
 
 // static
 gfx::Size BubbleDialogDelegate::GetMaxAvailableScreenSpaceToPlaceBubble(
-    View* anchor_view,
+    BubbleAnchor anchor,
     BubbleBorder::Arrow arrow,
     bool adjust_if_offscreen,
     BubbleFrameView::PreferredArrowAdjustment arrow_adjustment) {
@@ -816,7 +816,12 @@ gfx::Size BubbleDialogDelegate::GetMaxAvailableScreenSpaceToPlaceBubble(
              .supports_global_screen_coordinates);
 #endif
 
-  gfx::Rect anchor_rect = anchor_view->GetAnchorBoundsInScreen();
+  gfx::Rect anchor_rect;
+  if (std::holds_alternative<View*>(anchor)) {
+    anchor_rect = std::get<View*>(anchor)->GetAnchorBoundsInScreen();
+  } else {
+    anchor_rect = std::get<ui::TrackedElement*>(anchor)->GetScreenBounds();
+  }
   gfx::Rect screen_rect =
       display::Screen::Get()
           ->GetDisplayNearestPoint(anchor_rect.CenterPoint())
@@ -1100,6 +1105,7 @@ void BubbleDialogDelegate::SetAnchor(BubbleAnchor anchor) {
     if (auto* element_views = tracked_element->AsA<TrackedElementViews>()) {
       SetAnchorView(element_views->view());
     } else {
+      anchor_tracked_element_ = tracked_element;
       SetAnchorView(nullptr);
       SetAnchorRect(tracked_element->GetScreenBounds());
 
@@ -1114,6 +1120,16 @@ void BubbleDialogDelegate::SetAnchor(BubbleAnchor anchor) {
     SetAnchorView(nullptr);
     SetAnchorRect(gfx::Rect());
   }
+}
+
+BubbleAnchor BubbleDialogDelegate::GetAnchor() const {
+  if (GetAnchorView()) {
+    return GetAnchorView();
+  }
+  if (anchor_tracked_element_) {
+    return anchor_tracked_element_;
+  }
+  return nullptr;
 }
 
 void BubbleDialogDelegate::SizeToContents() {

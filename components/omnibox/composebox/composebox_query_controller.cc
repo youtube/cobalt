@@ -47,7 +47,6 @@
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 
 #if !BUILDFLAG(IS_IOS)
-#include "components/omnibox/composebox/composebox_image_helper.h"
 #include "services/data_decoder/public/cpp/decode_image.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #endif  // !BUILDFLAG(IS_IOS)
@@ -249,6 +248,7 @@ ComposeboxQueryController::GetNextRequestId(
   }
   if (cluster_info_.has_value()) {
     suggest_inputs_.set_search_session_id(cluster_info_->search_session_id());
+    suggest_inputs_.set_send_gsession_vsrid_for_contextual_suggest(true);
   } else {
     suggest_inputs_.clear_search_session_id();
   }
@@ -301,7 +301,7 @@ void ComposeboxQueryController::RemoveObserver(FileUploadStatusObserver* obs) {
 void ComposeboxQueryController::StartFileUploadFlow(
     const base::UnguessableToken& file_token,
     std::unique_ptr<lens::ContextualInputData> contextual_input_data,
-    std::optional<composebox::ImageEncodingOptions> image_options) {
+    std::optional<lens::ImageEncodingOptions> image_options) {
   // Create a file info struct to hold the file upload data.
   auto file_info = std::make_unique<FileInfo>();
   file_info->file_token_ = file_token;
@@ -314,6 +314,16 @@ void ComposeboxQueryController::StartFileUploadFlow(
 
   UpdateFileUploadStatus(file_token, FileUploadStatus::kProcessing,
                          std::nullopt);
+
+  // If the is_page_context_eligible is set to false, then fail early.
+  if (contextual_input_data->is_page_context_eligible.has_value() &&
+      !contextual_input_data->is_page_context_eligible.value()) {
+    // TODO(crbug.com/444276947): Consider adding a new error type for this.
+    UpdateFileUploadStatus(
+        file_token, FileUploadStatus::kValidationFailed,
+        composebox_query::mojom::FileUploadErrorType::kBrowserProcessingError);
+    return;
+  }
 
 #if BUILDFLAG(IS_IOS)
   bool has_viewport_screenshot =
@@ -354,6 +364,13 @@ void ComposeboxQueryController::StartFileUploadFlow(
 
 bool ComposeboxQueryController::DeleteFile(
     const base::UnguessableToken& file_token) {
+  // Multiple file upload is not supported yet, once it is, the suggest
+  // inputs should instead be updated to reflect this file being deleted.
+  // Suggest inputs must be cleared so when autocomplete is queried again
+  // in the UI, contextual suggestions do not appear.
+  if (active_files_.size() == 1) {
+    suggest_inputs_.Clear();
+  }
   return !!active_files_.erase(file_token);
 }
 
@@ -627,7 +644,7 @@ void ComposeboxQueryController::UpdateFileUploadStatus(
 #if !BUILDFLAG(IS_IOS)
 void ComposeboxQueryController::ProcessDecodedImageAndContinue(
     lens::LensOverlayRequestId request_id,
-    const composebox::ImageEncodingOptions& image_options,
+    const lens::ImageEncodingOptions& image_options,
     RequestBodyProtoCreatedCallback callback,
     const SkBitmap& bitmap) {
   scoped_refptr<lens::RefCountedLensOverlayClientLogs> ref_counted_logs =
@@ -648,8 +665,8 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
   // the main thread.
   create_request_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&composebox::DownscaleAndEncodeBitmap,
-                     std::move(bitmap_copy), ref_counted_logs, image_options),
+      base::BindOnce(&lens::DownscaleAndEncodeBitmap, std::move(bitmap_copy),
+                     ref_counted_logs, image_options),
       base::BindOnce(&ComposeboxQueryController::
                          CreateFileUploadRequestProtoWithImageDataAndContinue,
                      request_id, CreateClientContext(), ref_counted_logs,
@@ -660,7 +677,7 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
 void ComposeboxQueryController::CreateImageUploadRequest(
     const base::UnguessableToken& file_token,
     const std::vector<uint8_t>& image_data,
-    std::optional<composebox::ImageEncodingOptions> image_options,
+    std::optional<lens::ImageEncodingOptions> image_options,
     RequestBodyProtoCreatedCallback callback) {
 #if !BUILDFLAG(IS_IOS)
   FileInfo* file_info = GetFileInfo(file_token);
@@ -683,7 +700,7 @@ void ComposeboxQueryController::CreateImageUploadRequest(
 void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
     const base::UnguessableToken& file_token,
     std::unique_ptr<lens::ContextualInputData> contextual_input_data,
-    std::optional<composebox::ImageEncodingOptions> image_options) {
+    std::optional<lens::ImageEncodingOptions> image_options) {
   FileInfo* file_info = GetFileInfo(file_token);
   if (!file_info) {
     return;

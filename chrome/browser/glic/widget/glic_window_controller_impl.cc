@@ -37,7 +37,6 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -117,10 +116,13 @@ GlicButton* GetGlicButton(BrowserWindowInterface& browser) {
 display::Display GetDisplayForOpeningDetached() {
   // Get the Display for the most recently active browser. If there was no
   // recently active browser, use the primary display.
-  Browser* last_active_browser = BrowserList::GetInstance()->GetLastActive();
-  if (last_active_browser) {
-    std::optional<display::Display> widget_display =
-        last_active_browser->GetBrowserView().GetWidget()->GetNearestDisplay();
+  BrowserWindowInterface* const bwi =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+  ui::BaseWindow* const window = bwi ? bwi->GetWindow() : nullptr;
+  if (window) {
+    const std::optional<display::Display> widget_display =
+        views::Widget::GetWidgetForNativeWindow(window->GetNativeWindow())
+            ->GetNearestDisplay();
     if (widget_display) {
       return *widget_display;
     }
@@ -298,11 +300,11 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
     GlicKeyedService* glic_service,
     GlicEnabling* enabling)
     : profile_(profile),
-      host_(profile, base::DoNothing()),
-      host_manager_(std::make_unique<HostManager>(profile)),
+      host_(profile),
       window_finder_(std::make_unique<WindowFinder>()),
       glic_service_(glic_service),
       enabling_(enabling) {
+  host_manager_ = std::make_unique<HostManager>(profile, GetWeakPtr());
   if (window_config_.ShouldResetOnStart()) {
     previous_position_.reset();
   } else {
@@ -310,7 +312,6 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
   }
   application_hotkey_manager_ = MakeApplicationHotkeyManager(GetWeakPtr());
   host_.Initialize(this);
-  host_manager_->AddHost(&host_);
   host_observation_.Observe(&host());
 }
 
@@ -448,11 +449,11 @@ void GlicWindowControllerImpl::Toggle(BrowserWindowInterface* bwi,
   // treat this as if the user clicked the glic button on that window if
   // Chrome is currently in the foreground and we aren't in detached state.
   if (!new_attached_browser && !is_detached) {
-    Browser* last_active_browser = BrowserList::GetInstance()->GetLastActive();
-    if (last_active_browser &&
-        IsBrowserGlicAttachable(profile_, last_active_browser) &&
-        IsBrowserInForeground(last_active_browser)) {
-      new_attached_browser = last_active_browser;
+    BrowserWindowInterface* const active_bwi =
+        GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+    if (active_bwi && IsBrowserGlicAttachable(profile_, active_bwi) &&
+        IsBrowserInForeground(active_bwi)) {
+      new_attached_browser = active_bwi->GetBrowserForMigrationOnly();
     }
   }
 
@@ -633,6 +634,10 @@ HostManager& GlicWindowControllerImpl::host_manager() {
   return *host_manager_;
 }
 
+std::vector<Host*> GlicWindowControllerImpl::GetHosts() {
+  return {&host_};
+}
+
 Host* GlicWindowControllerImpl::GetHostForTab(tabs::TabInterface* tab) {
   return &host_;
 }
@@ -705,12 +710,11 @@ void GlicWindowControllerImpl::Show(Browser* browser,
 }
 
 std::unique_ptr<views::View> GlicWindowControllerImpl::CreateViewForSidePanel(
-    tabs::TabInterface* tab) {
+    tabs::TabInterface& tab) {
   // GetBrowserForMigrationOnly() is a stop-gap until the rest of the code in
   // GlicWindowController is updated to use BrowserWindowInterface instead of
   // Browser
-  auto* browser =
-      tab->GetBrowserWindowInterface()->GetBrowserForMigrationOnly();
+  auto* browser = tab.GetBrowserWindowInterface()->GetBrowserForMigrationOnly();
   // TODO: Add Invocation source for toolbar button
   if (BeforeViewCreated(browser, mojom::InvocationSource::kThreeDotsMenu) &&
       browser) {
@@ -1031,7 +1035,7 @@ void GlicWindowControllerImpl::AttachToBrowserAndShow(
   side_panel_coordinator->Show(SidePanelEntry::Id::kGlic);
 }
 
-void GlicWindowControllerImpl::SidePanelShown(Browser* browser) {
+void GlicWindowControllerImpl::SidePanelShown(BrowserWindowInterface* browser) {
   SetWindowState(State::kOpen);
   NotifyIfPanelStateChanged();
 
@@ -1161,8 +1165,9 @@ bool GlicWindowControllerImpl::ActivateBrowser() {
     return true;
   }
 
-  if (auto* last_active = BrowserList::GetInstance()->GetLastActive()) {
-    last_active->window()->Activate();
+  if (auto* const last_active_bwi =
+          GetLastActiveBrowserWindowInterfaceWithAnyProfile()) {
+    last_active_bwi->GetWindow()->Activate();
     return true;
   }
 
@@ -1178,8 +1183,13 @@ void GlicWindowControllerImpl::Close() {
   if (IsDetached()) {
     std::optional<display::Display> display =
         GetGlicWidget()->GetNearestDisplay();
+    BrowserWindowInterface* const last_active_bwi =
+        GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+    Browser* const last_active_browser =
+        last_active_bwi ? last_active_bwi->GetBrowserForMigrationOnly()
+                        : nullptr;
     glic_service_->metrics()->OnGlicWindowClose(
-        BrowserList::GetInstance()->GetLastActive(), display,
+        last_active_browser, display,
         GetGlicWidget()->GetWindowBoundsInScreen());
   }
   base::UmaHistogramEnumeration("Glic.PanelWebUiState.FinishState2",
@@ -1577,10 +1587,11 @@ void GlicWindowControllerImpl::SetWindowState(State new_state) {
 
   if (auto* actor_keyed_service = actor::ActorKeyedService::Get(profile_)) {
     // Show toast if floaty is closed.
-    Browser* last_active_browser = BrowserList::GetInstance()->GetLastActive();
+    BrowserWindowInterface* const last_active_bwi =
+        GetLastActiveBrowserWindowInterfaceWithAnyProfile();
     if (state_ == State::kClosed) {
       actor_keyed_service->GetActorUiStateManager()->MaybeShowToast(
-          last_active_browser);
+          last_active_bwi);
     }
   }
 

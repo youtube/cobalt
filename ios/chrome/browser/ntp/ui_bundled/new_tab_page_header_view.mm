@@ -32,6 +32,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_utils.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
+#import "ios/chrome/browser/omnibox/public/omnibox_presentation_context.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
@@ -375,7 +376,7 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
     return;
   }
   _placeholderText = placeholderText;
-  self.omnibox.textField.placeholder = placeholderText;
+  self.omnibox.textInput.placeholder = placeholderText;
   self.searchHintLabel.text = placeholderText;
 }
 
@@ -392,18 +393,18 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
   // TODO(crbug.com/40615993): See if it is possible to share some
   // initialization code with the real Omnibox.
   UIColor* color = [UIColor colorNamed:kTextfieldPlaceholderColor];
-  OmniboxContainerView* omnibox =
-      [[OmniboxContainerView alloc] initWithFrame:CGRectZero
-                                        textColor:color
-                                    textFieldTint:color
-                                         iconTint:color
-                                    isLensOverlay:NO];
-  omnibox.textField.placeholder = self.placeholderText;
-  [omnibox.textField setText:@""];
+  OmniboxContainerView* omnibox = [[OmniboxContainerView alloc]
+            initWithFrame:CGRectZero
+                textColor:color
+            textInputTint:color
+                 iconTint:color
+      presentationContext:OmniboxPresentationContext::kLocationBar];
+  omnibox.textInput.placeholder = self.placeholderText;
+  [omnibox.textInput setText:@""];
   omnibox.translatesAutoresizingMaskIntoConstraints = NO;
   [searchField addSubview:omnibox];
   AddSameConstraints(omnibox, self.fakeLocationBar);
-  omnibox.textField.userInteractionEnabled = NO;
+  omnibox.textInput.view.userInteractionEnabled = NO;
   omnibox.hidden = YES;
   self.omnibox = omnibox;
 

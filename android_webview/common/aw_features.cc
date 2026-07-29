@@ -199,6 +199,11 @@ BASE_FEATURE(kWebViewUseRenderingHeuristic, base::FEATURE_DISABLED_BY_DEFAULT);
 // also enable the same behaviour as this flag.
 BASE_FEATURE(kWebViewUseStartupTasksLogic, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, observe WebView movements with a PreDrawListener and use those
+// events to re-calculate the visual viewport of the web contents.
+BASE_FEATURE(kWebViewUseViewPositionObserverForInsets,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, records histograms relating to app's cache size.
 BASE_FEATURE(kWebViewRecordAppCacheHistograms,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -282,8 +287,11 @@ BASE_FEATURE(kWebViewReducedSeedRequestPeriod,
 // Enables early Java startup tracing, which unconditionally collects timing
 // information and queues runnables to emit the trace events once Perfetto is
 // initialized. This flag does not affect tracing in native code.
-BASE_FEATURE(kWebViewEarlyStartupTracing,
-             "WebViewEarlyStartupTracing",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewEarlyStartupTracing, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables early Perfetto init. This will initialize Perfetto as soon as the
+// native library is loaded, which should make it available by the time we start
+// calling content code.
+BASE_FEATURE(kWebViewEarlyPerfettoInit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace android_webview::features

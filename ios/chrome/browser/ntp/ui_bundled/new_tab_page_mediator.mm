@@ -120,6 +120,38 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   base::UmaHistogramEnumeration(kNTPLensButtonNewBadgeShownHistogram, result);
 }
 
+// Key for Image Fetcher UMA metrics.
+constexpr char kImageFetcherUmaClient[] = "NtpBackground";
+
+// NetworkTrafficAnnotationTag for fetching ntp background image from Google
+// server.
+const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
+    net::DefineNetworkTrafficAnnotation("ntp_background_custom_image",
+                                        R"(
+        semantics {
+        sender: "NtpBackground"
+        description:
+            "Sends a request to a Google server to load the ntp's custom "
+            "background."
+        trigger:
+            "A request will be sent when the user opens a new NTP and has a "
+            "custom background."
+        data: "Only image url, no user data"
+        destination: GOOGLE_OWNED_SERVICE
+        }
+        policy {
+        cookies_allowed: NO
+        setting:
+            "This feature cannot be disabled by settings. However, the "
+            "request will only be made if the user has a custom NTP background."
+        chrome_policy: {
+          NTPCustomBackgroundEnabled {
+            NTPCustomBackgroundEnabled: false
+          }
+        }
+        }
+        )");
+
 }  // namespace
 
 @interface NewTabPageMediator () <BrowserViewVisibilityObserving,
@@ -151,22 +183,22 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityObserverBridge;
   // Observes changes of the browser view visibility state.
-  raw_ptr<BrowserViewVisibilityNotifierBrowserAgent>
+  raw_ptr<BrowserViewVisibilityNotifierBrowserAgent, DanglingUntriaged>
       _browserViewVisibilityNotifierBrowserAgent;
   // Observes changes of the feed visibility state.
-  raw_ptr<DiscoverFeedVisibilityBrowserAgent>
+  raw_ptr<DiscoverFeedVisibilityBrowserAgent, DanglingUntriaged>
       _discoverFeedVisibilityBrowserAgent;
   std::unique_ptr<BrowserViewVisibilityObserverBridge>
       _browserViewVisibilityObserverBridge;
   // Used to load URLs.
-  raw_ptr<UrlLoadingBrowserAgent> _URLLoader;
+  raw_ptr<UrlLoadingBrowserAgent, DanglingUntriaged> _URLLoader;
   raw_ptr<PrefService> _prefService;
   // Pref observer to track changes to prefs.
   std::unique_ptr<PrefObserverBridge> _prefObserverBridge;
   // Registrar for pref changes notifications.
   std::unique_ptr<PrefChangeRegistrar> _prefChangeRegistrar;
   // The current default search engine.
-  raw_ptr<const TemplateURL> _defaultSearchEngine;
+  raw_ptr<const TemplateURL, DanglingUntriaged> _defaultSearchEngine;
   // Sync Service.
   raw_ptr<syncer::SyncService> _syncService;
   // Used to check feed configuration based on the country.
@@ -179,14 +211,15 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
       _backgroundCustomizationServiceObserverBridge;
   // Used to fetch and cache images for the background.
   raw_ptr<image_fetcher::ImageFetcherService> _imageFetcherService;
-  raw_ptr<UserUploadedImageManager> _userUploadedImageManager;
+  raw_ptr<UserUploadedImageManager, DanglingUntriaged>
+      _userUploadedImageManager;
   // Observer to keep track of the syncing status.
   std::unique_ptr<SyncObserverBridge> _syncObserver;
   raw_ptr<signin::IdentityManager> _identityManager;
   id<SystemIdentity> _signedInIdentity;
   std::unique_ptr<PlaceholderServiceObserverBridge> _placeholderServiceObserver;
   // Feature engagement tracker for handling "new" badge IPH.
-  raw_ptr<feature_engagement::Tracker> _tracker;
+  raw_ptr<feature_engagement::Tracker, DanglingUntriaged> _tracker;
 }
 
 // Synthesized from NewTabPageMutator.
@@ -439,8 +472,8 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
               [weakSelf handleBackgroundImageFetch:image];
             }
           }),
-          // TODO (crbug.com/417234848): Add annotation.
-          image_fetcher::ImageFetcherParams(NO_TRAFFIC_ANNOTATION_YET, "Test"));
+          image_fetcher::ImageFetcherParams(kTrafficAnnotation,
+                                            kImageFetcherUmaClient));
     } else {
       HomeUserUploadedBackground userBackground =
           std::get<HomeUserUploadedBackground>(customBackground.value());

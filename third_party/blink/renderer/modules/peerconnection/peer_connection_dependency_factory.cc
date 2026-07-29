@@ -36,6 +36,7 @@
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "net/net_buildflags.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/ip_address_space_util.h"
 #include "services/network/public/mojom/ip_address_space.mojom-shared.h"
 #include "third_party/blink/public/common/features.h"
@@ -62,7 +63,6 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
 #include "third_party/blink/renderer/modules/peerconnection/adapters/web_rtc_cross_thread_copier.h"
-#include "third_party/blink/renderer/modules/peerconnection/intercepting_network_controller.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_error_util.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection_handler.h"
 #include "third_party/blink/renderer/modules/permissions/permission_utils.h"
@@ -198,8 +198,14 @@ class LocalNetworkAccessPermission final
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
     CHECK(RuntimeEnabledFeatures::LocalNetworkAccessWebRTCEnabled());
 
-    return network::IsLessPublicAddressSpace(
+    const bool is_less_public = network::IsLessPublicAddressSpace(
         FromSocketAddress(candidate_address), originator_address_space_);
+
+    if (network::features::kLocalNetworkAccessChecksWebRTCLoopbackOnly.Get()) {
+      return candidate_address.IsLoopbackIP() && is_less_public;
+    }
+
+    return is_less_public;
   }
 
   void RequestPermission(
@@ -511,40 +517,6 @@ base::Thread& GetChromeWorkerThread() {
 base::Thread& GetChromeNetworkThread() {
   return StaticDeps().GetChromeNetworkThread();
 }
-
-class InterceptingNetworkControllerFactory
-    : public webrtc::NetworkControllerFactoryInterface {
- public:
-  InterceptingNetworkControllerFactory(
-      scoped_refptr<base::SequencedTaskRunner> context_task_runner,
-      RTCRtpTransport* rtp_transport)
-      : context_task_runner_(context_task_runner),
-        rtp_transport_(rtp_transport) {
-    CHECK(rtp_transport);
-  }
-
-  // Note: Called on a webrtc thread.
-  std::unique_ptr<webrtc::NetworkControllerInterface> Create(
-      webrtc::NetworkControllerConfig config) override {
-    return std::make_unique<InterceptingNetworkController>(
-        goog_cc_factory_->Create(config), rtp_transport_, context_task_runner_);
-  }
-
-  // Note: Called on a webrtc thread.
-  webrtc::TimeDelta GetProcessInterval() const override {
-    return goog_cc_factory_->GetProcessInterval();
-  }
-
- private:
-  const std::unique_ptr<webrtc::GoogCcNetworkControllerFactory>
-      goog_cc_factory_ =
-          std::make_unique<webrtc::GoogCcNetworkControllerFactory>();
-  const scoped_refptr<base::SequencedTaskRunner> context_task_runner_;
-  // Store just a CrossThreadWeakHandle pointing at an RTCRtpTransport, to be
-  // used on a webrtc thread when creating InterceptingNetworkController
-  // instances.
-  const CrossThreadWeakHandle<RTCRtpTransport> rtp_transport_;
-};
 
 // The enum is used for logging. Entries should not be renumbered or reused.
 // Keep in sync with the corresponding enum in
@@ -945,8 +917,7 @@ PeerConnectionDependencyFactory::CreatePeerConnection(
     const webrtc::PeerConnectionInterface::RTCConfiguration& config,
     blink::WebLocalFrame* web_frame,
     webrtc::PeerConnectionObserver* observer,
-    ExceptionState& exception_state,
-    RTCRtpTransport* rtp_transport) {
+    ExceptionState& exception_state) {
   CHECK(observer);
   if (!GetPcFactory().get())
     return nullptr;
@@ -961,11 +932,6 @@ PeerConnectionDependencyFactory::CreatePeerConnection(
   if (RuntimeEnabledFeatures::LocalNetworkAccessWebRTCEnabled()) {
     dependencies.lna_permission_factory =
         std::make_unique<LocalNetworkAccessPermissionFactory>(this);
-  }
-  if (rtp_transport) {
-    dependencies.network_controller_factory =
-        std::make_unique<InterceptingNetworkControllerFactory>(
-            context_task_runner_, rtp_transport);
   }
   auto pc_or_error = GetPcFactory()->CreatePeerConnectionOrError(
       config, std::move(dependencies));

@@ -18,6 +18,8 @@ component("native_theme") {
     "native_theme_fluent.h",
     "native_theme_observer.cc",
     "native_theme_observer.h",
+    "os_settings_provider.cc",
+    "os_settings_provider.h",
     "overlay_scrollbar_constants.cc",
     "overlay_scrollbar_constants.h",
   ]
@@ -44,6 +46,15 @@ component("native_theme") {
     "//ui/resources",
   ]
 
+  if (is_android) {
+    sources += [
+      "os_settings_provider_android.cc",
+      "os_settings_provider_android.h",
+    ]
+
+    deps += [ "//ui/accessibility:ax_base_android" ]
+  }
+
   if (is_android || is_ios) {
     sources += [
       "native_theme_mobile.cc",
@@ -62,6 +73,8 @@ component("native_theme") {
       "caption_style_mac.mm",
       "native_theme_mac.h",
       "native_theme_mac.mm",
+      "os_settings_provider_mac.h",
+      "os_settings_provider_mac.mm",
       "scrollbar_animator_mac.cc",
       "scrollbar_animator_mac.h",
     ]
@@ -72,7 +85,11 @@ component("native_theme") {
       "caption_style_win.cc",
       "native_theme_win.cc",
       "native_theme_win.h",
+      "os_settings_provider_win.cc",
+      "os_settings_provider_win.h",
     ]
+
+    deps += [ "//ui/color:accent_color_observer" ]
 
     libs = [ "uxtheme.lib" ]
   }
@@ -87,13 +104,17 @@ component("native_theme") {
   }
 }
 
-source_set("test_support") {
+component("test_support") {
   testonly = true
 
   sources = [
+    "mock_os_settings_provider.cc",
+    "mock_os_settings_provider.h",
     "test_native_theme.cc",
     "test_native_theme.h",
   ]
+
+  defines = [ "IS_NATIVE_THEME_IMPL" ]
 
   deps = [
     ":native_theme",

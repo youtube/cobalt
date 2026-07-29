@@ -129,7 +129,7 @@ class RemoteSuggestionsServiceTest : public testing::Test {
 
  protected:
   base::test::SingleThreadTaskEnvironment task_environment_;
-  variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
   network::TestURLLoaderFactory test_url_loader_factory_;
   search_engines::SearchEnginesTestEnvironment search_engines_test_environment_;
@@ -675,6 +675,62 @@ TEST_F(RemoteSuggestionsServiceTest,
       "https://www.google.com/"
       "suggest?q=query&client=chrome-multimodal&iil=iil&vsint=vsint&vit=vit&"
       "vsrid=vsrid&gsessionid=gsessionid");
+}
+
+TEST_F(
+    RemoteSuggestionsServiceTest,
+    LensOverlaySuggestInputsAppendedQueryParamsForComposeSearchboxIfSignals) {
+  // Set up a Google search provider.
+  TemplateURLData google_template_url_data;
+  google_template_url_data.SetURL(
+      "https://www.google.com/search?q={searchTerms}");
+  google_template_url_data.suggestions_url =
+      "https://www.google.com/suggest?q={searchTerms}";
+  google_template_url_data.id = SEARCH_ENGINE_GOOGLE;
+  TemplateURL google_template_url(google_template_url_data);
+
+  TemplateURLRef::SearchTermsArgs search_terms_args(u"query");
+  search_terms_args.page_classification =
+      metrics::OmniboxEventProto::NTP_COMPOSEBOX;
+  search_terms_args.lens_overlay_suggest_inputs =
+      std::make_optional<lens::proto::LensOverlaySuggestInputs>();
+
+  search_terms_args.lens_overlay_suggest_inputs->set_encoded_request_id(
+      "vsrid");
+  search_terms_args.lens_overlay_suggest_inputs->set_search_session_id(
+      "gsessionid");
+  GURL endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // No additional query params are appended for empty Lens suggest inputs
+  // because send_gsession_vsrid_for_contextual_suggest is false.
+  ASSERT_EQ(endpoint_url.spec(),
+            "https://www.google.com/"
+            "suggest?q=query&client=chrome-contextual&gs_ps=1");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_send_gsession_vsrid_for_contextual_suggest(true);
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended gsessionid and vsrids.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/"
+      "suggest?q=query&client=chrome-contextual&gs_ps=1&vsrid=vsrid&gsessionid="
+      "gsessionid");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_contextual_visual_input_type("vit");
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended vit.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/"
+      "suggest?q=query&client=chrome-contextual&gs_ps=1&vit=vit&vsrid=vsrid&"
+      "gsessionid=gsessionid");
 }
 
 TEST_F(RemoteSuggestionsServiceTest,

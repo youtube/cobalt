@@ -18,6 +18,8 @@
 #import "ios/chrome/browser/download/model/download_directory_util.h"
 #import "ios/chrome/browser/download/model/download_record.h"
 #import "ios/chrome/browser/download/model/download_record_service_factory.h"
+#import "ios/chrome/browser/download/ui/download_list/download_list_action_delegate.h"
+#import "ios/chrome/browser/download/ui/download_list/download_list_item.h"
 #import "ios/chrome/browser/download/ui/download_list/download_list_table_view_controller.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -32,7 +34,8 @@
 #import "ios/web/public/navigation/referrer.h"
 #import "url/gurl.h"
 
-@interface DownloadListCoordinator () <DownloadRecordCommands> {
+@interface DownloadListCoordinator () <DownloadListActionDelegate,
+                                       DownloadRecordCommands> {
   // Mediator for handling download list logic.
   DownloadListMediator* _mediator;
 
@@ -71,12 +74,12 @@
 
   [_mediator connect];
 
-  [self setupAndPresentDownloadListUI];
-
   // Register coordinator as DownloadRecordCommands handler.
   [self.browser->GetCommandDispatcher()
       startDispatchingToTarget:self
                    forProtocol:@protocol(DownloadRecordCommands)];
+
+  [self setupAndPresentDownloadListUI];
 }
 
 - (void)stop {
@@ -129,13 +132,16 @@
       break;
   }
   _downloadListViewController.mutator = _mediator;
+  _downloadListViewController.actionDelegate = self;
   [_mediator setConsumer:_downloadListViewController];
 
-  id<DownloadListCommands> handler = HandlerForProtocol(
-      self.browser->GetCommandDispatcher(), DownloadListCommands);
-  _downloadListViewController.downloadListHandler = handler;
-  // TODO:(crbug.com/441137558): Replace the controller with real controller.
-  // _downloadListViewController.downloadRecordHandler = self;
+  CommandDispatcher* commandDispatcher = self.browser->GetCommandDispatcher();
+  id<DownloadListCommands> downloadListHandler =
+      HandlerForProtocol(commandDispatcher, DownloadListCommands);
+  id<DownloadRecordCommands> downloadRecordHandler =
+      HandlerForProtocol(commandDispatcher, DownloadRecordCommands);
+  _downloadListViewController.downloadListHandler = downloadListHandler;
+  _downloadListViewController.downloadRecordHandler = downloadRecordHandler;
 
   _navigationController = [[UINavigationController alloc]
       initWithRootViewController:_downloadListViewController];
@@ -250,6 +256,13 @@
   NSURL* fileURL =
       [NSURL fileURLWithPath:base::SysUTF8ToNSString(filePath.value())];
   [_filePreviewCoordinator presentFilePreviewWithURL:fileURL];
+}
+
+#pragma mark - DownloadListActionDelegate
+
+- (void)openDownloadInFiles:(DownloadListItem*)item {
+  // TODO(crbug.com/444330914): Implement opening download in Files app.
+  // This will be completed in a subsequent CL.
 }
 
 @end

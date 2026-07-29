@@ -33,7 +33,8 @@ namespace content {
 // pump, so we can keep everything on one thread.
 class DesktopCapturerAndroid final : public webrtc::DesktopCapturer {
  public:
-  DesktopCapturerAndroid(const webrtc::DesktopCaptureOptions& options);
+  explicit DesktopCapturerAndroid(const webrtc::DesktopCaptureOptions& options);
+
   DesktopCapturerAndroid(const DesktopCapturerAndroid&) = delete;
   DesktopCapturerAndroid& operator=(const DesktopCapturerAndroid&) = delete;
   ~DesktopCapturerAndroid() override;
@@ -57,6 +58,23 @@ class DesktopCapturerAndroid final : public webrtc::DesktopCapturer {
                             jint unchecked_crop_right,
                             jint unchecked_crop_bottom);
 
+  void OnI420FrameAvailable(JNIEnv* env,
+                            const base::android::JavaRef<jobject>& release_cb,
+                            jlong timestamp_ns,
+                            const base::android::JavaRef<jobject>& y_buf,
+                            jint y_unchecked_pixel_stride,
+                            jint y_unchecked_row_stride,
+                            const base::android::JavaRef<jobject>& u_buf,
+                            jint u_unchecked_pixel_stride,
+                            jint u_unchecked_row_stride,
+                            const base::android::JavaRef<jobject>& v_buf,
+                            jint v_unchecked_pixel_stride,
+                            jint v_unchecked_row_stride,
+                            jint unchecked_crop_left,
+                            jint unchecked_crop_top,
+                            jint unchecked_crop_right,
+                            jint unchecked_crop_bottom);
+
   void OnStop(JNIEnv* env);
 
  private:
@@ -73,8 +91,6 @@ class DesktopCapturerAndroid final : public webrtc::DesktopCapturer {
 
     // Java callback to run when this plane's buffer is no longer in use.
     base::android::ScopedJavaGlobalRef<jobject> release_cb;
-    // Timestamp of the frame in nanoseconds.
-    int64_t timestamp_ns;
     // Java ByteBuffer containing the plane data.
     base::android::ScopedJavaGlobalRef<jobject> buf;
     // The number of bytes between the start of adjacent pixels in a row.

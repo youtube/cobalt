@@ -1082,16 +1082,13 @@ void FormStructureRationalizer::RationalizeByRationalizationEngine(
     const GeoIpCountryCode& client_country,
     const LanguageCode& language_code,
     LogManager* log_manager) {
-  auto to_form_field_data = [](const std::unique_ptr<AutofillField>& field)
-      -> raw_ptr<const FormFieldData> { return field.get(); };
-  ParsingContext context(base::ToVector(fields_, to_form_field_data),
-                         client_country, language_code,
+  ParsingContext context(fields_, client_country, language_code,
 #if BUILDFLAG(USE_INTERNAL_AUTOFILL_PATTERNS)
                          PatternFile::kDefault,
 #else
                          PatternFile::kLegacy,
 #endif
-                         GetActiveRegexFeatures());
+                         GetActiveRegexFeatures(), /*log_manager=*/nullptr);
 
   rationalization::ApplyRationalizationEngineRules(context, fields_,
                                                    log_manager);

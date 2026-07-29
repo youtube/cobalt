@@ -48,9 +48,9 @@ int GetPriorityForBubbleType(BubbleType type) {
 // existing pending bubble of the same type in the queue.
 bool ShouldAlwaysPreemptSameType(BubbleType bubble_type) {
   switch (bubble_type) {
+    case BubbleType::kFilledCardInformation:
     case BubbleType::kPassword:
       return true;
-    case BubbleType::kFilledCardInformation:
     case BubbleType::kSaveUpdateAutofillAi:
     case BubbleType::kSaveUpdateCard:
     case BubbleType::kVirtualCardEnrollConfirmation:
@@ -108,7 +108,10 @@ void BubbleManagerImpl::RequestShowController(
 
   if (force_show ||
       ShouldReplaceExistingBubble(controller_weak_ptr->GetBubbleType())) {
-    HideActiveBubbleForPreemption(controller_weak_ptr);
+    HideActiveBubbleForPreemption();
+
+    // Immediately show the new, preempting bubble.
+    ShowAndSetCurrentActive(controller_weak_ptr);
   } else {
     // New bubble has lower or equal priority, or the active bubble is hovered;
     // queue it.
@@ -133,21 +136,16 @@ void BubbleManagerImpl::ShowAndSetCurrentActive(
   active_bubble_controller_->ShowBubble();
 }
 
-void BubbleManagerImpl::HideActiveBubbleForPreemption(
-    base::WeakPtr<BubbleControllerBase> preempting_controller) {
+void BubbleManagerImpl::HideActiveBubbleForPreemption() {
   CHECK(active_bubble_controller_ &&
         active_bubble_controller_->IsShowingBubble());
-  CHECK(preempting_controller);
   CHECK(handling_show_request_);
 
   // Queue the old bubble. It will be hidden, and its OnBubbleHiddenByController
   // call will be a no-op for starting the next bubble because we are inside a
   // show request (`handling_show_request_` is true).
   AddToPendingQueue(active_bubble_controller_);
-  active_bubble_controller_->HideBubble();
-
-  // Immediately show the new, preempting bubble.
-  ShowAndSetCurrentActive(preempting_controller);
+  active_bubble_controller_->HideBubble(/*show_next_bubble=*/false);
 }
 
 void BubbleManagerImpl::AddToPendingQueue(
@@ -157,9 +155,9 @@ void BubbleManagerImpl::AddToPendingQueue(
   const base::TimeTicks now = base::TimeTicks::Now();
   int priority = GetPriorityForBubbleType(new_bubble_type);
 
-  auto it = std::find_if(
-      pending_bubbles_queue_.begin(), pending_bubbles_queue_.end(),
-      [&new_bubble_type](const auto& request) {
+  auto it = std::ranges::find_if(
+      pending_bubbles_queue_,
+      [&new_bubble_type](const PendingRequest& request) {
         return request.controller &&
                request.controller->GetBubbleType() == new_bubble_type;
       });
@@ -187,9 +185,12 @@ void BubbleManagerImpl::ProcessPendingBubbles() {
     return;
   }
 
-  // Clean up any stale pointers.
-  std::erase_if(pending_bubbles_queue_,
-                [](const auto& request) { return !request.controller; });
+  // Clean up any stale pointers and timed out bubbles.
+  const base::TimeTicks now = base::TimeTicks::Now();
+  std::erase_if(pending_bubbles_queue_, [&now](const auto& request) {
+    return !request.controller ||
+           (now - request.time_added) > kPendingRequestTimeout;
+  });
 
   if (pending_bubbles_queue_.empty()) {
     active_bubble_controller_ = nullptr;
@@ -204,12 +205,16 @@ void BubbleManagerImpl::ProcessPendingBubbles() {
 }
 
 void BubbleManagerImpl::OnBubbleHiddenByController(
-    BubbleControllerBase& controller_to_hide) {
+    BubbleControllerBase& controller_to_hide,
+    bool show_next_bubble) {
   base::WeakPtr<BubbleControllerBase> controller_weak_ptr =
       controller_to_hide.GetBubbleControllerBaseWeakPtr();
+
   if (active_bubble_controller_.get() == controller_weak_ptr.get()) {
     active_bubble_controller_ = nullptr;
-    ProcessPendingBubbles();
+    if (show_next_bubble) {
+      ProcessPendingBubbles();
+    }
   } else {
     // The hidden bubble was not the active one, so remove it from the queue.
     for (auto it = pending_bubbles_queue_.begin();
@@ -222,9 +227,8 @@ void BubbleManagerImpl::OnBubbleHiddenByController(
   }
 }
 
-bool BubbleManagerImpl::HasPendingBubble(
-    const BubbleControllerBase& controller) {
-  const BubbleType bubble_type = controller.GetBubbleType();
+bool BubbleManagerImpl::HasPendingBubbleOfSameType(
+    const BubbleType bubble_type) const {
   const base::TimeTicks now = base::TimeTicks::Now();
 
   auto it = std::ranges::find_if(
@@ -240,14 +244,8 @@ bool BubbleManagerImpl::HasPendingBubble(
     return false;
   }
 
-  if ((now - it->time_added) > kPendingRequestTimeout) {
-    // A bubble of the given type was found and has timed out, remove it from
-    // the queue.
-    pending_bubbles_queue_.erase(it);
-    return false;
-  }
-
-  return true;
+  return !ShouldAlwaysPreemptSameType(bubble_type) &&
+         (now - it->time_added) < kPendingRequestTimeout;
 }
 
 bool BubbleManagerImpl::ShouldReplaceExistingBubble(

@@ -11,6 +11,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
+#include "base/notreached.h"
 #include "base/time/time.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_util.h"
@@ -20,6 +21,8 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/webui/signin/history_sync_optin_helper.h"
+#include "chrome/browser/ui/webui/signin/history_sync_optin_service.h"
+#include "chrome/browser/ui/webui/signin/history_sync_optin_service_factory.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/browser/ui/webui/signin/turn_sync_on_helper.h"
@@ -27,6 +30,7 @@
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "content/public/browser/navigation_controller.h"
@@ -44,34 +48,6 @@ constexpr char kDiceSyncHeaderArrivalTimeWindowHistogramName[] =
 // static
 base::TimeDelta DiceTabHelper::g_delay_before_interception_bubble_retry =
     base::Seconds(3);
-
-DiceTabHelper::HistorySyncOptinDelegate::HistorySyncOptinDelegate(
-    Browser* browser)
-    : browser_(browser) {
-  CHECK(browser_);
-}
-
-DiceTabHelper::HistorySyncOptinDelegate::~HistorySyncOptinDelegate() = default;
-
-void DiceTabHelper::HistorySyncOptinDelegate::ShowHistorySyncOptinScreen() {
-  if (!browser_) {
-    return;
-  }
-  browser_->GetFeatures()
-      .signin_view_controller()
-      ->ShowModalHistorySyncOptInDialog();
-}
-
-void DiceTabHelper::HistorySyncOptinDelegate::ShowAccountManagementScreen(
-    signin::SigninChoiceCallback on_account_management_screen_closed) {
-  // Flows via the Dice Tab Helper that have access to a Browser
-  // do not call this method. Thy rely on the
-  // `ProfileManagementDisclaimerService` for displaying management screens.
-  NOTREACHED();
-}
-
-void DiceTabHelper::HistorySyncOptinDelegate::
-    FinishFlowWithoutHistorySyncOptin() {}
 
 // static
 DiceTabHelper::EnableSyncCallback
@@ -109,9 +85,8 @@ DiceTabHelper::GetHistorySyncOptinCallbackForBrowser() {
   return base::BindRepeating([](Profile* profile,
                                 content::WebContents* web_contents,
                                 const CoreAccountInfo& account_info) {
-    CHECK(base::FeatureList::IsEnabled(switches::kEnableHistorySyncOptin));
     CHECK(base::FeatureList::IsEnabled(
-        switches::kEnableHistorySyncOptinFromTabHelper));
+        syncer::kReplaceSyncPromosWithSignInPromos));
     CHECK(profile);
 
     Browser* browser = web_contents ? chrome::FindBrowserWithTab(web_contents)
@@ -120,10 +95,9 @@ DiceTabHelper::GetHistorySyncOptinCallbackForBrowser() {
       return;
     }
 
-    DiceTabHelper* tab_helper = DiceTabHelper::FromWebContents(web_contents);
-    if (!tab_helper) {
-      return;
-    }
+    HistorySyncOptinService* history_sync_optin_service =
+        HistorySyncOptinServiceFactory::GetForProfile(profile);
+    CHECK(history_sync_optin_service);
 
     signin::IdentityManager* identity_manager =
         IdentityManagerFactory::GetForProfile(profile);
@@ -136,14 +110,9 @@ DiceTabHelper::GetHistorySyncOptinCallbackForBrowser() {
     }
     CHECK(identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
               .account_id == account_info.account_id);
-    tab_helper->state_->history_sync_optin_delegate =
-        std::make_unique<HistorySyncOptinDelegate>(browser);
-    tab_helper->state_->history_sync_optin_helper =
-        std::make_unique<HistorySyncOptinHelper>(
-            identity_manager, profile, extended_account_info,
-            tab_helper->state_->history_sync_optin_delegate.get(),
-            HistorySyncOptinHelper::LaunchContext::kInBrowser);
-    tab_helper->state_->history_sync_optin_helper->StartHistorySyncOptinFlow();
+    history_sync_optin_service->StartHistorySyncOptinFlow(
+        extended_account_info,
+        std::make_unique<HistorySyncOptinServiceDefaultDelegate>());
   });
 }
 

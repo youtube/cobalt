@@ -51,8 +51,7 @@ class HistorySyncOptinUIDialogPixelTest
   HistorySyncOptinUIDialogPixelTest()
       : ProfilesPixelTestBaseT<DialogBrowserTest>(GetParam()) {
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{switches::kEnableHistorySyncOptin,
-                              syncer::kReplaceSyncPromosWithSignInPromos},
+        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
         /*disabled_features=*/{});
   }
 
@@ -77,7 +76,7 @@ class HistorySyncOptinUIDialogPixelTest
         "SigninViewControllerDelegateViews");
 
     auto* controller = browser()->GetFeatures().signin_view_controller();
-    controller->ShowModalHistorySyncOptInDialog();
+    controller->ShowModalHistorySyncOptInDialog(base::DoNothing());
     widget_waiter.WaitIfNeededAndGet();
     observer.Wait();
   }
@@ -158,8 +157,7 @@ class HistorySyncOptinUIWindowPixelTest
   HistorySyncOptinUIWindowPixelTest()
       : ProfilesPixelTestBaseT<UiBrowserTest>(GetParam()) {
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{switches::kEnableHistorySyncOptin,
-                              syncer::kReplaceSyncPromosWithSignInPromos},
+        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
         /*disabled_features=*/{});
   }
 

@@ -8,6 +8,7 @@
 #import <Foundation/Foundation.h>
 
 enum class DownloadFilterType;
+@class DownloadListItem;
 
 /// Protocol for download list data operations.
 /// This protocol encapsulates the data manipulation responsibilities.
@@ -21,6 +22,12 @@ enum class DownloadFilterType;
 
 /// Filters the download records based on the filter type.
 - (void)filterRecordsWithType:(DownloadFilterType)type;
+
+/// Filters the download records based on the search keyword.
+- (void)filterRecordsWithKeyword:(NSString*)keyword;
+
+/// Deletes the download item.
+- (void)deleteDownloadItem:(DownloadListItem*)item;
 
 @end
 

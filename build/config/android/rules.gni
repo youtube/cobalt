@@ -3929,16 +3929,10 @@ if (!is_robolectric && enable_java_templates) {
       forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
       create_apk_script = false
 
-      if (!defined(apk_name)) {
-        apk_name = get_label_info(invoker.shared_library, "name")
-      }
-
       if (!defined(android_manifest)) {
         android_manifest_dep = ":${target_name}_manifest"
         android_manifest = _android_manifest
       }
-
-      final_apk_path = "$root_build_dir/${apk_name}_apk/${apk_name}-debug.apk"
 
       if (!defined(use_default_launcher) || use_default_launcher) {
         deps += [
@@ -4655,9 +4649,6 @@ if (!is_robolectric && enable_java_templates) {
   #
   #    proguard_enable_obfuscation: Whether to enable obfuscation (default=true)
   #
-  #    proguard_android_sdk_dep: Optional. android_system_java_prebuilt() target
-  #      used as a library jar for synchronized proguarding.
-  #
   #    system_image_locale_allowlist: List of locales that should be included
   #      on system APKs generated from this bundle.
   #
@@ -4794,11 +4785,6 @@ if (!is_robolectric && enable_java_templates) {
 
     _build_config = "$target_gen_dir/${_target_name}.build_config.json"
     _rebased_build_config = rebase_path(_build_config, root_build_dir)
-    if (defined(invoker.proguard_android_sdk_dep)) {
-      _android_sdk_dep = invoker.proguard_android_sdk_dep
-    } else {
-      _android_sdk_dep = default_android_sdk_dep
-    }
 
     if (_proguard_enabled) {
       _proguard_mapping_path = "${_bundle_path}.mapping"
@@ -4816,7 +4802,7 @@ if (!is_robolectric && enable_java_templates) {
     _build_config_target = ":$_build_config_target_name"
     write_build_config(_build_config_target_name) {
       type = "android_app_bundle"
-      possible_config_deps = _module_targets + [ _android_sdk_dep ]
+      possible_config_deps = _module_targets
       build_config = _build_config
       proguard_enabled = _proguard_enabled
       enable_lint = _enable_lint

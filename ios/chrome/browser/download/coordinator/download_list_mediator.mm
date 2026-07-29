@@ -14,6 +14,7 @@
 #import "base/files/file_path.h"
 #import "base/functional/bind.h"
 #import "base/functional/callback.h"
+#import "base/i18n/string_search.h"
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
@@ -25,10 +26,15 @@
 #import "ios/chrome/browser/download/ui/download_list/download_list_item.h"
 #import "ios/web/public/download/download_task.h"
 
+using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
+
 @interface DownloadListMediator () <DownloadRecordObserverDelegate>
 
 // Cached download records to avoid frequent service calls.
 @property(nonatomic, assign) std::vector<DownloadRecord> allRecords;
+
+// Cached filtered records to optimize incremental search.
+@property(nonatomic, assign) std::vector<DownloadRecord> filteredRecordsCache;
 
 // Consumer for updating the UI.
 @property(nonatomic, weak) id<DownloadListConsumer> consumer;
@@ -50,6 +56,9 @@
 
   // Current filter type applied to the download records.
   DownloadFilterType _currentFilterType;
+
+  // Current search keyword applied to the download records.
+  NSString* _currentSearchKeyword;
 }
 
 - (instancetype)initWithDownloadRecordService:
@@ -60,6 +69,7 @@
     _downloadRecordService = downloadRecordService;
     _observerBridge = std::make_unique<DownloadRecordObserverBridge>(self);
     _currentFilterType = DownloadFilterType::kAll;
+    _currentSearchKeyword = @"";
   }
   return self;
 }
@@ -119,13 +129,19 @@
 
   [self.consumer setLoadingState:YES];
 
+  // Clear cache since we're reloading all data.
+  [self invalidateSearchCache];
+
   __weak __typeof__(self) weakSelf = self;
   _downloadRecordService->GetAllDownloadsAsync(
       base::BindOnce(^(std::vector<DownloadRecord> records) {
         __strong __typeof__(weakSelf) strongSelf = weakSelf;
         strongSelf.allRecords = std::move(records);
         std::vector<DownloadRecord> recordsToDisplay =
-            [strongSelf applyCurrentFilter:strongSelf.allRecords];
+            [strongSelf applyFilterWithTypeAndKeyword:strongSelf.allRecords];
+
+        // Update cache.
+        strongSelf.filteredRecordsCache = recordsToDisplay;
 
         [strongSelf setDownloadListItems:recordsToDisplay];
       }));
@@ -136,8 +152,15 @@
 
   // Implement logic to sync records with the file system in a future iteration.
 
+  // Clear cache during sync since data may have changed.
+  [self invalidateSearchCache];
+
   std::vector<DownloadRecord> recordsToDisplay =
-      [self applyCurrentFilter:self.allRecords];
+      [self applyFilterWithTypeAndKeyword:self.allRecords];
+
+  // Update cache.
+  self.filteredRecordsCache = recordsToDisplay;
+
   [self setDownloadListItems:recordsToDisplay];
 }
 
@@ -146,40 +169,92 @@
 
   _currentFilterType = type;
 
+  // Clear search cache when filter type changes.
+  [self invalidateSearchCache];
+
   [self.consumer setLoadingState:YES];
 
   std::vector<DownloadRecord> filteredRecords =
-      [self applyCurrentFilter:self.allRecords];
+      [self applyFilterWithTypeAndKeyword:self.allRecords];
+
+  // Update cache.
+  self.filteredRecordsCache = filteredRecords;
 
   [self setDownloadListItems:filteredRecords];
+}
+
+- (void)filterRecordsWithKeyword:(NSString*)keyword {
+  CHECK(_isReady);
+
+  NSString* normalizedKeyword = [self normalizeKeyword:keyword];
+
+  // Avoid unnecessary re-filtering if keyword hasn't actually changed.
+  if ([_currentSearchKeyword isEqualToString:normalizedKeyword]) {
+    return;
+  }
+
+  NSString* previousKeyword = _currentSearchKeyword;
+  _currentSearchKeyword = normalizedKeyword;
+
+  std::vector<DownloadRecord> filteredRecords;
+
+  // Incremental search optimization: if new keyword extends previous keyword,
+  // filter on cached results.
+  if ([self keyword:normalizedKeyword extendsKeyword:previousKeyword]) {
+    filteredRecords =
+        [self applyKeywordFilterToRecords:self.filteredRecordsCache
+                                  keyword:normalizedKeyword];
+  } else {
+    // Otherwise, filter from all records and update cache.
+    filteredRecords = [self applyFilterWithTypeAndKeyword:self.allRecords];
+  }
+
+  // Update cache.
+  self.filteredRecordsCache = filteredRecords;
+
+  [self setDownloadListItems:filteredRecords];
+}
+
+- (void)deleteDownloadItem:(DownloadListItem*)item {
+  // TODO(crbug.com/444335357): Implement direct delete functionality.
+  // This will be completed in a subsequent CL.
 }
 
 #pragma mark - DownloadRecordObserver Methods
 
 - (void)downloadRecordWasAdded:(const DownloadRecord&)record {
+  [self invalidateSearchCache];
   [self updateConsumer];
 }
 
 - (void)downloadRecordWasUpdated:(const DownloadRecord&)record {
+  [self invalidateSearchCache];
   [self updateConsumer];
 }
 
 - (void)downloadsWereRemovedWithIDs:(NSArray<NSString*>*)downloadIDs {
+  [self invalidateSearchCache];
   [self updateConsumer];
 }
 
 #pragma mark - Private Methods
 
-// Applies the current filter to the given records.
-- (std::vector<DownloadRecord>)applyCurrentFilter:
+// Applies the current filter type and keyword to the given records.
+- (std::vector<DownloadRecord>)applyFilterWithTypeAndKeyword:
     (const std::vector<DownloadRecord>&)records {
-  if (_currentFilterType == DownloadFilterType::kAll) {
-    return records;
-  }
-
   std::vector<DownloadRecord> filteredRecords;
+
   for (const auto& record : records) {
-    if (IsDownloadFilterMatch(record.mime_type, _currentFilterType)) {
+    // Apply filter type check
+    BOOL matchesFilter =
+        (_currentFilterType == DownloadFilterType::kAll) ||
+        IsDownloadFilterMatch(record.mime_type, _currentFilterType);
+
+    // Apply keyword search check
+    BOOL matchesSearch = [self record:record
+                       matchesKeyword:_currentSearchKeyword];
+
+    if (matchesFilter && matchesSearch) {
       filteredRecords.push_back(record);
     }
   }
@@ -207,7 +282,7 @@
   _isRecoveringFromBackground = YES;
 }
 
-/// Sets the download list items in the consumer.
+// Sets the download list items in the consumer.
 - (void)setDownloadListItems:(const std::vector<DownloadRecord>&)records {
   NSMutableArray<DownloadListItem*>* items = [NSMutableArray array];
   for (const auto& record : records) {
@@ -218,6 +293,105 @@
   [self.consumer setDownloadListItems:items.copy];
   [self.consumer setLoadingState:NO];
   [self.consumer setEmptyState:(items.count == 0)];
+}
+
+// Normalizes the search keyword by trimming whitespace and collapsing multiple
+// spaces.
+- (NSString*)normalizeKeyword:(NSString*)keyword {
+  if (!keyword) {
+    return @"";
+  }
+
+  // Trim leading and trailing whitespace and newlines.
+  NSString* trimmedKeyword = [keyword
+      stringByTrimmingCharactersInSet:[NSCharacterSet
+                                          whitespaceAndNewlineCharacterSet]];
+
+  // Collapse multiple consecutive whitespace characters into single spaces.
+  NSRegularExpression* regex =
+      [NSRegularExpression regularExpressionWithPattern:@"\\s+"
+                                                options:0
+                                                  error:nil];
+  NSString* normalizedKeyword = [regex
+      stringByReplacingMatchesInString:trimmedKeyword
+                               options:0
+                                 range:NSMakeRange(0, trimmedKeyword.length)
+                          withTemplate:@" "];
+
+  return normalizedKeyword;
+}
+
+// Checks if a download record matches the given search keyword.
+- (BOOL)record:(const DownloadRecord&)record matchesKeyword:(NSString*)keyword {
+  // If no keyword is provided, match all records.
+  if (!keyword || keyword.length == 0) {
+    return YES;
+  }
+
+  // Create searcher for the current keyword.
+  std::u16string keywordU16 = base::SysNSStringToUTF16(keyword);
+  FixedPatternStringSearchIgnoringCaseAndAccents query_search(keywordU16);
+
+  // Search in file name.
+  std::u16string fileName = base::UTF8ToUTF16(record.file_name);
+  if (query_search.Search(fileName, /*match_index=*/nullptr,
+                          /*match_length=*/nullptr)) {
+    return YES;
+  }
+
+  // Search in original URL.
+  std::u16string originalUrl = base::UTF8ToUTF16(record.original_url);
+  if (query_search.Search(originalUrl, /*match_index=*/nullptr,
+                          /*match_length=*/nullptr)) {
+    return YES;
+  }
+
+  return NO;
+}
+
+// Determines if the current search is incremental (new keyword extends previous
+// keyword).
+- (BOOL)keyword:(NSString*)newKeyword
+    extendsKeyword:(NSString*)previousKeyword {
+  // If there was no previous keyword, this is not an incremental search.
+  if (!previousKeyword || previousKeyword.length == 0) {
+    return NO;
+  }
+
+  // If the new keyword is empty, this is not an incremental search.
+  if (!newKeyword || newKeyword.length == 0) {
+    return NO;
+  }
+
+  // If the new keyword is shorter than the previous one, this is not
+  // incremental.
+  if (newKeyword.length <= previousKeyword.length) {
+    return NO;
+  }
+
+  // Check if the new keyword starts with the previous keyword (incremental
+  // search).
+  return [newKeyword hasPrefix:previousKeyword];
+}
+
+// Applies keyword filter to the given records (used for incremental search).
+- (std::vector<DownloadRecord>)applyKeywordFilterToRecords:
+                                   (const std::vector<DownloadRecord>&)records
+                                                   keyword:(NSString*)keyword {
+  std::vector<DownloadRecord> filteredRecords;
+
+  for (const auto& record : records) {
+    if ([self record:record matchesKeyword:keyword]) {
+      filteredRecords.push_back(record);
+    }
+  }
+
+  return filteredRecords;
+}
+
+// Invalidates the search cache when filter type changes.
+- (void)invalidateSearchCache {
+  self.filteredRecordsCache.clear();
 }
 
 @end

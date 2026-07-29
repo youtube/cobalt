@@ -14,7 +14,7 @@
 #include "base/containers/lru_cache.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/ozone/public/hardware_capabilities.h"
 #include "ui/ozone/public/overlay_candidates_ozone.h"
 #include "ui/ozone/public/overlay_manager_ozone.h"
@@ -99,10 +99,10 @@ class DrmOverlayManager : public OverlayManagerOzone {
   bool CanHandleCandidate(const OverlaySurfaceCandidate& candidate,
                           gfx::AcceleratedWidget widget) const;
 
-  // Checks if gfx::BufferFormat that overlay candidate requires is supported
-  // by hardware.
-  bool IsBufferFormatSupported(gfx::BufferFormat required_overlay_buffer_format,
-                               gfx::AcceleratedWidget widget) const;
+  // Checks if viz::SharedImageFormat that overlay candidate requires is
+  // supported by hardware.
+  bool IsFormatSupported(viz::SharedImageFormat required_overlay_format,
+                         gfx::AcceleratedWidget widget) const;
 
   // Updates the MRU cache for overlay configuration |candidates| with |status|.
   void UpdateCacheForOverlayCandidates(

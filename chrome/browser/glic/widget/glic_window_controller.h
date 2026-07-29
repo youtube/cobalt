@@ -80,6 +80,7 @@ class GlicWindowController {
   virtual Host& host() = 0;
   virtual HostManager& host_manager() = 0;
 
+  virtual std::vector<Host*> GetHosts() = 0;
   virtual Host* GetHostForTab(tabs::TabInterface* tab) = 0;
 
   // Show, summon, or activate the panel if needed, or close it if it's already
@@ -211,9 +212,9 @@ class GlicWindowController {
   virtual void ShowDetachedForTesting() = 0;
   virtual void SetPreviousPositionForTesting(gfx::Point position) = 0;
   virtual std::unique_ptr<views::View> CreateViewForSidePanel(
-      tabs::TabInterface* tab) = 0;
+      tabs::TabInterface& tab) = 0;
 
-  virtual void SidePanelShown(Browser* browser) = 0;
+  virtual void SidePanelShown(BrowserWindowInterface* browser) = 0;
   // Helper function to get the always detached flag.
   static bool AlwaysDetached() {
     return base::FeatureList::IsEnabled(features::kGlicDetached);

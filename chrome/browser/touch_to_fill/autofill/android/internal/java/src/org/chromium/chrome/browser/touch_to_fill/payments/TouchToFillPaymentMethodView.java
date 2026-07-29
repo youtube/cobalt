@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.touch_to_fill.payments;
 
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.ALL_LOYALTY_CARDS_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.PROGRESS_SCREEN;
 
 import android.content.Context;
 import android.view.LayoutInflater;
@@ -55,6 +56,8 @@ class TouchToFillPaymentMethodView extends TouchToFillViewBase {
                 case ItemType.FILL_BUTTON:
                 case ItemType.WALLET_SETTINGS_BUTTON:
                 case ItemType.TERMS_LABEL:
+                case ItemType.PROGRESS_ICON:
+                case ItemType.BNPL_SELECTION_PROGRESS_HEADER:
                     return true;
                 case ItemType.CREDIT_CARD:
                 case ItemType.IBAN:
@@ -99,6 +102,9 @@ class TouchToFillPaymentMethodView extends TouchToFillViewBase {
         view.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
     }
 
+    // TODO(crbug.com/430575808): Rename function to clarify that this handles loyalty cards back
+    // button only, or refactor loyalty cards back button implementation to match BNPL header back
+    // button implementation.
     void setBackPressHandler(Runnable backPressHandler) {
         getContentView()
                 .findViewById(R.id.all_loyalty_cards_back_image_button)
@@ -192,6 +198,8 @@ class TouchToFillPaymentMethodView extends TouchToFillViewBase {
                 return 0;
             case ALL_LOYALTY_CARDS_SCREEN:
                 return 1;
+            case PROGRESS_SCREEN:
+                return 2;
         }
         assert false : "Undefined ScreenId: " + screenId;
         return 0;
@@ -203,6 +211,8 @@ class TouchToFillPaymentMethodView extends TouchToFillViewBase {
                 return R.id.touch_to_fill_payment_method_home_screen;
             case ALL_LOYALTY_CARDS_SCREEN:
                 return R.id.touch_to_fill_all_loyalty_cards_list;
+            case PROGRESS_SCREEN:
+                return R.id.touch_to_fill_progress_screen;
         }
         assert false : "Undefined ScreenId: " + screenId;
         return 0;

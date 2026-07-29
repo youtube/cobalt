@@ -2601,6 +2601,27 @@ String Internals::dumpContentNodeTree(Document* document,
   return DumpContentNodeTreeForTest(WebLocalFrameImpl::FromFrame(frame));
 }
 
+String Internals::dumpContentNode(Node* node,
+                                  ExceptionState& exception_state) const {
+  DCHECK(node);
+  Document* document = &node->GetDocument();
+  if (!document->GetFrame()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidAccessError,
+                                      "The node's document is invalid.");
+    return String();
+  }
+
+  LocalFrame* frame = DynamicTo<LocalFrame>(document->GetFrame());
+  if (!frame) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidAccessError,
+        "The node's document must be in a local frame.");
+    return String();
+  }
+
+  return DumpContentNodeForTest(WebLocalFrameImpl::FromFrame(frame), node);
+}
+
 String Internals::mainThreadScrollingReasons(
     Document* document,
     ExceptionState& exception_state) const {
@@ -3365,6 +3386,8 @@ void Internals::setForcedColorsAndDarkPreferredColorScheme(Document* document) {
   color_scheme_helper_.emplace(*document);
   color_scheme_helper_->SetPreferredColorScheme(
       mojom::blink::PreferredColorScheme::kDark);
+  color_scheme_helper_->SetPreferredContrast(
+      mojom::blink::PreferredContrast::kMore);
   color_scheme_helper_->SetInForcedColors(*document, /*in_forced_colors=*/true);
   color_scheme_helper_->SetEmulatedForcedColors(*document,
                                                 /*is_dark_theme=*/false);

@@ -43,11 +43,23 @@ export function getHtml(this: WebuiBrowserAppElement) {
         ?disabled="${this.forwardButtonDisabled_}"
         @click="${this.onForwardClick_}"></cr-icon-button>
       <cr-icon-button class="${this.reloadOrStopIcon_}"
+        title="${this.reloadOrStopTooltip_()}'"
         @click="${this.onReloadOrStopClick_}"></cr-icon-button>
-      <cr-searchbox id="address"></cr-searchbox>
+      <div id="addressBox">
+        <cr-searchbox id="address"></cr-searchbox>
+        <cr-button id="locationIconButton" type="button"
+          ?hidden="${!this.showLocationIconButton_}"
+          @click="${this.onLocationIconClick_}">
+          <cr-icon id="locationIcon"
+            icon="webui-browser:${this.locationIcon_}Icon"></cr-icon>
+        </cr-button>
+      </div>
+      <webui-browser-extensions-bar id="extensionsBar">
+      </webui-browser-extensions-bar>
       <cr-icon-button id="avatarButton" iron-icon="cr:person"
         @click="${this.onAvatarClick_}"></cr-icon-button>
       <cr-icon-button id="appMenuButton" iron-icon="cr:more-vert"
+        title="$i18n{appMenuTooltip}"
         @click="${this.onAppMenuClick_}"></cr-icon-button>
     </div>
     <webui-browser-bookmark-bar

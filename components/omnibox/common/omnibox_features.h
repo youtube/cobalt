@@ -32,9 +32,6 @@ extern const bool kOmniboxMaxURLMatchesEnabledByDefault;
 BASE_DECLARE_FEATURE(kOmniboxMaxURLMatches);
 BASE_DECLARE_FEATURE(kDynamicMaxAutocomplete);
 
-// Entity suggestion disambiguation.
-BASE_DECLARE_FEATURE(kDisambiguateTabMatchingForEntitySuggestions);
-
 // Local history zero-prefix (aka zero-suggest) and prefix suggestions.
 BASE_DECLARE_FEATURE(kFocusTriggersWebAndSRPZeroSuggest);
 BASE_DECLARE_FEATURE(kHideSuggestionGroupHeaders);
@@ -96,9 +93,6 @@ BASE_DECLARE_FEATURE(kAnimateSuggestionsListAppearance);
 // Action Chips for Answer Suggestions.
 BASE_DECLARE_FEATURE(kOmniboxAnswerActions);
 
-// Adds support for categorical suggestion type.
-BASE_DECLARE_FEATURE(kCategoricalSuggestions);
-
 // Allows for touch down events to send a signal to |SearchPrefetchService| to
 // start prefetching the suggestion. The feature only applies to search
 // suggestions and only controls whether the signal is sent.
@@ -156,6 +150,9 @@ BASE_DECLARE_FEATURE(kMultilineEditField);
 
 BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
 
+// Whether the composebox should use the new `chrome-compose` client.
+BASE_DECLARE_FEATURE(kComposeboxUsesChromeComposeClient);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_DECLARE_FEATURE(kDiagnostics);
 BASE_DECLARE_FEATURE(kJumpStartOmnibox);
@@ -163,6 +160,7 @@ BASE_DECLARE_FEATURE(kSuppressIntermediateACUpdatesOnLowEndDevices);
 // Delay focusTab to prioritize navigation (https://crbug.com/374852568).
 BASE_DECLARE_FEATURE(kPostDelayedTaskFocusTab);
 BASE_DECLARE_FEATURE(kAndroidHubSearchTabGroups);
+BASE_DECLARE_FEATURE(kOmniboxImprovementForLFF);
 #endif  // BUILDFLAG(IS_ANDROID)
 // Note: no new flags beyond this point.
 }  // namespace omnibox

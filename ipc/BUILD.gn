@@ -31,10 +31,8 @@ component("ipc") {
       # Most sources go here since ios only needs the param_traits
       # code.
       "ipc_channel.h",
-      "ipc_channel_common.cc",
       "ipc_channel_factory.cc",
       "ipc_channel_factory.h",
-      "ipc_channel_handle.h",
       "ipc_channel_mojo.cc",
       "ipc_channel_mojo.h",
       "ipc_channel_proxy.cc",
@@ -157,12 +155,6 @@ source_set("native_handle_type_converters") {
   ]
 }
 
-mojom("test_mojom") {
-  testonly = true
-  sources = [ "ipc_channel_mojo_unittest.test-mojom" ]
-  public_deps = [ "//mojo/public/mojom/base" ]
-}
-
 mojom_component("mojom") {
   output_prefix = "ipc_mojom"
   macro_prefix = "IPC_MOJOM"
@@ -244,7 +236,6 @@ if (use_blink) {
   test("ipc_tests") {
     sources = [
       "ipc_channel_mojo_unittest.cc",
-      "ipc_fuzzing_tests.cc",
       "ipc_message_protobuf_utils_unittest.cc",
       "ipc_message_unittest.cc",
       "ipc_message_utils_unittest.cc",
@@ -252,7 +243,6 @@ if (use_blink) {
       "ipc_sync_channel_unittest.cc",
       "ipc_sync_message_unittest.cc",
       "ipc_sync_message_unittest.h",
-      "sync_socket_unittest.cc",
       "tracing_helpers_unittest.cc",
     ]
 
@@ -269,9 +259,7 @@ if (use_blink) {
       ":protobuf_support",
       ":run_all_unittests",
       ":test_interfaces",
-      ":test_mojom",
       ":test_proto",
-      ":test_support",
       "//base",
       "//base:i18n",
       "//base/test:test_support",
@@ -299,28 +287,12 @@ if (use_blink) {
     deps = [
       ":ipc",
       ":test_interfaces",
-      ":test_support",
       "//base",
       "//base:i18n",
       "//base/test:test_support",
       "//mojo/core/embedder",
       "//mojo/core/test:test_support",
       "//mojo/core/test:test_support_impl",
-      "//testing/gtest",
-    ]
-  }
-
-  static_library("test_support") {
-    testonly = true
-    sources = [
-      "ipc_test_base.cc",
-      "ipc_test_base.h",
-    ]
-    public_deps = [ ":ipc" ]
-    deps = [
-      "//base",
-      "//base/test:test_support",
-      "//mojo/core/test:test_support",
       "//testing/gtest",
     ]
   }

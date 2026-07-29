@@ -465,6 +465,7 @@
 #include "chromeos/ash/services/device_sync/public/cpp/device_sync_prefs.h"
 #include "chromeos/ash/services/multidevice_setup/multidevice_setup_service.h"
 #include "chromeos/components/quick_answers/public/cpp/quick_answers_prefs.h"
+#include "chromeos/constants/pref_names.h"
 #include "chromeos/ui/wm/fullscreen/pref_names.h"
 #include "components/account_manager_core/chromeos/account_manager.h"
 #include "components/onc/onc_pref_names.h"  // nogncheck
@@ -1155,6 +1156,10 @@ constexpr char kObsoleteUpmAutoExportCsvNeedsDeletion[] =
     "profile.upm_auto_export_csv_needs_deletion";
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Deprecated 09/2025.
+constexpr char kGaiaCookieLastListAccountsData[] =
+    "gaia_cookie.last_list_accounts_data";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1669,6 +1674,9 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterBooleanPref(kObsoleteEmptyProfileStoreLoginDatabase, false);
   registry->RegisterBooleanPref(kObsoleteUpmAutoExportCsvNeedsDeletion, false);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  // Deprecated 09/2025.
+  registry->RegisterStringPref(kGaiaCookieLastListAccountsData, std::string());
 }
 
 }  // namespace
@@ -2059,7 +2067,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   ProfileImpl::RegisterProfilePrefs(registry);
   ProfileNetworkContextService::RegisterProfilePrefs(registry);
   custom_handlers::ProtocolHandlerRegistry::RegisterProfilePrefs(registry);
-  push_messaging::AppIdentifier::RegisterProfilePrefs(registry);
+  PushMessagingAppIdentifier::RegisterProfilePrefs(registry);
   PushMessagingUnsubscribedEntry::RegisterProfilePrefs(registry);
   QuietNotificationPermissionUiState::RegisterProfilePrefs(registry);
   regional_capabilities::prefs::RegisterProfilePrefs(registry);
@@ -2218,7 +2226,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   chromeos::cloud_upload::RegisterProfilePrefs(registry);
   policy::NetworkAnnotationBlocklistHandler::RegisterPrefs(registry);
   quickoffice::RegisterProfilePrefs(registry);
-  registry->RegisterBooleanPref(prefs::kAutoSignOutEnabled, false);
+  registry->RegisterBooleanPref(chromeos::prefs::kAutoSignOutEnabled, false);
   registry->RegisterBooleanPref(prefs::kDeskAPIThirdPartyAccessEnabled, false);
   registry->RegisterBooleanPref(prefs::kDeskAPIDeskSaveAndShareEnabled, false);
   registry->RegisterListPref(prefs::kDeskAPIThirdPartyAllowlist);
@@ -2233,7 +2241,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(policy::policy_prefs::kFloatingWorkspaceEnabled,
                                 false);
   ::reporting::RegisterProfilePrefs(registry);
-  registry->RegisterBooleanPref(prefs::kFloatingSsoEnabled, false);
+  registry->RegisterBooleanPref(chromeos::prefs::kFloatingSsoEnabled, false);
   registry->RegisterListPref(prefs::kFloatingSsoDomainBlocklist);
   registry->RegisterListPref(prefs::kFloatingSsoDomainBlocklistExceptions);
   registry->RegisterBooleanPref(prefs::kFloatingSsoSessionCookiesIncluded,
@@ -2428,12 +2436,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterDictionaryPref(prefs::kReportingEndpoints);
 
   registry->RegisterBooleanPref(prefs::kViewSourceLineWrappingEnabled, false);
-
-#if BUILDFLAG(IS_ANDROID)
-  registry->RegisterBooleanPref(
-      omnibox::kIsOmniboxInBottomPosition, false,
-      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-#endif
 }
 
 void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -3021,6 +3023,7 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 09/2025.
   PageColorsController::MigrateObsoleteProfilePrefs(profile_prefs);
+  profile_prefs->ClearPref(kGaiaCookieLastListAccountsData);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

@@ -30,13 +30,19 @@ suite('PrivacyPageIndex', function() {
           autoPictureInPictureEnabled: false,
           capturedSurfaceControlEnabled: false,
           enableExperimentalWebPlatformFeatures: false,
+          enableFederatedIdentityApiContentSetting: false,
           enableHandTrackingContentSetting: false,
           enableIncognitoTrackingProtections: false,
           enableKeyboardLockPrompt: false,
           enableLocalNetworkAccessSetting: false,
           enablePaymentHandlerContentSetting: false,
+          enableSafeBrowsingSubresourceFilter: false,
           enableSecurityKeysSubpage: false,
+          // <if expr="is_chromeos">
+          enableSmartCardReadersContentSetting: false,
+          // </if>
           enableWebAppInstallation: false,
+          enableWebBluetoothNewPermissionsBackend: false,
           enableWebPrintingContentSetting: false,
           isGuest: false,
           isPrivacySandboxRestricted: false,
@@ -264,6 +270,11 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'old',
         },
         {
+          route: routes.SITE_SETTINGS_AUTO_VERIFY,
+          viewId: 'siteSettingsAutoVerify',
+          parentViewId: 'old',
+        },
+        {
           route: routes.SITE_SETTINGS_AUTOMATIC_DOWNLOADS,
           viewId: 'siteSettingsAutomaticDownloads',
           parentViewId: 'old',
@@ -279,6 +290,11 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'old',
         },
         {
+          route: routes.SITE_SETTINGS_CAMERA,
+          viewId: 'siteSettingsCamera',
+          parentViewId: 'old',
+        },
+        {
           route: routes.SITE_SETTINGS_CLIPBOARD,
           viewId: 'siteSettingsClipboard',
           parentViewId: 'old',
@@ -289,8 +305,23 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'old',
         },
         {
+          route: routes.SITE_SETTINGS_IMAGES,
+          viewId: 'siteSettingsImages',
+          parentViewId: 'old',
+        },
+        {
+          route: routes.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER,
+          viewId: 'siteSettingsJavascriptOptimizer',
+          parentViewId: 'old',
+        },
+        {
           route: routes.SITE_SETTINGS_HANDLERS,
           viewId: 'siteSettingsHandlers',
+          parentViewId: 'old',
+        },
+        {
+          route: routes.SITE_SETTINGS_HID_DEVICES,
+          viewId: 'siteSettingsHidDevices',
           parentViewId: 'old',
         },
         {
@@ -309,8 +340,18 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'old',
         },
         {
+          route: routes.SITE_SETTINGS_MICROPHONE,
+          viewId: 'siteSettingsMicrophone',
+          parentViewId: 'old',
+        },
+        {
           route: routes.SITE_SETTINGS_MIDI_DEVICES,
           viewId: 'siteSettingsMidiDevices',
+          parentViewId: 'old',
+        },
+        {
+          route: routes.SITE_SETTINGS_MIXEDSCRIPT,
+          viewId: 'siteSettingsMixedscript',
           parentViewId: 'old',
         },
         {
@@ -329,8 +370,18 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'old',
         },
         {
+          route: routes.SITE_SETTINGS_PROTECTED_CONTENT,
+          viewId: 'siteSettingsProtectedContent',
+          parentViewId: 'old',
+        },
+        {
           route: routes.SITE_SETTINGS_SENSORS,
           viewId: 'siteSettingsSensors',
+          parentViewId: 'old',
+        },
+        {
+          route: routes.SITE_SETTINGS_SERIAL_PORTS,
+          viewId: 'siteSettingsSerialPorts',
           parentViewId: 'old',
         },
         {
@@ -339,8 +390,18 @@ suite('PrivacyPageIndex', function() {
           parentViewId: 'old',
         },
         {
+          route: routes.SITE_SETTINGS_SOUND,
+          viewId: 'siteSettingsSound',
+          parentViewId: 'old',
+        },
+        {
           route: routes.SITE_SETTINGS_STORAGE_ACCESS,
           viewId: 'siteSettingsStorageAccess',
+          parentViewId: 'old',
+        },
+        {
+          route: routes.SITE_SETTINGS_USB_DEVICES,
+          viewId: 'siteSettingsUsbDevices',
           parentViewId: 'old',
         },
         {
@@ -366,6 +427,15 @@ suite('PrivacyPageIndex', function() {
       }
     });
 
+    test('RoutingAds', async function() {
+      assertFalse(
+          loadTimeData.getBoolean('enableSafeBrowsingSubresourceFilter'));
+      await createPrivacyPageIndex({enableSafeBrowsingSubresourceFilter: true});
+
+      return testViewsForRoute(
+          routes.SITE_SETTINGS_ADS, ['siteSettingsAds'], 'old');
+    });
+
     test('RoutingAutoPictureInPicture', async function() {
       assertFalse(loadTimeData.getBoolean('autoPictureInPictureEnabled'));
       await createPrivacyPageIndex({autoPictureInPictureEnabled: true});
@@ -373,6 +443,17 @@ suite('PrivacyPageIndex', function() {
       return testViewsForRoute(
           routes.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE,
           ['siteSettingsAutoPictureInPicture'], 'old');
+    });
+
+    test('RoutingBluetoothDevices', async function() {
+      assertFalse(
+          loadTimeData.getBoolean('enableWebBluetoothNewPermissionsBackend'));
+      await createPrivacyPageIndex(
+          {enableWebBluetoothNewPermissionsBackend: true});
+
+      return testViewsForRoute(
+          routes.SITE_SETTINGS_BLUETOOTH_DEVICES,
+          ['siteSettingsBluetoothDevices'], 'old');
     });
 
     test('RoutingBluetoothScanning', async function() {
@@ -393,6 +474,17 @@ suite('PrivacyPageIndex', function() {
       return testViewsForRoute(
           routes.SITE_SETTINGS_CAPTURED_SURFACE_CONTROL,
           ['siteSettingsCapturedSurfaceControl'], 'old');
+    });
+
+    test('RoutingFederatedIdentityApi', async function() {
+      assertFalse(
+          loadTimeData.getBoolean('enableFederatedIdentityApiContentSetting'));
+      await createPrivacyPageIndex(
+          {enableFederatedIdentityApiContentSetting: true});
+
+      return testViewsForRoute(
+          routes.SITE_SETTINGS_FEDERATED_IDENTITY_API,
+          ['siteSettingsFederatedIdentityApi'], 'old');
     });
 
     test('RoutingHandTracking', async function() {
@@ -431,6 +523,19 @@ suite('PrivacyPageIndex', function() {
           routes.SITE_SETTINGS_PAYMENT_HANDLER, ['siteSettingsPaymentHandler'],
           'old');
     });
+
+    // <if expr="is_chromeos">
+    test('RoutingSmartCardReaders', async function() {
+      assertFalse(
+          loadTimeData.getBoolean('enableSmartCardReadersContentSetting'));
+      await createPrivacyPageIndex(
+          {enableSmartCardReadersContentSetting: true});
+
+      return testViewsForRoute(
+          routes.SITE_SETTINGS_SMART_CARD_READERS,
+          ['siteSettingsSmartCardReaders'], 'old');
+    });
+    // </if>
 
     test('RoutingWebAppInstallation', async function() {
       assertFalse(loadTimeData.getBoolean('enableWebAppInstallation'));

@@ -34,7 +34,7 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/window_open_disposition.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -456,6 +456,9 @@ class BrowserWindow : public ui::BaseWindow {
                                bool show_signin_button) = 0;
 
 #if BUILDFLAG(IS_CHROMEOS)
+  // Returns the PageActionIconView for the Sharing Hub.
+  virtual views::Button* GetSharingHubIconButton() = 0;
+
   // Toggles the multitask menu on the browser frame size button.
   virtual void ToggleMultitaskMenu() const = 0;
 #else

@@ -709,21 +709,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="HttpCache.NoVarySearch.DirectoryCreateResult.{Directory}"
+<histogram name="HttpCache.NoVarySearch.DirectoryCreateResult.Dedicated"
     enum="NoVarySearchDirectoryCreateResult" expires_after="2026-01-11">
   <owner>ricea@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
-    The result from checking for the existence of the {Directory} directory by
-    net::NoVarySearchCacheStorage. This is logged when an on-the-record
-    NetworkContext is created.
+    The result from trying to ensure the existence of the Cache/No_Vary_Search
+    directory by net::NoVarySearchCacheStorage. This is logged when an
+    on-the-record NetworkContext is created.
 
     Anything other than &quot;Create failed&quot; is good.
   </summary>
-  <token key="Directory">
-    <variant name="NoVarySearch" summary="no-vary-search"/>
-    <variant name="Parent" summary="parent"/>
-  </token>
 </histogram>
 
 <histogram name="HttpCache.NoVarySearch.EntriesAddedDuringLoading"
@@ -924,23 +920,28 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="HttpCache.NoVarySearch.LookupTime{Variant}"
+<histogram name="HttpCache.NoVarySearch.LookupTime{HitOrMiss}{MainFrameOrNot}"
     units="microseconds" expires_after="2026-02-02">
   <owner>ricea@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
   <summary>
     The time spent executing net::NoVarySearchCache::Lookup(). This is recorded
-    once for every call to the function {Variant}.
+    once for every call to the function {HitOrMiss}. {MainFrameOrNot}
 
     This will be used to evaluate the need for optimization.
 
     The histogram is not reported on Windows machines without high resolution
     clocks.
   </summary>
-  <token key="Variant">
+  <token key="HitOrMiss">
     <variant name="" summary="so approximately once for every HTTP(S) request"/>
     <variant name=".Hit" summary="that finds a match"/>
     <variant name=".Miss" summary="that doesn't find a match"/>
+  </token>
+  <token key="MainFrameOrNot">
+    <variant name="" summary=""/>
+    <variant name=".MainFrame"
+        summary="Only logged for main frame navigations."/>
   </token>
 </histogram>
 
@@ -1224,7 +1225,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.ResponseFreshnessIsZero" enum="Boolean"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>hayato@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -1517,7 +1518,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CertVerifier.DoVerifyOnWorkerThreadTime{HostType}"
-    units="ms" expires_after="2026-01-04">
+    units="ms" expires_after="2026-03-08">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -1893,7 +1894,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.DeviceBoundSessions.RequestDeferralDecision"
+<histogram name="Net.DeviceBoundSessions.RequestDeferralDecision2"
     enum="DeviceBoundSessionUsage" expires_after="2026-01-18">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -2324,20 +2325,6 @@ chromium-metrics-reviews@google.com.
     Enumerated status of the reason why the built-in DNS resolver has detected a
     &quot;low entropy&quot; situation for DNS over UDP and has switched to DNS
     over TCP.
-  </summary>
-</histogram>
-
-<histogram name="Net.DNS.H3SupportedGoogleHost.TaskTypeMetadataAvailability2"
-    enum="DNS.TaskTypeMetadataAvailability" expires_after="2025-02-10">
-  <owner>horo@chromium.org</owner>
-  <owner>src/net/OWNERS</owner>
-  <summary>
-    The succeeded DNS Task type of HostResolverManager::Job (the basic internal
-    unit of work for non-local host resolutions, potentially merging redundant
-    requests from Chrome) that succeeded with or without valid HTTPS DNS
-    metadata. This is recorded for successful https- or wss-schemed queries to a
-    set of Google hosts expected to have HTTPS DNS metadata, if the query type
-    requests the HTTPS record.
   </summary>
 </histogram>
 
@@ -3000,7 +2987,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesReceived2"
-    units="bytes" expires_after="2026-01-07">
+    units="bytes" expires_after="2026-03-08">
   <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/components/ip_protection/OWNERS</owner>
@@ -3021,7 +3008,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesSent2"
-    units="bytes" expires_after="2026-01-07">
+    units="bytes" expires_after="2026-03-08">
   <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/components/ip_protection/OWNERS</owner>
@@ -3057,7 +3044,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.BytesSent" units="bytes"
-    expires_after="2026-01-07">
+    expires_after="2026-03-08">
   <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/components/ip_protection/OWNERS</owner>
@@ -3117,23 +3104,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.HttpJob.IpProtection.Fallback.TotalTimeNotCached.{Chain}"
-    units="ms" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Similar to Net.HttpJob.IpProtection.Fallback.TotalTimeNotCached, but only
-    chains with the given chain_id, as provided in the GetProxyInfo RPC
-    response.
-  </summary>
-  <token key="Chain">
-    <variant name="Chain0"/>
-    <variant name="Chain1"/>
-    <variant name="Chain2"/>
-    <variant name="Chain3"/>
-  </token>
-</histogram>
-
 <histogram name="Net.HttpJob.IpProtection.JobResult"
     enum="IpProtectionJobResult" expires_after="never">
 <!-- expires-never: This is used for dashboard metrics (internal: go/ipp-e2e-slos) -->
@@ -3175,7 +3145,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.PrefilterBytesRead.Net" units="bytes"
-    expires_after="2026-01-07">
+    expires_after="2026-03-08">
   <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
   <owner>src/components/ip_protection/OWNERS</owner>
@@ -3244,22 +3214,6 @@ chromium-metrics-reviews@google.com.
     doesn't actually proxy any traffic). It is also recorded if IP Protection
     failed and we fell back to going direct.
   </summary>
-</histogram>
-
-<histogram name="Net.HttpJob.IpProtection.TotalTimeNotCached2.{Chain}"
-    units="ms" expires_after="2026-06-21">
-  <owner>dschinazi@chromium.org</owner>
-  <owner>src/components/ip_protection/OWNERS</owner>
-  <summary>
-    Similar to Net.HttpJob.IpProtection.TotalTimeNotCached2, but only chains
-    with the given chain_id, as provided in the GetProxyInfo RPC response.
-  </summary>
-  <token key="Chain">
-    <variant name="Chain0"/>
-    <variant name="Chain1"/>
-    <variant name="Chain2"/>
-    <variant name="Chain3"/>
-  </token>
 </histogram>
 
 <histogram name="Net.HttpJob.MainJobWaitTimeWithAvailableSpdySession"
@@ -3436,7 +3390,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpNoVarySearch.HasUnrecognizedKeys" enum="Boolean"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>jbroman@chromium.org</owner>
   <owner>liviutinta@chromium.org</owner>
   <summary>
@@ -3504,6 +3458,18 @@ chromium-metrics-reviews@google.com.
     Windows. This entry is recorded when the WinHTTP session is initialized,
     which involves opening the session, configuring timeouts, and registering
     the status callback.
+  </summary>
+</histogram>
+
+<histogram name="Net.HttpProxy.WindowsSystemResolver.WinError"
+    units="win32 error code" expires_after="2026-07-15">
+  <owner>ricea@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    Records Windows error codes returned by the Windows System Proxy Resolver
+    when proxy resolution fails. This histogram is only recorded when a non-zero
+    Windows error code is returned, indicating a Windows API failure during
+    proxy resolution.
   </summary>
 </histogram>
 
@@ -4031,7 +3997,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction.StreamAddressFamily"
-    enum="AddressFamily" expires_after="2026-01-04">
+    enum="AddressFamily" expires_after="2026-03-08">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -4065,7 +4031,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction{HostType}.RetryReason"
-    enum="HttpNetworkTransactionRetryReason" expires_after="2026-01-04">
+    enum="HttpNetworkTransactionRetryReason" expires_after="2026-03-08">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>Log the reason when HttpNetworkTransaction retries.</summary>
@@ -5252,7 +5218,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.FindMatchingIpSessionResult{ServerType}"
-    enum="QuicFindMatchingIpSessionResult" expires_after="2026-01-04">
+    enum="QuicFindMatchingIpSessionResult" expires_after="2026-03-08">
   <owner>fayang@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -7096,7 +7062,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.{ProtocolType}.HasTrafficAnnotation{HostType}"
-    enum="Boolean" expires_after="2026-01-04">
+    enum="Boolean" expires_after="2026-03-08">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7113,7 +7079,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SessionCreate.{ProtocolType}.TrafficAnnotation{HostType}"
-    enum="TrafficAnnotationUniqueIdHash" expires_after="2026-01-04">
+    enum="TrafficAnnotationUniqueIdHash" expires_after="2026-03-08">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -7772,7 +7738,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{MethodName}.{TimeType}"
-    units="microseconds" expires_after="2025-12-09">
+    units="microseconds" expires_after="2026-03-08">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7793,7 +7759,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.DeleteDoomedEntriesCount" units="entries"
-    expires_after="2025-12-09">
+    expires_after="2026-03-08">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7807,7 +7773,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.ExclusiveOperationDelay" units="microseconds"
-    expires_after="2025-12-09">
+    expires_after="2026-03-08">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7820,7 +7786,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.FakeIndexFileError"
-    enum="SqlDiskCacheFakeIndexFileError" expires_after="2025-12-09">
+    enum="SqlDiskCacheFakeIndexFileError" expires_after="2026-03-08">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7831,7 +7797,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.NormalOperationDelay" units="microseconds"
-    expires_after="2025-12-09">
+    expires_after="2026-03-08">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8099,7 +8065,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpConnectAttempt.Latency.Error" units="ms"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>

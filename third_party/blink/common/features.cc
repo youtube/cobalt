@@ -54,7 +54,6 @@ BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Async touchmoves after scroll.
 BASE_FEATURE(kAsyncTouchMovesImmediatelyAfterScroll,
-             "AsyncTouchMovesImmediatelyAfterScroll",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Block all MIDI access with the MIDI_SYSEX permission
@@ -351,6 +350,10 @@ BASE_FEATURE(kCanvas2DHibernation,
 // When hibernating, make sure that the just-used transfer memory (to transfer
 // the snapshot) is freed.
 BASE_FEATURE(kCanvas2DHibernationReleaseTransferMemory,
+             base::FeatureState::FEATURE_DISABLED_BY_DEFAULT);
+
+// Don't hibernate small canvas elements.
+BASE_FEATURE(kCanvas2DHibernationNoSmallCanvas,
              base::FeatureState::FEATURE_DISABLED_BY_DEFAULT);
 
 // Whether to capture the source location of JavaScript execution, which is one
@@ -661,7 +664,6 @@ BASE_FEATURE_PARAM(int,
                    512);
 
 BASE_FEATURE(kFadeInScrollbarWhenMouseWheelMayBegin,
-             "FadeInScrollbarWhenMouseWheelMayBegin",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable the <fencedframe> element; see crbug.com/1123606. Note that enabling
@@ -2205,7 +2207,16 @@ BASE_FEATURE_ENUM_PARAM(SoftNavigationHeuristicsMode,
 
 // If enabled, force renderer process foregrounded from CommitNavigation to
 // DOMContentLoad (crbug/351953350).
-BASE_FEATURE(kBoostRenderProcessForLoading, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(
+    kBoostRenderProcessForLoading,
+#if BUILDFLAG(IS_ANDROID)
+    // TODO(crbug.com/351953350): Enable this feature on Android as well after
+    // confirming that this feature doesn't regress anything.
+    base::FEATURE_DISABLED_BY_DEFAULT
+#else
+    base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // An empty json array means that this feature is applied unconditionally. If
 // specified, it means that the specified URLs will be the target of the new
@@ -2223,7 +2234,7 @@ BASE_FEATURE_PARAM(bool,
                    kBoostRenderProcessForLoadingPrioritizePrerendering,
                    &kBoostRenderProcessForLoading,
                    "prioritize_prerendering",
-                   false);
+                   true);
 
 // If true is specified, kBoostRenderProcessForLoading feature only prioritizes
 // the renderer process that is used for prerendering. This is a part of an
@@ -2342,12 +2353,6 @@ BASE_FEATURE(kUrgentMainFrameForInput, base::FEATURE_DISABLED_BY_DEFAULT);
 // If enabled, URLPattern will use standard defined dummy URL canonicalization
 // to canonicalize URL properties. See https://crbug.com/409350827
 BASE_FEATURE(kURLPatternDummyURLCanonicalization,
-             "URLPatternDummyURLCanonicalization",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Flag guard for changes in how navigation code handles the URL to commit.
-// https://crbug.com/422803238
-BASE_FEATURE(kUseCommitUrlInsteadOfRedirectUrl,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Uses page viewport instead of frame viewport in the Largest Contentful Paint
@@ -2373,9 +2378,6 @@ BASE_FEATURE_PARAM(int,
                    &features::kUseZstdForParkableStrings,
                    "compression_level",
                    1);
-
-BASE_FEATURE(kUseThreadPoolForMediaStreamVideoTaskRunner,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kVSyncDecoding, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,

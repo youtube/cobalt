@@ -28,9 +28,10 @@ NativeThemeQt::NativeThemeQt(QtInterface* shim)
 NativeThemeQt::~NativeThemeQt() = default;
 
 void NativeThemeQt::ThemeChanged(bool prefer_dark_theme) {
-  set_use_dark_colors(IsForcedDarkMode() || prefer_dark_theme);
-  set_preferred_color_scheme(CalculatePreferredColorScheme());
-
+  set_preferred_color_scheme(
+      (IsForcedDarkMode() || prefer_dark_theme)
+          ? ui::NativeTheme::PreferredColorScheme::kDark
+          : ui::NativeTheme::PreferredColorScheme::kLight);
   NotifyOnNativeThemeUpdated();
 }
 
@@ -39,8 +40,7 @@ void NativeThemeQt::PaintFrameTopArea(
     cc::PaintCanvas* canvas,
     State state,
     const gfx::Rect& rect,
-    const FrameTopAreaExtraParams& frame_top_area,
-    ColorScheme color_scheme) const {
+    const FrameTopAreaExtraParams& frame_top_area) const {
   auto image = shim_->DrawHeader(
       rect.width(), rect.height(), frame_top_area.default_background_color,
       frame_top_area.is_active ? ColorState::kNormal : ColorState::kInactive,

@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.customtabs.features.toolbar;
 import static androidx.browser.customtabs.CustomTabsIntent.CLOSE_BUTTON_POSITION_END;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.CLICK_LISTENER;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.CLOSE_BUTTON;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.CUSTOM_ACTION_BUTTONS;
@@ -19,11 +20,13 @@ import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabT
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.OMNIBOX_ENABLED;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.OPTIONAL_BUTTON_VISIBLE;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.SIDE_SHEET_MAXIMIZE_BUTTON;
+import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TINT;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TITLE_VISIBLE;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TOOLBAR_WIDTH;
 import static org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.TYPE;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.DrawableRes;
@@ -39,11 +42,12 @@ import android.widget.ImageButton;
 import androidx.annotation.DimenRes;
 import androidx.annotation.Px;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browserservices.intents.CustomButtonParams.ButtonType;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarButtonsProperties.SideSheetMaximizeButtonData;
-import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.widget.TintedDrawable;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.modelutil.ListModelChangeProcessor;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -51,6 +55,7 @@ import org.chromium.ui.modelutil.PropertyListModel;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
+@NullMarked
 public class CustomTabToolbarButtonsViewBinder
         implements PropertyModelChangeProcessor.ViewBinder<
                         PropertyModel, CustomTabToolbar, PropertyKey>,
@@ -119,8 +124,13 @@ public class CustomTabToolbarButtonsViewBinder
 
     @Override
     public void bind(PropertyModel model, CustomTabToolbar view, PropertyKey propertyKey) {
-        mVisFlipper.reset();
-        inflateAndPositionToolbarElements(view, model, mVisFlipper);
+        // Changing the TINT won't require a relayout.
+        if (propertyKey == TINT) {
+            updateAllButtonsTint(view, model.get(TINT));
+        } else {
+            mVisFlipper.reset();
+            inflateAndPositionToolbarElements(view, model, mVisFlipper);
+        }
     }
 
     @Override
@@ -222,7 +232,7 @@ public class CustomTabToolbarButtonsViewBinder
                     isEndPosition);
         }
 
-        FrameLayout customActionButtons = view.getCustomActionButtonsParent();
+        FrameLayout customActionButtons = assumeNonNull(view.getCustomActionButtonsParent());
         // TODO(crbug.com/402213312): Think of how we can optimize this so we don't reinflate all
         // buttons any time if we add/remove one.
         customActionButtons.removeAllViews();
@@ -245,15 +255,15 @@ public class CustomTabToolbarButtonsViewBinder
         if ((posParams.availableWidth >= defaultButtonWidth || visFlipper.canShowMinimizeButton())
                 && minimizeButtonData.visible) {
             var minimizeButton = view.ensureMinimizeButtonInflated();
+
+            if (minimizeButton.getDrawable() == null) {
+                Context context = view.getContext();
+                var d = UiUtils.getTintedDrawable(context, R.drawable.ic_minimize, model.get(TINT));
+                minimizeButton.setTag(R.id.custom_tabs_toolbar_tintable, true);
+                minimizeButton.setImageDrawable(d);
+            }
+
             minimizeButton.setOnClickListener(minimizeButtonData.clickListener);
-            Context context = view.getContext();
-            var d =
-                    UiUtils.getTintedDrawable(
-                            context,
-                            R.drawable.ic_minimize,
-                            ChromeColors.getPrimaryIconTint(context, model.get(IS_INCOGNITO)));
-            minimizeButton.setTag(R.id.custom_tabs_toolbar_tintable, true);
-            minimizeButton.setImageDrawable(d);
             minimizeButton.setOnLongClickListener(view);
 
             // The minimize button is always start aligned.
@@ -286,13 +296,13 @@ public class CustomTabToolbarButtonsViewBinder
         // Check if we have space for the side-sheet maximize button we should be showing it.
         if (posParams.availableWidth >= defaultButtonWidth
                 && model.get(SIDE_SHEET_MAXIMIZE_BUTTON).visible) {
-            view.ensureSideSheetMaximizeButtonInflated();
+            ImageButton sideSheetMaximizeButton = view.ensureSideSheetMaximizeButtonInflated();
             var sideSheetMaximizeButtonData = model.get(SIDE_SHEET_MAXIMIZE_BUTTON);
-            prepareSideSheetMaximizeButton(view, sideSheetMaximizeButtonData);
+            prepareSideSheetMaximizeButton(view, sideSheetMaximizeButtonData, model.get(TINT));
 
             // The maximize button is currently end aligned.
             positionButton(
-                    view.getSideSheetMaximizeButton(),
+                    sideSheetMaximizeButton,
                     posParams,
                     defaultButtonWidth,
                     iconSpacing,
@@ -426,7 +436,7 @@ public class CustomTabToolbarButtonsViewBinder
 
         // Add the view at the beginning of the list. This isn't reflected in how the button is
         // positioned; it's only for keeping the index aligned with the params list.
-        view.getCustomActionButtonsParent().addView(button, 0);
+        assumeNonNull(view.getCustomActionButtonsParent()).addView(button, 0);
         positionButton(
                 button,
                 posParams,
@@ -572,7 +582,7 @@ public class CustomTabToolbarButtonsViewBinder
         FrameLayout customActionButtons = view.getCustomActionButtonsParent();
         if (optionalButton == null
                 || optionalButton.getVisibility() != View.VISIBLE
-                || customActionButtons.getChildCount() != 2) {
+                || assumeNonNull(customActionButtons).getChildCount() != 2) {
             return;
         }
 
@@ -608,7 +618,7 @@ public class CustomTabToolbarButtonsViewBinder
     }
 
     private static void prepareSideSheetMaximizeButton(
-            CustomTabToolbar view, SideSheetMaximizeButtonData data) {
+            CustomTabToolbar view, SideSheetMaximizeButtonData data, ColorStateList tint) {
         ImageButton button = view.findViewById(R.id.custom_tabs_sidepanel_maximize);
         if (button == null && data.visible) {
             LayoutInflater.from(view.getContext())
@@ -626,23 +636,52 @@ public class CustomTabToolbarButtonsViewBinder
         boolean maximized = data.maximized;
         var callback = data.callback;
         button.setOnClickListener(
-                v -> setSideSheetMaximizeButtonDrawable((ImageButton) v, callback.onClick()));
-        setSideSheetMaximizeButtonDrawable(button, maximized);
+                v -> setSideSheetMaximizeButtonDrawable((ImageButton) v, callback.onClick(), null));
+        setSideSheetMaximizeButtonDrawable(button, maximized, tint);
     }
 
-    private static void setSideSheetMaximizeButtonDrawable(ImageButton button, boolean maximized) {
+    private static void setSideSheetMaximizeButtonDrawable(
+            ImageButton button, boolean maximized, @Nullable ColorStateList tint) {
         @DrawableRes
         int drawableId = maximized ? R.drawable.ic_fullscreen_exit : R.drawable.ic_fullscreen_enter;
         int buttonDescId =
                 maximized
                         ? R.string.custom_tab_side_sheet_minimize
                         : R.string.custom_tab_side_sheet_maximize;
-        var drawable =
-                UiUtils.getTintedDrawable(
-                        button.getContext(),
-                        drawableId,
-                        ChromeColors.getPrimaryIconTint(button.getContext(), false));
-        button.setImageDrawable(drawable);
+
+        if (button.getDrawable() == null) {
+            var drawable = UiUtils.getTintedDrawable(button.getContext(), drawableId, tint);
+            button.setImageDrawable(drawable);
+        }
+
         button.setContentDescription(button.getContext().getString(buttonDescId));
+    }
+
+    private static void updateAllButtonsTint(CustomTabToolbar view, ColorStateList tint) {
+        // The menu button's tint is handled by its own MVC component.
+        updateButtonTint(view.getCloseButton(), tint);
+        updateButtonTint(view.getMinimizeButton(), tint);
+        updateButtonTint(view.getSideSheetMaximizeButton(), tint);
+
+        var actionButtons = view.getCustomActionButtonsParent();
+        if (actionButtons != null) {
+            for (int i = 0; i < actionButtons.getChildCount(); i++) {
+                View actionButton = actionButtons.getChildAt(i);
+                if (actionButton instanceof ImageButton button) {
+                    updateButtonTint(button, tint);
+                }
+            }
+        }
+    }
+
+    private static void updateButtonTint(@Nullable ImageButton button, ColorStateList tint) {
+        if (button == null) return;
+
+        Drawable drawable = button.getDrawable();
+        if (drawable instanceof TintedDrawable tintedDrawable) {
+            tintedDrawable.setTint(tint);
+        } else if (button.getTag(R.id.custom_tabs_toolbar_tintable) != null) {
+            drawable.setTintList(tint);
+        }
     }
 }

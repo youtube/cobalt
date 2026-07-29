@@ -134,10 +134,6 @@ enum DataType {
   // (Linux, Mac, Windows, ChromeOS) and Android.
   SAVED_TAB_GROUP,
 
-  // Power bookmarks are features associated with bookmarks(i.e. notes, price
-  // tracking). Their life cycle are synced with bookmarks.
-  POWER_BOOKMARK,
-
   // WebAuthn credentials, more commonly known as passkeys.
   WEBAUTHN_CREDENTIAL,
 
@@ -178,7 +174,13 @@ enum DataType {
   // Comments for shared contexts.
   SHARED_COMMENT,
 
-  LAST_USER_DATA_TYPE = SHARED_COMMENT,
+  // Settings for AUTOFILL_VALUABLE forwarded from the user's account. Since the
+  // settings originate from the user's Wallet account settings, this is not
+  // reusing any of the standard syncable prefs.
+  // Read-only on the client.
+  AUTOFILL_VALUABLE_SETTING,
+
+  LAST_USER_DATA_TYPE = AUTOFILL_VALUABLE_SETTING,
 
   // ---- Control Types ----
   // An object representing a set of Nigori keys.
@@ -264,7 +266,7 @@ enum class DataTypeForHistograms {
   kAutofillWalletUsage = 54,
   // kDeprecatedSegmentation = 55,
   kSavedTabGroups = 56,
-  kPowerBookmark = 57,
+  // kDeprecatedPowerBookmark = 57,
   kWebAuthnCredentials = 58,
   kIncomingPasswordSharingInvitations = 59,
   kOutgoingPasswordSharingInvitations = 60,
@@ -279,7 +281,8 @@ enum class DataTypeForHistograms {
   kAutofillValuable = 69,
   kSharedTabGroupAccountData = 70,
   kSharedComment = 71,
-  kMaxValue = kSharedComment,
+  kAutofillValuableSetting = 72,
+  kMaxValue = kAutofillValuableSetting,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
 

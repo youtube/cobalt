@@ -29,7 +29,7 @@
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/animation/linear_animation.h"
 #include "ui/gfx/geometry/point.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/views/widget/native_widget.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
@@ -336,7 +336,9 @@ void TabDialogManager::CloseDialog() {
 }
 
 bool TabDialogManager::MaybeActivateDialog() {
-  if (!widget_) {
+  // Also test whether the widget is in the closed state and in the middle of
+  // being torn down (Widget::CloseNow() or Widget::Close() called)
+  if (!widget_ || widget_->IsClosed()) {
     return false;
   }
 
@@ -465,6 +467,12 @@ void TabDialogManager::DidFinishNavigation(
           net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
   if (params_->close_on_navigate && different_site_navigation) {
     CloseDialog();
+  }
+}
+
+void TabDialogManager::PrimaryMainFrameWasResized(bool width_changed) {
+  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
+    UpdateModalDialogBounds();
   }
 }
 

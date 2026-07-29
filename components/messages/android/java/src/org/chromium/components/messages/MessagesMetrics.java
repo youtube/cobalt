@@ -360,6 +360,10 @@ public class MessagesMetrics {
                 return "MultiInstanceRestorationOnDowngradedLimit";
             case MessageIdentifier.UPDATE_CHROME_FOR_TAB_GROUP_SHARE:
                 return "UpdateChromeForTabGroupShare";
+            case MessageIdentifier.MODE_B_ROLLBACK_MESSAGE:
+                return "ModeBRollbackMessage";
+            case MessageIdentifier.RELOAD_PAGE:
+                return "ReloadPage";
             default:
                 return "Unknown";
         }

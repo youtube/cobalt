@@ -182,7 +182,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.FullscreenSigninPromoLauncher;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
 import org.chromium.chrome.browser.webapps.PwaRestorePromoUtils;
-import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
+import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.components.browser_ui.widget.CoordinatorLayoutForPointer;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
@@ -955,6 +955,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         new OneShotCallback<>(mProfileSupplier, this::initCollaborationDelegatesOnProfile);
 
         if (BookmarkBarUtils.isDeviceBookmarkBarCompatible(mActivity)) {
+            BookmarkBarUtils.recordStartUpMetrics(mActivity, mProfileSupplier.get());
             mBookmarkBarVisibilityProvider =
                     new BookmarkBarVisibilityProvider(
                             mActivity, mActivityLifecycleDispatcher, mProfileSupplier);
@@ -1277,7 +1278,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mSnackbarManagerSupplier.get());
         }
 
-        if (!didTriggerPromo && PageZoomCoordinator.shouldShowMenuItem()) {
+        if (!didTriggerPromo && PageZoomBarCoordinator.shouldShowMenuItem()) {
             // Page Zoom IPH should only show if the menu item is visible, and not on NTP or CCT.
             if (tab != null && tab.getWebContents() != null && !tab.isNativePage()) {
                 PageZoomIphController mPageZoomIphController =
@@ -1298,6 +1299,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         final boolean animate =
                 !sDisableTopControlsAnimationForTesting
                         && !AppHeaderUtils.isAppInDesktopWindow(getDesktopWindowStateManager());
+        if (ChromeFeatureList.sTopControlsRefactor.isEnabled()) {
+            mTopControlsStacker.requestLayerUpdate(animate);
+            return;
+        }
+
         final BrowserControlsSizer browserControlsSizer = mBrowserControlsManager;
 
         boolean isTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
@@ -1315,13 +1321,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         final int tabStripHeight = mToolbarManager.getTabStripHeightSupplier().get();
         final int bookmarkBarHeight = getBookmarkBarHeight();
 
-        // When the refactor feature is enabled, fetch height from the TopControlsStacker.
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TOP_CONTROLS_REFACTOR)) {
-            topControlsNewHeight = mTopControlsStacker.getVisibleTopControlsTotalHeight();
-        } else {
-            topControlsNewHeight =
-                    bookmarkBarHeight + toolbarHeight + tabStripHeight + mStatusIndicatorHeight;
-        }
+        topControlsNewHeight =
+                bookmarkBarHeight + toolbarHeight + tabStripHeight + mStatusIndicatorHeight;
 
         if (tabStripHeight > 0 && !isTablet) {
             String msg =
@@ -1892,9 +1893,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         } else if (id == R.id.toggle_bookmark_bar) {
             if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(mActivity)) {
                 if (DeviceInfo.isDesktop()) {
-                    BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(mProfileSupplier.get());
+                    BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(
+                            mProfileSupplier.get(), /* fromKeyboardShortcut= */ true);
                 } else {
-                    BookmarkBarUtils.toggleDevicePrefShowBookmarksBar();
+                    BookmarkBarUtils.toggleDevicePrefShowBookmarksBar(
+                            /* fromKeyboardShortcut= */ true);
                 }
                 return true;
             }

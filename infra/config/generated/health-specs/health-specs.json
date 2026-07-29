@@ -3146,6 +3146,48 @@
           }
         ]
       },
+      "Linux FYI Experimental Release (AMD 780M)": {
+        "contact_team_email": "chrome-gpu-infra@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "Linux FYI Experimental Release (AMD 890M)": {
+        "contact_team_email": "chrome-gpu-infra@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "Linux FYI Experimental Release (Intel Arc 140V)": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
@@ -5916,6 +5958,48 @@
           }
         ]
       },
+      "Win11 FYI x64 Experimental Release (AMD 780M)": {
+        "contact_team_email": "chrome-gpu-infra@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "Win11 FYI x64 Experimental Release (AMD 890M)": {
+        "contact_team_email": "chrome-gpu-infra@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "Win11 FYI x64 Experimental Release (Intel Arc 140V)": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
@@ -6064,6 +6148,27 @@
         ]
       },
       "android-10-x86-fyi-rel": {
+        "contact_team_email": "clank-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
+      "android-10-x86-nofieldtrial-rel": {
         "contact_team_email": "clank-engprod@google.com",
         "problem_specs": [
           {
@@ -10139,8 +10244,8 @@
           }
         ]
       },
-      "linux-modules-compile-fyi-rel": {
-        "contact_team_email": "chrome-build-team@google.com",
+      "linux-multiscreen-fyi-rel": {
+        "contact_team_email": "web-windowing-team@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",
@@ -10160,8 +10265,8 @@
           }
         ]
       },
-      "linux-multiscreen-fyi-rel": {
-        "contact_team_email": "web-windowing-team@google.com",
+      "linux-no-modules-compile-rel": {
+        "contact_team_email": "chrome-build-team@google.com",
         "problem_specs": [
           {
             "name": "Unhealthy",

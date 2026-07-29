@@ -127,12 +127,12 @@ public class CustomTabToolbarCoordinatorUnitTest {
 
     private void clickButtonAndVerifyPendingIntent() {
         try {
-            mCoordinator.onCustomButtonClick(mCustomButtonParams);
+            mCoordinator.onCustomButtonClick(mActivity, mCustomButtonParams);
             verify(mShareDelegate, never()).share(any(Tab.class), eq(false), anyInt());
             verify(mPendingIntent)
                     .send(any(), eq(0), any(Intent.class), any(), isNull(), isNull(), any());
         } catch (PendingIntent.CanceledException e) {
-            assert false;
+            throw new AssertionError();
         }
     }
 
@@ -140,6 +140,7 @@ public class CustomTabToolbarCoordinatorUnitTest {
     public void testCreateShareButtonWithCustomActions() {
         int testColor = 0x99aabbcc;
         mCoordinator.onCustomButtonClick(
+                mActivity,
                 CustomButtonParamsImpl.createShareButton(mActivityForResources, testColor));
         verify(mShareDelegate)
                 .share(any(), eq(false), eq(ShareDelegate.ShareOrigin.CUSTOM_TAB_SHARE_BUTTON));

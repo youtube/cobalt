@@ -13,6 +13,7 @@ export function getHtml(this: PowerBookmarkRowElement) {
     role="listitem"
     .size="${this.listItemSize}"
     .url="${this.getUrl_()}"
+    ?selected="${this.isSelected}"
     .imageUrls="${this.getBookmarkImageUrls_()}"
     .count="${this.bookmark.children?.length}"
     .title="${this.bookmark.title}"
@@ -74,7 +75,9 @@ export function getHtml(this: PowerBookmarkRowElement) {
   if (this.shouldExpand_()) {
     return html`<!--_html_template_start_-->
 <cr-expand-button no-hover id="expandButton"
+    .expanded="${this.toggleExpand}"
     collapse-icon="cr:expand-more"
+    ?selected="${this.isSelected}"
     expand-icon="cr:chevron-right"
     @expanded-changed=${this.onExpandedChanged_}>
   ${urlListItem}
@@ -85,6 +88,7 @@ export function getHtml(this: PowerBookmarkRowElement) {
           id="bookmark-${item.id}"
           .bookmark="${item}"
           ?compact="${this.compact}"
+          ?selected="${this.isSelected}"
           .depth="${this.depth + 1}"
           trailing-icon-tooltip="$i18n{tooltipMore}"
           ?has-checkbox="${this.hasCheckbox}"
@@ -94,7 +98,9 @@ export function getHtml(this: PowerBookmarkRowElement) {
           .shoppingCollectionFolderId="${this.shoppingCollectionFolderId}"
           .draggable="${String(this.canDrag)}"
           ?can-drag="${this.canDrag}"
-          .contextMenuBookmark="${this.contextMenuBookmark}">
+          .activeFolderPath="${this.activeFolderPath}"
+          .contextMenuBookmark="${this.contextMenuBookmark}"
+          ?has-folders="${true}">
       </power-bookmark-row>
     `)}`: ''
   }<!--_html_template_end_-->`;

@@ -1509,6 +1509,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 // Checks the order of the elements in the detail view layout for a federated
 // credential.
 - (void)testLayoutFederated {
+  // TODO(crbug.com/444185069): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   GREYAssert(
       [PasswordSettingsAppInterface
           saveExampleFederatedOriginToProfileStore:
@@ -1878,9 +1885,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [[EarlGrey selectElementWithMatcher:ToolbarSettingsSubmenuButton()]
       performAction:grey_tap()];
 
+  const int exportButtonAccessibilityId =
+      CredentialExchangeEnabled() ? IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS
+                                  : IDS_IOS_EXPORT_PASSWORDS;
+
   [[[EarlGrey
       selectElementWithMatcher:grey_allOf(ButtonWithAccessibilityLabelId(
-                                              IDS_IOS_EXPORT_PASSWORDS),
+                                              exportButtonAccessibilityId),
                                           grey_sufficientlyVisible(), nil)]
          usingSearchAction:grey_scrollInDirection(kGREYDirectionDown,
                                                   kScrollAmount)
@@ -1889,7 +1900,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
   [GetInteractionForPasswordsExportConfirmAlert(
       chrome_test_util::AlertItemWithAccessibilityLabelId(
-          IDS_IOS_EXPORT_PASSWORDS)) performAction:grey_tap()];
+          exportButtonAccessibilityId)) performAction:grey_tap()];
 
   // Wait until the alerts are dismissed.
   [ChromeEarlGreyUI waitForAppToIdle];
@@ -1898,7 +1909,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
       grey_accessibilityTrait(UIAccessibilityTraitNotEnabled);
 
   [[EarlGrey selectElementWithMatcher:ButtonWithAccessibilityLabelId(
-                                          IDS_IOS_EXPORT_PASSWORDS)]
+                                          exportButtonAccessibilityId)]
       assertWithMatcher:exportButtonStatusMatcher];
 
   [ChromeEarlGrey verifyActivitySheetVisible];
@@ -1910,7 +1921,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   // Check that export button is re-enabled.
   [[EarlGrey selectElementWithMatcher:
                  chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
-                     IDS_IOS_EXPORT_PASSWORDS)]
+                     exportButtonAccessibilityId)]
       assertWithMatcher:grey_not(grey_accessibilityTrait(
                             UIAccessibilityTraitNotEnabled))];
   [[EarlGrey
@@ -1924,6 +1935,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 // Test that when user types text in search field, passwords and blocked
 // items are filtered out correctly.
 - (void)testSearchPasswords {
+  // TODO(crbug.com/444185069): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   SaveExamplePasswordForms();
   SaveExampleBlockedFormsToProfileStore();
 
@@ -1961,6 +1979,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Test search and delete all passwords and blocked items.
 - (void)testSearchAndDeleteAllPasswords {
+  // TODO(crbug.com/444185069): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   SaveExamplePasswordForms();
   SaveExampleBlockedFormsToProfileStore();
 
@@ -2028,6 +2053,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Test that the user can edit a password that is part of search results.
 - (void)testCanEditPasswordsFromASearch {
+  // TODO(crbug.com/444185069): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   SaveExamplePasswordForms();
   OpenPasswordManager();
 
@@ -3719,6 +3751,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 // Tests that the Password Manager is opened is search mode when opened from the
 // Search Passwords widget.
 - (void)testOpenSearchPasswordsWidget {
+  // TODO(crbug.com/444185069): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   // Add a saved password to not get the Password Manager's empty state.
   SavePasswordFormToProfileStore();
 
@@ -3750,6 +3789,13 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 // get automatically enabled when going back to the Password Manager when the
 // Password Manager was initially opened with the Search Passwords widget.
 - (void)testGoingBackAfterOpeningInSearchMode {
+  // TODO(crbug.com/444185069): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
+
   // Add a saved password to not get the Password Manager's empty state.
   SavePasswordFormToProfileStore();
 

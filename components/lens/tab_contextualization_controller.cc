@@ -33,6 +33,9 @@ TabContextualizationController::TabContextualizationController(
   tab_subscription_ = tab->RegisterWillDiscardContents(
       base::BindRepeating(&TabContextualizationController::WillDiscardContents,
                           weak_ptr_factory_.GetWeakPtr()));
+  screenshot_task_runner_ = base::ThreadPool::CreateTaskRunner(
+      {base::TaskPriority::USER_VISIBLE,
+       base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN});
 }
 
 TabContextualizationController::~TabContextualizationController() = default;
@@ -68,7 +71,7 @@ void TabContextualizationController::UpdatePageContextEligibility(
 
   GetAnnotatedPageContent(base::BindOnce(
       &TabContextualizationController::OnAnnotatedPageContentReceived,
-      base::Unretained(this), std::move(callback)));
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
 void TabContextualizationController::GetAnnotatedPageContent(
@@ -96,10 +99,11 @@ void TabContextualizationController::OnAnnotatedPageContentReceived(
         optimization_guide::GetFrameMetadataFromPageContent(result.value());
   }
 
-  std::move(callback).Run(optimization_guide::IsPageContextEligible(
-                              tab_url.host(), tab_url.path(),
-                              std::move(frame_metadata_structs), nullptr),
-                          std::move(result));
+  std::move(callback).Run(
+      optimization_guide::IsPageContextEligible(
+          tab_url.host(), tab_url.path(), std::move(frame_metadata_structs),
+          /*api_holder=*/nullptr),
+      std::move(result));
 }
 
 void TabContextualizationController::
@@ -111,7 +115,7 @@ void TabContextualizationController::
   data->is_page_context_eligible = page_context_eligible;
   data->primary_content_type = lens::MimeType::kAnnotatedPageContent;
   data->context_input = std::vector<lens::ContextualInput>();
-  if (!page_context_eligible) {
+  if (!page_context_eligible || !result.has_value()) {
     // Early return if the page is not context eligible.
     std::move(callback).Run(std::move(data));
     return;
@@ -125,9 +129,12 @@ void TabContextualizationController::
 
   // TODO(crbug.com/443743308): Parallelize the screenshot capture with the
   // webpage bytes fetch.
-  CaptureScreenshot(base::BindOnce(
-      &TabContextualizationController::OnScreenshotCaptured,
-      base::Unretained(this), std::move(callback), std::move(data)));
+  CaptureScreenshot(
+      /*image_options=*/std::nullopt,
+      base::BindOnce(&TabContextualizationController::
+                         AddScreenshotToContextDataAndContinue,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     std::move(data)));
 }
 
 // TODO(crbug.com/439597165): Check tab eligibility
@@ -174,10 +181,10 @@ void TabContextualizationController::GetPageContext(
   // If the page is not a PDF, get the annotated page content.
   GetAnnotatedPageContent(base::BindOnce(
       &TabContextualizationController::OnAnnotatedPageContentReceived,
-      base::Unretained(this),
+      weak_ptr_factory_.GetWeakPtr(),
       base::BindOnce(&TabContextualizationController::
                          OnApcAndEligibilityReceivedForGetPageContext,
-                     base::Unretained(this), std::move(callback),
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                      std::move(contextual_input_data))));
 }
 
@@ -188,6 +195,12 @@ void TabContextualizationController::OnPdfBytesReceived(
     pdf::mojom::PdfListener::GetPdfBytesStatus status,
     const std::vector<uint8_t>& bytes,
     uint32_t page_count) {
+  content::WebContents* web_contents = tab_->GetContents();
+  if (!web_contents) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
   data->primary_content_type = lens::MimeType::kPdf;
   data->context_input = std::vector<lens::ContextualInput>();
   // TODO(crbug.com/370530197): Show user error message if status is not
@@ -204,38 +217,110 @@ void TabContextualizationController::OnPdfBytesReceived(
   data->context_input->push_back(
       lens::ContextualInput(std::move(file_data_vector), lens::MimeType::kPdf));
 
+  // Get the most visible page index if the PDF helper exists.
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(web_contents);
+  if (pdf_helper) {
+    // TODO(crbug.com/443743308): Parallelize the PDF page index fetch with the
+    // PDF bytes fetch.
+    pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
+        &TabContextualizationController::OnPdfPageIndexReceived,
+        weak_ptr_factory_.GetWeakPtr(), std::move(data), std::move(callback)));
+    return;
+  }
+
+  // If the PDF helper no longer exists, set nullopt for the PDF page index.
+  OnPdfPageIndexReceived(std::move(data), std::move(callback),
+                         /*page_index=*/std::nullopt);
+}
+
+void TabContextualizationController::OnPdfPageIndexReceived(
+    std::unique_ptr<lens::ContextualInputData> data,
+    GetPageContextCallback callback,
+    std::optional<uint32_t> page_index) {
+  if (page_index.has_value()) {
+    data->pdf_current_page = page_index.value();
+  }
+
   // TODO(crbug.com/443743308): Parallelize the screenshot capture with the
-  // PDF bytes fetch.
-  CaptureScreenshot(base::BindOnce(
-      &TabContextualizationController::OnScreenshotCaptured,
-      base::Unretained(this), std::move(callback), std::move(data)));
+  // PDF page index fetch.
+  CaptureScreenshot(
+      /*image_options=*/std::nullopt,
+      base::BindOnce(&TabContextualizationController::
+                         AddScreenshotToContextDataAndContinue,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
+                     std::move(data)));
 }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
 void TabContextualizationController::CaptureScreenshot(
-    base::OnceCallback<void(const SkBitmap&)> callback) {
-  content::RenderWidgetHostView* view = tab_->GetContents()
-                                            ->GetPrimaryMainFrame()
-                                            ->GetRenderViewHost()
-                                            ->GetWidget()
-                                            ->GetView();
-
-  if (!(view && view->IsSurfaceAvailableForCopy())) {
+    std::optional<lens::ImageEncodingOptions> image_options,
+    CaptureScreenshotCallback callback) {
+  content::WebContents* web_contents = tab_->GetContents();
+  if (!web_contents) {
     std::move(callback).Run(SkBitmap());
     return;
   }
 
+  content::RenderWidgetHostView* view = web_contents->GetPrimaryMainFrame()
+                                            ->GetRenderViewHost()
+                                            ->GetWidget()
+                                            ->GetView();
+
+  if (!view || !view->IsSurfaceAvailableForCopy()) {
+    std::move(callback).Run(SkBitmap());
+    return;
+  }
+
+  base::ScopedClosureRunner decrement_capturer_count_runner =
+      web_contents->IncrementCapturerCount(
+          /*capture_size=*/gfx::Size(),
+          /*stay_hidden=*/true,
+          /*stay_awake=*/false,
+          /*is_activity=*/false);
+
+  auto callback_wrapper = base::BindOnce(
+      &TabContextualizationController::DownscaleScreenshotAndContinue,
+      weak_ptr_factory_.GetWeakPtr(),
+      std::move(decrement_capturer_count_runner), std::move(image_options),
+      std::move(callback));
+
   view->CopyFromSurface(
       /*src_rect=*/gfx::Rect(), /*output_size=*/gfx::Size(),
       base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
-                         std::move(callback)));
+                         std::move(callback_wrapper)));
 }
 
-void TabContextualizationController::OnScreenshotCaptured(
+void TabContextualizationController::DownscaleScreenshotAndContinue(
+    base::ScopedClosureRunner decrement_capturer_count_runner,
+    std::optional<lens::ImageEncodingOptions> image_options,
+    CaptureScreenshotCallback callback,
+    const SkBitmap& screenshot) {
+  // `DecrementCapturerCount()` is called when `decrement_capturer_count_runner`
+  // goes out of scope.
+
+  if (screenshot.drawsNothing() || !image_options.has_value()) {
+    std::move(callback).Run(screenshot);
+    return;
+  }
+
+  scoped_refptr<lens::RefCountedLensOverlayClientLogs> ref_counted_logs =
+      base::MakeRefCounted<lens::RefCountedLensOverlayClientLogs>();
+
+  // Downscaling is done on a background thread to avoid blocking the main
+  // thread.
+  screenshot_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&lens::DownscaleBitmap, screenshot, ref_counted_logs,
+                     image_options.value()),
+      std::move(callback));
+}
+
+void TabContextualizationController::AddScreenshotToContextDataAndContinue(
     GetPageContextCallback callback,
     std::unique_ptr<lens::ContextualInputData> data,
     const SkBitmap& screenshot) {
-  if (!screenshot.empty()) {
+  if (!screenshot.drawsNothing()) {
     data->viewport_screenshot = screenshot;
   }
 

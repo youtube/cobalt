@@ -16,7 +16,6 @@
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
 #include "chrome/browser/ash/app_list/search/essential_search/essential_search_manager.h"
-#include "chrome/browser/ash/app_restore/browser_restore_observer.h"
 #include "chrome/browser/ash/boot_times_recorder/boot_times_recorder.h"
 #include "chrome/browser/ash/login/saml/in_session_password_change_manager.h"
 #include "chrome/browser/ash/login/session/chrome_session_manager.h"
@@ -47,6 +46,7 @@
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/browser/sessions/session_service_utils.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -105,6 +105,7 @@ class PrimaryProfileServicesShutdownNotifierFactory
       : BrowserContextKeyedServiceShutdownNotifierFactory(
             "PrimaryProfileServices") {
     DependsOn(DeviceInfoSyncServiceFactory::GetInstance());
+    DependsOn(SyncServiceFactory::GetInstance());
   }
   ~PrimaryProfileServicesShutdownNotifierFactory() override = default;
 };
@@ -112,9 +113,7 @@ class PrimaryProfileServicesShutdownNotifierFactory
 }  // namespace
 
 BrowserProcessPlatformPart::BrowserProcessPlatformPart()
-    : browser_restore_observer_(
-          std::make_unique<ash::BrowserRestoreObserver>()),
-      created_profile_helper_(false),
+    : created_profile_helper_(false),
       browser_context_flusher_(std::make_unique<ash::BrowserContextFlusher>()),
       account_manager_factory_(std::make_unique<ash::AccountManagerFactory>()) {
 }
@@ -322,7 +321,9 @@ void BrowserProcessPlatformPart::InitializePrimaryProfileServices(
 
   if (ash::features::IsAutoSignOutEnabled()) {
     auto_sign_out_service_ = std::make_unique<ash::AutoSignOutService>(
-        DeviceInfoSyncServiceFactory::GetForProfile(primary_profile));
+        DeviceInfoSyncServiceFactory::GetForProfile(primary_profile),
+        SyncServiceFactory::GetForProfile(primary_profile),
+        session_manager_.get());
   }
 }
 

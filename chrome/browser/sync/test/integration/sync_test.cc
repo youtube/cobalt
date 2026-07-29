@@ -1181,6 +1181,10 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
     allowed_types.Put(syncer::AUTOFILL_VALUABLE);
   }
 
+  if (base::FeatureList::IsEnabled(syncer::kSyncAutofillValuableSettings)) {
+    allowed_types.Put(syncer::AUTOFILL_VALUABLE);
+  }
+
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(syncer::kWebApkBackupAndRestoreBackend)) {
     allowed_types.Put(syncer::WEB_APKS);
@@ -1212,6 +1216,13 @@ syncer::DataTypeSet AllowedTypesInStandaloneTransportMode() {
     allowed_types.Put(syncer::PLUS_ADDRESS);
     allowed_types.Put(syncer::PLUS_ADDRESS_SETTING);
   }
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(
+          syncer::kSpellcheckSeparateLocalAndAccountDictionaries)) {
+    allowed_types.Put(syncer::DICTIONARY);
+  }
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 
   return allowed_types;
 }

@@ -6,14 +6,20 @@
 
 #include "base/android/jni_bytebuffer.h"
 #include "base/containers/span.h"
+#include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/ui/android/omnibox/jni_headers/ComposeBoxQueryControllerBridge_jni.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/common/channel_info.h"
 #include "components/lens/contextual_input.h"
+#include "components/lens/lens_bitmap_processing.h"
+#include "url/android/gurl_android.h"
+#include "url/gurl.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/ui/android/omnibox/jni_headers/ComposeBoxQueryControllerBridge_jni.h"
 
 static jlong JNI_ComposeBoxQueryControllerBridge_Init(JNIEnv* env,
                                                       Profile* profile) {
@@ -55,19 +61,18 @@ void ComposeboxQueryControllerBridge::AddFile(
     const jni_zero::JavaParamRef<jobject>& file_data) {
   base::UnguessableToken file_token = base::UnguessableToken::Create();
 
-  std::optional<composebox::ImageEncodingOptions> image_options = std::nullopt;
+  std::optional<lens::ImageEncodingOptions> image_options = std::nullopt;
   lens::MimeType mime_type;
 
   if (file_type.find("pdf") != std::string::npos) {
     mime_type = lens::MimeType::kPdf;
   } else if (file_type.find("image") != std::string::npos) {
     mime_type = lens::MimeType::kImage;
-    image_options =
-        composebox::ImageEncodingOptions{.enable_webp_encoding = false,
-                                         .max_size = 1500000,
-                                         .max_height = 1600,
-                                         .max_width = 1600,
-                                         .compression_quality = 40};
+    image_options = lens::ImageEncodingOptions{.enable_webp_encoding = false,
+                                               .max_size = 1500000,
+                                               .max_height = 1600,
+                                               .max_width = 1600,
+                                               .compression_quality = 40};
   } else {
     NOTREACHED();
   }
@@ -85,6 +90,11 @@ void ComposeboxQueryControllerBridge::AddFile(
       lens::ContextualInput(std::move(file_data_vector), mime_type));
   query_controller_->StartFileUploadFlow(file_token, std::move(input_data),
                                          std::move(image_options));
+}
+
+GURL ComposeboxQueryControllerBridge::GetAimUrl(JNIEnv* env,
+                                                std::string& query_text) {
+  return query_controller_->CreateAimUrl(query_text, base::Time::Now());
 }
 
 void ComposeboxQueryControllerBridge::OnFileUploadStatusChanged(

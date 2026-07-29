@@ -150,7 +150,6 @@ constexpr base::TimeDelta kReportDeliverySecondRetryDelay = base::Minutes(15);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kAttributionReportObserveAppState,
-             "AttributionReportObserveAppState",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -512,14 +511,6 @@ void LogMetricsOnReportSent(const AttributionReport& report) {
       UMA_HISTOGRAM_COUNTS_1000(
           "Conversions.TimeFromTriggerToReportSentSuccessfully",
           time_from_conversion_to_report_sent.InHours());
-      UMA_HISTOGRAM_BOOLEAN(
-          "Conversions."
-          "TimeFromTriggerToReportSentSuccessfullyExceeds30Days",
-          time_from_conversion_to_report_sent > base::Days(30));
-      UMA_HISTOGRAM_BOOLEAN(
-          "Conversions."
-          "ExtraReportDelayForSuccessfulSendExceeds30Days",
-          time_since_original_report_time > base::Days(30));
 
       RecordReportRetriesEventLevel(report.failed_send_attempts());
 
@@ -541,18 +532,10 @@ void LogMetricsOnReportSent(const AttributionReport& report) {
           time_from_conversion_to_report_sent, base::Minutes(1), base::Days(24),
           50);
 
-      UMA_HISTOGRAM_BOOLEAN(
-          "Conversions.AggregatableReport."
-          "TimeFromTriggerToReportSentSuccessfullyExceeds30Days",
-          time_from_conversion_to_report_sent > base::Days(30));
       UMA_HISTOGRAM_CUSTOM_TIMES(
           "Conversions.AggregatableReport.ExtraReportDelayForSuccessfulSend",
           time_since_original_report_time, base::Seconds(1), base::Days(24),
           /*bucket_count=*/50);
-      UMA_HISTOGRAM_BOOLEAN(
-          "Conversions.AggregatableReport."
-          "ExtraReportDelayForSuccessfulSendExceeds30Days",
-          time_since_original_report_time > base::Days(30));
 
       RecordReportRetriesAggregatable(report.failed_send_attempts());
 

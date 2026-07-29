@@ -45,6 +45,8 @@
 #include "components/affiliations/core/browser/mock_affiliation_service.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
+#include "components/autofill/core/browser/form_structure_test_api.h"
+#include "components/autofill/core/browser/foundations/autofill_manager_test_api.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
@@ -56,8 +58,6 @@
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/model_quality_service.pb.h"
 #include "components/password_manager/core/browser/features/password_features.h"
-#include "components/password_manager/core/browser/one_time_passwords/otp_form_manager.h"
-#include "components/password_manager/core/browser/one_time_passwords/otp_manager.h"
 #include "components/password_manager/core/browser/password_form_manager.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -320,20 +320,30 @@ class PasswordChangeBrowserTest : public PasswordManagerBrowserTestBase {
   }
 
   void AddOtpToThePage() {
+    // Inject the form because otherwise it cannot be guaranteed that the OTP
+    // field is classified as such.
     auto form = CreateSimpleOtp();
+    auto form_structure = std::make_unique<autofill::FormStructure>(form);
+    const std::vector<autofill::FieldType> field_types = {
+        autofill::ONE_TIME_CODE};
+    autofill::test_api(*form_structure)
+        .SetFieldTypes(/*heuristic_types=*/field_types,
+                       /*server_types=*/field_types);
+    autofill::test_api(*form_structure).AssignSections();
+    autofill::test_api(*GetAutofillManager())
+        .AddSeenFormStructure(std::move(form_structure));
+    autofill::test_api(*GetAutofillManager()).OnFormsParsed({form});
 
-    GetAutofillManager()->OnFormsSeen(
-        /*updated_forms=*/{form},
-        /*removed_forms=*/{});
-    ASSERT_TRUE(GetAutofillManager()->WaitForFormsSeen(1));
     ASSERT_TRUE(
         GetAutofillManager()->FindCachedFormById(form.fields()[0].global_id()));
 
-    password_manager::OtpManager* otp_manager =
-        ChromePasswordManagerClient::FromWebContents(WebContents())
-            ->GetOtpManager();
-    otp_manager->ProcessClassificationModelPredictions(
-        form, {{form.fields()[0].global_id(), autofill::ONE_TIME_CODE}});
+    // Notify observers manually as this would typically happen during parsing
+    // but the step is skipped when using the Test APIs.
+    GetAutofillManager()->NotifyObservers(
+        &TestAutofillManager::Observer::OnFieldTypesDetermined,
+        form.global_id(),
+        TestAutofillManager::Observer::FieldTypeSource::
+            kHeuristicsOrAutocomplete);
   }
 
  private:
@@ -822,6 +832,12 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OpenTabWithPasswordChange) {
 
   EXPECT_EQ(tab_strip->count(), 2);
   EXPECT_EQ(tab_strip->active_index(), 1);
+
+  EXPECT_FALSE(ChromePasswordManagerClient::FromWebContents(WebContents())
+                   ->apply_client_side_prediction_override_for_testing());
+  EXPECT_TRUE(ChromePasswordManagerClient::FromWebContents(
+                  tab_strip->GetActiveWebContents())
+                  ->apply_client_side_prediction_override_for_testing());
 }
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
@@ -893,16 +909,6 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OTPDetectionHaltsTheFlow) {
   SetPrivacyNoticeAcceptedPref();
-  autofill::FormData form;
-  autofill::FormFieldData field;
-  field.set_name(u"otp");
-  field.set_id_attribute(field.name());
-  field.set_name_attribute(field.name());
-  field.set_form_control_type(autofill::FormControlType::kInputText);
-  field.set_renderer_id(autofill::FieldRendererId(1));
-  form.set_fields({field});
-  password_manager::OtpFormManager otp_form_manager(form, {field.global_id()},
-                                                    client());
   const GURL main_url = WebContents()->GetLastCommittedURL();
   EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
       .WillOnce(Return(embedded_test_server()->GetURL("/password/done.html")));
@@ -918,7 +924,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest, OTPDetectionHaltsTheFlow) {
             PasswordChangeDelegate::State::kWaitingForChangePasswordForm);
 
   auto* delegate_impl = static_cast<PasswordChangeDelegateImpl*>(delegate);
-  delegate_impl->OnOtpFieldDetected(&otp_form_manager);
+  delegate_impl->OnOtpFieldDetected();
 
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kOtpDetected);
@@ -1429,16 +1435,6 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
 IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
                        OtpDetectedfterSubmitFormStep) {
   SetPrivacyNoticeAcceptedPref();
-  autofill::FormData form;
-  autofill::FormFieldData field;
-  field.set_name(u"otp");
-  field.set_id_attribute(field.name());
-  field.set_name_attribute(field.name());
-  field.set_form_control_type(autofill::FormControlType::kInputText);
-  field.set_renderer_id(autofill::FieldRendererId(1));
-  form.set_fields({field});
-  password_manager::OtpFormManager otp_form_manager(form, {field.global_id()},
-                                                    client());
   const GURL main_url = WebContents()->GetLastCommittedURL();
   EXPECT_CALL(*affiliation_service(), GetChangePasswordURL(main_url))
       .WillOnce(Return(embedded_test_server()->GetURL("/password/done.html")));
@@ -1461,7 +1457,7 @@ IN_PROC_BROWSER_TEST_F(PasswordChangeBrowserTest,
       delegate->AsWeakPtr();
 
   auto* delegate_impl = static_cast<PasswordChangeDelegateImpl*>(delegate);
-  delegate_impl->OnOtpFieldDetected(&otp_form_manager);
+  delegate_impl->OnOtpFieldDetected();
   EXPECT_EQ(delegate->GetCurrentState(),
             PasswordChangeDelegate::State::kOtpDetected);
   delegate_impl->ui_controller()->CallOnDialogCanceledForTesting();

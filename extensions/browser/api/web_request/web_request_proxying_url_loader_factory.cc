@@ -41,6 +41,7 @@
 #include "extensions/browser/api/web_request/web_request_api.h"
 #include "extensions/browser/extension_navigation_ui_data.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_features.h"
 #include "extensions/common/extensions_client.h"
 #include "extensions/common/manifest_handlers/web_accessible_resources_info.h"
@@ -69,6 +70,8 @@
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 namespace {
@@ -570,6 +573,11 @@ bool WebRequestProxyingURLLoaderFactory::IsForServiceWorkerScript() const {
 bool WebRequestProxyingURLLoaderFactory::IsForDownload() const {
   return loader_factory_type_ ==
          content::ContentBrowserClient::URLLoaderFactoryType::kDownload;
+}
+
+bool WebRequestProxyingURLLoaderFactory::IsForPrefetch() const {
+  return loader_factory_type_ ==
+         content::ContentBrowserClient::URLLoaderFactoryType::kPrefetch;
 }
 
 void WebRequestProxyingURLLoaderFactory::InProgressRequest::OnLoaderCreated(
@@ -1572,9 +1580,10 @@ void WebRequestProxyingURLLoaderFactory::CreateLoaderAndStart(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   // Make sure we are not proxying a browser initiated non-navigation
-  // request except for loading service worker scripts.
+  // request except for loading service worker scripts and browser-initiated
+  // prefetch.
   DCHECK(render_process_id_ != -1 || navigation_ui_data_ ||
-         IsForServiceWorkerScript());
+         IsForServiceWorkerScript() || IsForPrefetch());
 
   // The |web_request_id| doesn't really matter. It just needs to be
   // unique per-BrowserContext so extensions can make sense of it.

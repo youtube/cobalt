@@ -29,7 +29,7 @@
 #include "ui/gfx/font_render_params.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/linux/linux_ui.h"
 #include "ui/ozone/platform/wayland/host/dump_util.h"
 #include "ui/ozone/platform/wayland/host/org_kde_kwin_idle.h"
@@ -235,7 +235,7 @@ void WaylandScreen::AddOrUpdateDisplay(const WaylandOutput::Metrics& metrics) {
   if (auto* wayland_output =
           connection_->wayland_output_manager()->GetOutput(metrics.output_id)) {
     if (auto* output = wayland_output->wp_color_management_output()) {
-      if (auto* output_color_spaces = output->display_color_spaces()) {
+      if (auto* output_color_spaces = output->GetDisplayColorSpaces()) {
         color_spaces = *output_color_spaces;
       }
     }

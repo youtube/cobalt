@@ -278,6 +278,9 @@ ci.thin_tester(
                 ],
             ),
         ],
+        mixins = [
+            "isolate_profile_data",
+        ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
                 args = [
@@ -286,6 +289,14 @@ ci.thin_tester(
                 ],
                 swarming = targets.swarming(
                     shards = 20,
+                ),
+            ),
+            "chrome_public_test_apk_desktop": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.desktop.chrome_public_test_apk_desktop.filter",
+                ],
+                swarming = targets.swarming(
+                    shards = 2,
                 ),
             ),
             "chrome_public_unit_test_apk": targets.mixin(

@@ -15,6 +15,7 @@
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "google_apis/common/api_error_codes.h"
+#include "google_apis/common/base_requests.h"
 
 namespace ash::boca_receiver {
 namespace {
@@ -31,15 +32,13 @@ RegisterReceiverRequest::RegisterReceiverRequest(std::string_view fcm_token,
 RegisterReceiverRequest::~RegisterReceiverRequest() = default;
 
 std::string RegisterReceiverRequest::GetRelativeUrl() {
-  return "/v1/kioskReceiver:register";
+  return std::string(kUrl);
 }
 
 std::optional<std::string> RegisterReceiverRequest::GetRequestBody() {
-  std::string request_body;
   base::Value::Dict request;
   request.Set(kFcmTokenKey, fcm_token_);
-  base::JSONWriter::Write(request, &request_body);
-  return request_body;
+  return base::WriteJson(request).value_or("");
 }
 
 void RegisterReceiverRequest::OnSuccess(std::unique_ptr<base::Value> response) {
@@ -57,6 +56,10 @@ void RegisterReceiverRequest::OnSuccess(std::unique_ptr<base::Value> response) {
 void RegisterReceiverRequest::OnError(google_apis::ApiErrorCode error) {
   CHECK(callback_);
   std::move(callback_).Run(std::nullopt);
+}
+
+google_apis::HttpRequestMethod RegisterReceiverRequest::GetRequestType() const {
+  return google_apis::HttpRequestMethod::kPost;
 }
 
 }  // namespace ash::boca_receiver

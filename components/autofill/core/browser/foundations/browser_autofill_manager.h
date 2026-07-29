@@ -36,6 +36,7 @@
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_delegate.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
@@ -308,6 +309,11 @@ class BrowserAutofillManager : public AutofillManager {
 
   virtual autofill_metrics::CreditCardFormEventLogger&
   GetCreditCardFormEventLogger();
+
+  // Returns an appropriate EventFormLogger, depending on the given `field`'s
+  // type. May return nullptr.
+  autofill_metrics::FormEventLoggerBase* GetEventFormLogger(
+      const AutofillField& field);
 
  protected:
   // Returns the card image for `credit_card`. If the `credit_card` has a card
@@ -608,11 +614,6 @@ class BrowserAutofillManager : public AutofillManager {
       const FieldGlobalId& field_id,
       OnGenerateSuggestionsCallback callback);
 
-  // Returns an appropriate EventFormLogger, depending on the given `field`'s
-  // type. May return nullptr.
-  autofill_metrics::FormEventLoggerBase* GetEventFormLogger(
-      const AutofillField& field);
-
   // Iterate through all the fields in the form to process the log events for
   // each field and record into FieldInfo UKM event.
   void ProcessFieldLogEventsInForm(const FormStructure& form_structure);
@@ -659,6 +660,11 @@ class BrowserAutofillManager : public AutofillManager {
       autofill_metrics::FormEventLoggerBase::FormIdentificationTime
           identification_time);
 
+  // Populates `suggestion_generators_` with those capable of producing
+  // suggestions for field with `field_id` given `context`.
+  void InitializeSuggestionGenerators(const SuggestionsContext& context,
+                                      FieldGlobalId field_id);
+
   // Delegates to perform external processing (display, selection) on
   // our behalf.
   std::unique_ptr<AutofillExternalDelegate> external_delegate_ =
@@ -693,6 +699,8 @@ class BrowserAutofillManager : public AutofillManager {
   // form_filler() instead, because tests inject test objects.
   std::unique_ptr<FormFiller> form_filler_ =
       std::make_unique<FormFiller>(*this);
+
+  std::unique_ptr<OtpManager> otp_manager_;
 
   // Contains a list of four digit combinations that were found in the webpage
   // DOM. Populated after a standalone cvc field is processed on a form.

@@ -167,7 +167,7 @@ class LensResultPageMediatorTest : public PlatformTest {
  protected:
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
 
   LensResultPageMediator* mediator_;
@@ -178,7 +178,7 @@ class LensResultPageMediatorTest : public PlatformTest {
   FakeLensResultPageMediatorDelegate* fake_delegate_;
 
   // Call `AttachFakeWebState()` to use `fake_web_state_`.
-  raw_ptr<web::FakeWebState> fake_web_state_;
+  raw_ptr<web::FakeWebState, DanglingUntriaged> fake_web_state_;
 };
 
 // Tests that the mediator starts a navigation when loadResultsURL is called.

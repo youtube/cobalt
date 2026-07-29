@@ -173,6 +173,7 @@ source_set("tests_fake_hook") {
   sources = [ "tests_fake_hook.mm" ]
   deps = [
     ":tests_hook",
+    "//components/commerce/core:shopping_service",
     "//components/feature_engagement/public",
     "//components/signin/internal/identity_manager",
     "//ios/chrome/browser/feature_engagement/model",
@@ -180,9 +181,13 @@ source_set("tests_fake_hook") {
 }
 
 source_set("perf_tests_hook") {
-  sources = [ "perf_tests_hook.mm" ]
+  sources = [
+    "perf_tests_hook.mm",
+    "perf_tests_hook_logging.mm",
+  ]
   deps = [
     ":tests_hook",
+    "//components/commerce/core:shopping_service",
     "//components/feature_engagement/public",
     "//components/signin/internal/identity_manager",
     "//ios/chrome/browser/feature_engagement/model",
@@ -465,6 +470,7 @@ source_set("app_internal") {
     "//ios/chrome/browser/crash_report/model:model_internal",
     "//ios/chrome/browser/crash_report/model/breadcrumbs",
     "//ios/chrome/browser/credential_provider/model:buildflags",
+    "//ios/chrome/browser/cross_platform_promos/model",
     "//ios/chrome/browser/default_browser/model:features",
     "//ios/chrome/browser/default_browser/model:utils",
     "//ios/chrome/browser/default_browser/model/install_attribution",
@@ -696,19 +702,17 @@ source_set("multitasking_test_app_delegate") {
   ]
 }
 
-if (ios_partition_alloc_enabled) {
-  ios_framework_bundle("early_partition_alloc_framework") {
-    output_name = "EarlyMallocZoneRegistration"
-    sources = [ "early_pa_registration.cc" ]
-    info_plist = "//ios/chrome/app/resources/EarlyPAFrameworkInfo.plist"
-    extra_substitutions =
-        [ "BUNDLE_IDENTIFIER=$ios_app_bundle_id_prefix.$output_name" ]
+ios_framework_bundle("early_partition_alloc_framework") {
+  output_name = "EarlyMallocZoneRegistration"
+  sources = [ "early_pa_registration.cc" ]
+  info_plist = "//ios/chrome/app/resources/EarlyPAFrameworkInfo.plist"
+  extra_substitutions =
+      [ "BUNDLE_IDENTIFIER=$ios_app_bundle_id_prefix.$output_name" ]
 
-    deps = [
-      "//base/allocator:early_zone_registration_apple",
-      "//base/allocator/partition_allocator:buildflags",
-    ]
-  }
+  deps = [
+    "//base/allocator:early_zone_registration_apple",
+    "//base/allocator/partition_allocator:buildflags",
+  ]
 }
 
 chrome_app("chrome") {

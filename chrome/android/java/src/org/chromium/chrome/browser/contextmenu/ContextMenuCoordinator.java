@@ -16,6 +16,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewStub;
 import android.view.Window;
+import android.widget.FrameLayout;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
@@ -23,7 +24,6 @@ import androidx.appcompat.app.AlertDialog;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
-import android.widget.FrameLayout;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -142,7 +142,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
 
     @Override
     public void dismiss() {
-        dismissDialog();
+        dismissDialogs();
     }
 
     // Calculate true top content offset to be used to compute the AnchorRect used by
@@ -297,6 +297,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         layout,
                         menu,
                         mUsePopupWindow,
+                        /* isFlyout= */ false,
                         shouldRemoveScrim,
                         dialogTopMarginPx,
                         dialogBottomMarginPx,
@@ -308,6 +309,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         dialog.setOnDismissListener(
                 (dialogInterface) -> {
                     mOnMenuClosed.run();
+                    dismissDialogs();
                 });
 
         mWebContents = webContents;
@@ -359,12 +361,12 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                 new WebContentsObserver(mWebContents) {
                     @Override
                     public void navigationEntryCommitted(LoadCommittedDetails details) {
-                        dismissDialog();
+                        dismissDialogs();
                     }
 
                     @Override
                     public void onVisibilityChanged(@Visibility int visibility) {
-                        if (visibility != Visibility.VISIBLE) dismissDialog();
+                        if (visibility != Visibility.VISIBLE) dismissDialogs();
                     }
                 };
 
@@ -402,10 +404,9 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         ModelListAdapter adapter = createAdapter(listItems);
 
         ContextMenuListView listView = menu.findViewById(R.id.context_menu_list_view);
-        // TODO(crbug.com/440978637): Make sure that flyout popups have correct width. It should
-        // wrap content with a maximum width set.
         listView.setAdapter(adapter);
         listView.setItemsCanFocus(true);
+        listView.setIsFlyout(true);
         mListViews.add(listView);
 
         // TODO(crbug.com/438712903): Tell `ContextMenuDialog` that this should be positioned as a
@@ -416,6 +417,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         new FrameLayout(mActivity),
                         menu,
                         mUsePopupWindow,
+                        /* isFlyout= */ true,
                         /* shouldRemoveScrim= */ true,
                         ContextMenuDialog.NO_CUSTOM_MARGIN,
                         ContextMenuDialog.NO_CUSTOM_MARGIN,
@@ -457,6 +459,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
      * @param layout The inflated context menu layout that will house the context menu.
      * @param menuView The inflated view that contains the list view.
      * @param isPopup Whether the context menu is being shown in a {@link AnchoredPopupWindow}.
+     * @param isPopup Whether the window is a flyout popup.
      * @param topMarginPx An explicit top margin for the dialog, or -1 to use default defined in
      *     XML.
      * @param bottomMarginPx An explicit bottom margin for the dialog, or -1 to use default defined
@@ -476,6 +479,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
             View layout,
             View menuView,
             boolean isPopup,
+            boolean isFlyout,
             boolean shouldRemoveScrim,
             int topMarginPx,
             int bottomMarginPx,
@@ -493,6 +497,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         layout,
                         menuView,
                         isPopup,
+                        isFlyout,
                         shouldRemoveScrim,
                         popupMargin,
                         desiredPopupContentWidth,
@@ -504,7 +509,7 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
         return dialog;
     }
 
-    private void dismissDialog() {
+    private void dismissDialogs() {
         if (mWebContentsObserver != null) {
             mWebContentsObserver.observe(null);
         }

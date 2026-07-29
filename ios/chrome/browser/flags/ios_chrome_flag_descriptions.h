@@ -417,6 +417,9 @@ extern const char kIndicateIdentityErrorInOverflowMenuDescription[];
 extern const char kInProductHelpDemoModeName[];
 extern const char kInProductHelpDemoModeDescription[];
 
+extern const char kIOSAppBundlePromoEphemeralCardName[];
+extern const char kIOSAppBundlePromoEphemeralCardDescription[];
+
 extern const char kIOSBrowserEditMenuMetricsName[];
 extern const char kIOSBrowserEditMenuMetricsDescription[];
 
@@ -825,6 +828,9 @@ extern const char kReaderModeDefaultBrowserPromoDescription[];
 extern const char kReaderModeNewCssName[];
 extern const char kReaderModeNewCssDescription[];
 
+extern const char kHideToolbarsInOverflowMenuName[];
+extern const char kHideToolbarsInOverflowMenuDescription[];
+
 // Title and description for the flag to refactor the toolbarsSize.
 extern const char kRefactorToolbarsSizeName[];
 extern const char kRefactorToolbarsSizeDescription[];
@@ -968,6 +974,9 @@ extern const char kEnableLensViewFinderUnifiedExperienceDescription[];
 
 extern const char kTabGridNewTransitionsName[];
 extern const char kTabGridNewTransitionsDescription[];
+
+extern const char kTabGridEmptyThumbnailName[];
+extern const char kTabGridEmptyThumbnailDescription[];
 
 extern const char kTabResumptionName[];
 extern const char kTabResumptionDescription[];

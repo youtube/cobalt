@@ -10,8 +10,8 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/view_ids.h"
-#include "chrome/browser/ui/views/frame/browser_frame.h"
-#include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
+#include "chrome/browser/ui/views/frame/browser_frame_view.h"
+#include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/opaque_browser_frame_view_layout_delegate.h"
 #include "chrome/browser/ui/views/tab_icon_view_model.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -38,14 +38,14 @@ class FrameBackground;
 class Label;
 }  // namespace views
 
-class OpaqueBrowserFrameView : public BrowserNonClientFrameView,
+class OpaqueBrowserFrameView : public BrowserFrameView,
                                public TabIconViewModel,
                                public OpaqueBrowserFrameViewLayoutDelegate {
-  METADATA_HEADER(OpaqueBrowserFrameView, BrowserNonClientFrameView)
+  METADATA_HEADER(OpaqueBrowserFrameView, BrowserFrameView)
 
  public:
-  // Constructs a non-client view for an BrowserFrame.
-  OpaqueBrowserFrameView(BrowserFrame* frame,
+  // Constructs a non-client view for an BrowserWidget.
+  OpaqueBrowserFrameView(BrowserWidget* frame,
                          BrowserView* browser_view,
                          OpaqueBrowserFrameViewLayout* layout);
   OpaqueBrowserFrameView(const OpaqueBrowserFrameView&) = delete;
@@ -57,7 +57,7 @@ class OpaqueBrowserFrameView : public BrowserNonClientFrameView,
   // constructor because it relies on virtual method calls.
   void InitViews();
 
-  // BrowserNonClientFrameView:
+  // BrowserFrameView:
   gfx::Rect GetBoundsForTabStripRegion(
       const gfx::Size& tabstrip_minimum_size) const override;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
@@ -128,7 +128,7 @@ class OpaqueBrowserFrameView : public BrowserNonClientFrameView,
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
 
-  // BrowserNonClientFrameView:
+  // BrowserFrameView:
   BoundsAndMargins GetCaptionButtonBounds() const override;
 
   // Paint various sub-components of this view.  The *FrameBorder() functions

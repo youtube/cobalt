@@ -298,12 +298,15 @@ content::PermissionResult PermissionContextBase::GetPermissionStatus(
         PermissionStatus::DENIED, content::PermissionStatusSource::KILL_SWITCH);
   }
 
-  if (render_frame_host) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorPermissionsAutoReject) &&
+      render_frame_host) {
     content::WebContents* web_contents =
         content::WebContents::FromRenderFrameHost(render_frame_host);
-    if (base::FeatureList::IsEnabled(
-            features::kGlicActorPermissionsAutoReject) &&
-        PermissionsClient::Get()->IsActorOperatingOnWebContents(web_contents)) {
+    bool is_actor_operating =
+        PermissionsClient::Get()->IsActorOperatingOnWebContents(web_contents);
+    PermissionUmaUtil::RecordPermissionAutoRejectForActor(
+        content_settings_type_, is_actor_operating);
+    if (is_actor_operating) {
       return content::PermissionResult(
           PermissionStatus::DENIED,
           content::PermissionStatusSource::ACTOR_OVERRIDE);
@@ -549,7 +552,7 @@ void PermissionContextBase::DecidePermission(
   auto cleanup_cb =
       base::BindOnce(&PermissionContextBase::CleanUpRequest,
                      weak_factory_.GetWeakPtr(), web_contents, request_data->id,
-                     request_data->embedded_permission_element_initiated);
+                     request_data->IsEmbeddedPermissionElementInitiated());
   PermissionRequestID permission_request_id = request_data->id;
 
   std::unique_ptr<PermissionRequest> request =

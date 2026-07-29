@@ -817,7 +817,7 @@ ci.thin_tester(
                 swarming = targets.swarming(
                     expiration_sec = 18000,
                     hard_timeout_sec = 14400,
-                    shards = 20,
+                    shards = 46,
                 ),
             ),
             "content_browsertests": targets.mixin(
@@ -828,7 +828,7 @@ ci.thin_tester(
                 swarming = targets.swarming(
                     expiration_sec = 18000,
                     hard_timeout_sec = 14400,
-                    shards = 10,
+                    shards = 8,
                 ),
             ),
             "interactive_ui_tests": targets.mixin(
@@ -839,7 +839,7 @@ ci.thin_tester(
                 swarming = targets.swarming(
                     expiration_sec = 18000,
                     hard_timeout_sec = 14400,
-                    shards = 5,
+                    shards = 12,
                 ),
             ),
         },
@@ -1124,9 +1124,9 @@ ci.builder(
 )
 
 ci.builder(
-    name = "linux-modules-compile-fyi-rel",
+    name = "linux-no-modules-compile-rel",
     branch_selector = branches.selector.MAIN,
-    description_html = "Experimental compile with use_clang_modules=true.",
+    description_html = "Experimental compile with use_clang_modules=false.",
     builder_spec = builder_config.builder_spec(
         gclient_config = builder_config.gclient_config(config = "chromium"),
         chromium_config = builder_config.chromium_config(
@@ -1140,7 +1140,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "ci/Linux Builder",
-            "clang_modules",
+            "no_clang_modules",
         ],
     ),
     targets = targets.bundle(

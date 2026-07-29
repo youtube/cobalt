@@ -309,7 +309,7 @@ id<GREYMatcher> CardNumberIconView(NSString* icon_type) {
       assertWithMatcher:grey_notNil()];
 
   NSString* newCreditCardObjectLabel =
-      @", Visa  ‪•⁠ ⁠•⁠ ⁠•⁠ ⁠•⁠ ⁠1111‬";
+      @"Visa  ‪•⁠ ⁠•⁠ ⁠•⁠ ⁠•⁠ ⁠1111‬";
   [[EarlGrey selectElementWithMatcher:ButtonWithAccessibilityLabel(
                                           newCreditCardObjectLabel)]
       assertWithMatcher:grey_sufficientlyVisible()];
@@ -333,7 +333,7 @@ id<GREYMatcher> CardNumberIconView(NSString* icon_type) {
       performAction:grey_tap()];
 
   NSString* newCreditCardObjectLabel =
-      @", Fav Card  ‪•⁠ ⁠•⁠ ⁠•⁠ ⁠•⁠ ⁠1111‬";
+      @"Fav Card  ‪•⁠ ⁠•⁠ ⁠•⁠ ⁠•⁠ ⁠1111‬";
   [[EarlGrey selectElementWithMatcher:ButtonWithAccessibilityLabel(
                                           newCreditCardObjectLabel)]
       assertWithMatcher:grey_sufficientlyVisible()];
@@ -344,6 +344,12 @@ id<GREYMatcher> CardNumberIconView(NSString* icon_type) {
 // Tests that an error icon is displayed when a field has invalid text. The icon
 // is displayed if the field is not currently being editted.
 - (void)testInvalidInputDisplaysInlineError {
+  // TODO(crbug.com/440027804): Re-enable the test.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+#endif
   [[EarlGrey selectElementWithMatcher:CardNumberIconView(kEditIconIdentifier)]
       assertWithMatcher:grey_sufficientlyVisible()];
 

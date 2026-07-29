@@ -88,7 +88,6 @@ constexpr kSpecificsFieldNumberToDataTypeMap specifics_field_number2data_type =
          PRINTERS_AUTHORIZATION_SERVERS},
         {sync_pb::EntitySpecifics::kContactInfoFieldNumber, CONTACT_INFO},
         {sync_pb::EntitySpecifics::kSavedTabGroupFieldNumber, SAVED_TAB_GROUP},
-        {sync_pb::EntitySpecifics::kPowerBookmarkFieldNumber, POWER_BOOKMARK},
         {sync_pb::EntitySpecifics::kWebauthnCredentialFieldNumber,
          WEBAUTHN_CREDENTIAL},
         {sync_pb::EntitySpecifics::
@@ -111,6 +110,8 @@ constexpr kSpecificsFieldNumberToDataTypeMap specifics_field_number2data_type =
          AUTOFILL_VALUABLE},
         {sync_pb::EntitySpecifics::kSharedTabGroupAccountDataFieldNumber,
          SHARED_TAB_GROUP_ACCOUNT_DATA},
+        {sync_pb::EntitySpecifics::kAutofillValuableSettingFieldNumber,
+         AUTOFILL_VALUABLE_SETTING},
         {sync_pb::EntitySpecifics::kSharedCommentFieldNumber, SHARED_COMMENT},
         // ---- Control Types ----
         {sync_pb::EntitySpecifics::kNigoriFieldNumber, NIGORI},
@@ -249,9 +250,6 @@ void AddDefaultFieldValue(DataType type, sync_pb::EntitySpecifics* specifics) {
     case SAVED_TAB_GROUP:
       specifics->mutable_saved_tab_group();
       break;
-    case POWER_BOOKMARK:
-      specifics->mutable_power_bookmark();
-      break;
     case WEBAUTHN_CREDENTIAL:
       specifics->mutable_webauthn_credential();
       break;
@@ -281,6 +279,9 @@ void AddDefaultFieldValue(DataType type, sync_pb::EntitySpecifics* specifics) {
       break;
     case AUTOFILL_VALUABLE:
       specifics->mutable_autofill_valuable();
+      break;
+    case AUTOFILL_VALUABLE_SETTING:
+      specifics->mutable_autofill_valuable_setting();
       break;
     case SHARED_TAB_GROUP_ACCOUNT_DATA:
       specifics->mutable_shared_tab_group_account_data();
@@ -386,8 +387,6 @@ int GetSpecificsFieldNumberFromDataType(DataType data_type) {
       return sync_pb::EntitySpecifics::kContactInfoFieldNumber;
     case SAVED_TAB_GROUP:
       return sync_pb::EntitySpecifics::kSavedTabGroupFieldNumber;
-    case POWER_BOOKMARK:
-      return sync_pb::EntitySpecifics::kPowerBookmarkFieldNumber;
     case WEBAUTHN_CREDENTIAL:
       return sync_pb::EntitySpecifics::kWebauthnCredentialFieldNumber;
     case INCOMING_PASSWORD_SHARING_INVITATION:
@@ -410,6 +409,8 @@ int GetSpecificsFieldNumberFromDataType(DataType data_type) {
       return sync_pb::EntitySpecifics::kPlusAddressSettingFieldNumber;
     case AUTOFILL_VALUABLE:
       return sync_pb::EntitySpecifics::kAutofillValuableFieldNumber;
+    case AUTOFILL_VALUABLE_SETTING:
+      return sync_pb::EntitySpecifics::kAutofillValuableSettingFieldNumber;
     case SHARED_TAB_GROUP_ACCOUNT_DATA:
       return sync_pb::EntitySpecifics::kSharedTabGroupAccountDataFieldNumber;
     case SHARED_COMMENT:
@@ -558,9 +559,6 @@ DataType GetDataTypeFromSpecifics(const sync_pb::EntitySpecifics& specifics) {
   if (specifics.has_saved_tab_group()) {
     return SAVED_TAB_GROUP;
   }
-  if (specifics.has_power_bookmark()) {
-    return POWER_BOOKMARK;
-  }
   if (specifics.has_webauthn_credential()) {
     return WEBAUTHN_CREDENTIAL;
   }
@@ -593,6 +591,9 @@ DataType GetDataTypeFromSpecifics(const sync_pb::EntitySpecifics& specifics) {
   }
   if (specifics.has_autofill_valuable()) {
     return AUTOFILL_VALUABLE;
+  }
+  if (specifics.has_autofill_valuable_setting()) {
+    return AUTOFILL_VALUABLE_SETTING;
   }
   if (specifics.has_shared_tab_group_account_data()) {
     return SHARED_TAB_GROUP_ACCOUNT_DATA;
@@ -747,8 +748,6 @@ const char* DataTypeToDebugString(DataType data_type) {
       return "Contact Info";
     case SAVED_TAB_GROUP:
       return "Saved Tab Group";
-    case POWER_BOOKMARK:
-      return "Power Bookmark";
     case WEBAUTHN_CREDENTIAL:
       return "WebAuthn Credentials";
     case INCOMING_PASSWORD_SHARING_INVITATION:
@@ -769,6 +768,8 @@ const char* DataTypeToDebugString(DataType data_type) {
       return "Plus Address Setting";
     case AUTOFILL_VALUABLE:
       return "Autofill Valuable";
+    case AUTOFILL_VALUABLE_SETTING:
+      return "Autofill Valuable Setting";
     case SHARED_TAB_GROUP_ACCOUNT_DATA:
       return "Shared Tab Group Account Data";
     case SHARED_COMMENT:
@@ -866,8 +867,6 @@ const char* DataTypeToHistogramSuffix(DataType data_type) {
       return "CONTACT_INFO";
     case SAVED_TAB_GROUP:
       return "SAVED_TAB_GROUP";
-    case POWER_BOOKMARK:
-      return "POWER_BOOKMARK";
     case WEBAUTHN_CREDENTIAL:
       return "WEBAUTHN_CREDENTIAL";
     case INCOMING_PASSWORD_SHARING_INVITATION:
@@ -894,6 +893,8 @@ const char* DataTypeToHistogramSuffix(DataType data_type) {
       return "SHARED_COMMENT";
     case NIGORI:
       return "NIGORI";
+    case AUTOFILL_VALUABLE_SETTING:
+      return "AUTOFILL_VALUABLE_SETTING";
   }
   // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/histograms.xml:DataTypeHistogramSuffix)
   NOTREACHED();
@@ -985,8 +986,6 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
       return DataTypeForHistograms::kContactInfo;
     case SAVED_TAB_GROUP:
       return DataTypeForHistograms::kSavedTabGroups;
-    case POWER_BOOKMARK:
-      return DataTypeForHistograms::kPowerBookmark;
     case WEBAUTHN_CREDENTIAL:
       return DataTypeForHistograms::kWebAuthnCredentials;
     case INCOMING_PASSWORD_SHARING_INVITATION:
@@ -1007,6 +1006,8 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
       return DataTypeForHistograms::kPlusAddressSettings;
     case AUTOFILL_VALUABLE:
       return DataTypeForHistograms::kAutofillValuable;
+    case AUTOFILL_VALUABLE_SETTING:
+      return DataTypeForHistograms::kAutofillValuableSetting;
     case SHARED_TAB_GROUP_ACCOUNT_DATA:
       return DataTypeForHistograms::kSharedTabGroupAccountData;
     case SHARED_COMMENT:
@@ -1121,8 +1122,6 @@ const char* DataTypeToStableLowerCaseString(DataType data_type) {
       return "contact_info";
     case SAVED_TAB_GROUP:
       return "saved_tab_group";
-    case POWER_BOOKMARK:
-      return "power_bookmark";
     case WEBAUTHN_CREDENTIAL:
       return "webauthn_credential";
     case INCOMING_PASSWORD_SHARING_INVITATION:
@@ -1143,6 +1142,8 @@ const char* DataTypeToStableLowerCaseString(DataType data_type) {
       return "plus_address_setting";
     case AUTOFILL_VALUABLE:
       return "autofill_valuable";
+    case AUTOFILL_VALUABLE_SETTING:
+      return "autofill_valuable_setting";
     case SHARED_TAB_GROUP_ACCOUNT_DATA:
       return "shared_tab_group_account_data";
     case SHARED_COMMENT:

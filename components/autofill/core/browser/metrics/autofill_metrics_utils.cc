@@ -20,6 +20,8 @@ constexpr DenseSet<FormType> kCreditCardFormTypes = {
     FormType::kCreditCardForm, FormType::kStandaloneCvcForm};
 constexpr DenseSet<FormType> kLoyaltyCardFormTypes = {
     FormType::kLoyaltyCardForm};
+constexpr DenseSet<FormType> kOneTimePasswordFormTypes = {
+    FormType::kOneTimePasswordForm};
 constexpr FieldTypeSet kFieldTypesOfATypicalStoreLocatorForm = {
     ADDRESS_HOME_CITY, ADDRESS_HOME_STATE, ADDRESS_HOME_ZIP};
 
@@ -95,6 +97,9 @@ DenseSet<FormTypeNameForLogging> GetFormTypesForLogging(
         break;
       case FormType::kLoyaltyCardForm:
         form_types.insert(FormTypeNameForLogging::kLoyaltyCardForm);
+        break;
+      case FormType::kOneTimePasswordForm:
+        form_types.insert(FormTypeNameForLogging::kOneTimePasswordForm);
         break;
       case FormType::kPasswordForm:
       case FormType::kUnknownFormType:
@@ -197,6 +202,12 @@ DenseSet<FormTypeNameForLogging> GetAddressFormTypesForLogging(
   return internal::GetFormTypesForLogging(form, internal::kAddressFormTypes);
 }
 
+DenseSet<FormTypeNameForLogging> GetOneTimePasswordTypesForLogging(
+    const FormStructure& form) {
+  return internal::GetFormTypesForLogging(form,
+                                          internal::kOneTimePasswordFormTypes);
+}
+
 DenseSet<FormTypeNameForLogging> GetLoyaltyFormTypesForLogging(
     const FormStructure& form) {
   return internal::GetFormTypesForLogging(form,
@@ -220,8 +231,6 @@ bool ShouldLogAutofillSuggestionShown(
     case AutofillSuggestionTriggerSource::kComposeDialogLostFocus:
     case AutofillSuggestionTriggerSource::kPasswordManager:
     case AutofillSuggestionTriggerSource::kiOS:
-    case AutofillSuggestionTriggerSource::
-        kShowPromptAfterDialogClosedNonManualFallback:
     case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
     case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
     case AutofillSuggestionTriggerSource::kManualFallbackPlusAddresses:
@@ -229,7 +238,6 @@ bool ShouldLogAutofillSuggestionShown(
       return true;
     case AutofillSuggestionTriggerSource::kTextFieldValueChanged:
     case AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge:
-    case AutofillSuggestionTriggerSource::kAutofillAi:
     case AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess:
       return false;
   }

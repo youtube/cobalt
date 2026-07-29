@@ -24,6 +24,55 @@
 
 namespace tabs_api {
 
+// Starts a session that suppresses incoming messages to prevent re-entrancy and
+// replays all recorded mutations on session destruction.
+class ApiSession : public TabStripServiceImpl::Session {
+ public:
+  using OnApiSessionEndCb = base::OnceCallback<void()>;
+
+  explicit ApiSession(OnApiSessionEndCb cb)
+      : on_session_ended_(std::move(cb)) {}
+
+  ~ApiSession() override { std::move(on_session_ended_).Run(); }
+
+  // Disallow copy and assign.
+  ApiSession(const ApiSession&) = delete;
+  ApiSession& operator=(const ApiSession&) = delete;
+
+ private:
+  base::OnceCallback<void()> on_session_ended_;
+};
+
+class SessionControllerImpl : public TabStripServiceImpl::SessionController {
+ public:
+  explicit SessionControllerImpl(
+      tabs_api::events::TabStripEventRecorder* recorder)
+      : recorder_(recorder) {}
+
+  ~SessionControllerImpl() override = default;
+
+  std::unique_ptr<TabStripServiceImpl::Session> CreateSession() override {
+    CHECK(!session_in_progress_)
+        << "re-entrancy into tab strip service is not allowed";
+
+    recorder_->StopNotificationAndStartRecording();
+    auto session = std::make_unique<ApiSession>(base::BindOnce(
+        &SessionControllerImpl::EndSession, base::Unretained(this)));
+    session_in_progress_ = true;
+
+    return std::move(session);
+  }
+
+  void EndSession() {
+    recorder_->PlayRecordingsAndStartNotification();
+    session_in_progress_ = false;
+  }
+
+ private:
+  bool session_in_progress_ = false;
+  raw_ptr<tabs_api::events::TabStripEventRecorder> recorder_;
+};
+
 TabStripServiceImpl::TabStripServiceImpl(BrowserWindowInterface* browser,
                                          TabStripModel* tab_strip_model)
     : TabStripServiceImpl(
@@ -35,16 +84,35 @@ TabStripServiceImpl::TabStripServiceImpl(
     std::unique_ptr<BrowserAdapter> browser_adapter,
     std::unique_ptr<TabStripModelAdapter> tab_strip_model_adapter)
     : browser_adapter_(std::move(browser_adapter)),
-      tab_strip_model_adapter_(std::move(tab_strip_model_adapter)) {}
+      tab_strip_model_adapter_(std::move(tab_strip_model_adapter)) {
+  recorder_ = std::make_unique<tabs_api::events::TabStripEventRecorder>(
+      tab_strip_model_adapter_.get(),
+      base::BindRepeating(&TabStripServiceImpl::BroadcastEvents,
+                          base::Unretained(this)));
+  session_controller_ =
+      std::make_unique<SessionControllerImpl>(recorder_.get());
+
+  tab_strip_model_adapter_->AddObserver(recorder_.get());
+}
 
 TabStripServiceImpl::~TabStripServiceImpl() = default;
 
+void TabStripServiceImpl::BroadcastEvents(
+    const std::vector<events::Event>& events) const {
+  tabs_api::EventBroadcaster broadcaster;
+  broadcaster.Broadcast(observers_, events);
+}
+
 TabStripService::GetTabsResult TabStripServiceImpl::GetTabs() {
+  auto session = session_controller_->CreateSession();
+
   return tab_strip_model_adapter_->GetTabStripTopology();
 }
 
 mojom::TabStripService::GetTabResult TabStripServiceImpl::GetTab(
     const tabs_api::NodeId& tab_mojom_id) {
+  auto session = session_controller_->CreateSession();
+
   if (tab_mojom_id.Type() != tabs_api::NodeId::Type::kContent) {
     return base::unexpected(
         mojo_base::mojom::Error::New(mojo_base::mojom::Code::kInvalidArgument,
@@ -59,7 +127,7 @@ mojom::TabStripService::GetTabResult TabStripServiceImpl::GetTab(
 
   tabs_api::mojom::TabPtr tab_result;
   // TODO (crbug.com/412709270) TabStripModel or TabCollections should have an
-  // api that can fetch id without of relying on indexes.
+  // api that can fetch id without of relying  on indices.
   auto tabs = tab_strip_model_adapter_->GetTabs();
   for (unsigned int i = 0; i < tabs.size(); ++i) {
     auto& handle = tabs.at(i);
@@ -84,6 +152,8 @@ mojom::TabStripService::GetTabResult TabStripServiceImpl::GetTab(
 mojom::TabStripService::CreateTabAtResult TabStripServiceImpl::CreateTabAt(
     const std::optional<tabs_api::Position>& pos,
     const std::optional<GURL>& url) {
+  auto session = session_controller_->CreateSession();
+
   GURL target_url;
   if (url.has_value()) {
     target_url = url.value();
@@ -124,6 +194,8 @@ mojom::TabStripService::CreateTabAtResult TabStripServiceImpl::CreateTabAt(
 
 mojom::TabStripService::CloseTabsResult TabStripServiceImpl::CloseTabs(
     const std::vector<tabs_api::NodeId>& ids) {
+  auto session = session_controller_->CreateSession();
+
   std::vector<int32_t> tab_content_targets;
   for (const auto& id : ids) {
     if (id.Type() != tabs_api::NodeId::Type::kContent) {
@@ -163,6 +235,8 @@ mojom::TabStripService::CloseTabsResult TabStripServiceImpl::CloseTabs(
 
 mojom::TabStripService::ActivateTabResult TabStripServiceImpl::ActivateTab(
     const tabs_api::NodeId& id) {
+  auto session = session_controller_->CreateSession();
+
   if (id.Type() != tabs_api::NodeId::Type::kContent) {
     return base::unexpected(
         mojo_base::mojom::Error::New(mojo_base::mojom::Code::kInvalidArgument,
@@ -190,6 +264,8 @@ mojom::TabStripService::SetSelectedTabsResult
 TabStripServiceImpl::SetSelectedTabs(
     const std::vector<tabs_api::NodeId>& selection,
     const tabs_api::NodeId& tab_to_activate) {
+  auto session = session_controller_->CreateSession();
+
   if (std::find(selection.begin(), selection.end(), tab_to_activate) ==
       selection.end()) {
     return base::unexpected(mojo_base::mojom::Error::New(
@@ -232,6 +308,8 @@ TabStripServiceImpl::SetSelectedTabs(
 mojom::TabStripService::MoveTabResult TabStripServiceImpl::MoveTab(
     const tabs_api::NodeId& id,
     const tabs_api::Position& position) {
+  auto session = session_controller_->CreateSession();
+
   if (position.index() >= tab_strip_model_adapter_->GetTabs().size()) {
     return base::unexpected(
         mojo_base::mojom::Error::New(mojo_base::mojom::Code::kInvalidArgument,
@@ -271,6 +349,8 @@ mojom::TabStripExperimentService::UpdateTabGroupVisualResult
 TabStripServiceImpl::UpdateTabGroupVisual(
     const tabs_api::NodeId& id,
     const tab_groups::TabGroupVisualData& visual_data) {
+  auto session = session_controller_->CreateSession();
+
   if (id.Type() != tabs_api::NodeId::Type::kCollection) {
     return base::unexpected(mojo_base::mojom::Error::New(
         mojo_base::mojom::Code::kInvalidArgument, "id must be a collection"));
@@ -297,12 +377,14 @@ TabStripServiceImpl::UpdateTabGroupVisual(
   return std::monostate();
 }
 
-void TabStripServiceImpl::AddObserver(TabStripModelObserver* observer) {
-  tab_strip_model_adapter_->AddObserver(observer);
+void TabStripServiceImpl::AddObserver(
+    observation::TabStripApiObserver* observer) {
+  observers_.push_back(observer);
 }
 
-void TabStripServiceImpl::RemoveObserver(TabStripModelObserver* observer) {
-  tab_strip_model_adapter_->RemoveObserver(observer);
+void TabStripServiceImpl::RemoveObserver(
+    observation::TabStripApiObserver* observer) {
+  observers_.erase(std::remove(observers_.begin(), observers_.end(), observer));
 }
 
 }  // namespace tabs_api

@@ -13,9 +13,15 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
+#include "build/build_config.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/sync_device_info/device_info_tracker.h"
+#include "components/sync_preferences/cross_device_pref_tracker/cross_device_pref_provider.h"
 #include "components/sync_preferences/cross_device_pref_tracker/cross_device_pref_tracker.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/scoped_java_ref.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 class PrefService;
 
@@ -25,13 +31,15 @@ class DeviceInfoSyncService;
 
 namespace sync_preferences {
 
+// Concrete implementation of `CrossDevicePrefTracker`.
 class CrossDevicePrefTrackerImpl : public CrossDevicePrefTracker,
                                    public syncer::DeviceInfoTracker::Observer {
  public:
   CrossDevicePrefTrackerImpl(
       PrefService* profile_pref_service,
       PrefService* local_pref_service,
-      syncer::DeviceInfoSyncService* device_info_sync_service);
+      syncer::DeviceInfoSyncService* device_info_sync_service,
+      std::unique_ptr<CrossDevicePrefProvider> pref_provider);
   ~CrossDevicePrefTrackerImpl() override;
 
   CrossDevicePrefTrackerImpl(const CrossDevicePrefTrackerImpl&) = delete;
@@ -48,11 +56,27 @@ class CrossDevicePrefTrackerImpl : public CrossDevicePrefTracker,
       std::string_view pref_name,
       const DeviceFilter& filter) const override;
 
-  // `KeyedService` override
+  // `KeyedService` overrides
   void Shutdown() override;
 
   // `syncer::DeviceInfoTracker::Observer` overrides
   void OnDeviceInfoChange() override;
+
+#if BUILDFLAG(IS_ANDROID)
+  // Return the java object that allows access to the SyncService.
+  base::android::ScopedJavaLocalRef<jobject> GetJavaObject() override;
+  // Java versions of query methods.
+  base::android::ScopedJavaLocalRef<jobjectArray> GetValues(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jstring>& pref_name,
+      std::optional<int> os_type,
+      std::optional<int> form_factor) const override;
+  base::android::ScopedJavaLocalRef<jobject> GetMostRecentValue(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jstring>& pref_name,
+      std::optional<int> os_type,
+      std::optional<int> form_factor) const override;
+#endif  // BUILDFLAG(IS_ANDROID)
 
  private:
   // `PrefService` for Profile-based preferences (including syncable prefs).
@@ -68,6 +92,9 @@ class CrossDevicePrefTrackerImpl : public CrossDevicePrefTracker,
   // Must outlive this object until Shutdown().
   raw_ptr<syncer::DeviceInfoSyncService> device_info_sync_service_;
 
+  // Provides the lists of prefs to be tracked.
+  std::unique_ptr<CrossDevicePrefProvider> pref_provider_;
+
   // Registrars for observing changes to tracked prefs.
   PrefChangeRegistrar profile_pref_registrar_;
   PrefChangeRegistrar local_pref_registrar_;
@@ -79,6 +106,10 @@ class CrossDevicePrefTrackerImpl : public CrossDevicePrefTracker,
 
   // List of observers notified of remote preference changes.
   base::ObserverList<CrossDevicePrefTracker::Observer, true> observers_;
+
+#if BUILDFLAG(IS_ANDROID)
+  base::android::ScopedJavaGlobalRef<jobject> java_object_;
+#endif  // BUILDFLAG(IS_ANDROID)
 };
 
 }  // namespace sync_preferences

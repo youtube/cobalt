@@ -30,12 +30,12 @@ FilterForTabsClosedEvents(
   return closed_events;
 }
 
-std::vector<const tabs_api::mojom::OnTabMovedEvent*> FilterForTabMovedEvents(
+std::vector<const tabs_api::mojom::OnNodeMovedEvent*> FilterForNodeMovedEvents(
     const std::vector<tabs_api::mojom::TabsEventPtr>& events) {
-  std::vector<const tabs_api::mojom::OnTabMovedEvent*> moved_events;
+  std::vector<const tabs_api::mojom::OnNodeMovedEvent*> moved_events;
   for (const auto& event : events) {
-    if (event->is_tab_moved_event()) {
-      moved_events.push_back(event->get_tab_moved_event().get());
+    if (event->is_node_moved_event()) {
+      moved_events.push_back(event->get_node_moved_event().get());
     }
   }
   return moved_events;
@@ -53,13 +53,13 @@ FilterForDataChangedEvents(
   return changed_events;
 }
 
-std::vector<const tabs_api::mojom::OnTabGroupCreatedEvent*>
-FilterForTabGroupCreatedEvents(
+std::vector<const tabs_api::mojom::OnCollectionCreatedEvent*>
+FilterForCollectionCreatedEvents(
     const std::vector<tabs_api::mojom::TabsEventPtr>& events) {
-  std::vector<const tabs_api::mojom::OnTabGroupCreatedEvent*> created_groups;
+  std::vector<const tabs_api::mojom::OnCollectionCreatedEvent*> created_groups;
   for (const auto& event : events) {
-    if (event->is_tab_group_created_event()) {
-      created_groups.push_back(event->get_tab_group_created_event().get());
+    if (event->is_collection_created_event()) {
+      created_groups.push_back(event->get_collection_created_event().get());
     }
   }
   return created_groups;

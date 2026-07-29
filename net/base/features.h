@@ -113,6 +113,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kUseAlternativePortForGloballyReachableCheck);
 // IP addresses.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableIPv6ReachabilityOverride);
 
+// If enabled, avoids aborting connections in response to adding or removing an
+// IPv6 temporary address.
+NET_EXPORT BASE_DECLARE_FEATURE(kMaintainConnectionsOnIpv6TempAddrChange);
+
 // Enables TLS 1.3 early data.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableTLS13EarlyData);
 
@@ -522,6 +526,9 @@ NET_EXPORT extern const base::FeatureParam<base::TimeDelta>
 NET_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kIpPrivacyTryGetAuthTokensBugBackoff;
 
+// Jitter (as a percentage) to apply to backoff time calculations.
+NET_EXPORT extern const base::FeatureParam<double> kIpPrivacyBackoffJitter;
+
 // If true, only proxy traffic when the top-level site uses the http:// or
 // https:// schemes. This prevents attempts to proxy from top-level sites with
 // chrome://, chrome-extension://, or other non-standard schemes, in addition to
@@ -708,25 +715,11 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // releases.
 NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsOriginTrialFeedback);
 
-// When enabled, all proxies in a proxy chain are partitioned by the NAK for the
-// endpoint of the connection. When disabled, proxies carrying tunnels to other
-// proxies (i.e., all proxies but the last one in the ProxyChain) are not
-// partitioned, allowing greater connection re-use.
-NET_EXPORT BASE_DECLARE_FEATURE(kPartitionProxyChains);
-
 // Enables more checks when creating a SpdySession for proxy. These checks are
 // already applied to non-proxy SpdySession creations.
 // TODO(crbug.com/343519247): Remove this once we are sure that these checks are
 // not causing any problems.
 NET_EXPORT BASE_DECLARE_FEATURE(kSpdySessionForProxyAdditionalChecks);
-
-// When this feature is enabled, Chromium can use stored shared dictionaries
-// even when the connection is using HTTP/1 for non-localhost requests.
-NET_EXPORT BASE_DECLARE_FEATURE(kCompressionDictionaryTransportOverHttp1);
-
-// When this feature is enabled, Chromium can use stored shared dictionaries
-// even when the connection is using HTTP/2 for non-localhost requests.
-NET_EXPORT BASE_DECLARE_FEATURE(kCompressionDictionaryTransportOverHttp2);
 
 // When this feature is enabled, Chromium will use stored shared dictionaries
 // only if the request URL is a localhost URL or the transport layer is using a
@@ -812,23 +805,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kHttpCacheNoVarySearch);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t,
                                       kHttpCacheNoVarySearchCacheMaxEntries);
 
-// Whether the NoVarySearchCache should be consulted in
-// HttpCache::OnExternalCacheHit().
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    bool,
-    kHttpCacheNoVarySearchApplyToExternalHits);
-
 // Whether persistence is enabled in on-the-record profiles. True by default.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
                                       kHttpCacheNoVarySearchPersistenceEnabled);
-
-// If true, the persisted files will be created with valid but empty contents at
-// startup and after that closed and never used. Has no effect if
-// "persistence_enabled" is false. Causes "HttpCache.NoVarySearch.LoadResult" to
-// log "SnapshotLoadFailed" as there is no point in adding a new enum value for
-// this temporary feature.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
-                                      kHttpCacheNoVarySearchFakePersistence);
 
 // If true, don't erase the NoVarySearchCache entry when simple cache in-memory
 // hints indicate that the disk cache entry is not usable.

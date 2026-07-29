@@ -25,6 +25,7 @@ NSString* const kStatusTextEmptyString = @"";
 @implementation DownloadListItem {
   DownloadRecord _downloadRecord;
   NSString* _downloadID;
+  UIImage* _fileTypeIcon;
 }
 
 #pragma mark - Initialization
@@ -108,9 +109,48 @@ NSString* const kStatusTextEmptyString = @"";
 }
 
 - (UIImage*)fileTypeIcon {
-  // TODO(crbug.com/440222083): File type icon implementation will be added
-  // separately.
-  return nil;
+  if (_fileTypeIcon) {
+    return _fileTypeIcon;
+  }
+
+  NSString* pathString;
+  if (!_downloadRecord.file_path.empty()) {
+    pathString = base::SysUTF8ToNSString(_downloadRecord.file_path.value());
+  } else {
+    // Use a temporary path if the actual file path is not available.
+    pathString =
+        [NSTemporaryDirectory() stringByAppendingPathComponent:self.fileName];
+  }
+  NSURL* fileURL = [NSURL fileURLWithPath:pathString];
+
+  // Use UIDocumentInteractionController to get the file icon.
+  // The file at fileURL does not need to actually exist.
+  // The system can return the corresponding result as long as the fileURL has
+  // the correct file extension.
+  UIDocumentInteractionController* docController =
+      [UIDocumentInteractionController interactionControllerWithURL:fileURL];
+  _fileTypeIcon = docController.icons.lastObject;
+
+  return _fileTypeIcon;
+}
+
+- (DownloadListItemAction)availableActions {
+  DownloadListItemAction actions = DownloadListItemActionNone;
+
+  // Downloads in progress have no available actions.
+  if (_downloadRecord.state == web::DownloadTask::State::kInProgress) {
+    return actions;
+  }
+
+  // Completed downloads can be opened in Files app.
+  if (_downloadRecord.state == web::DownloadTask::State::kComplete) {
+    actions |= DownloadListItemActionOpenInFiles;
+  }
+
+  // All non-in-progress downloads can be deleted.
+  actions |= DownloadListItemActionDelete;
+
+  return actions;
 }
 
 - (BOOL)isEqualToItem:(DownloadListItem*)item {
@@ -219,34 +259,6 @@ NSString* const kStatusTextEmptyString = @"";
 
 /// Returns a localized status text string for the given download state.
 - (NSString*)statusText {
-  // TODO(crbug.com/440222083): For all translatable strings, a separate commit
-  // will handle them later. This requires contributors with @google.com
-  // accounts to upload screenshots to Google Cloud Storage and provide the
-  // corresponding .sha1 files. (https://g.co/chrome/translation)
-  /*
-  <message name="IDS_IOS_DOWNLOAD_STATE_CANCELLED"
-    desc="Label for the download state when a file has been cancelled. [iOS
-  only]"> Download Cancelled
-  </message>
-  <message name="IDS_IOS_DOWNLOAD_STATE_COMPLETED"
-    desc="Label for the download state when a file has been completed. [iOS
-  only]"> Download Completed
-  </message>
-  <message name="IDS_IOS_DOWNLOAD_STATE_FAILED"
-    desc="Label for the download state when a file has failed to download. [iOS
-  only]"> Download Failed
-  </message>
-  <message name="IDS_IOS_DOWNLOAD_STATE_IN_PROGRESS"
-    desc="Label for the download state when a file is being downloaded. [iOS
-  only]"> Downloading
-  </message>
-  <message name="IDS_IOS_DOWNLOAD_STATE_PAUSED"
-    desc="Label for the download state when a file is paused. [iOS only]">
-      Download Paused
-  </message>
-  */
-
-  /*
   switch (_downloadRecord.state) {
     case web::DownloadTask::State::kInProgress:
       return l10n_util::GetNSString(IDS_IOS_DOWNLOAD_STATE_IN_PROGRESS);
@@ -261,8 +273,6 @@ NSString* const kStatusTextEmptyString = @"";
     default:
       return kStatusTextEmptyString;
   }
-  */
-  return kStatusTextEmptyString;
 }
 
 #pragma mark - NSObject

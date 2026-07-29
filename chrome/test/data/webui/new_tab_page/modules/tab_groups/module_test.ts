@@ -11,6 +11,8 @@ import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_
 import type {CrIconElement} from 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
+import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
 import {TestPluralStringProxy} from 'chrome://webui-test/test_plural_string_proxy.js';
 import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -19,17 +21,21 @@ import {installMock} from '../../test_support.js';
 
 suite('NewTabPageModulesTabGroupsModuleTest', () => {
   let handler: TestMock<PageHandlerRemote>;
+  let metrics: MetricsTracker;
 
   setup(() => {
     handler = installMock(
         PageHandlerRemote,
         mock => TabGroupsProxyImpl.setInstance(new TabGroupsProxyImpl(mock)));
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    metrics = fakeMetricsPrivate();
   });
 
-  async function createModule(tabGroups: TabGroup[]|null):
-      Promise<TabGroupsModuleElement> {
-    handler.setResultFor('getTabGroups', Promise.resolve({tabGroups}));
+  async function createModule(
+      tabGroups: TabGroup[]|null,
+      showZeroState: boolean = false): Promise<TabGroupsModuleElement> {
+    handler.setResultFor(
+        'getTabGroups', Promise.resolve({tabGroups, showZeroState}));
     const module =
         await tabGroupsDescriptor.initialize(0) as TabGroupsModuleElement;
     document.body.append(module);
@@ -370,7 +376,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
     assertEquals(1, handler.getCallCount('restoreModule'));
   });
 
-  test('create new tab group from the footer link', async () => {
+  test('create new tab group from the footer button', async () => {
     // Arrange.
     const module = await createModule([{
       id: '0',
@@ -397,6 +403,9 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
 
     // Assert.
     assertEquals(1, handler.getCallCount('createNewTabGroup'));
+    assertEquals(1, metrics.count('NewTabPage.TabGroups.CreateNewTabGroup'));
+    assertEquals(
+        1, metrics.count('NewTabPage.TabGroups.CreateNewTabGroup.SteadyState'));
   });
 
   test('open a tab group and fire openTabGroup with the group ID', async () => {
@@ -438,6 +447,8 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
 
     // Assert.
     assertEquals(1, handler.getCallCount('openTabGroup'));
+    assertEquals(
+        1, metrics.count('NewTabPage.TabGroups.ClickTabGroupIndex', index));
     const groupId = handler.getArgs('openTabGroup')[0];
     assertEquals(`${index}`, groupId);
   });
@@ -480,13 +491,9 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
   });
 
   suite('with zero state flag enabled', () => {
-    setup(() => {
-      loadTimeData.overrideValues({tabGroupsModuleZeroStateEnabled: true});
-    });
-
     test('show zero state card when there are no tab groups', async () => {
       // Arrange.
-      const module = await createModule([]);
+      const module = await createModule([], true);
 
       // Assert.
       // The module must still exist without tab groups data.
@@ -518,7 +525,7 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
 
     test('create new tab group from the zero state card', async () => {
       // Arrange.
-      const module = await createModule([]);
+      const module = await createModule([], true);
       assertTrue(!!module);
 
       const createNewTabGroupButton =
@@ -534,6 +541,9 @@ suite('NewTabPageModulesTabGroupsModuleTest', () => {
 
       // Assert.
       assertEquals(1, handler.getCallCount('createNewTabGroup'));
+      assertEquals(1, metrics.count('NewTabPage.TabGroups.CreateNewTabGroup'));
+      assertEquals(
+          1, metrics.count('NewTabPage.TabGroups.CreateNewTabGroup.ZeroState'));
     });
   });
 });

@@ -28,7 +28,6 @@ import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class provides functionality that is accessed in a static way from apps using WebView. This
@@ -40,8 +39,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Lifetime.Singleton
 public class SharedStatics {
     private AwDevToolsServer mDevToolsServer;
-    private static final AtomicBoolean sAnyMethodCalled = new AtomicBoolean(false);
-    private static volatile boolean sStartupTriggered;
+    private final WebViewChromiumAwInit mAwInit;
+
+    public SharedStatics(WebViewChromiumAwInit awInit) {
+        mAwInit = awInit;
+    }
 
     // These values are persisted to logs. Entries should not be renumbered and
     // numeric values should never be reused.
@@ -86,23 +88,14 @@ public class SharedStatics {
 
     // LINT.ThenChange(/tools/metrics/histograms/metadata/android/enums.xml:WebViewApiCallStatic)
 
-    public static void setStartupTriggered() {
-        sStartupTriggered = true;
-    }
-
     public static void recordStaticApiCall(@ApiCall int sample) {
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.WebView.ApiCall.Static", sample, ApiCall.COUNT);
-
-        // If getStatics() triggered startup and this is the first method to be called after that,
-        // record the method in a histogram.
-        if (sStartupTriggered && sAnyMethodCalled.compareAndSet(false, true)) {
-            RecordHistogram.recordEnumeratedHistogram(
-                    "Android.WebView.ApiCall.Static.First", sample, ApiCall.COUNT);
-        }
     }
 
     public String findAddress(String addr) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_FIND_ADDRESS);
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.Framework.FIND_ADDRESS")) {
             recordStaticApiCall(ApiCall.FIND_ADDRESS);
             return AwContentsStatics.findAddress(addr);
@@ -110,6 +103,8 @@ public class SharedStatics {
     }
 
     public String getDefaultUserAgent(Context context) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_GET_DEFAULT_USER_AGENT);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.GET_DEFAULT_USER_AGENT")) {
             recordStaticApiCall(ApiCall.GET_DEFAULT_USER_AGENT);
@@ -118,6 +113,8 @@ public class SharedStatics {
     }
 
     public void setWebContentsDebuggingEnabled(boolean enable) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_SET_WEB_CONTENTS_DEBUGGING_ENABLED);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_WEB_CONTENTS_DEBUGGING_ENABLED")) {
             recordStaticApiCall(ApiCall.SET_WEB_CONTENTS_DEBUGGING_ENABLED);
@@ -127,6 +124,7 @@ public class SharedStatics {
         }
     }
 
+    // This shouldn't trigger startup since it is called during startup.
     public void setWebContentsDebuggingEnabledUnconditionally(boolean enable) {
         if (Looper.myLooper() != ThreadUtils.getUiThreadLooper()) {
             throw new RuntimeException(
@@ -140,6 +138,8 @@ public class SharedStatics {
     }
 
     public void clearClientCertPreferences(Runnable onCleared) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_CLEAR_CLIENT_CERT_PREFERENCES);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.CLEAR_CLIENT_CERT_PREFERENCES")) {
             recordStaticApiCall(ApiCall.CLEAR_CLIENT_CERT_PREFERENCES);
@@ -150,6 +150,8 @@ public class SharedStatics {
     }
 
     public void freeMemoryForTests() {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_FREE_MEMORY_FOR_TESTS);
         if (ActivityManager.isRunningInTestHarness()) {
             PostTask.postTask(
                     TaskTraits.UI_DEFAULT,
@@ -162,6 +164,8 @@ public class SharedStatics {
     }
 
     public void enableSlowWholeDocumentDraw() {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_ENABLE_SLOW_WHOLE_DOCUMENT_DRAW);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.ENABLE_SLOW_WHOLE_DOCUMENT_DRAW")) {
             recordStaticApiCall(ApiCall.ENABLE_SLOW_WHOLE_DOCUMENT_DRAW);
@@ -170,6 +174,8 @@ public class SharedStatics {
     }
 
     public Uri[] parseFileChooserResult(int resultCode, Intent intent) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_PARSE_FILE_CHOOSER_RESULT);
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.Framework.PARSE_RESULT")) {
             recordStaticApiCall(ApiCall.PARSE_RESULT);
             return AwContentsClient.parseFileChooserResult(resultCode, intent);
@@ -184,6 +190,8 @@ public class SharedStatics {
      *     callback will be run on the UI thread.
      */
     public void initSafeBrowsing(Context context, Callback<Boolean> callback) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_INIT_SAFE_BROWSING);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.START_SAFE_BROWSING")) {
             recordStaticApiCall(ApiCall.START_SAFE_BROWSING);
@@ -194,6 +202,8 @@ public class SharedStatics {
     }
 
     public void setSafeBrowsingAllowlist(List<String> urls, Callback<Boolean> callback) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_SET_SAFE_BROWSING_ALLOWLIST);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_SAFE_BROWSING_ALLOWLIST")) {
             recordStaticApiCall(ApiCall.SET_SAFE_BROWSING_ALLOWLIST);
@@ -209,6 +219,8 @@ public class SharedStatics {
      * @return the url pointing to a privacy policy document which can be displayed to users.
      */
     public Uri getSafeBrowsingPrivacyPolicyUrl() {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_GET_SAFE_BROWSING_PRIVACY_POLICY_URL);
         try (TraceEvent event =
                 TraceEvent.scoped(
                         "WebView.APICall.Framework.GET_SAFE_BROWSING_PRIVACY_POLICY_URL")) {
@@ -220,6 +232,8 @@ public class SharedStatics {
     }
 
     public boolean isMultiProcessEnabled() {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_IS_MULTI_PROCESS_ENABLED);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.IS_MULTI_PROCESS_ENABLED")) {
             recordStaticApiCall(ApiCall.IS_MULTI_PROCESS_ENABLED);
@@ -228,6 +242,8 @@ public class SharedStatics {
     }
 
     public String getVariationsHeader() {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_GET_VARIATIONS_HEADER);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.GET_VARIATIONS_HEADER")) {
             recordStaticApiCall(ApiCall.GET_VARIATIONS_HEADER);
@@ -236,6 +252,8 @@ public class SharedStatics {
     }
 
     public void setDefaultTrafficStatsTag(int tag) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_SET_DEFAULT_TRAFFIC_STATS_TAG);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_DEFAULT_TRAFFICSTATS_TAG")) {
             recordStaticApiCall(ApiCall.SET_DEFAULT_TRAFFICSTATS_TAG);
@@ -244,6 +262,8 @@ public class SharedStatics {
     }
 
     public void setDefaultTrafficStatsUid(int uid) {
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.STATIC_SET_DEFAULT_TRAFFIC_STATS_UID);
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.APICall.Framework.SET_DEFAULT_TRAFFICSTATS_UID")) {
             recordStaticApiCall(ApiCall.SET_DEFAULT_TRAFFICSTATS_UID);

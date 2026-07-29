@@ -913,7 +913,8 @@ TEST_F(MediaStreamVideoTrackTest,
   MockMediaStreamVideoSink sink;
 
   // Track is initialized with sub-capture-target version 5.
-  EXPECT_CALL(*mock_source(), GetSubCaptureTargetVersion).WillOnce(Return(5));
+  EXPECT_CALL(*mock_source(), GetCaptureVersion)
+      .WillOnce(Return(media::CaptureVersion(/*source=*/0, /*sub_version=*/5)));
   WebMediaStreamTrack track = CreateTrack();
   sink.ConnectToTrack(track);
   MediaStreamVideoTrack::From(track)->SetSinkNotifyFrameDroppedCallback(
@@ -922,7 +923,8 @@ TEST_F(MediaStreamVideoTrackTest,
   scoped_refptr<media::VideoFrame> frame =
       media::VideoFrame::CreateBlackFrame(gfx::Size(600, 400));
   // Frame with current sub-capture-target version should be delivered.
-  frame->metadata().sub_capture_target_version = 5;
+  frame->metadata().capture_version =
+      media::CaptureVersion(/*source=*/0, /*sub_capture=*/5);
   EXPECT_CALL(sink, OnNotifyFrameDropped).Times(0);
   DeliverVideoFrameAndWaitForRenderer(std::move(frame), &sink);
 
@@ -930,12 +932,13 @@ TEST_F(MediaStreamVideoTrackTest,
 }
 
 TEST_F(MediaStreamVideoTrackTest,
-       DropsOldFramesWhenInitializedWithNewerSubCaptureTargetVersion) {
+       DropsOldFramesWhenInitializedWithNewerSubCaptureVersion) {
   InitializeSource();
   MockMediaStreamVideoSink sink;
 
   // Track is initialized with sub-capture-target version 5.
-  EXPECT_CALL(*mock_source(), GetSubCaptureTargetVersion).WillOnce(Return(5));
+  EXPECT_CALL(*mock_source(), GetCaptureVersion)
+      .WillOnce(Return(media::CaptureVersion(/*source=*/0, /*sub_version=*/5)));
   WebMediaStreamTrack track = CreateTrack();
   sink.ConnectToTrack(track);
   MediaStreamVideoTrack::From(track)->SetSinkNotifyFrameDroppedCallback(
@@ -944,7 +947,39 @@ TEST_F(MediaStreamVideoTrackTest,
   scoped_refptr<media::VideoFrame> frame =
       media::VideoFrame::CreateBlackFrame(gfx::Size(600, 400));
   // Old sub-capture-target version delivered after construction.
-  frame->metadata().sub_capture_target_version = 4;
+  frame->metadata().capture_version =
+      media::CaptureVersion(/*source=*/0, /*sub_capture=*/4);
+  base::RunLoop run_loop;
+  EXPECT_CALL(sink,
+              OnNotifyFrameDropped(media::VideoCaptureFrameDropReason::
+                                       kSubCaptureTargetVersionNotCurrent))
+      .WillOnce(RunOnceClosure(run_loop.QuitClosure()));
+  mock_source()->DeliverVideoFrame(std::move(frame));
+  run_loop.Run();
+
+  sink.DisconnectFromTrack();
+}
+
+TEST_F(MediaStreamVideoTrackTest, DropsOldFramesAfterSubCaptureVersionChanges) {
+  InitializeSource();
+  MockMediaStreamVideoSink sink;
+
+  // Track is initialized with sub-capture-target version 5.
+  EXPECT_CALL(*mock_source(), GetCaptureVersion)
+      .WillOnce(Return(media::CaptureVersion(/*source=*/0, /*sub_version=*/5)));
+  WebMediaStreamTrack track = CreateTrack();
+  sink.ConnectToTrack(track);
+  MediaStreamVideoTrack::From(track)->SetSinkNotifyFrameDroppedCallback(
+      &sink, sink.GetNotifyFrameDroppedCB());
+
+  mock_source()->DeliverNewCaptureVersion(
+      media::CaptureVersion(/*source=*/0, /*sub_capture=*/6));
+
+  scoped_refptr<media::VideoFrame> frame =
+      media::VideoFrame::CreateBlackFrame(gfx::Size(600, 400));
+  // No longer current version.
+  frame->metadata().capture_version =
+      media::CaptureVersion(/*source=*/0, /*sub_capture=*/5);
   base::RunLoop run_loop;
   EXPECT_CALL(sink,
               OnNotifyFrameDropped(media::VideoCaptureFrameDropReason::
@@ -957,54 +992,26 @@ TEST_F(MediaStreamVideoTrackTest,
 }
 
 TEST_F(MediaStreamVideoTrackTest,
-       DropsOldFramesAfterSubCaptureTargetVersionChanges) {
+       DeliversNewFramesAfterSubCaptureVersionChanges) {
   InitializeSource();
   MockMediaStreamVideoSink sink;
 
-  // Track is initialized with sub-capture-target version 5.
-  EXPECT_CALL(*mock_source(), GetSubCaptureTargetVersion).WillOnce(Return(5));
+  // Track is initialized with sub-capture version 5.
+  EXPECT_CALL(*mock_source(), GetCaptureVersion)
+      .WillOnce(Return(media::CaptureVersion(/*source=*/0, /*sub_capture=*/5)));
   WebMediaStreamTrack track = CreateTrack();
   sink.ConnectToTrack(track);
   MediaStreamVideoTrack::From(track)->SetSinkNotifyFrameDroppedCallback(
       &sink, sink.GetNotifyFrameDroppedCB());
 
-  // Crop version updated to 6.
-  mock_source()->DeliverNewSubCaptureTargetVersion(6);
+  mock_source()->DeliverNewCaptureVersion(
+      media::CaptureVersion(/*source=*/0, /*sub_capture=*/6));
 
   scoped_refptr<media::VideoFrame> frame =
       media::VideoFrame::CreateBlackFrame(gfx::Size(600, 400));
-  frame->metadata().sub_capture_target_version =
-      5;  // No longer current version.
-  base::RunLoop run_loop;
-  EXPECT_CALL(sink,
-              OnNotifyFrameDropped(media::VideoCaptureFrameDropReason::
-                                       kSubCaptureTargetVersionNotCurrent))
-      .WillOnce(RunOnceClosure(run_loop.QuitClosure()));
-  mock_source()->DeliverVideoFrame(std::move(frame));
-  run_loop.Run();
-
-  sink.DisconnectFromTrack();
-}
-
-TEST_F(MediaStreamVideoTrackTest,
-       DeliversNewFramesAfterSubCaptureTargetVersionChanges) {
-  InitializeSource();
-  MockMediaStreamVideoSink sink;
-
-  // Track is initialized with sub-capture-target version 5.
-  EXPECT_CALL(*mock_source(), GetSubCaptureTargetVersion).WillOnce(Return(5));
-  WebMediaStreamTrack track = CreateTrack();
-  sink.ConnectToTrack(track);
-  MediaStreamVideoTrack::From(track)->SetSinkNotifyFrameDroppedCallback(
-      &sink, sink.GetNotifyFrameDroppedCB());
-
-  // Crop version updated to 6.
-  mock_source()->DeliverNewSubCaptureTargetVersion(6);
-
-  scoped_refptr<media::VideoFrame> frame =
-      media::VideoFrame::CreateBlackFrame(gfx::Size(600, 400));
-  // Frame with current sub-capture-target version should be delivered.
-  frame->metadata().sub_capture_target_version = 6;
+  // Frame with current sub-capture- version should be delivered.
+  frame->metadata().capture_version =
+      media::CaptureVersion(/*source=*/0, /*sub_capture=*/6);
   EXPECT_CALL(sink, OnNotifyFrameDropped).Times(0);
   DeliverVideoFrameAndWaitForRenderer(std::move(frame), &sink);
 

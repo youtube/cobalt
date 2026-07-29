@@ -155,7 +155,8 @@ class WebAppInstallFinalizer {
       const WebAppInstallInfo& web_app_info,
       std::unique_ptr<WebApp> web_app,
       CommitCallback commit_callback,
-      bool skip_icon_writes_on_download_failure);
+      bool skip_icon_writes_on_download_failure,
+      bool overwrite_trusted_icons_with_manifest_ones);
 
   void WriteTranslations(
       const webapps::AppId& app_id,
@@ -177,6 +178,7 @@ class WebAppInstallFinalizer {
   void OnDatabaseCommitCompletedForInstall(InstallFinalizedCallback callback,
                                            webapps::AppId app_id,
                                            FinalizeOptions finalize_options,
+                                           std::optional<WebAppScope> old_scope,
                                            bool success);
 
   void OnInstallHooksFinished(InstallFinalizedCallback callback,
@@ -189,6 +191,7 @@ class WebAppInstallFinalizer {
       std::string old_name,
       FileHandlerUpdateAction file_handlers_need_os_update,
       const WebAppInstallInfo& web_app_info,
+      std::optional<WebAppScope> old_scope,
       bool success);
 
   void OnUpdateHooksFinished(InstallFinalizedCallback callback,

@@ -40,6 +40,7 @@ chromium-metrics-reviews@google.com.
       summary="Embedder trigger, ChromeCustomTabs"/>
   <variant name="Embedder_DefaultSearchEngine"
       summary="Embedder trigger, DefaultSearchEngine"/>
+  <variant name="Embedder_NewTabPage" summary="Embedder trigger, NewTabPage"/>
   <variant name="Embedder_WebView" summary="Embedder trigger, WebView"/>
   <variant name="SpeculationRule_Conservative"
       summary="SpeculationRules trigger, Conservative"/>
@@ -778,7 +779,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PrefetchProxy.Proxy.RespCode" enum="HttpResponseCode"
-    expires_after="2026-01-04">
+    expires_after="2026-03-08">
   <owner>kouhei@chromium.org</owner>
   <owner>chrome-loading@chromium.org</owner>
   <summary>

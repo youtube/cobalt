@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/tabs/tab_strip_api/event_broadcaster.h"
 
+#include "chrome/browser/ui/tabs/tab_strip_api/observation/tab_strip_api_observer.h"
+
 namespace tabs_api {
 
 // A decoder which takes the incoming event type and directs them to the proper
@@ -20,8 +22,8 @@ class EventVisitor {
     return mojom::TabsEvent::NewTabsClosedEvent(event.Clone());
   }
 
-  mojom::TabsEventPtr operator()(const mojom::OnTabMovedEventPtr& event) {
-    return mojom::TabsEvent::NewTabMovedEvent(event.Clone());
+  mojom::TabsEventPtr operator()(const mojom::OnNodeMovedEventPtr& event) {
+    return mojom::TabsEvent::NewNodeMovedEvent(event.Clone());
   }
 
   mojom::TabsEventPtr operator()(const mojom::OnDataChangedEventPtr& event) {
@@ -29,8 +31,8 @@ class EventVisitor {
   }
 
   mojom::TabsEventPtr operator()(
-      const mojom::OnTabGroupCreatedEventPtr& event) {
-    return mojom::TabsEvent::NewTabGroupCreatedEvent(event.Clone());
+      const mojom::OnCollectionCreatedEventPtr& event) {
+    return mojom::TabsEvent::NewCollectionCreatedEvent(event.Clone());
   }
 };
 
@@ -45,10 +47,10 @@ std::vector<mojom::TabsEventPtr> Transform(
 }
 
 void EventBroadcaster::Broadcast(
-    const mojo::AssociatedRemoteSet<tabs_api::mojom::TabsObserver>& targets,
+    const std::vector<observation::TabStripApiObserver*>& observers,
     const std::vector<events::Event>& events) {
-  for (auto& target : targets) {
-    target->OnTabEvents(Transform(events));
+  for (auto* observer : observers) {
+    observer->OnTabEvents(Transform(events));
   }
 }
 

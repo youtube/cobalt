@@ -77,6 +77,7 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "chromeos/constants/pref_names.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
@@ -86,7 +87,6 @@ using signin_util::SignedInState;
 using ::testing::_;
 using ::testing::ByMove;
 using ::testing::Const;
-using ::testing::Invoke;
 using ::testing::IsEmpty;
 using ::testing::Mock;
 using ::testing::Return;
@@ -174,9 +174,7 @@ std::string GetConfiguration(SyncAllDataConfig sync_all,
   result.Set("typedUrlsSynced",
              types.Has(syncer::UserSelectableType::kHistory));
 
-  std::string args;
-  base::JSONWriter::Write(result, &args);
-  return args;
+  return base::WriteJson(result).value_or("");
 }
 
 // Checks whether the passed |dictionary| contains a |key| with the given
@@ -1974,7 +1972,8 @@ TEST_F(PeopleHandlerWithCookiesSyncTest, SyncCookiesSupported) {
 
   // Feature flag enabled, policy set to false.
   {
-    profile()->GetPrefs()->SetBoolean(prefs::kFloatingSsoEnabled, false);
+    profile()->GetPrefs()->SetBoolean(chromeos::prefs::kFloatingSsoEnabled,
+                                      false);
 
     const base::Value::Dict& sync_status_values =
         handler_->GetSyncStatusDictionary();
@@ -1986,7 +1985,8 @@ TEST_F(PeopleHandlerWithCookiesSyncTest, SyncCookiesSupported) {
 
   // Feature flag enabled, policy set to true.
   {
-    profile()->GetPrefs()->SetBoolean(prefs::kFloatingSsoEnabled, true);
+    profile()->GetPrefs()->SetBoolean(chromeos::prefs::kFloatingSsoEnabled,
+                                      true);
 
     const base::Value::Dict& sync_status_values =
         handler_->GetSyncStatusDictionary();

@@ -58,7 +58,7 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
   // changed without updating js part.
   switch (type) {
     case UserSelectableType::kBookmarks:
-      return {kBookmarksTypeName, BOOKMARKS, {BOOKMARKS, POWER_BOOKMARK}};
+      return {kBookmarksTypeName, BOOKMARKS, {BOOKMARKS}};
     case UserSelectableType::kPreferences: {
       DataTypeSet types = {PREFERENCES, DICTIONARY, SEARCH_ENGINES};
       // `skip_feature_checks_if_early` is used to avoid checking the feature
@@ -126,7 +126,8 @@ UserSelectableTypeInfo GetUserSelectableTypeInfo(
               AUTOFILL_WALLET_DATA,
               {AUTOFILL_WALLET_CREDENTIAL, AUTOFILL_WALLET_DATA,
                AUTOFILL_WALLET_METADATA, AUTOFILL_WALLET_OFFER,
-               AUTOFILL_WALLET_USAGE, AUTOFILL_VALUABLE}};
+               AUTOFILL_WALLET_USAGE, AUTOFILL_VALUABLE,
+               AUTOFILL_VALUABLE_SETTING}};
     case UserSelectableType::kProductComparison:
       return {
           kProductComparisonTypeName, PRODUCT_COMPARISON, {PRODUCT_COMPARISON}};

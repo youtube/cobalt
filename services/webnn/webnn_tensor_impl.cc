@@ -50,6 +50,12 @@ void WebNNTensorImpl::ReadTensor(ReadTensorCallback callback) {
     return;
   }
 
+  // Wrap the Mojo callback so it is always invoked on the GPU scheduler
+  // sequence. The DML backend may execute callbacks off-sequence, so binding
+  // through BindPostTask ensures sequence safety when the backend calls it.
+  auto mojo_callback_wrapper = base::BindPostTask(
+      context_->scheduler_task_runner(), std::move(callback));
+
   // Call ReadTensorImpl() implemented by a backend.
   PostTaskToOwningTaskRunner(base::BindOnce(
       [](WebNNTensorImpl* self, ReadTensorCallback callback,
@@ -61,7 +67,7 @@ void WebNNTensorImpl::ReadTensor(ReadTensorCallback callback) {
         }
         self->ReadTensorImpl(std::move(callback));
       },
-      base::RetainedRef(this), std::move(callback),
+      base::RetainedRef(this), std::move(mojo_callback_wrapper),
       GetMojoReceiver().GetBadMessageCallback()));
 }
 
@@ -72,7 +78,10 @@ void WebNNTensorImpl::WriteTensor(mojo_base::BigBuffer src_buffer) {
   }
 
   // TODO(https://crbug.com/40278771): Generate error using MLContext.
-  if (PackedByteLength() < src_buffer.size()) {
+  // The size of src_buffer should be either equal to the packed byte length of
+  // the tensor, or zero, which requires a valid write tensor consumer.
+  if ((src_buffer.size() != PackedByteLength() && src_buffer.size() != 0) ||
+      (src_buffer.size() == 0 && !context_->HasValidWriteTensorConsumer())) {
     GetMojoReceiver().ReportBadMessage(kBadMessageInvalidTensor);
     return;
   }

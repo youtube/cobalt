@@ -414,9 +414,10 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual void BrowserChildProcessHostCreated(BrowserChildProcessHost* host) {}
 
   // Gets the effective URL for the given actual URL, to allow an embedder to
-  // group different url schemes in the same SiteInstance.
-  virtual GURL GetEffectiveURL(BrowserContext* browser_context,
-                               const GURL& url);
+  // group different url schemes in the same SiteInstance. If there is no
+  // effective URL for the given URL, return std::nullopt.
+  virtual std::optional<GURL> GetEffectiveURL(BrowserContext* browser_context,
+                                              const GURL& url);
 
   // Invoked during renderer process lock state transitions (e.g., invalid ->
   // allows_any_site and allows_any_site -> locked_to_site) and when renderers
@@ -448,12 +449,16 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual bool ShouldUseProcessPerSite(BrowserContext* browser_context,
                                        const GURL& site_url);
 
-  // Returns true if the embedder prefers reusing an existing process which is
+  // Returns true if the embedder prefers reusing any same-site renderer process
   // not over-utilized for a main frame site instance for
   // `site_instance_original_url` in `browser_context`, for performance reasons.
+  // The method is currently only used for experiments that use
+  // ProcessPerSiteUpToMainFrameThreshold.
   // Note that other policies have precedence over this and can force or prevent
-  // process reuse irrespective of what this returns.
-  virtual bool ShouldReuseExistingProcessForNewMainFrameSiteInstance(
+  // process reuse irrespective of what this returns. In particular, the feature
+  // ReusePrerenderingProcessForMainFrames may choose to reuse a prerender
+  // process under the same site event if the method returns false.
+  virtual bool ShouldReuseAnyExistingProcessForNewMainFrameSiteInstance(
       BrowserContext* browser_context,
       const GURL& site_instance_original_url);
 
@@ -3354,7 +3359,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   // serving metrics of preloads.
   //
   // Some //content features enable the feature even if it's false. For
-  // details, see `PreloadServingMetrics::IsEnabled()`.
+  // details, see `PreloadServingMetricsCapsule::IsFeatureEnabled()`.
   //
   // We use `ContentBrowserClient` rather than //content public feature because
   // we have mulitple preload triggers in //chrome that want to enable the

@@ -14,7 +14,6 @@
 namespace ip_protection {
 
 enum class TryGetAuthTokensResult;
-enum class TryGetAuthTokensAndroidResult;
 enum class TryGetProbabilisticRevealTokensStatus;
 enum class ProxyLayer;
 
@@ -123,12 +122,6 @@ class IpProtectionTelemetry {
       TryGetAuthTokensResult result,
       std::optional<base::TimeDelta> duration) = 0;
 
-  // Completed an attempt to fetch tokens via the system-provided auth service
-  // on Android.
-  virtual void AndroidTokenBatchFetchComplete(
-      TryGetAuthTokensAndroidResult result,
-      std::optional<base::TimeDelta> duration) = 0;
-
   // Chrome has determined that a proxy chain with the given chain ID has failed
   // and fallen back to the next chain in the list.
   virtual void ProxyChainFallback(int proxy_chain_id) = 0;
@@ -171,10 +164,6 @@ class IpProtectionTelemetry {
       GetProxyListResult result,
       std::optional<base::TimeDelta> duration) = 0;
 
-  // Token spend rate, in tokens per hour. This value is expected to be less
-  // than 1000.
-  virtual void TokenSpendRate(ProxyLayer, int) = 0;
-
   // Token expiration rate, in tokens per hour. This value is expected to be
   // less than 100,000.
   virtual void TokenExpirationRate(ProxyLayer, int) = 0;
@@ -190,6 +179,12 @@ class IpProtectionTelemetry {
 
   // The size of the MDL protobuf data, in KB.
   virtual void MdlSize(int64_t) = 0;
+
+  // The time it takes to build the MDL flatbuffer, in ms.
+  virtual void MdlFlatbufferBuildTime(base::TimeDelta duration) = 0;
+
+  // Whether updating the MDL via component updater was successful.
+  virtual void MdlUpdateSuccess(bool success) = 0;
 
   // Time taken to create an Android IP Protection auth client, including
   // binding to the system-provided auth service.

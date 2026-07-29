@@ -491,6 +491,13 @@ bool NeedsScopeActivation(
                                  context.selector->IsLastInComplexSelector());
 }
 
+ViewTransition* GetTransitionForScope(const Element& element) {
+  if (element.IsPseudoElement()) {
+    return nullptr;
+  }
+  return ViewTransitionUtils::GetTransition(element);
+}
+
 }  // namespace
 
 SelectorChecker::FeaturelessMatch
@@ -1038,6 +1045,9 @@ SelectorChecker::MatchStatus SelectorChecker::MatchForRelation(
       }
       return kSelectorFailsAllSiblings;
 
+    case CSSSelector::kPseudoChild:
+      // TODO(crbug.com/444386484): Implement support for this.
+      return kSelectorFailsCompletely;
     case CSSSelector::kUAShadow: {
       // Note: context.tree_scope should be non-null unless we're checking user
       // or UA origin rules, or VTT rules.  (We could CHECK() this if it
@@ -2869,14 +2879,8 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       DCHECK(context.relative_anchor_element);
       return context.relative_anchor_element == &element;
     case CSSSelector::kPseudoActiveViewTransition: {
-      // :active-view-transition is only valid on the document element.
-      if (!element.IsDocumentElement()) {
-        return false;
-      }
-
       // The pseudo is only valid if there is a transition.
-      auto* transition =
-          ViewTransitionUtils::GetTransition(element.GetDocument());
+      auto* transition = GetTransitionForScope(element);
       if (!transition) {
         return false;
       }
@@ -2885,14 +2889,8 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       return transition->MatchForActiveViewTransition();
     }
     case CSSSelector::kPseudoActiveViewTransitionType: {
-      // :active-view-transition-type is only valid on the document element.
-      if (!element.IsDocumentElement()) {
-        return false;
-      }
-
       // The pseudo is only valid if there is a transition.
-      auto* transition =
-          ViewTransitionUtils::GetTransition(element.GetDocument());
+      auto* transition = GetTransitionForScope(element);
       if (!transition) {
         return false;
       }
@@ -3367,6 +3365,11 @@ bool SelectorChecker::MatchesSelectorFragmentAnchorPseudoClass(
              .View()
              ->GetFragmentAnchor()
              ->IsSelectorFragmentAnchor();
+}
+
+bool SelectorChecker::MatchesActiveViewTransitionPseudoClass(
+    const Element& element) {
+  return GetTransitionForScope(element) != nullptr;
 }
 
 bool SelectorChecker::MatchesFocusPseudoClass(

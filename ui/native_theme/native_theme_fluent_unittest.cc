@@ -42,7 +42,7 @@ class NativeThemeFluentTest : public ::testing::Test,
         part == NativeTheme::kScrollbarDownArrow) {
       EXPECT_EQ(button_rect.CenterPoint().x(), arrow_rect.CenterPoint().x());
       // Due to the offset the arrow rect is shifted from the center.
-      // See NativeThemeFluent::OffsetArrowRect() for more details. Same below.
+      // See NativeThemeFluent::GetArrowRect() for more details. Same below.
       EXPECT_NEAR(button_rect.CenterPoint().y(), arrow_rect.CenterPoint().y(),
                   ScaleFromDIP() * 2);
     } else {
@@ -106,6 +106,13 @@ class NativeThemeFluentTest : public ::testing::Test,
     return gfx::RectF(0, 0, button_length, track_thickness);
   }
 
+  void PaintScrollbarThumb(cc::PaintCanvas* canvas) const {
+    ColorProvider color_provider;
+    theme_.PaintScrollbarThumb(canvas, &color_provider,
+                               NativeTheme::kScrollbarVerticalThumb,
+                               NativeTheme::kNormal, gfx::Rect(15, 100), {});
+  }
+
   float ScaleFromDIP() const { return GetParam(); }
 
   // Mocks the availability of the font for drawing arrow icons.
@@ -143,15 +150,7 @@ TEST_P(NativeThemeFluentTest, VerifyArrowRectWithArrowIcons) {
 // PaintOp called to draw the thumb.
 TEST_F(NativeThemeFluentTest, PaintThumbRoundedCorners) {
   cc::RecordPaintCanvas canvas;
-  ColorProvider color_provider;
-  constexpr gfx::Rect kRect(15, 100);
-  // `is_web_test` is `false` by default.
-  const NativeTheme::ScrollbarThumbExtraParams extra_params;
-  theme_.PaintScrollbarThumb(
-      &canvas, &color_provider,
-      /*part=*/NativeTheme::kScrollbarVerticalThumb,
-      /*state=*/NativeTheme::kNormal, kRect, extra_params,
-      /*color_scheme=*/NativeTheme::ColorScheme::kDefault);
+  PaintScrollbarThumb(&canvas);
   EXPECT_EQ(canvas.TotalOpCount(), 1u);
   EXPECT_EQ(canvas.ReleaseAsRecord().GetFirstOp().GetType(),
             cc::PaintOpType::kDrawRRect);
@@ -164,7 +163,8 @@ TEST_F(NativeThemeFluentTest, GetThumbColor) {
       CreateDefaultColorProviderForBlink(/*dark_mode=*/false);
   NativeTheme::ScrollbarThumbExtraParams extra_params;
   const auto scrollbar_color = [&](auto state) {
-    return theme_.GetScrollbarThumbColor(*color_provider, state, extra_params);
+    return theme_.GetScrollbarThumbColor(color_provider.get(), state,
+                                         extra_params);
   };
 
   const SkColor normal_thumb_color =

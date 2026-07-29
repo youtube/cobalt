@@ -258,12 +258,14 @@
   E_CPONLY(kColorNewTabPageComposeboxErrorScrimForeground) \
   E_CPONLY(kColorNewTabPageComposeboxHover) \
   E_CPONLY(kColorNewTabPageComposeboxInputIcon) \
-  E_CPONLY(kColorNewTabPageComposeboxLabel) \
   E_CPONLY(kColorNewTabPageComposeboxOutlineHcm) \
   E_CPONLY(kColorNewTabPageComposeboxResultsBackgroundHovered) \
   E_CPONLY(kColorNewTabPageComposeboxResultsIcon) \
   E_CPONLY(kColorNewTabPageComposeboxScrimBackground) \
   E_CPONLY(kColorNewTabPageComposeboxSubmitButton) \
+  E_CPONLY(kColorNewTabPageComposeboxSuggestionActivity) \
+  E_CPONLY(kColorNewTabPageComposeboxTypeAhead) \
+  E_CPONLY(kColorNewTabPageComposeboxTypeAheadChip) \
   E_CPONLY(kColorNewTabPageComposeboxUploadButton) \
   E_CPONLY(kColorNewTabPageComposeboxUploadButtonDisabled) \
   E_CPONLY(kColorNewTabPageComposeboxFileChipBackground) \
@@ -622,6 +624,8 @@
   E_CPONLY(kColorSidePanelBookmarksSelectedFolderBackground) \
   E_CPONLY(kColorSidePanelBookmarksSelectedFolderForeground) \
   E_CPONLY(kColorSidePanelBookmarksSelectedFolderIcon) \
+  E_CPONLY(kColorSidePanelBookmarksActiveFolderForeground) \
+  E_CPONLY(kColorSidePanelBookmarksActiveFolderBackground) \
   E_CPONLY(kColorSidePanelCardBackground) \
   E_CPONLY(kColorSidePanelCardPrimaryForeground) \
   E_CPONLY(kColorSidePanelCardSecondaryForeground) \

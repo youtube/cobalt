@@ -194,6 +194,7 @@ std::unique_ptr<Network::CookiePartitionKey> BuildCookiePartitionKey(
 
 std::unique_ptr<Network::Cookie> BuildCookie(
     const net::CanonicalCookie& cookie) {
+  DCHECK(cookie.ExpiryDate().is_null() || !cookie.ExpiryDate().is_inf());
   std::unique_ptr<Network::Cookie> devtools_cookie =
       Network::Cookie::Create()
           .SetName(cookie.Name())
@@ -3147,7 +3148,7 @@ void NetworkHandler::ProcessDurableMessageOrGetLocalData(
     std::optional<mojo_base::BigBuffer> durable_message) {
   if (durable_message.has_value()) {
     std::string_view data_view =
-        base::as_string_view(durable_message->byte_span());
+        base::as_string_view(base::span(*durable_message));
     if (base::IsStringUTF8(data_view)) {
       callback->sendSuccess(std::string(data_view), false);
     } else {

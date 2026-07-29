@@ -13,7 +13,6 @@
 #include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -128,10 +127,6 @@ void HostFrameSinkManager::InvalidateFrameSinkId(
     // the platform window (eg. XWindow or HWND) get destroyed before the
     // platform window is destroyed.
     mojo::SyncCallRestrictions::ScopedAllowSyncCall allow_sync_call;
-#if BUILDFLAG(IS_ANDROID)
-    SCOPED_UMA_HISTOGRAM_TIMER(
-        "Viz.SyncDestroyCompositorFrameSink.ExecutionTime");
-#endif
     frame_sink_manager_->DestroyCompositorFrameSink(frame_sink_id);
 
     // Other synchronous IPCs continue to get processed while
@@ -313,18 +308,21 @@ void HostFrameSinkManager::AddVideoDetectorObserver(
 }
 
 void HostFrameSinkManager::CreateVideoCapturer(
-    mojo::PendingReceiver<mojom::FrameSinkVideoCapturer> receiver) {
-  frame_sink_manager_->CreateVideoCapturer(std::move(receiver));
+    mojo::PendingReceiver<mojom::FrameSinkVideoCapturer> receiver,
+    uint32_t capture_version_source) {
+  frame_sink_manager_->CreateVideoCapturer(std::move(receiver),
+                                           capture_version_source);
 }
 
 std::unique_ptr<ClientFrameSinkVideoCapturer>
-HostFrameSinkManager::CreateVideoCapturer() {
+HostFrameSinkManager::CreateVideoCapturer(uint32_t capture_version_source) {
   return std::make_unique<ClientFrameSinkVideoCapturer>(base::BindRepeating(
       [](base::WeakPtr<HostFrameSinkManager> self,
+         uint32_t capture_version_source,
          mojo::PendingReceiver<mojom::FrameSinkVideoCapturer> receiver) {
-        self->CreateVideoCapturer(std::move(receiver));
+        self->CreateVideoCapturer(std::move(receiver), capture_version_source);
       },
-      weak_ptr_factory_.GetWeakPtr()));
+      weak_ptr_factory_.GetWeakPtr(), capture_version_source));
 }
 
 void HostFrameSinkManager::EvictSurfaces(

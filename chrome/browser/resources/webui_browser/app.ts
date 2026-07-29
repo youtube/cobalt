@@ -4,6 +4,7 @@
 
 import './bookmark_bar.js';
 import './content_region.js';
+import './extensions_bar.js';
 import './icons.html.js';
 import './side_panel.js';
 import '/strings.m.js';
@@ -12,6 +13,8 @@ import './webview.js';
 import 'chrome://resources/cr_components/searchbox/searchbox.js';
 
 import {ColorChangeUpdater} from '//resources/cr_components/color_change_listener/colors_css_updater.js';
+import {assert} from '//resources/js/assert.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import type {Tab} from '/tab_strip_api/tab_strip_api_data_model.mojom-webui.js';
 import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import {TrackedElementManager} from 'chrome://resources/js/tracked_element/tracked_element_manager.js';
@@ -21,6 +24,7 @@ import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import type {BookmarkBar} from './bookmark_bar.js';
 import {BookmarkBarController} from './bookmark_bar_controller.js';
+import {SecurityIcon} from './browser.mojom-webui.js';
 import {BrowserProxy} from './browser_proxy.js';
 import type {ContentRegion} from './content_region.js';
 import type {SidePanel} from './side_panel.js';
@@ -33,6 +37,7 @@ export interface WebuiBrowserAppElement {
     address: SearchboxElement,
     appMenuButton: HTMLElement,
     avatarButton: HTMLElement,
+    locationIconButton: HTMLElement,
     bookmarkBar: BookmarkBar,
     contentRegion: ContentRegion,
     sidePanel: SidePanel,
@@ -60,6 +65,8 @@ export class WebuiBrowserAppElement extends CrLitElement implements
       forwardButtonDisabled_: {state: true, type: Boolean},
       showingSidePanel_: {state: true, type: Boolean},
       reloadOrStopIcon_: {state: true, type: String},
+      showLocationIconButton_: {type: Boolean, reflect: true},
+      locationIcon_: {state: true, type: String},
     };
   }
 
@@ -70,6 +77,8 @@ export class WebuiBrowserAppElement extends CrLitElement implements
   protected accessor forwardButtonDisabled_: boolean = true;
   protected accessor reloadOrStopIcon_: string = 'icon-refresh';
   protected accessor showingSidePanel_: boolean = false;
+  protected accessor showLocationIconButton_: boolean = false;
+  protected accessor locationIcon_: string = 'NoEncryption';
 
   constructor() {
     super();
@@ -96,6 +105,8 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     this.trackedElementManager_.startTracking(
         this.$.avatarButton, 'kToolbarAvatarButtonElementId');
     this.trackedElementManager_.startTracking(
+        this.$.locationIconButton, 'kLocationIconElementId');
+    this.trackedElementManager_.startTracking(
         this.$.contentRegion, 'kContentsContainerViewElementId');
   }
 
@@ -104,7 +115,24 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     this.updateToolbarButtons_();
   }
 
-  activeTabUpdated(tabData: Tab) {
+  // Map from SecurityIcon values to the names of icons defined in
+  // icons.html.ts.
+  private securityIconToIconNameMap = new Map<SecurityIcon, string>([
+    [SecurityIcon.HttpChromeRefresh, 'HttpChromeRefresh'],
+    [SecurityIcon.SecurePageInfoChromeRefresh, 'SecurePageInfoChromeRefresh'],
+    [SecurityIcon.NoEncryption, 'NoEncryption'],
+    [
+      SecurityIcon.NotSecureWarningChromeRefresh,
+      'NotSecureWarningChromeRefresh',
+    ],
+    [SecurityIcon.BusinessChromeRefresh, 'BusinessChromeRefresh'],
+    [SecurityIcon.DangerousChromeRefresh, 'DangerousChromeRefresh'],
+    [SecurityIcon.ProductChromeRefresh, 'ProductChromeRefresh'],
+    [SecurityIcon.ExtensionChromeRefresh, 'ExtensionChromeRefresh'],
+    [SecurityIcon.OfflinePin, 'OfflinePin'],
+  ]);
+
+  async activeTabUpdated(tabData: Tab) {
     let displayUrl = '';
     const activeTabUrl = tabData.url.url;
     // TODO(webium): Should match
@@ -113,9 +141,21 @@ export class WebuiBrowserAppElement extends CrLitElement implements
     //
     // There are also likely some subtleties about what happens when the user
     // is typing and the tab navigates.
-    if (!activeTabUrl.startsWith('chrome://newtab')) {
+    const isNTP = activeTabUrl.startsWith('chrome://newtab');
+    if (!isNTP) {
       displayUrl = activeTabUrl;
+
+      if (this.$.contentRegion.activeWebview) {
+        const securityIcon =
+            await this.$.contentRegion.activeWebview.getSecurityIcon();
+        const iconName = this.securityIconToIconNameMap.get(securityIcon);
+        // Failure here indicates a new icon needs to be added to icons.html.ts
+        // and then to |securityIconToIconNameMap|.
+        assert(iconName);
+        this.locationIcon_ = iconName;
+      }
     }
+    this.showLocationIconButton_ = !isNTP;
     this.$.address.setInputText(displayUrl);
     this.$.contentRegion.classList.toggle('modalScrim', tabData.isBlocked);
   }
@@ -167,6 +207,14 @@ export class WebuiBrowserAppElement extends CrLitElement implements
       } else {
         this.$.contentRegion.activeWebview.stopLoading();
       }
+    }
+  }
+
+  protected reloadOrStopTooltip_(): string {
+    if (this.reloadOrStopIcon_ === 'icon-refresh') {
+      return loadTimeData.getString('tooltipReload');
+    } else {
+      return loadTimeData.getString('tooltipStop');
     }
   }
 
@@ -272,6 +320,12 @@ export class WebuiBrowserAppElement extends CrLitElement implements
   // when user clicks the close "x" button.
   protected onSidePanelClosed_() {
     this.showingSidePanel_ = false;
+  }
+
+  protected onLocationIconClick_(_: Event) {
+    if (this.$.contentRegion.activeWebview) {
+      this.$.contentRegion.activeWebview.openPageInfoMenu();
+    }
   }
 }
 

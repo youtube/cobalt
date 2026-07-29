@@ -2040,11 +2040,6 @@ WebGLRenderingContextBase::GetOrCreateCanvasResourceProvider() {
   auto* provider = resource_provider_.get();
   if (!provider && !did_fail_to_create_resource_provider_) {
     if (Host()->IsValidImageSize()) {
-      base::WeakPtr<CanvasResourceDispatcher> dispatcher =
-          Host()->GetOrCreateResourceDispatcher()
-              ? Host()->GetOrCreateResourceDispatcher()->GetWeakPtr()
-              : nullptr;
-
       const SkAlphaType alpha_type = GetAlphaType();
       const viz::SharedImageFormat format = GetSharedImageFormat();
       const gfx::ColorSpace color_space = GetColorSpace();
@@ -2059,14 +2054,7 @@ WebGLRenderingContextBase::GetOrCreateCanvasResourceProvider() {
         gpu::SharedImageUsageSet shared_image_usage_flags =
             gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
-        // TODO(crbug.com/391648152): Remove the guard on LowLatencyEnabled()
-        // being false; it is present for historical reasons but in reality if
-        // CanUseDrawingBufferSIWithoutCopyForLatency() is false then either (a)
-        // the checks here will fail or (b) CRP::CreateSharedImageProvider()
-        // will itself strip off the SCANOUT usage due to its own internal
-        // checks.
-        if (!Host()->LowLatencyEnabled() &&
-            SharedGpuContext::MaySupportImageChromium() &&
+        if (SharedGpuContext::MaySupportImageChromium() &&
             RuntimeEnabledFeatures::WebGLImageChromiumEnabled()) {
           shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
         }
@@ -6879,17 +6867,18 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
                                              GLenum type,
                                              Element* element,
                                              ExceptionState& exception_state) {
-  texHTML2D(target, level, internalformat, format, type, element,
-            exception_state);
+  texElementImage2D(target, level, internalformat, format, type, element,
+                    exception_state);
 }
 
-void WebGLRenderingContextBase::texHTML2D(GLenum target,
-                                          GLint level,
-                                          GLint internalformat,
-                                          GLenum format,
-                                          GLenum type,
-                                          Element* element,
-                                          ExceptionState& exception_state) {
+void WebGLRenderingContextBase::texElementImage2D(
+    GLenum target,
+    GLint level,
+    GLint internalformat,
+    GLenum format,
+    GLenum type,
+    Element* element,
+    ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
   if (isContextLost()) {
     return;
@@ -6899,12 +6888,13 @@ void WebGLRenderingContextBase::texHTML2D(GLenum target,
     return;
   }
 
-  if (!IsDrawHTMLEligible(element, "texHTML2D()", exception_state)) {
+  if (!IsDrawElementImageEligible(element, "texElementImage2D()",
+                                  exception_state)) {
     return;
   }
 
   canvas()->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawHTML);
+      DocumentUpdateReason::kCanvasDrawElementImage);
 
   // Canvas could have been removed after the layout update.
   if (!canvas()) {
@@ -6923,7 +6913,7 @@ void WebGLRenderingContextBase::texHTML2D(GLenum target,
   PaintLayerPainter paint_layer_painter = PaintLayerPainter(*layer);
   paint_layer_painter.Paint(
       builder.Context(),
-      PaintFlag::kPaintingCanvasDrawHTML | PaintFlag::kPrivacyPreserving);
+      PaintFlag::kPrivacyPreserving | PaintFlag::kOmitCompositingInfo);
 
   PropertyTreeState tree_state = layer->GetLayoutObject()
                                      .FirstFragment()
@@ -6968,7 +6958,7 @@ void WebGLRenderingContextBase::setHitTestRegions(
   HTMLCanvasElement* canvas_element = canvas();
   DCHECK(canvas_element);
   canvas_element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawHTML);
+      DocumentUpdateReason::kCanvasDrawElementImage);
 
   VectorOf<HTMLCanvasElement::ElementHitTestRegion> result;
   if (!ConvertHitTestRegionsToHTMLCanvasRegions(

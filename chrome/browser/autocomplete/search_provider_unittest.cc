@@ -163,7 +163,7 @@ class SearchProviderFeatureTestComponent {
       const bool command_line_overrides);
 
   ~SearchProviderFeatureTestComponent() {
-    variations::testing::ClearAllVariationParams();
+    variations::test::ClearAllVariationParams();
   }
 
  private:
@@ -345,7 +345,7 @@ class BaseSearchProviderTest : public testing::Test,
   // to avoid a possible race.
   SearchProviderFeatureTestComponent feature_test_component_;
   content::BrowserTaskEnvironment task_environment_;
-  variations::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
       variations::VariationsIdsProvider::Mode::kUseSignedInState};
 
   network::TestURLLoaderFactory test_url_loader_factory_;

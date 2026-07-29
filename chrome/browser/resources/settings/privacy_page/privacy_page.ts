@@ -21,24 +21,18 @@ import '../safety_hub/safety_hub_module.js';
 import '../settings_page/settings_animated_pages.js';
 import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
-import '../site_settings/protected_content_page.js';
 import '../site_settings/settings_category_default_radio_group.js';
-import '../site_settings/smart_card_readers_page.js';
 import './privacy_guide/privacy_guide_dialog.js';
 
 import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
-import type {PrivacyPageBrowserProxy} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
-import {PrivacyPageBrowserProxyImpl} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
 import type {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BaseMixin} from '../base_mixin.js';
-import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import type {FocusConfig} from '../focus_config.js';
 import {HatsBrowserProxyImpl, TrustSafetyInteraction} from '../hats_browser_proxy.js';
 import {loadTimeData} from '../i18n_setup.js';
@@ -55,11 +49,6 @@ import {SiteSettingsPrefsBrowserProxyImpl} from '../site_settings/site_settings_
 import {PrivacyGuideAvailabilityMixin} from './privacy_guide/privacy_guide_availability_mixin.js';
 import {getTemplate} from './privacy_page.html.js';
 
-interface BlockAutoplayStatus {
-  enabled: boolean;
-  pref: chrome.settingsPrivate.PrefObject<boolean>;
-}
-
 export interface SettingsPrivacyPageElement {
   $: {
     clearBrowsingData: CrLinkRowElement,
@@ -68,9 +57,8 @@ export interface SettingsPrivacyPageElement {
   };
 }
 
-const SettingsPrivacyPageElementBase =
-    PrivacyGuideAvailabilityMixin(RouteObserverMixin(
-        WebUiListenerMixin(I18nMixin(PrefsMixin(BaseMixin(PolymerElement))))));
+const SettingsPrivacyPageElementBase = PrivacyGuideAvailabilityMixin(
+    RouteObserverMixin(I18nMixin(PrefsMixin(BaseMixin(PolymerElement)))));
 
 export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   static get is() {
@@ -93,38 +81,9 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
       showClearBrowsingDataDialog_: Boolean,
       showPrivacyGuideDialog_: Boolean,
 
-      enableSafeBrowsingSubresourceFilter_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('enableSafeBrowsingSubresourceFilter');
-        },
-      },
-
-      enableBlockAutoplayContentSetting_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('enableBlockAutoplayContentSetting');
-        },
-      },
-
-      blockAutoplayStatus_: {
-        type: Object,
-        value() {
-          return {};
-        },
-      },
-
       enableDeleteBrowsingDataRevamp_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableDeleteBrowsingDataRevamp'),
-      },
-
-      enableFederatedIdentityApiContentSetting_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean(
-              'enableFederatedIdentityApiContentSetting');
-        },
       },
 
       enableExperimentalWebPlatformFeatures_: {
@@ -133,22 +92,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
           return loadTimeData.getBoolean(
               'enableExperimentalWebPlatformFeatures');
         },
-      },
-
-      // <if expr="is_chromeos">
-      enableSmartCardReadersContentSetting_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean(
-              'enableSmartCardReadersContentSetting');
-        },
-      },
-      // </if>
-
-      enableWebBluetoothNewPermissionsBackend_: {
-        type: Boolean,
-        value: () =>
-            loadTimeData.getBoolean('enableWebBluetoothNewPermissionsBackend'),
       },
 
       isPrivacySandboxRestricted_: {
@@ -246,23 +189,13 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private showPersistentPermissions_: boolean;
   declare private showClearBrowsingDataDialog_: boolean;
   declare private showPrivacyGuideDialog_: boolean;
-  declare private enableSafeBrowsingSubresourceFilter_: boolean;
-  declare private enableBlockAutoplayContentSetting_: boolean;
-  declare private blockAutoplayStatus_: BlockAutoplayStatus;
   declare private enableDeleteBrowsingDataRevamp_: boolean;
-  declare private enableFederatedIdentityApiContentSetting_: boolean;
   declare private enableExperimentalWebPlatformFeatures_: boolean;
-  // <if expr="is_chromeos">
-  declare private enableSmartCardReadersContentSetting_: boolean;
-  // </if>
-  declare private enableWebBluetoothNewPermissionsBackend_: boolean;
   declare private isPrivacySandboxRestricted_: boolean;
   declare private isPrivacySandboxRestrictedNoticeEnabled_: boolean;
   private privateStateTokensEnabled_: boolean;
   declare private focusConfig_: FocusConfig;
   declare private searchFilter_: string;
-  private browserProxy_: PrivacyPageBrowserProxy =
-      PrivacyPageBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
   private siteSettingsPrefsBrowserProxy_: SiteSettingsPrefsBrowserProxy =
@@ -274,45 +207,12 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private dbdDeletionConfirmationToastLabel_: string;
   declare private shouldShowDbdDeletionConfirmationToast_: boolean;
 
-  override ready() {
-    super.ready();
-
-    this.onBlockAutoplayStatusChanged_({
-      pref: {
-        key: '',
-        type: chrome.settingsPrivate.PrefType.BOOLEAN,
-        value: false,
-      },
-      enabled: false,
-    });
-
-    this.addWebUiListener(
-        'onBlockAutoplayStatusChanged',
-        (status: BlockAutoplayStatus) =>
-            this.onBlockAutoplayStatusChanged_(status));
-  }
-
   override currentRouteChanged() {
     this.showClearBrowsingDataDialog_ =
         Router.getInstance().getCurrentRoute() === routes.CLEAR_BROWSER_DATA;
     this.showPrivacyGuideDialog_ =
         Router.getInstance().getCurrentRoute() === routes.PRIVACY_GUIDE &&
         this.isPrivacyGuideAvailable;
-  }
-
-  /**
-   * Called when the block autoplay status changes.
-   */
-  private onBlockAutoplayStatusChanged_(autoplayStatus: BlockAutoplayStatus) {
-    this.blockAutoplayStatus_ = autoplayStatus;
-  }
-
-  /**
-   * Updates the block autoplay pref when the toggle is changed.
-   */
-  private onBlockAutoplayToggleChange_(event: Event) {
-    const target = event.target as SettingsToggleButtonElement;
-    this.browserProxy_.setBlockAutoplayEnabled(target.checked);
   }
 
   private onClearBrowsingDataClick_() {
@@ -454,31 +354,49 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         triggerId = 'securityLinkRow';
         break;
       case 'siteSettings':
+      case 'siteSettingsAds':
       case 'siteSettingsAll':
       case 'siteSettingsAr':
       case 'siteSettingsAutomaticDownloads':
       case 'siteSettingsAutomaticFullscreen':
       case 'siteSettingsAutoPictureInPicture':
+      case 'siteSettingsAutoVerify':
       case 'siteSettingsBackgroundSync':
+      case 'siteSettingsBluetoothDevices':
       case 'siteSettingsBluetoothScanning':
+      case 'siteSettingsCamera':
       case 'siteSettingsCapturedSurfaceControl':
       case 'siteSettingsClipboard':
+      case 'siteSettingsFederatedIdentityApi':
       case 'siteSettingsHandlers':
       case 'siteSettingsHandTracking':
+      case 'siteSettingsHidDevices':
       case 'siteSettingsIdleDetection':
+      case 'siteSettingsImages':
       case 'siteSettingsJavascript':
+      case 'siteSettingsJavascriptOptimizer':
       case 'siteSettingsKeyboardLock':
       case 'siteSettingsLocalFonts':
       case 'siteSettingsLocalNetworkAccess':
       case 'siteSettingsLocation':
+      case 'siteSettingsMicrophone':
       case 'siteSettingsMidiDevices':
+      case 'siteSettingsMixedscript':
       case 'siteSettingsNotifications':
       case 'siteSettingsPaymentHandler':
       case 'siteSettingsPdfDocuments':
       case 'siteSettingsPopups':
+      case 'siteSettingsProtectedContent':
       case 'siteSettingsSensors':
+      case 'siteSettingsSerialPorts':
       case 'siteSettingsSiteData':
+      case 'siteSettingsSiteDetails':
+      // <if expr="is_chromeos">
+      case 'siteSettingsSmartCardReaders':
+      // </if>
+      case 'siteSettingsSound':
       case 'siteSettingsStorageAccess':
+      case 'siteSettingsUsbDevices':
       case 'siteSettingsVr':
       case 'siteSettingsWebAppInstallation':
       case 'siteSettingsWebPrinting':

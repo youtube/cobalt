@@ -11,6 +11,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/scoped_observation.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -21,7 +22,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/events/keycodes/keyboard_codes.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/views/view_observer.h"
 #include "url/gurl.h"
 
@@ -30,6 +31,8 @@
 #endif
 
 class Browser;
+class BrowserList;
+class BrowserWindowInterface;
 class FullscreenController;
 class Profile;
 
@@ -578,31 +581,47 @@ class HistoryEnumerator {
   std::vector<GURL> urls_;
 };
 
-// In general, tests should use WaitForBrowserToClose() and
-// WaitForBrowserToOpen() rather than instantiating this class directly.
-class BrowserChangeObserver : public BrowserListObserver {
+// Waits for the destruction of `browser`. If `browser` is null will wait on the
+// destruction of any Browser.
+class BrowserDestroyedObserver : public BrowserListObserver {
  public:
-  enum class ChangeType {
-    kAdded,
-    kRemoved,
-  };
+  explicit BrowserDestroyedObserver(BrowserWindowInterface* browser = nullptr);
+  BrowserDestroyedObserver(const BrowserDestroyedObserver&) = delete;
+  BrowserDestroyedObserver& operator=(const BrowserDestroyedObserver&) = delete;
+  ~BrowserDestroyedObserver() override;
 
-  BrowserChangeObserver(Browser* browser, ChangeType type);
-  BrowserChangeObserver(const BrowserChangeObserver&) = delete;
-  BrowserChangeObserver& operator=(const BrowserChangeObserver&) = delete;
-  ~BrowserChangeObserver() override;
+  void Wait();
+
+  // BrowserListObserver:
+  void OnBrowserRemoved(Browser* browser) override;
+
+ private:
+  bool was_removed_ = false;
+  const std::optional<SessionID> session_id_;
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
+  base::ScopedObservation<BrowserList, BrowserListObserver>
+      browser_list_observation_{this};
+};
+
+// Waits for the creation of `browser`. If `browser` is null will wait on the
+// creation of any Browser.
+class BrowserCreatedObserver : public BrowserListObserver {
+ public:
+  BrowserCreatedObserver();
+  BrowserCreatedObserver(const BrowserCreatedObserver&) = delete;
+  BrowserCreatedObserver& operator=(const BrowserCreatedObserver&) = delete;
+  ~BrowserCreatedObserver() override;
 
   Browser* Wait();
 
   // BrowserListObserver:
   void OnBrowserAdded(Browser* browser) override;
 
-  void OnBrowserRemoved(Browser* browser) override;
-
  private:
-  raw_ptr<Browser, AcrossTasksDanglingUntriaged> browser_;
-  ChangeType type_;
+  raw_ptr<Browser> browser_ = nullptr;
   base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
+  base::ScopedObservation<BrowserList, BrowserListObserver>
+      browser_list_observation_{this};
 };
 
 // Encapsulates waiting for the browser window to change state. This is

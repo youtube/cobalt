@@ -4,16 +4,12 @@
 
 package com.android.webview.chromium;
 
-import android.Manifest;
 import android.app.compat.CompatChanges;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.Looper;
-import android.os.Process;
 import android.os.SystemClock;
-import android.os.storage.StorageManager;
 import android.util.Log;
 import android.webkit.CookieManager;
 import android.webkit.WebSettings;
@@ -35,7 +31,6 @@ import org.chromium.android_webview.AwCookieManager;
 import org.chromium.android_webview.AwCrashyClassUtils;
 import org.chromium.android_webview.AwDarkMode;
 import org.chromium.android_webview.AwLocaleConfig;
-import org.chromium.android_webview.AwNetworkChangeNotifierRegistrationPolicy;
 import org.chromium.android_webview.AwProxyController;
 import org.chromium.android_webview.AwThreadUtils;
 import org.chromium.android_webview.AwTracingController;
@@ -43,42 +38,32 @@ import org.chromium.android_webview.DualTraceEvent;
 import org.chromium.android_webview.HttpAuthDatabase;
 import org.chromium.android_webview.R;
 import org.chromium.android_webview.WebViewChromiumRunQueue;
-import org.chromium.android_webview.common.AwFeatureMap;
-import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwResource;
-import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
-import org.chromium.android_webview.common.WebViewCachedFlags;
 import org.chromium.android_webview.gfx.AwDrawFnImpl;
 import org.chromium.android_webview.metrics.TrackExitReasons;
 import org.chromium.android_webview.variations.FastVariationsSeedSafeModeAction;
 import org.chromium.android_webview.variations.VariationsSeedLoader;
 import org.chromium.base.ApkInfo;
-import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.EarlyTraceEvent;
-import org.chromium.base.FieldTrialList;
 import org.chromium.base.PathService;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.library_loader.LibraryLoader;
-import org.chromium.base.library_loader.LibraryPrefetcher;
 import org.chromium.base.library_loader.LoaderErrors;
 import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
-import org.chromium.base.task.TaskTraits;
 import org.chromium.build.BuildConfig;
-import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.BrowserStartupController.StartupCallback;
-import org.chromium.net.NetworkChangeNotifier;
+import org.chromium.content_public.browser.BrowserStartupController.StartupMetrics;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ResourceBundle;
 
 import java.util.ArrayDeque;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -255,13 +240,20 @@ public class WebViewChromiumAwInit {
 
     private volatile boolean mShouldInitializeDefaultProfile = true;
 
+    // TODO: DIR_RESOURCE_PAKS_ANDROID needs to live somewhere sensible,
+    // inlined here for simplicity setting up the HTMLViewer demo. Unfortunately
+    // it can't go into base.PathService, as the native constant it refers to
+    // lives in the ui/ layer. See ui/base/ui_base_paths.h
+    private static final int DIR_RESOURCE_PAKS_ANDROID = 3003;
+
     // This enum must be kept in sync with WebViewStartup.CallSite in chrome_track_event.proto and
     // WebViewStartupCallSite in enums.xml.
+    // These values are persisted to logs. Entries should not be renumbered and
+    // numeric values should never be reused.
+    // LINT.IfChange(CallSite)
     @IntDef({
         CallSite.GET_AW_TRACING_CONTROLLER,
         CallSite.GET_AW_PROXY_CONTROLLER,
-        CallSite.WEBVIEW_INSTANCE,
-        CallSite.GET_STATICS,
         CallSite.GET_DEFAULT_GEOLOCATION_PERMISSIONS,
         CallSite.GET_DEFAULT_SERVICE_WORKER_CONTROLLER,
         CallSite.GET_WEB_ICON_DATABASE,
@@ -269,13 +261,108 @@ public class WebViewChromiumAwInit {
         CallSite.GET_DEFAULT_WEBVIEW_DATABASE,
         CallSite.GET_TRACING_CONTROLLER,
         CallSite.ASYNC_WEBVIEW_STARTUP,
+        CallSite.WEBVIEW_INSTANCE_OVERLAY_HORIZONTAL_SCROLLBAR,
+        CallSite.WEBVIEW_INSTANCE_OVERLAY_VERTICAL_SCROLLBAR,
+        CallSite.WEBVIEW_INSTANCE_GET_CERTIFICATE,
+        CallSite.WEBVIEW_INSTANCE_GET_HTTP_AUTH_USERNAME_PASSWORD,
+        CallSite.WEBVIEW_INSTANCE_SAVE_STATE,
+        CallSite.WEBVIEW_INSTANCE_RESTORE_STATE,
+        CallSite.WEBVIEW_INSTANCE_LOAD_URL,
+        CallSite.WEBVIEW_INSTANCE_POST_URL,
+        CallSite.WEBVIEW_INSTANCE_LOAD_DATA,
+        CallSite.WEBVIEW_INSTANCE_LOAD_DATA_WITH_BASE_URL,
+        CallSite.WEBVIEW_INSTANCE_EVALUATE_JAVASCRIPT,
+        CallSite.WEBVIEW_INSTANCE_CAN_GO_BACK,
+        CallSite.WEBVIEW_INSTANCE_CAN_GO_FORWARD,
+        CallSite.WEBVIEW_INSTANCE_CAN_GO_BACK_OR_FORWARD,
+        CallSite.WEBVIEW_INSTANCE_IS_PAUSED,
+        CallSite.WEBVIEW_INSTANCE_COPY_BACK_FORWARD_LIST,
+        CallSite.WEBVIEW_INSTANCE_SHOW_FIND_DIALOG,
+        CallSite.WEBVIEW_INSTANCE_SET_WEBVIEW_CLIENT,
+        CallSite.WEBVIEW_INSTANCE_SET_WEBCHROME_CLIENT,
+        CallSite.WEBVIEW_INSTANCE_CREATE_WEBMESSAGE_CHANNEL,
+        CallSite.WEBVIEW_INSTANCE_GET_ZOOM_CONTROLS,
+        CallSite.WEBVIEW_INSTANCE_ZOOM_IN,
+        CallSite.WEBVIEW_INSTANCE_ZOOM_OUT,
+        CallSite.WEBVIEW_INSTANCE_ZOOM_BY,
+        CallSite.WEBVIEW_INSTANCE_SET_RENDERER_PRIORITY_POLICY,
+        CallSite.WEBVIEW_INSTANCE_GET_RENDERER_REQUESTED_PRIORITY,
+        CallSite.WEBVIEW_INSTANCE_GET_RENDERER_PRIORITY_WAIVED_WHEN_NOT_VISIBLE,
+        CallSite.WEBVIEW_INSTANCE_SET_TEXT_CLASSIFIER,
+        CallSite.WEBVIEW_INSTANCE_GET_TEXT_CLASSIFIER,
+        CallSite.WEBVIEW_INSTANCE_AUTOFILL,
+        CallSite.WEBVIEW_INSTANCE_ON_PROVIDE_AUTOFILL_VIRTUAL_STRUCTURE,
+        CallSite.WEBVIEW_INSTANCE_ON_PROVIDE_CONTENT_CAPTURE_STRUCTURE,
+        CallSite.WEBVIEW_INSTANCE_SHOULD_DELAY_CHILD_PRESSED_STATE,
+        CallSite.WEBVIEW_INSTANCE_GET_ACCESSIBILITY_NODE_PROVIDER,
+        CallSite.WEBVIEW_INSTANCE_ON_PROVIDE_VIRTUAL_STRUCTURE,
+        CallSite.WEBVIEW_INSTANCE_PERFORM_ACCESSIBILITY_ACTION,
+        CallSite.WEBVIEW_INSTANCE_ON_DRAW,
+        CallSite.WEBVIEW_INSTANCE_SET_LAYOUT_PARAMS,
+        CallSite.WEBVIEW_INSTANCE_ON_DRAG_EVENT,
+        CallSite.WEBVIEW_INSTANCE_ON_CREATE_INPUT_CONNECTION,
+        CallSite.WEBVIEW_INSTANCE_ON_KEY_MULTIPLE,
+        CallSite.WEBVIEW_INSTANCE_ON_KEY_DOWN,
+        CallSite.WEBVIEW_INSTANCE_ON_KEY_UP,
+        CallSite.WEBVIEW_INSTANCE_ON_ATTACHED_TO_WINDOW,
+        CallSite.WEBVIEW_INSTANCE_DISPATCH_KEY_EVENT,
+        CallSite.WEBVIEW_INSTANCE_ON_TOUCH_EVENT,
+        CallSite.WEBVIEW_INSTANCE_ON_HOVER_EVENT,
+        CallSite.WEBVIEW_INSTANCE_ON_GENERIC_MOTION_EVENT,
+        CallSite.WEBVIEW_INSTANCE_REQUEST_FOCUS,
+        CallSite.WEBVIEW_INSTANCE_ON_MEASURE,
+        CallSite.WEBVIEW_INSTANCE_REQUEST_CHILD_RECTANGLE_ON_SCREEN,
+        CallSite.WEBVIEW_INSTANCE_SET_BACKGROUND_COLOR,
+        CallSite.WEBVIEW_INSTANCE_ON_START_TEMPORARY_DETACH,
+        CallSite.WEBVIEW_INSTANCE_ON_FINISH_TEMPORARY_DETACH,
+        CallSite.WEBVIEW_INSTANCE_ON_CHECK_IS_TEXT_EDITOR,
+        CallSite.WEBVIEW_INSTANCE_ON_APPLY_WINDOW_INSETS,
+        CallSite.WEBVIEW_INSTANCE_ON_RESOLVE_POINTER_ICON,
+        CallSite.WEBVIEW_INSTANCE_COMPUTE_HORIZONTAL_SCROLL_RANGE,
+        CallSite.WEBVIEW_INSTANCE_COMPUTE_HORIZONTAL_SCROLL_OFFSET,
+        CallSite.WEBVIEW_INSTANCE_COMPUTE_VERTICAL_SCROLL_RANGE,
+        CallSite.WEBVIEW_INSTANCE_COMPUTE_VERTICAL_SCROLL_OFFSET,
+        CallSite.WEBVIEW_INSTANCE_COMPUTE_VERTICAL_SCROLL_EXTENT,
+        CallSite.WEBVIEW_INSTANCE_COMPUTE_SCROLL,
+        CallSite.WEBVIEW_INSTANCE_CREATE_PRINT_DOCUMENT_ADAPTER,
+        CallSite.WEBVIEW_INSTANCE_EXTRACT_SMART_CLIP_DATA,
+        CallSite.WEBVIEW_INSTANCE_SET_SMART_CLIP_RESULT_HANDLER,
+        CallSite.WEBVIEW_INSTANCE_GET_RENDER_PROCESS,
+        CallSite.WEBVIEW_INSTANCE_GET_WEBVIEW_RENDERER_CLIENT_ADAPTER,
+        CallSite.WEBVIEW_INSTANCE_PAGE_UP,
+        CallSite.WEBVIEW_INSTANCE_PAGE_DOWN,
+        CallSite.WEBVIEW_INSTANCE_LOAD_URL_ADDITIONAL_HEADERS,
+        CallSite.WEBVIEW_INSTANCE_INIT,
+        CallSite.WEBVIEW_INSTANCE_CAPTURE_PICTURE,
+        CallSite.WEBVIEW_INSTANCE_GET_SCALE,
+        CallSite.WEBVIEW_INSTANCE_SET_INITIAL_SCALE,
+        CallSite.WEBVIEW_INSTANCE_GET_HIT_TEST_RESULT,
+        CallSite.WEBVIEW_INSTANCE_GET_URL,
+        CallSite.WEBVIEW_INSTANCE_GET_ORIGINAL_URL,
+        CallSite.WEBVIEW_INSTANCE_GET_TITLE,
+        CallSite.WEBVIEW_INSTANCE_GET_FAVICON,
+        CallSite.STATIC_FIND_ADDRESS,
+        CallSite.STATIC_GET_DEFAULT_USER_AGENT,
+        CallSite.STATIC_SET_WEB_CONTENTS_DEBUGGING_ENABLED,
+        CallSite.STATIC_CLEAR_CLIENT_CERT_PREFERENCES,
+        CallSite.STATIC_FREE_MEMORY_FOR_TESTS,
+        CallSite.STATIC_ENABLE_SLOW_WHOLE_DOCUMENT_DRAW,
+        CallSite.STATIC_PARSE_FILE_CHOOSER_RESULT,
+        CallSite.STATIC_INIT_SAFE_BROWSING,
+        CallSite.STATIC_SET_SAFE_BROWSING_ALLOWLIST,
+        CallSite.STATIC_GET_SAFE_BROWSING_PRIVACY_POLICY_URL,
+        CallSite.STATIC_IS_MULTI_PROCESS_ENABLED,
+        CallSite.STATIC_GET_VARIATIONS_HEADER,
+        CallSite.STATIC_SET_DEFAULT_TRAFFIC_STATS_TAG,
+        CallSite.STATIC_SET_DEFAULT_TRAFFIC_STATS_UID,
         CallSite.COUNT,
     })
     public @interface CallSite {
         int GET_AW_TRACING_CONTROLLER = 0;
         int GET_AW_PROXY_CONTROLLER = 1;
-        int WEBVIEW_INSTANCE = 2;
-        int GET_STATICS = 3;
+        // Value 2 was used as a catch all for all WebView instance methods.
+        // Value 3 was used as a catch all for all static methods.
+        // Both values 2 and 3 are deprecated and should no longer be used.
         int GET_DEFAULT_GEOLOCATION_PERMISSIONS = 4;
         int GET_DEFAULT_SERVICE_WORKER_CONTROLLER = 5;
         int GET_WEB_ICON_DATABASE = 6;
@@ -283,35 +370,111 @@ public class WebViewChromiumAwInit {
         int GET_DEFAULT_WEBVIEW_DATABASE = 8;
         int GET_TRACING_CONTROLLER = 9;
         int ASYNC_WEBVIEW_STARTUP = 10;
+        int WEBVIEW_INSTANCE_OVERLAY_HORIZONTAL_SCROLLBAR = 11;
+        int WEBVIEW_INSTANCE_OVERLAY_VERTICAL_SCROLLBAR = 12;
+        int WEBVIEW_INSTANCE_GET_CERTIFICATE = 13;
+        int WEBVIEW_INSTANCE_GET_HTTP_AUTH_USERNAME_PASSWORD = 14;
+        int WEBVIEW_INSTANCE_SAVE_STATE = 15;
+        int WEBVIEW_INSTANCE_RESTORE_STATE = 16;
+        int WEBVIEW_INSTANCE_LOAD_URL = 17;
+        int WEBVIEW_INSTANCE_POST_URL = 18;
+        int WEBVIEW_INSTANCE_LOAD_DATA = 19;
+        int WEBVIEW_INSTANCE_LOAD_DATA_WITH_BASE_URL = 20;
+        int WEBVIEW_INSTANCE_EVALUATE_JAVASCRIPT = 21;
+        int WEBVIEW_INSTANCE_CAN_GO_BACK = 22;
+        int WEBVIEW_INSTANCE_CAN_GO_FORWARD = 23;
+        int WEBVIEW_INSTANCE_CAN_GO_BACK_OR_FORWARD = 24;
+        int WEBVIEW_INSTANCE_IS_PAUSED = 25;
+        int WEBVIEW_INSTANCE_COPY_BACK_FORWARD_LIST = 26;
+        int WEBVIEW_INSTANCE_SHOW_FIND_DIALOG = 27;
+        int WEBVIEW_INSTANCE_SET_WEBVIEW_CLIENT = 28;
+        int WEBVIEW_INSTANCE_SET_WEBCHROME_CLIENT = 29;
+        int WEBVIEW_INSTANCE_CREATE_WEBMESSAGE_CHANNEL = 30;
+        int WEBVIEW_INSTANCE_GET_ZOOM_CONTROLS = 31;
+        int WEBVIEW_INSTANCE_ZOOM_IN = 32;
+        int WEBVIEW_INSTANCE_ZOOM_OUT = 33;
+        int WEBVIEW_INSTANCE_ZOOM_BY = 34;
+        int WEBVIEW_INSTANCE_SET_RENDERER_PRIORITY_POLICY = 35;
+        int WEBVIEW_INSTANCE_GET_RENDERER_REQUESTED_PRIORITY = 36;
+        int WEBVIEW_INSTANCE_GET_RENDERER_PRIORITY_WAIVED_WHEN_NOT_VISIBLE = 37;
+        int WEBVIEW_INSTANCE_SET_TEXT_CLASSIFIER = 38;
+        int WEBVIEW_INSTANCE_GET_TEXT_CLASSIFIER = 39;
+        int WEBVIEW_INSTANCE_AUTOFILL = 40;
+        int WEBVIEW_INSTANCE_ON_PROVIDE_AUTOFILL_VIRTUAL_STRUCTURE = 41;
+        int WEBVIEW_INSTANCE_ON_PROVIDE_CONTENT_CAPTURE_STRUCTURE = 42;
+        int WEBVIEW_INSTANCE_SHOULD_DELAY_CHILD_PRESSED_STATE = 43;
+        int WEBVIEW_INSTANCE_GET_ACCESSIBILITY_NODE_PROVIDER = 44;
+        int WEBVIEW_INSTANCE_ON_PROVIDE_VIRTUAL_STRUCTURE = 45;
+        int WEBVIEW_INSTANCE_PERFORM_ACCESSIBILITY_ACTION = 46;
+        int WEBVIEW_INSTANCE_ON_DRAW = 47;
+        int WEBVIEW_INSTANCE_SET_LAYOUT_PARAMS = 48;
+        int WEBVIEW_INSTANCE_ON_DRAG_EVENT = 49;
+        int WEBVIEW_INSTANCE_ON_CREATE_INPUT_CONNECTION = 50;
+        int WEBVIEW_INSTANCE_ON_KEY_MULTIPLE = 51;
+        int WEBVIEW_INSTANCE_ON_KEY_DOWN = 52;
+        int WEBVIEW_INSTANCE_ON_KEY_UP = 53;
+        int WEBVIEW_INSTANCE_ON_ATTACHED_TO_WINDOW = 54;
+        int WEBVIEW_INSTANCE_DISPATCH_KEY_EVENT = 55;
+        int WEBVIEW_INSTANCE_ON_TOUCH_EVENT = 56;
+        int WEBVIEW_INSTANCE_ON_HOVER_EVENT = 57;
+        int WEBVIEW_INSTANCE_ON_GENERIC_MOTION_EVENT = 58;
+        int WEBVIEW_INSTANCE_REQUEST_FOCUS = 59;
+        int WEBVIEW_INSTANCE_ON_MEASURE = 60;
+        int WEBVIEW_INSTANCE_REQUEST_CHILD_RECTANGLE_ON_SCREEN = 61;
+        int WEBVIEW_INSTANCE_SET_BACKGROUND_COLOR = 62;
+        int WEBVIEW_INSTANCE_ON_START_TEMPORARY_DETACH = 63;
+        int WEBVIEW_INSTANCE_ON_FINISH_TEMPORARY_DETACH = 64;
+        int WEBVIEW_INSTANCE_ON_CHECK_IS_TEXT_EDITOR = 65;
+        int WEBVIEW_INSTANCE_ON_APPLY_WINDOW_INSETS = 66;
+        int WEBVIEW_INSTANCE_ON_RESOLVE_POINTER_ICON = 67;
+        int WEBVIEW_INSTANCE_COMPUTE_HORIZONTAL_SCROLL_RANGE = 68;
+        int WEBVIEW_INSTANCE_COMPUTE_HORIZONTAL_SCROLL_OFFSET = 69;
+        int WEBVIEW_INSTANCE_COMPUTE_VERTICAL_SCROLL_RANGE = 70;
+        int WEBVIEW_INSTANCE_COMPUTE_VERTICAL_SCROLL_OFFSET = 71;
+        int WEBVIEW_INSTANCE_COMPUTE_VERTICAL_SCROLL_EXTENT = 72;
+        int WEBVIEW_INSTANCE_COMPUTE_SCROLL = 73;
+        int WEBVIEW_INSTANCE_CREATE_PRINT_DOCUMENT_ADAPTER = 74;
+        int WEBVIEW_INSTANCE_EXTRACT_SMART_CLIP_DATA = 75;
+        int WEBVIEW_INSTANCE_SET_SMART_CLIP_RESULT_HANDLER = 76;
+        int WEBVIEW_INSTANCE_GET_RENDER_PROCESS = 77;
+        int WEBVIEW_INSTANCE_GET_WEBVIEW_RENDERER_CLIENT_ADAPTER = 78;
+        int WEBVIEW_INSTANCE_PAGE_UP = 79;
+        int WEBVIEW_INSTANCE_PAGE_DOWN = 80;
+        int WEBVIEW_INSTANCE_LOAD_URL_ADDITIONAL_HEADERS = 81;
+        int WEBVIEW_INSTANCE_INIT = 82;
+        int WEBVIEW_INSTANCE_CAPTURE_PICTURE = 83;
+        int WEBVIEW_INSTANCE_GET_SCALE = 84;
+        int WEBVIEW_INSTANCE_SET_INITIAL_SCALE = 85;
+        int WEBVIEW_INSTANCE_GET_HIT_TEST_RESULT = 86;
+        int WEBVIEW_INSTANCE_GET_URL = 87;
+        int WEBVIEW_INSTANCE_GET_ORIGINAL_URL = 88;
+        int WEBVIEW_INSTANCE_GET_TITLE = 89;
+        int WEBVIEW_INSTANCE_GET_FAVICON = 90;
+        int STATIC_FIND_ADDRESS = 91;
+        int STATIC_GET_DEFAULT_USER_AGENT = 92;
+        int STATIC_SET_WEB_CONTENTS_DEBUGGING_ENABLED = 93;
+        int STATIC_CLEAR_CLIENT_CERT_PREFERENCES = 94;
+        int STATIC_FREE_MEMORY_FOR_TESTS = 95;
+        int STATIC_ENABLE_SLOW_WHOLE_DOCUMENT_DRAW = 96;
+        int STATIC_PARSE_FILE_CHOOSER_RESULT = 97;
+        int STATIC_INIT_SAFE_BROWSING = 98;
+        int STATIC_SET_SAFE_BROWSING_ALLOWLIST = 99;
+        int STATIC_GET_SAFE_BROWSING_PRIVACY_POLICY_URL = 100;
+        int STATIC_IS_MULTI_PROCESS_ENABLED = 101;
+        int STATIC_GET_VARIATIONS_HEADER = 102;
+        int STATIC_SET_DEFAULT_TRAFFIC_STATS_TAG = 103;
+        int STATIC_SET_DEFAULT_TRAFFIC_STATS_UID = 104;
         // Remember to update WebViewStartupCallSite in enums.xml when adding new values here.
-        int COUNT = 11;
+        int COUNT = 105;
     };
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:WebViewStartupCallSite)
 
     WebViewChromiumAwInit(WebViewChromiumFactoryProvider factory) {
         mFactory = factory;
         // Do not make calls into 'factory' in this ctor - this ctor is called from the
         // WebViewChromiumFactoryProvider ctor, so 'factory' is not properly initialized yet.
     }
-
-    public AwTracingController getAwTracingController() {
-        triggerAndWaitForChromiumStarted(CallSite.GET_AW_TRACING_CONTROLLER);
-        return mChromiumStartedGlobals.mAwTracingController;
-    }
-
-    public AwProxyController getAwProxyController() {
-        triggerAndWaitForChromiumStarted(CallSite.GET_AW_PROXY_CONTROLLER);
-        return mChromiumStartedGlobals.mAwProxyController;
-    }
-
-    public void setProviderInitOnMainLooperLocation(Throwable t) {
-        mWebViewStartUpDiagnostics.setProviderInitOnMainLooperLocation(t);
-    }
-
-    // TODO: DIR_RESOURCE_PAKS_ANDROID needs to live somewhere sensible,
-    // inlined here for simplicity setting up the HTMLViewer demo. Unfortunately
-    // it can't go into base.PathService, as the native constant it refers to
-    // lives in the ui/ layer. See ui/base/ui_base_paths.h
-    private static final int DIR_RESOURCE_PAKS_ANDROID = 3003;
 
     private void startChromium(@CallSite int callSite, boolean triggeredFromUIThread) {
         assert ThreadUtils.runningOnUiThread();
@@ -339,6 +502,10 @@ public class WebViewChromiumAwInit {
         mStartupTasksRunner.run(callSite, triggeredFromUIThread);
     }
 
+    void setProviderInitOnMainLooperLocation(Throwable t) {
+        mWebViewStartUpDiagnostics.setProviderInitOnMainLooperLocation(t);
+    }
+
     // Called once during the WebViewChromiumFactoryProvider initialization
     void setStartupTaskExperimentEnabled(boolean enabled) {
         assert mInitState.get() == INIT_NOT_STARTED;
@@ -360,6 +527,8 @@ public class WebViewChromiumAwInit {
     // Initializes a new StartupTaskRunner with a list of tasks to run for chromium startup.
     // Postcondition of calling `.run` on the returned StartupTasksRunner is that Chromium startup
     // is finished.
+    // Note: You should abstract any logic that is not strictly dependent on glue layer code into
+    // a static method in AwBrowserProcess so they can be unit-tested.
     private StartupTasksRunner initializeStartupTasksRunner() {
         ArrayDeque<Runnable> preBrowserProcessStartTasks = new ArrayDeque<>();
         ArrayDeque<Runnable> postBrowserProcessStartTasks = new ArrayDeque<>();
@@ -483,8 +652,7 @@ public class WebViewChromiumAwInit {
                     }
 
                     if (ApkInfo.isDebugAndroidOrApp()) {
-                        mChromiumStartedGlobals.mSharedStatics
-                                .setWebContentsDebuggingEnabledUnconditionally(true);
+                        getSharedStatics().setWebContentsDebuggingEnabledUnconditionally(true);
                     }
 
                     if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
@@ -493,105 +661,20 @@ public class WebViewChromiumAwInit {
                         AwDarkMode.enableSimplifiedDarkMode();
                     }
 
-                    if (CommandLine.getInstance().hasSwitch(AwSwitches.WEBVIEW_VERBOSE_LOGGING)) {
-                        logCommandLineAndActiveTrials();
-                    }
+                    AwBrowserProcess.postBackgroundTasks(
+                            mFactory.isSafeModeEnabled(), mFactory.getWebViewPrefs());
 
-                    PostTask.postTask(
-                            TaskTraits.BEST_EFFORT,
-                            () -> {
-                                WebViewCachedFlags.get()
-                                        .onStartupCompleted(mFactory.getWebViewPrefs());
-                            });
-
-                    if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_PREFETCH_NATIVE_LIBRARY)
-                            && !AwFeatureMap.getInstance()
-                                    .getFieldTrialParamByFeatureAsBoolean(
-                                            AwFeatures.WEBVIEW_PREFETCH_NATIVE_LIBRARY,
-                                            "WebViewPrefetchFromRenderer",
-                                            true)) {
-                        PostTask.postTask(
-                                TaskTraits.BEST_EFFORT,
-                                () -> {
-                                    LibraryPrefetcher.prefetchNativeLibraryForWebView();
-                                });
-                    }
-
-                    if (AwFeatureMap.isEnabled(AwFeatures.WEBVIEW_RECORD_APP_CACHE_HISTOGRAMS)) {
-                        PostTask.postDelayedTask(
-                                TaskTraits.BEST_EFFORT_MAY_BLOCK,
-                                () -> {
-                                    StorageManager storageManager =
-                                            (StorageManager)
-                                                    ContextUtils.getApplicationContext()
-                                                            .getSystemService(
-                                                                    Context.STORAGE_SERVICE);
-                                    UUID storageUuid =
-                                            ContextUtils.getApplicationContext()
-                                                    .getApplicationInfo()
-                                                    .storageUuid;
-                                    long startTimeGetCacheQuotaMs = SystemClock.uptimeMillis();
-                                    long cacheQuotaKiloBytes = -1;
-                                    try {
-                                        // This can throw `SecurityException` if the app doesn't
-                                        // have sufficient privileges.
-                                        // See crbug.com/422174715
-                                        cacheQuotaKiloBytes =
-                                                storageManager.getCacheQuotaBytes(storageUuid)
-                                                        / 1024;
-                                        RecordHistogram.recordCount1MHistogram(
-                                                "Android.WebView.CacheQuotaSize",
-                                                (int) cacheQuotaKiloBytes);
-                                    } catch (Exception e) {
-                                    } finally {
-                                        RecordHistogram.recordTimesHistogram(
-                                                "Android.WebView.GetCacheQuotaSizeTime",
-                                                SystemClock.uptimeMillis()
-                                                        - startTimeGetCacheQuotaMs);
-                                    }
-
-                                    long startTimeGetCacheSizeMs = SystemClock.uptimeMillis();
-                                    long cacheSizeKiloBytes = -1;
-                                    try {
-                                        // This can throw `SecurityException` if the app doesn't
-                                        // have sufficient privileges.
-                                        // See crbug.com/422174715
-                                        cacheSizeKiloBytes =
-                                                storageManager.getCacheSizeBytes(storageUuid)
-                                                        / 1024;
-                                        RecordHistogram.recordCount1MHistogram(
-                                                "Android.WebView.CacheSize",
-                                                (int) cacheSizeKiloBytes);
-                                    } catch (Exception e) {
-                                    } finally {
-                                        RecordHistogram.recordTimesHistogram(
-                                                "Android.WebView.GetCacheSizeTime",
-                                                SystemClock.uptimeMillis()
-                                                        - startTimeGetCacheSizeMs);
-                                    }
-                                    if (cacheQuotaKiloBytes != -1 && cacheSizeKiloBytes != -1) {
-                                        long quotaRemainingKiloBytes =
-                                                cacheQuotaKiloBytes - cacheSizeKiloBytes;
-                                        if (quotaRemainingKiloBytes >= 0) {
-                                            RecordHistogram.recordCount1MHistogram(
-                                                    "Android.WebView.CacheSizeWithinQuota",
-                                                    (int) quotaRemainingKiloBytes);
-                                        } else {
-                                            RecordHistogram.recordCount1MHistogram(
-                                                    "Android.WebView.CacheSizeExceedsQuota",
-                                                    -1 * (int) quotaRemainingKiloBytes);
-                                        }
-                                    }
-                                },
-                                5000);
-                    }
                     AwCrashyClassUtils.maybeCrashIfEnabled();
                     // Must happen right after Chromium initialization is complete.
                     mInitState.set(INIT_FINISHED);
                     mStartupFinished.countDown();
                     // This runs all the pending tasks queued for after Chromium init is
                     // finished, so should run after `mInitState` is `INIT_FINISHED`.
+                    long startTime = SystemClock.uptimeMillis();
                     mFactory.getRunQueue().notifyChromiumStarted();
+                    RecordHistogram.recordTimesHistogram(
+                            "Android.WebView.Startup.ChromiumInitTime.DrainRunQueueDuration",
+                            SystemClock.uptimeMillis() - startTime);
                     if (anyStartupTaskExperimentIsEnabled()) {
                         // Re-enables the taskrunners
                         PostTask.disablePreNativeUiTasks(false);
@@ -608,7 +691,8 @@ public class WebViewChromiumAwInit {
         StartupCallback callback =
                 new StartupCallback() {
                     @Override
-                    public void onSuccess() {
+                    public void onSuccess(@Nullable StartupMetrics metrics) {
+                        mStartupTasksRunner.recordContentMetrics(metrics);
                         mStartupTasksRunner.finishAsyncRun();
                     }
 
@@ -659,7 +743,7 @@ public class WebViewChromiumAwInit {
         AwClassPreloader.preloadClasses();
 
         AwBrowserProcess.handleMinidumpsAndSetMetricsConsent(/* updateMetricsConsent= */ true);
-        doNetworkInitializations(ContextUtils.getApplicationContext());
+        AwBrowserProcess.doNetworkInitializations(ContextUtils.getApplicationContext());
     }
 
     private void recordStartupMetrics(
@@ -675,14 +759,6 @@ public class WebViewChromiumAwInit {
         mWebViewStartUpDiagnostics.setMaxTimePerTaskUiThreadChromiumInitMillis(
                 longestUiBlockingTaskTimeMs);
         mWebViewStartUpCallbackRunQueue.notifyChromiumStarted();
-
-        BrowserStartupController browserController = BrowserStartupController.getInstance();
-        longestUiBlockingTaskTimeMs =
-                Math.max(
-                        longestUiBlockingTaskTimeMs,
-                        Math.max(
-                                browserController.getContentStartDuration(),
-                                browserController.getStartupTasksLongestBlockingDuration()));
 
         // Record histograms
         String startupModeString =
@@ -712,11 +788,11 @@ public class WebViewChromiumAwInit {
                 startupMode,
                 StartupTasksRunner.StartupMode.COUNT);
         RecordHistogram.recordEnumeratedHistogram(
-                "Android.WebView.Startup.CreationTime.InitReason", startCallSite, CallSite.COUNT);
+                "Android.WebView.Startup.CreationTime.InitReason2", startCallSite, CallSite.COUNT);
         if (startupMode == StartupTasksRunner.StartupMode.ASYNC_BUT_FULLY_SYNC
                 || startupMode == StartupTasksRunner.StartupMode.PARTIAL_ASYNC_THEN_SYNC) {
             RecordHistogram.recordEnumeratedHistogram(
-                    "Android.WebView.Startup.ChromiumInitTime.AsyncToSyncSwitchReason",
+                    "Android.WebView.Startup.ChromiumInitTime.AsyncToSyncSwitchReason2",
                     finishCallSite,
                     CallSite.COUNT);
         }
@@ -747,9 +823,9 @@ public class WebViewChromiumAwInit {
     }
 
     /**
-     * Set up resources on a background thread. This method is called once during
-     * WebViewChromiumFactoryProvider initialization which is guaranteed to finish before this field
-     * is accessed by waitUntilSetUpResources.
+     * Set up resources on a background thread, in parallel with chromium initialization as it takes
+     * some time. This method is called once during WebViewChromiumFactoryProvider initialization
+     * which is guaranteed to finish before this field is accessed by waitUntilSetUpResources.
      *
      * @param context The context.
      */
@@ -758,16 +834,23 @@ public class WebViewChromiumAwInit {
                 DualTraceEvent.scoped("WebViewChromiumAwInit.setUpResourcesOnBackgroundThread")) {
             assert mSetUpResourcesThread == null : "This method shouldn't be called twice.";
 
+            Runnable setUpResourcesRunnable =
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            try (DualTraceEvent e =
+                                    DualTraceEvent.scoped("WebViewChromiumAwInit.setUpResources")) {
+                                R.onResourcesLoaded(packageId);
+
+                                AwResource.setResources(context.getResources());
+                                AwResource.setConfigKeySystemUuidMapping(
+                                        android.R.array.config_keySystemUuidMapping);
+                            }
+                        }
+                    };
+
             // Make sure that ResourceProvider is initialized before starting the browser process.
-            mSetUpResourcesThread =
-                    new Thread(
-                            new Runnable() {
-                                @Override
-                                public void run() {
-                                    // Run this in parallel as it takes some time.
-                                    setUpResources(packageId, context);
-                                }
-                            });
+            mSetUpResourcesThread = new Thread(setUpResourcesRunnable);
             mSetUpResourcesThread.start();
         }
     }
@@ -778,15 +861,6 @@ public class WebViewChromiumAwInit {
             mSetUpResourcesThread.join();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private void setUpResources(int packageId, Context context) {
-        try (DualTraceEvent e = DualTraceEvent.scoped("WebViewChromiumAwInit.setUpResources")) {
-            R.onResourcesLoaded(packageId);
-
-            AwResource.setResources(context.getResources());
-            AwResource.setConfigKeySystemUuidMapping(android.R.array.config_keySystemUuidMapping);
         }
     }
 
@@ -838,9 +912,7 @@ public class WebViewChromiumAwInit {
      * <p>Postcondition: Chromium startup will be finished in the near future.
      */
     void postChromiumStartupIfNeeded(@CallSite int callSite) {
-        if (triggerChromiumStartupAndReturnTrueIfStartupIsFinished(callSite, true)) {
-            return;
-        }
+        triggerChromiumStartupAndReturnTrueIfStartupIsFinished(callSite, true);
     }
 
     /**
@@ -926,29 +998,18 @@ public class WebViewChromiumAwInit {
         }
     }
 
-    private void doNetworkInitializations(Context applicationContext) {
-        try (DualTraceEvent e =
-                DualTraceEvent.scoped("WebViewChromiumAwInit.doNetworkInitializations")) {
-            boolean forceUpdateNetworkState =
-                    !AwFeatureMap.isEnabled(
-                            AwFeatures.WEBVIEW_USE_INITIAL_NETWORK_STATE_AT_STARTUP);
-            if (applicationContext.checkPermission(
-                            Manifest.permission.ACCESS_NETWORK_STATE,
-                            Process.myPid(),
-                            Process.myUid())
-                    == PackageManager.PERMISSION_GRANTED) {
-                NetworkChangeNotifier.init();
-                NetworkChangeNotifier.setAutoDetectConnectivityState(
-                        new AwNetworkChangeNotifierRegistrationPolicy(), forceUpdateNetworkState);
-            }
-        }
+    public SharedStatics getSharedStatics() {
+        return mFactory.getSharedStatics();
     }
 
-    public SharedStatics getStatics() {
-        // TODO: Optimization potential: most of the static methods only need the native
-        // library loaded and initialized, not the entire browser process started.
-        triggerAndWaitForChromiumStarted(CallSite.GET_STATICS);
-        return mChromiumStartedGlobals.mSharedStatics;
+    public AwTracingController getAwTracingController() {
+        triggerAndWaitForChromiumStarted(CallSite.GET_AW_TRACING_CONTROLLER);
+        return mChromiumStartedGlobals.mAwTracingController;
+    }
+
+    public AwProxyController getAwProxyController() {
+        triggerAndWaitForChromiumStarted(CallSite.GET_AW_PROXY_CONTROLLER);
+        return mChromiumStartedGlobals.mAwProxyController;
     }
 
     public CookieManager getDefaultCookieManager() {
@@ -1007,25 +1068,6 @@ public class WebViewChromiumAwInit {
                 mSeedLoader = null; // Allow this to be GC'd after its background thread finishes.
             }
         }
-    }
-
-    // Log extra information, for debugging purposes. Do the work asynchronously to avoid blocking
-    // startup.
-    private void logCommandLineAndActiveTrials() {
-        PostTask.postTask(
-                TaskTraits.BEST_EFFORT,
-                () -> {
-                    // TODO(ntfschr): CommandLine can change at any time. For simplicity, only log
-                    // it once during startup.
-                    AwContentsStatics.logCommandLineForDebugging();
-                    // Field trials can be activated at any time. We'll continue logging them as
-                    // they're activated.
-                    FieldTrialList.logActiveTrials();
-                    // SafeMode was already determined earlier during the startup sequence, this
-                    // just fetches the cached boolean state. If SafeMode was enabled, we already
-                    // logged detailed information about the SafeMode config.
-                    Log.i(TAG, "SafeMode enabled: " + mFactory.isSafeModeEnabled());
-                });
     }
 
     public WebViewChromiumRunQueue getRunQueue() {
@@ -1089,10 +1131,8 @@ public class WebViewChromiumAwInit {
     private static final class ChromiumStartedGlobals {
         final AwTracingController mAwTracingController;
         final AwProxyController mAwProxyController;
-        final SharedStatics mSharedStatics;
 
         ChromiumStartedGlobals() {
-            mSharedStatics = new SharedStatics();
             mAwProxyController = new AwProxyController();
             mAwTracingController = new AwTracingController();
         }
@@ -1217,9 +1257,6 @@ public class WebViewChromiumAwInit {
                 mStartupStarted = true;
                 mFirstTaskFromSynchronousCall = triggeredFromUIThread;
                 mStartCallSite = callSite;
-                if (mStartCallSite == CallSite.GET_STATICS) {
-                    SharedStatics.setStartupTriggered();
-                }
                 mFinishCallSite = callSite;
                 mStartupTimeMs = SystemClock.uptimeMillis();
             }
@@ -1344,6 +1381,17 @@ public class WebViewChromiumAwInit {
                 }
                 throw e;
             }
+        }
+
+        // Record metrics for tasks that were posted by the BrowserStartupController since the
+        // StartupTaskRunner cannot account for them directly.
+        void recordContentMetrics(@Nullable StartupMetrics metrics) {
+            assert metrics != null;
+            mLongestUiBlockingTaskTimeMs =
+                    Math.max(
+                            mLongestUiBlockingTaskTimeMs,
+                            metrics.getLongestDurationOfPostedTasksMs());
+            mTotalTimeTakenMs += metrics.getTotalDurationOfPostedTasksMs();
         }
 
         // To determine the startup mode, we track:

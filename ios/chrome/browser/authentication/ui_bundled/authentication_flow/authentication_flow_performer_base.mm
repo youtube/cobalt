@@ -57,7 +57,6 @@
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
 #import "ios/chrome/browser/shared/ui/util/identity_snackbar/identity_snackbar_utils.h"
-#import "ios/chrome/browser/shared/ui/util/snackbar_util.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
@@ -113,9 +112,16 @@ void HandleSignoutForSnackbar(
         ->SetSelectedType(clear_selected_type.value(), false);
   }
 
+  // To complete the signout request, it should be guranteed to complete the
+  // request using a non-incognito browser.
+  Browser* mainBrowser =
+      browser->type() == Browser::Type::kIncognito
+          ? browser->GetSceneState()
+                .browserProviderInterface.mainBrowserProvider.browser
+          : browser;
   signin::ProfileSignoutRequest(
       signin_metrics::ProfileSignout::kUserTappedUndoRightAfterSignIn)
-      .Run(browser);
+      .Run(mainBrowser);
 }
 
 void MaybeShowHistorySyncScreenAfterProfileSwitch(
@@ -234,14 +240,15 @@ void CompletePostSignInActions(PostSignInActionSet post_signin_actions,
   NSString* messageText =
       l10n_util::GetNSStringF(IDS_IOS_SIGNIN_SNACKBAR_SIGNED_IN_AS,
                               base::SysNSStringToUTF16(identity.userEmail));
-  SnackbarMessage* message = CreateCustomSnackbarMessage(messageText);
+  SnackbarMessage* message =
+      [[SnackbarMessage alloc] initWithTitle:messageText];
   message.action = action;
 
   id<SnackbarCommands> handler =
       HandlerForProtocol(browser->GetCommandDispatcher(), SnackbarCommands);
   CHECK(handler);
   TriggerHapticFeedbackForNotification(UINotificationFeedbackTypeSuccess);
-  [handler showCustomSnackbarMessage:message];
+  [handler showSnackbarMessage:message];
 }
 
 @implementation AuthenticationFlowPerformerBase {

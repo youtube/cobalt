@@ -9,12 +9,14 @@
 
 // Provides the views needed for the custom dismissal animation.
 @protocol AIMPrototypeAnimationContextProvider
-// The main view of the view controller to be faded out.
-@property(nonatomic, readonly) UIView* mainViewForAnimation;
 // The input plate view to be animated downwards.
 @property(nonatomic, readonly) UIView* inputPlateViewForAnimation;
 // The text view to be focused after the presentation animation.
 @property(nonatomic, readonly) UITextView* textViewForAnimation;
+
+// Sets whether AI mode is enabled.
+- (void)setAIModeEnabled:(BOOL)AIModeEnabled;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_AIM_PROTOTYPE_UI_AIM_PROTOTYPE_ANIMATION_CONTEXT_PROVIDER_H_

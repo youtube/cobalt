@@ -11,11 +11,67 @@
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/types/expected.h"
+#include "base/types/optional_ref.h"
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace page_content_annotations {
+
+enum class ScreenshotIframeRedactionScope {
+  // No redaction.
+  kNone,
+  // Redact cross-site iframes.
+  kCrossSite,
+  // Redact cross-origin iframes.
+  kCrossOrigin,
+};
+
+struct PaintPreviewOptions {
+  // The maximum memory/file bytes used for the capture of a single frame.
+  // 0 means no limit.
+  size_t max_per_capture_bytes = 0;
+
+  // Whether iframe redaction is enabled, and which scope is used if so.
+  ScreenshotIframeRedactionScope iframe_redaction_scope =
+      ScreenshotIframeRedactionScope::kNone;
+};
+
+class ScreenshotOptions {
+ public:
+  // Creates options for a full-page screenshot.
+  // Full-page screenshots always use the paint preview backend.
+  static ScreenshotOptions FullPage(PaintPreviewOptions paint_preview_options) {
+    return ScreenshotOptions(/*capture_full_page=*/true, paint_preview_options);
+  }
+
+  // Creates options for a viewport-only screenshot.
+  static ScreenshotOptions ViewportOnly(
+      std::optional<PaintPreviewOptions> paint_preview_options) {
+    return ScreenshotOptions(/*capture_full_page=*/false,
+                             std::move(paint_preview_options));
+  }
+
+  bool capture_full_page() const { return capture_full_page_; }
+  bool use_paint_preview() const { return paint_preview_options_.has_value(); }
+  base::optional_ref<const PaintPreviewOptions> paint_preview_options() const
+      LIFETIME_BOUND {
+    return paint_preview_options_;
+  }
+
+ private:
+  // Private constructor to force object creation through static methods.
+  ScreenshotOptions(bool capture_full_page,
+                    std::optional<PaintPreviewOptions> paint_preview_options)
+      : capture_full_page_(capture_full_page),
+        paint_preview_options_(paint_preview_options) {}
+
+  // Whether to capture a full-page screenshot. If false, only the viewport will
+  // be captured.
+  bool capture_full_page_ = false;
+  // This field must be set if capture_full_page_ is true.
+  std::optional<PaintPreviewOptions> paint_preview_options_ = std::nullopt;
+};
 
 struct FetchPageContextOptions {
   FetchPageContextOptions();
@@ -24,7 +80,10 @@ struct FetchPageContextOptions {
   // Limit defining the number of bytes for inner text returned. A value
   // of 0 indicates no inner text should be returned.
   uint32_t inner_text_bytes_limit = 0;
-  bool include_viewport_screenshot = false;
+
+  // Options for taking a screenshot. If not set, no screenshot will be taken.
+  std::optional<ScreenshotOptions> screenshot_options = std::nullopt;
+
   blink::mojom::AIPageContentOptionsPtr annotated_page_content_options;
 
   // Limit defining number of bytes for PDF data that should be returned.
@@ -103,26 +162,6 @@ extern const base::FeatureParam<int> kMaxScreenshotHeightParam;
 extern const base::FeatureParam<int> kScreenshotJpegQuality;
 
 extern const base::FeatureParam<base::TimeDelta> kScreenshotTimeout;
-
-// Enables the Paint Preview backend for taking screenshots.
-BASE_DECLARE_FEATURE(kGlicTabScreenshotPaintPreviewBackend);
-
-enum class ScreenshotIframeRedactionScope {
-  // No redaction.
-  kNone,
-  // Redact cross-site iframes.
-  kCrossSite,
-  // Redact cross-origin iframes.
-  kCrossOrigin,
-};
-
-// Controls whether iframe redaction is enabled, and which scope is used if so.
-extern const base::FeatureParam<ScreenshotIframeRedactionScope>
-    kScreenshotIframeRedaction;
-
-// Controls the maximum memory/file bytes used for the capture of a single
-// frame. 0 means no maximum.
-extern const base::FeatureParam<size_t> kScreenshotMaxPerCaptureBytes;
 
 // Enables page context eligibility checks.
 BASE_DECLARE_FEATURE(kGlicPageContextEligibility);

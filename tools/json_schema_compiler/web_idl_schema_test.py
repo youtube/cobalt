@@ -567,7 +567,7 @@ class WebIdlSchemaTest(unittest.TestCase):
   # doesn't support yet throws an error.
   def testUnsupportedTypeClassError(self):
     expected_error_regex = (
-        r'.* Any\(\): Unsupported type class when processing type\.')
+        r'.* FrozenArray\(\): Unsupported type class when processing type\.')
     self.assertRaisesRegex(
         SchemaCompilerError,
         expected_error_regex,
@@ -664,19 +664,6 @@ class WebIdlSchemaTest(unittest.TestCase):
         'test/web_idl/void_unsupported.idl',
     )
 
-  # Tests that a namespace with an extended attribute that we don't have
-  # processing for results in a schema compiler error.
-  def testUnknownNamespaceExtendedAttributeNameError(self):
-    expected_error_regex = (
-        r'.* Interface\(TestWebIdl\): Unknown extended attribute with name'
-        r' "UnknownExtendedAttribute" when processing namespace.')
-    self.assertRaisesRegex(
-        SchemaCompilerError,
-        expected_error_regex,
-        web_idl_schema.Load,
-        'test/web_idl/unknown_namespace_extended_attribute.idl',
-    )
-
   # Tests that an API interface that uses the nodoc extended attribute has the
   # related nodoc attribute set to true after processing.
   def testNoDocOnNamespace(self):
@@ -703,16 +690,35 @@ class WebIdlSchemaTest(unittest.TestCase):
     no_nodoc_enum = getType(schema, 'EnumType')
     self.assertFalse(hasattr(no_nodoc_enum, 'nodoc'))
 
-  # Tests that an enum with the deprecated extended attribute has the related
-  # deprecated attribute set to the provided string value after processing.
-  # TODO(crbug.com/340297705): expand this out to the other various places
-  # deprecated can be specified.
+  # Tests that the deprecated extended attribute used in various places get the
+  # related attribute set to the provided string after processing.
+  # TODO(crbug.com/340297705): Enum values are not allowed to have extended
+  # attributes preceding them, so we need to find some other way to mark a
+  # specific enum value as deprecated.
   def testDeprecatedExtendedAttribute(self):
     idl = web_idl_schema.Load('test/web_idl/deprecated.idl')
     self.assertEqual(1, len(idl))
     schema = idl[0]
+
+    self.assertEqual('This API is deprecated', schema['deprecated'])
+
     deprecated_enum = getType(schema, 'DeprecatedEnum')
     self.assertEqual('This enum is deprecated', deprecated_enum['deprecated'])
+
+    deprecated_dict = getType(schema, 'DictWithDeprecatedMember')
+    self.assertEqual(
+        'This dict member is deprecated',
+        deprecated_dict['properties']['deprecatedDictMember']['deprecated'])
+
+    deprecated_function = getFunction(schema, 'deprecatedFunction')
+    self.assertEqual(
+        'This function is deprecated and it has such a long message that\n  it'
+        ' requires line wrapping',
+        deprecated_function['deprecated'],
+    )
+
+    deprecated_event = getEvent(schema, 'onDeprecatedEvent')
+    self.assertEqual('This event is deprecated', deprecated_event['deprecated'])
 
   # Tests that a function defined with the requiredCallback extended attribute
   # does not have the returns_async field marked as optional after processing.
@@ -779,6 +785,27 @@ class WebIdlSchemaTest(unittest.TestCase):
     expected = ['chromeos']
     self.assertEqual(expected, platforms_schema[0]['platforms'])
 
+  # Tests that the 'implemented_in' extended attribute on an interface
+  # definition is copied into the resulting namespace after processing.
+  def testImplementedInExtendedAttribute(self):
+    idl = web_idl_schema.Load('test/web_idl/implemented_in.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    self.assertEqual('implementedInAPI', schema['namespace'])
+    self.assertEqual('path/to/implementation.h',
+                     schema['compiler_options']['implemented_in'])
+
+  # Tests that an API interface using the 'generate_error_messages' extended
+  # attribute has the associated attribute set to true after processing.
+  def testGenerateErrorMessages(self):
+    idl = web_idl_schema.Load('test/web_idl/generate_error_messages.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    self.assertEqual('generateErrorMessagesAPI', schema['namespace'])
+    self.assertTrue(schema['compiler_options']['generate_error_messages'])
+
   # Tests a variety of default values that are set on an API namespace when they
   # are not specified in the source IDL file.
   def testNonSpecifiedDefaultValues(self):
@@ -810,6 +837,140 @@ class WebIdlSchemaTest(unittest.TestCase):
     self.assertEqual('EnumTypeOne', types[1]['id'])
     self.assertEqual('ExampleDictTwo', types[2]['id'])
     self.assertEqual('EnumTypeTwo', types[3]['id'])
+
+  # Tests various 'any' and 'object' types on Dictionaries.
+  def testObjectTypes(self):
+    idl = web_idl_schema.Load('test/web_idl/object_types.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    object_dict = getType(schema, 'ObjectDict')
+    self.assertEqual('object', object_dict['type'])
+    self.assertEqual(
+        {
+            'type': 'object',
+            'name': 'requiredObject',
+            'additionalProperties': {
+                'type': 'any'
+            }
+        }, object_dict['properties']['requiredObject'])
+    self.assertEqual(
+        {
+            'type': 'object',
+            'optional': True,
+            'name': 'optionalObject',
+            'additionalProperties': {
+                'type': 'any'
+            }
+        }, object_dict['properties']['optionalObject'])
+    self.assertEqual(
+        {
+            'type': 'object',
+            'name': 'instanceOfObject',
+            'additionalProperties': {
+                'type': 'any'
+            },
+            'isInstanceOf': 'Blob'
+        }, object_dict['properties']['instanceOfObject'])
+
+    any_dict = getType(schema, 'AnyDict')
+    self.assertEqual('object', any_dict['type'])
+    # Note: we only test a required 'any' here as WebIDL doesn't support
+    # nullable 'any' (i.e. 'any?').
+    self.assertEqual({
+        'type': 'any',
+        'name': 'requiredAny'
+    }, any_dict['properties']['requiredAny'])
+
+  # Tests 'object' and 'any' types used as function parameters.
+  def testObjectFunctionParams(self):
+    idl = web_idl_schema.Load('test/web_idl/object_types.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    object_params = getFunctionParameters(schema, 'objectParamFunction')
+    self.assertEqual(
+        {
+            'type': 'object',
+            'name': 'requiredObjectParam',
+            'additionalProperties': {
+                'type': 'any'
+            }
+        }, object_params[0])
+    self.assertEqual(
+        {
+            'type': 'object',
+            'optional': True,
+            'name': 'optionalObjectParam',
+            'additionalProperties': {
+                'type': 'any'
+            }
+        }, object_params[1])
+
+    any_params = getFunctionParameters(schema, 'anyParamFunction')
+    self.assertEqual({'type': 'any', 'name': 'requiredAnyParam'}, any_params[0])
+    self.assertEqual(
+        {
+            'type': 'any',
+            'optional': True,
+            'name': 'optionalAnyParam'
+        }, any_params[1])
+
+    instance_of_params = getFunctionParameters(schema,
+                                               'instanceOfFunctionParam')
+    self.assertEqual(
+        {
+            'type': 'object',
+            'name': 'instanceOfParam',
+            'additionalProperties': {
+                'type': 'any'
+            },
+            'isInstanceOf': 'Entry'
+        }, instance_of_params[0])
+
+  # Tests 'ArrayBuffer' types on Dictionaries.
+  def testArrayBufferTypes(self):
+    idl = web_idl_schema.Load('test/web_idl/array_buffer.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    array_buffer_dict = getType(schema, 'ArrayBufferDict')
+    self.assertEqual('object', array_buffer_dict['type'])
+    self.assertEqual(
+        {
+            'type': 'binary',
+            'name': 'requiredArrayBuffer',
+            'isInstanceOf': 'ArrayBuffer'
+        }, array_buffer_dict['properties']['requiredArrayBuffer'])
+    self.assertEqual(
+        {
+            'type': 'binary',
+            'optional': True,
+            'name': 'optionalArrayBuffer',
+            'isInstanceOf': 'ArrayBuffer'
+        }, array_buffer_dict['properties']['optionalArrayBuffer'])
+
+  # Test 'ArrayBuffer' types used as function parameters.
+  def testArrayBufferFunctionParams(self):
+    idl = web_idl_schema.Load('test/web_idl/array_buffer.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+
+    array_buffer_params = getFunctionParameters(schema,
+                                                'arrayBufferParamFunction')
+    self.assertEqual(
+        {
+            'type': 'binary',
+            'name': 'requiredArrayBufferParam',
+            'isInstanceOf': 'ArrayBuffer'
+        }, array_buffer_params[0])
+    self.assertEqual(
+        {
+            'type': 'binary',
+            'optional': True,
+            'name': 'optionalArrayBufferParam',
+            'isInstanceOf': 'ArrayBuffer'
+        }, array_buffer_params[1])
 
 
 if __name__ == '__main__':

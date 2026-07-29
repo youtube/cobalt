@@ -70,7 +70,7 @@ void SetExperimentIds(const base::Value::List& list) {
 //    the value that the feature will hold until overriden by the server or the
 //    command line. Here's an exmaple:
 //
-//      BASE_FEATURE(kSuperSecretSauce, "SuperSecretSauce",
+//      BASE_FEATURE(kSuperSecretSauce ,
 //                   base::FEATURE_DISABLED_BY_DEFAULT);
 //
 //    IMPORTANT NOTE:
@@ -184,6 +184,11 @@ BASE_FEATURE(kEnableStarboardAv1Checks,
              "enable_starboard_av1_checks",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If true, StarboardRenderer will be used instead of CastRenderer.
+BASE_FEATURE(kEnableStarboardRenderer,
+             "enable_starboard_renderer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // End Chromecast Feature definitions.
 const base::Feature* kFeatures[] = {
     &kAllowUserMediaAccess,
@@ -197,6 +202,7 @@ const base::Feature* kFeatures[] = {
     &kEnableCastAudioOutputDevice,
     &kEnableStarboardMimeChecks,
     &kEnableStarboardAv1Checks,
+    &kEnableStarboardRenderer,
 };
 
 std::vector<const base::Feature*> GetInternalFeatures();

@@ -13,8 +13,10 @@ from util import server_utils
 
 # Add a check here to cause the suggested fix to be applied while compiling.
 # Use this when trying to enable more checks.
-# BE SURE TO BUILD WITH --offline
-ERRORPRONE_CHECKS_TO_APPLY = []
+ERRORPRONE_CHECKS_TO_APPLY = [
+    # Be sure to first update "android/errorprone" within
+    # build/config/siso/android.star to set "remote": False.
+]
 
 # Checks to disable in tests.
 TESTONLY_ERRORPRONE_WARNINGS_TO_DISABLE = [
@@ -34,21 +36,13 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
     'StaticAssignmentInConstructor',
 
     # Low priority.
-    'BadImport',
     'CatchAndPrintStackTrace',
-    'EffectivelyPrivate',
-    'EmptyCatch',
-    'EqualsGetClass',
     'EqualsHashCode',
-    'IdentityHashMapUsage',
     'JavaUtilDate',
     'OverrideThrowableToString',
     'PatternMatchingInstanceof',
-    'RedundantControlFlow',
     'StatementSwitchToExpressionSwitch',
     'UndefinedEquals',
-    'UseCorrectAssertInTests',
-    'SameNameButDifferent',
     'StaticAssignmentOfThrowable',  # Want in non-test
     'StaticMockMember',
     'StringCaseLocaleUsage',
@@ -59,6 +53,13 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
 
     # Never Enable:
     #
+    # Debatable whether it makes code less readable by forcing larger names for
+    # "Builder".
+    'BadImport',
+    # Such modifiers in nested classes do not hurt readability IMO.
+    'EffectivelyPrivate',
+    # Android APIs sometimes throw random exceptions that are safe to ignore.
+    'EmptyCatch',
     # Just use Android Studio refactors to inline things.
     'InlineMeInliner',
     'InlineMeSuggester',
@@ -96,6 +97,11 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
     'FutureReturnValueIgnored',
     # Just false positives in our code.
     'ThreadJoinLoop',
+    # Fine to run the auto-fix from time to time (which replaces assert
+    # statements with Truth assertions), but because using assert statements is
+    # normal in non-test code, they also show up in test helpers, which are
+    # arguably false-positives.
+    'UseCorrectAssertInTests',
 
     # These are all for Javadoc, which we don't really care about.
     'InvalidBlockTag',

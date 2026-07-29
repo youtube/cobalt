@@ -12,8 +12,6 @@ import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
 import android.os.Build;
-import android.os.Build.VERSION;
-import android.os.Build.VERSION_CODES;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.SparseArray;
@@ -28,7 +26,6 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ContextUtils;
-import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
@@ -87,7 +84,7 @@ public class DisplayAndroidManager {
     class DisplayTopologyListenerBackend
             implements AconfigFlaggedApiDelegate.DisplayTopologyListener {
         public void startListening() {
-            assumeNonNull(mAconfigFlaggedApiDelegate)
+            assumeNonNull(AconfigFlaggedApiDelegate.getInstance())
                     .registerTopologyListener(
                             getDisplayManager(), getContext().getMainExecutor(), this);
         }
@@ -117,8 +114,6 @@ public class DisplayAndroidManager {
     private final HashSet<Integer> mNullDisplayIds = new HashSet<>();
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
-    private final @Nullable AconfigFlaggedApiDelegate mAconfigFlaggedApiDelegate =
-            ServiceLoaderUtil.maybeCreate(AconfigFlaggedApiDelegate.class);
     @VisibleForTesting @Nullable DisplayTopologyListenerBackend mDisplayTopologyListenerBackend;
     private @Nullable SparseArray<RectF> mDisplaysAbsoluteCoordinates;
 
@@ -200,7 +195,7 @@ public class DisplayAndroidManager {
         if (isWindowManagementEnabled()) {
             mDisplaysAbsoluteCoordinates =
                     assumeNonNull(
-                            assumeNonNull(mAconfigFlaggedApiDelegate)
+                            assumeNonNull(AconfigFlaggedApiDelegate.getInstance())
                                     .getAbsoluteBounds(getDisplayManager()));
             for (int i = 0; i < mDisplaysAbsoluteCoordinates.size(); ++i) {
                 int sdkDisplayId = mDisplaysAbsoluteCoordinates.keyAt(i);
@@ -227,8 +222,9 @@ public class DisplayAndroidManager {
 
     /* package */ boolean isWindowManagementEnabled() {
         return UiAndroidFeatureList.sAndroidWindowManagementWebApi.isEnabled()
-                && mAconfigFlaggedApiDelegate != null
-                && mAconfigFlaggedApiDelegate.isDisplayTopologyAvailable(getDisplayManager());
+                && AconfigFlaggedApiDelegate.getInstance() != null
+                && AconfigFlaggedApiDelegate.getInstance()
+                        .isDisplayTopologyAvailable(getDisplayManager());
     }
 
     /* package */ DisplayAndroid getDisplayAndroid(Display display) {
@@ -247,7 +243,6 @@ public class DisplayAndroidManager {
                         display, displayAbsoluteCoordinates, sDisableHdrSdkRatioCallback);
         assert mIdMap.get(sdkDisplayId) == null;
         mIdMap.put(sdkDisplayId, displayAndroid);
-        displayAndroid.updateFromDisplay(display);
         return displayAndroid;
     }
 
@@ -336,19 +331,18 @@ public class DisplayAndroidManager {
     /* package */ void updateDisplayOnNativeSide(DisplayAndroid displayAndroid) {
         if (mNativePointer == 0) return;
 
-        int[] insetsArray = new int[] {0, 0, 0, 0};
-        if (VERSION.SDK_INT >= VERSION_CODES.R) {
-            insetsArray = displayAndroid.getInsetsAsArray();
-        }
-
         DisplayAndroidManagerJni.get()
                 .updateDisplay(
                         mNativePointer,
                         displayAndroid.getDisplayId(),
                         displayAndroid.getDisplayName(),
                         displayAndroid.getBoundsAsArray(),
-                        insetsArray,
+                        displayAndroid.getWorkAreaAsArray(),
+                        displayAndroid.getDisplayWidth(),
+                        displayAndroid.getDisplayHeight(),
                         displayAndroid.getDipScale(),
+                        displayAndroid.getXdpi(),
+                        displayAndroid.getYdpi(),
                         displayAndroid.getRotationDegrees(),
                         displayAndroid.getBitsPerPixel(),
                         displayAndroid.getBitsPerComponent(),
@@ -364,9 +358,13 @@ public class DisplayAndroidManager {
                 long nativeDisplayAndroidManager,
                 int sdkDisplayId,
                 @Nullable String label,
-                int[] bounds, // the order is: left, top, right, bottom
-                int[] insets, // the order is: left, top, right, bottom
+                int[] bounds, // {left, top, right, bottom} in dip
+                int[] workArea, // {left, top, right, bottom} in dip
+                int wight, // in physical pixels
+                int height, // in physical pixels
                 float dipScale,
+                float xDpi,
+                float yDpi,
                 int rotationDegrees,
                 int bitsPerPixel,
                 int bitsPerComponent,

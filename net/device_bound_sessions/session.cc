@@ -162,11 +162,6 @@ base::expected<std::unique_ptr<Session>, SessionError> Session::CreateIfValid(
                   candidate_refresh_endpoint));
 
   for (const auto& cred : params.credentials) {
-    if (cred.name.empty()) {
-      return base::unexpected(
-          SessionError{SessionError::ErrorType::kInvalidCredentials});
-    }
-
     std::optional<CookieCraving> craving = CookieCraving::Create(
         params.fetcher_url, cred.name, cred.attributes, base::Time::Now());
     if (craving) {
@@ -279,10 +274,6 @@ proto::Session Session::ToProto() const {
 bool Session::ShouldDeferRequest(
     URLRequest* request,
     const net::FirstPartySetMetadata& first_party_set_metadata) const {
-  if (request->device_bound_session_usage() < SessionUsage::kNoUsage) {
-    request->set_device_bound_session_usage(SessionUsage::kNoUsage);
-  }
-
   if (!IncludesUrl(request->url())) {
     // Request is not in scope for this session.
     return false;

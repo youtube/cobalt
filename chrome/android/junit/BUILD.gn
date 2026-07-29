@@ -545,7 +545,10 @@ if (is_android) {
       "src/org/chromium/chrome/browser/browserservices/ui/view/DisclosureSnackbarTest.java",
     ]
 
-    deps = [ ":chrome_junit_tests_helper" ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//components/permissions/android:core_java",
+    ]
   }
 
   robolectric_library(
@@ -1050,7 +1053,7 @@ if (is_android) {
   robolectric_library("chrome_junit_tests_org.chromium.chrome.browser.tab") {
     sources = [
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabFaviconTest.java",
-      "src/org/chromium/chrome/browser/tab/PageContentProtoViewStructureBuilderUnitTest.java",
+      "src/org/chromium/chrome/browser/tab/RequestDesktopUtilsUnitTest.java",
       "src/org/chromium/chrome/browser/tab/TabArchiveSettingsTest.java",
       "src/org/chromium/chrome/browser/tab/TabArchiverUnitTest.java",
       "src/org/chromium/chrome/browser/tab/TabAttributesTest.java",
@@ -1227,6 +1230,7 @@ if (is_android) {
       ":chrome_junit_tests_helper",
       "//base:base_junit_test_support",
       "//base:holder_java",
+      "//chrome/browser/tab_group_suggestion:java",
     ]
   }
 

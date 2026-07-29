@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
+#include "components/lens/lens_bitmap_processing.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "components/omnibox/composebox/test_composebox_query_controller.h"
 #include "components/search_engines/search_engines_test_environment.h"
@@ -163,10 +164,10 @@ class ComposeboxQueryControllerTest
                                      /*image_options=*/std::nullopt);
   }
 
-  void StartImageFileUploadFlow(const base::UnguessableToken& file_token,
-                                const std::vector<uint8_t>& file_data,
-                                std::optional<composebox::ImageEncodingOptions>
-                                    image_options = std::nullopt) {
+  void StartImageFileUploadFlow(
+      const base::UnguessableToken& file_token,
+      const std::vector<uint8_t>& file_data,
+      std::optional<lens::ImageEncodingOptions> image_options = std::nullopt) {
     std::unique_ptr<lens::ContextualInputData> input_data =
         std::make_unique<lens::ContextualInputData>();
     input_data->primary_content_type = lens::MimeType::kImage;
@@ -420,10 +421,10 @@ TEST_F(ComposeboxQueryControllerTest, UploadImageFileRequestSuccess) {
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
   std::vector<uint8_t> image_bytes = CreateJPGBytes(100, 100);
-  composebox::ImageEncodingOptions image_options{.max_size = 1000000,
-                                                 .max_height = 1000,
-                                                 .max_width = 1000,
-                                                 .compression_quality = 30};
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
   StartImageFileUploadFlow(file_token, image_bytes, image_options);
 
   // Assert: Validate file upload request and status changes.
@@ -496,6 +497,9 @@ TEST_F(ComposeboxQueryControllerTest, UploadImageFileRequestSuccess) {
 
   EXPECT_EQ(controller().suggest_inputs().search_session_id(),
             kTestSearchSessionId);
+  EXPECT_TRUE(controller()
+                  .suggest_inputs()
+                  .send_gsession_vsrid_for_contextual_suggest());
 }
 
 TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
@@ -508,10 +512,10 @@ TEST_F(ComposeboxQueryControllerTest, UploadEmptyImageFileRequestFailure) {
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
   std::vector<uint8_t> image_bytes = std::vector<uint8_t>();
-  composebox::ImageEncodingOptions image_options{.max_size = 1000000,
-                                                 .max_height = 1000,
-                                                 .max_width = 1000,
-                                                 .compression_quality = 30};
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
   StartImageFileUploadFlow(file_token, image_bytes, image_options);
 
   // Assert: Validate file upload request and status changes.
@@ -770,10 +774,10 @@ TEST_F(ComposeboxQueryControllerTest,
   bitmap.allocN32Pixels(100, 100);
   bitmap.eraseColor(SK_ColorRED);  // Fill with a solid color
   input_data->viewport_screenshot = bitmap;
-  composebox::ImageEncodingOptions image_options{.max_size = 1000000,
-                                                 .max_height = 1000,
-                                                 .max_width = 1000,
-                                                 .compression_quality = 30};
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
   controller().StartFileUploadFlow(file_token, std::move(input_data),
                                    image_options);
 
@@ -900,8 +904,8 @@ TEST_F(ComposeboxQueryControllerTest,
   // Assert: Validate cluster info request and state changes.
   WaitForClusterInfo();
 
-  // Act: Start the file upload flow with multiple context inputs and page
-  // context params.
+  // Act: Start the file upload flow with context inputs and page context
+  // params.
   GURL page_url = GURL("https://www.test.com");
   std::string page_title = "Test Page";
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
@@ -917,15 +921,19 @@ TEST_F(ComposeboxQueryControllerTest,
   bitmap.allocN32Pixels(100, 100);
   bitmap.eraseColor(SK_ColorRED);  // Fill with a solid color
   input_data->viewport_screenshot = bitmap;
-  composebox::ImageEncodingOptions image_options{.max_size = 1000000,
-                                                 .max_height = 1000,
-                                                 .max_width = 1000,
-                                                 .compression_quality = 30};
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
   controller().StartFileUploadFlow(file_token, std::move(input_data),
                                    image_options);
 
   // Assert: Validate file upload request and status changes.
   WaitForFileUpload(file_token, lens::MimeType::kAnnotatedPageContent);
+
+  // Act: Create the destination URL for the query. The destination URL can
+  // only be created after the cluster info is received.
+  GURL aim_url = controller().CreateAimUrl("hello", kTestQueryStartTime);
 
   // Get the file and viewport upload requests.
   std::optional<lens::LensOverlayServerRequest> file_upload_request;
@@ -1039,8 +1047,53 @@ TEST_F(ComposeboxQueryControllerTest,
                 .request_id()
                 .media_type(),
             lens::LensOverlayRequestId::MEDIA_TYPE_WEBPAGE_AND_IMAGE);
+
+  // Check that the Lens request id is in the AIM url is correct.
+  std::string vsrid_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kRequestIdParameterKey,
+                                         &vsrid_value));
+  EXPECT_FALSE(vsrid_value.empty());
+  EXPECT_EQ(lens::LensOverlayRequestId::MEDIA_TYPE_WEBPAGE_AND_IMAGE,
+            DecodeRequestIdFromVsrid(vsrid_value).media_type());
+
+  // Assert: Visual input type is set to wp for webpage queries.
+  std::string vit_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kVisualInputTypeParameterKey,
+                                         &vit_value));
+  EXPECT_EQ(vit_value, "wp");
 }
 #endif  // !BUILDFLAG(IS_IOS)
+
+TEST_F(ComposeboxQueryControllerTest,
+       UploadPageContextWebpageContentWithPageContextIneligibleFailure) {
+  // Act: Start the session.
+  controller().NotifySessionStarted();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow with context inputs and page context
+  // params.
+  GURL page_url = GURL("https://www.test.com");
+  std::string page_title = "Test Page";
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kAnnotatedPageContent;
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->page_url = page_url;
+  input_data->page_title = page_title;
+  input_data->context_input->push_back(lens::ContextualInput(
+      std::vector<uint8_t>(), lens::MimeType::kAnnotatedPageContent));
+  input_data->is_page_context_eligible = false;
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   std::nullopt);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kAnnotatedPageContent,
+                    FileUploadStatus::kValidationFailed,
+                    FileUploadErrorType::kBrowserProcessingError);
+}
 
 TEST_F(ComposeboxQueryControllerTest, UploadInvalidMimeTypeFileRequestFailure) {
   // Act: Start the session.
@@ -1446,10 +1499,10 @@ TEST_F(ComposeboxQueryControllerTest, QuerySubmittedWithUploadedImage) {
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
   std::vector<uint8_t> image_bytes = CreateJPGBytes(100, 100);
-  composebox::ImageEncodingOptions image_options{.max_size = 1000000,
-                                                 .max_height = 1000,
-                                                 .max_width = 1000,
-                                                 .compression_quality = 30};
+  lens::ImageEncodingOptions image_options{.max_size = 1000000,
+                                           .max_height = 1000,
+                                           .max_width = 1000,
+                                           .compression_quality = 30};
   StartImageFileUploadFlow(file_token, image_bytes, image_options);
 
   // Assert: Validate file upload request and status changes.
@@ -1556,12 +1609,16 @@ TEST_F(ComposeboxQueryControllerTest, DeleteFile_Success) {
   // Check that file is in cache.
   EXPECT_TRUE(controller().GetFileInfo(file_token));
 
+  EXPECT_EQ(controller().suggest_inputs().search_session_id(),
+            kTestSearchSessionId);
+
   // Delete file.
   const bool deleted = controller().DeleteFile(file_token);
 
   // Check that file is no longer in cache.
   EXPECT_TRUE(deleted);
   EXPECT_FALSE(controller().GetFileInfo(file_token));
+  EXPECT_EQ(controller().suggest_inputs().search_session_id(), "");
 }
 
 TEST_F(ComposeboxQueryControllerTest, DeleteFile_Failed) {
