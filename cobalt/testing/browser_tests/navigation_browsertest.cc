@@ -7711,7 +7711,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
 
   fenced_frame_devtools_client.DetachProtocolClient();
 }
-#endif
+#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
                        CredentiallessAttributeIsHonoredByNavigation) {

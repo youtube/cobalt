@@ -43,7 +43,6 @@
 #include "net/base/net_errors.h"
 #include "net/log/net_log_source.h"
 #include "net/socket/tcp_server_socket.h"
-#include "third_party/blink/public/common/buildflags.h"
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IS_ANDROID)
