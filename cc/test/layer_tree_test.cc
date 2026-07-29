@@ -224,12 +224,10 @@ class LayerTreeHostImplForTesting : public LayerTreeHostImpl {
         this, reason, scroll_and_viewport_changes_synced);
   }
 
-  void ReadyToCommit(const viz::BeginFrameArgs& commit_args,
-                     bool scroll_and_viewport_changes_synced,
+  void ReadyToCommit(bool scroll_and_viewport_changes_synced,
                      const BeginMainFrameMetrics* begin_main_frame_metrics,
                      bool commit_timeout) override {
-    LayerTreeHostImpl::ReadyToCommit(commit_args,
-                                     scroll_and_viewport_changes_synced,
+    LayerTreeHostImpl::ReadyToCommit(scroll_and_viewport_changes_synced,
                                      begin_main_frame_metrics, commit_timeout);
     test_hooks_->ReadyToCommitOnThread(this);
   }
@@ -1195,7 +1193,7 @@ void LayerTreeTest::RunTest(CompositorMode mode) {
   base::RunLoop loop;
   quit_closure_ = loop.QuitWhenIdleClosure();
   loop.Run();
-  CleanupBeforeDestroy();
+  AfterTest();
   DestroyLayerTreeHost();
 
   timeout_.Cancel();
@@ -1205,7 +1203,6 @@ void LayerTreeTest::RunTest(CompositorMode mode) {
   if (timed_out_) {
     FAIL() << "Test timed out";
   }
-  AfterTest();
 }
 
 void LayerTreeTest::RequestNewLayerTreeFrameSink() {

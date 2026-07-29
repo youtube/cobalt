@@ -12,7 +12,7 @@
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/profiler/sample_metadata.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
@@ -469,13 +469,13 @@ void ProxyMain::BeginMainFrame(
       main_thread_blocked.emplace(task_runner_provider_);
 
     ImplThreadTaskRunner()->PostTask(
-        FROM_HERE,
-        base::BindOnce(
-            &ProxyImpl::NotifyReadyToCommitOnImpl,
-            base::Unretained(proxy_impl_.get()), completion_event,
-            std::move(commit_state), &unsafe_state, begin_main_frame_start_time,
-            frame_args, scroll_and_viewport_changes_synced,
-            blocking ? &commit_timestamps : nullptr, commit_timeout));
+        FROM_HERE, base::BindOnce(&ProxyImpl::NotifyReadyToCommitOnImpl,
+                                  base::Unretained(proxy_impl_.get()),
+                                  completion_event, std::move(commit_state),
+                                  &unsafe_state, begin_main_frame_start_time,
+                                  scroll_and_viewport_changes_synced,
+                                  (blocking ? &commit_timestamps : nullptr),
+                                  commit_timeout));
     if (blocking)
       layer_tree_host_->WaitForProtectedSequenceCompletion();
   }
@@ -960,7 +960,7 @@ void ProxyMain::CompositeImmediatelyForTest(base::TimeTicks frame_begin_time,
   SetNeedsCommit();
 }
 
-double ProxyMain::GetPercentDroppedFrames() const {
+double ProxyMain::GetAverageThroughput() const {
   NOTIMPLEMENTED();
   return 0.0;
 }

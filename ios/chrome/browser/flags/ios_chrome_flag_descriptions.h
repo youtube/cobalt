@@ -367,9 +367,6 @@ extern const char kIOSBrowserEditMenuMetricsDescription[];
 extern const char kIOSDockingPromoName[];
 extern const char kIOSDockingPromoDescription[];
 
-extern const char kIOSEnableDeleteAllSavedCredentialsName[];
-extern const char kIOSEnableDeleteAllSavedCredentialsDescription[];
-
 extern const char kIOSEnablePasswordManagerTrustedVaultWidgetName[];
 extern const char kIOSEnablePasswordManagerTrustedVaultWidgetDescription[];
 
@@ -474,9 +471,6 @@ extern const char
 
 extern const char kLensClearcutBackgroundUploadEnabledName[];
 extern const char kLensClearcutBackgroundUploadEnabledDescription[];
-
-extern const char kLensClearcutLoggerFastQosEnabledName[];
-extern const char kLensClearcutLoggerFastQosEnabledDescription[];
 
 extern const char kLensExactMatchesEnabledName[];
 extern const char kLensExactMatchesEnabledDescription[];
@@ -719,9 +713,6 @@ extern const char kPrivacyGuideIosDescription[];
 
 extern const char kProvisionalNotificationAlertName[];
 extern const char kProvisionalNotificationAlertDescription[];
-
-extern const char kIpadZpsSuggestionMatchesLimitName[];
-extern const char kIpadZpsSuggestionMatchesLimitDescription[];
 
 extern const char kIPHPriceNotificationsWhileBrowsingName[];
 extern const char kIPHPriceNotificationsWhileBrowsingDescription[];

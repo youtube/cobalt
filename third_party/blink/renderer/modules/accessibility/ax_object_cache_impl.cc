@@ -1291,7 +1291,7 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
     return false;
 
   // ::before, ::after, ::marker, ::scroll-marker, ::scroll-*-buttons and
-  // ::scroll-marker-group are relevant. Allowing these pseudo elements ensures
+  // ::scroll-marker-group are relevant. Allowing these pseudo-elements ensures
   // that all visible descendant pseudo content will be reached, despite only
   // being able to walk layout inside of pseudo content. However, AXObjects
   // aren't created for
@@ -1309,7 +1309,7 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
     if (node.IsCheckPseudoElement()) {
       return false;
     }
-    // Scroll control pseudo elements are always relevant when they have a
+    // Scroll control pseudo-elements are always relevant when they have a
     // layout object (which is checked above).
     if (node.IsScrollControlPseudoElement()) {
       return true;
@@ -1335,11 +1335,11 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
              .ContainsOnlyWhitespaceOrEmpty()) {
       return true;  // Not whitespace: not a clearfix hack.
     }
-    return false;  // Is the clearfix hack: ignore pseudo element.
+    return false;  // Is the clearfix hack: ignore pseudo-element.
   }
 
   // ::first-letter is relevant if and only if its parent layout object is a
-  // relevant pseudo element. If it's not a pseudo element, then this the
+  // relevant pseudo-element. If it's not a pseudo-element, then this the
   // ::first-letter text would end up being repeated in the AX Tree.
   if (node.IsFirstLetterPseudoElement()) {
     LayoutObject* layout_parent = node.GetLayoutObject()->Parent();
@@ -1349,15 +1349,15 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
            IsRelevantPseudoElement(*layout_parent_node);
   }
 
-  // The remaining possible pseudo element types are not relevant.
+  // The remaining possible pseudo-element types are not relevant.
   if (node.IsBackdropPseudoElement() || node.IsViewTransitionPseudoElement()) {
     return false;
   }
 
-  // If this is reached, then a new pseudo element type was added and is not
+  // If this is reached, then a new pseudo-element type was added and is not
   // yet handled by accessibility. See  PseudoElementTagName() in
   // pseudo_element.cc for all possible types.
-  SANITIZER_NOTREACHED() << "Unhandled type of pseudo element on: " << node;
+  SANITIZER_NOTREACHED() << "Unhandled type of pseudo-element on: " << node;
   return false;
 }
 
@@ -1816,7 +1816,7 @@ void AXObjectCacheImpl::Remove(LayoutObject* layout_object,
   // If a DOM node is present, it will have been used to back the AXObject, in
   // which case we need to call Remove(node) instead.
   if (Node* node = layout_object->GetNode()) {
-    // Pseudo elements are a special case. The entire subtree needs to be marked
+    // Pseudo-elements are a special case. The entire subtree needs to be marked
     // dirty so that it is recomputed (it is disappearing or changing).
     if (node->IsPseudoElement()) {
       MarkSubtreeDirty(node);
@@ -2406,7 +2406,7 @@ void AXObjectCacheImpl::TextChanged(const LayoutObject* layout_object) {
   // when it has a block sibling.
   Node* node = GetClosestNodeForLayoutObject(layout_object);
   if (node) {
-    // If the text changed in a pseudo element, rebuild the entire subtree.
+    // If the text changed in a pseudo-element, rebuild the entire subtree.
     if (node->IsPseudoElement()) {
       RemoveAXObjectsInLayoutSubtree(node->GetLayoutObject());
     } else if (AXID node_id = static_cast<AXID>(node->GetDomNodeId())) {
@@ -2610,9 +2610,9 @@ bool AXObjectCacheImpl::IsReadyToProcessTreeUpdatesForNode(const Node* node) {
     return false;
   }
 
-  // If the node following a whitespace node is a pseudo element, we won't have
+  // If the node following a whitespace node is a pseudo-element, we won't have
   // its contents at the time the node is connected. Those contents can impact
-  // the relevance of the whitespace node. So remain paused if node is a pseudo
+  // the relevance of the whitespace node. So remain paused if node is a pseudo-
   // element, without resetting the maximum number of allowed pauses.
   if (node->IsPseudoElement()) {
     return false;
@@ -6636,17 +6636,19 @@ void AXObjectCacheImpl::ComputeNodesOnLine(const LayoutObject* layout_object) {
     return;
   }
 
+  // Maximum number of attempts to try to find a next object on the line or to
+  // navigate to a new line. Used to detect unlikely (but theoretically
+  // possible), loops.
+  constexpr int kMaxInlineCursorNextObjectCalls = 350000;
+  int runs = 0;
+
   do {
+    runs++;
     InlineCursor line_cursor = cursor;
 
     // Moves to first LayoutObject that a11y cares about.
     line_cursor.MoveToNextInlineLeaf();
 
-    // Maximum number of attempts to try to find a next object on the line. Used
-    // to
-    // detect unlikely (but theoretically possible), loops.
-    constexpr int kMaxInlineCursorNextObjectCalls = 250000;
-    int runs = 0;
     while (line_cursor) {
       runs++;
 
@@ -6655,8 +6657,7 @@ void AXObjectCacheImpl::ComputeNodesOnLine(const LayoutObject* layout_object) {
         DUMP_WILL_BE_NOTREACHED()
             << "Did not find an end to the processing of next / previous on "
                "line candidates for "
-            << layout_object << "(" << Get(layout_object) << ") after " << runs
-            << " runs.";
+            << layout_object << " after " << runs << " runs.";
         break;
       }
       auto* line_object = line_cursor.Current().GetLayoutObject();
@@ -6675,9 +6676,8 @@ void AXObjectCacheImpl::ComputeNodesOnLine(const LayoutObject* layout_object) {
             << "InlineCursor says it moved to the next inline leaf object "
                "for a different LayyoutObject, but returned value is the "
                "same as previous inline leaf."
-            << "same object was: " << line_object << "(" << Get(line_object)
-            << ") while processing " << layout_object << " after " << runs
-            << " runs.";
+            << "same object was: " << line_object << " while processing "
+            << layout_object << " after " << runs << " runs.";
         break;
       }
       if (next_line_object) {
@@ -6695,7 +6695,7 @@ void AXObjectCacheImpl::ComputeNodesOnLine(const LayoutObject* layout_object) {
       }
     }
     cursor.MoveToNextLine();
-  } while (cursor);
+  } while (cursor && runs < kMaxInlineCursorNextObjectCalls);
 }
 
 void AXObjectCacheImpl::ConnectToTrailingWhitespaceOnLine(
@@ -6776,11 +6776,31 @@ bool AXObjectCacheImpl::MarkOnScreenNodes(
   const bool was_on_screen = obj->WasEverOnScreen();
   const bool can_flip = obj->CanFlipFromOffScreenToOnScreen();
 
+  Node* node_to_use = nullptr;
+  if (!was_on_screen && obj->ChildCountIncludingIgnored() == 0) {
+    AXObject* obj_to_use = obj;
+    while (obj_to_use && !obj_to_use->IsRoot()) {
+      // For leaf nodes, if their bounding box size is zero, this means that
+      // this can't be the target of a hit test (the logic we use to identify if
+      // a node was in the rect representing what is on-screen). They, however,
+      // still can be interesting for accessibility purposes when they have some
+      // a11y-only label, action, etc.
+      ui::AXRelativeBounds location;
+      bool clips_children;
+      obj_to_use->PopulateAXRelativeBounds(location, &clips_children);
+      if (!location.bounds.IsEmpty()) {
+        node_to_use = obj_to_use->GetClosestNode();
+        break;
+      }
+      obj_to_use = obj_to_use->ParentObject();
+    }
+  } else {
+    node_to_use = obj->GetClosestNode();
+  }
   // We can skip the check in the set to improve performance a bit here. If a
   // node was ever on screen, it will always be.
   const bool should_be_considered_on_screen =
-      was_on_screen || (obj->GetClosestNode() &&
-                        on_screen_nodes->Contains(obj->GetClosestNode()));
+      was_on_screen || (node_to_use && on_screen_nodes->Contains(node_to_use));
   if (obj->ChildCountIncludingIgnored() == 0) {  // This is a leaf node.
     // If this node was ever on-screen, keep serializing it or at least allow
     // serializations to happen.

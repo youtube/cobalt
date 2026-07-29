@@ -19,11 +19,7 @@
 #include "third_party/libyuv/include/libyuv.h"
 #include "ui/gfx/buffer_format_util.h"
 
-// TODO(crbug.com/421698315): Remove.
-#include "ui/gfx/gpu_memory_buffer.h"
-
 #if BUILDFLAG(IS_CHROMEOS)
-// TODO(crbug.com/421698315): Remove.
 #include "media/gpu/test/local_gpu_memory_buffer_manager.h"
 #endif
 
@@ -170,7 +166,7 @@ class GpuMemoryBufferMapping : public NativePixmapMapping {
       const gfx::BufferFormat& format) {
     std::unique_ptr<LocalGpuMemoryBufferManager> gpu_memory_buffer_manager =
         std::make_unique<LocalGpuMemoryBufferManager>();
-    std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer =
+    std::unique_ptr<GpuMemoryBufferImplGbm> gpu_memory_buffer =
         gpu_memory_buffer_manager->ImportDmaBuf(handle, size, format);
 
     if (!gpu_memory_buffer->Map()) {
@@ -184,7 +180,7 @@ class GpuMemoryBufferMapping : public NativePixmapMapping {
 
   GpuMemoryBufferMapping(
       std::unique_ptr<LocalGpuMemoryBufferManager> gpu_memory_buffer_manager,
-      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer)
+      std::unique_ptr<GpuMemoryBufferImplGbm> gpu_memory_buffer)
       : gpu_memory_buffer_manager_(std::move(gpu_memory_buffer_manager)),
         gpu_memory_buffer_(std::move(gpu_memory_buffer)) {}
 
@@ -207,7 +203,7 @@ class GpuMemoryBufferMapping : public NativePixmapMapping {
   // gets destroyed by the LocalGpuMemoryBufferManager destructor, so there is
   // an order we need to do this in to prevent a segfault.
   const std::unique_ptr<LocalGpuMemoryBufferManager> gpu_memory_buffer_manager_;
-  const std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer_;
+  const std::unique_ptr<GpuMemoryBufferImplGbm> gpu_memory_buffer_;
 };
 
 class Tile4Mapping : public NativePixmapMapping {
@@ -240,7 +236,7 @@ class Tile4Mapping : public NativePixmapMapping {
     handle.modifier = gfx::NativePixmapHandle::kNoModifier;
 
     LocalGpuMemoryBufferManager gpu_memory_buffer_manager;
-    std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer =
+    std::unique_ptr<GpuMemoryBufferImplGbm> gpu_memory_buffer =
         gpu_memory_buffer_manager.ImportDmaBuf(handle, size, format);
 
     if (!gpu_memory_buffer->Map()) {

@@ -26,6 +26,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/json/values_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notimplemented.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
@@ -43,6 +44,7 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/tabs/tab_activity_simulator.h"
@@ -130,7 +132,8 @@ class FakeBrowser {
   bool IsClosed() { return closed_future_.IsReady(); }
 
   bool IsFullscreen() {
-    return browser_->exclusive_access_manager()
+    return browser_->GetFeatures()
+        .exclusive_access_manager()
         ->fullscreen_controller()
         ->IsFullscreenForBrowser();
   }
@@ -277,8 +280,7 @@ class KioskBrowserSessionBaseTest
   KioskBrowserSessionBaseTest()
       : local_state_(std::make_unique<ScopedTestingLocalState>(
             TestingBrowserProcess::GetGlobal())),
-        testing_profile_manager_(TestingBrowserProcess::GetGlobal(),
-                                 local_state_.get()) {}
+        testing_profile_manager_(TestingBrowserProcess::GetGlobal()) {}
 
   KioskBrowserSessionBaseTest(const KioskBrowserSessionBaseTest&) = delete;
   KioskBrowserSessionBaseTest& operator=(const KioskBrowserSessionBaseTest&) =

@@ -77,6 +77,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Password manager settings"/>
   <int value="1" label="Password promo card"/>
   <int value="2" label="Bookmark manager promo card"/>
+  <int value="3" label="Profile menu button"/>
 </enum>
 
 <!-- LINT.ThenChange(/chrome/browser/profiles/batch_upload/batch_upload_service.h:EntryPoint) -->
@@ -414,6 +415,7 @@ chromium-metrics-reviews@google.com.
   <int value="84" label="(test) SyncablePriorityPrefForTesting"/>
   <int value="85" label="(test) SyncableAlwaysSyncingPriorityPrefForTesting"/>
   <int value="86" label="FacilitatedPaymentsPixAccountLinking"/>
+  <int value="87" label="OmniboxShowSearchTools"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->

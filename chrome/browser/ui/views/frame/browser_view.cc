@@ -93,7 +93,6 @@
 #include "chrome/browser/ui/sync/one_click_signin_links_delegate_impl.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
-#include "chrome/browser/ui/tabs/saved_tab_groups/shared_tab_group_feedback_controller.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_menu_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -781,13 +780,6 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
     return gfx::ToEnclosingRect(bounds_f);
   }
 
-  void LayoutWebAppWindowTitle(
-      const gfx::Rect& available_space,
-      views::Label& window_title_label) const override {
-    browser_view_->frame()->LayoutWebAppWindowTitle(available_space,
-                                                    window_title_label);
-  }
-
   int GetTopInsetInBrowserView() const override {
     // BrowserView should fill the full window when window controls overlay
     // is enabled or when immersive fullscreen with tabs is enabled.
@@ -831,30 +823,6 @@ class BrowserViewLayoutDelegateImpl : public BrowserViewLayoutDelegate {
     const tabs::TabInterface* active_tab =
         browser_view_->browser()->GetActiveTabInterface();
     return active_tab && active_tab->IsSplit();
-  }
-
-  void UpdateSplitViewInsets() override {
-    CHECK(browser_view_->multi_contents_view());
-
-    bool side_panel_visible = browser_view_->unified_side_panel()->GetVisible();
-    bool right_aligned = browser_view_->unified_side_panel()->IsRightAligned();
-    bool infobar_visible = browser_view_->infobar_container()->GetVisible();
-
-    browser_view_->multi_contents_view()
-        ->start_contents_view_inset()
-        .set_left(side_panel_visible && !right_aligned
-                      ? 0
-                      : MultiContentsView::kSplitViewContentInset)
-        .set_top(!infobar_visible ? 0
-                                  : MultiContentsView::kSplitViewContentInset);
-
-    browser_view_->multi_contents_view()
-        ->end_contents_view_inset()
-        .set_right(side_panel_visible && right_aligned
-                       ? 0
-                       : MultiContentsView::kSplitViewContentInset)
-        .set_top(!infobar_visible ? 0
-                                  : MultiContentsView::kSplitViewContentInset);
   }
 
   ExclusiveAccessBubbleViews* GetExclusiveAccessBubble() const override {
@@ -3217,17 +3185,6 @@ void BrowserView::MaybeShowReadingListInSidePanelIPH() {
   }
 }
 
-void BrowserView::MaybeShowExperimentalAIIPH() {
-  if (!browser()->is_type_normal()) {
-    return;
-  }
-  auto* opt_guide_service =
-      OptimizationGuideKeyedServiceFactory::GetForProfile(browser_->profile());
-  if (opt_guide_service && opt_guide_service->ShouldShowExperimentalAIPromo()) {
-    MaybeShowFeaturePromo(feature_engagement::kIPHExperimentalAIPromoFeature);
-  }
-}
-
 void BrowserView::MaybeShowTabStripToolbarButtonIPH() {
   if (!browser()->is_type_normal()) {
     return;
@@ -4248,6 +4205,14 @@ std::u16string BrowserView::GetAccessibleTabLabel(int index,
 #if BUILDFLAG(ENABLE_GLIC)
         title =
             l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_GLIC_ACCESSING, title);
+        break;
+#else
+        NOTREACHED();
+#endif
+      case tabs::TabAlert::GLIC_SHARING:
+#if BUILDFLAG(ENABLE_GLIC)
+        title =
+            l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_GLIC_SHARING, title);
         break;
 #else
         NOTREACHED();
@@ -5353,7 +5318,7 @@ void BrowserView::AddedToWidget() {
           std::make_unique<BrowserViewLayoutDelegateImpl>(this), this,
           window_scrim_view_, top_container_, web_app_frame_toolbar_,
           web_app_window_title_, tab_strip_region_view_, tabstrip_, toolbar_,
-          infobar_container_, contents_container_,
+          infobar_container_, contents_container_, multi_contents_view_,
           left_aligned_side_panel_separator_, unified_side_panel_,
           right_aligned_side_panel_separator_, side_panel_rounded_corner_,
           immersive_mode_controller_.get(), contents_separator_));
@@ -5372,11 +5337,6 @@ void BrowserView::AddedToWidget() {
     browser_->GetFeatures().download_toolbar_ui_controller()->Init();
   }
 
-  if (auto* shared_tab_group_feedback_controller =
-          browser_->GetFeatures().shared_tab_group_feedback_controller()) {
-    shared_tab_group_feedback_controller->Init();
-  }
-
   frame_->OnBrowserViewInitViewsComplete();
   frame_->GetFrameView()->UpdateMinimumSize();
   using_native_frame_ = frame_->ShouldUseNativeFrame();
@@ -5390,16 +5350,6 @@ void BrowserView::AddedToWidget() {
       base::BindOnce(&BrowserView::MaybeShowReadingListInSidePanelIPH,
                      GetAsWeakPtr()),
       base::Minutes(5));
-
-  // Show the promo delayed after a while at startup. This is not the right way
-  // to show delayed promos, as this does not take user actions into account
-  // such as user typing, user navigating, while the promo is displayed. Contact
-  // the user education team for the right approach.
-  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE,
-      base::BindOnce(&BrowserView::MaybeShowExperimentalAIIPH, GetAsWeakPtr()),
-      user_education::features::GetSessionStartGracePeriod() +
-          base::Minutes(5));
 
   // Accessible name of the tab is dependent on the visibility state of the chip
   // view, so it needs to be made aware of any changes.
@@ -6064,7 +6014,7 @@ void BrowserView::ShowAvatarBubbleFromAvatarButton(bool is_source_accelerator) {
   }
 
   // Default behavior -- show the profile menu.
-  ProfileMenuCoordinator::GetOrCreateForBrowser(browser())->Show(
+  browser()->GetFeatures().profile_menu_coordinator()->Show(
       is_source_accelerator);
 }
 
@@ -6364,7 +6314,7 @@ bool BrowserView::CanUserExitFullscreen() const {
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView, ExclusiveAccessBubbleViewsContext implementation:
 ExclusiveAccessManager* BrowserView::GetExclusiveAccessManager() {
-  return browser_->exclusive_access_manager();
+  return browser_->GetFeatures().exclusive_access_manager();
 }
 
 ui::AcceleratorProvider* BrowserView::GetAcceleratorProvider() {
@@ -6534,9 +6484,10 @@ bool BrowserView::IsBrowserAWebApp() const {
 
 void BrowserView::ApplyWatermarkSettings(const std::string& watermark_text) {
   if (watermark_view_) {
+    PrefService* prefs = browser_->profile()->GetPrefs();
     watermark_view_->SetString(watermark_text,
-                               enterprise_watermark::GetFillColor(),
-                               enterprise_watermark::GetOutlineColor());
+                               enterprise_watermark::GetFillColor(prefs),
+                               enterprise_watermark::GetOutlineColor(prefs));
   }
 }
 

@@ -11995,6 +11995,17 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
   EXPECT_TRUE(child->current_frame_host()->IsRenderFrameLive());
 }
 
+class ValidateCommitOriginTest : public NavigationControllerBrowserTest {
+ public:
+  ValidateCommitOriginTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kValidateCommitOriginAtCommit);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
 // This test uses ASSERT_DEATH, which is not supported on Android.
 #if !BUILDFLAG(IS_ANDROID)
 // Test that if a frame's committed origin in session history is manually
@@ -12013,7 +12024,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
 #else
 #define MAYBE_CorruptedSessionHistoryMismatch CorruptedSessionHistoryMismatch
 #endif
-IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
+IN_PROC_BROWSER_TEST_P(ValidateCommitOriginTest,
                        MAYBE_CorruptedSessionHistoryMismatch) {
   // Navigate to a page and store the session history.
   GURL url1(embedded_test_server()->GetURL("a.com", "/title1.html"));
@@ -12054,7 +12065,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
 // wrong origin, due to followup fixes in NavigationRequest's CheckAboutSrcDoc
 // and ValidateCommitOrigin.
 IN_PROC_BROWSER_TEST_P(
-    NavigationControllerBrowserTest,
+    ValidateCommitOriginTest,
     SubframeBackFromSubframeLocationReplace_IncorrectSrcdocOrigin) {
   FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
                             ->GetPrimaryFrameTree()
@@ -17934,8 +17945,9 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
   EXPECT_NE(success_site_instance, error_site_instance);
   EXPECT_TRUE(
       success_site_instance->IsRelatedSiteInstance(error_site_instance.get()));
-  EXPECT_NE(success_site_instance->GetOrCreateProcess()->GetDeprecatedID(),
-            error_site_instance->GetProcess()->GetDeprecatedID());
+  EXPECT_NE(
+      success_site_instance->GetOrCreateProcessForTesting()->GetDeprecatedID(),
+      error_site_instance->GetProcess()->GetDeprecatedID());
   EXPECT_EQ(GURL(kUnreachableWebDataURL), error_site_instance->GetSiteURL());
 
   EXPECT_TRUE(
@@ -23477,6 +23489,12 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Combine(testing::ValuesIn(RenderDocumentFeatureLevelValues()),
                      testing::Bool()),
     InitialEmptyDocNavigationControllerBrowserTest::DescribeParams);
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    ValidateCommitOriginTest,
+    testing::Combine(testing::ValuesIn(RenderDocumentFeatureLevelValues()),
+                     testing::Bool()),
+    NavigationControllerBrowserTest::DescribeParams);
 INSTANTIATE_TEST_SUITE_P(
     All,
     LoadDataWithBaseURLWithPossiblyEmptyURLsBrowserTest,

@@ -12,7 +12,6 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.os.SystemClock;
@@ -109,6 +108,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Implementation of the ICustomTabsService interface.
@@ -1084,12 +1084,19 @@ public class CustomTabsConnection {
      * @param session The Binder object identifying a session.
      * @param url The URL the tab is for.
      * @param referrer The referrer to use for |url|.
+     * @param intentDataProvider The {@link BrowserServicesIntentDataProvider} created from the
+     *     Custom Tabs Intent.
      * @return The hidden tab, or null.
      */
     public @Nullable HiddenTabHolder.HiddenTab takeHiddenTab(
-            @Nullable SessionHolder<?> session, String url, Intent intent) {
+            @Nullable SessionHolder<?> session,
+            String url,
+            BrowserServicesIntentDataProvider intentDataProvider) {
         return mHiddenTabHolder.takeHiddenTab(
-                session, mClientManager.getIgnoreFragmentsForSession(session), url, intent);
+                session,
+                mClientManager.getIgnoreFragmentsForSession(session),
+                url,
+                intentDataProvider);
     }
 
     /**
@@ -1917,7 +1924,7 @@ public class CustomTabsConnection {
         // cgroups a process is part of can be queried by reading /proc/<pid>/cgroup, which is
         // world-readable.
         String cgroupFilename = "/proc/" + pid + "/cgroup";
-        String controllerName = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? "cpuset" : "cpu";
+        String controllerName = "cpuset";
         try (BufferedReader reader = new BufferedReader(new FileReader(cgroupFilename))) {
             String line = null;
             while ((line = reader.readLine()) != null) {
@@ -2191,10 +2198,22 @@ public class CustomTabsConnection {
      * Returns an alternate handler for taps on the Custom Tabs Omnibox, or null if the default
      * handler should be used.
      */
+    // TODO(crbug.com/422969546): Remove this method once the new method is used.
     @Nullable
     public Consumer<Tab> getAlternateOmniboxTapHandler(
             BrowserServicesIntentDataProvider intentData) {
         return null;
+    }
+
+    /**
+     * Returns an alternate handler for taps on the Custom Tabs Omnibox. The function returns true
+     * if the tap was handled, false otherwise.
+     */
+    // TODO(crbug.com/422969546): Rename to getAlternateOmniboxTapHandler once the old method is
+    // removed.
+    public Function<Tab, Boolean> getAlternateOmniboxTapHandlerWithVerification(
+            BrowserServicesIntentDataProvider intentData) {
+        return (tab) -> false;
     }
 
     /** Specifies what content should be presented by the CustomTabs instance in location bar. */

@@ -18,6 +18,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
@@ -1393,7 +1394,7 @@ TEST_F(PasswordsPrivateDelegateImplTest, DISABLED_ShowAddShortcutDialog) {
   params.type = Browser::TYPE_NORMAL;
   auto window = std::make_unique<TestBrowserWindow>();
   params.window = window.get();
-  auto browser = std::unique_ptr<Browser>(Browser::Create(params));
+  auto browser = Browser::DeprecatedCreateOwnedForTesting(params);
   NavigateParams nav_params(browser.get(), GURL("chrome://password-manager"),
                             ui::PAGE_TRANSITION_TYPED);
   nav_params.tabstrip_index = 0;

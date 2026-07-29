@@ -18,13 +18,17 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/client/gles2_interface.h"
+#include "gpu/command_buffer/client/shared_image_interface.h"
+#include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "gpu/command_buffer/common/sync_token.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_types.h"
+#include "ui/gfx/gpu_memory_buffer.h"
 
 namespace gpu {
 
@@ -413,6 +417,12 @@ ClientSharedImage::ClientSharedImage(
       metadata_, gpu_memory_buffer_->GetType(), sii_holder_->Get());
 }
 
+ClientSharedImage::ClientSharedImage(const Mailbox& mailbox,
+                                     const SharedImageInfo& info)
+    : mailbox_(mailbox), metadata_(info.meta), debug_label_(info.debug_label) {
+  CHECK(!mailbox.IsZero());
+}
+
 ClientSharedImage::~ClientSharedImage() {
   if (!HasHolder()) {
     return;
@@ -422,6 +432,25 @@ ClientSharedImage::~ClientSharedImage() {
   if (sii) {
     sii->DestroySharedImage(destruction_sync_token_, mailbox_);
   }
+}
+
+size_t ClientSharedImage::GetStrideForVideoFrame(uint32_t plane_index) const {
+  CHECK(gpu_memory_buffer_);
+  return gpu_memory_buffer_->stride(plane_index);
+}
+
+// Returns whether the underlying resource is shared memory without needing to
+// Map() the shared image. This method is supposed to be used by VideoFrame
+// temporarily as mentioned above in ::GetStrideForVideoFrame().
+bool ClientSharedImage::IsSharedMemoryForVideoFrame() const {
+  CHECK(gpu_memory_buffer_);
+  return gpu_memory_buffer_->GetType() ==
+         gfx::GpuMemoryBufferType::SHARED_MEMORY_BUFFER;
+}
+
+bool ClientSharedImage::AsyncMappingIsNonBlocking() const {
+  CHECK(gpu_memory_buffer_);
+  return gpu_memory_buffer_->AsyncMappingIsNonBlocking();
 }
 
 std::unique_ptr<ClientSharedImage::ScopedMapping> ClientSharedImage::Map() {
@@ -443,6 +472,12 @@ void ClientSharedImage::MapAsync(
     base::OnceCallback<void(std::unique_ptr<ScopedMapping>)> result_cb) {
   ScopedMapping::StartCreateAsync(gpu_memory_buffer_.get(),
                                   std::move(result_cb));
+}
+
+gfx::GpuMemoryBufferHandle ClientSharedImage::CloneGpuMemoryBufferHandle()
+    const {
+  CHECK(gpu_memory_buffer_);
+  return gpu_memory_buffer_->CloneHandle();
 }
 
 #if BUILDFLAG(IS_APPLE)
@@ -552,6 +587,15 @@ std::unique_ptr<RasterScopedAccess> ClientSharedImage::BeginRasterAccess(
     InterfaceBase* raster_interface,
     const SyncToken& sync_token,
     bool readonly) {
+  bool has_raster_usage =
+      metadata_.usage.Has(SHARED_IMAGE_USAGE_RASTER_READ) ||
+      metadata_.usage.Has(SHARED_IMAGE_USAGE_RASTER_WRITE) ||
+      metadata_.usage.Has(SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE);
+  if (!has_raster_usage) {
+    SCOPED_CRASH_KEY_STRING32("ClientSharedImage", "DebugLabel", debug_label_);
+    SCOPED_CRASH_KEY_NUMBER("ClientSharedImage", "Usage", metadata_.usage);
+    DUMP_WILL_BE_CHECK(has_raster_usage);
+  }
   return base::WrapUnique(
       new RasterScopedAccess(raster_interface, this, sync_token, readonly));
 }
@@ -619,6 +663,22 @@ scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
       std::nullopt, std::nullopt, texture_target));
 }
 
+// static
+scoped_refptr<ClientSharedImage> ClientSharedImage::CreateForTesting(
+    const Mailbox& mailbox,
+    const SharedImageMetadata& metadata,
+    const SyncToken& sync_token,
+    std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+    gfx::BufferUsage buffer_usage,
+    scoped_refptr<SharedImageInterfaceHolder> sii_holder) {
+  SharedImageInfo info(metadata, "CSICreateForTesting");
+  auto client_si = base::MakeRefCounted<ClientSharedImage>(
+      mailbox, info, sync_token, sii_holder, gpu_memory_buffer->GetType());
+  client_si->gpu_memory_buffer_ = std::move(gpu_memory_buffer);
+  client_si->buffer_usage_ = buffer_usage;
+  return client_si;
+}
+
 ClientSharedImage::HelperGpuMemoryBufferManager::HelperGpuMemoryBufferManager(
     ClientSharedImage* client_shared_image)
     : client_shared_image_(client_shared_image) {
@@ -627,16 +687,6 @@ ClientSharedImage::HelperGpuMemoryBufferManager::HelperGpuMemoryBufferManager(
 
 ClientSharedImage::HelperGpuMemoryBufferManager::
     ~HelperGpuMemoryBufferManager() = default;
-
-std::unique_ptr<gfx::GpuMemoryBuffer>
-ClientSharedImage::HelperGpuMemoryBufferManager::CreateGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    gpu::SurfaceHandle surface_handle,
-    base::WaitableEvent* shutdown_event) {
-  NOTREACHED();
-}
 
 void ClientSharedImage::HelperGpuMemoryBufferManager::CopyGpuMemoryBufferAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
@@ -792,6 +842,24 @@ RasterScopedAccess::RasterScopedAccess(InterfaceBase* raster_interface,
   CHECK(raster_interface_);
   shared_image_->BeginAccess(readonly);
   raster_interface_->WaitSyncTokenCHROMIUM(sync_token.GetConstData());
+  bool has_read_usage =
+      shared_image_->usage().Has(SHARED_IMAGE_USAGE_RASTER_READ) ||
+      shared_image_->usage().Has(SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE);
+  bool has_write_usage =
+      shared_image_->usage().Has(SHARED_IMAGE_USAGE_RASTER_WRITE);
+  if (readonly && !has_read_usage) {
+    SCOPED_CRASH_KEY_STRING32("ClientSharedImage", "DebugLabel",
+                              shared_image_->debug_label());
+    SCOPED_CRASH_KEY_NUMBER("ClientSharedImage", "Usage",
+                            shared_image_->usage());
+    DUMP_WILL_BE_CHECK(has_read_usage);
+  } else if (!readonly && !has_write_usage) {
+    SCOPED_CRASH_KEY_STRING32("ClientSharedImage", "DebugLabel",
+                              shared_image_->debug_label());
+    SCOPED_CRASH_KEY_NUMBER("ClientSharedImage", "Usage",
+                            shared_image_->usage());
+    DUMP_WILL_BE_CHECK(has_write_usage);
+  }
 }
 
 // static

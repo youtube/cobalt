@@ -8,10 +8,11 @@ import {NewTabFooterDocumentProxy} from 'chrome://newtab-footer/browser_proxy.js
 import type {CustomizeButtonsDocumentRemote} from 'chrome://newtab-footer/customize_buttons.mojom-webui.js';
 import {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, CustomizeChromeSection, SidePanelOpenTrigger} from 'chrome://newtab-footer/customize_buttons.mojom-webui.js';
 import {CustomizeButtonsProxy} from 'chrome://newtab-footer/customize_buttons_proxy.js';
-import type {ManagementNotice, NewTabFooterDocumentRemote} from 'chrome://newtab-footer/new_tab_footer.mojom-webui.js';
+import type {BackgroundAttribution, ManagementNotice, NewTabFooterDocumentRemote} from 'chrome://newtab-footer/new_tab_footer.mojom-webui.js';
 import {NewTabFooterDocumentCallbackRouter, NewTabFooterHandlerRemote, NewTabPageType} from 'chrome://newtab-footer/new_tab_footer.mojom-webui.js';
 import {WindowProxy} from 'chrome://newtab-footer/window_proxy.js';
 import type {CrButtonElement} from 'chrome://resources/cr_elements/cr_button/cr_button.js';
+import type {CrIconElement} from 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
@@ -143,8 +144,8 @@ suite('NewTabFooterAppTest', () => {
       // Arrange.
       const managementNotice: ManagementNotice = {
         text: 'Managed by your organization',
-        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
-        isCustomLogo: false,
+        customBitmapDataUrl:
+            {url: 'chrome://resources/images/chrome_logo_dark.svg'},
       };
 
       // Act.
@@ -153,7 +154,7 @@ suite('NewTabFooterAppTest', () => {
 
       // Assert.
       const managementNoticeContainer =
-          element.shadowRoot.querySelector('#managementNoticeContainer');
+          $$(element, '#managementNoticeContainer');
       assertTrue(!!managementNoticeContainer);
       let managementNoticeLink =
           $$(element, '#managementNoticeContainer [role="link"]');
@@ -183,8 +184,8 @@ suite('NewTabFooterAppTest', () => {
       // Arrange.
       const managementNoticeWithCustomLogo: ManagementNotice = {
         text: 'Managed by your organization',
-        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
-        isCustomLogo: true,
+        customBitmapDataUrl:
+            {url: 'chrome://resources/images/chrome_logo_dark.svg'},
       };
 
       // Act.
@@ -195,11 +196,13 @@ suite('NewTabFooterAppTest', () => {
       let logoContainter = $$(element, '#managementNoticeLogoContainer');
       assertTrue(!!logoContainter);
       assertTrue(logoContainter.classList.contains('custom_logo'));
+      const customManagementNoticeLogo =
+          $$<HTMLImageElement>(element, '#managementNoticeLogo');
+      assertTrue(!!customManagementNoticeLogo);
 
       const managementNoticeWithDefaultLogo: ManagementNotice = {
         text: 'Managed by your organization',
-        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
-        isCustomLogo: false,
+        customBitmapDataUrl: null,
       };
 
       // Act.
@@ -209,14 +212,17 @@ suite('NewTabFooterAppTest', () => {
       logoContainter = $$(element, '#managementNoticeLogoContainer');
       assertTrue(!!logoContainter);
       assertEquals(logoContainter.classList.length, 0);
+      const defaultManagementNoticeLogo =
+          $$<CrIconElement>(element, '#managementNoticeLogo');
+      assertTrue(!!defaultManagementNoticeLogo);
+      assertEquals('cr:domain', defaultManagementNoticeLogo.icon);
     });
 
     test('Click manageemnt notice link', async () => {
       // Arrange.
       const managementNotice: ManagementNotice = {
         text: 'Managed by your organization',
-        bitmapDataUrl: {url: 'chrome://resources/images/chrome_logo_dark.svg'},
-        isCustomLogo: false,
+        customBitmapDataUrl: null,
       };
       callbackRouter.setManagementNotice(managementNotice);
       await callbackRouter.$.flushForTesting();
@@ -401,5 +407,92 @@ suite('NewTabFooterAppTest', () => {
                 assertEquals(!!buttons, expected);
               });
         });
+  });
+
+  suite('Misc', () => {
+    setup(async () => {
+      await setupFooter();
+    });
+
+    test(`right click opens context menu`, async () => {
+      const container = $$(element, '#container');
+      assertTrue(!!container);
+
+      container.dispatchEvent(new MouseEvent('contextmenu'));
+
+      await handler.whenCalled('showContextMenu');
+      assertEquals(
+          1,
+          metrics.count('NewTabPage.Footer.Click', FooterElement.CONTEXT_MENU));
+    });
+  });
+
+  suite('Background attribution', () => {
+    setup(async () => {
+      await setupFooter(NewTabPageType.kFirstPartyWebUI);
+    });
+
+    test('Get background attribution', async () => {
+      // Arrange with empty attribution URL.
+      let backgroundAttribution: BackgroundAttribution = {
+        name: 'background image name',
+        url: {url: ''},
+      };
+
+      // Act.
+      callbackRouter.setBackgroundAttribution(backgroundAttribution);
+      await callbackRouter.$.flushForTesting();
+
+      // Assert that the button is disabled.
+      let backgroundAttributionText =
+          $$(element, '#backgroundAttributionContainer p');
+      assertTrue(!!backgroundAttributionText);
+      assertEquals(
+          backgroundAttributionText.innerText, 'background image name');
+      let backgroundAttributionLink =
+          $$(element, '#backgroundAttributionContainer [role="link"]');
+      assertFalse(!!backgroundAttributionLink);
+
+      // Arrange with a non-empty URL.
+      backgroundAttribution = {
+        name: 'background image name',
+        url: {url: 'https://info.com'},
+      };
+
+      // Act.
+      callbackRouter.setBackgroundAttribution(backgroundAttribution);
+      await callbackRouter.$.flushForTesting();
+
+      // Assert that the button is enabled.
+      backgroundAttributionText =
+          $$(element, '#backgroundAttributionContainer p');
+      assertFalse(!!backgroundAttributionText);
+      backgroundAttributionLink =
+          $$(element, '#backgroundAttributionContainer [role="link"]');
+      assertTrue(!!backgroundAttributionLink);
+      assertEquals(
+          backgroundAttributionLink.innerText, 'background image name');
+    });
+
+    test('Click background attribution link', async () => {
+      // Arrange.
+      const attributionUrl = 'https://info.com';
+      const backgroundAttribution: BackgroundAttribution = {
+        name: 'background image name',
+        url: {url: attributionUrl},
+      };
+      callbackRouter.setBackgroundAttribution(backgroundAttribution);
+      await callbackRouter.$.flushForTesting();
+
+      // Act.
+      const link = $$(element, '#backgroundAttributionContainer [role="link"]');
+      assertTrue(!!link);
+      link.click();
+
+      // Assert.
+      assertEquals(1, handler.getCallCount('openUrlInCurrentTab'));
+      assertEquals(
+          attributionUrl, handler.getArgs('openUrlInCurrentTab')[0].url);
+    });
   });
 });

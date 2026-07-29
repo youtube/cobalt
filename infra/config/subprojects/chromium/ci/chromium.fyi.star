@@ -217,6 +217,7 @@ ci.builder(
         configs = [
             "release_builder",
             "remoteexec",
+            "dcheck_always_on",
             "linux",
             "x64",
         ],
@@ -1539,6 +1540,7 @@ fyi_ios_builder(
             build_config = builder_config.build_config.RELEASE,
             target_bits = 64,
             target_platform = builder_config.target_platform.IOS,
+            host_platform = builder_config.host_platform.MAC,
         ),
         build_gs_bucket = "chromium-fyi-archive",
     ),
@@ -1566,7 +1568,7 @@ fyi_ios_builder(
             "mac_beta_arm64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_16_beta",
+            "xcode_26_beta",
             "xctest",
         ],
     ),
@@ -1577,7 +1579,7 @@ fyi_ios_builder(
         short_name = "ios-blk",
     ),
     execution_timeout = 3 * time.hour,
-    xcode = xcode.x16betabots,
+    xcode = xcode.x26betabots,
 )
 
 fyi_ios_builder(
@@ -1598,6 +1600,7 @@ fyi_ios_builder(
             build_config = builder_config.build_config.RELEASE,
             target_bits = 64,
             target_platform = builder_config.target_platform.IOS,
+            host_platform = builder_config.host_platform.MAC,
         ),
         build_gs_bucket = "chromium-fyi-archive",
     ),
@@ -1611,6 +1614,12 @@ fyi_ios_builder(
             "use_blink",
             "tvos_platform",
             "xctest",
+        ],
+    ),
+    targets = targets.bundle(
+        additional_compile_targets = [
+            "content_shell",
+            "content_unittests",
         ],
     ),
     builderless = True,

@@ -7,21 +7,56 @@
 #include "base/containers/span_rust.h"
 #include "base/files/file_util.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
 #include "components/user_data_importer/utility/safari_data_import_manager.h"
 #include "components/user_data_importer/utility/zip_ffi_glue.rs.h"
 
+namespace {
+
+std::u16string RustStringToUTF16(const rust::String& rust_string) {
+  return base::UTF8ToUTF16(
+      std::string_view(rust_string.data(), rust_string.length()));
+}
+
+autofill::CreditCard ConvertToAutofillCreditCard(
+    const user_data_importer::PaymentCardEntry& card,
+    const std::string& app_locale) {
+  autofill::CreditCard credit_card;
+
+  credit_card.SetNumber(RustStringToUTF16(card.card_number));
+  credit_card.SetNickname(RustStringToUTF16(card.card_name));
+  credit_card.SetExpirationMonth(card.card_expiration_month);
+  credit_card.SetExpirationYear(card.card_expiration_year);
+
+  // Import all cards as local cards initially. Adding other card types
+  // (server, etc) is too complex for an import flow.
+  credit_card.set_record_type(autofill::CreditCard::RecordType::kLocalCard);
+
+  credit_card.SetInfo(
+      autofill::CREDIT_CARD_NAME_FULL,
+      base::UTF8ToUTF16(std::string_view(card.cardholder_name.data(),
+                                         card.cardholder_name.length())),
+      app_locale);
+
+  return credit_card;
+}
+
+}  // namespace
+
 namespace user_data_importer {
 
 SafariDataImporter::SafariDataImporter(
     password_manager::SavedPasswordsPresenter* presenter,
-    std::unique_ptr<SafariDataImportManager> manager)
+    std::unique_ptr<SafariDataImportManager> manager,
+    std::string app_locale)
     : password_importer_(std::make_unique<password_manager::PasswordImporter>(
           presenter,
           /*user_confirmation_required=*/true)),
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
-      manager_(std::move(manager)) {}
+      manager_(std::move(manager)),
+      app_locale_(std::move(app_locale)) {}
 
 SafariDataImporter::~SafariDataImporter() = default;
 
@@ -62,10 +97,14 @@ void SafariDataImporter::ContinueImport(
 
   // TODO(crbug.com/407587751): Import other types here.
   PostCallback(std::move(bookmarks_callback), /*number_of_imports=*/0);
-  PostCallback(std::move(history_callback), /*number_of_imports=*/0);
   PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
 
-  CloseZipFileArchive();
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce(&SafariDataImporter::ImportHistory, base::Unretained(this),
+                     std::move(history_callback))
+          .Then(base::BindOnce(&SafariDataImporter::CloseZipFileArchive,
+                               base::Unretained(this))));
 }
 
 // Called after calling "Import" in order to cancel the import process.
@@ -165,14 +204,16 @@ void SafariDataImporter::LaunchImportPasswordsTask(
 
 void SafariDataImporter::LaunchImportPaymentCardsTask(
     ImportCallback payment_cards_callback) {
-  std::string json_data = Unzip(FileType::PaymentCards);
-  if (json_data.empty()) {
+  std::vector<PaymentCardEntry> payment_cards;
+  if (!zip_file_archive_ ||
+      !(*zip_file_archive_)->parse_payment_cards(payment_cards)) {
     PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
   } else {
     task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&SafariDataImporter::ImportPaymentCards,
-                                  base::Unretained(this), std::move(json_data),
-                                  std::move(payment_cards_callback)));
+        FROM_HERE,
+        base::BindOnce(&SafariDataImporter::ImportPaymentCards,
+                       base::Unretained(this), std::move(payment_cards),
+                       std::move(payment_cards_callback)));
   }
 }
 
@@ -199,15 +240,24 @@ void SafariDataImporter::ImportPasswords(
 }
 
 void SafariDataImporter::ImportPaymentCards(
-    std::string json_data,
+    std::vector<PaymentCardEntry> payment_cards,
     ImportCallback payment_cards_callback) {
-  if (json_data.empty()) {
+  if (payment_cards.empty()) {
     PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
     return;
   }
 
-  // TODO(crbug.com/407587751): Import payment cards.
-  PostCallback(std::move(payment_cards_callback), /*number_of_imports=*/0);
+  cards_to_import_.clear();
+
+  cards_to_import_.reserve(payment_cards.size());
+
+  std::ranges::transform(payment_cards, std::back_inserter(cards_to_import_),
+                         [this](const auto& card) {
+                           return ConvertToAutofillCreditCard(card,
+                                                              app_locale_);
+                         });
+
+  PostCallback(std::move(payment_cards_callback), cards_to_import_.size());
 }
 
 void SafariDataImporter::ImportBookmarks(std::string html_data,
@@ -224,7 +274,7 @@ void SafariDataImporter::ImportBookmarks(std::string html_data,
 void SafariDataImporter::StartImportHistory(ImportCallback history_callback) {
   // This is an approximation of the number of bytes per URL entry in the
   // history file.
-  static const size_t kBytesPerURL = 200;
+  static const size_t kBytesPerURL = 250;
   size_t file_size = UncompressedFileSize(FileType::History);
   size_t approximate_number_of_urls =
       (file_size > 0) ? (file_size / kBytesPerURL) + 1 : 0;
@@ -233,11 +283,19 @@ void SafariDataImporter::StartImportHistory(ImportCallback history_callback) {
 }
 
 void SafariDataImporter::ImportHistory(ImportCallback history_callback) {
-  // TODO(crbug.com/407587751): Import history.
   // Note: Because the history file can be very large, the parsing will happen
   // entirely in Rust, so that we can stream the unzipper's output to the JSON
   // parser's input.
-  PostCallback(std::move(history_callback), /*number_of_imports=*/0);
+  std::vector<HistoryEntry> history_entries;
+  if (!zip_file_archive_ ||
+      !(*zip_file_archive_)->parse_history(history_entries)) {
+    PostCallback(std::move(history_callback), /*number_of_imports=*/0);
+    return;
+  }
+
+  // TODO(crbug.com/407587751): Save imported history.
+
+  PostCallback(std::move(history_callback), history_entries.size());
 }
 
 }  // namespace user_data_importer

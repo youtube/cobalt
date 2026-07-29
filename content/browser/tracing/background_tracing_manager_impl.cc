@@ -580,23 +580,9 @@ std::vector<std::string> BackgroundTracingManagerImpl::AddPresetScenariosImpl(
       (data_filtering == ANONYMIZE_DATA_AND_FILTER_PACKAGE_NAME);
 
   std::vector<std::string> added_scenarios;
-  std::set<raw_ptr<TracingScenario>> conflicting_scenarios;
+  std::set<raw_ptr<TracingScenario>> conflicting_scenarios_set;
+  std::vector<std::unique_ptr<TracingScenario>> conflicting_scenarios;
   for (const auto& scenario_config : config.scenarios()) {
-    if (auto it = preset_scenarios_.find(scenario_config.scenario_name());
-        it != preset_scenarios_.end()) {
-      if (!overwrite_conflicts) {
-        continue;
-      }
-      if (active_scenario_ == it->second.get()) {
-        active_scenario_->Abort();
-        conflicting_scenarios.insert(it->second.get());
-      } else if (it->second->current_state() !=
-                 TracingScenario::State::kDisabled) {
-        it->second->Disable();
-        conflicting_scenarios.insert(it->second.get());
-      }
-    }
-
     auto scenario = TracingScenario::Create(
         scenario_config, enable_privacy_filter, /*is_local_scenario=*/true,
         enable_package_name_filter, true, this);
@@ -607,14 +593,33 @@ std::vector<std::string> BackgroundTracingManagerImpl::AddPresetScenariosImpl(
       continue;
     }
 
+    if (auto it = preset_scenarios_.find(scenario_config.scenario_name());
+        it != preset_scenarios_.end()) {
+      if (!overwrite_conflicts) {
+        continue;
+      }
+      if (active_scenario_ == it->second.get()) {
+        active_scenario_->Abort();
+        active_scenario_ = nullptr;
+        conflicting_scenarios_set.insert(it->second.get());
+        conflicting_scenarios.emplace_back(std::move(it->second));
+      } else if (it->second->current_state() !=
+                 TracingScenario::State::kDisabled) {
+        it->second->Disable();
+        conflicting_scenarios_set.insert(it->second.get());
+        conflicting_scenarios.emplace_back(std::move(it->second));
+      }
+    }
+
     added_scenarios.push_back(scenario->scenario_name());
     preset_scenarios_[scenario->scenario_name()] = std::move(scenario);
   }
   if (!conflicting_scenarios.empty()) {
     std::erase_if(enabled_scenarios_, [&](raw_ptr<TracingScenario> scenario) {
-      return conflicting_scenarios.contains(scenario);
+      return conflicting_scenarios_set.contains(scenario);
     });
   }
+  conflicting_scenarios_set.clear();
 
   return added_scenarios;
 }
@@ -697,10 +702,12 @@ bool BackgroundTracingManagerImpl::OnScenarioActive(
       kMaxTracesPerScenario) {
     return false;
   }
-  if (!delegate_->IsRecordingAllowed(
-          active_scenario->privacy_filter_enabled())) {
+  auto now = base::TimeTicks::Now();
+  if (!delegate_->IsRecordingAllowed(active_scenario->privacy_filter_enabled(),
+                                     now)) {
     return false;
   }
+  scenario_start_time_ = now;
   active_scenario_ = active_scenario;
   base::UmaHistogramSparse(
       "Tracing.Background.Scenario.Active",
@@ -730,7 +737,8 @@ bool BackgroundTracingManagerImpl::OnScenarioIdle(
   for (auto& scenario : enabled_scenarios_) {
     scenario->Enable();
   }
-  return delegate_->IsRecordingAllowed(idle_scenario->privacy_filter_enabled());
+  return delegate_->IsRecordingAllowed(idle_scenario->privacy_filter_enabled(),
+                                       scenario_start_time_);
 }
 
 void BackgroundTracingManagerImpl::OnScenarioError(
@@ -748,7 +756,7 @@ bool BackgroundTracingManagerImpl::OnScenarioCloned(
       "Tracing.Background.Scenario.Clone",
       variations::HashName(cloned_scenario->scenario_name()));
   return delegate_->IsRecordingAllowed(
-      cloned_scenario->privacy_filter_enabled());
+      cloned_scenario->privacy_filter_enabled(), scenario_start_time_);
 }
 
 void BackgroundTracingManagerImpl::OnScenarioRecording(
@@ -973,10 +981,8 @@ void BackgroundTracingManagerImpl::OnProtoDataComplete(
     base_report.total_size = serialized_trace.size();
     base_report.skip_reason = skip_reason;
 
-    std::string serialized_system_profile;
-    if (system_profile_recorder_) {
-      serialized_system_profile = system_profile_recorder_.Run();
-    }
+    std::string serialized_system_profile =
+        delegate_->RecordSerializedSystemProfileMetrics();
 
     database_task_runner_->PostTask(
         FROM_HERE,
@@ -995,11 +1001,6 @@ void BackgroundTracingManagerImpl::OnProtoDataComplete(
         base::BindOnce(&BackgroundTracingManagerImpl::OnFinalizeComplete,
                        weak_factory_.GetWeakPtr(), std::nullopt));
   }
-}
-
-void BackgroundTracingManagerImpl::SetSystemProfileRecorder(
-    base::RepeatingCallback<std::string()> recorder) {
-  system_profile_recorder_ = std::move(recorder);
 }
 
 void BackgroundTracingManagerImpl::AddNamedTriggerObserver(

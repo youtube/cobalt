@@ -299,9 +299,9 @@ void PictureLayerImpl::AppendQuads(const AppendQuadsContext& context,
     auto* quad = render_pass->CreateAndAppendDrawQuad<viz::PictureDrawQuad>();
     quad->SetNew(
         shared_quad_state, geometry_rect, visible_geometry_rect, needs_blending,
-        texture_rect, texture_size, nearest_neighbor_, quad_content_rect,
-        max_contents_scale, std::move(image_animation_map),
-        raster_source_->GetDisplayItemList(), GetRasterInducingScrollOffsets());
+        texture_rect, nearest_neighbor_, quad_content_rect, max_contents_scale,
+        std::move(image_animation_map), raster_source_->GetDisplayItemList(),
+        GetRasterInducingScrollOffsets());
     ValidateQuadResources(quad);
     return;
   }
@@ -342,9 +342,6 @@ void PictureLayerImpl::AppendQuads(const AppendQuadsContext& context,
         } else if (iter.resolution() == HIGH_RESOLUTION) {
           color = DebugColors::HighResTileBorderColor();
           width = DebugColors::HighResTileBorderWidth(device_scale_factor);
-        } else if (iter.resolution() == LOW_RESOLUTION) {
-          color = DebugColors::LowResTileBorderColor();
-          width = DebugColors::LowResTileBorderWidth(device_scale_factor);
         } else if (iter->contents_scale_key() > max_contents_scale) {
           color = DebugColors::ExtraHighResTileBorderColor();
           width = DebugColors::ExtraHighResTileBorderWidth(device_scale_factor);
@@ -431,7 +428,7 @@ void PictureLayerImpl::AppendQuads(const AppendQuadsContext& context,
   }
 
   int missing_tile_count = 0;
-  only_used_low_res_last_append_quads_ = true;
+  produced_tile_last_append_quads_ = false;
   gfx::Rect scaled_recorded_bounds = gfx::ScaleToEnclosingRect(
       raster_source_->recorded_bounds(), max_contents_scale);
   for (auto iter =
@@ -494,7 +491,7 @@ void PictureLayerImpl::AppendQuads(const AppendQuadsContext& context,
               shared_quad_state, offset_geometry_rect,
               offset_visible_geometry_rect, needs_blending,
               draw_info.resource_id_for_export(), texture_rect,
-              draw_info.resource_size(), nearest_neighbor_,
+              nearest_neighbor_,
               !layer_tree_impl()->settings().enable_edge_anti_aliasing);
           ValidateQuadResources(quad);
           has_draw_quad = true;
@@ -557,10 +554,7 @@ void PictureLayerImpl::AppendQuads(const AppendQuadsContext& context,
           visible_geometry_area;
     }
 
-    // If we have a draw quad, but it's not low resolution, then
-    // mark that we've used something other than low res to draw.
-    if (iter.resolution() != LOW_RESOLUTION)
-      only_used_low_res_last_append_quads_ = false;
+    produced_tile_last_append_quads_ = true;
 
     if (last_append_quads_tilings_.empty() ||
         last_append_quads_tilings_.back() != iter.CurrentTiling()) {
@@ -637,7 +631,7 @@ bool PictureLayerImpl::UpdateTiles() {
   // - We're in requires high res to draw mode.
   // - We're not in smoothness takes priority mode.
   // To put different, the tiling set can't require tiles for activation if
-  // we're in smoothness mode and only used low-res or checkerboard to draw last
+  // we're in smoothness mode and only used checkerboard to draw last
   // frame and we don't need high res to draw.
   //
   // The reason for this is that we should be able to activate sooner and get a
@@ -647,7 +641,7 @@ bool PictureLayerImpl::UpdateTiles() {
   bool can_require_tiles_for_activation = false;
   if (contributes_to_drawn_render_surface()) {
     can_require_tiles_for_activation =
-        !only_used_low_res_last_append_quads_ || RequiresHighResToDraw() ||
+        produced_tile_last_append_quads_ || RequiresHighResToDraw() ||
         !layer_tree_impl()->SmoothnessTakesPriority();
   }
 
@@ -1320,9 +1314,6 @@ bool PictureLayerImpl::CanRecreateHighResTilingForLCDTextAndRasterTransform(
            !layer_tree_impl()->IsReadyToActivate());
     return true;
   }
-  // We can recreate the tiling if we would invalidate all of its tiles.
-  if (high_res.may_contain_low_resolution_tiles())
-    return true;
   // Keep the non-ideal raster translation unchanged for transform animations
   // to avoid re-rasterization during animation.
   if (draw_properties().screen_space_transform_is_animating ||
@@ -1403,13 +1394,6 @@ void PictureLayerImpl::UpdateTilingsForRasterScaleAndTranslation(
     // We always need a high res tiling, so create one if it doesn't exist.
     high_res = AddTiling(gfx::AxisTransform2d::FromScaleAndTranslation(
         raster_contents_scale_, raster_translation));
-  } else if (high_res->may_contain_low_resolution_tiles()) {
-    // If the tiling we find here was LOW_RESOLUTION previously, it may not be
-    // fully rastered, so destroy the old tiles.
-    high_res->Reset();
-    // Reset the flag now that we'll make it high res, it will have fully
-    // rastered content.
-    high_res->reset_may_contain_low_resolution_tiles();
   }
   high_res->set_resolution(HIGH_RESOLUTION);
 

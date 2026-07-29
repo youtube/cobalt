@@ -408,34 +408,19 @@
     ]
   },
   {
-    "prefix": "css-gap-decorations",
-    "exclusive_tests": [
-      "external/wpt/css/css-gaps"
-    ],
-    "platforms": [
-      "Linux"
-    ],
+    "prefix": "css-gap-decorations-disabled",
+    "platforms": ["Linux"],
     "bases": [
-      "external/wpt/css/css-multicol",
-      "external/wpt/web-animations/animation-model/animation-types",
       "animations/interpolation/webkit-column-rule-color-interpolation.html",
-      "fast/multicol",
-      "external/wpt/web-animations/responsive/to-color-change.html",
-      "external/wpt/css/css-typed-om/the-stylepropertymap/properties/column-rule-color.html",
+      "animations/interpolation/webkit-column-rule-width-interpolation.html",
+      "external/wpt/css/css-multicol/animation/column-rule-color-interpolation.html",
       "external/wpt/css/css-animations/responsive/column-rule-color-001.html",
-      "external/wpt/css/css-cascade/all-prop-revert-layer.html",
-      "external/wpt/css/css-ui/compute-kind-widget-no-fallback-props-001.html",
-      "external/wpt/css/cssom/declaration-block-all-crash.html",
-      "external/wpt/css/css-gaps"
-    ],
-    "args": [
-      "--enable-blink-features=CSSGapDecoration"
-    ],
-    "expires": "Oct 1, 2025",
-    "owners": [
-      "samomekarajr@microsoft.com",
-      "almaher@microsoft.com"
-    ]
+      "external/wpt/web-animations/animation-model/animation-types/accumulation-per-property-001.html",
+      "external/wpt/web-animations/animation-model/animation-types/addition-per-property-001.html",
+      "external/wpt/web-animations/animation-model/animation-types/interpolation-per-property-001.html"],
+    "args": ["--disable-blink-features=CSSGapDecoration"],
+    "expires": "June 1, 2026",
+    "owners": ["samomekarajr@microsoft.com", "almaher@microsoft.com", "javiercon@microsoft.com"]
   },
   {
     "prefix": "css-line-clamp-line-breaking-ellipsis",
@@ -1772,6 +1757,7 @@
       "external/wpt/wasm/webapi/esm-integration/wasm-import-wasm-export.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/worker-import-source-phase.tentative.html",
       "external/wpt/wasm/webapi/esm-integration/worklet-import-source-phase.tentative.https.html",
+      "wpt_internal/js/source-phase-imports/import-same-wasm-resource-twice.html",
       "wpt_internal/js/source-phase-imports/invalid-module-types-throw.html"
     ],
     "args": [
@@ -2338,6 +2324,27 @@
     ]
   },
   {
+    "prefix": "overscroll-behavior-all-scroll-containers",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/css/css-overscroll-behavior/overscroll-behavior-without-overflow.html",
+      "fast/scroll-behavior/overscroll-behavior.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=OverscrollBehaviorRespectedOnAllScrollContainers"
+    ],
+    "owners": [
+      "perryuwang@gmail.com",
+      "flackr@chromium.org"
+    ],
+    "expires": "Jan 1, 2026"
+  },
+  {
     "prefix": "parakeet",
     "owners": [
       "brandm@microsoft.com"
@@ -2612,6 +2619,32 @@
       "almaher@microsoft.com"
     ]
   },
+  "These tests involve requiring a prefetch proxy, but since WPT origins are ",
+  "not allowed to use the proxy in Chromium, we pass an argument telling ",
+  "Chromium to bypass the proxy and pretend it was used instead. See also",
+  "external/wpt/speculation-rules/prefetch/resources/utils.sub.js.",
+  "These tests are skipped in other configurations via text expectations.",
+  {
+    "prefix": "prefetch-proxy",
+    "owners": [
+      "domenic@chromium.org",
+      "nhiroki@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/speculation-rules/prefetch/anonymous-client.https.html",
+      "external/wpt/speculation-rules/prefetch/cross-origin-cookies-anonymous-client-ip-duplicate.https.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--bypass-prefetch-proxy-for-host=not-web-platform.test"
+    ],
+    "expires": "never"
+  },
   "These tests require the experimental speculative prefetch feature, and",
   "requires extra switches to enable content implementation of speculation",
   "rules prefetch.",
@@ -2632,9 +2665,7 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=PrefetchUseContentRefactor:block_until_head_timeout_eager_prefetch/0,PrefetchCookieIndices,CookieIndicesHeader",
-      "--disable-features=PrefetchServiceWorker",
-      "--bypass-prefetch-proxy-for-host=not-web-platform.test"
+      "--disable-features=PrefetchServiceWorker"
     ],
     "expires": "Oct 1, 2025"
   },
@@ -2654,8 +2685,7 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=PrefetchUseContentRefactor:block_until_head_timeout_eager_prefetch/0,PrefetchCookieIndices,CookieIndicesHeader,Prerender2FallbackPrefetchSpecRules,PrefetchServiceWorker",
-      "--bypass-prefetch-proxy-for-host=not-web-platform.test"
+      "--enable-features=Prerender2FallbackPrefetchSpecRules,PrefetchServiceWorker"
     ],
     "expires": "Oct 1, 2025"
   },
@@ -2732,9 +2762,8 @@
     ],
     "exclusive_tests": "ALL",
     "args": [
-      "--enable-features=PrefetchUseContentRefactor:block_until_head_timeout_eager_prefetch/0,PrefetchCookieIndices,CookieIndicesHeader,Prerender2FallbackPrefetchSpecRules",
+      "--enable-features=Prerender2FallbackPrefetchSpecRules",
       "--disable-features=PrefetchServiceWorker",
-      "--bypass-prefetch-proxy-for-host=not-web-platform.test",
       "--disable-threaded-compositing",
       "--disable-threaded-animation"
     ],
@@ -4218,6 +4247,18 @@
     "expires": "Jul 1, 2025"
   },
   {
+    "prefix": "soft-navigation-heuristics-pre-paint-attribution",
+    "owners": ["shaseley@google.com", "mmocny@google.com"],
+    "platforms": ["Linux"],
+    "bases": [
+      "external/wpt/soft-navigation-heuristics/"
+    ],
+    "args": [
+      "--enable-features=SoftNavigationDetectionPrePaintBasedAttribution"
+    ],
+    "expires": "Dec 1, 2025"
+  },
+  {
     "prefix": "speculation-rules-prerender-target-hint",
     "platforms": [
       "Linux",
@@ -4399,6 +4440,7 @@
       "fast/hidpi/2x",
       "fast/dom/HTMLImageElement/image-sizes-2x.html",
       "fast/dom/HTMLImageElement/image-sizes-js-change.html",
+      "fast/scrolling/same-page-navigate.html",
       "http/tests/loading/link-preload-image-sizes-2x.html",
       "http/tests/loading/link-preload-image-srcset-2x.html",
       "http/tests/loading/preload-image-sizes-2x.html",

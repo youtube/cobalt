@@ -46,6 +46,11 @@ BASE_DECLARE_FEATURE(kLensOverlayContextualSearchbox);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayContextualSearchboxForOmniboxSuggestions);
 
+// Enables the migration for Lens overlay suggestions URL params, independent
+// of the CSB feature.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlaySuggestionsMigration);
+
 // Enables the Lens overlay optimizations.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayLatencyOptimizations);
@@ -126,6 +131,14 @@ BASE_DECLARE_FEATURE(kLensSearchSidePanelDefaultWidthChange);
 // Enables keyboard selection in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayKeyboardSelection);
+
+// Use alternate appearance for permission bubble.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayPermissionBubbleAlt);
+
+// Enables the back to live page functionality in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensOverlayBackToPage);
 
 // The base URL for Lens.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -972,6 +985,14 @@ int GetLensSearchSidePanelDefaultWidth();
 // Whether to enable keyboard selection in the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayKeyboardSelectionEnabled();
+
+// Whether to use alternate appearance for permission bubble.
+COMPONENT_EXPORT(LENS_FEATURES)
+bool IsLensOverlayPermissionBubbleAltEnabled();
+
+// Whether the back to live page functionality is enabled in the Lens overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayBackToPageEnabled();
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/check_is_test.h"
 #include "base/metrics/histogram_functions.h"
 #include "gpu/command_buffer/service/scheduler.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -105,7 +104,10 @@ std::unique_ptr<WebNNContextProviderImpl> WebNNContextProviderImpl::Create(
     scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
     gpu::Scheduler* scheduler,
     int32_t client_id) {
-  CHECK_NE(shared_context_state, nullptr);
+  // `shared_context_state` is only used by DirectML backend for GPU context. It
+  // may be nullptr when GPU acceleration is not available. For such case, WebNN
+  // GPU feature (`gpu::GPU_FEATURE_TYPE_WEBNN`) is not enabled and creating a
+  // GPU context will result in a not-supported error.
   return base::WrapUnique(new WebNNContextProviderImpl(
       std::move(shared_context_state), std::move(gpu_feature_info),
       std::move(gpu_info), std::move(lose_all_contexts_callback),
@@ -123,8 +125,6 @@ WebNNContextProviderImpl::CreateForTesting(
     mojo::PendingReceiver<mojom::WebNNContextProvider> receiver,
     WebNNStatus status,
     LoseAllContextsCallback lose_all_contexts_callback) {
-  CHECK_IS_TEST();
-
   gpu::GpuFeatureInfo gpu_feature_info;
   gpu::GPUInfo gpu_info;
 
@@ -278,7 +278,6 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 base::optional_ref<WebNNContextImpl>
 WebNNContextProviderImpl::GetWebNNContextImplForTesting(
     const blink::WebNNContextToken& handle) {
-  CHECK_IS_TEST();
   const auto it = impls_.find(handle);
   if (it == impls_.end()) {
     mojo::ReportBadMessage(kBadMessageInvalidContext);

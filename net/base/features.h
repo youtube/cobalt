@@ -569,6 +569,12 @@ NET_EXPORT extern const base::FeatureParam<bool> kIpPrivacyEnableUserBypass;
 NET_EXPORT extern const base::FeatureParam<bool>
     kIpPrivacyDisableForEnterpriseByDefault;
 
+// Enables the ability for IP Protected requests to be marked and inspected
+// within the DevTools panel. Requests sent through IP Protection will include
+// an icon besides the Network entry, as well as be able to be filtered within
+// the Network panel. Tracked at https://crbug.com/425645896.
+NET_EXPORT extern const base::FeatureParam<bool> kIpPrivacyEnableIppInDevTools;
+
 // Maximum report body size (KB) to include in serialized reports. Bodies
 // exceeding this are omitted when kExcludeLargeBodyReports is enabled.  Use
 // Reporting.ReportBodySize UMA histogram to monitor report body sizes and
@@ -613,6 +619,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kEnableEarlyHintsOnHttp11);
 
 // Enables draft-07 version of WebTransport over HTTP/3.
 NET_EXPORT BASE_DECLARE_FEATURE(kEnableWebTransportDraft07);
+
+// Enables a smarter throttling strategy based in the server's IP.
+NET_EXPORT BASE_DECLARE_FEATURE(kWebTransportFineGrainedThrottling);
 
 NET_EXPORT BASE_DECLARE_FEATURE(kThirdPartyPartitionedStorageAllowedByDefault);
 
@@ -694,11 +703,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kSimdutfBase64Support);
 
 // Further optimize parsing data: URLs.
 NET_EXPORT BASE_DECLARE_FEATURE(kFurtherOptimizeParsingDataUrls);
-
-// Enables support for codepoints defined in draft-ietf-tls-tls13-pkcs1, which
-// enable RSA keys to be used with client certificates even if they do not
-// support RSA-PSS.
-NET_EXPORT BASE_DECLARE_FEATURE(kLegacyPKCS1ForTLS13);
 
 // Keep whitespace for non-base64 encoded data: URLs.
 NET_EXPORT BASE_DECLARE_FEATURE(kKeepWhitespaceForDataUrls);
@@ -809,6 +813,14 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // a TLS extension to help the server serve a certificate that the client will
 // trust.
 NET_EXPORT BASE_DECLARE_FEATURE(kTLSTrustAnchorIDs);
+
+// Whether or not this client is participating in the TCP connection pool size
+// experiment, and if so how big their pools should be.
+// See crbug.com/415691664 for more details.
+NET_EXPORT BASE_DECLARE_FEATURE(kTcpConnectionPoolSizeTrial);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpConnectionPoolSizeTrialNormal);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                      kTcpConnectionPoolSizeTrialWebSocket);
 
 }  // namespace net::features
 

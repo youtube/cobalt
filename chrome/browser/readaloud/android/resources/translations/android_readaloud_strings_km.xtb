@@ -21,7 +21,6 @@
 <translation id="3493899379487634969">តើមាន​អ្វីខុស​ប្រក្រតី?</translation>
 <translation id="3730775656877876887">កំពុង​បង្កើត​ការចាក់​សំឡេង AI</translation>
 <translation id="3778044272390020426">ម៉ឺនុយ​ជម្រើស​មតិកែលម្អ​អវិជ្ជមាន</translation>
-<translation id="3807208219231826020">រំកិលការចាក់វីដេអូ</translation>
 <translation id="385051799172605136">ថយក្រោយ</translation>
 <translation id="3936324432406465283">ល្បឿនចាក់វីដេអូ</translation>
 <translation id="4020327272915390518">ម៉ឺនុយជម្រើស</translation>
@@ -68,5 +67,6 @@
 <translation id="8481839122437406573">ស្ងប់</translation>
 <translation id="8756370108715456837">មិនត្រឹមត្រូវតាមការពិត</translation>
 <translation id="8953618380150219653">កម្មវិធីចាក់ “ស្ដាប់​ទំព័រ​នេះ” បានបើក​ពេញ​អេក្រង់។</translation>
+<translation id="9087782179025630211">របាររាវរក។ បានចាក់​រយៈពេល <ph name="ELAPSED" /> នៃ <ph name="TOTAL" />។</translation>
 <translation id="978117257931832348">សំឡេងទាប</translation>
 </translationbundle>

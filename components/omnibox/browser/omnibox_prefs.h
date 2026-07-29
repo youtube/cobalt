@@ -50,6 +50,10 @@ inline constexpr char kKeywordSpaceTriggeringEnabled[] =
 inline constexpr char kShowGoogleLensShortcut[] =
     "omnibox.show_google_lens_shortcut";
 
+// Boolean that specifies whether to show the search tools at the bottom of the
+// omnibox.
+inline constexpr char kShowSearchTools[] = "omnibox.show_search_tools";
+
 // Boolean that specifies whether to always show full URLs in the omnibox.
 inline constexpr char kPreventUrlElisionsInOmnibox[] =
     "omnibox.prevent_url_elisions";
@@ -65,6 +69,8 @@ inline constexpr char kZeroSuggestCachedResultsWithURL[] =
 
 // Booleans that specify whether various IPH suggestions have been dismissed.
 inline constexpr char kDismissedGeminiIph[] = "omnibox.dismissed_gemini_iph";
+inline constexpr char kDismissedEnterpriseSearchAggregatorIphPrefName[] =
+    "omnibox.dismissed_enterprise_search_aggregator_iph";
 inline constexpr char kDismissedFeaturedEnterpriseSiteSearchIphPrefName[] =
     "omnibox.dismissed_featured_enterprise_search_iph";
 inline constexpr char kDismissedHistoryEmbeddingsSettingsPromo[] =
@@ -76,6 +82,8 @@ inline constexpr char kDismissedHistoryEmbeddingsScopePromo[] =
 
 // How many times the various IPH suggestions were shown.
 inline constexpr char kShownCountGeminiIph[] = "omnibox.shown_count_gemini_iph";
+inline constexpr char kShownCountEnterpriseSearchAggregatorIph[] =
+    "omnibox.shown_count_enterprise_search_aggregator_iph";
 inline constexpr char kShownCountFeaturedEnterpriseSiteSearchIph[] =
     "omnibox.shown_count_featured_enterprise_search_iph";
 inline constexpr char kShownCountHistoryEmbeddingsSettingsPromo[] =

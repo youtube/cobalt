@@ -27,6 +27,17 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "10_fleet",
+    generate_pyl_entry = False,
+    swarming = targets.swarming(
+        dimensions = {
+            "device_os": "QQ1A.191205.008",
+            "device_os_flavor": "google",
+        },
+    ),
+)
+
+targets.mixin(
     name = "11-x86-emulator",
     args = [
         "--avd-config=../../tools/android/avd/proto/android_30_google_apis_x86.textpb",
@@ -508,6 +519,13 @@ targets.mixin(
     name = "skylab-shards-45",
     skylab = targets.skylab(
         shards = 45,
+    ),
+)
+
+targets.mixin(
+    name = "skylab-50-tests-per-shard",
+    skylab = targets.skylab(
+        cros_test_max_in_shard = 50,
     ),
 )
 

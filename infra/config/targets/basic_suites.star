@@ -139,6 +139,26 @@ targets.legacy_basic_suite(
     },
 )
 
+targets.legacy_basic_suite(
+    name = "chromeos_chrome_criticalstaging_tast_tests_tfc",
+    tests = {
+        "chrome_criticalstaging_tast_tests": targets.legacy_test_config(
+            ci_only = True,
+            skylab = targets.skylab(
+                # TODO(fqj): Remove stub tast_expr.
+                # Currently, recipe_module/chromium_tests has some
+                # tast-specific logic relying on tast_expr to be non-empty.
+                tast_expr = "STUB_STRING_TO_RUN_TAST_TESTS",
+                timeout_sec = 14400,
+                cros_test_names_exclude_from_file = ["chromeos/tast_control_disabled_tests.txt"],
+                cros_test_tags = ["group:mainline", "dep:chrome", "informational", "group:criticalstaging"],
+                cros_test_tags_exclude = ["dep:lacros", "dep:no_chrome_dcheck"],
+            ),
+            experiment_percentage = 100,
+        ),
+    },
+)
+
 # Test suite for running disabled Tast tests to collect data to re-enable
 # them. The test suite should not be critical to builders.
 targets.legacy_basic_suite(
@@ -154,6 +174,24 @@ targets.legacy_basic_suite(
                 test_level_retries = 1,
                 shards = 2,
                 timeout_sec = 14400,
+            ),
+            experiment_percentage = 100,
+        ),
+    },
+)
+
+targets.legacy_basic_suite(
+    name = "chromeos_chrome_disabled_tast_tests_tfc",
+    tests = {
+        "chrome_disabled_tast_tests": targets.legacy_test_config(
+            ci_only = True,
+            skylab = targets.skylab(
+                # TODO(fqj): Remove stub tast_expr.
+                # Currently, recipe_module/chromium_tests has some
+                # tast-specific logic relying on tast_expr to be non-empty.
+                tast_expr = "STUB_STRING_TO_RUN_TAST_TESTS",
+                timeout_sec = 14400,
+                cros_test_names_from_file = ["chromeos/tast_control_disabled_tests.txt"],
             ),
             experiment_percentage = 100,
         ),
@@ -1248,10 +1286,8 @@ targets.legacy_basic_suite(
             ),
         ),
         "message_center_unittests": targets.legacy_test_config(),
-        "nacl_loader_unittests": targets.legacy_test_config(),
         "native_theme_unittests": targets.legacy_test_config(),
         "pdf_unittests": targets.legacy_test_config(),
-        "ppapi_unittests": targets.legacy_test_config(),
         "printing_unittests": targets.legacy_test_config(),
         "remoting_unittests": targets.legacy_test_config(),
         "snapshot_unittests": targets.legacy_test_config(),

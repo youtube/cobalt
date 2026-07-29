@@ -763,7 +763,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.BWE.InitiallyLostPackets" units="packets"
-    expires_after="2025-08-03">
+    expires_after="2025-12-14">
   <owner>holmer@chromium.org</owner>
   <summary>
     The number of video packets lost durig the first 2 seconds in a WebRTC call.
@@ -1473,6 +1473,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebRTC.PeerConnection.RestrictedCandidates.MungeAllowed"
+    enum="Boolean" expires_after="2025-12-31">
+  <owner>hta@chromium.org</owner>
+  <owner>webrtc-dev@chromium.org</owner>
+  <owner>tov@chromium.org</owner>
+  <summary>
+    For added remote candidates with munged ufrag, this records whether the
+    candidate was allowed or not in the check for restricted addresses.
+  </summary>
+</histogram>
+
 <histogram name="WebRTC.PeerConnection.RestrictedCandidates.Port"
     units="candidates" expires_after="2025-12-31">
   <owner>tov@chromium.org</owner>
@@ -1677,7 +1688,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.ValidIceChars" enum="Boolean"
-    expires_after="2025-10-12">
+    expires_after="2025-12-14">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <owner>phancke@microsoft.com</owner>

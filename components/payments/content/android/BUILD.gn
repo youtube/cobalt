@@ -222,6 +222,7 @@ android_library("full_java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_collection_collection_java",
     "//third_party/androidx:androidx_core_core_java",
+    "//third_party/blink/public/common:common_java",
     "//third_party/blink/public/mojom:android_mojo_bindings_java",
     "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_no_recycler_view_java",
@@ -279,6 +280,7 @@ android_library("minimal_java") {
     ":method_strings_generated_srcjar",
     ":minimal_jni",
     ":payment_app_type_generated_enum",
+    ":spc_transaction_mode_generated_enum",
   ]
   resources_package = "org.chromium.components.payments"
 }
@@ -329,6 +331,10 @@ java_cpp_enum("payments_journey_logger_enum_javagen") {
   sources = [ "//components/payments/core/journey_logger.h" ]
 }
 
+java_cpp_enum("spc_transaction_mode_generated_enum") {
+  sources = [ "//components/payments/content/secure_payment_confirmation_transaction_mode.h" ]
+}
+
 robolectric_library("junit_test_support") {
   sources = [
     "junit/src/org/chromium/components/payments/test_support/DefaultPaymentFeatureConfig.java",
@@ -375,6 +381,7 @@ robolectric_library("junit") {
     "//third_party/android_deps:material_design_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_collection_collection_java",
+    "//third_party/blink/public/common:common_java",
     "//third_party/blink/public/mojom:android_mojo_bindings_java",
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",

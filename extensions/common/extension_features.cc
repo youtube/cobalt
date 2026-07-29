@@ -48,7 +48,7 @@ BASE_FEATURE(kApiOdfsConfigPrivate,
 
 BASE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered,
              "ApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Other Features
@@ -200,10 +200,8 @@ BASE_FEATURE(kRemoveCoreSiteInstance,
 
 BASE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch,
              "DisableDisableExtensionsExceptCommandLineSwitch",
-// TODO(crbug.com/419530940): Enable feature for Google Chrome Branding once
-// ready.
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-             base::FEATURE_DISABLED_BY_DEFAULT
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -221,6 +219,18 @@ BASE_FEATURE(kDisableLoadExtensionCommandLineSwitch,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
 );
 
+BASE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch,
+             "DisableExtensionsOnChromeUrlsSwitch",
+// TODO (crbug.com/426554244): Determine if this switch should be
+// removed for desktop-android builds as well.
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS) && \
+    !BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 BASE_FEATURE(kUserScriptUserExtensionToggle,
              "UserScriptUserExtensionToggle",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -235,6 +245,14 @@ BASE_FEATURE(kExtensionBrowserNamespaceAlternative,
 
 BASE_FEATURE(kRuntimeOnMessagePromiseReturnSupport,
              "RuntimeOnMessagePromiseReturnSupport",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kOptimizeServiceWorkerStartRequests,
+             "OptimizeServiceWorkerStartRequests",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch,
+             "AvoidCloneArgsOnExtensionFunctionDispatch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

@@ -218,9 +218,10 @@ unsigned Character::ExpansionOpportunityCount(
 }
 
 bool Character::CanTextDecorationSkipInk(UChar32 codepoint) {
-  if (codepoint == kSolidusCharacter || codepoint == kReverseSolidusCharacter ||
-      codepoint == kLowLineCharacter)
+  if (codepoint == uchar::kSolidus || codepoint == uchar::kReverseSolidus ||
+      codepoint == uchar::kLowLine) {
     return false;
+  }
 
   if (Character::IsCJKIdeographOrSymbol(codepoint))
     return false;
@@ -252,13 +253,12 @@ bool Character::CanReceiveTextEmphasis(UChar32 c) {
   // Additional word-separator characters listed in CSS Text Level 3 Editor's
   // Draft 3 November 2010.
   // https://www.w3.org/TR/css-text-3/#word-separator
-  if (c == kEthiopicWordspaceCharacter ||
-      c == kAegeanWordSeparatorLineCharacter ||
-      c == kAegeanWordSeparatorDotCharacter ||
-      c == kUgariticWordDividerCharacter ||
-      c == kTibetanMarkIntersyllabicTshegCharacter ||
-      c == kTibetanMarkDelimiterTshegBstarCharacter)
+  if (c == uchar::kEthiopicWordspace || c == uchar::kAegeanWordSeparatorLine ||
+      c == uchar::kAegeanWordSeparatorDot || c == uchar::kUgariticWordDivider ||
+      c == uchar::kTibetanMarkIntersyllabicTsheg ||
+      c == uchar::kTibetanMarkDelimiterTshegBstar) {
     return false;
+  }
 
   // Punctuation
   if (category &
@@ -277,8 +277,9 @@ bool Character::CanReceiveTextEmphasis(UChar32 c) {
 
 bool Character::IsEmojiTagSequence(UChar32 c) {
   // http://www.unicode.org/reports/tr51/proposed.html#valid-emoji-tag-sequences
-  return (c >= kTagDigitZero && c <= kTagDigitNine) ||
-         (c >= kTagLatinSmallLetterA && c <= kTagLatinSmallLetterZ);
+  return (c >= uchar::kTagDigitZero && c <= uchar::kTagDigitNine) ||
+         (c >= uchar::kTagLatinSmallLetterA &&
+          c <= uchar::kTagLatinSmallLetterZ);
 }
 
 bool Character::IsExtendedPictographic(UChar32 c) {
@@ -290,11 +291,11 @@ bool Character::IsEmojiComponent(UChar32 c) {
 }
 
 bool Character::MaybeEmojiPresentation(UChar32 c) {
-  return c == kZeroWidthJoinerCharacter || c == 0x00A9 /* copyright sign */ ||
+  return c == uchar::kZeroWidthJoiner || c == 0x00A9 /* copyright sign */ ||
          c == 0x00AE /* registered sign */ || IsEmojiKeycapBase(c) ||
-         IsInRange(c, 0x203C, 0x2B55) || c == kVariationSelector15Character ||
+         IsInRange(c, 0x203C, 0x2B55) || c == uchar::kVariationSelector15 ||
          c == 0x3030 || c == 0x303D || c == 0x3297 || c == 0x3299 ||
-         c == kVariationSelector16Character || c >= 65536;
+         c == uchar::kVariationSelector16 || c >= 65536;
 }
 
 bool Character::IsCommonOrInheritedScript(UChar32 character) {
@@ -337,8 +338,9 @@ static const UChar stretchy_operator_with_inline_axis[]{
     0x295B, 0x295E, 0x295F, 0x2B45, 0x2B46, 0xFE35, 0xFE36, 0xFE37, 0xFE38};
 
 bool Character::IsVerticalMathCharacter(UChar32 text_content) {
-  return text_content != kArabicMathematicalOperatorMeemWithHahWithTatweel &&
-         text_content != kArabicMathematicalOperatorHahWithDal &&
+  return text_content !=
+             uchar::kArabicMathematicalOperatorMeemWithHahWithTatweel &&
+         text_content != uchar::kArabicMathematicalOperatorHahWithDal &&
          !std::binary_search(
              stretchy_operator_with_inline_axis,
              UNSAFE_TODO(stretchy_operator_with_inline_axis +

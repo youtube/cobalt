@@ -88,7 +88,7 @@ struct ScrollAction {
   // This target is the element to scroll. A null target implies scrolling the
   // page's viewport. If the scroll action returns failure, it means the target
   // isn't scrollable.
-  ToolTarget? target;
+  ToolTarget target;
   ScrollDirection direction;
   // Scroll distance in physical pixels, and it should always be positive.
   float distance;
@@ -185,6 +185,10 @@ enum ActionResultCode {
 
   // The target window no longer exists.
   kWindowWentAway = 25,
+
+  // The current frame target under supplied coordinate does not match the
+  // frame under that coordinate during time of observation.
+  kFrameLocationChangedSinceObservation = 26,
 
   ///////////////////////////////////////////////////////////////////////
   // Codes 100-199: Errors for navigation. (Not part of the ToolAction union

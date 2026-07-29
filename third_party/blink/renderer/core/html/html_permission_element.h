@@ -214,9 +214,8 @@ class CORE_EXPORT HTMLPermissionElement final
     kLowConstrastColorAndBackgroundColor = 1,
     kTooSmallFontSize = 3,
     kTooLargeFontSize = 4,
-    kInvalidDisplayProperty = 5,
 
-    kMaxValue = kInvalidDisplayProperty,
+    kMaxValue = kTooLargeFontSize,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/blink/enums.xml:PermissionElementInvalidStyleReason)
 
@@ -365,7 +364,7 @@ class CORE_EXPORT HTMLPermissionElement final
   bool ValidateSnapshot() override;
   bool ShouldScheduleNextService() override { return false; }
 
-  // Update and notify CSS pseudo class changed, which indicates PEPC is
+  // Update and notify CSS pseudo-class changed, which indicates PEPC is
   // currently entering/exiting clicking disable state, such as invalid style or
   // being occluded.
   // Return true if the state has been changed.
@@ -545,7 +544,7 @@ class CORE_EXPORT HTMLPermissionElement final
   // Keeps track of the time a request was created.
   std::optional<base::TimeTicks> pending_request_created_;
 
-  // Store information to notify CSS pseudo class changed.
+  // Store information to notify CSS pseudo-class changed.
   struct ClickingDisablePseudoState {
     bool has_invalid_style = false;
     bool is_occluded = false;

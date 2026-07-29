@@ -42,8 +42,10 @@ public class SurfaceColorUpdateUtils {
         return ChromeFeatureList.sAndroidSurfaceColorUpdate.isEnabled();
     }
 
+    /** Whether new GM3 colors are being used for the tab group colors. */
     public static boolean useNewGm3GtsTabGroupColors() {
-        return ChromeFeatureList.sAndroidTabGroupsColorUpdateGm3.isEnabled();
+        return ChromeFeatureList.sAndroidTabGroupsColorUpdateGm3.isEnabled()
+                || ThemeModuleUtils.isForceEnableDependencies();
     }
 
     /**
@@ -85,9 +87,7 @@ public class SurfaceColorUpdateUtils {
         if (useNewToolbarSurfaceColor()) {
             return SemanticColorUtils.getColorSurfaceDim(context);
         }
-        @ColorInt int darkThemeColor = SemanticColorUtils.getColorSurfaceContainer(context);
-        @ColorInt int lightThemeColor = SemanticColorUtils.getColorSurfaceContainerHigh(context);
-        return ColorUtils.inNightMode(context) ? darkThemeColor : lightThemeColor;
+        return SemanticColorUtils.getColorSurfaceContainerHigh(context);
     }
 
     /**
@@ -152,10 +152,10 @@ public class SurfaceColorUpdateUtils {
         @ColorInt
         int defaultBackground =
                 ColorUtils.inNightMode(context)
-                        ? SemanticColorUtils.getColorSurfaceContainerLow(context)
+                        ? SemanticColorUtils.getColorSurfaceContainer(context)
                         : SemanticColorUtils.getColorSurface(context);
         return isIncognito
-                ? ContextCompat.getColor(context, R.color.gm3_baseline_surface_container_low_dark)
+                ? ContextCompat.getColor(context, R.color.gm3_baseline_surface_container_dark)
                 : defaultBackground;
     }
 
@@ -179,16 +179,10 @@ public class SurfaceColorUpdateUtils {
                     ? ContextCompat.getColor(context, R.color.gm3_baseline_surface_dim_dark)
                     : SemanticColorUtils.getColorSurfaceDim(context);
         }
-        // Checking night mode to keep color behaviour the same as in tab_card_view_bg_color.
-        @ColorInt
-        int defaultBackground =
-                ColorUtils.inNightMode(context)
-                        ? SemanticColorUtils.getColorSurfaceContainerHighest(context)
-                        : SemanticColorUtils.getColorSurfaceContainerHigh(context);
         return isIncognito
                 ? ContextCompat.getColor(
                         context, R.color.gm3_baseline_surface_container_highest_dark)
-                : defaultBackground;
+                : SemanticColorUtils.getColorSurfaceContainerHighest(context);
     }
 
     /**

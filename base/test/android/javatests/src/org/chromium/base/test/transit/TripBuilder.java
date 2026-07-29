@@ -8,6 +8,7 @@ import android.annotation.SuppressLint;
 
 import com.google.errorprone.annotations.CheckReturnValue;
 
+import org.chromium.base.test.transit.ConditionalState.Phase;
 import org.chromium.base.test.transit.Transition.TransitionOptions;
 import org.chromium.base.test.transit.Transition.Trigger;
 import org.chromium.build.annotations.Nullable;
@@ -34,6 +35,8 @@ public class TripBuilder {
     private @Nullable Station<?> mContextStation;
     private @Nullable Facility<?> mContextFacility;
     private @Nullable CarryOn mContextCarryOn;
+    private boolean mInNewTask;
+    private boolean mIsComplete;
 
     public TripBuilder() {}
 
@@ -88,20 +91,69 @@ public class TripBuilder {
      * override existing ones.
      */
     @CheckReturnValue
-    public TripBuilder withOptions(TransitionOptions options) {
+    private TripBuilder withOptions(TransitionOptions options) {
         mOptions = TransitionOptions.merge(/* primary= */ options, /* secondary= */ mOptions);
+        return this;
+    }
+
+    /** Retry the transition trigger once, if the transition does not finish within the timeout. */
+    @CheckReturnValue
+    public TripBuilder withRetry() {
+        return withOptions(Transition.retryOption());
+    }
+
+    /**
+     * Do not retry the transition.
+     *
+     * <p>Default behavior, this is intended to unset {@link #withRetry()}.
+     */
+    @CheckReturnValue
+    public TripBuilder withNoRetry() {
+        return withOptions(Transition.newOptions().withNoRetry().build());
+    }
+
+    /** Set a different |timeoutMs| than the default to adjust how long to poll Conditions. */
+    @CheckReturnValue
+    public TripBuilder withTimeout(long timeoutMs) {
+        return withOptions(Transition.timeoutOption(timeoutMs));
+    }
+
+    /**
+     * Inform all Conditions might already be all fulfilled before the running the Trigger.
+     *
+     * <p>No-op triggers have the same behavior.
+     */
+    @CheckReturnValue
+    public TripBuilder withPossiblyAlreadyFulfilled() {
+        return withOptions(Transition.possiblyAlreadyFulfilledOption());
+    }
+
+    /** Run the trigger on the UI thread instead of on the instrumentation thread. */
+    @CheckReturnValue
+    public TripBuilder withRunOnUiThread() {
+        return withOptions(Transition.runTriggerOnUiThreadOption());
+    }
+
+    /**
+     * Expect the destination Station to be in a new task, and do not assume the currently active
+     * Station will be exited..
+     */
+    @CheckReturnValue
+    public TripBuilder inNewTask() {
+        mInNewTask = true;
         return this;
     }
 
     /** Add a Transition |condition| that will be checked as part of the Transition. */
     @CheckReturnValue
-    public TripBuilder waitForConditionsAnd(Condition... conditions) {
+    public TripBuilder waitForAnd(Condition... conditions) {
         mConditions.addAll(Arrays.asList(conditions));
         return this;
     }
 
     @CheckReturnValue
     public TripBuilder pickUpCarryOnAnd(CarryOn carryOn) {
+        carryOn.assertInPhase(Phase.NEW);
         mCarryOnsToPickUp.add(carryOn);
         return this;
     }
@@ -110,12 +162,12 @@ public class TripBuilder {
     public TripBuilder dropCarryOnAnd() {
         assert mContextCarryOn != null
                 : "Context CarryOn not set, pass the not to drop as a parameter";
-        mCarryOnsToDrop.add(mContextCarryOn);
-        return this;
+        return dropCarryOnAnd(mContextCarryOn);
     }
 
     @CheckReturnValue
     public TripBuilder dropCarryOnAnd(CarryOn carryOn) {
+        carryOn.assertInPhase(Phase.ACTIVE);
         mCarryOnsToDrop.add(carryOn);
         return this;
     }
@@ -123,6 +175,7 @@ public class TripBuilder {
     /** Add a |facility| to enter as part of the Transition. */
     @CheckReturnValue
     public TripBuilder enterFacilityAnd(Facility<?> facility) {
+        facility.assertInPhase(Phase.NEW);
         mFacilitiesToEnter.add(facility);
         return this;
     }
@@ -141,13 +194,13 @@ public class TripBuilder {
     public TripBuilder exitFacilityAnd() {
         assert mContextFacility != null
                 : "Context Facility not set, pass the Facility to exit as a parameter";
-        mFacilitiesToExit.add(mContextFacility);
-        return this;
+        return exitFacilityAnd(mContextFacility);
     }
 
     /** Add |facility| to exit as part of the Transition. */
     @CheckReturnValue
     public TripBuilder exitFacilityAnd(Facility<?> facility) {
+        facility.assertInPhase(Phase.ACTIVE);
         mFacilitiesToExit.add(facility);
         return this;
     }
@@ -166,13 +219,14 @@ public class TripBuilder {
     public TripBuilder arriveAtAnd(Station<?> destination) {
         assert mDestinationStation == null
                 : "Destination already set to " + mDestinationStation.getName();
+        destination.assertInPhase(Phase.NEW);
         mDestinationStation = destination;
         return this;
     }
 
     /** Execute the transition synchronously, waiting for the given Conditions. */
-    public void waitForConditions(Condition... conditions) {
-        waitForConditionsAnd(conditions).complete();
+    public void waitFor(Condition... conditions) {
+        waitForAnd(conditions).complete();
     }
 
     public <CarryOnT extends CarryOn> CarryOnT pickUpCarryOn(CarryOnT carryOn) {
@@ -226,7 +280,10 @@ public class TripBuilder {
 
     /** Build and perform the Transition synchronously. */
     public void complete() {
+        assert !mIsComplete : "Transition already completed";
         assert mTrigger != null : "Trigger not set";
+        assert !mInNewTask || mDestinationStation != null
+                : "A new Station needs to be entered in the new task";
 
         // If a context Station is required, infer it from the active Stations.
         // A context Station is required to travel to a Station or to enter Facilities.
@@ -236,7 +293,7 @@ public class TripBuilder {
             if (activeStations.size() == 1) {
                 mContextStation = activeStations.get(0);
             } else {
-                assert false
+                assert mInNewTask
                         : String.format(
                                 "Context Station not set with withContext(), cannot infer because"
                                         + " there isn't exactly one active Station. Had %d active"
@@ -245,26 +302,29 @@ public class TripBuilder {
             }
         }
 
-        // If entering a station, assume to be exiting an active Station too.
-        //
-        // TODO(crbug.com/406325581): Stop assuming this if the TransitionBuilder is set to spawn a
-        // Station. This is needed to support Station#spawnSync().
         if (mDestinationStation != null) {
-            mOriginStation = mContextStation;
-        }
-
-        if (mDestinationStation != null) {
-            for (Facility<?> facility : mFacilitiesToEnter) {
-                mDestinationStation.addInitialFacility(facility);
+            if (mInNewTask) {
+                mDestinationStation.requireToBeInNewTask();
+            } else {
+                // If entering a station and not in a new task, assume to be exiting an active
+                // Station too.
+                mOriginStation = mContextStation;
+                mOriginStation.assertInPhase(Phase.ACTIVE);
+                mDestinationStation.requireToBeInSameTask(mOriginStation);
             }
-            // TODO(crbug.com/406325581): Support Station#spawnSync().
-            mDestinationStation.requireToBeInSameTask(mOriginStation);
+            for (Facility<?> facility : mFacilitiesToEnter) {
+                mDestinationStation.registerFacility(facility);
+            }
         } else {
             // TODO(crbug.com/406325581): Support entering Facilities from multiple Stations in
             // multi-window.
             for (Facility<?> facility : mFacilitiesToEnter) {
                 mContextStation.registerFacility(facility);
             }
+        }
+
+        if (mOriginStation != null) {
+            mFacilitiesToExit.addAll(mOriginStation.getFacilitiesWithPhase(Phase.ACTIVE));
         }
 
         if (!mConditions.isEmpty()) {
@@ -285,5 +345,7 @@ public class TripBuilder {
                         mOptions,
                         mTrigger);
         trip.transitionSync();
+
+        mIsComplete = true;
     }
 }

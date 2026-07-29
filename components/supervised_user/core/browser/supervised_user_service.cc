@@ -102,6 +102,23 @@ SupervisedUserURLFilter* SupervisedUserService::GetURLFilter() const {
   return url_filter_.get();
 }
 
+bool SupervisedUserService::IsSupervisedLocally() const {
+#if BUILDFLAG(IS_ANDROID)
+  return IsLocalContentFilteringEnabled() ||
+         search_content_filters_observer_->IsEnabled();
+#else
+  return false;
+#endif
+}
+
+bool SupervisedUserService::IsLocalContentFilteringEnabled() const {
+#if BUILDFLAG(IS_ANDROID)
+  return browser_content_filters_observer_->IsEnabled();
+#else
+  return false;
+#endif
+}
+
 std::optional<Custodian> SupervisedUserService::GetCustodian() const {
   return GetCustodianFromPrefs(user_prefs_.get(),
                                prefs::kSupervisedUserCustodianEmail,
@@ -146,39 +163,59 @@ SupervisedUserService::SupervisedUserService(
     SupervisedUserSettingsService& settings_service,
     syncer::SyncService* sync_service,
     std::unique_ptr<SupervisedUserURLFilter> url_filter,
-    std::unique_ptr<SupervisedUserService::PlatformDelegate> platform_delegate)
+    std::unique_ptr<SupervisedUserService::PlatformDelegate> platform_delegate
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    ContentFiltersObserverBridge::Factory
+        content_filters_observer_bridge_factory
+#endif
+    )
     : user_prefs_(user_prefs),
       settings_service_(settings_service),
       sync_service_(sync_service),
       identity_manager_(identity_manager),
       url_loader_factory_(url_loader_factory),
+      url_filter_(std::move(url_filter)),
+      // From here, the callbacks and observers can be added.
       controls_state_(
-        user_prefs,
-        base::BindRepeating(&SupervisedUserService::OnFamilyLinkParentalControlsEnabled,
-                            base::Unretained(this)),
-        base::BindRepeating(&SupervisedUserService::OnLocalParentalControlsEnabled,
-                            base::Unretained(this)),
-        base::BindRepeating(&SupervisedUserService::OnParentalControlsDisabled,
-                            base::Unretained(this))),
-      platform_delegate_(std::move(platform_delegate)),
-      #if BUILDFLAG(IS_ANDROID)
-        browser_content_filters_observer_(
-                kBrowserContentFiltersSettingName,
-                base::BindRepeating(&EnableBrowserContentFilters,
-                                    std::ref(user_prefs_.get())),
-                base::BindRepeating(&DisableBrowserContentFilters,
-                                    std::ref(user_prefs_.get()))),
-        search_content_filters_observer_(
-                kSearchContentFiltersSettingName,
-                base::BindRepeating(&EnableSearchContentFilters,
-                                    std::ref(user_prefs_.get())),
-                base::BindRepeating(&DisableSearchContentFilters,
-                                    std::ref(user_prefs_.get()))),
-      #endif  // BUILDFLAG(IS_ANDROID)
-      url_filter_(std::move(url_filter)) {
+          user_prefs,
+          base::BindRepeating(
+              &SupervisedUserService::OnFamilyLinkParentalControlsEnabled,
+              base::Unretained(this)),
+          base::BindRepeating(
+              &SupervisedUserService::OnLocalParentalControlsEnabled,
+              base::Unretained(this)),
+          base::BindRepeating(
+              &SupervisedUserService::OnParentalControlsDisabled,
+              base::Unretained(this))),
+      platform_delegate_(std::move(platform_delegate))
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      browser_content_filters_observer_(
+          content_filters_observer_bridge_factory.Run(
+              kBrowserContentFiltersSettingName,
+              base::BindRepeating(&EnableBrowserContentFilters,
+                                  std::ref(user_prefs)),
+              base::BindRepeating(&DisableBrowserContentFilters,
+                                  std::ref(user_prefs)))),
+      search_content_filters_observer_(
+          content_filters_observer_bridge_factory.Run(
+              kSearchContentFiltersSettingName,
+              base::BindRepeating(
+                  &SupervisedUserService::EnableSearchContentFilters,
+                  base::Unretained(this)),
+              base::BindRepeating(&DisableSearchContentFilters,
+                                  std::ref(user_prefs))))
+#endif  // BUILDFLAG(IS_ANDROID)
+{
   CHECK(settings_service_->IsReady())
       << "Settings service is initialized as part of the PrefService, which is "
          "a dependency of this service.";
+
+#if BUILDFLAG(IS_ANDROID)
+  browser_content_filters_observer_->Init();
+  search_content_filters_observer_->Init();
+#endif  // BUILDFLAG(IS_ANDROID)
 
   main_pref_change_registrar_.Init(&user_prefs_.get());
   main_pref_change_registrar_.Add(
@@ -186,9 +223,6 @@ SupervisedUserService::SupervisedUserService(
       base::BindRepeating(
           &SupervisedUserService::OnIncognitoModeAvailabilityChanged,
           base::Unretained(this)));
-
-  custodian_pref_change_registrar_.Init(&user_prefs_.get());
-  url_filter_pref_change_registrar_.Init(&user_prefs_.get());
 
   // Bumps this instance to read the current state of parental controls.
   controls_state_.Notify();
@@ -273,6 +307,7 @@ void SupervisedUserService::OnParentalControlsDisabled() {
 }
 
 void SupervisedUserService::AddURLFilterPrefChangeHandlers() {
+  url_filter_pref_change_registrar_.Init(&user_prefs_.get());
   for (const char* const pref : kUrlFilterSettingsPrefs) {
     url_filter_pref_change_registrar_.Add(
         pref, base::BindRepeating(&SupervisedUserService::OnURLFilterChanged,
@@ -280,6 +315,7 @@ void SupervisedUserService::AddURLFilterPrefChangeHandlers() {
   }
 }
 void SupervisedUserService::AddURLFilterPrefChangeSentinels() {
+  url_filter_pref_change_registrar_.Init(&user_prefs_.get());
   for (const char* const pref : kUrlFilterSettingsPrefs) {
     url_filter_pref_change_registrar_.Add(
         pref, base::BindRepeating(&PrefChangeNotAllowed));
@@ -287,6 +323,7 @@ void SupervisedUserService::AddURLFilterPrefChangeSentinels() {
 }
 
 void SupervisedUserService::AddCustodianPrefChangeHandlers() {
+  custodian_pref_change_registrar_.Init(&user_prefs_.get());
   for (const auto* const pref : kCustodianInfoPrefs) {
     custodian_pref_change_registrar_.Add(
         pref,
@@ -350,6 +387,12 @@ void SupervisedUserService::UpdateURLFilter(
 void SupervisedUserService::Shutdown() {
   DCHECK(!did_shutdown_);
   did_shutdown_ = true;
+
+#if BUILDFLAG(IS_ANDROID)
+  browser_content_filters_observer_->Shutdown();
+  search_content_filters_observer_->Shutdown();
+#endif  // BUILDFLAG(IS_ANDROID)
+
   if (IsSubjectToParentalControls(user_prefs_.get())) {
     base::RecordAction(UserMetricsAction("ManagedUsers_QuitBrowser"));
   }
@@ -363,5 +406,13 @@ void SupervisedUserService::Shutdown() {
   // allow all url classifications). On the other hand, if supervision is
   // disabled, then the settings service is already inactive.
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void SupervisedUserService::EnableSearchContentFilters() {
+  supervised_user::EnableSearchContentFilters(user_prefs_.get());
+  observer_list_.Notify(
+      &SupervisedUserServiceObserver::OnSearchContentFiltersEnabled);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace supervised_user

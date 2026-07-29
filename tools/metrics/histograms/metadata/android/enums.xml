@@ -799,7 +799,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Hardware unavailable"/>
   <int value="5" label="Not enrolled"/>
   <int value="6" label="Security update required"/>
-  <int value="7" label="Android version not supported"/>
+  <int value="7" label="(obsolete) Android version not supported"/>
   <int value="8" label="Biometric auth is mandatory"/>
   <int value="9" label="Biometric auth is mandatory, but has an error"/>
 </enum>
@@ -1089,6 +1089,21 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Got nothing"/>
   <int value="3" label="Got different aspect ratio JPEG thumbnail"/>
   <int value="4" label="Got JPEG thumbnail on refetch"/>
+</enum>
+
+<enum name="HasSeenNonZeroNavBarState">
+  <int value="0" label="GestureNav First NavBar Missing"/>
+  <int value="1" label="GestureNav Corrected"/>
+  <int value="2" label="GestureNav Regressed"/>
+  <int value="3" label="TappableNav First NavBar Missing"/>
+  <int value="4" label="TappableNav Corrected"/>
+  <int value="5" label="TappableNav Regressed"/>
+  <int value="6" label="BothNav First NavBar Missing"/>
+  <int value="7" label="BothNav Corrected"/>
+  <int value="8" label="BothNav Regressed"/>
+  <int value="9" label="NeitherNav First NavBar Missing"/>
+  <int value="10" label="NeitherNav Corrected"/>
+  <int value="11" label="NeitherNav Regressed"/>
 </enum>
 
 <!-- LINT.IfChange(HubPaneId) -->
@@ -1666,7 +1681,10 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Frequent"/>
   <int value="3" label="Rare"/>
   <int value="4" label="Restricted"/>
-  <int value="5" label="Exempted"/>
+  <int value="5" label="(obsolete) Unsupported"/>
+  <int value="6" label="Exempted"/>
+  <int value="7" label="Never"/>
+  <int value="8" label="Other"/>
 </enum>
 
 <enum name="SupportedConfigurationStrangeInsetsState">
@@ -2429,6 +2447,13 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="WebView light, night mode undefined"/>
   <int value="4" label="WebView light, night mode on"/>
   <int value="5" label="WebView light, night mode off"/>
+</enum>
+
+<enum name="WebViewLayoutAlgorithm">
+  <int value="0" label="NORMAL"/>
+  <int value="1" label="SINGLE_COLUMN"/>
+  <int value="2" label="NARROW_COLUMNS"/>
+  <int value="3" label="TEXT_AUTOSIZING"/>
 </enum>
 
 <enum name="WebViewMixedContentMode">

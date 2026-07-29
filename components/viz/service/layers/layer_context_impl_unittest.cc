@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/types/expected.h"
 #include "cc/layers/mirror_layer_impl.h"
+#include "cc/layers/nine_patch_layer_impl.h"
 #include "cc/layers/nine_patch_thumb_scrollbar_layer_impl.h"
 #include "cc/layers/painted_scrollbar_layer_impl.h"
 #include "cc/layers/solid_color_scrollbar_layer_impl.h"
@@ -27,6 +28,7 @@
 #include "cc/trees/property_tree.h"
 #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
+#include "components/viz/service/layers/layer_context_impl_base_unittest.h"
 #include "components/viz/test/fake_compositor_frame_sink_client.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "services/viz/public/mojom/compositing/layer_context.mojom.h"
@@ -36,1561 +38,6 @@
 
 namespace viz {
 namespace {
-
-// Default layer tree property values
-const float kDefaultPageScaleFactor = 1.0f;
-const float kDefaultMinPageScaleFactor = 0.5f;
-const float kDefaultMaxPageScaleFactor = 2.0f;
-const gfx::Rect kDefaultDeviceViewportRect(100, 100);
-const SkColor4f kDefaultBackgroundColor = SkColors::kTransparent;
-const float kDefaultExternalPageScaleFactor = 1.0f;
-const float kDefaultDeviceScaleFactor = 1.0f;
-const float kDefaultPaintedDeviceScaleFactor = 1.0f;
-const FrameSinkId kDefaultFrameSinkId = FrameSinkId(1, 1);
-const LocalSurfaceId kDefaultLocalSurfaceId(
-    1,
-    base::UnguessableToken::CreateForTesting(2u, 3u));
-const SurfaceId kDefaultSurfaceId(kDefaultFrameSinkId, kDefaultLocalSurfaceId);
-const SurfaceRange kDefaultSurfaceRange(std::nullopt, kDefaultSurfaceId);
-
-// Default Layer property values
-const gfx::Size kDefaultLayerBounds(10, 10);
-
-// Default TextureLayer property values
-const bool kDefaultBlendBackgroundColor = false;
-const bool kDefaultForceTextureToOpaque = false;
-const gfx::PointF kDefaultUVTopLeft = gfx::PointF();
-const gfx::PointF kDefaultUVBottomRight = gfx::PointF(1.f, 1.f);
-
-// Default SurfaceLayer property values
-const uint32_t kDefaultDeadlineInFrames = 0u;
-const bool kDefaultStretchContentToFillBounds = false;
-const bool kDefaultSurfaceHitTestable = false;
-const bool kDefaultHasPointerEventsNone = false;
-const bool kDefaultIsReflection = false;
-const bool kDefaultWillDrawNeedsReset = false;
-const bool kDefaultOverrideChildPaintFlags = false;
-
-// Default ScrollbarLayerBaseExtra property values
-const cc::ElementId kDefaultScrollElementId = cc::ElementId();
-const bool kDefaultIsOverlayScrollbar = false;
-const bool kDefaultIsWebTest = false;
-const float kDefaultThumbThicknessScaleFactor = 0.f;
-const float kDefaultCurrentPos = 0.f;
-const float kDefaultClipLayerLength = 0.f;
-const float kDefaultScrollLayerLength = 0.f;
-const float kDefaultVerticalAdjust = 0.f;
-const bool kDefaultHasFindInPageTickmarks = false;
-const bool kDefaultIsHorizontalOrientation = false;
-const bool kDefaultIsLeftSideVerticalScrollbar = false;
-
-// Default SolidColorScrollbarLayer property values
-const SkColor4f kDefaultSolidColorScrollbarColor = SkColors::kTransparent;
-const int kDefaultSolidColorScrollbarThumbThickness = 0;
-const int kDefaultSolidColorScrollbarTrackStart = 0;
-
-// Default NinePatchThumbScrollbarLayer property values
-const int kDefaultNinePatchThumbScrollbarThumbThickness = 0;
-const int kDefaultNinePatchThumbScrollbarThumbLength = 0;
-const int kDefaultNinePatchThumbScrollbarTrackStart = 0;
-const int kDefaultNinePatchThumbScrollbarTrackLength = 0;
-const gfx::Size kDefaultNinePatchThumbScrollbarImageBounds = gfx::Size();
-const gfx::Rect kDefaultNinePatchThumbScrollbarAperture = gfx::Rect();
-const cc::UIResourceId kDefaultNinePatchThumbScrollbarThumbUIResourceId = 0;
-const cc::UIResourceId
-    kDefaultNinePatchThumbScrollbarTrackAndButtonsUIResourceId = 0;
-
-// Default PaintedScrollbarLayer property values
-const float kDefaultPaintedScrollbarInternalContentsScale = 0.f;
-const gfx::Size kDefaultPaintedScrollbarInternalContentBounds = gfx::Size();
-const bool kDefaultPaintedScrollbarJumpOnTrackClick = false;
-const bool kDefaultPaintedScrollbarSupportsDragSnapBack = false;
-const int kDefaultPaintedScrollbarThumbThickness = 0;
-const int kDefaultPaintedScrollbarThumbLength = 0;
-const gfx::Rect kDefaultPaintedScrollbarBackButtonRect = gfx::Rect();
-const gfx::Rect kDefaultPaintedScrollbarForwardButtonRect = gfx::Rect();
-const gfx::Rect kDefaultPaintedScrollbarTrackRect = gfx::Rect();
-const cc::UIResourceId kDefaultPaintedScrollbarTrackAndButtonsUIResourceId = 0;
-const cc::UIResourceId kDefaultPaintedScrollbarThumbUIResourceId = 0;
-const bool kDefaultPaintedScrollbarUsesNinePatchTrackAndButtons = false;
-const float kDefaultPaintedScrollbarPaintedOpacity = 1.f;
-const std::optional<SkColor4f> kDefaultPaintedScrollbarThumbColor =
-    std::nullopt;
-const gfx::Size kDefaultPaintedScrollbarTrackAndButtonsImageBounds =
-    gfx::Size();
-const gfx::Rect kDefaultPaintedScrollbarTrackAndButtonsAperture = gfx::Rect();
-
-// Default MirrorLayer property values
-const int kDefaultMirrorLayerMirroredLayerId = 0;
-
-// Default ViewTransitionContentLayer property values
-const ViewTransitionElementResourceId
-    kDefaultViewTransitionContentLayerResourceId =
-        ViewTransitionElementResourceId(blink::ViewTransitionToken(), 1, false);
-const bool kDefaultViewTransitionContentLayerIsLiveContentLayer = false;
-const gfx::RectF kDefaultViewTransitionContentLayerMaxExtentsRect;
-
-// Default TileDisplayLayer property values
-const std::optional<SkColor4f> kDefaultTileDisplaySolidColor = std::nullopt;
-const bool kDefaultTileDisplayIsBackdropFilterMask = false;
-
-// Default UIResourceLayer property values
-const cc::UIResourceId kDefaultUIResourceId = 123u;
-const gfx::Size kDefaultUIResourceImageBounds(100, 200);
-const gfx::PointF kDefaultUIResourceUVTopLeft(0.f, 0.f);
-const gfx::PointF kDefaultUIResourceUVBottomRight(1.f, 1.f);
-
-class LayerContextImplTest : public testing::Test {
- public:
-  LayerContextImplTest()
-      : frame_sink_manager_(FrameSinkManagerImpl::InitParams()) {}
-
-  void SetUp() override {
-    compositor_frame_sink_support_ =
-        std::make_unique<CompositorFrameSinkSupport>(
-            &dummy_client_, &frame_sink_manager_, kDefaultFrameSinkId,
-            /*is_root=*/true);
-    layer_context_impl_ = LayerContextImpl::CreateForTesting(
-        compositor_frame_sink_support_.get(), /*draw_mode_is_gpu=*/true);
-  }
-
-  void ResetTestState() {
-    // Property tree node IDs and layers are reinitialized in
-    // CreateDefaultUpdate if first_update_ is true.
-    first_update_ = true;
-  }
-
-  mojom::LayerTreeUpdatePtr CreateDefaultUpdate() {
-    auto update = mojom::LayerTreeUpdate::New();
-
-    if (first_update_) {
-      AddFirstTimeDefaultProperties(update.get());
-      first_update_ = false;
-    }
-    AddDefaultPropertyUpdates(update.get());
-
-    return update;
-  }
-
-  void AddDefaultPropertyUpdates(mojom::LayerTreeUpdate* update) {
-    update->source_frame_number = 1;
-    update->trace_id = 1;
-    update->primary_main_frame_item_sequence_number = 1;
-    update->device_viewport = kDefaultDeviceViewportRect;
-    update->background_color = kDefaultBackgroundColor;
-
-    // Valid scale factors by default
-    update->page_scale_factor = kDefaultPageScaleFactor;
-    update->min_page_scale_factor = kDefaultMinPageScaleFactor;
-    update->max_page_scale_factor = kDefaultMaxPageScaleFactor;
-    update->external_page_scale_factor = kDefaultExternalPageScaleFactor;
-    update->device_scale_factor = kDefaultDeviceScaleFactor;
-    update->painted_device_scale_factor = kDefaultPaintedDeviceScaleFactor;
-
-    update->num_transform_nodes = next_transform_id_;
-    update->num_clip_nodes = next_clip_id_;
-    update->num_effect_nodes = next_effect_id_;
-    update->num_scroll_nodes = next_scroll_id_;
-
-    // Viewport property IDs
-    update->overscroll_elasticity_transform =
-        viewport_property_ids.overscroll_elasticity_transform;
-    update->page_scale_transform = viewport_property_ids.page_scale_transform;
-    update->inner_scroll = viewport_property_ids.inner_scroll;
-    update->outer_clip = viewport_property_ids.outer_clip;
-    update->outer_scroll = viewport_property_ids.outer_scroll;
-
-    // Other defaults
-    update->display_color_spaces = gfx::DisplayColorSpaces();
-    update->local_surface_id_from_parent = kDefaultLocalSurfaceId;
-
-    base::TimeTicks now = base::TimeTicks::Now();
-    base::TimeDelta interval = base::Milliseconds(16);
-    update->begin_frame_args = BeginFrameArgs::Create(
-        BEGINFRAME_FROM_HERE, BeginFrameArgs::kStartingSourceId,
-        BeginFrameArgs::kStartingFrameNumber, now, now + interval, interval,
-        BeginFrameArgs::NORMAL);
-  }
-
-  void AddFirstTimeDefaultProperties(mojom::LayerTreeUpdate* update) {
-    // Set internal state to defaults.
-    next_layer_id_ = 1;
-    next_transform_id_ = 0;
-    next_clip_id_ = 0;
-    next_effect_id_ = 0;
-    next_scroll_id_ = 0;
-    layer_order_.clear();
-
-    // Root & Secondary transform nodes are always expected 1st
-    AddTransformNode(update, cc::kInvalidPropertyNodeId);
-    AddTransformNode(update, cc::kRootPropertyNodeId);
-
-    // Updating the page scale requires that a page_scale_transform node is
-    // set up.
-    viewport_property_ids.overscroll_elasticity_transform =
-        AddTransformNode(update, cc::kSecondaryRootPropertyNodeId);
-    viewport_property_ids.page_scale_transform = AddTransformNode(
-        update, viewport_property_ids.overscroll_elasticity_transform);
-    update->transform_nodes.back()->in_subtree_of_page_scale_layer = true;
-
-    // Root & Secondary clip nodes are always expected
-    AddClipNode(update, cc::kInvalidPropertyNodeId);
-    AddClipNode(update, cc::kRootPropertyNodeId);
-
-    // Root & Secondary effect nodes are always expected
-    AddEffectNode(update, cc::kInvalidPropertyNodeId);
-    AddEffectNode(update, cc::kRootPropertyNodeId);
-    update->effect_nodes.back()->render_surface_reason =
-        cc::RenderSurfaceReason::kRoot;
-    update->effect_nodes.back()->element_id = cc::ElementId(1ULL);
-
-    // Root & Secondary scroll nodes are always expected
-    AddScrollNode(update, cc::kInvalidPropertyNodeId);
-    AddScrollNode(update, cc::kRootPropertyNodeId);
-
-    // Root layer
-    AddDefaultLayerToUpdate(update);
-  }
-
-  int AddTransformNode(mojom::LayerTreeUpdate* update, int parent) {
-    auto node = mojom::TransformNode::New();
-    int id = next_transform_id_++;
-    node->id = id;
-    node->parent_id = parent;
-    update->transform_nodes.push_back(std::move(node));
-    update->num_transform_nodes = next_transform_id_;
-    return id;
-  }
-
-  int AddClipNode(mojom::LayerTreeUpdate* update, int parent) {
-    auto node = mojom::ClipNode::New();
-    int id = next_clip_id_++;
-    node->id = id;
-    node->parent_id = parent;
-    node->transform_id = viewport_property_ids.page_scale_transform;
-    update->clip_nodes.push_back(std::move(node));
-    update->num_clip_nodes = next_clip_id_;
-    return id;
-  }
-
-  int AddEffectNode(mojom::LayerTreeUpdate* update, int parent) {
-    auto node = mojom::EffectNode::New();
-    int id = next_effect_id_++;
-    node->id = id;
-    node->parent_id = parent;
-    node->transform_id = viewport_property_ids.page_scale_transform;
-    node->clip_id = cc::kRootPropertyNodeId;
-    node->target_id = cc::kRootPropertyNodeId;
-    update->effect_nodes.push_back(std::move(node));
-    update->num_effect_nodes = next_effect_id_;
-    return id;
-  }
-
-  int AddScrollNode(mojom::LayerTreeUpdate* update, int parent) {
-    auto node = mojom::ScrollNode::New();
-    int id = next_scroll_id_++;
-    node->id = id;
-    node->parent_id = parent;
-    node->transform_id = viewport_property_ids.page_scale_transform;
-    update->scroll_nodes.push_back(std::move(node));
-    update->num_scroll_nodes = next_scroll_id_;
-    return id;
-  }
-
-  mojom::ScrollbarLayerBaseExtraPtr CreateDefaultScrollbarBaseExtra() {
-    auto base_extra = mojom::ScrollbarLayerBaseExtra::New();
-    base_extra->scroll_element_id = kDefaultScrollElementId;
-    base_extra->is_overlay_scrollbar = kDefaultIsOverlayScrollbar;
-    base_extra->is_web_test = kDefaultIsWebTest;
-    base_extra->thumb_thickness_scale_factor =
-        kDefaultThumbThicknessScaleFactor;
-    base_extra->current_pos = kDefaultCurrentPos;
-    base_extra->clip_layer_length = kDefaultClipLayerLength;
-    base_extra->scroll_layer_length = kDefaultScrollLayerLength;
-    base_extra->vertical_adjust = kDefaultVerticalAdjust;
-    base_extra->has_find_in_page_tickmarks = kDefaultHasFindInPageTickmarks;
-    base_extra->is_horizontal_orientation = kDefaultIsHorizontalOrientation;
-    base_extra->is_left_side_vertical_scrollbar =
-        kDefaultIsLeftSideVerticalScrollbar;
-    return base_extra;
-  }
-
-  mojom::LayerExtraPtr CreateDefaultLayerExtra(cc::mojom::LayerType type) {
-    switch (type) {
-      case cc::mojom::LayerType::kTexture: {
-        auto extra = mojom::TextureLayerExtra::New();
-        extra->blend_background_color = kDefaultBlendBackgroundColor;
-        extra->force_texture_to_opaque = kDefaultForceTextureToOpaque;
-        extra->uv_top_left = kDefaultUVTopLeft;
-        extra->uv_bottom_right = kDefaultUVBottomRight;
-        return mojom::LayerExtra::NewTextureLayerExtra(std::move(extra));
-      }
-      case cc::mojom::LayerType::kSurface: {
-        auto extra = mojom::SurfaceLayerExtra::New();
-        extra->surface_range = kDefaultSurfaceRange;
-        extra->deadline_in_frames = kDefaultDeadlineInFrames;
-        extra->stretch_content_to_fill_bounds =
-            kDefaultStretchContentToFillBounds;
-        extra->surface_hit_testable = kDefaultSurfaceHitTestable;
-        extra->has_pointer_events_none = kDefaultHasPointerEventsNone;
-        extra->is_reflection = kDefaultIsReflection;
-        extra->will_draw_needs_reset = kDefaultWillDrawNeedsReset;
-        extra->override_child_paint_flags = kDefaultOverrideChildPaintFlags;
-        return mojom::LayerExtra::NewSurfaceLayerExtra(std::move(extra));
-      }
-      case cc::mojom::LayerType::kSolidColorScrollbar: {
-        auto extra = mojom::SolidColorScrollbarLayerExtra::New();
-        extra->scrollbar_base_extra = CreateDefaultScrollbarBaseExtra();
-        extra->color = kDefaultSolidColorScrollbarColor;
-        extra->thumb_thickness = kDefaultSolidColorScrollbarThumbThickness;
-        extra->track_start = kDefaultSolidColorScrollbarTrackStart;
-        return mojom::LayerExtra::NewSolidColorScrollbarLayerExtra(
-            std::move(extra));
-      }
-      case cc::mojom::LayerType::kNinePatchThumbScrollbar: {
-        auto extra = mojom::NinePatchThumbScrollbarLayerExtra::New();
-        extra->scrollbar_base_extra = CreateDefaultScrollbarBaseExtra();
-        extra->thumb_thickness = kDefaultNinePatchThumbScrollbarThumbThickness;
-        extra->thumb_length = kDefaultNinePatchThumbScrollbarThumbLength;
-        extra->track_start = kDefaultNinePatchThumbScrollbarTrackStart;
-        extra->track_length = kDefaultNinePatchThumbScrollbarTrackLength;
-        extra->image_bounds = kDefaultNinePatchThumbScrollbarImageBounds;
-        extra->aperture = kDefaultNinePatchThumbScrollbarAperture;
-        extra->thumb_ui_resource_id =
-            kDefaultNinePatchThumbScrollbarThumbUIResourceId;
-        extra->track_and_buttons_ui_resource_id =
-            kDefaultNinePatchThumbScrollbarTrackAndButtonsUIResourceId;
-        return mojom::LayerExtra::NewNinePatchThumbScrollbarLayerExtra(
-            std::move(extra));
-      }
-      case cc::mojom::LayerType::kMirror: {
-        auto extra = mojom::MirrorLayerExtra::New();
-        extra->mirrored_layer_id = kDefaultMirrorLayerMirroredLayerId;
-        return mojom::LayerExtra::NewMirrorLayerExtra(std::move(extra));
-      }
-      case cc::mojom::LayerType::kPaintedScrollbar: {
-        auto extra = mojom::PaintedScrollbarLayerExtra::New();
-        extra->scrollbar_base_extra = CreateDefaultScrollbarBaseExtra();
-        extra->internal_contents_scale =
-            kDefaultPaintedScrollbarInternalContentsScale;
-        extra->internal_content_bounds =
-            kDefaultPaintedScrollbarInternalContentBounds;
-        extra->jump_on_track_click = kDefaultPaintedScrollbarJumpOnTrackClick;
-        extra->supports_drag_snap_back =
-            kDefaultPaintedScrollbarSupportsDragSnapBack;
-        extra->thumb_thickness = kDefaultPaintedScrollbarThumbThickness;
-        extra->thumb_length = kDefaultPaintedScrollbarThumbLength;
-        extra->back_button_rect = kDefaultPaintedScrollbarBackButtonRect;
-        extra->forward_button_rect = kDefaultPaintedScrollbarForwardButtonRect;
-        extra->track_rect = kDefaultPaintedScrollbarTrackRect;
-        extra->track_and_buttons_ui_resource_id =
-            kDefaultPaintedScrollbarTrackAndButtonsUIResourceId;
-        extra->thumb_ui_resource_id = kDefaultPaintedScrollbarThumbUIResourceId;
-        extra->uses_nine_patch_track_and_buttons =
-            kDefaultPaintedScrollbarUsesNinePatchTrackAndButtons;
-        extra->painted_opacity = kDefaultPaintedScrollbarPaintedOpacity;
-        extra->thumb_color = kDefaultPaintedScrollbarThumbColor;
-        extra->track_and_buttons_image_bounds =
-            kDefaultPaintedScrollbarTrackAndButtonsImageBounds;
-        extra->track_and_buttons_aperture =
-            kDefaultPaintedScrollbarTrackAndButtonsAperture;
-        return mojom::LayerExtra::NewPaintedScrollbarLayerExtra(
-            std::move(extra));
-      }
-      case cc::mojom::LayerType::kViewTransitionContent: {
-        auto extra = mojom::ViewTransitionContentLayerExtra::New();
-        extra->resource_id = kDefaultViewTransitionContentLayerResourceId;
-        extra->is_live_content_layer =
-            kDefaultViewTransitionContentLayerIsLiveContentLayer;
-        extra->max_extents_rect =
-            kDefaultViewTransitionContentLayerMaxExtentsRect;
-        return mojom::LayerExtra::NewViewTransitionContentLayerExtra(
-            std::move(extra));
-      }
-      case cc::mojom::LayerType::kTileDisplay: {
-        auto extra = mojom::TileDisplayLayerExtra::New();
-        extra->solid_color = kDefaultTileDisplaySolidColor;
-        extra->is_backdrop_filter_mask =
-            kDefaultTileDisplayIsBackdropFilterMask;
-        return mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(extra));
-      }
-      case cc::mojom::LayerType::kUIResource: {
-        auto extra = mojom::UIResourceLayerExtra::New();
-        return mojom::LayerExtra::NewUiResourceLayerExtra(std::move(extra));
-      }
-
-      default:
-        // TODO(vmiura): Add each layer type's initialization.
-        return nullptr;
-    }
-  }
-
-  // Helper to add a default layer to the update.
-  // Returns the ID of the added layer.
-  int AddDefaultLayerToUpdate(
-      mojom::LayerTreeUpdate* update,
-      cc::mojom::LayerType type = cc::mojom::LayerType::kLayer,
-      int id = -1) {
-    auto layer = mojom::Layer::New();
-    if (id == -1) {
-      id = next_layer_id_++;
-    }
-    layer->id = id;
-    layer->type = type;
-    layer->transform_tree_index = cc::kSecondaryRootPropertyNodeId;
-    layer->clip_tree_index = cc::kRootPropertyNodeId;
-    layer->effect_tree_index = cc::kSecondaryRootPropertyNodeId;
-    layer->bounds = kDefaultLayerBounds;
-    layer->layer_extra = CreateDefaultLayerExtra(type);
-
-    update->layers.push_back(std::move(layer));
-
-    // Update the local layer order, and in the LayerTreeUpdate.
-    layer_order_.push_back(id);
-    update->layer_order = layer_order_;
-    return id;
-  }
-
-  void RemoveLayerInUpdate(mojom::LayerTreeUpdate* update, int id) {
-    // Remove the ID from the local list of layers if it exists.
-    auto it = std::find(layer_order_.begin(), layer_order_.end(), id);
-    if (it != layer_order_.end()) {
-      layer_order_.erase(it);
-    }
-
-    // Update the layer order in the LayerTreeUpdate.
-    update->layer_order = layer_order_;
-  }
-
- protected:
-  FakeCompositorFrameSinkClient dummy_client_;
-  FrameSinkManagerImpl frame_sink_manager_;
-
-  std::unique_ptr<CompositorFrameSinkSupport> compositor_frame_sink_support_;
-  std::unique_ptr<LayerContextImpl> layer_context_impl_;
-  bool first_update_ = true;
-  // Layer IDs start at 1, as 0 is reserved for cc::kInvalidLayerId.
-  int next_layer_id_ = 1;
-  // Property tree IDs start at 0.
-  int next_transform_id_ = 0;
-  int next_clip_id_ = 0;
-  int next_effect_id_ = 0;
-  int next_scroll_id_ = 0;
-  cc::ViewportPropertyIds viewport_property_ids;
-  std::vector<int> layer_order_;
-};
-
-namespace {
-
-TransferableResource MakeFakeResource(gfx::Size size) {
-  auto sync_token =
-      gpu::SyncToken(gpu::CommandBufferNamespace::GPU_IO,
-                     gpu::CommandBufferId::FromUnsafeValue(0x234), 0x456);
-  auto shared_image = gpu::ClientSharedImage::CreateForTesting(
-      {SinglePlaneFormat::kRGBA_8888, size, gfx::ColorSpace(),
-       kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
-       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ},
-      GL_TEXTURE_2D);
-
-  return TransferableResource::Make(
-      shared_image, TransferableResource::ResourceSource::kTest, sync_token);
-}
-
-mojom::TransferableUIResourceRequestPtr CreateUIResourceRequest(
-    int uid,
-    mojom::TransferableUIResourceRequest::Type type) {
-  auto request = mojom::TransferableUIResourceRequest::New();
-  request->uid = uid;
-  request->type = type;
-  if (type == mojom::TransferableUIResourceRequest::Type::kCreate) {
-    // Add a minimal valid resource.
-    request->transferable_resource = MakeFakeResource(gfx::Size(1, 1));
-  }
-  return request;
-}
-
-}  // namespace
-
-class LayerContextImplUpdateDisplayTreeTransformNodeTest
-    : public LayerContextImplTest {
- protected:
-  cc::TransformNode* GetTransformNodeFromActiveTree(int node_id) {
-    if (node_id < static_cast<int>(layer_context_impl_->host_impl()
-                                       ->active_tree()
-                                       ->property_trees()
-                                       ->transform_tree()
-                                       .size())) {
-      return layer_context_impl_->host_impl()
-          ->active_tree()
-          ->property_trees()
-          ->transform_tree_mutable()
-          .Node(node_id);
-    }
-    return nullptr;
-  }
-};
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       UpdateExistingTransformNodeProperties) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-
-  auto update2 = CreateDefaultUpdate();
-  auto node_update = mojom::TransformNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;
-  // Keep parent_id same as default.
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->local = gfx::Transform::MakeScale(2.0f);
-  node_update->origin = gfx::Point3F(1.f, 2.f, 3.f);
-  node_update->post_translation = gfx::Vector2dF(10.f, 20.f);
-  node_update->scroll_offset = gfx::PointF(5.f, 6.f);
-  node_update->sorting_context_id = 1;
-  node_update->flattens_inherited_transform = true;
-  node_update->will_change_transform = true;
-  node_update->damage_reasons_bit_mask =
-      (cc::DamageReasonSet{cc::DamageReason::kUntracked}).ToEnumBitmask();
-  node_update->moved_by_safe_area_bottom = true;
-
-  update2->transform_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
-  ASSERT_TRUE(result.has_value());
-
-  cc::TransformNode* node_impl =
-      GetTransformNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
-  ASSERT_TRUE(node_impl);
-  EXPECT_EQ(node_impl->local, gfx::Transform::MakeScale(2.0f));
-  EXPECT_EQ(node_impl->origin, gfx::Point3F(1.f, 2.f, 3.f));
-  EXPECT_EQ(node_impl->post_translation, gfx::Vector2dF(10.f, 20.f));
-  EXPECT_EQ(node_impl->scroll_offset(), gfx::PointF(5.f, 6.f));
-  EXPECT_EQ(node_impl->sorting_context_id, 1);
-  EXPECT_TRUE(node_impl->flattens_inherited_transform);
-  EXPECT_TRUE(node_impl->will_change_transform);
-  EXPECT_TRUE(node_impl->damage_reasons().Has(cc::DamageReason::kUntracked));
-  EXPECT_TRUE(node_impl->moved_by_safe_area_bottom);
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       AddRemoveTransformNodes) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-  uint32_t initial_node_count = layer_context_impl_->host_impl()
-                                    ->active_tree()
-                                    ->property_trees()
-                                    ->transform_tree()
-                                    .nodes()
-                                    .size();
-
-  // Add a new node.
-  auto update_add = CreateDefaultUpdate();
-  int new_node_id =
-      AddTransformNode(update_add.get(), cc::kSecondaryRootPropertyNodeId);
-  EXPECT_EQ(update_add->num_transform_nodes, initial_node_count + 1);
-
-  auto result_add =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_add));
-  ASSERT_TRUE(result_add.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->transform_tree()
-                .nodes()
-                .size(),
-            initial_node_count + 1);
-  cc::TransformNode* added_node_impl =
-      GetTransformNodeFromActiveTree(new_node_id);
-  ASSERT_TRUE(added_node_impl);
-  EXPECT_EQ(added_node_impl->parent_id, cc::kSecondaryRootPropertyNodeId);
-
-  // Remove the added node.
-  auto update_remove = CreateDefaultUpdate();
-  update_remove->num_transform_nodes = initial_node_count;
-  // To remove, we just send fewer nodes in num_transform_nodes.
-  // The actual nodes in transform_nodes vector can be empty or partial.
-  // Here we send an empty list for simplicity.
-  update_remove->transform_nodes.clear();
-
-  auto result_remove =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_remove));
-  ASSERT_TRUE(result_remove.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->transform_tree()
-                .nodes()
-                .size(),
-            initial_node_count);
-  EXPECT_FALSE(GetTransformNodeFromActiveTree(new_node_id));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       UpdateTransformTreeProperties) {
-  auto update = CreateDefaultUpdate();
-  auto tree_props = mojom::TransformTreeUpdate::New();
-  tree_props->page_scale_factor = 1.5f;
-  tree_props->device_scale_factor = 2.0f;
-  tree_props->device_transform_scale_factor = 2.5f;
-  tree_props->nodes_affected_by_outer_viewport_bounds_delta = {
-      cc::kSecondaryRootPropertyNodeId};
-  tree_props->nodes_affected_by_safe_area_bottom = {
-      cc::kSecondaryRootPropertyNodeId};
-  update->transform_tree_update = std::move(tree_props);
-
-  // The top level page_scale_factor overrides whatever we set
-  // in the transform tree, so set it to the same value.
-  // TODO(vmiura): See if we could just remove syncing the
-  // transform tree scale factors?
-  update->page_scale_factor = 1.5f;
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_TRUE(result.has_value());
-
-  const auto& transform_tree = layer_context_impl_->host_impl()
-                                   ->active_tree()
-                                   ->property_trees()
-                                   ->transform_tree();
-  EXPECT_EQ(transform_tree.page_scale_factor(), 1.5f);
-  EXPECT_EQ(transform_tree.device_scale_factor(), 2.0f);
-  EXPECT_EQ(transform_tree.device_transform_scale_factor(), 2.5f);
-  EXPECT_THAT(transform_tree.nodes_affected_by_outer_viewport_bounds_delta(),
-              testing::ElementsAre(cc::kSecondaryRootPropertyNodeId));
-  EXPECT_THAT(transform_tree.nodes_affected_by_safe_area_bottom(),
-              testing::ElementsAre(cc::kSecondaryRootPropertyNodeId));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       StickyPositionDataValid) {
-  auto update = CreateDefaultUpdate();
-  int scroll_node_id = AddScrollNode(update.get(), cc::kRootPropertyNodeId);
-
-  auto tree_props = mojom::TransformTreeUpdate::New();
-  auto sticky_data = mojom::StickyPositionNodeData::New();
-  sticky_data->scroll_ancestor = scroll_node_id;
-  sticky_data->is_anchored_top = true;
-  sticky_data->top_offset = 10.f;
-  tree_props->sticky_position_data.push_back(std::move(sticky_data));
-  update->transform_tree_update = std::move(tree_props);
-
-  // Add a transform node that will use this sticky data.
-  auto transform_node_update = mojom::TransformNode::New();
-  transform_node_update->id =
-      AddTransformNode(update.get(), cc::kRootPropertyNodeId);
-  transform_node_update->parent_id = cc::kRootPropertyNodeId;
-  transform_node_update->sticky_position_constraint_id = 0;
-  update->transform_nodes.push_back(std::move(transform_node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_TRUE(result.has_value());
-
-  const auto& transform_tree = layer_context_impl_->host_impl()
-                                   ->active_tree()
-                                   ->property_trees()
-                                   ->transform_tree();
-  ASSERT_EQ(transform_tree.sticky_position_data().size(), 1u);
-  EXPECT_EQ(transform_tree.sticky_position_data()[0].scroll_ancestor,
-            scroll_node_id);
-  EXPECT_TRUE(
-      transform_tree.sticky_position_data()[0].constraints.is_anchored_top);
-  EXPECT_EQ(transform_tree.sticky_position_data()[0].constraints.top_offset,
-            10.f);
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       StickyPositionDataInvalidScrollAncestor) {
-  auto update = CreateDefaultUpdate();
-  auto tree_props = mojom::TransformTreeUpdate::New();
-  auto sticky_data = mojom::StickyPositionNodeData::New();
-  sticky_data->scroll_ancestor = 99;  // Invalid scroll node ID
-  tree_props->sticky_position_data.push_back(std::move(sticky_data));
-  update->transform_tree_update = std::move(tree_props);
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid scroll ancestor ID");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       AnchorPositionDataValid) {
-  auto update = CreateDefaultUpdate();
-  int adjustment_container_id =
-      AddTransformNode(update.get(), cc::kRootPropertyNodeId);
-
-  auto tree_props = mojom::TransformTreeUpdate::New();
-  auto anchor_data = mojom::AnchorPositionScrollData::New();
-  anchor_data->adjustment_container_ids.push_back(
-      cc::ElementId(adjustment_container_id));
-  anchor_data->accumulated_scroll_origin = gfx::Vector2d(5, 5);
-  tree_props->anchor_position_scroll_data.push_back(std::move(anchor_data));
-  update->transform_tree_update = std::move(tree_props);
-
-  // Add a transform node that will use this anchor data.
-  auto transform_node_update = mojom::TransformNode::New();
-  transform_node_update->id =
-      AddTransformNode(update.get(), cc::kRootPropertyNodeId);
-  transform_node_update->parent_id = cc::kRootPropertyNodeId;
-  transform_node_update->anchor_position_scroll_data_id = 0;
-  update->transform_nodes.push_back(std::move(transform_node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_TRUE(result.has_value());
-
-  const auto& transform_tree = layer_context_impl_->host_impl()
-                                   ->active_tree()
-                                   ->property_trees()
-                                   ->transform_tree();
-  ASSERT_EQ(transform_tree.anchor_position_scroll_data().size(), 1u);
-  EXPECT_THAT(
-      transform_tree.anchor_position_scroll_data()[0].adjustment_container_ids,
-      testing::ElementsAre(cc::ElementId(adjustment_container_id)));
-  EXPECT_EQ(
-      transform_tree.anchor_position_scroll_data()[0].accumulated_scroll_origin,
-      gfx::Vector2d(5, 5));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       InvalidTransformNodeParentId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::TransformNode::New();
-  node_update->id = next_transform_id_++;  // New node
-  node_update->parent_id = 99;             // Invalid parent ID
-  update->transform_nodes.push_back(std::move(node_update));
-  update->num_transform_nodes = next_transform_id_;
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid property tree node parent_id");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeTransformNodeTest,
-       InvalidTransformNodeIdOnUpdate) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::TransformNode::New();
-  node_update->id = 99;  // Invalid node ID to update
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  update->transform_nodes.push_back(std::move(node_update));
-  // num_transform_nodes remains the same as default.
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid property tree node ID");
-}
-
-class LayerContextImplUpdateDisplayTreeClipNodeTest
-    : public LayerContextImplTest {
- protected:
-  cc::ClipNode* GetClipNodeFromActiveTree(int node_id) {
-    if (node_id < static_cast<int>(layer_context_impl_->host_impl()
-                                       ->active_tree()
-                                       ->property_trees()
-                                       ->clip_tree()
-                                       .size())) {
-      return layer_context_impl_->host_impl()
-          ->active_tree()
-          ->property_trees()
-          ->clip_tree_mutable()
-          .Node(node_id);
-    }
-    return nullptr;
-  }
-};
-
-TEST_F(LayerContextImplUpdateDisplayTreeClipNodeTest,
-       UpdateExistingClipNodeProperties) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-
-  auto update2 = CreateDefaultUpdate();
-  auto node_update = mojom::ClipNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;
-  // Keep parent_id same as default.
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->clip = gfx::RectF(10.f, 20.f, 30.f, 40.f);
-  // Use a valid existing transform node ID.
-  node_update->transform_id = cc::kSecondaryRootPropertyNodeId;
-  update2->clip_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
-  ASSERT_TRUE(result.has_value());
-
-  cc::ClipNode* node_impl =
-      GetClipNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
-  ASSERT_TRUE(node_impl);
-  EXPECT_EQ(node_impl->clip, gfx::RectF(10.f, 20.f, 30.f, 40.f));
-  EXPECT_EQ(node_impl->transform_id, cc::kSecondaryRootPropertyNodeId);
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeClipNodeTest, AddRemoveClipNodes) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-  uint32_t initial_node_count = layer_context_impl_->host_impl()
-                                    ->active_tree()
-                                    ->property_trees()
-                                    ->clip_tree()
-                                    .nodes()
-                                    .size();
-
-  // Add a new node.
-  auto update_add = CreateDefaultUpdate();
-  int new_node_id =
-      AddClipNode(update_add.get(), cc::kSecondaryRootPropertyNodeId);
-  EXPECT_EQ(update_add->num_clip_nodes, initial_node_count + 1);
-
-  auto result_add =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_add));
-  ASSERT_TRUE(result_add.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->clip_tree()
-                .nodes()
-                .size(),
-            initial_node_count + 1);
-  cc::ClipNode* added_node_impl = GetClipNodeFromActiveTree(new_node_id);
-  ASSERT_TRUE(added_node_impl);
-  EXPECT_EQ(added_node_impl->parent_id, cc::kSecondaryRootPropertyNodeId);
-
-  // Remove the added node.
-  auto update_remove = CreateDefaultUpdate();
-  update_remove->num_clip_nodes = initial_node_count;
-  update_remove->clip_nodes.clear();
-
-  auto result_remove =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_remove));
-  ASSERT_TRUE(result_remove.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->clip_tree()
-                .nodes()
-                .size(),
-            initial_node_count);
-  EXPECT_FALSE(GetClipNodeFromActiveTree(new_node_id));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeClipNodeTest, InvalidClipNodeParentId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::ClipNode::New();
-  node_update->id = next_clip_id_++;  // New node
-  node_update->parent_id = 99;        // Invalid parent ID
-  node_update->transform_id = cc::kRootPropertyNodeId;
-  update->clip_nodes.push_back(std::move(node_update));
-  update->num_clip_nodes = next_clip_id_;
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid property tree node parent_id");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeClipNodeTest,
-       InvalidClipNodeTransformId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::ClipNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;  // Existing node
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = 99;  // Invalid transform ID
-  update->clip_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid transform_id for clip node");
-}
-
-class LayerContextImplUpdateDisplayTreeEffectNodeTest
-    : public LayerContextImplTest {
- protected:
-  cc::EffectNode* GetEffectNodeFromActiveTree(int node_id) {
-    if (node_id < static_cast<int>(layer_context_impl_->host_impl()
-                                       ->active_tree()
-                                       ->property_trees()
-                                       ->effect_tree()
-                                       .size())) {
-      return layer_context_impl_->host_impl()
-          ->active_tree()
-          ->property_trees()
-          ->effect_tree_mutable()
-          .Node(node_id);
-    }
-    return nullptr;
-  }
-};
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
-       UpdateExistingEffectNodeProperties) {
-  // Apply a default valid update, with a new effect node.
-  auto update1 = CreateDefaultUpdate();
-  int effect_node_id =
-      AddEffectNode(update1.get(), cc::kSecondaryRootPropertyNodeId);
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-
-  auto update2 = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = effect_node_id;
-  // Keep parent_id same as default.
-  node_update->parent_id = cc::kSecondaryRootPropertyNodeId;
-  node_update->opacity = 0.5f;
-  node_update->filters.Append(cc::FilterOperation::CreateBlurFilter(2.f));
-  node_update->backdrop_filters.Append(
-      cc::FilterOperation::CreateGrayscaleFilter(0.8f));
-  node_update->blend_mode = static_cast<uint32_t>(SkBlendMode::kMultiply);
-  node_update->render_surface_reason = cc::RenderSurfaceReason::kTest;
-
-  // TODO(vmiura): If we have a render_surface_reason, without a valid
-  // element_id, we can trigger crashes during property tree update. Fix that.
-  node_update->element_id = cc::ElementId(42);
-
-  node_update->cache_render_surface = true;
-
-  const auto view_transition_token = blink::ViewTransitionToken();
-  node_update->view_transition_element_resource_id =
-      ViewTransitionElementResourceId(view_transition_token, 1, false);
-  // Use valid existing transform and clip node IDs.
-  node_update->transform_id = cc::kSecondaryRootPropertyNodeId;
-  node_update->clip_id = cc::kSecondaryRootPropertyNodeId;
-  node_update->target_id = cc::kRootPropertyNodeId;
-
-  update2->effect_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
-  ASSERT_TRUE(result.has_value());
-
-  cc::EffectNode* node_impl = GetEffectNodeFromActiveTree(effect_node_id);
-  ASSERT_TRUE(node_impl);
-  EXPECT_EQ(node_impl->opacity, 0.5f);
-  EXPECT_EQ(node_impl->filters.size(), 1u);
-  EXPECT_EQ(node_impl->filters.at(0).type(),
-            cc::FilterOperation::FilterType::BLUR);
-  EXPECT_EQ(node_impl->backdrop_filters.size(), 1u);
-  EXPECT_EQ(node_impl->backdrop_filters.at(0).type(),
-            cc::FilterOperation::FilterType::GRAYSCALE);
-  EXPECT_EQ(node_impl->blend_mode, SkBlendMode::kMultiply);
-  EXPECT_EQ(node_impl->render_surface_reason, cc::RenderSurfaceReason::kTest);
-  EXPECT_TRUE(node_impl->cache_render_surface);
-  EXPECT_EQ(node_impl->view_transition_element_resource_id,
-            ViewTransitionElementResourceId(view_transition_token, 1, false));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, AddRemoveEffectNodes) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-  uint32_t initial_node_count = layer_context_impl_->host_impl()
-                                    ->active_tree()
-                                    ->property_trees()
-                                    ->effect_tree()
-                                    .nodes()
-                                    .size();
-
-  // Add a new node.
-  auto update_add = CreateDefaultUpdate();
-  int new_node_id =
-      AddEffectNode(update_add.get(), cc::kSecondaryRootPropertyNodeId);
-  EXPECT_EQ(update_add->num_effect_nodes, initial_node_count + 1);
-
-  auto result_add =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_add));
-  ASSERT_TRUE(result_add.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->effect_tree()
-                .nodes()
-                .size(),
-            initial_node_count + 1);
-  cc::EffectNode* added_node_impl = GetEffectNodeFromActiveTree(new_node_id);
-  ASSERT_TRUE(added_node_impl);
-  EXPECT_EQ(added_node_impl->parent_id, cc::kSecondaryRootPropertyNodeId);
-
-  // Remove the added node.
-  auto update_remove = CreateDefaultUpdate();
-  update_remove->num_effect_nodes = initial_node_count;
-  update_remove->effect_nodes.clear();
-
-  auto result_remove =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_remove));
-  ASSERT_TRUE(result_remove.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->effect_tree()
-                .nodes()
-                .size(),
-            initial_node_count);
-  EXPECT_FALSE(GetEffectNodeFromActiveTree(new_node_id));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
-       AddRemoveCopyOutputRequests) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-
-  // Add a copy request.
-  auto update_add_request = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = cc::kSecondaryRootPropertyNodeId;
-  node_update->clip_id = cc::kSecondaryRootPropertyNodeId;
-  node_update->target_id = cc::kRootPropertyNodeId;
-  node_update->copy_output_requests.push_back(
-      CopyOutputRequest::CreateStubForTesting());
-  update_add_request->effect_nodes.push_back(std::move(node_update));
-
-  auto result_add =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_add_request));
-  ASSERT_TRUE(result_add.has_value());
-  auto copy_requests = layer_context_impl_->host_impl()
-                           ->active_tree()
-                           ->property_trees()
-                           ->effect_tree_mutable()
-                           .TakeCopyRequests();
-  EXPECT_EQ(copy_requests.count(cc::kSecondaryRootPropertyNodeId), 1u);
-
-  // Remove the copy request (by not sending it).
-  auto update_remove_request = CreateDefaultUpdate();
-  auto node_update_no_request = mojom::EffectNode::New();
-  node_update_no_request->id = cc::kSecondaryRootPropertyNodeId;
-  node_update_no_request->parent_id = cc::kRootPropertyNodeId;
-  node_update_no_request->transform_id = cc::kSecondaryRootPropertyNodeId;
-  node_update_no_request->clip_id = cc::kSecondaryRootPropertyNodeId;
-  node_update_no_request->target_id = cc::kRootPropertyNodeId;
-  update_remove_request->effect_nodes.push_back(
-      std::move(node_update_no_request));
-
-  auto result_remove = layer_context_impl_->DoUpdateDisplayTree(
-      std::move(update_remove_request));
-  ASSERT_TRUE(result_remove.has_value());
-  auto copy_requests_after_remove = layer_context_impl_->host_impl()
-                                        ->active_tree()
-                                        ->property_trees()
-                                        ->effect_tree_mutable()
-                                        .TakeCopyRequests();
-  EXPECT_EQ(copy_requests_after_remove.count(cc::kSecondaryRootPropertyNodeId),
-            0u);
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
-       InvalidEffectNodeParentId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = next_effect_id_++;  // New node
-  node_update->parent_id = 99;          // Invalid parent ID
-  node_update->transform_id = cc::kRootPropertyNodeId;
-  node_update->clip_id = cc::kRootPropertyNodeId;
-  node_update->target_id = cc::kRootPropertyNodeId;
-  update->effect_nodes.push_back(std::move(node_update));
-  update->num_effect_nodes = next_effect_id_;
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid property tree node parent_id");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
-       InvalidEffectNodeTransformId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;  // Existing node
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = 99;  // Invalid transform ID
-  node_update->clip_id = cc::kRootPropertyNodeId;
-  node_update->target_id = cc::kRootPropertyNodeId;
-  update->effect_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid transform_id for effect node");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
-       InvalidEffectNodeClipId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;  // Existing node
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = cc::kRootPropertyNodeId;
-  node_update->clip_id = 99;  // Invalid clip ID
-  node_update->target_id = cc::kRootPropertyNodeId;
-  update->effect_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid clip_id for effect node");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest,
-       InvalidEffectNodeTargetId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;  // Existing node
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = cc::kRootPropertyNodeId;
-  node_update->clip_id = cc::kRootPropertyNodeId;
-  node_update->target_id = 99;  // Invalid target ID
-  update->effect_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid target_id for effect node");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeEffectNodeTest, InvalidBlendMode) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::EffectNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;  // Existing node
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = cc::kRootPropertyNodeId;
-  node_update->clip_id = cc::kRootPropertyNodeId;
-  node_update->target_id = cc::kRootPropertyNodeId;
-  node_update->blend_mode = 999;  // Invalid blend mode
-  update->effect_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid blend_mode for effect node");
-}
-
-class LayerContextImplUpdateDisplayTreeScrollNodeTest
-    : public LayerContextImplTest {
- protected:
-  cc::ScrollNode* GetScrollNodeFromActiveTree(int node_id) {
-    if (node_id < static_cast<int>(layer_context_impl_->host_impl()
-                                       ->active_tree()
-                                       ->property_trees()
-                                       ->scroll_tree()
-                                       .size())) {
-      return layer_context_impl_->host_impl()
-          ->active_tree()
-          ->property_trees()
-          ->scroll_tree_mutable()
-          .Node(node_id);
-    }
-    return nullptr;
-  }
-};
-
-TEST_F(LayerContextImplUpdateDisplayTreeScrollNodeTest,
-       UpdateExistingScrollNodeProperties) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-
-  auto update2 = CreateDefaultUpdate();
-  auto node_update = mojom::ScrollNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;
-  // Keep parent_id same as default.
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->container_bounds = gfx::Size(50, 60);
-  node_update->bounds = gfx::Size(70, 80);
-  node_update->user_scrollable_horizontal = true;
-  node_update->user_scrollable_vertical = true;
-  node_update->element_id = cc::ElementId(123);
-  // Use a valid existing transform node ID.
-  node_update->transform_id = cc::kSecondaryRootPropertyNodeId;
-  update2->scroll_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
-  ASSERT_TRUE(result.has_value());
-
-  cc::ScrollNode* node_impl =
-      GetScrollNodeFromActiveTree(cc::kSecondaryRootPropertyNodeId);
-  ASSERT_TRUE(node_impl);
-  EXPECT_EQ(node_impl->container_bounds, gfx::Size(50, 60));
-  EXPECT_EQ(node_impl->bounds, gfx::Size(70, 80));
-  EXPECT_TRUE(node_impl->user_scrollable_horizontal);
-  EXPECT_TRUE(node_impl->user_scrollable_vertical);
-  EXPECT_EQ(node_impl->element_id, cc::ElementId(123));
-  EXPECT_EQ(node_impl->transform_id, cc::kSecondaryRootPropertyNodeId);
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeScrollNodeTest, AddRemoveScrollNodes) {
-  // Apply a default valid update first.
-  auto update1 = CreateDefaultUpdate();
-  EXPECT_TRUE(
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
-  uint32_t initial_node_count = layer_context_impl_->host_impl()
-                                    ->active_tree()
-                                    ->property_trees()
-                                    ->scroll_tree()
-                                    .nodes()
-                                    .size();
-
-  // Add a new node.
-  auto update_add = CreateDefaultUpdate();
-  int new_node_id =
-      AddScrollNode(update_add.get(), cc::kSecondaryRootPropertyNodeId);
-  EXPECT_EQ(update_add->num_scroll_nodes, initial_node_count + 1);
-
-  auto result_add =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_add));
-  ASSERT_TRUE(result_add.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->scroll_tree()
-                .nodes()
-                .size(),
-            initial_node_count + 1);
-  cc::ScrollNode* added_node_impl = GetScrollNodeFromActiveTree(new_node_id);
-  ASSERT_TRUE(added_node_impl);
-  EXPECT_EQ(added_node_impl->parent_id, cc::kSecondaryRootPropertyNodeId);
-
-  // Remove the added node.
-  auto update_remove = CreateDefaultUpdate();
-  update_remove->num_scroll_nodes = initial_node_count;
-  update_remove->scroll_nodes.clear();
-
-  auto result_remove =
-      layer_context_impl_->DoUpdateDisplayTree(std::move(update_remove));
-  ASSERT_TRUE(result_remove.has_value());
-  EXPECT_EQ(layer_context_impl_->host_impl()
-                ->active_tree()
-                ->property_trees()
-                ->scroll_tree()
-                .nodes()
-                .size(),
-            initial_node_count);
-  EXPECT_FALSE(GetScrollNodeFromActiveTree(new_node_id));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeScrollNodeTest,
-       InvalidScrollNodeParentId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::ScrollNode::New();
-  node_update->id = next_scroll_id_++;  // New node
-  node_update->parent_id = 99;          // Invalid parent ID
-  node_update->transform_id = cc::kRootPropertyNodeId;
-  update->scroll_nodes.push_back(std::move(node_update));
-  update->num_scroll_nodes = next_scroll_id_;
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid property tree node parent_id");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeScrollNodeTest,
-       InvalidScrollNodeTransformId) {
-  auto update = CreateDefaultUpdate();
-  auto node_update = mojom::ScrollNode::New();
-  node_update->id = cc::kSecondaryRootPropertyNodeId;  // Existing node
-  node_update->parent_id = cc::kRootPropertyNodeId;
-  node_update->transform_id = 99;  // Invalid transform ID
-  update->scroll_nodes.push_back(std::move(node_update));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid transform_id for scroll node");
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeScrollNodeTest,
-       UpdateScrollTreeProperties) {
-  auto update = CreateDefaultUpdate();
-  auto tree_props = mojom::ScrollTreeUpdate::New();
-  cc::ElementId element_id(123);
-  tree_props->synced_scroll_offsets[element_id] =
-      base::MakeRefCounted<cc::SyncedScrollOffset>();
-  tree_props->synced_scroll_offsets[element_id]->SetCurrent(
-      gfx::PointF(10.f, 20.f));
-  tree_props->scrolling_contents_cull_rects[element_id] =
-      gfx::Rect(5, 5, 15, 15);
-  update->scroll_tree_update = std::move(tree_props);
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_TRUE(result.has_value());
-
-  const auto& scroll_tree = layer_context_impl_->host_impl()
-                                ->active_tree()
-                                ->property_trees()
-                                ->scroll_tree();
-  EXPECT_EQ(scroll_tree.synced_scroll_offset_map()
-                .at(element_id)
-                ->Current(
-                    /*is_active_tree=*/true),
-            gfx::PointF(10.f, 20.f));
-  EXPECT_EQ(scroll_tree.scrolling_contents_cull_rects().at(element_id),
-            gfx::Rect(5, 5, 15, 15));
-}
-
-TEST_F(LayerContextImplUpdateDisplayTreeScrollNodeTest,
-       EmptyScrollingContentsCullRectsByDefault) {
-  EXPECT_TRUE(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->property_trees()
-                  ->scroll_tree()
-                  .scrolling_contents_cull_rects()
-                  .empty());
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(CreateDefaultUpdate());
-  ASSERT_TRUE(result.has_value());
-
-  EXPECT_TRUE(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->property_trees()
-                  ->scroll_tree()
-                  .scrolling_contents_cull_rects()
-                  .empty());
-}
-
-class LayerContextImplUpdateDisplayTreePageScaleFactorTest
-    : public LayerContextImplTest,
-      public ::testing::WithParamInterface<std::tuple<float, bool>> {};
-
-TEST_P(LayerContextImplUpdateDisplayTreePageScaleFactorTest, PageScaleFactor) {
-  const float scale_factor = std::get<0>(GetParam());
-  const bool is_valid = std::get<1>(GetParam());
-
-  auto update = CreateDefaultUpdate();
-  update->page_scale_factor = scale_factor;
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-
-  if (is_valid) {
-    EXPECT_TRUE(result.has_value());
-    float expected_factor =
-        std::min(std::max(scale_factor, kDefaultMinPageScaleFactor),
-                 kDefaultMaxPageScaleFactor);
-    EXPECT_EQ(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->current_page_scale_factor(),
-              expected_factor);
-  } else {
-    EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), "Invalid page scale factors");
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    PageScaleFactor,
-    LayerContextImplUpdateDisplayTreePageScaleFactorTest,
-    ::testing::Values(
-        // Test value below min_page_scale_factor.
-        std::make_tuple(0.25f, true),
-
-        // Test value inside min/max_page_scale_factor.
-        std::make_tuple(1.23f, true),
-
-        // Test value outside min/max_page_scale_factor.
-        std::make_tuple(2.5, true),
-
-        // Test invalid values.
-        std::make_tuple(0.0f, false),
-        std::make_tuple(-1.0f, false),
-        std::make_tuple(std::numeric_limits<float>::infinity(), false),
-        std::make_tuple(std::numeric_limits<float>::quiet_NaN(), false)),
-    [](const testing::TestParamInfo<
-        LayerContextImplUpdateDisplayTreePageScaleFactorTest::ParamType>&
-           info) {
-      std::stringstream name;
-      name << (std::get<1>(info.param) ? "Valid" : "Invalid") << "_"
-           << info.index;
-      return name.str();
-    });
-
-class LayerContextImplUpdateDisplayTreeMinPageScaleFactorTest
-    : public LayerContextImplTest,
-      public ::testing::WithParamInterface<std::tuple<float, bool>> {};
-
-TEST_P(LayerContextImplUpdateDisplayTreeMinPageScaleFactorTest,
-       MinPageScaleFactor) {
-  const float scale_factor = std::get<0>(GetParam());
-  const bool is_valid = std::get<1>(GetParam());
-
-  auto update = CreateDefaultUpdate();
-  update->min_page_scale_factor = scale_factor;
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-
-  if (is_valid) {
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->min_page_scale_factor(),
-              scale_factor);
-  } else {
-    EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), "Invalid page scale factors");
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    MinPageScaleFactor,
-    LayerContextImplUpdateDisplayTreeMinPageScaleFactorTest,
-    ::testing::Values(
-        // Test value below max_page_scale_factor.
-        std::make_tuple(kDefaultMaxPageScaleFactor - 0.1f, true),
-
-        // Test value equal to max_page_scale_factor.
-        std::make_tuple(kDefaultMaxPageScaleFactor, true),
-
-        // Test value greater than max_page_scale_factor.
-        std::make_tuple(kDefaultMaxPageScaleFactor + 0.1f, false),
-
-        // Test invalid values.
-        std::make_tuple(0.0f, false),
-        std::make_tuple(-1.0f, false),
-        std::make_tuple(std::numeric_limits<float>::infinity(), false),
-        std::make_tuple(std::numeric_limits<float>::quiet_NaN(), false)),
-    [](const testing::TestParamInfo<
-        LayerContextImplUpdateDisplayTreeMinPageScaleFactorTest::ParamType>&
-           info) {
-      std::stringstream name;
-      name << (std::get<1>(info.param) ? "Valid" : "Invalid") << "_"
-           << info.index;
-      return name.str();
-    });
-
-class LayerContextImplUpdateDisplayTreeMaxPageScaleFactorTest
-    : public LayerContextImplTest,
-      public ::testing::WithParamInterface<std::tuple<float, bool>> {};
-
-TEST_P(LayerContextImplUpdateDisplayTreeMaxPageScaleFactorTest,
-       MaxPageScaleFactor) {
-  const float scale_factor = std::get<0>(GetParam());
-  const bool is_valid = std::get<1>(GetParam());
-
-  auto update = CreateDefaultUpdate();
-  update->max_page_scale_factor = scale_factor;
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-
-  if (is_valid) {
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->max_page_scale_factor(),
-              scale_factor);
-  } else {
-    EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), "Invalid page scale factors");
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    MaxPageScaleFactor,
-    LayerContextImplUpdateDisplayTreeMaxPageScaleFactorTest,
-    ::testing::Values(
-        // Test value equal to min_page_scale_factor.
-        std::make_tuple(kDefaultMinPageScaleFactor, true),
-
-        // Test value above min_page_scale_factor.
-        std::make_tuple(kDefaultMinPageScaleFactor + 0.1f, true),
-
-        // Test value below min_page_scale_factor.
-        std::make_tuple(kDefaultMinPageScaleFactor - 0.1f, false),
-
-        // Test invalid values.
-        std::make_tuple(0.0f, false),
-        std::make_tuple(-1.0f, false),
-        std::make_tuple(std::numeric_limits<float>::infinity(), false),
-        std::make_tuple(std::numeric_limits<float>::quiet_NaN(), false)),
-    [](const testing::TestParamInfo<
-        LayerContextImplUpdateDisplayTreeMaxPageScaleFactorTest::ParamType>&
-           info) {
-      std::stringstream name;
-      name << (std::get<1>(info.param) ? "Valid" : "Invalid") << "_"
-           << info.index;
-      return name.str();
-    });
-
-class LayerContextImplUpdateDisplayTreeScaleFactorTest
-    : public LayerContextImplTest,
-      public ::testing::WithParamInterface<std::tuple<float, bool>> {};
-
-TEST_P(LayerContextImplUpdateDisplayTreeScaleFactorTest,
-       ExternalPageScaleFactor) {
-  const float scale_factor = std::get<0>(GetParam());
-  const bool is_valid = std::get<1>(GetParam());
-
-  auto update = CreateDefaultUpdate();
-  update->external_page_scale_factor = scale_factor;
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-
-  if (is_valid) {
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->external_page_scale_factor(),
-              scale_factor);
-  } else {
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), "Invalid external page scale factor");
-  }
-}
-
-TEST_P(LayerContextImplUpdateDisplayTreeScaleFactorTest, DeviceScaleFactor) {
-  const float scale_factor = std::get<0>(GetParam());
-  const bool is_valid = std::get<1>(GetParam());
-
-  auto update = CreateDefaultUpdate();
-  update->device_scale_factor = scale_factor;
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-
-  if (is_valid) {
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(
-        layer_context_impl_->host_impl()->active_tree()->device_scale_factor(),
-        scale_factor);
-  } else {
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), "Invalid device scale factor");
-  }
-}
-
-TEST_P(LayerContextImplUpdateDisplayTreeScaleFactorTest,
-       PaintedDeviceScaleFactor) {
-  const float scale_factor = std::get<0>(GetParam());
-  const bool is_valid = std::get<1>(GetParam());
-
-  auto update = CreateDefaultUpdate();
-  update->painted_device_scale_factor = scale_factor;
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-
-  if (is_valid) {
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(layer_context_impl_->host_impl()
-                  ->active_tree()
-                  ->painted_device_scale_factor(),
-              scale_factor);
-  } else {
-    ASSERT_FALSE(result.has_value());
-    EXPECT_EQ(result.error(), "Invalid painted device scale factor");
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    TreeScaleFactors,
-    LayerContextImplUpdateDisplayTreeScaleFactorTest,
-    ::testing::Values(
-        // Test value below min_page_scale_factor.
-        std::make_tuple(0.25f, true),
-
-        // Test value inside min/max_page_scale_factor.
-        std::make_tuple(1.23f, true),
-
-        // Test value outside min/max_page_scale_factor.
-        std::make_tuple(2.5, true),
-
-        // Test invalid values.
-        std::make_tuple(0.0f, false),
-        std::make_tuple(-1.0f, false),
-        std::make_tuple(std::numeric_limits<float>::infinity(), false),
-        std::make_tuple(std::numeric_limits<float>::quiet_NaN(), false)),
-    [](const testing::TestParamInfo<
-        LayerContextImplUpdateDisplayTreeScaleFactorTest::ParamType>& info) {
-      std::stringstream name;
-      name << (std::get<1>(info.param) ? "Valid" : "Invalid") << "_"
-           << info.index;
-      return name.str();
-    });
 
 class LayerContextImplUpdateDisplayTreeUIResourceRequestTest
     : public LayerContextImplTest,
@@ -1635,6 +82,43 @@ INSTANTIATE_TEST_SUITE_P(
            << info.index;
       return name.str();
     });
+
+TEST_F(LayerContextImplUpdateDisplayTreeUIResourceRequestTest,
+       CreateWithNullTransferableResourceFails) {
+  auto update = CreateDefaultUpdate();
+  auto request = mojom::TransferableUIResourceRequest::New();
+  request->type = mojom::TransferableUIResourceRequest::Type::kCreate;
+  request->uid = 42;
+  request->transferable_resource = std::nullopt;  // Explicitly null
+  update->ui_resource_requests.push_back(std::move(request));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(),
+            "Invalid transferable resource in UI resource creation");
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeUIResourceRequestTest,
+       CreateWithEmptyTransferableResourceFails) {
+  auto update = CreateDefaultUpdate();
+  auto request = mojom::TransferableUIResourceRequest::New();
+  request->type = mojom::TransferableUIResourceRequest::Type::kCreate;
+  request->uid = 43;
+
+  // A default-constructed TransferableResource has id = kInvalidResourceId,
+  // making it empty.
+  request->transferable_resource = TransferableResource();
+  ASSERT_TRUE(request->transferable_resource->is_empty());
+
+  update->ui_resource_requests.push_back(std::move(request));
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(),
+            "Invalid transferable resource in UI resource creation");
+}
 
 class LayerContextImplUpdateDisplayTreeTilingTest
     : public LayerContextImplTest,
@@ -1696,7 +180,15 @@ INSTANTIATE_TEST_SUITE_P(
       return name.str();
     });
 
-}  // namespace
+TEST_F(LayerContextImplTest, DrawModeIsGpuForwardedViaSettings) {
+  RecreateLayerContextImplWithParams(/*draw_mode_is_gpu=*/true);
+  cc::LayerTreeHostImpl* host_impl = layer_context_impl_->host_impl();
+  EXPECT_TRUE(host_impl->settings().display_tree_draw_mode_is_gpu);
+
+  RecreateLayerContextImplWithParams(/*draw_mode_is_gpu=*/false);
+  host_impl = layer_context_impl_->host_impl();
+  EXPECT_FALSE(host_impl->settings().display_tree_draw_mode_is_gpu);
+}
 
 TEST_F(LayerContextImplTest, TransferableUIResourceLifecycleAndEdgeCases) {
   cc::LayerTreeHostImpl* host_impl = layer_context_impl_->host_impl();
@@ -1818,6 +310,8 @@ class LayerContextImplLayerLifecycleTest : public LayerContextImplTest {
         return "LayerImpl";
       case cc::mojom::LayerType::kMirror:
         return "MirrorLayerImpl";
+      case cc::mojom::LayerType::kNinePatch:
+        return "NinePatchLayerImpl";
       case cc::mojom::LayerType::kNinePatchThumbScrollbar:
         return "NinePatchThumbScrollbarLayerImpl";
       case cc::mojom::LayerType::kPaintedScrollbar:
@@ -1842,10 +336,6 @@ class LayerContextImplLayerLifecycleTest : public LayerContextImplTest {
   }
 
  protected:
-  cc::LayerImpl* GetLayerFromActiveTree(int layer_id) {
-    return layer_context_impl_->host_impl()->active_tree()->LayerById(layer_id);
-  }
-
   void VerifyLayerExists(int layer_id, bool should_exist) {
     if (should_exist) {
       EXPECT_NE(nullptr, GetLayerFromActiveTree(layer_id))
@@ -1873,73 +363,28 @@ class LayerContextImplLayerLifecycleTest : public LayerContextImplTest {
       i++;
     }
   }
+};
 
-  // Helper to manually add a layer to an update, bypassing AddDefaultLayer.
-  // This is useful for testing specific ID scenarios or invalid properties.
-  mojom::LayerPtr CreateManualLayer(
-      int id,
-      cc::mojom::LayerType type = cc::mojom::LayerType::kLayer,
-      const gfx::Size& bounds = kDefaultLayerBounds,
-      int transform_idx = cc::kSecondaryRootPropertyNodeId,
-      int clip_idx = cc::kRootPropertyNodeId,
-      int effect_idx = cc::kSecondaryRootPropertyNodeId,
-      int scroll_idx = cc::kSecondaryRootPropertyNodeId) {
-    auto layer = mojom::Layer::New();
-    layer->id = id;
-    layer->type = type;
-    layer->bounds = bounds;
-    layer->transform_tree_index = transform_idx;
-    layer->clip_tree_index = clip_idx;
-    layer->effect_tree_index = effect_idx;
-    layer->scroll_tree_index = scroll_idx;
-    layer->layer_extra = CreateDefaultLayerExtra(type);
-    return layer;
+class LayerContextImplUpdateDisplayTreeUIResourceLayerTest
+    : public LayerContextImplLayerLifecycleTest {
+ protected:
+  cc::UIResourceLayerImpl* GetUIResourceLayerFromActiveTree(int layer_id) {
+    cc::LayerImpl* layer = GetLayerFromActiveTree(layer_id);
+    if (layer && layer->GetLayerType() == cc::mojom::LayerType::kUIResource) {
+      return static_cast<cc::UIResourceLayerImpl*>(layer);
+    }
+    return nullptr;
   }
 };
 
-TEST_F(LayerContextImplLayerLifecycleTest, UpdateUIResourceLayer) {
-  const cc::UIResourceId kUpdatedUIResourceId = 321u;
+TEST_F(LayerContextImplUpdateDisplayTreeUIResourceLayerTest,
+       CreateAndUpdateUIResourceLayer) {
+  const cc::UIResourceId kUpdatedUIResourceId = 321;
   const gfx::Size kUpdatedUIResourceImageBounds(50, 100);
+  const gfx::PointF kUpdatedUIResourceUVTopLeft = gfx::PointF(0.1f, 0.2f);
+  const gfx::PointF kUpdatedUIResourceUVBottomRight = gfx::PointF(0.9f, 0.8f);
 
-  // First, create the layer.
-  auto update = CreateDefaultUpdate();
-  int layer_id =
-      AddDefaultLayerToUpdate(update.get(), cc::mojom::LayerType::kUIResource);
-
-  auto ui_resource_extra = mojom::UIResourceLayerExtra::New();
-  ui_resource_extra->ui_resource_id = kDefaultUIResourceId;
-  ui_resource_extra->image_bounds = kDefaultUIResourceImageBounds;
-  update->layers.back()->layer_extra =
-      mojom::LayerExtra::NewUiResourceLayerExtra(std::move(ui_resource_extra));
-
-  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_TRUE(result.has_value());
-
-  // Now, update the layer.
-  auto update2 = CreateDefaultUpdate();
-  auto ui_resource_extra2 = mojom::UIResourceLayerExtra::New();
-  ui_resource_extra2->ui_resource_id = kUpdatedUIResourceId;
-  ui_resource_extra2->image_bounds = kUpdatedUIResourceImageBounds;
-
-  auto layer_update =
-      CreateManualLayer(layer_id, cc::mojom::LayerType::kUIResource);
-  layer_update->layer_extra =
-      mojom::LayerExtra::NewUiResourceLayerExtra(std::move(ui_resource_extra2));
-  update2->layers.push_back(std::move(layer_update));
-
-  auto result2 = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
-  ASSERT_TRUE(result2.has_value());
-
-  cc::LayerImpl* layer_impl = GetLayerFromActiveTree(layer_id);
-  ASSERT_TRUE(layer_impl);
-  ASSERT_EQ(layer_impl->GetLayerType(), cc::mojom::LayerType::kUIResource);
-  auto* ui_resource_layer = static_cast<cc::UIResourceLayerImpl*>(layer_impl);
-
-  EXPECT_EQ(ui_resource_layer->ui_resource_id(), kUpdatedUIResourceId);
-  EXPECT_EQ(ui_resource_layer->image_bounds(), kUpdatedUIResourceImageBounds);
-}
-
-TEST_F(LayerContextImplLayerLifecycleTest, UIResourceLayer) {
+  // 1. Create the layer with default properties.
   auto update = CreateDefaultUpdate();
   int layer_id =
       AddDefaultLayerToUpdate(update.get(), cc::mojom::LayerType::kUIResource);
@@ -1952,16 +397,216 @@ TEST_F(LayerContextImplLayerLifecycleTest, UIResourceLayer) {
   update->layers.back()->layer_extra =
       mojom::LayerExtra::NewUiResourceLayerExtra(std::move(ui_resource_extra));
 
+  auto result1 = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result1.has_value());
+
+  cc::UIResourceLayerImpl* layer_impl =
+      GetUIResourceLayerFromActiveTree(layer_id);
+  ASSERT_TRUE(layer_impl);
+
+  // Verify initial default properties.
+  EXPECT_EQ(layer_impl->ui_resource_id(), kDefaultUIResourceId);
+  EXPECT_EQ(layer_impl->image_bounds(), kDefaultUIResourceImageBounds);
+  EXPECT_EQ(layer_impl->uv_top_left(), kDefaultUIResourceUVTopLeft);
+  EXPECT_EQ(layer_impl->uv_bottom_right(), kDefaultUIResourceUVBottomRight);
+
+  // 2. Update some properties of the layer.
+  auto update2 = CreateDefaultUpdate();
+  auto ui_resource_extra2 = mojom::UIResourceLayerExtra::New();
+  ui_resource_extra2->ui_resource_id = kUpdatedUIResourceId;
+  ui_resource_extra2->image_bounds = kUpdatedUIResourceImageBounds;
+  ui_resource_extra2->uv_top_left = kUpdatedUIResourceUVTopLeft;
+  ui_resource_extra2->uv_bottom_right = kUpdatedUIResourceUVBottomRight;
+
+  auto layer_update2 =
+      CreateManualLayer(layer_id, cc::mojom::LayerType::kUIResource);
+  layer_update2->layer_extra =
+      mojom::LayerExtra::NewUiResourceLayerExtra(std::move(ui_resource_extra2));
+  update2->layers.push_back(std::move(layer_update2));
+
+  auto result2 = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_TRUE(result2.has_value());
+
+  EXPECT_EQ(layer_impl->ui_resource_id(), kUpdatedUIResourceId);
+  EXPECT_EQ(layer_impl->image_bounds(), kUpdatedUIResourceImageBounds);
+  EXPECT_EQ(layer_impl->uv_top_left(), kUpdatedUIResourceUVTopLeft);
+  EXPECT_EQ(layer_impl->uv_bottom_right(), kUpdatedUIResourceUVBottomRight);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeUIResourceLayerTest,
+       UpdateUIResourceLayerWithInvalidIdFails) {
+  constexpr int kLayerId = 2;
+  const cc::UIResourceId kValidUIResourceId = kDefaultUIResourceId;
+  const cc::UIResourceId kInvalidUIResourceId = 0;
+
+  // Initial update: Create UIResourceLayer with a valid resource ID.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kUIResource,
+                          kLayerId);
+  auto ui_resource_extra1 = mojom::UIResourceLayerExtra::New();
+  ui_resource_extra1->ui_resource_id = kValidUIResourceId;
+  ui_resource_extra1->image_bounds = kDefaultUIResourceImageBounds;
+  update1->layers.back()->layer_extra =
+      mojom::LayerExtra::NewUiResourceLayerExtra(std::move(ui_resource_extra1));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::UIResourceLayerImpl* ui_resource_layer_impl =
+      static_cast<cc::UIResourceLayerImpl*>(GetLayerFromActiveTree(kLayerId));
+  ASSERT_NE(nullptr, ui_resource_layer_impl);
+  EXPECT_EQ(ui_resource_layer_impl->ui_resource_id(), kValidUIResourceId);
+
+  // Second update: Attempt to update with an invalid resource ID.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kUIResource);
+  auto ui_resource_extra2 = mojom::UIResourceLayerExtra::New();
+  ui_resource_extra2->ui_resource_id = kInvalidUIResourceId;  // Invalid ID
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewUiResourceLayerExtra(std::move(ui_resource_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  auto result2 = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_FALSE(result2.has_value());
+  EXPECT_EQ(result2.error(), "Invalid ui_resource_id for UIResourceLayerImpl");
+  EXPECT_EQ(ui_resource_layer_impl->ui_resource_id(), kValidUIResourceId);
+}
+
+class LayerContextImplUpdateDisplayTreeNinePatchLayerTest
+    : public LayerContextImplLayerLifecycleTest {
+ protected:
+  cc::NinePatchLayerImpl* GetNinePatchLayerFromActiveTree(int layer_id) {
+    cc::LayerImpl* layer = GetLayerFromActiveTree(layer_id);
+    if (layer && layer->GetLayerType() == cc::mojom::LayerType::kNinePatch) {
+      return static_cast<cc::NinePatchLayerImpl*>(layer);
+    }
+    return nullptr;
+  }
+};
+
+TEST_F(LayerContextImplUpdateDisplayTreeNinePatchLayerTest,
+       CreateAndUpdateNinePatchLayer) {
+  auto update = CreateDefaultUpdate();
+  const gfx::Rect kUpdatedNinePatchAperture(11, 12, 13, 14);
+  const gfx::Rect kUpdatedNinePatchBorder(15, 16, 17, 18);
+  const gfx::Rect kUpdatedNinePatchLayerOcclusion(19, 20, 21, 22);
+  const bool kUpdatedNinePatchFillCenter = true;
+  const cc::UIResourceId kUpdatedNinePatchUIResourceId = 456;
+  const gfx::Size kUpdatedNinePatchImageBounds(300, 400);
+  const gfx::PointF kUpdatedNinePatchUVTopLeft(0.1f, 0.2f);
+  const gfx::PointF kUpdatedNinePatchUVBottomRight(0.8f, 0.9f);
+  int layer_id =
+      AddDefaultLayerToUpdate(update.get(), cc::mojom::LayerType::kNinePatch);
+
+  auto nine_patch_extra = mojom::NinePatchLayerExtra::New();
+  nine_patch_extra->image_aperture = kDefaultNinePatchAperture;
+  nine_patch_extra->border = kDefaultNinePatchBorder;
+  nine_patch_extra->layer_occlusion = kDefaultNinePatchLayerOcclusion;
+  nine_patch_extra->fill_center = kDefaultNinePatchFillCenter;
+  nine_patch_extra->ui_resource_id = kDefaultNinePatchUIResourceId;
+  nine_patch_extra->image_bounds = kDefaultNinePatchImageBounds;
+  nine_patch_extra->uv_top_left = kDefaultNinePatchUVTopLeft;
+  nine_patch_extra->uv_bottom_right = kDefaultNinePatchUVBottomRight;
+  update->layers.back()->layer_extra =
+      mojom::LayerExtra::NewNinePatchLayerExtra(std::move(nine_patch_extra));
+
   auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
   ASSERT_TRUE(result.has_value());
 
-  cc::LayerImpl* layer_impl = GetLayerFromActiveTree(layer_id);
-  ASSERT_TRUE(layer_impl);
-  ASSERT_EQ(layer_impl->GetLayerType(), cc::mojom::LayerType::kUIResource);
-  auto* ui_resource_layer = static_cast<cc::UIResourceLayerImpl*>(layer_impl);
+  cc::NinePatchLayerImpl* nine_patch_layer =
+      GetNinePatchLayerFromActiveTree(layer_id);
+  ASSERT_TRUE(nine_patch_layer);
 
-  EXPECT_EQ(ui_resource_layer->ui_resource_id(), kDefaultUIResourceId);
-  EXPECT_EQ(ui_resource_layer->image_bounds(), kDefaultUIResourceImageBounds);
+  EXPECT_EQ(nine_patch_layer->quad_generator().image_aperture(),
+            kDefaultNinePatchAperture);
+  EXPECT_EQ(nine_patch_layer->quad_generator().border(),
+            kDefaultNinePatchBorder);
+  EXPECT_EQ(nine_patch_layer->quad_generator().output_occlusion(),
+            kDefaultNinePatchLayerOcclusion);
+  EXPECT_EQ(nine_patch_layer->quad_generator().fill_center(),
+            kDefaultNinePatchFillCenter);
+  EXPECT_EQ(nine_patch_layer->ui_resource_id(), kDefaultNinePatchUIResourceId);
+  EXPECT_EQ(nine_patch_layer->image_bounds(), kDefaultNinePatchImageBounds);
+  EXPECT_EQ(nine_patch_layer->uv_top_left(), kDefaultNinePatchUVTopLeft);
+  EXPECT_EQ(nine_patch_layer->uv_bottom_right(),
+            kDefaultNinePatchUVBottomRight);
+
+  // Update all NinePatchLayerExtra properties.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(layer_id, cc::mojom::LayerType::kNinePatch);
+  auto nine_patch_extra2 = mojom::NinePatchLayerExtra::New();
+  nine_patch_extra2->image_aperture = kUpdatedNinePatchAperture;
+  nine_patch_extra2->border = kUpdatedNinePatchBorder;
+  nine_patch_extra2->layer_occlusion = kUpdatedNinePatchLayerOcclusion;
+  nine_patch_extra2->fill_center = kUpdatedNinePatchFillCenter;
+  nine_patch_extra2->ui_resource_id = kUpdatedNinePatchUIResourceId;
+  nine_patch_extra2->image_bounds = kUpdatedNinePatchImageBounds;
+  nine_patch_extra2->uv_top_left = kUpdatedNinePatchUVTopLeft;
+  nine_patch_extra2->uv_bottom_right = kUpdatedNinePatchUVBottomRight;
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewNinePatchLayerExtra(std::move(nine_patch_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
+
+  EXPECT_EQ(nine_patch_layer->quad_generator().image_aperture(),
+            kUpdatedNinePatchAperture);
+  EXPECT_EQ(nine_patch_layer->quad_generator().border(),
+            kUpdatedNinePatchBorder);
+  EXPECT_EQ(nine_patch_layer->quad_generator().output_occlusion(),
+            kUpdatedNinePatchLayerOcclusion);
+  EXPECT_EQ(nine_patch_layer->quad_generator().fill_center(),
+            kUpdatedNinePatchFillCenter);
+  EXPECT_EQ(nine_patch_layer->ui_resource_id(), kUpdatedNinePatchUIResourceId);
+  EXPECT_EQ(nine_patch_layer->image_bounds(), kUpdatedNinePatchImageBounds);
+  EXPECT_EQ(nine_patch_layer->uv_top_left(), kUpdatedNinePatchUVTopLeft);
+  EXPECT_EQ(nine_patch_layer->uv_bottom_right(),
+            kUpdatedNinePatchUVBottomRight);
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeNinePatchLayerTest,
+       UpdateNinePatchLayerWithInvalidUIResourceIdFails) {
+  constexpr int kLayerId = 2;
+  const cc::UIResourceId kValidUIResourceId = kDefaultNinePatchUIResourceId;
+  const cc::UIResourceId kInvalidUIResourceId = 0;
+
+  // Initial update: Create NinePatchLayer with a valid resource ID.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kNinePatch,
+                          kLayerId);
+  auto nine_patch_extra1 = mojom::NinePatchLayerExtra::New();
+  nine_patch_extra1->ui_resource_id = kValidUIResourceId;
+  // Set other required fields for a valid NinePatchLayer
+  nine_patch_extra1->image_aperture = kDefaultNinePatchAperture;
+  nine_patch_extra1->border = kDefaultNinePatchBorder;
+  update1->layers.back()->layer_extra =
+      mojom::LayerExtra::NewNinePatchLayerExtra(std::move(nine_patch_extra1));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::NinePatchLayerImpl* nine_patch_layer_impl =
+      GetNinePatchLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, nine_patch_layer_impl);
+  EXPECT_EQ(nine_patch_layer_impl->ui_resource_id(), kValidUIResourceId);
+
+  // Second update: Attempt to update with an invalid resource ID.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kNinePatch);
+  auto nine_patch_extra2 = mojom::NinePatchLayerExtra::New();
+  nine_patch_extra2->ui_resource_id = kInvalidUIResourceId;  // Invalid ID
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewNinePatchLayerExtra(std::move(nine_patch_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  auto result2 = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_FALSE(result2.has_value());
+  EXPECT_EQ(result2.error(), "Invalid ui_resource_id for NinePatchLayerImpl");
+  EXPECT_EQ(nine_patch_layer_impl->ui_resource_id(), kValidUIResourceId);
 }
 
 TEST_F(LayerContextImplLayerLifecycleTest, LayerLifecycleAndEdgeCases) {
@@ -2124,7 +769,7 @@ TEST_F(LayerContextImplLayerLifecycleTest, LayerLifecycleAndEdgeCases) {
   EXPECT_EQ(result15.error(), "Invalid or duplicate layer ID");
 
   // Test Case 7: Invalid Property Tree Indices on Creation
-  // Update 16: Try to send a layer update with an invalid transform node index
+  // Update 16: Try to send a layer update with a1valid transform node index
   auto update16 = CreateDefaultUpdate();
   update16->layers.push_back(
       CreateManualLayer(kLayerId2, cc::mojom::LayerType::kLayer,
@@ -2366,6 +1011,7 @@ TEST_F(LayerContextImplLayerLifecycleTest, RemoveLayers) {
   int layer_id1 = AddDefaultLayerToUpdate(update.get());
   int layer_id2 = AddDefaultLayerToUpdate(update.get());
   int layer_id3 = AddDefaultLayerToUpdate(update.get());
+
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update)).has_value());
   VerifyLayerOrder({1, layer_id1, layer_id2, layer_id3});
@@ -2539,19 +1185,21 @@ TEST_F(LayerContextImplLayerLifecycleTest, ContentsOpaqueFlags) {
   EXPECT_FALSE(layer_impl_valid3->contents_opaque_for_text());
 }
 
-TEST_F(LayerContextImplLayerLifecycleTest, MissingLayerExtra) {
-  const std::vector<cc::mojom::LayerType> types_requiring_extra = {
-      cc::mojom::LayerType::kMirror,
-      cc::mojom::LayerType::kNinePatchThumbScrollbar,
-      cc::mojom::LayerType::kPaintedScrollbar,
-      cc::mojom::LayerType::kSolidColorScrollbar,
-      cc::mojom::LayerType::kSurface,
-      cc::mojom::LayerType::kTexture,
-      cc::mojom::LayerType::kUIResource,
-      cc::mojom::LayerType::kViewTransitionContent,
-  };
+const cc::mojom::LayerType kLayerTypesWithSpecificExtras[] = {
+    cc::mojom::LayerType::kMirror,
+    cc::mojom::LayerType::kNinePatch,
+    cc::mojom::LayerType::kNinePatchThumbScrollbar,
+    cc::mojom::LayerType::kPaintedScrollbar,
+    cc::mojom::LayerType::kSolidColorScrollbar,
+    cc::mojom::LayerType::kSurface,
+    cc::mojom::LayerType::kTexture,
+    cc::mojom::LayerType::kTileDisplay,
+    cc::mojom::LayerType::kUIResource,
+    cc::mojom::LayerType::kViewTransitionContent,
+};
 
-  for (cc::mojom::LayerType type : types_requiring_extra) {
+TEST_F(LayerContextImplLayerLifecycleTest, MissingLayerExtra) {
+  for (cc::mojom::LayerType type : kLayerTypesWithSpecificExtras) {
     SCOPED_TRACE(testing::Message()
                  << "Testing LayerType: " << GetLayerImplName(type));
     ResetTestState();
@@ -2583,18 +1231,6 @@ TEST_F(LayerContextImplLayerLifecycleTest, MissingLayerExtra) {
 class LayerContextImplLayerExtraTypeValidationTest
     : public LayerContextImplLayerLifecycleTest,
       public testing::WithParamInterface<cc::mojom::LayerType> {};
-
-const cc::mojom::LayerType kLayerTypesWithSpecificExtras[] = {
-    cc::mojom::LayerType::kMirror,
-    cc::mojom::LayerType::kNinePatchThumbScrollbar,
-    cc::mojom::LayerType::kPaintedScrollbar,
-    cc::mojom::LayerType::kSolidColorScrollbar,
-    cc::mojom::LayerType::kSurface,
-    cc::mojom::LayerType::kTexture,
-    cc::mojom::LayerType::kTileDisplay,
-    cc::mojom::LayerType::kUIResource,
-    cc::mojom::LayerType::kViewTransitionContent,
-};
 
 TEST_P(LayerContextImplLayerExtraTypeValidationTest, MismatchedLayerExtra) {
   constexpr int kLayerId = 2;
@@ -2740,6 +1376,37 @@ TEST_F(LayerContextImplLayerLifecycleTest,
 // mojom::Layer).
 class LayerContextImplUpdateDisplayTreeBaseLayerPropertiesTest
     : public LayerContextImplLayerLifecycleTest {};
+
+TEST_F(LayerContextImplUpdateDisplayTreeBaseLayerPropertiesTest,
+       UpdateLayerWithMismatchedTypeFails) {
+  constexpr int kLayerId = 2;
+  constexpr cc::mojom::LayerType kInitialType =
+      cc::mojom::LayerType::kSolidColor;
+  constexpr cc::mojom::LayerType kUpdatedType = cc::mojom::LayerType::kTexture;
+
+  // Initial update: Create a layer of kInitialType.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), kInitialType, kLayerId);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::LayerImpl* layer_impl = GetLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, layer_impl);
+  EXPECT_EQ(layer_impl->GetLayerType(), kInitialType);
+
+  // Second update: Attempt to update the layer with kUpdatedType.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 = CreateManualLayer(kLayerId, kUpdatedType);
+  layer_props2->layer_extra = CreateDefaultLayerExtra(kUpdatedType);
+  update2->layers.push_back(std::move(layer_props2));
+
+  auto result2 = layer_context_impl_->DoUpdateDisplayTree(std::move(update2));
+  ASSERT_FALSE(result2.has_value());
+  EXPECT_EQ(result2.error(), "Incorrect layer type used in Layer update.");
+
+  // Verify the layer type in the tree remains kInitialType.
+  EXPECT_EQ(layer_impl->GetLayerType(), kInitialType);
+}
 
 TEST_F(LayerContextImplUpdateDisplayTreeBaseLayerPropertiesTest,
        UpdateSafeOpaqueBackgroundColor) {
@@ -3086,6 +1753,108 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   EXPECT_FALSE(tile_display_layer_impl->is_backdrop_filter_mask_for_testing());
 }
 
+TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
+       UpdateIsDirectlyCompositedImage) {
+  constexpr int kLayerId = 2;
+
+  // Initial update: Create TileDisplayLayer with default properties.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kTileDisplay,
+                          kLayerId);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::LayerImpl* layer_impl_base = GetLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, layer_impl_base);
+  ASSERT_EQ(layer_impl_base->GetLayerType(),
+            cc::mojom::LayerType::kTileDisplay);
+  auto* tile_display_layer_impl =
+      static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
+
+  EXPECT_FALSE(tile_display_layer_impl->is_directly_composited_image());
+
+  // Second update: Set is_directly_composited_image to true.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra2 = mojom::TileDisplayLayerExtra::New();
+  tile_extra2->is_directly_composited_image = true;
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
+
+  EXPECT_TRUE(tile_display_layer_impl->is_directly_composited_image());
+
+  // Third update: Set is_directly_composited_image to false.
+  auto update3 = CreateDefaultUpdate();
+  auto layer_props3 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra3 = mojom::TileDisplayLayerExtra::New();
+  tile_extra3->is_directly_composited_image = false;
+  layer_props3->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra3));
+  update3->layers.push_back(std::move(layer_props3));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update3)).has_value());
+
+  EXPECT_FALSE(tile_display_layer_impl->is_directly_composited_image());
+}
+
+TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
+       UpdateNearestNeighbor) {
+  constexpr int kLayerId = 2;
+
+  // Initial update: Create TileDisplayLayer with default properties.
+  auto update1 = CreateDefaultUpdate();
+  AddDefaultLayerToUpdate(update1.get(), cc::mojom::LayerType::kTileDisplay,
+                          kLayerId);
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update1)).has_value());
+
+  cc::LayerImpl* layer_impl_base = GetLayerFromActiveTree(kLayerId);
+  ASSERT_NE(nullptr, layer_impl_base);
+  ASSERT_EQ(layer_impl_base->GetLayerType(),
+            cc::mojom::LayerType::kTileDisplay);
+  auto* tile_display_layer_impl =
+      static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
+
+  EXPECT_FALSE(tile_display_layer_impl->nearest_neighbor());
+
+  // Second update: Set nearest_neighbor to true.
+  auto update2 = CreateDefaultUpdate();
+  auto layer_props2 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra2 = mojom::TileDisplayLayerExtra::New();
+  tile_extra2->nearest_neighbor = true;
+  layer_props2->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra2));
+  update2->layers.push_back(std::move(layer_props2));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
+
+  EXPECT_TRUE(tile_display_layer_impl->nearest_neighbor());
+
+  // Third update: Set nearest_neighbor to false.
+  auto update3 = CreateDefaultUpdate();
+  auto layer_props3 =
+      CreateManualLayer(kLayerId, cc::mojom::LayerType::kTileDisplay);
+  auto tile_extra3 = mojom::TileDisplayLayerExtra::New();
+  tile_extra3->nearest_neighbor = false;
+  layer_props3->layer_extra =
+      mojom::LayerExtra::NewTileDisplayLayerExtra(std::move(tile_extra3));
+  update3->layers.push_back(std::move(layer_props3));
+
+  EXPECT_TRUE(
+      layer_context_impl_->DoUpdateDisplayTree(std::move(update3)).has_value());
+
+  EXPECT_FALSE(tile_display_layer_impl->nearest_neighbor());
+}
+
 TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   constexpr int kLayerId = 2;
   constexpr float kScaleKey1 = 1.0f;
@@ -3169,10 +1938,12 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   auto result =
       layer_context_impl_->DoUpdateDisplayTree(std::move(update_update_tiling));
   EXPECT_TRUE(result.has_value()) << result.error();
-  ASSERT_NE(nullptr, tiling_impl1);  // Should still be the same tiling object
+  ASSERT_EQ(tiling_impl1,
+            tile_display_layer_impl->GetTilingForTesting(
+                kScaleKey1));  // Should still be the same tiling object
   EXPECT_EQ(tiling_impl1->tile_size(), kTileSize2);  // Updated
-  // Previous tile should be gone due to tile_size change
-  EXPECT_EQ(nullptr, tiling_impl1->TileAt(kTileIndex1));
+  // Previous tiles should still exist after a tile_size change
+  EXPECT_NE(nullptr, tiling_impl1->TileAt(kTileIndex1));
   ASSERT_NE(nullptr, tiling_impl1->TileAt(kTileIndex2));
   EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex2)->resource().has_value());
 
@@ -5142,4 +3913,5 @@ TEST_F(LayerContextImplUpdateDisplayTreeViewTransitionContentLayerTest,
             kDefaultViewTransitionContentLayerMaxExtentsRect);
 }
 
+}  // namespace
 }  // namespace viz

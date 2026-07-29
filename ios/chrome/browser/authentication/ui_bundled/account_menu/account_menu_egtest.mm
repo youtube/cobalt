@@ -364,11 +364,9 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
   // Confirm "Delete and Signout" alert dialog that data will be cleared is
   // shown. This dialog is only shown when multi profiles are not available.
   if (![SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
-    [[EarlGrey
-        selectElementWithMatcher:
-            grey_allOf(chrome_test_util::AlertAction(l10n_util::GetNSString(
-                           IDS_IOS_SIGNOUT_AND_DELETE_DIALOG_SIGN_OUT_BUTTON)),
-                       grey_sufficientlyVisible(), nil)]
+    [[EarlGrey selectElementWithMatcher:
+                   chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                       IDS_IOS_SIGNOUT_AND_DELETE_DIALOG_SIGN_OUT_BUTTON)]
         performAction:grey_tap()];
   }
   [SigninEarlGrey verifySignedOut];
@@ -488,6 +486,9 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
                                           kAccountMenuSecondaryAccountButtonId)]
       performAction:grey_tap()];
 
+  if ([SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
+    WaitForEnterpriseOnboardingScreen();
+  }
   // Tap on Continue button to acknowledge signing in with a managed account.
   [[EarlGrey
       selectElementWithMatcher:
@@ -528,6 +529,10 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
                            IDS_IOS_DATA_NOT_UPLOADED_SWITCH_DIALOG_BUTTON)),
                        grey_sufficientlyVisible(), nil)]
         performAction:grey_tap()];
+  }
+
+  if ([SigninEarlGrey areSeparateProfilesForManagedAccountsEnabled]) {
+    WaitForEnterpriseOnboardingScreen();
   }
   // Tap on Continue button to acknowledge signing in with a managed account.
   [[EarlGrey
@@ -707,10 +712,9 @@ id<GREYMatcher> snackbarMessageMatcher(FakeSystemIdentity* identity) {
       performAction:grey_tap()];
 
   // Tap on kPrimaryIdentity confirm remove button.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 
   [SigninEarlGrey verifySignedOut];
 

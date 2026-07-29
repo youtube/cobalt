@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "base/android/self_compaction_manager.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_file.h"
@@ -136,8 +137,8 @@ class PreFreezeSelfCompactionTest : public testing::Test {
   void SetUp() override { SelfCompactionManager::ResetCompactionForTesting(); }
 
   bool ShouldContinueCompaction(base::TimeTicks compaction_started_at) {
-    return PreFreezeBackgroundMemoryTrimmer::Instance()
-        .ShouldContinueCompaction(compaction_started_at);
+    return SelfCompactionManager::Instance().ShouldContinueCompaction(
+        compaction_started_at);
   }
 
   bool CompactionIsSupported() {

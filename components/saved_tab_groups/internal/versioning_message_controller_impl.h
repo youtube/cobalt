@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_SAVED_TAB_GROUPS_INTERNAL_VERSIONING_MESSAGE_CONTROLLER_IMPL_H_
 #define COMPONENTS_SAVED_TAB_GROUPS_INTERNAL_VERSIONING_MESSAGE_CONTROLLER_IMPL_H_
 
+#include <vector>
+
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -26,6 +28,8 @@ class VersioningMessageControllerImpl : public VersioningMessageController,
   ~VersioningMessageControllerImpl() override;
 
   // VersioningMessageController implementation.
+  bool IsInitialized() override;
+  bool ShouldShowMessageUi(MessageType message_type) override;
   void ShouldShowMessageUiAsync(
       MessageType message_type,
       base::OnceCallback<void(bool)> callback) override;
@@ -36,8 +40,7 @@ class VersioningMessageControllerImpl : public VersioningMessageController,
   void OnInitialized() override;
 
  private:
-  bool ShouldShowMessageUi(MessageType message_type);
-  void ResetMessagePrefsOnStartup();
+  void ComputePrefsOnStartup();
 
   raw_ptr<PrefService> pref_service_;
   raw_ptr<TabGroupSyncService> tab_group_sync_service_;

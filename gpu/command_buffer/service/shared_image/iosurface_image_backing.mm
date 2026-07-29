@@ -972,12 +972,16 @@ void IOSurfaceImageBacking::DawnRepresentation::EndAccess() {
   if (end_access_desc.fenceCount > 0) {
     // For write access, we would need to WaitForCommandsToBeScheduled
     // before the image is used by CoreAnimation or WebGL later.
-    // However, we defer the wait on this device until CoreAnimation
-    // or WebGL actually needs to access the image. This could avoid repeated
-    // and unnecessary waits.
+    // However, when it's not thread safe (DrDC is disabled), we defer the wait
+    // on this device until CoreAnimation or WebGL actually needs to access the
+    // image. This could avoid repeated and unnecessary waits.
     // TODO(b/328411251): Investigate whether this is needed if the access
     // is readonly.
-    iosurface_backing->AddWGPUDeviceWithPendingCommands(device_);
+    if (iosurface_backing->is_thread_safe()) {
+      dawn::native::metal::WaitForCommandsToBeScheduled(device_.Get());
+    } else {
+      iosurface_backing->AddWGPUDeviceWithPendingCommands(device_);
+    }
   }
 
   texture_ = nullptr;
@@ -1884,7 +1888,14 @@ void IOSurfaceImageBacking::IOSurfaceBackingEGLStateEndAccess(
   // glFlush on OpenGL. Defer the call until CoreAnimation, Dawn, or another
   // ANGLE EGLDisplay needs to access to avoid unnecessary overhead. This also
   // ensures that the Metal shared event enqueued above is eventually flushed.
-  AddEGLDisplayWithPendingCommands(display);
+  if (is_thread_safe()) {
+    // With DrDC and Graphite enabled, don't call
+    // AddEGLDisplayWithPendingCommands to avoid the GL context flush on
+    // the Viz thread.
+    eglWaitUntilWorkScheduledANGLE(display->GetDisplay());
+  } else {
+    AddEGLDisplayWithPendingCommands(display);
+  }
 
   // When SwANGLE is used as the GL implementation, it holds an internal
   // texture. We have to call ReleaseTexImage here to trigger a copy from that

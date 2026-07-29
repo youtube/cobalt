@@ -42,7 +42,7 @@ ImageBitmapRenderingContextBase::getHTMLOrOffscreenCanvas() const {
 void ImageBitmapRenderingContextBase::Reset() {
   CHECK(Host());
   CHECK(Host()->IsOffscreenCanvas());
-  Host()->DiscardResourceProvider();
+  Host()->DiscardResources();
 }
 
 void ImageBitmapRenderingContextBase::Stop() {
@@ -133,6 +133,12 @@ bool ImageBitmapRenderingContextBase::CanCreateCanvas2dResourceProvider()
   DCHECK(Host()->IsOffscreenCanvas());
   return !!static_cast<OffscreenCanvas*>(Host())
                ->GetOrCreateResourceProviderForImageBitmap();
+}
+
+bool ImageBitmapRenderingContextBase::IsAccelerated() const {
+  auto* resource_provider = Host()->GetResourceProviderForImageBitmap();
+  return resource_provider ? resource_provider->IsAccelerated()
+                           : Host()->ShouldTryToUseGpuRaster();
 }
 
 bool ImageBitmapRenderingContextBase::PushFrame() {

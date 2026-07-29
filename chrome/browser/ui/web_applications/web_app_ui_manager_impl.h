@@ -96,6 +96,10 @@ class WebAppUiManagerImpl : public BrowserListObserver,
       const std::vector<base::FilePath>& file_paths,
       const webapps::AppId& app_id,
       WebAppLaunchAcceptanceCallback launch_callback) override;
+  void ShowWebAppProtocolLaunchDialog(
+      const GURL& protocol_url,
+      const webapps::AppId& app_id,
+      WebAppLaunchAcceptanceCallback launch_callback) override;
   void ShowWebAppIdentityUpdateDialog(
       const std::string& app_id,
       bool title_change,
@@ -143,6 +147,12 @@ class WebAppUiManagerImpl : public BrowserListObserver,
       const GURL& install_url,
       const std::optional<GURL>& manifest_id,
       InstallCallback callback) override;
+  void TriggerLaunchDialogForBackgroundInstall(
+      content::WebContents* initiating_web_contents,
+      const webapps::AppId& app_id,
+      Profile* profile,
+      const std::string& app_name,
+      WebInstallAppLaunchAcceptanceCallback callback) override;
 
   void PresentUserUninstallDialog(
       const webapps::AppId& app_id,

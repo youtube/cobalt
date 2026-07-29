@@ -134,6 +134,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
     private final @Nullable TabSwitcherDragHandler mTabSwitcherDragHandler;
     private final @NonNull ObservableSupplier<TabGroupModelFilter> mTabGroupModelFilterSupplier;
     private final ObserverList<DragObserver> mDragObserverList = new ObserverList<>();
+    private final TabListHighlighter mTabListHighlighter;
 
     private boolean mIsInitialized;
     private OnLayoutChangeListener mListLayoutListener;
@@ -230,7 +231,10 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
         mAllowDragAndDrop = allowDragAndDrop;
         mTabSwitcherDragHandler = tabSwitcherDragHandler;
         mTabGroupModelFilterSupplier = tabGroupModelFilterSupplier;
-        mAllowDetachingTabsToCreateNewWindows = MultiWindowUtils.isMultiInstanceApi31Enabled();
+        mAllowDetachingTabsToCreateNewWindows =
+                MultiWindowUtils.isMultiInstanceApi31Enabled()
+                        && ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.TAB_SWITCHER_DRAG_DROP_ANDROID);
 
         if (mAllowDetachingTabsToCreateNewWindows && mTabSwitcherDragHandler != null) {
             TabSwitcherDragHandler.DragHandlerDelegate dragHandlerDelegate =
@@ -439,6 +443,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
                     new TabListEmptyCoordinator(
                             parentView, mModelList, this::runOnItemAnimatorFinished);
         }
+        mTabListHighlighter = new TabListHighlighter(mModelList);
 
         configureRecyclerViewTouchHelpers();
     }
@@ -824,6 +829,9 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
         if (mOnItemTouchListener != null) {
             mRecyclerView.removeOnItemTouchListener(mOnItemTouchListener);
         }
+        if (mTabSwitcherDragHandler != null) {
+            mTabSwitcherDragHandler.destroy();
+        }
         mTabListFaviconProvider.destroy();
     }
 
@@ -1042,5 +1050,9 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
             }
             return res;
         }
+    }
+
+    public TabListHighlighter getTabListHighlighter() {
+        return mTabListHighlighter;
     }
 }

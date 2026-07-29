@@ -16,6 +16,8 @@
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
+#include "base/containers/map_util.h"
+#include "base/debug/crash_logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -722,6 +724,10 @@ struct AXTreeUpdateState {
   // (crrev.com/c/2892259).
   const raw_ref<const AXTreeUpdate> pending_tree_update;
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+  bool should_clear_extra_announcement_nodes = false;
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+
  private:
   PendingStructureChanges* GetPendingStructureChanges(AXNodeID node_id) const {
     auto iter = node_id_to_pending_data.find(node_id);
@@ -876,7 +882,7 @@ bool AXTree::ComputeNodeIsIgnoredChanged(
   return old_node_is_ignored != new_node_is_ignored;
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 ExtraAnnouncementNodes::ExtraAnnouncementNodes(AXNode* root) {
   assertive_node_ = CreateNode("assertive", root);
   polite_node_ = CreateNode("polite", root);
@@ -909,7 +915,7 @@ std::unique_ptr<AXNode> ExtraAnnouncementNodes::CreateNode(
   node->SetData(data);
   return node;
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
 AXTree::AXTree() {
   // TODO(chrishall): should language_detection_manager be a member or pointer?
@@ -969,9 +975,9 @@ AXNode* AXTree::GetFromId(AXNodeID id) const {
 
 void AXTree::Destroy() {
   base::ElapsedThreadTimer timer;
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   ClearExtraAnnouncementNodes();
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
   table_info_map_.clear();
   if (!root_)
@@ -1256,7 +1262,13 @@ bool AXTree::Unserialize(const AXTreeUpdate& update) {
 
   AXTreeUpdateState update_state(*this, update);
   const AXNodeID old_root_id = root_ ? root_->id() : kInvalidAXNodeID;
-  if (old_root_id == kInvalidAXNodeID && update.root_id == kInvalidAXNodeID) {
+  if (old_root_id == kInvalidAXNodeID && update.root_id == kInvalidAXNodeID &&
+      (!update.has_tree_data || !update.nodes.empty())) {
+    // This tree has not yet been initialized (no root). If the update does not
+    // have a root id, it must be trying to apply a tree data update. For
+    // example, RenderFrameHostImpl::UpdateAXTreeData. With invalid root ids on
+    // the update and in this tree, we never would expect the update to contain
+    // node data.
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
     return false;
 #elif DCHECK_IS_ON()
@@ -1461,9 +1473,9 @@ bool AXTree::Unserialize(const AXTreeUpdate& update) {
         if (table_ids_checked.find(node->id()) != table_ids_checked.end())
           break;
         // Remove any table infos.
-        const auto& table_info_entry = table_info_map_.find(node->id());
-        if (table_info_entry != table_info_map_.end()) {
-          table_info_entry->second->Invalidate();
+        if (AXTableInfo* info =
+                base::FindPtrOrNull(table_info_map_, node->id())) {
+          info->Invalidate();
 #if defined(AX_EXTRA_MAC_NODES)
           // It will emit children changed notification on mac to make sure that
           // extra mac accessibles are recreated.
@@ -1621,6 +1633,12 @@ bool AXTree::Unserialize(const AXTreeUpdate& update) {
   observers_.Notify(&AXTreeObserver::OnAtomicUpdateFinished, this,
                     root_->id() != old_root_id, changes);
 
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+  if (update_state.should_clear_extra_announcement_nodes) {
+    ClearExtraAnnouncementNodes();
+  }
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+
 #if AX_FAIL_FAST_BUILD()
   CheckTreeConsistency(update);
 #endif
@@ -1668,11 +1686,10 @@ AXTableInfo* AXTree::GetTableInfo(const AXNode* const_table_node) const {
   AXNode* table_node = const_cast<AXNode*>(const_table_node);
   AXTree* tree = const_cast<AXTree*>(this);
 
-  const auto& cached = table_info_map_.find(table_node->id());
-  if (cached != table_info_map_.end()) {
+  if (AXTableInfo* table_info =
+          base::FindPtrOrNull(table_info_map_, table_node->id())) {
     // Get existing table info, and update if invalid because the
     // tree has changed since the last time we accessed it.
-    AXTableInfo* table_info = cached->second.get();
     if (!table_info->valid()) {
       if (!table_info->Update()) {
         // If Update() returned false, this is no longer a valid table.
@@ -1687,7 +1704,7 @@ AXTableInfo* AXTree::GetTableInfo(const AXNode* const_table_node) const {
   AXTableInfo* table_info = AXTableInfo::Create(tree, table_node);
   DCHECK(table_info);
 
-  table_info_map_[table_node->id()] = base::WrapUnique<AXTableInfo>(table_info);
+  table_info_map_[table_node->id()] = base::WrapUnique(table_info);
   return table_info;
 }
 
@@ -2193,7 +2210,7 @@ void AXTree::NotifyNodeAttributesWillChange(
                     new_data);
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 void AXTree::ClearExtraAnnouncementNodes() {
   if (!extra_announcement_nodes_) {
     return;
@@ -2206,12 +2223,16 @@ void AXTree::ClearExtraAnnouncementNodes() {
                                  &extra_announcement_nodes_->PoliteNode());
   }
 
-  std::vector<AXNodeID> deleted_ids;
+  std::set<AXNodeID> deleted_ids;
+  deleted_ids.insert(extra_announcement_nodes_->AssertiveNode().id());
+  deleted_ids.insert(extra_announcement_nodes_->PoliteNode().id());
+
+  for (AXTreeObserver& observer : observers()) {
+    observer.OnAtomicUpdateStarting(this, deleted_ids, std::set<AXNodeID>{});
+  }
 
   {
     ScopedTreeUpdateInProgressStateSetter tree_update_in_progress(*this);
-    deleted_ids.push_back(extra_announcement_nodes_->AssertiveNode().id());
-    deleted_ids.push_back(extra_announcement_nodes_->PoliteNode().id());
     extra_announcement_nodes_.reset();
   }
 
@@ -2251,7 +2272,7 @@ void AXTree::CreateExtraAnnouncementNodes() {
     observer.OnAtomicUpdateFinished(this, /*root_changed=*/false, changes);
   }
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
 void AXTree::NotifyNodeAttributesHaveBeenChanged(
     AXNode* node,
@@ -2582,14 +2603,14 @@ bool AXTree::CreateNewChildVector(
     AXTreeUpdateState* update_state) {
   DCHECK(GetTreeUpdateInProgressState());
   bool success = true;
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   // If the root node has children added, clear the extra announcement nodes,
   // which should always have their indices as the last two children of the root
   // node. They will be recreated if needed, and given the correct indices.
   if (node == root() && extra_announcement_nodes_) {
-    ClearExtraAnnouncementNodes();
+    update_state->should_clear_extra_announcement_nodes = true;
   }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   for (size_t i = 0; i < new_child_ids.size(); ++i) {
     AXNodeID child_id = new_child_ids[i];
     AXNode* child = GetFromId(child_id);

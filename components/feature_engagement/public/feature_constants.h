@@ -17,6 +17,7 @@
 namespace feature_engagement {
 
 // Returns true if adding on-device storage is enabled.
+COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
 bool IsOnDeviceStorageEnabled();
 
 #define FEATURE_CONSTANTS_DECLARE_FEATURE(feature_name)  \
@@ -45,7 +46,6 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHDesktopCustomizeChromeRefreshFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHDesktopNewTabPageModulesCustomizeFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHDiscardRingFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHDownloadEsbPromoFeature);
-FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHExperimentalAIPromoFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHExplicitBrowserSigninPreferenceRememberedFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHHistorySearchFeature);
@@ -363,6 +363,8 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kDefaultBrowserTriggerCriteriaExperiment);
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHAutofillBnplAffirmOrZipSuggestionFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(
+    kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHAutofillCardInfoRetrievalSuggestionFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHAutofillCreditCardBenefitFeature);

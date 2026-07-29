@@ -84,8 +84,7 @@ class PeriodicBackgroundSyncPermissionContext
       const permissions::PermissionRequestData& request_data,
       permissions::BrowserPermissionCallback callback,
       bool persist,
-      ContentSetting content_setting,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision) override;
 
   // content_settings::Observer:

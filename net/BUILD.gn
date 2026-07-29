@@ -1790,9 +1790,13 @@ component("net") {
     sources += [
       "disk_cache/sql/cache_entry_key.cc",
       "disk_cache/sql/cache_entry_key.h",
+      "disk_cache/sql/sql_backend_constants.h",
       "disk_cache/sql/sql_backend_impl.cc",
       "disk_cache/sql/sql_backend_impl.h",
+      "disk_cache/sql/sql_persistent_store.cc",
+      "disk_cache/sql/sql_persistent_store.h",
     ]
+    deps += [ "//sql:sql" ]
   }
 }
 
@@ -2150,6 +2154,8 @@ static_library("test_support") {
     "test/embedded_test_server/http1_connection.h",
     "test/embedded_test_server/http2_connection.cc",
     "test/embedded_test_server/http2_connection.h",
+    "test/embedded_test_server/http_connect_proxy_handler.cc",
+    "test/embedded_test_server/http_connect_proxy_handler.h",
     "test/embedded_test_server/http_connection.cc",
     "test/embedded_test_server/http_connection.h",
     "test/embedded_test_server/http_request.cc",
@@ -2477,6 +2483,7 @@ if (is_linux || is_chromeos || is_mac) {
       ":net",
       ":test_support",
       "//base",
+      "//crypto",
     ]
   }
 
@@ -2522,6 +2529,7 @@ if (is_android || is_linux || is_chromeos) {
     sources = [ "tools/disk_cache_memory_test/disk_cache_memory_test.cc" ]
     deps = [
       ":net",
+      ":test_support",
       "//base",
     ]
   }
@@ -2642,15 +2650,6 @@ if (!is_ios) {
       "//net/third_party/quiche:quic_server_core",
       "//third_party/boringssl",
       "//third_party/protobuf:protobuf_lite",
-    ]
-  }
-  executable("crypto_message_printer") {
-    testonly = true
-    sources = [ "tools/quic/crypto_message_printer_bin.cc" ]
-    deps = [
-      ":net",
-      "//base",
-      "//build/win:default_exe_manifest",
     ]
   }
 }
@@ -3109,7 +3108,10 @@ target(_test_target_type, "net_unittests") {
     defines += [ "NET_DISABLE_ZSTD" ]
   }
 
-  fuzztests = [ "PickleTest.FuzzRoundTrip" ]
+  fuzztests = [
+    "PickleTest.FuzzRoundTrip",
+    "QuicVersionsFuzzTest.ParseSerializeParseIdentityProperty",
+  ]
 
   deps = [
     ":cronet_buildflags",
@@ -3498,6 +3500,7 @@ target(_test_target_type, "net_unittests") {
     sources += [
       "disk_cache/sql/cache_entry_key_unittest.cc",
       "disk_cache/sql/sql_backend_impl_unittest.cc",
+      "disk_cache/sql/sql_persistent_store_unittest.cc",
     ]
   }
 }

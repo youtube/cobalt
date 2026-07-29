@@ -62,9 +62,11 @@ CONTENT_EXPORT extern const base::FeatureParam<
 // feature.
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2NoVarySearch);
 
-// A field trial param that controls the timeout for waiting on headers
+// A set of trial parameters that controls the timeout for waiting on headers
 // during navigation for the prerender URL matched by No-Vary-Search hint before
 // falling back to the default navigation path.
+
+// This is actually for "immediate"; see https://crbug.com/40287486.
 CONTENT_EXPORT extern const base::FeatureParam<int>
     kPrerender2NoVarySearchWaitForHeadersTimeoutEagerPrerender;
 CONTENT_EXPORT extern const base::FeatureParam<int>
@@ -81,6 +83,11 @@ CONTENT_EXPORT extern const base::FeatureParam<base::TimeDelta>
     kSuppressesPrerenderingOnSlowNetworkThreshold;
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2DisallowNonTrustworthyHttp);
+
+// If enabled, requests the compositor warm-up (crbug.com/41496019) for
+// Immediate/non-Immediate Speculation Rules prerenders.
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForImmediate);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForNonImmediate);
 
 CONTENT_EXPORT bool UsePrefetchPrerenderIntegration();
 

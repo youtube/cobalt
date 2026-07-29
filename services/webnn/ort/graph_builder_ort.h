@@ -89,10 +89,9 @@ class GraphBuilderOrt {
   // "inserted" and `next_operand_id_`, and then increase `next_operand_id_`.
   std::string GenerateOperandName();
 
-  // Generate a unique name for a newly created operation by combining
-  // `label` and `next_operation_id_`. ORT model doesn't allow duplicate
-  // names.
-  std::string GenerateOperationName(std::string_view label);
+  // Generate a unique name for a newly created node by combining `label` and
+  // `next_operation_id_`. ORT model doesn't allow duplicate names.
+  std::string GenerateNodeName(std::string_view label);
 
   // Create a new initializer for the graph with the given shape and data,
   // returning the name of the initializer.
@@ -108,6 +107,18 @@ class GraphBuilderOrt {
     requires internal::IsSupportedTensorType<DataType>
   std::string CreateScalarInitializer(const DataType& value);
 
+  // A helper method creating an int64 tensor with the given shape value.
+  // It can be used by `reshape` and `expand` to create an initializer that
+  // specifies the output's shape.
+  std::string CreateInitializerForShape(base::span<const uint32_t> shape);
+
+  void AddExpandNode(base::cstring_view node_name,
+                     base::cstring_view input,
+                     base::cstring_view output,
+                     base::span<const uint32_t> shape);
+
+  std::string CreateExpandNode(base::cstring_view input,
+                               base::span<const uint32_t> shape);
   template <typename T>
   void AddBinaryOperation(const T& operation, base::cstring_view op_type);
   template <typename T>
@@ -116,12 +127,17 @@ class GraphBuilderOrt {
   void AddCastOperation(const mojom::ElementWiseUnary& cast);
 
   void AddClampOperation(const mojom::Clamp& clamp);
+  void AddConv2dOperation(const mojom::Conv2d& conv2d);
   void AddElementWiseBinaryOperation(
       const mojom::ElementWiseBinary& element_wise_binary);
   void AddElementWiseUnaryOperation(
       const mojom::ElementWiseUnary& element_wise_unary);
+  void AddExpandOperation(const mojom::Expand& expand);
   void AddGemmOperation(const mojom::Gemm& gemm);
+  void AddLeakyReluOperation(const mojom::LeakyRelu& leaky_relu);
   void AddPool2dOperation(const mojom::Pool2d& pool2d);
+  void AddPreluOperation(const mojom::Prelu& prelu);
+  void AddReshapeOperation(const mojom::Reshape& reshape);
   void AddSoftmaxOperation(const mojom::Softmax& softmax);
   void AddTransposeOperation(const mojom::Transpose& transpose);
 

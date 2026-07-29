@@ -53,15 +53,13 @@
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
-namespace WTF {
+namespace blink {
 
 const size_t kMaxEncodingNameLength = 63;
 
 struct TextCodecFactory {
   NewTextCodecFunction function;
-  const void* additional_data;
-  TextCodecFactory(NewTextCodecFunction f = nullptr, const void* d = nullptr)
-      : function(f), additional_data(d) {}
+  explicit TextCodecFactory(NewTextCodecFunction f = nullptr) : function(f) {}
 };
 
 typedef HashMap<const char*, const char*, CaseFoldingHashTraits<const char*>>
@@ -144,12 +142,9 @@ static void AddToTextEncodingNameMap(const char* alias, const char* name) {
   g_text_encoding_name_map->insert(alias, atomic_name);
 }
 
-static void AddToTextCodecMap(const char* name,
-                              NewTextCodecFunction function,
-                              const void* additional_data) {
+static void AddToTextCodecMap(const char* name, NewTextCodecFunction function) {
   EncodingRegistryLock().AssertAcquired();
-  g_text_codec_map->insert(AtomicString(name),
-                           TextCodecFactory(function, additional_data));
+  g_text_codec_map->insert(AtomicString(name), TextCodecFactory(function));
 }
 
 // Note that this can be called both the main thread and worker threads.
@@ -161,28 +156,28 @@ static void BuildBaseTextCodecMaps() {
   g_text_codec_map = new TextCodecMap;
   g_text_encoding_name_map = new TextEncodingNameMap;
 
-  blink::TextCodecLatin1::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecLatin1::RegisterCodecs(AddToTextCodecMap);
+  TextCodecLatin1::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecLatin1::RegisterCodecs(AddToTextCodecMap);
 
-  blink::TextCodecUtf8::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecUtf8::RegisterCodecs(AddToTextCodecMap);
+  TextCodecUtf8::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecUtf8::RegisterCodecs(AddToTextCodecMap);
 
-  blink::TextCodecUtf16::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecUtf16::RegisterCodecs(AddToTextCodecMap);
+  TextCodecUtf16::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecUtf16::RegisterCodecs(AddToTextCodecMap);
 
-  blink::TextCodecUserDefined::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecUserDefined::RegisterCodecs(AddToTextCodecMap);
+  TextCodecUserDefined::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecUserDefined::RegisterCodecs(AddToTextCodecMap);
 }
 
 static void ExtendTextCodecMaps() {
-  blink::TextCodecReplacement::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecReplacement::RegisterCodecs(AddToTextCodecMap);
+  TextCodecReplacement::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecReplacement::RegisterCodecs(AddToTextCodecMap);
 
-  blink::TextCodecCjk::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecCjk::RegisterCodecs(AddToTextCodecMap);
+  TextCodecCjk::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecCjk::RegisterCodecs(AddToTextCodecMap);
 
-  blink::TextCodecIcu::RegisterEncodingNames(AddToTextEncodingNameMap);
-  blink::TextCodecIcu::RegisterCodecs(AddToTextCodecMap);
+  TextCodecIcu::RegisterEncodingNames(AddToTextEncodingNameMap);
+  TextCodecIcu::RegisterCodecs(AddToTextCodecMap);
 }
 
 std::unique_ptr<TextCodec> NewTextCodec(const TextEncoding& encoding) {
@@ -191,7 +186,7 @@ std::unique_ptr<TextCodec> NewTextCodec(const TextEncoding& encoding) {
   DCHECK(g_text_codec_map);
   TextCodecFactory factory = g_text_codec_map->at(encoding.GetName());
   DCHECK(factory.function);
-  return factory.function(encoding, factory.additional_data);
+  return factory.function(encoding);
 }
 
 const char* AtomicCanonicalTextEncodingName(const char* name) {
@@ -263,7 +258,8 @@ Vector<String> TextEncodingAliasesForTesting() {
 #ifndef NDEBUG
 void DumpTextEncodingNameMap() {
   unsigned size = g_text_encoding_name_map->size();
-  fprintf(stderr, "Dumping %u entries in WTF::TextEncodingNameMap...\n", size);
+  fprintf(stderr, "Dumping %u entries in blink::TextEncodingNameMap...\n",
+          size);
 
   base::AutoLock lock(EncodingRegistryLock());
 
@@ -272,4 +268,4 @@ void DumpTextEncodingNameMap() {
 }
 #endif
 
-}  // namespace WTF
+}  // namespace blink

@@ -32,6 +32,7 @@
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/gl/gpu_switching_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/build_info.h"
@@ -456,7 +457,8 @@ void GLDisplayEGL::Shutdown() {
     gpu_switching_observer_.reset();
   }
 
-  angle::ResetPlatform(display_);
+  DCHECK(g_driver_egl.fn.eglGetProcAddressFn);
+  angle::ResetPlatform(display_, g_driver_egl.fn.eglGetProcAddressFn);
   DCHECK(g_driver_egl.fn.eglTerminateFn);
   eglTerminate(display_);
 
@@ -612,7 +614,8 @@ bool GLDisplayEGL::InitializeDisplay(bool supports_angle,
     if (!existing_display) {
       // Init ANGLE platform now that we have the global display.
       if (supports_angle) {
-        if (!angle::InitializePlatform(display)) {
+        if (!angle::InitializePlatform(display,
+                                       g_driver_egl.fn.eglGetProcAddressFn)) {
           LOG(ERROR) << "ANGLE Platform initialization failed.";
         }
 

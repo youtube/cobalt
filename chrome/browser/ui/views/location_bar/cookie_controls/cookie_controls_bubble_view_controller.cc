@@ -272,8 +272,13 @@ void CookieControlsBubbleViewController::
 }
 
 void CookieControlsBubbleViewController::OnReloadingUiTimeout() {
-  base::RecordAction(
-      base::UserMetricsAction("CookieControls.Bubble.ReloadingTimeout"));
+  if (privacy_sandbox::IsTrackingProtectionsUi(controls_state_)) {
+    base::RecordAction(
+        base::UserMetricsAction("TrackingProtections.Bubble.ReloadingTimeout"));
+  } else {
+    base::RecordAction(
+        base::UserMetricsAction("CookieControls.Bubble.ReloadingTimeout"));
+  }
   CloseBubble();
 }
 
@@ -291,26 +296,26 @@ void CookieControlsBubbleViewController::SetCallbacks() {
       bubble_view_->RegisterOnUserTriggeredReloadingActionCallback(
           base::BindRepeating(&CookieControlsBubbleViewController::
                                   OnUserTriggeredReloadingAction,
-                              base::Unretained(this)));
+                              weak_factory_.GetWeakPtr()));
 
   toggle_button_callback_ =
       bubble_view_->GetContentView()->RegisterToggleButtonPressedCallback(
           base::BindRepeating(
               &CookieControlsBubbleViewController::OnToggleButtonPressed,
-              base::Unretained(this)));
+              weak_factory_.GetWeakPtr()));
 
   tracking_protections_button_callback_ =
       bubble_view_->GetContentView()
           ->RegisterTrackingProtectionsButtonPressedCallback(
               base::BindRepeating(&CookieControlsBubbleViewController::
                                       OnTrackingProtectionsButtonPressed,
-                                  base::Unretained(this)));
+                                  weak_factory_.GetWeakPtr()));
 
   feedback_button_callback_ =
       bubble_view_->GetContentView()->RegisterFeedbackButtonPressedCallback(
           base::BindRepeating(
               &CookieControlsBubbleViewController::OnFeedbackButtonPressed,
-              base::Unretained(this)));
+              weak_factory_.GetWeakPtr()));
 }
 
 void CookieControlsBubbleViewController::OnToggleButtonPressed(

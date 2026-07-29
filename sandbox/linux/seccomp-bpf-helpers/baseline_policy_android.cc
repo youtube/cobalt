@@ -41,18 +41,6 @@ using sandbox::bpf_dsl::ResultExpr;
 
 namespace sandbox {
 
-#ifndef UFFDIO_MOVE
-#define _UFFDIO_MOVE (0x05)
-struct uffdio_move {
-  __u64 dst;
-  __u64 src;
-  __u64 len;
-  __u64 mode;
-  __s64 move;
-};
-#define UFFDIO_MOVE _IOWR(UFFDIO, _UFFDIO_MOVE, struct uffdio_move)
-#endif
-
 namespace {
 
 // Restricts the arguments to sys_socket() to AF_UNIX. Returns a BoolExpr that
@@ -169,10 +157,6 @@ bool IsBaselinePolicyAllowed(int sysno) {
     // //third_party/cpuinfo/ on those chips.
     case __NR_getcpu:
 #endif
-#if !defined(__LP64__)
-    // TODO(crbug.com/40528912): is this needed? bionic only uses getdents64...
-    case __NR_getdents:
-#endif
     case __NR_getdents64:
     case __NR_getpriority:
     case __NR_membarrier:  // https://crbug.com/966433
@@ -187,12 +171,6 @@ bool IsBaselinePolicyAllowed(int sysno) {
       // access. It may be possible to restrict the filesystem with SELinux.
       // Currently we rely on the app/service UID isolation to create a
       // filesystem "sandbox".
-#if !defined(__LP64__)
-    // bionic switched to openat(2) during the 64-bit transition,
-    // so old 32-bit versions of the OS still use open(2).
-    // TODO(crbug.com/40528912): that transition happened in L though, so this should be obsolete?
-    case __NR_open:
-#endif
     case __NR_openat:
     case __NR_pwrite64:
     case __NR_rt_sigtimedwait:
@@ -252,14 +230,12 @@ ResultExpr BaselinePolicyAndroid::EvaluateSyscall(int sysno) const {
     return RestrictAndroidIoctl(options_.allow_userfaultfd_ioctls);
   }
 
-#if defined(MADV_PAGEOUT)
   if (sysno == __NR_madvise) {
     // Allow MADV_PAGEOUT
     const Arg<int> advice(2);
     return If(advice == MADV_PAGEOUT, Allow())
         .Else(BaselinePolicy::EvaluateSyscall(sysno));
   }
-#endif
 
   // Ptrace is allowed so the crash reporter can fork in a renderer
   // and then ptrace the parent. https://crbug.com/933418

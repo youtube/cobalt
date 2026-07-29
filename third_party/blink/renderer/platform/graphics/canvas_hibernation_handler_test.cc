@@ -110,7 +110,7 @@ std::map<std::string, uint64_t> GetEntries(
   return result;
 }
 
-void Draw(CanvasResourceHost& host) {
+void Draw(FakeCanvasResourceHost& host) {
   CanvasResourceProvider* provider =
       host.GetOrCreateCanvasResourceProviderForCanvas2D();
   provider->Canvas().drawLine(0, 0, 2, 2, cc::PaintFlags());
@@ -230,7 +230,6 @@ TEST_P(CanvasHibernationHandlerTest, SimpleTest) {
   SetPageVisible(&host, &handler, platform, true);
   EXPECT_FALSE(handler.is_encoded());
 
-  EXPECT_TRUE(host.GetRasterMode() == RasterMode::kGPU);
   EXPECT_FALSE(handler.IsHibernating());
   EXPECT_TRUE(host.GetResourceProviderForCanvas2D()->IsValid());
 }

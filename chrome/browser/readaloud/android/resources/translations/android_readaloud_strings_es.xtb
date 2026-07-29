@@ -21,7 +21,6 @@
 <translation id="3493899379487634969">¿Cuál ha sido el problema?</translation>
 <translation id="3730775656877876887">Generando reproducción con IA</translation>
 <translation id="3778044272390020426">Menú de opciones de opinión negativa</translation>
-<translation id="3807208219231826020">Desplazar la reproducción</translation>
 <translation id="385051799172605136">Volver</translation>
 <translation id="3936324432406465283">Velocidad de reproducción</translation>
 <translation id="4020327272915390518">Menú de opciones</translation>
@@ -68,5 +67,6 @@
 <translation id="8481839122437406573">Tranquilo</translation>
 <translation id="8756370108715456837">Incluía información incorrecta</translation>
 <translation id="8953618380150219653">El reproductor "Escuchar esta página" está abierto a altura completa.</translation>
+<translation id="9087782179025630211">Control deslizante. Tiempo transcurrido: <ph name="ELAPSED" /> de <ph name="TOTAL" />.</translation>
 <translation id="978117257931832348">Grave</translation>
 </translationbundle>

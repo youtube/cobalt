@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/dom/quota_exceeded_error.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/ai/ai_interface_proxy.h"
 #include "third_party/blink/renderer/modules/ai/ai_utils.h"
 #include "third_party/blink/renderer/modules/ai/language_model_prompt_builder.h"
@@ -147,12 +148,18 @@ void LanguageModelCreateClient::Create(
           kExceptionMessageSystemPromptIsNotTheFirst);
       return;
     }
+    if (message->prefix()) {
+      GetResolver()->Reject(DOMException::Create(
+          "initialPrompts cannot specify an assistant response prefix.",
+          DOMException::GetErrorName(DOMExceptionCode::kSyntaxError)));
+      return;
+    }
   }
 
   ConvertPromptInputsToMojo(
       GetScriptState(), options_->getSignalOr(nullptr),
       MakeGarbageCollected<V8LanguageModelPrompt>(options_->initialPrompts()),
-      maybe_allowed_types,
+      maybe_allowed_types, /*json_schema=*/"",
       WTF::BindOnce(&LanguageModelCreateClient::OnInitialPromptsResolved,
                     WrapPersistent(this), std::move(expected_in),
                     std::move(expected_out)),

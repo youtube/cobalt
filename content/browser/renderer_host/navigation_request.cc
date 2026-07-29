@@ -6367,8 +6367,7 @@ void NavigationRequest::CommitNavigation() {
   CHECK(!HasWebUI());
   CheckSoftNavigationHeuristicsInvariants();
 
-  if (!CoopCoepSanityCheck())
-    return;
+  CoopCoepSanityCheck();
 
   DetermineOriginAgentClusterEndResult();
 
@@ -6386,7 +6385,9 @@ void NavigationRequest::CommitNavigation() {
   }
 
   url::Origin origin_to_commit = GetOriginToCommit().value();
-  ValidateCommitOrigin(origin_to_commit);
+  if (base::FeatureList::IsEnabled(features::kValidateCommitOriginAtCommit)) {
+    ValidateCommitOrigin(origin_to_commit);
+  }
   isolation_info_for_subresources_ =
       GetRenderFrameHost()->ComputeIsolationInfoForSubresourcesForPendingCommit(
           origin_to_commit, is_credentialless(), ComputeFencedFrameNonce());
@@ -9727,18 +9728,18 @@ NavigationRequest::EnforceCOEP() {
       parent_frame->coep_reporter());
 }
 
-bool NavigationRequest::CoopCoepSanityCheck() {
+void NavigationRequest::CoopCoepSanityCheck() {
   // Same-document navigations simply reuse the current document and do not use
   // the PolicyContainer, which may contain erroneous information. For example
   // in pushState/popState history navigations. See https://crbug.com/1413081.
   if (IsSameDocument()) {
-    return true;
+    return;
   }
 
   // Credentialless iframes allow frames to be crossOriginIsolated without ever
   // setting COEP, so the below check does not apply.
   if (is_credentialless_) {
-    return true;
+    return;
   }
 
   const PolicyContainerPolicies& policies =
@@ -9759,7 +9760,6 @@ bool NavigationRequest::CoopCoepSanityCheck() {
           policies.cross_origin_embedder_policy)) {
     NOTREACHED();
   }
-  return true;
 }
 
 bool NavigationRequest::IsFencedFrameRequiredPolicyFeatureAllowed(

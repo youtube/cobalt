@@ -33,7 +33,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "crypto/ec_private_key.h"
 #include "crypto/openssl_util.h"
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
@@ -1547,8 +1546,7 @@ int SSLClientSocketImpl::ClientCertRequestCallback(SSL* ssl) {
     // If the key supports rsa_pkcs1_sha256, automatically add support for
     // rsa_pkcs1_sha256_legacy, for use with TLS 1.3. We convert here so that
     // not every `SSLPrivateKey` needs to implement it explicitly.
-    if (base::FeatureList::IsEnabled(features::kLegacyPKCS1ForTLS13) &&
-        base::Contains(preferences, SSL_SIGN_RSA_PKCS1_SHA256)) {
+    if (base::Contains(preferences, SSL_SIGN_RSA_PKCS1_SHA256)) {
       preferences.push_back(SSL_SIGN_RSA_PKCS1_SHA256_LEGACY);
     }
     SSL_set_signing_algorithm_prefs(ssl_.get(), preferences.data(),
@@ -1641,8 +1639,7 @@ ssl_private_key_result_t SSLClientSocketImpl::PrivateKeySignCallback(
 
   // Map rsa_pkcs1_sha256_legacy back to rsa_pkcs1_sha256. We convert it here,
   // so that not every `SSLPrivateKey` needs to implement it explicitly.
-  if (base::FeatureList::IsEnabled(features::kLegacyPKCS1ForTLS13) &&
-      algorithm == SSL_SIGN_RSA_PKCS1_SHA256_LEGACY) {
+  if (algorithm == SSL_SIGN_RSA_PKCS1_SHA256_LEGACY) {
     algorithm = SSL_SIGN_RSA_PKCS1_SHA256;
   }
 

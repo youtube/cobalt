@@ -13,6 +13,8 @@
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/download/bubble/download_bubble_prefs.h"
+#include "chrome/browser/download/bubble/download_bubble_ui_controller.h"
+#include "chrome/browser/download/bubble/download_display_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
 #include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
@@ -29,6 +31,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/commerce/product_specifications_entry_point_controller.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
@@ -43,6 +46,8 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/session_service_tab_group_sync_observer.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/shared_tab_group_feedback_controller.h"
+#include "chrome/browser/ui/tabs/split_tab_scrim_controller.h"
+#include "chrome/browser/ui/tabs/split_tab_scrim_delegate.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_impl.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
@@ -58,6 +63,7 @@
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/media_router/cast_browser_controller.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_controller.h"
+#include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_toolbar_bubble_controller.h"
 #include "chrome/browser/ui/views/side_panel/bookmarks/bookmarks_side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
@@ -84,6 +90,10 @@
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/views/frame/windows_taskbar_icon_updater.h"
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -241,10 +251,21 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       std::make_unique<DesktopBrowserWindowCapabilities>(
           browser, browser->window(), browser->GetUnownedUserDataHost());
 
+  exclusive_access_manager_ = std::make_unique<ExclusiveAccessManager>(
+      browser->window()->GetExclusiveAccessContext());
+
+  // This code needs exclusive access manager to be initialized.
+  if (download_toolbar_ui_controller_) {
+    download_toolbar_ui_controller_->display_controller()
+        ->ListenToFullScreenChanges();
+  }
+
   // Features that are only enabled for normal browser windows (e.g. a window
   // with an omnibox and a tab strip). By default most features should be
   // instantiated in this block.
   if (browser->is_type_normal()) {
+    BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
+
     if (IsChromeLabsEnabled()) {
       chrome_labs_coordinator_ =
           std::make_unique<ChromeLabsCoordinator>(browser);
@@ -264,8 +285,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       // Browser::GetBrowserView, which always returns a non-null BrowserView
       // in production, but this crashes during unittests using
       // BrowserWithTestWindowTest; these should eventually be refactored.
-      if (BrowserView* browser_view =
-              BrowserView::GetBrowserViewForBrowser(browser)) {
+      if (browser_view) {
         location_bar = browser_view->GetLocationBarView();
       }
       lens_overlay_entry_point_controller_->Initialize(
@@ -290,11 +310,22 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       // Browser::GetBrowserView, which always returns a non-null BrowserView
       // in production, but this crashes during unittests using
       // BrowserWithTestWindowTest; these should eventually be refactored.
-      if (BrowserView* browser_view =
-              BrowserView::GetBrowserViewForBrowser(browser)) {
+      if (browser_view) {
         tab_search_toolbar_button_controller_ =
             std::make_unique<TabSearchToolbarButtonController>(
                 browser_view, browser_view->GetTabSearchBubbleHost());
+      }
+    }
+
+    if (browser->GetTabStripModel()->SupportsTabGroups() &&
+        tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups() &&
+        tab_groups::SavedTabGroupUtils::GetServiceForProfile(
+            browser->GetProfile())) {
+      if (browser_view) {
+        shared_tab_group_feedback_controller_ =
+            std::make_unique<tab_groups::SharedTabGroupFeedbackController>(
+                browser_view);
+        shared_tab_group_feedback_controller_->Init();
       }
     }
   }
@@ -304,6 +335,8 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   extension_window_controller_ =
       std::make_unique<extensions::BrowserExtensionWindowController>(browser);
+
+  profile_menu_coordinator_ = std::make_unique<ProfileMenuCoordinator>(browser);
 
   if (browser->is_type_normal() || browser->is_type_app()) {
     toast_service_ = std::make_unique<ToastService>(browser);
@@ -362,6 +395,14 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           std::make_unique<media_router::CastBrowserController>(
               browser_view->browser());
     }
+
+    if (base::FeatureList::IsEnabled(features::kSideBySide)) {
+      split_tab_scrim_controller_ =
+          std::make_unique<split_tabs::SplitTabScrimController>(
+              std::make_unique<split_tabs::SplitTabScrimDelegateImpl>(
+                  browser_view),
+              browser_view->browser());
+    }
   }
 
   if (download::IsDownloadBubbleEnabled()) {
@@ -369,26 +410,23 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
         std::make_unique<DownloadToolbarUIController>(browser_view);
   }
 
-  if (browser_view->browser()->GetTabStripModel()->SupportsTabGroups() &&
-      tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups() &&
-      tab_groups::SavedTabGroupUtils::GetServiceForProfile(
-          browser_view->GetProfile())) {
-    shared_tab_group_feedback_controller_ =
-        std::make_unique<tab_groups::SharedTabGroupFeedbackController>(
-            browser_view);
-  }
-
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     new_tab_footer_controller_ =
         std::make_unique<new_tab_footer::NewTabFooterController>(
             browser_view->browser(), browser_view->new_tab_footer_web_view());
   }
+
+#if BUILDFLAG(IS_WIN)
+  windows_taskbar_icon_updater_ =
+      std::make_unique<WindowsTaskbarIconUpdater>(*browser_view);
+#endif
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   memory_saver_opt_in_iph_controller_.reset();
   lens_overlay_entry_point_controller_.reset();
   tab_search_toolbar_button_controller_.reset();
+  profile_menu_coordinator_.reset();
   toast_service_.reset();
   extension_window_controller_.reset();
 
@@ -424,6 +462,18 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
   desktop_browser_window_capabilities_.reset();
   signin_view_controller_->TearDownPreBrowserWindowDestruction();
+
+  // TODO(crbug.com/423956131): Update reset order once FindBarController is
+  // deterministically constructed.
+  find_bar_controller_.reset();
+
+  split_tab_scrim_controller_.reset();
+
+#if BUILDFLAG(IS_WIN)
+  windows_taskbar_icon_updater_.reset();
+#endif
+
+  exclusive_access_manager_.reset();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {

@@ -76,9 +76,8 @@ class MockAutocompleteController : public AutocompleteController {
 class MockOmniboxEditModel : public OmniboxEditModelIOS {
  public:
   MockOmniboxEditModel(OmniboxControllerIOS* controller,
-                       OmniboxViewIOS* view,
                        OmniboxTextModel* text_model)
-      : OmniboxEditModelIOS(controller, view, text_model),
+      : OmniboxEditModelIOS(controller, text_model),
         last_opened_selection(OmniboxPopupSelection(UINT_MAX)) {}
   MockOmniboxEditModel(const MockOmniboxEditModel&) = delete;
   MockOmniboxEditModel& operator=(const MockOmniboxEditModel&) = delete;
@@ -124,15 +123,18 @@ class OmniboxAutocompleteControllerTest : public PlatformTest {
         std::make_unique<OmniboxTextModel>(omnibox_client_.get());
 
     omnibox_edit_model_ = std::make_unique<MockOmniboxEditModel>(
-        omnibox_controller_.get(), nullptr, omnibox_text_model_.get());
+        omnibox_controller_.get(), omnibox_text_model_.get());
 
     controller_delegate_ =
         OCMProtocolMock(@protocol(OmniboxAutocompleteControllerDelegate));
 
     controller_ = [[OmniboxAutocompleteController alloc]
         initWithOmniboxController:omnibox_controller_.get()
-                 omniboxEditModel:omnibox_edit_model_.get()];
+                 omniboxEditModel:omnibox_edit_model_.get()
+                 omniboxTextModel:omnibox_text_model_.get()];
     controller_.delegate = controller_delegate_;
+
+    omnibox_edit_model_->set_omnibox_autocomplete_controller(controller_);
   }
 
   ~OmniboxAutocompleteControllerTest() override {

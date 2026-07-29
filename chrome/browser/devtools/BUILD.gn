@@ -221,6 +221,7 @@ static_library("devtools") {
       "//chrome:resources",
       "//chrome:strings",
       "//chrome/app/theme:theme_resources",
+      "//chrome/browser:flags",
       "//chrome/browser/apps/app_service:constants",
       "//chrome/browser/infobars",
       "//chrome/browser/media/router:media_router_feature",
@@ -326,6 +327,7 @@ static_library("devtools") {
     deps += [
       "//chrome/app:command_ids",
       "//chrome/browser/first_party_sets",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/media_router",
       "//components/custom_handlers",
       "//components/media_router/browser",
@@ -334,6 +336,7 @@ static_library("devtools") {
       "//components/privacy_sandbox/privacy_sandbox_attestations",
       "//components/security_state/content",
       "//components/subresource_filter/content/browser:browser",
+      "//components/web_package:web_package",
       "//components/webapps/browser",
       "//third_party/blink/public/common:headers",
       "//third_party/inspector_protocol:crdtp",

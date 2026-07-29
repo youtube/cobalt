@@ -14,7 +14,7 @@ TextCodecReplacement::TextCodecReplacement()
     : replacement_error_returned_(false) {}
 
 void TextCodecReplacement::RegisterEncodingNames(
-    WTF::EncodingNameRegistrar registrar) {
+    EncodingNameRegistrar registrar) {
   // Taken from the alias table at·https://encoding.spec.whatwg.org/
   registrar("replacement", "replacement");
   registrar("csiso2022kr", "replacement");
@@ -25,17 +25,16 @@ void TextCodecReplacement::RegisterEncodingNames(
 }
 
 static std::unique_ptr<TextCodec> NewStreamingTextDecoderReplacement(
-    const WTF::TextEncoding&,
-    const void*) {
+    const TextEncoding&) {
   return std::make_unique<TextCodecReplacement>();
 }
 
-void TextCodecReplacement::RegisterCodecs(WTF::TextCodecRegistrar registrar) {
-  registrar("replacement", NewStreamingTextDecoderReplacement, nullptr);
+void TextCodecReplacement::RegisterCodecs(TextCodecRegistrar registrar) {
+  registrar("replacement", NewStreamingTextDecoderReplacement);
 }
 
 String TextCodecReplacement::Decode(base::span<const uint8_t> data,
-                                    WTF::FlushBehavior,
+                                    FlushBehavior,
                                     bool,
                                     bool& saw_error) {
   // https://encoding.spec.whatwg.org/#replacement-decoder
@@ -50,7 +49,7 @@ String TextCodecReplacement::Decode(base::span<const uint8_t> data,
   if (!replacement_error_returned_) {
     replacement_error_returned_ = true;
     saw_error = true;
-    return String(base::span_from_ref(kReplacementCharacter));
+    return String(base::span_from_ref(uchar::kReplacementCharacter));
   }
 
   // 3. Return finished.

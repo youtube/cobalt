@@ -232,7 +232,6 @@
 <translation id="1380591466760231819">Δίπλωση Letter</translation>
 <translation id="138218114945450791">Ανοιχτό μπλε</translation>
 <translation id="1382194467192730611">Συσκευή USB που επιτρέπεται από τον διαχειριστή σας</translation>
-<translation id="1382378825779654399">Αν η τιμή πέσει σε οποιονδήποτε ιστότοπο, θα λάβετε ειδοποιήσεις ηλεκτρονικού ταχυδρομείου. Αυτή η σελίδα θα αποθηκευτεί στον φάκελο <ph name="LAST_BOOKMARKS_FOLDER" />.</translation>
 <translation id="1384725838384960382">Φύλλο ελέγχου ταυτότητας διαπιστευτηρίων για ασφαλείς πληρωμές</translation>
 <translation id="1386623374109090026">Σχολιασμοί</translation>
 <translation id="138810468159004008">Να επιτρέπεται κατά την επίσκεψη στον ιστότοπο</translation>
@@ -359,6 +358,7 @@
 <translation id="1593359183944365958">270 μοίρες</translation>
 <translation id="1594030484168838125">Επιλογή</translation>
 <translation id="1597307423671074806">Βίντεο WebM</translation>
+<translation id="159800670740560023">Σύνδεσμος Συμβουλή για το Chrome, πατήστε το πλήκτρο Enter για άνοιγμα του συνδέσμου <ph name="IPH_LINK_FOCUSED_LINK_TEXT" /></translation>
 <translation id="1599199147673445968">Νέα κάρτα; <ph name="BEGIN_LINK" />Εισαγωγή στοιχείων κάρτας<ph name="END_LINK" /></translation>
 <translation id="1601786938618212857">Ταχυδρομικός κώδικας</translation>
 <translation id="1604192142734009334">Ομορφιά και φυσική κατάσταση</translation>
@@ -532,6 +532,7 @@
 <translation id="1875512691959384712">Φόρμες Google</translation>
 <translation id="1876116428946561107">Δεν έχετε αποθηκεύσει καμία διεύθυνση. Προσθέστε μια διεύθυνση για να τη χρησιμοποιήσετε στο Chrome.</translation>
 <translation id="1876399092304384674">Κατά ημερομηνία</translation>
+<translation id="1877026089748256423">Το Chrome δεν είναι ενημερωμένο</translation>
 <translation id="187918866476621466">Άνοιγμα σελίδων εκκίνησης</translation>
 <translation id="1880901968112404879">Για να πληρώσετε πιο γρήγορα την επόμενη φορά, αποθηκεύστε την κάρτα, τον κρυπτογραφημένο κωδικό ασφαλείας και τη διεύθυνση χρέωσης στον Λογαριασμό σας Google</translation>
 <translation id="1883255238294161206">Σύμπτυξη λίστας</translation>
@@ -692,6 +693,7 @@
 <translation id="2157640075051554492">Ειδοποιήσεις παρακολούθησης τιμών</translation>
 <translation id="21613918653299710">Συλλογές εικόνων στο διαδίκτυο</translation>
 <translation id="2161656808144014275">Κείμενο</translation>
+<translation id="2162435186600002085">Λογότυπο κύριας κεφαλίδας</translation>
 <translation id="2162620598375156287">Τώρα <ph name="CURRENT_PRICE" /> στο <ph name="SOURCE_WEBSITE" /></translation>
 <translation id="2164510882479075877">Ελέγξτε μήπως υπάρχει κάποιο ορθογραφικό λάθος στη διεύθυνση <ph name="HOST_NAME" />.</translation>
 <translation id="2166049586286450108">Πλήρης πρόσβαση διαχειριστή</translation>
@@ -835,6 +837,7 @@
 <translation id="2383455408879745299">Εξατομίκευση εργαλείων προσβασιμότητας στις ρυθμίσεις του Chrome</translation>
 <translation id="2384307209577226199">Προεπιλογή επιχείρησης</translation>
 <translation id="238459632961158867">Ιστότοπος</translation>
+<translation id="2384823392576123225">Αναζήτηση στους σελιδοδείκτες</translation>
 <translation id="2385809941344967209">Ενημερώστε το Chrome από τις ρυθμίσεις του Chrome,</translation>
 <translation id="2386255080630008482">Το πιστοποιητικό του διακομιστή ανακλήθηκε.</translation>
 <translation id="2388828676877700238">Προετοιμασία και προγραμματισμός φόρου</translation>
@@ -849,6 +852,7 @@
 <translation id="2400263725572336749">Προσθήκη διαβατηρίου</translation>
 <translation id="2400271059665846158">Διαχείριση των καρτών επιβράβευσης αφοσιωμένων πελατών στο Πορτοφόλι Google</translation>
 <translation id="2400600116338235695">Μπορεί να ζητά να συνδεθεί σε σειριακές θύρες.</translation>
+<translation id="240450251994300576">Λογότυπο δευτερεύουσας κεφαλίδας</translation>
 <translation id="2404884497378469141">Δοκιμάστε να αντιγράψετε ξανά τα αρχεία σας</translation>
 <translation id="2413155254802890957">Παλαιά</translation>
 <translation id="2413528052993050574">Ο διακομιστής δεν κατάφερε να αποδείξει ότι είναι <ph name="DOMAIN" />. Το πιστοποιητικό ασφαλείας του μπορεί να έχει ανακληθεί. Αυτό μπορεί να οφείλεται σε λανθασμένη ρύθμιση ή σε κάποιον τρίτο που επιτίθεται στη σύνδεσή σας.</translation>
@@ -868,6 +872,7 @@
           <ph name="END_LIST" /></translation>
 <translation id="2448295565072560657">Περιφερειακά που έχουν συνδεθεί σε αυτήν τη συσκευή ενώ είστε συνδεδεμένοι</translation>
 <translation id="2450019289047528273">Τρόποι πληρωμής και άλλες πληροφορίες από το Πορτοφόλι Google</translation>
+<translation id="2451201933352935301">Ο ιστότοπος <ph name="URL" /> θέλει να διαχειρίζεται τα παράθυρα σε όλες τις οθόνες σας</translation>
 <translation id="2451607499823206582">Παρακολούθηση</translation>
 <translation id="2452098632681057184">Οικολογία και περιβάλλον</translation>
 <translation id="2452837234288608067">Δεν μπορούμε να σας βοηθήσουμε με αυτό. Δοκιμάστε ξανά.</translation>
@@ -978,6 +983,7 @@
 <translation id="2627847595568876492">Εξαγωγή κειμένου από PDF…</translation>
 <translation id="2628224721443278970">Σύνδεση στο Microsoft OneDrive</translation>
 <translation id="2634124572758952069">Δεν ήταν δυνατή η εύρεση της διεύθυνσης IP διακομιστή του κεντρικού υπολογιστή <ph name="HOST_NAME" />.</translation>
+<translation id="2638567100095052009">Πληκτρολογήστε @ για αναζήτηση σε <ph name="FEATURED_SEARCH_LIST" /></translation>
 <translation id="2639739919103226564">Κατάσταση:</translation>
 <translation id="2645435784669275700">ChromeOS</translation>
 <translation id="2647086987482648627">Ύφασμα (Ημι-γυαλιστερό)</translation>
@@ -1448,6 +1454,7 @@
 <translation id="3461266716147554923">Το <ph name="URL" /> θέλει να δει κείμενο και εικόνες που αντιγράφηκαν στο πρόχειρο</translation>
 <translation id="3461824795358126837">Μαρκαδόρος υπογράμμισης</translation>
 <translation id="3462200631372590220">Απόκρυψη σύνθετων</translation>
+<translation id="3462288464915106745"><ph name="CONTEXTUAL_SEARCH_OPEN_LENS_FOCUSED_FRIENDLY_MATCH_TEXT" />, πατήστε Enter για να ρωτήσετε την Google σχετικά με αυτή τη σελίδα</translation>
 <translation id="3465972433695735758">Δεν είναι δυνατή η πρόσβαση σε αυτό το PDF. Έγινε εξαγωγή κειμένου με την υποστήριξη του Google AI</translation>
 <translation id="346601286295919445">Χημεία</translation>
 <translation id="3467081767799433066">Με τη μέτρηση διαφημίσεων, κοινοποιούνται περιορισμένοι τύποι δεδομένων μεταξύ των ιστοτόπων για τη μέτρηση της απόδοσης των διαφημίσεών τους, όπως το αν κάνατε κάποια αγορά μετά την επίσκεψη σε κάποιον ιστότοπο.</translation>
@@ -1755,7 +1762,6 @@
 <translation id="3961148744525529027">Το φύλλο του δείκτη χειρισμού πληρωμής έχει ανοίξει κατά το ήμισυ.</translation>
 <translation id="3962859241508114581">Προηγούμενο κομμάτι</translation>
 <translation id="3963721102035795474">Λειτουργία αναγνώστη</translation>
-<translation id="3964661563329879394">{COUNT,plural, =0{Κανένα}=1{Από 1 ιστότοπο }other{Από # ιστοτόπους }}</translation>
 <translation id="3965672182149944205">Αποθήκευση διεύθυνσης;</translation>
 <translation id="3966044442021752214">Ασφάλεια προϊόντος</translation>
 <translation id="3969869202926863008">Πρόσβαση στο τοπικό δίκτυο</translation>
@@ -2057,6 +2063,7 @@
 <translation id="444116852243722675">Άνοιγμα όλων (<ph name="ITEMS" />)</translation>
 <translation id="4441832193888514600">Έγινε παράβλεψη επειδή η πολιτική μπορεί να οριστεί μόνο ως πολιτική χρήστη cloud.</translation>
 <translation id="4445133368066241428">Δημοφιλή θέματα</translation>
+<translation id="4445694043187340808"><ph name="STARTER_PACK_TABS_FOCUSED_FRIENDLY_MATCH_TEXT" />, πατήστε Enter για αναζήτηση στις καρτέλες</translation>
 <translation id="4445964943162061557">Αυτή είναι μια πειραματική λειτουργία η οποία δεν λειτουργεί πάντα σωστά.</translation>
 <translation id="4449116177348980384">Κουμπί Διαχείριση ρυθμίσεων ιστοτόπου, ενεργοποιήστε το για να διαχειριστείτε τις άδειες και τα δεδομένα που έχουν αποθηκευτεί σε ιστοτόπους από τις ρυθμίσεις του Chrome</translation>
 <translation id="4451135742916150903">Μπορεί να ζητά να συνδεθεί σε συσκευές HID.</translation>
@@ -2252,6 +2259,7 @@
 <translation id="4811450222531576619">Μάθετε σχετικά με την πηγή και το θέμα της</translation>
 <translation id="4813512666221746211">Σφάλμα δικτύου</translation>
 <translation id="4814114628197290459">Διαγραφή IBAN</translation>
+<translation id="4816341377198595747">Κουμπί Αναζήτηση στους σελιδοδείκτες, ενεργοποιήστε το για αναζήτηση στους σελιδοδείκτες</translation>
 <translation id="4816492930507672669">Προσαρμογή στη σελίδα</translation>
 <translation id="4819347708020428563">Επεξεργασία σχολιασμών στην προεπιλεγμένη προβολή;</translation>
 <translation id="4822493756793346865">Οι συνήθεις τιμές βασίζονται σε πληροφορίες των τελευταίων 90 ημερών από καταστήματα στον ιστό.</translation>
@@ -2262,6 +2270,7 @@
 <translation id="4827283332383516812">Διαγραφή κάρτας</translation>
 <translation id="4830443836091007686">Επιλέχθηκαν <ph name="ITEMS" /></translation>
 <translation id="4831993743164297314">Χαρτί φωτοστοιχειοθετικής μηχανής</translation>
+<translation id="4832388034239846146">Για να μοιραστείτε ομάδες καρτελών, ενημερώστε το Chrome</translation>
 <translation id="483241715238664915">Ενεργοποίηση ειδοποιήσεων</translation>
 <translation id="4832961164064927107">Μπάρμπεκιου και ψητά</translation>
 <translation id="4834250788637067901">Τρόποι πληρωμής, προσφορές και διευθύνσεις μέσω Google Pay</translation>
@@ -2381,6 +2390,7 @@
 <translation id="5021557570875267742">Παρακολούθηση τιμών με το Chrome</translation>
 <translation id="5023310440958281426">Ελέγξτε τις πολιτικές του διαχειριστή</translation>
 <translation id="5024171724744627792">Πληρώστε πιο γρήγορα με την αποθήκευση της κάρτας σας. Τα στοιχεία της κάρτας κρυπτογραφούνται στον Λογαριασμό σας Google.</translation>
+<translation id="5026466266082155886"><ph name="STARTER_PACK_HISTORY_FOCUSED_FRIENDLY_MATCH_TEXT" />, πατήστε Enter για αναζήτηση στο ιστορικό</translation>
 <translation id="5030338702439866405">Έκδοση από</translation>
 <translation id="503069730517007720">Απαιτείται πιστοποιητικό ρίζας για το λογισμικό "<ph name="SOFTWARE_NAME" />" αλλά δεν έχει εγκατασταθεί. Ο διαχειριστής IT πρέπει να εξετάσει τις οδηγίες διαμόρφωσης για το λογισμικό "<ph name="SOFTWARE_NAME" />", προκειμένου να διορθώσει αυτό το πρόβλημα. <ph name="FURTHER_EXPLANATION" /></translation>
 <translation id="5034930251282078640">Προσθήκη στη σύγκριση;</translation>
@@ -2738,6 +2748,7 @@
 <translation id="5619721953841297650">Προεπιλογή</translation>
 <translation id="5624120631404540903">Διαχείριση κωδικών πρόσβασης</translation>
 <translation id="5629630648637658800">Αποτυχία φόρτωσης ρυθμίσεων πολιτικής</translation>
+<translation id="5630981295558454585">Κουμπί Ρωτήστε την Google σχετικά με αυτή τη σελίδα, ενεργοποιήστε το για ερωτήσεις στην Google σχετικά με αυτή τη σελίδα</translation>
 <translation id="5631439013527180824">Μη έγκυρο διακριτικό διαχείρισης συσκευής</translation>
 <translation id="5632485077360054581">Οδηγίες</translation>
 <translation id="563324245173044180">Το παραπλανητικό περιεχόμενο αποκλείστηκε.</translation>
@@ -2968,6 +2979,7 @@
 <translation id="6043357981274314628">Τέλος!</translation>
 <translation id="6044573915096792553">Μέγεθος 12</translation>
 <translation id="6045164183059402045">Πρότυπο ένθεσης</translation>
+<translation id="6046892054959167494">Πληκτρολογήστε <ph name="SEARCH_AGGREGATOR_KEYWORD" /> για αναζήτηση ή ρωτήστε το <ph name="SEARCH_AGGREGATOR_SHORT_NAME" /></translation>
 <translation id="6047927260846328439">Αυτό το περιεχόμενο μπορεί να προσπαθήσει να σας εξαπατήσει έτσι ώστε να εγκαταστήσετε λογισμικό ή να αποκαλύψετε προσωπικά στοιχεία. <ph name="BEGIN_LINK" />Εμφάνιση ούτως ή άλλως<ph name="END_LINK" /></translation>
 <translation id="6049056807983403918">Φάκελος B4</translation>
 <translation id="6049488691372270142">Παράδοση σελίδας</translation>
@@ -3619,6 +3631,7 @@
 <translation id="7139892792842608322">Κύριος τροφοδότης χαρτιού</translation>
 <translation id="7140087718106278457">Η λίστα τρόπων πληρωμής είναι κλειστή.</translation>
 <translation id="714064300541049402">Πλευρά 2 μετατόπιση εικόνας στον άξονα X</translation>
+<translation id="7140922144008419614">Κουμπί Αναζήτηση στις καρτέλες, ενεργοποιήστε το για αναζήτηση στις καρτέλες</translation>
 <translation id="7143682719845053166">PRC 32K</translation>
 <translation id="7144878232160441200">Επανάληψη</translation>
 <translation id="7150146631451105528"><ph name="DATE" /></translation>
@@ -3854,6 +3867,7 @@
 <translation id="7526934274050461096">Η σύνδεσή σας σε αυτόν τον ιστότοπο δεν είναι ιδιωτική</translation>
 <translation id="7529884293139707752">Σχολική εκπαίδευση στο σπίτι</translation>
 <translation id="7531464389616946220">Σάρωση κάρτας</translation>
+<translation id="7534473948927234329"><ph name="STARTER_PACK_BOOKMARKS_FOCUSED_FRIENDLY_MATCH_TEXT" />, πατήστε Enter για αναζήτηση στους σελιδοδείκτες</translation>
 <translation id="7534987659046836932">Φάκελος C7</translation>
 <translation id="7535087603100972091">Τιμή</translation>
 <translation id="753556296624075801">Με την υποστήριξη της Google</translation>
@@ -4232,6 +4246,7 @@
 <translation id="8194412401381329820">Δεν μπορείτε να χρησιμοποιήσετε αυτήν τη σελίδα από έναν διαχειριζόμενο λογαριασμό σε αυτήν τη μη διαχειριζόμενη συσκευή. Όλοι οι διαχειριζόμενοι λογαριασμοί θα κλειδώσουν εάν χρησιμοποιήσετε αυτήν τη σελίδα, εκτός από τους λογαριασμούς που διαχειρίζεται το ίδιο νομικό πρόσωπο που διαχειρίζεται αυτήν τη συσκευή (συνδεδεμένοι λογαριασμοί).</translation>
 <translation id="8194797478851900357">&amp;Αναίρεση μετακίνησης</translation>
 <translation id="8194956568907463262">Παιχνίδια σκοποβολής</translation>
+<translation id="8198379961710069585">Κουμπί Ιστορικό αναζήτησης, ενεργοποιήστε το για αναζήτηση στο ιστορικό</translation>
 <translation id="8199437620497683918">Οπτικός δίσκος (Γυαλιστερός)</translation>
 <translation id="8199730148066603000">Δεν επιτρέπεται η προεπισκόπηση URL χωρίς HTTPS.</translation>
 <translation id="8200772114523450471">Συνέχιση</translation>
@@ -4819,7 +4834,6 @@
 <translation id="9207861905230894330">Αποτυχία προσθήκης άρθρου.</translation>
 <translation id="9209339767782560829">Παρουσιάστηκε πρόβλημα με τη χρήση του πιστοποιητικού σύνδεσης.</translation>
 <translation id="9210825002219699214">Αεροπορικά ταξίδια</translation>
-<translation id="9211461151375991073">Πληκτρολογήστε @ για αναζήτηση <ph name="FEATURED_SEARCH_LIST" /></translation>
 <translation id="9213433120051936369">Προσαρμογή της εμφάνισης</translation>
 <translation id="9215416866750762878">Μια εφαρμογή παρεμποδίζει την ασφαλή σύνδεση του Chrome σε αυτόν τον ιστότοπο</translation>
 <translation id="92178312226016010">Παρακολουθείτε αυτό το προϊόν.</translation>

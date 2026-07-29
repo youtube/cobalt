@@ -8,9 +8,9 @@
 #         mac highsierra mojave catalina bigsur monterey ventura sonoma sequoia
 #         win win8 win10 win11 ]
 # Devices
-# tags: [ android-nexus-5x android-pixel-2 android-pixel-4
-#             android-pixel-6 android-shield-android-tv android-sm-a137f
-#             android-sm-a236b android-sm-s911u1
+# tags: [ android-pixel-2 android-pixel-4 android-pixel-6
+#             android-shield-android-tv android-sm-a137f android-sm-a236b
+#             android-sm-s911u1
 #         android-brya android-corsola
 #         chromeos-board-amd64-generic chromeos-board-eve chromeos-board-jacuzzi
 #             chromeos-board-octopus chromeos-board-volteer
@@ -229,6 +229,11 @@ crbug.com/365565140 [ amd-0x7340 debug arch-x86_64 no-asan no-clang-coverage son
 crbug.com/365565140 [ angle-metal asan graphite-enabled intel-0x3e9b arch-x86_64 no-clang-coverage release sonoma ] ContextLost_WebGPUUnblockedAfterUserInitiatedReload [ Failure ]
 crbug.com/365565140 [ angle-opengl debug graphite-disabled intel-0x3e9b arch-x86_64 no-asan no-clang-coverage sonoma ] ContextLost_WebGPUUnblockedAfterUserInitiatedReload [ Failure ]
 
+# Renderer Hung Possibly just Slow
+crbug.com/338574390 [ mac intel-0x3e9b angle-metal asan graphite-disabled ] ContextLost_WebGPUUnblockedAfterUserInitiatedReload [ Failure ]
+crbug.com/338574390 [ mac intel-0x3e9b angle-metal asan graphite-disabled ] GpuCrash_GPUProcessCrashesExactlyOncePerVisitToAboutGpuCrash [ Failure ]
+crbug.com/338574390 [ mac intel-0x3e9b angle-metal asan ] ContextLost_WebGLContextLostOverlyLargeUniform [ RetryOnFailure ]
+crbug.com/338574390 [ mac intel-0x3e9b angle-metal asan ] GpuNormalTermination_NewWebGLNotBlocked [ RetryOnFailure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #
