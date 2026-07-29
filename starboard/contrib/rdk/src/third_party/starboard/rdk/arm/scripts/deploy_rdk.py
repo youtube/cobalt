@@ -258,36 +258,36 @@ def _extract_flag_key(arg: str) -> str:
     return arg.split("=", 1)[0].split()[0]
 
 
-def deduplicate_sb_args(sb_args: List[str], new_args: List[str]) -> List[str]:
-    """Filters pre-existing flags from sb_args whose keys are overridden by new_args.
+def deduplicate_sb_args(default_args: List[str], override_args: List[str]) -> List[str]:
+    """Filters pre-existing default flags from default_args whose keys are overridden by override_args.
 
     Handles inline equals ('--foo=val'), single-string space ('--foo val'),
     valueless/boolean flags ('--foo'), and two-item space-separated ('--foo', 'val').
     """
     override_keys = set()
-    for arg in new_args:
+    for arg in override_args:
         if arg.startswith("--"):
             override_keys.add(_extract_flag_key(arg))
 
-    filtered_sb_args = []
+    filtered_default_args = []
     i = 0
-    while i < len(sb_args):
-        arg = sb_args[i]
+    while i < len(default_args):
+        arg = default_args[i]
         if arg.startswith("--"):
             key = _extract_flag_key(arg)
             if key in override_keys:
-                # Key is overridden by new_args. Skip this flag.
+                # Key is overridden by override_args. Skip this flag.
                 # If value was in separate argument item (no '=' or space in arg),
                 # skip the next argument item too if it's a non-flag value.
-                if "=" not in arg and " " not in arg and (i + 1 < len(sb_args)) and not sb_args[i + 1].startswith("--"):
+                if "=" not in arg and " " not in arg and (i + 1 < len(default_args)) and not default_args[i + 1].startswith("--"):
                     i += 1  # Skip space-separated value item
             else:
-                filtered_sb_args.append(arg)
+                filtered_default_args.append(arg)
         else:
-            filtered_sb_args.append(arg)
+            filtered_default_args.append(arg)
         i += 1
 
-    return filtered_sb_args + new_args
+    return filtered_default_args + override_args
 
 
 def launch_on_device(
@@ -351,15 +351,16 @@ def launch_on_device(
             res = json.loads(res_str.strip())
             if "result" in res:
                 config = res["result"]
-                sb_args = config.get("sbmainargs", [])
+                default_args = config.get("sbmainargs", [])
                 
-                new_args = []
+                script_args = []
                 if devtools:
-                    new_args.append("--remote-debugging-port=9222")
-                if param:
-                    new_args.extend(param)
+                    script_args.append("--remote-debugging-port=9222")
 
-                config["sbmainargs"] = deduplicate_sb_args(sb_args, new_args)
+                user_override_args = param if param else []
+                override_args = script_args + user_override_args
+
+                config["sbmainargs"] = deduplicate_sb_args(default_args, override_args)
 
                 # Set configuration
                 rpc_set_config = json.dumps({
