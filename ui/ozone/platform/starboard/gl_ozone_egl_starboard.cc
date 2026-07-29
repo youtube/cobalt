@@ -18,15 +18,6 @@
 
 #include "starboard/egl.h"
 #include "starboard/gles.h"
-#include "ui/gl/buildflags.h"
-
-#if BUILDFLAG(USE_STATIC_ANGLE)
-extern "C" {
-// The ANGLE internal eglGetProcAddress
-EGLAPI __eglMustCastToProperFunctionPointerType EGLAPIENTRY
-EGL_GetProcAddress(const char* procname);
-}
-#endif
 
 namespace ui {
 
@@ -270,11 +261,6 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     const gl::GLImplementationParts& implementation) {
   DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLANGLE)
       << "Not supported: " << implementation.ToString();
-#if BUILDFLAG(USE_STATIC_ANGLE)
-  gl::SetGLGetProcAddressProc(
-      reinterpret_cast<gl::GLGetProcAddressProc>(&EGL_GetProcAddress));
-  return true;
-#else
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   gl::GLGetProcAddressProc gl_proc =
       [](const char* name) -> gl::GLFunctionPointerType {
@@ -311,7 +297,6 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
 
   gl::SetGLGetProcAddressProc(gl_proc);
   return true;
-#endif
 }
 
 void GLOzoneEGLStarboard::CreateDisplayTypeIfNeeded() {
