@@ -307,6 +307,9 @@
     <message name="IDS_AUTOFILL_SAVE_AND_FILL_DIALOG_INVALID_NAME_ON_CARD" desc="Error message to show when a user has input an invalid name on card.">
       Name on card is invalid
     </message>
+    <message name="IDS_AUTOFILL_SAVE_AND_FILL_PENDING_DIALOG_LOADING_ACCESSIBILITY_ANNOUNCEMENT" desc="The accessibility announcement to indicate that the Save and Fill dialog is in a pending state. It is displayed along with a loading spinner while attempting to show the server version of the dialog and after the user has accepted the dialog.">
+      Loading
+    </message>
   </if>
 
   <!-- Autofill error dialog related strings -->
@@ -1415,12 +1418,17 @@
       CVC saved
     </message>
   </if>
-  <if expr="is_android">
+  <if expr="is_ios or is_android">
     <message name="IDS_AUTOFILL_SETTINGS_PAGE_BULK_REMOVE_CVC_LABEL" desc="Label for the payments settings page button that allows the user to bulk delete all the CVCs stored locally and on Google servers." formatter_data="android_java">
       Delete saved security codes
     </message>
   </if>
- <if expr="not is_ios and not is_android">
+  <if expr="is_ios">
+    <message name="IDS_AUTOFILL_SETTINGS_PAGE_DELETE_CVC_STORAGE_LABEL" desc="Description for the payments settings page button that allows the user to bulk delete all the CVCs stored locally and on Google servers.">
+      Your payment methods will still be saved
+    </message>
+  </if>
+  <if expr="not is_ios and not is_android">
     <message name="IDS_AUTOFILL_CVC_SUGGESTION_MAIN_TEXT" desc="The main text shown in the credit card suggestion list when the CVC field is focused. It will be the main text which is on the first line of suggestion. If the user hovers over the suggestion, the credit card will be previewed. If the user clicks on the suggestion, credit card will be filled.">
       CVC
     </message>

@@ -61,6 +61,7 @@ BASE_FEATURE(kOfferPinToTaskbarWhenSettingToDefault,
 BASE_FEATURE(kOfferPinToTaskbarInFirstRunExperience,
              "OfferPinToTaskbarInFirstRunExperience",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(OfferPinToTaskbarInSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
@@ -131,6 +132,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kSideBySide,
                    "drop_target_show_delay",
                    base::Milliseconds(500));
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSideBySideHideDropTargetDelay,
+                   &kSideBySide,
+                   "drop_target_hide_delay",
+                   base::Milliseconds(100));
 BASE_FEATURE_PARAM(int,
                    kSideBySideDropTargetMinWidth,
                    &kSideBySide,
@@ -146,6 +152,18 @@ BASE_FEATURE_PARAM(int,
                    &kSideBySide,
                    "drop_target_width_percentage",
                    30);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetHideForOSWidth,
+                   &kSideBySide,
+                   "drop_target_hide_for_os_width",
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+                   32
+#elif BUILDFLAG(IS_LINUX)
+                   50
+#else
+                   0
+#endif
+);
 
 BASE_FEATURE(kSideBySideDropTargetNudge,
              "SideBySideDropTargetNudge",
@@ -452,7 +470,7 @@ BASE_FEATURE(kPageSpecificDataDialogRelatedInstalledAppsSection,
 
 BASE_FEATURE(kEnableManagementPromotionBanner,
              "EnableManagementPromotionBanner",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kEnablePolicyPromotionBanner,
@@ -536,12 +554,6 @@ BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationDiscounts,
                    &kPageActionsMigration,
                    "discounts",
-                   false);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationProductSpecifications,
-                   &kPageActionsMigration,
-                   "product_specifications",
                    false);
 
 BASE_FEATURE_PARAM(bool,
@@ -675,10 +687,10 @@ BASE_FEATURE(kSessionRestoreInfobar,
 
 #if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kNewTabAddsToActiveGroup,
-             "kNewTabAddsToActiveGroup",
+             "NewTabAddsToActiveGroup",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IsNewTabButtonAddsToActiveGroupEnabled() {
+bool IsNewTabAddsToActiveGroupEnabled() {
   return base::FeatureList::IsEnabled(kNewTabAddsToActiveGroup);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)

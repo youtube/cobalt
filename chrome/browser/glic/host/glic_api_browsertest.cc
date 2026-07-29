@@ -356,12 +356,7 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
 
 // Checks that all tests in api_test.ts have a corresponding test case in this
 // file.
-#if defined(SLOW_BINARY)
-#define MAYBE_testAllTestsAreRegistered DISABLED_testAllTestsAreRegistered
-#else
-#define MAYBE_testAllTestsAreRegistered testAllTestsAreRegistered
-#endif
-IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, MAYBE_testAllTestsAreRegistered) {
+IN_PROC_BROWSER_TEST_F(GlicApiTest, testAllTestsAreRegistered) {
   AssertAllTestsRegistered(GetTestSuiteNames());
 }
 
@@ -713,6 +708,18 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testIsBrowserOpen) {
   ContinueJsTest();
 }
 
+IN_PROC_BROWSER_TEST_F(GlicApiTest, testActiveBrowser) {
+  browser_activator().SetMode(BrowserActivator::Mode::kFirst);
+  RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
+                                 GlicInstrumentMode::kHostAndContents));
+
+  ExecuteJsTest();
+
+  // Open and activate a new incognito browser.
+  browser_activator().SetActive(CreateIncognitoBrowser());
+  ContinueJsTest();
+}
+
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testEnableDragResize) {
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents));
@@ -934,8 +941,16 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
   ExecuteJsTest();
 }
 
+// Win-ASAN is flaky.
+#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+#define MAYBE_testGetContextFromFocusedTabWithAllRequestedData \
+  DISABLED_testGetContextFromFocusedTabWithAllRequestedData
+#else
+#define MAYBE_testGetContextFromFocusedTabWithAllRequestedData \
+  testGetContextFromFocusedTabWithAllRequestedData
+#endif
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
-                       testGetContextFromFocusedTabWithAllRequestedData) {
+                       MAYBE_testGetContextFromFocusedTabWithAllRequestedData) {
   ExecuteJsTest();
 }
 
@@ -1460,8 +1475,8 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
   ExecuteJsTest();
 }
 
-// TODO(b/431837630): Make this work on mac.
-#if BUILDFLAG(IS_MAC)
+// Win-asan is flaky.
+#if (BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER))
 #define MAYBE_testFetchInactiveTabScreenshot \
   DISABLED_testFetchInactiveTabScreenshot
 #else
@@ -1478,8 +1493,8 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab,
   ContinueJsTest();
 }
 
-// TODO(b/431837630): Make this work on mac.
-#if BUILDFLAG(IS_MAC)
+// Win-asan is flaky.
+#if (BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER))
 #define MAYBE_testFetchInactiveTabScreenshotWhileMinimized \
   DISABLED_testFetchInactiveTabScreenshotWhileMinimized
 #else

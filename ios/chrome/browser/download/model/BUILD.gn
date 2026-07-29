@@ -21,10 +21,21 @@ source_set("model") {
     "document_download_tab_helper_metrics.mm",
     "download_directory_util.h",
     "download_directory_util.mm",
+    "download_filter_util.cc",
+    "download_filter_util.h",
     "download_manager_metric_names.h",
     "download_manager_tab_helper.h",
     "download_manager_tab_helper.mm",
     "download_manager_tab_helper_delegate.h",
+    "download_record.h",
+    "download_record.mm",
+    "download_record_observer.h",
+    "download_record_observer_bridge.h",
+    "download_record_observer_bridge.mm",
+    "download_record_service.h",
+    "download_record_service.mm",
+    "download_record_service_factory.h",
+    "download_record_service_factory.mm",
     "external_app_util.h",
     "external_app_util.mm",
     "installation_notifier+Testing.h",
@@ -55,13 +66,10 @@ source_set("model") {
     "//ios/chrome/browser/download/ui:features",
     "//ios/chrome/browser/drive/model:drive_availability",
     "//ios/chrome/browser/drive/model:drive_service_factory",
-    "//ios/chrome/browser/drive/model:drive_service_factory",
     "//ios/chrome/browser/drive/model:drive_tab_helper",
     "//ios/chrome/browser/drive/model:policy",
     "//ios/chrome/browser/drive/model:upload_task",
     "//ios/chrome/browser/fullscreen/ui_bundled",
-    "//ios/chrome/browser/fullscreen/ui_bundled",
-    "//ios/chrome/browser/fullscreen/ui_bundled:ui",
     "//ios/chrome/browser/fullscreen/ui_bundled:ui",
     "//ios/chrome/browser/overlays/model",
     "//ios/chrome/browser/overlays/model/public/common/confirmation",
@@ -90,6 +98,10 @@ source_set("model") {
     "QuartzCore.framework",
     "QuickLook.framework",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("mime_types") {
@@ -112,6 +124,7 @@ source_set("unit_tests") {
     "browser_download_service_unittest.mm",
     "document_download_tab_helper_unittest.mm",
     "download_directory_util_unittest.mm",
+    "download_filter_util_unittest.mm",
     "download_manager_tab_helper_unittest.mm",
     "google_drive_app_util_unittest.mm",
     "installation_notifier_unittest.mm",

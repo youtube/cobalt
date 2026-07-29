@@ -26,13 +26,20 @@ public interface ChromeAndroidTaskTracker {
      *
      * <p>As a {@link ChromeAndroidTask} is meant to track an Android Task, but an {@link
      * ActivityWindowAndroid} is associated with a {@code ChromeActivity}, it's possible that when
-     * this method is called, a {@link ChromeAndroidTask} already exists, in which case the existing
-     * {@link ChromeAndroidTask} will be returned.
+     * this method is called, a {@link ChromeAndroidTask} already exists, in which case the {@code
+     * browserWindowType} must be the same as that of the existing {@link ChromeAndroidTask}, and
+     * the existing {@link ChromeAndroidTask} will be returned.
      *
      * <p>Otherwise, this method will create a new {@link ChromeAndroidTask}, add it to the internal
      * collection, and return it.
+     *
+     * @param browserWindowType The browser window type of the returned {@link ChromeAndroidTask}.
+     *     The types are defined in the native {@code BrowserWindowInterface::Type} enum.
+     * @param activityWindowAndroid The {@link ActivityWindowAndroid} to be associated with the
+     *     returned {@link ChromeAndroidTask}.
      */
-    ChromeAndroidTask obtainTask(ActivityWindowAndroid activityWindowAndroid);
+    ChromeAndroidTask obtainTask(
+            @BrowserWindowType int browserWindowType, ActivityWindowAndroid activityWindowAndroid);
 
     /**
      * Returns the {@link ChromeAndroidTask} with the given {@code taskId}.
@@ -55,4 +62,18 @@ public interface ChromeAndroidTaskTracker {
      * @param activityWindowAndroid The {@link ActivityWindowAndroid} that is being destroyed.
      */
     void onActivityWindowAndroidDestroy(ActivityWindowAndroid activityWindowAndroid);
+
+    /**
+     * Adds an observer which will be called on addition or removal of tasks.
+     *
+     * @param observer The observer to add.
+     */
+    void addObserver(ChromeAndroidTaskTrackerObserver observer);
+
+    /**
+     * Removes an observer, if it exists.
+     *
+     * @param observer The observer to remove.
+     */
+    boolean removeObserver(ChromeAndroidTaskTrackerObserver observer);
 }

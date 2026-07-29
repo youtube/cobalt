@@ -219,6 +219,13 @@ extern const base::FeatureParam<int> kLensSearchSidePanelDefaultWidth;
 COMPONENT_EXPORT(LENS_FEATURES)
 extern const base::FeatureParam<int> kLensOverlayEntrypointLabelAltId;
 
+// Whether the Lens overlay text selection context menu entrypoint should
+// issue contextual queries. If false, contextualization will be suppressed for
+// all queries in the session.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const base::FeatureParam<bool>
+    kLensOverlayTextSelectionContextMenuEntrypointContextualize;
+
 // The URL for the Lens home page.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern std::string GetHomepageURLForLens();
@@ -837,6 +844,16 @@ extern bool ShowContextualSearchboxZeroPrefixSuggest();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsUpdatedClientContextEnabled();
 
+// Whether the AIM M3 flag is enabled. This does not check individual params
+// such as whether to show AIM in the side panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsAimM3Enabled();
+
+// Whether to use the AIM eligibility service to check eligibility for AIM
+// features.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool ShouldUseAimEligibilityService();
+
 // Whether to show open AIM search pages in the side panel.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool ShouldShowAimInSidePanel();
@@ -848,6 +865,24 @@ extern bool GetAimSearchboxEnabled();
 // Whether the side panel ghost loader is disabled for AIM interactions.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetSidePanelGhostLoaderDisabledForAim();
+
+// Whether the composebox should contextualize on focus.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetShouldComposeboxContextualizeOnFocus();
+
+// Whether to close the overlay when the user transitions to the AIM UI.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool ShouldCloseOverlayOnAimTransition();
+
+// Whether to enable the floating G for the header. This is a transparent G that
+// will float to on top of the remotely rendered header.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetEnableFloatingGForHeader();
+
+// Whether to enable the client side header. This is a header that is rendered
+// on the client side and takes up space from the results UI.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetEnableClientSideHeader();
 
 // Whether to use the alt loading hint when overlay is opened on web pages.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -969,6 +1004,12 @@ extern std::string GetStraightToSrpQuery();
 // entrypoint.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayTextSelectionContextMenuEntrypointEnabled();
+
+// Whether the Lens overlay text selection context menu entrypoint should
+// issue contextual queries. If false, contextualization will be suppressed for
+// all queries in the session.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool IsLensOverlayTextSelectionContextMenuEntrypointContextualized();
 
 // Whether to force Lens overlay invocations to perform an empty CSB query. For
 // internal debugging only.

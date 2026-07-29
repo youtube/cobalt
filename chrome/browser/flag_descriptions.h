@@ -57,9 +57,6 @@ extern const char kAcceleratedVideoEncodeDescription[];
 extern const char kAiModeOmniboxEntryPointName[];
 extern const char kAiModeOmniboxEntryPointDescription[];
 
-extern const char kAiSettingsPageEnterpriseDisabledName[];
-extern const char kAiSettingsPageEnterpriseDisabledDescription[];
-
 extern const char kAlignSurfaceLayerImplToPixelGridName[];
 extern const char kAlignSurfaceLayerImplToPixelGridDescription[];
 
@@ -83,6 +80,13 @@ extern const char kAllowTabClosingUponMinimizationDescription[];
 
 extern const char kAndroidAdaptiveFrameRateName[];
 extern const char kAndroidAdaptiveFrameRateDescription[];
+#endif  // BUILDFLAG(IS_ANDROID)
+
+// Android
+// TODO(crbug.com/40285824): remove this when 3p-patch is landed.
+#if BUILDFLAG(IS_ANDROID)
+extern const char kAndroidAutofillUpdateContextForWebContentsName[];
+extern const char kAndroidAutofillUpdateContextForWebContentsDescription[];
 #endif  // BUILDFLAG(IS_ANDROID)
 
 extern const char kAndroidAppIntegrationName[];
@@ -140,6 +144,8 @@ extern const char kAndroidGrammarCheckName[];
 extern const char kAndroidGrammarCheckDescription[];
 extern const char kAndroidSpellcheckNativeUiName[];
 extern const char kAndroidSpellcheckNativeUiDescription[];
+extern const char kAndroidSpellcheckFullApiBlinkName[];
+extern const char kAndroidSpellcheckFullApiBlinkDescription[];
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -604,6 +610,9 @@ extern const char kBackForwardCacheDescription[];
 
 extern const char kBackForwardTransitionsName[];
 extern const char kBackForwardTransitionsDescription[];
+
+extern const char kBackForwardTransitionsCrossDocSharedImageName[];
+extern const char kBackForwardTransitionsCrossDocSharedImageDescription[];
 
 extern const char kBackgroundListeningName[];
 extern const char kBackgroundListeningDescription[];
@@ -1085,6 +1094,9 @@ extern const char kEnableManagedConfigurationWebApiDescription[];
 extern const char kDownloadNotificationServiceUnifiedAPIName[];
 extern const char kDownloadNotificationServiceUnifiedAPIDescription[];
 
+extern const char kEnableNtpEnterpriseShortcutsName[];
+extern const char kEnableNtpEnterpriseShortcutsDescription[];
+
 extern const char kEnablePerfettoSystemTracingName[];
 extern const char kEnablePerfettoSystemTracingDescription[];
 
@@ -1218,9 +1230,6 @@ extern const char kFedCmAlternativeIdentifiersDescription[];
 
 extern const char kFedCmAutofillName[];
 extern const char kFedCmAutofillDescription[];
-
-extern const char kFedCmCooldownOnIgnoreName[];
-extern const char kFedCmCooldownOnIgnoreDescription[];
 
 extern const char kFedCmDelegationName[];
 extern const char kFedCmDelegationDescription[];
@@ -1512,6 +1521,9 @@ extern const char kLensOverlaySimplifiedSelectionDescription[];
 extern const char kLensOverlayStraightToSrpName[];
 extern const char kLensOverlayStraightToSrpDescription[];
 
+extern const char kLensOverlayTextSelectionContextMenuEntrypointName[];
+extern const char kLensOverlayTextSelectionContextMenuEntrypointDescription[];
+
 extern const char kLensOverlayTranslateButtonName[];
 extern const char kLensOverlayTranslateButtonDescription[];
 
@@ -1546,6 +1558,9 @@ extern const char kLogJsConsoleMessagesDescription[];
 
 extern const char kMediaRouterCastAllowAllIPsName[];
 extern const char kMediaRouterCastAllowAllIPsDescription[];
+
+extern const char kMobilePromoOnDesktopName[];
+extern const char kMobilePromoOnDesktopDescription[];
 
 extern const char kMojoLinuxChannelSharedMemName[];
 extern const char kMojoLinuxChannelSharedMemDescription[];
@@ -2868,6 +2883,9 @@ extern const char kClankDefaultBrowserPromoDescription[];
 extern const char kClankDefaultBrowserPromoRoleManagerName[];
 extern const char kClankDefaultBrowserPromoRoleManagerDescription[];
 
+extern const char kCleanupLegacyTabStateName[];
+extern const char kCleanupLegacyTabStateDescription[];
+
 extern const char kAndroidComposeplateName[];
 extern const char kAndroidComposeplateDescription[];
 
@@ -3073,6 +3091,10 @@ extern const char kRelatedSearchesSwitchDescription[];
 extern const char kRightEdgeGoesForwardGestureNavName[];
 extern const char kRightEdgeGoesForwardGestureNavDescription[];
 
+extern const char kSafeBrowsingScamDetectionKeyboardLockTriggerAndroidName[];
+extern const char
+    kSafeBrowsingScamDetectionKeyboardLockTriggerAndroidDescription[];
+
 extern const char kSafeBrowsingSyncCheckerCheckAllowlistName[];
 extern const char kSafeBrowsingSyncCheckerCheckAllowlistDescription[];
 
@@ -3111,9 +3133,6 @@ extern const char kSupervisedUserInterstitialWithoutApprovalsDescription[];
 
 extern const char kSupportMultipleServerRequestsForPixPaymentsName[];
 extern const char kSupportMultipleServerRequestsForPixPaymentsDescription[];
-
-extern const char kSwapNewTabAndNewTabInGroupAndroidName[];
-extern const char kSwapNewTabAndNewTabInGroupAndroidDescription[];
 
 extern const char kHistoryPaneAndroidName[];
 extern const char kHistoryPaneAndroidDescription[];
@@ -3171,6 +3190,9 @@ extern const char kWebFeedOnboardingDescription[];
 
 extern const char kWebFeedSortName[];
 extern const char kWebFeedSortDescription[];
+
+extern const char kWebSerialWiredDevicesAndroidName[];
+extern const char kWebSerialWiredDevicesAndroidDescription[];
 
 extern const char kWebXrSharedBuffersName[];
 extern const char kWebXrSharedBuffersDescription[];
@@ -3444,7 +3466,7 @@ extern const char kUseAngleDescriptionWindows[];
 
 extern const char kUseAngleD3D11[];
 extern const char kUseAngleD3D9[];
-extern const char kUseAngleD3D11on12[];
+extern const char kUseAngleD3D11Warp[];
 
 extern const char kUseWaitableSwapChainName[];
 extern const char kUseWaitableSwapChainDescription[];
@@ -3555,6 +3577,9 @@ extern const char kAndroidMinimalUiLargeScreenDescription[];
 
 extern const char kAndroidUseCorrectDisplayWorkAreaName[];
 extern const char kAndroidUseCorrectDisplayWorkAreaDescription[];
+
+extern const char kAndroidUseCorrectWindowBoundsName[];
+extern const char kAndroidUseCorrectWindowBoundsDescription[];
 
 extern const char kAndroidWindowManagementWebApiName[];
 extern const char kAndroidWindowManagementWebApiDescription[];
@@ -3770,12 +3795,6 @@ extern const char kCaptureModeEducationBypassLimitsDescription[];
 
 extern const char kCrosContentAdjustedRefreshRateName[];
 extern const char kCrosContentAdjustedRefreshRateDescription[];
-
-extern const char kCrosSoulName[];
-extern const char kCrosSoulDescription[];
-
-extern const char kCrosSoulGravediggerName[];
-extern const char kCrosSoulGravediggerDescription[];
 
 extern const char kDesksTemplatesName[];
 extern const char kDesksTemplatesDescription[];
@@ -4509,9 +4528,6 @@ extern const char kCrosMallManagedDescription[];
 extern const char kCrosMallUrlName[];
 extern const char kCrosMallUrlDescription[];
 
-extern const char kCrosPrivacyHubName[];
-extern const char kCrosPrivacyHubDescription[];
-
 extern const char kCrosSeparateGeoApiKeyName[];
 extern const char kCrosSeparateGeoApiKeyDescription[];
 
@@ -4606,7 +4622,6 @@ extern const char kEnableArmHwdrmDescription[];
 // Linux ---------------------------------------------------------------------
 
 #if BUILDFLAG(IS_LINUX)
-
 
 extern const char kPulseaudioLoopbackForCastName[];
 extern const char kPulseaudioLoopbackForCastDescription[];
@@ -4843,6 +4858,10 @@ extern const char kEnableStandardBoundSessionRefreshQuotaDescription[];
 #if !BUILDFLAG(IS_ANDROID)
 extern const char kEnablePolicyPromotionBannerName[];
 extern const char kEnablePolicyPromotionBannerDescription[];
+
+extern const char kAutofillReintroduceHybridPasskeyDropdownItemName[];
+extern const char kAutofillReintroduceHybridPasskeyDropdownItemDescription[];
+
 extern const char kEnableManagementPromotionBannerName[];
 extern const char kEnableManagementPromotionBannerDescription[];
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -4861,9 +4880,6 @@ extern const char kHistoryPageHistorySyncPromoDescription[];
 
 extern const char kHistoryOptInEducationalTipName[];
 extern const char kHistoryOptInEducationalTipDescription[];
-
-extern const char kWebSerialOverBluetoothName[];
-extern const char kWebSerialOverBluetoothDescription[];
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)

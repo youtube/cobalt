@@ -6,6 +6,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
@@ -14,6 +15,7 @@
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/actor/ui/mocks/mock_actor_overlay_view_controller.h"
 #include "chrome/browser/actor/ui/mocks/mock_actor_ui_state_manager.h"
+#include "chrome/browser/actor/ui/mocks/mock_actor_ui_tab_controller_factory.h"
 #include "chrome/browser/actor/ui/mocks/mock_handoff_button_controller.h"
 #include "chrome/browser/actor/ui/states/actor_overlay_state.h"
 #include "chrome/browser/actor/ui/states/handoff_button_state.h"
@@ -34,7 +36,7 @@ namespace actor::ui {
 namespace {
 using ::tabs::MockTabInterface;
 using ::testing::_;
-using ::testing::ByMove;
+using ::testing::Invoke;
 using ::testing::MockFunction;
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -55,39 +57,9 @@ MockWebContents::MockWebContents(content::BrowserContext* browser_context)
 
 MockWebContents::~MockWebContents() = default;
 
-class MockActorUiTabControllerFactory
-    : public ActorUiTabControllerFactoryInterface {
- public:
-  ~MockActorUiTabControllerFactory() override {
-    mock_overlay_view_controller_ = nullptr;
-    mock_handoff_button_controller_ = nullptr;
-  }
-
-  std::unique_ptr<HandoffButtonController> CreateHandoffButtonController(
-      tabs::TabInterface& tab) override {
-    auto controller = std::make_unique<MockHandoffButtonController>(tab);
-    mock_handoff_button_controller_ = controller.get();
-    return controller;
-  }
-  std::unique_ptr<ActorOverlayViewController> CreateActorOverlayViewController(
-      tabs::TabInterface& tab) override {
-    auto controller = std::make_unique<MockActorOverlayViewController>(tab);
-    mock_overlay_view_controller_ = controller.get();
-    return controller;
-  }
-
-  MockActorOverlayViewController* overlay_controller() {
-    return mock_overlay_view_controller_;
-  }
-
-  MockHandoffButtonController* handoff_button_controller() {
-    return mock_handoff_button_controller_;
-  }
-
- private:
-  raw_ptr<MockActorOverlayViewController> mock_overlay_view_controller_;
-  raw_ptr<MockHandoffButtonController> mock_handoff_button_controller_;
-};
+ACTION(ReturnNewScopedClosureRunner) {
+  return base::ScopedClosureRunner(base::DoNothing());
+}
 
 class ActorUiTabControllerTest : public testing::Test {
  public:
@@ -114,7 +86,7 @@ class ActorUiTabControllerTest : public testing::Test {
         .WillByDefault(Return(&mock_browser_window_interface_));
     ON_CALL(mock_tab_, GetUnownedUserDataHost())
         .WillByDefault(::testing::ReturnRef(user_data_host_));
-    ON_CALL(mock_browser_window_interface_, GetProfile)
+    ON_CALL(mock_browser_window_interface_, GetProfile())
         .WillByDefault(Return(profile()));
     ON_CALL(mock_browser_window_interface_, GetTabStripModel())
         .WillByDefault(Return(&tab_strip_model_));
@@ -127,15 +99,13 @@ class ActorUiTabControllerTest : public testing::Test {
     ON_CALL(mock_tab_, GetContents)
         .WillByDefault(Return(mock_web_contents_.get()));
     ON_CALL(*mock_web_contents_, IncrementCapturerCount(_, _, _, _))
-        .WillByDefault(
-            Return(ByMove(base::ScopedClosureRunner(base::DoNothing()))));
+        .WillByDefault(ReturnNewScopedClosureRunner());
 
     actor_ui_tab_controller_ = std::make_unique<ActorUiTabController>(
         mock_tab_, actor_keyed_service(), std::move(controller_factory));
 
     // Creates task for testing.
     task_id_ = actor_keyed_service()->CreateTaskForTesting();
-    actor_ui_tab_controller_->SetActiveTaskId(task_id_);
     base::RunLoop loop;
     actor_keyed_service()->GetTask(task_id_)->AddTab(
         mock_tab_.GetHandle(),
@@ -169,7 +139,7 @@ class ActorUiTabControllerTest : public testing::Test {
   MockTabInterface& mock_tab() { return mock_tab_; }
 
   void Debounce() {
-    task_environment_.FastForwardBy(kUpdateStateDebounceDelay +
+    task_environment_.FastForwardBy(kUpdateUiDebounceDelay +
                                     base::Milliseconds(1));
   }
 
@@ -201,6 +171,8 @@ TEST_F(ActorUiTabControllerTest, SetActorTaskStatePaused_SetsStateCorrectly) {
 }
 
 TEST_F(ActorUiTabControllerTest, SetActorTaskStateResume_SetsStateCorrectly) {
+  // Must pause before resume.
+  tab_controller()->SetActorTaskPaused();
   tab_controller()->SetActorTaskResume();
   EXPECT_EQ(actor_keyed_service()->GetTask(task_id())->GetState(),
             ActorTask::State::kReflecting);
@@ -398,6 +370,37 @@ TEST_F(ActorUiTabControllerTest,
   base::test::TestFuture<bool> future2;
   tab_controller()->OnUiTabStateChange(ui_tab_state, future2.GetCallback());
   EXPECT_TRUE(future2.Get());
+}
+
+TEST_F(ActorUiTabControllerTest,
+       OnUiTabStateChange_CallsCallbacksAndRecordsMetrics) {
+  base::HistogramTester histogram_tester;
+  HandoffButtonState handoff_button_state(
+      true, HandoffButtonState::ControlOwnership::kActor);
+  UiTabState ui_tab_state(ActorOverlayState(), handoff_button_state);
+
+  base::test::TestFuture<bool> future1;
+  tab_controller()->OnUiTabStateChange(ui_tab_state, future1.GetCallback());
+
+  // Creates a new state to trigger another update ui call.
+  handoff_button_state.is_active = false;
+  UiTabState ui_tab_state1(ActorOverlayState(), handoff_button_state);
+
+  base::test::TestFuture<bool> future2;
+  tab_controller()->OnUiTabStateChange(ui_tab_state1, future2.GetCallback());
+
+  handoff_button_state.is_active = true;
+  UiTabState ui_tab_state2(ActorOverlayState(), handoff_button_state);
+  tab_controller()->OnUiTabStateChange(ui_tab_state2,
+                                       base::OnceCallback<void(bool)>());
+
+  Debounce();
+
+  EXPECT_TRUE(future1.Get());
+  EXPECT_TRUE(future2.Get());
+
+  histogram_tester.ExpectUniqueSample(
+      "Actor.UiTabController.NumberOfPendingCallbacks", 2, 1);
 }
 
 using UiTabStateActivationParams =

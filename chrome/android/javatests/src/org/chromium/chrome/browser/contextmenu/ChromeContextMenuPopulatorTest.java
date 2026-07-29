@@ -30,7 +30,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
-import android.widget.ListView;
 
 import androidx.browser.customtabs.CustomContentAction;
 import androidx.browser.customtabs.CustomTabsIntent;
@@ -125,7 +124,6 @@ public class ChromeContextMenuPopulatorTest {
     @Mock private Profile mProfile;
     @Mock private Profile.Natives mProfileNatives;
     @Mock private MenuModelBridge mMenuModelBridge;
-    @Mock private ListView mMockListView;
     @Mock private ChromeContextMenuPopulator.PendingIntentSender mMockPendingIntentSender;
 
     private ChromeContextMenuPopulator mPopulator;
@@ -354,8 +352,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected2 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -401,8 +399,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params, true);
         int[] expected6Tab1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -447,8 +445,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected2 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -523,8 +521,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -600,8 +598,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -853,8 +851,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected2Tab1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -901,8 +899,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params, true);
         int[] expected6Tab1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -948,8 +946,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected2Tab1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -1207,8 +1205,8 @@ public class ChromeContextMenuPopulatorTest {
 
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected2Tab1 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -1369,8 +1367,8 @@ public class ChromeContextMenuPopulatorTest {
         // HTTP scheme should include read later context menu item.
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -1440,8 +1438,8 @@ public class ChromeContextMenuPopulatorTest {
                         /* additionalNavigationParams= */ null);
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expected5 = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
@@ -1482,8 +1480,8 @@ public class ChromeContextMenuPopulatorTest {
         when(mItemDelegate.isIncognito()).thenReturn(true);
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expectedIncognito = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_ephemeral_tab,
             R.id.contextmenu_copy_link_address,
             R.id.contextmenu_copy_link_text,
@@ -1533,8 +1531,8 @@ public class ChromeContextMenuPopulatorTest {
         when(mItemDelegate.isOpenInOtherWindowSupported()).thenReturn(true);
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         int[] expectedMultiWindow = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_other_window,
             R.id.contextmenu_open_in_ephemeral_tab,
@@ -1589,8 +1587,8 @@ public class ChromeContextMenuPopulatorTest {
         initializePopulator(ChromeContextMenuPopulator.ContextMenuMode.NORMAL, params);
         doReturn(true).when(mPopulator).isTabletScreen();
         int[] expectedMultiWindow = {
-            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_new_tab,
+            R.id.contextmenu_open_in_new_tab_in_group,
             R.id.contextmenu_open_in_incognito_tab,
             R.id.contextmenu_open_in_new_window,
             R.id.contextmenu_open_in_ephemeral_tab,
@@ -2020,7 +2018,6 @@ public class ChromeContextMenuPopulatorTest {
         when(mMenuModelBridge.populateModelList()).thenReturn(modelList);
 
         ModelListAdapter adapter = new ModelListAdapter(modelList);
-        when(mMockListView.getAdapter()).thenReturn(adapter);
         assertEquals(1, adapter.getCount());
         ListItem menuItemWithSubmenu = (ListItem) adapter.getItem(0);
         assertNotNull("Should find the menu item with submenu", menuItemWithSubmenu);

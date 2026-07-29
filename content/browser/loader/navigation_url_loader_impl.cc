@@ -391,6 +391,57 @@ void LogAcceptCHFrameStatus(AcceptCHFrameRestart status) {
   base::UmaHistogramEnumeration("ClientHints.AcceptCHFrame", status);
 }
 
+void RecordEnabledClientHintsMismatchHistograms(
+    const network::ResourceRequest::TrustedParams::EnabledClientHints&
+        old_hints,
+    const network::ResourceRequest::TrustedParams::EnabledClientHints&
+        new_hints) {
+  constexpr std::string_view kEnabledClientHintsMatch =
+      "Navigation.URLLoader.OnAcceptCHFrameReceived.EnabledClientHintsMatch";
+
+  const bool enabled_client_hints_match = (new_hints == old_hints);
+  base::UmaHistogramBoolean(kEnabledClientHintsMatch,
+                            enabled_client_hints_match);
+
+  if (enabled_client_hints_match) {
+    return;
+  }
+
+  base::UmaHistogramBoolean(base::StrCat({kEnabledClientHintsMatch, ".Origin"}),
+                            new_hints.origin == old_hints.origin);
+  base::UmaHistogramBoolean(
+      base::StrCat({kEnabledClientHintsMatch, ".IsOutermostMainFrame"}),
+      new_hints.is_outermost_main_frame == old_hints.is_outermost_main_frame);
+
+  // See services/network/public/mojom/web_client_hints_types.mojom for the
+  // full list of client hints. As of 2025-08-19, there are 23 non-deprecated
+  // entries.
+  std::vector<network::mojom::WebClientHintsType> old_hints_vector =
+      old_hints.hints;
+  std::vector<network::mojom::WebClientHintsType> new_hints_vector =
+      new_hints.hints;
+  std::sort(old_hints_vector.begin(), old_hints_vector.end());
+  std::sort(new_hints_vector.begin(), new_hints_vector.end());
+
+  const bool are_equal = (old_hints_vector == new_hints_vector);
+  base::UmaHistogramBoolean(base::StrCat({kEnabledClientHintsMatch, ".Hints"}),
+                            are_equal);
+
+  if (are_equal) {
+    return;
+  }
+
+  std::vector<network::mojom::WebClientHintsType> diff;
+  std::set_symmetric_difference(
+      old_hints_vector.begin(), old_hints_vector.end(),
+      new_hints_vector.begin(), new_hints_vector.end(),
+      std::back_inserter(diff));
+  for (const auto& hint : diff) {
+    base::UmaHistogramEnumeration(
+        "Navigation.URLLoader.OnAcceptCHFrameReceived.HintsMismatch", hint);
+  }
+}
+
 bool IsSameOriginRedirect(const std::vector<GURL>& url_chain) {
   if (url_chain.size() < 2) {
     return false;
@@ -500,6 +551,32 @@ void CheckParsedHeadersEquals(const network::mojom::ParsedHeadersPtr& lhs,
 #endif  // NDEBUG
 
 }  // namespace
+
+// For recording a sequence of loading events for debugging.
+// TODO(https://crbug.com/434182226): Remove this once debug is complete.
+enum class NavigationURLLoaderImpl::EventForDebug : char {
+  kRestart = 'a',
+  kRestart_ResetForFollowRedirect = 'b',
+  kStartInterceptedRequest = 'c',
+  kStartNonInterceptedRequest = 'd',
+  kOnAcceptCHFrameReceived = 'e',
+
+  kOnReceiveRedirect_Cancel = 'h',
+  kOnReceiveRedirect_Success = 'i',
+  kFollowRedirect = 'j',
+
+  kOnReceiveResponse = 'o',
+  kOnReceiveResponse_Cancel = 'p',
+  kOnReceiveResponse_Unbind = 'q',
+  kOnComplete = 'r',
+
+  kMaybeCreateLoaderForResponse = 'v',
+  kMaybeCreateLoaderForResponse_Intercept = 'w',
+};
+
+void NavigationURLLoaderImpl::AddEventForDebug(EventForDebug event) {
+  events_for_debug_.push_back(static_cast<char>(event));
+}
 
 std::unique_ptr<network::ResourceRequest> CreateResourceRequestForNavigation(
     const std::string& method,
@@ -751,6 +828,9 @@ void NavigationURLLoaderImpl::Restart() {
   TRACE_EVENT_WITH_FLOW0("navigation", "NavigationURLLoaderImpl::Restart",
                          TRACE_ID_LOCAL(this),
                          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+
+  AddEventForDebug(EventForDebug::kRestart);
+
   // Cancel all inflight early hints preloads except for same origin redirects.
   if (!IsSameOriginRedirect(resource_request_->navigation_redirect_chain)) {
     early_hints_manager_.reset();
@@ -772,6 +852,7 @@ void NavigationURLLoaderImpl::Restart() {
                resource_request_->navigation_redirect_chain
                    [resource_request_->navigation_redirect_chain.size() -
                     2]))) {
+    AddEventForDebug(EventForDebug::kRestart_ResetForFollowRedirect);
     loader_holder_.ResetForFollowRedirect(*resource_request_.get());
   }
   received_response_ = false;
@@ -834,6 +915,7 @@ void NavigationURLLoaderImpl::MaybeStartLoader(
 
 void NavigationURLLoaderImpl::StartInterceptedRequest(
     scoped_refptr<network::SharedURLLoaderFactory> single_request_factory) {
+  AddEventForDebug(EventForDebug::kStartInterceptedRequest);
   loader_holder_.OnExclusiveTaskCompleted(
       LoaderHolder::ExclusiveTaskType::kInterceptor);
 
@@ -1105,6 +1187,7 @@ bool NavigationURLLoaderImpl::LoaderHolder::receiver_is_bound_for_check()
 
 void NavigationURLLoaderImpl::StartNonInterceptedRequest(
     ResponseHeadUpdateParams head_update_params) {
+  AddEventForDebug(EventForDebug::kStartNonInterceptedRequest);
   loader_holder_.OnExclusiveTaskCompleted(
       LoaderHolder::ExclusiveTaskType::kInterceptor);
 
@@ -1364,6 +1447,7 @@ void NavigationURLLoaderImpl::OnReceiveResponse(
   DCHECK(!cached_metadata);
   // TODO(https://crbug.com/434182226): Remove DUMP_WILL_BE_.
   DUMP_WILL_BE_CHECK(!loader_holder_.HasExclusiveTask());
+  AddEventForDebug(EventForDebug::kOnReceiveResponse);
   LogQueueTimeHistogram("Navigation.QueueTime.OnReceiveResponse",
                         resource_request_->is_outermost_main_frame);
 
@@ -1427,12 +1511,14 @@ void NavigationURLLoaderImpl::OnReceiveResponse(
       head->headers->response_code() == net::HTTP_NOT_MODIFIED) {
     // Call CancelWithError instead of OnComplete so that if there is an
     // intercepting URLLoaderFactory it gets notified.
+    AddEventForDebug(EventForDebug::kOnReceiveResponse_Cancel);
     loader_holder_.url_loader()->CancelWithError(
         net::ERR_ABORTED,
         std::string_view(base::NumberToString(net::ERR_ABORTED)));
     return;
   }
 
+  AddEventForDebug(EventForDebug::kOnReceiveResponse_Unbind);
   network::mojom::URLLoaderClientEndpointsPtr url_loader_client_endpoints =
       loader_holder_.Unbind();
 
@@ -1536,6 +1622,7 @@ void NavigationURLLoaderImpl::OnReceiveRedirect(
     }
   }
   if (error != net::OK) {
+    AddEventForDebug(EventForDebug::kOnReceiveRedirect_Cancel);
     if (loader_holder_.url_loader()) {
       // TODO(https://crbug.com/434182226): Turn this to `CHECK()`.
       DUMP_WILL_BE_CHECK_EQ(loader_holder_.state(),
@@ -1556,6 +1643,7 @@ void NavigationURLLoaderImpl::OnReceiveRedirect(
     return;
   }
 
+  AddEventForDebug(EventForDebug::kOnReceiveRedirect_Success);
   // Store the redirect_info for later use in FollowRedirect where we give
   // our interceptors_ a chance to intercept the request for the new location.
   redirect_info_ = redirect_info;
@@ -1593,12 +1681,16 @@ void NavigationURLLoaderImpl::OnTransferSizeUpdated(
 
 void NavigationURLLoaderImpl::OnComplete(
     const network::URLLoaderCompletionStatus& status) {
+  AddEventForDebug(EventForDebug::kOnComplete);
+
   // Successful load must have used OnResponseStarted first. In this case, the
   // URLLoaderClient has already been transferred to the renderer process and
   // OnComplete is not expected to be called here.
   if (status.error_code == net::OK) {
     SCOPED_CRASH_KEY_STRING256("NavigationURLLoader_Complete", "url",
                                url_.spec());
+    SCOPED_CRASH_KEY_STRING256("NavigationURLLoader", "events_for_debug",
+                               events_for_debug_);
     base::debug::DumpWithoutCrashing();
     return;
   }
@@ -1654,6 +1746,12 @@ void RecordOnAcceptCHFrameReceivedReturnLocation(
       "Navigation.URLLoader.OnAcceptCHFrameReceived.ReturnLocation", location);
 }
 
+void RecordCriticalHintsMissingStatus(CriticalHintsMissingStatus status) {
+  base::UmaHistogramEnumeration(
+      "Navigation.URLLoader.OnAcceptCHFrameReceived.CriticalHintsMissingStatus",
+      status);
+}
+
 }  // namespace
 
 void NavigationURLLoaderImpl::OnAcceptCHFrameReceived(
@@ -1666,6 +1764,19 @@ void NavigationURLLoaderImpl::OnAcceptCHFrameReceived(
       "Navigation.URLLoader.OnAcceptCHFrameReceived.ExecutionTime",
       base::ScopedUmaHistogramTimer::ScopedHistogramTiming::kMicrosecondTimes);
   TRACE_EVENT("navigation", "NavigationURLLoaderImpl::OnAcceptCHFrameReceived");
+
+  AddEventForDebug(EventForDebug::kOnAcceptCHFrameReceived);
+  SCOPED_CRASH_KEY_STRING256("NavigationURLLoader", "events_for_debug",
+                             events_for_debug_);
+
+  // Temporarily trigger DUMP_WILL_BE_* on canary/dev, always at
+  // `OnAcceptCHFrameReceived()` here, not only when we actually restart
+  // (below). There are duplicate of the `if`/`DUMP_WILL_BE_CHECK`s below but
+  // we anyway put these here for simplicity of the short-term investigation.
+  // TODO(https://crbug.com/434182226): Remove this before promoting to Beta.
+  DUMP_WILL_BE_CHECK(!loader_holder_.HasExclusiveTask());
+  DUMP_WILL_BE_CHECK(!loader_holder_.receiver_is_bound_for_check());
+
   received_accept_ch_frame_ = true;
   if (!base::FeatureList::IsEnabled(network::features::kAcceptCHFrame)) {
     std::move(callback).Run(net::OK);
@@ -1700,6 +1811,16 @@ void NavigationURLLoaderImpl::OnAcceptCHFrameReceived(
     return;
   }
 
+  if (resource_request_->trusted_params->enabled_client_hints) {
+    network::ResourceRequest::TrustedParams::EnabledClientHints
+        current_hints_obj = GetEnabledClientHints(origin, frame_tree_node,
+                                                  client_hint_delegate);
+    network::ResourceRequest::TrustedParams::EnabledClientHints& old_hints_obj =
+        *resource_request_->trusted_params->enabled_client_hints;
+    RecordEnabledClientHintsMismatchHistograms(old_hints_obj,
+                                               current_hints_obj);
+  }
+
   // Filter out hints that are disabled by features and the like.
   blink::EnabledClientHints filtered_enabled_hints;
   for (const auto& hint : accept_ch_frame) {
@@ -1708,9 +1829,15 @@ void NavigationURLLoaderImpl::OnAcceptCHFrameReceived(
   const std::vector<network::mojom::WebClientHintsType>& filtered_hints =
       filtered_enabled_hints.GetEnabledHints();
 
-  if (!AreCriticalHintsMissing(origin, frame_tree_node, client_hint_delegate,
-                               filtered_hints)) {
+  CriticalHintsMissingStatus status = GetCriticalHintsMissingStatus(
+      origin, frame_tree_node, client_hint_delegate, filtered_hints);
+  RecordCriticalHintsMissingStatus(status);
+
+  if (status != CriticalHintsMissingStatus::kMissing) {
     std::move(callback).Run(net::OK);
+    // This block is entered if GetCriticalHintsMissingStatus returns that
+    // hints are not missing, meaning either all critical hints were already
+    // present, or some were not allowed by the permissions policy.
     RecordOnAcceptCHFrameReceivedReturnLocation(
         OnAcceptCHFrameReceivedReturnLocation::kNoCriticalHintsMissing);
     return;
@@ -1809,6 +1936,8 @@ bool NavigationURLLoaderImpl::MaybeCreateLoaderForResponse(
   if (!default_loader_used_) {
     return false;
   }
+  AddEventForDebug(EventForDebug::kMaybeCreateLoaderForResponse);
+
   for (auto& interceptor : interceptors_) {
     mojo::PendingReceiver<network::mojom::URLLoaderClient>
         response_client_receiver;
@@ -1829,6 +1958,7 @@ bool NavigationURLLoaderImpl::MaybeCreateLoaderForResponse(
             status, *resource_request_, response, &response_body_,
             loader_holder_.response_url_loader(), &response_client_receiver,
             loader_holder_.url_loader(), &skip_other_interceptors)) {
+      AddEventForDebug(EventForDebug::kMaybeCreateLoaderForResponse_Intercept);
       loader_holder_.BindReceiver(
           std::move(response_client_receiver),
           GetUIThreadTaskRunner({BrowserTaskType::kNavigationNetworkResponse}));
@@ -2206,6 +2336,8 @@ void NavigationURLLoaderImpl::FollowRedirect(
     net::HttpRequestHeaders modified_cors_exempt_headers) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(!redirect_info_.new_url.is_empty());
+
+  AddEventForDebug(EventForDebug::kFollowRedirect);
 
   if (loader_holder_.ShouldCancelExclusiveTask(
           LoaderHolder::ExclusiveTaskType::kRedirect)) {

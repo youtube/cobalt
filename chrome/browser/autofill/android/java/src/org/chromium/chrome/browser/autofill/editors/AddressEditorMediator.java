@@ -50,6 +50,8 @@ import static org.chromium.chrome.browser.autofill.editors.EditorProperties.vali
 
 import android.content.Context;
 import android.text.TextUtils;
+import android.text.style.ClickableSpan;
+import android.view.View;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
@@ -517,8 +519,14 @@ class AddressEditorMediator {
     }
 
     private CharSequence createMessageWithLink(String body) {
-        // TODO(crbug.com/430218067): Add clickable links.
-        return SpanApplier.applySpans(body, new SpanApplier.SpanInfo("<link>", "</link>"));
+        ClickableSpan span =
+                new ClickableSpan() {
+                    @Override
+                    public void onClick(View view) {
+                        mDelegate.onExternalEdit(mProfileToEdit);
+                    }
+                };
+        return SpanApplier.applySpans(body, new SpanApplier.SpanInfo("<link>", "</link>", span));
     }
 
     private CharSequence getDeleteConfirmationText() {
@@ -556,7 +564,7 @@ class AddressEditorMediator {
     }
 
     private String getDeleteConfirmationPrimaryButtonText() {
-        if (mProfileToEdit.isHomeOrWorkProfile()) {
+        if (isNonEditableProfile()) {
             return mContext.getString(R.string.autofill_remove_suggestion_button);
         }
         return mContext.getString(R.string.autofill_delete_suggestion_button);

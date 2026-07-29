@@ -12,6 +12,10 @@
 #include "pdf/pdf_caret_client.h"
 #include "ui/gfx/geometry/rect.h"
 
+namespace blink {
+class WebKeyboardEvent;
+}
+
 namespace chrome_pdf {
 
 struct RegionData;
@@ -57,6 +61,10 @@ class PdfCaret {
   // viewport geometry changes.
   void OnGeometryChanged();
 
+  // Handles key presses that move the caret. Returns true when the key press is
+  // handled, false otherwise.
+  bool OnKeyDown(const blink::WebKeyboardEvent& event);
+
  private:
   // Refreshes the caret's display state, drawing or hiding the caret depending
   // on the value of `is_visible_` and resetting the blink timer depending on
@@ -76,6 +84,20 @@ class PdfCaret {
 
   // Draws `rect` as the caret on `region`.
   void Draw(const RegionData& region, const gfx::Rect& rect) const;
+
+  // Determines the next valid char, handling moving to a char on a different
+  // page and ignoring newlines. Does nothing if the current char cannot move to
+  // a valid page or char.
+  void MoveToNextChar(bool move_right);
+
+  // Returns whether moving the caret from `index` will cause it to exit the
+  // page or not. Does not consider whether there are any adjacent pages.
+  bool WillCaretExitPage(const PageCharacterIndex& index,
+                         bool move_right) const;
+
+  // Returns whether `index` is a valid char or not. False when `index` is the
+  // last caret position of a page.
+  bool IndexHasChar(const PageCharacterIndex& index) const;
 
   // Client must outlive `this`.
   const raw_ptr<PdfCaretClient> client_;

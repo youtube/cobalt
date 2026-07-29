@@ -44,8 +44,8 @@ if (is_android) {
     ]
     deps = [
       "//third_party/rust/font_types/v0_9:lib",
-      "//third_party/rust/read_fonts/v0_31:lib",
-      "//third_party/rust/skrifa/v0_33:lib",
+      "//third_party/rust/read_fonts/v0_32:lib",
+      "//third_party/rust/skrifa/v0_34:lib",
     ]
   }
 }
@@ -740,8 +740,6 @@ source_set("browser") {
     "btm/btm_page_visit_observer.h",
     "btm/btm_service_impl.cc",
     "btm/btm_service_impl.h",
-    "btm/btm_short_visit_observer.cc",
-    "btm/btm_short_visit_observer.h",
     "btm/btm_state.cc",
     "btm/btm_state.h",
     "btm/btm_storage.cc",
@@ -1393,6 +1391,8 @@ source_set("browser") {
     # TODO(crbug.com/202736352): This is built even if enable_screen_capture is
     # false. Consider better separation of the screen capture and the other
     # capture code so we can only build this if actually necessary.
+    "digital_credentials/digital_identity_request_impl.cc",
+    "digital_credentials/digital_identity_request_impl.h",
     "media/capture/native_screen_capture_picker.cc",
     "media/capture/native_screen_capture_picker.h",
     "media/capture_handle_manager.cc",
@@ -1603,6 +1603,8 @@ source_set("browser") {
     "preloading/prefetch/prefetch_features.h",
     "preloading/prefetch/prefetch_handle_impl.cc",
     "preloading/prefetch/prefetch_handle_impl.h",
+    "preloading/prefetch/prefetch_key.cc",
+    "preloading/prefetch/prefetch_key.h",
     "preloading/prefetch/prefetch_match_resolver.cc",
     "preloading/prefetch/prefetch_match_resolver.h",
     "preloading/prefetch/prefetch_metrics.cc",
@@ -1618,6 +1620,8 @@ source_set("browser") {
     "preloading/prefetch/prefetch_probe_result.h",
     "preloading/prefetch/prefetch_proxy_configurator.cc",
     "preloading/prefetch/prefetch_proxy_configurator.h",
+    "preloading/prefetch/prefetch_request.cc",
+    "preloading/prefetch/prefetch_request.h",
     "preloading/prefetch/prefetch_response_reader.cc",
     "preloading/prefetch/prefetch_response_reader.h",
     "preloading/prefetch/prefetch_scheduler.cc",
@@ -2278,6 +2282,7 @@ source_set("browser") {
     "speech/speech_recognition_manager_impl.h",
     "speech/speech_recognition_session.cc",
     "speech/speech_recognition_session.h",
+    "speech/speech_recognizer.cc",
     "speech/speech_recognizer.h",
     "speech/speech_synthesis_impl.cc",
     "speech/speech_synthesis_impl.h",
@@ -2430,6 +2435,7 @@ source_set("browser") {
     "webauth/webauth_request_security_checker.h",
     "webid/accounts_fetcher.cc",
     "webid/accounts_fetcher.h",
+    "webid/autofill_source.cc",
     "webid/config_fetcher.cc",
     "webid/config_fetcher.h",
     "webid/delegation/federated_sd_jwt_handler.cc",
@@ -2438,13 +2444,8 @@ source_set("browser") {
     "webid/delegation/jwt_signer.h",
     "webid/delegation/sd_jwt.cc",
     "webid/delegation/sd_jwt.h",
-    "webid/digital_credentials/digital_identity_request_impl.cc",
-    "webid/digital_credentials/digital_identity_request_impl.h",
     "webid/fake_identity_request_dialog_controller.cc",
     "webid/fake_identity_request_dialog_controller.h",
-    "webid/fedcm_metrics.cc",
-    "webid/fedcm_metrics.h",
-    "webid/federated_auth_autofill_source.cc",
     "webid/federated_auth_disconnect_request.cc",
     "webid/federated_auth_disconnect_request.h",
     "webid/federated_auth_request_impl.cc",
@@ -2462,6 +2463,8 @@ source_set("browser") {
     "webid/idp_registration_handler.h",
     "webid/mappers.cc",
     "webid/mappers.h",
+    "webid/metrics.cc",
+    "webid/metrics.h",
     "webid/request_page_data.cc",
     "webid/request_page_data.h",
     "webid/url_computations.cc",
@@ -3492,10 +3495,10 @@ source_set("browser") {
 
       # Cross-device digital credentials flows are handled by Play Services on
       # Android, not the browser.
-      "webid/digital_credentials/cross_device_request_dispatcher.cc",
-      "webid/digital_credentials/cross_device_request_dispatcher.h",
-      "webid/digital_credentials/cross_device_transaction_impl.cc",
-      "webid/digital_credentials/cross_device_transaction_impl.h",
+      "digital_credentials/cross_device_request_dispatcher.cc",
+      "digital_credentials/cross_device_request_dispatcher.h",
+      "digital_credentials/cross_device_transaction_impl.cc",
+      "digital_credentials/cross_device_transaction_impl.h",
     ]
 
     if (!is_fuchsia) {

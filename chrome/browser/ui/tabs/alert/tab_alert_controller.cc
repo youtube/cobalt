@@ -13,13 +13,16 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
+#include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
+#include "chrome/grit/generated_resources.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_capability_type.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -49,6 +52,9 @@ bool CompareAlerts::operator()(TabAlert first, TabAlert second) const {
            {TabAlert::ACTOR_ACCESSING, 6},
            {TabAlert::GLIC_ACCESSING, 5},
            {TabAlert::GLIC_SHARING, 4},
+           // NOTE: VR must take priority over the audio alert ones
+           // because most VR content has audio and its usage is implied by the
+           // VR icon.
            {TabAlert::VR_PRESENTING_IN_HEADSET, 3},
            {TabAlert::PIP_PLAYING, 2},
            {TabAlert::AUDIO_MUTING, 1},
@@ -73,7 +79,7 @@ TabAlertController::TabAlertController(TabInterface& tab)
               base::Unretained(this)));
 
   if (auto* actor_ui_tab_controller =
-          tab.GetTabFeatures()->actor_ui_tab_controller()) {
+          actor::ui::ActorUiTabController::From(&tab)) {
     callback_subscriptions_.emplace_back(
         actor_ui_tab_controller->RegisterActorTabIndicatorStateChangedCallback(
             base::BindRepeating(
@@ -104,8 +110,75 @@ const TabAlertController* TabAlertController::From(const TabInterface* tab) {
   return Get(tab->GetUnownedUserDataHost());
 }
 
+// static:
 TabAlertController* TabAlertController::From(TabInterface* tab) {
   return Get(tab->GetUnownedUserDataHost());
+}
+
+// static:
+std::u16string TabAlertController::GetTabAlertStateText(
+    const tabs::TabAlert alert_state) {
+  switch (alert_state) {
+    case tabs::TabAlert::AUDIO_PLAYING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_AUDIO_PLAYING);
+    case tabs::TabAlert::AUDIO_MUTING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_AUDIO_MUTING);
+    case tabs::TabAlert::MEDIA_RECORDING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_MEDIA_RECORDING);
+    case tabs::TabAlert::AUDIO_RECORDING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_AUDIO_RECORDING);
+    case tabs::TabAlert::VIDEO_RECORDING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_VIDEO_RECORDING);
+    case tabs::TabAlert::TAB_CAPTURING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_TAB_CAPTURING);
+    case tabs::TabAlert::BLUETOOTH_CONNECTED:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_BLUETOOTH_CONNECTED);
+    case tabs::TabAlert::BLUETOOTH_SCAN_ACTIVE:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_BLUETOOTH_SCAN_ACTIVE);
+    case tabs::TabAlert::USB_CONNECTED:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_USB_CONNECTED);
+    case tabs::TabAlert::HID_CONNECTED:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_HID_CONNECTED);
+    case tabs::TabAlert::SERIAL_CONNECTED:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_SERIAL_CONNECTED);
+    case tabs::TabAlert::PIP_PLAYING:
+      return l10n_util::GetStringUTF16(IDS_TOOLTIP_TAB_ALERT_STATE_PIP_PLAYING);
+    case tabs::TabAlert::DESKTOP_CAPTURING:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_DESKTOP_CAPTURING);
+    case tabs::TabAlert::VR_PRESENTING_IN_HEADSET:
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_VR_PRESENTING);
+    // TODO(crbug.com/422538779) Create new resources for ACTOR_ACCESSING of
+    // relying on GLIC_ACCESSING resources below.
+    case tabs::TabAlert::ACTOR_ACCESSING:
+    case tabs::TabAlert::GLIC_ACCESSING:
+#if BUILDFLAG(ENABLE_GLIC)
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_ACCESSING);
+#else
+      return u"";
+#endif
+    case tabs::TabAlert::GLIC_SHARING:
+#if BUILDFLAG(ENABLE_GLIC)
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_SHARING);
+#else
+      return u"";
+#endif
+  }
+  NOTREACHED();
 }
 
 base::CallbackListSubscription
@@ -177,7 +250,14 @@ void TabAlertController::MediaPictureInPictureChanged(
 }
 
 void TabAlertController::DidUpdateAudioMutingState(bool muted) {
-  UpdateAlertState(TabAlert::AUDIO_MUTING, muted);
+  // The muted alert should only show for tabs that were recently audible. It is
+  // possible for a tab to be muted but never play audio, in such cases, the
+  // muted alert should not show.
+  RecentlyAudibleHelper* const audible_helper =
+      RecentlyAudibleHelper::FromWebContents(tab().GetContents());
+  CHECK(audible_helper);
+  UpdateAlertState(TabAlert::AUDIO_MUTING,
+                   audible_helper->WasRecentlyAudible() && muted);
 }
 
 void TabAlertController::OnIsCapturingVideoChanged(
@@ -239,6 +319,10 @@ void TabAlertController::OnActorTabIndicatorStateChanged(bool is_accessing) {
 }
 
 void TabAlertController::OnRecentlyAudibleStateChanged(bool was_audible) {
+  // Muted alert state also needs to update when audible state changes to ensure
+  // that the muted alert becomes active if the tab is already muted but is
+  // recently audible or inactive after the tab is no longer audible.
+  DidUpdateAudioMutingState(tab().GetContents()->IsAudioMuted());
   UpdateAlertState(TabAlert::AUDIO_PLAYING, was_audible);
 }
 

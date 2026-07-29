@@ -14,6 +14,7 @@ namespace autofill {
 
 struct Suggestion;
 class AutofillClient;
+class SuggestionGenerator;
 
 // The interface for communication from //components/autofill to
 // //content/browser/webid.
@@ -51,6 +52,8 @@ class IdentityCredentialDelegate {
   // the strings and UI affordances can be different.
   // The given `field_type` must be one of the Identity Credentials types
   // supported by AutofillType::GetIdentityCredentialType(), or UNKNOWN_TYPE.
+  // TODO(crbug.com/409962888): Remove this method once the new suggestion
+  // generation flow is launched.
   virtual std::vector<Suggestion> GetVerifiedAutofillSuggestions(
       const FormData& form,
       const FormStructure* form_structure,
@@ -74,6 +77,10 @@ class IdentityCredentialDelegate {
       const Suggestion& suggestion,
       bool show_modal,
       OnFederatedTokenReceivedCallback callback) const = 0;
+
+  // Returns the `SuggestionGenerator` for identity credentials.
+  virtual std::unique_ptr<SuggestionGenerator>
+  GetIdentityCredentialSuggestionGenerator() = 0;
 };
 
 }  // namespace autofill

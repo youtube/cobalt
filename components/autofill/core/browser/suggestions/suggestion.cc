@@ -219,7 +219,7 @@ Suggestion::PlusAddressPayload::~PlusAddressPayload() = default;
 
 Suggestion::AutofillAiPayload::AutofillAiPayload() = default;
 
-Suggestion::AutofillAiPayload::AutofillAiPayload(base::Uuid guid)
+Suggestion::AutofillAiPayload::AutofillAiPayload(EntityInstance::EntityId guid)
     : guid(std::move(guid)) {}
 
 Suggestion::AutofillAiPayload::AutofillAiPayload(const AutofillAiPayload&) =
@@ -270,8 +270,11 @@ Suggestion::AutofillProfilePayload::CreateJavaObject() const {
 Suggestion::IdentityCredentialPayload::IdentityCredentialPayload() = default;
 Suggestion::IdentityCredentialPayload::IdentityCredentialPayload(
     GURL configURL,
-    std::string account_id)
-    : config_url(std::move(configURL)), account_id(std::move(account_id)) {}
+    std::string account_id,
+    std::map<FieldType, std::u16string>& fields)
+    : config_url(std::move(configURL)),
+      account_id(std::move(account_id)),
+      fields(fields) {}
 
 Suggestion::IdentityCredentialPayload::IdentityCredentialPayload(
     const IdentityCredentialPayload&) = default;
@@ -288,27 +291,6 @@ Suggestion::IdentityCredentialPayload::operator=(IdentityCredentialPayload&&) =
     default;
 
 Suggestion::IdentityCredentialPayload::~IdentityCredentialPayload() = default;
-
-Suggestion::OneTimePasswordPayload::OneTimePasswordPayload() = default;
-Suggestion::OneTimePasswordPayload::OneTimePasswordPayload(
-    std::map<FieldGlobalId, std::u16string> filling_data)
-    : filling_data(std::move(filling_data)) {}
-
-Suggestion::OneTimePasswordPayload::OneTimePasswordPayload(
-    const OneTimePasswordPayload&) = default;
-
-Suggestion::OneTimePasswordPayload::OneTimePasswordPayload(
-    OneTimePasswordPayload&&) = default;
-
-Suggestion::OneTimePasswordPayload&
-Suggestion::OneTimePasswordPayload::operator=(const OneTimePasswordPayload&) =
-    default;
-
-Suggestion::OneTimePasswordPayload&
-Suggestion::OneTimePasswordPayload::operator=(OneTimePasswordPayload&&) =
-    default;
-
-Suggestion::OneTimePasswordPayload::~OneTimePasswordPayload() = default;
 
 Suggestion::PaymentsPayload::PaymentsPayload() = default;
 

@@ -364,10 +364,6 @@ std::string SavePasswordProgressLogger::GetStringFromID(
     case SavePasswordProgressLogger::STRING_GENERATION_DISABLED_SAVING_DISABLED:
       return "Generation disabled: saving disabled";
     case SavePasswordProgressLogger::
-        STRING_GENERATION_DISABLED_CHROME_DOES_NOT_SYNC_PASSWORDS:
-      return "Generation disabled: Chrome no longer syncs passwords and GMS is "
-             "no up to date to do it either";
-    case SavePasswordProgressLogger::
         STRING_GENERATION_DISABLED_NOT_ABLE_TO_SAVE_PASSWORDS:
       return "Generation disabled: not able to save passwords";
     case SavePasswordProgressLogger::STRING_GENERATION_DISABLED_NO_SYNC:
@@ -530,6 +526,10 @@ std::string SavePasswordProgressLogger::GetStringFromID(
       return "Automated password change: page content received";
     case STRING_AUTOMATED_PASSWORD_CHANGE_ON_BUTTON_CLICKED:
       return "Automated password change: on button clicked";
+    case STRING_AUTOMATED_PASSWORD_CHANGE_BUTTON_CLICK_ACTION_RESULT:
+      return "Automated password change: button click action result";
+    case STRING_AUTOMATED_PASSWORD_CHANGE_DOM_NODE_ID_TO_CLICK:
+      return "Automated password change: DOM node ID to click";
     case STRING_AUTOMATED_PASSWORD_CHANGE_FORM_NOT_FOUND:
       return "Automated password change: form not found";
     case STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_DETECTED_OR_TIMEOUT:

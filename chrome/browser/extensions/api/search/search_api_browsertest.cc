@@ -14,7 +14,10 @@
 #include "components/search_engines/template_url_service.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_builder.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -84,6 +87,7 @@ IN_PROC_BROWSER_TEST_F(SearchApiBrowserTest, InvalidTabId) {
 IN_PROC_BROWSER_TEST_F(SearchApiBrowserTest, NoActiveBrowser) {
   auto result = api_test_utils::RunFunctionAndReturnError(
       function(), R"([{"text": "1"}])", nullptr);
+
   EXPECT_EQ("No active browser.", result);
 }
 

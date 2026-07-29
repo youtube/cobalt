@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_color_picker_mutator.h"
+
 @protocol HomeCustomizationBackgroundColorPickerConsumer;
 class HomeBackgroundCustomizationService;
 
@@ -25,7 +26,7 @@ class HomeBackgroundCustomizationService;
 
 // Generates a predefined set of color palettes and provides them to the
 // consumer.
-- (void)configureColorPalettes;
+- (void)configureBackgroundConfigurations;
 
 @end
 

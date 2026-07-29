@@ -24,7 +24,7 @@
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/signin/public/identity_manager/access_token_fetcher.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
-#include "components/signin/public/identity_manager/scope_set.h"
+#include "components/signin/public/identity_manager/oauth_consumer_ids.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/common/features.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -54,7 +54,7 @@
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/image/image_skia.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
@@ -736,12 +736,10 @@ void ParentPermissionDialogView::StartReauthAccessTokenFetch(
     const std::string& parent_credential) {
   // The first step of Reauth is to fetch an OAuth2 access token for the
   // Reauth API scope.
-  signin::ScopeSet scopes;
-  scopes.insert(GaiaConstants::kAccountsReauthOAuth2Scope);
   oauth2_access_token_fetcher_ =
       identity_manager_->CreateAccessTokenFetcherForAccount(
           identity_manager_->GetPrimaryAccountId(signin::ConsentLevel::kSignin),
-          "chrome_webstore_private_api", scopes,
+          signin::OAuthConsumerId::kParentPermissionDialog,
           base::BindOnce(
               &ParentPermissionDialogView::OnAccessTokenFetchComplete,
               weak_factory_.GetWeakPtr(), parent_obfuscated_gaia_id,

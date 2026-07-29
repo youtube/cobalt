@@ -75,6 +75,8 @@ import org.chromium.chrome.browser.toolbar.top.ToggleTabStackButton;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.url.GURL;
 
+import java.util.List;
+
 /** Unit tests for {@link NewTabAnimationLayout}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(sdk = 35)
@@ -111,7 +113,6 @@ public class NewTabAnimationLayoutUnitTest {
     @Mock private TabModel mTabModel;
     @Mock private Tab mCurrentTab;
     @Mock private Tab mNewTab;
-    @Mock private LayoutTab mLayoutTab;
     @Mock private ToggleTabStackButton mTabSwitcherButton;
     @Mock private View mToolbar;
     @Mock private NewTabPage mNtp;
@@ -156,6 +157,8 @@ public class NewTabAnimationLayoutUnitTest {
         when(mTabModelSelector.getModel(false)).thenReturn(mTabModel);
         when(mTabModelSelector.getTabById(CURRENT_TAB_ID)).thenReturn(mCurrentTab);
         when(mTabModelSelector.getTabById(NEW_TAB_ID)).thenReturn(mNewTab);
+        when(mTabModel.iterator())
+                .thenAnswer(invocation -> List.of(mCurrentTab, mNewTab).iterator());
         when(mTabModel.getCount()).thenReturn(2);
         when(mTabModel.getTabAt(0)).thenReturn(mCurrentTab);
         when(mTabModel.getTabAt(1)).thenReturn(mNewTab);
@@ -174,7 +177,6 @@ public class NewTabAnimationLayoutUnitTest {
         when(mToolbarManager.getCustomTabCount()).thenReturn(mCustomTabCount);
         mCompositorViewHolderSupplier.set(mCompositorViewHolder);
         mScrimVisibilitySupplier.set(false);
-        when(mLayoutTab.isInitFromHostNeeded()).thenReturn(true);
         doAnswer(
                         invocation -> {
                             var args = invocation.getArguments();

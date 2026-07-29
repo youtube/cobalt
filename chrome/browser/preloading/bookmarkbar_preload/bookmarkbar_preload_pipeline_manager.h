@@ -46,9 +46,19 @@ class BookmarkBarPreloadPipelineManager
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
+  void StartPrefetch(const GURL& url);
   void StartPrerender(const GURL& url);
 
   bool IsPreloadingStarted() { return pipeline_ != nullptr; }
+  bool IsPrerenderValidForTesting() {
+    return pipeline_ && pipeline_->IsPrerenderValid();
+  }
+
+  void SetOnPrefetchCompletedOrFailedCallbackForTesting(
+      base::RepeatingCallback<
+          void(const network::URLLoaderCompletionStatus& completion_status,
+               const std::optional<int>& response_code)>
+          on_prefetch_completed_or_failed);
 
   void ResetPrerender();
 
@@ -58,7 +68,18 @@ class BookmarkBarPreloadPipelineManager
 
   explicit BookmarkBarPreloadPipelineManager(content::WebContents* contents);
 
+  // Resets the pipeline to allow another preloading attempt if a given url is
+  // different from the started one. Pipeline creation will follow the check if
+  // a pipeline hasn't existed.
+  void EnsurePipelineForUrl(const GURL& url);
+
+  base::RepeatingCallback<void(
+      const network::URLLoaderCompletionStatus& completion_status,
+      const std::optional<int>& response_code)>
+      on_prefetch_completed_or_failed_for_testing_;
+
   std::unique_ptr<BookmarkBarPreloadPipeline> pipeline_;
+
   base::WeakPtrFactory<BookmarkBarPreloadPipelineManager> weak_factory_{this};
 };
 

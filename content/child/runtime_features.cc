@@ -239,6 +239,9 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(features::kUserMediaScreenCapturing)},
           {wf::EnableRegionCapture,
            raw_ref(features::kUserMediaScreenCapturing)},
+          {wf::EnableElementCapture,
+           raw_ref(features::kUserMediaScreenCapturing)},
+
 #endif
           {wf::EnableInstalledApp, raw_ref(features::kInstalledApp)},
           {wf::EnableIntegrityPolicyScript,
@@ -378,12 +381,13 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(network::features::kReduceAcceptLanguage)},
           {"RelatedWebsitePartitionAPI",
            raw_ref(net::features::kRelatedWebsitePartitionAPI)},
-#if BUILDFLAG(IS_ANDROID)
-          {"Serial", raw_ref(device::features::kBluetoothRfcommAndroid)},
-#endif
           {"SerialPortConnected", raw_ref(features::kSerialPortConnected)},
           {"SignatureBasedIntegrity",
            raw_ref(network::features::kSRIMessageSignatureEnforcement)},
+#if BUILDFLAG(IS_MAC)
+          {"SystemDefaultAccentColors",
+           raw_ref(features::kUseSystemDefaultAccentColors)},
+#endif
           {"TopicsAPI", raw_ref(features::kPrivacySandboxAdsAPIsOverride),
            kSetOnlyIfOverridden},
           {"TopicsAPI", raw_ref(features::kPrivacySandboxAdsAPIsM1Override)},

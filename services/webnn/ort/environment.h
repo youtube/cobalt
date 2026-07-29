@@ -19,6 +19,26 @@
 
 namespace webnn::ort {
 
+// Describes the workarounds needed for execution provider limitations.
+// TODO(crbug.com/428740146): Remove this struct once all the execution
+// providers fix these issues.
+struct EpWorkarounds {
+  // TODO(crbug.com/429253567): Specify the minimum package version that
+  // supports these features without requiring workarounds.
+
+  bool disable_external_data = false;
+  // By default ONNX Resize op supports any axes, but some EPs may only support
+  // NCHW layout. `ContextProperties.resample_2d_axes` setting will respect to
+  // this limit.
+  bool resample2d_limit_to_nchw = false;
+
+  EpWorkarounds& operator|=(const EpWorkarounds& other) {
+    disable_external_data |= other.disable_external_data;
+    resample2d_limit_to_nchw |= other.resample2d_limit_to_nchw;
+    return *this;
+  }
+};
+
 // A wrapper of `OrtEnv` which is thread-safe and can be shared across sessions.
 // It should be kept alive until all sessions using it are destroyed.
 class Environment : public base::subtle::RefCountedThreadSafeBase {
@@ -35,9 +55,19 @@ class Environment : public base::subtle::RefCountedThreadSafeBase {
   void AddRef() const;
   void Release() const;
 
+  EpWorkarounds GetEpWorkarounds(mojom::Device device_type) const;
+
   const OrtEnv* get() const { return env_.get(); }
 
-  bool IsExternalDataSupported(mojom::Device device_type) const;
+  struct SessionConfigEntry {
+    base::cstring_view key;
+    base::cstring_view value;
+  };
+
+  // Get all EP-specific session configuration entries for the given device
+  // type.
+  std::vector<SessionConfigEntry> GetEpConfigEntries(
+      mojom::Device device_type) const;
 
  private:
   static base::expected<scoped_refptr<Environment>, std::string> Create(

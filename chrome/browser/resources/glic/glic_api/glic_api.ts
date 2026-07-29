@@ -401,6 +401,15 @@ export declare interface GlicBrowserHost {
   isBrowserOpen?(): ObservableValue<boolean>;
 
   /**
+   * Provides information about the currently active browser window. Emits
+   * undefined if there is no active browser window.
+   *
+   * A browser window is considered active if it is the current active window,
+   * or if the panel is active and it is the last browser window that had focus.
+   */
+  activeBrowser?(): ObservableValue<ActiveBrowserInfo|undefined>;
+
+  /**
    * Returns the observable state of the currently focused tab. Updates are sent
    * whenever:
    * - The user switches active tabs, which causes a change in `tabId`.
@@ -435,6 +444,12 @@ export declare interface GlicBrowserHost {
 
   /** Returns the state of the glic closed captioning setting. */
   getClosedCaptioningSetting?(): ObservableValue<boolean>;
+
+  /**
+   * Returns the state of the default tab context permission for new sessions.
+   * The returned observable will be updated when the setting changes.
+   */
+  getDefaultTabContextPermissionState?(): ObservableValue<boolean>;
 
   /**
    * Set the state of the microphone permission in settings. Returns a promise
@@ -667,6 +682,22 @@ export declare interface GlicBrowserHost {
    */
   getPageMetadata?
       (tabId: string, names: string[]): ObservableValue<PageMetadata>|undefined;
+
+  /**
+   * Returns an observable that emits when the browser wants the web client to
+   * show a credential selection dialog.
+   *
+   * NOTE:
+   * - The browser will only request one dialog at a time. We might have to
+   * support concurrent PerformActions() in the future. The plan is to
+   * sequence the requests.
+   * - Currently the browser won't cancel the request. The task that issues the
+   * request will yield and wait for the response, or fail the task when it
+   * times out. The web client must also observe `getActorTaskState()` to clean
+   * up the UI elements when the task is no longer active.
+   */
+  selectCredentialDialogRequestHandler?
+      (): Observable<SelectCredentialDialogRequest>;
 }
 /** Fields of interest from the system settings page. */
 export type OsPermissionType = 'media'|'geolocation';
@@ -1717,12 +1748,77 @@ export declare interface SuggestionContent {
   suggestion: string;
 }
 
+/** Information about the active browser window. */
+export declare interface ActiveBrowserInfo {
+  /** The unique ID of the active browser window. */
+  windowId: string;
+  /** Whether the active browser window is using the current user profile. */
+  usingThisProfile: boolean;
+}
+
 /** Describes the capability of the glic host. */
 export enum HostCapability {
   /** Glic host supports scrollTo() on PDF documents. */
   SCROLL_TO_PDF = 0,
   /** Glic host will reset panel size and location on open. */
   RESET_SIZE_AND_LOCATION_ON_OPEN = 1,
+}
+
+/**
+ * Describes how long the user grants the actor with the permission to actuate.
+ * Used when the actor is to actuate with sensitive data, such as entering
+ * payment information or login credentials.
+ */
+export enum UserGrantedPermissionDuration {
+  // The user only grants a one-time permission. The user will be asked again.
+  // This is the default behavior.
+  ONE_TIME = 0,
+  // The user grants a permission to always allow the actor to actuate with
+  // sensitive data. The persistence of this permission is defined differently
+  // for different features.
+  ALWAYS_ALLOW = 1
+}
+
+/** Credential selection dialog. */
+
+/** A credential used for the auto-login. */
+export declare interface Credential {
+  // A unique identifier for this credential. Should not be displayed to the
+  // user.
+  id: number;
+  // The username of the credential. Unique for a given sourceSiteOrApp. It can
+  // be empty if, for example, the credential is stored as a password only.
+  username: string;
+  // The original website or application for which this credential was saved
+  // for.
+  sourceSiteOrApp: string;
+}
+
+export declare interface SelectCredentialDialogRequest {
+  // The task ID that is requesting the credential selection.
+  taskId: number;
+  // Whether the web client should show a dialog to let the user select a
+  // credential. The web client doesn't have to show the dialog if the user has
+  // granted UserGrantedPermissionDuration.ALWAYS_ALLOW to the actor.
+  showDialog: boolean;
+  // The order of `credentials` is based on what the browser believes to be the
+  // best match to use.
+  credentials: Credential[];
+  // TODO(crbug.com/438710031): Include the optional favicon for the credential.
+
+  // The WebClient must call this function to respond back to the browser when
+  // the dialog is closed.
+  onDialogClosed(result: {response: SelectCredentialDialogResponse}): void;
+}
+
+export declare interface SelectCredentialDialogResponse {
+  // The response is associated with the request that has the same task ID.
+  taskId: number;
+  // Only set if the user changes the permission duration.
+  permissionDuration?: UserGrantedPermissionDuration;
+  // The ID of the selected credential. Only undefined if the user closed the UI
+  // without making a selection.
+  selectedCredentialId?: number;
 }
 
 //
@@ -1738,6 +1834,7 @@ export interface BackwardsCompatibleTypes {
   browserHost: GlicBrowserHost;
   chromeVersion: ChromeVersion;
   createTabOptions: CreateTabOptions;
+  credential: Credential;
   documentData: DocumentData;
   draggableArea: DraggableArea;
   focusedTabData: FocusedTabData;
@@ -1750,6 +1847,8 @@ export interface BackwardsCompatibleTypes {
   panelState: PanelState;
   pdfDocumentData: PdfDocumentData;
   resizeWindowOptions: ResizeWindowOptions;
+  selectCredentialDialogRequest: SelectCredentialDialogRequest;
+  selectCredentialDialogResponse: SelectCredentialDialogResponse;
   screenshot: Screenshot;
   scrollToParams: ScrollToParams;
   scrollToSelector: ScrollToSelector;
@@ -1789,4 +1888,5 @@ export interface ExtensibleEnums {
   actorTaskState: typeof ActorTaskState;
   actorTaskPauseReason: typeof ActorTaskPauseReason;
   actorTaskStopReason: typeof ActorTaskStopReason;
+  UserGrantedPermissionDuration: typeof UserGrantedPermissionDuration;
 }

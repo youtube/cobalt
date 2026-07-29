@@ -79,6 +79,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidDesktopWebPrefsLargeDisplays);
 // If enabled, renders styling similar to Android native UI for spelling and
 // grammar errors in textboxes.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidSpellcheckNativeUi);
+
+// If enabled, provides API support for custom spell check menus that are
+// rendered by Android applications.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kAndroidSpellcheckFullApiBlink);
 #endif
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
@@ -408,6 +412,9 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
 // Parameter for ChangedEnoughMinimumDistance() in cull_rect.cc.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                                kCullRectChangedEnoughDistance);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
+    kFadeInScrollbarWhenMouseWheelMayBegin);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFencedFrames);
 
@@ -1199,6 +1206,11 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowLatencyWebGLImageChromium);
 // If enabled, async scripts will be run on a lower priority task queue.
 // See https://crbug.com/1348467.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kLowPriorityAsyncScriptExecution);
+// The minimum amount of the physical memory (GB) to use
+// kLowPriorityAsyncScriptExecution.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kMinimumPhysicalMemoryForLowPriorityAsyncScriptExecution);
 // The timeout value for kLowPriorityAsyncScriptExecution. Async scripts run on
 // lower priority queue until this timeout elapsed.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
@@ -1278,10 +1290,13 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     int,
     kMemoryCacheStrongReferenceResourceSizeThresholdParam);
 
-// Limits the number of memory purge performed on page freezing to 1 per
-// interval in which the renderer is backgrounded. Without this, memory purge is
-// performed every time all pages in a renderer become frozen, which can happen
-// periodically with periodic unfreezing.
+// Purge memory when a frame is frozen in a renderer. See
+// `kMemoryPurgeOnFreezeLimit` to do this only once per backgrounded session.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryPurgeOnFreeze);
+
+// Limits the number of memory purges on page freezing to 1 per background
+// session. Without this, memory purge is performed every time a page becomes
+// frozen, which can be too much with periodic freezing/unfreezing.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryPurgeOnFreezeLimit);
 
 // Enables v8 memory saver mode on low memory thresholds.
@@ -1663,7 +1678,15 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kServiceWorkerSyntheticResponse);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
-    kServiceWorkerSyntheticResponseAllowedUrls);
+    kServiceWorkerSyntheticResponseAllowedUrl);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    std::string,
+    kServiceWorkerSyntheticResponseDeniedUrlParams);
+
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    std::string,
+    kServiceWorkerSyntheticResponseIgnoredHeaders);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
@@ -1740,6 +1763,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUnloadBlocklisted);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUrgentMainFrameForInput);
+
+// If enabled, URLPattern will use standard defined dummy URL canonicalization
+// to canonicalize URL properties. See https://crbug.com/409350827
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kURLPatternDummyURLCanonicalization);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUseCommitUrlInsteadOfRedirectUrl);
 

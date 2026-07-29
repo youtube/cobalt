@@ -21,7 +21,6 @@ import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.Lifecycle;
 import androidx.preference.Preference;
 
-import org.chromium.base.BuildInfo;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
@@ -302,7 +301,7 @@ public class MainSettings extends ChromeBaseSettingsFragment
             removePreferenceIfPresent(PREF_UI_THEME);
         }
 
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             getPreferenceScreen().removePreference(findPreference(PREF_SAFETY_HUB));
         } else {
             findPreference(PREF_SAFETY_HUB)
@@ -373,6 +372,9 @@ public class MainSettings extends ChromeBaseSettingsFragment
             removePreferenceIfPresent(PREF_DEVELOPER);
         }
         if (ChromeFeatureList.sAndroidSettingsContainment.isEnabled()) {
+            // TODO(crbug.com/439911511): Remove old resources once the feature is launched.
+            findPreference(PREF_GOOGLE_SERVICES)
+                    .setIcon(R.drawable.ic_google_services_48dp_with_bg_containment);
             updateBackgrounds(getListView());
         }
     }
@@ -521,7 +523,7 @@ public class MainSettings extends ChromeBaseSettingsFragment
         boolean showSetting =
                 ChromeFeatureList.sAndroidBottomToolbar.isEnabled()
                         && !DeviceInfo.isAutomotive()
-                        && (BuildInfo.getInstance().isFoldable
+                        && (DeviceInfo.isFoldable()
                                 || !DeviceFormFactor.isNonMultiDisplayContextOnTablet(
                                         getContext()));
 

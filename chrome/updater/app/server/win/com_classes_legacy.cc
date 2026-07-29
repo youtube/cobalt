@@ -408,6 +408,11 @@ class AppWebImpl : public IDispatchImpl<IAppWeb> {
       return E_ACCESSDENIED;
     }
 
+    if (app_id.empty()) {
+      VLOG(1) << __func__ << ": refusing to handle an empty app_id.";
+      return E_INVALIDARG;
+    }
+
     is_install_ = is_install;
     app_id_ = base::WideToUTF8(app_id);
     brand_code_ = base::WideToUTF8(brand_code);
@@ -494,17 +499,19 @@ class AppWebImpl : public IDispatchImpl<IAppWeb> {
         state_change_callback = base::BindRepeating(
             [](AppWebImplPtr obj,
                const UpdateService::UpdateState& state_update) {
-              obj->task_runner_->PostTask(
-                  FROM_HERE, base::BindOnce(&AppWebImpl::UpdateStateCallback,
-                                            obj, state_update));
+              AppServerWin::PostOnTaskRunner(
+                  obj->task_runner_,
+                  base::BindOnce(&AppWebImpl::UpdateStateCallback, obj,
+                                 state_update));
             },
             obj);
     base::OnceCallback<void(UpdateService::Result)> complete_callback =
         base::BindOnce(
             [](AppWebImplPtr obj, UpdateService::Result result) {
-              obj->task_runner_->PostTask(
-                  FROM_HERE, base::BindOnce(&AppWebImpl::UpdateResultCallback,
-                                            obj, result));
+              AppServerWin::PostOnTaskRunner(
+                  obj->task_runner_,
+                  base::BindOnce(&AppWebImpl::UpdateResultCallback, obj,
+                                 result));
             },
             obj);
 
@@ -740,6 +747,12 @@ class AppWebImpl : public IDispatchImpl<IAppWeb> {
           break;
         case UpdateService::UpdateState::State::kDownloading:
           state_value = STATE_DOWNLOADING;
+          break;
+        case UpdateService::UpdateState::State::kDecompressing:
+          state_value = STATE_EXTRACTING;
+          break;
+        case UpdateService::UpdateState::State::kPatching:
+          state_value = STATE_APPLYING_DIFFERENTIAL_PATCH;
           break;
         case UpdateService::UpdateState::State::kInstalling:
           state_value = STATE_INSTALLING;
@@ -1242,50 +1255,67 @@ STDMETHODIMP LegacyAppCommandWebImpl::execute(VARIANT substitution1,
   }
 
   const HRESULT hr = app_command_runner_->Run(substitutions, process_);
+  using LegacyAppCommandWebImplPtr =
+      Microsoft::WRL::ComPtr<LegacyAppCommandWebImpl>;
+  update_client::Callback callback = base::BindOnce(
+      [](LegacyAppCommandWebImplPtr obj, update_client::Error error) {
+        VLOG(1) << "App command ping for appid: " << obj->app_id_
+                << " completed: " << error;
+      },
+      LegacyAppCommandWebImplPtr(this));
   if (FAILED(hr)) {
     VLOG(2) << __func__ << ": AppCommand failed to launch: " << hr;
     ping_sender_.Run(scope_, app_id_, command_id_,
                      {
                          .error_code = hr,
                          .extra_code1 = kErrorAppCommandLaunchFailed,
-                     });
+                     },
+                     std::move(callback));
     return hr;
   }
 
-  base::ThreadPool::CreateSequencedTaskRunner(
-      {base::MayBlock(), base::WithBaseSyncPrimitives()})
-      ->PostTask(FROM_HERE,
-                 base::BindOnce(
-                     [](base::Process process) -> ErrorParams {
-                       int exit_code = -1;
-                       if (process.WaitForExitWithTimeout(kWaitForAppInstaller,
-                                                          &exit_code)) {
-                         VLOG(2) << "AppCommand completed: " << exit_code;
-                         return {
-                             .error_code = exit_code,
-                             .extra_code1 = 0,
-                         };
-                       }
-                       VLOG(2) << "AppCommand timed out.";
-                       return {
-                           .error_code = HRESULT_FROM_WIN32(ERROR_TIMEOUT),
-                           .extra_code1 = kErrorAppCommandTimedOut,
-                       };
-                     },
-                     process_.Duplicate())
-                     .Then(base::BindOnce(ping_sender_, scope_, app_id_,
-                                          command_id_)));
+  AppServerWin::PostOnTaskRunner(
+      base::ThreadPool::CreateSequencedTaskRunner(
+          {base::MayBlock(), base::WithBaseSyncPrimitives()}),
+      base::BindOnce(
+          [](base::Process process) -> ErrorParams {
+            int exit_code = -1;
+            if (process.WaitForExitWithTimeout(kWaitForAppInstaller,
+                                               &exit_code)) {
+              VLOG(2) << "AppCommand completed: " << exit_code;
+              return {
+                  .error_code = exit_code,
+                  .extra_code1 = 0,
+              };
+            }
+            VLOG(2) << "AppCommand timed out.";
+            return {
+                .error_code = HRESULT_FROM_WIN32(ERROR_TIMEOUT),
+                .extra_code1 = kErrorAppCommandTimedOut,
+            };
+          },
+          process_.Duplicate())
+          .Then(base::BindOnce(
+              [](PingSender ping_sender, UpdaterScope scope,
+                 const std::string& app_id, const std::string& command_id,
+                 update_client::Callback callback, ErrorParams error_params) {
+                ping_sender.Run(scope, app_id, command_id, error_params,
+                                std::move(callback));
+              },
+              ping_sender_, scope_, app_id_, command_id_,
+              std::move(callback))));
   return hr;
 }
 
 void LegacyAppCommandWebImpl::SendPing(UpdaterScope scope,
                                        const std::string& app_id,
                                        const std::string& command_id,
-                                       ErrorParams error_params) {
+                                       ErrorParams error_params,
+                                       update_client::Callback callback) {
   base::OnceCallback<void(bool enable_usage_stats)> rpc_task = base::BindOnce(
       [](UpdaterScope scope, const std::string& app_id,
          const std::string& command_id, ErrorParams error_params,
-         bool enable_usage_stats) {
+         update_client::Callback callback, bool enable_usage_stats) {
         if (!enable_usage_stats) {
           return;
         }
@@ -1313,11 +1343,9 @@ void LegacyAppCommandWebImpl::SendPing(UpdaterScope scope,
                 .extra_code1 = error_params.extra_code1,
                 .app_command_id = command_id,
             },
-            base::BindOnce([](update_client::Error error) {
-              VLOG(1) << "App command ping completed: " << error;
-            }));
+            std::move(callback));
       },
-      scope, app_id, command_id, error_params);
+      scope, app_id, command_id, error_params, std::move(callback));
   AppServerWin::PostRpcTask(base::BindOnce(
       [](UpdaterScope scope, base::OnceCallback<void(bool)> rpc_task) {
         base::ThreadPool::PostTaskAndReplyWithResult(

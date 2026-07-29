@@ -16,7 +16,6 @@
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "components/paint_preview/common/capture_result.h"
-#include "components/paint_preview/common/mojom/paint_preview_recorder.mojom-shared.h"
 #include "components/paint_preview/common/mojom/paint_preview_recorder.mojom.h"
 #include "components/paint_preview/common/proto/paint_preview.pb.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -60,6 +59,14 @@ class PaintPreviewClient
     base::FilePath root_dir;
 
     RecordingParams inner;
+
+    static PaintPreviewParams CreateForTesting(
+        RecordingPersistence persistence,
+        base::UnguessableToken document_guid);
+
+   private:
+    PaintPreviewParams(RecordingPersistence persistence,
+                       base::UnguessableToken document_guid);
   };
 
   ~PaintPreviewClient() override;
@@ -120,7 +127,8 @@ class PaintPreviewClient
     // Main frame capture time.
     base::TimeDelta main_frame_blink_recording_time;
 
-    // Callback that is invoked on completion of data. Always non-null.
+    // Callback that is invoked on completion of data. Must be non-null for the
+    // lifetime of the InProgressDocumentCaptureState.
     PaintPreviewCallback callback;
 
     // All the render frames that are still required.

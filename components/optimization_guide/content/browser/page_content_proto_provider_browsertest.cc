@@ -1244,7 +1244,7 @@ class PageContentProtoProviderBrowserTestMediaData
 };
 
 IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestMediaData,
-                       NoDataForEmptyDuration) {
+                       NoMediaData) {
   LoadPage(https_server()->GetURL("/media_data/video.html"));
   EXPECT_FALSE(page_content().main_frame_data().has_media_data());
 }
@@ -1350,6 +1350,95 @@ IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestMediaData,
   EXPECT_EQ(media_data.duration_milliseconds(), 10000);
   EXPECT_TRUE(media_data.is_playing());
   EXPECT_EQ(media_data.transcripts().size(), 0);
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTestMediaData,
+                       VideoHasOnlyTranscripts) {
+  LoadPage(https_server()->GetURL("/media_data/video.html"), nullptr);
+
+  auto mock_provider = std::make_unique<MockMediaTranscriptProvider>();
+  proto::MediaTranscript transcript;
+  transcript.set_text("foo");
+  transcript.set_start_timestamp_milliseconds(1000);
+  EXPECT_CALL(*mock_provider, GetTranscriptsForFrame)
+      .WillOnce(
+          testing::Return(std::vector<proto::MediaTranscript>{transcript}));
+  MediaTranscriptProvider::SetFor(web_contents(), std::move(mock_provider));
+
+  LoadData();
+
+  // Check that the main frame has media data with transcripts.
+  EXPECT_TRUE(page_content().main_frame_data().has_media_data());
+  const auto& media_data = page_content().main_frame_data().media_data();
+  EXPECT_EQ(media_data.media_data_type(),
+            optimization_guide::proto::MediaDataType::MEDIA_DATA_TYPE_UNKNOWN);
+  EXPECT_EQ(media_data.transcripts().size(), 1);
+  EXPECT_EQ(media_data.transcripts(0).text(), "foo");
+  EXPECT_EQ(media_data.transcripts(0).start_timestamp_milliseconds(), 1000);
+}
+
+IN_PROC_BROWSER_TEST_F(PageContentProtoProviderBrowserTest,
+                       FormRedactionDecisions) {
+  LoadPage(https_server()->GetURL("/redaction.html"));
+
+  EXPECT_EQ(page_content().root_node().children_nodes().size(), 1);
+  const auto& form_node = page_content().root_node().children_nodes()[0];
+  EXPECT_EQ(form_node.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM);
+
+  ASSERT_EQ(form_node.children_nodes().size(), 3);
+
+  // Text input should have no redaction necessary
+  const auto& text_input = form_node.children_nodes()[0];
+  EXPECT_EQ(text_input.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  ASSERT_TRUE(text_input.content_attributes().has_form_control_data());
+  EXPECT_EQ(
+      text_input.content_attributes().form_control_data().redaction_decision(),
+      optimization_guide::proto::REDACTION_DECISION_NO_REDACTION_NECESSARY);
+
+  // Empty password should be unredacted
+  const auto& empty_password = form_node.children_nodes()[1];
+  EXPECT_EQ(empty_password.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  ASSERT_TRUE(empty_password.content_attributes().has_form_control_data());
+  EXPECT_EQ(
+      empty_password.content_attributes()
+          .form_control_data()
+          .redaction_decision(),
+      optimization_guide::proto::REDACTION_DECISION_UNREDACTED_EMPTY_PASSWORD);
+
+  // Filled password should be redacted
+  const auto& filled_password = form_node.children_nodes()[2];
+  EXPECT_EQ(filled_password.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  ASSERT_TRUE(filled_password.content_attributes().has_form_control_data());
+  EXPECT_EQ(
+      filled_password.content_attributes()
+          .form_control_data()
+          .redaction_decision(),
+      optimization_guide::proto::REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD);
+
+  // Change the filled password field to text type and verify it's still
+  // redacted
+  ASSERT_TRUE(content::ExecJs(
+      web_contents(),
+      "document.getElementById('filled-password').type = 'text';"));
+  LoadData();
+
+  // Re-examine the form after the type change
+  const auto& form_node_after = page_content().root_node().children_nodes()[0];
+  ASSERT_EQ(form_node_after.children_nodes().size(), 3);
+  const auto& changed_field = form_node_after.children_nodes()[2];
+  EXPECT_EQ(changed_field.content_attributes().attribute_type(),
+            optimization_guide::proto::CONTENT_ATTRIBUTE_FORM_CONTROL);
+  ASSERT_TRUE(changed_field.content_attributes().has_form_control_data());
+  // Should still be redacted even though type changed to text
+  EXPECT_EQ(
+      changed_field.content_attributes()
+          .form_control_data()
+          .redaction_decision(),
+      optimization_guide::proto::REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD);
 }
 
 }  // namespace

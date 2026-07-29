@@ -1313,6 +1313,10 @@ bool PaymentsDataManager::IsPaymentCvcStorageEnabled() {
          prefs::IsPaymentCvcStorageEnabled(pref_service_);
 }
 
+void PaymentsDataManager::SetPaymentsCvcStorageEnabled(bool enabled) {
+  prefs::SetPaymentCvcStorage(pref_service_, enabled);
+}
+
 base::span<const VirtualCardUsageData>
 PaymentsDataManager::GetVirtualCardUsageData() const {
   if (!IsAutofillWalletImportEnabled() || !IsAutofillPaymentMethodsEnabled()) {
@@ -1652,7 +1656,12 @@ bool PaymentsDataManager::SaveCardLocallyIfNew(
     }
     credit_cards.push_back(*card);
   }
-  credit_cards.push_back(imported_card);
+
+  auto imported_card_copy = imported_card;
+  if (!IsPaymentCvcStorageEnabled()) {
+    imported_card_copy.clear_cvc();
+  }
+  credit_cards.push_back(imported_card_copy);
 
   SetCreditCards(&credit_cards);
   return true;

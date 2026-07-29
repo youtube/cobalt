@@ -17,8 +17,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/strong_alias.h"
-#include "base/uuid.h"
 #include "build/build_config.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
@@ -94,7 +94,7 @@ struct Suggestion {
 
   struct AutofillAiPayload final {
     AutofillAiPayload();
-    explicit AutofillAiPayload(base::Uuid guid);
+    explicit AutofillAiPayload(EntityInstance::EntityId guid);
     AutofillAiPayload(const AutofillAiPayload&);
     AutofillAiPayload(AutofillAiPayload&&);
     AutofillAiPayload& operator=(const AutofillAiPayload&);
@@ -104,7 +104,7 @@ struct Suggestion {
     friend bool operator==(const AutofillAiPayload&,
                            const AutofillAiPayload&) = default;
 
-    base::Uuid guid;
+    EntityInstance::EntityId guid;
   };
 
   using Guid = base::StrongAlias<class GuidTag, std::string>;
@@ -173,7 +173,9 @@ struct Suggestion {
 
   struct IdentityCredentialPayload final {
     IdentityCredentialPayload();
-    IdentityCredentialPayload(GURL configURL, std::string account_id);
+    IdentityCredentialPayload(GURL configURL,
+                              std::string account_id,
+                              std::map<FieldType, std::u16string>& fields);
     IdentityCredentialPayload(const IdentityCredentialPayload&);
     IdentityCredentialPayload(IdentityCredentialPayload&&);
     IdentityCredentialPayload& operator=(const IdentityCredentialPayload&);
@@ -193,22 +195,6 @@ struct Suggestion {
     std::map<FieldType, std::u16string> fields;
   };
 
-  struct OneTimePasswordPayload final {
-    OneTimePasswordPayload();
-    explicit OneTimePasswordPayload(
-        std::map<FieldGlobalId, std::u16string> filling_data);
-    OneTimePasswordPayload(const OneTimePasswordPayload&);
-    OneTimePasswordPayload(OneTimePasswordPayload&&);
-    OneTimePasswordPayload& operator=(const OneTimePasswordPayload&);
-    OneTimePasswordPayload& operator=(OneTimePasswordPayload&&);
-    ~OneTimePasswordPayload();
-
-    friend bool operator==(const OneTimePasswordPayload&,
-                           const OneTimePasswordPayload&) = default;
-
-    std::map<FieldGlobalId, std::u16string> filling_data;
-  };
-
   using IsLoading = base::StrongAlias<class IsLoadingTag, bool>;
   using InstrumentId = base::StrongAlias<class InstrumentIdTag, uint64_t>;
   using Payload = std::variant<Guid,
@@ -220,8 +206,7 @@ struct Suggestion {
                                AutofillAiPayload,
                                PaymentsPayload,
                                IdentityCredentialPayload,
-                               AutocompleteEntry,
-                               OneTimePasswordPayload>;
+                               AutocompleteEntry>;
 
   // This struct is used to provide password suggestions with custom icons,
   // using the favicon of the website associated with the credentials. While
@@ -472,8 +457,6 @@ struct Suggestion {
                std::holds_alternative<PaymentsPayload>(payload);
       case SuggestionType::kBnplEntry:
         return std::holds_alternative<PaymentsPayload>(payload);
-      case SuggestionType::kOneTimePasswordEntry:
-        return std::holds_alternative<OneTimePasswordPayload>(payload);
       case SuggestionType::kDevtoolsTestAddressEntry:
       default:
         return std::holds_alternative<Guid>(payload) ||

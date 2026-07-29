@@ -105,6 +105,7 @@
 #if BUILDFLAG(ENABLE_PDF_INK2)
 #include "pdf/pdf_ink_metrics_handler.h"
 #include "pdf/pdfium/pdfium_ink_reader.h"
+#include "pdf/pdfium/pdfium_ink_transform.h"
 #include "pdf/pdfium/pdfium_ink_writer.h"
 #include "third_party/ink/src/ink/strokes/stroke.h"
 #endif
@@ -963,6 +964,23 @@ std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForCaret(
 
 void PDFiumEngine::InvalidateRect(const gfx::Rect& rect) {
   client_->Invalidate(rect);
+}
+
+bool PDFiumEngine::IsSynthesizedNewline(const PageCharacterIndex& index) const {
+  CHECK(PageIndexInBounds(index.page_index));
+  PDFiumPage* page = pages_[index.page_index].get();
+  CHECK(page->IsCharIndexInBounds(index.char_index));
+
+  if (FPDFText_IsGenerated(page->GetTextPage(), index.char_index) != 1) {
+    return false;
+  }
+
+  uint32_t char_code = page->GetCharUnicode(index.char_index);
+  return char_code == '\r' || char_code == '\n';
+}
+
+bool PDFiumEngine::PageIndexInBounds(int index) const {
+  return index >= 0 && index < static_cast<int>(pages_.size());
 }
 
 void PDFiumEngine::FinishLoadingDocument() {
@@ -1915,6 +1933,10 @@ bool PDFiumEngine::OnKeyDown(const blink::WebKeyboardEvent& event) {
 
   if (!PageIndexInBounds(last_focused_page_))
     return false;
+
+  if (caret_ && caret_->OnKeyDown(event)) {
+    return true;
+  }
 
   bool rv = !!FORM_OnKeyDown(form(), pages_[last_focused_page_]->GetPage(),
                              event.windows_key_code, event.GetModifiers());
@@ -4058,10 +4080,6 @@ void PDFiumEngine::KillTouchTimer() {
   touch_timer_.Stop();
 }
 
-bool PDFiumEngine::PageIndexInBounds(int index) const {
-  return index >= 0 && index < static_cast<int>(pages_.size());
-}
-
 bool PDFiumEngine::IsPageCharacterIndexInBounds(
     const PageCharacterIndex& index) const {
   return PageIndexInBounds(index.page_index) &&
@@ -4776,12 +4794,18 @@ bool PDFiumEngine::ExtendSelectionByPoint(const gfx::PointF& point) {
   return ExtendSelection(point_data.page_index, point_data.char_index);
 }
 
-std::map<int, std::vector<gfx::Rect>> PDFiumEngine::GetSelectionRectMap() {
-  std::map<int, std::vector<gfx::Rect>> results;
+gfx::Transform PDFiumEngine::GetCanonicalToPdfTransform(int page_index) {
+  // Note that this triggers a page load in PDFiumPage. Calling
+  // PDFiumPage::page() instead may return a null `page`.
+  FPDF_PAGE page = GetPage(page_index)->GetPage();
+  return GetCanonicalToPdfTransformForPage(page);
+}
+
+std::map<int, std::vector<PdfRect>> PDFiumEngine::GetSelectionRectMap() {
+  std::map<int, std::vector<PdfRect>> results;
   for (auto& selection : selection_) {
     auto& page_results = results[selection.page_index()];
-    std::vector<gfx::Rect> screen_rects = selection.GetScreenRects(
-        GetVisibleRect().origin(), current_zoom_, GetCurrentOrientation());
+    std::vector<PdfRect> screen_rects = selection.GetRects();
     page_results.insert(page_results.end(), screen_rects.begin(),
                         screen_rects.end());
   }

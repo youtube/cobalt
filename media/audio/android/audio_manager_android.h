@@ -68,7 +68,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
     virtual std::optional<std::vector<JniAudioDevice>>
     GetCommunicationDevices() = 0;
 
-    virtual int GetMinInputFrameSize(int sample_rate, int channels) = 0;
+    virtual int GetMinInputFramesPerBuffer(int sample_rate, int channels) = 0;
 
     virtual bool AcousticEchoCancelerIsAvailable() = 0;
 
@@ -86,9 +86,9 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
 
     virtual bool IsAudioLowLatencySupported() = 0;
 
-    virtual int GetAudioLowLatencyOutputFrameSize() = 0;
+    virtual int GetAudioLowLatencyOutputFramesPerBuffer() = 0;
 
-    virtual int GetMinOutputFrameSize(int sample_rate, int channels) = 0;
+    virtual int GetMinOutputFramesPerBuffer(int sample_rate, int channels) = 0;
 
     // Returns a bitmask of audio encoding formats supported by all connected
     // HDMI output devices.
@@ -205,6 +205,8 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
                       AudioDeviceDirection direction);
   void GetCommunicationDeviceNames(AudioDeviceNames* device_names);
 
+  void UpdateDeviceCache(AudioDeviceDirection direction);
+
   // Retrieve a mapping from device IDs to devices for the specified `direction`
   // which exclusively contains information about devices present during the
   // most recent call to `GetDeviceNames()` for the respective direction.
@@ -225,7 +227,7 @@ class MEDIA_EXPORT AudioManagerAndroid : public AudioManagerBase {
   int SelectSampleRate(const android::AudioDevice& device,
                        std::optional<int> preferred_sample_rate);
 
-  int GetOptimalOutputFrameSize(int sample_rate, int channels);
+  int GetOptimalOutputFramesPerBuffer(int sample_rate, int channels);
   ChannelLayoutConfig GetLayoutWithMaxChannels();
 
   void DoSetMuteOnAudioThread(bool muted);

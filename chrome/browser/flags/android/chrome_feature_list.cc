@@ -19,7 +19,6 @@
 #include "chrome/browser/flags/android/chrome_session_state.h"
 #include "chrome/browser/notifications/chime/android/features.h"
 #include "chrome/browser/predictors/predictors_features.h"
-#include "chrome/browser/push_messaging/push_messaging_features.h"
 #include "chrome/browser/task_manager/common/task_manager_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
@@ -57,8 +56,10 @@
 #include "components/plus_addresses/core/common/features.h"
 #include "components/policy/core/common/features.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
+#include "components/push_messaging/push_messaging_features.h"
 #include "components/regional_capabilities/regional_capabilities_switches.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safety_check/features.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/segmentation_platform/public/features.h"
 #include "components/send_tab_to_self/features.h"
@@ -160,7 +161,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kNotificationOneTapUnsubscribe,
     &features::kPushMessagingDisallowSenderIDs,
     &features::kPwaUpdateDialogForIcon,
-    &features::kSafetyHub,
     &features::kSafetyHubAndroidOrganicSurvey,
     &features::kSafetyHubAndroidSurvey,
     &features::kSafetyHubAndroidSurveyV2,
@@ -284,7 +284,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kCCTOpenInBrowserButtonIfAllowedByEmbedder,
     &kCCTOpenInBrowserButtonIfEnabledByEmbedder,
     &kCCTPredictiveBackGesture,
-    &kCCTPrewarmTab,
     &kCCTRealtimeEngagementEventsInBackground,
     &kCCTReportParallelRequestStatus,
     &kCCTReportPrerenderEvents,
@@ -306,6 +305,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kClankStartupLatencyInjection,
     &kClankWhatsNew,
     &kClearBrowsingDataAndroidSurvey,
+    &kCleanupLegacyTabState,
     &kClearInstanceInfoWhenClosedIntentionally,
     &kCommandLineOnNonRooted,
     &kAndroidComposeplate,
@@ -408,7 +408,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kSmallerTabStripTitleLimit,
     &kSubmenusTabContextMenuLffTabStrip,
     &kSuppressToolbarCapturesAtGestureEnd,
-    &kSwapNewTabAndNewTabInGroupAndroid,
     &kTabArchivalDragDropAndroid,
     &kTabClosureMethodRefactor,
     &kTabCollectionAndroid,
@@ -442,6 +441,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kTraceBinderIpc,
     &kStartSurfaceReturnTime,
     &kUmaBackgroundSessions,
+    &kUmaSessionCorrectnessFixes,
     &kUpdateCompositorForSurfaceControl,
     &kUseActivityManagerForTabActivation,
     &kUseInitialNetworkStateAtStartup,
@@ -482,6 +482,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &safe_browsing::kMaliciousApkDownloadCheck,
     &safe_browsing::kReportNotificationContentDetectionData,
     &safe_browsing::kShowWarningsForSuspiciousNotifications,
+    &safety_check::features::kSafetyHub,
     &segmentation_platform::features::kAndroidAppIntegrationModule,
     &segmentation_platform::features::kContextualPageActions,
     &segmentation_platform::features::kContextualPageActionShareModel,
@@ -874,7 +875,7 @@ BASE_FEATURE(kCCTOpenInBrowserButtonIfEnabledByEmbedder,
 
 BASE_FEATURE(kCCTPredictiveBackGesture,
              "CCTPredictiveBackGesture",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGridTabSwitcherUpdate,
              "GridTabSwitcherUpdate",
@@ -891,8 +892,6 @@ BASE_FEATURE(kHubBackButton,
 BASE_FEATURE(kHubSlideAnimation,
              "HubSlideAnimation",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCCTPrewarmTab, "CCTPrewarmTab", base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCTRealtimeEngagementEventsInBackground,
              "CCTRealtimeEngagementEventsInBackground",
@@ -938,6 +937,10 @@ BASE_FEATURE(kChangeUnfocusedPriority,
 
 BASE_FEATURE(kDisableInstanceLimit,
              "DisableInstanceLimit",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCleanupLegacyTabState,
+             "CleanupLegacyTabState",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDontAutoHideBrowserControls,
@@ -1096,7 +1099,7 @@ BASE_FEATURE(kHomepageIsNewTabPagePolicyAndroid,
 
 BASE_FEATURE(kLegacyTabStateDeprecation,
              "LegacyTabStateDeprecation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLoadNativeEarly,
              "LoadNativeEarly",
@@ -1350,10 +1353,6 @@ BASE_FEATURE(kSuppressToolbarCapturesAtGestureEnd,
              "SuppressToolbarCapturesAtGestureEnd",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSwapNewTabAndNewTabInGroupAndroid,
-             "SwapNewTabAndNewTabInGroupAndroid",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kTabArchivalDragDropAndroid,
              "TabArchivalDragDropAndroid",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1509,6 +1508,11 @@ BASE_FEATURE(kStartSurfaceReturnTime,
 BASE_FEATURE(kUmaBackgroundSessions,
              "UMABackgroundSessions",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Correctness fixes to Activity tagging for UMA sessions.
+BASE_FEATURE(kUmaSessionCorrectnessFixes,
+             "UmaSessionCorrectnessFixes",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Actively update the compositor surface when surface control is enabled.
 BASE_FEATURE(kUpdateCompositorForSurfaceControl,

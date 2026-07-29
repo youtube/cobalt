@@ -46,15 +46,18 @@ bool AndroidBaseWindow::IsActive() const {
 }
 
 bool AndroidBaseWindow::IsMaximized() const {
-  NOTREACHED();
+  return Java_AndroidBaseWindow_isMaximized(AttachCurrentThread(),
+                                            java_android_base_window_);
 }
 
 bool AndroidBaseWindow::IsMinimized() const {
-  NOTREACHED();
+  return Java_AndroidBaseWindow_isMinimized(AttachCurrentThread(),
+                                            java_android_base_window_);
 }
 
 bool AndroidBaseWindow::IsFullscreen() const {
-  NOTREACHED();
+  return Java_AndroidBaseWindow_isFullscreen(AttachCurrentThread(),
+                                             java_android_base_window_);
 }
 
 gfx::NativeWindow AndroidBaseWindow::GetNativeWindow() const {
@@ -86,7 +89,8 @@ void AndroidBaseWindow::Hide() {
 }
 
 bool AndroidBaseWindow::IsVisible() const {
-  NOTREACHED();
+  return Java_AndroidBaseWindow_isVisible(AttachCurrentThread(),
+                                          java_android_base_window_);
 }
 
 void AndroidBaseWindow::ShowInactive() {
@@ -108,11 +112,13 @@ void AndroidBaseWindow::Deactivate() {
 }
 
 void AndroidBaseWindow::Maximize() {
-  NOTREACHED();
+  Java_AndroidBaseWindow_maximize(AttachCurrentThread(),
+                                  java_android_base_window_);
 }
 
 void AndroidBaseWindow::Minimize() {
-  NOTREACHED();
+  Java_AndroidBaseWindow_minimize(AttachCurrentThread(),
+                                  java_android_base_window_);
 }
 
 void AndroidBaseWindow::Restore() {
@@ -120,7 +126,9 @@ void AndroidBaseWindow::Restore() {
 }
 
 void AndroidBaseWindow::SetBounds(const gfx::Rect& bounds) {
-  NOTREACHED();
+  Java_AndroidBaseWindow_setBounds(AttachCurrentThread(),
+                                   java_android_base_window_, bounds.x(),
+                                   bounds.y(), bounds.width(), bounds.height());
 }
 
 void AndroidBaseWindow::FlashFrame(bool flash) {

@@ -98,7 +98,6 @@ import org.chromium.chrome.browser.browsing_data.BrowsingDataType;
 import org.chromium.chrome.browser.browsing_data.TimePeriod;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
 import org.chromium.chrome.browser.notifications.channels.SiteChannelsManager;
 import org.chromium.chrome.browser.permissions.PermissionTestRule;
@@ -123,6 +122,7 @@ import org.chromium.components.browser_ui.settings.SettingsNavigation;
 import org.chromium.components.browser_ui.site_settings.BinaryStatePermissionPreference;
 import org.chromium.components.browser_ui.site_settings.ContentSettingException;
 import org.chromium.components.browser_ui.site_settings.ContentSettingsResources;
+import org.chromium.components.browser_ui.site_settings.GeolocationSetting;
 import org.chromium.components.browser_ui.site_settings.GroupedWebsitesSettings;
 import org.chromium.components.browser_ui.site_settings.RwsCookieInfo;
 import org.chromium.components.browser_ui.site_settings.RwsCookieSettings;
@@ -145,13 +145,13 @@ import org.chromium.components.content_settings.CookieControlsMode;
 import org.chromium.components.content_settings.ProviderType;
 import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.components.location.LocationUtils;
+import org.chromium.components.permissions.PermissionsAndroidFeatureList;
 import org.chromium.components.permissions.nfc.NfcSystemLevelSetting;
 import org.chromium.components.policy.test.annotations.Policies;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.common.ContentSwitches;
-import org.chromium.device.DeviceFeatureList;
 import org.chromium.device.geolocation.LocationProviderOverrider;
 import org.chromium.device.geolocation.MockLocationProvider;
 import org.chromium.media.MediaFeatures;
@@ -174,13 +174,8 @@ import java.util.concurrent.TimeoutException;
     ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1",
     "ignore-certificate-errors"
 })
-@EnableFeatures({
-    DeviceFeatureList.BLUETOOTH_RFCOMM_ANDROID,
-    ChromeFeatureList.DISPLAY_WILDCARD_CONTENT_SETTINGS
-})
-// TODO(crbug.com/370008370): Update individual tests after launch.
+@EnableFeatures(ChromeFeatureList.DISPLAY_WILDCARD_CONTENT_SETTINGS)
 @DisableFeatures({
-    ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO,
     ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE,
 })
 // TODO(crbug.com/344672098): Failing when batched, batch this again.
@@ -272,9 +267,10 @@ public class SiteSettingsTest {
                     });
         }
 
-        // Clean up default content setting and system settings.
+        CallbackHelper helper = new CallbackHelper();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    // Clean up default content setting and system settings.
                     for (int t = 0; t < SiteSettingsCategory.Type.NUM_ENTRIES; t++) {
                         if (SiteSettingsCategory.contentSettingsType(t) >= 0) {
                             WebsitePreferenceBridge.setDefaultContentSetting(
@@ -283,7 +279,15 @@ public class SiteSettingsTest {
                                     ContentSettingValues.DEFAULT);
                         }
                     }
+                    // Clean up content setting exceptions.
+                    BrowsingDataBridge.getForProfile(ProfileManager.getLastUsedRegularProfile())
+                            .clearBrowsingData(
+                                    helper::notifyCalled,
+                                    new int[] {BrowsingDataType.SITE_SETTINGS},
+                                    TimePeriod.ALL_TIME);
                 });
+        helper.waitForCallback(0);
+
         LocationUtils.setFactory(null);
         LocationProviderOverrider.setLocationProviderImpl(null);
         ContextUtils.getAppSharedPreferences()
@@ -618,7 +622,7 @@ public class SiteSettingsTest {
                         websitePreferences.onPreferenceChange(
                                 cookies,
                                 enabled
-                                        ? CookieControlsMode.OFF
+                                        ? CookieControlsMode.INCOGNITO_ONLY
                                         : CookieControlsMode.BLOCK_THIRD_PARTY);
                         Assert.assertEquals(
                                 "Cookies should be " + (enabled ? "allowed" : "blocked"),
@@ -629,7 +633,7 @@ public class SiteSettingsTest {
                     private boolean doesAcceptCookies() {
                         return UserPrefs.get(ProfileManager.getLastUsedRegularProfile())
                                         .getInteger(COOKIE_CONTROLS_MODE)
-                                == CookieControlsMode.OFF;
+                                == CookieControlsMode.INCOGNITO_ONLY;
                     }
                 });
     }
@@ -705,7 +709,7 @@ public class SiteSettingsTest {
                         preferences.onPreferenceChange(
                                 preference,
                                 enabled
-                                        ? CookieControlsMode.OFF
+                                        ? CookieControlsMode.INCOGNITO_ONLY
                                         : CookieControlsMode.BLOCK_THIRD_PARTY);
                     } else if (ChromeFeatureList.isEnabled(
                                     ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
@@ -745,23 +749,6 @@ public class SiteSettingsTest {
                     TriStateSiteSettingsPreference triStateToggle =
                             preferences.findPreference(SingleCategorySettings.TRI_STATE_TOGGLE_KEY);
                     preferences.onPreferenceChange(triStateToggle, newValue);
-                });
-        settingsActivity.finish();
-    }
-
-    private void setTriStateCookieToggle(@CookieControlsMode int newState) {
-        final SettingsActivity settingsActivity =
-                SiteSettingsTestUtils.startSiteSettingsCategory(
-                        SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    SingleCategorySettings preferences =
-                            (SingleCategorySettings) settingsActivity.getMainFragment();
-                    TriStateCookieSettingsPreference triStateCookieToggle =
-                            preferences.findPreference(
-                                    SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
-                    preferences.onPreferenceChange(triStateCookieToggle, newState);
                 });
         settingsActivity.finish();
     }
@@ -1056,47 +1043,9 @@ public class SiteSettingsTest {
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
         checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.EnabledUnchecked);
-        checkTriStateCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity,
-                CookieControlsMode.BLOCK_THIRD_PARTY,
-                ToggleButtonState.EnabledUnchecked);
-        // TODO(crbug.com/40064993): fix this assertion.
-        // onView(getManagedViewMatcher(/* activeView= */ true)).check(matches(isDisplayed()));
-        onView(getManagedViewMatcher(/* activeView= */ false)).check(matches(not(isDisplayed())));
-        settingsActivity.finish();
-    }
-
-    /**
-     * Set the cookie content setting to allow through policy, disable incognito mode and ensure the
-     * correct radio buttons are enabled.
-     */
-    @Test
-    @SmallTest
-    @Feature({"Preferences"})
-    @Policies.Add({@Policies.Item(key = "DefaultCookiesSetting", string = "1")})
-    @DisabledTest(message = "https://crbug.com/373414947")
-    public void testDefaultCookiesSettingManagedAllowWithIncognitoDisabled() throws Exception {
-        IncognitoUtils.setEnabledForTesting(false);
-        setTriStateCookieToggle(CookieControlsMode.INCOGNITO_ONLY);
-
-        checkDefaultCookiesSettingManaged(true);
-        checkThirdPartyCookieBlockingManaged(false);
-        // The ContentSetting is managed (and set to ALLOW) while ThirdPartyCookieBlocking managed.
-        // Cookie toggle is set to block third party incognito but since
-        // incognito is disabled the button should be disabled and the allow
-        // toggle should be checked.
-        SettingsActivity settingsActivity =
-                SiteSettingsTestUtils.startSiteSettingsCategory(
-                        SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.INCOGNITO_ONLY, ToggleButtonState.Disabled);
         checkTriStateCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.BLOCK_THIRD_PARTY,
@@ -1124,8 +1073,6 @@ public class SiteSettingsTest {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.Disabled);
         checkTriStateCookieToggleButtonState(
                 settingsActivity, CookieControlsMode.INCOGNITO_ONLY, ToggleButtonState.Disabled);
         checkTriStateCookieToggleButtonState(
@@ -1162,9 +1109,9 @@ public class SiteSettingsTest {
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
         checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.INCOGNITO_ONLY, ToggleButtonState.Disabled);
+                settingsActivity,
+                CookieControlsMode.INCOGNITO_ONLY,
+                ToggleButtonState.EnabledChecked);
         checkTriStateCookieToggleButtonState(
                 settingsActivity, CookieControlsMode.BLOCK_THIRD_PARTY, ToggleButtonState.Disabled);
         onView(getManagedViewMatcher(/* activeView= */ true)).check(matches(isDisplayed()));
@@ -1193,9 +1140,9 @@ public class SiteSettingsTest {
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
         checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.INCOGNITO_ONLY, ToggleButtonState.Disabled);
+                settingsActivity,
+                CookieControlsMode.INCOGNITO_ONLY,
+                ToggleButtonState.EnabledChecked);
         checkTriStateCookieToggleButtonState(
                 settingsActivity, CookieControlsMode.BLOCK_THIRD_PARTY, ToggleButtonState.Disabled);
         onView(getManagedViewMatcher(/* activeView= */ true)).check(matches(isDisplayed()));
@@ -1216,8 +1163,6 @@ public class SiteSettingsTest {
                 SiteSettingsTestUtils.startSiteSettingsCategory(
                         SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
         checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.EnabledUnchecked);
-        checkTriStateCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
@@ -1230,12 +1175,11 @@ public class SiteSettingsTest {
         settingsActivity.finish();
     }
 
-    /** Ensure correct radio buttons are shown and enabled when AlwaysBlock3pcsIncognito is on. */
+    /** Ensure correct radio buttons are shown. */
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    @EnableFeatures({ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO})
-    public void testAlwaysBlock3pcsIncognitoHidesCookiesOffOption() throws Exception {
+    public void blockAndAllowThirdPartyCookieOptionsShown() throws Exception {
         checkDefaultCookiesSettingManaged(false);
         checkThirdPartyCookieBlockingManaged(false);
 
@@ -1246,37 +1190,6 @@ public class SiteSettingsTest {
                 settingsActivity,
                 CookieControlsMode.INCOGNITO_ONLY,
                 ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity,
-                CookieControlsMode.BLOCK_THIRD_PARTY,
-                ToggleButtonState.EnabledUnchecked);
-        SingleCategorySettings preferences =
-                (SingleCategorySettings) settingsActivity.getMainFragment();
-        TriStateCookieSettingsPreference triStateCookieToggle =
-                preferences.findPreference(SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
-        Assert.assertFalse(triStateCookieToggle.isButtonVisibleForTesting(CookieControlsMode.OFF));
-        onView(getManagedViewMatcher(/* activeView= */ true)).check(matches(not(isDisplayed())));
-        onView(getManagedViewMatcher(/* activeView= */ false)).check(matches(not(isDisplayed())));
-        settingsActivity.finish();
-    }
-
-    /** Ensure no radio buttons are enforced when cookie settings are unmanaged. */
-    @Test
-    @SmallTest
-    @Feature({"Preferences"})
-    public void testNoCookieSettingsManagedWithIncognitoDisabled() throws Exception {
-        IncognitoUtils.setEnabledForTesting(false);
-        checkDefaultCookiesSettingManaged(false);
-        checkThirdPartyCookieBlockingManaged(false);
-        // The ContentSetting and ThirdPartyCookieBlocking are unmanaged. This means all buttons
-        // should be enabled.
-        SettingsActivity settingsActivity =
-                SiteSettingsTestUtils.startSiteSettingsCategory(
-                        SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.OFF, ToggleButtonState.EnabledChecked);
-        checkTriStateCookieToggleButtonState(
-                settingsActivity, CookieControlsMode.INCOGNITO_ONLY, ToggleButtonState.Disabled);
         checkTriStateCookieToggleButtonState(
                 settingsActivity,
                 CookieControlsMode.BLOCK_THIRD_PARTY,
@@ -1702,7 +1615,7 @@ public class SiteSettingsTest {
         testExpectedPreferences(
                 SiteSettingsCategory.Type.THIRD_PARTY_COOKIES,
                 new String[] {"info_text", "tri_state_cookie_toggle", "add_exception"},
-                new String[] {"info_text", "tri_state_cookie_toggle"});
+                new String[] {"info_text", "tri_state_cookie_toggle", "add_exception"});
     }
 
     @Test
@@ -1977,7 +1890,6 @@ public class SiteSettingsTest {
                             preferences.findPreference(
                                     SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
 
-                    clickButtonAndVerifyItsChecked(cookieToggle, CookieControlsMode.OFF);
                     clickButtonAndVerifyItsChecked(cookieToggle, CookieControlsMode.INCOGNITO_ONLY);
                     clickButtonAndVerifyItsChecked(
                             cookieToggle, CookieControlsMode.BLOCK_THIRD_PARTY);
@@ -2002,7 +1914,6 @@ public class SiteSettingsTest {
                             preferences.findPreference(
                                     SingleCategorySettings.TRI_STATE_COOKIE_TOGGLE);
 
-                    clickButtonAndVerifyItsChecked(threeStateCookieToggle, CookieControlsMode.OFF);
                     clickButtonAndVerifyItsChecked(
                             threeStateCookieToggle, CookieControlsMode.INCOGNITO_ONLY);
                     clickButtonAndVerifyItsChecked(
@@ -2656,7 +2567,7 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     @EnableFeatures(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
     @CommandLineFlags.Add({ContentSwitches.USE_FAKE_DEVICE_FOR_MEDIA_STREAM})
-    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/41490094
+    @DisabledTest(message = "crbug.com/41490094 && crbug.com/425926397")
     public void testMicNotBlocked() throws Exception {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "Mic",
@@ -2763,6 +2674,81 @@ public class SiteSettingsTest {
                         false)
                 .withExpectedPrefKeysAtStart(SingleCategorySettings.INFO_TEXT_KEY)
                 .run();
+    }
+
+    void setGeolocationSetting(GeolocationSetting setting) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        WebsitePreferenceBridgeJni.get()
+                                .setGeolocationSettingForOrigin(
+                                        getBrowserContextHandle(),
+                                        ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
+                                        "https://example.com",
+                                        "*",
+                                        setting.mApproximate,
+                                        setting.mPrecise));
+    }
+
+    GeolocationSetting getGeolocationSetting() {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        WebsitePreferenceBridgeJni.get()
+                                .getGeolocationSettingForOrigin(
+                                        getBrowserContextHandle(),
+                                        ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
+                                        "https://example.com",
+                                        "https://example.com"));
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @EnableFeatures({
+        ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON,
+        PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION
+    })
+    public void testRemoveGeolocationWithOptions() {
+        LocationSettingsTestUtil.setSystemLocationSettingEnabled(true);
+        var allowSetting =
+                new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.ALLOW);
+        setGeolocationSetting(allowSetting);
+        SiteSettingsTestUtils.startSiteSettingsCategory(SiteSettingsCategory.Type.DEVICE_LOCATION);
+        assertEquals(allowSetting, getGeolocationSetting());
+
+        onView(withId(R.id.recycler_view)).perform(RecyclerViewActions.scrollToLastPosition());
+        onView(withText("https://example.com")).check(matches(isDisplayed())).perform(click());
+        onView(withText("Remove")).perform(click());
+        assertEquals(
+                new GeolocationSetting(ContentSettingValues.ASK, ContentSettingValues.ASK),
+                getGeolocationSetting());
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @EnableFeatures({
+        ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON,
+        PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION
+    })
+    public void testChangeGeolocationWithOptions() {
+        LocationSettingsTestUtil.setSystemLocationSettingEnabled(true);
+        var allowSetting =
+                new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.ALLOW);
+        setGeolocationSetting(allowSetting);
+        SiteSettingsTestUtils.startSiteSettingsCategory(SiteSettingsCategory.Type.DEVICE_LOCATION);
+        assertEquals(allowSetting, getGeolocationSetting());
+
+        onView(withId(R.id.recycler_view)).perform(RecyclerViewActions.scrollToLastPosition());
+        onView(withText("https://example.com")).check(matches(isDisplayed())).perform(click());
+        onView(withText("Approximate")).perform(click());
+        assertEquals(
+                new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.BLOCK),
+                getGeolocationSetting());
+
+        onView(withText("Block")).perform(click());
+        assertEquals(
+                new GeolocationSetting(ContentSettingValues.BLOCK, ContentSettingValues.BLOCK),
+                getGeolocationSetting());
     }
 
     @Test
@@ -4165,7 +4151,6 @@ public class SiteSettingsTest {
     @SmallTest
     @Feature({"RenderTest"})
     @Policies.Add({@Policies.Item(key = "BlockThirdPartyCookies", string = "true")})
-    @EnableFeatures({ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO})
     public void renderThirdPartyCookiesPageManagedBlocked() throws Exception {
         renderCategoryPage(
                 SiteSettingsCategory.Type.THIRD_PARTY_COOKIES,
@@ -4176,7 +4161,6 @@ public class SiteSettingsTest {
     @SmallTest
     @Feature({"RenderTest"})
     @Policies.Add({@Policies.Item(key = "BlockThirdPartyCookies", string = "false")})
-    @EnableFeatures({ChromeFeatureList.ALWAYS_BLOCK_3PCS_INCOGNITO})
     public void renderThirdPartyCookiesPageManagedAllowed() throws Exception {
         renderCategoryPage(
                 SiteSettingsCategory.Type.THIRD_PARTY_COOKIES,
@@ -4260,16 +4244,13 @@ public class SiteSettingsTest {
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.PERMISSION_SITE_SETTING_RADIO_BUTTON)
                 && type != SiteSettingsCategory.Type.ANTI_ABUSE) {
             BinaryStatePermissionPreference binaryRadioButton =
-                    (BinaryStatePermissionPreference)
-                            singleCategorySettings.findPreference(
-                                    SingleCategorySettings.BINARY_RADIO_BUTTON_KEY);
+                    singleCategorySettings.findPreference(
+                            SingleCategorySettings.BINARY_RADIO_BUTTON_KEY);
 
             Assert.assertFalse(binaryRadioButton.isEnabled());
         } else {
             ChromeSwitchPreference binaryToggle =
-                    (ChromeSwitchPreference)
-                            singleCategorySettings.findPreference(
-                                    SingleCategorySettings.BINARY_TOGGLE_KEY);
+                    singleCategorySettings.findPreference(SingleCategorySettings.BINARY_TOGGLE_KEY);
 
             Assert.assertFalse(binaryToggle.isEnabled());
         }

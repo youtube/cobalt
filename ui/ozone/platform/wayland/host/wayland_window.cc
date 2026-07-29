@@ -487,6 +487,11 @@ void WaylandWindow::OnFontScaleFactorChanged() {
   UpdateWindowScale(/*update_bounds=*/false);
 }
 
+void WaylandWindow::OnDisplayColorSpacesChanged(
+    scoped_refptr<gfx::DisplayColorSpacesRef> display_color_spaces) {
+  delegate_->OnDisplayColorSpacesChanged(std::move(display_color_spaces));
+}
+
 void WaylandWindow::DumpState(std::ostream& out) const {
   constexpr auto kWindowTypeToString =
       base::MakeFixedFlatMap<PlatformWindowType, const char*>(
@@ -941,7 +946,7 @@ bool WaylandWindow::Initialize(PlatformWindowInitProperties properties) {
   if (state.bounds_dip.IsEmpty()) {
     // If bounds are not specified, place the window on the appropriate display,
     // if supported.
-    auto* screen = display::Screen::GetScreen();
+    auto* screen = display::Screen::Get();
     DCHECK(screen) << "A TestScreen must be instantiated for tests creating "
                       "windows with no initial bounds.";
     state.bounds_dip = gfx::Rect({0, 0}, {1, 1});
@@ -1137,7 +1142,7 @@ bool WaylandWindow::CommitOverlays(
   }
 
   // Wayland submits from front to back. A simple reverse can avoid a full sort.
-  std::reverse(overlays.begin(), overlays.end());
+  std::ranges::reverse(overlays);
   if (!std::is_sorted(overlays.begin(), overlays.end(),
                       OverlayStackOrderCompare)) {
     // |overlays| is sorted from bottom to top.

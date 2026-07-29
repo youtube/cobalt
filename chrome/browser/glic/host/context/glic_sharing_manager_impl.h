@@ -94,7 +94,7 @@ class GlicSharingManagerImpl : public GlicSharingManager {
   // Registers a callback to be invoked when the TabData for a pinned tab
   // changes.
   using PinnedTabDataChangedCallback =
-      base::RepeatingCallback<void(const mojom::TabData*)>;
+      base::RepeatingCallback<void(const TabDataChange&)>;
   base::CallbackListSubscription AddPinnedTabDataChangedCallback(
       PinnedTabDataChangedCallback callback);
 
@@ -120,6 +120,10 @@ class GlicSharingManagerImpl : public GlicSharingManager {
   void SubscribeToPinCandidates(
       mojom::GetPinCandidatesOptionsPtr options,
       mojo::PendingRemote<mojom::PinCandidatesObserver> observer);
+
+  GlicFocusedBrowserManager& focused_browser_manager() {
+    return focused_browser_manager_;
+  }
 
  private:
   void GetContextFromTabImpl(

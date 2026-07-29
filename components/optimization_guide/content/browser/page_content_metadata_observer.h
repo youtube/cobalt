@@ -16,8 +16,10 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "third_party/blink/public/mojom/content_extraction/frame_metadata_observer_registry.mojom.h"
+#include "third_party/blink/public/mojom/page/page.mojom-forward.h"
 
 namespace content {
+class Page;
 class RenderFrameHost;
 class WebContents;
 }  // namespace content
@@ -34,7 +36,7 @@ namespace optimization_guide {
 class PageContentMetadataObserver : public content::WebContentsObserver {
  public:
   using OnPageMetadataChangedCallback =
-      base::RepeatingCallback<void(const blink::mojom::PageMetadata&)>;
+      base::RepeatingCallback<void(blink::mojom::PageMetadataPtr)>;
 
   PageContentMetadataObserver(content::WebContents* web_contents,
                               const std::vector<std::string>& names,
@@ -44,10 +46,15 @@ class PageContentMetadataObserver : public content::WebContentsObserver {
   PageContentMetadataObserver& operator=(const PageContentMetadataObserver&) =
       delete;
 
+  // Delivers the current metadata to the callback.  Clients may use this to
+  // prompt sending the most recent metadata.
+  void DispatchMetadata();
+
  private:
   // content::WebContentsObserver:
   void RenderFrameCreated(content::RenderFrameHost* render_frame_host) override;
   void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
+  void PrimaryPageChanged(content::Page& page) override;
 
   void OnMetaTagsChangedForFrame(
       content::RenderFrameHost* render_frame_host,

@@ -274,6 +274,9 @@
 [submodule "third_party/emoji-segmenter/src"]
 	path = third_party/emoji-segmenter/src
 	url = https://chromium.googlesource.com/external/github.com/google/emoji-segmenter
+[submodule "third_party/oak/src"]
+	path = third_party/oak/src
+	url = https://chromium.googlesource.com/external/github.com/project-oak/oak
 [submodule "third_party/ots/src"]
 	path = third_party/ots/src
 	url = https://chromium.googlesource.com/external/github.com/khaledhosny/ots
@@ -669,6 +672,10 @@
 [submodule "chrome/app/theme/google_chrome"]
 	path = chrome/app/theme/google_chrome
 	url = https://chrome-internal.googlesource.com/chrome/theme/google_chrome
+	gclient-condition = checkout_src_internal
+[submodule "chrome/browser/actor/resources/internal"]
+	path = chrome/browser/actor/resources/internal
+	url = https://chrome-internal.googlesource.com/chrome/browser/actor/resources/internal
 	gclient-condition = checkout_src_internal
 [submodule "chrome/browser/enterprise/connectors/internal"]
 	path = chrome/browser/enterprise/connectors/internal

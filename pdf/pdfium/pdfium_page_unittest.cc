@@ -93,17 +93,32 @@ gfx::SizeF GetPageSizeHelper(PDFiumPage& pdfium_page) {
   return gfx::SizeF(FPDF_GetPageWidthF(page), FPDF_GetPageHeightF(page));
 }
 
+// Generates relative paths in thumbnail/1.0x when `device_pixel_ratio` = 1.0.
+//
+// The file names use the same format as PDFium pixel / corpus tests.
+// e.g. On Windows with `expectation_file_prefix` = "foo", `page_index` = 0,
+// and all combinations of `use_skia` and `use_platform_suffix`, the file names
+// are:
+//
+// - foo_expected.pdf.0.png
+// - foo_expected_win.pdf.0.png
+// - foo_expected_skia.pdf.0.png
+// - foo_expected_skia_win.pdf.0.png
 base::FilePath GetThumbnailTestData(const std::string& expectation_file_prefix,
                                     size_t page_index,
                                     float device_pixel_ratio,
-                                    bool use_skia) {
-  std::string file_dir = base::StringPrintf("%.1fx", device_pixel_ratio);
-  std::string file_name = base::StringPrintf(
-      "%s_expected%s.pdf.%zu.png", expectation_file_prefix.c_str(),
-      use_skia ? "_skia" : "", page_index);
-  return base::FilePath(FILE_PATH_LITERAL("thumbnail"))
-      .AppendASCII(file_dir)
-      .AppendASCII(file_name);
+                                    bool use_skia,
+                                    bool use_platform_suffix) {
+  base::FilePath thumbnail_dir =
+      base::FilePath(FILE_PATH_LITERAL("thumbnail"))
+          .AppendASCII(base::StringPrintf("%.1fx", device_pixel_ratio));
+  std::string file_name =
+      base::StringPrintf("%s_expected%s.pdf", expectation_file_prefix.c_str(),
+                         use_skia ? "_skia" : "");
+  base::FilePath result = GetReferenceFilePath(thumbnail_dir.value(), file_name,
+                                               use_platform_suffix);
+  return result.AddExtensionASCII(base::StringPrintf(".%zu", page_index))
+      .AddExtensionASCII(".png");
 }
 
 constexpr struct {
@@ -1147,6 +1162,35 @@ class PDFiumPageThumbnailTest : public PDFiumTestBase {
                              float device_pixel_ratio,
                              const gfx::Size& expected_thumbnail_size,
                              const std::string& expectation_file_prefix) {
+    return TestGenerateThumbnailWithPlatformSpecificData(
+        engine, page_index, device_pixel_ratio, expected_thumbnail_size,
+        expectation_file_prefix,
+        /*use_platform_suffix=*/false);
+  }
+
+  void TestGenerateThumbnailWithPlatformSpecificData(
+      PDFiumEngine& engine,
+      size_t page_index,
+      float device_pixel_ratio,
+      const gfx::Size& expected_thumbnail_size,
+      const std::string& expectation_file_prefix,
+      bool use_platform_suffix) {
+    sk_sp<SkImage> image = GenerateThumbnailImage(
+        engine, page_index, device_pixel_ratio, expected_thumbnail_size);
+    ASSERT_TRUE(image);
+
+    base::FilePath expectation_png_file_path = GetThumbnailTestData(
+        expectation_file_prefix, page_index, device_pixel_ratio,
+        /*use_skia=*/GetParam(), use_platform_suffix);
+
+    EXPECT_TRUE(MatchesPngFile(*image, expectation_png_file_path));
+  }
+
+  sk_sp<SkImage> GenerateThumbnailImage(
+      PDFiumEngine& engine,
+      size_t page_index,
+      float device_pixel_ratio,
+      const gfx::Size& expected_thumbnail_size) {
     PDFiumPage& page = GetPDFiumPageForTest(engine, page_index);
     Thumbnail thumbnail = page.GenerateThumbnail(device_pixel_ratio);
     EXPECT_EQ(expected_thumbnail_size, thumbnail.image_size());
@@ -1156,18 +1200,13 @@ class PDFiumPageThumbnailTest : public PDFiumTestBase {
         SkImageInfo::Make(gfx::SizeToSkISize(thumbnail.image_size()),
                           kRGBA_8888_SkColorType, kPremul_SkAlphaType);
     int stride = thumbnail.stride();
-    ASSERT_GT(stride, 0);
-    ASSERT_EQ(image_info.minRowBytes(), static_cast<size_t>(stride));
+    if (stride <= 0 ||
+        static_cast<size_t>(stride) != image_info.minRowBytes()) {
+      return nullptr;
+    }
     std::vector<uint8_t> data = thumbnail.TakeData();
-    sk_sp<SkImage> image = SkImages::RasterFromPixmapCopy(
+    return SkImages::RasterFromPixmapCopy(
         SkPixmap(image_info, data.data(), image_info.minRowBytes()));
-    ASSERT_TRUE(image);
-
-    base::FilePath expectation_png_file_path =
-        GetThumbnailTestData(expectation_file_prefix, page_index,
-                             device_pixel_ratio, /*use_skia=*/GetParam());
-
-    EXPECT_TRUE(MatchesPngFile(image.get(), expectation_png_file_path));
   }
 };
 
@@ -1175,6 +1214,7 @@ TEST_P(PDFiumPageThumbnailTest, GenerateThumbnail) {
   TestClient client;
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("variable_page_sizes.pdf"));
+  ASSERT_TRUE(engine);
   ASSERT_EQ(7, engine->GetNumberOfPages());
 
 #if defined(ARCH_CPU_ARM64)
@@ -1189,11 +1229,12 @@ TEST_P(PDFiumPageThumbnailTest, GenerateThumbnail) {
   }
 }
 
-// For crbug.com/1248455
+// For crbug.com/40197256
 TEST_P(PDFiumPageThumbnailTest, GenerateThumbnailForAnnotation) {
   TestClient client;
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("signature_widget.pdf"));
+  ASSERT_TRUE(engine);
   TestGenerateThumbnail(*engine, /*page_index=*/0, /*device_pixel_ratio=*/1,
                         /*expected_thumbnail_size=*/{140, 140},
                         "signature_widget");
@@ -1206,8 +1247,36 @@ TEST_P(PDFiumPageThumbnailTest, GenerateThumbnailWithTransparency) {
   TestClient client;
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("bug_40216952.pdf"));
+  ASSERT_TRUE(engine);
   TestGenerateThumbnail(*engine, /*page_index=*/0, /*device_pixel_ratio=*/1,
                         /*expected_thumbnail_size=*/{140, 140}, "bug_40216952");
+}
+
+TEST_P(PDFiumPageThumbnailTest, GenerateThumbnailWithOverlapCropBox) {
+  TestClient client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("hello_world_cropped.pdf"));
+  ASSERT_TRUE(engine);
+  TestGenerateThumbnailWithPlatformSpecificData(
+      *engine, /*page_index=*/0, /*device_pixel_ratio=*/1,
+      /*expected_thumbnail_size=*/{162, 108}, "hello_world_cropped",
+      /*use_platform_suffix=*/true);
+}
+
+// For crbug.com/438884266
+TEST_P(PDFiumPageThumbnailTest, GenerateThumbnailWithNoOverlapCropBox) {
+  TestClient client;
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("cropped_no_overlap.pdf"));
+  ASSERT_TRUE(engine);
+
+  // Since the output is expected to be blank, do not bother checking in a
+  // reference image.
+  sk_sp<SkImage> image = GenerateThumbnailImage(
+      *engine, /*page_index=*/0, /*device_pixel_ratio=*/1,
+      /*expected_thumbnail_size=*/{140, 140});
+  ASSERT_TRUE(image);
+  EXPECT_TRUE(IsImageBlank(*image));
 }
 
 #if BUILDFLAG(ENABLE_PDF_INK2)

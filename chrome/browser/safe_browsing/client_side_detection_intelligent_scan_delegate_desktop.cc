@@ -7,6 +7,7 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
+#include "chrome/browser/safe_browsing/client_side_detection_intelligent_scan_delegate_util.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -31,24 +32,9 @@ static constexpr auto kWaitableReasons =
             kLanguageDetectionModelNotAvailable,
     });
 
-void LogOnDeviceModelDownloadSuccess(bool success) {
-  base::UmaHistogramBoolean("SBClientPhishing.OnDeviceModelDownloadSuccess",
-                            success);
-}
-
 void LogOnDeviceModelSessionCreationSuccess(bool success) {
   base::UmaHistogramBoolean(
       "SBClientPhishing.OnDeviceModelSessionCreationSuccess", success);
-}
-
-void LogOnDeviceModelExecutionSuccessAndTime(
-    bool success,
-    base::TimeTicks session_execution_start_time) {
-  base::UmaHistogramBoolean("SBClientPhishing.OnDeviceModelExecutionSuccess",
-                            success);
-  base::UmaHistogramMediumTimes(
-      "SBClientPhishing.OnDeviceModelExecutionDuration",
-      base::TimeTicks::Now() - session_execution_start_time);
 }
 
 void LogOnDeviceModelExecutionParse(bool success) {
@@ -157,10 +143,8 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::InquireOnDeviceModel(
   // We have checked the model availability prior to calling this function, but
   // we want to check one last time before creating a session.
   if (!IsOnDeviceModelAvailable(/*log_failed_eligibility_reason=*/false)) {
-    ClientSideDetectionHost::IntelligentScanDelegate::IntelligentScanResult
-        intelligent_scan_result;
-    intelligent_scan_result.execution_success = false;
-    std::move(callback).Run(intelligent_scan_result);
+    std::move(callback).Run(IntelligentScanResult::Failure(
+        IntelligentScanResult::kModelVersionUnavailable));
     return;
   }
 
@@ -174,16 +158,13 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::InquireOnDeviceModel(
 
   if (!session_) {
     LogOnDeviceModelSessionCreationSuccess(false);
-    ClientSideDetectionHost::IntelligentScanDelegate::IntelligentScanResult
-        intelligent_scan_result;
-    intelligent_scan_result.execution_success = false;
-    std::move(callback).Run(intelligent_scan_result);
+    std::move(callback).Run(IntelligentScanResult::Failure(
+        IntelligentScanResult::kModelVersionUnavailable));
     return;
   }
 
-  base::UmaHistogramMediumTimes(
-      "SBClientPhishing.OnDeviceModelSessionCreationTime",
-      base::TimeTicks::Now() - session_creation_start_time);
+  client_side_detection::LogOnDeviceModelSessionCreationTime(
+      session_creation_start_time);
   LogOnDeviceModelSessionCreationSuccess(true);
 
   ScamDetectionRequest request;
@@ -200,30 +181,20 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::InquireOnDeviceModel(
 
 void ClientSideDetectionIntelligentScanDelegateDesktop::ModelExecutionCallback(
     optimization_guide::OptimizationGuideModelStreamingExecutionResult result) {
-  ClientSideDetectionHost::IntelligentScanDelegate::IntelligentScanResult
-      intelligent_scan_result;
-  if (result.execution_info &&
-      result.execution_info->has_on_device_model_execution_info() &&
-      result.execution_info->on_device_model_execution_info()
-          .has_model_versions() &&
-      result.execution_info->on_device_model_execution_info()
-          .model_versions()
-          .has_on_device_model_service_version()) {
-    intelligent_scan_result.model_version =
-        result.execution_info->on_device_model_execution_info()
-            .model_versions()
-            .on_device_model_service_version()
-            .model_adaptation_version();
-  } else {
-    intelligent_scan_result.model_version = -1;
+  int model_version = IntelligentScanResult::kModelVersionUnavailable;
+  if (result.execution_info) {
+    model_version = result.execution_info->on_device_model_execution_info()
+                        .model_versions()
+                        .on_device_model_service_version()
+                        .model_adaptation_version();
   }
 
   if (!result.response.has_value()) {
-    LogOnDeviceModelExecutionSuccessAndTime(/*success=*/false,
-                                            session_execution_start_time_);
+    client_side_detection::LogOnDeviceModelExecutionSuccessAndTime(
+        /*success=*/false, session_execution_start_time_);
     if (inquire_on_device_model_callback_) {
-      intelligent_scan_result.execution_success = false;
-      std::move(inquire_on_device_model_callback_).Run(intelligent_scan_result);
+      std::move(inquire_on_device_model_callback_)
+          .Run(IntelligentScanResult::Failure(model_version));
     }
     return;
   }
@@ -234,8 +205,8 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::ModelExecutionCallback(
     return;
   }
 
-  LogOnDeviceModelExecutionSuccessAndTime(/*success=*/true,
-                                          session_execution_start_time_);
+  client_side_detection::LogOnDeviceModelExecutionSuccessAndTime(
+      /*success=*/true, session_execution_start_time_);
 
   auto scam_detection_response = optimization_guide::ParsedAnyMetadata<
       optimization_guide::proto::ScamDetectionResponse>(
@@ -244,8 +215,8 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::ModelExecutionCallback(
   if (!scam_detection_response) {
     LogOnDeviceModelExecutionParse(false);
     if (inquire_on_device_model_callback_) {
-      intelligent_scan_result.execution_success = false;
-      std::move(inquire_on_device_model_callback_).Run(intelligent_scan_result);
+      std::move(inquire_on_device_model_callback_)
+          .Run(IntelligentScanResult::Failure(model_version));
     }
     return;
   }
@@ -259,10 +230,11 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::ModelExecutionCallback(
   LogOnDeviceModelCallbackStateOnSuccessfulResponse(
       !!inquire_on_device_model_callback_);
   if (inquire_on_device_model_callback_) {
-    intelligent_scan_result.brand = scam_detection_response->brand();
-    intelligent_scan_result.intent = scam_detection_response->intent();
-    intelligent_scan_result.execution_success = true;
-    std::move(inquire_on_device_model_callback_).Run(intelligent_scan_result);
+    std::move(inquire_on_device_model_callback_)
+        .Run({.brand = scam_detection_response->brand(),
+              .intent = scam_detection_response->intent(),
+              .model_version = model_version,
+              .execution_success = true});
   }
 }
 
@@ -324,17 +296,16 @@ void ClientSideDetectionIntelligentScanDelegateDesktop::
   }
 
   if (reason == optimization_guide::OnDeviceModelEligibilityReason::kSuccess) {
-    base::UmaHistogramLongTimes("SBClientPhishing.OnDeviceModelFetchTime",
-                                base::TimeTicks::Now() - on_device_fetch_time_);
+    client_side_detection::LogOnDeviceModelFetchTime(on_device_fetch_time_);
     NotifyOnDeviceModelAvailable();
   } else {
-    LogOnDeviceModelDownloadSuccess(false);
+    client_side_detection::LogOnDeviceModelDownloadSuccess(false);
   }
 }
 
 void ClientSideDetectionIntelligentScanDelegateDesktop::
     NotifyOnDeviceModelAvailable() {
-  LogOnDeviceModelDownloadSuccess(true);
+  client_side_detection::LogOnDeviceModelDownloadSuccess(true);
   on_device_model_available_ = true;
 }
 

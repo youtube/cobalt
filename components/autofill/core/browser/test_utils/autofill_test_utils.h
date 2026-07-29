@@ -107,6 +107,11 @@ std::unique_ptr<PrefService> PrefServiceForTesting(
 [[nodiscard]] FormData CreateTestAddressFormData(
     const char* unique_id = nullptr);
 
+// Returns a `FormData` corresponding to a simple sign-up form that also
+// accepts a passkey.
+[[nodiscard]] FormData CreateTestHybridSignUpFormData(
+    const char* unique_id = nullptr);
+
 // Returns a full profile with valid info according to rules for Canada.
 AutofillProfile GetFullValidProfileForCanada();
 
@@ -340,6 +345,9 @@ struct PassportEntityOptionsT {
   std::string_view nickname = "Passie";
   base::Time date_modified = kJune2017;
   std::string_view app_locale = "en-US";
+  EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
+  EntityInstance::AreAttributesReadOnly are_attributes_read_only =
+      EntityInstance::AreAttributesReadOnly(false);
 };
 using PassportEntityOptions = PassportEntityOptionsT<>;
 
@@ -361,6 +369,9 @@ struct DriversLicenseOptionsT {
   std::string_view nickname = "License";
   base::Time date_modified = kJune2017;
   std::string_view app_locale = "en-US";
+  EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
+  EntityInstance::AreAttributesReadOnly are_attributes_read_only =
+      EntityInstance::AreAttributesReadOnly(false);
 };
 using DriversLicenseOptions = DriversLicenseOptionsT<>;
 
@@ -379,6 +390,9 @@ struct VehicleOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-200000000000";
   std::string_view nickname = "Vehicle";
   std::string_view app_locale = "en-US";
+  EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
+  EntityInstance::AreAttributesReadOnly are_attributes_read_only =
+      EntityInstance::AreAttributesReadOnly(false);
 };
 using VehicleOptions = VehicleOptionsT<>;
 
@@ -393,6 +407,9 @@ struct NationalIdCardOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-300000000000";
   std::string_view nickname = "IdCard";
   std::string_view app_locale = "en-US";
+  EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
+  EntityInstance::AreAttributesReadOnly are_attributes_read_only =
+      EntityInstance::AreAttributesReadOnly(false);
 };
 using NationalIdCardOptions = NationalIdCardOptionsT<>;
 
@@ -406,6 +423,9 @@ struct KnownTravelerNumberOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-400000000000";
   std::string_view nickname = "Known Traveler Number";
   std::string_view app_locale = "en-US";
+  EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
+  EntityInstance::AreAttributesReadOnly are_attributes_read_only =
+      EntityInstance::AreAttributesReadOnly(false);
 };
 using KnownTravelerNumberOptions = KnownTravelerNumberOptionsT<>;
 
@@ -418,6 +438,9 @@ struct RedressNumberOptionsT {
   std::string_view guid = "00000000-0000-4000-8000-500000000000";
   std::string_view nickname = "RedressNumber";
   std::string_view app_locale = "en-US";
+  EntityInstance::RecordType record_type = EntityInstance::RecordType::kLocal;
+  EntityInstance::AreAttributesReadOnly are_attributes_read_only =
+      EntityInstance::AreAttributesReadOnly(false);
 };
 using RedressNumberOptions = RedressNumberOptionsT<>;
 

@@ -47,6 +47,7 @@
 #include "third_party/blink/renderer/core/layout/table/layout_table_caption.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_row.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_section.h"
+#include "third_party/blink/renderer/core/paint/clip_path_clipper.h"
 #include "third_party/blink/renderer/core/script_tools/automation_delegate_supplement.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
@@ -82,13 +83,27 @@ ListBasedHitTestBehavior CollectHitTestNodes(std::vector<DOMNodeId>& hit_nodes,
 
 gfx::Rect ComputeVisibleBoundingBox(const LayoutObject& object) {
   gfx::RectF visible_bounding_box =
-      object.LocalBoundingBoxRectForAccessibility();
+      ClipPathClipper::LocalClipPathBoundingBox(object).value_or(
+          object.LocalBoundingBoxRectForAccessibility());
 
   // TODO(khushalsagar): It might be more optimal to derive this from output of
   // paint.
   object.MapToVisualRectInAncestorSpace(nullptr, visible_bounding_box,
                                         kVisualRectFlags);
   return ToEnclosingRect(visible_bounding_box);
+}
+
+gfx::Rect ComputeOuterBoundingBox(const LayoutObject& object) {
+  const std::optional<gfx::RectF> clip_path_box =
+      ClipPathClipper::LocalClipPathBoundingBox(object);
+
+  if (clip_path_box.has_value()) {
+    gfx::QuadF absolute_quad = object.LocalToAbsoluteQuad(
+        gfx::QuadF(clip_path_box.value()), kMapCoordinatesFlags);
+    return gfx::ToEnclosingRect(absolute_quad.BoundingBox());
+  }
+
+  return object.AbsoluteBoundingBoxRect(kMapCoordinatesFlags);
 }
 
 void ComputeScrollerInfo(
@@ -324,6 +339,45 @@ bool ShouldSkipSubtree(const LayoutObject& object) {
   return false;
 }
 
+bool ShouldSkipDescendants(
+    const mojom::blink::AIPageContentNodePtr& content_node) {
+  if (!content_node) {
+    return false;
+  }
+  // If the child is an iframe, it does its own tree walk.
+  // TODO(crbug.com/405173553): Moving ProcessIframe here might simplify
+  // tree construction and keep stack depth counting in one place.
+  if (content_node->content_attributes->attribute_type ==
+      mojom::blink::AIPageContentAttributeType::kIframe) {
+    return true;
+  }
+
+  // We don't capture the SVG layout internally so there's no need to
+  // walk their tree.
+  if (content_node->content_attributes->attribute_type ==
+      mojom::blink::AIPageContentAttributeType::kSVG) {
+    return true;
+  }
+
+  // There's no layout nodes under a canvas, the content is just the
+  // canvas buffer.
+  if (content_node->content_attributes->attribute_type ==
+      mojom::blink::AIPageContentAttributeType::kCanvas) {
+    return true;
+  }
+
+  // Ensure that password editor subtrees are skipped even when the password
+  // is revealed.
+  if (content_node->content_attributes->form_control_data &&
+      content_node->content_attributes->form_control_data->redaction_decision ==
+          mojom::blink::AIPageContentRedactionDecision::
+              kRedacted_HasBeenPassword) {
+    return true;
+  }
+
+  return false;
+}
+
 void ProcessTextNode(const LayoutText& layout_text,
                      mojom::blink::AIPageContentAttributes& attributes,
                      const ComputedStyle& document_style) {
@@ -465,11 +519,28 @@ void ProcessFormControlNode(const HTMLFormControlElement& form_control_element,
   form_control_data->form_control_type = form_control_element.FormControlType();
   form_control_data->field_name = form_control_element.GetName();
   form_control_data->is_required = form_control_element.IsRequired();
+
+  // Set the default value for redaction, and override below as appropriate.
+  form_control_data->redaction_decision =
+      mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary;
+
   if (const auto* text_control_element =
           DynamicTo<TextControlElement>(form_control_element)) {
     // Don't include password values as they are sensitive.
-    if (form_control_data->form_control_type !=
-        mojom::blink::FormControlType::kInputPassword) {
+    if (const auto* input_element =
+            DynamicTo<HTMLInputElement>(text_control_element)) {
+      if (input_element->HasBeenPasswordField()) {
+        form_control_data->redaction_decision =
+            input_element->Value().empty()
+                ? mojom::blink::AIPageContentRedactionDecision::
+                      kUnredacted_EmptyPassword
+                : mojom::blink::AIPageContentRedactionDecision::
+                      kRedacted_HasBeenPassword;
+      }
+    }
+    if (form_control_data->redaction_decision !=
+        mojom::blink::AIPageContentRedactionDecision::
+            kRedacted_HasBeenPassword) {
       form_control_data->field_value = text_control_element->Value();
     }
     form_control_data->placeholder =
@@ -675,7 +746,7 @@ void AIPageContentAgent::GetAIPageContent(
 
   // We don't expect many overlapping calls to this service as the browser will
   // only issue one request at a time.
-  async_extraction_tasks_.push_back(WTF::BindOnce(
+  async_extraction_tasks_.push_back(blink::BindOnce(
       &AIPageContentAgent::GetAIPageContentSync, WrapWeakPersistent(this),
       std::move(options), std::move(callback), start_time));
 }
@@ -803,7 +874,7 @@ mojom::blink::AIPageContentPtr AIPageContentAgent::ContentBuilder::Build(
 
 void AIPageContentAgent::ContentBuilder::AddMetaData(
     const LocalFrame& frame,
-    WTF::Vector<mojom::blink::AIPageContentMetaPtr>& meta_data) const {
+    Vector<mojom::blink::AIPageContentMetaPtr>& meta_data) const {
   int max = options_->max_meta_elements;
   if (max == 0) {
     return;
@@ -936,21 +1007,7 @@ bool AIPageContentAgent::ContentBuilder::WalkChildren(
     bool child_has_visible_content = false;
     auto child_content_node =
         MaybeGenerateContentNode(*child, child_recursion_data);
-    if (child_content_node &&
-        // If the child is an iframe, it does its own tree walk.
-        // TODO(crbug.com/405173553): Moving ProcessIframe here might simplify
-        // tree construction and keep stack depth counting in one place.
-        (child_content_node->content_attributes->attribute_type ==
-             mojom::blink::AIPageContentAttributeType::kIframe ||
-         // We don't capture the SVG layout internally so there's no need to
-         // walk their tree.
-         child_content_node->content_attributes->attribute_type ==
-             mojom::blink::AIPageContentAttributeType::kSVG ||
-         // There's no layout nodes under a canvas, the content is just the
-         // canvas buffer.
-         child_content_node->content_attributes->attribute_type ==
-             mojom::blink::AIPageContentAttributeType::kCanvas)) {
-    } else {
+    if (!ShouldSkipDescendants(child_content_node)) {
       if (child_content_node) {
         child_recursion_data.stack_depth++;
       }
@@ -1275,8 +1332,7 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
   attributes.geometry = mojom::blink::AIPageContentGeometry::New();
   mojom::blink::AIPageContentGeometry& geometry = *attributes.geometry;
 
-  geometry.outer_bounding_box =
-      object.AbsoluteBoundingBoxRect(kMapCoordinatesFlags);
+  geometry.outer_bounding_box = ComputeOuterBoundingBox(object);
   geometry.visible_bounding_box = ComputeVisibleBoundingBox(object);
 
   geometry.is_fixed_or_sticky_position =
@@ -1309,7 +1365,7 @@ void AIPageContentAgent::ContentBuilder::ComputeHitTestableNodesInViewport(
 
   std::vector<DOMNodeId> hit_nodes;
   HitTestRequest::HitNodeCb hit_node_cb =
-      WTF::BindRepeating(&CollectHitTestNodes, std::ref(hit_nodes));
+      BindRepeating(&CollectHitTestNodes, std::ref(hit_nodes));
   HitTestRequest request(
       HitTestRequest::kReadOnly | HitTestRequest::kActive |
           HitTestRequest::kListBased | HitTestRequest::kPenetratingList |

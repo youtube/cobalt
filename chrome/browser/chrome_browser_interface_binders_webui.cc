@@ -162,6 +162,7 @@
 #include "ui/webui/resources/cr_components/most_visited/most_visited.mojom.h"
 #include "ui/webui/resources/cr_components/theme_color_picker/theme_color_picker.mojom.h"
 #include "ui/webui/resources/js/browser_command/browser_command.mojom.h"
+#include "ui/webui/resources/js/tracked_element/tracked_element.mojom.h"  // nogncheck crbug.com/1125897
 
 #if !defined(OFFICIAL_BUILD)
 #include "chrome/browser/ui/webui/new_tab_page/foo/foo.mojom.h"  // nogncheck crbug.com/1125897
@@ -737,7 +738,8 @@ void PopulateChromeWebUIFrameBinders(
         file_suggestion::mojom::MicrosoftFilesPageHandler, NewTabPageUI>(map);
   }
 
-  if (ntp_composebox::FeatureConfig::Get().enabled) {
+  if (ntp_composebox::IsNtpComposeboxEnabled(Profile::FromBrowserContext(
+          render_frame_host->GetProcess()->GetBrowserContext()))) {
     RegisterWebUIControllerInterfaceBinder<
         composebox::mojom::PageHandlerFactory, NewTabPageUI>(map);
   }
@@ -1451,7 +1453,8 @@ void PopulateChromeWebUIFrameInterfaceBrokers(
         .Add<bookmark_bar::mojom::PageHandlerFactory>()
         .Add<searchbox::mojom::PageHandler>()
         .Add<metrics_reporter::mojom::PageMetricsHost>()
-        .Add<tabs_api::mojom::TabStripService>();
+        .Add<tabs_api::mojom::TabStripService>()
+        .Add<tracked_element::mojom::TrackedElementHandler>();
   }
 
 #endif  // !BUILDFLAG(IS_ANDROID)

@@ -37,11 +37,11 @@
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
+#if BUILDFLAG(ENABLE_PDF_INK2)
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 namespace pdf_extension_util {
 
@@ -146,61 +146,24 @@ void AddPdfViewerStrings(base::Value::Dict* dict) {
        IDS_SAVE_TO_DRIVE_DIALOG_UPLOADING_TITLE},
       {"tooltipSaveToDrive", IDS_PDF_TOOLTIP_SAVE_TO_DRIVE},
 #endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
-      {"tooltipAnnotate", IDS_PDF_ANNOTATION_ANNOTATE},
-      {"annotationDocumentTooLarge", IDS_PDF_ANNOTATION_DOCUMENT_TOO_LARGE},
-      {"annotationDocumentProtected", IDS_PDF_ANNOTATION_DOCUMENT_PROTECTED},
-      {"annotationDocumentRotated", IDS_PDF_ANNOTATION_DOCUMENT_ROTATED},
-      {"annotationEditInDefaultView", IDS_PDF_ANNOTATION_EDIT_IN_DEFAULT_VIEW},
-      {"annotationResetRotate", IDS_PDF_ANNOTATION_RESET_ROTATE},
-      {"annotationResetTwoPageView", IDS_PDF_ANNOTATION_RESET_TWO_PAGE_VIEW},
-      {"annotationResetRotateAndTwoPageView",
-       IDS_PDF_ANNOTATION_RESET_ROTATE_AND_TWO_PAGE_VIEW},
+#if BUILDFLAG(ENABLE_PDF_INK2)
       {"cancelButton", IDS_CANCEL},
       {"annotationPen", IDS_PDF_ANNOTATION_PEN},
       {"annotationHighlighter", IDS_PDF_ANNOTATION_HIGHLIGHTER},
       {"annotationEraser", IDS_PDF_ANNOTATION_ERASER},
       {"annotationUndo", IDS_PDF_ANNOTATION_UNDO},
       {"annotationRedo", IDS_PDF_ANNOTATION_REDO},
-      {"annotationExpand", IDS_PDF_ANNOTATION_EXPAND},
       {"annotationColorBlack", IDS_PDF_ANNOTATION_COLOR_BLACK},
       {"annotationColorRed", IDS_PDF_ANNOTATION_COLOR_RED},
       {"annotationColorYellow", IDS_PDF_ANNOTATION_COLOR_YELLOW},
       {"annotationColorGreen", IDS_PDF_ANNOTATION_COLOR_GREEN},
-      {"annotationColorCyan", IDS_PDF_ANNOTATION_COLOR_CYAN},
-      {"annotationColorPurple", IDS_PDF_ANNOTATION_COLOR_PURPLE},
-      {"annotationColorBrown", IDS_PDF_ANNOTATION_COLOR_BROWN},
       {"annotationColorWhite", IDS_PDF_ANNOTATION_COLOR_WHITE},
-      {"annotationColorCrimson", IDS_PDF_ANNOTATION_COLOR_CRIMSON},
-      {"annotationColorAmber", IDS_PDF_ANNOTATION_COLOR_AMBER},
-      {"annotationColorAvocadoGreen", IDS_PDF_ANNOTATION_COLOR_AVOCADO_GREEN},
-      {"annotationColorCobaltBlue", IDS_PDF_ANNOTATION_COLOR_COBALT_BLUE},
-      {"annotationColorDeepPurple", IDS_PDF_ANNOTATION_COLOR_DEEP_PURPLE},
-      {"annotationColorDarkBrown", IDS_PDF_ANNOTATION_COLOR_DARK_BROWN},
-      {"annotationColorDarkGrey", IDS_PDF_ANNOTATION_COLOR_DARK_GREY},
-      {"annotationColorHotPink", IDS_PDF_ANNOTATION_COLOR_HOT_PINK},
       {"annotationColorOrange", IDS_PDF_ANNOTATION_COLOR_ORANGE},
-      {"annotationColorLime", IDS_PDF_ANNOTATION_COLOR_LIME},
       {"annotationColorBlue", IDS_PDF_ANNOTATION_COLOR_BLUE},
-      {"annotationColorViolet", IDS_PDF_ANNOTATION_COLOR_VIOLET},
-      {"annotationColorTeal", IDS_PDF_ANNOTATION_COLOR_TEAL},
       {"annotationColorLightGrey", IDS_PDF_ANNOTATION_COLOR_LIGHT_GREY},
-      {"annotationColorLightPink", IDS_PDF_ANNOTATION_COLOR_LIGHT_PINK},
       {"annotationColorLightOrange", IDS_PDF_ANNOTATION_COLOR_LIGHT_ORANGE},
       {"annotationColorLightGreen", IDS_PDF_ANNOTATION_COLOR_LIGHT_GREEN},
       {"annotationColorLightBlue", IDS_PDF_ANNOTATION_COLOR_LIGHT_BLUE},
-      {"annotationColorLavender", IDS_PDF_ANNOTATION_COLOR_LAVENDER},
-      {"annotationColorLightTeal", IDS_PDF_ANNOTATION_COLOR_LIGHT_TEAL},
-      {"annotationSize1", IDS_PDF_ANNOTATION_SIZE1},
-      {"annotationSize2", IDS_PDF_ANNOTATION_SIZE2},
-      {"annotationSize3", IDS_PDF_ANNOTATION_SIZE3},
-      {"annotationSize4", IDS_PDF_ANNOTATION_SIZE4},
-      {"annotationSize8", IDS_PDF_ANNOTATION_SIZE8},
-      {"annotationSize12", IDS_PDF_ANNOTATION_SIZE12},
-      {"annotationSize16", IDS_PDF_ANNOTATION_SIZE16},
-      {"annotationSize20", IDS_PDF_ANNOTATION_SIZE20},
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
-#if BUILDFLAG(ENABLE_PDF_INK2)
       {"ink2Draw", IDS_PDF_INK2_DRAW},
       {"ink2Tool", IDS_PDF_INK2_ANNOTATION_TOOL},
       {"ink2Size", IDS_PDF_INK2_ANNOTATION_SIZE},
@@ -251,11 +214,11 @@ void AddPdfViewerStrings(base::Value::Dict* dict) {
   for (const auto& resource : kPdfResources)
     dict->Set(resource.name, l10n_util::GetStringUTF16(resource.id));
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
+#if BUILDFLAG(ENABLE_PDF_INK2)
   std::u16string edit_string = l10n_util::GetStringUTF16(IDS_EDIT);
   std::erase(edit_string, '&');
   dict->Set("editButton", edit_string);
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
   webui::SetLoadTimeDataDefaults(g_browser_process->GetApplicationLocale(),
                                  dict);
@@ -269,20 +232,14 @@ bool IsPrintingEnabled(content::BrowserContext* context) {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
+#if BUILDFLAG(ENABLE_PDF_INK2)
 bool IsPdfAnnotationsEnabledByPolicy(content::BrowserContext* context) {
   PrefService* prefs =
       context ? Profile::FromBrowserContext(context)->GetPrefs() : nullptr;
   return !prefs || !prefs->IsManagedPreference(prefs::kPdfAnnotationsEnabled) ||
          prefs->GetBoolean(prefs::kPdfAnnotationsEnabled);
 }
-#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
-
-#if BUILDFLAG(IS_CHROMEOS)
-bool IsPdfInk1AnnotationsEnabled(content::BrowserContext* context) {
-  return IsPdfAnnotationsEnabledByPolicy(context);
-}
-#endif  // BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
 bool IsPdfInk2AnnotationsEnabled(content::BrowserContext* context) {
@@ -328,10 +285,6 @@ void AddAdditionalData(content::BrowserContext* context,
   // replacements. The i18n string resources should be added using AddStrings()
   // above instead.
   dict->Set("printingEnabled", IsPrintingEnabled(context));
-
-#if BUILDFLAG(IS_CHROMEOS)
-  dict->Set("pdfInk1AnnotationsEnabled", IsPdfInk1AnnotationsEnabled(context));
-#endif
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
   const bool use_ink2 = IsPdfInk2AnnotationsEnabled(context);

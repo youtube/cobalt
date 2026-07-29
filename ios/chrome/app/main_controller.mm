@@ -177,9 +177,7 @@ namespace {
 
 #if BUILDFLAG(FAST_APP_TERMINATE_ENABLED)
 // Skip chromeMain.reset() on shutdown, see crbug.com/1328891 for details.
-BASE_FEATURE(kFastApplicationWillTerminate,
-             "FastApplicationWillTerminate",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(FastApplicationWillTerminate, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(FAST_APP_TERMINATE_ENABLED)
 
 // Constants for deferring memory debugging tools startup.
@@ -251,7 +249,8 @@ void RegisterComponentsForUpdate() {
                                   GetApplicationContext()->GetLocalState());
   RegisterOptimizationHintsComponent(cus);
   RegisterPlusAddressBlocklistComponent(cus);
-  RegisterAntiFingerprintingContentRuleListComponent(cus);
+  component_updater::AntiFingerprintingContentRuleListComponentInstallerPolicy::
+      Register(cus);
 }
 
 // The delay before beginning memory experimentation.
