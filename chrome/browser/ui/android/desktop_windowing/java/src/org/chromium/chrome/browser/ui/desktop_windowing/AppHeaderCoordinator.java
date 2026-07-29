@@ -38,11 +38,11 @@ import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils.Windowing
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
-import org.chromium.ui.CaptionBarInsetsRectProvider;
-import org.chromium.ui.InsetObserver;
-import org.chromium.ui.InsetObserver.WindowInsetsConsumer;
-import org.chromium.ui.InsetsRectProvider;
 import org.chromium.ui.display.DisplayUtil;
+import org.chromium.ui.insets.CaptionBarInsetsRectProvider;
+import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.insets.InsetObserver.WindowInsetsConsumer;
+import org.chromium.ui.insets.InsetsRectProvider;
 import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.TokenHolder;
 
@@ -117,7 +117,6 @@ public class AppHeaderCoordinator
         mRootView = rootView;
         mBrowserControlsVisibilityDelegate = browserControlsVisibilityDelegate;
         mInsetObserver = insetObserver;
-        mInsetObserver.addInsetsConsumer(this, InsetConsumerSource.APP_HEADER_COORDINATOR_BOTTOM);
         mInsetsController = assertNonNull(mRootView.getWindowInsetsController());
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mActivityLifecycleDispatcher.register(this);
@@ -137,14 +136,11 @@ public class AppHeaderCoordinator
                                 insetObserver.getLastRawWindowInsets(),
                                 InsetConsumerSource.APP_HEADER_COORDINATOR_CAPTION);
 
-        InsetsRectProvider.Observer insetsRectUpdateRunnable = this::onInsetsRectsUpdated;
-        mCaptionBarRectProvider.addObserver(insetsRectUpdateRunnable);
-
-        // Populate the initial value if the rect provider is ready.
-        if (!mCaptionBarRectProvider.getWidestUnoccludedRect().isEmpty()) {
-            insetsRectUpdateRunnable.onBoundingRectsUpdated(
-                    mCaptionBarRectProvider.getWidestUnoccludedRect());
-        }
+        // Set the insets consumers and trigger insets application for potential consumption after
+        // the rect provider is ready, to populate initial values.
+        mCaptionBarRectProvider.setConsumer(this::onInsetsRectsUpdated);
+        mInsetObserver.addInsetsConsumer(this, InsetConsumerSource.APP_HEADER_COORDINATOR_BOTTOM);
+        insetObserver.retriggerOnApplyWindowInsets();
     }
 
     /** Destroy the instances and remove all the dependencies. */
@@ -193,7 +189,8 @@ public class AppHeaderCoordinator
         outState.putBoolean(INSTANCE_STATE_KEY_IS_APP_IN_UNFOCUSED_DW, mIsInUnfocusedDesktopWindow);
     }
 
-    private void onInsetsRectsUpdated(Rect widestUnoccludedRect) {
+    /* Returns true if app header is customized. */
+    private boolean onInsetsRectsUpdated(Rect widestUnoccludedRect) {
         // mActivity is only set to null in destroy().
         boolean isOnExternalDisplay =
                 !DisplayUtil.isContextInDefaultDisplay(assumeNonNull(mActivity));
@@ -217,7 +214,7 @@ public class AppHeaderCoordinator
                         mCaptionBarRectProvider.getWindowRect(),
                         widestUnoccludedRect,
                         isInDesktopWindow);
-        if (appHeaderState.equals(mAppHeaderState)) return;
+        if (appHeaderState.equals(mAppHeaderState)) return isInDesktopWindow;
 
         boolean desktopWindowingModeChanged = mIsInDesktopWindow != isInDesktopWindow;
         mIsInDesktopWindow = isInDesktopWindow;
@@ -228,7 +225,7 @@ public class AppHeaderCoordinator
         }
 
         // If whether we are in DW mode does not change, we can end this method now.
-        if (!desktopWindowingModeChanged) return;
+        if (!desktopWindowingModeChanged) return isInDesktopWindow;
 
         for (var observer : mObservers) {
             observer.onDesktopWindowingModeChanged(mIsInDesktopWindow);
@@ -248,6 +245,8 @@ public class AppHeaderCoordinator
         } else {
             mBrowserControlsVisibilityDelegate.releasePersistentShowingToken(mBrowserControlsToken);
         }
+
+        return isInDesktopWindow;
     }
 
     /**
@@ -282,6 +281,8 @@ public class AppHeaderCoordinator
             newResult = DesktopWindowHeuristicResult.CAPTION_BAR_BOUNDING_RECT_INVALID_HEIGHT;
         } else if (!allowHeaderCustomization) {
             newResult = DesktopWindowHeuristicResult.DISALLOWED_ON_EXTERNAL_DISPLAY;
+        } else if (insetsRectProvider.isUnoccludedRegionComplex()) {
+            newResult = DesktopWindowHeuristicResult.COMPLEX_UNOCCLUDED_REGION;
         } else {
             newResult = DesktopWindowHeuristicResult.IN_DESKTOP_WINDOW;
         }

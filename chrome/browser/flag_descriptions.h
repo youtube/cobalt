@@ -277,6 +277,12 @@ extern const char kDbdRevampDesktopDescription[];
 extern const char kDisableFacilitatedPaymentsMerchantAllowlistName[];
 extern const char kDisableFacilitatedPaymentsMerchantAllowlistDescription[];
 
+extern const char kDropInputEventsWhilePaintHoldingName[];
+extern const char kDropInputEventsWhilePaintHoldingDescription[];
+
+extern const char kFieldClassificationModelCachingName[];
+extern const char kFieldClassificationModelCachingDescription[];
+
 extern const char kHdrAgtmName[];
 extern const char kHdrAgtmDescription[];
 
@@ -362,22 +368,19 @@ extern const char kMediaSessionEnterPictureInPictureDescription[];
 #if BUILDFLAG(IS_ANDROID)
 extern const char kMvcUpdateViewWhenModelChangedName[];
 extern const char kMvcUpdateViewWhenModelChangedDescription[];
+
+extern const char kReloadTabUiResourcesIfChangedName[];
+extern const char kReloadTabUiResourcesIfChangedDescription[];
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 extern const char kEnableDrDcName[];
 extern const char kEnableDrDcDescription[];
-
-extern const char kEnableSnackbarInSettingsName[];
-extern const char kEnableSnackbarInSettingsDescription[];
 
 extern const char kEnablePendingModePasswordsPromoName[];
 extern const char kEnablePendingModePasswordsPromoDescription[];
 
 extern const char kUseAndroidStagingSmdsName[];
 extern const char kUseAndroidStagingSmdsDescription[];
-
-extern const char kUseFrameIntervalDeciderName[];
-extern const char kUseFrameIntervalDeciderDescription[];
 
 extern const char kUseSharedImagesForPepperVideoName[];
 extern const char kUseSharedImagesForPepperVideoDescription[];
@@ -404,6 +407,10 @@ extern const char kImageDescriptionsAlternateRoutingDescription[];
 extern const char kAutofillDeprecateAccessibilityApiName[];
 extern const char kAutofillDeprecateAccessibilityApiDescription[];
 #endif  // BUILDFLAG(IS_ANDROID)
+
+extern const char kAutofillDropNamesWithInvalidCharactersForCardUploadName[];
+extern const char
+    kAutofillDropNamesWithInvalidCharactersForCardUploadDescription[];
 
 extern const char kAutofillEnableAllowlistForBmoCardCategoryBenefitsName[];
 extern const char
@@ -723,10 +730,6 @@ extern const char kUseDnsHttpsSvcbAlpnDescription[];
 extern const char kIsolatedSandboxedIframesName[];
 extern const char kIsolatedSandboxedIframesDescription[];
 
-extern const char kIsPaintableChecksResourceProviderInsteadOfBridgeName[];
-extern const char
-    kIsPaintableChecksResourceProviderInsteadOfBridgeDescription[];
-
 extern const char kExperimentalAccessibilityLanguageDetectionName[];
 extern const char kExperimentalAccessibilityLanguageDetectionDescription[];
 
@@ -853,6 +856,15 @@ extern const char kAudioDuckingDescription[];
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
         // BUILDFLAG(IS_CHROMEOS)
 
+extern const char kDsePreload2Name[];
+extern const char kDsePreload2Description[];
+
+extern const char kDsePreload2OnPressName[];
+extern const char kDsePreload2OnPressDescription[];
+
+extern const char kHttpCacheNoVarySearchName[];
+extern const char kHttpCacheNoVarySearchDescription[];
+
 extern const char kEnableTLS13EarlyDataName[];
 extern const char kEnableTLS13EarlyDataDescription[];
 
@@ -916,6 +928,9 @@ extern const char kNewTabPageCustomizationDescription[];
 
 extern const char kNewTabPageCustomizationToolbarButtonName[];
 extern const char kNewTabPageCustomizationToolbarButtonDescription[];
+
+extern const char kNewTabPageCustomizationForMvtName[];
+extern const char kNewTabPageCustomizationForMvtDescription[];
 #endif  // BUILDFLAG(IS_ANDROID)
 
 extern const char kEnableGpuServiceLoggingName[];
@@ -1075,9 +1090,6 @@ extern const char kBoundaryEventDispatchTracksNodeRemovalDescription[];
 
 extern const char kEnableCssSelectorFragmentAnchorName[];
 extern const char kEnableCssSelectorFragmentAnchorDescription[];
-
-extern const char kEnableImprovedGuestProfileMenuName[];
-extern const char kEnableImprovedGuestProfileMenuDescription[];
 
 #if !BUILDFLAG(IS_ANDROID)
 extern const char kEnablePreferencesAccountStorageName[];
@@ -1270,6 +1282,9 @@ extern const char kGoogleOneOfferFilesBannerDescription[];
 
 extern const char kObservableAPIName[];
 extern const char kObservableAPIDescription[];
+
+extern const char kMenuElementsName[];
+extern const char kMenuElementsDescription[];
 
 extern const char kCastMessageLoggingName[];
 extern const char kCastMessageLoggingDescription[];
@@ -1557,6 +1572,9 @@ extern const char kExperimentalWebMachineLearningNeuralNetworkDescription[];
 #if BUILDFLAG(IS_MAC)
 extern const char kWebNNCoreMLName[];
 extern const char kWebNNCoreMLDescription[];
+
+extern const char kWebNNCoreMLExplicitGPUOrNPUName[];
+extern const char kWebNNCoreMLExplicitGPUOrNPUDescription[];
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN)
@@ -1740,6 +1758,9 @@ extern const char kOmniboxContextualSuggestionsDescription[];
 extern const char kOmniboxFocusTriggersWebAndSRPZeroSuggestName[];
 extern const char kOmniboxFocusTriggersWebAndSRPZeroSuggestDescription[];
 
+extern const char kOmniboxShowPopupOnMouseReleasedName[];
+extern const char kOmniboxShowPopupOnMouseReleasedDescription[];
+
 extern const char kOmniboxHideSuggestionGroupHeadersName[];
 extern const char kOmniboxHideSuggestionGroupHeadersDescription[];
 
@@ -1863,9 +1884,6 @@ extern const char kPartitionAllocMemoryTaggingDescription[];
 extern const char kPartitionAllocWithAdvancedChecksName[];
 extern const char kPartitionAllocWithAdvancedChecksDescription[];
 
-extern const char kPartitionVisitedLinkDatabaseName[];
-extern const char kPartitionVisitedLinkDatabaseDescription[];
-
 extern const char kPartitionVisitedLinkDatabaseWithSelfLinksName[];
 extern const char kPartitionVisitedLinkDatabaseWithSelfLinksDescription[];
 
@@ -1886,9 +1904,6 @@ extern const char kPasswordManualFallbackAvailableDescription[];
 
 extern const char kPasswordParsingOnSaveUsesPredictionsName[];
 extern const char kPasswordParsingOnSaveUsesPredictionsDescription[];
-
-extern const char kPdfSearchifyName[];
-extern const char kPdfSearchifyDescription[];
 
 extern const char kPdfXfaFormsName[];
 extern const char kPdfXfaFormsDescription[];
@@ -2278,8 +2293,11 @@ extern const char kSystemProxyForSystemServicesDescription[];
 extern const char kSystemShortcutBehaviorName[];
 extern const char kSystemShortcutBehaviorDescription[];
 
-extern const char kTabDragDropName[];
-extern const char kTabDragDropDescription[];
+extern const char kTabArchivalDragDropAndroidName[];
+extern const char kTabArchivalDragDropAndroidDescription[];
+
+extern const char kTabSwitcherDragDropName[];
+extern const char kTabSwitcherDragDropDescription[];
 
 extern const char kTabGroupEntryPointsAndroidName[];
 extern const char kTabGroupEntryPointsAndroidDescription[];
@@ -2517,6 +2535,11 @@ extern const char kWebAuthnPasskeyUpgradeDescription[];
 extern const char kWebAuthnImmediateGetName[];
 extern const char kWebAuthnImmediateGetDescription[];
 
+#if BUILDFLAG(IS_MAC)
+extern const char kWebAuthnLargeBlobForICloudKeychainName[];
+extern const char kWebAuthnLargeBlobForICloudKeychainDescription[];
+#endif
+
 extern const char kWebBluetoothName[];
 extern const char kWebBluetoothDescription[];
 
@@ -2695,6 +2718,9 @@ extern const char kAdaptiveButtonInTopToolbarCustomizationDescription[];
 extern const char kAdaptiveButtonInTopToolbarPageSummaryName[];
 extern const char kAdaptiveButtonInTopToolbarPageSummaryDescription[];
 
+extern const char kAndroidTabGroupsColorUpdateGM3Name[];
+extern const char kAndroidTabGroupsColorUpdateGM3Description[];
+
 extern const char kAndroidSurfaceControlName[];
 extern const char kAndroidSurfaceControlDescription[];
 
@@ -2707,9 +2733,6 @@ extern const char kAnimateSuggestionsListAppearanceDescription[];
 extern const char kAndroidElegantTextHeightName[];
 extern const char kAndroidElegantTextHeightDescription[];
 
-extern const char kAndroidHubSearchName[];
-extern const char kAndroidHubSearchDescription[];
-
 extern const char kAndroidHubSearchTabGroupsName[];
 extern const char kAndroidHubSearchTabGroupsDescription[];
 
@@ -2721,6 +2744,10 @@ extern const char kAndroidOpenPdfInlineBackportDescription[];
 
 extern const char kAndroidPdfAssistContentName[];
 extern const char kAndroidPdfAssistContentDescription[];
+
+extern const char kAndroidShowRestoreTabsPromoOnFREBypassedKillSwitchName[];
+extern const char
+    kAndroidShowRestoreTabsPromoOnFREBypassedKillSwitchDescription[];
 
 extern const char kAndroidSurfaceColorUpdateName[];
 extern const char kAndroidSurfaceColorUpdateDescription[];
@@ -2836,6 +2863,9 @@ extern const char kClankDefaultBrowserPromoDescription[];
 extern const char kClankDefaultBrowserPromoRoleManagerName[];
 extern const char kClankDefaultBrowserPromoRoleManagerDescription[];
 
+extern const char kAndroidComposeplateName[];
+extern const char kAndroidComposeplateDescription[];
+
 extern const char kTabStateFlatBufferName[];
 extern const char kTabStateFlatBufferDescription[];
 
@@ -2934,9 +2964,6 @@ extern const char kWebFeedDeprecationDescription[];
 
 extern const char kFloatingSnackbarName[];
 extern const char kFloatingSnackbarDescription[];
-
-extern const char kForceListTabSwitcherName[];
-extern const char kForceListTabSwitcherDescription[];
 
 extern const char kForceOffTextAutosizingName[];
 extern const char kForceOffTextAutosizingDescription[];
@@ -3295,6 +3322,9 @@ extern const char kNtpCalendarModuleDescription[];
 
 extern const char kNtpChromeCartModuleName[];
 extern const char kNtpChromeCartModuleDescription[];
+
+extern const char kNtpSearchboxShowComposeButtonName[];
+extern const char kNtpSearchboxShowComposeButtonDescription[];
 
 extern const char kNtpDriveModuleName[];
 extern const char kNtpDriveModuleDescription[];
@@ -5042,9 +5072,6 @@ extern const char kSupervisedProfileReauthForBlockedSiteDescription[];
 
 extern const char kSupervisedProfileSubframeReauthName[];
 extern const char kSupervisedProfileSubframeReauthDescription[];
-
-extern const char kSupervisedProfileFilteringFallbackName[];
-extern const char kSupervisedProfileFilteringFallbackDescription[];
 
 extern const char kSupervisedProfileCustomStringsName[];
 extern const char kSupervisedProfileCustomStringsDescription[];

@@ -154,8 +154,11 @@ void GlicFreController::ShowFreDialogAfterAuthCheck(
   // use a synchronous close.
   fre_widget_ = tab_showing_modal_->GetTabFeatures()
                     ->tab_dialog_manager()
-                    ->CreateShowDialogAndBlockTabInteraction(
-                        fre_view_.release(), /*close_on_navigation=*/false);
+                    ->CreateTabScopedDialog(fre_view_.release());
+  auto params = std::make_unique<tabs::TabDialogManager::Params>();
+  params->close_on_navigate = false;
+  tab_showing_modal_->GetTabFeatures()->tab_dialog_manager()->ShowDialog(
+      fre_widget_.get(), std::move(params));
   GetWebContents()->Focus();
   will_detach_subscription_ = tab_showing_modal_->RegisterWillDetach(
       base::BindRepeating(&GlicFreController::OnTabShowingModalWillDetach,
@@ -218,8 +221,6 @@ void GlicFreController::CloseWithReason(views::Widget::ClosedReason reason) {
 }
 
 void GlicFreController::DismissFre() {
-  base::UmaHistogramEnumeration("Glic.FreModalWebUiState.FinishState",
-                                webui_state_);
   web_contents_ = nullptr;
   source_browser_ = nullptr;
   if (fre_view_ || fre_widget_) {
@@ -231,6 +232,8 @@ void GlicFreController::DismissFre() {
     }
   }
   if (fre_widget_) {
+    base::UmaHistogramEnumeration("Glic.FreModalWebUiState.FinishState2",
+                                  webui_state_);
     fre_widget_.reset();
     tab_showing_modal_ = nullptr;
     will_detach_subscription_ = {};

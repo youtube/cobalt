@@ -375,6 +375,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2718352093833049315">Kablosuz ağ varken</translation>
 <translation id="2718846868787000099">Siteler, tercih ettiğiniz dillerde içerik göstermek için tercihlerinizi görebilir</translation>
 <translation id="2723001399770238859">ses</translation>
+<translation id="2734335652257251631">Okuma Modu'nu Göster</translation>
 <translation id="2739887572830526131">Daha sonra sekme eklemek için bu grubu tutun ya da artık ihtiyacınız yoksa silin.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> şu anda kullanılamıyor.</translation>
 <translation id="2760805590727089264">AA / YY</translation>
@@ -928,6 +929,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="5233638681132016545">Yeni sekme</translation>
 <translation id="5235196193381275927">Oturum açılırken bir hata oluştu</translation>
 <translation id="5246093389635966745">Araç çubuğu düzenleme kısayolu</translation>
+<translation id="5252768492075585080">Üçüncü taraf çerez ayarları</translation>
 <translation id="5264813352784073502">Son 24 saat</translation>
 <translation id="5267572070504076962">Tehlikeli sitelere karşı korunmak için Güvenli Tarama'yı etkinleştirin</translation>
 <translation id="5271967389191913893">Cihaz, indirilecek içeriği açamıyor.</translation>
@@ -1398,6 +1400,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7237724030342645845">Google Şifre Yöneticisi çalışmayı durdurdu</translation>
 <translation id="72415438529550637">Şifre önerisi kapatıldı.</translation>
 <translation id="7248671827512403053">Uygulama</translation>
+<translation id="7253951228444156601">Şifreler kontrol ediliyor…</translation>
 <translation id="7260367682327802201">Android cihazınızda benzer bir ayar olabilir. Chrome'da ve Android cihazınızda reklam ölçümü etkinse bir şirket, ziyaret ettiğiniz web siteleri ve kullandığınız uygulamalardaki reklamların etkinliğini ölçebilir.</translation>
 <translation id="727288900855680735"><ph name="ORIGIN" /> adresine <ph name="ONE_TIME_CODE" /> gönderilsin mi?</translation>
 <translation id="7274013316676448362">Engellenmiş site</translation>
@@ -1438,7 +1441,8 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7421293530411019405">Sekme grubundan ayrılmak istiyor musunuz?</translation>
 <translation id="7431991332293347422">Göz atma geçmişinizin Arama ve diğer hizmetleri kişiselleştirmek için nasıl kullanıldığını kontrol edin</translation>
 <translation id="7435356471928173109">Yöneticiniz tarafından kapatıldı</translation>
-<translation id="7437998757836447326">Chrome oturumunu kapatma</translation>
+<translation id="7437998757836447326">Chrome oturumunu kapat</translation>
+<translation id="7439467816829380878">Sekmeyi gruba taşı</translation>
 <translation id="7453810262525006706">Yan görünüme daralt</translation>
 <translation id="7454641608352164238">Yeterli alan yok</translation>
 <translation id="7454744349230173024">Kuruluşunuz şifre kaydetmeyi devre dışı bıraktı</translation>
@@ -1531,6 +1535,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7810647596859435254">Birlikte aç…</translation>
 <translation id="7814066895362068701">{FILE_COUNT,plural, =1{Tüm dosyalar, listede 1 dosya var}other{Tüm dosyalar, listede # dosya var}}</translation>
 <translation id="7815484226266492798">Uzun Ekran Görüntüsü</translation>
+<translation id="7815680994978050279">Tehlikeli indirme işlemi engellendi</translation>
 <translation id="7819605256207059717">Kuruluşunuz tarafından engellendi</translation>
 <translation id="7821130663268546430">Açık sekmelerin tümünü, sekme değiştiricide bulabilirsiniz</translation>
 <translation id="7822705602465980873">Oturum açtığınızda bu veriler, Google hizmetlerinde korunmanızı sağlamak için Google Hesabınıza bağlanır. Örneğin, bir güvenlik olayından sonra Gmail'deki koruma artırılır.</translation>
@@ -1744,6 +1749,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="8676789164135894283">Oturum açma doğrulamaları</translation>
 <translation id="8683039184091909753">resim</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, Seçili sekme</translation>
+<translation id="8693232767599693749">Okuma Modu görüntülensin mi?</translation>
 <translation id="8697753151306746444">Bunun yerine pencere veya ekran paylaşın</translation>
 <translation id="869891660844655955">Son kullanma tarihi</translation>
 <translation id="8699120352855309748">Şu dilleri çevirmeyi önerme</translation>
@@ -1813,6 +1819,7 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="9019199799064251516">Arabada profil kilidi olmadan devam edilsin mi?</translation>
 <translation id="9022774213089566801">Sık ziyaret edilenler</translation>
 <translation id="9022871169049522985">Siteler ve reklamverenler, reklamlarının performansını ölçebilir</translation>
+<translation id="9027728231343310283"><ph name="SITE" /> sitesinin iznini geri al</translation>
 <translation id="9035378196785279980">Şuraya taşı:\u2026</translation>
 <translation id="9042893549633094279">Gizlilik ve güvenlik</translation>
 <translation id="9047347135558855162">Chrome'da hızlıca arama işlemi başlatın</translation>

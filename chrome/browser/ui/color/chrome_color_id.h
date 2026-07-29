@@ -33,14 +33,14 @@
   /* TODO(crbug.com/40259490): Refactor the Avatar Button colors as Profile */ \
   /* Menu Button colors. */ \
   E_CPONLY(kColorAvatarButtonHighlightDefault) \
-  E_CPONLY(kColorAvatarButtonHighlightNormal) \
+  E_CPONLY(kColorAvatarButtonHighlightGuest) \
   E_CPONLY(kColorAvatarButtonHighlightSyncError) \
   E_CPONLY(kColorAvatarButtonHighlightSyncPaused) \
   E_CPONLY(kColorAvatarButtonHighlightSigninPaused) \
   E_CPONLY(kColorAvatarButtonHighlightExplicitText) \
   E_CPONLY(kColorAvatarButtonHighlightIncognito) \
   E_CPONLY(kColorAvatarButtonHighlightManagement) \
-  E_CPONLY(kColorAvatarButtonHighlightNormalForeground) \
+  E_CPONLY(kColorAvatarButtonHighlightGuestForeground) \
   E_CPONLY(kColorAvatarButtonHighlightDefaultForeground) \
   E_CPONLY(kColorAvatarButtonHighlightSyncErrorForeground) \
   E_CPONLY(kColorAvatarButtonHighlightIncognitoForeground) \
@@ -467,7 +467,6 @@
   E_CPONLY(kColorProductSpecificationsTonalButtonIcon) \
   /* Profile Menu colors. */ \
   E_CPONLY(kColorProfileMenuBackground) \
-  E_CPONLY(kColorProfileMenuHeaderBackground) \
   E_CPONLY(kColorProfileMenuIdentityInfoBackground) \
   E_CPONLY(kColorProfileMenuIdentityInfoTitle) \
   E_CPONLY(kColorProfileMenuIdentityInfoSubtitle) \

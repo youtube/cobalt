@@ -52,6 +52,14 @@ const char kAutofillDisableSilentProfileUpdatesDescription[] =
     "When enabled, Autofill will not apply silent updates to address profiles. "
     "For testing purposes.";
 
+const char kAutofillDropNamesWithInvalidCharactersForCardUploadName[] =
+    "Drop names with invalid characters for credit card upload";
+const char kAutofillDropNamesWithInvalidCharactersForCardUploadDescription[] =
+    "When enabled, cardholder and address names considered during the credit "
+    "card upload flow will be cleared out if they contain characters "
+    "considered invalid by Google Payments, such as numbers or various "
+    "punctuation marks.";
+
 const char kAutofillEnableAllowlistForBmoCardCategoryBenefitsName[] =
     "Enable allowlist for showing category benefits for BMO cards";
 const char kAutofillEnableAllowlistForBmoCardCategoryBenefitsDescription[] =
@@ -650,6 +658,12 @@ const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
 const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[] =
     "Replace section break by spaces when detecting addresses.";
 
+const char kIOSMiniMapUniversalLinkName[] =
+    "Open Maps Universal links in native view.";
+const char kIOSMiniMapUniversalLinkDescription[] =
+    "When enabled, maps universal links on Google Page are opened in "
+    "native views (under conditions).";
+
 const char kIOSOneTapMiniMapRestrictionsName[] =
     "Revalidate detected addresses for one tap Mini Map.";
 const char kIOSOneTapMiniMapRestrictionsDescription[] =
@@ -1126,8 +1140,8 @@ const char kPageActionMenuDescription[] =
     "When enabled, the entry point for the Page Action Menu becomes available "
     "for actions relating to the web page.";
 
-const char kGLICPromoConsentName[] = "GLIC Promo Consent";
-const char kGLICPromoConsentDescription[] =
+const char kBWGPromoConsentName[] = "BWG Promo Consent";
+const char kBWGPromoConsentDescription[] =
     "Whether the promo consent flow is composed of a single or a double screen "
     "view.";
 

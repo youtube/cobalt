@@ -24,6 +24,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/pattern.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -4887,9 +4888,17 @@ IN_PROC_BROWSER_TEST_F(WebContentsImplBrowserTest,
 // frame and mouse up is on OOF iframe, the mouse up event is delivered to the
 // main frame as well to clear cached mouse states including autoscroll
 // selection state.
+#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/421826783): Re-enable this test
+#define MAYBE_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection \
+  DISABLED_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection
+#else
+#define MAYBE_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection \
+  MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection
+#endif  // BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(
     WebContentsImplBrowserTest,
-    MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection) {
+    MAYBE_MouseUpInOOPIframeShouldCancelMainFrameAutoscrollSelection) {
   ASSERT_TRUE(embedded_test_server()->Start());
   WebContentsImpl* web_contents =
       static_cast<WebContentsImpl*>(shell()->web_contents());

@@ -17,15 +17,12 @@
 
 namespace content {
 class NavigationHandle;
+class WebContents;
 }  // namespace content
-
-namespace tabs {
-class TabInterface;
-}  // namespace tabs
 
 namespace actor {
 
-// Performs a history navigation in a tab.
+// Performs a history navigation in a WebContents.
 class HistoryTool : public Tool, content::WebContentsObserver {
  public:
   enum Direction {
@@ -33,13 +30,14 @@ class HistoryTool : public Tool, content::WebContentsObserver {
     kForward,
   };
 
-  HistoryTool(tabs::TabInterface& tab, Direction direction);
+  HistoryTool(content::WebContents& web_contents, Direction direction);
   ~HistoryTool() override;
 
   // actor::Tool
   void Validate(ValidateCallback callback) override;
   void Invoke(InvokeCallback callback) override;
   std::string DebugString() const override;
+  ObservationDelayType GetObservationDelayType() const override;
 
   // content::WebContentsObserver
   void DidStartNavigation(

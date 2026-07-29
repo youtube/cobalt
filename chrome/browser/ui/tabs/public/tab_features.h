@@ -28,6 +28,7 @@ class SidePanelRegistry;
 class TabResourceUsageTabHelper;
 class TabUIHelper;
 class TranslatePageActionController;
+class QwacWebContentsObserver;
 
 namespace commerce {
 class CommerceUiTabHelper;
@@ -142,6 +143,13 @@ class TabFeatures {
   customize_chrome_side_panel_controller() {
     return customize_chrome_side_panel_controller_.get();
   }
+
+  // Note: Temporary until there is a more uniform way to swap out features for
+  // testing.
+  customize_chrome::SidePanelController*
+  SetCustomizeChromeSidePanelControllerForTesting(
+      std::unique_ptr<customize_chrome::SidePanelController>
+          customize_chrome_side_panel_controller);
 
   // This side-panel registry is tab-scoped. It is different from the browser
   // window scoped SidePanelRegistry.
@@ -270,8 +278,7 @@ class TabFeatures {
       TabInterface* tab);
 
   virtual std::unique_ptr<commerce::CommerceUiTabHelper>
-  CreateCommerceUiTabHelper(content::WebContents* web_contents,
-                            Profile* profile);
+  CreateCommerceUiTabHelper(TabInterface& tab, Profile* profile);
 
  private:
   bool initialized_ = false;
@@ -395,6 +402,8 @@ class TabFeatures {
   std::unique_ptr<TabAlertController> tab_alert_controller_;
 
   std::unique_ptr<TabUIHelper> tab_ui_helper_;
+
+  std::unique_ptr<QwacWebContentsObserver> qwac_web_contents_observer_;
 
   // Must be the last member.
   base::WeakPtrFactory<TabFeatures> weak_factory_{this};
