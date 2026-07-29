@@ -854,6 +854,17 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void CheckCompleted();
 
+  enum class BeforeUnloadUse {
+    kNoDialogNoText,
+    kNoDialogNoUserGesture,
+    kNoDialogMultipleConfirmationForNavigation,
+    kNoDialogSandboxedIframe,
+    kShowDialog,
+    kNoDialogAutoCancelTrue,
+    kNotSupportedInDocumentPictureInPicture,
+    kMaxValue = kNotSupportedInDocumentPictureInPicture,
+  };
+
   // Dispatches beforeunload into this document. Returns true if the
   // beforeunload handler indicates that it is safe to proceed with an unload,
   // false otherwise.
@@ -1189,28 +1200,17 @@ class CORE_EXPORT Document : public ContainerNode,
   // keep track of what types of event listeners are registered, so we don't
   // dispatch events unnecessarily
   enum ListenerType {
-    kDOMSubtreeModifiedListener = 1,
-    kDOMNodeInsertedListener = 1 << 1,
-    kDOMNodeRemovedListener = 1 << 2,
-    kDOMNodeRemovedFromDocumentListener = 1 << 3,
-    kDOMNodeInsertedIntoDocumentListener = 1 << 4,
-    kDOMCharacterDataModifiedListener = 1 << 5,
-    kAnimationEndListener = 1 << 6,
-    kAnimationStartListener = 1 << 7,
-    kAnimationIterationListener = 1 << 8,
-    kAnimationCancelListener = 1 << 9,
-    kTransitionRunListener = 1 << 10,
-    kTransitionStartListener = 1 << 11,
-    kTransitionEndListener = 1 << 12,
-    kTransitionCancelListener = 1 << 13,
-    kScrollListener = 1 << 14,
-    kLoadListenerAtCapturePhaseOrAtStyleElement = 1 << 15,
-    // 0 bits remaining
-    kDOMMutationEventListener =
-        kDOMSubtreeModifiedListener | kDOMNodeInsertedListener |
-        kDOMNodeRemovedListener | kDOMNodeRemovedFromDocumentListener |
-        kDOMNodeInsertedIntoDocumentListener |
-        kDOMCharacterDataModifiedListener,
+    kAnimationEndListener = 1,
+    kAnimationStartListener = 1 << 1,
+    kAnimationIterationListener = 1 << 2,
+    kAnimationCancelListener = 1 << 3,
+    kTransitionRunListener = 1 << 4,
+    kTransitionStartListener = 1 << 5,
+    kTransitionEndListener = 1 << 6,
+    kTransitionCancelListener = 1 << 7,
+    kScrollListener = 1 << 8,
+    kLoadListenerAtCapturePhaseOrAtStyleElement = 1 << 9,
+    // 6 bits remaining
   };
 
   bool HasListenerType(ListenerType listener_type) const;
@@ -1337,13 +1337,21 @@ class CORE_EXPORT Document : public ContainerNode,
   // or move it and make it sensitive to the type of document.
   static bool IsValidName(const StringView&);
 
+  // https://github.com/whatwg/dom/pull/1079
+  static bool IsValidAttributeLocalNameNewSpec(const StringView&);
+
   // The following breaks a qualified name into a prefix and a local name.
   // It also does a validity check, and returns false if the qualified name
-  // is invalid.  It also sets ExceptionCode when name is invalid.
+  // is invalid. It also sets ExceptionCode when name is invalid.
+  enum class QualifiedNameParsingMode {
+    kParsingAttribute,
+    kParsingElement,
+  };
   static bool ParseQualifiedName(const AtomicString& qualified_name,
                                  AtomicString& prefix,
                                  AtomicString& local_name,
-                                 ExceptionState&);
+                                 ExceptionState&,
+                                 QualifiedNameParsingMode parsing_mode);
 
   // Checks to make sure prefix and namespace do not conflict (per DOM Core 3)
   static bool HasValidNamespaceForElements(const QualifiedName&);
@@ -1880,14 +1888,6 @@ class CORE_EXPORT Document : public ContainerNode,
     return slot_assignment_recalc_depth_ == 1;
   }
 
-  bool ShouldSuppressMutationEvents() const {
-    return suppress_mutation_events_;
-  }
-  // To be called from MutationEventSuppressionScope.
-  void SetSuppressMutationEvents(bool suppress) {
-    suppress_mutation_events_ = suppress;
-  }
-
   bool IsVerticalScrollEnforced() const { return is_vertical_scroll_enforced_; }
   bool IsFocusAllowed(FocusTrigger trigger) const;
 
@@ -1935,6 +1935,10 @@ class CORE_EXPORT Document : public ContainerNode,
   // A META element with name=supports-reduced-motion was added, removed, or
   // modified. Re-collect the META values.
   void SupportsReducedMotionMetaChanged();
+
+  // A META element with name=responsive-embedded-sizing was added, removed, or
+  // modified. Re-collect the META values.
+  void ResponsiveEmbeddedSizingChanged();
 
   // Use counter related functions.
   void CountUse(mojom::WebFeature feature) final;
@@ -2133,8 +2137,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   void ResetAgent(Agent& agent);
 
-  bool SupportsLegacyDOMMutations();
-
   void EnqueuePageRevealEvent();
 
   // https://github.com/whatwg/html/pull/9538
@@ -2176,21 +2178,21 @@ class CORE_EXPORT Document : public ContainerNode,
   void UnscheduleShadowTreeCreation(HTMLInputElement& element);
 
   // Traverses DOM tree and collects HTMLAnchorElements to closest ancestor
-  // element with scroll-marker-contain property.
-  void UpdateScrollMarkerGroupRelations();
-  void SetNeedsScrollMarkerGroupRelationsUpdate() {
-    needs_scroll_marker_contain_relations_update_ = true;
+  // element with scroll-target-group property.
+  void UpdateScrollTargetGroupRelations();
+  void SetNeedsScrollTargetGroupRelationsUpdate() {
+    needs_scroll_target_group_relations_update_ = true;
   }
 
   // Subscribes each ScrollMarkerGroupData to all scrollers
   // that own corresponding scroll marker's scroll target (see
-  // scroll_marker_group_to_scrollable_areas_ for details), so that the scroller
+  // scroll_target_group_to_scrollable_areas_ for details), so that the scroller
   // will notify ScrollMarkerGroupData of updates.
-  void UpdateScrollMarkerGroupToScrollableAreasMap();
-  void AddScrollMarkerGroup(ScrollMarkerGroupData* scroll_marker_group);
-  void RemoveScrollMarkerGroup(ScrollMarkerGroupData* scroll_marker_group);
-  void SetNeedsScrollMarkerGroupsMapUpdate() {
-    needs_scroll_marker_groups_map_update_ = true;
+  void UpdateScrollTargetGroupToScrollableAreasMap();
+  void AddScrollTargetGroup(ScrollMarkerGroupData* scroll_target_group);
+  void RemoveScrollTargetGroup(ScrollMarkerGroupData* scroll_target_group);
+  void SetNeedsScrollTargetGroupsMapUpdate() {
+    needs_scroll_target_groups_map_update_ = true;
   }
 
   void ScheduleSelectionchangeEvent();
@@ -2446,8 +2448,6 @@ class CORE_EXPORT Document : public ContainerNode,
   void AddListenerType(ListenerType listener_type) {
     listener_types_ |= listener_type;
   }
-  void AddMutationEventListenerTypeIfEnabled(ListenerType);
-
   void ClearFocusedElementTimerFired(TimerBase*);
 
   bool HaveScriptBlockingStylesheetsLoaded() const;
@@ -2516,6 +2516,8 @@ class CORE_EXPORT Document : public ContainerNode,
   static Document* parseHTMLInternal(ExecutionContext* context,
                                      const String& html,
                                      ExceptionState& exception_state);
+
+  bool CanThrottleFrameRate();
 
   // Mutable because the token is lazily-generated on demand if no token is
   // explicitly set.
@@ -2944,7 +2946,6 @@ class CORE_EXPORT Document : public ContainerNode,
 #endif
   unsigned slot_assignment_recalc_depth_ = 0;
   unsigned flat_tree_traversal_forbidden_recursion_depth_ = 0;
-  bool suppress_mutation_events_ = false;
 
   Member<DOMFeaturePolicy> policy_;
 
@@ -3065,20 +3066,17 @@ class CORE_EXPORT Document : public ContainerNode,
   // Number of disabled <fieldset> elements in this document.
   unsigned disabled_fieldset_count_ = 0;
 
-  // If legacy DOM Mutation event listeners are supported by the embedder.
-  std::optional<bool> legacy_dom_mutations_supported_;
-
   // True if the document has scroll marker groups that need to be
-  // recalculated due to e.g. a new element with scroll-marker-contain
+  // recalculated due to e.g. a new element with scroll-target-group
   // property was added or removed, hence it can now be a container
   // for some html anchor scroll marker elements of other container.
-  bool needs_scroll_marker_contain_relations_update_ = false;
-  // True if the document has elements with scroll-marker-contain property
+  bool needs_scroll_target_group_relations_update_ = false;
+  // True if the document has elements with scroll-target-group property
   // and some html anchor scroll marker elements. It is a signal to update a
   // map between scroll marker groups and scrollable areas to subscribe scroll
   // marker groups to scrollable areas changes.
-  bool needs_scroll_marker_groups_map_update_ = false;
-  // Every element with scroll-marker-contain property set collects
+  bool needs_scroll_target_groups_map_update_ = false;
+  // Every element with scroll-target-group property set collects
   // HTMLAnchorElements as scroll markers inside its ScrollMarkerGroupData.
   // This is the map of ScrollMarkerGroupData to all scrollers that is the
   // closest scroller to scroll marker's scroll target (e.g. scroll marker is <a
@@ -3087,7 +3085,7 @@ class CORE_EXPORT Document : public ContainerNode,
   // It's needed to subscribe ScrollMarkerGroupData to changes in scrollers.
   HeapHashMap<Member<ScrollMarkerGroupData>,
               HeapHashSet<Member<PaintLayerScrollableArea>>>
-      scroll_marker_group_to_scrollable_areas_;
+      scroll_target_group_to_scrollable_areas_;
 
   // For rendering media URLs in a top-level context that use the
   // Content-Security-Policy header to sandbox their content. This causes
@@ -3116,6 +3114,8 @@ class CORE_EXPORT Document : public ContainerNode,
   // If a payment link is handled before.
   bool payment_link_handled_ = false;
 #endif
+
+  bool responsive_embedded_sizing_ = false;
 
   // If you want to add new data members to blink::Document, please reconsider
   // if the members really should be in blink::Document.  document.h is a very

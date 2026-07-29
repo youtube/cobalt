@@ -96,10 +96,18 @@ void DedicatedWorkerMessagingProxy::StartWorkerGlobalScope(
   pending_dedicated_worker_host_ = std::move(dedicated_worker_host);
   pending_back_forward_cache_controller_host_ =
       std::move(back_forward_cache_controller_host);
-  InitializeWorkerThread(
+  bool initialized = InitializeWorkerThread(
       std::move(creation_params),
       CreateBackingThreadStartupData(GetExecutionContext()->GetIsolate()),
       token);
+  if (base::FeatureList::IsEnabled(
+          blink::features::kWorkerThreadRespectTermRequest) &&
+      !initialized) {
+    virtual_time_pauser_.UnpauseVirtualTime();
+    // if the current thread (i.e. parent thread) has been asked to terminate,
+    // we do not start the child thread.
+    return;
+  }
 
   // Step 13: "Obtain script by switching on the value of options's type
   // member:"
@@ -291,11 +299,13 @@ void DedicatedWorkerMessagingProxy::PostMessageToWorkerObject(
 
 void DedicatedWorkerMessagingProxy::DispatchErrorEvent(
     const String& error_message,
-    std::unique_ptr<SourceLocation> location,
+    const CrossThreadSourceLocation& cross_location,
     int exception_id) {
   DCHECK(IsParentContextThread());
   if (!worker_object_)
     return;
+
+  SourceLocation* location = cross_location.CreateSourceLocation();
 
   // We don't bother checking the AskedToTerminate() flag for dispatching the
   // event on the owner context, because exceptions should *always* be reported
@@ -305,8 +315,7 @@ void DedicatedWorkerMessagingProxy::DispatchErrorEvent(
   // the original Document, even if some of the workers along this chain have
   // been terminated and garbage collected."
   // https://html.spec.whatwg.org/C/#runtime-script-errors-2
-  ErrorEvent* event =
-      ErrorEvent::Create(error_message, location->Clone(), nullptr);
+  ErrorEvent* event = ErrorEvent::Create(error_message, location, nullptr);
   if (worker_object_->DispatchEvent(*event) !=
       DispatchEventResult::kNotCanceled)
     return;

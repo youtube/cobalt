@@ -214,7 +214,7 @@ Notas importantes:
 <translation id="6041226255405329731">Inicia sesión en Chromium para compartir y unirte a grupos de pestañas, así como para trabajar juntos en ideas</translation>
 <translation id="6104024151682120539">Abrir en Chromium</translation>
 <translation id="61109258320235597">Para usar y guardar los datos de Chromium en tu cuenta de Google, debes introducir tu frase de contraseña.</translation>
-<translation id="6132149203299792222">Inicia sesión con tu cuenta de Google para sincronizar tus contraseñas, marcadores y más.</translation>
+<translation id="6132149203299792222">Inicia sesión con tu cuenta de Google para sincronizar tus contraseñas, marcadores y otros elementos.</translation>
 <translation id="6148377327556085395">Añadir marcadores a Chromium</translation>
 <translation id="6154098560469640583">Usa Chromium siempre que toques enlaces de mensajes, documentos y otras aplicaciones.</translation>
 <translation id="6157162508956739031">Inicia sesión rápidamente en aplicaciones y sitios con el autocompletado de contraseñas y llaves de acceso de Chromium</translation>
@@ -331,6 +331,7 @@ Prueba a esperar unos minutos antes de cerrar sesión. Si cierras sesión ahora,
 <translation id="9050790730841755540">Usa Chromium siempre que toques enlaces de otras aplicaciones.</translation>
 <translation id="9059693977935746710">No tendrás que recordar esta contraseña. Se guardará en el gestor de contraseñas de <ph name="EMAIL" />.</translation>
 <translation id="9089354809943900324">Chromium no está actualizado</translation>
+<translation id="9105645282262300612">Consejo de Chromium: busca lo que ves</translation>
 <translation id="9152995302810511799">Consejo de Chromium: consigue la seguridad más potente de Chromium</translation>
 <translation id="9177628952266852500"><ph name="EMAIL" />. Chromium está gestionado.</translation>
 <translation id="921174536258924340">Chromium no ha podido comprobar todas las contraseñas. Vuelve a intentarlo mañana o <ph name="BEGIN_LINK" />comprueba las contraseñas en tu cuenta de Google<ph name="END_LINK" />.</translation>

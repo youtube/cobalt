@@ -38,6 +38,7 @@
 #include "components/history_embeddings/mock_answerer.h"
 #include "components/history_embeddings/mock_intent_classifier.h"
 #include "components/network_session_configurator/common/network_switches.h"
+#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/passage_embeddings/passage_embeddings_test_util.h"
@@ -46,7 +47,6 @@
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/test_frame_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
@@ -57,6 +57,7 @@
 namespace {
 
 using ::base::test::TestFuture;
+using ::optimization_guide::DocumentIdentifierUserData;
 using ::optimization_guide::proto::ClickAction;
 using ::testing::ReturnRef;
 using AiData = AiDataKeyedService::AiData;
@@ -101,7 +102,7 @@ class AiDataKeyedServiceBrowserTest : public InProcessBrowserTest {
 
   void LoadPage(const GURL& url) {
     content::NavigateToURLBlockUntilNavigationsComplete(web_contents(), url, 1);
-    content::WaitForCopyableView(
+    content::WaitForCopyableViewInWebContents(
         browser()->tab_strip_model()->GetActiveWebContents());
   }
 
@@ -654,6 +655,9 @@ IN_PROC_BROWSER_TEST_F(AiDataKeyedServiceActorBrowserTest,
   click_request.set_tab_id(id);
   ClickAction* click = click_request.add_action_information()->mutable_click();
   click->mutable_target()->set_content_node_id(anchor_dom_node_id.value());
+  click->mutable_target()->mutable_document_identifier()->set_serialized_token(
+      *DocumentIdentifierUserData::GetDocumentIdentifier(
+          web_contents()->GetPrimaryMainFrame()->GetGlobalFrameToken()));
   click->set_click_type(ClickAction::LEFT);
   click->set_click_count(ClickAction::SINGLE);
 

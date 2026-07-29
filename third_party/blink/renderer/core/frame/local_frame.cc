@@ -375,6 +375,14 @@ mojom::blink::StorageTypeAccessed ToMojoStorageType(
   }
 }
 
+HeapVector<Member<ScrollSnapshotClient>> CopyClients(
+    const HeapHashSet<WeakMember<ScrollSnapshotClient>>& clients) {
+  HeapVector<Member<ScrollSnapshotClient>> copy;
+  copy.ReserveInitialCapacity(clients.size());
+  copy.AppendRange(clients.begin(), clients.end());
+  return copy;
+}
+
 }  // namespace
 
 template class CORE_TEMPLATE_EXPORT Supplement<LocalFrame>;
@@ -1148,7 +1156,7 @@ void LocalFrame::HookBackForwardCacheEviction() {
             DCHECK(window);
             LocalFrame* frame = window->GetFrame();
             if (frame) {
-              std::unique_ptr<SourceLocation> source_location = nullptr;
+              SourceLocation* source_location = nullptr;
               if (base::FeatureList::IsEnabled(
                       features::kCaptureJSExecutionLocation)) {
                 // Capture the source location of the JS execution if the flag
@@ -1157,7 +1165,7 @@ void LocalFrame::HookBackForwardCacheEviction() {
               }
               frame->EvictFromBackForwardCache(
                   mojom::blink::RendererEvictionReason::kJavaScriptExecution,
-                  std::move(source_location));
+                  source_location);
               if (base::FeatureList::IsEnabled(
                       features::kBackForwardCacheDWCOnJavaScriptExecution)) {
                 // Adding |DumpWithoutCrashing()| here to make sure this is not
@@ -1945,15 +1953,14 @@ LocalFrame::LocalFrame(
   is_frame_created_by_ad_script_ =
       !IsMainFrame() && ad_tracker_ &&
       ad_tracker_->IsAdScriptInStack(AdTracker::StackType::kBottomAndTop,
-                                     &provisional_ad_script_ancestry_);
+                                     &ad_script_ancestry_);
 
   Initialize();
   // Now that we know whether the frame is provisional, inherit the probe
   // sink from parent if appropriate. See comment above for more details.
   if (!IsLocalRoot() && !IsProvisional()) {
     probe_sink_ = LocalFrameRoot().probe_sink_;
-    probe::FrameAttachedToParent(this, provisional_ad_script_ancestry_);
-    provisional_ad_script_ancestry_.clear();
+    probe::FrameAttachedToParent(this, ad_script_ancestry_);
   }
 }
 
@@ -2651,6 +2658,14 @@ bool LocalFrame::IsAdScriptInStack() const {
          ad_tracker_->IsAdScriptInStack(AdTracker::StackType::kBottomAndTop);
 }
 
+std::optional<AdScriptIdentifier> LocalFrame::CreationAdScript() const {
+  if (ad_script_ancestry_.ancestry_chain.empty()) {
+    return std::nullopt;
+  }
+
+  return ad_script_ancestry_.ancestry_chain[0];
+}
+
 void LocalFrame::UpdateAdHighlight() {
   if (IsMainFrame() && !IsInFencedFrameTree())
     return;
@@ -3045,8 +3060,7 @@ bool LocalFrame::SwapIn() {
     probe_sink_ = LocalFrameRoot().probe_sink_;
     // For remote -> local swap, Send a frameAttached event to keep the legacy
     // behavior where we fire the frameAttached event on cross-site navigations.
-    probe::FrameAttachedToParent(this, provisional_ad_script_ancestry_);
-    provisional_ad_script_ancestry_.clear();
+    probe::FrameAttachedToParent(this, ad_script_ancestry_);
   }
 
   return client->SwapIn(WebFrame::FromCoreFrame(provisional_owner_frame));
@@ -3285,7 +3299,7 @@ void LocalFrame::WasAttachedAsLocalMainFrame() {
 
 void LocalFrame::EvictFromBackForwardCache(
     mojom::blink::RendererEvictionReason reason,
-    std::unique_ptr<SourceLocation> source_location) {
+    SourceLocation* source_location) {
   if (!GetPage()->GetPageScheduler()->IsInBackForwardCache())
     return;
   UMA_HISTOGRAM_ENUMERATION("BackForwardCache.Eviction.Renderer", reason);
@@ -3777,7 +3791,7 @@ void LocalFrame::PostMessageEvent(
   // Finally dispatch the message to the DOM Window.
   DomWindow()->DispatchMessageEventWithOriginCheck(
       target_security_origin.get(), message_event,
-      std::make_unique<SourceLocation>(String(), String(), 0, 0, nullptr),
+      MakeGarbageCollected<SourceLocation>(String(), String(), 0, 0, nullptr),
       message.sender_agent_cluster_id);
 }
 
@@ -3973,10 +3987,14 @@ void LocalFrame::AddScrollSnapshotClient(ScrollSnapshotClient& client) {
 }
 
 void LocalFrame::UpdateScrollSnapshots() {
+  // Any calls that update style and layout may create scroll snapshot
+  // clients. As such, we can't iterate over the live clients directly.
+  // See https://crbug.com/421471058 for details.
   // TODO(xiaochengh): Can we DCHECK that is is done at the beginning of a frame
   // and is done exactly once?
-  for (auto& client : scroll_snapshot_clients_)
+  for (auto& client : CopyClients(scroll_snapshot_clients_)) {
     client->UpdateSnapshot();
+  }
 }
 
 bool LocalFrame::ValidateScrollSnapshotClients() {
@@ -3992,7 +4010,10 @@ void LocalFrame::ClearScrollSnapshotClients() {
 }
 
 void LocalFrame::ScheduleNextServiceForScrollSnapshotClients() {
-  for (auto& client : scroll_snapshot_clients_) {
+  // Any calls that update style and layout may create scroll snapshot
+  // clients. As such, we can't iterate over the live clients directly.
+  // See https://crbug.com/421471058 for details.
+  for (auto& client : CopyClients(scroll_snapshot_clients_)) {
     if (client->ShouldScheduleNextService()) {
       View()->ScheduleAnimation();
       return;
@@ -4053,7 +4074,7 @@ bool LocalFrame::ScriptEnabled() {
 
 const WebPrintParams& LocalFrame::GetPrintParams() const {
   // If this fails, it's probably because nobody called StartPrinting().
-  DCHECK(GetDocument()->Printing());
+  CHECK(GetDocument()->Printing());
 
   return print_params_;
 }

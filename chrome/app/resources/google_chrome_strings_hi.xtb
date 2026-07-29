@@ -313,6 +313,7 @@
 <translation id="4970880042055371251">ChromeOS वर्शन</translation>
 <translation id="4990567037958725628">Google Chrome कैनरी</translation>
 <translation id="5003967926796347400">“Google Password Manager” पर क्लिक करें</translation>
+<translation id="504867494566807945">किसी भी ऐप्लिकेशन से Chrome में लिंक खोलें. साथ ही, आसानी से ऐक्सेस करने के लिए, इसे टास्कबार में पिन करें.</translation>
 <translation id="5114340746415930644">अपने खाते <ph name="USER_EMAIL" /> में Chrome का डेटा सेव करने और इस्तेमाल करने के लिए, अपना लंबा पासवर्ड डालें</translation>
 <translation id="5120334927898581447">Google की अन्य सेवाओं में साइन इन करते समय, Chrome में साइन इन करें</translation>
 <translation id="5126049312684316860">Chrome ऐसे कई और पेजों को पहले से लोड करके रखता है जिन पर आपके जाने की संभावना होती है, ताकि जब आप उन पर जाएं, तो वे ज़्यादा तेज़ी से लोड हो जाएं</translation>
@@ -393,6 +394,7 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="6075300983329039771">आपके संगठन <ph name="MANAGER" /> के मुताबिक, यह ज़रूरी है कि आप Chrome में साइन इन करें</translation>
 <translation id="6113794647360055231">Chrome पहले से बेहतर हो गया है</translation>
 <translation id="6116252277240876590">Chrome में, इस भाषा का इस्तेमाल मेन्यू, सेटिंग, चेतावनी, और अन्य टेक्स्ट दिखाने के लिए किया जाता है</translation>
+<translation id="6127237283587442951">Chrome को डिफ़ॉल्ट ब्राउज़र के तौर पर इस्तेमाल करें और इसे टास्कबार में पिन करें</translation>
 <translation id="6134085236017727171">माइक्रोफ़ोन इस्तेमाल करने के लिए, <ph name="BEGIN_LINK" />सिस्टम सेटिंग<ph name="END_LINK" /> में जाकर Chrome को इसे ऐक्सेस करने की अनुमति दें</translation>
 <translation id="6135456723633883042">ये टैब ज़्यादा संसाधनों का इस्तेमाल कर रहे हैं. परफ़ॉर्मेंस को बेहतर बनाने के लिए, Chrome को इन्हें बंद करने की अनुमति दें.</translation>
 <translation id="6145313976051292476">Chrome में पीडीएफ़ खोलें</translation>
@@ -507,7 +509,6 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="7572537927358445944">बंद है • Chrome इस एक्सटेंशन के सोर्स की पुष्टि नहीं कर सकता</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> इंस्टॉलर</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
-<translation id="7626032353295482388">Chrome में आपका स्वागत है</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> के मुताबिक, यह ज़रूरी है कि इस डिवाइस का इस्तेमाल करने से पहले आप सेवा की इन शर्तों को पढ़ें और स्वीकार करें. इन शर्तों से, Google ChromeOS की शर्तों में कोई नई शर्त नहीं जुड़ती, न ही उनमें कोई बदलाव होता है, और न ही वे उतने तक सीमित रहती हैं.</translation>
 <translation id="7629695634924605473">Chrome यह बताता है कि कहीं आपके पासवर्ड का गलत इस्तेमाल तो नहीं किया गया है</translation>
 <translation id="7641148173327520642">आपके सिस्टम एडमिन ने <ph name="ALTERNATIVE_BROWSER_NAME" /> खाेलने के लिए, Google Chrome को कॉन्फ़िगर किया है ताकि <ph name="TARGET_URL_HOSTNAME" /> को ऐक्सेस किया जा सके.</translation>
@@ -627,6 +628,7 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="9090566250983691233">जानें कि Chrome कुछ फ़ाइलों को क्यों ब्लॉक करता है</translation>
 <translation id="9106236359747881194">खोजने के लिए कोई टेक्स्ट चुनें</translation>
 <translation id="911206726377975832">अपने ब्राउज़िंग डेटा भी मिटाएं?</translation>
+<translation id="9134482777260927479">होमवर्क में मदद पाएं</translation>
 <translation id="9138603949443464873">अपने बदलाव लागू करने के लिए, Chrome को फिर से लॉन्च करें</translation>
 <translation id="9148058034647219655">बाहर निकलें</translation>
 <translation id="9195993889682885387">Chrome पिछले कुछ हफ़्तों के ब्राउज़िंग इतिहास के आधार पर, आपकी पसंद के विषयों का अनुमान लगा सकता है. यह जानकारी आपके डिवाइस पर सेव की जाती है.</translation>

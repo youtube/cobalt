@@ -27,6 +27,7 @@
 #include "components/pdf/browser/pdf_document_helper.h"
 #include "components/pdf/common/constants.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -129,20 +130,14 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
   ~GlicPageContextFetcher() override = default;
 
   void FetchStart(
-      FocusedTabData focused_tab_data,
+      tabs::TabInterface* tab,
       const mojom::GetTabContextOptions& options,
+      bool include_actionable_data,
       glic::mojom::WebClientHandler::GetContextFromFocusedTabCallback
           callback) {
-    base::expected<content::WebContents*, std::string_view> focus =
-        focused_tab_data.GetFocus();
-    if (!focus.has_value()) {
-      std::move(callback).Run(
-          mojom::GetContextResult::NewErrorReason(std::string(focus.error())));
-      return;
-    }
     options_ = options;
 
-    content::WebContents* aweb_contents = focus.value();
+    content::WebContents* aweb_contents = tab->GetContents();
     DCHECK(aweb_contents->GetPrimaryMainFrame());
     CHECK_EQ(web_contents(),
              nullptr);  // Ensure Fetch is called only once per instance.
@@ -202,7 +197,7 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
       ai_page_content_options->max_meta_elements = options.max_meta_tags;
       // TODO(crbug.com/409564704): Move actor page content extraction to the
       // actor coordinator.
-      if (base::FeatureList::IsEnabled(features::kGlicActor)) {
+      if (include_actionable_data) {
         ai_page_content_options->include_geometry = true;
         ai_page_content_options->enable_experimental_actionable_data = true;
       }
@@ -460,14 +455,16 @@ class GlicPageContextFetcher : public content::WebContentsObserver {
 }  // namespace
 
 void FetchPageContext(
-    FocusedTabData focused_tab_data,
+    tabs::TabInterface* tab,
     const mojom::GetTabContextOptions& options,
+    bool include_actionable_data,
     glic::mojom::WebClientHandler::GetContextFromFocusedTabCallback callback) {
+  CHECK(tab);
   CHECK(callback);
   auto self = std::make_unique<GlicPageContextFetcher>();
   auto* raw_self = self.get();
   raw_self->FetchStart(
-      focused_tab_data, options,
+      tab, options, include_actionable_data,
       base::BindOnce(
           // Bind `fetcher` to the callback to keep it in scope until it
           // returns.

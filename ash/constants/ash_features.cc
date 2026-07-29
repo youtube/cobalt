@@ -1105,6 +1105,9 @@ BASE_FEATURE(kFirstPartyVietnameseInput,
              "FirstPartyVietnameseInput",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls if the Fjord variant of OOBE is shown.
+BASE_FEATURE(kFjordOobe, "FjordOobe", base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables or disables the Flex Auto-Enrollment feature on ChromeOS
 BASE_FEATURE(kFlexAutoEnrollment,
              "FlexAutoEnrollment",
@@ -1615,7 +1618,7 @@ BASE_FEATURE(kImeServiceProto,
 // Enable or disable system emoji picker GIF support
 BASE_FEATURE(kImeManifestV3,
              "ImeManifestV3",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable or disable system emoji picker GIF support
 BASE_FEATURE(kImeSystemEmojiPickerGIFSupport,
@@ -2406,42 +2409,6 @@ BASE_FEATURE(kPhoneHubMonochromeNotificationIcons,
              "PhoneHubMonochromeNotificationIcons",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Determine whether we use revamped notifier to notify users to start
-// onboarding to Phone Hub.
-BASE_FEATURE(kPhoneHubOnboardingNotifierRevamp,
-             "PhoneHubOnboardingNotifierRevamp",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Should we show nudge or notification to the user.
-const base::FeatureParam<bool> kPhoneHubOnboardingNotifierUseNudge{
-    &kPhoneHubOnboardingNotifierRevamp, "use_nudge", true};
-
-const base::FeatureParam<
-    PhoneHubNotifierTextGroup>::Option phone_hub_notifier_text_groups[] = {
-    {PhoneHubNotifierTextGroup::kNotifierTextGroupA, "notifier_with_text_A"},
-    {PhoneHubNotifierTextGroup::kNotifierTextGroupB, "notifier_with_text_B"},
-};
-// What text should we show to the user.
-const base::FeatureParam<PhoneHubNotifierTextGroup> kPhoneHubNotifierTextGroup{
-    &kPhoneHubOnboardingNotifierRevamp, "notifier_text_group",
-    PhoneHubNotifierTextGroup::kNotifierTextGroupB,
-    &phone_hub_notifier_text_groups};
-
-// The length of time passing till we display nudge to users again
-const base::FeatureParam<base::TimeDelta> kPhoneHubNudgeDelay{
-    &kPhoneHubOnboardingNotifierRevamp, "nudge_delay", base::Hours(24)};
-
-// Number of times nudge should be shown to user.
-const base::FeatureParam<int> kPhoneHubNudgeTotalAppearancesAllowed{
-    &kPhoneHubOnboardingNotifierRevamp, "nudge_total_appearances_allowed", 3};
-
-// Determines up to how many minutes into user session multdevice setup
-// notification can be shown.
-const base::FeatureParam<base::TimeDelta>
-    kMultiDeviceSetupNotificationTimeLimit{
-        &kPhoneHubOnboardingNotifierRevamp,
-        "MultiDeviceSetupNotificationTimitLimit", base::Minutes(5)};
-
 BASE_FEATURE(kPhoneHubPingOnBubbleOpen,
              "PhoneHubPingOnBubbleOpen",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2849,6 +2816,11 @@ BASE_FEATURE(kDemoModeAppLandscapeLocked,
              "DemoModeAppLandscapeLocked",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// The pref kSecondaryGoogleAccountSigninAllowed is set to false in Demo Mode.
+BASE_FEATURE(kDemoModeSecondaryGoogleAccountSigninAllowedFalse,
+             "DemoModeSecondaryGoogleAccountSigninAllowedFalse",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Moves toasts to the bottom-side corner where the status area is instead of
 // the center when enabled.
 BASE_FEATURE(kSideAlignedToasts,
@@ -2871,7 +2843,7 @@ BASE_FEATURE(kSmartLockSignInRemoved,
 // Japanese.
 BASE_FEATURE(kSystemJapanesePhysicalTyping,
              "SystemJapanesePhysicalTyping",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces uses of `SystemNudge` with the new `AnchoredNudge` component.
 BASE_FEATURE(kSystemNudgeMigration,
@@ -3698,6 +3670,11 @@ bool IsDemoModeAppLandscapeLockedEnabled() {
   return base::FeatureList::IsEnabled(kDemoModeAppLandscapeLocked);
 }
 
+bool IsDemoModeSecondaryGoogleAccountSigninAllowedFalse() {
+  return base::FeatureList::IsEnabled(
+      kDemoModeSecondaryGoogleAccountSigninAllowedFalse);
+}
+
 bool IsEcheSWAEnabled() {
   return base::FeatureList::IsEnabled(kEcheSWA);
 }
@@ -3806,6 +3783,10 @@ bool IsFingerprintAuthFactorEnabled() {
 
 bool IsFirmwareUpdateUIV2Enabled() {
   return base::FeatureList::IsEnabled(kFirmwareUpdateUIV2);
+}
+
+bool IsFjordOobeEnabled() {
+  return base::FeatureList::IsEnabled(kFjordOobe);
 }
 
 bool IsFlexAutoEnrollmentEnabled() {
@@ -4388,10 +4369,6 @@ bool IsPhoneHubCameraRollEnabled() {
 
 bool IsPhoneHubMonochromeNotificationIconsEnabled() {
   return base::FeatureList::IsEnabled(kPhoneHubMonochromeNotificationIcons);
-}
-
-bool IsPhoneHubOnboardingNotifierRevampEnabled() {
-  return base::FeatureList::IsEnabled(kPhoneHubOnboardingNotifierRevamp);
 }
 
 bool IsPhoneHubPingOnBubbleOpenEnabled() {
