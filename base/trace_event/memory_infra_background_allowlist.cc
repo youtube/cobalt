@@ -20,8 +20,37 @@
 #include "base/android/meminfo_dump_provider.h"
 #endif
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+#include <utility>
+#endif
+
 namespace base::trace_event {
 namespace {
+
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+// A helper that uses an index sequence to expand the array.
+template <size_t N, size_t... I>
+constexpr auto MakeFixedFlatSetFromStringLiteralsHelper(
+    const char* const (&literals)[N],
+    std::index_sequence<I...>) {
+  // This expands at compile time to:
+  // MakeFixedFlatSet<StringPiece>({StringPiece{literals[0]},
+  //                                StringPiece{literals[1]}, ...}).
+  return base::MakeFixedFlatSet<base::StringPiece>(
+      {base::StringPiece{literals[I]}...});
+}
+
+// A custom wrapper to make a fixed_flat_set from string literals in C++17.
+// This wrapper can be pushed up to base/containers/fixed_flat_set.h if/when
+// there are use cases outside of this file.
+template <size_t N>
+constexpr auto MakeFixedFlatSetFromStringLiterals(
+    const char* const (&literals)[N]) {
+  // Creates an index sequence from 0 to N-1 and forwards to the helper.
+  return MakeFixedFlatSetFromStringLiteralsHelper(
+      literals, std::make_index_sequence<N>{});
+}
+#endif  // BUILDFLAG(BUILD_BASE_WITH_CPP17)
 
 // The names of dump providers allowed to perform background tracing. Dump
 // providers can be added here only if the background mode dump has very
@@ -29,7 +58,13 @@ namespace {
 // TODO(ssid): Some dump providers do not create ownership edges on background
 // dump. So, the effective size will not be correct.
 constexpr auto kDumpProviderAllowlist =
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+    // We use a custom wrapper to sidestep the compiler's inability to perform
+    // template argument deduction as expected.
+    MakeFixedFlatSetFromStringLiterals({
+#else
     base::MakeFixedFlatSet<std::string_view>({
+#endif
 // clang-format off
 #if BUILDFLAG(IS_ANDROID)
         base::android::MeminfoDumpProvider::kDumpProviderName,
@@ -104,7 +139,13 @@ constexpr auto kDumpProviderAllowlist =
 // NOTE: There is no generic pattern matching support and only names containing
 // "0x?" match "0x" followed by hex digits.
 constexpr auto kAllocatorDumpNameAllowlist =
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+    // We use a custom wrapper to sidestep the compiler's inability to perform
+    // template argument deduction as expected.
+    MakeFixedFlatSetFromStringLiterals({
+#else
     base::MakeFixedFlatSet<std::string_view>({
+#endif
 // clang-format off
         // Some of the blink values vary based on compile time flags. The
         // compile time flags are not in base, so all are listed here.

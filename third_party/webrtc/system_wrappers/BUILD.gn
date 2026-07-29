@@ -33,6 +33,33 @@ rtc_library("system_wrappers") {
     "../rtc_base/synchronization:mutex",
     "../rtc_base/system:rtc_export",
   ]
+<<<<<<< HEAD
+=======
+
+  if (is_android) {
+    if (build_with_mozilla) {
+      include_dirs = [
+        "/config/external/nspr",
+        "/nsprpub/lib/ds",
+        "/nsprpub/pr/include",
+      ]
+    } else {
+      sources += [ "source/cpu_features_android.cc" ]
+      deps += [ "//third_party/cpu_features:ndk_compat" ]
+    }
+
+    libs += [ "log" ]
+  }
+
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+    if (!build_with_chromium) {
+      sources += [ "source/cpu_features_linux.cc" ]
+    }
+
+    libs += [ "rt" ]
+  }
+
+>>>>>>> parent of 6de7fef4e78 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (is_win) {
     libs += [ "winmm.lib" ]
 

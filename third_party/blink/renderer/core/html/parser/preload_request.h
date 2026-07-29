@@ -159,6 +159,7 @@ class CORE_EXPORT PreloadRequest {
     shared_storage_writable_opted_in_ = opted_in;
   }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   // Set whether the preload request is eligible for the Browsing Topics API.
   //
   // See https://github.com/patcg-individual-drafts/topics/blob/main/README.md
@@ -166,6 +167,7 @@ class CORE_EXPORT PreloadRequest {
   void SetBrowsingTopicsEligible(bool flag) {
     browsing_topics_eligible_ = flag;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
   bool IsPotentiallyLCPElement() const { return is_potentially_lcp_element_; }
 
@@ -225,7 +227,9 @@ class CORE_EXPORT PreloadRequest {
   bool is_potentially_lcp_element_ = false;
   bool is_potentially_lcp_influencer_ = false;
   bool shared_storage_writable_opted_in_ = false;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   bool browsing_topics_eligible_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 };
 
 typedef Vector<std::unique_ptr<PreloadRequest>> PreloadRequestStream;
