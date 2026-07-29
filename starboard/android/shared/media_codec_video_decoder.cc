@@ -521,25 +521,36 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
   SbMediaVideoCodec new_codec =
       input_buffers.front()->video_stream_info().codec;
   const std::string& new_mime = input_buffers.front()->video_stream_info().mime;
+  const auto& new_color_metadata =
+      input_buffers.front()->video_stream_info().color_metadata;
 
-  bool codec_or_mime_changed = (new_codec != video_codec_) ||
-                               (!new_mime.empty() && new_mime != video_mime_);
+  bool color_metadata_changed = false;
+  if (color_metadata_.has_value()) {
+    color_metadata_changed = (*color_metadata_ != new_color_metadata);
+  } else {
+    color_metadata_changed = !IsIdentity(new_color_metadata);
+  }
+
+  bool stream_info_changed = (new_codec != video_codec_) ||
+                             (!new_mime.empty() && new_mime != video_mime_) ||
+                             color_metadata_changed;
 
   if (just_reset_) {
     just_reset_ = false;
-    if (codec_or_mime_changed) {
+    if (stream_info_changed) {
       SB_LOG(INFO)
-          << "TEST: Codec or MIME change detected after Reset. Recreating "
+          << "TEST: Stream info change detected after Reset. Recreating "
              "codec immediately without draining...";
       TeardownCodec();
       video_codec_ = new_codec;
       video_mime_ = new_mime;
+      color_metadata_= new_color_metadata;
       input_buffer_written_ = 0;
       video_fps_ = 0;
     }
   }
 
-  if (input_buffer_written_ > 0 && codec_or_mime_changed && !draining_codec_) {
+  if (input_buffer_written_ > 0 && stream_info_changed && !draining_codec_) {
     draining_codec_ = true;
     pending_video_codec_ = new_codec;
     pending_video_stream_info_ = input_buffers.front()->video_stream_info();
@@ -1305,6 +1316,17 @@ void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
   draining_codec_ = false;
   eos_received_in_draining_ = false;
 
+  if (IsIdentity(pending_video_stream_info_.color_metadata)) {
+    SbMediaColorMetadata sdr_metadata = {};
+    sdr_metadata.primaries = kSbMediaPrimaryIdBt709;
+    sdr_metadata.transfer = kSbMediaTransferIdBt709;
+    sdr_metadata.matrix = kSbMediaMatrixIdBt709;
+    sdr_metadata.range = kSbMediaRangeIdLimited;
+    color_metadata_ = sdr_metadata;
+  } else {
+    color_metadata_ = pending_video_stream_info_.color_metadata;
+  }
+
   auto result = InitializeCodec(pending_video_stream_info_);
   if (!result) {
     std::string error_message =
@@ -1318,6 +1340,7 @@ void MediaCodecVideoDecoder::PerformInternalDecoderHotSwap() {
   if (!pending_input_buffers_.empty()) {
     SB_LOG(INFO) << "TEST: Feeding " << pending_input_buffers_.size()
                  << " queued new samples to the new decoder.";
+    input_buffer_written_ += pending_input_buffers_.size();
     WriteInputBuffersInternal(pending_input_buffers_);
     pending_input_buffers_.clear();
   }
