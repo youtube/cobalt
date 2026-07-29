@@ -109,7 +109,7 @@ class AutofillDriverIOS final : public AutofillDriver,
       FormGlobalId form,
       base::OnceCallback<void(AutofillDriver*, const std::optional<FormData>&)>
           response_callback) override;
-  void ExposeDomNodeIDs() override;
+  void ExposeDomNodeIdsInAllFrames() override;
   void SendTypePredictionsToRenderer(const FormStructure& form) override;
   void RendererShouldClearPreviewedForm() override;
   void RendererShouldTriggerSuggestions(
@@ -132,6 +132,9 @@ class AutofillDriverIOS final : public AutofillDriver,
       uint32_t number_of_ancestor_levels_to_search,
       base::OnceCallback<void(const std::string& amount)> response_callback)
       override;
+  void DispatchEmailVerifiedEvent(
+      FieldGlobalId field_id,
+      const std::string& presentation_token) override;
 
   void RendererShouldSetSuggestionAvailability(
       const FieldGlobalId& field_id,

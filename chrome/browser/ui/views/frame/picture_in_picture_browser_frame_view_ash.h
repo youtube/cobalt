@@ -12,13 +12,13 @@
 class BrowserView;
 class BrowserWidget;
 
-// PictureInPictureBrowserFrameViewAsh provides the NonClientFrameView for pip
+// PictureInPictureBrowserFrameViewAsh provides the FrameView for pip
 // windows on ChromeOS under classic ash.
 class PictureInPictureBrowserFrameViewAsh
     : public PictureInPictureBrowserFrameView,
       public aura::WindowObserver {
  public:
-  PictureInPictureBrowserFrameViewAsh(BrowserWidget* frame,
+  PictureInPictureBrowserFrameViewAsh(BrowserWidget* browser_widget,
                                       BrowserView* browser_view);
 
   PictureInPictureBrowserFrameViewAsh(

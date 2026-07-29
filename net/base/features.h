@@ -860,13 +860,16 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // trust.
 NET_EXPORT BASE_DECLARE_FEATURE(kTLSTrustAnchorIDs);
 
-// Whether or not this client is participating in the TCP connection pool size
-// experiment, and if so how big their pools should be.
+// Whether or not this client is participating in the socket pool size
+// per-top-level-site experiment, and if so how big their pools should be.
 // See crbug.com/415691664 for more details.
-NET_EXPORT BASE_DECLARE_FEATURE(kTcpConnectionPoolSizeTrial);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kTcpConnectionPoolSizeTrialNormal);
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
-                                      kTcpConnectionPoolSizeTrialWebSocket);
+NET_EXPORT BASE_DECLARE_FEATURE(kSocketPoolSizePerTopLevelSiteTrial);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kSocketPoolSizePerTopLevelSiteTrialNormalProfileLimit);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kSocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit);
 
 // These parameters control whether the Network Service Task Scheduler is used
 // for specific classes.
@@ -915,6 +918,13 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string,
 // When enabled, clients will attempt to parse structured error information
 // from the EXTRA-TEXT field of Extended DNS Errors.
 NET_EXPORT BASE_DECLARE_FEATURE(kDnsFilteringDetails);
+
+// When enabled, the browser checks if a navigation URL is in any navigation
+// entry. If so, it sets the
+// `IS_MAIN_FRAME_ORIGIN_RECENTLY_ACCESSED` load flag.
+// Note that this flag is only set for metric collection.
+NET_EXPORT BASE_DECLARE_FEATURE(kUpdateIsMainFrameOriginRecentlyAccessed);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kRecentlyAccessedOriginCacheSize);
 
 }  // namespace net::features
 

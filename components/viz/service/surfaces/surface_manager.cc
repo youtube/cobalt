@@ -731,6 +731,26 @@ void SurfaceManager::AggregatedFrameSinksChanged() {
     delegate_->AggregatedFrameSinksChanged();
 }
 
+void SurfaceManager::AddFrameSinkObserver(FrameSinkObserver* obs) {
+  if (delegate_) {
+    return delegate_->AddObserver(obs);
+  }
+}
+
+void SurfaceManager::RemoveFrameSinkObserver(FrameSinkObserver* obs) {
+  if (delegate_) {
+    return delegate_->RemoveObserver(obs);
+  }
+}
+
+bool SurfaceManager::FrameSinkManagerHasViewTransitionToken(
+    const blink::ViewTransitionToken& transition_token) {
+  if (delegate_) {
+    return delegate_->HasViewTransitionToken(transition_token);
+  }
+  return false;
+}
+
 void SurfaceManager::CommitFramesInRangeRecursively(
     const SurfaceRange& range,
     const CommitPredicate& predicate) {

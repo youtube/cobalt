@@ -70,6 +70,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
@@ -2305,12 +2306,20 @@ class PdfDownloadTestSplitCacheEnabled
   PdfDownloadTestSplitCacheEnabled()
       : split_cache_experiment_feature_list_(GetSplitCacheTestCase(),
                                              kTestCaseToFeatureMapping) {
+    // When `kPdfGetSaveDataInBlocks` is enabled, PDFs are saved to disk from
+    // memory and are not downloaded. Therefore these tests are only valid when
+    // the feature is disabled.
+    // TODO(crbug.com/394111292): Remove affected tests when the feature is
+    // launched.
+    std::vector<base::test::FeatureRef> disabled(
+        {chrome_pdf::features::kPdfGetSaveDataInBlocks});
+    std::vector<base::test::FeatureRef> enabled;
     if (UseOopif()) {
-      oopif_feature_list_.InitAndEnableFeature(chrome_pdf::features::kPdfOopif);
+      enabled.push_back(chrome_pdf::features::kPdfOopif);
     } else {
-      oopif_feature_list_.InitAndDisableFeature(
-          chrome_pdf::features::kPdfOopif);
+      disabled.push_back(chrome_pdf::features::kPdfOopif);
     }
+    pdf_feature_list_.InitWithFeatures(enabled, disabled);
   }
 
   bool UseOopif() const { return std::get<0>(GetParam()); }
@@ -2391,7 +2400,7 @@ class PdfDownloadTestSplitCacheEnabled
  private:
   net::test::ScopedMutuallyExclusiveFeatureList
       split_cache_experiment_feature_list_;
-  base::test::ScopedFeatureList oopif_feature_list_;
+  base::test::ScopedFeatureList pdf_feature_list_;
   pdf::TestPdfViewerStreamManagerFactory factory_;
 };
 
@@ -5244,10 +5253,7 @@ IN_PROC_BROWSER_TEST_F(DownloadTest, MAYBE_NewWindow) {
   EXPECT_FALSE(IsDownloadDetailedUiVisible(browser()->window()));
 
   // The download surface SHOULD be visible in the second window.
-  std::set<Browser*> original_browsers;
-  original_browsers.insert(browser());
-  Browser* download_browser =
-      ui_test_utils::GetBrowserNotInSet(original_browsers);
+  Browser* download_browser = ui_test_utils::GetBrowserNotInSet({browser()});
   ASSERT_TRUE(download_browser);
   EXPECT_NE(download_browser, browser());
   EXPECT_EQ(1, download_browser->tab_strip_model()->count());

@@ -45,7 +45,6 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/browser_ui/util/android/url_constants.h"
-#include "components/omnibox/browser/actions/omnibox_answer_action.h"
 #include "components/omnibox/browser/autocomplete_classifier.h"
 #include "components/omnibox/browser/autocomplete_controller_emitter.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
@@ -319,14 +318,28 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
     jint j_page_classification,
     jlong elapsed_time_since_first_modified,
     jint completed_length,
-    const JavaParamRef<jobject>& j_web_contents) {
+    const JavaParamRef<jobject>& j_web_contents,
+    jlong omnibox_action_ptr) {
   std::u16string url = ConvertJavaStringToUTF16(env, j_current_url);
   const GURL current_url = GURL(url);
   const base::TimeTicks& now(base::TimeTicks::Now());
-  content::WebContents* web_contents =
-      content::WebContents::FromJavaWebContents(j_web_contents);
+
+  // Report all OmniboxActions shown to the user when the user completed the
+  // interaction.
+  const auto* executed_action =
+      reinterpret_cast<OmniboxAction*>(omnibox_action_ptr);
+  const auto& result = autocomplete_controller_->result();
+  size_t index = 0;
+  for (const auto& match : result) {
+    for (const auto& action : match.actions) {
+      action->RecordActionShown(index, action.get() == executed_action);
+    }
+    index++;
+  }
 
   const auto& match = *reinterpret_cast<AutocompleteMatch*>(match_ptr);
+  content::WebContents* web_contents =
+      content::WebContents::FromJavaWebContents(j_web_contents);
   omnibox::answer_data_parser::LogAnswerUsed(match.answer_type);
   TemplateURLService* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile_);
@@ -445,32 +458,7 @@ ScopedJavaLocalRef<jobject> AutocompleteControllerAndroid::
   return url::GURLAndroid::FromNativeGURL(env, match->destination_url);
 }
 
-base::android::ScopedJavaLocalRef<jobject>
-AutocompleteControllerAndroid::GetAnswerActionDestinationURL(
-    JNIEnv* env,
-    uintptr_t match_ptr,
-    jlong elapsed_time_since_input_change,
-    uintptr_t answer_action_ptr) {
-  auto* match = reinterpret_cast<AutocompleteMatch*>(match_ptr);
-  auto* action = reinterpret_cast<OmniboxAnswerAction*>(answer_action_ptr);
 
-  TemplateURLService* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(profile_);
-
-  if (action == nullptr || template_url_service == nullptr) {
-    return url::GURLAndroid::FromNativeGURL(env, GURL());
-  }
-
-  autocomplete_controller_->UpdateSearchTermsArgsWithAdditionalSearchboxStats(
-      base::Milliseconds(elapsed_time_since_input_change),
-      action->search_terms_args);
-  TemplateURL* template_url =
-      match->GetTemplateURL(template_url_service, false);
-  return url::GURLAndroid::FromNativeGURL(
-      env, GURL(template_url->url_ref().ReplaceSearchTerms(
-               action->search_terms_args,
-               template_url_service->search_terms_data())));
-}
 
 ScopedJavaLocalRef<jobject>
 AutocompleteControllerAndroid::GetMatchingTabForSuggestion(

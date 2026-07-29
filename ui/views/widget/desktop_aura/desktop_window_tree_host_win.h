@@ -39,7 +39,7 @@ class ScopedTooltipDisabler;
 namespace views {
 class DesktopDragDropClientWin;
 class HWNDMessageHandler;
-class NonClientFrameView;
+class FrameView;
 
 namespace test {
 class DesktopWindowTreeHostWinTestApi;
@@ -145,7 +145,7 @@ class VIEWS_EXPORT DesktopWindowTreeHostWin
       Widget::MoveLoopEscapeBehavior escape_behavior) override;
   void EndMoveLoop() override;
   void SetVisibilityChangedAnimationsEnabled(bool value) override;
-  std::unique_ptr<NonClientFrameView> CreateNonClientFrameView() override;
+  std::unique_ptr<FrameView> CreateFrameView() override;
   bool ShouldUseNativeFrame() const override;
   bool ShouldWindowContentsBeTransparent() const override;
   void FrameTypeChanged() override;
@@ -225,6 +225,7 @@ class VIEWS_EXPORT DesktopWindowTreeHostWin
   gfx::Size DIPToScreenSize(const gfx::Size& dip_size) const override;
   void ResetWindowControls() override;
   gfx::NativeViewAccessible GetNativeViewAccessible() override;
+  gfx::NativeViewAccessible GetParentNativeViewAccessible() override;
   void HandleActivationChanged(bool active) override;
   bool HandleAppCommand(int command) override;
   void HandleCancelMode() override;

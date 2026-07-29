@@ -32,11 +32,19 @@ extern const base::FeatureParam<bool> kSendLnsSurfaceParam;
 extern const base::FeatureParam<bool> kShowComposeboxZps;
 // Whether to show typed suggestions under the composebox.
 extern const base::FeatureParam<bool> kShowComposeboxTypedSuggest;
+// Whether to show image suggestions under the composebox.
+extern const base::FeatureParam<bool> kShowComposeboxImageSuggestions;
 // Whether to show the + entrypoint and contextual input menu in the realbox and
 // composebox.
 extern const base::FeatureParam<bool> kShowContextMenu;
 // The maximum number of tab suggestions to show in the composebox context menu.
 extern const base::FeatureParam<int> kContextMenuMaxTabSuggestions;
+// Whether to show the next realbox.
+extern const base::FeatureParam<bool> kShowNextRealbox;
+// The maximum number of file attachments to upload.
+extern const base::FeatureParam<int> kMaxNumFiles;
+// Whether to show the tools and models picker in the composebox.
+extern const base::FeatureParam<bool> kShowToolsAndModels;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
 

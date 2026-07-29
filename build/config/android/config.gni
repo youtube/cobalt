@@ -36,6 +36,7 @@ robolectric_toolchain = "//build/toolchain/android:robolectric_$host_cpu"
 if (is_android) {
   import("//build/config/android/channel.gni")
   import("//build/config/clang/clang.gni")
+  import("//build/config/cronet/config.gni")
   import("//build/config/dcheck_always_on.gni")
   import("//build/config/sanitizers/sanitizers.gni")
   import("//build/toolchain/siso.gni")
@@ -69,14 +70,14 @@ if (is_android) {
     enable_chrome_android_internal =
         build_with_chromium && checkout_src_internal && target_os == "android"
 
-    # Experimental new flag for the build system to automatically attempt to
-    # fix missing java deps. This should always be false on bots so they do not
-    # succeed when there are build errors. Devs can override this in args.gn.
-    auto_add_missing_java_deps = false
-
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
     default_min_sdk_version = 29
+    if (is_cronet_build) {
+      # Cronet's min sdk version support policy is different from the rest of
+      # Chromium; Cronet explicitly supports older devices.
+      default_min_sdk_version = 23
+    }
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This

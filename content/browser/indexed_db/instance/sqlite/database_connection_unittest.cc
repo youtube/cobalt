@@ -12,11 +12,14 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "content/browser/indexed_db/file_path_util.h"
 #include "content/browser/indexed_db/indexed_db_data_loss_info.h"
 #include "content/browser/indexed_db/indexed_db_value.h"
+#include "content/browser/indexed_db/instance/backing_store_util.h"
 #include "content/browser/indexed_db/instance/sqlite/backing_store_impl.h"
 #include "content/browser/indexed_db/status.h"
 #include "sql/meta_table.h"
@@ -151,6 +154,8 @@ class DatabaseConnectionTest : public testing::Test {
 // Verifies that a DB which is too new (as determined by the compatible version
 // number) is considered an irrecoverable state and deleted.
 TEST_F(DatabaseConnectionTest, TooNew) {
+  base::HistogramTester histograms;
+
   // Create DB.
   const std::u16string_view kDbName{u"test db"};
   auto connection = OpenDb(kDbName);
@@ -158,6 +163,9 @@ TEST_F(DatabaseConnectionTest, TooNew) {
   connection.reset();
   const base::FilePath db_path = GetDatabasePath(kDbName);
   ASSERT_TRUE(base::PathExists(db_path));
+  histograms.ExpectUniqueSample(
+      "IndexedDB.SQLite.SpecificEvent.OnDisk",
+      DatabaseConnection::SpecificEvent::kDatabaseOpenAttempt, 1);
 
   // Simulate a newer version of the browser updating the schema.
   auto sql_db = std::make_unique<sql::Database>(sql::DatabaseOptions()
@@ -187,6 +195,16 @@ TEST_F(DatabaseConnectionTest, TooNew) {
   // original DB hadn't been deleted).
   ASSERT_NO_FATAL_FAILURE(InitializeDbWithOneRecord(*connection));
   connection.reset();
+
+  histograms.ExpectBucketCount(
+      "IndexedDB.SQLite.SpecificEvent.OnDisk",
+      DatabaseConnection::SpecificEvent::kDatabaseOpenAttempt, 3);
+  histograms.ExpectBucketCount(
+      "IndexedDB.SQLite.SpecificEvent.OnDisk",
+      DatabaseConnection::SpecificEvent::kDatabaseTooNew, 1);
+  histograms.ExpectBucketCount(
+      "IndexedDB.SQLite.SpecificEvent.OnDisk",
+      DatabaseConnection::SpecificEvent::kDatabaseHadSqlError, 0);
 
   ASSERT_TRUE(sql_db->Open(db_path));
   ASSERT_TRUE(sql::MetaTable::DoesTableExist(sql_db.get()));
@@ -236,6 +254,8 @@ class DatabaseConnectionCorruptionTest : public DatabaseConnectionTest {
     ASSERT_TRUE(value.has_value());
     EXPECT_EQ(value.value().bits, kValue.bits);
 
+    base::DictValue contents_before_corruption = DumpDatabase(*db);
+
     // Close the database and then corrupt it.
     db.reset();
     const base::FilePath db_path = GetDatabasePath(kDbName);
@@ -265,6 +285,8 @@ class DatabaseConnectionCorruptionTest : public DatabaseConnectionTest {
       // time the connection is destroyed, as the database is empty.
       ASSERT_NO_FATAL_FAILURE(InitializeDbWithOneRecord(*db));
       recovered_value = read_value();
+#else
+      EXPECT_EQ(DumpDatabase(*db), contents_before_corruption);
 #endif
 
       // Read works because the DB was recovered (or, on Fuchsia, was deleted,

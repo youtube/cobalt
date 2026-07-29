@@ -111,10 +111,6 @@ enum class HashRealTimeSelection;
 }
 }  // namespace safe_browsing
 
-namespace ui {
-class NativeTheme;
-}  // namespace ui
-
 namespace url {
 class Origin;
 }  // namespace url
@@ -239,7 +235,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       bool is_for_isolated_world,
       bool is_for_service_worker,
       network::mojom::URLLoaderFactoryParams* factory_params) override;
-  bool IsURLAccessibleByHistoryNavigation(const GURL& url) override;
   void GetAdditionalWebUISchemes(
       std::vector<std::string>* additional_schemes) override;
   bool IsInternalScheme(const GURL& url) override;
@@ -597,7 +592,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   bool IsAppContainerDisabled(sandbox::mojom::Sandbox sandbox_type) override;
   std::wstring GetLPACCapabilityNameForNetworkService() override;
   bool IsUtilityCetCompatible(const std::string& utility_sub_type) override;
-  bool IsRendererCodeIntegrityEnabled() override;
   void SessionEnding(std::optional<DWORD> control_type) override;
   bool ShouldEnableAudioProcessHighPriority() override;
   bool ShouldRestrictCoreSharingOnRenderer() override;
@@ -1219,7 +1213,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
   static bool HandleWebUI(GURL* url, content::BrowserContext* browser_context);
   static bool HandleWebUIReverse(GURL* url,
                                  content::BrowserContext* browser_context);
-  virtual const ui::NativeTheme* GetWebTheme() const;  // For testing.
 
   // Used by subclasses (e.g. implemented by downstream embedders) to add
   // their own extra part objects.

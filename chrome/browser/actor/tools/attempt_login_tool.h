@@ -44,10 +44,11 @@ class AttemptLoginTool : public Tool {
       const override;
   void UpdateTaskBeforeInvoke(ActorTask& task,
                               InvokeCallback callback) const override;
+  tabs::TabHandle GetTargetTab() const override;
 
  private:
   void OnGetCredentials(actor_login::CredentialsOrError credentials);
-  void FetchFavicons();
+  void FetchIcons();
   void OnIconFetched(base::RepeatingClosure barrier,
                      GURL origin,
                      const favicon_base::FaviconImageResult& result);

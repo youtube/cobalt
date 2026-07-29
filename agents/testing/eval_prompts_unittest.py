@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 """Tests for eval_prompts."""
 
+import io
 import os
 import pathlib
 import subprocess
@@ -65,7 +66,10 @@ class FromNpmPromptfooInstallationUnittest(fake_filesystem_unittest.TestCase):
         mock_run.assert_called_once_with(
             [str(pathlib.Path(executable)), 'eval', '-c', 'config.yaml'],
             cwd='/tmp/test',
-            check=False)
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
 
     def test_cleanup(self):
         """Tests that cleanup removes the installation directory."""
@@ -133,7 +137,10 @@ class FromSourcePromptfooInstallationUnittest(fake_filesystem_unittest.TestCase
         mock_run.assert_called_once_with(
             [str(pathlib.Path(main_js)), 'eval', '-c', 'config.yaml'],
             cwd='/tmp/test',
-            check=False)
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
 
     def test_cleanup(self):
         """Tests that cleanup removes the installation directory."""
@@ -472,6 +479,9 @@ class CheckBtrfsUnittest(fake_filesystem_unittest.TestCase):
     def setUp(self):
         self.setUpPyfakefs()
 
+    def tearDown(self):
+        eval_prompts._check_btrfs.cache_clear()
+
     @mock.patch('subprocess.run')
     def test_check_btrfs_is_btrfs(self, mock_run):
         """Tests that btrfs is detected correctly."""
@@ -661,6 +671,458 @@ class DetermineShardValuesUnittest(unittest.TestCase):
                 'WARNING:root:Shard index set by both arguments and '
                 'environment variable. Using value provided by arguments.',
                 cm.output)
+
+
+class GetTestsToRunUnittest(fake_filesystem_unittest.TestCase):
+    """Unit tests for the `_get_tests_to_run` function."""
+
+    def setUp(self):
+        self.setUpPyfakefs()
+
+    @mock.patch('eval_prompts._discover_testcase_files')
+    @mock.patch('eval_prompts._determine_shard_values')
+    def test_get_tests_to_run_no_sharding_no_filter(
+            self, mock_determine_shard_values, mock_discover_testcase_files):
+        """Tests that all tests are returned with no sharding or filtering."""
+        mock_determine_shard_values.return_value = (0, 1)
+        mock_discover_testcase_files.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+        ]
+
+        result = eval_prompts._get_tests_to_run(None, None, None)
+        self.assertEqual(len(result), 3)
+        self.assertIn(pathlib.Path('/test/a.yaml'), result)
+        self.assertIn(pathlib.Path('/test/b.yaml'), result)
+        self.assertIn(pathlib.Path('/test/c.yaml'), result)
+
+    @mock.patch('eval_prompts._discover_testcase_files')
+    @mock.patch('eval_prompts._determine_shard_values')
+    def test_get_tests_to_run_with_filter(self, mock_determine_shard_values,
+                                          mock_discover_testcase_files):
+        """Tests that tests are filtered correctly."""
+        mock_determine_shard_values.return_value = (0, 1)
+        mock_discover_testcase_files.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+        ]
+
+        result = eval_prompts._get_tests_to_run(None, None, 'b.yaml')
+        self.assertEqual(len(result), 1)
+        self.assertIn(pathlib.Path('/test/b.yaml'), result)
+
+    @mock.patch('eval_prompts._discover_testcase_files')
+    @mock.patch('eval_prompts._determine_shard_values')
+    def test_get_tests_to_run_with_sharding(self, mock_determine_shard_values,
+                                            mock_discover_testcase_files):
+        """Tests that tests are sharded correctly."""
+        mock_determine_shard_values.return_value = (1, 2)
+        mock_discover_testcase_files.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+            pathlib.Path('/test/d.yaml'),
+        ]
+
+        result = eval_prompts._get_tests_to_run(1, 2, None)
+        self.assertEqual(len(result), 2)
+        # The list is sorted before sharding
+        self.assertIn(pathlib.Path('/test/b.yaml'), result)
+        self.assertIn(pathlib.Path('/test/d.yaml'), result)
+
+    @mock.patch('eval_prompts._discover_testcase_files')
+    @mock.patch('eval_prompts._determine_shard_values')
+    def test_get_tests_to_run_with_sharding_and_filter(
+            self, mock_determine_shard_values, mock_discover_testcase_files):
+        """Tests that tests are filtered and then sharded correctly."""
+        mock_determine_shard_values.return_value = (0, 2)
+        mock_discover_testcase_files.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+            pathlib.Path('/test/d_filtered.yaml'),
+            pathlib.Path('/test/e_filtered.yaml'),
+        ]
+
+        result = eval_prompts._get_tests_to_run(0, 2, 'filtered')
+        self.assertEqual(len(result), 1)
+        self.assertIn(pathlib.Path('/test/d_filtered.yaml'), result)
+
+    @mock.patch('eval_prompts._discover_testcase_files')
+    @mock.patch('eval_prompts._determine_shard_values')
+    def test_get_tests_to_run_no_tests_found(self, mock_determine_shard_values,
+                                             mock_discover_testcase_files):
+        """Tests that an empty list is returned when no tests are found."""
+        mock_determine_shard_values.return_value = (0, 1)
+        mock_discover_testcase_files.return_value = []
+
+        result = eval_prompts._get_tests_to_run(None, None, None)
+        self.assertEqual(len(result), 0)
+
+
+class GetGclientRootUnittest(unittest.TestCase):
+    """Unit tests for the `_get_gclient_root` function."""
+
+    def tearDown(self):
+        eval_prompts._get_gclient_root.cache_clear()
+
+    @mock.patch('subprocess.run')
+    def test_get_gclient_root_success(self, mock_run):
+        """Tests that the gclient root is returned on success."""
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=['gclient', 'root'], returncode=0, stdout='/path/to/root\n')
+        result = eval_prompts._get_gclient_root()
+        self.assertEqual(result, pathlib.Path('/path/to/root'))
+
+    @mock.patch('subprocess.run')
+    def test_get_gclient_root_failure(self, mock_run):
+        """Tests that an exception is raised on failure."""
+        mock_run.side_effect = subprocess.CalledProcessError(1, 'gclient root')
+        with self.assertRaises(subprocess.CalledProcessError):
+            eval_prompts._get_gclient_root()
+
+
+class PerformChromiumSetupUnittest(unittest.TestCase):
+    """Unit tests for the `_perform_chromium_setup` function."""
+
+    @mock.patch('eval_prompts._build_chromium')
+    @mock.patch('eval_prompts._check_uncommitted_changes')
+    @mock.patch('subprocess.run')
+    @mock.patch('eval_prompts._check_btrfs')
+    @mock.patch('eval_prompts._get_gclient_root')
+    def test_perform_chromium_setup_build_btrfs(self, mock_get_gclient_root,
+                                                mock_check_btrfs,
+                                                mock_subprocess_run,
+                                                mock_check_uncommitted_changes,
+                                                mock_build_chromium):
+        """Tests setup with build and btrfs."""
+        mock_get_gclient_root.return_value = pathlib.Path('/root')
+        mock_check_btrfs.return_value = True
+
+        eval_prompts._perform_chromium_setup(force=False, build=True)
+
+        mock_get_gclient_root.assert_called_once()
+        mock_check_btrfs.assert_called_once_with(pathlib.Path('/root'))
+        mock_subprocess_run.assert_called_once_with(['sudo', '-v'], check=True)
+        mock_check_uncommitted_changes.assert_called_once_with(
+            pathlib.Path('/root/src'))
+        mock_build_chromium.assert_called_once_with(pathlib.Path('/root/src'))
+
+    @mock.patch('eval_prompts._build_chromium')
+    @mock.patch('eval_prompts._check_uncommitted_changes')
+    @mock.patch('subprocess.run')
+    @mock.patch('eval_prompts._check_btrfs')
+    @mock.patch('eval_prompts._get_gclient_root')
+    def test_perform_chromium_setup_no_build_no_btrfs(
+            self, mock_get_gclient_root, mock_check_btrfs, mock_subprocess_run,
+            mock_check_uncommitted_changes, mock_build_chromium):
+        """Tests setup without build and without btrfs."""
+        mock_get_gclient_root.return_value = pathlib.Path('/root')
+        mock_check_btrfs.return_value = False
+
+        eval_prompts._perform_chromium_setup(force=False, build=False)
+
+        mock_get_gclient_root.assert_called_once()
+        mock_check_btrfs.assert_called_once_with(pathlib.Path('/root'))
+        mock_subprocess_run.assert_not_called()
+        mock_check_uncommitted_changes.assert_called_once_with(
+            pathlib.Path('/root/src'))
+        mock_build_chromium.assert_not_called()
+
+    @mock.patch('eval_prompts._build_chromium')
+    @mock.patch('eval_prompts._check_uncommitted_changes')
+    @mock.patch('subprocess.run')
+    @mock.patch('eval_prompts._check_btrfs')
+    @mock.patch('eval_prompts._get_gclient_root')
+    def test_perform_chromium_setup_btrfs_force(self, mock_get_gclient_root,
+                                                mock_check_btrfs,
+                                                mock_subprocess_run,
+                                                mock_check_uncommitted_changes,
+                                                mock_build_chromium):
+        """Tests setup with btrfs and force, skipping sudo -v."""
+        mock_get_gclient_root.return_value = pathlib.Path('/root')
+        mock_check_btrfs.return_value = True
+
+        eval_prompts._perform_chromium_setup(force=True, build=True)
+
+        mock_get_gclient_root.assert_called_once()
+        mock_check_btrfs.assert_called_once_with(pathlib.Path('/root'))
+        mock_subprocess_run.assert_not_called()
+        mock_check_uncommitted_changes.assert_called_once_with(
+            pathlib.Path('/root/src'))
+        mock_build_chromium.assert_called_once_with(pathlib.Path('/root/src'))
+
+
+@mock.patch('eval_prompts.CHROMIUM_SRC', pathlib.Path('/chromium/src'))
+@mock.patch('eval_prompts.result_types')
+class ReportResultUnittest(unittest.TestCase):
+    """Unit tests for the `_report_result` function."""
+
+    def setUp(self):
+        self.result_sink_client = mock.Mock()
+
+    def test_report_result_success(self, mock_result_types):
+        """Tests that a passing result is reported correctly."""
+        mock_result_types.PASS = 'PASS'
+        eval_prompts._report_result(
+            result_sink_client=self.result_sink_client,
+            success=True,
+            test_log='Success',
+            test_path=pathlib.Path('/chromium/src/test/a.yaml'),
+            duration=1.23)
+        self.result_sink_client.Post.assert_called_once_with(
+            test_id='test/a.yaml',
+            status='PASS',
+            duration=1230.0,
+            test_log='Success',
+            test_file='//test/a.yaml')
+
+    def test_report_result_failure(self, mock_result_types):
+        """Tests that a failing result is reported correctly."""
+        mock_result_types.FAIL = 'FAIL'
+        eval_prompts._report_result(
+            result_sink_client=self.result_sink_client,
+            success=False,
+            test_log='Failure',
+            test_path=pathlib.Path('/chromium/src/test/b.yaml'),
+            duration=4.56)
+        self.result_sink_client.Post.assert_called_once_with(
+            test_id='test/b.yaml',
+            status='FAIL',
+            duration=4560.0,
+            test_log='Failure',
+            test_file='//test/b.yaml')
+
+
+class RunPromptEvalTestsUnittest(unittest.TestCase):
+    """Unit tests for the `_run_prompt_eval_tests` function."""
+
+    def setUp(self):
+        self._setUpMockArgs()
+        self._setUpPatches()
+
+    def _setUpMockArgs(self):
+        """Set up mock arguments for the tests."""
+        self.args = mock.Mock()
+        self.args.shard_index = None
+        self.args.total_shards = None
+        self.args.filter = None
+        self.args.force = False
+        self.args.no_build = False
+        self.args.promptfoo_revision = None
+        self.args.promptfoo_version = None
+        self.args.no_clean = False
+        self.args.verbose = False
+        self.args.sandbox = False
+        self.args.print_output_on_success = False
+
+    def _setUpPatches(self):
+        """Set up patches for the tests."""
+        stdout_patcher = mock.patch('sys.stdout', new_callable=io.StringIO)
+        self.mock_stdout = stdout_patcher.start()
+        self.addCleanup(stdout_patcher.stop)
+
+        try_init_client_patcher = mock.patch(
+            'eval_prompts.result_sink.TryInitClient')
+        self.mock_try_init_client = try_init_client_patcher.start()
+        self.mock_try_init_client.return_value = None
+        self.addCleanup(try_init_client_patcher.stop)
+
+        workdir_patcher = mock.patch('eval_prompts.WorkDir')
+        self.mock_workdir = workdir_patcher.start()
+        mock_workdir_instance = (
+            self.mock_workdir.return_value.__enter__.return_value)
+        mock_workdir_instance.path = pathlib.Path('/workdir')
+        self.addCleanup(workdir_patcher.stop)
+
+        setup_promptfoo_patcher = mock.patch('eval_prompts._setup_promptfoo')
+        self.mock_setup_promptfoo = setup_promptfoo_patcher.start()
+        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
+        mock_promptfoo_instance.run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout='Success')
+        self.addCleanup(setup_promptfoo_patcher.stop)
+
+        perform_chromium_setup_patcher = mock.patch(
+            'eval_prompts._perform_chromium_setup')
+        self.mock_perform_chromium_setup = (
+            perform_chromium_setup_patcher.start())
+        self.addCleanup(perform_chromium_setup_patcher.stop)
+
+        get_tests_to_run_patcher = mock.patch('eval_prompts._get_tests_to_run')
+        self.mock_get_tests_to_run = get_tests_to_run_patcher.start()
+        self.mock_get_tests_to_run.return_value = [
+            pathlib.Path('/test/a.yaml')
+        ]
+        self.addCleanup(get_tests_to_run_patcher.stop)
+
+        get_gclient_root_patcher = mock.patch('eval_prompts._get_gclient_root')
+        self.mock_get_gclient_root = get_gclient_root_patcher.start()
+        self.mock_get_gclient_root.return_value = pathlib.Path('/root')
+        self.addCleanup(get_gclient_root_patcher.stop)
+
+        check_btrfs_patcher = mock.patch('eval_prompts._check_btrfs')
+        self.mock_check_btrfs = check_btrfs_patcher.start()
+        self.mock_check_btrfs.return_value = True
+        self.addCleanup(check_btrfs_patcher.stop)
+
+        get_terminal_size_patcher = mock.patch('shutil.get_terminal_size')
+        self.mock_get_terminal_size = get_terminal_size_patcher.start()
+        self.mock_get_terminal_size.return_value = os.terminal_size((80, 24))
+        self.addCleanup(get_terminal_size_patcher.stop)
+
+        subprocess_run_patcher = mock.patch('subprocess.run')
+        self.mock_subprocess_run = subprocess_run_patcher.start()
+        self.addCleanup(subprocess_run_patcher.stop)
+
+        report_result_patcher = mock.patch('eval_prompts._report_result')
+        self.mock_report_result = report_result_patcher.start()
+        self.addCleanup(report_result_patcher.stop)
+
+    def test_run_prompt_eval_tests_no_tests(self):
+        """Tests that the function returns 1 if there are no tests to run."""
+        self.mock_get_tests_to_run.return_value = []
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+        self.assertEqual(returncode, 1)
+
+    def test_run_prompt_eval_tests_one_test_pass(self):
+        """Tests running a single passing test."""
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.mock_perform_chromium_setup.assert_called_once_with(force=False,
+                                                                 build=True)
+        self.mock_setup_promptfoo.assert_called_once()
+        self.mock_workdir.assert_called_once_with('workdir',
+                                                  pathlib.Path('/root'), True,
+                                                  False, False, True)
+        self.mock_setup_promptfoo.return_value.run.assert_called_once()
+        self.assertEqual(returncode, 0)
+        self.assertEqual(self.mock_stdout.getvalue(), '')
+
+    def test_run_prompt_eval_tests_one_test_fail(self):
+        """Tests running a single failing test."""
+        self.mock_check_btrfs.return_value = False
+
+        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
+        mock_promptfoo_instance.run.return_value = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout='Failure')
+
+        self.args.no_build = True
+        self.args.no_clean = True
+        self.args.verbose = True
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.mock_perform_chromium_setup.assert_called_once_with(force=False,
+                                                                 build=False)
+        self.mock_workdir.assert_called_once_with('workdir',
+                                                  pathlib.Path('/root'), False,
+                                                  True, False, False)
+        mock_promptfoo_instance.run.assert_called_once()
+        self.assertIn('--var', mock_promptfoo_instance.run.call_args[0][0])
+        self.assertIn('verbose=True',
+                      mock_promptfoo_instance.run.call_args[0][0])
+        self.assertEqual(returncode, 1)
+        self.assertEqual(self.mock_stdout.getvalue(), 'Failure')
+
+    def test_run_prompt_eval_tests_multiple_tests_one_fail(self):
+        """Tests running multiple tests where one fails."""
+        self.mock_get_tests_to_run.return_value = [
+            pathlib.Path('/test/a.yaml'),
+            pathlib.Path('/test/b.yaml'),
+            pathlib.Path('/test/c.yaml'),
+        ]
+
+        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
+        mock_promptfoo_instance.run.side_effect = [
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+            subprocess.CompletedProcess(args=[], returncode=1, stdout=''),
+            subprocess.CompletedProcess(args=[], returncode=0, stdout=''),
+        ]
+
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.mock_perform_chromium_setup.assert_called_once_with(force=False,
+                                                                 build=True)
+        self.assertEqual(mock_promptfoo_instance.run.call_count, 3)
+        self.assertEqual(returncode, 1)
+
+    def test_run_prompt_eval_tests_sandbox_prefetch_fails(self):
+        """Tests that _run_prompt_eval_tests exits if sandbox pre-fetch
+        fails."""
+        self.args.sandbox = True
+        self.mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd='gemini')
+
+        with self.assertLogs(level='ERROR') as cm:
+            result = eval_prompts._run_prompt_eval_tests(self.args)
+            self.assertEqual(result, 1)
+            self.assertIn('Failed to pre-fetch sandbox image', cm.output[0])
+
+    def test_run_prompt_eval_tests_with_sandbox_enabled(self):
+        """Tests that _run_prompt_eval_tests calls pre-fetch and passes sandbox
+        var when enabled."""
+        self.args.sandbox = True
+
+        eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.mock_subprocess_run.assert_called_once_with(
+            ['gemini', '--sandbox'],
+            input='',
+            text=True,
+            check=True,
+            capture_output=True,
+            cwd=mock.ANY,
+        )
+        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
+        mock_promptfoo_instance.run.assert_called_once()
+        command = mock_promptfoo_instance.run.call_args[0][0]
+        self.assertIn('--var', command)
+        self.assertIn('sandbox=True', command)
+
+    def test_run_prompt_eval_tests_with_sandbox_disabled(self):
+        """Tests that _run_prompt_eval_tests does not call pre-fetch or pass
+        sandbox var when disabled."""
+        eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.mock_subprocess_run.assert_not_called()
+        mock_promptfoo_instance = self.mock_setup_promptfoo.return_value
+        mock_promptfoo_instance.run.assert_called_once()
+        command = mock_promptfoo_instance.run.call_args[0][0]
+        for arg in command:
+            self.assertNotIn('sandbox', arg)
+
+    def test_run_prompt_eval_tests_print_output_on_success(self):
+        """Tests that output is printed on success with the right arg."""
+        self.args.print_output_on_success = True
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.assertEqual(returncode, 0)
+        self.assertEqual(self.mock_stdout.getvalue(), 'Success')
+
+    def test_run_prompt_eval_tests_with_result_sink_client(self):
+        """Tests that results are reported when a client is available."""
+        mock_client = mock.Mock()
+        self.mock_try_init_client.return_value = mock_client
+
+        with mock.patch('time.time') as mock_time:
+            mock_time.side_effect = [1.0, 2.5]
+            returncode = eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.assertEqual(returncode, 0)
+        self.mock_report_result.assert_called_once_with(
+            result_sink_client=mock_client,
+            success=True,
+            test_log='Success',
+            test_path=pathlib.Path('/test/a.yaml'),
+            duration=1.5)
+
+    def test_run_prompt_eval_tests_no_result_sink_client(self):
+        """Tests that results are not reported when no client is available."""
+        returncode = eval_prompts._run_prompt_eval_tests(self.args)
+
+        self.assertEqual(returncode, 0)
+        self.mock_report_result.assert_not_called()
 
 
 if __name__ == '__main__':

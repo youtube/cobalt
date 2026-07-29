@@ -9,8 +9,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
-#include "chrome/browser/actor/ui/actor_overlay_window_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
+#include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/actor/ui/handoff_button_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -40,12 +40,6 @@ ActorUiTabControllerFactory::CreateHandoffButtonController(
   return std::make_unique<HandoffButtonController>(tab);
 }
 
-std::unique_ptr<ActorOverlayViewController>
-ActorUiTabControllerFactory::CreateActorOverlayViewController(
-    tabs::TabInterface& tab) {
-  return std::make_unique<ActorOverlayViewController>(tab);
-}
-
 ActorUiTabController::ActorUiTabController(
     tabs::TabInterface& tab,
     ActorKeyedService* actor_keyed_service,
@@ -61,22 +55,18 @@ ActorUiTabController::ActorUiTabController(
                               base::Unretained(this))),
       scoped_unowned_user_data_(tab.GetUnownedUserDataHost(), *this) {
   CHECK(actor_keyed_service_);
-  actor_overlay_view_controller_ =
-      controller_factory_->CreateActorOverlayViewController(tab);
   handoff_button_controller_ =
       controller_factory_->CreateHandoffButtonController(tab);
-  RegisterTabSubscriptions();
 }
 
 ActorUiTabController::~ActorUiTabController() = default;
 
 void ActorUiTabController::RegisterTabSubscriptions() {
-  tab_subscriptions_.push_back(tab_->RegisterDidActivate(
-      base::BindRepeating(&ActorUiTabController::OnTabActiveStatusChanged,
-                          weak_factory_.GetWeakPtr(), /*is_activated=*/true)));
-  tab_subscriptions_.push_back(tab_->RegisterWillDeactivate(
-      base::BindRepeating(&ActorUiTabController::OnTabActiveStatusChanged,
-                          weak_factory_.GetWeakPtr(), /*is_activated=*/false)));
+  tab_subscriptions_.push_back(tab_->RegisterWillDetach(base::BindRepeating(
+      &ActorUiTabController::OnTabWillDetach, weak_factory_.GetWeakPtr())));
+  tab_subscriptions_.push_back(tab_->RegisterWillDiscardContents(
+      base::BindRepeating(&ActorUiTabController::OnTabWillDiscard,
+                          weak_factory_.GetWeakPtr())));
 }
 
 void ActorUiTabController::OnUiTabStateChange(const UiTabState& ui_tab_state,
@@ -94,20 +84,6 @@ void ActorUiTabController::OnUiTabStateChange(const UiTabState& ui_tab_state,
   UpdateUi(std::move(callback));
 }
 
-void ActorUiTabController::OnTabActiveStatusChanged(bool tab_active_status,
-                                                    tabs::TabInterface* tab) {
-  if (current_tab_active_status_ == tab_active_status) {
-    return;
-  }
-  VLOG(4) << "Tab scoped UI components updated FROM -> TO:\n"
-          << " tab_active_status: " << current_tab_active_status_ << " -> "
-          << tab_active_status << "\n";
-
-  current_tab_active_status_ = tab_active_status;
-  UpdateUi(
-      base::BindOnce(&LogAndIgnoreCallbackError, "OnTabActiveStatusChanged"));
-}
-
 bool ActorUiTabController::ShouldShowActorTabIndicator() {
   return features::kGlicActorUiTabIndicator.Get() &&
          should_show_actor_tab_indicator_;
@@ -117,6 +93,52 @@ base::CallbackListSubscription
 ActorUiTabController::RegisterActorTabIndicatorStateChangedCallback(
     ActorTabIndicatorStateChangedCallback callback) {
   return on_actor_tab_indicator_changed_callbacks_.Add(std::move(callback));
+}
+
+void ActorUiTabController::OnTabWillDetach(
+    tabs::TabInterface* tab_interface,
+    tabs::TabInterface::DetachReason reason) {
+  // Reset the omnibox tab helper observation to ensure that it doesn't live
+  // longer than the web contents it is observing.
+  if (omnibox_tab_helper_observer_.IsObserving()) {
+    omnibox_tab_helper_observer_.Reset();
+  }
+}
+
+void ActorUiTabController::OnTabWillDiscard(
+    tabs::TabInterface* tab_interface,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
+  // Reset the observation of the omnibox tab helper since it is possible for
+  // the active tab to be discarded on CrOS.
+  if (omnibox_tab_helper_observer_.IsObserving()) {
+    omnibox_tab_helper_observer_.Reset();
+  }
+}
+
+void ActorUiTabController::UpdateOmniboxTabHelperObserver() {
+  if (current_ui_tab_state_.handoff_button.is_active) {
+    if (!omnibox_tab_helper_observer_.IsObserving()) {
+      if (auto* helper =
+              OmniboxTabHelper::FromWebContents(tab_->GetContents())) {
+        omnibox_tab_helper_observer_.Observe(helper);
+      }
+    }
+  } else {
+    omnibox_tab_helper_observer_.Reset();
+  }
+}
+
+base::CallbackListSubscription
+ActorUiTabController::RegisterActorOverlayBackgroundChange(
+    ActorOverlayBackgroundChangeCallback callback) {
+  return actor_overlay_background_changed_callbacks_.Add(std::move(callback));
+}
+
+base::CallbackListSubscription
+ActorUiTabController::RegisterActorOverlayStateChange(
+    ActorOverlayStateChangeCallback callback) {
+  return on_actor_overlay_state_changed_callbacks_.Add(std::move(callback));
 }
 
 void ActorUiTabController::SetActorTabIndicatorVisibility(
@@ -142,8 +164,8 @@ void ActorUiTabController::UpdateUi(UiResultCallback callback) {
   // TODO(crbug.com/428216197): Only notify relevant UI components on change and
   // decouple visibility + state changes into 2 functions.
   if (features::kGlicActorUiOverlay.Get()) {
-    actor_overlay_view_controller_->UpdateState(
-        current_ui_tab_state_.actor_overlay, ComputeActorOverlayVisibility());
+    on_actor_overlay_state_changed_callbacks_.Notify(
+        ComputeActorOverlayVisibility(), current_ui_tab_state_.actor_overlay);
   }
   if (features::kGlicActorUiHandoffButton.Get()) {
     handoff_button_controller_->UpdateState(
@@ -162,6 +184,17 @@ void ActorUiTabController::UpdateUi(UiResultCallback callback) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), true));
   }
+}
+
+void ActorUiTabController::OnOmniboxFocusChanged(
+    OmniboxFocusState state,
+    OmniboxFocusChangeReason reason) {
+  is_focusing_omnibox_ = state != OmniboxFocusState::OMNIBOX_FOCUS_NONE;
+  UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError, "OnOmniboxFocusChanged"));
+}
+
+void ActorUiTabController::OnWebContentsAttached() {
+  UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError, "OnWebContentsAttached"));
 }
 
 void ActorUiTabController::InitializeImmersiveModeObserver() {
@@ -195,27 +228,26 @@ void ActorUiTabController::OnImmersiveModeControllerDestroyed() {
 void ActorUiTabController::SetBorderGlowVisibility() {
   if (auto* controller =
           ActorBorderViewController::From(tab_->GetBrowserWindowInterface())) {
-    controller->SetGlowEnabled(base::to_address(tab_),
-                               current_ui_tab_state_.border_glow_visible &&
-                                   current_tab_active_status_);
+    controller->SetGlowEnabled(
+        base::to_address(tab_),
+        current_ui_tab_state_.border_glow_visible && tab_->IsSelected());
   }
 }
 
 bool ActorUiTabController::ComputeActorOverlayVisibility() {
   // Only visible when its state and the associated tab are both active.
-  return current_ui_tab_state_.actor_overlay.is_active &&
-         current_tab_active_status_;
+  return current_ui_tab_state_.actor_overlay.is_active && tab_->IsSelected();
 }
 
 bool ActorUiTabController::ComputeHandoffButtonVisibility() {
   // TODO(crbug.com/436662421): Clean up this null check for
-  // ActorOverlayWindowController. The GetImmersiveModeController call is done
+  // ActorUiWindowController. The GetImmersiveModeController call is done
   // on the BrowserView, which causes crashes in test scenarios where the
   // BrowserView is not properly created in test environments. To ensure a
-  // BrowserView exists, we can check if ActorOverlayWindowController has been
+  // BrowserView exists, we can check if ActorUiWindowController has been
   // created, since its creation relies on a valid BrowserView. Once those tests
   // are cleaned up, this null checks on the window controller can be removed.
-  if (!ActorOverlayWindowController::From(tab_->GetBrowserWindowInterface())) {
+  if (!ActorUiWindowController::From(tab_->GetBrowserWindowInterface())) {
     return false;
   }
   InitializeImmersiveModeObserver();
@@ -224,16 +256,21 @@ bool ActorUiTabController::ComputeHandoffButtonVisibility() {
           ->IsEnabled()) {
     return false;
   }
+  UpdateOmniboxTabHelperObserver();
+  if (is_focusing_omnibox_) {
+    return false;
+  }
 
   bool is_button_active = current_ui_tab_state_.handoff_button.is_active;
   bool is_client_control =
       current_ui_tab_state_.handoff_button.controller == kClient;
 
   // Only visible when:
-  // 1. Its state and the associated tab is active and the mouse is hovering
+  // 1. Its state and the associated tab is selected and the mouse is hovering
   //    over the overlay or the button.
-  // 2. Its state and the associated tab is active and the client is in control.
-  return current_tab_active_status_ && is_button_active &&
+  // 2. Its state and the associated tab is selected and the client is in
+  //    control.
+  return tab_->IsSelected() && is_button_active &&
          (should_show_scrim_background_ || is_client_control);
 }
 
@@ -261,31 +298,22 @@ void ActorUiTabController::SetActorTaskResume() {
   }
 }
 
-void ActorUiTabController::BindActorOverlay(
-    mojo::PendingRemote<mojom::ActorOverlayPage> page,
-    mojo::PendingReceiver<mojom::ActorOverlayPageHandler> receiver) {
-  if (features::kGlicActorUiOverlay.Get()) {
-    actor_overlay_view_controller_->BindOverlay(std::move(page),
-                                                std::move(receiver));
-  }
-}
-
 void ActorUiTabController::UpdateScrimBackground() {
   bool should_show_scrim_background =
-      actor_overlay_view_controller_->IsHovering() ||
-      handoff_button_controller_->IsHovering();
+      is_overlay_hovered_ || handoff_button_controller_->IsHovering();
   if (should_show_scrim_background_ == should_show_scrim_background) {
     return;
   }
   should_show_scrim_background_ = should_show_scrim_background;
   if (features::kGlicActorUiOverlay.Get()) {
-    actor_overlay_view_controller_->SetScrimBackground(
+    actor_overlay_background_changed_callbacks_.Notify(
         should_show_scrim_background_);
   }
   UpdateUi(base::BindOnce(&LogAndIgnoreCallbackError, "UpdateScrimBackground"));
 }
 
-void ActorUiTabController::OnOverlayHoverStatusChanged() {
+void ActorUiTabController::OnOverlayHoverStatusChanged(bool is_hovering) {
+  is_overlay_hovered_ = is_hovering;
   update_scrim_background_debounce_timer_.Reset();
 }
 
@@ -300,11 +328,6 @@ ActorUiTabController::GetWeakPtr() {
 
 UiTabState ActorUiTabController::GetCurrentUiTabState() const {
   return current_ui_tab_state_;
-}
-
-ActorOverlayViewController*
-ActorUiTabController::GetActorOverlayViewController() {
-  return actor_overlay_view_controller_.get();
 }
 
 }  // namespace actor::ui

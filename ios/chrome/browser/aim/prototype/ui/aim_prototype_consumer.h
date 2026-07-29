@@ -11,12 +11,23 @@
 
 // Consumer for the AIM prototype.
 @protocol AIMPrototypeConsumer
+
 // Sets the current list of items to be displayed.
 - (void)setItems:(NSArray<AIMInputItem*>*)items;
 
 // Updates the state for the item with the given token.
 - (void)updateState:(AIMInputItemState)state
     forItemWithToken:(const base::UnguessableToken&)token;
+
+// Updates the mic button visibility.
+- (void)hideMicButton:(BOOL)hidden;
+
+// Sets whether the "Attach current tab" action is enabled.
+- (void)setCanAttachTabAction:(BOOL)canAttachTabAction;
+
+// Sets whether AI mode is enabled.
+- (void)setAIModeEnabled:(BOOL)AIModeEnabled;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_AIM_PROTOTYPE_UI_AIM_PROTOTYPE_CONSUMER_H_

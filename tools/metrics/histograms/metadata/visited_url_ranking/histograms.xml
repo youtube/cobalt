@@ -32,7 +32,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="GroupSuggestionsService.OpenedTabCount.Last10Mins"
-    units="counts" expires_after="2026-01-11">
+    units="counts" expires_after="2026-03-15">
   <owner>ssid@chromium.org</owner>
   <owner>chrome-tab-group-eng@google.com</owner>
   <summary>
@@ -98,6 +98,35 @@ chromium-metrics-reviews@google.com.
     Records the number of times a tab from a tab group was switched to the
     foreground. This is recorded when the application is stopped. The count is
     reset when the application is stopped. The source of the suggestion is
+    {GroupCreationSource}.
+  </summary>
+  <token key="GroupCreationSource" variants="GroupCreationSource"/>
+</histogram>
+
+<histogram
+    name="GroupSuggestionsService.TimeSpent.PerGroup.{GroupCreationSource}"
+    units="ms" expires_after="2026-01-01">
+  <owner>mfiaz@google.com</owner>
+  <owner>ssid@chromium.org</owner>
+  <owner>salg@google.com</owner>
+  <summary>
+    Records the average time spent per group on a tab from a tab group per
+    session. This is recorded when the application is stopped. The count is
+    reset when the application is stopped. The source of the suggestion is
+    {GroupCreationSource}.
+  </summary>
+  <token key="GroupCreationSource" variants="GroupCreationSource"/>
+</histogram>
+
+<histogram name="GroupSuggestionsService.TimeSpent.Total.{GroupCreationSource}"
+    units="ms" expires_after="2026-01-01">
+  <owner>mfiaz@google.com</owner>
+  <owner>ssid@chromium.org</owner>
+  <owner>salg@google.com</owner>
+  <summary>
+    Records the total time spent on a tab from a tab group per session. This is
+    recorded when the application is stopped. The count is reset when the
+    application is stopped. The source of the suggestion is
     {GroupCreationSource}.
   </summary>
   <token key="GroupCreationSource" variants="GroupCreationSource"/>

@@ -6,7 +6,11 @@
 
 #include "base/functional/bind.h"
 #include "base/notimplemented.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
+#include "chrome/browser/glic/host/context/glic_empty_focused_browser_manager.h"
+#include "chrome/browser/glic/host/context/glic_empty_focused_tab_manager.h"
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/glic_ui_embedder.h"
@@ -18,7 +22,9 @@
 #include "chrome/browser/glic/widget/glic_inactive_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "components/tabs/public/tab_interface.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace glic {
@@ -32,11 +38,18 @@ GlicInstanceImpl::EmbedderEntry& GlicInstanceImpl::EmbedderEntry::operator=(
 GlicInstanceImpl::GlicInstanceImpl(
     Profile* profile,
     InstanceId instance_id,
-    base::WeakPtr<AttachmentDelegate> attachment_delegate)
+    base::WeakPtr<AttachmentDelegate> attachment_delegate,
+    GlicMetrics* metrics)
     : profile_(profile),
       attachment_delegate_(attachment_delegate),
       id_(instance_id),
-      host_(std::make_unique<Host>(profile_, this)) {}
+      host_(profile_, this, this),
+      sharing_manager_(
+          std::make_unique<GlicEmptyFocusedTabManager>(),
+          std::make_unique<GlicEmptyFocusedBrowserManager>(),
+          std::make_unique<GlicPinnedTabManager>(profile, this, metrics),
+          profile,
+          metrics) {}
 
 GlicInstanceImpl::~GlicInstanceImpl() = default;
 
@@ -115,9 +128,7 @@ GlicUiEmbedder* GlicInstanceImpl::GetEmbedderForKey(EmbedderKey key) {
 }
 
 GlicSharingManager& GlicInstanceImpl::sharing_manager() {
-  // TODO(b:444463509): allow for per-instance sharing manager instances.
-  return GlicKeyedServiceFactory::GetGlicKeyedService(profile_)
-      ->sharing_manager();
+  return sharing_manager_;
 }
 
 void GlicInstanceImpl::CloseInstanceAndShutdown() {
@@ -168,11 +179,69 @@ bool GlicInstanceImpl::IsOrphaned() const {
 }
 
 Host& GlicInstanceImpl::host() {
-  return *host_;
+  return host_;
 }
 
 const InstanceId& GlicInstanceImpl::id() const {
   return id_;
+}
+
+void GlicInstanceImpl::FetchZeroStateSuggestions(
+    bool is_first_run,
+    std::optional<std::vector<std::string>> supported_tools,
+    mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
+        callback) {
+  // TODO(crbug.com/444463509): Update this when we have per-instance
+  // sharing managers set up without auto-focus.
+  auto* active_web_contents =
+      sharing_manager().GetFocusedTabData().focus()
+          ? sharing_manager().GetFocusedTabData().focus()->GetContents()
+          : nullptr;
+
+  contextual_cueing::ContextualCueingService* contextual_cueing_service =
+      contextual_cueing::ContextualCueingServiceFactory::GetForProfile(
+          profile_);
+
+  if (contextual_cueing_service && active_web_contents && IsShowing()) {
+    auto suggestions = mojom::ZeroStateSuggestions::New();
+    suggestions->tab_id = GetTabId(active_web_contents);
+    suggestions->tab_url = active_web_contents->GetLastCommittedURL();
+    contextual_cueing_service
+        ->GetContextualGlicZeroStateSuggestionsForFocusedTab(
+            active_web_contents, is_first_run, supported_tools,
+            mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+                base::BindOnce(&GlicInstanceImpl::OnZeroStateSuggestionsFetched,
+                               weak_ptr_factory_.GetWeakPtr(),
+                               std::move(suggestions), std::move(callback)),
+                std::vector<std::string>({})));
+
+  } else {
+    std::move(callback).Run(nullptr);
+  }
+}
+
+void GlicInstanceImpl::OnZeroStateSuggestionsFetched(
+    mojom::ZeroStateSuggestionsPtr suggestions,
+    mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
+        callback,
+    std::vector<std::string> returned_suggestions) {
+  std::vector<mojom::SuggestionContentPtr> output_suggestions;
+  for (const std::string& suggestion_string : returned_suggestions) {
+    output_suggestions.push_back(
+        mojom::SuggestionContent::New(suggestion_string));
+  }
+  suggestions->suggestions = std::move(output_suggestions);
+
+  std::move(callback).Run(std::move(suggestions));
+}
+
+const std::optional<std::string>& GlicInstanceImpl::conversation_id() const {
+  return conversation_id_;
+}
+
+void GlicInstanceImpl::set_conversation_id(const std::string& conversation_id) {
+  CHECK(!conversation_id_);
+  conversation_id_ = conversation_id;
 }
 
 GlicInstanceImpl::EmbedderKey GlicInstanceImpl::GetEmbedderKey(
@@ -207,6 +276,9 @@ void GlicInstanceImpl::DeactivateCurrentEmbedder() {
   CHECK(it != embedders_.end());
   it->second.embedder = old_embedder->CreateInactiveEmbedder();
   active_embedder_key_.reset();
+  // Avoids use-after-free bugs. This is a temporary fix until swapping
+  // delegates is properly supported (crbug.com/446219126).
+  host_.Initialize(it->second.embedder.get()->GetHostDelegate());
 }
 
 GlicUiEmbedder* GlicInstanceImpl::CreateActiveEmbedderFor(
@@ -240,15 +312,16 @@ void GlicInstanceImpl::MaybeShowHostUi(GlicUiEmbedder* embedder) {
     return;
   }
 
-  host_->Initialize(delegate);
+  host_.Initialize(delegate);
 
   // Create the WebContents if it's not already created.
-  host_->CreateContents(/*initially_hidden=*/false);
-  host_->NotifyWindowIntentToShow();
+  host_.CreateContents(/*initially_hidden=*/false);
+  host_.NotifyWindowIntentToShow();
 
   // TODO: NotifyPanelStateChanged() here
   // TODO: pass in the correct invocation source
-  host_->PanelWillOpen(mojom::InvocationSource::kTopChromeButton);
+  // TODO: pass in the conversation id
+  host_.PanelWillOpen(mojom::InvocationSource::kTopChromeButton, {});
 }
 
 void GlicInstanceImpl::OnAssociatedTabDestroyed(tabs::TabInterface* tab,
@@ -256,6 +329,18 @@ void GlicInstanceImpl::OnAssociatedTabDestroyed(tabs::TabInterface* tab,
   DisassociateFromTab(tab);
   if (IsOrphaned() && attachment_delegate_) {
     attachment_delegate_->OnInstanceOrphaned(this);
+  }
+}
+
+void GlicInstanceImpl::SwitchConversation(
+    tabs::TabInterface* tab,
+    const std::string& conversation_id,
+    mojom::WebClientHandler::SwitchConversationCallback callback) {
+  if (attachment_delegate_) {
+    attachment_delegate_->SwitchConversation(tab, conversation_id,
+                                             std::move(callback));
+  } else {
+    std::move(callback).Run(mojom::SwitchConversationErrorReason::kUnknown);
   }
 }
 

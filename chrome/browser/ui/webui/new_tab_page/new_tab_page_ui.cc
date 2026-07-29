@@ -559,11 +559,15 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                      ntp_composebox::kShowComposeboxZps.Get());
   source->AddBoolean("composeboxShowTypedSuggest",
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
+  source->AddBoolean("showNextRealbox", ntp_composebox::kShowNextRealbox.Get());
+  source->AddBoolean("composeboxShowImageSuggest",
+                     ntp_composebox::kShowComposeboxImageSuggestions.Get());
 
   source->AddBoolean("composeboxCloseByEscape",
                      composebox_config.close_by_escape());
   source->AddBoolean("composeboxCloseByClickOutside",
                      composebox_config.close_by_click_outside());
+  source->AddBoolean("composeboxSmartComposeEnabled", true);
 
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
@@ -1027,6 +1031,8 @@ void NewTabPageUI::CreatePageHandler(
   DCHECK(pending_page.is_valid());
   MetricsReporterService* service =
       MetricsReporterService::GetFromWebContents(web_ui()->GetWebContents());
+  bool enable_multi_context_input_flow =
+      ntp_composebox::kMaxNumFiles.Get() > 1;
   composebox_handler_ = std::make_unique<ComposeboxHandler>(
       std::move(pending_page_handler), std::move(pending_page),
       std::move(pending_searchbox_handler),
@@ -1036,7 +1042,8 @@ void NewTabPageUI::CreatePageHandler(
           g_browser_process->GetApplicationLocale(),
           TemplateURLServiceFactory::GetForProfile(profile_),
           profile_->GetVariationsClient(),
-          ntp_composebox::kSendLnsSurfaceParam.Get()),
+          ntp_composebox::kSendLnsSurfaceParam.Get(),
+          enable_multi_context_input_flow),
       std::make_unique<ComposeboxMetricsRecorder>("NewTabPage."), profile_,
       web_contents(), service->metrics_reporter());
 

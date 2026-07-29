@@ -475,7 +475,8 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
                     mTabListEditorManager.getControllerSupplier());
 
             mMessageManager = messageManager;
-            mMessageManager.registerMessages(tabListCoordinator);
+            mMessageManager.registerMessageHostDelegate(
+                    MessageHostDelegateFactory.build(tabListCoordinator));
 
             CollaborationService collaborationService =
                     CollaborationServiceFactory.getForProfile(profile);
@@ -882,7 +883,7 @@ public class TabSwitcherPaneCoordinator implements BackPressHandler {
         return mMediator;
     }
 
-    private PriceWelcomeMessageController getPriceWelcomeMessageController() {
+    private @Nullable PriceWelcomeMessageController getPriceWelcomeMessageController() {
         return mMessageManager.getPriceWelcomeMessageController();
     }
 

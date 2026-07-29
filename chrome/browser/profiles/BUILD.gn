@@ -239,6 +239,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/background_fetch",
     "//chrome/browser/background_sync",
     "//chrome/browser/bitmap_fetcher",
+    "//chrome/browser/bluetooth",
     "//chrome/browser/breadcrumbs",
     "//chrome/browser/commerce",
     "//chrome/browser/content_settings:content_settings_factory",
@@ -389,7 +390,10 @@ source_set("profiles_extra_parts_impl") {
   }
 
   if (is_win || is_mac || is_linux) {
-    deps += [ "//chrome/browser/privacy_sandbox/incognito:whats_new_survey" ]
+    deps += [
+      "//chrome/browser/browser_switcher",
+      "//chrome/browser/privacy_sandbox/incognito:whats_new_survey",
+    ]
   }
 
   if (enable_extensions_core) {
@@ -432,6 +436,10 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/profiles/batch_upload",
       "//chrome/browser/ui/signin",
     ]
+  }
+
+  if (!is_android && !is_official_build) {
+    deps += [ "//chrome/browser/password_manager:startup_import" ]
   }
 }
 

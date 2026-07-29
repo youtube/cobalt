@@ -9,11 +9,13 @@
 #include "base/base64.h"
 #include "base/functional/callback.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/test/bind.h"
 #include "base/test/protobuf_matchers.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/types/cxx23_to_underlying.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
@@ -27,6 +29,7 @@
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_features.h"
@@ -42,6 +45,7 @@
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/ozone/public/ozone_platform.h"
 
 namespace glic::test {
 
@@ -54,6 +58,8 @@ using apc::Actions;
 using apc::ActionsResult;
 using apc::AnnotatedPageContent;
 using apc::ClickAction;
+using ClickType = apc::ClickAction::ClickType;
+using ClickCount = apc::ClickAction::ClickCount;
 using apc::ContentAttributes;
 using apc::ContentNode;
 using ::base::test::EqualsProto;
@@ -100,12 +106,19 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   using ExpectedErrorResult = std::variant<std::monostate,
                                            actor::mojom::ActionResultCode,
                                            mojom::PerformActionsErrorReason>;
+  static constexpr int32_t kNonExistentContentNodeId =
+      std::numeric_limits<int32_t>::max();
 
   GlicActorControllerUiTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlicActor,
-                              optimization_guide::features::
-                                  kAnnotatedPageContentWithActionableElements},
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {// Increase timeout since tests are timing out with ASAN builds.
+         {features::kGlic, {{"glic-max-loading-time-ms", "30000"}}},
+         {features::kGlicActor, {}},
+         {features::kGlicActorToctouValidation, {}},
+         {optimization_guide::features::
+              kAnnotatedPageContentWithActionableElements,
+          {}}},
         /*disabled_features=*/{});
   }
   ~GlicActorControllerUiTest() override = default;
@@ -215,13 +228,17 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
             expected_result_string, "ExecuteAction"));
   }
 
-  auto CreateTask(actor::TaskId& out_task) {
+  auto CreateTask(actor::TaskId& out_task, std::string_view title) {
     return InAnyContext(WithElement(
-        kGlicContentsElementId, [&out_task](ui::TrackedElement* el) mutable {
+        kGlicContentsElementId, [&out_task, title = std::string(title)](
+                                    ui::TrackedElement* el) mutable {
           content::WebContents* glic_contents =
               AsInstrumentedWebContents(el)->web_contents();
           const int result =
-              content::EvalJs(glic_contents, "client.browser.createTask()")
+              content::EvalJs(
+                  glic_contents,
+                  content::JsReplace("client.browser.createTask({title: $1})",
+                                     title))
                   .ExtractInt();
           out_task = actor::TaskId(result);
         }));
@@ -251,6 +268,43 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
                          std::move(expected_result));
   }
 
+  auto CreateWindowAction(actor::TaskId& task_id,
+                          ExpectedErrorResult expected_result = {}) {
+    auto create_window_provider = base::BindLambdaForTesting([&task_id]() {
+      Actions create_window = actor::MakeCreateWindow();
+      create_window.set_task_id(task_id.value());
+      return EncodeActionProto(create_window);
+    });
+    return ExecuteAction(std::move(create_window_provider),
+                         std::move(expected_result));
+  }
+
+  auto ActivateWindowAction(actor::TaskId& task_id,
+                            SessionID& window_id,
+                            ExpectedErrorResult expected_result = {}) {
+    auto activate_window_provider =
+        base::BindLambdaForTesting([&task_id, &window_id]() {
+          Actions activate_window = actor::MakeActivateWindow(window_id);
+          activate_window.set_task_id(task_id.value());
+          return EncodeActionProto(activate_window);
+        });
+    return ExecuteAction(std::move(activate_window_provider),
+                         std::move(expected_result));
+  }
+
+  auto CloseWindowAction(actor::TaskId& task_id,
+                         SessionID& window_id,
+                         ExpectedErrorResult expected_result = {}) {
+    auto close_window_provider =
+        base::BindLambdaForTesting([&task_id, &window_id]() {
+          Actions close_window = actor::MakeCloseWindow(window_id);
+          close_window.set_task_id(task_id.value());
+          return EncodeActionProto(close_window);
+        });
+    return ExecuteAction(std::move(close_window_provider),
+                         std::move(expected_result));
+  }
+
   auto GetClientRect(ui::ElementIdentifier tab_id,
                      std::string_view element_id,
                      gfx::Rect& out_rect) {
@@ -268,15 +322,18 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   }
 
   auto ClickAction(std::string_view label,
+                   ClickType click_type,
+                   ClickCount click_count,
                    actor::TaskId& task_id,
                    TabHandle& tab_handle,
                    ExpectedErrorResult expected_result = {}) {
-    auto click_provider =
-        base::BindLambdaForTesting([this, &task_id, &tab_handle, label]() {
+    auto click_provider = base::BindLambdaForTesting(
+        [this, &task_id, &tab_handle, label, click_type, click_count]() {
           int32_t node_id = SearchAnnotatedPageContent(label);
           RenderFrameHost* frame =
               tab_handle.Get()->GetContents()->GetPrimaryMainFrame();
-          Actions action = actor::MakeClick(*frame, node_id);
+          Actions action =
+              actor::MakeClick(*frame, node_id, click_type, click_count);
           action.set_task_id(task_id.value());
           return EncodeActionProto(action);
         });
@@ -284,18 +341,23 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   }
 
   auto ClickAction(std::string_view label,
+                   ClickType click_type,
+                   ClickCount click_count,
                    ExpectedErrorResult expected_result = {}) {
-    return ClickAction(label, task_id_, tab_handle_,
+    return ClickAction(label, click_type, click_count, task_id_, tab_handle_,
                        std::move(expected_result));
   }
 
   auto ClickAction(const gfx::Point& coordinate,
+                   ClickType click_type,
+                   ClickCount click_count,
                    actor::TaskId& task_id,
                    TabHandle& tab_handle,
                    ExpectedErrorResult expected_result = {}) {
-    auto click_provider =
-        base::BindLambdaForTesting([&task_id, &tab_handle, coordinate]() {
-          Actions action = actor::MakeClick(tab_handle, coordinate);
+    auto click_provider = base::BindLambdaForTesting(
+        [&task_id, &tab_handle, coordinate, click_type, click_count]() {
+          Actions action =
+              actor::MakeClick(tab_handle, coordinate, click_type, click_count);
           action.set_task_id(task_id.value());
           return EncodeActionProto(action);
         });
@@ -303,9 +365,33 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   }
 
   auto ClickAction(const gfx::Point& coordinate,
+                   ClickType click_type,
+                   ClickCount click_count,
                    ExpectedErrorResult expected_result = {}) {
-    return ClickAction(coordinate, task_id_, tab_handle_,
-                       std::move(expected_result));
+    return ClickAction(coordinate, click_type, click_count, task_id_,
+                       tab_handle_, std::move(expected_result));
+  }
+
+  auto MouseMoveAction(std::string_view label,
+                       actor::TaskId& task_id,
+                       TabHandle& tab_handle,
+                       ExpectedErrorResult expected_result = {}) {
+    auto move_provider =
+        base::BindLambdaForTesting([this, &task_id, &tab_handle, label]() {
+          int32_t node_id = SearchAnnotatedPageContent(label);
+          RenderFrameHost* frame =
+              tab_handle.Get()->GetContents()->GetPrimaryMainFrame();
+          Actions action = actor::MakeMouseMove(*frame, node_id);
+          action.set_task_id(task_id.value());
+          return EncodeActionProto(action);
+        });
+    return ExecuteAction(std::move(move_provider), std::move(expected_result));
+  }
+
+  auto MouseMoveAction(std::string_view label,
+                       ExpectedErrorResult expected_result = {}) {
+    return MouseMoveAction(label, task_id_, tab_handle_,
+                           std::move(expected_result));
   }
 
   auto NavigateAction(GURL url,
@@ -384,7 +470,7 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
     return Steps(
         // clang-format off
       InstrumentNextTab(new_tab_id),
-      CreateTask(task_id_),
+      CreateTask(task_id_, ""),
       CreateTabAction(task_id_,
                       browser()->session_id(),
                       /*foreground=*/true),
@@ -630,8 +716,10 @@ class GlicActorControllerUiTest : public test::InteractiveGlicTest {
   // Check ExecutionEngine caches the last apc observation.
   auto CheckActorTabDataHasAnnotatedPageContentCache() {
     return Do([&]() {
+      // TODO(crbug.com/420669167): Needs to be reconsidered for multi-tab.
       const AnnotatedPageContent* cached_apc =
-          actor::ActorTabData::From(GetActorTask()->GetTabForObservation())
+          actor::ActorTabData::From(
+              GetActorTask()->GetLastActedTabs().begin()->Get())
               ->GetLastObservedPageContent();
       EXPECT_TRUE(cached_apc);
       EXPECT_THAT(*annotated_page_content_, EqualsProto(*cached_apc));
@@ -759,14 +847,14 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
     // Click in the top frame. This will extract page context after the click
     // action.
     GetPageContextFromFocusedTab(),
-    ClickAction(gfx::Point(10, 10)),
+    ClickAction(gfx::Point(10, 10), ClickAction::LEFT, ClickAction::SINGLE),
 
     // Remove the top frame which puts the bottom frame at its former location.
     // Sending a click to the same location should fail the TOCTOU check since
     // the last page context had the removed frame there.
     ExecuteJs(kNewActorTabId,
               "()=>{document.getElementById('topframe').remove();}"),
-    ClickAction(gfx::Point(10, 10),
+    ClickAction(gfx::Point(10, 10), ClickAction::LEFT, ClickAction::SINGLE,
         actor::mojom::ActionResultCode::kFrameLocationChangedSinceObservation)
       // clang-format on
   );
@@ -796,14 +884,14 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
     // Click in the top frame. This will extract page context after the click
     // action.
     GetPageContextFromFocusedTab(),
-    ClickAction(gfx::Point(10, 10)),
+    ClickAction(gfx::Point(10, 10), ClickAction::LEFT, ClickAction::SINGLE),
 
     // Remove the top frame which puts the bottom frame at its former location.
     // Sending a click to the same location should fail the TOCTOU check since
     // the last page context had the removed frame there.
     ExecuteJs(kNewActorTabId,
               "()=>{document.getElementById('topframe').remove();}"),
-    ClickAction(gfx::Point(10, 10),
+    ClickAction(gfx::Point(10, 10), ClickAction::LEFT, ClickAction::SINGLE,
         actor::mojom::ActionResultCode::kFrameLocationChangedSinceObservation)
       // clang-format on
   );
@@ -821,10 +909,10 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
     InitializeWithOpenGlicWindow(),
     StartActorTaskInNewTab(task_url, kNewActorTabId),
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     ExecuteJs(kNewActorTabId,
               "()=>{document.getElementById('clickable').remove();}"),
-    ClickAction(kClickableButtonLabel,
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE,
                     actor::mojom::ActionResultCode::kElementOffscreen)
       // clang-format on
   );
@@ -841,7 +929,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
     InitializeWithOpenGlicWindow(),
     StartActorTaskInNewTab(task_url, kNewActorTabId),
     GetPageContextFromFocusedTab(),
-    ClickAction({15, 15}),
+    ClickAction({15, 15}, ClickAction::LEFT, ClickAction::SINGLE),
     ExecuteJs(kNewActorTabId,
               "()=>{document.getElementById('clickable').style.cssText = "
               "'position: relative; left: 20px;'}"),
@@ -849,7 +937,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
               "()=>{const forcelayout = "
               "document.getElementById('clickable').offsetHeight;}"),
     ClickAction(
-        {15, 15},
+        {15, 15}, ClickAction::LEFT, ClickAction::SINGLE,
             actor::mojom::ActionResultCode::kObservedTargetElementChanged)
       // clang-format on
   );
@@ -869,6 +957,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
     GetPageContextFromFocusedTab(),
     ClickAction(
         kClickableButtonLabel,
+        ClickAction::LEFT, ClickAction::SINGLE,
         actor::mojom::ActionResultCode::kTargetNodeInteractionPointObscured),
      InAnyContext(WithElement(kNewActorTabId, [](ui::TrackedElement* el) {
         content::WebContents* web_contents =
@@ -908,8 +997,54 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, ActionSucceeds) {
   RunTestSequence(InitializeWithOpenGlicWindow(),
                   StartActorTaskInNewTab(task_url, kNewActorTabId),
                   GetPageContextFromFocusedTab(),
-                  ClickAction(kClickableButtonLabel),
-                  WaitForJsResult(kNewActorTabId, "() => button_clicked"));
+                  ClickAction(kClickableButtonLabel, ClickAction::LEFT,
+                              ClickAction::SINGLE),
+                  WaitForJsResult(kNewActorTabId, "expect_single_left_click"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, DblClickActionSucceeds) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  constexpr std::string_view kClickableButtonLabel = "clickable";
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  RunTestSequence(InitializeWithOpenGlicWindow(),
+                  StartActorTaskInNewTab(task_url, kNewActorTabId),
+                  GetPageContextFromFocusedTab(),
+                  ClickAction(kClickableButtonLabel, ClickAction::LEFT,
+                              ClickAction::DOUBLE),
+                  WaitForJsResult(kNewActorTabId, "expect_double_left_click"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, RightClickActionSucceeds) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  constexpr std::string_view kClickableButtonLabel = "clickable";
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  RunTestSequence(InitializeWithOpenGlicWindow(),
+                  StartActorTaskInNewTab(task_url, kNewActorTabId),
+                  GetPageContextFromFocusedTab(),
+                  ClickAction(kClickableButtonLabel, ClickAction::RIGHT,
+                              ClickAction::SINGLE),
+                  WaitForJsResult(kNewActorTabId, "expect_single_right_click"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, DblRightClickActionSucceeds) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  constexpr std::string_view kClickableButtonLabel = "clickable";
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  RunTestSequence(InitializeWithOpenGlicWindow(),
+                  StartActorTaskInNewTab(task_url, kNewActorTabId),
+                  GetPageContextFromFocusedTab(),
+                  ClickAction(kClickableButtonLabel, ClickAction::RIGHT,
+                              ClickAction::DOUBLE),
+                  WaitForJsResult(kNewActorTabId, "expect_double_right_click"));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, ActionProtoInvalid) {
@@ -926,11 +1061,10 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, ActionTargetNotFound) {
       embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
 
   auto click_provider = base::BindLambdaForTesting([this]() {
-    constexpr int32_t kNonExistentContentNodeId =
-        std::numeric_limits<int32_t>::max();
     RenderFrameHost* frame =
         tab_handle_.Get()->GetContents()->GetPrimaryMainFrame();
-    Actions action = actor::MakeClick(*frame, kNonExistentContentNodeId);
+    Actions action = actor::MakeClick(*frame, kNonExistentContentNodeId,
+                                      ClickAction::LEFT, ClickAction::SINGLE);
     action.set_task_id(task_id_.value());
     return EncodeActionProto(action);
   });
@@ -940,6 +1074,106 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, ActionTargetNotFound) {
       StartActorTaskInNewTab(task_url, kNewActorTabId),
       ExecuteAction(std::move(click_provider),
                     actor::mojom::ActionResultCode::kInvalidDomNodeId));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       MouseMoveTool_NonExistentNode) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/mouse_log.html");
+
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',') }", ""),
+      ExecuteAction(
+          base::BindLambdaForTesting([this]() {
+            RenderFrameHost* frame =
+                tab_handle_.Get()->GetContents()->GetPrimaryMainFrame();
+            Actions action =
+                actor::MakeMouseMove(*frame, kNonExistentContentNodeId);
+            action.set_task_id(task_id_.value());
+            return EncodeActionProto(action);
+          }),
+          actor::mojom::ActionResultCode::kInvalidDomNodeId));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, MouseMoveTool_Events) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/mouse_log.html");
+
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',')}", ""),
+      MouseMoveAction("first"),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',')}",
+                      "mouseenter[DIV#first],mousemove[DIV#first]"),
+      ExecuteJs(kNewActorTabId, "()=>{ event_log = []; }"),
+      MouseMoveAction("second"),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',')}",
+                      "mouseleave[DIV#first],mouseenter[DIV#second],mousemove["
+                      "DIV#second]"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       MouseMoveTool_TargetOutsideViewport) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/mouse_log.html");
+
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',')}", ""),
+      WaitForJsResult(kNewActorTabId, "()=>{ return window.scrollY == 0 }"),
+      MouseMoveAction("offscreen"),
+      WaitForJsResult(kNewActorTabId, "()=>{ return window.scrollY > 0 }"),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',')}",
+                      "mouseenter[DIV#offscreen],mousemove[DIV#offscreen]"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       MouseMoveTool_MoveToCoordinate) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/mouse_log.html");
+  gfx::Rect first_bounds;
+  auto move_provider = base::BindLambdaForTesting([this, &first_bounds]() {
+    Actions action =
+        actor::MakeMouseMove(tab_handle_, first_bounds.CenterPoint());
+    action.set_task_id(task_id_.value());
+    return EncodeActionProto(action);
+  });
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',') }", ""),
+      GetClientRect(kNewActorTabId, "first", first_bounds),
+      ExecuteAction(std::move(move_provider)),
+      WaitForJsResult(kNewActorTabId, "()=>{ return event_log.join(',') }",
+                      "mouseenter[DIV#first],mousemove[DIV#first]"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       MouseMoveTool_MoveToCoordinateOffScreen) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/mouse_log.html");
+  gfx::Rect offscreen_bounds;
+  auto move_provider = base::BindLambdaForTesting([this, &offscreen_bounds]() {
+    Actions action =
+        actor::MakeMouseMove(tab_handle_, offscreen_bounds.CenterPoint());
+    action.set_task_id(task_id_.value());
+    return EncodeActionProto(action);
+  });
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      GetClientRect(kNewActorTabId, "offscreen", offscreen_bounds),
+      ExecuteAction(std::move(move_provider),
+                    actor::mojom::ActionResultCode::kCoordinatesOutOfBounds));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, HistoryTool) {
@@ -972,11 +1206,11 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, StopActorTask) {
     InitializeWithOpenGlicWindow(),
     StartActorTaskInNewTab(task_url, kNewActorTabId),
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kNewActorTabId, "() => button_clicked"),
     CheckIsActingOnTab(kNewActorTabId, true),
     StopActorTask(),
-    ClickAction(kClickableButtonLabel,
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE,
         actor::mojom::ActionResultCode::kTaskWentAway),
     CheckIsActingOnTab(kNewActorTabId, false));
   // clang-format on
@@ -1020,14 +1254,14 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, StopThenStartActTask) {
     // Start, click, stop.
     StartActorTaskInNewTab(task_url, kSecondTabId),
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kSecondTabId, "() => button_clicked"),
     StopActorTask(),
 
     // Start, click, stop.
     StartActorTaskInNewTab(task_url, kThirdTabId),
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kThirdTabId, "() => button_clicked"),
     StopActorTask()
       // clang-format on
@@ -1048,12 +1282,12 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, PauseActorTask) {
     StartActorTaskInNewTab(task_url, kNewActorTabId),
 
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kNewActorTabId, "() => button_clicked"),
     CheckIsActingOnTab(kNewActorTabId, true),
 
     PauseActorTask(),
-    ClickAction(kClickableButtonLabel,
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE,
                 actor::mojom::ActionResultCode::kTaskPaused),
 
     // Unlike stopping, pausing keeps the task.
@@ -1075,7 +1309,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, PauseThenStopActorTask) {
     StartActorTaskInNewTab(task_url, kNewActorTabId),
 
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kNewActorTabId, "() => button_clicked"),
     WaitForActorTaskState(mojom::ActorTaskState::kIdle),
 
@@ -1102,7 +1336,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, PauseAlreadyPausedActorTask) {
     StartActorTaskInNewTab(task_url, kNewActorTabId),
 
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kNewActorTabId, "() => button_clicked"),
 
     // Ensure pausing twice in a row is a no-op.
@@ -1126,7 +1360,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, PauseThenResumeActorTask) {
     StartActorTaskInNewTab(task_url, kNewActorTabId),
 
     GetPageContextFromFocusedTab(),
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kNewActorTabId, "() => button_clicked"),
 
     // Reset the flag
@@ -1137,7 +1371,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, PauseThenResumeActorTask) {
     CheckIsActingOnTab(kNewActorTabId, true),
 
     // Ensure actions work acter pause and resume.
-    ClickAction(kClickableButtonLabel),
+    ClickAction(kClickableButtonLabel, ClickAction::LEFT, ClickAction::SINGLE),
     WaitForJsResult(kNewActorTabId, "() => button_clicked")
       // clang-format on
   );
@@ -1219,7 +1453,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, FirstActionIsntTabScoped) {
   RunTestSequence(
       // clang-format off
     InitializeWithOpenGlicWindow(),
-    CreateTask(task_id_),
+    CreateTask(task_id_, ""),
     WaitAction()
       // clang-format on
   );
@@ -1265,7 +1499,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
       AddInstrumentedTab(kOtherTabId, GURL(chrome::kChromeUISettingsURL)),
       FocusWebContents(kOtherTabId),
       CheckIsWebContentsCaptured(kNewActorTabId, true),
-      ClickAction(kClickableButtonLabel),
+      ClickAction(kClickableButtonLabel,
+                  ClickAction::LEFT, ClickAction::SINGLE),
       WaitForJsResult(kNewActorTabId, "() => button_clicked"),
       CheckIsActingOnTab(kNewActorTabId, true),
       CheckIsActingOnTab(kOtherTabId, false),
@@ -1295,7 +1530,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
       StartActorTaskInNewTab(task_url, kNewActorTabId),
 
       GetPageContextFromFocusedTab(),
-      ClickAction(kClickableButtonLabel),
+      ClickAction(kClickableButtonLabel,
+                  ClickAction::LEFT, ClickAction::SINGLE),
 
       Do([&]() {
         ASSERT_TRUE(last_execution_result());
@@ -1343,7 +1579,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, TimeOfUseCheckOnTextNode) {
   auto click_provider =
       base::BindLambdaForTesting([this, &checkbox_label_bounds]() {
         Actions action =
-            actor::MakeClick(tab_handle_, checkbox_label_bounds.CenterPoint());
+            actor::MakeClick(tab_handle_, checkbox_label_bounds.CenterPoint(),
+                             ClickAction::LEFT, ClickAction::SINGLE);
         action.set_task_id(task_id_.value());
         return EncodeActionProto(action);
       });
@@ -1359,6 +1596,30 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, TimeOfUseCheckOnTextNode) {
       ExecuteAction(std::move(click_provider)),
 
       WaitForJsResult(kNewActorTabId, "() => document.getElementById('checkbox').checked")
+  );
+  // clang-format on
+}
+
+// Ensure the time-of-use check can succeed when a click is dispatched to an
+// element within a shadow DOM that overlaps its host.
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, TimeOfUseCheckOnShadowDom) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  constexpr std::string_view kClickableButtonLabel = "clickable";
+
+  // Load the new page that contains the element with a shadow DOM.
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_shadow_dom.html");
+
+  RunTestSequence(
+      // clang-format off
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
+                              kActivateSurfaceIncompatibilityNotice),
+      GetPageContextFromFocusedTab(),
+      ClickAction(kClickableButtonLabel,
+                  ClickAction::LEFT, ClickAction::SINGLE),
+      WaitForJsResult(kNewActorTabId, "() => button_clicked === true")
   );
   // clang-format on
 }
@@ -1387,13 +1648,230 @@ IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
       CheckIsWebContentsCaptured(kNewActorTabId, false),
       ResumeActorTask(UpdatedContextOptions(), true),
       CheckIsWebContentsCaptured(kNewActorTabId, true),
-      ClickAction(kClickableButtonLabel),
+      ClickAction(kClickableButtonLabel,
+                  ClickAction::LEFT, ClickAction::SINGLE),
       WaitForJsResult(kNewActorTabId, "() => button_clicked"),
       CheckIsActingOnTab(kNewActorTabId, true),
       CheckIsActingOnTab(kOtherTabId, false),
       StopActorTask(),
       CheckIsWebContentsCaptured(kNewActorTabId, false));
   // clang-format on
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, WindowManagementTools) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE)
+  if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
+    GTEST_SKIP() << "Programmatic window activation doesn't work on wayland and"
+                 << "this test checks window activation.";
+  }
+#endif
+
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  size_t initial_window_count = 0;
+  Browser* initial_window = browser();
+  SessionID initial_window_session_id = SessionID::InvalidValue();
+
+  Browser* created_window = nullptr;
+  SessionID created_window_session_id = SessionID::InvalidValue();
+
+  // clang-format off
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      WaitForWebContentsReady(kNewActorTabId, task_url),
+      GetPageContextFromFocusedTab(),
+      SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
+                              kActivateSurfaceIncompatibilityNotice),
+
+      Do([&]() {
+        initial_window = BrowserList::GetInstance()->GetLastActive();
+        initial_window_session_id = initial_window->session_id();
+        initial_window_count = BrowserList::GetInstance()->size();
+      }),
+
+      // Create a new window
+      CreateWindowAction(task_id_),
+      Check([&]() {
+              return BrowserList::GetInstance()->size() ==
+                  initial_window_count + 1;
+          },
+          "New window was created"),
+      CheckResult([]() { return BrowserList::GetInstance()->GetLastActive(); },
+          testing::Ne(initial_window),
+          "Last active window was changed"),
+
+      Do([&]() {
+        created_window = BrowserList::GetInstance()->GetLastActive();
+        created_window_session_id = created_window->session_id();
+      }),
+      Check([&]() { return created_window->IsActive(); },
+          "New window is active"),
+      Check([&]() { return !initial_window->IsActive(); },
+          "Initial window is inactive"),
+
+      // Activate the initial window
+      ActivateWindowAction(task_id_, initial_window_session_id),
+      CheckResult(
+          []() { return BrowserList::GetInstance()->GetLastActive(); },
+          initial_window,
+          "Initial window becomes last actived"),
+      Check([&]() { return initial_window->IsActive(); },
+          "Initial window is active"),
+      Check([&]() { return !created_window->IsActive(); },
+          "New window is inactive"),
+
+      // Close the new window
+      CloseWindowAction(task_id_, created_window_session_id),
+      Check([&]() {
+              return BrowserList::GetInstance()->size() == initial_window_count;
+          },
+          "Created window was closed"),
+      CheckResult(
+          []() { return BrowserList::GetInstance()->GetLastActive(); },
+          initial_window,
+          "Initial window remains active")
+  );
+  // clang-format on
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, CreateTaskWithTitle) {
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+  const std::string task_title = "My test title";
+
+  RunTestSequence(InitializeWithOpenGlicWindow(),    //
+                  CreateTask(task_id_, task_title),  //
+                  CheckResult(
+                      [this]() {
+                        const actor::ActorTask* task = GetActorTask();
+                        CHECK(task);
+                        return task->title();
+                      },
+                      task_title, "Task has title"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, CreateTaskNoTitle) {
+  const GURL task_url =
+      embedded_test_server()->GetURL("/actor/page_with_clickable_element.html");
+
+  RunTestSequence(InitializeWithOpenGlicWindow(),  //
+                  CreateTask(task_id_, ""),        //
+                  CheckResult(
+                      [this]() {
+                        const actor::ActorTask* task = GetActorTask();
+                        CHECK(task);
+                        return task->title();
+                      },
+                      "", "Task has no title"));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, DragAndReleaseTool_Range) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/drag.html");
+
+  gfx::Rect range_rect;
+  auto drag_provider = base::BindLambdaForTesting([this, &range_rect]() {
+    // Padding to roughly hit the center of the range drag thumb.
+    const int thumb_padding = range_rect.height() / 2;
+
+    gfx::Point start(range_rect.x() + thumb_padding,
+                     range_rect.y() + thumb_padding);
+
+    gfx::Point end = range_rect.CenterPoint();
+
+    Actions action = actor::MakeDragAndRelease(tab_handle_, start, end);
+    action.set_task_id(task_id_.value());
+    return EncodeActionProto(action);
+  });
+
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      GetPageContextFromFocusedTab(),
+      GetClientRect(kNewActorTabId, "range", range_rect),
+      CheckJsResult(kNewActorTabId,
+                    "() => document.querySelector('#range').value", "0"),
+      ExecuteAction(std::move(drag_provider)),
+      CheckJsResult(kNewActorTabId,
+                    "() => document.querySelector('#range').value", "50"));
+}
+
+// Ensure the drag tool sends the expected mouse down, move and up events.
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest, DragAndReleaseTool_Events) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/drag.html");
+
+  gfx::Rect target_rect;
+
+  auto drag_provider = base::BindLambdaForTesting([this, &target_rect]() {
+    // Arbitrary pad to hit a few pixels inside the logger element.
+    const int kPadding = 10;
+    gfx::Vector2d delta(100, 150);
+    gfx::Point start(target_rect.x() + kPadding, target_rect.y() + kPadding);
+    gfx::Point end = start + delta;
+
+    Actions action = actor::MakeDragAndRelease(tab_handle_, start, end);
+    action.set_task_id(task_id_.value());
+    return EncodeActionProto(action);
+  });
+
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      ExecuteJs(kNewActorTabId, "() => { window.scrollTo(450, 250); }"),
+      CheckJsResult(kNewActorTabId, "() => event_log.join(',')", ""),
+      GetClientRect(kNewActorTabId, "dragLogger", target_rect),
+      ExecuteAction(std::move(drag_provider)),
+      WaitForJsResult(kNewActorTabId, "() => event_log.join(',')",
+                      "mousemove[60,60],mousedown[60,60],mousemove[160,210],"
+                      "mouseup[160,210]"));
+}
+
+// Ensure coordinates outside of the viewport are rejected.
+IN_PROC_BROWSER_TEST_F(GlicActorControllerUiTest,
+                       DragAndReleaseTool_Offscreen) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNewActorTabId);
+  const GURL task_url = embedded_test_server()->GetURL("/actor/drag.html");
+
+  gfx::Rect range_rect;
+  auto drag_provider = base::BindLambdaForTesting([this, &range_rect]() {
+    // Padding to roughly hit the center of the range drag thumb.
+    const int thumb_padding = range_rect.height() / 2;
+
+    gfx::Point start(range_rect.x() + thumb_padding,
+                     range_rect.y() + thumb_padding);
+
+    gfx::Point end = range_rect.CenterPoint();
+
+    Actions action = actor::MakeDragAndRelease(tab_handle_, start, end);
+    action.set_task_id(task_id_.value());
+    return EncodeActionProto(action);
+  });
+
+  RunTestSequence(
+      InitializeWithOpenGlicWindow(),
+      StartActorTaskInNewTab(task_url, kNewActorTabId),
+      CheckJsResult(kNewActorTabId, "() => event_log.join(',')", ""),
+      GetClientRect(kNewActorTabId, "offscreenRange", range_rect),
+      ExecuteAction(drag_provider,
+                    actor::mojom::ActionResultCode::kCoordinatesOutOfBounds),
+
+      // Scroll the range into the viewport.
+      ExecuteJs(kNewActorTabId,
+                "() => { "
+                "document.getElementById('offscreenRange').scrollIntoView(); "
+                "}"),
+
+      // Try to drag the range again - it should succeed now.
+      GetClientRect(kNewActorTabId, "offscreenRange", range_rect),
+      ExecuteAction(drag_provider),
+      CheckJsResult(kNewActorTabId,
+                    "() => document.querySelector('#offscreenRange').value",
+                    "50"));
 }
 
 class GlicActorControllerWithScriptToolsTest

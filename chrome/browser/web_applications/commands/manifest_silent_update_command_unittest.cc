@@ -49,8 +49,7 @@ class ManifestSilentUpdateCommandTest : public WebAppTest {
   void SetUp() override {
     scoped_feature_list_.InitWithFeatures(
         {features::kWebAppUsePrimaryIcon,
-         features::kSilentPolicyAndDefaultAppUpdating,
-         blink::features::kWebAppEnableScopeExtensions},
+         features::kSilentPolicyAndDefaultAppUpdating},
         {});
     WebAppTest::SetUp();
     FakeWebAppProvider* provider = FakeWebAppProvider::Get(profile());
@@ -108,8 +107,7 @@ class ManifestSilentUpdateCommandTest : public WebAppTest {
     base::test::TestFuture<ManifestSilentUpdateCheckResult>
         manifest_silent_update_future;
     fake_provider().scheduler().ScheduleManifestSilentUpdate(
-        app_url(), web_contents()->GetWeakPtr(),
-        manifest_silent_update_future.GetCallback());
+        *web_contents(), manifest_silent_update_future.GetCallback());
 
     EXPECT_TRUE(manifest_silent_update_future.Wait());
     return manifest_silent_update_future.Get();

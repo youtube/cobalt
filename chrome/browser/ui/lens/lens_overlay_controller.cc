@@ -346,7 +346,6 @@ void LensOverlayController::CloseUI(
   }
 
   lens_selection_type_ = lens::UNKNOWN_SELECTION_TYPE;
-  should_send_screenshot_on_init_ = false;
 
   state_ = State::kOff;
 
@@ -467,7 +466,7 @@ bool LensOverlayController::IsOverlayShowing() const {
 }
 
 bool LensOverlayController::IsOverlayActive() const {
-  return IsOverlayShowing() || state_ == State::kLivePageAndResults;
+  return IsOverlayShowing() || state_ == State::kHidden;
 }
 
 bool LensOverlayController::IsOverlayInitializing() {
@@ -798,7 +797,19 @@ void LensOverlayController::ShowUI(
     lens::LensOverlayInvocationSource invocation_source,
     lens::LensOverlayQueryController* lens_overlay_query_controller) {
   // If UI is already showing or in the process of showing, do nothing.
-  if (state_ != State::kOff) {
+  if (state_ != State::kOff && state_ != State::kHidden) {
+    return;
+  }
+
+  if (state_ == State::kHidden) {
+    ShowOverlay();
+    state_ = side_panel_coordinator_->IsSidePanelShowing()
+                 ? State::kOverlayAndResults
+                 : State::kOverlay;
+    if (!pending_region_) {
+      ShowPreselectionBubble();
+    }
+    UpdateEntryPointsState();
     return;
   }
 
@@ -906,7 +917,22 @@ void LensOverlayController::ShowUI(
                 std::make_optional<base::TimeTicks>(base::TimeTicks::Now())),
             kReflowWaitTimeout);
   } else {
-    CaptureScreenshot();
+    state_ = State::kScreenshot;
+    content::RenderWidgetHostView* view = tab_->GetContents()
+                                              ->GetPrimaryMainFrame()
+                                              ->GetRenderViewHost()
+                                              ->GetWidget()
+                                              ->GetView();
+    // During initialization and shutdown a capture may not be possible.
+    if (!IsScreenshotPossible(view)) {
+      lens_search_controller_->CloseLensSync(
+          lens::LensOverlayDismissalSource::kErrorScreenshotCreationFailed);
+      return;
+    }
+
+    GetContextualizationController()->StartScreenshotFlow(base::BindOnce(
+        &LensOverlayController::OnScreenshotTaken, weak_factory_.GetWeakPtr(),
+        std::make_optional<base::TimeTicks>(base::TimeTicks::Now())));
   }
 }
 
@@ -1077,7 +1103,7 @@ void LensOverlayController::OnSearchboxFocusChanged(bool focused) {
   if (IsContextualSearchbox()) {
     GetLensSessionMetricsLogger()->OnSearchboxFocused();
 
-    if (state() == State::kLivePageAndResults) {
+    if (state() == State::kHidden) {
       // If the live page is showing and the searchbox becomes focused, showing
       // intent to issue a new query, upload the new page content for
       // contextualization.
@@ -1124,13 +1150,13 @@ void LensOverlayController::IssueLensRequest(
   GetLensSessionMetricsLogger()->RecordTimeToFirstInteraction(
       lens::LensOverlayFirstInteractionType::kRegionSelect);
 
-  // TODO(crbug.com/428208291): The overlay can be in the live page and results
-  // state and this could be a query coming from the back stack which would make
-  // setting this to kOverlayAndResults incorrect. Check if the overlay is
-  // currently in that state to determine if this should be set to
-  // kOverlayAndResults or not. This should be fixed by moving the functionality
-  // to make Lens requests to a more appropriate location.
-  if (state_ != State::kLivePageAndResults) {
+  // TODO(crbug.com/428208291): The overlay can be in the hidden state and this
+  // could be a query coming from the back stack which would make setting this
+  // to kOverlayAndResults incorrect. Check if the overlay is currently in that
+  // state to determine if this should be set to kOverlayAndResults or not. This
+  // should be fixed by moving the functionality to make Lens requests to a more
+  // appropriate location.
+  if (state_ != State::kHidden) {
     state_ = State::kOverlayAndResults;
     MaybeLaunchSurvey();
   }
@@ -1168,7 +1194,7 @@ void LensOverlayController::IssueSearchBoxRequest(
   // already).
   if (!lens::IsLensOverlayContextualSearchboxEnabled() ||
       !lens::features::ShouldLensOverlayRecontextualizeOnQuery() ||
-      state() != State::kLivePageAndResults || !IsContextualSearchbox()) {
+      state() != State::kHidden || !IsContextualSearchbox()) {
     IssueSearchBoxRequestPart2(query_start_time, search_box_text, match_type,
                                is_zero_prefix_suggestion,
                                additional_query_params);
@@ -1284,7 +1310,7 @@ class LensOverlayController::UnderlyingWebContentsObserver
          !is_user_reload)) {
       return;
     }
-    if (lens_overlay_controller_->state() == State::kLivePageAndResults) {
+    if (lens_overlay_controller_->state() == State::kHidden) {
       lens_overlay_controller_->UpdateNavigationMetrics();
       lens_overlay_controller_->NotifyPageContentUpdated();
       return;
@@ -1316,34 +1342,6 @@ class LensOverlayController::UnderlyingWebContentsObserver
  private:
   raw_ptr<LensOverlayController> lens_overlay_controller_;
 };
-
-void LensOverlayController::CaptureScreenshot() {
-  state_ = State::kScreenshot;
-
-  // Begin the process of grabbing a screenshot.
-  content::RenderWidgetHostView* view = tab_->GetContents()
-                                            ->GetPrimaryMainFrame()
-                                            ->GetRenderViewHost()
-                                            ->GetWidget()
-                                            ->GetView();
-
-  // During initialization and shutdown a capture may not be possible.
-  if (!IsScreenshotPossible(view)) {
-    lens_search_controller_->CloseLensSync(
-        lens::LensOverlayDismissalSource::kErrorScreenshotCreationFailed);
-    return;
-  }
-
-  // Side panel is now fully closed, take screenshot and open overlay.
-  view->CopyFromSurface(
-      /*src_rect=*/gfx::Rect(), /*output_size=*/gfx::Size(),
-      base::BindPostTask(
-          base::SequencedTaskRunner::GetCurrentDefault(),
-          base::BindOnce(
-              &LensOverlayController::FetchViewportImageBoundingBoxes,
-              weak_factory_.GetWeakPtr(),
-              std::make_optional<base::TimeTicks>(base::TimeTicks::Now()))));
-}
 
 void LensOverlayController::FetchViewportImageBoundingBoxes(
     std::optional<base::TimeTicks> bounding_box_start_time,
@@ -1430,56 +1428,6 @@ void LensOverlayController::DidCaptureScreenshot(
     return;
   }
 
-  if (lens::features::IsLensOverlayEarlyStartQueryFlowOptimizationEnabled()) {
-    // Start the query as soon as the image is ready since it is the only
-    // critical asynchronous flow. This optimization parallelizes the query flow
-    // with other async startup processes.
-    const auto& tab_url = tab_->GetContents()->GetLastCommittedURL();
-
-    // Check if the page is context eligible. This should start the query flow
-    // after the eligibility is fetched.
-    GetContextualizationController()->IsPageContextEligible(
-        tab_url, /*frame_metadata=*/{},
-        base::BindOnce(
-            &LensOverlayController::OnPageContextEligibilityFetched,
-            weak_factory_.GetWeakPtr(), bitmap, all_bounds, pdf_current_page,
-            std::make_optional<base::TimeTicks>(base::TimeTicks::Now())));
-    return;
-  }
-
-  // The following two methods happen async to parallelize the two bottlenecks
-  // in our invocation flow.
-  CreateInitializationData(bitmap, all_bounds, pdf_current_page);
-  ShowOverlay();
-
-  state_ = State::kStartingWebUI;
-}
-
-void LensOverlayController::OnPageContextEligibilityFetched(
-    const SkBitmap& bitmap,
-    const std::vector<gfx::Rect>& all_bounds,
-    std::optional<uint32_t> pdf_current_page,
-    std::optional<base::TimeTicks> page_context_eligibility_start_time,
-    bool is_page_context_eligible) {
-  if (page_context_eligibility_start_time.has_value()) {
-    lens::RecordTimeToCheckPageContextEligibility(
-        base::TimeTicks::Now() - page_context_eligibility_start_time.value());
-  }
-  auto bitmap_to_send = bitmap;
-  auto page_url = lens_search_controller_->GetPageURL();
-  auto page_title = lens_search_controller_->GetPageTitle();
-  if (!is_page_context_eligible) {
-    bitmap_to_send = SkBitmap();
-    page_url = GURL();
-    page_title = "";
-  }
-
-  lens_overlay_query_controller_->StartQueryFlow(
-      bitmap_to_send, page_url, page_title,
-      ConvertSignificantRegionBoxes(all_bounds),
-      std::vector<lens::PageContent>(), lens::MimeType::kUnknown,
-      pdf_current_page, GetUiScaleFactor(), invocation_time_);
-
   // The following two methods happen async to parallelize the two bottlenecks
   // in our invocation flow.
   CreateInitializationData(bitmap, all_bounds, pdf_current_page);
@@ -1564,14 +1512,12 @@ void LensOverlayController::StorePageContentAndContinueInitialization(
   initialization_data->pdf_page_count_ = page_count;
   InitializeOverlay(std::move(initialization_data));
 
-  // TODO(crbug.com/418825720): Remove this code once the optimization is fully
-  // launched as this recording will instead be done in the contextualization
-  // controller.
-  if (!lens::features::IsLensOverlayEarlyStartQueryFlowOptimizationEnabled()) {
-    GetContextualizationController()->SetPageContent(page_contents,
-                                                     primary_content_type);
-    GetContextualizationController()->RecordDocumentMetrics(page_count);
-  }
+  // TODO(crbug.com/428208291): Remove this in favor of the contextualization
+  // controller correctly setting the page content and recording the document
+  // metrics.
+  GetContextualizationController()->SetPageContent(page_contents,
+                                                   primary_content_type);
+  GetContextualizationController()->RecordDocumentMetrics(page_count);
 }
 
 std::vector<lens::mojom::CenterRotatedBoxPtr>
@@ -1757,17 +1703,6 @@ void LensOverlayController::InitializeOverlay(
   InitializeOverlayUI(*initialization_data_);
   base::UmaHistogramBoolean("Lens.Overlay.Shown", true);
 
-  // If the StartQueryFlow optimization is enabled, the page contents will not
-  // be sent with the initial image request, so we need to send it here.
-  if (lens::IsLensOverlayContextualSearchboxEnabled() &&
-      lens::features::IsLensOverlayEarlyStartQueryFlowOptimizationEnabled() &&
-      GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    // TODO(crbug.com/418856988): Replace this with a call that starts
-    // contextualization without the unneeded callback.
-    GetContextualizationController()->TryUpdatePageContextualization(
-        base::DoNothing());
-  }
-
   // Show the preselection overlay now that the overlay is initialized and ready
   // to be shown.
   if (!pending_region_) {
@@ -1795,13 +1730,11 @@ void LensOverlayController::InitializeOverlay(
 
   // Only start the query flow again if we don't already have a full image
   // response, unless the early start query flow optimization is enabled.
-  if (!initialization_data_->has_full_image_response() &&
-      !lens::features::IsLensOverlayEarlyStartQueryFlowOptimizationEnabled()) {
+  if (!initialization_data_->has_full_image_response()) {
     if (!GetContextualizationController()->GetCurrentPageContextEligibility()) {
       initialization_data_->initial_screenshot_ = SkBitmap();
       initialization_data_->page_url_ = GURL();
       initialization_data_->page_title_ = "";
-      should_send_screenshot_on_init_ = true;
     }
 
     lens_overlay_query_controller_->StartQueryFlow(
@@ -2027,7 +1960,7 @@ void LensOverlayController::OnOmniboxFocusChanged(
 
 void LensOverlayController::OnFindEmptyText(
     content::WebContents* web_contents) {
-  if (state_ == State::kLivePageAndResults) {
+  if (state_ == State::kHidden) {
     return;
   }
   lens_search_controller_->CloseLensAsync(
@@ -2036,7 +1969,7 @@ void LensOverlayController::OnFindEmptyText(
 
 void LensOverlayController::OnFindResultAvailable(
     content::WebContents* web_contents) {
-  if (state_ == State::kLivePageAndResults) {
+  if (state_ == State::kHidden) {
     return;
   }
   lens_search_controller_->CloseLensAsync(
@@ -2157,7 +2090,10 @@ void LensOverlayController::FinishedWaitingForReflow(
     // This path is invoked after the user invokes the overlay, but we needed
     // to close the side panel before taking a screenshot. The Side panel is
     // now closed so we can now take the screenshot of the page.
-    CaptureScreenshot();
+    state_ = State::kScreenshot;
+    GetContextualizationController()->StartScreenshotFlow(base::BindOnce(
+        &LensOverlayController::OnScreenshotTaken, weak_factory_.GetWeakPtr(),
+        std::make_optional(base::TimeTicks::Now())));
   }
 }
 
@@ -2200,11 +2136,11 @@ void LensOverlayController::TabForegrounded(tabs::TabInterface* tab) {
   }
 
   // If the overlay was backgrounded, restore the previous state.
-  if (backgrounded_state_ != State::kLivePageAndResults) {
+  if (backgrounded_state_ != State::kHidden) {
     ShowOverlay();
   }
   if (backgrounded_state_ != State::kOverlayAndResults &&
-      backgrounded_state_ != State::kLivePageAndResults) {
+      backgrounded_state_ != State::kHidden) {
     ShowPreselectionBubble();
   }
   if (lens::IsLensOverlayContextualSearchboxEnabled()) {
@@ -2558,9 +2494,9 @@ void LensOverlayController::IssueSearchBoxRequestPart2(
 
   // If this a search query from the side panel search box with the overlay
   // showing, keep the state as kOverlayAndResults. Else, we are in our
-  // contextual flow and the state needs to stay as State::kLivePageAndResults.
+  // contextual flow and the state needs to stay as State::kHidden.
   state_ = state_ == State::kOverlayAndResults ? State::kOverlayAndResults
-                                               : State::kLivePageAndResults;
+                                               : State::kHidden;
 
   // The searchbox text is set once the URL loads in the results frame, however,
   // adding it here allows the user to see the text query in the searchbox while
@@ -2706,15 +2642,15 @@ void LensOverlayController::HideOverlay() {
   HidePreselectionBubble();
 }
 
-void LensOverlayController::HideOverlayAndMaybeSetLivePageState() {
+void LensOverlayController::HideOverlayAndMaybeSetHiddenState() {
   // If the overlay is not showing, there is nothing to hide.
   if (IsOverlayShowing()) {
     HideOverlay();
   }
 
-  // If the side panel is open, set the overlay state to kLivePageAndResults.
+  // If the side panel is open, set the overlay state to kHidden.
   if (results_side_panel_coordinator_->IsSidePanelBound()) {
-    state_ = State::kLivePageAndResults;
+    state_ = State::kHidden;
   }
 }
 
@@ -2964,6 +2900,40 @@ void LensOverlayController::OnPageContextUpdatedForSuggestion(
   // contextualization is separated from the overlay.
   IssueSearchBoxRequest(query_start_time, query, match_type,
                         is_zero_prefix_suggestion, additional_query_parameters);
+}
+
+void LensOverlayController::OnScreenshotTaken(
+    std::optional<base::TimeTicks> screenshot_start_time,
+    const SkBitmap& bitmap,
+    const std::vector<gfx::Rect>& all_bounds,
+    std::optional<uint32_t> pdf_current_page) {
+  if (screenshot_start_time.has_value()) {
+    lens::RecordTimeToScreenshot(base::TimeTicks::Now() -
+                                 screenshot_start_time.value());
+  }
+
+  // While capturing a screenshot the overlay was cancelled. Do nothing.
+  if (state_ == State::kOff || IsOverlayClosing()) {
+    return;
+  }
+
+  // The documentation for CopyFromSurface claims that the copy can fail, but
+  // without providing information about how this can happen.
+  // Supposedly IsSurfaceAvailableForCopy() should guard against this case, but
+  // this is a multi-process, multi-threaded environment so there may be a
+  // TOCTTOU race condition.
+  if (bitmap.drawsNothing()) {
+    lens_search_controller_->CloseLensSync(
+        lens::LensOverlayDismissalSource::kErrorScreenshotCreationFailed);
+    return;
+  }
+
+  // The following two methods happen async to parallelize the two bottlenecks
+  // in our invocation flow.
+  CreateInitializationData(bitmap, all_bounds, pdf_current_page);
+  ShowOverlay();
+
+  state_ = State::kStartingWebUI;
 }
 
 lens::LensSearchboxController*

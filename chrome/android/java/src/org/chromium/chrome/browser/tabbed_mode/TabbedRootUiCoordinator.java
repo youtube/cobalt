@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.bookmarks.BookmarkOpener;
 import org.chromium.chrome.browser.bookmarks.BookmarkOpenerImpl;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarCoordinator;
+import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarIphController;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarUtils;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarVisibilityProvider;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarVisibilityProvider.BookmarkBarVisibilityObserver;
@@ -125,6 +126,7 @@ import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.privacy.settings.PrivacySettings;
 import org.chromium.chrome.browser.privacy_sandbox.ActivityTypeMapper;
+import org.chromium.chrome.browser.privacy_sandbox.PrivacySandbox3pcdRollbackMessageController;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxBridge;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxDialogController;
 import org.chromium.chrome.browser.privacy_sandbox.SurfaceType;
@@ -278,6 +280,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     protected @Nullable InstantMessageDelegateImpl mInstantMessageDelegateImpl;
     private @Nullable BookmarkBarCoordinator mBookmarkBarCoordinator;
+    private @Nullable BookmarkBarIphController mBookmarkBarIphController;
     private @Nullable BookmarkBarVisibilityProvider mBookmarkBarVisibilityProvider;
     private @Nullable BookmarkBarVisibilityObserver mBookmarkBarVisibilityObserver;
     private @Nullable Supplier<Integer> mBookmarkBarHeightSupplier;
@@ -720,6 +723,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (mAdvancedProtectionCoordinator != null) {
             mAdvancedProtectionCoordinator.destroy();
             mAdvancedProtectionCoordinator = null;
+        }
+
+        if (mBookmarkBarIphController != null) {
+            mBookmarkBarIphController.destroy();
+            mBookmarkBarIphController = null;
         }
 
         super.onDestroy();
@@ -1290,14 +1298,29 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 mPageZoomIphController.showColdStartIph();
             }
         }
+
+        if (BookmarkBarUtils.isDeviceBookmarkBarCompatible(mActivity)) {
+            mBookmarkBarIphController =
+                    new BookmarkBarIphController(
+                            mActivity,
+                            profile,
+                            mAppMenuCoordinator.getAppMenuHandler(),
+                            mToolbarManager.getMenuButtonView(),
+                            mBookmarkModelSupplier.get());
+        }
     }
 
     private void updateTopControlsHeight() {
+        updateTopControlsHeight(/* allowAnimations= */ true);
+    }
+
+    private void updateTopControlsHeight(boolean allowAnimations) {
         if (mToolbarManager == null) return;
 
         // TODO(crbug/331844971): Do a smooth transition head into DW mode.
         final boolean animate =
-                !sDisableTopControlsAnimationForTesting
+                allowAnimations
+                        && !sDisableTopControlsAnimationForTesting
                         && !AppHeaderUtils.isAppInDesktopWindow(getDesktopWindowStateManager());
         if (ChromeFeatureList.sTopControlsRefactor.isEnabled()) {
             mTopControlsStacker.requestLayerUpdate(animate);
@@ -1677,6 +1700,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             return true;
         }
 
+        if (PrivacySandbox3pcdRollbackMessageController.maybeShow(
+                mActivity, profile, mMessageDispatcher)) {
+            return true;
+        }
+
         if (maybeTriggerPrivacySandboxPrompt(profile)) {
             return true;
         }
@@ -1810,7 +1838,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mFullscreenManager,
                             mCompositorViewHolderSupplier.get().getResourceManager(),
                             mBrowserControlsManager,
-                            /* heightChangeCallback= */ result -> updateTopControlsHeight(),
+                            /* heightChangeCallback= */ result -> updateTopControlsHeight(false),
                             mProfileSupplier,
                             /* viewStub= */ mActivity.findViewById(R.id.bookmark_bar_stub),
                             mActivityTabProvider.get(),
@@ -1829,7 +1857,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mBookmarkBarCoordinator.setVisibility(true);
             // When toggling the visibility of the existing view, the LayoutChangeListener will not
             // be triggered as it is on instantiation, so we update the top controls height here.
-            updateTopControlsHeight();
+            updateTopControlsHeight(false);
         }
 
         if (mToolbarManager != null) {
@@ -1851,7 +1879,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         } else {
             if (mBookmarkBarCoordinator != null) {
                 mBookmarkBarCoordinator.setVisibility(false);
-                updateTopControlsHeight();
+                updateTopControlsHeight(false);
                 if (mToolbarManager != null) {
                     mToolbarManager.setProgressBarAnchorView(R.id.control_container);
                 }
@@ -1901,6 +1929,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 }
                 return true;
             }
+        } else if (id == R.id.close_window) {
+            mActivity.finishAndRemoveTask();
+            return true;
         }
 
         return false;

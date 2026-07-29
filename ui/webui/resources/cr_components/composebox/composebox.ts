@@ -18,7 +18,7 @@ import {mojoString16ToString, stringToMojoString16} from '//resources/js/mojo_ty
 import {hasKeyModifiers} from '//resources/js/util.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
@@ -90,6 +90,7 @@ export class ComposeboxElement extends I18nMixinLit
       files_: {type: Object},
       input_: {type: String},
       imageFileTypes_: {type: String},
+      tabSuggestions_: {type: Array},
       isCollapsible: {
         reflect: true,
         type: Boolean,
@@ -99,10 +100,6 @@ export class ComposeboxElement extends I18nMixinLit
         type: Boolean,
       },
       inputsDisabled_: {
-        reflect: true,
-        type: Boolean,
-      },
-      hideFileInputs_: {
         reflect: true,
         type: Boolean,
       },
@@ -125,6 +122,10 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
+      enableImageContextualSuggestions_: {
+        reflect: true,
+        type: Boolean,
+      },
       showErrorScrim_: {
         reflect: true,
         type: Boolean,
@@ -140,7 +141,15 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
+      smartComposeEnabled_: {
+        reflect:true,
+        type: Boolean,
+      },
       smartComposeInlineHint_: {type: String},
+      showFileCarousel_ : {
+        reflect: true,
+        type: Boolean,
+      },
     };
   }
 
@@ -151,6 +160,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor files_: Map<UnguessableToken, ComposeboxFile> = new Map();
   protected accessor imageFileTypes_: string =
       loadTimeData.getString('composeboxImageFileTypes');
+  protected accessor tabSuggestions_: TabInfo[] = [];
   // If isCollapsible is set to true, the composebox will be a pill shape until
   // it gets focused, at which point it will expand. If false, defaults to the
   // expanded state.
@@ -162,8 +172,9 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor inputsDisabled_: boolean = false;
   protected accessor showDropdown_: boolean =
       loadTimeData.getBoolean('composeboxShowZps');
+  protected accessor enableImageContextualSuggestions_: boolean =
+      loadTimeData.getBoolean('composeboxShowImageSuggest');
   // When enabled, the file input buttons will not be rendered.
-  protected accessor hideFileInputs_: boolean = false;
   protected accessor selectedMatchIndex_: number = -1;
   protected accessor submitting_: boolean = false;
   protected accessor submitEnabled_: boolean = false;
@@ -171,10 +182,13 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor errorMessage_: string = '';
   protected accessor result_: AutocompleteResult|null = null;
   protected accessor smartComposeInlineHint_: string = '';
+  protected accessor smartComposeEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxSmartComposeEnabled');
   protected accessor inputPlaceholder_: string =
       loadTimeData.getString('searchboxComposePlaceholder');
   protected accessor composeboxShowPdfUpload_: boolean =
       loadTimeData.getBoolean('composeboxShowPdfUpload');
+  protected accessor showFileCarousel_: boolean = false;
   private showTypedSuggest_: boolean =
       loadTimeData.getBoolean('composeboxShowTypedSuggest');
   private maxFileCount_: number =
@@ -246,14 +260,16 @@ export class ComposeboxElement extends I18nMixinLit
                 file = {...file, status: status};
                 this.files_.set(token, file);
 
+                if (status === FileUploadStatus.kProcessing && this.showZps &&
+                    (this.enableImageContextualSuggestions_ ||
+                     !file.type.includes('image'))) {
+                  // Query autocomplete to get contextual suggestions for files.
+                  this.clearAutocompleteMatches_();
+                  this.lastQueriedInput_ = this.$.input.value;
+                  this.searchboxHandler_.queryAutocomplete(
+                      stringToMojoString16(this.$.input.value), false);
+                }
                 if (status === FileUploadStatus.kUploadSuccessful) {
-                  // Query autocomplete to get contextual suggestions for file.
-                  if (this.showZps) {
-                    this.clearAutocompleteMatches_();
-                    this.lastQueriedInput_ = this.$.input.value;
-                    this.searchboxHandler_.queryAutocomplete(
-                        stringToMojoString16(this.$.input.value), false);
-                  }
                   const announcer = getAnnouncerInstance();
                   announcer.announce(
                       this.i18n('composeboxFileUploadCompleteText'));
@@ -306,6 +322,7 @@ export class ComposeboxElement extends I18nMixinLit
     if (changedPrivateProperties.has('files_')) {
       this.inputsDisabled_ = this.files_.size >= this.maxFileCount_;
       this.submitEnabled_ = this.submitEnabled_ || this.files_.size > 0;
+      this.showFileCarousel_ = this.files_.size > 0;
     }
 
     // When the result initially gets set check if dropdown should show.
@@ -331,13 +348,20 @@ export class ComposeboxElement extends I18nMixinLit
     }
     if (changedPrivateProperties.has('selectedMatchIndex_')) {
       if (this.selectedMatch_) {
-        // Update the input.
-        const text = mojoString16ToString(this.selectedMatch_.fillIntoEdit);
-        assert(text);
-        this.$.input.value = text;
-        this.input_ = text;
-        this.submitEnabled_ = true;
-      } else {
+        // If the selected match is the default match (typing) the input will
+        // already have been set by handleInput.
+        if (!(this.selectedMatchIndex_ === 0 &&
+            this.selectedMatch_.allowedToBeDefaultMatch)) {
+          // Update the input.
+          const text = mojoString16ToString(this.selectedMatch_.fillIntoEdit);
+          assert(text);
+          this.$.input.value = text;
+          this.input_ = text;
+          this.submitEnabled_ = true;
+        }
+      } else if (!this.lastQueriedInput_) {
+        // This is for cases when focus leaves the matches/input.
+        // If there was already text in the input do not clear it.
         this.$.input.value = '';
         this.input_ = '';
         this.submitEnabled_ = false;
@@ -409,6 +433,7 @@ export class ComposeboxElement extends I18nMixinLit
     this.pageHandler_.deleteContext(e.detail.uuid);
     this.$.input.focus();
     this.clearAutocompleteMatches_();
+    this.lastQueriedInput_ = this.$.input.value;
     this.searchboxHandler_.queryAutocomplete(
         stringToMojoString16(this.$.input.value), false);
   }
@@ -491,6 +516,7 @@ export class ComposeboxElement extends I18nMixinLit
       url: e.detail.url,
     };
     this.files_ = new Map([...this.files_.entries(), [token, attachment]]);
+    this.$.input.focus();
   }
 
   protected openImageUpload_() {
@@ -499,6 +525,13 @@ export class ComposeboxElement extends I18nMixinLit
 
   protected openFileUpload_() {
     this.$.fileInput.click();
+  }
+
+  protected async refreshTabSuggestions_(
+      e: CustomEvent<{onRefreshComplete: () => void}>) {
+    const {tabs} = await this.searchboxHandler_.getRecentTabs();
+    this.tabSuggestions_ = tabs;
+    e.detail.onRefreshComplete();
   }
 
   protected onCancelClick_() {
@@ -518,6 +551,10 @@ export class ComposeboxElement extends I18nMixinLit
     } else {
       this.closeComposebox_();
     }
+  }
+
+  protected onLensClick_() {
+    // TODO(crbug.com/445698141): Open the Lens overlay selection state.
   }
 
   // Sets the input property to compute the cancel button title without using
@@ -553,15 +590,18 @@ export class ComposeboxElement extends I18nMixinLit
     }
 
     if (this.shadowRoot.activeElement === this.$.input) {
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      // TODO(crbug.com/445671495): Allow arrowing up and down to typed
+      //  suggestions.
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') &&
+          this.lastQueriedInput_) {
         return;
       }
-      // TODO(crbug.com/444495048): Add test for tab selection logic.
+
       if (e.key === 'Tab') {
         // If focus leaves the input, unselect the first match.
-        if (e.shiftKey && this.selectedMatchIndex_ === 0) {
+        if (e.shiftKey) {
           this.$.matches.unselect();
-        } else if (this.smartComposeInlineHint_) {
+        } else if (this.smartComposeEnabled_ && this.smartComposeInlineHint_) {
           this.input_ = this.input_ + this.smartComposeInlineHint_;
           this.$.input.value = this.input_;
           this.smartComposeInlineHint_ = '';
@@ -569,16 +609,6 @@ export class ComposeboxElement extends I18nMixinLit
         }
         return;
       }
-    }
-
-    if (e.key === 'Tab') {
-      // If focus goes past the last match, unselect the last match.
-      if (this.result_ && this.result_.matches) {
-        if (this.selectedMatchIndex_ === this.result_.matches.length - 1) {
-          this.$.matches.unselect();
-        }
-      }
-      return;
     }
 
     if (e.key === 'Enter' && this.submitEnabled_) {
@@ -611,6 +641,12 @@ export class ComposeboxElement extends I18nMixinLit
       this.$.matches.selectFirst();
     } else if (e.key === 'PageDown') {
       this.$.matches.selectLast();
+    } else if (e.key === 'Tab') {
+      // If focus goes past the last match, unselect the last match.
+      if (this.selectedMatchIndex_ === this.result_.matches.length - 1) {
+        this.$.matches.unselect();
+      }
+      return;
     }
     e.preventDefault();
 
@@ -620,13 +656,29 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
-  protected handleComposeboxFocusIn_() {
+  protected handleInputFocusIn_() {
+    // if there's a last queried input, it's guaranteed that at least
+    // the verbatim match will exist.
+    if (this.lastQueriedInput_ && this.result_?.matches.length) {
+      this.$.matches.selectFirst();
+    }
+  }
+
+  protected handleComposeboxFocusIn_(e: FocusEvent) {
+    // Exit early if the focus is still within the composebox.
+    if (this.$.composebox.contains(e.relatedTarget as Node)) {
+      return;
+    }
     this.expanded_ = true;
     this.submitting_ = false;
     this.pageHandler_.focusChanged(true);
   }
 
-  protected handleComposeboxFocusOut_() {
+  protected handleComposeboxFocusOut_(e: FocusEvent) {
+    // Exit early if the focus is still within the composebox.
+    if (this.$.composebox.contains(e.relatedTarget as Node)) {
+      return;
+    }
     // If the input is blurred and the composebox is expandable, collapse it.
     // Else, keep the composebox expanded.
     this.expanded_ = !this.isCollapsible;
@@ -636,8 +688,17 @@ export class ComposeboxElement extends I18nMixinLit
   protected handleScroll_() {
     const smartCompose =
         this.shadowRoot.querySelector<HTMLElement>('#smartCompose');
-    const input = this.shadowRoot.querySelector<HTMLElement>('#input');
-    smartCompose!.scrollTop = input!.scrollTop;
+    if (!smartCompose) {
+      return;
+    }
+    smartCompose.scrollTop = this.$.input.scrollTop;
+  }
+
+  protected handleSubmitFocusIn_() {
+    // Matches should always be greater than 0 due to verbatim match.
+    if (this.input_ && !this.selectedMatch_) {
+      this.$.matches.selectFirst();
+    }
   }
 
   private closeComposebox_() {
@@ -728,7 +789,6 @@ export class ComposeboxElement extends I18nMixinLit
             mojoString16ToString(result.input)) {
       return;
     }
-    // TODO(crbug.com/434748455): Display suggestions below composebox.
     this.result_ = result;
     const hasMatches = this.result_?.matches?.length > 0;
     const firstMatch = hasMatches ? this.result_.matches[0] : null;
@@ -736,6 +796,21 @@ export class ComposeboxElement extends I18nMixinLit
     // makes sure zero suggest results aren't focused when they are returned.
     if (firstMatch && firstMatch.allowedToBeDefaultMatch) {
       this.$.matches.selectFirst();
+    } else if (
+        this.$.input.value.trim() && hasMatches &&
+        this.selectedMatchIndex_ >= 0 &&
+        this.selectedMatchIndex_ < this.result_.matches.length) {
+      // Restore the selection and update the input. Don't restore when the
+      // user deletes all their input and autocomplete is queried or else the
+      // empty input will change to the value of the first result.
+      this.$.matches.selectIndex(this.selectedMatchIndex_);
+
+      // Set the selected match since the `selectedMatchIndex_` does not change
+      // (and therefore `selectedMatch_` does not get updated since
+      // `onSelectedMatchIndexChanged_` is not called).
+      this.selectedMatch_ = this.result_.matches[this.selectedMatchIndex_];
+      this.input_ = mojoString16ToString(this.selectedMatch_.fillIntoEdit);
+      this.$.input.value = this.input_;
     } else {
       this.$.matches.unselect();
     }
@@ -750,13 +825,12 @@ export class ComposeboxElement extends I18nMixinLit
     // Checks the scroll height of the input + smart complete hint (ghost div)
     // and updates the height of the actual input to be that height so the
     // ghost text does not overflow.
-    const input = this.shadowRoot.querySelector<HTMLInputElement>('#input');
     const smartCompose =
         this.shadowRoot.querySelector<HTMLElement>('#smartCompose');
 
     const ghostHeight = smartCompose!.scrollHeight;
     const maxHeight = 190;
-    input!.style.height = `${Math.min(ghostHeight, maxHeight)}px`;
+    this.$.input.style.height = `${Math.min(ghostHeight, maxHeight)}px`;
 
     // If the height of the input + smart complete hint is greater than the max
     // height, scroll the smart compose as the input will already scroll. Note
@@ -765,7 +839,7 @@ export class ComposeboxElement extends I18nMixinLit
     // display the ghost text below the input and it will be cut off. However,
     // the current response only works for queries below the max height.
     if (ghostHeight > maxHeight) {
-      smartCompose!.scrollTop = input!.scrollTop;
+      smartCompose!.scrollTop = this.$.input.scrollTop;
     }
   }
 }

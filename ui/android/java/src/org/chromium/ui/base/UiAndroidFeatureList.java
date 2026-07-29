@@ -35,15 +35,15 @@ public class UiAndroidFeatureList {
                     /* defaultValue= */ false,
                     /* defaultValueInTests= */ true);
 
-    public static final CachedFlag sAndroidWindowOcclusion =
+    public static final CachedFlag sAndroidUseDisplayTopology =
             newCachedFlag(
-                    UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION,
+                    UiAndroidFeatures.ANDROID_USE_DISPLAY_TOPOLOGY,
                     /* defaultValue= */ false,
                     /* defaultValueInTests= */ true);
 
-    public static final CachedFlag sAndroidWindowManagementWebApi =
+    public static final CachedFlag sAndroidWindowOcclusion =
             newCachedFlag(
-                    UiAndroidFeatures.ANDROID_WINDOW_MANAGEMENT_WEB_API,
+                    UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION,
                     /* defaultValue= */ false,
                     /* defaultValueInTests= */ true);
 
@@ -56,7 +56,7 @@ public class UiAndroidFeatureList {
     public static final List<CachedFlag> sFlagsCachedUiAndroid =
             List.of(
                     sAndroidUseCorrectWindowBounds,
+                    sAndroidUseDisplayTopology,
                     sAndroidWindowOcclusion,
-                    sAndroidWindowManagementWebApi,
                     sFormFactorUseMaxWindowMetrics);
 }

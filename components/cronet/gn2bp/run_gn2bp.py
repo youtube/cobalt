@@ -134,11 +134,9 @@ def _run_generate_build_scripts(output_path: str):
 
 def _write_desc_json(gn_out_dir: str, temp_file: tempfile.NamedTemporaryFile):
   """Generate desc json files needed by gen_android_bp.py."""
-  cronet_utils.run([
-      cronet_utils.GN_PATH, 'desc', gn_out_dir, '--format=json',
-      '--all-toolchains', '//*'
-  ],
-                   stdout=temp_file)
+  cronet_utils.run(
+      [cronet_utils.GN_PATH, 'desc', gn_out_dir, '--format=json', '//*'],
+      stdout=temp_file)
 
 
 def _gen_extras_bp(import_channel: str):
@@ -398,7 +396,8 @@ def main():
   args = parser.parse_args()
   delete_temporary_files = not args.keep_temporary_files
 
-  if os.listdir(os.path.join(REPOSITORY_ROOT, 'clank')):
+  if not args.skip_copybara and os.listdir(
+      os.path.join(REPOSITORY_ROOT, 'clank')):
     raise RuntimeError(
         'gn2bp should not be run with an internal code checkout, as copybara'
         ' may end up leaking internal code to the destination')

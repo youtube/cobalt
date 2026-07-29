@@ -25,9 +25,8 @@
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/display/display_configuration_controller.h"
-#include "ash/multi_user/multi_user_window_manager_impl.h"
+#include "ash/multi_user/multi_user_window_manager.h"
 #include "ash/public/cpp/app_list/internal_app_id_constants.h"
-#include "ash/public/cpp/multi_user_window_manager.h"
 #include "ash/public/cpp/shelf_item.h"
 #include "ash/public/cpp/shelf_item_delegate.h"
 #include "ash/public/cpp/shelf_model.h"
@@ -35,6 +34,7 @@
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shelf/shelf_application_menu_model.h"
+#include "ash/shell.h"
 #include "ash/webui/system_apps/public/system_web_app_type.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -100,6 +100,7 @@
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_manager.h"
 #include "chrome/browser/ash/wallpaper_handlers/wallpaper_fetcher_delegate.h"
+#include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/test_extension_system.h"
 #include "chrome/browser/media/router/media_router_feature.h"
@@ -109,7 +110,6 @@
 #include "chrome/browser/ui/apps/chrome_app_delegate.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_browser_adaptor.h"
-#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "chrome/browser/ui/ash/shelf/app_service/app_service_app_window_shelf_item_controller.h"
 #include "chrome/browser/ui/ash/shelf/app_window_shelf_controller.h"
@@ -168,6 +168,7 @@
 #include "components/account_id/account_id.h"
 #include "components/app_constants/constants.h"
 #include "components/app_icon_loader/app_icon_loader.h"
+#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "components/exo/shell_surface_util.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/prefs/pref_service.h"
@@ -507,7 +508,6 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     app_list::AppListSyncableServiceFactory::SetUseInTesting(true);
 
     BrowserWithTestWindowTest::SetUp();
-    MultiUserWindowManagerHelper::CreateInstance();
 
     // WallpaperControllerClientImpl should be created before Profile
     // instantiation happening in BrowserWithTestWindowTest::SetUp().
@@ -556,6 +556,9 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
 
     SyncServiceFactory::GetInstance()->SetTestingFactory(
         profile(), base::BindRepeating(&BuildTestSyncService));
+    ProtocolHandlerRegistryFactory::GetInstance()->SetTestingFactory(
+        profile(), custom_handlers::SimpleProtocolHandlerRegistryFactory::
+                       GetDefaultFactory());
 
     extensions::TestExtensionSystem* extension_system(
         static_cast<extensions::TestExtensionSystem*>(
@@ -620,6 +623,16 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     }
 
     browser_controller_.emplace();
+  }
+
+  void OnAshTestHelperCreated() override {
+    // This is the timing after AshTestHelper creation (i.e. ash::Shell
+    // initialization), but before any Profile creation, that is the timing
+    // required for MultiUserWindowManagerBrowserAdaptor creation.
+    CHECK(ash::Shell::Get()->multi_user_window_manager());
+    multi_user_window_manager_browser_adaptor_ =
+        std::make_unique<ash::MultiUserWindowManagerBrowserAdaptor>(
+            ash::Shell::Get()->multi_user_window_manager());
   }
 
   virtual bool StartWebAppProviderForMainProfile() const { return true; }
@@ -716,7 +729,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     arc_test_.TearDown();
     shelf_controller_ = nullptr;
     wallpaper_controller_client_.reset();
-    MultiUserWindowManagerHelper::DeleteInstance();
+    multi_user_window_manager_browser_adaptor_.reset();
     BrowserWithTestWindowTest::TearDown();
     ash::ConciergeClient::Shutdown();
     app_list::AppListSyncableServiceFactory::SetUseInTesting(false);
@@ -741,11 +754,11 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     shelf_controller_->SetShelfControllerHelperForTest(
         std::make_unique<ShelfControllerHelper>(profile()));
 
-    // MultiUserWindowManagerImpl is created (indirectly) by
+    // MultiUserWindowManager is created (indirectly) by
     // ChromeShelfController when there's more than one user.
-    if (ash::MultiUserWindowManagerImpl::Get()) {
-      ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-          ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
+    if (ash::MultiUserWindowManager::Get()) {
+      ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+          ash::MultiUserWindowManager::ANIMATION_SPEED_DISABLED);
     }
 
     return shelf_controller_.get();
@@ -1340,6 +1353,11 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     return CHECK_DEREF(ash::AnnotatedAccountId::Get(profile()));
   }
 
+  ash::MultiUserWindowManagerBrowserAdaptor*
+  multi_user_window_manager_browser_adaptor() {
+    return multi_user_window_manager_browser_adaptor_.get();
+  }
+
   // Needed for extension service & friends to work.
   scoped_refptr<Extension> extension_chrome_;
   scoped_refptr<Extension> extension1_;
@@ -1390,6 +1408,8 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     return std::make_unique<TestBrowserWindowAura>(std::move(window));
   }
 
+  std::unique_ptr<ash::MultiUserWindowManagerBrowserAdaptor>
+      multi_user_window_manager_browser_adaptor_;
   std::unique_ptr<WallpaperControllerClientImpl> wallpaper_controller_client_;
   apps::AppServiceTest app_service_test_;
   std::optional<ash::BrowserControllerImpl> browser_controller_;
@@ -1614,10 +1634,7 @@ class MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest
     }
     StartWebAppProvider(profile);
 
-    if (MultiUserWindowManagerHelper::GetInstance()) {
-      MultiUserWindowManagerHelper::GetInstance()->AddUser(
-          user->GetAccountId());
-    }
+    multi_user_window_manager_browser_adaptor()->AddUser(user->GetAccountId());
     if (shelf_controller_) {
       shelf_controller_->AdditionalUserAddedToSession(profile);
     }
@@ -3197,7 +3214,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   InitShelfController();
 
   ash::MultiUserWindowManager* window_manager =
-      MultiUserWindowManagerHelper::GetWindowManager();
+      ash::Shell::Get()->multi_user_window_manager();
 
   // Create a browser window with a native window for user0.
   std::unique_ptr<Browser> browser(
@@ -3714,7 +3731,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item1);
 
   // Transferred browsers of other users should not show up in the list.
-  MultiUserWindowManagerHelper::GetWindowManager()->ShowWindowForUser(
+  ash::Shell::Get()->multi_user_window_manager()->ShowWindowForUser(
       browser()->window()->GetNativeWindow(), account_id1());
   CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item1);
 
@@ -3823,7 +3840,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   CheckAppMenu(shelf_controller_.get(), item_gmail, 0, nullptr);
 
   // Transfer the browser of the first user - it should still not show up.
-  MultiUserWindowManagerHelper::GetWindowManager()->ShowWindowForUser(
+  ash::Shell::Get()->multi_user_window_manager()->ShowWindowForUser(
       browser()->window()->GetNativeWindow(), account_id1());
 
   CheckAppMenu(shelf_controller_.get(), item_browser, 0, nullptr);
@@ -3951,7 +3968,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
        V2AppFollowsTeleportedWindow) {
   InitShelfController();
   ash::MultiUserWindowManager* window_manager =
-      MultiUserWindowManagerHelper::GetWindowManager();
+      ash::Shell::Get()->multi_user_window_manager();
 
   // Create and add three users / profiles, and go to #1's desktop.
   TestingProfile* profile1 =
@@ -3967,6 +3984,10 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   const AccountId account_id3(
       multi_user_util::GetAccountIdFromProfile(profile3));
   SwitchActiveUserByAccountId(account_id1);
+
+  ProtocolHandlerRegistryFactory::GetInstance()->SetTestingFactory(
+      profile1, custom_handlers::SimpleProtocolHandlerRegistryFactory::
+                    GetDefaultFactory());
 
   extensions::TestExtensionSystem* extension_system1(
       static_cast<extensions::TestExtensionSystem*>(

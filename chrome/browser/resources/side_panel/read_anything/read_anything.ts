@@ -11,7 +11,7 @@ export type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/c
 export type {AppElement} from './app.js';
 export {AppStyleUpdater} from './app_style_updater.js';
 export {getWordCount, isRectMostlyVisible, isRectVisible, LOG_EMPTY_DELAY_MS, MOSTLY_VISIBLE_PERCENT, playFromSelectionTimeout, spinnerDebounceTimeout, ToolbarEvent} from './common.js';
-export {ContentController, HIGHLIGHTED_LINK_CLASS} from './content_controller.js';
+export {ContentController, ContentListener, ContentState, ContentType, HIGHLIGHTED_LINK_CLASS} from './content_controller.js';
 export {getNewIndex, isArrow, isForwardArrow, isHorizontalArrow} from './keyboard_util.js';
 export type {LanguageMenuElement} from './language_menu.js';
 export type {LanguageToastElement} from './language_toast.js';
@@ -44,6 +44,6 @@ export {WordBoundaries} from './read_aloud/word_boundaries.js';
 export {ReadAnythingLogger, SpeechControls, TimeFrom} from './read_anything_logger.js';
 export type {ReadAnythingToolbarElement} from './read_anything_toolbar.js';
 export {IMAGES_DISABLED_ICON, IMAGES_ENABLED_ICON, IMAGES_TOGGLE_BUTTON_ID, LINK_TOGGLE_BUTTON_ID, LINKS_DISABLED_ICON, LINKS_ENABLED_ICON, moreOptionsClass} from './read_anything_toolbar.js';
-export {SelectionController, SelectionWithIds} from './selection_controller.js';
+export {SelectionController} from './selection_controller.js';
 export {SpeechBrowserProxy, SpeechBrowserProxyImpl} from './speech_browser_proxy.js';
 export type {VoiceSelectionMenuElement} from './voice_selection_menu.js';

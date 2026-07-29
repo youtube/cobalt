@@ -25,6 +25,7 @@
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/profiles/keep_alive/scoped_profile_keep_alive.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/web_applications/commands/apply_pending_manifest_update_command.h"
 #include "chrome/browser/web_applications/commands/clear_browsing_data_command.h"
 #include "chrome/browser/web_applications/commands/compute_app_size_command.h"
 #include "chrome/browser/web_applications/commands/computed_app_size.h"
@@ -229,15 +230,22 @@ void WebAppCommandScheduler::ScheduleManifestUpdateCheck(
 }
 
 void WebAppCommandScheduler::ScheduleManifestSilentUpdate(
-    const GURL& url,
-    base::WeakPtr<content::WebContents> contents,
+    content::WebContents& contents,
     ManifestSilentUpdateCommand::CompletedCallback callback,
     const base::Location& location) {
   provider_->command_manager().ScheduleCommand(
-      std::make_unique<ManifestSilentUpdateCommand>(
-          url, contents, std::move(callback),
-          provider_->web_contents_manager().CreateDataRetriever(),
-          provider_->web_contents_manager().CreateIconDownloader()),
+      std::make_unique<ManifestSilentUpdateCommand>(contents,
+                                                    std::move(callback)),
+      location);
+}
+
+void WebAppCommandScheduler::ScheduleApplyPendingManifestUpdate(
+    const webapps::AppId& app_id,
+    ApplyPendingManifestUpdateCommand::CompletedCallback callback,
+    const base::Location& location) {
+  provider_->command_manager().ScheduleCommand(
+      std::make_unique<ApplyPendingManifestUpdateCommand>(app_id,
+                                                          std::move(callback)),
       location);
 }
 

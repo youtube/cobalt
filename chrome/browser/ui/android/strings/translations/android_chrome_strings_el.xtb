@@ -3,6 +3,7 @@
 <translationbundle lang="el">
 <translation id="1010283278930414892">Δεν υπάρχουν αποθηκευμένοι κωδικοί πρόσβασης σε αυτή τη συσκευή</translation>
 <translation id="1011749477052068769">Μετακίνηση εδώ</translation>
+<translation id="1014083013111769343">Οι προτιμήσεις της λειτουργίας ανάγνωσης είναι ανοιχτές σε πλήρες ύψος</translation>
 <translation id="1014147525163127655">Δεν υπάρχουν κλειδιά πρόσβασης για τον ιστότοπο <ph name="ORIGIN" /> σε αυτή τη συσκευή</translation>
 <translation id="1016498331642356377">Κάντε γρήγορη αναζήτηση με φωνητικές εντολές. Για να επεξεργαστείτε αυτήν τη συντόμευση, αγγίξτε παρατεταμένα.</translation>
 <translation id="1028699632127661925">Αποστολή στη συσκευή <ph name="DEVICE_NAME" />…</translation>
@@ -98,6 +99,7 @@
 <translation id="1407135791313364759">Άνοιγμα όλων</translation>
 <translation id="1409879593029778104">Η λήψη του αρχείου <ph name="FILE_NAME" /> απετράπη, επειδή το αρχείο υπάρχει ήδη.</translation>
 <translation id="1413446866325418126">Αποθήκευση δεδομένων στον Λογαριασμό σας Google</translation>
+<translation id="1414919006379339073">Κλείσιμο τρέχοντος παραθύρου</translation>
 <translation id="1416550906796893042">Έκδοση εφαρμογής</translation>
 <translation id="1419753403124156396">Θέλετε να επανεκκινήσετε το Chrome;</translation>
 <translation id="1428770807407000502">Απενεργοποίηση συγχρονισμού;</translation>
@@ -207,6 +209,7 @@
 <translation id="197288927597451399">Διατήρηση</translation>
 <translation id="1973912524893600642">Διατήρηση δεδομένων</translation>
 <translation id="1974060860693918893">Σύνθετες</translation>
+<translation id="1982274314082047220">Σύρετε προς τα επάνω στη λειτουργία ανάγνωσης για την εμφάνιση των προτιμήσεων</translation>
 <translation id="1984087999855033707">αριθμός τηλεφώνου</translation>
 <translation id="1984417487208496350">Χωρίς προστασία (δεν συνιστάται)</translation>
 <translation id="1986685561493779662">Το όνομα υπάρχει ήδη</translation>
@@ -428,6 +431,7 @@
 <translation id="2992473221983447149">Περιγραφές εικόνας</translation>
 <translation id="2996291259634659425">Δημιουργία φράσης πρόσβασης</translation>
 <translation id="2996809686854298943">Απαιτείται διεύθυνση URL</translation>
+<translation id="3024215143424744261">Οι προτιμήσεις της λειτουργίας ανάγνωσης έκλεισαν</translation>
 <translation id="3026955690410463085">Συμπερίληψη συνδέσμου</translation>
 <translation id="3027644380269727216">Βάσει της δραστηριότητάς σας σε έναν ιστότοπο. Αυτή η ρύθμιση είναι ενεργοποιημένη.</translation>
 <translation id="3027950907978057636">Από <ph name="APP_LABEL" /></translation>
@@ -706,6 +710,7 @@
 <translation id="4380055775103003110">Αν αυτό το πρόβλημα δεν επιλυθεί, μπορείτε να δοκιμάσετε άλλους τρόπους για να συνεχίσετε στο <ph name="SITE_ETLD_PLUS_ONE" />.</translation>
 <translation id="4384468725000734951">Χρήση του Sogou για αναζήτηση</translation>
 <translation id="4387647248986092471">Δημιουργία κλειδώματος προφίλ αυτοκινήτου</translation>
+<translation id="4387817230000841154">Άνοιγμα Λήψεων</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{Καρτέλες και ομάδες που δεν έχουν χρησιμοποιηθεί για 1 ημέρα ή περισσότερο}other{Καρτέλες και ομάδες που δεν έχουν χρησιμοποιηθεί για # ημέρες ή περισσότερο}}</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - Λήψη…</translation>
 <translation id="4404568932422911380">Δεν υπάρχουν σελιδοδείκτες</translation>
@@ -1311,6 +1316,7 @@
 <translation id="696447261358045621">Έξοδος από την κατάσταση ανώνυμης περιήγησης</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{Προβολή <ph name="TABS_COUNT_ONE" /> καρτέλας με νέα δραστηριότητα σε κοινόχρηστες ομάδες καρτελών}other{Προβολή <ph name="TABS_COUNT_MANY" /> καρτελών με νέα δραστηριότητα σε κοινόχρηστες ομάδες καρτελών}}</translation>
+<translation id="6971555615916967190">Οι προτιμήσεις της λειτουργίας ανάγνωσης είναι ανοιχτές στο μισό ύψος</translation>
 <translation id="6971862865055170158">Δεν εγκρίνεται</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, Νέα ή ενημερωμένη καρτέλα</translation>
 <translation id="6976811588313110624">Προσθέστε νέα συντόμευση.</translation>
@@ -1695,7 +1701,6 @@
 <translation id="8617240290563765734">Άνοιγμα της προτεινόμενης διεύθυνσης URL που καθορίζεται στο ληφθέν περιεχόμενο;</translation>
 <translation id="8635399646025169806">Να διατηρηθεί η ομάδα καρτελών;</translation>
 <translation id="8636825310635137004">Για να εμφανίζονται οι καρτέλες από τις άλλες συσκευές σας, ενεργοποιήστε τον συγχρονισμό.</translation>
-<translation id="864544049772947936">Διαχείριση παραθύρων (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">Σύνδεση στο <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">Το αρχείο υπάρχει ήδη</translation>
 <translation id="8676276370198826499">Εγγραφείτε στο <ph name="SITE_ETLD_PLUS_ONE" /> με το <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

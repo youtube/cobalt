@@ -25,9 +25,9 @@ extensions_api_schema_files_ = [
   "protocol_handlers.idl",
   "runtime.json",
   "storage.json",
-  "system_cpu.idl",
-  "system_memory.idl",
-  "system_network.idl",
+  "system_cpu.webidl",
+  "system_memory.webidl",
+  "system_network.webidl",
   "test.json",
   "types.json",
   "user_scripts.idl",
@@ -53,7 +53,7 @@ extensions_types_only_schema_files_ = [
 # APIs that are not currently supported on the experimental desktop-android.
 if (enable_extensions) {
   extensions_api_schema_files_ += [
-    "app_current_window_internal.idl",
+    "app_current_window_internal.webidl",
     "app_runtime.idl",
     "app_view_guest_internal.json",
     "app_window.idl",
@@ -84,7 +84,7 @@ if (enable_extensions) {
     "sockets_tcp.idl",
     "sockets_udp.idl",
     "system_display.idl",
-    "system_storage.idl",
+    "system_storage.webidl",
     "usb.idl",
     "virtual_keyboard_private.json",
     "virtual_keyboard.webidl",

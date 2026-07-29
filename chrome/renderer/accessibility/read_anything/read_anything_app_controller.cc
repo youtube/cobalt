@@ -494,29 +494,32 @@ void ReadAnythingAppController::OnNodeWillBeDeleted(ui::AXTree* tree,
 
 void ReadAnythingAppController::OnNodeDeleted(ui::AXTree* tree,
                                               ui::AXNodeID node_id) {
-  if (displayed_nodes_pending_deletion_.contains(node_id)) {
-    displayed_nodes_pending_deletion_.erase(node_id);
+  if (!displayed_nodes_pending_deletion_.contains(node_id)) {
+    return;
+  }
 
-    // Instead of redrawing everything, we inform the webui that the node is
-    // being deleted and it will adjust on that side. See OnNodeWillBeDeleted.
-    if (IsReadAloudEnabled()) {
-      return;
-    }
+  displayed_nodes_pending_deletion_.erase(node_id);
 
-    // For Google Docs, we extract text from the "annotated canvas" element
-    // nodes, which hold the currently visible text on screen. As the user
-    // scrolls, these canvas elements are dynamically updated, resulting in
-    // frequent calls to OnNodeDeleted. We found that redrawing content in the
-    // Reading Model panel after node deletion during scrolling can lead to
-    // unexpected behavior (e.g., an empty side panel). Therefore, Google Docs
-    // require special handling to ensure correct text extraction and avoid
-    // these issues.
-    if (displayed_nodes_pending_deletion_.empty() && !IsGoogleDocs()) {
-      Draw(false);
-      if (model_.has_selection()) {
-        DrawSelection();
-      }
-    }
+  // For Google Docs, we extract text from the "annotated canvas" element
+  // nodes, which hold the currently visible text on screen. As the user
+  // scrolls, these canvas elements are dynamically updated, resulting in
+  // frequent calls to OnNodeDeleted. We found that redrawing content in the
+  // Reading Model panel after node deletion during scrolling can lead to
+  // unexpected behavior (e.g., an empty side panel). Therefore, Google Docs
+  // require special handling to ensure correct text extraction and avoid
+  // these issues.
+  if (!displayed_nodes_pending_deletion_.empty() || IsGoogleDocs()) {
+    return;
+  }
+
+  // Instead of redrawing everything when Read aloud is enabled, we inform
+  // the webui that the node is being deleted and it will adjust on that
+  // side. See OnNodeWillBeDeleted.
+  if (!IsReadAloudEnabled()) {
+    Draw(false);
+  }
+  if (model_.has_selection()) {
+    DrawSelection();
   }
 }
 
@@ -1102,6 +1105,13 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("darkTheme", &ReadAnythingAppController::DarkTheme)
       .SetProperty("yellowTheme", &ReadAnythingAppController::YellowTheme)
       .SetProperty("blueTheme", &ReadAnythingAppController::BlueTheme)
+      .SetProperty("highContrastTheme",
+                   &ReadAnythingAppController::HighContrastTheme)
+      .SetProperty("lowContrastTheme",
+                   &ReadAnythingAppController::LowContrastTheme)
+      .SetProperty("sepiaLightTheme",
+                   &ReadAnythingAppController::SepiaLightTheme)
+      .SetProperty("sepiaDarkTheme", &ReadAnythingAppController::SepiaDarkTheme)
       .SetProperty("autoHighlighting",
                    &ReadAnythingAppController::AutoHighlighting)
       .SetProperty("wordHighlighting",
@@ -1375,6 +1385,22 @@ int ReadAnythingAppController::YellowTheme() const {
 
 int ReadAnythingAppController::BlueTheme() const {
   return base::to_underlying(read_anything::mojom::Colors::kBlue);
+}
+
+int ReadAnythingAppController::HighContrastTheme() const {
+  return base::to_underlying(read_anything::mojom::Colors::kHighContrast);
+}
+
+int ReadAnythingAppController::LowContrastTheme() const {
+  return base::to_underlying(read_anything::mojom::Colors::kLowContrast);
+}
+
+int ReadAnythingAppController::SepiaLightTheme() const {
+  return base::to_underlying(read_anything::mojom::Colors::kSepiaLight);
+}
+
+int ReadAnythingAppController::SepiaDarkTheme() const {
+  return base::to_underlying(read_anything::mojom::Colors::kSepiaDark);
 }
 
 bool ReadAnythingAppController::IsHighlightOn() {

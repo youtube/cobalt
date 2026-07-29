@@ -48,12 +48,20 @@ AppIdentifier AppIdentifier::Generate(
 }
 
 // static
-AppIdentifier AppIdentifier::LegacyGenerateForTesting(
+AppIdentifier AppIdentifier::GenerateInvalid() {
+  return AppIdentifier();
+}
+
+// static
+AppIdentifier AppIdentifier::GenerateDirect(
+    const std::string& app_id,
     const GURL& origin,
     int64_t service_worker_registration_id,
-    const std::optional<base::Time>& expiration_time) {
-  return GenerateInternal(origin, service_worker_registration_id,
-                          false /* use_instance_id */, expiration_time);
+    const std::optional<base::Time>& expiration_time /* = std::nullopt */) {
+  AppIdentifier result(app_id, origin, service_worker_registration_id,
+                       expiration_time);
+  result.DCheckValid();
+  return result;
 }
 
 // static
@@ -92,6 +100,7 @@ AppIdentifier::AppIdentifier(const std::string& app_id,
       expiration_time_(expiration_time) {}
 
 bool AppIdentifier::IsExpired() const {
+  // TODO(crbug.com/444713031): Should DCHECK(!is_null()) as other getters.
   return (expiration_time_) ? *expiration_time_ < base::Time::Now() : false;
 }
 

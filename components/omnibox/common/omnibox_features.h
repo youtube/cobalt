@@ -64,9 +64,10 @@ BASE_DECLARE_FEATURE(kWebUIOmniboxPopup);
 
 // Omnibox UI - these affect the UI or function of the location bar (not the
 // popup).
+BASE_DECLARE_FEATURE(kAiModeOmniboxEntryPoint);
 BASE_DECLARE_FEATURE(kOmniboxAssistantVoiceSearch);
 BASE_DECLARE_FEATURE(kOmniboxMultimodalInput);
-BASE_DECLARE_FEATURE(kAiModeOmniboxEntryPoint);
+BASE_DECLARE_FEATURE(kRemoveSearchReadyOmnibox);
 
 // Navigation experiments.
 BASE_DECLARE_FEATURE(kDefaultTypedNavigationsToHttps);
@@ -90,9 +91,6 @@ BASE_DECLARE_FEATURE(kUrlScoringModel);
 // Animate appearance of suggestions list.
 BASE_DECLARE_FEATURE(kAnimateSuggestionsListAppearance);
 
-// Action Chips for Answer Suggestions.
-BASE_DECLARE_FEATURE(kOmniboxAnswerActions);
-
 // Allows for touch down events to send a signal to |SearchPrefetchService| to
 // start prefetching the suggestion. The feature only applies to search
 // suggestions and only controls whether the signal is sent.
@@ -102,6 +100,7 @@ BASE_DECLARE_FEATURE(kOmniboxTouchDownTriggerForPrefetch);
 BASE_DECLARE_FEATURE(kOmniboxSiteSearch);
 BASE_DECLARE_FEATURE(kStarterPackExpansion);
 BASE_DECLARE_FEATURE(kStarterPackIPH);
+BASE_DECLARE_FEATURE(kAiModeStartPack);
 
 // Search and Suggest requests and params.
 BASE_DECLARE_FEATURE(kAblateSearchProviderWarmup);
@@ -147,6 +146,14 @@ BASE_DECLARE_FEATURE(kOmniboxAimShortcutTypedState);
 // When enabled, unblocks omnibox height on small form factor devices, allowing
 // users to type in multiline / longer text.
 BASE_DECLARE_FEATURE(kMultilineEditField);
+
+#if BUILDFLAG(IS_IOS)
+// Enables the Gemini Prototype Omnibox Provider.
+BASE_DECLARE_FEATURE(kGeminiPrototypeOmniboxProvider);
+
+// Returns whether the Gemini Prototype provider is enabled.
+bool IsGeminiPrototypeProviderEnabled();
+#endif
 
 BASE_DECLARE_FEATURE(kHideAimEntrypointOnUserInput);
 

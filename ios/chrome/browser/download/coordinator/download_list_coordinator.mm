@@ -69,8 +69,10 @@
   ProfileIOS* profile = self.browser->GetProfile();
   DownloadRecordService* downloadRecordService =
       DownloadRecordServiceFactory::GetForProfile(profile);
+  BOOL isIncognito = profile->IsOffTheRecord();
   _mediator = [[DownloadListMediator alloc]
-      initWithDownloadRecordService:downloadRecordService];
+      initWithDownloadRecordService:downloadRecordService
+                        isIncognito:isIncognito];
 
   [_mediator connect];
 
@@ -156,7 +158,7 @@
 #pragma mark - DownloadRecordCommands
 
 - (void)openFileWithDownloadRecord:(const DownloadRecord&)record {
-  base::FilePath filePath = [self filePathForDownloadRecord:record];
+  base::FilePath filePath = ConvertToAbsoluteDownloadPath(record.file_path);
 
   __weak __typeof(self) weakSelf = self;
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -172,7 +174,7 @@
 
 - (void)shareDownloadedFile:(const DownloadRecord&)record
                  sourceView:(UIView*)sourceView {
-  base::FilePath filePath = [self filePathForDownloadRecord:record];
+  base::FilePath filePath = ConvertToAbsoluteDownloadPath(record.file_path);
   NSURL* fileURL =
       [NSURL fileURLWithPath:base::SysUTF8ToNSString(filePath.value())];
   if (!fileURL) {
@@ -214,15 +216,6 @@
   }
 }
 
-// Gets the file path for a download record.
-- (base::FilePath)filePathForDownloadRecord:(const DownloadRecord&)record {
-  // Construct file path from downloads directory and filename
-  base::FilePath downloadsDirectory;
-  GetDownloadsDirectory(&downloadsDirectory);
-
-  return downloadsDirectory.Append(record.file_name);
-}
-
 // Opens a PDF file in a new tab.
 - (void)openPDFInNewTab:(const base::FilePath&)filePath {
   GURL filePathURL =
@@ -261,8 +254,16 @@
 #pragma mark - DownloadListActionDelegate
 
 - (void)openDownloadInFiles:(DownloadListItem*)item {
-  // TODO(crbug.com/444330914): Implement opening download in Files app.
-  // This will be completed in a subsequent CL.
+  base::FilePath filePath = item.filePath;
+
+  NSString* pathString = base::SysUTF8ToNSString(filePath.value());
+  NSString* filesURLString =
+      [NSString stringWithFormat:@"shareddocuments://%@", pathString];
+  NSURL* filesURL = [NSURL URLWithString:filesURLString];
+
+  [[UIApplication sharedApplication] openURL:filesURL
+                                     options:@{}
+                           completionHandler:nil];
 }
 
 @end

@@ -29,6 +29,10 @@
 #include "media/filters/ffmpeg_audio_decoder.h"
 #include "media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
+#if BUILDFLAG(ENABLE_SYMPHONIA)
+#include "media/filters/symphonia_audio_decoder.h"
+#endif
+
 namespace media {
 
 namespace {
@@ -71,8 +75,21 @@ bool AudioFileReader::OpenDecoder() {
   sample_format_ = AVSampleFormatToSampleFormat(codec_context_->sample_fmt,
                                                 codec_context_->codec_id);
 
-  decoder_ = std::make_unique<FFmpegAudioDecoder>(
-      nullptr, &media_log_, FFmpegAudioDecoder::ExecutionMode::kSynchronous);
+  // Under a very specific set of circumstances, we can use the
+  // SymphoniaAudioDecoder.
+#if BUILDFLAG(ENABLE_SYMPHONIA)
+  if (base::FeatureList::IsEnabled(kSymphoniaAudioDecoding) &&
+      SymphoniaAudioDecoder::IsCodecSupported(config.codec())) {
+    decoder_ = std::make_unique<SymphoniaAudioDecoder>(
+        nullptr, &media_log_,
+        SymphoniaAudioDecoder::ExecutionMode::kSynchronous);
+  }
+#endif
+  // By default, use the FFmpegAudioDecoder.
+  if (!decoder_) {
+    decoder_ = std::make_unique<FFmpegAudioDecoder>(
+        nullptr, &media_log_, FFmpegAudioDecoder::ExecutionMode::kSynchronous);
+  }
 
   std::optional<bool> initialize_status;
   decoder_->Initialize(
@@ -299,8 +316,8 @@ bool AudioFileReader::ReadPacket(AVPacket* output_packet) {
     packet_data = packet_data.subspan(trim_count);
 
     if (packet_data.size() < MPEG1AudioStreamParser::kHeaderSize ||
-        !MPEG1AudioStreamParser::ParseHeader(nullptr, nullptr,
-                                             packet_data.data(), nullptr)) {
+        !MPEG1AudioStreamParser::ParseHeader(nullptr, nullptr, packet_data,
+                                             nullptr)) {
       av_packet_unref(output_packet);
       continue;
     }

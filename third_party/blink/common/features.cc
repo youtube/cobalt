@@ -335,11 +335,6 @@ BASE_FEATURE_PARAM(std::string,
                    "name",
                    "x-CacheStorageCodeCacheHint");
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
-// Enables camera preview in permission bubble and site settings.
-BASE_FEATURE(kCameraMicPreview, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 // Temporarily disabled due to issues:
 // - PDF blank previews
 // - Canvas corruption on ARM64 macOS
@@ -664,7 +659,7 @@ BASE_FEATURE_PARAM(int,
                    512);
 
 BASE_FEATURE(kFadeInScrollbarWhenMouseWheelMayBegin,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enable the <fencedframe> element; see crbug.com/1123606. Note that enabling
 // this feature does not automatically expose this element to the web, it only
@@ -984,12 +979,6 @@ BASE_FEATURE(kGMSCoreEmoji, base::FEATURE_ENABLED_BY_DEFAULT);
 // If enabled, then display audio track permission failures are ignored.
 BASE_FEATURE(kGetDisplayMediaIgnoreAudioPermissionFailures,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
-// Defers device selection until after permission is granted.
-BASE_FEATURE(kGetUserMediaDeferredDeviceSettingsSelection,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 BASE_FEATURE_PARAM(std::string,
                    kHTMLParserYieldEventNameForPause,
@@ -2410,12 +2399,6 @@ BASE_FEATURE(kWebRtcPqcForDtls, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable borderless mode for desktop PWAs. go/borderless-mode
 BASE_FEATURE(kWebAppBorderless, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Controls scope extensions feature in web apps. Controls parsing of
-// "scope_extensions" field in web app manifests. See explainer for more
-// information:
-// https://github.com/WICG/manifest-incubations/blob/gh-pages/scope_extensions-explainer.md
-BASE_FEATURE(kWebAppEnableScopeExtensions, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls scope extensions feature in web apps. Enables parsing of "site"
 // entries in "scope_extensions" field in web app manifests. See explainer for

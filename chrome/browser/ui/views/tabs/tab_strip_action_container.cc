@@ -48,7 +48,9 @@
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
@@ -564,13 +566,19 @@ void TabStripActionContainer::OnGlicButtonMouseDown() {
     // Do not do this optimization if user has not consented to GLIC.
     return;
   }
-  // This prefetches the results and allows the underlying implementation to
-  // cache the results for future calls. Which is why the callback does nothing.
-  glic::GlicKeyedService* glic_service =
-      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
-  glic_service->FetchZeroStateSuggestions(
-      /*is_first_run=*/false, /*supported_tools=*/std::nullopt,
-      base::DoNothing());
+  auto* glic_service = glic::GlicKeyedService::Get(profile);
+
+  // TODO(crbug.com/445934142): Create the instance here so that suggestions can
+  // be fetched, but don't show it yet.
+  if (auto* instance = glic_service->GetInstanceForActiveTab(
+          tab_strip_controller_->GetBrowserWindowInterface())) {
+    // This prefetches the results and allows the underlying implementation to
+    // cache the results for future calls. Which is why the callback does
+    // nothing.
+    instance->host().instance_delegate().FetchZeroStateSuggestions(
+        /*is_first_run=*/false, /*supported_tools=*/std::nullopt,
+        base::DoNothing());
+  }
 }
 
 void TabStripActionContainer::OnGlicActorTaskIconClicked() {

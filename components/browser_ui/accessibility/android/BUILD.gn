@@ -51,6 +51,7 @@ android_library("lib_java") {
     "java/src/org/chromium/components/browser_ui/accessibility/PageZoomPreference.java",
     "java/src/org/chromium/components/browser_ui/accessibility/PageZoomProperties.java",
     "java/src/org/chromium/components/browser_ui/accessibility/PageZoomSeekbarPreference.java",
+    "java/src/org/chromium/components/browser_ui/accessibility/PageZoomSliderPreference.java",
   ]
 
   deps = [
@@ -60,12 +61,15 @@ android_library("lib_java") {
     "//build/android:build_java",
     "//components/browser_ui/settings/android:java",
     "//components/browser_ui/site_settings/android:java",
+    "//components/browser_ui/styles/android:java",
+    "//components/browser_ui/widget/android:java",
     "//components/cached_flags:java",
     "//components/omnibox/common:features_java",
     "//components/prefs/android:java",
     "//components/user_prefs/android:java",
     "//content/public/android:content_full_java",
     "//content/public/android:content_main_dex_java",
+    "//third_party/android_deps:material_design_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_fragment_fragment_java",
     "//third_party/androidx:androidx_preference_preference_java",
@@ -86,6 +90,7 @@ android_library("page_zoom_utils_java") {
     ":constants_java",
     "//base:base_java",
     "//content/public/android:content_full_java",
+    "//content/public/android:content_main_dex_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_preference_preference_java",
   ]
@@ -97,6 +102,7 @@ android_resources("java_resources") {
     "java/res/drawable/ic_zoom.xml",
     "java/res/drawable/page_zoom_background.xml",
     "java/res/drawable/page_zoom_ripple.xml",
+    "java/res/layout/page_zoom_legacy_preference.xml",
     "java/res/layout/page_zoom_preference.xml",
     "java/res/layout/page_zoom_slider.xml",
     "java/res/layout/page_zoom_view.xml",
@@ -142,7 +148,7 @@ android_library("unit_device_javatests") {
   resources_package = "org.chromium.components.browser_ui.accessibility"
 
   sources = [
-    "java/src/org/chromium/components/browser_ui/accessibility/AccessibilitySettingsSeekbarTest.java",
+    "java/src/org/chromium/components/browser_ui/accessibility/AccessibilitySettingsPageZoomTest.java",
     "java/src/org/chromium/components/browser_ui/accessibility/AccessibilitySettingsTest.java",
     "java/src/org/chromium/components/browser_ui/accessibility/PageZoomBarViewTest.java",
   ]
@@ -160,6 +166,7 @@ android_library("unit_device_javatests") {
     "//content/public/android:content_main_dex_jni_java",
     "//content/public/test/android:content_java_test_support",
     "//third_party/android_deps:espresso_java",
+    "//third_party/android_deps:material_design_java",
     "//third_party/androidx:androidx_preference_preference_java",
     "//third_party/androidx:androidx_test_monitor_java",
     "//third_party/androidx:androidx_test_runner_java",

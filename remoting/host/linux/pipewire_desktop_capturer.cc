@@ -18,7 +18,7 @@
 namespace remoting {
 
 PipewireDesktopCapturer::PipewireDesktopCapturer(
-    base::WeakPtr<PipewireCaptureStream> stream)
+    base::WeakPtr<CaptureStream> stream)
     : stream_(stream) {}
 
 PipewireDesktopCapturer::~PipewireDesktopCapturer() {
@@ -28,7 +28,7 @@ PipewireDesktopCapturer::~PipewireDesktopCapturer() {
   }
 }
 
-bool PipewireDesktopCapturer::SupportsFrameCallbacks() {
+bool PipewireDesktopCapturer::SupportsFrameCallbacks() const {
   return kSupportsFrameCallbacks;
 }
 

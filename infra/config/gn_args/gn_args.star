@@ -448,23 +448,13 @@ gn_args.config(
     ],
 )
 
-# Keep in sync with //infra/build/recipes/recipe_modules/chromium_android/chromium_config.py
 gn_args.config(
     name = "cronet_android",
     args = {
-        # PLEASE TRY TO AVOID ADDING NEW GN ARGS HERE. Special snowflake gn args
-        # are a pain to maintain; see https://crbug.com/40287068. Instead, try
-        # to change the GN build rules so that the default value for the arg
-        # is derived from the `is_cronet_build` gn arg.
-        # TODO: https://crbug.com/40287068 - clean up this list. Ideally it
-        # should be empty.
-        # LINT.IfChange(cronet_android)
-        "use_partition_alloc": False,
-        "use_hashed_jni_names": True,
-        "default_min_sdk_version": 23,
-        "clang_use_default_sample_profile": False,
-        "enable_resource_allowlist_generation": False,
-        # LINT.ThenChange(//tools/mb/mb_config.pyl:cronet_android)
+        # DO NOT ADD GN ARGS HERE. Special snowflake gn args are a pain to
+        # maintain; see https://crbug.com/40287068. Instead, change the GN arg
+        # declaration so that the default value for the arg is derived from the
+        # `is_cronet_build` GN arg.
     },
     configs = [
         "android",
@@ -472,23 +462,14 @@ gn_args.config(
     ],
 )
 
-# Keep in sync with //infra/build/recipes/recipe_modules/chromium_android/chromium_config.py
 gn_args.config(
     name = "cronet_common",
     args = {
-        # PLEASE TRY TO AVOID ADDING NEW GN ARGS HERE. Special snowflake gn args
-        # are a pain to maintain; see https://crbug.com/40287068. Instead, try
-        # to change the GN build rules so that the default value for the arg
-        # is derived from the `is_cronet_build` gn arg.
-        # TODO: https://crbug.com/40287068 - clean up this list. Ideally it
-        # should contain `is_cronet_build` and nothing else.
-        # LINT.IfChange(cronet_common)
-        "disable_file_support": True,
-        "enable_websockets": False,
-        "include_transport_security_state_preload_list": False,
+        # DO NOT ADD GN ARGS HERE. Special snowflake gn args are a pain to
+        # maintain; see https://crbug.com/40287068. Instead, change the GN arg
+        # declaration so that the default value for the arg is derived from the
+        # `is_cronet_build` GN arg.
         "is_cronet_build": True,
-        "use_platform_icu_alternatives": True,
-        # LINT.ThenChange(//tools/mb/mb_config.pyl:cronet_common)
     },
 )
 
@@ -550,6 +531,13 @@ gn_args.config(
         "static",
         "minimal_symbols",
     ],
+)
+
+gn_args.config(
+    name = "dev_channel",
+    args = {
+        "android_channel": "dev",
+    },
 )
 
 gn_args.config(

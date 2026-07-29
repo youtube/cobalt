@@ -18,8 +18,7 @@ namespace {
 const int kCurrentVersionNumber = 1;
 const int kCompatibleVersionNumber = 1;
 
-constexpr char kTabsTableName[] = "tab_state";
-constexpr char kTabCollectionsTableName[] = "tab_collections";
+constexpr char kTabsTableName[] = "nodes";
 
 bool CreateTable(sql::Database* db, base::cstring_view table_creation_script) {
   DCHECK(db->IsSQLValid(table_creation_script));
@@ -30,33 +29,20 @@ bool CreateSchema(sql::Database* db, sql::MetaTable* meta_table) {
   DCHECK(db->HasActiveTransactions());
 
   static constexpr char kCreateTabSchemaSql[] =
-      "CREATE TABLE IF NOT EXISTS tab_state("
+      "CREATE TABLE IF NOT EXISTS nodes("
       "id INTEGER PRIMARY KEY NOT NULL,"
-      "parent INTEGER NOT NULL,"
-      "position TEXT NOT NULL,"
       "type INTEGER NOT NULL,"
-      "payload TEXT NOT NULL)"
-      "WITHOUT ROWID";
+      "children BLOB,"
+      "payload BLOB)";
 
-  if (!CreateTable(db, kCreateTabSchemaSql)) {
-    return false;
-  }
-
-  static constexpr char kCreateTabCollectionSchemaSql[] =
-      "CREATE TABLE IF NOT EXISTS tab_collections("
-      "parent_id INTEGER NOT NULL,"
-      "id INTEGER NOT NULL,"
-      "position TEXT NOT NULL,"
-      "PRIMARY KEY (parent_id, position))";
-  return CreateTable(db, kCreateTabCollectionSchemaSql);
+  return CreateTable(db, kCreateTabSchemaSql);
 }
 
 bool InitSchema(sql::Database* db, sql::MetaTable* meta_table) {
   bool has_metatable = meta_table->DoesTableExist(db);
   bool has_schema = db->DoesTableExist(kTabsTableName);
-  bool has_collections_schema = db->DoesTableExist(kTabCollectionsTableName);
 
-  if (!has_metatable && (has_schema || has_collections_schema)) {
+  if (!has_metatable && has_schema) {
     db->Raze();
   }
 
@@ -74,8 +60,7 @@ bool InitSchema(sql::Database* db, sql::MetaTable* meta_table) {
     return false;
   }
 
-  if ((!has_schema || !has_collections_schema) &&
-      !CreateSchema(db, meta_table)) {
+  if (!has_schema && !CreateSchema(db, meta_table)) {
     return false;
   }
 
@@ -123,10 +108,10 @@ bool TabStateStorageDatabase::Initialize() {
   return true;
 }
 
-bool TabStateStorageDatabase::SaveTabState(int id,
-                                           int parent,
-                                           std::string position,
-                                           tabs_pb::TabState tab_state) {
+bool TabStateStorageDatabase::SaveNode(int id,
+                                       int type,
+                                       std::string payload,
+                                       std::string children) {
   CHECK(db_);
 
   sql::Transaction transaction(db_.get());
@@ -135,9 +120,9 @@ bool TabStateStorageDatabase::SaveTabState(int id,
   }
 
   static constexpr char kInsertTabSql[] =
-      "INSERT OR REPLACE INTO tab_state"
-      "(id, parent, position, type, payload)"
-      "VALUES (?,?,?,?,?)";
+      "INSERT OR REPLACE INTO nodes"
+      "(id, type, payload, children)"
+      "VALUES (?,?,?,?)";
 
   DCHECK(db_->IsSQLValid(kInsertTabSql));
 
@@ -145,52 +130,32 @@ bool TabStateStorageDatabase::SaveTabState(int id,
       db_->GetCachedStatement(SQL_FROM_HERE, kInsertTabSql));
 
   write_statement.BindInt(0, id);
-  write_statement.BindInt(1, parent);
-  write_statement.BindString(2, position);
-  write_statement.BindInt(3, 1);
-  std::string data;
-  tab_state.SerializeToString(&data);
-  write_statement.BindString(4, data);
+  write_statement.BindInt(1, type);
+  write_statement.BindBlob(2, std::move(payload));
+  write_statement.BindBlob(3, std::move(children));
 
   if (!write_statement.Run()) {
     DLOG(ERROR) << "Could not write to tabs table.";
     return false;
   }
-
-  static constexpr char kInsertTabCollectionSql[] =
-      "INSERT OR REPLACE INTO tab_collections"
-      "(parent_id, id, position)"
-      "VALUES (?,?,?)";
-
-  DCHECK(db_->IsSQLValid(kInsertTabCollectionSql));
-
-  sql::Statement collection_write_statement(
-      db_->GetCachedStatement(SQL_FROM_HERE, kInsertTabCollectionSql));
-
-  collection_write_statement.BindInt(0, parent);
-  collection_write_statement.BindInt(1, id);
-  collection_write_statement.BindString(2, position);
-
-  if (!collection_write_statement.Run()) {
-    DLOG(ERROR) << "Could not write to tab_collection table.";
-    return false;
-  }
-
   return transaction.Commit();
 }
 
-std::vector<tabs_pb::TabState> TabStateStorageDatabase::LoadAllTabStates() {
-  std::vector<tabs_pb::TabState> tab_states;
-  static constexpr char kSelectAllTabsSql[] = "SELECT payload FROM tab_state";
+std::vector<NodeState> TabStateStorageDatabase::LoadAllNodes() {
+  std::vector<NodeState> entries;
+  static constexpr char kSelectAllTabsSql[] =
+      "SELECT id, type, payload, children FROM nodes";
   sql::Statement select_statement(
       db_->GetCachedStatement(SQL_FROM_HERE, kSelectAllTabsSql));
   while (select_statement.Step()) {
-    tabs_pb::TabState tab_state;
-    if (tab_state.ParseFromString(select_statement.ColumnString(0))) {
-      tab_states.emplace_back(std::move(tab_state));
-    }
+    NodeState entry;
+    entry.id = select_statement.ColumnInt(0);
+    entry.type = select_statement.ColumnInt(1);
+    select_statement.ColumnBlobAsString(2, &entry.payload);
+    select_statement.ColumnBlobAsString(3, &entry.children);
+    entries.emplace_back(std::move(entry));
   }
-  return tab_states;
+  return entries;
 }
 
 }  // namespace tabs

@@ -69,6 +69,10 @@ BASE_DECLARE_FEATURE(kApiOdfsConfigPrivate);
 // `enterprise.reportingPrivate.onDataMaskingRulesTriggered` API.
 BASE_DECLARE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered);
 
+// Controls the availability of the deprecated nacl_arch in
+// runtime.getPlatformInfo() API.
+BASE_DECLARE_FEATURE(kApiRuntimeGetPlatformInfoNaClArch);
+
 ///////////////////////////////////////////////////////////////////////////////
 // Other Features
 ///////////////////////////////////////////////////////////////////////////////
@@ -255,11 +259,6 @@ BASE_DECLARE_FEATURE(kDebuggerAPIRestrictedToDevMode);
 // `loadTimes` , `csi`, etc. or deprecated APIs (e.g. `app`).
 BASE_DECLARE_FEATURE(kExtensionBrowserNamespaceAlternative);
 
-// Supports chrome.runtime.onMessage() returning a JS Promise to reply to sender
-// response callbacks. Promise resolve or rejection value will be sent to the
-// sender response callbacks.
-BASE_DECLARE_FEATURE(kRuntimeOnMessagePromiseReturnSupport);
-
 // Optimizes service worker start requests by checking readiness before
 // initiating a start.
 BASE_DECLARE_FEATURE(kOptimizeServiceWorkerStartRequests);
@@ -282,10 +281,11 @@ BASE_DECLARE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch);
 // these inconsistencies.
 BASE_DECLARE_FEATURE(kContentVerifyJobUseJobVersionForHashing);
 
-// When enabled, runtime.onMessage listeners that throw an error or return an
-// unserializable response will cause the message channel to close and an error
-// to be sent back to the message sender (and the sender's message promise to
-// reject).
+// Aligns one-time message (e.g. runtime.sendMessage) behavior more closely with
+// the mozilla/webextension-polyfill. This includes supporting
+// chrome.runtime.onMessage() listeners returning a Promise. Also in more error
+// cases (like listeners sending unserializable responses or throwing errors
+// during execution) the error is passed back to the sender.
 BASE_DECLARE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport);
 
 }  // namespace extensions_features

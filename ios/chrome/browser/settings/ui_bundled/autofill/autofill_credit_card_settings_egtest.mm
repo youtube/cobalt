@@ -387,9 +387,10 @@ id<GREYMatcher> BottomToolbar() {
     // Check the Autofill credit card switch is enabled if the reauthentication
     // result is a failure.
     bool enabled = (result == ReauthenticationResult::kFailure);
-    [[EarlGrey selectElementWithMatcher:chrome_test_util::TableViewSwitchCell(
-                                            kAutofillCreditCardSwitchViewId,
-                                            YES, enabled)]
+    id<GREYMatcher> autofillCardSwitch = chrome_test_util::TableViewSwitchCell(
+        kAutofillCreditCardSwitchViewId, YES, enabled);
+    [ChromeEarlGrey waitForUIElementToAppearWithMatcher:autofillCardSwitch];
+    [[EarlGrey selectElementWithMatcher:autofillCardSwitch]
         assertWithMatcher:grey_notNil()];
 
     // Check the Autofill mandatory reauth switch is enabled if the
