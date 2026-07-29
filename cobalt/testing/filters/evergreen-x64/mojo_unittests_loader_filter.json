@@ -1,0 +1,8 @@
+{
+  "failing_tests": [
+    "DirectReceiverTest.*",
+    "InvitationTest.SendInvitation",
+    "MessagePipeTest.DataPipeConsumerHandlePingPong",
+    "MessagePipeTest.DataPipeProducerHandlePingPong"
+  ]
+}

@@ -964,8 +964,15 @@ void AutofillManager::LogCurrentFieldTypes(
 }
 
 void AutofillManager::SubscribeToMlModelChanges(
+<<<<<<< HEAD
     FieldClassificationModelHandler& handler) {
   switch (handler.optimization_target()) {
+=======
+    FieldClassificationModelHandler& handler,
+    optimization_guide::proto::OptimizationTarget optimization_target) {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  switch (optimization_target) {
+>>>>>>> parent of c0194589c55 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
       if (!autofill_model_change_subscription_) {
@@ -985,6 +992,9 @@ void AutofillManager::SubscribeToMlModelChanges(
     default:
       NOTREACHED();
   }
+#else
+  NOTREACHED();
+#endif
 }
 
 }  // namespace autofill

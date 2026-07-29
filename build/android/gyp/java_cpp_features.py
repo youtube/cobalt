@@ -17,6 +17,7 @@ import zip_helpers
 
 class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   # Ex. 'BASE_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
+<<<<<<< HEAD
   # or 'BASE_FEATURE(ConstantName, ...);'
   # or 'BASE_FEATURE(kConstantName, ...);'
   # would parse as:
@@ -29,6 +30,19 @@ class FeatureParserDelegate(java_cpp_utils.CppConstantParser.Delegate):
   _constant_name = None  # The name of the current macro.
   _comma_count = 0  # Number of commas seen in the current macro.
   _string_literals = []  # All string literals seen in the current macro.
+=======
+  # or 'BASE_FEATURE(ConstantName, ...)'
+  # or 'STARBOARD_FEATURE(kConstantName, "StringNameOfTheFeature", ...);'
+  # or 'STARBOARD_FEATURE(ConstantName, ...)'
+  # would parse as:
+  #   ExtractConstantName() -> 'ConstantName'
+  #   ExtractValue() -> '"StringNameOfTheFeature"' or '"ConstantName"'
+  # For 3-arg macro: BASE_FEATURE(kMyFeature, "MyFeature", ...)
+  _FEATURE_RE_3_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(k([^,]+),')
+  # For 2-arg macro: BASE_FEATURE(MyFeature, ...)
+  _FEATURE_RE_2_ARGS = re.compile(r'(?:BASE_FEATURE|STARBOARD_FEATURE)\(([^,]+),')
+  _VALUE_RE = re.compile(r'\s*("(?:\\"|[^"])*")\s*,')
+>>>>>>> parent of c0194589c55 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   def ExtractConstantName(self, line):
     # Reset to a clean state when extracting constant name.

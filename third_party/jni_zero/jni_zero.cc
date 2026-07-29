@@ -6,11 +6,11 @@
 
 #include <sys/prctl.h>
 
+#include "build/build_config.h"
 #include "third_party/jni_zero/generate_jni/JniInit_jni.h"
 #include "third_party/jni_zero/jni_methods.h"
 #include "third_party/jni_zero/jni_zero_internal.h"
 #include "third_party/jni_zero/logging.h"
-
 #if defined(JNI_ZERO_MULTIPLEXING_ENABLED)
 extern const int64_t kJniZeroHashWhole;
 extern const int64_t kJniZeroHashPriority;
@@ -25,6 +25,10 @@ jclass (*g_class_resolver)(JNIEnv*, const char*, const char*) = nullptr;
 
 void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
 
+/* Cobalt specific hack to move Java classes to a custom namespace.
+   For every class org.chromium.foo moves them to cobalt.org.chromium.foo
+   This works around link-time conflicts when building the final
+   package against other Chromium release artifacts. */
 jclass GetClassInternal(JNIEnv* env,
                         const char* class_name,
                         const char* split_name) {

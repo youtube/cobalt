@@ -32,6 +32,7 @@ TEST(PythonUtils, SetPythonPathInEnvironment) {
             env[FILE_PATH_LITERAL("VPYTHON_CLEAR_PYTHONPATH")]);
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 TEST(PythonUtils, Python3RunTime) {
   base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
   EXPECT_TRUE(GetPython3Command(&cmd_line));
@@ -47,3 +48,4 @@ TEST(PythonUtils, Python3RunTime) {
   base::TrimWhitespaceASCII(output, base::TRIM_TRAILING, &output);
   EXPECT_EQ(input, output);
 }
+#endif
