@@ -13,7 +13,12 @@
 #include "third_party/blink/renderer/platform/fonts/character_range.h"
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/fonts/opentype/open_type_vertical_data.h"
+<<<<<<< HEAD
 #include "third_party/blink/renderer/platform/fonts/plain_text_node.h"
+=======
+#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shaper.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_face.h"
+>>>>>>> parent of cf1159611a4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_test_info.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 #include "third_party/blink/renderer/platform/fonts/simple_font_data.h"
@@ -42,6 +47,7 @@ static SimpleFontData* CreateTestSimpleFontData(bool force_rotation = false) {
 class ShapeResultBloberizerTest : public FontTestBase {
  protected:
   void SetUp() override {
+    HarfBuzzFace::SetVariationSelectorMode(kUseSpecifiedVariationSelector);
     font_description.SetComputedSize(12.0);
     font_description.SetLocale(LayoutLocale::Get(AtomicString("en")));
     ASSERT_EQ(USCRIPT_LATIN, font_description.GetScript());

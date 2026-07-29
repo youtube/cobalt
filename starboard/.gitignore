@@ -1,0 +1,7 @@
+*.pyc
+*.sublime-workspace
+*.swp
+xcuserdata
+.DS_Store
+keyboxes
+keyboxes-dev

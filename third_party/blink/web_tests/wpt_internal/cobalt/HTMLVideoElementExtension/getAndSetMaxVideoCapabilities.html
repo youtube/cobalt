@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <script src=/resources/testharness.js></script>
+  <script src=/resources/testharnessreport.js></script>
+  <script type='module'>
+
+    test(function(){
+    var video = document.createElement('video');
+    video.src = 'testStringToSetSRC';
+    // a try catch must be used here, as trying to use assert_throws_dom or assert_throws_js
+    // will not work due to the returned error immediately stopping the test.
+    try{
+      video.setMaxVideoCapabilities('width=1920; height=1080; framerate=15;');
+      throw AssertionError('setMaxVideoCapabilities successfully ran when not supposed to');
+    }
+    catch ({name, message}){
+      assert_equals("InvalidStateError", name, 'InvalidStateError is thrown.');
+      assert_equals("Failed to execute 'setMaxVideoCapabilities' on 'HTMLVideoElement': Cannot set maximum capabilities after src is defined.", message,
+                    'Error message matches defined error message in setMaxVideoCapabilities');
+    }
+    }, 'setMaxVideoCapabilities cannot be set after src is defined');
+
+    test(function(){
+    var video = document.createElement('video');
+    try{
+      video.setMaxVideoCapabilities('width=1920; height=1080; framerate=15;');
+    }
+    catch ({name, message}){
+      throw AssertionError('setMaxVideoCapabilities failed when not supposed to');
+    }
+    }, 'setMaxVideoCapabilities successfully updates HTMLVideoElement');
+  </script>
+</body>
+</html>

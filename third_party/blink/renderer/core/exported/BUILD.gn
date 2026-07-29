@@ -1,6 +1,7 @@
 # Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+import("//content/browser/devtools/features.gni")
 import("//third_party/blink/renderer/core/core.gni")
 import("//third_party/blink/renderer/core/exported/build.gni")
 
@@ -23,6 +24,10 @@ static_library("test_support") {
 
 blink_core_sources("exported") {
   sources = blink_core_sources_exported
+  if (!enable_devtools_backend) {
+    sources -= [ "web_dev_tools_agent_impl.cc" ]
+    sources += [ "cobalt/web_dev_tools_agent_impl_stub.cc" ]
+  }
 
   deps = [
     "//third_party/blink/renderer/core:core_generated",

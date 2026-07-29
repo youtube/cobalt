@@ -10,6 +10,14 @@
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "third_party/blink/public/common/features.h"
+#endif
+
 namespace blink {
 
 class CountingObserver : public MemoryUsageMonitor::Observer {
@@ -85,5 +93,31 @@ TEST_F(MemoryUsageMonitorTest, RemoveObserverFromNotification) {
   EXPECT_EQ(1, observer1->count());
   EXPECT_EQ(2, observer2->count());
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(MemoryUsageMonitorTest, CustomPollingIntervalOverride) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      blink::features::kMemoryUsageMonitorConfigurable,
+      {{"polling_interval_ms", "250"}});
+
+  std::unique_ptr<CountingObserver> observer =
+      std::make_unique<CountingObserver>();
+  MemoryUsageMonitor::Instance().AddObserver(observer.get());
+
+  EXPECT_TRUE(MemoryUsageMonitor::Instance().TimerIsActive());
+  EXPECT_EQ(0, observer->count());
+
+  // Fast forward by exactly 250 milliseconds.
+  test::RunDelayedTasks(base::Milliseconds(250));
+  EXPECT_EQ(1, observer->count());
+
+  // Fast forward by another 750 milliseconds (filling up exactly 1 second)
+  test::RunDelayedTasks(base::Milliseconds(750));
+  EXPECT_EQ(4, observer->count());
+
+  MemoryUsageMonitor::Instance().RemoveObserver(observer.get());
+}
+#endif
 
 }  // namespace blink
