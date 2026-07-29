@@ -310,10 +310,9 @@ void WaitForDistillation() {
   ConditionBlock wait_for_distillation_date = ^{
     NSError* error = nil;
     [[EarlGrey
-        selectElementWithMatcher:grey_allOf(
-                                     grey_accessibilityID(
-                                         kTableViewURLCellFaviconBadgeViewID),
-                                     grey_sufficientlyVisible(), nil)]
+        selectElementWithMatcher:grey_allOf(grey_accessibilityID(
+                                                kReadingListItemBadgeID),
+                                            grey_sufficientlyVisible(), nil)]
         assertWithMatcher:grey_notNil()
                     error:&error];
     return error == nil;
@@ -1273,9 +1272,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
 #if TARGET_IPHONE_SIMULATOR
   // TODO(crbug.com/433982582): Flaky on an iPhone simulator.
   if ([ChromeEarlGrey isIPhoneIdiom]) {
-    if (!@available(iOS 18, *)) {
-      EARL_GREY_TEST_DISABLED(@"Flakes on iPhone.");
-    }
+    EARL_GREY_TEST_DISABLED(@"Flakes on iPhone.");
   }
 #endif
   AddEntriesAndOpenReadingList();
@@ -1523,11 +1520,7 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
       assertWithMatcher:grey_notVisible()];
 
   // Dismiss sign out snackbar.
-  [[EarlGrey
-      selectElementWithMatcher:
-          grey_accessibilityLabel(l10n_util::GetNSString(
-              IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_SIGN_OUT_SNACKBAR_MESSAGE))]
-      performAction:grey_tap()];
+  [SigninEarlGreyUI dismissSignoutSnackbar];
 
   // Sign in promo shows and try to sign in succeeds.
   [SigninEarlGreyUI

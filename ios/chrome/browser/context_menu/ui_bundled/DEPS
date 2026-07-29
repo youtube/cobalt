@@ -1,5 +1,6 @@
 include_rules = [
   "+components/data_sharing/public/features.h",
+  "+ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h",
   "+ios/chrome/browser/favicon/model",
   "+ios/chrome/browser/net/model/crurl.h",
   "+ios/chrome/browser/photos/model",
@@ -15,4 +16,5 @@ include_rules = [
   "+ios/chrome/browser/text_selection/model/text_classifier_util.h",
   "+ios/chrome/browser/url_loading/model",
   "+ios/chrome/browser/web/model",
+  "+ios/components/enterprise/data_controls/features.h",
 ]

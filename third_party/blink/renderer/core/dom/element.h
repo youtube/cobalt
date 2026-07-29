@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/whitespace_attacher.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/transform_view.h"
@@ -1749,7 +1750,11 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   Element* GetStyledPseudoElement(PseudoId pseudo_id,
                                   const AtomicString& pseudo_argument) const;
 
-  // Performs an incremental update of the view-transition pseudo-elements.
+  // Performs an update of the overscroll pseudo-elements.
+  void UpdateOverscrollPseudoElements(const StyleRecalcChange,
+                                      const StyleRecalcContext&);
+
+  // Performs an update of the view-transition pseudo-elements.
   void UpdateTransitionPseudoElements(const StyleRecalcChange,
                                       const StyleRecalcContext&);
 
@@ -1897,6 +1902,9 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
       const QualifiedName& qname,
       AttributesToExcludeHashesFor attributes_to_exclude);
 
+  // IsAppearanceBase returns true if the appearance value from GetComputedStyle
+  // returns true when given to SupportsBaseAppearance.
+  bool IsAppearanceBase() const;
   enum class BaseAppearanceValue { kBaseSelect, kBase };
   // Returns true if this element supports base appearance given a value for the
   // appearance property, such as `base` or `base-select`.
@@ -2232,6 +2240,10 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
     AttachPseudoElement(kPseudoIdScrollMarkerGroupAfter, context);
   }
 
+  // These pseudo-elements are added as layout parents of the contents of this
+  // element's layout children.
+  void AttachOverscrollPseudoElements(AttachContext& context);
+
   void AttachColumnPseudoElements(AttachContext& context);
   void AttachTransitionPseudoElements(AttachContext& context);
 
@@ -2505,7 +2517,8 @@ inline bool Element::FastHasAttribute(const QualifiedName& name) const {
   DCHECK(FastAttributeLookupAllowed(name))
       << TagQName().ToString().Utf8() << "/@" << name.ToString().Utf8();
 #endif
-  return HasElementData() && GetElementData()->Attributes().Find(name);
+  return CouldHaveAttribute(name) && HasElementData() &&
+         GetElementData()->Attributes().Find(name);
 }
 
 inline const AtomicString& Element::FastGetAttribute(
@@ -2514,7 +2527,7 @@ inline const AtomicString& Element::FastGetAttribute(
   DCHECK(FastAttributeLookupAllowed(name))
       << TagQName().ToString().Utf8() << "/@" << name.ToString().Utf8();
 #endif
-  if (HasElementData()) {
+  if (CouldHaveAttribute(name) && HasElementData()) {
     if (const Attribute* attribute = GetElementData()->Attributes().Find(name))
       return attribute->Value();
   }

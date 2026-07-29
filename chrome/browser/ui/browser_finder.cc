@@ -199,8 +199,8 @@ BrowserWindowInterface* FindBrowserWithTabbedOrAnyType(
   }
 #endif
 
-  return FindBrowserOrderedByActivationMatching(profile, Browser::FEATURE_NONE,
-                                                match_types, display_id);
+  return FindBrowserOrderedByActivationMatching(
+      profile, Browser::WindowFeature::kFeatureNone, match_types, display_id);
 }
 
 size_t GetBrowserCountImpl(Profile* profile,
@@ -210,8 +210,8 @@ size_t GetBrowserCountImpl(Profile* profile,
   size_t count = 0;
   if (browser_list_impl) {
     for (const auto& i : *browser_list_impl) {
-      if (BrowserMatches(i, profile, Browser::FEATURE_NONE, match_types,
-                         display_id)) {
+      if (BrowserMatches(i, profile, Browser::WindowFeature::kFeatureNone,
+                         match_types, display_id)) {
         count++;
       }
     }
@@ -248,45 +248,58 @@ Browser* FindBrowserWithProfile(Profile* profile) {
 
 std::vector<Browser*> FindAllTabbedBrowsersWithProfile(Profile* profile) {
   std::vector<Browser*> browsers;
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (BrowserMatches(browser, profile, Browser::FEATURE_NONE, kMatchNormal,
-                       display::kInvalidDisplayId)) {
-      browsers.emplace_back(browser);
-    }
-  }
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (BrowserMatches(browser, profile,
+                           Browser::WindowFeature::kFeatureNone, kMatchNormal,
+                           display::kInvalidDisplayId)) {
+          browsers.emplace_back(browser->GetBrowserForMigrationOnly());
+        }
+        return true;
+      });
   return browsers;
 }
 
 std::vector<Browser*> FindAllBrowsersWithProfile(Profile* profile) {
   std::vector<Browser*> browsers;
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (BrowserMatches(browser, profile, Browser::FEATURE_NONE, kMatchAny,
-                       display::kInvalidDisplayId)) {
-      browsers.emplace_back(browser);
-    }
-  }
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (BrowserMatches(browser, profile,
+                           Browser::WindowFeature::kFeatureNone, kMatchAny,
+                           display::kInvalidDisplayId)) {
+          browsers.emplace_back(browser->GetBrowserForMigrationOnly());
+        }
+        return true;
+      });
   return browsers;
 }
 
 Browser* FindBrowserWithID(SessionID desired_id) {
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->session_id() == desired_id) {
-      return browser;
-    }
-  }
-  return nullptr;
+  Browser* found = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (browser->GetSessionID() == desired_id) {
+          found = browser->GetBrowserForMigrationOnly();
+        }
+        return !found;
+      });
+  return found;
 }
 
 Browser* FindBrowserWithWindow(gfx::NativeWindow window) {
   if (!window) {
     return nullptr;
   }
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (browser->window() && browser->window()->GetNativeWindow() == window) {
-      return browser;
-    }
-  }
-  return nullptr;
+  Browser* found = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (browser->GetWindow() &&
+            browser->GetWindow()->GetNativeWindow() == window) {
+          found = browser->GetBrowserForMigrationOnly();
+        }
+        return !found;
+      });
+  return found;
 }
 
 Browser* FindBrowserWithActiveWindow() {
@@ -306,31 +319,37 @@ Browser* FindBrowserWithTab(const WebContents* web_contents) {
 }
 
 Browser* FindBrowserWithGroup(tab_groups::TabGroupId group, Profile* profile) {
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if ((!profile || browser->profile() == profile) &&
-        browser->tab_strip_model() &&
-        browser->tab_strip_model()->group_model() &&
-        browser->tab_strip_model()->group_model()->ContainsTabGroup(group)) {
-      return browser;
-    }
-  }
-  return nullptr;
+  Browser* found = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        TabStripModel* const tab_strip_model = browser->GetTabStripModel();
+        if ((!profile || browser->GetProfile() == profile) && tab_strip_model &&
+            tab_strip_model->group_model() &&
+            tab_strip_model->group_model()->ContainsTabGroup(group)) {
+          found = browser->GetBrowserForMigrationOnly();
+        }
+        return !found;
+      });
+  return found;
 }
 
 Browser* FindBrowserWithUiElementContext(ui::ElementContext context) {
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    if (BrowserElements::From(browser)->GetContext() == context) {
-      return browser;
-    }
-  }
-  return nullptr;
+  Browser* found = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&](BrowserWindowInterface* browser) {
+        if (BrowserElements::From(browser)->GetContext() == context) {
+          found = browser->GetBrowserForMigrationOnly();
+        }
+        return !found;
+      });
+  return found;
 }
 
 Browser* FindLastActiveWithProfile(Profile* profile) {
   // We are only interested in last active browsers, so we don't fall back to
   // all browsers like FindBrowserWith* do.
   BrowserWindowInterface* browser = FindBrowserOrderedByActivationMatching(
-      profile, Browser::FEATURE_NONE, kMatchAny);
+      profile, Browser::WindowFeature::kFeatureNone, kMatchAny);
   return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 

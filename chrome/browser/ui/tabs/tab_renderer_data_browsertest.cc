@@ -30,6 +30,7 @@
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/image/image_skia.h"
+#include "url/url_constants.h"
 
 namespace tabs {
 
@@ -40,6 +41,12 @@ class TabRendererDataTest : public InProcessBrowserTest {
   TabRendererDataTest() {
     scoped_feature_list_.InitAndEnableFeature(
         data_sharing::features::kDataSharingFeature);
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+
+    ASSERT_TRUE(embedded_test_server()->Start());
   }
 
  protected:
@@ -231,6 +238,25 @@ IN_PROC_BROWSER_TEST_F(TabRendererDataTest, Urls) {
   EXPECT_FALSE(data.should_render_empty_title);
 }
 
+IN_PROC_BROWSER_TEST_F(TabRendererDataTest, UncomittedNavigationUrl) {
+  // The /nocontent navigation won't commit so it reverts back to the initial
+  // navigation.
+  GURL uncommitted_url = embedded_test_server()->GetURL("c.test", "/nocontent");
+  ASSERT_FALSE(ui_test_utils::NavigateToURLWithDisposition(
+      browser(), uncommitted_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_TAB));
+
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  content::WebContents* wc = tab_strip_model->GetWebContentsAt(1);
+  auto* entry = wc->GetController().GetLastCommittedEntry();
+  ASSERT_TRUE(entry->IsInitialEntry());
+  TabRendererData data = TabRendererData::FromTabInModel(tab_strip_model, 0);
+  EXPECT_EQ(data.visible_url, GURL(url::kAboutBlankURL));
+  EXPECT_EQ(data.last_committed_url, GURL(url::kAboutBlankURL));
+  EXPECT_TRUE(data.should_display_url);
+  EXPECT_FALSE(data.should_render_empty_title);
+}
+
 IN_PROC_BROWSER_TEST_F(TabRendererDataTest, ShouldRenderEmptyTitle) {
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::CURRENT_TAB,
@@ -302,7 +328,7 @@ IN_PROC_BROWSER_TEST_F(TabRendererDataTest, AlertStateAudioPlaying) {
   TabRendererData data = TabRendererData::FromTabInModel(tab_strip_model, 0);
   EXPECT_NE(data.alert_state.end(),
             std::find(data.alert_state.begin(), data.alert_state.end(),
-                      tabs::TabAlert::AUDIO_PLAYING));
+                      tabs::TabAlert::kAudioPlaying));
 }
 
 IN_PROC_BROWSER_TEST_F(TabRendererDataTest, ShouldHideThrobber) {
@@ -325,8 +351,8 @@ IN_PROC_BROWSER_TEST_F(TabRendererDataTest, Thumbnail) {
       browser(), GURL(url::kAboutBlankURL), WindowOpenDisposition::CURRENT_TAB,
       ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
-  auto* thumbnail_tab_helper =
-      ThumbnailTabHelper::From(tab_strip_model->GetTabAtIndex(0));
+  content::WebContents* wc = tab_strip_model->GetWebContentsAt(0);
+  auto* thumbnail_tab_helper = ThumbnailTabHelper::FromWebContents(wc);
   ASSERT_NE(nullptr, thumbnail_tab_helper);
 
   // Initial data should reference the helper's thumbnail and have no data.

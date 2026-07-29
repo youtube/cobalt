@@ -9,6 +9,7 @@
 
 #include "base/containers/span.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/types/pass_key.h"
@@ -30,6 +31,7 @@
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor/task_id.h"
+#include "chrome/common/chrome_features.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 
@@ -126,7 +128,7 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetInactiveTasks()
 
 void ActorKeyedService::ResetForTesting() {
   for (auto it = active_tasks_.begin(); it != active_tasks_.end();) {
-    StopTask((it++)->first, /*success=*/true);
+    StopTask((it++)->first, ActorTask::StoppedReason::kTaskComplete);
   }
   active_tasks_.clear();
   inactive_tasks_.clear();
@@ -142,7 +144,7 @@ TaskId ActorKeyedService::CreateTaskWithOptions(
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
   if (!policy_checker_->can_act_on_web()) {
     base::UmaHistogramBoolean("Actor.Task.Created", false);
-    GetJournal().Log(GURL(), TaskId(), "CreateTask",
+    GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::CreateTask",
                      JournalDetailsBuilder()
                          .AddError("Actuation capability disabled")
                          .Build());
@@ -164,102 +166,6 @@ base::CallbackListSubscription ActorKeyedService::AddTaskStateChangedCallback(
 
 void ActorKeyedService::NotifyTaskStateChanged(const ActorTask& task) {
   tab_state_change_callback_list_.Notify(task);
-}
-
-base::CallbackListSubscription
-ActorKeyedService::AddRequestToShowCredentialSelectionDialogSubscriberCallback(
-    RequestToShowCredentialSelectionDialogSubscriberCallback callback) {
-  return request_to_show_credential_selection_dialog_callback_list_.Add(
-      std::move(callback));
-}
-
-void ActorKeyedService::NotifyRequestToShowCredentialSelectionDialog(
-    TaskId task_id,
-    const base::flat_map<std::string, gfx::Image>& icons,
-    const std::vector<actor_login::Credential>& credentials) {
-  request_to_show_credential_selection_dialog_callback_list_.Notify(
-      task_id, icons, credentials,
-      base::BindRepeating(&ActorKeyedService::OnCredentialSelected,
-                          weak_ptr_factory_.GetWeakPtr(), task_id));
-}
-
-void ActorKeyedService::OnCredentialSelected(
-    TaskId request_task_id,
-    webui::mojom::SelectCredentialDialogResponsePtr response) {
-  TRACE_EVENT0("actor", "ActorKeyedService::OnCredentialSelected");
-  // TODO(crbug.com/440147814): Update the `UserGrantedPermissionDuration`
-  // if the user changes the permission.
-  TaskId response_task_id(response->task_id);
-  if (response_task_id != request_task_id) {
-    // TODO(crbug.com/441500534): We should also add error handling in
-    // glic_api_host.ts.
-    VLOG(1) << "SelectCredentialDialogResponse has a different task id "
-            << response_task_id << " than requested " << request_task_id;
-    // If the task ID mismatches, generate an empty response with the correct
-    // task ID and error value.
-    response->task_id = request_task_id.value();
-    response->selected_credential_id = std::nullopt;
-    // TODO(crbug.com/427817882): Explicit error reason (kMismatchedTaskId).
-    response->error_reason = std::nullopt;
-  }
-  if (auto* task = GetTask(request_task_id)) {
-    task->GetExecutionEngine()->OnCredentialSelected(std::move(response));
-  } else {
-    VLOG(1) << "Task not found for task id: " << request_task_id;
-  }
-}
-
-base::CallbackListSubscription
-ActorKeyedService::AddRequestToShowUserConfirmationDialogSubscriberCallback(
-    RequestToShowUserConfirmationDialogSubscriberCallback callback) {
-  return request_to_show_user_confirmation_dialog_callback_list_.Add(
-      std::move(callback));
-}
-
-void ActorKeyedService::NotifyRequestToShowUserConfirmationDialog(
-    TaskId task_id,
-    const url::Origin& navigation_origin) {
-  request_to_show_user_confirmation_dialog_callback_list_.Notify(
-      navigation_origin,
-      base::BindRepeating(&ActorKeyedService::OnUserConfirmationDialogDecision,
-                          weak_ptr_factory_.GetWeakPtr(), task_id));
-}
-
-void ActorKeyedService::OnUserConfirmationDialogDecision(
-    TaskId request_task_id,
-    webui::mojom::UserConfirmationDialogResponsePtr response) {
-  if (auto* task = GetTask(request_task_id)) {
-    task->GetExecutionEngine()->OnUserConfirmationDialogResponse(
-        std::move(response));
-  } else {
-    VLOG(1) << "Task not found for task id: " << request_task_id;
-  }
-}
-
-base::CallbackListSubscription
-ActorKeyedService::AddRequestToConfirmNavigationSubscriberCallback(
-    RequestToConfirmNavigationSubscriberCallback callback) {
-  return request_to_confirm_navigation_callback_list_.Add(std::move(callback));
-}
-
-void ActorKeyedService::NotifyRequestToConfirmNavigation(
-    const TaskId& task_id,
-    const url::Origin& navigation_origin) {
-  request_to_confirm_navigation_callback_list_.Notify(
-      task_id, navigation_origin,
-      base::BindRepeating(&ActorKeyedService::OnNavigationConfirmationDecision,
-                          weak_ptr_factory_.GetWeakPtr(), task_id));
-}
-
-void ActorKeyedService::OnNavigationConfirmationDecision(
-    TaskId request_task_id,
-    webui::mojom::NavigationConfirmationResponsePtr response) {
-  if (auto* task = GetTask(request_task_id)) {
-    task->GetExecutionEngine()->OnNavigationConfirmationResponse(
-        std::move(response));
-  } else {
-    VLOG(1) << "Task not found for task id: " << request_task_id;
-  }
 }
 
 void ActorKeyedService::OnActOnWebCapabilityChanged(bool can_act_on_web) {
@@ -370,7 +276,11 @@ void ActorKeyedService::PerformActions(
   std::vector<ActionResultWithLatencyInfo> empty_results;
   auto* task = GetTask(task_id);
   if (!task) {
-    VLOG(1) << "PerformActions failed: Task not found.";
+    GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::PerformActions",
+                     JournalDetailsBuilder()
+                         .Add("task_id", task_id)
+                         .AddError("Invalid Task")
+                         .Build());
     RunLater(base::BindOnce(std::move(callback),
                             mojom::ActionResultCode::kTaskWentAway,
                             std::nullopt, std::move(empty_results)));
@@ -378,7 +288,9 @@ void ActorKeyedService::PerformActions(
   }
 
   if (actions.empty()) {
-    VLOG(1) << "PerformActions failed: No actions provided.";
+    GetJournal().Log(
+        GURL(), TaskId(), "ActorKeyedService::PerformActions",
+        JournalDetailsBuilder().AddError("Empty Actions List").Build());
     RunLater(base::BindOnce(std::move(callback),
                             mojom::ActionResultCode::kEmptyActionSequence,
                             std::nullopt, std::move(empty_results)));
@@ -408,17 +320,29 @@ void ActorKeyedService::OnActionsFinished(
 void ActorKeyedService::FailAllTasks() {
   std::vector<TaskId> tasks_to_stop =
       FindTaskIdsInActive([](const ActorTask& task) { return true; });
+  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::FailAllTasks", {});
   for (const auto& task_id : tasks_to_stop) {
-    StopTask(task_id, /*success=*/false);
+    StopTask(task_id, ActorTask::StoppedReason::kChromeFailure);
   }
 }
 
-void ActorKeyedService::StopTask(TaskId task_id, bool success) {
+void ActorKeyedService::StopTask(TaskId task_id,
+                                 ActorTask::StoppedReason stop_reason) {
   TRACE_EVENT0("actor", "ActorKeyedService::StopTask");
+  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::StopTask",
+                   JournalDetailsBuilder()
+                       .Add("task_id", task_id)
+                       .Add("stop_reason", stop_reason)
+                       .Build());
+
   auto task = active_tasks_.extract(task_id);
   if (!task.empty()) {
-    auto ret = inactive_tasks_.insert(std::move(task));
-    ret.position->second->Stop(success);
+    if (base::FeatureList::IsEnabled(kActorDoNotStoreCompletedTasks)) {
+      task.mapped()->Stop(stop_reason);
+    } else {
+      auto ret = inactive_tasks_.insert(std::move(task));
+      ret.position->second->Stop(stop_reason);
+    }
   }
 }
 

@@ -737,6 +737,10 @@ void AddDownloadsStrings(content::WebUIDataSource* html_source) {
 #if BUILDFLAG(ENABLE_GLIC)
 
 bool ShouldShowWebActuationToggle(Profile* profile) {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(::switches::kGlicAlwaysShowWebActuationToggle)) {
+    return true;
+  }
   if (!base::FeatureList::IsEnabled(features::kGlicWebActuationSetting)) {
     return false;
   }
@@ -1314,10 +1318,18 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"yourSavedInfoRelatedServicesTitle",
        IDS_SETTINGS_RELATED_SERVICES_TITLE},
       {"identityDocsCardTitle", IDS_AUTOFILL_IDENTITY_DOCS_TITLE},
+      {"identityDocsOptInToggleLabel",
+        IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_LABEL},
+      {"identityDocsOptInToggleSubLabel",
+        IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_SUB_LABEL},
+      {"travelOptInToggleLabel",
+        IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL},
+      {"travelOptInToggleSubLabel",
+        IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_SUB_LABEL},
       {"yourSavedInfoDriverLicenseChip",
        IDS_AUTOFILL_AI_DRIVERS_LICENSE_ENTITY_NAME},
-      {"yourSavedInfoNationalIdChip",
-       IDS_AUTOFILL_AI_NATIONAL_ID_CARD_ENTITY_NAME},
+      {"yourSavedInfoNationalIdsChip",
+       IDS_AUTOFILL_AI_NATIONAL_IDS_TITLE},
       {"yourSavedInfoPassportChip", IDS_AUTOFILL_AI_PASSPORT_ENTITY_NAME},
       {"travelCardTitle", IDS_AUTOFILL_TRAVEL_TITLE},
       {"yourSavedInfoVehiclesChip", IDS_AUTOFILL_AI_VEHICLES_TITLE},
@@ -1928,6 +1940,8 @@ void AddSyncControlsStrings(content::WebUIDataSource* html_source) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
 #if !BUILDFLAG(IS_CHROMEOS)
       {"historyTabsCheckboxLabel", IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE},
+      {"historyTabsCheckboxSubLabelOff",
+       IDS_SETTINGS_ACCOUNT_HISTORY_TOGGLE_SUB_LABEL_OFF},
 #endif
       {"autofillCheckboxLabel", IDS_SETTINGS_AUTOFILL_CHECKBOX_LABEL},
       {"historyCheckboxLabel", IDS_SETTINGS_HISTORY_CHECKBOX_LABEL},
@@ -2308,14 +2322,17 @@ void AddPrivacyStrings(content::WebUIDataSource* html_source,
       {"securitySafeBrowsingStandardTitle",
        IDS_SETTINGS_SECURITY_SAFE_BROWSING_STANDARD_TITLE},
       {"securitySafeBrowsingEnhancedTitle",
-       IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_TITLE}};
+       IDS_SETTINGS_SECURITY_SAFE_BROWSING_ENHANCED_TITLE},
+      {"securityFeatureRowStateEnhanced",
+       IDS_SETTINGS_SECURITY_FEATURE_ROW_STATE_ENHANCED},
+      {"securityFeatureRowStateStandard",
+       IDS_SETTINGS_SECURITY_FEATURE_ROW_STATE_STANDARD},
+      {"securityFeatureRowStateOff",
+       IDS_SETTINGS_SECURITY_FEATURE_ROW_STATE_OFF}};
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
   html_source->AddString("cookiesSettingsHelpCenterURL",
                          chrome::kCookiesSettingsHelpCenterURL);
-
-  html_source->AddString("incognitoTrackingProtectionsLearnMoreUrl",
-                         chrome::kIncognitoTrackingProtectionsLearnMoreUrl);
 
   html_source->AddString("relatedWebsiteSetsLearnMoreURL",
                          chrome::kRelatedWebsiteSetsLearnMoreURL);

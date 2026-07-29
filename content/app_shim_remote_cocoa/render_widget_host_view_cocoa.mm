@@ -1305,7 +1305,6 @@ void ExtractUnderlines(NSAttributedString* string,
   // only the last setMarkedText will be processed.
   ui::DomCode domCode = ui::KeycodeConverter::NativeKeycodeToDomCode(keyCode);
   _isReconversionTriggered =
-      base::FeatureList::IsEnabled(features::kMacImeLiveConversionFix) &&
       _hasMarkedText && domCode == ui::DomCode::ARROW_LEFT &&
       _markedTextSelectedRange.location == 0 && _markedRange.location != 0 &&
       _markedRange.location != NSNotFound;
@@ -1766,10 +1765,16 @@ void ExtractUnderlines(NSAttributedString* string,
   // message, since it just means that a menu extra (on the "system status bar")
   // was activated; we'll get another |-windowDidResignKey| if we ever really
   // lose key window status.
-  if ([NSApp isActive] && ([NSApp keyWindow] == [self window]))
+  if ([NSApp isActive] && ([self window].isKeyWindow)) {
     return;
+  }
 
   _host->OnWindowIsKeyChanged(false);
+  if (base::FeatureList::IsEnabled(
+          features::kCancelCompositionWhenWindowLosesFocus)) {
+    // Cancel any ongoing composition when the window loses focus.
+    [self cancelComposition];
+  }
 }
 
 - (BOOL)becomeFirstResponder {
@@ -2261,8 +2266,6 @@ extern NSString* NSTextInputReplacementRangeAttributeName;
   BOOL isAttributedString = [string isKindOfClass:[NSAttributedString class]];
   NSString* imText = isAttributedString ? [string string] : string;
   int length = [imText length];
-  const BOOL fixLiveConversion =
-      base::FeatureList::IsEnabled(features::kMacImeLiveConversionFix);
 
   // |markedRange_| will get set on a callback from ImeSetComposition().
   _markedTextSelectedRange = newSelRange;
@@ -2275,14 +2278,11 @@ extern NSString* NSTextInputReplacementRangeAttributeName;
   // characters.
   if (length > 0) {
     _hasMarkedText = YES;
-    if (!fixLiveConversion) {
-      length = [string length];
-    }
     if (replacementRange.location != NSNotFound) {
       // If the replacement range is valid, the range should be replaced with
       // the new text.
       _markedRange = NSMakeRange(replacementRange.location, length);
-    } else if (fixLiveConversion && _markedRange.location == NSNotFound) {
+    } else if (_markedRange.location == NSNotFound) {
       // If no replacement range and no marked range, the current selection
       // should be replaced.
       _markedRange = NSMakeRange(_textSelectionRange.start(), length);
@@ -2292,7 +2292,7 @@ extern NSString* NSTextInputReplacementRangeAttributeName;
       _markedRange.length = length;
     }
 
-    if (fixLiveConversion && newSelRange.location != NSNotFound &&
+    if (newSelRange.location != NSNotFound &&
         _markedRange.location <= std::numeric_limits<uint32_t>::max()) {
       CHECK_NE(_markedRange.location, static_cast<NSUInteger>(NSNotFound));
       CHECK_LE(newSelRange.location, std::numeric_limits<uint32_t>::max());
@@ -2307,7 +2307,7 @@ extern NSString* NSTextInputReplacementRangeAttributeName;
   } else {
     // An empty text means the composition is about to be cancelled,
     // collapse the selection to the beginning of the current marked range.
-    if (fixLiveConversion && _hasMarkedText) {
+    if (_hasMarkedText) {
       CHECK_LE(_markedRange.location, std::numeric_limits<uint32_t>::max())
           << "_markedRange.location is too large.";
       _textSelectionRange =

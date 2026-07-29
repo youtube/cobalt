@@ -337,7 +337,7 @@ class AutofillField : public FormFieldData {
   // For the field's current value, see FormFieldData::value().
   const std::u16string& initial_value() const { return initial_value_; }
 
-  // Sets the field's current value.
+  // Sets the field's initial value.
   void set_initial_value(std::u16string initial_value,
                          base::PassKey<FormStructure> pass_key) {
     initial_value_ = std::move(initial_value);
@@ -452,6 +452,7 @@ class AutofillField : public FormFieldData {
 #endif
 
  private:
+  friend class AutofillFieldTestApi;
   struct PredictionResult {
     // The type may be a union type, i.e., hold multiple FieldTypes.
     AutofillType type;
@@ -538,8 +539,9 @@ class AutofillField : public FormFieldData {
   // submission time.
   FieldTypeSet possible_types_;
 
-  // The field's initial value. By default, it's the same as the field's
-  // `value()`, but FormStructure::RetrieveFromCache() may override it.
+  // The field's initial value. Initially, it is the same as
+  // `FormFieldData::value()`, but unlike value(), it remains unchanged over
+  // time.
   std::u16string initial_value_ = value();
 
   // Used to hold the position of the first digit to be copied as a substring

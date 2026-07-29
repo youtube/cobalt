@@ -11,6 +11,7 @@ component("persistent_cache") {
     "entry_metadata.h",
     "persistent_cache.h",
     "persistent_cache_collection.h",
+    "transaction_error.h",
   ]
 
   sources = [
@@ -67,12 +68,15 @@ static_library("test_support") {
   testonly = true
 
   sources = [
-    "mock/mock_backend_impl.cc",
-    "mock/mock_backend_impl.h",
+    "mock/mock_backend.cc",
+    "mock/mock_backend.h",
+    "mock/mock_backend_storage_delegate.cc",
+    "mock/mock_backend_storage_delegate.h",
     "mock/mock_entry_impl.cc",
     "mock/mock_entry_impl.h",
-    "sqlite/test_utils.cc",
-    "sqlite/test_utils.h",
+    "sqlite/test_helper.cc",
+    "sqlite/test_helper.h",
+    "test_utils.h",
   ]
 
   deps = [

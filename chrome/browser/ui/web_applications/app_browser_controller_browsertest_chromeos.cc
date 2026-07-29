@@ -43,7 +43,8 @@
 
 namespace {
 SkColor GetFrameColor(Browser* browser) {
-  CustomThemeSupplier* theme = browser->app_controller()->GetThemeSupplier();
+  CustomThemeSupplier* theme =
+      web_app::AppBrowserController::From(browser)->GetThemeSupplier();
   SkColor result;
   EXPECT_TRUE(theme->GetColor(ThemeProperties::COLOR_FRAME_ACTIVE, &result));
   return result;
@@ -183,7 +184,8 @@ class AppBrowserControllerBrowserTestCrOs : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTestCrOs, TabsTest) {
   InstallAndLaunchMockApp();
 
-  EXPECT_TRUE(app_browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP));
+  EXPECT_TRUE(app_browser_->SupportsWindowFeature(
+      Browser::WindowFeature::kFeatureTabStrip));
 
   // No favicons shown for web apps.
   EXPECT_FALSE(
@@ -230,7 +232,8 @@ IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTestCrOs, TabsTest) {
                                       ->GetActiveWebContents()
                                       ->GetPrimaryMainFrame(),
                                   {});
-  EXPECT_FALSE(app_browser_->SupportsWindowFeature(Browser::FEATURE_TABSTRIP));
+  EXPECT_FALSE(app_browser_->SupportsWindowFeature(
+      Browser::WindowFeature::kFeatureTabStrip));
 }
 
 IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTestCrOs, NonAppUrl) {
@@ -302,7 +305,9 @@ IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTestCrOs,
 IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTestCrOs,
                        WhiteThemeForSystemAppPopup) {
   InstallAndLaunchMockPopup();
-  EXPECT_FALSE(app_browser_->app_controller()->GetThemeColor().has_value());
+  EXPECT_FALSE(web_app::AppBrowserController::From(app_browser_)
+                   ->GetThemeColor()
+                   .has_value());
 }
 
 IN_PROC_BROWSER_TEST_F(AppBrowserControllerBrowserTestCrOs, Shutdown) {
@@ -390,7 +395,8 @@ class AppBrowserControllerChromeUntrustedBrowserTest
 IN_PROC_BROWSER_TEST_F(AppBrowserControllerChromeUntrustedBrowserTest,
                        DoesNotShowToolbar) {
   Browser* app_browser = InstallAndLaunchMockApp();
-  EXPECT_FALSE(app_browser->app_controller()->ShouldShowCustomTabBar());
+  EXPECT_FALSE(web_app::AppBrowserController::From(app_browser)
+                   ->ShouldShowCustomTabBar());
 }
 
 }  // namespace web_app

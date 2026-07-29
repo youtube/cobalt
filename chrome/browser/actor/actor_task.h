@@ -16,13 +16,16 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/pass_key.h"
-#include "chrome/browser/actor/actor_keyed_service.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_task_delegate.h"
+#include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/visibility.h"
+#include "content/public/common/buildflags.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
@@ -30,6 +33,7 @@ class Profile;
 namespace actor {
 
 class ExecutionEngine;
+class ActorKeyedService;
 namespace ui {
 class UiEventDispatcher;
 }
@@ -72,13 +76,15 @@ class ActorTask {
   void SetIdForTesting(int id);
 
   const std::string& title() const { return title_; }
+  base::WeakPtr<ActorTaskDelegate> delegate() const { return delegate_; }
 
   // Once `state_` leaves kCreated it should never go back. Once `state_` enters
-  // kFinished or kCancelled it should never change. These states are granular,
-  // prefer using the Is[Actor|User]Controlled and IsCompleted methods rather
-  // than querying `state_` directly.
+  // kFinished, kCancelled, or kFailed it should never change. These states are
+  // granular, prefer using the Is[Actor|User]Controlled and IsCompleted methods
+  // rather than querying `state_` directly.
+  //
   // LINT.IfChange(State)
-  // These enum values are persisted to logs.  Do not renumber or reuse numeric
+  // These enum values are persisted to logs. Do not renumber or reuse numeric
   // values.
   enum class State {
     kCreated = 0,
@@ -89,9 +95,22 @@ class ActorTask {
     kCancelled = 5,
     kFinished = 6,
     kWaitingOnUser = 7,
-    kMaxValue = kWaitingOnUser,
+    kFailed = 8,
+    kMaxValue = kFailed,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:ActorTaskState)
+
+  // LINT.IfChange(StoppedReason)
+  // The reason a task was stopped.
+  enum class StoppedReason {
+    kStoppedByUser = 0,
+    kTaskComplete = 1,
+    kModelError = 2,
+    kChromeFailure = 3,
+    kTabDetached = 4,
+    kMaxValue = kTabDetached,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:StoppedReason)
 
   State GetState() const;
   void SetState(State new_state);
@@ -101,9 +120,8 @@ class ActorTask {
   void Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
            ActCallback callback);
 
-  // Sets State to kFinished if `success` is true or to kCancelled if
-  // `success` is false and cancels any pending actions.
-  void Stop(bool success);
+  // Sets State to `stop_reason` and cancels any pending actions.
+  void Stop(StoppedReason stop_reason);
 
   // Pause() is called to indicate that either the actor or user is pausing
   // actor actions, determined by the `from_actor` flag. This will cancel any
@@ -162,6 +180,10 @@ class ActorTask {
   // The set of tabs that were acted on by the last call to Act.
   TabHandleSet GetLastActedTabs() const;
 
+  void SetExecutionEngineForTesting(std::unique_ptr<ExecutionEngine> engine);
+
+  base::WeakPtr<ActorTask> GetWeakPtr();
+
  private:
   class ActorControlledTabState : public content::WebContentsObserver {
    public:
@@ -172,12 +194,18 @@ class ActorTask {
 
     // content::WebContentsObserver overrides
     void PrimaryPageChanged(content::Page& page) override;
+    void OnVisibilityChanged(content::Visibility visibility) override;
 
     // Parent task
     raw_ptr<ActorTask> task;
     // Keeps the tab in "actuation mode". The runner is present when the tab is
     // actively being kept awake and is reset during pause.
     base::ScopedClosureRunner actuation_runner;
+    // When a tab is active, external popup menus are disabled. This runner
+    // allows external popups to be created again.
+#if BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
+    base::ScopedClosureRunner reenable_external_popups;
+#endif  // BUILDFLAG(IS_MAC) && BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
     // Subscription for TabInterface::WillDetach.
     base::CallbackListSubscription will_detach_subscription;
     // Subscription for TabInterface::WillDiscardContents.
@@ -210,8 +238,17 @@ class ActorTask {
 
   void ResetToObserveTabsSet();
 
+  // Recomputes the visible tab. This is necessary to capture the previous
+  // visibility state for UpdateVisibilityTimes() when called after
+  // ActorControlledTabState::OnVisibilityChanged() is fired.
+  void RecomputeHasVisibleTab();
+  void UpdateVisibilityTimes();
+
   State state_ = State::kCreated;
   raw_ptr<Profile> profile_;
+
+  // The time at which the task was created.
+  base::TimeTicks create_time_;
 
   // The time at which the task was completed or cancelled.
   base::Time end_time_;
@@ -224,6 +261,8 @@ class ActorTask {
 
   TaskId id_;
 
+  base::SafeRef<AggregatedJournal> journal_;
+
   // The title does not change for the duration of a task.
   const std::string title_;
 
@@ -232,6 +271,15 @@ class ActorTask {
   // An accumulation of elapsed times for previous "active" states. i.e. the
   // actor is controlling the task and not waiting on a user action.
   base::TimeDelta total_actor_controlled_active_time_;
+
+  // A timer for the current actuation period.
+  base::ElapsedTimer visibility_timer_;
+  // Whether any of the controlled tabs is visible.
+  bool has_visible_tab_ = false;
+  // Total time this task has been actuating while a tab was visible.
+  base::TimeDelta total_time_visible_;
+  // Total time this task has been actuating with no tabs visible.
+  base::TimeDelta total_time_not_visible_;
 
   // A map from a tab's handle to state associated with that tab. The presence
   // of a tab in this map signifies that it is part of this task.
@@ -249,6 +297,9 @@ class ActorTask {
   size_t total_number_of_actions_ = 0;
   // Number of interruptions
   size_t total_number_of_interruptions_ = 0;
+
+  // Once a task is stopped what the reason was.
+  std::optional<StoppedReason> stopped_reason_;
 
   // Delegate for task-related events.
   base::WeakPtr<ActorTaskDelegate> delegate_;

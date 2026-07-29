@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_BNPL_STRATEGY_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_BNPL_STRATEGY_H_
 
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
+
 namespace autofill::payments {
 
 // Interface for objects that define a strategy for handling a BNPL autofill
@@ -55,6 +57,19 @@ class BnplStrategy {
     kMaxValue = kNotifyUiOfAmountExtractionReturnedResponse,
   };
 
+  // Defines the step that the BnplManager should take before switching to the
+  // next view, based on the platform.
+  enum class BeforeSwitchingViewAction {
+    // The UI code should handle the switching. BnplManager will
+    // continue to show the next view directly.
+    kDoNothing = 0,
+
+    // Close the current view before showing the next one.
+    kCloseCurrentUi = 1,
+
+    kMaxValue = kCloseCurrentUi,
+  };
+
   virtual ~BnplStrategy();
 
   // Returns the next action to take after the user has been shown a payment
@@ -69,6 +84,14 @@ class BnplStrategy {
   // Returns the next action to take after the amount extraction is finished.
   virtual BnplAmountExtractionReturnedNextAction
   GetNextActionOnAmountExtractionReturned();
+
+  // Returns the action to take before switching to the next view.
+  virtual BeforeSwitchingViewAction GetBeforeViewSwitchAction();
+
+  // Returns whether the existing UI should be removed after a server response.
+  // `result` is used by platforms to check if the UI should remain open.
+  virtual bool ShouldRemoveExistingUiOnServerReturn(
+      PaymentsAutofillClient::PaymentsRpcResult result) = 0;
 };
 
 }  // namespace autofill::payments

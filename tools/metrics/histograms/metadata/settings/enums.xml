@@ -58,7 +58,7 @@ chromium-metrics-reviews@google.com.
   <int value="-571101369" label="SafeBrowsingSettingsFragment"/>
   <int value="-518410470" label="GoogleServicesSettings"/>
   <int value="-515033038" label="AutofillServerCardEditor"/>
-  <int value="-475543757" label="IpProtectionSettingsFragment"/>
+  <int value="-475543757" label="(Obsolete) IpProtectionSettingsFragment"/>
   <int value="-460802969" label="PriceNotificationSettingsFragment"/>
   <int value="-275160283" label="ExtendedPreloadingSettingsFragment"/>
   <int value="-273029950" label="PasswordCheckFragmentView"/>
@@ -82,6 +82,7 @@ chromium-metrics-reviews@google.com.
   <int value="406265787" label="LanguageSettings"/>
   <int value="436870314" label="SiteSettings"/>
   <int value="453432714" label="AboutChromeSettings"/>
+  <int value="455040669" label="EmptyFragment"/>
   <int value="460038414" label="PreloadPagesSettingsFragment"/>
   <int value="461783669" label="SafetyHubNotificationsFragment"/>
   <int value="493474121" label="StandardProtectionSettingsFragment"/>
@@ -91,10 +92,12 @@ chromium-metrics-reviews@google.com.
   <int value="690866195" label="SafetyHubFragment"/>
   <int value="706619094" label="CredentialEditFragmentView"/>
   <int value="721075728" label="FederatedCredentialFragmentView"/>
+  <int value="734412281" label="SearchResultsPreferenceFragment"/>
   <int value="790603956" label="ChosenObjectSettings"/>
   <int value="851266805" label="RwsCookieSettings"/>
   <int value="853227285" label="ImageDescriptionsSettings"/>
-  <int value="887082954" label="FingerprintingProtectionSettingsFragment"/>
+  <int value="887082954"
+      label="(Obsolete) FingerprintingProtectionSettingsFragment"/>
   <int value="894297033" label="SingleCategorySettings"/>
   <int value="903277107" label="FledgeBlockedSitesFragment"/>
   <int value="1015549581" label="AlwaysTranslateListFragment"/>
@@ -109,13 +112,15 @@ chromium-metrics-reviews@google.com.
   <int value="1624624514" label="FinancialAccountsManagementFragment"/>
   <int value="1676521220" label="SelectLanguageFragment"/>
   <int value="1764379105" label="TabsSettings"/>
+  <int value="1837742646" label="AutofillBuyNowPayLaterFragment"/>
   <int value="1849593145" label="AndroidPaymentAppsFragment"/>
   <int value="1891640238" label="AutofillPaymentMethodsFragment"/>
   <int value="1952237285" label="TracingSettings"/>
   <int value="1968319616" label="(Obsolete) ClearBrowsingDataFragmentBasic"/>
   <int value="1969661266" label="AddressBarSettingsFragment"/>
   <int value="2070921964" label="(Obsolete) ClearBrowsingDataTabsFragment"/>
-  <int value="2084696263" label="IncognitoTrackingProtectionsFragment"/>
+  <int value="2084696263"
+      label="(Obsolete) IncognitoTrackingProtectionsFragment"/>
 </enum>
 
 <enum name="BooleanRedirected">
@@ -420,8 +425,8 @@ chromium-metrics-reviews@google.com.
   <int value="21" label="Third-party cookies block in incognito radio"/>
   <int value="22" label="Third-party cookies block all radio"/>
   <int value="23" label="Block all third-party cookies toggle"/>
-  <int value="24" label="IP protection toggle"/>
-  <int value="25" label="Fingerprinting protection toggle"/>
+  <int value="24" label="IP protection toggle (obsolete)"/>
+  <int value="25" label="Fingerprinting protection toggle (obsolete)"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/settings/metrics_browser_proxy.ts:PrivacyElementInteractions) -->

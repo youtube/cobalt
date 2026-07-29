@@ -124,8 +124,12 @@ const CGFloat kFeatureRowIconSize = 20;
 }
 
 - (BOOL)isGeminiAvailable {
-  return !_webState->IsLoading() &&
-         _BWGService->IsBwgAvailableForWebState(_webState);
+  if (IsGeminiImmediateOverlayEnabled()) {
+    return _BWGService->IsBwgAvailableForWebState(_webState);
+  } else {
+    return !_webState->IsLoading() &&
+           _BWGService->IsBwgAvailableForWebState(_webState);
+  }
 }
 
 - (BOOL)isReaderModeAvailable {
@@ -300,10 +304,11 @@ const CGFloat kFeatureRowIconSize = 20;
         initWithFeatureType:PageActionMenuTranslate
                       title:l10n_util::GetNSString(
                                 IDS_IOS_AI_HUB_TRANSLATE_LABEL)
-                       icon:DefaultSymbolWithPointSize(kTranslateSymbol,
-                                                       kFeatureRowIconSize)
+                       icon:CustomSymbolTemplateWithPointSize(
+                                kTranslateSymbol, kFeatureRowIconSize)
                  actionType:PageActionMenuButtonAction];
     translateFeature.subtitle = [self translateLanguagePair];
+    translateFeature.actionType = PageActionMenuSettingsAction;
     translateFeature.actionText = l10n_util::GetNSString(
         IDS_IOS_AI_HUB_TRANSLATE_SHOW_ORIGINAL_BUTTON_LABEL);
     [features addObject:translateFeature];
@@ -418,6 +423,8 @@ const CGFloat kFeatureRowIconSize = 20;
 
   translateClient->GetTranslateManager()->RevertTranslation();
 
+  [self updateTranslateInfobarAcceptedState:NO];
+
   [self.consumer updateFeatureRowsAvailability];
 }
 
@@ -513,21 +520,7 @@ std::string GetTargetLanguageCode(ChromeIOSTranslateClient* translate_client) {
                                    sourceLanguage, targetLanguage,
                                    translate::TranslateErrors::NONE, false);
 
-  infobars::InfoBarManager* infoBarManager =
-      InfoBarManagerImpl::FromWebState(webState);
-  if (!infoBarManager) {
-    return;
-  }
-
-  InfoBarIOS* translateInfobar = nullptr;
-  for (infobars::InfoBar* infobar : infoBarManager->infobars()) {
-    InfoBarIOS* infobarIOS = static_cast<InfoBarIOS*>(infobar);
-    if (infobarIOS->infobar_type() == InfobarType::kInfobarTypeTranslate) {
-      translateInfobar = infobarIOS;
-      break;
-    }
-  }
-
+  InfoBarIOS* translateInfobar = [self findTranslateInfobar];
   if (!translateInfobar) {
     return;
   }
@@ -560,9 +553,33 @@ std::string GetTargetLanguageCode(ChromeIOSTranslateClient* translate_client) {
   }
 
   tabHelper->ExecuteZeroStateSuggestions(
-      base::BindOnce(^(NSArray<NSString*>* suggestions) {
-        ios::provider::SetZeroStateSuggestions(suggestions);
+      base::BindOnce(^(NSArray<NSString*>* suggestions){
+          // No-op.
       }));
+}
+
+// Finds the translate infobar.
+- (InfoBarIOS*)findTranslateInfobar {
+  InfoBarManagerImpl* manager = InfoBarManagerImpl::FromWebState(_webState);
+  if (!manager) {
+    return nullptr;
+  }
+
+  for (infobars::InfoBar* infobar : manager->infobars()) {
+    InfoBarIOS* infobarIOS = static_cast<InfoBarIOS*>(infobar);
+    if (infobarIOS->infobar_type() == InfobarType::kInfobarTypeTranslate) {
+      return infobarIOS;
+    }
+  }
+  return nullptr;
+}
+
+// Updates the translate infobar's accepted state.
+- (void)updateTranslateInfobarAcceptedState:(BOOL)accepted {
+  InfoBarIOS* translateInfobar = [self findTranslateInfobar];
+  if (translateInfobar) {
+    translateInfobar->set_accepted(accepted);
+  }
 }
 
 @end

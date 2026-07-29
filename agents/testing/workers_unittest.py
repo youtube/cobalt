@@ -116,21 +116,8 @@ class WorkDirUnittest(fake_filesystem_unittest.TestCase):
             stderr=subprocess.STDOUT,
         )
 
-    def test_enter_exists_no_force(self):
-        """Tests that an error is raised if the workdir exists."""
-        self.fs.create_dir('/tmp/workdir')
-        self.mock_check_btrfs.return_value = False
-        workdir = workers.WorkDir('workdir',
-                                  pathlib.Path('/tmp/src'),
-                                  clean=False,
-                                  verbose=False,
-                                  force=False)
-        with self.assertRaises(FileExistsError):
-            with workdir:
-                pass
-
-    def test_enter_exists_force(self):
-        """Tests that the workdir is removed if it exists and force is on."""
+    def test_enter_exists(self):
+        """Tests that the workdir is removed if it exists."""
         self.fs.create_dir('/tmp/workdir')
         self.mock_check_btrfs.return_value = True
         workdir = workers.WorkDir('workdir',
@@ -989,8 +976,7 @@ class WorkerPoolUnittest(unittest.TestCase):
         )
         self.result_options = results.ResultOptions(
             print_output_on_success=False,
-            enable_perf_uploading=False,
-            git_revision=None,
+            result_handlers=[],
         )
 
     def _setUpPatches(self):
@@ -1112,6 +1098,8 @@ class WorkerPoolUnittest(unittest.TestCase):
         self.assertEqual(len(failed_tests), 1)
         self.assertEqual(failed_tests[0], failed_test)
         pool.shutdown_blocking(1)
+
+
 
     def test_shutdown_blocking(self):
         """Tests that shutdown_blocking shuts down all threads."""

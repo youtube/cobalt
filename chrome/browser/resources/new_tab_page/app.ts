@@ -88,7 +88,8 @@ export enum NtpElement {
   CUSTOMIZE_BUTTON = 9,
   CUSTOMIZE_DIALOG = 10,  // Obsolete
   WALLPAPER_SEARCH_BUTTON = 11,
-  MAX_VALUE = WALLPAPER_SEARCH_BUTTON,
+  ACTION_CHIPS = 12,
+  MAX_VALUE = ACTION_CHIPS,
 }
 
 /**
@@ -185,6 +186,8 @@ export class AppElement extends AppElementBase {
       showCustomizeChromeText_: {type: Boolean},
 
       showWallpaperSearch_: {type: Boolean},
+
+      isActionChipsVisible_: {type: Boolean},
 
       isFooterVisible_: {type: Boolean},
 
@@ -302,14 +305,13 @@ export class AppElement extends AppElementBase {
 
       ntpNextFeaturesEnabled_: {type: Boolean},
 
-      dropdownIsVisible_: {type: Boolean, reflect: true},
-
       searchboxInputFocused_: {type: Boolean},
       composeboxInputFocused_: {type: Boolean},
       /**
        * Whether the scrim is shown in Realbox Next.
        */
       showScrim_: {type: Boolean, reflect: true},
+      delayTabUpload: {type: Boolean, reflect: true},
     };
   }
 
@@ -374,6 +376,8 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('composeboxCloseByClickOutside');
   accessor composeboxEnabled: boolean =
       loadTimeData.getBoolean('searchboxShowComposebox');
+  protected accessor isActionChipsVisible_: boolean =
+      loadTimeData.getBoolean('actionChipsEnabled');
   protected accessor isFooterVisible_: boolean = false;
   protected accessor ntpRealboxNextEnabled_: boolean =
       loadTimeData.getBoolean('ntpRealboxNextEnabled');
@@ -383,10 +387,10 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('searchboxCyclingPlaceholders');
   protected accessor ntpNextFeaturesEnabled_: boolean =
       loadTimeData.getBoolean('ntpNextFeaturesEnabled');
-  protected accessor dropdownIsVisible_: boolean = false;
   protected accessor searchboxInputFocused_: boolean = false;
   protected accessor composeboxInputFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
+  protected accessor delayTabUpload: boolean = false;
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -398,6 +402,7 @@ export class AppElement extends AppElementBase {
   private setThemeListenerId_: number|null = null;
   private setCustomizeChromeSidePanelVisibilityListener_: number|null = null;
   private setWallpaperSearchButtonVisibilityListener_: number|null = null;
+  private setActionChipsVisibilityListenerId_: number|null = null;
   private footerVisibilityUpdatedListener_: number|null = null;
   private eventTracker_: EventTracker = new EventTracker();
   private shouldPrintPerformance_: boolean = false;
@@ -511,6 +516,10 @@ export class AppElement extends AppElementBase {
               }
             });
 
+    this.setActionChipsVisibilityListenerId_ =
+        this.callbackRouter_.setActionChipsVisibility.addListener(
+            (isVisible: boolean) => this.isActionChipsVisible_ = isVisible);
+
     this.footerVisibilityUpdatedListener_ =
         this.callbackRouter_.footerVisibilityUpdated.addListener(
             (visible: boolean) => {
@@ -578,6 +587,8 @@ export class AppElement extends AppElementBase {
         this.setWallpaperSearchButtonVisibilityListener_!);
     this.customizeButtonsCallbackRouter_.removeListener(
         this.setCustomizeChromeSidePanelVisibilityListener_!);
+    this.callbackRouter_.removeListener(
+        this.setActionChipsVisibilityListenerId_!);
     this.callbackRouter_.removeListener(this.footerVisibilityUpdatedListener_!);
     this.eventTracker_.removeAll();
   }
@@ -920,6 +931,17 @@ export class AppElement extends AppElementBase {
     this.showVoiceSearchOverlay_ = false;
   }
 
+  protected onActionChipClick_(e: CustomEvent<{
+    searchboxText: string,
+    contextFiles: ComposeboxFile[],
+    mode: ComposeboxMode,
+  }>) {
+    if (e.detail.contextFiles.length === 1) {
+      this.delayTabUpload = true;
+    }
+    this.openComposebox_(e);
+  }
+
   /**
    * Handles <CTRL> + <SHIFT> + <.> (also <CMD> + <SHIFT> + <.> on mac) to open
    * voice search.
@@ -1245,6 +1267,9 @@ export class AppElement extends AppElementBase {
         case $$(this, 'cr-searchbox'):
           recordClick(NtpElement.REALBOX);
           return;
+        case $$(this, 'ntp-action-chips'):
+          recordClick(NtpElement.ACTION_CHIPS);
+          return;
         case $$(this, 'cr-most-visited'):
           recordClick(NtpElement.MOST_VISITED);
           return;
@@ -1281,10 +1306,6 @@ export class AppElement extends AppElementBase {
 
   protected showThemeAttribution_(): boolean {
     return !!this.theme_?.backgroundImage?.attributionUrl;
-  }
-
-  protected onDropdownVisibleChanged_(e: CustomEvent<{value: boolean}>) {
-    this.dropdownIsVisible_ = e.detail.value;
   }
 
   protected onInputFocusChanged_(e: CustomEvent<{value: boolean}>) {

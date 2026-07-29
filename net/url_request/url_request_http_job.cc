@@ -91,6 +91,7 @@
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_connection_status_flags.h"
+#include "net/ssl/ssl_info.h"
 #include "net/storage_access_api/status.h"
 #include "net/url_request/clear_site_data.h"
 #include "net/url_request/redirect_util.h"
@@ -840,7 +841,8 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
       cookie_util::ComputeSameSiteContextForRequest(
           request_->method(), request_->url_chain(),
           request_->site_for_cookies(), request_->initiator(),
-          is_main_frame_navigation, force_ignore_site_for_cookies);
+          is_main_frame_navigation, force_ignore_site_for_cookies,
+          request_->ignore_unsafe_method_for_same_site_lax());
 
   CookieOptions options = CreateCookieOptions(same_site_context);
 
@@ -1316,6 +1318,13 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
       if (transaction_) {
         transaction_->GetRemoteEndpoint(&endpoint);
       }
+
+      // ssl_info is not a reference because there's no way of avoiding copy
+      // when constructing optional without move.
+      std::optional<net::SSLInfo> ssl_info;
+      if (transaction_ && transaction_->GetResponseInfo()) {
+        ssl_info = transaction_->GetResponseInfo()->ssl_info;
+      }
       // The NetworkDelegate must watch for OnRequestDestroyed and not modify
       // any of the arguments after it's called.
       // TODO(mattm): change the API to remove the out-params and take the
@@ -1325,7 +1334,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
           base::BindOnce(&URLRequestHttpJob::OnHeadersReceivedCallback,
                          weak_factory_.GetWeakPtr()),
           headers.get(), &override_response_headers_, endpoint,
-          &preserve_fragment_on_redirect_url_);
+          &preserve_fragment_on_redirect_url_, ssl_info);
       if (error != OK) {
         if (error == ERR_IO_PENDING) {
           awaiting_callback_ = true;

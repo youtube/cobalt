@@ -5,7 +5,12 @@
 #ifndef CHROME_BROWSER_UI_WAAP_WAAP_UTILS_H_
 #define CHROME_BROWSER_UI_WAAP_WAAP_UTILS_H_
 
+#include "base/time/time.h"
 #include "url/gurl.h"
+
+class Profile;
+
+namespace waap {
 
 // Returns true if the given URL is the initial WebUI scheme.
 // This is only relevant on non-Android platforms.
@@ -24,5 +29,11 @@ bool IsForInitialWebUI(const GURL& url);
 // experiment, which includes both the existing C++ version (not a InitialWebUI)
 // and the WebUI version.
 bool IsInitialWebUIMetricsLoggingEnabled();
+
+// Records the presentation time of the first paint for the browser window.
+// This function ensures the metric is recorded only once per browser process.
+void RecordBrowserWindowFirstPresentation(Profile* profile,
+                                          base::TimeTicks presentation_time);
+}  // namespace waap
 
 #endif  // CHROME_BROWSER_UI_WAAP_WAAP_UTILS_H_

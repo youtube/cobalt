@@ -9,6 +9,7 @@
 #include <set>
 #include <utility>
 
+#include "components/passage_embeddings/passage_embeddings_features.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 
@@ -210,7 +211,7 @@ void PageEmbeddingsService::OnPageContentExtracted(
   }
 
   web_contents_state_[web_contents].pending_passages =
-      candidates_generator_.Run(page_content, 10);
+      candidates_generator_.Run(page_content, kMaxPassagesPerPage.Get());
 
   if (web_contents_state_[web_contents].observer->IsWebContentsHidden()) {
     // The WebContents may have transitioned from visible to hidden by the time
@@ -260,17 +261,6 @@ void PageEmbeddingsService::OnEmbeddingsComputed(
     return;
   }
 
-  CHECK_EQ(passage_types.size(), embeddings.size());
-  CHECK_EQ(passage_strings.size(), embeddings.size());
-
-  std::vector<PassageEmbedding> passage_embeddings;
-  for (size_t i = 0; i < passage_types.size(); ++i) {
-    passage_embeddings.emplace_back(
-        std::make_pair(std::move(passage_strings[i]),
-                       std::move(passage_types[i])),
-        std::move(embeddings[i]));
-  }
-
   const auto loc = web_contents_state_.find(web_contents.get());
   DCHECK(loc != web_contents_state_.end());
 
@@ -283,6 +273,17 @@ void PageEmbeddingsService::OnEmbeddingsComputed(
   if (status != passage_embeddings::ComputeEmbeddingsStatus::kSuccess) {
     loc->second.passage_embeddings.clear();
     return;
+  }
+
+  CHECK_EQ(passage_types.size(), embeddings.size());
+  CHECK_EQ(passage_strings.size(), embeddings.size());
+
+  std::vector<PassageEmbedding> passage_embeddings;
+  for (size_t i = 0; i < passage_types.size(); ++i) {
+    passage_embeddings.emplace_back(
+        std::make_pair(std::move(passage_strings[i]),
+                       std::move(passage_types[i])),
+        std::move(embeddings[i]));
   }
   loc->second.passage_embeddings = std::move(passage_embeddings);
 

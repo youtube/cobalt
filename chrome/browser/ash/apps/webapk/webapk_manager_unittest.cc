@@ -12,8 +12,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/app_service_test.h"
-#include "chrome/browser/apps/app_service/publishers/arc_apps.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_test.h"
 #include "chrome/browser/ash/apps/webapk/webapk_install_queue.h"
@@ -75,16 +73,20 @@ class WebApkManagerTest : public apps::AppRegistryCache::Observer,
   WebApkManagerTest() = default;
 
   void SetUp() override {
-    testing::Test::SetUp();
+    arc_app_test_.PreProfileSetUp();
+    profile_ = std::make_unique<TestingProfile>();
+    arc_app_test_.SetUp(profile());
     web_app::test::AwaitStartWebAppProviderAndSubsystems(profile());
   }
 
-  void TearDown() override { arc_test_.TearDown(); }
+  void TearDown() override {
+    webapk_manager_.reset();
+    arc_app_test_.TearDown();
+    profile_.reset();
+  }
 
   void StartWebApkManager() {
-    app_service_test_.SetUp(&profile_);
-    // This starts the ArcApps publisher, which owns the WebApkManager.
-    arc_test_.SetUp(&profile_);
+    webapk_manager_ = std::make_unique<apps::WebApkManager>(profile());
   }
 
   void AssertNoPendingInstalls() {
@@ -128,23 +130,18 @@ class WebApkManagerTest : public apps::AppRegistryCache::Observer,
     app_registry_cache_observer_.Reset();
   }
 
-  TestingProfile* profile() { return &profile_; }
-  apps::AppServiceTest* app_service_test() { return &app_service_test_; }
-  apps::WebApkManager* webapk_manager() {
-    // TODO(crbug.com/451841683): WebApkManager should not be owned by ArcApps.
-    return apps::ArcApps::GetForTesting(profile())
-        ->GetWebApkManagerForTesting();
-  }
-  ArcAppTest* arc_test() { return &arc_test_; }
+  TestingProfile* profile() { return profile_.get(); }
+  apps::WebApkManager* webapk_manager() { return webapk_manager_.get(); }
+  ArcAppTest* arc_app_test() { return &arc_app_test_; }
   apps::AppServiceProxyBase* app_service_proxy() {
     return apps::AppServiceProxyFactory::GetForProfile(profile());
   }
 
  private:
   content::BrowserTaskEnvironment task_environment_;
-  TestingProfile profile_;
-  ArcAppTest arc_test_;
-  apps::AppServiceTest app_service_test_;
+  std::unique_ptr<TestingProfile> profile_;
+  std::unique_ptr<apps::WebApkManager> webapk_manager_;
+  ArcAppTest arc_app_test_;
   std::string app_id_;
   base::OnceClosure quit_callback_;
 
@@ -227,7 +224,7 @@ TEST_F(WebApkManagerTest, RemovesIneligibleWebApkOnStartup) {
   apps::webapk_prefs::AddWebApk(profile(), app_id, kTestWebApkPackageName);
 
   StartWebApkManager();
-  arc_test()->app_instance()->SendRefreshPackageList({});
+  arc_app_test()->app_instance()->SendRefreshPackageList({});
 
   // The WebAPK should have been uninstalled, but the app itself is still
   // installed.
@@ -239,7 +236,7 @@ TEST_F(WebApkManagerTest, RemovesUninstalledAppOnStartup) {
   std::string app_id = "foobar";
   apps::webapk_prefs::AddWebApk(profile(), app_id, kTestWebApkPackageName);
   StartWebApkManager();
-  arc_test()->app_instance()->SendRefreshPackageList({});
+  arc_app_test()->app_instance()->SendRefreshPackageList({});
   ASSERT_FALSE(apps::webapk_prefs::GetWebApkPackageName(profile(), app_id));
 }
 
@@ -248,7 +245,7 @@ TEST_F(WebApkManagerTest, RemovesAppUninstalledFromChrome) {
       web_app::test::InstallWebApp(profile(), BuildDefaultWebAppInfo());
   apps::webapk_prefs::AddWebApk(profile(), app_id, kTestWebApkPackageName);
   StartWebApkManager();
-  arc_test()->app_instance()->SendRefreshPackageList({});
+  arc_app_test()->app_instance()->SendRefreshPackageList({});
 
   app_service_proxy()->UninstallSilently(app_id,
                                          apps::UninstallSource::kUnknown);
@@ -340,7 +337,7 @@ TEST_F(WebApkManagerTest, RemovesWebApksWhenPolicyDisabled) {
   apps::webapk_prefs::AddWebApk(profile(), app_id, kTestWebApkPackageName);
 
   StartWebApkManager();
-  arc_test()->app_instance()->SendRefreshPackageList({});
+  arc_app_test()->app_instance()->SendRefreshPackageList({});
 
   profile()->GetPrefs()->SetBoolean(
       apps::webapk_prefs::kGeneratedWebApksEnabled, false);
@@ -360,7 +357,7 @@ TEST_F(WebApkManagerTest, RemovesUntrackedInstalledWebApk) {
                                 "org.chromium.webapk.package1");
   StartWebApkManager();
 
-  arc_test()->app_instance()->SendRefreshPackageList(std::move(packages));
+  arc_app_test()->app_instance()->SendRefreshPackageList(std::move(packages));
 
   ASSERT_TRUE(ArcAppListPrefs::Get(profile())->GetPackage(
       "org.chromium.webapk.package1"));

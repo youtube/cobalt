@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/webui/signin/history_sync_optin/history_sync_optin_handler.h"
 
 #include "base/check_op.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/metrics/histogram_functions.h"
@@ -84,21 +85,26 @@ HistorySyncOptinHandler::HistorySyncOptinHandler(
     mojo::PendingRemote<history_sync_optin::mojom::Page> page,
     Browser* browser,
     Profile* profile,
+    std::optional<bool> should_close_modal_dialog,
     HistorySyncOptinHelper::FlowCompletedCallback
         history_optin_completed_callback)
     : receiver_(this, std::move(receiver)),
       page_(std::move(page)),
       browser_(browser ? browser->AsWeakPtr() : nullptr),
       profile_(profile),
+      should_close_modal_dialog_(should_close_modal_dialog),
       history_optin_completed_callback_(
           std::move(history_optin_completed_callback)),
       identity_manager_(IdentityManagerFactory::GetForProfile(profile_)) {
   CHECK(profile_);
   CHECK(identity_manager_);
+  if (browser) {
+    CHECK(should_close_modal_dialog.has_value());
+  }
 }
 
 HistorySyncOptinHandler::~HistorySyncOptinHandler() {
-  if (history_optin_completed_callback_.value()) {
+  if (!history_optin_completed_callback_->is_null()) {
     // Runs the callback in case the dialog is not dismissed via the buttons,
     // but e.g. using an accelerator or close button.
     std::move(history_optin_completed_callback_.value())
@@ -157,19 +163,22 @@ void HistorySyncOptinHandler::UpdateDialogHeight(uint32_t height) {
 
 void HistorySyncOptinHandler::FinishAndCloseDialog(
     HistorySyncOptinHelper::ScreenChoiceResult result) {
-  if (browser_) {
+  if (browser_ && should_close_modal_dialog_.value_or(false)) {
     browser_->GetFeatures().signin_view_controller()->CloseModalSignin();
   }
-  CHECK(history_optin_completed_callback_.value());
-  std::move(history_optin_completed_callback_.value()).Run(result);
+  if (!history_optin_completed_callback_->is_null()) {
+    std::move(history_optin_completed_callback_.value()).Run(result);
+  } else {
+    // The user may have double-clicked on an action, which could have
+    // caused the callback to execute already.
+    // TODO(crbug.com/456458942): Disabled the buttons so that this is not
+    // possible. Convert back to a check after we verify we no longer hit this.
+    base::debug::DumpWithoutCrashing();
+  }
 }
 
 void HistorySyncOptinHandler::AddHistorySyncConsent() {
   CHECK(identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin));
-  // TODO(crbug.com/404806988): As we add the invocation points check if
-  // additional actions are needed to enable sync for history. The invocation
-  // below works for an already syncing user. It enables the syncing for history
-  // if it's not already turned on.
   signin_util::EnableHistorySync(SyncServiceFactory::GetForProfile(profile_));
 }
 

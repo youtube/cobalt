@@ -22,7 +22,9 @@
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
+#include "base/test/simple_test_clock.h"
 #include "base/test/test_future.h"
+#include "base/time/default_clock.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_management_test_util.h"
 #include "chrome/browser/profiles/profile_test_util.h"
@@ -41,6 +43,7 @@
 #include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
+#include "chrome/browser/web_applications/web_app_pref_guardrails.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_contents/web_contents_manager.h"
 #include "chrome/common/chrome_features.h"
@@ -650,8 +653,7 @@ class PreinstalledWebAppManagerBasicTest : public WebAppTest {
         /*install_source=*/ExternalInstallSource::kExternalDefault);
 
     options.user_type_allowlist = {"unmanaged", "managed", "child"};
-    options.expected_app_id =
-        GenerateAppIdFromManifestId(webapps::ManifestId(kManifestId));
+    options.expected_app_id = GenerateAppIdFromManifestId(manifest_id);
     options.app_info_factory = base::BindRepeating(
         [](webapps::ManifestId manifest_id, GURL start_url, GURL scope,
            GURL install_url) {
@@ -672,20 +674,6 @@ class PreinstalledWebAppManagerBasicTest : public WebAppTest {
     return options;
   }
 
-  static ExternalInstallOptions GetInstallOptionsFromManifest(
-      GURL install_url = GURL(kInstallUrl)) {
-    ExternalInstallOptions options(
-        /*install_url=*/install_url,
-        /*user_display_mode=*/
-        mojom::UserDisplayMode::kBrowser,
-        /*install_source=*/ExternalInstallSource::kExternalDefault);
-
-    options.user_type_allowlist = {"unmanaged", "managed", "child"};
-    options.expected_app_id =
-        GenerateAppIdFromManifestId(webapps::ManifestId(kManifestId));
-    return options;
-  }
-
   PreinstalledWebAppManagerBasicTest()
       : app_id_(GenerateAppIdFromManifestId(GURL(kManifestId))) {}
   ~PreinstalledWebAppManagerBasicTest() override = default;
@@ -702,6 +690,11 @@ class PreinstalledWebAppManagerBasicTest : public WebAppTest {
     preinstalled_app_override_ =
         std::make_unique<ScopedTestingPreinstalledAppData>();
     fake_provider().SetSynchronizePreinstalledAppsOnStartup(true);
+    fake_provider()
+        .preinstalled_web_app_manager()
+        .SetPreinstalledAppForUpdatingForTesting(
+            PreinstalledAppForUpdating{.manifest_id = GURL(kManifestId),
+                                       .install_url = GURL(kInstallUrl)});
     auto fake_extensions_manager = std::make_unique<FakeExtensionsManager>();
     fake_extensions_manager->SetExtensionsSytemReady(true);
     fake_provider().SetExtensionsManager(std::move(fake_extensions_manager));
@@ -747,34 +740,7 @@ class PreinstalledWebAppManagerBasicTest : public WebAppTest {
   const webapps::AppId app_id_;
 };
 
-TEST_F(PreinstalledWebAppManagerBasicTest, PreinstallWorksViaFactory) {
-  preinstalled_app_override_->apps = {GetInstallOptionsWithFactory()};
-  test::AwaitStartWebAppProviderAndSubsystems(profile());
-
-  EXPECT_TRUE(provider().registrar_unsafe().AppMatches(
-      GenerateAppIdFromManifestId(GURL(kManifestId)),
-      WebAppFilter::InstalledInChrome()));
-  EXPECT_TRUE(provider().registrar_unsafe().AppMatches(
-      GenerateAppIdFromManifestId(GURL(kManifestId)),
-      WebAppFilter::OpensInBrowserTab()));
-
-  // State matches.
-  EXPECT_EQ(provider().registrar_unsafe().GetAppShortName(app_id_),
-            base::UTF16ToUTF8(kAppName));
-  WebAppIconManager::WebAppBitmaps bitmaps;
-  base::test::TestFuture<WebAppIconManager::WebAppBitmaps> icons;
-  provider().icon_manager().ReadAllIcons(app_id_, icons.GetCallback());
-  ASSERT_TRUE(icons.Wait());
-  ASSERT_TRUE(base::Contains(icons.Get().trusted_icons.any, 144));
-  EXPECT_THAT(
-      icons.Get().trusted_icons.any.at(144),
-      gfx::test::EqualsBitmap(gfx::test::CreateBitmap(144, SK_ColorGREEN)));
-}
-
-TEST_F(PreinstalledWebAppManagerBasicTest, PreinstallWorksViaManifest) {
-  // TODO(crbug.com/454861476): This should be GetInstallOptionsWithManifest(),
-  // but that does not seem to work here, because the
-  // DCHECK(options.app_info_factory) fails.
+TEST_F(PreinstalledWebAppManagerBasicTest, PreinstallWorks) {
   preinstalled_app_override_->apps = {GetInstallOptionsWithFactory()};
   test::AwaitStartWebAppProviderAndSubsystems(profile());
 
@@ -801,9 +767,25 @@ TEST_F(PreinstalledWebAppManagerBasicTest, PreinstallWorksViaManifest) {
 class PreinstalledWebAppManagerChatUpdate
     : public PreinstalledWebAppManagerBasicTest {
  public:
+  void SetUp() override {
+    PreinstalledWebAppManagerBasicTest::SetUp();
+    fake_provider()
+        .preinstalled_web_app_manager()
+        .SetPreinstalledAppForUpdatingForTesting(
+            PreinstalledAppForUpdating{.manifest_id = GetChatManifestId(),
+                                       .install_url = GetChatInstallUrl()});
+  }
+
   GURL GetChatInstallUrl() const {
     return GURL(webapps::kMailGoogleChatInstallUrl);
   }
+
+  GURL GetChatInstallUrlFetchedForUpdate() const {
+    GURL::Replacements update_url_query_adder;
+    update_url_query_adder.SetQueryStr("usp=chrome_preinstall_update");
+    return GetChatInstallUrl().ReplaceComponents(update_url_query_adder);
+  }
+
   webapps::ManifestId GetChatManifestId() const {
     return webapps::ManifestId(webapps::kMailGoogleChatManifestId);
   }
@@ -880,14 +862,10 @@ TEST_F(PreinstalledWebAppManagerChatUpdate, UpdateOccursForChat) {
 
   // Set up the manifest state to have scope extensions, and trigger the
   // post-startup task to update.
-  GURL::Replacements update_url_query_adder;
-  update_url_query_adder.SetQueryStr("usp=chrome_preinstall_update");
-  GURL update_install_url =
-      GetChatInstallUrl().ReplaceComponents(update_url_query_adder);
-  SetupPageState(GetChatManifestId(), update_install_url, GetChatStartUrl(),
-                 GetChatManifestUrl());
-  auto& page_state =
-      fake_web_contents_manager().GetOrCreatePageState(update_install_url);
+  SetupPageState(GetChatManifestId(), GetChatInstallUrlFetchedForUpdate(),
+                 GetChatStartUrl(), GetChatManifestUrl());
+  auto& page_state = fake_web_contents_manager().GetOrCreatePageState(
+      GetChatInstallUrlFetchedForUpdate());
   page_state.manifest_before_default_processing->scope_extensions.push_back(
       blink::mojom::ManifestScopeExtension::New(kOtherOrigin,
                                                 /*has_origin_wildcard=*/false));
@@ -901,6 +879,59 @@ TEST_F(PreinstalledWebAppManagerChatUpdate, UpdateOccursForChat) {
                   ->validated_scope_extensions(),
               testing::ElementsAre(ScopeExtensionInfo::CreateForOrigin(
                   kOtherOrigin, /*has_origin_wildcard=*/false)));
+}
+
+TEST_F(PreinstalledWebAppManagerChatUpdate, UpdateIsThrottled) {
+  const url::Origin kOtherOrigin =
+      url::Origin::Create(GURL("https://www.example.com"));
+  const std::u16string kNewAppName1 = u"New App Name 1";
+  const std::u16string kNewAppName2 = u"New App Name 2";
+
+  base::SimpleTestClock clock;
+  clock.SetNow(base::Time::Now());
+  provider().SetClockForTesting(&clock);
+  auto clock_reset = WebAppPrefGuardrails::SetClockForTesting(&clock);
+
+  // Start up, and ensure the app is installed by default.
+  preinstalled_app_override_->apps = {GetInstallOptionsWithFactory(
+      GetChatManifestId(), GetChatInstallUrl(), GetChatStartUrl(),
+      GetChatManifestUrl(), GetChatStartUrl().GetWithoutFilename())};
+  base::RepeatingClosure post_startup_tasks =
+      provider().DisableDelayedPostStartupWorkForTesting();
+  test::AwaitStartWebAppProviderAndSubsystems(profile());
+  ASSERT_TRUE(provider().registrar_unsafe().AppMatches(
+      GetChatAppId(), WebAppFilter::InstalledInChrome()));
+
+  // Set up the manifest state to have a new name for first update.
+  SetupPageState(GetChatManifestId(), GetChatInstallUrlFetchedForUpdate(),
+                 GetChatStartUrl(), GetChatManifestUrl());
+  auto& page_state = fake_web_contents_manager().GetOrCreatePageState(
+      GetChatInstallUrlFetchedForUpdate());
+  page_state.manifest_before_default_processing->name = kNewAppName1;
+  // Trigger the first update via startup task.
+  post_startup_tasks.Run();
+  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  EXPECT_EQ(base::UTF16ToUTF8(kNewAppName1),
+            provider().registrar_unsafe().GetAppShortName(GetChatAppId()));
+
+  // Modify the manifest again to have a different name, and trigger update
+  // again, verify it doesn't work.
+  page_state.manifest_before_default_processing->name = kNewAppName2;
+  post_startup_tasks.Run();
+  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  EXPECT_EQ(base::UTF16ToUTF8(kNewAppName1),
+            provider().registrar_unsafe().GetAppShortName(GetChatAppId()));
+
+  // Advance the clock more than 7 days, trigger update again, and it should
+  // work.
+  clock.Advance(base::Days(8));
+  post_startup_tasks.Run();
+  provider().command_manager().AwaitAllCommandsCompleteForTesting();
+  EXPECT_EQ(base::UTF16ToUTF8(kNewAppName2),
+            provider().registrar_unsafe().GetAppShortName(GetChatAppId()));
+
+  // Reset the clock.
+  provider().SetClockForTesting(base::DefaultClock::GetInstance());
 }
 
 }  // namespace web_app

@@ -12,6 +12,7 @@
 #import "base/memory/raw_ptr.h"
 #import "base/memory/weak_ptr.h"
 #import "base/time/time.h"
+#import "ios/chrome/browser/web/model/choose_file/choose_file_util.h"
 
 namespace web {
 class WebState;
@@ -31,7 +32,9 @@ struct ChooseFileEvent {
     Builder& SetAcceptFileExtensions(std::vector<std::string> value);
     Builder& SetAcceptMimeTypes(std::vector<std::string> value);
     Builder& SetWebState(web::WebState* value);
+    Builder& SetScreenLocation(CGPoint value);
     Builder& SetTime(base::Time value);
+    Builder& SetCapture(ChooseFileCaptureType value);
 
     ChooseFileEvent Build();
 
@@ -42,7 +45,9 @@ struct ChooseFileEvent {
     std::vector<std::string> accept_file_extensions_;
     std::vector<std::string> accept_mime_types_;
     raw_ptr<web::WebState> web_state_ = nullptr;
+    CGPoint screen_location_{};
     base::Time time_ = base::Time::Now();
+    ChooseFileCaptureType capture_ = ChooseFileCaptureType::kNone;
   };
 
   ChooseFileEvent(const ChooseFileEvent& event);
@@ -63,8 +68,12 @@ struct ChooseFileEvent {
   std::vector<std::string> accept_mime_types;
   // The WebState that triggered this event.
   base::WeakPtr<web::WebState> web_state;
+  // The location of the event in the screen.
+  CGPoint screen_location;
   // The time at which this event occurred.
   base::Time time;
+  // The capture setting of the input.
+  ChooseFileCaptureType capture;
 
  private:
   ChooseFileEvent(bool allow_multiple_files,
@@ -73,7 +82,9 @@ struct ChooseFileEvent {
                   std::vector<std::string> accept_file_extensions,
                   std::vector<std::string> accept_mime_types,
                   web::WebState* web_state,
-                  base::Time time = base::Time::Now());
+                  CGPoint screen_location,
+                  base::Time time,
+                  ChooseFileCaptureType capture);
 };
 
 #endif  // IOS_CHROME_BROWSER_WEB_MODEL_CHOOSE_FILE_CHOOSE_FILE_EVENT_H_

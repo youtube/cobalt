@@ -276,7 +276,6 @@ class MenuListSelectType final : public SelectType {
   void ManuallyAssignSlots() override;
   HTMLButtonElement* SlottedButton() const override;
   HTMLElement* PopoverPickerElement() const override;
-  bool IsAppearanceBase() const override;
   bool IsAppearanceBasePicker() const override;
   bool PickerIsPopover() const override;
   void SetIsAppearanceBasePickerForDisplayNone(bool) override;
@@ -306,6 +305,7 @@ class MenuListSelectType final : public SelectType {
   void UnobserveTreeMutation();
 
   Member<PopupMenu> popup_;
+  bool is_popup_external_ = false;
   Member<PopupUpdater> popup_updater_;
   Member<const ComputedStyle> option_style_;
   Member<HTMLSlotElement> button_slot_;
@@ -383,7 +383,7 @@ bool MenuListSelectType::DefaultEventHandler(const Event& event) {
 
     // Customizable-<select> keydown handling is done in
     // HTMLOptionElement::DefaultEventHandlerInternal().
-    if (IsAppearanceBase()) {
+    if (select_->IsAppearanceBase()) {
       return false;
     }
 
@@ -493,7 +493,7 @@ bool MenuListSelectType::DefaultEventHandler(const Event& event) {
           // Keep track of the mouse pixel location, so that when the mouseup
           // happens, we can see whether there was a mouse drag to pick an
           // option.
-          select_->GetDocument().SetCustomizableSelectMousedownLocation(
+          select_->GetDocument().SetPopoverPickerMousedownLocation(
               mouse_event->AbsoluteLocation());
         }
         ShowPopup(mouse_event->FromTouch() ? PopupMenu::kTouch
@@ -506,7 +506,7 @@ bool MenuListSelectType::DefaultEventHandler(const Event& event) {
       mouse_event->button() ==
           static_cast<int16_t>(WebPointerProperties::Button::kLeft) &&
       PickerIsPopover() && !mouse_event->FromTouch()) {
-    select_->GetDocument().SetCustomizableSelectMousedownLocation(std::nullopt);
+    select_->GetDocument().SetPopoverPickerMousedownLocation(std::nullopt);
   }
   return false;
 }
@@ -522,7 +522,7 @@ bool MenuListSelectType::ShouldOpenPopupForKeyDownEvent(
   // TODO(crbug.com/1511354): Reconsider making appearance:base-select affect
   // keyboard behavior after a resolution here:
   // https://github.com/openui/open-ui/issues/1087
-  if (IsAppearanceBase() &&
+  if (select_->IsAppearanceBase() &&
       (key == keywords::kArrowDown || key == keywords::kArrowUp ||
        key == keywords::kArrowLeft || key == keywords::kArrowRight)) {
     return true;
@@ -637,16 +637,8 @@ HTMLElement* MenuListSelectType::PopoverPickerElement() const {
   return popover_;
 }
 
-bool MenuListSelectType::IsAppearanceBase() const {
-  DCHECK(select_);
-  if (auto* style = select_->GetComputedStyle()) {
-    return select_->SupportsBaseAppearance(style->EffectiveAppearance());
-  }
-  return false;
-}
-
 bool MenuListSelectType::IsAppearanceBasePicker() const {
-  if (!IsAppearanceBase()) {
+  if (!select_->IsAppearanceBase()) {
     // The author is required to put appearance:base-select on the <select>
     // before the ::picker is allowed to have appearance:base-select.
     return false;
@@ -762,9 +754,19 @@ void MenuListSelectType::ShowPopup(PopupMenu::ShowEventType type) {
   select_->GetDocument().UpdateStyleAndLayoutForNode(
       select_, DocumentUpdateReason::kPagePopup);
 
+  ChromeClient& chrome_client = document.GetPage()->GetChromeClient();
   if (!popup_) {
-    popup_ = document.GetPage()->GetChromeClient().OpenPopupMenu(
-        *document.GetFrame(), *select_);
+    popup_ = chrome_client.OpenPopupMenu(*document.GetFrame(), *select_);
+    is_popup_external_ = chrome_client.UseExternalPopupMenus();
+  } else {
+    // There's an existing popup -- if switching between native and non-native
+    // UI, hide and destroy the existing popup, and create a new one.
+    bool popup_is_external = chrome_client.UseExternalPopupMenus();
+    if (is_popup_external_ != popup_is_external) {
+      popup_->Hide();
+      popup_ = chrome_client.OpenPopupMenu(*document.GetFrame(), *select_);
+      is_popup_external_ = popup_is_external;
+    }
   }
   if (!popup_) {
     SetNativePopupIsVisible(false);
@@ -902,7 +904,7 @@ void MenuListSelectType::DidSetSuggestedOption(HTMLOptionElement* option) {
   if (native_popup_is_visible_) {
     popup_->UpdateFromElement(PopupMenu::kBySelectionChange);
   }
-  if (IsAppearanceBase()) {
+  if (select_->IsAppearanceBase()) {
     if (option) {
       autofill_popover_->ShowPopoverInternal(select_, &ASSERT_NO_EXCEPTION);
       autofill_popover_text_->setInnerText(option->label());
@@ -1000,7 +1002,7 @@ String MenuListSelectType::UpdateTextStyleInternal() {
   // TODO(crbug.com/1511354): Ensure that this runs after switching appearance
   // modes or consider splitting InnerElement into two elements, one for
   // appearance:base-select and one for appearance:auto.
-  if (!IsAppearanceBase()) {
+  if (!select_->IsAppearanceBase()) {
     Element& inner_element = select_->InnerElement();
     const ComputedStyle* inner_style = inner_element.GetComputedStyle();
     if (inner_style && option_style &&
@@ -1067,7 +1069,7 @@ HTMLOptionElement* MenuListSelectType::OptionToBeShown() const {
     return option;
   // In appearance:base-select mode, we don't want to reveal the suggested
   // option anywhere except in autofill_popover_.
-  if (select_->suggested_option_ && !IsAppearanceBase()) {
+  if (select_->suggested_option_ && !select_->IsAppearanceBase()) {
     return select_->suggested_option_.Get();
   }
   // TODO(tkent): We should not call OptionToBeShown() in IsMultiple() case.
@@ -1192,7 +1194,6 @@ class ListBoxSelectType final : public SelectType {
   void ManuallyAssignSlots() override;
   HTMLButtonElement* SlottedButton() const override;
   HTMLElement* PopoverPickerElement() const override;
-  bool IsAppearanceBase() const override;
   bool IsAppearanceBasePicker() const override;
   bool PickerIsPopover() const override;
   void SetIsAppearanceBasePickerForDisplayNone(bool) override;
@@ -1236,7 +1237,7 @@ void ListBoxSelectType::Trace(Visitor* visitor) const {
 }
 
 bool ListBoxSelectType::DefaultEventHandler(const Event& event) {
-  if (IsAppearanceBase()) {
+  if (select_->IsAppearanceBase()) {
     // Event handling is done in HTMLOptionElement::DefaultEventHandler for base
     // appearance.
     return false;
@@ -1864,17 +1865,6 @@ HTMLButtonElement* ListBoxSelectType::SlottedButton() const {
 
 HTMLElement* ListBoxSelectType::PopoverPickerElement() const {
   return nullptr;
-}
-
-bool ListBoxSelectType::IsAppearanceBase() const {
-  if (!RuntimeEnabledFeatures::CustomizableSelectInPageEnabled()) {
-    return false;
-  }
-  DCHECK(select_);
-  if (auto* style = select_->GetComputedStyle()) {
-    return select_->SupportsBaseAppearance(style->EffectiveAppearance());
-  }
-  return false;
 }
 
 bool ListBoxSelectType::IsAppearanceBasePicker() const {

@@ -31,7 +31,6 @@
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/common/window_container_type.mojom-forward.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
-#include "third_party/blink/public/common/mediastream/media_stream_request.h"
 #include "third_party/blink/public/common/page/drag_operation.h"
 #include "third_party/blink/public/mojom/choosers/color_chooser.mojom-forward.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
@@ -108,6 +107,7 @@ class SiteInstance;
 class WebContents;
 struct ContextMenuParams;
 struct DropData;
+struct MediaStreamRequest;
 struct OpenURLParams;
 struct Referrer;
 
@@ -482,10 +482,6 @@ class CONTENT_EXPORT WebContentsDelegate {
                                base::OnceCallback<void()> on_confirm,
                                base::OnceCallback<void()> on_cancel);
 
-  // Returns whether the RFH can use Additional Windowing Controls (AWC) APIs.
-  // https://github.com/explainers-by-googlers/additional-windowing-controls/blob/main/README.md
-  virtual bool CanUseWindowingControls(RenderFrameHost* requesting_frame);
-
   // Notifies `BrowserView` about the resizable boolean having been set vith
   // `window.setResizable(bool)` API.
   virtual void OnWebApiWindowResizableChanged() {}
@@ -493,11 +489,17 @@ class CONTENT_EXPORT WebContentsDelegate {
   // both the value set by the AWC API and browser's "native" resizability.
   virtual bool GetCanResize();
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+  // Returns whether the RFH can use Additional Windowing Controls (AWC) APIs.
+  // https://github.com/explainers-by-googlers/additional-windowing-controls/blob/main/README.md
+  virtual bool CanUseWindowingControls(RenderFrameHost* requesting_frame);
+
   // Additional Windowing Controls (AWC) APIs to change the state of the window
   // without the browser's min/max/restore buttons.
   virtual void MinimizeFromWebAPI() {}
   virtual void MaximizeFromWebAPI() {}
   virtual void RestoreFromWebAPI() {}
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
   // This returns the current state of the window, mappable to display-state
   // values: normal/minimized/maximized/fullscreen.

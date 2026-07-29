@@ -155,7 +155,10 @@ FrameViewAsh::FrameViewAsh(views::Widget* widget)
       frame_context_menu_controller_(
           std::make_unique<FrameContextMenuController>(widget, this)) {
   header_view_->set_immersive_mode_changed_callback(base::BindRepeating(
-      &FrameViewAsh::InvalidateLayout, weak_factory_.GetWeakPtr()));
+      &FrameViewAsh::InvalidateLayout, weak_factory_.GetWeakPtr(),
+      // This will always be on a fresh call stack, never mid-layout so the
+      // value passed here doesn't matter.
+      /*avoid_propagate_during_layout=*/false));
 
   aura::Window* frame_window = widget->GetNativeWindow();
   window_util::InstallResizeHandleWindowTargeterForWindow(frame_window);
@@ -179,6 +182,10 @@ FrameViewAsh::FrameViewAsh(views::Widget* widget)
   }
 
   window_observation_.Observe(frame_window);
+
+  const bool remove_standard_frame =
+      frame_window->GetProperty(aura::client::kRemoveStandardFrame);
+  SetFrameEnabled(!remove_standard_frame);
 
   header_view_->set_context_menu_controller(
       frame_context_menu_controller_.get());
@@ -266,6 +273,7 @@ void FrameViewAsh::SetFrameEnabled(bool enabled) {
 
   frame_enabled_ = enabled;
   overlay_view_->SetVisible(frame_enabled_);
+  header_view_->SetShouldPaintHeader(frame_enabled_);
   UpdateWindowRoundedCorners();
   InvalidateLayout();
 }

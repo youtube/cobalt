@@ -91,8 +91,12 @@ const base::FeatureParam<IPHExtensionsZeroStatePromoVariant>::Option
     kIPHExtensionsZeroStatePromoVariantOptions[] = {
         {IPHExtensionsZeroStatePromoVariant::kCustomActionIph,
          "custom-action-iph"},
-        {IPHExtensionsZeroStatePromoVariant::kCustomUiChipIph,
+        {IPHExtensionsZeroStatePromoVariant::kCustomUiChipIphV1,
          "custom-ui-chip-iph"},
+        {IPHExtensionsZeroStatePromoVariant::kCustomUiChipIphV2,
+         "custom-ui-chip-iph-v2"},
+        {IPHExtensionsZeroStatePromoVariant::kCustomUiChipIphV3,
+         "custom-ui-chip-iph-v3"},
         {IPHExtensionsZeroStatePromoVariant::kCustomUIPlainLinkIph,
          "custom-ui-plain-link-iph"}};
 BASE_FEATURE_ENUM_PARAM(
@@ -100,7 +104,7 @@ BASE_FEATURE_ENUM_PARAM(
     kIPHExtensionsZeroStatePromoVariantParam,
     &feature_engagement::kIPHExtensionsZeroStatePromoFeature,
     "x_iph-variant",
-    IPHExtensionsZeroStatePromoVariant::kCustomActionIph,
+    IPHExtensionsZeroStatePromoVariant::kCustomUiChipIphV2,
     &kIPHExtensionsZeroStatePromoVariantOptions);
 #endif
 BASE_FEATURE(kIPHFocusHelpBubbleScreenReaderPromoFeature,
@@ -109,6 +113,9 @@ BASE_FEATURE(kIPHFocusHelpBubbleScreenReaderPromoFeature,
 BASE_FEATURE(kIPHGlicPromoFeature,
              "IPH_GlicPromo",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHGlicTryItFeature,
+             "IPH_GlicTryIt",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGMCCastStartStopFeature,
              "IPH_GMCCastStartStop",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -170,6 +177,9 @@ BASE_FEATURE(kIPHPasswordManagerShortcutFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPasswordSharingFeature,
              "IPH_PasswordSharingFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHPdfInkSignaturesFeature,
+             "IPH_PdfInkSignatures",
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHPdfSearchifyFeature,
              "IPH_PdfSearchifyFeature",
@@ -388,12 +398,12 @@ BASE_FEATURE(kIPHDownloadInfoBarDownloadsAreFasterFeature,
 BASE_FEATURE(kIPHReadAloudAppMenuFeature,
              "IPH_ReadAloudAppMenuFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
-             BASE_FEATURE(kIPHReadAloudExpandedPlayerFeature,
-              "IPH_ReadAloudExpandedPlayerFeature",
-              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHReadAloudExpandedPlayerFeature,
+             "IPH_ReadAloudExpandedPlayerFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHReadAloudPlaybackModeFeature,
-              "IPH_ReadAloudPlaybackModeFeature",
-              base::FEATURE_ENABLED_BY_DEFAULT);
+             "IPH_ReadAloudPlaybackModeFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHReadLaterContextMenuFeature,
              "IPH_ReadLaterContextMenu",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -836,6 +846,10 @@ BASE_FEATURE(kDefaultBrowserTriggerCriteriaExperiment,
 
 BASE_FEATURE(kIPHiOSAIHubNewBadge,
              "IPH_iOSAIHubNewBadge",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIPHiOSGeminiContextualCueChip,
+             "IPH_iOSGeminiContextualCueChip",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_IOS)

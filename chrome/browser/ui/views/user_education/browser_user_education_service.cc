@@ -20,6 +20,7 @@
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/promos/promos_types.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
@@ -35,6 +36,7 @@
 #include "chrome/browser/ui/singleton_tabs.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
+#include "chrome/browser/ui/tabs/split_tab_menu_model.h"
 #include "chrome/browser/ui/tabs/split_view_iph_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
@@ -60,6 +62,7 @@
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_25.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_preconditions.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
+#include "chrome/browser/ui/views/user_education/ios_promo_bubble_view.h"
 #include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
@@ -90,6 +93,7 @@
 #include "components/plus_addresses/core/common/features.h"
 #include "components/safe_browsing/core/common/safebrowsing_referral_methods.h"
 #include "components/saved_tab_groups/public/features.h"
+#include "components/sharing_message/features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
@@ -106,12 +110,14 @@
 #include "components/user_education/common/user_education_context.h"
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/common/user_education_metadata.h"
+#include "components/user_education/views/custom_help_bubble_view.h"
 #include "components/user_education/views/help_bubble_delegate.h"
 #include "components/user_education/views/help_bubble_factory_views.h"
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "components/user_education/webui/help_bubble_webui.h"
 #include "components/vector_icons/vector_icons.h"
 #include "extensions/common/extension_urls.h"
+#include "pdf/buildflags.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -135,6 +141,15 @@
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo_ui.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PDF_INK2)
+#include "chrome/browser/pdf/pdf_help_bubble_handler_factory.h"
+#endif
 
 namespace {
 
@@ -656,7 +671,9 @@ void MaybeRegisterChromeFeaturePromos(
               .SetHighlightedMenuItem(
                   ExtensionsMenuModel::kVisitChromeWebStoreMenuItem)));
       break;
-    case feature_engagement::kCustomUiChipIph:
+    case feature_engagement::kCustomUiChipIphV1:
+    case feature_engagement::kCustomUiChipIphV2:
+    case feature_engagement::kCustomUiChipIphV3:
     case feature_engagement::kCustomUIPlainLinkIph:
       registry.RegisterFeature(std::move(
           user_education::FeaturePromoSpecification::CreateForCustomUi(
@@ -705,6 +722,35 @@ void MaybeRegisterChromeFeaturePromos(
           .OverrideFocusOnShow(false)
           .SetMetadata(
               133, "dfried@chromium.org",
+              "Attempts to trigger when the user is on a supported page.")));
+
+  // kIPHGlicTryItFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForCustomAction(
+          feature_engagement::kIPHGlicTryItFeature, kGlicButtonElementId,
+          IDS_GLIC_TRYIT_BODY, IDS_GLIC_PROMO_CONFIRM,
+          base::BindRepeating(
+              [](ContextPtr ctx,
+                 user_education::FeaturePromoHandle promo_handle) {
+                auto* browser = GetBrowser(ctx);
+                if (!browser) {
+                  return;
+                }
+                if (auto* glic_service =
+                        glic::GlicKeyedService::Get(browser->GetProfile())) {
+                  glic_service->ToggleUI(
+                      browser, /*prevent_close=*/true,
+                      glic::mojom::InvocationSource::kTopChromeButton);
+                }
+              }))
+          .SetBubbleTitleText(IDS_GLIC_TRYIT_TITLE)
+          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
+          .SetCustomActionIsDefault(true)
+          // Since this can appear randomly, we do not want to steal focus from
+          // the user; see https://crbug.com/418579754
+          .OverrideFocusOnShow(false)
+          .SetMetadata(
+              142, "dewittj@chromium.org",
               "Attempts to trigger when the user is on a supported page.")));
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -780,6 +826,19 @@ void MaybeRegisterChromeFeaturePromos(
           .SetBubbleArrow(HelpBubbleArrow::kBottomRight)
           .SetBubbleIcon(kLightbulbOutlineIcon)
           .SetBubbleTitleText(IDS_PASSWORD_MANAGER_IPH_CREATE_SHORTCUT_TITLE)));
+
+#if BUILDFLAG(ENABLE_PDF_INK2)
+  // kIPHPdfInkSignaturesFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForSnoozePromo(
+          feature_engagement::kIPHPdfInkSignaturesFeature,
+          pdf::PdfHelpBubbleHandlerFactory::kPdfInkSignaturesDrawElementId,
+          IDS_PDF_INK_SIGNATURES_IPH_BODY)
+          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
+          .SetInAnyContext(true)
+          .SetMetadata(138, "thestig@chromium.org",
+                       "Triggered when the PDF Viewer opens.")));
+#endif
 
   // kIPHPdfSearchifyFeature:
   registry.RegisterFeature(std::move(
@@ -1505,6 +1564,22 @@ void MaybeRegisterChromeFeaturePromos(
           .SetInAnyContext(true)
           .SetMetadata(130, "johntlee@chromium.org",
                        "Triggered after user lands on chrome://history.")));
+
+  // kIPHiOSLensPromoDesktopFeature
+  if (MobilePromoOnDesktopTypeEnabled() ==
+      MobilePromoOnDesktopPromoType::kLensPromo) {
+    registry.RegisterFeature(
+        std::move(user_education::FeaturePromoSpecification::CreateForCustomUi(
+                      feature_engagement::kIPHiOSLensPromoDesktopFeature,
+                      kSidePanelElementId,
+                      user_education::CreateCustomHelpBubbleViewFactoryCallback(
+                          base::BindRepeating(&IOSPromoBubbleView::Create,
+                                              IOSPromoType::kLens)))
+                      .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+                      .SetMetadata(144, "scottyoder@google.com",
+                                   "Triggered when Lens Overlay is used.")));
+  }
+
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -1789,12 +1864,22 @@ void MaybeRegisterChromeTutorials(
 
             HiddenStep::WaitForShown(kToolbarSplitTabsToolbarButtonElementId),
 
+            // Bubble step - highlight the toolbar button.
+            TutorialDescription::BubbleStep(
+                kToolbarSplitTabsToolbarButtonElementId)
+                .SetBubbleBodyText(IDS_SPLIT_VIEW_TOOLBAR_BUTTON_STEP_IPH_BODY)
+                .SetBubbleArrow(HelpBubbleArrow::kTopLeft),
+
+            HiddenStep::WaitForShown(
+                SplitTabMenuModel::kReversePositionMenuItem),
+
             // Completion of the tutorial after split view appears.
-            TutorialDescription::BubbleStep(kTabStripRegionElementId)
+            TutorialDescription::BubbleStep(
+                SplitTabMenuModel::kExitSplitMenuItem)
                 .SetBubbleTitleText(IDS_TUTORIAL_GENERIC_SUCCESS_TITLE)
                 .SetBubbleBodyText(
                     IDS_SPLIT_VIEW_TAB_SWITCH_COMPLETION_IPH_BODY)
-                .SetBubbleArrow(HelpBubbleArrow::kNone)
+                .SetBubbleArrow(HelpBubbleArrow::kLeftTop)
                 .InAnyContext());
 
     split_view_tutorial.metadata.additional_description =

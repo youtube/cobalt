@@ -28,8 +28,8 @@
 #import "components/sync/service/local_data_description.h"
 #import "components/sync/service/sync_service.h"
 #import "components/sync/service/sync_user_settings.h"
+#import "ios/chrome/browser/authentication/history_sync/model/history_sync_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/central_account_view.h"
-#import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_utils.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/policy/ui_bundled/management_util.h"
 #import "ios/chrome/browser/settings/model/sync/utils/account_error_ui_info.h"
@@ -42,6 +42,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_consumer.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/sync_error_settings_command_handler.h"
+#import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/list_model/list_model.h"
@@ -54,6 +55,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_item.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/avatar_provider.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/model/constants.h"
 #import "ios/chrome/browser/sync/model/enterprise_utils.h"
@@ -234,7 +236,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
     return;
   }
   UIImage* avatarImage =
-      _chromeAccountManagerService->GetIdentityAvatarWithIdentity(
+      GetApplicationContext()->GetIdentityAvatarProvider()->GetIdentityAvatar(
           _signedInIdentity, IdentityAvatarSize::Large);
   NSString* managementDescription =
       GetManagementDescription([self managementState]);
@@ -841,8 +843,11 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
     TableViewInfoButtonItem* button =
         [[TableViewInfoButtonItem alloc] initWithType:itemType];
     button.text = GetNSString(textStringID);
+    button.textColor = [UIColor colorNamed:kTextSecondaryColor];
     button.statusText = GetNSString(IDS_IOS_SETTING_OFF);
     button.accessibilityIdentifier = accessibilityIdentifier;
+    button.target = self;
+    button.selector = @selector(itemButtonTapped:);
     return button;
   }
 }
@@ -852,6 +857,12 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   [self updatePrimaryAccountDetails];
 }
 
+// Called when the user taps on the button of an info cell.
+- (void)itemButtonTapped:(UIButton*)button {
+  [self.consumer showManagedUIInfoForButton:button];
+}
+
+// Called when the user toggle the switch of a switch cell.
 - (void)itemSwitchToggled:(UISwitch*)sender {
   TableViewItem* item;
   for (TableViewItem* dataItem in self.syncSwitchItems) {

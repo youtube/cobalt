@@ -18,7 +18,7 @@
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
@@ -45,11 +45,6 @@ using base::test::TestFuture;
 using TabHandle = tabs::TabInterface::Handle;
 using DeepQuery = ::WebContentsInteractionTestUtil::DeepQuery;
 
-using ButtonTextObserver =
-    views::test::PollingViewPropertyObserver<std::u16string,
-                                             views::LabelButton>;
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ButtonTextObserver, kButtonTextState);
-
 class ActorUiHandoffButtonControllerInteractiveUiTest
     : public InteractiveBrowserTest {
  public:
@@ -75,6 +70,7 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
             {features::kTabstripComboButton, {}},
 #endif
             {features::kGlicActor, {}},
+            {features::kGlicHandoffButtonHiddenClientControl, {}},
             {features::kGlicActorUi,
              {{features::kGlicActorUiHandoffButtonName, "true"}}},
 #if BUILDFLAG(IS_MAC)
@@ -136,53 +132,30 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
 IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
                        WidgetIsCreatedAndDestroyed) {
   StartActingOnTab();
+  RunTestSequence(ClearOmniboxFocus(),
+                  InAnyContext(WaitForShow(
+                      HandoffButtonController::kHandoffButtonElementId)),
+                  // Trigger the event to destroy the button.
+                  Do([&]() {
+                    GetActorKeyedService()->StopTask(
+                        task_id_, ActorTask::StoppedReason::kTaskComplete);
+                  }),
+                  InAnyContext(WaitForHide(
+                      HandoffButtonController::kHandoffButtonElementId)));
+}
+
+IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
+                       ButtonClickToPauseTaskHidesButton) {
+  StartActingOnTab();
   RunTestSequence(
       ClearOmniboxFocus(),
       InAnyContext(
           WaitForShow(HandoffButtonController::kHandoffButtonElementId)),
-      // Trigger the event to destroy the button.
-      Do([&]() {
-        GetActorKeyedService()->StopTask(task_id_, /*success*/ true);
-      }),
+      InAnyContext(
+          PressButton(HandoffButtonController::kHandoffButtonElementId)),
+      // Button hides since the client is in control.
       InAnyContext(
           WaitForHide(HandoffButtonController::kHandoffButtonElementId)));
-}
-
-IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
-                       ButtonClickToPauseTaskKeepsButtonVisible) {
-  StartActingOnTab();
-  RunTestSequence(
-      ClearOmniboxFocus(),
-      InAnyContext(
-          WaitForShow(HandoffButtonController::kHandoffButtonElementId)),
-      InAnyContext(
-          PressButton(HandoffButtonController::kHandoffButtonElementId)),
-      // Button stays visible since the client is in control.
-      InAnyContext(
-          WaitForShow(HandoffButtonController::kHandoffButtonElementId)));
-}
-
-IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
-                       ButtonTextChangesOnClick) {
-  StartActingOnTab();
-  RunTestSequence(
-      ClearOmniboxFocus(),
-      InAnyContext(
-          WaitForShow(HandoffButtonController::kHandoffButtonElementId)),
-      InAnyContext(CheckViewProperty(
-          HandoffButtonController::kHandoffButtonElementId,
-          &views::LabelButton::GetText,
-          l10n_util::GetStringUTF16(IDS_TAKE_OVER_TASK_LABEL))),
-      // Start polling the button's text property.
-      InAnyContext(PollViewProperty(
-          kButtonTextState, HandoffButtonController::kHandoffButtonElementId,
-          &views::LabelButton::GetText)),
-      InAnyContext(
-          PressButton(HandoffButtonController::kHandoffButtonElementId)),
-      // Verify the text change on the button. This waits for the
-      // notification chain and UI update to complete.
-      WaitForState(kButtonTextState,
-                   l10n_util::GetStringUTF16(IDS_GIVE_TASK_BACK_LABEL)));
 }
 
 IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
@@ -273,9 +246,7 @@ IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
 #if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
                        GlicSidePanelTogglesOnWhenButtonClicked) {
-  SidePanelCoordinator* const coordinator =
-      browser()->GetFeatures().side_panel_coordinator();
-  coordinator->SetNoDelaysForTesting(true);
+  browser()->GetFeatures().side_panel_ui()->SetNoDelaysForTesting(true);
   StartActingOnTab();
   RunTestSequence(
       ClearOmniboxFocus(), EnsureNotPresent(kSidePanelElementId),
@@ -285,15 +256,70 @@ IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
       InAnyContext(
           CheckViewProperty(HandoffButtonController::kHandoffButtonElementId,
                             &views::LabelButton::GetText, TAKE_OVER_TASK_TEXT)),
+      InAnyContext(
+          PressButton(HandoffButtonController::kHandoffButtonElementId)),
+      InAnyContext(WaitForShow(kSidePanelElementId)),
+      InAnyContext(WaitForShow(kGlicViewElementId)));
+}
+#endif
+
+using ButtonTextObserver =
+    views::test::PollingViewPropertyObserver<std::u16string,
+                                             views::LabelButton>;
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ButtonTextObserver, kButtonTextState);
+
+class ActorUiHandoffButtonVisibleInBothStatesInteractiveUiTest
+    : public ActorUiHandoffButtonControllerInteractiveUiTest {
+ public:
+  void SetUp() override {
+    feature_list_.InitWithFeaturesAndParameters(
+        {
+#if BUILDFLAG(ENABLE_GLIC)
+            {features::kGlicURLConfig,
+             {{features::kGlicGuestURL.name, "about:blank"}}},
+            {features::kGlic, {}},
+            {features::kTabstripComboButton, {}},
+#endif
+            {features::kGlicActor, {}},
+            {features::kGlicActorUi,
+             {{features::kGlicActorUiHandoffButtonName, "true"}}},
+#if BUILDFLAG(IS_MAC)
+            {features::kImmersiveFullscreen, {}},
+#endif
+        },
+        /*disabled_features=*/{
+#if BUILDFLAG(ENABLE_GLIC)
+            features::kGlicDetached,
+#endif
+            features::kGlicHandoffButtonHiddenClientControl,
+        });
+
+    InteractiveBrowserTest::SetUp();
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonVisibleInBothStatesInteractiveUiTest,
+                       ButtonTextChangesOnClick) {
+  StartActingOnTab();
+  RunTestSequence(
+      ClearOmniboxFocus(),
+      InAnyContext(
+          WaitForShow(HandoffButtonController::kHandoffButtonElementId)),
+      // Ensure initial state is correct
+      InAnyContext(CheckViewProperty(
+          HandoffButtonController::kHandoffButtonElementId,
+          &views::LabelButton::GetText,
+          l10n_util::GetStringUTF16(IDS_TAKE_OVER_TASK_LABEL))),
+      // Start polling the button's text property so WaitForState can see
+      // changes.
       InAnyContext(PollViewProperty(
           kButtonTextState, HandoffButtonController::kHandoffButtonElementId,
           &views::LabelButton::GetText)),
       InAnyContext(
           PressButton(HandoffButtonController::kHandoffButtonElementId)),
-      WaitForState(kButtonTextState, GIVE_TASK_BACK_TEXT),
-      InAnyContext(WaitForShow(kSidePanelElementId)),
-      InAnyContext(WaitForShow(kGlicViewElementId)));
+      // Verify the text change on the button.
+      WaitForState(kButtonTextState,
+                   l10n_util::GetStringUTF16(IDS_GIVE_TASK_BACK_LABEL)));
 }
-#endif
 }  // namespace
 }  // namespace actor::ui

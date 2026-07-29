@@ -21,6 +21,7 @@
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/string_util.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_view_controller.h"
@@ -160,7 +161,7 @@ UIImageView* BrandingImageView() {
 - (instancetype)initWithDelegate:(id<PlusAddressBottomSheetDelegate>)delegate
     withBrowserCoordinatorCommands:
         (id<BrowserCoordinatorCommands>)browserCoordinatorHandler {
-  self = [super init];
+  self = [super initWithConfiguration:[[ButtonStackConfiguration alloc] init]];
   if (self) {
     _delegate = delegate;
     _browserCoordinatorHandler = browserCoordinatorHandler;
@@ -181,11 +182,12 @@ UIImageView* BrandingImageView() {
                                  ? IDS_PLUS_ADDRESS_BOTTOMSHEET_TITLE_NOTICE_IOS
                                  : IDS_PLUS_ADDRESS_BOTTOMSHEET_TITLE_IOS);
   self.titleTextStyle = UIFontTextStyleTitle2;
-  self.primaryActionString =
+  self.configuration.primaryActionString =
       l10n_util::GetNSString(IDS_PLUS_ADDRESS_BOTTOMSHEET_OK_TEXT_IOS);
-  self.secondaryActionString =
+  self.configuration.secondaryActionString =
       l10n_util::GetNSString(IDS_PLUS_ADDRESS_BOTTOMSHEET_CANCEL_TEXT_IOS);
-  self.customScrollViewBottomInsets = 0;
+  [self reloadConfiguration];
+  self.customContentBottomInset = 0;
 
   // Don't show the dismiss bar button (with the secondary button used for
   // canceling), and ensure there is still sufficient space between the top of
@@ -249,7 +251,7 @@ UIImageView* BrandingImageView() {
       /*refresh_count=*/(int)_refreshCount, [_delegate shouldShowNotice]);
   _bottomSheetModalCompletionErrorStatus.reset();
   _bottomSheetCreationErrorType.reset();
-  self.isLoading = NO;
+  [self setLoading:NO];
   [_browserCoordinatorHandler dismissPlusAddressBottomSheet];
 }
 
@@ -257,7 +259,7 @@ UIImageView* BrandingImageView() {
     withCreateErrorType:(PlusAddressCreationBottomSheetErrorType)errorType {
   _bottomSheetModalCompletionErrorStatus = completionStatus;
   _bottomSheetCreationErrorType = errorType;
-  self.isLoading = NO;
+  [self setLoading:NO];
 }
 
 - (void)dismissBottomSheet {
@@ -544,7 +546,7 @@ UIImageView* BrandingImageView() {
 // Called when the user chose to confirm the plus address.
 - (void)willConfirmPlusAddress {
   [self enablePrimaryActionButton:NO];
-  self.isLoading = YES;
+  [self setLoading:YES];
 
   [_delegate confirmPlusAddress];
   plus_addresses::metrics::RecordModalEvent(

@@ -60,6 +60,7 @@ import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
+import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -148,7 +149,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         mAllBookmarksButtonModel.set(
                 BookmarkBarButtonProperties.ICON_SUPPLIER,
                 LazyOneshotSupplier.fromValue(
-                        AppCompatResources.getDrawable(mActivity, R.drawable.star_outline_24dp)));
+                        AppCompatResources.getDrawable(
+                                mActivity, R.drawable.ic_all_bookmarks_icon_16dp)));
         mAllBookmarksButtonModel.set(
                 BookmarkBarButtonProperties.TEXT_APPEARANCE_ID,
                 R.style.TextAppearance_TextMedium_Primary_Baseline);
@@ -459,8 +461,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                         mAnchoredPopupWindow.dismiss();
                     }
                 },
-                /* drillDownOverrideValue= */ true,
-                /* flyoutHandler= */ null);
+                ListMenuUtils.createHierarchicalMenuController(mActivity));
 
         View popupContentView = popupListMenu.getContentView();
         // This is needed because list_menu_layout.xml already sets a background, and we want to

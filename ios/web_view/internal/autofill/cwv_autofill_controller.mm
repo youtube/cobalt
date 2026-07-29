@@ -45,6 +45,7 @@
 #import "ios/web_view/internal/autofill/cwv_autofill_suggestion_internal.h"
 #import "ios/web_view/internal/autofill/cwv_card_unmask_challenge_option_internal.h"
 #import "ios/web_view/internal/autofill/cwv_credit_card_internal.h"
+#import "ios/web_view/internal/autofill/cwv_credit_card_otp_verifier_internal.h"
 #import "ios/web_view/internal/autofill/cwv_credit_card_saver_internal.h"
 #import "ios/web_view/internal/autofill/cwv_credit_card_verifier_internal.h"
 #import "ios/web_view/internal/autofill/cwv_vcn_enrollment_manager_internal.h"
@@ -121,6 +122,11 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
   // The current VCNEnrollmentManager. Can be nil if no enrollment is pending.
   // Held weak because |_delegate| is responsible for maintaining its lifetime.
   __weak CWVVCNEnrollmentManager* _enrollmentManager;
+
+  // The current CWVCreditCardOTPVerifier. Can be nil if no verification is
+  // pending. Held weak because |_delegate| is responsible for maintaining its
+  // lifetime.
+  __weak CWVCreditCardOTPVerifier* _OTPVerifier;
 
   std::unique_ptr<autofill::FormActivityObserverBridge>
       _formActivityObserverBridge;
@@ -477,8 +483,17 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
   _saver = saver;
 }
 
-- (void)handleCreditCardUploadCompleted:(BOOL)cardSaved {
+- (void)handleCreditCardUploadCompleted:(BOOL)cardSaved
+                               callback:(base::OnceClosure)callback {
   [_saver handleCreditCardUploadCompleted:cardSaved];
+  PrefService* prefService =
+      ios_web_view::WebViewBrowserState::FromBrowserState(
+          _webState->GetBrowserState())
+          ->GetPrefs();
+
+  if (prefService->GetBoolean(ios_web_view::kCWVAutofillVCNUsageEnabled)) {
+    std::move(callback).Run();
+  }
 }
 
 - (void)showUnmaskPromptForCard:(const autofill::CreditCard&)creditCard
@@ -674,6 +689,33 @@ CWVAutofillProgressDialogType ToCWVAutofillProgressDialogType(
 
 - (void)handleVirtualCardEnrollmentResult:(BOOL)cardEnrolled {
   [_enrollmentManager handleCreditCardVCNEnrollmentCompleted:cardEnrolled];
+}
+
+- (void)showCardUnmaskOtpInputDialogForCardType:
+            (autofill::CreditCard::RecordType)cardType
+                                challengeOption:
+                                    (const autofill::CardUnmaskChallengeOption&)
+                                        challengeOption
+                                       delegate:
+                                           (base::WeakPtr<
+                                               autofill::OtpUnmaskDelegate>)
+                                               delegate {
+  if ([_delegate respondsToSelector:@selector(autofillController:
+                                        verifyCreditCardWithOTPVerifier:)]) {
+    CWVCreditCardOTPVerifier* OTPVerifier =
+        [[CWVCreditCardOTPVerifier alloc] initWithCardType:cardType
+                                           challengeOption:challengeOption
+                                            unmaskDelegate:delegate];
+    [_delegate autofillController:self
+        verifyCreditCardWithOTPVerifier:OTPVerifier];
+
+    _OTPVerifier = OTPVerifier;
+  }
+}
+
+- (void)didReceiveUnmaskOtpVerificationResult:
+    (autofill::OtpUnmaskResult)unmaskResult {
+  [_OTPVerifier didReceiveUnmaskOtpVerificationResult:unmaskResult];
 }
 
 #pragma mark - AutofillDriverIOSBridge

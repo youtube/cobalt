@@ -9,7 +9,6 @@
 #include <optional>
 
 #include "base/memory/raw_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
@@ -56,7 +55,8 @@ class SidePanelUIBase : public SidePanelUI, public TabStripModelObserver {
   void Show(
       SidePanelEntry::Key entry_key,
       std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger) override;
-  std::optional<SidePanelEntry::Id> GetCurrentEntryId() const override;
+  std::optional<SidePanelEntry::Id> GetCurrentEntryId(
+      SidePanelEntry::PanelType panel_type) const override;
   int GetCurrentEntryDefaultContentWidth(
       SidePanelEntry::PanelType type) const override;
   bool IsSidePanelShowing(SidePanelEntry::PanelType type) const override;
@@ -104,7 +104,8 @@ class SidePanelUIBase : public SidePanelUI, public TabStripModelObserver {
     base::RepeatingCallbackList<void()> shown_callback_list;
   };
 
-  virtual void Close(bool suppress_animations) = 0;
+  virtual void Close(bool suppress_animations,
+                     SidePanelEntry::PanelType panel_type) = 0;
 
   // This method does not show the side panel. Instead, it queues the side panel
   // to be shown once the contents have been loaded. This process may be either
@@ -131,10 +132,10 @@ class SidePanelUIBase : public SidePanelUI, public TabStripModelObserver {
       SidePanelRegistry* old_contextual_registry,
       SidePanelRegistry* new_contextual_registry) = 0;
 
-  void SetOpenedTimestamp(base::TimeTicks timestamp);
-  base::TimeTicks opened_timestamp() {
-    return panel_data_.at(SidePanelEntry::PanelType::kContent)
-        ->opened_timestamp;
+  void SetOpenedTimestamp(SidePanelEntry::PanelType type,
+                          base::TimeTicks timestamp);
+  base::TimeTicks opened_timestamp(SidePanelEntry::PanelType type) {
+    return panel_data_.at(type)->opened_timestamp;
   }
 
   void NotifyShownCallbacksFor(SidePanelEntry::PanelType type);

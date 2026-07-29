@@ -2606,9 +2606,11 @@ RenderFrameHostImpl::RenderFrameHostImpl(
   // of overrides.
   idle_manager_ = std::make_unique<IdleManagerImpl>(this);
 
+#if BUILDFLAG(IS_ANDROID)
   // The renderer process priority has been set in the RenderWidgetHost so
   // it is safe to remove to spare renderer priority here.
   site_instance->GetProcess()->GraduateSpareToNormalRendererPriority();
+#endif
 
   SiteInstanceGroupId sig_id = site_instance_->group()->GetId();
   bool rfh_in_bfcache =
@@ -2973,8 +2975,13 @@ void RenderFrameHostImpl::DidEnterBackForwardCache() {
   for (FrameTreeNode* node : FrameTree::SubtreeAndInnerTreeNodes(
            this,
            /*include_delegate_nodes_for_inner_frame_trees=*/true)) {
-    if (RenderFrameHostImpl* rfh = node->current_frame_host()) {
-      rfh->DidEnterBackForwardCacheInternal();
+    RenderFrameHostImpl* subframe = node->current_frame_host();
+    // The subframe can be pending deletion if the unload handlers or the
+    // cleanup didn't complete by the time the main frame enters the BFCache. If
+    // the rfh is not deleted by the time the main frame is getting restored
+    // it will be skipped from transitioning back to active.
+    if (subframe && !subframe->IsPendingDeletion()) {
+      subframe->DidEnterBackForwardCacheInternal();
     }
   }
 }
@@ -3007,7 +3014,7 @@ void RenderFrameHostImpl::DidEnterBackForwardCacheInternal() {
   }
 }
 
-// The frame as been restored from the BackForwardCache.
+// The frame being restored from the BackForwardCache.
 void RenderFrameHostImpl::WillLeaveBackForwardCache() {
   TRACE_EVENT0("navigation", "RenderFrameHostImpl::LeaveBackForwardCache");
   DCHECK(IsBackForwardCacheEnabled());
@@ -3020,8 +3027,9 @@ void RenderFrameHostImpl::WillLeaveBackForwardCache() {
   for (FrameTreeNode* node : FrameTree::SubtreeAndInnerTreeNodes(
            this,
            /*include_delegate_nodes_for_inner_frame_trees=*/true)) {
-    if (RenderFrameHostImpl* rfh = node->current_frame_host()) {
-      rfh->WillLeaveBackForwardCacheInternal();
+    RenderFrameHostImpl* subframe = node->current_frame_host();
+    if (subframe && !subframe->IsPendingDeletion()) {
+      subframe->WillLeaveBackForwardCacheInternal();
     }
   }
 }
@@ -7126,6 +7134,12 @@ void RenderFrameHostImpl::RunBeforeUnloadConfirm(
     return;
   }
 
+  // Don't show the dialog and indicate navigation should continue.
+  if (GetContentClient()->browser()->ShouldSkipBeforeUnloadDialog(this)) {
+    std::move(ipc_response_callback).Run(/*success=*/true);
+    return;
+  }
+
   // Allow at most one attempt to show a beforeunload dialog per navigation.
   RenderFrameHostImpl* beforeunload_initiator = GetBeforeUnloadInitiator();
   if (beforeunload_initiator) {
@@ -8008,11 +8022,6 @@ void RenderFrameHostImpl::UpdateSubresourceLoaderFactories() {
     return;
   }
 
-  // TODO(crbug.com/40061679): Remove the crash key logging after the
-  // ad-hoc bug investigation is no longer needed.
-  SCOPED_CRASH_KEY_STRING256("rfhi-uslf", "frame->ToDebugString",
-                             ToDebugString());
-
   // The `subresource_loader_factories_config` of the new factories might need
   // to depend on the pending (rather than the last committed) navigation,
   // because we can't predict if an in-flight Commit IPC might be present when
@@ -8251,15 +8260,9 @@ void RenderFrameHostImpl::FullscreenStateChanged(
   delegate_->FullscreenStateChanged(this, is_fullscreen, std::move(options));
 }
 
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 bool RenderFrameHostImpl::CanUseWindowingControls(
     std::string_view js_api_name) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  mojo::ReportBadMessage(
-      base::StrCat({js_api_name,
-                    " API is only supported on Desktop platforms. This "
-                    "excludes mobile platforms."}));
-  return false;
-#else
   if (!base::FeatureList::IsEnabled(
           blink::features::kDesktopPWAsAdditionalWindowingControls)) {
     mojo::ReportBadMessage(base::StrCat(
@@ -8288,7 +8291,6 @@ bool RenderFrameHostImpl::CanUseWindowingControls(
     return false;
   }
   return delegate_->CanUseWindowingControls(this);
-#endif
 }
 
 void RenderFrameHostImpl::Maximize() {
@@ -8319,6 +8321,7 @@ void RenderFrameHostImpl::SetResizable(bool resizable) {
 
   GetPage().SetResizable(resizable);
 }
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 void RenderFrameHostImpl::DraggableRegionsChanged(
     std::vector<blink::mojom::DraggableRegionPtr> regions) {
@@ -12021,6 +12024,7 @@ RenderFrameHostImpl::CheckOrDispatchBeforeUnloadForFrame(
       !IsAvoidUnnecessaryBeforeUnloadCheckSyncEnabledFor(
           features::AvoidUnnecessaryBeforeUnloadCheckSyncMode::
               kWithoutSendBeforeUnload);
+
   const bool should_run_beforeunload =
       rfh->has_before_unload_handler_ || run_beforeunload_for_legacy_frame;
 
@@ -12261,14 +12265,16 @@ void RenderFrameHostImpl::PendingDeletionCheckCompletedOnSubtree() {
 void RenderFrameHostImpl::PendingDeletionCheckCompletedOnSubtreeNowOrLater() {
   if (base::FeatureList::IsEnabled(
           features::kDelayRfhDestructionsOnUnloadAndDetach)) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(
-                       [](auto rfh) {
-                         if (rfh) {
-                           rfh->PendingDeletionCheckCompletedOnSubtree();
-                         }
-                       },
-                       GetWeakPtr()));
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](auto rfh) {
+              if (rfh) {
+                rfh->PendingDeletionCheckCompletedOnSubtree();
+              }
+            },
+            GetWeakPtr()),
+        features::kRfhDestructionsOnUnloadAndDetachTaskDelay.Get());
   } else {
     // Some children with no unload handler may be eligible for deletion. Cut
     // the dead branches now. This is a performance optimization.
@@ -12470,22 +12476,6 @@ void RenderFrameHostImpl::CommitNavigation(
     } else {
       DCHECK(!navigation_request->IsForMhtmlSubframe());
     }
-  }
-
-  if (is_main_frame()) {
-    // Ensures the blink::Page is set with the correct canvas noise token for
-    // main frames by syncing the value with the frame's associated
-    // blink::WebView prior to commit. This must be done at CommitNavigation
-    // time as the origin will not be available when the blink::Page is created
-    // earlier.
-    std::optional<blink::NoiseToken> canvas_noise_token =
-        navigation_request->canvas_noise_token();
-    frame_tree()->root()->render_manager()->ExecutePageBroadcastMethod(
-        [canvas_noise_token](RenderViewHostImpl* rvh) {
-          if (auto& broadcast = rvh->GetAssociatedPageBroadcast()) {
-            broadcast->UpdateCanvasNoiseToken(canvas_noise_token);
-          }
-        });
   }
 
   bool is_srcdoc = common_params->url.IsAboutSrcdoc();
@@ -15965,15 +15955,6 @@ bool RenderFrameHostImpl::DidCommitNavigationInternal(
     document_associated_data_->owned_page()->set_last_main_document_source_id(
         ukm::ConvertToSourceId(navigation_request->GetNavigationId(),
                                ukm::SourceIdType::NAVIGATION_ID));
-
-    // Set this on content::Page so that all subframes can inherit the same
-    // canvas noise token. Note that the content::Page may have been swapped
-    // above (earlier in DidCommitNavigationInternal()) in cases like
-    // prerendering.  At this point in the navigation, the content::Page should
-    // be set and can be inherited for subframe navigations.
-    // TODO(crbug.com/434006731): Assign this state earlier once RenderDocument
-    // ships and content::Page doesn't need to swap.
-    GetPage().set_canvas_noise_token(navigation_request->canvas_noise_token());
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -18517,9 +18498,15 @@ void RenderFrameHostImpl::SetLifecycleState(LifecycleStateImpl new_state) {
         // We should not encounter an Inner WebContents.
         CHECK(!ftn->IsOutermostMainFrame());
 
-        RenderFrameHostImpl* rfh = ftn->current_frame_host();
-        DCHECK_EQ(rfh->lifecycle_state(), lifecycle_state_);
-        rfh->SetLifecycleState(new_state);
+        RenderFrameHostImpl* subframe = ftn->current_frame_host();
+        // Do not reset the subframe lifecycle state back to active if it's
+        // pending deletion. This can happen if an unload handler didn't finish
+        // or subframe cleanup didn't run by the time parent frame enters or is
+        // getting restored from the BFCache.
+        if (!subframe->IsPendingDeletion()) {
+          DCHECK_EQ(subframe->lifecycle_state(), lifecycle_state_);
+          subframe->SetLifecycleState(new_state);
+        }
         ++node_iter;
       }
     }
@@ -19276,6 +19263,12 @@ RenderFrameHostImpl::GetCachedPermissionStatuses() {
       std::to_array<std::pair<PermissionName, PermissionType>>(
           {{PermissionName::VIDEO_CAPTURE, PermissionType::VIDEO_CAPTURE},
            {PermissionName::AUDIO_CAPTURE, PermissionType::AUDIO_CAPTURE},
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+           // `WEB_APP_INSTALLATION` is only registered for desktop platforms
+           // via `WebsiteSettingsRegistry::DESKTOP`.
+           {PermissionName::WEB_APP_INSTALLATION,
+            PermissionType::WEB_APP_INSTALLATION},
+#endif
            {PermissionName::GEOLOCATION, PermissionType::GEOLOCATION}});
 
   base::flat_map<PermissionName, PermissionStatus> permission_map;

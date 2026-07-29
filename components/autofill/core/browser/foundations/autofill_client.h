@@ -115,6 +115,7 @@ class FormFieldData;
 struct FormInteractionsFlowId;
 class LogManager;
 class OtpFieldDetector;
+class OtpPhishGuardDelegate;
 struct PasswordFormClassification;
 class PasswordManagerDelegate;
 class PersonalDataManager;
@@ -642,7 +643,7 @@ class AutofillClient {
   virtual bool IsContextSecure() const = 0;
 
   // Returns whether Google Wallet storage is supported.
-  virtual bool IsImportingToWalletEnabled() const = 0;
+  virtual bool IsWalletStorageEnabled() const = 0;
 
   // Returns true if the client supports saving CVCs. This allows specific
   // clients (IosWebView) to opt out of the CVC saving feature.
@@ -750,6 +751,10 @@ class AutofillClient {
 
   // May return null on platforms where OTPs are not supported.
   virtual OtpFieldDetector* GetOtpFieldDetector();
+
+  // Returns the delegate for OTP phish guard, which can be used to perform
+  // security checks before offering an OTP. May return nullptr.
+  virtual OtpPhishGuardDelegate* GetOtpPhishGuardDelegate();
 
   // May return null on platforms where no OneTimeTokenService is supported.
   virtual one_time_tokens::OneTimeTokenService* GetOneTimeTokenService() const;

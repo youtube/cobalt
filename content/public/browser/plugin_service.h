@@ -5,6 +5,7 @@
 #ifndef CONTENT_PUBLIC_BROWSER_PLUGIN_SERVICE_H_
 #define CONTENT_PUBLIC_BROWSER_PLUGIN_SERVICE_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,7 +28,6 @@ namespace content {
 
 class BrowserContext;
 class PluginServiceFilter;
-struct ContentPluginInfo;
 struct WebPluginInfo;
 
 // This class lives on the UI thread.
@@ -72,16 +72,9 @@ class CONTENT_EXPORT PluginService {
                              WebPluginInfo* info,
                              std::string* actual_mime_type) = 0;
 
-  // Get plugin info by plugin path (including disabled plugins). Returns true
-  // if the plugin is found and WebPluginInfo has been filled in |info|. This
-  // will use cached data in the plugin list.
-  virtual bool GetPluginInfoByPath(const base::FilePath& plugin_path,
-                                   WebPluginInfo* info) = 0;
-
-  // Returns the display name for the plugin identified by the given path. If
-  // the path doesn't identify a plugin, or the plugin has no display name,
-  // this will attempt to generate a display name from the path.
-  virtual std::u16string GetPluginDisplayNameByPath(
+  // Gets plugin info by plugin path (including disabled plugins). This will use
+  // cached data in the plugin list.
+  virtual std::optional<WebPluginInfo> GetPluginInfoByPathForTesting(
       const base::FilePath& plugin_path) = 0;
 
   // Asynchronously loads plugins if necessary and then calls back to the
@@ -92,18 +85,8 @@ class CONTENT_EXPORT PluginService {
   // infos.
   virtual std::vector<WebPluginInfo> GetPluginsSynchronous() = 0;
 
-  // Returns information about a plugin if it exists, otherwise `nullptr`. The
-  // caller does not own the pointer, and it's not guaranteed to live past the
-  // call stack.
-  virtual const ContentPluginInfo* GetRegisteredPluginInfo(
-      const base::FilePath& plugin_path) = 0;
-
   virtual void SetFilter(PluginServiceFilter* filter) = 0;
   virtual PluginServiceFilter* GetFilter() = 0;
-
-  // Used to monitor plugin stability. An unstable plugin is one that has
-  // crashed more than a set number of times in a set time period.
-  virtual bool IsPluginUnstable(const base::FilePath& plugin_path) = 0;
 
   // Cause the plugin list to refresh next time they are accessed, regardless
   // of whether they are already loaded.
@@ -122,7 +105,7 @@ class CONTENT_EXPORT PluginService {
   virtual void UnregisterInternalPlugin(const base::FilePath& path) = 0;
 
   // Gets a list of all the registered internal plugins.
-  virtual void GetInternalPlugins(std::vector<WebPluginInfo>* plugins) = 0;
+  virtual std::vector<WebPluginInfo> GetInternalPluginsForTesting() = 0;
 };
 
 }  // namespace content

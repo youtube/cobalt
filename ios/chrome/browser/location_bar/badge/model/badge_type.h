@@ -12,6 +12,7 @@ enum class LocationBarBadgeType {
   kIncognito,
   kContextualPanel,
   kReaderMode,
+  kGeminiContextualCueChip,
 };
 
 #endif  // IOS_CHROME_BROWSER_LOCATION_BAR_BADGE_MODEL_BADGE_TYPE_H_

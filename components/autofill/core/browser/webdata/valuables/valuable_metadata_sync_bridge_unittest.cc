@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/files/scoped_temp_dir.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/protobuf_matchers.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -81,12 +82,6 @@ EntityInstance CreateServerVehicleEntityInstance(
   return test::GetVehicleEntityInstance(options);
 }
 
-EntityInstance CreateLocalVehicleEntityInstance(
-    test::VehicleOptions options = {}) {
-  options.record_type = EntityInstance::RecordType::kLocal;
-  return test::GetVehicleEntityInstance(options);
-}
-
 }  // namespace
 
 class ValuableMetadataSyncBridgeTest : public testing::Test {
@@ -117,7 +112,7 @@ class ValuableMetadataSyncBridgeTest : public testing::Test {
     return mock_processor_;
   }
 
- private:
+ protected:
   base::test::SingleThreadTaskEnvironment task_environment_;
   base::ScopedTempDir temp_dir_;
   testing::NiceMock<MockAutofillWebDataBackend> backend_;
@@ -447,38 +442,90 @@ TEST_F(ValuableMetadataSyncBridgeTest, ApplyDisableSyncChanges_ClearsMetadata) {
   EXPECT_THAT(GetMetadataEntries(), ElementsAre(local_vehicle2.metadata()));
 }
 
-// Tests that `EntityInstanceChanged()` ignores local entities.
-TEST_F(ValuableMetadataSyncBridgeTest, EntityInstanceChanged_IgnoresLocal) {
-  ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
-  EXPECT_CALL(mock_processor(), Put).Times(0);
-  const EntityInstance vehicle = CreateLocalVehicleEntityInstance();
-
-  bridge().EntityInstanceChanged(
-      EntityInstanceChange(EntityInstanceChange::ADD, vehicle.guid(), vehicle));
-}
-
-// Tests that `EntityInstanceChanged()` handles ADD and UPDATE changes.
-TEST_F(ValuableMetadataSyncBridgeTest, EntityInstanceChanged_AddUpdate) {
+// Tests that `ServerEntityInstanceMetadataChanged()` handles ADD and UPDATE
+// changes.
+TEST_F(ValuableMetadataSyncBridgeTest,
+       ServerEntityInstanceMetadataChanged_AddUpdate) {
   ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
   const EntityInstance vehicle = CreateServerVehicleEntityInstance();
 
   EXPECT_CALL(mock_processor(), Put(*vehicle.guid(), _, _));
-  bridge().EntityInstanceChanged(
-      EntityInstanceChange(EntityInstanceChange::ADD, vehicle.guid(), vehicle));
+  bridge().ServerEntityInstanceMetadataChanged(EntityInstanceMetadataChange(
+      EntityInstanceMetadataChange::ADD, vehicle.guid(), vehicle.metadata()));
 
   EXPECT_CALL(mock_processor(), Put(*vehicle.guid(), _, _));
-  bridge().EntityInstanceChanged(EntityInstanceChange(
-      EntityInstanceChange::UPDATE, vehicle.guid(), vehicle));
+  bridge().ServerEntityInstanceMetadataChanged(
+      EntityInstanceMetadataChange(EntityInstanceMetadataChange::UPDATE,
+                                   vehicle.guid(), vehicle.metadata()));
 }
 
-// Tests that `EntityInstanceChanged()` handles a REMOVE change.
-TEST_F(ValuableMetadataSyncBridgeTest, EntityInstanceChanged_Remove) {
+// Tests that `ServerEntityInstanceMetadataChanged()` handles a REMOVE change.
+TEST_F(ValuableMetadataSyncBridgeTest,
+       ServerEntityInstanceMetadataChanged_Remove) {
   ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
   const EntityInstance vehicle = CreateServerVehicleEntityInstance();
 
   EXPECT_CALL(mock_processor(), Delete(*vehicle.guid(), _, _));
-  bridge().EntityInstanceChanged(EntityInstanceChange(
-      EntityInstanceChange::REMOVE, vehicle.guid(), vehicle));
+  bridge().ServerEntityInstanceMetadataChanged(
+      EntityInstanceMetadataChange(EntityInstanceMetadataChange::REMOVE,
+                                   vehicle.guid(), vehicle.metadata()));
+}
+
+// Tests that DeleteOldOrphanMetadata() deletes metadata that has no
+// corresponding data entity.
+TEST_F(ValuableMetadataSyncBridgeTest, DeleteOldOrphanMetadata) {
+  base::HistogramTester histogram_tester;
+
+  // 1. Setup initial state with two server vehicles and three metadata entries,
+  // one of which is an orphan.
+  const EntityInstance server_vehicle1 = CreateServerVehicleEntityInstance(
+      {.guid = "00000000-0000-2000-8000-300000000000"});
+  const EntityInstance server_vehicle2 = CreateServerVehicleEntityInstance(
+      {.guid = "00000000-0000-4000-8000-300000000000"});
+  entity_table().AddOrUpdateEntityInstance(server_vehicle1);
+  entity_table().AddOrUpdateEntityInstance(server_vehicle2);
+
+  const EntityInstance::EntityMetadata orphan_metadata =
+      test::GetVehicleEntityInstance(
+          {.guid = "00000000-0000-6000-8000-300000000000"})
+          .metadata();
+
+  syncer::EntityChangeList entity_change_list;
+  entity_change_list.push_back(syncer::EntityChange::CreateAdd(
+      *server_vehicle1.guid(),
+      SpecificsToEntity(
+          CreateSpecificsFromEntityMetadata(server_vehicle1.metadata()))));
+  entity_change_list.push_back(syncer::EntityChange::CreateAdd(
+      *server_vehicle2.guid(),
+      SpecificsToEntity(
+          CreateSpecificsFromEntityMetadata(server_vehicle2.metadata()))));
+  entity_change_list.push_back(syncer::EntityChange::CreateAdd(
+      *orphan_metadata.guid,
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(orphan_metadata))));
+
+  bridge().MergeFullSyncData(bridge().CreateMetadataChangeList(),
+                             std::move(entity_change_list));
+
+  ASSERT_THAT(
+      GetMetadataEntries(),
+      UnorderedElementsAre(server_vehicle1.metadata(),
+                           server_vehicle2.metadata(), orphan_metadata));
+
+  // 2. Expect that the orphan metadata is deleted from the sync server.
+  EXPECT_CALL(mock_processor(), Delete(*orphan_metadata.guid, _, _));
+  EXPECT_CALL(backend(), CommitChanges());
+
+  // 3. Restart the bridge to force the cleanup of orphan metadata.
+  bridge_ = std::make_unique<ValuableMetadataSyncBridge>(
+      mock_processor_.CreateForwardingProcessor(), &backend_);
+
+  // 4. Verify that the orphan metadata is deleted locally and the UMA metric is
+  // recorded.
+  EXPECT_THAT(GetMetadataEntries(),
+              UnorderedElementsAre(server_vehicle1.metadata(),
+                                   server_vehicle2.metadata()));
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ValuableMetadata.OrphanEntriesRemovedCount", 1, 1);
 }
 
 }  // namespace

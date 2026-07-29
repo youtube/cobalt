@@ -7,6 +7,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/safari_data_import/public/ui_utils.h"
 #import "ios/chrome/browser/safari_data_import/public/utils.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/promo_style/utils.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -21,19 +22,18 @@
       l10n_util::GetNSString(IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_TITLE);
   self.subtitleString =
       l10n_util::GetNSString(IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_SUBTITLE);
-  self.primaryActionString =
+  self.configuration.primaryActionString =
       l10n_util::GetNSString(IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_PRIMARY_ACTION);
-  self.secondaryActionString = l10n_util::GetNSString(IDS_NO_THANKS);
+  self.configuration.secondaryActionString =
+      l10n_util::GetNSString(IDS_NO_THANKS);
   if (self.showReminderButton) {
-    self.tertiaryActionString = l10n_util::GetNSString(
+    self.configuration.tertiaryActionString = l10n_util::GetNSString(
         IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_REMINDER_ACTION);
   }
+  [self reloadConfiguration];
   self.image = [UIImage imageNamed:@"safari_data_import"];
   self.imageHasFixedSize = YES;
   self.topAlignedLayout = YES;
-  /// Create an empty title view to show in the navigation bar if dismiss
-  /// button would not be displayed.
-  self.titleView = [[UIView alloc] initWithFrame:CGRectZero];
   self.showDismissBarButton = NO;
   [super viewDidLoad];
   self.view.accessibilityIdentifier =

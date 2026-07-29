@@ -246,37 +246,36 @@
   E_CPONLY(kColorNewTabPageCartModuleDiscountChipForeground) \
   E_CPONLY(kColorNewTabPageChipBackground) \
   E_CPONLY(kColorNewTabPageChipForeground) \
-  E_CPONLY(kColorNewTabPageComposeboxBackground) \
-  E_CPONLY(kColorNewTabPageComposeboxFont) \
-  E_CPONLY(kColorNewTabPageComposeboxFontLight) \
-  E_CPONLY(kColorNewTabPageComposeboxCancelButton) \
-  E_CPONLY(kColorNewTabPageComposeboxCancelButtonLight) \
-  E_CPONLY(kColorNewTabPageComposeboxErrorScrimBackground) \
-  E_CPONLY(kColorNewTabPageComposeboxErrorScrimButtonBackground) \
-  E_CPONLY(kColorNewTabPageComposeboxErrorScrimButtonBackgroundHover) \
-  E_CPONLY(kColorNewTabPageComposeboxErrorScrimButtonText) \
-  E_CPONLY(kColorNewTabPageComposeboxErrorScrimForeground) \
-  E_CPONLY(kColorNewTabPageComposeboxHover) \
-  E_CPONLY(kColorNewTabPageComposeboxInputIcon) \
-  E_CPONLY(kColorNewTabPageComposeboxLensButton) \
-  E_CPONLY(kColorNewTabPageComposeboxOutlineHcm) \
-  E_CPONLY(kColorNewTabPageComposeboxRecentTabChipOutline) \
-  E_CPONLY(kColorNewTabPageComposeboxResultsBackgroundHovered) \
-  E_CPONLY(kColorNewTabPageComposeboxScrimBackground) \
-  E_CPONLY(kColorNewTabPageComposeboxSubmitButton) \
-  E_CPONLY(kColorNewTabPageComposeboxSuggestionActivity) \
-  E_CPONLY(kColorNewTabPageComposeboxTypeAhead) \
-  E_CPONLY(kColorNewTabPageComposeboxTypeAheadChip) \
-  E_CPONLY(kColorNewTabPageComposeboxUploadButton) \
-  E_CPONLY(kColorNewTabPageComposeboxUploadButtonDisabled) \
-  E_CPONLY(kColorNewTabPageComposeboxFileChipBackground) \
-  E_CPONLY(kColorNewTabPageComposeboxFileChipFaviconBackground) \
-  E_CPONLY(kColorNewTabPageComposeboxFileChipText) \
-  E_CPONLY(kColorNewTabPageComposeboxPdfChipIcon) \
-  E_CPONLY(kColorNewTabPageComposeboxFileImageOverlay) \
-  E_CPONLY(kColorNewTabPageComposeboxFileCarouselDivider) \
-  E_CPONLY(kColorNewTabPageComposeboxContextEntrypointTextDisabled) \
-  E_CPONLY(kColorNewTabPageComposeboxContextEntrypointHoverBackground) \
+  E_CPONLY(kColorComposeboxBackground) \
+  E_CPONLY(kColorComposeboxFont) \
+  E_CPONLY(kColorComposeboxFontLight) \
+  E_CPONLY(kColorComposeboxCancelButton) \
+  E_CPONLY(kColorComposeboxCancelButtonLight) \
+  E_CPONLY(kColorComposeboxErrorScrimBackground) \
+  E_CPONLY(kColorComposeboxErrorScrimButtonBackground) \
+  E_CPONLY(kColorComposeboxErrorScrimButtonBackgroundHover) \
+  E_CPONLY(kColorComposeboxErrorScrimButtonText) \
+  E_CPONLY(kColorComposeboxErrorScrimForeground) \
+  E_CPONLY(kColorComposeboxHover) \
+  E_CPONLY(kColorComposeboxInputIcon) \
+  E_CPONLY(kColorComposeboxLensButton) \
+  E_CPONLY(kColorComposeboxOutlineHcm) \
+  E_CPONLY(kColorComposeboxRecentTabChipOutline) \
+  E_CPONLY(kColorComposeboxScrimBackground) \
+  E_CPONLY(kColorComposeboxSubmitButton) \
+  E_CPONLY(kColorComposeboxSuggestionActivity) \
+  E_CPONLY(kColorComposeboxTypeAhead) \
+  E_CPONLY(kColorComposeboxTypeAheadChip) \
+  E_CPONLY(kColorComposeboxUploadButton) \
+  E_CPONLY(kColorComposeboxUploadButtonDisabled) \
+  E_CPONLY(kColorComposeboxFileChipBackground) \
+  E_CPONLY(kColorComposeboxFileChipFaviconBackground) \
+  E_CPONLY(kColorComposeboxFileChipText) \
+  E_CPONLY(kColorComposeboxPdfChipIcon) \
+  E_CPONLY(kColorComposeboxFileImageOverlay) \
+  E_CPONLY(kColorComposeboxFileCarouselDivider) \
+  E_CPONLY(kColorComposeboxContextEntrypointTextDisabled) \
+  E_CPONLY(kColorComposeboxContextEntrypointHoverBackground) \
   E_CPONLY(kColorNewTabPageControlBackgroundHovered) \
   E_CPONLY(kColorNewTabPageControlBackgroundSelected) \
   E_CPONLY(kColorNewTabPageFirstRunBackground) \
@@ -335,6 +334,7 @@
   E_CPONLY(kColorNewTabPageOverlayForeground) \
   E_CPONLY(kColorNewTabPageOverlaySecondaryForeground) \
   E_CPONLY(kColorNewTabPagePrimaryForeground) \
+  E_CPONLY(kColorNewTabPageRealboxNextIconHover) \
   E_CPONLY(kColorNewTabPageSearchBoxBackground) \
   E_CPONLY(kColorNewTabPageSearchBoxBackgroundHovered) \
   E_CPONLY(kColorNewTabPageSearchBoxResultsTextDimmedSelected) \
@@ -371,6 +371,8 @@
   E_CPONLY(kColorOmniboxChipInkDropRipple) \
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorBackground) \
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorForeground) \
+  E_CPONLY(kColorOmniboxContextEntrypointHoverBackground) \
+  E_CPONLY(kColorOmniboxContextEntrypointText) \
   E_CPONLY(kColorOmniboxIconBackground) \
   E_CPONLY(kColorOmniboxIconBackgroundTonal) \
   E_CPONLY(kColorOmniboxIconForeground) \
@@ -646,6 +648,9 @@
   E_CPONLY(kColorSearchboxSelectionBackground) \
   E_CPONLY(kColorSearchboxSelectionForeground) \
   E_CPONLY(kColorSearchboxShadow) \
+  /* Action chips colors. */ \
+  E_CPONLY(kColorNewTabPageActionChipBackground) \
+  E_CPONLY(kColorNewTabPageActionChipBackgroundHover) \
   /* The colors used for saved tab group chips on the bookmark bar. */ \
   E_CPONLY(kColorSavedTabGroupForegroundGrey) \
   E_CPONLY(kColorSavedTabGroupForegroundBlue) \

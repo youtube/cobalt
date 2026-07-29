@@ -199,6 +199,8 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
       gfx::Vector2d cursor_offset_in_dip,
       gfx::Rect drag_obj_rect_in_dip,
       blink::mojom::DragEventSourceInfoPtr event_info) = 0;
+
+  virtual void SetTouchpadOverscrollHistoryNavigation(bool enabled) {}
 #endif
 
   // For HiDPI capture mode, allow applying a render scale multiplier
@@ -621,6 +623,10 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   display::ScreenInfos screen_infos_;
 
   float scale_override_for_capture_ = 1.0f;
+
+  // The area around an editable region where handwriting should still be
+  // possible.
+  int handwriting_radius_ = 0;
 
   // Indicates whether keyboard lock is active for this view.
   bool keyboard_locked_ = false;

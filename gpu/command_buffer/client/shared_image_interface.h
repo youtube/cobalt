@@ -54,6 +54,7 @@ namespace gpu {
 class ArcSharedImageInterface;
 class ClientSharedImageInterface;
 struct ExportedSharedImage;
+class GpuChannelLostObserver;
 struct SharedImageCapabilities;
 class SharedImageInterfaceHolder;
 class SharedImageInterfaceInProcessBase;
@@ -265,38 +266,6 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT SharedImageInterface
   virtual scoped_refptr<ClientSharedImage> ImportSharedImage(
       ExportedSharedImage exported_shared_image) = 0;
 
-  struct GPU_COMMAND_BUFFER_CLIENT_EXPORT SwapChainSharedImages {
-    SwapChainSharedImages(scoped_refptr<gpu::ClientSharedImage> front_buffer,
-                          scoped_refptr<gpu::ClientSharedImage> back_buffer);
-    SwapChainSharedImages(const SwapChainSharedImages& shared_images);
-    ~SwapChainSharedImages();
-
-    scoped_refptr<gpu::ClientSharedImage> front_buffer;
-    scoped_refptr<gpu::ClientSharedImage> back_buffer;
-  };
-
-  // Creates a swap chain.
-  // Returns shared images for front and back buffers of a DXGI Swap Chain that
-  // can be imported into GL command buffer using shared image functions (e.g.
-  // GLES2Interface::CreateAndTexStorage2DSharedImageCHROMIUM).
-  virtual SwapChainSharedImages CreateSwapChain(
-      viz::SharedImageFormat format,
-      const gfx::Size& size,
-      const gfx::ColorSpace& color_space,
-      GrSurfaceOrigin surface_origin,
-      SkAlphaType alpha_type,
-      gpu::SharedImageUsageSet usage,
-      std::string_view debug_label) = 0;
-
-  // Swaps front and back buffer of a swap chain. Back buffer mailbox still
-  // refers to the back buffer of the swap chain after calling PresentSwapChain.
-  // The mailbox argument should be back buffer mailbox. Sync token is required
-  // for synchronization between shared image stream and command buffer stream,
-  // to ensure that all the rendering commands to a frame are executed before
-  // presenting the swap chain.
-  virtual void PresentSwapChain(const SyncToken& sync_token,
-                                const Mailbox& mailbox) = 0;
-
 #if BUILDFLAG(IS_FUCHSIA)
   // Registers a sysmem buffer collection. `service_handle` contains a handle
   // for the eventpair that controls the lifetime of the collection. The
@@ -397,6 +366,16 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT SharedImageInterface
       SharedImageUsageSet usage,
       uint32_t texture_target,
       std::string_view debug_label);
+
+  // Returns true if the backing context has been lost.
+  virtual bool IsLost() const;
+
+  // Adds an observer that will be notified when the backing GPU channel is
+  // lost. Returns true if the observer was added successfully.
+  virtual bool AddGpuChannelLostObserver(GpuChannelLostObserver* observer);
+
+  // Removes a GPU channel lost observer.
+  virtual void RemoveGpuChannelLostObserver(GpuChannelLostObserver* observer);
 
   virtual const SharedImageCapabilities& GetCapabilities() = 0;
 

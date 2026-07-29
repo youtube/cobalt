@@ -1,5 +1,10 @@
 <style include="cr-shared-style settings-shared cr-icons
     settings-columned-section">
+
+  #topSection {
+    border-bottom: var(--cr-separator-line);
+  }
+
 </style>
 <settings-subpage page-title="$i18n{autofillAiPageTitle}">
 <div id="topSection">
@@ -56,6 +61,8 @@
   </div>
 </div>
 
-<settings-autofill-ai-entries-list-element prefs="{{prefs}}">
-</settings-autofill-ai-entries-list-element>
+<settings-autofill-ai-entries-list
+    title="$i18n{autofillAiEntityInstancesHeader}"
+    prefs="{{prefs}}">
+</settings-autofill-ai-entries-list>
 </settings-subpage>

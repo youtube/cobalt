@@ -25,6 +25,7 @@
 <translation id="1502360822835740515">Chromium をデフォルトのブラウザにする</translation>
 <translation id="1503199973012840174">お使いの Chromium は最新ではありません。安全性を確保するため更新してください。</translation>
 <translation id="1515748263297244785">iPad 版 Chromium をデフォルトで使用する</translation>
+<translation id="1530961174488670696">Chromium でアップデートを確認できませんでした。しばらくしてからもう一度お試しください。</translation>
 <translation id="1531155317299575425">Chromium へのログインを促すメッセージが表示されます。</translation>
 <translation id="1553657876656159572">あなた向けのカスタム フィード。ニュース、スポーツ、天気情報など。</translation>
 <translation id="1561849081734670621">Chromium のロックダウン モードを無効にするには、iPhone でロックダウン モードをオフにします。</translation>
@@ -145,6 +146,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="420541179527342563">Chromium のロックダウン モードを無効にするには、iPad でロックダウン モードをオフにします。</translation>
 <translation id="4272892696084633551">Chromium の機能と動作の改善に協力する</translation>
 <translation id="4302397443352897529">Chromium の設定</translation>
+<translation id="4304713468139749426">パスワード マネージャー</translation>
 <translation id="4408912345039114853">Chromium で安全チェックを実行する</translation>
 <translation id="4432744876818348753">Chromium を最大限に活用するにはログインしてください。</translation>
 <translation id="4445228361214254027">Google アカウントで Chromium データを使用、保存する機能は組織によって無効にされています。新しいブックマークやパスワードなどは、このデバイスにのみ保存されます。</translation>
@@ -236,7 +238,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="6154098560469640583">メッセージ、ドキュメント、他のアプリのリンクをタップしたときに、常に Chromium で開くよう設定できます</translation>
 <translation id="6157162508956739031">Chromium からパスワードやパスキーを自動入力して、アプリやサイトにすばやくログインできます</translation>
 <translation id="6170619162539716595">Chromium で Google マップを使用して、検出された住所までの経路やローカル情報を取得できるようにします。</translation>
-<translation id="6247557882553405851">Google パスワード マネージャー</translation>
+<translation id="6244277266078678766">データは、<ph name="USER_EMAIL" /> のパスワード マネージャーに保存されます</translation>
 <translation id="6268381023930128611">Chromium からログアウトしますか？</translation>
 <translation id="6301717043141881464">保存したパスワードを他のアプリで簡単に使用できるようするには、Chromium の自動入力を選択します</translation>
 <translation id="6324041800010509197">Chromium でタブグリッドにアクセス</translation>
@@ -314,7 +316,7 @@ Chromium を使いやすくするためにデータを使用するその他の�
 <translation id="8119542592987737574">iPhone のホーム画面ドックから Chromium にすばやくアクセス。</translation>
 <translation id="8164086860209325020">Chromium 設定に移動します</translation>
 <translation id="8197822717502700527">お使いのデバイスで Chromium を最大限に活用できるようになりました。</translation>
-<translation id="8240981428553046115">Chromium でアップデートを確認できませんでした。しばらくしてからもう一度お試しください。</translation>
+<translation id="8236210361418193126">パスワード マネージャーにインポート</translation>
 <translation id="8254729934443216898">Chromium を最大限に活用するための新機能をご紹介します。</translation>
 <translation id="8293572045658095405">Chromium のシークレット モードです</translation>
 <translation id="830951810931292870">入力した URL をシークレット モードの Chromium で開きます。</translation>

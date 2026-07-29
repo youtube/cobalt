@@ -23,11 +23,13 @@ import {getHtml} from './contextual_entrypoint_and_carousel.html.js';
 import type {ComposeboxFileCarouselElement} from './file_carousel.js';
 import type {RecentTabChipElement} from './recent_tab_chip.js';
 
+// LINT.IfChange(ComposeboxMode)
 export enum ComposeboxMode {
   DEFAULT = '',
   DEEP_SEARCH = 'deep-search',
   CREATE_IMAGE = 'create-image',
 }
+// LINT.ThenChange(chromium/components/omnibox/browser/searchbox.mojom:ComposeboxMode)
 
 export interface ContextualEntrypointAndCarouselElement {
   $: {
@@ -83,10 +85,14 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       // Public properties
       // =========================================================================
       showDropdown: {type: Boolean},
-      realboxLayoutMode: {type: String},
+      searchboxLayoutMode: {type: String},
       tabSuggestions: {type: Array},
       entrypointName: {type: String},
       parentFocused: {type: Boolean},
+      showVoiceSearch: {
+        reflect: true,
+        type: Boolean,
+      },
 
       // =========================================================================
       // Protected properties
@@ -128,11 +134,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   accessor showDropdown: boolean = false;
-  accessor realboxLayoutMode: string = '';
+  accessor searchboxLayoutMode: string = '';
   accessor entrypointName: string = '';
   accessor tabSuggestions: TabInfo[] = [];
   accessor carouselOnTop_: boolean = false;
   accessor parentFocused: boolean = false;
+  accessor showVoiceSearch: boolean = false;
 
   protected accessor attachmentFileTypes_: string =
       loadTimeData.getString('composeboxAttachmentFileTypes');
@@ -216,6 +223,13 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
 
     return this.addedTabsIds_.has(recentTab.tabId);
+  }
+
+  addFiles(files: FileList|null) {
+    // TODO(crbug.com/457182498):update isImage logic to handle mixed file types.
+    const isImage =
+        !!files && Array.from(files).some(f => f.type.startsWith('image/'));
+    this.processFiles_(files, isImage);
   }
 
   setContextFiles(files: ComposeboxFile[]) {
@@ -353,13 +367,14 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     this.fire('delete-context', {uuid: e.detail.uuid});
   }
 
-  protected onFileChange_(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const files = input.files;
-
+  protected processFiles_(files: FileList|null, isImage: boolean = false) {
     // Multiple is set to false in the input so only one file is expected.
-    if (!files || files.length === 0 ||
-        this.files_.size >= this.maxFileCount_) {
+    if (!files || files.length === 0) {
+      return;
+    }
+    if ((this.files_.size + files.length) > this.maxFileCount_) {
+      // TODO(crbug.com/456502536): Add error message to include the max file
+      // count.
       this.recordFileValidationMetric_(
           ComposeboxFileValidationError.TOO_MANY_FILES);
       return;
@@ -369,7 +384,6 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     for (const file of files) {
       if (file.size === 0 || file.size > this.maxFileSize_) {
         const fileIsEmpty = file.size === 0;
-        input.value = '';
         fileIsEmpty ? this.recordFileValidationMetric_(
                           ComposeboxFileValidationError.FILE_EMPTY) :
                       this.recordFileValidationMetric_(
@@ -383,11 +397,23 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       }
 
       if (!file.type.includes('pdf') && !file.type.includes('image')) {
+        this.fire('on-file-validation-error', {
+            errorMessage:
+      // TODO(crbug.com/454730356): replace with translatable string that includes
+      // pdf and not just image.
+                this.i18n('composeboxFileUploadImageProcessingError'),
+        });
         return;
       }
       filesToUpload.push(file);
     }
-    this.addFileContext_(filesToUpload, input === this.$.imageInput);
+    this.addFileContext_(filesToUpload, isImage);
+  }
+
+  protected onFileChange_(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files;
+    this.processFiles_(files, input === this.$.imageInput);
     input.value = '';
   }
 

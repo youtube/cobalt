@@ -829,7 +829,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.incognito") {
     "src/org/chromium/chrome/browser/incognito/IncognitoTabLauncherTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/ui/android/hats:factory_java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.media") {
@@ -897,6 +900,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.ntp") {
   deps = [
     ":chrome_test_java_helper",
     "//chrome/android/feed:chrome_feed_java_resources",
+    "//chrome/browser/composeplate/android:java",
   ]
 }
 
@@ -1087,7 +1091,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.permissions") {
     "src/org/chromium/chrome/browser/permissions/RuntimePermissionTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/ui/android/hats:factory_java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.privacy") {
@@ -1368,6 +1375,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tabmodel") {
     "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorObserverTestRule.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorTabModelObserverTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorTabObserverTest.java",
+    "src/org/chromium/chrome/browser/tabmodel/TabPersistentStoreIntegrationTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabPersistentStoreTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabbedModeTabPersistencePolicyTest.java",
     "src/org/chromium/chrome/browser/tabmodel/UndoTabModelTest.java",
@@ -1593,6 +1601,7 @@ android_library("chrome_test_java_various") {
     "//base:holder_java",
     "//chrome/browser/ntp_customization:java",
     "//components/browser_ui/http_auth/android:java",
+    "//third_party/androidx:androidx_test_ext_junit_java",
   ]
 }
 

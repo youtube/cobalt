@@ -16,7 +16,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
-#include "chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_observer.h"
 #include "chrome/browser/new_tab_page/modules/new_tab_page_modules.h"
@@ -36,6 +35,7 @@
 #include "components/search_provider_logos/logo_common.h"
 #include "components/segmentation_platform/public/result.h"
 #include "components/themes/ntp_background_service_observer.h"
+#include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -74,21 +74,6 @@ class SyncService;
 namespace ui {
 class ThemeProvider;
 }  // namespace ui
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-//
-// LINT.IfChange(NTPCustomizeChromePromoEligibility)
-enum class NTPCustomizeChromePromoEligibility {
-  kCanShowPromo = 0,
-  kReachedTotalMaxCountAlready = 1,
-  kReachedSessionMaxCountAlready = 2,
-  kChromeCustomizedAlready = 3,
-  kCustomizeChromeClosedExplicitlyByUser = 4,
-  kCustomizeChromeOpenedByUser = 5,
-  kMaxValue = kCustomizeChromeOpenedByUser,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/new_tab_page/enums.xml:NTPCustomizeChromePromoEligibility)
 
 class NewTabPageHandler
     : public new_tab_page::mojom::PageHandler,
@@ -156,6 +141,7 @@ class NewTabPageHandler
   void SetModulesOrder(const std::vector<std::string>& module_ids) override;
   void GetModulesOrder(GetModulesOrderCallback callback) override;
   void UpdateModulesLoadable() override;
+  void UpdateActionChipsVisibility() override;
   void MaybeShowFeaturePromo(
       new_tab_page::mojom::IphFeature iph_feature) override;
   void OnAppRendered(double time) override;
@@ -208,8 +194,6 @@ class NewTabPageHandler
   // Called when the embedding BrowserWindowInterface has changed.
   void OnBrowserWindowInterfaceChanged();
 
-  NTPCustomizeChromePromoEligibility CanShowCustomizeChromePromo();
-
   void LogEvent(NTPLoggingEventType event);
 
   typedef base::OnceCallback<void(bool success,
@@ -224,6 +208,7 @@ class NewTabPageHandler
                         std::unique_ptr<std::string> body);
 
   ntp_tiles::TileType GetTileType() const;
+  bool IsActionChipsVisible() const;
   bool IsShortcutsVisible() const;
   void MaybeLaunchInteractionSurvey(std::string_view interaction,
                                     const std::string& module_id,

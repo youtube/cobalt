@@ -5025,9 +5025,9 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4527" label="OBSOLETE_AttributeValueContainsLtOrGt"/>
   <int value="4528" label="OBSOLETE_V8ImportAssertionDeprecatedSyntax"/>
   <int value="4529" label="ImageCaptureBackgroundBlur"/>
-  <int value="4530" label="PrivateNetworkAccessPreflightError"/>
-  <int value="4531" label="PrivateNetworkAccessPreflightSuccess"/>
-  <int value="4532" label="PrivateNetworkAccessPreflightWarning"/>
+  <int value="4530" label="OBSOLETE_PrivateNetworkAccessPreflightError"/>
+  <int value="4531" label="OBSOLETE_PrivateNetworkAccessPreflightSuccess"/>
+  <int value="4532" label="OBSOLETE_PrivateNetworkAccessPreflightWarning"/>
   <int value="4533" label="CSSGetComputedAnimationDurationZero"/>
   <int value="4534"
       label="CSSGetComputedWebkitFontSmoothingAnimationDurationZero"/>
@@ -5599,7 +5599,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5033" label="ButtonTypeAttrEmptyString"/>
   <int value="5034" label="ProtectedAudienceDirectFromSellerSignals"/>
   <int value="5035" label="OBSOLETE_WebGPUSubgroupsFeatures"/>
-  <int value="5036" label="AudioContextOnError"/>
+  <int value="5036" label="OBSOLETE_AudioContextOnError"/>
   <int value="5037" label="NoVarySearchPrerender"/>
   <int value="5038" label="OBSOLETE_V8AITextSession_Clone_Method"/>
   <int value="5039" label="GamepadHapticActuatorType"/>
@@ -6078,7 +6078,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5456" label="Summarizer_OutputLanguage"/>
   <int value="5457" label="Summarizer_SharedContext"/>
   <int value="5458" label="Summarizer_Type"/>
-  <int value="5459" label="CrossOriginSameSiteCookieAccessViaStorageAccessAPI"/>
+  <int value="5459"
+      label="OBSOLETE_CrossOriginSameSiteCookieAccessViaStorageAccessAPI"/>
   <int value="5460"
       label="OBSOLETE_V8GPUAdapter_IsFallbackAdapter_AttributeGetter"/>
   <int value="5461" label="LanguageDetector_ExpectedInputLanguages"/>
@@ -6347,6 +6348,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5715" label="AnimationCompositedTypes"/>
   <int value="5716" label="AnimationSvgNonCompositedTypes"/>
   <int value="5717" label="AnimationSvgCompositedTypes"/>
+  <int value="5718" label="AttributionReportingXhr"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8146,6 +8148,14 @@ Called by update_use_counter_css.py.-->
   <int value="888" label="rule-outset"/>
   <int value="889" label="column-rule-visibility-items"/>
   <int value="890" label="row-rule-visibility-items"/>
+  <int value="891" label="column-rule-edge-start-outset"/>
+  <int value="892" label="column-rule-edge-end-outset"/>
+  <int value="893" label="column-rule-interior-start-outset"/>
+  <int value="894" label="column-rule-interior-end-outset"/>
+  <int value="895" label="row-rule-edge-start-outset"/>
+  <int value="896" label="row-rule-edge-end-outset"/>
+  <int value="897" label="row-rule-interior-start-outset"/>
+  <int value="898" label="row-rule-interior-end-outset"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8684,6 +8694,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="412" label="Webnn"/>
   <int value="413" label="TextDetect"/>
   <int value="414" label="TextJustify"/>
+  <int value="415" label="Summarizer"/>
+  <int value="416" label="TranslationApi"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

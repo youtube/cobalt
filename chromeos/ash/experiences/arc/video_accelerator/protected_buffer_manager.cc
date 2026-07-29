@@ -36,18 +36,6 @@ constexpr size_t kMaxConcurrentProtectedBufferAllocators = 32;
 // ProtectedBufferAllocator. This limitation, 64 is arbitrarily chosen.
 constexpr size_t kMaxBuffersPerAllocator = 64;
 
-// Returns BufferFormat equivalent of SharedImageFormat.
-gfx::BufferFormat ToBufferFormat(viz::SharedImageFormat format) {
-  if (format == viz::MultiPlaneFormat::kYV12) {
-    return gfx::BufferFormat::YVU_420;
-  }
-  if (format == viz::MultiPlaneFormat::kNV12) {
-    return gfx::BufferFormat::YUV_420_BIPLANAR;
-  }
-
-  LOG(ERROR) << "Invalid format=" << format.ToString();
-  NOTREACHED();
-}
 }  // namespace
 
 class ProtectedBufferManager::ProtectedBuffer {
@@ -171,7 +159,7 @@ ProtectedBufferManager::ProtectedNativePixmap::Create(
   ui::OzonePlatform* platform = ui::OzonePlatform::GetInstance();
   ui::SurfaceFactoryOzone* factory = platform->GetSurfaceFactoryOzone();
   protected_pixmap->native_pixmap_ = factory->CreateNativePixmap(
-      gfx::kNullAcceleratedWidget, VK_NULL_HANDLE, size, ToBufferFormat(format),
+      gfx::kNullAcceleratedWidget, VK_NULL_HANDLE, size, format,
 #if BUILDFLAG(USE_ARC_PROTECTED_MEDIA)
       gfx::BufferUsage::PROTECTED_SCANOUT_VDA_WRITE);
 #else
@@ -523,7 +511,7 @@ scoped_refptr<gfx::NativePixmap> ProtectedBufferManager::ImportDummyFd(
   scoped_refptr<gfx::NativePixmap> pixmap =
       factory->CreateNativePixmapForProtectedBufferHandle(
           gfx::kNullAcceleratedWidget, kDummyBufferSize,
-          gfx::BufferFormat::RGBA_8888, std::move(pixmap_handle));
+          viz::SinglePlaneFormat::kRGBA_8888, std::move(pixmap_handle));
   if (!pixmap) {
     VLOGF(1) << "Failed importing dummy handle";
     return nullptr;

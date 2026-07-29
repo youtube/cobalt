@@ -240,6 +240,9 @@ void OpenXrRenderLoop::SetVisibilityState(
     mojom::XRVisibilityState visibility_state) {
   if (visibility_state_ != visibility_state) {
     visibility_state_ = visibility_state;
+    if (visibility_state_ != mojom::XRVisibilityState::VISIBLE) {
+      openxr_->OnHideInputSources();
+    }
     if (on_visibility_state_changed_) {
       main_thread_task_runner_->PostTask(
           FROM_HERE,
@@ -707,7 +710,11 @@ mojom::XRFrameDataPtr OpenXrRenderLoop::GetNextFrameData() {
 
   frame_data->time_delta = base::Nanoseconds(frame_time);
   frame_data->render_info->views = openxr_->GetViews();
-  frame_data->input_state = openxr_->GetInputState();
+
+  // Unless we are fully synchronized/visible we shouldn't report input state.
+  if (visibility_state_ == mojom::XRVisibilityState::VISIBLE) {
+    frame_data->input_state = openxr_->GetInputState();
+  }
 
   frame_data->render_info->mojo_from_viewer = openxr_->GetViewerPose();
 
@@ -722,8 +729,8 @@ mojom::XRFrameDataPtr OpenXrRenderLoop::GetNextFrameData() {
     OpenXrAnchorManager* anchor_manager = openxr_->GetAnchorManager();
 
     if (anchor_manager) {
-      frame_data->anchors_data = anchor_manager->ProcessAnchorsForFrame(
-          openxr_.get(), frame_data->input_state.value(), frame_time);
+      frame_data->anchors_data =
+          anchor_manager->ProcessAnchorsForFrame(openxr_.get(), frame_time);
     }
 
     OpenXrLightEstimator* light_estimator = openxr_->GetLightEstimator();
@@ -750,7 +757,7 @@ mojom::XRFrameDataPtr OpenXrRenderLoop::GetNextFrameData() {
     frame_data->hit_test_subscription_results =
         hit_test_manager->GetHitTestResults(frame_time,
                                             mojo_from_viewer.ToTransform(),
-                                            frame_data->input_state.value());
+                                            frame_data->input_state);
   }
 
   // If we don't have a depth_sensor, depth wasn't enabled.
@@ -1035,11 +1042,8 @@ void OpenXrRenderLoop::CreateCompositionLayer(
     return;
   }
 
-  XrSpace space = openxr_->GetReferenceSpace(
-      layer_data->mutable_data->reference_space_type);
   if (!graphics_binding_->CreateCompositionLayer(
-          space, std::move(layer_data),
-          context_provider_->SharedImageInterface())) {
+          std::move(layer_data), context_provider_->SharedImageInterface())) {
     return;
   }
 
@@ -1068,8 +1072,7 @@ void OpenXrRenderLoop::UpdateCompositionLayer(
     return;
   }
 
-  XrSpace space = openxr_->GetReferenceSpace(layer_data->reference_space_type);
-  layer->UpdateMutableLayerData(space, std::move(layer_data));
+  layer->UpdateMutableLayerData(std::move(layer_data));
 }
 
 void OpenXrRenderLoop::DestroyCompositionLayer(const LayerId& layer_id) {

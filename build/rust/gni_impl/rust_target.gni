@@ -149,6 +149,9 @@ template("rust_target") {
   # to override this.  See also doc comments for `edition` at the top of
   # `//build/rust/rust_static_library.gni`.
   _edition = "2024"
+  if (!rustc_nightly_capability) {
+    _edition = "2021"
+  }
   if (defined(invoker.edition)) {
     _edition = invoker.edition
   }
@@ -191,6 +194,10 @@ template("rust_target") {
           target_name + "_" + get_label_info(bindgen_dep, "name") + "_copy"
       copy(_copy_target_name) {
         _bindgen_output_files = get_target_outputs(bindgen_dep)
+
+        if (defined(invoker.testonly)) {
+          testonly = invoker.testonly
+        }
 
         # `rust_bindgen_generator` promises that the first output file is always .rs.
         sources = [ _bindgen_output_files[0] ]

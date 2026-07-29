@@ -22,6 +22,7 @@
 #include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "net/base/network_change_notifier.h"
 #include "third_party/omnibox_proto/aim_eligibility_response.pb.h"
 
 class PrefRegistrySimple;
@@ -38,8 +39,10 @@ class SharedURLLoaderFactory;
 }  // namespace network
 
 // Utility service to check if the profile is eligible for AI mode features.
-class AimEligibilityService : public KeyedService,
-                              public signin::IdentityManager::Observer {
+class AimEligibilityService
+    : public KeyedService,
+      public net::NetworkChangeNotifier::NetworkChangeObserver,
+      public signin::IdentityManager::Observer {
  public:
   // Helper that individual AIM features can use to check if they should be
   // enabled. Unlike most chrome features, which simply check if the
@@ -109,7 +112,8 @@ class AimEligibilityService : public KeyedService,
     kStartup = 0,
     kCookieChange = 1,
     kPrimaryAccountChange = 2,
-    kMaxValue = kPrimaryAccountChange,
+    kNetworkChange = 3,
+    kMaxValue = kNetworkChange,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/histograms.xml:AimEligibilityRequestSource)
 
@@ -122,7 +126,8 @@ class AimEligibilityService : public KeyedService,
     kErrorResponse = 1,
     kFailedToParse = 2,
     kSuccess = 3,
-    kMaxValue = kSuccess,
+    kSuccessBrowserCache = 4,
+    kMaxValue = kSuccessBrowserCache,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:AimEligibilityRequestStatus)
 
@@ -134,7 +139,8 @@ class AimEligibilityService : public KeyedService,
     kDefault = 0,
     kPrefs = 1,
     kServer = 2,
-    kMaxValue = kServer,
+    kBrowserCache = 3,
+    kMaxValue = kBrowserCache,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:AimEligibilityResponseSource)
 
@@ -150,12 +156,17 @@ class AimEligibilityService : public KeyedService,
       const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
       const GoogleServiceAuthError& error) override;
 
+  // net::NetworkChangeNotifier::NetworkChangeObserver:
+  void OnNetworkChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override;
+
   // Callback for when the eligibility response changes. Notifies observers.
   void OnEligibilityResponseChanged();
 
   // Updates `most_recent_response_` and the prefs with `response_proto`.
   void UpdateMostRecentResponse(
-      const omnibox::AimEligibilityResponse& response_proto);
+      const omnibox::AimEligibilityResponse& response_proto,
+      bool was_fetched_via_cache = false);
   // Loads `most_recent_response_` from the prefs, if valid.
   void LoadMostRecentResponse();
 
@@ -164,6 +175,12 @@ class AimEligibilityService : public KeyedService,
   void OnServerEligibilityResponse(
       std::unique_ptr<network::SimpleURLLoader> loader,
       RequestSource request_source,
+      std::unique_ptr<std::string> response_string);
+  void ProcessServerEligibilityResponse(
+      RequestSource request_source,
+      int response_code,
+      bool was_fetched_via_cache,
+      int num_retries,
       std::unique_ptr<std::string> response_string);
 
   // Returns the given histogram name sliced by the given request source.
@@ -203,6 +220,9 @@ class AimEligibilityService : public KeyedService,
 
   // Tracks whether the service has been initialized.
   bool initialized_ = false;
+
+  // Tracks whether the startup request has been sent.
+  bool startup_request_sent_ = false;
 
   // For binding the `OnServerEligibilityResponse()` callback.
   base::WeakPtrFactory<AimEligibilityService> weak_factory_{this};

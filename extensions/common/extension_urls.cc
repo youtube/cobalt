@@ -50,8 +50,13 @@ const char kAppMenuUtmSource[] = "ext_app_menu";
 const char kExtensionsMenuUtmSource[] = "ext_extensions_menu";
 const char kExtensionsSidebarUtmSource[] = "ext_sidebar";
 const char kCustomActionIphUtmSource[] = "ext_zero_state_promo_generic_iph";
-const char kCustomUiChipIphUtmSource[] = "ext_zero_state_promo_chips_iph";
+const char kCustomUiChipIphV1UtmSource[] = "ext_zero_state_promo_chips_iph";
+const char kCustomUiChipIphV2UtmSource[] = "ext_zero_state_promo_chips_iph_v2";
+const char kCustomUiChipIphV3UtmSource[] = "ext_zero_state_promo_chips_iph_v3";
 const char kCustomUiPlainLinkIphUtmSource[] = "ext_zero_state_promo_links_iph";
+const char kNtpPromo1pUtmSource[] = "ext_ntp_promo_1p";
+const char kNtpPromo2pUtmSource[] = "ext_ntp_promo_2p";
+const char kNtpPromoSlUtmSource[] = "ext_ntp_promo_sl";
 
 GURL GetWebstoreLaunchURL() {
   extensions::ExtensionsClient* client = extensions::ExtensionsClient::Get();

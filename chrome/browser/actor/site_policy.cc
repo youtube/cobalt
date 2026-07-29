@@ -24,6 +24,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_io_data.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
@@ -58,7 +59,7 @@ class DecisionWrapper {
                   const GURL& url,
                   TaskId task_id,
                   std::string_view event_name,
-                  DecisionCallback callback)
+                  DecisionCallbackWithReason callback)
       : callback_(std::move(callback)),
         journal_entry_(
             journal.CreatePendingAsyncEntry(url,
@@ -67,13 +68,13 @@ class DecisionWrapper {
                                             event_name,
                                             {})) {}
 
-  void Reject(std::string_view reason) {
+  void Reject(std::string_view reason, MayActOnUrlBlockReason block_reason) {
     journal_entry_->EndEntry(JournalDetailsBuilder().AddError(reason).Build());
 
     // Some decisions are made asynchronously, so always invoke the callback
     // asynchronously for consistency.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback_), /*decision=*/false));
+        FROM_HERE, base::BindOnce(std::move(callback_), block_reason));
   }
 
   void Accept() {
@@ -83,11 +84,12 @@ class DecisionWrapper {
     // Some decisions are made asynchronously, so always invoke the callback
     // asynchronously for consistency.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback_), /*decision=*/true));
+        FROM_HERE,
+        base::BindOnce(std::move(callback_), MayActOnUrlBlockReason::kAllowed));
   }
 
  private:
-  DecisionCallback callback_;
+  DecisionCallbackWithReason callback_;
   std::unique_ptr<AggregatedJournal::PendingAsyncEntry> journal_entry_;
 };
 
@@ -110,17 +112,27 @@ bool IsHostInAllowList(const std::vector<std::string_view>& allowlist,
   return false;
 }
 
+// Whether to continue with the action or navigation based on the optimization
+// guide decision. Since we want to not block navigation in case the service has
+// an issue, we only stop the actor when the decision is kFalse, explicitly
+// indicating optimization guide suggests we block the URL.
+bool ShouldContinueFromOptimizationGuideDecision(
+    optimization_guide::OptimizationGuideDecision decision) {
+  return decision != optimization_guide::OptimizationGuideDecision::kFalse;
+}
+
 void OnOptimizationGuideDecision(
     std::unique_ptr<DecisionWrapper> decision_wrapper,
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
-  if (decision == optimization_guide::OptimizationGuideDecision::kTrue) {
+  if (ShouldContinueFromOptimizationGuideDecision(decision)) {
     decision_wrapper->Accept();
   } else {
     std::string result("OptimizationGuideDecision ");
     result +=
         optimization_guide::GetStringForOptimizationGuideDecision(decision);
-    decision_wrapper->Reject(result);
+    decision_wrapper->Reject(result,
+                             MayActOnUrlBlockReason::kOptimizationGuideBlock);
   }
 }
 
@@ -128,14 +140,16 @@ void OnOptimizationGuideDecisionForOriginGating(
     DecisionCallback callback,
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
-  std::move(callback).Run(decision ==
-                          optimization_guide::OptimizationGuideDecision::kTrue);
+  std::move(callback).Run(
+      ShouldContinueFromOptimizationGuideDecision(decision));
 }
 
-void MayActOnUrl(const GURL& url,
-                 bool allow_insecure_http,
-                 Profile* profile,
-                 std::unique_ptr<DecisionWrapper> decision_wrapper) {
+void MayActOnUrlInternal(
+    const GURL& url,
+    bool allow_insecure_http,
+    Profile* profile,
+    const std::optional<absl::flat_hash_set<url::Origin>>& allowed_origins,
+    std::unique_ptr<DecisionWrapper> decision_wrapper) {
   if (net::IsLocalhost(url) || url.IsAboutBlank()) {
     decision_wrapper->Accept();
     return;
@@ -143,12 +157,15 @@ void MayActOnUrl(const GURL& url,
 
   if (!(url.SchemeIs(url::kHttpsScheme) ||
         (allow_insecure_http && url.SchemeIs(url::kHttpScheme)))) {
-    decision_wrapper->Reject("Wrong scheme");
+    decision_wrapper->Reject("Wrong scheme",
+                             ProfileIOData::IsHandledURL(url)
+                                 ? MayActOnUrlBlockReason::kWrongScheme
+                                 : MayActOnUrlBlockReason::kExternalProtocol);
     return;
   }
 
   if (url.HostIsIPAddress()) {
-    decision_wrapper->Reject("IP address");
+    decision_wrapper->Reject("IP address", MayActOnUrlBlockReason::kIpAddress);
     return;
   }
 
@@ -165,7 +182,8 @@ void MayActOnUrl(const GURL& url,
   if (!is_safe_browsing_enabled) {
     // We don't want to risk acting on dangerous sites, so we require
     // SafeBrowsing.
-    decision_wrapper->Reject("Safebrowsing unavailable");
+    decision_wrapper->Reject("Safebrowsing unavailable",
+                             MayActOnUrlBlockReason::kSafeBrowsing);
     return;
   }
 
@@ -202,9 +220,11 @@ void MayActOnUrl(const GURL& url,
             ACTOR_LOG() << __func__ << ": No Google groups";
           }
         }
-        decision_wrapper->Reject("Allowlist is empty");
+        decision_wrapper->Reject("Allowlist is empty",
+                                 MayActOnUrlBlockReason::kUrlNotInAllowlist);
       } else {
-        decision_wrapper->Reject("URL not in allowlist");
+        decision_wrapper->Reject("URL not in allowlist",
+                                 MayActOnUrlBlockReason::kUrlNotInAllowlist);
       }
       return;
     }
@@ -225,13 +245,18 @@ void MayActOnUrl(const GURL& url,
     // However, it may be that the navigation is allowed and a safety tip is
     // shown instead. We consider that sufficient cause for concern for actor
     // code.
-    decision_wrapper->Reject("Lookalike domain");
+    decision_wrapper->Reject("Lookalike domain",
+                             MayActOnUrlBlockReason::kLookalikeDomain);
     return;
   }
 
   // Blocklist is checked by `ShouldBlockNavigationUrlForOriginGating` when this
-  // feature is enabled.
-  if (base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
+  // feature is enabled, and origins the user allowed the actor to interact with
+  // will be included in the `allowed_origins` set. If `url` has an origin not
+  // in the set, we apply the optimization guide check.
+  if (base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating) &&
+      (!allowed_origins ||
+       base::Contains(*allowed_origins, url::Origin::Create(url)))) {
     decision_wrapper->Accept();
     return;
   }
@@ -277,7 +302,8 @@ void InitActionBlocklist(Profile* profile) {
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 DecisionCallback callback) {
+                 const absl::flat_hash_set<url::Origin>& allowed_origins,
+                 DecisionCallbackWithReason callback) {
   content::WebContents& web_contents = *tab.GetContents();
 
   const GURL& url = web_contents.GetPrimaryMainFrame()->GetLastCommittedURL();
@@ -286,7 +312,8 @@ void MayActOnTab(const tabs::TabInterface& tab,
                                         std::move(callback));
 
   if (web_contents.GetPrimaryMainFrame()->IsErrorDocument()) {
-    decision_wrapper->Reject("Tab is an error document");
+    decision_wrapper->Reject("Tab is an error document",
+                             MayActOnUrlBlockReason::kTabIsErrorDocument);
     return;
   }
 
@@ -298,14 +325,16 @@ void MayActOnTab(const tabs::TabInterface& tab,
   if (safe_browsing::SafeBrowsingUserInteractionObserver::FromWebContents(
           &web_contents) &&
       !DisableSafetyChecks()) {
-    decision_wrapper->Reject("Blocked by safebrowsing");
+    decision_wrapper->Reject("Blocked by safebrowsing",
+                             MayActOnUrlBlockReason::kSafeBrowsing);
     return;
   }
 #endif
 
-  MayActOnUrl(url, /*allow_insecure_http=*/false,
-              Profile::FromBrowserContext(web_contents.GetBrowserContext()),
-              std::move(decision_wrapper));
+  MayActOnUrlInternal(
+      url, /*allow_insecure_http=*/false,
+      Profile::FromBrowserContext(web_contents.GetBrowserContext()),
+      allowed_origins, std::move(decision_wrapper));
 }
 
 void MayActOnUrl(const GURL& url,
@@ -315,9 +344,26 @@ void MayActOnUrl(const GURL& url,
                  TaskId task_id,
                  DecisionCallback callback) {
   std::unique_ptr<DecisionWrapper> decision_wrapper =
+      std::make_unique<DecisionWrapper>(
+          journal, url, task_id, "MayActOnUrl",
+          base::BindOnce([](MayActOnUrlBlockReason block_reason) {
+            return block_reason == MayActOnUrlBlockReason::kAllowed;
+          }).Then(std::move(callback)));
+  MayActOnUrlInternal(url, allow_insecure_http, profile, std::nullopt,
+                      std::move(decision_wrapper));
+}
+
+void MayActOnUrl(const GURL& url,
+                 bool allow_insecure_http,
+                 Profile* profile,
+                 AggregatedJournal& journal,
+                 TaskId task_id,
+                 DecisionCallbackWithReason callback) {
+  std::unique_ptr<DecisionWrapper> decision_wrapper =
       std::make_unique<DecisionWrapper>(journal, url, task_id, "MayActOnUrl",
                                         std::move(callback));
-  MayActOnUrl(url, allow_insecure_http, profile, std::move(decision_wrapper));
+  MayActOnUrlInternal(url, allow_insecure_http, profile, std::nullopt,
+                      std::move(decision_wrapper));
 }
 
 bool ShouldBlockNavigationUrlForOriginGating(const GURL& url,

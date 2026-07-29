@@ -25,8 +25,8 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
-#include "components/services/storage/dom_storage/dom_storage_batch_operation_leveldb.h"
-#include "components/services/storage/dom_storage/local_storage_database.pb.h"
+#include "components/services/storage/dom_storage/leveldb/dom_storage_batch_operation_leveldb.h"
+#include "components/services/storage/dom_storage/leveldb/local_storage_database.pb.h"
 #include "components/services/storage/dom_storage/storage_area_test_util.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/public/cpp/filesystem/filesystem_proxy.h"
@@ -170,12 +170,15 @@ class LocalStorageImplTest : public testing::Test {
     WaitForDatabaseOpen();
     base::RunLoop loop;
     context()->GetDatabaseForTesting().PostTaskWithThisObject(
-        base::BindLambdaForTesting([&](DomStorageDatabase* db) {
-          DbStatus status =
-              db->Put(base::as_byte_span(key), base::as_byte_span(value));
-          ASSERT_TRUE(status.ok());
-          loop.Quit();
-        }));
+        base::BindLambdaForTesting(
+            [&](DomStorageDatabase* dom_storage_database) {
+              DomStorageDatabaseLevelDB* db =
+                  &dom_storage_database->GetLevelDB();
+              DbStatus status =
+                  db->Put(base::as_byte_span(key), base::as_byte_span(value));
+              ASSERT_TRUE(status.ok());
+              loop.Quit();
+            }));
     loop.Run();
   }
 
@@ -183,13 +186,16 @@ class LocalStorageImplTest : public testing::Test {
     WaitForDatabaseOpen();
     base::RunLoop loop;
     context()->GetDatabaseForTesting().PostTaskWithThisObject(
-        base::BindLambdaForTesting([&](DomStorageDatabase* db) {
-          std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
-              db->CreateBatchOperation();
-          ASSERT_TRUE(batch->DeletePrefixed({}).ok());
-          ASSERT_TRUE(batch->Commit().ok());
-          loop.Quit();
-        }));
+        base::BindLambdaForTesting(
+            [&](DomStorageDatabase* dom_storage_database) {
+              DomStorageDatabaseLevelDB* db =
+                  &dom_storage_database->GetLevelDB();
+              std::unique_ptr<DomStorageBatchOperationLevelDB> batch =
+                  db->CreateBatchOperation();
+              ASSERT_TRUE(batch->DeletePrefixed({}).ok());
+              ASSERT_TRUE(batch->Commit().ok());
+              loop.Quit();
+            }));
     loop.Run();
   }
 
@@ -198,11 +204,14 @@ class LocalStorageImplTest : public testing::Test {
     WaitForDatabaseOpen();
     base::RunLoop loop;
     context()->GetDatabaseForTesting().PostTaskWithThisObject(
-        base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
-          DbStatus status = db.GetPrefixed({}, &entries);
-          ASSERT_TRUE(status.ok());
-          loop.Quit();
-        }));
+        base::BindLambdaForTesting(
+            [&](DomStorageDatabase* dom_storage_database) {
+              DomStorageDatabaseLevelDB& db =
+                  dom_storage_database->GetLevelDB();
+              DbStatus status = db.GetPrefixed({}, &entries);
+              ASSERT_TRUE(status.ok());
+              loop.Quit();
+            }));
     loop.Run();
 
     std::map<std::string, std::string> contents;

@@ -25,28 +25,34 @@ class WalletablePassIngestionControllerTestApi {
       WalletablePassIngestionController* controller)
       : controller_(CHECK_DEREF(controller)) {}
 
-  bool IsEligibleForExtraction(const GURL& url) {
-    return controller_->IsEligibleForExtraction(url);
+  std::optional<optimization_guide::proto::PassCategory> GetPassCategoryForURL(
+      const GURL& url) {
+    return controller_->GetPassCategoryForURL(url);
   }
 
   void ExtractWalletablePass(
       const GURL& url,
+      optimization_guide::proto::PassCategory pass_category,
       const optimization_guide::proto::AnnotatedPageContent&
           annotated_page_content) {
-    controller_->ExtractWalletablePass(url, annotated_page_content);
+    controller_->ExtractWalletablePass(url, pass_category,
+                                       annotated_page_content);
   }
 
   void StartWalletablePassDetectionFlow(const GURL& url) {
     controller_->StartWalletablePassDetectionFlow(url);
   }
 
-  void ShowConsentBubble(const GURL& url) {
-    controller_->ShowConsentBubble(url);
+  void ShowConsentBubble(
+      const GURL& url,
+      optimization_guide::proto::PassCategory pass_category) {
+    controller_->ShowConsentBubble(url, pass_category);
   }
 
-  void ShowSaveBubble(std::unique_ptr<optimization_guide::proto::WalletablePass>
+  void ShowSaveBubble(const GURL& url,
+                      std::unique_ptr<optimization_guide::proto::WalletablePass>
                           walletable_pass) {
-    controller_->ShowSaveBubble(std::move(walletable_pass));
+    controller_->ShowSaveBubble(url, std::move(walletable_pass));
   }
 
  private:

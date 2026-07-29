@@ -254,16 +254,15 @@ void DesktopSessionAgent::Start(
                      std::move(callback)));
 }
 
-void DesktopSessionAgent::OnMouseCursor(webrtc::MouseCursor* cursor) {
+void DesktopSessionAgent::OnMouseCursor(
+    std::unique_ptr<webrtc::MouseCursor> cursor) {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
 
-  std::unique_ptr<webrtc::MouseCursor> owned_cursor(cursor);
-
   if (desktop_session_event_handler_) {
-    desktop_session_event_handler_->OnMouseCursorChanged(*owned_cursor);
+    desktop_session_event_handler_->OnMouseCursorChanged(*cursor);
   }
 
-  video_capturers_.SetMouseCursor(*owned_cursor);
+  video_capturers_.SetMouseCursor(*cursor);
 }
 
 void DesktopSessionAgent::OnMouseCursorPosition(
@@ -529,8 +528,15 @@ void DesktopSessionAgent::OnDesktopEnvironmentCreated(
   // Hook up the input filter.
   input_tracker_ =
       std::make_unique<protocol::InputEventTracker>(input_injector_.get());
-  remote_input_filter_ =
-      std::make_unique<RemoteInputFilter>(input_tracker_.get());
+  // TODO: crbug.com/456252029 - Verify that `remote_input_filter_` is a no-op
+  // then remove it.
+  remote_input_filter_ = std::make_unique<RemoteInputFilter>(
+      input_tracker_.get(),
+      // Unretained() is safe because `remote_input_filter_` will be destroyed
+      // before `input_tracker_`, after which the callback will no longer be
+      // called.
+      base::BindRepeating(&protocol::InputEventTracker::ReleaseAll,
+                          base::Unretained(input_tracker_.get())));
 
 #if BUILDFLAG(IS_WIN)
   // LocalInputMonitorWin filters out an echo of the injected input before it

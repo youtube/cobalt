@@ -1173,6 +1173,12 @@ class ComputedStyle final : public ComputedStyleBase {
     NOTREACHED();
   }
 
+  bool IsReverseMasonryDirection() const {
+    const auto masonry_direction = MasonryDirection();
+    return (masonry_direction == EMasonryDirection::kColumnReverse ||
+            masonry_direction == EMasonryDirection::kRowReverse);
+  }
+
   // Grid axis utility functions, usable in Grid and Masonry.
   const GridTrackList& AutoTracks(
       GridTrackSizingDirection track_direction) const {
@@ -1498,7 +1504,11 @@ class ComputedStyle final : public ComputedStyleBase {
   // HasOutline is insufficient to determine whether Node has an outline.
   // Use HasPaintedOutline() instead.
   bool HasOutline() const {
-    return OutlineWidth() > 0 && OutlineStyle() > EBorderStyle::kHidden;
+    if (OutlineWidth() <= 0) {
+      return OutlineStyleIsAuto() &&
+             RuntimeEnabledFeatures::OutlineDrawAutoStyleZeroWidthEnabled();
+    }
+    return OutlineStyle() > EBorderStyle::kHidden;
   }
   bool HasOutlineWithCurrentColor() const {
     return HasOutline() && OutlineColor().DependsOnCurrentColor();
@@ -1614,16 +1624,10 @@ class ComputedStyle final : public ComputedStyleBase {
 
     if (container_type & kContainerTypeInlineSize) {
       effective |= kContainsStyle;
-      if (!RuntimeEnabledFeatures::ContainerTypeNoLayoutContainmentEnabled()) {
-        effective |= kContainsLayout;
-      }
       effective |= kContainsInlineSize;
     }
     if (container_type & kContainerTypeBlockSize) {
       effective |= kContainsStyle;
-      if (!RuntimeEnabledFeatures::ContainerTypeNoLayoutContainmentEnabled()) {
-        effective |= kContainsLayout;
-      }
       effective |= kContainsBlockSize;
     }
     if (container_type & kContainerTypeAnchored) {
@@ -2470,6 +2474,10 @@ class ComputedStyle final : public ComputedStyleBase {
         pseudo == kPseudoIdScrollButtonBlockEnd) {
       return HasPseudoElementStyle(kPseudoIdScrollButton);
     }
+    if (pseudo == kPseudoIdOverscrollClientArea ||
+        pseudo == kPseudoIdOverscrollAreaParent) {
+      return HasOverscrollArea();
+    }
     if (!HasPseudoElementStyle(pseudo)) {
       return false;
     }
@@ -2490,6 +2498,10 @@ class ComputedStyle final : public ComputedStyleBase {
 
   bool HasScrollMarkerGroupAfter() const {
     return GetScrollMarkerGroup() && GetScrollMarkerGroup()->PositionAfter();
+  }
+
+  bool HasOverscrollArea() const {
+    return OverscrollArea() && !OverscrollArea()->GetNames().empty();
   }
 
   // Empty value means scroll-marker-group: none.
@@ -2890,6 +2902,7 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
   // Access to Appearance().
   friend class LayoutTheme;
   friend class StyleAdjuster;
+  friend class StyleCascade;
   friend class StyleResolverState;
   friend class StyleResolver;
   // Access to UserModify().
@@ -3113,6 +3126,12 @@ class ComputedStyleBuilder final : public ComputedStyleBuilderBase {
   void SetHasAutoColumnHeight() {
     SetHasAutoColumnHeightInternal(true);
     SetColumnHeightInternal(0);
+  }
+
+  void SetFontVariantEmoji(FontVariantEmoji emoji_variant) {
+    FontDescription description(GetFontDescription());
+    description.SetVariantEmoji(emoji_variant);
+    SetFontDescription(description);
   }
 
   // contain

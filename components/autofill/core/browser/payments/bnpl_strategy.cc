@@ -25,4 +25,14 @@ BnplStrategy::GetNextActionOnAmountExtractionReturned() {
   NOTREACHED();
 }
 
+BnplStrategy::BeforeSwitchingViewAction
+BnplStrategy::GetBeforeViewSwitchAction() {
+  NOTREACHED();
+}
+
+bool BnplStrategy::ShouldRemoveExistingUiOnServerReturn(
+    PaymentsAutofillClient::PaymentsRpcResult result) {
+  NOTREACHED();
+}
+
 }  // namespace autofill::payments

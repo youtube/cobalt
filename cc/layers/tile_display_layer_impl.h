@@ -40,17 +40,9 @@ class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
     explicit NoContents(mojom::MissingTileReason r) : reason(r) {}
   };
 
-  struct CC_EXPORT TileResource {
-    TileResource(viz::ResourceId resource_id,
-                 gfx::Size resource_size,
-                 bool is_checkered);
-    TileResource(const TileResource&);
-    TileResource& operator=(const TileResource&);
-    ~TileResource();
-
+  struct TileResource {
     viz::ResourceId resource_id;
     gfx::Size resource_size;
-    bool is_checkered;
   };
 
   using TileContents = std::variant<NoContents, SkColor4f, TileResource>;
@@ -77,8 +69,16 @@ class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
       return std::nullopt;
     }
 
+    bool is_oom() const {
+      if (std::holds_alternative<NoContents>(contents_)) {
+        return std::get<NoContents>(contents_).reason ==
+               mojom::MissingTileReason::kOutOfMemory;
+      }
+      return false;
+    }
+
     bool IsReadyToDraw() const {
-      return !std::holds_alternative<NoContents>(contents_);
+      return !std::holds_alternative<NoContents>(contents_) || is_oom();
     }
 
    private:
@@ -141,7 +141,6 @@ class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
 
   Tiling& GetOrCreateTilingFromScaleKey(float scale_key);
   void RemoveTiling(float scale_key);
-  void SetSolidColor(std::optional<SkColor4f> color) { solid_color_ = color; }
   void SetIsDirectlyCompositedImage(bool is_directly_composited_image) {
     is_directly_composited_image_ = is_directly_composited_image;
   }
@@ -149,8 +148,10 @@ class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
     nearest_neighbor_ = nearest_neighbor;
   }
   void SetRecordedBounds(const gfx::Rect& bounds) { recorded_bounds_ = bounds; }
-  bool is_directly_composited_image() const {
-    return is_directly_composited_image_;
+  bool IsDirectlyCompositedImage() const override;
+  void SetProposedTilingScalesForDeletion(
+      std::vector<float> proposed_tiling_scales) {
+    proposed_tiling_scales_for_deletion_ = std::move(proposed_tiling_scales);
   }
   bool nearest_neighbor() const { return nearest_neighbor_; }
 
@@ -175,18 +176,35 @@ class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
   const Tiling* GetTilingForTesting(float scale_key) const;
   void DiscardResource(viz::ResourceId resource);
 
+  // Returns a list of tiling scales that were proposed for deletion by
+  // renderer and were *not* used in the most recent frame, meaning they
+  // safe to clean up.
+  std::vector<float> GetSafeToDeleteTilings();
+
   // For testing
   std::optional<SkColor4f> solid_color_for_testing() const {
-    return solid_color_;
+    return solid_color();
+  }
+  std::vector<float>& LastAppendQuadsScalesForTesting() {
+    return last_append_quads_scales_;
   }
 
  private:
   // TileBasedLayerImpl:
   void AppendQuadsSpecialization(const AppendQuadsContext& context,
                                  viz::CompositorRenderPass* render_pass,
-                                 AppendQuadsData* append_quads_data) override;
+                                 AppendQuadsData* append_quads_data,
+                                 viz::SharedQuadState* shared_quad_state,
+                                 const Occlusion& scaled_occlusion,
+                                 const gfx::Vector2d& quad_offset) override;
+  float GetMaximumContentsScaleForUseInAppendQuads() override;
+  void AppendQuadsForResourcelessSoftwareDraw(
+      const AppendQuadsContext& context,
+      viz::CompositorRenderPass* render_pass,
+      AppendQuadsData* append_quads_data,
+      viz::SharedQuadState* shared_quad_state,
+      const Occlusion& scaled_occlusion) override;
 
-  std::optional<SkColor4f> solid_color_;
   bool is_directly_composited_image_ = false;
   bool nearest_neighbor_ = false;
   gfx::ContentColorUsage content_color_usage_ = gfx::ContentColorUsage::kSRGB;
@@ -196,6 +214,27 @@ class CC_EXPORT TileDisplayLayerImpl : public TileBasedLayerImpl {
   // space.
   gfx::Rect damage_rect_;
   std::vector<std::unique_ptr<Tiling>> tilings_;
+
+  // List of tiling scales that were used last time we appended quads. This is
+  // used as an optimization not to remove tilings if they are still being
+  // drawn. The renderer will propose list of candidate tilings for deletion to
+  // Viz represented by |proposed_tiling_scales_for_deletion_|, and the
+  // Viz process will confirm which of those are safe to delete
+  // (i.e. not used in the last frame) before the renderer actually removes
+  // them. This keeps the renderer’s tile management logic close to its
+  // current behavior and prevents premature deletion of tiles still needed by
+  // Viz. Note that unlike PictureLayerImpl, we have last appended quads scales
+  // here instead of tiling ptr since its not needed in this case.
+  std::vector<float> last_append_quads_scales_;
+
+  // A list of tiling scale keys that the client has nominated for deletion.
+  // This allows the client to suggest cleanup, but Viz makes the final
+  // decision. After each frame, we determine which of these candidate scales
+  // were *not* used for drawing (by checking against
+  // `last_append_quads_scales_`). That final set of unused scales is then sent
+  // back to the client, confirming that the corresponding tilings can be safely
+  // destroyed.
+  std::vector<float> proposed_tiling_scales_for_deletion_;
 };
 
 }  // namespace cc

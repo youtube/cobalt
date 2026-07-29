@@ -113,7 +113,7 @@ BASE_FEATURE(kWebAuthnHelloSignal,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// Enabled by default in M142 Remove in or after M145.
+// Enabled by default in M144 Remove in or after M146.
 BASE_FEATURE(kWebAuthnAndroidSignal,
              "WebAuthenticationAndroidSignal",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -140,10 +140,10 @@ BASE_FEATURE(kWebAuthnMicrosoftSoftwareUnexportableKeyProvider,
              "WebAuthenticationMicrosoftSoftwareUnexportableKeyProvider",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Not yet enabled by default.
+// Default enabled in M144. Remove in or after M147.
 BASE_FEATURE(kWebAuthnSignalApiHidePasskeys,
              "WebAuthenticationSignalApiHidePasskeys",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabled by default as part of the WebAuthenticationImmediateGet feature. Do
 // not remove before WebAuthenticationImmediateGet is removed.

@@ -57,9 +57,6 @@ export const CURSOR_SIZE_PIXEL = 32;
 // The cursor image url css variable name.
 export const CURSOR_IMG_URL = '--cursor-img-url';
 
-// The delay in milliseconds before the screenshot fade out.
-const FADE_OUT_DELAY_MS = 250;
-
 // Returns true if the event is a keystroke that should not activate a control.
 function shouldIgnoreKeyboardEvent(event: Event|undefined): boolean {
   return event instanceof KeyboardEvent &&
@@ -258,6 +255,11 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
         reflectToAttribute: true,
         value: false,
       },
+      enableRegionContextMenu: {
+        type: Boolean,
+        value: true,
+        reflectToAttribute: true,
+      },
     };
   }
 
@@ -322,6 +324,8 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   declare private sidePanelOpened: boolean;
   // Whether the background image canvas should currently be shown.
   declare private hideBackgroundImageCanvas: boolean;
+  // Whether the region context menu is enabled.
+  declare private enableRegionContextMenu: boolean;
 
   // The border glow layer rendered on the selection overlay if it exists.
   private overlayBorderGlow: OverlayBorderGlowElement;
@@ -341,8 +345,6 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
   private cursorOffsetY: number = 6;
   private hasInitialFlashAnimationEnded = false;
   private browserProxy: BrowserProxy = BrowserProxyImpl.getInstance();
-  // The timeout ID for the background image fade out animation.
-  private backgroundImageFadeOutTimeoutId: number = -1;
 
   // The ID returned by requestAnimationFrame for the updateCursorPosition,
   // onPointerMove, and handleResize functions.
@@ -367,14 +369,6 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
       this.browserProxy.callbackRouter.notifyOverlayClosing.addListener(() => {
         this.isClosing = true;
         this.removeDragListeners();
-
-        // Set a timeout to make the background image canvas hidden. This is
-        // done to prevent the old screenshot from flashing before rendering the
-        // new screenshot when the overlay is reshown.
-        clearTimeout(this.backgroundImageFadeOutTimeoutId);
-        this.backgroundImageFadeOutTimeoutId = setTimeout(() => {
-          this.hideBackgroundImageCanvas = true;
-        }, FADE_OUT_DELAY_MS);
       }),
       this.browserProxy.callbackRouter.onCopyCommand.addListener(
           this.onCopyCommand.bind(this)),
@@ -1369,14 +1363,17 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
       this.sidePanelOpened = true;
       this.isResized = true;
       this.isInitialSize = false;
+
+      // In the case of an overlay being shown with an already open side panel,
+      // the region context menu should not be shown. Disable text highlights
+      // as the text is not actionable anymore.
+      this.enableRegionContextMenu = false;
+      this.$.textLayer.disableHighlights();
     }
     this.onImageRendered();
   }
 
   private onOverlayReshown(screenshotBitmap: ImageBitmap) {
-    // Clear the existing timeout if the overlay was reshown very quickly.
-    clearTimeout(this.backgroundImageFadeOutTimeoutId);
-
     // Render the new screenshot.
     renderScreenshot(this.$.backgroundImageCanvas, screenshotBitmap);
 
@@ -1385,6 +1382,7 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
     this.isClosing = false;
     this.sidePanelOpened = true;
     this.hideBackgroundImageCanvas = true;
+    this.enableRegionContextMenu = false;
 
     this.updateCanvasSize(window.innerWidth, window.innerHeight);
 
@@ -1394,9 +1392,13 @@ export class SelectionOverlayElement extends SelectionOverlayElementBase {
         this.selectionOverlayRect.width, this.selectionOverlayRect.height);
 
     // Allow the new screenshot to render / allow any resizing that needs to
-    // happen before finishing the reshow overlay flow.
+    // happen before finishing the reshow overlay flow. This needs an extra
+    // animation frame after the next render to ensure the new screenshot is
+    // painted at least once.
     afterNextRender(this.$.backgroundImageCanvas, () => {
-      this.onFinishReshowOverlay();
+      requestAnimationFrame(() => {
+        this.onFinishReshowOverlay();
+      });
     });
   }
 

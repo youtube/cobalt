@@ -15,6 +15,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "chrome/browser/tab/storage_id_mapping.h"
+#include "chrome/browser/tab/storage_loaded_data.h"
+#include "chrome/browser/tab/tab_group_collection_data.h"
 #include "chrome/browser/tab/tab_state_storage_backend.h"
 #include "chrome/browser/tab/tab_state_storage_database.h"
 #include "chrome/browser/tab/tab_storage_packager.h"
@@ -23,24 +25,24 @@
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
-namespace tabs_pb {
-class TabState;
-}  // namespace tabs_pb
-
 namespace tabs {
+
+// Standardizes the underlying types backing the TabInterface to ensure
+// consistent handles.
+using TabCanonicalizer =
+    base::RepeatingCallback<const TabInterface*(const TabInterface*)>;
 
 class TabStateStorageService : public KeyedService,
                                public base::SupportsUserData,
                                public StorageIdMapping {
  public:
-  using OnTabInterfaceCreation = base::OnceCallback<void(const TabInterface*)>;
-  using LoadedTabState = std::pair<tabs_pb::TabState, OnTabInterfaceCreation>;
-  using LoadAllTabsCallback =
-      base::OnceCallback<void(std::vector<LoadedTabState>)>;
+  using LoadDataCallback =
+      base::OnceCallback<void(std::unique_ptr<StorageLoadedData>)>;
 
   explicit TabStateStorageService(
       std::unique_ptr<TabStateStorageBackend> tab_backend,
-      std::unique_ptr<TabStoragePackager>);
+      std::unique_ptr<TabStoragePackager> packager,
+      TabCanonicalizer tab_canonicalizer);
   ~TabStateStorageService() override;
 
   // StorageIdMapping:
@@ -56,7 +58,7 @@ class TabStateStorageService : public KeyedService,
   void Remove(const TabInterface* tab);
   void Remove(const TabCollection* collection);
 
-  void LoadAllTabs(LoadAllTabsCallback callback);
+  void LoadAllNodes(LoadDataCallback callback);
 
   void ClearState();
 
@@ -66,13 +68,15 @@ class TabStateStorageService : public KeyedService,
       TabStateStorageService* tab_state_storage_service);
 
  private:
-  void OnAllTabsLoaded(LoadAllTabsCallback callback,
-                       std::vector<NodeState> entries);
+  void OnAllNodesLoaded(LoadDataCallback callback,
+                        std::vector<NodeState> entries);
 
   void OnTabCreated(int storage_id, const TabInterface* tab);
 
   std::unique_ptr<TabStateStorageBackend> tab_backend_;
   std::unique_ptr<TabStoragePackager> packager_;
+
+  TabCanonicalizer tab_canonicalizer_;
 
   // Storage ids need to be unique across tabs and collections, but the handles
   // do not have this guarantee. Track them separately.

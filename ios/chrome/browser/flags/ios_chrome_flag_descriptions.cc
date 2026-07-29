@@ -323,6 +323,24 @@ const char kCollaborationMessagingDescription[] =
     "including features such as recent activity, dirty dots, and description "
     "action chips.";
 
+const char kComposeboxAIMNudgeName[] = "ComposeboxAIMNudge";
+const char kComposeboxAIMNudgeDescription[] =
+    "Enables the AIM nudge button in the composebox, tapping on the button "
+    "enables AIM. This is conditionned by AIM availability.";
+
+const char kComposeboxCompactModeName[] = "ComposeboxCompactMode";
+const char kComposeboxCompactModeDescription[] =
+    "Enables the compact composebox, adding attachment or enabling AIM will "
+    "expand it to the regular size.";
+
+const char kComposeboxForceTopName[] = "ComposeboxForceTop";
+const char kComposeboxForceTopDescription[] =
+    "Forces the composebox to be at the top.";
+
+const char kComposeboxIOSName[] = "ComposeboxIOS";
+const char kComposeboxIOSDescription[] =
+    "Enables the composebox that replaces the regular omnibox in edit state.";
+
 const char kConfirmationButtonSwapOrderName[] =
     "Swap Button Order in confirmation alerts";
 const char kConfirmationButtonSwapOrderDescription[] =
@@ -544,20 +562,6 @@ const char kEnableFeedHeaderSettingsName[] =
 const char kEnableFeedHeaderSettingsDescription[] =
     "When enabled, some UI elements of the feed header can be modified.";
 
-const char kEnableFingerprintingProtectionBlocklistInIncognitoName[] =
-    "Enable Fingerprinting Protection Blocklist In Incognito";
-const char kEnableFingerprintingProtectionBlocklistInIncognitoDescription[] =
-    "Enable Fingerprinting Protection which may block fingerprinting "
-    "resources from loading in a 3p context. This flag applies only in "
-    "Incognito mode.";
-
-const char kEnableFingerprintingProtectionBlocklistName[] =
-    "Enable Fingerprinting Protection Blocklist In Regular Browsing";
-const char kEnableFingerprintingProtectionBlocklistDescription[] =
-    "Enable Fingerprinting Protection which may block fingerprinting "
-    "resources from loading in a 3p context. This flag applies only outside of "
-    "Incognito mode.";
-
 const char kEnableIdentityInAuthErrorName[] = "Enable Identities in Auth Error";
 const char kEnableIdentityInAuthErrorDescription[] =
     "Enable identities in auth error state.";
@@ -661,6 +665,10 @@ const char kGeminiFullChatHistoryName[] = "GeminiFullChatHistory";
 const char kGeminiFullChatHistoryDescription[] =
     "Enables the full chat history being shown in the floaty.";
 
+const char kGeminiImmediateOverlayName[] = "GeminiImmediateOverlay";
+const char kGeminiImmediateOverlayDescription[] =
+    "Enables immediate access to Gemini in the page tools menu.";
+
 const char kGeminiLatencyImprovementName[] = "GeminiLatencyImprovement";
 const char kGeminiLatencyImprovementDescription[] =
     "Enables the latency improvements for Gemini.";
@@ -669,9 +677,18 @@ const char kGeminiLoadingStateRedesignName[] = "GeminiLoadingStateRedesign";
 const char kGeminiLoadingStateRedesignDescription[] =
     "Enables the redesigned UI for the floaty's loading state.";
 
+const char kGeminiNavigationPromoName[] = "GeminiNavigationPromo";
+const char kGeminiNavigationPromoDescription[] =
+    "Enables the automatic promo for Gemini on navigation.";
+
 const char kGeminiOnboardingCardsName[] = "GeminiOnboardingCards";
 const char kGeminiOnboardingCardsDescription[] =
     "Enables the discovery onboarding cards for new Gemini users.";
+
+const char kHandleMdmErrorsForDasherAccountsName[] =
+    "Mdm error handling for dasher accounts";
+const char kHandleMdmErrorsForDasherAccountsDescription[] =
+    "Enables the mdm error handling feature for dasher accounts";
 
 const char kHideToolbarsInOverflowMenuName[] = "Hide Toolbars in Overflow menu";
 const char kHideToolbarsInOverflowMenuDescription[] =
@@ -729,12 +746,6 @@ const char kIOSEnableCloudProfileReportingDescription[] =
     "When enabled, profile reports will be reported to the user's "
     "organization.";
 
-const char kIOSEnablePasswordManagerTrustedVaultWidgetName[] =
-    "Enable password settings encryption error widget";
-const char kIOSEnablePasswordManagerTrustedVaultWidgetDescription[] =
-    "Display a widget in the password management settings page in case of a "
-    "password encryption error.";
-
 const char kIOSEnableRealtimeEventReportingName[] =
     "Enable realtime event reporting on iOS";
 const char kIOSEnableRealtimeEventReportingDescription[] =
@@ -751,6 +762,10 @@ const char kIOSFillRecoveryPasswordName[] =
 const char kIOSFillRecoveryPasswordDescription[] =
     "When enabled, users will be able to attempt to log in using a recovery "
     "password if the main one didn't work.";
+
+const char kIOSFuseboxName[] = "IOSFusebox";
+const char kIOSFuseboxDescription[] =
+    "When enabled, shows the fusebox instead of the regular omnibox.";
 
 const char kIOSKeyboardAccessoryTwoBubbleName[] =
     "Enable the two-bubble design for the Keyboard Accessory view";
@@ -867,6 +882,11 @@ const char kIdentityConfirmationSnackbarName[] =
     "Identity Confirmation Snackbar";
 const char kIdentityConfirmationSnackbarDescription[] =
     "When enabled, the identity confirmation snackbar will show on startup.";
+
+const char kImageContextMenuGeminiEntryPointName[] =
+    "Context menu Gemini entrypoint";
+const char kImageContextMenuGeminiEntryPointDescription[] =
+    "Enables the long-press image context menu entry point for Gemini floaty.";
 
 const char kImportPasswordsFromSafariName[] = "Import Passwords From Safari";
 const char kImportPasswordsFromSafariDescription[] =
@@ -1031,6 +1051,10 @@ const char kLinkedServicesSettingIosName[] = "Linked Services Setting";
 const char kLinkedServicesSettingIosDescription[] =
     "Add Linked Services Setting to the Sync Settings page.";
 
+const char kLocationBarBadgeMigrationName[] = "LocationBarBadgeMigration";
+const char kLocationBarBadgeMigrationDescription[] =
+    "Enables the LocationBarBadgeMigration feature.";
+
 const char kLockBottomToolbarName[] = "Lock bottom toolbar";
 const char kLockBottomToolbarDescription[] =
     "When enabled, the bottom toolbar will not get collapsed when scrolling "
@@ -1073,6 +1097,13 @@ const char kMostVisitedTilesHorizontalRenderGroupDescription[] =
 const char kMultilineBrowserOmniboxName[] = "Multiline omnibox in browser";
 const char kMultilineBrowserOmniboxDescription[] =
     "Enables multiline for the browser omnibox.";
+
+const char kNTPBackgroundColorSliderName[] =
+    "Enable the background color slider in the background customization color "
+    "picker";
+const char kNTPBackgroundColorSliderDescription[] =
+    "When enabled, the color slider is available in the background "
+    "customization color picker.";
 
 const char kNTPBackgroundCustomizationName[] =
     "Enable background customization menu on the NTP";
@@ -1283,12 +1314,6 @@ const char kOptimizationGuideDebugLogsDescription[] =
     "Enables the optimization guide to log and save debug messages that can be "
     "shown in the internals page.";
 
-const char kOptimizationGuidePushNotificationClientName[] =
-    "Enable optimization guide push notification client";
-const char kOptimizationGuidePushNotificationClientDescription[] =
-    "Enables the client that handles incoming push notifications on behalf of "
-    "the optimization guide.";
-
 const char kPageActionMenuName[] = "Page Action Menu";
 const char kPageActionMenuDescription[] =
     "When enabled, the entry point for the Page Action Menu becomes available "
@@ -1383,12 +1408,6 @@ const char kReaderModeDebugInfoDescription[] =
     "Enables additional debug information for the Reader Mode feature such as "
     "latency metrics.";
 
-const char kReaderModeDefaultBrowserPromoName[] =
-    "Enables the default browser promo with Reader Mode criteria";
-const char kReaderModeDefaultBrowserPromoDescription[] =
-    "Enables the Reader Mode eligibility criteria for displaying the default "
-    "browser promo and disables all other criteria.";
-
 const char kReaderModeName[] = "Enables Reader Mode";
 const char kReaderModeDescription[] =
     "Enables Reader Mode UI and entry points.";
@@ -1427,11 +1446,6 @@ const char kRefactorToolbarsSizeName[] = "Refactor toolbars size";
 const char kRefactorToolbarsSizeDescription[] =
     "When enabled, the toolbars size does not use broadcaster but observers.";
 
-const char kRemoveAutofillBadgesName[] = "Remove Autofill Badges";
-const char kRemoveAutofillBadgesDescription[] =
-    "Removes the Autofill badges (passwords, addresses, and credit cards) from "
-    "the omnibox.";
-
 const char kRemoveExcessNTPsExperimentName[] = "Remove extra New Tab Pages";
 const char kRemoveExcessNTPsExperimentDescription[] =
     "When enabled, extra tabs with the New Tab Page open and no navigation "
@@ -1457,11 +1471,6 @@ const char kSafeBrowsingTrustedURLName[] =
     "Enable the Trusted URL for Safe Browsing";
 const char kSafeBrowsingTrustedURLDescription[] =
     "When enabled, chrome://safe-browsing will be accessible.";
-
-const char kSafetyCheckMagicStackName[] = "Enable Safety Check (Magic Stack)";
-const char kSafetyCheckMagicStackDescription[] =
-    "When enabled, the Safety Check module will be displayed in the Magic "
-    "Stack.";
 
 const char kSafetyCheckNotificationsName[] =
     "Enable Safety Check Push Notifications";
@@ -1709,14 +1718,19 @@ const char kWebPageDefaultZoomFromDynamicTypeDescription[] =
     "When enabled, the default text zoom level for a website comes from the "
     "current dynamic type setting.";
 
+const char kWebPageReportedImagesSheetName[] =
+    "Surface web page-reported images";
+const char kWebPageReportedImagesSheetDescription[] =
+    "When enabled, surface a sheet on page load which shows web page-reported "
+    "images and associated metadata.";
+
 const char kWebPageTextZoomIPadName[] = "Enable text zoom on iPad";
 const char kWebPageTextZoomIPadDescription[] =
     "When enabled, text zoom works again on iPad";
 
-const char kWelcomeBackInFirstRunName[] = "Enable Welcome Back screen";
-const char kWelcomeBackInFirstRunDescription[] =
-    "When enabled, returning users will see the Welcome Back screen after the "
-    "First Run sequence.";
+const char kWelcomeBackName[] = "Enable Welcome Back screen";
+const char kWelcomeBackDescription[] =
+    "When enabled, returning users will see the Welcome Back screen.";
 
 const char kYoutubeIncognitoName[] =
     "Enable the opening of links from Youtube incognito in Chrome incognito";

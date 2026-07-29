@@ -113,7 +113,20 @@ extern const char kZeroStatePromoCustomActionIph[];
 // When the user has no extensions installed, display a custom UI IPH that
 // presents the user with different collections of extensions to explore,
 // each in a cr-chip button.
-extern const char kZeroStatePromoCustomUiChipIph[];
+extern const char kZeroStatePromoCustomUiChipIphV1[];
+
+// When the user has no extensions installed, display a custom UI IPH that
+// presents the user with different collections of extensions to explore,
+// each in a cr-chip button. This variation has a different color scheme
+// to highlight the chips.
+extern const char kZeroStatePromoCustomUiChipIphV2[];
+
+// When the user has no extensions installed, display a custom UI IPH that
+// presents the user with different collections of extensions to explore,
+// each in a cr-chip button. This variation has a different color scheme
+// to highlight the chips. The ordering and selection of the chips are
+// slightly different than variation 2.
+extern const char kZeroStatePromoCustomUiChipIphV3[];
 
 // When the user has no extensions installed, display a custom UI IPH that
 // presents the user with different collections of extensions to explore,

@@ -77,9 +77,10 @@ import org.chromium.url.GURL;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Tests for {@link TabModelImpl}. */
-// TODO(crbug.com/454298057): Decide what tests, if anything, should be kept for
-// TabCollectionTabModelImpl.
+/**
+ * Tests for the legacy {@link TabModelImpl} that also apply to {@link TabCollectionTabModelImpl}.
+ */
+// TODO(crbug.com/454298057): Migrate these tests to TabCollectionTabModelImplTest.
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
@@ -1406,8 +1407,9 @@ public class TabModelImplTest {
     @Test
     @SmallTest
     public void testSetMuteSetting_MultipleTabs() {
-        WebPageStation page = mPage.loadWebPageProgrammatically(mTestUrl);
-        page.openNewTabFast().loadWebPageProgrammatically("chrome://version");
+        // First tab is Chrome Scheme to test mute persistence.
+        WebPageStation page = mPage.loadWebPageProgrammatically("chrome://version");
+        page.openNewTabFast().loadWebPageProgrammatically(mTestUrl);
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -1426,6 +1428,9 @@ public class TabModelImplTest {
 
                     mTabModelJni.setMuteSetting(tabsToMute, /* mute= */ true);
 
+                    // Tab 1 should remain muted because of TabMutedReason.
+                    // SoundContentSettingObserver originally would reset the mute setting for
+                    // Chrome Schemes if there was no TabMutedReason.
                     assertTrue("Tab 1 should be muted.", tab1.getWebContents().isAudioMuted());
                     assertTrue("Tab 2 should be muted.", tab2.getWebContents().isAudioMuted());
 

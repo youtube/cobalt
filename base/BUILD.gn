@@ -1544,8 +1544,6 @@ component("base") {
   }
 
   sources += [
-    "hash/md5.cc",
-    "hash/md5.h",
     "hash/sha1.cc",
     "hash/sha1.h",
   ]
@@ -1861,6 +1859,8 @@ component("base") {
       "win/i18n.h",
       "win/iat_patch_function.cc",
       "win/iat_patch_function.h",
+      "win/limited_access_features.cc",
+      "win/limited_access_features.h",
       "win/map.h",
       "win/message_window.cc",
       "win/message_window.h",
@@ -2863,7 +2863,7 @@ if (enable_rust_translit) {
     visibility = [ ":i18n" ]
     deps = [
       "//third_party/rust/icu_casemap/v2:lib",
-      "//third_party/rust/icu_experimental/v0_3:lib",
+      "//third_party/rust/icu_experimental/v0_4:lib",
       "//third_party/rust/icu_locale_core/v2:lib",
       "//third_party/rust/icu_normalizer/v2:lib",
       "//third_party/rust/icu_properties/v2:lib",
@@ -3424,7 +3424,6 @@ test("base_unittests") {
     "gmock_unittest.cc",
     "hash/hash_unittest.cc",
     "hash/legacy_hash_unittest.cc",
-    "hash/md5_unittest.cc",
     "hash/sha1_unittest.cc",
     "i18n/break_iterator_unittest.cc",
     "i18n/case_conversion_unittest.cc",
@@ -3648,7 +3647,6 @@ test("base_unittests") {
     "test/launcher/test_results_tracker_unittest.cc",
     "test/memory/dangling_ptr_instrumentation.cc",
     "test/memory/dangling_ptr_instrumentation.h",
-    "test/metrics/action_suffix_reader_unittest.cc",
     "test/metrics/action_variants_reader_unittest.cc",
     "test/metrics/histogram_enum_reader_unittest.cc",
     "test/metrics/histogram_tester_unittest.cc",
@@ -3896,6 +3894,7 @@ test("base_unittests") {
       "win/hardware_check_unittest.cc",
       "win/hstring_reference_unittest.cc",
       "win/i18n_unittest.cc",
+      "win/limited_access_features_unittest.cc",
       "win/map_unittest.cc",
       "win/message_window_unittest.cc",
       "win/object_watcher_unittest.cc",
@@ -4956,9 +4955,9 @@ if (is_android) {
 
   android_library("unowned_user_data_java") {
     sources = [
-      "android/java/src/org/chromium/base/UnownedUserData.java",
       "android/java/src/org/chromium/base/UnownedUserDataHost.java",
       "android/java/src/org/chromium/base/UnownedUserDataKey.java",
+      "android/java/src/org/chromium/base/UnownedUserDataListener.java",
     ]
     deps = [
       ":lifetime_java",
@@ -5341,10 +5340,18 @@ if (is_android) {
   }
 
   android_library("flagged_apis_java") {
-    deps = [ ":service_loader_java" ]
+    alternative_android_sdk_dep =
+        "//third_party/android_sdk:public_framework_system_java"
+
+    deps = [
+      ":promise_java",
+      ":service_loader_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+    ]
     sources = [
       "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java",
       "android/java/src/org/chromium/base/BindingRequestQueue.java",
+      "android/java/src/org/chromium/base/SelectionActionMenuClientWrapper.java",
     ]
   }
 
@@ -5421,6 +5428,7 @@ if (is_android) {
       "//third_party/androidx:androidx_test_monitor_java",
       "//third_party/androidx:androidx_test_rules_java",
       "//third_party/androidx:androidx_test_runner_java",
+      "//third_party/google-truth:google_truth_java",
       "//third_party/hamcrest:hamcrest_java",
       "//third_party/jni_zero:jni_zero_java",
       "//third_party/junit",
@@ -5769,6 +5777,7 @@ if (is_android) {
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/androidx:androidx_test_core_java",
       "//third_party/androidx:androidx_test_runner_java",
+      "//third_party/google-truth:google_truth_java",
       "//third_party/hamcrest:hamcrest_java",
       "//third_party/jni_zero:jni_zero_java",
     ]

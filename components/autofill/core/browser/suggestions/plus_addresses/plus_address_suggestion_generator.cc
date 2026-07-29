@@ -17,11 +17,9 @@
 namespace autofill {
 
 PlusAddressSuggestionGenerator::PlusAddressSuggestionGenerator(
-    AutofillClient* client,
-    PasswordFormClassification password_form_classification,
+    AutofillPlusAddressDelegate* plus_address_delegate,
     bool is_manually_triggered)
-    : client_(client),
-      password_form_classification_(password_form_classification),
+    : plus_address_delegate_(plus_address_delegate),
       is_manually_triggered_(is_manually_triggered) {}
 
 PlusAddressSuggestionGenerator::~PlusAddressSuggestionGenerator() = default;
@@ -41,6 +39,7 @@ void PlusAddressSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
+    const AutofillClient& client,
     const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
         all_suggestion_data,
     base::OnceCallback<void(ReturnedSuggestions)> callback) {}

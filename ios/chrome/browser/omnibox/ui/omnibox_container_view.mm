@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/omnibox/ui/omnibox_container_view.h"
 
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/omnibox/model/omnibox_metrics_recorder.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
@@ -45,9 +46,9 @@ const CGFloat kThumbnailImageLeadingMargin = 9;
 const CGFloat kLeadingImageLeadingMarginLensOverlay = 12;
 const CGFloat kLeadingImageTrailingMarginLensOverlay = 9;
 
-/// Size of the leading image when presented in AIM Prototype.
+/// Size of the leading image when presented in composebox.
 const CGFloat kLeadingImageSizeAIM = 22;
-// The leading image margins when presented in AIM Prototype.
+// The leading image margins when presented in composebox.
 const CGFloat kLeadingImageLeadingMarginAIM = 7;
 const CGFloat kLeadingImageTrailingMarginAIM = 11;
 
@@ -66,8 +67,7 @@ const CGFloat kClearButtonSize = 28.0f;
 bool UseTextView(OmniboxPresentationContext presentation_context) {
   if (presentation_context == OmniboxPresentationContext::kLocationBar) {
     return IsMultilineBrowserOmniboxEnabled();
-  } else if (presentation_context ==
-             OmniboxPresentationContext::kAIMPrototype) {
+  } else if (presentation_context == OmniboxPresentationContext::kComposebox) {
     return base::FeatureList::IsEnabled(kIOSOmniboxUseTextView);
   }
   return NO;
@@ -80,7 +80,7 @@ UIImageView* CreateLeadingImageView(
   UIImageView* leading_image_view = [[UIImageView alloc] init];
   leading_image_view.translatesAutoresizingMaskIntoConstraints = NO;
   leading_image_view.tintColor = icon_tint;
-  if (presentation_context == OmniboxPresentationContext::kAIMPrototype) {
+  if (presentation_context == OmniboxPresentationContext::kComposebox) {
     leading_image_view.contentMode = UIViewContentModeScaleAspectFit;
     [NSLayoutConstraint activateConstraints:@[
       [leading_image_view.widthAnchor
@@ -212,7 +212,7 @@ UIButton* CreateClearButton() {
     if (_presentationContext == OmniboxPresentationContext::kLensOverlay) {
       leadingImageLeadingOffset = kLeadingImageLeadingMarginLensOverlay;
     } else if (_presentationContext ==
-               OmniboxPresentationContext::kAIMPrototype) {
+               OmniboxPresentationContext::kComposebox) {
       leadingImageLeadingOffset = kLeadingImageLeadingMarginAIM;
     }
 
@@ -256,7 +256,7 @@ UIButton* CreateClearButton() {
     if (_presentationContext == OmniboxPresentationContext::kLensOverlay) {
       textInputViewLeadingOffset = kLeadingImageTrailingMarginLensOverlay;
     } else if (_presentationContext ==
-               OmniboxPresentationContext::kAIMPrototype) {
+               OmniboxPresentationContext::kComposebox) {
       textInputViewLeadingOffset = kLeadingImageTrailingMarginAIM;
     }
 
@@ -325,13 +325,46 @@ UIButton* CreateClearButton() {
   if (!_textView) {
     return;
   }
+
   // Recalculate textView height and update it to clip and scroll if necessary.
   CGFloat verticalPadding =
       _textView.textContainerInset.top + _textView.textContainerInset.bottom;
-  CGFloat maxHeight = (_textView.font.lineHeight * kMaxLines) + verticalPadding;
-  CGSize size = [_textView
-      sizeThatFits:CGSizeMake(_textView.frame.size.width, CGFLOAT_MAX)];
-  CGFloat newHeight = MIN(size.height, maxHeight);
+  CGFloat singleLineHeight = [self singleLineHeight];
+  CGFloat maxHeight = (singleLineHeight * kMaxLines) + verticalPadding;
+
+  // Calculate the height of the user text.
+  NSAttributedString* userText = _textView.attributedUserText;
+  if (_textView.isPreEditing) {
+    userText = [[NSAttributedString alloc] initWithString:@""];
+  }
+
+  // Calculate the precise drawing width.
+  UIEdgeInsets textContainerInsets = _textView.textContainerInset;
+  CGFloat lineFragmentPadding = _textView.textContainer.lineFragmentPadding;
+  CGFloat drawingWidth = _textView.bounds.size.width -
+                         textContainerInsets.left - textContainerInsets.right -
+                         lineFragmentPadding * 2.0;
+  if (drawingWidth < 0) {
+    drawingWidth = 0;
+  }
+  CGFloat userTextHeight = 0;
+  if (userText.length > 0) {
+    userTextHeight = [self heightForAttributedText:userText
+                                  withDrawingWidth:drawingWidth];
+  }
+  if (!userTextHeight) {
+    userTextHeight = singleLineHeight;
+  }
+  CGFloat newHeight = ceilf(userTextHeight + verticalPadding);
+
+  NSInteger numberOfLines = round(userTextHeight / singleLineHeight);
+  [self.metricsRecorder setNumberOfLines:numberOfLines];
+  _textView.textContainer.maximumNumberOfLines = numberOfLines;
+  NSLineBreakMode defaultLineBreakMode =
+      [self lineBreakModeForUserText:userText];
+  [self updateLastLineClipping:defaultLineBreakMode];
+
+  newHeight = MIN(newHeight, maxHeight);
   if (!_textInputHeightConstraint) {
     _textInputHeightConstraint =
         [_textView.heightAnchor constraintEqualToConstant:newHeight];
@@ -339,8 +372,61 @@ UIButton* CreateClearButton() {
   } else {
     _textInputHeightConstraint.constant = newHeight;
   }
-  _textView.scrollEnabled = size.height > maxHeight;
+  _textView.scrollEnabled = userTextHeight > maxHeight;
   [self.heightDelegate textFieldViewContaining:self didChangeHeight:newHeight];
+}
+
+/// Updates the paragraph style to clip the last line.
+- (void)updateLastLineClipping:(NSLineBreakMode)defaultLineBreakMode {
+  NSTextStorage* textStorage = _textView.textStorage;
+  NSRange fullRange = NSMakeRange(0, textStorage.length);
+
+  [self applyLineBreakMode:defaultLineBreakMode
+      toMutableAttributedString:textStorage
+                        inRange:fullRange];
+
+  NSLayoutManager* layoutManager = _textView.layoutManager;
+  NSUInteger numberOfGlyphs = [layoutManager numberOfGlyphs];
+  NSUInteger maxLines = _textView.textContainer.maximumNumberOfLines;
+
+  if (numberOfGlyphs == 0 || maxLines == 0) {
+    return;
+  }
+
+  // Determine the actual number of lines.
+  NSUInteger lineCount = 0;
+  NSRange lineRange;
+  for (NSUInteger glyphIndex = 0; glyphIndex < numberOfGlyphs; lineCount++) {
+    [layoutManager lineFragmentRectForGlyphAtIndex:glyphIndex
+                                    effectiveRange:&lineRange];
+    glyphIndex = NSMaxRange(lineRange);
+  }
+
+  if (lineCount >= maxLines) {
+    // Find the glyph index at the start of the line to be clipped.
+    NSUInteger clipStartGlyphIndex = 0;
+    for (NSUInteger i = 0; i < maxLines - 1; i++) {
+      if (clipStartGlyphIndex >= numberOfGlyphs) {
+        break;
+      }
+      [layoutManager lineFragmentRectForGlyphAtIndex:clipStartGlyphIndex
+                                      effectiveRange:&lineRange];
+      clipStartGlyphIndex = NSMaxRange(lineRange);
+    }
+
+    // Convert the glyph index to a character index.
+    NSUInteger clipStartCharIndex =
+        [layoutManager characterIndexForGlyphAtIndex:clipStartGlyphIndex];
+
+    // Apply clipping to the last line and beyond.
+    if (clipStartCharIndex < textStorage.length) {
+      NSRange clipRange = NSMakeRange(clipStartCharIndex,
+                                      textStorage.length - clipStartCharIndex);
+      [self applyLineBreakMode:NSLineBreakByClipping
+          toMutableAttributedString:textStorage
+                            inRange:clipRange];
+    }
+  }
 }
 
 #pragma mark - TextFieldViewContaining
@@ -390,6 +476,103 @@ UIButton* CreateClearButton() {
 
 - (void)textViewContentChanged:(OmniboxTextViewIOS*)textView {
   [self updateTextViewHeight];
+}
+
+#pragma mark - Private
+
+/// Returns the height of a single line of text with the current font.
+- (CGFloat)singleLineHeight {
+  UIFont* font = _textView.font ?: _textView.currentFont;
+  // Create a sample attributed string for one line.
+  NSAttributedString* singleLineSampler =
+      [[NSAttributedString alloc] initWithString:@"T"
+                                      attributes:@{NSFontAttributeName : font}];
+  CGSize singleLineConstraint = CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX);
+  NSStringDrawingOptions options =
+      NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading;
+  CGRect singleLineBoundingRect =
+      [singleLineSampler boundingRectWithSize:singleLineConstraint
+                                      options:options
+                                      context:nil];
+  CGFloat measuredSingleLineHeight = ceilf(singleLineBoundingRect.size.height);
+
+  // If for some reason measurement fails, fall back to font.lineHeight.
+  if (measuredSingleLineHeight <= 0) {
+    measuredSingleLineHeight = font.lineHeight;
+  }
+  return measuredSingleLineHeight;
+}
+
+/// Computes the height needed to layout `attributedText` with `drawingWidth`.
+/// The height is computed with `lineBreakModeForUserText`.
+- (CGFloat)heightForAttributedText:(NSAttributedString*)attributedText
+                  withDrawingWidth:(CGFloat)drawingWidth {
+  if (attributedText.length == 0) {
+    return 0;
+  }
+  NSMutableAttributedString* mutableString = [[NSMutableAttributedString alloc]
+      initWithAttributedString:attributedText];
+  NSLineBreakMode lineBreakMode =
+      [self lineBreakModeForUserText:attributedText];
+  NSRange fullRange = NSMakeRange(0, mutableString.length);
+  [self applyLineBreakMode:lineBreakMode
+      toMutableAttributedString:mutableString
+                        inRange:fullRange];
+  CGSize constraintSize = CGSizeMake(drawingWidth, CGFLOAT_MAX);
+  NSStringDrawingOptions options =
+      NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading;
+  CGRect boundingRect = [mutableString boundingRectWithSize:constraintSize
+                                                    options:options
+                                                    context:nil];
+  return ceilf(boundingRect.size.height);
+}
+
+/// Returns the line break mode to apply for the text.
+- (NSLineBreakMode)lineBreakModeForUserText:(NSAttributedString*)text {
+  BOOL containsWhitespace =
+      [text.string
+          rangeOfCharacterFromSet:[NSCharacterSet
+                                      whitespaceAndNewlineCharacterSet]]
+          .location != NSNotFound;
+  NSLineBreakMode defaultLineBreakMode = containsWhitespace
+                                             ? NSLineBreakByWordWrapping
+                                             : NSLineBreakByCharWrapping;
+  return defaultLineBreakMode;
+}
+
+/// Applies a line break mode to an attributed string within a specific range,
+/// preserving all other paragraph style properties.
+///
+/// @param mutableAttributedString The mutable attributed string to modify.
+/// @param lineBreakMode The new NSLineBreakMode to apply.
+/// @param range The range within the attributed string to apply the line break
+/// mode.
+- (void)applyLineBreakMode:(NSLineBreakMode)lineBreakMode
+    toMutableAttributedString:
+        (NSMutableAttributedString*)mutableAttributedString
+                      inRange:(NSRange)range {
+  [mutableAttributedString
+      enumerateAttribute:NSParagraphStyleAttributeName
+                 inRange:range
+                 options:0
+              usingBlock:^(id value, NSRange currentRange, BOOL* stop) {
+                NSParagraphStyle* existingStyle = (NSParagraphStyle*)value;
+
+                // If a paragraph style exists, copy it. Otherwise, create a new
+                // default one.
+                NSMutableParagraphStyle* newParagraphStyle =
+                    existingStyle ? [existingStyle mutableCopy]
+                                  : [[NSMutableParagraphStyle alloc] init];
+
+                // Set the desired line break mode.
+                newParagraphStyle.lineBreakMode = lineBreakMode;
+
+                // Re-apply the modified style to the original range.
+                [mutableAttributedString
+                    addAttribute:NSParagraphStyleAttributeName
+                           value:newParagraphStyle
+                           range:currentRange];
+              }];
 }
 
 @end

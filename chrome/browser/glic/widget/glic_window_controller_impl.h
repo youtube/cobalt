@@ -49,6 +49,7 @@ class GlicEnabling;
 class GlicView;
 class GlicWindowAnimator;
 class ScopedGlicButtonIndicator;
+class GlicInstanceMetrics;
 
 // This class owns and manages the glic window. This class has the same lifetime
 // as the GlicKeyedService, so it exists if and only if the profile exists.
@@ -92,7 +93,6 @@ class GlicWindowControllerImpl
   void RemoveStateObserver(StateObserver* observer) override;
   void AddGlobalStateObserver(PanelStateObserver* observer) override;
   void RemoveGlobalStateObserver(PanelStateObserver* observer) override;
-  mojom::PanelState GetGlobalPanelState() override;
   bool IsPanelShowingForBrowser(
       const BrowserWindowInterface& bwi) const override;
 
@@ -102,6 +102,8 @@ class GlicWindowControllerImpl
   bool IsDetached() const override;
   base::CallbackListSubscription AddWindowActivationChangedCallback(
       WindowActivationChangedCallback callback) override;
+  base::CallbackListSubscription AddGlobalShowHideCallback(
+      base::RepeatingClosure callback) override;
   void Preload() override;
   void Reload(content::RenderFrameHost* render_frame_host) override;
   bool IsWarmed() const override;
@@ -181,10 +183,13 @@ class GlicWindowControllerImpl
   base::CallbackListSubscription
   AddActiveInstanceChangedCallbackAndNotifyImmediately(
       ActiveInstanceChangedCallback callback) override;
+  GlicInstance* GetActiveInstance() override;
 
   // Testing functionality.
   GlicWindowAnimator* GetWindowAnimatorForTesting();
   GlicView* GetGlicViewForTesting() const { return GetGlicView(); }
+
+  glic::GlicInstanceMetrics* instance_metrics() override;
 
  private:
   void CloseWithReason(views::Widget::ClosedReason reason);

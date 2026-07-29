@@ -28,10 +28,10 @@
 #include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/branded_strings.h"
@@ -368,11 +368,12 @@ void LensSearchController::CloseLensAsync(
 
   // Close the side panel if it is showing. This provides a smooth closing
   // animation.
-  auto* side_panel_coordinator =
-      tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_coordinator();
-  CHECK(side_panel_coordinator);
-  if (state_ == State::kActive && side_panel_coordinator->GetCurrentEntryId() ==
-                                      SidePanelEntry::Id::kLensOverlayResults) {
+  auto* const side_panel_ui =
+      tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_ui();
+  CHECK(side_panel_ui);
+  if (state_ == State::kActive &&
+      side_panel_ui->IsSidePanelEntryShowing(
+          SidePanelEntryKey(SidePanelEntry::Id::kLensOverlayResults))) {
     // If a close was triggered while the Lens side panel is showing, instead of
     // just immediately closing all UI, the side panel should close to show a
     // smooth closing animation. Once the side panel deregisters, it will
@@ -380,7 +381,7 @@ void LensSearchController::CloseLensAsync(
     // closing process.
     state_ = State::kClosingSidePanel;
     last_dismissal_source_ = dismissal_source;
-    side_panel_coordinator->Close();
+    side_panel_ui->Close(lens_overlay_side_panel_coordinator_->GetPanelType());
     // Also trigger the overlay fade out animation, but don't pass a callback
     // to finish the closing process since the side panel will call
     // the finish closing process callback in OnSidePanelHidden().
@@ -426,7 +427,7 @@ void LensSearchController::HideOverlay(
 }
 
 void LensSearchController::HideOverlay() {
-  if (state() == State::kOff) {
+  if (state() == State::kOff || !lens_overlay_controller_->IsOverlayShowing()) {
     return;
   }
 
@@ -722,11 +723,12 @@ void LensSearchController::NotifyOverlayOpened() {
 }
 
 void LensSearchController::OnThumbnailProcessed(
+    bool is_region_selection,
     const std::string& thumbnail_uri) {
   lens_searchbox_controller_->SetSearchboxThumbnail(thumbnail_uri);
-  lens_composebox_controller_->AddVisualSelectionContext(
-      thumbnail_uri,
-      /*is_deletable=*/false);
+  if (is_region_selection) {
+    lens_composebox_controller_->AddVisualSelectionContext(thumbnail_uri);
+  }
 }
 
 void LensSearchController::CloseLensPart2(
@@ -854,7 +856,8 @@ void LensSearchController::HandleThumbnailCreatedBitmap(
       FROM_HERE, {base::TaskPriority::USER_VISIBLE},
       base::BindOnce(&ScaleBitmapAndEncodeToDataUri, std::move(thumbnail_copy)),
       base::BindOnce(&LensSearchController::OnThumbnailProcessed,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr(),
+                     /*is_region_selection=*/false));
 }
 
 void LensSearchController::HandleThumbnailCreated(
@@ -864,10 +867,7 @@ void LensSearchController::HandleThumbnailCreated(
 
   std::string thumbnail_uri =
       webui::MakeDataURIForImage(base::as_byte_span(thumbnail_bytes), "jpeg");
-  lens_searchbox_controller_->SetSearchboxThumbnail(thumbnail_uri);
-  lens_composebox_controller_->AddVisualSelectionContext(
-      thumbnail_uri,
-      /*is_deletable=*/false);
+  OnThumbnailProcessed(/*is_region_selection=*/true, thumbnail_uri);
 }
 
 void LensSearchController::TabForegrounded(tabs::TabInterface* tab) {
@@ -955,12 +955,11 @@ void LensSearchController::OnPageContextUpdatedForZeroStateRequest(
 void LensSearchController::MaybeShowMobilePromo() {
   if (MobilePromoOnDesktopTypeEnabled() ==
       MobilePromoOnDesktopPromoType::kLensPromo) {
-    IOSPromoTriggerService* service =
-        IOSPromoTriggerServiceFactory::GetForProfile(
-            Profile::FromBrowserContext(
-                tab_->GetContents()->GetBrowserContext()));
-    if (service) {
-      service->NotifyPromoShouldBeShown(IOSPromoType::kLens);
+    auto* user_education_interface =
+        BrowserUserEducationInterface::From(tab_->GetBrowserWindowInterface());
+    if (user_education_interface) {
+      user_education_interface->MaybeShowFeaturePromo(
+          feature_engagement::kIPHiOSLensPromoDesktopFeature);
     }
   }
 }

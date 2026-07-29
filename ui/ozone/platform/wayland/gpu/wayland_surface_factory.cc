@@ -259,7 +259,7 @@ scoped_refptr<gfx::NativePixmap> WaylandSurfaceFactory::CreateNativePixmap(
     gfx::AcceleratedWidget widget,
     gpu::VulkanDeviceQueue* device_queue,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     std::optional<gfx::Size> framebuffer_size) {
   if (framebuffer_size &&
@@ -269,13 +269,14 @@ scoped_refptr<gfx::NativePixmap> WaylandSurfaceFactory::CreateNativePixmap(
 #if defined(WAYLAND_GBM)
   auto* gbm_device = buffer_manager_->GetGbmDevice();
   if (gbm_device && gbm_device->CanCreateBufferForFormat(
-                        GetFourCCFormatFromBufferFormat(format))) {
+                        GetFourCCFormatFromSharedImageFormat(format))) {
     scoped_refptr<GbmPixmapWayland> pixmap =
         base::MakeRefCounted<GbmPixmapWayland>(buffer_manager_);
 
     auto native_usage = BufferUsageToNativePixmapUsage(usage);
-    if (!pixmap->InitializeBuffer(widget, size, format, native_usage,
-                                  framebuffer_size)) {
+    if (!pixmap->InitializeBuffer(widget, size,
+                                  viz::SharedImageFormatToBufferFormat(format),
+                                  native_usage, framebuffer_size)) {
       return nullptr;
     }
     return pixmap;
@@ -325,12 +326,12 @@ bool WaylandSurfaceFactory::SupportsNativePixmaps() const {
   return supports_native_pixmaps;
 }
 
-std::optional<gfx::BufferFormat>
+std::optional<viz::SharedImageFormat>
 WaylandSurfaceFactory::GetPreferredFormatForSolidColor() const {
   if (!buffer_manager_->SupportsFormat(gfx::BufferFormat::RGBA_8888)) {
-    return gfx::BufferFormat::BGRA_8888;
+    return viz::SinglePlaneFormat::kBGRA_8888;
   }
-  return gfx::BufferFormat::RGBA_8888;
+  return viz::SinglePlaneFormat::kRGBA_8888;
 }
 
 bool WaylandSurfaceFactory::SupportsDrmModifiersFilter() const {

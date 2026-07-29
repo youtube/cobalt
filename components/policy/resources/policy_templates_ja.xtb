@@ -128,6 +128,7 @@
 
       このポリシーを未設定のままにした場合は、デフォルトのプロファイル ディレクトリが使用されます。</translation>
 <translation id="1053981429146436598">プライベート ネットワーク リクエストの設定に関連する一連のポリシーです。https://wicg.github.io/private-network-access/ をご覧ください。</translation>
+<translation id="1055159224864957792">ローカル パスワード</translation>
 <translation id="1059069692400941670">初回実行時のデフォルトの検索エンジンのインポートを無効にする</translation>
 <translation id="1060020040574767394">カスタムの透かし設定を行う</translation>
 <translation id="1062011392452772310">デバイスのリモート認証を有効にする</translation>
@@ -1189,6 +1190,17 @@ Virtual Tasks の場合は <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY
 <translation id="1834796168555733063">パスワード マネージャーを使用したパスキーの保存を無効にする</translation>
 <translation id="1836380138559328229">アクティブな Wi-Fi 認証情報をデバイスレベルで保存する</translation>
 <translation id="1837165432382702436">ページの高さ（マイクロメートル）</translation>
+<translation id="1838075279369174832">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> でのログインと再認証の両方に使用できるローカル認証要素を管理します。
+
+      許可する要素に応じて次のように設定します。
+
+      * すべてのローカル認証要素を許可する場合は、["ALL"] を使用します（将来追加される要素も含まれます）。
+
+      * PIN のみを許可する場合は、["PIN"] を使用します。
+
+      * ローカル パスワードのみを許可する場合は、["LOCAL_PASSWORD"] を使用します。
+
+      このポリシーを未設定のままにするか空のリストを設定した場合、管理対象ユーザーはローカル認証要素を使用できません。</translation>
 <translation id="1838910874018595451">Kerberos チケットに事前に指定された設定</translation>
 <translation id="1839042185432919430">デバイスがオフラインの場合、アプリ起動時にネットワーク プロンプトを表示することをキオスク ウェブアプリに許可する</translation>
 <translation id="1839711547980672664"><ph name="CHROME_DEVTOOLS_NAME" /> の使用を許可する URL パターンのリスト</translation>
@@ -1840,6 +1852,7 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
 <translation id="2306505001667207184">自動選択ポリシーが複数の証明書と一致した場合に常にクライアント証明書を選択するよう求めるメッセージがユーザーに表示されます。</translation>
 <translation id="230713790688681130">ヒンディー語（字母）レイアウトを有効にする</translation>
 <translation id="2307496301287881990">ディスプレイとグラフィックのステータスを報告する</translation>
+<translation id="2308084581803907194">複雑さのレベル: 高</translation>
 <translation id="2308899582897965249">サイレント印刷を無効にする</translation>
 <translation id="2309284543927494965">アップデートをブロックする</translation>
 <translation id="2309341709647905294">デバイスに接続されている周辺機器に関する情報を報告しない</translation>
@@ -2618,6 +2631,19 @@ Android アプリの場合はパッケージ名（「com.google.android.gm」な
       未設定の場合、このポリシーは管理対象のデバイスに対して無効となり、消費者が所有するデバイスに対して有効となります。
       このポリシーを無効に設定した場合、許可されないのはシステム全体のトレース収集のみです。ブラウザのトレース収集は、このポリシーの影響を受けません。</translation>
 <translation id="2922511125678964398">キャプティブ ポータル認証でプロキシ設定を無視できるようにする</translation>
+<translation id="2923126158151236068">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> でユーザーが設定するローカル認証要素（PIN とローカル パスワード）の複雑さの最小要件を設定します。
+
+このポリシーを設定しない場合、複雑さのレベルはデフォルトの [なし] になります。
+
+このポリシーの要件は、ユーザーが新しいローカル PIN / パスワードを設定するとき、または既存の PIN / パスワードを変更するときに適用されます。
+
+複雑さのレベルは、Android のパスワード品質の指標（https://developers.google.com/android/management/reference/rest/v1/PasswordRequirements）に基づき、<ph name="PRODUCT_OS_NAME" /> に合わせて調整されます。
+- 1 = なし: PIN / パスワードは必須ですが、内容や長さに関する制限はありません。
+- 2 = 低: 基本的な複雑さの要件が適用されます。
+- 3 = 中: 長さと文字種の厳しい要件が適用されます。
+- 4 = 高: 最も厳しい複雑さの要件が適用され、複数の文字種が必須となります。
+
+PIN とパスワードの複雑さの各レベルについて、詳しくはヘルプセンターの記事をご確認ください。</translation>
 <translation id="2926813071464307947">レンダラアプリ コンテナのサンドボックスを無効にする</translation>
 <translation id="2931888116345994552">このポリシーを未設定のままか有効に設定した場合、<ph name="PRODUCT_NAME" /> のすべてのコンポーネントでコンポーネントの更新が有効になります。
 
@@ -3368,6 +3394,15 @@ Microsoft Outlook カードには、追加の管理者設定が必要です。Ch
 
       このポリシーを無効に設定するか未設定のままにした場合、DTC は無効になり、デバイスでテレメトリーおよび診断のデータの収集、処理、レポート作成を行うことはできません。</translation>
 <translation id="3442589735857147823">Linux アプリのサポートに必要な仮想マシンの使用をユーザーに許可する</translation>
+<translation id="34476328503285475">このポリシーでは、<ph name="PRODUCT_NAME" /> の新しいタブページに表示する最大 10 個のカスタム ショートカットを事前に設定できます。
+
+このポリシーを設定した場合、個人のショートカットに加えて、これらのショートカットがデフォルトでユーザーに表示されます。ユーザーは、組織のショートカットを表示するかどうかを [Chrome をカスタマイズ] パネルで管理できます。
+
+ショートカットの URL は一意である必要があります。
+
+<ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> を true に設定した場合、ユーザーはショートカットの名前を変更できます。false に設定するか未設定のままにした場合、ユーザーはショートカットの名前を編集できません。
+
+<ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> を true に設定した場合、ユーザーはショートカットを削除できます。false に設定するか未設定のままにした場合、ユーザーはショートカットを削除できません。</translation>
 <translation id="3450649825886735618">スペルミスの解決に Google のウェブサービスを一切使用しない</translation>
 <translation id="3451422488938880786"> 国際ショートカット キーの再マッピングを有効または無効にします</translation>
 <translation id="3451901387456196887"><ph name="PRODUCT_NAME" /> メニューに、アクセスコードを使用するか QR コードをスキャンしてキャスト デバイスを選択するオプションがユーザーに表示されます。</translation>
@@ -4613,6 +4648,7 @@ URL パターンは、<ph name="CONTROLLED_FRAME_BLOCKED_FOR_URLS_POLICY_NAME" /
 <translation id="4341199399451274159"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> がオンの場合に、<ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> では、検索プロバイダによってサポートされる文字エンコードを指定できます。エンコードは、UTF-8、GB2312、ISO-8859-1 などのコードページ名であり、指定された順序で適用されます。
 
       <ph name="DEFAULT_SEARCH_PROVIDER_ENCODINGS_POLICY_NAME" /> を未設定のままにした場合、UTF-8 が使用されます。</translation>
+<translation id="4346542905412554336">プロキシのオーバーライド ルール</translation>
 <translation id="4347908978527632940">true に設定した場合、監視対象ユーザーについて、他の Android アプリからコンテンツ プロバイダを介してウェブ制限を問い合わせることができます。
 
           false に設定した場合、または未設定の場合、コンテンツ プロバイダから情報は返されません。</translation>
@@ -5738,6 +5774,7 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
 ドメインの形式が正しくない場合は無視されます。</translation>
 <translation id="5163002264923337812">古いウェブベースのログインフローを有効にする</translation>
 <translation id="5163889437570441600"><ph name="PRODUCT_NAME" /> を使用してコンテンツをデバイスにキャストすることを許可します。このポリシーを false に設定した場合、ユーザーはコンテンツをデバイスにキャストできません。このポリシーを true に設定した場合、ユーザーはコンテンツをキャストできます。このポリシーを設定しない場合、ユーザーは登録済みの ChromeOS デバイスにはコンテンツをキャストできませんが、未登録のデバイスにはキャストできます。</translation>
+<translation id="5166766992668636906">複雑さのレベル: 中</translation>
 <translation id="5168529971295111207">このポリシーのサポートは終了しました。代わりに ProxyMode を使用してください。
 
           <ph name="PRODUCT_NAME" /> が使用するプロキシ サーバーを指定できます。ユーザーはプロキシの設定を変更できません。
@@ -7259,6 +7296,7 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="6144046700495610112">このポリシーを有効に設定した場合、初回実行時に以前の既定のブラウザから自動入力フォームのデータが読み込まれます。このポリシーを無効に設定するか未設定のままにした場合、初回実行時に自動入力フォームのデータは読み込まれません。
 
       ユーザーはインポート ダイアログを表示できます。このとき、自動入力フォームのデータのチェックボックスは、このポリシーの値に合わせてオンまたはオフになります。</translation>
+<translation id="6144246313478615705">ローカル PIN とパスワードの複雑さの最小要件を設定する</translation>
 <translation id="614551633868957694">Chrome アプリと拡張機能</translation>
 <translation id="614616930188030377">このリストに指定されたパターンは、リクエスト元 URL のセキュリティ オリジンと照合されます。
       一致するものが見つかった場合、または chrome://flags/#enable-webrtc-hide-local-ips-with-mdns が無効に設定されている場合は、WebRTC ICE の候補にローカル IP アドレスが表示されます。
@@ -8392,6 +8430,7 @@ URL が <ph name="SERIAL_ASK_FOR_URLS_POLICY_NAME" /> の URL パターンと競
 このポリシーを有効に設定した場合、ユーザーが新しい <ph name="PRODUCT_OS_NAME" /> デバイスにログインしたときに、以前のセッションからログアウトします。
 
 このポリシーを無効に設定するか未設定のままにした場合、<ph name="FLOATING_SSO_ENABLED_POLICY_NAME" /> または <ph name="FLOATING_WORKSPACE_V2_ENABLED_POLICY_NAME" /> のいずれかのポリシーが有効になっている場合のみ、以前のセッションからログアウトします。</translation>
+<translation id="6854694645176150141">許可するローカル認証要素を設定する</translation>
 <translation id="6854767649023671426">このポリシーを有効に設定するか未設定のままにした場合、VideoCaptureAllowedUrls リストで指定されている URL 以外では、ユーザーに動画キャプチャのアクセスを確認するメッセージが表示されます。
 
       このポリシーを無効に設定した場合、メッセージの表示は無効になり、VideoCaptureAllowedUrls リストで指定されている URL でのみ動画キャプチャのアクセスが可能になります。
@@ -8674,6 +8713,17 @@ SkyVault ユーザーのみ、つまり LocalUserFilesAllowed が false の場�
 無効なエントリは無視されます。</translation>
 <translation id="7044883996351280650">Android のバックアップと復元サービスを制御する</translation>
 <translation id="7045221780834308118">このポリシーを有効に設定した場合、サードパーティのウェブ アプリケーションが Desk API を使用して <ph name="PRODUCT_OS_NAME" /> デスクを制御できるようになります。このポリシーを未設定のままにするか無効に設定した場合、<ph name="DESK_API_NAME" /> は使用できません。このポリシーは登録済みのデバイスでのみ有効になります。</translation>
+<translation id="704591686761455167">このポリシーでは、Blob URL を取得および処理する際にパーティション化するかどうかを制御します。
+このポリシーを有効に設定するか未設定のままにした場合、Blob URL はパーティション化されます。
+このポリシーを無効に設定した場合、Blob URL はパーティション化されません。
+
+<ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> または <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" /> によって特定の最上位オリジンのストレージ パーティションが無効になっている場合は、Blob URL もパーティション化されません。
+
+このポリシーを使用する必要がある場合は、<ph name="BUG_URL" /> でユースケースをご説明のうえバグを報告してください。このポリシーは、<ph name="PRODUCT_NAME" /> バージョン 146 まで提供されます。その後、古い実装は削除されます。
+
+注: ブラウザの実行中にこのポリシーを変更した場合は、新たに開始したレンダラ プロセスにのみ変更が反映されます。
+
+サードパーティのストレージ パーティションについて詳しくは、https://developers.google.com/privacy-sandbox/cookies/storage-partitioning をご覧ください。</translation>
 <translation id="7046113122884041950">Smart Lock を許可しない</translation>
 <translation id="7046997898355294677">プライバシーに関するお知らせを、ユーザーが閉じるまで表示する</translation>
 <translation id="7047495632846973438">ディスプレイ キャプチャ許可ポリシーを照会するかスキップするかを指定します。</translation>
@@ -9221,12 +9271,24 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 <translation id="7491720878670299691">ネットワーク データをポーリングしてイベントの有無を確認する間隔です。指定できる最小値は 1 分です。
 
       設定しない場合は、デフォルトの 1 分が適用されます。</translation>
+<translation id="7496284563199466390"><ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーを設定できる管理対象ユーザーを制御する。</translation>
 <translation id="7498595166686106721">
       ディスプレイ キャプチャ許可ポリシーでは、仕様（https://www.w3.org/TR/screen-capture/#feature-policy-integration）に沿って、getDisplayMedia(), へのアクセスをゲートします。ただし、このポリシーを無効に設定した場合、この要件は適用されず、本来禁止されているコンテキストからの getDisplayMedia() の呼び出しが許可されます。このエンタープライズ ポリシーは一時的なものであり、<ph name="PRODUCT_NAME" /> バージョン 100 以降で削除される予定です。仕様を満たしていないため修正する時間が必要なアプリケーションを使用しているエンタープライズ ユーザーのブロックを解除することを目的としています。
 
       このポリシーを有効に設定するか未設定のままにした場合、サイトはディスプレイ キャプチャ許可ポリシーで許可リストに登録されたコンテキストからのみ getDisplayMedia() を呼び出すことができます。
 
       このポリシーを無効に設定した場合、サイトはディスプレイ キャプチャ許可ポリシーで許可リストに登録されていないコンテキストからでも getDisplayMedia() を呼び出すことができます。ただし、他の制限が適用される可能性があります。</translation>
+<translation id="750408442628578356">Gemini アプリにユーザーの代わりにウェブページでの操作を許可するかどうかを制御します。
+
+0 / 未設定  = Gemini アプリにウェブページでの操作を許可する。
+
+1 = Gemini アプリにウェブページでの操作を許可しない。
+
+Gemini アプリが無効になっている場合、このポリシーは無視されます。たとえば、Gemini アプリは <ph name="GEMINI_SETTINGS_POLICY_NAME" /> ポリシーで無効にできます。
+
+Gemini in Chrome について詳しくは、https://support.google.com/chrome/a/answer/16291696 をご覧ください。
+
+Gemini による操作は、一部の国や言語ではご利用いただけません。このポリシーを設定しても、機能が有効になるとは限りません。有効になるかどうかは、国や言語での提供状況によって異なります。リリースについて詳しくは、Enterprise リリースノート（https://support.google.com/chrome/a/answer/7679408?hl=ja）をご覧ください。</translation>
 <translation id="7506745375479451616">このポリシーでは、<ph name="IE_PRODUCT_NAME" /> から <ph name="PRODUCT_NAME" /> に切り替えて URL を開くときに使用するコマンドを管理します。このポリシーは、実行ファイルのパスに設定するか <ph name="PRODUCT_NAME_PLACEHOLDER" /> に設定することで、<ph name="PRODUCT_NAME" /> の場所を自動検出できます。
 
       このポリシーを未設定のままにした場合、<ph name="PRODUCT_NAME" /> が Internet Explorer から起動する際に <ph name="IE_PRODUCT_NAME" /> が <ph name="PRODUCT_NAME" /> の実行パスを自動検出します。注: <ph name="IE_PRODUCT_NAME" /> の従来のブラウザをサポートするアドインがインストールされていない場合、このポリシーは無視されます。</translation>
@@ -9308,6 +9370,7 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 
       ユーザーのデバイスが管理対象でない場合、この機能を使用できるかどうかは、ユーザーがデバイスの所有者かどうかにもよります。</translation>
 <translation id="7570291542739287032">クラウドのみ</translation>
+<translation id="7572641760104970905">複雑さのレベル: なし</translation>
 <translation id="757395965347379751">この設定が有効になっていると、SHA-1 署名証明書が検証され、ローカルにインストールされた CA 証明書に関連付けされている限り、<ph name="PRODUCT_NAME" /> は SHA-1 署名証明書を許可します。
 
       ただし、このポリシーは SHA-1 署名を許可するオペレーティング システムの証明書検証スタックにより異なります。OS のアップデートにより SHA-1 署名証明書を処理する OS が変更になると、このポリシーは効力を失います。さらに、このポリシーは一時的な措置として企業に SHA-1 から移行するための猶予期間を与えることを目的としています。このポリシーは 2019 年 1 月 1 日をめどに削除される予定です。
@@ -9392,6 +9455,7 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 <translation id="7648907905084499629">すべてのサイトの Cookie に <ph name="FEATURE_NAME_SAMESITE_BY_DEFAULT_COOKIES" /> 動作を使用する</translation>
 <translation id="7657261947024629645">パフォーマンスを重視します。</translation>
 <translation id="76580522298425324">事前のユーザー操作なしでスクリーン キャプチャを許可する</translation>
+<translation id="7661379728107156839">複雑さのレベル: 低</translation>
 <translation id="7666228839913571182">サードパーティ Cookie を許可する</translation>
 <translation id="7666782560345386904">高精度の自動入力の設定</translation>
 <translation id="7669630878711068277">このポリシーを有効に設定するか未設定のままにした場合、ユーザーは <ph name="PRODUCT_NAME" /> で印刷することができます。ユーザーはこの設定を変更できません。
@@ -9921,6 +9985,21 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 <translation id="8079544387901313374">このポリシーはサポートが終了し、<ph name="PRODUCT_OS_NAME" /> バージョン 88 で削除されました。公開セッションのサポートは終了しました。代わりに <ph name="DEVICE_LOCAL_ACCOUNTS_POLICY_NAME" /> を使用して管理対象のゲスト セッションを設定してください。
       このポリシーを false に設定した場合、管理対象のゲスト セッションは、https://support.google.com/chrome/a/answer/3017014 の記事に記載されているとおりに動作します（標準の「公開セッション」）。このポリシーを true に設定するか未設定のままにした場合、管理対象のゲスト セッションは、通常の「公開セッション」で設けられている制限の多くが解除された「管理対象のセッション」として動作します。このポリシーを設定した場合、ユーザーは設定を変更したりオーバーライドしたりすることはできません。</translation>
 <translation id="8080200590486938727">プラグイン ファインダーを無効にする</translation>
+<translation id="8082268442825947283">このポリシーでは、接続先の URL やその他の条件に基づいてブラウザで使用するプロキシを選択するルールを設定します。このポリシーは、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシー、<ph name="PROXY_SETTINGS_EXTENSION_API" /> の拡張機能 API、またはユーザーが手動で設定したプロキシ設定より優先されます（設定されている場合）。
+
+このポリシーを未設定のままにした場合、他のプロキシ ポリシーやユーザー設定には影響しません。
+
+ブラウザで使用するプロキシを決定する必要がある場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の URL ホストの少なくとも 1 つに一致するエントリが見つかるまで、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーのエントリが順番に照合され、<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> のすべてのエントリが満たされるかどうかが評価されます。<ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" /> の値は、一致した場合にプロキシとして使用されます。一致するエントリが見つからない場合は、<ph name="PROXY_SETTINGS_POLICY_NAME" /> ポリシーで設定されたプロキシにフォールバックされます。
+
+<ph name="PROXY_OVERRIDE_RULES_PROXY_CHAIN" /> フィールドのエントリは、次のような PAC ファイルの文字列値に対応します。
+  * DIRECT
+  * PROXY host:port
+  * HTTPS host:port
+最初に到達可能なエントリがプロキシとして使用されます。
+
+<ph name="PROXY_OVERRIDE_RULES_CONDITIONS" /> フィールドには、オーバーライド ルールで使用するプロキシを決定する際に、すべて満たす必要がある条件のリストを指定します。未設定の場合、<ph name="PROXY_OVERRIDE_RULES_DESTINATION_MATCHERS" /> の少なくとも 1 つのホストが一致すれば、エントリが使用されます。
+
+<ph name="PROXY_OVERRIDE_RULES_DNS_PROBE" /> 条件は、指定された DNS <ph name="PROXY_OVERRIDE_RULES_HOST" /> が IP アドレスに解決可能かどうかを判定します。<ph name="PROXY_OVERRIDE_RULES_RESULT" /> の値が「<ph name="PROXY_OVERRIDE_RULES_RESOLVES" />」の場合は、条件が満たされたと判定されます。代わりに値を「<ph name="PROXY_OVERRIDE_RULES_NOT_FOUND" />」に設定した場合は、解決に失敗すると、条件が満たされたと判定されます。</translation>
 <translation id="8086746212954621799">自動更新を無効にします（true に設定した場合）。
 
 この設定を未設定のままにするか false に設定した場合、<ph name="PRODUCT_OS_NAME" /> デバイスでは更新が自動的にチェックされます。
@@ -10104,6 +10183,9 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8225579382697740712">WebHID API の使用を管理する</translation>
 <translation id="8229912067600517877">デベロッパー ツールを有効にする</translation>
 <translation id="8238421250255592181">画面キーボードで予測入力を有効にするかどうかを示すブール値のフラグです。</translation>
+<translation id="8238558579601006178">このポリシーを 0 に設定するか未設定のままにした場合、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーは関連付けられたユーザーのユーザー スコープでのみ適用されます。
+このポリシーを 1 に設定した場合、関連付けられていないユーザーであっても、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーが該当のユーザー スコープで適用されます。
+このポリシーを 2 に設定した場合、ソースがユーザーであるときは、<ph name="PROXY_OVERRIDE_RULES_POLICY_NAME" /> ポリシーは適用されません。</translation>
 <translation id="8239109177194627162">クレジット カードの自動入力を無効にする</translation>
 <translation id="8239143983379015783">永続的な割り当てを強制的に有効にする</translation>
 <translation id="8240976615241583524">このポリシーでは、WebRTC が最適な接続を検索する際に使用する IP アドレスとインターフェースを制限できます。

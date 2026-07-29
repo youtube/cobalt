@@ -8,12 +8,15 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.ALL_KEYS_TAB_GRID;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.FAVICON_FETCHER;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.GRID_CARD_SIZE;
+import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.IS_INCOGNITO;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.IS_PINNED;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.IS_SELECTED;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_ACTION_BUTTON_DATA;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_CLICK_LISTENER;
+import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_CONTEXT_CLICK_LISTENER;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TAB_ID;
 import static org.chromium.chrome.browser.tasks.tab_management.TabProperties.TITLE;
+import static org.chromium.chrome.browser.tasks.tab_management.pinned_tabs_strip.PinnedTabStripProperties.BACKGROUND_COLOR;
 
 import static java.lang.Math.max;
 
@@ -26,6 +29,7 @@ import androidx.annotation.Px;
 import androidx.recyclerview.widget.GridLayoutManager;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.ValueChangedCallback;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
@@ -40,6 +44,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData.TabActionButtonType;
+import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridItemLongPressOrchestrator.CancelLongPressTabItemEventListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridViewRectUpdater;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupCreationDialogManager;
@@ -49,6 +54,8 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabLi
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -80,9 +87,23 @@ public class PinnedTabStripMediator {
     private @Nullable TabGroupListBottomSheetCoordinator mTabGroupListBottomSheetCoordinator;
     private final ModalDialogManager mModalDialogManager;
     private final @Nullable Runnable mOnTabGroupCreation;
+    private final @Px int mPinnedTabListItemHeight;
 
     private final Callback<@Nullable TabGroupModelFilter> mOnTabGroupModelFilterChanged =
             new ValueChangedCallback<>(this::onTabGroupModelFilterChanged);
+    private final TabActionListener mContextClickTabItemEventListener =
+            new TabActionListener() {
+                @Override
+                public void run(View view, int tabId, @Nullable MotionEventInfo triggeringMotion) {
+                    onLongPress(tabId, view);
+                }
+
+                @Override
+                public void run(
+                        View view, String syncId, @Nullable MotionEventInfo triggeringMotion) {
+                    // No-op.
+                }
+            };
 
     /**
      * The current width of a tab list item in the main tab grid. This is used to calculate the
@@ -126,6 +147,10 @@ public class PinnedTabStripMediator {
         mTabLisCoordinator.addTabListItemSizeChangedObserver(mTabListItemSizeChangedObserver);
         mTabGroupModelFilterSupplier = tabGroupModelFilterSupplier;
         mTabBookmarkerSupplier = tabBookmarkerSupplier;
+        mPinnedTabListItemHeight =
+                mActivity
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.pinned_tab_strip_item_height);
         mTabModelObserver =
                 new TabModelObserver() {
                     @Override
@@ -141,8 +166,17 @@ public class PinnedTabStripMediator {
                     }
 
                     @Override
-                    public void tabClosureUndone(Tab tab) {
+                    public void onTabClosePending(
+                            List<Tab> tabs, boolean isAllTabs, int closingSource) {
                         updatePinnedTabsBar();
+                    }
+
+                    @Override
+                    public void tabClosureUndone(Tab tab) {
+                        // We rely on tab list model for updating the pinned tabs, which could be
+                        // updated async when the observers are fired during undone. Hence we post
+                        // the task to queue to trigger the UI update correctly.
+                        ThreadUtils.postOnUiThread(() -> updatePinnedTabsBar());
                     }
 
                     @Override
@@ -235,7 +269,7 @@ public class PinnedTabStripMediator {
     private ListItem createPinnedTabListItem(PropertyModel model) {
         // The view will animate to its final size, so we can set a default width here.
         // The correct width will be set in resizePinnedTabCards.
-        Size pinnedTabSize = new Size(mTabListItemCurrentWidth, 0);
+        Size pinnedTabSize = new Size(mTabListItemCurrentWidth, mPinnedTabListItemHeight);
 
         PropertyModel newModel =
                 new PropertyModel.Builder(ALL_KEYS_TAB_GRID)
@@ -248,6 +282,8 @@ public class PinnedTabStripMediator {
                         .with(
                                 TAB_ACTION_BUTTON_DATA,
                                 new TabActionButtonData(TabActionButtonType.PIN, null))
+                        .with(TAB_CONTEXT_CLICK_LISTENER, mContextClickTabItemEventListener)
+                        .with(IS_INCOGNITO, model.get(IS_INCOGNITO))
                         .build();
         return new ListItem(UiType.TAB, newModel);
     }
@@ -315,7 +351,7 @@ public class PinnedTabStripMediator {
                         res, mTabGridListLayoutManager, mPinnedTabsModelList.size());
 
         int newWidth = Math.round(mTabListItemCurrentWidth * widthPercentage);
-        Size newSize = new Size(max(minAllowedWidth, newWidth), 0);
+        Size newSize = new Size(max(minAllowedWidth, newWidth), mPinnedTabListItemHeight);
         for (ListItem item : mPinnedTabsModelList) {
             item.model.set(GRID_CARD_SIZE, newSize);
         }
@@ -342,6 +378,7 @@ public class PinnedTabStripMediator {
         if (newFilter != null) {
             newFilter.addObserver(mTabModelObserver);
             Profile profile = mTabGroupModelFilterSupplier.get().getTabModel().getProfile();
+            boolean isIncognito = newFilter.getTabModel().isIncognitoBranded();
             assumeNonNull(profile);
 
             TabGroupCreationDialogManager tabGroupCreationDialogManager =
@@ -365,6 +402,9 @@ public class PinnedTabStripMediator {
                             newFilter,
                             mTabGroupListBottomSheetCoordinator,
                             tabGroupCreationDialogManager);
+
+            mStripPropertyModel.set(
+                    BACKGROUND_COLOR, ChromeColors.getDefaultBgColor(mActivity, isIncognito));
         }
     }
 

@@ -9,6 +9,7 @@ import android.view.View;
 import androidx.test.espresso.Espresso;
 import androidx.test.espresso.ViewAction;
 import androidx.test.espresso.ViewAssertion;
+import androidx.test.espresso.ViewInteraction;
 import androidx.test.espresso.action.ViewActions;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -73,27 +74,10 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
         return new DisplayedCondition<>(viewMatcher, mViewSpec.getViewClass(), conditionOptions);
     }
 
-    /**
-     * Create a {@link DisplayedCondition} like the enter Condition, but also waiting for the View
-     * to settle (no changes to its rect coordinates) for 1 second.
-     */
-    public ConditionWithResult<ViewT> createSettleCondition() {
-        Matcher<View> viewMatcher = mViewSpec.getViewMatcher();
-        DisplayedCondition.Options conditionOptions =
-                DisplayedCondition.newOptions()
-                        .withInDialogRoot(mOptions.mInDialog)
-                        .withExpectEnabled(mOptions.mExpectEnabled)
-                        .withExpectDisabled(mOptions.mExpectDisabled)
-                        .withDisplayingAtLeast(mOptions.mDisplayedPercentageRequired)
-                        .withSettleTimeMs(1000)
-                        .build();
-        return new DisplayedCondition<>(viewMatcher, mViewSpec.getViewClass(), conditionOptions);
-    }
-
     @Override
     public @Nullable Condition createExitCondition() {
         if (mOptions.mScoped) {
-            return new NotDisplayedAnymoreCondition(mViewSpec.getViewMatcher());
+            return new NotDisplayedAnymoreCondition(this, mViewSpec.getViewMatcher());
         } else {
             return null;
         }
@@ -170,17 +154,39 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
     public TripBuilder performViewActionTo(ViewAction action) {
         return new TripBuilder()
                 .withContext(this)
-                .withTrigger(() -> Espresso.onView(mViewSpec.getViewMatcher()).perform(action));
+                .withTrigger(() -> newViewInteraction().perform(action));
     }
 
     /** Trigger an Espresso ViewAssertion on this View. */
     public void check(ViewAssertion assertion) {
-        Espresso.onView(mViewSpec.getViewMatcher()).check(assertion);
+        newViewInteraction().check(assertion);
+    }
+
+    private ViewInteraction newViewInteraction() {
+        // TODO(crbug.com/456785513): Ensure the View is still there rechecking DisplayedCondition,
+        // find the root and use inRoot() to avoid interacting with a matching View in a different
+        // window.
+        return Espresso.onView(mViewSpec.getViewMatcher());
     }
 
     /** Creates a Condition fulfilled if the View matches the |matcher|. */
     public Condition matches(Matcher<View> matcher) {
         return new ViewElementMatchesCondition(this, matcher);
+    }
+
+    /** Returns the {@link Options} for this ViewElement. */
+    public Options getOptions() {
+        return mOptions;
+    }
+
+    /** Returns an {@link Options.Builder} copying the {@link Options} for this ViewElement. */
+    public Options.Builder copyOptions() {
+        return ViewElement.newOptions().initFrom(mOptions);
+    }
+
+    DisplayedCondition<ViewT> getDisplayedCondition() {
+        assert mEnterCondition != null;
+        return (DisplayedCondition<ViewT>) mEnterCondition;
     }
 
     /** Extra options for declaring ViewElements. */
@@ -247,6 +253,17 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
             /** Waits for the View's rect to stop moving. */
             public Builder initialSettleTime(int settleTimeMs) {
                 mInitialSettleTimeMs = settleTimeMs;
+                return this;
+            }
+
+            /** Copy |optionsToClose|'s options into this instance. */
+            public Builder initFrom(Options optionsToClone) {
+                mScoped = optionsToClone.mScoped;
+                mInDialog = optionsToClone.mInDialog;
+                mExpectDisabled = optionsToClone.mExpectDisabled;
+                mExpectEnabled = optionsToClone.mExpectEnabled;
+                mDisplayedPercentageRequired = optionsToClone.mDisplayedPercentageRequired;
+                mInitialSettleTimeMs = optionsToClone.mInitialSettleTimeMs;
                 return this;
             }
         }

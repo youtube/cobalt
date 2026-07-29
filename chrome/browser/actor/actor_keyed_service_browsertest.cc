@@ -108,7 +108,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StartStopTask) {
   TaskId first_task_id = actor_keyed_service()->CreateTask();
   EXPECT_FALSE(first_task_id.is_null());
 
-  actor_keyed_service()->StopTask(first_task_id, /*success=*/true);
+  actor_keyed_service()->StopTask(first_task_id,
+                                  ActorTask::StoppedReason::kTaskComplete);
 
   TaskId second_task_id = actor_keyed_service()->CreateTask();
   EXPECT_FALSE(first_task_id.is_null());
@@ -139,7 +140,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   EXPECT_EQ(result_future.Get<2>().size(), 1u);
   EXPECT_EQ(web_contents()->GetURL(), url);
 
-  actor_keyed_service()->StopTask(first_task_id, /*success=*/true);
+  actor_keyed_service()->StopTask(first_task_id,
+                                  ActorTask::StoppedReason::kTaskComplete);
 
   TaskId second_task_id = actor_keyed_service()->CreateTask();
   EXPECT_FALSE(first_task_id.is_null());
@@ -181,7 +183,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   EXPECT_EQ(frame_metadata.meta_tags(2).name(), "sis");
   EXPECT_EQ(frame_metadata.meta_tags(2).content(), "val");
 
-  actor_keyed_service()->StopTask(task_id, /*success=*/true);
+  actor_keyed_service()->StopTask(task_id,
+                                  ActorTask::StoppedReason::kTaskComplete);
 }
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
@@ -235,76 +238,6 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   EXPECT_EQ(actions_result->tabs_size(), 1);
   EXPECT_FALSE(actions_result->tabs()[0].has_annotated_page_content());
   EXPECT_FALSE(actions_result->tabs()[0].has_screenshot());
-}
-
-class ActorKeyedServiceOriginGatingBrowserTest
-    : public ActorKeyedServiceBrowserTest {
- public:
-  ActorKeyedServiceOriginGatingBrowserTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kGlic, features::kTabstripComboButton,
-                              features::kGlicActor,
-                              kGlicCrossOriginNavigationGating},
-        /*disabled_features=*/{features::kGlicWarming});
-  }
-
-  void CreateMockNavigationIPCResponse(TaskId expected_task_id,
-                                       url::Origin expected_navigation_origin,
-                                       bool permission_granted) {
-    navigation_confirmation_subscription_ =
-        actor_keyed_service()->AddRequestToConfirmNavigationSubscriberCallback(
-            base::BindLambdaForTesting(
-                [expected_task_id, expected_navigation_origin,
-                 permission_granted](
-                    const TaskId& got_task_id,
-                    const url::Origin& got_navigation_origin,
-                    ActorKeyedService::NavigationConfirmationCallback
-                        callback) {
-                  EXPECT_EQ(got_task_id, expected_task_id);
-                  EXPECT_EQ(got_navigation_origin, expected_navigation_origin);
-                  // Send a mock IPC response.
-                  std::move(callback).Run(
-                      webui::mojom::NavigationConfirmationResponse::New(
-                          webui::mojom::ConfirmationRequestResult::
-                              NewPermissionGranted(permission_granted)));
-                }));
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-  base::CallbackListSubscription navigation_confirmation_subscription_;
-};
-
-IN_PROC_BROWSER_TEST_F(ActorKeyedServiceOriginGatingBrowserTest,
-                       AddWritableMainframeOrigins) {
-  const GURL cross_origin_url =
-      embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
-  const GURL link_page_url = embedded_https_test_server().GetURL(
-      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
-                               EncodeURI(cross_origin_url.spec())}));
-
-  // Navigate the active tab to the link page.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), link_page_url));
-  TaskId task_id = actor_keyed_service()->CreateTask();
-
-  CreateMockNavigationIPCResponse(task_id,
-                                  url::Origin::Create(cross_origin_url),
-                                  /*permission_granted=*/false);
-
-  PerformActionsFuture result1;
-  actor_keyed_service()->PerformActions(
-      task_id, ToRequestList(MakeClickRequest(*active_tab(), gfx::Point(1, 1))),
-      ActorTaskMetadata(), result1.GetCallback());
-  ExpectErrorResult(result1,
-                    mojom::ActionResultCode::kTriggeredNavigationBlocked);
-
-  PerformActionsFuture result2;
-  actor_keyed_service()->PerformActions(
-      task_id, ToRequestList(MakeClickRequest(*active_tab(), gfx::Point(1, 1))),
-      ActorTaskMetadata::WithAddedWritableMainframeOriginsForTesting(
-          {url::Origin::Create(cross_origin_url)}),
-      result2.GetCallback());
-  ExpectOkResult(result2);
 }
 
 }  // namespace

@@ -38,7 +38,6 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
-#include "content/public/common/content_plugin_info.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/process_type.h"
 #include "content/public/common/webplugininfo.h"
@@ -117,8 +116,8 @@ bool PluginServiceImpl::GetPluginInfo(content::BrowserContext* browser_context,
   return false;
 }
 
-bool PluginServiceImpl::GetPluginInfoByPath(const base::FilePath& plugin_path,
-                                            WebPluginInfo* info) {
+std::optional<WebPluginInfo> PluginServiceImpl::GetPluginInfoByPathForTesting(
+    const base::FilePath& plugin_path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   std::vector<WebPluginInfo> plugins;
@@ -126,32 +125,11 @@ bool PluginServiceImpl::GetPluginInfoByPath(const base::FilePath& plugin_path,
 
   for (const WebPluginInfo& plugin : plugins) {
     if (plugin.path == plugin_path) {
-      *info = plugin;
-      return true;
+      return plugin;
     }
   }
 
-  return false;
-}
-
-std::u16string PluginServiceImpl::GetPluginDisplayNameByPath(
-    const base::FilePath& path) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  std::u16string plugin_name = path.LossyDisplayName();
-  WebPluginInfo info;
-  if (PluginService::GetInstance()->GetPluginInfoByPath(path, &info) &&
-      !info.name.empty()) {
-    plugin_name = info.name;
-#if BUILDFLAG(IS_MAC)
-    // Many plugins on the Mac have .plugin in the actual name, which looks
-    // terrible, so look for that and strip it off if present.
-    static constexpr std::u16string_view kPluginExtension = u".plugin";
-    if (base::EndsWith(plugin_name, kPluginExtension))
-      plugin_name.erase(plugin_name.size() - kPluginExtension.size());
-#endif  // BUILDFLAG(IS_MAC)
-  }
-  return plugin_name;
+  return std::nullopt;
 }
 
 void PluginServiceImpl::GetPlugins(GetPluginsCallback callback) {
@@ -173,20 +151,9 @@ void PluginServiceImpl::RegisterPlugins() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   GetContentClient()->AddPlugins(&plugins_);
-  for (const auto& plugin : plugins_)
-    RegisterInternalPlugin(plugin.ToWebPluginInfo(), /*add_at_beginning=*/true);
-}
-
-// There should generally be very few plugins so a brute-force search is fine.
-const ContentPluginInfo* PluginServiceImpl::GetRegisteredPluginInfo(
-    const base::FilePath& plugin_path) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  for (auto& plugin : plugins_) {
-    if (plugin.path == plugin_path)
-      return &plugin;
+  for (const auto& plugin : plugins_) {
+    RegisterInternalPlugin(plugin, /*add_at_beginning=*/true);
   }
-  return nullptr;
 }
 
 void PluginServiceImpl::SetFilter(PluginServiceFilter* filter) {
@@ -197,37 +164,6 @@ void PluginServiceImpl::SetFilter(PluginServiceFilter* filter) {
 PluginServiceFilter* PluginServiceImpl::GetFilter() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return filter_;
-}
-
-static const unsigned int kMaxCrashesPerInterval = 3;
-static const unsigned int kCrashesInterval = 120;
-
-void PluginServiceImpl::RegisterPluginCrash(const base::FilePath& path) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  auto i = crash_times_.find(path);
-  if (i == crash_times_.end()) {
-    crash_times_[path] = std::vector<base::Time>();
-    i = crash_times_.find(path);
-  }
-  if (i->second.size() == kMaxCrashesPerInterval) {
-    i->second.erase(i->second.begin());
-  }
-  base::Time time = base::Time::Now();
-  i->second.push_back(time);
-}
-
-bool PluginServiceImpl::IsPluginUnstable(const base::FilePath& path) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  std::map<base::FilePath, std::vector<base::Time> >::const_iterator i =
-      crash_times_.find(path);
-  if (i == crash_times_.end()) {
-    return false;
-  }
-  if (i->second.size() != kMaxCrashesPerInterval) {
-    return false;
-  }
-  base::TimeDelta delta = base::Time::Now() - i->second[0];
-  return delta.InSeconds() <= kCrashesInterval;
 }
 
 void PluginServiceImpl::RefreshPlugins() {
@@ -247,10 +183,9 @@ void PluginServiceImpl::UnregisterInternalPlugin(const base::FilePath& path) {
   PluginList::Singleton()->UnregisterInternalPlugin(path);
 }
 
-void PluginServiceImpl::GetInternalPlugins(
-    std::vector<WebPluginInfo>* plugins) {
+std::vector<WebPluginInfo> PluginServiceImpl::GetInternalPluginsForTesting() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  PluginList::Singleton()->GetInternalPlugins(plugins);
+  return PluginList::Singleton()->GetInternalPluginsForTesting();
 }
 
 }  // namespace content

@@ -20,33 +20,7 @@ enum class ForceDarkInversionMethod {
 
   // Modify colors by converting them to CIE L*a*b color space and inverting the
   // L value.
-  kCielabBased,
-
-  // Modify colors by subtracting each of r, g, and b from their maximum value.
-  kRgbBased
-};
-
-// Specifies algorithm for determining which images to invert in Force Dark.
-enum class ForceDarkImageBehavior {
-  // Same as ForceDarkInversionMethod::kUseBlinkSettings above.
-  kUseBlinkSettings,
-
-  // Invert only some images. Images that act as icons or text should be
-  // inverted, but photos, avatars, etc. should not be.
-  kInvertSelectively
-};
-
-// Specifies the classifier used to determine which images to invert, when
-// ForceDarkImageBehavior is |kInvertSelectively|
-enum class ForceDarkImageClassifier {
-  // Same as ForceDarkInversionMethod::kUseBlinkSettings above.
-  kUseBlinkSettings,
-
-  // See DarkModeImageClassifierPolicy::kNumColorsWithMlFallback.
-  kNumColorsWithMlFallback,
-
-  // See DarkModeImageClassifierPolicy::kTransparencyAndNumColors.
-  kTransparencyAndNumColors
+  kCielabBased
 };
 
 }  // namespace blink

@@ -129,7 +129,6 @@ build_webui("build") {
     "performance_page/tab_discard/exception_tabbed_add_dialog.ts",
     "privacy_page/cookies_page.ts",
     "privacy_page/do_not_track_toggle.ts",
-    "privacy_page/incognito_tracking_protections_page.ts",
     "privacy_page/personalization_options.ts",
     "privacy_page/privacy_guide/privacy_guide_ad_topics_fragment.ts",
     "privacy_page/privacy_guide/privacy_guide_completion_fragment.ts",
@@ -258,6 +257,8 @@ build_webui("build") {
     "your_saved_info_page/account_card_element.ts",
     "your_saved_info_page/category_reference_card.ts",
     "your_saved_info_page/collapsible_autofill_settings_card.ts",
+    "your_saved_info_page/identity_docs_page.ts",
+    "your_saved_info_page/travel_page.ts",
     "your_saved_info_page/your_saved_info_page.ts",
     "your_saved_info_page/your_saved_info_page_index.ts",
   ]

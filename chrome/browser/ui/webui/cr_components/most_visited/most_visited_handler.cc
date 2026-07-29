@@ -20,6 +20,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/web_applications/preinstalled_web_app_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -28,6 +29,7 @@
 #include "components/ntp_tiles/most_visited_sites.h"
 #include "components/ntp_tiles/tile_type.h"
 #include "components/page_load_metrics/browser/navigation_handle_user_data.h"
+#include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/tabs/public/tab_interface.h"
@@ -112,6 +114,8 @@ void MostVisitedHandler::DeleteMostVisitedTile(
   if (IsFromEnterpriseShortcut(tile->source)) {
     CHECK(most_visited_sites_->IsEnterpriseShortcutsEnabled());
     most_visited_sites_->DeleteEnterpriseShortcut(tile->url);
+    logger_.LogEvent(NTP_CUSTOMIZE_ENTERPRISE_SHORTCUT_REMOVE,
+                     base::TimeDelta() /* unused */);
     return;
   }
 
@@ -130,6 +134,8 @@ void MostVisitedHandler::RestoreMostVisitedDefaults(
   if (IsFromEnterpriseShortcut(source)) {
     CHECK(most_visited_sites_->IsEnterpriseShortcutsEnabled());
     most_visited_sites_->RestoreEnterpriseShortcutsDefaults();
+    logger_.LogEvent(NTP_CUSTOMIZE_ENTERPRISE_SHORTCUT_RESTORE_ALL,
+                     base::TimeDelta() /* unused */);
     return;
   }
 
@@ -157,6 +163,8 @@ void MostVisitedHandler::UndoMostVisitedTileAction(
     ntp_tiles::TileSource source) {
   if (IsFromEnterpriseShortcut(source)) {
     CHECK(most_visited_sites_->IsEnterpriseShortcutsEnabled());
+    logger_.LogEvent(NTP_CUSTOMIZE_ENTERPRISE_SHORTCUT_UNDO,
+                     base::TimeDelta() /* unused */);
     most_visited_sites_->UndoEnterpriseShortcutAction();
     return;
   }
@@ -185,6 +193,8 @@ void MostVisitedHandler::UpdateMostVisitedTile(
     bool success = most_visited_sites_->UpdateEnterpriseShortcut(
         tile->url, base::UTF8ToUTF16(new_title));
     std::move(callback).Run(success);
+    logger_.LogEvent(NTP_CUSTOMIZE_ENTERPRISE_SHORTCUT_UPDATE,
+                     base::TimeDelta() /* unused */);
   } else if (most_visited_sites_->IsCustomLinksEnabled()) {
     bool success = most_visited_sites_->UpdateCustomLink(
         tile->url, new_url != tile->url ? new_url : GURL(),
@@ -206,7 +216,9 @@ void MostVisitedHandler::OnMostVisitedTilesRendered(
   logger_.LogMostVisitedLoaded(
       base::Time::FromMillisecondsSinceUnixEpoch(time) -
           ntp_navigation_start_time_,
-      !most_visited_sites_->IsCustomLinksEnabled(),
+      most_visited_sites_->IsTopSitesEnabled(),
+      most_visited_sites_->IsCustomLinksEnabled(),
+      most_visited_sites_->IsEnterpriseShortcutsEnabled(),
       most_visited_sites_->IsShortcutsVisible());
 }
 
@@ -242,6 +254,17 @@ void MostVisitedHandler::OnMostVisitedTileNavigation(
                                  : ui::PAGE_TRANSITION_AUTO_BOOKMARK,
                              /*is_renderer_initiated=*/false),
       std::move(navigation_handle_callback));
+}
+
+void MostVisitedHandler::GetMostVisitedExpandedState(
+    GetMostVisitedExpandedStateCallback callback) {
+  std::move(callback).Run(
+      profile_->GetPrefs()->GetBoolean(ntp_prefs::kNtpShowAllMostVisitedTiles));
+}
+
+void MostVisitedHandler::SetMostVisitedExpandedState(bool is_expanded) {
+  profile_->GetPrefs()->SetBoolean(ntp_prefs::kNtpShowAllMostVisitedTiles,
+                                   is_expanded);
 }
 
 void MostVisitedHandler::PrerenderMostVisitedTile(

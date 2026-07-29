@@ -96,8 +96,6 @@ static_library("test_support") {
     "launcher/unit_test_launcher.h",
     "manual_hang_watcher.cc",
     "manual_hang_watcher.h",
-    "metrics/action_suffix_reader.cc",
-    "metrics/action_suffix_reader.h",
     "metrics/action_variants_reader.cc",
     "metrics/action_variants_reader.h",
     "metrics/histogram_enum_reader.cc",
@@ -722,9 +720,11 @@ if (is_android) {
       "android/javatests/src/org/chromium/base/test/transit/Trip.java",
       "android/javatests/src/org/chromium/base/test/transit/TripBuilder.java",
       "android/javatests/src/org/chromium/base/test/transit/UiThreadCondition.java",
+      "android/javatests/src/org/chromium/base/test/transit/ViewAndRoot.java",
       "android/javatests/src/org/chromium/base/test/transit/ViewConditions.java",
       "android/javatests/src/org/chromium/base/test/transit/ViewElement.java",
       "android/javatests/src/org/chromium/base/test/transit/ViewElementMatchesCondition.java",
+      "android/javatests/src/org/chromium/base/test/transit/ViewFinder.java",
       "android/javatests/src/org/chromium/base/test/transit/ViewSpec.java",
     ]
   }

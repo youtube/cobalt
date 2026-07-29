@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import "base/apple/foundation_util.h"
+#import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/download/model/download_filter_util.h"
 #import "ios/chrome/browser/download/model/external_app_util.h"
 #import "ios/chrome/browser/download/ui/download_list/download_list_action_delegate.h"
@@ -16,11 +17,11 @@
 #import "ios/chrome/browser/download/ui/download_list/download_list_grouping_util.h"
 #import "ios/chrome/browser/download/ui/download_list/download_list_item.h"
 #import "ios/chrome/browser/download/ui/download_list/download_list_mutator.h"
+#import "ios/chrome/browser/download/ui/download_list/download_list_table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/download/ui/download_list/download_list_table_view_header.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_cell.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
-#import "ios/chrome/browser/shared/ui/table_view/content_configuration/image_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/content_configuration/table_view_cell_content_configuration.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_illustrated_empty_view.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_model.h"
@@ -32,8 +33,6 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
-/// Size for the file icon image in the download list cells.
-constexpr CGFloat kFileIconImageSize = 44.0;
 /// Constants for cancel button styling.
 static const CGFloat kCancelButtonIconSize = 30;
 
@@ -88,10 +87,13 @@ typedef NSDiffableDataSourceSnapshot<DownloadListGroupItem*, DownloadListItem*>
   self.navigationItem.rightBarButtonItem = closeButton;
 
   // Configure table view.
-  [TableViewCellContentConfiguration registerCellForTableView:self.tableView];
+  // Register cells for both the base configuration and download-specific
+  // configuration.
+  [DownloadListTableViewCellContentConfiguration
+      registerCellForTableView:self.tableView];
   RegisterTableViewHeaderFooter<TableViewTextHeaderFooterView>(self.tableView);
 
-  // Setup filter header view
+  // Setup filter header view.
   [self setupFilterHeaderView];
 
   [self configureDiffableDataSource];
@@ -125,7 +127,7 @@ typedef NSDiffableDataSourceSnapshot<DownloadListGroupItem*, DownloadListItem*>
   CGRect newFrame = CGRectMake(0, 0, width, fittingSize.height);
   if (!CGRectEqualToRect(self.filterHeaderView.frame, newFrame)) {
     self.filterHeaderView.frame = newFrame;
-    // Reassign to trigger table view layout update
+    // Reassign to trigger table view layout update.
     if (self.tableView.tableHeaderView == self.filterHeaderView) {
       self.tableView.tableHeaderView = self.filterHeaderView;
     }
@@ -147,7 +149,7 @@ typedef NSDiffableDataSourceSnapshot<DownloadListGroupItem*, DownloadListItem*>
   }
 }
 
-/// Dismisses the view controller when close button is tapped.
+/// Dismisses the view controller when the close button is tapped.
 - (void)closeButtonTapped {
   [self.downloadListHandler hideDownloadList];
 }
@@ -169,29 +171,27 @@ typedef NSDiffableDataSourceSnapshot<DownloadListGroupItem*, DownloadListItem*>
 /// path.
 - (UITableViewCell*)cellForItem:(DownloadListItem*)item
                     atIndexPath:(NSIndexPath*)indexPath {
-  ImageContentConfiguration* imageConfiguration =
-      [[ImageContentConfiguration alloc] init];
-  imageConfiguration.image = item.fileTypeIcon;
-  imageConfiguration.imageSize =
-      CGSizeMake(kFileIconImageSize, kFileIconImageSize);
+  // Use the new DownloadListTableViewCellContentConfiguration
+  DownloadListTableViewCellContentConfiguration* configuration =
+      [DownloadListTableViewCellContentConfiguration
+          configurationWithDownloadListItem:item];
 
-  TableViewCellContentConfiguration* configuration =
-      [[TableViewCellContentConfiguration alloc] init];
-  configuration.title = item.fileName;
-  configuration.subtitle = item.detailText;
-  configuration.leadingConfiguration = imageConfiguration;
-
-  UITableViewCell* cell =
-      [TableViewCellContentConfiguration dequeueTableViewCell:self.tableView];
+  UITableViewCell* cell = [DownloadListTableViewCellContentConfiguration
+      dequeueTableViewCell:self.tableView];
   cell.contentConfiguration = configuration;
-  [self configureCancelButtonForCell:cell item:item];
+  [self configureCancelButtonForCell:cell
+                       configuration:configuration
+                                item:item];
   return cell;
 }
 
 /// Configures the cancel button accessory for the given cell and item.
 - (void)configureCancelButtonForCell:(UITableViewCell*)cell
+                       configuration:
+                           (DownloadListTableViewCellContentConfiguration*)
+                               configuration
                                 item:(DownloadListItem*)item {
-  if (item.cancelable) {
+  if (configuration.showCancelButton) {
     UIButton* cancelButton =
         base::apple::ObjCCast<UIButton>(cell.accessoryView);
     if (!cancelButton) {
@@ -236,7 +236,15 @@ typedef NSDiffableDataSourceSnapshot<DownloadListGroupItem*, DownloadListItem*>
 
 - (void)tableView:(UITableView*)tableView
     performPrimaryActionForRowAtIndexPath:(NSIndexPath*)indexPath {
-  // TODO(crbug.com/440222083): Implement download primary action handling.
+  DownloadListItem* item =
+      [_diffableDataSource itemIdentifierForIndexPath:indexPath];
+
+  CHECK(item);
+
+  base::FilePath filePath = item.filePath;
+  std::string mimeType = base::SysNSStringToUTF8(item.mimeType);
+
+  [self.downloadRecordHandler openFileWithPath:filePath mimeType:mimeType];
 }
 
 - (UIContextMenuConfiguration*)tableView:(UITableView*)tableView

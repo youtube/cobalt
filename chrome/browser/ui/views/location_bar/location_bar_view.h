@@ -18,6 +18,7 @@
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/location_icon_view.h"
@@ -52,8 +53,9 @@
 class CommandUpdater;
 class ContentSettingBubbleModelDelegate;
 class IntentChipButton;
-class LocationIconView;
+class OmniboxController;
 enum class OmniboxPart;
+class OmniboxPopupAimPresenter;
 class OmniboxPopupView;
 class OmniboxViewViews;
 class OmniboxChipButton;
@@ -62,6 +64,7 @@ class PageActionIconContainerView;
 class PermissionDashboardView;
 class Profile;
 class SelectedKeywordView;
+class OmniboxContextMenu;
 
 namespace page_actions {
 class PageActionContainerView;
@@ -94,6 +97,7 @@ class LocationBarView
       public IconLabelBubbleView::Delegate,
       public LocationIconView::Delegate,
       public ContentSettingImageView::Delegate,
+      public OmniboxEditModel::Observer,
 #if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
       public device::GeolocationSystemPermissionManager::PermissionObserver,
 #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
@@ -186,6 +190,8 @@ class LocationBarView
 
   OmniboxViewViews* omnibox_view() { return omnibox_view_; }
 
+  const OmniboxController* GetOmniboxController() const;
+
   // Returns true if the location bar's current security state does not match
   // the currently visible state.
   bool HasSecurityStateChanged();
@@ -211,6 +217,7 @@ class LocationBarView
   void FocusLocation(bool is_user_initiated) override;
   void Revert() override;
   OmniboxView* GetOmniboxView() override;
+  OmniboxController* GetOmniboxController() override;
   void UpdateWithoutTabRestore() override;
   LocationBarModel* GetLocationBarModel() override;
   content::WebContents* GetWebContents() override;
@@ -301,8 +308,15 @@ class LocationBarView
                            OmniboxViewViewsSize);
   FRIEND_TEST_ALL_PREFIXES(TouchLocationBarViewBrowserTest,
                            IMEInlineAutocompletePosition);
+  FRIEND_TEST_ALL_PREFIXES(LocationBarViewAddContextButtonBrowserTest,
+                           AddContextButtonVisibilityAndClick);
   using ContentSettingViews =
       std::vector<raw_ptr<ContentSettingImageView, VectorExperimental>>;
+
+  void SetRunOmniboxContextMenuForTesting(
+      base::RepeatingCallback<void(OmniboxContextMenu*, gfx::Point)> callback) {
+    run_omnibox_context_menu_callback_ = std::move(callback);
+  }
 
   // Returns the amount of space required to the left of the omnibox text.
   int GetMinimumLeadingWidth() const;
@@ -388,6 +402,13 @@ class LocationBarView
                            const gfx::Point& press_pt,
                            const gfx::Point& p) override;
 
+  // OmniboxEditModel::Observer:
+  void OnSelectionChanged(OmniboxPopupSelection old_selection,
+                          OmniboxPopupSelection new_selection) override {}
+  void OnMatchIconUpdated(size_t match_index) override {}
+  void OnContentsChanged() override {}
+  void OnAiModeChanged(bool ai_mode) override;
+
   // PageActionIconView::Delegate:
   content::WebContents* GetWebContentsForPageActionIconView() override;
   bool ShouldHidePageActionIcons() const override;
@@ -460,12 +481,18 @@ class LocationBarView
   // May be nullptr in tests.
   const raw_ptr<Profile> profile_;
 
+  // The omnibox controller.
+  std::unique_ptr<OmniboxController> omnibox_controller_;
+
   // The omnibox view where the user types and the current page URL is displayed
   // when user input is not in progress.
   raw_ptr<OmniboxViewViews> omnibox_view_ = nullptr;
 
-  // Owns either an OmniboxPopupViewViews or an OmniboxPopupViewWebUI.
+  // The view holding the regular results popup.
   std::unique_ptr<OmniboxPopupView> omnibox_popup_view_;
+  // The presenter controlling the showing of the AI mode popup.
+  std::unique_ptr<OmniboxPopupAimPresenter> omnibox_popup_aim_presenter_;
+
   base::CallbackListSubscription popup_view_opened_subscription_;
 
   // Our delegate.
@@ -541,6 +568,11 @@ class LocationBarView
   // The focus manager associated with this view. The focus manager is expected
   // to outlive this view.
   raw_ptr<views::FocusManager> focus_manager_ = nullptr;
+
+  std::unique_ptr<OmniboxContextMenu> omnibox_context_menu_;
+
+  base::RepeatingCallback<void(OmniboxContextMenu*, gfx::Point)>
+      run_omnibox_context_menu_callback_;
 
   base::CallbackListSubscription subscription_ =
       ui::TouchUiController::Get()->RegisterCallback(

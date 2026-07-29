@@ -153,15 +153,19 @@ void FilterURLsForDropability(
 // Returns the URLs that are currently being dragged by the user and which
 // should be considered for the drop.
 std::vector<GURL> GetURLsForDrop(const ui::DropTargetEvent& event) {
-  std::optional<std::vector<GURL>> urls =
+  std::vector<ui::ClipboardUrlInfo> url_infos =
       event.data().GetURLs(ui::FilenameToURLPolicy::CONVERT_FILENAMES);
-  if (!urls.has_value()) {
+  if (url_infos.empty()) {
     return {};
   }
 
-  std::erase_if(urls.value(), [](const GURL& url) { return !url.is_valid(); });
+  std::vector<GURL> urls;
+  urls.reserve(url_infos.size());
+  for (const auto& url_info : url_infos) {
+    urls.push_back(url_info.url);
+  }
 
-  return urls.value();
+  return urls;
 }
 
 // Converts from `ui::DragDropTypes` to `::ui::mojom::DragOperation`.
@@ -629,7 +633,7 @@ void BrowserRootView::NavigateToDroppedUrls(
     params.disposition = WindowOpenDisposition::CURRENT_TAB;
     params.initiator_origin = event.data().GetRendererTaintedOrigin();
     params.source_contents = model->GetWebContentsAt(insertion_index);
-    params.window_action = NavigateParams::SHOW_WINDOW;
+    params.window_action = NavigateParams::WindowAction::kShowWindow;
     Navigate(&params);
 
     urls = urls.subspan<1>();
@@ -648,7 +652,7 @@ void BrowserRootView::NavigateToDroppedUrls(
       params.group = model->GetTabGroupForTab(insertion_index);
     }
     params.initiator_origin = event.data().GetRendererTaintedOrigin();
-    params.window_action = NavigateParams::SHOW_WINDOW;
+    params.window_action = NavigateParams::WindowAction::kShowWindow;
     Navigate(&params);
   }
 

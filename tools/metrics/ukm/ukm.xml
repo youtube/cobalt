@@ -8982,6 +8982,28 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Extensions.ExtensionUsage">
+  <owner>howardcha@google.com</owner>
+  <owner>webstore-eng@google.com</owner>
+  <summary>
+    Records user actions related to an extension, providing usage metrics for
+    the Chrome Web Store. Tracked actions include pinning, unpinning, enabling,
+    disabling, context menu access, and toolbar icon clicks.
+  </summary>
+  <metric name="Action" enum="ExtensionUsageAction">
+    <summary>
+      The action the user took on the extension.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
 <event name="Extensions.MV2ExtensionHandledInSoftDisable">
   <owner>rdevlin.cronin@chromium.org</owner>
   <owner>emiliapaz@chromium.org</owner>
@@ -12211,14 +12233,13 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="HistoryApi.AdvanceMethod">
+<event name="HistoryApi.PushState">
   <owner>yaoxia@chromium.org</owner>
   <owner>shivanisha@chromium.org</owner>
   <summary>
-    Records usage of `window.history` methods that advance the history position
-    (`pushState()`, `forward()`, and `go()` with positive values), capturing
-    details about user activation and ad-related information. Recorded when
-    these specific methods are invoked.
+    Records usage of `window.history.pushState` method, capturing details about
+    user activation and ad-related information. Recorded when this method is
+    invoked.
   </summary>
   <metric name="FromAd" enum="Boolean">
     <summary>
@@ -17858,6 +17879,29 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="PageLifecycleMetricsOnNewPageCommit" singular="True">
+  <owner>chikamune@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Metrics for the previous page's PageLifecycle events on the new page's
+    commit. This event is saved on the new page that is about to commit.
+  </summary>
+  <metric name="PageLifecycleEventsTotalProcessingTime">
+    <summary>
+      Measures the total duration in milliseconds to run event handlers for the
+      previous page's lifecycle events (e.g., pagehide, visibilitychange) upon
+      the new page's commit.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <quantiles type="std-percentiles"/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
 <event name="PageLoad" singular="True">
   <owner>sullivan@chromium.org</owner>
   <owner>chrome-metrics-team@google.com</owner>
@@ -20466,6 +20510,18 @@ be describing additional metrics about the same event.
     <summary>
       An enum of type PermissionPromptDispositionReason. The reason why the
       particular prompt disposition was used, if any.
+    </summary>
+  </metric>
+  <metric name="PromptOptions">
+    <summary>
+      An enum of type UkmPromptOptions (see
+      https://source.chromium.org/search?q=class:%5CbPermissionAction%5Cb). This
+      is only emitted if the permission prompt supports additional prompt
+      options, which currently is the case only for geolocation permission
+      prompts when the ApproximateGeolocationPermission is enabled. In that
+      case, this is either 1 (APPROXIMATE_LOCATION) or 2 (PRECISE_LOCATION) and
+      specifies whether the prompt selection was &quot;approximate&quot; or
+      &quot;precise&quot; at the time when the action was taken.
     </summary>
   </metric>
   <metric name="SatisfiedAdaptiveTriggers">

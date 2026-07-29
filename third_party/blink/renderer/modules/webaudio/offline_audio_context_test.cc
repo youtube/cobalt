@@ -26,7 +26,7 @@ TEST_F(OfflineAudioContextTest, RenderSizeHint) {
   options->setSampleRate(44100.0);
   OfflineAudioContext* context = OfflineAudioContext::Create(
       GetFrame().DomWindow(), options, ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(context->GetDeferredTaskHandler().RenderQuantumFrames(), 128u);
+  EXPECT_EQ(context->renderQuantumSize(), 128u);
 
   options = OfflineAudioContextOptions::Create();
   options->setNumberOfChannels(1);
@@ -37,7 +37,7 @@ TEST_F(OfflineAudioContextTest, RenderSizeHint) {
           0u));
   context = OfflineAudioContext::Create(GetFrame().DomWindow(), options,
                                         ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(context->GetDeferredTaskHandler().RenderQuantumFrames(), 1u);
+  EXPECT_EQ(context->renderQuantumSize(), 1u);
 
   options = OfflineAudioContextOptions::Create();
   options->setNumberOfChannels(1);
@@ -45,10 +45,10 @@ TEST_F(OfflineAudioContextTest, RenderSizeHint) {
   options->setSampleRate(44100.0);
   options->setRenderSizeHint(
       MakeGarbageCollected<V8UnionAudioContextRenderSizeCategoryOrUnsignedLong>(
-          8193u));
+          16385u));
   context = OfflineAudioContext::Create(GetFrame().DomWindow(), options,
                                         ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(context->GetDeferredTaskHandler().RenderQuantumFrames(), 8192u);
+  EXPECT_EQ(context->renderQuantumSize(), 16384u);
 
   options = OfflineAudioContextOptions::Create();
   options->setNumberOfChannels(1);
@@ -59,7 +59,7 @@ TEST_F(OfflineAudioContextTest, RenderSizeHint) {
           256u));
   context = OfflineAudioContext::Create(GetFrame().DomWindow(), options,
                                         ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(context->GetDeferredTaskHandler().RenderQuantumFrames(), 256u);
+  EXPECT_EQ(context->renderQuantumSize(), 256u);
 
   blink::WebRuntimeFeatures::EnableFeatureFromString(
       "WebAudioConfigurableRenderQuantum", false);

@@ -15,9 +15,9 @@
 #import "components/feature_engagement/public/tracker.h"
 #import "components/metrics/metrics_service.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "ios/chrome/browser/authentication/fullscreen_signin_screen/coordinator/fullscreen_signin_screen_coordinator.h"
+#import "ios/chrome/browser/authentication/history_sync/coordinator/history_sync_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
-#import "ios/chrome/browser/authentication/ui_bundled/fullscreen_signin_screen/coordinator/fullscreen_signin_screen_coordinator.h"
-#import "ios/chrome/browser/authentication/ui_bundled/history_sync/history_sync_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_context_style.h"
 #import "ios/chrome/browser/docking_promo/coordinator/docking_promo_coordinator.h"
@@ -113,8 +113,9 @@ class FirstRunCoordinatorMetricsHelper final {
                                   first_run::kFirstRunInterrupted);
     [self stopChildCoordinator];
   }
-  [self.baseViewController dismissViewControllerAnimated:YES
-                                              completion:completionHandler];
+  [_navigationController.presentingViewController
+      dismissViewControllerAnimated:YES
+                         completion:completionHandler];
   _navigationController = nil;
   [super stop];
 }
@@ -239,6 +240,7 @@ class FirstRunCoordinatorMetricsHelper final {
       lensAnimatedPromoCoordinator.firstRunDelegate = self;
       return lensAnimatedPromoCoordinator;
     }
+    case kSyncedSetUp:
     case kGuidedTour:
     case kSafariImport:
     case kStepsCompleted:

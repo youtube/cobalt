@@ -276,6 +276,11 @@ export class PowerBookmarksListElement extends PolymerElement implements
         observer: 'onCanDragChange_',
       },
 
+      hasActiveDrag_: {
+        type: Boolean,
+        value: false,
+      },
+
       sectionVisibility_: {
         type: Object,
         computed: 'computeSectionVisibility_(hasLoadedData_,' +
@@ -328,6 +333,7 @@ export class PowerBookmarksListElement extends PolymerElement implements
   declare private contextMenuBookmark_: BookmarksTreeNode|undefined;
   declare private hasLoadedData_: boolean;
   declare private canDrag_: boolean;
+  declare private hasActiveDrag_: boolean;
   declare private hasSomeActiveFilter_: boolean;
   declare private hasShownBookmarks_: boolean;
   declare private sectionVisibility_: SectionVisibility;
@@ -587,6 +593,11 @@ export class PowerBookmarksListElement extends PolymerElement implements
     }, {once: true});
   }
 
+  /** PowerBookmarksDragDelegate */
+  setHasActiveDrag(hasActiveDrag: boolean): void {
+    this.hasActiveDrag_ = hasActiveDrag;
+  }
+
   clickBookmarkRowForTests(bookmark: BookmarksTreeNode) {
     const event = new CustomEvent('row-clicked', {
       bubbles: true,
@@ -615,6 +626,10 @@ export class PowerBookmarksListElement extends PolymerElement implements
    */
   getKeyboardNavigationServiceforTesting() {
     return this.keyArrowNavigationService_;
+  }
+
+  getDragManagerForTesting() {
+    return this.bookmarksDragManager_;
   }
 
   private notifyPathIfVisible_(id: string, key: string) {

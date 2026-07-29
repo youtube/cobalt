@@ -13,7 +13,7 @@ namespace actor {
 using ::tabs::TabHandle;
 
 ScriptToolRequest::ScriptToolRequest(tabs::TabHandle tab_handle,
-                                     const PageTarget& target,
+                                     const DomNode& target,
                                      const std::string& name,
                                      const std::string& input_arguments)
     : PageToolRequest(tab_handle, target),
@@ -21,13 +21,13 @@ ScriptToolRequest::ScriptToolRequest(tabs::TabHandle tab_handle,
       input_arguments_(input_arguments) {
   // Script tools target the Document and are not bound to any specific
   // DOM node.
-  CHECK_EQ(std::get<DomNode>(target).node_id, kRootElementDomNodeId);
+  CHECK_EQ(target.node_id, kRootElementDomNodeId);
 }
 
 ScriptToolRequest::~ScriptToolRequest() = default;
 
-std::string ScriptToolRequest::Name() const {
-  return "ScriptTool";
+std::string_view ScriptToolRequest::Name() const {
+  return kName;
 }
 
 void ScriptToolRequest::Apply(ToolRequestVisitorFunctor& f) const {

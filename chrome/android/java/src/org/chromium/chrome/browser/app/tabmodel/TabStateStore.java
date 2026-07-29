@@ -8,24 +8,28 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.os.SystemClock;
 
-import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.Token;
+import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.CollectionSaveForwarder;
+import org.chromium.chrome.browser.tab.StorageLoadedData;
+import org.chromium.chrome.browser.tab.StorageLoadedData.LoadedTabState;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabState;
 import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tab.TabStateAttributes.DirtinessState;
 import org.chromium.chrome.browser.tab.TabStateStorageService;
-import org.chromium.chrome.browser.tab.TabStateStorageService.LoadedTabState;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver;
+import org.chromium.chrome.browser.tabmodel.TabGroupVisualDataStore;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -43,6 +47,7 @@ import java.util.Set;
 @NullMarked
 public class TabStateStore implements TabPersistentStore {
     private static final String TAG = "TabStateStore";
+    private static final int RESTORE_BATCH_SIZE = 5;
 
     private final TabStateStorageService mTabStateStorageService;
     private final TabCreatorManager mTabCreatorManager;
@@ -134,8 +139,11 @@ public class TabStateStore implements TabPersistentStore {
 
     /**
      * @param tabStateStorageService The {@link TabStateStorageService} to save to.
-     * @param tabModelSelector The {@link TabModelSelector} to observe changes in.
-     * @param tabCreatorManager Used to create new tabs on initial load.
+     * @param tabModelSelector The {@link TabModelSelector} to observe changes in. Regardless of the
+     *     mode this store is in, this will be the real selector with real models. This should be
+     *     treated as a read only object, no modifications should go through it.
+     * @param tabCreatorManager Used to create new tabs on initial load. This may return real
+     *     creators, or faked out creators if in non-authoritative mode.
      */
     public TabStateStore(
             TabStateStorageService tabStateStorageService,
@@ -294,14 +302,19 @@ public class TabStateStore implements TabPersistentStore {
     private void onTabRegistered(Tab tab) {
         TabStateAttributes attributes = TabStateAttributes.from(tab);
         assumeNonNull(attributes);
-        if (attributes.addObserver(mAttributesObserver) == DirtinessState.DIRTY) {
+        // Save every clean tab on registration if we are not authoritative, we are catching up.
+        if (attributes.addObserver(mAttributesObserver) == DirtinessState.DIRTY
+                || !ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource
+                        .getValue()) {
             saveTab(tab);
         }
     }
 
     private void onTabUnregistered(Tab tab) {
-        assumeNonNull(TabStateAttributes.from(tab)).removeObserver(mAttributesObserver);
-        // TODO(https://crbug.com/430996004): Delete the tab record.
+        if (!tab.isDestroyed()) {
+            assumeNonNull(TabStateAttributes.from(tab)).removeObserver(mAttributesObserver);
+        }
+        // TODO(https://crbug.com/430996004): If closing, delete the tab record.
     }
 
     private void onMoveTab(TabModel tabModel, int newIndex, int curIndex) {
@@ -330,35 +343,51 @@ public class TabStateStore implements TabPersistentStore {
 
     private void loadAllTabsFromService() {
         long loadStartTime = SystemClock.elapsedRealtime();
-        mTabStateStorageService.loadAllTabs(
-                (loadedTabStates) -> onTabsLoaded(loadedTabStates, loadStartTime));
+        mTabStateStorageService.loadAllData(data -> onDataLoaded(data, loadStartTime));
     }
 
-    private void onTabsLoaded(LoadedTabState[] loadedTabStates, long loadStartTime) {
-        long duration = SystemClock.elapsedRealtime() - loadStartTime;
-        Log.i(TAG, "Loaded %d tabs in %dms", loadedTabStates.length, duration);
-        mRestoredTabCount = loadedTabStates.length;
+    private void onDataLoaded(StorageLoadedData data, long loadStartTime) {
+        LoadedTabState[] loadedTabStates = data.getLoadedTabStates();
 
+        long duration = SystemClock.elapsedRealtime() - loadStartTime;
+        RecordHistogram.recordTimesHistogram("Tabs.TabStateStore.LoadAllTabsDuration", duration);
+
+        mRestoredTabCount = loadedTabStates.length;
         for (TabPersistentStoreObserver observer : mObservers) {
             observer.onInitialized(mRestoredTabCount);
         }
 
-        for (int i = 0; i < loadedTabStates.length; i++) {
-            TabState tabState = loadedTabStates[i].tabState;
-            if (tabState.contentsState == null || tabState.contentsState.buffer().limit() <= 0) {
-                Log.i(TAG, " Tab %d: no state", i);
-                loadedTabStates[i].onTabCreationCallback.onResult(null);
+        if (ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
+            TabGroupVisualDataStore.cacheGroups(data.getGroupsData());
+        }
+
+        // TODO(crbug.com/457771677): Special case the first batch to restore only the selected tab
+        // then restore the remainder in posted batches.
+        restoreNextBatchOfTabs(data, /* startIndex= */ 0, /* batchSize= */ loadedTabStates.length);
+    }
+
+    /**
+     * Restores tabs in range {@code [startIndex, startIndex + batchSize)} from {@code data} or
+     * until data is exhausted. Will post a task to restore the next batch if there are more tabs to
+     * restore otherwise will signal the end of restoration.
+     *
+     * @param data The data to restore tabs from.
+     * @param startIndex The index of the first tab to restore.
+     * @param batchSize The number of tabs to restore.
+     */
+    private void restoreNextBatchOfTabs(StorageLoadedData data, int startIndex, int batchSize) {
+        LoadedTabState[] loadedTabStates = data.getLoadedTabStates();
+        int endIndex = Math.min(startIndex + batchSize, loadedTabStates.length);
+
+        for (int i = startIndex; i < endIndex; i++) {
+            LoadedTabState loadedTabState = loadedTabStates[i];
+            @TabId int tabId = loadedTabState.tabId;
+            Tab tab = resolveTab(loadedTabState.tabState, tabId, i);
+
+            if (tab == null) {
                 continue;
             }
-
-            @TabId int tabId = loadedTabStates[i].tabId;
-            Tab tab =
-                    mTabCreatorManager
-                            .getTabCreator(/* incognito= */ false)
-                            .createFrozenTab(tabState, tabId, i);
-            if (tab == null) continue;
-
-            loadedTabStates[i].onTabCreationCallback.onResult(tab);
+            loadedTabState.onTabCreationCallback.onResult(tab);
 
             // TODO(https://crbug.com/448151052): Correctly mark the selected tab as active.
             // TODO(https://crbug.com/451624258): This is the opposite order of creation and details
@@ -375,9 +404,27 @@ public class TabStateStore implements TabPersistentStore {
             }
         }
 
+        if (endIndex < loadedTabStates.length) {
+            // TODO(crbug.com/457771677): This is currently unreachable as we just fake restoring
+            // everything in one batch.
+            PostTask.postTask(
+                    TaskTraits.UI_DEFAULT,
+                    () -> restoreNextBatchOfTabs(data, endIndex, RESTORE_BATCH_SIZE));
+        } else {
+            // TODO(crbug.com/457771677): Consider posting this to prevent jank.
+            onFinishedCreatingAllTabs(data);
+        }
+    }
+
+    private void onFinishedCreatingAllTabs(StorageLoadedData data) {
+        if (ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
+            TabGroupVisualDataStore.removeCachedGroups(data.getGroupsData());
+        }
+
         for (TabPersistentStoreObserver observer : mObservers) {
             observer.onStateLoaded();
         }
+
         if (!ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
             // When we aren't the authoritative source we don't trust ourselves to be correct.
             // Raze the db and rebuild from the loaded tab state to ensure we are in a known good
@@ -386,6 +433,17 @@ public class TabStateStore implements TabPersistentStore {
             clearState();
             catchUpAndBeginTracking();
         }
+        data.destroy();
+    }
+
+    private @Nullable Tab resolveTab(TabState tabState, @TabId int tabId, int index) {
+        if (tabState.contentsState == null || tabState.contentsState.buffer().limit() <= 0) {
+            return null;
+        }
+
+        return mTabCreatorManager
+                .getTabCreator(/* incognito= */ false)
+                .createFrozenTab(tabState, tabId, index);
     }
 
     private void saveTabGroup(Token tabGroupId) {

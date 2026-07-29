@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_set.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
@@ -170,15 +171,6 @@ class CC_EXPORT PictureLayerImpl
                                const PaintWorkletInput::PropertyValue& prev,
                                const PaintWorkletInput::PropertyValue& next);
 
-  void SetContentsScaleForTesting(float scale) {
-    ideal_contents_scale_ = raster_contents_scale_ =
-        gfx::Vector2dF(scale, scale);
-  }
-
-  void AddLastAppendQuadsTilingForTesting(PictureLayerTiling* tiling) {
-    last_append_quads_tilings_.push_back(tiling);
-  }
-
   void set_has_non_animated_image_update_rect() {
     has_non_animated_image_update_rect_ = true;
   }
@@ -190,17 +182,34 @@ class CC_EXPORT PictureLayerImpl
   using TileUpdateSet = std::map<float, std::set<TileIndex>>;
   TileUpdateSet TakeUpdatedTiles();
 
+  std::vector<float> TakeProposedTilingScalesForDeletion();
+
   // This is called in TreesInViz mode after context lost and all tiles need
   // to be re-wired to viz.
   TileUpdateSet TakeAllTiles();
 
-  bool IsDirectlyCompositedImage() const;
+  bool IsDirectlyCompositedImage() const override;
   bool nearest_neighbor() const { return nearest_neighbor_; }
 
   void set_should_batch_updated_tiles() { should_batch_updated_tiles_ = true; }
 
   bool should_batch_updated_tiles() const {
     return should_batch_updated_tiles_;
+  }
+
+  // For testing.
+  void SetContentsScaleForTesting(float scale) {
+    ideal_contents_scale_ = raster_contents_scale_ =
+        gfx::Vector2dF(scale, scale);
+  }
+
+  std::vector<raw_ptr<PictureLayerTiling, VectorExperimental>>&
+  GetLastAppendQuadsTilingsForTesting() {
+    return last_append_quads_tilings_;
+  }
+
+  void ClearLastAppendQuadsTilingsForTesting() {
+    last_append_quads_tilings_.clear();
   }
 
  protected:
@@ -219,9 +228,7 @@ class CC_EXPORT PictureLayerImpl
   float MinimumRasterContentsScaleForWillChangeTransform() const;
   // Returns false if raster translation is not applicable.
   bool CalculateRasterTranslation(gfx::Vector2dF& raster_translation) const;
-  void CleanUpTilingsOnActiveLayer(
-      const std::vector<raw_ptr<PictureLayerTiling, VectorExperimental>>&
-          used_tilings);
+  void CleanUpTilingsOnActiveLayer();
   float MinimumContentsScale() const;
   float MaximumContentsScale() const;
   void UpdateViewportRectForTilePriorityInContentSpace();
@@ -276,6 +283,11 @@ class CC_EXPORT PictureLayerImpl
 
   // Tracks tiles changed since the last call to TakeUpdatedTiles().
   TileUpdateSet updated_tiles_;
+
+  // Tracks all tiling contents-scale keys that this PictureLayerImpl has
+  // proposed for deletion since last call to TakeUpdatedScaleKeysToDelete().
+  // Used only in TreesInViz mode.
+  base::flat_set<float> proposed_tiling_scales_for_deletion_;
 
   // When true, tile updates for this layer are batched in |updated_tiles_|
   // instead of being sent to Viz immediately. This is necessary to prevent a
@@ -350,6 +362,10 @@ class CC_EXPORT PictureLayerImpl
   LCDTextDisallowedReason lcd_text_disallowed_reason_ =
       LCDTextDisallowedReason::kNoText;
 
+ public:
+  void CleanUpTilings(const std::vector<float>& tiling_scales_to_clean_up);
+
+ protected:
   // If this scale is not zero, it indicates that this layer is a directly
   // composited image layer (i.e. the only thing drawn into this layer is an
   // image). The rasterized pixels will be the same as the image's original
@@ -391,7 +407,17 @@ class CC_EXPORT PictureLayerImpl
   // TileBasedLayerImpl:
   void AppendQuadsSpecialization(const AppendQuadsContext& context,
                                  viz::CompositorRenderPass* render_pass,
-                                 AppendQuadsData* append_quads_data) override;
+                                 AppendQuadsData* append_quads_data,
+                                 viz::SharedQuadState* shared_quad_state,
+                                 const Occlusion& scaled_occlusion,
+                                 const gfx::Vector2d& quad_offset) override;
+  float GetMaximumContentsScaleForUseInAppendQuads() override;
+  void AppendQuadsForResourcelessSoftwareDraw(
+      const AppendQuadsContext& context,
+      viz::CompositorRenderPass* render_pass,
+      AppendQuadsData* append_quads_data,
+      viz::SharedQuadState* shared_quad_state,
+      const Occlusion& scaled_occlusion) override;
 };
 
 }  // namespace cc

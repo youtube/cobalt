@@ -53,7 +53,6 @@ scoped_refptr<gfx::NativePixmap>
 SurfaceFactoryOzone::CreateNativePixmapForVulkan(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
     gfx::BufferUsage usage,
     VkDevice vk_device,
     VkDeviceMemory* vk_device_memory,
@@ -83,7 +82,7 @@ scoped_refptr<gfx::NativePixmap> SurfaceFactoryOzone::CreateNativePixmap(
     gfx::AcceleratedWidget widget,
     gpu::VulkanDeviceQueue* device_queue,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::BufferUsage usage,
     std::optional<gfx::Size> framebuffer_size) {
   return nullptr;
@@ -109,7 +108,7 @@ scoped_refptr<gfx::NativePixmap>
 SurfaceFactoryOzone::CreateNativePixmapForProtectedBufferHandle(
     gfx::AcceleratedWidget widget,
     gfx::Size size,
-    gfx::BufferFormat format,
+    viz::SharedImageFormat format,
     gfx::NativePixmapHandle handle) {
   return nullptr;
 }
@@ -150,7 +149,7 @@ SurfaceFactoryOzone::GetSupportedFormatsForGLNativePixmapImport() {
   return supported_formats;
 }
 
-std::optional<gfx::BufferFormat>
+std::optional<viz::SharedImageFormat>
 SurfaceFactoryOzone::GetPreferredFormatForSolidColor() const {
   return std::nullopt;
 }

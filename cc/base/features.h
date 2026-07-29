@@ -247,9 +247,49 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kEmitPerScrollJankV1MetricAtEndOfScroll);
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kEmitPerScrollJankV4MetricAtEndOfScroll);
 
+// Whether the scroll jank V4 metric should handle non-damaging inputs. See
+// `ScrollJankV4Frame::ScrollDamage` for the definition of non-damaging inputs
+// and frames.
+//
+// When disabled, `ScrollJankV4Processor` will ignore non-damaging inputs
+// (legacy behavior similar to the scroll jank v1 metric). See
+// `ScrollJankV4FrameStage::CalculateStages()` for more details.
+//
+// When enabled, `ScrollJankV4Processor` will reconstruct a timeline of
+// non-damaging and damaging frames for the purposes of evaluating scroll jank.
+// See `ScrollJankV4Frame::CalculateTimeline()` for more details.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kHandleNonDamagingInputsInScrollJankV4Metric);
+
+// Whether non-damaging frames should count towards scroll jank v4 UMA
+// histograms' fixed window frame count.
+//
+// When disabled, `ScrollJankV4HistogramEmitter` will emit fixed window UMA
+// histograms after each window of 64 damaging frames. Missed VSyncs of
+// non-damaging frames will count towards the next damaging frame as long as
+// it's within the same scroll.
+//
+// When enabled, `ScrollJankV4HistogramEmitter` will emit fixed window UMA
+// histograms after each window of 64 frames (both damaging and non-damaging).
+CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kCountNonDamagingFramesTowardsHistogramFrameCount);
+
 // When enabled, AsyncLayerTreeFrameSink will generate its own BeginFrameArgs
 // when auto_needs_begin_frame_ is enabled.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kManualBeginFrame);
+
+// Controls when `LayerTreeHostImpl::DidNotProduceFrame()` drops saved event
+// metrics.
+//
+// When disabled, `LayerTreeHostImpl::DidNotProduceFrame()` ALWAYS drops saved
+// event metrics (regardless of the reason why the frame wasn't produced).
+//
+// When enabled, `LayerTreeHostImpl::DidNotProduceFrame()` only drops saved
+// event metrics if the frame wasn't produced due to NO DAMAGE. In all other
+// cases, it preserves the saved event metrics.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kDropMetricsFromNonProducedFramesOnlyIfTheyHadNoDamage);
 
 }  // namespace features
 

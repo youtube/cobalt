@@ -23,6 +23,24 @@ std::string GetCachedImageHash(std::string_view image);
 std::string Sha1UrlAsHexEncodeForFilename(std::string_view url);
 }  // namespace ash::ambient
 
+namespace ash::login {
+std::string GetHashedTosContent(std::string_view tos_content);
+std::string Sha1AsHexForRefreshToken(std::string_view data);
+}  // namespace ash::login
+
+namespace ash::quick_start {
+std::string GetHashedAuthToken(std::string_view authentication_token);
+}  // namespace ash::quick_start
+
+namespace net {
+std::string ComputeSecWebSocketAccept(std::string_view key);
+}  // namespace net
+
+namespace wallpaper {
+std::string GetHexForWallpaperFilesId(
+    const base::span<const uint8_t> files_id_unhashed);
+}  // namespace wallpaper
+
 namespace crypto::obsolete {
 
 // This class is used for computing SHA-1 hashes, either one-shot via
@@ -56,7 +74,19 @@ class CRYPTO_EXPORT Sha1 {
   // The friends listed here are the areas required to continue using SHA-1 for
   // compatibility with existing specs, on-disk data, or similar.
   friend std::string ash::ambient::GetCachedImageHash(std::string_view image);
-  friend std::string ash::ambient::Sha1UrlAsHexEncodeForFilename(std::string_view url);
+  friend std::string ash::ambient::Sha1UrlAsHexEncodeForFilename(
+      std::string_view url);
+  friend std::string ash::login::GetHashedTosContent(
+      std::string_view tos_content);
+  friend std::string ash::login::Sha1AsHexForRefreshToken(
+      std::string_view data);
+  friend std::string ash::quick_start::GetHashedAuthToken(
+      std::string_view authentication_token);
+  friend std::string net::ComputeSecWebSocketAccept(std::string_view key);
+
+  // TODO(crbug.com/458084930): get rid of this.
+  friend std::string wallpaper::GetHexForWallpaperFilesId(
+      const base::span<const uint8_t> files_id_unhashed);
 
   Sha1();
   static std::array<uint8_t, kSize> Hash(std::string_view data);
