@@ -33,6 +33,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+#endif
+
 namespace base {
 class WatchHangsInScope;
 namespace internal {
@@ -122,8 +126,40 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     kMainThread = 1,
     kThreadPoolThread = 2,
     kCompositorThread = 3,
+#if BUILDFLAG(IS_COBALT)
+    // this is used in single-process mode only, inside browser process
+    kRendererThread = 4,
+    kMax = kRendererThread
+#else
     kMax = kCompositorThread
+#endif
   };
+
+#if BUILDFLAG(IS_COBALT)
+  // Re-polls the delegate to update the cached configuration values (e.g.
+  // timeout, thread scopes).
+  static void UpdateConfiguration();
+
+  // Delegate interface to allow embedders to control HangWatcher behavior.
+  class BASE_EXPORT Delegate {
+   public:
+    virtual ~Delegate() = default;
+    virtual void RecordHangStarted(const std::string& hang_uuid) {}
+    virtual void RecordHangRecovered(const std::string& hang_uuid) {}
+    // Returns true if hang reporting should be enabled
+    // potentially overriding default settings.
+    virtual bool IsHangReportingEnabled() = 0;
+    // Returns a custom timeout for hang watching, or std::nullopt to use
+    // default.
+    virtual std::optional<base::TimeDelta> GetHangWatchTime() = 0;
+    // Returns a custom monitoring period, or std::nullopt to use default.
+    virtual std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() = 0;
+    // Returns whether crash dumps are enabled for a specific thread type.
+    // Returns std::nullopt if the embedder has no specific override.
+    virtual std::optional<bool> IsThreadDumpingEnabled(
+        ThreadType thread_type) = 0;
+  };
+#endif
 
   // Notes on lifetime:
   //   1) The first invocation of the constructor will set the global instance
@@ -160,6 +196,14 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Thread safe functions to verify if hang watching is activated. If called
   // before InitializeOnMainThread returns the default value which is false.
   static bool IsEnabled();
+#if BUILDFLAG(IS_COBALT)
+  // suspends hang watching when the application is frozen.
+  static void Suspend();
+
+  // resumes hang watching after the application is unfrozen, ignoring
+  // pre-freeze deadlines.
+  static void Resume();
+#endif
   static bool IsThreadPoolHangWatchingEnabled();
   static bool IsIOThreadHangWatchingEnabled();
   static bool IsCompositorThreadHangWatchingEnabled();
@@ -265,6 +309,11 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // resume.
   std::string GetTimeSinceLastSystemPowerResumeCrashKeyValue() const;
 
+#if BUILDFLAG(IS_COBALT)
+  // Sets the delegate for the HangWatcher. Must be called before Start().
+  static void SetDelegate(Delegate* delegate);
+#endif
+
  private:
   // See comment of ::RegisterThread() for details.
   [[nodiscard]] ScopedClosureRunner RegisterThreadInternal(
@@ -350,6 +399,19 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // invokes the appropriate closure if so.
   void Monitor() LOCKS_EXCLUDED(watch_state_lock_);
 
+#if BUILDFLAG(IS_COBALT)
+  // Checks if any previously hung threads have recovered. If all threads have
+  // resumed, it notifies the delegate and clears the active hang UUID.
+  void CheckAndRecordHangRecovered()
+      EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Generates a new UUID, saves it as the active hang UUID, and notifies the
+  // delegate and Crashpad that a new hang incident has begun.
+  // NOTE: RecordHang() is the upstream Chromium method that simply triggers
+  // DumpWithoutCrashing(). RecordHangStarted() is Cobalt-specific for NSE.
+  void RecordHangStarted() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+#endif
+
   // Record the hang crash dump and perform the necessary housekeeping before
   // and after.
   void DoDumpWithoutCrashing(const WatchStateSnapShot& watch_state_snapshot)
@@ -385,6 +447,15 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Snapshot to be reused across hang captures. The point of keeping it
   // around is reducing allocations during capture.
   WatchStateSnapShot watch_state_snapshot_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  // Communicates the unique hang identifier from RecordHangStarted() to a
+  // subsequent execution of CheckAndRecordHangRecovered().
+  // NOTE: Even if multiple threads hang simultaneously (or in an overlapping
+  // cascade), they all share this single UUID. The UUID is only cleared when
+  // *all* threads recover. This prevents extreme deadlocks from overflowing
+  // Crashpad's annotation limits and NSE events overreporting.
+  std::string active_hang_uuid_
       GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
 
   base::DelegateSimpleThread thread_;

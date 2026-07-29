@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/apple/mobile_config.gni")
 import("//build/config/features.gni")
 import("//build/config/rust.gni")
 import("//build/nocompile.gni")
@@ -343,13 +344,15 @@ source_set("common") {
     deps += [ "//ui/gfx/" ]
   }
 
-  if (is_chromeos || is_android || is_win || is_castos || is_fuchsia) {
+  if (is_chromeos || is_android || is_win || is_castos || is_fuchsia || is_starboard ||
+      (is_ios && target_platform == "tvos")) {
     defines = [ "ENABLE_PROTECTED_MEDIA_IDENTIFIER_PERMISSION" ]
   }
 }
 
 test("blink_common_unittests") {
   visibility = [ "*" ]
+  sources = []
   deps = [
     ":common_unittests_sources",
     "//services/metrics/public/cpp:metrics_cpp",

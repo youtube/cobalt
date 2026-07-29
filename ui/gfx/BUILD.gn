@@ -179,7 +179,7 @@ component("gfx") {
       "android/view_configuration.h",
     ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "font_fallback_linux.cc",
       "font_fallback_linux.h",
@@ -372,14 +372,14 @@ component("gfx") {
   }
 
   if (use_blink) {
-    if (is_android || is_fuchsia || is_ios) {
+    if (is_android || is_fuchsia || is_ios || is_cobalt_hermetic_build) {
       sources += [
         "font_fallback_skia.cc",
         "font_render_params_skia.cc",
       ]
     }
 
-    if (is_android || is_fuchsia || is_win || is_apple) {
+    if (is_android || is_fuchsia || is_win || is_apple || is_cobalt_hermetic_build) {
       sources += [
         "font_fallback_skia_impl.cc",
         "font_fallback_skia_impl.h",
@@ -427,7 +427,7 @@ component("gfx") {
   if (is_linux) {
     deps += [ "//ui/linux:linux_ui" ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [ "//third_party/fontconfig" ]
   }
 
@@ -653,7 +653,7 @@ source_set("memory_buffer_sources") {
     deps += [ ":native_widget_types_sources" ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_starboard || is_chromeos) {
     sources += [
       "linux/client_native_pixmap_dmabuf.cc",
       "linux/client_native_pixmap_dmabuf.h",
@@ -667,7 +667,7 @@ source_set("memory_buffer_sources") {
     deps += [ "//build/config/linux/libdrm" ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if (is_linux && !is_starboard || is_chromeos || is_android) {
     deps += [ "//third_party/libsync" ]
   }
 

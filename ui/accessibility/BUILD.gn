@@ -225,6 +225,10 @@ component("accessibility_internal") {
     "//third_party/cld_3/src/src:cld_3",
   ]
 
+  if (is_cobalt) {
+    deps -= [ "//third_party/cld_3/src/src:cld_3" ]
+  }
+
   public_deps = [
     ":ax_base",
     "//skia",

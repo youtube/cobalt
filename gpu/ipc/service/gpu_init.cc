@@ -54,7 +54,6 @@
 #endif
 
 #if BUILDFLAG(IS_OZONE)
-#include "gpu/vulkan/drm_modifiers_filter_vulkan.h"
 #include "ui/ozone/public/drm_modifiers_filter.h"
 #include "ui/ozone/public/ozone_platform.h"
 #include "ui/ozone/public/surface_factory_ozone.h"
@@ -72,6 +71,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_VULKAN)
+#include "gpu/vulkan/drm_modifiers_filter_vulkan.h"
 #include "gpu/vulkan/init/vulkan_factory.h"
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_instance.h"
@@ -892,7 +892,9 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
       std::move(supported_buffer_formats_for_gl_native_pixmap_import);
   [[maybe_unused]] auto* factory =
       ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
+#if BUILDFLAG(ENABLE_VULKAN) || (BUILDFLAG(SKIA_USE_DAWN) && BUILDFLAG(IS_CHROMEOS))
   bool filter_set = false;
+#endif
 #if BUILDFLAG(ENABLE_VULKAN)
   if (gpu_feature_info_.status_values[GPU_FEATURE_TYPE_VULKAN] ==
           kGpuFeatureStatusEnabled &&
@@ -951,6 +953,8 @@ void GpuInit::InitializeInProcess(base::CommandLine* command_line,
   if (!gl_display) {
     LOG(FATAL) << "gpu::InitializeGLThreadSafe() failed.";
   }
+
+  gpu_info_.gl_implementation_parts = gl::GetGLImplementationParts();
 
   if (command_line->HasSwitch(switches::kWebViewDrawFunctorUsesVulkan)) {
     bool result = InitializeVulkan();

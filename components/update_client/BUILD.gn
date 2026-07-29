@@ -5,6 +5,7 @@
 import("//build/buildflag_header.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
 
 source_set("network_impl") {
   sources = [
@@ -60,6 +61,37 @@ source_set("unzip_impl") {
     ":update_client",
     "//components/services/unzip/public/cpp",
   ]
+}
+
+if (is_cobalt && use_evergreen) {
+  source_set("network_impl_cobalt") {
+    sources = [
+      "net/network_impl_cobalt.cc",
+      "net/network_impl_cobalt.h",
+    ]
+    deps = [
+      ":update_client",
+      "//base",
+      "//net",
+      "//services/network/public/cpp",
+      "//services/network/public/mojom",
+      "//url",
+    ]
+  }
+
+  source_set("unzip_impl_cobalt") {
+    sources = [
+      "unzip/unzip_impl_cobalt.cc",
+      "unzip/unzip_impl_cobalt.h",
+    ]
+    deps = [
+      ":update_client",
+      "//base",
+      "//components/services/unzip:in_process",
+      "//components/services/unzip/public/cpp",
+      "//third_party/zlib/google:zip",
+    ]
+  }
 }
 
 source_set("patch_impl") {
@@ -199,6 +231,25 @@ static_library("update_client") {
       "background_downloader_win.h",
     ]
   }
+
+  if (is_starboard) {
+    deps += [
+      "//cobalt/browser:features",
+      "//starboard:starboard_headers_only",
+    ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "cobalt_slot_management.cc",
+      "cobalt_slot_management.h",
+    ]
+
+    deps += [
+      "//starboard/loader_app:app_key_files",
+      "//starboard/loader_app:drain_file",
+    ]
+  }
 }
 
 if (is_mac) {
@@ -243,9 +294,7 @@ source_set("test_support") {
   public_deps = [ ":update_client" ]
 
   deps = [
-    ":network_impl",
     ":patch_impl",
-    ":unzip_impl",
     "//base",
     "//components/prefs",
     "//components/services/patch:in_process",
@@ -257,6 +306,21 @@ source_set("test_support") {
     "//testing/gtest",
     "//url",
   ]
+
+
+  if (is_cobalt && use_evergreen) {
+    deps += [
+      ":network_impl_cobalt",
+      ":unzip_impl_cobalt",
+      "//components/services/unzip/public/cpp",
+      "//third_party/zlib/google:zip",
+    ]
+  } else if (!is_cobalt) {
+    deps += [
+      ":network_impl",
+      ":unzip_impl",
+    ]
+  }
 }
 
 bundle_data("unit_tests_bundle_data") {
@@ -337,12 +401,9 @@ source_set("unit_tests") {
   }
 
   deps = [
-    ":in_process_unzipper",
-    ":network_impl",
     ":patch_impl",
     ":test_support",
     ":unit_tests_bundle_data",
-    ":unzip_impl",
     ":update_client",
     "//base",
     "//build:branding_buildflags",
@@ -362,7 +423,23 @@ source_set("unit_tests") {
     "//third_party/re2",
   ]
 
+  if (is_cobalt && use_evergreen) {
+    deps += [ ":unzip_impl_cobalt" ]
+  } else if (!is_cobalt) {
+    deps += [
+      ":in_process_unzipper",
+      ":network_impl",
+      ":unzip_impl",
+    ]
+  }
+
   data_deps = [ "//components/test/data/update_client/puffin_patch_test:puffin_patch_test_files" ]
+
+  # The Evergreen test binary is deployed to the device, so the test data
+  # files must be packaged along with it.
+  if (is_cobalt && use_evergreen) {
+    data = [ "//components/test/data/update_client/" ]
+  }
 }
 
 fuzzer_test("update_client_protocol_serializer_fuzzer") {
@@ -381,4 +458,15 @@ fuzzer_test("update_client_protocol_parser_fuzzer") {
     "//base",
   ]
   seed_corpus = "fuzzer_corpuses/protocol_parser/"
+}
+
+if (is_cobalt && use_evergreen) {
+  test("update_client_unittests") {
+    testonly = true
+    deps = [
+      ":unit_tests",
+      "//components/test:run_all_unittests",
+      "//components/test:test_support",
+    ]
+  }
 }

@@ -331,13 +331,6 @@ component("network_service") {
     "//components/content_settings/core/common",
     "//components/cookie_config",
     "//components/domain_reliability",
-    "//components/ip_protection/common:ip_protection_core_host_remote",
-    "//components/ip_protection/common:ip_protection_core_impl",
-    "//components/ip_protection/common:ip_protection_core_impl_mojo",
-    "//components/ip_protection/common:ip_protection_proxy_delegate",
-    "//components/ip_protection/common:ip_protection_telemetry_uma",
-    "//components/ip_protection/common:masked_domain_list_manager",
-    "//components/ip_protection/common:probabilistic_reveal_token_registry",
     "//components/miracle_parameter/common",
     "//components/network_session_configurator/browser",
     "//components/network_session_configurator/common",
@@ -365,7 +358,6 @@ component("network_service") {
     "//services/network/public/proto",
     "//services/network/shared_storage",
     "//services/network/tpcd/metadata:manager",
-    "//services/network/trust_tokens",
     "//services/service_manager/public/cpp",
     "//services/service_manager/public/mojom",
     "//third_party/liburlpattern",
@@ -373,7 +365,20 @@ component("network_service") {
     "//url",
   ]
 
-  if (is_linux || is_chromeos) {
+  if (enable_privacy_sandbox_apis) {
+    deps += [
+      "//components/ip_protection/common:ip_protection_core_host_remote",
+      "//components/ip_protection/common:ip_protection_core_impl",
+      "//components/ip_protection/common:ip_protection_core_impl_mojo",
+      "//components/ip_protection/common:ip_protection_proxy_delegate",
+      "//components/ip_protection/common:ip_protection_telemetry_uma",
+      "//components/ip_protection/common:masked_domain_list_manager",
+      "//components/ip_protection/common:probabilistic_reveal_token_registry",
+    ]
+    deps += [ "//services/network/trust_tokens" ]
+  }
+
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     deps += [
       ":network_sandbox_hook",
       "//sandbox/linux:sandbox_services",  # TODO(crbug.com/40220505): remove.
@@ -415,7 +420,7 @@ component("network_service") {
   defines = [ "IS_NETWORK_SERVICE_IMPL" ]
 }
 
-if (is_linux || is_chromeos) {
+if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
   source_set("network_sandbox_hook") {
     sources = [
       "network_sandbox_hook_linux.cc",
