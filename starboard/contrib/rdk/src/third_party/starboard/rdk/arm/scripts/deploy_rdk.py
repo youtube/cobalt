@@ -555,7 +555,7 @@ def parse_args() -> argparse.Namespace:
         for arg in args.param:
             if not arg.startswith("--"):
                 print(
-                    f"Error: All arguments passed to --param must start with '--'. "
+                    f"Error: All arguments passed to --param must start with '--' (positional arguments are not supported). "
                     f"Positional argument '{arg}' is not supported."
                 )
                 sys.exit(1)
