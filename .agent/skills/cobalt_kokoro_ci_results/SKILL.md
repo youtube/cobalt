@@ -29,3 +29,7 @@ This skill discovers recent failed Kokoro runs for the Cobalt repository, downlo
     ```bash
     python3 {skill_dir}/scripts/kokoro_download.py --build <build_id> --output /tmp/cobalt_gardener_${USER}/incoming/kokoro_results.json
     ```
+
+## Development
+
+Before modifying the retrieval script, review [DESIGN.md](DESIGN.md) for architectural details, concurrency guidelines, and instructions on how to update and test the script.

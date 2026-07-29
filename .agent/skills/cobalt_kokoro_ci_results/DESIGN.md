@@ -1,4 +1,4 @@
-# The Kokoro Triage Scripts
+# Kokoro CI Results Retriever Design
 
 > [!IMPORTANT] These scripts are specifically created for and should only be
 > used by this skill. They are not intended to be used as a general library.
@@ -11,10 +11,11 @@
     -   [Concurrency Model](#concurrency-model)
     -   [Direct Queries](#direct-queries)
 -   [Logging and Output](#logging-and-output)
+-   [Updating the Script](#updating-the-script)
 
 ## Scripts Directory Tree
 
-The layout of the Kokoro triage scripts:
+The layout of the Kokoro retrieval scripts:
 
 ```
 scripts/
@@ -56,3 +57,9 @@ For targeted troubleshooting, `kokoro_download.py` supports two direct query fla
 The final JSON results are written to the file specified by `--output`.
 
 Logging information, status updates, and errors are written to `stderr` to avoid polluting the output. Pass the `--verbose` flag to enable detailed debugging output.
+
+## Updating the Script
+
+1.  **Test Before Edits**: Always cover changes to the script with unit tests in
+    `{skill_dir}/scripts/kokoro_download_test.py`. Always add or edit test cases first. Then run tests and the
+    script after making edits to ensure correctness.

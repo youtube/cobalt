@@ -1,4 +1,4 @@
-# The Triage Scripts
+# GitHub Actions CI Results Retriever Design
 
 > [!IMPORTANT] These scripts are specifically created for and should only be
 > used by this skill. They are not intended to be used as a general library.
@@ -90,5 +90,5 @@ Logging information, warnings, and errors are directed to `stderr`. Logging verb
 ## Updating the Script
 
 1.  **Test Before Edits**: Always cover changes to the script with unit tests in
-    `{skill_dir}/scripts/<script_name>_test.py`. Always add or edit test cases first. Then run tests and the
+    `{skill_dir}/scripts/github_download_test.py`. Always add or edit test cases first. Then run tests and the
     script after making edits to ensure correctness.

@@ -28,3 +28,7 @@ This skill discovers recent failed GitHub Actions runs for the Cobalt repository
     ```bash
     python3 {skill_dir}/scripts/github_download.py --run-id <run_id> --output /tmp/cobalt_gardener_${USER}/incoming/github_results.json
     ```
+
+## Development
+
+Before modifying the retrieval script, review [DESIGN.md](DESIGN.md) for architectural details, concurrency guidelines, and instructions on how to update and test the script.
