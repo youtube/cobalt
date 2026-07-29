@@ -1,0 +1,3 @@
+import("//cobalt/build/configs/android_common.gn")
+
+target_cpu = "arm"

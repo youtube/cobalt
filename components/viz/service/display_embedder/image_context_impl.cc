@@ -180,8 +180,14 @@ void ImageContextImpl::DeleteFallbackTextures() {
       for (auto& fallback_texture : fallback_textures_) {
         gpu::DeleteGrBackendTexture(fallback_context_state_, &fallback_texture);
       }
+#if BUILDFLAG(IS_COBALT)
+    // When Ganesh is abandoned upon context loss, gr_context() is null.
+    // Guard against null graphite recorder access when Graphite is not enabled.
+    } else if (fallback_context_state_->gpu_main_graphite_recorder()) {
+#else
     } else {
       CHECK(fallback_context_state_->gpu_main_graphite_recorder());
+#endif
       CHECK(fallback_textures_.empty());
       for (auto& fallback_texture : graphite_fallback_textures_) {
         fallback_context_state_->gpu_main_graphite_recorder()

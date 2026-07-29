@@ -16,8 +16,13 @@
 
 namespace content {
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROID) && (BUILDFLAG(USE_V8_CONTEXT_SNAPSHOT) || \
                               BUILDFLAG(INCLUDE_BOTH_V8_SNAPSHOTS))
+=======
+#if BUILDFLAG(IS_ANDROID) && \
+    (BUILDFLAG(USE_V8_CONTEXT_SNAPSHOT) || BUILDFLAG(INCLUDE_BOTH_V8_SNAPSHOTS))
+>>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 namespace {
 void registerContextSnapshotAndroid(
     std::map<std::string, std::variant<base::FilePath, base::ScopedFD>>&
@@ -31,7 +36,8 @@ void registerContextSnapshotAndroid(
           .Append(FILE_PATH_LITERAL(BUILDFLAG(V8_CONTEXT_SNAPSHOT_FILENAME)));
 }
 }  // namespace
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) && (BUILDFLAG(USE_V8_CONTEXT_SNAPSHOT) ||
+        // BUILDFLAG(INCLUDE_BOTH_V8_SNAPSHOTS))
 
 std::map<std::string, std::variant<base::FilePath, base::ScopedFD>>
 GetV8SnapshotFilesToPreload(base::CommandLine& process_command_line) {

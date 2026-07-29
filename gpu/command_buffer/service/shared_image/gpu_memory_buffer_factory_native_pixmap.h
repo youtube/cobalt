@@ -9,6 +9,12 @@
 #include "gpu/gpu_gles2_export.h"
 #include "ui/gfx/native_pixmap.h"
 
+// TODO: (cobalt b/409766462): Exclude this file from the build entirely.
+#include "build/build_config.h"
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include <vulkan/vulkan_core.h>
+#endif
+
 namespace gpu {
 
 class GPU_GLES2_EXPORT GpuMemoryBufferFactoryNativePixmap

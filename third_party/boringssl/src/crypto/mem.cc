@@ -56,7 +56,7 @@ static void __asan_unpoison_memory_region(const void *addr, size_t size) {}
 // EDK2 targets UEFI but builds as ELF and then translates the binary to
 // COFF(!). Thus it builds with __ELF__ defined but cannot actually cope with
 // weak symbols.
-#if !defined(__EDK2_BORINGSSL__) && defined(__ELF__) && defined(__GNUC__)
+#if !defined(__EDK2_BORINGSSL__) && defined(__ELF__) && defined(__GNUC__) && !BUILDFLAG(IS_COBALT)
 #define WEAK_SYMBOL_FUNC(rettype, name, args) \
   extern "C" {                                \
   rettype name args __attribute__((weak));    \

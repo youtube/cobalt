@@ -147,6 +147,8 @@ source_set("raster_sources") {
   visibility = [ "//gpu/*" ]
 
   sources = [
+    "in_process_raster_payload.cc",
+    "in_process_raster_payload.h",
     "raster_cmd_enums.h",
     "raster_cmd_format.cc",
     "raster_cmd_format.h",
@@ -162,6 +164,7 @@ source_set("raster_sources") {
   deps = [
     ":gles2_utils",
     "//base",
+    "//cc/paint",
     "//skia",
     "//ui/gl",
   ]

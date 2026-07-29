@@ -14,8 +14,13 @@
 #include "gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory_io_surface.h"
 #endif
 
+<<<<<<< HEAD:gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory.cc
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
 #include "gpu/command_buffer/service/shared_image/gpu_memory_buffer_factory_native_pixmap.h"
+=======
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+#include "gpu/ipc/service/gpu_memory_buffer_factory_native_pixmap.h"
+>>>>>>> parent of c8aad912c2a (CONFLICTED Chromium Cherry pick: Revert Cobalt.):gpu/ipc/service/gpu_memory_buffer_factory.cc
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -36,7 +41,7 @@ GpuMemoryBufferFactory::CreateNativeType(
   // AHardwareBuffers), but the codebase is structured such that it is easier
   // to create a dummy factory than create no factory.
   return std::make_unique<GpuMemoryBufferFactory>();
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
   return std::make_unique<GpuMemoryBufferFactoryNativePixmap>(
       vulkan_context_provider);
 #elif BUILDFLAG(IS_WIN)

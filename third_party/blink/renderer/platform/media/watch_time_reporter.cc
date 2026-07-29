@@ -10,6 +10,7 @@
 #include "base/power_monitor/power_monitor.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/timestamp_constants.h"
 #include "media/base/watch_time_keys.h"
@@ -626,6 +627,9 @@ WatchTimeReporter::CreateBaseComponent() {
       keys_to_finalize.emplace_back(NORMAL_KEY(Src));
       break;
     case media::DemuxerType::kManifestDemuxer:
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+    case media::DemuxerType::kUrlPlayerDemuxer:
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
       keys_to_finalize.emplace_back(NORMAL_KEY(Hls));
       break;
   }
