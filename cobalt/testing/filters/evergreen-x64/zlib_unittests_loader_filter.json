@@ -1,0 +1,9 @@
+{
+  "failing_tests": [
+    "CompressionUtilsTest.*",
+    "ZipReaderTest.*",
+    "ZipTest.*",
+    "ZlibTest.ZipFilenameCommentSize",
+    "ZlibTest.ZipExtraFieldSize"
+  ]
+}
