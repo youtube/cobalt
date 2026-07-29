@@ -32,6 +32,8 @@
 // - Windows 8+
 //
 // There is no TSAN support for futex currently, so it is disabled in that case
+// Starboard currently doesn't support futex.
+#if !defined(STARBOARD)
 #if !defined(ANGLE_WITH_TSAN)
 #    if defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_ANDROID)
 // Linux has had futexes for a very long time.  Assume support.
@@ -43,6 +45,7 @@
 #        define ANGLE_USE_FUTEX 1
 #    endif  // defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_ANDROID)
 #endif      // !defined(ANGLE_WITH_TSAN)
+#endif      // !defined(STARBOARD)
 
 namespace angle
 {

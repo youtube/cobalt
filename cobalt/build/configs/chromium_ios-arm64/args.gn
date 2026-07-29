@@ -1,0 +1,3 @@
+target_os = "ios"
+target_cpu = "arm64"
+use_blink = true
