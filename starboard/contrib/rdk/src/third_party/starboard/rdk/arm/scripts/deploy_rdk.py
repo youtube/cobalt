@@ -284,6 +284,11 @@ def _filter_args_by_keys(base_args: List[str], override_args: List[str]) -> List
     return filtered_args
 
 
+def _merge_args(base_args: List[str], override_args: List[str]) -> List[str]:
+    """Replaces flags in base_args with matching option keys from override_args, and appends override_args."""
+    return _filter_args_by_keys(base_args, override_args) + override_args
+
+
 def remove_duplicate_sb_args(
     cobalt_json_args: List[str],
     script_args: Optional[List[str]] = None,
@@ -299,8 +304,11 @@ def remove_duplicate_sb_args(
     script_args = script_args or []
     user_override_args = user_override_args or []
 
-    override_args = _filter_args_by_keys(script_args, user_override_args) + user_override_args
-    return _filter_args_by_keys(cobalt_json_args, override_args) + override_args
+    # 1. Merge script_args with user_override_args
+    override_args = _merge_args(script_args, user_override_args)
+
+    # 2. Merge cobalt_json_args with override_args
+    return _merge_args(cobalt_json_args, override_args)
 
 
 def launch_on_device(
