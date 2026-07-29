@@ -4,6 +4,7 @@
     "libs/com_android_tools_layoutlib_layoutlib_api",
     "libs/com_android_tools_sdk_common",
     "libs/com_google_android_apps_common_testing_accessibility_framework_accessibility_test_framework",
+    "libs/com_google_android_gms_play_services_ads_identifier",
     "libs/com_google_android_gms_play_services_cloud_messaging",
     "libs/com_google_ar_impress",
     "libs/com_google_code_gson_gson",

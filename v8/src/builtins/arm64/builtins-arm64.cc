@@ -5436,6 +5436,12 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ PopAll(kCalleeSaveFPRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
   __ bind(&no_exception);
+  // Deoptimization expects that the return value of the API call is in the
+  // return register. As we only allow deoptimization if the return type is
+  // void, the return value is always `undefined`.
+  // TODO(crbug.com/418936518): Handle the return value in an actual
+  // deoptimization continuation.
+  __ LoadRoot(kReturnRegister0, RootIndex::kUndefinedValue);
   __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
 }
 
@@ -5462,7 +5468,7 @@ void Builtins::Generate_InterpreterOnStackReplacement_ToBaseline(
   __ LoadTrustedPointerField(
       code_obj,
       FieldMemOperand(code_obj, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      kCodeIndirectPointerTag);
 
   // For OSR entry it is safe to assume we always have baseline code.
   if (v8_flags.debug_code) {

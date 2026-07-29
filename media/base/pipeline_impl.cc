@@ -1576,6 +1576,7 @@ void PipelineImpl::SetCdm(CdmContext* cdm_context,
           base::BindPostTaskToCurrentDefault(std::move(cdm_attached_cb))));
 }
 
+
 void PipelineImpl::AsyncCreateRenderer(
     std::optional<RendererType> renderer_type,
     RendererCreatedCB renderer_created_cb) {

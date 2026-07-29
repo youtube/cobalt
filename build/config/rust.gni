@@ -213,7 +213,7 @@ if (is_linux || is_chromeos) {
       # The thumbv7 vs. armv7 distinction is for legacy reasons and both
       # targets in fact target Thumb, see:
       # https://github.com/rust-lang/rust/issues/44722
-      if (arm_use_neon) {
+      if (arm_use_neon && float_suffix != "") {
         rust_abi_target = "thumbv7neon-unknown-linux-gnueabi" + float_suffix
       } else {
         rust_abi_target = "armv7-unknown-linux-gnueabi" + float_suffix

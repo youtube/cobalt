@@ -758,7 +758,6 @@ void RenderWidgetHostViewIOS::OnUpdateTextInputStateCalled(
     TextInputManager* text_input_manager,
     RenderWidgetHostViewBase* updated_view,
     bool did_update_state) {
-#if !BUILDFLAG(IS_IOS_TVOS)
   if (text_input_manager->GetActiveWidget()) {
     [ui_view_->view_
         onUpdateTextInputState:*text_input_manager->GetTextInputState()
@@ -769,7 +768,6 @@ void RenderWidgetHostViewIOS::OnUpdateTextInputStateCalled(
     [ui_view_->view_ onUpdateTextInputState:ui::mojom::TextInputState()
                                  withBounds:[ui_view_->view_ bounds]];
   }
-#endif
 }
 
 void RenderWidgetHostViewIOS::OnTextSelectionChanged(
@@ -892,7 +890,11 @@ void RenderWidgetHostViewIOS::UpdateFrameBounds() {
   frameBounds.size = viewportSize.ToCGSize();
 
   // If we are scrolling we don't resize the WebView immediately.
-  if (!is_scrolling_ && !IsTesting()) {
+  if (!is_scrolling_ && !IsTesting()
+#if BUILDFLAG(IS_COBALT)
+      && allow_view_bounds_updates_
+#endif
+  ) {
     view_bounds_ = gfx::Rect(frameBounds);
   }
   [ui_view_->view_ setFrame:frameBounds];
@@ -1025,5 +1027,11 @@ void RenderWidgetHostViewIOS::ComputeDisplayFeature() {
                         transformed_display_feature.width()};
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void RenderWidgetHostViewIOS::SetAllowAutomaticViewBoundsUpdates(bool allowed) {
+  allow_view_bounds_updates_ = allowed;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace content
