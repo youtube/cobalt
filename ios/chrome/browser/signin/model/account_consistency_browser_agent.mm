@@ -11,12 +11,13 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/signin/core/browser/account_reconcilor.h"
 #import "components/signin/ios/browser/account_consistency_service.h"
-#import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_constants.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_attributes_storage_ios.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
@@ -27,6 +28,7 @@
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/signin/model/account_consistency_service_factory.h"
 #import "ios/chrome/browser/signin/model/account_reconcilor_factory.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/web/public/navigation/referrer.h"
@@ -176,6 +178,13 @@ bool AccountConsistencyBrowserAgent::ShouldShowAccountMenu() const {
   if (!AreSeparateProfilesForManagedAccountsEnabled()) {
     return false;
   }
+  ProfileIOS* profile = browser_->GetProfile()->GetOriginalProfile();
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
+  if (!identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    // The account menu requires a primary identity.
+    return false;
+  }
   size_t num_profiles = GetApplicationContext()
                             ->GetProfileManager()
                             ->GetProfileAttributesStorage()
@@ -187,7 +196,5 @@ bool AccountConsistencyBrowserAgent::ShouldShowAccountMenu() const {
 
 void AccountConsistencyBrowserAgent::ShowAccountMenu(const GURL& url) {
   CHECK(AreSeparateProfilesForManagedAccountsEnabled());
-  [application_handler_
-      showAccountMenuFromAccessPoint:AccountMenuAccessPoint::kWeb
-                                 URL:url];
+  [application_handler_ showAccountMenuFromWebWithURL:url];
 }

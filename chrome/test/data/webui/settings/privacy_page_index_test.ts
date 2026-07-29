@@ -29,6 +29,7 @@ suite('PrivacyPageIndex', function() {
         {
           autoPictureInPictureEnabled: false,
           capturedSurfaceControlEnabled: false,
+          enableBundledSecuritySettings: false,
           enableExperimentalWebPlatformFeatures: false,
           enableFederatedIdentityApiContentSetting: false,
           enableHandTrackingContentSetting: false,
@@ -95,24 +96,26 @@ suite('PrivacyPageIndex', function() {
 
   suite('Main', function() {
     test('Routing', async function() {
-      const defaultViews = ['old', 'privacyGuidePromo', 'safetyHubEntryPoint'];
+      const defaultViews =
+          ['privacy', 'privacyGuidePromo', 'safetyHubEntryPoint'];
 
       await testViewsForRoute(routes.PRIVACY, defaultViews);
       await testViewsForRoute(routes.BASIC, defaultViews);
 
       // Non-exhaustive list of PRIVACY child routes to check.
-      // Some of these routs have not been migrated to the new architecture
-      // (crbug.com/424223101), therefore the contents still reside in the 'old'
-      // <settings-basic-page> view.
       const routesToVisit: RouteInfo[] = [
-        {route: routes.CLEAR_BROWSER_DATA, viewId: 'old'},
-        {route: routes.COOKIES, viewId: 'cookies', parentViewId: 'old'},
+        {route: routes.CLEAR_BROWSER_DATA, viewId: 'privacy'},
+        {route: routes.COOKIES, viewId: 'cookies', parentViewId: 'privacy'},
         {
           route: routes.SAFETY_HUB,
           viewId: 'safetyHub',
           parentViewId: 'safetyHubEntryPoint',
         },
-        {route: routes.SECURITY, viewId: 'old'},
+        {
+          route: routes.SECURITY,
+          viewId: 'security',
+          parentViewId: 'privacy',
+        },
       ];
 
       for (const routeInfo of routesToVisit) {
@@ -121,14 +124,12 @@ suite('PrivacyPageIndex', function() {
       }
     });
 
-    // TODO(crbug.com/424223101): Remove this test once <settings-basic-page> is
-    // removed.
     test('RoutingLazyRender', async function() {
       assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
       await flushTasks();
       await waitBeforeNextRender(index);
-      assertFalse(!!index.$.viewManager.querySelector('#old'));
-      await testViewsForRoute(routes.PRIVACY, ['old']);
+      assertFalse(!!index.$.viewManager.querySelector('#privacy'));
+      await testViewsForRoute(routes.PRIVACY, ['privacy']);
     });
 
     test('RoutingPrivacySandboxRestrictedFalse', async function() {
@@ -145,27 +146,27 @@ suite('PrivacyPageIndex', function() {
         {
           route: routes.PRIVACY_SANDBOX,
           viewId: 'privacySandbox',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.PRIVACY_SANDBOX_TOPICS,
           viewId: 'privacySandboxTopics',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.PRIVACY_SANDBOX_MANAGE_TOPICS,
           viewId: 'privacySandboxManageTopics',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.PRIVACY_SANDBOX_FLEDGE,
           viewId: 'privacySandboxFledge',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.PRIVACY_SANDBOX_AD_MEASUREMENT,
           viewId: 'privacySandboxAdMeasurement',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
       ];
 
@@ -189,12 +190,12 @@ suite('PrivacyPageIndex', function() {
         {
           route: routes.PRIVACY_SANDBOX,
           viewId: 'privacySandbox',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.PRIVACY_SANDBOX_AD_MEASUREMENT,
           viewId: 'privacySandboxAdMeasurement',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
       ];
 
@@ -204,10 +205,31 @@ suite('PrivacyPageIndex', function() {
       }
     });
 
+    // TODO(crbug.com/417690232): Delete once kBundledSecuritySettings is
+    // launched.
+    test('RoutingSecurityV2', async function() {
+      assertFalse(loadTimeData.getBoolean('enableBundledSecuritySettings'));
+
+      // Case where old UI should exist.
+      await createPrivacyPageIndex();
+      await testViewsForRoute(routes.SECURITY, ['security'], 'privacy');
+      assertTrue(!!index.shadowRoot!.querySelector('settings-security-page'));
+      assertFalse(
+          !!index.shadowRoot!.querySelector('settings-security-page-v2'));
+
+      // Case where new UI should exist.
+      await createPrivacyPageIndex({enableBundledSecuritySettings: true});
+      await testViewsForRoute(routes.SECURITY, ['security'], 'privacy');
+      assertFalse(!!index.shadowRoot!.querySelector('settings-security-page'));
+      assertTrue(
+          !!index.shadowRoot!.querySelector('settings-security-page-v2'));
+    });
+
     test('RoutingSecurityKeys', async function() {
       assertFalse(loadTimeData.getBoolean('enableSecurityKeysSubpage'));
       await createPrivacyPageIndex({enableSecurityKeysSubpage: true});
-      return testViewsForRoute(routes.SECURITY_KEYS, ['securityKeys'], 'old');
+      return testViewsForRoute(
+          routes.SECURITY_KEYS, ['securityKeys'], 'privacy');
     });
 
     test('RoutingIncognitoTrackingProtections', async function() {
@@ -216,7 +238,7 @@ suite('PrivacyPageIndex', function() {
       await createPrivacyPageIndex({enableIncognitoTrackingProtections: true});
       return testViewsForRoute(
           routes.INCOGNITO_TRACKING_PROTECTIONS,
-          ['incognitoTrackingProtections'], 'old');
+          ['incognitoTrackingProtections'], 'privacy');
     });
 
     // <if expr="is_chromeos">
@@ -224,7 +246,8 @@ suite('PrivacyPageIndex', function() {
       assertFalse(loadTimeData.getBoolean('isGuest'));
       assertEquals(routes.BASIC, Router.getInstance().getCurrentRoute());
       await createPrivacyPageIndex({isGuest: true});
-      assertTrue(!!index.$.viewManager.querySelector('#old.active[slot=view]'));
+      assertTrue(
+          !!index.$.viewManager.querySelector('#privacy.active[slot=view]'));
     });
     // </if>
 
@@ -257,167 +280,172 @@ suite('PrivacyPageIndex', function() {
         {
           route: routes.SITE_SETTINGS,
           viewId: 'siteSettings',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_ALL,
           viewId: 'siteSettingsAll',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_AR,
           viewId: 'siteSettingsAr',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_AUTO_VERIFY,
           viewId: 'siteSettingsAutoVerify',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_AUTOMATIC_DOWNLOADS,
           viewId: 'siteSettingsAutomaticDownloads',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_AUTOMATIC_FULLSCREEN,
           viewId: 'siteSettingsAutomaticFullscreen',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_BACKGROUND_SYNC,
           viewId: 'siteSettingsBackgroundSync',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_CAMERA,
           viewId: 'siteSettingsCamera',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_CLIPBOARD,
           viewId: 'siteSettingsClipboard',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
+        },
+        {
+          route: routes.SITE_SETTINGS_FILE_SYSTEM_WRITE,
+          viewId: 'siteSettingsFilesystemWrite',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_IDLE_DETECTION,
           viewId: 'siteSettingsIdleDetection',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_IMAGES,
           viewId: 'siteSettingsImages',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_JAVASCRIPT_OPTIMIZER,
           viewId: 'siteSettingsJavascriptOptimizer',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_HANDLERS,
           viewId: 'siteSettingsHandlers',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_HID_DEVICES,
           viewId: 'siteSettingsHidDevices',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_JAVASCRIPT,
           viewId: 'siteSettingsJavascript',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_LOCAL_FONTS,
           viewId: 'siteSettingsLocalFonts',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_LOCATION,
           viewId: 'siteSettingsLocation',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_MICROPHONE,
           viewId: 'siteSettingsMicrophone',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_MIDI_DEVICES,
           viewId: 'siteSettingsMidiDevices',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_MIXEDSCRIPT,
           viewId: 'siteSettingsMixedscript',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_NOTIFICATIONS,
           viewId: 'siteSettingsNotifications',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_PDF_DOCUMENTS,
           viewId: 'siteSettingsPdfDocuments',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_POPUPS,
           viewId: 'siteSettingsPopups',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_PROTECTED_CONTENT,
           viewId: 'siteSettingsProtectedContent',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_SENSORS,
           viewId: 'siteSettingsSensors',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_SERIAL_PORTS,
           viewId: 'siteSettingsSerialPorts',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_SITE_DATA,
           viewId: 'siteSettingsSiteData',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_SOUND,
           viewId: 'siteSettingsSound',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_STORAGE_ACCESS,
           viewId: 'siteSettingsStorageAccess',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_USB_DEVICES,
           viewId: 'siteSettingsUsbDevices',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_VR,
           viewId: 'siteSettingsVr',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_WINDOW_MANAGEMENT,
           viewId: 'siteSettingsWindowManagement',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
         {
           route: routes.SITE_SETTINGS_ZOOM_LEVELS,
           viewId: 'siteSettingsZoomLevels',
-          parentViewId: 'old',
+          parentViewId: 'privacy',
         },
       ];
 
@@ -433,7 +461,7 @@ suite('PrivacyPageIndex', function() {
       await createPrivacyPageIndex({enableSafeBrowsingSubresourceFilter: true});
 
       return testViewsForRoute(
-          routes.SITE_SETTINGS_ADS, ['siteSettingsAds'], 'old');
+          routes.SITE_SETTINGS_ADS, ['siteSettingsAds'], 'privacy');
     });
 
     test('RoutingAutoPictureInPicture', async function() {
@@ -442,7 +470,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE,
-          ['siteSettingsAutoPictureInPicture'], 'old');
+          ['siteSettingsAutoPictureInPicture'], 'privacy');
     });
 
     test('RoutingBluetoothDevices', async function() {
@@ -453,7 +481,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_BLUETOOTH_DEVICES,
-          ['siteSettingsBluetoothDevices'], 'old');
+          ['siteSettingsBluetoothDevices'], 'privacy');
     });
 
     test('RoutingBluetoothScanning', async function() {
@@ -464,7 +492,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_BLUETOOTH_SCANNING,
-          ['siteSettingsBluetoothScanning'], 'old');
+          ['siteSettingsBluetoothScanning'], 'privacy');
     });
 
     test('RoutingCapturedSurfaceControl', async function() {
@@ -473,7 +501,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_CAPTURED_SURFACE_CONTROL,
-          ['siteSettingsCapturedSurfaceControl'], 'old');
+          ['siteSettingsCapturedSurfaceControl'], 'privacy');
     });
 
     test('RoutingFederatedIdentityApi', async function() {
@@ -484,7 +512,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_FEDERATED_IDENTITY_API,
-          ['siteSettingsFederatedIdentityApi'], 'old');
+          ['siteSettingsFederatedIdentityApi'], 'privacy');
     });
 
     test('RoutingHandTracking', async function() {
@@ -493,7 +521,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_HAND_TRACKING, ['siteSettingsHandTracking'],
-          'old');
+          'privacy');
     });
 
     test('RoutingKeyboardLock', async function() {
@@ -502,7 +530,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_KEYBOARD_LOCK, ['siteSettingsKeyboardLock'],
-          'old');
+          'privacy');
     });
 
     test('RoutingLocalNetworkAccess', async function() {
@@ -511,7 +539,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_LOCAL_NETWORK_ACCESS,
-          ['siteSettingsLocalNetworkAccess'], 'old');
+          ['siteSettingsLocalNetworkAccess'], 'privacy');
     });
 
     test('RoutingPaymentHandler', async function() {
@@ -521,7 +549,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_PAYMENT_HANDLER, ['siteSettingsPaymentHandler'],
-          'old');
+          'privacy');
     });
 
     // <if expr="is_chromeos">
@@ -533,7 +561,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_SMART_CARD_READERS,
-          ['siteSettingsSmartCardReaders'], 'old');
+          ['siteSettingsSmartCardReaders'], 'privacy');
     });
     // </if>
 
@@ -543,7 +571,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_WEB_APP_INSTALLATION,
-          ['siteSettingsWebAppInstallation'], 'old');
+          ['siteSettingsWebAppInstallation'], 'privacy');
     });
 
     test('RoutingWebPrinting', async function() {
@@ -552,7 +580,7 @@ suite('PrivacyPageIndex', function() {
 
       return testViewsForRoute(
           routes.SITE_SETTINGS_WEB_PRINTING, ['siteSettingsWebPrinting'],
-          'old');
+          'privacy');
     });
   });
 });

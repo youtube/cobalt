@@ -47,7 +47,6 @@
 #include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
-#include "chrome/common/url_constants.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
 #include "components/page_load_metrics/browser/features.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
@@ -64,6 +63,12 @@
 #include "extensions/buildflags/buildflags.h"
 #include "third_party/blink/public/common/loader/lcp_critical_path_predictor_util.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+#include "components/webapps/isolated_web_apps/scheme.h"
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/page_load_metrics/observers/android_page_load_metrics_observer.h"
@@ -193,6 +198,9 @@ void PageLoadMetricsEmbedder::RegisterObservers(
         std::make_unique<HttpsEngagementPageLoadMetricsObserver>(
             web_contents()->GetBrowserContext()));
     tracker->AddObserver(std::make_unique<ProtocolPageLoadMetricsObserver>());
+
+    bool is_in_foreground =
+        tracker->GetVisibilityTracker().currently_in_foreground();
     bool is_incognito = IsIncognito(tracker->GetWebContents());
     std::unique_ptr<page_load_metrics::AdsPageLoadMetricsObserver>
         ads_observer =
@@ -204,7 +212,8 @@ void PageLoadMetricsEmbedder::RegisterObservers(
                     Profile::FromBrowserContext(
                         web_contents()->GetBrowserContext()),
                     ServiceAccessType::EXPLICIT_ACCESS),
-                base::BindRepeating(&GetApplicationLocale), is_incognito);
+                base::BindRepeating(&GetApplicationLocale), is_in_foreground,
+                is_incognito);
     if (ads_observer) {
       tracker->AddObserver(std::move(ads_observer));
     }
@@ -303,7 +312,14 @@ bool PageLoadMetricsEmbedder::IsNonTabWebUI(const GURL& url) {
 }
 
 bool PageLoadMetricsEmbedder::ShouldObserveScheme(std::string_view scheme) {
-  return scheme == chrome::kIsolatedAppScheme;
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  return scheme == webapps::kIsolatedAppScheme;
+#else   // !(BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS))
+  return false;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 }
 
 bool PageLoadMetricsEmbedder::IsIncognito(content::WebContents* web_contents) {

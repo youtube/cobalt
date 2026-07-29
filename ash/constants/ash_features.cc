@@ -821,9 +821,6 @@ BASE_FEATURE(kFilesTrashDrive, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables the v2 version of the Firmware Updates app.
 BASE_FEATURE(kFirmwareUpdateUIV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables first party Vietnamese input method.
-BASE_FEATURE(kFirstPartyVietnameseInput, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Controls if the Fjord variant of OOBE is shown.
 BASE_FEATURE(kFjordOobe, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2039,10 +2036,6 @@ BASE_FEATURE(kSmartDimExperimentalComponent, base::FEATURE_DISABLED_BY_DEFAULT);
 // notification for users who previously had this feature enabled.
 BASE_FEATURE(kSmartLockSignInRemoved, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables using the system input engine for physical typing in
-// Japanese.
-BASE_FEATURE(kSystemJapanesePhysicalTyping, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Replaces uses of `SystemNudge` with the new `AnchoredNudge` component.
 BASE_FEATURE(kSystemNudgeMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -2355,16 +2348,6 @@ BASE_FEATURE(kDeviceActiveClientChurnObservationCheckMembership,
 // the churn observation check in ping.
 BASE_FEATURE(kDeviceActiveClientChurnObservationNewDeviceMetadata,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables bug fix for dead keys where there's no input field.
-// When enabled, keys are forwarded without dead key processing when there's no
-// input field.
-BASE_FEATURE(kInputMethodDeadKeyFixForNoInputField,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables bug fix for dead keys.
-// When enabled, dead keys correctly emit the 'Dead' event on key down.
-BASE_FEATURE(kInputMethodDeadKeyFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables peripheral customization to be split per device.
 BASE_FEATURE(kPeripheralCustomization, base::FEATURE_ENABLED_BY_DEFAULT);

@@ -3279,7 +3279,7 @@ void StyleEngine::InvalidateEnvDependentStylesIfNeeded() {
   });
 }
 
-bool StyleEngine::HasComplexSafaAreaConstraints() {
+bool StyleEngine::HasComplexSafeAreaConstraints() {
   DCHECK(RuntimeEnabledFeatures::UpdateComplexSafaAreaConstraintsEnabled());
   if (needs_to_update_complex_safe_area_constraints_) {
     has_complex_safe_area_constraints_ = ElementHasComplexSafeAreaConstraint(
@@ -3943,13 +3943,6 @@ void StyleEngine::RecalcPositionTryStyleForPseudoElement(
   pseudo_element.RecalcStyle(style_recalc_change, style_recalc_context);
 }
 
-void StyleEngine::RebuildTransitionPseudoLayoutTrees() {
-  ViewTransitionUtils::ForEachTransition(
-      *document_, [&](ViewTransition& transition) {
-        transition.RebuildTransitionPseudoLayoutTree();
-      });
-}
-
 void StyleEngine::RecalcStyle() {
   RecalcStyle(
       {}, StyleRecalcContext::FromAncestors(style_recalc_root_.RootElement()));
@@ -4014,9 +4007,6 @@ void StyleEngine::RebuildLayoutTree(Element* size_container) {
         size_container ? size_container->GetReattachParent() : nullptr;
     RebuildLayoutTreeForTraversalRootAncestors(root_element.GetReattachParent(),
                                                container_parent);
-    if (size_container == nullptr) {
-      RebuildTransitionPseudoLayoutTrees();
-    }
     layout_tree_rebuild_root_.Clear();
     propagate_to_root = IsA<HTMLHtmlElement>(root_element) ||
                         IsA<HTMLBodyElement>(root_element);

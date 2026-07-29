@@ -4,6 +4,8 @@
 
 #include "chrome/browser/android/omnibox/composebox_query_controller_bridge.h"
 
+#include <utility>
+
 #include "base/android/jni_bytebuffer.h"
 #include "base/containers/span.h"
 #include "base/time/time.h"
@@ -35,7 +37,8 @@ ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
       g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
       g_browser_process->GetApplicationLocale(),
       TemplateURLServiceFactory::GetForProfile(profile),
-      profile->GetVariationsClient(), false);
+      profile->GetVariationsClient(), /*send_lns_surface=*/false,
+      /*enable_multi_context_input_flow=*/false);
   query_controller_->AddObserver(this);
 }
 
@@ -54,7 +57,8 @@ void ComposeboxQueryControllerBridge::NotifySessionAbandoned(JNIEnv* env) {
   query_controller_->NotifySessionAbandoned();
 }
 
-void ComposeboxQueryControllerBridge::AddFile(
+base::android::ScopedJavaLocalRef<jobject>
+ComposeboxQueryControllerBridge::AddFile(
     JNIEnv* env,
     std::string& file_name,
     std::string& file_type,
@@ -90,11 +94,23 @@ void ComposeboxQueryControllerBridge::AddFile(
       lens::ContextualInput(std::move(file_data_vector), mime_type));
   query_controller_->StartFileUploadFlow(file_token, std::move(input_data),
                                          std::move(image_options));
+
+  return base::android::ConvertUTF8ToJavaString(env, file_token.ToString());
 }
 
 GURL ComposeboxQueryControllerBridge::GetAimUrl(JNIEnv* env,
                                                 std::string& query_text) {
   return query_controller_->CreateAimUrl(query_text, base::Time::Now());
+}
+
+void ComposeboxQueryControllerBridge::RemoveAttachment(
+    JNIEnv* env,
+    const std::string& token) {
+  std::optional<base::UnguessableToken> unguessable_token =
+      base::UnguessableToken::DeserializeFromString(token);
+  if (unguessable_token.has_value()) {
+    query_controller_->DeleteFile(unguessable_token.value());
+  }
 }
 
 void ComposeboxQueryControllerBridge::OnFileUploadStatusChanged(

@@ -36,6 +36,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter;
+import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.permissions.AndroidPermissionDelegate;
@@ -56,9 +57,10 @@ class NavigationAttachmentsMediator {
     private final NavigationAttachmentsPopup mPopup;
     private final ModelList mModelList;
     private final Drawable mFallbackDrawable;
-    private @Nullable ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
     private final ObservableSupplierImpl<@NavigationFulfillmentType Integer>
             mNavigationFulfillmentTypeSupplier;
+    private @Nullable ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
+    private boolean mAiModeSessionActive;
 
     NavigationAttachmentsMediator(
             Context context,
@@ -110,9 +112,20 @@ class NavigationAttachmentsMediator {
      * @param enabled Whether the AI mode is enabled.
      */
     void onUseAiModeChanged(boolean enabled) {
+        if (mComposeBoxQueryControllerBridge == null) return;
+        if (mAiModeSessionActive == enabled) return;
+
+        mAiModeSessionActive = enabled;
         mNavigationFulfillmentTypeSupplier.set(
                 enabled ? NavigationFulfillmentType.AI_MODE : NavigationFulfillmentType.DEFAULT);
-        setComposeboxSessionState(enabled);
+        mModel.set(NavigationAttachmentsProperties.AI_MODE_ENABLED, enabled);
+        mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, enabled);
+        if (enabled) {
+            mComposeBoxQueryControllerBridge.notifySessionStarted();
+        } else {
+            mComposeBoxQueryControllerBridge.notifySessionAbandoned();
+            mModelList.clear();
+        }
     }
 
     /**
@@ -128,21 +141,7 @@ class NavigationAttachmentsMediator {
 
         mModel.set(NavigationAttachmentsProperties.TOOLBAR_VISIBLE, visible);
         if (!visible) {
-            setComposeboxSessionState(false);
-        }
-    }
-
-    private void setComposeboxSessionState(boolean enabled) {
-        if (mComposeBoxQueryControllerBridge == null) return;
-        if (mModel.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE) == enabled) return;
-
-        mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, enabled);
-        if (enabled) {
-            mComposeBoxQueryControllerBridge.notifySessionStarted();
-        } else {
-            mComposeBoxQueryControllerBridge.notifySessionAbandoned();
-            mModelList.clear();
-            mPopup.dismiss();
+            onUseAiModeChanged(false);
         }
     }
 
@@ -327,8 +326,8 @@ class NavigationAttachmentsMediator {
      * @param attachmentDetails The details of the attachment to add.
      */
     /* package */ void addAttachment(AttachmentDetailsFetcher.AttachmentDetails attachmentDetails) {
-        uploadAttachment(attachmentDetails);
-        setComposeboxSessionState(true);
+        String token = uploadAttachment(attachmentDetails);
+        onUseAiModeChanged(true);
 
         PropertyModel model =
                 new PropertyModel.Builder(NavigationAttachmentItemProperties.ALL_KEYS)
@@ -342,14 +341,31 @@ class NavigationAttachmentsMediator {
                                 NavigationAttachmentItemProperties.DESCRIPTION,
                                 attachmentDetails.mimeType)
                         .build();
-        mModelList.add(new MVCListAdapter.ListItem(attachmentDetails.itemType, model));
+
+        var listItem = new MVCListAdapter.ListItem(attachmentDetails.itemType, model);
+        model.set(
+                NavigationAttachmentItemProperties.ON_REMOVE,
+                () -> removeAttachment(listItem, token));
+        mModelList.add(listItem);
     }
 
-    private void uploadAttachment(AttachmentDetails attachmentDetails) {
+    /**
+     * Remove an attachment from the navigation attachments toolbar.
+     *
+     * @param token The token of the attachment to remove.
+     */
+    public void removeAttachment(ListItem item, String token) {
+        mModelList.remove(item);
         assert mComposeBoxQueryControllerBridge != null;
         if (mComposeBoxQueryControllerBridge == null) return;
+        mComposeBoxQueryControllerBridge.removeAttachment(token);
+    }
 
-        mComposeBoxQueryControllerBridge.addFile(
+    private String uploadAttachment(AttachmentDetails attachmentDetails) {
+        assert mComposeBoxQueryControllerBridge != null;
+        if (mComposeBoxQueryControllerBridge == null) return "";
+
+        return mComposeBoxQueryControllerBridge.addFile(
                 attachmentDetails.title, attachmentDetails.mimeType, attachmentDetails.data);
     }
 

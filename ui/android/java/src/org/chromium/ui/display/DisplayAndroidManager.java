@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManager.DisplayListener;
@@ -51,22 +52,23 @@ public class DisplayAndroidManager {
         // DisplayListener implementation:
         @Override
         public void onDisplayAdded(int sdkDisplayId) {
-            // Ignore display addition if Window Management is enabled. The addition is processed
+            // Ignore display addition if Display Topology is available. The addition is processed
             // inside {@link DisplayAndroidManager#updateDisplayTopology(SparseArray<RectF>
             // newDisplaysAbsoluteCoordinates)} when {@link
             // DisplayTopologyListenerBackend#onDisplayTopologyChanged(SparseArray<RectF>
             // absoluteBounds)} is triggered.
-            // If Window Management is disabled, then DisplayAndroid is added lazily on first use.
+            // If Display Topology is not available, then DisplayAndroid is added lazily on first
+            // use.
         }
 
         @Override
         public void onDisplayRemoved(int sdkDisplayId) {
-            // Ignore display removal if Window Management is enabled. The removal is processed
+            // Ignore display removal if Display Topology is available. The removal is processed
             // inside {@link DisplayAndroidManager#updateDisplayTopology(SparseArray<RectF>
             // newDisplaysAbsoluteCoordinates)} when {@link
             // DisplayTopologyListenerBackend#onDisplayTopologyChanged(SparseArray<RectF>
             // absoluteBounds)} is triggered.
-            if (!isWindowManagementEnabled()) {
+            if (!isDisplayTopologyAvailable()) {
                 removeDisplay(sdkDisplayId);
             }
         }
@@ -192,7 +194,7 @@ public class DisplayAndroidManager {
 
         mMainSdkDisplayId = defaultDisplay.getDisplayId(); // Note this display is never removed.
 
-        if (isWindowManagementEnabled()) {
+        if (isDisplayTopologyAvailable()) {
             mDisplaysAbsoluteCoordinates =
                     assumeNonNull(
                             assumeNonNull(AconfigFlaggedApiDelegate.getInstance())
@@ -220,8 +222,8 @@ public class DisplayAndroidManager {
         }
     }
 
-    /* package */ boolean isWindowManagementEnabled() {
-        return UiAndroidFeatureList.sAndroidWindowManagementWebApi.isEnabled()
+    private boolean isDisplayTopologyAvailable() {
+        return UiAndroidFeatureList.sAndroidUseDisplayTopology.isEnabled()
                 && AconfigFlaggedApiDelegate.getInstance() != null
                 && AconfigFlaggedApiDelegate.getInstance()
                         .isDisplayTopologyAvailable(getDisplayManager());
@@ -273,7 +275,7 @@ public class DisplayAndroidManager {
     }
 
     private void removeDisplay(int sdkDisplayId) {
-        if (isWindowManagementEnabled()) {
+        if (isDisplayTopologyAvailable()) {
             mNullDisplayIds.remove(sdkDisplayId);
         }
 
@@ -352,6 +354,29 @@ public class DisplayAndroidManager {
                         displayAndroid.isInternal());
     }
 
+    /**
+     * Matches the given rectangle in dip to the display it most closely intersects.
+     *
+     * @param matchRect Area in dip that should be matched.
+     * @return {@link DisplayAndroid} that most closely intersects the given rectangle, or {@code
+     *     null} if no matching display is found.
+     */
+    /* package */ @Nullable DisplayAndroid getDisplayMatching(Rect matchRect) {
+        if (mNativePointer == 0) {
+            return null;
+        }
+
+        int sdkDisplayId =
+                DisplayAndroidManagerJni.get()
+                        .getDisplaySdkMatching(
+                                mNativePointer,
+                                matchRect.left,
+                                matchRect.top,
+                                matchRect.width(),
+                                matchRect.height());
+        return mIdMap.get(sdkDisplayId);
+    }
+
     @NativeMethods
     interface Natives {
         void updateDisplay(
@@ -376,6 +401,13 @@ public class DisplayAndroidManager {
         void removeDisplay(long nativeDisplayAndroidManager, int sdkDisplayId);
 
         void setPrimaryDisplayId(long nativeDisplayAndroidManager, int sdkDisplayId);
+
+        int getDisplaySdkMatching(
+                long nativeDisplayAndroidManager, int x, int y, int width, int height);
+    }
+
+    public static void setInstanceForTesting(DisplayAndroidManager displayAndroidManager) {
+        sDisplayAndroidManager = displayAndroidManager;
     }
 
     /** Clears the object returned by {@link #getInstance()} */

@@ -3,6 +3,7 @@
 <translationbundle lang="kk">
 <translation id="1010283278930414892">Бұл құрылғыда сақталған құпия сөздер жоқ</translation>
 <translation id="1011749477052068769">Мұнда жылжыту</translation>
+<translation id="1014083013111769343">Оқу режимінің параметрлері толығымен ашылды</translation>
 <translation id="1014147525163127655">Бұл құрылғыда <ph name="ORIGIN" /> үшін ешқандай кіру кілті жоқ.</translation>
 <translation id="1016498331642356377">Дауыспен жылдам іздеу. Бұл жылдам пәрменді өзгерту үшін оны басып тұрыңыз.</translation>
 <translation id="1028699632127661925"><ph name="DEVICE_NAME" /> құрылғысына жіберілуде…</translation>
@@ -98,6 +99,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="1407135791313364759">Барлығын ашу</translation>
 <translation id="1409879593029778104"><ph name="FILE_NAME" /> жүктелмеді, себебі файл бұрыннан бар.</translation>
 <translation id="1413446866325418126">Деректерді Google аккаунтыңызға сақтаңыз</translation>
+<translation id="1414919006379339073">Ағымдағы терезені жабу</translation>
 <translation id="1416550906796893042">Қолданба нұсқасы</translation>
 <translation id="1419753403124156396">Chrome браузерін қайта іске қосу керек пе?</translation>
 <translation id="1428770807407000502">Синхрондау өшірілсін бе?</translation>
@@ -207,6 +209,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="197288927597451399">Сақтау</translation>
 <translation id="1973912524893600642">Деректерді сақтау</translation>
 <translation id="1974060860693918893">Қосымша</translation>
+<translation id="1982274314082047220">Оқу режимінің параметрлерін ашу үшін жоғары сырғытыңыз</translation>
 <translation id="1984087999855033707">телефон нөмірі</translation>
 <translation id="1984417487208496350">Қорғау режимін өшіру (ұсынылмайды)</translation>
 <translation id="1986685561493779662">Атау бұрыннан бар.</translation>
@@ -428,6 +431,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2992473221983447149">Сурет сипаттамалары</translation>
 <translation id="2996291259634659425">Құпия фразаны жасау</translation>
 <translation id="2996809686854298943">URL қажет</translation>
+<translation id="3024215143424744261">Оқу режимінің параметрлері жабылды</translation>
 <translation id="3026955690410463085">Сілтеме қосу</translation>
 <translation id="3027644380269727216">Сайттағы әрекетіңізге негізделген. Бұл параметр қосулы.</translation>
 <translation id="3027950907978057636"><ph name="APP_LABEL" /> қолданбасынан</translation>
@@ -1311,6 +1315,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="696447261358045621">Инкогнито режимінен шығу</translation>
 <translation id="6965382102122355670">Жарайды</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{Ортақ қойындылар топтарындағы жаңа әрекет орын алған <ph name="TABS_COUNT_ONE" /> қойындыны көру}other{Ортақ қойындылар топтарындағы жаңа әрекет орын алған <ph name="TABS_COUNT_MANY" /> қойындыны көру}}</translation>
+<translation id="6971555615916967190">Оқу режимінің параметрлері жартылай ашылды</translation>
 <translation id="6971862865055170158">Мақұлдамау</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, жаңа немесе жаңартылған қойынды</translation>
 <translation id="6976811588313110624">Жаңа таңбаша қосылады.</translation>
@@ -1695,7 +1700,6 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="8617240290563765734">Жүктелген мазмұндағы ұсынылған URL мекенжайын ашу қажет пе?</translation>
 <translation id="8635399646025169806">Қойындылар тобын қалдыру керек пе?</translation>
 <translation id="8636825310635137004">Басқа құрылғылардағы қойындыларды алу үшін, синхрондауды қосыңыз</translation>
-<translation id="864544049772947936">Терезелерді басқару (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487"><ph name="SITE_ETLD_PLUS_ONE" /> сайтына кіру</translation>
 <translation id="8664979001105139458">Мұндай атаулы файл бұрыннан бар</translation>
 <translation id="8676276370198826499"><ph name="SITE_ETLD_PLUS_ONE" /> сайтына <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> көмегімен тіркелу</translation>

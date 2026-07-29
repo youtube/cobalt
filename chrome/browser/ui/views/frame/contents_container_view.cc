@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 
+#include "chrome/browser/actor/ui/actor_overlay_web_view.h"
 #include "chrome/browser/devtools/devtools_contents_resizing_strategy.h"
 #include "chrome/browser/enterprise/watermark/watermark_view.h"
 #include "chrome/browser/profiles/profile.h"
@@ -102,11 +103,11 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   contents_scrim_view_->layer()->SetName("ContentsScrimView");
 
   if (features::kGlicActorUiOverlay.Get()) {
-    auto actor_overlay_view = std::make_unique<views::View>();
-    actor_overlay_view->SetID(VIEW_ID_ACTOR_OVERLAY);
-    actor_overlay_view->SetVisible(false);
-    actor_overlay_view->SetLayoutManager(std::make_unique<views::FillLayout>());
-    actor_overlay_view_ = AddChildView(std::move(actor_overlay_view));
+    auto actor_overlay_web_view =
+        std::make_unique<ActorOverlayWebView>(browser_view->browser());
+    actor_overlay_web_view->SetID(VIEW_ID_ACTOR_OVERLAY);
+    actor_overlay_web_view->SetVisible(false);
+    actor_overlay_web_view_ = AddChildView(std::move(actor_overlay_web_view));
   }
 
 #if BUILDFLAG(ENABLE_GLIC)
@@ -325,20 +326,26 @@ void ContentsContainerView::UpdateDevToolsDockedPlacement() {
   }
 }
 
-void ContentsContainerView::ShowCaptureContentsBorder(
-    std::optional<gfx::Rect> border_location) {
+void ContentsContainerView::ShowCaptureContentsBorder() {
   if (!capture_contents_border_widget_) {
     CreateCaptureContentsBorder();
   }
 
-  dynamic_capture_content_border_bounds_ = border_location;
-  capture_contents_border_widget_->Show();
   UpdateCaptureContentsBorderLocation();
+  capture_contents_border_widget_->Show();
 }
 
 void ContentsContainerView::HideCaptureContentsBorder() {
   if (capture_contents_border_widget_) {
     capture_contents_border_widget_->Hide();
+  }
+}
+
+void ContentsContainerView::SetCaptureContentsBorderLocation(
+    std::optional<gfx::Rect> border_location) {
+  dynamic_capture_content_border_bounds_ = border_location;
+  if (capture_contents_border_widget_) {
+    UpdateCaptureContentsBorderLocation();
   }
 }
 
@@ -360,9 +367,9 @@ void ContentsContainerView::CreateCaptureContentsBorder() {
       views::Widget::InitParams::CLIENT_OWNS_WIDGET,
       views::Widget::InitParams::TYPE_POPUP);
   params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
-  views::Widget* frame = GetWidget();
-  params.parent = frame->GetNativeView();
-  params.context = frame->GetNativeWindow();
+  views::Widget* widget = GetWidget();
+  params.parent = widget->GetNativeView();
+  params.context = widget->GetNativeWindow();
   // Make the widget non-top level.
   params.child = true;
   params.name = "TabSharingContentsBorder";
@@ -386,7 +393,15 @@ void ContentsContainerView::CreateCaptureContentsBorder() {
 
 void ContentsContainerView::UpdateCaptureContentsBorderLocation() {
   gfx::Point contents_top_left;
+#if BUILDFLAG(IS_CHROMEOS)
+  // On Ash placing the border widget on top of the contents container
+  // does not require an offset -- see crbug.com/1030925.
+  const gfx::Rect bounds_in_browser =
+      views::View::ConvertRectToTarget(this, browser_view_, GetLocalBounds());
+  contents_top_left = gfx::Point(bounds_in_browser.x(), bounds_in_browser.y());
+#else
   views::View::ConvertPointToScreen(this, &contents_top_left);
+#endif
   gfx::Rect rect;
   if (dynamic_capture_content_border_bounds_) {
     rect = gfx::Rect(
@@ -502,9 +517,9 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
                                      full_contents_bounds);
 
   // Actor Overlay view bounds are the same as the contents view.
-  if (actor_overlay_view_) {
+  if (actor_overlay_web_view_) {
     layouts.child_layouts.emplace_back(
-        actor_overlay_view_.get(), actor_overlay_view_->GetVisible(),
+        actor_overlay_web_view_.get(), actor_overlay_web_view_->GetVisible(),
         non_devtools_contents_bounds, size_bounds);
   }
 

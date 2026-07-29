@@ -1322,6 +1322,16 @@ inline constexpr char kPinSplitTabButton[] = "browser.pin_split_tab_button";
 inline constexpr char kSplitViewDragAndDropEnabled[] =
     "browser.split_view_drag_and_drop_enabled";
 
+// An int pref that tracks how many times the nudge is shown for the split view
+// drop target, when dragging a link.
+inline constexpr char kSplitViewDragAndDropNudgeShownCount[] =
+    "browser.split_view_drag_and_drop_nudge_shown_count";
+
+// An int pref that tracks how times a link was dragged to the split view drop
+// target to create a new tab, after the nudge had been shown.
+inline constexpr char kSplitViewDragAndDropNudgeUsedCount[] =
+    "browser.split_view_drag_and_drop_nudge_used_count";
+
 // A boolean pref set to true if Gemini integration be enabled. This is managed
 // by enterprise policy.
 inline constexpr char kGeminiSettings[] = "browser.gemini_settings";
@@ -2541,6 +2551,9 @@ inline constexpr char kDevToolsSyncedPreferencesSyncDisabled[] =
 
 inline constexpr char kDevToolsGenAiSettings[] = "devtools.gen_ai_settings";
 
+inline constexpr char kDevToolsGoogleDeveloperProgramProfileAvailability[] =
+    "devtools.google_developer_program_profile_availability";
+
 #if !BUILDFLAG(IS_ANDROID)
 // Tracks the number of times the dice signin promo has been shown in the user
 // menu.
@@ -2835,6 +2848,11 @@ inline constexpr char kPostQuantumKeyAgreementEnabled[] =
 inline constexpr char kDevicePostQuantumKeyAgreementEnabled[] =
     "ssl.device_post_quantum_enabled";
 #endif
+
+// String identifying the compliance regime, if any, that must be adhered to for
+// key exchange in TLS.
+inline constexpr char kPreferSlowKexAlgorithms[] =
+    "ssl.compliance.key_exchange";
 
 // Boolean that specifies whether TLS 1.3 Early Data is enabled.
 inline constexpr char kTLS13EarlyDataEnabled[] = "ssl.tls13_early_data_enabled";
@@ -3595,10 +3613,6 @@ inline constexpr char kWebShareVisitedTargets[] =
     "profile.web_share.visited_targets";
 
 #if BUILDFLAG(IS_WIN)
-// A boolean value, controlling whether Chrome renderer processes have the CIG
-// mitigation enabled.
-inline constexpr char kRendererCodeIntegrityEnabled[] =
-    "renderer_code_integrity_enabled";
 
 inline constexpr char kRestrictCoreSharingOnRenderer[] =
     "restrict_core_sharing_on_renderer";
@@ -3883,7 +3897,6 @@ inline constexpr char kAdbSideloadingPowerwashOnNextRebootNotificationShown[] =
     "adb_sideloading_powerwash_on_next_reboot_notification_shown";
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
 // Boolean pref that indicates whether caret browsing is currently enabled.
 inline constexpr char kCaretBrowsingEnabled[] =
     "settings.a11y.caretbrowsing.enabled";
@@ -3894,7 +3907,6 @@ inline constexpr char kCaretBrowsingEnabled[] =
 // is toggled silently by the keyboard shortcut.
 inline constexpr char kShowCaretBrowsingDialog[] =
     "settings.a11y.caretbrowsing.show_dialog";
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 // String enum pref determining what should happen when a user who authenticates

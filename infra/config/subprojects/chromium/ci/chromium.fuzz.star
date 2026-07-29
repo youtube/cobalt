@@ -68,15 +68,16 @@ consoles.console_view(
     ],
     ordering = {
         None: [
-            "centipede",
+            "linux asan",
             "win asan",
             "mac asan",
             "cros asan",
-            "linux asan",
-            "libfuzzer",
-            "libfuzzer-tests",
             "linux msan",
             "linux tsan",
+            "libfuzzer",
+            "libfuzzer-tests",
+            "centipede",
+            "centipede-tests",
         ],
         "win asan": _DEFAULT_CONSOLE_ORDERING,
         "mac asan": _DEFAULT_CONSOLE_ORDERING,
@@ -533,6 +534,8 @@ centipede_linux_asan_builder(
     ],
     # Schedule more concurrent builds only on trunk to reduce blamelist sizes.
     max_concurrent_invocations = 4 if settings.is_main else None,
+    swarming_mixins = ["linux-jammy"],
+    test_builder_name = "linux-x64-centipede-asan-rel-tests",
 )
 
 centipede_linux_asan_builder(
@@ -1015,7 +1018,8 @@ libfuzzer_linux_asan_builder(
     gclient_apply_configs = ["android"],
     gn_extra_configs = [
         "android",
-        "android_asan",
+        "asan",
+        "android_fastbuild",
     ],
     max_concurrent_invocations = 2,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
@@ -1036,6 +1040,7 @@ libfuzzer_linux_builder(
     gclient_apply_configs = ["android"],
     gn_extra_configs = [
         "android",
+        "android_fastbuild",
         "hwasan",
     ],
     max_concurrent_invocations = 2,

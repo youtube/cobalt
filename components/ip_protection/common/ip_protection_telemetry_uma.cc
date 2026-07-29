@@ -207,26 +207,6 @@ void IpProtectionTelemetryUma::MdlUpdateSuccess(bool success) {
       "NetworkService.IpProtection.ProxyAllowList.UpdateSuccess", success);
 }
 
-void IpProtectionTelemetryUma::AndroidAuthClientCreationTime(
-    base::TimeDelta duration) {
-  base::UmaHistogramMediumTimes(
-      "NetworkService.IpProtection.AndroidAuthClient.CreationTime", duration);
-}
-
-void IpProtectionTelemetryUma::AndroidAuthClientGetInitialDataTime(
-    base::TimeDelta duration) {
-  base::UmaHistogramMediumTimes(
-      "NetworkService.IpProtection.AndroidAuthClient.GetInitialDataTime",
-      duration);
-}
-
-void IpProtectionTelemetryUma::AndroidAuthClientAuthAndSignTime(
-    base::TimeDelta duration) {
-  base::UmaHistogramMediumTimes(
-      "NetworkService.IpProtection.AndroidAuthClient.AuthAndSignTime",
-      duration);
-}
-
 void IpProtectionTelemetryUma::MdlFirstUpdateTime(base::TimeDelta duration) {
   base::UmaHistogramTimes("NetworkService.MaskedDomainList.FirstUpdateTime",
                           duration);
@@ -295,6 +275,11 @@ void IpProtectionTelemetryUma::RecordTokenCountEvent(
   // event would generally be around the batch or cache size which is typically
   // much less than 1000.
   base::UmaHistogramCounts1000(histogram_name, count);
+}
+
+void IpProtectionTelemetryUma::TokenDemandDuringBatchGeneration(int count) {
+  base::UmaHistogramCounts100(
+      "NetworkService.IpProtection.TokenDemandDuringBatchGeneration", count);
 }
 
 }  // namespace ip_protection

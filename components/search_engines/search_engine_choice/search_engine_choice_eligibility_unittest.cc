@@ -18,6 +18,7 @@
 #include "components/country_codes/country_codes.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/os_crypt/async/browser/test_utils.h"
+#include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/policy/policy_constants.h"
 #include "components/regional_capabilities/regional_capabilities_country_id.h"
 #include "components/regional_capabilities/regional_capabilities_switches.h"
@@ -26,6 +27,7 @@
 #include "components/search_engines/search_engine_choice/buildflags.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service_test_base.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_switches.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/search_engines_switches.h"
@@ -539,8 +541,7 @@ class SearchEngineChoiceEligibilityOverriddenProgramSettingsTest
 
   void SetProgram(
       const regional_capabilities::ProgramSettings& program_settings) {
-    regional_capabilities_service().SetActiveProgramSettingsForTesting(
-        program_settings);
+    regional_capabilities_service().SetCacheForTesting(program_settings);
   }
 
   void SignIn(signin::Tribool can_make_choice_capability) {
@@ -568,6 +569,31 @@ class SearchEngineChoiceEligibilityOverriddenProgramSettingsTest
 
 TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
        ManagedUsersCanBeEligible_SignedOut_Eligible) {
+  SetProgram(kSettingsManagedUsersCanBeEligible);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCanBeEligible_SignedInCapabilityFalse_Eligible) {
+  SetProgram(kSettingsManagedUsersCanBeEligible);
+  SignIn(/*can_make_choice_capability=*/signin::Tribool::kFalse);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCanBeEligible_Managed_Eligible) {
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          &management_service(),
+          policy::EnterpriseManagementAuthority::DOMAIN_LOCAL);
   SetProgram(kSettingsManagedUsersCanBeEligible);
 
   EXPECT_EQ(GetStaticConditions(),
@@ -619,6 +645,52 @@ TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
   EXPECT_EQ(
       GetDynamicConditions(),
       IfSupported(SearchEngineChoiceScreenConditions::kAccountNotEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_Managed_NotEligible) {
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          &management_service(),
+          policy::EnterpriseManagementAuthority::DOMAIN_LOCAL);
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kManaged));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kManaged));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_CapabilityCheckFeatureDisabled_Eligible) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kChoiceScreenEligibilityCheckAccountCapabilities);
+
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+  SignIn(/*can_make_choice_capability=*/signin::Tribool::kFalse);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+}
+
+TEST_F(SearchEngineChoiceEligibilityOverriddenProgramSettingsTest,
+       ManagedUsersCannotBeEligible_ManagementStatusFeatureDisabled_Eligible) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      switches::kChoiceScreenEligibilityCheckManagementStatus);
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          &management_service(),
+          policy::EnterpriseManagementAuthority::DOMAIN_LOCAL);
+  SetProgram(kSettingsManagedUsersCannotBeEligible);
+
+  EXPECT_EQ(GetStaticConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
+  EXPECT_EQ(GetDynamicConditions(),
+            IfSupported(SearchEngineChoiceScreenConditions::kEligible));
 }
 #endif  // BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
 

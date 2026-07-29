@@ -40,6 +40,10 @@ export class FakeReadingMode {
   darkTheme: number = 8;
   yellowTheme: number = 9;
   blueTheme: number = 10;
+  highContrastTheme: number = 11;
+  lowContrastTheme: number = 12;
+  sepiaLightTheme: number = 13;
+  sepiaDarkTheme: number = 14;
 
   // Enum values for highlight granularity.
   autoHighlighting: number = 0;
@@ -61,6 +65,7 @@ export class FakeReadingMode {
 
   // Whether the Read Aloud feature flag is enabled.
   isReadAloudEnabled: boolean = true;
+  imagesFeatureEnabled: boolean = false;
 
   // Returns true if the webpage corresponds to a Google Doc.
   isGoogleDocs: boolean = false;
@@ -210,6 +215,9 @@ export class FakeReadingMode {
     }
   }
 
+  // Called when there is no text content after building the tree but we're
+  // not showing the empty page either.
+  onNoTextContent() {}
 
   // Called when a user toggles links via the webui toolbar.
   onLinksEnabledToggled() {
@@ -254,6 +262,9 @@ export class FakeReadingMode {
 
   // Log when speech stops and why.
   logSpeechStop(_source: number) {}
+
+  // Log when the empty state page is shown.
+  logEmptyState(): void {}
 
   // Called when the highlight granularity is changed via the webui toolbar.
   turnedHighlightOn() {
@@ -422,10 +433,6 @@ export class FakeReadingMode {
   getNextSentence(_value: string, _maxTextLength: number): number {
     return 0;
   }
-
-  // Signal that the supported fonts should be updated i.e. that the brower's
-  // preferred language has changed.
-  updateFonts() {}
 
   getDisplayNameForLocale(_locale: string, _displayLocale: string): string {
     return '';

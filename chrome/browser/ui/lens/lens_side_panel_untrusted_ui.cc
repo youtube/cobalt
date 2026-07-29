@@ -132,6 +132,8 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "enableAimSearchbox",
       aim_enabled && lens::features::GetAimSearchboxEnabled());
+  html_source->AddBoolean("showLensButton",
+                          lens::features::GetEnableLensButtonInSearchbox());
 
   // Allow FrameSrc from all Google subdomains as redirects can occur.
   GURL results_side_panel_url =
@@ -161,6 +163,8 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean("composeboxShowZps", false);
   // Disable typed suggest.
   html_source->AddBoolean("composeboxShowTypedSuggest", false);
+  // Disable image context suggestions.
+  html_source->AddBoolean("composeboxShowImageSuggest", false);
   // Disable context menu.
   html_source->AddBoolean("composeboxShowContextMenu", false);
   // Send event when escape is pressed.
@@ -212,6 +216,7 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
       "searchboxComposePlaceholder",
       l10n_util::GetStringUTF8(IDS_LENS_COMPOSEBOX_HINT_TEXT));
   html_source->AddBoolean("composeboxShowPdfUpload", false);
+  html_source->AddBoolean("composeboxSmartComposeEnabled", false);
 
   // If the ThemeSource isn't added here, since this WebUI is
   // chrome-untrusted, it will be unable to load stylesheets until a new tab

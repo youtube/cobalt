@@ -11,8 +11,10 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/types/optional_ref.h"
+#include "components/autofill/core/browser/data_manager/autofill_ai/entity_instance_cleaner.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
+#include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -28,6 +30,10 @@ namespace strike_database {
 class StrikeDatabaseBase;
 }  // namespace strike_database
 
+namespace syncer {
+class SyncService;
+}  // namespace syncer
+
 namespace autofill {
 
 class AutofillAiSaveStrikeDatabaseByHost;
@@ -42,7 +48,9 @@ class AutofillAiSaveStrikeDatabaseByHost;
 // their own EntityDataManager instance, they use the same underlying database.
 // Therefore, it is the responsibility of the callers to ensure that no data
 // from an incognito session is persisted unintentionally.
-class EntityDataManager : public KeyedService, history::HistoryServiceObserver {
+class EntityDataManager : public KeyedService,
+                          public AutofillWebDataServiceObserverOnUISequence,
+                          history::HistoryServiceObserver {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -50,8 +58,9 @@ class EntityDataManager : public KeyedService, history::HistoryServiceObserver {
   };
 
   explicit EntityDataManager(
-      const PrefService* pref_service,
+      PrefService* pref_service,
       const signin::IdentityManager* identity_manager,
+      syncer::SyncService* sync_service,
       scoped_refptr<AutofillWebDataService> profile_database,
       history::HistoryService* history_service,
       strike_database::StrikeDatabaseBase* strike_database);
@@ -88,6 +97,9 @@ class EntityDataManager : public KeyedService, history::HistoryServiceObserver {
   base::optional_ref<const EntityInstance> GetEntityInstance(
       const EntityInstance::EntityId& guid) const LIFETIME_BOUND;
 
+  // AutofillWebDataServiceObserver:
+  void OnAutofillChangedBySync(syncer::DataType data_type) override;
+
   // history::HistoryServiceObserver:
   void OnHistoryDeletions(history::HistoryService*,
                           const history::DeletionInfo& deletion_info) override;
@@ -123,12 +135,18 @@ class EntityDataManager : public KeyedService, history::HistoryServiceObserver {
   // All entries are identifiable by their EntityInstance::guid().
   base::flat_set<EntityInstance, EntityInstance::CompareByGuid> entities_;
 
+  base::ScopedObservation<AutofillWebDataService,
+                          AutofillWebDataServiceObserverOnUISequence>
+      webdata_service_observation_{this};
+
   base::ScopedObservation<history::HistoryService, HistoryServiceObserver>
       history_service_observation_{this};
 
   std::unique_ptr<AutofillAiSaveStrikeDatabaseByHost> save_strike_db_by_host_;
 
   base::ObserverList<Observer> observers_;
+
+  EntityInstanceCleaner entity_instance_cleaner_;
 
   base::WeakPtrFactory<EntityDataManager> weak_ptr_factory_{this};
 };

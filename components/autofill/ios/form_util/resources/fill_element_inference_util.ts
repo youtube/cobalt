@@ -2,8 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
+import {gCrWeb, gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 import {isTextField} from '//ios/web/public/js_messaging/resources/utils.js';
+
+/**
+ * Retrieves the registered 'autofill_form_features' CrWebApi
+ * instance for use in this file.
+ */
+const autofillFormFeaturesApi =
+  gCrWeb.getRegisteredApi('autofill_form_features');
 
 /**
  * Returns is the tag of an `element` is tag.
@@ -323,12 +330,12 @@ gCrWebLegacy.fill.isCheckableElement = function(element: any): boolean {
  * @return Whether element is one of the input element types that
  *     can be autofilled.
  */
-gCrWebLegacy.fill.isAutofillableInputElement = function(element: Element): boolean {
-  return isTextField(element) ||
-      (gCrWebLegacy.fill.isCheckableElement(element) &&
-       !gCrWebLegacy.autofill_form_features
-            .isAutofillIgnoreCheckableElementsEnabled());
-};
+gCrWebLegacy.fill.isAutofillableInputElement = function(element: Element):
+    boolean {
+      return isTextField(element) ||
+          (gCrWebLegacy.fill.isCheckableElement(element) &&
+          !autofillFormFeaturesApi.getFunction('isAutofillIgnoreCheckableElementsEnabled')());
+    };
 
 /**
  * Represents an inferred label. Should only be constructed by
@@ -352,7 +359,11 @@ interface InferredLabel {
  */
 function buildInferredLabelIfValid(label: string): InferredLabel | null {
   // LINT.IfChange(InvalidLabelCriteria)
-  const isValid = label.search(/[^\s*:()\/\.\u2013-]/) >= 0;
+  const isValid = autofillFormFeaturesApi
+                      .getFunction(
+                          'isAutofillDisallowMoreHyphenLikeLabelsEnabled')() ?
+      label.search(/[^\s*:()\/\.\u2013\u2014\u2212\uFF0D-]/) >= 0 :
+      label.search(/[^\s*:()\/\.\u2013-]/) >= 0;
   // LINT.ThenChange(/components/autofill/content/renderer/form_autofill_util.cc:InvalidLabelCriteria)
   if (isValid) {
     return {label: label.trim()};

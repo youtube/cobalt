@@ -590,10 +590,18 @@ std::string SavePasswordProgressLogger::GetStringFromID(
       return "Actor login: no username field";
     case STRING_ACTOR_LOGIN_NO_PASWORD_FIELD:
       return "Actor login: no password field";
+    case STRING_ACTOR_LOGIN_FILLING_FIELD_WITH_ID:
+      return "Actor login: filling field with id";
     case STRING_ACTOR_LOGIN_USERNAME_FILL_SUCCESS:
       return "Actor login: username filled";
     case STRING_ACTOR_LOGIN_PASSWORD_FILL_SUCCESS:
       return "Actor login: password filled";
+    case STRING_ACTOR_LOGIN_GET_CREDENTIALS_FETCHING_STARTED:
+      return "Actor login: get credentials fetching started";
+    case STRING_ACTOR_LOGIN_GET_CREDENTIALS_SIGNIN_FORM_EXISTS:
+      return "Actor login: get credentials signin form exists";
+    case STRING_ACTOR_LOGIN_GET_CREDENTIALS_NUM_CREDENTIALS:
+      return "Actor login: get credentials number of credentials";
     case SavePasswordProgressLogger::STRING_INVALID:
       return "INVALID";
       // Intentionally no default: clause here -- all IDs need to get covered.

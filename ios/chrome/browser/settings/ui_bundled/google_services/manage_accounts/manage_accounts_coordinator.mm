@@ -88,7 +88,7 @@ using signin_metrics::PromoAction;
                        closeSettingsOnAddAccount:(BOOL)closeSettingsOnAddAccount
                                   showDoneButton:(BOOL)showDoneButton {
   CHECK(browser, base::NotFatalUntil::M144);
-  DCHECK(!browser->GetProfile()->IsOffTheRecord());
+  DCHECK_EQ(browser->type(), Browser::Type::kRegular);
   CHECK(navigationController, base::NotFatalUntil::M144);
   if ((self = [self initWithBaseViewController:navigationController
                                        browser:browser])) {
@@ -144,6 +144,7 @@ using signin_metrics::PromoAction;
   _mediator.consumer = nil;
   [_mediator disconnect];
   _mediator = nil;
+  [self stopConfirmRemoveIdentityAlertCoordinator];
   _UIBlocker.reset();
 }
 
@@ -273,7 +274,7 @@ using signin_metrics::PromoAction;
 // current scene is blocked or the identity is not present on the device
 // anymore.
 - (void)removeAccountDialogConfirmedWithIdentity:(id<SystemIdentity>)identity {
-  [self dismissConfirmRemoveIdentityAlertCoordinator];
+  [self stopConfirmRemoveIdentityAlertCoordinator];
 
   NSArray<id<SystemIdentity>>* identitiesOnDevice =
       signin::GetIdentitiesOnDevice(self.profile);
@@ -332,7 +333,7 @@ using signin_metrics::PromoAction;
   _errorAlertCoordinator = nil;
 }
 
-- (void)dismissConfirmRemoveIdentityAlertCoordinator {
+- (void)stopConfirmRemoveIdentityAlertCoordinator {
   [_confirmRemoveIdentityAlertCoordinator stop];
   _confirmRemoveIdentityAlertCoordinator = nil;
 }

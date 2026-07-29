@@ -21,7 +21,6 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.AttributeSet;
@@ -52,10 +51,12 @@ import org.chromium.build.annotations.NullUnmarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.omnibox.LocationBar;
+import org.chromium.chrome.browser.omnibox.LocationBarBackgroundDrawable;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.UrlBarData;
+import org.chromium.chrome.browser.omnibox.navattach.NavigationFulfillmentType;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxSuggestionsDropdownScrollListener;
@@ -180,7 +181,7 @@ public class ToolbarPhone extends ToolbarLayout
     protected ColorDrawable mToolbarBackground;
 
     /** The omnibox background (white with a shadow). */
-    private GradientDrawable mLocationBarBackground;
+    private LocationBarBackgroundDrawable mLocationBarBackground;
 
     private Drawable mActiveLocationBarBackground;
 
@@ -397,6 +398,13 @@ public class ToolbarPhone extends ToolbarLayout
     @Initializer
     public void setLocationBarCoordinator(LocationBarCoordinator locationBarCoordinator) {
         mLocationBar = locationBarCoordinator;
+        mLocationBar
+                .getNavigationFulfillmentTypeSupplier()
+                .addObserver(
+                        (type) -> {
+                            mLocationBarBackground.setDrawHairline(
+                                    type == NavigationFulfillmentType.AI_MODE);
+                        });
         Resources res = getResources();
         mLocationBarBackgroundVerticalInset =
                 res.getDimensionPixelSize(R.dimen.location_bar_vertical_margin);
@@ -421,13 +429,15 @@ public class ToolbarPhone extends ToolbarLayout
      * @param context The activity {@link Context}.
      * @return The drawable for the modern location bar background.
      */
-    public static GradientDrawable createModernLocationBarBackground(Context context) {
-        GradientDrawable drawable =
-                (GradientDrawable)
-                        context.getDrawable(R.drawable.modern_toolbar_text_box_background);
-        assumeNonNull(drawable);
-        drawable.mutate();
-        drawable.setColor(
+    public static LocationBarBackgroundDrawable createModernLocationBarBackground(Context context) {
+        var drawable =
+                new LocationBarBackgroundDrawable(
+                        context,
+                        /* cornerRadiusPx= */ context.getResources()
+                                .getDimensionPixelSize(
+                                        R.dimen.modern_toolbar_background_corner_radius),
+                        /* strokePx= */ 5);
+        drawable.setBackgroundColor(
                 SurfaceColorUpdateUtils.getOmniboxBackgroundColor(
                         context, /* isIncognito= */ false));
         return drawable;
@@ -454,7 +464,7 @@ public class ToolbarPhone extends ToolbarLayout
     private void updateModernLocationBarColor(@ColorInt int color) {
         if (mCurrentLocationBarColor == color) return;
         mCurrentLocationBarColor = color;
-        mLocationBarBackground.setTint(color);
+        mLocationBarBackground.setBackgroundColor(color);
         if (mOptionalButtonCoordinator != null) {
             mOptionalButtonCoordinator.setBackgroundColorFilter(color);
         }
@@ -621,7 +631,7 @@ public class ToolbarPhone extends ToolbarLayout
         return mToolbarBackground;
     }
 
-    void setLocationBarBackgroundDrawableForTesting(GradientDrawable background) {
+    void setLocationBarBackgroundDrawableForTesting(LocationBarBackgroundDrawable background) {
         mLocationBarBackground = background;
     }
 

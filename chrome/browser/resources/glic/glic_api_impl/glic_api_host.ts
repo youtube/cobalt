@@ -15,13 +15,13 @@ import {AlphaType} from '//resources/mojo/skia/public/mojom/image_info.mojom-web
 import type {Origin} from '//resources/mojo/url/mojom/origin.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
-import type {SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from '../actor_webui.mojom-webui.js';
+import type {SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogErrorReason as UserConfirmationDialogErrorReasonMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from '../actor_webui.mojom-webui.js';
 import type {PageMetadata as PageMetadataMojo} from '../ai_page_content_metadata.mojom-webui.js';
 import type {BrowserProxy} from '../browser_proxy.js';
 import {ContentSettingsType} from '../content_settings_types.mojom-webui.js';
 import type {ActiveBrowserInfo as ActiveBrowserInfoMojo, ActorTaskPauseReason as ActorTaskPauseReasonMojo, ActorTaskState as ActorTaskStateMojo, ActorTaskStopReason as ActorTaskStopReasonMojo, FocusedTabData as FocusedTabDataMojo, GetPinCandidatesOptions as GetPinCandidatesOptionsMojo, GetTabContextOptions as TabContextOptionsMojo, HostCapability as HostCapabilityMojo, OpenPanelInfo as OpenPanelInfoMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PanelOpeningData as PanelOpeningDataMojo, PanelState as PanelStateMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabContext as TabContextMojo, TabData as TabDataMojo, ViewChangeRequest as ViewChangeRequestMojo, WebClientHandlerInterface, WebClientInitialState, WebClientInterface, ZeroStateSuggestionsOptions as ZeroStateSuggestionsOptionsMojo, ZeroStateSuggestionsV2 as ZeroStateSuggestionsV2Mojo} from '../glic.mojom-webui.js';
 import {CurrentView as CurrentViewMojo, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, WebClientHandlerRemote, WebClientMode, WebClientReceiver} from '../glic.mojom-webui.js';
-import type {ActiveBrowserInfo, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, DraggableArea, GetPinCandidatesOptions, HostCapability, Journal, OnResponseStoppedDetails, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, Screenshot, ScrollToParams, TabContextOptions, ViewChangedNotification, ViewChangeRequest, WebPageData, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActiveBrowserInfo, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, DraggableArea, GetPinCandidatesOptions, HostCapability, Journal, OnResponseStoppedDetails, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, Screenshot, ScrollToParams, TabContextOptions, TaskOptions, ViewChangedNotification, ViewChangeRequest, WebPageData, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 import {CaptureScreenshotErrorReason, ClientView, CreateTaskErrorReason, DEFAULT_INNER_TEXT_BYTES_LIMIT, DEFAULT_PDF_SIZE_LIMIT, PerformActionsErrorReason, ResponseStopCause, ScrollToErrorReason} from '../glic_api/glic_api.js';
 import {ObservableValue} from '../observable.js';
 import type {ObservableValueReadOnly} from '../observable.js';
@@ -30,7 +30,7 @@ import {OneShotTimer} from '../timer.js';
 import {replaceProperties} from './conversions.js';
 import type {PostMessageRequestHandler} from './post_message_transport.js';
 import {newSenderId, PostMessageRequestReceiver, PostMessageRequestSender, ResponseExtras} from './post_message_transport.js';
-import type {AllRequestTypesWithoutReturn, AllRequestTypesWithReturn, AnnotatedPageDataPrivate, FocusedTabDataPrivate, HostRequestTypes, PdfDocumentDataPrivate, RequestRequestType, RequestResponseType, RgbaImage, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, TabContextResultPrivate, TabDataPrivate, TransferableException, WebClientInitialStatePrivate, WebClientRequestTypes} from './request_types.js';
+import type {AllRequestTypesWithoutReturn, AllRequestTypesWithReturn, AnnotatedPageDataPrivate, FocusedTabDataPrivate, HostRequestTypes, PdfDocumentDataPrivate, RequestRequestType, RequestResponseType, RgbaImage, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, TabContextResultPrivate, TabDataPrivate, TransferableException, UserConfirmationDialogRequestPrivate, UserConfirmationDialogResponsePrivate, WebClientInitialStatePrivate, WebClientRequestTypes} from './request_types.js';
 import {ErrorWithReasonImpl, exceptionFromTransferable, HOST_REQUEST_TYPES, ImageAlphaType, ImageColorType, requestTypeToHistogramSuffix} from './request_types.js';
 
 export enum WebClientState {
@@ -59,7 +59,8 @@ export enum DetailedWebClientState {
   RESPONSIVE = 6,
   RESPONSIVE_INACTIVE = 7,
   UNRESPONSIVE_INACTIVE = 8,
-  MAX_VALUE = UNRESPONSIVE_INACTIVE,
+  MOJO_PIPE_CLOSED_UNEXPECTEDLY = 9,
+  MAX_VALUE = MOJO_PIPE_CLOSED_UNEXPECTEDLY,
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicDetailedWebClientState)
 
@@ -368,6 +369,17 @@ class WebClientImpl implements WebClientInterface {
       response: selectCredentialDialogResponseToMojo(clientResponse.response),
     };
   }
+
+  async requestToShowUserConfirmationDialog(
+      request: UserConfirmationDialogRequestMojo):
+      Promise<{response: UserConfirmationDialogResponseMojo}> {
+    const clientResponse = await this.sender.requestWithResponse(
+        'glicWebClientRequestToShowConfirmationDialog',
+        {request: userConfirmationDialogRequestToClient(request)});
+    return {
+      response: userConfirmationDialogResponseToMojo(clientResponse.response),
+    };
+  }
 }
 
 class PinCandidatesObserverImpl implements PinCandidatesObserver {
@@ -561,8 +573,31 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     this.handler.showProfilePicker();
   }
 
-  glicBrowserGetModelQualityClientId(): Promise<{modelQualityClientId: string}> {
+  glicBrowserGetModelQualityClientId():
+      Promise<{modelQualityClientId: string}> {
     return this.handler.getModelQualityClientId();
+  }
+
+  async glicBrowserSwitchConversation(request: {conversationId: string}):
+      Promise<{}> {
+    const {errorReason} =
+        await this.handler.switchConversation(request.conversationId);
+    if (errorReason !== undefined) {
+      throw new ErrorWithReasonImpl(
+          'switchConversation', errorReason as number);
+    }
+    return {};
+  }
+
+  async glicBrowserRegisterConversation(request: {conversationId: string}):
+      Promise<{}> {
+    const {errorReason} =
+        await this.handler.registerConversation(request.conversationId);
+    if (errorReason !== undefined) {
+      throw new ErrorWithReasonImpl(
+          'registerConversation', errorReason as number);
+    }
+    return {};
   }
 
   async glicBrowserGetContextFromFocusedTab(
@@ -626,9 +661,11 @@ class HostMessageHandler implements HostMessageHandlerInterface {
     return {effectiveMax};
   }
 
-  async glicBrowserCreateTask(_request: void): Promise<{taskId: number}> {
+  async glicBrowserCreateTask(request: {taskOptions?: TaskOptions}):
+      Promise<{taskId: number}> {
     try {
-      const taskId = await this.handler.createTask();
+      const taskId =
+          await this.handler.createTask(taskOptionsToMojo(request.taskOptions));
       return {
         taskId: taskId,
       };
@@ -784,6 +821,18 @@ class HostMessageHandler implements HostMessageHandlerInterface {
 
   glicBrowserOnUserInputSubmitted(request: {mode: number}): void {
     this.handler.onUserInputSubmitted(request.mode);
+  }
+
+  glicBrowserOnContextUploadStarted(): void {
+    this.handler.onContextUploadStarted();
+  }
+
+  glicBrowserOnContextUploadCompleted(): void {
+    this.handler.onContextUploadCompleted();
+  }
+
+  glicBrowserOnReaction(request: {reactionType: number}): void {
+    this.handler.onReaction(request.reactionType);
   }
 
   glicBrowserOnResponseStarted(): void {
@@ -1128,6 +1177,15 @@ export class GlicApiHost implements PostMessageRequestHandler {
     ungatedSender.setLoggingEnabled(loadTimeData.getBoolean('loggingEnabled'));
     this.sender = new GatedSender(ungatedSender);
     this.handler = new WebClientHandlerRemote();
+    this.handler.onConnectionError.addListener(() => {
+      if (this.webClientState.getCurrentValue() !== WebClientState.ERROR) {
+        console.warn(`Mojo connection error in glic host`);
+        this.detailedWebClientState =
+            DetailedWebClientState.MOJO_PIPE_CLOSED_UNEXPECTEDLY;
+        this.webClientState.assignAndSignal(WebClientState.ERROR);
+      }
+    });
+    this.handler.$.close();
     this.browserProxy.handler.createWebClient(
         this.handler.$.bindNewPipeAndPassReceiver());
     this.messageHandler =
@@ -1771,6 +1829,7 @@ function panelOpeningDataToClient(panelOpeningData: PanelOpeningDataMojo):
   return {
     panelState: panelStateToClient(panelOpeningData.panelState),
     invocationSource: panelOpeningData.invocationSource as number,
+    conversationId: optionalToClient(panelOpeningData.conversationId),
   };
 }
 
@@ -1781,8 +1840,8 @@ function panelStateToClient(panelState: PanelStateMojo): PanelState {
   };
 }
 
-function pageMetadataToClient(metadata: PageMetadataMojo|
-                              null): PageMetadata|null {
+function pageMetadataToClient(metadata: PageMetadataMojo|null): PageMetadata|
+    null {
   if (!metadata) {
     return null;
   }
@@ -1800,9 +1859,8 @@ function timeDeltaFromClient(durationMs: number = 0): TimeDelta {
   return {microseconds: BigInt(Math.floor(durationMs * 1000))};
 }
 
-function tabContextToClient(
-    tabContext: TabContextMojo,
-    extras: ResponseExtras): TabContextResultPrivate {
+function tabContextToClient(tabContext: TabContextMojo, extras: ResponseExtras):
+    TabContextResultPrivate {
   const tabDataResult: TabDataPrivate =
       tabDataToClient(tabContext.tabData, extras);
   const webPageData = tabContext.webPageData;
@@ -1857,7 +1915,7 @@ function tabContextToClient(
     if (tabContext.annotatedPageData.metadata) {
       metadata = {
         frameMetadata: tabContext.annotatedPageData.metadata.frameMetadata.map(
-          m => replaceProperties(m, {url: urlToClient(m.url)})),
+            m => replaceProperties(m, {url: urlToClient(m.url)})),
       };
     }
     annotatedPageData = {annotatedPageContent, metadata};
@@ -1957,4 +2015,42 @@ function selectCredentialDialogRequestToClient(
     ...request,
     icons,
   };
+}
+
+function userConfirmationDialogRequestToClient(
+    request: UserConfirmationDialogRequestMojo):
+    UserConfirmationDialogRequestPrivate {
+  return {
+    navigationOrigin: request.payload.navigationOrigin ?
+        originToClient(request.payload.navigationOrigin) :
+        undefined,
+    downloadId: typeof request.payload.downloadId === 'number' ?
+        request.payload.downloadId :
+        undefined,
+  };
+}
+
+function userConfirmationDialogResponseToMojo(
+    response: UserConfirmationDialogResponsePrivate):
+    UserConfirmationDialogResponseMojo {
+  if (response.errorReason) {
+    return {
+      result: {
+        errorReason: response.errorReason as number as
+            UserConfirmationDialogErrorReasonMojo,
+      },
+    };
+  }
+  return {
+    result: {permissionGranted: response.permissionGranted},
+  };
+}
+
+function taskOptionsToMojo(taskOptions?: TaskOptions): TaskOptionsMojo|null {
+  if (taskOptions) {
+    return {
+      title: taskOptions.title ?? null,
+    };
+  }
+  return null;
 }

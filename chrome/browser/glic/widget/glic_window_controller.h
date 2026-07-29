@@ -19,12 +19,13 @@
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/interaction/element_tracker.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/views/widget/widget.h"
 
 class Browser;
@@ -48,7 +49,6 @@ class GlicWidget;
 class GlicKeyedService;
 class GlicView;
 class GlicWindowAnimator;
-class Host;
 enum class AttachChangeReason;
 
 // This class owns and manages the glic window. This class has the same lifetime
@@ -57,7 +57,7 @@ enum class AttachChangeReason;
 // See the |State| enum below for the lifecycle of the window. When the glic
 // window is open |attached_browser_| indicates if the window is attached or
 // standalone. See |IsAttached|
-class GlicWindowController {
+class GlicWindowController : public GlicInstance::UIDelegate {
  public:
   struct PanelStateContext {
     raw_ptr<Browser> attached_browser = nullptr;
@@ -74,14 +74,10 @@ class GlicWindowController {
   GlicWindowController(const GlicWindowController&) = delete;
   GlicWindowController& operator=(const GlicWindowController&) = delete;
   GlicWindowController() = default;
-  virtual ~GlicWindowController() = default;
 
-  // TODO(refactor): Add multi-instance Host getters
-  virtual Host& host() = 0;
   virtual HostManager& host_manager() = 0;
-
-  virtual std::vector<Host*> GetHosts() = 0;
-  virtual Host* GetHostForTab(tabs::TabInterface* tab) = 0;
+  virtual std::vector<GlicInstance*> GetInstances() = 0;
+  virtual GlicInstance* GetInstanceForTab(tabs::TabInterface* tab) = 0;
 
   // Show, summon, or activate the panel if needed, or close it if it's already
   // active and prevent_close is false.
@@ -135,7 +131,6 @@ class GlicWindowController {
                                const gfx::Point& mouse_location) = 0;
 
   virtual const mojom::PanelState& GetPanelState() const = 0;
-  virtual bool IsShowing() const = 0;
 
   virtual void AddStateObserver(StateObserver* observer) = 0;
   virtual void RemoveStateObserver(StateObserver* observer) = 0;

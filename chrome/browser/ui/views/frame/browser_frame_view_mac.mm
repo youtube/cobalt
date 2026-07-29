@@ -169,14 +169,15 @@ gfx::Rect BrowserFrameViewMac::GetBoundsForTabStripRegion(
   // tab strip directly under the menu bar. For now, just lay our content
   // under the native title bar. Use the default title bar height to avoid
   // calling through private APIs.
-  const bool restored = !frame()->IsMaximized() && !frame()->IsFullscreen();
+  const bool restored =
+      !browser_widget()->IsMaximized() && !browser_widget()->IsFullscreen();
   gfx::Rect bounds(0, GetTopInset(restored), width(),
                    tabstrip_minimum_size.height());
 
   // If we do not inset, the leftmost tab doesn't blend well with the bottom of
   // the tab strip. Normally, we would naturally have an inset from either the
   // caption buttons or the tab search button.
-  if (frame()->IsFullscreen()) {
+  if (browser_widget()->IsFullscreen()) {
     if (!browser_view()->UsesImmersiveFullscreenMode()) {
       bounds.Inset(
           gfx::Insets::TLBR(0, GetLayoutConstant(TOOLBAR_CORNER_RADIUS), 0, 0));
@@ -201,7 +202,7 @@ gfx::Rect BrowserFrameViewMac::GetBoundsForWebAppFrameToolbar(
                    toolbar_preferred_size.height() + kWebAppMenuMargin * 2);
 
   // Do not draw caption buttons on fullscreen.
-  if (!frame()->IsFullscreen()) {
+  if (!browser_widget()->IsFullscreen()) {
     bounds.Inset(GetCaptionButtonInsets());
   }
 
@@ -274,7 +275,7 @@ void BrowserFrameViewMac::UpdateFullscreenTopUI() {
   browser->FullscreenTopUIStateChanged();
 
   // Re-layout if toolbar style changes in fullscreen mode.
-  if (frame()->IsFullscreen()) {
+  if (browser_widget()->IsFullscreen()) {
     browser_view()->DeprecatedLayoutImmediately();
   }
 }
@@ -293,7 +294,7 @@ void BrowserFrameViewMac::OnAppRegistrarDestroyed() {
 }
 
 bool BrowserFrameViewMac::ShouldHideTopUIForFullscreen() const {
-  if (frame()->IsFullscreen()) {
+  if (browser_widget()->IsFullscreen()) {
     return [fullscreen_toolbar_controller_ toolbarStyle] !=
            FullscreenToolbarStyle::TOOLBAR_PRESENT;
   }
@@ -312,7 +313,7 @@ void BrowserFrameViewMac::OnThemeChanged() {
   BrowserFrameView::OnThemeChanged();
 }
 ///////////////////////////////////////////////////////////////////////////////
-// BrowserFrameViewMac, views::NonClientFrameView implementation:
+// BrowserFrameViewMac, views::FrameView implementation:
 
 gfx::Rect BrowserFrameViewMac::GetBoundsForClientView() const {
   return bounds();
@@ -344,7 +345,8 @@ int BrowserFrameViewMac::NonClientHitTest(const gfx::Point& point) {
   // BrowserView::NonClientHitTest will return HTNOWHERE for points that hit
   // the native title bar. On Mac, we need to explicitly return HTCAPTION for
   // those points.
-  const int component = frame()->client_view()->NonClientHitTest(point);
+  const int component =
+      browser_widget()->client_view()->NonClientHitTest(point);
   return (component == HTNOWHERE && bounds().Contains(point)) ? HTCAPTION
                                                               : component;
 }
@@ -366,7 +368,7 @@ void BrowserFrameViewMac::WindowControlsOverlayEnabledChanged() {
 // BrowserFrameViewMac, views::View implementation:
 
 gfx::Size BrowserFrameViewMac::GetMinimumSize() const {
-  gfx::Size client_size = frame()->client_view()->GetMinimumSize();
+  gfx::Size client_size = browser_widget()->client_view()->GetMinimumSize();
   if (browser_view()->browser()->is_type_normal()) {
     client_size.SetToMax(browser_view()->tab_strip_view()->GetMinimumSize());
   }
@@ -483,16 +485,20 @@ BrowserFrameViewMac::GetCaptionButtonBounds() const {
     return result;
   }
 
-  // If that doesn't work, fall back to some hard-coded constants.
+  // If that doesn't work, fall back to some hard-coded constants. These will
+  // apply for app windows, since the app is out of process and the caption
+  // buttons can't be retrieved. Note that the app window actually positions its
+  // buttons slightly differently from a standard browser window (it's unclear
+  // why).
   //
   // These are empirically determined; feel free to change them if they're
   // not precise.
   if (@available(macOS 26, *)) {
-    result.bounds = gfx::RectF(12, 11.5f, 62, 18);
-    result.margins = gfx::OutsetsF::VH(11.5f, 12);
+    result.bounds = gfx::RectF(12, 10.5f, 62, 18);
+    result.margins = gfx::OutsetsF::VH(10.5, 12);
   } else {
-    result.bounds = gfx::RectF(20, 12.5f, 54, 16);
-    result.margins = gfx::OutsetsF::VH(12.5f, 20);
+    result.bounds = gfx::RectF(20, 11.5f, 54, 16);
+    result.margins = gfx::OutsetsF::VH(11.5, 20);
   }
 
   return result;

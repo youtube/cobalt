@@ -102,6 +102,7 @@ chromium-metrics-reviews@google.com.
   <variant name="SavedTabGroup" summary="the tutorial for the saved tab group"/>
   <variant name="SidePanelReadingList"
       summary="the tutorial for the side panel reading list"/>
+  <variant name="SplitView" summary="the tutorial for the split view feature"/>
   <variant name="TabGroup" summary="the tutorial for tab groups"/>
   <variant name="Test" summary="the tutorial used for testing only"/>
 </variants>
@@ -143,6 +144,7 @@ chromium-metrics-reviews@google.com.
   <variant name="SaveTabGroups" summary="the module for Saved Tab Groups"/>
   <variant name="SearchBoxSuggestions"
       summary="the module for Search Box Suggestions"/>
+  <variant name="SideBySide" summary="the module for Split View"/>
   <variant name="SidePanelPinning" summary="the module for Side Panel Pinning"/>
   <variant name="TabGroupsSync" summary="the module for Tab Groups that Sync"/>
   <variant name="TabOrganizer" summary="the module for Tab Organizer"/>

@@ -14,15 +14,12 @@ namespace switches {
 // Mitigate overlap cases between the legacy search engine promo and the
 // device-based program eligibility determinations.
 BASE_FEATURE(kMitigateLegacySearchEnginePromoOverlap,
-             "MitigateLegacySearchEnginePromoOverlap",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRestrictLegacySearchEnginePromoOnFormFactors,
-             "RestrictLegacySearchEnginePromoOnFormFactors",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kResolveRegionalCapabilitiesFromDevice,
-             "ResolveRegionalCapabilitiesFromDevice",
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
@@ -33,12 +30,22 @@ BASE_FEATURE(kUseFinchPermanentCountryForFetchCountryId,
 #endif
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-COMPONENT_EXPORT(REGIONAL_CAPABILITIES_SWITCHES)
-BASE_FEATURE(kTaiyaki, "Taiyaki", base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTaiyaki, base::FEATURE_DISABLED_BY_DEFAULT);
+
+namespace {
+constexpr base::FeatureParam<RegionalCapabilitiesChoiceScreenSurface>::Option
+    kChoiceScreenSurfaceOptions[] = {
+        {RegionalCapabilitiesChoiceScreenSurface::kAll, "all"},
+        {RegionalCapabilitiesChoiceScreenSurface::kInFreOnly, "fre_only"}};
+}  // namespace
+
+const base::FeatureParam<RegionalCapabilitiesChoiceScreenSurface>
+    kTaiyakiChoiceScreenSurface{
+        &kTaiyaki, "choice_screen_surface",
+        RegionalCapabilitiesChoiceScreenSurface::kAll,
+        &kChoiceScreenSurfaceOptions};
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kDynamicProfileCountry,
-             "DynamicProfileCountry",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDynamicProfileCountry, base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace switches

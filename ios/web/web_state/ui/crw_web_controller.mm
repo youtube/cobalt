@@ -25,12 +25,12 @@
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "build/branding_buildflags.h"
+#import "build/config/ios/buildflags.h"
 #import "ios/web/common/annotations_utils.h"
 #import "ios/web/common/crw_edit_menu_builder.h"
 #import "ios/web/common/crw_input_view_provider.h"
 #import "ios/web/common/crw_web_view_content_view.h"
 #import "ios/web/common/features.h"
-#import "ios/web/common/uikit_ui_util.h"
 #import "ios/web/common/url_util.h"
 #import "ios/web/download/crw_web_view_download.h"
 #import "ios/web/find_in_page/java_script_find_in_page_manager_impl.h"
@@ -75,6 +75,10 @@
 #import "services/metrics/public/cpp/ukm_builders.h"
 #import "url/gurl.h"
 
+#if !BUILDFLAG(IOS_IS_APP_EXTENSION)
+#import "ios/web/common/uikit_ui_util.h"  // nogncheck
+#endif
+
 using web::NavigationManager;
 using web::NavigationManagerImpl;
 using web::WebState;
@@ -87,6 +91,20 @@ char const kFullScreenStateHistogram[] = "IOS.Fullscreen.State";
 // when setting a WKWebView's interaction state.
 BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Returns the bounds of the screen (or at least of one screen).
+CGRect GetScreenBounds() {
+#if !BUILDFLAG(IOS_IS_APP_EXTENSION)
+  // GetAnyKeyWindow() is not available when building an app extension.
+  if (UIWindow* window = GetAnyKeyWindow()) {
+    return window.bounds;
+  }
+#endif
+
+  // Fall back to UIScreen's -mainScreen if no key window is available.
+  return UIScreen.mainScreen.bounds;
+}
+
 }  // namespace
 
 @interface CRWWebController () <CRWDataControlsDelegate,
@@ -149,7 +167,7 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
 
 // If `contentView_` contains a web view, this is the web view it contains.
 // If not, it's nil. When setting the property, it performs basic setup.
-@property(weak, nonatomic) WKWebView* webView;
+@property(weak, nonatomic) CRWWebView* webView;
 // The scroll view of `webView`.
 @property(weak, nonatomic, readonly) UIScrollView* webScrollView;
 
@@ -346,7 +364,7 @@ BASE_FEATURE(kIOSSessionRestoreLoadTriggerKillSwitch,
 
 #pragma mark - Private properties accessors
 
-- (void)setWebView:(WKWebView*)webView {
+- (void)setWebView:(CRWWebView*)webView {
   DCHECK_NE(_webView, webView);
 
   // Unwind the old web view.
@@ -1357,8 +1375,7 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
   } else {
     // Use the screen size because the application's key window and the
     // container may still be nil.
-    _containerView.frame = GetAnyKeyWindow() ? GetAnyKeyWindow().bounds
-                                             : UIScreen.mainScreen.bounds;
+    _containerView.frame = GetScreenBounds();
   }
 
   DCHECK(!CGRectIsEmpty(_containerView.frame));
@@ -1408,7 +1425,7 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
 }
 
 // Returns a new autoreleased web view created with given configuration.
-- (WKWebView*)webViewWithConfiguration:(WKWebViewConfiguration*)config {
+- (CRWWebView*)webViewWithConfiguration:(WKWebViewConfiguration*)config {
   // Do not attach the context menu controller immediately as the JavaScript
   // delegate must be specified.
   web::UserAgentType defaultUserAgent = web::UserAgentType::AUTOMATIC;
@@ -1437,6 +1454,7 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
     fullScreenState =
         CrFullscreenStateFromWKFullscreenState(self.webView.fullscreenState);
   }
+
   CRWWebViewContentView* webViewContentView =
       [[CRWWebViewContentView alloc] initWithWebView:self.webView
                                           scrollView:self.webScrollView
@@ -1957,7 +1975,7 @@ CrFullscreenState CrFullscreenStateFromWKFullscreenState(
   [self removeWebView];
 
   [_containerView displayWebViewContentView:webViewContentView];
-  [self setWebView:static_cast<WKWebView*>(webViewContentView.webView)];
+  [self setWebView:static_cast<CRWWebView*>(webViewContentView.webView)];
 }
 
 - (void)resetInjectedWebViewContentView {

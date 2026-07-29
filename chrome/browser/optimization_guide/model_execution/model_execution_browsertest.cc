@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
@@ -14,6 +15,7 @@
 #include "base/test/with_feature_override.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/optimization_guide/model_execution/optimization_guide_global_state.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
@@ -700,12 +702,21 @@ class OnDeviceModelExecutionEnabledBrowserTest
          {features::kOnDeviceModelPerformanceParams,
           {{"compatible_on_device_performance_classes", "*"}}}},
         {});
+
+    // This test depends on the disk information being available in a timely
+    // manner (see crbug.com/346579988). Use this flag to have the information
+    // retrieved with higher priority which reduces the chances of flakiness.
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        optimization_guide::switches::
+            kGetFreeDiskSpaceWithUserVisiblePriorityTask);
   }
 
   OptimizationGuideGlobalState* broker_state() {
     // Ensure keyed service is created, which should create and hold state.
     GetOptimizationGuideKeyedService();
-    return OptimizationGuideGlobalState::CreateOrGet().get();
+    return &g_browser_process->GetFeatures()
+                ->optimization_guide_global_feature()
+                ->Get();
   }
 
   void SetUpLocalStatePrefService(PrefService* local_state) override {

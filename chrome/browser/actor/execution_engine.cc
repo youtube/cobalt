@@ -144,6 +144,7 @@ void ExecutionEngine::SetState(State state) {
       }));
   DCHECK_STATE_TRANSITION(transitions, state_, state);
 #endif  // DCHECK_IS_ON()
+  observers_.Notify(&StateObserver::OnStateChanged, state_, state);
   state_ = state;
 }
 
@@ -184,6 +185,14 @@ bool ExecutionEngine::ShouldGateNavigation(
       navigation_handle.GetInitiatorOrigin();
   return initiator_origin &&
          !initiator_origin->IsSameOriginWith(navigation_url);
+}
+
+void ExecutionEngine::AddObserver(StateObserver* observer) {
+  observers_.AddObserver(observer);
+}
+
+void ExecutionEngine::RemoveObserver(StateObserver* observer) {
+  observers_.RemoveObserver(observer);
 }
 
 void ExecutionEngine::CancelOngoingActions(mojom::ActionResultCode reason) {
@@ -272,10 +281,7 @@ void ExecutionEngine::KickOffNextAction(
 
   SetState(State::kStartAction);
 
-  // TODO(crbug.com/411462297): It's not clear that navigate requests (which are
-  // tab scoped) should be doing tab safety checks. For now we return `true` to
-  // preserve existing behavior.
-  if (GetNextAction().IsTabScoped()) {
+  if (GetNextAction().RequiresUrlCheckInCurrentTab()) {
     SafetyChecksForNextAction();
   } else {
     ExecuteNextAction();
@@ -475,7 +481,6 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
         JournalDetailsBuilder().AddError(ToDebugString(*result)).Build());
   }
 
-  // TODO(crbug.com/411462297): Populate observation.
   PostTaskForActCallback(std::move(act_callback_), std::move(result),
                          action_index, std::move(action_results_));
 
@@ -491,6 +496,10 @@ base::WeakPtr<ExecutionEngine> ExecutionEngine::GetWeakPtr() {
 favicon::FaviconService* ExecutionEngine::GetFaviconService() {
   return FaviconServiceFactory::GetForProfile(
       profile_, ServiceAccessType::EXPLICIT_ACCESS);
+}
+
+Profile& ExecutionEngine::GetProfile() {
+  return *profile_;
 }
 
 AggregatedJournal& ExecutionEngine::GetJournal() {
@@ -523,12 +532,63 @@ void ExecutionEngine::PromptToSelectCredential(
                                                      credentials);
 }
 
+void ExecutionEngine::SetUserSelectedCredential(
+    const actor_login::Credential& credential) {
+  user_selected_credentials_[credential.request_origin] = credential;
+}
+
+const std::optional<actor_login::Credential>
+ExecutionEngine::GetUserSelectedCredential(
+    const url::Origin& request_origin) const {
+  auto it = user_selected_credentials_.find(request_origin);
+  if (it == user_selected_credentials_.end()) {
+    return std::nullopt;
+  }
+  return it->second;
+}
+
 void ExecutionEngine::OnCredentialSelected(
     webui::mojom::SelectCredentialDialogResponsePtr response) {
   TRACE_EVENT0("actor", "ExecutionEngine::OnCredentialSelected");
   if (credential_selected_callback_) {
     std::move(credential_selected_callback_).Run(std::move(response));
   }
+}
+
+void ExecutionEngine::PromptToConfirmCrossOriginNavigation(
+    const url::Origin& navigation_origin,
+    ExecutionEngine::UserConfirmationDialogCallback callback) {
+  PromptUserForConfirmationInternal(
+      navigation_origin, /*download_url=*/std::nullopt, std::move(callback));
+}
+
+void ExecutionEngine::PromptToConfirmDownload(
+    int32_t download_id,
+    ExecutionEngine::UserConfirmationDialogCallback callback) {
+  PromptUserForConfirmationInternal(/*navigation_origin=*/std::nullopt,
+                                    download_id, std::move(callback));
+}
+
+void ExecutionEngine::PromptUserForConfirmationInternal(
+    const std::optional<url::Origin>& navigation_origin,
+    const std::optional<int32_t> download_id,
+    ExecutionEngine::UserConfirmationDialogCallback callback) {
+  if (user_confirmation_callback_) {
+    std::move(user_confirmation_callback_)
+        .Run(webui::mojom::UserConfirmationDialogResponse::New(
+            webui::mojom::UserConfirmationDialogResult::NewErrorReason(
+                webui::mojom::UserConfirmationDialogErrorReason::
+                    kPreemptedByNewRequest)));
+  }
+  user_confirmation_callback_ = std::move(callback);
+  ActorKeyedService::Get(profile_)->NotifyRequestToShowUserConfirmationDialog(
+      task_->id(), navigation_origin, download_id);
+}
+
+void ExecutionEngine::OnUserConfirmation(
+    webui::mojom::UserConfirmationDialogResponsePtr response) {
+  CHECK(user_confirmation_callback_);
+  std::move(user_confirmation_callback_).Run(std::move(response));
 }
 
 const ToolRequest& ExecutionEngine::GetNextAction() const {

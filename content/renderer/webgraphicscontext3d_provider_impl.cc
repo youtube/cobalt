@@ -68,10 +68,6 @@ bool WebGraphicsContext3DProviderImpl::IsContextLost() {
          RasterInterface()->GetGraphicsResetStatusKHR() != GL_NO_ERROR;
 }
 
-GrDirectContext* WebGraphicsContext3DProviderImpl::GetGrContext() {
-  return provider_->GrContext();
-}
-
 const gpu::Capabilities& WebGraphicsContext3DProviderImpl::GetCapabilities()
     const {
   return provider_->ContextCapabilities();
@@ -167,8 +163,7 @@ void WebGraphicsContext3DProviderImpl::OnContextLost() {
 
 cc::ImageDecodeCache* WebGraphicsContext3DProviderImpl::ImageDecodeCache(
     SkColorType color_type) {
-  DCHECK(GetCapabilities().gpu_rasterization ||
-         GetGrContext()->colorTypeSupportedAsImage(color_type));
+  DCHECK(GetCapabilities().gpu_rasterization);
   auto cache_iterator = image_decode_cache_map_.find(color_type);
   if (cache_iterator != image_decode_cache_map_.end())
     return cache_iterator->second.get();

@@ -26,6 +26,7 @@
 #include "base/version.h"
 #include "base/version_info/version_info.h"
 #include "components/country_codes/country_codes.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/policy_service.h"
 #include "components/policy/policy_constants.h"
 #include "components/pref_registry/pref_registry_syncable.h"
@@ -40,6 +41,7 @@
 #include "components/search_engines/choice_made_location.h"
 #include "components/search_engines/search_engine_choice/buildflags.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_metrics_service_accessor.h"
+#include "components/search_engines/search_engine_choice/search_engine_choice_switches.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/search_engines_pref_names.h"
@@ -267,6 +269,8 @@ regional_capabilities::FunnelStage ToFunnelStage(
     case SearchEngineChoiceScreenConditions::kUsingPersistedGuestSessionChoice:
     case SearchEngineChoiceScreenConditions::kIncompatibleCurrentLocation:
     case SearchEngineChoiceScreenConditions::kAccountNotEligible:
+    case SearchEngineChoiceScreenConditions::kIneligibleSurface:
+    case SearchEngineChoiceScreenConditions::kManaged:
       return regional_capabilities::FunnelStage::kNotEligible;
   }
   NOTREACHED();
@@ -322,11 +326,39 @@ bool IsChoiceImported(const ChoiceCompletionMetadata& completion_metadata,
   return false;
 }
 
+bool ManagementStatusEligibleForChoiceScreen(
+    const regional_capabilities::ChoiceScreenEligibilityConfig& config,
+    policy::ManagementService& management_service) {
+  if (!base::FeatureList::IsEnabled(
+          switches::kChoiceScreenEligibilityCheckManagementStatus)) {
+    return true;
+  }
+
+  if (config.managed_users_can_be_eligible) {
+    return true;
+  }
+
+  switch (management_service.GetManagementAuthorityTrustworthiness()) {
+    case policy::ManagementAuthorityTrustworthiness::NONE:
+      return true;
+    case policy::ManagementAuthorityTrustworthiness::LOW:
+    case policy::ManagementAuthorityTrustworthiness::TRUSTED:
+    case policy::ManagementAuthorityTrustworthiness::FULLY_TRUSTED:
+      return false;
+  }
+  NOTREACHED();
+}
+
 // Checks account properties against the eligibility config to determine if the
 // account can make a choice.
 bool AccountCanMakeChoiceScreenChoice(
     const regional_capabilities::ChoiceScreenEligibilityConfig& config,
     const signin::IdentityManager& identity_manager) {
+  if (!base::FeatureList::IsEnabled(
+          switches::kChoiceScreenEligibilityCheckAccountCapabilities)) {
+    return true;
+  }
+
 #if BUILDFLAG(CHOICE_SCREEN_IN_CHROME)
   if (config.managed_users_can_be_eligible) {
     return true;
@@ -379,13 +411,15 @@ SearchEngineChoiceService::SearchEngineChoiceService(
     PrefService* local_state,
     regional_capabilities::RegionalCapabilitiesService& regional_capabilities,
     TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
-    signin::IdentityManager& identity_manager)
+    signin::IdentityManager& identity_manager,
+    policy::ManagementService& management_service)
     : client_(std::move(client)),
       profile_prefs_(profile_prefs),
       local_state_(local_state),
       regional_capabilities_service_(regional_capabilities),
       prepopulate_data_resolver_(prepopulate_data_resolver),
-      identity_manager_(identity_manager) {}
+      identity_manager_(identity_manager),
+      management_service_(management_service) {}
 
 SearchEngineChoiceService::~SearchEngineChoiceService() = default;
 
@@ -437,6 +471,10 @@ SearchEngineChoiceService::GetStaticChoiceScreenConditions(
   ChoiceStatus status = EvaluateSearchProviderChoice(template_url_service);
   if (status == ChoiceStatus::kValid) {
     return SearchEngineChoiceScreenConditions::kAlreadyCompleted;
+  }
+
+  if (status == ChoiceStatus::kManaged) {
+    return SearchEngineChoiceScreenConditions::kManaged;
   }
 
   // Initially exclude users with this type of override. Consult b/302675777 for
@@ -498,6 +536,8 @@ SearchEngineChoiceService::GetDynamicChoiceScreenConditions(
       return SearchEngineChoiceScreenConditions::kEligible;
     case ChoiceStatus::kAccountNotEligible:
       return SearchEngineChoiceScreenConditions::kAccountNotEligible;
+    case ChoiceStatus::kManaged:
+      return SearchEngineChoiceScreenConditions::kManaged;
   }
   NOTREACHED();
 #endif
@@ -523,6 +563,20 @@ void SearchEngineChoiceService::RecordProfileLoadEligibility(
 void SearchEngineChoiceService::RecordLegacyStaticEligibility(
     SearchEngineChoiceScreenConditions condition) {
   RecordLegacyStaticEligibilityInternal(*client_.get(), condition);
+}
+
+bool SearchEngineChoiceService::IsSurfaceEligible(
+    bool is_first_run_experience_surface) const {
+  if (!regional_capabilities_service_->GetChoiceScreenEligibilityConfig()
+           .has_value()) {
+    return false;
+  }
+
+  // Either the surface is FRE so the choice screen should be presented anyway,
+  // or the restriction to FRE is not requested.
+  return is_first_run_experience_surface ||
+         !regional_capabilities_service_->GetChoiceScreenEligibilityConfig()
+              ->restrict_surfaces_to_fre_only;
 }
 #endif  // BUILDFLAG(IS_IOS)
 
@@ -878,13 +932,19 @@ SearchEngineChoiceService::EvaluateSearchProviderChoice(
 
   // -- Stage 3: Optional program-controlled DSP checks
 
-  // 3.1: Check eligibility based on account type.
+  // 3.1: Check eligibility based on management status.
+  if (!ManagementStatusEligibleForChoiceScreen(eligibility_config,
+                                               *management_service_)) {
+    return ChoiceStatus::kManaged;
+  }
+
+  // 3.2: Check eligibility based on account type.
   if (!AccountCanMakeChoiceScreenChoice(eligibility_config,
                                         *identity_manager_)) {
     return ChoiceStatus::kAccountNotEligible;
   }
 
-  // 3.2: Is it a non-prepopulated entry, that had to be explicitly user-added?
+  // 3.3: Is it a non-prepopulated entry, that had to be explicitly user-added?
 
   if (eligibility_config.should_preserve_non_prepopulated_dse) {
     if (!template_url_service.IsPrepopulatedOrDefaultProviderByPolicy(
@@ -901,13 +961,13 @@ SearchEngineChoiceService::EvaluateSearchProviderChoice(
     }
   }
 
-  // 3.3: Was the choice made on a different device?
+  // 3.4: Was the choice made on a different device?
 
   if (renewal_reasons.Has(ChoiceRenewalReason::kOutdated)) {
     return ChoiceStatus::kFromRestoredDevice;
   }
 
-  // 3.4: Is the current DSP non-Google?
+  // 3.5: Is the current DSP non-Google?
 
   if (eligibility_config.should_preserve_non_google_dse) {
     if (default_search_provider->GetEngineType(

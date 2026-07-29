@@ -69,8 +69,7 @@ struct InputFieldContext {
 };
 
 bool ShouldRouteToFirstPartyVietnameseInput(const std::string& engine_id) {
-  return base::FeatureList::IsEnabled(features::kFirstPartyVietnameseInput) &&
-         (engine_id == "vkd_vi_vni" || engine_id == "vkd_vi_telex");
+  return engine_id == "vkd_vi_vni" || engine_id == "vkd_vi_telex";
 }
 
 bool IsRuleBasedEngine(const std::string& engine_id) {
@@ -103,8 +102,7 @@ bool IsJapaneseEngine(const std::string& engine_id) {
 
 bool ShouldInitializeJapanesePrefService(const std::string& engine_id,
                                          PrefService* prefs) {
-  if (!IsJapaneseEngine(engine_id) ||
-      !base::FeatureList::IsEnabled(features::kSystemJapanesePhysicalTyping)) {
+  if (!IsJapaneseEngine(engine_id)) {
     return false;
   }
 
@@ -719,11 +717,9 @@ bool CanRouteToNativeMojoEngine(const std::string& engine_id) {
     return false;
   }
 
-  return (base::FeatureList::IsEnabled(
-              features::kSystemJapanesePhysicalTyping) &&
-          IsJapaneseEngine(engine_id)) ||
-         IsTransliterationEngine(engine_id) || IsKoreanEngine(engine_id) ||
-         IsFstEngine(engine_id) || IsChineseEngine(engine_id);
+  return IsJapaneseEngine(engine_id) || IsTransliterationEngine(engine_id) ||
+         IsKoreanEngine(engine_id) || IsFstEngine(engine_id) ||
+         IsChineseEngine(engine_id);
 }
 
 NativeInputMethodEngineObserver::NativeInputMethodEngineObserver(

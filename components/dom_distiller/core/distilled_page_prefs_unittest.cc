@@ -9,11 +9,27 @@
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using testing::_;
 
 namespace dom_distiller {
 
 namespace {
+
+class MockObserver : public DistilledPagePrefs::Observer {
+ public:
+  MOCK_METHOD(void,
+              OnChangeFontFamily,
+              (mojom::FontFamily new_font),
+              (override));
+  MOCK_METHOD(void,
+              OnChangeTheme,
+              (mojom::Theme new_theme, ThemeSettingsUpdateSource source),
+              (override));
+  MOCK_METHOD(void, OnChangeFontScaling, (float new_scaling), (override));
+};
 
 class TestingObserver : public DistilledPagePrefs::Observer {
  public:
@@ -26,7 +42,10 @@ class TestingObserver : public DistilledPagePrefs::Observer {
 
   mojom::FontFamily GetFontFamily() { return font_; }
 
-  void OnChangeTheme(mojom::Theme new_theme) override { theme_ = new_theme; }
+  void OnChangeTheme(mojom::Theme new_theme,
+                     ThemeSettingsUpdateSource source) override {
+    theme_ = new_theme;
+  }
 
   mojom::Theme GetTheme() { return theme_; }
 
@@ -111,6 +130,44 @@ TEST_F(DistilledPagePrefsTest, TestingOnChangeThemeIsBeingCalled) {
   EXPECT_EQ(mojom::Theme::kDark, obs.GetTheme());
 
   distilled_page_prefs_->RemoveObserver(&obs);
+}
+
+TEST_F(DistilledPagePrefsTest, TestingOnChangeThemeCalledMultipleTimes) {
+  testing::StrictMock<MockObserver> mock_observer;
+  distilled_page_prefs_->AddObserver(&mock_observer);
+
+  EXPECT_CALL(mock_observer,
+              OnChangeTheme(mojom::Theme::kSepia,
+                            ThemeSettingsUpdateSource::kUserPreference));
+  distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kSepia);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+
+  EXPECT_CALL(mock_observer, OnChangeTheme(mojom::Theme::kSepia, _)).Times(0);
+  distilled_page_prefs_->SetUserPrefTheme(mojom::Theme::kSepia);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+
+  distilled_page_prefs_->RemoveObserver(&mock_observer);
+}
+
+TEST_F(DistilledPagePrefsTest, TestingDefaultThemeSet) {
+  testing::StrictMock<MockObserver> mock_observer;
+  distilled_page_prefs_->AddObserver(&mock_observer);
+
+  // The default theme is set to light by default, no change expected.
+  EXPECT_CALL(mock_observer, OnChangeTheme(mojom::Theme::kLight, _)).Times(0);
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kLight);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+
+  EXPECT_CALL(mock_observer,
+              OnChangeTheme(mojom::Theme::kDark, ThemeSettingsUpdateSource::kSystem));
+  distilled_page_prefs_->SetDefaultTheme(mojom::Theme::kDark);
+  base::RunLoop().RunUntilIdle();
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+
+  distilled_page_prefs_->RemoveObserver(&mock_observer);
 }
 
 TEST_F(DistilledPagePrefsTest, TestingMultipleObserversTheme) {

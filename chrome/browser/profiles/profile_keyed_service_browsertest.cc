@@ -586,7 +586,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "AutofillPrivateEventRouter",
     "AutofillStrikeDatabase",
     "BackgroundContentsService",
-    "BackgroundFetchService",
     "BackgroundSyncService",
     "Blocklist",
     "BluetoothAPI",
@@ -633,7 +632,9 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
 #endif
     "DeveloperPrivateAPI",
     "DeviceInfoSyncService",
+#if !BUILDFLAG(IS_CHROMEOS)
     "DownloadCoreService",
+#endif
     "EventRouter",
     "EnterpriseManagementService",
     "ExtensionActionDispatcher",
@@ -767,6 +768,9 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "ProcessMap",
     "ProcessesAPI",
     "ProfileNetworkContextService",
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    "ProtocolHandlersManager",
+#endif // BUILDFLAG(ENABLE_EXTENSIONS)
     "ProtocolHandlerRegistry",
     "RealtimeReportingClient",
     "RegionalCapabilitiesService",

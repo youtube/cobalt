@@ -16,12 +16,12 @@ import org.chromium.build.NullUtil;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.toolbar.R;
-import org.chromium.components.browser_ui.settings.CustomStyledPreference;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
 
 /** Fragment that allows the user to configure toolbar shorcut preferences. */
 @NullMarked
-public class AdaptiveToolbarHeaderPreference extends Preference implements CustomStyledPreference {
+public class AdaptiveToolbarHeaderPreference extends Preference implements CustomStyledContainer {
     public AdaptiveToolbarHeaderPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
         // Inflating from XML.
@@ -47,6 +47,6 @@ public class AdaptiveToolbarHeaderPreference extends Preference implements Custo
 
     @Override
     public int getCustomBackgroundColor() {
-        return SemanticColorUtils.getColorPrimaryContainer(getContext());
+        return SemanticColorUtils.getColorSurfaceContainerHighest(getContext());
     }
 }

@@ -4,12 +4,12 @@
 
 #include "chrome/browser/ui/browser_finder.h"
 
-#include "ash/public/cpp/multi_user_window_manager.h"
+#include "ash/multi_user/multi_user_window_manager.h"
+#include "ash/shell.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_browser_adaptor.h"
-#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/test_browser_window_aura.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -44,15 +44,6 @@ class BrowserFinderChromeOSTest : public BrowserWithTestWindowTest {
     BrowserWithTestWindowTest::SetUp();
     ash::ProfileHelper::Get();  // Instantiate.
 
-    // Here the primary user/profile is created.
-    // *Then*, set up MultiUserWindowManagerHelper. This is to mirror the
-    // current implementation of the helper, which is done as a part of the
-    // shelf creation. The structure is going to be changed soon, though
-    // (crbug.com/4251603989).
-    ASSERT_FALSE(MultiUserWindowManagerHelper::GetInstance());
-    MultiUserWindowManagerHelper::CreateInstanceForTest();
-    MultiUserWindowManagerHelper::GetInstance()->AddUser(kTestAccountId1);
-
     // Create secondary user/profile.
     LogIn(kTestAccountId2.GetUserEmail(), kTestAccountId2.GetGaiaId());
     second_profile_ =
@@ -61,11 +52,17 @@ class BrowserFinderChromeOSTest : public BrowserWithTestWindowTest {
 
   void TearDown() override {
     second_profile_ = nullptr;
-    MultiUserWindowManagerHelper::DeleteInstance();
+    multi_user_window_manager_browser_adaptor_.reset();
     BrowserWithTestWindowTest::TearDown();
   }
 
   // BrowserWithTestWindow:
+  void OnAshTestHelperCreated() override {
+    multi_user_window_manager_browser_adaptor_ =
+        std::make_unique<ash::MultiUserWindowManagerBrowserAdaptor>(
+            ash::Shell::Get()->multi_user_window_manager());
+  }
+
   std::optional<std::string> GetDefaultProfileName() override {
     return std::string(kTestAccountId1.GetUserEmail());
   }
@@ -76,14 +73,12 @@ class BrowserFinderChromeOSTest : public BrowserWithTestWindowTest {
         AccountId::FromUserEmail(profile_name));
     ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user, profile);
 
-    if (auto* helper = MultiUserWindowManagerHelper::GetInstance()) {
-      // Second time or later. Explicitly call AddUser is needed to register
-      // the user.
-      helper->AddUser(user->GetAccountId());
-    }
+    multi_user_window_manager_browser_adaptor_->AddUser(user->GetAccountId());
     return profile;
   }
 
+  std::unique_ptr<ash::MultiUserWindowManagerBrowserAdaptor>
+      multi_user_window_manager_browser_adaptor_;
   raw_ptr<TestingProfile> second_profile_;
 };
 
@@ -112,7 +107,7 @@ TEST_F(BrowserFinderChromeOSTest, FindBrowserOwnedByAnotherProfile) {
   Browser::CreateParams params(profile()->GetOriginalProfile(), true);
   std::unique_ptr<Browser> browser(
       chrome::CreateBrowserWithViewsTestWindowForParams(params));
-  MultiUserWindowManagerHelper::GetWindowManager()->SetWindowOwner(
+  ash::Shell::Get()->multi_user_window_manager()->SetWindowOwner(
       browser->window()->GetNativeWindow(), kTestAccountId1);
   EXPECT_EQ(1u, chrome::GetBrowserCount(profile()));
   EXPECT_TRUE(chrome::FindAnyBrowser(profile(), true));
@@ -120,7 +115,7 @@ TEST_F(BrowserFinderChromeOSTest, FindBrowserOwnedByAnotherProfile) {
 
   // Move the browser window to another user's desktop. Then no window should
   // be available for the current profile.
-  MultiUserWindowManagerHelper::GetWindowManager()->ShowWindowForUser(
+  ash::Shell::Get()->multi_user_window_manager()->ShowWindowForUser(
       browser->window()->GetNativeWindow(), kTestAccountId2);
   // ShowWindowForUser() notifies chrome async. FlushBindings() to ensure all
   // the changes happen.

@@ -8,6 +8,8 @@
 #include "base/uuid.h"
 #include "base/values.h"
 #include "chrome/browser/notifications/scheduler/public/notification_params.h"
+#include "chrome/browser/notifications/scheduler/public/notification_scheduler_types.h"
+#include "chrome/browser/notifications/scheduler/public/schedule_service_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/ui/webui/notifications_internals/notifications_internals.mojom.h"
@@ -23,17 +25,30 @@ NotificationsInternalsUIPageHandler::NotificationsInternalsUIPageHandler(
 NotificationsInternalsUIPageHandler::~NotificationsInternalsUIPageHandler() =
     default;
 
-void NotificationsInternalsUIPageHandler::ScheduleNotification() {
+void NotificationsInternalsUIPageHandler::ScheduleNotification(
+    const std::string& feature_type) {
+  notifications::TipsNotificationsFeatureType type;
+  if (feature_type == "esb") {
+    type = notifications::TipsNotificationsFeatureType::kEnhancedSafeBrowsing;
+  } else if (feature_type == "quick_delete") {
+    type = notifications::TipsNotificationsFeatureType::kQuickDelete;
+  } else if (feature_type == "google_lens") {
+    type = notifications::TipsNotificationsFeatureType::kGoogleLens;
+  } else if (feature_type == "bottom_omnibox") {
+    type = notifications::TipsNotificationsFeatureType::kBottomOmnibox;
+  } else {
+    NOTREACHED();
+  }
+
   notifications::ScheduleParams schedule_params;
   schedule_params.priority =
       notifications::ScheduleParams::Priority::kNoThrottle;
   schedule_params.deliver_time_start = base::Time::Now();
   schedule_params.deliver_time_end = base::Time::Now() + base::Minutes(1);
-  notifications::NotificationData data;
-  data.title = u"title";
-  data.message = u"message";
+  notifications::NotificationData data =
+      notifications::GetTipsNotificationData(type);
   auto params = std::make_unique<notifications::NotificationParams>(
-      notifications::SchedulerClientType::kWebUI, std::move(data),
+      notifications::SchedulerClientType::kTips, std::move(data),
       std::move(schedule_params));
   service_->Schedule(std::move(params));
 }

@@ -17,6 +17,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
@@ -26,6 +27,7 @@
 #include "base/types/expected.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/update_client/update_client_errors.h"
+#include "components/update_client/utils.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace update_client {
@@ -114,7 +116,7 @@ CrxCacheImpl::CrxCacheImpl(const base::FilePath& cache_root)
                 &found_basenames](const base::FilePath& file_path) {
         if (!base::Contains(expected_basenames,
                             file_path.BaseName().AsUTF8Unsafe())) {
-          base::DeleteFile(file_path);
+          RetryFileOperation(&base::DeleteFile, file_path);
         } else {
           found_basenames.insert(file_path.BaseName().AsUTF8Unsafe());
         }
@@ -199,6 +201,11 @@ base::expected<base::FilePath, UnpackerError> CrxCacheImpl::Put(
   if (!base::Move(file, dest)) {
     return base::unexpected(UnpackerError::kFailedToAddToCache);
   }
+  LOG_IF(ERROR, !base::IsDirectoryEmpty(file.DirName()))
+      << "Unexpected, directory not empty: " << file.DirName();
+  if (!DeleteEmptyDirectory(file.DirName())) {
+    PLOG(ERROR) << "Error deleting directory: " << file.DirName();
+  }
 
   // Update metadata.
   base::Value::Dict data;
@@ -241,7 +248,7 @@ void CrxCacheImpl::RemoveIfNot(const std::vector<std::string>& app_ids) {
 
 void CrxCacheImpl::Remove(const std::string& hash) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  base::DeleteFile(cache_root_.AppendUTF8(hash));
+  RetryFileOperation(&base::DeleteFile, cache_root_.AppendUTF8(hash));
   metadata_->RemoveValue(base::StrCat({"hashes.", hash}), 0);
 }
 

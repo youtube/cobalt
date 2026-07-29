@@ -157,21 +157,13 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   // See `IdentitySectionParams` for documentation of the parameters.
   void SetProfileIdentityWithCallToAction(IdentitySectionParams params);
 
-  // Promo buttons have the following Ui aspects:
-  // - are shown right after identity section and before other buttons.
-  // - background color.
-  // - first promo button has a top rounded corners.
-  // - last promo button has bottom rounded corners.
-  // - slight separation between promo buttons.
-  // - limit to the first 2 promo shown.
-  void AddPromoButton(const std::u16string& text,
-                      base::RepeatingClosure action,
-                      const gfx::VectorIcon& icon);
-
+  // If `index` is specified, it must be lower or equal to the current number of
+  // children.
   void AddFeatureButton(const std::u16string& text,
                         base::RepeatingClosure action,
                         const gfx::VectorIcon& icon,
-                        float icon_to_image_ratio = 1.0f);
+                        float icon_to_image_ratio = 1.0f,
+                        std::optional<size_t> index = std::nullopt);
   void SetProfileManagementHeading(const std::u16string& heading);
   void AddAvailableProfile(const ui::ImageModel& image_model,
                            const std::u16string& name,
@@ -240,7 +232,6 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
 
   // Component containers.
   raw_ptr<views::View> identity_info_container_ = nullptr;
-  raw_ptr<views::View> promo_container_ = nullptr;
   raw_ptr<views::View> features_container_ = nullptr;
   raw_ptr<views::View> profile_mgmt_separator_container_ = nullptr;
   raw_ptr<views::View> profile_mgmt_heading_container_ = nullptr;

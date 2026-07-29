@@ -6,31 +6,37 @@
     "scripts": [
       {
         "module_name": "check_network_annotations",
+        "module_scheme": "single",
         "name": "check_network_annotations",
         "script": "check_network_annotations.py"
       },
       {
         "module_name": "check_static_initializers",
+        "module_scheme": "single",
         "name": "check_static_initializers",
         "script": "check_static_initializers.py"
       },
       {
         "module_name": "checkdeps",
+        "module_scheme": "single",
         "name": "checkdeps",
         "script": "checkdeps.py"
       },
       {
         "module_name": "checkperms",
+        "module_scheme": "single",
         "name": "checkperms",
         "script": "checkperms.py"
       },
       {
         "module_name": "metrics_python_tests",
+        "module_scheme": "pyunit",
         "name": "metrics_python_tests",
         "script": "metrics_python_tests.py"
       },
       {
         "module_name": "webkit_lint",
+        "module_scheme": "single",
         "name": "webkit_lint",
         "script": "blink_lint_expectations.py"
       }
@@ -1812,6 +1818,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test/chromedriver:chromedriver_replay_unittests",
+        "module_scheme": "single",
         "name": "chromedriver_replay_unittests",
         "swarming": {
           "dimensions": {
@@ -2223,6 +2230,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test:telemetry_perf_unittests",
+        "module_scheme": "pyunit",
         "name": "telemetry_perf_unittests",
         "resultdb": {
           "enable": true
@@ -2248,6 +2256,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test:telemetry_unittests",
+        "module_scheme": "pyunit",
         "name": "telemetry_unittests",
         "resultdb": {
           "enable": true
@@ -2315,6 +2324,7 @@
           "script": "//tools/perf/process_perf_results.py"
         },
         "module_name": "//ui/views:views_perftests",
+        "module_scheme": "single",
         "name": "views_perftests",
         "swarming": {
           "dimensions": {
@@ -2409,6 +2419,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//testing:xvfb_py_unittests",
+        "module_scheme": "single",
         "name": "xvfb_py_unittests",
         "resultdb": {
           "enable": true

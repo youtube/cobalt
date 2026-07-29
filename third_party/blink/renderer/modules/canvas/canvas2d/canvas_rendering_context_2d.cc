@@ -846,14 +846,14 @@ void CanvasRenderingContext2D::DrawElementInternal(
       builder.Context(),
       PaintFlag::kPrivacyPreserving | PaintFlag::kOmitCompositingInfo);
 
-  PropertyTreeState property_tree_state = layer->GetLayoutObject()
-                                              .FirstFragment()
+  PropertyTreeState property_tree_state = canvas_element->GetLayoutBox()
+                                              ->FirstFragment()
                                               .LocalBorderBoxProperties()
                                               .Unalias();
 
   cc::PaintRecord paint_record = builder.EndRecording(property_tree_state);
 
-  // The filter must have been resolved before calling Draw, because it
+  // The filter needs to be resolved before calling Draw, because it
   // immediately checks IsFilterResolved() and uses a null canvas if not.
   StateGetFilter();
 
@@ -1379,13 +1379,13 @@ CanvasRenderingContext2D::GetOrCreateCanvas2DResourceProvider() {
     hibernation_handler_ = std::make_unique<CanvasHibernationHandler>(*this);
   }
 
-  resource_provider = RecreateCanvasResourceProviderForCanvas2D();
+  RecreateCanvasResourceProviderForCanvas2D();
 
   canvas()->UpdateMemoryUsage();
 
   canvas()->SetNeedsCompositingUpdate();
 
-  return resource_provider;
+  return resource_provider_.get();
 }
 
 std::unique_ptr<CanvasResourceProvider>
@@ -1427,25 +1427,23 @@ void CanvasRenderingContext2D::
   }
 
   // Bail out if it's not possible to create a new provider.
-  CanvasResourceProvider* new_provider =
-      RecreateCanvasResourceProviderForCanvas2D();
-  if (!new_provider) {
+  RecreateCanvasResourceProviderForCanvas2D();
+  if (!resource_provider_) {
     return;
   }
 
-  new_provider->RestoreBackBuffer(image->PaintImageForCurrentFrame());
-  new_provider->SetRecorder(std::move(recorder));
+  resource_provider_->RestoreBackBuffer(image->PaintImageForCurrentFrame());
+  resource_provider_->SetRecorder(std::move(recorder));
 
   canvas()->UpdateMemoryUsage();
 }
 
-CanvasResourceProvider*
-CanvasRenderingContext2D::RecreateCanvasResourceProviderForCanvas2D() {
+void CanvasRenderingContext2D::RecreateCanvasResourceProviderForCanvas2D() {
   CHECK(GetHibernationHandler());
   CHECK(!resource_provider_);
 
   if (did_fail_to_create_resource_provider_) {
-    return nullptr;
+    return;
   }
 
   if (canvas()->IsValidImageSize()) {
@@ -1454,29 +1452,32 @@ CanvasRenderingContext2D::RecreateCanvasResourceProviderForCanvas2D() {
   }
   if (!resource_provider_) {
     did_fail_to_create_resource_provider_ = true;
-  } else if (resource_provider_->IsValid()) {
-    base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
-                              resource_provider_->IsAccelerated());
-    base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                  resource_provider_->GetType());
-  }
-  if (!resource_provider_ || !resource_provider_->IsValid()) {
-    return nullptr;
+    return;
   }
 
-  auto* hibernation_handler = GetHibernationHandler();
-  if (!hibernation_handler->IsHibernating()) {
-    return resource_provider_.get();
-  }
+  CHECK(resource_provider_->IsValid());
+  base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                            resource_provider_->IsAccelerated());
+  base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                resource_provider_->GetType());
 
-  if (resource_provider_->IsAccelerated()) {
+  if (GetHibernationHandler()->IsHibernating()) {
+    WakeUpFromHibernation();
+  }
+}
+
+void CanvasRenderingContext2D::WakeUpFromHibernation() {
+  TRACE_EVENT0("base", "Canvas2dWakeUpFromHibernation");
+
+  if (!canvas()->IsPageVisible()) {
     CanvasHibernationHandler::ReportHibernationEvent(
-        CanvasHibernationHandler::HibernationEvent::kHibernationEndedNormally);
+        CanvasHibernationHandler::HibernationEvent::
+            kHibernationEndedWithSwitchToBackgroundRendering);
   } else {
-    if (!canvas()->IsPageVisible()) {
+    if (resource_provider_->IsAccelerated()) {
       CanvasHibernationHandler::ReportHibernationEvent(
           CanvasHibernationHandler::HibernationEvent::
-              kHibernationEndedWithSwitchToBackgroundRendering);
+              kHibernationEndedNormally);
     } else {
       CanvasHibernationHandler::ReportHibernationEvent(
           CanvasHibernationHandler::HibernationEvent::
@@ -1484,6 +1485,7 @@ CanvasRenderingContext2D::RecreateCanvasResourceProviderForCanvas2D() {
     }
   }
 
+  CanvasHibernationHandler* hibernation_handler = GetHibernationHandler();
   PaintImageBuilder builder = PaintImageBuilder::WithDefault();
   builder.set_image(hibernation_handler->GetImage(),
                     PaintImage::GetNextContentId());
@@ -1496,8 +1498,6 @@ CanvasRenderingContext2D::RecreateCanvasResourceProviderForCanvas2D() {
 
   // shouldBeDirectComposited() may have changed.
   canvas()->SetNeedsCompositingUpdate();
-
-  return resource_provider_.get();
 }
 
 void CanvasRenderingContext2D::SetCanvas2DResourceProviderForTesting(

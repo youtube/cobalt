@@ -36,6 +36,7 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_utils.h"
+#include "ui/native_theme/mock_os_settings_provider.h"
 
 namespace {
 
@@ -109,7 +110,7 @@ class BrowserFrameViewBrowserTest : public extensions::ExtensionBrowserTest {
   // browser view and don't retain the pointer.
   // TODO(crbug.com/40656280): Make it not do this and only refresh the Widget.
   BrowserFrameView* GetAppFrameView() {
-    return app_browser_view_->frame()->GetFrameView();
+    return app_browser_view_->browser_widget()->GetFrameView();
   }
 
  protected:
@@ -133,7 +134,8 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewBrowserTest, BrowserFrameColorThemed) {
   InstallExtension(test_data_dir_.AppendASCII("theme"), 1);
 
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  const BrowserFrameView* frame_view = browser_view->frame()->GetFrameView();
+  const BrowserFrameView* frame_view =
+      browser_view->browser_widget()->GetFrameView();
   const ui::ColorProvider* color_provider = frame_view->GetColorProvider();
   const SkColor expected_active_color =
       color_provider->GetColor(ui::kColorFrameActive);
@@ -218,15 +220,14 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewBrowserTest,
 // Verifies that the incognito window frame is always the right color.
 IN_PROC_BROWSER_TEST_F(BrowserFrameViewBrowserTest, IncognitoIsCorrectColor) {
   // Set the color that's expected to be ignored.
-  auto* theme = ui::NativeTheme::GetInstanceForNativeUi();
-  theme->set_user_color(gfx::kGoogleBlue400);
-  theme->NotifyOnNativeThemeUpdated();
+  ui::MockOsSettingsProvider os_settings_provider;
+  os_settings_provider.SetAccentColor(gfx::kGoogleBlue400);
 
   Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
 
   BrowserView* view = BrowserView::GetBrowserViewForBrowser(incognito_browser);
-  BrowserWidget* frame = view->frame();
-  BrowserFrameView* frame_view = frame->GetFrameView();
+  BrowserWidget* widget = view->browser_widget();
+  BrowserFrameView* frame_view = widget->GetFrameView();
 
   color_utils::HSL frame_color_hsl;
   SkColorToHSL(frame_view->GetFrameColor(BrowserFrameActiveState::kActive),
@@ -432,7 +433,7 @@ IN_PROC_BROWSER_TEST_F(BrowserFrameViewBrowserTest, DISABLED_SaveCardIcon) {
 #if BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(BrowserFrameViewBrowserTest, BrowserFrameWindowMask) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  BrowserFrameView* frame_view = browser_view->frame()->GetFrameView();
+  BrowserFrameView* frame_view = browser_view->browser_widget()->GetFrameView();
   SkPath path;
   frame_view->GetWindowMask(frame_view->bounds().size(), &path);
   EXPECT_TRUE(path.isEmpty());

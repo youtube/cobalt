@@ -67,35 +67,18 @@ static CodecProfileLevel MediaCodecProfileLevelToChromiumProfileLevel(
   return {codec, profile, level};
 }
 
-static bool IsDecoderSupportedByDevice(const std::string& android_mime_type) {
+static bool IsDecoderSupportedByDevice(std::string_view android_mime_type) {
   if (android_mime_type == kVp8MimeType) {
     std::string hardware = base::SysInfo::GetAndroidBuildID();
-    // MediaTek decoders do not work properly on vp8. See
+    // MediaTek decoders do not work properly on vp8 until Android T. See
     // http://crbug.com/446974 and http://crbug.com/597836.
-    if (hardware.starts_with("mt")) {
-      if (base::android::android_info::sdk_int() <
-          base::android::android_info::SDK_VERSION_P) {
-        return false;
-      }
-      // MediaTek chipsets after 'Android T' are compatible with vp8.
-      if (base::android::android_info::sdk_int() <
-          base::android::android_info::SDK_VERSION_T) {
-        // The following chipsets have been confirmed by MediaTek to work on P+
-        return hardware.starts_with("mt5599") ||
-               hardware.starts_with("mt5895") ||
-               hardware.starts_with("mt8768") ||
-               hardware.starts_with("mt8696") || hardware.starts_with("mt5887");
-      }
-    }
-  } else if (android_mime_type == kVp9MimeType) {
-    // Nexus Player VP9 decoder performs poorly at >= 1080p resolution.
-    if (base::SysInfo::HardwareModelName() == "Nexus Player") {
-      return false;
-    }
-  } else if (android_mime_type == kAv1MimeType) {
-    if (base::android::android_info::sdk_int() <
-        base::android::android_info::SDK_VERSION_Q) {
-      return false;
+    if (hardware.starts_with("mt") &&
+        base::android::android_info::sdk_int() <
+            base::android::android_info::SDK_VERSION_T) {
+      // The following chipsets have been confirmed by MediaTek to work on P+
+      return hardware.starts_with("mt5599") || hardware.starts_with("mt5895") ||
+             hardware.starts_with("mt8768") || hardware.starts_with("mt8696") ||
+             hardware.starts_with("mt5887");
     }
   }
   return true;
@@ -107,13 +90,6 @@ static jboolean JNI_MediaCodecUtil_IsDecoderSupportedForDevice(
   return IsDecoderSupportedByDevice(mime_type);
 }
 
-static bool IsEncoderSupportedByDevice(const std::string& android_mime_type) {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> j_mime =
-      ConvertUTF8ToJavaString(env, android_mime_type);
-  return Java_MediaCodecUtil_isEncoderSupportedByDevice(env, j_mime);
-}
-
 static bool CanDecodeInternal(const std::string& mime, bool is_secure) {
   if (mime.empty())
     return false;
@@ -121,15 +97,6 @@ static bool CanDecodeInternal(const std::string& mime, bool is_secure) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jstring> j_mime = ConvertUTF8ToJavaString(env, mime);
   return Java_MediaCodecUtil_canDecode(env, j_mime, is_secure);
-}
-
-static bool HasVp9Profile23Decoder() {
-  // Support for VP9.2, VP9.3 was added in Nougat but it requires hardware
-  // support which we can't check from the renderer process. Since Android P+
-  // has a software decoder available for VP9.2, VP9.3 content and usage is nil
-  // on Android, just gate support on P+.
-  return base::android::android_info::sdk_int() >=
-         base::android::android_info::SDK_VERSION_P;
 }
 
 // static
@@ -195,105 +162,8 @@ std::string MediaCodecUtil::CodecToAndroidMimeType(VideoCodec codec) {
 }
 
 // static
-std::set<int> MediaCodecUtil::GetEncoderColorFormats(
-    const std::string& mime_type) {
-  std::set<int> color_formats;
-
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> j_mime = ConvertUTF8ToJavaString(env, mime_type);
-  ScopedJavaLocalRef<jintArray> j_color_format_array =
-      Java_MediaCodecUtil_getEncoderColorFormatsForMime(env, j_mime);
-
-  if (!j_color_format_array.is_null()) {
-    std::vector<int> formats;
-    JavaIntArrayToIntVector(env, j_color_format_array, &formats);
-    color_formats = std::set<int>(formats.begin(), formats.end());
-  }
-
-  return color_formats;
-}
-
-// static
 bool MediaCodecUtil::IsVp8DecoderAvailable() {
   return IsDecoderSupportedByDevice(kVp8MimeType);
-}
-
-// static
-bool MediaCodecUtil::IsVp8EncoderAvailable() {
-  // Currently the vp8 encoder and decoder blocklists cover the same devices,
-  // but we have a second method for clarity in future issues.
-  return IsVp8DecoderAvailable();
-}
-
-// static
-bool MediaCodecUtil::IsVp9DecoderAvailable() {
-  return IsDecoderSupportedByDevice(kVp9MimeType);
-}
-
-// static
-bool MediaCodecUtil::IsVp9Profile2DecoderAvailable() {
-  return IsVp9DecoderAvailable() && HasVp9Profile23Decoder();
-}
-
-// static
-bool MediaCodecUtil::IsVp9Profile3DecoderAvailable() {
-  return IsVp9DecoderAvailable() && HasVp9Profile23Decoder();
-}
-
-// static
-bool MediaCodecUtil::IsOpusDecoderAvailable() {
-  return IsDecoderSupportedByDevice(kOpusMimeType);
-}
-
-// static
-bool MediaCodecUtil::IsAv1DecoderAvailable() {
-  return IsDecoderSupportedByDevice(kAv1MimeType);
-}
-
-#if BUILDFLAG(ENABLE_PLATFORM_HEVC)
-// static
-bool MediaCodecUtil::IsHEVCDecoderAvailable() {
-  return IsDecoderSupportedByDevice(kHevcMimeType);
-}
-#endif
-
-// static
-bool MediaCodecUtil::IsAACEncoderAvailable() {
-  // We only support AAC encoding on android Q+, due to our use of the NDK.
-  return base::android::android_info::sdk_int() >=
-         base::android::android_info::SDK_VERSION_Q;
-}
-
-// static
-bool MediaCodecUtil::IsSurfaceViewOutputSupported() {
-  // Disable SurfaceView output for the Samsung Galaxy S3; it does not work
-  // well enough for even 360p24 H264 playback.  http://crbug.com/602870.
-  //
-  // Notably this is codec agnostic at present, so any devices added to the
-  // disabled list will avoid trying to play any codecs on SurfaceView.  If
-  // needed in the future this can be expanded to be codec specific.
-  constexpr const char* kDisabledModels[] = {// Exynos 4 (Mali-400)
-                                             "GT-I9300", "GT-I9305", "SHV-E210",
-                                             // Snapdragon S4 (Adreno-225)
-                                             "SCH-I535", "SCH-J201", "SCH-R530",
-                                             "SCH-I960", "SCH-S968", "SGH-T999",
-                                             "SGH-I747", "SGH-N064"};
-
-  std::string model(base::android::android_info::model());
-  for (auto* disabled_model : kDisabledModels) {
-    if (base::StartsWith(model, disabled_model,
-                         base::CompareCase::INSENSITIVE_ASCII)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-// static
-bool MediaCodecUtil::IsSetOutputSurfaceSupported() {
-  JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecUtil_isSetOutputSurfaceSupported(env);
 }
 
 // static
@@ -383,11 +253,6 @@ bool MediaCodecUtil::CanDecode(VideoCodec codec, bool is_secure) {
 // static
 bool MediaCodecUtil::CanDecode(AudioCodec codec) {
   return CanDecodeInternal(CodecToAndroidMimeType(codec), false);
-}
-
-// static
-bool MediaCodecUtil::IsH264EncoderAvailable() {
-  return IsEncoderSupportedByDevice(kAvcMimeType);
 }
 
 // static

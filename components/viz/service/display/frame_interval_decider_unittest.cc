@@ -99,6 +99,12 @@ class FrameIntervalDeciderTest : public testing::Test,
     return std::string_view();
   }
   void AggregatedFrameSinksChanged() override {}
+  void AddObserver(FrameSinkObserver* obs) override {}
+  void RemoveObserver(FrameSinkObserver* obs) override {}
+  bool HasViewTransitionToken(
+      const blink::ViewTransitionToken& transition_token) override {
+    return false;
+  }
 
  protected:
   base::WeakPtr<SurfaceClient> surface_client() {

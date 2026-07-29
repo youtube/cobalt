@@ -30,6 +30,9 @@
   HomeCustomizationFramingCoordinates* _userUploadedFramingCoordinates;
 }
 
+@synthesize accessibilityName = _accessibilityName;
+@synthesize accessibilityValue = _accessibilityValue;
+
 - (instancetype)initWithUserUploadedImagePath:(NSString*)imagePath
                            framingCoordinates:
                                (const FramingCoordinates&)coordinates {
@@ -46,8 +49,9 @@
   return self;
 }
 
-- (instancetype)initWithCollectionImage:
-    (const CollectionImage&)collectionImage {
+- (instancetype)initWithCollectionImage:(const CollectionImage&)collectionImage
+                      accessibilityName:(NSString*)accessibilityName
+                     accessibilityValue:(NSString*)accessibilityValue {
   self = [super init];
   if (self) {
     _collectionImage = collectionImage;
@@ -57,12 +61,15 @@
                          _backgroundStyle,
                          base::SysUTF8ToNSString(
                              base::NumberToString(collectionImage.asset_id))];
+    _accessibilityName = accessibilityName;
+    _accessibilityValue = accessibilityValue;
   }
   return self;
 }
 
 - (instancetype)initWithNtpCustomBackground:
-    (const sync_pb::NtpCustomBackground&)customBackground {
+                    (const sync_pb::NtpCustomBackground&)customBackground
+                          accessibilityName:(NSString*)accessibilityName {
   self = [super init];
   if (self) {
     _customBackground = customBackground;
@@ -74,13 +81,15 @@
         stringWithFormat:@"%@_%ld_%@", kBackgroundCellIdentifier,
                          _backgroundStyle,
                          base::SysUTF8ToNSString(customBackground.url())];
+    _accessibilityName = accessibilityName;
   }
   return self;
 }
 
 - (instancetype)initWithBackgroundColor:(UIColor*)backgroundColor
-                           colorVariant:(ui::ColorProviderKey::SchemeVariant)
-                                            colorVariant {
+                           colorVariant:
+                               (ui::ColorProviderKey::SchemeVariant)colorVariant
+                      accessibilityName:(NSString*)accessibilityName {
   self = [super init];
   if (self) {
     _backgroundStyle = HomeCustomizationBackgroundStyle::kColor;
@@ -89,6 +98,7 @@
                          _backgroundStyle, backgroundColor.description];
     _backgroundColor = backgroundColor;
     _colorVariant = colorVariant;
+    _accessibilityName = accessibilityName;
   }
   return self;
 }

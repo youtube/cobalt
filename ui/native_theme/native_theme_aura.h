@@ -18,17 +18,10 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeAura : public NativeThemeBase {
   NativeThemeAura& operator=(const NativeThemeAura&) = delete;
 
   // NativeThemeBase:
-  gfx::Size GetPartSize(Part part,
-                        State state,
-                        const ExtraParams& extra_params) const override;
   gfx::Insets GetScrollbarSolidColorThumbInsets(Part part) const override;
   bool SupportsNinePatch(Part part) const override;
   gfx::Size GetNinePatchCanvasSize(Part part) const override;
   gfx::Rect GetNinePatchAperture(Part part) const override;
-  SkColor GetScrollbarThumbColor(
-      const ui::ColorProvider* color_provider,
-      State state,
-      const ScrollbarThumbExtraParams& extra_params) const override;
 
  protected:
   explicit NativeThemeAura(bool use_overlay_scrollbar = false);
@@ -36,7 +29,12 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeAura : public NativeThemeBase {
   ~NativeThemeAura() override;
 
   // NativeThemeBase:
-  float GetContrastRatioForState(State state, Part part) const override;
+  gfx::Size GetVerticalScrollbarButtonSize() const override;
+  gfx::Size GetVerticalScrollbarThumbSize() const override;
+  std::optional<ColorId> GetScrollbarThumbColorId(
+      State state,
+      const ScrollbarThumbExtraParams& extra_params) const override;
+  float GetScrollbarPartContrastRatioForState(State state) const override;
   void PaintMenuPopupBackground(
       cc::PaintCanvas* canvas,
       const ColorProvider* color_provider,
@@ -46,7 +44,7 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeAura : public NativeThemeBase {
       cc::PaintCanvas* gc,
       const ColorProvider* color_provider,
       const gfx::Rect& rect,
-      Part direction,
+      Part part,
       State state,
       bool forced_colors,
       bool dark_mode,
@@ -75,7 +73,6 @@ class COMPONENT_EXPORT(NATIVE_THEME) NativeThemeAura : public NativeThemeBase {
       const ScrollbarTrackExtraParams& extra_params) const override;
 
  private:
-  friend class NativeThemeAuraTest;
   friend class base::NoDestructor<NativeThemeAura>;
 };
 

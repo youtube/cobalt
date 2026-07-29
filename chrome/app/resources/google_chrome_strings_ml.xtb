@@ -450,6 +450,9 @@
 <translation id="6180522807229584611">ഈ ടാബ് അധിക ഉറവിടങ്ങൾ ഉപയോഗിക്കുന്നു. നിങ്ങളുടെ പ്രകടനം മെച്ചപ്പെടുത്താനായി അതിനെ നിഷ്ക്രിയമാക്കാൻ Chrome-നെ അനുവദിക്കുക.</translation>
 <translation id="6182736845697986886">അപ്‌ഡേറ്റ് സെർവർ ആന്തരിക പിശക് കാരണം ഇൻസ്റ്റാൾ ചെയ്യുന്നത് പരാജയപ്പെട്ടു.</translation>
 <translation id="6192058120268468905">Chrome-ലെ നിങ്ങളുടെ അക്കൗണ്ട്</translation>
+<translation id="6220551899604141979"><ph name="PARTNER_NAME" />, Chrome പ്രവർത്തിക്കുന്ന രീതി മാറ്റിയേക്കാവുന്ന ഒരു വിപുലീകരണം ചേർത്തു.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">mDNS ട്രാഫിക് അനുവദിക്കാൻ Google Chrome-നുള്ള ഇൻബൗണ്ട് റൂൾ.</translation>
 <translation id="624230925347970731">Chrome ഉടൻ അടയ്‌ക്കും</translation>
 <translation id="6247557882553405851">Google Password Manager</translation>
@@ -478,6 +481,7 @@
 <translation id="6506909944137591434">നിങ്ങളുടെ ചുറ്റുപാടുകളുടെ 3D മാപ്പ് സൃഷ്‌ടിക്കാൻ Chrome-ന് ക്യാമറാ അനുമതി ആവശ്യമാണ്</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Dev</translation>
 <translation id="6520670145826811516">നിങ്ങളുടെ ലൊക്കേഷൻ ഉപയോഗിക്കാൻ, <ph name="BEGIN_LINK" />സിസ്റ്റം ക്രമീകരണം<ph name="END_LINK" /> എന്നതിൽ Chrome-ന് ആക്‌സസ് നൽകുക</translation>
+<translation id="652948702951888897">Chrome ചരിത്രം</translation>
 <translation id="6532945796722480006">Chrome Canary-യിലെ Gemini തുറക്കുക</translation>
 <translation id="6585124893636629274">Chrome-ലെ Gemini അടയ്ക്കുക</translation>
 <translation id="659498884637196217">ഈ ഉപകരണത്തിലെ Google പാസ്‌വേഡ് മാനേജരിൽ</translation>

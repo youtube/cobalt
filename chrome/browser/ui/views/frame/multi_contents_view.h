@@ -172,6 +172,10 @@ class MultiContentsView : public views::View,
     return contents_container_views_[index]->mini_toolbar();
   }
 
+  MultiContentsBackgroundView* background_view_for_testing() const {
+    return background_view_;
+  }
+
  private:
   FRIEND_TEST_ALL_PREFIXES(MultiContentsViewBrowserTest, DropTargetLayout);
   FRIEND_TEST_ALL_PREFIXES(MultiContentsViewBrowserTest, SeparatorLayout);
@@ -214,6 +218,7 @@ class MultiContentsView : public views::View,
 
   void OnWebContentsFocused(views::WebView*);
   void OnNtpFooterFocused(views::WebView*);
+  void OnActorOverlayFocused(views::WebView*);
 
   ViewWidths GetViewWidths(gfx::Rect available_space) const;
 
@@ -245,6 +250,11 @@ class MultiContentsView : public views::View,
   // Holds subscriptions for when the attached web contents to NtpFooterView
   // is focused.
   std::vector<base::CallbackListSubscription> ntp_footer_focused_subscriptions_;
+
+  // Holds subscriptions for when the attached web contents to
+  // ActorOverlayWebView is focused.
+  std::vector<base::CallbackListSubscription>
+      actor_overlay_focused_subscriptions_;
 
   // The handle responsible for resizing the two contents views as relative to
   // each other.

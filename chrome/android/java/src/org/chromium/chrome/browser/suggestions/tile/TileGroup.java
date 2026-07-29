@@ -30,7 +30,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 /** The model and controller for a group of site suggestion tiles. */
@@ -50,7 +49,7 @@ public class TileGroup implements MostVisitedSites.Observer {
         public @Nullable List<SiteSuggestion> siteSuggestions;
 
         /** List of tasks to run after tiles are reloaded and re-rendered. */
-        public final LinkedList<Runnable> taskToRunAfterTileReload = new LinkedList<>();
+        public final List<Runnable> taskToRunAfterTileReload = new ArrayList<>();
     }
 
     /**
@@ -176,7 +175,8 @@ public class TileGroup implements MostVisitedSites.Observer {
             extends View.OnClickListener,
                     View.OnKeyListener,
                     View.OnLongClickListener,
-                    View.OnTouchListener {
+                    View.OnTouchListener,
+                    View.OnGenericMotionListener {
         /**
          * Set a runnable for click events on the tile. This is primarily used to track interaction
          * with the tile used by feature engagement purposes.
@@ -711,7 +711,7 @@ public class TileGroup implements MostVisitedSites.Observer {
             mPendingChanges.taskToRunAfterTileReload.add(onSuccessCallback);
             boolean success = mTileGroupDelegate.addCustomLink(name, url, pos);
             if (!success) {
-                mPendingChanges.taskToRunAfterTileReload.removeLastOccurrence(onSuccessCallback);
+                mPendingChanges.taskToRunAfterTileReload.remove(onSuccessCallback);
             }
             return success;
         }
@@ -727,7 +727,7 @@ public class TileGroup implements MostVisitedSites.Observer {
             mPendingChanges.taskToRunAfterTileReload.add(onSuccessCallback);
             boolean success = mTileGroupDelegate.assignCustomLink(keyUrl, name, url);
             if (!success) {
-                mPendingChanges.taskToRunAfterTileReload.removeLastOccurrence(onSuccessCallback);
+                mPendingChanges.taskToRunAfterTileReload.remove(onSuccessCallback);
             }
             return success;
         }
@@ -756,7 +756,7 @@ public class TileGroup implements MostVisitedSites.Observer {
             mPendingChanges.taskToRunAfterTileReload.add(newOnSuccessCallback);
             boolean success = mTileGroupDelegate.reorderCustomLink(url, newPos);
             if (!success) {
-                mPendingChanges.taskToRunAfterTileReload.removeLastOccurrence(newOnSuccessCallback);
+                mPendingChanges.taskToRunAfterTileReload.remove(newOnSuccessCallback);
             }
             return success;
         }

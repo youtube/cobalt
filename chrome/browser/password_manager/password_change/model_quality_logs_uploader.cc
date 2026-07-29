@@ -191,7 +191,13 @@ ModelQualityLogsUploader::ModelQualityLogsUploader(
 }
 ModelQualityLogsUploader::~ModelQualityLogsUploader() = default;
 
-void ModelQualityLogsUploader::SetLoggedInCheckQuality(int state_checks_count) {
+void ModelQualityLogsUploader::SetLoggedInCheckQuality(
+    int state_checks_count,
+    QualityStatus quality_status) {
+  final_log_data_.mutable_password_change_submission()
+      ->mutable_quality()
+      ->mutable_logged_in_check()
+      ->set_status(quality_status);
   // If the initial login check wasn't performed because the page content failed
   // to be requested, the state_checks_count can be 0.
   const int retry_count = std::max(0, state_checks_count - 1);
@@ -363,6 +369,13 @@ void ModelQualityLogsUploader::SetVerifySubmissionQuality(
       ->mutable_verify_submission()
       ->set_request_latency_ms(
           ComputeRequestLatencyMs(server_request_start_time));
+}
+
+void ModelQualityLogsUploader::LoginCheckSkipped() {
+  final_log_data_.mutable_password_change_submission()
+      ->mutable_quality()
+      ->mutable_logged_in_check()
+      ->set_classification_overridden_by_user(true);
 }
 
 // static

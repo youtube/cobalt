@@ -28,7 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821 amd-0x7340 amd-0x7480
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
+#             amd-0x7340 amd-0x7480
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -62,6 +63,7 @@
 # tags: [ mesa_lt_19.1
 #         mesa_ge_21.0
 #         mesa_ge_23.2
+#         mesa_ge_24.2
 #         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
 #         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
@@ -189,6 +191,9 @@ crbug.com/364179193 [ linux ] TraceTest_Video_Media_Stream_Incompatible_Stride [
 # Flaky timeouts on all platforms
 crbug.com/371949935 TraceTest_ViewTransitionsCapture [ Skip ]
 
+# Slow on DCHECK and need extra time to address.
+crbug.com/425745937 [ fuchsia web-engine-shell ] TraceTest_Canvas2DBlitText [ Skip ]
+
 ###################
 # Failures/Flakes #
 ###################
@@ -233,7 +238,14 @@ crbug.com/398149367 [ win11 amd-0x7480 ] WebGPUCachingTraceTest_RenderPipelineCr
 crbug.com/398149367 [ win11 amd-0x7480 ] WebGPUCachingTraceTest_RenderPipelineDifferentOrigins [ Failure ]
 crbug.com/398149367 [ win11 amd-0x7480 ] WebGPUCachingTraceTest_RenderPipelineIncognito [ Failure ]
 
-
+# Win/AMD 890M failures
+crbug.com/402989071 [ win11 amd-0x150e ] TraceTest_MediaFoundationD3D11VideoCapture [ Failure ]
+crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_ComputePipelineCrossOriginsCacheMisses [ Failure ]
+crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_ComputePipelineDifferentOrigins [ Failure ]
+crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_ComputePipelineIncognito [ Failure ]
+crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_RenderPipelineCrossOriginsCacheMisses [ Failure ]
+crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_RenderPipelineDifferentOrigins [ Failure ]
+crbug.com/329138770 [ win11 amd-0x150e ] WebGPUCachingTraceTest_RenderPipelineIncognito [ Failure ]
 
 
 # Win11/RTX 4070 Super failures after upgrading to driver 580.88

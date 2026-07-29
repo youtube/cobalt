@@ -33,6 +33,17 @@ should be able to be added at any place in this file.
 
 <actions>
 
+<variants name="Toast_Type">
+  <variant name="" summary="aggregated"/>
+  <variant name=".AddedToComparisonTable" summary="Added to comparison table"/>
+  <variant name=".AddedToReadingList" summary="Added to reading list"/>
+  <variant name=".DiceUserMigrated" summary="DICe user migrated"/>
+  <variant name=".SyncEsbOff"
+      summary="Enhanced Protection setting has been synced to Off"/>
+  <variant name=".SyncEsbOn"
+      summary="Enhanced Protection setting has been synced to On"/>
+</variants>
+
 <action name="AboutChrome">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -139,12 +150,6 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
-<action name="AboutFlags_disable-pnacl">
-  <obsolete>This flag no longer exists.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
 <action name="AboutFlags_disable-print-preview">
   <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
@@ -206,36 +211,12 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="AboutFlags_enable-nacl">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
-<action name="AboutFlags_enable-nacl-debug">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
-<action name="AboutFlags_enable-nacl-exception-handling">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
 <action name="AboutFlags_enable-native-cups">
   <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
   <owner>skau@chromium.org</owner>
   <description>
     Records if native cups printing is enabled in chrome://flags
   </description>
-</action>
-
-<action name="AboutFlags_enable-pnacl">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
 </action>
 
 <action name="AboutFlags_enable-pointer-events">
@@ -339,24 +320,6 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="AboutFlags_my-special-feature">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
-<action name="AboutFlags_nacl-debug-mask">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
-<action name="AboutFlags_nacl-gdb">
-  <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
-<action name="AboutFlags_nacl-gdb-script">
   <obsolete>Deprecated in favor of AboutFlags.Seen histogram.</obsolete>
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -12992,6 +12955,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="GlicContextUploadCompleted" not_user_triggered="true">
+  <owner>harringtond@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <description>
+    Reported when completing the upload of context necessary to answer a Glic
+    query.
+  </description>
+</action>
+
+<action name="GlicContextUploadStarted" not_user_triggered="true">
+  <owner>harringtond@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <description>
+    Reported when starting to upload the context necessary to answer a Glic
+    query.
+  </description>
+</action>
+
 <action name="GlicLocationPermissionDisabled">
   <owner>tommasin@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
@@ -13145,6 +13126,35 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="GlicReactionCanned" not_user_triggered="true">
+  <owner>harringtond@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <description>
+    Recorded when a reaction was rendered in response to a Glic user query, and
+    the reaction type is 'Canned'. Canned reactions are pre-defined reactions
+    that can be rendered without delay.
+  </description>
+</action>
+
+<action name="GlicReactionModelled" not_user_triggered="true">
+  <owner>harringtond@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <description>
+    Recorded when a reaction was rendered in response to a Glic user query, and
+    the reaction type is 'Model'. Model reactions show output from a model to
+    explain work on the response.
+  </description>
+</action>
+
+<action name="GlicReactionUnknown" not_user_triggered="true">
+  <owner>harringtond@chromium.org</owner>
+  <owner>carlosk@chromium.org</owner>
+  <description>
+    Recorded when a reaction was rendered in response to a Glic user query, and
+    the reaction type is unknown.
+  </description>
+</action>
+
 <action name="GlicRemoveHighlight">
   <owner>adithyas@chromium.org</owner>
   <owner>liuwilliam@chromium.org</owner>
@@ -13199,8 +13209,8 @@ should be able to be added at any place in this file.
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Tracks a single response stop in glic, initiated by a non-user cause (could
-    be normal completion).
+    Tracks a single response stop in glic that was not caused by a user or
+    normal completion.
   </description>
 </action>
 
@@ -13209,7 +13219,9 @@ should be able to be added at any place in this file.
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Tracks a single response stop in glic, the cause is unspecified.
+    Tracks a single response stop in glic, the cause is unspecified. This is
+    reported for all stops in older server versions, and only successful
+    completions in newer server versions.
   </description>
 </action>
 
@@ -23139,6 +23151,18 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileAIHubIconTapped">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>Reported when the user taps the AI Hub icon.</description>
+</action>
+
+<action name="MobileAIHubNewBadgeTapped">
+  <owner>joemerramos@google.com</owner>
+  <owner>bling-alchemy@google.com</owner>
+  <description>Reported when the user taps the New Feature Badge</description>
+</action>
+
 <action name="MobileBandwidthSettingsBack">
   <owner>gambard@chromium.org</owner>
   <owner>sczs@chromium.org</owner>
@@ -28927,14 +28951,87 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="MobileToolbarTabMenu">
+<action name="MobileToolbarTabMenu{ActionType}">
   <owner>jhimawan@google.com</owner>
   <owner>hitarthkothari@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <description>
     Recorded when the user interacts with the tab menu on the tab strip on
-    Android.
+    Android. {ActionType}
   </description>
+  <token key="ActionType">
+    <variant name="" summary="aggregated"/>
+    <variant name=".AddToTabGroup"
+        summary="User opened the bottom sheet to add a tab to a new or
+                 existing tab group, via the tab context menu on tab strip on
+                 Android."/>
+    <variant name=".AddToTabGroup.MultiTab"
+        summary="User opened the bottom sheet to add multiple tabs to a new
+                 or existing tab group, via the tab context menu on tab strip
+                 on Android."/>
+    <variant name=".CloseTab"
+        summary="User closed a tab via the tab context menu on tab strip on
+                 Android."/>
+    <variant name=".CloseTab.MultiTab"
+        summary="User closed multiple tabs via the tab context menu on tab
+                 strip on Android."/>
+    <variant name=".MoveTabToGroup"
+        summary="User moved a tab to a synced tab group via the tab context
+                 menu on tab strip on Android."/>
+    <variant name=".MoveTabToGroup.MultiTab"
+        summary="User moved multiple tabs to a synced tab group via the tab
+                 context menu on tab strip on Android."/>
+    <variant name=".MoveTabToIncognitoGroup"
+        summary="User moved a tab to an incognito tab group via the tab
+                 context menu on tab strip on Android."/>
+    <variant name=".MoveTabToIncognitoGroup.MultiTab"
+        summary="User moved multiple tabs to an incognito tab group via the
+                 tab context menu on tab strip on Android."/>
+    <variant name=".MoveTabToNewWindow"
+        summary="User moved a tab to a new window via the tab context menu on
+                 tab strip on Android."/>
+    <variant name=".MoveTabToNewWindow.MultiTab"
+        summary="User moved multiple tabs to a new window via the tab context
+                 menu on tab strip on Android."/>
+    <variant name=".MoveTabToOtherWindow"
+        summary="User moved a tab to another window via the tab context menu
+                 on tab strip on Android."/>
+    <variant name=".MoveTabToOtherWindow.MultiTab"
+        summary="User moved multiple tabs to another window via the tab
+                 context menu on tab strip on Android."/>
+    <variant name=".NewGroup"
+        summary="User created a new tab group via the tab context menu on tab
+                 strip on Android."/>
+    <variant name=".NewGroup.MultiTab"
+        summary="User created a new tab group with multiple tabs via the tab
+                 context menu on tab strip on Android."/>
+    <variant name=".PinTab"
+        summary="User pinned a tab via the tab context menu on tab strip on
+                 Android."/>
+    <variant name=".PinTab.MultiTab"
+        summary="User pinned multiple tabs via the tab context menu on tab
+                 strip on Android."/>
+    <variant name=".RemoveTabFromTabGroup"
+        summary="User removed a tab from its tab group via the tab context
+                 menu on tab strip on Android."/>
+    <variant name=".RemoveTabFromTabGroup.MultiTab"
+        summary="User removed multiple tabs from their tab group via the tab
+                 context menu on tab strip on Android."/>
+    <variant name=".ShareTab"
+        summary="User shared the URL open in a tab, via the tab context menu
+                 on tab strip on Android."/>
+    <variant name=".Shown"
+        summary="Recorded when the tab context menu is shown."/>
+    <variant name=".Shown.MultiTab"
+        summary="Recorded when the tab context menu is shown with multiple
+                 tabs selected."/>
+    <variant name=".UnpinTab"
+        summary="User unpinned a tab via the tab context menu on tab strip on
+                 Android."/>
+    <variant name=".UnpinTab.MultiTab"
+        summary="User unpinned multiple tabs via the tab context menu on tab
+                 strip on Android."/>
+  </token>
 </action>
 
 <action name="MobileToolbarToggleBookmark">
@@ -45962,6 +46059,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabGroups_GroupAllUngroupedTabs">
+  <owner>dominicaustria@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    User created a tab group by opening the system menu and selecting the group
+    all ungrouped tabs button.
+  </description>
+</action>
+
 <action name="TabGroups_SavedTabGroups_Closed">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -46499,6 +46605,26 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Tabs.SplitView.NudgeShown">
+  <owner>agale@chromium.org</owner>
+  <owner>edwardjung@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the nudge is shown for the split tab drop target during a link
+    drag operation.
+  </description>
+</action>
+
+<action name="Tabs.SplitView.NudgeUsed">
+  <owner>agale@chromium.org</owner>
+  <owner>edwardjung@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user drops a link into the split tab drop target if the
+    nudge had previously been shown during the drag.
+  </description>
+</action>
+
 <action name="TabsSearch.SuggestedActions.OpenTabs">
   <owner>michaeldo@chromium.org</owner>
   <owner>mrefaat@chromium.org</owner>
@@ -46890,22 +47016,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="Toast.ActionButtonClicked">
+<action name="Toast.ActionButtonClicked{Toast_Type}">
   <owner>agale@chromium.org</owner>
   <owner>stluong@chromium.org</owner>
   <owner>chrome-performance-ui-sea@google.com</owner>
   <description>
-    Recorded when the user clicks on toast's action button.
+    Recorded when the user clicks on toast's action button. {Toast_Type}
   </description>
+  <token key="Toast_Type" variants="Toast_Type"/>
 </action>
 
-<action name="Toast.CloseButtonClicked">
+<action name="Toast.CloseButtonClicked{Toast_Type}">
   <owner>agale@chromium.org</owner>
   <owner>stluong@chromium.org</owner>
   <owner>chrome-performance-ui-sea@google.com</owner>
   <description>
-    Recorded when the user clicks on the toast's close button.
+    Recorded when the user clicks on the toast's close button. {Toast_Type}
   </description>
+  <token key="Toast_Type" variants="Toast_Type"/>
 </action>
 
 <action name="TodayExtension.ExtensionDismissed">
@@ -48110,11 +48238,6 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="ViewAboutFlash">
-  <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
-  <description>Please enter the description of this user action.</description>
-</action>
-
-<action name="ViewAboutNaCl">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
 </action>
@@ -50226,6 +50349,7 @@ should be able to be added at any place in this file.
   <suffix name="SafetySafetycheck" label="Safety Check"/>
   <suffix name="SaveTabGroups" label="Saved Tab Groups"/>
   <suffix name="SearchBoxSuggestions" label="Search Box Suggestions"/>
+  <suffix name="SideBySide" label="Split View"/>
   <suffix name="SidePanelPinning" label="Side Panel Pinning"/>
   <suffix name="TabGroupsSync" label="Tab Groups Sync"/>
   <suffix name="TabOrganizer" label="Tab Organizer"/>
@@ -50335,6 +50459,7 @@ should be able to be added at any place in this file.
       label="For BadgedTranslateManualTrigger feature."/>
   <suffix name="BatterySaverMode" label="For BatterySaverMode feature."/>
   <suffix name="Bookmark" label="For Bookmark feature."/>
+  <suffix name="BookmarksBar" label="For Bookmarks Bar feature."/>
   <suffix name="BottomToolbarTip" label="For BottomToolbarTip feature."/>
   <suffix name="CCTHistory" label="For CCT History feature."/>
   <suffix name="CCTMinimized" label="For Minimized CCT feature."/>
@@ -50818,6 +50943,8 @@ should be able to be added at any place in this file.
       label="For ShoppingListSaveFlow feature."/>
   <suffix name="SideBySidePinnableFeature"
       label="For side by side split view pinning feature."/>
+  <suffix name="SideBySideTabSwitchFeature"
+      label="For switching between tabs many times for split view feature."/>
   <suffix name="SidePanelGenericPinnableFeature"
       label="For Side Panel Pinning pin feature."/>
   <suffix name="SidePanelLensOverlayPinnableFeature"
@@ -50829,6 +50956,7 @@ should be able to be added at any place in this file.
       label="For side search feature automatic triggering."/>
   <suffix name="SideSearchPageActionLabel"
       label="For side search feature page action label triggering."/>
+  <suffix name="SignInBenefits" label="For sign-in benefits IPH feature."/>
   <suffix name="SignoutWebIntercept" label="For web signout IPH feature."/>
   <suffix name="SupervisedUserProfileSignin"
       label="For displaying the supervised user sign-in IPH."/>
@@ -51559,38 +51687,6 @@ should be able to be added at any place in this file.
 </action-suffix>
 
 <action-suffix separator="." ordering="suffix">
-  <suffix name="AddedToReadingList" label="Added to reading list"/>
-  <affected-action name="Toast.ActionButtonClicked"/>
-  <affected-action name="Toast.CloseButtonClicked"/>
-</action-suffix>
-
-<action-suffix separator="." ordering="suffix">
-  <suffix name="AddedToComparisonTable" label="Added to comparison table"/>
-  <affected-action name="Toast.ActionButtonClicked"/>
-  <affected-action name="Toast.CloseButtonClicked"/>
-</action-suffix>
-
-<action-suffix separator="." ordering="suffix">
-  <suffix name="DiceUserMigrated" label="DICe user migrated"/>
-  <affected-action name="Toast.ActionButtonClicked"/>
-  <affected-action name="Toast.CloseButtonClicked"/>
-</action-suffix>
-
-<action-suffix separator="." ordering="suffix">
-  <suffix name="SyncEsbOn"
-      label="Enhanced Protection setting has been synced to On"/>
-  <affected-action name="Toast.ActionButtonClicked"/>
-  <affected-action name="Toast.CloseButtonClicked"/>
-</action-suffix>
-
-<action-suffix separator="." ordering="suffix">
-  <suffix name="SyncEsbOff"
-      label="Enhanced Protection setting has been synced to Off"/>
-  <affected-action name="Toast.ActionButtonClicked"/>
-  <affected-action name="Toast.CloseButtonClicked"/>
-</action-suffix>
-
-<action-suffix separator="." ordering="suffix">
   <suffix name="FamiliarSite" label="Recorded on a familiar site."/>
   <affected-action name="MerchantTrust.BubbleClosed"/>
   <affected-action name="MerchantTrust.BubbleOpenedFromLocationBarChip"/>
@@ -51681,78 +51777,6 @@ should be able to be added at any place in this file.
       label="Recorded when a group suggestion is considered invalid."/>
   <suffix name="Shown" label="Recorded when a group suggestion is shown."/>
   <affected-action name="TabSwitcher.GroupSuggest"/>
-</action-suffix>
-
-<action-suffix separator="." ordering="suffix">
-  <suffix name="AddToTabGroup"
-      label="User opened the bottom sheet to add a tab to a new or existing
-             tab group, via the tab context menu on tab strip on Android."/>
-  <suffix name="AddToTabGroup.MultiTab"
-      label="User opened the bottom sheet to add multiple tabs to a new or
-             existing tab group, via the tab context menu on tab strip on
-             Android."/>
-  <suffix name="CloseTab"
-      label="User closed a tab via the tab context menu on tab strip on
-             Android."/>
-  <suffix name="CloseTab.MultiTab"
-      label="User closed multiple tabs via the tab context menu on tab strip
-             on Android."/>
-  <suffix name="MoveTabToGroup"
-      label="User moved a tab to a synced tab group via the tab context menu
-             on tab strip on Android."/>
-  <suffix name="MoveTabToGroup.MultiTab"
-      label="User moved multiple tabs to a synced tab group via the tab
-             context menu on tab strip on Android."/>
-  <suffix name="MoveTabToIncognitoGroup"
-      label="User moved a tab to an incognito tab group via the tab context
-             menu on tab strip on Android."/>
-  <suffix name="MoveTabToIncognitoGroup.MultiTab"
-      label="User moved multiple tabs to an incognito tab group via the tab
-             context menu on tab strip on Android."/>
-  <suffix name="MoveTabToNewWindow"
-      label="User moved a tab to a new window via the tab context menu on tab
-             strip on Android."/>
-  <suffix name="MoveTabToNewWindow.MultiTab"
-      label="User moved multiple tabs to a new window via the tab context
-             menu on tab strip on Android."/>
-  <suffix name="MoveTabToOtherWindow"
-      label="User moved a tab to another window via the tab context menu on
-             tab strip on Android."/>
-  <suffix name="MoveTabToOtherWindow.MultiTab"
-      label="User moved multiple tabs to another window via the tab context
-             menu on tab strip on Android."/>
-  <suffix name="NewGroup"
-      label="User created a new tab group via the tab context menu on tab
-             strip on Android."/>
-  <suffix name="NewGroup.MultiTab"
-      label="User created a new tab group with multiple tabs via the tab
-             context menu on tab strip on Android."/>
-  <suffix name="PinTab"
-      label="User pinned a tab via the tab context menu on tab strip on
-             Android."/>
-  <suffix name="PinTab.MultiTab"
-      label="User pinned multiple tabs via the tab context menu on tab strip
-             on Android."/>
-  <suffix name="RemoveTabFromTabGroup"
-      label="User removed a tab from its tab group via the tab context menu
-             on tab strip on Android."/>
-  <suffix name="RemoveTabFromTabGroup.MultiTab"
-      label="User removed multiple tabs from their tab group via the tab
-             context menu on tab strip on Android."/>
-  <suffix name="ShareTab"
-      label="User shared the URL open in a tab, via the tab context menu on
-             tab strip on Android."/>
-  <suffix name="Shown" label="Recorded when the tab context menu is shown."/>
-  <suffix name="Shown.MultiTab"
-      label="Recorded when the tab context menu is shown with multiple tabs
-             selected."/>
-  <suffix name="UnpinTab"
-      label="User unpinned a tab via the tab context menu on tab strip on
-             Android."/>
-  <suffix name="UnpinTab.MultiTab"
-      label="User unpinned multiple tabs via the tab context menu on tab
-             strip on Android."/>
-  <affected-action name="MobileToolbarTabMenu"/>
 </action-suffix>
 
 </actions>

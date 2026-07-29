@@ -110,6 +110,7 @@ using ::base::Bucket;
 using ::base::BucketsAre;
 using ::base::BucketsInclude;
 using ::base::TimeTicks;
+using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 using ::testing::Matcher;
@@ -126,8 +127,6 @@ using UkmSuggestionFilledType = ukm::builders::Autofill_SuggestionFilled;
 using UkmTextFieldValueChangedType = ukm::builders::Autofill_TextFieldDidChange;
 using UkmFormEventType = ukm::builders::Autofill_FormEvent;
 using UkmFieldInfoType = ukm::builders::Autofill2_FieldInfo;
-using ExpectedUkmMetricsRecord = std::vector<ExpectedUkmMetricsPair>;
-using ExpectedUkmMetrics = std::vector<ExpectedUkmMetricsRecord>;
 
 void CreateSimpleForm(const GURL& origin, FormData& form) {
   form.set_host_frame(test::MakeLocalFrameToken());
@@ -304,7 +303,7 @@ TEST_F(AutofillMetricsTest, EditedAutofilledFieldAtSubmission) {
                   .value = u"buddy@gmail.com",
                   .is_autofilled = true}},
       .renderer_id = test::MakeFormRendererId(),
-      .main_frame_origin = url::Origin::Create(autofill_driver_->url())};
+      .main_frame_origin = url::Origin::Create(autofill_driver().url())};
 
   FormData form = GetAndAddSeenForm(form_description);
 
@@ -559,9 +558,9 @@ TEST_F(AutofillMetricsTest, CreditCardCheckoutFlowUserActions) {
                   CreateTestFormField("Expiration date", "expdate", "",
                                       FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {CREDIT_CARD_NAME_FULL,
-                                        CREDIT_CARD_NUMBER,
-                                        CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR};
+  const std::vector<FieldType> field_types = {
+      CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER,
+      CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -685,56 +684,63 @@ TEST_F(AutofillMetricsTest, CreditCardCheckoutFlowUserActions) {
 
   // Expect one record for a click on the cardholder name field and one record
   // for each of the 3 clicks on the card number field.
-  ExpectedUkmMetricsRecord name_field_record{
-      {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-      {UkmTextFieldValueChangedType::kHeuristicTypeName, CREDIT_CARD_NAME_FULL},
-      {UkmTextFieldValueChangedType::kHtmlFieldTypeName,
-       HtmlFieldType::kUnspecified},
-      {UkmTextFieldValueChangedType::kServerTypeName, CREDIT_CARD_NAME_FULL},
-      {UkmSuggestionsShownType::kFieldSignatureName,
-       Collapse(CalculateFieldSignatureForField(form.fields()[0])).value()},
-      {UkmSuggestionsShownType::kFormSignatureName,
-       Collapse(CalculateFormSignature(form)).value()}};
-  ExpectedUkmMetricsRecord number_field_record{
-      {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-      {UkmTextFieldValueChangedType::kHeuristicTypeName, CREDIT_CARD_NUMBER},
-      {UkmTextFieldValueChangedType::kHtmlFieldTypeName,
-       HtmlFieldType::kUnspecified},
-      {UkmTextFieldValueChangedType::kServerTypeName, CREDIT_CARD_NUMBER},
-      {UkmSuggestionsShownType::kFieldSignatureName,
-       Collapse(CalculateFieldSignatureForField(form.fields()[1])).value()},
-      {UkmSuggestionsShownType::kFormSignatureName,
-       Collapse(CalculateFormSignature(form)).value()}};
-  VerifyUkm(&test_ukm_recorder(), form, UkmSuggestionsShownType::kEntryName,
-            {name_field_record, number_field_record, number_field_record,
-             number_field_record});
+  {
+    using Ukm = UkmSuggestionsShownType;
+    const std::vector<UkmMetricNameAndValue> name_field_record = {
+        {Ukm::kMillisecondsSinceFormParsedName, 0},
+        {Ukm::kHeuristicTypeName, CREDIT_CARD_NAME_FULL},
+        {Ukm::kHtmlFieldTypeName, HtmlFieldType::kUnspecified},
+        {Ukm::kServerTypeName, CREDIT_CARD_NAME_FULL},
+        {Ukm::kFieldSignatureName,
+         Collapse(CalculateFieldSignatureForField(form.fields()[0])).value()},
+        {Ukm::kFormSignatureName,
+         Collapse(CalculateFormSignature(form)).value()}};
+    const std::vector<UkmMetricNameAndValue> number_field_record = {
+        {Ukm::kMillisecondsSinceFormParsedName, 0},
+        {Ukm::kHeuristicTypeName, CREDIT_CARD_NUMBER},
+        {Ukm::kHtmlFieldTypeName, HtmlFieldType::kUnspecified},
+        {Ukm::kServerTypeName, CREDIT_CARD_NUMBER},
+        {Ukm::kFieldSignatureName,
+         Collapse(CalculateFieldSignatureForField(form.fields()[1])).value()},
+        {Ukm::kFormSignatureName,
+         Collapse(CalculateFormSignature(form)).value()}};
+    EXPECT_THAT(GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+                UkmEventsAre({name_field_record, number_field_record,
+                              number_field_record, number_field_record}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
+  }
 
   // Expect 3 |FORM_EVENT_LOCAL_SUGGESTION_FILLED| events. First, from
   // call to |external_delegate().DidAcceptSuggestion|. Second and third, from
   // ExpectedUkmMetrics |autofill_manager().FillOrPreviewForm|.
-  ExpectedUkmMetricsRecord from_did_accept_suggestion{
-      {UkmSuggestionFilledType::kRecordTypeName,
-       base::to_underlying(CreditCard::RecordType::kLocalCard)},
-      {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-      {UkmSuggestionFilledType::kIsForCreditCardName, true},
-      {UkmSuggestionFilledType::kFieldSignatureName,
-       Collapse(CalculateFieldSignatureForField(form.fields().front()))
-           .value()},
-      {UkmSuggestionFilledType::kFormSignatureName,
-       Collapse(CalculateFormSignature(form)).value()}};
-  ExpectedUkmMetricsRecord from_fill_or_preview_form{
-      {UkmSuggestionFilledType::kRecordTypeName,
-       base::to_underlying(CreditCard::RecordType::kLocalCard)},
-      {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-      {UkmSuggestionFilledType::kIsForCreditCardName, true},
-      {UkmSuggestionFilledType::kFieldSignatureName,
-       Collapse(CalculateFieldSignatureForField(form.fields().front()))
-           .value()},
-      {UkmSuggestionFilledType::kFormSignatureName,
-       Collapse(CalculateFormSignature(form)).value()}};
-  VerifyUkm(&test_ukm_recorder(), form, UkmSuggestionFilledType::kEntryName,
-            {from_did_accept_suggestion, from_fill_or_preview_form,
-             from_fill_or_preview_form});
+  {
+    using Ukm = UkmSuggestionFilledType;
+    const std::vector<UkmMetricNameAndValue> from_did_accept_suggestion = {
+        {Ukm::kRecordTypeName, CreditCard::RecordType::kLocalCard},
+        {Ukm::kMillisecondsSinceFormParsedName, 0},
+        {Ukm::kIsForCreditCardName, true},
+        {Ukm::kFieldSignatureName,
+         Collapse(CalculateFieldSignatureForField(form.fields().front()))
+             .value()},
+        {Ukm::kFormSignatureName,
+         Collapse(CalculateFormSignature(form)).value()}};
+    const std::vector<UkmMetricNameAndValue> from_fill_or_preview_form = {
+        {Ukm::kRecordTypeName, CreditCard::RecordType::kLocalCard},
+        {Ukm::kMillisecondsSinceFormParsedName, 0},
+        {Ukm::kIsForCreditCardName, true},
+        {Ukm::kFieldSignatureName,
+         Collapse(CalculateFieldSignatureForField(form.fields().front()))
+             .value()},
+        {Ukm::kFormSignatureName,
+         Collapse(CalculateFormSignature(form)).value()}};
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre({from_did_accept_suggestion, from_fill_or_preview_form,
+                      from_fill_or_preview_form}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
+  }
 }
 
 // Test that the profile checkout flow user actions are correctly logged.
@@ -747,8 +753,8 @@ TEST_F(AutofillMetricsTest, ProfileCheckoutFlowUserActions) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -805,44 +811,50 @@ TEST_F(AutofillMetricsTest, ProfileCheckoutFlowUserActions) {
               user_action_tester.GetActionCount("Autofill_OnWillSubmitForm"));
   }
 
-  VerifyUkm(
-      &test_ukm_recorder(), form, UkmSuggestionsShownType::kEntryName,
-      {{{UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-        {UkmTextFieldValueChangedType::kHeuristicTypeName, ADDRESS_HOME_STATE},
-        {UkmTextFieldValueChangedType::kHtmlFieldTypeName,
-         HtmlFieldType::kUnspecified},
-        {UkmTextFieldValueChangedType::kServerTypeName, ADDRESS_HOME_STATE},
-        {UkmSuggestionsShownType::kFieldSignatureName,
-         Collapse(CalculateFieldSignatureForField(form.fields()[0])).value()},
-        {UkmSuggestionsShownType::kFormSignatureName,
-         Collapse(CalculateFormSignature(form)).value()}},
-       {{UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-        {UkmTextFieldValueChangedType::kHeuristicTypeName, ADDRESS_HOME_CITY},
-        {UkmTextFieldValueChangedType::kHtmlFieldTypeName,
-         HtmlFieldType::kUnspecified},
-        {UkmTextFieldValueChangedType::kServerTypeName, ADDRESS_HOME_CITY},
-        {UkmSuggestionsShownType::kFieldSignatureName,
-         Collapse(CalculateFieldSignatureForField(form.fields()[1])).value()},
-        {UkmSuggestionsShownType::kFormSignatureName,
-         Collapse(CalculateFormSignature(form)).value()}}});
-  // Expect 2 |FORM_EVENT_LOCAL_SUGGESTION_FILLED| events. First, from
-  // call to |external_delegate().DidAcceptSuggestion|. Second, from call to
-  // |autofill_manager().FillOrPreviewForm|.
-  VerifyUkm(&test_ukm_recorder(), form, UkmSuggestionFilledType::kEntryName,
-            {{{UkmSuggestionFilledType::kIsForCreditCardName, false},
-              {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-              {UkmSuggestionFilledType::kFieldSignatureName,
-               Collapse(CalculateFieldSignatureForField(form.fields().front()))
+  {
+    using Ukm = UkmSuggestionsShownType;
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre(
+            {{{Ukm::kMillisecondsSinceFormParsedName, 0},
+              {Ukm::kHeuristicTypeName, ADDRESS_HOME_STATE},
+              {Ukm::kHtmlFieldTypeName, HtmlFieldType::kUnspecified},
+              {Ukm::kServerTypeName, ADDRESS_HOME_STATE},
+              {Ukm::kFieldSignatureName,
+               Collapse(CalculateFieldSignatureForField(form.fields()[0]))
                    .value()},
-              {UkmSuggestionFilledType::kFormSignatureName,
+              {Ukm::kFormSignatureName,
                Collapse(CalculateFormSignature(form)).value()}},
-             {{UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0},
-              {UkmSuggestionFilledType::kIsForCreditCardName, false},
-              {UkmSuggestionsShownType::kFieldSignatureName,
+             {{Ukm::kMillisecondsSinceFormParsedName, 0},
+              {Ukm::kHeuristicTypeName, ADDRESS_HOME_CITY},
+              {Ukm::kHtmlFieldTypeName, HtmlFieldType::kUnspecified},
+              {Ukm::kServerTypeName, ADDRESS_HOME_CITY},
+              {Ukm::kFieldSignatureName,
+               Collapse(CalculateFieldSignatureForField(form.fields()[1]))
+                   .value()},
+              {Ukm::kFormSignatureName,
+               Collapse(CalculateFormSignature(form)).value()}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
+  }
+  {
+    // Expect 2 |FORM_EVENT_LOCAL_SUGGESTION_FILLED| events. First, from
+    // call to |external_delegate().DidAcceptSuggestion|. Second, from call to
+    // |autofill_manager().FillOrPreviewForm|.
+    using Ukm = UkmSuggestionFilledType;
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre(
+            {{{Ukm::kIsForCreditCardName, false},
+              {Ukm::kMillisecondsSinceFormParsedName, 0},
+              {Ukm::kFieldSignatureName,
                Collapse(CalculateFieldSignatureForField(form.fields().front()))
                    .value()},
-              {UkmSuggestionsShownType::kFormSignatureName,
-               Collapse(CalculateFormSignature(form)).value()}}});
+              {Ukm::kFormSignatureName,
+               Collapse(CalculateFormSignature(form)).value()}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
+  }
 }
 
 // Test that the loyalty card checkout flow user actions are correctly logged.
@@ -890,7 +902,7 @@ TEST_F(AutofillMetricsTest, QueriedCreditCardFormIsSecure) {
                   CreateTestFormField("Credit card", "cardnum", "",
                                       FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {
+  const std::vector<FieldType> field_types = {
       CREDIT_CARD_EXP_MONTH, CREDIT_CARD_EXP_2_DIGIT_YEAR, CREDIT_CARD_NUMBER};
 
   {
@@ -900,7 +912,7 @@ TEST_F(AutofillMetricsTest, QueriedCreditCardFormIsSecure) {
     form.set_url(GURL("http://example.com/form.html"));
     form.set_main_frame_origin(url::Origin::Create(form.url()));
     form.set_action(GURL("http://example.com/submit.html"));
-    autofill_driver_->set_url(form.url());
+    autofill_driver().set_url(form.url());
     autofill_client_->set_last_committed_primary_main_frame_url(form.url());
     autofill_manager().AddSeenForm(form, field_types);
 
@@ -914,14 +926,13 @@ TEST_F(AutofillMetricsTest, QueriedCreditCardFormIsSecure) {
   }
 
   {
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
     form.set_host_frame(test::MakeLocalFrameToken());
     form.set_renderer_id(test::MakeFormRendererId());
     form.set_url(GURL("https://example.com/form.html"));
     form.set_action(GURL("https://example.com/submit.html"));
     form.set_main_frame_origin(url::Origin::Create(form.url()));
-    autofill_driver_->set_url(form.url());
+    autofill_driver().set_url(form.url());
     autofill_client_->set_last_committed_primary_main_frame_url(form.url());
     autofill_manager().AddSeenForm(form, field_types);
 
@@ -948,7 +959,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
                   CreateTestFormField("Credit card", "cardnum", "",
                                       FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {
+  const std::vector<FieldType> field_types = {
       CREDIT_CARD_EXP_MONTH, CREDIT_CARD_EXP_2_DIGIT_YEAR, CREDIT_CARD_NUMBER};
 
   autofill_manager().AddSeenForm(form, field_types);
@@ -968,8 +979,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   autofill_manager().AddSeenForm(form, field_types);
   // Creating masked card
   RecreateCreditCards(/*include_local_credit_card=*/false,
@@ -991,8 +1001,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   autofill_manager().AddSeenForm(form, field_types);
   // Creating masked card
   RecreateCreditCards(/*include_local_credit_card=*/false,
@@ -1173,8 +1182,8 @@ TEST_F(AutofillMetricsTest, ShouldNotLogFormEventNoCardForAddressForm) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1197,8 +1206,8 @@ TEST_F(AutofillMetricsTest, AddressParsedFormEvents) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
@@ -1206,17 +1215,17 @@ TEST_F(AutofillMetricsTest, AddressParsedFormEvents) {
                                       FORM_EVENT_DID_PARSE_FORM, 1);
 
   // Check if FormEvent UKM is logged properly
-  auto entries =
-      test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  VerifyUkm(
-      &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-      {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-        {UkmFormEventType::kFormTypesName,
-         AutofillMetrics::FormTypesToBitVector(
-             {FormTypeNameForLogging::kAddressForm,
-              FormTypeNameForLogging::kPostalAddressForm})},
-        {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+  using Ukm = UkmFormEventType;
+  EXPECT_THAT(
+      GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+      UkmEventsAre({{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+                     {Ukm::kFormTypesName,
+                      AutofillMetrics::FormTypesToBitVector(
+                          {FormTypeNameForLogging::kAddressForm,
+                           FormTypeNameForLogging::kPostalAddressForm})},
+                     {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+  EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+              Each(form.main_frame_origin().GetURL()));
 }
 
 // Test that we log interacted form events for address.
@@ -1227,8 +1236,8 @@ TEST_F(AutofillMetricsTest, AddressInteractedFormEvents) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1241,29 +1250,27 @@ TEST_F(AutofillMetricsTest, AddressInteractedFormEvents) {
                                         FORM_EVENT_INTERACTED_ONCE, 1);
 
     // Check if FormEvent UKM is logged properly
-    auto entries =
-        test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-    EXPECT_EQ(2u, entries.size());
-    VerifyUkm(
-        &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-        {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_INTERACTED_ONCE},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+    using Ukm = UkmFormEventType;
+    EXPECT_THAT(GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+                UkmEventsAre(
+                    {{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+                      {Ukm::kFormTypesName,
+                       AutofillMetrics::FormTypesToBitVector(
+                           {FormTypeNameForLogging::kAddressForm,
+                            FormTypeNameForLogging::kPostalAddressForm})},
+                      {Ukm::kMillisecondsSinceFormParsedName, 0}},
+                     {{Ukm::kAutofillFormEventName, FORM_EVENT_INTERACTED_ONCE},
+                      {Ukm::kFormTypesName,
+                       AutofillMetrics::FormTypesToBitVector(
+                           {FormTypeNameForLogging::kAddressForm,
+                            FormTypeNameForLogging::kPostalAddressForm})},
+                      {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1277,24 +1284,23 @@ TEST_F(AutofillMetricsTest, AddressInteractedFormEvents) {
     histogram_tester.ExpectUniqueSample("Autofill.FormEvents.Address",
                                         FORM_EVENT_INTERACTED_ONCE, 1);
     // Check if FormEvent UKM is logged properly
-    auto entries =
-        test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-    EXPECT_EQ(2u, entries.size());
-    VerifyUkm(
-        &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-        {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_INTERACTED_ONCE},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+    using Ukm = UkmFormEventType;
+    EXPECT_THAT(GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+                UkmEventsAre(
+                    {{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+                      {Ukm::kFormTypesName,
+                       AutofillMetrics::FormTypesToBitVector(
+                           {FormTypeNameForLogging::kAddressForm,
+                            FormTypeNameForLogging::kPostalAddressForm})},
+                      {Ukm::kMillisecondsSinceFormParsedName, 0}},
+                     {{Ukm::kAutofillFormEventName, FORM_EVENT_INTERACTED_ONCE},
+                      {Ukm::kFormTypesName,
+                       AutofillMetrics::FormTypesToBitVector(
+                           {FormTypeNameForLogging::kAddressForm,
+                            FormTypeNameForLogging::kPostalAddressForm})},
+                      {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
   }
 }
 
@@ -1307,8 +1313,8 @@ TEST_F(AutofillMetricsTest, AddressShownFormEvents) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1320,36 +1326,34 @@ TEST_F(AutofillMetricsTest, AddressShownFormEvents) {
                 BucketsInclude(Bucket(FORM_EVENT_SUGGESTIONS_SHOWN, 1),
                                Bucket(FORM_EVENT_SUGGESTIONS_SHOWN_ONCE, 1)));
     // Check if FormEvent UKM is logged properly
-    auto entries =
-        test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-    EXPECT_EQ(3u, entries.size());
-    VerifyUkm(
-        &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-        {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_SUGGESTIONS_SHOWN},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_SUGGESTIONS_SHOWN_ONCE},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+    using Ukm = UkmFormEventType;
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre(
+            {{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName, FORM_EVENT_SUGGESTIONS_SHOWN},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName, FORM_EVENT_SUGGESTIONS_SHOWN_ONCE},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1362,43 +1366,40 @@ TEST_F(AutofillMetricsTest, AddressShownFormEvents) {
                 BucketsInclude(Bucket(FORM_EVENT_SUGGESTIONS_SHOWN, 2),
                                Bucket(FORM_EVENT_SUGGESTIONS_SHOWN_ONCE, 1)));
     // Check if FormEvent UKM is logged properly
-    auto entries =
-        test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-    EXPECT_EQ(4u, entries.size());
-    VerifyUkm(
-        &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-        {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_SUGGESTIONS_SHOWN},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_SUGGESTIONS_SHOWN_ONCE},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_SUGGESTIONS_SHOWN},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+    using Ukm = UkmFormEventType;
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre(
+            {{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName, FORM_EVENT_SUGGESTIONS_SHOWN},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName, FORM_EVENT_SUGGESTIONS_SHOWN_ONCE},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName, FORM_EVENT_SUGGESTIONS_SHOWN},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1413,17 +1414,17 @@ TEST_F(AutofillMetricsTest, AddressShownFormEvents) {
                 BucketsInclude(Bucket(FORM_EVENT_SUGGESTIONS_SHOWN, 0),
                                Bucket(FORM_EVENT_SUGGESTIONS_SHOWN_ONCE, 0)));
     // Check if FormEvent UKM is logged properly
-    auto entries =
-        test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-    EXPECT_EQ(1u, entries.size());
-    VerifyUkm(
-        &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-        {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+    using Ukm = UkmFormEventType;
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre({{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+                       {Ukm::kFormTypesName,
+                        AutofillMetrics::FormTypesToBitVector(
+                            {FormTypeNameForLogging::kAddressForm,
+                             FormTypeNameForLogging::kPostalAddressForm})},
+                       {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
   }
 }
 
@@ -1436,8 +1437,8 @@ TEST_F(AutofillMetricsTest, AddressFilledFormEvents) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1450,36 +1451,35 @@ TEST_F(AutofillMetricsTest, AddressFilledFormEvents) {
         BucketsInclude(Bucket(FORM_EVENT_LOCAL_SUGGESTION_FILLED, 1),
                        Bucket(FORM_EVENT_LOCAL_SUGGESTION_FILLED_ONCE, 1)));
     // Check if FormEvent UKM is logged properly
-    auto entries =
-        test_ukm_recorder().GetEntriesByName(UkmFormEventType::kEntryName);
-    EXPECT_EQ(3u, entries.size());
-    VerifyUkm(
-        &test_ukm_recorder(), form, UkmFormEventType::kEntryName,
-        {{{UkmFormEventType::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_LOCAL_SUGGESTION_FILLED},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}},
-         {{UkmFormEventType::kAutofillFormEventName,
-           FORM_EVENT_LOCAL_SUGGESTION_FILLED_ONCE},
-          {UkmFormEventType::kFormTypesName,
-           AutofillMetrics::FormTypesToBitVector(
-               {FormTypeNameForLogging::kAddressForm,
-                FormTypeNameForLogging::kPostalAddressForm})},
-          {UkmSuggestionFilledType::kMillisecondsSinceFormParsedName, 0}}});
+    using Ukm = UkmFormEventType;
+    EXPECT_THAT(
+        GetUkmEvents(test_ukm_recorder(), Ukm::kEntryName),
+        UkmEventsAre(
+            {{{Ukm::kAutofillFormEventName, FORM_EVENT_DID_PARSE_FORM},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName, FORM_EVENT_LOCAL_SUGGESTION_FILLED},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}},
+             {{Ukm::kAutofillFormEventName,
+               FORM_EVENT_LOCAL_SUGGESTION_FILLED_ONCE},
+              {Ukm::kFormTypesName,
+               AutofillMetrics::FormTypesToBitVector(
+                   {FormTypeNameForLogging::kAddressForm,
+                    FormTypeNameForLogging::kPostalAddressForm})},
+              {Ukm::kMillisecondsSinceFormParsedName, 0}}}));
+    EXPECT_THAT(GetEventUrls(test_ukm_recorder(), Ukm::kEntryName),
+                Each(form.main_frame_origin().GetURL()));
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1504,8 +1504,8 @@ TEST_F(AutofillMetricsTest, AddressSubmittedFormEvents) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1535,8 +1535,7 @@ TEST_F(AutofillMetricsTest, AddressSubmittedFormEvents) {
                                                 form.fields()[0].global_id());
     SubmitForm(form);
     // Trigger UploadFormDataAsyncCallback.
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
     EXPECT_THAT(
         histogram_tester.GetAllSamples("Autofill.FormEvents.Address"),
         BucketsInclude(Bucket(FORM_EVENT_NO_SUGGESTION_WILL_SUBMIT_ONCE, 1),
@@ -1562,8 +1561,7 @@ TEST_F(AutofillMetricsTest, AddressSubmittedFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1581,8 +1579,7 @@ TEST_F(AutofillMetricsTest, AddressSubmittedFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   autofill_manager().AddSeenForm(form, field_types);
 
   {
@@ -1604,8 +1601,7 @@ TEST_F(AutofillMetricsTest, AddressSubmittedFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1646,8 +1642,8 @@ TEST_F(AutofillMetricsTest, AddressWillSubmitFormEvents) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1664,8 +1660,7 @@ TEST_F(AutofillMetricsTest, AddressWillSubmitFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1683,8 +1678,7 @@ TEST_F(AutofillMetricsTest, AddressWillSubmitFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1702,8 +1696,7 @@ TEST_F(AutofillMetricsTest, AddressWillSubmitFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1734,8 +1727,7 @@ TEST_F(AutofillMetricsTest, AddressWillSubmitFormEvents) {
   }
 
   // Reset the autofill manager state.
-  test_api(autofill_client().GetAutofillDriverFactory())
-      .Reset(autofill_driver());
+  autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   PurgeUKM();
   autofill_manager().AddSeenForm(form, field_types);
 
@@ -1770,7 +1762,7 @@ TEST_F(AutofillMetricsTest, RecordStandalonePhoneField) {
   FormData form = CreateForm({CreateTestFormField(
       "Phone", "phone", "", FormControlType::kInputTelephone)});
 
-  std::vector<FieldType> field_types = {PHONE_HOME_NUMBER};
+  const std::vector<FieldType> field_types = {PHONE_HOME_NUMBER};
   autofill_manager().AddSeenForm(form, field_types);
 
   base::HistogramTester histogram_tester;
@@ -1928,8 +1920,7 @@ TEST_F(AutofillMetricsTest, MAYBE_FormFillDuration) {
     histogram_tester.ExpectTotalCount(
         "Autofill.FillDuration.FromInteraction.WithoutAutofill", 0);
 
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 
   // Expect metric to be logged if the user manually edited a form field.
@@ -1959,8 +1950,7 @@ TEST_F(AutofillMetricsTest, MAYBE_FormFillDuration) {
         "Autofill.FillDuration.FromInteraction.WithoutAutofill", 14, 1);
 
     // We expected an upload to be triggered when the manager is reset.
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 
   // Expect metric to be logged if the user autofilled the form.
@@ -1988,8 +1978,7 @@ TEST_F(AutofillMetricsTest, MAYBE_FormFillDuration) {
         "Autofill.FillDuration.FromInteraction.WithoutAutofill", 0);
 
     // We expected an upload to be triggered when the manager is reset.
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 
   // Expect metric to be logged if the user both manually filled some fields
@@ -2026,8 +2015,7 @@ TEST_F(AutofillMetricsTest, MAYBE_FormFillDuration) {
         "Autofill.FillDuration.FromInteraction.WithoutAutofill", 0);
 
     // We expected an upload to be triggered when the manager is reset.
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 
   // Make sure that loading another form doesn't affect metrics from the first
@@ -2062,8 +2050,7 @@ TEST_F(AutofillMetricsTest, MAYBE_FormFillDuration) {
         "Autofill.FillDuration.FromInteraction.WithoutAutofill", 0);
 
     // We expected an upload to be triggered when the manager is reset.
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 
   // Make sure that submitting a form that was loaded later will report the
@@ -2091,8 +2078,7 @@ TEST_F(AutofillMetricsTest, MAYBE_FormFillDuration) {
     histogram_tester.ExpectTotalCount(
         "Autofill.FillDuration.FromInteraction.WithoutAutofill", 0);
 
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 }
 
@@ -2447,20 +2433,18 @@ TEST_F(AutofillMetricsParseQueryResponseTest, PartialNoServerData) {
 // Tests that logging CardUploadDecision UKM works as expected.
 TEST_F(AutofillMetricsTest, RecordCardUploadDecisionMetric) {
   int upload_decision = 1;
-  autofill_driver_->set_url(GURL("https://www.google.com"));
+  autofill_driver().set_url(GURL("https://www.google.com"));
 
   LogCardUploadDecisionsUkm(&test_ukm_recorder(),
-                            autofill_driver_->GetPageUkmSourceId(),
-                            autofill_driver_->url(), upload_decision);
-  auto entries = test_ukm_recorder().GetEntriesByName(
-      UkmCardUploadDecisionType::kEntryName);
-  EXPECT_EQ(1u, entries.size());
-  for (const ukm::mojom::UkmEntry* const entry : entries) {
-    test_ukm_recorder().ExpectEntrySourceHasUrl(entry, autofill_driver_->url());
-    EXPECT_EQ(1u, entry->metrics.size());
-    test_ukm_recorder().ExpectEntryMetric(
-        entry, UkmCardUploadDecisionType::kUploadDecisionName, upload_decision);
-  }
+                            autofill_driver().GetPageUkmSourceId(),
+                            autofill_driver().url(), upload_decision);
+  EXPECT_THAT(
+      GetUkmEvents(test_ukm_recorder(), UkmCardUploadDecisionType::kEntryName),
+      UkmEventsAre({{{UkmCardUploadDecisionType::kUploadDecisionName,
+                      upload_decision}}}));
+  EXPECT_THAT(
+      GetEventUrls(test_ukm_recorder(), UkmCardUploadDecisionType::kEntryName),
+      Each(autofill_driver().url()));
 }
 
 // Tests that no UKM is logged when the URL is not valid.
@@ -2488,8 +2472,8 @@ TEST_F(AutofillMetricsTest, DynamicFormMetrics) {
        CreateTestFormField("Street", "street", "",
                            FormControlType::kInputText)});
 
-  std::vector<FieldType> field_types = {ADDRESS_HOME_STATE, ADDRESS_HOME_CITY,
-                                        ADDRESS_HOME_STREET_ADDRESS};
+  const std::vector<FieldType> field_types = {
+      ADDRESS_HOME_STATE, ADDRESS_HOME_CITY, ADDRESS_HOME_STREET_ADDRESS};
 
   // Simulate seeing.
   base::HistogramTester histogram_tester;
@@ -2511,7 +2495,7 @@ TEST_F(AutofillMetricsTest, DynamicFormMetrics) {
 // frame has no form.
 TEST_F(AutofillMetricsTest, FrameHasNoForm) {
   base::HistogramTester histogram_tester;
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   histogram_tester.ExpectTotalCount(
       "Autofill.WebOTP.OneTimeCode.FromAutocomplete", 0);
 }
@@ -2526,7 +2510,7 @@ TEST_F(AutofillMetricsTest, FrameHasAutocompleteOneTimeCode) {
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   // Verifies that autocomplete="one-time-code" in a form is correctly recorded.
   histogram_tester.ExpectBucketCount(
       "Autofill.WebOTP.OneTimeCode.FromAutocomplete",
@@ -2544,7 +2528,7 @@ TEST_F(AutofillMetricsTest, FrameDoesNotHaveAutocompleteOneTimeCode) {
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   histogram_tester.ExpectBucketCount(
       "Autofill.WebOTP.OneTimeCode.FromAutocomplete",
       /* has_one_time_code */ 0,
@@ -2568,7 +2552,7 @@ TEST_F(AutofillMetricsTest, FrameHasPhoneNumberFieldWithoutAutocomplete) {
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   histogram_tester.ExpectBucketCount(
       "Autofill.WebOTP.PhoneNumberCollection.ParseResult",
       /* has_phone_number_field */ 1,
@@ -2587,7 +2571,7 @@ TEST_F(AutofillMetricsTest, FrameHasSinglePhoneNumberFieldWithoutAutocomplete) {
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   histogram_tester.ExpectBucketCount(
       "Autofill.WebOTP.PhoneNumberCollection.ParseResult",
       /* has_phone_number_field */ 0,
@@ -2600,13 +2584,13 @@ TEST_F(AutofillMetricsTest, FrameHasSinglePhoneNumberFieldWithoutAutocomplete) {
 // autocomplete attribute.
 TEST_F(AutofillMetricsTest, FrameHasPhoneNumberFieldWithAutocomplete) {
   FormData form;  // Form with phone number.
-  CreateSimpleForm(autofill_driver_->url(), form);
+  CreateSimpleForm(autofill_driver().url(), form);
   form.set_fields(
       {CreateTestFormField("", "", "", FormControlType::kInputText, "phone")});
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   histogram_tester.ExpectBucketCount(
       "Autofill.WebOTP.PhoneNumberCollection.ParseResult",
       /* has_phone_number_field */ 1,
@@ -2623,7 +2607,7 @@ TEST_F(AutofillMetricsTest, FrameDoesNotHavePhoneNumberField) {
 
   base::HistogramTester histogram_tester;
   SeeForm(form);
-  autofill_driver_.reset();
+  autofill_client().GetAutofillDriverFactory().Delete(autofill_driver());
   histogram_tester.ExpectBucketCount(
       "Autofill.WebOTP.PhoneNumberCollection.ParseResult",
       /* has_phone_number_field */ 0,
@@ -2709,7 +2693,7 @@ TEST_P(WebOTPPhoneCollectionMetricsTest,
 
   if (!test_case.autocomplete_field.empty()) {
     FormData form;
-    CreateSimpleForm(autofill_driver_->url(), form);
+    CreateSimpleForm(autofill_driver().url(), form);
     for (const char* autocomplete : test_case.autocomplete_field) {
       test_api(form).Append(CreateTestFormField(
           "", "", "", FormControlType::kInputText, autocomplete));
@@ -2729,12 +2713,12 @@ TEST_P(WebOTPPhoneCollectionMetricsTest,
 
 // Verify that proper PhoneCollectionMetricsState is logged to UKM.
 TEST_F(AutofillMetricsTest, WebOTPPhoneCollectionMetricsStateLoggedToUKM) {
-  auto entries = test_ukm_recorder().GetEntriesByName(
-      ukm::builders::WebOTPImpact::kEntryName);
-  ASSERT_TRUE(entries.empty());
+  EXPECT_THAT(GetUkmEvents(test_ukm_recorder(),
+                           ukm::builders::WebOTPImpact::kEntryName),
+              UkmEventsAre({}));
 
   FormData form;
-  CreateSimpleForm(autofill_driver_->url(), form);
+  CreateSimpleForm(autofill_driver().url(), form);
   // Document collects phone number
   test_api(form).Append(
       CreateTestFormField("", "", "", FormControlType::kInputTelephone, "tel"));
@@ -2746,14 +2730,11 @@ TEST_F(AutofillMetricsTest, WebOTPPhoneCollectionMetricsStateLoggedToUKM) {
   SeeForm(form);
   autofill_manager().ReportAutofillWebOTPMetrics(true);
 
-  entries = test_ukm_recorder().GetEntriesByName(
-      ukm::builders::WebOTPImpact::kEntryName);
-  ASSERT_EQ(1u, entries.size());
-
-  const int64_t* metric =
-      test_ukm_recorder().GetEntryMetric(entries[0], "PhoneCollection");
-  EXPECT_EQ(*metric, static_cast<int>(
-                         PhoneCollectionMetricState::kPhonePlusWebOTPPlusOTC));
+  EXPECT_THAT(
+      GetUkmEvents(test_ukm_recorder(),
+                   ukm::builders::WebOTPImpact::kEntryName),
+      UkmEventsAre({{{"PhoneCollection",
+                      PhoneCollectionMetricState::kPhonePlusWebOTPPlusOTC}}}));
 }
 
 TEST_F(AutofillMetricsTest, AutocompleteOneTimeCodeFormFilledDuration) {
@@ -2771,8 +2752,7 @@ TEST_F(AutofillMetricsTest, AutocompleteOneTimeCodeFormFilledDuration) {
         "Autofill.WebOTP.OneTimeCode.FillDuration.FromLoad", 1);
     histogram_tester.ExpectUniqueSample(
         "Autofill.WebOTP.OneTimeCode.FillDuration.FromLoad", 16, 1);
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 
   {
@@ -2790,8 +2770,7 @@ TEST_F(AutofillMetricsTest, AutocompleteOneTimeCodeFormFilledDuration) {
 
     histogram_tester.ExpectUniqueSample(
         "Autofill.WebOTP.OneTimeCode.FillDuration.FromInteraction", 14, 1);
-    test_api(autofill_client().GetAutofillDriverFactory())
-        .Reset(autofill_driver());
+    autofill_client().GetAutofillDriverFactory().Reset(autofill_driver());
   }
 }
 
@@ -2894,7 +2873,7 @@ class AutofillMetricsCrossFrameFormTest : public AutofillMetricsTest {
 
     // Mock a simplified security model which allows to filter (only) fields
     // from the same origin.
-    autofill_driver_->SetFieldTypeMapFilter(base::BindRepeating(
+    autofill_driver().SetFieldTypeMapFilter(base::BindRepeating(
         [](AutofillMetricsCrossFrameFormTest* self,
            const url::Origin& triggered_origin, FieldGlobalId field,
            FieldType) {
@@ -3018,7 +2997,7 @@ TEST_F(AutofillMetricsSeamlessnessTest,
       /*is_autofilled=*/false, /*is_user_typed=*/true);
 
   SubmitForm(form_);
-  ResetDriverToCommitMetrics();
+  DeleteDriverToCommitMetrics();
 
   for (auto fill : {kFills, kFillable}) {
     for (auto time : {kBefore, kAfter, kSubmission}) {
@@ -3031,7 +3010,8 @@ TEST_F(AutofillMetricsSeamlessnessTest,
     }
   }
 
-  VerifyUkm(&test_ukm_recorder(), form_, UkmBuilder::kEntryName, {});
+  EXPECT_THAT(GetUkmEvents(test_ukm_recorder(), UkmBuilder::kEntryName),
+              UkmEventsAre({}));
 }
 
 // Tests that Autofill.CreditCard.SeamlessFills.* are emitted.
@@ -3090,7 +3070,7 @@ TEST_F(AutofillMetricsSeamlessnessTest,
                 /*is_autofilled=*/true, /*is_user_typed=*/false);
 
   SubmitForm(form_);
-  ResetDriverToCommitMetrics();
+  DeleteDriverToCommitMetrics();
 
   // Bitmask metrics.
   EXPECT_THAT(SamplesOf({kFillable, kBefore, kAll, kBitmask}),
@@ -3130,66 +3110,77 @@ TEST_F(AutofillMetricsSeamlessnessTest,
   EXPECT_THAT(SamplesOf({kFills, kAfter, kVisible, kQualitative}),
               BucketsAre(Bucket(Metric::kPartialFill, 2)));
 
-  VerifyUkm(
-      &test_ukm_recorder(), form_, UkmBuilder::kEntryName,
-      {{
-           {UkmBuilder::kFillable_BeforeSecurity_QualitativeName, kFullFill},
-           {UkmBuilder::kFilled_BeforeSecurity_QualitativeName,
-            kOptionalCvcMissing},
-           {UkmBuilder::kFilled_AfterSecurity_QualitativeName, kPartialFill},
+  EXPECT_THAT(
+      GetUkmEvents(test_ukm_recorder(), UkmBuilder::kEntryName),
+      UkmEventsAre(
+          {{
+               // First event.
+               {UkmBuilder::kFillable_BeforeSecurity_QualitativeName,
+                kFullFill},
+               {UkmBuilder::kFilled_BeforeSecurity_QualitativeName,
+                kOptionalCvcMissing},
+               {UkmBuilder::kFilled_AfterSecurity_QualitativeName,
+                kPartialFill},
 
-           {UkmBuilder::kFillable_BeforeSecurity_BitmaskName,
-            kName | kNumber | kExp | kCvc},
-           {UkmBuilder::kFilled_BeforeSecurity_BitmaskName,
-            kName | kNumber | kExp},
-           {UkmBuilder::kFilled_AfterSecurity_BitmaskName, kName | kExp},
+               {UkmBuilder::kFillable_BeforeSecurity_BitmaskName,
+                kName | kNumber | kExp | kCvc},
+               {UkmBuilder::kFilled_BeforeSecurity_BitmaskName,
+                kName | kNumber | kExp},
+               {UkmBuilder::kFilled_AfterSecurity_BitmaskName, kName | kExp},
 
-           {UkmBuilder::kFillable_BeforeSecurity_Visible_QualitativeName,
-            kOptionalCvcMissing},
-           {UkmBuilder::kFilled_BeforeSecurity_Visible_QualitativeName,
-            kOptionalCvcMissing},
-           {UkmBuilder::kFilled_AfterSecurity_Visible_QualitativeName,
-            kPartialFill},
+               {UkmBuilder::kFillable_BeforeSecurity_Visible_QualitativeName,
+                kOptionalCvcMissing},
+               {UkmBuilder::kFilled_BeforeSecurity_Visible_QualitativeName,
+                kOptionalCvcMissing},
+               {UkmBuilder::kFilled_AfterSecurity_Visible_QualitativeName,
+                kPartialFill},
 
-           {UkmBuilder::kFillable_BeforeSecurity_Visible_BitmaskName,
-            kName | kNumber | kExp},
-           {UkmBuilder::kFilled_BeforeSecurity_Visible_BitmaskName,
-            kName | kNumber | kExp},
-           {UkmBuilder::kFilled_AfterSecurity_Visible_BitmaskName,
-            kName | kExp},
+               {UkmBuilder::kFillable_BeforeSecurity_Visible_BitmaskName,
+                kName | kNumber | kExp},
+               {UkmBuilder::kFilled_BeforeSecurity_Visible_BitmaskName,
+                kName | kNumber | kExp},
+               {UkmBuilder::kFilled_AfterSecurity_Visible_BitmaskName,
+                kName | kExp},
 
-           {UkmBuilder::kSharedAutofillName, kSharedAutofillWouldHelp},
+               {UkmBuilder::kSharedAutofillName, kSharedAutofillWouldHelp},
 
-           {UkmBuilder::kFormSignatureName,
-            *Collapse(CalculateFormSignature(form_))},
-       },
-       {
-           {UkmBuilder::kFillable_BeforeSecurity_QualitativeName, kFullFill},
-           {UkmBuilder::kFilled_BeforeSecurity_QualitativeName, kPartialFill},
-           {UkmBuilder::kFilled_AfterSecurity_QualitativeName, kPartialFill},
+               {UkmBuilder::kFormSignatureName,
+                *Collapse(CalculateFormSignature(form_))},
+           },
+           {
+               // Second event.
+               {UkmBuilder::kFillable_BeforeSecurity_QualitativeName,
+                kFullFill},
+               {UkmBuilder::kFilled_BeforeSecurity_QualitativeName,
+                kPartialFill},
+               {UkmBuilder::kFilled_AfterSecurity_QualitativeName,
+                kPartialFill},
 
-           {UkmBuilder::kFillable_BeforeSecurity_BitmaskName,
-            kName | kNumber | kExp | kCvc},
-           {UkmBuilder::kFilled_BeforeSecurity_BitmaskName, kNumber},
-           {UkmBuilder::kFilled_AfterSecurity_BitmaskName, kNumber},
+               {UkmBuilder::kFillable_BeforeSecurity_BitmaskName,
+                kName | kNumber | kExp | kCvc},
+               {UkmBuilder::kFilled_BeforeSecurity_BitmaskName, kNumber},
+               {UkmBuilder::kFilled_AfterSecurity_BitmaskName, kNumber},
 
-           {UkmBuilder::kFillable_BeforeSecurity_Visible_QualitativeName,
-            kOptionalCvcMissing},
-           {UkmBuilder::kFilled_BeforeSecurity_Visible_QualitativeName,
-            kPartialFill},
-           {UkmBuilder::kFilled_AfterSecurity_Visible_QualitativeName,
-            kPartialFill},
+               {UkmBuilder::kFillable_BeforeSecurity_Visible_QualitativeName,
+                kOptionalCvcMissing},
+               {UkmBuilder::kFilled_BeforeSecurity_Visible_QualitativeName,
+                kPartialFill},
+               {UkmBuilder::kFilled_AfterSecurity_Visible_QualitativeName,
+                kPartialFill},
 
-           {UkmBuilder::kFillable_BeforeSecurity_Visible_BitmaskName,
-            kName | kNumber | kExp},
-           {UkmBuilder::kFilled_BeforeSecurity_Visible_BitmaskName, kNumber},
-           {UkmBuilder::kFilled_AfterSecurity_Visible_BitmaskName, kNumber},
+               {UkmBuilder::kFillable_BeforeSecurity_Visible_BitmaskName,
+                kName | kNumber | kExp},
+               {UkmBuilder::kFilled_BeforeSecurity_Visible_BitmaskName,
+                kNumber},
+               {UkmBuilder::kFilled_AfterSecurity_Visible_BitmaskName, kNumber},
 
-           {UkmBuilder::kSharedAutofillName, kSharedAutofillIsIrrelevant},
+               {UkmBuilder::kSharedAutofillName, kSharedAutofillIsIrrelevant},
 
-           {UkmBuilder::kFormSignatureName,
-            *Collapse(CalculateFormSignature(form_))},
-       }});
+               {UkmBuilder::kFormSignatureName,
+                *Collapse(CalculateFormSignature(form_))},
+           }}));
+  EXPECT_THAT(GetEventUrls(test_ukm_recorder(), UkmBuilder::kEntryName),
+              Each(form_.main_frame_origin().GetURL()));
 }
 
 // Test if we have correctly recorded the filling status of fields in an unsafe
@@ -3214,20 +3205,16 @@ TEST_F(AutofillMetricsSeamlessnessTest, CreditCardFormRecordOnIFrames) {
 
   // Record Autofill2.FieldInfo UKM event at autofill manager reset.
   SubmitForm(form_);
-  ResetDriverToCommitMetrics();
+  DeleteDriverToCommitMetrics();
 
-  std::vector<FieldType> field_types = {
-      CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER,
-      CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR, CREDIT_CARD_VERIFICATION_CODE};
+  static constexpr auto field_types = std::to_array<FieldType>(
+      {CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER,
+       CREDIT_CARD_EXP_DATE_4_DIGIT_YEAR, CREDIT_CARD_VERIFICATION_CODE});
 
   // Verify FieldInfo UKM event for every field.
-  auto field_entries =
-      test_ukm_recorder().GetEntriesByName(UkmFieldInfoType::kEntryName);
-  ASSERT_EQ(4u, field_entries.size());
-  for (size_t i = 0; i < field_entries.size(); ++i) {
-    SCOPED_TRACE(testing::Message() << i);
-    using UFIT = UkmFieldInfoType;
-    const auto* const entry = field_entries[i].get();
+  using UFIT = UkmFieldInfoType;
+  std::vector<std::vector<UkmMetricNameAndValue>> expected_events;
+  for (size_t i = 0; i < 4; ++i) {
     DenseSet<FieldFillingSkipReason> skipped_status_vector;
     if (i == 0 || i == 2) {
       skipped_status_vector = {FieldFillingSkipReason::kNotSkipped,
@@ -3256,7 +3243,7 @@ TEST_F(AutofillMetricsSeamlessnessTest, CreditCardFormRecordOnIFrames) {
           AutofillStatus::kWasAutofilledAfterSecurityPolicy};
       field_log_events_count = i == 1 ? 3 : 2;
     }
-    std::map<std::string, int64_t> expected = {
+    expected_events.push_back({
         {UFIT::kFormSessionIdentifierName,
          FormGlobalIdToHash64Bit(form_.global_id())},
         {UFIT::kFieldSessionIdentifierName,
@@ -3275,12 +3262,10 @@ TEST_F(AutofillMetricsSeamlessnessTest, CreditCardFormRecordOnIFrames) {
         {UFIT::kRankInFieldSignatureGroupName, 1},
         {UFIT::kHeuristicTypeName, field_types[i]},
         {UFIT::kFieldLogEventCountName, field_log_events_count + 2},
-    };
-    EXPECT_EQ(expected.size(), entry->metrics.size());
-    for (const auto& [metric, value] : expected) {
-      test_ukm_recorder().ExpectEntryMetric(entry, metric, value);
-    }
+    });
   }
+  EXPECT_THAT(GetUkmEvents(test_ukm_recorder(), UFIT::kEntryName),
+              UkmEventsAre(expected_events));
 }
 
 }  // namespace

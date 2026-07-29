@@ -78,8 +78,8 @@ source_set("model") {
     "//google_apis",
     "//ios/chrome/app:change_profile_commands",
     "//ios/chrome/app:tests_hook",
+    "//ios/chrome/browser/authentication/account_menu/public",
     "//ios/chrome/browser/authentication/ui_bundled:continuation",
-    "//ios/chrome/browser/authentication/ui_bundled/account_menu:constants",
     "//ios/chrome/browser/authentication/ui_bundled/signin:signin_headers",
     "//ios/chrome/browser/bookmarks/model:model_utils",
     "//ios/chrome/browser/content_settings/model",
@@ -407,6 +407,8 @@ source_set("test_constants") {
   sources = [
     "test_constants.h",
     "test_constants.mm",
+    "test_constants_utils.h",
+    "test_constants_utils.mm",
   ]
   frameworks = [ "Foundation.framework" ]
 }
@@ -489,7 +491,6 @@ source_set("unit_tests") {
     "//components/sync_preferences:test_support",
     "//google_apis",
     "//ios/chrome/app:change_profile_commands",
-    "//ios/chrome/browser/authentication/ui_bundled/account_menu:constants",
     "//ios/chrome/browser/content_settings/model",
     "//ios/chrome/browser/lens/model",
     "//ios/chrome/browser/policy/model:policy_util",

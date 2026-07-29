@@ -1695,7 +1695,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   // spanner. For one, it needs to be a block-level box that's inside a multicol
   // container, and it also needs to be in the block formatting context
   // established by the columns.
-  virtual bool IsValidColumnSpanner() const {
+  virtual bool IsValidColumnSpannerInTree() const {
     NOT_DESTROYED();
     return false;
   }
@@ -1704,7 +1704,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     NOT_DESTROYED();
     // May be called before style is set.
     return Style() && Style()->GetColumnSpan() == EColumnSpan::kAll &&
-           IsValidColumnSpanner();
+           IsValidColumnSpannerInTree();
   }
 
   // We include LayoutButton in this check, because buttons are
@@ -3405,12 +3405,27 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
     style_ = nullptr;
   }
 
+  // Context used by StyleWillChange() and StyleDidChange(). The former will
+  // typically set members, and the latter will check them.
+  struct StyleChangeContext {
+    // An object ceased to be floating or out-of-flow.
+    bool became_normal_flow = false;
+
+    // An object prevented descendants from becoming column spanners (before
+    // style change).
+    bool did_prevent_spanner_descendants = false;
+  };
+
   // Overrides should call the superclass at the end. style_ will be 0 the
   // first time this function will be called.
-  virtual void StyleWillChange(StyleDifference, const ComputedStyle& new_style);
+  virtual void StyleWillChange(StyleDifference,
+                               const ComputedStyle& new_style,
+                               StyleChangeContext&);
   // Overrides should call the superclass at the start. |oldStyle| will be 0 the
   // first time this function is called.
-  virtual void StyleDidChange(StyleDifference, const ComputedStyle* old_style);
+  virtual void StyleDidChange(StyleDifference,
+                              const ComputedStyle* old_style,
+                              const StyleChangeContext&);
   void PropagateStyleToAnonymousChildren();
   // Return true for objects that don't want style changes automatically
   // propagated via propagateStyleToAnonymousChildren(), but rather rely on
@@ -4170,9 +4185,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   Member<LayoutObject> previous_;
   Member<LayoutObject> next_;
   Member<FragmentDataList> fragment_;
-
-  // Store state between styleWillChange and styleDidChange
-  static bool affects_parent_block_;
 
 #if DCHECK_IS_ON()
   friend class CachedTextInputInfo;

@@ -250,9 +250,9 @@ public class UrlBar extends AutocompleteEditText {
         // Glitch text can be generated online using glitch text generators.
         // Set the clipping bounds to the padding
         mClipBounds.left = getScrollX();
-        mClipBounds.top = getPaddingTop();
+        mClipBounds.top = getPaddingTop() + getScrollY();
         mClipBounds.right = getScrollX() + getWidth();
-        mClipBounds.bottom = getHeight() - getPaddingBottom();
+        mClipBounds.bottom = getHeight() + getScrollY() - getPaddingBottom();
         canvas.clipRect(mClipBounds);
 
         super.onDraw(canvas);
@@ -325,6 +325,11 @@ public class UrlBar extends AutocompleteEditText {
     @Override
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     public void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
+        // Reset scroll position of the multiline input field.
+        if (!focused) {
+            bringPointIntoView(0);
+        }
+
         mFocused = focused;
         if (!mFocused) mFocusEventEmitted = false;
         super.onFocusChanged(focused, direction, previouslyFocusedRect);
@@ -1142,6 +1147,7 @@ public class UrlBar extends AutocompleteEditText {
         // of some urls (e.g. "flipkart.com" -> "flip cart. com" or "flipkart. com") despite
         // TYPE_TEXT_FLAG_NO_SUGGESTIONS and lack of TYPE_TEXT_FLAG_AUTO_CORRECT.
         outAttrs.inputType |= EditorInfo.TYPE_TEXT_VARIATION_URI;
+        outAttrs.imeOptions &= ~EditorInfo.IME_FLAG_NO_ENTER_ACTION;
         return connection;
     }
 

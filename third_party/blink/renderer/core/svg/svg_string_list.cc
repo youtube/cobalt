@@ -55,17 +55,13 @@ void SVGStringListBase::ParseInternal(const base::span<const CharType> chars,
                                       char list_delimiter) {
   size_t position = 0;
   while (position < chars.size()) {
-    const size_t start = position;
-    while (position < chars.size() && chars[position] != list_delimiter &&
-           !IsHTMLSpace<CharType>(chars[position])) {
-      ++position;
-    }
-    if (position == start) {
+    auto token = TokenUntilSvgSpaceOrDelimiter(chars, position, list_delimiter);
+    if (token.empty()) {
       break;
     }
-    values_.push_back(String(chars.subspan(start, position - start)));
-    position =
-        SkipOptionalSVGSpacesOrDelimiter(chars, position, list_delimiter);
+    values_.push_back(String(token));
+    position = SkipOptionalSVGSpacesOrDelimiter(chars, position + token.size(),
+                                                list_delimiter);
   }
 }
 
@@ -89,20 +85,9 @@ String SVGStringListBase::ValueAsStringWithDelimiter(
     return String();
 
   StringBuilder builder;
-
-  Vector<String>::const_iterator it = values_.begin();
-  Vector<String>::const_iterator it_end = values_.end();
-  if (it != it_end) {
-    builder.Append(*it);
-    UNSAFE_TODO(++it);
-
-    for (; it != it_end; UNSAFE_TODO(++it)) {
-      builder.Append(list_delimiter);
-      builder.Append(*it);
-    }
-  }
-
-  return builder.ToString();
+  builder.AppendRange(values_,
+                      StringView(base::byte_span_from_ref(list_delimiter)));
+  return builder.ReleaseString();
 }
 
 void SVGStringListBase::Add(const SVGPropertyBase* other,

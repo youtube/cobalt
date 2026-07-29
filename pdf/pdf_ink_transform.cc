@@ -148,11 +148,16 @@ gfx::Rect CanonicalInkEnvelopeToInvalidationScreenRect(
 
   // Width and height get +1 since both of the points are to be included in the
   // area; otherwise it would be an open rectangle on two edges.
-  float x = std::min(p1.x(), p2.x());
-  float y = std::min(p1.y(), p2.y());
-  float w = std::max(p1.x(), p2.x()) - x + 1;
-  float h = std::max(p1.y(), p2.y()) - y + 1;
-  return gfx::ToEnclosingRect(gfx::RectF(x, y, w, h));
+  const std::pair<float, float> minmax_x = std::minmax(p1.x(), p2.x());
+  const std::pair<float, float> minmax_y = std::minmax(p1.y(), p2.y());
+  float w = 1 + minmax_x.second - minmax_x.first;
+  float h = 1 + minmax_y.second - minmax_y.first;
+  gfx::Rect result =
+      gfx::ToEnclosingRect(gfx::RectF(minmax_x.first, minmax_y.first, w, h));
+  // Expand the invalidation rect a bit more to account for any other rounding
+  // errors that may have occurred.
+  result.Outset(1);
+  return result;
 }
 
 gfx::Transform GetCanonicalToPdfTransform(const gfx::SizeF& page_size,

@@ -111,7 +111,7 @@
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/root_view.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/window/non_client_view.h"
+#include "ui/views/window/frame_view.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/display/win/screen_win.h"
@@ -1256,7 +1256,7 @@ void TabStrip::RemoveTabAt(content::WebContents* contents,
 
   tab_container_->RemoveTab(model_index, was_active);
 
-  UpdateHoverCard(nullptr, HoverCardUpdateType::kTabRemoved);
+  UpdateHoverCard(nullptr, HoverCardUpdateType::kViewRemoved);
 
   selected_tabs_.DecrementFrom(model_index);
 
@@ -1295,7 +1295,7 @@ void TabStrip::SetTabData(int model_index, TabRendererData data) {
   tab->SetData(std::move(data));
 
   if (HoverCardIsShowingForTab(tab)) {
-    UpdateHoverCard(tab, HoverCardUpdateType::kTabDataChanged);
+    UpdateHoverCard(tab, HoverCardUpdateType::kViewDataChanged);
   }
 
   if (pinned_state_changed) {
@@ -1875,7 +1875,7 @@ bool TabStrip::ShouldCompactLeadingEdge() const {
          !controller_->GetBrowser()
               ->window()
               ->AsBrowserView()
-              ->frame()
+              ->browser_widget()
               ->GetFrameView()
               ->CaptionButtonsOnLeadingEdge() &&
          tabs::GetTabSearchTrailingTabstrip(controller_->GetProfile());
@@ -2002,13 +2002,14 @@ void TabStrip::OnMouseEventInTab(views::View* source,
   }
 }
 
-void TabStrip::UpdateHoverCard(Tab* tab, HoverCardUpdateType update_type) {
-  tab_container_->UpdateHoverCard(tab, update_type);
+void TabStrip::UpdateHoverCard(views::View* view,
+                               HoverCardUpdateType update_type) {
+  tab_container_->UpdateHoverCard(view, update_type);
 }
 
 bool TabStrip::HoverCardIsShowingForTab(Tab* tab) {
   return hover_card_controller_ &&
-         hover_card_controller_->IsHoverCardShowingForTab(tab);
+         hover_card_controller_->IsHoverCardShowingForView(tab);
 }
 
 void TabStrip::ShowHover(Tab* tab, TabStyle::ShowHoverStyle style) {
@@ -2336,7 +2337,7 @@ void TabStrip::CloseTabInternal(int model_index, CloseTabSource source) {
     tab_container_->EnterTabClosingMode(std::nullopt, source);
   }
 
-  UpdateHoverCard(nullptr, HoverCardUpdateType::kTabRemoved);
+  UpdateHoverCard(nullptr, HoverCardUpdateType::kViewRemoved);
   if (tab_at(model_index)->group().has_value()) {
     base::RecordAction(base::UserMetricsAction("CloseGroupedTab"));
 

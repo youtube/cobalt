@@ -95,7 +95,7 @@
 #include "ui/views/view_targeter.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/window/non_client_view.h"
+#include "ui/views/window/frame_view.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "ui/views/win/pen_event_handler_util.h"
@@ -318,7 +318,7 @@ Tab::~Tab() {
   tab_close_button_observer_.reset();
   if (controller_->HoverCardIsShowingForTab(this)) {
     controller_->UpdateHoverCard(
-        nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
+        nullptr, TabSlotController::HoverCardUpdateType::kViewRemoved);
   }
 }
 
@@ -907,7 +907,7 @@ void Tab::ActiveStateChanged() {
 void Tab::AlertStateChanged() {
   if (controller_->HoverCardIsShowingForTab(this)) {
     controller_->UpdateHoverCard(
-        this, TabSlotController::HoverCardUpdateType::kTabDataChanged);
+        this, TabSlotController::HoverCardUpdateType::kViewDataChanged);
   }
   DeprecatedLayoutImmediately();
 }

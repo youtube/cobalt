@@ -59,8 +59,14 @@ enum class SearchEngineChoiceScreenConditions {
   // The user is not eligible to make the choice because of their account
   // capabilities.
   kAccountNotEligible = 19,
+  // The choice screen could not be presented because program settings require
+  // it to not be shown on the UI surface that triggered it.
+  kIneligibleSurface = 20,
+  // The user is not eligible to make the choice because of their management
+  // status.
+  kManaged = 21,
 
-  kMaxValue = kAccountNotEligible,
+  kMaxValue = kManaged,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/search/enums.xml:SearchEngineChoiceScreenConditions)
 }  // namespace search_engines

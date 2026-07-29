@@ -32,14 +32,14 @@ class PipewireDesktopCapturer : public DesktopCapturer,
  public:
   static constexpr bool kSupportsFrameCallbacks = true;
 
-  explicit PipewireDesktopCapturer(base::WeakPtr<PipewireCaptureStream> stream);
+  explicit PipewireDesktopCapturer(base::WeakPtr<CaptureStream> stream);
   PipewireDesktopCapturer(const PipewireDesktopCapturer&) = delete;
   PipewireDesktopCapturer& operator=(const PipewireDesktopCapturer&) = delete;
   ~PipewireDesktopCapturer() override;
 
   // DesktopCapturer interface.
   // These methods can be called on any sequence.
-  bool SupportsFrameCallbacks() override;
+  bool SupportsFrameCallbacks() const override;
   void Start(Callback* callback) override;
   void CaptureFrame() override;
   void SetMaxFrameRate(std::uint32_t max_frame_rate) override;
@@ -57,7 +57,7 @@ class PipewireDesktopCapturer : public DesktopCapturer,
   void OnCaptureResult(Result result,
                        std::unique_ptr<webrtc::DesktopFrame> frame) override;
 
-  base::WeakPtr<PipewireCaptureStream> stream_;
+  base::WeakPtr<CaptureStream> stream_;
 
   // Per the webrtc::DesktopCapturer interface, callback is required to remain
   // valid until this is destroyed.

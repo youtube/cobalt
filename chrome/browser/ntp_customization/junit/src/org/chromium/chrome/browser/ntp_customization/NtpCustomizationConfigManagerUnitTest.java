@@ -72,7 +72,7 @@ public class NtpCustomizationConfigManagerUnitTest {
     public void tearDown() {
         // Clean up listeners to not affect other tests.
         mNtpCustomizationConfigManager.removeListener(mListener);
-        mNtpCustomizationConfigManager.setBackgroundImageDrawableForTesting(null);
+        mNtpCustomizationConfigManager.resetForTesting();
 
         // Removes the newly generated file and cleans up SharedPreference.
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
@@ -177,14 +177,15 @@ public class NtpCustomizationConfigManagerUnitTest {
         clearInvocations(mListener);
 
         @ColorRes int colorResId = R.color.default_red;
+        @ColorRes int primaryColorResId = R.color.default_bg_color_blue;
         NtpThemeColorInfo colorInfo =
                 new NtpThemeColorInfo(
                         mContext,
                         NtpThemeColorInfo.NtpThemeColorId.BLUE,
                         colorResId,
-                        R.color.default_bg_color_blue,
-                        R.drawable.chrome_color_theme_icon_blue);
+                        primaryColorResId);
         @ColorInt int color = ContextCompat.getColor(mContext, colorResId);
+        @ColorInt int primaryColor = ContextCompat.getColor(mContext, primaryColorResId);
         @ColorInt
         int defaultColor = ContextCompat.getColor(mContext, R.color.home_surface_background_color);
 
@@ -199,6 +200,9 @@ public class NtpCustomizationConfigManagerUnitTest {
         assertEquals(color, mNtpCustomizationConfigManager.getBackgroundColor(mContext));
         assertEquals(
                 color, NtpCustomizationUtils.getBackgroundColorFromSharedPreference(defaultColor));
+        assertEquals(
+                primaryColor,
+                NtpCustomizationUtils.getCustomizedPrimaryColorFromSharedPreference());
         verify(mListener)
                 .onBackgroundColorChanged(
                         eq(color),
@@ -214,6 +218,7 @@ public class NtpCustomizationConfigManagerUnitTest {
 
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         assertFalse(prefsManager.contains(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR));
+        assertFalse(prefsManager.contains(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR));
 
         verify(mListener)
                 .onBackgroundColorChanged(

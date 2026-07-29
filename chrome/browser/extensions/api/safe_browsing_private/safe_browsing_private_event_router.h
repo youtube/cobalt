@@ -8,14 +8,10 @@
 #include <memory>
 #include <string>
 
-#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/timer/timer.h"
 #include "base/values.h"
 #include "build/chromeos_buildflags.h"
-#include "chrome/browser/enterprise/connectors/common.h"
-#include "chrome/browser/enterprise/connectors/reporting/realtime_reporting_client.h"
 #include "components/download/public/common/download_danger_type.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
@@ -31,49 +27,17 @@ namespace extensions {
 class EventRouter;
 }
 
+namespace signin {
+class IdentityManager;
+}
+
 class GURL;
 
 namespace extensions {
 
 // An event router that observes Safe Browsing events and notifies listeners.
-// The router also uploads events to the chrome reporting server side API if
-// the kRealtimeReportingFeature feature is enabled.
 class SafeBrowsingPrivateEventRouter : public KeyedService {
  public:
-  // Key names used with when building the dictionary to pass to the real-time
-  // reporting API.
-  static const char kKeyUrl[];
-  static const char kKeySource[];
-  static const char kKeyDestination[];
-  static const char kKeyUserName[];
-  static const char kKeyIsPhishingUrl[];
-  static const char kKeyProfileUserName[];
-  static const char kKeyFileName[];
-  static const char kKeyDownloadDigestSha256[];
-  static const char kKeyReason[];
-  static const char kKeyNetErrorCode[];
-  static const char kKeyClickedThrough[];
-  static const char kKeyTriggeredRuleName[];
-  static const char kKeyTriggeredRuleId[];
-  static const char kKeyTriggeredRuleInfo[];
-  static const char kKeyThreatType[];
-  static const char kKeyContentType[];
-  static const char kKeyContentSize[];
-  static const char kKeyReferrers[];
-  static const char kKeyTrigger[];
-  static const char kKeyEventResult[];
-  static const char kKeyScanId[];
-  static const char kKeyIsFederated[];
-  static const char kKeyFederatedOrigin[];
-  static const char kKeyLoginUserName[];
-  static const char kKeyUserJustification[];
-  static const char kKeyUrlCategory[];
-  static const char kKeyAction[];
-  static const char kKeyTabUrl[];
-  static constexpr char kKeyContentTransferMethod[] = "contentTransferMethod";
-  static constexpr char kKeyHasWatermarking[] = "hasWatermarking";
-  static const char kKeyUnscannedReason[];
-
   explicit SafeBrowsingPrivateEventRouter(content::BrowserContext* context);
 
   SafeBrowsingPrivateEventRouter(const SafeBrowsingPrivateEventRouter&) =
@@ -117,26 +81,12 @@ class SafeBrowsingPrivateEventRouter : public KeyedService {
                                        const std::string& reason,
                                        int net_error_code);
 
+  void SetIdentityManagerForTesting(signin::IdentityManager* identity_manager);
+
  private:
-  // Returns filename with full path if full path is required;
-  // Otherwise returns only the basename without full path.
-  static std::string GetFileName(const std::string& filename,
-                                 const bool include_full_path);
-
-  // Returns the Gaia email address of the account signed in to the profile or
-  // an empty string if the profile is not signed in.
-  std::string GetProfileUserName() const;
-
+  raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
   raw_ptr<content::BrowserContext> context_;
   raw_ptr<EventRouter> event_router_ = nullptr;
-  raw_ptr<enterprise_connectors::RealtimeReportingClient> reporting_client_ =
-      nullptr;
-
-  // When a request is rejected for a given DM token, wait 24 hours before
-  // trying again for this specific DM Token.
-  base::flat_map<std::string, std::unique_ptr<base::OneShotTimer>>
-      rejected_dm_token_timers_;
-
   base::WeakPtrFactory<SafeBrowsingPrivateEventRouter> weak_ptr_factory_{this};
 };
 

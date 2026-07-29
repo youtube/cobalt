@@ -307,10 +307,9 @@ ClientView* DialogDelegate::CreateClientView(Widget* widget) {
   return new DialogClientView(widget, TransferOwnershipOfContentsView());
 }
 
-std::unique_ptr<NonClientFrameView> DialogDelegate::CreateNonClientFrameView(
-    Widget* widget) {
+std::unique_ptr<FrameView> DialogDelegate::CreateFrameView(Widget* widget) {
   return use_custom_frame() ? CreateDialogFrameView(widget)
-                            : WidgetDelegate::CreateNonClientFrameView(widget);
+                            : WidgetDelegate::CreateFrameView(widget);
 }
 
 void DialogDelegate::WindowWillClose() {
@@ -351,7 +350,7 @@ bool DialogDelegate::EscShouldCancelDialog() const {
 }
 
 // static
-std::unique_ptr<NonClientFrameView> DialogDelegate::CreateDialogFrameView(
+std::unique_ptr<FrameView> DialogDelegate::CreateDialogFrameView(
     Widget* widget) {
   LayoutProvider* provider = LayoutProvider::Get();
   auto frame = std::make_unique<BubbleFrameView>(
@@ -417,7 +416,7 @@ views::View* DialogDelegate::GetFootnoteViewForTesting() const {
     return footnote_view_.get();
   }
 
-  NonClientFrameView* frame = GetWidget()->non_client_view()->frame_view();
+  FrameView* frame = GetWidget()->non_client_view()->frame_view();
 
   // CreateDialogFrameView above always uses BubbleFrameView. There are
   // subclasses that override CreateDialogFrameView, but none of them override

@@ -89,6 +89,7 @@
 #include "components/reading_list/core/reading_list_model.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "components/tabs/public/pinned_tab_collection.h"
 #include "components/tabs/public/split_tab_collection.h"
 #include "components/tabs/public/split_tab_data.h"
 #include "components/tabs/public/split_tab_id.h"
@@ -96,6 +97,7 @@
 #include "components/tabs/public/tab_group_tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/tabs/public/tab_strip_collection.h"
+#include "components/tabs/public/unpinned_tab_collection.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_thread.h"
@@ -2003,6 +2005,14 @@ void TabStripModel::RemoveFromGroup(const std::vector<int>& indices) {
 
 void TabStripModel::RemoveSplit(split_tabs::SplitTabId split_id) {
   ReentrancyCheck reentrancy_check(&reentrancy_guard_);
+
+  for (tabs::TabInterface* foreground_tab : GetForegroundTabs()) {
+    if (!foreground_tab->IsActivated()) {
+      static_cast<tabs::TabModel*>(foreground_tab)
+          ->WillBecomeHidden(base::PassKey<TabStripModel>());
+    }
+  }
+
   RemoveSplitImpl(split_id,
                   SplitTabChange::SplitTabRemoveReason::kSplitTabRemoved);
 }
@@ -2253,6 +2263,16 @@ std::optional<const tab_groups::TabGroupId> TabStripModel::FindGroupIdFor(
     const tabs::TabCollection::Handle& collection_handle,
     base::PassKey<tabs_api::TabStripModelAdapterImpl>) const {
   return FindGroupIdFor(collection_handle);
+}
+
+tabs::TabCollectionHandle TabStripModel::GetPinnedTabsCollectionHandle(
+    base::PassKey<tabs_api::TabStripModelAdapterImpl>) const {
+  return contents_data_->pinned_collection()->GetHandle();
+}
+
+tabs::TabCollectionHandle TabStripModel::GetUnpinnedTabsCollectionHandle(
+    base::PassKey<tabs_api::TabStripModelAdapterImpl>) const {
+  return contents_data_->unpinned_collection()->GetHandle();
 }
 
 // Context menu functions.
@@ -3359,7 +3379,10 @@ int TabStripModel::InsertTabAtImpl(
   // If there's already an active tab, and the new tab will become active, send
   // a notification.
   if (active_tab_model && active && !closing_all_) {
-    active_tab_model->WillEnterBackground(base::PassKey<TabStripModel>());
+    for (tabs::TabInterface* foreground_tab : GetForegroundTabs()) {
+      static_cast<tabs::TabModel*>(foreground_tab)
+          ->WillEnterBackground(base::PassKey<TabStripModel>());
+    }
   }
 
   // Have to get the active contents before we monkey with the contents
@@ -3561,8 +3584,30 @@ TabStripSelectionChange TabStripModel::SetSelection(
   if (selection_model().active().has_value() &&
       new_model.active().has_value() &&
       selection_model().active().value() != new_model.active().value()) {
-    GetTabModelAtIndex(active_index())
-        ->WillEnterBackground(base::PassKey<TabStripModel>());
+    if (GetActiveTab()->GetSplit() !=
+        GetSplitForTab(new_model.active().value())) {
+      // When not switching between two splits, the active tab is deactivated
+      // and all foreground tabs become hidden.
+      for (tabs::TabInterface* tab : GetForegroundTabs()) {
+        if (tab->IsActivated()) {
+          static_cast<tabs::TabModel*>(GetActiveTab())
+              ->WillDeactivate(base::PassKey<TabStripModel>());
+        }
+        static_cast<tabs::TabModel*>(tab)->WillBecomeHidden(
+            base::PassKey<TabStripModel>());
+      }
+
+    } else if (GetActiveTab()->IsSplit()) {
+      // When switching between two tabs in a split, neither enters the
+      // background but one becomes deactivated.
+      static_cast<tabs::TabModel*>(GetActiveTab())
+          ->WillDeactivate(base::PassKey<TabStripModel>());
+    } else {
+      // For a non-split tab, just mark the active tab as entering the
+      // background.
+      static_cast<tabs::TabModel*>(GetActiveTab())
+          ->WillEnterBackground(base::PassKey<TabStripModel>());
+    }
   }
 
   // This is done after notifying TabDeactivated() because caller can assume
@@ -3856,14 +3901,20 @@ split_tabs::SplitTabId TabStripModel::AddToSplitImpl(
       });
 
   if (add_to_selection) {
-    const ui::ListSelectionModel old_selection_model = selection_model();
+    TabStripSelectionChange selection(GetActiveTab(), selection_model());
 
+    tabs::TabInterface* active_tab = GetActiveTab();
     for (auto split_tab : tabs_with_indices) {
       selection_model_->AddIndexToSelection(split_tab.second);
+      if (IsTabBlocked(split_tab.second)) {
+        active_tab = split_tab.first;
+        selection_model_->set_active(split_tab.second);
+      }
     }
 
-    TabStripSelectionChange selection(GetActiveTab(), old_selection_model);
     selection.new_model = selection_model();
+    selection.new_tab = active_tab;
+    selection.new_contents = active_tab->GetContents();
     TabStripModelChange change;
     OnChange(change, selection);
   }
@@ -3955,6 +4006,11 @@ void TabStripModel::UpdateTabInSplitImpl(tabs::TabInterface* split_tab,
         split_tab->GetGroup();
     const bool initial_split_pinned = split_tab->IsPinned();
     const int split_index = GetIndexOfTab(split_tab);
+
+    // The `split_tab` will be replaced in the split so notify observers that it
+    // will be moving to the background.
+    static_cast<tabs::TabModel*>(split_tab)->WillEnterBackground(
+        base::PassKey<TabStripModel>());
 
     // Move the split index first so the group is not possibly destroyed at the
     // update index. This can happen when the update index is the only member of

@@ -24,7 +24,7 @@ class GlicActorTaskIconController;
 }  // namespace tabs
 #endif
 
-class ActorOverlayWindowController;
+class ActorUiWindowController;
 
 class ActorBorderViewController;
 class BookmarkBarController;
@@ -69,6 +69,7 @@ class ScrimViewController;
 class SidePanelCoordinator;
 class SidePanelUI;
 class SigninViewController;
+class SplitViewIphController;
 class TabMenuModelDelegate;
 class TabSearchToolbarButtonController;
 class TabListBridge;
@@ -475,6 +476,8 @@ class BrowserWindowFeatures {
   GetUserDataFactoryForTesting();
 
  private:
+  class ExtensionKeybindingRegistryDelegateTabStrip;
+
   static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactory();
 
@@ -566,7 +569,10 @@ class BrowserWindowFeatures {
   std::unique_ptr<extensions::ExtensionSidePanelManager>
       extension_side_panel_manager_;
 
-  // The class that registers for keyboard shortcuts for extension commands.
+  // The class that registers for keyboard shortcuts for extension commands,
+  // and its delegate.
+  std::unique_ptr<ExtensionKeybindingRegistryDelegateTabStrip>
+      extension_keybinding_delegate_;
   std::unique_ptr<ExtensionKeybindingRegistryViews>
       extension_keybinding_registry_;
 
@@ -576,8 +582,7 @@ class BrowserWindowFeatures {
   std::unique_ptr<DownloadToolbarUIController> download_toolbar_ui_controller_;
 #endif
 
-  std::unique_ptr<ActorOverlayWindowController>
-      actor_overlay_window_controller_;
+  std::unique_ptr<ActorUiWindowController> actor_ui_window_controller_;
 
   std::unique_ptr<ActorBorderViewController> actor_border_view_controller_;
 
@@ -696,6 +701,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<split_tabs::SplitTabHighlightController>
       split_tab_highlight_controller_;
+
+  std::unique_ptr<SplitViewIphController> split_view_iph_controller_;
 
   std::unique_ptr<RecentActivityBubbleCoordinator>
       recent_activity_bubble_coordinator_;

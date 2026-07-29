@@ -104,7 +104,9 @@ class CORE_EXPORT LayoutCustomScrollbarPart final : public LayoutReplaced {
     return false;
   }
   void UpdateFromStyle() override;
-  void StyleDidChange(StyleDifference, const ComputedStyle* old_style) override;
+  void StyleDidChange(StyleDifference,
+                      const ComputedStyle* old_style,
+                      const StyleChangeContext&) override;
   void ImageChanged(WrappedImagePtr, CanDeferInvalidation) override;
 
   // A scrollbar part's PhysicalLocation() is relative to the scrollbar
@@ -143,9 +145,14 @@ class CORE_EXPORT LayoutCustomScrollbarPart final : public LayoutReplaced {
 
   PhysicalNaturalSizingInfo GetNaturalDimensions() const override;
 
-  int ComputeSize(const Length& length, int container_size) const;
-  int ComputeWidth(int container_width) const;
-  int ComputeHeight(int container_height) const;
+  enum class ScrollbarSizeComputeMode { kThickness, kLength };
+  int ComputeSize(const Length& length,
+                  int container_size,
+                  ScrollbarSizeComputeMode compute_mode) const;
+  int ComputeWidth(int container_width,
+                   ScrollbarSizeComputeMode compute_mode) const;
+  int ComputeHeight(int container_height,
+                    ScrollbarSizeComputeMode compute_mode) const;
 
   Member<ScrollableArea> scrollable_area_;
   Member<CustomScrollbar> scrollbar_;

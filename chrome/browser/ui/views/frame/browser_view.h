@@ -20,7 +20,6 @@
 #include "base/timer/timer.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/extensions/extension_keybinding_registry.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
@@ -132,7 +131,6 @@ class BrowserView : public BrowserWindow,
                     public infobars::InfoBarContainer::Delegate,
                     public ExclusiveAccessContext,
                     public ExclusiveAccessBubbleViewsContext,
-                    public extensions::ExtensionKeybindingRegistry::Delegate,
                     public ImmersiveModeController::Observer,
                     public webapps::AppBannerManager::Observer,
                     public views::FocusChangeListener {
@@ -147,13 +145,14 @@ class BrowserView : public BrowserWindow,
   BrowserView& operator=(const BrowserView&) = delete;
   ~BrowserView() override;
 
-  void set_frame(std::unique_ptr<BrowserWidget> frame) {
-    frame_ = std::move(frame);
+  void set_browser_widget(std::unique_ptr<BrowserWidget> widget) {
+    browser_widget_ = std::move(widget);
     paint_as_active_subscription_ =
-        frame_->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
-            &BrowserView::PaintAsActiveChanged, base::Unretained(this)));
+        browser_widget_->RegisterPaintAsActiveChangedCallback(
+            base::BindRepeating(&BrowserView::PaintAsActiveChanged,
+                                base::Unretained(this)));
   }
-  BrowserWidget* frame() const { return frame_.get(); }
+  BrowserWidget* browser_widget() const { return browser_widget_.get(); }
 
   // Returns a pointer to the BrowserView* interface implementation (an
   // instance of this object, typically) for a given native window, or null if
@@ -266,6 +265,7 @@ class BrowserView : public BrowserWindow,
   WebUITabStripContainerView* webui_tab_strip() { return webui_tab_strip_; }
 
   // Accessor for the Toolbar.
+  const ToolbarView* toolbar() const { return toolbar_; }
   ToolbarView* toolbar() { return toolbar_; }
 
   // Bookmark bar may be null, for example for pop-ups.
@@ -775,9 +775,6 @@ class BrowserView : public BrowserWindow,
   gfx::Rect GetTopContainerBoundsInScreen() override;
   void DestroyAnyExclusiveAccessBubble() override;
 
-  // extension::ExtensionKeybindingRegistry::Delegate:
-  content::WebContents* GetWebContentsForExtension() override;
-
   // ImmersiveModeController::Observer:
   void OnImmersiveRevealStarted() override;
   void OnImmersiveRevealEnded() override;
@@ -851,9 +848,9 @@ class BrowserView : public BrowserWindow,
     return web_app_frame_toolbar();
   }
 
-  // This value is used in a common calculation in NonClientFrameView
+  // This value is used in a common calculation in FrameView
   // subclasses. This must be added to the origin of the first painted pixel of
-  // NonClientFrameView to get the correct offset. See
+  // FrameView to get the correct offset. See
   // TopContainerBackground::PaintThemeCustomImage for details.
   gfx::Point GetThemeOffsetFromBrowserView() const;
 
@@ -885,7 +882,9 @@ class BrowserView : public BrowserWindow,
  private:
   // Do not friend BrowserViewLayout. Use the BrowserViewLayoutDelegate
   // interface to keep these two classes decoupled and testable.
-  friend class BrowserViewLayoutDelegateImpl;
+  friend class BrowserViewLayoutDelegateImplNew;
+  friend class BrowserViewLayoutDelegateImplOld;
+  friend class BrowserViewLayoutDelegateImplBrowsertest;
   friend class TopControlsSlideControllerTest;
   FRIEND_TEST_ALL_PREFIXES(BrowserViewTest, BrowserView);
   FRIEND_TEST_ALL_PREFIXES(BrowserViewTest, AccessibleWindowTitle);
@@ -1079,6 +1078,10 @@ class BrowserView : public BrowserWindow,
   // Attempts to show IPH promo for the tab search toolbar button.
   void MaybeShowTabStripToolbarButtonIPH();
 
+  // Attempts showing the IPH promo listing benefits for signed-in users
+  // after the sync-to-signin migration.
+  void MaybeShowSignInBenefitsIPH();
+
   void UpdateWindowControlsOverlayEnabled();
 
   // Updates the visibility of the Window Controls Overlay toggle button.
@@ -1113,7 +1116,7 @@ class BrowserView : public BrowserWindow,
   bool IsBrowserAWebApp() const;
 
   // The BrowserWidget that owns this view.
-  std::unique_ptr<BrowserWidget> frame_;
+  std::unique_ptr<BrowserWidget> browser_widget_;
 
   // The owning Browser object. `browser_` will outlive this.
   const raw_ptr<Browser> browser_;

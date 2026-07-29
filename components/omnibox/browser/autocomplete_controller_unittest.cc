@@ -18,7 +18,6 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/omnibox/browser/actions/contextual_search_action.h"
-#include "components/omnibox/browser/actions/omnibox_answer_action.h"
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_match.h"
@@ -2582,41 +2581,7 @@ TEST_F(AutocompleteControllerTest, ShouldRunProvider_AndroidHubSearch) {
 }
 #endif
 
-TEST_F(AutocompleteControllerTest, UpdateSearchboxStatsForAnswerAction) {
-  // Populate TemplateURLService with a keyword.
-  TemplateURLData turl_data;
-  turl_data.SetShortName(u"Keyword");
-  turl_data.SetKeyword(u"keyword");
-  turl_data.SetURL("https://google.com/search?q={searchTerms}");
-  controller_.template_url_service_->Add(
-      std::make_unique<TemplateURL>(turl_data));
-
-  omnibox::SuggestionEnhancement enhancement;
-  enhancement.set_display_text("Similar and opposite words");
-  auto answer_action = base::MakeRefCounted<OmniboxAnswerAction>(
-      std::move(enhancement), TemplateURLRef::SearchTermsArgs(),
-      omnibox::ANSWER_TYPE_DICTIONARY);
-  AutocompleteMatch match1 = CreateSearchMatch("match1", true, 1300);
-  match1.actions.push_back(answer_action);
-
-  controller_.Stop(AutocompleteStopReason::kClobbered);
-  EXPECT_THAT(controller_.SimulateAutocompletePass(
-                  /*sync=*/true, /*done=*/true,
-                  {match1, CreateSearchMatch("match2", true, 1200),
-                   CreateSearchMatch("match3", true, 1100)}),
-              testing::ElementsAreArray({
-                  "match1",
-                  "match2",
-                  "match3",
-              }));
-
-  EXPECT_EQ(
-      answer_action->search_terms_args.searchbox_stats.SerializeAsString(),
-      controller_.published_result_.match_at(0)
-          ->search_terms_args->searchbox_stats.SerializeAsString());
-}
-
-// Anroid and iOS have different handling for pedals.
+// Android and iOS have different handling for pedals.
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 TEST_F(AutocompleteControllerTest, NoActionsAttachedToLensSearchboxMatches) {
   std::unordered_map<OmniboxPedalId, scoped_refptr<OmniboxPedal>> pedals;
@@ -2673,6 +2638,48 @@ TEST_F(AutocompleteControllerTest, NoActionsAttachedToLensSearchboxMatches) {
       controller_.internal_result_.match_at(1)->takeover_action->ActionId());
   EXPECT_TRUE(
       controller_.internal_result_.match_at(2)->has_tab_match.value_or(false));
+}
+#endif
+
+// Android and iOS have different handling for pedals.
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+TEST_F(AutocompleteControllerTest, NoActionsAttachedToNtpComposeboxMatches) {
+  // Create input with lens searchbox page classification.
+  controller_.input_ = AutocompleteInput(
+      u"Clear History", metrics::OmniboxEventProto::NTP_COMPOSEBOX,
+      TestSchemeClassifier());
+
+  SetAutocompleteMatches(
+      {CreateSearchMatch(u"search 2"),
+       CreateHistoryURLMatch(
+           /*destination_url=*/"http://this-site-matches.com")});
+
+  static_cast<FakeTabMatcher&>(
+      const_cast<TabMatcher&>(provider_client()->GetTabMatcher()))
+      .set_url_substring_match("matches");
+
+  controller_.AttachActions();
+
+  // For a Lens Searchbox, AttachActions shouldn't attach a switch to this tab
+  // action to the last match.
+  EXPECT_FALSE(
+      controller_.internal_result_.match_at(1)->has_tab_match.value_or(false));
+
+  controller_.input_ =
+      AutocompleteInput(u"Clear History", metrics::OmniboxEventProto::OTHER,
+                        TestSchemeClassifier());
+
+  SetAutocompleteMatches(
+      {CreateSearchMatch(u"Clear History"),
+       CreateHistoryURLMatch(
+           /*destination_url=*/"http://this-site-matches.com")});
+
+  controller_.AttachActions();
+
+  // For any other page classification, AttachActions should attach a switch
+  // to this tab action to the relevant matches.
+  EXPECT_TRUE(
+      controller_.internal_result_.match_at(1)->has_tab_match.value_or(false));
 }
 #endif
 

@@ -195,16 +195,16 @@ AccountSelectionModalView::AccountSelectionModalView(
                                owner->web_contents()
                                    ->GetPrimaryMainFrame()
                                    ->GetRenderWidgetHost()
-                                   ->GetDeviceScaleFactor()) {
+                                   ->GetDeviceScaleFactor()),
+      idp_title_(idp_title),
+      rp_context_(rp_context) {
   // Configure the BoxLayoutView
   SetOrientation(views::BoxLayout::Orientation::kVertical);
   SetBetweenChildSpacing(kBetweenChildSpacing);
 
-  title_ = GetTitle(rp_data_, idp_title, rp_context);
-
-  subtitle_ = GetSubtitle(rp_data_);
-
   header_view_ = AddChildView(CreateHeader());
+  UpdateTitleAndSubtitle(rp_data);
+
   AddChildView(CreatePlaceholderAccountRow());
   AddChildView(CreateButtonRow(/*continue_callback=*/std::nullopt,
                                /*use_other_account_callback=*/std::nullopt,
@@ -357,20 +357,10 @@ std::unique_ptr<views::View> AccountSelectionModalView::CreateHeader() {
   header_icon_view_ = header->AddChildView(CreateIconHeaderView());
 
   // Add the title.
-  title_label_ = header->AddChildView(
-      std::make_unique<views::Label>(title_, views::style::CONTEXT_DIALOG_TITLE,
-                                     views::style::STYLE_HEADLINE_4));
+  title_label_ = header->AddChildView(std::make_unique<views::Label>(
+      u"", views::style::CONTEXT_DIALOG_TITLE, views::style::STYLE_HEADLINE_4));
 
   SetLabelProperties(title_label_);
-
-  if (!subtitle_.empty()) {
-    // Add the subtitle.
-    views::Label* subtitle =
-        header->AddChildView(std::make_unique<views::Label>(
-            subtitle_, views::style::CONTEXT_DIALOG_BODY_TEXT,
-            views::style::STYLE_BODY_4));
-    SetLabelProperties(subtitle);
-  }
 
   return header;
 }
@@ -603,6 +593,7 @@ void AccountSelectionModalView::ShowErrorDialog(
 
   title_ = summary_text;
   title_label_->SetText(title_);
+  title_label_->SetVisible(true);
   if (auto* widget = GetWidget()) {
     widget->widget_delegate()->SetTitle(title_);
   }
@@ -682,9 +673,12 @@ void AccountSelectionModalView::ShowRequestPermissionDialog(
     idp_brand_icon_->SetVisible(/*visible=*/true);
   }
 
-  // Hide the "Choose an account to continue" label.
+  // Hide the "Choose an account to continue" label, but not if we are instead
+  // showing the iframe text.
   CHECK(body_label_);
-  body_label_->SetVisible(/*visible=*/false);
+  if (subtitle_.empty()) {
+    body_label_->SetVisible(/*visible=*/false);
+  }
 
   std::vector<IdentityRequestAccountPtr> accounts = {account};
   account_chooser_ =
@@ -890,6 +884,30 @@ std::string AccountSelectionModalView::GetDialogTitle() const {
   return base::UTF16ToUTF8(title_label_->GetText());
 }
 
+void AccountSelectionModalView::UpdateTitleAndSubtitle(
+    const content::RelyingPartyData& rp_data) {
+  AccountSelectionViewBase::UpdateTitleAndSubtitle(rp_data);
+
+  // Don't set a title until we know the strings won't change anymore.
+  if (rp_data.display_strings_may_change) {
+    title_label_->SetVisible(false);
+    return;
+  }
+
+  title_ = GetTitle(rp_data, idp_title_, rp_context_);
+  subtitle_ = GetSubtitle(rp_data);
+  title_label_->SetText(title_);
+  title_label_->SetVisible(true);
+  if (body_label_) {
+    body_label_->SetText(subtitle_);
+    body_label_->SetVisible(true);
+  }
+  // Otherwise, we will set the text when we create body_label_.
+  if (auto* widget = GetWidget()) {
+    widget->widget_delegate()->SetTitle(title_);
+  }
+}
+
 std::optional<std::string> AccountSelectionModalView::GetDialogSubtitle()
     const {
   if (subtitle_.empty()) {
@@ -931,9 +949,13 @@ void AccountSelectionModalView::
   // body_label_ does not apply to the loading modal so it's added to header
   // here.
   if (!body_label_) {
+    std::u16string body_text =
+        subtitle_.empty()
+            ? l10n_util::GetStringUTF16(IDS_ACCOUNT_SELECTION_CHOOSE_AN_ACCOUNT)
+            : subtitle_;
     body_label_ = header_view_->AddChildView(std::make_unique<views::Label>(
-        l10n_util::GetStringUTF16(IDS_ACCOUNT_SELECTION_CHOOSE_AN_ACCOUNT),
-        views::style::CONTEXT_DIALOG_BODY_TEXT, views::style::STYLE_BODY_4));
+        body_text, views::style::CONTEXT_DIALOG_BODY_TEXT,
+        views::style::STYLE_BODY_4));
     SetLabelProperties(body_label_);
   }
 

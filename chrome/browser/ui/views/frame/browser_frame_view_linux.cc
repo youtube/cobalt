@@ -27,10 +27,10 @@ constexpr int kResizeTopBorderThickness = 4;
 }  // namespace
 
 BrowserFrameViewLinux::BrowserFrameViewLinux(
-    BrowserWidget* frame,
+    BrowserWidget* widget,
     BrowserView* browser_view,
     BrowserFrameViewLayoutLinux* layout)
-    : OpaqueBrowserFrameView(frame, browser_view, layout), layout_(layout) {
+    : OpaqueBrowserFrameView(widget, browser_view, layout), layout_(layout) {
   layout->set_view(this);
   if (auto* linux_ui = ui::LinuxUi::instance()) {
     window_button_order_observation_.Observe(linux_ui);
@@ -71,7 +71,7 @@ gfx::ShadowValues BrowserFrameViewLinux::GetShadowValues(bool active) {
 void BrowserFrameViewLinux::PaintRestoredFrameBorder(
     gfx::Canvas* canvas) const {
 #if BUILDFLAG(IS_LINUX)
-  const bool tiled = frame()->tiled();
+  const bool tiled = browser_widget()->tiled();
 #else
   const bool tiled = false;
 #endif
@@ -91,7 +91,7 @@ void BrowserFrameViewLinux::GetWindowMask(const gfx::Size& size,
 
 bool BrowserFrameViewLinux::ShouldDrawRestoredFrameShadow() const {
   return static_cast<BrowserNativeWidgetAuraLinux*>(
-             frame()->browser_native_widget())
+             browser_widget()->browser_native_widget())
       ->ShouldDrawRestoredFrameShadow();
 }
 
@@ -126,7 +126,7 @@ int BrowserFrameViewLinux::NonClientHitTest(const gfx::Point& point) {
 
 float BrowserFrameViewLinux::GetRestoredCornerRadiusDip() const {
 #if BUILDFLAG(IS_LINUX)
-  const bool tiled = frame()->tiled();
+  const bool tiled = browser_widget()->tiled();
 #else
   const bool tiled = false;
 #endif

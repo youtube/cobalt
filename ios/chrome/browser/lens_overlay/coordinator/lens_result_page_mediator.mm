@@ -335,7 +335,7 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
       return;
     }
 
-    [self.delegate lensResultPageOpenURLInNewTabRequsted:URL];
+    [self.delegate lensResultPageOpenURLInNewTabRequested:URL];
     [self.delegate
          lensResultPageMediator:self
         didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kWebNavigation];
@@ -346,12 +346,14 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
     // AIM SRP requires lns_surface, but we can't use Chromnient's (4), so use
     // CHROME_SEARCH.
     URL = net::AppendOrReplaceQueryParameter(URL, "lns_surface", "45");
-    [self.delegate lensResultPageOpenURLInNewTabRequsted:URL];
+    [self.delegate lensResultPageOpenURLInNewTabRequested:URL];
     [self.delegate
          lensResultPageMediator:self
         didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kExploreBarTab];
   } else if (base::FeatureList::IsEnabled(kLensSearchHeadersCheckEnabled) &&
-             lens::IsGoogleHostURL(URL) && [self shouldAddHeaders:request]) {
+             requestInfo.target_frame_is_main && lens::IsGoogleHostURL(URL) &&
+             [self shouldAddHeaders:request]) {
+    // Only attach headers for navigation clicks targeting main frame.
     [self loadResultsURL:URL httpHeaders:_latestHttpHeaders];
     decisionHandler(web::WebStatePolicyDecider::PolicyDecision::Cancel());
   } else {
@@ -500,7 +502,7 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
     }
   }
   // Open the URL in a new tab.
-  [self.delegate lensResultPageOpenURLInNewTabRequsted:URL];
+  [self.delegate lensResultPageOpenURLInNewTabRequested:URL];
   [self.delegate
        lensResultPageMediator:self
       didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kWebNavigation];

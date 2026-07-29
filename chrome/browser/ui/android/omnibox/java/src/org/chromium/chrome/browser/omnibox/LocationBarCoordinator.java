@@ -38,6 +38,7 @@ import org.chromium.chrome.browser.merchant_viewer.MerchantTrustSignalsCoordinat
 import org.chromium.chrome.browser.omnibox.LocationBarMediator.OmniboxUma;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsCoordinator;
+import org.chromium.chrome.browser.omnibox.navattach.NavigationFulfillmentType;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator.PageInfoAction;
 import org.chromium.chrome.browser.omnibox.status.StatusView;
@@ -326,8 +327,9 @@ public class LocationBarCoordinator
         mLensButton = mLocationBarLayout.findViewById(R.id.lens_camera_button);
         mLensButton.setOnClickListener(mLocationBarMediator::lensButtonClicked);
 
-        mComposeplateButton = mLocationBarLayout.findViewById(R.id.composeplate_button);
-        if (ChromeFeatureList.sAndroidComposeplate.isEnabled()) {
+        if (ChromeFeatureList.sAndroidComposeplate.isEnabled()
+                && !ChromeFeatureList.sAndroidComposeplateV2Enabled.getValue()) {
+            mComposeplateButton = mLocationBarLayout.findViewById(R.id.composeplate_button);
             mComposeplateButton.setOnClickListener(mLocationBarMediator::composeplateButtonClicked);
         }
 
@@ -403,8 +405,10 @@ public class LocationBarCoordinator
         mLensButton.setOnClickListener(null);
         mLensButton = null;
 
-        mComposeplateButton.setOnClickListener(null);
-        mComposeplateButton = null;
+        if (mComposeplateButton != null) {
+            mComposeplateButton.setOnClickListener(null);
+            mComposeplateButton = null;
+        }
 
         mInstallButton.setOnClickListener(null);
         mInstallButton = null;
@@ -921,5 +925,10 @@ public class LocationBarCoordinator
      */
     public void updateButtonBackground(@DrawableRes int backgroundResId) {
         mLocationBarMediator.updateButtonBackground(backgroundResId);
+    }
+
+    public ObservableSupplier<@NavigationFulfillmentType Integer>
+            getNavigationFulfillmentTypeSupplier() {
+        return mLocationBarMediator.getNavigationFulfillmentTypeSupplier();
     }
 }

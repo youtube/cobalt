@@ -18,6 +18,10 @@ import "ui/gfx/geometry/mojom/geometry.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 
+// Warning: a script copies some enums from this file over to glic_api.ts.
+// Run this script to update them, and read it for details.
+// chrome/browser/resources/glic/glic_api_impl/generate.py
+
 // The ready state of the profile.
 enum ProfileReadyState {
   // The profile is not ready for Glic.
@@ -87,6 +91,19 @@ enum WebUiState {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:WebUiState)
 
+// @generate glic_api
+// The type of user input reaction.
+[Stable, Extensible]
+enum MetricUserInputReactionType {
+  // An unknown reaction type.
+  [Default] kUnknown = 0,
+  // A canned reaction which can be presented without communication with the
+  // server.
+  kCanned = 1,
+  // A reaction which requires some generic modeling to produce.
+  kModel = 2,
+};
+
 // The result of `PrepareForClient()`.
 enum PrepareForClientResult {
   // Ready to load the web client.
@@ -131,8 +148,8 @@ interface PageHandler {
   WebUiStateChanged(WebUiState new_state);
 };
 
-// Reason for failure while acting. This MUST be kept in sync with the
-// glic_api.ts enum.
+// @generate glic_api
+// Reason for failure while acting.
 // LINT.IfChange(PerformActionsErrorReason)
 [Stable, Extensible]
 enum PerformActionsErrorReason {
@@ -146,8 +163,8 @@ enum PerformActionsErrorReason {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:PerformActionsErrorReason)
 
-// Reason for failure when creating an actor task. This MUST be kept in sync
-// with the glic_api.ts enum.
+// @generate glic_api
+// Reason for failure when creating an actor task.
 // LINT.IfChange(CreateTaskErrorReason)
 [Stable, Extensible]
 enum CreateTaskErrorReason {
@@ -159,40 +176,51 @@ enum CreateTaskErrorReason {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:CreateTaskErrorReason)
 
-// The state of an actor task. This MUST be kept in sync with the glic_api.ts
-// enum.
+// @generate glic_api
+// The state of an actor task.
 [Stable, Extensible]
 enum ActorTaskState {
   [Default] kUnknown = 0,
+  // The actor task is idle and waiting for the next action instruction.
   kIdle = 1,
+  // The actor task is performing an action.
   kActing = 2,
+  // The actor task is paused and waiting to be resumed or stopped.
   kPaused = 3,
+  // The actor task is stopped and going away.
   kStopped = 4,
 };
 
+// @generate glic_api
 // The reason/source of why an actor task was paused.
-// This MUST be kept in sync with the glic_api.ts enum.
 [Stable, Extensible]
 enum ActorTaskPauseReason {
+  // Actor task was paused by the model.
   [Default] kPausedByModel = 0,
+  // Actor task was puased by the user.
   kPausedByUser = 1,
 };
 
+// @generate glic_api
 // The reason/source of why an actor task was stopped.
-// This MUST be kept in sync with the glic_api.ts enum.
 [Stable, Extensible]
 enum ActorTaskStopReason {
+  // Actor task is complete.
   [Default] kTaskComplete = 0,
+  // Actor task was stopped by the user.
   kStoppedByUser = 1,
 };
 
-// Reason why capturing desktop screenshot failed. This MUST be kept in sync
-// with the glic_api.ts enum.
+// @generate glic_api
+// Reason why capturing desktop screenshot failed. NOTE: This may be extended in
+// the future so avoid using complete switches on the currently used enum
+// values.
 [Stable, Extensible]
 enum CaptureScreenshotErrorReason {
   // Screen capture or frame encoding failure.
   [Default] kUnknown = 0,
-  // Screen capture requested but already in progress of serving another request
+  // Screen capture requested but already in progress of serving another
+  // request.
   kScreenCaptureRequestThrottled = 1,
   // User declined screen capture dialog before taking a screenshot.
   kUserCancelledScreenPickerDialog = 2,
@@ -373,18 +401,17 @@ struct ScrollToNodeSelector {
   int32 node_id;
 };
 
-// Note: This must be kept in sync with the corresponding enum (same name) in
-// glic_api.ts. The enums are also recorded as histograms when they are
-// reported.
+// @generate glic_api
+// Reason why scrollTo() failed.
 // Next version: 8
 // LINT.IfChange(ScrollToErrorReason)
 [Stable, Extensible]
 enum ScrollToErrorReason {
-  // Default error reason. Used when the browser doesn't support ScrollTo, the
-  // params are invalid, or during shutdown.
+  // Invalid params were provided to scrollTo(), or the browser doesn't support
+  // scrollTo() yet.
   [Default] kNotSupported = 0,
 
-  // ScrollTo() was called again before this call finished processing.
+  // scrollTo() was called again before this call finished processing.
   [MinVersion=1] kNewerScrollToCall,
 
   // There is no tab currently in focus.
@@ -395,7 +422,7 @@ enum ScrollToErrorReason {
   [MinVersion=1] kNoMatchFound,
 
   // The currently focused tab changed or navigated while processing the
-  // ScrollTo() call.
+  // scrollTo() call.
   [MinVersion=1] kFocusedTabChangedOrNavigated,
 
   // The document_id or url provided doesn't match the active document in the
@@ -410,7 +437,8 @@ enum ScrollToErrorReason {
   // Page context access is disabled.
   [MinVersion=6] kTabContextPermissionDisabled,
 
-  // The web client drops the highlight.
+  // The web client requested to drop the highlight via
+  // `dropScrollToHighlight()`.
   [MinVersion=7] kDroppedByWebClient,
 };
 
@@ -506,7 +534,7 @@ interface WebClientHandler {
   ShowProfilePicker();
 
   // Returns the current model quality client id.
-   [RuntimeFeature=glic.mojom.features.kGlicAppendModelQualityClientId]
+  [RuntimeFeature=glic.mojom.features.kGlicAppendModelQualityClientId]
   GetModelQualityClientId() => (string model_quality_client_id);
 
   // Returns the context from the currently active tab.
@@ -560,7 +588,9 @@ interface WebClientHandler {
                            pending_remote<PinCandidatesObserver> observer);
 
   // Creates a new task in the actor framework and returns the new task's ID.
-  CreateTask() => result<int32, CreateTaskErrorReason>;
+  // `task_options` contains information used to initialize the task.
+  CreateTask(actor.webui.mojom.TaskOptions? task_options)
+      => result<int32, CreateTaskErrorReason>;
 
   // Executes the given actions. `action_proto` is a serialized proto of type
   // optimization_guide::proto::Actions. Returns the result of the actions as a
@@ -574,7 +604,7 @@ interface WebClientHandler {
   // the given id and exits acting mode. The stop_reason indicates the reason
   // for why the stop was initiated. Any in flight actions are canceled and
   // their callbacks will be (asynchronously) invoked. No-op if a task with the
-  // given id does not exist. An id of 0 refers to the most recent task.
+  // given id does not exist.
   StopActorTask(int32 task_id, ActorTaskStopReason stop_reason);
 
   // Pauses the task associated with the given id. Any restrictions on the tab
@@ -582,16 +612,14 @@ interface WebClientHandler {
   // indicates the reason for why the pause was initiated. ResumeActorTask
   // restores these restrictions, and allows for further actions. Any in flight
   // actions are canceled and their callbacks will be (asynchronously) invoked.
-  // No-op if a task with the given id does not exist. An id of 0 refers to the
-  // most recent task.
+  // No-op if a task with the given id does not exist.
   PauseActorTask(int32 task_id, ActorTaskPauseReason pause_reason);
 
   // Resumes a paused task associated with the given id, allowing for further
   // actions. Any restrictions on the tab lifted by PauseActorTask are
   // reimposed. After resumption, computes the context of the tab associated
   // with the task according to the given `context_options` and returns the
-  // result. Returns an error if the task doesn't exist or is not paused. An id
-  // of 0 refers to the most recent task.
+  // result. Returns an error if the task doesn't exist or is not paused.
   ResumeActorTask(int32 task_id, GetTabContextOptions context_options)
       => (GetContextResult result);
 
@@ -699,6 +727,16 @@ interface WebClientHandler {
   // Called when the user submits input.
   OnUserInputSubmitted(WebClientMode mode);
 
+  // Called when starting to upload context to the server.
+  OnContextUploadStarted();
+
+  // Called when finished uploading context to the server.
+  OnContextUploadCompleted();
+
+  // Called after user input is submitted, but before a response starts,
+  // when the UI shows a message that explains the progress of the request.
+  OnReaction(MetricUserInputReactionType reactionType);
+
   // Called when the web client starts to respond.
   OnResponseStarted();
 
@@ -725,7 +763,7 @@ interface WebClientHandler {
   // fails, or null otherwise.
   ScrollTo(ScrollToParams params) => (ScrollToErrorReason? error_reason);
 
-  // Drops the content highlight from ScrollTo(). No effects if no contents are
+  // Drops the content highlight from scrollTo(). No effects if no contents are
   // highlighted.
   DropScrollToHighlight();
 
@@ -774,6 +812,32 @@ interface WebClientHandler {
   // names array to stop receiving notifications.
   SubscribeToPageMetadata(int32 tab_id, array<string> names)
       => (bool success);
+
+  // Switches the active conversation in the web client.
+  // `conversation_id` must be non-empty to be considered valid.
+  SwitchConversation(string conversation_id)
+      => (SwitchConversationErrorReason? error_reason);
+
+  // Registers a conversation in the web client.
+  // `conversation_id` must be non-empty to be considered valid.
+  RegisterConversation(string conversation_id)
+      => (RegisterConversationErrorReason? error_reason);
+};
+
+// @generate glic_api
+// Reason for failure when switching a conversation.
+[Stable, Extensible]
+enum SwitchConversationErrorReason {
+  [Default] kUnknown = 0,
+};
+
+// @generate glic_api
+// Reason for failure when registering a conversation.
+[Stable, Extensible]
+enum RegisterConversationErrorReason {
+  [Default] kUnknown = 0,
+  // The instance already has a conversation ID.
+  kInstanceAlreadyHasConversationId = 1,
 };
 
 // Data sent from the browser to the web client with panel opening information.
@@ -782,6 +846,12 @@ struct PanelOpeningData {
   PanelState panel_state;
   // Indicates the entry point used to trigger the opening of the panel.
   InvocationSource invocation_source;
+  // The ID of the conversation to open. If unset, the web client will open a
+  // new conversation. This field is used only when the `MULTI_INSTANCE`
+  // capability is present.
+  // If set, `conversation_id` will be a string with length >0. Empty
+  // conversation IDs are not supported.
+  string? conversation_id;
 };
 
 // State of the glic panel.
@@ -803,10 +873,8 @@ struct PanelState {
   int32? window_id;
 };
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// The default is set to a valid value because this enum is only sent to the
-// web client, so Mojo will never handle an unknown value.
+// @generate glic_api
+// Entry points that can trigger the opening of the panel.
 // LINT.IfChange(InvocationSource)
 [Stable, Extensible]
 enum InvocationSource {
@@ -827,6 +895,8 @@ enum InvocationSource {
   // From 3-dot menu.
   kThreeDotsMenu = 7,
   // An unsupported/unknown source.
+  /// The default is set to a valid value because this enum is only sent to the
+  /// web client, so Mojo will never handle an unknown value.
   [Default] kUnsupported = 8,
   // From the What's New page.
   [MinVersion=1] kWhatsNew = 9,
@@ -840,12 +910,8 @@ enum InvocationSource {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation)
 
+// @generate glic_api
 // Web client's operation modes.
-// WARNING: These enum values should match WebClientMode in
-// chrome/browser/resources/glic/glic_api/glic_api.ts
-// Warning: this is used for UMA histograms, so values should not be
-// renumbered. See GlicWebClientMode in
-// tools/metrics/histograms/metadata/glic/enums.xml
 // LINT.IfChange(WebClientMode)
 [Stable, Extensible]
 enum WebClientMode {
@@ -858,11 +924,11 @@ enum WebClientMode {
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:WebClientMode)
 
+// @generate glic_api
 // Web client's operation model.
-// WARNING: These enum values should match WebClientModel in
-// chrome/browser/resources/glic/glic_api/glic_api.ts
 [Stable, Extensible]
 enum WebClientModel {
+  // Default model.
   [Default] kDefault = 0,
   // Actor operation mode.
   kActor = 1,
@@ -995,6 +1061,13 @@ interface WebClient {
   RequestToShowCredentialSelectionDialog(
     actor.webui.mojom.SelectCredentialDialogRequest request)
       => (actor.webui.mojom.SelectCredentialDialogResponse response);
+
+  // Requests the web client to show a dialog for deterministic user
+  // confirmation. This should occur when Chrome detects the actor
+  // engaging in security-sensitive operations that require user permission.
+  RequestToShowUserConfirmationDialog(
+    actor.webui.mojom.UserConfirmationDialogRequest request)
+      => (actor.webui.mojom.UserConfirmationDialogResponse response);
 };
 
 // Information extracted from a tab.
@@ -1127,6 +1200,7 @@ struct Screenshot {
   ImageOriginAnnotations origin_annotations;
 };
 
+// @generate glic_api
 // Fields of interest from the Glic settings page.
 [Stable, Extensible]
 enum SettingsPageField {
@@ -1144,15 +1218,18 @@ struct OpenSettingsOptions {
   SettingsPageField highlightField;
 };
 
+// @generate glic_api
 // Describes the capability of the glic host.
 enum HostCapability {
-  // Glic host supports ScrollTo() with PDF documents.
+  // Glic host supports scrollTo() with PDF documents.
   kScrollToPdf = 0,
   // Glic host will reset panel size and location on open.
   kResetSizeAndLocationOnOpen = 1,
-  // The glic host's GetModelQualityClientId() is enabled and can be called
+  // The glic host's getModelQualityClientId() is enabled and can be called
   // safely.
   kGetModelQualityClientId = 2,
+  // Glic is in multi-instance mode.
+  kMultiInstance= 3,
 };
 
 // A request to change the glic web client to a view suitable for tracking the

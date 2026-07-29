@@ -41,6 +41,7 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
+#include "chrome/browser/ui/cookie_controls/roll_back_mode_b_infobar_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -95,6 +96,7 @@
 #include "components/lens/tab_contextualization_controller.h"
 #include "components/passage_embeddings/passage_embeddings_features.h"
 #include "components/permissions/permission_indicators_tab_data.h"
+#include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/security_interstitials/core/features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/wallet/core/common/wallet_features.h"
@@ -104,6 +106,7 @@
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
 
@@ -243,6 +246,11 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                   ->GetImageFetcher(
                       image_fetcher::ImageFetcherConfig::kNetworkOnly),
               side_panel_registry_.get());
+
+      if (base::FeatureList::IsEnabled(privacy_sandbox::kRollBackModeB)) {
+        roll_back_mode_b_infobar_controller_ =
+            std::make_unique<RollBackModeBInfoBarController>(tab.GetContents());
+      }
     }
 
     contextual_cueing::ContextualCueingHelper::MaybeCreateForWebContents(
@@ -280,8 +288,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     }
 
 #if BUILDFLAG(ENABLE_GLIC)
-    if (glic::GlicEnabling::IsProfileEligible(
-            tab.GetBrowserWindowInterface()->GetProfile())) {
+    if (glic::GlicEnabling::IsProfileEligible(profile)) {
       glic_instance_helper_ =
           GetUserDataFactory().CreateInstance<glic::GlicInstanceHelper>(tab,
                                                                         &tab);
@@ -289,7 +296,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           GetUserDataFactory().CreateInstance<glic::GlicTabIndicatorHelper>(
               tab, &tab);
     }
-    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    if (base::FeatureList::IsEnabled(features::kGlicMultiInstance) &&
+        glic::GlicKeyedService::Get(profile)) {
       glic_side_panel_coordinator_ =
           GetUserDataFactory().CreateInstance<glic::GlicSidePanelCoordinator>(
               tab, &tab, side_panel_registry_.get());
@@ -488,6 +496,12 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
     permission_indicators_tab_data_ =
         std::make_unique<permissions::PermissionIndicatorsTabData>(
             new_contents);
+  }
+
+  if (roll_back_mode_b_infobar_controller_) {
+    roll_back_mode_b_infobar_controller_.reset();
+    roll_back_mode_b_infobar_controller_ =
+        std::make_unique<RollBackModeBInfoBarController>(new_contents);
   }
 }
 

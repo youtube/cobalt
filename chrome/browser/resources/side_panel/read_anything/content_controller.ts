@@ -3,10 +3,15 @@
 // found in the LICENSE file.
 
 import {assert} from '//resources/js/assert.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 
+import {LOG_EMPTY_DELAY_MS} from './common.js';
 import {NodeStore} from './node_store.js';
 import {previousReadHighlightClass} from './read_aloud/movement.js';
+import {getReadAloudModel} from './read_aloud/read_aloud_model_browser_proxy.js';
+import {ReadAloudNode} from './read_aloud/read_aloud_types.js';
 import {SpeechController} from './read_aloud/speech_controller.js';
+import {ReadAnythingLogger} from './read_anything_logger.js';
 
 const DATA_PREFIX = 'data-';
 const LINK_DATA_ATTR = 'link';
@@ -38,12 +43,221 @@ const TAG_TO_RM_TAG: Map<string, string> = new Map([
   ['video', 'canvas'],
 ]);
 
+export interface ContentListener {
+  onContentStateChange(): void;
+  onNewPageDrawn(): void;
+}
+
+export enum ContentType {
+  // Reading mode is loading and may or may not have content when it finishes.
+  LOADING,
+  // There is no content to display but the user can try to select text to get
+  // content.
+  NO_CONTENT,
+  // There is no content to display and the user cannot select text to get
+  // content.
+  NO_SELECTABLE_CONTENT,
+  // There is content displayed in Reading mode.
+  HAS_CONTENT,
+}
+
+export interface ContentState {
+  type: ContentType;
+  imagePath: string;
+  darkImagePath: string;
+  heading: string;
+  subheading: string;
+}
+
+// Use a Record to enforce that every ContentType has a corresponding
+// ContentState.
+const CONTENT_STATES: Record<ContentType, ContentState> = {
+  [ContentType.LOADING]: {
+    type: ContentType.LOADING,
+    imagePath: '//resources/images/throbber_small.svg',
+    darkImagePath: '//resources/images/throbber_small_dark.svg',
+    heading: loadTimeData.getString('readAnythingLoadingMessage'),
+    subheading: '',
+  },
+  [ContentType.NO_CONTENT]: {
+    type: ContentType.NO_CONTENT,
+    imagePath: './images/empty_state.svg',
+    darkImagePath: './images/empty_state.svg',
+    heading: loadTimeData.getString('emptyStateHeader'),
+    subheading: loadTimeData.getString('emptyStateSubheader'),
+  },
+  [ContentType.NO_SELECTABLE_CONTENT]: {
+    type: ContentType.NO_SELECTABLE_CONTENT,
+    imagePath: './images/empty_state.svg',
+    darkImagePath: './images/empty_state.svg',
+    heading: loadTimeData.getString('notSelectableHeader'),
+    subheading: loadTimeData.getString('emptyStateSubheader'),
+  },
+  [ContentType.HAS_CONTENT]: {
+    type: ContentType.HAS_CONTENT,
+    imagePath: '',
+    darkImagePath: '',
+    heading: '',
+    subheading: '',
+  },
+};
+
 // Handles the business logic for the visual content of the Reading mode panel.
 export class ContentController {
   private nodeStore_: NodeStore = NodeStore.getInstance();
   private speechController_: SpeechController = SpeechController.getInstance();
+  private logger_: ReadAnythingLogger = ReadAnythingLogger.getInstance();
 
-  buildSubtree(nodeId: number): Node {
+  private readonly listeners_: ContentListener[] = [];
+  private currentState_: ContentState = CONTENT_STATES[ContentType.NO_CONTENT];
+  private previousRootId_?: number;
+
+  getState(): ContentState {
+    return this.currentState_;
+  }
+
+  setState(type: ContentType) {
+    if (type === this.currentState_.type) {
+      return;
+    }
+    this.currentState_ = CONTENT_STATES[type];
+    this.listeners_.forEach(l => l.onContentStateChange());
+  }
+
+  hasContent(): boolean {
+    return this.currentState_.type === ContentType.HAS_CONTENT;
+  }
+
+  isEmpty(): boolean {
+    return this.currentState_.type === ContentType.NO_CONTENT ||
+        this.currentState_.type === ContentType.NO_SELECTABLE_CONTENT;
+  }
+
+  setEmpty() {
+    const noContentType = this.getNoContentType_();
+    if (this.isEmpty() && this.currentState_.type === noContentType) {
+      return;
+    }
+    // Log the empty state only after a short delay. Sometimes the empty state
+    // is only shown very briefly before the content is distilled, so we don't
+    // need to count those instances as a failure to distill.
+    setTimeout(() => {
+      if (this.isEmpty()) {
+        this.logger_.logEmptyState();
+      }
+    }, LOG_EMPTY_DELAY_MS);
+    this.setState(noContentType);
+  }
+
+  private getNoContentType_() {
+    return chrome.readingMode.isGoogleDocs ? ContentType.NO_SELECTABLE_CONTENT :
+                                             ContentType.NO_CONTENT;
+  }
+
+  addListener(listener: ContentListener) {
+    this.listeners_.push(listener);
+  }
+
+  onNodeWillBeDeleted(nodeId: number) {
+    const deletedNode = this.nodeStore_.getDomNode(nodeId) as ChildNode;
+    if (deletedNode) {
+      this.nodeStore_.removeDomNode(deletedNode);
+      deletedNode.remove();
+    }
+    const root = this.nodeStore_.getDomNode(chrome.readingMode.rootId);
+    if (this.hasContent() && !root?.textContent) {
+      this.setState(this.getNoContentType_());
+      chrome.readingMode.onNoTextContent();
+    }
+  }
+
+  updateContent(shadowRoot?: ShadowRoot): Node|null {
+    // This shouldn't happen. If it does, there is likely a bug, so log it so
+    // we can monitor it.
+    if (this.speechController_.isSpeechActive()) {
+      console.error(
+          'updateContent called while speech is active. ',
+          'There may be a bug.');
+      this.logger_.logSpeechStopSource(
+          chrome.readingMode.unexpectedUpdateContentStopSource);
+    }
+
+    const isReadAloudEnabled = chrome.readingMode.isReadAloudEnabled;
+    if (isReadAloudEnabled) {
+      this.speechController_.saveReadAloudState();
+      this.speechController_.resetForNewContent();
+    }
+
+    this.nodeStore_.clearDomNodes();
+
+    // Construct a dom subtree starting with the display root. The display root
+    // may be invalid if there are no content nodes and no selection. This does
+    // not use Lit's templating abstraction, which would create a shadow node
+    // element representing each AXNode, because experimentation (with Polymer)
+    // found the shadow node creation to be ~8-10x slower than constructing and
+    // appending nodes directly to the container element.
+    const rootId = chrome.readingMode.rootId;
+    if (!rootId) {
+      return null;
+    }
+
+    const node = this.buildSubtree_(rootId);
+    // If there is no text or images in the tree, do not proceed. The empty
+    // state container will show instead.
+    if (!node.textContent && !this.nodeStore_.hasImagesToFetch()) {
+      // Sometimes the controller thinks there will be content and redraws
+      // without showing the empty page, but we end up not actually having any
+      // content and also not showing the empty page sometimes. In this case,
+      // send that info back to the controller.
+      if (this.hasContent()) {
+        this.setEmpty();
+        chrome.readingMode.onNoTextContent();
+      } else if (!this.isEmpty()) {
+        // This is possible when the AXTree returns bad selection data and
+        // reading mode believes it has selected content to distll but
+        // nothing valid is selected. This can cause the loading screen
+        // to never switch to the empty state.
+        this.setEmpty();
+      }
+      return null;
+    }
+
+    if (this.previousRootId_ !== rootId) {
+      this.previousRootId_ = rootId;
+      this.logger_.logNewPage(/*speechPlayed=*/ false);
+    }
+
+    // Always load images even if they are disabled to ensure a fast response
+    // when toggling.
+    this.loadImages();
+    this.setState(ContentType.HAS_CONTENT);
+    this.updateImages(shadowRoot);
+
+    // If the previous reading position still exists and we haven't reached the
+    // end of speech, keep that spot.
+    const setPreviousReadingPosition = isReadAloudEnabled &&
+        this.speechController_.setPreviousReadingPositionIfExists();
+    requestAnimationFrame(() => {
+      // Count this as a new page as long as there's no reading position to keep
+      // from before.
+      if (!setPreviousReadingPosition) {
+        this.listeners_.forEach(l => l.onNewPageDrawn());
+      }
+      this.nodeStore_.estimateWordsSeenWithDelay();
+      // Initialize the speech tree with the new content.
+      if (chrome.readingMode.isTsTextSegmentationEnabled) {
+        const contextNode = ReadAloudNode.create(node);
+        if (contextNode) {
+          // Don't initialize until after drawing otherwise, the DOM nodes might
+          // not yet exist in the tree.
+          getReadAloudModel().init(contextNode);
+        }
+      }
+    });
+    return node;
+  }
+
+  private buildSubtree_(nodeId: number): Node {
     let htmlTag = chrome.readingMode.getHtmlTag(nodeId);
     const dataAttributes = new Map<string, string>();
 
@@ -102,7 +316,7 @@ export class ContentController {
 
   private appendChildSubtrees_(node: Node, nodeId: number) {
     for (const childNodeId of chrome.readingMode.getChildren(nodeId)) {
-      const childNode = this.buildSubtree(childNodeId);
+      const childNode = this.buildSubtree_(childNodeId);
       node.appendChild(childNode);
     }
   }
@@ -147,8 +361,8 @@ export class ContentController {
     return parentElement;
   }
 
-  updateLinks(hasContent: boolean, shadowRoot?: ShadowRoot) {
-    if (!shadowRoot || !hasContent) {
+  updateLinks(shadowRoot?: ShadowRoot) {
+    if (!shadowRoot || !this.hasContent()) {
       return;
     }
 
@@ -254,9 +468,9 @@ export class ContentController {
     }
   }
 
-  updateImages(hasContent: boolean, shadowRoot?: ShadowRoot) {
+  updateImages(shadowRoot?: ShadowRoot) {
     if (!shadowRoot || !chrome.readingMode.imagesFeatureEnabled ||
-        !hasContent) {
+        !this.hasContent()) {
       return;
     }
 

@@ -12,7 +12,7 @@
 #import "components/policy/policy_constants.h"
 #import "components/signin/ios/browser/features.h"
 #import "components/signin/public/base/signin_metrics.h"
-#import "ios/chrome/browser/authentication/ui_bundled/account_menu/account_menu_constants.h"
+#import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/expected_signin_histograms.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
@@ -32,6 +32,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/test_constants.h"
+#import "ios/chrome/browser/signin/model/test_constants_utils.h"
 #import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/promo_style/constants.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
@@ -318,20 +319,21 @@ void CompleteSigninFlow() {
 - (void)testSignInScreenWithoutAccount {
   chrome_test_util::GREYAssertErrorNil(
       [MetricsAppInterface setupHistogramTester]);
-  // Tap on the "Sign in" button.
-  [[EarlGrey
-      selectElementWithMatcher:grey_text(l10n_util::GetNSString(
-                                   IDS_IOS_FIRST_RUN_SIGNIN_SIGN_IN_ACTION))]
-      performAction:grey_tap()];
+  for (NSString* cancelButtonId in
+           signin::FakeSystemIdentityManagerStaySignedOutButtons()) {
+    // Tap on the "Sign in" button.
+    [[EarlGrey
+        selectElementWithMatcher:grey_text(l10n_util::GetNSString(
+                                     IDS_IOS_FIRST_RUN_SIGNIN_SIGN_IN_ACTION))]
+        performAction:grey_tap()];
+    // Check for the fake SSO screen.
+    [ChromeEarlGrey waitForMatcher:grey_accessibilityID(cancelButtonId)];
+    // Close the SSO view controller.
+    id<GREYMatcher> matcher = grey_allOf(grey_accessibilityID(cancelButtonId),
+                                         grey_sufficientlyVisible(), nil);
+    [[EarlGrey selectElementWithMatcher:matcher] performAction:grey_tap()];
+  }
 
-  // Check for the fake SSO screen.
-  [ChromeEarlGrey
-      waitForMatcher:grey_accessibilityID(kFakeAuthActivityViewIdentifier)];
-  // Close the SSO view controller.
-  id<GREYMatcher> matcher =
-      grey_allOf(grey_accessibilityID(kFakeAuthCancelButtonIdentifier),
-                 grey_sufficientlyVisible(), nil);
-  [[EarlGrey selectElementWithMatcher:matcher] performAction:grey_tap()];
   // Make sure the SSO view controller is fully removed before ending the test.
   // The tear down needs to remove other view controllers, and it cannot be done
   // during the animation of the SSO view controler.
@@ -372,9 +374,9 @@ void CompleteSigninFlow() {
   [SigninEarlGrey addFakeIdentity:fakeIdentity2];
 
   // Tap on the account switcher.
-  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
-                                          kIdentityButtonControlIdentifier)]
-      performAction:grey_tap()];
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::AccountChooserButtonMatcher(
+                                   fakeIdentity1)] performAction:grey_tap()];
 
   // Check that `fakeIdentity2` is displayed.
   [[EarlGrey selectElementWithMatcher:IdentityCellMatcherForEmail(
@@ -713,11 +715,6 @@ void CompleteSigninFlow() {
 // Tests that intents are handled when sign-in is done from the regular sign-in
 // prompt, where the forced sign-in prompt is skipped.
 - (void)testHandlingIntentWhenSigninFromRegularPrompt {
-  // TODO(crbug.com/439554897): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
-  }
-
   // Serve the test page locally using the internal embedded server.
   self.testServer->RegisterRequestHandler(
       base::BindRepeating(&PageHttpResponse));

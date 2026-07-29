@@ -176,8 +176,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Installer.Recovery.NbrDurationMinutes" units="minutes"
-    expires_after="2025-08-17">
-  <owner>yuanpengni@chromium.org</owner>
+    expires_after="2026-03-11">
+  <owner>kimjae@chromium.org</owner>
   <owner>chromeos-core-services@google.com</owner>
   <summary>
     The duration in minutes for the network based recovery to complete.
@@ -254,6 +254,24 @@ chromium-metrics-reviews@google.com.
   <summary>
     The final exit-result of the entire run of setup.exe on Windows.
   </summary>
+</histogram>
+
+<histogram name="Setup.Install.UnbufferedFileWriter.{Operation}.Error"
+    enum="WinGetLastError" expires_after="2026-09-28">
+  <owner>grt@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The Windows error code for a failed {Operation} on an UnbufferedFileWriter.
+    Recorded once per operation that encounters an error.
+  </summary>
+  <token key="Operation">
+    <variant name="Allocate"/>
+    <variant name="ClearDelete"/>
+    <variant name="Create"/>
+    <variant name="GetInfo"/>
+    <variant name="SetInfo"/>
+    <variant name="Write"/>
+  </token>
 </histogram>
 
 </histograms>

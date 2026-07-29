@@ -1753,16 +1753,19 @@ void NetworkContext::CloseIdleConnections(
 
 void NetworkContext::SetNetworkConditions(
     const base::UnguessableToken& throttling_profile_id,
-    mojom::NetworkConditionsPtr conditions) {
+    std::vector<mojom::MatchedNetworkConditionsPtr> conditions) {
   std::vector<MatchedNetworkConditions> network_conditions;
-  if (conditions) {
+  for (auto& condition : conditions) {
     network_conditions.emplace_back(
-        std::string{},
-        NetworkConditions{
-            conditions->offline, conditions->latency.InMillisecondsF(),
-            conditions->download_throughput, conditions->upload_throughput,
-            conditions->packet_loss, conditions->packet_queue_length,
-            conditions->packet_reordering});
+        std::move(condition->pattern),
+        NetworkConditions{condition->conditions->offline,
+                          condition->conditions->latency.InMillisecondsF(),
+                          condition->conditions->download_throughput,
+                          condition->conditions->upload_throughput,
+                          condition->conditions->packet_loss,
+                          condition->conditions->packet_queue_length,
+                          condition->conditions->packet_reordering,
+                          condition->conditions->rule_id});
   }
   ThrottlingController::SetConditions(throttling_profile_id,
                                       std::move(network_conditions));
@@ -2724,6 +2727,10 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
     builder.set_proxy_delegate(
         std::make_unique<ip_protection::IpProtectionProxyDelegate>(
             ip_protection_core_impl.get()));
+    // Set tracking protection content settings if there are any provided.
+    ip_protection_core_impl->SetTrackingProtectionContentSetting(
+        params_->tracking_protection_content_settings);
+
     ip_protection_core_ = std::move(ip_protection_core_impl);
   } else if (params_->initial_custom_proxy_config ||
              params_->custom_proxy_config_client_receiver) {

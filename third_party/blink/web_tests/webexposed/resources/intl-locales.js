@@ -1,26 +1,82 @@
-// Languages with 50 million or more total speakers:
-// https://en.wikipedia.org/wiki/List_of_languages_by_total_number_of_speakers#Ethnologue_(2025)
-//
-// This doesn't seem to correlate perfectly with locales set on user devices,
-// but it does cover many very common locales.
+// Common locales for testing Intl formats.
 //
 // The choice of country (one or multiple), timezone and currency is a best
 // effort to pick combinations that would be very common among users and
 // websites serving those users.
-const bigLocales = {
-  // 1. English
+
+// Changes to English have most often caused web compat issues in the past, so
+// many locales are listed. This also helps show the scope of a change, since
+// the same change might happen in just one locale or many at once.
+const englishLocales = {
+  // Generic English
   "en": {
     timeZone: "UTC",
     currency: null,
+  },
+  // The five "core Anglosphere" countries:
+  // https://en.wikipedia.org/wiki/Anglosphere#Core_Anglosphere
+  "en-AU": {
+    timeZone: "Australia/Sydney",
+    currency: "AUD",
+  },
+  "en-CA": {
+    timeZone: "America/Vancouver",
+    currency: "CAD",
   },
   "en-GB": {
     timeZone: "Europe/London",
     currency: "GBP",
   },
+  "en-NZ": {
+    timeZone: "Pacific/Auckland",
+    currency: "NZD",
+  },
   "en-US": {
     timeZone: "America/New_York",
     currency: "USD",
   },
+  // Also include Ireland which can be considered part of the Anglosphere, which
+  // helpfully provides coverage of Euro in English.
+  "en-IE": {
+    timeZone: "Europe/Dublin",
+    currency: "EUR",
+  },
+  // Countries with English as an official language and a population of 50 million or more:
+  // https://en.wikipedia.org/wiki/List_of_countries_and_territories_where_English_is_an_official_language
+  "en-IN": {
+    timeZone: "Asia/Kolkata",
+    currency: "INR",
+  },
+  "en-PK": {
+    timeZone: "Asia/Karachi",
+    currency: "PKR",
+  },
+  "en-NG": {
+    timeZone: "Africa/Lagos",
+    currency: "NGN",
+  },
+  "en-PH": {
+    timeZone: "Asia/Manila",
+    currency: "PHP",
+  },
+  "en-ZA": {
+    timeZone: "Africa/Johannesburg",
+    currency: "ZAR",
+  },
+  "en-TZ": {
+    timeZone: "Africa/Dar_es_Salaam",
+    currency: "TZS",
+  },
+};
+
+// Languages with 50 million or more total speakers:
+// https://en.wikipedia.org/wiki/List_of_languages_by_total_number_of_speakers#Ethnologue_(2025)
+//
+// This doesn't seem to correlate perfectly with locales set on user devices,
+// but it does cover many very common locales.
+const bigLocales = {
+  // 1. English
+  // Listed separately.
   // 2. Mandarin Chinese
   "zh-CN": {
     timeZone: "Asia/Shanghai",
@@ -32,7 +88,7 @@ const bigLocales = {
   },
   // 3. Hindi
   "hi": {
-    timeZone: "Asia/Calcutta",
+    timeZone: "Asia/Kolkata",
     currency: "INR",
   },
   // 4. Spanish
@@ -48,7 +104,7 @@ const bigLocales = {
     timeZone: "America/Mexico_City",
     currency: "MXN",
   },
-  // es-419 is Spanish Latin America and the Caribbean. Using the same timezone
+  // es-419 is Spanish in Latin America and the Caribbean. Use the same timezone
   // as above to make differences easier to spot.
   "es-419": {
     timeZone: "America/Mexico_City",
@@ -133,10 +189,7 @@ const bigLocales = {
     currency: "TRY",
   },
   // 21. Western Punjabi
-  "pa": {
-    timeZone: "Asia/Karachi",
-    currency: "PKR",
-  },
+  // TODO(crbug.com/445771455): consider shipping "pa" locale data
   // 22. Swahili
   "sw": {
     timeZone: "Africa/Dar_es_Salaam",
@@ -179,10 +232,7 @@ const bigLocales = {
     currency: "THB",
   },
   // 30. Javanese
-  "jv": {
-    timeZone: "Asia/Jakarta",
-    currency: "IDR",
-  },
+  // TODO(crbug.com/445771455): consider shipping "jv" locale data
   // 31. Italian
   "it": {
     timeZone: "Europe/Rome",
@@ -219,9 +269,8 @@ const bigLocales = {
 
 // Additional locales where changes might be risky.
 const extraLocales = {
-  // Dutch and Polish  are in the top 15 of several of the lists on this page:
+  // Dutch and Polish are in the top 15 of several of the lists on this page:
   // https://en.wikipedia.org/wiki/Languages_used_on_the_Internet
-  // Malay isn't included in the Ethnologue
   "nl": {
     timeZone: "Europe/Amsterdam",
     currency: "EUR",
@@ -238,4 +287,18 @@ const extraLocales = {
   },
 };
 
-export const locales = Object.assign({}, bigLocales, extraLocales);
+const allLocales = Object.assign({}, englishLocales, bigLocales, extraLocales);
+
+// Sort keys so that for example zh-* are grouped together. Also add a display
+// name (in English) for test expectations to be more readable.
+const keys = Object.keys(allLocales);
+keys.sort();
+const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
+
+export const locales = {};
+
+for (const key of keys) {
+  const data = allLocales[key];
+  data.displayName = displayNames.of(key);
+  locales[key] = data;
+}

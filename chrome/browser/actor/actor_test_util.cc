@@ -49,9 +49,14 @@ using ::content::RenderFrameHost;
 using ::content::WebContents;
 using ::optimization_guide::DocumentIdentifierUserData;
 using ::optimization_guide::proto::Actions;
+using ::optimization_guide::proto::ActivateWindowAction;
 using ::optimization_guide::proto::ClickAction;
+using ClickType = ::optimization_guide::proto::ClickAction::ClickType;
+using ClickCount = ::optimization_guide::proto::ClickAction::ClickCount;
+using ::optimization_guide::proto::CloseWindowAction;
 using ::optimization_guide::proto::Coordinate;
 using ::optimization_guide::proto::CreateTabAction;
+using ::optimization_guide::proto::CreateWindowAction;
 using ::optimization_guide::proto::DragAndReleaseAction;
 using ::optimization_guide::proto::HistoryBackAction;
 using ::optimization_guide::proto::HistoryForwardAction;
@@ -65,15 +70,18 @@ using ::optimization_guide::proto::TypeAction_TypeMode;
 using tabs::TabHandle;
 using tabs::TabInterface;
 
-Actions MakeClick(RenderFrameHost& rfh, int content_node_id) {
+Actions MakeClick(RenderFrameHost& rfh,
+                  int content_node_id,
+                  ClickType click_type,
+                  ClickCount click_count) {
   Actions actions;
   ClickAction* click = actions.add_actions()->mutable_click();
   click->mutable_target()->set_content_node_id(content_node_id);
   click->mutable_target()->mutable_document_identifier()->set_serialized_token(
       *DocumentIdentifierUserData::GetDocumentIdentifier(
           rfh.GetGlobalFrameToken()));
-  click->set_click_type(ClickAction::LEFT);
-  click->set_click_count(ClickAction::SINGLE);
+  click->set_click_type(click_type);
+  click->set_click_count(click_count);
 
   auto* tab = TabInterface::GetFromContents(
       content::WebContents::FromRenderFrameHost(&rfh));
@@ -82,14 +90,17 @@ Actions MakeClick(RenderFrameHost& rfh, int content_node_id) {
   return actions;
 }
 
-Actions MakeClick(TabHandle tab_handle, const gfx::Point& click_point) {
+Actions MakeClick(TabHandle tab_handle,
+                  const gfx::Point& click_point,
+                  ClickType click_type,
+                  ClickCount click_count) {
   Actions actions;
   ClickAction* click = actions.add_actions()->mutable_click();
   Coordinate* coordinate = click->mutable_target()->mutable_coordinate();
   coordinate->set_x(click_point.x());
   coordinate->set_y(click_point.y());
-  click->set_click_type(ClickAction::LEFT);
-  click->set_click_count(ClickAction::SINGLE);
+  click->set_click_type(click_type);
+  click->set_click_count(click_count);
   click->set_tab_id(tab_handle.raw_value());
   return actions;
 }
@@ -115,15 +126,19 @@ Actions MakeMouseMove(RenderFrameHost& rfh, int content_node_id) {
   move->mutable_target()->mutable_document_identifier()->set_serialized_token(
       *DocumentIdentifierUserData::GetDocumentIdentifier(
           rfh.GetGlobalFrameToken()));
+  auto* tab = TabInterface::GetFromContents(
+      content::WebContents::FromRenderFrameHost(&rfh));
+  move->set_tab_id(tab->GetHandle().raw_value());
   return actions;
 }
 
-Actions MakeMouseMove(const gfx::Point& move_point) {
+Actions MakeMouseMove(TabHandle tab_handle, const gfx::Point& move_point) {
   Actions actions;
   MoveMouseAction* move = actions.add_actions()->mutable_move_mouse();
   Coordinate* coordinate = move->mutable_target()->mutable_coordinate();
   coordinate->set_x(move_point.x());
   coordinate->set_y(move_point.y());
+  move->set_tab_id(tab_handle.raw_value());
   return actions;
 }
 
@@ -140,6 +155,28 @@ Actions MakeCreateTab(SessionID window_id, bool foreground) {
   CreateTabAction* create_tab = actions.add_actions()->mutable_create_tab();
   create_tab->set_foreground(foreground);
   create_tab->set_window_id(window_id.id());
+  return actions;
+}
+
+Actions MakeActivateWindow(SessionID window_id) {
+  Actions actions;
+  ActivateWindowAction* activate_window =
+      actions.add_actions()->mutable_activate_window();
+  activate_window->set_window_id(window_id.id());
+  return actions;
+}
+
+Actions MakeCreateWindow() {
+  Actions actions;
+  actions.add_actions()->mutable_create_window();
+  return actions;
+}
+
+Actions MakeCloseWindow(SessionID window_id) {
+  Actions actions;
+  CloseWindowAction* close_window =
+      actions.add_actions()->mutable_close_window();
+  close_window->set_window_id(window_id.id());
   return actions;
 }
 
@@ -241,7 +278,8 @@ Actions MakeSelect(RenderFrameHost& rfh,
   return actions;
 }
 
-Actions MakeDragAndRelease(const gfx::Point& from_point,
+Actions MakeDragAndRelease(tabs::TabHandle tab_handle,
+                           const gfx::Point& from_point,
                            const gfx::Point& to_point) {
   Actions actions;
   DragAndReleaseAction* drag_and_release =
@@ -254,6 +292,7 @@ Actions MakeDragAndRelease(const gfx::Point& from_point,
       to_point.x());
   drag_and_release->mutable_to_target()->mutable_coordinate()->set_y(
       to_point.y());
+  drag_and_release->set_tab_id(tab_handle.raw_value());
   return actions;
 }
 

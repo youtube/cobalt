@@ -4,28 +4,48 @@
 
 package org.chromium.components.browser_ui.settings;
 
-import static org.chromium.components.browser_ui.settings.CustomStyledPreference.DEFAULT_COLOR;
-import static org.chromium.components.browser_ui.settings.CustomStyledPreference.DEFAULT_MARGIN;
+import static org.chromium.components.browser_ui.styles.ChromeColors.getSettingsContainerBackgroundColor;
+import static org.chromium.components.browser_ui.widget.containment.CustomStyledContainer.DEFAULT_COLOR;
+import static org.chromium.components.browser_ui.widget.containment.CustomStyledContainer.DEFAULT_MARGIN;
 
 import android.content.Context;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
-import androidx.preference.PreferenceGroup;
-import androidx.preference.PreferenceScreen;
 
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.components.browser_ui.settings.CustomStyledPreference.BackgroundStyle;
-import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
+import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer.BackgroundStyle;
 
 import java.util.ArrayList;
+import java.util.List;
 
-/** Controller to assign styling to preferences in a settings screen. */
+/**
+ * Controller that assigns styling to items in a settings screen.
+ *
+ * <p>This controller is responsible for generating {@link SettingsContainerStyle} objects for both
+ * {@link Preference} items and generic {@link View}s.
+ *
+ * <p>The core logic is based on the concept of a "styling section," which is a contiguous block of
+ * standard items. Special items that require custom styling (see {@link
+ * #isCustomStyledPreference(Preference)} and {@link #isCustomStyledView(View)}) act as delimiters
+ * that break up these sections.
+ *
+ * <p>For a standard item (either a Preference or a View), the controller determines if it's at the
+ * top, middle, bottom, or is a standalone item in its section. This position is then passed to
+ * {@link #createBuilderWithDefaultStyle}, which creates the final style with the correct corner
+ * radii and default margins.
+ *
+ * <p>Custom preferences are handled separately in {@link #getStyleForCustomContainer}, where their
+ * own styling values are prioritized over the controller's defaults.
+ */
 @NullMarked
 public class SettingsStylingController {
-
-    private final PreferenceScreen mPreferenceScreen;
+    // TODO (crbug.com/433576895): Rename to ContainmentItemController
+    // TODO (crbug.com/433576895): Move the styling logic to
+    // chromium/components/browser_ui/widget/containment
     private final float mDefaultRadius;
     private final float mInnerRadius;
     private final int mDefaultVerticalMargin;
@@ -37,11 +57,8 @@ public class SettingsStylingController {
      * Constructor for the styling controller.
      *
      * @param context The context to get the resources from.
-     * @param preferenceScreen The preference screen to be styled.
      */
-    public SettingsStylingController(
-            @NonNull Context context, @NonNull PreferenceScreen preferenceScreen) {
-        mPreferenceScreen = preferenceScreen;
+    public SettingsStylingController(@NonNull Context context) {
         mDefaultRadius =
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.settings_item_rounded_corner_radius_default);
@@ -56,77 +73,58 @@ public class SettingsStylingController {
         mSectionBottomAdditionalMargin =
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.settings_section_bottom_margin);
-        mDefaultBackgroundColor =
-                SemanticColorUtils.getColorSurfaceContainerLowest(mPreferenceScreen.getContext());
+        mDefaultBackgroundColor = getSettingsContainerBackgroundColor(context);
     }
 
     /**
-     * Traverses the preference screen and returns a list of preference styles for each visible
-     * preference.
+     * Generates a list of {@link SettingsContainerStyle} for the given preferences. The style for
+     * each preference is determined by its position within a "styling section."
      *
-     * @return A list of {@link PreferenceStyle} objects.
+     * @param visiblePreferences The list of visible preferences on the screen.
+     * @return A list of {@link SettingsContainerStyle} objects.
      */
-    public ArrayList<PreferenceStyle> generatePreferenceStyles() {
-        ArrayList<Preference> visiblePreferences = getVisiblePreferences();
-        ArrayList<PreferenceStyle> preferenceStyles = new ArrayList<>();
+    public ArrayList<SettingsContainerStyle> generatePreferenceStyles(
+            ArrayList<Preference> visiblePreferences) {
+        ArrayList<SettingsContainerStyle> preferenceStyles = new ArrayList<>();
         for (int i = 0; i < visiblePreferences.size(); i++) {
             preferenceStyles.add(getPreferenceStyleForPosition(visiblePreferences, i));
         }
         return preferenceStyles;
     }
 
-    private ArrayList<Preference> getVisiblePreferences() {
-        ArrayList<Preference> visiblePreferences = new ArrayList<>();
-        if (mPreferenceScreen == null) return visiblePreferences;
-
-        for (int i = 0; i < mPreferenceScreen.getPreferenceCount(); i++) {
-            Preference preference = mPreferenceScreen.getPreference(i);
-            if (preference.isVisible()) {
-                addVisiblePreferences(preference, visiblePreferences);
-            }
+    /**
+     * Generates a list of {@link SettingsContainerStyle} objects for the given views.
+     *
+     * @param views The list of views to generate styles for.
+     * @return A list of {@link SettingsContainerStyle} objects.
+     */
+    public ArrayList<SettingsContainerStyle> generateViewStyles(List<View> views) {
+        ArrayList<SettingsContainerStyle> styles = new ArrayList<>();
+        for (int i = 0; i < views.size(); i++) {
+            styles.add(getViewStyleForPosition(views, i));
         }
-        return visiblePreferences;
+        return styles;
     }
 
     /**
-     * Recursively adds all visible preferences.
+     * Determines the style for a preference based on its position in the list.
      *
-     * @param preference The preference to start from.
-     * @param visiblePreferences The list to add visible preferences to.
+     * @param visiblePreferences The list of all visible preferences.
+     * @param position The position of the current preference in the list.
+     * @return The {@link SettingsContainerStyle} for the preference.
      */
-    private void addVisiblePreferences(
-            Preference preference, ArrayList<Preference> visiblePreferences) {
-        visiblePreferences.add(preference);
-        if (preference instanceof PreferenceGroup preferenceGroup) {
-            for (int i = 0; i < preferenceGroup.getPreferenceCount(); i++) {
-                Preference nestedPreference = preferenceGroup.getPreference(i);
-                if (nestedPreference.isVisible()) {
-                    addVisiblePreferences(nestedPreference, visiblePreferences);
-                }
-            }
-        }
-    }
-
-    /**
-     * Returns whether the given preference requires custom styling.
-     *
-     * @param preference The preference to check.
-     * @return Whether the preference has custom styling.
-     */
-    private boolean hasCustomStyling(Preference preference) {
-        if (preference instanceof CustomStyledPreference customStyledPreference) {
-            return customStyledPreference.getCustomBackgroundStyle() != BackgroundStyle.STANDARD;
-        }
-        return preference instanceof PreferenceCategory;
-    }
-
-    private @NonNull PreferenceStyle getPreferenceStyleForPosition(
+    private @NonNull SettingsContainerStyle getPreferenceStyleForPosition(
             ArrayList<Preference> visiblePreferences, int position) {
         Preference currentPref = visiblePreferences.get(position);
 
-        if (hasCustomStyling(currentPref)) {
-            return getPreferenceStyleForCustomPreference(currentPref);
+        if (isCustomStyledPreference(currentPref)) {
+            if (currentPref instanceof PreferenceCategory) {
+                return SettingsContainerStyle.EMPTY;
+            }
+            return getStyleForCustomContainer((CustomStyledContainer) currentPref);
         }
+
+        // For standard items, styling is determined by their position within a section.
 
         Preference prefAbove = (position > 0) ? visiblePreferences.get(position - 1) : null;
         Preference prefBelow =
@@ -134,27 +132,129 @@ public class SettingsStylingController {
                         ? visiblePreferences.get(position + 1)
                         : null;
 
+        boolean isTop = (prefAbove == null) || isCustomStyledPreference(prefAbove);
+        boolean isBottom = (prefBelow == null) || isCustomStyledPreference(prefBelow);
+
+        return createBuilderWithDefaultStyle(isTop, isBottom);
+    }
+
+    /**
+     * Returns whether the given preference requires custom styling. Custom styled preferences act
+     * as delimiters for styling sections.
+     *
+     * @param preference The preference to check.
+     * @return Whether the preference has custom styling.
+     */
+    private boolean isCustomStyledPreference(Preference preference) {
+        if (preference instanceof CustomStyledContainer customStyledPreference) {
+            return customStyledPreference.getCustomBackgroundStyle() != BackgroundStyle.STANDARD;
+        }
+        return preference instanceof PreferenceCategory;
+    }
+
+    /**
+     * Determines the style for a view based on its position in the list.
+     *
+     * @param views The list of all views to be styled.
+     * @param position The position of the current view in the list.
+     * @return The {@link SettingsContainerStyle} for the view.
+     */
+    private SettingsContainerStyle getViewStyleForPosition(List<View> views, int position) {
+        View view = views.get(position);
+
+        if (isCustomStyledView(view)) {
+            return getStyleForCustomContainer((CustomStyledContainer) view);
+        }
+
+        // For standard items, styling is determined by their position within a section.
+
+        boolean isTop = position == 0 || isCustomStyledView(views.get(position - 1));
+        boolean isBottom =
+                position == views.size() - 1 || isCustomStyledView(views.get(position + 1));
+        return createBuilderWithDefaultStyle(isTop, isBottom);
+    }
+
+    /**
+     * Returns whether the given view requires custom styling. Custom styled views act as delimiters
+     * for styling sections.
+     *
+     * @param view The view to check.
+     * @return Whether the view has custom styling.
+     */
+    private boolean isCustomStyledView(View view) {
+        if (view instanceof CustomStyledContainer customStyledPreference) {
+            return customStyledPreference.getCustomBackgroundStyle() != BackgroundStyle.STANDARD;
+        }
+        return false;
+    }
+
+    /**
+     * Creates a {@link SettingsContainerStyle} for a {@link CustomStyledContainer}. This method
+     * respects the custom values provided by the container, falling back to controller defaults if
+     * they are not provided.
+     *
+     * @param container The container to generate a style for.
+     * @return The {@link SettingsContainerStyle} for the container.
+     */
+    private SettingsContainerStyle getStyleForCustomContainer(CustomStyledContainer container) {
+        if (container.getCustomBackgroundStyle() == BackgroundStyle.CARD) {
+            int topMargin = container.getCustomTopMargin();
+            if (topMargin == DEFAULT_MARGIN) topMargin = mDefaultVerticalMargin;
+
+            int bottomMargin = container.getCustomBottomMargin();
+            if (bottomMargin == DEFAULT_MARGIN) {
+                bottomMargin = mDefaultVerticalMargin + mSectionBottomAdditionalMargin;
+            }
+
+            int horizontalMargin = container.getCustomHorizontalMargin();
+            if (horizontalMargin == DEFAULT_MARGIN) {
+                horizontalMargin = mDefaultHorizontalMargin;
+            }
+
+            int backgroundColor = container.getCustomBackgroundColor();
+            if (backgroundColor == DEFAULT_COLOR) backgroundColor = mDefaultBackgroundColor;
+
+            return new SettingsContainerStyle.Builder()
+                    .setTopRadius(mDefaultRadius)
+                    .setBottomRadius(mDefaultRadius)
+                    .setTopMargin(topMargin)
+                    .setBottomMargin(bottomMargin)
+                    .setHorizontalMargin(horizontalMargin)
+                    .setBackgroundColor(backgroundColor)
+                    .build();
+        }
+
+        return SettingsContainerStyle.EMPTY;
+    }
+
+    /**
+     * Creates a default {@link SettingsContainerStyle} for a standard item. The style is determined
+     * by whether the item is at the top or bottom of a styling section.
+     *
+     * @param isTop Whether the item is at the top of a section.
+     * @param isBottom Whether the item is at the bottom of a section.
+     * @return The {@link SettingsContainerStyle} for the item.
+     */
+    private SettingsContainerStyle createBuilderWithDefaultStyle(boolean isTop, boolean isBottom) {
         float topRadius = mDefaultRadius;
         float bottomRadius = mDefaultRadius;
         int bottomMargin = mDefaultVerticalMargin;
 
-        boolean isTop = (prefAbove == null) || hasCustomStyling(prefAbove);
-        boolean isBottom = (prefBelow == null) || hasCustomStyling(prefBelow);
-
-        if (isTop && isBottom) {
+        if (isTop && isBottom) { // Standalone
             // Standalone items have an additional bottom margin
-            bottomMargin = mSectionBottomAdditionalMargin + mDefaultVerticalMargin;
-        } else if (isTop) {
+            bottomMargin += mSectionBottomAdditionalMargin;
+        } else if (isTop) { // Top
             bottomRadius = mInnerRadius;
-        } else if (isBottom) {
+        } else if (isBottom) { // Bottom
             // Items at the end of a section have an additional bottom margin
-            bottomMargin = mSectionBottomAdditionalMargin + mDefaultVerticalMargin;
             topRadius = mInnerRadius;
-        } else {
+            bottomMargin += mSectionBottomAdditionalMargin;
+        } else { // Middle
             topRadius = mInnerRadius;
             bottomRadius = mInnerRadius;
         }
-        return new PreferenceStyle.Builder()
+
+        return new SettingsContainerStyle.Builder()
                 .setTopRadius(topRadius)
                 .setBottomRadius(bottomRadius)
                 .setTopMargin(mDefaultVerticalMargin)
@@ -162,40 +262,5 @@ public class SettingsStylingController {
                 .setHorizontalMargin(mDefaultHorizontalMargin)
                 .setBackgroundColor(mDefaultBackgroundColor)
                 .build();
-    }
-
-    private PreferenceStyle getPreferenceStyleForCustomPreference(Preference preference) {
-        if (preference instanceof PreferenceCategory) {
-            return PreferenceStyle.EMPTY;
-        } else if (preference instanceof CustomStyledPreference customStyledPreference) {
-            if (customStyledPreference.getCustomBackgroundStyle() == BackgroundStyle.CARD) {
-                int topMargin = customStyledPreference.getCustomTopMargin();
-                if (topMargin == DEFAULT_MARGIN) topMargin = mDefaultVerticalMargin;
-
-                int bottomMargin = customStyledPreference.getCustomBottomMargin();
-                if (bottomMargin == DEFAULT_MARGIN) {
-                    bottomMargin = mDefaultVerticalMargin + mSectionBottomAdditionalMargin;
-                }
-
-                int horizontalMargin = customStyledPreference.getCustomHorizontalMargin();
-                if (horizontalMargin == DEFAULT_MARGIN) {
-                    horizontalMargin = mDefaultHorizontalMargin;
-                }
-
-                int backgroundColor = customStyledPreference.getCustomBackgroundColor();
-                if (backgroundColor == DEFAULT_COLOR) backgroundColor = mDefaultBackgroundColor;
-
-                return new PreferenceStyle.Builder()
-                        .setTopRadius(mDefaultRadius)
-                        .setBottomRadius(mDefaultRadius)
-                        .setTopMargin(topMargin)
-                        .setBottomMargin(bottomMargin)
-                        .setHorizontalMargin(horizontalMargin)
-                        .setBackgroundColor(backgroundColor)
-                        .build();
-            }
-        }
-
-        return PreferenceStyle.EMPTY;
     }
 }

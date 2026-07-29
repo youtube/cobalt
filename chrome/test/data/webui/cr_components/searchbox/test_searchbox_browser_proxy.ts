@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
-import type {PageHandlerInterface, PageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PageHandlerInterface, PageRemote, PlaceholderConfig} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {PageCallbackRouter} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {String16} from 'chrome://resources/mojo/mojo/public/mojom/base/string16.mojom-webui.js';
 import type {TimeTicks} from 'chrome://resources/mojo/mojo/public/mojom/base/time.mojom-webui.js';
@@ -31,6 +31,8 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'toggleSuggestionGroupIdVisibility',
       'onFocusChanged',
       'popupElementSizeChanged',
+      'getPlaceholderConfig',
+      'getRecentTabs',
     ]);
   }
 
@@ -101,6 +103,22 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   toggleSuggestionGroupIdVisibility(suggestionGroupId: number) {
     this.methodCalled('toggleSuggestionGroupIdVisibility', {suggestionGroupId});
+  }
+
+  getPlaceholderConfig(): Promise<{config: PlaceholderConfig}> {
+    this.methodCalled('getPlaceholderConfig');
+    return Promise.resolve({
+      config: {
+        texts: [],
+        changeTextAnimationInterval: {microseconds: BigInt(4000) * 1000n},
+        fadeTextAnimationDuration: {microseconds: BigInt(250) * 1000n},
+      },
+    });
+  }
+
+  getRecentTabs() {
+    this.methodCalled('getRecentTabs');
+    return Promise.resolve({tabs: []});
   }
 }
 

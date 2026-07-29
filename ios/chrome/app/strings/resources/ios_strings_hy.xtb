@@ -114,6 +114,7 @@
 <translation id="1429187656584513419">Բացել գաղտնաբառերը</translation>
 <translation id="1430915738399379752">Տպում</translation>
 <translation id="1433478348197382180">Ընթերցման ռեժիմ</translation>
+<translation id="1435271730600332883">Բացեք ինքնալրացումը և գաղտնաբառերը</translation>
 <translation id="1436671784520050284">Շարունակել կարգավորումը</translation>
 <translation id="143681031165817424">Հասցեն պահված է միայն այս սարքում</translation>
 <translation id="1445276840641906250">Ձեր բոլոր ներդիրները՝ մեկ դիտարկիչում</translation>
@@ -478,6 +479,7 @@
 <translation id="2797029671965852011">Ցույց տալ պատմությունը</translation>
 <translation id="2797302972324086597">Երկրի կոդը</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} ֆայլ}one{{COUNT} ֆայլ}other{{COUNT} ֆայլ}}</translation>
+<translation id="2816149645002567541">Ներբեռնումը դադարեցված է</translation>
 <translation id="2816489851009559785">Ընտրացանկ → Կարգավորումներ → Կանխադրված դիտարկիչ</translation>
 <translation id="2818821771744632548">Ձեր iPhone-ը վերակայելիս դուք դուրս եք գրվել ձեր <ph name="USER_NAME" /> հաշվից։ Մուտք գործելու համար ստորև սեղմեք «Շարունակել»։</translation>
 <translation id="2819667972867209401">Երբ միացված է, տվյալները պահվում են ձեր Google հաշվում։ Հակառակ դեպքում տվյալները կպահվեն միայն այս սարքում և կջնջվեն, երբ դուրս գաք հաշվից։</translation>
@@ -734,6 +736,7 @@
 <translation id="3921585859122905677">Հասցեագոտու դիրքը</translation>
 <translation id="3922185497376658606">Վեբ էջերի նախաբեռնում</translation>
 <translation id="3922395466317605522">Ընտրացանկի անհատականացում</translation>
+<translation id="3926703470020109118">Ներբեռնումը չեղարկվել է</translation>
 <translation id="3929457972718048006">Հասցեներ</translation>
 <translation id="3931215329146376310">{count,plural, =1{Նոր գաղտնաբառ այս կայքի համար}one{Նոր գաղտնաբառ այս կայքի համար}other{Նոր գաղտնաբառեր այս կայքի համար}}</translation>
 <translation id="3934905113567851655">Երկու մատով շարժեք՝ չափը փոխելու համար</translation>
@@ -786,6 +789,7 @@
 <translation id="4113957097611235433">Փոխեք ձեր գաղտնաբառերը</translation>
 <translation id="4120936477286528673">Այս կայքը բազմիցս փորձում է մեկ այլ հավելված բացել։</translation>
 <translation id="4121993058175073134">Զուտ արտահանման տվյալները ուղարկելու համար կազմաձևեք ձեր էլփոստի հաշիվը Կարգավորումներ հավելվածում:</translation>
+<translation id="4132991308423633339">Արտահանել գաղտնաբառերն ու մուտքի բանալիները…</translation>
 <translation id="4133139945030148655">Պատրաստ է</translation>
 <translation id="4133265950310064865">Կատարելագործված պաշտպանություն</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -833,6 +837,7 @@
 <translation id="4286718549648564014">Հասցեն փոխանցվեց ձեր <ph name="USER_EMAIL" /> հաշիվ</translation>
 <translation id="4287172530684295552">Նշել որպես կարդացված</translation>
 <translation id="428768789042547925">Ինչ նոր բան կա</translation>
+<translation id="428858055663163046">Այստեղ կարող եք տեսնել ձեր ներբեռնած ֆայլերը, երբ դրանք հասանելի լինեն</translation>
 <translation id="429074084062258019">{count,plural, =1{Ավելացնել ներդիր խմբում}one{Ավելացնել ներդիր խմբում}other{Ավելացնել ներդիրներ խմբում}}</translation>
 <translation id="4302061870579014542">Ընտրել դիրքը</translation>
 <translation id="4304713468139749426">Գաղտնաբառերի կառավարիչ</translation>
@@ -949,6 +954,7 @@
 <translation id="4749529195026091676">{count,plural, =1{Ներմուծվել է {count} քարտ}one{Ներմուծվել է {count} քարտ}other{Ներմուծվել է {count} քարտ}}</translation>
 <translation id="4751645464639803239">Նոր ինկոգնիտո ներդիր</translation>
 <translation id="4752348350801431746">Անջատել անվտանգության ստուգման ծանուցումները…</translation>
+<translation id="4759238208242260848">Ներբեռնումներ</translation>
 <translation id="4764612367328936189">Ձեր կազմակերպությունում հնարավոր է մուտք գործել միայն որոշակի հաշիվներ։ Հաշիվները, որոնց մուտքն արգելված է, կթաքցվեն։ <ph name="BEGIN_LINK" />Իմանալ ավելին<ph name="END_LINK" /></translation>
 <translation id="4766112107778026136">Discover և բաժանորդագրություններ</translation>
 <translation id="4769198578611055647">Սրա օգնությամբ կարող եք օգտագործել պահված մուտքի բանալիները ցանկացած սարքում</translation>
@@ -1169,6 +1175,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="561269594905823128">Հպեք <ph name="BEGIN_BOLD" />Ընտրել ֆայլը<ph name="END_BOLD" /></translation>
 <translation id="5613297089029360427">Տեսակավորել ըստ թարմության</translation>
 <translation id="5614553682702429503">Պահե՞լ գաղտնաբառը</translation>
+<translation id="5617769621178348890">Բացել «Ֆայլեր» հավելվածում</translation>
 <translation id="5619871095170816857">Այս քարտում ցուցադրված է ներդիրը, որը դուք վերջին անգամ բացել եք ձեր բոլոր համաժամացված սարքերում վերջին 24 ժամվա ընթացքում։</translation>
 <translation id="5624120631404540903">Կառավարել գաղտնաբառերը</translation>
 <translation id="5624637933505983014">Չմիացնել համաժամացումը</translation>
@@ -1270,6 +1277,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="5956112131836209882">Ներդիրների խմբի ներդիր։ Ներդիր <ph name="TAB_INDEX_IN_GROUP" />՝ <ph name="NUMBER_OF_TABS_IN_GROUP" />-ից։</translation>
 <translation id="595769230373966252">Որոնել <ph name="SEARCH_PROVIDER" />-ում</translation>
 <translation id="5963939892571022323">Չհաջողվեց ստեղծել ընդգծված տեքստի հղումը։</translation>
+<translation id="5968400720580217226">ԱԲ ռեժիմ</translation>
 <translation id="5971459446352190251">Սկանավորել QR կոդը</translation>
 <translation id="5971872012779224351">{count,plural, =1{1 էջանիշ ջնջվեց}one{{count} էջանիշ ջնջվեց}other{{count} էջանիշ ջնջվեց}}</translation>
 <translation id="5972844218283131174">Ապընտրել բոլորը</translation>
@@ -1415,6 +1423,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="6452534462676960500">Նոր գործողություն</translation>
 <translation id="6459411599807878608">Մանրամասները թաքցվեցին</translation>
 <translation id="646394917185284261">Ֆայլեր</translation>
+<translation id="6472069383518492189">Ձեր ներբեռնումները կտեսնեք այստեղ</translation>
 <translation id="6476253015009698798">Գների հետագծումը հասանելի չէ այս էջի համար։</translation>
 <translation id="6476284679642588870">Կառավարել վճարման եղանակները</translation>
 <translation id="6476800141292307438">Էջը թարգմանվում է <ph name="LANGUAGE" />: Կարգավորումները էկրանի ներքևի հատվածում են:</translation>
@@ -1460,6 +1469,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="6627583120233659107">Փոփոխել պանակը</translation>
 <translation id="6629759408545977279">Աղբյուրը՝ <ph name="ORIGINATING_HOST" /></translation>
 <translation id="6634432609054530164">Ձեր կազմակերպությունն անջատել է ինկոգնիտո ռեժիմը</translation>
+<translation id="6637478299472506933">Ներբեռնումը չհաջողվեց</translation>
 <translation id="6638511529934826365">Մեծացնել տեքստը…</translation>
 <translation id="6640268266988685324">Բացել ներդիր</translation>
 <translation id="6641465290890659327">Տրամադրեք ձեր գաղտնաբառի պատճենը</translation>
@@ -1582,6 +1592,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="7102005569666697658">Ներբեռնում… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">Ընտրացանկ → Կարգավորումներ → Վճարման եղանակներ</translation>
 <translation id="7108338896283013870">Թաքցնել</translation>
+<translation id="7127922377013221748">Թաքցնել գործիքագոտին</translation>
 <translation id="7128693485119315539">Ձեր կազմակերպությանը կարող է անհրաժեշտ լինել տեսնել և կառավարել կայքերի այցելությունների մասին տվյալները, որոնք կապված են ձեր կառավարվող հաշվի հետ, օրինակ՝ ձեր այցելությունների պատմությունը և գաղտնաբառերը։</translation>
 <translation id="713215255510512027"><ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
 <translation id="7136892417564438900">Ֆոտոխցիկն անհասանելի է</translation>
@@ -1892,6 +1903,7 @@ Handoff-ը պետք է միացված լինի նաև Կարգավորումնե
 <translation id="8283172974887967105">Սահմանել…</translation>
 <translation id="8289930144142009940"><ph name="FEATURE_NAME" />․ ծանուցումներն անջատվեցին</translation>
 <translation id="8290077367744012649">Հետևեք գներին ձեր ներդիրներից</translation>
+<translation id="8292893224181644074">Ներբեռնումն ավարտված է</translation>
 <translation id="8299417921174340354">Գաղտնաբառերն օգտագործելու համար նախ պետք է ձեր սարքում անցակոդ սահմանեք։</translation>
 <translation id="8307481894409578819">Չհաջողվեց վերբեռնել այս ֆայլը</translation>
 <translation id="8319076807703933069">Նոր որոնում</translation>

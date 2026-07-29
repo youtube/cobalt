@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.ntp_customization;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -14,10 +16,12 @@ import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtil
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.Matrix;
 
 import androidx.annotation.ColorInt;
 import androidx.test.filters.SmallTest;
 
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,7 +31,11 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.theme.BackgroundImageInfo;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.tab.Tab;
@@ -40,6 +48,12 @@ import java.io.File;
 public class NtpCustomizationUtilsUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock private Tab mTab;
+
+    @After
+    public void tearDown() {
+        // Clean up preferences to not affect other tests.
+        NtpCustomizationUtils.resetSharedPreferenceForTesting();
+    }
 
     @Test
     @SmallTest
@@ -188,7 +202,135 @@ public class NtpCustomizationUtilsUnitTest {
         assertEquals(
                 color, NtpCustomizationUtils.getBackgroundColorFromSharedPreference(defaultColor));
 
-        NtpCustomizationUtils.resetBackgroundColor();
+        NtpCustomizationUtils.resetCustomizedColors();
         assertFalse(prefsManager.contains(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR));
+    }
+
+    @Test
+    public void testUpdateCustomizedPrimaryColor() {
+        @ColorInt int color = Color.BLUE;
+
+        assertEquals(
+                NtpCustomizationConfigManager.COLOR_NOT_SET,
+                NtpCustomizationUtils.getCustomizedPrimaryColorFromSharedPreference());
+
+        NtpCustomizationUtils.setCustomizedPrimaryColor(color);
+        assertEquals(color, NtpCustomizationUtils.getCustomizedPrimaryColorFromSharedPreference());
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testGetPrimaryColorFromCustomizedThemeColor_flagDisabled() {
+        assertNull(NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testGetPrimaryColorFromCustomizedThemeColor_wrongImageType() {
+        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.DEFAULT);
+        assertNull(NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+
+        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        assertNull(NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+
+        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.CHROME_THEME);
+        assertNull(NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testGetPrimaryColorFromCustomizedThemeColor_colorNotSet() {
+        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.CHROME_COLOR);
+        SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
+        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR);
+
+        assertNull(NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
+    public void testGetPrimaryColorFromCustomizedThemeColor_colorSet() {
+        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.CHROME_COLOR);
+        NtpCustomizationUtils.setCustomizedPrimaryColor(Color.RED);
+
+        assertEquals(
+                Color.RED, (int) NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+    }
+
+    @Test
+    public void testMatrixToString_identityMatrix_returnsCorrectString() {
+        // Creates an identity matrix.
+        Matrix matrix = new Matrix();
+
+        String expected = "[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]";
+        assertEquals(expected, NtpCustomizationUtils.matrixToString(matrix));
+    }
+
+    @Test
+    public void testMatrixToString_scaledMatrix_returnsCorrectString() {
+        Matrix matrix = new Matrix();
+        matrix.setScale(2.5f, 3.5f);
+
+        // Verifies if the string for a matrix scaled by (2.5, 3.5)
+        String expected = "[2.5, 0.0, 0.0, 0.0, 3.5, 0.0, 0.0, 0.0, 1.0]";
+        assertEquals(expected, NtpCustomizationUtils.matrixToString(matrix));
+    }
+
+    @Test
+    public void testStringToMatrix_validString_returnsCorrectMatrix() {
+        String matrixString = "[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]";
+        Matrix resultMatrix = NtpCustomizationUtils.stringToMatrix(matrixString);
+
+        assertNotNull(resultMatrix);
+
+        Matrix expectedMatrix = new Matrix();
+        expectedMatrix.setValues(new float[] {1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f, 9f});
+
+        assertEquals(expectedMatrix, resultMatrix);
+    }
+
+    @Test
+    public void testStringToMatrix_nullInput_returnsNull() {
+        assertNull(NtpCustomizationUtils.stringToMatrix(null));
+    }
+
+    @Test
+    public void testStringToMatrix_emptyString_returnsNull() {
+        assertNull(NtpCustomizationUtils.stringToMatrix(""));
+    }
+
+    @Test
+    public void testStringToMatrix_malformedString_noBrackets_returnsNull() {
+        assertNull(
+                NtpCustomizationUtils.stringToMatrix(
+                        "1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0"));
+    }
+
+    @Test
+    public void testStringToMatrix_wrongNumberOfValues_returnsNull() {
+        assertNull(NtpCustomizationUtils.stringToMatrix("[1.0, 2.0, 3.0]"));
+    }
+
+    @Test
+    public void testStringToMatrix_nonFloatValues_returnsNull() {
+        assertNull(
+                NtpCustomizationUtils.stringToMatrix(
+                        "[1.0, abc, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]"));
+    }
+
+    @Test
+    public void testReadNtpBackgroundImageMatrices_readsDataWrittenByUpdate() {
+        Matrix portraitMatrix = new Matrix();
+        Matrix landscapeMatrix = new Matrix();
+        landscapeMatrix.setScale(2.5f, 3.5f);
+
+        NtpCustomizationUtils.updateBackgroundImageMatrices(
+                new BackgroundImageInfo(portraitMatrix, landscapeMatrix));
+        BackgroundImageInfo result = NtpCustomizationUtils.readNtpBackgroundImageMatrices();
+
+        // Verify the read data matches the original written data.
+        assertNotNull(result);
+        assertEquals(portraitMatrix, result.portraitMatrix);
+        assertEquals(landscapeMatrix, result.landscapeMatrix);
     }
 }

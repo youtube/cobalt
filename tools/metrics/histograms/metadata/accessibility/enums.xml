@@ -1692,7 +1692,7 @@ Unknown properties are collapsed to zero. -->
   <int value="11" label="Search currently-open tabs (not implemented)"/>
   <int value="12" label="Toggle multi-task menu (not implemented)"/>
   <int value="13" label="Close tab"/>
-  <int value="14" label="Close window (not implemented)"/>
+  <int value="14" label="Close window"/>
   <int value="15" label="Quit Chrome (not implemented)"/>
   <int value="16" label="Jump to omnibox"/>
   <int value="17" label="Jump to search"/>
@@ -2116,6 +2116,10 @@ Unknown properties are collapsed to zero. -->
   <int value="2" label="Dark"/>
   <int value="3" label="Yellow"/>
   <int value="4" label="Blue"/>
+  <int value="5" label="High contrast"/>
+  <int value="6" label="Low contrast"/>
+  <int value="7" label="Sepia light"/>
+  <int value="8" label="Sepia dark"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/read_anything/read_anything.mojom:Colors) -->

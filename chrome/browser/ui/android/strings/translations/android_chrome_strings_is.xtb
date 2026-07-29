@@ -3,6 +3,7 @@
 <translationbundle lang="is">
 <translation id="1010283278930414892">Engin vistuð aðgangsorð í þessu tæki</translation>
 <translation id="1011749477052068769">Flytja hingað</translation>
+<translation id="1014083013111769343">Kjörstillingar Lesstillingar opnaðar til fulls</translation>
 <translation id="1014147525163127655">Það eru engir aðgangslyklar fyrir <ph name="ORIGIN" /> í tækinu</translation>
 <translation id="1016498331642356377">Beittu röddinni til að leita á skjótan hátt. Haltu fingri á þessari flýtileið til að breyta henni.</translation>
 <translation id="1028699632127661925">Sendir í <ph name="DEVICE_NAME" />...</translation>
@@ -98,6 +99,7 @@ Til að skoða fleiri stillingar sem nota gögn til að bæta Chrome-upplifunina
 <translation id="1407135791313364759">Opna alla</translation>
 <translation id="1409879593029778104">Komið í veg fyrir niðurhal á <ph name="FILE_NAME" /> því að skráin er nú þegar til.</translation>
 <translation id="1413446866325418126">Vistaðu gögn á Google-reikningnum þínum</translation>
+<translation id="1414919006379339073">Loka núverandi glugga</translation>
 <translation id="1416550906796893042">Útgáfa forrits</translation>
 <translation id="1419753403124156396">Endurræsa Chrome?</translation>
 <translation id="1428770807407000502">Slökkva á samstillingu?</translation>
@@ -207,6 +209,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="197288927597451399">Halda</translation>
 <translation id="1973912524893600642">Geyma gögn</translation>
 <translation id="1974060860693918893">Ítarlegt</translation>
+<translation id="1982274314082047220">Strjúktu upp Lesstillingu til að sjá kjörstillingar</translation>
 <translation id="1984087999855033707">símanúmer</translation>
 <translation id="1984417487208496350">Engin vörn (ekki mælt með)</translation>
 <translation id="1986685561493779662">Þetta nafn er þegar til</translation>
@@ -428,6 +431,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2992473221983447149">Myndalýsingar</translation>
 <translation id="2996291259634659425">Búa til aðgangsorð</translation>
 <translation id="2996809686854298943">Vefslóð nauðsynleg</translation>
+<translation id="3024215143424744261">Kjörstillingum Lesstillingar lokað</translation>
 <translation id="3026955690410463085">Deila tengli</translation>
 <translation id="3027644380269727216">Byggt á virkni þinni á vefsvæði. Kveikt er á þessari stillingu.</translation>
 <translation id="3027950907978057636">Af <ph name="APP_LABEL" /></translation>
@@ -1311,6 +1315,7 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="696447261358045621">Slökkva á huliðsstillingu</translation>
 <translation id="6965382102122355670">Í lagi</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{Sjá <ph name="TABS_COUNT_ONE" /> flipa með nýrri virkni í sameiginlegum flipahópum}one{Sjá <ph name="TABS_COUNT_MANY" /> flipa með nýrri virkni í sameiginlegum flipahópum}other{Sjá <ph name="TABS_COUNT_MANY" /> flipa með nýrri virkni í sameiginlegum flipahópum}}</translation>
+<translation id="6971555615916967190">Kjörstillingar Lesstillingar opnaðar í hálfri hæð</translation>
 <translation id="6971862865055170158">Ekki samþykkja</translation>
 <translation id="6976223255612495095">Nýr eða uppfærður flipi: <ph name="TAB_TITLE" /></translation>
 <translation id="6976811588313110624">Bæta nýrri flýtileið við.</translation>
@@ -1695,7 +1700,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="8617240290563765734">Opna ráðlögðu vefslóðina sem tilgreind er í sótta efninu?</translation>
 <translation id="8635399646025169806">Halda flipahóp?</translation>
 <translation id="8636825310635137004">Kveiktu á samstillingu til að fá aðgang að flipunum þínum í öðrum tækjum.</translation>
-<translation id="864544049772947936">Stjórna gluggum (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">Skráðu þig inn á <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">Skráarheiti er þegar til</translation>
 <translation id="8676276370198826499">Skráðu þig á <ph name="SITE_ETLD_PLUS_ONE" /> með <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

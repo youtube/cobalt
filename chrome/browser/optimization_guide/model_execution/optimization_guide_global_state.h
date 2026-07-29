@@ -11,6 +11,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/optimization_guide/prediction/chrome_profile_download_service_tracker.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/delivery/prediction_manager.h"
 #include "components/optimization_guide/core/delivery/prediction_model_store.h"
 #include "components/optimization_guide/core/model_execution/model_broker_state.h"
 #include "components/optimization_guide/core/model_execution/on_device_asset_manager.h"
@@ -19,6 +20,7 @@
 namespace optimization_guide {
 
 class ChromeModelComponentStateManagerObserver;
+class OptimizationGuideGlobalFeature;
 
 // This holds the ModelBrokerState and other common objects shared between
 // profiles. Since some of the membersit hold raw_ptr to browser process level
@@ -31,7 +33,6 @@ class OptimizationGuideGlobalState final
  public:
   // Retrieves or creates the instance.
   static scoped_refptr<OptimizationGuideGlobalState> CreateOrGet();
-
   UsageTracker& usage_tracker() { return model_broker_state_.usage_tracker(); }
 
   OnDeviceModelComponentStateManager& component_state_manager() {
@@ -45,6 +46,8 @@ class OptimizationGuideGlobalState final
   PredictionModelStore& prediction_model_store() {
     return prediction_model_store_;
   }
+
+  PredictionManager& prediction_manager() { return prediction_manager_; }
 
   // Create a new asset manager to provide extra models/configs to the broker.
   std::unique_ptr<OnDeviceAssetManager> CreateAssetManager(
@@ -63,6 +66,7 @@ class OptimizationGuideGlobalState final
 
  private:
   friend base::RefCounted<OptimizationGuideGlobalState>;
+
   OptimizationGuideGlobalState();
   ~OptimizationGuideGlobalState();
 
@@ -71,6 +75,7 @@ class OptimizationGuideGlobalState final
   PredictionModelStore prediction_model_store_;
 
   ChromeProfileDownloadServiceTracker profile_download_service_tracker_;
+  PredictionManager prediction_manager_;
 
   std::unique_ptr<ChromeModelComponentStateManagerObserver>
       component_state_manager_observer_;
@@ -78,9 +83,26 @@ class OptimizationGuideGlobalState final
   base::WeakPtrFactory<OptimizationGuideGlobalState> weak_ptr_factory_{this};
 };
 
-// Chrome uses a single shared instance of ModelBrokerState.
-// This retrieves it, or creates it if it doesn't exist yet.
-OptimizationGuideGlobalState& GetOrCreateChromeModelBrokerState();
+// This is a wrapper around OptimizationGuideGlobalState that keeps a reference
+// to the global state. This is needed for these two reasons:
+// 1. Some members of OptimizationGuideGlobalState create task runner, which
+// necessitates the unittests to use the full TaskEnvironment instead of
+// SingleThreadTaskEnvironment.
+// 2. Profiles are destroyed after GlobalFeatures, at least in tests. So the
+// OptimizationGuideKeyedService needs to keep a reference to the global state to
+// keep it alive.
+class OptimizationGuideGlobalFeature {
+ public:
+  OptimizationGuideGlobalFeature();
+  ~OptimizationGuideGlobalFeature();
+
+  OptimizationGuideGlobalState& Get();
+
+  OptimizationGuideModelProvider& GetModelProvider();
+
+ private:
+  scoped_refptr<OptimizationGuideGlobalState> global_state_;
+};
 
 }  // namespace optimization_guide
 

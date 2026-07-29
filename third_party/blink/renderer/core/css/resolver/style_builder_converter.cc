@@ -704,6 +704,20 @@ StyleBuilderConverter::ConvertFontVariationSettings(
   return settings;
 }
 
+AtomicString StyleBuilderConverter::ConvertFontLanguageOverride(
+    StyleResolverState& state,
+    const CSSValue& value) {
+  const auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
+  if (identifier_value &&
+      identifier_value->GetValueID() == CSSValueID::kNormal) {
+    return AtomicString();
+  }
+  if (auto* string_value = DynamicTo<CSSStringValue>(value)) {
+    return AtomicString(string_value->Value());
+  }
+  return AtomicString();
+}
+
 scoped_refptr<FontPalette> StyleBuilderConverter::ConvertFontPalette(
     StyleResolverState& state,
     const CSSValue& value) {
@@ -1832,6 +1846,17 @@ StyleHyphenateLimitChars StyleBuilderConverter::ConvertHyphenateLimitChars(
   }
   values.Grow(3);
   return StyleHyphenateLimitChars(values[0], values[1], values[2]);
+}
+
+StyleInterestDelay StyleBuilderConverter::ConvertInterestDelayValue(
+    const StyleResolverState& state,
+    const CSSValue& value) {
+  if (const auto* ident = DynamicTo<CSSIdentifierValue>(value)) {
+    DCHECK_EQ(ident->GetValueID(), CSSValueID::kNormal);
+    return StyleInterestDelay();
+  }
+  return StyleInterestDelay(
+      StyleBuilderConverter::ConvertTimeValue(state, value));
 }
 
 int StyleBuilderConverter::ConvertBorderWidth(const StyleResolverState& state,

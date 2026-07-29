@@ -21,12 +21,14 @@
 #include "ui/views/view.h"
 #include "ui/views/widget/widget_observer.h"
 
+static_assert(!BUILDFLAG(IS_IOS));
+
 class LocationBarView;
 class OmniboxController;
-class OmniboxRowView;
-class OmniboxRowGroupedView;
 class OmniboxHeaderView;
 class OmniboxResultView;
+class OmniboxRowGroupedView;
+class OmniboxRowView;
 class OmniboxViewViews;
 struct AutocompleteMatch;
 
@@ -40,7 +42,7 @@ class OmniboxPopupViewViews : public views::View,
   OmniboxPopupViewViews(OmniboxViewViews* omnibox_view,
                         OmniboxController* controller,
                         LocationBarView* location_bar_view);
-  explicit OmniboxPopupViewViews(const OmniboxPopupViewViews&) = delete;
+  OmniboxPopupViewViews(const OmniboxPopupViewViews&) = delete;
   OmniboxPopupViewViews& operator=(const OmniboxPopupViewViews&) = delete;
   ~OmniboxPopupViewViews() override;
 
@@ -89,17 +91,17 @@ class OmniboxPopupViewViews : public views::View,
   void FireAXEventsForNewActiveDescendant(View* descendant_view);
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(OmniboxRowGroupedViewBrowserTest,
-                           AnimationAndGrouping);
+  FRIEND_TEST_ALL_PREFIXES(OmniboxPopupSuggestionGroupHeadersTest,
+                           ShowSuggestionGroupHeadersByPageContext);
   FRIEND_TEST_ALL_PREFIXES(OmniboxPopupViewViewsTest, ClickOmnibox);
   FRIEND_TEST_ALL_PREFIXES(OmniboxPopupViewViewsTest, DeleteSuggestion);
   FRIEND_TEST_ALL_PREFIXES(OmniboxPopupViewViewsTest, SpaceEntersKeywordMode);
-  FRIEND_TEST_ALL_PREFIXES(OmniboxPopupSuggestionGroupHeadersTest,
-                           ShowSuggestionGroupHeadersByPageContext);
-  friend class OmniboxRowGroupedViewBrowserTest;
+  FRIEND_TEST_ALL_PREFIXES(OmniboxRowGroupedViewBrowserTest,
+                           AnimationAndGrouping);
   friend class OmniboxPopupViewViewsTest;
+  friend class OmniboxRowGroupedViewBrowserTest;
   friend class OmniboxSuggestionButtonRowBrowserTest;
-  class AutocompletePopupWidget;
+  class PopupWidget;
 
   // Returns the target popup bounds in screen coordinates based on the bounds
   // of |location_bar_view_|.
@@ -142,25 +144,25 @@ class OmniboxPopupViewViews : public views::View,
   // `match_start_index` into a group view for a joint animation.
   void UpdateContextualSuggestionsGroup(size_t match_start_index);
 
-  // The popup that contains this view.  We create this, but it deletes itself
-  // when its window is destroyed.  This is a WeakPtr because it's possible for
-  // the OS to destroy the window and thus delete this object before we're
-  // deleted, or without our knowledge.
+  // The popup widget that contains this View. Created and closed by `this`;
+  // owned and destroyed by the OS. This is a WeakPtr because it's possible for
+  // the OS to destroy the window and thus delete this object before `this` is
+  // deleted or informed.
   // TODO(crbug.com/40232479): Migrate this to CLIENT_OWNS_WIDGET.
-  base::WeakPtr<AutocompletePopupWidget> popup_;
+  base::WeakPtr<PopupWidget> widget_;
 
   // Timestamp for when the current omnibox popup creation started.
   std::optional<base::TimeTicks> popup_create_start_time_;
 
-  // The edit view that invokes us. May be nullptr in tests.
-  raw_ptr<OmniboxViewViews> omnibox_view_;
+  // The edit view owned by `location_bar_view_`. May be nullptr in tests.
+  const raw_ptr<OmniboxViewViews> omnibox_view_;
 
-  // The location bar view that owns |omnibox_view_|. May be nullptr in tests.
-  raw_ptr<LocationBarView> location_bar_view_;
+  // The location bar view that owns `this`. May be nullptr in tests.
+  const raw_ptr<LocationBarView> location_bar_view_;
 
   // A view that groups together contextual search row views for a joint
   // animation.
-  raw_ptr<OmniboxRowGroupedView> contextual_group_view_;
+  raw_ptr<OmniboxRowGroupedView> contextual_group_view_ = nullptr;
 
   // The row views that are children of this view or children of subviews of
   // this view like `row_group_view_`.

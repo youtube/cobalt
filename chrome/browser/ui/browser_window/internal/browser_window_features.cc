@@ -11,7 +11,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
-#include "chrome/browser/actor/ui/actor_overlay_window_controller.h"
+#include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
@@ -57,6 +57,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/session_service_tab_group_sync_observer.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/shared_tab_group_feedback_controller.h"
 #include "chrome/browser/ui/tabs/split_tab_highlight_controller.h"
+#include "chrome/browser/ui/tabs/split_view_iph_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_mojo_handler.h"
@@ -154,6 +155,27 @@
 #if defined(USE_AURA)
 #include "chrome/browser/ui/overscroll_pref_manager.h"
 #endif  // defined(USE_AURA)
+
+class BrowserWindowFeatures::ExtensionKeybindingRegistryDelegateTabStrip final
+    : public extensions::ExtensionKeybindingRegistry::Delegate {
+ public:
+  explicit ExtensionKeybindingRegistryDelegateTabStrip(
+      TabStripModel& tab_strip_model)
+      : tab_strip_model_(tab_strip_model) {}
+  ~ExtensionKeybindingRegistryDelegateTabStrip() = default;
+
+  ExtensionKeybindingRegistryDelegateTabStrip(
+      const ExtensionKeybindingRegistryDelegateTabStrip& other) = delete;
+  ExtensionKeybindingRegistryDelegateTabStrip& operator=(
+      const ExtensionKeybindingRegistryDelegateTabStrip& other) = delete;
+
+  content::WebContents* GetWebContentsForExtension() override {
+    return tab_strip_model_->GetActiveWebContents();
+  }
+
+ private:
+  const raw_ref<TabStripModel> tab_strip_model_;
+};
 
 BrowserWindowFeatures::BrowserWindowFeatures() = default;
 BrowserWindowFeatures::~BrowserWindowFeatures() = default;
@@ -468,6 +490,15 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             std::make_unique<split_tabs::SplitTabHighlightController>(
                 browser_view);
       }
+
+      if (base::FeatureList::IsEnabled(
+              feature_engagement::kIPHSideBySidePinnableFeature) ||
+          base::FeatureList::IsEnabled(
+              feature_engagement::kIPHSideBySideTabSwitchFeature)) {
+        split_view_iph_controller_ =
+            GetUserDataFactory().CreateInstance<SplitViewIphController>(
+                *browser, browser);
+      }
     }
   }
 
@@ -501,19 +532,12 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
     toast_service_ = std::make_unique<ToastService>(browser);
   }
 
+  views::FocusManager* focus_manager = nullptr;
   if (BrowserView* const browser_view =
           BrowserView::GetBrowserViewForBrowser(browser)) {
+    focus_manager = browser_view->GetFocusManager();
     contents_border_controller_ =
         std::make_unique<ContentsBorderController>(browser_view);
-
-    // Focus manager can be null in tests.
-    if (views::FocusManager* focus_manager = browser_view->GetFocusManager()) {
-      extension_keybinding_registry_ =
-          std::make_unique<ExtensionKeybindingRegistryViews>(
-              profile, focus_manager,
-              extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
-              browser_view);
-    }
 
     // BrowserView is an AcceleratorProvider.
     accelerator_provider_ = browser_view;
@@ -527,6 +551,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   if (WebUIBrowserWindow* webui_browser_window =
           WebUIBrowserWindow::FromBrowser(browser)) {
+    focus_manager = webui_browser_window->widget()->GetFocusManager();
     webui_browser_side_panel_ui_ =
         std::make_unique<WebUIBrowserSidePanelUI>(browser);
 
@@ -535,6 +560,18 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     find_bar_owner_ =
         std::make_unique<FindBarOwnerWebUIBrowser>(webui_browser_window);
+  }
+
+  // Focus manager can be null in tests.
+  if (focus_manager) {
+    extension_keybinding_delegate_ =
+        std::make_unique<ExtensionKeybindingRegistryDelegateTabStrip>(
+            *browser->GetTabStripModel());
+    extension_keybinding_registry_ =
+        std::make_unique<ExtensionKeybindingRegistryViews>(
+            profile, focus_manager,
+            extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
+            extension_keybinding_delegate_.get());
   }
 }
 
@@ -627,17 +664,17 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
               browser_view->browser());
     }
 
-    if (features::kGlicActorUiOverlay.Get()) {
-      std::vector<std::pair<views::WebView*, views::View*>>
+    if (base::FeatureList::IsEnabled(features::kGlicActorUi)) {
+      std::vector<std::pair<views::WebView*, ActorOverlayWebView*>>
           container_overlay_view_pairs;
       for (auto* contents_container :
            browser_view->GetContentsContainerViews()) {
         container_overlay_view_pairs.emplace_back(
             contents_container->contents_view(),
-            contents_container->actor_overlay_view());
+            contents_container->actor_overlay_web_view());
       }
-      actor_overlay_window_controller_ =
-          GetUserDataFactory().CreateInstance<ActorOverlayWindowController>(
+      actor_ui_window_controller_ =
+          GetUserDataFactory().CreateInstance<ActorUiWindowController>(
               *browser_, browser_, std::move(container_overlay_view_pairs));
     }
 
@@ -686,7 +723,6 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   toast_service_.reset();
   extension_window_controller_.reset();
   actor_border_view_controller_.reset();
-  actor_overlay_window_controller_.reset();
 
 #if BUILDFLAG(ENABLE_GLIC)
   glic_button_controller_.reset();
@@ -729,6 +765,10 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
   if (devtools_ui_controller_) {
     devtools_ui_controller_->TearDown();
+  }
+
+  if (actor_ui_window_controller_) {
+    actor_ui_window_controller_->TearDown();
   }
 
   data_protection_ui_controller_.reset();

@@ -13,12 +13,15 @@
 #include "base/check.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/win/dark_mode_support.h"
 #include "base/win/registry.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/color/win/accent_color_observer.h"
 #include "ui/color/win/native_color_mixers_win.h"
+#include "ui/native_theme/native_theme.h"
 
 namespace ui {
 
@@ -48,6 +51,24 @@ OsSettingsProviderWin::OsSettingsProviderWin()
     }
   }
   UpdateColors();
+
+  // Histogram high contrast state.
+  // NOTE: Reported in metrics; do not reorder, add additional values at end.
+  enum class HighContrastColorScheme {
+    kNone = 0,
+    kDark = 1,
+    kLight = 2,
+    kMaxValue = kLight,
+  };
+  auto color_scheme = HighContrastColorScheme::kNone;
+  if (PreferredContrast() == NativeTheme::PreferredContrast::kMore) {
+    color_scheme =
+        (PreferredColorScheme() == NativeTheme::PreferredColorScheme::kDark)
+            ? HighContrastColorScheme::kDark
+            : HighContrastColorScheme::kLight;
+  }
+  base::UmaHistogramEnumeration("Accessibility.WinHighContrastTheme",
+                                color_scheme);
 }
 
 OsSettingsProviderWin::~OsSettingsProviderWin() = default;
@@ -56,12 +77,38 @@ bool OsSettingsProviderWin::DarkColorSchemeAvailable() const {
   return base::win::IsDarkModeAvailable();
 }
 
+NativeTheme::PreferredColorScheme OsSettingsProviderWin::PreferredColorScheme()
+    const {
+  if (const NativeTheme::PreferredColorScheme preferred_color_scheme =
+          OsSettingsProvider::PreferredColorScheme();
+      preferred_color_scheme !=
+      NativeTheme::PreferredColorScheme::kNoPreference) {
+    return preferred_color_scheme;
+  }
+
+  return in_dark_mode_ ? NativeTheme::PreferredColorScheme::kDark
+                       : NativeTheme::PreferredColorScheme::kLight;
+}
+
+ColorProviderKey::UserColorSource OsSettingsProviderWin::PreferredColorSource()
+    const {
+  return ColorProviderKey::UserColorSource::kBaseline;
+}
+
 bool OsSettingsProviderWin::PrefersReducedTransparency() const {
   return prefers_reduced_transparency_;
 }
 
 bool OsSettingsProviderWin::PrefersInvertedColors() const {
   return prefers_inverted_colors_;
+}
+
+bool OsSettingsProviderWin::ForcedColorsActive() const {
+  return forced_colors_active_;
+}
+
+std::optional<SkColor> OsSettingsProviderWin::AccentColor() const {
+  return accent_color_;
 }
 
 std::optional<SkColor> OsSettingsProviderWin::Color(ColorId color_id) const {
@@ -91,11 +138,14 @@ void OsSettingsProviderWin::RegisterThemesRegkeyObserver() {
   CHECK(base::SequencedTaskRunner::HasCurrentDefault());
   hkcu_themes_regkey_.StartWatching(base::BindOnce(
       [](OsSettingsProviderWin* provider) {
+        const NativeTheme::PreferredColorScheme old_preferred_color_scheme =
+            provider->PreferredColorScheme();
         const bool old_prefers_reduced_transparency =
             provider->PrefersReducedTransparency();
         provider->UpdateForThemesRegkey();
-        if (provider->PrefersReducedTransparency() !=
-            old_prefers_reduced_transparency) {
+        if (provider->PreferredColorScheme() != old_preferred_color_scheme ||
+            provider->PrefersReducedTransparency() !=
+                old_prefers_reduced_transparency) {
           provider->NotifyOnSettingsChanged();
         }
 
@@ -128,6 +178,10 @@ void OsSettingsProviderWin::RegisterColorFilteringRegkeyObserver() {
 void OsSettingsProviderWin::UpdateForThemesRegkey() {
   CHECK(hkcu_themes_regkey_.Valid());
 
+  DWORD apps_use_light_theme = 1;
+  hkcu_themes_regkey_.ReadValueDW(L"AppsUseLightTheme", &apps_use_light_theme);
+  in_dark_mode_ = !apps_use_light_theme;
+
   DWORD enable_transparency = 1;
   hkcu_themes_regkey_.ReadValueDW(L"EnableTransparency", &enable_transparency);
   prefers_reduced_transparency_ = !enable_transparency;
@@ -150,6 +204,13 @@ void OsSettingsProviderWin::UpdateForColorFilteringRegkey() {
   prefers_inverted_colors_ = filter_type == 1;
 }
 
+void OsSettingsProviderWin::OnAccentColorMaybeChanged() {
+  const auto accent_color = AccentColorObserver::Get()->accent_color();
+  if (std::exchange(accent_color_, accent_color) != accent_color) {
+    NotifyOnSettingsChanged();
+  }
+}
+
 void OsSettingsProviderWin::UpdateColors() {
   static constexpr auto kColors =
       std::to_array<std::pair<ColorId, ui::ColorId>>(
@@ -170,7 +231,18 @@ void OsSettingsProviderWin::OnWndProc(HWND hwnd,
                                       LPARAM lparam) {
   if (message == WM_SYSCOLORCHANGE) {
     UpdateColors();
-    NotifyOnSettingsChanged(true);
+    if (ForcedColorsActive()) {
+      NotifyOnSettingsChanged(true);
+    }
+  } else if (message == WM_SETTINGCHANGE && wparam == SPI_SETHIGHCONTRAST) {
+    if (HIGHCONTRAST result = {.cbSize = sizeof(HIGHCONTRAST)};
+        SystemParametersInfo(SPI_GETHIGHCONTRAST, result.cbSize, &result, 0)) {
+      const bool old_forced_colors_active = ForcedColorsActive();
+      forced_colors_active_ = !!(result.dwFlags & HCF_HIGHCONTRASTON);
+      if (ForcedColorsActive() != old_forced_colors_active) {
+        NotifyOnSettingsChanged();
+      }
+    }
   }
 }
 

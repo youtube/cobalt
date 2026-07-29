@@ -3784,6 +3784,7 @@
           "script": "//tools/perf/process_perf_results.py"
         },
         "module_name": "//components:components_perftests",
+        "module_scheme": "flat",
         "name": "components_perftests",
         "resultdb": {
           "enable": true,
@@ -4126,6 +4127,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test:telemetry_perf_unittests_android_chrome",
+        "module_scheme": "pyunit",
         "name": "telemetry_chromium_minidump_unittests",
         "resultdb": {
           "enable": true,
@@ -4169,6 +4171,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test:telemetry_perf_unittests_android_chrome",
+        "module_scheme": "pyunit",
         "name": "telemetry_perf_unittests_android_chrome",
         "resultdb": {
           "enable": true,
@@ -4340,6 +4343,7 @@
     "scripts": [
       {
         "module_name": "check_network_annotations",
+        "module_scheme": "single",
         "name": "check_network_annotations",
         "resultdb": {
           "enable": true,

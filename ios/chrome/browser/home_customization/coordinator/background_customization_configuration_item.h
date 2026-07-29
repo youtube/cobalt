@@ -27,19 +27,23 @@ class NtpCustomBackground;
 
 // Initializes a new instance of the background customization configuration
 // with the provided collection image.
-- (instancetype)initWithCollectionImage:(const CollectionImage&)collectionImage;
+- (instancetype)initWithCollectionImage:(const CollectionImage&)collectionImage
+                      accessibilityName:(NSString*)accessibilityName
+                     accessibilityValue:(NSString*)accessibilityValue;
 
 // Initializes a new instance of the background customization configuration
 // with the provided NtpCustomBackground, which is the sync/persistence data
 // type for app-provided images.
 - (instancetype)initWithNtpCustomBackground:
-    (const sync_pb::NtpCustomBackground&)customBackground;
+                    (const sync_pb::NtpCustomBackground&)customBackground
+                          accessibilityName:(NSString*)accessibilityName;
 
 // Initializes a new instance of the background customization configuration
-// with the provided background color and a variant.
+// with the provided background color, its accessibility name and a variant.
 - (instancetype)initWithBackgroundColor:(UIColor*)backgroundColor
-                           colorVariant:(ui::ColorProviderKey::SchemeVariant)
-                                            colorVariant;
+                           colorVariant:
+                               (ui::ColorProviderKey::SchemeVariant)colorVariant
+                      accessibilityName:(NSString*)accessibilityName;
 
 // Initializes a new instance of the background customization configuration
 /// with no background.

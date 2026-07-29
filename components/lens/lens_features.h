@@ -115,6 +115,11 @@ BASE_DECLARE_FEATURE(kLensOverlayStraightToSrp);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensSearchAimM3);
 
+// Enables the Lens button in the AIM Searchbox for reinvocation of selection
+// overlay.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSearchReinvocationAffordance);
+
 // Enables overriding the Lens overlay entrypoint label with an alternate
 // string.
 COMPONENT_EXPORT(LENS_FEATURES)
@@ -632,13 +637,6 @@ extern bool IsLensOverlayClusterInfoOptimizationEnabled();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayEarlyInteractionOptimizationEnabled();
 
-// Whether to enable the early StartQueryFlow optimization for the Lens Overlay.
-// This optimization allows the full image request to be sent as soon as the
-// screenshotted image is ready instead of waiting for all client-side
-// initialization has completed.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool IsLensOverlayEarlyStartQueryFlowOptimizationEnabled();
-
 // Time delay for the results trigger of the Lens Overlay HaTS survey.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern base::TimeDelta GetLensOverlaySurveyResultsTime();
@@ -800,7 +798,7 @@ extern bool ShouldUseAimEligibilityService();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool ShouldShowAimInSidePanel();
 
-// Whether the AIM searchbox is enabled.
+// Whether the AIM Searchbox is enabled.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetAimSearchboxEnabled();
 
@@ -825,6 +823,10 @@ extern bool GetEnableFloatingGForHeader();
 // on the client side and takes up space from the results UI.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool GetEnableClientSideHeader();
+
+// Whether to enable the Lens button in the AIM searchbox.
+COMPONENT_EXPORT(LENS_FEATURES)
+extern bool GetEnableLensButtonInSearchbox();
 
 // Whether to use the alt loading hint when overlay is opened on web pages.
 COMPONENT_EXPORT(LENS_FEATURES)

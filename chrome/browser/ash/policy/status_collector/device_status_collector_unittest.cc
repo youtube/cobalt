@@ -47,7 +47,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
-#include "chrome/browser/apps/app_service/publisher_host_impl.h"
+#include "chrome/browser/apps/app_service/publishers/publisher_host_impl.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_manager.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_data.h"
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
@@ -3816,7 +3816,7 @@ TEST_F(DeviceStatusCollectorTest, GenerateAppInfo) {
   EXPECT_TRUE(base::Time::FromString("29-MAR-2020 1:30pm", &start_time));
   test_clock_.SetNow(start_time);
   std::unique_ptr<aura::Window> window =
-      aura::test::CreateTestWindow({.window_id = 0});
+      aura::test::CreateTestWindow({.bounds = {100, 100}, .window_id = 0});
   apps::InstanceParams params("id", window.get());
   params.state = std::make_pair(apps::InstanceState::kStarted, start_time);
   app_proxy->InstanceRegistry().CreateOrUpdateInstance(std::move(params));

@@ -252,6 +252,7 @@ test("components_unittests") {
     "//components/language/core/language_model:unit_tests",
     "//components/language_detection/core:unit_tests",
     "//components/language_detection/core/browser:unit_tests",
+    "//components/legion:unit_tests",
     "//components/lens:unit_tests",
     "//components/leveldb_proto:unit_tests",
     "//components/local_state:unit_tests",
@@ -296,7 +297,6 @@ test("components_unittests") {
     "//components/password_manager/services/csv_password:unit_tests",
     "//components/payments/core:unit_tests",
     "//components/persistent_cache:unit_tests",
-    "//components/plus_addresses:unit_tests",
     "//components/plus_addresses/core/browser:unit_tests",
     "//components/plus_addresses/core/browser/metrics:unit_tests",
     "//components/plus_addresses/core/browser/settings:unit_tests",
@@ -365,6 +365,7 @@ test("components_unittests") {
     "//components/sync_bookmarks:unit_tests",
     "//components/sync_device_info:unit_tests",
     "//components/sync_preferences:unit_tests",
+    "//components/sync_preferences/cross_device_pref_tracker:unit_tests",
     "//components/sync_user_events:unit_tests",
     "//components/system_cpu:unit_tests",
     "//components/system_media_controls:unit_tests",
@@ -531,6 +532,7 @@ test("components_unittests") {
       "//components/performance_manager:unit_tests",
       "//components/performance_manager/scenario_api:unit_tests",
       "//components/policy/content:unit_tests",
+      "//components/push_messaging:unit_tests",
       "//components/reduce_accept_language/browser:unit_tests",
       "//components/reporting/resources:unit_tests",
       "//components/services/heap_profiling:unit_tests",
@@ -704,6 +706,7 @@ test("components_unittests") {
       "//components/signin/public/android:java",
       "//components/signin/public/android:signin_java_test_support",
       "//components/spellcheck/browser/android:java",
+      "//components/sync_preferences/cross_device_pref_tracker/android:java",
       "//components/translate/content/android:unit_tests",
       "//components/variations:variations_associated_data",
       "//components/variations/android:variations_java",
@@ -716,6 +719,8 @@ test("components_unittests") {
       "//content/public/browser",
       "//gin:v8_snapshot_assets",
       "//net",
+      "//services/on_device_model/android:java",
+      "//services/on_device_model/android:native_java_unittests_java",
       "//ui/android:ui_java",
       "//ui/base",
       "//ui/gfx",
@@ -879,7 +884,7 @@ test("components_unittests") {
 
   if (is_win || is_mac || is_linux || is_chromeos) {
     deps += [
-      "//components/metrics/dwa:unit_tests",
+      "//components/metrics/private_metrics:unit_tests",
       "//components/metrics/structured:unit_tests",
       "//components/metrics/structured/mojom:unit_tests",
     ]

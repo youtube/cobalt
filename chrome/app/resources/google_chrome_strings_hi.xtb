@@ -445,6 +445,9 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="6180522807229584611">यह टैब अतिरिक्त संसाधनों का इस्तेमाल कर रहा है. परफ़ॉर्मेंस को बेहतर बनाने के लिए, Chrome को इसे बंद करने की अनुमति दें.</translation>
 <translation id="6182736845697986886">अपडेट सर्वर में कोई गड़बड़ी होने की वजह से इंस्टॉल नहीं हो सका.</translation>
 <translation id="6192058120268468905">Chrome में आपका खाता</translation>
+<translation id="6220551899604141979"><ph name="PARTNER_NAME" /> ने एक ऐसा एक्सटेंशन जोड़ा है जो Chrome के काम करने के तरीके को बदल सकता है.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">mDNS ट्रैफ़िक की अनुमति देने के लिए Google Chrome के लिए इनबाउंड नियम.</translation>
 <translation id="624230925347970731">Chrome जल्द ही बंद हो जाएगा</translation>
 <translation id="6247557882553405851">Google Password Manager</translation>
@@ -473,6 +476,7 @@ Google Chrome आपकी सेटिंग बहाल नहीं कर �
 <translation id="6506909944137591434">आपके आस-पास की जगहों का 3D मैप बनाने के लिए, Chrome को कैमरा ऐक्सेस करने की अनुमति चाहिए</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome डेवलपर</translation>
 <translation id="6520670145826811516">जगह की जानकारी इस्तेमाल करने के लिए, <ph name="BEGIN_LINK" />सिस्टम सेटिंग<ph name="END_LINK" /> में जाकर Chrome को इसे ऐक्सेस करने की अनुमति दें</translation>
+<translation id="652948702951888897">Chrome इतिहास</translation>
 <translation id="6532945796722480006">Chrome कैनरी में Gemini खोलें</translation>
 <translation id="6585124893636629274">Chrome में Gemini को बंद करें</translation>
 <translation id="659498884637196217">इस डिवाइस पर Google पासवर्ड मैनेजर में</translation>

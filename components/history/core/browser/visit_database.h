@@ -103,7 +103,6 @@ class VisitDatabase {
   // results was restricted by `options.max_count`.
   bool GetVisibleVisitsForURL(URLID url_id,
                               const QueryOptions& options,
-                              const VisitQuery404sPolicy policy_for_404s,
                               VisitVector* visits);
 
   // Fills the vector with all visits with times in the given list.
@@ -178,7 +177,6 @@ class VisitDatabase {
   // Returns true if there are more results available, i.e. if the number of
   // results was restricted by `options.max_count`.
   bool GetVisibleVisitsInRange(const QueryOptions& options,
-                               const VisitQuery404sPolicy policy_for_404s,
                                VisitVector* visits);
 
   // Returns the visit ID for the most recent visit of the given URL ID, or 0
@@ -231,12 +229,13 @@ class VisitDatabase {
 
   // Gets the number of URLs as seen in chrome://history within the time
   // range [`begin_time`, `end_time`). "User-visible" is defined as in
-  // GetVisibleVisitsInRange() above, i.e. excluding redirects and subframes.
+  // `GetVisibleVisitsInRange()` above, i.e. excluding redirects and subframes.
   // Each URL is counted only once per day. For determination of the date,
-  // timestamps are converted to dates using local time. Returns false if
-  // there is a failure executing the statement. True otherwise.
+  // timestamps are converted to dates using local time. Returns false if there
+  // is a failure executing the statement. True otherwise.
   bool GetHistoryCount(const base::Time& begin_time,
                        const base::Time& end_time,
+                       VisitQuery404sPolicy policy_for_404_visits,
                        int* count);
 
   // Gets the last time any webpage on the given host was visited within the
@@ -320,11 +319,6 @@ class VisitDatabase {
   // Called by the derived classes to migrate the older visits table which
   // don't have publicly_routable column yet.
   bool MigrateVisitsWithoutPubliclyRoutableColumn();
-
-  // Called by the derived classes to do early checks before migrating the older
-  // visits table's floc_allowed (for historical reasons named
-  // "publicly_routable" in the schema) column to another table.
-  bool CanMigrateFlocAllowed();
 
   // Called by the derived classes to migrate the older visits table which
   // which doesn't have `opener_visit` column and also drops `publicly_routable`

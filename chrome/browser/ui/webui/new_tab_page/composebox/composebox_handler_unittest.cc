@@ -111,14 +111,16 @@ class MockQueryController : public TestComposeboxQueryController {
       std::string locale,
       TemplateURLService* template_url_service,
       variations::VariationsClient* variations_client,
-      bool send_lns_surface)
+      bool send_lns_surface,
+      bool enable_multi_context_input_flow)
       : TestComposeboxQueryController(identity_manager,
                                       url_loader_factory,
                                       channel,
                                       locale,
                                       template_url_service,
                                       variations_client,
-                                      send_lns_surface) {}
+                                      send_lns_surface,
+                                      enable_multi_context_input_flow) {}
   ~MockQueryController() override = default;
 
   MOCK_METHOD(void, NotifySessionStarted, ());
@@ -193,7 +195,8 @@ class ComposeboxHandlerTest : public ChromeRenderViewHostTestHarness {
     auto query_controller_ptr = std::make_unique<MockQueryController>(
         /*identity_manager=*/nullptr, shared_url_loader_factory_,
         version_info::Channel::UNKNOWN, "en-US", template_url_service_,
-        fake_variations_client_.get(), /*send_lns_surface=*/false);
+        fake_variations_client_.get(), /*send_lns_surface=*/false,
+        /*enable_multi_context_input_flow=*/false);
     query_controller_ = query_controller_ptr.get();
     web_contents()->SetDelegate(&delegate_);
     auto metrics_recorder_ptr = std::make_unique<MockMetricsRecorder>();
@@ -476,10 +479,6 @@ class ComposeboxHandlerTabsTest : public ComposeboxHandlerTest {
     return content::WebContentsTester::CreateTestWebContents(profile(),
                                                              nullptr);
   }
-  base::TimeTicks IncrementTimeTicksAndGet() {
-    last_active_time_ticks_ += base::Seconds(1);
-    return last_active_time_ticks_;
-  }
 
   tabs::TabInterface* AddTab(GURL url) {
     std::unique_ptr<content::WebContents> contents_unique_ptr =
@@ -487,8 +486,6 @@ class ComposeboxHandlerTabsTest : public ComposeboxHandlerTest {
     content::WebContentsTester::For(contents_unique_ptr.get())
         ->NavigateAndCommit(url);
     content::WebContents* content_ptr = contents_unique_ptr.get();
-    content::WebContentsTester::For(content_ptr)->SetLastActiveTimeTicks(
-        IncrementTimeTicksAndGet());
     tab_strip_model()->AppendWebContents(std::move(contents_unique_ptr), true);
     tabs::TabInterface* tab_interface =
         tab_strip_model()->GetTabForWebContents(content_ptr);
@@ -513,7 +510,6 @@ class ComposeboxHandlerTabsTest : public ComposeboxHandlerTest {
   }
 
  private:
-  base::TimeTicks last_active_time_ticks_;
   TestTabStripModelDelegate delegate_;
   TabStripModel tab_strip_model_{&delegate_, profile()};
   ui::UnownedUserDataHost user_data_host_;
@@ -556,43 +552,114 @@ TEST_F(ComposeboxHandlerTabsTest, AddTabContext) {
   mock_page_.FlushForTesting();
 }
 
-TEST_F(ComposeboxHandlerTabsTest, GetRecentTabs) {
-  base::FieldTrialParams params;
-  params[ntp_composebox::kContextMenuMaxTabSuggestions.name] = "2";
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      ntp_composebox::kNtpComposebox, params);
+TEST_F(ComposeboxHandlerTabsTest, TabContextAddedMetric) {
+  // Add a tab.
+  tabs::TabInterface* tab = AddTab(GURL("https://example.com"));
+  const int tab_id = tab->GetHandle().raw_value();
 
-  // Add only 1 valid tab, and ensure it is the only one returned.
-  auto* about_blank_tab = AddTab(GURL("about:blank"));
-  AddTab(GURL("chrome://webui-is-ignored"));
+  // Mock the call to AddTabContext.
+  MockTabContextualizationController* controller =
+      static_cast<MockTabContextualizationController*>(
+          tab->GetTabFeatures()->tab_contextualization_controller());
+  EXPECT_CALL(*controller, GetPageContext(testing::_))
+      .WillOnce([](lens::TabContextualizationController::GetPageContextCallback
+                       callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+  EXPECT_CALL(query_controller(),
+              StartFileUploadFlow(testing::_, testing::NotNull(), testing::_))
+      .Times(1);
 
-  base::test::TestFuture<std::vector<composebox::mojom::TabInfoPtr>> future1;
-  handler().GetRecentTabs(future1.GetCallback());
-  auto tabs = future1.Take();
-  ASSERT_EQ(tabs.size(), 1u);
-  EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback;
+  EXPECT_CALL(callback, Run).Times(1);
+  handler().AddTabContext(tab_id, callback.Get());
 
-  // Add more tabs, and ensure no more than the max allowed tabs are returned.
-  AddTab(GURL("https://www.google.com"));
-  auto* youtube_tab = AddTab(GURL("https://www.youtube.com"));
-  auto* gmail_tab = AddTab(GURL("https://www.gmail.com"));
+  // Check that the histogram was recorded.
+  histogram_tester().ExpectUniqueSample("NewTabPage.Composebox.TabContextAdded",
+                                        true, 1);
+}
 
-  base::test::TestFuture<std::vector<composebox::mojom::TabInfoPtr>> future2;
-  handler().GetRecentTabs(future2.GetCallback());
-  tabs = future2.Take();
-  ASSERT_EQ(tabs.size(), 2u);
-  EXPECT_EQ(tabs[0]->tab_id, gmail_tab->GetHandle().raw_value());
-  EXPECT_EQ(tabs[1]->tab_id, youtube_tab->GetHandle().raw_value());
-
-  // Activate an older tab, and ensure it is returned first.
+TEST_F(ComposeboxHandlerTabsTest, TabWithDuplicateTitleClickedMetric) {
+  // Add tabs with duplicate titles.
+  tabs::TabInterface* tab_a1 = AddTab(GURL("https://a1.com"));
   content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(0))
-      ->SetLastActiveTimeTicks(IncrementTimeTicksAndGet());
-  base::test::TestFuture<std::vector<composebox::mojom::TabInfoPtr>> future3;
-  handler().GetRecentTabs(future3.GetCallback());
-  tabs = future3.Take();
-  EXPECT_EQ(tabs[0]->tab_id, about_blank_tab->GetHandle().raw_value());
-  EXPECT_EQ(tabs[1]->tab_id, gmail_tab->GetHandle().raw_value());
+      ->SetTitle(u"Title A");
+  tabs::TabInterface* tab_b1 = AddTab(GURL("https://b1.com"));
+  content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(1))
+      ->SetTitle(u"Title B");
+  AddTab(GURL("https://a2.com"));
+  content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(2))
+      ->SetTitle(u"Title A");
+
+  // Mock tab upload flow.
+  MockTabContextualizationController* controller_a1 =
+      static_cast<MockTabContextualizationController*>(
+          tab_a1->GetTabFeatures()->tab_contextualization_controller());
+  EXPECT_CALL(*controller_a1, GetPageContext(testing::_))
+      .WillOnce([](lens::TabContextualizationController::GetPageContextCallback
+                       callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+
+  MockTabContextualizationController* controller_b1 =
+      static_cast<MockTabContextualizationController*>(
+          tab_b1->GetTabFeatures()->tab_contextualization_controller());
+  EXPECT_CALL(*controller_b1, GetPageContext(testing::_))
+      .WillOnce([](lens::TabContextualizationController::GetPageContextCallback
+                       callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+  EXPECT_CALL(query_controller(),
+              StartFileUploadFlow(testing::_, testing::NotNull(), testing::_))
+      .Times(2);
+
+  // Click on a tab with a duplicate title.
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback1;
+  EXPECT_CALL(callback1, Run).Times(1);
+  handler().AddTabContext(tab_a1->GetHandle().raw_value(), callback1.Get());
+  histogram_tester().ExpectUniqueSample(
+      "NewTabPage.Composebox.TabWithDuplicateTitleClicked", true, 1);
+
+  // Click on a tab with a unique title.
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback2;
+  EXPECT_CALL(callback2, Run).Times(1);
+  handler().AddTabContext(tab_b1->GetHandle().raw_value(), callback2.Get());
+  histogram_tester().ExpectBucketCount(
+      "NewTabPage.Composebox.TabWithDuplicateTitleClicked", false, 1);
+  histogram_tester().ExpectTotalCount(
+      "NewTabPage.Composebox.TabWithDuplicateTitleClicked", 2);
+}
+
+TEST_F(ComposeboxHandlerTabsTest,
+       TabWithDuplicateTitleClickedMetric_NoDuplicates) {
+  // Add tabs with unique titles.
+  tabs::TabInterface* tab_a1 = AddTab(GURL("https://a1.com"));
+  content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(0))
+      ->SetTitle(u"Title A");
+  AddTab(GURL("https://b1.com"));
+  content::WebContentsTester::For(tab_strip_model()->GetWebContentsAt(1))
+      ->SetTitle(u"Title B");
+
+  // Mock the call to GetPageContext.
+  MockTabContextualizationController* controller_a1 =
+      static_cast<MockTabContextualizationController*>(
+          tab_a1->GetTabFeatures()->tab_contextualization_controller());
+  EXPECT_CALL(*controller_a1, GetPageContext(testing::_))
+      .WillOnce([](lens::TabContextualizationController::GetPageContextCallback
+                       callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+
+  EXPECT_CALL(query_controller(),
+              StartFileUploadFlow(testing::_, testing::NotNull(), testing::_))
+      .Times(1);
+
+  // Click on a tab with a unique title.
+  base::MockCallback<ComposeboxHandler::AddTabContextCallback> callback1;
+  EXPECT_CALL(callback1, Run).Times(1);
+  handler().AddTabContext(tab_a1->GetHandle().raw_value(), callback1.Get());
+  histogram_tester().ExpectUniqueSample(
+      "NewTabPage.Composebox.TabWithDuplicateTitleClicked", false, 1);
 }
 
 class ComposeboxHandlerFileUploadStatusTest

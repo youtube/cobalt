@@ -244,6 +244,8 @@ const char kClassroomProfileEmailOauth2Scope[] =
     "https://www.googleapis.com/auth/classroom.profile.emails";
 const char kClassroomProfilePhotoUrlScope[] =
     "https://www.googleapis.com/auth/classroom.profile.photos";
+const char kClassroomCourseWorkMaterialsOAuthScope[] =
+    "https://www.googleapis.com/auth/classroom.courseworkmaterials";
 
 // OAuth2 scopes for Optimization Guide.
 const char kOptimizationGuideServiceGetHintsOAuth2Scope[] =
@@ -267,6 +269,9 @@ const char kWebstoreOAuth2Scope[] =
 // OAuth2 scope for push notifications.
 const char kPushNotificationOAuth2Scope[] =
     "https://www.googleapis.com/auth/notifications";
+// OAuth2 scope for app license check.
+const char kLicenseCheckOAuth2Scope[] =
+    "https://www.googleapis.com/auth/applicense.bytebot";
 
 // Used to build ClientOAuth requests.  These are the names of keys used when
 // building base::DictionaryValue that represent the json data that makes up

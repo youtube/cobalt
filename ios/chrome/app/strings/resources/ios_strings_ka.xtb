@@ -479,6 +479,7 @@
 <translation id="2797029671965852011">ისტორიის ჩვენება</translation>
 <translation id="2797302972324086597">ქვეყნის კოდი</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} ფაილი}other{{COUNT} ფაილი}}</translation>
+<translation id="2816149645002567541">ჩამოტვირთვა დაპაუზდა</translation>
 <translation id="2816489851009559785">მენიუ → პარამეტრები → ნაგულისხმევი ბრაუზერი</translation>
 <translation id="2818821771744632548">თქვენი iPhone-ის გადაყენების გამო, თქვენი ანგარიშიდან (<ph name="USER_NAME" />) გახვედით. ხელახლა შესასვლელად შეეხეთ ღილაკს „გაგრძელება“, რომელიც მოცემულია ქვემოთ.</translation>
 <translation id="2819667972867209401">ჩართვის შემთხვევაში, მონაცემები შეინახება თქვენს Google ანგარიშში. გამორთვის შემთხვევაში, მონაცემები შეინახება მხოლოდ ამ მოწყობილობაში და წაიშლება სისტემიდან გასვლისას.</translation>
@@ -735,6 +736,7 @@
 <translation id="3921585859122905677">მისამართთა ზოლის მდებარეობა</translation>
 <translation id="3922185497376658606">საიტების წინასწარ ჩატვირთვა</translation>
 <translation id="3922395466317605522">მენიუს მორგება</translation>
+<translation id="3926703470020109118">ჩამოტვირთვა გაუქმდა</translation>
 <translation id="3929457972718048006">მისამართები</translation>
 <translation id="3931215329146376310">{count,plural, =1{ახალი პაროლი ამ საიტისთვის}other{ახალი პაროლები ამ საიტისთვის}}</translation>
 <translation id="3934905113567851655">ზომის შესაცვლელად გამოიყენეთ თითებით მასშტაბირება</translation>
@@ -787,6 +789,7 @@
 <translation id="4113957097611235433">შეცვალეთ თქვენი პაროლები</translation>
 <translation id="4120936477286528673">ეს საიტი განუწყვეტლივ ცდილობს, გახსნას სხვა აპლიკაცია.</translation>
 <translation id="4121993058175073134">ქსელის ექსპორტის მონაცემების გაგზავნისათვის, გთხოვთ დააკონფიგურიროთ თქვენი ელფოსტის ანგარიშის აპლიკაციის პარამეტრები.</translation>
+<translation id="4132991308423633339">პაროლებისა და წვდომის გასაღებების ექსპორტი…</translation>
 <translation id="4133139945030148655">თქვენ მზად ხართ</translation>
 <translation id="4133265950310064865">გაძლიერებული დაცვა</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -951,6 +954,7 @@
 <translation id="4749529195026091676">{count,plural, =1{დაიმპორტებულია {count} ბარათი}other{დაიმპორტებულია {count} ბარათი}}</translation>
 <translation id="4751645464639803239">ახალი ინკოგნიტო ჩანართი</translation>
 <translation id="4752348350801431746">უსაფრთხოების შემოწმების შეტყობინებების გამორთვა…</translation>
+<translation id="4759238208242260848">ჩამოტვირთვები</translation>
 <translation id="4764612367328936189">თქვენი ორგანიზაცია სისტემაში მხოლოდ კონკრეტული ანგარიშებით შესვლის უფლებას გაძლებთ. ანგარიშები, რომელთა გამოყენებაც ნებადართული არ არის, დამალულია. <ph name="BEGIN_LINK" />შეიტყვეთ მეტი<ph name="END_LINK" /></translation>
 <translation id="4766112107778026136">Discover და თვალმიდევნებული</translation>
 <translation id="4769198578611055647">დაგეხმარებათ ნებისმიერ მოწყობილობაში შენახული წვდომის გასაღებებზე წვდომაში</translation>
@@ -1171,6 +1175,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="561269594905823128">შეეხეთ: <ph name="BEGIN_BOLD" />თქვენი ფაილის არჩევა<ph name="END_BOLD" /></translation>
 <translation id="5613297089029360427">დალაგება უახლესის მიხედვით</translation>
 <translation id="5614553682702429503">გსურთ პაროლის შენახვა?</translation>
+<translation id="5617769621178348890">ფაილების აპში გახსნა</translation>
 <translation id="5619871095170816857">ამ ბარათზე ნაჩვენებია გასული 24 საათის განმავლობაში თქვენს ყველა სინქრონიზებულ მოწყობილობაზე თქვენ მიერ ბოლოს გამოყენებული გახსნილი ჩანართი.</translation>
 <translation id="5624120631404540903">პაროლების მართვა</translation>
 <translation id="5624637933505983014">არ ჩაირთოს სინქრონიზაცია</translation>
@@ -1272,6 +1277,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="5956112131836209882">ჩანართების ჯგუფის ჩანართი. <ph name="TAB_INDEX_IN_GROUP" /> / <ph name="NUMBER_OF_TABS_IN_GROUP" />-დან.</translation>
 <translation id="595769230373966252">ძიება <ph name="SEARCH_PROVIDER" />-ით</translation>
 <translation id="5963939892571022323">გამოყოფილთან ბმულის შექმნა ვერ მოხერხდა.</translation>
+<translation id="5968400720580217226">ხელოვნური ინტელექტის რეჟიმი</translation>
 <translation id="5971459446352190251">QR კოდის ძიება</translation>
 <translation id="5971872012779224351">{count,plural, =1{1 სანიშნე წაიშალა}other{{count} სანიშნე წაიშალა}}</translation>
 <translation id="5972844218283131174">ყველა არჩევანის გაუქმება</translation>
@@ -1463,6 +1469,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6627583120233659107">საქაღალდის რედაქტირება</translation>
 <translation id="6629759408545977279">გამგზავნი: <ph name="ORIGINATING_HOST" /></translation>
 <translation id="6634432609054530164">თქვენმა ორგანიზაციამ გამორთო ინკოგნიტო რეჟიმი</translation>
+<translation id="6637478299472506933">ჩამოტვირთვა ვერ მოხერხდა</translation>
 <translation id="6638511529934826365">ტექსტის მასშტაბირება…</translation>
 <translation id="6640268266988685324">ჩანართის გახსნა</translation>
 <translation id="6641465290890659327">თქვენი პაროლის ასლის გაზიარება</translation>
@@ -1585,6 +1592,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="7102005569666697658">მიმდინარეობს ჩამოტვირთვა… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">მენიუ → პარამეტრები → გადახდის მეთოდები</translation>
 <translation id="7108338896283013870">დამალვა</translation>
+<translation id="7127922377013221748">ხელსაწყოთა ზოლის დამალვა</translation>
 <translation id="7128693485119315539">თქვენს ორგანიზაციას შეიძლება დასჭირდეს თქვენს მართულ ანგარიშთან მიბმული დათვალიერების მონაცემების (დათვალიერების ისტორია და პაროლები) ნახვა და მართვა.</translation>
 <translation id="713215255510512027"><ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
 <translation id="7136892417564438900">კამერა მიუწვდომელია</translation>
@@ -1895,6 +1903,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8283172974887967105">დაყენება…</translation>
 <translation id="8289930144142009940">„<ph name="FEATURE_NAME" />“-თან დაკავშირებული შეტყობინებები გამოირთო</translation>
 <translation id="8290077367744012649">ფასებისთვის თვალის დევნება თქვენი ჩანართებიდან</translation>
+<translation id="8292893224181644074">ჩამოტვირთვა დასრულდა</translation>
 <translation id="8299417921174340354">პაროლების გამოსაყენებლად, პირველ რიგში, საჭიროა საიდუმლო კოდის დაყენება თქვენს მოწყობილობაზე.</translation>
 <translation id="8307481894409578819">ამ ფაილის ატვირთვა ვერ მოხერხდა</translation>
 <translation id="8319076807703933069">ახალი ძიება</translation>

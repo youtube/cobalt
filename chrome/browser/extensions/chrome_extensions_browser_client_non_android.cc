@@ -8,6 +8,7 @@
 
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"
 #include "chrome/browser/extensions/chrome_extensions_browser_client.h"
 #include "chrome/browser/extensions/chrome_process_manager_delegate.h"
@@ -18,7 +19,9 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
-#include "chrome/common/url_constants.h"
+#include "components/custom_handlers/protocol_handler.h"
+#include "components/custom_handlers/protocol_handler_registry.h"
+#include "components/webapps/isolated_web_apps/scheme.h"
 #include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "content/public/browser/site_instance.h"
 #include "ipc/constants.mojom.h"
@@ -85,7 +88,7 @@ void ChromeExtensionsBrowserClient::GetWebViewStoragePartitionConfig(
     base::OnceCallback<void(std::optional<content::StoragePartitionConfig>)>
         callback) {
   const GURL& owner_site_url = owner_site_instance->GetSiteURL();
-  if (owner_site_url.SchemeIs(chrome::kIsolatedAppScheme)) {
+  if (owner_site_url.SchemeIs(webapps::kIsolatedAppScheme)) {
     base::expected<web_app::IsolatedWebAppUrlInfo, std::string> url_info =
         web_app::IsolatedWebAppUrlInfo::Create(owner_site_url);
     DCHECK(url_info.has_value()) << url_info.error();
@@ -101,6 +104,12 @@ void ChromeExtensionsBrowserClient::GetWebViewStoragePartitionConfig(
   ExtensionsBrowserClient::GetWebViewStoragePartitionConfig(
       browser_context, owner_site_instance, partition_name, in_memory,
       std::move(callback));
+}
+
+custom_handlers::ProtocolHandlerRegistry*
+ChromeExtensionsBrowserClient::GetProtocolHandlerRegistry(
+    content::BrowserContext* context) {
+  return ProtocolHandlerRegistryFactory::GetForBrowserContext(context);
 }
 
 }  // namespace extensions

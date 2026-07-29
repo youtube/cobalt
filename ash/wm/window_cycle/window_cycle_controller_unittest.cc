@@ -18,9 +18,8 @@
 #include "ash/focus/focus_cycler.h"
 #include "ash/frame_throttler/frame_throttling_controller.h"
 #include "ash/frame_throttler/mock_frame_throttling_observer.h"
-#include "ash/multi_user/multi_user_window_manager_impl.h"
+#include "ash/multi_user/multi_user_window_manager.h"
 #include "ash/public/cpp/ash_prefs.h"
-#include "ash/public/cpp/multi_user_window_manager.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/session/session_controller_impl.h"
@@ -403,7 +402,7 @@ TEST_F(WindowCycleControllerTest, HandleCycleWindow) {
   aura::Window* modal_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_SystemModalContainer);
   std::unique_ptr<Window> modal_window = aura::test::CreateTestWindow(
-      {.parent = modal_container, .window_id = -2});
+      {.parent = modal_container, .bounds = {100, 100}, .window_id = -2});
   modal_window->SetProperty(aura::client::kModalKey,
                             ui::mojom::ModalType::kSystem);
   wm::ActivateWindow(modal_window.get());
@@ -532,8 +531,8 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopWindow) {
 
   Window* top_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window2 =
-      aura::test::CreateTestWindow({.parent = top_container, .window_id = 2});
+  std::unique_ptr<Window> window2 = aura::test::CreateTestWindow(
+      {.parent = top_container, .bounds = {100, 100}, .window_id = 2});
   wm::ActivateWindow(window0.get());
 
   // Simulate pressing and releasing Alt-tab.
@@ -560,10 +559,10 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopMultiWindow) {
 
   Window* top_container = Shell::GetContainer(
       Shell::GetPrimaryRootWindow(), kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window2 =
-      aura::test::CreateTestWindow({.parent = top_container, .window_id = 2});
-  std::unique_ptr<Window> window3 =
-      aura::test::CreateTestWindow({.parent = top_container, .window_id = 3});
+  std::unique_ptr<Window> window2 = aura::test::CreateTestWindow(
+      {.parent = top_container, .bounds = {100, 100}, .window_id = 2});
+  std::unique_ptr<Window> window3 = aura::test::CreateTestWindow(
+      {.parent = top_container, .bounds = {100, 100}, .window_id = 3});
   wm::ActivateWindow(window0.get());
 
   // Simulate pressing and releasing Alt-tab.
@@ -595,8 +594,8 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopMultipleRootWindows) {
   EXPECT_EQ(root_windows[0], window0->GetRootWindow());
   Window* top_container0 =
       Shell::GetContainer(root_windows[0], kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window1 =
-      aura::test::CreateTestWindow({.parent = top_container0, .window_id = 1});
+  std::unique_ptr<Window> window1 = aura::test::CreateTestWindow(
+      {.parent = top_container0, .bounds = {100, 100}, .window_id = 1});
   EXPECT_EQ(root_windows[0], window1->GetRootWindow());
 
   // Move the active root window to the secondary root and create two windows.
@@ -606,8 +605,8 @@ TEST_F(WindowCycleControllerTest, AlwaysOnTopMultipleRootWindows) {
 
   Window* top_container1 =
       Shell::GetContainer(root_windows[1], kShellWindowId_AlwaysOnTopContainer);
-  std::unique_ptr<Window> window3 =
-      aura::test::CreateTestWindow({.parent = top_container1, .window_id = 3});
+  std::unique_ptr<Window> window3 = aura::test::CreateTestWindow(
+      {.parent = top_container1, .bounds = {100, 100}, .window_id = 3});
   EXPECT_EQ(root_windows[1], window3->GetRootWindow());
 
   wm::ActivateWindow(window2.get());
@@ -3199,9 +3198,9 @@ class MultiUserWindowCycleControllerTest : public NoSessionAshTestBase {
 
     generator_ = GetEventGenerator();
 
-    CHECK(MultiUserWindowManagerImpl::Get());
-    MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-        MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
+    CHECK(MultiUserWindowManager::Get());
+    MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+        MultiUserWindowManager::ANIMATION_SPEED_DISABLED);
   }
 
   void TearDown() override {

@@ -140,9 +140,10 @@ class PredictionManagerTestBase : public TestWithProfile {
     SetUpCommandLine(scoped_command_line_.GetProcessCommandLine());
 
     scoped_profile_ = CreateProfile("foo");
-    OptimizationGuideServiceFactory::GetForProfile(scoped_profile_.profile())
-        ->GetPredictionManager()
-        ->SetUrlLoaderFactoryForTesting(
+    TestingApplicationContext::GetGlobal()
+        ->GetOptimizationGuideGlobalState()
+        ->prediction_manager()
+        .SetUrlLoaderFactoryForTesting(
             scoped_profile_.profile()->GetSharedURLLoaderFactory());
   }
 
@@ -186,7 +187,7 @@ class PredictionManagerTestBase : public TestWithProfile {
     auto* variations_ids_provider =
         variations::VariationsIdsProvider::GetInstance();
     ASSERT_TRUE(variations_ids_provider != nullptr);
-    variations_ids_provider->ForceVariationIds({}, {"4"});
+    variations_ids_provider->ForceVariationIdsForTesting({}, {"4"});
     cmd->AppendSwitch("append-variations-headers-to-localhost");
   }
 

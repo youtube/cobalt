@@ -173,6 +173,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Responsive"/>
   <int value="7" label="Responsive Inactive"/>
   <int value="8" label="Unresponsive Inactive"/>
+  <int value="9" label="Mojo pipe closed unexpectedly"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/glic_api_host.ts:DetailedWebClientState) -->
@@ -291,6 +292,11 @@ chromium-metrics-reviews@google.com.
   <int value="61" label="PerformActions"/>
   <int value="62" label="OnViewChanged"/>
   <int value="63" label="SubscribeToPageMetadata"/>
+  <int value="64" label="SwitchConversation"/>
+  <int value="65" label="RegisterConversation"/>
+  <int value="66" label="OnReaction"/>
+  <int value="67" label="OnContextUploadCompleted"/>
+  <int value="68" label="OnContextUploadStarted"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->

@@ -11,7 +11,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -22,12 +21,12 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApkInfo;
+import org.chromium.base.BaseFeatureList;
 import org.chromium.base.ChildBindingState;
 import org.chromium.base.Log;
 import org.chromium.base.MemoryPressureLevel;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.PackageUtils;
-import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.library_loader.IRelroLibInfo;
@@ -51,11 +50,7 @@ import javax.annotation.concurrent.GuardedBy;
 public class ChildProcessConnection {
     private static final String TAG = "ChildProcessConn";
     private static final int FALLBACK_TIMEOUT_IN_SECONDS = 10;
-    private static final boolean SUPPORT_NOT_PERCEPTIBLE_BINDING =
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
     private static final String HISTOGRAM_NAME = "Android.ChildProcessConectionEventCounts";
-
-    private static @Nullable Boolean sSupportNotPerceptibleBindingForTesting;
 
     /**
      * Used to notify the consumer about the process start. These callbacks will be invoked before
@@ -193,16 +188,6 @@ public class ChildProcessConnection {
         return BindService.supportVariableConnections();
     }
 
-    /** Run time check if not perceptible binding is supported. */
-    public static boolean supportNotPerceptibleBinding() {
-        if (sSupportNotPerceptibleBindingForTesting != null) {
-            return sSupportNotPerceptibleBindingForTesting;
-        }
-        // Note that we need to keep this in sync with IsPerceptibleImportanceSupported() in
-        // content/browser/android/child_process_importance.cc
-        return SUPPORT_NOT_PERCEPTIBLE_BINDING;
-    }
-
     /** The string passed to bindToCaller to identify this class loader. */
     @VisibleForTesting
     public static String getBindToCallerClazz() {
@@ -210,12 +195,6 @@ public class ChildProcessConnection {
         // this could still collide in theory.
         ClassLoader cl = ChildProcessConnection.class.getClassLoader();
         return cl.toString() + cl.hashCode();
-    }
-
-    @VisibleForTesting
-    public static void setSupportNotPerceptibleBindingForTesting(boolean supported) {
-        sSupportNotPerceptibleBindingForTesting = supported;
-        ResettersForTesting.register(() -> sSupportNotPerceptibleBindingForTesting = null);
     }
 
     // The last zygote PID for which the zygote startup metrics were recorded. Lives on the
@@ -335,6 +314,12 @@ public class ChildProcessConnection {
     @GuardedBy("mProcessStateLock")
     private boolean mCleanExit;
 
+    // Whether the EffectiveBindingState feature is enabled.
+    //
+    // The feature status has to stay consistent throughout the lifetime of this object, and can't
+    // have it flip half way in the middle.
+    private final boolean mIsEffectiveBindingStateEnabled;
+
     public ChildProcessConnection(
             Context context,
             ComponentName serviceName,
@@ -384,6 +369,7 @@ public class ChildProcessConnection {
         mBindToCaller = bindToCaller;
         mIndependentFallback = independentFallback;
         mIsSandboxedForHistograms = isSandboxedForHistograms;
+        mIsEffectiveBindingStateEnabled = BaseFeatureList.sEffectiveBindingState.isEnabled();
 
         // Incremental install does not work with isolatedProcess, and externalService requires
         // isolatedProcess, so both need to be turned off for incremental install.
@@ -445,15 +431,27 @@ public class ChildProcessConnection {
         if (mServiceBundle != null) {
             bindIntent.putExtras(mServiceBundle);
         }
-
-        mConnectionController =
-                new LegacyChildServiceConnectionController(
-                        connectionFactory,
-                        bindIntent,
-                        defaultBindFlags,
-                        connectionDelegate,
-                        new CountOnServiceConnectedDecorator(connectionDelegate, mLauncherHandler),
-                        instanceName);
+        if (mIsEffectiveBindingStateEnabled
+                && RebindingChildServiceConnectionController.isEnabled()) {
+            mConnectionController =
+                    new RebindingChildServiceConnectionController(
+                            connectionFactory,
+                            bindIntent,
+                            defaultBindFlags,
+                            new CountOnServiceConnectedDecorator(
+                                    connectionDelegate, mLauncherHandler),
+                            instanceName);
+        } else {
+            mConnectionController =
+                    new LegacyChildServiceConnectionController(
+                            connectionFactory,
+                            bindIntent,
+                            defaultBindFlags,
+                            connectionDelegate,
+                            new CountOnServiceConnectedDecorator(
+                                    connectionDelegate, mLauncherHandler),
+                            instanceName);
+        }
     }
 
     public final @Nullable IChildProcessService getService() {
@@ -985,10 +983,12 @@ public class ChildProcessConnection {
             Log.w(TAG, "The connection is not bound for %d", getPid());
             return;
         }
-        if (mStrongBindingCount == 0) {
+        mStrongBindingCount++;
+        if (mIsEffectiveBindingStateEnabled) {
+            applyEffectiveBindingState();
+        } else if (mStrongBindingCount == 1) {
             mConnectionController.setStrongBinding();
         }
-        mStrongBindingCount++;
     }
 
     public void removeStrongBinding() {
@@ -998,7 +998,9 @@ public class ChildProcessConnection {
         }
         assert mStrongBindingCount > 0;
         mStrongBindingCount--;
-        if (mStrongBindingCount == 0) {
+        if (mIsEffectiveBindingStateEnabled) {
+            applyEffectiveBindingState();
+        } else if (mStrongBindingCount == 0) {
             mConnectionController.unsetStrongBinding();
         }
     }
@@ -1019,10 +1021,12 @@ public class ChildProcessConnection {
             Log.w(TAG, "The connection is not bound for %d", getPid());
             return;
         }
-        if (mVisibleBindingCount == 0) {
+        mVisibleBindingCount++;
+        if (mIsEffectiveBindingStateEnabled) {
+            applyEffectiveBindingState();
+        } else if (mVisibleBindingCount == 1) {
             mConnectionController.setVisibleBinding();
         }
-        mVisibleBindingCount++;
     }
 
     public void removeVisibleBinding() {
@@ -1032,7 +1036,9 @@ public class ChildProcessConnection {
         }
         assert mVisibleBindingCount > 0;
         mVisibleBindingCount--;
-        if (mVisibleBindingCount == 0) {
+        if (mIsEffectiveBindingStateEnabled) {
+            applyEffectiveBindingState();
+        } else if (mVisibleBindingCount == 0) {
             mConnectionController.unsetVisibleBinding();
         }
     }
@@ -1044,28 +1050,44 @@ public class ChildProcessConnection {
 
     public void addNotPerceptibleBinding() {
         assert isRunningOnLauncherThread();
-        assert supportNotPerceptibleBinding();
         if (!isConnected()) {
             Log.w(TAG, "The connection is not bound for %d", getPid());
             return;
         }
-        if (mNotPerceptibleBindingCount == 0) {
+        mNotPerceptibleBindingCount++;
+        if (mIsEffectiveBindingStateEnabled) {
+            applyEffectiveBindingState();
+        } else if (mNotPerceptibleBindingCount == 1) {
             mConnectionController.setNotPerceptibleBinding();
         }
-        mNotPerceptibleBindingCount++;
     }
 
     public void removeNotPerceptibleBinding() {
         assert isRunningOnLauncherThread();
-        assert supportNotPerceptibleBinding();
         if (!isConnected()) {
             return;
         }
         assert mNotPerceptibleBindingCount > 0;
         mNotPerceptibleBindingCount--;
-        if (mNotPerceptibleBindingCount == 0) {
+        if (mIsEffectiveBindingStateEnabled) {
+            applyEffectiveBindingState();
+        } else if (mNotPerceptibleBindingCount == 0) {
             mConnectionController.unsetNotPerceptibleBinding();
         }
+    }
+
+    private void applyEffectiveBindingState() {
+        assert isRunningOnLauncherThread();
+        assert isConnected();
+        @ChildBindingState int effectiveBindingState = ChildBindingState.WAIVED;
+        if (mStrongBindingCount > 0) {
+            effectiveBindingState = ChildBindingState.STRONG;
+        } else if (mVisibleBindingCount > 0) {
+            effectiveBindingState = ChildBindingState.VISIBLE;
+        } else if (mNotPerceptibleBindingCount > 0) {
+            effectiveBindingState = ChildBindingState.NOT_PERCEPTIBLE;
+        }
+        mConnectionController.setEffectiveBindingState(effectiveBindingState);
     }
 
     /**

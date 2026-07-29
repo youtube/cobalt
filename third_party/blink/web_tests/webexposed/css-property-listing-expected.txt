@@ -199,6 +199,7 @@ All changes to this list should go through Blink's feature review process: http:
     font-family
     font-feature-settings
     font-kerning
+    font-language-override
     font-optical-sizing
     font-palette
     font-size
@@ -242,8 +243,8 @@ All changes to this list should go through Blink's feature review process: http:
     inset-inline-end
     inset-inline-start
     interactivity
-    interest-hide-delay
-    interest-show-delay
+    interest-delay-end
+    interest-delay-start
     interpolate-size
     isolation
     item-tolerance
@@ -356,6 +357,7 @@ All changes to this list should go through Blink's feature review process: http:
     row-rule-style
     row-rule-width
     ruby-align
+    ruby-overhang
     ruby-position
     rx
     ry
@@ -446,7 +448,7 @@ All changes to this list should go through Blink's feature review process: http:
     timeline-trigger-name
     timeline-trigger-range-end
     timeline-trigger-range-start
-    timeline-trigger-timeline
+    timeline-trigger-source
     top
     touch-action
     transform
@@ -705,6 +707,7 @@ All changes to this list should go through Blink's feature review process: http:
         font-family
         font-feature-settings
         font-kerning
+        font-language-override
         font-optical-sizing
         font-size
         font-size-adjust
@@ -769,8 +772,8 @@ All changes to this list should go through Blink's feature review process: http:
         inset-inline-end
         inset-inline-start
     interest-delay
-        interest-hide-delay
-        interest-show-delay
+        interest-delay-end
+        interest-delay-start
     line-clamp
         block-ellipsis
         continue
@@ -932,7 +935,7 @@ All changes to this list should go through Blink's feature review process: http:
         timeline-trigger-name
         timeline-trigger-range-end
         timeline-trigger-range-start
-        timeline-trigger-timeline
+        timeline-trigger-source
     transition
         transition-behavior
         transition-delay

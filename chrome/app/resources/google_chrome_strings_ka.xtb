@@ -450,6 +450,9 @@ Google Chrome ვერ შეძლებს თქვენი პარამ
 <translation id="6180522807229584611">ეს ჩანართი დამატებით რესურსებს იყენებს. ეფექტურობის გაზრდის მიზნით, ნება დართეთ Chrome-ს, ჩანართი უმოქმედო რეჟიმში გადაიტანოს.</translation>
 <translation id="6182736845697986886">ინსტალაცია ვერ მოხერხდა განახლების სერვერის შიდა შეცდომის გამო.</translation>
 <translation id="6192058120268468905">თქვენი ანგარიში Chrome-ში</translation>
+<translation id="6220551899604141979"><ph name="PARTNER_NAME" />-მა დაამატა გაფართოება, რომელმაც შეიძლება შეცვალოს Chrome-ის მუშაობის პრინციპი.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">Google Chrome-ის შემომავალი ტრაფიკის წესი mDNS ტრაფიკისთვის.</translation>
 <translation id="624230925347970731">Chrome მალე დაიხურება</translation>
 <translation id="6247557882553405851">Google პაროლების მმართველი</translation>
@@ -478,6 +481,7 @@ Google Chrome ვერ შეძლებს თქვენი პარამ
 <translation id="6506909944137591434">თქვენი შემოგარენის 3-განზომილებიანი რუკის შესაქმნელად Chrome საჭიროებს მეხსიერებაზე წვდომის ნებართვას</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> — Google Chrome Dev</translation>
 <translation id="6520670145826811516">თქვენი მდებარეობა რომ გამოიყენოთ, გახსენით <ph name="BEGIN_LINK" />სისტემის პარამეტრები<ph name="END_LINK" /> და მიანიჭეთ Chrome-ს წვდომა</translation>
+<translation id="652948702951888897">Chrome ისტორია</translation>
 <translation id="6532945796722480006">Gemini in Chrome Canary-ში გახსნა</translation>
 <translation id="6585124893636629274">Gemini Chrome-ში დახურვა</translation>
 <translation id="659498884637196217">Google პაროლების მმართველში ამ მოწყობილობაზე</translation>

@@ -108,6 +108,7 @@ blink_core_sources_style = [
   "style_initial_data.h",
   "style_initial_letter.cc",
   "style_initial_letter.h",
+  "style_interest_delay.h",
   "style_intrinsic_length.h",
   "style_mask_source_image.cc",
   "style_mask_source_image.h",
@@ -153,6 +154,7 @@ blink_core_sources_style = [
 blink_core_tests_style = [
   "applied_text_decoration_test.cc",
   "computed_style_test.cc",
+  "computed_style_constants_test.cc",
   "filter_operation_test.cc",
   "filter_operations_test.cc",
   "gap_data_list_test.cc",

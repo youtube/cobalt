@@ -881,8 +881,8 @@ enum CSSSampleId {
     // kAnimationTriggerRangeEnd = 820,
     // kAnimationTriggerExitRangeStart = 821,
     // kAnimationTriggerExitRangeEnd = 822,
-    kInterestShowDelay = 823,
-    kInterestHideDelay = 824,
+    kInterestDelayStart = 823,
+    kInterestDelayEnd = 824,
     kAnimationTriggerRange = 825,
     kAnimationTriggerExitRange = 826,
     kInterestDelay = 827,
@@ -936,7 +936,7 @@ enum CSSSampleId {
     kTimelineTriggerRangeEnd = 874,
     kTimelineTriggerExitRangeStart = 875,
     kTimelineTriggerExitRangeEnd = 876,
-    kTimelineTriggerTimeline = 877,
+    kTimelineTriggerSource = 877,
     kTimelineTrigger = 878,
     kMasonry = 879,
     kContinue = 880,
@@ -944,6 +944,8 @@ enum CSSSampleId {
     kBlockEllipsis = 882,
     kOverscrollArea = 883,
     kOverscrollPosition = 884,
+    kFontLanguageOverride = 885,
+    kRubyOverhang = 886,
 
     // 1. Add new features above this line (don't change the assigned numbers of
     //    the existing items).

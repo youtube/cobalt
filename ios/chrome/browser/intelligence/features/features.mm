@@ -27,6 +27,18 @@ bool IsPageActionMenuEnabled() {
   return base::FeatureList::IsEnabled(kPageActionMenu);
 }
 
+BASE_FEATURE(kProactiveSuggestionsFramework, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsProactiveSuggestionsFrameworkEnabled() {
+  return base::FeatureList::IsEnabled(kProactiveSuggestionsFramework);
+}
+
+BASE_FEATURE(kAskGeminiChip, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAskGeminiChipEnabled() {
+  return base::FeatureList::IsEnabled(kAskGeminiChip);
+}
+
 BASE_FEATURE(kGeminiCrossTab, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiCrossTabEnabled() {
@@ -129,3 +141,18 @@ bool ShouldDeleteGeminiConsentPref() {
 }
 
 BASE_FEATURE(kDeleteGeminiConsentPref, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSmartTabGrouping, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsSmartTabGroupingEnabled() {
+  return base::FeatureList::IsEnabled(kSmartTabGrouping);
+}
+
+BASE_FEATURE(kPersistTabContext, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsPersistTabContextEnabled() {
+  if (IsSmartTabGroupingEnabled()) {
+    return true;
+  }
+  return base::FeatureList::IsEnabled(kPersistTabContext);
+}

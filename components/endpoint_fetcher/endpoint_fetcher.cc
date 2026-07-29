@@ -41,6 +41,8 @@ std::string GetHttpMethodString(const HttpMethod& http_method) {
       return "POST";
     case HttpMethod::kDelete:
       return "DELETE";
+    case HttpMethod::kPut:
+      return "PUT";
     default:
       DCHECK(0) << base::StringPrintf("Unknown HttpMethod %d\n",
                                       static_cast<int>(http_method));
@@ -55,11 +57,19 @@ HttpMethod GetHttpMethod(const std::string& http_method_string) {
     return HttpMethod::kPost;
   } else if (http_method_string == "DELETE") {
     return HttpMethod::kDelete;
+  } else if (http_method_string == "PUT") {
+    return HttpMethod::kPut;
   }
   return HttpMethod::kUndefined;
 }
 
 }  // namespace
+
+EndpointResponse::EndpointResponse() = default;
+EndpointResponse::EndpointResponse(const EndpointResponse& other) = default;
+EndpointResponse& EndpointResponse::operator=(const EndpointResponse& other) =
+    default;
+EndpointResponse::~EndpointResponse() = default;
 
 EndpointFetcher::RequestParams::RequestParams(
     const HttpMethod& method,
@@ -309,8 +319,10 @@ void EndpointFetcher::PerformHttpRequest(
   }
 
   // Add Content-Type header if post data is present.
-  if (request_params_.http_method() == HttpMethod::kPost &&
-      request_params_.post_data()) {
+  bool has_body_content = (request_params_.http_method() == HttpMethod::kPost ||
+                           request_params_.http_method() == HttpMethod::kPut) &&
+                          request_params_.post_data();
+  if (has_body_content) {
     resource_request->headers.SetHeader(kContentTypeKey,
                                         request_params_.content_type());
   }
@@ -349,14 +361,13 @@ void EndpointFetcher::PerformHttpRequest(
   simple_url_loader_ = network::SimpleURLLoader::Create(
       std::move(resource_request), request_params_.annotation_tag());
 
-  if (request_params_.http_method() == HttpMethod::kPost &&
-      request_params_.post_data()) {
+  if (has_body_content) {
     simple_url_loader_->AttachStringForUpload(
         request_params_.post_data().value(), request_params_.content_type());
   }
-  if (!GetUploadProgressCallback().is_null()) {
-    simple_url_loader_->SetOnUploadProgressCallback(
-        GetUploadProgressCallback());
+  if (auto upload_progress_callback = GetUploadProgressCallback();
+      upload_progress_callback) {
+    simple_url_loader_->SetOnUploadProgressCallback(upload_progress_callback);
   }
 
   simple_url_loader_->SetRetryOptions(GetMaxRetries(),
@@ -377,13 +388,14 @@ void EndpointFetcher::PerformHttpRequest(
 void EndpointFetcher::OnResponseFetched(
     EndpointFetcherCallback endpoint_fetcher_callback,
     std::unique_ptr<std::string> response_body) {
-  int http_status_code = -1;
+  auto response = std::make_unique<EndpointResponse>();
   std::string mime_type;
-  if (simple_url_loader_->ResponseInfo() &&
-      simple_url_loader_->ResponseInfo()->headers) {
-    http_status_code =
-        simple_url_loader_->ResponseInfo()->headers->response_code();
-    mime_type = simple_url_loader_->ResponseInfo()->mime_type;
+  if (const auto* response_info = simple_url_loader_->ResponseInfo();
+      response_info && response_info->headers) {
+    response->http_status_code = response_info->headers->response_code();
+    mime_type = response_info->mime_type;
+    response->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+        response_info->headers->raw_headers());
   }
   int net_error_code = simple_url_loader_->NetError();
   // The EndpointFetcher and its members will be destroyed after
@@ -391,11 +403,8 @@ void EndpointFetcher::OnResponseFetched(
   // or its members after the callbacks.
   simple_url_loader_.reset();
 
-  auto response = std::make_unique<EndpointResponse>();
-  response->http_status_code = http_status_code;
-
-  if (http_status_code == net::HTTP_UNAUTHORIZED ||
-      http_status_code == net::HTTP_FORBIDDEN) {
+  if (response->http_status_code == net::HTTP_UNAUTHORIZED ||
+      response->http_status_code == net::HTTP_FORBIDDEN) {
     response->error_type =
         std::make_optional<FetchErrorType>(FetchErrorType::kAuthError);
     // We cannot assume that the response was in JSON, and hence cannot sanitize
@@ -416,13 +425,12 @@ void EndpointFetcher::OnResponseFetched(
 
   if (response_body) {
     response->response = *response_body;
-    std::move(endpoint_fetcher_callback).Run(std::move(response));
   } else {
     std::string net_error = net::ErrorToString(net_error_code);
     VLOG(1) << __func__ << " with response error: " << net_error;
     response->response = "There was a response error";
-    std::move(endpoint_fetcher_callback).Run(std::move(response));
   }
+  std::move(endpoint_fetcher_callback).Run(std::move(response));
 }
 
 network::mojom::CredentialsMode EndpointFetcher::GetCredentialsMode() const {
@@ -441,24 +449,16 @@ network::mojom::CredentialsMode EndpointFetcher::GetCredentialsMode() const {
 }
 
 int EndpointFetcher::GetMaxRetries() const {
-  if (!request_params_.max_retries.has_value()) {
-    return kNumRetries;
-  }
-  return request_params_.max_retries.value();
+  return request_params_.max_retries.value_or(kNumRetries);
 }
 
 bool EndpointFetcher::GetSetSiteForCookies() const {
-  if (!request_params_.set_site_for_cookies.has_value()) {
-    return false;
-  }
-  return request_params_.set_site_for_cookies.value();
+  return request_params_.set_site_for_cookies.value_or(false);
 }
 
 UploadProgressCallback EndpointFetcher::GetUploadProgressCallback() const {
-  if (!request_params_.upload_progress_callback.has_value()) {
-    return UploadProgressCallback();
-  }
-  return request_params_.upload_progress_callback.value();
+  return request_params_.upload_progress_callback.value_or(
+      UploadProgressCallback());
 }
 
 std::string EndpointFetcher::GetUrlForTesting() {

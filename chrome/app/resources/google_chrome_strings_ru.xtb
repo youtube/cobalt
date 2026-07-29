@@ -441,6 +441,9 @@
 <translation id="6180522807229584611">Для работы этой вкладки используются дополнительные ресурсы. Разрешите Chrome сделать ее неактивной, и производительность повысится.</translation>
 <translation id="6182736845697986886">Выполнить установку не удалось из-за внутренней ошибки сервера.</translation>
 <translation id="6192058120268468905">Ваш аккаунт в Chrome</translation>
+<translation id="6220551899604141979">Партнер "<ph name="PARTNER_NAME" />" установил расширение, которое может влиять на работу Chrome.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">Разрешить в Google Chrome передачу входящего трафика по протоколу mDNS</translation>
 <translation id="624230925347970731">Chrome скоро будет закрыт</translation>
 <translation id="6247557882553405851">Google Менеджер паролей</translation>
@@ -469,6 +472,7 @@
 <translation id="6506909944137591434">Для создания 3D-карты места, в котором вы находитесь, браузеру Chrome требуется доступ к камере.</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> – Google Chrome для разработчиков</translation>
 <translation id="6520670145826811516">Чтобы использовать свои геоданные, предоставьте Chrome доступ к ним в <ph name="BEGIN_LINK" />системных настройках<ph name="END_LINK" /></translation>
+<translation id="652948702951888897">История Chrome</translation>
 <translation id="6532945796722480006">Открыть Gemini в Chrome Canary</translation>
 <translation id="6585124893636629274">Закрыть Gemini в Chrome</translation>
 <translation id="659498884637196217">В Google Менеджере паролей на этом устройстве</translation>

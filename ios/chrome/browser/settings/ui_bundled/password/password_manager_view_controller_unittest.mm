@@ -637,6 +637,13 @@ TEST_F(PasswordManagerViewControllerTest,
 // expected content.
 // TODO(crbug.com/437314312): Deflake the test.
 TEST_F(PasswordManagerViewControllerTest, FLAKY_TestOpenInSearchMode) {
+  // TODO(crbug.com/437314312): Re-enable on device.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    return;
+  }
+#endif
+
   // Call `settingsWillBeDismissed` on the initial view controller so that its
   // observers are reset.
   [GetPasswordManagerViewController() settingsWillBeDismissed];
@@ -1305,29 +1312,6 @@ TEST_F(PasswordManagerViewControllerTest, WidgetPromoMoreInfoButtonMetric) {
   histogram_tester.ExpectBucketCount(
       kPasswordManagerWidgetPromoActionHistogram,
       PasswordManagerWidgetPromoAction::kOpenInstructions, 1);
-
-  [GetPasswordManagerViewController() settingsWillBeDismissed];
-}
-
-// Test verifies that the Trusted Vault widget promo cell is not displayed when
-// the flag
-// `password_manager::features::kIOSEnablePasswordManagerTrustedVaultWidget` is
-// disabled.
-TEST_F(PasswordManagerViewControllerTest,
-       TrustedVaultWidgetPromoWhenFlagIsDisabled) {
-  base::HistogramTester histogram_tester;
-  AddSavedForm1();
-
-  GetPasswordManagerViewController().shouldShowTrustedVaultWidgetPromo = YES;
-  [GetPasswordManagerViewController() reloadData];
-
-  EXPECT_FALSE([GetPasswordManagerViewController().tableViewModel
-      hasSectionForSectionIdentifier:SectionIdentifierTrustedVaultWidgetPromo]);
-
-  // Bucket count should be zero.
-  histogram_tester.ExpectBucketCount(
-      kPasswordManagerPromoWithTrustedVaultKeyRetrievalActionHistogram,
-      PasswordManagerPromoWithTrustedVaultKeyRetrievalAction::kDisplayed, 0);
 
   [GetPasswordManagerViewController() settingsWillBeDismissed];
 }

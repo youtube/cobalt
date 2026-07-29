@@ -1556,7 +1556,7 @@
             "os": "Ubuntu-22.04"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
+          "shards": 3
         },
         "test": "unit_tests",
         "test_id_prefix": "ninja://chrome/test:unit_tests/"
@@ -1758,6 +1758,7 @@
           "script": "//tools/perf/process_perf_results.py"
         },
         "module_name": "//chrome/test:chrome_sizes",
+        "module_scheme": "single",
         "name": "chrome_sizes",
         "resultdb": {
           "enable": true,
@@ -1808,6 +1809,7 @@
     "scripts": [
       {
         "module_name": "check_network_annotations",
+        "module_scheme": "single",
         "name": "check_network_annotations",
         "script": "check_network_annotations.py"
       }

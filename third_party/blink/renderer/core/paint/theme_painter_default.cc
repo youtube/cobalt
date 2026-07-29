@@ -53,7 +53,6 @@
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/rect_conversions.h"
-#include "ui/native_theme/native_theme.h"
 
 namespace blink {
 
@@ -103,10 +102,11 @@ SkColor GetContrastingColorFor(const Element& element,
   switch (part) {
     case WebThemeEngine::kPartCheckbox:
     case WebThemeEngine::kPartRadio:
-      return is_disabled ? color_provider->GetColor(
-                               ui::kColorWebNativeControlBackgroundDisabled)
-                         : color_provider->GetColor(
-                               ui::kColorWebNativeControlBackground);
+      return is_disabled
+                 ? color_provider->GetColor(
+                       ui::kColorWebNativeControlCheckboxBackgroundDisabled)
+                 : color_provider->GetColor(
+                       ui::kColorWebNativeControlCheckboxBackground);
     case WebThemeEngine::kPartSliderTrack:
     case WebThemeEngine::kPartSliderThumb:
     case WebThemeEngine::kPartProgressBar:

@@ -180,7 +180,7 @@ class AutofillAgent : public content::RenderFrameObserver,
       uint32_t number_of_ancestor_levels_to_search,
       base::OnceCallback<void(const std::string&)> callback) override;
 
-  void ExposeDomNodeIDs() override;
+  void ExposeDomNodeIds() override;
   void FieldTypePredictionsAvailable(
       const std::vector<FormDataPredictions>& forms) override;
   // Besides cases that "actually" clear the form, this function needs to be
@@ -203,6 +203,9 @@ class AutofillAgent : public content::RenderFrameObserver,
   void GetPotentialLastFourCombinationsForStandaloneCvc(
       base::OnceCallback<void(const std::vector<std::string>&)>
           potential_matches) override;
+  void DispatchEmailVerifiedEvent(
+      FieldRendererId field_id,
+      const std::string& presentation_token) override;
 
   // Called after updating the last interacted element in FormTracker because of
   // `reason`. It is always the case that `form` or `element` are non-null. If

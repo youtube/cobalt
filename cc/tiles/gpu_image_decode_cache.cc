@@ -371,6 +371,8 @@ bool DrawAndScaleImageYUV(
 
 // Takes ownership of the backing texture of an SkImage. This allows us to
 // delete this texture under Skia (via discardable).
+// TODO(crbug.com/391648152): Remove this method entirely, as it is no longer
+// relevant post-OOP-C.
 sk_sp<SkImage> TakeOwnershipOfSkImageBacking(GrDirectContext* context,
                                              sk_sp<SkImage> image) {
   // If the image is not texture backed, it has no backing, just return it.
@@ -378,82 +380,9 @@ sk_sp<SkImage> TakeOwnershipOfSkImageBacking(GrDirectContext* context,
     return image;
   }
 
-  GrSurfaceOrigin origin;
-  SkImages::GetBackendTextureFromImage(
-      image, nullptr, false /* flushPendingGrContextIO */, &origin);
-  SkColorType color_type = image->colorType();
-  if (color_type == kUnknown_SkColorType) {
-    return nullptr;
-  }
-  sk_sp<SkColorSpace> color_space = image->refColorSpace();
-  GrBackendTexture backend_texture;
-  SkImages::BackendTextureReleaseProc release_proc;
-  SkImages::MakeBackendTextureFromImage(context, std::move(image),
-                                        &backend_texture, &release_proc);
-  return SkImages::BorrowTextureFrom(context, backend_texture, origin,
-                                     color_type, kPremul_SkAlphaType,
-                                     std::move(color_space));
-}
-
-// Immediately deletes an SkImage, preventing caching of that image. Must be
-// called while holding the context lock.
-void DeleteSkImageAndPreventCaching(viz::RasterContextProvider* context,
-                                    sk_sp<SkImage>&& image) {
-  // No need to do anything for a non-texture-backed images.
-  if (!image->isTextureBacked())
-    return;
-
-  sk_sp<SkImage> image_owned =
-      TakeOwnershipOfSkImageBacking(context->GrContext(), std::move(image));
-  // If context is lost, we may get a null image here.
-  if (image_owned) {
-    // Delete |original_image_owned| as Skia will not clean it up. We are
-    // holding the context lock here, so we can delete immediately.
-    uint32_t texture_id =
-        GpuImageDecodeCache::GlIdFromSkImage(image_owned.get());
-    context->RasterInterface()->DeleteGpuRasterTexture(texture_id);
-  }
-}
-
-// TODO(ericrk): Replace calls to this with calls to SkImages::TextureFromImage,
-// once that function handles colorspaces. https://crbug.com/834837
-sk_sp<SkImage> MakeTextureImage(viz::RasterContextProvider* context,
-                                sk_sp<SkImage> source_image,
-                                sk_sp<SkColorSpace> target_color_space,
-                                skgpu::Mipmapped mip_mapped) {
-  GrDirectContext* gr_context = context->GrContext();
-  CHECK(gr_context);
-  SkRecorder* recorder = gr_context->asRecorder();
-  // Step 1: Upload image and generate mips if necessary. If we will be applying
-  // a color-space conversion, don't generate mips yet, instead do it after
-  // conversion, in step 3.
-  bool add_mips_after_color_conversion =
-      (target_color_space && mip_mapped == skgpu::Mipmapped::kYes);
-  sk_sp<SkImage> uploaded_image = SkImages::TextureFromImage(
-      gr_context, source_image,
-      add_mips_after_color_conversion ? skgpu::Mipmapped::kNo : mip_mapped);
-
-  // Step 2: Apply a color-space conversion if necessary.
-  if (uploaded_image && target_color_space) {
-    sk_sp<SkImage> pre_converted_image = uploaded_image;
-    uploaded_image =
-        uploaded_image->makeColorSpace(recorder, target_color_space, {});
-
-    if (uploaded_image != pre_converted_image)
-      DeleteSkImageAndPreventCaching(context, std::move(pre_converted_image));
-  }
-
-  // Step 3: If we had a colorspace conversion, we couldn't mipmap in step 1, so
-  // add mips here.
-  if (uploaded_image && add_mips_after_color_conversion) {
-    sk_sp<SkImage> pre_mipped_image = uploaded_image;
-    uploaded_image = SkImages::TextureFromImage(gr_context, uploaded_image,
-                                                skgpu::Mipmapped::kYes);
-    DCHECK_NE(pre_mipped_image, uploaded_image);
-    DeleteSkImageAndPreventCaching(context, std::move(pre_mipped_image));
-  }
-
-  return uploaded_image;
+  // It is not possible to fulfill this operation post-OOP-C as `context` is
+  // always nullptr.
+  return nullptr;
 }
 
 // We use this below, instead of just a std::unique_ptr, so that we can run
@@ -2607,7 +2536,10 @@ void GpuImageDecodeCache::UploadImageIfNecessary(const DrawImage& draw_image,
 
   // Ensure the mip status is correct before returning the locked upload or
   // preparing to upload a new image.
-  UpdateMipsIfNeeded(draw_image, image_data);
+  if (!image_data->needs_mips) {
+    image_data->needs_mips = ShouldGenerateMips(
+        draw_image, AuxImage::kDefault, image_data->upload_scale_mip_level);
+  }
 
   // If we have uploaded data at this point, it is locked with correct mips,
   // just return.
@@ -2801,30 +2733,11 @@ void GpuImageDecodeCache::UploadImageIfNecessary_GpuCpu_YUVA(
   // Prevent image_data from being deleted while lock is not held.
   scoped_refptr<ImageData> image_data_holder(image_data);
 
-  // For kGpu, we upload and color convert (if necessary).
   if (image_data->mode == DecodedDataMode::kGpu) {
-    DCHECK(!use_transfer_cache_);
-    base::AutoUnlock unlock(lock_);
-    uploaded_y_image = SkImages::TextureFromImage(
-        context_->GrContext(), uploaded_y_image, image_needs_mips);
-    uploaded_u_image = SkImages::TextureFromImage(
-        context_->GrContext(), uploaded_u_image, image_needs_mips);
-    uploaded_v_image = SkImages::TextureFromImage(
-        context_->GrContext(), uploaded_v_image, image_needs_mips);
-    if (!uploaded_y_image || !uploaded_u_image || !uploaded_v_image) {
-      DLOG(WARNING) << "TODO(crbug.com/41329554): Context was lost. Early out.";
-      return;
-    }
-
-    int image_width = uploaded_y_image->width();
-    int image_height = uploaded_y_image->height();
-    uploaded_image = CreateImageFromYUVATexturesInternal(
-        uploaded_y_image.get(), uploaded_u_image.get(), uploaded_v_image.get(),
-        image_width, image_height,
-        image_data->info.yuva->yuvaInfo().planeConfig(),
-        image_data->info.yuva->yuvaInfo().subsampling(),
-        image_data->info.yuva->yuvaInfo().yuvColorSpace(), color_space,
-        decoded_color_space);
+    // This codepath is no longer supported post-OOP-R.
+    // TODO(crbug.com/391648152): Once `use_transfer_cache_` is always true,
+    // confirm that this entire method can be eliminated and do so.
+    return;
   }
 
   // At-raster may have decoded this while we were unlocked. If so, ignore our
@@ -2834,12 +2747,6 @@ void GpuImageDecodeCache::UploadImageIfNecessary_GpuCpu_YUVA(
       DCHECK(uploaded_y_image);
       DCHECK(uploaded_u_image);
       DCHECK(uploaded_v_image);
-      // We do not call DeleteSkImageAndPreventCaching for |uploaded_image|
-      // because calls to GetBackendTextureFromImage will flatten the YUV planes
-      // to an RGB texture only to immediately delete it.
-      DeleteSkImageAndPreventCaching(context_, std::move(uploaded_y_image));
-      DeleteSkImageAndPreventCaching(context_, std::move(uploaded_u_image));
-      DeleteSkImageAndPreventCaching(context_, std::move(uploaded_v_image));
     }
     return;
   }
@@ -2864,19 +2771,6 @@ void GpuImageDecodeCache::UploadImageIfNecessary_GpuCpu_YUVA(
   image_data->upload.SetYuvImage(std::move(uploaded_y_image),
                                  std::move(uploaded_u_image),
                                  std::move(uploaded_v_image));
-
-  // If we have a new GPU-backed image, initialize it for use in the GPU
-  // discardable system.
-  if (image_data->mode == DecodedDataMode::kGpu) {
-    // Notify the discardable system of the planes so they will count against
-    // budgets.
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_y_id());
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_u_id());
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_v_id());
-  }
 }
 
 void GpuImageDecodeCache::UploadImageIfNecessary_GpuCpu_RGBA(
@@ -2891,20 +2785,17 @@ void GpuImageDecodeCache::UploadImageIfNecessary_GpuCpu_RGBA(
   // Prevent image_data from being deleted while lock is not held.
   scoped_refptr<ImageData> image_data_holder(image_data);
 
+  // Following OOP-R, it is no longer possible to call this method with mode
+  // `kGpu`.
+  // TODO(crbug.com/391648152): Remove the kGpu mode entirely post-verification
+  // that it is no longer used.
+  CHECK(image_data->mode != DecodedDataMode::kGpu);
+
   // RGBX decoding is below.
-  // For kGpu, we upload and color convert (if necessary).
-  if (image_data->mode == DecodedDataMode::kGpu) {
-    DCHECK(!use_transfer_cache_);
-    base::AutoUnlock unlock(lock_);
-    uploaded_image = MakeTextureImage(context_, std::move(uploaded_image),
-                                      color_space, image_needs_mips);
-  }
 
   // At-raster may have decoded this while we were unlocked. If so, ignore our
   // result.
   if (image_data->upload.image()) {
-    if (uploaded_image)
-      DeleteSkImageAndPreventCaching(context_, std::move(uploaded_image));
     return;
   }
 
@@ -2923,15 +2814,6 @@ void GpuImageDecodeCache::UploadImageIfNecessary_GpuCpu_RGBA(
   }
 
   image_data->upload.SetImage(std::move(uploaded_image));
-
-  // If we have a new GPU-backed image, initialize it for use in the GPU
-  // discardable system.
-  if (image_data->mode == DecodedDataMode::kGpu) {
-    // Notify the discardable system of this image so it will count against
-    // budgets.
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_id());
-  }
 }
 
 scoped_refptr<GpuImageDecodeCache::ImageData>
@@ -3655,159 +3537,6 @@ sk_sp<SkImage> GpuImageDecodeCache::CreateImageFromYUVATexturesInternal(
   }
 
   return yuva_image;
-}
-
-void GpuImageDecodeCache::UpdateMipsIfNeeded(const DrawImage& draw_image,
-                                             ImageData* image_data) {
-  CheckContextLockAcquiredIfNecessary();
-  // If we already have mips, nothing to do.
-  if (image_data->needs_mips)
-    return;
-
-  bool needs_mips = ShouldGenerateMips(draw_image, AuxImage::kDefault,
-                                       image_data->upload_scale_mip_level);
-  if (!needs_mips)
-    return;
-
-  image_data->needs_mips = true;
-
-  // If we have no uploaded image, nothing to do other than update needs_mips.
-  // Mips will be generated during later upload.
-  if (!image_data->HasUploadedData() ||
-      image_data->mode != DecodedDataMode::kGpu)
-    return;
-
-  if (image_data->info.yuva.has_value()) {
-    // Need to generate mips. Take a reference on the planes we're about to
-    // delete, delaying deletion.
-    // TODO(crbug.com/40604431): Change after alpha support.
-    sk_sp<SkImage> previous_y_image = image_data->upload.y_image();
-    sk_sp<SkImage> previous_u_image = image_data->upload.u_image();
-    sk_sp<SkImage> previous_v_image = image_data->upload.v_image();
-
-    // Generate a new image from the previous, adding mips.
-    sk_sp<SkImage> image_y_with_mips = SkImages::TextureFromImage(
-        context_->GrContext(), previous_y_image, skgpu::Mipmapped::kYes);
-    sk_sp<SkImage> image_u_with_mips = SkImages::TextureFromImage(
-        context_->GrContext(), previous_u_image, skgpu::Mipmapped::kYes);
-    sk_sp<SkImage> image_v_with_mips = SkImages::TextureFromImage(
-        context_->GrContext(), previous_v_image, skgpu::Mipmapped::kYes);
-
-    // Handle lost context.
-    if (!image_y_with_mips || !image_u_with_mips || !image_v_with_mips) {
-      DLOG(WARNING) << "TODO(crbug.com/41329554): Context was lost. Early out.";
-      return;
-    }
-
-    // No need to do anything if mipping this image results in the same
-    // textures. Deleting it below will result in lifetime issues.
-    // We expect that if one plane mips the same, the others should as well.
-    if (GlIdFromSkImage(image_y_with_mips.get()) ==
-            image_data->upload.gl_y_id() &&
-        GlIdFromSkImage(image_u_with_mips.get()) ==
-            image_data->upload.gl_u_id() &&
-        GlIdFromSkImage(image_v_with_mips.get()) ==
-            image_data->upload.gl_v_id())
-      return;
-
-    // Skia owns our new image planes, take ownership.
-    sk_sp<SkImage> image_y_with_mips_owned = TakeOwnershipOfSkImageBacking(
-        context_->GrContext(), std::move(image_y_with_mips));
-    sk_sp<SkImage> image_u_with_mips_owned = TakeOwnershipOfSkImageBacking(
-        context_->GrContext(), std::move(image_u_with_mips));
-    sk_sp<SkImage> image_v_with_mips_owned = TakeOwnershipOfSkImageBacking(
-        context_->GrContext(), std::move(image_v_with_mips));
-
-    // Handle lost context
-    if (!image_y_with_mips_owned || !image_u_with_mips_owned ||
-        !image_v_with_mips_owned) {
-      DLOG(WARNING) << "TODO(crbug.com/41329554): Context was lost. Early out.";
-      return;
-    }
-
-    int width = image_y_with_mips_owned->width();
-    int height = image_y_with_mips_owned->height();
-    sk_sp<SkColorSpace> color_space =
-        SupportsColorSpaceConversion() &&
-                draw_image.target_color_space().IsValid()
-            ? draw_image.target_color_space().ToSkColorSpace()
-            : nullptr;
-    sk_sp<SkColorSpace> upload_color_space =
-        ColorSpaceForImageDecode(draw_image, image_data->mode);
-    sk_sp<SkImage> yuv_image_with_mips_owned =
-        CreateImageFromYUVATexturesInternal(
-            image_y_with_mips_owned.get(), image_u_with_mips_owned.get(),
-            image_v_with_mips_owned.get(), width, height,
-            image_data->info.yuva->yuvaInfo().planeConfig(),
-            image_data->info.yuva->yuvaInfo().subsampling(),
-            image_data->info.yuva->yuvaInfo().yuvColorSpace(), color_space,
-            upload_color_space);
-    // In case of lost context
-    if (!yuv_image_with_mips_owned) {
-      DLOG(WARNING) << "TODO(crbug.com/41329554): Context was lost. Early out.";
-      return;
-    }
-
-    // The previous images might be in the in-use cache, potentially held
-    // externally. We must defer deleting them until the entry is unlocked.
-    image_data->upload.set_unmipped_image(image_data->upload.image());
-    image_data->upload.set_unmipped_yuv_images(image_data->upload.y_image(),
-                                               image_data->upload.u_image(),
-                                               image_data->upload.v_image());
-
-    // Set the new image on the cache.
-    image_data->upload.Reset();
-    image_data->upload.SetImage(std::move(yuv_image_with_mips_owned));
-    image_data->upload.SetYuvImage(std::move(image_y_with_mips_owned),
-                                   std::move(image_u_with_mips_owned),
-                                   std::move(image_v_with_mips_owned));
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_y_id());
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_u_id());
-    context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-        image_data->upload.gl_v_id());
-    return;  // End YUV mip mapping.
-  }
-  // Begin RGBX mip mapping.
-  // Need to generate mips. Take a reference on the image we're about to
-  // delete, delaying deletion.
-  sk_sp<SkImage> previous_image = image_data->upload.image();
-
-  // Generate a new image from the previous, adding mips.
-  sk_sp<SkImage> image_with_mips = SkImages::TextureFromImage(
-      context_->GrContext(), previous_image, skgpu::Mipmapped::kYes);
-
-  // Handle lost context.
-  if (!image_with_mips) {
-    DLOG(WARNING) << "TODO(crbug.com/41329554): Context was lost. Early out.";
-    return;
-  }
-
-  // No need to do anything if mipping this image results in the same texture.
-  // Deleting it below will result in lifetime issues.
-  if (GlIdFromSkImage(image_with_mips.get()) == image_data->upload.gl_id())
-    return;
-
-  // Skia owns our new image, take ownership.
-  sk_sp<SkImage> image_with_mips_owned = TakeOwnershipOfSkImageBacking(
-      context_->GrContext(), std::move(image_with_mips));
-
-  // Handle lost context
-  if (!image_with_mips_owned) {
-    DLOG(WARNING) << "TODO(crbug.com/41329554): Context was lost. Early out.";
-    return;
-  }
-
-  // The previous image might be in the in-use cache, potentially held
-  // externally. We must defer deleting it until the entry is unlocked.
-  image_data->upload.set_unmipped_image(image_data->upload.image());
-
-  // Set the new image on the cache.
-  image_data->upload.Reset();
-  image_data->upload.SetImage(std::move(image_with_mips_owned));
-  context_->RasterInterface()->InitializeDiscardableTextureCHROMIUM(
-      image_data->upload.gl_id());
 }
 
 // static

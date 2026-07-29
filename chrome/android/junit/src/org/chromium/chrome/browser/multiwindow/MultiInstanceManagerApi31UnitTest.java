@@ -39,7 +39,6 @@ import android.util.Pair;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 
-import org.chromium.base.FeatureOverrides;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -60,6 +59,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.FakeTimeTestRule;
+import org.chromium.base.FeatureOverrides;
 import org.chromium.base.Token;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -102,9 +102,12 @@ import org.chromium.chrome.test.util.browser.tabmodel.MockTabModelSelector;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
+import org.chromium.components.messages.MessageBannerProperties;
 import org.chromium.components.messages.MessageDispatcher;
+import org.chromium.components.messages.MessageIdentifier;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.util.XrUtils;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
@@ -121,6 +124,7 @@ import java.util.function.Supplier;
 /** Unit tests for {@link MultiInstanceManagerApi31}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
 public class MultiInstanceManagerApi31UnitTest {
     private static final int INSTANCE_ID_1 = 1;
     private static final int INSTANCE_ID_2 = 2;
@@ -224,6 +228,7 @@ public class MultiInstanceManagerApi31UnitTest {
         private final Set<Integer> mAppTaskIds = new HashSet<>();
 
         private Activity mAdjacentInstance;
+        private Intent mReparentingTabsIntent;
 
         // To save instances info, if desired by the test.
         protected boolean mTestBuildInstancesList;
@@ -350,10 +355,16 @@ public class MultiInstanceManagerApi31UnitTest {
                 List<Tab> tabs,
                 Intent intent,
                 @Nullable Bundle startActivityOptions,
-                @Nullable Runnable finalizeCallback) {}
+                @Nullable Runnable finalizeCallback) {
+            mReparentingTabsIntent = intent;
+        }
 
         @Override
         void beginReparentingTabGroup(TabGroupMetadata tabGroupMetadata, Intent intent) {}
+
+        Intent getReparentingTabsIntent() {
+            return mReparentingTabsIntent;
+        }
     }
 
     @Before
@@ -1265,7 +1276,7 @@ public class MultiInstanceManagerApi31UnitTest {
                         eq(Collections.singletonList(mTab1)),
                         eq(INVALID_WINDOW_ID),
                         eq(true),
-                        eq(false),
+                        eq(true),
                         eq(true));
     }
 
@@ -1278,7 +1289,7 @@ public class MultiInstanceManagerApi31UnitTest {
 
         verify(mMultiInstanceManager, times(1))
                 .moveAndReparentTabsToNewWindow(
-                        eq(tabs), eq(INVALID_WINDOW_ID), eq(true), eq(false), eq(true));
+                        eq(tabs), eq(INVALID_WINDOW_ID), eq(true), eq(true), eq(true));
     }
 
     @Test
@@ -1294,8 +1305,98 @@ public class MultiInstanceManagerApi31UnitTest {
                         eq(mTabGroupMetadata),
                         eq(INVALID_WINDOW_ID),
                         eq(true),
-                        eq(false),
+                        eq(true),
                         eq(true));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
+    public void testMoveTabsToNewWindow_opensAdjacently_WithRobustWindowManagementExperimental() {
+        setupTwoInstances();
+        List<Tab> tabs = List.of(mTab1, mTab2);
+
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                true);
+
+        when(mCurrentActivity.isInMultiWindowMode()).thenReturn(false);
+
+        mMultiInstanceManager.moveTabsToNewWindow(tabs);
+
+        Intent intent = mMultiInstanceManager.getReparentingTabsIntent();
+        assertNotEquals("Intent should not be null.", null, intent);
+        int flags = intent.getFlags();
+        assertTrue(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should be set.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
+    public void testMoveTabsToNewWindow_opensFullScreen_WithRobustWindowManagementExperimental() {
+        setupTwoInstances();
+        List<Tab> tabs = List.of(mTab1, mTab2);
+
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                false);
+
+        mMultiInstanceManager.moveTabsToNewWindow(tabs);
+
+        Intent intent = mMultiInstanceManager.getReparentingTabsIntent();
+        assertNotEquals("Intent should not be null.", null, intent);
+        int flags = intent.getFlags();
+        assertFalse(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should not be set.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
+    public void testOpenInstance_opensAdjacently_WithRobustWindowManagementExperimental() {
+        setupTwoInstances();
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                true);
+        when(mCurrentActivity.getPackageName())
+                .thenReturn(ContextUtils.getApplicationContext().getPackageName());
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+
+        mMultiInstanceManager.openInstance(INSTANCE_ID_2, INVALID_TASK_ID);
+
+        verify(mCurrentActivity).startActivity(intentCaptor.capture());
+        Intent intent = intentCaptor.getValue();
+        assertNotEquals("Intent should not be null.", null, intent);
+        int flags = intent.getFlags();
+        assertTrue(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should be set.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL)
+    public void testOpenInstance_opensFullScreen_WithRobustWindowManagementExperimental() {
+        setupTwoInstances();
+        FeatureOverrides.overrideParam(
+                ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT_EXPERIMENTAL,
+                MultiWindowUtils.OPEN_ADJACENTLY_PARAM,
+                false);
+        when(mCurrentActivity.getPackageName())
+                .thenReturn(ContextUtils.getApplicationContext().getPackageName());
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+
+        mMultiInstanceManager.openInstance(INSTANCE_ID_2, INVALID_TASK_ID);
+
+        verify(mCurrentActivity).startActivity(intentCaptor.capture());
+        Intent intent = intentCaptor.getValue();
+        assertNotEquals("Intent should not be null.", null, intent);
+        int flags = intent.getFlags();
+        assertFalse(
+                "FLAG_ACTIVITY_LAUNCH_ADJACENT should not be set.",
+                (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
     }
 
     @Test
@@ -2059,5 +2160,20 @@ public class MultiInstanceManagerApi31UnitTest {
         assertTrue(
                 "FLAG_ACTIVITY_LAUNCH_ADJACENT should not be removed.",
                 (flags & Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT) != 0);
+    }
+
+    @Test
+    public void showInstanceCreationLimitMessage() {
+        var messageDispatcher = mock(MessageDispatcher.class);
+        when(mCurrentActivity.getResources()).thenReturn(mock(Resources.class));
+
+        mMultiInstanceManager.showInstanceCreationLimitMessage(messageDispatcher);
+
+        ArgumentCaptor<PropertyModel> message = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(messageDispatcher).enqueueWindowScopedMessage(message.capture(), eq(false));
+        assertEquals(
+                "Message identifier should match.",
+                MessageIdentifier.MULTI_INSTANCE_CREATION_LIMIT,
+                message.getValue().get(MessageBannerProperties.MESSAGE_IDENTIFIER));
     }
 }

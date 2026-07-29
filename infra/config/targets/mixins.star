@@ -618,11 +618,7 @@ targets.mixin(
 
         # Tests using the default gaia pool cannot be run by public builders.
         # These variables are fed by private bundles, thus not for public builders.
-        "maybemissingvars=ui\\.(gaiaPoolDefault|signinProfileTestExtensionManifestKey)|uidetection\\.(key|key_type|server)",
-
-        # Use "hash" method to shrding of test tests. This should balance the
-        # execution time among shards in a better way.
-        "shard_method=hash",
+        "-maybemissingvars=ui\\.(gaiaPoolDefault|signinProfileTestExtensionManifestKey)|uidetection\\.(key|key_type|server)",
     ],
 )
 
@@ -1798,7 +1794,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "arm64",
-            "os": "Mac-15.5",
+            "os": "Mac-15",
         },
     ),
 )
@@ -1932,7 +1928,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "arm64",
-            "os": "Mac-15.5",
+            "os": "Mac-15",
         },
     ),
 )
@@ -1943,7 +1939,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "x86-64",
-            "os": "Mac-15.5",
+            "os": "Mac-15",
         },
     ),
 )
@@ -2389,6 +2385,18 @@ targets.mixin(
     ),
 )
 
+# Common options for gathering code coverage or other FYI data. Run all tests
+# exactly once, and don't fail the suite for unexpected results.
+targets.mixin(
+    name = "web-test-coverage",
+    generate_pyl_entry = False,
+    args = [
+        "--skipped=ignore",
+        "--no-retry-failures",
+        "--no-expectations",
+    ],
+)
+
 targets.mixin(
     name = "web-test-leak",
     generate_pyl_entry = False,
@@ -2763,12 +2771,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17a321",
+        "17a324",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a321",
+                name = "xcode_ios_17a324",
                 path = "Xcode.app",
             ),
         ],
@@ -2779,12 +2787,12 @@ targets.mixin(
     name = "xcode_26_main",
     args = [
         "--xcode-build-version",
-        "17a321",
+        "17a324",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a321",
+                name = "xcode_ios_17a324",
                 path = "Xcode.app",
             ),
         ],

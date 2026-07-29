@@ -150,15 +150,19 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   } else {
     config.features_enabled_and_params.push_back({kEnableReaderMode, {}});
   }
-  if ([self isRunningTest:@selector
-            (DISABLED_testTurnOnReaderModeViaPageActionMenu)] ||
-      [self isRunningTest:@selector
-            (DISABLED_testReaderModeChipShowsAIHubIfAvailable)]) {
+  if ([self isRunningTest:@selector(testTurnOnReaderModeViaPageActionMenu)] ||
+      [self isRunningTest:@selector(testReaderModeChipShowsAIHubIfAvailable)]) {
     config.features_enabled_and_params.push_back({kPageActionMenu, {}});
     config.features_enabled_and_params.push_back(
         {kLensOverlayEnableIPadCompatibility, {}});
   } else {
     config.features_disabled.push_back(kPageActionMenu);
+  }
+  if ([self isRunningTest:@selector(testOmniboxEntryPointDisabled)]) {
+    config.features_disabled.push_back(kEnableReaderModeOmniboxEntryPoint);
+  } else {
+    config.features_enabled_and_params.push_back(
+        {kEnableReaderModeOmniboxEntryPoint, {}});
   }
   return config;
 }
@@ -969,8 +973,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
 }
 
 // Tests that the user can turn on Reader Mode from the page action menu.
-// TODO(crbug.com/444615386): Re-enable the test.
-- (void)DISABLED_testTurnOnReaderModeViaPageActionMenu {
+- (void)testTurnOnReaderModeViaPageActionMenu {
   [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
   [ChromeEarlGrey waitForPageToFinishLoading];
 
@@ -1010,8 +1013,7 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
 
 // Tests that tapping the Reader mode chip shows the AI hub bottom sheet if AI
 // hub is available.
-// TODO(crbug.com/444615386): Re-enable the test.
-- (void)DISABLED_testReaderModeChipShowsAIHubIfAvailable {
+- (void)testReaderModeChipShowsAIHubIfAvailable {
   [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
   [ChromeEarlGrey waitForPageToFinishLoading];
 
@@ -1233,6 +1235,26 @@ id<GREYMatcher> VisibleContextMenuItem(int message_id) {
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kReaderModeChipViewAccessibilityIdentifier)];
+}
+
+// Tests that the killswitch to disable the omnibox entrypoint does not
+// interfere with other Reading Mode entrypoints.
+- (void)testOmniboxEntryPointDisabled {
+  // TODO(crbug.com/445861550): Re-enable the test on device.
+#if !TARGET_OS_SIMULATOR
+  EARL_GREY_TEST_DISABLED(@"Test disabled on device.");
+#endif
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/article.html")];
+  [ChromeEarlGrey waitForPageToFinishLoading];
+
+  // Verify that the omnibox entrypoint is disabled and the tools menu
+  // entrypoint is still available.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(
+                                   kReaderModeChipViewAccessibilityIdentifier)]
+      assertWithMatcher:grey_hidden(YES)];
+  [self assertReaderModeInToolsMenuWithMatcher:
+            grey_not(grey_accessibilityTrait(UIAccessibilityTraitNotEnabled))];
 }
 
 @end

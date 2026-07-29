@@ -549,7 +549,7 @@ void Widget::Init(InitParams params) {
   if (RequiresNonClientView(type)) {
     non_client_view_ =
         new NonClientView(widget_delegate_->CreateClientView(this));
-    non_client_view_->SetFrameView(CreateNonClientFrameView());
+    non_client_view_->SetFrameView(CreateFrameView());
     non_client_view_->SetOverlayView(widget_delegate_->CreateOverlayView());
 
     // Bypass the layout that happens in Widget::SetContentsView().
@@ -926,7 +926,6 @@ void Widget::CloseWithReason(ClosedReason closed_reason) {
   // added logic into this class, rather than modifying the client to not call
   // Close().
   if (override_close_) {
-    base::WeakPtr<Widget> weak_this = weak_ptr_factory_.GetWeakPtr();
     std::move(override_close_).Run(closed_reason);
     return;
   }
@@ -1492,17 +1491,16 @@ void Widget::ClearNativeFocus() {
   }
 }
 
-std::unique_ptr<NonClientFrameView> Widget::CreateNonClientFrameView() {
+std::unique_ptr<FrameView> Widget::CreateFrameView() {
   if (!native_widget_) {
     return nullptr;
   }
-  auto frame_view = widget_delegate_->CreateNonClientFrameView(this);
+  auto frame_view = widget_delegate_->CreateFrameView(this);
   if (!frame_view) {
-    frame_view = native_widget_->CreateNonClientFrameView();
+    frame_view = native_widget_->CreateFrameView();
   }
   if (!frame_view) {
-    frame_view =
-        ViewsDelegate::GetInstance()->CreateDefaultNonClientFrameView(this);
+    frame_view = ViewsDelegate::GetInstance()->CreateDefaultFrameView(this);
   }
   CHECK(frame_view);
   return frame_view;
@@ -1710,12 +1708,6 @@ void Widget::NotifyPaintAsActiveChanged() {
 }
 
 void Widget::SetNativeTheme(ui::NativeTheme* native_theme) {
-  // If `native_theme_` has been set for testing ensure the theme instance is
-  // not reset.
-  if (native_theme_set_for_testing_) {
-    return;
-  }
-
   const bool is_update = native_theme_ && (native_theme_ != native_theme);
   native_theme_ = native_theme;
   native_theme_observation_.Reset();
@@ -1950,7 +1942,19 @@ void Widget::OnNativeWidgetDestroyed() {
   // Mark the widget as closed so that DeleteDelegate() won't call
   // InvalidateLayout().
   widget_closed_ = true;
+  // HandleWidgetDestroyed() may cause the destruction of `this`. Save `this`
+  // as a WeakPtr in order to later check whether `this` has been destroyed.
+  auto weak_this = GetWeakPtr();
   HandleWidgetDestroyed();
+  // The following will ensure that a Widget is always destroyed synchronously
+  // along with the NativeWidget even if the NativeWidget is being destroyed by
+  // a parent Widget or the platform. If `override_close_` is set, the client
+  // is intending to make the closing process synchronous. If the callback
+  // does not reset the Widget, the Widget will be left in a closed, zombie-like
+  // state. It is strongly recommended to reset the Widget within the callback.
+  if (weak_this && override_close_) {
+    std::move(override_close_).Run(ClosedReason::kUnspecified);
+  }
 }
 
 void Widget::OnNativeWidgetParentChanged(gfx::NativeView parent) {

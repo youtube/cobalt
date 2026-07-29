@@ -61,9 +61,6 @@ _TEST_APK_AS_INSTANT_ARG = '--test-apk-as-instant'
 _USE_WEBVIEW_PROVIDER_ARG = '--use-webview-provider'
 
 SDK_PLATFORM_DICT = {
-    version_codes.OREO: 'O',
-    version_codes.OREO_MR1: 'O',
-    version_codes.PIE: 'P',
     version_codes.Q: 'Q',
     version_codes.R: 'R',
     version_codes.S: 'S',
@@ -504,7 +501,12 @@ def GetTemporaryRunTimeDepsFile(known_args):
 
 
 def main():
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(epilog='''
+      repeat:
+        The --repeat flag can be used to run the test suite multiple times.
+        A value of 0 (the default) means the suite will be run once.
+        A value of N > 0 means the suite will be run N+1 times.
+      ''')
   parser.add_argument(
       '--arch',
       choices=list(set(_SUPPORTED_ARCH_DICT.values())),

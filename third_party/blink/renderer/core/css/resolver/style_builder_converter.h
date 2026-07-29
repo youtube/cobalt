@@ -162,6 +162,8 @@ class StyleBuilderConverter {
   static scoped_refptr<FontVariationSettings> ConvertFontVariationSettings(
       const StyleResolverState&,
       const CSSValue&);
+  static AtomicString ConvertFontLanguageOverride(StyleResolverState&,
+                                                  const CSSValue&);
   static scoped_refptr<FontPalette> ConvertFontPalette(
       StyleResolverState& state,
       const CSSValue& value);
@@ -221,6 +223,8 @@ class StyleBuilderConverter {
   static StyleHyphenateLimitChars ConvertHyphenateLimitChars(
       StyleResolverState&,
       const CSSValue&);
+  static StyleInterestDelay ConvertInterestDelayValue(const StyleResolverState&,
+                                                      const CSSValue&);
   template <typename T>
   static T ConvertLineWidth(StyleResolverState&, const CSSValue&);
   static int ConvertBorderWidth(const StyleResolverState&, const CSSValue&);

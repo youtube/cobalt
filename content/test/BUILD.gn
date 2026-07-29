@@ -1900,8 +1900,8 @@ test("content_browsertests") {
     "//components/fingerprinting_protection_filter/interventions/common:features",
     "//components/history/core/browser:features",
     "//components/input",
-    "//components/metrics/dwa",
     "//components/metrics/dwa:dwa_builders",
+    "//components/metrics/private_metrics",
     "//components/network_session_configurator/common",
     "//components/os_crypt/async/browser:key_provider_interface",
     "//components/os_crypt/async/browser:test_support",
@@ -2926,6 +2926,7 @@ test("content_unittests") {
     "../browser/tracing/trace_report_database_unittest.cc",
     "../browser/tracing/traces_internals/traces_internals_handler_unittest.cc",
     "../browser/tracing/tracing_scenario_unittest.cc",
+    "../browser/url_loader_factory_params_helper_unittest.cc",
     "../browser/usb/web_usb_service_impl_unittest.cc",
     "../browser/web_contents/aura/gesture_nav_simple_unittest.cc",
     "../browser/web_contents/file_chooser_impl_unittest.cc",
@@ -2947,6 +2948,7 @@ test("content_unittests") {
     "../browser/webid/config_fetcher_unittest.cc",
     "../browser/webid/delegation/dns_request_unittest.cc",
     "../browser/webid/delegation/email_verification_request_unittest.cc",
+    "../browser/webid/delegation/email_verifier_impl_unittest.cc",
     "../browser/webid/delegation/jwt_signer_unittest.cc",
     "../browser/webid/delegation/sd_jwt_unittest.cc",
     "../browser/webid/disconnect_request_unittest.cc",
@@ -3201,7 +3203,7 @@ test("content_unittests") {
     "//components/cbor",
     "//components/fingerprinting_protection_filter/interventions/common:features",
     "//components/input",
-    "//components/metrics/dwa",
+    "//components/metrics/private_metrics",
     "//components/network_session_configurator/browser",
     "//components/network_session_configurator/common",
     "//components/offline_pages/buildflags",
@@ -3425,15 +3427,24 @@ test("content_unittests") {
     if (!is_android && !is_ios) {
       deps += [
         "//content/common:buildflags",
-        "//media/capture:test_support",
         "//third_party/libyuv",
         "//third_party/webrtc_overrides:webrtc_component",
       ]
       sources += [
-        "../browser/media/capture/desktop_capture_device_unittest.cc",
         "../browser/media/captured_surface_controller_permission_manager_unittest.cc",
         "../browser/media/captured_surface_controller_unittest.cc",
       ]
+    }
+
+    if (!is_ios) {
+      deps += [ "//media/capture:test_support" ]
+      sources +=
+          [ "../browser/media/capture/desktop_capture_device_unittest.cc" ]
+    }
+
+    if (is_android) {
+      sources +=
+          [ "../browser/media/capture/desktop_capturer_android_unittest.cc" ]
     }
   }
 

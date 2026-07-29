@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/observer_list.h"
 #include "base/uuid.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/keyed_service/core/keyed_service.h"
@@ -20,6 +21,34 @@ namespace contextual_tasks {
 // See `ContextualTask` for more information on what a task is.
 class ContextualTasksService : public KeyedService {
  public:
+  // Whether a task was updated by  a change in the local or remote client.
+  enum class TriggerSource {
+    kUnown,
+    kLocal,
+    kRemote,
+  };
+
+  // Observers observing updates to the ContextualTask data which can be
+  // originated by either the local or remote clients.
+  class Observer : public base::CheckedObserver {
+   public:
+    // The service is about to be destroyed. Ensures observers have a chance to
+    // remove references before service destruction.
+    virtual void OnWillBeDestroyed() {}
+
+    // A new task was added at the given |source|.
+    virtual void OnTaskAdded(const ContextualTask& task, TriggerSource source) {
+    }
+
+    // An existing task was updated at the given |source|.
+    virtual void OnTaskUpdated(const ContextualTask& group,
+                               TriggerSource source) {}
+
+    // A task identifierd by `task_id` was removed.
+    virtual void OnTaskRemoved(const base::Uuid& task_id,
+                               TriggerSource source) {}
+  };
+
   ContextualTasksService();
   ~ContextualTasksService() override;
 
@@ -31,16 +60,14 @@ class ContextualTasksService : public KeyedService {
   virtual void DeleteTask(const base::Uuid& task_id) = 0;
 
   // Methods related to server-side conversations.
-  // When assigning a server ID to a task_id that does not have a registered
+  // When assigning a thread to a task_id that does not have a registered
   // task, the ContextualTask is created on the fly. We do not automatically
-  // create tasks when removing server IDs.
-  virtual void AssignServerIdToTask(const base::Uuid& task_id,
-                                    ChatType type,
-                                    const std::string& server_id,
-                                    const std::string& title) = 0;
-  virtual void RemoveServerIdFromTask(const base::Uuid& task_id,
-                                      ChatType type,
-                                      const std::string& server_id) = 0;
+  // create tasks when removing threads.
+  virtual void AddThreadToTask(const base::Uuid& task_id,
+                               const Thread& thread) = 0;
+  virtual void RemoveThreadFromTask(const base::Uuid& task_id,
+                                    ThreadType type,
+                                    const std::string& server_id) = 0;
 
   // Methods related to attaching URLs to tasks.
   virtual void AttachUrlToTask(const base::Uuid& task_id, const GURL& url) = 0;
@@ -54,6 +81,10 @@ class ContextualTasksService : public KeyedService {
                                        SessionID session_id) = 0;
   virtual std::optional<ContextualTask> GetMostRecentContextualTaskForSessionID(
       SessionID session_id) const = 0;
+
+  // Add / remove observers.
+  virtual void AddObserver(Observer* observer) = 0;
+  virtual void RemoveObserver(Observer* observer) = 0;
 };
 
 }  // namespace contextual_tasks

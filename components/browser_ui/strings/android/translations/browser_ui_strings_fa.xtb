@@ -14,7 +14,7 @@
 <translation id="1085696779717592361">‏استفاده از Chrome به‌طور پیش‌فرض</translation>
 <translation id="1178015372320901893">برگ زیرین میان‌برهای من</translation>
 <translation id="1178581264944972037">مکث</translation>
-<translation id="1181037720776840403">حذف</translation>
+<translation id="1181037720776840403">برداشتن</translation>
 <translation id="1192844206376121885">با این کار همه داده‌ها و کوکی‌های ذخیره‌شده توسط <ph name="ORIGIN" /> حذف می‌شود.</translation>
 <translation id="1201402288615127009">بعدی</translation>
 <translation id="1240190568154816272">‏نکته‌های Chrome</translation>
@@ -448,7 +448,6 @@
 <translation id="5968921426641056619">نشانی وب را وارد کنید</translation>
 <translation id="5975083100439434680">دورنمایی کردن</translation>
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
-<translation id="5998071268779572583">روشن کردن فید یافته‌ها</translation>
 <translation id="6012967556075291653">میان‌بر سنجاق‌شده</translation>
 <translation id="6015775454662021376">کنترل کردن دسترسی این سایت به دستگاه</translation>
 <translation id="6040143037577758943">بستن</translation>

@@ -26,6 +26,7 @@ class WebContents;
 
 struct AccountInfo;
 class Browser;
+class SigninUIError;
 
 // Outcome of the interception heuristic (decision whether the interception
 // bubble is shown or not).
@@ -88,8 +89,10 @@ enum class SigninInterceptionHeuristicOutcome {
   // This is not the first account in the identity manager but there is no
   // primary account.
   kAbortNotFirstAccountButNoPrimaryAccount = 21,
+  // The profile management disclaimer service is already handling an account.
+  kAbortDisclaimerServiceInProgress = 22,
 
-  kMaxValue = kAbortNotFirstAccountButNoPrimaryAccount,
+  kMaxValue = kAbortDisclaimerServiceInProgress,
 };
 
 // Returns whether the heuristic outcome is a success (the signin should be
@@ -220,6 +223,9 @@ class WebSigninInterceptor {
         Browser* browser,
         const CoreAccountId& account_id,
         SigninInterceptionType interception_type) = 0;
+
+    virtual void ShowSigninError(content::WebContents* web_contents,
+                                 const SigninUIError& error) = 0;
   };
 
   WebSigninInterceptor(const WebSigninInterceptor&) = delete;

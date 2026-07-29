@@ -10,6 +10,7 @@
 #include "base/test/task_environment.h"
 #include "components/viz/common/resources/release_callback.h"
 #include "components/viz/test/test_gles2_interface.h"
+#include "components/viz/test/test_raster_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
@@ -64,19 +65,17 @@ scoped_refptr<StaticBitmapImage> CreateBitmap(
 class AcceleratedStaticBitmapImageTest : public Test {
  public:
   void SetUp() override {
-    auto gl = std::make_unique<MockGLES2InterfaceWithSyncTokenSupport>();
-    gl_ = gl.get();
-    context_provider_ = viz::TestContextProvider::Create(std::move(gl));
-    InitializeSharedGpuContextGLES2(context_provider_.get());
+    context_provider_ = viz::TestContextProvider::CreateRaster();
+    context_provider_->UnboundTestRasterInterface()->set_gpu_rasterization(
+        true);
+    InitializeSharedGpuContextRaster(context_provider_.get());
   }
   void TearDown() override {
-    gl_ = nullptr;
     SharedGpuContext::Reset();
   }
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  raw_ptr<MockGLES2InterfaceWithSyncTokenSupport> gl_;
   scoped_refptr<viz::TestContextProvider> context_provider_;
 };
 
@@ -94,7 +93,6 @@ TEST_F(AcceleratedStaticBitmapImageTest, CopyToTextureSynchronization) {
 
   MockGLES2InterfaceWithSyncTokenSupport destination_gl;
 
-  testing::Mock::VerifyAndClearExpectations(gl_);
   testing::Mock::VerifyAndClearExpectations(&destination_gl);
 
   InSequence s;  // Indicate to gmock that order of EXPECT_CALLs is important
@@ -121,7 +119,6 @@ TEST_F(AcceleratedStaticBitmapImageTest, CopyToTextureSynchronization) {
       /*dest_level=*/0, kUnpremul_SkAlphaType, kTopLeft_GrSurfaceOrigin,
       dest_point, source_sub_rectangle));
 
-  testing::Mock::VerifyAndClearExpectations(&gl_);
   testing::Mock::VerifyAndClearExpectations(&destination_gl);
 
   // Final wait is postponed until destruction.

@@ -1579,6 +1579,19 @@ void PaymentsDataManager::CleanupForCrbug411681430() {
   Refresh();
 }
 
+#if BUILDFLAG(IS_IOS)
+void PaymentsDataManager::CleanupForCrbug445879524() {
+  if (!GetLocalDatabase()) {
+    return;
+  }
+
+  GetLocalDatabase()->CleanupForCrbug445879524();
+
+  // Refresh our local cache and send notifications to observers.
+  Refresh();
+}
+#endif  // BUILDFLAG(IS_IOS)
+
 void PaymentsDataManager::ClearAllServerDataForTesting() {
   // This could theoretically be called before we get the data back from the
   // database on startup, and it could get called when the wallet pref is
@@ -1802,6 +1815,11 @@ bool PaymentsDataManager::ShouldSuggestServerPaymentMethods() const {
 
   // Server payment methods should be suggested if the sync service is active.
   return sync_service_->GetActiveDataTypes().Has(syncer::AUTOFILL_WALLET_DATA);
+}
+
+base::WeakPtr<const PaymentsDataManager> PaymentsDataManager::GetWeakPtr()
+    const {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void PaymentsDataManager::LoadCreditCards() {

@@ -264,6 +264,9 @@ class GlicMetrics {
   // lifetime of the web client is scoped to that of the window, so if these
   // methods are called then controller_ is guaranteed to exist.
   void OnUserInputSubmitted(mojom::WebClientMode mode);
+  void OnContextUploadStarted();
+  void OnContextUploadCompleted();
+  void OnReaction(mojom::MetricUserInputReactionType reaction_type);
   void OnResponseStarted();
   void OnResponseStopped(mojom::ResponseStopCause cause);
   void OnSessionTerminated();
@@ -373,9 +376,23 @@ class GlicMetrics {
   base::TimeTicks fre_accepted_time_;
 
   // These members are cleared in OnResponseStopped.
-  base::TimeTicks input_submitted_time_;
+  struct TurnInfo {
+    base::TimeTicks input_submitted_time_;
+    // Set to true in OnResponseStarted() and set to false in
+    // OnResponseStopped(). This is a workaround and should be removed, see
+    // crbug.com/399151164.
+    bool response_started_ = false;
+    bool did_request_context_ = false;
+    bool reported_reaction_time_canned_ = false;
+    bool reported_reaction_time_modelled_ = false;
+    // The source id at the time context is requested. If context
+    // was not requested then this is `no_url_source_id_`.
+    ukm::SourceId source_id_ = ukm::NoURLSourceId();
+  };
+
+  TurnInfo turn_;
+
   mojom::WebClientMode input_mode_;
-  bool did_request_context_ = false;
   std::set<mojom::WebClientMode> inputs_modes_used_;
   int attach_change_count_ = 0;
 
@@ -395,12 +412,6 @@ class GlicMetrics {
   // Used to record metrics about the glic window size.
   base::RepeatingTimer glic_window_size_timer_;
 
-  // A context-free source id used when no web contents is targeted.
-  ukm::SourceId no_url_source_id_ = ukm::NoURLSourceId();
-  // The source id at the time context is requested. If context was not
-  // requested then this is `no_url_source_id_`.
-  ukm::SourceId source_id_ = ukm::NoURLSourceId();
-
   // The owner of this class is responsible for maintaining appropriate lifetime
   // for controller_.
   std::unique_ptr<Delegate> delegate_;
@@ -410,10 +421,6 @@ class GlicMetrics {
   // Whether Glic is enabled and FRE has been completed. Tracked to trigger
   // metric(s) on change.
   bool is_enabled_ = false;
-
-  // Set to true in OnResponseStarted() and set to false in OnResponseStopped().
-  // This is a workaround and should be removed, see crbug.com/399151164.
-  bool response_started_ = false;
 
   std::vector<base::CallbackListSubscription> subscriptions_;
 
@@ -446,6 +453,8 @@ class GlicMetrics {
   // is finished, so it can be used to attribute events that happen after the
   // response has completed to the input mode that triggered them.
   mojom::WebClientMode last_input_mode_ = mojom::WebClientMode::kUnknown;
+
+  std::optional<base::TimeTicks> last_upload_start_time_;
 
   std::unique_ptr<internal::BrowserActivityObserver> browser_activity_observer_;
 };

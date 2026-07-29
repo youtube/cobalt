@@ -17,11 +17,23 @@ BASE_DECLARE_FEATURE(kEnhancedCalendar);
 // Returns true if enhanced calendar is enabled.
 bool IsEnhancedCalendarEnabled();
 
+// Feature flag controlling the proactive suggestions framework.
+BASE_DECLARE_FEATURE(kProactiveSuggestionsFramework);
+
+// Returns true if the proactive suggestions framework is enabled.
+bool IsProactiveSuggestionsFrameworkEnabled();
+
 // Feature flag controlling the page action menu.
 BASE_DECLARE_FEATURE(kPageActionMenu);
 
 // Returns true if the page action menu is enabled.
 bool IsPageActionMenuEnabled();
+
+// Feature flag controlling the Ask Gemini chip.
+BASE_DECLARE_FEATURE(kAskGeminiChip);
+
+// Returns true if the Ask Gemini chip is enabled.
+bool IsAskGeminiChipEnabled();
 
 // Feature flag controlling the cross-tab floaty chat persistence.
 BASE_DECLARE_FEATURE(kGeminiCrossTab);
@@ -105,5 +117,17 @@ bool ShouldDeleteGeminiConsentPref();
 
 // Feature flag to delete the Gemini consent pref.
 BASE_DECLARE_FEATURE(kDeleteGeminiConsentPref);
+
+// Feature flag to enable smart tab grouping.
+BASE_DECLARE_FEATURE(kSmartTabGrouping);
+
+// Returns true if smart tab grouping is enabled.
+bool IsSmartTabGroupingEnabled();
+
+// Returns true if tab context persisting is enabled.
+bool IsPersistTabContextEnabled();
+
+// Feature flag to persist tab context.
+BASE_DECLARE_FEATURE(kPersistTabContext);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

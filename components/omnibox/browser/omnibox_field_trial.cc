@@ -27,6 +27,7 @@
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/url_index_private_data.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/search/search.h"
@@ -663,70 +664,33 @@ bool IsHideSuggestionGroupHeadersEnabledInContext(
   }
 }
 
-bool IsDeterministicAimActionInTypedStateEnabled(AutocompleteProviderClient* client) {
+bool IsDeterministicAimActionInTypedStateEnabled(
+    AutocompleteProviderClient* client) {
   ui::DeviceFormFactor factor = ui::GetDeviceFormFactor();
-  if (!(factor == ui::DEVICE_FORM_FACTOR_PHONE || factor == ui::DEVICE_FORM_FACTOR_FOLDABLE)) {
+  if (!(factor == ui::DEVICE_FORM_FACTOR_PHONE ||
+        factor == ui::DEVICE_FORM_FACTOR_FOLDABLE)) {
     return false;
   }
 
-  // If the feature is overridden to be false, return false.
-  auto* feature_list = base::FeatureList::GetInstance();
-  if (feature_list &&
-      feature_list->IsFeatureOverridden(omnibox::kOmniboxAimShortcutTypedState.name) &&
-      !base::FeatureList::IsEnabled(omnibox::kOmniboxAimShortcutTypedState)) {
-    return false;
-  }
-
-  const auto* aim_eligibility_service = client->GetAimEligibilityService();
-  if (!aim_eligibility_service) {
-    return false;
-  }
-
-  // If the server eligibility is enabled, check overall eligibility alone.
-  // The service will control locale rollout so there's no need to check the
-  // state of omnibox::kOmniboxAimShortcutTypedState below.
-  if (aim_eligibility_service->IsServerEligibilityEnabled()) {
-    return aim_eligibility_service->IsAimEligible();
-  }
-
-  // If not locally eligible, return false.
-  if (!aim_eligibility_service->IsAimLocallyEligible()) {
-    return false;
-  }
-
-  // Otherwise, check the feature state.
-  return base::FeatureList::IsEnabled(omnibox::kOmniboxAimShortcutTypedState);
+  return AimEligibilityService::GenericKillSwitchFeatureCheck(
+      client->GetAimEligibilityService(),
+      omnibox::kOmniboxAimShortcutTypedState);
 }
 
 bool IsAimOmniboxEntrypointEnabled(
     const AimEligibilityService* aim_eligibility_service) {
-  // If the generic entrypoint feature is overridden to be false, return false.
-  auto* feature_list = base::FeatureList::GetInstance();
-  if (feature_list &&
-      feature_list->IsFeatureOverridden(
-          omnibox::kAiModeOmniboxEntryPoint.name) &&
-      !base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint)) {
-    return false;
-  }
+  return AimEligibilityService::GenericKillSwitchFeatureCheck(
+      aim_eligibility_service, omnibox::kAiModeOmniboxEntryPoint);
+}
 
-  if (!aim_eligibility_service) {
-    return false;
-  }
-
-  // If the server eligibility is enabled, check overall eligibility alone.
-  // The service will control locale rollout so there's no need to check locale
-  // or the state of kAiModeOmniboxEntryPoint below.
-  if (aim_eligibility_service->IsServerEligibilityEnabled()) {
-    return aim_eligibility_service->IsAimEligible();
-  }
-
-  // If not locally eligible, return false.
-  if (!aim_eligibility_service->IsAimLocallyEligible()) {
-    return false;
-  }
-
-  // Otherwise, check the generic entrypoint feature.
-  return base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
+bool IsAimStarterPackEnabled(
+    const AimEligibilityService* aim_eligibility_service) {
+  // AI starter pack should be available if any AI omnibox feature is available.
+  return AimEligibilityService::GenericKillSwitchFeatureCheck(
+             aim_eligibility_service,
+             omnibox_feature_configs::Toolbelt::kOmniboxToolbelt) ||
+         AimEligibilityService::GenericKillSwitchFeatureCheck(
+             aim_eligibility_service, omnibox::kAiModeStartPack);
 }
 
 // Rich autocompletion.

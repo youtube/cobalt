@@ -7,6 +7,7 @@
 import abc
 import argparse
 import contextlib
+import functools
 import logging
 import os
 import pathlib
@@ -17,6 +18,10 @@ import tempfile
 import time
 
 CHROMIUM_SRC = pathlib.Path(__file__).resolve().parents[2]
+
+sys.path.insert(0, str(CHROMIUM_SRC / 'build' / 'util'))
+from lib.results import result_sink
+from lib.results import result_types
 
 EXTENSIONS_TO_INSTALL = [
     'build_information',
@@ -54,7 +59,9 @@ class PromptfooInstallation(abc.ABC):
             pass
 
     @abc.abstractmethod
-    def run(self, cmd: list[str], cwd: os.PathLike | None = None) -> int:
+    def run(self,
+            cmd: list[str],
+            cwd: os.PathLike | None = None) -> subprocess.CompletedProcess:
         """Runs a promptfoo command.
 
         Args:
@@ -62,7 +69,7 @@ class PromptfooInstallation(abc.ABC):
             cwd: The working directory from which the command should be run
 
         Returns:
-            The returncode of the command.
+            The CompletedProcess of the command that was run.
         """
 
 
@@ -85,11 +92,15 @@ class FromNpmPromptfooInstallation(PromptfooInstallation):
     def installed(self) -> bool:
         return self._executable.exists()
 
-    def run(self, cmd: list[str], cwd: os.PathLike | None = None) -> int:
-        proc = subprocess.run([str(self._executable), *cmd],
+    def run(self,
+            cmd: list[str],
+            cwd: os.PathLike | None = None) -> subprocess.CompletedProcess:
+        return subprocess.run([str(self._executable), *cmd],
                               cwd=cwd,
-                              check=False)
-        return proc.returncode
+                              check=False,
+                              text=True,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT)
 
     @property
     def _executable(self) -> pathlib.Path:
@@ -135,12 +146,18 @@ class FromSourcePromptfooInstallation(PromptfooInstallation):
     def installed(self) -> bool:
         return (self._directory / '.git').is_dir()
 
-    def run(self, cmd: list[str], cwd: os.PathLike | None = None) -> int:
+    def run(self,
+            cmd: list[str],
+            cwd: os.PathLike | None = None) -> subprocess.CompletedProcess:
         node_cmd = [
             str(self._directory / 'dist' / 'src' / 'main.js'),
         ]
-        proc = subprocess.run(node_cmd + cmd, cwd=cwd, check=False)
-        return proc.returncode
+        return subprocess.run(node_cmd + cmd,
+                              cwd=cwd,
+                              check=False,
+                              text=True,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT)
 
 
 def _setup_promptfoo(promptfoo_dir: pathlib.Path,
@@ -282,6 +299,7 @@ def _build_chromium(cwd):
     logging.info('Finished building')
 
 
+@functools.cache
 def _check_btrfs(root_path) -> bool:
     result = subprocess.run(
         ['stat', '-c', '%i', root_path],
@@ -377,6 +395,196 @@ def _determine_shard_values(
     return shard_index, total_shards
 
 
+def _get_tests_to_run(
+    shard_index: int | None,
+    total_shards: int | None,
+    test_filter: str | None,
+) -> list[pathlib.Path]:
+    """Retrieves which tests should be run for this invocation.
+
+    Automatically discovers any valid tests on disk and filters them based on
+    sharding and test filter information.
+
+    Args:
+        shard_index: The swarming shard index parsed from arguments.
+        total_shards: The swarming shard total parsed from arguments.
+        test_filter: The test filter parsed from arguments.
+
+    Returns:
+        A potentially empty list of paths, each path pointing to a valid test
+        to be run.
+    """
+    shard_index, total_shards = _determine_shard_values(
+        shard_index, total_shards)
+    configs_to_run = _discover_testcase_files()
+    configs_to_run.sort()
+    if test_filter:
+        configs_to_run = [c for c in configs_to_run if test_filter in str(c)]
+    configs_to_run = configs_to_run[shard_index::total_shards]
+    return configs_to_run
+
+
+@functools.cache
+def _get_gclient_root() -> pathlib.Path:
+    """Retrieves the gclient root for the current checkout.
+
+    Returns:
+        A Path containing the absolute path to the gclient root for the current
+        checkout.
+    """
+    result = subprocess.run(
+        ['gclient', 'root'],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return pathlib.Path(result.stdout.strip())
+
+
+def _perform_chromium_setup(force: bool, build: bool) -> None:
+    """Performs setup steps related to the Chromium checkout.
+
+    Args:
+        force: Whether to force execution.
+        build: Whether to build Chromium as part of setup.
+    """
+    root_path = _get_gclient_root()
+    is_btrfs = _check_btrfs(root_path)
+    if is_btrfs and not force:
+        subprocess.run(['sudo', '-v'], check=True)
+
+    src_path = root_path / 'src'
+    _check_uncommitted_changes(src_path)
+    if build:
+        _build_chromium(src_path)
+
+
+def _fetch_sandbox_image() -> bool:
+    """Pre-fetches the sandbox image.
+
+    Returns:
+        True on success, False on failure.
+    """
+    logging.info('Pre-fetching sandbox image. This may take a minute...')
+    # Use a simple, non-destructive prompt to trigger the one-time
+    # sandbox image download.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            subprocess.run(
+                ['gemini', '--sandbox'],
+                input='',
+                text=True,
+                check=True,
+                capture_output=True,
+                cwd=tmpdir,
+            )
+            return True
+        except subprocess.CalledProcessError as e:
+            logging.error(
+                'Failed to pre-fetch sandbox image: %s. This may be '
+                'because you are in an environment that does not support '
+                'sandboxing. Try running with --no-sandbox.', e)
+            return False
+
+
+def _report_result(result_sink_client: result_sink.ResultSinkClient,
+                   success: bool, test_log: str, test_path: pathlib.Path,
+                   duration: float) -> None:
+    """Reports a test result to ResultDB if possible.
+
+    Args:
+        result_sink_client: A ResultSinkClient to use for reporting.
+        success: Whether the test successfully passed.
+        test_log: The stdout/stderr output by the test.
+        test_path: The path to the test config file on disk.
+        duration: How long the test took to run in seconds.
+    """
+    relative_path = test_path.relative_to(CHROMIUM_SRC)
+    posix_path = relative_path.as_posix()
+    result_sink_client.Post(
+        test_id=str(posix_path),
+        status=result_types.PASS if success else result_types.FAIL,
+        duration=duration * 1000,
+        test_log=test_log,
+        test_file=f'//{str(posix_path)}')
+
+
+def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
+    """Performs all the necessary steps to run prompt evaluation tests.
+
+    Args:
+        args: The parsed command line args.
+
+    Returns:
+        0 on success, a non-zero value on failure.
+    """
+    configs_to_run = _get_tests_to_run(args.shard_index, args.total_shards,
+                                       args.filter)
+    if len(configs_to_run) == 0:
+        logging.info('No tests to run after filtering and sharding')
+        return 1
+
+    _perform_chromium_setup(force=args.force, build=not args.no_build)
+
+    promptfoo_dir = pathlib.Path(tempfile.gettempdir()) / 'promptfoo'
+    promptfoo = _setup_promptfoo(promptfoo_dir, args.promptfoo_revision,
+                                 args.promptfoo_version)
+
+    if args.sandbox and not _fetch_sandbox_image():
+        return 1
+
+    returncode = 0
+    console_width = shutil.get_terminal_size().columns
+    root_path = _get_gclient_root()
+    is_btrfs = _check_btrfs(root_path)
+    result_sink_client = result_sink.TryInitClient()
+    for config in configs_to_run:
+        with WorkDir('workdir', root_path, not args.no_clean, args.verbose,
+                     args.force, is_btrfs) as workdir:
+            command = [
+                'eval',
+                '-j',
+                '1',
+                '--no-cache',
+                # Not useful since we're running one test per eval and the
+                # tables don't render properly in captured logs.
+                '--no-table',
+                '-c',
+                str(config),
+                '--var',
+                f'console_width={console_width}',
+            ]
+            if args.sandbox:
+                command.extend(['--var', 'sandbox=True'])
+            if args.verbose:
+                command.extend(['--var', 'verbose=True'])
+
+            logging.info('Running test: %s', str(config))
+            start_time = time.time()
+            proc = promptfoo.run(command, cwd=workdir.path / 'src')
+            duration = time.time() - start_time
+
+            rc = proc.returncode
+            returncode = returncode or rc
+            success = not rc
+            if not success or args.print_output_on_success:
+                sys.stdout.write(proc.stdout)
+            if success:
+                logging.info('Test passed in %.2f seconds: %s', duration,
+                             str(config))
+            else:
+                logging.warning('Test failed in %.2f seconds: %s', duration,
+                                str(config))
+            if result_sink_client:
+                _report_result(result_sink_client=result_sink_client,
+                               success=success,
+                               test_log=proc.stdout,
+                               test_path=config,
+                               duration=duration)
+
+    return returncode
+
+
 def _parse_args() -> argparse.Namespace:
     """Parses command line args.
 
@@ -387,6 +595,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument('--no-clean',
                         action='store_true',
                         help='Do not clean up the workdir after evaluation.')
+    parser.add_argument(
+        '--sandbox',
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help='Use a sandbox for running gemini-cli. This should only be '
+        'disabled for local testing.',
+    )
     parser.add_argument('--force',
                         '-f',
                         action='store_true',
@@ -396,6 +611,11 @@ def _parse_args() -> argparse.Namespace:
                         '-v',
                         action='store_true',
                         help='Print debug information.')
+    parser.add_argument(
+        '--print-output-on-success',
+        action='store_true',
+        help=('Print test output even when a test succeeds. By default, '
+              'output is only surfaced when a test fails.'))
     parser.add_argument('--filter',
                         help='Only run configs that contain this substring.')
     parser.add_argument(
@@ -443,63 +663,7 @@ def main() -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format='%(message)s',
     )
-
-    shard_index, total_shards = _determine_shard_values(
-        args.shard_index, args.total_shards)
-
-    configs_to_run = _discover_testcase_files()
-    configs_to_run.sort()
-    if args.filter:
-        configs_to_run = [c for c in configs_to_run if args.filter in str(c)]
-    configs_to_run = configs_to_run[shard_index::total_shards]
-    if len(configs_to_run) == 0:
-        logging.info('No tests to run after filtering and sharding')
-        return 0
-
-    result = subprocess.run(
-        ['gclient', 'root'],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    root_path = pathlib.Path(result.stdout.strip())
-    src_path = root_path / 'src'
-
-    is_btrfs = _check_btrfs(root_path)
-    if is_btrfs and not args.force:
-        subprocess.run(['sudo', '-v'], check=True)
-
-    _check_uncommitted_changes(src_path)
-
-    if not args.no_build:
-        _build_chromium(src_path)
-
-    promptfoo_dir = pathlib.Path(tempfile.gettempdir()) / 'promptfoo'
-    promptfoo = _setup_promptfoo(promptfoo_dir, args.promptfoo_revision,
-                                 args.promptfoo_version)
-
-    returncode = 0
-    console_width = shutil.get_terminal_size().columns
-    for config in configs_to_run:
-        with WorkDir('workdir', root_path, not args.no_clean, args.verbose,
-                     args.force, is_btrfs) as workdir:
-            command = [
-                'eval',
-                '-j',
-                '1',
-                '--no-cache',
-                '-c',
-                str(config),
-                '--var',
-                f'console_width={console_width}',
-            ]
-            if args.verbose:
-                command.extend(['--var', 'verbose=True'])
-            logging.info('Running test: %s', str(config))
-            rc = promptfoo.run(command, cwd=workdir.path / 'src')
-            returncode = returncode or rc
-
-    return returncode
+    return _run_prompt_eval_tests(args)
 
 
 if __name__ == '__main__':

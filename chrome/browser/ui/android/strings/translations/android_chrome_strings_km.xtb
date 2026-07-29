@@ -3,6 +3,7 @@
 <translationbundle lang="km">
 <translation id="1010283278930414892">គ្មាន​ពាក្យសម្ងាត់​ដែលបាន​រក្សាទុក​នៅលើ​ឧបករណ៍​នេះទេ</translation>
 <translation id="1011749477052068769">ផ្លាស់ទីមកទីនេះ</translation>
+<translation id="1014083013111769343">បានបើក​ចំណូលចិត្ត​មុខងារអាន​ពេញអេក្រង់</translation>
 <translation id="1014147525163127655">មិនមាន​កូដសម្ងាត់​សម្រាប់ <ph name="ORIGIN" /> នៅលើ​ឧបករណ៍នេះទេ</translation>
 <translation id="1016498331642356377">ស្វែងរកដោយប្រើសំឡេងរបស់អ្នកបានយ៉ាងរហ័ស។ ដើម្បីកែផ្លូវកាត់នេះ សូមចុចឱ្យជាប់។</translation>
 <translation id="1028699632127661925">កំពុងផ្ញើទៅ <ph name="DEVICE_NAME" />...</translation>
@@ -98,6 +99,7 @@
 <translation id="1407135791313364759">បើកទាំងអស់</translation>
 <translation id="1409879593029778104">ការដោនឡូត <ph name="FILE_NAME" /> ត្រូវបានទប់ស្កាត់ ដោយសារតែឯកសារនេះមានរួចហើយ។</translation>
 <translation id="1413446866325418126">រក្សាទុក​ទិន្នន័យ​នៅក្នុង​គណនី Google របស់អ្នក</translation>
+<translation id="1414919006379339073">បិទ​វិនដូ​បច្ចុប្បន្ន</translation>
 <translation id="1416550906796893042">កំណែកម្មវិធី</translation>
 <translation id="1419753403124156396">ចាប់ផ្ដើម Chrome ឡើងវិញឬ?</translation>
 <translation id="1428770807407000502">បិទ​សមកាលកម្មឬ?</translation>
@@ -207,6 +209,7 @@
 <translation id="197288927597451399">រក្សា</translation>
 <translation id="1973912524893600642">រក្សាទុក​ទិន្នន័យ</translation>
 <translation id="1974060860693918893">កម្រិតខ្ពស់</translation>
+<translation id="1982274314082047220">អូស​មុខងារអាន​ឡើងលើ​សម្រាប់​ចំណូលចិត្ត</translation>
 <translation id="1984087999855033707">លេខទូរសព្ទ</translation>
 <translation id="1984417487208496350">គ្មានការការពារ (មិនណែនាំ)</translation>
 <translation id="1986685561493779662">ឈ្មោះមាន​រួច​ហើយ</translation>
@@ -428,6 +431,7 @@
 <translation id="2992473221983447149">ការពណ៌នា​អំពីរូបភាព</translation>
 <translation id="2996291259634659425">បង្កើតឃ្លាសម្ងាត់</translation>
 <translation id="2996809686854298943">តម្រូវឲ្យមាន URL</translation>
+<translation id="3024215143424744261">បានបិទ​ចំណូលចិត្ត​មុខងារអាន</translation>
 <translation id="3026955690410463085">រួមបញ្ចូល​តំណ</translation>
 <translation id="3027644380269727216">ផ្អែក​លើ​សកម្មភាព​របស់​អ្នក​នៅលើ​គេហទំព័រ។ ការកំណត់​នេះ​ត្រូវ​បានបើក។</translation>
 <translation id="3027950907978057636">ពី <ph name="APP_LABEL" /></translation>
@@ -706,6 +710,7 @@
 <translation id="4380055775103003110">ប្រសិនបើ​បញ្ហានេះនៅតែកើតមានទៀត អ្នកអាច​សាកល្បង​ប្រើវិធីផ្សេងទៀត ដើម្បីបន្ត​នៅលើ <ph name="SITE_ETLD_PLUS_ONE" />។</translation>
 <translation id="4384468725000734951">ប្រើ Sogou ដើម្បីធ្វើការស្វែងរក</translation>
 <translation id="4387647248986092471">បង្កើត​ការចាក់​សោកម្រងព័ត៌មាន​រថយន្ដ</translation>
+<translation id="4387817230000841154">បើក​ទំព័រ​ទាញយក</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{ផ្ទាំង និង​ក្រុម​ដែល​មិនបានប្រើ​រយៈពេល 1 ថ្ងៃ ឬ​យូរជាងនេះ}other{ផ្ទាំង និង​ក្រុម​ដែល​មិនបានប្រើ​រយៈពេល # ថ្ងៃ ឬ​យូរជាងនេះ}}</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - កំពុង​ទាញ​យក…</translation>
 <translation id="4404568932422911380">មិនមាន​ចំណាំ​ទេ</translation>
@@ -1311,6 +1316,7 @@
 <translation id="696447261358045621">ចាកចេញពី​មុខងារ​ឯកជន</translation>
 <translation id="6965382102122355670">យល់ព្រម</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{មើល <ph name="TABS_COUNT_ONE" /> ផ្ទាំង​ដែលមាន​សកម្មភាពថ្មី​នៅក្នុង​ក្រុមផ្ទាំងរួម}other{មើល <ph name="TABS_COUNT_MANY" /> ផ្ទាំង​ដែលមាន​សកម្មភាពថ្មី​នៅក្នុង​ក្រុមផ្ទាំងរួម}}</translation>
+<translation id="6971555615916967190">បានបើក​ចំណូលចិត្ត​មុខងារអាន​ពាក់កណ្ដាល​អេក្រង់</translation>
 <translation id="6971862865055170158">មិនអនុញ្ញាត</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, ផ្ទាំង​ដែលបាន​ធ្វើបច្ចុប្បន្នភាព ឬ​ថ្មី</translation>
 <translation id="6976811588313110624">បញ្ចូល​ផ្លូវកាត់​ថ្មី។</translation>
@@ -1695,7 +1701,6 @@
 <translation id="8617240290563765734">បើក URL ដែលបានស្នើដែលបានបញ្ជាក់នៅក្នុងមាតិកាដែលបានទាញយកដែរឬទេ?</translation>
 <translation id="8635399646025169806">រក្សា​ក្រុមផ្ទាំងឬ?</translation>
 <translation id="8636825310635137004">ដើម្បីទទួលបានផ្ទាំងរបស់អ្នកពីឧបករណ៍ផ្សេងទៀតរបស់អ្នក សូមបើកការធ្វើសមកាលកម្ម</translation>
-<translation id="864544049772947936">គ្រប់គ្រងវិនដូ (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">ចូលគណនី <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">ឈ្មោះ​ឯកសារ​មានរួច​ហើយ</translation>
 <translation id="8676276370198826499">ចុះឈ្មោះលើ <ph name="SITE_ETLD_PLUS_ONE" /> ដោយប្រើ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

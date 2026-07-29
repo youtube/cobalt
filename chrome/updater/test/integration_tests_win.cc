@@ -744,6 +744,32 @@ bool BuildMockOfflineMetaInstaller(const std::string& appid,
   return RunVPythonCommand(create_meta_installer) == 0;
 }
 
+void EnumerateUpdateClientTempDirectories(
+    UpdaterScope scope,
+    base::FunctionRef<void(const base::FilePath& dir)> callback) {
+  base::FilePath temp_dir;
+  EXPECT_TRUE(IsSystemInstall(scope)
+                  ? base::PathService::Get(base::DIR_SYSTEM_TEMP, &temp_dir)
+                  : base::GetTempDir(&temp_dir));
+  for (const auto& matcher :
+       {FILE_PATH_LITERAL("chrome_url_fetcher_*"),
+        FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping*"),
+        FILE_PATH_LITERAL("chrome_BITS_*")}) {
+    base::FileEnumerator(temp_dir,
+                         /*recursive=*/false, base::FileEnumerator::DIRECTORIES,
+                         matcher)
+        .ForEach([&callback](const base::FilePath& dir) {
+          ASSERT_NO_FATAL_FAILURE(callback(dir));
+        });
+  }
+}
+
+void CleanUpdateClientTempDirectories(UpdaterScope scope) {
+  EnumerateUpdateClientTempDirectories(scope, [](const base::FilePath& dir) {
+    EXPECT_TRUE(base::DeletePathRecursively(dir));
+  });
+}
+
 }  // namespace
 
 base::FilePath GetSetupExecutablePath() {
@@ -758,6 +784,7 @@ void Clean(UpdaterScope scope) {
   VLOG(0) << __func__;
 
   CleanProcesses();
+  CleanUpdateClientTempDirectories(scope);
 
   const HKEY root = UpdaterScopeToHKeyRoot(scope);
   for (const wchar_t* key : {CLIENT_STATE_KEY, CLIENTS_KEY, UPDATER_KEY}) {
@@ -860,8 +887,16 @@ void ExpectInstalled(UpdaterScope scope) {
                     CheckInstallationVersions::kCheckSxSOnly);
 }
 
+void ExpectCleanUpdateClientTempDirectories(UpdaterScope scope) {
+  ASSERT_NO_FATAL_FAILURE(EnumerateUpdateClientTempDirectories(
+      scope, [](const base::FilePath& dir) {
+        ADD_FAILURE() << "Directory not cleaned up: " << dir;
+      }));
+}
+
 void ExpectClean(UpdaterScope scope) {
   ExpectCleanProcesses();
+
   CheckInstallation(scope, CheckInstallationStatus::kCheckIsNotInstalled,
                     CheckInstallationVersions::kCheckActiveAndSxS);
 
@@ -2238,11 +2273,10 @@ void ClearAppAllowsUsageStats(UpdaterScope scope,
                            GetAppClientStateKey(identifier).c_str()));
 }
 
-void InstallScheduledTask(UpdaterScope scope,
-                          const std::string& task_name,
+void InstallScheduledTask(const std::string& task_name,
                           bool use_task_subfolders) {
   scoped_refptr<TaskScheduler> task_scheduler =
-      TaskScheduler::CreateInstance(scope, use_task_subfolders);
+      TaskScheduler::CreateInstance(UpdaterScope::kUser, use_task_subfolders);
   ASSERT_TRUE(task_scheduler);
 
   EXPECT_TRUE(task_scheduler->RegisterTask(
@@ -2251,22 +2285,19 @@ void InstallScheduledTask(UpdaterScope scope,
       TaskScheduler::TriggerType::TRIGGER_TYPE_HOURLY, false));
 }
 
-void IsScheduledTaskRegisteredFromMedium(UpdaterScope scope,
-                                         const std::string& task_name,
-                                         bool use_task_subfolders) {
+void IsScheduledTaskRegistered(const std::string& task_name,
+                               bool use_task_subfolders) {
   scoped_refptr<TaskScheduler> task_scheduler =
-      TaskScheduler::CreateInstance(scope, use_task_subfolders);
+      TaskScheduler::CreateInstance(UpdaterScope::kUser, use_task_subfolders);
   ASSERT_TRUE(task_scheduler);
 
-  EXPECT_EQ(task_scheduler->IsTaskRegistered(base::UTF8ToWide(task_name)),
-            !IsSystemInstall(scope) || ::IsUserAnAdmin());
+  EXPECT_TRUE(task_scheduler->IsTaskRegistered(base::UTF8ToWide(task_name)));
 }
 
-void DeleteScheduledTask(UpdaterScope scope,
-                         const std::string& task_name,
+void DeleteScheduledTask(const std::string& task_name,
                          bool use_task_subfolders) {
   scoped_refptr<TaskScheduler> task_scheduler =
-      TaskScheduler::CreateInstance(scope, use_task_subfolders);
+      TaskScheduler::CreateInstance(UpdaterScope::kUser, use_task_subfolders);
   ASSERT_TRUE(task_scheduler);
 
   EXPECT_TRUE(task_scheduler->DeleteTask(base::UTF8ToWide(task_name)));
