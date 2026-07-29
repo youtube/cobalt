@@ -22,13 +22,12 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/buildflags.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/web_test/browser/web_test_control_host.h"
 #include "content/web_test/common/web_test_switches.h"
 #include "ipc/ipc_channel.h"
 
-#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
 #include "content/public/browser/devtools_frontend_host.h"
 #endif
 
@@ -96,7 +95,7 @@ void DevToolsProtocolTestBindings::ParseLog(std::string_view log) {
 
 void DevToolsProtocolTestBindings::ReadyToCommitNavigation(
     NavigationHandle* navigation_handle) {
-#if BUILDFLAG(ENABLE_DEVTOOLS_FRONTEND)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
   content::RenderFrameHost* frame = navigation_handle->GetRenderFrameHost();
   if (frame->GetParent())
     return;

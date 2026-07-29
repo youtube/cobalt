@@ -1,3 +1,0 @@
-# These labels are automatically applied when a PR is merged.
-'cp-27.lts':
- - base-branch: 'main'

@@ -24,9 +24,7 @@
 #include "base/synchronization/lock.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#if !BUILDFLAG(IS_COBALT)
 #include "content/public/browser/bluetooth_chooser.h"
-#endif
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/gpu_data_manager_observer.h"
 #include "content/public/browser/render_process_host.h"
@@ -48,9 +46,7 @@ namespace content {
 class DevToolsProtocolTestBindings;
 class RenderFrameHost;
 class Shell;
-#if !BUILDFLAG(IS_COBALT)
 class WebTestBluetoothChooserFactory;
-#endif
 class WebTestDevToolsBindings;
 struct TestInfo;
 
@@ -140,11 +136,9 @@ class WebTestControlHost : public WebContentsObserver,
   void OverrideWebPreferences(blink::web_pref::WebPreferences* prefs);
   void OpenURL(const GURL& url);
   bool IsMainWindow(WebContents* web_contents) const;
-#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<BluetoothChooser> RunBluetoothChooser(
       RenderFrameHost* frame,
       const BluetoothChooser::EventHandler& event_handler);
-#endif
   void RequestPointerLock(WebContents* web_contents);
 
   WebTestResultPrinter* printer() { return printer_.get(); }
@@ -229,13 +223,11 @@ class WebTestControlHost : public WebContentsObserver,
                             bool hidden) override;
   void CheckForLeakedWindows() override;
   void GoToOffset(int offset) override;
-#if !BUILDFLAG(IS_COBALT)
   void SendBluetoothManualChooserEvent(const std::string& event,
                                        const std::string& argument) override;
   void SetBluetoothManualChooser(bool enable) override;
   void GetBluetoothManualChooserEvents(
       GetBluetoothManualChooserEventsCallback reply) override;
-#endif
   void SetPopupBlockingEnabled(bool block_popups) override;
   void LoadURLForFrame(const GURL& url, const std::string& frame_name) override;
   void SimulateScreenOrientationChanged() override;
@@ -395,9 +387,7 @@ class WebTestControlHost : public WebContentsObserver,
   bool crash_when_leak_found_ = false;
   std::unique_ptr<LeakDetector> leak_detector_;
 
-#if !BUILDFLAG(IS_COBALT)
   std::unique_ptr<WebTestBluetoothChooserFactory> bluetooth_chooser_factory_;
-#endif
 
   // Observe windows opened by tests.
   base::flat_map<WebContents*, std::unique_ptr<WebTestWindowObserver>>

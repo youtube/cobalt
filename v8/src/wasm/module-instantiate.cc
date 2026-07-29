@@ -114,7 +114,6 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
 
 namespace {
 
-#ifdef V8_ENABLE_TURBOFAN
 bool CompareWithNormalizedCType(const CTypeInfo& info,
                                 CanonicalValueType expected,
                                 CFunctionInfo::Int64Representation int64_rep) {
@@ -138,7 +137,6 @@ bool CompareWithNormalizedCType(const CTypeInfo& info,
   }
   return t.representation() == expected.machine_representation();
 }
-#endif
 
 enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
 
@@ -147,7 +145,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
                                     Tagged<SharedFunctionInfo> shared,
                                     ReceiverKind receiver_kind,
                                     int* out_index) {
-#ifdef V8_ENABLE_TURBOFAN
   if (!shared->IsApiFunction()) {
     return false;
   }
@@ -269,7 +266,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
     *out_index = c_func_id;
     return true;
   }
-#endif
   return false;
 }
 
@@ -2362,7 +2358,6 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
 
     case ImportCallKind::kWasmToJSFastApi: {
-#ifdef V8_ENABLE_TURBOFAN
       DCHECK(IsJSFunction(*callable) || IsJSBoundFunction(*callable));
 
       std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
@@ -2373,9 +2368,6 @@ bool InstanceBuilder::ProcessImportedFunction(
                                       std::move(wrapper_handle), kNoSuspend,
                                       expected_sig, sig_index);
       return true;
-#else
-      UNREACHABLE();
-#endif
     }
     case ImportCallKind::kRuntimeTypeError:
     case ImportCallKind::kJSFunction:

@@ -289,12 +289,13 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // 9. Let r be ResolveLocale(%DurationFormat%.[[AvailableLocales]],
   // requestedLocales, opt, %DurationFormat%.[[RelevantExtensionKeys]],
   // %DurationFormat%.[[LocaleData]]).
+  std::set<std::string> relevant_extension_keys{"nu"};
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales(),
-                           requested_locales, matcher, {"nu"})
-           .To(&r)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
-  }
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, r,
+      Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales(),
+                          requested_locales, matcher, relevant_extension_keys),
+      DirectHandle<JSDurationFormat>());
 
   // 10. Let locale be r.[[locale]].
   icu::Locale r_locale = r.icu_locale;

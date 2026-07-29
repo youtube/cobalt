@@ -72,19 +72,15 @@ ValidateOutputsTraverser::ValidateOutputsTraverser(const TExtensionBehavior &ext
 void ValidateOutputsTraverser::visitSymbol(TIntermSymbol *symbol)
 {
     if (symbol->variable().symbolType() == SymbolType::Empty)
-    {
         return;
-    }
 
     if (mVisitedSymbols.count(symbol->uniqueId().get()) == 1)
-    {
         return;
-    }
 
     mVisitedSymbols.insert(symbol->uniqueId().get());
 
     TQualifier qualifier = symbol->getQualifier();
-    if (qualifier == EvqFragmentOut || qualifier == EvqFragmentInOut)
+    if (qualifier == EvqFragmentOut)
     {
         const TLayoutQualifier &layoutQualifier = symbol->getType().getLayoutQualifier();
         if (layoutQualifier.location != -1)

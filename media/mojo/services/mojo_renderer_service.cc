@@ -17,10 +17,6 @@
 #include "media/mojo/services/media_resource_shim.h"
 #include "media/mojo/services/mojo_cdm_service_context.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/mojo/services/starboard/starboard_renderer_wrapper.h"
-#endif
-
 namespace media {
 
 // Time interval to update media time.
@@ -243,19 +239,6 @@ void MojoRendererService::OnRendererInitializeDone(
 }
 
 void MojoRendererService::UpdateMediaTime(bool force) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // When Starboard media bypass is active, media time updates are posted
-  // directly in-process via MojoRendererBypassBridge to StarboardRendererClient.
-  // Bypass all Mojo IPC OnTimeUpdate calls here (which are otherwise triggered
-  // by StartPlayingFrom, SetPlaybackRate, CancelPeriodicMediaTimeUpdates, or
-  // periodic timer ticks) to avoid sending redundant or resetting IPCs over Mojo.
-  if (renderer_ &&
-      renderer_->GetRendererType() == RendererType::kStarboard &&
-      static_cast<StarboardRendererWrapper*>(renderer_.get())->IsBypassing()) {
-    return;
-  }
-#endif
-
   const base::TimeDelta media_time = renderer_->GetMediaTime();
   if (!force && media_time == last_media_time_)
     return;

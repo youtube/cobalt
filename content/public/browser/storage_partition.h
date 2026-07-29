@@ -168,9 +168,7 @@ class CONTENT_EXPORT StoragePartition {
   virtual ZoomLevelDelegate* GetZoomLevelDelegate() = 0;
   virtual PlatformNotificationContext* GetPlatformNotificationContext() = 0;
   virtual InterestGroupManager* GetInterestGroupManager() = 0;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   virtual BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() = 0;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
   virtual AttributionDataModel* GetAttributionDataModel() = 0;
   virtual PrivateAggregationDataModel* GetPrivateAggregationDataModel() = 0;
   virtual CookieDeprecationLabelManager* GetCookieDeprecationLabelManager() = 0;
@@ -355,10 +353,8 @@ class CONTENT_EXPORT StoragePartition {
 
   virtual void RemoveObserver(DataRemovalObserver* observer) = 0;
 
-#if !BUILDFLAG(IS_COBALT)
   // Clear the bluetooth allowed devices map. For test use only.
   virtual void ClearBluetoothAllowedDevicesMapForTesting() = 0;
-#endif
 
   // Call |FlushForTesting()| on Network Service related interfaces. For test
   // use only.

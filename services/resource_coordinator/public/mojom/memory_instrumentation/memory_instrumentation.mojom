@@ -59,8 +59,6 @@ enum MemDumpFlags {
   MEM_DUMP_PSS = 1,
   // On Android, populate the native_library_pages_bitmap field of RawOSMemDump.
   MEM_DUMP_PAGES_BITMAP = 2,
-  // Populate the detailed_stats_kb field of RawOSMemDump.
-  MEM_DUMP_DETAILED_STATS = 3,
 };
 
 // These structs are internal only (only for the communication between
@@ -162,7 +160,6 @@ struct RawOSMemDump {
   // crbug.com/957978 reaches to a conclusion.
   uint32 peak_resident_set_kb = 0;
   bool is_peak_rss_resettable = false;
-  uint32 vm_size_kb = 0;
   PlatformPrivateFootprint platform_private_footprint;
   array<VmRegion> memory_maps;
 
@@ -182,15 +179,6 @@ struct RawOSMemDump {
   // Swap PSS for the process. 0 indicates that collection failed.
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
-
-
-  // Generic map for detailed memory metrics.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  map<string, uint64>? detailed_stats_kb;
-
-  // Timestamp of the last successful detailed memory dump.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
 // These structs are public:
@@ -205,8 +193,6 @@ struct OSMemDump {
   // Indicates whether the above peak_resident_set_kb is the peak from the start
   // of the process or from the previous memory dump.
   bool is_peak_rss_resettable = false;
-
-  uint32 vm_size_kb = 0;
 
   // This is roughly private, anonymous, non-discardable, resident or swapped
   // memory in kilobytes. For more details, see https://goo.gl/3kPb9S.
@@ -238,15 +224,6 @@ struct OSMemDump {
   // Swap PSS for the process. 0 is recorded when collection fails.
   [EnableIf=is_android|is_chromeos|is_linux]
   uint32 swap_pss_kb = 0;
-
-
-  // Generic map for detailed memory metrics.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  map<string, uint64>? detailed_stats_kb;
-
-  // Timestamp of the last successful detailed memory dump.
-  [EnableIf=is_cobalt_with_libchrobalt_metrics]
-  mojo_base.mojom.TimeTicks last_detailed_dump_time;
 };
 
 // This struct contains information about a particular allocator dump
