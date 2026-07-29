@@ -50,6 +50,8 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('clear functionality', async () => {
     createComposeboxElement();
+    handler.setResultFor(
+        'addFile', Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // Check submit button disabled.
     assertEquals(
@@ -102,6 +104,8 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('upload image', async () => {
     createComposeboxElement();
+    handler.setResultFor(
+        'addFile', Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // Assert no files.
     assertEquals(composeboxElement.$.carousel.files.length, 0);
@@ -147,6 +151,8 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('upload pdf', async () => {
     createComposeboxElement();
+    handler.setResultFor(
+        'addFile', Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // Assert no files.
     assertEquals(composeboxElement.$.carousel.files.length, 0);
@@ -182,6 +188,12 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('delete file', async () => {
     createComposeboxElement();
+    let i = 0;
+    handler.setResultMapperFor('addFile', () => {
+      i += 1;
+      return Promise.resolve(
+          {token: {low: BigInt(i + 1), high: BigInt(i + 2)}});
+    });
 
     // Arrange.
     const dataTransfer = new DataTransfer();
@@ -209,9 +221,10 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(composeboxElement.$.carousel.files.length, 2);
 
     // Act.
+    const deletedId = composeboxElement.$.carousel.files[0]!.uuid;
     composeboxElement.$.carousel.dispatchEvent(new CustomEvent('delete-file', {
       detail: {
-        uuid: composeboxElement.$.carousel.files[0]!.uuid,
+        uuid: deletedId,
       },
       bubbles: true,
       composed: true,
@@ -221,6 +234,9 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Assert.
     assertEquals(composeboxElement.$.carousel.files.length, 1);
+    assertEquals(handler.getCallCount('deleteFile'), 1);
+    const [idArg] = handler.getArgs('deleteFile');
+    assertEquals(idArg, deletedId);
   });
 
   test('NotifySessionStarted called on composebox created', () => {
@@ -254,6 +270,8 @@ suite('NewTabPageComposeboxTest', () => {
   test('file upload buttons disabled when max files uploaded', async () => {
     loadTimeData.overrideValues({'composeboxFileMaxCount': 1});
     createComposeboxElement();
+    handler.setResultFor(
+        'addFile', Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // File upload buttons are not disabled when there are no files.
     assertFalse(composeboxElement.$.fileUploadButton.disabled);
@@ -351,5 +369,38 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Assert.
     assertTrue(submitIcon.hasAttribute('disabled'));
+  });
+
+  test('keydown submit only works for enter', async () => {
+    createComposeboxElement();
+    // Assert.
+    assertEquals(handler.getCallCount('submitQuery'), 0);
+
+    // Arrange.
+    composeboxElement.$.input.value = 'test';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    await microtasksFinished();
+    const shiftEnterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    composeboxElement.$.input.dispatchEvent(shiftEnterEvent);
+    await microtasksFinished();
+
+    // Assert.
+    assertEquals(handler.getCallCount('submitQuery'), 0);
+
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    });
+    composeboxElement.$.input.dispatchEvent(enterEvent);
+    await microtasksFinished();
+
+    // Assert call occurs.
+    assertEquals(handler.getCallCount('submitQuery'), 1);
   });
 });

@@ -13,6 +13,7 @@
 #include "base/i18n/break_iterator.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -283,15 +284,15 @@ bool BrowserAccessibilityAndroid::IsChecked() const {
 bool BrowserAccessibilityAndroid::IsClickable() const {
   // If it has a custom default action verb except for
   // ax::mojom::DefaultActionVerb::kClickAncestor, it's definitely clickable.
-  // ax::mojom::DefaultActionVerb::kClickAncestor is used when an element with a
-  // click listener is present in its ancestry chain.
+  // ax::mojom::DefaultActionVerb::kClickAncestor is used when an element with
+  // a click listener is present in its ancestry chain.
   if (HasIntAttribute(ax::mojom::IntAttribute::kDefaultActionVerb) &&
       (GetData().GetDefaultActionVerb() !=
        ax::mojom::DefaultActionVerb::kClickAncestor)) {
     return true;
   }
 
-  if (IsHeadingLink()) {
+  if (GetHeadingLinkOrLinkHeading() != nullptr) {
     return true;
   }
 
@@ -569,14 +570,33 @@ bool BrowserAccessibilityAndroid::IsInterestingOnAndroid() const {
                                                base::kWhitespaceUTF16);
 }
 
-bool BrowserAccessibilityAndroid::IsHeadingLink() const {
-  if (!(GetRole() == ax::mojom::Role::kHeading && InternalChildCount() == 1)) {
-    return false;
+BrowserAccessibilityAndroid*
+BrowserAccessibilityAndroid::GetHeadingLinkOrLinkHeading() const {
+  if (GetRole() != ax::mojom::Role::kHeading) {
+    return nullptr;
   }
 
-  BrowserAccessibilityAndroid* child =
+  // If it has ax::mojom::DefaultActionVerb::kClickAncestor, an element with a
+  // click listener is present in its ancestry chain. Heading inside link is an
+  // example of this case.
+  if (HasIntAttribute(ax::mojom::IntAttribute::kDefaultActionVerb) &&
+      (GetData().GetDefaultActionVerb() ==
+       ax::mojom::DefaultActionVerb::kClickAncestor)) {
+    // Check if it's the case of heading inside link.
+    auto* parent =
+        static_cast<BrowserAccessibilityAndroid*>(InternalGetParent());
+    if (parent && ui::IsLink(parent->GetRole())) {
+      return parent;
+    }
+  }
+
+  // Begin to check if it's the case of link inside heading.
+  if (InternalChildCount() != 1) {
+    return nullptr;
+  }
+  auto* child =
       static_cast<BrowserAccessibilityAndroid*>(InternalChildrenBegin().get());
-  return ui::IsLink(child->GetRole());
+  return ui::IsLink(child->GetRole()) ? child : nullptr;
 }
 
 const BrowserAccessibilityAndroid*
@@ -886,7 +906,8 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
 
   // First, always return the `value` attribute if this is an input field.
   std::u16string value = GetValueForControl();
-  if (ShouldExposeValueAsName(value)) {
+  const bool is_non_atomic_text_field = IsNonAtomicTextField();
+  if (ShouldExposeValueAsName(value) && !is_non_atomic_text_field) {
     text = std::move(value);
     return;
   }
@@ -903,7 +924,9 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
   // In the case of accessible name from kAttribute, the aria-label will be
   // mapped to one of the container title, content description or supplemental
   // description, we should exclude aria-label from mapping to text.
-  text = IsAccessibleNameFromAttribute() ? u"" : GetNameAsString16();
+  if (!IsAccessibleNameFromAttribute() && !is_non_atomic_text_field) {
+    text = GetNameAsString16();
+  }
   if (ui::IsRangeValueSupported(GetRole())) {
     // For controls that support range values such as sliders, when a non-empty
     // name is present (e.g. a label), append this to the value so both the
@@ -920,7 +943,7 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
     } else if (!value.empty()) {
       text = std::move(value);
     }
-  } else if (text.empty()) {
+  } else if (text.empty() && !is_non_atomic_text_field) {
     // When a node does not have a name (e.g. a label), use its value instead.
     text = std::move(value);
   }
@@ -971,7 +994,7 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
   // Only for roles that do not support naming with child content, we loop
   // through the children, in order to populate the visual content (use Android
   // text API), in addition to populating the aria label information.
-  if (text.size() == 0 && !ui::SupportsNamingWithChildContent(GetRole()) &&
+  if (text.empty() && !ui::SupportsNamingWithChildContent(GetRole()) &&
       ((HasOnlyTextChildren() && !HasListMarkerChild()) ||
        (IsFocusable() && HasOnlyTextAndImageChildren()))) {
     for (auto it = InternalChildrenBegin(); it != InternalChildrenEnd(); ++it) {
@@ -981,6 +1004,10 @@ void BrowserAccessibilityAndroid::AccumulateSubstringTextContentUTF16(
         break;
       }
     }
+  }
+
+  if (is_non_atomic_text_field && text.empty()) {
+    text = std::move(value);
   }
 
   if (text.empty() &&
@@ -1407,7 +1434,7 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
       role_description.push_back(GetLocalizedString(IDS_AX_ROLE_HEADING));
     }
 
-    if (IsHeadingLink()) {
+    if (GetHeadingLinkOrLinkHeading() != nullptr) {
       role_description.push_back(GetLocalizedString(IDS_AX_ROLE_LINK));
     }
 
@@ -1425,7 +1452,7 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
   if (ui::IsLink(GetRole()) && PlatformGetParent()) {
     BrowserAccessibilityAndroid* parent =
         static_cast<BrowserAccessibilityAndroid*>(PlatformGetParent());
-    if (parent->IsHeadingLink()) {
+    if (parent && parent->GetHeadingLinkOrLinkHeading() != nullptr) {
       return parent->GetRoleDescription();
     }
   }

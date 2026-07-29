@@ -212,6 +212,7 @@
 <translation id="3790262771324122253">ဒေါင်းလုဒ်အချို့ကို Chromium က ဘာကြောင့်ပိတ်ထားကြောင်း လေ့လာရန်</translation>
 <translation id="379589255253486813">သင်စစ်ဆေးရန် လိုအပ်ပါက Chromium က အသိပေးပါမည်</translation>
 <translation id="3802055581630249637">သင်ဝင်ကြည့်နိုင်ဖွယ်ရှိသည့် စာမျက်နှာများသို့ ဝင်ကြည့်သောအခါ ပိုမိုလျင်မြန်စွာ ပွင့်စေရန် Chromiumသည် ၎င်းတို့ကို ကြိုဖွင့်သည်</translation>
+<translation id="3810973564298564668">စီမံရန်</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">ဘာသာစကား ရွေးချယ်စနစ်</translation>
 <translation id="388648406173476553">Chromium ကို စိတ်ကြိုက်ပြုပြင်ထိန်းချုပ်ပါ။ သင် ဆောင်ရွက်စရာ ရှိသည် - အသေးစိတ်အတွက် နှိပ်ပါ။</translation>
@@ -495,6 +496,7 @@ Chromium သည်သင့်ကြိုတင်ချိန်ညှိခ�
 <translation id="7483335560992089831">လက်ရှိ အချိန်မှာ ဖွင့်သုံးထားသည့် Chromium ဗားရှင်းကိုပဲ တပ်ဆင်၍ မရနိုင်ပါ။ ကျေးဇူးပြုပြီး Chromium ကို ပိတ်လိုက်ကာ ထပ်စမ်းပါ။</translation>
 <translation id="751935028865900641">ဝဘ်ဆိုက်က မျှော်မှန်းထားသည့်အတိုင်း အလုပ်လုပ်နိုင်သည်။ Chromium ဝင်းဒိုးအားလုံးကို ပိတ်သောအခါ ဝဘ်ဆိုက်အများစုမှ သင်ထွက်သွားမည်။ Chromium သို့ လက်မှတ်ထိုးဝင်ထားပါက သင့် Google Account မှ ထွက်မည်မဟုတ်ပါ။</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium ကို ၁ မိနစ်အကြာတွင် ပြန်လည်စတင်ပါမည်}other{Chromium ကို # မိနစ်အကြာတွင် ပြန်လည်စတင်ပါမည်}}</translation>
+<translation id="7565444033145385702">သင့်ဒေတာကို ကာကွယ်ရန် လတ်တလော သင်ဝင်ကြည့်ထားခြင်း မရှိသော ဝဘ်ဆိုက်များမှ ခွင့်ပြုချက်များကို Chromium အား ဖယ်ရှားခွင့်ပြုပါ။</translation>
 <translation id="7582945390259497898">Chromium သည် သင့်စိတ်ဝင်စားမှုများကို ခန့်မှန်းနိုင်သည်။ နောက်ပိုင်းတွင် မြင်တွေ့မည့် ကြော်ငြာများကို ပုဂ္ဂိုလ်ရေးသီးသန့်ပြုလုပ်ရန် သင်ဝင်ကြည့်သည့်ဝဘ်ဆိုက်က သင့်စိတ်ဝင်စားမှုများကို Chromium ထံ တောင်းဆိုနိုင်သည်။</translation>
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ထည့်သွင်းသည့်ဖိုင်</translation>
 <translation id="7585391435984513350">လတ်တလော ဝင်ကြည့်ထားခြင်း မရှိပါ။ Chromium သည် <ph name="PERMISSION" /> ကို ဖယ်ရှားလိုက်သည်</translation>
@@ -580,6 +582,7 @@ Chromium သည်သင့်ကြိုတင်ချိန်ညှိခ�
 <translation id="8648201657708811153">Google Chrome for Testing ကို သင့်မူရင်းဘရောင်ဇာအဖြစ် မပြုလုပ်နိုင်ပါ။</translation>
 <translation id="8697124171261953979">It also controls what page is shown when you start Chromium or search from the Omnibox.</translation>
 <translation id="8704119203788522458">ဒါဟာ သင်၏ Chromium ပါ</translation>
+<translation id="8712637175834984815">ရပါပြီ!</translation>
 <translation id="8719993436687031146">Chromium သို့ လက်မှတ်ထိုးဝင်မလား။</translation>
 <translation id="8747073452963259673">ရှာဖွေမှုနေရာ၏ ဘယ်ဘက်အောက်ခြေထောင့်- ဘယ် <ph name="LEFT" />%၊ အောက်ခြေ <ph name="BOTTOM" />%</translation>
 <translation id="8768722695577490596">စကားဝှက်များကို Chromium ပြင်ပတွင်သာ ဖျက်နိုင်သည်</translation>

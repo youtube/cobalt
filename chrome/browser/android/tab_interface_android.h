@@ -7,6 +7,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 class TabAndroid;
 
@@ -35,6 +36,7 @@ class TabInterfaceAndroid : public tabs::TabInterface {
   base::CallbackListSubscription RegisterWillDeactivate(
       WillDeactivateCallback callback) override;
   bool IsVisible() const override;
+  bool IsSelected() const override;
   base::CallbackListSubscription RegisterDidBecomeVisible(
       DidBecomeVisibleCallback callback) override;
   base::CallbackListSubscription RegisterWillBecomeHidden(
@@ -64,8 +66,11 @@ class TabInterfaceAndroid : public tabs::TabInterface {
   void OnReparented(tabs::TabCollection* parent,
                     base::PassKey<tabs::TabCollection>) override;
   void OnAncestorChanged(base::PassKey<tabs::TabCollection>) override;
+  ui::UnownedUserDataHost& GetUnownedUserDataHost() override;
+  const ui::UnownedUserDataHost& GetUnownedUserDataHost() const override;
 
  private:
+  ui::UnownedUserDataHost unowned_user_data_host_;
   base::WeakPtr<TabAndroid> weak_tab_android_;
 };
 

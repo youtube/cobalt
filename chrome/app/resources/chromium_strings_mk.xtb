@@ -211,6 +211,7 @@
 <translation id="3790262771324122253">Дознајте зошто Chromium блокира некои преземања</translation>
 <translation id="379589255253486813">Chromium ќе ве извести ако треба да се прегледа нешто</translation>
 <translation id="3802055581630249637">Chromium вчитува страници однапред што е веројатно дека ќе ги отворите за да може да се вчитуваат побрзо кога ги отворате</translation>
+<translation id="3810973564298564668">Управувај</translation>
 <translation id="3848258323044014972"><ph name="PAGE_TITLE" /> - Chromium</translation>
 <translation id="3885770153807205175">Избор на јазик</translation>
 <translation id="388648406173476553">Приспособете го и контролирајте го Chromium. Потребно е вашето внимание - кликнете за детали.</translation>
@@ -493,6 +494,7 @@ Chromium не може да ги обнови вашите поставки.</tr
 <translation id="7483335560992089831">Не може да се инсталира истата верзија на Chromium што работи во моментов. Затворете го Chromium и обидете се повторно.</translation>
 <translation id="751935028865900641">Сајтовите веројатно ќе функционираат според очекувањата. Ќе се одјавите од повеќето сајтови кога ќе ги затворите сите прозорци во Chromium, освен вашата сметка на Google ако сте најавени на Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium ќе се рестартира по 1 минута}one{Chromium ќе се рестартира по # минута}other{Chromium ќе се рестартира по # минути}}</translation>
+<translation id="7565444033145385702">За да ги заштитите вашите податоци, дозволете му на Chromium да ги отстрани дозволите за сајтовите што не сте ги посетиле неодамна.</translation>
 <translation id="7582945390259497898">Chromium може да ги процени вашите интереси. Подоцна, сајтот што го посетувате може да побара од Chromium да ги види вашите интереси за да ги персонализира рекламите што ги гледате.</translation>
 <translation id="7583399374488819119">Инсталатор на <ph name="COMPANY_NAME" /></translation>
 <translation id="7585391435984513350">Не сте отвориле одамна. Chromium ја отстрани следнава дозвола: <ph name="PERMISSION" /></translation>
@@ -578,6 +580,7 @@ Chromium не може да ги обнови вашите поставки.</tr
 <translation id="8648201657708811153">Google Chrome for Testing не може да се направи да биде ваш стандарден прелистувач.</translation>
 <translation id="8697124171261953979">Контролира и која страница се прикажува кога го стартувате Chromium или ако пребарувате од лентата за адреси.</translation>
 <translation id="8704119203788522458">Ова е вашиот Chromium</translation>
+<translation id="8712637175834984815">Сфатив</translation>
 <translation id="8719993436687031146">Ќе се најавите на Chromium?</translation>
 <translation id="8747073452963259673">долен лев агол на областа за пребарување: лево <ph name="LEFT" /> %, долу <ph name="BOTTOM" /> %</translation>
 <translation id="8768722695577490596">Лозинките може да се избришат само надвор од Chromium</translation>

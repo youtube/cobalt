@@ -45,6 +45,7 @@ namespace autofill {
 class AddressDataCleaner;
 class AlternativeStateNameMapUpdater;
 class ContactInfoPreconditionChecker;
+class HomeAndWorkMetadataStore;
 
 // Contains all address-related logic of the `PersonalDataManager`. See comment
 // above the `PersonalDataManager` first. In the `AddressDataManager` (ADM),
@@ -302,6 +303,10 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
     return alternative_state_name_map_updater_.get();
   }
 
+  HomeAndWorkMetadataStore* home_and_work_metadata_store() {
+    return home_and_work_metadata_.get();
+  }
+
  protected:
   friend class AddressDataManagerTestApi;
 
@@ -388,11 +393,6 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
   virtual void RemoveProfileImpl(const std::string& guid,
                                  bool is_deduplication_initiated);
 
-  // Returns profiles of all record types in the requested `order`, but with the
-  // Home and Work addresses at the bottom.
-  std::vector<const AutofillProfile*> GetProfilesWithDeprioritizedHomeAndWork(
-      ProfileOrder order) const;
-
   base::ObserverList<Observer> observers_;
 
   std::unique_ptr<ContactInfoPreconditionChecker>
@@ -456,6 +456,10 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
   // deduplication, disused address removal) at browser startup or when the sync
   // starts.
   std::unique_ptr<AddressDataCleaner> address_data_cleaner_;
+
+  // Manages metadata sync for Home and Work addresses. Non-null if Home and
+  // Work support is enabled and a pref service is available.
+  std::unique_ptr<HomeAndWorkMetadataStore> home_and_work_metadata_;
 
   // If true, new addresses imports are automatically accepted without a prompt.
   // Only to be used for testing.

@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/intelligence/bwg/coordinator/bwg_mediator_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/bwg_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/bwg_navigation_controller.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -85,13 +86,19 @@
 }
 
 - (void)stop {
+  [self stopWithCompletion:nil];
+}
+
+#pragma mark - Public
+
+- (void)stopWithCompletion:(ProceduralBlock)completion {
   _navigationController = nil;
   _BWGCommandsHandler = nil;
   _helpCommandsHandler = nil;
   _mediator = nil;
   _prefService = nil;
   _tracker = nil;
-  [self dismissPresentedViewWithCompletion:nil];
+  [self dismissPresentedViewWithCompletion:completion];
   [super stop];
 }
 
@@ -113,7 +120,7 @@
 
   // If promo was shown outside the promos manager, ensure the promo doesn't
   // show through the promos manager.
-  if (_entryPoint != bwg::EntryPointPromo) {
+  if (_entryPoint != bwg::EntryPoint::Promo) {
     _prefService->SetBoolean(prefs::kIOSBWGManualPromo, true);
     _tracker->UnregisterPriorityNotificationHandler(
         feature_engagement::kIPHIOSBWGPromoFeature);
@@ -150,7 +157,7 @@
   [self dismissPresentedViewWithCompletion:^{
     BWGCoordinator* strongSelf = weakSelf;
     [strongSelf presentPageActionMenuIPH];
-    [strongSelf->_BWGCommandsHandler dismissBWGFlow];
+    [strongSelf->_BWGCommandsHandler dismissBWGFlowWithCompletion:nil];
   }];
 }
 
@@ -160,13 +167,13 @@
 - (void)presentationControllerDidDismiss:
     (UIPresentationController*)presentationController {
   // TODO(crbug.com/419064727): Add metric for dismissing coordinator.
-  [_BWGCommandsHandler dismissBWGFlow];
+  [_BWGCommandsHandler dismissBWGFlowWithCompletion:nil];
 }
 
 #pragma mark - BWGNavigationControllerDelegate
 
 - (void)promoWasDismissed:(BWGNavigationController*)navigationController {
-  if (_entryPoint == bwg::EntryPointPromo) {
+  if (_entryPoint == bwg::EntryPoint::Promo) {
     [self.promosUIHandler promoWasDismissed];
   }
 }
@@ -184,11 +191,12 @@
 // If YES, BWG Promo should be shown.
 - (BOOL)shouldShowBWGPromo {
   BOOL promoShownManually = _prefService->GetBoolean(prefs::kIOSBWGManualPromo);
+  BOOL forcePromo = ShouldForceBWGPromo();
   BOOL promoTriggered = _tracker->HasEverTriggered(
       feature_engagement::kIPHIOSBWGPromoFeature, true);
-  BOOL isPromoEntry = _entryPoint == bwg::EntryPointPromo;
+  BOOL isPromoEntry = _entryPoint == bwg::EntryPoint::Promo;
 
-  return isPromoEntry || (!promoTriggered && !promoShownManually);
+  return isPromoEntry || (!promoTriggered && !promoShownManually) || forcePromo;
 }
 
 // Presents the page action menu IPH.

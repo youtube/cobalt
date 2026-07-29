@@ -30,6 +30,13 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
+// Templates in this file are instantiated many times with different types.
+// Adding the regular GC_PLUGIN_IGNORE annotations to fields in the templates
+// results in the annotation being duplicated many times, growing the debug
+// symbols, and regressing binary size. To avoid the binary size regression,
+// mark the file to ignore instead.
+GC_PLUGIN_IGNORE_FILE("crbug.com/428987863")
+
 namespace WTF {
 
 struct IdentityExtractor;
@@ -88,11 +95,11 @@ class HashSet {
 
   void swap(HashSet& ref) { impl_.swap(ref.impl_); }
 
-  unsigned size() const;
-  unsigned Capacity() const;
+  wtf_size_t size() const;
+  wtf_size_t Capacity() const;
   bool empty() const;
 
-  void ReserveCapacityForSize(unsigned size) {
+  void ReserveCapacityForSize(wtf_size_t size) {
     impl_.ReserveCapacityForSize(size);
   }
 
@@ -267,12 +274,12 @@ inline bool operator!=(const HashSet<T, U, V>& a, const HashSet<T, U, V>& b) {
 }
 
 template <typename T, typename U, typename V>
-inline unsigned HashSet<T, U, V>::size() const {
+inline wtf_size_t HashSet<T, U, V>::size() const {
   return impl_.size();
 }
 
 template <typename T, typename U, typename V>
-inline unsigned HashSet<T, U, V>::Capacity() const {
+inline wtf_size_t HashSet<T, U, V>::Capacity() const {
   return impl_.Capacity();
 }
 
@@ -380,6 +387,8 @@ inline auto HashSet<T, U, V>::TakeAny() -> ValueType {
 
 }  // namespace WTF
 
+namespace blink {
 using WTF::HashSet;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_SET_H_

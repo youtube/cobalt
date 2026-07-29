@@ -9,6 +9,8 @@
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_session_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 
 @implementation BWGSessionHandler {
   // The associated WebStateList.
@@ -41,8 +43,21 @@
   [self setSessionActive:NO clientID:clientID];
 }
 
+- (void)responseReceivedWithClientID:(NSString*)clientID
+                            serverID:(NSString*)serverID {
+  [self updateSessionWithClientID:clientID serverID:serverID];
+}
+
 - (void)didTapBWGSettingsButton {
-  // TODO(crbug.com/419070203): Implement.
+  __weak BWGSessionHandler* weakSelf = self;
+  [_BWGHandler dismissBWGFlowWithCompletion:^{
+    BWGSessionHandler* strongSelf = weakSelf;
+    if (!strongSelf) {
+      return;
+    }
+
+    [strongSelf.settingsHandler showBWGSettings];
+  }];
 }
 
 #pragma mark - Private

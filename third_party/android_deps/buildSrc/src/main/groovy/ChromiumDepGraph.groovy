@@ -126,6 +126,30 @@ class ChromiumDepGraph {
                     url: 'https://github.com/protocolbuffers/protobuf/blob/master/java/lite.md',
                     licenseUrl: 'https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE',
                     licenseName: 'BSD'),
+            io_grpc_grpc_android: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_binder: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_api: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_context: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_core: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_protobuf_lite: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_grpc_grpc_stub: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/grpc/grpc-java/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
+            io_perfmark_perfmark_api: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/perfmark/perfmark/refs/heads/master/LICENSE',
+                    licenseName: 'Apache 2.0'),
             jakarta_inject_jakarta_inject_api: new PropertyOverride(
                     // Help gradle resolve the same version that our 3pp script does.
                     versionFilter: '\\d+\\.\\d+\\.\\d+$'),
@@ -253,7 +277,8 @@ class ChromiumDepGraph {
             org_jetbrains_kotlinx_kotlinx_coroutines_rx3: new PropertyOverride(
                     exclude: true),  // An unnecessary dep of androidx.xr.runtime.
             org_reactivestreams_reactive_streams: new PropertyOverride(
-                    exclude: true),  // An unnecessary dep of androidx.xr.runtime.
+                    licenseName: 'MIT',
+                    licenseUrl: 'https://raw.githubusercontent.com/reactive-streams/reactive-streams-jvm/refs/tags/v1.0.4/LICENSE'),
 
     ]
 

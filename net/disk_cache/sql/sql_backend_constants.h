@@ -52,14 +52,18 @@ inline constexpr int kSqlBackendCompatibleDatabaseVersion = 1;
 // miscellaneous metadata. The
 // `SqlPersistentStoreTest.StaticResourceSizeEstimation` test provides a basic
 // validation of this constant against the actual file size.
-// TODO(crbug.com/422065015): Re-evaluate this constant when head and body
-// writing is implemented and new indexes are added, as the storage pattern may
-// affect overhead.
-inline constexpr int kSqlBackendStaticResourceSize = 100;
+inline constexpr int kSqlBackendStaticResourceSize = 300;
 
 // Defines the number of streams supported by the SQL backend.
-// Currently, the SQL backend only supports a single stream (stream 0)
-static const int kSqlBackendStreamCount = 1;
+// The SQL backend only supports stream 0 and stream 1.
+static const int kSqlBackendStreamCount = 2;
+
+// Divisor used to calculate the high and low watermarks for cache eviction.
+// The high watermark is `max_size - (max_size / divisor)`, and the low
+// watermark is `max_size - 2 * (max_size / divisor)`. Eviction is triggered
+// when the cache size exceeds the high watermark and continues until it is
+// below the low watermark.
+inline constexpr int kSqlBackendEvictionMarginDivisor = 20;
 
 }  // namespace disk_cache
 

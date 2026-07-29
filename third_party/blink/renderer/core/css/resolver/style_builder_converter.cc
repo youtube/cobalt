@@ -87,6 +87,7 @@
 #include "third_party/blink/renderer/core/style/reference_clip_path_operation.h"
 #include "third_party/blink/renderer/core/style/reference_offset_path_operation.h"
 #include "third_party/blink/renderer/core/style/scoped_css_name.h"
+#include "third_party/blink/renderer/core/style/scroll_marker_group.h"
 #include "third_party/blink/renderer/core/style/scroll_start_data.h"
 #include "third_party/blink/renderer/core/style/shape_clip_path_operation.h"
 #include "third_party/blink/renderer/core/style/shape_offset_path_operation.h"
@@ -1747,16 +1748,34 @@ void StyleBuilderConverter::ConvertGridTrackList(
          computed_grid_track_list.IsSubgriddedAxis());
 }
 
-std::optional<Length> StyleBuilderConverter::ConvertItemTolerance(
+ScrollMarkerGroup* StyleBuilderConverter::ConvertScrollMarkerGroup(
+    StyleResolverState&,
+    const CSSValue& value) {
+  if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+    if (identifier_value->GetValueID() == CSSValueID::kNone) {
+      return nullptr;
+    }
+    auto position =
+        identifier_value->ConvertTo<ScrollMarkerGroup::ScrollMarkerPosition>();
+    return MakeGarbageCollected<ScrollMarkerGroup>(position);
+  }
+  const auto& pair = To<CSSValuePair>(value);
+  auto position = To<CSSIdentifierValue>(pair.First())
+                      .ConvertTo<ScrollMarkerGroup::ScrollMarkerPosition>();
+  auto mode = To<CSSIdentifierValue>(pair.Second())
+                  .ConvertTo<ScrollMarkerGroup::ScrollMarkerMode>();
+  return MakeGarbageCollected<ScrollMarkerGroup>(position, mode);
+}
+
+ItemTolerance StyleBuilderConverter::ConvertItemTolerance(
     const StyleResolverState& state,
     const CSSValue& value) {
   auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
-  if (identifier_value &&
-      identifier_value->GetValueID() == CSSValueID::kNormal) {
-    return std::nullopt;
+  if (identifier_value) {
+    return ItemTolerance(identifier_value->GetValueID());
   }
 
-  return ConvertLength(state, value);
+  return ItemTolerance(ConvertLength(state, value));
 }
 
 StyleHyphenateLimitChars StyleBuilderConverter::ConvertHyphenateLimitChars(
@@ -1950,7 +1969,9 @@ Length StyleBuilderConverter::ConvertLengthSizing(StyleResolverState& state,
     case CSSValueID::kStretch:
       return Length::Stretch();
     case CSSValueID::kWebkitFillAvailable:
-      return Length::FillAvailable();
+      return RuntimeEnabledFeatures::AliasWebkitFillAvailableEnabled()
+                 ? Length::Stretch()
+                 : Length::FillAvailable();
     case CSSValueID::kWebkitFitContent:
     case CSSValueID::kFitContent:
       return Length::FitContent();
@@ -2581,19 +2602,19 @@ float StyleBuilderConverter::ConvertWordSpacing(StyleResolverState& state,
       state.CssToLengthConversionData());
 }
 
-scoped_refptr<SVGDashArray> StyleBuilderConverter::ConvertStrokeDasharray(
+SVGDashArray* StyleBuilderConverter::ConvertStrokeDasharray(
     StyleResolverState& state,
     const CSSValue& value) {
   const auto* dashes = DynamicTo<CSSValueList>(value);
   if (!dashes) {
-    return EmptyDashArray();
+    return nullptr;
   }
+  DCHECK(dashes->length());
 
-  scoped_refptr<SVGDashArray> array = base::MakeRefCounted<SVGDashArray>();
-
-  wtf_size_t length = dashes->length();
-  for (wtf_size_t i = 0; i < length; ++i) {
-    array->data.push_back(
+  SVGDashArray* array = MakeGarbageCollected<SVGDashArray>();
+  array->ReserveInitialCapacity(dashes->length());
+  for (wtf_size_t i = 0; i < dashes->length(); ++i) {
+    array->push_back(
         ConvertLength(state, To<CSSPrimitiveValue>(dashes->Item(i))));
   }
 

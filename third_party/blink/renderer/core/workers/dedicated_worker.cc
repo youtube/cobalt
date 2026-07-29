@@ -66,10 +66,11 @@
 
 namespace blink {
 
-DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
-                                         const String& url,
-                                         const WorkerOptions* options,
-                                         ExceptionState& exception_state) {
+DedicatedWorker* DedicatedWorker::Create(
+    ExecutionContext* context,
+    const V8UnionTrustedScriptURLOrUSVString* url,
+    const WorkerOptions* options,
+    ExceptionState& exception_state) {
   DCHECK(context->IsContextThread());
   UseCounter::Count(context, WebFeature::kWorkerStart);
   if (context->IsContextDestroyed()) {
@@ -78,7 +79,13 @@ DedicatedWorker* DedicatedWorker::Create(ExecutionContext* context,
     return nullptr;
   }
 
-  KURL script_request_url = ResolveURL(context, url, exception_state);
+  String compliant_url = TrustedTypesCheckForScriptURL(
+      url, context, "Worker", "constructor", exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
+  }
+
+  KURL script_request_url = ResolveURL(context, compliant_url, exception_state);
   if (!script_request_url.IsValid()) {
     // Don't throw an exception here because it's already thrown in
     // ResolveURL().
@@ -278,7 +285,7 @@ void DedicatedWorker::Start() {
   // WorkerOptions.
   // https://html.spec.whatwg.org/C/#workeroptions
   auto credentials_mode = network::mojom::CredentialsMode::kSameOrigin;
-  if (options_->type() == script_type_names::kModule) {
+  if (options_->type() == V8WorkerType::Enum::kModule) {
     credentials_mode = Request::V8RequestCredentialsToCredentialsMode(
         options_->credentials().AsEnum());
   }
@@ -574,7 +581,7 @@ DedicatedWorker::CreateGlobalScopeCreationParams(
   DCHECK(top_level_frame_security_origin);
 
   mojom::blink::ScriptType script_type =
-      (options_->type() == script_type_names::kClassic)
+      (options_->type() == V8WorkerType::Enum::kClassic)
           ? mojom::blink::ScriptType::kClassic
           : mojom::blink::ScriptType::kModule;
 
@@ -639,23 +646,22 @@ const AtomicString& DedicatedWorker::InterfaceName() const {
 }
 
 void DedicatedWorker::ContextLifecycleStateChanged(
-    mojom::FrameLifecycleState state) {
+    mojom::blink::FrameLifecycleState state) {
   DCHECK(GetExecutionContext()->IsContextThread());
   switch (state) {
-    case mojom::FrameLifecycleState::kPaused:
+    case mojom::blink::FrameLifecycleState::kPaused:
       // Do not do anything in this case. kPaused is only used
       // for when the main thread is paused we shouldn't worry
       // about pausing the worker thread in this case.
       break;
-    case mojom::FrameLifecycleState::kFrozen:
-    case mojom::FrameLifecycleState::kFrozenAutoResumeMedia:
+    case mojom::blink::FrameLifecycleState::kFrozen:
       if (!requested_frozen_) {
         requested_frozen_ = true;
         context_proxy_->Freeze(
             GetExecutionContext()->is_in_back_forward_cache());
       }
       break;
-    case mojom::FrameLifecycleState::kRunning:
+    case mojom::blink::FrameLifecycleState::kRunning:
       if (requested_frozen_) {
         context_proxy_->Resume();
         requested_frozen_ = false;

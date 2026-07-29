@@ -63,12 +63,9 @@ constexpr char kFrozenKey[] = "frozen";
 constexpr char kDiscardedKey[] = "discarded";
 constexpr char kAutoDiscardableKey[] = "autoDiscardable";
 constexpr char kMutedInfoKey[] = "mutedInfo";
-constexpr char kSelectedKey[] = "selected";
-constexpr char kStatusKey[] = "status";
 constexpr char kTabIdKey[] = "tabId";
 constexpr char kTabIdsKey[] = "tabIds";
 constexpr char kToIndexKey[] = "toIndex";
-constexpr char kWindowClosing[] = "isWindowClosing";
 
 bool WillDispatchTabUpdatedEvent(
     WebContents* contents,
@@ -115,7 +112,7 @@ bool WillDispatchTabCreatedEvent(
   base::Value::Dict tab_value =
       ExtensionTabUtil::CreateTabObject(contents, scrub_tab_behavior, extension)
           .ToValue();
-  tab_value.Set(kSelectedKey, active);
+  tab_value.Set(tabs_constants::kSelectedKey, active);
   tab_value.Set(tabs_constants::kActiveKey, active);
 
   event_args_out.emplace();
@@ -147,7 +144,7 @@ std::set<std::string> TabsEventRouter::TabEntry::UpdateLoadState() {
   // Send 'status' of tab change. Expecting 'complete' is fired.
   complete_waiting_on_load_ = false;
   std::set<std::string> changed_property_names;
-  changed_property_names.insert(kStatusKey);
+  changed_property_names.insert(tabs_constants::kStatusKey);
   return changed_property_names;
 }
 
@@ -170,8 +167,7 @@ void TabsEventRouter::TabEntry::NavigationEntryCommitted(
   // Send 'status' of tab change. Expecting 'loading' is fired.
   complete_waiting_on_load_ = true;
   std::set<std::string> changed_property_names;
-  changed_property_names.insert(kStatusKey);
-
+  changed_property_names.insert(tabs_constants::kStatusKey);
   if (web_contents()->GetURL() != url_) {
     url_ = web_contents()->GetURL();
     changed_property_names.insert(tabs_constants::kUrlKey);
@@ -221,8 +217,7 @@ void TabsEventRouter::OnBrowserSetLastActive(Browser* browser) {
   TabsWindowsAPI* tabs_window_api = TabsWindowsAPI::Get(profile_);
   if (tabs_window_api) {
     tabs_window_api->windows_event_router()->OnActiveWindowChanged(
-        browser ? browser->GetFeatures().extension_window_controller()
-                : nullptr);
+        browser ? BrowserExtensionWindowController::From(browser) : nullptr);
   }
 }
 
@@ -399,7 +394,7 @@ void TabsEventRouter::OnLifecycleUnitStateChanged(
     // - a tab can only be discarded if its status is "complete" or "loading",
     //   in which case it will transition to "unloaded".
     changed_property_names.insert(kDiscardedKey);
-    changed_property_names.insert(kStatusKey);
+    changed_property_names.insert(tabs_constants::kStatusKey);
   }
 
   if (previous_or_new_state_is(::mojom::LifecycleUnitState::FROZEN)) {
@@ -462,7 +457,8 @@ void TabsEventRouter::DispatchTabClosingAt(TabStripModel* tab_strip_model,
   base::Value::Dict object_args;
   object_args.Set(tabs_constants::kWindowIdKey,
                   ExtensionTabUtil::GetWindowIdOfTab(contents));
-  object_args.Set(kWindowClosing, tab_strip_model->closing_all());
+  object_args.Set(tabs_constants::kIsWindowClosingKey,
+                  tab_strip_model->closing_all());
   args.Append(std::move(object_args));
 
   Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
@@ -546,9 +542,15 @@ void TabsEventRouter::DispatchTabSelectionChanged(
   base::Value::List args;
   base::Value::Dict select_info;
 
-  select_info.Set(
-      tabs_constants::kWindowIdKey,
-      ExtensionTabUtil::GetWindowIdOfTabStripModel(tab_strip_model));
+  int window_id = -1;
+  for (Browser* browser : *BrowserList::GetInstance()) {
+    if (browser->tab_strip_model() == tab_strip_model) {
+      window_id = ExtensionTabUtil::GetWindowId(browser);
+      break;
+    }
+  }
+
+  select_info.Set(tabs_constants::kWindowIdKey, window_id);
 
   select_info.Set(kTabIdsKey, std::move(all_tabs));
   args.Append(std::move(select_info));

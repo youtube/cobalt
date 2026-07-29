@@ -819,9 +819,9 @@ ui::MotionEventAndroidJava GetMotionEventAndroid(
           env, /*downTime=*/0, /*eventTime=*/0, /*action=*/0, /*x=*/0, /*y=*/0,
           /*metaState=*/0);
   return ui::MotionEventAndroidJava(
-      env, obj.obj(), pix_to_dip, 0.f, 0.f, 0.f, event_time, event_time,
-      down_time, ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0,
-      0, 0, 0, 0, 0, false, &pointer, nullptr, false);
+      env, obj, pix_to_dip, 0.f, 0.f, 0.f, event_time, event_time, down_time,
+      ui::MotionEventAndroid::GetAndroidAction(action), 1, 0, 0, 0, 0, 0, 0, 0,
+      false, &pointer, nullptr, false);
 }
 #endif
 }  // namespace
@@ -3192,9 +3192,6 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
   EXPECT_FALSE(child_frame_monitor.EventWasReceived());
 }
 
-// Tooltips aren't used on Android, so no need to compile/run this test in that
-// case.
-#if !BUILDFLAG(IS_ANDROID)
 class TooltipMonitor : public RenderWidgetHostViewBase::TooltipObserver {
  public:
   explicit TooltipMonitor(RenderWidgetHostViewBase* rwhv)
@@ -3323,14 +3320,25 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
 
   rwhv_a->SetTooltipObserverForTesting(nullptr);
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
+class SitePerProcessHitTestAndroidBrowserTest
+    : public SitePerProcessHitTestBrowserTest {
+ public:
+  SitePerProcessHitTestAndroidBrowserTest() {
+    feature_list_.InitWithFeatures({}, {kTooltips});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// TODO(crbug.com/409903982): Remove test once kTooltips is fully launched.
 // The following test ensures that we don't get a crash if a tooltip is
 // triggered on Android. This test is nearly identical to
 // SitePerProcessHitTestBrowserTest.CrossProcessTooltipTestAndroid, except
 // it omits the tooltip monitor, and all dereferences of GetCursorManager().
-IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestBrowserTest,
+IN_PROC_BROWSER_TEST_F(SitePerProcessHitTestAndroidBrowserTest,
                        CrossProcessTooltipTestAndroid) {
   GURL main_url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));

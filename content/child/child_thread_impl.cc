@@ -57,10 +57,8 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "ipc/ipc_channel_mojo.h"
-#include "ipc/ipc_logging.h"
 #include "ipc/ipc_platform_file.h"
 #include "ipc/ipc_sync_channel.h"
-#include "ipc/ipc_sync_message_filter.h"
 #include "mojo/core/embedder/scoped_ipc_support.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -230,22 +228,6 @@ void TerminateSelfOnDisconnect(
 #endif
 }
 
-class SuicideOnChannelErrorFilter : public IPC::MessageFilter {
- public:
-  explicit SuicideOnChannelErrorFilter(
-      scoped_refptr<base::SequencedTaskRunner> io_task_runner)
-      : io_task_runner_(std::move(io_task_runner)) {}
-
-  // IPC::MessageFilter
-  void OnChannelError() override { TerminateSelfOnDisconnect(io_task_runner_); }
-
- protected:
-  ~SuicideOnChannelErrorFilter() override = default;
-
- private:
-  scoped_refptr<base::SequencedTaskRunner> io_task_runner_;
-};
-
 #endif  // OS(POSIX)
 
 mojo::IncomingInvitation InitializeMojoIPCChannel() {
@@ -367,20 +349,6 @@ class ChildThreadImpl::IOThreadState
     mojo::PlatformHandle task_port(
         (base::apple::ScopedMachSendRight(task_self_trap())));
     std::move(callback).Run(std::move(task_port));
-  }
-#endif
-
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-  void SetIPCLoggingEnabled(bool enable) override {
-    main_thread_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(
-                       [](bool enable) {
-                         if (enable)
-                           IPC::Logging::GetInstance()->Enable();
-                         else
-                           IPC::Logging::GetInstance()->Disable();
-                       },
-                       enable));
   }
 #endif
 
@@ -639,12 +607,6 @@ void ChildThreadImpl::Init(const Options& options) {
   TRACE_EVENT0("startup", "ChildThreadImpl::Init");
   on_channel_error_called_ = false;
   main_thread_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-  // We must make sure to instantiate the IPC Logger *before* we create the
-  // channel, otherwise we can get a callback on the IO thread which creates
-  // the logger, and the logger does not like being created on the IO thread.
-  IPC::Logging::GetInstance();
-#endif
 
   if (options.with_legacy_ipc_channel) {
     channel_ = IPC::SyncChannel::Create(
@@ -705,9 +667,6 @@ void ChildThreadImpl::Init(const Options& options) {
   child_process_host_ = mojo::SharedRemote<mojom::ChildProcessHost>(
       std::move(remote_host), GetIOTaskRunner());
 
-  if (options.with_legacy_ipc_channel)
-    sync_message_filter_ = channel_->CreateSyncMessageFilter();
-
   // In single process mode, browser-side tracing and memory will cover the
   // whole process including renderers.
   if (!IsInBrowserProcess()) {
@@ -747,13 +706,9 @@ void ChildThreadImpl::Init(const Options& options) {
   // and single-process mode.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kProcessType)) {
-    if (options.with_legacy_ipc_channel) {
-      channel_->AddFilter(new SuicideOnChannelErrorFilter(GetIOTaskRunner()));
-    } else {
-      child_process_host_.set_disconnect_handler(
-          base::BindOnce(&TerminateSelfOnDisconnect, GetIOTaskRunner()),
-          GetIOTaskRunner());
-    }
+    child_process_host_.set_disconnect_handler(
+        base::BindOnce(&TerminateSelfOnDisconnect, GetIOTaskRunner()),
+        GetIOTaskRunner());
   }
 #endif
 
@@ -814,8 +769,6 @@ void ChildThreadImpl::Init(const Options& options) {
 
 ChildThreadImpl::~ChildThreadImpl() {
   if (channel_) {
-    channel_->RemoveFilter(sync_message_filter_.get());
-
     // The ChannelProxy object caches a pointer to the IPC thread, so need to
     // reset it as it's not guaranteed to outlive this object.
     // NOTE: this also has the side-effect of not closing the main IPC channel

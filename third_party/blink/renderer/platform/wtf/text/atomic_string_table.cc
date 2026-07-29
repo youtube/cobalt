@@ -40,7 +40,7 @@ class UCharBuffer {
       // This is a very common case from HTML parsing, so we take
       // the size penalty from inlining.
       return StringHasher::ComputeHashAndMaskTop8BitsInline<
-          WTF::ConvertTo8BitHashReader>(
+          ConvertTo8BitHashReader>(
           {reinterpret_cast<const uint8_t*>(chars), len});
     } else {
       return StringHasher::ComputeHashAndMaskTop8Bits(
@@ -106,8 +106,7 @@ struct StringViewLookupTranslator {
       return StringHasher::ComputeHashAndMaskTop8Bits(
           base::as_chars(buf.Span8()).data(), buf.length());
     } else if (IsOnly8Bit(buf.Span16())) {
-      return StringHasher::ComputeHashAndMaskTop8Bits<
-          WTF::ConvertTo8BitHashReader>(
+      return StringHasher::ComputeHashAndMaskTop8Bits<ConvertTo8BitHashReader>(
           base::as_chars(buf.RawByteSpan()).data(), buf.length());
     } else {
       return StringHasher::ComputeHashAndMaskTop8Bits(
@@ -282,8 +281,8 @@ struct LowercaseLookupTranslator {
         bucket->Is8Bit() == query->Is8Bit()) {
       return query->IsLowerASCII();
     }
-    return WTF::VisitCharacters(*bucket, [&](auto bch) {
-      return WTF::VisitCharacters(*query, [&](auto qch) {
+    return VisitCharacters(*bucket, [&](auto bch) {
+      return VisitCharacters(*query, [&](auto qch) {
         wtf_size_t len = query->length();
         for (wtf_size_t i = 0; i < len; ++i) {
           if (bch[i] != ToASCIILower(qch[i]))

@@ -94,8 +94,6 @@ class CORE_EXPORT OffscreenCanvas final
     disable_reading_from_canvas_ = true;
   }
 
-  CanvasResourceProvider* GetOrCreateResourceProviderForCanvas2D();
-
   void SetFrameSinkId(uint32_t client_id, uint32_t sink_id) {
     client_id_ = client_id;
     sink_id_ = sink_id;
@@ -111,7 +109,6 @@ class CORE_EXPORT OffscreenCanvas final
   DEFINE_ATTRIBUTE_EVENT_LISTENER(contextrestored, kContextrestored)
 
   // CanvasRenderingContextHost implementation.
-  void PreFinalizeFrame() override {}
   void PostFinalizeFrame(FlushReason) override {}
   void DetachContext() override { context_ = nullptr; }
   CanvasRenderingContext* RenderingContext() const override {
@@ -127,13 +124,7 @@ class CORE_EXPORT OffscreenCanvas final
   void SetTransferToGPUTextureWasInvoked() override {
     transfer_to_gpu_texture_was_invoked_ = true;
   }
-  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
-      std::unique_ptr<CanvasResourceProvider>) override;
   void DiscardResources() override;
-  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override {
-    CHECK(IsRenderingContext2D());
-    return resource_provider_for_canvas2d_.get();
-  }
 
   bool PushFrameIfNeeded();
   bool PushFrame(scoped_refptr<CanvasResource>&& frame,
@@ -203,15 +194,6 @@ class CORE_EXPORT OffscreenCanvas final
   UniqueFontSelector* GetFontSelector() override;
 
   void Trace(Visitor*) const override;
-
-  // `resource_provider_` must be null.
-  void SetResourceProviderForCanvas2D(
-      std::unique_ptr<CanvasResourceProvider> resource_provider) {
-    CHECK(IsRenderingContext2D());
-    CHECK(!resource_provider_for_canvas2d_);
-    resource_provider_for_canvas2d_ = std::move(resource_provider);
-    UpdateMemoryUsage();
-  }
 
   class ScopedInsideWorkerRAF {
     STACK_ALLOCATED();
@@ -284,11 +266,6 @@ class CORE_EXPORT OffscreenCanvas final
   bool is_neutered_ = false;
   bool origin_clean_ = true;
   bool disable_reading_from_canvas_ = false;
-
-  std::unique_ptr<CanvasResourceProvider> resource_provider_for_canvas2d_;
-  // `did_fail_to_create_resource_provider_` prevents repeated attempts in
-  // allocating resources after the first attempt failed.
-  bool did_fail_to_create_resource_provider_ = false;
 
   std::unique_ptr<CanvasResourceDispatcher> frame_dispatcher_;
 

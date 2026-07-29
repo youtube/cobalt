@@ -16,7 +16,6 @@
 <translation id="1352919863522755794">Gestore delle password di Google non ha potuto controllare le tue password. Verifica la tua connessione a internet.</translation>
 <translation id="1394995526009609883">Puoi aggiornare le tue selezioni in qualsiasi momento nelle impostazioni di Chrome.</translation>
 <translation id="1407843355326180937">Accedi a questo sito e a Chrome per trovare i tuoi preferiti e altri dati su tutti i tuoi dispositivi.</translation>
-<translation id="1426599484714342603">Sfrutta le potenzialità di Chrome Shopping</translation>
 <translation id="1462727070346936664">Accedi per usare al meglio Chrome.</translation>
 <translation id="1493827051843127077">Imposta Chrome come browser predefinito per la sincronizzazione di schede, password e dati di pagamento su tutti i tuoi dispositivi</translation>
 <translation id="1504372625950710826">Chrome non ha potuto verificare la disponibilità di aggiornamenti. Verifica la tua connessione a Internet.</translation>
@@ -33,7 +32,6 @@ Aspetti da considerare:
 <translation id="1554731936187952550">Disponi della misura di sicurezza più efficace di Chrome contro siti web pericolosi</translation>
 <translation id="155816064895200734">Imposta Chrome come browser predefinito</translation>
 <translation id="1580570086594302477">Apre una nuova scheda di navigazione in incognito di Chrome.</translation>
-<translation id="1634522710245925681">Usa Chrome per impostazione predefinita per ottenere facilmente approfondimenti sul prezzo</translation>
 <translation id="1646463005043273333">Apre l'impostazione di Chrome per impostare Chrome come browser predefinito.</translation>
 <translation id="1670609221633730681">Suggerimento per Chrome: scegli la posizione della barra degli indirizzi</translation>
 <translation id="1683863426423719967">Per ricevere promemoria delle schede da Chrome, attiva le notifiche nelle Impostazioni di iOS.</translation>
@@ -65,14 +63,12 @@ Aspetti da considerare:
 <translation id="2423077901494354337">Ora potrai sfruttare al meglio Chrome sul tuo dispositivo.</translation>
 <translation id="2427791862912929107">Chrome offre funzionalità che ti consentono di gestire i tuoi dati Internet e la velocità di caricamento delle pagine web.
 <ph name="BEGIN_LINK" />Scopri di più<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">Usa la funzionalità Compilazione automatica di Chrome per recuperare facilmente le tue password salvate nelle altre app</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{Questo accade quando Chrome non viene utilizzato per {THRESHOLD} minuto. Potrebbero essere inclusi la cronologia e la compilazione automatica.}other{Questo accade quando Chrome non viene utilizzato per {THRESHOLD} minuti. Potrebbero essere inclusi la cronologia e la compilazione automatica.}}</translation>
 <translation id="2561231791489583059">Usa Chrome come browser predefinito per proteggerti da siti pericolosi e tenere al sicuro le tue password</translation>
 <translation id="2574249610672786438">Esegui l'accesso su tutti i dispositivi su cui utilizzi Chrome per visualizzare le tue schede</translation>
 <translation id="2576431527583832481">Chrome è stato migliorato. È disponibile una nuova versione.</translation>
 <translation id="257708665678654955">Vuoi che Google Chrome ti proponga di tradurre le pagine di questo sito in <ph name="LANGUAGE_NAME" /> al prossimo accesso?</translation>
 <translation id="2668242166988961773">Esegui una ricerca vocale in Chrome.</translation>
-<translation id="2671426118752779020">Puoi utilizzare le password salvate con Gestore delle password di Google in altre app sull'iPhone.</translation>
 <translation id="2689064829982324496">Per uscire dal tuo Account Google su tutti i siti web, <ph name="BEGIN_LINK" />esci da Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome non ha potuto verificare la disponibilità di aggiornamenti. Riprova più tardi.</translation>
 <translation id="2703746758996815929">Per ricevere suggerimenti utili su Chrome, attiva le notifiche nelle impostazioni di iOS.</translation>
@@ -222,7 +218,6 @@ I dati sono criptati con la tua passphrase. Inseriscila per utilizzare e salvare
 <translation id="6684809838922667136">Migliora Chrome</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{Questo accade quando Chrome non viene utilizzato per {THRESHOLD} minuto. I dati salvati solo su questo dispositivo mentre avevi eseguito l'accesso verranno eliminati. Potrebbero essere incluse cronologia e password.}other{Questo accade quando Chrome non viene utilizzato per {THRESHOLD} minuti. I dati salvati solo su questo dispositivo mentre avevi eseguito l'accesso verranno eliminati. Potrebbero essere incluse cronologia e password.}}</translation>
 <translation id="6709398533399187136">La tua password è stata compromessa nell'ambito di una violazione dei dati. Gestore delle password di Google consiglia di cambiarla subito.</translation>
-<translation id="6788035488757621217">Dalle impostazioni del dispositivo, apri "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" />" e seleziona "Chrome"</translation>
 <translation id="6820553595690137150">La crittografia delle passphrase non include metodi di pagamento e indirizzi.
 
 Per modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Chrome nel tuo account<ph name="END_LINK" />.</translation>
@@ -242,7 +237,6 @@ Per altre impostazioni che utilizzano i dati per migliorare la tua esperienza co
 <translation id="7175129790242719365">Suggerimento per Chrome: accedi a Chrome</translation>
 <translation id="7187993566681480880">Ti protegge su Chrome e potrebbe essere utilizzata per migliorare la sicurezza su altre app Google se esegui l'accesso.</translation>
 <translation id="7200524487407690471">Chrome esegue automaticamente il controllo di sicurezza ogni giorno per proteggerti da violazioni dei dati, siti web non sicuri e altro ancora. Puoi trovare ulteriori informazioni sul controllo di sicurezza nelle Impostazioni.</translation>
-<translation id="72119412072970160">Puoi utilizzare le password salvate con Gestore delle password di Google in altre app sull'iPad.</translation>
 <translation id="7214019116829172458">Apri la scheda di navigazione in incognito Chrome</translation>
 <translation id="722167379782941918">Chrome consiglia la Protezione avanzata</translation>
 <translation id="723787869754590019">Utilizza Chrome per la compilazione automatica</translation>
@@ -288,7 +282,6 @@ Per altre impostazioni che utilizzano i dati per migliorare la tua esperienza co
 <translation id="8018153653741938705">Resta al sicuro con Google Chrome</translation>
 <translation id="8022947259858476807">Usa Chrome per impostazione predefinita per aprire link, eseguire ricerche dai widget e compilare automaticamente le password in altre app</translation>
 <translation id="804638182476029347">Consenti le notifiche di Chrome per ricevere avvisi relativi ai cali di prezzo</translation>
-<translation id="804756029368067824">Imposta Chrome come browser predefinito per monitorare facilmente i prezzi e ottenere approfondimenti sul prezzo dei prodotti che vuoi acquistare.</translation>
 <translation id="8065292699993359127">Apri gli URL in Chrome nella modalità in incognito</translation>
 <translation id="8069507567842347179">Questo pacchetto è già stato monitorato su Chrome.</translation>
 <translation id="8136856065410661948">Verranno creati eventi nel tuo Calendario Apple da Chrome e Google Lens.</translation>

@@ -46,6 +46,11 @@
       {
         "timestamp": "2000",
         "connection": false
+      },
+      // Enables report sends after retry time frame.
+      {
+        "timestamp": "174100000",
+        "connection": false
       }
     ]
   },

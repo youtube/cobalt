@@ -28,6 +28,7 @@
 #include "components/tab_groups/token_id.h"
 #include "components/tabs/public/split_tab_id.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 class GURL;
 class Profile;
@@ -229,6 +230,7 @@ class TabAndroid : public tabs::TabInterface,
   base::CallbackListSubscription RegisterWillDeactivate(
       WillDeactivateCallback callback) override;
   bool IsVisible() const override;
+  bool IsSelected() const override;
   base::CallbackListSubscription RegisterDidBecomeVisible(
       DidBecomeVisibleCallback callback) override;
   base::CallbackListSubscription RegisterWillBecomeHidden(
@@ -260,6 +262,9 @@ class TabAndroid : public tabs::TabInterface,
                     base::PassKey<tabs::TabCollection>) override;
   void OnAncestorChanged(base::PassKey<tabs::TabCollection>) override;
 
+  ui::UnownedUserDataHost& GetUnownedUserDataHost() override;
+  const ui::UnownedUserDataHost& GetUnownedUserDataHost() const override;
+
  private:
   // This constructor bypassing JVM setup is for CreateForTesting only.
   TabAndroid(Profile* profile, int tab_id);
@@ -290,6 +295,7 @@ class TabAndroid : public tabs::TabInterface,
   base::ObserverList<Observer> observers_;
 
   const base::WeakPtr<Profile> profile_;
+  ui::UnownedUserDataHost unowned_user_data_host_;
   base::WeakPtrFactory<TabAndroid> weak_ptr_factory_{this};
 };
 

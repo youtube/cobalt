@@ -8,6 +8,9 @@
 
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/test/shell_test_api.h"
+#include "ash/root_window_controller.h"
+#include "ash/shelf/shelf.h"
+#include "ash/shelf/shelf_layout_manager.h"
 #include "ash/shell.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "ash/wm/tablet_mode/tablet_mode_multitask_menu_controller.h"
@@ -578,26 +581,19 @@ class WebAppNonClientFrameViewChromeOSTest
     return web_app_frame_toolbar_->paint_as_active_;
   }
 
-  // Returns a PageActionIconView specified by `type` if it hasn't been migrated
-  // yet (or the migration is disabled). Otherwise returns the PageActionView
-  // specified by `action_id`
   IconLabelBubbleView* GetPageActionView(
-      PageActionIconType type,
-      std::optional<actions::ActionId> action_id = std::nullopt) {
-    if (IsPageActionMigrated(type)) {
-      if (!action_id.has_value()) {
-        // The find page action will not exist post-migration.
-        // TODO(https://crbug.com/376283618): Update the comment after
-        // migration.
-        DCHECK_EQ(type, PageActionIconType::kFind);
-        return nullptr;
-      }
-
+      std::variant<actions::ActionId, PageActionIconType> action_type) {
+    if (std::holds_alternative<actions::ActionId>(action_type)) {
       return browser_view_->toolbar_button_provider()->GetPageActionView(
-          action_id.value());
+          std::get<actions::ActionId>(action_type));
+    } else {
+      PageActionIconType type = std::get<PageActionIconType>(action_type);
+      if (!IsPageActionMigrated(type)) {
+        return browser_view_->toolbar_button_provider()->GetPageActionIconView(
+            type);
+      }
+      return nullptr;
     }
-    return browser_view_->toolbar_button_provider()->GetPageActionIconView(
-        type);
   }
 
   ContentSettingImageView* GrantGeolocationPermission() {
@@ -719,8 +715,8 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest,
   SetUpWebApp();
   content::WebContents* web_contents =
       app_browser_->tab_strip_model()->GetActiveWebContents();
-  IconLabelBubbleView* manage_passwords_icon = GetPageActionView(
-      PageActionIconType::kManagePasswords, kActionShowPasswordsBubbleOrPage);
+  IconLabelBubbleView* manage_passwords_icon =
+      GetPageActionView(kActionShowPasswordsBubbleOrPage);
 
   EXPECT_TRUE(manage_passwords_icon);
   EXPECT_FALSE(manage_passwords_icon->GetVisible());
@@ -742,8 +738,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowZoomIcon) {
       app_browser_->tab_strip_model()->GetActiveWebContents();
   zoom::ZoomController* zoom_controller =
       zoom::ZoomController::FromWebContents(web_contents);
-  IconLabelBubbleView* zoom_icon =
-      GetPageActionView(PageActionIconType::kZoom, kActionZoomNormal);
+  IconLabelBubbleView* zoom_icon = GetPageActionView(kActionZoomNormal);
 
   EXPECT_TRUE(zoom_icon);
   EXPECT_FALSE(zoom_icon->GetVisible());
@@ -759,8 +754,8 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowFindIcon) {
 
   const bool find_page_action_migrated =
       IsPageActionMigrated(PageActionIconType::kFind);
-
   IconLabelBubbleView* find_icon = GetPageActionView(PageActionIconType::kFind);
+
   if (find_page_action_migrated) {
     EXPECT_FALSE(find_icon);
   } else {
@@ -786,8 +781,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest, ShowFindIcon) {
 IN_PROC_BROWSER_TEST_P(WebAppNonClientFrameViewChromeOSTest,
                        MAYBE_ShowTranslateIcon) {
   SetUpWebApp();
-  IconLabelBubbleView* translate_icon =
-      GetPageActionView(PageActionIconType::kTranslate, kActionShowTranslate);
+  IconLabelBubbleView* translate_icon = GetPageActionView(kActionShowTranslate);
 
   ASSERT_TRUE(translate_icon);
   EXPECT_FALSE(translate_icon->GetVisible());
@@ -1224,11 +1218,45 @@ IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewChromeOSTest,
 
   EnterImmersiveFullscreenMode(browser());
 
-  // Should exit immersive mode + fullscreen when tablet mode is enabled.
+  // Should not exit immersive mode + fullscreen when tablet mode is enabled.
   EnterTabletMode();
-  ImmersiveModeTester(browser()).WaitForFullscreenToExit();
-  EXPECT_FALSE(immersive_mode_controller->IsEnabled());
-  EXPECT_FALSE(browser_view->IsFullscreen());
+  EXPECT_TRUE(immersive_mode_controller->IsEnabled());
+  EXPECT_TRUE(browser_view->IsFullscreen());
+
+  const ash::Shelf* shelf =
+      ash::Shell::GetPrimaryRootWindowController()->shelf();
+  EXPECT_EQ(ash::HotseatState::kHidden,
+            shelf->shelf_layout_manager()->hotseat_state());
+
+  // Swipe up/down gesture should work on immersive fullscreen.
+  ui::test::EventGenerator event_generator(
+      browser_view->GetNativeWindow()->GetRootWindow());
+  event_generator.SetTouchRadius(10, 5);
+  gfx::Rect display_bounds =
+      display::Screen::GetScreen()->GetPrimaryDisplay().bounds();
+  // Swipe down gesture should reveal multitask menu.
+  event_generator.PressTouch(display_bounds.top_center());
+  event_generator.MoveTouchBy(0, 80);
+  event_generator.ReleaseTouch();
+  auto* const multitask_menu_event_handler =
+      ash::TabletModeControllerTestApi()
+          .tablet_mode_window_manager()
+          ->tablet_mode_multitask_menu_controller();
+  EXPECT_TRUE(multitask_menu_event_handler->multitask_menu());
+
+  // Swipe up gesture should reveal shelf/hotseat.
+  event_generator.PressTouch(display_bounds.bottom_center());
+  event_generator.MoveTouchBy(0, -80);
+  event_generator.ReleaseTouch();
+  // The shelf and the hotseat should be visible.
+  EXPECT_EQ(ash::HotseatState::kExtended,
+            shelf->shelf_layout_manager()->hotseat_state());
+  EXPECT_EQ(ash::SHELF_AUTO_HIDE_SHOWN, shelf->GetAutoHideState());
+
+  // Should not exit immersive mode + fullscreen when tablet mode is disabled.
+  ExitTabletMode();
+  EXPECT_TRUE(immersive_mode_controller->IsEnabled());
+  EXPECT_TRUE(browser_view->IsFullscreen());
 }
 
 IN_PROC_BROWSER_TEST_P(BrowserNonClientFrameViewChromeOSTest,
@@ -1353,9 +1381,10 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserNonClientFrameViewChromeOSTest,
   EXPECT_FALSE(frame_view2->caption_button_container()->GetVisible());
   ExitOverviewMode();
   EXPECT_TRUE(frame_view2->caption_button_container()->GetVisible());
-
   auto* immersive_controller = chromeos::ImmersiveFullscreenController::Get(
       views::Widget::GetWidgetForNativeView(widget2->GetNativeWindow()));
+  EXPECT_TRUE(widget2->IsMaximized());
+  // App type will use immersive.
   EXPECT_TRUE(immersive_controller->IsEnabled());
 
   // Snap a window. Immersive mode is enabled so its title bar is not visible.
@@ -1410,6 +1439,29 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserNonClientFrameViewChromeOSTest,
 
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !size_button->IsMultitaskMenuShown(); }));
+}
+
+IN_PROC_BROWSER_TEST_P(FloatBrowserNonClientFrameViewChromeOSTest,
+                       TabletModeRestoreFromFloat) {
+  EnterTabletMode();
+
+  const BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(browser());
+  auto* native_window = browser_view->GetNativeWindow();
+  ui::test::EventGenerator event_generator(native_window->GetRootWindow());
+  // Switch to float state.
+  event_generator.PressAndReleaseKeyAndModifierKeys(
+      ui::VKEY_F, ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
+  EXPECT_TRUE(ash::WindowState::Get(native_window)->IsFloated());
+
+  // Restore from float state.
+  event_generator.PressAndReleaseKeyAndModifierKeys(
+      ui::VKEY_F, ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN);
+  EXPECT_TRUE(ash::WindowState::Get(native_window)->IsMaximized());
+
+  const ImmersiveModeController* immersive_mode_controller =
+      browser_view->immersive_mode_controller();
+  EXPECT_FALSE(immersive_mode_controller->IsEnabled());
 }
 
 using HomeLauncherBrowserNonClientFrameViewChromeOSTest =

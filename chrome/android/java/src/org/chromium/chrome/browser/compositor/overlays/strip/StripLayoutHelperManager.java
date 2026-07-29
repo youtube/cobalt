@@ -304,16 +304,16 @@ public class StripLayoutHelperManager
         }
 
         @Override
-        public void click(float x, float y, int buttons) {
+        public void click(float x, float y, int buttons, int modifiers) {
             if (DragDropGlobalState.hasValue()) {
                 return;
             }
             long time = time();
             if (mModelSelectorButton != null && mModelSelectorButton.click(x, y, buttons)) {
-                mModelSelectorButton.handleClick(time, buttons);
+                mModelSelectorButton.handleClick(time, buttons, modifiers);
                 return;
             }
-            getActiveStripLayoutHelper().click(time(), x, y, buttons);
+            getActiveStripLayoutHelper().click(time(), x, y, buttons, modifiers);
         }
 
         @Override
@@ -510,7 +510,8 @@ public class StripLayoutHelperManager
 
         if (!ChromeFeatureList.sTabStripIncognitoMigration.isEnabled()) {
             StripLayoutViewOnClickHandler selectorClickHandler =
-                    (time, view, motionEventButtonState) -> handleModelSelectorButtonClick();
+                    (time, view, motionEventButtonState, modifiers) ->
+                            handleModelSelectorButtonClick();
             StripLayoutViewOnKeyboardFocusHandler selectorKeyboardFocusHandler =
                     (isFocused, view) -> {
                         getActiveStripLayoutHelper().onKeyboardFocus(isFocused, view);
@@ -788,8 +789,8 @@ public class StripLayoutHelperManager
     }
 
     @VisibleForTesting
-    public void simulateClick(float x, float y, int buttons) {
-        mTabStripEventHandler.click(x, y, buttons);
+    public void simulateClick(float x, float y, int buttons, int modifiers) {
+        mTabStripEventHandler.click(x, y, buttons, modifiers);
     }
 
     @VisibleForTesting
@@ -1627,6 +1628,7 @@ public class StripLayoutHelperManager
 
     @Override
     public @StripVisibilityState int getStripVisibilityState() {
+        // TODO(crbug.com/417238089): This returns a stale value during height transitions.
         return assumeNonNull(mStripVisibilityStateSupplier.get());
     }
 
@@ -1706,14 +1708,18 @@ public class StripLayoutHelperManager
 
     @Override
     public int getTopControlHeight() {
-        // Height is stored in DP, so multiply by mDensity to convert to pixels.
-        return (int) (getHeight() * mDensity);
+        return mToolbarManager.getTabStripHeightSupplier().get();
     }
 
     @Override
     public int getTopControlVisibility() {
+        // The tab strip adds to the total height of the top controls regardless of whether or not
+        // it is "visible" to the user, i.e. we take its inherent height into account even when
+        // scrolled offscreen or obscured, except when hidden by height transition.
         // TODO(crbug.com/417238089): Possibly add way to notify stacker of visibility changes.
-        return getStripVisibilityState() == StripVisibilityState.VISIBLE
+        boolean isHiddenByHeightTransition =
+                (getStripVisibilityState() & StripVisibilityState.HIDDEN_BY_HEIGHT_TRANSITION) != 0;
+        return !isHiddenByHeightTransition
                 ? TopControlVisibility.VISIBLE
                 : TopControlVisibility.HIDDEN;
     }

@@ -121,7 +121,6 @@ void AssertToolbarMarkButtonText(int a11y_label_id) {
       selectElementWithMatcher:
           grey_allOf(
               grey_accessibilityID(kReadingListToolbarMarkButtonID),
-              grey_ancestor(grey_kindOfClassName(@"UIToolbar")),
               chrome_test_util::ButtonWithAccessibilityLabelId(a11y_label_id),
               nil)] assertWithMatcher:grey_sufficientlyVisible()];
 }
@@ -138,11 +137,9 @@ void AssertToolbarButtonNotVisibleWithID(NSString* button_id) {
 
 // Assert the `button_id` toolbar button is visible.
 void AssertToolbarButtonVisibleWithID(NSString* button_id) {
-  [[EarlGrey
-      selectElementWithMatcher:grey_allOf(grey_accessibilityID(button_id),
-                                          grey_ancestor(grey_kindOfClassName(
-                                              @"UIToolbar")),
-                                          nil)]
+  id<GREYMatcher> toolbarButtonMatcher =
+      chrome_test_util::ToolbarButtonWithID(button_id);
+  [[EarlGrey selectElementWithMatcher:toolbarButtonMatcher]
       assertWithMatcher:grey_sufficientlyVisible()];
 }
 
@@ -1573,6 +1570,11 @@ void AssertIsShowingDistillablePage(bool online, const GURL& distillable_url) {
 
 // Tests the Open in New Window context menu action for a reading list entry.
 - (void)testContextMenuOpenInNewWindow {
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }

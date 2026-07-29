@@ -104,6 +104,8 @@ public class ImprovedBookmarkRow extends ViewLookupCachingFrameLayout
     /** Constructor for inflating from XML. */
     public ImprovedBookmarkRow(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
+        // The view from buildView should have a focus highlight, so avoid duplicate focus
+        setDefaultFocusHighlightEnabled(false);
     }
 
     @Override
@@ -274,7 +276,7 @@ public class ImprovedBookmarkRow extends ViewLookupCachingFrameLayout
         mContainer.setBackgroundResource(
                 mIsSelected
                         ? R.drawable.rounded_rectangle_surface_container_low
-                        : R.drawable.rounded_rectangle_surface_0);
+                        : R.drawable.improved_bookmark_row_visual_background);
 
         boolean checkVisible = mSelectionEnabled && mIsSelected;
         boolean moreVisible = mMoreButtonVisible && !mIsSelected && mBookmarkIdEditable;

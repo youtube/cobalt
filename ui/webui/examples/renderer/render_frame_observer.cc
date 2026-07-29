@@ -13,7 +13,6 @@
 #include "content/public/renderer/render_frame_observer.h"
 #include "content/public/renderer/render_thread.h"
 #include "content/public/renderer/v8_value_converter.h"
-#include "ipc/ipc_sync_channel.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_custom_element.h"
@@ -150,7 +149,7 @@ class V8BinderContext {
                              v8::Local<v8::Object> object,
                              const char* key,
                              v8::Local<v8::Value>* value) {
-    v8::Isolate* isolate = context->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     return object
         ->GetPrivate(context,
                      v8::Private::ForApi(isolate, CreateV8String(isolate, key)))

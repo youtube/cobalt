@@ -9,6 +9,7 @@ import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//chrome/common/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
+import("//components/safe_browsing/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//pdf/features.gni")
@@ -160,6 +161,8 @@ source_set("extensions") {
     "api/storage/sync_value_store_cache.h",
     "api/storage/syncable_settings_storage.cc",
     "api/storage/syncable_settings_storage.h",
+    "api/tabs/tabs_api.cc",
+    "api/tabs/tabs_api.h",
     "api/tabs/tabs_constants.h",
     "api/tabs/tabs_windows_api.cc",
     "api/tabs/tabs_windows_api.h",
@@ -211,6 +214,8 @@ source_set("extensions") {
     "chrome_extension_frame_host.h",
     "chrome_extension_function_details.cc",
     "chrome_extension_function_details.h",
+    "chrome_extension_host_delegate.cc",
+    "chrome_extension_host_delegate.h",
     "chrome_extension_registrar_delegate.cc",
     "chrome_extension_registrar_delegate.h",
     "chrome_extension_system.cc",
@@ -523,13 +528,15 @@ source_set("extensions") {
     "//chrome/browser/resources:component_extension_resources",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/safe_browsing:metrics_collector",
+    "//chrome/browser/signin",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/extensions",
+    "//chrome/browser/ui/prefs",
     "//chrome/browser/ui/safety_hub",
+    "//chrome/browser/ui/tabs:tab_list_interface",
     "//chrome/browser/ui/toolbar",
-    "//chrome/browser/ui/unowned_user_data",
     "//chrome/common",
     "//chrome/common/safe_browsing:proto",
     "//components/bookmarks/browser",
@@ -584,6 +591,7 @@ source_set("extensions") {
     "//storage/browser",
     "//third_party/zlib/google:zip",
     "//ui/base/accelerators/global_accelerator_listener",
+    "//ui/base/unowned_user_data",
     "//ui/menus",
     "//ui/native_window_tracker",
     "//ui/shell_dialogs",
@@ -606,10 +614,10 @@ source_set("extensions") {
       "api/identity/identity_unimplemented_functions_android.cc",
       "api/identity/identity_unimplemented_functions_android.h",
       "api/management/chrome_management_api_delegate_android.cc",
-      "api/tabs/tabs_api_stub.cc",
-      "api/tabs/tabs_api_stub.h",
+      "api/tabs/tabs_api_android.cc",
       "api/tabs/tabs_event_router_android.cc",
       "api/tabs/tabs_event_router_android.h",
+      "chrome_extension_host_delegate_android.cc",
       "extension_disabled_ui_android.cc",
       "extension_error_ui_android.cc",
       "extension_error_ui_android.h",
@@ -618,7 +626,11 @@ source_set("extensions") {
     ]
     deps += [ "//chrome/browser/ui/android/tab_model" ]
   } else {
-    sources += [ "api/chrome_extensions_api_client_non_android.cc" ]
+    sources += [
+      "api/chrome_extensions_api_client_non_android.cc",
+      "api/tabs/tabs_api_non_android.cc",
+      "chrome_extension_host_delegate_non_android.cc",
+    ]
     public_deps += [ "//components/app_icon_loader" ]
     deps += [ "//chrome/browser/ui/user_education" ]
   }
@@ -760,8 +772,6 @@ source_set("extensions") {
       "api/tabs/app_base_window.h",
       "api/tabs/app_window_controller.cc",
       "api/tabs/app_window_controller.h",
-      "api/tabs/tabs_api.cc",
-      "api/tabs/tabs_api.h",
       "api/tabs/tabs_event_router.cc",
       "api/tabs/tabs_event_router.h",
       "api/tabs/windows_event_router.cc",
@@ -770,8 +780,6 @@ source_set("extensions") {
       "app_tab_helper.h",
       "chrome_app_sorting.cc",
       "chrome_app_sorting.h",
-      "chrome_extension_host_delegate.cc",
-      "chrome_extension_host_delegate.h",
       "chrome_extensions_browser_interface_binders.cc",
       "chrome_extensions_browser_interface_binders.h",
       "chrome_kiosk_delegate.h",
@@ -921,6 +929,7 @@ source_set("extensions") {
       "//chrome/browser/ui/tabs:tab_group",
       "//chrome/browser/ui/tabs:tab_model",
       "//chrome/browser/ui/toolbar",
+      "//chrome/browser/ui/translate",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar",
       "//chrome/browser/ui/web_applications",
@@ -1118,12 +1127,12 @@ source_set("extensions") {
       deps += [
         "//chrome/browser/chromeos/extensions/desk_api",
         "//chrome/browser/chromeos/extensions/external_loader",
-        "//chrome/browser/chromeos/extensions/login_screen/login/external_logout_request",
         "//chrome/browser/chromeos/extensions/login_screen/login_state",
         "//chrome/browser/chromeos/platform_keys",
         "//chrome/browser/chromeos/policy/dlp",
         "//chrome/browser/chromeos/upload_office_to_cloud",
         "//chromeos/ash/components/browser_context_helper",
+        "//chromeos/ash/components/platform_keys",
         "//chromeos/components/kiosk",
         "//chromeos/components/mgs",
         "//chromeos/components/quick_answers/public/cpp:prefs",
@@ -1314,7 +1323,6 @@ source_set("extensions") {
         "//chrome/browser/ash/settings",
         "//chrome/browser/ash/system_logs",
         "//chrome/browser/ash/system_web_apps/apps",
-        "//chrome/browser/chromeos/extensions/login_screen/login/external_logout_done",
         "//chrome/browser/devtools",
         "//chrome/browser/nearby_sharing/common",
         "//chrome/browser/policy:system_features_disable_list",
@@ -1536,11 +1544,7 @@ source_set("extensions") {
     }
 
     if (enable_glic) {
-      deps += [
-        "//chrome/browser/glic:glic",
-        "//chrome/browser/glic:impl",
-      ]
-      allow_circular_includes_from += [ "//chrome/browser/glic:impl" ]
+      deps += [ "//chrome/browser/glic:glic" ]
     }
 
     if (!is_android && !is_chromeos) {
@@ -1682,23 +1686,21 @@ source_set("chrome_extensions_browser_client") {
     "//chrome/browser/media/webrtc",
     "//chrome/browser/prefetch",
     "//chrome/browser/profiles/keep_alive",
-    "//chrome/browser/safe_browsing",
     "//chrome/browser/task_manager",
     "//chrome/browser/ui",
     "//components/content_settings/core/browser",
     "//components/embedder_support:user_agent",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
     "//components/proxy_config",
-    "//components/safe_browsing/core/common:features",
     "//components/sessions",
     "//components/update_client",
+    "//extensions/browser/api/content_settings",
     "//extensions/browser/updater",
     "//extensions/browser/updater:keepalive",
   ]
 
   if (enable_desktop_android_extensions) {
-    sources +=
-        [ "desktop_android/desktop_android_extensions_browser_client.cc" ]
+    sources += [ "chrome_extensions_browser_client_android.cc" ]
 
     deps += [
       "//chrome/browser:browser_process",
@@ -1722,7 +1724,6 @@ source_set("chrome_extensions_browser_client") {
       "//chrome/browser/extensions",
       "//chrome/browser/extensions/api/runtime",
       "//chrome/browser/web_applications",
-      "//extensions/browser/api/content_settings",
     ]
 
     if (is_chromeos) {
@@ -1733,5 +1734,19 @@ source_set("chrome_extensions_browser_client") {
         "//chromeos/components/mgs",
       ]
     }
+  }
+
+  # TODO(crbug.com/417279245): Add extensions safe browsing to desktop Android,
+  # then enable this for safe_browsing_mode == 2 as well.
+  if (safe_browsing_mode == 1) {
+    sources += [
+      "chrome_safe_browsing_delegate.cc",
+      "chrome_safe_browsing_delegate.h",
+    ]
+
+    deps += [
+      "//chrome/browser/safe_browsing",
+      "//components/safe_browsing/core/common:features",
+    ]
   }
 }

@@ -1610,7 +1610,7 @@ public class TabGridDialogMediatorUnitTest {
     public void testDialogToolbarMenu_DeleteSharedGroup() {
         resetForDataSharing(/* isShared= */ true, GROUP_MEMBER1);
 
-        when(mTabGroupModelFilter.getTabGroupTitle(any())).thenReturn(GROUP_TITLE);
+        when(mTabGroupModelFilter.getTabGroupTitle(any(Token.class))).thenReturn(GROUP_TITLE);
         CoreAccountInfo coreAccountInfo =
                 CoreAccountInfo.createFromEmailAndGaiaId(EMAIL1, GAIA_ID1);
         when(mIdentityManager.getPrimaryAccountInfo(anyInt())).thenReturn(coreAccountInfo);
@@ -1629,7 +1629,7 @@ public class TabGridDialogMediatorUnitTest {
     public void testDialogToolbarMenu_LeaveSharedGroup() {
         resetForDataSharing(/* isShared= */ true, GROUP_MEMBER1, GROUP_MEMBER2);
 
-        when(mTabGroupModelFilter.getTabGroupTitle(any())).thenReturn(GROUP_TITLE);
+        when(mTabGroupModelFilter.getTabGroupTitle(any(Token.class))).thenReturn(GROUP_TITLE);
         CoreAccountInfo coreAccountInfo =
                 CoreAccountInfo.createFromEmailAndGaiaId(EMAIL2, GAIA_ID2);
         when(mIdentityManager.getPrimaryAccountInfo(anyInt())).thenReturn(coreAccountInfo);
@@ -1751,9 +1751,7 @@ public class TabGridDialogMediatorUnitTest {
 
         assertNotEquals(mModel.get(TabGridDialogProperties.TAB_GROUP_COLOR_ID), COLOR_3);
 
-        mTabGroupModelFilterObserverCaptor
-                .getValue()
-                .didChangeTabGroupColor(rootId, TAB_GROUP_ID, COLOR_3);
+        mTabGroupModelFilterObserverCaptor.getValue().didChangeTabGroupColor(TAB_GROUP_ID, COLOR_3);
 
         assertThat(mModel.get(TabGridDialogProperties.TAB_GROUP_COLOR_ID), equalTo(COLOR_3));
     }
@@ -1774,7 +1772,7 @@ public class TabGridDialogMediatorUnitTest {
         when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn(newTitle);
         mTabGroupModelFilterObserverCaptor
                 .getValue()
-                .didChangeTabGroupTitle(rootId, TAB_GROUP_ID, newTitle);
+                .didChangeTabGroupTitle(TAB_GROUP_ID, newTitle);
 
         assertThat(mModel.get(TabGridDialogProperties.HEADER_TITLE), equalTo(newTitle));
     }

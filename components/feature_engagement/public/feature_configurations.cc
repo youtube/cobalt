@@ -778,6 +778,20 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
+  if (kIPHTabGroupShareVersionUpdateFeature.name == feature->name) {
+    // Allows an IPH for showing that shared tab groups have been
+    // re-enabled. This IPH can be shown up to 1 times total (10 year max
+    // in place of unlimited window).
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    config.trigger =
+        EventConfig("tab_group_share_version_update_iph_triggered",
+                    Comparator(LESS_THAN, 1), k10YearsInDays, k10YearsInDays);
+    return config;
+  }
+
   if (kIPHTabGroupCreationDialogSyncTextFeature.name == feature->name) {
     // A config that allows the sync text IPH on the TabGroupCreationDialog to
     // be shown up to 3 times total (10 year max in place of unlimited window).
@@ -2376,10 +2390,9 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     config.valid = true;
     config.availability = Comparator(ANY, 0);  // Available immediately
     config.session_rate = Comparator(LESS_THAN, 1);
-    config.used =
-        EventConfig("ios_homepage_lens_badge_used", Comparator(ANY, 0),
-                    feature_engagement::kMaxStoragePeriod,
-                    feature_engagement::kMaxStoragePeriod);
+    config.used = EventConfig(events::kIOSLensButtonUsed, Comparator(EQUAL, 0),
+                              feature_engagement::kMaxStoragePeriod,
+                              feature_engagement::kMaxStoragePeriod);
     config.trigger =
         EventConfig("ios_homepage_lens_badge_trigger", Comparator(LESS_THAN, 3),
                     feature_engagement::kMaxStoragePeriod,
@@ -2714,23 +2727,6 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
-  if (kIPHAutofillHomeWorkProfileSuggestionFeature.name == feature->name) {
-    // Allows an IPH for showing the home and work address suggestion. This will
-    // only be shown once.
-    FeatureConfig config;
-    config.valid = true;
-    config.availability = Comparator(ANY, 0);
-    config.session_rate = Comparator(EQUAL, 0);
-    config.trigger =
-        EventConfig("home_work_address_create_suggestion_feature_trigger",
-                    Comparator(LESS_THAN, 1), k10YearsInDays, k10YearsInDays);
-    config.used =
-        EventConfig("home_work_address_create_suggestion_feature_used",
-                    Comparator(EQUAL, 0), k10YearsInDays, k10YearsInDays);
-
-    return config;
-  }
-
   if (kIPHiOSSwitchAccountsWithNTPAccountParticleDiscFeature.name ==
       feature->name) {
     // A config that allows the NTP-identity-disc IPH to be shown to users. This
@@ -2800,6 +2796,23 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
                     Comparator(LESS_THAN, 9), 90, 360);
     config.used = EventConfig("plus_address_create_suggestion_feature_used",
                               Comparator(LESS_THAN, 2), 90, 360);
+    return config;
+  }
+
+  if (kIPHAutofillHomeWorkProfileSuggestionFeature.name == feature->name) {
+    // Allows an IPH for showing the home and work address suggestion. This will
+    // only be shown once.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.trigger =
+        EventConfig("home_work_address_create_suggestion_feature_trigger",
+                    Comparator(LESS_THAN, 1), k10YearsInDays, k10YearsInDays);
+    config.used =
+        EventConfig("home_work_address_create_suggestion_feature_used",
+                    Comparator(EQUAL, 0), k10YearsInDays, k10YearsInDays);
+
     return config;
   }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)

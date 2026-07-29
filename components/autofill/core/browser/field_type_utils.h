@@ -17,11 +17,6 @@ namespace autofill {
 // determined.
 bool FieldHasMeaningfulPossibleFieldTypes(const AutofillField& field);
 
-// Returns the number of possible field types (type votes) of a `field` that are
-// in a specific `group`.
-size_t NumberOfPossibleFieldTypesInGroup(const AutofillField& field,
-                                         FieldTypeGroup group);
-
 // Returns true if the type of `field` is a possible type.
 bool TypeOfFieldIsPossibleType(const AutofillField& field);
 
@@ -43,6 +38,12 @@ bool IsAlternativeNameType(FieldType type);
 // on its own, and that instead needs a second type to complement its meaning.
 // TODO(crbug.com/422563282): Remove when cleaning up kAutofillAiNoTagTypes.
 bool IsTagType(FieldType type);
+
+// Indicates whether the FieldType's domain are dates (year, month, day).
+bool IsDateFieldType(FieldType field_type);
+
+// Returns true for FieldTypes like PASSPORT_NUMBER.
+bool IsAffixFormatStringEnabledForType(FieldType type);
 
 }  // namespace autofill
 

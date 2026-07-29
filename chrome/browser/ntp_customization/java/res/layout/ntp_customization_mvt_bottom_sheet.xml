@@ -24,19 +24,21 @@ found in the LICENSE file.
         android:gravity="start"
         android:textAppearance="@style/TextAppearance.Headline.Primary"
         android:text="@string/ntp_customization_mvt_settings_title"
+        android:focusable="true"
         android:layout_marginStart="@dimen/ntp_customization_ntp_cards_title_margin"
         android:layout_marginTop="@dimen/ntp_customization_bottom_sheet_layout_padding_bottom"
         android:layout_marginEnd="@dimen/ntp_customization_bottom_sheet_layout_padding_bottom"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/drag_handle_bar"
-        app:layout_constraintEnd_toStartOf="@id/learn_more_button" />
+        android:accessibilityHeading="true" />
 
     <ImageView
         android:id="@+id/back_button"
         android:layout_height="@dimen/ntp_customization_back_button_clickable_size"
         android:layout_width="@dimen/ntp_customization_back_button_clickable_size"
         android:padding="@dimen/ntp_customization_back_button_padding"
-        android:layout_marginStart="@dimen/ntp_customization_back_button_padding"
+        android:layout_marginStart="@dimen/ntp_customization_back_button_margin_start"
         android:src="@drawable/btn_back"
         app:tint="@macro/default_icon_color"
         android:contentDescription="@string/back"

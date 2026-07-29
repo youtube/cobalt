@@ -740,7 +740,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DeviceRemoteCommand.Crd.Result"
-    enum="EnterpriseCrdSessionResultCode" expires_after="2025-11-01">
+    enum="EnterpriseCrdSessionResultCode" expires_after="2026-01-04">
   <owner>macinashutosh@google.com</owner>
   <owner>chromeos-commercial-crd@google.com</owner>
   <summary>Reports success/failure when a session is attempted.</summary>
@@ -748,7 +748,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.DeviceRemoteCommand.Crd.{Enterprise_CrdSessionType}.{Enterprise_UserSessionType}.Result"
-    enum="EnterpriseCrdSessionResultCode" expires_after="2025-11-01">
+    enum="EnterpriseCrdSessionResultCode" expires_after="2026-01-04">
   <owner>macinashutosh@google.com</owner>
   <owner>chromeos-commercial-crd@google.com</owner>
   <summary>
@@ -779,7 +779,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.DeviceRemoteCommand.Executed{Enterprise_RemoteCommandType}"
-    enum="RemoteCommandExecutionStatus" expires_after="2025-11-01">
+    enum="RemoteCommandExecutionStatus" expires_after="2026-01-04">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -809,7 +809,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DeviceRemoteCommand.Received"
-    enum="RemoteCommandReceivedStatus" expires_after="2025-11-01">
+    enum="RemoteCommandReceivedStatus" expires_after="2026-01-04">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -821,7 +821,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DeviceRemoteCommandInvalidations"
-    enum="EnterprisePolicyInvalidations" expires_after="2025-11-01">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-01-04">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -2461,7 +2461,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.InvalidDevicePolicyFilesStatus"
-    enum="InvalidDevicePolicyFilesStatus" expires_after="2025-11-02">
+    enum="InvalidDevicePolicyFilesStatus" expires_after="2026-01-04">
   <owner>emaxx@chromium.org</owner>
   <owner>igorcov@chromium.org</owner>
   <owner>vsavu@google.com</owner>
@@ -2616,6 +2616,16 @@ chromium-metrics-reviews@google.com.
     that the list has a minimal amount of images, decoding them, etc. Note this
     measurement does not include the lock screen inactivity timeout. The metric
     would be emitted when the first two images are loaded successfully.
+  </summary>
+</histogram>
+
+<histogram name="Enterprise.ManagementPromotionBannerDisplayed" enum="Boolean"
+    expires_after="2025-12-07">
+  <owner>austinzzr@chromium.org</owner>
+  <owner>esalma@google.com</owner>
+  <summary>
+    Records the number of times the promotion banner on chrome://management is
+    visited and displayed or visited but not displayed.
   </summary>
 </histogram>
 
@@ -3018,7 +3028,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.RefreshTokenLoadResult" enum="Boolean"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>igorcov@chromium.org</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3808,7 +3818,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.UserRemoteCommand.Received"
-    enum="RemoteCommandReceivedStatus" expires_after="2025-11-01">
+    enum="RemoteCommandReceivedStatus" expires_after="2026-01-04">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -3820,7 +3830,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.UserRemoteCommandInvalidations"
-    enum="EnterprisePolicyInvalidations" expires_after="2025-11-01">
+    enum="EnterprisePolicyInvalidations" expires_after="2026-01-04">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -4060,6 +4070,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="EnterpriseCheck.IsRunningOnManagedProfileDuration" units="ms"
+    expires_after="2025-11-01">
+  <owner>nafisabedin@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Records the time it takes to calculate whether there is a profile owner or
+    device owner app on the device. Android only.
+  </summary>
+</histogram>
+
 <histogram name="EnterpriseCheck.Mac.IsCurrentUserDomainUser" enum="Boolean"
     expires_after="2025-12-01">
   <owner>pastarmovj@chromium.org</owner>
@@ -4098,6 +4118,16 @@ chromium-metrics-reviews@google.com.
   <summary>
     The rough Windows suite we are running on. This check is performed once at
     start-up on Windows. The histogram was removed in 108 and reinstated in 111.
+  </summary>
+</histogram>
+
+<histogram name="EnterpriseCheck.SystemCallCount" units="count"
+    expires_after="2025-11-01">
+  <owner>nafisabedin@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Records the number of system calls made when trying to determine whether
+    there is a profile owner or device owner app on the device. Android only.
   </summary>
 </histogram>
 

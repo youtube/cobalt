@@ -340,6 +340,17 @@ chromium-metrics-reviews@google.com.
       label="Signed in to 1P app and Chrome with different accounts"/>
 </enum>
 
+<!-- LINT.IfChange(ChromeBrowserType) -->
+
+<enum name="ChromeBrowserType">
+  <int value="0" label="Regular"/>
+  <int value="1" label="Incognito"/>
+  <int value="2" label="Inactive"/>
+  <int value="3" label="Temporary"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/shared/model/browser/browser.h:ChromeBrowserType) -->
+
 <enum name="ChromeSigninSettingModification">
   <int value="0" label="No modifications"/>
   <int value="1" label="Modified to always ask"/>
@@ -829,6 +840,10 @@ chromium-metrics-reviews@google.com.
       label="Contextual non modal sign-in password promo (iOS only)"/>
   <int value="84"
       label="Contextual non modal sign-in bookmark promo (iOS only)"/>
+  <int value="85" label="Profile picker with prefilled email"/>
+  <int value="86" label="Enterprise management disclaimer at startup"/>
+  <int value="87" label="Enterprise management disclaimer after browser focus"/>
+  <int value="88" label="Enterprise management disclaimer after signin"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">

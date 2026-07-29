@@ -414,6 +414,10 @@
       public: true,
     },
     {
+      name: "AliasWebkitFillAvailable",
+      status: "stable",
+    },
+    {
       name: "AlignZoomToCenter",
       status: "stable",
     },
@@ -528,6 +532,7 @@
       // When enabled, perform async IPCs from CookieJar::SetCookie to the
       // network service.
       name: "AsyncSetCookie",
+      status: "stable",
     },
     {
       name: "AttributeDirectionality",
@@ -854,11 +859,6 @@
       status: {"Android": "", "default": "stable"},
     },
     {
-      // https://www.w3.org/TR/cssom-view-1/#dom-document-caretpositionfrompoint
-      name: "CaretPositionFromPoint",
-      status: "stable",
-    },
-    {
       // Changes the caret's affinity to upstream, preventing spaces
       // from appearing in the previous line when typing at the start
       // of a wrapped line. See https://crbug.com/40677155
@@ -908,13 +908,6 @@
       // https://chromestatus.com/feature/5085102657503232
       name: "ClipboardChangeEvent",
       base_feature: "none",
-    },
-    {
-      // Enables the API for getting a unique token of the system clipboard's
-      // current state.
-      // https://chromestatus.com/feature/5124993439236096
-      name: "ClipboardContentsId",
-      status: "test",
     },
     // This ensures that clipboard event fires on a target node which is
     // focused in case no visible selection is present.
@@ -1036,6 +1029,16 @@
       status: "stable"
     },
     {
+      // See https://crbug.com/426067493 for details.
+      name: "ConsiderUpstreamPositionForFindingNextLine",
+      status: "stable",
+    },
+    {
+      // See https://crbug.com/40679713 for details.
+      name: "ConsiderUpstreamPositionForFindingPreviousLine",
+      status: "stable",
+    },
+    {
       name: "ContactsManager",
       status:  {"Android": "stable", "default": "test"},
     },
@@ -1058,10 +1061,6 @@
     {
       name: "ContextMenu",
       status: "experimental",
-    },
-    {
-      name: "ContinueEventTimingRecordingWhenBufferIsFull",
-      status: "stable",
     },
     {
       // Enable support for Controlled Frame, providing the Controlled
@@ -1099,6 +1098,14 @@
       status: "stable",
     },
     {
+      // When enabled, allowlisting script urls and scripts used in eval via
+      // hashes will be supported in script-src. Controlled by the
+      // network::features::kCSPScriptSrcHashesInV1 flag.
+      // See crbug.com/392657736 for details.
+      name: "CSPHashesV1",
+      base_feature: "none",
+    },
+    {
       name: "CSPReportHash",
       status: "stable",
     },
@@ -1112,11 +1119,6 @@
       // and can be used in all properties.
       // https://drafts.csswg.org/css-values-5/#attr-notation
       name: "CSSAdvancedAttrFunction",
-      status: "stable",
-    },
-    {
-      // Enables alignment properties for block and inline out-of-flow elements.
-      name: "CSSAlignBlockAndInlineOutOfFlows",
       status: "stable",
     },
     {
@@ -1176,7 +1178,7 @@
     {
       // Need a feature entry
       name: "CSSCaretShape",
-      status: "test",
+      status: "experimental",
     },
     {
       // Support case-sensitive attribute selector modifier
@@ -1248,7 +1250,7 @@
       // Include custom properties in CSSComputedStyleDeclaration::item/length.
       // https://crbug.com/949807
       name: "CSSEnumeratedCustomProperties",
-      status: "stable",
+      status: "test",
     },
     {
       name: "CSSExponentialFunctions",
@@ -1265,7 +1267,7 @@
     {
       // crbug.com/417306102
       name: "CssFitWidthText",
-      status: "test",
+      status: "experimental",
     },
     {
       name: "CSSFontSizeAdjust",
@@ -1354,7 +1356,7 @@
     },
     {
       name: "CSSMasonryLayout",
-      status: "test",
+      status: "experimental",
       public: true,
     },
     // https://drafts.csswg.org/css-values-5/#progress
@@ -1406,16 +1408,14 @@
       status: "stable",
     },
     {
+      name: "CSSPseudoElementInterface",
+      status: "experimental",
+    },
+    {
       // Enables the :has-slotted pseudo-selector.
       // https://chromestatus.com/feature/5134941143433216
       name: "CSSPseudoHasSlotted",
       status: "experimental",
-    },
-    {
-      // Enables the :open pseudo-selector.
-      // https://chromestatus.com/feature/5085419215781888
-      name: "CSSPseudoOpen",
-      status: "stable",
     },
     {
       // When an audio, video, or similar resource is "playing"
@@ -1494,6 +1494,11 @@
       status: "stable",
     },
     {
+      // https://github.com/w3c/csswg-drafts/issues/12122
+      name: "CSSScrollMarkerGroupModes",
+      status: "experimental",
+    },
+    {
       // https://drafts.csswg.org/css-scroll-snap-2/#scrollsnapchange
       name: "CSSScrollSnapChangeEvent",
       status: "stable",
@@ -1523,7 +1528,7 @@
       // scroll-target-group property
       // https://drafts.csswg.org/css-overflow-5/#scroll-target-group
       name: "CSSScrollTargetGroup",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CSSSelectorFragmentAnchor",
@@ -1578,6 +1583,11 @@
     {
       // crbug.com/1463890: CSS `text-autospace` property
       name: "CSSTextAutoSpace",
+      status: "stable",
+    },
+    {
+      // crbug.com/40767672
+      name: "CssTextDecorationLineBlinkSerialization",
       status: "stable",
     },
     {
@@ -1845,6 +1855,14 @@
       status: "stable",
       copied_from_base_feature_if: "overridden",
     },
+    // https://chromestatus.com/feature/5111042975465472
+    // document.patch, <template patchfor> etc.
+    {
+      name: "DocumentPatching",
+      status: {
+        "default": "experimental",
+      },
+    },
     {
       name: "DocumentPictureInPictureAPI",
       status: {
@@ -1954,13 +1972,6 @@
     {
       // See: crbug.com/40771555
       name: "EnterInOpenShadowRoots",
-      status: "stable",
-    },
-    {
-      // Escapes "<" and ">" in attribute values. This was launched
-      // in M138, and this flag can be removed in M140.
-      // See: crbug.com/1175016
-      name: "EscapeLtGtInAttributes",
       status: "stable",
     },
     {
@@ -2344,7 +2355,7 @@
     {
       // crbug.com/40398871
       name: "FontFeatureSettingsDescriptor",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "FontMatchAliasesAsLastResort",
@@ -2367,7 +2378,7 @@
     {
       // crbug.com/40398871
       name: "FontVariationSettingsDescriptor",
-      status: "experimental",
+      status: "stable",
     },
     {
       // TODO(crbug.com/1231644): This flag is being kept (even though the
@@ -2484,7 +2495,7 @@
     },
     {
       name: "HighlightsFromPoint",
-      status: "test",
+      status: "stable",
     },
     {
       name: "HrefTranslate",
@@ -2556,15 +2567,6 @@
       status: "stable",
       depends_on: ["HTMLInterestForAttribute"],
     },
-    // If this flag is enabled, the "partial interest" concept for the
-    // `interestfor` API is not used. When an interest invoker is focused,
-    // the target immediately gets full interest, regardless of whether it
-    // contains focusable content. This is primarily to test the behavior with
-    // users, to see which is the best.
-    {
-      name: "HTMLInterestForNoPartialInterest",
-      depends_on: ["HTMLInterestForAttribute"],
-    },
     {
       // Prevents the HTMLLinkElement processing model from being invoked when
       // attributes are processed but their value doesn't change. See
@@ -2631,7 +2633,15 @@
       status: "experimental",
     },
     {
+      name: "IncludeTransformsForLayerXandLayerY",
+      status: "stable",
+    },
+    {
       name: "IncomingCallNotifications",
+      origin_trial_feature_name: "IncomingCallNotifications",
+      origin_trial_os: [ "win" ],
+      origin_trial_allows_third_party: true,
+      base_feature: "IncomingCallNotifications",
     },
     {
        // When enabled, every traversable mainframe same-doc navigation will
@@ -2801,15 +2811,7 @@
       status: "stable",
     },
     {
-      name: "LayoutFlexNewStretch",
-      status: "stable",
-    },
-    {
       name: "LayoutIgnoreMarginsForSticky",
-    },
-    {
-      name: "LayoutIsAnonymousBlockFix",
-      status: "stable",
     },
     {
       name: "LayoutMinSizeAutoIndefinite",
@@ -2860,6 +2862,12 @@
       origin_trial_feature_name: "LimitThirdPartyCookies",
       status: "experimental",
       base_feature: "none",
+    },
+    {
+      // Stop emitting U+FFFC Object Replacement Character for out-of-flow
+      // objects such as floating or out-of-flow positioned. crbgu.com/40658609
+      name: "LineBreakOofNoOrc",
+      status: "stable",
     },
     {
       name: "ListItemWithCounterSetNotSetExplicitValue",
@@ -3135,10 +3143,6 @@
     {
       name: "MulticolColumnWrapping",
       status: "experimental",
-    },
-    {
-      name: "MultipleImportMaps",
-      status: "stable",
     },
     {
       name: "NavigateEventCanTransition",
@@ -3439,10 +3443,6 @@
       status: "stable",
     },
     {
-      name: "PaintHoldingForLocalIframes",
-      status: "stable",
-    },
-    {
       name: "PaintTimingMixin",
       status: "experimental",
     },
@@ -3547,7 +3547,7 @@
       // The flag will enable us to land the feature over multiple CLs, and will
       // be enabled after the feature has been fully implemented.
       name: "PermissionElementIcon",
-      status: "test",
+      status: "experimental",
       depends_on: ["PermissionElement"],
     },
     {
@@ -3709,7 +3709,7 @@
       // Propagate overscroll-behavior from the root element rather than the
       // body element. crbug.com/41453796
       name: "PropagateOverscrollBehaviorFromRoot",
-      status: "experimental"
+      status: "stable"
     },
     // Protected memory varariant of the sample API for testing integration with
     // the Origin Trials Framework. This is used only in unit tests.
@@ -3768,6 +3768,10 @@
       status: "stable",
     },
     {
+      name: "QuoteFirstLineStyle",
+      status: "stable",
+    },
+    {
       // crbug.com/427520278
       // Fix looking for next keyboard focusable radio button. This was added
       // in M140 and can be removed after M143.
@@ -3781,10 +3785,6 @@
         "Win": "stable",
         "default": "test",
       }
-    },
-    {
-      name: "ReadableStreamAsyncIterable",
-      status: "stable",
     },
     {
       // Enables support for a 'min' option in ReadableStream BYOBReader.read(),
@@ -3855,7 +3855,7 @@
       // http://crbug.com/40228234
       // https://chromestatus.com/feature/6278918763708416
       name: "RelaxDOMValidNames",
-      status: "stable",
+      status: "experimental",
     },
     {
       name: "RelOpenerBcgDependencyHint",
@@ -3933,10 +3933,6 @@
       status: "stable",
     },
     {
-      name: "ReportEventTimingAtVisibilityChange",
-      status: "stable",
-    },
-    {
       name: "ReportFirstFrameTimeAsRenderTime",
       status: "test",
     },
@@ -3969,10 +3965,6 @@
       public: true,
       status: "experimental",
       base_feature: "none",
-    },
-    {
-      name: "RestrictGetBoundingClientRectForHiddenSVGElements",
-      status: "stable",
     },
     {
       name: "RestrictOwnAudio",
@@ -4150,7 +4142,7 @@
     },
     {
       name: "ScrollIntoViewNearest",
-      status: "experimental"
+      status: "stable"
     },
     // TODO(355460994): Remove after M129.
     // scroll into root frame didn't take scrollbar and borders into account,
@@ -4217,10 +4209,6 @@
       name: "SecurePaymentConfirmationDebug",
       base_feature: "none",
       public: true,
-    },
-    {
-      name: "SecurePaymentConfirmationNetworkAndIssuerIcons",
-      status: "experimental",
     },
     {
       name: "SecurePaymentConfirmationOptOut",
@@ -4424,6 +4412,10 @@
       // Android does not yet support SharedWorker. crbug.com/154571
       status: {"Android": "", "default": "stable"},
       base_feature: "none",
+
+      // Allow Android to run the origin trial.
+      origin_trial_feature_name: "SharedWorkerOnAndroid",
+      origin_trial_os: ["android"],
     },
     {
       // If enabled, SharedWorker supports extendedLifetime
@@ -4456,6 +4448,10 @@
     },
     {
       name: "SkipLineBreakItemWhenIsCollapsed",
+      status: "stable",
+    },
+    {
+      name: "SkipOofItemForBreakCandidate",
       status: "stable",
     },
     {
@@ -4608,6 +4604,10 @@
       status: "stable",
     },
     {
+      name: "SvgAvoidCullingElementsWithTransformOperations",
+      status: "stable",
+    },
+    {
       // Feature for updating SVG presentation attribute style eagerly. This is
       // a kill switch in case we encounter issues with this optimization.
       name: "SvgEagerPresAttrStyleUpdate",
@@ -4617,6 +4617,10 @@
       // Enables loading of external SVG resource documents for the 'clip-path',
       // 'fill', 'stroke' and 'marker-*' properties.
       name: "SvgExternalResources",
+      status: "stable",
+    },
+    {
+      name: "SvgFeConvolveMatrixZeroDivisorBehavior",
       status: "stable",
     },
     {
@@ -4669,6 +4673,14 @@
     {
       name: "TableIsAutoFixedLayout",
       status: "test",
+    },
+    {
+      name: "TabSizeAncestor",
+      status: "stable",
+    },
+    {
+      name: "TabSizeWithSpacing",
+      status: "stable",
     },
     {
       name: "TabWidthNegativePosition",
@@ -4761,6 +4773,11 @@
       status: "stable",
     },
     {
+      // crbug.com/40812040
+      name: "TextEmphasisLetterSpacing",
+      status: "stable",
+    },
+    {
       // crbug.com/368657256
       name: "TextEmphasisPositionAuto",
       status: "experimental",
@@ -4846,6 +4863,10 @@
     // this feature, a long-press touch gesture can start either a drag or a
     // context-menu in Blink, not both (more precisely, a context menu is shown
     // only if a drag cannot be started).
+    // This feature is enabled by default in Android, where
+    // TouchDragOnShortPress is not shipped due to interactions with the OS that
+    // caused issues in the behavior.
+    // Please see https://issues.chromium.org/40823294
     {
       name: "TouchDragAndContextMenu",
       implied_by: ["TouchDragOnShortPress"],
@@ -4861,10 +4882,13 @@
       public: true,
     },
     // This feature makes touch dragging to occur at the short-press gesture,
-    // which occurs right before the long-press gesture.  This feature assumes
-    // that TouchDragAndContextMenu is enabled.
+    // which occurs right before the long-press gesture.
     {
       name: "TouchDragOnShortPress",
+      depends_on: ["TouchDragAndDrop"],
+      status: {
+        "Win": "stable",
+      },
     },
     // Many websites disable mouse support when touch APIs are available.  We'd
     // like to enable this always but can't until more websites fix this bug.
@@ -5168,8 +5192,9 @@
       name: "WarnOnContentVisibilityRenderAccess",
     },
     {
+      // https://chromestatus.com/feature/5183481574850560
       name: "WebAppInstallation",
-      status: "experimental",
+      status: {"Android": "", "default": "test"},
     },
     {
       name: "WebAppLaunchQueue",
@@ -5649,6 +5674,10 @@
     },
     {
       name: "WidthAndHeightAsPresentationAttributesOnNestedSvg",
+      status: "experimental",
+    },
+    {
+      name: "WidthAndHeightStylePropertiesOnUseAndSymbol",
       status: "experimental",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled

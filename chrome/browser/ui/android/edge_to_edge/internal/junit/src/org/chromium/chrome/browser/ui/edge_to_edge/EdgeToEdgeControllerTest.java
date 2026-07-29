@@ -96,7 +96,6 @@ import org.chromium.ui.insets.InsetObserver.WindowInsetsConsumer.InsetConsumerSo
         shadows = EdgeToEdgeControllerTest.ShadowEdgeToEdgeControllerFactory.class)
 @EnableFeatures({
     ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN,
-    ChromeFeatureList.EDGE_TO_EDGE_WEB_OPT_IN,
     ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE
 })
 @Features.DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE})
@@ -790,11 +789,24 @@ public class EdgeToEdgeControllerTest {
 
     @Test
     @Config(qualifiers = "xlarge")
-    public void disabledWhenNotPhone() {
+    @DisableFeatures(ChromeFeatureList.EDGE_TO_EDGE_TABLET)
+    public void disabledWhenNotPhoneAndTabletFeatureDisabled() {
         // Even these always-draw flags do not override the device abilities.
         EdgeToEdgeUtils.setAlwaysDrawWebEdgeToEdgeForTesting(true);
         // Even the always-draw flags do not override the device abilities.
         assertFalse(
+                EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(
+                        Robolectric.buildActivity(AppCompatActivity.class).setup().get()));
+    }
+
+    @Test
+    @Config(qualifiers = "xlarge")
+    @EnableFeatures(ChromeFeatureList.EDGE_TO_EDGE_TABLET)
+    public void enabledOnTabletWhenFeatureEnabled() {
+        // Even these always-draw flags do not override the device abilities.
+        EdgeToEdgeUtils.setAlwaysDrawWebEdgeToEdgeForTesting(true);
+        // Even the always-draw flags do not override the device abilities.
+        assertTrue(
                 EdgeToEdgeUtils.isEdgeToEdgeBottomChinEnabled(
                         Robolectric.buildActivity(AppCompatActivity.class).setup().get()));
     }

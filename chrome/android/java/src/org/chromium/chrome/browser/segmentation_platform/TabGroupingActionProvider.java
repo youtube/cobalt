@@ -4,16 +4,76 @@
 
 package org.chromium.chrome.browser.segmentation_platform;
 
+import org.chromium.base.supplier.Supplier;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.ui.base.DeviceFormFactor;
 
 @NullMarked
 public class TabGroupingActionProvider implements ContextualPageActionController.ActionProvider {
 
+    private final Supplier<GroupSuggestionsButtonController>
+            mGroupSuggestionsButtonControllerSupplier;
+
+    public TabGroupingActionProvider(
+            Supplier<GroupSuggestionsButtonController> groupSuggestionsButtonController) {
+        mGroupSuggestionsButtonControllerSupplier = groupSuggestionsButtonController;
+    }
+
+    @Override
+    public void onActionShown(Tab tab, @AdaptiveToolbarButtonVariant int action) {
+        if (!mGroupSuggestionsButtonControllerSupplier.hasValue()) {
+            return;
+        }
+
+        if (action == AdaptiveToolbarButtonVariant.TAB_GROUPING) {
+            mGroupSuggestionsButtonControllerSupplier.get().onButtonShown(tab);
+        } else {
+            mGroupSuggestionsButtonControllerSupplier.get().onButtonHidden();
+        }
+    }
+
     @Override
     public void getAction(Tab tab, SignalAccumulator signalAccumulator) {
-        // TODO(salg): Integrate with group suggestions service.
-        signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.TAB_GROUPING, false);
+        PostTask.postTask(
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    if (tab == null
+                            || tab.getWindowAndroid() == null
+                            || !mGroupSuggestionsButtonControllerSupplier.hasValue()) {
+                        signalAccumulator.setSignal(
+                                AdaptiveToolbarButtonVariant.TAB_GROUPING, false);
+                        return;
+                    }
+
+                    var tabWindow = tab.getWindowAndroid();
+                    // Action not supported on tablet UI.
+                    if (tabWindow.getContext() == null
+                            || DeviceFormFactor.isWindowOnTablet(tabWindow)) {
+                        signalAccumulator.setSignal(
+                                AdaptiveToolbarButtonVariant.TAB_GROUPING, false);
+                        return;
+                    }
+
+                    var activity = tabWindow.getActivity().get();
+                    if (activity == null) {
+                        signalAccumulator.setSignal(
+                                AdaptiveToolbarButtonVariant.TAB_GROUPING, false);
+                        return;
+                    }
+
+                    var windowId = TabWindowManagerSingleton.getInstance().getIdForWindow(activity);
+
+                    signalAccumulator.setSignal(
+                            AdaptiveToolbarButtonVariant.TAB_GROUPING,
+                            mGroupSuggestionsButtonControllerSupplier
+                                    .get()
+                                    .shouldShowButton(tab, windowId));
+                });
     }
 }

@@ -13,6 +13,7 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
 import '/shared/settings/controls/extension_controlled_indicator.js';
 import '../controls/settings_toggle_button.js';
@@ -33,6 +34,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
+import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
 
 import type {AutofillManagerProxy, PersonalDataChangedListener} from './autofill_manager_proxy.js';
 import {AutofillManagerImpl} from './autofill_manager_proxy.js';
@@ -58,7 +60,8 @@ export interface SettingsAutofillSectionElement {
   };
 }
 
-const SettingsAutofillSectionElementBase = I18nMixin(PolymerElement);
+const SettingsAutofillSectionElementBase =
+    SettingsViewMixin(I18nMixin(PolymerElement));
 
 export class SettingsAutofillSectionElement extends
     SettingsAutofillSectionElementBase {
@@ -261,10 +264,14 @@ export class SettingsAutofillSectionElement extends
         chrome.autofillPrivate.AddressRecordType.ACCOUNT_WORK;
   }
 
-  private isAccountHomeOrWorkAddress_(
-      address: chrome.autofillPrivate.AddressEntry) {
-    return this.isAccountHomeAddress_(address) ||
-        this.isAccountWorkAddress_(address);
+  private getAddressIcon_(address: chrome.autofillPrivate.AddressEntry) {
+    if (this.isAccountHomeAddress_(address)) {
+      return 'settings20:home';
+    }
+    if (this.isAccountWorkAddress_(address)) {
+      return 'settings20:work';
+    }
+    return 'settings20:location-on';
   }
 
   private onAccountHomeAddressClick_() {
@@ -277,10 +284,8 @@ export class SettingsAutofillSectionElement extends
         this.i18n('googleAccountWorkAddressUrl'));
   }
 
-  private shouldShowAddressRowIcon_(
-      address: chrome.autofillPrivate.AddressEntry) {
-    return loadTimeData.getBoolean('enableSupportForHomeAndWork') &&
-        !this.isAccountHomeOrWorkAddress_(address);
+  private shouldShowAddressRowIcon_() {
+    return loadTimeData.getBoolean('enableSupportForHomeAndWork');
   }
 
   private isCloudOffVisible_(
@@ -340,6 +345,11 @@ export class SettingsAutofillSectionElement extends
         'Settings.ManageOptionOnSettingsSelected');
     OpenWindowProxyImpl.getInstance().openUrl(
         loadTimeData.getString('plusAddressManagementUrl'));
+  }
+
+  // SettingsViewMixin implementation.
+  override focusBackButton() {
+    this.shadowRoot!.querySelector('settings-subpage')!.focusBackButton();
   }
 }
 

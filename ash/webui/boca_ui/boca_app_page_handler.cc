@@ -14,8 +14,6 @@
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom-data-view.h"
-#include "ash/webui/boca_ui/mojom/boca.mojom-forward.h"
-#include "ash/webui/boca_ui/mojom/boca.mojom-shared.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
 #include "ash/webui/boca_ui/provider/classroom_page_handler_impl.h"
 #include "ash/webui/boca_ui/provider/content_settings_handler.h"
@@ -777,6 +775,13 @@ void BocaAppHandler::OnCrdFrameReceived(
   if (!ash::features::IsBocaSpotlightRobotRequesterEnabled()) {
     return;
   }
+  // If no frame received in past 5 seconds, assume the connection has been lost
+  // and terminate the session, render error page.
+  spotlight_frame_timeout_timer_.Stop();
+  spotlight_frame_timeout_timer_.Start(
+      FROM_HERE, base::Seconds(kSpotlightFrameTimeout),
+      base::BindOnce(&BocaAppHandler::OnSpotlightFrameTimeout,
+                     weak_ptr_factory_.GetWeakPtr()));
   OnFrameDataReceived(std::move(bitmap));
 }
 
@@ -1236,6 +1241,10 @@ void BocaAppHandler::OnUpdateSessionBlockingRequestCompleted() {
       std::move(pending_update_requests_.front());
   pending_update_requests_.pop();
   std::move(update_request_cb).Run();
+}
+
+void BocaAppHandler::OnSpotlightFrameTimeout() {
+  OnSpotlightCrdSessionStatusUpdated(mojom::CrdConnectionState::kDisconnected);
 }
 
 BocaSessionManager* BocaAppHandler::GetSessionManager() {

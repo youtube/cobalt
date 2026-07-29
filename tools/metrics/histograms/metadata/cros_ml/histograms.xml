@@ -5,7 +5,7 @@ found in the LICENSE file.
 -->
 
 <!--
-This file is used to generate a comprehensive list of Power histograms
+This file is used to generate a comprehensive list of ML Service histograms
 along with a detailed description for each histogram.
 
 For best practices on writing histogram descriptions, see
@@ -71,7 +71,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="MachineLearningService.DocumentScanner.{RequestName}.Event"
     enum="MachineLearningServiceDocumentScannerResultEvent"
-    expires_after="2025-11-01">
+    expires_after="2026-01-04">
   <owner>wtlee@chromium.org</owner>
   <owner>chromeos-camera-eng@google.com</owner>
   <owner>ml-service-team@google.com</owner>
@@ -201,7 +201,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="MachineLearningService.MlCore.DlcFinalInstallResult"
     enum="MachineLearningServiceDlcFinalInstallResult"
-    expires_after="2025-08-01">
+    expires_after="2026-02-01">
   <owner>amoylan@chromium.org</owner>
   <owner>chenjih@google.com</owner>
   <owner>nbowe@chromium.org</owner>
@@ -360,7 +360,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="MachineLearningService.{ModelName}.CreateGraphExecutorResult.Event"
     enum="MachineLearningServiceCreateGraphExecutorResultEvent"
-    expires_after="2025-08-01">
+    expires_after="2026-02-01">
   <owner>amoylan@chromium.org</owner>
   <owner>alanlxl@chromium.org</owner>
   <summary>
@@ -371,7 +371,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MachineLearningService.{ModelName}.ExecuteResult.Event"
-    enum="MachineLearningServiceExecuteResultEvent" expires_after="2025-08-24">
+    enum="MachineLearningServiceExecuteResultEvent" expires_after="2026-02-01">
   <owner>amoylan@chromium.org</owner>
   <owner>alanlxl@chromium.org</owner>
   <summary>

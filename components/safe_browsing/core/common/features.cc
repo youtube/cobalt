@@ -90,6 +90,14 @@ BASE_FEATURE(kClientSideDetectionShowScamVerdictWarning,
              "ClientSideDetectionShowScamVerdictWarning",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kClientSideDetectionRetryLimit,
+             "ClientSideDetectionRetryLimit",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+constexpr base::FeatureParam<int> kClientSideDetectionRetryLimitTime{
+    &kClientSideDetectionRetryLimit, /*name=*/"RetryTimeMax",
+    /*default_value=*/15};
+
 BASE_FEATURE(kClientSideDetectionVibrationApi,
              "ClientSideDetectionVibrationApi",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -121,10 +129,6 @@ BASE_FEATURE(kDlpRegionalizedEndpoints,
              "DlpRegionalizedEndpoints",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDownloadsPageReferrerUrl,
-             "DownloadsPageReferrerUrl",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kDownloadWarningSurvey,
              "DownloadWarningSurvey",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -138,7 +142,11 @@ constexpr base::FeatureParam<int> kDownloadWarningSurveyIgnoreDelaySeconds{
 
 BASE_FEATURE(kEnhancedFieldsForSecOps,
              "EnhancedFieldsForSecOps",
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
              base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 BASE_FEATURE(kEnhancedSafeBrowsingPromo,
              "EnhancedSafeBrowsingPromo",
@@ -176,15 +184,6 @@ BASE_FEATURE(kExtensionTelemetryDeclarativeNetRequestActionSignal,
 BASE_FEATURE(kExtensionTelemetryFileDataForCommandLineExtensions,
              "SafeBrowsingExtensionTelemetryFileDataForCommandLineExtensions",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kExtensionTelemetryForEnterprise,
-             "SafeBrowsingExtensionTelemetryForEnterprise",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<int>
-    kExtensionTelemetryEnterpriseReportingIntervalSeconds{
-        &kExtensionTelemetryForEnterprise, "EnterpriseReportingIntervalSeconds",
-        /*default_value=*/300};
 
 BASE_FEATURE(kExternalAppRedirectTelemetry,
              "SafeBrowsingExternalAppRedirectTelemetry",
@@ -257,7 +256,7 @@ constexpr base::FeatureParam<std::string>
 
 BASE_FEATURE(kNotificationTelemetry,
              "NotificationTelemetry",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRedWarningSurvey,
              "RedWarningSurvey",
@@ -358,7 +357,6 @@ base::Value::List GetFeatureStatusList() {
       &kEnhancedSafeBrowsingPromo,
       &kEnterprisePasswordReuseUiRefresh,
       &kExtensionTelemetryDeclarativeNetRequestActionSignal,
-      &kExtensionTelemetryForEnterprise,
       &kExternalAppRedirectTelemetry,
       &kHashPrefixRealTimeLookups,
       &kLocalIpAddressInEvents,

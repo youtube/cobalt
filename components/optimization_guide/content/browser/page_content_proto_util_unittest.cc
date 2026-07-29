@@ -9,7 +9,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
-#include "third_party/blink/renderer/platform/graphics/color.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/point.h"
 
 namespace optimization_guide {
@@ -20,6 +20,10 @@ using optimization_guide::proto::AnnotatedPageContent;
 using optimization_guide::proto::ContentNode;
 using optimization_guide::proto::Coordinate;
 using optimization_guide::proto::DocumentIdentifier;
+
+SkColor MakeRgbColor(uint8_t r, uint8_t g, uint8_t b) {
+  return SkColorSetRGB(r, g, b);
+}
 
 blink::mojom::AIPageContentNodePtr CreateContentNode(
     blink::mojom::AIPageContentAttributeType type) {
@@ -199,7 +203,7 @@ TEST(PageContentProtoUtilTest, Basic) {
   auto root_content = CreatePageContent();
   root_content->root_node->children_nodes.emplace_back(
       CreateTextNode("text", blink::mojom::AIPageContentTextSize::kXS,
-                     /*has_emphasis=*/false, blink::Color(0, 0, 0).Rgb()));
+                     /*has_emphasis=*/false, MakeRgbColor(0, 0, 0)));
 
   AIPageContentResult page_content;
   EXPECT_TRUE(ConvertAIPageContentToProto(root_content, page_content));
@@ -213,19 +217,19 @@ TEST(PageContentProtoUtilTest, ConvertTextInfo) {
   auto root_content = CreatePageContent();
   auto xs_black_text_node =
       CreateTextNode("XS text", blink::mojom::AIPageContentTextSize::kXS,
-                     /*has_emphasis=*/false, blink::Color(0, 0, 0).Rgb());
+                     /*has_emphasis=*/false, MakeRgbColor(0, 0, 0));
   auto s_red_text_node =
       CreateTextNode("S text", blink::mojom::AIPageContentTextSize::kS,
-                     /*has_emphasis=*/true, blink::Color(255, 0, 0).Rgb());
+                     /*has_emphasis=*/true, MakeRgbColor(255, 0, 0));
   auto m_green_text_node =
       CreateTextNode("M text", blink::mojom::AIPageContentTextSize::kM,
-                     /*has_emphasis=*/false, blink::Color(0, 255, 0).Rgb());
+                     /*has_emphasis=*/false, MakeRgbColor(0, 255, 0));
   auto l_blue_text_node =
       CreateTextNode("L text", blink::mojom::AIPageContentTextSize::kL,
-                     /*has_emphasis=*/true, blink::Color(0, 0, 255).Rgb());
+                     /*has_emphasis=*/true, MakeRgbColor(0, 0, 255));
   auto xl_white_text_node =
       CreateTextNode("XL text", blink::mojom::AIPageContentTextSize::kXL,
-                     /*has_emphasis=*/false, blink::Color(255, 255, 255).Rgb());
+                     /*has_emphasis=*/false, MakeRgbColor(255, 255, 255));
   root_content->root_node->children_nodes.emplace_back(
       std::move(xs_black_text_node));
   root_content->root_node->children_nodes.emplace_back(
@@ -246,19 +250,19 @@ TEST(PageContentProtoUtilTest, ConvertTextInfo) {
 
   CheckTextNodeProto(page_content.proto.root_node().children_nodes(0),
                      "XS text", optimization_guide::proto::TEXT_SIZE_XS,
-                     /*has_emphasis=*/false, blink::Color(0, 0, 0).Rgb());
+                     /*has_emphasis=*/false, MakeRgbColor(0, 0, 0));
   CheckTextNodeProto(page_content.proto.root_node().children_nodes(1), "S text",
                      optimization_guide::proto::TEXT_SIZE_S,
-                     /*has_emphasis=*/true, blink::Color(255, 0, 0).Rgb());
+                     /*has_emphasis=*/true, MakeRgbColor(255, 0, 0));
   CheckTextNodeProto(page_content.proto.root_node().children_nodes(2), "M text",
                      optimization_guide::proto::TEXT_SIZE_M_DEFAULT,
-                     /*has_emphasis=*/false, blink::Color(0, 255, 0).Rgb());
+                     /*has_emphasis=*/false, MakeRgbColor(0, 255, 0));
   CheckTextNodeProto(page_content.proto.root_node().children_nodes(3), "L text",
                      optimization_guide::proto::TEXT_SIZE_L,
-                     /*has_emphasis=*/true, blink::Color(0, 0, 255).Rgb());
+                     /*has_emphasis=*/true, MakeRgbColor(0, 0, 255));
   CheckTextNodeProto(page_content.proto.root_node().children_nodes(4),
                      "XL text", optimization_guide::proto::TEXT_SIZE_XL,
-                     /*has_emphasis=*/false, blink::Color(255, 255, 255).Rgb());
+                     /*has_emphasis=*/false, MakeRgbColor(255, 255, 255));
 }
 
 TEST(PageContentProtoUtilTest, AttributeTypeDoesNotMatchData_Text) {
@@ -667,47 +671,6 @@ TEST(PageContentProtoUtilTest, ConvertGeometry) {
   EXPECT_EQ(geometry.visible_bounding_box().width(), 31);
   EXPECT_EQ(geometry.visible_bounding_box().height(), 41);
   EXPECT_TRUE(geometry.is_fixed_or_sticky_position());
-}
-
-TEST(PageContentProtoUtilTest, ConvertNodeInteractionInfo) {
-  auto root_content = CreatePageContent();
-  auto text_node =
-      CreateContentNode(blink::mojom::AIPageContentAttributeType::kText);
-  text_node->content_attributes->node_interaction_info =
-      blink::mojom::AIPageContentNodeInteractionInfo::New();
-  text_node->content_attributes->node_interaction_info->is_selectable = true;
-  text_node->content_attributes->node_interaction_info->is_editable = true;
-  text_node->content_attributes->node_interaction_info->can_resize_horizontal =
-      true;
-  text_node->content_attributes->node_interaction_info->can_resize_vertical =
-      true;
-  text_node->content_attributes->node_interaction_info->is_focusable = true;
-  text_node->content_attributes->node_interaction_info->is_draggable = true;
-  text_node->content_attributes->node_interaction_info->is_clickable = true;
-  root_content->root_node->children_nodes.emplace_back(std::move(text_node));
-
-  AIPageContentResult page_content;
-  EXPECT_TRUE(ConvertAIPageContentToProto(root_content, page_content));
-
-  EXPECT_EQ(page_content.proto.version(),
-            optimization_guide::proto::ANNOTATED_PAGE_CONTENT_VERSION_1_0);
-  ASSERT_EQ(page_content.proto.root_node().children_nodes_size(), 1);
-  EXPECT_EQ(page_content.proto.root_node()
-                .children_nodes(0)
-                .content_attributes()
-                .attribute_type(),
-            optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
-  const auto& interaction_info = page_content.proto.root_node()
-                                     .children_nodes(0)
-                                     .content_attributes()
-                                     .interaction_info();
-  EXPECT_TRUE(interaction_info.is_selectable());
-  EXPECT_TRUE(interaction_info.is_editable());
-  EXPECT_TRUE(interaction_info.can_resize_horizontal());
-  EXPECT_TRUE(interaction_info.can_resize_vertical());
-  EXPECT_TRUE(interaction_info.is_focusable());
-  EXPECT_TRUE(interaction_info.is_draggable());
-  EXPECT_TRUE(interaction_info.is_clickable());
 }
 
 TEST(PageContentProtoUtilTest, ConvertPageInteractionInfo) {

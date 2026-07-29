@@ -72,7 +72,6 @@
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/link_to_text/model/link_to_text_tab_helper.h"
-#import "ios/chrome/browser/metrics/model/dwa_web_state_observer.h"
 #import "ios/chrome/browser/metrics/model/pageload_foreground_duration_tab_helper.h"
 #import "ios/chrome/browser/mini_map/model/mini_map_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
@@ -99,7 +98,6 @@
 #import "ios/chrome/browser/safe_browsing/model/tailored_security/tailored_security_service_factory.h"
 #import "ios/chrome/browser/safe_browsing/model/tailored_security/tailored_security_tab_helper.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_tab_helper.h"
-#import "ios/chrome/browser/sessions/model/ios_chrome_session_tab_helper.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -122,6 +120,7 @@
 #import "ios/chrome/browser/web/model/repost_form_tab_helper.h"
 #import "ios/chrome/browser/web/model/sad_tab_tab_helper.h"
 #import "ios/chrome/browser/web/model/web_performance_metrics/web_performance_metrics_tab_helper.h"
+#import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
 #import "ios/chrome/browser/webauthn/model/ios_passkey_model_factory.h"
 #import "ios/chrome/browser/webui/model/net_export_tab_helper.h"
@@ -170,10 +169,6 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
   // attach all tab helpers. (the method is idempotent, so it is okay to call it
   // multiple times for the same WebState).
 
-  // IOSChromeSessionTabHelper sets up the session ID used by other helpers,
-  // so it needs to be created before them.
-  IOSChromeSessionTabHelper::CreateForWebState(web_state);
-
   OverlayRequestQueue::CreateForWebState(web_state);
 
   VoiceSearchNavigationTabHelper::CreateForWebState(web_state);
@@ -195,7 +190,6 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
   }
 
   LoadTimingTabHelper::CreateForWebState(web_state);
-  DwaWebStateObserver::CreateForWebState(web_state);
   OverscrollActionsTabHelper::CreateForWebState(web_state);
   IOSTaskTabHelper::CreateForWebState(web_state);
   if (!for_lens_overlay &&
@@ -390,4 +384,6 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
   if (!is_off_the_record && !for_prerender && IsPageActionMenuEnabled()) {
     BwgTabHelper::CreateForWebState(web_state);
   }
+
+  WebViewProxyTabHelper::CreateForWebState(web_state);
 }

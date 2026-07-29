@@ -768,17 +768,25 @@ const Font& FragmentItem::ScaledFont() const {
   if (const auto* svg_inline_text =
           DynamicTo<LayoutSVGInlineText>(GetLayoutObject()))
     return svg_inline_text->ScaledFont();
-  return *Style().GetFont();
+  const SvgFragmentData* data = nullptr;
+  if (Type() == kText) {
+    data = text_.svg_data.Get();
+  } else if (Type() == kGeneratedText) {
+    data = generated_text_.extra_data.Get();
+  }
+  return data && data->scaled_font ? *data->scaled_font : *Style().GetFont();
 }
 
-void FragmentItem::SetFitTextScale(FitTextScale scale) {
-  if (scale.scale == 1.0f) {
+void FragmentItem::SetFitTextScale(const FitTextScale* scale) {
+  if (!scale || (scale->scale == 1.0f && !scale->font)) {
     return;
   }
   auto* data = MakeGarbageCollected<SvgFragmentData>();
-  data->scale_type = scale.is_scaled_inline_only ? TextScaleType::kFitTextInline
-                                                 : TextScaleType::kFitText;
-  data->length_adjust_scale = scale.scale;
+  data->scale_type = scale->is_scaled_inline_only
+                         ? TextScaleType::kFitTextInline
+                         : TextScaleType::kFitText;
+  data->length_adjust_scale = scale->scale;
+  data->scaled_font = scale->font;
   if (Type() == kText) {
     text_.svg_data = data;
   } else if (Type() == kGeneratedText) {
@@ -787,10 +795,10 @@ void FragmentItem::SetFitTextScale(FitTextScale scale) {
     // Do not call this function for this Type().
     NOTREACHED();
   }
-  DCHECK_EQ(scale.scale, GetFitTextScale().scale);
+  DCHECK_EQ(scale->scale, GetFitTextScale().first);
 }
 
-FitTextScale FragmentItem::GetFitTextScale() const {
+std::pair<float, bool> FragmentItem::GetFitTextScale() const {
   if (Type() == kText) {
     if (const auto* data = text_.svg_data.Get()) {
       auto type = data->scale_type;
@@ -806,7 +814,7 @@ FitTextScale FragmentItem::GetFitTextScale() const {
       return {data->length_adjust_scale, type == TextScaleType::kFitTextInline};
     }
   }
-  return {};
+  return {1.0f, false};
 }
 
 String FragmentItem::ToString() const {

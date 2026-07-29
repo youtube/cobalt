@@ -50,8 +50,12 @@
 #endif
 
 namespace gfx {
-class GpuMemoryBuffer;
 struct GpuMemoryBufferHandle;
+class ClientNativePixmapFactory;
+}
+
+namespace gpu {
+class LegacyGpuMemoryBufferForVideo;
 }
 
 namespace media {
@@ -124,30 +128,19 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // ClientSharedImage::ScopedMapping object.
   class MEDIA_EXPORT ScopedMapping {
    public:
-    ~ScopedMapping();
+    virtual ~ScopedMapping() = default;
 
     // Returns a pointer to the beginning of the plane.
-    uint8_t* Memory(uint32_t plane_index);
+    virtual uint8_t* Memory(uint32_t plane_index) = 0;
 
     // Returns a span pointing to the plane's memory.
-    base::span<uint8_t> GetMemoryAsSpan(uint32_t plane_index);
+    virtual base::span<uint8_t> GetMemoryAsSpan(uint32_t plane_index) = 0;
 
     // Returns plane stride.
-    size_t Stride(uint32_t plane_index);
+    virtual size_t Stride(uint32_t plane_index) = 0;
 
     // Returns the size of the buffer.
-    gfx::Size Size();
-
-   private:
-    friend class VideoFrame;
-
-    ScopedMapping(
-        gfx::GpuMemoryBuffer* gpu_memory_buffer,
-        std::unique_ptr<gpu::ClientSharedImage::ScopedMapping> scoped_mapping);
-
-    // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of MotionMark).
-    RAW_PTR_EXCLUSION gfx::GpuMemoryBuffer* gpu_memory_buffer_ = nullptr;
-    std::unique_ptr<gpu::ClientSharedImage::ScopedMapping> scoped_mapping_;
+    virtual gfx::Size Size() = 0;
   };
 
   enum class FrameControlType {
@@ -363,29 +356,19 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       base::span<const uint8_t> uv_data,
       base::TimeDelta timestamp);
 
-  // Wraps |gpu_memory_buffer|. This will transfer ownership of
-  // |gpu_memory_buffer| to the returned VideoFrame.
-  // For use in contexts where the GPUMemoryBuffer has no SharedImage
-  // associated with it.
-  // NOTE: Clients who want to set a callback on the VideoFrame being destroyed
-  // should call SetReleaseMailboxCB() after creating the
-  // VideoFrame via this entrypoint.
-  static scoped_refptr<VideoFrame> WrapExternalGpuMemoryBuffer(
+#if BUILDFLAG(IS_CHROMEOS)
+  // Wraps |handle|. For use in contexts where the GPUMemoryBufferHandle has no
+  // SharedImage associated with it.
+  static scoped_refptr<VideoFrame> WrapExternalGpuMemoryBufferHandle(
       const gfx::Rect& visible_rect,
       const gfx::Size& natural_size,
-      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
+      gfx::ClientNativePixmapFactory* client_native_pixmap_factory,
+      gfx::GpuMemoryBufferHandle handle,
+      const gfx::Size& coded_size,
+      gfx::BufferFormat format,
+      gfx::BufferUsage usage,
       base::TimeDelta timestamp);
-
-  // Wraps |gpu_memory_buffer| along with the shared image created from
-  // |gpu_memory_buffer|. This will transfer ownership of |gpu_memory_buffer|
-  // to the returned VideoFrame.
-  static scoped_refptr<VideoFrame> WrapExternalGpuMemoryBuffer(
-      const gfx::Rect& visible_rect,
-      const gfx::Size& natural_size,
-      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
-      scoped_refptr<gpu::ClientSharedImage> shared_image,
-      const gpu::SyncToken& sync_token,
-      base::TimeDelta timestamp);
+#endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Wraps provided dmabufs
@@ -557,10 +540,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // block of memory that is allocated and managed directly on the GPU's
   // memory which allows for hardware acceleration.
   bool HasNativeGpuMemoryBuffer() const;
-
-  // Gets the GpuMemoryBuffer backing the VideoFrame. Meant to be only used by
-  // the tests until they are converted to use MappableSI.
-  gfx::GpuMemoryBuffer* GetGpuMemoryBufferForTesting() const;
 
   // Gets the ScopedMapping object which clients can use to access the CPU
   // visible memory and other metadata for the gpu buffer backing this
@@ -840,25 +819,25 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       const gfx::Size& natural_size,
       base::TimeDelta timestamp);
 
-  // This method is used by ::WrapExternalGpuMemoryBuffer() as well as future
-  // apis added for MappableSI. ::WrapExternalGpuMemoryBuffer() can just pass
-  // |shared_image| param as nullptr here whereas MappableSharedImage apis will
-  // pass |gpu_memory_buffer| as nullptr. There are additional checks inside to
-  // ensure the correctness.
-  static scoped_refptr<VideoFrame>
-  CreateFrameForGpuMemoryBufferOrMappableSIInternal(
+  static scoped_refptr<VideoFrame> CreateFrameForMappableSIInternal(
       const gfx::Rect& visible_rect,
       const gfx::Size& natural_size,
-      std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer,
       scoped_refptr<gpu::ClientSharedImage> shared_image,
-      const bool enable_mappable_si,
       ReleaseMailboxCB mailbox_holder_release_cb,
+      base::TimeDelta timestamp);
+
+#if BUILDFLAG(IS_CHROMEOS)
+  static scoped_refptr<VideoFrame> CreateFrameForGpuMemoryBufferInternal(
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      std::unique_ptr<gpu::LegacyGpuMemoryBufferForVideo> gpu_memory_buffer,
       base::TimeDelta timestamp);
 
   void MakeScopedMappingForGpuMemoryBuffer(
       base::OnceCallback<void(std::unique_ptr<VideoFrame::ScopedMapping>)>
           result_cb,
       bool success) const;
+#endif
   void WrapScopedSharedImageMapping(
       base::OnceCallback<void(std::unique_ptr<VideoFrame::ScopedMapping>)>
           result_cb,
@@ -939,8 +918,10 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   base::ReadOnlySharedMemoryRegion owned_shm_region_;
   base::ReadOnlySharedMemoryMapping owned_shm_mapping_;
 
+#if BUILDFLAG(IS_CHROMEOS)
   // GPU memory buffer, if this frame is STORAGE_GPU_MEMORY_BUFFER.
-  std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer_;
+  std::unique_ptr<gpu::LegacyGpuMemoryBufferForVideo> gpu_memory_buffer_;
+#endif
 
   // This field will be set by clients when using MappableSI instead of
   // GpuMemoryBuffers. Clients will set this flag while creating a VideoFrame.

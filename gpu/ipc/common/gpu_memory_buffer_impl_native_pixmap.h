@@ -14,19 +14,10 @@
 #include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_memory_buffer_impl.h"
 
-namespace arc {
-class GpuArcVideoEncodeAccelerator;
-}
-
 namespace gfx {
 class ClientNativePixmap;
 class ClientNativePixmapFactory;
 }  // namespace gfx
-
-namespace media {
-class V4L2JpegEncodeAccelerator;
-class VaapiJpegEncodeAccelerator;
-}  // namespace media
 
 namespace gpu {
 
@@ -51,10 +42,9 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplNativePixmap
       gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback) {
+      gfx::BufferUsage usage) {
     return CreateFromHandle(client_native_pixmap_factory, std::move(handle),
-                            size, format, usage, std::move(callback));
+                            size, format, usage);
   }
 
   static base::OnceClosure AllocateForTesting(
@@ -71,28 +61,7 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplNativePixmap
   gfx::GpuMemoryBufferType GetType() const override;
   gfx::GpuMemoryBufferHandle CloneHandle() const override;
 
-  // Creates a GpuMemoryBufferImpl from the given |handle| for VideoFrames.
-  // |size| and |format| should match what was used to allocate the |handle|.
-  // NOTE: DO NOT ADD ANY USAGES OF THIS METHOD.
-  // TODO(crbug.com/40263579): Remove this method once all usages are
-  // eliminated.
-  static std::unique_ptr<GpuMemoryBufferImplNativePixmap>
-  CreateFromHandleForVideoFrame(
-      gfx::ClientNativePixmapFactory* client_native_pixmap_factory,
-      gfx::GpuMemoryBufferHandle handle,
-      const gfx::Size& size,
-      gfx::BufferFormat format,
-      gfx::BufferUsage usage) {
-    return CreateFromHandle(client_native_pixmap_factory, std::move(handle),
-                            size, format, usage, base::NullCallback());
-  }
-
  private:
-  // TODO(crbug.com/404905709): Eliminate these class' creation of GMBs and
-  // remove this friending.
-  friend class arc::GpuArcVideoEncodeAccelerator;
-  friend class media::V4L2JpegEncodeAccelerator;
-  friend class media::VaapiJpegEncodeAccelerator;
   friend class ClientSharedImage;
 
   static std::unique_ptr<GpuMemoryBufferImplNativePixmap> CreateFromHandle(
@@ -100,14 +69,11 @@ class GPU_IPC_COMMON_EXPORT GpuMemoryBufferImplNativePixmap
       gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      DestructionCallback callback);
+      gfx::BufferUsage usage);
 
   GpuMemoryBufferImplNativePixmap(
-      gfx::GpuMemoryBufferId id,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      DestructionCallback callback,
       std::unique_ptr<gfx::ClientNativePixmap> native_pixmap);
 
   const std::unique_ptr<gfx::ClientNativePixmap> pixmap_;

@@ -915,6 +915,12 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // autocomplete suggestion.
   virtual ax::mojom::blink::HasPopup HasPopup() const;
 
+  // Determines whether the `element` has an associated popup menu based on the
+  // aria-haspopup attribute. Returns null if the attribute is not set or set to
+  // an invalid value.
+  static std::optional<ax::mojom::blink::HasPopup> HasPopupFromAttribute(
+      const Element& element);
+
   // Determines whether this object is a popup, and what type.
   virtual ax::mojom::blink::IsPopup IsPopup() const;
 
@@ -1374,6 +1380,9 @@ class MODULES_EXPORT AXObject : public GarbageCollected<AXObject> {
   // The following HasAriaFooAttribute() methods return true if the attribute
   // is present. `out_value` is filled with the value of the attribute or a
   // default value if the attribute is not present.
+  static bool AriaBooleanAttribute(const Element& element,
+                                   const QualifiedName&,
+                                   bool* out_value);
   bool AriaBooleanAttribute(const QualifiedName& attribute,
                             bool* out_value = nullptr) const;
   bool AriaFloatAttribute(const QualifiedName& attribute,

@@ -46,7 +46,10 @@ class GlicMediaPeerConnectionObserver
       return;
     }
 
-    auto* context = glic::GlicMediaContext::GetOrCreateFor(wc);
+    // For now, attribute everything to the primary main frame of the
+    // WebContents, even for subframes.
+    auto* context = glic::GlicMediaContext::GetOrCreateForCurrentDocument(
+        wc->GetPrimaryMainFrame());
     if (!context) {
       return;
     }
@@ -65,7 +68,10 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
   void AppendContext(
       content::WebContents* web_contents,
       optimization_guide::proto::ContentNode* context_root) override;
-  void OnPeerConnectionAddedForTesting(content::WebContents*) override;
+  void AppendContextForFrame(
+      content::RenderFrameHost* rfh,
+      optimization_guide::proto::ContentNode* context_root) override;
+  void OnPeerConnectionAddedForTesting(content::RenderFrameHost*) override;
 
   void OnContextUpdated(glic::GlicMediaContext* context);
 
@@ -83,12 +89,17 @@ class CaptionListenerImpl : public captions::CaptionControllerBase::Listener {
   explicit CaptionListenerImpl(Profile* profile) : profile_(profile) {}
   ~CaptionListenerImpl() override = default;
 
-  bool OnTranscription(content::WebContents* web_contents,
+  bool OnTranscription(content::RenderFrameHost* rfh,
                        captions::CaptionBubbleContext*,
                        const media::SpeechRecognitionResult& result) override {
+    if (!rfh) {
+      return false;
+    }
     bool continue_transcribing = false;
-    if (auto* context = glic::GlicMediaContext::GetOrCreateFor(web_contents)) {
+    if (auto* context =
+            glic::GlicMediaContext::GetOrCreateForCurrentDocument(rfh)) {
       continue_transcribing = context->OnResult(result);
+      auto* web_contents = content::WebContents::FromRenderFrameHost(rfh);
       static_cast<GlicMediaIntegrationImpl*>(
           glic::GlicMediaIntegration::GetFor(web_contents))
           ->OnContextUpdated(context);
@@ -97,10 +108,10 @@ class CaptionListenerImpl : public captions::CaptionControllerBase::Listener {
     return continue_transcribing;
   }
 
-  void OnAudioStreamEnd(content::WebContents*,
+  void OnAudioStreamEnd(content::RenderFrameHost*,
                         captions::CaptionBubbleContext*) override {}
   void OnLanguageIdentificationEvent(
-      content::WebContents*,
+      content::RenderFrameHost*,
       captions::CaptionBubbleContext*,
       const media::mojom::LanguageIdentificationEventPtr&) override {}
 
@@ -122,10 +133,35 @@ GlicMediaIntegrationImpl::GlicMediaIntegrationImpl(Profile* profile)
 void GlicMediaIntegrationImpl::AppendContext(
     content::WebContents* web_contents,
     optimization_guide::proto::ContentNode* context_root) {
+  if (!web_contents) {
+    return;
+  }
+  // Walk the tree and find a transcript.
+  content::RenderFrameHost* rfh = nullptr;
+  web_contents->ForEachRenderFrameHost([&rfh](content::RenderFrameHost* host) {
+    auto* context = glic::GlicMediaContext::GetForCurrentDocument(host);
+    if (!context) {
+      return;
+    }
+    if (context->GetContext() != "") {
+      rfh = host;
+    }
+  });
+  if (rfh) {
+    AppendContextForFrame(rfh, context_root);
+  }
+}
+
+void GlicMediaIntegrationImpl::AppendContextForFrame(
+    content::RenderFrameHost* rfh,
+    optimization_guide::proto::ContentNode* context_root) {
+  if (!rfh) {
+    return;
+  }
   context_root->mutable_content_attributes()->set_attribute_type(
       optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
 
-  auto* context = glic::GlicMediaContext::GetIfExistsFor(web_contents);
+  auto* context = glic::GlicMediaContext::GetForCurrentDocument(rfh);
   std::string result;
   if (context != nullptr) {
     result = context->GetContext();
@@ -157,8 +193,8 @@ void GlicMediaIntegrationImpl::OnContextUpdated(
 }
 
 void GlicMediaIntegrationImpl::OnPeerConnectionAddedForTesting(
-    content::WebContents* web_contents) {
-  auto id = web_contents->GetPrimaryMainFrame()->GetGlobalId();
+    content::RenderFrameHost* rfh) {
+  auto id = rfh->GetGlobalId();
   rtc_observer_->OnPeerConnectionAdded(id, /*lid=*/0, /*pid=*/{}, /*url=*/"",
                                        /*rtc_configuration=*/"");
 }

@@ -16,26 +16,27 @@
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "services/accessibility/features/mojo/mojo_handle.h"
-#include "services/accessibility/features/registered_wrappable.h"
 #include "services/accessibility/features/v8_manager.h"
+#include "v8/include/cppgc/allocation.h"
 #include "v8/include/v8-context.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-isolate.h"
 #include "v8/include/v8-local-handle.h"
+#include "v8/include/v8-object.h"
 #include "v8/include/v8-primitive.h"
 
 namespace ax {
 
 // static
-gin::DeprecatedWrapperInfo Mojo::kWrapperInfo = {gin::kEmbedderNativeGin};
-
-// static
-gin::Handle<Mojo> Mojo::Create(v8::Local<v8::Context> context) {
-  return gin::CreateHandle(context->GetIsolate(), new Mojo(context));
+v8::Local<v8::Object> Mojo::Create(v8::Isolate* isolate) {
+  Mojo* mojo = cppgc::MakeGarbageCollected<Mojo>(
+      isolate->GetCppHeap()->GetAllocationHandle());
+  return mojo->GetWrapper(isolate).ToLocalChecked();
 }
 
 gin::ObjectTemplateBuilder Mojo::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return gin::DeprecatedWrappable<Mojo>::GetObjectTemplateBuilder(isolate)
+  return gin::Wrappable<Mojo>::GetObjectTemplateBuilder(isolate)
       .SetMethod("bindInterface", &Mojo::BindInterface)
       .SetMethod("createMessagePipe", &Mojo::CreateMessagePipe)
       .SetValue("RESULT_OK", MOJO_RESULT_OK)
@@ -58,6 +59,10 @@ gin::ObjectTemplateBuilder Mojo::GetObjectTemplateBuilder(
       .SetValue("RESULT_SHOULD_WAIT", MOJO_RESULT_SHOULD_WAIT);
 }
 
+const gin::WrapperInfo* Mojo::wrapper_info() const {
+  return &kWrapperInfo;
+}
+
 void Mojo::CreateMessagePipe(gin::Arguments* arguments) {
   v8::Isolate* isolate = arguments->isolate();
   CHECK(isolate);
@@ -78,11 +83,10 @@ void Mojo::CreateMessagePipe(gin::Arguments* arguments) {
   v8_result_dict.Set("result", result);
 
   if (result == MOJO_RESULT_OK) {
-    v8::Local<v8::Context> context = arguments->GetHolderCreationContext();
     v8_result_dict
-        .Set("handle0", MojoHandle::Create(context, mojo::ScopedHandle::From(
+        .Set("handle0", MojoHandle::Create(isolate, mojo::ScopedHandle::From(
                                                         std::move(handle0))))
-        .Set("handle1", MojoHandle::Create(context, mojo::ScopedHandle::From(
+        .Set("handle1", MojoHandle::Create(isolate, mojo::ScopedHandle::From(
                                                         std::move(handle1))));
   }
 
@@ -120,6 +124,8 @@ void Mojo::BindInterface(gin::Arguments* arguments) {
                                                         std::move(receiver));
 }
 
-Mojo::Mojo(v8::Local<v8::Context> context) : RegisteredWrappable(context) {}
+Mojo::Mojo() = default;
+
+Mojo::~Mojo() = default;
 
 }  // namespace ax

@@ -16,7 +16,6 @@
 <translation id="1352919863522755794">Google upravitelj zaporki nije uspio provjeriti vaše zaporke. Provjerite internetsku vezu.</translation>
 <translation id="1394995526009609883">Svoje odabire uvijek možete ažurirati u postavkama Chromea.</translation>
 <translation id="1407843355326180937">Prijavite se na ovu web-lokaciju i Chrome kako biste imali pristup svojim oznakama i još toga na svim svojim uređajima.</translation>
-<translation id="1426599484714342603">Iskoristite prednosti kupnje na Chromeu</translation>
 <translation id="1462727070346936664">Prijavite se da biste iskoristili sve prednosti Chromea.</translation>
 <translation id="1493827051843127077">Postavite Chrome kao zadani preglednik da biste sinkronizirali kartice, zaporke i podatke o plaćanju na svim svojim uređajima</translation>
 <translation id="1504372625950710826">Chrome nije uspio provjeriti ima li ažuriranja. Provjerite internetsku vezu.</translation>
@@ -33,7 +32,6 @@ Važne napomene:
 <translation id="1554731936187952550">Imate najjaču Chromeovu zaštitu od štetnih web-lokacija</translation>
 <translation id="155816064895200734">Postavljanje Chromea kao zadanog preglednika</translation>
 <translation id="1580570086594302477">Otvara novu anonimnu karticu u Chromeu.</translation>
-<translation id="1634522710245925681">Koristite Chrome prema zadanim postavkama kako biste jednostavno dobili uvid u cijene</translation>
 <translation id="1646463005043273333">Otvara postavku Chromea u kojoj se Chrome može postaviti kao zadani preglednik.</translation>
 <translation id="1670609221633730681">Savjet za Chrome: odaberite položaj adresne trake</translation>
 <translation id="1683863426423719967">Da biste primali podsjetnike o karticama iz Chromea, uključite obavijesti u postavkama iOS-a.</translation>
@@ -65,14 +63,12 @@ Važne napomene:
 <translation id="2423077901494354337">Sada ćete iskoristiti sve prednosti Chromea na uređaju.</translation>
 <translation id="2427791862912929107">Chrome ima značajke koje vam mogu pomoći u upravljanju internetskim podacima i brzinom kojom se učitavaju web-stranice.
 <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
-<translation id="2444854139071078915">Da biste jednostavno dohvatili spremljene zaporke u drugim aplikacijama, upotrebljavajte Chrome za Automatsko popunjavanje</translation>
 <translation id="2464852008153767546">{THRESHOLD,plural, =1{To se događa kad se Chrome ne koristi {THRESHOLD} minutu. To može uključivati povijest i automatsko popunjavanje.}one{To se događa kada se Chrome ne koristi {THRESHOLD} minutu. To može uključivati povijest i automatsko popunjavanje.}few{To se događa kada se Chrome ne koristi {THRESHOLD} minute. To može uključivati povijest i automatsko popunjavanje.}other{To se događa kada se Chrome ne koristi {THRESHOLD} minuta. To može uključivati povijest i automatsko popunjavanje.}}</translation>
 <translation id="2561231791489583059">Koristite Chrome kao zadani preglednik da biste se zaštitili od opasnih web-lokacija i očuvali sigurnost svojih zaporki</translation>
 <translation id="2574249610672786438">Da biste vidjeli svoje kartice bez obzira na to gdje koristite Chrome, prijavite se na svim svojim uređajima</translation>
 <translation id="2576431527583832481">Chrome je postao još bolji! Dostupna je nova verzija.</translation>
 <translation id="257708665678654955">Želite li da Google Chrome sljedeći put ponudi prijevod stranica s te web-lokacije za <ph name="LANGUAGE_NAME" />?</translation>
 <translation id="2668242166988961773">Pretražujte glasovno u Chromeu.</translation>
-<translation id="2671426118752779020">Zaporke koje ste spremili u Google upravitelj zaporki možete koristiti u drugim aplikacijama na iPhoneu.</translation>
 <translation id="2689064829982324496">Da biste se odjavili sa svojeg Google računa na svim web-lokacijama, <ph name="BEGIN_LINK" />odjavite se iz Chromea<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome nije uspio provjeriti ima li ažuriranja. Pokušajte ponovo kasnije.</translation>
 <translation id="2703746758996815929">Da biste primali korisne savjete za Chrome, uključite obavijesti u postavkama iOS-a.</translation>
@@ -222,7 +218,6 @@ Vaši se podaci šifriraju vašom šifrom. Unesite je da biste upotrebljavali i 
 <translation id="6684809838922667136">Poboljšavanje Chromea</translation>
 <translation id="6695698548122852044">{THRESHOLD,plural, =1{To se događa kad se Chrome ne koristi {THRESHOLD} minutu. Izbrisat će se podaci koji su spremljeni samo na ovaj uređaj dok ste bili prijavljeni. To može uključivati povijest i zaporke.}one{To se događa kada se Chrome ne koristi {THRESHOLD} minutu. Izbrisat će se podaci koji su spremljeni samo na ovaj uređaj dok ste bili prijavljeni. To može uključivati povijest i zaporke.}few{To se događa kada se Chrome ne koristi {THRESHOLD} minute. Izbrisat će se podaci koji su spremljeni samo na ovaj uređaj dok ste bili prijavljeni. To može uključivati povijest i zaporke.}other{To se događa kada se Chrome ne koristi {THRESHOLD} minuta. Izbrisat će se podaci koji su spremljeni samo na ovaj uređaj dok ste bili prijavljeni. To može uključivati povijest i zaporke.}}</translation>
 <translation id="6709398533399187136">Vaša je zaporka ugrožena zbog povrede podataka. Google upravitelj zaporki preporučuje da je odmah promijenite.</translation>
-<translation id="6788035488757621217">U postavkama uređaja otvorite <ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM" /> i odaberite Chrome</translation>
 <translation id="6820553595690137150">Šifriranje šifre ne uključuje načine plaćanja i adrese.
 
 Kako biste promijenili tu postavku, <ph name="BEGIN_LINK" />izbrišite podatke Chromea na svom računu<ph name="END_LINK" />.</translation>
@@ -242,7 +237,6 @@ Više postavki koje upotrebljavaju podatke za poboljšanje vašeg doživljaja u 
 <translation id="7175129790242719365">Savjet za Chrome: prijavite se u Chrome</translation>
 <translation id="7187993566681480880">Štiti vas na Chromeu i može se upotrebljavati za poboljšanje vaše sigurnosti u drugim Googleovim aplikacijama kad ste prijavljeni.</translation>
 <translation id="7200524487407690471">Chrome automatski pokreće sigurnosnu provjeru svaki dan kako bi vas zaštitio od neovlaštenog pristupa podacima, nesigurnih web-lokacija i drugih opasnosti. Više o sigurnosnoj provjeri možete pronaći u postavkama.</translation>
-<translation id="72119412072970160">Zaporke koje ste spremili u Google upravitelj zaporki možete koristiti u drugim aplikacijama na iPadu.</translation>
 <translation id="7214019116829172458">Otvaranje anonimne kartice u Chromeu</translation>
 <translation id="722167379782941918">Chrome preporučuje poboljšanu zaštitu</translation>
 <translation id="723787869754590019">Upotrebljavajte Chrome za automatsko popunjavanje</translation>
@@ -288,7 +282,6 @@ Više postavki koje upotrebljavaju podatke za poboljšanje vašeg doživljaja u 
 <translation id="8018153653741938705">Ostanite sigurni uz Google Chrome</translation>
 <translation id="8022947259858476807">Koristite Chrome prema zadanim postavkama da biste otvarali veze, pretraživali putem widgeta i automatski popunjavali zaporke u drugim aplikacijama</translation>
 <translation id="804638182476029347">Dopustite Chromeove obavijesti da biste primali upozorenja o sniženju cijena</translation>
-<translation id="804756029368067824">Postavite Chrome kao zadani preglednik da biste jednostavno pratili cijene i dobivali uvide u cijene artikala koje želite kupiti.</translation>
 <translation id="8065292699993359127">Otvorite URL-ove u Chromeu u anonimnom načinu</translation>
 <translation id="8069507567842347179">Ovaj se paket već prati na Chromeu.</translation>
 <translation id="8136856065410661948">To će se upotrebljavati za izradu događaja u vašem Apple kalendaru iz Chromea i Google objektiva.</translation>

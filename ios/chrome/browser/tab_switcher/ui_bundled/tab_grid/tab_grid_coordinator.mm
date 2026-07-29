@@ -94,6 +94,8 @@
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/chrome_app_bar_prototype.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -301,6 +303,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   ProceduralBlock _guidedTourCompletionBlock;
   // The coordinator to sign-in from recent tabs.
   SigninCoordinator* _signinCoordinator;
+  // App bar for the prototype.
+  ChromeAppBarPrototype* _appBar;
 }
 // Superclass property.
 @synthesize baseViewController = _baseViewController;
@@ -604,7 +608,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   }
 
   SceneState* sceneState = self.regularBrowser->GetSceneState();
-  [sceneState setWindowUserInterfaceStyle:UIUserInterfaceStyleUnspecified];
+  sceneState.window.overrideUserInterfaceStyle =
+      UIUserInterfaceStyleUnspecified;
 
   // If another BVC is already being presented, swap this one into the
   // container.
@@ -845,7 +850,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // the context menu to be displayed in light mode. Note that view presented on
   // top of the tab grid are in dark mode too.
   SceneState* sceneState = self.regularBrowser->GetSceneState();
-  [sceneState setWindowUserInterfaceStyle:UIUserInterfaceStyleDark];
+  sceneState.window.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
 }
 
 // Creates a transition handler with `animationEnabled` parameter.
@@ -908,6 +913,39 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       std::move(delegate), tabGroup->tab_group_id(), entryPoint);
 }
 
+- (void)prototypeGeminiCallback {
+  CHECK(IsDiamondPrototypeEnabled());
+  TabGridPage page = self.baseViewController.currentPage;
+  if (page == TabGridPageTabGroups) {
+    page = self.baseViewController.activePage;
+  }
+  DiamondPrototypeStartGemini(
+      !self.bvcContainer, page == TabGridPageIncognitoTabs, self.regularBrowser,
+      self.incognitoBrowser, self.baseViewController);
+}
+
+- (void)prototypeNewTabCallback {
+  CHECK(IsDiamondPrototypeEnabled());
+  TabGridPage page = self.baseViewController.currentPage;
+  if (page == TabGridPageTabGroups) {
+    page = self.baseViewController.activePage;
+  }
+  DiamondPrototypeStartNewTab(
+      !self.bvcContainer, page == TabGridPageIncognitoTabs, self.regularBrowser,
+      self.incognitoBrowser, self.baseViewController);
+}
+
+- (void)prototypeTabGridCallback {
+  CHECK(IsDiamondPrototypeEnabled());
+  if (self.bvcContainer) {
+    id<ApplicationCommands> applicationHandler =
+        HandlerForProtocol(self.dispatcher, ApplicationCommands);
+    [applicationHandler displayTabGridInMode:TabGridOpeningMode::kDefault];
+  } else {
+    [self exitTabGrid];
+  }
+}
+
 #pragma mark - ChromeCoordinator
 
 - (void)start {
@@ -954,6 +992,20 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   [_toolbarsCoordinator start];
   self.baseViewController.topToolbar = _toolbarsCoordinator.topToolbar;
   self.baseViewController.bottomToolbar = _toolbarsCoordinator.bottomToolbar;
+
+  if (IsDiamondPrototypeEnabled()) {
+    _appBar = [[ChromeAppBarPrototype alloc] init];
+    [_appBar.askGeminiButton addTarget:self
+                                action:@selector(prototypeGeminiCallback)
+                      forControlEvents:UIControlEventTouchUpInside];
+    [_appBar.openNewTabButton addTarget:self
+                                 action:@selector(prototypeNewTabCallback)
+                       forControlEvents:UIControlEventTouchUpInside];
+    [_appBar.tabGridButton addTarget:self
+                              action:@selector(prototypeTabGridCallback)
+                    forControlEvents:UIControlEventTouchUpInside];
+    [self.baseViewController setAppBar:_appBar];
+  }
 
   _regularGridCoordinator = [[RegularGridCoordinator alloc]
       initWithBaseViewController:self.baseViewController
@@ -1120,8 +1172,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // hierarchy. As a workaround, the view controller hierarchy is loaded here
   // before `RecentTabsMediator` updates are started.
   SceneState* sceneState = self.regularBrowser->GetSceneState();
-  [sceneState setRootViewController:self.baseViewController
-                  makeKeyAndVisible:NO];
+  sceneState.window.rootViewController = self.baseViewController;
   if (regularProfile) {
     [self.remoteTabsMediator initObservers];
     [self.remoteTabsMediator refreshSessionsView];

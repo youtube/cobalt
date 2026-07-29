@@ -55,12 +55,6 @@ ManagedUserProfileNoticeUI::ManagedUserProfileNoticeUI(content::WebUI* web_ui)
 
   static constexpr webui::ResourcePath kResources[] = {
       {"icons.html.js", IDR_SIGNIN_ICONS_HTML_JS},
-      {"legacy_managed_user_profile_notice_app.js",
-       IDR_SIGNIN_MANAGED_USER_PROFILE_NOTICE_LEGACY_MANAGED_USER_PROFILE_NOTICE_APP_JS},
-      {"legacy_managed_user_profile_notice_app.css.js",
-       IDR_SIGNIN_MANAGED_USER_PROFILE_NOTICE_LEGACY_MANAGED_USER_PROFILE_NOTICE_APP_CSS_JS},
-      {"legacy_managed_user_profile_notice_app.html.js",
-       IDR_SIGNIN_MANAGED_USER_PROFILE_NOTICE_LEGACY_MANAGED_USER_PROFILE_NOTICE_APP_HTML_JS},
       {"managed_user_profile_notice_app.js",
        IDR_SIGNIN_MANAGED_USER_PROFILE_NOTICE_MANAGED_USER_PROFILE_NOTICE_APP_JS},
       {"managed_user_profile_notice_app.css.js",
@@ -202,10 +196,6 @@ ManagedUserProfileNoticeUI::ManagedUserProfileNoticeUI(content::WebUI* web_ui)
   source->AddLocalizedString(
       "mergeBrowsingDataChoiceDetails",
       IDS_ENTERPRISE_WELCOME_MERGE_BROWSING_DATA_CHOICE_DETAILS);
-
-  source->AddBoolean("useUpdatedUi",
-                     base::FeatureList::IsEnabled(
-                         features::kEnterpriseUpdatedProfileCreationScreen));
   source->AddBoolean("showLinkDataCheckbox", false);
   source->AddBoolean("isModalDialog", false);
   source->AddBoolean("isOidcDialog", false);
@@ -256,7 +246,7 @@ void ManagedUserProfileNoticeUI::Initialize(
                     create_param->show_link_data_option);
     // If the user is already signed in and is trying to turn sync on, we can
     // skip the value proposition screen since they are already signed in.
-    if (create_param->turn_sync_on_signed_profile) {
+    if (create_param->user_already_signed_in) {
       update_data.Set("initialState",
                       ManagedUserProfileNoticeHandler::State::kDisclosure);
     } else {
@@ -276,14 +266,6 @@ void ManagedUserProfileNoticeUI::Initialize(
         l10n_util::GetStringUTF16(IDS_ENTERPRISE_WELCOME_PROFILE_SETUP_TITLE));
 
     update_data.Set("showLinkDataCheckbox", false);
-#if !BUILDFLAG(IS_CHROMEOS)
-    update_data.Set(
-        "useUpdatedUi",
-        base::FeatureList::IsEnabled(
-            features::kEnterpriseUpdatedProfileCreationScreen) ||
-            base::FeatureList::IsEnabled(
-                profile_management::features::kOidcAuthProfileManagement));
-#endif
   }
   if (create_param->account_info.IsManaged() == signin::Tribool::kTrue) {
     update_data.Set(
@@ -302,7 +284,7 @@ void ManagedUserProfileNoticeUI::Initialize(
         "separateBrowsingDataTitle",
         l10n_util::GetStringUTF16(
             IDS_ENTERPRISE_WELCOME_SEPARATE_BROWSING_CONSUMER_TITLE));
-  } else if (create_param->turn_sync_on_signed_profile) {
+  } else if (create_param->user_already_signed_in) {
     update_data.Set(
         "separateBrowsingDataTitle",
         l10n_util::GetStringUTF16(

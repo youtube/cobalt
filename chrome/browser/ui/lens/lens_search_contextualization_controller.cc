@@ -8,13 +8,13 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/content_extraction/inner_html.h"
-#include "chrome/browser/content_extraction/inner_text.h"
 #include "chrome/browser/ui/lens/lens_overlay_image_helper.h"
 #include "chrome/browser/ui/lens/lens_overlay_proto_converter.h"
 #include "chrome/browser/ui/lens/lens_overlay_side_panel_coordinator.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
+#include "components/content_extraction/content/browser/inner_text.h"
 #include "components/lens/lens_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/zoom/zoom_controller.h"
@@ -193,11 +193,9 @@ void LensSearchContextualizationController::GetPageContextualization(
   // calling MaybeGetPdfBytes or else the `callback` will have been moved but
   // not called.
   pdf::PDFDocumentHelper* pdf_helper =
-      lens::features::UsePdfsAsContext()
-          ? pdf::PDFDocumentHelper::MaybeGetForWebContents(
-                lens_search_controller_->GetTabInterface()->GetContents())
-          : nullptr;
-  if (lens::features::UsePdfsAsContext() && pdf_helper) {
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(
+          lens_search_controller_->GetTabInterface()->GetContents());
+  if (pdf_helper) {
     // Fetch the PDF bytes then run the callback.
     MaybeGetPdfBytes(pdf_helper, std::move(callback));
     return;
@@ -208,17 +206,16 @@ void LensSearchContextualizationController::GetPageContextualization(
   auto* render_frame_host = lens_search_controller_->GetTabInterface()
                                 ->GetContents()
                                 ->GetPrimaryMainFrame();
-  if (!render_frame_host || (!lens::features::UseInnerHtmlAsContext() &&
-                             !lens::features::UseInnerTextAsContext() &&
+  if (!render_frame_host || (!lens::features::UseInnerTextAsContext() &&
                              !lens::features::UseApcAsContext())) {
     std::move(callback).Run(page_contents, lens::MimeType::kUnknown,
                             std::nullopt);
     return;
   }
-  // TODO(crbug.com/399610478): The fetches for innerHTML, innerText, and APC
+  // TODO(crbug.com/399610478): The fetches for innerText and APC
   // should be parallelized to fetch all data at once. Currently fetches are
   // sequential to prevent getting stuck in a race condition.
-  MaybeGetInnerHtml(page_contents, render_frame_host, std::move(callback));
+  MaybeGetInnerText(page_contents, render_frame_host, std::move(callback));
 }
 
 void LensSearchContextualizationController::TryUpdatePageContextualization(
@@ -318,8 +315,8 @@ void LensSearchContextualizationController::RecordDocumentMetrics(
   }
 
   // Fetch and record the other content type for representing the webpage.
-  // TODO(crbug.com/398304347): Remove these once both the innerHtml and
-  // innerText metrics are recorded as part of the content data.
+  // TODO(crbug.com/398304347): Remove this once innerText metrics are recorded
+  // as part of the content data.
   auto* render_frame_host = lens_search_controller_->GetTabInterface()
                                 ->GetContents()
                                 ->GetPrimaryMainFrame();
@@ -329,14 +326,6 @@ void LensSearchContextualizationController::RecordDocumentMetrics(
         *render_frame_host, /*node_id=*/std::nullopt,
         base::BindOnce(
             &LensSearchContextualizationController::RecordInnerTextSize,
-            weak_ptr_factory_.GetWeakPtr()));
-  }
-  if (!retrieved_content_types.contains(lens::MimeType::kHtml)) {
-    // Fetch the innerHtml bytes to log the size.
-    content_extraction::GetInnerHtml(
-        *render_frame_host,
-        base::BindOnce(
-            &LensSearchContextualizationController::RecordInnerHtmlSize,
             weak_ptr_factory_.GetWeakPtr()));
   }
 
@@ -395,7 +384,7 @@ void LensSearchContextualizationController::UpdatePageContextualization(
     lens::MimeType primary_content_type,
     std::optional<uint32_t> page_count) {
   // Exit early if the controller is off.
-  if(state_ == State::kOff) {
+  if (state_ == State::kOff) {
     return;
   }
 
@@ -440,18 +429,15 @@ void LensSearchContextualizationController::UpdatePageContextualizationPart2(
   }
 
 #if BUILDFLAG(ENABLE_PDF)
-  if (lens::features::SendPdfCurrentPageEnabled()) {
-    pdf::PDFDocumentHelper* pdf_helper =
-        pdf::PDFDocumentHelper::MaybeGetForWebContents(
-            lens_search_controller_->GetTabInterface()->GetContents());
-    if (pdf_helper) {
-      pdf_helper->GetMostVisiblePageIndex(
-          base::BindOnce(&LensSearchContextualizationController::
-                             UpdatePageContextualizationPart3,
-                         weak_ptr_factory_.GetWeakPtr(), page_contents,
-                         primary_content_type, page_count, bitmap));
-      return;
-    }
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(
+          lens_search_controller_->GetTabInterface()->GetContents());
+  if (pdf_helper) {
+    pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
+        &LensSearchContextualizationController::UpdatePageContextualizationPart3,
+        weak_ptr_factory_.GetWeakPtr(), page_contents, primary_content_type,
+        page_count, bitmap));
+    return;
   }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
@@ -584,40 +570,6 @@ void LensSearchContextualizationController::UpdatePageContextualizationPart3(
   std::move(on_page_context_updated_callback_).Run();
 }
 
-void LensSearchContextualizationController::MaybeGetInnerHtml(
-    std::vector<lens::PageContent> page_contents,
-    content::RenderFrameHost* render_frame_host,
-    PageContentRetrievedCallback callback) {
-  if (!lens::features::UseInnerHtmlAsContext()) {
-    MaybeGetInnerText(page_contents, render_frame_host, std::move(callback));
-    return;
-  }
-  content_extraction::GetInnerHtml(
-      *render_frame_host,
-      base::BindOnce(
-          &LensSearchContextualizationController::OnInnerHtmlReceived,
-          weak_ptr_factory_.GetWeakPtr(), page_contents, render_frame_host,
-          std::move(callback)));
-}
-
-void LensSearchContextualizationController::OnInnerHtmlReceived(
-    std::vector<lens::PageContent> page_contents,
-    content::RenderFrameHost* render_frame_host,
-    PageContentRetrievedCallback callback,
-    const std::optional<std::string>& result) {
-  const bool was_successful =
-      result.has_value() &&
-      result->size() <= lens::features::GetLensOverlayFileUploadLimitBytes();
-  // Add the innerHTML to the page contents if successful, or empty bytes if
-  // not.
-  page_contents.emplace_back(
-      /*bytes=*/was_successful
-          ? std::vector<uint8_t>(result->begin(), result->end())
-          : std::vector<uint8_t>{},
-      lens::MimeType::kHtml);
-  MaybeGetInnerText(page_contents, render_frame_host, std::move(callback));
-}
-
 void LensSearchContextualizationController::MaybeGetInnerText(
     std::vector<lens::PageContent> page_contents,
     content::RenderFrameHost* render_frame_host,
@@ -665,8 +617,7 @@ void LensSearchContextualizationController::MaybeGetAnnotatedPageContent(
     // plain text if that is the only content type enabled.
     // TODO(crbug.com/401614601): Set primary content type to kHtml in all
     // cases.
-    auto primary_content_type = lens::features::UseInnerTextAsContext() &&
-                                        !lens::features::UseInnerHtmlAsContext()
+    auto primary_content_type = lens::features::UseInnerTextAsContext()
                                     ? lens::MimeType::kPlainText
                                     : lens::MimeType::kHtml;
     std::move(callback).Run(page_contents, primary_content_type, std::nullopt);
@@ -909,17 +860,15 @@ void LensSearchContextualizationController::GetPdfCurrentPage(
     OnPageContextUpdatedCallback callback,
     const std::vector<gfx::Rect>& bounds) {
 #if BUILDFLAG(ENABLE_PDF)
-  if (lens::features::SendPdfCurrentPageEnabled()) {
-    pdf::PDFDocumentHelper* pdf_helper =
-        pdf::PDFDocumentHelper::MaybeGetForWebContents(
-            lens_search_controller_->GetTabInterface()->GetContents());
-    if (pdf_helper) {
-      pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
-          &LensSearchContextualizationController::DidCaptureScreenshot,
-          weak_ptr_factory_.GetWeakPtr(), std::move(chrome_render_frame),
-          attempt_id, bitmap, bounds, std::move(callback)));
-      return;
-    }
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(
+          lens_search_controller_->GetTabInterface()->GetContents());
+  if (pdf_helper) {
+    pdf_helper->GetMostVisiblePageIndex(base::BindOnce(
+        &LensSearchContextualizationController::DidCaptureScreenshot,
+        weak_ptr_factory_.GetWeakPtr(), std::move(chrome_render_frame),
+        attempt_id, bitmap, bounds, std::move(callback)));
+    return;
   }
 #endif  // BUILDFLAG(ENABLE_PDF)
 
@@ -935,14 +884,6 @@ void LensSearchContextualizationController::RecordInnerTextSize(
   }
   lens::RecordDocumentSizeBytes(lens::MimeType::kPlainText,
                                 result->inner_text.size());
-}
-
-void LensSearchContextualizationController::RecordInnerHtmlSize(
-    const std::optional<std::string>& result) {
-  if (!result) {
-    return;
-  }
-  lens::RecordDocumentSizeBytes(lens::MimeType::kHtml, result->size());
 }
 
 std::vector<lens::mojom::CenterRotatedBoxPtr>

@@ -38,7 +38,10 @@ public class ChildProcessConnectionMetricsUnitTest {
         mRanking = new LinkedList<ChildProcessConnection>();
         mBindingManager =
                 new BindingManager(
-                        RuntimeEnvironment.application, BindingManager.NO_MAX_SIZE, mRanking);
+                        RuntimeEnvironment.application,
+                        BindingManager.NO_MAX_SIZE,
+                        mRanking,
+                        /* onChangedImplicitly= */ null);
         mConnectionMetrics = new ChildProcessConnectionMetrics();
         mConnectionMetrics.setBindingManager(mBindingManager);
     }
@@ -313,7 +316,7 @@ public class ChildProcessConnectionMetricsUnitTest {
         final boolean lowestRank = mRanking.size() == 1 && mRanking.get(0) == connection;
         final boolean needsVisibleBinding = contentBindingState == ChildBindingState.VISIBLE;
         final boolean hasContentVisibleBinding =
-                ((lowestRank || BindingManager.useNotPerceptibleBinding())
+                ((lowestRank || ChildProcessConnection.supportNotPerceptibleBinding())
                                 && connection.isVisibleBindingBound())
                         || connection.getVisibleBindingCount() == 2;
 
@@ -349,11 +352,11 @@ public class ChildProcessConnectionMetricsUnitTest {
     }
 
     private void setupBindingType(boolean useNotPerceptibleBinding) {
-        BindingManager.setUseNotPerceptibleBindingForTesting(useNotPerceptibleBinding);
+        ChildProcessConnection.setSupportNotPerceptibleBindingForTesting(useNotPerceptibleBinding);
         if (useNotPerceptibleBinding) {
-            Assert.assertTrue(BindingManager.useNotPerceptibleBinding());
+            Assert.assertTrue(ChildProcessConnection.supportNotPerceptibleBinding());
             return;
         }
-        Assert.assertFalse(BindingManager.useNotPerceptibleBinding());
+        Assert.assertFalse(ChildProcessConnection.supportNotPerceptibleBinding());
     }
 }

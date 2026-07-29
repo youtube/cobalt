@@ -22,7 +22,8 @@
 #include "components/permissions/permission_request_data.h"
 #include "components/permissions/resolvers/permission_resolver.h"
 #include "content/public/browser/permission_result.h"
-#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-forward.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+#include "third_party/blink/public/mojom/permissions/permission.mojom-forward.h"
 
 class GURL;
 
@@ -158,11 +159,10 @@ class PermissionContextBase : public content_settings::Observer {
   void AddObserver(permissions::Observer* permission_observer);
   void RemoveObserver(permissions::Observer* permission_observer);
 
+  // Creates a PermissionResolver for the PermissionDescriptorPtr. The default
+  // implementation creates a ContentSettingPermissionResolver.
   virtual std::unique_ptr<PermissionResolver> CreatePermissionResolver(
       const blink::mojom::PermissionDescriptorPtr& permission_descriptor) const;
-
-  virtual std::unique_ptr<PermissionResolver>
-  CreateRequestIndependentPermissionResolver() const;
 
   // Update the value of `last_has_device_permission_result_` and notify
   // observers if it changes.
@@ -179,7 +179,7 @@ class PermissionContextBase : public content_settings::Observer {
  protected:
   // Retrieves the current permission status. |render_frame_host| may be
   // nullptr.
-  virtual base::Value GetPermissionStatusInternal(
+  virtual PermissionSetting GetPermissionStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
       const GURL& embedding_origin) const;
@@ -210,7 +210,7 @@ class PermissionContextBase : public content_settings::Observer {
   // Store the decided permission state. Virtual since the permission might be
   // stored with different restrictions (for example for desktop notifications).
   virtual void UpdateSetting(const PermissionRequestData& request_data,
-                             base::Value setting,
+                             PermissionSetting setting,
                              bool is_one_time);
 
   // Whether the permission should be restricted to secure origins.

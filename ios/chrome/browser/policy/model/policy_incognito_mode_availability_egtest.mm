@@ -168,6 +168,14 @@ id<GREYMatcher> TabGridButton() {
   [[EarlGrey selectElementWithMatcher:TabGridButton()]
       performAction:grey_longPress()];
 
+  if (@available(iOS 26, *)) {
+    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
+    // this workaround when it's not needed anymore.
+    // On iOS 26, the keyboard appears when the button is long pressed and it
+    // hides the elements behind. Close the keyboard by typing a return key.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+  }
+
   AssertContextMenuItemEnabled(IDS_IOS_TOOLS_MENU_NEW_TAB);
   AssertContextMenuItemDisabled(IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB);
 }
@@ -263,7 +271,9 @@ id<GREYMatcher> TabGridButton() {
       assertWithMatcher:grey_sufficientlyVisible()];
 
   // Check that the edit button is disabled.
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridEditButton()]
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(chrome_test_util::TabGridEditButton(),
+                                          grey_sufficientlyVisible(), nil)]
       assertWithMatcher:grey_not(grey_enabled())];
 
   GREYAssertNil([MetricsAppInterface

@@ -10,7 +10,6 @@
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
-#include "chrome/browser/ui/tabs/test_util.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
@@ -34,14 +33,14 @@ class TabModelTest : public testing::Test {
             content::WebContentsTester::CreateTestWebContents(profile(),
                                                               nullptr),
             &tab_strip_model),
-        true);
+        /*foreground=*/true);
   }
 
  private:
   content::BrowserTaskEnvironment task_environment_;
   content::RenderViewHostTestEnabler rvh_test_enabler_;
   TestingProfile profile_;
-  tabs::PreventTabFeatureInitialization prevent_;
+  const tabs::TabModel::PreventFeatureInitializationForTesting prevent_;
 };
 
 TEST_F(TabModelTest, TabModelDidInsert) {
@@ -72,6 +71,30 @@ TEST_F(TabModelTest, TabModelDidInsert) {
   EXPECT_CALL(did_insert_callback, Run).Times(1);
   tab_strip_src.InsertDetachedTabAt(0, std::move(tab_model),
                                     AddTabTypes::ADD_NONE);
+}
+
+TEST_F(TabModelTest, IsSelected) {
+  // Create a source tab strip.
+  TestTabStripModelDelegate delegate;
+  TabStripModel tab_strip(&delegate, profile());
+  AppendTab(tab_strip);
+  AppendTab(tab_strip);
+
+  // Right now, the second tab should be selected.
+  tabs::TabInterface* tab0 = tab_strip.GetTabAtIndex(0);
+  tabs::TabInterface* tab1 = tab_strip.GetTabAtIndex(1);
+  EXPECT_FALSE(tab0->IsSelected());
+  EXPECT_TRUE(tab1->IsSelected());
+
+  // Select both the first tab, too.
+  tab_strip.SelectTabAt(0);
+  EXPECT_TRUE(tab0->IsSelected());
+  EXPECT_TRUE(tab1->IsSelected());
+
+  // Deselect the second tab.
+  tab_strip.DeselectTabAt(1);
+  EXPECT_TRUE(tab0->IsSelected());
+  EXPECT_FALSE(tab1->IsSelected());
 }
 
 }  // namespace tabs

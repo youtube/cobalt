@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/browser/sessions/model/legacy_session_restoration_service.h"
 
 #import <map>
@@ -537,7 +542,8 @@ TEST_F(LegacySessionRestorationServiceTest, LoadSession) {
     // Check that closing the all the tabs after disconnecting the Browser
     // does not cause the session to be saved again nor deleted.
     SnapshotFiles();
-    CloseAllWebStates(*browser.GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+    CloseAllWebStates(*browser.GetWebStateList(),
+                      WebStateList::ClosingReason::kDefault);
 
     WaitForSessionSaveComplete();
     EXPECT_EQ(DeletedFiles(), FilePathSet{});

@@ -27,6 +27,7 @@
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/process_lock.h"
@@ -35,7 +36,6 @@
 #include "content/browser/renderer_host/navigation_entry_impl.h"
 #include "content/browser/renderer_host/navigation_entry_restore_context_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
-#include "content/browser/renderer_host/navigation_throttle_runner.h"
 #include "content/browser/renderer_host/navigation_type.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
@@ -60,6 +60,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/bindings_policy.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/back_forward_cache_util.h"
@@ -3290,7 +3291,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_NE(previous_entry, controller.GetLastCommittedEntry());
 
     // We lost the history.state value from before the failed navigation.
-    EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+    EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
     previous_entry = controller.GetLastCommittedEntry();
   }
 
@@ -3643,7 +3644,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_EQ(1, controller.GetEntryCount());
 
     // We lost the history.state value from before the failed navigation.
-    EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+    EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
     previous_entry = controller.GetLastCommittedEntry();
   }
 
@@ -12732,7 +12733,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
               controller.GetEntryAtIndex(1)->GetFrameEntry(root));
 
     // The main frame's history.state is reset
-    EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+    EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
 
     // The root FrameNavigationEntry and NavigationEntry are both reused. This
     // means the previous pushState FrameNavigationEntry is shared with the
@@ -12764,7 +12765,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     // TODO(crbug.com/40188865): We should probably restore "foo" here,
     // as location.replace() shouldn't affect entries other than the one it
     // replaced.
-    EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+    EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
 
     // The root FrameNavigationEntry is reused since it is shared with the
     // traversed NavigationEntry.
@@ -12792,7 +12793,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_TRUE(capturer.is_same_document());
 
     // The main frame's history.state stays as null.
-    EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+    EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
 
     // The root FrameNavigationEntry and NavigationEntry are not reused.
     EXPECT_NE(
@@ -12894,7 +12895,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_EQ(2, controller.GetCurrentEntryIndex());
 
     // The main frame's history.state is reset
-    EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+    EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
 
     // The root FrameNavigationEntry and NavigationEntry are not reused.
     EXPECT_NE(
@@ -19558,7 +19559,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     // TODO(http://crbug.com/1188956): Ensure error page isolation correctly
     // maintains history.state as well.
     if (SiteIsolationPolicy::IsErrorPageIsolationEnabled(false)) {
-      EXPECT_EQ(nullptr, EvalJs(child, "history.state"));
+      EXPECT_EQ(base::Value(), EvalJs(child, "history.state"));
     } else {
       EXPECT_EQ("foo", EvalJs(child, "history.state"));
     }
@@ -19713,7 +19714,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
   EXPECT_EQ(5, controller.GetEntryCount());
   EXPECT_EQ(4, controller.GetCurrentEntryIndex());
   EXPECT_EQ("a", EvalJs(ftn_a, "window.state"));
-  EXPECT_EQ(nullptr, EvalJs(ftn_b, "window.state"));
+  EXPECT_EQ(base::Value(), EvalJs(ftn_b, "window.state"));
 }
 
 // Verify that if a history navigation only affects a subframe that was
@@ -21237,7 +21238,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
     EXPECT_EQ(other_url, child->current_url());
   }
   // Check that the history.state is not retained after the navigation.
-  EXPECT_EQ(nullptr, EvalJs(child, "history.state"));
+  EXPECT_EQ(base::Value(), EvalJs(child, "history.state"));
 
   // Do a replaceState on the main frame to set the history.state to "bar".
   ReplaceState(root, "bar");
@@ -21251,7 +21252,7 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
   // Navigate the main frame to a different URL.
   ASSERT_TRUE(NavigateToURL(shell(), other_url));
   // Check that the history.state is not retained after the navigation.
-  EXPECT_EQ(nullptr, EvalJs(root, "history.state"));
+  EXPECT_EQ(base::Value(), EvalJs(root, "history.state"));
 }
 
 IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTest,
@@ -21592,17 +21593,21 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTestNoServer,
   // and gets deferred by RendererCancellationThrottle after that. Wait for the
   // first NavigationThrottle deferral.
   base::RunLoop run_loop;
-  NavigationThrottleRunner& throttle_runner =
-      request->GetNavigationThrottleRegistryForTesting()
-          ->GetNavigationThrottleRunnerForTesting();
-  throttle_runner.set_first_deferral_callback_for_testing(
-      run_loop.QuitClosure());
+  request->GetNavigationThrottleRegistryForTesting()
+      ->SetFirstDeferralCallbackForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Check that the deferral is caused by RendererCancellationThrottle.
   EXPECT_TRUE(request->IsDeferredForTesting());
+  ASSERT_EQ(request->GetNavigationThrottleRegistryForTesting()
+                ->GetDeferringThrottles()
+                .size(),
+            1u);
   EXPECT_STREQ("RendererCancellationThrottle",
-               throttle_runner.GetDeferringThrottle()->GetNameForLogging());
+               (*request->GetNavigationThrottleRegistryForTesting()
+                     ->GetDeferringThrottles()
+                     .begin())
+                   ->GetNameForLogging());
   EXPECT_EQ(request->state(), NavigationRequest::WILL_PROCESS_RESPONSE);
 
   // Unblock the JS task in the renderer by sending the response for the sync
@@ -21662,17 +21667,21 @@ IN_PROC_BROWSER_TEST_P(NavigationControllerBrowserTestNoServer,
   // and gets deferred by RendererCancellationThrottle after that. Wait for the
   // first NavigationThrottle deferral.
   base::RunLoop run_loop;
-  NavigationThrottleRunner& throttle_runner =
-      request->GetNavigationThrottleRegistryForTesting()
-          ->GetNavigationThrottleRunnerForTesting();
-  throttle_runner.set_first_deferral_callback_for_testing(
-      run_loop.QuitClosure());
+  request->GetNavigationThrottleRegistryForTesting()
+      ->SetFirstDeferralCallbackForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Check that the deferral is caused by RendererCancellationThrottle.
   EXPECT_TRUE(request->IsDeferredForTesting());
+  ASSERT_EQ(request->GetNavigationThrottleRegistryForTesting()
+                ->GetDeferringThrottles()
+                .size(),
+            1u);
   EXPECT_STREQ("RendererCancellationThrottle",
-               throttle_runner.GetDeferringThrottle()->GetNameForLogging());
+               (*request->GetNavigationThrottleRegistryForTesting()
+                     ->GetDeferringThrottles()
+                     .begin())
+                   ->GetNameForLogging());
   EXPECT_EQ(request->state(), NavigationRequest::WILL_PROCESS_RESPONSE);
 
   // Kill the renderer process that started the navigation.
@@ -21741,17 +21750,21 @@ IN_PROC_BROWSER_TEST_P(
   // and gets deferred by RendererCancellationThrottle after that. Wait for the
   // first NavigationThrottle deferral.
   base::RunLoop run_loop;
-  NavigationThrottleRunner& throttle_runner =
-      request->GetNavigationThrottleRegistryForTesting()
-          ->GetNavigationThrottleRunnerForTesting();
-  throttle_runner.set_first_deferral_callback_for_testing(
-      run_loop.QuitClosure());
+  request->GetNavigationThrottleRegistryForTesting()
+      ->SetFirstDeferralCallbackForTesting(run_loop.QuitClosure());
   run_loop.Run();
 
   // Check that the deferral is caused by RendererCancellationThrottle.
   EXPECT_TRUE(request->IsDeferredForTesting());
+  ASSERT_EQ(request->GetNavigationThrottleRegistryForTesting()
+                ->GetDeferringThrottles()
+                .size(),
+            1u);
   EXPECT_STREQ("RendererCancellationThrottle",
-               throttle_runner.GetDeferringThrottle()->GetNameForLogging());
+               (*request->GetNavigationThrottleRegistryForTesting()
+                     ->GetDeferringThrottles()
+                     .begin())
+                   ->GetNameForLogging());
   EXPECT_EQ(request->state(), NavigationRequest::WILL_PROCESS_RESPONSE);
 
   // Verify that we will be notified about the unresponsive renderer.
@@ -23520,6 +23533,15 @@ class IgnoreDuplicateNavsBrowserTest
     } else {
       feature_list_.InitAndDisableFeature(features::kIgnoreDuplicateNavs);
     }
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    NavigationControllerBrowserTestBase::SetUpInProcessBrowserTestFixture();
+    // By default, IgnoreDuplicateNavs is disabled in tests to prevent
+    // navigations from being unintentionally ignored. This test requires the
+    // feature, so remove the switch.
+    base::CommandLine::ForCurrentProcess()->RemoveSwitch(
+        switches::kDisableIgnoreDuplicateNavsForTesting);
   }
 
   // Provides meaningful param names instead of /0, /1, ...

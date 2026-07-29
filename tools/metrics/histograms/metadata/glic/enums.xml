@@ -196,6 +196,24 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:EntryPointStatus) -->
 
+<!-- LINT.IfChange(GlicFreWebviewLoadAbortReason) -->
+
+<enum name="GlicFreWebviewLoadAbortReason">
+  <int value="0" label="UNKNOWN"/>
+  <int value="1" label="ERR_ABORTED"/>
+  <int value="2" label="ERR_INVALID_URL"/>
+  <int value="3" label="ERR_DISALLOWED_URL_SCHEME"/>
+  <int value="4" label="ERR_BLOCKED_BY_CLIENT"/>
+  <int value="5" label="ERR_ADDRESS_UNREACHABLE"/>
+  <int value="6" label="ERR_EMPTY_RESPONSE"/>
+  <int value="7" label="ERR_FILE_NOT_FOUND"/>
+  <int value="8" label="ERR_UNKNOWN_URL_SCHEME"/>
+  <int value="9" label="ERR_TIMED_OUT"/>
+  <int value="10" label="ERR_HTTP_RESPONSE_CODE_FAILURE"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/glic/fre/metrics_enums.ts:GlicFreWebviewLoadAbortReason) -->
+
 <!-- LINT.IfChange(GlicHotkeyUsage) -->
 
 <enum name="GlicHotkeyUsage">
@@ -361,6 +379,7 @@ chromium-metrics-reviews@google.com.
 <enum name="PerformActionsErrorReason">
   <int value="0" label="Unknown"/>
   <int value="1" label="Invalid actions proto"/>
+  <int value="2" label="Action is missing task_id field"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:PerformActionsErrorReason) -->
@@ -406,9 +425,20 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="The sign-in panel is displayed"/>
   <int value="11"
       label="Web view is displayed, but it is displaying an error page"/>
+  <int value="12" label="Glic is disabled by the administrator"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebUiState) -->
+
+<!-- LINT.IfChange(WebViewAutoPlayProgress) -->
+
+<enum name="WebViewAutoPlayProgress">
+  <int value="0" label="WebContentsObserver registered"/>
+  <int value="1" label="AutoPlay granted for primary RFH"/>
+  <int value="2" label="AutoPlay granted for other RFH"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/guest_util.cc:WebViewAutoPlayProgress) -->
 
 </enums>
 

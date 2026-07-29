@@ -516,7 +516,7 @@ class PasswordManagerTestBase : public testing::Test {
   void TearDown() override {
     // The PasswordManager may own objects that keep raw pointers for the
     // password store - therefore reset it first.
-    manager_.reset();
+    ResetManager();
     mock_match_helper_ = nullptr;
     if (account_store_) {
       account_store_->ShutdownOnUIThread();
@@ -524,6 +524,14 @@ class PasswordManagerTestBase : public testing::Test {
     }
     store_->ShutdownOnUIThread();
     store_ = nullptr;
+  }
+
+  void ResetManager() {
+    // A member of `PasswordAutofillManager` (`UndoPasswordChangeController`)
+    // may keep a pointer to `PasswordFormCache` to unsubscribe from observing
+    // parsed forms. This call should happen before the cache is destroyed.
+    password_autofill_manager_.reset();
+    manager_.reset();
   }
 
   // Whether to set up the account-scoped PasswordStore.
@@ -555,7 +563,7 @@ class PasswordManagerTestBase : public testing::Test {
     form_data.set_url(test_form_url_);
     form_data.set_action(test_form_action_);
     form_data.set_name(u"the-form-name");
-    form_data.set_renderer_id(FormRendererId(10));
+    form_data.set_renderer_id(autofill::test::MakeFormRendererId());
 
     FormFieldData field;
     field.set_name(u"Email");
@@ -563,7 +571,7 @@ class PasswordManagerTestBase : public testing::Test {
     field.set_name_attribute(field.name());
     field.set_value(u"googleuser");
     field.set_form_control_type(autofill::FormControlType::kInputText);
-    field.set_renderer_id(FieldRendererId(2));
+    field.set_renderer_id(autofill::test::MakeFieldRendererId());
     test_api(form_data).Append(field);
 
     field.set_name(u"Passwd");
@@ -571,7 +579,7 @@ class PasswordManagerTestBase : public testing::Test {
     field.set_name_attribute(field.name());
     field.set_value(u"p4ssword");
     field.set_form_control_type(autofill::FormControlType::kInputPassword);
-    field.set_renderer_id(FieldRendererId(3));
+    field.set_renderer_id(autofill::test::MakeFieldRendererId());
     test_api(form_data).Append(field);
 
     return form_data;
@@ -627,8 +635,8 @@ class PasswordManagerTestBase : public testing::Test {
 
   PasswordForm MakeAndroidCredential() {
     PasswordForm android_form;
-    android_form.url = GURL("android://hash@google.com");
-    android_form.signon_realm = "android://hash@google.com";
+    android_form.url = GURL("android://hash@google.com/");
+    android_form.signon_realm = "android://hash@google.com/";
     android_form.username_value = u"google";
     android_form.password_value = u"password";
     android_form.in_store = PasswordForm::Store::kProfileStore;
@@ -817,6 +825,8 @@ class PasswordManagerTestBase : public testing::Test {
   const std::string test_signon_realm_ = "https://www.google.com/";
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME};
+  autofill::test::AutofillUnitTestEnvironment autofill_environment_{
+      {.disable_server_communication = true}};
   affiliations::FakeAffiliationService fake_affiliation_service_;
   scoped_refptr<TestPasswordStore> store_;
   scoped_refptr<TestPasswordStore> account_store_;
@@ -995,7 +1005,7 @@ TEST_P(PasswordManagerTest,
                                     {form_data.renderer_id()}, {});
 
   // Delete password manager to record metrics.
-  manager_.reset();
+  ResetManager();
 
   // Verify that the filling assistance is correctly recorded as manually
   // autofilled.
@@ -1706,7 +1716,7 @@ TEST_P(PasswordManagerTest, FormSubmitWhenPasswordsCannotBeSaved) {
   task_environment_.RunUntilIdle();
   // Objects owned by the manager may keep references to the store - therefore
   // destroy the manager prior to store destruction.
-  manager_.reset();
+  ResetManager();
   store->ShutdownOnUIThread();
 }
 
@@ -1744,12 +1754,12 @@ TEST_P(PasswordManagerTest,
   task_environment_.RunUntilIdle();
   // Objects owned by the manager may keep references to the store - therefore
   // destroy the manager prior to store destruction.
-  manager_.reset();
+  ResetManager();
   store->ShutdownOnUIThread();
 }
 
 TEST_P(PasswordManagerTest,
-       MetricsReportedLogInFailedWithPasswordChangeSubmission) {
+       MetricsReportedLogInFailedWithPrimaryPasswordChangeSubmission) {
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
   base::HistogramTester histogram_tester;
   PasswordForm form(MakeSimpleForm());
@@ -1762,11 +1772,12 @@ TEST_P(PasswordManagerTest,
   task_environment_.RunUntilIdle();
 
   manager()->OnPasswordFormSubmitted(&driver_, observed_form);
-  manager()->OnPasswordFormsRendered(&driver_, {observed_form});
+  manager()->OnPasswordFormsRendered(&driver_, {MakeSimpleFormData()});
   manager()->DidNavigateMainFrame(true);
-  manager()->OnPasswordFormsParsed(&driver_, {observed_form});
+  manager()->OnPasswordFormsParsed(&driver_, {MakeSimpleFormData()});
   histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LogInWithPasswordChangeSubmission", false, 1);
+      "PasswordManager.LogInWithPasswordChangeSubmission",
+      LogInWithChangedPasswordOutcome::kPrimaryPasswordFailed, 1);
 
   ukm::TestUkmRecorder::ExpectEntryMetric(
       GetMetricEntry(
@@ -1777,7 +1788,8 @@ TEST_P(PasswordManagerTest,
       0);
 }
 
-TEST_P(PasswordManagerTest, MetricsReportedLogInWithPasswordChangeSubmission) {
+TEST_P(PasswordManagerTest,
+       MetricsReportedLogInWithPrimaryPasswordChangeSubmission) {
   ukm::TestAutoSetUkmRecorder test_ukm_recorder;
 
   base::HistogramTester histogram_tester;
@@ -1797,7 +1809,78 @@ TEST_P(PasswordManagerTest, MetricsReportedLogInWithPasswordChangeSubmission) {
   manager()->OnPasswordFormsRendered(&driver_, observed);
 
   histogram_tester.ExpectUniqueSample(
-      "PasswordManager.LogInWithPasswordChangeSubmission", true, 1);
+      "PasswordManager.LogInWithPasswordChangeSubmission",
+      LogInWithChangedPasswordOutcome::kPrimaryPasswordSucceeded, 1);
+
+  ukm::TestUkmRecorder::ExpectEntryMetric(
+      GetMetricEntry(
+          test_ukm_recorder,
+          ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
+      ukm::builders::PasswordManager_ChangeSubmission::
+          kLogInWithPasswordChangeSubmissionName,
+      1);
+}
+
+TEST_P(PasswordManagerTest,
+       MetricsReportedLogInFailedWithBackupPasswordChangeSubmission) {
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  base::HistogramTester histogram_tester;
+  PasswordForm form(MakeSimpleForm());
+  std::u16string backup_password = u"backup_password";
+  form.SetPasswordBackupNote(backup_password);
+  // Set the backup password as input of the login form.
+  test_api(form.form_data).field(1).set_value(backup_password);
+  form.type = PasswordForm::Type::kChangeSubmission;
+  store_->AddLogin(form);
+  FormData observed_form = form.form_data;
+
+  manager()->OnPasswordFormsParsed(&driver_, {observed_form});
+  manager()->OnPasswordFormsRendered(&driver_, {observed_form});
+  task_environment_.RunUntilIdle();
+  manager()->OnPasswordFormSubmitted(&driver_, observed_form);
+  // Similar form appeared again
+  manager()->OnPasswordFormsRendered(&driver_, {MakeSimpleFormData()});
+  manager()->DidNavigateMainFrame(true);
+  manager()->OnPasswordFormsParsed(&driver_, {MakeSimpleFormData()});
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.LogInWithPasswordChangeSubmission",
+      LogInWithChangedPasswordOutcome::kBackupPasswordFailed, 1);
+  ukm::TestUkmRecorder::ExpectEntryMetric(
+      GetMetricEntry(
+          test_ukm_recorder,
+          ukm::builders::PasswordManager_ChangeSubmission::kEntryName),
+      ukm::builders::PasswordManager_ChangeSubmission::
+          kLogInWithPasswordChangeSubmissionName,
+      0);
+}
+
+TEST_P(PasswordManagerTest,
+       MetricsReportedLogInWithBackupPasswordChangeSubmission) {
+  ukm::TestAutoSetUkmRecorder test_ukm_recorder;
+  base::HistogramTester histogram_tester;
+  PasswordForm form(MakeSimpleForm());
+  std::u16string backup_password = u"backup_password";
+  form.SetPasswordBackupNote(backup_password);
+  // Set the backup password as input of the login form.
+  test_api(form.form_data).field(1).set_value(backup_password);
+  form.type = PasswordForm::Type::kChangeSubmission;
+  store_->AddLogin(form);
+  std::vector<FormData> observed = {form.form_data};
+
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  OnPasswordFormSubmitted(form.form_data);
+  observed.clear();
+  manager()->DidNavigateMainFrame(true);
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.LogInWithPasswordChangeSubmission",
+      LogInWithChangedPasswordOutcome::kBackupPasswordSucceeded, 1);
 
   ukm::TestUkmRecorder::ExpectEntryMetric(
       GetMetricEntry(
@@ -1843,7 +1926,7 @@ TEST_P(PasswordManagerTest,
   task_environment_.RunUntilIdle();
   // Objects owned by the manager may keep references to the store - therefore
   // destroy the manager prior to store destruction.
-  manager_.reset();
+  ResetManager();
   store->ShutdownOnUIThread();
 }
 
@@ -1882,7 +1965,7 @@ TEST_P(PasswordManagerTest,
   task_environment_.RunUntilIdle();
   // Objects owned by the manager may keep references to the store - therefore
   // destroy the manager prior to store destruction.
-  manager_.reset();
+  ResetManager();
   store->ShutdownOnUIThread();
 }
 #endif
@@ -1922,7 +2005,7 @@ TEST_P(PasswordManagerTest, BrokenPasswordStorePreventsMutingCredentials) {
   task_environment_.RunUntilIdle();
   // Objects owned by the manager may keep references to the store - therefore
   // destroy the manager prior to store destruction.
-  manager_.reset();
+  ResetManager();
   store->ShutdownOnUIThread();
 }
 
@@ -2086,14 +2169,9 @@ TEST_P(PasswordManagerTest, LoginFormReappearance) {
   observed.clear();
   // Simulate form reapperance with different path in url and different
   // renderer ids.
-  FormData form_data_after_navigation = form_data;
-  form_data_after_navigation.set_renderer_id(
-      FormRendererId(form_data_after_navigation.renderer_id().value() + 1000));
+  FormData form_data_after_navigation = MakeSimpleFormData();
   form_data_after_navigation.set_url(
       GURL("https://accounts.google.com/login/error?redirect_after_login"));
-  for (auto& field : test_api(form_data_after_navigation).fields()) {
-    field.set_value({});
-  }
   observed.push_back(form_data_after_navigation);
 
   // A PasswordForm appears, and is visible in the layout:
@@ -2109,6 +2187,28 @@ TEST_P(PasswordManagerTest, LoginFormReappearance) {
 
   task_environment_.RunUntilIdle();
   EXPECT_THAT(store_->stored_passwords(), testing::IsEmpty());
+}
+
+TEST_P(PasswordManagerTest, FormInteractedBeforePageloadFinishes) {
+  std::vector<FormData> observed;
+  FormData form_data(MakeSimpleFormData());
+  observed.push_back(form_data);
+  manager()->OnPasswordFormsParsed(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  manager()->OnInformAboutUserInput(&driver_, form_data);
+  EXPECT_TRUE(manager()->GetSubmittedManagerForTest());
+
+  // Check that OnLoginSuccessful() wasn't invoked
+  EXPECT_CALL(client_, PromptUserToSaveOrUpdatePassword).Times(0);
+  EXPECT_CALL(client_, AutomaticPasswordSave).Times(0);
+  // Check that OnLoginFailed() wasn't invoked.
+  EXPECT_CALL(client_, ResetSubmissionTrackingAfterTouchToFill).Times(0);
+
+  manager()->OnPasswordFormsRendered(&driver_, observed);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(manager()->GetSubmittedManagerForTest());
 }
 
 TEST_P(PasswordManagerTest, ChangePasswordFormReappearance) {
@@ -3330,7 +3430,7 @@ TEST_P(PasswordManagerTest, ManualFallbackForSaving) {
   // Two PasswordFormManagers instances hold references to a shared
   // PasswordFormMetrics recorder. These need to be freed to flush the metrics
   // into the test_ukm_recorder.
-  manager_.reset();
+  ResetManager();
   form_manager_to_save.reset();
 
   // Verify that the last state is recorded.
@@ -6304,7 +6404,7 @@ TEST_P(PasswordManagerTest, HatsSurveyTriggeredOnFailedLogin) {
 
   EXPECT_CALL(client_, TriggerUserPerceptionOfPasswordManagerSurvey(
                            "Credentials were filled manually, without typing"));
-  manager()->OnPasswordFormsRendered(&driver_, {observed_form});
+  manager()->OnPasswordFormsRendered(&driver_, {MakeSimpleFormData()});
 }
 
 // Check that a happiness surney is not triggered after the user has submitted
@@ -6358,7 +6458,7 @@ TEST_P(PasswordManagerTest, FormSubmittedRecordsSubmission) {
 
   // Reset the manager to also cause the form manager to reset which leads
   // to the metrics being recorded.
-  manager_.reset();
+  ResetManager();
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.FormSubmissionsVsSavePrompts",
       metrics_util::SaveFlowStep::kFormSubmitted, 1);
@@ -6398,7 +6498,7 @@ TEST_P(PasswordManagerTest, FormClearedRecordsSubmission) {
 
   // Reset the manager to also cause the form manager to reset which leads
   // to the metrics being recorded.
-  manager_.reset();
+  ResetManager();
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.FormSubmissionsVsSavePrompts",
       metrics_util::SaveFlowStep::kFormSubmitted, 1);
@@ -6418,7 +6518,7 @@ TEST_P(PasswordManagerTest, DynamicFormSubmissionRecordsSubmission) {
 
   // Reset the manager to also cause the form manager to reset which leads
   // to the metrics being recorded.
-  manager_.reset();
+  ResetManager();
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.FormSubmissionsVsSavePrompts",
       metrics_util::SaveFlowStep::kFormSubmitted, 1);
@@ -6441,7 +6541,7 @@ TEST_P(PasswordManagerTest,
 
   // Reset the manager to also cause the form manager to reset which leads
   // to the metrics being recorded.
-  manager_.reset();
+  ResetManager();
   histogram_tester.ExpectTotalCount(
       "PasswordManager.FormSubmissionsVsSavePrompts", 0);
 }
@@ -6469,7 +6569,7 @@ TEST_P(PasswordManagerTest, FormSubmittedDoesntRecordSubmissionIfBlocklisted) {
   OnPasswordFormSubmitted(form.form_data);
   // Reset the manager to also cause the form manager to reset which leads
   // to the metrics being recorded.
-  manager_.reset();
+  ResetManager();
   histogram_tester.ExpectTotalCount(
       "PasswordManager.FormSubmissionsVsSavePrompts", 0);
 }
@@ -6493,7 +6593,7 @@ TEST_P(PasswordManagerTest,
 
   // Reset the manager to also cause the form manager to reset which leads
   // to the metrics being recorded.
-  manager_.reset();
+  ResetManager();
   histogram_tester.ExpectTotalCount(
       "PasswordManager.FormSubmissionsVsSavePrompts", 0);
 }

@@ -94,6 +94,7 @@ chromium-metrics-reviews@google.com.
   <variant name="Compose" summary="Weights for On-Device Compose"/>
   <variant name="ContextualPageActionPriceTracking"
       summary="Contextual Page Action: Show price tracking"/>
+  <variant name="EduClassifier" summary="Education classifier"/>
   <variant name="ExperimentalEmbedder"
       summary="Embedder for performance experiments"/>
   <variant name="GeolocationPermissions"
@@ -192,6 +193,9 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="OptimizationType">
+  <variant name="A2AMerchantAllowlist"
+      summary="This optimization provides information about merchant URLs
+               that are eligible for A2A payments."/>
   <variant name="AboutThisSite"
       summary="Provides 'About this site' data about the site being visited"/>
   <variant name="AmericanExpressCreditCardFlightBenefits"
@@ -466,6 +470,9 @@ chromium-metrics-reviews@google.com.
   <variant name="VcnMerchantOptOutVisa"
       summary="This optimization provides information about whether a
                merchant is opted-out of Visa virtual cards for a URL."/>
+  <variant name="WalletablePassDetectionAllowlist"
+      summary="This optimization provides information about whether a URL is
+               eligible for walletable pass detection."/>
 </variants>
 
 <variants name="PageContentAnnotationsStorageType">
@@ -979,6 +986,17 @@ chromium-metrics-reviews@google.com.
   <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
 </histogram>
 
+<histogram
+    name="OptimizationGuide.ModelExecution.OnDeviceBaseModelIdleDisconnect"
+    enum="Boolean" expires_after="2026-07-07">
+  <owner>cduvall@chromium.org</owner>
+  <owner>holte@chromium.org</owner>
+  <summary>
+    Records whether a model disconnect was from the model idle timeout. Recorded
+    each time the base model disconnects.
+  </summary>
+</histogram>
+
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceBaseModelLoadResult"
     enum="LoadPlatformModelStatus" expires_after="2025-10-12">
   <owner>rajendrant@chromium.org</owner>
@@ -1050,7 +1068,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceFirstResponseTime.{ModelExecutionFeature}"
-    units="ms" expires_after="2025-11-02">
+    units="ms" expires_after="2026-01-04">
   <owner>cduvall@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1450,13 +1468,16 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.ModelLoadingDuration2.{OptimizationTarget}"
-    units="ms" expires_after="2025-01-26">
+    units="ms" expires_after="2025-11-09">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
     Records the time duration it took to load a model file successfully for
     {OptimizationTarget}. Recorded once per model load attempt for
     {OptimizationTarget}.
+
+    Warning: this histogram was expired from 2025-01-26 to 2025-07-09; data may
+    be missing.
   </summary>
   <token key="OptimizationTarget" variants="OptimizationTarget"/>
 </histogram>
@@ -1535,7 +1556,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelHandler.HandlerCreatedToModelAvailable.{OptimizationTarget}"
-    units="ms" expires_after="2025-10-19">
+    units="ms" expires_after="2026-01-04">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -1843,7 +1864,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PredictionModelDownloadManager.DownloadStartLatency.{OptimizationTarget}"
-    units="ms" expires_after="2025-07-06">
+    units="ms" expires_after="2026-02-06">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2042,7 +2063,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="OptimizationGuide.PredictionModelStore.ModelRemovalReason.{OptimizationTarget}"
     enum="OptimizationGuidePredictionModelStoreModelRemovalReason"
-    expires_after="2025-09-28">
+    expires_after="2026-01-04">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>

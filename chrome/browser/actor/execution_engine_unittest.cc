@@ -12,6 +12,8 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
+#include "chrome/browser/actor/shared_types.h"
+#include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/actor/ui/mock_event_dispatcher.h"
@@ -21,7 +23,9 @@
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/tabs/public/mock_tab_interface.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/test/navigation_simulator.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,7 +35,7 @@
 
 namespace actor {
 
-using ::optimization_guide::proto::BrowserAction;
+using ::optimization_guide::proto::Actions;
 using testing::_;
 using testing::Eq;
 using testing::Invoke;
@@ -46,7 +50,7 @@ template <typename T>
 auto UiEventDispatcherCallback(
     base::RepeatingCallback<mojom::ActionResultPtr()> result_fn) {
   return [result_fn = std::move(result_fn)](
-             Profile*, const T&,
+             const T&,
              ui::UiEventDispatcher::UiCompleteCallback callback) mutable {
     std::move(callback).Run(result_fn.Run());
   };
@@ -123,17 +127,20 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
     mock_ui_event_dispatcher_ =
         static_cast<ui::MockUiEventDispatcher*>(ui_event_dispatcher.get());
     auto execution_engine = ExecutionEngine::CreateForTesting(
-        profile(), std::move(ui_event_dispatcher), GetTab());
-    task_ = std::make_unique<ActorTask>(std::move(execution_engine));
+        profile(), std::move(ui_event_dispatcher));
+    auto raw_execution_engine = execution_engine.get();
+    task_ = std::make_unique<ActorTask>(profile(), std::move(execution_engine));
+    task_->SetIdForTesting(0);
+    raw_execution_engine->SetOwner(task_.get());
 
-    ON_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _, _))
+    ON_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _))
         .WillByDefault(Invoke(Invoke(
             UiEventDispatcherCallback<ui::UiEventDispatcher::FirstActInfo>(
                 base::BindRepeating(MakeOkResult)))));
-    ON_CALL(*mock_ui_event_dispatcher_, OnPreTool(_, _, _))
+    ON_CALL(*mock_ui_event_dispatcher_, OnPreTool(_, _))
         .WillByDefault(Invoke(UiEventDispatcherCallback<ToolRequest>(
             base::BindRepeating(MakeOkResult))));
-    ON_CALL(*mock_ui_event_dispatcher_, OnPostTool(_, _, _))
+    ON_CALL(*mock_ui_event_dispatcher_, OnPostTool(_, _))
         .WillByDefault(Invoke(UiEventDispatcherCallback<ToolRequest>(
             base::BindRepeating(MakeOkResult))));
   }
@@ -146,19 +153,38 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
+  base::OnceCallback<std::unique_ptr<ToolRequest>()> MakeClickCallback(
+      int content_node_id) {
+    return base::BindLambdaForTesting([this, content_node_id]() {
+      std::string document_identifier =
+          *optimization_guide::DocumentIdentifierUserData::
+              GetDocumentIdentifier(main_rfh()->GetGlobalFrameToken());
+      actor::PageTarget target(
+          actor::DomNode{.node_id = content_node_id,
+                         .document_identifier = document_identifier});
+      std::unique_ptr<ToolRequest> request =
+          std::make_unique<actor::ClickToolRequest>(
+              GetTab()->GetHandle(), target, MouseClickType::kLeft,
+              MouseClickCount::kSingle);
+      return request;
+    });
+  }
+
  protected:
   // Note: action must be generated from a callback because this method
   // navigates the render frame and the generated action must include a document
   // identifier token which is only available after the navigation.
-  bool Act(const GURL& url, base::OnceCallback<BrowserAction()> make_action) {
+  bool Act(const GURL& url,
+           base::OnceCallback<std::unique_ptr<ToolRequest>()> make_action) {
     content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                                url);
     fake_chrome_render_frame_.OverrideBinder(main_rfh());
 
-    base::test::TestFuture<mojom::ActionResultPtr> success;
-    BrowserAction action = std::move(make_action).Run();
-    task_->GetExecutionEngine()->Act(action, success.GetCallback());
-    return IsOk(*success.Get());
+    base::test::TestFuture<mojom::ActionResultPtr, std::optional<size_t>>
+        success;
+    std::unique_ptr<ToolRequest> action = std::move(make_action).Run();
+    task_->Act(ToRequestList(std::move(action)), success.GetCallback());
+    return IsOk(*success.Get<0>());
   }
 
   tabs::MockTabInterface* GetTab() {
@@ -201,76 +227,60 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
 };
 
 TEST_F(ExecutionEngineTest, ActSucceedsOnSupportedUrl) {
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(profile(), _, _))
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _)).Times(1);
+  EXPECT_CALL(*mock_ui_event_dispatcher_,
+              OnPreTool(Property(&ToolRequest::JournalEvent, Eq("Click")), _))
       .Times(1);
   EXPECT_CALL(*mock_ui_event_dispatcher_,
-              OnPreTool(profile(),
-                        Property(&ToolRequest::JournalEvent, Eq("Click")), _))
-      .Times(1);
-  EXPECT_CALL(*mock_ui_event_dispatcher_,
-              OnPostTool(profile(),
-                         Property(&ToolRequest::JournalEvent, Eq("Click")), _))
+              OnPostTool(Property(&ToolRequest::JournalEvent, Eq("Click")), _))
       .Times(1);
   EXPECT_TRUE(
-      Act(GURL("http://localhost/"), base::BindLambdaForTesting([this]() {
-            return MakeClick(*main_rfh(), kFakeContentNodeId);
-          })));
+      Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
                                  mojom::ActionResultCode::kOk, 1);
 }
 
 TEST_F(ExecutionEngineTest, ActFailsOnUnsupportedUrl) {
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(profile(), _, _))
-      .Times(1);
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(profile(), _, _)).Times(0);
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(profile(), _, _)).Times(0);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _)).Times(1);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(_, _)).Times(0);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(_, _)).Times(0);
   EXPECT_FALSE(Act(GURL(chrome::kChromeUIVersionURL),
-                   base::BindLambdaForTesting([this]() {
-                     return MakeClick(*main_rfh(), kFakeContentNodeId);
-                   })));
+                   MakeClickCallback(kFakeContentNodeId)));
 }
 
 TEST_F(ExecutionEngineTest, UiOnPreFirstActFails) {
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(profile(), _, _))
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _))
       .WillOnce(
           Invoke(UiEventDispatcherCallback<ui::UiEventDispatcher::FirstActInfo>(
               base::BindRepeating(MakeErrorResult))));
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(profile(), _, _)).Times(0);
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(profile(), _, _)).Times(0);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(_, _)).Times(0);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(_, _)).Times(0);
   EXPECT_FALSE(
-      Act(GURL("http://localhost/"), base::BindLambdaForTesting([this]() {
-            return MakeClick(*main_rfh(), kFakeContentNodeId);
-          })));
+      Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
                                  mojom::ActionResultCode::kError, 1);
 }
 
 TEST_F(ExecutionEngineTest, UiOnPreToolFails) {
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(profile(), _, _))
-      .Times(1);
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(profile(), _, _))
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _)).Times(1);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(_, _))
       .WillOnce(Invoke(UiEventDispatcherCallback<ToolRequest>(
           base::BindRepeating(MakeErrorResult))));
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(profile(), _, _)).Times(0);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(_, _)).Times(0);
   EXPECT_FALSE(
-      Act(GURL("http://localhost/"), base::BindLambdaForTesting([this]() {
-            return MakeClick(*main_rfh(), kFakeContentNodeId);
-          })));
+      Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
                                  mojom::ActionResultCode::kError, 1);
 }
 
 TEST_F(ExecutionEngineTest, UiOnPostToolFails) {
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(profile(), _, _))
-      .Times(1);
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(profile(), _, _)).Times(1);
-  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(profile(), _, _))
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreFirstAct(_, _)).Times(1);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool(_, _)).Times(1);
+  EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool(_, _))
       .WillOnce(Invoke(UiEventDispatcherCallback<ToolRequest>(
           base::BindRepeating(MakeErrorResult))));
   EXPECT_FALSE(
-      Act(GURL("http://localhost/"), base::BindLambdaForTesting([this]() {
-            return MakeClick(*main_rfh(), kFakeContentNodeId);
-          })));
+      Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
                                  mojom::ActionResultCode::kError, 1);
 }
@@ -279,16 +289,14 @@ TEST_F(ExecutionEngineTest, ActFailsWhenTabDestroyed) {
   content::NavigationSimulator::NavigateAndCommitFromBrowser(
       web_contents(), GURL("http://localhost/"));
 
-  base::test::TestFuture<mojom::ActionResultPtr> result;
-  auto execution_engine =
-      std::make_unique<ExecutionEngine>(profile(), GetTab());
-  ActorTask task(std::move(execution_engine));
+  base::test::TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
 
   FakeChromeRenderFrame fake_chrome_render_frame;
   fake_chrome_render_frame.OverrideBinder(main_rfh());
 
-  task.GetExecutionEngine()->Act(MakeClick(*main_rfh(), kFakeContentNodeId),
-                                 result.GetCallback());
+  std::unique_ptr<ToolRequest> action =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  task_->Act(ToRequestList(action), result.GetCallback());
 
   ClearTabInterface();
   DeleteContents();
@@ -305,12 +313,12 @@ TEST_F(ExecutionEngineTest, CrossOriginNavigationBeforeAction) {
   FakeChromeRenderFrame fake_chrome_render_frame;
   fake_chrome_render_frame.OverrideBinder(main_rfh());
 
-  base::test::TestFuture<mojom::ActionResultPtr> result;
-  auto execution_engine =
-      std::make_unique<ExecutionEngine>(profile(), GetTab());
-  ActorTask task(std::move(execution_engine));
-  task.GetExecutionEngine()->Act(MakeClick(*main_rfh(), kFakeContentNodeId),
-                                 result.GetCallback());
+  base::test::TestFuture<mojom::ActionResultPtr, std::optional<size_t>> result;
+  auto execution_engine = std::make_unique<ExecutionEngine>(profile());
+  ActorTask task(profile(), std::move(execution_engine));
+  std::unique_ptr<ToolRequest> action =
+      MakeClickCallback(kFakeContentNodeId).Run();
+  task_->Act(ToRequestList(std::move(action)), result.GetCallback());
 
   // Before the action happens, commit a cross-origin navigation.
   ASSERT_FALSE(result.IsReady());

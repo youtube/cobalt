@@ -122,7 +122,6 @@
 <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Cambiada</translation>
 <translation id="1480152980057770392">Mostrar Lista de lectura</translation>
-<translation id="1484758781961275277">Tira o máximo proveito no iPad do navegador de ordenador que coñeces e tanto che gusta.</translation>
 <translation id="1485907716209290998">Seguimento de paquetes</translation>
 <translation id="1486096554574027028">Buscar contrasinais</translation>
 <translation id="1491277525950327607">Toca dúas veces para activar ou desactivar a configuración</translation>
@@ -294,6 +293,7 @@
 <translation id="2119636449201577317">Abrir en…</translation>
 <translation id="2120553909046681540">A túa organización desactivou a navegación privada.</translation>
 <translation id="2122754583996902531">O teu navegador está xestionado. <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
+<translation id="21243612977487926">Os chats da túa organización non se usan para mellorar os nosos modelos. Gemini pode mostrar información inexacta, mesmo sobre persoas, polo que é recomendable que a verifiques. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
 <translation id="2139867232736819575">Buscar texto que copiaches</translation>
 <translation id="2147127444698817042">Só está dispoñible en iPhone</translation>
 <translation id="2148799636999124959">Inicia sesión de forma rápida en sitios e aplicacións cos contrasinais que teñas gardados.</translation>
@@ -383,6 +383,7 @@ Tampouco poden utilizalas para ver a túa actividade de navegación en distintos
 <translation id="2468444275314013497">Todo en orde co navegador</translation>
 <translation id="2473876017985765807">Xa gardaches un contrasinal para <ph name="WEBSITE" /></translation>
 <translation id="247430852844518481">Podes definir un recordatorio para volver visitar esta páxina máis tarde</translation>
+<translation id="2478246185006364308">Condicións de Google</translation>
 <translation id="2479148705183875116">Ir a Configuración</translation>
 <translation id="2482878487686419369">Notificacións</translation>
 <translation id="2484459871750294497">Como podo activar esta función?</translation>
@@ -407,7 +408,6 @@ Tampouco poden utilizalas para ver a túa actividade de navegación en distintos
 <translation id="2577522251608256362">Barrio</translation>
 <translation id="2579713773888829241">Unidades compartidas</translation>
 <translation id="2593272815202181319">Monoespazado</translation>
-<translation id="2597486707832946298">Tira o máximo proveito no iPhone do navegador de ordenador que coñeces e tanto che gusta.</translation>
 <translation id="2601778637777010194">Fai un seguimento das baixadas de prezo de produtos</translation>
 <translation id="260378315836159338">Na parte superior da pantalla, toca +</translation>
 <translation id="2612676031748830579">Número da tarxeta</translation>
@@ -444,6 +444,7 @@ O teu motor de busca é <ph name="DSE_NAME" />. No caso de que queiras eliminar 
 <translation id="2708051474374549906">Protección proactiva e en tempo real contra sitios, descargas e extensións perigosos baseada nos teus datos de navegación enviados a Google</translation>
 <translation id="2709516037105925701">Autocompletar</translation>
 <translation id="271033894570825754">Novo</translation>
+<translation id="2712929214961145009">Sen serifas</translation>
 <translation id="2718352093833049315">Só con wifi</translation>
 <translation id="2721190673959776287">Exemplo de axuda detallada integrada no produto para o panel contextual, que debería mostrarse varias veces ao día.</translation>
 <translation id="2739887572830526131">Mantén este grupo para engadir pestanas máis adiante ou elimínao se xa non o necesitas.</translation>
@@ -519,6 +520,7 @@ O teu motor de busca é <ph name="DSE_NAME" />. No caso de que queiras eliminar 
 <translation id="3059270601560379555">Nova busca</translation>
 <translation id="3064547930554042309">Xestionar as descargas</translation>
 <translation id="3072279342064724558">O contrasinal xa existe</translation>
+<translation id="3073633853887034268">Entendido</translation>
 <translation id="3076846064362030967">Non se pechará sesión na túa Conta de Google. Cando teñas a sesión iniciada, é posible que se garden na túa Conta de Google <ph name="BEGIN_LINK" />outros datos da túa actividade<ph name="END_LINK" />. Podes eliminalos en calquera momento.
 
 
@@ -527,7 +529,6 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="3081338492074632642">Asegúrate de que o contrasinal que gardas coincida co de <ph name="WEBSITE" /></translation>
 <translation id="3087734570205094154">Parte inferior</translation>
 <translation id="309710370695886264">Tes 1 contrasinal reutilizado. Cámbiao xa para non correr riscos.</translation>
-<translation id="3102139268911534961">Tira o máximo proveito no iPhone do navegador para móbiles que coñeces e tanto che gusta.</translation>
 <translation id="3102790820790869053">Fai buscas nas pestanas recentes</translation>
 <translation id="3106690631878101882">Ocultar Traducir</translation>
 <translation id="310900540163454140">Queres eliminar o contrasinal de <ph name="WEBSITE" />?</translation>
@@ -624,6 +625,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="3530767473765895035">Xestionar contas neste dispositivo…</translation>
 <translation id="3533436815740441613">Nova pestana</translation>
 <translation id="3533860663366814939">Abre a opción de AutoFill &amp; Passwords (Autocompletar e contrasinais)</translation>
+<translation id="3546122170015471515">Vista previa de Maps en google.com</translation>
 <translation id="3547356470684043247">Ler as avaliacións dos clientes sobre produtos, servizos ou experiencias para poder tomar decisións fundadas</translation>
 <translation id="3557336313807607643">Engadir a contactos</translation>
 <translation id="355765753469272474">Desfacer</translation>
@@ -743,13 +745,11 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="4039829422386964954">Navegar pola galería</translation>
 <translation id="4042870976416480368">Buscar na páxina</translation>
 <translation id="4045441967987592849">Volver abrir</translation>
-<translation id="4045648459118332842">Usa en calquera aplicación e cun toque os contrasinais gardados</translation>
 <translation id="4047337302138771011">Comparte os teus contrasinais</translation>
 <translation id="4049419681095579435">Xa se está facendo o seguimento deste paquete</translation>
 <translation id="4049507953662678203">Asegúrate de ter conexión de rede e téntao de novo.</translation>
 <translation id="4056223980640387499">Sepia</translation>
 <translation id="4070132839822635162">Non iniciar sesión</translation>
-<translation id="4094361089640885693">Fai un seguimento dos prezos con facilidade e consulta estatísticas.</translation>
 <translation id="4099756562043439968">Definir un recordatorio</translation>
 <translation id="4108998448622696017">Móstrache unha advertencia cando detecta eventos perigosos.</translation>
 <translation id="4111985840824673503">Marcar todo como lido</translation>
@@ -794,7 +794,6 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="4242533952199664413">Abrir configuración</translation>
 <translation id="4250432749243022864">{count,plural, =0{Abrir {count} pestanas}=1{Abrir {count} pestana}other{Abrir {count} pestanas}}</translation>
 <translation id="4250680216510889253">Non</translation>
-<translation id="4251531167342733205">Tira o máximo proveito do navegador que máis che gusta.</translation>
 <translation id="4253168017788158739">Nota</translation>
 <translation id="4256782883801055595">Licenzas de código aberto</translation>
 <translation id="4263576668337963058">Mostrar accións da páxina dispoñibles</translation>
@@ -913,6 +912,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="4717844083556844785">A páxina web actual está no modo de incógnito</translation>
 <translation id="4719927025381752090">Ofrecer a tradución</translation>
 <translation id="4720530280568305198">A túa selección abriuse nunha pestana nova</translation>
+<translation id="4720782081196952026">Reducir o tamaño do texto</translation>
 <translation id="472259426228234149">Prezo: 100-180 $</translation>
 <translation id="4735849923335729414">Iniciar sesión como <ph name="EMAIL" />, perfil xestionado pola túa organización.</translation>
 <translation id="473775607612524610">Actualizar</translation>
@@ -982,6 +982,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="4949302115427722371">Xestionar configuración…</translation>
 <translation id="4958444002117714549">Ampliar lista</translation>
 <translation id="496392417432935267">Opción aberta noutro lugar</translation>
+<translation id="4970724460420203313">Usar Chrome coa túa conta xestionada axudarache a separar a navegación relacionada coa túa organización, como as pestanas, o historial e os contrasinais, da outra navegación que fagas</translation>
 <translation id="4971735654804503942">Unha protección máis rápida e proactiva contra sitios web, descargas e extensións perigosos. Móstrache unha advertencia en caso de violacións da seguranza do contrasinal. Para utilizar este modo débenselle enviar a Google os datos de navegación.</translation>
 <translation id="4979397965658815378">Inicia sesión na túa conta de Google para ter os marcadores, os contrasinais, o historial e o resto das opcións de configuración en todos os teus dispositivos.</translation>
 <translation id="4985921635659180565">Unha vez programada, a eliminación dun ficheiro non se pode cancelar.</translation>
@@ -1045,6 +1046,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="5217329997012062137">Cando usas Google Lens, envíase unha captura de pantalla da páxina a Google.</translation>
 <translation id="5220945116117011963">Crea eventos do calendario a partir de datas</translation>
 <translation id="5222676887888702881">Pechar sesión</translation>
+<translation id="5225388483876575107">A</translation>
 <translation id="5233638681132016545">Nova pestana</translation>
 <translation id="5234094073825090254">{count,plural, =1{O marcador gardouse na túa Conta de Google ({email}).}other{Os marcadores gardáronse na túa Conta de Google ({email}).}}</translation>
 <translation id="5234764350956374838">Rexeitar</translation>
@@ -1072,6 +1074,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="5343472494710226394">Noticias, deportes e contido baseado nos teus intereses.</translation>
 <translation id="5352128922772839949">Gardar o ficheiro</translation>
 <translation id="5355191726083956201">A protección mellorada está activada</translation>
+<translation id="5371112366564891538">Aumentar tamaño do texto</translation>
 <translation id="537853552771686272">Xestiona os temas e sitios que che interesan</translation>
 <translation id="5390458669633674385">{count,plural, =1{{count} pechada}other{{count} pechadas}}</translation>
 <translation id="5394975111793637642">Ocultar a tarxeta Reseñas de produtos para ti</translation>
@@ -1094,6 +1097,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="5454211924362324495">Para evitar que outras persoas usen o teu contrasinal, <ph name="BEGIN_LINK" />cámbiao en <ph name="WEBSITE" /><ph name="END_LINK" /></translation>
 <translation id="5457082343331641453">Engade unha consulta á busca</translation>
 <translation id="5457226814769348910">Abrir versión sen conexión</translation>
+<translation id="5467163657366219870">Desactivar vista previa de Maps</translation>
 <translation id="5478327362747197944">Fai clic nunha data dunha páxina web para crear directamente eventos no calendario.</translation>
 <translation id="5482922178977937393">Queres recibir notificacións de noticias, deportes e máis temas en función dos teus intereses?</translation>
 <translation id="5483838506518938965">Xa terminaches</translation>
@@ -1150,6 +1154,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="5656431592348714536">Calendario mellorado</translation>
 <translation id="5657156137487675418">Permitir todas as cookies</translation>
 <translation id="5659593005791499971">Correo electrónico</translation>
+<translation id="5665739277590037307">Aplícanse as <ph name="GOOGLE_TERMS" /> e o <ph name="GEMINI_APPS_PRIVACY" />. Gemini pode cometer erros, polo que é recomendable que verifiques as respostas.</translation>
 <translation id="5666313630530585305">Inicia sesión nun sitio web.</translation>
 <translation id="5669335982068190158">Pechouse sesión como parte do restablecemento do iPhone. Para iniciar sesión, toca debaixo a opción de continuar.</translation>
 <translation id="5669528293118408608">www</translation>
@@ -1182,6 +1187,7 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="5756525336488841345">Ocultar Marcadores</translation>
 <translation id="5758631781033351321">Aquí atoparás a túa lista de lecturas</translation>
 <translation id="57586589942790530">Número de tarxeta non válido</translation>
+<translation id="5758759241456233788">A vista previa de Maps está desactivada. Actívaa de novo en Configuración.</translation>
 <translation id="5759484603608560822">Ocultar Descargas</translation>
 <translation id="5767099457279594162">O contrasinal non se compartiu</translation>
 <translation id="5779117921996157216">{count,plural, =1{Tes {count} contrasinal vulnerado que podería poñer en perigo a túa seguranza. Cámbiao xa para non correr riscos.}other{Tes {count} contrasinais vulnerados que poderían poñer en perigo a túa seguranza. Cámbiaos xa para non correr riscos.}}</translation>
@@ -1316,12 +1322,14 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6295751040240588413">O alcume da tarxeta non é válido</translation>
 <translation id="629730747756840877">Conta</translation>
 <translation id="6301104306974789820">Obter notificacións de seguimento de prezos</translation>
+<translation id="6301767200000930965">Aa</translation>
 <translation id="6307241780749477694">Verifica a túa identidade para ter todos os teus contrasinais neste dispositivo</translation>
 <translation id="6316141353357700666">Escolle o contrasinal que queiras usar na lista que se mostre.</translation>
 <translation id="6321526113093607004">Engadir aos marcadores</translation>
 <translation id="6331836477476466332">Un navegador máis seguro e potente para ti</translation>
 <translation id="6335744088476213315">Nesta tarxeta móstranse os produtos que viches recentemente e dos que pode que che interese facer un seguimento para recibir alertas de baixada de prezo</translation>
 <translation id="6337234675334993532">Encriptado</translation>
+<translation id="6337313937331295309">Aviso de privacidade das aplicacións Gemini</translation>
 <translation id="633809752005859102">Produciuse un erro. Trataremos de solucionalo.</translation>
 <translation id="6339793034470834130">Para usar a ferramenta Web Inspector, conéctate a Safari desde o ordenador mediante un cable e accede ao teu iPhone desde o menú Develop (Programación). Podes activar ese menú desde a sección Advanced (Configuración avanzada) dos axustes de Safari no teu ordenador.</translation>
 <translation id="6340285871011301182">Non está dispoñible a tradución parcial.</translation>
@@ -1347,7 +1355,6 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6404422529625928907">Abrir en Google Drive</translation>
 <translation id="6404511346730675251">Editar marcador</translation>
 <translation id="6406506848690869874">Sincronización</translation>
-<translation id="6410005280995367944">Contrasinais doutras aplicacións</translation>
 <translation id="6410390304316730527">A función Navegación segura protéxete contra os piratas informáticos que poden enganarte para que realices accións perigosas, como instalar un software malicioso ou revelar información persoal (por exemplo, contrasinais, números de teléfono ou tarxetas de crédito). Se a desactivas, ten coidado ao consultar sitios descoñecidos ou con mala reputación.</translation>
 <translation id="6410883413783534063">Abre pestanas para visitar páxinas diferentes ao mesmo tempo</translation>
 <translation id="6416807286621280684">Paquetes dos que se está facendo un seguimento e información actualizada da entrega.</translation>
@@ -1421,7 +1428,6 @@ Non poden utilizalas para ver a túa actividade de navegación en distintos siti
 <translation id="6640268266988685324">Pestana aberta</translation>
 <translation id="6641465290890659327">Comparte unha copia do teu contrasinal</translation>
 <translation id="6642362222295953972">Cambiar á pestana xa aberta</translation>
-<translation id="6644512095122093795">Ofrecer a posibilidade de gardar contrasinais</translation>
 <translation id="664573288952458293">Grade de pestanas normais</translation>
 <translation id="6645899968535965230">Código QR: <ph name="PAGE_TITLE" /></translation>
 <translation id="6647441008198474441">Os URL que visitas envíanse a Google para predicir os sitios que probablemente visites a continuación</translation>
@@ -1460,7 +1466,6 @@ Co modo de incógnito activado, non poden utilizalas para ver a túa actividade 
 <translation id="6759709389246683070">Se queres volver acceder a esta pestana máis tarde, mantena premida para definir un recordatorio</translation>
 <translation id="6761393919622941301">Audio</translation>
 <translation id="6770452996697898492">[RESERVADO]</translation>
-<translation id="6775647281444147078">Os chats da túa organización non se usan para mellorar os nosos modelos. Gemini pode mostrar información inexacta, mesmo sobre persoas, polo que é recomendable que a verifiques. A túa privacidade e Gemini</translation>
 <translation id="6779455296366983087">Eliminaranse os teus datos de navegación</translation>
 <translation id="6790502149545262384">Dentro de pouco verás as historias de <ph name="CHANNEL_NAME" /> cando abras unha pestana nova.</translation>
 <translation id="6791425686608802741">Toca Engadir pestana ao grupo novo</translation>
@@ -1552,8 +1557,8 @@ Co modo de incógnito activado, non poden utilizalas para ver a túa actividade 
 <translation id="7173721738069475737">{count,plural, =1{Gardouse o marcador}other{Gardáronse {count} marcadores}}</translation>
 <translation id="7176183551031110427">Afastar</translation>
 <translation id="7186568385131859684">Controla como se utiliza o historial de navegación xunto con outros datos nos servizos de Google</translation>
-<translation id="718807879214459529">Tira o máximo proveito no iPad do navegador para móbiles que coñeces e tanto che gusta.</translation>
 <translation id="719133302483559673">Xestiona os teus intereses e preferencias.</translation>
+<translation id="7203496777391039568">Os datos da túa organización son privados e están protexidos</translation>
 <translation id="720399613139435155">Produciuse un erro durante a tradución</translation>
 <translation id="7204922488054642675">Noticias personalizadas</translation>
 <translation id="7206979415662233817">Condicións de servizo</translation>
@@ -1570,6 +1575,7 @@ Co modo de incógnito activado, non poden utilizalas para ver a túa actividade 
 <translation id="7266578100016339897">Axudarache a ter todo organizado. Podes cambialo cando queiras en Configuración.</translation>
 <translation id="7272437679830969316">Non se pode verificar a túa identidade, polo que non se copiou o contrasinal.</translation>
 <translation id="728025568708172005">Iniciar introdución</translation>
+<translation id="7281202269687163394">A túa privacidade e Gemini.</translation>
 <translation id="7293429513719260019">Seleccionar idioma</translation>
 <translation id="7300448350764260141">Engade unha capa máis de protección contra as ameazas en liña.</translation>
 <translation id="7311244614769792472">Non se encontraron resultados</translation>
@@ -1626,7 +1632,6 @@ Co modo de incógnito activado, non poden utilizalas para ver a túa actividade 
 <translation id="7506817096924591340"><ph name="FILENAME" /> (<ph name="FILESIZE" />).</translation>
 <translation id="7508728395076009983">Para bloquear as pestanas do modo de incógnito, configura Touch ID, Face ID ou un código de desbloqueo.</translation>
 <translation id="750886945254958667">Mantén este grupo para engadir pestanas máis adiante ou abandónao se xa non vas acceder a el</translation>
-<translation id="7512075701202892785">Goza en iPad do navegador que tanto che gusta</translation>
 <translation id="7512909159512473473">Poñer frase de acceso…</translation>
 <translation id="7514365320538308">Descargar</translation>
 <translation id="7514530647142300459">Sigue usando os contrasinais na túa Conta de Google <ph name="EMAIL" /></translation>
@@ -1635,7 +1640,6 @@ Co modo de incógnito activado, non poden utilizalas para ver a túa actividade 
 <translation id="75362970626182391">Novo grupo de pestanas</translation>
 <translation id="7537586195939242955">Non se pode instalar o teu pase en Passbook neste momento.</translation>
 <translation id="754655535278952384">Última comprobación: <ph name="TIME" /></translation>
-<translation id="7553234618121028547">Para desactivar esta función, abre <ph name="BEGIN_LINK" />Settings<ph name="END_LINK" /> (Configuración) e vai a Password Options (Opcións de contrasinais).</translation>
 <translation id="7557508262441527045">Pechouse a sesión</translation>
 <translation id="7561196759112975576">Sempre</translation>
 <translation id="7561982940498449837">Pechar menú</translation>
@@ -1653,7 +1657,6 @@ Co modo de incógnito activado, non poden utilizalas para ver a túa actividade 
 <translation id="760667371114328991">Desactivar notificacións de Comprobación de seguranza</translation>
 <translation id="7612619742409846846">Iniciaches sesión en Google como</translation>
 <translation id="7612849887607288481">Abrir menú de prototipos de IA</translation>
-<translation id="7615581988398168124">Aplícanse as Condicións de Google e o Aviso de privacidade das aplicacións Gemini. Gemini pode cometer erros, polo que é recomendable que verifiques as respostas.</translation>
 <translation id="7620522820075868385">Cancelar</translation>
 <translation id="7638584964844754484">Contrasinal incorrecto</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Contrasinais vulnerados}=1{{COUNT} contrasinal vulnerado}other{{COUNT} contrasinais vulnerados}}</translation>
@@ -1982,7 +1985,6 @@ Tamén poden utilizalas para ver a túa actividade de navegación en varios siti
 <translation id="8820817407110198400">Marcadores</translation>
 <translation id="8822421075653507124">Para garantir que este dispositivo se use de maneira segura, é posible que a túa organización necesite consultar a información sobre o seu sistema operativo, o navegador e a configuración, así como o software instalado no aparello.</translation>
 <translation id="8825562130641217944">Accede aos teus marcadores ou aos contrasinais, entre outras cousas.</translation>
-<translation id="8827154289515190290">Goza en iOS do navegador que tanto che gusta</translation>
 <translation id="8831208860914609320">Pechar todas as pestanas inactivas</translation>
 <translation id="8831944931153286232">Engadir á lista de lectura</translation>
 <translation id="8837654851594567190">Ordenar por editor</translation>
@@ -1995,7 +1997,6 @@ Tamén poden utilizalas para ver a túa actividade de navegación en varios siti
 <translation id="8863067612494559785">Enviando a <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Recibe indicacións e información local de Google Maps</translation>
 <translation id="886477344907998366">Mostrar marcadores</translation>
-<translation id="8869239474428371589">Tira o máximo proveito do navegador que máis che gusta</translation>
 <translation id="8871974300055371298">Configuración de contido</translation>
 <translation id="8877788021141246043">Definir un recordatorio</translation>
 <translation id="8879604564928138696">Toca dúas veces para tentalo</translation>
@@ -2070,6 +2071,7 @@ Tamén poden utilizalas para ver a túa actividade de navegación en varios siti
 <translation id="9130317582644834675">Ocultar Aplicar zoom ao texto</translation>
 <translation id="913036870884277353">Abrir as ligazóns noutras aplicacións facilmente</translation>
 <translation id="9137013805542155359">Mostrar orixinal</translation>
+<translation id="9140888637198815199">A</translation>
 <translation id="9144230693397287797">Recibe actualizacións dos recordatorios que definises e das pestanas doutros dispositivos</translation>
 <translation id="914781932147356857">Marcar todo…</translation>
 <translation id="9148126808321036104">Iniciar sesión de novo</translation>
@@ -2087,7 +2089,6 @@ Tamén poden utilizalas para ver a túa actividade de navegación en varios siti
 <translation id="9206887540681440657">Velocidade</translation>
 <translation id="9223358826628549784">Enviouse o informe de erros.</translation>
 <translation id="926455622548529175">Cambiar e eliminar</translation>
-<translation id="927162192666499119">Os datos da túa organización son privados e están protexidos</translation>
 <translation id="929748059769569925">Texto destacado</translation>
 <translation id="932305336591073205">{count,plural, =1{Pechar pestana}other{Pechar pestanas}}</translation>
 <translation id="932327136139879170">Inicio</translation>

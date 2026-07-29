@@ -6,6 +6,7 @@
 
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_constants.h"
 #import "ios/chrome/browser/bubble/ui_bundled/bubble_view.h"
+#import "ios/chrome/browser/first_run/ui_bundled/interactive_lens/ui/lens_overlay_promo_container_view_controller.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/gradient_view.h"
 #import "ios/chrome/common/ui/promo_style/utils.h"
@@ -16,37 +17,56 @@
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
+// Static image assets.
+NSString* const kLensImageName = @"mountain_webpage";
+// Multiplier for the top padding for the Lens image.
+const CGFloat kLensImagePaddingMultiplier = 0.14;
 // Margins for the Lens view.
 const CGFloat kLensViewTopMargin = 40.0;
 const CGFloat kLensViewHorizontalMargin = 20.0;
 // Height multipliers for the Lens view.
 const CGFloat kLensViewMinHeightMultiplier = 0.4;
 const CGFloat kLensViewMaxHeightMultiplier = 1.45;
-// Corner radius for the top two corners of the Lens view.
-const CGFloat kLensViewCornerRadius = 30.0;
 // Top margin for tip bubble.
 const CGFloat kBubbleViewTopMargin = 10.0;
-// Height constant for the bubble view.
-const CGFloat kBubbleViewHeightConstant = 70.0;
 // Top margin for scroll view.
 const CGFloat kScrollViewTopMargin = 45.0;
-// Minimum height for the footer view.
-const CGFloat kMinFooterHeight = 100.0;
+// Animation duration for the tip bubble.
+const CGFloat kBubbleViewAnimationDuration = 0.3;
 }  // namespace
+
+@interface InteractiveLensOverlayPromoViewController () <
+    LensOverlayPromoContainerViewControllerDelegate>
+
+@end
 
 @implementation InteractiveLensOverlayPromoViewController {
   // View for the tip bubble.
   BubbleView* _bubbleView;
-  // View for the interactive Lens instance.
-  UIView* _lensView;
+  // View controller for the interactive Lens instance.
+  LensOverlayPromoContainerViewController* _lensViewController;
   // Scroll view containing the screen's title and subtitle.
   UIScrollView* _textScrollView;
+  // Bottom anchor constraint for the tip bubble. The bubble should be
+  // constrained to the lens view, but kept within the top padding area of the
+  // Lens image.
+  NSLayoutConstraint* _bubbleViewBottomConstraint;
+  // Whether the bubble is currently being hidden.
+  BOOL _isBubbleHiding;
+  // A list of gesture recognizers that were disabled.
+  NSMutableArray<UIGestureRecognizer*>* _disabledGestures;
 }
 
-- (instancetype)initWithLensView:(UIView*)lensView {
+@synthesize lensContainerViewController = _lensViewController;
+@synthesize lensSearchImage = _lensSearchImage;
+
+- (instancetype)init {
   self = [super initWithNibName:nil bundle:nil];
   if (self) {
-    _lensView = lensView;
+    _lensViewController =
+        [[LensOverlayPromoContainerViewController alloc] init];
+    _lensViewController.delegate = self;
+    _disabledGestures = [[NSMutableArray alloc] init];
   }
   return self;
 }
@@ -96,68 +116,145 @@ const CGFloat kMinFooterHeight = 100.0;
   AddSameConstraintsToSides(
       footerContainerView, view,
       LayoutSides::kLeading | LayoutSides::kTrailing | LayoutSides::kBottom);
-  [NSLayoutConstraint activateConstraints:@[
-    [footerContainerView.heightAnchor
-        constraintGreaterThanOrEqualToConstant:kMinFooterHeight],
-  ]];
 
   // Add and constrain the Lens view.
-  [view addSubview:_lensView];
-  _lensView.translatesAutoresizingMaskIntoConstraints = NO;
-  _lensView.layer.cornerRadius = kLensViewCornerRadius;
-  _lensView.layer.masksToBounds = YES;
-  _lensView.layer.maskedCorners =
-      kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+  [_lensViewController willMoveToParentViewController:self];
+  [self addChildViewController:_lensViewController];
+  UIView* lensView = _lensViewController.view;
+  lensView.translatesAutoresizingMaskIntoConstraints = NO;
+  [view addSubview:lensView];
+
+  NSLayoutConstraint* lensViewTopAnchor =
+      [lensView.topAnchor constraintEqualToAnchor:_textScrollView.bottomAnchor
+                                         constant:kLensViewTopMargin];
+  lensViewTopAnchor.priority = UILayoutPriorityDefaultLow;
   [NSLayoutConstraint activateConstraints:@[
     // The Lens view has both a minimum possible height (relative to the height
     // of its superview) and a maximum possible height (relative to the height
     // of the Lens overlay image asset).
-    [_lensView.heightAnchor
+    lensViewTopAnchor,
+    [lensView.heightAnchor
         constraintGreaterThanOrEqualToAnchor:view.heightAnchor
                                   multiplier:kLensViewMinHeightMultiplier],
-    [_lensView.heightAnchor
-        constraintLessThanOrEqualToAnchor:_lensView.widthAnchor
+    [lensView.heightAnchor
+        constraintLessThanOrEqualToAnchor:lensView.widthAnchor
                                multiplier:kLensViewMaxHeightMultiplier],
-    [_lensView.leadingAnchor
+    [lensView.leadingAnchor
         constraintEqualToAnchor:widthLayoutGuide.leadingAnchor
                        constant:kLensViewHorizontalMargin],
-    [_lensView.trailingAnchor
+    [lensView.trailingAnchor
         constraintEqualToAnchor:widthLayoutGuide.trailingAnchor
                        constant:-kLensViewHorizontalMargin],
-    [_lensView.bottomAnchor
+    [lensView.bottomAnchor
         constraintEqualToAnchor:footerContainerView.topAnchor],
-    [_lensView.topAnchor
+    [lensView.topAnchor
         constraintGreaterThanOrEqualToAnchor:_textScrollView.bottomAnchor
                                     constant:kLensViewTopMargin],
   ]];
+  [_lensViewController didMoveToParentViewController:self];
 
   // Create and constrain the bubble view so that it is pinned to the Lens view
   // and always below the title/subtitle.
   _bubbleView = [self bubbleView];
   [view addSubview:_bubbleView];
+  CGSize bubbleViewPreferredHeight = [_bubbleView
+      sizeThatFits:CGSizeMake(view.bounds.size.width, CGFLOAT_MAX)];
+  _bubbleViewBottomConstraint =
+      [_bubbleView.bottomAnchor constraintEqualToAnchor:lensView.topAnchor];
   [NSLayoutConstraint activateConstraints:@[
     [_bubbleView.centerXAnchor constraintEqualToAnchor:view.centerXAnchor],
     [_bubbleView.leadingAnchor
         constraintEqualToAnchor:view.safeAreaLayoutGuide.leadingAnchor],
     [_bubbleView.trailingAnchor
         constraintEqualToAnchor:view.safeAreaLayoutGuide.trailingAnchor],
-    [_bubbleView.bottomAnchor
-        constraintEqualToAnchor:_lensView.topAnchor
-                       constant:kBubbleViewHeightConstant],
     [_bubbleView.topAnchor
         constraintGreaterThanOrEqualToAnchor:_textScrollView.bottomAnchor
                                     constant:kBubbleViewTopMargin],
+    [_bubbleView.heightAnchor
+        constraintEqualToConstant:bubbleViewPreferredHeight.height],
+    _bubbleViewBottomConstraint,
   ]];
 
   [self startBubbleAnimation];
 }
 
+- (void)viewWillDisappear:(BOOL)animated {
+  [super viewWillDisappear:animated];
+  for (UIGestureRecognizer* gesture in _disabledGestures) {
+    gesture.enabled = YES;
+  }
+  [_disabledGestures removeAllObjects];
+}
+
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+
+  // Anchor the bubble to the top of the Lens image container. The 0.7
+  // multiplier ensures the bubble appears within the top padded area of the
+  // image (slightly below the middle of the padded area).
+  _bubbleViewBottomConstraint.constant = [self lensImageTopPadding] * 0.7;
+  if (!_lensSearchImage) {
+    _lensSearchImage = [self createLensSearchImage];
+  }
+}
+
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
   [_textScrollView flashScrollIndicators];
+
+  // Disable the presentation controller's pan gesture.
+  // This prevents the sheet's pull-down gesture from interfering with
+  // the drawing functionality within the Lens view.
+  UIView* presentedView =
+      self.navigationController.presentationController.presentedView;
+  for (UIGestureRecognizer* gesture in presentedView.gestureRecognizers) {
+    if ([gesture isKindOfClass:[UIPanGestureRecognizer class]] &&
+        gesture.enabled) {
+      [_disabledGestures addObject:gesture];
+      gesture.enabled = NO;
+    }
+  }
+}
+
+#pragma mark - LensOverlayPromoContainerViewControllerDelegate
+
+- (void)lensOverlayPromoContainerViewControllerDidReceiveInteraction:
+    (LensOverlayPromoContainerViewController*)viewController {
+  [self handleHideBubbleAnimation];
 }
 
 #pragma mark - Private
+
+// Returns a new image with the Lens search image padded at the top with white
+// space.
+- (UIImage*)createLensSearchImage {
+  UIImage* image = [UIImage imageNamed:kLensImageName];
+  CGFloat padding = [self lensImageTopPadding];
+  CGSize newSize = CGSizeMake(image.size.width, image.size.height + padding);
+  UIGraphicsImageRendererFormat* format =
+      [UIGraphicsImageRendererFormat preferredFormat];
+  format.opaque = YES;
+  format.scale = image.scale;
+  UIGraphicsImageRenderer* renderer =
+      [[UIGraphicsImageRenderer alloc] initWithSize:newSize format:format];
+
+  UIImage* newImage = [renderer
+      imageWithActions:^(UIGraphicsImageRendererContext* rendererContext) {
+        [[UIColor whiteColor] setFill];
+        [rendererContext
+            fillRect:CGRectMake(0, 0, newSize.width, newSize.height)];
+        [image drawInRect:CGRectMake(0, padding, image.size.width,
+                                     image.size.height)];
+      }];
+
+  return newImage;
+}
+
+// The height of the white space above the Lens search image, relative to screen
+// size.
+- (CGFloat)lensImageTopPadding {
+  return self.view.bounds.size.height * kLensImagePaddingMultiplier;
+}
 
 // Creates and returns a scroll view containing the title and subtitle texts.
 - (UIScrollView*)textScrollView {
@@ -266,9 +363,11 @@ const CGFloat kMinFooterHeight = 100.0;
   [NSLayoutConstraint activateConstraints:@[
     [button.centerXAnchor
         constraintEqualToAnchor:footerContainerView.centerXAnchor],
-    [button.centerYAnchor
-        constraintEqualToAnchor:footerContainerView.centerYAnchor
-                       constant:-5],
+    [button.topAnchor constraintEqualToAnchor:separatorLine.bottomAnchor
+                                     constant:kButtonVerticalInsets],
+    [button.bottomAnchor
+        constraintEqualToAnchor:footerContainerView.bottomAnchor
+                       constant:-kButtonVerticalInsets],
   ]];
 
   return footerContainerView;
@@ -307,6 +406,35 @@ const CGFloat kMinFooterHeight = 100.0;
 // Handles taps on the action button.
 - (void)buttonTapped {
   [self.delegate didTapContinueButton];
+}
+
+// Hides the bubble view with a fade-out effect.
+- (void)handleHideBubbleAnimation {
+  // Don't do anything if the view is already hidden or fading out.
+  if (_isBubbleHiding) {
+    return;
+  }
+  _isBubbleHiding = YES;
+
+  __weak __typeof(self) weakSelf = self;
+  [UIView animateWithDuration:kBubbleViewAnimationDuration
+      animations:^{
+        [weakSelf setBubbleAlphaToZero];
+      }
+      completion:^(BOOL finished) {
+        [weakSelf hideBubbleAfterAnimation];
+      }];
+}
+
+// Sets the bubble view's alpha to 0. To be used in an animation block.
+- (void)setBubbleAlphaToZero {
+  _bubbleView.alpha = 0;
+}
+
+// Hides the bubble view. To be used as an animation completion.
+- (void)hideBubbleAfterAnimation {
+  _bubbleView.hidden = YES;
+  _isBubbleHiding = NO;
 }
 
 @end

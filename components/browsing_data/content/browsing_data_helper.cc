@@ -10,8 +10,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
+#include "components/content_settings/core/browser/permission_settings_info.h"
+#include "components/content_settings/core/browser/permission_settings_registry.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "components/content_settings/core/common/features.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/site_isolation/pref_names.h"
@@ -31,8 +34,9 @@ bool WebsiteSettingsFilterAdapter(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern) {
   // Ignore the default setting.
-  if (primary_pattern == ContentSettingsPattern::Wildcard())
+  if (primary_pattern == ContentSettingsPattern::Wildcard()) {
     return false;
+  }
 
   // Website settings only use origin-scoped patterns. The only content setting
   // this filter is used for is DURABLE_STORAGE, which also only uses
@@ -126,10 +130,12 @@ void RemoveEmbedderCookieData(
 
     network::mojom::CookieDeletionFilterPtr deletion_filter =
         filter_builder->BuildCookieDeletionFilter();
-    if (!delete_begin.is_null())
+    if (!delete_begin.is_null()) {
       deletion_filter->created_after_time = delete_begin;
-    if (!delete_end.is_null())
+    }
+    if (!delete_end.is_null()) {
       deletion_filter->created_before_time = delete_end;
+    }
 
     manager_ptr->DeleteCookies(
         std::move(deletion_filter),
@@ -141,9 +147,20 @@ void RemoveEmbedderCookieData(
 void RemoveSiteSettingsData(const base::Time& delete_begin,
                             const base::Time& delete_end,
                             HostContentSettingsMap* host_content_settings_map) {
+  // TODO(crbug.com/425642101): Remove this when content settings are registered
+  // as permission settings.
   const auto* registry =
       content_settings::ContentSettingsRegistry::GetInstance();
   for (const content_settings::ContentSettingsInfo* info : *registry) {
+    host_content_settings_map->ClearSettingsForOneTypeWithPredicate(
+        info->website_settings_info()->type(), delete_begin, delete_end,
+        HostContentSettingsMap::PatternSourcePredicate());
+  }
+
+  const auto* permission_settings_registry =
+      content_settings::PermissionSettingsRegistry::GetInstance();
+  for (const content_settings::PermissionSettingsInfo* info :
+       *permission_settings_registry) {
     host_content_settings_map->ClearSettingsForOneTypeWithPredicate(
         info->website_settings_info()->type(), delete_begin, delete_end,
         HostContentSettingsMap::PatternSourcePredicate());
@@ -182,13 +199,13 @@ void RemoveSiteSettingsData(const base::Time& delete_begin,
   host_content_settings_map->ClearSettingsForOneTypeWithPredicate(
       ContentSettingsType::FILE_SYSTEM_ACCESS_EXTENDED_PERMISSION, delete_begin,
       delete_end, HostContentSettingsMap::PatternSourcePredicate());
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
   host_content_settings_map->ClearSettingsForOneTypeWithPredicate(
       ContentSettingsType::SMART_CARD_DATA, delete_begin, delete_end,
       HostContentSettingsMap::PatternSourcePredicate());
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   host_content_settings_map->ClearSettingsForOneTypeWithPredicate(
       ContentSettingsType::ON_DEVICE_SPEECH_RECOGNITION_LANGUAGES_DOWNLOADED,

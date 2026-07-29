@@ -100,7 +100,6 @@ chrome/test/data/dromaeo
 chrome/test/data/dromaeo/lib
 chrome/test/data/extensions/good
 chrome/test/data/extensions/manifest_tests
-chrome/test/data/extensions/permissions/allowlist
 chrome/test/data/mac_installer
 chrome/test/data/safe_browsing
 chrome/test/data/safe_browsing/download_protection
@@ -248,9 +247,6 @@ net/socket
 net/tools/crash_cache
 net/tools/stress_cache
 net/tools/testserver/dist
-ppapi
-ppapi/c/documentation
-ppapi/cpp/documentation
 ppapi/generators
 sandbox/linux/suid/client
 sandbox/policy/linux

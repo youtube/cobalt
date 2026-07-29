@@ -813,7 +813,7 @@ const CSSValue* TimelineTriggerName::CSSValueFromComputedStyleInternal(
     if (data->TimelineTriggerNameList().empty()) {
       return InitialValue();
     }
-    for (const Persistent<const ScopedCSSName>& name :
+    for (const Member<const ScopedCSSName>& name :
          data->TimelineTriggerNameList()) {
       list->Append(*ComputedStyleUtils::ValueForCustomIdentOrNone(name.Get()));
     }
@@ -3188,11 +3188,6 @@ const CSSValue* ParseContentValue(CSSParserTokenStream& stream,
           stream.Peek().Id())) {
     return css_parsing_utils::ConsumeIdent(stream);
   }
-  if (context.GetMode() == kUASheetMode &&
-      css_parsing_utils::IdentMatches<
-          CSSValueID::kInternalPartialInterestContent>(stream.Peek().Id())) {
-    return css_parsing_utils::ConsumeIdent(stream);
-  }
 
   CSSValueList* values = CSSValueList::CreateSpaceSeparated();
   CSSValueList* outer_list = CSSValueList::CreateSlashSeparated();
@@ -3342,23 +3337,9 @@ void Content::ApplyValue(StyleResolverState& state,
   ComputedStyleBuilder& builder = state.StyleBuilder();
   if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     DCHECK(identifier_value->GetValueID() == CSSValueID::kNormal ||
-           identifier_value->GetValueID() == CSSValueID::kNone ||
-           identifier_value->GetValueID() ==
-               CSSValueID::kInternalPartialInterestContent);
+           identifier_value->GetValueID() == CSSValueID::kNone);
     if (identifier_value->GetValueID() == CSSValueID::kNone) {
       builder.SetContent(MakeGarbageCollected<NoneContentData>());
-    } else if (identifier_value->GetValueID() ==
-                   CSSValueID::kInternalPartialInterestContent &&
-               RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-                   state.GetDocument().GetExecutionContext())) {
-      String hint_text = state.GetDocument().GetCachedLocale().QueryString(
-          IDS_PARTIAL_INTEREST_TARGET_ACTIVATION_HINT,
-          Element::GetPartialInterestForActivationHotkey());
-      auto* content =
-          MakeGarbageCollected<TextContentData>(StrCat({"{", hint_text, "}"}));
-      auto* alt_content = MakeGarbageCollected<AltTextContentData>(hint_text);
-      content->SetNext(alt_content);
-      builder.SetContent(content);
     } else {
       builder.SetContent(nullptr);
     }
@@ -4598,9 +4579,9 @@ const CSSValue* FloodOpacity::CSSValueFromComputedStyleInternal(
 
 const CSSValue* FontFamily::ParseSingleValue(
     CSSParserTokenStream& stream,
-    const CSSParserContext&,
+    const CSSParserContext& context,
     const CSSParserLocalContext&) const {
-  return css_parsing_utils::ConsumeFontFamily(stream);
+  return css_parsing_utils::ConsumeFontFamily(stream, context);
 }
 
 const CSSValue* FontFamily::CSSValueFromComputedStyleInternal(
@@ -6933,7 +6914,7 @@ const CSSValue* ItemTolerance::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForItemTolerance(style.ItemTolerance(),
+  return ComputedStyleUtils::ValueForItemTolerance(style.GetItemTolerance(),
                                                    style);
 }
 
@@ -8571,7 +8552,44 @@ const CSSValue* ScrollMarkerGroup::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return CSSIdentifierValue::Create(style.ScrollMarkerGroup());
+  if (style.ScrollMarkerGroupNone()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+  auto* position = MakeGarbageCollected<CSSIdentifierValue>(
+      style.GetScrollMarkerGroup()->Position());
+  if (!RuntimeEnabledFeatures::CSSPseudoScrollMarkersEnabled()) {
+    return position;
+  }
+  auto* mode = MakeGarbageCollected<CSSIdentifierValue>(
+      style.GetScrollMarkerGroup()->Mode());
+  return MakeGarbageCollected<CSSValuePair>(position, mode,
+                                            CSSValuePair::kKeepIdenticalValues);
+}
+
+const CSSValue* ScrollMarkerGroup::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext&,
+    const CSSParserLocalContext&) const {
+  const CSSIdentifierValue* position =
+      css_parsing_utils::ConsumeIdent<CSSValueID::kNone, CSSValueID::kAfter,
+                                      CSSValueID::kBefore>(stream);
+  if (!position) {
+    return nullptr;
+  }
+  if (position->GetValueID() == CSSValueID::kNone || stream.AtEnd()) {
+    return position;
+  }
+  if (!RuntimeEnabledFeatures::CSSPseudoScrollMarkersEnabled()) {
+    return position;
+  }
+  const CSSIdentifierValue* mode =
+      css_parsing_utils::ConsumeIdent<CSSValueID::kTabs, CSSValueID::kLinks>(
+          stream);
+  if (!mode) {
+    return nullptr;
+  }
+  return MakeGarbageCollected<CSSValuePair>(position, mode,
+                                            CSSValuePair::kKeepIdenticalValues);
 }
 
 // https://www.w3.org/TR/css-scrollbars/
@@ -9457,7 +9475,7 @@ const CSSValue* StrokeDasharray::CSSValueFromComputedStyleInternal(
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::StrokeDashArrayToCSSValueList(
-      *style.StrokeDashArray(), style);
+      style.StrokeDashArray(), style);
 }
 
 const CSSValue* StrokeDashoffset::ParseSingleValue(

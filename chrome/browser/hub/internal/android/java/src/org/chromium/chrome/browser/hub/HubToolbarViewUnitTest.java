@@ -17,7 +17,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.hub.HubColorMixer.COLOR_MIXER;
-import static org.chromium.chrome.browser.hub.HubToolbarProperties.ACTION_BUTTON_DATA;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.HUB_SEARCH_ENABLED_STATE;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.IS_INCOGNITO;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.MENU_BUTTON_VISIBLE;
@@ -77,12 +76,6 @@ import java.util.List;
 
 /** Unit tests for {@link HubPaneHostView}. */
 @RunWith(ParameterizedRobolectricTestRunner.class)
-// TODO(crbug.com/419289558): Re-enable color surface feature flags
-@Features.DisableFeatures({
-    ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE
-})
 public class HubToolbarViewUnitTest {
     // All the tests in this file will run twice, once for isXrDevice=true and once for
     // isXrDevice=false. Expect all the tests with the same results on XR devices too.
@@ -167,26 +160,6 @@ public class HubToolbarViewUnitTest {
                 new ResourceButtonData(
                         R.string.button_new_tab, R.string.button_new_tab, R.drawable.ic_add);
         return new DelegateButtonData(displayButtonData, mOnButton);
-    }
-
-    @Test
-    public void testActionButtonVisibility() {
-        FullButtonData fullButtonData = makeTestButtonData();
-        assertEquals(View.GONE, mActionButton.getVisibility());
-
-        mPropertyModel.set(ACTION_BUTTON_DATA, fullButtonData);
-        assertEquals(View.VISIBLE, mActionButton.getVisibility());
-    }
-
-    @Test
-    public void testActionButtonCallback() {
-        FullButtonData fullButtonData = makeTestButtonData();
-        mActionButton.callOnClick();
-        verifyNoInteractions(mOnButton);
-
-        mPropertyModel.set(ACTION_BUTTON_DATA, fullButtonData);
-        mActionButton.callOnClick();
-        verify(mOnButton).run();
     }
 
     @Test
@@ -315,6 +288,9 @@ public class HubToolbarViewUnitTest {
     }
 
     @Test
+    @Features.DisableFeatures({
+        ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
+    })
     public void testUpdateSearchBoxColorScheme() {
         forceSetColorScheme(HubColorScheme.INCOGNITO);
         assertEquals(
@@ -338,6 +314,23 @@ public class HubToolbarViewUnitTest {
     }
 
     @Test
+    @Features.EnableFeatures({ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE})
+    public void testUpdateSearchBoxColorScheme_gtsSurfaceColorUpdateEnabled() {
+        forceSetColorScheme(HubColorScheme.INCOGNITO);
+
+        GradientDrawable backgroundDrawable = (GradientDrawable) mSearchBox.getBackground();
+        assertEquals(
+                ColorStateList.valueOf(
+                        ContextCompat.getColor(mActivity, R.color.gm3_baseline_surface_dark)),
+                backgroundDrawable.getColor());
+
+        forceSetColorScheme(HubColorScheme.DEFAULT);
+        assertEquals(
+                ColorStateList.valueOf(SemanticColorUtils.getColorSurface(mActivity)),
+                backgroundDrawable.getColor());
+    }
+
+    @Test
     public void testHubSearchEnabledState() {
         mPropertyModel.set(HUB_SEARCH_ENABLED_STATE, false);
         assertFalse(mSearchBox.isEnabled());
@@ -351,6 +344,9 @@ public class HubToolbarViewUnitTest {
     }
 
     @Test
+    @Features.DisableFeatures({
+        ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE,
+    })
     public void testHubColorMixer_searchBoxEnabled() {
         verify(mColorMixer, times(8)).registerBlend(any());
     }

@@ -17,17 +17,17 @@ namespace content_settings {
 
 bool GeolocationSettingDelegate::IsValid(
     const PermissionSetting& setting) const {
-  auto* geo_setting = std::get_if<GeolocationSetting>(&setting);
-  if (!geo_setting) {
+  auto geo_setting = std::get<GeolocationSetting>(setting);
+
+  if (!IsValidPermissionOption(geo_setting.approximate)) {
     return false;
   }
-  if (!IsValidPermissionOption(geo_setting->approximate)) {
+
+  if (!IsValidPermissionOption(geo_setting.precise)) {
     return false;
   }
-  if (!IsValidPermissionOption(geo_setting->precise)) {
-    return false;
-  }
-  if (IsMorePermissive(geo_setting->precise, geo_setting->approximate)) {
+
+  if (IsMorePermissive(geo_setting.precise, geo_setting.approximate)) {
     return false;
   }
   return true;
@@ -37,8 +37,15 @@ bool GeolocationSettingDelegate::IsValid(
 // should not be inherited.
 std::optional<PermissionSetting> GeolocationSettingDelegate::InheritInIncognito(
     const PermissionSetting& setting) const {
-  return std::nullopt;  // TODO(crbug.com/425642101): Implement inheritance
-                        // logic.
+  GeolocationSetting geo_setting = std::get<GeolocationSetting>(setting);
+
+  // Only BLOCK should be inherited to incognito
+  return GeolocationSetting{geo_setting.approximate == PermissionOption::kDenied
+                                ? PermissionOption::kDenied
+                                : PermissionOption::kAsk,
+                            geo_setting.precise == PermissionOption::kDenied
+                                ? PermissionOption::kDenied
+                                : PermissionOption::kAsk};
 }
 
 // Parsing and conversion methods.
@@ -57,22 +64,56 @@ std::optional<PermissionSetting> GeolocationSettingDelegate::FromValue(
     return std::nullopt;
   }
   const auto& dict = value.GetDict();
+
   auto approximate_optional = dict.FindInt("approximate");
-  if (!approximate_optional.has_value() ||
-      !IsValidPermissionOption(
-          static_cast<PermissionOption>(approximate_optional.value()))) {
+  if (!approximate_optional.has_value()) {
     return std::nullopt;
   }
 
   auto precise_optional = dict.FindInt("precise");
-  if (!precise_optional.has_value() ||
-      !IsValidPermissionOption(
-          static_cast<PermissionOption>(precise_optional.value()))) {
+  if (!precise_optional.has_value()) {
     return std::nullopt;
   }
-  return GeolocationSetting{
+  GeolocationSetting setting{
       static_cast<PermissionOption>(approximate_optional.value()),
       static_cast<PermissionOption>(precise_optional.value())};
+
+  if (!IsValid(setting)) {
+    return std::nullopt;
+  }
+
+  return setting;
+}
+
+bool GeolocationSettingDelegate::CanBeAutoRevoked(PermissionSetting setting,
+                                                  bool is_one_time) const {
+  auto* geolocation_setting = std::get_if<GeolocationSetting>(&setting);
+  return !is_one_time && geolocation_setting &&
+         (*geolocation_setting).approximate == PermissionOption::kAllowed;
+}
+
+bool GeolocationSettingDelegate::ShouldCoalesceEphemeralState() const {
+  return true;
+}
+
+PermissionSetting GeolocationSettingDelegate::CoalesceEphemeralState(
+    const PermissionSetting& persistent_permission_setting,
+    const PermissionSetting& ephemeral_permission_setting) const {
+  GeolocationSetting persistent_geo_setting =
+      std::get<GeolocationSetting>(persistent_permission_setting);
+  GeolocationSetting ephemeral_geo_setting =
+      std::get<GeolocationSetting>(ephemeral_permission_setting);
+
+  PermissionOption approximate =
+      ephemeral_geo_setting.approximate == PermissionOption::kAsk
+          ? persistent_geo_setting.approximate
+          : ephemeral_geo_setting.approximate;
+  PermissionOption precise =
+      ephemeral_geo_setting.precise == PermissionOption::kAsk
+          ? persistent_geo_setting.precise
+          : ephemeral_geo_setting.precise;
+
+  return GeolocationSetting{approximate, precise};
 }
 
 }  // namespace content_settings

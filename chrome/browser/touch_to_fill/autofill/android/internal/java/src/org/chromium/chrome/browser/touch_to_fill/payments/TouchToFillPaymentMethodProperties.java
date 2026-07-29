@@ -25,15 +25,34 @@ class TouchToFillPaymentMethodProperties {
             new PropertyModel.WritableBooleanPropertyKey("visible");
     static final PropertyModel.WritableIntPropertyKey CURRENT_SCREEN =
             new PropertyModel.WritableIntPropertyKey("current_screen");
+    static final PropertyModel.WritableIntPropertyKey FOCUSED_VIEW_ID_FOR_ACCESSIBILITY =
+            new PropertyModel.WritableIntPropertyKey("focused_view_id_for_accessibility");
     public static final PropertyModel.WritableObjectPropertyKey<ModelList> SHEET_ITEMS =
             new PropertyModel.WritableObjectPropertyKey("sheet_items");
     static final PropertyModel.ReadableObjectPropertyKey<Runnable> BACK_PRESS_HANDLER =
             new PropertyModel.ReadableObjectPropertyKey<>("back_press_handler");
     static final PropertyModel.ReadableObjectPropertyKey<Callback<Integer>> DISMISS_HANDLER =
             new PropertyModel.ReadableObjectPropertyKey<>("dismiss_handler");
+    static final PropertyModel.WritableIntPropertyKey SHEET_CONTENT_DESCRIPTION_ID =
+            new PropertyModel.WritableIntPropertyKey("sheet_content_description_id");
+    static final PropertyModel.WritableIntPropertyKey SHEET_HALF_HEIGHT_DESCRIPTION_ID =
+            new PropertyModel.WritableIntPropertyKey("sheet_half_height_description_id");
+    static final PropertyModel.WritableIntPropertyKey SHEET_FULL_HEIGHT_DESCRIPTION_ID =
+            new PropertyModel.WritableIntPropertyKey("sheet_full_height_description_id");
+    static final PropertyModel.WritableIntPropertyKey SHEET_CLOSED_DESCRIPTION_ID =
+            new PropertyModel.WritableIntPropertyKey("sheet_closed_description_id");
 
     static final PropertyKey[] ALL_KEYS = {
-        VISIBLE, CURRENT_SCREEN, SHEET_ITEMS, BACK_PRESS_HANDLER, DISMISS_HANDLER
+        VISIBLE,
+        CURRENT_SCREEN,
+        FOCUSED_VIEW_ID_FOR_ACCESSIBILITY,
+        SHEET_ITEMS,
+        BACK_PRESS_HANDLER,
+        DISMISS_HANDLER,
+        SHEET_CONTENT_DESCRIPTION_ID,
+        SHEET_HALF_HEIGHT_DESCRIPTION_ID,
+        SHEET_FULL_HEIGHT_DESCRIPTION_ID,
+        SHEET_CLOSED_DESCRIPTION_ID
     };
 
     // Identifies different screens that can be dynamically displayed by the payments TTF bottom

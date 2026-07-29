@@ -108,8 +108,7 @@ bool AreF11AndF12ShortcutsEnabled() {
 #if BUILDFLAG(IS_OZONE)
 BASE_FEATURE(kOzoneBubblesUsePlatformWidgets,
              "OzoneBubblesUsePlatformWidgets",
-             base::FEATURE_DISABLED_BY_DEFAULT
-);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether support for Wayland's linux-drm-syncobj is enabled.
 BASE_FEATURE(kWaylandLinuxDrmSyncobj,
@@ -151,12 +150,6 @@ BASE_FEATURE(kOverrideDefaultOzonePlatformHintToAuto,
              "OverrideDefaultOzonePlatformHintToAuto",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_LINUX)
-
-// Chrome for Linux should eventually use XInput2 key events.
-// See https://crbug.com/412608405 for context.
-BASE_FEATURE(kXInput2KeyEvents,
-             "XInput2KeyEvents",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Update of the virtual keyboard settings UI as described in
 // https://crbug.com/876901.
@@ -445,10 +438,6 @@ BASE_FEATURE(kEnableVariableRefreshRateAlwaysOn,
 bool IsVariableRefreshRateAlwaysOn() {
   return base::FeatureList::IsEnabled(kEnableVariableRefreshRateAlwaysOn);
 }
-
-BASE_FEATURE(kBubbleMetricsApi,
-             "BubbleMetricsApi",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kUseGammaContrastRegistrySettings,

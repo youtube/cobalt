@@ -69,6 +69,7 @@
 // view: http://dev.chromium.org/developers/design-documents/browser-window
 
 class AccessibilityFocusHighlight;
+class BookmarkBarController;
 class BookmarkBarView;
 class Browser;
 class ContentsContainerView;
@@ -122,10 +123,6 @@ class WatermarkView;
 namespace glic {
 class GlicBorderView;
 }  // namespace glic
-
-namespace new_tab_footer {
-class NewTabFooterWebView;
-}  // namespace new_tab_footer
 
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView
@@ -207,6 +204,10 @@ class BrowserView : public BrowserWindow,
   // Returns an empty size if this browser is not for a web app.
   gfx::Size GetWebAppFrameToolbarPreferredSize() const;
 
+  // Returns all the ContentsContainerViews that belong to this browser.
+  std::vector<ContentsContainerView*> GetContentsContainerViews();
+
+  // Returns the ContentsContainerView for the active tab.
   ContentsContainerView* GetActiveContentsContainerView();
 
   // Container for the tabstrip, toolbar, etc.
@@ -313,10 +314,6 @@ class BrowserView : public BrowserWindow,
 
   ScrimView* window_scrim_view() { return window_scrim_view_; }
 
-  new_tab_footer::NewTabFooterWebView* new_tab_footer_web_view() const {
-    return new_tab_footer_web_view_;
-  }
-
   base::WeakPtr<BrowserView> GetAsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
   }
@@ -390,9 +387,10 @@ class BrowserView : public BrowserWindow,
   views::Widget* GetWidgetForAnchoring();
 
   // See ImmersiveModeController for description.
-  ImmersiveModeController* immersive_mode_controller() const {
-    return immersive_mode_controller_.get();
-  }
+  // TODO(crbug.com/427826289): Eliminate this accessor and pass
+  // ImmersiveModeController to dependent features during construction.
+  ImmersiveModeController* immersive_mode_controller();
+  const ImmersiveModeController* immersive_mode_controller() const;
 
   // Returns true if the view has been initialized.
   bool initialized() const { return initialized_; }
@@ -920,6 +918,13 @@ class BrowserView : public BrowserWindow,
 
   class AccessibilityModeObserver;
 
+  // Sets or clears the flags to force showing bookmark bar.
+  void SetForceShowBookmarkBarFlag(BookmarkBarController::ForceShowFlag flag);
+  void ClearForceShowBookmarkBarFlag(BookmarkBarController::ForceShowFlag flag);
+
+  // Returns the state of the bookmark bar.
+  BookmarkBar::State bookmark_bar_state() const;
+
   // Display the current active split view as a series of multiple side-by-side
   // web contents.
   void ShowSplitView(bool focus_active_view);
@@ -987,6 +992,10 @@ class BrowserView : public BrowserWindow,
   // type, and there should be a subsequent re-layout to show it.
   // |contents| can be null.
   bool MaybeShowInfoBar(content::WebContents* contents);
+
+  // Prepare and update the split view for the specified WebContents. Returns
+  // true if split view is updated and needs a layout.
+  bool MaybeUpdateSplitView(content::WebContents* contents);
 
   // Updates devtools window for given contents. This method will show docked
   // devtools window for inspected |web_contents| that has docked devtools
@@ -1246,13 +1255,6 @@ class BrowserView : public BrowserWindow,
   // The view that contains all visible WebContents.
   raw_ptr<MultiContentsView> multi_contents_view_ = nullptr;
 
-  // The view that shows a footer at the bottom of the contents
-  // container on new tab pages.
-  raw_ptr<new_tab_footer::NewTabFooterWebView> new_tab_footer_web_view_ =
-      nullptr;
-  // Separator between the web contents and the Footer.
-  raw_ptr<views::View> new_tab_footer_web_view_separator_ = nullptr;
-
   // The scrim view that covers the content area when a tab-modal dialog is
   // open.
   raw_ptr<ScrimView> contents_scrim_view_ = nullptr;
@@ -1373,8 +1375,6 @@ class BrowserView : public BrowserWindow,
   // A single layout is needed right before sliding begins. (See
   // TopControlsSlideControllerChromeOS::OnBeginSliding()).
   bool did_first_layout_while_top_controls_are_sliding_ = false;
-
-  std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
 
   base::CallbackListSubscription subscription_ =
       ui::TouchUiController::Get()->RegisterCallback(

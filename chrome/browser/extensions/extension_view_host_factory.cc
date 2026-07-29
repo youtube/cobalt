@@ -17,7 +17,6 @@
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_util.h"
-#include "extensions/browser/process_manager.h"
 #include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 
@@ -108,7 +107,7 @@ class ExtensionViewHostBrowserDelegate : public ExtensionViewHost::Delegate {
   }
 
   WindowController* GetExtensionWindowController() const override {
-    return browser_->GetFeatures().extension_window_controller();
+    return BrowserExtensionWindowController::From(browser_);
   }
 
  private:
@@ -163,7 +162,7 @@ class ExtensionViewHostTabDelegate : public ExtensionViewHost::Delegate {
     if (browser == nullptr) {
       return nullptr;
     }
-    return browser->GetFeatures().extension_window_controller();
+    return BrowserExtensionWindowController::From(browser);
   }
 
  private:
@@ -185,10 +184,7 @@ std::unique_ptr<ExtensionViewHost> CreateViewHostForExtension(
     mojom::ViewType view_type,
     std::unique_ptr<ExtensionViewHost::Delegate> delegate) {
   DCHECK(profile);
-  scoped_refptr<content::SiteInstance> site_instance =
-      ProcessManager::Get(profile)->GetSiteInstanceForURL(url);
-  return std::make_unique<ExtensionViewHost>(extension, site_instance.get(),
-                                             profile, url, view_type,
+  return std::make_unique<ExtensionViewHost>(extension, profile, url, view_type,
                                              std::move(delegate));
 }
 
@@ -229,24 +225,38 @@ const Extension* GetExtensionForUrl(Profile* profile, const GURL& url) {
   return registry->enabled_extensions().GetByID(extension_id);
 }
 
+std::unique_ptr<ExtensionViewHost> CreateExtensionViewHost(
+    const Extension& extension,
+    const GURL& url,
+    Profile* profile,
+    extensions::mojom::ViewType view_type,
+    std::unique_ptr<ExtensionViewHost::Delegate> delegate) {
+  CHECK(profile);
+
+  if (profile->IsOffTheRecord()) {
+    return CreateViewHostForIncognito(&extension, url, profile, view_type,
+                                      std::move(delegate));
+  }
+
+  return CreateViewHostForExtension(&extension, url, profile, view_type,
+                                    std::move(delegate));
+}
+
 // Creates and initializes an ExtensionViewHost for the extension with |url|.
 std::unique_ptr<ExtensionViewHost> CreateViewHost(
     const GURL& url,
     Profile* profile,
     extensions::mojom::ViewType view_type,
     std::unique_ptr<ExtensionViewHost::Delegate> delegate) {
-  DCHECK(profile);
+  CHECK(profile);
 
   const Extension* extension = GetExtensionForUrl(profile, url);
-  if (!extension)
+  if (!extension) {
     return nullptr;
-  if (profile->IsOffTheRecord()) {
-    return CreateViewHostForIncognito(extension, url, profile, view_type,
-                                      std::move(delegate));
   }
 
-  return CreateViewHostForExtension(extension, url, profile, view_type,
-                                    std::move(delegate));
+  return CreateExtensionViewHost(*extension, url, profile, view_type,
+                                 std::move(delegate));
 }
 
 }  // namespace
@@ -276,6 +286,7 @@ std::unique_ptr<ExtensionViewHost> ExtensionViewHostFactory::CreatePopupHost(
 // static
 std::unique_ptr<ExtensionViewHost>
 ExtensionViewHostFactory::CreateSidePanelHost(
+    const Extension& extension,
     const GURL& url,
     BrowserWindowInterface* browser,
     tabs::TabInterface* tab_interface) {
@@ -292,8 +303,9 @@ ExtensionViewHostFactory::CreateSidePanelHost(
               : std::make_unique<ExtensionViewHostTabDelegate>(
                     tab_interface->GetContents());
 
-  return CreateViewHost(url, profile, mojom::ViewType::kExtensionSidePanel,
-                        std::move(delegate));
+  return CreateExtensionViewHost(extension, url, profile,
+                                 mojom::ViewType::kExtensionSidePanel,
+                                 std::move(delegate));
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

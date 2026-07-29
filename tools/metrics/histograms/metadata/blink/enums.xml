@@ -4424,9 +4424,9 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="3961" label="V8URLPattern_Exec_Method"/>
   <int value="3962" label="SameSiteCookieInclusionChangedByCrossSiteRedirect"/>
   <int value="3963"
-      label="BlobStoreAccessAcrossAgentClustersInResolveAsURLLoaderFactory"/>
+      label="OBSOLETE_BlobStoreAccessAcrossAgentClustersInResolveAsURLLoaderFactory"/>
   <int value="3964"
-      label="BlobStoreAccessAcrossAgentClustersInResolveForNavigation"/>
+      label="OBSOLETE_BlobStoreAccessAcrossAgentClustersInResolveForNavigation"/>
   <int value="3965" label="TapDelayEnabled"/>
   <int value="3966" label="V8URLPattern_CompareComponent_Method"/>
   <int value="3967" label="EarlyHintsPreload"/>
@@ -4641,8 +4641,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4166" label="FedCm"/>
   <int value="4167" label="FetchEventSourceLastEventIdCorsUnSafe"/>
   <int value="4168" label="WrongBaselineOfMultiLineButtonWithNonSpace"/>
-  <int value="4169" label="BlobStoreAccessAcrossTopLevelSite"/>
-  <int value="4170" label="BlobStoreAccessUnknownTopLevelSite"/>
+  <int value="4169" label="OBSOLETE_BlobStoreAccessAcrossTopLevelSite"/>
+  <int value="4170" label="OBSOLETE_BlobStoreAccessUnknownTopLevelSite"/>
   <int value="4171" label="CrossOriginAccessBasedOnDocumentDomain"/>
   <int value="4172" label="CookieWithTruncatingChar"/>
   <int value="4173" label="VideoTrackGenerator"/>
@@ -5030,7 +5030,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4524" label="AsyncClipboardAPIUnsanitizedRead"/>
   <int value="4525" label="OBSOLETE_WindowOpenFullscreenRequested"/>
   <int value="4526" label="OBSOLETE_FullscreenAllowedByWindowOpen"/>
-  <int value="4527" label="AttributeValueContainsLtOrGt"/>
+  <int value="4527" label="OBSOLETE_AttributeValueContainsLtOrGt"/>
   <int value="4528" label="OBSOLETE_V8ImportAssertionDeprecatedSyntax"/>
   <int value="4529" label="ImageCaptureBackgroundBlur"/>
   <int value="4530" label="PrivateNetworkAccessPreflightError"/>
@@ -5569,7 +5569,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="4997" label="V8InvalidatedNoUndetectableObjectsProtector"/>
   <int value="4998" label="V8DocumentAllLegacyCall"/>
   <int value="4999" label="V8DocumentAllLegacyConstruct"/>
-  <int value="5000" label="InsideListMarkerPositionQuirk"/>
+  <int value="5000" label="OBSOLETE_InsideListMarkerPositionQuirk"/>
   <int value="5001" label="ZstdContentEncodingForNavigation"/>
   <int value="5002" label="ZstdContentEncodingForMainFrameNavigation"/>
   <int value="5003" label="ZstdContentEncodingForSubFrameNavigation"/>
@@ -6235,6 +6235,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5602" label="HTMLCanvasElementLowLatency_WebGL"/>
   <int value="5603" label="HTMLCanvasElementLowLatency_WebGL_Preserve"/>
   <int value="5604" label="HTMLCanvasElementLowLatency_WebGL_Discard"/>
+  <int value="5605" label="AnimatedImageUsedMoreThanOnce"/>
+  <int value="5606" label="ClipboardPlatformPermissionDenied"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -6385,6 +6387,7 @@ Called by update_permissions_policy_enum.py.-->
   <int value="137" label="RecordAdAuctionEvents"/>
   <int value="138" label="OnDeviceSpeechRecognition"/>
   <int value="139" label="LanguageModel"/>
+  <int value="140" label="AriaNotify"/>
 </enum>
 
 <enum name="FedCmAccountChooserResult">
@@ -7846,6 +7849,8 @@ Called by update_use_counter_css.py.-->
   <int value="875" label="timeline-trigger-exit-range-start"/>
   <int value="876" label="timeline-trigger-exit-range-end"/>
   <int value="877" label="timeline-trigger-timeline"/>
+  <int value="878" label="timeline-trigger"/>
+  <int value="879" label="masonry"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8316,6 +8321,33 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="344" label="Scripting"/>
   <int value="345" label="AlignContentBlock"/>
   <int value="346" label="SizesAuto"/>
+  <int value="347" label="WasmSimd"/>
+  <int value="348" label="Observable"/>
+  <int value="349" label="MetaApplicationTitle"/>
+  <int value="350" label="DialogClosedby"/>
+  <int value="351" label="FontFamilyMath"/>
+  <int value="352" label="Autofill"/>
+  <int value="353" label="FontMetricOverrides"/>
+  <int value="354" label="DetailsContent"/>
+  <int value="355" label="TimeRelativeSelectors"/>
+  <int value="356" label="WasmExceptionHandling"/>
+  <int value="357" label="WasmExtendedConstantExpressions"/>
+  <int value="358" label="WasmGarbageCollection"/>
+  <int value="359" label="WasmMultiMemory"/>
+  <int value="360" label="WasmReferenceTypes"/>
+  <int value="361" label="WasmSimdRelaxed"/>
+  <int value="362" label="WasmTailCallOptimization"/>
+  <int value="363" label="WasmThreads"/>
+  <int value="364" label="WasmStringBuiltins"/>
+  <int value="365" label="WasmTypedFunRefs"/>
+  <int value="366" label="WasmMemory64"/>
+  <int value="367" label="WasmExnrefExceptions"/>
+  <int value="368" label="WasmMultiValue"/>
+  <int value="369" label="WasmBulkMemory"/>
+  <int value="370" label="WasmMutableGlobals"/>
+  <int value="371" label="WasmNonTrappingFloatToInt"/>
+  <int value="372" label="WasmSignExtensionOperators"/>
+  <int value="373" label="DRAFT_IncomingCallNotifications"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

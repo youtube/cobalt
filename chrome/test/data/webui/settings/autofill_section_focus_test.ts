@@ -5,13 +5,15 @@
 // clang-format off
 import 'chrome://settings/settings.js';
 
+import {getDeepActiveElement} from 'chrome://resources/js/util.js';
 import {AutofillManagerImpl} from 'chrome://settings/lazy_load.js';
 import {assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {TestAutofillManager} from './autofill_fake_data.js';
 import {createAddressEntry} from './autofill_fake_data.js';
 import {createAutofillSection, deleteAddress} from './autofill_section_test_utils.js';
+
+import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
 // clang-format on
 
 suite('AutofillSectionFocusTest', function() {
@@ -23,8 +25,19 @@ suite('AutofillSectionFocusTest', function() {
           createAddressEntry(),
         ],
         {profile_enabled: {value: true}});
+
+    // Ensure the subpage's back button is focused before continuing further.
+    await waitAfterNextRender(section);
+    const subpageElement =
+        section.shadowRoot!.querySelector('settings-subpage');
+    assertTrue(!!subpageElement);
+    // Note: Using assertTrue instead of assertEquals on purpose, because Mocha
+    // in case of failure tries to serialize the arguments, which in turn throws
+    // 'TypeError: Converting circular structure to JSON' instead of surfacing
+    // the assertion error.
+    assertTrue(subpageElement.$.closeButton === getDeepActiveElement());
+
     const manager = AutofillManagerImpl.getInstance() as TestAutofillManager;
-    flush();
 
     await deleteAddress(section, manager, 1);
     const addressesAfterRemovingInTheMiddle =

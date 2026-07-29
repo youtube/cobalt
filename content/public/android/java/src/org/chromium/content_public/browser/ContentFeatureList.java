@@ -7,6 +7,7 @@ package org.chromium.content_public.browser;
 import org.chromium.base.MutableBooleanParamWithSafeDefault;
 import org.chromium.base.MutableFlagWithSafeDefault;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.common.ContentFeatures;
 
 /** Convenience static methods to access {@link ContentFeatureMap}. */
@@ -71,6 +72,12 @@ public class ContentFeatureList {
     public static final MutableBooleanParamWithSafeDefault
             sAccessibilityDeprecateJavaNodeCacheDisableCache =
                     sAccessibilityDeprecateJavaNodeCache.newBooleanParam("disable_cache", false);
+
+    public static final MutableFlagWithSafeDefault sStrictHighRankProcessLRU =
+            new MutableFlagWithSafeDefault(
+                    ContentFeatureMap.getInstance(),
+                    ContentInternalFeatures.STRICT_HIGH_RANK_PROCESS_LRU,
+                    false);
 
     public static final MutableFlagWithSafeDefault sGroupRebindingForGroupImportance =
             new MutableFlagWithSafeDefault(

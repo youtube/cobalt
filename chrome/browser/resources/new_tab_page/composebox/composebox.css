@@ -49,12 +49,10 @@
 }
 
 #composebox {
-  align-items: flex-end;
   animation: var(--height-expand-duration) slide-down var(--standard-curve);
   display: flex;
   pointer-events: auto;
   position: relative;
-  mask-image: linear-gradient(transparent 7px, black calc(var(--text-input-top-spacing) + 7px));
   min-height: 136px;
   max-height: 254px;
   overflow: hidden;
@@ -93,6 +91,7 @@
   font-family: inherit;
   font-size: inherit;
   line-height: 24px;
+  mask-image: linear-gradient(transparent 7px, black calc(var(--text-input-top-spacing) + 7px));
   max-height: calc-size(fit-content, min(size - 24px, 190px));
   min-height: 72px;
   outline: none;
@@ -122,6 +121,8 @@
 }
 
 .upload-icon {
+  --cr-icon-button-focus-outline-color:
+      var(--color-searchbox-results-icon-focused-outline);
   --cr-icon-button-icon-size: 24px;
   --cr-icon-button-hover-background-color:
       var(--color-new-tab-page-composebox-hover);

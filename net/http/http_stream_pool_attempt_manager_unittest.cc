@@ -18,6 +18,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -44,6 +45,7 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory_test_util.h"
+#include "net/http/http_stream_key.h"
 #include "net/http/http_stream_pool.h"
 #include "net/http/http_stream_pool_group.h"
 #include "net/http/http_stream_pool_handle.h"
@@ -5165,7 +5167,9 @@ TEST_F(HttpStreamPoolAttemptManagerTest, H3OriginFrameWhileAttemptingQuic) {
   ASSERT_EQ(quic_session1, quic_session2);
 }
 
-// Regression test for crbug.com/421877252.
+// Regression test for crbug.com/421877252. Ensure that a late-arriving QUIC
+// is used by subsequent requests after the first request completes with a
+// TLS session.
 TEST_F(HttpStreamPoolAttemptManagerTest,
        QuicExistingSessionAfterAttemptComplete) {
   base::test::ScopedFeatureList feature_list;
@@ -5192,11 +5196,6 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
   EXPECT_THAT(requester1.result(), Optional(IsOk()));
   EXPECT_NE(requester1.negotiated_protocol(), NextProto::kProtoQUIC);
 
-  MockConnectCompleter quic_completer2;
-  AddQuicData(/*host=*/kDefaultDestination, &quic_completer2,
-              quic::QUIC_CONNECTION_IP_POOLED,
-              "An active session exists for the given IP.");
-
   SequencedSocketData tcp_data2;
   tcp_data2.set_connect_data(MockConnect(SYNCHRONOUS, ERR_IO_PENDING));
   socket_factory()->AddSocketDataProvider(&tcp_data2);
@@ -5207,7 +5206,6 @@ TEST_F(HttpStreamPoolAttemptManagerTest,
       .RequestStream(pool());
 
   quic_completer1.Complete(OK);
-  quic_completer2.Complete(OK);
 
   requester2.WaitForResult();
   EXPECT_THAT(requester2.result(), Optional(IsOk()));
@@ -7504,6 +7502,364 @@ TEST_F(HttpStreamPoolAttemptManagerTest, SpdySlowOkQuicCanceled) {
   // The AttemptManager should complete.
   WaitForAttemptManagerComplete(requester.associated_attempt_manager().get());
   ASSERT_FALSE(requester.associated_attempt_manager());
+}
+
+// Helper class for Alt-Svc QUIC preconnect tests.
+class HttpStreamPoolAltSvcQuicPreconnectTest
+    : public HttpStreamPoolAttemptManagerTest {
+ public:
+  HttpStreamPoolAltSvcQuicPreconnectTest() = default;
+
+ protected:
+  void SetQuicAlternativeService(const HttpStreamKey& stream_key) {
+    const AlternativeService alternative_service(
+        NextProto::kProtoQUIC,
+        HostPortPair::FromSchemeHostPort(stream_key.destination()));
+    base::Time expiration = base::Time::Now() + base::Days(1);
+    http_server_properties()->SetQuicAlternativeService(
+        stream_key.destination(), stream_key.network_anonymization_key(),
+        alternative_service, expiration, {quic_version()});
+  }
+
+  void RequestStreamToCreateSpdySession(const HttpStreamKey& stream_key) {
+    static const MockRead reads[] = {MockRead(SYNCHRONOUS, ERR_IO_PENDING, 0)};
+    static const MockWrite writes[] = {
+        MockWrite(SYNCHRONOUS, ERR_IO_PENDING, 1)};
+
+    sockets_.emplace_back(std::make_unique<SequencedSocketData>(reads, writes));
+    socket_factory()->AddSocketDataProvider(sockets_.back().get());
+    ssls_.emplace_back(std::make_unique<SSLSocketDataProvider>(ASYNC, OK));
+    ssls_.back()->next_proto = NextProto::kProtoHTTP2;
+    socket_factory()->AddSSLSocketDataProvider(ssls_.back().get());
+
+    StreamRequester requester(stream_key);
+    requester.RequestStream(pool());
+    requester.WaitForResult();
+    EXPECT_THAT(requester.result(), Optional(IsOk()));
+    EXPECT_EQ(requester.negotiated_protocol(), NextProto::kProtoHTTP2);
+  }
+
+  void SetAltSvcQuicPreconnectCallback() {
+    pool().SetAltSvcQuicPreconnectCallbackForTesting(
+        base::BindLambdaForTesting([&](int result) {
+          preconnect_result_ = result;
+          preconnect_callback_run_loop_.Quit();
+        }));
+  }
+
+  int WaitForAltSvcQuicPreconnectCompletion() {
+    if (preconnect_result_.has_value()) {
+      return preconnect_result_.value();
+    }
+    preconnect_callback_run_loop_.Run();
+    return preconnect_result_.value();
+  }
+
+ private:
+  std::vector<std::unique_ptr<SequencedSocketData>> sockets_;
+  std::vector<std::unique_ptr<SSLSocketDataProvider>> ssls_;
+
+  base::RunLoop preconnect_callback_run_loop_;
+  std::optional<int> preconnect_result_;
+};
+
+// Test that when an SpdySession is established and then Alt-Svc advertises
+// QUIC, a subsequent request triggers an Alt-Svc QUIC preconnect. After the
+// preconnect succeeds, a third request uses the preconnected QUIC session.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest, AltSvcQuicPreconnect) {
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up QUIC Alt-Svc and QUIC data for preconnect.
+  SetQuicAlternativeService(stream_key);
+  AddQuicData();
+
+  SetAltSvcQuicPreconnectCallback();
+
+  // Second request should use existing SpdySession but trigger QUIC preconnect.
+  StreamRequester requester2(stream_key);
+  requester2.set_quic_version(quic_version()).RequestStream(pool());
+  requester2.WaitForResult();
+  EXPECT_THAT(requester2.result(), Optional(IsOk()));
+  EXPECT_EQ(requester2.negotiated_protocol(), NextProto::kProtoHTTP2);
+
+  EXPECT_THAT(WaitForAltSvcQuicPreconnectCompletion(), IsOk());
+
+  // Third request should use the preconnected QUIC session.
+  StreamRequester requester3(stream_key);
+  requester3.set_quic_version(quic_version()).RequestStream(pool());
+  requester3.WaitForResult();
+  EXPECT_THAT(requester3.result(), Optional(IsOk()));
+  EXPECT_EQ(requester3.negotiated_protocol(), NextProto::kProtoQUIC);
+}
+
+// Regression test for crbug.com/430364749. When a limit-ignoring request
+// triggers an Alt-Svc QUIC preconnect, the corresponding AttemptManager should
+// clean up the limit-ignoring preconnect job.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest,
+       AltSvcQuicPreconnectIgnoreLimit) {
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up QUIC Alt-Svc and QUIC data for preconnect.
+  SetQuicAlternativeService(stream_key);
+  AddQuicData();
+
+  SetAltSvcQuicPreconnectCallback();
+
+  // Second limit-ignoring request should use existing SpdySession but trigger
+  // QUIC preconnect.
+  StreamRequester requester2(stream_key);
+  requester2.set_load_flags(LOAD_IGNORE_LIMITS)
+      .set_quic_version(quic_version())
+      .RequestStream(pool());
+  requester2.WaitForResult();
+  EXPECT_THAT(requester2.result(), Optional(IsOk()));
+  EXPECT_EQ(requester2.negotiated_protocol(), NextProto::kProtoHTTP2);
+
+  EXPECT_THAT(WaitForAltSvcQuicPreconnectCompletion(), IsOk());
+
+  // Third request should use the preconnected QUIC session.
+  StreamRequester requester3(stream_key);
+  requester3.set_quic_version(quic_version()).RequestStream(pool());
+  requester3.WaitForResult();
+  EXPECT_THAT(requester3.result(), Optional(IsOk()));
+  EXPECT_EQ(requester3.negotiated_protocol(), NextProto::kProtoQUIC);
+}
+
+// Regression test for crbug.com/430364749. When a limit-ignoring request
+// triggers an Alt-Svc QUIC preconnect but was cancelled, the corresponding
+// AttemptManager should clean up the limit-ignoring preconnect job.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest,
+       AltSvcQuicPreconnectIgnoreLimitCancel) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kAsyncQuicSession);
+
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up QUIC Alt-Svc and QUIC data for preconnect.
+  SetQuicAlternativeService(stream_key);
+  MockConnectCompleter quic_completer;
+  AddQuicData(/*host=*/kDefaultDestination, &quic_completer);
+
+  SetAltSvcQuicPreconnectCallback();
+
+  // Second limit-ignoring request should use existing SpdySession but trigger
+  // QUIC preconnect.
+  StreamRequester requester2(stream_key);
+  requester2.set_load_flags(LOAD_IGNORE_LIMITS)
+      .set_quic_version(quic_version())
+      .RequestStream(pool());
+
+  // Cancel the second request. This should not trigger any CHECK failures.
+  requester2.ResetRequest();
+}
+
+// Test that multiple Alt-Svc QUIC preconnects are coalesced and only one
+// QUIC attempt is triggered.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest, AltSvcQuicMutiplePreconnects) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kAsyncQuicSession);
+
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up only one QUIC data even though we'll make multiple requests.
+  // This verifies that the preconnects are coalesced.
+  SetQuicAlternativeService(stream_key);
+  MockConnectCompleter quic_completer;
+  AddQuicData(/*host=*/kDefaultDestination, &quic_completer);
+
+  SetAltSvcQuicPreconnectCallback();
+
+  // Create three requesters. They should all use the existing SpdySession and
+  // only trigger one QUIC preconnect.
+  StreamRequester requester2(stream_key);
+  StreamRequester requester3(stream_key);
+  StreamRequester requester4(stream_key);
+  requester2.set_quic_version(quic_version()).RequestStream(pool());
+  requester3.set_quic_version(quic_version()).RequestStream(pool());
+  requester4.set_quic_version(quic_version()).RequestStream(pool());
+
+  EXPECT_THAT(requester2.WaitForResult(), IsOk());
+  EXPECT_EQ(requester2.negotiated_protocol(), NextProto::kProtoHTTP2);
+  EXPECT_THAT(requester3.WaitForResult(), IsOk());
+  EXPECT_EQ(requester3.negotiated_protocol(), NextProto::kProtoHTTP2);
+  EXPECT_THAT(requester4.WaitForResult(), IsOk());
+  EXPECT_EQ(requester4.negotiated_protocol(), NextProto::kProtoHTTP2);
+
+  // Wait for the single coalesced Alt-Svc QUIC preconnect to complete.
+  quic_completer.Complete(OK);
+  EXPECT_THAT(WaitForAltSvcQuicPreconnectCompletion(), IsOk());
+
+  // Verify that the QUIC session is now available for subsequent requests.
+  StreamRequester requester5(stream_key);
+  requester5.set_quic_version(quic_version()).RequestStream(pool());
+  EXPECT_THAT(requester5.WaitForResult(), IsOk());
+  EXPECT_EQ(requester5.negotiated_protocol(), NextProto::kProtoQUIC);
+}
+
+// Test that when an SpdySession is established and then Alt-Svc advertises
+// QUIC, a subsequent request triggers an Alt-Svc QUIC preconnect. After the
+// preconnect failed, a third request uses the SpdySession session.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest, AltSvcQuicPreconnectFail) {
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up QUIC Alt-Svc and two QUIC data for preconnects.
+  // These preconnects will fail to connect.
+  SetQuicAlternativeService(stream_key);
+
+  MockQuicData quic_data1(quic_version());
+  quic_data1.AddConnect(SYNCHRONOUS, ERR_CONNECTION_REFUSED);
+  quic_data1.AddSocketDataToFactory(socket_factory());
+  MockQuicData quic_data2(quic_version());
+  quic_data2.AddConnect(SYNCHRONOUS, ERR_CONNECTION_REFUSED);
+  quic_data2.AddSocketDataToFactory(socket_factory());
+
+  SetAltSvcQuicPreconnectCallback();
+
+  // Second request should use existing SpdySession but trigger QUIC preconnect.
+  StreamRequester requester2(stream_key);
+  requester2.set_quic_version(quic_version()).RequestStream(pool());
+  requester2.WaitForResult();
+  EXPECT_THAT(requester2.result(), Optional(IsOk()));
+  EXPECT_EQ(requester2.negotiated_protocol(), NextProto::kProtoHTTP2);
+
+  // Wait for the Alt-Svc QUIC preconnect to fail.
+  EXPECT_THAT(WaitForAltSvcQuicPreconnectCompletion(),
+              IsError(ERR_CONNECTION_REFUSED));
+
+  // Third request should use the existing SpdySession since the previous QUIC
+  // preconnect failed. This request triggers a new QUIC preconnect again but it
+  // also fails.
+  StreamRequester requester3(stream_key);
+  requester3.set_quic_version(quic_version()).RequestStream(pool());
+  requester3.WaitForResult();
+  EXPECT_THAT(requester3.result(), Optional(IsOk()));
+  EXPECT_EQ(requester3.negotiated_protocol(), NextProto::kProtoHTTP2);
+}
+
+// Test that a Group that has Alt-Svc QUIC attempt manager isn't destroyed
+// until QUIC preconnect completes.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest, GroupAlive) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(net::features::kAsyncQuicSession);
+
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up QUIC Alt-Svc and QUIC data for preconnect.
+  SetQuicAlternativeService(stream_key);
+  MockConnectCompleter quic_completer;
+  AddQuicData(/*host=*/kDefaultDestination, &quic_completer);
+
+  SetAltSvcQuicPreconnectCallback();
+
+  // Second request should use existing SpdySession but trigger QUIC preconnect.
+  StreamRequester requester2(stream_key);
+  requester2.set_quic_version(quic_version()).RequestStream(pool());
+  requester2.WaitForResult();
+  EXPECT_THAT(requester2.result(), Optional(IsOk()));
+  EXPECT_EQ(requester2.negotiated_protocol(), NextProto::kProtoHTTP2);
+
+  // Close the SpdySession before QUIC preconnect completes. Ensure the
+  // associated group is still alive.
+  spdy_session_pool()->CloseAllSessions();
+  FastForwardBy(base::Milliseconds(1));
+  Group* group = pool().GetGroupForTesting(stream_key);
+  ASSERT_TRUE(group);
+  EXPECT_FALSE(pool().GetGroupForTesting(stream_key)->CanComplete());
+
+  quic_completer.Complete(OK);
+  EXPECT_THAT(WaitForAltSvcQuicPreconnectCompletion(), IsOk());
+
+  // Third request should use the preconnected QUIC session.
+  StreamRequester requester3(stream_key);
+  requester3.set_quic_version(quic_version()).RequestStream(pool());
+  requester3.WaitForResult();
+  EXPECT_THAT(requester3.result(), Optional(IsOk()));
+  EXPECT_EQ(requester3.negotiated_protocol(), NextProto::kProtoQUIC);
+}
+
+// Test that after a SPDY session is established, a preconnect request with
+// available QUIC alternative service should establish a QUIC session.
+TEST_F(HttpStreamPoolAltSvcQuicPreconnectTest,
+       PreconnectWithExistingSpdySession) {
+  resolver()
+      ->ConfigureDefaultResolution()
+      .add_endpoint(ServiceEndpointBuilder().add_v4("192.0.2.1").endpoint())
+      .CompleteStartSynchronously(OK);
+
+  const HttpStreamKey stream_key =
+      StreamKeyBuilder(kDefaultDestination).Build();
+
+  // First stream request completes with SpdySession.
+  RequestStreamToCreateSpdySession(stream_key);
+
+  // Set up QUIC Alt-Svc and QUIC data for preconnect.
+  SetQuicAlternativeService(stream_key);
+  AddQuicData();
+
+  Preconnector preconnector(stream_key);
+  preconnector.set_quic_version(quic_version());
+
+  EXPECT_EQ(preconnector.Preconnect(pool()), ERR_IO_PENDING);
+  EXPECT_THAT(preconnector.WaitForResult(), IsOk());
+  QuicSessionAliasKey quic_key = stream_key.CalculateQuicSessionAliasKey();
+  QuicChromiumClientSession* quic_session =
+      quic_session_pool()->FindExistingSession(quic_key.session_key(),
+                                               quic_key.destination());
+  EXPECT_TRUE(quic_session);
 }
 
 }  // namespace net

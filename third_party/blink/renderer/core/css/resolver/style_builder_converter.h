@@ -48,8 +48,10 @@
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/grid_area.h"
+#include "third_party/blink/renderer/core/style/item_tolerance.h"
 #include "third_party/blink/renderer/core/style/named_grid_lines_map.h"
 #include "third_party/blink/renderer/core/style/ordered_named_grid_lines.h"
+#include "third_party/blink/renderer/core/style/scroll_marker_group.h"
 #include "third_party/blink/renderer/core/style/shadow_list.h"
 #include "third_party/blink/renderer/core/style/style_anchor_scope.h"
 #include "third_party/blink/renderer/core/style/style_border_shape.h"
@@ -211,8 +213,8 @@ class StyleBuilderConverter {
                                             const CSSValue&);
   static GridTrackList ConvertGridTrackSizeList(StyleResolverState&,
                                                 const CSSValue&);
-  static std::optional<Length> ConvertItemTolerance(const StyleResolverState&,
-                                                    const CSSValue&);
+  static ItemTolerance ConvertItemTolerance(const StyleResolverState&,
+                                            const CSSValue&);
   static StyleHyphenateLimitChars ConvertHyphenateLimitChars(
       StyleResolverState&,
       const CSSValue&);
@@ -293,8 +295,8 @@ class StyleBuilderConverter {
   static float ConvertWordSpacing(StyleResolverState&, const CSSValue&);
   template <CSSValueID IdForNone>
   static AtomicString ConvertString(StyleResolverState&, const CSSValue&);
-  static scoped_refptr<SVGDashArray> ConvertStrokeDasharray(StyleResolverState&,
-                                                            const CSSValue&);
+  static SVGDashArray* ConvertStrokeDasharray(StyleResolverState&,
+                                              const CSSValue&);
   static StyleColor ConvertStyleColor(StyleResolverState&,
                                       const CSSValue&,
                                       bool for_visited_link = false);
@@ -328,6 +330,8 @@ class StyleBuilderConverter {
   static void ConvertGridTrackList(const CSSValue&,
                                    ComputedGridTrackList&,
                                    StyleResolverState&);
+  static ScrollMarkerGroup* ConvertScrollMarkerGroup(StyleResolverState&,
+                                                     const CSSValue&);
 
   static cc::ScrollSnapType ConvertSnapType(StyleResolverState&,
                                             const CSSValue&);

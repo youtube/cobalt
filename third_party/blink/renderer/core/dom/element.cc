@@ -1660,23 +1660,6 @@ bool Element::InterestLost(Element& target) {
   return true;
 }
 
-// static
-// This should return a string that describes the hot-key implemented below in
-// Element::DefaultEventHandler.
-String Element::GetPartialInterestForActivationHotkey() {
-#if BUILDFLAG(IS_MAC)
-  // On a Mac, the "Alt" key is denoted with the symbol ⌥, for "Option". The
-  // most typical display uses the ↑ for the up arrow. So this text resolves
-  // to "⌥↑".
-  return u"\u2325\u2191";
-#else
-  // Other operating systems use "Alt" for the alt key, even in most other
-  // languages. And ⬆️ is more often used for the up arrow. So this text
-  // resolves to "Alt + ⬆️".
-  return u"Alt + \u2b06\ufe0f";
-#endif
-}
-
 void Element::DefaultEventHandler(Event& event) {
   if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
           GetDocument().GetExecutionContext())) {
@@ -1726,22 +1709,7 @@ void Element::DefaultEventHandler(Event& event) {
                               blink::WebInputEvent::kKeyModifiers;
         auto* target = GetInvokerData()->ActiveInterestTarget();
         DCHECK_EQ(InterestForElement(), target);
-        DCHECK_NE(GetInterestState(), InterestState::kPotentialPartialInterest);
-        if (GetInterestState() == InterestState::kPartialInterest &&
-            keyboard_event->key() == keywords::kArrowUp &&
-            modifiers == WebInputEvent::kAltKey) {
-          // Hitting the hotkey (Alt/Option-UpArrow) on an invoker that has
-          // partial interest causes interest to be "upgraded" to full interest.
-          // It also focuses the first focusable element within the target.
-          // NOTE: this hotkey must be kept in sync with the string description
-          // returned by `GetPartialInterestForActivationHotkey()`.
-          ChangeInterestState(target, InterestState::kFullInterest);
-          if (Element* first_focusable = target->GetFocusDelegate()) {
-            first_focusable->Focus();
-          }
-          event.SetDefaultHandled();
-          return;
-        } else if (keyboard_event->key() == keywords::kEscape && !modifiers) {
+        if (keyboard_event->key() == keywords::kEscape && !modifiers) {
           if (GainOrLoseInterest(this, target, InterestState::kNoInterest)) {
             event.SetDefaultHandled();
             return;
@@ -3075,9 +3043,7 @@ void Element::ClientQuads(Vector<gfx::QuadF>& quads) const {
     // If stroke is desired, we can update this to use AbsoluteQuads, below.
     if (const auto* svg_graphics_element =
             DynamicTo<SVGGraphicsElement>(this)) {
-      if (RuntimeEnabledFeatures::
-              RestrictGetBoundingClientRectForHiddenSVGElementsEnabled() &&
-          svg_graphics_element->IsNonRendered(element_layout_object)) {
+      if (svg_graphics_element->IsNonRendered(element_layout_object)) {
         return;
       }
 
@@ -6381,10 +6347,19 @@ CustomElementDefinition* Element::GetCustomElementDefinition() const {
   return nullptr;
 }
 
-// Scoped Custom Elements
 CustomElementRegistry* Element::customElementRegistry() const {
   DCHECK(RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled());
-  return nullptr;
+  // TODO(crbug.com/429140221) Need to evaluate if storing registry
+  // in element whenever needed is too memory consuming. For now
+  // we'll take the naive approach and assume an element using its tree
+  // scope's registry if not explicitly set.
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    if (auto* registry = data->GetCustomElementRegistry()) {
+      return registry;
+    }
+  }
+
+  return GetTreeScope().customElementRegistry();
 }
 
 void Element::SetIsValue(const AtomicString& is_value) {
@@ -7576,37 +7551,6 @@ bool Element::IsKeyboardFocusableScroller(
   return !ContainsKeyboardFocusableElementsSlow(update_behavior);
 }
 
-// TODO(crbug.com/326681249): Should `tabindex` take precedence?
-bool Element::IsInPartialInterestPopover() const {
-  if (!RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-          GetDocument().GetExecutionContext())) {
-    return false;
-  }
-  for (const ContainerNode* node = this; node;
-       node = FlatTreeTraversal::Parent(*node)) {
-    auto* element = DynamicTo<Element>(node);
-    if (!element) {
-      continue;
-    }
-    Element* invoker = element->GetInterestInvoker();
-    if (!invoker) {
-      continue;
-    }
-    // At this point, we are at the target of an interest invoker. Return true
-    // if this is an open popover and it has partial interest. False otherwise.
-    if (auto* html_element = DynamicTo<HTMLElement>(element);
-        html_element && html_element->popoverOpen() &&
-        invoker->GetInterestState() == InterestState::kPartialInterest) {
-      DCHECK_EQ(invoker->InterestForElement(), html_element);
-      DCHECK_EQ(invoker->GetInvokerData()->ActiveInterestTarget(),
-                html_element);
-      return true;
-    }
-    return false;
-  }
-  return false;
-}
-
 void Element::ShowInterestNow() {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
       GetDocument().GetExecutionContext()));
@@ -7628,13 +7572,6 @@ void Element::LoseInterestNow(Element* target) {
 bool Element::IsKeyboardFocusableSlow(UpdateBehavior update_behavior) const {
   FocusableState focusable_state = Element::IsFocusableState(update_behavior);
   if (focusable_state == FocusableState::kNotFocusable) {
-    return false;
-  }
-
-  // Interest invoker targets with partial interest aren't keyboard focusable.
-  if (IsInPartialInterestPopover()) {
-    CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-        GetDocument().GetExecutionContext()));
     return false;
   }
 
@@ -7677,25 +7614,13 @@ bool Element::IsMouseFocusable(UpdateBehavior update_behavior) const {
   return true;
 }
 
-bool Element::IsClickableFormControlNode() {
+bool Element::IsClickableFormControlNode() const {
   auto* form_control_element = DynamicTo<HTMLFormControlElement>(this);
   if (form_control_element && form_control_element->FormControlType() !=
                                   mojom::blink::FormControlType::kFieldset) {
     return true;
   }
   return false;
-}
-
-bool Element::IsMaybeClickable() {
-  if (IsClickableFormControlNode()) {
-    return true;
-  }
-
-  if (WillRespondToMouseClickEvents()) {
-    return true;
-  }
-
-  return HasSpatialNavigationFocusHeuristics();
 }
 
 bool Element::IsFocusable(UpdateBehavior update_behavior) const {
@@ -8506,9 +8431,10 @@ void Element::insertAdjacentText(const String& where,
   InsertAdjacent(where, GetDocument().createTextNode(text), exception_state);
 }
 
-void Element::insertAdjacentHTML(const String& where,
-                                 const String& markup,
-                                 ExceptionState& exception_state) {
+void Element::InsertAdjacentHTMLWithoutTrustedTypes(
+    const String& where,
+    const String& markup,
+    ExceptionState& exception_state) {
   Node* context_node = ContextNodeForInsertion(where, this, exception_state);
   if (!context_node) {
     return;
@@ -8534,6 +8460,18 @@ void Element::insertAdjacentHTML(const String& where,
     return;
   }
   InsertAdjacent(where, fragment, exception_state);
+}
+
+void Element::insertAdjacentHTML(const String& where,
+                                 const V8UnionStringOrTrustedHTML* html,
+                                 ExceptionState& exception_state) {
+  String compliant_html =
+      TrustedTypesCheckForHTML(html, GetExecutionContext(), "Element",
+                               "insertAdjacentHTML", exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  InsertAdjacentHTMLWithoutTrustedTypes(where, compliant_html, exception_state);
 }
 
 void Element::setPointerCapture(PointerId pointer_id,
@@ -9379,6 +9317,34 @@ PseudoElement* Element::GetPseudoElement(
     const AtomicString& view_transition_name) const {
   if (ElementRareDataVector* data = GetElementRareData()) {
     return data->GetPseudoElement(pseudo_id, view_transition_name);
+  }
+  return nullptr;
+}
+
+CSSPseudoElement* Element::pseudo(const AtomicString& type) {
+  PseudoId pseudo_id = CSSPseudoElement::ConvertTypeToSupportedPseudoId(type);
+  if (pseudo_id == kPseudoIdInvalid) {
+    return nullptr;
+  }
+  EnsureElementRareData();
+  if (CSSPseudoElement* css_pseudo_element =
+          GetElementRareData()->GetCSSPseudoElement(pseudo_id)) {
+    return css_pseudo_element;
+  }
+  auto* css_pseudo_element =
+      MakeGarbageCollected<CSSPseudoElement>(*this, pseudo_id);
+  GetElementRareData()->CacheCSSPseudoElement(pseudo_id, *css_pseudo_element);
+  return css_pseudo_element;
+}
+
+void Element::CacheCSSPseudoElement(PseudoId pseudo_id,
+                                    CSSPseudoElement& pseudo_element) {
+  EnsureElementRareData().CacheCSSPseudoElement(pseudo_id, pseudo_element);
+}
+
+CSSPseudoElement* Element::GetCSSPseudoElement(PseudoId pseudo_id) const {
+  if (ElementRareDataVector* data = GetElementRareData()) {
+    return data->GetCSSPseudoElement(pseudo_id);
   }
   return nullptr;
 }
@@ -11081,10 +11047,8 @@ void Element::ChangeInterestState(Element* target, InterestState new_state) {
     invoker_data->SetActiveInterestTarget(target);
   }
   PseudoStateChanged(CSSSelector::kPseudoHasInterest);
-  PseudoStateChanged(CSSSelector::kPseudoHasPartialInterest);
   if (target) {
     target->PseudoStateChanged(CSSSelector::kPseudoTargetOfInterest);
-    target->PseudoStateChanged(CSSSelector::kPseudoTargetOfPartialInterest);
   }
 }
 
@@ -11105,10 +11069,6 @@ bool Element::GainOrLoseInterest(Element* invoker,
   // We've reached the point where interest has officially been
   // gained or lost. Fire the event and run any default actions.
   switch (new_state) {
-    case InterestState::kPartialInterest:
-      NOTREACHED() << "Partial interest should never be gained directly";
-
-    case InterestState::kPotentialPartialInterest:
     case InterestState::kFullInterest:
       if (Element* existing_invoker = target->GetInterestInvoker()) {
         // We're gaining interest, but the target already has an active interest
@@ -11287,44 +11247,17 @@ void Element::HandleInterestForHoverOrFocus(InterestSource source,
   if (source == InterestSource::kHover || source == InterestSource::kFocus) {
     if (invoker_data) [[unlikely]] {
       invoker_data->CancelInterestLostTask();
-      // If the invoker is at partial interest (it was keyboard-activated) but
-      // it just got mouse-hovered, upgrade it to full interest.
-      if (invoker_data->GetInterestState() == InterestState::kPartialInterest &&
-          source == InterestSource::kHover) {
-        DCHECK_EQ(invoker_data->ActiveInterestTarget(), InterestForElement());
-        ChangeInterestState(invoker_data->ActiveInterestTarget(),
-                            InterestState::kFullInterest);
-      }
     }
     if (upstream_invoker) [[unlikely]] {
       upstream_data->CancelInterestLostTask();
-      DCHECK_NE(upstream_data->GetInterestState(),
-                InterestState::kPotentialPartialInterest);
-      if (upstream_data->GetInterestState() ==
-          InterestState::kPartialInterest) {
-        // Hovering (or focusing, if the target is focusable) triggers full
-        // interest in the invoker.
-        upstream_invoker->ChangeInterestState(this,
-                                              InterestState::kFullInterest);
-      }
     }
     if (auto* target = InterestForElement();
         target && (!invoker_data || invoker_data->GetInterestState() ==
                                         InterestState::kNoInterest))
         [[unlikely]] {
       // This is an interest invoker that doesn't already have interest, and was
-      // just hovered or focused. Schedule an InterestGained task, with a new
-      // state of "full interest" (for hover), or "potential partial interest"
-      // (for focus).
-      auto* target_popover = DynamicTo<HTMLElement>(target);
-      bool might_need_partial_interest =
-          source == InterestSource::kFocus && target_popover &&
-          target_popover->IsPopover() &&
-          !RuntimeEnabledFeatures::HTMLInterestForNoPartialInterestEnabled(
-              GetExecutionContext());
-      ScheduleInterestGainedTask(might_need_partial_interest
-                                     ? InterestState::kPotentialPartialInterest
-                                     : InterestState::kFullInterest);
+      // just hovered or focused. Schedule an InterestGained task.
+      ScheduleInterestGainedTask(InterestState::kFullInterest);
     }
   } else {
     DCHECK(source == InterestSource::kDeHover ||
@@ -12293,18 +12226,36 @@ void Element::AdjustContainerTimingIfNeededAfterChildrenChanged(
       SelfOrAncestorHasContainerTiming() /* has_container_timing */);
 }
 
-void Element::setHTMLUnsafe(const String& html,
-                            ExceptionState& exception_state) {
+void Element::SetHTMLUnsafeWithoutTrustedTypes(
+    const String& html,
+    ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
   SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
                        ForceHtml::kForce, exception_state);
 }
 
-void Element::setHTMLUnsafe(const String& html,
+void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
+                            ExceptionState& exception_state) {
+  UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, GetExecutionContext(), "Element", "setHTMLUnsafe", exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetInnerHTMLInternal(compliant_html, ParseDeclarativeShadowRoots::kParse,
+                       ForceHtml::kForce, exception_state);
+}
+
+void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             SetHTMLUnsafeOptions* options,
                             ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
-  SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
+  String compliant_html = TrustedTypesCheckForHTML(
+      html, GetExecutionContext(), "Element", "setHTMLUnsafe", exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetInnerHTMLInternal(compliant_html, ParseDeclarativeShadowRoots::kParse,
                        ForceHtml::kForce, exception_state);
   SanitizerAPI::SanitizeUnsafeInternal(this, options, exception_state);
 }

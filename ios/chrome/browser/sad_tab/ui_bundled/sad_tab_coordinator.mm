@@ -29,16 +29,16 @@
 @implementation SadTabCoordinator {
   SadTabViewController* _viewController;
   // Bridge to observe the web state list from Objective-C.
-  std::unique_ptr<TabsDependencyInstallerBridge> _dependencyInstallerBridge;
+  TabsDependencyInstallerBridge _dependencyInstallerBridge;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
-    _dependencyInstallerBridge =
-        std::make_unique<TabsDependencyInstallerBridge>(
-            self, self.browser->GetWebStateList());
+    _dependencyInstallerBridge.StartObserving(
+        self, browser->GetWebStateList(),
+        TabsDependencyInstaller::Policy::kOnlyRealized);
   }
   return self;
 }
@@ -92,9 +92,8 @@
 }
 
 - (void)disconnect {
-  // Deleting the installer bridge will cause all web states to have
-  // dependencies uninstalled.
-  _dependencyInstallerBridge.reset();
+  // Stop observing the WebStateList before destroying the bridge object.
+  _dependencyInstallerBridge.StopObserving();
 }
 
 - (void)setOverscrollDelegate:
@@ -159,8 +158,21 @@
 
 #pragma mark - TabsDependencyInstalling
 
-- (void)installDependencyForWebState:(web::WebState*)webState {
+- (void)webStateInserted:(web::WebState*)webState {
   SadTabTabHelper::FromWebState(webState)->SetDelegate(self);
+}
+
+- (void)webStateRemoved:(web::WebState*)webState {
+  SadTabTabHelper::FromWebState(webState)->SetDelegate(nil);
+}
+
+- (void)webStateDeleted:(web::WebState*)webState {
+  // Nothing to do.
+}
+
+- (void)newWebStateActivated:(web::WebState*)newActive
+           oldActiveWebState:(web::WebState*)oldActive {
+  // Nothing to do.
 }
 
 @end

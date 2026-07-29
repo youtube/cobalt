@@ -352,7 +352,8 @@ class CORE_EXPORT ContentSecurityPolicy final
       Element* = nullptr,
       const String& source = g_empty_string,
       const String& source_prefix = g_empty_string,
-      std::optional<base::UnguessableToken> issue_id = std::nullopt);
+      std::optional<base::UnguessableToken> issue_id = std::nullopt,
+      std::optional<String> eval_hash = std::nullopt);
 
   // Strip a URL to make it safe to report it.
   static String StripURLForUseInReport(const SecurityOrigin* security_origin,
@@ -493,7 +494,7 @@ class CORE_EXPORT ContentSecurityPolicy final
   // checks a vector of csp hashes against policy, probably a good idea
   // to use in tandem with FillInCSPHashValues.
   static bool CheckHashAgainstPolicy(
-      Vector<network::mojom::blink::CSPHashSourcePtr>&,
+      Vector<network::mojom::blink::IntegrityMetadataPtr>&,
       const network::mojom::blink::ContentSecurityPolicy&,
       InlineType);
 

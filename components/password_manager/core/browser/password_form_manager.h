@@ -95,14 +95,25 @@ class PasswordFormManager : public PasswordFormManagerForUI,
 
   // Returns whether the form managed by this password form manager contains
   // a field identified by the `field_renderer_id`. `driver` is used to check
-  // is this password form manager corresponds to the queried web frame.
+  // if this password form manager corresponds to the queried web frame.
   bool DoesManage(autofill::FieldRendererId field_renderer_id,
                   const PasswordManagerDriver* driver) const;
+
+  // Returns whether the form managed by this password form manager is similar
+  // to `form`. `driver` is used to check if this password form manager
+  // corresponds to the queried web frame.
+  bool DoesManageSimilarForm(const PasswordForm& form,
+                             const PasswordManagerDriver* driver) const;
 
   // Check that |submitted_form_| is equal to |form| from the user point of
   // view. It is used for detecting that a form is reappeared after navigation
   // for success detection.
   bool IsEqualToSubmittedForm(const autofill::FormData& form) const;
+
+  // Check that |observed_form_| is equal to |form| from the user point of
+  // view. It is used for detecting a form that has reappeared after
+  // navigation for proactive password recovery flow.
+  bool IsEqualToObservedForm(const PasswordForm& form) const;
 
   // If |submitted_form| is managed by *this (i.e. DoesManage returns true for
   // |submitted_form| and |driver|) then saves |submitted_form| to
@@ -293,8 +304,8 @@ class PasswordFormManager : public PasswordFormManagerForUI,
   }
 #endif
 
-  void SetObserver(base::WeakPtr<PasswordFormManagerObserver> observer);
-  void ResetObserver();
+  void AddObserver(PasswordFormManagerObserver* observer);
+  void RemoveObserver(PasswordFormManagerObserver* observer);
 
  protected:
   // Constructor for Credentials API.
@@ -509,7 +520,7 @@ class PasswordFormManager : public PasswordFormManagerForUI,
   // For generating timing metrics on retrieving server-side predictions.
   std::unique_ptr<base::ElapsedTimer> server_side_predictions_timer_;
 
-  base::WeakPtr<PasswordFormManagerObserver> form_parsed_observer_;
+  base::ObserverList<PasswordFormManagerObserver> form_parsed_observers_;
 };
 
 // Returns whether `form_data` differs from the form observed by `form_manager`

@@ -246,6 +246,9 @@
       <message name="IDS_IOS_BEST_FEATURES_SHARE_PASSWORDS_SUBTITLE" desc="Subtitle for the Share Passwords Chrome iOS Best Features Promo">
         Easily and securely share a copy of a password with your family group in Google Password Manager
       </message>
+      <message name="IDS_IOS_BWG_SETTINGS_TITLE" desc="Title for BWG settings dialog [Length: 29em] [iOS only]">
+        Gemini in Chrome
+      </message>
       <message name="IDS_IOS_CALENDARS_USAGE_DESCRIPTION" desc="Specifies the reason for accessing the user's calendar while the app is in use [Length: unlimited] [iOS only].">
         This will be used to create events in your Apple Calendar from Chrome and Google Lens.
       </message>
@@ -273,14 +276,8 @@
     <message name="IDS_IOS_CONTEXTUAL_PANEL_BRANDING_TITLE" desc="Branded title on the Contextual Panel screen. The string is lowercase on purpose.">
         chrome
       </message>
-      <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_INITIAL_SUBTITLE" desc="Subtitle text of the inital step view of Credential Provider Exention promo. [iOS only]">
-        To easily get your saved passwords in your other apps, use Chrome for AutoFill
-      </message>
       <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_INSTRUCTIONS_SUBTITLE" desc="Subitle text of the instructions page on how to set up Chrome as the Credential Provider. [iOS only]">
         From "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM">$1<ex>Password Options</ex></ph>" settings, toggle "Chrome" on
-      </message>
-      <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_LEARN_MORE_SUBTITLE_WITH_PH" desc="Title text of the 'Learn More' step Credential Provider Exention promo. [iOS only]">
-        From your device's settings, open "<ph name="TEXT_OF_THE_SETTINGS_MENU_ITEM">$1<ex>Password options</ex></ph>" and select "Chrome"
       </message>
       <message name="IDS_IOS_CREDENTIAL_PROVIDER_PROMO_LEARN_MORE_TITLE" desc="Title text of the 'Learn More' step Credential Provider Exention promo. [iOS only]">
         Choose Chrome for AutoFill
@@ -964,15 +961,6 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_IOS_SCANNER_MULTIPLE_FOREGROUND_APPS_ALERT_DETAIL" desc="Body of a modal dialog shown when the user tries to open the QR scanner in a Split View mode, when the camera is unavailable. [Length: 140em] [iOS only]">
         Google Chrome can't use your camera in Split View mode
       </message>
-      <message name="IDS_IOS_SEGMENTED_DEFAULT_BROWSER_SCREEN_SHOPPER_SUBTITLE" desc="Subtitle for Default Browser promo shown on Set Up List item tap to users identified as Shopping feature users.">
-        Set Chrome as your default browser to easily track prices and get price insights for things you want to buy.
-      </message>
-      <message name="IDS_IOS_SEGMENTED_DEFAULT_BROWSER_SCREEN_SHOPPER_TITLE" desc="Title for Default Browser promo shown on Set Up List item tap to users identified as Shopping feature users.">
-        Get the power of Chrome Shopping
-      </message>
-      <message name="IDS_IOS_SEGMENTED_DEFAULT_BROWSER_VIDEO_PROMO_SHOPPER_TITLE" desc="Title for the segmented generic default browser promo view, shown to users identified as Shoppers.">
-        Use Chrome by default to easily get price insights
-      </message>
       <message name="IDS_IOS_SETTINGS_ADD_PASSWORD_FOOTER" desc="Disclaimer telling users what will happen to their passwords">
         Your password will be saved in your Google Account (<ph name="EMAIL">$1<ex>example@gmail.com</ex></ph>).
       </message>
@@ -982,17 +970,8 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_IOS_SETTINGS_IN_OVERFLOW_MENU_IPH_TEXT" desc="An in product help message to inform the user that they can find Settings in the overflow menu.">
         You can find Chrome settings and more here
       </message>
-      <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_SHORTENED_STEP_2" desc="Text of the row indicating the second step of shortened instruction of turning on iOS auto-fill from Chrome password manager [iOS only]">
-        Select Chrome
-      </message>
       <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_STEP_4" desc="Text of the row indicating the fourth step of full instruction of of turning on iOS auto-fill from Chrome password manager [iOS only]">
         4. Select Chrome
-      </message>
-      <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_SUBTITLE_IPAD" desc="The subtitle of the view that teaches users to turn on iOS auto-fill from Chrome password manager for iPad [iPadOS only]">
-        You can use the passwords you saved to Google Password Manager in other apps on your iPad.
-      </message>
-      <message name="IDS_IOS_SETTINGS_PASSWORDS_IN_OTHER_APPS_SUBTITLE_IPHONE" desc="The subtitle of the view that teaches users to turn on iOS auto-fill from Chrome password manager for iPhone [iOS only]">
-        You can use the passwords you saved to Google Password Manager in other apps on your iPhone.
       </message>
       <message name="IDS_IOS_SETTINGS_PASSWORDS_PASSKEYS_IN_OTHER_APPS_SHORTENED_STEP_2" desc="Text of the row indicating the second step of shortened instruction of turning on iOS AutoFill from Chrome password manager [iOS only]">
         Toggle Chrome

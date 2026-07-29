@@ -14,10 +14,12 @@
 #include "chrome/browser/extensions/extension_action_runner.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_tab_util.h"
+#include "chrome/browser/extensions/extension_ui_util.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/browser/ui/views/extensions/extension_view_utils.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_button.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_unittest.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/browser/test_extension_registry_observer.h"
@@ -37,30 +39,7 @@ using PermissionsManager = extensions::PermissionsManager;
 
 // TODO(crbug.com/40916158): Same as permission's ChipController. Pull out to a
 // shared location.
-base::TimeDelta kConfirmationDisplayDuration = base::Seconds(4);
-
-// A scoper that manages a Browser instance created by BrowserWithTestWindowTest
-// beyond the default instance it creates in SetUp.
-class AdditionalBrowser {
- public:
-  explicit AdditionalBrowser(std::unique_ptr<Browser> browser)
-      : browser_(std::move(browser)),
-        browser_view_(BrowserView::GetBrowserViewForBrowser(browser_.get())) {}
-
-  ~AdditionalBrowser() {
-    // Tear down `browser_`, similar to TestWithBrowserView::TearDown.
-    browser_.release();
-    browser_view_->GetWidget()->CloseNow();
-  }
-
-  ExtensionsToolbarContainer* extensions_container() {
-    return browser_view_->toolbar()->extensions_container();
-  }
-
- private:
-  std::unique_ptr<Browser> browser_;
-  raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
-};
+constexpr base::TimeDelta kConfirmationDisplayDuration = base::Seconds(4);
 
 }  // namespace
 
@@ -296,15 +275,19 @@ TEST_F(ExtensionsToolbarContainerUnitTest, ReloadExtensionFailed) {
 TEST_F(ExtensionsToolbarContainerUnitTest,
        PinnedExtensionAppearsInAnotherWindow) {
   const std::string& extension_id = InstallExtension("Extension")->id();
+  const auto is_action_visible_on_toolbar = [&extension_id](Browser* browser) {
+    return browser->GetBrowserView()
+        .toolbar()
+        ->extensions_container()
+        ->IsActionVisibleOnToolbar(extension_id);
+  };
 
-  AdditionalBrowser browser2(
-      CreateBrowser(browser()->profile(), browser()->type(),
-                    /* hosted_app */ false, /* browser_window */ nullptr));
+  Browser* browser2 =
+      CreateBrowserWithBrowserView(browser()->profile(), browser()->type());
 
   // Verify extension is unpinned in both windows.
-  EXPECT_FALSE(extensions_container()->IsActionVisibleOnToolbar(extension_id));
-  EXPECT_FALSE(
-      browser2.extensions_container()->IsActionVisibleOnToolbar(extension_id));
+  EXPECT_FALSE(is_action_visible_on_toolbar(browser()));
+  EXPECT_FALSE(is_action_visible_on_toolbar(browser2));
 
   // Pin extension in one window.
   auto* toolbar_model = ToolbarActionsModel::Get(profile());
@@ -312,17 +295,14 @@ TEST_F(ExtensionsToolbarContainerUnitTest,
   toolbar_model->SetActionVisibility(extension_id, true);
 
   // Both windows open get the pinned extension.
-  EXPECT_TRUE(extensions_container()->IsActionVisibleOnToolbar(extension_id));
-  EXPECT_TRUE(
-      browser2.extensions_container()->IsActionVisibleOnToolbar(extension_id));
+  EXPECT_TRUE(is_action_visible_on_toolbar(browser()));
+  EXPECT_TRUE(is_action_visible_on_toolbar(browser2));
 
-  AdditionalBrowser browser3(
-      CreateBrowser(browser()->profile(), browser()->type(),
-                    /* hosted_app */ false, /* browser_window */ nullptr));
+  Browser* browser3 =
+      CreateBrowserWithBrowserView(browser()->profile(), browser()->type());
 
   // Brand-new window also gets the pinned extension.
-  EXPECT_TRUE(
-      browser3.extensions_container()->IsActionVisibleOnToolbar(extension_id));
+  EXPECT_TRUE(is_action_visible_on_toolbar(browser3));
 }
 
 TEST_F(ExtensionsToolbarContainerUnitTest,
@@ -768,7 +748,8 @@ TEST_F(ExtensionsToolbarContainerUnitTest, RequestAccessButton_TooltipText) {
   EXPECT_THAT(request_access_button()->GetExtensionIdsForTesting(),
               testing::ElementsAre(extension_A->id(), extension_B->id()));
 
-  std::u16string current_site = GetCurrentHost(web_contents);
+  std::u16string current_site =
+      extensions::ui_util::GetFormattedHostForDisplay(*web_contents);
   std::u16string expected_tooltip =
       l10n_util::GetStringFUTF16(
           IDS_EXTENSIONS_REQUEST_ACCESS_BUTTON_TOOLTIP_MULTIPLE_EXTENSIONS,

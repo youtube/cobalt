@@ -75,10 +75,6 @@ static_library("test_support") {
   sources = [
     "command_buffer/client/client_test_helper.cc",
     "command_buffer/client/client_test_helper.h",
-    "command_buffer/client/fake_gpu_memory_buffer.cc",
-    "command_buffer/client/fake_gpu_memory_buffer.h",
-    "command_buffer/client/test_gpu_memory_buffer_manager.cc",
-    "command_buffer/client/test_gpu_memory_buffer_manager.h",
     "command_buffer/client/test_shared_image_interface.cc",
     "command_buffer/client/test_shared_image_interface.h",
     "command_buffer/client/webgpu_interface_stub.cc",
@@ -254,7 +250,6 @@ test("gl_tests") {
     "command_buffer/tests/gl_readback_unittest.cc",
     "command_buffer/tests/gl_request_extension_unittest.cc",
     "command_buffer/tests/gl_set_aggressively_free_resources_unittest.cc",
-    "command_buffer/tests/gl_shared_resources_unittest.cc",
     "command_buffer/tests/gl_stream_draw_unittest.cc",
     "command_buffer/tests/gl_test_setup_helper.cc",
     "command_buffer/tests/gl_test_setup_helper.h",
@@ -273,10 +268,6 @@ test("gl_tests") {
     "ipc/client/gpu_in_process_context_tests.cc",
     "ipc/client/raster_in_process_context_tests.cc",
   ]
-
-  if (is_android) {
-    sources += [ "command_buffer/tests/gl_unittests_android.cc" ]
-  }
 
   # Simply loading the Vulkan driver leaks crbug.com/1134681
   if (use_dawn && !is_lsan) {
@@ -582,7 +573,6 @@ test("gpu_unittests") {
     sources += [
       "command_buffer/service/gles2_cmd_decoder_passthrough_unittest_buffers.cc",
       "command_buffer/service/gles2_cmd_decoder_passthrough_unittest_commands.cc",
-      "command_buffer/service/gles2_cmd_decoder_passthrough_unittest_discardable_textures.cc",
       "command_buffer/service/gles2_cmd_decoder_passthrough_unittest_drawing.cc",
       "command_buffer/service/gles2_cmd_decoder_passthrough_unittest_framebuffers.cc",
       "command_buffer/service/gles2_cmd_decoder_passthrough_unittest_textures.cc",

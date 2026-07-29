@@ -36,6 +36,7 @@ class CONTENT_EXPORT TracesInternalsHandler
   // trace_report::mojom::TracesInternalsHandler:
   // Get all the trace report currently stored locally
   void StartTraceSession(mojo_base::BigBuffer config_pb,
+                         bool enable_privacy_filters,
                          StartTraceSessionCallback callback) override;
   void CloneTraceSession(CloneTraceSessionCallback callback) override;
   void StopTraceSession(StopTraceSessionCallback callback) override;
@@ -92,7 +93,8 @@ class CONTENT_EXPORT TracesInternalsHandler
   void OnTracingError(perfetto::TracingError error);
   void OnTracingStop();
   void OnTracingStart();
-  void OnTraceComplete(std::optional<mojo_base::BigBuffer>);
+  void OnTraceComplete(std::optional<mojo_base::BigBuffer>,
+                       const std::optional<base::Token>&);
   void OnBufferUsage(bool success, float percent_full, bool data_loss);
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
@@ -105,6 +107,7 @@ class CONTENT_EXPORT TracesInternalsHandler
   const raw_ptr<TracingDelegate> tracing_delegate_;
 
   base::UnguessableToken session_unguessable_name_;
+  base::Token session_id_;
   std::unique_ptr<perfetto::TracingSession> tracing_session_;
   StartTraceSessionCallback start_callback_;
   StopTraceSessionCallback stop_callback_;

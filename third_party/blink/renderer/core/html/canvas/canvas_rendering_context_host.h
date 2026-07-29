@@ -62,7 +62,6 @@ class CORE_EXPORT CanvasRenderingContextHost
   virtual void DidDraw(const SkIRect& rect) = 0;
   void DidDraw() { DidDraw(SkIRect::MakeWH(width(), height())); }
 
-  virtual void PreFinalizeFrame() = 0;
   virtual void PostFinalizeFrame(FlushReason) = 0;
   virtual bool PushFrame(scoped_refptr<CanvasResource>&& frame,
                          const SkIRect& damage_rect) = 0;
@@ -145,21 +144,13 @@ class CORE_EXPORT CanvasRenderingContextHost
   // ImageBitmapSource implementation
   ImageBitmapSourceStatus CheckUsability() const override;
 
-  virtual CanvasResourceProvider* GetResourceProviderForCanvas2D() const = 0;
-
   gfx::Size Size() const { return size_; }
   virtual void SetSize(gfx::Size size) { size_ = size; }
 
   bool ShouldTryToUseGpuRaster() const;
   void SetPreferred2DRasterMode(RasterModeHint);
 
-  virtual std::unique_ptr<CanvasResourceProvider>
-      ReplaceResourceProviderForCanvas2D(
-          std::unique_ptr<CanvasResourceProvider>) = 0;
-
   virtual void DiscardResources() = 0;
-
-  void FlushRecordingForCanvas2D(FlushReason reason);
 
  protected:
   ~CanvasRenderingContextHost() override = default;

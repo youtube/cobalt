@@ -10,6 +10,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -59,6 +60,10 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.MERCHANT_NAME;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.NON_TRANSFORMING_LOYALTY_CARD_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.ON_LOYALTY_CARD_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_CLOSED_DESCRIPTION_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_CONTENT_DESCRIPTION_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_FULL_HEIGHT_DESCRIPTION_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_HALF_HEIGHT_DESCRIPTION_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.ALL_LOYALTY_CARDS_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
@@ -73,7 +78,6 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.IdRes;
 import androidx.annotation.StringRes;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.MediumTest;
@@ -349,6 +353,10 @@ public class TouchToFillPaymentMethodViewTest {
                                     .with(SHEET_ITEMS, new ModelList())
                                     .with(BACK_PRESS_HANDLER, mBackPressHandler)
                                     .with(DISMISS_HANDLER, mDismissCallback)
+                                    .with(SHEET_CONTENT_DESCRIPTION_ID, R.string.ok)
+                                    .with(SHEET_HALF_HEIGHT_DESCRIPTION_ID, R.string.ok)
+                                    .with(SHEET_FULL_HEIGHT_DESCRIPTION_ID, R.string.ok)
+                                    .with(SHEET_CLOSED_DESCRIPTION_ID, R.string.ok)
                                     .build();
                     mTouchToFillPaymentMethodView =
                             new TouchToFillPaymentMethodView(
@@ -1126,6 +1134,7 @@ public class TouchToFillPaymentMethodViewTest {
         assertThat(
                 allLoyaltyCardsScreenTitle.getText().toString(),
                 is(getString(R.string.autofill_bottom_sheet_all_loyalty_cards_screen_title)));
+        assertTrue(allLoyaltyCardsScreenTitle.isFocusable());
 
         // Verify that 1 loyalty card is displayed.
         RecyclerView allLoyaltyCardsContainer =
@@ -1149,6 +1158,45 @@ public class TouchToFillPaymentMethodViewTest {
         onView(withId(R.id.all_loyalty_cards_back_image_button))
                 .perform(createClickActionWithFlags(MotionEvent.FLAG_WINDOW_IS_OBSCURED));
         waitForEvent(mBackPressHandler).run();
+    }
+
+    /**
+     * Verifies that the bottom sheet doesn't crash when it contains a lot of items, see
+     * crrbug.com/429676830.
+     */
+    @Test
+    @MediumTest
+    public void testAllLoyaltyCardsScreenWithManyLoyaltyCards() {
+        final int loyaltyCardNumber = 25;
+        Runnable actionCallback = mock(Runnable.class);
+        runOnUiThreadBlocking(
+                () -> {
+                    ModelList allLoyaltyCards = new ModelList();
+                    // Simulate the user having 25 loyalty cards.
+                    for (int i = 0; i < loyaltyCardNumber; i++) {
+                        allLoyaltyCards.add(
+                                new ListItem(
+                                        LOYALTY_CARD,
+                                        createLoyaltyCardModel(CVS_LOYALTY_CARD, actionCallback)));
+                    }
+                    mTouchToFillPaymentMethodModel.set(CURRENT_SCREEN, ALL_LOYALTY_CARDS_SCREEN);
+                    mTouchToFillPaymentMethodModel.set(SHEET_ITEMS, allLoyaltyCards);
+                    mTouchToFillPaymentMethodModel.set(VISIBLE, true);
+                });
+        BottomSheetTestSupport.waitForOpen(mBottomSheetController);
+
+        ViewGroup allLoyaltyCardsScreen =
+                mTouchToFillPaymentMethodView
+                        .getContentView()
+                        .findViewById(R.id.touch_to_fill_payment_method_all_loyalty_cards_screen);
+        assertNotNull(allLoyaltyCardsScreen);
+
+        RecyclerView allLoyaltyCardsContainer =
+                allLoyaltyCardsScreen.findViewById(R.id.touch_to_fill_all_loyalty_cards_list);
+        // Verify that 25 loyalty card are added to the list.
+        assertThat(allLoyaltyCardsContainer.getAdapter().getItemCount(), is(loyaltyCardNumber));
+        // Verify that less than 25 loyalty cards are displayed.
+        assertThat(allLoyaltyCardsContainer.getChildCount(), lessThan(loyaltyCardNumber));
     }
 
     private RecyclerView getCreditCardSuggestions() {
@@ -1183,7 +1231,7 @@ public class TouchToFillPaymentMethodViewTest {
         return mBottomSheetController.getSheetState();
     }
 
-    private String getString(@IdRes int id) {
+    private String getString(@StringRes int id) {
         return mActivityTestRule.getActivity().getString(id);
     }
 

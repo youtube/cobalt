@@ -61,6 +61,11 @@ base::FilePath HeadlessProtocolBrowserTest::GetScriptPath() {
       .AppendASCII(GetScriptName());
 }
 
+base::FilePath HeadlessProtocolBrowserTest::GetTestExpectationFilePath() {
+  return headless::GetTestExpectationFilePath(GetScriptPath(), test_meta_info_,
+                                              HeadlessType::kHeadlessShell);
+}
+
 bool HeadlessProtocolBrowserTest::IsSharedTestScript() {
   return headless::IsSharedTestScript(GetScriptName());
 }
@@ -191,7 +196,7 @@ void HeadlessProtocolBrowserTest::OnEvaluateResult(base::Value::Dict params) {
 void HeadlessProtocolBrowserTest::ProcessTestResult(
     const std::string& test_result) {
   base::ScopedAllowBlockingForTesting allow_blocking;
-  base::FilePath expectation_path = GetTestExpectationFilePath(GetScriptPath());
+  base::FilePath expectation_path = GetTestExpectationFilePath();
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kResetResults)) {
@@ -366,16 +371,24 @@ HEADLESS_PROTOCOL_TEST(ShowFilePickerInterception,
 
 // The `change-window-*.js` tests cover DevTools methods, while `window-*.js`
 // cover `window.*` JS APIs.
-HEADLESS_PROTOCOL_TEST(ChangeWindowSize, "sanity/change-window-size.js")
-HEADLESS_PROTOCOL_TEST(ChangeWindowState, "sanity/change-window-state.js")
-HEADLESS_PROTOCOL_TEST(HiddenTargetCreate, "sanity/hidden-target-create.js")
-HEADLESS_PROTOCOL_TEST(HiddenTargetClose, "sanity/hidden-target-close.js")
-HEADLESS_PROTOCOL_TEST(HiddenTargetCreateInvalidParams,
-                       "sanity/hidden-target-create-invalid-params.js")
-HEADLESS_PROTOCOL_TEST(HiddenTargetPageEnable,
-                       "sanity/hidden-target-page-enable.js")
-HEADLESS_PROTOCOL_TEST(WindowOuterSize, "sanity/window-outer-size.js")
+HEADLESS_PROTOCOL_TEST(ChangeWindowSize, "shared/change-window-size.js")
+HEADLESS_PROTOCOL_TEST(ChangeWindowState, "shared/change-window-state.js")
+
+HEADLESS_PROTOCOL_TEST(WindowOuterSize, "shared/window-outer-size.js")
+HEADLESS_PROTOCOL_TEST(WindowInnerSize, "shared/window-inner-size.js")
+HEADLESS_PROTOCOL_TEST(WindowInnerSizeScaled,
+                       "shared/window-inner-size-scaled.js")
+
+// This is not shared because Chrome Headless Mode window.resizeTo() only works
+// under certain conditions which are note currently satisfied by the test.
 HEADLESS_PROTOCOL_TEST(WindowResizeTo, "sanity/window-resize-to.js")
+
+HEADLESS_PROTOCOL_TEST(HiddenTargetCreate, "shared/hidden-target-create.js")
+HEADLESS_PROTOCOL_TEST(HiddenTargetClose, "shared/hidden-target-close.js")
+HEADLESS_PROTOCOL_TEST(HiddenTargetCreateInvalidParams,
+                       "shared/hidden-target-create-invalid-params.js")
+HEADLESS_PROTOCOL_TEST(HiddenTargetPageEnable,
+                       "shared/hidden-target-page-enable.js")
 
 // https://crbug.com/378531862
 #if BUILDFLAG(IS_MAC)
@@ -391,8 +404,8 @@ HEADLESS_PROTOCOL_TEST(WindowSizeOnStart, "sanity/window-size-on-start.js")
 HEADLESS_PROTOCOL_TEST(LargeBrowserWindowSize,
                        "shared/large-browser-window-size.js")
 
-HEADLESS_PROTOCOL_TEST(ScreencastBasics, "sanity/screencast-basics.js")
-HEADLESS_PROTOCOL_TEST(ScreencastViewport, "sanity/screencast-viewport.js")
+HEADLESS_PROTOCOL_TEST(ScreencastBasics, "shared/screencast-basics.js")
+HEADLESS_PROTOCOL_TEST(ScreencastViewport, "shared/screencast-viewport.js")
 
 HEADLESS_PROTOCOL_TEST(GrantPermissions, "sanity/grant_permissions.js")
 
@@ -591,14 +604,8 @@ HEADLESS_PROTOCOL_TEST(MAYBE_IOCommandAfterInput,
 
 HEADLESS_PROTOCOL_TEST(PrintToPdfTinyPage, "shared/print-to-pdf-tiny-page.js")
 
-HEADLESS_PROTOCOL_TEST(ScreenScaleFactor, "sanity/screen-scale-factor.js")
-
-HEADLESS_PROTOCOL_TEST(ScreenWorkArea, "sanity/screen-work-area.js")
-
-HEADLESS_PROTOCOL_TEST(ScreenSizeOrientation,
-                       "sanity/screen-size-orientation.js")
-
-HEADLESS_PROTOCOL_TEST(ScreenRotationAngle, "sanity/screen-rotation-angle.js")
+HEADLESS_PROTOCOL_TEST(ScreenDetailsRotationAngle,
+                       "shared/screen-details-rotation-angle.js")
 
 HEADLESS_PROTOCOL_TEST(ScreenOrientationLockNaturalLandscape,
                        "sanity/screen-orientation-lock-natural-landscape.js")
@@ -607,10 +614,16 @@ HEADLESS_PROTOCOL_TEST(ScreenOrientationLockNaturalPortrait,
                        "sanity/screen-orientation-lock-natural-portrait.js")
 
 HEADLESS_PROTOCOL_TEST(ScreenDetailsMultipleScreens,
-                       "sanity/screen-details-multiple-screens.js")
+                       "shared/screen-details-multiple-screens.js")
 
-HEADLESS_PROTOCOL_TEST(ScreenDetailsPixelRatioAndColorDepth,
-                       "sanity/screen-details-pixel-ratio-and-color-depth.js")
+HEADLESS_PROTOCOL_TEST(ScreenDetailsPixelRatio,
+                       "shared/screen-details-pixel-ratio.js")
+
+HEADLESS_PROTOCOL_TEST(ScreenDetailsColorDepth,
+                       "shared/screen-details-color-depth.js")
+
+HEADLESS_PROTOCOL_TEST(ScreenDetailsWorkArea,
+                       "shared/screen-details-work-area.js")
 
 HEADLESS_PROTOCOL_TEST(RequestFullscreen, "shared/request-fullscreen.js")
 
@@ -632,7 +645,7 @@ HEADLESS_PROTOCOL_TEST(MaximizedWindowSize, "shared/maximized-window-size.js")
 HEADLESS_PROTOCOL_TEST(FullscreenWindowSize, "shared/fullscreen-window-size.js")
 
 HEADLESS_PROTOCOL_TEST(WindowOpenOnSecondaryScreen,
-                       "sanity/window-open-on-secondary-screen.js")
+                       "shared/window-open-on-secondary-screen.js")
 
 HEADLESS_PROTOCOL_TEST(ScreenRotationSecondaryScreen,
                        "sanity/screen-rotation-secondary-screen.js")
@@ -655,23 +668,29 @@ HEADLESS_PROTOCOL_TEST(MultipleScreenDetails,
                        "shared/multiple-screen-details.js")
 
 HEADLESS_PROTOCOL_TEST(WindowOpenPopupPlacement,
-                       "sanity/window-open-popup-placement.js")
+                       "shared/window-open-popup-placement.js")
 
 HEADLESS_PROTOCOL_TEST(WindowSizeSwitchHandling,
-                       "sanity/window-size-switch-handling.js")
+                       "shared/window-size-switch-handling.js")
 
 HEADLESS_PROTOCOL_TEST(WindowSizeSwitchLargerThanScreen,
-                       "sanity/window-size-switch-larger-than-screen.js")
+                       "shared/window-size-switch-larger-than-screen.js")
 
 HEADLESS_PROTOCOL_TEST(WindowScreenAvail, "shared/window-screen-avail.js")
 
 HEADLESS_PROTOCOL_TEST(WindowStateTransitions,
-                       "sanity/window-state-transitions.js")
+                       "shared/window-state-transitions.js")
 
 HEADLESS_PROTOCOL_TEST(WindowZoomOnSecondaryScreen,
-                       "sanity/window-zoom-on-secondary-screen.js")
+                       "shared/window-zoom-on-secondary-screen.js")
 
 HEADLESS_PROTOCOL_TEST(WindowZoomSizeMatchesWorkArea,
-                       "sanity/window-zoom-size-matches-work-area.js")
+                       "shared/window-zoom-size-matches-work-area.js")
+
+HEADLESS_PROTOCOL_TEST(WindowScreenScaleFactor,
+                       "shared/window-screen-scale-factor.js")
+
+HEADLESS_PROTOCOL_TEST(WindowScreenSizeOrientation,
+                       "shared/window-screen-size-orientation.js")
 
 }  // namespace headless

@@ -84,16 +84,8 @@ import java.util.List;
 /** Unit tests for {@link TabGroupContextMenuCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @EnableFeatures({ChromeFeatureList.DATA_SHARING})
-// TODO(crbug.com/419289558): Re-enable color surface feature flags
-@DisableFeatures({
-    ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
-    ChromeFeatureList.GRID_TAB_SWITCHER_UPDATE,
-    ChromeFeatureList.ANDROID_THEME_MODULE
-})
 public class TabGroupContextMenuCoordinatorUnitTest {
     private static final int TAB_ID = 1;
-    private static final int ROOT_ID = TAB_ID;
     private static final Token TAB_GROUP_ID = new Token(3L, 4L);
     private static final String COLLABORATION_ID = "CollaborationId";
 
@@ -137,6 +129,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
 
         Activity activity = Robolectric.buildActivity(Activity.class).setup().get();
+        activity.setTheme(R.style.Theme_Chromium_Activity);
         LayoutInflater inflater = LayoutInflater.from(activity);
         mMenuView = inflater.inflate(R.layout.tab_strip_group_menu_layout, null);
         when(mWindowAndroid.getKeyboardDelegate()).thenReturn(mKeyboardVisibilityDelegate);
@@ -167,7 +160,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
                         mDataSharingTabManager);
 
         // Set group ids manually to bypass showMenu() call.
-        mTabGroupContextMenuCoordinator.setGroupDataForTesting(ROOT_ID, TAB_GROUP_ID);
+        mTabGroupContextMenuCoordinator.setGroupDataForTesting(TAB_GROUP_ID);
     }
 
     @Test
@@ -517,7 +510,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         keyboardVisibilityListener.keyboardVisibilityChanged(false);
 
         // Verify the group title is updated.
-        verify(mTabGroupModelFilter).setTabGroupTitle(TAB_ID, newTitle);
+        verify(mTabGroupModelFilter).setTabGroupTitle(eq(TAB_GROUP_ID), eq(newTitle));
 
         // Remove the custom title set by the user by clearing the edit box.
         newTitle = "";
@@ -525,13 +518,12 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         keyboardVisibilityListener.keyboardVisibilityChanged(false);
 
         // Verify the previous title is deleted and is default to "N tabs"
-        verify(mTabGroupModelFilter).deleteTabGroupTitle(TAB_ID);
+        verify(mTabGroupModelFilter).deleteTabGroupTitle(TAB_GROUP_ID);
         assertEquals("1 tab", groupTitleEditText.getText().toString());
     }
 
     private List<Tab> setUpTabGroupModelFilter() {
         Tab tab = mTabModel.addTab(TAB_ID);
-        tab.setRootId(ROOT_ID);
         tab.setTabGroupId(TAB_GROUP_ID);
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mTabModel);
         when(mTabGroupModelFilter.getTabUngrouper()).thenReturn(mTabUngrouper);

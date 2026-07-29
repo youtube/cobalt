@@ -52,7 +52,6 @@
 #include "net/base/network_isolation_key.h"
 #include "net/http/http_request_headers.h"
 #include "net/url_request/redirect_util.h"
-#include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/network/public/cpp/client_hints.h"
@@ -533,7 +532,7 @@ PrefetchContainer::~PrefetchContainer() {
 
   MaybeRecordPrefetchStatusToUMA(
       prefetch_status_.value_or(PrefetchStatus::kPrefetchNotStarted));
-  RecordDurationFromAdded();
+  RecordPrefetchDurationHistogram();
 
   ukm::builders::PrefetchProxy_PrefetchedResource builder(ukm_source_id_);
   builder.SetResourceType(/*mainframe*/ 1);
@@ -541,13 +540,9 @@ PrefetchContainer::~PrefetchContainer() {
       prefetch_status_.value_or(PrefetchStatus::kPrefetchNotStarted)));
   builder.SetLinkClicked(navigated_to_);
 
-  if (prefetch_response_sizes_) {
-    builder.SetDataLength(ukm::GetExponentialBucketMinForBytes(
-        prefetch_response_sizes_->encoded_data_length));
-  }
-
-  if (fetch_duration_) {
-    builder.SetFetchDurationMS(fetch_duration_->InMilliseconds());
+  if (GetNonRedirectResponseReader()) {
+    GetNonRedirectResponseReader()->RecordOnPrefetchContainerDestroyed(
+        base::PassKey<PrefetchContainer>(), builder);
   }
 
   if (probe_result_) {
@@ -1326,7 +1321,7 @@ void PrefetchContainer::SetPrefetchResponseCompletedCallbackForTesting(
       std::move(callback);
 }
 
-void PrefetchContainer::OnPrefetchComplete(
+void PrefetchContainer::OnPrefetchCompleteInternal(
     const network::URLLoaderCompletionStatus& completion_status) {
   DVLOG(1) << *this << "::OnPrefetchComplete";
 
@@ -1335,7 +1330,6 @@ void PrefetchContainer::OnPrefetchComplete(
 
   if (GetNonRedirectResponseReader()) {
     UpdatePrefetchRequestMetrics(
-        GetNonRedirectResponseReader()->GetCompletionStatus(),
         GetNonRedirectResponseReader()->GetHead());
     UpdateServingPageMetrics();
   } else {
@@ -1402,14 +1396,21 @@ void PrefetchContainer::OnPrefetchComplete(
         break;
     }
   }
+}
+
+void PrefetchContainer::OnPrefetchComplete(
+    const network::URLLoaderCompletionStatus& completion_status) {
+  OnPrefetchCompleteInternal(completion_status);
 
   std::optional<int> response_code = std::nullopt;
+  int net_error = completion_status.error_code;
   if (net_error == net::OK && GetNonRedirectHead() &&
       GetNonRedirectHead()->headers) {
     response_code = GetNonRedirectHead()->headers->response_code();
   }
   for (auto& observer : observers_) {
-    observer.OnPrefetchCompletedOrFailed(completion_status, response_code);
+    observer.OnPrefetchCompletedOrFailed(*this, completion_status,
+                                         response_code);
   }
 
   if (GetPrefetchResponseCompletedCallbackForTesting()) {
@@ -1419,25 +1420,13 @@ void PrefetchContainer::OnPrefetchComplete(
 }
 
 void PrefetchContainer::UpdatePrefetchRequestMetrics(
-    const std::optional<network::URLLoaderCompletionStatus>& completion_status,
     const network::mojom::URLResponseHead* head) {
   DVLOG(1) << *this << "::UpdatePrefetchRequestMetrics:"
            << "head = " << head;
-  if (completion_status) {
-    prefetch_response_sizes_ = {
-        .encoded_data_length = completion_status->encoded_data_length,
-        .encoded_body_length = completion_status->encoded_body_length,
-        .decoded_body_length = completion_status->decoded_body_length,
-    };
-  }
 
   if (head)
     header_latency_ =
         head->load_timing.receive_headers_end - head->load_timing.request_start;
-
-  if (completion_status && head)
-    fetch_duration_ =
-        completion_status->completion_time - head->load_timing.request_start;
 }
 
 PrefetchContainer::ServableState PrefetchContainer::GetServableState(
@@ -2194,7 +2183,7 @@ void PrefetchContainer::OnServiceWorkerStateDetermined(
   }
 }
 
-void PrefetchContainer::RecordDurationFromAdded() {
+void PrefetchContainer::RecordPrefetchDurationHistogram() {
   if (!time_added_to_prefetch_service_.has_value()) {
     return;
   }
@@ -2224,6 +2213,14 @@ void PrefetchContainer::RecordDurationFromAdded() {
       }),
       time_prefetch_started_.value() - time_added_to_prefetch_service_.value());
 
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer.InitialEligibilityToPrefetchStarted.",
+          GetMetricsSuffixTriggerTypeAndEagerness(prefetch_type_,
+                                                  embedder_histogram_suffix_),
+      }),
+      time_prefetch_started_.value() - time_initial_eligibility_got_.value());
+
   if (!time_url_request_started_.has_value()) {
     return;
   }
@@ -2236,6 +2233,14 @@ void PrefetchContainer::RecordDurationFromAdded() {
                           }),
                           time_url_request_started_.value() -
                               time_added_to_prefetch_service_.value());
+
+  base::UmaHistogramTimes(
+      base::StrCat({
+          "Prefetch.PrefetchContainer.PrefetchStartedToURLRequestStarted.",
+          GetMetricsSuffixTriggerTypeAndEagerness(prefetch_type_,
+                                                  embedder_histogram_suffix_),
+      }),
+      time_url_request_started_.value() - time_prefetch_started_.value());
 
   if (!time_header_determined_successfully_.has_value()) {
     return;
@@ -2250,6 +2255,15 @@ void PrefetchContainer::RecordDurationFromAdded() {
                           time_header_determined_successfully_.value() -
                               time_added_to_prefetch_service_.value());
 
+  base::UmaHistogramTimes(base::StrCat({
+                              "Prefetch.PrefetchContainer."
+                              "PrefetchStartedToHeaderDeterminedSuccessfully.",
+                              GetMetricsSuffixTriggerTypeAndEagerness(
+                                  prefetch_type_, embedder_histogram_suffix_),
+                          }),
+                          time_header_determined_successfully_.value() -
+                              time_prefetch_started_.value());
+
   if (!time_prefetch_completed_successfully_.has_value()) {
     return;
   }
@@ -2262,6 +2276,15 @@ void PrefetchContainer::RecordDurationFromAdded() {
                           }),
                           time_prefetch_completed_successfully_.value() -
                               time_added_to_prefetch_service_.value());
+
+  base::UmaHistogramTimes(base::StrCat({
+                              "Prefetch.PrefetchContainer."
+                              "PrefetchStartedToPrefetchCompletedSuccessfully.",
+                              GetMetricsSuffixTriggerTypeAndEagerness(
+                                  prefetch_type_, embedder_histogram_suffix_),
+                          }),
+                          time_prefetch_completed_successfully_.value() -
+                              time_prefetch_started_.value());
 }
 
 void PrefetchContainer::RecordPrefetchMatchingBlockedNavigationHistogram(

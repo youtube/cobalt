@@ -1535,28 +1535,13 @@ TEST_F(ComputedStyleTest, ApplyInitialAnimationNameAndTransitionProperty) {
     EXPECT_FALSE(diff.HasDifference());                            \
   }
 
-// Ensures ref-counted values are compared by their values, not by pointers.
-#define TEST_STYLE_REFCOUNTED_VALUE_NO_DIFF(type, field_name)              \
-  {                                                                        \
-    ComputedStyleBuilder builder1 = CreateComputedStyleBuilder();          \
-    ComputedStyleBuilder builder2 = CreateComputedStyleBuilder();          \
-    scoped_refptr<type> value1 = base::MakeRefCounted<type>();             \
-    scoped_refptr<type> value2 = base::MakeRefCounted<type>(value1->data); \
-    builder1.Set##field_name(value1);                                      \
-    builder2.Set##field_name(value2);                                      \
-    const ComputedStyle* style1 = builder1.TakeStyle();                    \
-    const ComputedStyle* style2 = builder2.TakeStyle();                    \
-    auto diff = style1->VisualInvalidationDiff(document, *style2);         \
-    EXPECT_FALSE(diff.HasDifference());                                    \
-  }
-
 TEST_F(ComputedStyleTest, SvgStrokeStyleShouldCompareValue) {
   Document& document = GetDocument();
   TEST_STYLE_VALUE_NO_DIFF(StrokeOpacity);
   TEST_STYLE_VALUE_NO_DIFF(StrokeMiterLimit);
   TEST_STYLE_VALUE_NO_DIFF(StrokeWidth);
   TEST_STYLE_VALUE_NO_DIFF(StrokeDashOffset);
-  TEST_STYLE_REFCOUNTED_VALUE_NO_DIFF(SVGDashArray, StrokeDashArray);
+  TEST_STYLE_VALUE_NO_DIFF(StrokeDashArray);
 
   TEST_STYLE_VALUE_NO_DIFF(StrokePaint);
   TEST_STYLE_VALUE_NO_DIFF(InternalVisitedStrokePaint);
@@ -2145,33 +2130,6 @@ TEST_F(ComputedStyleTest, DynamicRangeLimitMixAllThree) {
   EXPECT_FLOAT_EQ(converted_limit.standard_mix, limit.standard_mix);
   EXPECT_FLOAT_EQ(converted_limit.constrained_high_mix,
                   limit.constrained_high_mix);
-}
-
-TEST_F(ComputedStyleTest, UseCountInsideListMarkerPositionQuirk) {
-  if (RuntimeEnabledFeatures::ListStylePositionQuirkStandardEnabled()) {
-    return;
-  }
-  Document& document = GetDocument();
-  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
-    <style>.marker-content-none::marker { content: none }</style>
-    <ul><li></li></ul>
-    <ol><li></li></ol>
-    <ul><div><li></li></ul>
-    <ol><li><li></li></li></ol>
-    <div style="display: list-item"></div>
-    <li style="list-style-position: inside"></li>
-    <li style="list-style: none"></li>
-    <li class="marker-content-none"></li>
-    <li style="display: flex"></li>
-  )HTML");
-  document.View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_FALSE(
-      document.IsUseCounted(WebFeature::kInsideListMarkerPositionQuirk));
-
-  document.body()->SetInnerHTMLWithoutTrustedTypes("<li></li>");
-  document.View()->UpdateAllLifecyclePhasesForTest();
-  EXPECT_TRUE(
-      document.IsUseCounted(WebFeature::kInsideListMarkerPositionQuirk));
 }
 
 TEST_F(ComputedStyleTest, ZoomInheritance) {

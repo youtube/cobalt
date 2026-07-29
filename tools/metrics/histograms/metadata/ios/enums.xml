@@ -280,7 +280,8 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Promo"/>
   <int value="1" label="Overflow Menu"/>
   <int value="2" label="AI Hub"/>
-  <int value="3" label="Omnibox Chip"/>
+  <int value="3" label="Omnibox Chip (Skipped AI Hub)"/>
+  <int value="4" label="Tab Reopen"/>
 </enum>
 
 <enum name="iOSCredentialIdentityStoreErrorForReporting">
@@ -478,31 +479,6 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Second method install failed"/>
   <int value="2" label="Unexpected paramters on dismiss"/>
   <int value="3" label="Unexpected object structure on dismiss"/>
-</enum>
-
-<enum name="IOSEditMenuPage">
-  <int value="0" label="Invalid"/>
-  <int value="1" label="1 out of 1"/>
-  <int value="2" label="1 out of 2"/>
-  <int value="3" label="2 out of 2"/>
-  <int value="4" label="1 out of 3"/>
-  <int value="5" label="2 out of 3"/>
-  <int value="6" label="3 out of 3"/>
-  <int value="7" label="1 out of 4"/>
-  <int value="8" label="2 out of 4"/>
-  <int value="9" label="3 out of 4"/>
-  <int value="10" label="4 out of 4"/>
-  <int value="11" label="1 out of N"/>
-  <int value="12" label="2 out of N"/>
-  <int value="13" label="3 out of N"/>
-  <int value="14" label="4 out of N"/>
-  <int value="15" label="5 out of N"/>
-  <int value="16" label="6 out of N"/>
-  <int value="17" label="7 out of N"/>
-  <int value="18" label="8 out of N"/>
-  <int value="19" label="9 out of N"/>
-  <int value="20" label="10 out of N"/>
-  <int value="21" label="More Than Ten"/>
 </enum>
 
 <enum name="IOSEnhancedSafeBrowseringInfobarInteraction">
@@ -770,6 +746,17 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Pull to Refresh"/>
   <int value="2" label="Close Tab"/>
 </enum>
+
+<!-- LINT.IfChange(IOSOmniboxAssistiveKey) -->
+
+<enum name="IOSOmniboxAssistiveKey">
+  <int value="0" label="Key :"/>
+  <int value="1" label="Key -"/>
+  <int value="2" label="Key /"/>
+  <int value="3" label="Key .com"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/omnibox/ui/keyboard_assist/omnibox_assistive_keyboard_utils.h:IOSOmniboxAssistiveKey) -->
 
 <!-- LINT.IfChange(IOSOmniboxCopyType) -->
 
@@ -1101,19 +1088,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Incognito Mode, Google Search engine"/>
   <int value="3" label="Incognito Mode, Other Search engine"/>
 </enum>
-
-<!-- LINT.IfChange(IOSSegmentedDefaultBrowserPromoAction) -->
-
-<enum name="IOSSegmentedDefaultBrowserPromoAction">
-  <int value="0" label="Static Promo Appeared"/>
-  <int value="1" label="Static Promo Accepted"/>
-  <int value="2" label="Static Promo Dismissed"/>
-  <int value="3" label="Animated Promo Appeared"/>
-  <int value="4" label="Animated Promo Accepted"/>
-  <int value="5" label="Animated Promo Dismissed"/>
-</enum>
-
-<!-- LINT.ThenChange(//ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/constants.h:SegmentedDefaultBrowserPromoAction) -->
 
 <enum name="IOSSessionMigration">
   <int value="0" label="No Migration"/>
@@ -1589,16 +1563,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:PushNotificationTargetProfileHandlingResult) -->
 
-<!-- LINT.IfChange(ReaderModeAmpClassification) -->
+<!-- LINT.IfChange(ReaderModeCustomizationType) -->
 
-<enum name="ReaderModeAmpClassification">
-  <int value="0" label="Empty distill with AMP"/>
-  <int value="1" label="Populated distill with AMP"/>
-  <int value="2" label="Empty distill no AMP"/>
-  <int value="3" label="Populated distill no AMP"/>
+<enum name="ReaderModeCustomizationType">
+  <int value="0" label="Font scale"/>
+  <int value="1" label="Font family"/>
+  <int value="2" label="Theme"/>
 </enum>
 
-<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeAmpClassification) -->
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeCustomizationType) -->
 
 <!-- LINT.IfChange(ReaderModeDistillerResult) -->
 
@@ -1608,6 +1581,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeDistillerResult) -->
+
+<!-- LINT.IfChange(ReaderModeFontFamily) -->
+
+<enum name="ReaderModeFontFamily">
+  <int value="0" label="Sans Serif"/>
+  <int value="1" label="Serif"/>
+  <int value="2" label="Monospace"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeFontFamily) -->
 
 <!-- LINT.IfChange(ReaderModeHeuristicClassification) -->
 
@@ -1632,6 +1615,29 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeHeuristicResult) -->
+
+<!-- LINT.IfChange(ReaderModeState) -->
+
+<enum name="ReaderModeState">
+  <int value="0" label="Heuristic Canceled"/>
+  <int value="1" label="Heuristic Started"/>
+  <int value="2" label="Heuristic Completed"/>
+  <int value="3" label="Distillation Started"/>
+  <int value="4" label="Distillation Completed"/>
+  <int value="5" label="Reader shown"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeState) -->
+
+<!-- LINT.IfChange(ReaderModeTheme) -->
+
+<enum name="ReaderModeTheme">
+  <int value="0" label="Light"/>
+  <int value="1" label="Dark"/>
+  <int value="2" label="Sepia"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeTheme) -->
 
 <enum name="TextSelectionDetectedEntityType">
   <int value="0" label="Unknown"/>

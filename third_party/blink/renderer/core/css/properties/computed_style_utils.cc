@@ -2044,6 +2044,9 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
   const bool is_for_columns = direction == kForColumns;
   const ComputedGridTrackList& computed_grid_track_list =
       is_for_columns ? style.GridTemplateColumns() : style.GridTemplateRows();
+  const bool is_masonry = style.IsDisplayMasonryBox();
+  // TODO(almaher): Update this in some way for Masonry (perhaps make
+  // LayoutMasonry a subclass of LayoutGrid).
   const auto* grid = DynamicTo<LayoutGrid>(layout_object);
 
   // Handle the 'none' case.
@@ -2081,7 +2084,14 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
 
   wtf_size_t auto_repeat_insertion_point =
       computed_grid_track_list.auto_repeat_insertion_point;
-  const GridTrackList& ng_track_list = computed_grid_track_list.track_list;
+  const GridTrackList& track_list = computed_grid_track_list.track_list;
+
+  // Treat repeat(auto-fill, auto) as none in Grid.
+  //
+  // TODO(almaher): Change this depending on if we allow this syntax in Grid.
+  if (!is_masonry && track_list.HasAutoSizedRepeater()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
 
   // "Note: In general, resolved values are the computed values, except for a
   // small list of legacy 2.1 properties. However, compatibility with early
@@ -2093,6 +2103,9 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
   // Default to the used value if it's a layout grid, unless
   // `force_computed_value` is set (which is used for `grid-template`). Non
   // layout-grids will always report the computed value.
+  //
+  // TODO(almaher): Consider if we should force repeat(auto-fill, auto) to the
+  // computed value instead of used value.
   if (grid && !force_computed_value) {
     // The number of auto repeat tracks. For 'repeat(auto-fill, [x][y])' this
     // will be 2, regardless of what auto-fill computes to. For subgrids, use
@@ -2100,7 +2113,7 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
     // standalone grids, this will be the number of track sizes, as this can
     // can differ from the count on the track definition.
     wtf_size_t auto_repeat_track_list_length =
-        ng_track_list.AutoRepeatTrackCount();
+        track_list.AutoRepeatTrackCount();
 
     // Standalone grids will report the track sizes in the computed style
     // string, so base the start and end indices on it.
@@ -2147,7 +2160,7 @@ CSSValue* ComputedStyleUtils::ValueForGridTrackList(
       computed_grid_track_list.ordered_named_grid_lines,
       computed_grid_track_list.auto_repeat_ordered_named_grid_lines,
       is_subgrid_specified, !!grid);
-  PopulateGridTrackListComputedValues(list, collector, ng_track_list, style);
+  PopulateGridTrackListComputedValues(list, collector, track_list, style);
   return list;
 }
 
@@ -2184,10 +2197,14 @@ CSSValue* ComputedStyleUtils::ValueForGridPosition(
 }
 
 CSSValue* ComputedStyleUtils::ValueForItemTolerance(
-    const std::optional<Length>& slack_length,
+    const ItemTolerance& item_tolerance,
     const ComputedStyle& style) {
-  return slack_length ? ZoomAdjustedPixelValueForLength(*slack_length, style)
-                      : CSSIdentifierValue::Create(CSSValueID::kNormal);
+  if (item_tolerance.IsNormal()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNormal);
+  } else if (item_tolerance.IsInfinite()) {
+    return CSSIdentifierValue::Create(CSSValueID::kInfinite);
+  }
+  return ZoomAdjustedPixelValueForLength(item_tolerance.GetLength(), style);
 }
 
 static bool IsSVGObjectWithWidthAndHeight(const LayoutObject& layout_object) {
@@ -2238,7 +2255,6 @@ CSSValue* ComputedStyleUtils::RenderTextDecorationFlagsToCSSValue(
       break;
   }
 
-  // Blink value is ignored.
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
   if (EnumHasFlags(text_decoration, TextDecorationLine::kUnderline)) {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kUnderline));
@@ -2248,6 +2264,11 @@ CSSValue* ComputedStyleUtils::RenderTextDecorationFlagsToCSSValue(
   }
   if (EnumHasFlags(text_decoration, TextDecorationLine::kLineThrough)) {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kLineThrough));
+  }
+  if (RuntimeEnabledFeatures::
+          CssTextDecorationLineBlinkSerializationEnabled() &&
+      EnumHasFlags(text_decoration, TextDecorationLine::kBlink)) {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlink));
   }
 
   if (!list->length()) {
@@ -3535,14 +3556,15 @@ CSSValueList* ComputedStyleUtils::ValueForBorderRadiusShorthand(
 }
 
 CSSValue* ComputedStyleUtils::StrokeDashArrayToCSSValueList(
-    const SVGDashArray& dashes,
+    const SVGDashArray* dashes,
     const ComputedStyle& style) {
-  if (dashes.data.empty()) {
+  if (!dashes) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
+  DCHECK(!dashes->empty());
 
   CSSValueList* list = CSSValueList::CreateCommaSeparated();
-  for (const Length& dash_length : dashes.data) {
+  for (const Length& dash_length : *dashes) {
     list->Append(*ZoomAdjustedPixelValueForLength(dash_length, style));
   }
 
@@ -4887,6 +4909,43 @@ CSSValue* ComputedStyleUtils::ValueForFitText(const ComputedStyle& style,
     list->Append(*ZoomAdjustedPixelValue(*size, style));
   }
   return list;
+}
+
+CSSValueList* ComputedStyleUtils::ValuesForMasonryShorthand(
+    const StylePropertyShorthand& shorthand,
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) {
+  const CSSValue* template_area_values =
+      shorthand.properties()[0]->CSSValueFromComputedStyle(
+          style, layout_object, allow_visited_style, value_phase);
+  DCHECK(template_area_values);
+  // Note: `shorthand.properties()[1]` is intentionally not used here because it
+  // always refers to `grid-template-columns`.
+  // Instead, we use `GetCSSPropertyGridTemplateColumns()` or
+  // `GetCSSPropertyGridTemplateRows()` depending on the `masonry-direction`,
+  // since `grid-template-rows` is not listed in the `masonry` shorthand
+  // property.
+  const CSSValue* masonry_direction_values =
+      shorthand.properties()[2]->CSSValueFromComputedStyle(
+          style, layout_object, allow_visited_style, value_phase);
+  DCHECK(masonry_direction_values);
+  const CSSValue* masonry_template_tracks_values =
+      CSSOMUtils::IsMasonryColumnDirectionValue(masonry_direction_values)
+          ? GetCSSPropertyGridTemplateColumns().CSSValueFromComputedStyle(
+                style, layout_object, allow_visited_style, value_phase)
+          : GetCSSPropertyGridTemplateRows().CSSValueFromComputedStyle(
+                style, layout_object, allow_visited_style, value_phase);
+  DCHECK(masonry_template_tracks_values);
+  const CSSValue* masonry_fill_values =
+      shorthand.properties()[3]->CSSValueFromComputedStyle(
+          style, layout_object, allow_visited_style, value_phase);
+  DCHECK(masonry_fill_values);
+
+  return CSSOMUtils::ComputedValueForMasonryShorthand(
+      masonry_template_tracks_values, template_area_values,
+      masonry_direction_values, masonry_fill_values);
 }
 
 }  // namespace blink

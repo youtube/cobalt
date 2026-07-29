@@ -204,7 +204,8 @@ bool D3D12VideoEncodeH265Delegate::ReportsAverageQp() const {
 bool D3D12VideoEncodeH265Delegate::UpdateRateControl(const Bitrate& bitrate,
                                                      uint32_t framerate) {
   if (software_rate_controller_) {
-    if (bitrate.mode() != Bitrate::Mode::kConstant) {
+    if (bitrate.mode() != Bitrate::Mode::kConstant &&
+        bitrate.mode() != Bitrate::Mode::kVariable) {
       return false;
     }
 
@@ -219,7 +220,9 @@ bool D3D12VideoEncodeH265Delegate::UpdateRateControl(const Bitrate& bitrate,
       layer_settings.avg_bitrate = bitrate.target_bps();
       // Bitrate::Mode::kConstant only has target_bps. Using the target_bps for
       // peak_bitrate.
-      layer_settings.peak_bitrate = bitrate.target_bps();
+      layer_settings.peak_bitrate = bitrate.mode() == Bitrate::Mode::kConstant
+                                        ? bitrate.target_bps()
+                                        : bitrate.peak_bps();
       layer_settings.frame_rate = framerate;
       software_rate_controller_.emplace(rate_controller_settings_);
     } else {
@@ -239,7 +242,8 @@ EncoderStatus::Or<BitstreamBufferMetadata>
 D3D12VideoEncodeH265Delegate::EncodeImpl(
     ID3D12Resource* input_frame,
     UINT input_frame_subresource,
-    const VideoEncoder::EncodeOptions& options) {
+    const VideoEncoder::EncodeOptions& options,
+    const gfx::ColorSpace& input_color_space) {
   // Filling the |input_arguments_| according to
   // https://github.com/microsoft/DirectX-Specs/blob/master/d3d/D3D12VideoEncoding.md#6120-struct-d3d12_video_encoder_input_arguments
 
@@ -272,6 +276,22 @@ D3D12VideoEncodeH265Delegate::EncodeImpl(
   if (is_keyframe) {
     H265VPS vps = ToVPS();
     H265SPS sps = ToSPS(vps);
+    // Values specified here equals to that in T-REC H.273 Table 3.
+    if (IsRec601(input_color_space)) {
+      sps.vui_parameters.colour_primaries = 6;          // SMPTE170M
+      sps.vui_parameters.transfer_characteristics = 6;  // SMPTE170M
+      sps.vui_parameters.matrix_coeffs = 6;             // SMPTE170M
+      sps.vui_parameters.colour_description_present_flag = true;
+      sps.vui_parameters_present_flag = true;
+    } else if (IsRec709(input_color_space)) {
+      sps.vui_parameters.colour_primaries = 1;          // BT709
+      sps.vui_parameters.transfer_characteristics = 1;  // BT709
+      sps.vui_parameters.matrix_coeffs = 1;             // BT709
+      sps.vui_parameters.colour_description_present_flag = true;
+      sps.vui_parameters_present_flag = true;
+    }
+    sps.vui_parameters.video_full_range_flag =
+        input_color_space.GetRangeID() == gfx::ColorSpace::RangeID::FULL;
     H265PPS pps = ToPPS(sps);
     packed_header_.Reset();
     BuildPackedH265VPS(packed_header_, vps);
@@ -383,7 +403,8 @@ EncoderStatus D3D12VideoEncodeH265Delegate::InitializeVideoEncoder(
   CHECK_EQ(VideoCodecProfileToVideoCodec(config.output_profile),
            VideoCodec::kHEVC);
 
-  if (config.bitrate.mode() == Bitrate::Mode::kConstant) {
+  if (config.bitrate.mode() == Bitrate::Mode::kConstant ||
+      config.bitrate.mode() == Bitrate::Mode::kVariable) {
     constexpr uint32_t kDefaultQp = 26;
     rate_control_ = D3D12VideoEncoderRateControl::CreateCqp(
         kDefaultQp, kDefaultQp, kDefaultQp);
@@ -399,7 +420,10 @@ EncoderStatus D3D12VideoEncodeH265Delegate::InitializeVideoEncoder(
     layer_settings.avg_bitrate = config.bitrate.target_bps();
     // Bitrate::Mode::kConstant only has target_bps. Using the target_bps for
     // peak_bitrate.
-    layer_settings.peak_bitrate = config.bitrate.target_bps();
+    layer_settings.peak_bitrate =
+        config.bitrate.mode() == Bitrate::Mode::kConstant
+            ? config.bitrate.target_bps()
+            : config.bitrate.peak_bps();
     constexpr size_t kHRDBufferSize = 40000;
     layer_settings.hrd_buffer_size = kHRDBufferSize;
     layer_settings.min_qp = kH265MinQuantizer;

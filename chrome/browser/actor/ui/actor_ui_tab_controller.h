@@ -20,11 +20,18 @@ class ActorUiTabController : public ActorUiTabControllerInterface {
   explicit ActorUiTabController(tabs::TabInterface& tab);
   ~ActorUiTabController() override;
   void OnUiTabStateChange(const UiTabState& ui_tab_state) override;
+  void SetActiveTaskId(TaskId task_id) override;
+  void ClearActiveTaskId() override;
 
  private:
   // Owns this class via TabModel.
   const raw_ref<tabs::TabInterface> tab_;
-  UiTabState current_ui_tab_state_;
+  UiTabState current_ui_tab_state_ = {
+      .agent_overlay = AgentOverlayState(),
+      .handoff_button = HandoffButtonState(),
+  };
+  // The last active task id actuating on this tab.
+  TaskId active_task_id_;
 };
 
 }  // namespace actor::ui

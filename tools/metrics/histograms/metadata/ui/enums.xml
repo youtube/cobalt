@@ -578,6 +578,7 @@ chromium-metrics-reviews@google.com.
 
 <enum name="WebUIUrlHashes">
   <int value="-2137891043" label="chrome-untrusted://scanner-feedback/"/>
+  <int value="-2117475303" label="chrome://comments-side-panel.top-chrome/"/>
   <int value="-2103246641" label="chrome://signin-internals/"/>
   <int value="-2087891836" label="chrome://debug-webuis-disabled/"/>
   <int value="-2086395469" label="chrome://dlp-internals/"/>
@@ -883,6 +884,7 @@ chromium-metrics-reviews@google.com.
   <int value="1356087814" label="chrome://add-supervision/"/>
   <int value="1361577626" label="chrome://connectors-internals/"/>
   <int value="1371905827" label="chrome://flags/"/>
+  <int value="1382926998" label="chrome://color-pipeline-internals/"/>
   <int value="1384721582" label="chrome-untrusted://demo-mode-app/"/>
   <int value="1396129399" label="chrome://flash/"/>
   <int value="1397728473" label="chrome://crostini-installer/"/>

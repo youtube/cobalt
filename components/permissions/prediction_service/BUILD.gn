@@ -15,6 +15,8 @@ proto_library("prediction_service_messages_proto") {
 
 source_set("prediction_service") {
   sources = [
+    "permission_ui_selector.cc",
+    "permission_ui_selector.h",
     "prediction_common.cc",
     "prediction_common.h",
     "prediction_request_features.h",
@@ -89,7 +91,10 @@ source_set("unit_tests") {
   ]
   if (build_with_tflite_lib) {
     sources += [ "permissions_aiv3_handler_unittest.cc" ]
-    deps += [ ":unit_tests_bundle_data" ]
+    deps += [
+      ":unit_tests_bundle_data",
+      "//base",
+    ]
     data = [ "//components/test/data/permissions/" ]
   }
 }

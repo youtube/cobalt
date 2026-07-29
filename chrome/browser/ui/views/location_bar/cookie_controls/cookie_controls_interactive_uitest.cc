@@ -54,9 +54,11 @@ const char kUMABubbleAllowThirdPartyCookies[] =
     "CookieControls.Bubble.AllowThirdPartyCookies";
 const char kUMABubbleBlockThirdPartyCookies[] =
     "CookieControls.Bubble.BlockThirdPartyCookies";
+const char kUMABubblePausedTrackingProtections[] =
+    "TrackingProtections.Bubble.PausedProtections";
+const char kUMABubbleReenabledTrackingProtections[] =
+    "TrackingProtections.Bubble.ReenabledProtections";
 const char kUMABubbleSendFeedback[] = "CookieControls.Bubble.SendFeedback";
-// TODO(crbug.com/409081382): Look into adding new metrics for ACT UB reloading
-// view.
 const char kUMABubbleReloadingShown[] = "CookieControls.Bubble.ReloadingShown";
 const char kUMABubbleReloadingTimeout[] =
     "CookieControls.Bubble.ReloadingTimeout";
@@ -908,6 +910,8 @@ IN_PROC_BROWSER_TEST_F(CookieControlsInteractiveUiTrackingProtectionTest,
                 kUMATrackingProtectionsBubbleReloadingTimeout),
             0);
   EXPECT_EQ(user_actions_.GetActionCount(kUMABubbleReloadingTimeout), 0);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMABubblePausedTrackingProtections),
+            1);
 }
 
 IN_PROC_BROWSER_TEST_F(CookieControlsInteractiveUiTrackingProtectionTest,
@@ -937,4 +941,40 @@ IN_PROC_BROWSER_TEST_F(CookieControlsInteractiveUiTrackingProtectionTest,
                 kUMATrackingProtectionsBubbleReloadingTimeout),
             0);
   EXPECT_EQ(user_actions_.GetActionCount(kUMABubbleReloadingTimeout), 0);
+  EXPECT_EQ(
+      user_actions_.GetActionCount(kUMABubbleReenabledTrackingProtections), 1);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    CookieControlsInteractiveUiTrackingProtectionTest,
+    BubbleViewTimesOutWithoutShowingReloadingViewWhenStatusChanged) {
+  // Test that opening the bubble and making a change results in the
+  // reloading view not showing and the bubble closing after timing out.
+  //
+  // The page loaded in this test will never finish loading, so the timeout
+  // must be configured shorter than the test timeout.
+  BlockThirdPartyCookies();
+  EnableFpProtection();
+  auto* const incognito_browser = CreateIncognitoBrowser(browser()->profile());
+  RunTestSequence(InContext(
+      incognito_browser->window()->GetElementContext(),
+      Steps(InstrumentTab(kWebContentsElementId),
+            EnterText(
+                kOmniboxElementId,
+                base::UTF8ToUTF16(
+                    "https://" +
+                    third_party_cookie_page_url(/*slow=*/true).GetContent())),
+            Confirm(kOmniboxElementId),
+            InAnyContext(WaitForShow(kCookieControlsIconElementId)),
+            PressButton(kCookieControlsIconElementId),
+            InAnyContext(WaitForShow(CookieControlsBubbleView::kContentView)),
+            PressButton(CookieControlsContentView::kTrackingProtectionsButton),
+            EnsureNotPresent(CookieControlsBubbleView::kReloadingView),
+            WaitForHide(CookieControlsBubbleView::kCookieControlsBubble))));
+  EXPECT_EQ(user_actions_.GetActionCount(
+                kUMATrackingProtectionsBubbleReloadingTimeout),
+            1);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMABubbleReloadingTimeout), 0);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMABubblePausedTrackingProtections),
+            1);
 }

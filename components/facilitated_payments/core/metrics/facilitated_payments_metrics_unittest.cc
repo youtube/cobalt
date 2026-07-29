@@ -185,6 +185,16 @@ TEST(FacilitatedPaymentsMetricsTest, LogPixTransactionResultAndLatency) {
   }
 }
 
+TEST(FacilitatedPaymentsMetricsTest, LogPixAccountLinkingPromptShown) {
+  base::HistogramTester histogram_tester;
+
+  LogPixAccountLinkingPromptShown();
+
+  histogram_tester.ExpectUniqueSample(
+      "FacilitatedPayments.Pix.AccountLinkingPromptShown", /*sample=*/true,
+      /*expected_bucket_count=*/1);
+}
+
 TEST(FacilitatedPaymentsMetricsTest,
      LogEwalletInitiatePurchaseActionResultAndLatency_DeviceBound) {
   for (PurchaseActionResult result :
@@ -325,7 +335,8 @@ INSTANTIATE_TEST_SUITE_P(
                     PixFlowExitedReason::kUserLoggedOut,
                     PixFlowExitedReason::kFopSelectorClosedNotByUser,
                     PixFlowExitedReason::kFopSelectorClosedByUser,
-                    PixFlowExitedReason::kAutofillPaymentMethodsDisabled));
+                    PixFlowExitedReason::kAutofillPaymentMethodsDisabled,
+                    PixFlowExitedReason::kMerchantNotAllowlisted));
 
 class FacilitatedPaymentsMetricsUkmTest : public testing::Test {
  public:

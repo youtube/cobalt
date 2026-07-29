@@ -58,13 +58,6 @@ BASE_FEATURE(kAutofillAddressUserPerceptionSurvey,
              "AutofillAddressUserPerceptionSurvey",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, this makes the autofill classification logic prefer the
-// AutofillAi predictions sent via the server response over local heuristic
-// predictions.
-BASE_FEATURE(kAutofillAiPreferModelResponseOverHeuristics,
-             "AutofillAiPreferModelResponseOverHeuristics",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled (and if `AutofillAiServerModel` is also enabled), this ignores
 // the `may_run_server_model` boolean sent by the Autofill server and, instead,
 // queries the server model for every encountered form that is not already
@@ -91,9 +84,14 @@ BASE_FEATURE(kAutofillAiIgnoreGeoIp,
              "AutofillAiIgnoreGeoIp",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, no locale requirements are imposed for AutfillAi.
+// If enabled, no locale requirements are imposed for AutofillAi.
 BASE_FEATURE(kAutofillAiIgnoreLocale,
              "AutofillAiIgnoreLocale",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, AutofillAi supports national id cards.
+BASE_FEATURE(kAutofillAiNationalIdCard,
+             "AutofillAiNationalIdCard",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, `*_TAG` types are replaced with dynamic attribute assignments.
@@ -108,6 +106,13 @@ BASE_FEATURE(kAutofillAiIgnoreLocale,
 // TODO(crbug.com/422563282): Remove after the M140 branch point (2025-08-04).
 BASE_FEATURE(kAutofillAiNoTagTypes,
              "AutofillAiNoTagTypes",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, this makes the autofill classification logic prefer the
+// AutofillAi predictions sent via the server response over local heuristic
+// predictions.
+BASE_FEATURE(kAutofillAiPreferModelResponseOverHeuristics,
+             "AutofillAiPreferModelResponseOverHeuristics",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, the client may trigger the server model for AutofillAI type
@@ -146,6 +151,14 @@ const base::FeatureParam<bool> kAutofillAiServerModelSendPageUrl{
 // to provide AutofillAI predictions for filling and importing.
 const base::FeatureParam<bool> kAutofillAiServerModelUseCacheResults{
     &kAutofillAiServerModel, "autofill_ai_model_use_cache_results", false};
+
+// If enabled, votes for prefix and suffix lengths of identification number
+// fields are uploaded. For example, if there's a passport with number CX1235987
+// on file, <input type=text value=CX12> uploads a format string "4".
+// TODO(crbug.com/429704303): Clean up when launched.
+BASE_FEATURE(kAutofillAiVoteForFormatStringsForAffixes,
+             "AutofillAiVoteForFormatStringsForAffixes",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, votes for date format strings from individual fields are
 // uploaded. For example, <input type=text value=31/12/2025> leads to the format
@@ -372,6 +385,12 @@ BASE_FEATURE(kAutofillEnableSupportForHomeAndWork,
              "AutofillEnableSupportForHomeAndWork",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, chrome will support name and email address profile.
+// TODO(cbug.com/356845298): Clean up when launched.
+BASE_FEATURE(kAutofillEnableSupportForNameAndEmail,
+             "AutofillEnableSupportForNameAndEmail",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, the autofill suggestion labels are more descriptive and
 // relevant.
 // TODO(crbug.com/380273791): Cleanup when launched.
@@ -558,7 +577,7 @@ BASE_FEATURE(kAutofillPopupDontAcceptNonVisibleEnoughSuggestion,
 // affect their functionality.
 BASE_FEATURE(kAutofillPopupZOrderSecuritySurface,
              "AutofillPopupZOrderSecuritySurface",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether Autofill may fill across origins.
 // In payment forms, the cardholder name field is often on the merchant's origin

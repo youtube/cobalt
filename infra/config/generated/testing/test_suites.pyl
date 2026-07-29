@@ -2189,17 +2189,6 @@
           '--use-xvfb',
         ],
       },
-      'optimization_guide_browser_tests': {
-        'test_common': {
-          'args': [
-            '--gtest_filter=*OptimizationGuide*:*PageContentAnnotations*',
-          ],
-        },
-        'test': 'browser_tests',
-        'linux_args': [
-          '--use-xvfb',
-        ],
-      },
       'optimization_guide_unittests': {
         'linux_args': [
           '--use-xvfb',
@@ -2545,33 +2534,6 @@
       },
     },
 
-    'chromeos_tfc_tests': {
-      'chromeos_chrome_all_tast_tests_tfc': {
-        'mixins': [
-          'skylab-50-tests-per-shard',
-        ],
-        'variants': [
-          'CROS_RELEASE_LKGM',
-        ],
-      },
-      'chromeos_chrome_criticalstaging_tast_tests_tfc': {
-        'mixins': [
-          'skylab-50-tests-per-shard',
-        ],
-        'variants': [
-          'CROS_RELEASE_LKGM',
-        ],
-      },
-      'chromeos_chrome_disabled_tast_tests_tfc': {
-        'mixins': [
-          'skylab-20-tests-per-shard',
-        ],
-        'variants': [
-          'CROS_RELEASE_LKGM',
-        ],
-      },
-    },
-
     'chromeos_trogdor_skylab_tests': {
       'chromeos_chrome_all_tast_tests': {
         'mixins': [
@@ -2596,7 +2558,7 @@
     'chromeos_vmlab_tests': {
       'chromeos_chrome_all_tast_tests_tfc': {
         'mixins': [
-          'skylab-50-tests-per-shard',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2604,7 +2566,7 @@
       },
       'chromeos_chrome_criticalstaging_tast_tests_tfc': {
         'mixins': [
-          'skylab-50-tests-per-shard',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2649,7 +2611,7 @@
     'chromeos_vmlab_tests_no_gtests': {
       'chromeos_chrome_all_tast_tests_tfc': {
         'mixins': [
-          'skylab-50-tests-per-shard',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2657,7 +2619,7 @@
       },
       'chromeos_chrome_criticalstaging_tast_tests_tfc': {
         'mixins': [
-          'skylab-50-tests-per-shard',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2681,7 +2643,7 @@
     'chromeos_vmlab_tests_no_gtests_no_arc': {
       'chromeos_chrome_all_tast_tests_tfc': {
         'mixins': [
-          'skylab-50-tests-per-shard',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2689,7 +2651,7 @@
       },
       'chromeos_chrome_criticalstaging_tast_tests_tfc': {
         'mixins': [
-          'skylab-50-tests-per-shard',
+          'skylab-40-tests-per-shard',
         ],
         'variants': [
           'CROS_RELEASE_LKGM',
@@ -2891,7 +2853,6 @@
     },
 
     'optimization_guide_mac_script_tests': {
-      'chrome_ai_wpt_tests_suite': {},
       'model_validation_tests_light_suite': {},
       'model_validation_tests_suite': {},
       'ondevice_stability_tests_suite': {},

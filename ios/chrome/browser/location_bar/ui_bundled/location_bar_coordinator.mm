@@ -77,6 +77,7 @@
 #import "ios/chrome/browser/shared/public/commands/page_action_menu_entry_point_commands.h"
 #import "ios/chrome/browser/shared/public/commands/search_image_with_lens_command.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/new_tab_prototype_view_controller.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/pasteboard_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -101,8 +102,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 @interface LocationBarCoordinator () <
     ContextualPanelEntrypointCoordinatorDelegate,
     LoadQueryCommands,
-    LocationBarViewControllerDelegate,
+    LocationBarModelDelegateWebStateProvider,
     LocationBarSteadyViewConsumer,
+    LocationBarViewControllerDelegate,
     WebLocationBarDelegate,
     OmniboxStateProvider,
     URLDragDataSource> {
@@ -208,8 +210,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 
   _locationBar = std::make_unique<WebLocationBarImpl>(self);
   _locationBar->SetURLLoader(self);
-  _locationBarModelDelegate.reset(new LocationBarModelDelegateIOS(
-      self.browser->GetWebStateList(), self.profile));
+  _locationBarModelDelegate.reset(
+      new LocationBarModelDelegateIOS(self, self.profile));
   _locationBarModel = std::make_unique<LocationBarModelImpl>(
       _locationBarModelDelegate.get(), kMaxURLDisplayChars);
 
@@ -300,7 +302,8 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   self.mediator.consumer = self.viewController;
   self.mediator.webStateList = self.webStateList;
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate)) {
+  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
+      base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
     PlaceholderService* placeholderService =
         ios::PlaceholderServiceFactory::GetForProfile(self.profile);
     self.mediator.placeholderService = placeholderService;
@@ -502,6 +505,13 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   self.isCancellingOmniboxEdit = NO;
 }
 
+#pragma mark - LocationBarModelDelegateWebStateProvider
+
+- (web::WebState*)webStateForLocationBarModelDelegate:
+    (const LocationBarModelDelegateIOS*)locationBarModelDelegate {
+  return self.webStateList->GetActiveWebState();
+}
+
 #pragma mark - WebLocationBarDelegate
 
 - (web::WebState*)webState {
@@ -521,7 +531,19 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 #pragma mark - LocationBarViewControllerDelegate
 
 - (void)locationBarSteadyViewTapped {
-  [self focusOmnibox];
+  if (IsDiamondPrototypeEnabled()) {
+    NewTabPrototypeViewController* newTab =
+        [[NewTabPrototypeViewController alloc]
+            initWithBaseViewController:self.baseViewController
+                               browser:self.browser
+                          isNewTabPage:NO
+                     shouldExitTabGrid:NO];
+    [self.viewController presentViewController:newTab
+                                      animated:YES
+                                    completion:nil];
+  } else {
+    [self focusOmnibox];
+  }
 }
 
 - (void)locationBarCopyTapped {

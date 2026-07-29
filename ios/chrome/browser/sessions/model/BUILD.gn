@@ -4,8 +4,6 @@
 
 source_set("model") {
   sources = [
-    "ios_chrome_session_tab_helper.h",
-    "ios_chrome_session_tab_helper.mm",
     "ios_chrome_tab_restore_browser_agent.h",
     "ios_chrome_tab_restore_browser_agent.mm",
     "ios_chrome_tab_restore_service_client.h",
@@ -220,6 +218,7 @@ source_set("session_restoration_service_impl") {
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/tabs/model:features",
     "//ios/web/public",
     "//ios/web/public:web_state_observer",
     "//ios/web/public/js_messaging",
@@ -461,6 +460,10 @@ source_set("unit_tests") {
     "//url",
   ]
   frameworks = [ "Foundation.framework" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 bundle_data("resources_unit_tests") {

@@ -204,7 +204,6 @@
 #include "chromeos/ash/components/quickoffice/quickoffice_prefs.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
-#include "chromeos/ash/services/assistant/public/cpp/assistant_prefs.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/prefs.h"
 #include "chromeos/components/disks/disks_prefs.h"
 #include "chromeos/components/quick_answers/public/cpp/quick_answers_prefs.h"
@@ -414,6 +413,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN },
   { key::kPrefetchWithServiceWorkerEnabled,
     prefs::kPrefetchWithServiceWorkerEnabled,
+    base::Value::Type::BOOLEAN },
+  { key::kServiceWorkerAutoPreloadEnabled,
+    prefs::kServiceWorkerAutoPreloadEnabled,
     base::Value::Type::BOOLEAN },
 // Policies for all platforms - End
 #if BUILDFLAG(IS_ANDROID)
@@ -1135,6 +1137,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kFloatingSsoDomainBlocklistExceptions,
     prefs::kFloatingSsoDomainBlocklistExceptions,
     base::Value::Type::LIST },
+  { key::kFloatingSsoSessionCookiesIncluded,
+    prefs::kFloatingSsoSessionCookiesIncluded,
+    base::Value::Type::BOOLEAN },
   { key::kDeviceAllowEnterpriseRemoteAccessConnections,
     prefs::kDeviceAllowEnterpriseRemoteAccessConnections,
     base::Value::Type::BOOLEAN
@@ -1491,18 +1496,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kPluginVmRequiredFreeDiskSpace,
     plugin_vm::prefs::kPluginVmRequiredFreeDiskSpaceGB,
     base::Value::Type::INTEGER },
-  { key::kAssistantOnboardingMode,
-    ash::assistant::prefs::kAssistantOnboardingMode,
-    base::Value::Type::STRING },
-  { key::kAssistantVoiceMatchEnabledDuringOobe,
-    ash::assistant::prefs::kAssistantVoiceMatchEnabledDuringOobe,
-    base::Value::Type::BOOLEAN },
-  { key::kVoiceInteractionContextEnabled,
-    ash::assistant::prefs::kAssistantContextEnabled,
-    base::Value::Type::BOOLEAN },
-  { key::kVoiceInteractionHotwordEnabled,
-    ash::assistant::prefs::kAssistantHotwordEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kDevicePowerPeakShiftEnabled,
     ash::prefs::kPowerPeakShiftEnabled,
     base::Value::Type::BOOLEAN },
@@ -1955,6 +1948,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kAutoplayAllowed,
     prefs::kAutoplayAllowed,
     base::Value::Type::BOOLEAN },
+  { key::kAutomatedPasswordChangeSettings,
+    optimization_guide::prefs::kAutomatedPasswordChangeEnterprisePolicyAllowed,
+    base::Value::Type::INTEGER },
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
         // || BUILDFLAG(IS_CHROMEOS)
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
@@ -2096,8 +2092,14 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     prefs::kDeskAPIDeskSaveAndShareEnabled,
     base::Value::Type::BOOLEAN },
   { key::kDeviceAttributesAllowedForOrigins,
-    prefs::kDeviceAttributesAllowedForOrigins,
+    prefs::kManagedDeviceAttributesAllowedForOrigins,
     base::Value::Type::LIST },
+  { key::kDeviceAttributesBlockedForOrigins,
+    prefs::kManagedDeviceAttributesBlockedForOrigins,
+    base::Value::Type::LIST },
+  { key::kDefaultDeviceAttributesSetting,
+    prefs::kManagedDefaultDeviceAttributesSetting,
+    base::Value::Type::INTEGER },
   { key::kKioskApplicationLogCollectionEnabled,
     prefs::kKioskApplicationLogCollectionEnabled,
     base::Value::Type::BOOLEAN},
@@ -2361,9 +2363,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #if !BUILDFLAG(IS_ANDROID)
   { key::kLensOverlaySettings,
     lens::prefs::kLensOverlaySettings,
-    base::Value::Type::INTEGER},
-  { key::kGenAiLensOverlaySettings,
-    lens::prefs::kGenAiLensOverlaySettings,
     base::Value::Type::INTEGER},
 #endif
 
@@ -3353,6 +3352,10 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       key::kGeminiSettings, prefs::kGeminiSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
+  gen_ai_default_policies.emplace_back(
+      key::kAutomatedPasswordChangeSettings,
+      optimization_guide::prefs::
+          kAutomatedPasswordChangeEnterprisePolicyAllowed);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_CHROMEOS)

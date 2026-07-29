@@ -14967,6 +14967,24 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="IOS.AutoDeletion.ActionSheet.AcceptDownloadEnrollment">
+  <owner>danieltwhite@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
+  <description>
+    User taps 'Confirm deletion' button from the Auto-deletion action sheet. iOS
+    only.
+  </description>
+</action>
+
+<action name="IOS.AutoDeletion.ActionSheet.RejectDownloadEnrollment">
+  <owner>danieltwhite@chromium.org</owner>
+  <owner>bling-fundamentals@google.com</owner>
+  <description>
+    User taps either the 'cancel' button or an area outside of the Auto-deletion
+    action sheet. iOS only.
+  </description>
+</action>
+
 <action name="IOS.AutoDeletion.IPH.DismissButtonTapped">
   <owner>danieltwhite@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
@@ -36300,6 +36318,13 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings.BWGSettings">
+  <owner>joemerramos@google.com</owner>
+  <description>
+    Reported when user navigates to BWG Settings. iOS only.
+  </description>
+</action>
+
 <action name="Settings.ContentSettings">
   <owner>gambard@chromium.org</owner>
   <owner>sczs@chromium.org</owner>
@@ -40275,6 +40300,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Signin_Impression_FromUserManagerWithPrefilledEmail">
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>ydago@chromium.org</owner>
+  <description>
+    Recorded when showing sign in entry in the profile creation flow (as part of
+    the profile picker) with a prefilled email.
+  </description>
+</action>
+
 <action name="Signin_ImpressionWithAccount_FromAvatarBubbleSignin"
     not_user_triggered="true">
   <obsolete>Removed in M104.</obsolete>
@@ -40833,6 +40867,34 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action
+    name="Signin_Signin_FromEnterpriseManagementDisclaimerAfterBrowserFocus">
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>ydago@chromium.org</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kEnterpriseManagementDisclaimerAfterBrowserFocus.
+  </description>
+</action>
+
+<action name="Signin_Signin_FromEnterpriseManagementDisclaimerAfterSignin">
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>ydago@chromium.org</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kEnterpriseManagementDisclaimerAfterSignin.
+  </description>
+</action>
+
+<action name="Signin_Signin_FromEnterpriseManagementDisclaimerAtStartup">
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>ydago@chromium.org</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kEnterpriseManagementDisclaimerAtStartup.
+  </description>
+</action>
+
 <action name="Signin_Signin_FromEnterpriseSignoutSheet">
   <owner>ewannpv@chromium.org</owner>
   <owner>jlebel@chromium.org</owner>
@@ -41234,6 +41296,15 @@ should be able to be added at any place in this file.
   <description>
     Recorded on sign in start from access point
     signin_metrics::AccessPoint::kUserManager.
+  </description>
+</action>
+
+<action name="Signin_Signin_FromUserManagerWithPrefilledEmail">
+  <owner>chrome-signin-team@google.com</owner>
+  <owner>ydago@chromium.org</owner>
+  <description>
+    Recorded on sign in start from access point
+    signin_metrics::AccessPoint::kUserManagerWithPrefilledEmail.
   </description>
 </action>
 
@@ -45094,6 +45165,17 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TabGroups.ArchivedTabGroupAutoDeleted">
+  <owner>bjfong@google.com</owner>
+  <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when an archived tab group is deleted. This happens when the tab
+    group's archival time exceeds the limit for auto-deletion.
+  </description>
+</action>
+
 <action name="TabGroups.ArchivedTabGroupManualCloseOnInactiveSurface">
   <owner>wylieb@google.com</owner>
   <owner>evanluo@google.com</owner>
@@ -46397,6 +46479,12 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="TrackingProtections.Bubble.PausedProtections">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>Protections are paused via user bypass.</description>
+</action>
+
 <action name="TrackingProtections.Bubble.ProtectionsActive.Opened">
   <owner>michelleabreo@google.com</owner>
   <owner>koilos@google.com</owner>
@@ -46411,6 +46499,12 @@ should be able to be added at any place in this file.
   <description>
     User bypass is opened when tracking protections are paused.
   </description>
+</action>
+
+<action name="TrackingProtections.Bubble.ReenabledProtections">
+  <owner>michelleabreo@google.com</owner>
+  <owner>koilos@google.com</owner>
+  <description>Protections are reenabled via user bypass.</description>
 </action>
 
 <action name="TrackingProtections.Bubble.ReloadingTimeout">

@@ -32,6 +32,7 @@ SaveAndFillDialog::SaveAndFillDialog(
       views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH));
   SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk) |
              static_cast<int>(ui::mojom::DialogButton::kCancel));
+  SetButtonEnabled(ui::mojom::DialogButton::kOk, false);
   SetButtonLabel(ui::mojom::DialogButton::kOk,
                  controller_->GetAcceptButtonText());
   SetShowCloseButton(false);
@@ -41,6 +42,9 @@ SaveAndFillDialog::SaveAndFillDialog(
 SaveAndFillDialog::~SaveAndFillDialog() = default;
 
 void SaveAndFillDialog::AddedToWidget() {
+  GetWidget()->MakeCloseSynchronous(base::BindOnce(
+      &SaveAndFillDialog::OnDialogClosed, base::Unretained(this)));
+
   focus_manager_ = GetFocusManager();
   if (focus_manager_) {
     focus_manager_->AddFocusChangeListener(this);
@@ -74,15 +78,15 @@ void SaveAndFillDialog::ContentsChanged(views::Textfield* sender,
                                         const std::u16string& new_contents) {
   if (sender == &card_number_data_.GetInputTextField()) {
     card_number_data_.SetErrorState(
-        /*is_valid_input=*/controller_->IsValidCreditCardNumber(new_contents),
+        /*is_valid=*/controller_->IsValidCreditCardNumber(new_contents),
         /*error_message=*/controller_->GetInvalidCardNumberErrorMessage());
   } else if (sender == &cvc_data_.GetInputTextField()) {
     cvc_data_.SetErrorState(
-        /*is_valid_input=*/controller_->IsValidCvc(new_contents),
+        /*is_valid=*/controller_->IsValidCvc(new_contents),
         /*error_message=*/controller_->GetInvalidCvcErrorMessage());
   } else if (sender == &name_on_card_data_.GetInputTextField()) {
     name_on_card_data_.SetErrorState(
-        /*is_valid_input=*/controller_->IsValidNameOnCard(new_contents),
+        /*is_valid=*/controller_->IsValidNameOnCard(new_contents),
         /*error_message=*/controller_->GetInvalidNameOnCardErrorMessage());
   } else if (sender == &expiration_date_data_.GetInputTextField()) {
     size_t new_cursor_position;
@@ -100,9 +104,15 @@ void SaveAndFillDialog::ContentsChanged(views::Textfield* sender,
           gfx::SelectionModel(new_cursor_position, gfx::CURSOR_FORWARD));
     }
     expiration_date_data_.SetErrorState(
-        /*is_valid_input=*/controller_->IsValidExpirationDate(formatted_input),
+        /*is_valid=*/controller_->IsValidExpirationDate(formatted_input),
         /*error_message=*/controller_->GetInvalidExpirationDateErrorMessage());
   }
+  // Enable the save button iff all textfields are valid.
+  SetButtonEnabled(ui::mojom::DialogButton::kOk,
+                   card_number_data_.is_valid_input &&
+                       cvc_data_.is_valid_input &&
+                       expiration_date_data_.is_valid_input &&
+                       name_on_card_data_.is_valid_input);
 }
 
 void SaveAndFillDialog::OnDidChangeFocus(views::View* before,
@@ -159,6 +169,11 @@ void SaveAndFillDialog::InitViews() {
   cvc_data_.GetInputTextField().SetPlaceholderText(l10n_util::GetStringUTF16(
       IDS_AUTOFILL_SAVE_AND_FILL_DIALOG_CVC_PLACEHOLDER));
   cvc_data_.GetInputTextField().SetDefaultWidthInChars(18);
+  // CVC is an optional field, so it is considered valid by default when the
+  // dialog first appears.
+  cvc_data_.SetErrorState(
+      /*is_valid=*/true,
+      /*error_message=*/std::u16string());
 
   // Create the horizontal row for expiration date, cvc, and icon.
   AddChildView(
@@ -181,6 +196,16 @@ void SaveAndFillDialog::InitViews() {
       /*error_message=*/controller_->GetInvalidNameOnCardErrorMessage());
   name_on_card_data_.GetInputTextField().SetController(this);
   AddChildView(std::move(name_on_card_data_.container));
+}
+
+void SaveAndFillDialog::OnDialogClosed(views::Widget::ClosedReason reason) {
+  if (reason == views::Widget::ClosedReason::kAcceptButtonClicked) {
+    // TODO (crbug.com//378164516): Extract user input from the Save and Fill
+    // dialog.
+    controller_->OnUserAcceptedDialog({});
+  } else if (reason == views::Widget::ClosedReason::kCancelButtonClicked) {
+    controller_->OnUserCanceledDialog();
+  }
 }
 
 }  // namespace autofill

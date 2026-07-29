@@ -67,7 +67,13 @@
 using video_track_recorder::kVEAEncoderMinResolutionHeight;
 using video_track_recorder::kVEAEncoderMinResolutionWidth;
 
-namespace WTF {
+namespace blink {
+
+template <>
+struct CrossThreadCopier<media::EncoderStatus>
+    : public CrossThreadCopierPassThrough<media::EncoderStatus> {
+  STATIC_ONLY(CrossThreadCopier);
+};
 
 template <>
 struct CrossThreadCopier<std::optional<media::VideoEncoder::CodecDescription>>
@@ -89,10 +95,6 @@ struct CrossThreadCopier<media::Muxer::VideoParameters>
           media::Muxer::VideoParameters> {
   STATIC_ONLY(CrossThreadCopier);
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 // Helper class used to bless annotation of our calls to
 // CreateOffscreenGraphicsContext3DProvider using ScopedAllowBaseSyncPrimitives.

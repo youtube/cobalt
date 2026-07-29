@@ -228,6 +228,7 @@
 <translation id="3785324443014631273">సైన్ ఇన్ చేయడంలో ఎర్రర్ కారణంగా ChromeOS Flex మీ డేటాను సింక్ చేయలేకపోయింది.</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chromeకు Windows 10 లేదా అంతకంటే ఆధునిక వెర్షన్ అవసరం.</translation>
+<translation id="3810973564298564668">మేనేజ్ చేయండి</translation>
 <translation id="383928141529488001">బ్లూటూత్ పరికరాలను అన్వేషించడానికి 
  Google Chromeకు బ్లూటూత్ యాక్సెస్ అవసరం. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">దయచేసి అన్ని Google Chrome విండోలను మూసివేసి, మళ్ళీ ప్రయత్నించండి.</translation>
@@ -515,6 +516,7 @@
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" /> ఇన్‌స్టాలర్</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474"><ph name="MANAGER" /> కోసం ఈ పరికరాన్ని ఉపయోగించడానికి ముందు కింది సర్వీస్ నియమాలను మీరు చదివి, అంగీకరించాలి. ఈ నియమాలు Google ChromeOS నియమాలను విస్తరింపజేయవు, సవరించవు లేదా పరిమితం చేయవు.</translation>
+<translation id="7627609214560473136">మీ డేటాను సురక్షితంగా ఉంచడానికి, మీరు ఇటీవల ఉపయోగించని సైట్‌లకు అనుమతులను తీసివేయడానికి Chromeకు అనుమతినివ్వండి.</translation>
 <translation id="7629695634924605473">మీ పాస్‌వర్డ్‌లు ఎప్పుడైనా హ్యాక్ అయితే, Chrome మీకు తెలియచేస్తుంది</translation>
 <translation id="7641148173327520642"><ph name="TARGET_URL_HOSTNAME" />ను యాక్సెస్ చేయడం కోసం <ph name="ALTERNATIVE_BROWSER_NAME" />ను తెరిచే విధంగా Google Chromeను మీ సిస్టమ్ నిర్వాహకుడు కాన్ఫిగర్ చేశారు.</translation>
 <translation id="7649070708921625228">సహాయం</translation>
@@ -601,6 +603,7 @@
 <translation id="8649026945479135076">మీకు వ్యక్తిగతీకరించిన అనుభవాన్ని అందించడం కోసం, సైట్‌లు మీకు ఆసక్తి ఉన్న విషయాలను గుర్తుంచుకోవడం సర్వసాధారణం. మీ ఆసక్తులకు సంబంధించిన సమాచారాన్ని కూడా సైట్‌లు Chromeతో స్టోర్ చేయగలవు.</translation>
 <translation id="8669527147644353129">Google Chrome సహాయకారుడు</translation>
 <translation id="8679801911857917785">ఇది మీరు Chromeని ప్రారంభించేటప్పుడు చూపబడే పేజీని కూడా నియంత్రిస్తుంది.</translation>
+<translation id="8712637175834984815">అర్థమైంది</translation>
 <translation id="8712767363896337380">దాదాపుగా అప్‌డేట్ అయ్యి ఉంది! అప్‌డేట్ చేయడాన్ని పూర్తి చేయడానికి Chromeను రీ-లాంచ్ చేయండి.</translation>
 <translation id="8718062187489036808">Chrome నుండి సైన్ అవుట్ చేయి</translation>
 <translation id="873133009373065397">Google Chrome డిఫాల్ట్ బ్రౌజర్‌ను నిశ్చయించలేదు లేదా సెట్ చేయలేదు</translation>

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROME_BROWSER_PERMISSIONS_PREDICTION_BASED_PERMISSION_UI_SELECTOR_H_
-#define CHROME_BROWSER_PERMISSIONS_PREDICTION_BASED_PERMISSION_UI_SELECTOR_H_
+#ifndef CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_PREDICTION_BASED_PERMISSION_UI_SELECTOR_H_
+#define CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_PREDICTION_BASED_PERMISSION_UI_SELECTOR_H_
 
 #include <memory>
 
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/content_extraction/inner_text.h"
+#include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -20,7 +20,7 @@
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/permissions/permission_actions_history.h"
 #include "components/permissions/permission_request_enums.h"
-#include "components/permissions/permission_ui_selector.h"
+#include "components/permissions/prediction_service/permission_ui_selector.h"
 #include "components/permissions/prediction_service/prediction_request_features.h"
 #include "components/permissions/request_type.h"
 // pref_names include is needed for the browser tests to work as they cannot
@@ -164,9 +164,10 @@ class PredictionBasedPermissionUiSelector
 
   // Part of the AIv3 model execution chain; provided as a curryed callback to
   // be submitted to the logic that fetches a snapshot that serves as the input
-  // for the AIv3 model. The first two parameters are set by the callee, to be
-  // used by the server side model later.
+  // for the AIv3 model. The first three parameters are set by the callee, to
+  // be used by the server side model later and for logging.
   void OnSnapshotTakenForOnDeviceModel(
+      base::TimeTicks snapshot_inquire_start_time,
       permissions::PredictionRequestFeatures features,
       PredictionRequestMetadata request_metadata,
       const SkBitmap& screenshot);
@@ -204,4 +205,4 @@ class PredictionBasedPermissionUiSelector
       this};
 };
 
-#endif  // CHROME_BROWSER_PERMISSIONS_PREDICTION_BASED_PERMISSION_UI_SELECTOR_H_
+#endif  // CHROME_BROWSER_PERMISSIONS_PREDICTION_SERVICE_PREDICTION_BASED_PERMISSION_UI_SELECTOR_H_

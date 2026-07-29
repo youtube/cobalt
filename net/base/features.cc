@@ -546,6 +546,11 @@ const base::FeatureParam<bool> kIpPrivacyEnableIppInDevTools{
     /*name=*/"IpPrivacyEnableIppInDevTools",
     /*default_value=*/false};
 
+const base::FeatureParam<bool> kIpPrivacyEnableIppPanelInDevTools{
+    &kEnableIpProtectionProxy,
+    /*name=*/"kIpPrivacyEnableIppPanelInDevTools",
+    /*default_value=*/false};
+
 BASE_FEATURE(kExcludeLargeBodyReports,
              "ExcludeLargeReportBodies",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -814,5 +819,44 @@ BASE_FEATURE_PARAM(int,
                    &kTcpConnectionPoolSizeTrial,
                    "TcpConnectionPoolSizeTrialWebSocket",
                    256);
+
+BASE_FEATURE(kNetTaskScheduler,
+             "NetTaskScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpProxyConnectJob,
+                   &kNetTaskScheduler,
+                   "http_proxy_connect_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpStreamFactoryJob,
+                   &kNetTaskScheduler,
+                   "http_stream_factory_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpStreamFactoryJobController,
+                   &kNetTaskScheduler,
+                   "http_stream_factory_job_controller",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestErrorJob,
+                   &kNetTaskScheduler,
+                   "url_request_error_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestHttpJob,
+                   &kNetTaskScheduler,
+                   "url_request_http_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestJob,
+                   &kNetTaskScheduler,
+                   "url_request_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestRedirectJob,
+                   &kNetTaskScheduler,
+                   "url_request_redirect_job",
+                   false);
 
 }  // namespace net::features

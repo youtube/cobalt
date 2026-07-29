@@ -317,7 +317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PerformanceMonitor.IdleWakeups2.Total{UsageScenario}"
-    units="WakeupsPerSecond" expires_after="2025-11-02">
+    units="WakeupsPerSecond" expires_after="2026-01-04">
   <owner>olivierli@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -961,7 +961,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Power.BatteryRemainingWhenChargeStarts" units="%"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>puthik@chromium.org</owner>
   <owner>chromeos-platform-power@google.com</owner>
   <summary>
@@ -1069,6 +1069,38 @@ chromium-metrics-reviews@google.com.
     <variant name="GPU" summary="GPU"/>
     <variant name="Other" summary="other type of"/>
     <variant name="Renderer" summary="renderer"/>
+  </token>
+</histogram>
+
+<histogram name="Power.CpuTimeSecondsPerThreadType.{ProcessType}.{Visibility}"
+    enum="CpuTimeMetricsThreadType" expires_after="2025-12-14">
+  <owner>eseckler@chromium.org</owner>
+  <owner>mthiesse@chromium.org</owner>
+  <owner>woa-performance@google.com</owner>
+  <summary>
+    Total seconds of CPU time consumed by Chrome's {ProcessType} process, split
+    by thread type and process visibility. Currently only implemented on
+    Android. For every second of CPU time consumed by one thread, a sample is
+    recorded into the bucket for the thread's type. CPU time consumed by a
+    process that cannot be attributed to a specific thread is recorded into the
+    &quot;UnattributedThread&quot; bucket. Samples are recorded periodically
+    depending on the task load of each process's main thread. The histogram thus
+    shows the total sum of CPU time seconds spent per thread type (within
+    {ProcessType} processes) across all users when the process {Visibility}.
+
+    For a histogram of daily per-user values, select &quot;Per-Client
+    Aggregation Mode&quot;.
+  </summary>
+  <token key="ProcessType">
+    <variant name="Browser" summary="browser"/>
+    <variant name="GPU" summary="GPU"/>
+    <variant name="Other" summary="other type of"/>
+    <variant name="Renderer" summary="renderer"/>
+  </token>
+  <token key="Visibility">
+    <variant name="Background" summary="is in the background"/>
+    <variant name="Foreground" summary="is in the foreground"/>
+    <variant name="Unattributed" summary="visibility is unknown"/>
   </token>
 </histogram>
 
@@ -1903,7 +1935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerML.DimImminent.Action" enum="PowerMLDimImminentAction"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>alanlxl@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>napper@chromium.org</owner>
@@ -2006,7 +2038,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerML.SmartDimModel.RequestCompleteDuration" units="ms"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>alanlxl@chromium.org</owner>
   <owner>amoylan@chromium.org</owner>
   <owner>napper@chromium.org</owner>

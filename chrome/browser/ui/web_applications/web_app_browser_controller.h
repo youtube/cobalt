@@ -75,6 +75,7 @@ class WebAppBrowserController : public AppBrowserController,
   bool HasMinimalUiButtons() const override;
   gfx::ImageSkia GetHomeTabIcon() const;
   gfx::ImageSkia GetFallbackHomeTabIcon() const;
+  gfx::ImageSkia GetAppMenuIcon() const;
   ui::ImageModel GetWindowAppIcon() const override;
   ui::ImageModel GetWindowIcon() const override;
   std::optional<SkColor> GetThemeColor() const override;
@@ -82,8 +83,8 @@ class WebAppBrowserController : public AppBrowserController,
   std::u16string GetTitle() const override;
   std::u16string GetAppShortName() const override;
   std::u16string GetFormattedUrlOrigin() const override;
-  GURL GetAppStartUrl() const override;
-  GURL GetAppNewTabUrl() const override;
+  const GURL& GetAppStartUrl() const override;
+  const GURL& GetAppNewTabUrl() const override;
   content::WebContents* GetPinnedHomeTab() const override;
   bool ShouldHideNewTabButton() const override;
   bool IsUrlInHomeTabScope(const GURL& url) const override;
@@ -106,6 +107,7 @@ class WebAppBrowserController : public AppBrowserController,
   void SetIsolatedWebAppTrueForTesting() override;
   gfx::Rect GetDefaultBounds() const override;
   bool HasReloadButton() const override;
+  bool HasPendingUpdate() const override;
 #if BUILDFLAG(IS_CHROMEOS)
   const ash::SystemWebAppDelegate* system_app() const override;
   bool ShouldShowCustomTabBar() const override;

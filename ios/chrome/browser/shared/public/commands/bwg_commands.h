@@ -5,14 +5,20 @@
 #ifndef IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_BWG_COMMANDS_H_
 #define IOS_CHROME_BROWSER_SHARED_PUBLIC_COMMANDS_BWG_COMMANDS_H_
 
+#import "base/ios/block_types.h"
+
+namespace bwg {
+enum class EntryPoint;
+}
+
 // Commands relating to the BWG flow.
 @protocol BWGCommands
 
 // Starts the BWG flow.
-- (void)startBWGFlow;
+- (void)startBWGFlowWithEntryPoint:(bwg::EntryPoint)entryPoint;
 
-// Dismiss the BWG flow.
-- (void)dismissBWGFlow;
+// Dismiss the BWG flow with a completion block.
+- (void)dismissBWGFlowWithCompletion:(ProceduralBlock)completion;
 
 @end
 

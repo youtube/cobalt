@@ -12,12 +12,17 @@
 #include "base/check_op.h"
 #include "base/dcheck_is_on.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/stack_allocated.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partition_allocator.h"
+#include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "third_party/blink/renderer/platform/wtf/sanitizers.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-namespace WTF {
+namespace blink {
+
+template <typename ValueArg, typename TraitsArg, typename Allocator>
+class LinkedHashSet;
 
 // VectorBackedLinkedList iterators are not invalidated by mutation of the
 // collection, unless they point to removed items. This means, for example, that
@@ -76,6 +81,7 @@ class VectorBackedLinkedListNode {
   // VectorBackedLinkedList won't be initialized with memset.
   wtf_size_t prev_index_ = kNotFound;
   wtf_size_t next_index_ = kNotFound;
+  GC_PLUGIN_IGNORE("crbug.com/428987863")
   ValueType value_ = HashTraits<ValueType>::EmptyValue();
 };
 
@@ -101,12 +107,12 @@ struct VectorTraits<VectorBackedLinkedListNode<ValueType, Allocator>>
 };
 
 template <typename ValueType, typename Traits, typename Allocator>
-class ConstructTraits<VectorBackedLinkedListNode<ValueType, Allocator>,
+class ConstructTraits<blink::VectorBackedLinkedListNode<ValueType, Allocator>,
                       Traits,
                       Allocator> {
   STATIC_ONLY(ConstructTraits);
 
-  using Node = VectorBackedLinkedListNode<ValueType, Allocator>;
+  using Node = blink::VectorBackedLinkedListNode<ValueType, Allocator>;
 
  public:
   template <typename... Args>
@@ -148,7 +154,7 @@ class ConstructTraits<VectorBackedLinkedListNode<ValueType, Allocator>,
       static_assert(VectorTraits<Node>::kCanMoveWithMemcpy,
                     "Garbage collected types used in VectorBackedLinkedList "
                     "should be movable with memcpy");
-      AtomicWriteMemcpy<sizeof(Node), alignof(Node)>(location, &element);
+      WTF::AtomicWriteMemcpy<sizeof(Node), alignof(Node)>(location, &element);
       return reinterpret_cast<Node*>(location);
     }
   };
@@ -167,11 +173,11 @@ class ConstructTraits<VectorBackedLinkedListNode<ValueType, Allocator>,
 // Unlike normal linked-list implementations, keeping a pointer to an element is
 // unsafe because elements would be moved by vector buffer reallocation. Use
 // index numbers instead.
-template <typename ValueType, typename Allocator = PartitionAllocator>
+template <typename ValueType, typename Allocator = WTF::PartitionAllocator>
 class VectorBackedLinkedList {
   USE_ALLOCATOR(VectorBackedLinkedList, Allocator);
 
-  static_assert(!IsStackAllocatedTypeV<ValueType>);
+  static_assert(!WTF::IsStackAllocatedTypeV<ValueType>);
 
  private:
   using Node = VectorBackedLinkedListNode<ValueType, Allocator>;
@@ -322,7 +328,7 @@ class VectorBackedLinkedList {
     }
   }
 
-  VectorType nodes_;
+  GC_PLUGIN_IGNORE("crbug.com/428987863") VectorType nodes_;
   static constexpr wtf_size_t kAnchorIndex = 0;
   // Anchor is not included in the free list, but it serves as the list's
   // terminator.
@@ -347,7 +353,7 @@ class VectorBackedLinkedList {
 
 template <typename VectorBackedLinkedListType>
 class VectorBackedLinkedListIterator {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
   using const_iterator =
       VectorBackedLinkedListConstIterator<VectorBackedLinkedListType>;
@@ -423,7 +429,8 @@ class VectorBackedLinkedListIterator {
 
 template <typename VectorBackedLinkedListType>
 class VectorBackedLinkedListConstIterator {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
+
  public:
   using value_type = typename VectorBackedLinkedListType::Value;
   using size_type = wtf_size_t;
@@ -508,7 +515,7 @@ class VectorBackedLinkedListConstIterator {
 
 template <typename VectorBackedLinkedListType>
 class VectorBackedLinkedListReverseIterator {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
   using const_reverse_iterator =
       VectorBackedLinkedListConstReverseIterator<VectorBackedLinkedListType>;
@@ -770,8 +777,6 @@ void VectorBackedLinkedList<T, Allocator>::Unlink(const Node& node) {
   next_node.prev_index_ = prev_index;
 }
 
-}  // namespace WTF
-
-using WTF::VectorBackedLinkedList;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_VECTOR_BACKED_LINKED_LIST_H_

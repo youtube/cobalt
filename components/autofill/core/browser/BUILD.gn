@@ -103,6 +103,8 @@ static_library("browser") {
     "data_manager/addresses/address_data_cleaner.h",
     "data_manager/addresses/address_data_manager.cc",
     "data_manager/addresses/address_data_manager.h",
+    "data_manager/addresses/home_and_work_metadata_store.cc",
+    "data_manager/addresses/home_and_work_metadata_store.h",
     "data_manager/autofill_ai/entity_data_manager.cc",
     "data_manager/autofill_ai/entity_data_manager.h",
     "data_manager/payments/payments_data_manager.cc",
@@ -114,8 +116,6 @@ static_library("browser") {
     "data_manager/valuables/valuables_data_manager.h",
     "data_model/addresses/address.cc",
     "data_model/addresses/address.h",
-    "data_model/addresses/autofill_feature_guarded_address_component.cc",
-    "data_model/addresses/autofill_feature_guarded_address_component.h",
     "data_model/addresses/autofill_i18n_api.cc",
     "data_model/addresses/autofill_i18n_api.h",
     "data_model/addresses/autofill_i18n_formatting_expressions.h",
@@ -353,6 +353,7 @@ static_library("browser") {
     "integrators/optimization_guide/autofill_optimization_guide.cc",
     "integrators/optimization_guide/autofill_optimization_guide.h",
     "integrators/password_form_classification.h",
+    "integrators/password_manager/otp_suggestion_delegate.h",
     "integrators/password_manager/password_manager_delegate.h",
     "integrators/plus_addresses/autofill_plus_address_delegate.h",
     "integrators/touch_to_fill/touch_to_fill_delegate.h",
@@ -716,12 +717,18 @@ static_library("browser") {
     "webdata/addresses/contact_info_sync_bridge.h",
     "webdata/addresses/contact_info_sync_util.cc",
     "webdata/addresses/contact_info_sync_util.h",
+    "webdata/autocomplete/autocomplete_change_label_sensitive.cc",
+    "webdata/autocomplete/autocomplete_change_label_sensitive.h",
     "webdata/autocomplete/autocomplete_entry.cc",
     "webdata/autocomplete/autocomplete_entry.h",
+    "webdata/autocomplete/autocomplete_entry_label_sensitive.cc",
+    "webdata/autocomplete/autocomplete_entry_label_sensitive.h",
     "webdata/autocomplete/autocomplete_sync_bridge.cc",
     "webdata/autocomplete/autocomplete_sync_bridge.h",
     "webdata/autocomplete/autocomplete_table.cc",
     "webdata/autocomplete/autocomplete_table.h",
+    "webdata/autocomplete/autocomplete_table_label_sensitive.cc",
+    "webdata/autocomplete/autocomplete_table_label_sensitive.h",
     "webdata/autofill_ai/entity_table.cc",
     "webdata/autofill_ai/entity_table.h",
     "webdata/autofill_change.cc",
@@ -1089,6 +1096,7 @@ static_library("test_support") {
     "ml_model/autofill_ai/mock_autofill_ai_model_cache.h",
     "ml_model/autofill_ai/mock_autofill_ai_model_executor.cc",
     "ml_model/autofill_ai/mock_autofill_ai_model_executor.h",
+    "ml_model/field_classification_model_encoder_test_api.h",
     "payments/bnpl_manager_test_api.h",
     "payments/credit_card_access_manager_test_api.h",
     "payments/credit_card_access_manager_test_base.cc",
@@ -1305,6 +1313,7 @@ source_set("unit_tests") {
     "crowdsourcing/randomized_encoder_unittest.cc",
     "data_manager/addresses/address_data_cleaner_unittest.cc",
     "data_manager/addresses/address_data_manager_unittest.cc",
+    "data_manager/addresses/home_and_work_metadata_store_unittest.cc",
     "data_manager/autofill_ai/entity_data_manager_unittest.cc",
     "data_manager/payments/payments_data_manager_test_base.cc",
     "data_manager/payments/payments_data_manager_test_base.h",
@@ -1512,6 +1521,7 @@ source_set("unit_tests") {
     "webdata/addresses/contact_info_sync_bridge_unittest.cc",
     "webdata/addresses/contact_info_sync_util_unittest.cc",
     "webdata/autocomplete/autocomplete_sync_bridge_unittest.cc",
+    "webdata/autocomplete/autocomplete_table_label_sensitive_unittest.cc",
     "webdata/autocomplete/autocomplete_table_unittest.cc",
     "webdata/autofill_ai/entity_table_unittest.cc",
     "webdata/autofill_sync_metadata_table_unittest.cc",
@@ -1687,6 +1697,10 @@ source_set("unit_tests") {
   if (is_ios) {
     deps += [ "//components/autofill/ios/common" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("form_structure_fuzzer") {

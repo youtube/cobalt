@@ -800,7 +800,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="HttpCache.NoVarySearch.NotUsableLostTime" units="ms"
+<histogram name="HttpCache.NoVarySearch.NotUsableLostTime2" units="ms"
     expires_after="2025-12-16">
   <owner>ricea@chromium.org</owner>
   <owner>net-dev@chromium.org</owner>
@@ -823,6 +823,9 @@ chromium-metrics-reviews@google.com.
     a hit in the NoVarySearchCache that was later found to be unusable. This
     corresponds to the NoVarySearchUseResult cases &quot;Not openable&quot;,
     &quot;Incomplete body&quot; and &quot;Couldn't conditionalize&quot;.
+
+    This histogram replaced HttpCache.NoVarySearch.NotUsableLostTime, which was
+    logged too eagerly in some edge cases.
   </summary>
 </histogram>
 
@@ -981,7 +984,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HttpCache.ResponseFreshnessIsZero" enum="Boolean"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>hayato@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -1055,7 +1058,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.AlternativeServiceTypeForRequest"
-    enum="AlternativeServiceType" expires_after="2025-08-24">
+    enum="AlternativeServiceType" expires_after="2026-07-14">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -1231,7 +1234,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.CertVerifier.DoVerifyOnWorkerThreadTime{HostType}"
-    units="ms" expires_after="2025-11-02">
+    units="ms" expires_after="2026-01-04">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-network-stack@google.com</owner>
   <summary>
@@ -2705,9 +2708,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesReceived2"
-    units="bytes" expires_after="2025-12-14">
+    units="bytes" expires_after="2026-01-07">
+  <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total bytes received over the network for an HttpJob request that would be
     covered by IP Protection based on match with respect to the masked domain
@@ -2726,9 +2730,10 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesSent"
     units="bytes" expires_after="2025-01-02">
+  <owner>aakallam@chromium.org</owner>
   <owner>abhijithnair@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total bytes sent over the network for an HttpJob request that would be
     covered by IP Protection based on match with respect to the masked domain
@@ -2740,9 +2745,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.AllowListMatch.BytesSent2"
-    units="bytes" expires_after="2025-10-12">
+    units="bytes" expires_after="2026-01-07">
+  <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total bytes sent over the network for an HttpJob request that would be
     covered by IP Protection based on match with respect to the masked domain
@@ -2758,10 +2764,11 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.HttpJob.IpProtection.AllowListMatch.PrefilterBytesRead.Net"
-    units="bytes" expires_after="2025-11-16">
+    units="bytes" expires_after="2026-01-07">
+  <owner>aakallam@chromium.org</owner>
   <owner>abhijithnair@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total prefilter (e.g., before decompression) bytes read for an HttpJob
     request that would be covered by IP Protection and served from the network
@@ -2774,11 +2781,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.BytesSent" units="bytes"
-    expires_after="2025-11-30">
+    expires_after="2026-01-07">
   <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total bytes sent over the network for an HttpJob request that is covered by
     IP Protection. These bytes will be recorded even if the IP Protection proxy
@@ -2790,7 +2796,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.BytesSent2" units="bytes"
     expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total bytes sent over the network for an HttpJob request that is covered by
     IP Protection. These bytes will be recorded even if the IP Protection proxy
@@ -2803,7 +2809,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.Fallback.BytesSent" units="bytes"
     expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total bytes sent over the network for an HttpJob request that is covered by
     IP Protection. These bytes will only be recorded if IP Protection failed and
@@ -2814,7 +2820,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.Fallback.PrefilterBytesRead.Net"
     units="bytes" expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total prefilter (e.g., before decompression) bytes read for an HttpJob
     request that is covered by IP Protection and served from the network. These
@@ -2826,7 +2832,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.Fallback.TotalTimeNotCached"
     units="ms" expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Time it takes to complete an HttpJob that attempted IP Protection, from
     starting the transaction until we are done reading, for jobs not served from
@@ -2838,7 +2844,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.Fallback.TotalTimeNotCached.{Chain}"
     units="ms" expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Similar to Net.HttpJob.IpProtection.Fallback.TotalTimeNotCached, but only
     chains with the given chain_id, as provided in the GetProxyInfo RPC
@@ -2893,11 +2899,10 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpJob.IpProtection.PrefilterBytesRead.Net" units="bytes"
-    expires_after="2025-11-30">
+    expires_after="2026-01-07">
   <owner>aakallam@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total prefilter (e.g., before decompression) bytes read for an HttpJob
     request that is covered by IP Protection and served from the network. These
@@ -2910,7 +2915,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.PrefilterBytesRead.Net2"
     units="bytes" expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Total prefilter (e.g., before decompression) bytes read for an HttpJob
     request that is covered by IP Protection and served from the network. These
@@ -2925,8 +2930,7 @@ chromium-metrics-reviews@google.com.
     expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Time it takes to complete an HttpJob that is covered by IP Protection, from
     starting the transaction until we are done reading, for jobs not served from
@@ -2940,8 +2944,7 @@ chromium-metrics-reviews@google.com.
     units="ms" expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
   <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/OWNERS</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Similar to Net.HttpJob.IpProtection.TotalTimeNotCached, but only chains with
     the given chain_id, as provided in the GetProxyInfo RPC response.
@@ -2956,7 +2959,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.TotalTimeNotCached2" units="ms"
     expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Time it takes to complete an HttpJob that attempted IP Protection, from
     starting the transaction until we are done reading, for jobs not served from
@@ -2970,7 +2973,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="Net.HttpJob.IpProtection.TotalTimeNotCached2.{Chain}"
     units="ms" expires_after="2026-06-21">
   <owner>dschinazi@chromium.org</owner>
-  <owner>src/chrome/browser/ip_protection/OWNERS</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
     Similar to Net.HttpJob.IpProtection.TotalTimeNotCached2, but only chains
     with the given chain_id, as provided in the GetProxyInfo RPC response.
@@ -3157,7 +3160,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpNoVarySearch.HasUnrecognizedKeys" enum="Boolean"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>jbroman@chromium.org</owner>
   <owner>liviutinta@chromium.org</owner>
   <summary>
@@ -3214,6 +3217,18 @@ chromium-metrics-reviews@google.com.
     <variant name="Success"/>
     <variant name="TimedOut"/>
   </token>
+</histogram>
+
+<histogram name="Net.HttpProxy.ProxyResolverWin.HttpSessionInitializationState"
+    enum="WinHttpStatus" expires_after="2026-07-04">
+  <owner>ricea@chromium.org</owner>
+  <owner>src/services/proxy_resolver_win/OWNERS</owner>
+  <summary>
+    Logs the status of WinHTTP session initialization for proxy resolution on
+    Windows. This entry is recorded when the WinHTTP session is initialized,
+    which involves opening the session, configuring timeouts, and registering
+    the status callback.
+  </summary>
 </histogram>
 
 <histogram name="Net.HttpRequestSSLUpgradeDecision"
@@ -3401,6 +3416,7 @@ chromium-metrics-reviews@google.com.
     Recorded for each stream attempt upon destruction of the canceled attempt.
   </summary>
   <token key="Reason">
+    <variant name="AttemptManagerDraining"/>
     <variant name="ExistingQuicSession"/>
     <variant name="ExistingSpdySession"/>
     <variant name="NewQuicSession"/>
@@ -3733,7 +3749,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction.StreamAddressFamily"
-    enum="AddressFamily" expires_after="2025-11-02">
+    enum="AddressFamily" expires_after="2026-01-04">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -3767,7 +3783,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction{HostType}.RetryReason"
-    enum="HttpNetworkTransactionRetryReason" expires_after="2025-10-26">
+    enum="HttpNetworkTransactionRetryReason" expires_after="2026-01-04">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>Log the reason when HttpNetworkTransaction retries.</summary>
@@ -4933,7 +4949,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.QuicSession.FindMatchingIpSessionResult{ServerType}"
-    enum="QuicFindMatchingIpSessionResult" expires_after="2025-11-02">
+    enum="QuicFindMatchingIpSessionResult" expires_after="2026-01-04">
   <owner>fayang@chromium.org</owner>
   <owner>src/net/quic/OWNERS</owner>
   <summary>
@@ -6652,6 +6668,7 @@ chromium-metrics-reviews@google.com.
     units="microseconds" expires_after="2025-11-30">
   <owner>acondor@chromium.org</owner>
   <owner>clank-performance-team@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
   <summary>
     Records the time spent executing
     RestrictedCookieManager::SetCookieFromString, plus its callback.
@@ -6776,7 +6793,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.{ProtocolType}.HasTrafficAnnotation{HostType}"
-    enum="Boolean" expires_after="2025-11-02">
+    enum="Boolean" expires_after="2026-01-04">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -6793,7 +6810,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SessionCreate.{ProtocolType}.TrafficAnnotation{HostType}"
-    enum="TrafficAnnotationUniqueIdHash" expires_after="2025-11-02">
+    enum="TrafficAnnotationUniqueIdHash" expires_after="2026-01-04">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -6853,7 +6870,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SharedDictionaryManagerOnDisk.TotalDictionaryCountWhenAdded"
-    units="count" expires_after="2025-11-02">
+    units="count" expires_after="2026-01-04">
   <owner>horo@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -6935,7 +6952,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SharedDictionaryStore.DictionarySizeKBPerSiteWhenAdded"
-    units="KB" expires_after="2025-11-02">
+    units="KB" expires_after="2026-01-04">
   <owner>horo@chromium.org</owner>
   <owner>src/net/extras/shared_dictionary/OWNERS</owner>
   <summary>
@@ -7659,7 +7676,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.TcpConnectAttempt.Latency.Error" units="ms"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7882,6 +7899,26 @@ chromium-metrics-reviews@google.com.
     connection. It is time just before the OnAcceptCHFrameReceived() IPC call
     until the IPC callback is called. Refer
     AcceptCHFrameInterceptor::OnConnected() for details.
+  </summary>
+</histogram>
+
+<histogram name="Net.URLLoader.AcceptCHFrameReceivedOnHttp2" enum="Boolean"
+    expires_after="2025-12-31">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records whether an ACCEPT_CH frame was received on an HTTP/2 connection.
+    This is recorded when the URLLoader is connected.
+  </summary>
+</histogram>
+
+<histogram name="Net.URLLoader.AcceptCHFrameReceivedOnHttp3" enum="Boolean"
+    expires_after="2025-12-31">
+  <owner>yyanagisawa@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records whether an ACCEPT_CH frame was received on an HTTP/3 connection.
+    This is recorded when the URLLoader is connected.
   </summary>
 </histogram>
 

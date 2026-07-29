@@ -129,6 +129,22 @@ void MultiContentsView::SetWebContentsAtIndex(
   }
 }
 
+void MultiContentsView::ShowSplitView(double ratio) {
+  if (!contents_container_views_[1]->GetVisible()) {
+    // If split view is not visible, set the `start_ratio_` and update the view
+    // visibility.
+    start_ratio_ = ratio;
+    contents_container_views_[1]->SetVisible(true);
+    resize_area_->SetVisible(true);
+    UpdateContentsBorderAndOverlay();
+  } else if (start_ratio_ != ratio) {
+    // If the split view is visible but ratio is changed, update the split
+    // ratio.
+    UpdateSplitRatio(ratio);
+  }
+  // Split view is visible and ratio is not changed, do nothing.
+}
+
 void MultiContentsView::CloseSplitView() {
   if (!IsInSplitView()) {
     return;
@@ -202,7 +218,7 @@ void MultiContentsView::OnResize(int resize_amount, bool done_resizing) {
                         contents_container_views_[0]->GetInsets().width() +
                         static_cast<double>(resize_amount)) /
                        total_width;
-  delegate_->ResizeWebContents(start_ratio);
+  delegate_->ResizeWebContents(start_ratio, done_resizing);
 
   if (done_resizing) {
     initial_start_width_on_resize_ = std::nullopt;

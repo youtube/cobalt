@@ -9,8 +9,7 @@
 namespace mojo {
 namespace core {
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL) && \
-    !BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kMojoLinuxChannelSharedMem,
              "MojoLinuxChannelSharedMem",
@@ -26,8 +25,7 @@ const base::FeatureParam<bool> kMojoLinuxChannelSharedMemEfdZeroOnWake{
 BASE_FEATURE(kMojoPosixUseWritev,
              "MojoPosixUseWritev",
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL) &&
-        // !BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
+#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(MOJO_USE_APPLE_CHANNEL)
 
 BASE_FEATURE(kMojoInlineMessagePayloads,
              "MojoInlineMessagePayloads",
@@ -44,12 +42,6 @@ BASE_FEATURE(kMojoIpcz, "MojoIpcz", base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kMojoIpczMemV2,
              "MojoIpczMemV2",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kMojoUseBinder,
-             "MojoUseBinder",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 #if BUILDFLAG(IS_WIN)
 // If enabled, then only handles of types Section, File, Directory and

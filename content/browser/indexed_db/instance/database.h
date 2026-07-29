@@ -56,8 +56,6 @@ class CONTENT_EXPORT Database {
   // null.
   using ErrorCallback = base::RepeatingCallback<void(Status, const char*)>;
 
-  static const int64_t kMinimumIndexId = 30;
-
   Database(uint32_t id_for_locks,
            const std::u16string& name,
            BucketContext& bucket_context);
@@ -77,6 +75,14 @@ class CONTENT_EXPORT Database {
   const std::u16string& name() const { return name_; }
   int64_t version() const;
   bool IsInitialized() const;
+
+  // Called to permanently delete the database wrapped by `this`. Will call
+  // `on_complete` and release `locks` when done. This may be called more than
+  // once, in which case latter calls are a no-op, and `on_complete` will not be
+  // called. Returns an error, or the latest version of the deleted database
+  // if successful, or 0 if the database had already been deleted.
+  StatusOr<int64_t> DeleteDatabase(std::vector<PartitionedLock> locks,
+                                   base::OnceClosure on_complete);
 
   // Builds the set of lock requests for the given transaction `mode` and
   // `scope`. `scope` is used iff `mode` is not `VersionChange`.
@@ -317,7 +323,8 @@ class CONTENT_EXPORT Database {
 
   ConnectionCoordinator connection_coordinator_;
 
-  // Null until `OpenInternal()` is called successfully.
+  // Null until `OpenInternal()` is called successfully, as well as after the
+  // database has been deleted via `DeleteDatabase()`.
   std::unique_ptr<BackingStore::Database> backing_store_db_;
 
   // `weak_factory_` is used for all callback uses.

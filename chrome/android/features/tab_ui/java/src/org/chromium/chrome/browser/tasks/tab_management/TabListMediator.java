@@ -74,6 +74,7 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconFetcher;
 import org.chromium.chrome.browser.tab_ui.ThumbnailProvider;
+import org.chromium.chrome.browser.tab_ui.ThumbnailProvider.MultiThumbnailMetadata;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabClosureParamsUtils;
@@ -109,6 +110,7 @@ import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.tab_group_sync.EitherId.EitherGroupId;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
+import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.content_public.browser.NavigationHandle;
@@ -639,11 +641,10 @@ class TabListMediator implements TabListNotificationHandler {
     private final TabGroupModelFilterObserver mTabGroupObserver =
             new TabGroupModelFilterObserver() {
                 @Override
-                public void didChangeTabGroupTitle(
-                        int rootId, @Nullable Token tabGroupId, @Nullable String newTitle) {
+                public void didChangeTabGroupTitle(Token tabGroupId, @Nullable String newTitle) {
                     assert mShowingTabs;
 
-                    if (!mActionsOnAllRelatedTabs || tabGroupId == null) return;
+                    if (!mActionsOnAllRelatedTabs) return;
 
                     @Nullable Pair<Integer, Tab> indexAndTab =
                             getIndexAndTabForTabGroupId(tabGroupId);
@@ -661,10 +662,10 @@ class TabListMediator implements TabListNotificationHandler {
 
                 @Override
                 public void didChangeTabGroupColor(
-                        int rootId, @Nullable Token tabGroupId, @TabGroupColorId int newColor) {
+                        Token tabGroupId, @TabGroupColorId int newColor) {
                     assert mShowingTabs;
 
-                    if (!mActionsOnAllRelatedTabs || tabGroupId == null) return;
+                    if (!mActionsOnAllRelatedTabs) return;
 
                     @Nullable Pair<Integer, Tab> indexAndTab =
                             getIndexAndTabForTabGroupId(tabGroupId);
@@ -2166,6 +2167,10 @@ class TabListMediator implements TabListNotificationHandler {
         tabGroupInfo.set(
                 TabProperties.GRID_CARD_SIZE,
                 new Size(mDefaultGridCardSize.getWidth(), mDefaultGridCardSize.getHeight()));
+
+        if (mThumbnailProvider != null) {
+            updateThumbnailFetcher(tabGroupInfo, savedTabGroup);
+        }
     }
 
     private String getDomainForTab(Tab tab) {
@@ -2188,7 +2193,13 @@ class TabListMediator implements TabListNotificationHandler {
         int numOfRelatedTabs = getRelatedTabsForId(tab.getId()).size();
         TextResolver contentDescriptionResolver =
                 (context) -> {
-                    if (!isInTabGroup) return "";
+                    if (!isInTabGroup) {
+                        if (mComponentName.equals(ArchivedTabsDialogCoordinator.COMPONENT_NAME)) {
+                            return context.getString(
+                                    R.string.accessibility_restore_tab, tab.getTitle());
+                        }
+                        return "";
+                    }
                     String title = getLatestTitleForTab(tab, /* useDefault= */ false);
                     Resources res = context.getResources();
                     TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
@@ -3144,11 +3155,46 @@ class TabListMediator implements TabListNotificationHandler {
         @Nullable ThumbnailFetcher oldFetcher = model.get(THUMBNAIL_FETCHER);
         if (oldFetcher != null) oldFetcher.cancel();
 
-        @Nullable
+        @Nullable ThumbnailFetcher newFetcher = null;
+        if (tabId != Tab.INVALID_TAB_ID) {
+            TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
+            Tab tab = filter.getTabModel().getTabById(tabId);
+            assumeNonNull(tab);
+            boolean isInTabGroup = filter.tabGroupExists(tab.getTabGroupId());
+            final @Nullable @TabGroupColorId Integer tabGroupColor =
+                    isInTabGroup ? filter.getTabGroupColorWithFallback(tab.getTabGroupId()) : null;
+            newFetcher =
+                    new ThumbnailFetcher(
+                            mThumbnailProvider,
+                            MultiThumbnailMetadata.createMetadataWithoutUrls(
+                                    tabId,
+                                    isInTabGroup,
+                                    filter.getTabModel().isIncognitoBranded(),
+                                    tabGroupColor));
+        }
+        model.set(THUMBNAIL_FETCHER, newFetcher);
+    }
+
+    private void updateThumbnailFetcher(PropertyModel model, SavedTabGroup savedTabGroup) {
+        ThumbnailFetcher oldFetcher = model.get(THUMBNAIL_FETCHER);
+        if (oldFetcher != null) oldFetcher.cancel();
+
+        List<GURL> urlList = new ArrayList<>();
+        for (SavedTabGroupTab savedTab : savedTabGroup.savedTabs) {
+            urlList.add(savedTab.url);
+        }
+
+        boolean isIncognito =
+                mCurrentTabGroupModelFilterSupplier.get().getTabModel().isIncognitoBranded();
         ThumbnailFetcher newFetcher =
-                tabId == Tab.INVALID_TAB_ID
-                        ? null
-                        : new ThumbnailFetcher(mThumbnailProvider, tabId);
+                new ThumbnailFetcher(
+                        mThumbnailProvider,
+                        MultiThumbnailMetadata.createMetadataWithUrls(
+                                Tab.INVALID_TAB_ID,
+                                urlList,
+                                /* isInTabGroup= */ true,
+                                isIncognito,
+                                savedTabGroup.color));
         model.set(THUMBNAIL_FETCHER, newFetcher);
     }
 

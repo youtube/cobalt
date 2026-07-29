@@ -230,6 +230,7 @@
 <translation id="3785324443014631273">Մուտքի սխալի պատճառով ChromeOS Flex-ը չկարողացավ համաժամացնել ձեր տվյալները։</translation>
 <translation id="3795971588916395511">Google ChromeOS</translation>
 <translation id="3809772425479558446">Google Chrome-ի համար պահանջվում է Windows 10 կամ ավելի նոր տարբերակ։</translation>
+<translation id="3810973564298564668">Կառավարել</translation>
 <translation id="383928141529488001">Google Chrome-ին անհրաժեշտ է Bluetooth-ի հասանելիություն՝ Bluetooth սարքեր որոնելու համար։ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="386202838227397562">Փակեք Google Chrome-ի բոլոր պատուհանները և նորից փորձեք:</translation>
 <translation id="3873044882194371212">Բացել հղումը Chrome-ի ինկ&amp;ոգնիտո պատուհանում</translation>
@@ -520,6 +521,7 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="7583399374488819119"><ph name="COMPANY_NAME" />-ի տեղադրիչ</translation>
 <translation id="7606334485649076285">Google ChromeOS Flex</translation>
 <translation id="7626072681686626474">Ադմինիստրատորը (<ph name="MANAGER" />) պահանջում է, որ դուք նախքան սարքն օգտագործելը կարդաք և ընդունեք հետևյալ Օգտագործման պայմանները։ Այս պայմանները չեն ընդլայնում, փոփոխում կամ սահմանափակում Google ChromeOS-ի պայմանները։</translation>
+<translation id="7627609214560473136">Ձեր տվյալները պաշտպանելու համար թույլ տվեք Chrome-ին հեռացնել թույլտվություններն այն կայքերից, որոնք վերջերս չեք այցելել։</translation>
 <translation id="7629695634924605473">Chrome-ը ձեզ տեղյակ կպահի, եթե ձեր գաղտնաբառերի անվտագությանը սպառնալիք լինի</translation>
 <translation id="7641148173327520642">Ձեր համակարգի ադմինիստրատորն այնպես է կարգավորել Google Chrome-ը, որ <ph name="TARGET_URL_HOSTNAME" /> կայքը բացվի <ph name="ALTERNATIVE_BROWSER_NAME" /> դիտարկիչով:</translation>
 <translation id="7649070708921625228">Օգնություն</translation>
@@ -606,6 +608,7 @@ Google Chrome-ը չի կարողանում վերականգնել ձեր կար�
 <translation id="8649026945479135076">Սովորաբար կայքերը, որոնք դուք այցելում եք, հիշում են, թե ձեզ ինչն է հետաքրքրում, որպեսզի անհատականացնեն գովազդը ձեզ համար։ Կայքերը կարող են նաև ձեր հետաքրքրությունների մասին տեղեկություններ պահել Chrome-ում։</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">Այն նաև վերահսկում է Chrome-ի մեկնարկման ժամանակ ցուցադրվող էջը:</translation>
+<translation id="8712637175834984815">Պատրաստ է</translation>
 <translation id="8712767363896337380">Գրեթե պատրաստ է։ Վերագործարկեք Chrome-ը՝ թարմացումն ավարտելու համար։</translation>
 <translation id="8718062187489036808">Դուրս գալ Chrome-ից</translation>
 <translation id="873133009373065397">Google Chrome-ը չի կարողանում որոշել կամ սահմանել կանխադրված դիտարկիչը</translation>

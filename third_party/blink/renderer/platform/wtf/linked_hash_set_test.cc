@@ -10,15 +10,19 @@
 #include "third_party/blink/renderer/platform/wtf/wtf_test_helper.h"
 
 namespace WTF {
+template <typename T>
+int* const ValueInstanceCount<T>::kDeletedValue =
+    reinterpret_cast<int*>(static_cast<uintptr_t>(-1));
+}  // namespace WTF
+
+namespace blink {
 
 static_assert(!WTF::IsTraceable<LinkedHashSet<int>>::value,
               "LinkedHashSet must not be traceable.");
 static_assert(!WTF::IsTraceable<LinkedHashSet<String>>::value,
               "LinkedHashSet must not be traceable.");
 
-template <typename T>
-int* const ValueInstanceCount<T>::kDeletedValue =
-    reinterpret_cast<int*>(static_cast<uintptr_t>(-1));
+using WTF::ValueInstanceCount;
 
 TEST(LinkedHashSetTest, CopyConstructAndAssignInt) {
   using Set = LinkedHashSet<ValueInstanceCount<int>>;
@@ -223,7 +227,8 @@ TEST(LinkedHashSetTest, MoveConstructAndAssignString) {
   EXPECT_EQ(counter3, 4);
 }
 
-struct CustomHashTraitsForInt : public IntHashTraits<int, INT_MAX, INT_MIN> {};
+struct CustomHashTraitsForInt
+    : public blink::IntHashTraits<int, INT_MAX, INT_MIN> {};
 
 TEST(LinkedHashSetTest, BeginEnd) {
   using Set = LinkedHashSet<int, CustomHashTraitsForInt>;
@@ -951,6 +956,7 @@ TEST(LinkedHashSetTest, IteratorsConvertToConstVersions) {
 }
 
 TEST(LinkedHashSetRefPtrTest, WithRefPtr) {
+  using WTF::DummyRefCounted;
   using Set = LinkedHashSet<scoped_refptr<DummyRefCounted>>;
   int expected = 1;
   // LinkedHashSet stores each object twice.
@@ -986,6 +992,7 @@ TEST(LinkedHashSetRefPtrTest, WithRefPtr) {
 }
 
 TEST(LinkedHashSetRefPtrTest, ExerciseValuePeekInType) {
+  using WTF::DummyRefCounted;
   using Set = LinkedHashSet<scoped_refptr<DummyRefCounted>>;
   Set set;
   bool is_deleted = false;
@@ -1036,7 +1043,7 @@ struct Complicated {
   }
 };
 
-struct ComplicatedHashTraits : GenericHashTraits<Complicated> {
+struct ComplicatedHashTraits : blink::GenericHashTraits<Complicated> {
   static unsigned GetHash(const Complicated& key) { return key.simple_.value_; }
   static bool Equal(const Complicated& a, const Complicated& b) {
     return a.simple_.value_ == b.simple_.value_;
@@ -1098,6 +1105,7 @@ TEST(LinkedHashSetTranslatorTest, ComplexityTranslator) {
 }
 
 TEST(LinkedHashSetCountCopyTest, MoveConstructionShouldNotMakeCopy) {
+  using WTF::CountCopy;
   using Set = LinkedHashSet<CountCopy>;
   Set set;
   int counter = 0;
@@ -1109,6 +1117,7 @@ TEST(LinkedHashSetCountCopyTest, MoveConstructionShouldNotMakeCopy) {
 }
 
 TEST(LinkedHashSetCountCopyTest, MoveAssignmentShouldNotMakeACopy) {
+  using WTF::CountCopy;
   using Set = LinkedHashSet<CountCopy>;
   Set set;
   int counter = 0;
@@ -1131,4 +1140,4 @@ TEST(LinkedHashSetEmptyTest, EmptyString) {
   set.insert(EmptyString());
 }
 
-}  // namespace WTF
+}  // namespace blink

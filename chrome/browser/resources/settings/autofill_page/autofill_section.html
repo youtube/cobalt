@@ -1,51 +1,44 @@
-    <style include="cr-shared-style settings-shared passwords-shared">
-      #autofillSyncToggleWrapper {
-        align-items: center;
-        cursor: pointer;
-        display: flex;
-        min-height: var(--cr-section-two-line-min-height);
-        padding: 0 var(--cr-section-padding);
-      }
+  <style include="cr-shared-style settings-shared passwords-shared">
+    #autofillSyncToggleWrapper {
+      align-items: center;
+      cursor: pointer;
+      display: flex;
+      min-height: var(--cr-section-two-line-min-height);
+      padding: 0 var(--cr-section-padding);
+    }
 
-      #autofillSyncToggleWrapper:hover {
-        background-color: var(--cr-hover-background-color);
-      }
+    #autofillSyncToggleWrapper:hover {
+      background-color: var(--cr-hover-background-color);
+    }
 
-      #non-home-work-address-row-icon {
-        --iron-icon-fill-color: var(--google-grey-700);
-        padding-inline-end: var(--cr-icon-button-margin-start);
-      }
+    #address-row-icon {
+      --iron-icon-fill-color: var(--google-grey-700);
+      padding-inline-end: var(--cr-icon-button-margin-start);
+    }
 
-      @media (prefers-color-scheme: dark) {
-        #non-home-work-address-row-icon {
-          --iron-icon-fill-color: var(--google-grey-500);
-        }
+    @media (prefers-color-scheme: dark) {
+      #address-row-icon {
+        --iron-icon-fill-color: var(--google-grey-500);
       }
+    }
 
-      .home-work-address-link-row {
-        align-items: center;
-        border-top: var(--cr-separator-line);
-        display: flex;
-        min-height: var(--cr-section-min-height);
-        padding-inline-end: 0;
-        padding-inline-start: 0;
-      }
+    #addressList .start {
+      display: flex;
+      overflow: hidden;
+    }
 
-      #addressList .start {
-        display: flex;
-        overflow: hidden;
-      }
+    #addressSummary {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
 
-      #addressSummary {
-        display: flex;
-        flex: 1;
-        overflow: hidden;
-      }
-
-      #plusAddressSettingsButton {
-        margin-top: 16px;
-      }
-    </style>
+    #plusAddressSettingsButton {
+      margin-top: 16px;
+    }
+  </style>
+  <settings-subpage page-title="$i18n{addressesTitle}"
+      learn-more-url="$i18n{addressesAndPaymentMethodsLearnMoreURL}">
     <settings-toggle-button id="autofillProfileToggle"
         no-extension-indicator label="$i18n{enableProfilesLabel}"
         sub-label="$i18n{enableProfilesSublabel}"
@@ -86,58 +79,31 @@
       <div id="addressList" class="vertical-list" role="none">
         <template is="dom-repeat" items="[[addresses]]">
           <div class="list-item" role="listitem">
-            <!-- If it's NOT a home nor a work address. -->
-            <template is="dom-if" if="[[!isAccountHomeOrWorkAddress_(item)]]">
-              <div class="start">
-                <cr-icon id="non-home-work-address-row-icon" icon="settings20:location-on"
-                    hidden="[[!shouldShowAddressRowIcon_(item)]]"
-                    aria-label="$i18n{localAddressIconA11yLabel}"
-                    role="img">
-                </cr-icon>
-                <span id="addressSummary">
-                  <span class="ellipses">
-                    [[item.metadata.summaryLabel]]
-                  </span>
-                  <span class="ellipses">
-                    [[item.metadata.summarySublabel]]
-                  </span>
+            <div class="start">
+              <cr-icon id="address-row-icon" icon="[[getAddressIcon_(item)]]"
+                  hidden="[[!shouldShowAddressRowIcon_]]"
+                  role="img">
+              </cr-icon>
+
+              <span id="addressSummary">
+                <span class="ellipses">
+                  [[item.metadata.summaryLabel]]
                 </span>
-                <cr-icon icon="cr20:cloud-off"
-                    hidden$="[[!isCloudOffVisible_(item, accountInfo_)]]"
-                    aria-label="$i18n{localAddressIconA11yLabel}"
-                    role="img">
-                </cr-icon>
-              </div>
-              <cr-icon-button class="icon-more-vert address-menu"
-                  on-click="onAddressMenuClick_"
-                  title="[[moreActionsTitle_(item.metadata.summaryLabel,
-                      item.metadata.summarySublabel)]]">
-              </cr-icon-button>
-            </template>
-
-            <!-- If it is a home address. -->
-            <template is="dom-if" if="[[isAccountHomeAddress_(item)]]">
-              <cr-link-row class="home-work-address-link-row hr"
-                  id="homeAddress"
-                  start-icon="settings20:home"
-                  label="[[item.metadata.summaryLabel]][[item.metadata.summarySublabel]]"
-                  on-click="onAccountHomeAddressClick_"
-                  role-description="$i18n{subpageArrowRoleDescription}"
-                  external>
-              </cr-link-row>
-            </template>
-
-            <!-- If it is a work address. -->
-            <template is="dom-if" if="[[isAccountWorkAddress_(item)]]">
-              <cr-link-row class="home-work-address-link-row hr"
-                  id="workAddress"
-                  start-icon="settings20:work"
-                  label="[[item.metadata.summaryLabel]][[item.metadata.summarySublabel]]"
-                  on-click="onAccountWorkAddressClick_"
-                  role-description="$i18n{subpageArrowRoleDescription}"
-                  external>
-              </cr-link-row>
-            </template>
+                <span class="ellipses">
+                  [[item.metadata.summarySublabel]]
+                </span>
+              </span>
+              <cr-icon icon="cr20:cloud-off"
+                  hidden$="[[!isCloudOffVisible_(item, accountInfo_)]]"
+                  aria-label="$i18n{localAddressIconA11yLabel}"
+                  role="img">
+              </cr-icon>
+            </div>
+            <cr-icon-button class="icon-more-vert address-menu"
+                on-click="onAddressMenuClick_"
+                title="[[moreActionsTitle_(item.metadata.summaryLabel,
+                    item.metadata.summarySublabel)]]">
+            </cr-icon-button>
           </div>
         </template>
       </div>
@@ -172,3 +138,4 @@
           external>
       </cr-link-row>
     </template>
+  </settings-subpage>

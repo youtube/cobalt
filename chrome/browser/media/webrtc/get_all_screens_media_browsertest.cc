@@ -20,6 +20,7 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/values.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/chrome_content_browser_client_parts.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
@@ -93,7 +94,7 @@ bool RunGetAllScreensMediaAndGetIds(content::WebContents* tab,
     const content::EvalJsResult js_result = content::EvalJs(
         tab->GetPrimaryMainFrame(),
         "typeof navigator.mediaDevices.getAllScreensMedia === 'function';");
-    if (!js_result.value.is_bool()) {
+    if (!js_result.is_bool()) {
       ADD_FAILURE() << "Could not check existence of getAllScreensMedia.";
       return false;
     }
@@ -108,7 +109,7 @@ bool RunGetAllScreensMediaAndGetIds(content::WebContents* tab,
     const content::EvalJsResult js_result = content::EvalJs(
         tab->GetPrimaryMainFrame(),
         "typeof runGetAllScreensMediaAndGetIds === 'function';");
-    if (!js_result.value.is_bool()) {
+    if (!js_result.is_bool()) {
       ADD_FAILURE()
           << "Could not check existence of runGetAllScreensMediaAndGetIds.";
       return false;
@@ -122,7 +123,7 @@ bool RunGetAllScreensMediaAndGetIds(content::WebContents* tab,
 
   const content::EvalJsResult js_result = content::EvalJs(
       tab->GetPrimaryMainFrame(), "runGetAllScreensMediaAndGetIds();");
-  if (!js_result.value.is_string()) {
+  if (!js_result.is_string()) {
     ADD_FAILURE() << "Could not run runGetAllScreensMediaAndGetIds.";
     return false;
   }
@@ -446,12 +447,12 @@ IN_PROC_BROWSER_TEST_P(
     InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest,
     ProgrammaticallyStoppingOneDoesNotStopTheOther) {
   SetScreens(/*screen_count=*/1u);
-  ASSERT_EQ(Run(method1_), nullptr);
-  ASSERT_EQ(Run(method2_), nullptr);
-  ASSERT_EQ(ProgrammaticallyStop(method1_), nullptr);
+  ASSERT_EQ(Run(method1_), base::Value());
+  ASSERT_EQ(Run(method2_), base::Value());
+  ASSERT_EQ(ProgrammaticallyStop(method1_), base::Value());
 
-  EXPECT_FALSE(AreAllTracksLive(method1_).value.GetBool());
-  EXPECT_TRUE(AreAllTracksLive(method2_).value.GetBool());
+  EXPECT_EQ(false, AreAllTracksLive(method1_));
+  EXPECT_EQ(true, AreAllTracksLive(method2_));
 }
 
 // Identical to StoppingOneDoesNotStopTheOther other than that this following
@@ -460,20 +461,20 @@ IN_PROC_BROWSER_TEST_P(
     InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest,
     ProgrammaticallyStoppingOneDoesNotStopTheOtherInverseOrder) {
   SetScreens(/*screen_count=*/1u);
-  ASSERT_EQ(Run(method1_), nullptr);
-  ASSERT_EQ(Run(method2_), nullptr);
-  ASSERT_EQ(ProgrammaticallyStop(method2_), nullptr);
+  ASSERT_EQ(Run(method1_), base::Value());
+  ASSERT_EQ(Run(method2_), base::Value());
+  ASSERT_EQ(ProgrammaticallyStop(method2_), base::Value());
 
-  EXPECT_TRUE(AreAllTracksLive(method1_).value.GetBool());
-  EXPECT_FALSE(AreAllTracksLive(method2_).value.GetBool());
+  EXPECT_EQ(true, AreAllTracksLive(method1_));
+  EXPECT_EQ(false, AreAllTracksLive(method2_));
 }
 
 IN_PROC_BROWSER_TEST_P(
     InteractionBetweenGetAllScreensMediaAndGetDisplayMediaTest,
     UserStoppingGetDisplayMediaDoesNotStopGetAllScreensMedia) {
   SetScreens(/*screen_count=*/1u);
-  ASSERT_EQ(Run(method1_), nullptr);
-  ASSERT_EQ(Run(method2_), nullptr);
+  ASSERT_EQ(Run(method1_), base::Value());
+  ASSERT_EQ(Run(method2_), base::Value());
 
   // The capture which was started via getDisplayMedia() caused the
   // browser to show the user UX for stopping that capture. Simlate a user
@@ -484,11 +485,11 @@ IN_PROC_BROWSER_TEST_P(
           contents_, MediaStreamCaptureIndicator::MediaType::kDisplayMedia);
   EXPECT_EQ(content::EvalJs(contents_,
                             "waitUntilStoppedByUser(\"getDisplayMedia\");"),
-            nullptr);
+            base::Value());
 
   // Test-focus - the capture started through gASM was not affected
   // by the user's interaction with the capture started via gDM.
-  EXPECT_TRUE(AreAllTracksLive("getAllScreensMedia").value.GetBool());
+  EXPECT_EQ(true, AreAllTracksLive("getAllScreensMedia"));
 }
 
 class MultiCaptureNotificationTest : public GetAllScreensMediaBrowserTestBase {

@@ -195,7 +195,13 @@ void HTMLDialogElement::close(const String& return_value,
 
     ScheduleCloseEvent();
 
-    if (close_watcher_) {
+    if (RuntimeEnabledFeatures::DialogCloseWhenOpenRemovedEnabled()) {
+      if (isConnected()) {
+        DCHECK(close_watcher_);
+        close_watcher_->destroy();
+        close_watcher_ = nullptr;
+      }
+    } else if (close_watcher_) {
       close_watcher_->destroy();
       close_watcher_ = nullptr;
     }
@@ -458,12 +464,6 @@ bool HTMLDialogElement::IsKeyboardFocusableSlow(
   if (!IsFocusable(update_behavior)) {
     return false;
   }
-  // Interest invoker targets with partial interest aren't keyboard focusable.
-  if (IsInPartialInterestPopover()) {
-    CHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
-        GetDocument().GetExecutionContext()));
-    return false;
-  }
   // This handles cases such as <dialog tabindex=0>, <dialog contenteditable>,
   // etc.
   return Element::SupportsFocus(update_behavior) !=
@@ -614,10 +614,13 @@ void HTMLDialogElement::RemovedFrom(ContainerNode& insertion_point) {
 
   SetIsModal(false);
   document.RemoveFromTopLayerImmediately(this);
-  GetDocument().AllOpenDialogs().erase(this);
-  if (close_watcher_) {
+  if (FastHasAttribute(html_names::kOpenAttr)) {
+    GetDocument().AllOpenDialogs().erase(this);
+    DCHECK(close_watcher_);
     close_watcher_->destroy();
     close_watcher_ = nullptr;
+  } else {
+    DCHECK(!GetDocument().AllOpenDialogs().Contains(this));
   }
 }
 
@@ -731,9 +734,11 @@ void HTMLDialogElement::Trace(Visitor* visitor) const {
 void HTMLDialogElement::AttributeChanged(
     const AttributeModificationParams& params) {
   HTMLElement::AttributeChanged(params);
-  if (params.name == html_names::kClosedbyAttr && IsOpenAndActive() &&
-      params.old_value != params.new_value) {
-    SetCloseWatcherEnabledState();
+  if (params.name == html_names::kClosedbyAttr) {
+    UseCounter::CountWebDXFeature(GetDocument(), WebDXFeature::kDialogClosedby);
+    if (IsOpenAndActive() && params.old_value != params.new_value) {
+      SetCloseWatcherEnabledState();
+    }
   }
   if (params.name == html_names::kOpenAttr &&
       params.old_value != params.new_value) {
@@ -759,10 +764,9 @@ void HTMLDialogElement::ParseAttribute(
       } else {
         DCHECK(GetDocument().AllOpenDialogs().Contains(this));
         GetDocument().AllOpenDialogs().erase(this);
-        if (close_watcher_) {
-          close_watcher_->destroy();
-          close_watcher_ = nullptr;
-        }
+        DCHECK(close_watcher_);
+        close_watcher_->destroy();
+        close_watcher_ = nullptr;
       }
     } else if (params.old_value.IsNull() && isConnected()) {
       // The `open` attribute is being added, and the element is already

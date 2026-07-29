@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
@@ -15,6 +16,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/types/id_type.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_controller.h"
@@ -29,10 +31,6 @@ class Profile;
 namespace mojo_base {
 class ProtoWrapper;
 }
-
-namespace content {
-class WebContents;
-}  // namespace content
 
 namespace tabs {
 class TabInterface;
@@ -54,8 +52,6 @@ class UiEventDispatcher;
 class ExecutionEngine {
  public:
   using ActionResultCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
-  using ActionsResultCallback =
-      base::OnceCallback<void(optimization_guide::proto::ActionsResult)>;
 
   // State machine (success case)
   //
@@ -64,7 +60,7 @@ class ExecutionEngine {
   //     v
   // StartAction -> UiPreTool -> ToolController -> UiPostTool -> Complete
   //     ^                                            |                |
-  //     |____________________________________________|__(test only?)__|
+  //     |____________________________________________|________________|
   //
   // Complete may also be reached directly from other states in case of error.
   enum class State {
@@ -88,8 +84,7 @@ class ExecutionEngine {
 
   static std::unique_ptr<ExecutionEngine> CreateForTesting(
       Profile* profile,
-      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
-      tabs::TabInterface* tab);
+      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher);
 
   // This cannot be in the constructor as we first construct the
   // ExecutionEngine, then the ActorTask.
@@ -100,22 +95,18 @@ class ExecutionEngine {
   // Cancels any in-progress actions with the reason: "kTaskPaused".
   void CancelOngoingActions(mojom::ActionResultCode reason);
 
-  // Returns the tab associated with the current task if it exists.
-  tabs::TabInterface* GetTabOfCurrentTask() const;
-
-  // Returns true if a task is currently active.
-  bool HasTask() const;
-
-  // Returns true if a task is currently active in `tab`.
-  bool HasTaskForTab(const content::WebContents* tab) const;
+  // If there is an ongoing tool request, treat it as having failed with the
+  // given reason.
+  void FailCurrentTool(mojom::ActionResultCode reason);
 
   // Performs the next action in the current task.
+  // TODO(crbug.com/411462297): Deprecated, this will be removed soon.
   void Act(const optimization_guide::proto::BrowserAction& action,
            ActionResultCallback callback);
 
-  // Performs the next action in the current task.
-  void Act(const optimization_guide::proto::Actions& actions,
-           ActionsResultCallback callback);
+  // Performs the given tool actions and invokes the callback when completed.
+  void Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
+           ActorTask::ActCallback callback);
 
   // Gets called when a new observation is made for the actor task.
   void DidObserveContext(const mojo_base::ProtoWrapper&);
@@ -125,7 +116,7 @@ class ExecutionEngine {
   const optimization_guide::proto::AnnotatedPageContent*
   GetLastObservedPageContent();
 
-  // Invalidated anytime `actions_` is reset.
+  // Invalidated anytime `action_sequence_` is reset.
   base::WeakPtr<ExecutionEngine> GetWeakPtr();
 
   static std::string StateToString(State state);
@@ -134,14 +125,13 @@ class ExecutionEngine {
   class NewTabWebContentsObserver;
   // Used by tests only.
   ExecutionEngine(Profile* profile,
-                  std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
-                  tabs::TabInterface* tab);
+                  std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher);
 
   void SetState(State state);
 
-  // If there are no actions remaining, calls CompleteActions.
-  // Otherwise, calls SafetyChecksForNextAction().
-  void KickOffNextAction(mojom::ActionResultPtr previous_action_result);
+  // Starts the next action by calling SafetyChecksForNextAction(). Must only be
+  // called if there is a next action.
+  void KickOffNextAction(mojom::ActionResultPtr init_hooks_result);
 
   // Performs safety checks for next action. This is asynchronous.
   void SafetyChecksForNextAction();
@@ -160,23 +150,22 @@ class ExecutionEngine {
   void FinishedToolController(mojom::ActionResultPtr result);
   void FinishedUiPostTool(mojom::ActionResultPtr result);
 
-  // Calls out to CompleteActionsV1 or CompleteActionsV2.
-  void CompleteActions(mojom::ActionResultPtr result);
-
-  // Calls `callback` and clears `actions_v1_`.
-  void CompleteActionsV1(mojom::ActionResultPtr result);
-
-  // Calls `callback` and clears `actions_v2_`.
-  void CompleteActionsV2(mojom::ActionResultPtr result);
+  void CompleteActions(mojom::ActionResultPtr result,
+                       std::optional<size_t> action_index);
 
   void OnTabWillDetach(tabs::TabInterface* tab,
                        tabs::TabInterface::DetachReason reason);
 
   const GURL& LastCommittedURLOfCurrentTask();
 
-  const optimization_guide::proto::Action& GetNextAction();
-  // Returns the tab associated with the action or nullptr.
-  tabs::TabInterface* GetTab(const optimization_guide::proto::Action& action);
+  // Returns the next action that will be started when ExecuteNextAction is
+  // reached.
+  const ToolRequest& GetNextAction() const;
+
+  // Returns the index / action that was last executed and is still in progress.
+  // It is an error to call this when an action is not in progress.
+  size_t InProgressActionIndex() const;
+  const ToolRequest& GetInProgressAction() const;
 
   State state_ = State::kInit;
 
@@ -189,50 +178,27 @@ class ExecutionEngine {
   std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
       last_observed_page_content_;
 
-  template <typename ActionT, typename CallbackT>
-  struct ActionWithCallback {
-    ActionWithCallback(const ActionT& actions, CallbackT callback)
-        : proto(actions), callback(std::move(callback)) {}
-    ~ActionWithCallback() = default;
-    ActionWithCallback(const ActionWithCallback&) = delete;
-    ActionWithCallback& operator=(const ActionWithCallback&) = delete;
-
-    ActionT proto;
-    CallbackT callback;
-  };
-
-  // TODO(crbug.com/411462297): This assumes all tasks are scoped to a tab,
-  // which is not true. This should eventually be removed.
-  bool tab_scoped_actions_deprecated_ = false;
   raw_ptr<tabs::TabInterface> tab_;
   base::CallbackListSubscription tab_will_detach_subscription_;
 
   // Owns `this`.
   raw_ptr<ActorTask> task_;
 
-  // Tool request currently being invoked.
-  std::unique_ptr<ToolRequest> active_tool_request_;
-
   // Created when task_ is set. Handles execution details for an individual tool
   // request.
   std::unique_ptr<ToolController> tool_controller_;
   std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher_;
 
-  // A sequence of actions that the model has requested. When it is finished
-  // being processed it is reset.
-  // This is deprecated; do not add new use cases.
-  std::optional<ActionWithCallback<optimization_guide::proto::BrowserAction,
-                                   ActionResultCallback>>
-      actions_v1_;
+  std::vector<std::unique_ptr<ToolRequest>> action_sequence_;
+  ActorTask::ActCallback act_callback_;
 
-  // A sequence of actions that the model has requested. When it is finished
-  // being processed it is reset.
-  std::optional<ActionWithCallback<optimization_guide::proto::Actions,
-                                   ActionsResultCallback>>
-      actions_v2_;
+  // The index of the next action that will be started when ExecuteNextAction is
+  // reached.
+  size_t next_action_index_ = 0;
 
-  // The index of the in-progress action.
-  int action_index_ = 0;
+  // If set, the currently executing tool should be considered failed once it
+  // completes.
+  std::optional<mojom::ActionResultCode> external_tool_failure_reason_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

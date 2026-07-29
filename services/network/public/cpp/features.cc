@@ -594,7 +594,7 @@ BASE_FEATURE(kGetCookiesOnSet,
 
 BASE_FEATURE(kIncreaseCookieAccessCacheSize,
              "IncreaseCookieAccessCacheSize",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
                    kCookieAccessCacheSize,
@@ -652,6 +652,11 @@ BASE_FEATURE_PARAM(size_t,
 BASE_FEATURE(kNetworkServiceTaskScheduler,
              "NetworkServiceTaskScheduler",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kNetworkServiceTaskSchedulerResourceScheduler,
+                   &kNetworkServiceTaskScheduler,
+                   "resource_scheduler",
+                   false);
 BASE_FEATURE_PARAM(bool,
                    kNetworkServiceTaskSchedulerURLLoader,
                    &kNetworkServiceTaskScheduler,

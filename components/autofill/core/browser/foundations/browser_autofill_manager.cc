@@ -235,6 +235,21 @@ void LogValuePatternsMetric(const FormData& form) {
   }
 }
 
+// Returns the filling product likely to be used for suggestions given
+// `trigger_field_type`. This might not be the definitive product used because
+// for example the product could not yield any suggestion and we'd fallback to
+// another product.
+FillingProduct GetPreferredSuggestionFillingProduct(
+    FieldType trigger_field_type) {
+  FillingProduct filling_product = GetFillingProductFromFieldTypeGroup(
+      GroupTypeOfFieldType(trigger_field_type));
+  // Autofill suggestions fallbacks to autocomplete if no product could be
+  // inferred from the suggestion context.
+  return filling_product == FillingProduct::kNone
+             ? FillingProduct::kAutocomplete
+             : filling_product;
+}
+
 bool IsSingleFieldFillerFillingProduct(FillingProduct filling_product) {
   switch (filling_product) {
     case FillingProduct::kAutocomplete:
@@ -1079,8 +1094,7 @@ SuggestionsContext BrowserAutofillManager::BuildSuggestionsContext(
 
   context.filling_product = GetPreferredSuggestionFillingProduct(
       got_autofillable_form ? autofill_field->Type().GetStorableType()
-                            : UNKNOWN_TYPE,
-      trigger_source);
+                            : UNKNOWN_TYPE);
 
   // If this is a mixed content form, we show a warning message and don't offer
   // autofill. The warning is shown even if there are no autofill suggestions
@@ -1361,18 +1375,6 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2(
     return;
   }
 
-  // Try to show Touch to Fill.
-  if (touch_to_fill_delegate_ &&
-      (touch_to_fill_delegate_->IsShowingTouchToFill() ||
-       (form_element_was_clicked &&
-        touch_to_fill_delegate_->TryToShowTouchToFill(form, field)))) {
-    // Touch To Fill surface is shown, so abort showing regular Autofill UI.
-    // Now the flow is controlled by the `touch_to_fill_delegate_` instead
-    // of `external_delegate_`.
-    std::move(callback).Run(/*show_suggestions=*/false, std::move(suggestions),
-                            std::nullopt);
-    return;
-  }
   // Only offer plus address suggestions together with address suggestions if
   // these exist. Otherwise, plus address suggestions will be generated and
   // shown alongside single field form fill suggestions. Plus address
@@ -1409,6 +1411,26 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2(
         suggestions_context, password_form_classification.type,
         form.global_id(), field.global_id(), std::move(callback));
 
+    return;
+  }
+
+  // Touch to fill is not shown if other address suggestions are available for
+  // EMAIL_OR_LOYALTY_MEMBERSHIP_ID fields.
+  const bool has_address_suggestions_on_email_or_loyalty_card_field =
+      autofill_field &&
+      (autofill_field->Type().GetStorableType() ==
+       EMAIL_OR_LOYALTY_MEMBERSHIP_ID) &&
+      std::ranges::any_of(suggestions, [](const Suggestion& suggestion) {
+        return GetFillingProductFromSuggestionType(suggestion.type) ==
+               FillingProduct::kAddress;
+      });
+  if (touch_to_fill_delegate_ &&
+      (touch_to_fill_delegate_->IsShowingTouchToFill() ||
+       (form_element_was_clicked &&
+        !has_address_suggestions_on_email_or_loyalty_card_field &&
+        touch_to_fill_delegate_->TryToShowTouchToFill(form, field)))) {
+    std::move(callback).Run(/*show_suggestions=*/false, std::move(suggestions),
+                            std::nullopt);
     return;
   }
 
@@ -1516,13 +1538,13 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2(
                                           on_suggestions_returned)) {
       return;
     }
-    if (client().GetAutocompleteHistoryManager()->OnGetSingleFieldSuggestions(
-            field, client(), on_suggestions_returned)) {
-      return;
-    }
-
-    client().GetAutocompleteHistoryManager()->CancelPendingQueries();
-    std::move(on_suggestions_returned).Run(field.global_id(), {});
+    // Autocomplete suggestions have to be generated last since they have to
+    // take the ownership of `on_suggestions_returned`.
+    // Even if no autocomplete suggestions are generated,
+    // `on_suggestions_returned` is still called with an empty list of
+    // suggestions.
+    client().GetAutocompleteHistoryManager()->OnGetSingleFieldSuggestions(
+            field, client(), std::move(on_suggestions_returned));
   } else {
     std::move(on_single_field_suggestions_callback)
         .Run(/*single_field_suggestions=*/{});
