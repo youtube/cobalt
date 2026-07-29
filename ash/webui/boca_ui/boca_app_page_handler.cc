@@ -325,12 +325,14 @@ BocaAppHandler::~BocaAppHandler() {
     GetSessionManager()->NotifySessionCaptionProducerEvents(caption_config);
   }
   GetSessionManager()->RemoveObserver(this);
-  if (!is_producer_ || BocaAppClient::Get()->HasApp()) {
+  if (!is_producer_ || (BocaAppClient::Get()->GetAppInstanceCount() > 1)) {
     // Always try end session when handler destructed, but do not proceed if
-    // there is still app instance. Find App won't return the window is already
-    // scheduled to close.
+    // there are other app instances open. The total instance count will not be
+    // decremented until all the app instance's tabs (including the one hosting
+    // this) are closed and the Browser instance is scheduled for deletion.
     return;
   }
+  GetSessionManager()->CleanupPresenters();
   // Best effort end session. Not handling response, if update failed,
   // persistent notification will stay.
   EndSession(base::BindOnce([](std::optional<mojom::UpdateSessionError>) {}));
@@ -645,7 +647,7 @@ void BocaAppHandler::EndViewScreenSession(
     EndViewScreenSessionCallback callback) {
   CHECK(spotlight_service_);
   if (student_screen_presenter() &&
-      student_screen_presenter()->IsPresenting()) {
+      student_screen_presenter()->IsPresenting(id)) {
     // Already ended and a presentation is in progress.
     std::move(callback).Run(std::nullopt);
     return;
@@ -770,6 +772,13 @@ void BocaAppHandler::PresentStudentScreen(
     std::move(callback).Run(false);
     return;
   }
+  if (teacher_screen_presenter() &&
+      teacher_screen_presenter()->IsPresenting()) {
+    LOG(ERROR) << "[Boca] Trying to present student's screen while "
+               << "presenting teacher's screen";
+    std::move(callback).Run(false);
+    return;
+  }
   std::string student_id = student->id;
   auto end_view_screen_cb = base::BindOnce(
       &BocaAppHandler::OnEndViewScreenResponseForPresentStudentScreen,
@@ -785,8 +794,7 @@ void BocaAppHandler::PresentStudentScreen(
 void BocaAppHandler::StopPresentingStudentScreen(
     StopPresentingStudentScreenCallback callback) {
   if (!student_screen_presenter()) {
-    LOG(ERROR) << "[Boca] unexpected call to stop presenting student screen";
-    std::move(callback).Run(false);
+    std::move(callback).Run(true);
     return;
   }
   student_screen_presenter()->Stop(std::move(callback));
@@ -799,6 +807,13 @@ void BocaAppHandler::PresentOwnScreen(const std::string& receiver_id,
     std::move(callback).Run(false);
     return;
   }
+  if (student_screen_presenter() &&
+      student_screen_presenter()->IsPresenting(/*student_id=*/std::nullopt)) {
+    LOG(ERROR) << "[Boca] trying to present teacher's own screen while "
+               << "presenting student's screen";
+    std::move(callback).Run(false);
+    return;
+  }
   teacher_screen_presenter()->Start(
       receiver_id, user_identity_, std::move(callback),
       base::BindOnce(&BocaAppHandler::OnPresentOwnScreenEnded,
@@ -808,9 +823,7 @@ void BocaAppHandler::PresentOwnScreen(const std::string& receiver_id,
 void BocaAppHandler::StopPresentingOwnScreen(
     StopPresentingOwnScreenCallback callback) {
   if (!teacher_screen_presenter()) {
-    LOG(ERROR)
-        << "[Boca] unexpected call to stop presenting teacher's own screen";
-    std::move(callback).Run(false);
+    std::move(callback).Run(true);
     return;
   }
   teacher_screen_presenter()->Stop(std::move(callback));
@@ -886,7 +899,7 @@ void BocaAppHandler::OnSessionEnded(const std::string& session_id) {
   OnSessionConfigUpdated(
       mojom::ConfigResult::NewError(mojom::GetSessionError::kEmpty));
   if (student_screen_presenter() &&
-      student_screen_presenter()->IsPresenting()) {
+      student_screen_presenter()->IsPresenting(/*student_id=*/std::nullopt)) {
     // Ending the session should disconnect the student remoting so update the
     // UI.
     remote_->OnPresentStudentScreenEnded();
@@ -1373,6 +1386,13 @@ void BocaAppHandler::PresentStudentScreenInternal(
   }
   if (!student_screen_presenter()) {
     LOG(ERROR) << "[Boca] unexpected call to present student screen";
+    std::move(callback).Run(false);
+    return;
+  }
+  if (teacher_screen_presenter() &&
+      teacher_screen_presenter()->IsPresenting()) {
+    LOG(ERROR) << "[Boca] Trying to present student's screen while "
+               << "presenting teacher's screen";
     std::move(callback).Run(false);
     return;
   }

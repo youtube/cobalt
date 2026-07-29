@@ -60,7 +60,7 @@ int BrowserViewLayoutDelegateImplBase::GetTopInsetInBrowserView() const {
   }
 #if BUILDFLAG(IS_MAC)
   if (browser_view_->UsesImmersiveFullscreenTabbedMode() &&
-      browser_view_->immersive_mode_controller()->IsEnabled()) {
+      GetImmersiveModeController()->IsEnabled()) {
     return 0;
   }
 #endif
@@ -103,7 +103,7 @@ bool BrowserViewLayoutDelegateImplBase::IsActiveTabSplit() const {
 
 const ImmersiveModeController*
 BrowserViewLayoutDelegateImplBase::GetImmersiveModeController() const {
-  return browser_view_->immersive_mode_controller();
+  return ImmersiveModeController::From(browser_view_->browser());
 }
 
 ExclusiveAccessBubbleViews*
@@ -167,7 +167,7 @@ bool BrowserViewLayoutDelegateImplBase::ShouldLayoutTabStrip() const {
   // The tab strip is hosted in a separate widget in immersive fullscreen on
   // macOS.
   if (browser_view_->UsesImmersiveFullscreenTabbedMode() &&
-      browser_view_->immersive_mode_controller()->IsEnabled()) {
+      GetImmersiveModeController()->IsEnabled()) {
     return false;
   }
 #endif
@@ -176,9 +176,9 @@ bool BrowserViewLayoutDelegateImplBase::ShouldLayoutTabStrip() const {
 
 int BrowserViewLayoutDelegateImplBase::GetExtraInfobarOffset() const {
 #if BUILDFLAG(IS_MAC)
-  if (browser_view_->UsesImmersiveFullscreenMode() &&
-      browser_view_->immersive_mode_controller()->IsEnabled()) {
-    return browser_view_->immersive_mode_controller()->GetExtraInfobarOffset();
+  auto* const controller = GetImmersiveModeController();
+  if (browser_view_->UsesImmersiveFullscreenMode() && controller->IsEnabled()) {
+    return controller->GetExtraInfobarOffset();
   }
 #endif
   return 0;
@@ -304,6 +304,10 @@ BrowserViewLayoutDelegateImpl::GetBoundsForWebAppFrameToolbarInBrowserView()
 
   const auto layout = GetFrameView()->GetBrowserLayoutParams();
   gfx::RectF bounds_f = gfx::RectF(layout.visual_client_area);
+  // Note: on Mac in fullscreen these exclusions have zero width, but may still
+  // have nonzero height to ensure that the top area has the same height as it
+  // would have had if they were present; see https://crbug.com/450817281 for
+  // why this is needed.
   const float max_bound =
       std::max(layout.leading_exclusion.content.height() +
                    layout.leading_exclusion.vertical_padding,

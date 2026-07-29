@@ -55,8 +55,7 @@
 #include "content/renderer/content_security_policy_util.h"
 #include "content/renderer/local_resource_url_loader_factory.h"
 #include "content/renderer/media/media_factory.h"
-#include "ipc/ipc_message.h"
-#include "ipc/ipc_platform_file.h"
+#include "ipc/platform_file_for_transit.h"
 #include "media/base/routing_token_callback.h"
 #include "media/base/speech_recognition_client.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
@@ -171,6 +170,7 @@ class DocumentState;
 class MediaPermissionDispatcher;
 class MHTMLPartsGenerationDelegateImpl;
 class NavigationClient;
+class NavigationState;
 class RenderAccessibilityManager;
 class RenderFrameObserver;
 
@@ -643,6 +643,8 @@ class CONTENT_EXPORT RenderFrameImpl
 
   base::ScopedClosureRunner CreateScopedClientNavigationThrottler() override;
 
+  bool IsForInitialWebUI() const override;
+
   // Dispatches the current state of selection on the webpage to the browser if
   // it has changed or if the forced flag is passed. The forced flag is used
   // when the browser selection may be out of sync with the renderer due to
@@ -1056,6 +1058,7 @@ class CONTENT_EXPORT RenderFrameImpl
   mojom::DidCommitProvisionalLoadParamsPtr MakeDidCommitProvisionalLoadParams(
       blink::WebHistoryCommitType commit_type,
       ui::PageTransition transition,
+      NavigationState* navigation_state,
       const network::ParsedPermissionsPolicy& permissions_policy_header,
       const blink::DocumentPolicyFeatureState& document_policy_header,
       const std::optional<base::UnguessableToken>& embedding_token,
@@ -1065,7 +1068,8 @@ class CONTENT_EXPORT RenderFrameImpl
   // This could result either in the creation of a new entry or a modification
   // of the current entry or nothing. If a new entry was created,
   // returns true, false otherwise.
-  void UpdateNavigationHistory(blink::WebHistoryCommitType commit_type);
+  void UpdateNavigationHistory(blink::WebHistoryCommitType commit_type,
+                               NavigationState* navigation_state);
 
   // Notify render_view_ observers that a commit happened.
   void NotifyObserversOfNavigationCommit(ui::PageTransition transition);
@@ -1073,7 +1077,8 @@ class CONTENT_EXPORT RenderFrameImpl
   // Updates the internal state following a navigation commit. This should be
   // called before notifying the FrameHost of the commit.
   void UpdateStateForCommit(blink::WebHistoryCommitType commit_type,
-                            ui::PageTransition transition);
+                            ui::PageTransition transition,
+                            NavigationState* navigation_state);
 
   // Internal function used by same document navigation as well as cross
   // document navigation that updates the state of the RenderFrameImpl and sends
@@ -1081,6 +1086,7 @@ class CONTENT_EXPORT RenderFrameImpl
   void DidCommitNavigationInternal(
       blink::WebHistoryCommitType commit_type,
       ui::PageTransition transition,
+      NavigationState* navigation_state,
       const network::ParsedPermissionsPolicy& permissions_policy_header,
       const blink::DocumentPolicyFeatureState& document_policy_header,
       mojom::DidCommitProvisionalLoadInterfaceParamsPtr interface_params,

@@ -107,7 +107,7 @@ BASE_FEATURE(kAutozoomNudgeSessionReset, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables a settings option to set an explicit charge limit for Chromebooks.
 BASE_FEATURE(kBatteryChargeLimit,
              "CrosBatteryChargeLimit",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Make Battery Saver available.
 BASE_FEATURE(kBatterySaver,
@@ -258,7 +258,7 @@ BASE_FEATURE(kBocaMigrateSpeechRecongnizerClient,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables Boca receiver app.
-BASE_FEATURE(kBocaReceiverApp, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kBocaReceiverApp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables using a configured number of students.
 BASE_FEATURE(kBocaConfigureMaxStudents, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -278,6 +278,9 @@ BASE_FEATURE(kBocaScreenSharingStudent, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables or disables sharing host audio in the Boca app.
 BASE_FEATURE(kBocaHostAudio, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables or disables using audio for the Kiosk client in the Boca app.
+BASE_FEATURE(kBocaAudioForKiosk, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCrosSwitcher, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1118,7 +1121,7 @@ BASE_FEATURE(kHomeButtonQuickAppAccess, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kHomeButtonWithText, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Helpful notifications for devices with Hybrid Chargers.
-BASE_FEATURE(kHybridChargerNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kHybridChargerNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, allows the user to cycle between windows of an app using Alt + `.
 BASE_FEATURE(kSameAppWindowCycle, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2565,6 +2568,10 @@ bool IsBocaScreenSharingStudentEnabled() {
 
 bool IsBocaHostAudioEnabled() {
   return base::FeatureList::IsEnabled(kBocaHostAudio);
+}
+
+bool IsBocaAudioForKioskEnabled() {
+  return base::FeatureList::IsEnabled(kBocaAudioForKiosk);
 }
 
 bool IsBrightnessControlInSettingsEnabled() {

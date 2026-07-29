@@ -306,10 +306,6 @@ public class Features {
     public static final String ASYNC_WEBVIEW_STARTUP_ASYNC_STARTUP_LOCATIONS =
             "ASYNC_WEBVIEW_STARTUP_ASYNC_STARTUP_LOCATIONS";
 
-    // WebViewCompat.startUpWebView
-    // WebViewStartUpResult.getAsyncStartUpLocations
-    public static final String ASYNC_WEBVIEW_STARTUP_V2 = "ASYNC_WEBVIEW_STARTUP_V2";
-
     // WebViewCompat.prerenderUrl
     // WebViewCompat.clearPrerender
     public static final String PRERENDER_WITH_URL = "PRERENDER_URL_V3";
@@ -353,6 +349,18 @@ public class Features {
     public static final String WEB_VIEW_NAVIGATION_CLIENT_BASIC_USAGE =
             "WEB_VIEW_NAVIGATION_CLIENT_BASIC_USAGE";
 
+    // WebView.addWebViewNavigationListener
+    // WebView.removeWebViewNavigationListener
+    //
+    // WebViewNavigationListener.onNavigationStarted()
+    // WebViewNavigationListener.onNavigationRedirected()
+    // WebViewNavigationListener.onNavigationCompleted()
+    // WebViewNavigationListener.onPageDeleted()
+    // WebViewNavigationListener.onPageLoadEventFired()
+    // WebViewNavigationListener.onPageDOMContentLoadedEventFired()
+    // WebViewNavigationListener.onFirstContentfulPaint()
+    public static final String WEB_VIEW_NAVIGATION_LISTENER_V1 = "WEB_VIEW_NAVIGATION_LISTENER_V1";
+
     // SupportLibWebViewChromium weakly reference WebView
     public static final String PROVIDER_WEAKLY_REF_WEBVIEW = "PROVIDER_WEAKLY_REF_WEBVIEW";
 
@@ -387,6 +395,13 @@ public class Features {
     // WebSettingsCompat.setBackForwardCacheSettings
     // WebSettingsCompat.getBackForwardCacheSettings
     public static final String BACK_FORWARD_CACHE_SETTINGS = "BACK_FORWARD_CACHE_SETTINGS";
+
+    // WebSettingsCompat.getBackForwardCacheSettings
+    // BackForwardCacheSettings.setTimeoutInSec
+    // BackForwardCacheSettings.setMaxPagesInCache
+    // BackForwardCacheSettings.getTimeoutInSec
+    // BackForwardCacheSettings.getMaxPagesInCache
+    public static final String BACK_FORWARD_CACHE_SETTINGS_V2 = "BACK_FORWARD_CACHE_SETTINGS_V2";
 
     // Profile.preconnect
     public static final String PRECONNECT = "PRECONNECT";

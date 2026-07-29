@@ -15,6 +15,7 @@
 #include "base/functional/callback.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
@@ -23,6 +24,7 @@
 #include "base/types/id_type.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/site_policy.h"
@@ -110,6 +112,8 @@ std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
 
 ExecutionEngine::~ExecutionEngine() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  UMA_HISTOGRAM_COUNTS_1000("Actor.NavigationGating.AllowListSize",
+                            allowed_navigation_origins_.size());
 }
 
 void ExecutionEngine::SetOwner(ActorTask* task) {
@@ -172,6 +176,17 @@ bool ExecutionEngine::ShouldGateNavigation(
   if (!base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
     return false;
   }
+  bool should_apply =
+      ShouldGateNavigationInternal(navigation_handle, std::move(callback));
+  LogNavigationGating(navigation_handle, should_apply);
+  return should_apply;
+}
+
+bool ExecutionEngine::ShouldGateNavigationInternal(
+    content::NavigationHandle& navigation_handle,
+    ExecutionEngine::UserConfirmationDialogCallback callback) {
+  base::ScopedUmaHistogramTimer timer(
+      "Actor.NavigationGating.TimeElapsedForGating");
 
   auto navigation_origin = url::Origin::Create(navigation_handle.GetURL());
 
@@ -207,13 +222,34 @@ bool ExecutionEngine::ShouldGateNavigation(
   return true;
 }
 
+void ExecutionEngine::LogNavigationGating(
+    content::NavigationHandle& navigation_handle,
+    bool applied_gate) {
+  UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.AppliedGate", applied_gate);
+
+  GURL navigation_url = navigation_handle.GetURL();
+  if (const std::optional<url::Origin>& initiator_origin =
+          navigation_handle.GetInitiatorOrigin()) {
+    UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.CrossOrigin",
+                          !initiator_origin->IsSameOriginWith(
+                              url::Origin::Create(navigation_url)));
+    UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.CrossSite",
+                          !net::SchemefulSite::IsSameSite(
+                              initiator_origin->GetURL(), navigation_url));
+  }
+}
+
 void ExecutionEngine::OnPromptToConfirmNavigationDecision(
     url::Origin navigation_origin,
     ExecutionEngine::UserConfirmationDialogCallback callback,
     webui::mojom::UserConfirmationDialogResponsePtr response) {
-  if (response->result->is_permission_granted() &&
-      response->result->get_permission_granted()) {
-    allowed_navigation_origins_.insert(std::move(navigation_origin));
+  if (response->result->is_permission_granted()) {
+    bool permission_granted = response->result->get_permission_granted();
+    UMA_HISTOGRAM_BOOLEAN("Actor.NavigationGating.PermissionGranted",
+                          permission_granted);
+    if (permission_granted) {
+      allowed_navigation_origins_.insert(std::move(navigation_origin));
+    }
   }
   std::move(callback).Run(std::move(response));
 }
@@ -338,7 +374,7 @@ void ExecutionEngine::SafetyChecksForNextAction() {
   }
 
   // Asynchronously check if we can act on the tab.
-  MayActOnTab(
+  ActorKeyedService::Get(profile_)->GetPolicyChecker().MayActOnTab(
       *tab, *journal_, task_->id(),
       base::BindOnce(
           &ExecutionEngine::DidFinishAsyncSafetyChecks, GetWeakPtr(),
@@ -588,6 +624,18 @@ void ExecutionEngine::OnCredentialSelected(
   TRACE_EVENT0("actor", "ExecutionEngine::OnCredentialSelected");
   if (credential_selected_callback_) {
     std::move(credential_selected_callback_).Run(std::move(response));
+  }
+}
+
+void ExecutionEngine::AddWritableMainframeOrigins(
+    const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins) {
+  if (!base::FeatureList::IsEnabled(kGlicCrossOriginNavigationGating)) {
+    return;
+  }
+  for (const auto& origin : added_writable_mainframe_origins) {
+    // Intentionally storing a copy of the origin so that ExecutionEngine owns
+    // the url::Origin's stored in allowed_navigation_origins_.
+    allowed_navigation_origins_.insert(url::Origin(origin));
   }
 }
 

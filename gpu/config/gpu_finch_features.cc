@@ -154,20 +154,6 @@ BASE_FEATURE(kAdjustGpuProcessPriority, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kClearGrShaderDiskCacheOnInvalidPrefix,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Controls the decode acceleration of JPEG images (as opposed to camera
-// captures) in Chrome OS using the VA-API.
-// TODO(andrescj): remove or enable by default in Chrome OS once
-// https://crbug.com/868400 is resolved.
-BASE_FEATURE(kVaapiJpegImageDecodeAcceleration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Controls the decode acceleration of WebP images in Chrome OS using the
-// VA-API.
-// TODO(gildekel): remove or enable by default in Chrome OS once
-// https://crbug.com/877694 is resolved.
-BASE_FEATURE(kVaapiWebPImageDecodeAcceleration,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enable Vulkan graphics backend for compositing and rasterization. Defaults to
 // native implementation if --use-vulkan flag is not used. Otherwise
 // --use-vulkan will be followed.
@@ -222,6 +208,10 @@ const base::FeatureParam<std::string> kWebGPUEnabledToggles{
 // Note that the comma should be URL-encoded.
 const base::FeatureParam<std::string> kWebGPUUnsafeFeatures{
     &kWebGPUService, "UnsafeFeatures", ""};
+// Whether to enable Dawn's spontaneous wire mode on the server side for faster
+// async resolution and timed wait any on the client side.
+const base::FeatureParam<bool> kWebGPUSpontaneousWireServer{
+    &kWebGPUService, "DawnSpontaneousWireServer", false};
 // List of WGSL feature names, delimited by ,
 // The FeatureParam may be overridden via Finch config, or via the command line
 // For example:

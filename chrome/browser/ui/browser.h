@@ -816,13 +816,13 @@ class Browser : public TabStripModelObserver,
   base::CallbackListSubscription RegisterDidBecomeInactive(
       DidBecomeInactiveCallback callback) override;
   ExclusiveAccessManager* GetExclusiveAccessManager() override;
-  ImmersiveModeController* GetImmersiveModeController() override;
   BrowserActions* GetActions() override;
   Type GetType() const override;
   web_app::AppBrowserController* GetAppBrowserController() override;
   const web_app::AppBrowserController* GetAppBrowserController() const override;
   std::vector<tabs::TabInterface*> GetAllTabInterfaces() override;
   Browser* GetBrowserForMigrationOnly() override;
+  const Browser* GetBrowserForMigrationOnly() const override;
   bool IsTabModalPopupDeprecated() const override;
   bool CanShowCallToAction() const override;
   std::unique_ptr<ScopedWindowCallToAction> ShowCallToAction() override;
@@ -1213,11 +1213,6 @@ class Browser : public TabStripModelObserver,
   // `feature`.
   bool SupportsWindowFeatureImpl(WindowFeature feature,
                                  bool check_can_support) const;
-
-
-  // Returns true if we can start the shutdown sequence for the browser, i.e.
-  // the last browser window is being closed.
-  bool ShouldStartShutdown() const;
 
   // Returns true if a BackgroundContents should be created in response to a
   // WebContents::CreateNewWindow() call.

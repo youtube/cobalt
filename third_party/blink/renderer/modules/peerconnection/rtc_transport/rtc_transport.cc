@@ -239,6 +239,16 @@ class AsyncDatagramConnectionImpl : public AsyncDatagramConnection {
   scoped_refptr<base::SequencedTaskRunner> js_thread_task_runner_;
 };
 
+webrtc::DatagramConnection::WireProtocol ToWebrtcWireProtocol(
+    V8RtcTransportWireProtocol wire_protocol) {
+  switch (wire_protocol.AsEnum()) {
+    case V8RtcTransportWireProtocol::Enum::kDtls:
+      return webrtc::DatagramConnection::WireProtocol::kDtls;
+    case V8RtcTransportWireProtocol::Enum::kDtlsSrtp:
+      return webrtc::DatagramConnection::WireProtocol::kDtlsSrtp;
+  }
+}
+
 }  // namespace
 
 // static
@@ -252,12 +262,23 @@ RtcTransport* RtcTransport::Create(ExecutionContext* context,
   if (exception_state.HadException()) {
     return nullptr;
   }
+  if (!config->hasIceControlling()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
+                                      "Missing iceControlling");
+    return nullptr;
+  }
+  if (!config->hasWireProtocol()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
+                                      "Missing wireProtocol");
+    return nullptr;
+  }
 
   RtcTransportDependencies::GetInitialized(
       *context,
       BindOnce(&RtcTransport::ContinueInitialization, WrapPersistent(transport),
                config->iceControlling(), stun_servers,
-               /*injected_datagram_connection=*/nullptr));
+               /*injected_datagram_connection=*/nullptr,
+               ToWebrtcWireProtocol(config->wireProtocol())));
   return transport;
 }
 
@@ -283,7 +304,8 @@ RtcTransport* RtcTransport::CreateForTests(
     RtcTransportDependencies::GetInitialized(
         *context, BindOnce(&RtcTransport::ContinueInitialization,
                            WrapPersistent(transport), config->iceControlling(),
-                           stun_servers, datagram_connection));
+                           stun_servers, datagram_connection,
+                           ToWebrtcWireProtocol(config->wireProtocol())));
   }
   return transport;
 }
@@ -309,6 +331,7 @@ void RtcTransport::ContinueInitialization(
     webrtc::ServerAddresses stun_servers,
     webrtc::scoped_refptr<webrtc::DatagramConnection>
         injected_datagram_connection,
+    webrtc::DatagramConnection::WireProtocol wire_protocol,
     RtcTransportDependencies* dependencies) {
   std::unique_ptr<P2PPortAllocator> port_allocator =
       dependencies->CreatePortAllocator();
@@ -329,7 +352,8 @@ void RtcTransport::ContinueInitialization(
              webrtc::scoped_refptr<webrtc::RTCCertificate> certificate,
              std::unique_ptr<webrtc::DatagramConnection::Observer> observer,
              webrtc::scoped_refptr<webrtc::DatagramConnection>
-                 injected_datagram_connection) {
+                 injected_datagram_connection,
+             webrtc::DatagramConnection::WireProtocol wire_protocol) {
             port_allocator->Initialize();
 
             webrtc::scoped_refptr<webrtc::DatagramConnection>
@@ -339,7 +363,8 @@ void RtcTransport::ContinueInitialization(
                         : webrtc::CreateDatagramConnection(
                               env, std::move(port_allocator),
                               /*name=*/"RtcTransport", ice_controlling,
-                              std::move(certificate), std::move(observer));
+                              std::move(certificate), std::move(observer),
+                              wire_protocol);
 
             auto async_datagram_connection =
                 std::make_unique<AsyncDatagramConnectionImpl>(
@@ -353,7 +378,7 @@ void RtcTransport::ContinueInitialization(
           MakeCrossThreadHandle(this), task_runner_, std::move(port_allocator),
           stun_servers, ice_controlling, dependencies->Environment(),
           certificate_, std::move(observer),
-          std::move(injected_datagram_connection)));
+          std::move(injected_datagram_connection), wire_protocol));
 }
 
 void RtcTransport::OnInitialized(
@@ -366,6 +391,11 @@ void RtcTransport::OnInitialized(
     // Apply pending DTLS parameters
     setRemoteDtlsParameters(pending_dtls_parameters_.Release());
   }
+
+  for (const auto& candidate : pending_remote_candidates_) {
+    async_datagram_connection_->AddRemoteCandidate(candidate);
+  }
+  pending_remote_candidates_.clear();
 
   if (!pending_send_packets_calls_.empty()) {
     sendPackets(pending_send_packets_calls_);
@@ -396,7 +426,6 @@ void RtcTransport::OnPacketReceivedOnMainThread(
 
 void RtcTransport::addRemoteCandidate(RtcTransportICECandidateInit* init,
                                       ExceptionState& exception_state) {
-  DCHECK(initialized_);
   if (!init->hasType()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
                                       "Missing type");
@@ -444,6 +473,11 @@ void RtcTransport::addRemoteCandidate(RtcTransportICECandidateInit* init,
     exception_state.ThrowDOMException(
         DOMExceptionCode::kSyntaxError,
         "Only Host and Srflx candidates currently supported");
+    return;
+  }
+
+  if (!initialized_) {
+    pending_remote_candidates_.push_back(candidate);
     return;
   }
 

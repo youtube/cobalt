@@ -4,7 +4,7 @@
 
 import type {BitmapN32} from '//resources/mojo/skia/public/mojom/bitmap.mojom-webui.js';
 
-import {ConnectionClosedReason, ReceiverInfo, UserInfo} from '../mojom/boca_receiver.mojom-webui.js';
+import {ConnectionClosedReason, DecodedAudioPacket, ReceiverInfo, UserInfo} from '../mojom/boca_receiver.mojom-webui.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 
@@ -25,6 +25,12 @@ export declare interface ClientApi {
    * after onConnecting is called.
    */
   onFrameReceived(image: BitmapN32): void;
+
+  /**
+   * Notifies the client that an audio packet has been received.
+   * @param packet The audio packet to be processed.
+   */
+  onAudioPacket(packet: DecodedAudioPacket): void;
 
   /**
    * Notifies the client that the receiver is connecting to a new host.
@@ -57,6 +63,8 @@ function initializeApp(app: ClientApi) {
       () => app.onInitReceiverError());
   proxy.callbackRouter.onFrameReceived.addListener(
       (frameData: BitmapN32) => app.onFrameReceived(frameData));
+  proxy.callbackRouter.onAudioPacket.addListener(
+      (audioPacket: DecodedAudioPacket) => app.onAudioPacket(audioPacket));
   proxy.callbackRouter.onConnecting.addListener(
       (initiator: UserInfo, presenter: UserInfo|null) =>
           app.onConnecting(initiator, presenter));

@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Tiếp tục</translation>
 <translation id="2379925928934107488">Áp dụng giao diện tối cho các trang web khi Chrome sử dụng giao diện tối, nếu có thể</translation>
 <translation id="2390272837142897736">Tăng mức thu phóng</translation>
+<translation id="2397689164757137845">Được phép • Vị trí chính xác</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Chính xác</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Đã cho phép <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> và <ph name="NUM_MORE" /> quyền khác}other{Đã cho phép <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> và <ph name="NUM_MORE" /> quyền khác}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Trợ giúp và phản hồi</translation>
 <translation id="2501278716633472235">Quay lại</translation>
 <translation id="2533138527374486328">Khi tuỳ chọn này bật, các trang web có thể yêu cầu kết nối với thiết bị bất kỳ trên mạng cục bộ của bạn. Khi tuỳ chọn này tắt, các trang web không thể kết nối với thiết bị trên mạng cục bộ của bạn.</translation>
+<translation id="2536779053640817375">Được cho phép lần này • Vị trí chính xác</translation>
 <translation id="2544997614631598250">Giao diện màu tối</translation>
 <translation id="2546283357679194313">Cookie và dữ liệu trang web</translation>
 <translation id="2570922361219980984">Quyền truy cập vị trí cũng đã bị tắt đối với thiết bị này. Hãy bật trong <ph name="BEGIN_LINK" />Cài đặt Android<ph name="END_LINK" />.</translation>
@@ -441,6 +443,7 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="5876056640971328065">Tạm dừng video</translation>
 <translation id="5877248419911025165">Thu gọn tất cả yêu cầu</translation>
 <translation id="5878945009165002849">Chặn lời nhắc đăng nhập qua dịch vụ định danh</translation>
+<translation id="588258955323874662">Toàn màn hình</translation>
 <translation id="5884085660368669834">Lựa chọn ưu tiên cho trang web</translation>
 <translation id="5887687176710214216">Lần truy cập gần đây nhất: hôm qua</translation>
 <translation id="5908617755156109052">Không cho phép các trang web tạo bản đồ 3D khu vực xung quanh bạn hoặc theo dõi thông tin vị trí của camera</translation>
@@ -700,7 +703,6 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="8803526663383843427">Khi bật</translation>
 <translation id="8805385115381080995">Duyệt web nhanh hơn vì trang web ít khi yêu cầu xác minh bạn là người thực hơn</translation>
 <translation id="8816026460808729765">Chặn không cho các trang web sử dụng cảm biến</translation>
-<translation id="884765916894384048">Chuyển sang phát trong nền</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Hãy thử tạm thời cho phép cookie của bên thứ ba. Chế độ cài đặt này sẽ làm giảm khả năng bảo vệ khi duyệt web nhưng các tính năng của trang có thể sẽ hoạt động đúng như mong đợi.</translation>
 <translation id="8889294078294184559">Khi bạn tiếp tục duyệt web, các trang web có thể kiểm tra qua Chrome và xác minh qua trang web mà bạn truy cập trước đó rằng bạn có thể là người thực</translation>

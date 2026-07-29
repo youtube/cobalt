@@ -238,8 +238,9 @@ bool ParseHostAndPort(std::string_view input, std::string* host, int* port) {
   // invalid. If it is an IPv6 literal then strip the brackets.
   if (hostname_component.len > 0 && input[hostname_component.begin] == '[') {
     if (input[hostname_component.end() - 1] == ']' &&
-        url::IPv6AddressToNumber(input.data(), hostname_component,
-                                 tmp_ipv6_addr)) {
+        url::IPv6AddressToNumber(
+            hostname_component.as_string_view_on(input.data()),
+            tmp_ipv6_addr)) {
       // Strip the brackets.
       hostname_component.begin++;
       hostname_component.len -= 2;
@@ -337,10 +338,10 @@ std::string CanonicalizeHost(std::string_view host,
   const int kCxxMaxStringBufferSizeWithoutMalloc = 22;
   canon_host_output.Resize(kCxxMaxStringBufferSizeWithoutMalloc);
   if (is_file_scheme) {
-    url::CanonicalizeFileHostVerbose(host.data(), raw_host_component,
+    url::CanonicalizeFileHostVerbose(host, raw_host_component,
                                      canon_host_output, *host_info);
   } else {
-    url::CanonicalizeSpecialHostVerbose(host.data(), raw_host_component,
+    url::CanonicalizeSpecialHostVerbose(host, raw_host_component,
                                         canon_host_output, *host_info);
   }
 

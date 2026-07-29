@@ -82,11 +82,22 @@ chromium-metrics-reviews@google.com.
 <histogram name="Content.SharedWorker.Host.DestructionSource"
     enum="SharedWorkerHostDestructionSource" expires_after="2026-04-05">
   <owner>yyanagisawa@chromium.org</owner>
-  <owner>chrome-worker@google.org</owner>
+  <owner>chrome-worker@google.com</owner>
   <summary>
     Records the reason why a SharedWorkerHost is destroyed. This is to
     investigate why a shared worker is terminated unexpectedly. This is also
     used for understanding the ratio of destruction cases.
+  </summary>
+</histogram>
+
+<histogram name="Content.SharedWorker.Service.LastClientCheckTime" units="ms"
+    expires_after="2026-04-01">
+  <owner>annasato@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    The time spent checking if a navigating page with a SharedWorker is the last
+    active client. This is recorded whenever a page with a SharedWorker
+    connection navigates away.
   </summary>
 </histogram>
 
@@ -390,7 +401,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSettings.Popups.StrongBlockerActions"
-    enum="StrongPopupBlockerAction" expires_after="2026-02-09">
+    enum="StrongPopupBlockerAction" expires_after="2026-04-12">
   <owner>csharrison@chromium.org</owner>
   <summary>
     Counts of various events related to the strong popup blocker (aka abusive
@@ -1239,7 +1250,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ContentSuggestions.Feed.RefreshTrigger"
-    enum="FeedRefreshTrigger" expires_after="2026-02-01">
+    enum="FeedRefreshTrigger" expires_after="2026-04-12">
   <owner>adamta@google.com</owner>
   <owner>feed@chromium.org</owner>
   <summary>
@@ -1539,25 +1550,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="ContentSuggestions.Feed.WebFeed.FollowCount.{Event}"
-    units="follows" expires_after="2025-02-10">
-  <owner>harringtond@chromium.org</owner>
-  <owner>feed@chromium.org</owner>
-  <summary>
-    Android: The number of web feeds the user is following. Reported {Event}.
-  </summary>
-  <token key="Event">
-    <variant name="AfterFollow" summary="after a successful follow action"/>
-    <variant name="AfterUnfollow" summary="after a successful unfollow action"/>
-    <variant name="ContentShown"
-        summary="after the Following feed is shown, and some content is
-                 displayed"/>
-    <variant name="NoContentShown"
-        summary="after the Following Feed is shown, and no content is
-                 available for display"/>
-  </token>
-</histogram>
-
 <histogram name="ContentSuggestions.Feed.WebFeed.FollowUriResult"
     enum="WebFeedSubscriptionRequestStatus" expires_after="2024-06-30">
   <owner>harringtond@chromium.org</owner>
@@ -1610,17 +1602,6 @@ chromium-metrics-reviews@google.com.
     Reported upon successfully following a web feed. Reported as 'true' if the
     web feed was recommended, even if the user did not see or interact with
     recommendation UI.
-  </summary>
-</histogram>
-
-<histogram name="ContentSuggestions.Feed.WebFeed.NewFollow.IsRecommended"
-    enum="Boolean" expires_after="2024-06-30">
-  <owner>harringtond@chromium.org</owner>
-  <owner>feed@chromium.org</owner>
-  <summary>
-    Whether the followed web feed was recommended by the server.
-
-    Reported upon successfully following a web feed.
   </summary>
 </histogram>
 

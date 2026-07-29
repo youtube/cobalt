@@ -73,7 +73,8 @@ GlicInactiveSidePanelUi::~GlicInactiveSidePanelUi() = default;
 // tab.
 void GlicInactiveSidePanelUi::OnViewFocused(views::View* observed_view) {
   if (tab_) {
-    delegate_->Show(SidePanelShowOptions(*tab_));
+    // NOTE: `this` will be destroyed after this call.
+    delegate_->Show(ShowOptions::ForSidePanel(*tab_));
   }
 }
 
@@ -111,7 +112,7 @@ void GlicInactiveSidePanelUi::Close() {
   glic_side_panel_coordinator->Close();
 }
 
-views::View* GlicInactiveSidePanelUi::GetView() {
+base::WeakPtr<views::View> GlicInactiveSidePanelUi::GetView() {
   return nullptr;
 }
 
@@ -121,7 +122,7 @@ void GlicInactiveSidePanelUi::Focus() {
 
 mojom::PanelState GlicInactiveSidePanelUi::GetPanelState() const {
   mojom::PanelState state;
-  state.kind = glic::mojom::PanelState::Kind::kHidden;
+  state.kind = glic::mojom::PanelStateKind::kHidden;
   return state;
 }
 

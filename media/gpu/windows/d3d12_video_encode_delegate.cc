@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "media/base/media_switches.h"
 #include "media/base/win/mf_helpers.h"
+#include "media/gpu/gpu_video_encode_accelerator_helpers.h"
 #include "media/gpu/h264_dpb.h"
 #include "media/gpu/windows/d3d12_helpers.h"
 #include "media/gpu/windows/d3d12_video_encode_av1_delegate.h"
@@ -67,6 +68,19 @@ bool IsVBRSupported(ID3D12VideoDevice3* video_device,
       D3D12_FEATURE_VIDEO_ENCODER_RATE_CONTROL_MODE, &vbr, sizeof(vbr));
 
   return SUCCEEDED(hr) && vbr.IsSupported;
+}
+
+DXGI_FORMAT GetDxgiInputFormat(VideoCodecProfile output_profile,
+                               VideoPixelFormat input_format) {
+  if ((output_profile == H264PROFILE_HIGH10PROFILE ||
+       output_profile == HEVCPROFILE_MAIN10) &&
+      input_format == PIXEL_FORMAT_P010LE) {
+    return DXGI_FORMAT_P010;
+  } else if (output_profile == AV1PROFILE_PROFILE_HIGH) {
+    return DXGI_FORMAT_AYUV;
+  } else {
+    return DXGI_FORMAT_NV12;
+  }
 }
 
 }  // namespace
@@ -212,17 +226,14 @@ EncoderStatus D3D12VideoEncodeDelegate::Initialize(
   input_size_.Width = config.input_visible_size.width();
   input_size_.Height = config.input_visible_size.height();
 
-  if ((output_profile_ == H264PROFILE_HIGH10PROFILE ||
-       output_profile_ == HEVCPROFILE_MAIN10) &&
-      config.input_format == PIXEL_FORMAT_P010LE) {
-    input_format_ = DXGI_FORMAT_P010;
-  } else {
-    input_format_ = DXGI_FORMAT_NV12;
-  }
+  input_format_ = GetDxgiInputFormat(output_profile_, config.input_format);
   processed_input_frame_.Reset();
 
+  bitrate_allocation_ = AllocateBitrateForDefaultEncoding(config);
+  framerate_ = config.framerate;
   rate_control_ = D3D12VideoEncoderRateControl::Create(
-      config.bitrate, config.framerate, video_device_.Get(), output_profile_);
+      bitrate_allocation_, config.framerate, video_device_.Get(),
+      output_profile_);
 
   static constexpr uint32_t kDefaultGOPLength = 3000;
   config.gop_length = config.gop_length.value_or(kDefaultGOPLength);
@@ -231,8 +242,6 @@ EncoderStatus D3D12VideoEncodeDelegate::Initialize(
     return EncoderStatus::Codes::kEncoderInitializationError;
   }
 
-  config_ = config;
-
   return InitializeVideoEncoder(config);
 }
 
@@ -240,18 +249,19 @@ bool D3D12VideoEncodeDelegate::ReportsAverageQp() const {
   return false;
 }
 
-bool D3D12VideoEncodeDelegate::UpdateRateControl(const Bitrate& bitrate,
-                                                 uint32_t framerate) {
+bool D3D12VideoEncodeDelegate::UpdateRateControl(
+    const VideoBitrateAllocation& bitrate_allocation,
+    uint32_t framerate) {
   auto rate_control = D3D12VideoEncoderRateControl::Create(
-      bitrate, framerate, video_device_.Get(), output_profile_);
+      bitrate_allocation, framerate, video_device_.Get(), output_profile_);
 
   if (rate_control.GetMode() != rate_control_.GetMode() &&
       !SupportsRateControlReconfiguration()) {
     return false;
   }
 
-  config_.bitrate = bitrate;
-  config_.framerate = framerate;
+  bitrate_allocation_ = bitrate_allocation;
+  framerate_ = framerate;
   rate_control_ = rate_control;
   return true;
 }
@@ -390,15 +400,15 @@ D3D12VideoEncodeDelegate::D3D12VideoEncoderRateControl::CreateCqp(
 // static
 D3D12VideoEncodeDelegate::D3D12VideoEncoderRateControl
 D3D12VideoEncodeDelegate::D3D12VideoEncoderRateControl::Create(
-    Bitrate bitrate,
+    const VideoBitrateAllocation& bitrate_allocation,
     uint32_t framerate,
     ID3D12VideoDevice3* video_device,
     VideoCodecProfile output_profile) {
   D3D12VideoEncoderRateControl rate_control;
-  switch (bitrate.mode()) {
+  switch (bitrate_allocation.GetMode()) {
     case Bitrate::Mode::kConstant:
       rate_control.params_.cbr = {
-          .TargetBitRate = bitrate.target_bps(),
+          .TargetBitRate = bitrate_allocation.GetSumBps(),
       };
       rate_control.rate_control_ = {
           .Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CBR,
@@ -411,7 +421,7 @@ D3D12VideoEncodeDelegate::D3D12VideoEncoderRateControl::Create(
       if (!IsVBRSupported(video_device, output_profile)) {
         LOG(ERROR) << "Requested VBR not supported, falling back to CBR.";
         rate_control.params_.cbr = {
-            .TargetBitRate = bitrate.target_bps(),
+            .TargetBitRate = bitrate_allocation.GetSumBps(),
         };
         rate_control.rate_control_ = {
             .Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_CBR,
@@ -421,8 +431,8 @@ D3D12VideoEncodeDelegate::D3D12VideoEncoderRateControl::Create(
         };
       } else {
         rate_control.params_.vbr = {
-            .TargetAvgBitRate = bitrate.target_bps(),
-            .PeakBitRate = bitrate.peak_bps(),
+            .TargetAvgBitRate = bitrate_allocation.GetSumBps(),
+            .PeakBitRate = bitrate_allocation.GetPeakBps(),
         };
         rate_control.rate_control_ = {
             .Mode = D3D12_VIDEO_ENCODER_RATE_CONTROL_MODE_VBR,

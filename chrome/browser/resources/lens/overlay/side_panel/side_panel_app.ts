@@ -186,6 +186,11 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
         value: () => loadTimeData.getBoolean('showLensButton'),
         reflectToAttribute: true,
       },
+      showSubmitButton: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('composeboxShowSubmit'),
+        reflectToAttribute: true,
+      },
       pageContentType: {
         type: Number,
         value: PageContentType.kUnknown,
@@ -250,6 +255,8 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   declare showErrorState: boolean;
   // Whether the lens button should be shown in the searchbox.
   declare private showLensButton: boolean;
+  // Whether the submit button should be shown in the searchbox.
+  declare private showSubmitButton: boolean;
   declare private showUploadProgress: boolean;
   // The current progress of the page content upload.
   declare uploadProgressPercentage: number;
@@ -726,6 +733,9 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
   }
 
   private hideAndReshowFeedbackToast() {
+    // Cancel the timeout to show the feedback toast if it is set.
+    clearTimeout(this.feedbackToastShowAfterDelayTimeoutId);
+
     this.$.feedbackToast.hide();
     this.feedbackToastDismissed = false;
     this.showFeedbackToast();

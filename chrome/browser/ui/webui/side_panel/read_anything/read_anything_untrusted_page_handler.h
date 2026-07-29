@@ -125,7 +125,13 @@ class ReadAnythingUntrustedPageHandler :
       mojo::PendingReceiver<read_anything::mojom::UntrustedPageHandler>
           receiver,
       content::WebUI* web_ui,
-      bool use_screen_ai_service);
+      bool use_screen_ai_service
+#if BUILDFLAG(IS_CHROMEOS)
+      ,
+      std::unique_ptr<ChromeOsExtensionWrapper> extension_wrapper =
+          std::make_unique<ChromeOsExtensionWrapper>()
+#endif
+  );
   ReadAnythingUntrustedPageHandler(const ReadAnythingUntrustedPageHandler&) =
       delete;
   ReadAnythingUntrustedPageHandler& operator=(
@@ -150,7 +156,7 @@ class ReadAnythingUntrustedPageHandler :
   void OnReadAloudAudioStateChange(bool playing) override;
   void OnSpeechRateChange(double rate) override;
   void OnImageDataRequested(const ui::AXTreeID& target_tree_id,
-                            ui::AXNodeID target_node_id) override;
+                            const ui::AXNodeID& target_node_id) override;
   void OnLineSpaceChange(
       read_anything::mojom::LineSpacing line_spacing) override;
   void OnLetterSpaceChange(
@@ -181,13 +187,11 @@ class ReadAnythingUntrustedPageHandler :
 #if BUILDFLAG(IS_CHROMEOS)
   // ash::SessionObserver
   void OnLockStateChanged(bool locked) override;
-  void SetChromeOsExtensionWrapperForTesting(
-      std::unique_ptr<ChromeOsExtensionWrapper> wrapper);
 #endif
 
  protected:
   void OnImageDataDownloaded(const ui::AXTreeID& target_tree_id,
-                             ui::AXNodeID,
+                             const ui::AXNodeID&,
                              int id,
                              int http_status_code,
                              const GURL& image_url,
@@ -218,10 +222,6 @@ class ReadAnythingUntrustedPageHandler :
     LanguageRequestType type;
   };
 
-  // The ChromeOS TTS engine gets put to sleep with a very short amount of
-  // inactivity, so we often need to wake it when requesting language
-  // installation. This is used as a callback when the engine is awake.
-  void OnTtsEngineAwake(bool success);
   void SendOrQueueLanguageRequest(LanguageRequest request);
   void SendNextLanguageRequest();
   void OnInstallPackResponse(const PackResult& pack_result);
@@ -236,13 +236,13 @@ class ReadAnythingUntrustedPageHandler :
   void OnCopy() override;
 
   void OnLinkClicked(const ui::AXTreeID& target_tree_id,
-                     ui::AXNodeID target_node_id) override;
+                     const ui::AXNodeID& target_node_id) override;
   void ScrollToTargetNode(const ui::AXTreeID& target_tree_id,
-                          ui::AXNodeID target_node_id) override;
+                          const ui::AXNodeID& target_node_id) override;
   void OnSelectionChange(const ui::AXTreeID& target_tree_id,
-                         ui::AXNodeID anchor_node_id,
+                         const ui::AXNodeID& anchor_node_id,
                          int anchor_offset,
-                         ui::AXNodeID focus_node_id,
+                         const ui::AXNodeID& focus_node_id,
                          int focus_offset) override;
   void OnCollapseSelection() override;
   void OnScreenshotRequested() override;
@@ -311,6 +311,8 @@ class ReadAnythingUntrustedPageHandler :
 
   // The current language being used in the app.
   std::string current_language_code_ = "en-US";
+  const bool use_screen_ai_service_;
+
 #if BUILDFLAG(IS_CHROMEOS)
   // The ChromeOS language pack manager can't handle more than one language
   // request at a time. When we receive requests from the page, queue them up
@@ -325,8 +327,6 @@ class ReadAnythingUntrustedPageHandler :
   base::ScopedObservation<ui::AXActionHandlerRegistry,
                           ui::AXActionHandlerObserver>
       ax_action_handler_observer_{this};
-
-  const bool use_screen_ai_service_;
 
   // Whether the currently distilled page is recognized as a pdf. This allows
   // the page handler to trigger distillation if the page would now be

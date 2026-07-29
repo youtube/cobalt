@@ -30,6 +30,7 @@ import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
+import org.chromium.base.CallbackUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
@@ -94,6 +95,7 @@ import org.chromium.components.sensitive_content.SensitiveContentFeatures;
 import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.ChildProcessImportance;
+import org.chromium.content_public.browser.ContentFeatureMap;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.SelectionPopupController;
@@ -102,6 +104,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsAccessibility;
 import org.chromium.content_public.browser.back_forward_transition.AnimationStage;
 import org.chromium.content_public.browser.navigation_controller.UserAgentOverrideOption;
+import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.ui.base.ImmutableWeakReference;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.base.ViewAndroidDelegate;
@@ -525,6 +528,9 @@ class TabImpl implements Tab {
         if (!isInitialized()) {
             return GURL.emptyGURL();
         }
+        if (mPendingLoadParams != null) {
+            return mUrl != null ? mUrl : new GURL(mPendingLoadParams.getUrl());
+        }
         GURL url = getWebContents() != null ? getWebContents().getVisibleUrl() : GURL.emptyGURL();
 
         // If we have a ContentView, or a NativePage, or the url is not empty, we have a WebContents
@@ -779,6 +785,12 @@ class TabImpl implements Tab {
 
         if (!fixedUrl.isValid()) return new LoadUrlResult(TabLoadStatus.PAGE_LOAD_FAILED, null);
 
+        // Discard pending load params if they exist. At this point we are navigating to a new URL
+        // programmatically and the pending load never occurred.
+        if (mPendingLoadParams != null) {
+            mPendingLoadParams = null;
+        }
+
         // Record UMA "ShowHistory" here. That way it'll pick up both user
         // typing chrome://history as well as selecting from the drop down menu.
         String fixedUrlSpec = fixedUrl.getSpec();
@@ -798,6 +810,29 @@ class TabImpl implements Tab {
 
     @Override
     public void freeze() {
+        if (useDiscardForFreeze()) {
+            discard();
+        } else {
+            freezeInternal();
+        }
+    }
+
+    private boolean useDiscardForFreeze() {
+        return ChromeFeatureList.sTabFreezingUsesDiscard.isEnabled()
+                && ContentFeatureMap.isEnabled(ContentFeatures.WEB_CONTENTS_DISCARD);
+    }
+
+    private void discard() {
+        assert isHidden() || isClosing() : "Should only discard a closing or hidden tab.";
+
+        if (mWebContents == null) return;
+
+        mWebContents.discard(CallbackUtils.emptyRunnable());
+        // TODO(crbug.com/449784092): Check if the tab gets stuck in a loading state when using
+        // discard.
+    }
+
+    private void freezeInternal() {
         assert isHidden() || isClosing() : "Should only freeze a closing or hidden tab.";
         // If the native page is not already torn down make sure we remove it so it isn't visible if
         // this tab is foregrounded again in the current session.
@@ -824,24 +859,77 @@ class TabImpl implements Tab {
             mPendingLoadParams = null;
         }
 
-        RewindableIterator<TabObserver> observers = getTabObservers();
         if (oldWebContents != null) {
-            while (observers.hasNext()) {
-                observers.next().onContentChanged(this);
+            for (TabObserver observer : mObservers) {
+                observer.onContentChanged(this);
             }
-            observers.rewind();
             oldWebContents.destroy();
         }
     }
 
     @Override
     public void freezeAndAppendPendingNavigation(LoadUrlParams params, @Nullable String title) {
-        assert isHidden() : "Should only freeze and apprend a navigation to a tab that is hidden.";
-        freeze();
+        if (useDiscardForFreeze()) {
+            discardAndAppendPendingNavigation(params, title);
+        } else {
+            freezeAndAppendPendingNavigationInternal(params, title);
+        }
+    }
+
+    private void discardAndAppendPendingNavigation(LoadUrlParams params, @Nullable String title) {
+        assert isHidden() : "Should only discard and append a navigation to a tab that is hidden.";
+
+        if (mWebContents == null && mWebContentsState == null && mPendingLoadParams != null) {
+            // Case 1: We have a pending load params but no WebContents or WebContentsState. Just
+            // clobber the existing pending load params.
+            mPendingLoadParams = params;
+            mUrl = new GURL(params.getUrl());
+        } else if (mWebContentsState != null) {
+            assert mPendingLoadParams == null
+                    : "Should not have both a WebContentsState and a pending load params.";
+
+            // Case 2: We have a WebContentsState. Append the pending navigation to it.
+            boolean success =
+                    mWebContentsState.appendPendingNavigation(
+                            mProfile, title, params, /* trackLastEntryWasPending= */ true);
+            RecordHistogram.recordBooleanHistogram(
+                    "Tabs.FreezeAndAppendPendingNavigationResult", success);
+            if (success) {
+                // The pending load params were consumed to make the WebContentsState. Invalidate
+                // them.
+                mPendingLoadParams = null;
+                mUrl = new GURL(mWebContentsState.getVirtualUrlFromState());
+            } else {
+                // If we failed to append the pending navigation, clear the WebContentsState and
+                // clobber with the new pending load params.
+                mWebContentsState.destroy();
+                mWebContentsState = null;
+                mPendingLoadParams = params;
+                mUrl = new GURL(params.getUrl());
+            }
+        } else {
+            // Case 3: The tab has a live WebContents and maybe a pending load params. Clobber
+            // the previous pending load params (if one existed) and discard the WebContents.
+            assert mWebContents != null;
+            discard();
+            mPendingLoadParams = params;
+            mUrl = new GURL(params.getUrl());
+        }
+        triggerUpdatesOnAppendingNavigation(title);
+    }
+
+    private void freezeAndAppendPendingNavigationInternal(
+            LoadUrlParams params, @Nullable String title) {
+        assert isHidden() : "Should only freeze and append a navigation to a tab that is hidden.";
+        // TODO(crbug.com/449784092): This should use `discard()` instead of `freezeInternal()`
+        // once pending navigations with a WebContents are supported.
+        freezeInternal();
         assumeNonNull(mWebContentsState);
         // The only reason this should still be null is if we failed to allocate a byte buffer,
         // which probably means we are close to an OOM.
-        boolean success = mWebContentsState.appendPendingNavigation(mProfile, title, params);
+        boolean success =
+                mWebContentsState.appendPendingNavigation(
+                        mProfile, title, params, /* trackLastEntryWasPending= */ false);
 
         RecordHistogram.recordBooleanHistogram(
                 "Tabs.FreezeAndAppendPendingNavigationResult", success);
@@ -861,12 +949,17 @@ class TabImpl implements Tab {
             mPendingLoadParams = params;
             mUrl = new GURL(params.getUrl());
         }
+        triggerUpdatesOnAppendingNavigation(title);
+    }
+
+    private void triggerUpdatesOnAppendingNavigation(@Nullable String title) {
         RewindableIterator<TabObserver> observers = getTabObservers();
         while (observers.hasNext()) {
             observers.next().onUrlUpdated(this);
         }
         observers.rewind();
         notifyFaviconChanged();
+        assumeNonNull(mUrl);
         updateTitle(title == null ? mUrl.getSpec() : title);
 
         while (observers.hasNext()) {
@@ -882,10 +975,15 @@ class TabImpl implements Tab {
         }
 
         if (mPendingLoadParams != null) {
-            assert isFrozen();
-            WebContents webContents =
-                    WebContentsFactory.createWebContents(mProfile, isHidden(), false);
-            initWebContents(webContents);
+            if (mWebContents == null) {
+                WebContents webContents =
+                        WebContentsFactory.createWebContents(mProfile, isHidden(), false);
+                initWebContents(webContents);
+            } else {
+                assert useDiscardForFreeze()
+                        : "mWebContents should be null with mPendingLoadParams unless"
+                                + " TAB_FREEZING_USES_DISCARD is enabled.";
+            }
             loadUrl(mPendingLoadParams);
             mPendingLoadParams = null;
         } else {
@@ -1256,11 +1354,7 @@ class TabImpl implements Tab {
             mPendingLoadParams = loadUrlParams;
             if (loadUrlParams != null) {
                 mUrl = new GURL(loadUrlParams.getUrl());
-                if (pendingTitle != null) {
-                    setTitle(pendingTitle);
-                } else {
-                    setTitle(mUrl.getSpec());
-                }
+                setTitle(pendingTitle != null ? pendingTitle : mUrl.getSpec());
             }
 
             // The {@link mDelegateFactory} needs to be set before calling
@@ -1281,27 +1375,50 @@ class TabImpl implements Tab {
 
             RevenueStats.getInstance().tabCreated(this);
 
-            // If there is a frozen WebContents state or a pending lazy load, don't create a new
-            // WebContents. Restoring will be done when showing the tab in the foreground.
-            if (mWebContentsState != null || getPendingLoadParams() != null) {
-                return;
-            }
+            boolean needsInitWebContents = true;
+            boolean createWebContents = webContents == null;
+            if (ChromeFeatureList.sLoadAllTabsAtStartup.isEnabled()) {
+                if (mWebContentsState != null) {
+                    assert webContents == null;
 
-            boolean creatingWebContents = webContents == null;
-            if (creatingWebContents) {
-                webContents =
-                        WebContentsFactory.createWebContents(
-                                mProfile, initiallyHidden, initializeRenderer);
+                    unfreezeContents(/* noRenderer= */ true);
+                    webContents = getWebContents();
+                    needsInitWebContents = false;
+                    assert webContents != null;
+                } else if (getPendingLoadParams() != null) {
+                    assert webContents == null;
+
+                    webContents =
+                            WebContentsFactory.createWebContents(
+                                    mProfile, isHidden(), initializeRenderer);
+                } else if (createWebContents) {
+                    webContents =
+                            WebContentsFactory.createWebContents(
+                                    mProfile, initiallyHidden, initializeRenderer);
+                }
+            } else {
+                // If there is a frozen WebContents state or a pending lazy load, don't create a new
+                // WebContents. Restoring will be done when showing the tab in the foreground.
+                if (mWebContentsState != null || getPendingLoadParams() != null) {
+                    return;
+                }
+                if (createWebContents) {
+                    webContents =
+                            WebContentsFactory.createWebContents(
+                                    mProfile, initiallyHidden, initializeRenderer);
+                }
             }
 
             assumeNonNull(webContents);
-            initWebContents(webContents);
+            if (needsInitWebContents) {
+                initWebContents(webContents);
+            }
             // Avoid an empty title by updating the title here. This could happen if restoring from
             // a WebContents that has no renderer and didn't force a reload. This happens on
             // background tab creation from Recent Tabs (TabRestoreService).
             updateTitle();
 
-            if (!creatingWebContents && webContents.shouldShowLoadingUI()) {
+            if (!createWebContents && webContents.shouldShowLoadingUI()) {
                 didStartPageLoad(webContents.getVisibleUrl());
             }
 
@@ -1737,7 +1854,13 @@ class TabImpl implements Tab {
         // When restoring the tabs, the title will no longer be populated, so request it from the
         // WebContents or NativePage (if present).
         String title = "";
-        if (isNativePage()) {
+        if (mPendingLoadParams != null) {
+            // Ignore updates when there are pending load params.
+            if (!TextUtils.isEmpty(mTitle)) return;
+
+            assumeNonNull(mUrl);
+            title = mUrl.getSpec();
+        } else if (isNativePage()) {
             title = mNativePage.getTitle();
         } else if (getWebContents() != null) {
             title = getWebContents().getTitle();
@@ -2127,7 +2250,9 @@ class TabImpl implements Tab {
                     : "crbug/1393848: A frozen tab must have WebContentsState to restore from.";
             // Restore is needed for a tab that is loaded for the first time. WebContents will
             // be restored from a saved state.
-            if ((isFrozen() && mWebContentsState != null && !unfreezeContents())
+            if ((isFrozen()
+                            && mWebContentsState != null
+                            && !unfreezeContents(/* noRenderer= */ false))
                     || !needsReload()) {
                 return;
             }
@@ -2146,18 +2271,20 @@ class TabImpl implements Tab {
     }
 
     /**
-     * Restores the WebContents from its saved state.  This should only be called if the tab is
+     * Restores the WebContents from its saved state. This should only be called if the tab is
      * frozen with a saved TabState, and NOT if it was frozen for a lazy load.
+     *
+     * @param noRenderer Whether or not to create the WebContents without a renderer.
      * @return Whether or not the restoration was successful.
      */
-    private boolean unfreezeContents() {
+    private boolean unfreezeContents(boolean noRenderer) {
         boolean restored = true;
         try {
             TraceEvent.begin("Tab.unfreezeContents");
             assert mWebContentsState != null;
 
             WebContents webContents =
-                    mWebContentsState.restoreWebContents(getProfile(), isHidden());
+                    mWebContentsState.restoreWebContents(getProfile(), isHidden(), noRenderer);
 
             UrlConstantResolver urlConstantResolver =
                     UrlConstantResolverFactory.getForProfile(mProfile);

@@ -9,10 +9,12 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/json/values_util.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/permissions/features.h"
 #include "components/permissions/permission_util.h"
 #include "components/permissions/pref_names.h"
 #include "components/permissions/request_type.h"
@@ -77,8 +79,12 @@ base::Value::Dict GetOriginActionHistoryData(HostContentSettingsMap* settings,
 
 base::Value::Dict* EnsurePermissionDict(base::Value::Dict& origin_dict,
                                         ContentSettingsType content_type) {
-  CHECK(content_type == ContentSettingsType::GEOLOCATION &&
-        base::FeatureList::IsEnabled(blink::features::kGeolocationElement));
+  // TODO(crbug.com/450467541): Support approximate location.
+  CHECK((content_type == ContentSettingsType::GEOLOCATION ||
+         content_type == ContentSettingsType::GEOLOCATION_WITH_OPTIONS) &&
+        base::FeatureList::IsEnabled(blink::features::kGeolocationElement) &&
+        base::FeatureList::IsEnabled(
+            permissions::features::kPermissionHeuristicAutoGrant));
   return origin_dict.EnsureDict(
       PermissionUtil::GetPermissionString(content_type));
 }

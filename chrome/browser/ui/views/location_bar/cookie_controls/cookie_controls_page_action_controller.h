@@ -36,6 +36,8 @@ class CookieControlsPageActionController
     : public content_settings::CookieControlsObserver,
       public page_actions::PageActionObserver {
  public:
+  DECLARE_USER_DATA(CookieControlsPageActionController);
+
   // An interface for interacting with the Cookie Controls bubble.
   class BubbleDelegate {
    public:
@@ -46,6 +48,8 @@ class CookieControlsPageActionController
         ToolbarButtonProvider* toolbar_button_provider,
         content::WebContents* web_contents,
         content_settings::CookieControlsController* controller) = 0;
+    virtual base::CallbackListSubscription RegisterBubbleClosingCallback(
+        base::RepeatingClosure callback) = 0;
   };
 
   CookieControlsPageActionController(
@@ -58,6 +62,8 @@ class CookieControlsPageActionController
   CookieControlsPageActionController& operator=(
       const CookieControlsPageActionController&) = delete;
   ~CookieControlsPageActionController() override;
+
+  static CookieControlsPageActionController* From(tabs::TabInterface& tab);
 
   void Init();
 
@@ -97,6 +103,7 @@ class CookieControlsPageActionController
   bool IsManagedIPHActive() const;
   void OnShowPromoResult(user_education::FeaturePromoResult result);
   void OnIPHClosed();
+  void OnBubbleClosed();
   void MaybeShowIPH(BrowserUserEducationInterface& user_education);
 
   const raw_ref<tabs::TabInterface> tab_;
@@ -112,12 +119,19 @@ class CookieControlsPageActionController
   CookieControlsIconStatus icon_status_;
 
   base::CallbackListSubscription will_discard_contents_subscription_;
+  base::CallbackListSubscription tab_deactivation_subscription_;
+  base::CallbackListSubscription tab_will_detach_subscription_;
+  base::CallbackListSubscription bubble_will_close_subscription_;
+
   base::ScopedObservation<content_settings::CookieControlsController,
                           content_settings::CookieControlsObserver>
       controller_observation_{this};
 
   // Timer used to collapse from the chip state after some time.
   base::OneShotTimer hide_chip_timer_;
+
+  ui::ScopedUnownedUserData<CookieControlsPageActionController>
+      scoped_unowned_user_data_;
 
   base::WeakPtrFactory<CookieControlsPageActionController> weak_ptr_factory_{
       this};

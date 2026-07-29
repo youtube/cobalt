@@ -42,6 +42,18 @@ BASE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport,
 
 BASE_FEATURE(kAutoRevokeSuspiciousNotification,
              base::FEATURE_DISABLED_BY_DEFAULT);
+constexpr base::FeatureParam<int>
+    kAutoRevokeSuspiciousNotificationLookBackPeriod{
+        &kAutoRevokeSuspiciousNotification, "LookBackPeriod",
+        /*default_value=*/1};
+constexpr base::FeatureParam<double>
+    kAutoRevokeSuspiciousNotificationEngagementScoreCutOff{
+        &kAutoRevokeSuspiciousNotification, "MaxEngagementScore",
+        /*default_value=*/50.0};
+constexpr base::FeatureParam<int>
+    kAutoRevokeSuspiciousNotificationMinNotificationCount{
+        &kAutoRevokeSuspiciousNotification, "MinNotificationCount",
+        /*default_value=*/2};
 
 BASE_FEATURE(kBundledSecuritySettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -188,7 +200,7 @@ BASE_FEATURE(kExtensionTelemetryFileDataForCommandLineExtensions,
 
 BASE_FEATURE(kExtensionTelemetrySearchHijackingSignal,
              "SafeBrowsingExtensionTelemetrySearchHijackingSignal",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 constexpr base::FeatureParam<int>
     kExtensionTelemetrySearchHijackingSignalHeuristicCheckIntervalSeconds{
         &kExtensionTelemetrySearchHijackingSignal,
@@ -202,7 +214,7 @@ BASE_FEATURE(kExternalAppRedirectTelemetry,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlobalCacheListForGatingNotificationProtections,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGooglePlayProtectInApkTelemetry,
              "SafeBrowsingGooglePlayProtectInApkTelemetry",
@@ -254,6 +266,10 @@ constexpr base::FeatureParam<std::string>
                                                  "service_url_override",
                                                  /*default_value=*/""};
 #endif
+
+BASE_FEATURE(kModifiedESBFetchErrorHandling,
+             "ModifiedESBFetchErrorHandling",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNotificationTelemetry, base::FEATURE_ENABLED_BY_DEFAULT);
 

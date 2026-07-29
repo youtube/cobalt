@@ -26,6 +26,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 class Profile;
 
@@ -129,6 +130,9 @@ class ExecutionEngine : public ToolDelegate {
   using UserConfirmationDialogCallback = base::OnceCallback<void(
       webui::mojom::UserConfirmationDialogResponsePtr response)>;
 
+  void AddWritableMainframeOrigins(
+      const absl::flat_hash_set<url::Origin>& added_writable_mainframe_origins);
+
   void PromptToConfirmCrossOriginNavigation(
       const url::Origin& navigation_origin,
       UserConfirmationDialogCallback callback);
@@ -205,6 +209,12 @@ class ExecutionEngine : public ToolDelegate {
       UserConfirmationDialogCallback callback,
       webui::mojom::UserConfirmationDialogResponsePtr response);
 
+  bool ShouldGateNavigationInternal(
+      content::NavigationHandle& navigation_handle,
+      UserConfirmationDialogCallback callback);
+  void LogNavigationGating(content::NavigationHandle& navigation_handle,
+                           bool applied_gate);
+
   State state_ = State::kInit;
 
   static std::optional<base::TimeDelta> action_observation_delay_for_testing_;
@@ -239,7 +249,7 @@ class ExecutionEngine : public ToolDelegate {
   // Origins which the browser is allowed to navigate to under actor control
   // without prompting the user. This is applied to all navigations, including
   // those initiated by the renderer with web content.
-  std::set<url::Origin> allowed_navigation_origins_;
+  absl::flat_hash_set<url::Origin> allowed_navigation_origins_;
 
   ToolDelegate::CredentialSelectedCallback credential_selected_callback_;
 

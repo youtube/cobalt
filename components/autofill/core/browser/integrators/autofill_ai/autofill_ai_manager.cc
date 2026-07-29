@@ -17,6 +17,7 @@
 #include "base/containers/contains.h"
 #include "base/containers/extend.h"
 #include "base/containers/fixed_flat_map.h"
+#include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -136,6 +137,16 @@ EntityInstance CreateServerEntityFromLocal(const EntityInstance& local_entity) {
       // server counterpart.
       EntityInstance::AreAttributesReadOnly(false), /*frecency_override=*/"");
 }
+
+base::flat_set<EntityTypeName> GetSaveEntitiesTypesNames(
+    base::span<const EntityInstance> saved_entities) {
+  base::flat_set<EntityTypeName> entity_types;
+  for (const EntityInstance& entity : saved_entities) {
+    entity_types.insert(entity.type().name());
+  }
+  return entity_types;
+}
+
 }  // namespace
 
 AutofillAiManager::AutofillAiManager(
@@ -158,42 +169,43 @@ AutofillAiManager::~AutofillAiManager() = default;
 void AutofillAiManager::OnSuggestionsShown(
     const FormStructure& form,
     const AutofillField& field,
-    DenseSet<EntityType> suggested_entity_types,
+    base::span<const Suggestion> shown_suggestions,
     ukm::SourceId ukm_source_id) {
-  logger_.OnSuggestionsShown(form, field, suggested_entity_types,
-                             ukm_source_id);
-  auto it = user_suggestion_interactions_per_form.Get(form.global_id());
+  std::vector<const EntityInstance*> entities_suggested;
+  for (const Suggestion& suggestion : shown_suggestions) {
+    if (const auto* payload =
+            std::get_if<Suggestion::AutofillAiPayload>(&suggestion.payload)) {
+      if (base::optional_ref<const EntityInstance> entity =
+              client_->GetEntityDataManager()->GetEntityInstance(
+                  payload->guid)) {
+        entities_suggested.push_back(entity.as_ptr());
+      }
+    }
+  }
+  logger_.OnSuggestionsShown(form, field, entities_suggested, ukm_source_id);
+
+  auto it = user_suggestion_interactions_per_form_.Get(form.global_id());
   // Do not overwrite cases in which a suggestion was previously accepted.
-  if (it == user_suggestion_interactions_per_form.end() ||
+  if (it == user_suggestion_interactions_per_form_.end() ||
       !it->second.entity_type_accepted) {
-    user_suggestion_interactions_per_form.Put(
+    user_suggestion_interactions_per_form_.Put(
         {form.global_id(),
-         {.suggested_entity_types = suggested_entity_types,
-          .entity_type_accepted = std::nullopt}});
+         {.suggested_entity_types =
+              DenseSet<EntityType>(entities_suggested, &EntityInstance::type),
+          .entity_type_accepted = std::nullopt,
+          .autofill_ai_field_types = field.Type().GetAutofillAiTypes()}});
   }
 }
 
 void AutofillAiManager::OnFormSeen(const FormStructure& form) {
   const DenseSet<EntityType> relevant_entities =
       GetRelevantEntityTypesForFields(form.fields());
-  logger_.OnFormEligibilityAvailable(form.global_id(), relevant_entities);
-  if (relevant_entities.empty()) {
+  const EntityDataManager* entity_manager = client_->GetEntityDataManager();
+  if (relevant_entities.empty() || !entity_manager) {
     return;
   }
-
-  EntityDataManager* entity_manager = client_->GetEntityDataManager();
-  if (!entity_manager) {
-    return;
-  }
-
-  auto entities_to_fill = DenseSet<EntityType>(
-      entity_manager->GetEntityInstances(), &EntityInstance::type);
-  entities_to_fill.intersect(relevant_entities);
-  if (entities_to_fill.empty()) {
-    return;
-  }
-
-  logger_.OnFormHasDataToFill(form.global_id(), entities_to_fill);
+  logger_.OnFormHasDataToFill(form.global_id(), relevant_entities,
+                              entity_manager->GetEntityInstances());
 }
 
 void AutofillAiManager::OnDidFillSuggestion(
@@ -202,19 +214,17 @@ void AutofillAiManager::OnDidFillSuggestion(
     const AutofillField& trigger_field,
     base::span<const AutofillField* const> filled_fields,
     ukm::SourceId ukm_source_id) {
-  logger_.OnDidFillSuggestion(form, trigger_field, entity.type(),
-                              ukm_source_id);
+  logger_.OnDidFillSuggestion(form, trigger_field, entity, ukm_source_id);
   for (const AutofillField* const field : filled_fields) {
-    logger_.OnDidFillField(form, CHECK_DEREF(field), entity.type(),
-                           ukm_source_id);
+    logger_.OnDidFillField(form, CHECK_DEREF(field), entity, ukm_source_id);
   }
   EntityDataManager* entity_manager = client_->GetEntityDataManager();
   if (!entity_manager) {
     return;
   }
   entity_manager->RecordEntityUsed(entity.guid(), base::Time::Now());
-  auto it = user_suggestion_interactions_per_form.Get(form.global_id());
-  if (it != user_suggestion_interactions_per_form.end()) {
+  auto it = user_suggestion_interactions_per_form_.Get(form.global_id());
+  if (it != user_suggestion_interactions_per_form_.end()) {
     it->second.entity_type_accepted = entity.type();
   }
 }
@@ -291,14 +301,22 @@ bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
   // Importing a form can already lead to a survey, therefore only show the
   // filling hats survey if no save or update prompt is shown.
   if (!form_imported) {
-    auto it = user_suggestion_interactions_per_form.Peek(form.global_id());
-    if (it == user_suggestion_interactions_per_form.end()) {
+    auto it = user_suggestion_interactions_per_form_.Get(form.global_id());
+    if (it == user_suggestion_interactions_per_form_.end()) {
       return false;
+    }
+    const EntityDataManager* entity_manager = client_->GetEntityDataManager();
+    if (!entity_manager) {
+      LOG_AF(GetCurrentLogManager())
+          << LoggingScope::kAutofillAi << LogMessage::kAutofillAi
+          << "Entity data manager is not available";
+      return {};
     }
     if (it->second.entity_type_accepted) {
       client_->TriggerAutofillAiFillingJourneySurvey(
-          /*suggestion_accepted=*/true,
-          it->second.entity_type_accepted.value());
+          /*suggestion_accepted=*/true, it->second.entity_type_accepted.value(),
+          GetSaveEntitiesTypesNames(entity_manager->GetEntityInstances()),
+          it->second.autofill_ai_field_types);
     } else {
       CHECK(!it->second.suggested_entity_types.empty());
       // Normally only one entity type is shown to users. However, in the case
@@ -306,7 +324,9 @@ bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
       // suggestion, use the first type as the survey type.
       client_->TriggerAutofillAiFillingJourneySurvey(
           /*suggestion_accepted=*/false,
-          *(it->second.suggested_entity_types.begin()));
+          *(it->second.suggested_entity_types.begin()),
+          GetSaveEntitiesTypesNames(entity_manager->GetEntityInstances()),
+          it->second.autofill_ai_field_types);
     }
   }
   return form_imported;
@@ -376,7 +396,11 @@ void AutofillAiManager::HandleUpstreamEntityPrompt(
     const EntityInstance& upstream_entity,
     EntityInstance::EntityId local_entity,
     AutofillClient::EntitySaveOrUpdatePromptResult result) {
-  // TODO(crbug.com/441742849): Handle logging.
+  // TODO(crbug.com/445679087): Rename OnSaveOrUpdatePromptResult to OnPromptResult()
+  logger_.OnSaveOrUpdatePromptResult(
+      AutofillClient::AutofillAiPromptTypes::kMigrate, upstream_entity.type(),
+      upstream_entity.record_type(), form_session_id, domain, result,
+      ukm_source_id);
   if (!result.entity) {
     if (result.did_user_decline) {
       AddStrikeForSaveAttempt(form_url, upstream_entity);
@@ -403,8 +427,13 @@ void AutofillAiManager::HandleSavePromptResult(
   logger_.OnSaveOrUpdatePromptResult(
       AutofillClient::AutofillAiPromptTypes::kSave, entity.type(),
       entity.record_type(), form_session_id, domain, result, ukm_source_id);
-  client_->TriggerAutofillAiSavePromptSurvey(
-      /*prompt_accepted=*/result.entity.has_value());
+  EntityDataManager* entity_manager = client_->GetEntityDataManager();
+  if (entity_manager) {
+    client_->TriggerAutofillAiSavePromptSurvey(
+        /*prompt_accepted=*/result.entity.has_value(), entity.type(),
+        GetSaveEntitiesTypesNames(entity_manager->GetEntityInstances()));
+  }
+
   if (!result.entity) {
     if (result.did_user_decline) {
       AddStrikeForSaveAttempt(form_url, entity);
@@ -412,7 +441,6 @@ void AutofillAiManager::HandleSavePromptResult(
     return;
   }
 
-  EntityDataManager* entity_manager = client_->GetEntityDataManager();
   if (!entity_manager) {
     return;
   }

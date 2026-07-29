@@ -87,7 +87,6 @@ LargestContentfulPaintDetailsForReporting PerformanceTimingForReporting::
           timing.largest_contentful_paint_image_bpp,
           largest_text_paint_time,
           timing.largest_text_paint_size,
-          timing.largest_contentful_paint_time,
 
           timing.largest_contentful_paint_image_request_priority,
           merged_unclamped_paint_time};
@@ -169,6 +168,15 @@ uint64_t PerformanceTimingForReporting::FirstPaintForMetrics() const {
     return 0;
 
   return MonotonicTimeToIntegerMilliseconds(timing->FirstPaintForMetrics());
+}
+
+base::TimeTicks
+PerformanceTimingForReporting::FirstPaintAsMonotonicTimeForMetrics() const {
+  const PaintTiming* timing = GetPaintTiming();
+  if (!timing) {
+    return base::TimeTicks();
+  }
+  return timing->FirstPaintForMetrics();
 }
 
 uint64_t PerformanceTimingForReporting::FirstImagePaint() const {

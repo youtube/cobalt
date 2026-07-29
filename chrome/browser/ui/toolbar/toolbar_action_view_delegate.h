@@ -7,30 +7,12 @@
 
 class ToolbarActionViewController;
 
-namespace content {
-class WebContents;
-}
-
 // The view for a ToolbarAction, which is controlled by a
 // ToolbarActionViewController.
 class ToolbarActionViewDelegate {
  public:
-  // Returns the current web contents.
-  virtual content::WebContents* GetCurrentWebContents() const = 0;
-
   // Updates the view to reflect current state.
   virtual void UpdateState() = 0;
-
-  // Shows the context menu for the action as a fallback for performing another
-  // action.
-  virtual void ShowContextMenuAsFallback() = 0;
-
-  // Called when a popup is shown. If |by_user| is true, then this was through
-  // a direct user action (as opposed to, e.g., an API call).
-  virtual void OnPopupShown(bool by_user) {}
-
-  // Called when a popup is closed.
-  virtual void OnPopupClosed() {}
 
  protected:
   virtual ~ToolbarActionViewDelegate() = default;

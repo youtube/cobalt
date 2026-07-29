@@ -152,6 +152,13 @@ BASE_DECLARE_FEATURE(kScrimForBrowserWindowModal);
 BASE_DECLARE_FEATURE(kSideBySide);
 
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowDropTargetDelay);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kSideBySideShowDropTargetForLinkDelay);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kSideBySideShowDropTargetForLinkAfterHideDelay);
+BASE_DECLARE_FEATURE_PARAM(
+    base::TimeDelta,
+    kSideBySideShowDropTargetForLinkAfterHideLookbackWindow);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideHideDropTargetDelay);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowNudgeDelay);
 
@@ -161,6 +168,8 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kSideBySideShowNudgeDelay);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMinWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetMaxWidth);
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetTargetWidthPercentage);
+BASE_DECLARE_FEATURE_PARAM(int,
+                           kSideBySideDropTargetForLinkTargetWidthPercentage);
 
 // The size of the edge of the screen where the Split View drop target is hidden
 // will be the max of the width and the percentage times the screen width.
@@ -320,6 +329,12 @@ BASE_DECLARE_FEATURE(kTearOffWebAppTabOpensWebAppWindow);
 BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 #endif
 
+// Enables a side panel that occupies the vertical space from the top of the
+// toolbar to the bottom of the browser. This is taller than the default side
+// panel, which occupies the space from the top of the WebContents to the bottom
+// of the browser.
+BASE_DECLARE_FEATURE(kToolbarHeightSidePanel);
+
 bool IsToolbarPinningEnabled();
 
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
@@ -425,6 +440,8 @@ bool HasTabSearchToolbarButton();
 BASE_DECLARE_FEATURE(kNewTabAddsToActiveGroup);
 
 bool IsNewTabAddsToActiveGroupEnabled();
+
+bool IsWebUIReloadButtonEnabled();
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Controls whether to show a toast for Chrome non milestone update.

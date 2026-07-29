@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Continua</translation>
 <translation id="2379925928934107488">Aplica el tema fosc als llocs web quan Chrome l'utilitzi i sigui possible</translation>
 <translation id="2390272837142897736">Amplia el zoom</translation>
+<translation id="2397689164757137845">Permesa • Precisa</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Exacta</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{S'han permès <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i <ph name="NUM_MORE" /> més}other{S'han permès <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i <ph name="NUM_MORE" /> més}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Ajuda i suggeriments </translation>
 <translation id="2501278716633472235">Torna</translation>
 <translation id="2533138527374486328">Quan aquesta opció està activada, els llocs web poden demanar permís per connectar-se a qualsevol dispositiu de la teva xarxa local. Quan aquesta opció està desactivada, els llocs web no poden connectar-se a dispositius de la teva xarxa local.</translation>
+<translation id="2536779053640817375">Permesa aquesta vegada • Precisa</translation>
 <translation id="2544997614631598250">Color del tema fosc</translation>
 <translation id="2546283357679194313">Dades de llocs web i galetes</translation>
 <translation id="2570922361219980984">L'accés a la ubicació també està desactivat en aquest dispositiu. Activa'l a la <ph name="BEGIN_LINK" />configuració d'Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="5876056640971328065">Posa en pausa el vídeo</translation>
 <translation id="5877248419911025165">Replega totes les sol·licituds</translation>
 <translation id="5878945009165002849">Bloqueja les sol·licituds d'inici de sessió procedents de serveis d'identitat</translation>
+<translation id="588258955323874662">Pantalla completa</translation>
 <translation id="5884085660368669834">Preferència de lloc web</translation>
 <translation id="5887687176710214216">Darrera visita: ahir</translation>
 <translation id="5908617755156109052">No permetis que els llocs web creïn un mapa 3D del teu entorn ni que facin un seguiment de la posició de la càmera</translation>
@@ -569,6 +572,7 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="7406113532070524618">Aquesta opció de configuració funciona sense identificar-te ni permetre que els llocs web vegin el teu historial de navegació, tot i que poden compartir una quantitat petita de dades com a part de la verificació</translation>
 <translation id="7409735910987429903">És possible que els llocs web enviïn finestres emergents per mostrar-te anuncis o que utilitzin redireccions que et portin a llocs web que potser no vols visitar</translation>
 <translation id="7412160840120117304">Color primari hexadecimal</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoom}other{Zoom: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Pregunta abans</translation>
 <translation id="7423538860840206698">L'accés de lectura al porta-retalls està bloquejat</translation>
 <translation id="7425915948813553151">Tema fosc per als llocs web</translation>
@@ -647,7 +651,7 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="8300705686683892304">Gestionats per aplicacions</translation>
 <translation id="8315509175050791576">S'està compartint una pestanya</translation>
 <translation id="8324158725704657629">No m'ho tornis a preguntar</translation>
-<translation id="8362795839483915693">Pots ampliar o reduir els llocs web que visites</translation>
+<translation id="8362795839483915693">Pots ampliar o reduir el zoom als llocs web que visites</translation>
 <translation id="8372893542064058268">Permet la sincronització en segon pla en un lloc concret.</translation>
 <translation id="8378714024927312812">Gestionat per la teva organització</translation>
 <translation id="83792324527827022">Un lloc web està utilitzant la càmera i el micròfon</translation>
@@ -700,7 +704,6 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="8803526663383843427">Quan està activada</translation>
 <translation id="8805385115381080995">La navegació és més ràpida perquè és menys probable que un lloc web et demani que verifiquis que ets una persona real</translation>
 <translation id="8816026460808729765">Impedeix que els llocs web accedeixin als sensors</translation>
-<translation id="884765916894384048">Ves a la reproducció en segon pla</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prova de permetre temporalment les galetes de tercers. Això implica menys protecció de navegació, però és més probable que les funcions del lloc web funcionin de la manera prevista.</translation>
 <translation id="8889294078294184559">Mentre continuïs navegant, els llocs web podran recórrer a Chrome per verificar que ets una persona real mitjançant llocs web que hagis visitat anteriorment</translation>

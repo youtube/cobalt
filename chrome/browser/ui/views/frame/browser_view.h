@@ -376,12 +376,6 @@ class BrowserView : public BrowserWindow,
   // hosted in an OverlayWidget.
   views::Widget* GetWidgetForAnchoring();
 
-  // See ImmersiveModeController for description.
-  // TODO(crbug.com/427826289): Eliminate this accessor and pass
-  // ImmersiveModeController to dependent features during construction.
-  ImmersiveModeController* immersive_mode_controller();
-  const ImmersiveModeController* immersive_mode_controller() const;
-
   // Returns true if the view has been initialized.
   bool initialized() const { return initialized_; }
 
@@ -774,15 +768,6 @@ class BrowserView : public BrowserWindow,
   bool CanUserEnterFullscreen() const override;
   bool CanUserExitFullscreen() const override;
 
-  // ExclusiveAccessBubbleViewsContext:
-  ExclusiveAccessManager* GetExclusiveAccessManager() override;
-  ui::AcceleratorProvider* GetAcceleratorProvider() override;
-  gfx::NativeView GetBubbleParentView() const override;
-  gfx::Rect GetClientAreaBoundsInScreen() const override;
-  bool IsImmersiveModeEnabled() const override;
-  gfx::Rect GetTopContainerBoundsInScreen() override;
-  void DestroyAnyExclusiveAccessBubble() override;
-
   // ImmersiveModeController::Observer:
   void OnImmersiveRevealStarted() override;
   void OnImmersiveRevealEnded() override;
@@ -900,12 +885,24 @@ class BrowserView : public BrowserWindow,
 
   class AccessibilityModeObserver;
 
+  // ExclusiveAccessBubbleViewsContext:
+  ExclusiveAccessManager* GetExclusiveAccessManager() override;
+  ui::AcceleratorProvider* GetAcceleratorProvider() override;
+  gfx::NativeView GetBubbleParentView() const override;
+  gfx::Rect GetClientAreaBoundsInScreen() const override;
+  bool IsImmersiveModeEnabled() const override;
+  gfx::Rect GetTopContainerBoundsInScreen() override;
+  void DestroyAnyExclusiveAccessBubble() override;
+
   // Sets or clears the flags to force showing bookmark bar.
   void SetForceShowBookmarkBarFlag(BookmarkBarController::ForceShowFlag flag);
   void ClearForceShowBookmarkBarFlag(BookmarkBarController::ForceShowFlag flag);
 
   // Returns the state of the bookmark bar.
   BookmarkBar::State bookmark_bar_state() const;
+
+  // Setter for the BrowserView's TabSearchBubbleHost instance.
+  void UpdateTabSearchBubbleHost();
 
   // Display the current active split view as a series of multiple side-by-side
   // web contents.

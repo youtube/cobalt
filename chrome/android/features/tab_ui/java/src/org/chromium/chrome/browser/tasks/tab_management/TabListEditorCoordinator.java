@@ -65,7 +65,7 @@ import java.util.Set;
  * TabListCoordinator} as well as the life-cycle of shared component.
  */
 @NullMarked
-class TabListEditorCoordinator {
+public class TabListEditorCoordinator {
     @IntDef({CreationMode.FULL_SCREEN, CreationMode.DIALOG})
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
@@ -422,7 +422,7 @@ class TabListEditorCoordinator {
     /**
      * @return {@link TabListEditorController} that can control the TabListEditor.
      */
-    TabListEditorController getController() {
+    public TabListEditorController getController() {
         return mTabListEditorController;
     }
 

@@ -129,8 +129,9 @@ class CurrentViewListener : public Host::Observer {
 };
 
 template <typename T>
-  requires std::is_base_of<test::InteractiveGlicTestT<InteractiveBrowserTest>,
-                           T>::value
+  requires std::is_base_of<
+      test::InteractiveGlicTestMixin<InteractiveBrowserTest>,
+      T>::value
 class GlicApiTestBase : public T {
  public:
   explicit GlicApiTestBase(std::string_view js_source_path) {
@@ -168,11 +169,13 @@ class GlicApiTestBase : public T {
     T::SetGlicPagePath("/glic/browser_tests/test.html");
     T::add_mock_glic_query_param("testsrc", js_source_path);
   }
+
   ~GlicApiTestBase() override = default;
 
   void SetUpOnMainThread() override {
     T::host_resolver()->AddRule("a.com", "127.0.0.1");
     T::host_resolver()->AddRule("b.com", "127.0.0.1");
+    T::DisableWarming();
     NonInteractiveGlicTest::SetUpOnMainThread();
   }
 

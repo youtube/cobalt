@@ -4,13 +4,13 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 
-#include <memory>
-
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/common/channel_info.h"
 #include "components/contextual_tasks/internal/composite_context_decorator.h"
@@ -43,11 +43,13 @@ ContextualTasksServiceFactory::ContextualTasksServiceFactory()
     : ProfileKeyedServiceFactory(
           "ContextualTasksService",
           ProfileSelections::Builder()
-              .WithRegular(ProfileSelection::kOriginalOnly)
+              .WithRegular(ProfileSelection::kOwnInstance)
               .Build()) {
+  DependsOn(AimEligibilityServiceFactory::GetInstance());
   DependsOn(DataTypeStoreServiceFactory::GetInstance());
   DependsOn(FaviconServiceFactory::GetInstance());
   DependsOn(HistoryServiceFactory::GetInstance());
+  DependsOn(IdentityManagerFactory::GetInstance());
 }
 
 ContextualTasksServiceFactory::~ContextualTasksServiceFactory() = default;
@@ -66,12 +68,17 @@ ContextualTasksServiceFactory::BuildServiceInstanceForBrowserContext(
   history::HistoryService* history_service =
       HistoryServiceFactory::GetForProfile(profile,
                                            ServiceAccessType::EXPLICIT_ACCESS);
+  AimEligibilityService* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile);
   return std::make_unique<ContextualTasksServiceImpl>(
       chrome::GetChannel(),
       DataTypeStoreServiceFactory::GetForProfile(
           Profile::FromBrowserContext(context))
           ->GetStoreFactory(),
-      CreateCompositeContextDecorator(favicon_service, history_service));
+      CreateCompositeContextDecorator(favicon_service, history_service),
+      aim_eligibility_service, identity_manager, profile->IsOffTheRecord());
 }
 
 }  // namespace contextual_tasks

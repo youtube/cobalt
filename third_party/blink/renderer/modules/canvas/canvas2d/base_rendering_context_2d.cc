@@ -1115,7 +1115,7 @@ void BaseRenderingContext2D::DrawTextInternal(
       computed_style ? IsOverride(computed_style->GetUnicodeBidi()) : false;
 
   PlainTextPainter& text_painter = host->GetPlainTextPainter();
-  TextRun text_run(text, direction, bidi_override, /* normalize_space */ true);
+  TextRun text_run(text, direction, bidi_override);
   // Draw the item text at the correct point.
   gfx::PointF location(ClampTo<float>(x), ClampTo<float>(y));
   gfx::RectF bounds;
@@ -1172,8 +1172,7 @@ void BaseRenderingContext2D::DrawTextInternal(
       [font, text = std::move(text), direction, bidi_override, location,
        run_start, run_end, canvas, &text_painter,
        paint_type](MemoryManagedPaintCanvas* c, const cc::PaintFlags* flags) {
-        TextRun text_run(text, direction, bidi_override,
-                         /* normalize_space */ true);
+        TextRun text_run(text, direction, bidi_override);
         // Font::DrawType::kGlyphsAndClusters is required for printing to PDF,
         // otherwise the character to glyph mapping will not be reversible,
         // which prevents text data from being extracted from PDF files or
@@ -1539,7 +1538,7 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   // canvas to be treated as a brand new surface if additional draws occur.
   // It also gives us a mechanism to detect post-transfer-out draws, which is
   // used in `transferBackFromWebGPU` to raise an exception.
-  auto owned_provider = ReplaceResourceProviderForCanvas2D(nullptr);
+  auto owned_provider = ReplaceResourceProvider(nullptr);
 
   // Note: This must be a CRPSI since this method would have bailed out earlier
   // otherwise.
@@ -1604,8 +1603,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
   // surrendering our temporary ownership of the provider.
   CanvasResourceProviderSharedImage* resource_provider =
       resource_provider_from_webgpu_access_.get();
-  ReplaceResourceProviderForCanvas2D(
-      std::move(resource_provider_from_webgpu_access_));
+  ReplaceResourceProvider(std::move(resource_provider_from_webgpu_access_));
   resource_provider->SetDelegate(host);
 
   // Disassociate the WebGPU texture from the SharedImage to end its

@@ -231,6 +231,7 @@
 #include "media/base/media_switches.h"
 #include "media/media_buildflags.h"
 #include "media/mojo/mojom/remoting.mojom.h"
+#include "media/mojo/services/media_metrics_provider.h"
 #include "media/mojo/services/video_decode_perf_history.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -243,7 +244,6 @@
 #include "net/cert/cert_status_flags.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/net_buildflags.h"
-#include "render_frame_host_impl.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
@@ -346,7 +346,6 @@
 #endif
 
 #if AX_FAIL_FAST_BUILD()
-#include "base/command_line.h"
 #include "content/public/browser/ax_inspect_factory.h"
 #include "ui/accessibility/accessibility_switches.h"
 #endif
@@ -3763,8 +3762,8 @@ PageVisibilityState RenderFrameHostImpl::GetVisibilityState() {
     return PageVisibilityState::kHidden;
   }
 
-  return GetRenderWidgetHost()->is_hidden() ? PageVisibilityState::kHidden
-                                            : PageVisibilityState::kVisible;
+  return GetRenderWidgetHost()->IsHidden() ? PageVisibilityState::kHidden
+                                           : PageVisibilityState::kVisible;
 }
 
 void RenderFrameHostImpl::OnAssociatedInterfaceRequest(
@@ -3795,6 +3794,13 @@ void RenderFrameHostImpl::AccessibilityPerformAction(
                          action_data.request_id, {});
     return;
   }
+
+  // Don't perform the action if the WebContents is set to ignore accessibility
+  // input events. See WebContents::IgnoreInputEvents for more information.
+  if (delegate()->ShouldIgnoreA11yInputEvents()) {
+    return;
+  }
+
   // Set the input modality in RenderWidgetHostViewAura to touch so the
   // VK shows up.
   if (action_data.action == ax::mojom::Action::kFocus) {
@@ -5533,6 +5539,7 @@ void RenderFrameHostImpl::SetOriginDependentStateOfNewFrame(
       new_frame_origin, base::OptionalToPtr(isolation_info_.nonce())));
 
   // Apply private network request policy according to our new origin.
+  // TODO(crbug.com/452389539): Centralize these policy overrides.
   switch (
       GetContentClient()->browser()->ShouldOverridePrivateNetworkRequestPolicy(
           GetBrowserContext(), new_frame_origin)) {
@@ -9809,7 +9816,7 @@ void RenderFrameHostImpl::CreateNewWindow(
 
   // Only top-most frames can open picture-in-picture windows.
   if (params->disposition == WindowOpenDisposition::NEW_PICTURE_IN_PICTURE &&
-      GetParentOrOuterDocumentOrEmbedder()) {
+      !IsOutermostMainFrame()) {
     frame_host_associated_receiver_.ReportBadMessage(
         "Only top-most frames can open picture-in-picture windows.");
     return;
@@ -16882,8 +16889,8 @@ bool RenderFrameHostImpl::MaybeInterceptCommitCallback(
 
 void RenderFrameHostImpl::PostMessageEvent(
     const std::optional<blink::RemoteFrameToken>& source_token,
-    const std::u16string& source_origin,
-    const std::u16string& target_origin,
+    const url::Origin* source_origin,
+    const url::Origin* target_origin,
     blink::TransferableMessage message) {
   DCHECK(is_render_frame_created());
 
@@ -16896,7 +16903,10 @@ void RenderFrameHostImpl::PostMessageEvent(
   message.task_state_id = std::nullopt;
 
   GetAssociatedLocalFrame()->PostMessageEvent(
-      source_token, source_origin, target_origin, std::move(message));
+      source_token,
+      source_origin ? std::make_optional(*source_origin) : std::nullopt,
+      target_origin ? std::make_optional(*target_origin) : std::nullopt,
+      std::move(message));
 }
 
 bool RenderFrameHostImpl::IsTestRenderFrameHost() const {

@@ -166,9 +166,11 @@ class CORE_EXPORT HTMLSelectElement final
   // <optgroup> elements to determine if they have an ancestor <select> which
   // they are associated with. An ancestor <select> will not be returned in some
   // cases, such as nested <option>s, in order to match the logic in
-  // RecalcListItems and OptionList.
-  static HTMLSelectElement* NearestAncestorSelectNoNesting(
-      const Element& element);
+  // RecalcListItems and OptionList. This method also returns an <optgroup> if
+  // there is an <optgroup> in between the provided element and the returned
+  // <select>.
+  static std::pair<HTMLSelectElement*, HTMLOptGroupElement*>
+  AssociatedSelectAndOptgroup(const Element&);
 
   void AccessKeyAction(SimulatedClickCreationScope creation_scope) override;
   void SelectOptionByAccessKey(HTMLOptionElement*);
@@ -424,7 +426,6 @@ class CORE_EXPORT HTMLSelectElement final
   LayoutBox* AutoscrollBox() override;
   void StopAutoscroll() override;
 
-  bool AreAuthorShadowsAllowed() const override { return false; }
   void FinishParsingChildren() override;
 
   // TypeAheadDataSource functions.

@@ -802,9 +802,9 @@ BrowserAutofillManager::MetricsState::~MetricsState() {
 
 BrowserAutofillManager::BrowserAutofillManager(AutofillDriver* driver)
     : AutofillManager(driver),
-      otp_manager_(
-          new OtpManagerImpl(*this,
-                             driver->GetAutofillClient().GetSmsOtpBackend())),
+      otp_manager_(new OtpManagerImpl(
+          *this,
+          driver->GetAutofillClient().GetOneTimeTokenService())),
       account_name_email_strike_manager_(
           std::make_unique<AccountNameEmailStrikeManager>(*this)) {}
 
@@ -1121,9 +1121,36 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     const gfx::Rect& caret_bounds,
     AutofillSuggestionTriggerSource trigger_source,
     std::optional<PasswordSuggestionRequest> password_request) {
+  FormStructure* form_structure = nullptr;
+  AutofillField* autofill_field = nullptr;
+  // In case we cannot fetch the parsed `FormStructure` and `AutofillField`, we
+  // still need to offer Autocomplete.
+  // TODO(crbug.com/433224307): Consider early returning here when the cache
+  // starts storing all forms and fields.
+  std::ignore = GetCachedFormAndField(form.global_id(), field_id,
+                                      &form_structure, &autofill_field);
+
   if (password_request.has_value()) {
     if (PasswordManagerDelegate* password_delegate =
             client().GetPasswordManagerDelegate(field_id)) {
+      // This block implements the following behavior: For an <input
+      // type="password"> field, do not show a dropdown if the current value is
+      // non empty (typically manually typed) or autofilled, and close any
+      // previously opened dropdown.
+      if (autofill_field &&
+          autofill_field->form_control_type() ==
+              FormControlType::kInputPassword &&
+          !autofill_field->value().empty() &&
+          !autofill_field->is_autofilled()) {
+        // Hiding the dialog is put behind this feature flag since the agent is
+        // also performing a hide.
+        if (base::FeatureList::IsEnabled(
+                features::kAutofillAndPasswordsInSameSurface)) {
+          client().HideAutofillSuggestions(
+              SuggestionHidingReason::kFieldValueChanged);
+        }
+        return;
+      }
 #if !BUILDFLAG(IS_ANDROID)
       password_delegate->ShowSuggestions(password_request->field);
 #else
@@ -1138,15 +1165,6 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
   if (base::FeatureList::IsEnabled(features::kAutofillDisableFilling)) {
     return;
   }
-
-  FormStructure* form_structure = nullptr;
-  AutofillField* autofill_field = nullptr;
-  // In case we cannot fetch the parsed `FormStructure` and `AutofillField`, we
-  // still need to offer Autocomplete.
-  // TODO(crbug.com/433224307): Consider early returning here when the cache
-  // starts storing all forms and fields.
-  std::ignore = GetCachedFormAndField(form.global_id(), field_id,
-                                      &form_structure, &autofill_field);
 
   UpdateLoggersReadinessData();
 
@@ -1225,7 +1243,7 @@ void BrowserAutofillManager::OnSuggestionDataFetched(
   // TODO(crbug.com/433224307): Consider early returning here when the cache
   // starts storing all forms and fields.
   std::ignore = GetCachedFormAndField(form.global_id(), field.global_id(),
-                             &form_structure, &autofill_field);
+                                      &form_structure, &autofill_field);
 
   auto all_suggestion_data =
       base::MakeFlatMap<SuggestionDataSource,
@@ -1784,40 +1802,40 @@ void BrowserAutofillManager::FillOrPreviewForm(
                              &autofill_field)) {
     return;
   }
-  std::visit(absl::Overload{
-                 [&](const AutofillProfile*) {
-                   form_filler_->FillOrPreviewForm(
-                       action_persistence, form, filling_payload,
-                       CHECK_DEREF(form_structure), CHECK_DEREF(autofill_field),
-                       trigger_source);
-                 },
-                 [&](const CreditCard* credit_card) {
-                   // We still need to take care of authentication flows,
-                   // which is why we do not forward right away to
-                   // FormFiller.
-                   FillOrPreviewCreditCardForm(action_persistence, form,
-                                               CHECK_DEREF(form_structure),
-                                               CHECK_DEREF(autofill_field),
-                                               *credit_card, trigger_source);
-                 },
-                 [&](const EntityInstance*) {
-                   form_filler_->FillOrPreviewForm(
-                       action_persistence, form, filling_payload,
-                       CHECK_DEREF(form_structure), CHECK_DEREF(autofill_field),
-                       trigger_source);
-                 },
-                 [&](const VerifiedProfile*) {
-                   form_filler_->FillOrPreviewForm(
-                       action_persistence, form, filling_payload,
-                       CHECK_DEREF(form_structure), CHECK_DEREF(autofill_field),
-                       trigger_source);
-                 },
-                 [&](const OtpFillData*) {
-                   form_filler_->FillOrPreviewForm(
-                       action_persistence, form, filling_payload,
-                       CHECK_DEREF(form_structure), CHECK_DEREF(autofill_field),
-                       trigger_source);
-                 }},
+  std::visit(absl::Overload{[&](const AutofillProfile*) {
+                              form_filler_->FillOrPreviewForm(
+                                  action_persistence, form, filling_payload,
+                                  CHECK_DEREF(form_structure),
+                                  CHECK_DEREF(autofill_field), trigger_source);
+                            },
+                            [&](const CreditCard* credit_card) {
+                              // We still need to take care of authentication
+                              // flows, which is why we do not forward right
+                              // away to FormFiller.
+                              FillOrPreviewCreditCardForm(
+                                  action_persistence, form,
+                                  CHECK_DEREF(form_structure),
+                                  CHECK_DEREF(autofill_field), *credit_card,
+                                  trigger_source);
+                            },
+                            [&](const EntityInstance*) {
+                              form_filler_->FillOrPreviewForm(
+                                  action_persistence, form, filling_payload,
+                                  CHECK_DEREF(form_structure),
+                                  CHECK_DEREF(autofill_field), trigger_source);
+                            },
+                            [&](const VerifiedProfile*) {
+                              form_filler_->FillOrPreviewForm(
+                                  action_persistence, form, filling_payload,
+                                  CHECK_DEREF(form_structure),
+                                  CHECK_DEREF(autofill_field), trigger_source);
+                            },
+                            [&](const OtpFillData*) {
+                              form_filler_->FillOrPreviewForm(
+                                  action_persistence, form, filling_payload,
+                                  CHECK_DEREF(form_structure),
+                                  CHECK_DEREF(autofill_field), trigger_source);
+                            }},
              filling_payload);
 }
 
@@ -2228,20 +2246,9 @@ void BrowserAutofillManager::DidShowSuggestions(
                             return GetFillingProductFromSuggestionType(type) ==
                                    FillingProduct::kAutofillAi;
                           })) {
-    DenseSet<EntityType> suggested_entity_types;
-    for (const Suggestion& suggestion : suggestions) {
-      if (const auto* payload =
-              std::get_if<Suggestion::AutofillAiPayload>(&suggestion.payload)) {
-        if (base::optional_ref<const EntityInstance> entity =
-                client().GetEntityDataManager()->GetEntityInstance(
-                    payload->guid)) {
-          suggested_entity_types.insert(entity->type());
-        }
-      }
-    }
-    ai_manager->OnSuggestionsShown(
-        CHECK_DEREF(form_structure), CHECK_DEREF(autofill_field),
-        suggested_entity_types, driver().GetPageUkmSourceId());
+    ai_manager->OnSuggestionsShown(CHECK_DEREF(form_structure),
+                                   CHECK_DEREF(autofill_field), suggestions,
+                                   driver().GetPageUkmSourceId());
   }
 
   // Notify the BNPL manager about suggestion shown if the current shown
@@ -2643,9 +2650,10 @@ void BrowserAutofillManager::Reset() {
   // The order below is relevant:
   // `credit_card_access_manager_` has a reference to `metrics_`.
   credit_card_access_manager_.reset();
-  // Forget cached OTPs after a navigation.
+  // Forget stored data (e.g. active subscriptions and pending callbacks) after
+  // a navigation.
   otp_manager_ = std::make_unique<OtpManagerImpl>(
-      *this, driver().GetAutofillClient().GetSmsOtpBackend());
+      *this, driver().GetAutofillClient().GetOneTimeTokenService());
   account_name_email_strike_manager_ =
       std::make_unique<AccountNameEmailStrikeManager>(*this);
   metrics_.reset();
@@ -2696,36 +2704,35 @@ void BrowserAutofillManager::OnDidFillOrPreviewForm(
   client().DidFillForm(trigger_source, refill_trigger_reason.has_value());
 
   std::visit(
-      absl::Overload{
-          [&](const AutofillProfile* profile) {
-            LogAndRecordProfileFill(form, trigger_field, *profile,
-                                    trigger_source,
-                                    refill_trigger_reason.has_value());
-            MaybeShowPlusAddressEmailOverrideNotification(
-                safe_filled_fields, *profile, form.global_id());
-          },
-          [&](const CreditCard* credit_card) {
-            LogAndRecordCreditCardFill(form, trigger_field, filled_field_ids,
-                                       safe_filled_field_ids, *credit_card,
-                                       trigger_source,
-                                       refill_trigger_reason.has_value());
-          },
-          [&](const EntityInstance* entity) {
-            if (AutofillAiManager* ai_manager =
-                    client().GetAutofillAiManager()) {
-              ai_manager->OnDidFillSuggestion(*entity, form, trigger_field,
-                                              safe_filled_fields,
-                                              driver().GetPageUkmSourceId());
-            }
-          },
-          [&](const VerifiedProfile*) {
-            // TODO(crbug.com/380367784): consider moving the
-            // notification to the delegate here.
-          },
-          [&](const OtpFillData*) {
-            metrics_->otp_form_event_logger.OnDidFillOtpSuggestion(
-                form, trigger_field);
-          }},
+      absl::Overload{[&](const AutofillProfile* profile) {
+                       LogAndRecordProfileFill(
+                           form, trigger_field, *profile, trigger_source,
+                           refill_trigger_reason.has_value());
+                       MaybeShowPlusAddressEmailOverrideNotification(
+                           safe_filled_fields, *profile, form.global_id());
+                     },
+                     [&](const CreditCard* credit_card) {
+                       LogAndRecordCreditCardFill(
+                           form, trigger_field, filled_field_ids,
+                           safe_filled_field_ids, *credit_card, trigger_source,
+                           refill_trigger_reason.has_value());
+                     },
+                     [&](const EntityInstance* entity) {
+                       if (AutofillAiManager* ai_manager =
+                               client().GetAutofillAiManager()) {
+                         ai_manager->OnDidFillSuggestion(
+                             *entity, form, trigger_field, safe_filled_fields,
+                             driver().GetPageUkmSourceId());
+                       }
+                     },
+                     [&](const VerifiedProfile*) {
+                       // TODO(crbug.com/380367784): consider moving the
+                       // notification to the delegate here.
+                     },
+                     [&](const OtpFillData*) {
+                       metrics_->otp_form_event_logger.OnDidFillOtpSuggestion(
+                           form, trigger_field);
+                     }},
       filling_payload);
 }
 

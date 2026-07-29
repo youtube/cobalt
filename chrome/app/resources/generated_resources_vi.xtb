@@ -249,7 +249,6 @@ Bạn có thể kiểm tra mật khẩu bất cứ lúc nào trong <ph name="GOO
 <translation id="1162479191445552288">Chạy lúc khởi động</translation>
 <translation id="1163931534039071049">&amp;Xem nguồn khung</translation>
 <translation id="1164015913575846413">alt + nhấp chuột</translation>
-<translation id="1164286072721995435">Chia sẻ thẻ hiện tại với Gemini mỗi khi bạn bắt đầu một cuộc trò chuyện mới. Bạn có thể tạm dừng chia sẻ thẻ hiện tại bất cứ lúc nào. Dữ liệu của bạn không được dùng để cải thiện các mô hình AI tạo sinh.</translation>
 <translation id="1164891049599601209">Đã được nhập trên trang web lừa đảo</translation>
 <translation id="1165039591588034296">Lỗi</translation>
 <translation id="1166212789817575481">Đóng các thẻ bên phải</translation>
@@ -432,7 +431,6 @@ Bạn có thể kiểm tra mật khẩu bất cứ lúc nào trong <ph name="GOO
 <translation id="1277020343994096713">Hãy tạo một mã PIN mới khác với mã PIN hiện tại của bạn</translation>
 <translation id="1277597051786235230">&amp;Tìm kiếm "<ph name="SEARCH_TERMS" />" qua <ph name="SEARCH_ENGINE" /> trong thẻ mới</translation>
 <translation id="127849925363482083">Nhấn <ph name="SHORTCUT_TEXT" /> lần nữa để đóng thẻ được ghim</translation>
-<translation id="1278542245784398460">Nhấp chuột phải vào thẻ này rồi chọn "Thêm thẻ vào chế độ xem phân tách mới"</translation>
 <translation id="1278859221870828664">Xem xét các ứng dụng và dịch vụ của Google Play</translation>
 <translation id="1279024913354609713">Không cho phép</translation>
 <translation id="127946606521051357">Thiết bị lân cận đang chia sẻ</translation>
@@ -539,7 +537,6 @@ Bạn có thể kiểm tra mật khẩu bất cứ lúc nào trong <ph name="GOO
 <translation id="1353980523955420967">Không tìm thấy PPD. Hãy đảm bảo Chromebook của bạn đã kết nối mạng rồi thử lại.</translation>
 <translation id="1354045473509304750">Tiếp tục cho phép <ph name="HOST" /> sử dụng và di chuyển máy ảnh của bạn</translation>
 <translation id="1354148503392558902">Đang thay đổi mật khẩu...</translation>
-<translation id="1354943694624358993">Luôn chia sẻ thẻ hiện tại</translation>
 <translation id="1355088139103479645">Xóa tất cả dữ liệu?</translation>
 <translation id="1355088659320425659">Nhật ký và thẻ</translation>
 <translation id="1356376170199999104">Được phép – <ph name="PERMISSION_DETAILS" />. Hãy bật micrô bằng công tắc vật lý.</translation>
@@ -1247,6 +1244,7 @@ Các quyền bạn từng cấp cho ứng dụng có thể áp dụng cho cả t
 <translation id="1829192082282182671">Thu &amp;nhỏ</translation>
 <translation id="1830550083491357902">Chưa đăng nhập</translation>
 <translation id="1831848493690504725">Chúng tôi không thể kết nối với Google thông qua mạng được kết nối. Hãy thử chọn một mạng khác hoặc kiểm tra chế độ cài đặt mạng hoặc chế độ cài đặt proxy của bạn (nếu bạn đang sử dụng proxy).</translation>
+<translation id="1832414451155700364">Chọn có đồng bộ hoá nhật ký và thẻ hay không</translation>
 <translation id="1832459821645506983">Có, tôi đồng ý</translation>
 <translation id="1832511806131704864">Đã cập nhật thay đổi điện thoại</translation>
 <translation id="1832848789136765277">Hãy xác minh danh tính để đảm bảo bạn luôn có thể truy cập vào dữ liệu đã đồng bộ</translation>
@@ -2377,7 +2375,6 @@ Bạn có thể quản lý các tùy chọn cài đặt của tài khoản này 
 <translation id="2605668923777146443">Chuyển tới phần <ph name="LINK_BEGIN" />Cài đặt<ph name="LINK_END" /> để xem các tùy chọn cho tính năng Better Together.</translation>
 <translation id="2606246518223360146">Liên kết dữ liệu</translation>
 <translation id="2606454609872547359">Không, tiếp tục mà không dùng ChromeVox</translation>
-<translation id="2606568927909309675">Tự động tạo phụ đề cho âm thanh và video bằng tiếng Anh. Âm thanh và phụ đề chỉ lưu trên thiết bị của bạn.</translation>
 <translation id="2606890864830643943">Đang xuất dữ liệu chẩn đoán</translation>
 <translation id="2607101320794533334">Thông tin Khoá Công cộng Đối tượng</translation>
 <translation id="2609533306502181883">Nghiên cứu một chủ đề</translation>
@@ -2429,6 +2426,7 @@ Bạn có thể quản lý các tùy chọn cài đặt của tài khoản này 
 <translation id="2636266464805306348">Tiêu đề của cửa sổ</translation>
 <translation id="2637313651144986786">Tìm kiếm trong Thẻ...</translation>
 <translation id="2637400434494156704">Mã PIN không chính xác. Bạn còn một lần thử.</translation>
+<translation id="263796568413910992">Hỏi <ph name="SEARCH_ENGINE_NAME" /> hoặc nhập một URL</translation>
 <translation id="2638662041295312666">Hình ảnh đăng nhập</translation>
 <translation id="2640299212685523844">Dùng GTK</translation>
 <translation id="264083724974021997">Kết nối với điện thoại của bạn – Hộp thoại</translation>
@@ -5519,7 +5517,7 @@ Nhấn tổ hợp phím Ctrl + Alt + Giảm độ sáng để thu nhỏ.</transl
 <translation id="4779766576531456629">Đổi tên mạng di động của eSIM</translation>
 <translation id="4779855924282373274"><ph name="URL" /> • 1 bản sao</translation>
 <translation id="4780321648949301421">Lưu trang dưới dạng...</translation>
-<translation id="4780558987886269159">Để làm việc</translation>
+<translation id="4780558987886269159">Dành cho công việc</translation>
 <translation id="4781633367688946589">Tiếp tục với phiên mới</translation>
 <translation id="4784349455504343791"><ph name="WEBSITE_ORIGIN" /> muốn sử dụng thông tin cá nhân trong ví điện tử của bạn.</translation>
 <translation id="4785719467058219317">Bạn đang sử dụng một khóa bảo mật chưa đăng ký với trang web này</translation>
@@ -5782,7 +5780,6 @@ Nhấn tổ hợp phím Ctrl + Alt + Giảm độ sáng để thu nhỏ.</transl
 <translation id="4956593309300508411">Dừng chia sẻ?</translation>
 <translation id="4956847150856741762">1</translation>
 <translation id="4958009531430054995">Chỉ lưu vào một thư mục trên thiết bị này?</translation>
-<translation id="4958916254663453555">Thẻ hiện tại của bạn sẽ tự động được chia sẻ khi bạn mở Gemini trong Chrome. Toàn bộ nội dung và URL của thẻ hiện tại sẽ được gửi đến Google.</translation>
 <translation id="4959262764292427323">Các mật khẩu được lưu trong Tài khoản Google của bạn, vì vậy, bạn có thể sử dụng các mật khẩu đó trên bất cứ thiết bị nào</translation>
 <translation id="4960020053211143927">Một số ứng dụng vẫn chưa hỗ trợ</translation>
 <translation id="4960294539892203357"><ph name="WINDOW_TITLE" /> - <ph name="PROFILE_NAME" /></translation>
@@ -5894,7 +5891,6 @@ Nhấn tổ hợp phím Ctrl + Alt + Giảm độ sáng để thu nhỏ.</transl
 <translation id="5045367873597907704">Giới thiệu về thiết bị HID</translation>
 <translation id="5045550434625856497">Mật khẩu sai</translation>
 <translation id="504561833207953641">Mở trong phiên trình duyệt hiện tại.</translation>
-<translation id="5047544190872578914">Chia sẻ thẻ hiện tại với Gemini mỗi khi bạn bắt đầu một cuộc trò chuyện mới. Bạn có thể tạm dừng chia sẻ thẻ hiện tại bất cứ lúc nào.</translation>
 <translation id="504953514574706691">Đã loại trừ thẻ khỏi nhóm được đề xuất</translation>
 <translation id="5050330054928994520">Chuyển văn bản sang lời nói (TTS)</translation>
 <translation id="5051461727068120271">Tải tệp chưa xác minh xuống</translation>
@@ -6414,6 +6410,7 @@ Bạn có thể gán nhiều công tắc cho thao tác này.</translation>
 <translation id="5414836363063783498">Đang xác minh...</translation>
 <translation id="5415328625985164836">Đây là chương trình beta. Giờ đây, bạn có thể sử dụng Steam để chơi một số trò chơi trên Chromebook.</translation>
 <translation id="5415497281076257439">Cụm từ</translation>
+<translation id="5415871492522952905">Bạn sẽ thấy nhật ký và thẻ trên tất cả thiết bị để có thể tiếp tục làm những việc còn dang dở</translation>
 <translation id="5417293056300086453">Trang web này có thể dùng giá trị nhận dạng để phát nội dung được bảo vệ.</translation>
 <translation id="5417312524372586921">Chủ đề của trình duyệt</translation>
 <translation id="541737483547792035">Phóng to màn hình</translation>
@@ -6624,6 +6621,7 @@ Bạn có thể gán nhiều công tắc cho thao tác này.</translation>
 <translation id="5555760010546505198">Đảo màu, chỉnh màu, phóng to và chế độ cài đặt hiển thị</translation>
 <translation id="555604722231274592">Bật <ph name="FEATURE_NAME" /></translation>
 <translation id="5556459405103347317">Tải lại</translation>
+<translation id="555671485580955310">Đồng bộ hoá nhật ký và thẻ</translation>
 <translation id="5558129378926964177">Phóng &amp;to</translation>
 <translation id="5558594314398017686">Chế độ mặc định của hệ điều hành (nếu có)</translation>
 <translation id="5559311991468302423">Xoá địa chỉ</translation>
@@ -8758,6 +8756,7 @@ Bạn còn # mật khẩu bị lộ nữa. Trình quản lý mật khẩu của 
 <translation id="7055451306017383754">Không thể ngừng chia sẻ vì một ứng dụng đang dùng thư mục này. Hệ thống sẽ ngừng chia sẻ thư mục này khi bạn tắt Parallels Desktop vào lần tới.</translation>
 <translation id="7056418393177503237">{0,plural, =1{Ẩn danh}other{# cửa sổ Ẩn danh đang mở}}</translation>
 <translation id="7056526158851679338">&amp;Kiểm tra thiết bị</translation>
+<translation id="7057567173736333354">Mô tả hình ảnh bạn muốn tạo</translation>
 <translation id="70577934383983846">Dùng mật khẩu này trên tất cả thiết bị của bạn</translation>
 <translation id="7058024590501568315">Mạng ẩn</translation>
 <translation id="7059858479264779982">Đặt thành tự động chạy</translation>
@@ -8801,6 +8800,7 @@ Bạn còn # mật khẩu bị lộ nữa. Trình quản lý mật khẩu của 
 <translation id="7088960765736518739">Tiếp cận bằng công tắc</translation>
 <translation id="7089253021944603172">Thẻ hoạt động trở lại</translation>
 <translation id="7090714929377281710">Tự động tắt điểm phát sóng</translation>
+<translation id="7092452922791061650">Nhấp chuột phải vào thẻ này rồi chọn "Chế độ xem phân tách mới với thẻ hiện tại"</translation>
 <translation id="7092504544229909737">Không dùng được với ứng dụng Android</translation>
 <translation id="7093220653036489319">Thông tin nhanh</translation>
 <translation id="7093866338626856921">Trao đổi dữ liệu với thiết bị có tên: <ph name="HOSTNAMES" /></translation>
@@ -9963,6 +9963,7 @@ Nhấn một công tắc hoặc phím đã gán để xóa.</translation>
 <translation id="7899720074434636454">Loại bỏ yêu cầu đối với <ph name="EXTENSION_NAME" /></translation>
 <translation id="7900950034255258543">Để đảm bảo bạn có thể dùng thiết bị này một cách an toàn, tổ chức của bạn có thể xem thông tin về hệ điều hành, trình duyệt, chế độ cài đặt và phần mềm được cài đặt trên thiết bị</translation>
 <translation id="7901405293566323524">Trung tâm điều khiển điện thoại</translation>
+<translation id="7901728443188947649">Tạo hình ảnh</translation>
 <translation id="7903429136755645827">Nhấp để tùy chỉnh các nút điều khiển trong trò chơi</translation>
 <translation id="7903481341948453971">Sử dụng phương thức khoá màn hình khi điền mật khẩu</translation>
 <translation id="7903925330883316394">Tiện ích: <ph name="UTILITY_TYPE" /></translation>
@@ -10590,6 +10591,7 @@ Giữ tệp khóa của bạn ở nơi an toàn. Bạn sẽ cần tệp khóa đ
 <translation id="8310409247509201074"><ph name="NUM" /> Thẻ</translation>
 <translation id="831207808878314375">Định nghĩa</translation>
 <translation id="8312841338723044391">TRỰC TIẾP</translation>
+<translation id="8313308349366087671">Các lựa chọn về ứng dụng</translation>
 <translation id="8314089908545021657">Ghép nối với điện thoại mới</translation>
 <translation id="8314381333424235892">Thiếu hoặc chưa cài đặt tiện ích</translation>
 <translation id="831440797644402910">Không thể mở thư mục này</translation>
@@ -10741,6 +10743,7 @@ Giữ tệp khóa của bạn ở nơi an toàn. Bạn sẽ cần tệp khóa đ
 <translation id="8413795581997394485">Bảo vệ bạn khỏi các trang web, nội dung tải xuống và tiện ích được xác định là nguy hiểm. Khi bạn truy cập vào một trang web, Chrome sẽ gửi cho Google một phần URL đã làm rối mã nguồn thông qua một máy chủ đảm bảo quyền riêng tư giúp ẩn địa chỉ IP của bạn. Nếu một trang web có hành vi đáng ngờ, thì Chrome cũng sẽ gửi URL đầy đủ và các đoạn nội dung trên trang cho Google.</translation>
 <translation id="8413956290606243087">Bạn có muốn kích hoạt ChromeVox (trình đọc màn hình tích hợp cho ChromeOS) không?</translation>
 <translation id="8414396119627470038">Đăng nhập vào <ph name="SITE_ETLD_PLUS_ONE" /> bằng tài khoản <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
+<translation id="8415120635186642416">Bạn có thể nghiên cứu về bất cứ chủ đề nào</translation>
 <translation id="8416730306157376817"><ph name="BATTERY_PERCENTAGE" />% (Hộp đựng)</translation>
 <translation id="8417065541337558100">Bản xem trước từ camera</translation>
 <translation id="8417548266957501132">Mật khẩu của cha mẹ</translation>
@@ -10749,7 +10752,6 @@ Giữ tệp khóa của bạn ở nơi an toàn. Bạn sẽ cần tệp khóa đ
 <translation id="8419098111404128271">Kết quả tìm kiếm cho '<ph name="SEARCH_TEXT" />'</translation>
 <translation id="8419144699778179708">Xoá nhật ký, kể cả dữ liệu trong hộp tìm kiếm</translation>
 <translation id="8420308167132684745">Chỉnh sửa các mục trong từ điển</translation>
-<translation id="8421361468937925547">Phụ đề trực tiếp (Chỉ hỗ trợ tiếng Anh)</translation>
 <translation id="8422748173858722634">IMEI</translation>
 <translation id="8422787418163030046">Thiếu khay</translation>
 <translation id="8424250197845498070">Tính năng Bảo vệ nâng cao đã chặn</translation>
@@ -11046,6 +11048,7 @@ Giữ tệp khóa của bạn ở nơi an toàn. Bạn sẽ cần tệp khóa đ
 <translation id="8637688295594795546">Có sẵn bản cập nhật hệ thống. Đang chuẩn bị tải xuống…</translation>
 <translation id="8638719155236856752">Tình trạng mạng của ChromeOS</translation>
 <translation id="8639635302972078117">Gửi dữ liệu chẩn đoán và dữ liệu về mức sử dụng. Thiết bị này hiện tự động gửi dữ liệu chẩn đoán, dữ liệu về thiết bị và mức sử dụng ứng dụng cho Google. Những thông tin này sẽ không dùng để nhận dạng con bạn mà giúp tăng độ ổn định của hệ thống và ứng dụng cũng như cải thiện các mặt khác. Một số dữ liệu tổng hợp cũng sẽ hữu ích cho các ứng dụng và đối tác của Google, chẳng hạn như những nhà phát triển Android. Nếu bạn bật tùy chọn cài đặt Hoạt động bổ sung trên web và ứng dụng cho con mình, thì dữ liệu này có thể được lưu vào Tài khoản Google của con.</translation>
+<translation id="8639963783467694461">Cài đặt tự động điền</translation>
 <translation id="8640575194957831802">Mở gần đây nhất</translation>
 <translation id="8641946446576357115">Sử dụng mật khẩu của bạn trên thiết bị iOS</translation>
 <translation id="8642577642520207435">Quyền truy cập camera của <ph name="APP_NAME" /></translation>

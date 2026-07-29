@@ -625,10 +625,6 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kMaxReportBodySizeKB);
 // but not on WebView (until crbug.com/1430082 has been fixed).
 NET_EXPORT BASE_DECLARE_FEATURE(kMigrateSessionsOnNetworkChangeV2);
 
-// Enables whether blackhole detector should be disabled during connection
-// migration and there is no available network.
-NET_EXPORT BASE_DECLARE_FEATURE(kDisableBlackholeOnNoNewNetwork);
-
 #if BUILDFLAG(IS_LINUX)
 // AddressTrackerLinux will not run inside the network service in this
 // configuration, which will improve the Linux network service sandbox.
@@ -786,6 +782,9 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // specified by this param, the SQL backend executes optimistic writes.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                       kSqlDiskCacheOptimisticWriteBufferSize);
+// Disables synchronous writes in the WAL file of the SQL disk cache's DB.
+// This is faster but less safe.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheSynchronousOff);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 // If enabled, ignore Strict-Transport-Security for [*.]localhost hosts.
@@ -960,6 +959,8 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTryQuicByDefault);
 // value represented in ASCII equivalent e.g. EXMP). To set multiple features,
 // separate the values with a comma (e.g. "ABCD,EFGH").
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kQuicOptions);
+
+NET_EXPORT BASE_DECLARE_FEATURE(kDnsResponseDiscardPartialQuestions);
 
 }  // namespace net::features
 

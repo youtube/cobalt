@@ -1143,6 +1143,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                    &ReadAnythingAppController::IsReadAloudEnabled)
       .SetProperty("isTsTextSegmentationEnabled",
                    &ReadAnythingAppController::IsTsTextSegmentationEnabled)
+      .SetProperty("isReadabilityEnabled",
+                   &ReadAnythingAppController::IsReadabilityEnabled)
       .SetProperty("isChromeOsAsh", &ReadAnythingAppController::IsChromeOsAsh)
       .SetProperty("baseLanguageForSpeech",
                    &ReadAnythingAppController::GetLanguageCodeForSpeech)
@@ -1616,6 +1618,12 @@ bool ReadAnythingAppController::IsTsTextSegmentationEnabled() const {
   return features::IsReadAnythingReadAloudTSTextSegmentationEnabled();
 }
 
+// Returns true if the experimental flag allowing testing with alternative
+// distillation methods such as Readability.js is enabled.
+bool ReadAnythingAppController::IsReadabilityEnabled() const {
+  return features::IsReadAnythingWithReadabilityEnabled();
+}
+
 bool ReadAnythingAppController::IsChromeOsAsh() const {
 #if BUILDFLAG(IS_CHROMEOS)
   return true;
@@ -1658,7 +1666,7 @@ void ReadAnythingAppController::RequestImageData(ui::AXNodeID node_id) const {
 
 void ReadAnythingAppController::OnImageDataDownloaded(
     const ui::AXTreeID& tree_id,
-    ui::AXNodeID node_id,
+    const ui::AXNodeID& node_id,
     const SkBitmap& image) {
   // If the tree has changed since the request, do nothing with the downloaded
   // image.

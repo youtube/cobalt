@@ -40,6 +40,7 @@ class SharedURLLoaderFactory;
 }
 
 namespace one_time_tokens {
+class OneTimeTokenService;
 class SmsOtpBackend;
 }
 
@@ -254,10 +255,7 @@ class AutofillClient {
 
   // The types of prompts that AutofillAi can show to the user after a form
   // submission.
-  enum class AutofillAiPromptTypes {
-    kSave,
-    kUpdate,
-  };
+  enum class AutofillAiPromptTypes { kSave, kUpdate, kMigrate };
 
   // Specifies the type of the address save prompt.
   enum class SaveAddressBubbleType {
@@ -595,11 +593,17 @@ class AutofillClient {
   // `suggestion_accepted` defines whether the suggestion seen by the user was
   // accepted. `entity_type` defines the type of entity used to generate the
   // suggestion.
-  virtual void TriggerAutofillAiFillingJourneySurvey(bool suggestion_accepted,
-                                                     EntityType entity_type);
+  virtual void TriggerAutofillAiFillingJourneySurvey(
+      bool suggestion_accepted,
+      EntityType entity_type,
+      const base::flat_set<EntityTypeName>& saved_entities,
+      const FieldTypeSet& triggering_field_types);
 
   // Triggers a survey after the user sees an Autofill AI save prompt.
-  virtual void TriggerAutofillAiSavePromptSurvey(bool prompt_accepted);
+  virtual void TriggerAutofillAiSavePromptSurvey(
+      bool prompt_accepted,
+      EntityType entity_type,
+      const base::flat_set<EntityTypeName>& saved_entities);
 
   // Returns true if either Profile or CreditCard Autofill is enabled.
   virtual bool IsAutofillEnabled() const = 0;
@@ -631,6 +635,10 @@ class AutofillClient {
   // Returns true if the client supports saving CVCs. This allows specific
   // clients (IosWebView) to opt out of the CVC saving feature.
   virtual bool IsCvcSavingSupported() const;
+
+  // Returns true if all the conditions for enabling the upload of credit card
+  // are satisfied.
+  virtual bool IsCreditCardUploadEnabled() const;
 
   // Returns a LogManager instance (for chrome://autofill-internals). Note that
   // the return value may change over the lifetime of an AutofillClient from
@@ -731,8 +739,13 @@ class AutofillClient {
   // May return null on platforms where OTPs are not supported.
   virtual OtpFieldDetector* GetOtpFieldDetector();
 
+  // TODO(crbug.com/415273270) Remove this once the migration to the
+  // `OneTimeTokenService` is complete.
   // May return null on platforms where no SmsOtpBackend is supported.
   virtual one_time_tokens::SmsOtpBackend* GetSmsOtpBackend() const;
+
+  // May return null on platforms where no OneTimeTokenService is supported.
+  virtual one_time_tokens::OneTimeTokenService* GetOneTimeTokenService() const;
 
   // Returns true if the primary main frame's document used the WebOTP API. This
   // exists only for the main frame because only the main frame has the

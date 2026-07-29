@@ -54,7 +54,7 @@ enum class AttachChangeReason;
 //
 // GlicWindowController exists as a temporary compatibility interface
 // implemented by GlicWindowControllerImpl and GlicInstanceCoordinatorImpl.
-class GlicWindowController : public Host::InstanceInterfaceForMigration {
+class GlicWindowController {
  public:
   using StateObserver = PanelStateObserver;
   using PanelStateContext = ::glic::PanelStateContext;
@@ -69,6 +69,9 @@ class GlicWindowController : public Host::InstanceInterfaceForMigration {
   virtual void FindInstanceFromGlicContentsAndBindToTab(
       content::WebContents* source_glic_web_contents,
       tabs::TabInterface* tab_to_bind) = 0;
+  virtual bool FindInstanceFromIdAndBindToTab(
+      const InstanceId& instance_id,
+      tabs::TabInterface* tab_to_bind) = 0;
 
   // Show, summon, or activate the panel if needed, or close it if it's already
   // active and prevent_close is false.
@@ -81,32 +84,11 @@ class GlicWindowController : public Host::InstanceInterfaceForMigration {
   // open the panel again.
   virtual void ShowAfterSignIn(base::WeakPtr<Browser> browser) = 0;
 
-  virtual void FocusIfOpen() = 0;
-
   // Destroy the glic panel and its web contents.
   virtual void Shutdown() = 0;
 
-  // Update the resize state of the widget if it is needed and safe to do so.
-  // On Windows make sure that the client area size remains the same even if
-  // the widget size changes because the widget is resizable.
-  virtual void MaybeSetWidgetCanResize() = 0;
-
   // Close the panel but keep the glic WebContents alive in the background.
   virtual void Close() = 0;
-
-  // Activates the browser window that the glic panel is associated with. If
-  // the panel is not attached to a browser, it will attempt to activate the
-  // last active browser. Returns true if a browser was successfully
-  // activated.
-  virtual bool ActivateBrowser() = 0;
-
-  // Displays a context menu when the user right clicks on the title bar.
-  // This is probably Windows only.
-  virtual void ShowTitleBarContextMenuAt(gfx::Point event_loc) = 0;
-
-  // Returns whether the views::Widget associated with the glic window is active
-  // (e.g. will receive keyboard events).
-  virtual bool IsActive() = 0;
 
   // Returns wehether or not the glic window is currently showing detached.
   // When True |GetGlicWidget| will return a valid ptr.
@@ -126,12 +108,8 @@ class GlicWindowController : public Host::InstanceInterfaceForMigration {
   // which is currently visible).
   virtual void Reload(content::RenderFrameHost* render_frame_host) = 0;
 
-  virtual base::WeakPtr<views::View> GetGlicViewAsView() = 0;
-
   // Returns the widget that backs the glic window.
   virtual GlicWidget* GetGlicWidget() const = 0;
-
-  virtual gfx::NativeWindow GetHostNativeWindow() = 0;
 
   // Return the Browser to which the panel is attached, or null if detached.
   virtual Browser* attached_browser() = 0;
@@ -162,17 +140,25 @@ class GlicWindowController : public Host::InstanceInterfaceForMigration {
   virtual void SetPreviousPositionForTesting(gfx::Point position) = 0;
 
   // TODO: Move to GlicInstanceCoordinator.
-  using LastActiveInstanceChangedCallback =
+  using ActiveInstanceChangedCallback =
       base::RepeatingCallback<void(GlicInstance* new_instance)>;
   virtual base::CallbackListSubscription
-  RegisterLastActiveInstanceChangedCallback(
-      LastActiveInstanceChangedCallback callback) = 0;
+  AddActiveInstanceChangedCallbackAndNotifyImmediately(
+      ActiveInstanceChangedCallback callback) = 0;
 
   // Helper function to get the always detached flag.
   static bool AlwaysDetached() {
     return base::FeatureList::IsEnabled(features::kGlicDetached) &&
            !base::FeatureList::IsEnabled(features::kGlicMultiInstance);
   }
+
+  // Same as GlicInstance::AddStateObserver, but applies globally, provides
+  // the aggregate panel state or the last active panel state.
+  // TODO(cuianthony): Implement for multi-instance and update this
+  // documentation.
+  virtual void AddGlobalStateObserver(PanelStateObserver* observer) = 0;
+  virtual void RemoveGlobalStateObserver(PanelStateObserver* observer) = 0;
+  virtual mojom::PanelState GetGlobalPanelState() = 0;
 };
 
 // This class owns and manages the glic window. This class has the same lifetime
@@ -192,9 +178,19 @@ class GlicWindowControllerInterface : public GlicWindowController,
   // true if `IsActive()` (i.e., if the contents are loaded in the glic window).
   virtual bool IsWarmed() const = 0;
 
+  // Returns whether the views::Widget associated with the glic window is active
+  // (e.g. will receive keyboard events).
+  virtual bool IsActive() = 0;
+
   virtual void SidePanelShown(BrowserWindowInterface* browser) = 0;
   virtual std::unique_ptr<views::View> CreateViewForSidePanel(
       tabs::TabInterface& tab) = 0;
+
+  // Update the resize state of the widget if it is needed and safe to do so.
+  // On Windows make sure that the client area size remains the same even if
+  // the widget size changes because the widget is resizable.
+  virtual void MaybeSetWidgetCanResize() = 0;
+
 };
 
 }  // namespace glic
@@ -203,15 +199,14 @@ namespace base {
 
 template <>
 struct ScopedObservationTraits<glic::GlicWindowController,
-                               glic::GlicWindowController::StateObserver> {
+                               glic::PanelStateObserver> {
   static void AddObserver(glic::GlicWindowController* source,
-                          glic::GlicWindowController::StateObserver* observer) {
-    source->AddStateObserver(observer);
+                          glic::PanelStateObserver* observer) {
+    source->AddGlobalStateObserver(observer);
   }
-  static void RemoveObserver(
-      glic::GlicWindowController* source,
-      glic::GlicWindowController::StateObserver* observer) {
-    source->RemoveStateObserver(observer);
+  static void RemoveObserver(glic::GlicWindowController* source,
+                             glic::PanelStateObserver* observer) {
+    source->RemoveGlobalStateObserver(observer);
   }
 };
 

@@ -25,6 +25,7 @@
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/drag_and_release_tool_request.h"
 #include "chrome/browser/actor/tools/history_tool_request.h"
+#include "chrome/browser/actor/tools/media_control_tool_request.h"
 #include "chrome/browser/actor/tools/move_mouse_tool_request.h"
 #include "chrome/browser/actor/tools/navigate_tool_request.h"
 #include "chrome/browser/actor/tools/script_tool_request.h"
@@ -69,6 +70,7 @@ using apc::CreateWindowAction;
 using apc::DragAndReleaseAction;
 using apc::HistoryBackAction;
 using apc::HistoryForwardAction;
+using apc::MediaControlAction;
 using apc::MoveMouseAction;
 using apc::NavigateAction;
 using apc::ScriptToolAction;
@@ -472,6 +474,32 @@ std::unique_ptr<ToolRequest> CreateScriptToolRequest(
       action.tool_name(), action.input_arguments());
 }
 
+std::unique_ptr<ToolRequest> CreateMediaControlRequest(
+    const MediaControlAction& action) {
+  const tabs::TabHandle tab_handle = GetTabHandle(action);
+  if (tab_handle == TabHandle::Null()) {
+    return nullptr;
+  }
+
+  MediaControl media_control;
+  switch (action.media_control_action_case()) {
+    case MediaControlAction::kPlay:
+      media_control = PlayMedia();
+      break;
+    case MediaControlAction::kPause:
+      media_control = PauseMedia();
+      break;
+    case MediaControlAction::kSeek:
+      media_control = SeekMedia{.seek_time_microseconds =
+                                    action.seek().seek_time_microseconds()};
+      break;
+    default:
+      return nullptr;
+  }
+
+  return std::make_unique<MediaControlToolRequest>(tab_handle, media_control);
+}
+
 class ActorJournalFetchPageProgressListener
     : public page_content_annotations::FetchPageProgressListener {
  public:
@@ -587,6 +615,10 @@ std::unique_ptr<ToolRequest> CreateToolRequest(
       const ScrollToAction& scroll_to_action = action.scroll_to();
       return CreateScrollToRequest(scroll_to_action);
     }
+    case optimization_guide::proto::Action::kMediaControl: {
+      const MediaControlAction& media_control_action = action.media_control();
+      return CreateMediaControlRequest(media_control_action);
+    }
     case optimization_guide::proto::Action::kCreateWindow: {
       const CreateWindowAction& create_window_action = action.create_window();
       return CreateCreateWindowRequest(create_window_action);
@@ -639,9 +671,9 @@ void FillInTabObservation(
     apc::TabObservation& tab_observation) {
   TRACE_EVENT0("actor", "FillInTabObservation");
   if (fetch_result.screenshot_result.has_value()) {
-    auto& data = fetch_result.screenshot_result->jpeg_data;
+    auto& data = fetch_result.screenshot_result->screenshot_data;
     if (data.size() != 0) {
-      tab_observation.set_screenshot_mime_type(kMimeTypeJpeg);
+      tab_observation.set_screenshot_mime_type(fetch_result.screenshot_result->mime_type);
       // TODO(bokan): Can we avoid a copy here?
       tab_observation.set_screenshot(data.data(), data.size());
     }
@@ -807,8 +839,8 @@ void BuildActionsResultWithObservations(
     }
   }
 
-  std::vector<Browser*> browsers = chrome::FindAllTabbedBrowsersWithProfile(
-      profile, /*ignore_closing_browsers=*/true);
+  std::vector<Browser*> browsers =
+      chrome::FindAllTabbedBrowsersWithProfile(profile);
 
   for (Browser* browser : browsers) {
     apc::WindowObservation* window_observation = response->add_windows();

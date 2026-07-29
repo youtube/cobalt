@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view.h"
 
@@ -62,6 +63,7 @@ class TouchToFillPaymentMethodViewImpl : public TouchToFillPaymentMethodView {
                        const std::u16string& title,
                        const std::u16string& description) override;
   bool ShowBnplIssuerTos(
+      const TouchToFillPaymentMethodViewController& controller,
       const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) override;
   void Hide() override;
 

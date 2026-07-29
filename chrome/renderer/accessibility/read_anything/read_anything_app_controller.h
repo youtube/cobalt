@@ -129,7 +129,7 @@ class ReadAnythingAppController
                                bool is_pdf) override;
   void OnAXTreeDestroyed(const ui::AXTreeID& tree_id) override;
   void OnImageDataDownloaded(const ui::AXTreeID& tree_id,
-                             ui::AXNodeID node_id,
+                             const ui::AXNodeID& node_id,
                              const SkBitmap& image) override;
   void OnSettingsRestoredFromPrefs(
       read_anything::mojom::LineSpacing line_spacing,
@@ -255,6 +255,7 @@ class ReadAnythingAppController
   bool IsGoogleDocs() const;
   bool IsReadAloudEnabled() const;
   bool IsTsTextSegmentationEnabled() const;
+  bool IsReadabilityEnabled() const;
   bool IsChromeOsAsh() const;
   bool IsPhraseHighlightingEnabled() const;
   void OnLetterSpacingChange(int value);

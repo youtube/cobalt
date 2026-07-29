@@ -7,6 +7,7 @@
 #import "base/containers/contains.h"
 #import "base/memory/raw_ptr.h"
 #import "components/commerce/core/commerce_feature_list.h"
+#import "components/commerce/core/pref_names.h"
 #import "components/commerce/core/shopping_service.h"
 #import "components/ntp_tiles/pref_names.h"
 #import "components/prefs/pref_service.h"
@@ -104,7 +105,7 @@
   switch (type) {
     case CustomizationToggleType::kMostVisited:
       return _prefService->GetBoolean(
-          prefs::kHomeCustomizationMostVisitedEnabled);
+          ntp_tiles::prefs::kMostVisitedHomeModuleEnabled);
     case CustomizationToggleType::kMagicStack:
       return _prefService->GetBoolean(
           ntp_tiles::prefs::kMagicStackHomeModuleEnabled);
@@ -130,7 +131,7 @@
     }
     case CustomizationToggleType::kShopCard:
       return _prefService->GetBoolean(
-          prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled);
+          commerce::kPriceTrackingHomeModuleEnabled);
     default:
       NOTREACHED();
   }
@@ -144,7 +145,7 @@
   switch (type) {
     // Main page toggles.
     case CustomizationToggleType::kMostVisited:
-      _prefService->SetBoolean(prefs::kHomeCustomizationMostVisitedEnabled,
+      _prefService->SetBoolean(ntp_tiles::prefs::kMostVisitedHomeModuleEnabled,
                                enabled);
       break;
     case CustomizationToggleType::kMagicStack:
@@ -170,9 +171,8 @@
       break;
     }
     case CustomizationToggleType::kShopCard:
-      _prefService->SetBoolean(
-          prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled,
-          enabled);
+      _prefService->SetBoolean(commerce::kPriceTrackingHomeModuleEnabled,
+                               enabled);
       break;
   }
 }

@@ -234,6 +234,10 @@ BASE_FEATURE(kTCRexKillSwitch,
 
 BASE_FEATURE(kTabGridDragAndDrop, base::FEATURE_DISABLED_BY_DEFAULT);
 
+bool IsTabGridDragAndDropEnabled() {
+  return base::FeatureList::IsEnabled(kTabGridDragAndDrop);
+}
+
 BASE_FEATURE(kTabGridEmptyThumbnail, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsTabGridEmptyThumbnailUIEnabled() {
@@ -312,6 +316,12 @@ constexpr base::FeatureParam<int>
         /*name=*/"impression-limit", /*default_value=*/3};
 
 BASE_FEATURE(kNotificationSettingsMenuItem, base::FEATURE_ENABLED_BY_DEFAULT);
+
+const char kBottomOmniboxEvolutionParam[] = "kBottomOmniboxEvolutionParam";
+const char kBottomOmniboxEvolutionParamEditStateFollowSteadyState[] =
+    "kBottomOmniboxEvolutionParamEditStateFollowSteadyState";
+const char kBottomOmniboxEvolutionParamForceBottomOmniboxEditState[] =
+    "kBottomOmniboxEvolutionParamForceBottomOmniboxEditState";
 
 BASE_FEATURE(kBottomOmniboxEvolution, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -395,9 +405,6 @@ BASE_FEATURE(kIOSManageAccountStorage, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDeprecateFeedHeader, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableFeedBackgroundRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCreateDiscoverFeedServiceEarly,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableFeedAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -522,10 +529,6 @@ int HoursInactiveForOldUsersUntilShowingDockingPromo() {
 
 bool IsWebChannelsEnabled() {
   return false;
-}
-
-bool IsDiscoverFeedServiceCreatedEarly() {
-  return base::FeatureList::IsEnabled(kCreateDiscoverFeedServiceEarly);
 }
 
 bool IsFeedBackgroundRefreshEnabled() {
@@ -666,6 +669,12 @@ bool IsLiquidGlassEffectEnabled() {
   return false;
 }
 
+BASE_FEATURE(kIOSKeyboardAccessoryTwoBubble, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsIOSKeyboardAccessoryTwoBubbleEnabled() {
+  return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryTwoBubble);
+}
+
 BASE_FEATURE(kTabResumption, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // A parameter to indicate whether the native UI is enabled for the discover
@@ -754,12 +763,6 @@ bool IsHomeMemoryImprovementsEnabled() {
 
 BASE_FEATURE(kEnableTraitCollectionRegistration,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kBlueDotOnToolsMenuButton, base::FEATURE_ENABLED_BY_DEFAULT);
-
-bool IsBlueDotOnToolsMenuButtoneEnabled() {
-  return base::FeatureList::IsEnabled(kBlueDotOnToolsMenuButton);
-}
 
 BASE_FEATURE(kSeparateProfilesForManagedAccounts,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1158,3 +1161,22 @@ GetTipsNotificationsAlternativeStringVersion() {
 }
 
 BASE_FEATURE(kImportPasswordsFromSafari, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kIOSSyncedSetUp, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsSyncedSetUpEnabled() {
+  return base::FeatureList::IsEnabled(kIOSSyncedSetUp);
+}
+
+BASE_FEATURE(kMultilineBrowserOmnibox, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsMultilineBrowserOmniboxEnabled() {
+  return base::FeatureList::IsEnabled(kMultilineBrowserOmnibox);
+}
+
+BASE_FEATURE(kIOSAutoOpenRemoteTabGroupsSettings,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled() {
+  return base::FeatureList::IsEnabled(kIOSAutoOpenRemoteTabGroupsSettings);
+}

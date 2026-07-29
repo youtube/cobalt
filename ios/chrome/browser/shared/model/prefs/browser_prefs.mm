@@ -17,6 +17,7 @@
 #import "components/browser_sync/sync_to_signin_migration.h"
 #import "components/browsing_data/core/pref_names.h"
 #import "components/collaboration/public/pref_names.h"
+#import "components/commerce/core/pref_names.h"
 #import "components/commerce/core/prefs.h"
 #import "components/component_updater/component_updater_service.h"
 #import "components/component_updater/installer_policies/autofill_states_component_installer.h"
@@ -144,9 +145,6 @@
 
 namespace {
 
-// Deprecated 11/2024
-constexpr char kEnableDoNotTrackIos[] = "enable_do_not_track";
-
 // Deprecated 12/2024.
 inline constexpr char kPageContentCollectionEnabled[] =
     "page_content_collection.enabled";
@@ -227,6 +225,13 @@ inline constexpr char kHomeCustomizationMagicStackSetUpListEnabled[] =
 // Preference that represents the sorting order of the Following feed content.
 inline constexpr char kNTPFollowingFeedSortType[] =
     "ios.ntp.following_feed.sort_type";
+// Number of times the First Follow UI has been shown.
+inline constexpr char kFirstFollowUIShownCount[] =
+    "follow.first_follow_ui_modal_count";
+// Number of times the First Follow UI has been shown with Follow UI Update
+// enabled.
+inline constexpr char kFirstFollowUpdateUIShownCount[] =
+    "follow.first_follow_update_ui_modal_count";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -949,8 +954,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       prefs::kContentNotificationsEnrollmentEligibility);
 
   // Registers the Home customization visibility prefs.
-  registry->RegisterBooleanPref(prefs::kHomeCustomizationMostVisitedEnabled,
-                                true);
   registry->RegisterBooleanPref(ntp_tiles::prefs::kMagicStackHomeModuleEnabled,
                                 true);
 
@@ -1015,6 +1018,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Preferences related to tab grid.
   // Default to 0 which is the unassigned value.
   registry->RegisterIntegerPref(prefs::kInactiveTabsTimeThreshold, 0);
+  registry->RegisterBooleanPref(prefs::kAutomaticallyOpenTabGroupsEnabled,
+                                false);
 
   registry->RegisterDictionaryPref(prefs::kIosPreRestoreAccountInfo);
 
@@ -1050,9 +1055,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
-
-  // Deprecated 11/2024.
-  registry->RegisterBooleanPref(kEnableDoNotTrackIos, false);
 
   // Deprecated 12/2024.
   registry->RegisterBooleanPref(kPageContentCollectionEnabled, false);
@@ -1111,6 +1113,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Use `safety_check::prefs::kSafetyCheckHomeModuleEnabled` instead.
   registry->RegisterBooleanPref(
       prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, true);
+  registry->RegisterIntegerPref(kFirstFollowUIShownCount, 0);
+  registry->RegisterIntegerPref(kFirstFollowUpdateUIShownCount, 0);
 
   // Deprecated 10/2025. Use
   // `ntp_tiles::prefs::kTabResumptionHomeModuleEnabled` instead.
@@ -1125,6 +1129,16 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Deprecated 10/2025. Use `ntp_tiles::prefs::kMagicStackHomeModuleEnabled`
   // instead.
   registry->RegisterBooleanPref(prefs::kHomeCustomizationMagicStackEnabled,
+                                true);
+
+  // Deprecated 10/2025. Use `commerce::kPriceTrackingHomeModuleEnabled`
+  // instead.
+  registry->RegisterBooleanPref(
+      prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled, true);
+
+  // Deprecated 10/2025. Use `ntp_tiles::prefs::kMostVisitedHomeModuleEnabled`
+  // instead.
+  registry->RegisterBooleanPref(prefs::kHomeCustomizationMostVisitedEnabled,
                                 true);
 }
 
@@ -1180,9 +1194,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
   // Added 09/2024.
   browsing_data::prefs::MaybeMigrateToQuickDeletePrefValues(prefs);
-
-  // Added 11/2024
-  prefs->ClearPref(kEnableDoNotTrackIos);
 
   // Added 12/2024.
   prefs->ClearPref(kPageContentCollectionEnabled);
@@ -1298,7 +1309,7 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kGaiaCookieLastListAccountsData);
   prefs->ClearPref(kFRESourceTrial);
 
-  // Added 10/2025
+  // Added 10/2025.
   prefs->ClearPref(kTipsInMagicStackDisabledPref);
   prefs->ClearPref(kHomeCustomizationMagicStackSetUpListEnabled);
   prefs->ClearPref(kNTPFollowingFeedSortType);
@@ -1314,13 +1325,17 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
                     prefs::kHomeCustomizationMagicStackTipsEnabled, prefs);
   RenameBooleanPref(ntp_tiles::prefs::kMagicStackHomeModuleEnabled,
                     prefs::kHomeCustomizationMagicStackEnabled, prefs);
+  RenameBooleanPref(
+      commerce::kPriceTrackingHomeModuleEnabled,
+      prefs::kHomeCustomizationMagicStackShopCardPriceTrackingEnabled, prefs);
+  RenameBooleanPref(ntp_tiles::prefs::kMostVisitedHomeModuleEnabled,
+                    prefs::kHomeCustomizationMostVisitedEnabled, prefs);
+  prefs->ClearPref(kFirstFollowUIShownCount);
+  prefs->ClearPref(kFirstFollowUpdateUIShownCount);
 }
 
 void MigrateObsoleteUserDefault() {
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-
-  // Added 11/2024.
-  [defaults removeObjectForKey:@"DisplaySwitchProfile"];
 
   // Added 01/2025.
   [defaults removeObjectForKey:@"ChromeRecentTabsCollapsedSections"];

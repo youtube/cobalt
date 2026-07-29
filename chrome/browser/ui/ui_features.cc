@@ -9,6 +9,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/common/chrome_features.h"
 #include "components/search/ntp_features.h"
 #include "components/variations/service/variations_service.h"
 #include "components/webui/flags/feature_entry.h"
@@ -117,6 +118,21 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "drop_target_show_delay",
                    base::Milliseconds(500));
 BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSideBySideShowDropTargetForLinkDelay,
+                   &kSideBySide,
+                   "drop_target_for_link_show_delay",
+                   base::Milliseconds(500));
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSideBySideShowDropTargetForLinkAfterHideDelay,
+                   &kSideBySide,
+                   "drop_target_for_link_after_hide_show_delay",
+                   base::Milliseconds(3000));
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kSideBySideShowDropTargetForLinkAfterHideLookbackWindow,
+                   &kSideBySide,
+                   "drop_target_for_link_after_hide_lookback_window",
+                   base::Seconds(30));
+BASE_FEATURE_PARAM(base::TimeDelta,
                    kSideBySideHideDropTargetDelay,
                    &kSideBySide,
                    "drop_target_hide_delay",
@@ -141,6 +157,11 @@ BASE_FEATURE_PARAM(int,
                    &kSideBySide,
                    "drop_target_width_percentage",
                    30);
+BASE_FEATURE_PARAM(int,
+                   kSideBySideDropTargetForLinkTargetWidthPercentage,
+                   &kSideBySide,
+                   "drop_target_for_link_width_percentage",
+                   15);
 BASE_FEATURE_PARAM(int,
                    kSideBySideDropTargetHideForOSWidth,
                    &kSideBySide,
@@ -379,6 +400,7 @@ BASE_FEATURE(kTearOffWebAppTabOpensWebAppWindow,
 BASE_FEATURE(kThreeButtonPasswordSaveDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+BASE_FEATURE(kToolbarHeightSidePanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables enterprise profile badging for managed profiles on the toolbar avatar
 // and in the profile menu. On managed profiles, a building icon will be used as
@@ -652,6 +674,11 @@ BASE_FEATURE(kNewTabAddsToActiveGroup, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsNewTabAddsToActiveGroupEnabled() {
   return base::FeatureList::IsEnabled(kNewTabAddsToActiveGroup);
+}
+
+bool IsWebUIReloadButtonEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+         base::FeatureList::IsEnabled(features::kWebUIReloadButton);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

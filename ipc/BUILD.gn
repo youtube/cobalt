@@ -14,13 +14,12 @@ component("ipc") {
   sources = [
     # These are the param_traits sources needed by all platforms,
     # including ios. The rest are added in a conditional block below.
-    "ipc_channel.cc",
-    "ipc_message_utils.cc",
-    "ipc_message_utils.h",
-    "ipc_mojo_param_traits.cc",
-    "ipc_mojo_param_traits.h",
+    "mojo_param_traits.cc",
+    "mojo_param_traits.h",
     "param_traits_macros.h",
     "param_traits_read_macros.h",
+    "param_traits_utils.cc",
+    "param_traits_utils.h",
     "param_traits_write_macros.h",
   ]
 
@@ -28,21 +27,18 @@ component("ipc") {
     sources += [
       # Most sources go here since ios only needs the param_traits
       # code.
+      "ipc_channel.cc",
       "ipc_channel.h",
       "ipc_channel_factory.cc",
       "ipc_channel_factory.h",
-      "ipc_channel_mojo.cc",
-      "ipc_channel_mojo.h",
       "ipc_channel_proxy.cc",
       "ipc_channel_proxy.h",
       "ipc_listener.cc",
       "ipc_listener.h",
-      "ipc_message_macros.h",
       "ipc_message_pipe_reader.cc",
       "ipc_message_pipe_reader.h",
       "ipc_mojo_bootstrap.cc",
       "ipc_mojo_bootstrap.h",
-      "ipc_sender.h",
       "ipc_sync_channel.cc",
       "ipc_sync_channel.h",
       "urgent_message_observer.h",
@@ -83,8 +79,8 @@ component("message_support") {
     "ipc_mojo_handle_attachment.h",
     "ipc_mojo_message_helper.cc",
     "ipc_mojo_message_helper.h",
-    "ipc_platform_file.cc",
-    "ipc_platform_file.h",
+    "platform_file_for_transit.cc",
+    "platform_file_for_transit.h",
   ]
 
   if (is_win) {
@@ -179,13 +175,13 @@ mojom("test_interfaces") {
 # This is provided as a separate target so other targets can provide param
 # traits implementations without necessarily linking to all of IPC.
 source_set("param_traits") {
-  public = [ "ipc_param_traits.h" ]
+  public = [ "param_traits.h" ]
 }
 
 # This is provided as a separate target so other targets can use IPC without
 # necessarily linking to protobuf.
 source_set("protobuf_support") {
-  public = [ "ipc_message_protobuf_utils.h" ]
+  public = [ "param_traits_protobuf_utils.h" ]
   public_deps = [
     ":ipc",
     "//third_party/protobuf:protobuf_lite",
@@ -214,12 +210,12 @@ if (use_blink) {
 
   test("ipc_tests") {
     sources = [
-      "ipc_channel_mojo_unittest.cc",
-      "ipc_message_protobuf_utils_unittest.cc",
+      "ipc_channel_unittest.cc",
       "ipc_message_unittest.cc",
-      "ipc_message_utils_unittest.cc",
       "ipc_mojo_bootstrap_unittest.cc",
       "ipc_sync_channel_unittest.cc",
+      "param_traits_protobuf_utils_unittest.cc",
+      "param_traits_utils_unittest.cc",
     ]
 
     if (is_posix || is_fuchsia) {
@@ -227,7 +223,7 @@ if (use_blink) {
     }
 
     if (is_win) {
-      sources += [ "ipc_handle_unittest.cc" ]
+      sources += [ "handle_win_unittest.cc" ]
     }
 
     deps = [

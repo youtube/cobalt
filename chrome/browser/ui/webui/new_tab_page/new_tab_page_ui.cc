@@ -207,6 +207,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       "prerenderOnPressEnabled",
       base::FeatureList::IsEnabled(features::kNewTabPageTriggerForPrerender2));
 
+  source->AddInteger("maxTilesBeforeShowMore",
+                     ntp_features::GetMaxTilesBeforeShowMore());
+
   source->AddBoolean(
       "ntpNextFeaturesEnabled",
       base::FeatureList::IsEnabled(ntp_features::kNtpNextFeatures));
@@ -286,9 +289,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       {"enterpriseShortcutSubtitle", IDS_NTP_ENTERPRISE_SHORTCUT_SUBTITLE},
       {"nameField", IDS_NTP_CUSTOM_LINKS_NAME},
       {"restoreDefaultLinks", IDS_NTP_CONFIRM_MSG_RESTORE_DEFAULTS},
+      {"restoreDefaultEnterpriseShortcuts",
+       IDS_NTP_CONFIRM_MSG_RESTORE_ENTERPRISE_DEFAULTS},
       {"restoreThumbnailsShort", IDS_NEW_TAB_RESTORE_THUMBNAILS_SHORT_LINK},
       {"shortcutAlreadyExists", IDS_NTP_CUSTOM_LINKS_ALREADY_EXISTS},
       {"urlField", IDS_NTP_CUSTOM_LINKS_URL},
+      {"showMore", IDS_NTP_SHOW_MORE_BUTTON_LABEL},
 
       // Customize button and dialog.
       {"colorPickerLabel", IDS_NTP_CUSTOMIZE_COLOR_PICKER_LABEL},
@@ -568,8 +574,17 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       "searchboxShowComposeEntrypoint",
       (ntp_composebox::IsNtpSearchboxComposeEntrypointEnabled(profile) ||
        ntp_composebox::IsNtpComposeboxEnabled(profile)));
+  source->AddLocalizedString(
+      "searchBoxPlaceholder",
+      ntp_realbox::IsNtpRealboxNextEnabled(profile)
+          ? IDS_NTP_SEARCH_BOX_DYNAMIC_PLACEHOLDER_ASK_GOOGLE
+          : IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD);
   source->AddBoolean("composeboxShowContextMenu",
                      ntp_composebox::kShowContextMenu.Get());
+  source->AddBoolean("composeboxShowRecentTabChip",
+                     ntp_composebox::kShowRecentTabChip.Get());
+  source->AddLocalizedString("askAboutThisTabAriaLabel",
+                             IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL);
   source->AddBoolean("composeboxShowContextMenuTabPreviews",
                      ntp_composebox::kShowContextMenuTabPreviews.Get());
   source->AddBoolean("searchboxShowComposebox",
@@ -591,17 +606,16 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
   source->AddBoolean("composeboxShowDeepSearchButton",
-                     aim_eligibility_service &&
-                         aim_eligibility_service->IsDeepSearchEligible() &&
-                         ntp_composebox::kShowToolsAndModels.Get());
+                     ntp_composebox::IsDeepSearchEnabled(profile));
   source->AddBoolean("composeboxShowCreateImageButton",
-                     ntp_composebox::kShowToolsAndModels.Get() &&
-                         ntp_composebox::kShowCreateImageTool.Get());
+                     ntp_composebox::IsCreateImagesEnabled(profile));
 
   bool show_pdf_upload = aim_eligibility_service &&
                          aim_eligibility_service->IsPdfUploadEligible() &&
                          composebox_config.is_pdf_upload_enabled();
   source->AddBoolean("composeboxShowPdfUpload", show_pdf_upload);
+
+  source->AddBoolean("composeboxShowSubmit", ntp_composebox::kShowSubmit.Get());
 
   // User education browser promos.
   int browser_promo_limit = 0;
@@ -742,7 +756,11 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
 
   pref_change_registrar_.Init(profile_->GetPrefs());
   pref_change_registrar_.Add(
-      ntp_prefs::kNtpShortcutsType,
+      ntp_prefs::kNtpCustomLinksVisible,
+      base::BindRepeating(&NewTabPageUI::OnShortcutsTypePrefChanged,
+                          weak_ptr_factory_.GetWeakPtr()));
+  pref_change_registrar_.Add(
+      ntp_prefs::kNtpEnterpriseShortcutsVisible,
       base::BindRepeating(&NewTabPageUI::OnShortcutsTypePrefChanged,
                           weak_ptr_factory_.GetWeakPtr()));
   pref_change_registrar_.Add(
@@ -786,9 +804,9 @@ bool NewTabPageUI::IsNewTabPageOrigin(const GURL& url) {
 // static
 void NewTabPageUI::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterTimePref(kPrevNavigationTimePrefName, base::Time());
-  registry->RegisterIntegerPref(
-      ntp_prefs::kNtpShortcutsType,
-      static_cast<int>(ntp_tiles::TileType::kCustomLinks));
+  registry->RegisterBooleanPref(ntp_prefs::kNtpCustomLinksVisible, true);
+  registry->RegisterBooleanPref(ntp_prefs::kNtpEnterpriseShortcutsVisible,
+                                false);
   registry->RegisterBooleanPref(ntp_prefs::kNtpShortcutsVisible, true);
   registry->RegisterBooleanPref(prefs::kNtpPromoVisible, true);
 }
@@ -796,8 +814,8 @@ void NewTabPageUI::RegisterProfilePrefs(PrefRegistrySimple* registry) {
 // static
 void NewTabPageUI::ResetProfilePrefs(PrefService* prefs) {
   ntp_tiles::MostVisitedSites::ResetProfilePrefs(prefs);
-  prefs->SetInteger(ntp_prefs::kNtpShortcutsType,
-                    static_cast<int>(ntp_tiles::TileType::kCustomLinks));
+  prefs->SetBoolean(ntp_prefs::kNtpCustomLinksVisible, true);
+  prefs->SetBoolean(ntp_prefs::kNtpEnterpriseShortcutsVisible, false);
   prefs->SetBoolean(ntp_prefs::kNtpShortcutsVisible, true);
 }
 
@@ -819,6 +837,36 @@ void NewTabPageUI::MigrateDeprecatedUseMostVisitedTilesPref(
               : static_cast<int>(ntp_tiles::TileType::kCustomLinks));
     }
     prefs->ClearPref(ntp_prefs::kNtpUseMostVisitedTiles);
+  }
+}
+
+// static
+void NewTabPageUI::MigrateDeprecatedShortcutsTypePref(PrefService* prefs) {
+  // Skip migration if the new preferences are already set.
+  if (prefs->HasPrefPath(ntp_prefs::kNtpCustomLinksVisible) ||
+      prefs->HasPrefPath(ntp_prefs::kNtpEnterpriseShortcutsVisible)) {
+    return;
+  }
+  const base::Value* user_value =
+      prefs->GetUserPrefValue(ntp_prefs::kNtpShortcutsType);
+  if (user_value) {
+    if (user_value->is_int()) {
+      switch (static_cast<ntp_tiles::TileType>(user_value->GetInt())) {
+        case ntp_tiles::TileType::kTopSites:
+          prefs->SetBoolean(ntp_prefs::kNtpCustomLinksVisible, false);
+          prefs->SetBoolean(ntp_prefs::kNtpEnterpriseShortcutsVisible, false);
+          break;
+        case ntp_tiles::TileType::kCustomLinks:
+          prefs->SetBoolean(ntp_prefs::kNtpCustomLinksVisible, true);
+          prefs->SetBoolean(ntp_prefs::kNtpEnterpriseShortcutsVisible, false);
+          break;
+        case ntp_tiles::TileType::kEnterpriseShortcuts:
+          prefs->SetBoolean(ntp_prefs::kNtpCustomLinksVisible, false);
+          prefs->SetBoolean(ntp_prefs::kNtpEnterpriseShortcutsVisible, true);
+          break;
+      }
+    }
+    prefs->ClearPref(ntp_prefs::kNtpShortcutsType);
   }
 }
 
@@ -865,9 +913,7 @@ void NewTabPageUI::BindInterface(
           ContextualSessionServiceFactory::GetForProfile(profile_);
       auto contextual_session_handle =
           contextual_session_service->CreateSession(
-              ntp_composebox::kSendLnsSurfaceParam.Get(),
-              ntp_composebox::kMaxNumFiles.Get() > 1,
-              ntp_composebox::kEnableViewportImages.Get());
+              ntp_composebox::CreateQueryControllerConfigParams());
       contextual_session_web_contents_helper->set_session_handle(
           std::move(contextual_session_handle));
     }
@@ -1085,9 +1131,7 @@ void NewTabPageUI::CreatePageHandler(
     auto* contextual_session_service =
         ContextualSessionServiceFactory::GetForProfile(profile_);
     auto contextual_session_handle = contextual_session_service->CreateSession(
-        ntp_composebox::kSendLnsSurfaceParam.Get(),
-        ntp_composebox::kMaxNumFiles.Get() > 1,
-        ntp_composebox::kEnableViewportImages.Get());
+        ntp_composebox::CreateQueryControllerConfigParams());
     contextual_session_web_contents_helper->set_session_handle(
         std::move(contextual_session_handle));
   }
@@ -1181,21 +1225,18 @@ void NewTabPageUI::DidStartNavigation(
 
 bool NewTabPageUI::IsCustomLinksEnabled() const {
   // If the enterprise shortcuts feature is disabled, but the preference is set
-  // to enterprise shortcuts, treat MostVisitedSites as if enterpise shortcuts
-  // is disabled and custom links is enabled. This may occur if the user is
-  // moved in and out of the experiment.
-  const ntp_tiles::TileType type = static_cast<ntp_tiles::TileType>(
-      profile_->GetPrefs()->GetInteger(ntp_prefs::kNtpShortcutsType));
-  return type == ntp_tiles::TileType::kCustomLinks ||
-         (type == ntp_tiles::TileType::kEnterpriseShortcuts &&
+  // to enterprise shortcuts visible, treat MostVisitedSites as if enterpise
+  // shortcuts is disabled and custom links is enabled. This may occur if the
+  // user is moved in and out of the experiment.
+  return profile_->GetPrefs()->GetBoolean(ntp_prefs::kNtpCustomLinksVisible) ||
+         (profile_->GetPrefs()->GetBoolean(
+              ntp_prefs::kNtpEnterpriseShortcutsVisible) &&
           !base::FeatureList::IsEnabled(ntp_tiles::kNtpEnterpriseShortcuts));
 }
 
 bool NewTabPageUI::IsEnterpriseShortcutsEnabled() const {
-  // See comment in `IsCustomLinksEnabled()`.
-  const ntp_tiles::TileType type = static_cast<ntp_tiles::TileType>(
-      profile_->GetPrefs()->GetInteger(ntp_prefs::kNtpShortcutsType));
-  return type == ntp_tiles::TileType::kEnterpriseShortcuts &&
+  return profile_->GetPrefs()->GetBoolean(
+             ntp_prefs::kNtpEnterpriseShortcutsVisible) &&
          base::FeatureList::IsEnabled(ntp_tiles::kNtpEnterpriseShortcuts);
 }
 

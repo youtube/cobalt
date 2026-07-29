@@ -7,10 +7,14 @@
 
 #include <memory>
 
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/glic/host/glic.mojom-forward.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
-#include "ui/views/view.h"
+
+namespace views {
+class View;
+}
 
 namespace tabs {
 class TabInterface;
@@ -23,6 +27,7 @@ class GlicUiEmbedder {
   class Delegate {
    public:
     virtual ~Delegate() = default;
+    virtual void OnEmbedderWindowActivationChanged(bool has_focus) = 0;
     virtual void SwitchConversation(
         const ShowOptions& options,
         glic::mojom::ConversationInfoPtr info,
@@ -40,7 +45,9 @@ class GlicUiEmbedder {
   // Returns the Host::EmbedderDelegate if this embedder uses one.
   virtual Host::EmbedderDelegate* GetHostEmbedderDelegate() = 0;
 
-  // Show the glic UI.
+  // Show the glic UI for this embedder. Do nothing if the embedder is
+  // currently showing. Show will be called when switching from an inactive to
+  // active embedder.
   virtual void Show() = 0;
 
   // Returns true if the embedder is currently showing.
@@ -53,7 +60,7 @@ class GlicUiEmbedder {
   virtual void Focus() = 0;
 
   // Returns the view, if there is one.
-  virtual views::View* GetView() = 0;
+  virtual base::WeakPtr<views::View> GetView() = 0;
 
   // Creates the inactive version of this embedder.
   virtual std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const = 0;

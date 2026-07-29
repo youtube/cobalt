@@ -44,23 +44,21 @@ ViewportHeuristicConfig GetViewportHeuristicConfigFromFeatureParams() {
   // -0.3 is the lower bound of the middle 75% of distance_from_ptr_down_ratio
   // values of clicked anchors (i.e. the P12.5 value).
   const base::FeatureParam<double> kDistanceFromPointerDownLowerBound{
-      &features::kPreloadingViewportHeuristics, "distance_from_ptr_down_low",
-      -0.3};
+      &features::kPreloadingModerateViewportHeuristics,
+      "distance_from_ptr_down_low", -0.3};
   // 0.0 is the upper bound of the middle 75% of distance_from_ptr_down_ratio
   // values of clicked anchors (i.e. the P87.5 value).
   const base::FeatureParam<double> kDistanceFromPointerDownUpperBound{
-      &features::kPreloadingViewportHeuristics, "distance_from_ptr_down_hi",
-      0.0};
+      &features::kPreloadingModerateViewportHeuristics,
+      "distance_from_ptr_down_hi", 0.0};
   // Note: The default value was selected arbitrarily and hasn't been tuned.
   const base::FeatureParam<double> kLargestAnchorThreshold{
-      &features::kPreloadingViewportHeuristics, "largest_anchor_threshold",
-      0.25
-  };
+      &features::kPreloadingModerateViewportHeuristics,
+      "largest_anchor_threshold", 0.25};
   // Note: The default value was selected arbitrarily and hasn't been tuned.
   const base::FeatureParam<base::TimeDelta> kDelay{
-      &features::kPreloadingViewportHeuristics, "delay",
-      base::Milliseconds(500)
-  };
+      &features::kPreloadingModerateViewportHeuristics, "delay",
+      base::Milliseconds(500)};
 
   double low = std::clamp(kDistanceFromPointerDownLowerBound.Get(), -1.0, 1.0);
   double high = std::clamp(kDistanceFromPointerDownUpperBound.Get(), low, 1.0);
@@ -271,7 +269,7 @@ AnchorElementInteractionTracker::AnchorElementInteractionTracker(
           document.GetExecutionContext()->GetTaskRunner(
               TaskType::kInternalDefault)));
   if (base::FeatureList::IsEnabled(
-          blink::features::kPreloadingViewportHeuristics)) {
+          blink::features::kPreloadingModerateViewportHeuristics)) {
     auto* anchor_metrics_sender =
         AnchorElementMetricsSender::GetForFrame(GetDocument()->GetFrame());
     auto* anchor_viewport_observer =
@@ -301,7 +299,14 @@ void AnchorElementInteractionTracker::Trace(Visitor* visitor) const {
 
 // static
 base::TimeDelta AnchorElementInteractionTracker::EagerHoverDwellTime() {
-  return blink::features::kPreloadingEagerHeuristicsHoverDwellTime.Get();
+  static const base::TimeDelta time =
+      blink::features::kPreloadingEagerHoverHeuristicsDwellTime.Get();
+  return time;
+}
+base::TimeDelta AnchorElementInteractionTracker::EagerViewportPresentTime() {
+  static const base::TimeDelta time =
+      blink::features::kPreloadingEagerViewportHeuristicsPresentTime.Get();
+  return time;
 }
 
 void AnchorElementInteractionTracker::OnMouseMoveEvent(
@@ -368,7 +373,7 @@ void AnchorElementInteractionTracker::OnPointerEvent(
 
   if (event_type == event_type_names::kPointerover) {
     if (base::FeatureList::IsEnabled(
-            blink::features::kPreloadingEagerHeuristics)) {
+            blink::features::kPreloadingEagerHoverHeuristics)) {
       // TODO(https://crbug.com/40287486): guard this to only be on desktop, and
       // implement the liberal viewport behavior on mobile. Ideally in a way
       // that works with DevTools emulation.
@@ -389,7 +394,7 @@ void AnchorElementInteractionTracker::OnPointerEvent(
             .timestamp = clock_->NowTicks() + kModerateHoverDwellTime});
     if (!hover_timer_.IsActive()) {
       if (base::FeatureList::IsEnabled(
-              blink::features::kPreloadingEagerHeuristics)) {
+              blink::features::kPreloadingEagerHoverHeuristics)) {
         // Start the timer only for the eager timeout, which will be sooner. It
         // will re-schedule itself for the moderate deadline if necessary.
         hover_timer_.StartOneShot(EagerHoverDwellTime(), FROM_HERE);
@@ -480,7 +485,7 @@ void AnchorElementInteractionTracker::HoverTimerFired(TimerBase*) {
       if (hover_event_candidate.key.second ==
           blink::mojom::SpeculationEagerness::kEager) {
         CHECK(base::FeatureList::IsEnabled(
-            blink::features::kPreloadingEagerHeuristics));
+            blink::features::kPreloadingEagerHoverHeuristics));
         interaction_host_->OnPointerHoverEager(hover_event_candidate.key.first,
                                                std::move(pointer_data));
       } else if (hover_event_candidate.key.second ==
@@ -544,7 +549,7 @@ KURL AnchorElementInteractionTracker::GetHrefEligibleForPreloading(
 void AnchorElementInteractionTracker::AnchorPositionsUpdated(
     HeapVector<Member<AnchorPositionUpdate>>& position_updates) {
   CHECK(base::FeatureList::IsEnabled(
-      blink::features::kPreloadingViewportHeuristics));
+      blink::features::kPreloadingModerateViewportHeuristics));
   const ViewportHeuristicConfig& config = GetViewportHeuristicConfig();
 
   // Reset the delay timer (if active); this could happen if a programmatic
@@ -599,7 +604,7 @@ void AnchorElementInteractionTracker::AnchorPositionsUpdated(
 void AnchorElementInteractionTracker::ViewportHeuristicTimerFired(
     TimerBase* timer) {
   CHECK(base::FeatureList::IsEnabled(
-      blink::features::kPreloadingViewportHeuristics));
+      blink::features::kPreloadingModerateViewportHeuristics));
   if (!largest_anchor_element_in_viewport_ || !GetDocument()->GetFrame()) {
     return;
   }
@@ -611,7 +616,7 @@ void AnchorElementInteractionTracker::ViewportHeuristicTimerFired(
     return;
   }
 
-  interaction_host_->OnViewportHeuristicTriggered(
+  interaction_host_->OnModerateViewportHeuristicTriggered(
       largest_anchor_element_in_viewport_->Url());
 }
 

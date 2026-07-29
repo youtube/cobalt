@@ -7,8 +7,8 @@ package org.chromium.chrome.browser.chrome_item_picker;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.ViewGroup;
 
-import org.chromium.base.CallbackController;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
@@ -24,14 +24,16 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 public class ChromeItemPickerActivity extends SnackbarActivity {
     private static final String TAG = "ChromeItemPicker";
 
-    private final CallbackController mCallbackController = new CallbackController();
     private int mWindowId;
-    @Nullable private TabItemPickerCoordinator mItemPickerCoordinator;
+    private @Nullable TabItemPickerCoordinator mItemPickerCoordinator;
 
     @Override
     protected void onCreateInternal(@Nullable Bundle savedInstanceState) {
         super.onCreateInternal(savedInstanceState);
         setContentView(R.layout.chrome_item_picker_activity);
+
+        ViewGroup containerView = findViewById(R.id.chrome_item_picker_container);
+        ViewGroup rootView = containerView;
 
         // TODO: Set mWindowId to be the most recently used window.
         mWindowId =
@@ -45,29 +47,34 @@ public class ChromeItemPickerActivity extends SnackbarActivity {
         }
 
         mItemPickerCoordinator =
-                new TabItemPickerCoordinator(mCallbackController, getProfileSupplier(), mWindowId);
+                new TabItemPickerCoordinator(
+                        getProfileSupplier(),
+                        mWindowId,
+                        this,
+                        this.getSnackbarManager(),
+                        rootView,
+                        containerView);
 
-        mItemPickerCoordinator.requestTabModel(this::handleModelFailure);
+        mItemPickerCoordinator.showTabItemPicker(this::handleModelFailure);
     }
 
     @Override
     protected void onDestroy() {
-        mCallbackController.destroy();
+        if (mItemPickerCoordinator != null) {
+            mItemPickerCoordinator.destroy();
+        }
 
         super.onDestroy();
     }
 
-    private void onError(String error) {
-        Log.e(TAG, error);
-        final Intent resultIntent = new Intent();
-        resultIntent.putExtra(IntentHandler.EXTRA_ITEM_PICKER_ERROR, error);
-        setResult(Activity.RESULT_CANCELED, resultIntent);
-        finish();
-    }
-
     private void handleModelFailure(@Nullable TabModelSelector tabModelSelector) {
         if (tabModelSelector == null) {
-            onError("Failed to launch activity.");
+            final String error = "Failed to launch activity.";
+            Log.e(TAG, error);
+            final Intent resultIntent = new Intent();
+            resultIntent.putExtra(IntentHandler.EXTRA_ITEM_PICKER_ERROR, error);
+            setResult(Activity.RESULT_CANCELED, resultIntent);
+            finish();
             return;
         }
     }

@@ -7690,6 +7690,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_CONFIRM_MSG_RESTORE_DEFAULTS" desc="The text label of the restore default shortcuts button when editing a custom link. (On the New Tab Page)">
         Restore default shortcuts
       </message>
+      <message name="IDS_NTP_CONFIRM_MSG_RESTORE_ENTERPRISE_DEFAULTS" desc="The text label of the restore default shortcuts button when editing an enterprise shortcuts. (On the New Tab Page)">
+        Restore organization shortcuts
+      </message>
       <message name="IDS_NTP_CUSTOM_BG_CHROME_WALLPAPERS" desc="The text label of the Chrome backgrounds option for background customization.(On the New Tab Page)">
         Chrome backgrounds
       </message>
@@ -7786,6 +7789,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_CUSTOMIZE_FOOTER_HEADER" desc="The toggle for the Footer title in the customization menu on the New Tab Page." meaning="The footer which shows at the bottom of the New Tab page.">
         Footer
       </message>
+      <message name="IDS_NTP_CUSTOMIZE_TOOLS_HEADER" desc="The heading for the Tools section in the Customize Chrome Side Panel." meaning="Setting controlling visibility of different tools.">
+        Tools
+      </message>
       <message name="IDS_NTP_MANAGED_BY_SEARCH_ENGINE" desc="The string that shows on the customize chrome UI when a 3rd party manages the new tab page.">
         Current search engine managing your new tab page
       </message>
@@ -7824,6 +7830,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_CUSTOMIZE_SHOW_FOOTER_LABEL" desc="The label for the option to show footer in the customization menu on the New Tab Page">
         Show footer on New Tab page
+      </message>
+      <message name="IDS_NTP_CUSTOMIZE_SHOW_CHIPS_LABEL" desc="The label for the option to show the tool chips in the New Tab Page" meaning="Toggle to display/hide the tool chips in the New Tab Page.">
+        Show Chips
       </message>
       <message name="IDS_NTP_CUSTOMIZE_SHOW_SHORTCUTS_LABEL" desc="The label for the option to show shortcuts in the customization menu on the New Tab Page">
         Show shortcuts
@@ -7992,6 +8001,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_NTP_CUSTOMIZE_CHROME_WEBSTORE_LABEL" desc="The message that prompts user to customize Chrome with Chrome webstore.">
         Customize your browser even more with extensions from the <ph name="BEGIN_LINK1">&lt;a href="#" id="chromeWebstoreLink"&gt;</ph>Chrome Web Store<ph name="END_LINK1">&lt;/a&gt;</ph>
+      </message>
+      <message name="IDS_NTP_SHOW_MORE_BUTTON_LABEL" desc="Label for a button that allows the user to see more most visited tiles on the New Tab Page.">
+        Show more
       </message>
       <message name="IDS_NTP_WEBSTORE_SHOPPING_CATEOGRY_LABEL" desc="The message displayed on the button that redirects users to the 'shopping' category page of the Chrome webstore.">
         Find coupons
@@ -8576,11 +8588,20 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_COMPOSE_SUGGESTIONS_INFO" desc="The text underneath the composebox that explains to users how suggestions are generated.">
         Suggestions based on your <ph name="BEGIN_LINK_GOOGLE_ACTIVITY">&lt;a target="_blank" href="$1"&gt;</ph>Google activity<ph name="END_LINK_GOOGLE_ACTIVITY">&lt;/a&gt;</ph>
       </message>
+      <message name="IDS_NTP_COMPOSE_SMART_COMPOSE_A11Y_LABEL" translateable="false" desc="The accessibility label for the smart compose suggestion in the compose box.">
+        Press Tab to accept this suggestion
+      </message>
       <message name="IDS_NTP_COMPOSE_SMART_COMPOSE_TAB" desc="The label for the call to action to accept the inline suggestion.">
         Tab
       </message>
       <message name="IDS_NTP_COMPOSE_DEEP_SEARCH" desc="The label for the deep search button in the context menu in the composebox as well as the chip that indicates that the user is in deep search mode.">
         Deep Search
+      </message>
+      <message name="IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB" desc="The text on a button that suggests the user can ask a question about the content of their most recent tab."  translateable="false">
+        Ask Google about previous tab
+      </message>
+      <message name="IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL" desc="The aria-label for the button that suggests the user can ask a question about the content of their most recent tab. The $1 is a placeholder for the tab title." translateable="false">
+        Ask Google about previous tab: <ph name="TAB_TITLE">$1</ph>
       </message>
       <message name="IDS_NTP_COMPOSE_CREATE_IMAGES" desc="The label for the create images button in the context menu in the composebox as well as the chip that indicates that the user is in create images mode.">
         Create images
@@ -10068,7 +10089,7 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Put pages side-by-side in the same tab so you can easily compare options and more
       </message>
       <message name="IDS_SPLIT_VIEW_TAB_SWITCH_STEP_IPH_BODY" desc="The body for first step of quick tab switch split view IPH tutorial.">
-        Right-click on this tab and select “Add tab to new split view”
+        Right-click on this tab and select “New split view with current tab”
       </message>
       <message name="IDS_SPLIT_VIEW_TAB_SWITCH_COMPLETION_IPH_BODY" desc="The body for completion of quick tab switch split view IPH tutorial.">
         You can now use split view to compare, multitask, and more
@@ -10171,10 +10192,22 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_DECLINE" desc="In Title Case: The text inside the iOS promo bubble button allowing the user to decline.">
             No Thanks
           </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_TITLE" desc="The title text for the iOS promo bubble button that confirms the user will recieve a reminder sent to their iOS device.">
+            Reminder Sent to Your <ph name="DEVICE_TYPE">$1<ex>iPad</ex></ph>
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_BUTTON" desc="The button text for the iOS promo bubble button that confirms the user will recieve a reminder sent to their phone.">
+            Got It
+          </message>
         </if>
         <if expr="not use_titlecase">
           <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_DECLINE" desc="The text inside the iOS promo bubble button allowing the user to decline.">
             No thanks
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_TITLE" desc="The title text for the iOS promo bubble button that confirms the user will recieve a reminder sent to their iOS device.">
+            Reminder sent to your <ph name="DEVICE_TYPE">$1<ex>iPad</ex></ph>
+          </message>
+          <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_REMINDER_CONFIRMATION_BUTTON" desc="The button text for the iOS promo bubble button that confirms the user will recieve a reminder sent to their phone.">
+            Got it
           </message>
         </if>
         <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_QR" desc="The text inside the iOS promo bubble button allowing the user to accept by getting the app via QR code.">
@@ -10182,6 +10215,18 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </message>
         <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_BUTTON_ACCEPT_REMINDER" desc="The text inside the iOS promo bubble button allowing the user to accept by getting a reminder.">
           Remind me on iOS
+        </message>
+        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_LENS_FEATURE_NAME" desc="The product name for the Google Lens feature.">
+          Google Lens
+        </message>
+        <message name="IDS_IOS_DESKTOP_PROMO_BUBBLE_ENHANCED_BROWSING_FEATURE_NAME" desc="The product name for the Enhanced Safe Browsing feature.">
+          Enhanced Safe Browsing
+        </message>
+        <message name="IDS_IOS_DEVICE_TYPE_IPHONE" desc="The product name 'iPhone'.">
+          iPhone
+        </message>
+        <message name="IDS_IOS_DEVICE_TYPE_IPAD" desc="The product name 'iPad'.">
+          iPad
         </message>
       </if>
 
@@ -18973,6 +19018,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_NON_MILESTONE_UPDATE_TOAST_BODY" desc="Text on a toast notification that is shown when a non milestone update is complete.">
         Chrome was updated
+      </message>
+      <message name="IDS_GLIC_SHARE_IMAGE_FAILED_TOAST_BODY" desc="Text on a toast notification that is shown when sharing an image with Gemini fails (when using the 'Create image with Gemini' context menu item)" translateable="false">
+        Could not share image with Gemini. Try again or try another image.
       </message>
     </if>
 

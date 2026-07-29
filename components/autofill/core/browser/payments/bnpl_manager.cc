@@ -95,32 +95,6 @@ bool BnplManager::IsBnplIssuerSupported(std::string_view issuer_id) {
   return supported_issuers.contains(issuer_id);
 }
 
-// static
-bool BnplManager::IsEligibleForBnpl(const AutofillClient& client) {
-  // BNPL is not supported in off-the-record (incognito) mode.
-  if (client.IsOffTheRecord()) {
-    return false;
-  }
-
-  AutofillOptimizationGuideDecider* autofill_optimization_guide_decider =
-      client.GetAutofillOptimizationGuideDecider();
-  if (!autofill_optimization_guide_decider) {
-    return false;
-  }
-
-  const GURL& url = client.GetLastCommittedPrimaryMainFrameURL();
-
-  return std::ranges::any_of(
-      client.GetPaymentsAutofillClient()
-          ->GetPaymentsDataManager()
-          .GetBnplIssuers(),
-      [&autofill_optimization_guide_decider,
-       &url](const BnplIssuer& bnpl_issuer) {
-        return autofill_optimization_guide_decider->IsUrlEligibleForBnplIssuer(
-            bnpl_issuer.issuer_id(), url);
-      });
-}
-
 void BnplManager::OnDidAcceptBnplSuggestion(
     std::optional<uint64_t> final_checkout_amount,
     OnBnplVcnFetchedCallback on_bnpl_vcn_fetched_callback) {
@@ -153,12 +127,30 @@ void BnplManager::OnDidAcceptBnplSuggestion(
               base::BindOnce(&BnplManager::Reset, weak_factory_.GetWeakPtr()));
       break;
     case kCheckAmountExtractionBeforeContinuingFlow:
-      // TODO(crbug.com/430575808): Implement Android flow logic to show
-      // progress screen or select issuer screen depending on amount extraction
-      // status. If the amount extraction has failed to return a valid amount,
-      // the selection screen is grayed out, and selecting an issuer is not
-      // possible.
-      NOTIMPLEMENTED();
+      base::OnceClosure cancel_callback;
+#if BUILDFLAG(IS_ANDROID)
+      cancel_callback =
+          base::BindOnce(&BnplManager::OnTouchToFillIssuerSelectionCancelled,
+                         weak_factory_.GetWeakPtr());
+#else
+      cancel_callback =
+          base::BindOnce(&BnplManager::Reset, weak_factory_.GetWeakPtr());
+#endif  // BUILDFLAG(IS_ANDROID)
+      // Shows the issuer selection screen when amount extraction returns a
+      // valid amount.
+      if (ongoing_flow_state_->final_checkout_amount.has_value()) {
+        CHECK_DEREF(payments_autofill_client().GetBnplUiDelegate())
+            .ShowSelectBnplIssuerUi(
+                GetSortedBnplIssuerContext(), ongoing_flow_state_->app_locale,
+                base::BindOnce(&BnplManager::OnIssuerSelected,
+                               weak_factory_.GetWeakPtr()),
+                std::move(cancel_callback));
+      } else {
+        // TODO(crbug.com/430575808): Implement Android flow logic to show
+        // progress screen. If the amount extraction has failed to return a
+        // valid amount, the selection screen is grayed out, and selecting an
+        // issuer is not possible.
+      }
       break;
   }
 
@@ -787,6 +779,14 @@ std::vector<BnplIssuerContext> BnplManager::GetSortedBnplIssuerContext() {
 
   return result;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void BnplManager::OnTouchToFillIssuerSelectionCancelled() {
+  // TODO(crbug.com/430575808): Add a metric to track cancellations on the
+  // selection screen.
+  Reset();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 bool BnplManager::AcceptTosActionRequired() const {
   return ongoing_flow_state_->issuer.payment_instrument().has_value() &&

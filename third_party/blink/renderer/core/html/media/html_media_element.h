@@ -386,6 +386,10 @@ class CORE_EXPORT HTMLMediaElement
 
   void SetCcLayerForTesting(cc::Layer* layer) { SetCcLayer(layer); }
   void AddTrackForTesting(const media::MediaTrack& t) { AddTrack(t); }
+  void SetTrackStateForTesting(const media::MediaTrack& t,
+                               media::MediaTrack::State s) {
+    SetTrackState(t, s);
+  }
 
   // This should be called directly after creation.
   void SetMediaPlayerHostForTesting(
@@ -518,7 +522,6 @@ class CORE_EXPORT HTMLMediaElement
   void ResetMediaPlayerAndMediaSource();
 
   bool AlwaysCreateUserAgentShadowRoot() const final { return true; }
-  bool AreAuthorShadowsAllowed() const final { return false; }
 
   FocusableState SupportsFocus(UpdateBehavior update_behavior) const final;
   FocusableState IsFocusableState(UpdateBehavior update_behavior) const final;
@@ -569,6 +572,7 @@ class CORE_EXPORT HTMLMediaElement
 
   void AddTrack(const media::MediaTrack&) final;
   void RemoveTrack(const media::MediaTrack&) final;
+  void SetTrackState(const media::MediaTrack&, media::MediaTrack::State) final;
 
   void MediaSourceOpened(std::unique_ptr<WebMediaSource>) final;
   void RemotePlaybackCompatibilityChanged(const KURL&,

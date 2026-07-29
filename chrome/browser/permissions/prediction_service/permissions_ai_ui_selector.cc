@@ -24,7 +24,6 @@
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
-#include "components/optimization_guide/proto/features/permissions_ai.pb.h"
 #include "components/permissions/features.h"
 #include "components/permissions/permission_actions_history.h"
 #include "components/permissions/permission_request.h"
@@ -67,7 +66,6 @@ using ::permissions::PredictionRequestFeatures;
 using QuietUiReason = PermissionsAiUiSelector::QuietUiReason;
 using Decision = PermissionsAiUiSelector::Decision;
 using PredictionSource = ::permissions::PermissionPredictionSource;
-using ::optimization_guide::proto::PermissionsAiResponse;
 
 constexpr auto VeryUnlikely = permissions::
     PermissionPrediction_Likelihood_DiscretizedLikelihood_VERY_UNLIKELY;
@@ -213,6 +211,8 @@ void PermissionsAiUiSelector::InquireOnDeviceAiv3AndServerModelIfAvailable(
     content::RenderWidgetHostView* host_view,
     permissions::PredictionRequestFeatures features,
     PredictionRequestMetadata request_metadata) {
+  last_permission_ai_relevance_model_ =
+      permissions::PermissionAiRelevanceModel::kAIv3;
   VLOG(1) << "[PermissionsAIv3] On device AI prediction requested";
   TakeSnapshot(host_view, {std::move(features), std::move(request_metadata),
                            PredictionModelType::kOnDeviceAiV3Model});
@@ -223,6 +223,9 @@ void PermissionsAiUiSelector::InquireOnDeviceAiv4AndServerModelIfAvailable(
     permissions::PredictionRequestFeatures features,
     PredictionRequestMetadata request_metadata) {
   VLOG(1) << "[PermissionsAIv4] On device AI prediction requested";
+
+  last_permission_ai_relevance_model_ =
+      permissions::PermissionAiRelevanceModel::kAIv4;
 
   auto language_detected_cbk = base::BindOnce(
       &PermissionsAiUiSelector::GetInnerText, weak_ptr_factory_.GetWeakPtr(),
@@ -317,6 +320,7 @@ void PermissionsAiUiSelector::SelectUiToUse(
                        base::Seconds(kPermissionRequestUiDecisionTimeout),
                        base::BindOnce(&PermissionsAiUiSelector::OnTimeout,
                                       weak_ptr_factory_.GetWeakPtr()));
+  last_permission_ai_relevance_model_ = std::nullopt;
   last_permission_request_relevance_ = std::nullopt;
   last_request_grant_likelihood_ = std::nullopt;
   cpss_v1_model_holdback_probability_ = std::nullopt;
@@ -500,6 +504,11 @@ PermissionsAiUiSelector::PredictedGrantLikelihoodForUKM() {
 std::optional<PermissionRequestRelevance>
 PermissionsAiUiSelector::PermissionRequestRelevanceForUKM() {
   return last_permission_request_relevance_;
+}
+
+std::optional<permissions::PermissionAiRelevanceModel>
+PermissionsAiUiSelector::PermissionAiRelevanceModelForUKM() {
+  return last_permission_ai_relevance_model_;
 }
 
 std::optional<bool> PermissionsAiUiSelector::WasSelectorDecisionHeldback() {
@@ -710,7 +719,7 @@ PredictionSource PermissionsAiUiSelector::GetPredictionTypeToUse(
     // AIvX models take priority over each other in the following order:
     // AIv4, AIv3
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-    if (PredictionModelHandlerProvider::IsAiv4ModelAvailable()) {
+    if (PredictionModelHandlerProvider::IsAIv4FeatureEnabled()) {
       VLOG(1) << "[CPSS] GetPredictionTypeToUse AIv4";
       return PredictionSource::kOnDeviceAiv4AndServerSideModel;
     }

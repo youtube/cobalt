@@ -13,6 +13,10 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ON_ISSUER_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerTosTextItemProperties.BNPL_TOS_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerTosTextItemProperties.DESCRIPTION_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.APPLY_LINK_DEACTIVATED_STYLE;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.HIDE_OPTIONS_LINK_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.ON_LINK_CLICK_CALLBACK;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.TERMS_TEXT_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties.BNPL_BACK_BUTTON_ENABLED;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties.BNPL_ON_BACK_BUTTON_CLICKED;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ICON_ID;
@@ -57,11 +61,15 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_FULL_HEIGHT_DESCRIPTION_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_HALF_HEIGHT_DESCRIPTION_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.SHEET_ITEMS;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.CARD_BENEFITS_TERMS_AVAILABLE;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.TERMS_LABEL_TEXT_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TosFooterProperties.LEGAL_MESSAGE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.VISIBLE;
 
+import android.text.SpannableString;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
+import android.text.style.ClickableSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -71,15 +79,19 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
 import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.AllLoyaltyCardsItemProperties;
-import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.autofill.payments.BnplIssuerTosDetail.LegalMessages;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.text.ChromeClickableSpan;
+import org.chromium.ui.text.SpanApplier;
+import org.chromium.ui.util.AttrUtils;
 
 /**
  * Provides functions that map {@link TouchToFillPaymentMethodProperties} changes in a {@link
@@ -134,12 +146,7 @@ class TouchToFillPaymentMethodViewBinder {
         } else if (propertyKey == BACK_PRESS_HANDLER) {
             view.setBackPressHandler(model.get(BACK_PRESS_HANDLER));
         } else if (propertyKey == VISIBLE) {
-            boolean visibilityChangeSuccessful = view.setVisible(model.get(VISIBLE));
-            if (!visibilityChangeSuccessful && model.get(VISIBLE)) {
-                assert (model.get(DISMISS_HANDLER) != null);
-                model.get(DISMISS_HANDLER).onResult(BottomSheetController.StateChangeReason.NONE);
-                view.destroy();
-            }
+            view.setVisible(model.get(VISIBLE));
         } else if (propertyKey == SHEET_ITEMS) {
             // SHEET_ITEMS, CURRENT_SCREEN and FOCUSED_VIEW_ID_FOR_ACCESSIBILITY properties are
             // always updated together.
@@ -426,6 +433,20 @@ class TouchToFillPaymentMethodViewBinder {
     }
 
     /**
+     * Factory used to create a new "Cancel" button that dismiss the current screen.
+     *
+     * @param parent The parent {@link ViewGroup} of the new item.
+     */
+    static Button createTextButtonView(ViewGroup parent) {
+        Button buttonView =
+                (Button)
+                        LayoutInflater.from(parent.getContext())
+                                .inflate(R.layout.touch_to_fill_text_button, parent, false);
+        AutofillUiUtils.setFilterTouchForSecurity(buttonView);
+        return buttonView;
+    }
+
+    /**
      * Factory used to create a new "Wallet settings" button that redirects the user to the
      * corresponding Chrome settings page.
      *
@@ -479,12 +500,9 @@ class TouchToFillPaymentMethodViewBinder {
      * @param propertyKey The {@link PropertyKey} which changed.
      */
     static void bindTermsLabelView(PropertyModel model, View view, PropertyKey propertyKey) {
-        if (propertyKey == CARD_BENEFITS_TERMS_AVAILABLE) {
-            if (model.get(CARD_BENEFITS_TERMS_AVAILABLE)) {
-                TextView termsLabelTextView = view.findViewById(R.id.touch_to_fill_terms_label);
-                termsLabelTextView.setText(
-                        R.string.autofill_payment_method_bottom_sheet_benefits_terms_label);
-            }
+        if (propertyKey == TERMS_LABEL_TEXT_ID) {
+            TextView termsLabelTextView = view.findViewById(R.id.touch_to_fill_terms_label);
+            termsLabelTextView.setText(model.get(TERMS_LABEL_TEXT_ID));
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
@@ -687,15 +705,131 @@ class TouchToFillPaymentMethodViewBinder {
         if (propertyKey == SHOULD_SHOW_SCAN_CREDIT_CARD) {
             setScanCreditCardButton(view, model.get(SHOULD_SHOW_SCAN_CREDIT_CARD));
         } else if (propertyKey == SCAN_CREDIT_CARD_CALLBACK) {
-            setScanCreditCardCallback(view, model.get(SCAN_CREDIT_CARD_CALLBACK));
+            setCallbackForButton(view, R.id.scan_new_card, model.get(SCAN_CREDIT_CARD_CALLBACK));
         } else if (propertyKey == OPEN_MANAGEMENT_UI_TITLE_ID) {
             setShowPaymentMethodsSettingsTitle(
                     view, view.getContext().getString(model.get(OPEN_MANAGEMENT_UI_TITLE_ID)));
         } else if (propertyKey == OPEN_MANAGEMENT_UI_CALLBACK) {
-            setShowPaymentMethodsSettingsCallback(view, model.get(OPEN_MANAGEMENT_UI_CALLBACK));
+            setCallbackForButton(
+                    view, R.id.open_management_ui, model.get(OPEN_MANAGEMENT_UI_CALLBACK));
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }
+    }
+
+    /**
+     * Factory used to create a new footer inside the ListView inside the
+     * TouchToFillPaymentMethodView for showing legal messages.
+     *
+     * @param parent The parent {@link ViewGroup} of the new item.
+     */
+    static View createLegalMessageItemView(ViewGroup parent) {
+        return LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.touch_to_fill_legal_message_item, parent, false);
+    }
+
+    /**
+     * Called whenever a property in the given model changes. It updates the given view accordingly.
+     *
+     * @param model The observed {@link PropertyModel}. Its data need to be reflected in the view.
+     * @param view The {@link View} of the header to update.
+     * @param key The {@link PropertyKey} which changed.
+     */
+    static void bindLegalMessageItemView(PropertyModel model, View view, PropertyKey propertyKey) {
+        if (propertyKey == LEGAL_MESSAGE) {
+            TextView textView = view.findViewById(R.id.legal_message);
+            LegalMessages legalMessages = model.get(LEGAL_MESSAGE);
+            textView.setText(
+                    AutofillUiUtils.getSpannableStringForLegalMessageLines(
+                            textView.getContext(),
+                            legalMessages.mLines,
+                            /* underlineLinks= */ false,
+                            (String url) -> {
+                                legalMessages.mLinkOpener.accept(url);
+                            }));
+            textView.setMovementMethod(LinkMovementMethod.getInstance());
+        } else {
+            assert false : "Unhandled update to property:" + propertyKey;
+        }
+    }
+
+    /**
+     * Factory used to create a new BNPL footer for selection and progress screens inside the
+     * ListView inside the {@link TouchToFillPaymentMethodView}.
+     *
+     * @param parent The parent {@link ViewGroup} of the new item.
+     */
+    static View createBnplSelectionProgressFooterItemView(ViewGroup parent) {
+        return LayoutInflater.from(parent.getContext())
+                .inflate(
+                        R.layout.touch_to_fill_bnpl_selection_and_progress_screen_footer_item,
+                        parent,
+                        false);
+    }
+
+    /**
+     * Called whenever a property in the given model changes. It updates the given view accordingly.
+     *
+     * @param model The observed {@link PropertyModel}. Its data need to be reflected in the view.
+     * @param view The {@link View} of the header to update.
+     * @param key The {@link PropertyKey} which changed.
+     */
+    static void bindBnplSelectionProgressFooterView(
+            PropertyModel model, View view, PropertyKey propertyKey) {
+        if (propertyKey == TERMS_TEXT_ID) {
+            TextView termsLabelTextView = view.findViewById(R.id.bnpl_terms_label);
+            termsLabelTextView.setText(model.get(TERMS_TEXT_ID));
+        } else if (propertyKey == HIDE_OPTIONS_LINK_TEXT
+                || propertyKey == ON_LINK_CLICK_CALLBACK
+                || propertyKey == APPLY_LINK_DEACTIVATED_STYLE) {
+            buildFooterSpannable(model, view);
+        } else {
+            assert false : "Unhandled update to property:" + propertyKey;
+        }
+    }
+
+    /** Builds the entire SpannableString for the footer from the properties in the model. */
+    private static void buildFooterSpannable(PropertyModel model, View view) {
+        ClickableSpan span;
+        if (model.get(APPLY_LINK_DEACTIVATED_STYLE)) {
+            // For the disabled state, create a custom span 38% opacity for the link text.
+            span =
+                    new ClickableSpan() {
+                        @Override
+                        public void onClick(View widget) {
+                            // This is intentionally left empty as there are no click events
+                            // when disabled.
+                        }
+
+                        @Override
+                        public void updateDrawState(TextPaint textPaint) {
+                            // Resolves the standard link color, just like ChromeClickableSpan does.
+                            int defaultColor =
+                                    view.getContext()
+                                            .getColor(R.color.default_text_color_link_baseline);
+                            int linkColor =
+                                    AttrUtils.resolveColor(
+                                            view.getContext().getTheme(),
+                                            R.attr.globalClickableSpanColor,
+                                            defaultColor);
+                            // Create the new color for the disabled link with 38% opacity.
+                            int alpha = (int) (255 * GRAYED_OUT_OPACITY_ALPHA);
+                            int lowOpacityColor = (linkColor & 0x00FFFFFF) | (alpha << 24);
+                            textPaint.setColor(lowOpacityColor);
+                            textPaint.setUnderlineText(true);
+                        }
+                    };
+        } else {
+            // For the enabled state, create a ChromeClickableSpan.
+            span = new ChromeClickableSpan(view.getContext(), model.get(ON_LINK_CLICK_CALLBACK));
+        }
+        String rawFooterText = model.get(HIDE_OPTIONS_LINK_TEXT);
+        TextView footer = view.findViewById(R.id.bnpl_footer_label);
+        SpannableString spannableFooter =
+                SpanApplier.applySpans(
+                        rawFooterText, new SpanApplier.SpanInfo("<link>", "</link>", span));
+        footer.setText(spannableFooter);
+        footer.setMovementMethod(LinkMovementMethod.getInstance());
     }
 
     private static void setScanCreditCardButton(View view, boolean shouldShowScanCreditCard) {
@@ -708,18 +842,13 @@ class TouchToFillPaymentMethodViewBinder {
         }
     }
 
-    private static void setScanCreditCardCallback(View view, Runnable callback) {
-        View scanCreditCard = view.findViewById(R.id.scan_new_card);
-        scanCreditCard.setOnClickListener(unused -> callback.run());
-    }
-
     private static void setShowPaymentMethodsSettingsTitle(View view, String title) {
         TextView managePaymentMethodsButton = view.findViewById(R.id.open_management_ui);
         managePaymentMethodsButton.setText(title);
     }
 
-    private static void setShowPaymentMethodsSettingsCallback(View view, Runnable callback) {
-        View managePaymentMethodsButton = view.findViewById(R.id.open_management_ui);
-        managePaymentMethodsButton.setOnClickListener(unused -> callback.run());
+    private static void setCallbackForButton(View view, @IdRes int buttonId, Runnable callback) {
+        View buttonView = view.findViewById(buttonId);
+        buttonView.setOnClickListener(unused -> callback.run());
     }
 }

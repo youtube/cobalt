@@ -15,7 +15,16 @@
 
 namespace blink {
 
-PlainTextPainter::PlainTextPainter(PlainTextPainter::Mode mode) : mode_(mode) {}
+PlainTextPainter::PlainTextPainter(PlainTextPainter::Mode mode) : mode_(mode) {
+  // We don't use FrameShapeCache in the kShared mode. See GetCacheFor().
+  //
+  // blink::MemoryPressureListenerRegistry doesn't support listeners in
+  // non-main threads.
+  if (mode_ == kCanvas && IsMainThread() &&
+      RuntimeEnabledFeatures::CanvasTextMemoryPressureEnabled()) {
+    MemoryPressureListenerRegistry::Instance().RegisterClient(this);
+  }
+}
 
 void PlainTextPainter::Trace(Visitor* visitor) const {
   visitor->Trace(cache_map_);
@@ -166,8 +175,7 @@ float PlainTextPainter::ComputeSubInlineSize(const TextRun& run,
     unsigned run_to = std::min(item.Length(), to_index - start_offset);
     // Measure the subrun.
     StringView sub_text(node.TextContent(), start_offset, item.Length());
-    TextRun text_run(sub_text, item.Direction(),
-                     /* directional_override */ false, mode_ == kCanvas);
+    TextRun text_run(sub_text, item.Direction());
     const PlainTextNode& sub_node =
         CreateNode(text_run, font, /* supports_bidi */ false);
     CharacterRange character_range =

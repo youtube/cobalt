@@ -51,14 +51,8 @@ class CORE_EXPORT LargestContentfulPaintCalculator final
   bool NotifyMetricsIfLargestTextPaintChanged(base::TimeTicks text_paint_time,
                                               uint64_t text_paint_size);
 
-  void UpdateLatestLcpDetails();
-
   const LargestContentfulPaintDetails& LatestLcpDetails() const {
     return latest_lcp_details_;
-  }
-
-  void ResetMetricsLcp() {
-    latest_lcp_details_ = LargestContentfulPaintDetails();
   }
 
   void Trace(Visitor* visitor) const;
@@ -81,6 +75,8 @@ class CORE_EXPORT LargestContentfulPaintCalculator final
   std::unique_ptr<TracedValue> ImageCandidateTraceData(
       const ImageRecord* largest_image,
       bool is_triggered_by_soft_navigation);
+
+  void UpdateLatestLcpDetailsTypeIfNeeded();
 
   Member<WindowPerformance> window_performance_;
 

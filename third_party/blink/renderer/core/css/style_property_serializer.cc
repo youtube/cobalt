@@ -668,12 +668,16 @@ String StylePropertySerializer::SerializeShorthand(
     case CSSPropertyID::kRule:
       return GetShorthandValueForRule(rowRuleShorthand(),
                                       columnRuleShorthand());
+    case CSSPropertyID::kRuleBreak:
+      return GetShorthandValueForBidirectionalGapRules(ruleBreakShorthand());
     case CSSPropertyID::kRuleColor:
       return GetShorthandValueForBidirectionalGapRules(ruleColorShorthand());
-    case CSSPropertyID::kRuleWidth:
-      return GetShorthandValueForBidirectionalGapRules(ruleWidthShorthand());
+    case CSSPropertyID::kRuleOutset:
+      return GetShorthandValueForBidirectionalGapRules(ruleOutsetShorthand());
     case CSSPropertyID::kRuleStyle:
       return GetShorthandValueForBidirectionalGapRules(ruleStyleShorthand());
+    case CSSPropertyID::kRuleWidth:
+      return GetShorthandValueForBidirectionalGapRules(ruleWidthShorthand());
     case CSSPropertyID::kTextBox:
       return TextBoxValue();
     case CSSPropertyID::kTextEmphasis:
@@ -1497,30 +1501,25 @@ String StylePropertySerializer::TextDecorationValue() const {
           continue;
         }
       }
-    } else if (RuntimeEnabledFeatures::
-                   TextDecorationShortSerializationEnabled()) {
-      if (longhand->PropertyID() == CSSPropertyID::kTextDecorationLine) {
-        if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
-          // Skip the initial value.
-          if (identifier_value->GetValueID() == CSSValueID::kNone) {
-            continue;
-          }
+    } else if (longhand->PropertyID() == CSSPropertyID::kTextDecorationLine) {
+      if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+        // Skip the initial value.
+        if (identifier_value->GetValueID() == CSSValueID::kNone) {
+          continue;
         }
-      } else if (longhand->PropertyID() ==
-                 CSSPropertyID::kTextDecorationStyle) {
-        if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
-          // Skip the initial value.
-          if (identifier_value->GetValueID() == CSSValueID::kSolid) {
-            continue;
-          }
+      }
+    } else if (longhand->PropertyID() == CSSPropertyID::kTextDecorationStyle) {
+      if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+        // Skip the initial value.
+        if (identifier_value->GetValueID() == CSSValueID::kSolid) {
+          continue;
         }
-      } else if (longhand->PropertyID() ==
-                 CSSPropertyID::kTextDecorationColor) {
-        if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
-          // Skip the initial value.
-          if (identifier_value->GetValueID() == CSSValueID::kCurrentcolor) {
-            continue;
-          }
+      }
+    } else if (longhand->PropertyID() == CSSPropertyID::kTextDecorationColor) {
+      if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
+        // Skip the initial value.
+        if (identifier_value->GetValueID() == CSSValueID::kCurrentcolor) {
+          continue;
         }
       }
     }

@@ -51,6 +51,7 @@ chromium-metrics-reviews@google.com.
   <int value="30" label="ObservedTargetElementDestroyed"/>
   <int value="31" label="ObservedTargetElementChanged"/>
   <int value="32" label="TargetNodeInteractionPointObscured"/>
+  <int value="33" label="ToolTimeout"/>
   <int value="100" label="NavigateInvalidUrl"/>
   <int value="200" label="ClickSuppressed"/>
   <int value="300" label="DragAndReleaseFromOffscreen"/>
@@ -86,9 +87,20 @@ chromium-metrics-reviews@google.com.
   <int value="903" label="LoginNoFillableFields"/>
   <int value="904" label="LoginFillingNotAllowed"/>
   <int value="905" label="LoginPageChangedDuringSelection"/>
+  <int value="906" label="LoginDeviceReauthRequired"/>
+  <int value="907" label="LoginDeviceReauthFailed"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/actor.mojom:ActionResultCode) -->
+
+<!-- LINT.IfChange(ActorUiTabControllerError) -->
+
+<enum name="ActorUiTabControllerError">
+  <int value="0" label="kRequestedForNonExistentTab"/>
+  <int value="1" label="kCallbackError"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/ui/actor_ui_tab_controller_interface.h:ActorUiTabControllerError) -->
 
 <!-- LINT.IfChange(ComputedTargetResult) -->
 

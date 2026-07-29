@@ -163,6 +163,16 @@ crbug.com/dawn/549 [ fuchsia ] WebGPUCachingTraceTest_* [ Skip ]
 [ fuchsia fuchsia-board-astro ] TraceTest_Video_AV1 [ Skip ]
 [ fuchsia fuchsia-board-astro ] TraceTest_Video_HEVC [ Skip ]
 
+# WebGpu is not enable on mac pro
+[ mac amd-0x679e ] WebGPUTraceTest_WebGPUCanvasDisableOneCopyCapture_Accelerated [ Skip ]
+[ mac no-asan amd-0x679e ] WebGPUTraceTest_WebGPUCanvasOneCopyCapture [ Skip ]
+[ mac amd-0x679e ] WebGPUTraceTest_WebGPUCanvasOneCopyCapture_Hidden [ Skip ]
+
+# WebGpu is not supported on x86 nvidia
+crbug.com/42240193 [ win10 nvidia target-cpu-32 ] WebGPUTraceTest_WebGPUCanvasDisableOneCopyCapture_Accelerated [ Skip ]
+crbug.com/42240193 [ win10 nvidia target-cpu-32 ] WebGPUTraceTest_WebGPUCanvasOneCopyCapture [ Skip ]
+crbug.com/42240193 [ win10 nvidia target-cpu-32 ] WebGPUTraceTest_WebGPUCanvasOneCopyCapture_Hidden [ Skip ]
+
 ###############################
 # Temporary Skip Expectations #
 ###############################
@@ -263,6 +273,9 @@ crbug.com/438512194 [ win11 nvidia-0x2783 ] OverlayModeTraceTest_DirectCompositi
 crbug.com/450323461 [ win11 nvidia-0x2783 ] OverlayModeTraceTest_DirectComposition_Video_VP9_YUY2 [ RetryOnFailure ]
 crbug.com/450323461 [ win11 nvidia-0x2783 ] VideoPathTraceTest_DirectComposition_Video_MP4 [ RetryOnFailure ]
 crbug.com/450323461 [ win11 nvidia-0x2783 ] VideoPathTraceTest_DirectComposition_Video_SW_Decode [ RetryOnFailure ]
+
+# WebGPU is currently not enabled on win11 qualcomm but it will be soon
+[ win11 qualcomm ] WebGPUTraceTest* [ Failure ]
 
 ###############################
 # Permanent Slow Expectations #

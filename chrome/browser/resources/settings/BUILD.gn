@@ -75,6 +75,7 @@ build_webui("build") {
     "autofill_page/address_edit_dialog.ts",
     "autofill_page/address_remove_confirmation_dialog.ts",
     "autofill_page/autofill_ai_add_or_edit_dialog.ts",
+    "autofill_page/autofill_ai_entries_list.ts",
     "autofill_page/autofill_ai_section.ts",
     "autofill_page/autofill_page.ts",
     "autofill_page/autofill_page_index.ts",
@@ -256,6 +257,7 @@ build_webui("build") {
     "site_settings/zoom_levels.ts",
     "your_saved_info_page/account_card_element.ts",
     "your_saved_info_page/category_reference_card.ts",
+    "your_saved_info_page/collapsible_autofill_settings_card.ts",
     "your_saved_info_page/your_saved_info_page.ts",
     "your_saved_info_page/your_saved_info_page_index.ts",
   ]
@@ -430,6 +432,9 @@ build_webui("build") {
     "site_settings/site_settings_shared.css",
   ]
 
+  mojo_files_deps = [ "//components/autofill/core/browser/data_model/autofill_ai:mojo_bindings_ts__generator" ]
+  mojo_files = [ "$root_gen_dir/components/autofill/core/browser/data_model/autofill_ai/autofill_ai_enums.mojom-webui.ts" ]
+
   ts_composite = true
   ts_definitions = [
     "//tools/typescript/definitions/autofill_private.d.ts",
@@ -459,6 +464,7 @@ build_webui("build") {
     "//ui/webui/resources/cr_components/managed_footnote:build_ts",
     "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
+    "//ui/webui/resources/mojo:build_ts",
   ]
 
   if (!is_chromeos) {

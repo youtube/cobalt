@@ -9,9 +9,7 @@
 #include "base/command_line.h"
 #include "base/strings/strcat.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -49,11 +47,11 @@ class PixelTestUi : public TestBrowserUi {
   PixelTestUi(views::View* view,
               const std::string& screenshot_name,
               const std::string& baseline,
-              std::optional<gfx::Rect> region)
+              const ScreenshotOptions& options)
       : view_(view),
         screenshot_name_(screenshot_name),
         baseline_(baseline),
-        region_(region) {}
+        options_(options) {}
   ~PixelTestUi() override = default;
 
   // TestBrowserUi:
@@ -73,14 +71,14 @@ class PixelTestUi : public TestBrowserUi {
         screenshot_name_.empty()
             ? baseline_
             : base::StrCat({screenshot_name_, "_", baseline_});
-    return VerifyPixelUi(view_, region_, test_name, screenshot_name);
+    return VerifyPixelUi(view_, options_, test_name, screenshot_name);
   }
 
  private:
   raw_ptr<views::View> view_ = nullptr;
   std::string screenshot_name_;
   std::string baseline_;
-  std::optional<gfx::Rect> region_;
+  ScreenshotOptions options_;
 };
 
 views::View* GetScreenshotTargetView(ui::TrackedElement* element) {
@@ -94,7 +92,7 @@ views::View* GetScreenshotTargetView(ui::TrackedElement* element) {
 
 ui::test::ActionResult CompareScreenshotCommon(
     views::View* view,
-    std::optional<gfx::Rect> region,
+    const ScreenshotOptions& options,
     const std::string& screenshot_name,
     const std::string& baseline_cl) {
   // pixel_browser_tests and pixel_interactive_ui_tests specify this command
@@ -108,7 +106,7 @@ ui::test::ActionResult CompareScreenshotCommon(
     return ui::test::ActionResult::kKnownIncompatible;
   }
 
-  PixelTestUi pixel_test_ui(view, screenshot_name, baseline_cl, region);
+  PixelTestUi pixel_test_ui(view, screenshot_name, baseline_cl, options);
   ui::test::ActionResult result = pixel_test_ui.VerifyUiWithResult();
   if (result == ui::test::ActionResult::kKnownIncompatible) {
     LOG(WARNING) << "Current platform does not support pixel tests.";
@@ -129,13 +127,13 @@ class InteractionTestUtilSimulatorBrowser
     // Browser accelerators must be sent via key events to the window on Mac or
     // they don't work properly. Dialog accelerators still appear to work the
     // same as on other platforms.
-    if (Browser* const browser =
-            InteractionTestUtilBrowser::GetBrowserFromContext(
-                element->context())) {
+    if (auto* const bwi = InteractionTestUtilBrowser::GetBrowserFromContext(
+            element->context())) {
       if (!ui_controls::SendKeyPress(
-              browser->window()->GetNativeWindow(), accelerator.key_code(),
-              accelerator.IsCtrlDown(), accelerator.IsShiftDown(),
-              accelerator.IsAltDown(), accelerator.IsCmdDown())) {
+              BrowserView::GetBrowserViewForBrowser(bwi)->GetNativeWindow(),
+              accelerator.key_code(), accelerator.IsCtrlDown(),
+              accelerator.IsShiftDown(), accelerator.IsAltDown(),
+              accelerator.IsCmdDown())) {
         LOG(ERROR) << "Failed to send accelerator"
                    << accelerator.GetShortcutText() << " to " << *element;
         return ui::test::ActionResult::kFailed;
@@ -297,7 +295,7 @@ class InteractionTestUtilSimulatorBrowser
       size_t index,
       InputType input_type,
       std::optional<size_t> expected_index_after_selection) override {
-    // This handler *explicitly* only handles Browser and TabStrip; it will
+    // This handler *explicitly* only handles browser and TabStrip; it will
     // reject any other element or View type.
     if (!tab_collection->IsA<views::TrackedElementViews>())
       return ui::test::ActionResult::kNotAttempted;
@@ -357,24 +355,21 @@ class InteractionTestUtilSimulatorBrowser
 
 }  // namespace
 
-InteractionTestUtilBrowser::InteractionTestUtilBrowser() {
-  AddSimulator(std::make_unique<InteractionTestUtilSimulatorBrowser>());
-  AddSimulator(
-      std::make_unique<views::test::InteractionTestUtilSimulatorViews>());
-#if BUILDFLAG(IS_MAC)
-  AddSimulator(std::make_unique<ui::test::InteractionTestUtilSimulatorMac>());
-#endif
+// static
+void InteractionTestUtilBrowser::PopulateSimulators(
+    ui::test::InteractionTestUtil& test_util) {
+  test_util.AddSimulator(
+      std::make_unique<InteractionTestUtilSimulatorBrowser>());
 }
 
-InteractionTestUtilBrowser::~InteractionTestUtilBrowser() = default;
-
 // static
-Browser* InteractionTestUtilBrowser::GetBrowserFromContext(
+BrowserWindowInterface* InteractionTestUtilBrowser::GetBrowserFromContext(
     ui::ElementContext context) {
-  BrowserList* const browsers = BrowserList::GetInstance();
-  for (Browser* const browser : *browsers) {
-    if (BrowserElements::From(browser)->GetContext() == context) {
-      return browser;
+  for (auto* const bwi : GetAllBrowserWindowInterfaces()) {
+    if (auto* elements = BrowserElements::From(bwi)) {
+      if (elements->GetContext() == context) {
+        return bwi;
+      }
     }
   }
   return nullptr;
@@ -385,12 +380,12 @@ ui::test::ActionResult InteractionTestUtilBrowser::CompareScreenshot(
     ui::TrackedElement* element,
     const std::string& screenshot_name,
     const std::string& baseline_cl,
-    std::optional<gfx::Rect> region) {
+    const ScreenshotOptions& options) {
   views::View* const view = GetScreenshotTargetView(element);
   if (!view) {
     return ui::test::ActionResult::kNotAttempted;
   }
-  return CompareScreenshotCommon(view, region, screenshot_name, baseline_cl);
+  return CompareScreenshotCommon(view, options, screenshot_name, baseline_cl);
 }
 
 // static
@@ -402,6 +397,6 @@ ui::test::ActionResult InteractionTestUtilBrowser::CompareSurfaceScreenshot(
   if (!view || !view->GetWidget()) {
     return ui::test::ActionResult::kNotAttempted;
   }
-  return CompareScreenshotCommon(view->GetWidget()->GetRootView(), std::nullopt,
+  return CompareScreenshotCommon(view->GetWidget()->GetRootView(), {},
                                  screenshot_name, baseline_cl);
 }

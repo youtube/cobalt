@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Настави</translation>
 <translation id="2379925928934107488">Када је то могуће, тамна тема се примењује за сајтове када је Chrome користи</translation>
 <translation id="2390272837142897736">Повећајте зумирање</translation>
+<translation id="2397689164757137845">Дозвољено • Прецизно</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Прецизна</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Одобрене су дозволе <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и још <ph name="NUM_MORE" />}one{Одобрене су дозволе <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и још <ph name="NUM_MORE" />}few{Одобрене су дозволе <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и још <ph name="NUM_MORE" />}other{Одобрене су дозволе <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> и још <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Помоћ и повратне информације</translation>
 <translation id="2501278716633472235">Назад</translation>
 <translation id="2533138527374486328">Када је укључено, сајтови могу да траже да се повежу са било којим уређајем на локалној мрежи. Када је искључено, сајтови не могу да се повезују са уређајима на локалној мрежи.</translation>
+<translation id="2536779053640817375">Дозвољено овај пут • Прецизно</translation>
 <translation id="2544997614631598250">Тамна боја теме</translation>
 <translation id="2546283357679194313">Колачићи и подаци о сајтовима</translation>
 <translation id="2570922361219980984">Приступ локацији је искључен и за овај уређај. Укључите га у <ph name="BEGIN_LINK" />Android подешавањима<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">Паузирај видео</translation>
 <translation id="5877248419911025165">Скупи све захтеве</translation>
 <translation id="5878945009165002849">Блокирајте упите за пријављивање које приказују услуге за идентитет</translation>
+<translation id="588258955323874662">Цеo екран</translation>
 <translation id="5884085660368669834">Подешавање сајта</translation>
 <translation id="5887687176710214216">Последња посета: јуче</translation>
 <translation id="5908617755156109052">Не дозвољавај сајтовима да праве 3D мапу окружења ни да прате положај камере</translation>
@@ -701,7 +704,6 @@
 <translation id="8803526663383843427">Када је укључено</translation>
 <translation id="8805385115381080995">Прегледање је брже јер је мања вероватноћа да ће сајт затражити да потврдите да сте стварна особа</translation>
 <translation id="8816026460808729765">Не дозвољавај сајтовима да приступају сензорима</translation>
-<translation id="884765916894384048">Иди у позадину</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Пробајте привремено да дозволите колачиће треће стране, што значи слабију заштиту прегледања, али већу вероватноћу да ће функције сајта радити на очекивани начин.</translation>
 <translation id="8889294078294184559">Док настављате са прегледањем, сајтови могу да проверавају у Chrome-у и да од претходног сајта који сте посетили добију потврду да сте вероватно стварна особа</translation>

@@ -109,7 +109,6 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
 <translation id="1419753403124156396">Restart Chrome?</translation>
 <translation id="1428770807407000502">Turn off sync?</translation>
 <translation id="1430915738399379752">Print</translation>
-<translation id="1433478348197382180">Reading mode</translation>
 <translation id="1435593198351412143">Automatically open PDFs</translation>
 <translation id="1437543266176261764">Running in <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Organise your tracked products in Bookmarks</translation>
@@ -270,6 +269,7 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="2249635629516220541">Customise the info used by sites to show you ads</translation>
 <translation id="2251809247798634662">New Incognito window</translation>
 <translation id="2253927598983295051">Choose what to share with <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">More app info</translation>
 <translation id="2276696007612801991">Sign in to your Google Account to check your passwords</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, selected Incognito tab</translation>
 <translation id="2286841657746966508">Billing address</translation>
@@ -369,7 +369,6 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
 <translation id="2718352093833049315">Only on Wi-Fi</translation>
 <translation id="2718846868787000099">To show content in your preferred languages, the sites that you visit can see your preferences</translation>
 <translation id="2723001399770238859">audio</translation>
-<translation id="2734335652257251631">Show reading mode</translation>
 <translation id="2739887572830526131">Keep this group to add tabs later or delete it if you no longer need it.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> isn't available right now.</translation>
 <translation id="2760805590727089264">MM / YY</translation>
@@ -1011,7 +1010,6 @@ Your Google Account may have other forms of browsing history such as searches an
 <translation id="569536719314091526">Translate this page to any language from the More options button</translation>
 <translation id="5696597120588531049">Chrome can help keep you safe from data breaches, unsafe websites and more</translation>
 <translation id="5698878456427040674">Check if the selected account is supported.</translation>
-<translation id="570347048394355941">Switch to tab</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> wants to connect to a serial port</translation>
 <translation id="5715150588940290235">Delete saved security codes?</translation>
 <translation id="571930967925877633">Your bookmarks, history and other Chrome data will no longer be synced to your Google Account</translation>
@@ -1139,6 +1137,7 @@ Your Google Account may have other forms of browsing history such as searches an
 <translation id="6232535412751077445">Enabling ‘Do Not Track’ means that a request will be included with your browsing traffic. Any effect depends on whether a website responds to the request and how the request is interpreted.
 
 For example, some websites may respond to this request by showing you ads that aren’t based on other websites that you’ve visited. Many websites will still collect and use your browsing data – for example to improve security, to provide content, ads and recommendations and to generate reporting statistics.</translation>
+<translation id="623755660902014047">Reading mode</translation>
 <translation id="6247557882553405851">Google Password Manager</translation>
 <translation id="6248988683584659830">Search settings</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, multiselected pinned incognito tab</translation>
@@ -1300,6 +1299,7 @@ For example, some websites may respond to this request by showing you ads that a
 <translation id="6865313869410766144">Autofill form data</translation>
 <translation id="6867400383614725881">New Incognito tab</translation>
 <translation id="686899695320434745">Addresses aren't encrypted with your passphrase. This lets you use them in other Google services.</translation>
+<translation id="6870625088374152862">Signed in as <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">Anyone with the link can edit all tabs</translation>
 <translation id="6880903702195291049">Permissions look good</translation>
 <translation id="6883204995689174413">Share</translation>
@@ -1396,7 +1396,6 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="7221869452894271364">Reload this page</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 download pending}other{# downloads pending}}</translation>
 <translation id="7230064152164845085">Switch to Incognito</translation>
-<translation id="7230836263524391273">Hide reading mode</translation>
 <translation id="7237724030342645845">Google Password Manager stopped working</translation>
 <translation id="72415438529550637">Password suggestion is closed.</translation>
 <translation id="7248671827512403053">Application</translation>
@@ -1731,7 +1730,6 @@ To change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your a
 <translation id="867914734596684889">Show or hide bookmarks bar</translation>
 <translation id="8683039184091909753">image</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, selected tab</translation>
-<translation id="8693232767599693749">View reading mode?</translation>
 <translation id="8697753151306746444">Share window or screen instead</translation>
 <translation id="8699120352855309748">Don’t offer to translate these languages</translation>
 <translation id="8712637175834984815">Got it</translation>

@@ -8,10 +8,18 @@
     <output filename="grit/ios_strings.h" type="rc_header">
       <emit emit_type="prepend" />
     </output>
+    <output filename="ios_strings_af.pak" type="data_package" lang="af" />
+    <output filename="ios_strings_am.pak" type="data_package" lang="am" />
     <output filename="ios_strings_ar.pak" type="data_package" lang="ar" />
+    <output filename="ios_strings_as.pak" type="data_package" lang="as" />
+    <output filename="ios_strings_az.pak" type="data_package" lang="az" />
+    <output filename="ios_strings_be.pak" type="data_package" lang="be" />
     <output filename="ios_strings_bg.pak" type="data_package" lang="bg" />
+    <output filename="ios_strings_bn.pak" type="data_package" lang="bn" />
+    <output filename="ios_strings_bs.pak" type="data_package" lang="bs" />
     <output filename="ios_strings_ca.pak" type="data_package" lang="ca" />
     <output filename="ios_strings_cs.pak" type="data_package" lang="cs" />
+    <output filename="ios_strings_cy.pak" type="data_package" lang="cy" />
     <output filename="ios_strings_da.pak" type="data_package" lang="da" />
     <output filename="ios_strings_de.pak" type="data_package" lang="de" />
     <output filename="ios_strings_el.pak" type="data_package" lang="el" />
@@ -19,38 +27,71 @@
     <output filename="ios_strings_en-US.pak" type="data_package" lang="en" />
     <output filename="ios_strings_es.pak" type="data_package" lang="es" />
     <output filename="ios_strings_es-MX.pak" type="data_package" lang="es-419" />
+    <output filename="ios_strings_et.pak" type="data_package" lang="et" />
+    <output filename="ios_strings_eu.pak" type="data_package" lang="eu" />
     <output filename="ios_strings_fa.pak" type="data_package" lang="fa" />
     <output filename="ios_strings_fi.pak" type="data_package" lang="fi" />
+    <output filename="ios_strings_fil.pak" type="data_package" lang="fil" />
+    <output filename="ios_strings_fr-CA.pak" type="data_package" lang="fr-CA" />
     <output filename="ios_strings_fr.pak" type="data_package" lang="fr" />
+    <output filename="ios_strings_gl.pak" type="data_package" lang="gl" />
+    <output filename="ios_strings_gu.pak" type="data_package" lang="gu" />
     <output filename="ios_strings_he.pak" type="data_package" lang="he" />
     <output filename="ios_strings_hi.pak" type="data_package" lang="hi" />
     <output filename="ios_strings_hr.pak" type="data_package" lang="hr" />
     <output filename="ios_strings_hu.pak" type="data_package" lang="hu" />
+    <output filename="ios_strings_hy.pak" type="data_package" lang="hy" />
     <output filename="ios_strings_id.pak" type="data_package" lang="id" />
+    <output filename="ios_strings_is.pak" type="data_package" lang="is" />
     <output filename="ios_strings_it.pak" type="data_package" lang="it" />
     <output filename="ios_strings_ja.pak" type="data_package" lang="ja" />
+    <output filename="ios_strings_ka.pak" type="data_package" lang="ka" />
+    <output filename="ios_strings_kk.pak" type="data_package" lang="kk" />
+    <output filename="ios_strings_km.pak" type="data_package" lang="km" />
+    <output filename="ios_strings_kn.pak" type="data_package" lang="kn" />
     <output filename="ios_strings_ko.pak" type="data_package" lang="ko" />
+    <output filename="ios_strings_ky.pak" type="data_package" lang="ky" />
+    <output filename="ios_strings_lo.pak" type="data_package" lang="lo" />
     <output filename="ios_strings_lt.pak" type="data_package" lang="lt" />
+    <output filename="ios_strings_lv.pak" type="data_package" lang="lv" />
+    <output filename="ios_strings_mk.pak" type="data_package" lang="mk" />
+    <output filename="ios_strings_ml.pak" type="data_package" lang="ml" />
+    <output filename="ios_strings_mn.pak" type="data_package" lang="mn" />
+    <output filename="ios_strings_mr.pak" type="data_package" lang="mr" />
     <output filename="ios_strings_ms.pak" type="data_package" lang="ms" />
+    <output filename="ios_strings_my.pak" type="data_package" lang="my" />
+    <output filename="ios_strings_ne.pak" type="data_package" lang="ne" />
     <output filename="ios_strings_nl.pak" type="data_package" lang="nl" />
     <!-- The translation console uses 'no' for Norwegian Bokmål. It should
          be 'nb'. -->
     <output filename="ios_strings_nb.pak" type="data_package" lang="no" />
+    <output filename="ios_strings_pa.pak" type="data_package" lang="pa" />
     <output filename="ios_strings_pl.pak" type="data_package" lang="pl" />
     <output filename="ios_strings_pt.pak" type="data_package" lang="pt-BR" />
     <output filename="ios_strings_pt-PT.pak" type="data_package" lang="pt-PT" />
+    <output filename="ios_strings_or.pak" type="data_package" lang="or" />
     <output filename="ios_strings_ro.pak" type="data_package" lang="ro" />
     <output filename="ios_strings_ru.pak" type="data_package" lang="ru" />
+    <output filename="ios_strings_si.pak" type="data_package" lang="si" />
     <output filename="ios_strings_sk.pak" type="data_package" lang="sk" />
+    <output filename="ios_strings_sl.pak" type="data_package" lang="sl" />
+    <output filename="ios_strings_sq.pak" type="data_package" lang="sq" />
+    <output filename="ios_strings_sr-Latn.pak" type="data_package" lang="sr-Latn" />
     <output filename="ios_strings_sr.pak" type="data_package" lang="sr" />
     <output filename="ios_strings_sv.pak" type="data_package" lang="sv" />
+    <output filename="ios_strings_sw.pak" type="data_package" lang="sw" />
+    <output filename="ios_strings_ta.pak" type="data_package" lang="ta" />
+    <output filename="ios_strings_te.pak" type="data_package" lang="te" />
     <output filename="ios_strings_th.pak" type="data_package" lang="th" />
     <output filename="ios_strings_tr.pak" type="data_package" lang="tr" />
     <output filename="ios_strings_uk.pak" type="data_package" lang="uk" />
+    <output filename="ios_strings_ur.pak" type="data_package" lang="ur" />
+    <output filename="ios_strings_uz.pak" type="data_package" lang="uz" />
     <output filename="ios_strings_vi.pak" type="data_package" lang="vi" />
     <output filename="ios_strings_zh-CN.pak" type="data_package" lang="zh-CN" />
+    <output filename="ios_strings_zh-HK.pak" type="data_package" lang="zh-HK" />
     <output filename="ios_strings_zh-TW.pak" type="data_package" lang="zh-TW" />
-
+    <output filename="ios_strings_zu.pak" type="data_package" lang="zu" />
     <!-- Pseudolocales -->
     <output filename="ios_strings_ar-XB.pak" type="data_package" lang="ar-XB" />
     <output filename="ios_strings_en-XA.pak" type="data_package" lang="en-XA" />
@@ -1210,6 +1251,9 @@
       <message name="IDS_IOS_BWG_SETTINGS_APP_ACTIVITY_TITLE" desc="The title text of app activity row in BWG settings page.">
         Gemini App Activity
       </message>
+      <message name="IDS_IOS_BWG_SETTINGS_EXTENSIONS_TITLE" desc="The title text of extensions row in BWG settings page.">
+        Connected apps
+      </message>
       <message name="IDS_IOS_BWG_SETTINGS_LOCATION_FOOTER_TEXT" desc="The footer text of location row in BWG settings page.">
         Use your precise location for the most accurate Gemini results, instead of an estimated location based on your IP address. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
       </message>
@@ -2003,9 +2047,6 @@
       <message name="IDS_IOS_DISCONNECT_DIALOG_TITLE_UNITY" desc="The title of the disconnect dialog [Length: 30em].">
         Sign out and turn off sync?
       </message>
-      <message name="IDS_IOS_DISCOVER_AND_FOLLOWING_FEED_TITLE" desc="The title in the Discover and Following feed menu if Following is enabled. Please use the branded term for Discover, as listed under Product Names in the Google Glossary Manager (TC ID 1799975766543019278).">
-        Discover &amp; Following
-      </message>
       <message name="IDS_IOS_DISCOVER_FEED_HEADER_IPH" desc="In-product help that points at the menu icon for the news feed on Chrome's new tab page. This string instructs the user to open the menu for settings that let them control the content that appears on the feed.">
         Control your stories and activity here
       </message>
@@ -2066,14 +2107,41 @@
       <message name="IDS_IOS_DOWNLOAD_CALENDAR_FILE_WARNING_TITLE" desc="Title of the alert displaying a warning message before downloading a calendar file.[iOS only]">
           Calendar file available
       </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_ALL" desc="Filter label for showing all downloads [iOS only]">
+        All
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_AUDIOS" desc="Filter label for showing audio downloads [iOS only]">
+        Audios
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_DOCUMENTS" desc="Filter label for showing document downloads [iOS only]">
+        Documents
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_IMAGES" desc="Filter label for showing image downloads [iOS only]">
+        Images
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_OTHERS" desc="Filter label for showing other file type downloads [iOS only]">
+        Others
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_PDFS" desc="Filter label for showing PDF downloads [iOS only]">
+        PDFs
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_FILTER_VIDEOS" desc="Filter label for showing video downloads [iOS only]">
+        Videos
+      </message>
       <message name="IDS_IOS_DOWNLOAD_INCOGNITO_WARNING_MESSAGE" desc="Warning message displayed when the user downloads a file while on Incognito.[iOS only]">
           Anyone using this device can see downloaded files
       </message>
+      <message name="IDS_IOS_DOWNLOAD_LIST_CANCEL_ACCESSIBILITY_LABEL" desc="Accessibility label of the button to cancel a download in the Download List screen. [iOS only]">
+          Cancel download
+      </message>
       <message name="IDS_IOS_DOWNLOAD_LIST_NO_ENTRIES_MESSAGE" desc="Message shown on the Download List screen when there are no entries, explaining the purpose of the Download List screen.">
-          You can access your downloaded files here when available
+          To see files you’ve downloaded before, open <ph name="BEGIN_LINK">BEGIN_LINK</ph>Files<ph name="END_LINK">END_LINK</ph>
       </message>
       <message name="IDS_IOS_DOWNLOAD_LIST_NO_ENTRIES_TITLE" desc="Title shown on the Download List screen when there are no entries.">
           You'll find your downloads here
+      </message>
+      <message name="IDS_IOS_DOWNLOAD_LIST_OPEN_FILES_APP_TIPS" desc="Section header shown on the Download List screen for prompting user open Files App">
+          You can view your earlier downloads in <ph name="BEGIN_LINK">BEGIN_LINK</ph>Files<ph name="END_LINK">END_LINK</ph>
       </message>
       <message name="IDS_IOS_DOWNLOAD_LIST_TITLE" desc="Title for the Downloads list [iOS only]">
         Downloads
@@ -2544,6 +2612,9 @@
       <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS" desc="Button that the user can press to export passwords and passkeys. [iOS only]">
         Export passwords and passkeys…
       </message>
+      <message name="IDS_IOS_EXPORT_PASSWORDS_AND_PASSKEYS_SUBTITLE" desc="Subtitle text on the credential export selection screen, instructing the user to select accounts. [iOS only]">
+        Select the accounts you want to export to another app.
+      </message>
       <message name="IDS_IOS_EXPORT_PASSWORDS_CANCEL_BUTTON" desc="Label of a confirmation dialog button which allows the user to cancel passwords export. [Length: 22em] [iOS only]">
         Cancel
       </message>
@@ -2676,6 +2747,9 @@
       <message name="IDS_IOS_FIRST_RUN_SIGNIN_STAY_SIGNED_OUT" desc="Button on the sign in screen of the FRE to stay signed out on Chrome. [iOS only]">
         Stay signed out
       </message>
+      <message name="IDS_IOS_FIRST_RUN_SIGNIN_TITLE_1" desc="Variations option 2. Title of the screen suggesting to the user to sign in. [iOS only]">
+        Pick Up Where You Left Off
+      </message>
       <message name="IDS_IOS_FIRST_RUN_SYNC_SCREEN_PRIMARY_ACTION" desc="The primary action string on the sync screen presented to the user on First Run [iOS only]">
         Turn on sync
       </message>
@@ -2699,12 +2773,6 @@
       </message>
       <message name="IDS_IOS_FIRST_RUN_WELCOME_SCREEN_TITLE_IPHONE" desc="The title of the welcome screen presented to the user on First Run when on iPhone [iOS only]">
         Built for Your iPhone
-      </message>
-      <message name="IDS_IOS_FOLLOWING_FEED_TITLE" desc="The title in the Following feed header label.">
-        Following
-      </message>
-      <message name="IDS_IOS_FOLLOW_WHILE_BROWSING_IPH" desc="The text of the while browsing follow IPH.">
-        To see updates from this site, follow it here.
       </message>
       <message name="IDS_IOS_GENERIC_PASSKIT_ERROR" desc="Generic error message on failure reading a PassKit object. [Length: 60em] [iOS only]">
         Sorry, your Pass cannot be installed to Passbook at this time.
@@ -2944,7 +3012,7 @@
         Continue with this tab
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MAIN_PAGE_NAVIGATION_TITLE" desc="The title of the top toolbar for the main page of the Home customization menu.">
-        Customize home page
+        Customize homepage
       </message>
       <message name="IDS_IOS_HOME_CUSTOMIZATION_MOST_VISITED_SUBTITLE" desc="The subtitle of the Most Visited toggle in the Home Customization menu's main page.">
         Sites you’ve visited lately on this device
@@ -6173,6 +6241,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SETTINGS_AUTOFILL_REMOVE_ADDRESS_LABEL" desc="Remove button title shown to the user to remove an address in the table view either by swiping the row or tapping the red minus icon in editing mode. [iOS only]">
           Remove
       </message>
+      <message name="IDS_IOS_SETTINGS_AUTOMATICALLY_OPEN_SYNCED_TAB_GROUPS_TITLE" desc="Title for the setting to automatically open tab groups from other devices. [iOS only]">
+          Automatically open tab groups from other devices
+      </message>
       <message name="IDS_IOS_SETTINGS_DELETE_ALL_CREDENTIALS" desc="Title for the authentication page when the user tries to delete all saved credentials. [iOS only]">
           To delete all passwords manager data
       </message>
@@ -6822,23 +6893,8 @@ Handoff must also be enabled in the General section of Settings, and your device
       <message name="IDS_IOS_SIGN_TRUSTED_VAULT_ERROR_DIALOG_TITLE" desc="Alert title to display an error after a reauthentication, related to IDS_IOS_SIGN_TRUSTED_VAULT_ERROR_DIALOG_MESSAGE [iOS only]">
         Authentication error
       </message>
-      <message name="IDS_IOS_SNACKBAR_ACTION_GO_TO_FEED" desc="The iOS snackbar action when successfully following a web content. [iOS only]">
-        Go to Feed
-      </message>
-      <message name="IDS_IOS_SNACKBAR_ACTION_TRY_AGAIN" desc="The iOS snackbar message when failed to follow/unfollow a web content. [iOS only]">
-        Try again
-      </message>
-      <message name="IDS_IOS_SNACKBAR_ACTION_UNDO" desc="The iOS snackbar action when succeed to unfollow a web content. [iOS only]">
-        Undo
-      </message>
       <message name="IDS_IOS_SNACKBAR_DISMISS_ACTION" desc="The name of the 'Dismiss' accessibility action for a snackbar, which can be activated via the rotor.">
         Dismiss
-      </message>
-      <message name="IDS_IOS_SNACKBAR_MESSAGE_FOLLOW_FAILED" desc="The iOS snackbar message when failed to follow a web content. [iOS only]">
-        Can't follow. Something went wrong.
-      </message>
-      <message name="IDS_IOS_SNACKBAR_MESSAGE_FOLLOW_SUCCEED" desc="The iOS snackbar message when ssucceed to follow a web content. [iOS only]">
-        Following <ph name="CHANNEL_NAME">$1<ex>CNN</ex></ph>
       </message>
       <message name="IDS_IOS_SNACKBAR_MESSAGE_INCOGNITO_DISABLED" desc="The material toast message when incogonito mode is disabled by policy [iOS only].">
         Your organization turned off Incognito mode
@@ -6851,12 +6907,6 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_SNACKBAR_MESSAGE_OFFLINE" desc="The iOS snackbar message when failed to follow/unfollow a web content because of offline. [iOS only]">
         You're offline. Check your internet connection and try again.
-      </message>
-      <message name="IDS_IOS_SNACKBAR_MESSAGE_UNFOLLOW_FAILED" desc="The iOS snackbar message when failed to unfollow a web content. [iOS only]">
-        Can't unfollow. Something went wrong.
-      </message>
-      <message name="IDS_IOS_SNACKBAR_MESSAGE_UNFOLLOW_SUCCEED" desc="The iOS snackbar message when succeed to unfollow a web content. [iOS only]">
-        Unfollowed <ph name="CHANNEL_NAME">$1<ex>CNN</ex></ph>
       </message>
       <message name="IDS_IOS_SPEECH_RECOGNITION_USAGE_DESCRIPTION" desc="Specifies the reason for sending user data to Apple's speech recognition servers.">
         This will let you use your voice with certain features on websites.
@@ -7019,6 +7069,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_TABLE_VIEW_INFO_BUTTON_ITEM_ACCESSIBILITY_TAP" desc="Accessibility hint for info button items that have a tap functionality.">
         Button
+      </message>
+      <message name="IDS_IOS_TABS_AND_TAB_GROUPS_MANAGEMENT_SETTINGS" desc="Title for the tabs and tab groups management panel in settings [Length: unlimited] [iOS only]">
+        Tabs and tab groups
       </message>
       <message name="IDS_IOS_TABS_MANAGEMENT_SETTINGS" desc="Title for the tabs management panel in settings [Length: 30em] [iOS only]">
         Tabs
@@ -7690,6 +7743,9 @@ Handoff must also be enabled in the General section of Settings, and your device
       </message>
       <message name="IDS_IOS_UNO_UPGRADE_PROMO_SIGNIN_SUBTITLE" desc="This string is on a sign-in page, shown several weeks after the user has installed Chrome. It explains the overarching user benefit of signing in (access to bookmarks, passwords, history, settings, etc.). We want users to understand why signing in is beneficial, and click 'Continue as name' to sign in to their Google Account. The tone should be informative and lightweight.">
         Get your bookmarks, passwords, and more on all your devices.
+      </message>
+      <message name="IDS_IOS_UNO_UPGRADE_PROMO_SIGNIN_TITLE_1" desc="Variations option 2. Title of the screen suggesting to the user to sign in. The user may see this screen when Chrome is opened, but only several weeks after installation.">
+        Pick Up Where You Left Off
       </message>
       <message name="IDS_IOS_UPGRADE_AVAILABLE_BUTTON" desc="Displayed on a button the user can use to upgrade the a more recent version of the application. [Length: 10em]">
         Update

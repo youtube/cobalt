@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Pokračovať</translation>
 <translation id="2379925928934107488">Ak je to možné, používajte tmavý režim na weboch, keď ho používa Chrome</translation>
 <translation id="2390272837142897736">Zvýšiť úroveň lupy</translation>
+<translation id="2397689164757137845">Povolená • Presná</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Presná</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Sú udelené povolenia <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> a <ph name="NUM_MORE" /> ďalšie}few{Sú udelené povolenia <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> a <ph name="NUM_MORE" /> ďalšie}many{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, and <ph name="NUM_MORE" /> more allowed}other{Sú udelené povolenia <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> a <ph name="NUM_MORE" /> ďalších}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Pomocník a spätná väzba</translation>
 <translation id="2501278716633472235">Prejsť späť</translation>
 <translation id="2533138527374486328">Keď je táto možnosť zapnutá, weby môžu žiadať o povolenie pripojiť sa k akémukoľvek zariadeniu vo vašej miestnej sieti. Keď je vypnutá, weby sa nemôžu pripájať k zariadeniam v nej.</translation>
+<translation id="2536779053640817375">Momentálne povolená • Presná</translation>
 <translation id="2544997614631598250">Tmavá farba motívu</translation>
 <translation id="2546283357679194313">Súbory cookie a dáta webov</translation>
 <translation id="2570922361219980984">Prístup k polohe je vypnutý aj v tomto zariadení. Zapnite ho v <ph name="BEGIN_LINK" />Nastaveniach Androidu<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Rozšírená ochrana ovláda tieto nastavenia Chromu:
 <translation id="5876056640971328065">Pozastaviť video</translation>
 <translation id="5877248419911025165">Zbaliť všetky požiadavky</translation>
 <translation id="5878945009165002849">Blokovať výzvy na prihlásenie zo služieb identity</translation>
+<translation id="588258955323874662">Celá obrazovka</translation>
 <translation id="5884085660368669834">Predvoľba webu</translation>
 <translation id="5887687176710214216">Naposledy navštívený včera</translation>
 <translation id="5908617755156109052">Nepovoliť webom vytvoriť 3D mapu okolia ani sledovať polohu kamery</translation>
@@ -569,6 +572,7 @@ Rozšírená ochrana ovláda tieto nastavenia Chromu:
 <translation id="7406113532070524618">Toto nastavenie funguje bez identifikácie vašej totožnosti a neumožňuje webom zobraziť si vašu históriu prehliadania, ale v rámci overenia môžu weby zdieľať malé množstvo informácií</translation>
 <translation id="7409735910987429903">Weby môžu odoslať vyskakovacie okná na zobrazovanie reklám, prípadne vás presmerovaniami naviesť na weby, ktoré nechcete navštíviť</translation>
 <translation id="7412160840120117304">Hexadecimálny kód primárnej farby</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Lupa}few{Lupa: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}many{Lupa: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}other{Lupa: <ph name="ZOOM_PERCENTAGE_NUMBER" /> %%}}</translation>
 <translation id="7423098979219808738">Najprv sa opýtať</translation>
 <translation id="7423538860840206698">Blokovať čítanie schránky</translation>
 <translation id="7425915948813553151">Tmavý motív pre weby</translation>
@@ -700,7 +704,6 @@ Rozšírená ochrana ovláda tieto nastavenia Chromu:
 <translation id="8803526663383843427">Keď je funkcia zapnutá</translation>
 <translation id="8805385115381080995">Prehliadanie je rýchlejšie, pretože daný web vás pravdepodobne nepožiada o overenie, že ste skutočná osoba</translation>
 <translation id="8816026460808729765">Brániť webom v prístupe k senzorom</translation>
-<translation id="884765916894384048">Prejsť na pozadie</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Vyskúšajte dočasne povoliť súbory cookie tretích strán, čo znamená nižšiu ochranu pri prehliadaní, ale funkcie webu budú s väčšou pravdepodobnosťou fungovať podľa očakávaní.</translation>
 <translation id="8889294078294184559">Pri ďalšom prehliadaní môžu weby pomocou Chromu overiť informácie z predchádzajúceho navštíveného webu, že ste zrejme skutočná osoba</translation>

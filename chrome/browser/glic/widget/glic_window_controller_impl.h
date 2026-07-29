@@ -16,6 +16,7 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/scoped_observation_traits.h"
+#include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
@@ -63,7 +64,8 @@ class GlicWindowControllerImpl
       public Host::Observer,
       public web_modal::WebContentsModalDialogManagerDelegate,
       public web_modal::WebContentsModalDialogHost,
-      public GlicWindowEventObserver::Delegate {
+      public GlicWindowEventObserver::Delegate,
+      public LocalHotkeyManager::Panel {
  public:
   GlicWindowControllerImpl(const GlicWindowControllerImpl&) = delete;
   GlicWindowControllerImpl& operator=(const GlicWindowControllerImpl&) = delete;
@@ -84,11 +86,12 @@ class GlicWindowControllerImpl
   void MaybeSetWidgetCanResize() override;
   gfx::Size GetPanelSize() override;
   void Close() override;
-  bool ActivateBrowser() override;
-  void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
 
   void AddStateObserver(StateObserver* observer) override;
   void RemoveStateObserver(StateObserver* observer) override;
+  void AddGlobalStateObserver(PanelStateObserver* observer) override;
+  void RemoveGlobalStateObserver(PanelStateObserver* observer) override;
+  mojom::PanelState GetGlobalPanelState() override;
 
   bool IsActive() override;
   bool IsAttached() override;
@@ -111,9 +114,8 @@ class GlicWindowControllerImpl
   //    work area size, possibly resize the window.
   void OnDragComplete() override;
 
-  base::WeakPtr<views::View> GetGlicViewAsView() override;
+  base::WeakPtr<views::View> GetView() override;
   GlicWidget* GetGlicWidget() const override;
-  gfx::NativeWindow GetHostNativeWindow() override;
 
   Browser* attached_browser() override;
   State state() const override;
@@ -148,6 +150,9 @@ class GlicWindowControllerImpl
   void SwitchConversation(
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
+  void CaptureScreenshot(
+      glic::mojom::WebClientHandler::CaptureScreenshotCallback callback)
+      override;
 
   // InstanceInterface implementation.
   mojom::PanelState GetPanelState() override;
@@ -156,20 +161,28 @@ class GlicWindowControllerImpl
   void OnDisplayMetricsChanged(const display::Display& display,
                                uint32_t changed_metrics) override;
 
+  // LocalHotkeyManager::Panel:
+  bool HasFocus() override;
+  bool ActivateBrowser() override;
+  void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
+
   HostManager& host_manager() override;
   std::vector<GlicInstance*> GetInstances() override;
   GlicInstance* GetInstanceForTab(tabs::TabInterface* tab) override;
   void FindInstanceFromGlicContentsAndBindToTab(
       content::WebContents* source_glic_web_contents,
       tabs::TabInterface* tab_to_bind) override {}
+  bool FindInstanceFromIdAndBindToTab(const InstanceId& instance_id,
+                                      tabs::TabInterface* tab_to_bind) override;
 
   // GlicInstance implementation
   Host& host() override;
   const InstanceId& id() const override;
   base::CallbackListSubscription RegisterStateChange(
       StateChangeCallback callback) override;
-  base::CallbackListSubscription RegisterLastActiveInstanceChangedCallback(
-      LastActiveInstanceChangedCallback callback) override;
+  base::CallbackListSubscription
+  AddActiveInstanceChangedCallbackAndNotifyImmediately(
+      ActiveInstanceChangedCallback callback) override;
 
   // Testing functionality.
   GlicWindowAnimator* GetWindowAnimatorForTesting();
@@ -389,6 +402,8 @@ class GlicWindowControllerImpl
   raw_ptr<GlicEnabling> enabling_;
   base::ScopedObservation<Host, Host::Observer> host_observation_{this};
   const InstanceId id_;
+
+  std::unique_ptr<GlicScreenshotCapturer> screenshot_capturer_;
 
   base::WeakPtrFactory<GlicWindowControllerImpl> weak_ptr_factory_{this};
 };

@@ -81,7 +81,7 @@ public class HistoryPageSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    String getDescription() {
+    String getDescription(@Nullable String accountEmail) {
         return mContext.getString(R.string.signin_promo_description_history_page);
     }
 
@@ -202,7 +202,7 @@ public class HistoryPageSigninPromoDelegate extends SigninPromoDelegate {
             return PromoState.NONE;
         }
         final HistorySyncHelper historySyncHelper = HistorySyncHelper.getForProfile(mProfile);
-        return historySyncHelper.shouldSuppressHistorySync() || historySyncHelper.isDeclinedOften()
+        return !historySyncHelper.shouldDisplayHistorySync() || historySyncHelper.isDeclinedOften()
                 ? PromoState.NONE
                 : PromoState.HISTORY_SYNC;
     }

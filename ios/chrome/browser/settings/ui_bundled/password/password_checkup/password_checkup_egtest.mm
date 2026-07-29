@@ -825,7 +825,15 @@ NSString* LeakedPasswordDescription() {
 
 // Tests changing the password of a muted compromised password to a weak
 // password.
-- (void)testChangeMutedPasswordToWeakPassword {
+// TODO(crbug.com/452549992): Test is flaky on simulator.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testChangeMutedPasswordToWeakPassword \
+  FLAKY_testChangeMutedPasswordToWeakPassword
+#else
+#define MAYBE_testChangeMutedPasswordToWeakPassword \
+  testChangeMutedPasswordToWeakPassword
+#endif
+- (void)MAYBE_testChangeMutedPasswordToWeakPassword {
   SaveMutedCompromisedPasswordFormToProfileStore();
 
   OpenPasswordCheckupHomepage(
@@ -957,14 +965,7 @@ NSString* LeakedPasswordDescription() {
 
 // Validates that the Password Manager UI is dismissed when local authentication
 // fails while in the Password Issues UI.
-// TODO(crbug.com/437856519): Test is flaky on simulator. Reenable the test.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testPasswordIssuesWithFailedAuth \
-  FLAKY_testPasswordIssuesWithFailedAuth
-#else
-#define MAYBE_testPasswordIssuesWithFailedAuth testPasswordIssuesWithFailedAuth
-#endif
-- (void)MAYBE_testPasswordIssuesWithFailedAuth {
+- (void)testPasswordIssuesWithFailedAuth {
   SaveWeakPasswordFormToProfileStore();
 
   OpenPasswordCheckupHomepage(
@@ -994,10 +995,10 @@ NSString* LeakedPasswordDescription() {
   [PasswordSettingsAppInterface mockReauthenticationModuleReturnMockedResult];
 
   // Password Manager UI should have been dismissed leaving Settings visible.
+  [ChromeEarlGrey
+      waitForUIElementToDisappearWithMatcher:ReauthenticationController()];
   [[EarlGrey
       selectElementWithMatcher:WeakPasswordIssuesPageTitle(/*issue_count=*/1)]
-      assertWithMatcher:grey_notVisible()];
-  [[EarlGrey selectElementWithMatcher:ReauthenticationController()]
       assertWithMatcher:grey_notVisible()];
 
   [[EarlGrey selectElementWithMatcher:SettingsCollectionView()]

@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/scoped_raster_timer.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/unaccelerated_static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_wrapper.h"
 #include "third_party/blink/renderer/platform/instrumentation/canvas_memory_dump_provider.h"
 #include "third_party/blink/renderer/platform/wtf/thread_specific.h"
@@ -33,7 +34,6 @@
 #include "third_party/skia/include/gpu/ganesh/GrTypes.h"
 
 namespace cc {
-class ImageDecodeCache;
 class PaintCanvas;
 class SkiaPaintCanvas;
 }  // namespace cc
@@ -330,8 +330,9 @@ class PLATFORM_EXPORT CanvasResourceProvider
     return context_provider_wrapper_;
   }
 
-  scoped_refptr<StaticBitmapImage> SnapshotInternal(ImageOrientation,
-                                                    FlushReason);
+  scoped_refptr<UnacceleratedStaticBitmapImage> UnacceleratedSnapshot(
+      ImageOrientation,
+      FlushReason);
 
   CanvasResourceProvider(const ResourceProviderType&,
                          gfx::Size size,
@@ -342,12 +343,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
                              context_provider_wrapper,
                          Delegate* delegate);
 
-  // Its important to use this method for generating PaintImage wrapped canvas
-  // snapshots to get a cache hit from cc's ImageDecodeCache. This method
-  // ensures that the PaintImage ID for the snapshot, used for keying
-  // decodes/uploads in the cache is invalidated only when the canvas contents
-  // change.
-  cc::PaintImage MakeImageSnapshot(FlushReason);
   virtual void RasterRecord(cc::PaintRecord) = 0;
   void UnacceleratedRasterRecord(cc::PaintRecord);
   void AcceleratedRasterRecord(cc::PaintRecord last_recording,
@@ -570,6 +565,10 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   // Notifies before any unaccelerated drawing will be done on the resource used
   // by this provider.
   void WillDrawUnaccelerated();
+
+  // This is a workaround to ensure WaitSyncToken() is still called even when
+  // copying is effectively skipped due to a dummy WebGPU texture.
+  void PrepareForWebGPUDummyMailbox();
 
  private:
   scoped_refptr<CanvasResourceSharedImage> CreateResource();

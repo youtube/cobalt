@@ -67,14 +67,14 @@ public class StartupLoadingMetricsTest {
             "Startup.Android.Cold.TimeToFirstContentfulPaint";
     private static final String FIRST_CONTENTFUL_PAINT_HISTOGRAM3 =
             "Startup.Android.Cold.TimeToFirstContentfulPaint3";
-    private static final String FIRST_VISIBLE_CONTENT_HISTOGRAM =
-            "Startup.Android.Cold.TimeToFirstVisibleContent";
     private static final String FIRST_VISIBLE_CONTENT_HISTOGRAM2 =
             "Startup.Android.Cold.TimeToFirstVisibleContent2";
     private static final String FIRST_VISIBLE_CONTENT_COLD_HISTOGRAM4 =
             "Startup.Android.Cold.TimeToFirstVisibleContent4";
     private static final String VISIBLE_CONTENT_HISTOGRAM =
             "Startup.Android.Cold.TimeToVisibleContent";
+    private static final String TIME_TO_STARTUP_FCP_OR_PAINT_PREVIEW_HISTOGRAM =
+            "Startup.Android.Cold.TimeToStartupFcpOrPaintPreview";
     private static final String FIRST_COMMIT_COLD_HISTOGRAM3 =
             "Startup.Android.Cold.TimeToFirstNavigationCommit3";
     private static final String MAIN_INTENT_COLD_START_HISTOGRAM =
@@ -164,15 +164,6 @@ public class StartupLoadingMetricsTest {
                 .build();
     }
 
-    private void assertHistogramsRecordedWithForegroundStart(
-            int expectedCount, String histogramSuffix) {
-        assertHistogramsRecordedAsExpected(expectedCount, histogramSuffix);
-        Assert.assertEquals(
-                1,
-                RecordHistogram.getHistogramTotalCountForTesting(
-                        "Startup.Android.Cold.TimeToForegroundSessionStart"));
-    }
-
     private void assertMainIntentLaunchColdStartHistogramRecorded(int expectedCount) {
         Assert.assertEquals(
                 expectedCount,
@@ -209,7 +200,11 @@ public class StartupLoadingMetricsTest {
 
         int visibleContentSamples =
                 RecordHistogram.getHistogramTotalCountForTesting(VISIBLE_CONTENT_HISTOGRAM);
+        int timeToStartupFcpOrPaintPreviewSamples =
+                RecordHistogram.getHistogramTotalCountForTesting(
+                        TIME_TO_STARTUP_FCP_OR_PAINT_PREVIEW_HISTOGRAM);
         Assert.assertTrue(visibleContentSamples < 2);
+        Assert.assertTrue(timeToStartupFcpOrPaintPreviewSamples < 2);
 
         if (expectedCount == 1 && firstCommitSamples == 0) {
             // The startup FCP and 'visible content' also record their samples depending on how fast
@@ -229,10 +224,6 @@ public class StartupLoadingMetricsTest {
         if (isTabbedSuffix) {
             // These tests only exercise the cases when the first visible content is calculated as
             // the first navigation commit.
-            Assert.assertEquals(
-                    firstCommitSamples,
-                    RecordHistogram.getHistogramTotalCountForTesting(
-                            FIRST_VISIBLE_CONTENT_HISTOGRAM));
             Assert.assertEquals(
                     expectedCount,
                     RecordHistogram.getHistogramTotalCountForTesting(
@@ -336,11 +327,11 @@ public class StartupLoadingMetricsTest {
     public void testStartWithURLRecorded() throws Exception {
         runAndWaitForPageLoadMetricsRecorded(
                 () -> mTabbedActivityTestRule.startOnUrl(getTestPage()));
-        assertHistogramsRecordedWithForegroundStart(1, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(1, TABBED_SUFFIX);
         assertMainIntentLaunchColdStartHistogramRecorded(0);
         loadUrlAndWaitForPageLoadMetricsRecorded(
                 mTabbedActivityTestRule.getActivityTestRule(), getTestPage2());
-        assertHistogramsRecordedWithForegroundStart(1, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(1, TABBED_SUFFIX);
         assertMainIntentLaunchColdStartHistogramRecorded(0);
     }
 
@@ -354,12 +345,12 @@ public class StartupLoadingMetricsTest {
         HistogramWatcher ntpColdStartWatcher = createNtpColdStartHistogramWatcher(0);
         runAndWaitForPageLoadMetricsRecorded(
                 () -> mWebApkActivityTestRule.startWebApkActivity(getTestPage()));
-        assertHistogramsRecordedWithForegroundStart(1, WEB_APK_SUFFIX);
+        assertHistogramsRecordedAsExpected(1, WEB_APK_SUFFIX);
         assertMainIntentLaunchColdStartHistogramRecorded(0);
         loadUrlAndWaitForPageLoadMetricsRecorded(mWebApkActivityTestRule, getTestPage2());
         waitForHistogram(ntpColdStartWatcher);
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(1, WEB_APK_SUFFIX);
+        assertHistogramsRecordedAsExpected(1, WEB_APK_SUFFIX);
     }
 
     /**
@@ -376,13 +367,13 @@ public class StartupLoadingMetricsTest {
                         mTabbedActivityTestRule.startWithIntentPlusUrlAtWebPage(
                                 new Intent(Intent.ACTION_VIEW), url));
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(1, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(1, TABBED_SUFFIX);
 
         // Check that no new histograms were recorded on the second navigation.
         loadUrlAndWaitForPageLoadMetricsRecorded(
                 mTabbedActivityTestRule.getActivityTestRule(), getTestPage2());
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(1, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(1, TABBED_SUFFIX);
     }
 
     /**
@@ -395,12 +386,12 @@ public class StartupLoadingMetricsTest {
         HistogramWatcher ntpColdStartWatcher = createNtpColdStartHistogramWatcher(1);
         runAndWaitForPageLoadMetricsRecorded(() -> mTabbedActivityTestRule.startOnNtp());
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
         loadUrlAndWaitForPageLoadMetricsRecorded(
                 mTabbedActivityTestRule.getActivityTestRule(), getTestPage2());
         assertMainIntentLaunchColdStartHistogramRecorded(0);
         waitForHistogram(ntpColdStartWatcher);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
     }
 
     @Test
@@ -424,12 +415,12 @@ public class StartupLoadingMetricsTest {
         HistogramWatcher ntpColdStartWatcher = createNtpColdStartHistogramWatcher(0);
         runAndWaitForPageLoadMetricsRecorded(() -> mTabbedActivityTestRule.startOnBlankPage());
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
         loadUrlAndWaitForPageLoadMetricsRecorded(
                 mTabbedActivityTestRule.getActivityTestRule(), getTestPage2());
         waitForHistogram(ntpColdStartWatcher);
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
     }
 
     /**
@@ -443,12 +434,12 @@ public class StartupLoadingMetricsTest {
         runAndWaitForPageLoadMetricsRecorded(
                 () -> mTabbedActivityTestRule.startOnTestServerUrl(ERROR_PAGE));
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
         loadUrlAndWaitForPageLoadMetricsRecorded(
                 mTabbedActivityTestRule.getActivityTestRule(), getTestPage2());
         assertMainIntentLaunchColdStartHistogramRecorded(0);
         waitForHistogram(ntpColdStartWatcher);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
     }
 
     /**
@@ -462,11 +453,11 @@ public class StartupLoadingMetricsTest {
         runAndWaitForPageLoadMetricsRecorded(
                 () -> mWebApkActivityTestRule.startWebApkActivity(getServerURL(ERROR_PAGE)));
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(0, WEB_APK_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, WEB_APK_SUFFIX);
         loadUrlAndWaitForPageLoadMetricsRecorded(mWebApkActivityTestRule, getTestPage2());
         waitForHistogram(ntpColdStartWatcher);
         assertMainIntentLaunchColdStartHistogramRecorded(0);
-        assertHistogramsRecordedWithForegroundStart(0, WEB_APK_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, WEB_APK_SUFFIX);
     }
 
     /**
@@ -513,7 +504,7 @@ public class StartupLoadingMetricsTest {
                 });
         assertMainIntentLaunchColdStartHistogramRecorded(1);
         waitForHistogram(ntpColdStartWatcher);
-        assertHistogramsRecordedWithForegroundStart(0, TABBED_SUFFIX);
+        assertHistogramsRecordedAsExpected(0, TABBED_SUFFIX);
     }
 
     @Test
@@ -537,9 +528,6 @@ public class StartupLoadingMetricsTest {
                 0,
                 RecordHistogram.getHistogramTotalCountForTesting(
                         FIRST_COMMIT_HISTOGRAM + TABBED_SUFFIX));
-        Assert.assertEquals(
-                0,
-                RecordHistogram.getHistogramTotalCountForTesting(FIRST_VISIBLE_CONTENT_HISTOGRAM));
         assertMainIntentLaunchColdStartHistogramRecorded(0);
 
         // The metric based on early foreground notification should be recorded.
@@ -565,9 +553,6 @@ public class StartupLoadingMetricsTest {
                 0,
                 RecordHistogram.getHistogramTotalCountForTesting(
                         FIRST_COMMIT_HISTOGRAM + TABBED_SUFFIX));
-        Assert.assertEquals(
-                0,
-                RecordHistogram.getHistogramTotalCountForTesting(FIRST_VISIBLE_CONTENT_HISTOGRAM));
     }
 
     @Test

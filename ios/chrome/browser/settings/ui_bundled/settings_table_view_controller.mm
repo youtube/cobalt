@@ -311,6 +311,9 @@ struct EnhancedSafeBrowsingActivePromoData
   // Whether Settings have been dismissed.
   BOOL _settingsAreDismissed;
 
+  // Whether Gemini user consented.
+  BOOL _geminiUserConsented;
+
   // Tabs settings coordinator.
   TabsSettingsCoordinator* _tabsCoordinator;
 
@@ -387,6 +390,8 @@ struct EnhancedSafeBrowsingActivePromoData
         feature_engagement::TrackerFactory::GetForProfile(_profile);
 
     PrefService* prefService = _profile->GetPrefs();
+
+    _geminiUserConsented = prefService->GetBoolean(prefs::kIOSBwgConsent);
 
     _passwordCheckManager =
         IOSChromePasswordCheckManagerFactory::GetForProfile(_profile);
@@ -470,7 +475,7 @@ struct EnhancedSafeBrowsingActivePromoData
 
   // Update the BWG new IPH badge here as it depends on the number of times it's
   // shown.
-  if (IsPageActionMenuEnabled()) {
+  if (IsPageActionMenuEnabled() && _geminiUserConsented) {
     [self updateBWGNewIPHBadge];
   }
 }
@@ -519,7 +524,8 @@ struct EnhancedSafeBrowsingActivePromoData
 
   // Advanced Section
   [model addSectionWithIdentifier:SettingsSectionIdentifierAdvanced];
-  if (IsPageActionMenuEnabled()) {
+
+  if (IsPageActionMenuEnabled() && _geminiUserConsented) {
     [model addItem:[self BWGSettingsDetailItem]
         toSectionWithIdentifier:SettingsSectionIdentifierAdvanced];
   }
@@ -1025,9 +1031,12 @@ struct EnhancedSafeBrowsingActivePromoData
 }
 
 - (TableViewItem*)tabsSettingsDetailItem {
+  NSString* title = l10n_util::GetNSString(
+      IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled()
+          ? IDS_IOS_TABS_AND_TAB_GROUPS_MANAGEMENT_SETTINGS
+          : IDS_IOS_TABS_MANAGEMENT_SETTINGS);
   return [self detailItemWithType:SettingsItemTypeTabs
-                             text:l10n_util::GetNSString(
-                                      IDS_IOS_TABS_MANAGEMENT_SETTINGS)
+                             text:title
                        detailText:nil
                            symbol:DefaultSettingsRootSymbol(kTabsSymbol)
             symbolBackgroundColor:[UIColor colorNamed:kOrange500Color]
@@ -1892,13 +1901,7 @@ struct EnhancedSafeBrowsingActivePromoData
 
 // Returns the appropriate text to update the title for the feed item.
 - (NSString*)feedItemTitle {
-  AuthenticationService* authService =
-      AuthenticationServiceFactory::GetForProfile(_browser->GetProfile());
-  BOOL isSignedIn =
-      authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin);
-  return (isSignedIn && IsWebChannelsEnabled())
-             ? l10n_util::GetNSString(IDS_IOS_DISCOVER_AND_FOLLOWING_FEED_TITLE)
-             : l10n_util::GetNSString(IDS_IOS_DISCOVER_FEED_TITLE);
+  return l10n_util::GetNSString(IDS_IOS_DISCOVER_FEED_TITLE);
 }
 
 // Decides whether the default browser blue dot promo should be active, and adds

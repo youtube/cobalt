@@ -4,7 +4,6 @@
 
 import("//ash/ambient/resources/resources.gni")
 import("//build/config/chrome_build.gni")
-import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//chromeos/ash/components/assistant/ambient.gni")
 import("//chromeos/ash/components/scalable_iph/scalable_iph.gni")
@@ -4654,6 +4653,7 @@ test("ash_unittests") {
     "//chromeos/ash/services/nearby/public/cpp",
     "//chromeos/ash/services/network_config/public/cpp:test_support",
     "//chromeos/ash/services/recording:test_support",
+    "//chromeos/components/kiosk:test_support",
     "//chromeos/components/magic_boost/public/cpp",
     "//chromeos/components/mahi/public/cpp",
     "//chromeos/components/sensors",

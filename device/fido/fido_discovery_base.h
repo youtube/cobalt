@@ -5,9 +5,8 @@
 #ifndef DEVICE_FIDO_FIDO_DISCOVERY_BASE_H_
 #define DEVICE_FIDO_FIDO_DISCOVERY_BASE_H_
 
-#include <vector>
-
 #include <ostream>
+#include <vector>
 
 #include "base/check.h"
 #include "base/component_export.h"

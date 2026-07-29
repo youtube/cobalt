@@ -186,9 +186,7 @@ void AddressDataManager::OnWebDataServiceRequestDone(
     // are generally caught by an identity observer. But if the account info
     // becomes available before the initial load has finished, the additional
     // call here is necessary to apply these updates.
-    // TODO(crbug.com/356845298): Clean up after launch.
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillEnableSupportForNameAndEmail)) {
+    if (account_name_email_store_) {
       account_name_email_store_->MaybeUpdateOrCreateAccountNameEmail();
     } else {
       // In case the feature got disabled the profile should be cleaned up.
@@ -580,6 +578,17 @@ void AddressDataManager::SetStrikeDatabase(
       std::make_unique<AutofillProfileUpdateStrikeDatabase>(strike_database);
   address_suggestion_strike_database_ =
       std::make_unique<AddressSuggestionStrikeDatabase>(strike_database);
+}
+
+AutofillOnTypingSuggestionStrikeDatabase*
+AddressDataManager::GetAutofillOnTypingSuggestionStrikeDatabase() {
+  return const_cast<AutofillOnTypingSuggestionStrikeDatabase*>(
+      std::as_const(*this).GetAutofillOnTypingSuggestionStrikeDatabase());
+}
+
+const AutofillOnTypingSuggestionStrikeDatabase*
+AddressDataManager::GetAutofillOnTypingSuggestionStrikeDatabase() const {
+  return autofill_on_typing_suggestion_strike_database_.get();
 }
 
 AutofillProfileMigrationStrikeDatabase*

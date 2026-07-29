@@ -7,19 +7,23 @@
 #include <algorithm>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/containers/span.h"
 #include "base/containers/to_vector.h"
 #include "base/notimplemented.h"
 #include "base/strings/string_util.h"
 #include "chrome/browser/autofill/android/personal_data_manager_android.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
+#include "components/autofill/android/payments/legal_message_line_android.h"
 #include "components/autofill/core/browser/data_model/valuables/android/loyalty_card_android.h"
 #include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
+#include "components/autofill/core/browser/payments/legal_message_line.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/autofill_resource_utils.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -31,6 +35,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/TouchToFillPaymentMethodViewBridge_jni.h"
 #include "components/autofill/android/main_autofill_jni_headers/LoyaltyCard_jni.h"
+#include "components/autofill/android/payments_jni_headers/BnplIssuerContext_jni.h"
 #include "components/autofill/android/payments_jni_headers/BnplIssuerTosDetail_jni.h"
 
 using base::android::ConvertUTF16ToJavaString;
@@ -51,15 +56,64 @@ ConvertTextWithLinkToJavaObject(
 }
 
 static base::android::ScopedJavaLocalRef<jobject>
+ConvertLegalMessageLinesToJavaObject(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& obj,
+    const autofill::LegalMessageLines legal_message_lines) {
+  return autofill::
+      Java_TouchToFillPaymentMethodViewBridge_convertLegalMessageLinesForBnplTos(
+          env, obj,
+          autofill::LegalMessageLineAndroid::ConvertToJavaLinkedList(
+              legal_message_lines));
+}
+
+static base::android::ScopedJavaLocalRef<jobject>
 ConvertBnplIssuerTosDetailToJavaObject(
     JNIEnv* env,
     const jni_zero::JavaRef<jobject>& obj,
+    const autofill::TouchToFillPaymentMethodViewController& controller,
     const autofill::payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
   return Java_BnplIssuerTosDetail_Constructor(
-      env, ConvertUTF16ToJavaString(env, bnpl_issuer_tos_detail.review_text),
+      env, controller.GetJavaResourceId(bnpl_issuer_tos_detail.header_icon_id),
+      controller.GetJavaResourceId(bnpl_issuer_tos_detail.header_icon_id_dark),
+      ConvertUTF16ToJavaString(env, bnpl_issuer_tos_detail.title),
+      ConvertUTF16ToJavaString(env, bnpl_issuer_tos_detail.review_text),
       ConvertUTF16ToJavaString(env, bnpl_issuer_tos_detail.approve_text),
       ConvertTextWithLinkToJavaObject(env, obj,
-                                      bnpl_issuer_tos_detail.link_text));
+                                      bnpl_issuer_tos_detail.link_text),
+      ConvertLegalMessageLinesToJavaObject(
+          env, obj, bnpl_issuer_tos_detail.legal_message_lines));
+}
+
+// TODO(crbug.com/449764859): Refactor BnplIssuerContext to use JNI type
+// converters.
+static base::android::ScopedJavaLocalRef<jobject>
+CreateJavaBnplIssuerContextFromNative(
+    JNIEnv* env,
+    const autofill::payments::BnplIssuerContext& bnpl_issuer_context) {
+  // For now, Android only uses the `LightModeImageId`.
+  const std::pair<autofill::BnplIssuer::LightModeImageId,
+                  autofill::BnplIssuer::DarkModeImageId>
+      image_ids = GetBnplIssuerIconIds(
+          bnpl_issuer_context.issuer.issuer_id(),
+          /*issuer_linked=*/bnpl_issuer_context.issuer.payment_instrument()
+              .has_value());
+
+  // TODO(crbug.com/430575808): App locale will be provided to `ShowBnplIssuers`
+  // in crrev.com/c/7005163. Once this CL is merged remove the hard-coded app
+  // locale, "en-US".
+  const std::u16string selection_text =
+      autofill::payments::GetBnplIssuerSelectionOptionText(
+          bnpl_issuer_context.issuer.issuer_id(), "en-US",
+          {bnpl_issuer_context});
+
+  return autofill::Java_BnplIssuerContext_Constructor(
+      env, image_ids.first.value(),
+      std::string(
+          ConvertToBnplIssuerIdString(bnpl_issuer_context.issuer.issuer_id())),
+      bnpl_issuer_context.issuer.GetDisplayName(), selection_text,
+      bnpl_issuer_context.issuer.payment_instrument().has_value(),
+      bnpl_issuer_context.IsEligible());
 }
 
 }  // namespace
@@ -235,12 +289,16 @@ bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuers(
   for (const payments::BnplIssuerContext& issuer_context :
        bnpl_issuer_contexts) {
     issuer_context_array.push_back(
-        PersonalDataManagerAndroid::CreateJavaBnplIssuerContextFromNative(
-            env, issuer_context));
+        CreateJavaBnplIssuerContextFromNative(env, issuer_context));
   }
 
+  // Pass only the raw string to Java. The link's start/end indices from
+  // `GetBnplUiFooterText()` are no longer needed, as the link's position is
+  // defined declaratively by `<link>` tags within the string resource. The
+  // Android UI layer is responsible for creating the clickable span.
   Java_TouchToFillPaymentMethodViewBridge_showBnplIssuers(
-      env, java_object_, std::move(issuer_context_array));
+      env, java_object_, std::move(issuer_context_array),
+      ConvertUTF16ToJavaString(env, payments::GetBnplUiFooterText()));
   return true;
 }
 
@@ -266,6 +324,7 @@ bool TouchToFillPaymentMethodViewImpl::ShowErrorScreen(
 }
 
 bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuerTos(
+    const TouchToFillPaymentMethodViewController& controller,
     const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) {
   if (!java_object_) {
     return false;  // View should already be shown.
@@ -275,7 +334,7 @@ bool TouchToFillPaymentMethodViewImpl::ShowBnplIssuerTos(
 
   Java_TouchToFillPaymentMethodViewBridge_showBnplIssuerTos(
       env, java_object_,
-      ConvertBnplIssuerTosDetailToJavaObject(env, java_object_,
+      ConvertBnplIssuerTosDetailToJavaObject(env, java_object_, controller,
                                              bnpl_issuer_tos_detail));
 
   return true;

@@ -117,6 +117,21 @@ chromium-metrics-reviews@google.com.
   <variant name="_FullScan" summary="Using WPA_supplicant to scan."/>
 </variants>
 
+<!-- LINT.IfChange(QueueName) -->
+
+<variants name="QueueName">
+  <variant name="Default" summary="Deprecated on 2025-10-15."/>
+  <variant name="High" summary="Deprecated on 2025-10-15."/>
+  <variant name="Highest"/>
+  <variant name="Idle"/>
+  <variant name="Low"/>
+  <variant name="Lowest"/>
+  <variant name="Medium"/>
+  <variant name="Throttled"/>
+</variants>
+
+<!-- LINT.ThenChange(//services/network/scheduler/network_service_task_queues.cc:PriorityToString) -->
+
 <!-- LINT.IfChange(RequestPriority) -->
 
 <variants name="RequestPriority">
@@ -1833,7 +1848,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.DnsProxy.DnsOverHttpsQuery.HttpErrors"
-    enum="DnsProxy.HttpError" expires_after="2025-12-31">
+    enum="DnsProxy.HttpError" expires_after="2026-04-12">
   <owner>garrick@chromium.org</owner>
   <owner>cros-network-metrics@google.com</owner>
   <summary>
@@ -2363,7 +2378,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.PrefetchMatches.FirstMismatch"
-    enum="PrefetchMatchesResourceRequestField" expires_after="2025-11-18">
+    enum="PrefetchMatchesResourceRequestField" expires_after="2026-05-18">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -2374,7 +2389,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.PrefetchMatches.Result" enum="Boolean"
-    expires_after="2025-11-18">
+    expires_after="2026-05-18">
   <owner>ricea@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -2444,7 +2459,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.SharedDictionary.EncodingType"
-    enum="SharedDictionaryEncodingType" expires_after="2026-02-09">
+    enum="SharedDictionaryEncodingType" expires_after="2026-04-12">
   <owner>nidhijaju@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -4468,7 +4483,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.WiFi.ScanResult{ProgressiveScan}"
-    enum="WiFiScanResult" expires_after="2025-12-31">
+    enum="WiFiScanResult" expires_after="2026-04-12">
   <owner>norvez@chromium.org</owner>
   <owner>cros-network-metrics@google.com</owner>
   <summary>
@@ -5082,7 +5097,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.GrantAccessToDataPathError.{Directory}.Windows"
-    enum="WinGetLastError" expires_after="2026-01-22">
+    enum="WinGetLastError" expires_after="2026-04-12">
   <owner>ricea@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -5164,7 +5179,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.Requests.{Multiplexed}.{RequestType}.{Method}.{Result}.TotalHeadersSize"
-    units="bytes" expires_after="2026-02-09">
+    units="bytes" expires_after="2026-04-12">
   <owner>ortuno@chromium.org</owner>
   <owner>navtracking-team@google.com</owner>
   <summary>
@@ -5181,7 +5196,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.Requests.{Multiplexed}.{RequestType}.{Method}.{Result}.TotalRequestSize"
-    units="bytes" expires_after="2026-02-09">
+    units="bytes" expires_after="2026-04-12">
   <owner>ortuno@chromium.org</owner>
   <owner>navtracking-team@google.com</owner>
   <summary>
@@ -5223,10 +5238,7 @@ chromium-metrics-reviews@google.com.
     NetworkServiceScheduler. Recorded with 0.001 probability when a task
     scheduled on the IO thread starts.
   </summary>
-  <token key="QueueName">
-    <variant name="Default"/>
-    <variant name="High"/>
-  </token>
+  <token key="QueueName" variants="QueueName"/>
 </histogram>
 
 <histogram
@@ -5239,10 +5251,7 @@ chromium-metrics-reviews@google.com.
     {QueueName}Queue of NetworkServiceScheduler. Recorded with 0.001 probability
     when a task scheduled on the IO thread starts.
   </summary>
-  <token key="QueueName">
-    <variant name="Default"/>
-    <variant name="High"/>
-  </token>
+  <token key="QueueName" variants="QueueName"/>
 </histogram>
 
 <histogram name="NetworkService.Scheduler.IOThread.TaskOffCpuDuration"
@@ -5278,9 +5287,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="NetworkService.SlopBucket.ChunkAllocationFailedReason"
+    enum="SlopBucketChunkAllocationFailedReason" expires_after="2026-02-22">
+  <owner>ricea@chromium.org</owner>
+  <owner>yoichio@chromium.org</owner>
+  <owner>blink-network-stack@google.com</owner>
+  <summary>
+    The first reason why the chunk allocation for a request was blocked.
+    Recorded once per request that made use of SlopBucket, when it is completed.
+  </summary>
+</histogram>
+
 <histogram name="NetworkService.SlopBucket.DisabledReason"
     enum="SlopBucketDisabledReason" expires_after="2026-02-22">
   <owner>ricea@chromium.org</owner>
+  <owner>yoichio@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
     The reason why slop bucket is disabled, if it has been disabled. Is not
@@ -5296,6 +5317,7 @@ chromium-metrics-reviews@google.com.
 <histogram name="NetworkService.SlopBucket.PeakChunksAllocated" units="chunks"
     expires_after="2026-02-22">
   <owner>ricea@chromium.org</owner>
+  <owner>yoichio@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
     The peak number of chunks allocated for a request. Recorded once per request

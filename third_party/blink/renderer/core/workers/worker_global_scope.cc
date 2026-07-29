@@ -67,6 +67,7 @@
 #include "third_party/blink/renderer/core/script/classic_script.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_script_url.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_type_policy_factory.h"
+#include "third_party/blink/renderer/core/url/dom_origin.h"
 #include "third_party/blink/renderer/core/workers/custom_event_message.h"
 #include "third_party/blink/renderer/core/workers/global_scope_creation_params.h"
 #include "third_party/blink/renderer/core/workers/installed_scripts_manager.h"
@@ -167,6 +168,12 @@ FontFaceSet* WorkerGlobalScope::fonts() {
   return FontFaceSetWorker::From(*this);
 }
 
+DOMOrigin* WorkerGlobalScope::GetDOMOrigin(LocalDOMWindow*) const {
+  // No access check is required, as `WorkerGlobalScope` objects are not
+  // accessible cross-origin.
+  return DOMOrigin::Create(GetSecurityOrigin());
+}
+
 WorkerGlobalScope::~WorkerGlobalScope() {
   DCHECK(!ScriptController());
   InstanceCounters::DecrementCounter(
@@ -189,6 +196,14 @@ KURL WorkerGlobalScope::CompleteURL(const String& url) const {
 
 const KURL& WorkerGlobalScope::BaseURL() const {
   return Url();
+}
+
+UserAgentMetadata WorkerGlobalScope::GetUserAgentMetadata() const {
+  std::optional<UserAgentMetadata> optional_metadata;
+  if (CoreProbeSink* sink = probe::ToCoreProbeSink(GetExecutionContext())) {
+    probe::ApplyUserAgentMetadataOverride(sink, &optional_metadata);
+  }
+  return optional_metadata.value_or(ua_metadata_);
 }
 
 scheduler::WorkerScheduler* WorkerGlobalScope::GetScheduler() {
@@ -578,6 +593,9 @@ void WorkerGlobalScope::RunWorkerScript() {
     debugger->ExternalAsyncTaskFinished(*stack_id_);
 
   script_eval_state_ = ScriptEvalState::kEvaluated;
+  if (auto* controller = GetThread()->GetWorkerInspectorController()) {
+    controller->WorkerScriptLoaded();
+  }
   TRACE_EVENT_END("blink.worker", perfetto::Track::FromPointer(this));
 }
 

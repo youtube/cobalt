@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Davam edin</translation>
 <translation id="2379925928934107488">Mümkün olduqda, Chrome tünd temadan istifadə edərkən saytlara tünd tema tətbiq edin</translation>
 <translation id="2390272837142897736">Zoom'u artırın</translation>
+<translation id="2397689164757137845">İcazə verilib • Dəqiq</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Dəqiq</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> və daha <ph name="NUM_MORE" /> üçün icazə verilib}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> və daha <ph name="NUM_MORE" /> üçün icazə verilib}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Yardım və geri əlaqə</translation>
 <translation id="2501278716633472235">Geri qayıdın</translation>
 <translation id="2533138527374486328">Aktiv olduqda saytlar yerli şəbəkənizdəki istənilən cihaza qoşulmağı istəyə bilər. Deaktiv olduqda saytlar yerli şəbəkənizdəki cihazlara qoşula bilməz.</translation>
+<translation id="2536779053640817375">Bu dəfə icazə verilib • Dəqiq</translation>
 <translation id="2544997614631598250">Tema rəngi tünd</translation>
 <translation id="2546283357679194313">Kukilər və sayt datası</translation>
 <translation id="2570922361219980984">Bu cihazda məkan girişi də deaktivdir. <ph name="BEGIN_LINK" />Android Ayarlarında<ph name="END_LINK" /> girişi aktiv edin.</translation>
@@ -442,6 +444,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="5876056640971328065">Videoya pauza verin</translation>
 <translation id="5877248419911025165">Bütün sorğuları yığcamlaşdırın</translation>
 <translation id="5878945009165002849">Kimlik xidmətlərindən daxil olma sorğularını bloklayın</translation>
+<translation id="588258955323874662">Tam ekran</translation>
 <translation id="5884085660368669834">Sayt tərcihi</translation>
 <translation id="5887687176710214216">Son ziyarət dünən olub</translation>
 <translation id="5908617755156109052">Saytlara ətrafın 3D xəritəsini yaratmaq və ya kameranın mövqeyini izləmək icazəsi verməyin</translation>
@@ -569,6 +572,7 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="7406113532070524618">Bu ayar kimliyi müəyyən etmir və ya saytlara brauzer tarixçəsini görmək imkanı vermir. Lakin saytlar doğrulamanın bir hissəsi kimi az miqdarda məlumat paylaşa bilər</translation>
 <translation id="7409735910987429903">Saytlar reklamları göstərmək üçün ani bildirişlər göndərə və ya sizi ziyarət etmək istəmədiyiniz veb-saytlara aparmaq üçün yönləndirmələrdən istifadə edə bilər</translation>
 <translation id="7412160840120117304">Əsas rəngin hex kodu</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zum}other{Zum: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Öncə soruşun</translation>
 <translation id="7423538860840206698">Buferdə oxu girişi blok edildi</translation>
 <translation id="7425915948813553151">Saytlar üçün tünd tema</translation>
@@ -700,7 +704,6 @@ Qabaqcıl Qoruma bu Chrome ayarlarına nəzarət edir:
 <translation id="8803526663383843427">Aktiv olduqda</translation>
 <translation id="8805385115381080995">Saytın real insan olduğunuzu təsdiqləmək ehtimalı az olduğuna görə daha sürətlə baxmaq olur</translation>
 <translation id="8816026460808729765">Saytların sensorlara girişini blok edin</translation>
-<translation id="884765916894384048">Arxa fona keçin</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Üçüncü tərəf kukilərinə müvəqqəti icazə verin. Axtarış zamanı qoruma az olsa da, funksiyaların gözlənilən kimi işləmə ehtimalı yüksəkdir.</translation>
 <translation id="8889294078294184559">Baxmağa davam etdikcə saytlar Chrome ilə yoxlanış apara və daxil olduğunuz əvvəlki sayt ilə real insan olduğunuzu təsdiqləyə bilər</translation>

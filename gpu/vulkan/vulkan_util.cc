@@ -29,7 +29,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_info.h"
 #include "base/android/device_info.h"
-#include "build/android_buildflags.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -190,9 +189,9 @@ bool IsDeviceBlockedByFeatureParams(const GPUInfo& gpu_info,
 }
 
 bool IsVulkanV2Allowed() {
-  // We require at least android T deqp test to pass for v2.
-  constexpr int32_t kVulkanDEQPAndroidT = 0x07E60301;
-  if (base::android::device_info::vulkan_deqp_level() < kVulkanDEQPAndroidT) {
+  // We require at least android V deqp test to pass for v2.
+  constexpr int32_t kVulkanDEQPAndroidV = 0x7e80301;
+  if (base::android::device_info::vulkan_deqp_level() < kVulkanDEQPAndroidV) {
     return false;
   }
 
@@ -317,11 +316,6 @@ bool IsVulkanV3EnabledForAdreno(
   }
 
   return true;
-}
-
-bool SkipVulkanBlocklist() {
-  // Expectation is for all desktop android devices to use vulkan
-  return BUILDFLAG(IS_DESKTOP_ANDROID);
 }
 
 #endif
@@ -487,7 +481,7 @@ bool CheckVulkanCompatibilities(
   return true;
 #endif
 #else   // BUILDFLAG(IS_ANDROID)
-   if (SkipVulkanBlocklist()) {
+   if (base::FeatureList::IsEnabled(features::kSkipVulkanBlocklist)) {
     return true;
   }
 

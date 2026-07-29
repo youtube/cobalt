@@ -17,7 +17,6 @@
 TopContainerView::TopContainerView(BrowserView* browser_view)
     : browser_view_(browser_view) {
   SetProperty(views::kElementIdentifierKey, kTopContainerElementId);
-  SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
 }
 
 TopContainerView::~TopContainerView() = default;
@@ -42,7 +41,7 @@ void TopContainerView::PaintChildren(const views::PaintInfo& paint_info) {
 // TODO (b/287068468): Verify if it's needed on MacOS, once it's verified, we
 // can decide whether keep or remove this function.
 #if !BUILDFLAG(IS_CHROMEOS)
-  if (browser_view_->immersive_mode_controller()->IsRevealed()) {
+  if (ImmersiveModeController::From(browser_view_->browser())->IsRevealed()) {
     // Top-views depend on parts of the frame (themes, window title, window
     // controls) being painted underneath them. Clip rect has already been set
     // to the bounds of this view, so just paint the frame.  Use a clone without
@@ -66,30 +65,6 @@ void TopContainerView::PaintChildren(const views::PaintInfo& paint_info) {
 
 void TopContainerView::ChildPreferredSizeChanged(views::View* child) {
   PreferredSizeChanged();
-}
-
-// This override let mouse events in the top container fall through into
-// the content area in PWAs.
-bool TopContainerView::DoesIntersectRect(const views::View* target,
-                                         const gfx::Rect& rect) const {
-  CHECK_EQ(target, this);
-  if (!browser_view_->IsWindowControlsOverlayEnabled()) {
-    return ViewTargeterDelegate::DoesIntersectRect(target, rect);
-  }
-
-  // When the Window Controls Overlay (WCO) in PWA is enabled, the top
-  // container has a transparent area that overlays the underneath web contents.
-  // --- TopContainerView --------------------------------
-  // | | x - o |  web contents  | web app frame toolbar ||
-  // -----------------------------------------------------
-  // Note that neither the caption buttons ("x - o") nor the web contents is a
-  // child view of TopContainerView. This code ensures that TopContainerView
-  // only takes events that are within the web app frame toolbar. Other events
-  // will fall through.
-  CHECK(browser_view_->IsWindowControlsOverlayEnabled());
-  CHECK(web_app_frame_toolbar_);
-  return web_app_frame_toolbar_->HitTestRect(
-      View::ConvertRectToTarget(this, web_app_frame_toolbar_, rect));
 }
 
 BEGIN_METADATA(TopContainerView)

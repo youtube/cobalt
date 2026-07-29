@@ -143,10 +143,39 @@ BASE_DECLARE_FEATURE(kPersistTabContext);
 // fallback if it is invalid) and the TTL defined by the Inactive Tabs feature.
 base::TimeDelta GetPersistedContextEffectiveTTL(PrefService* prefs);
 
+// Acts as a killswitch (enabled by default) for the
+// PersistTabContextBrowserAgent.
+BASE_DECLARE_FEATURE(kCleanupPersistedTabContexts);
+
+// Returns true if persisted tab contexts cleanup is enabled.
+bool IsCleanupPersistedTabContextsEnabled();
+
 // Feature flag for the automatic Gemini promo shown on navigation.
 BASE_DECLARE_FEATURE(kGeminiNavigationPromo);
 
 // Returns true if the Gemini navigation promo is enabled.
 bool IsGeminiNavigationPromoEnabled();
+
+// Feature flag to enable zero-state suggestions.
+BASE_DECLARE_FEATURE(kZeroStateSuggestions);
+
+// Returns true if zero-state suggestions are enabled.
+bool IsZeroStateSuggestionsEnabled();
+
+// Feature flag for showing full chat history in the floaty.
+BASE_DECLARE_FEATURE(kGeminiFullChatHistory);
+bool IsGeminiFullChatHistoryEnabled();
+
+// Feature flag for the redesigned loading state UI.
+BASE_DECLARE_FEATURE(kGeminiLoadingStateRedesign);
+bool IsGeminiLoadingStateRedesignEnabled();
+
+// Feature flag for the floaty latency improvements.
+BASE_DECLARE_FEATURE(kGeminiLatencyImprovement);
+bool IsGeminiLatencyImprovementEnabled();
+
+// Feature flag for the discovery onboarding cards.
+BASE_DECLARE_FEATURE(kGeminiOnboardingCards);
+bool IsGeminiOnboardingCardsEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

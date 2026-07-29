@@ -1084,6 +1084,9 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             # Required to interop with interfaces from the third-party perfetto
             # library.
             r'components/tracing/common/etw_consumer_win_unittest\.cc',
+            r'components/tracing/common/etw_system_data_source_win\.cc',
+            r'components/tracing/common/etw_consumer_win\.h',
+            r'components/tracing/common/etw_consumer_win\.cc',
             r'services/tracing/public/cpp/perfetto/custom_event_recorder\.cc',
             r'services/tracing/public/cpp/perfetto/perfetto_traced_process\.cc',
             r'services/tracing/public/cpp/perfetto/perfetto_traced_process\.h',
@@ -2159,6 +2162,13 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ),
         treat_as_error=False,
         surface_as_gerrit_lint=True,
+    ),
+    BanRule(
+      pattern='PageActionIconView',
+      explanation=(
+          'PageActionIconView will soon be removed. Use PageActionView instead. '
+          'See chrome/browser/ui/views/page_action/README.md for details.'),
+      treat_as_error=False,
     ),
 )
 

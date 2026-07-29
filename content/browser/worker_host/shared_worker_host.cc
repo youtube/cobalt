@@ -305,6 +305,19 @@ void SharedWorkerHost::Start(
     worker_client_security_state_ = DeriveClientSecurityState(
         policies, PrivateNetworkRequestContext::kWorker);
 
+    // Check for policy overrides on LNA. For shared workers, we apply
+    // policy overrides based on the renderer_origin() when the shared worker
+    // was started.
+    // TODO(crbug.com/452389539): Centralize these policy overrides.
+    BrowserContext* context = GetProcessHost()->GetBrowserContext();
+    url::Origin origin = instance_.renderer_origin();
+    ContentBrowserClient::PrivateNetworkRequestPolicyOverride policy_override =
+        client->ShouldOverridePrivateNetworkRequestPolicy(context, origin);
+    worker_client_security_state_->private_network_request_policy =
+        OverrideLocalNetworkAccessPolicy(
+            worker_client_security_state_->private_network_request_policy,
+            policy_override);
+
     policy_container_host =
         base::MakeRefCounted<PolicyContainerHost>(std::move(policies));
 
@@ -1006,6 +1019,42 @@ void SharedWorkerHost::PruneNonExistentClients() {
 
 bool SharedWorkerHost::HasClients() const {
   return !clients_.empty();
+}
+
+bool SharedWorkerHost::ContainsClient(
+    const RenderFrameHostImpl* render_frame_host) const {
+  const GlobalRenderFrameHostId& client_render_frame_host_id =
+      render_frame_host->GetGlobalId();
+  return std::any_of(
+      clients_.begin(), clients_.end(), [&](const ClientInfo& info) {
+        return info.render_frame_host_id == client_render_frame_host_id;
+      });
+}
+
+bool SharedWorkerHost::EvictBFCachedClientsIfLastActive(
+    RenderFrameHostImpl* render_frame_host) {
+  std::vector<RenderFrameHostImpl*> bf_cached_clients;
+
+  for (const ClientInfo& info : clients_) {
+    RenderFrameHostImpl* const other_rfh =
+        RenderFrameHostImpl::FromID(info.render_frame_host_id);
+    if (!other_rfh || other_rfh->GetOutermostMainFrame() == render_frame_host) {
+      // Skip frames on the same page (e.g., self, iframes) and destroyed ones,
+      continue;
+    }
+    if (other_rfh->IsActive()) {
+      // If any other client is still active, then this is not the last active
+      // client.
+      return false;
+    }
+    bf_cached_clients.push_back(other_rfh);
+  }
+  for (RenderFrameHostImpl* rfh_to_evict : bf_cached_clients) {
+    rfh_to_evict->EvictFromBackForwardCacheWithReason(
+        BackForwardCacheMetrics::NotRestoredReason::
+            kSharedWorkerWithNoActiveClient);
+  }
+  return true;
 }
 
 const base::UnguessableToken& SharedWorkerHost::GetDevToolsToken() const {

@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Nastavi</translation>
 <translation id="2379925928934107488">Primijeni tamnu temu na web-lokacije kad Chrome koristi tamnu temu, kad je moguće</translation>
 <translation id="2390272837142897736">Povećajte zumiranje</translation>
+<translation id="2397689164757137845">Dopušteno • Precizno</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Precizno</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Odobrena su dopuštenja <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}one{Odobrena su dopuštenja <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}few{Odobrena su dopuštenja <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}other{Odobrena su dopuštenja <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Pomoć i povratne informacije</translation>
 <translation id="2501278716633472235">Natrag</translation>
 <translation id="2533138527374486328">Kad je ta postavka uključena, web-lokacije mogu tražiti dopuštenje za povezivanje s bilo kojim uređajem na vašoj lokalnoj mreži. Kad je ta postavka isključena, web-lokacije ne mogu se povezati s uređajima na vašoj lokalnoj mreži.</translation>
+<translation id="2536779053640817375">Dopušteno ovaj put • Precizno</translation>
 <translation id="2544997614631598250">Boja teme: tamna</translation>
 <translation id="2546283357679194313">Kolačići i podaci o web-lokacijama</translation>
 <translation id="2570922361219980984">Pristup lokaciji isključen je i za ovaj uređaj. Uključite ga u <ph name="BEGIN_LINK" />postavkama Androida<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="5876056640971328065">Pauziraj videozapis</translation>
 <translation id="5877248419911025165">Sažmi sve zahtjeve</translation>
 <translation id="5878945009165002849">Blokiraj upite za prijavu s usluga za provjeru identiteta</translation>
+<translation id="588258955323874662">Puni zaslon</translation>
 <translation id="5884085660368669834">Postavke web-lokacije</translation>
 <translation id="5887687176710214216">Posljednji posjet bio je jučer</translation>
 <translation id="5908617755156109052">Onemogućite web-lokacijama izradu 3D karte vašeg okruženja ili praćenje položaja kamere</translation>
@@ -569,6 +572,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="7406113532070524618">Ova postavka funkcionira bez identificiranja ili dopuštanja web-lokacijama da vide vašu povijest pregledavanja, no web-lokacije mogu dijeliti malu količinu informacija kao dio potvrde</translation>
 <translation id="7409735910987429903">Web-lokacije mogu slati skočne prozore radi prikaza oglasa ili upotrebljavati preusmjeravanja kako bi vas odvele na web-lokacije koje možda ne želite posjetiti</translation>
 <translation id="7412160840120117304">Heksadecimalni kôd primarne boje</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zumiranje}one{Zumiranje: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}few{Zumiranje: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Zumiranje: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Prvo pitaj</translation>
 <translation id="7423538860840206698">Blokirano je čitanje međuspremnika</translation>
 <translation id="7425915948813553151">Tamna tema za web-lokacije</translation>
@@ -700,7 +704,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="8803526663383843427">Kad je značajka uključena</translation>
 <translation id="8805385115381080995">Pregledavanje je brže jer je manja vjerojatnost da će web-lokacija tražiti da potvrdite da ste stvarna osoba</translation>
 <translation id="8816026460808729765">Blokiranje pristupa senzorima za web-lokacije</translation>
-<translation id="884765916894384048">Prelazak u pozadinu</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Pokušajte privremeno dopustiti kolačiće trećih strana, što znači da će biti manje zaštite pregledavanja, ali će značajke web-lokacije vjerojatnije funkcionirati prema očekivanjima.</translation>
 <translation id="8889294078294184559">Tijekom vašeg daljnjeg pregledavanja web-lokacije mogu provjeriti u Chromeu i od prethodne web-lokacije koju ste posjetili dobiti potvrdu da ste vjerojatno stvarna osoba</translation>

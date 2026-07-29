@@ -85,8 +85,13 @@ class MockAnchorElementInteractionHost
                       .mouse_velocity = mouse_data->mouse_velocity,
                       .is_eager = false});
   }
-  void OnViewportHeuristicTriggered(const KURL& target) override {
+  void OnModerateViewportHeuristicTriggered(const KURL& target) override {
     calls_.push_back({.url = target, .type = PointerEventType::kNone});
+  }
+  void OnEagerViewportHeuristicTriggered(const Vector<KURL>& targets) override {
+    for (const KURL& url : targets) {
+      calls_.push_back({.url = url, .type = PointerEventType::kNone});
+    }
   }
 
  private:
@@ -404,7 +409,7 @@ class AnchorElementInteractionEagerHeuristicsTest
  public:
   AnchorElementInteractionEagerHeuristicsTest()
       : base::test::WithFeatureOverride(
-            blink::features::kPreloadingEagerHeuristics) {}
+            blink::features::kPreloadingEagerHoverHeuristics) {}
 };
 
 INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(
@@ -697,7 +702,7 @@ TEST_F(AnchorElementInteractionTest, MouseVelocitySent) {
 
   ASSERT_EQ(hosts_.size(), 1u);
   if (base::FeatureList::IsEnabled(
-          blink::features::kPreloadingEagerHeuristics)) {
+          blink::features::kPreloadingEagerHoverHeuristics)) {
     // This feature doubles the `kOnPointerHover` calls by adding an `eager`
     // hover notification in advance of each `moderate` hover.
     ASSERT_EQ(hosts_[0]->calls_.size(), 2u);
@@ -728,7 +733,7 @@ class AnchorElementInteractionViewportHeuristicsTest
     feature_list_.InitWithFeaturesAndParameters(
         {{features::kNavigationPredictor, GetParamsForNavigationPredictor()},
          {features::kNavigationPredictorNewViewportFeatures, {}},
-         {features::kPreloadingViewportHeuristics,
+         {features::kPreloadingModerateViewportHeuristics,
           {{"delay", "100ms"},
            {"distance_from_ptr_down_low", "-0.3"},
            {"distance_from_ptr_down_hi", "0"},

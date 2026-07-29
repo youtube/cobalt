@@ -64,6 +64,10 @@ BASE_DECLARE_FEATURE(kBiometricTouchToFill);
 // login success/failure.
 BASE_DECLARE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved);
 
+// Checks if the new password field is visible in the viewport before returning
+// the form in the ChangePasswordFormWaiter.
+BASE_DECLARE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter);
+
 // Identifies if the user is fully signed in in the main tab
 // before starting the Automated Password Change flow.
 BASE_DECLARE_FEATURE(kCheckLoginStateBeforePasswordChange);
@@ -78,6 +82,11 @@ BASE_DECLARE_FEATURE(kClearUndecryptablePasswordsOnSync);
 // one-time-passwords. Only for OTP detection testing, not intended to be
 // launched.
 BASE_DECLARE_FEATURE(kDebugUiForOtps);
+
+// Updates password change flow to await for local ML model availability. The
+// model has a superior performance compared to existing password manager
+// classifications.
+BASE_DECLARE_FEATURE(kDownloadModelForPasswordChange);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 // Enables Actor Login permissions UI in Password Manager settings
@@ -192,11 +201,6 @@ BASE_DECLARE_FEATURE(kMarkAllCredentialsAsLeaked);
 
 // Enables improvements to password change functionality.
 BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
-
-// In the automatic password change flow, Chrome will try to submit the change
-// password form with Enter key at the first place (still with the fall back of
-// calling the model to find the Submit button).
-BASE_DECLARE_FEATURE(kSubmitWithEnterDuringPasswordChange);
 
 #if BUILDFLAG(IS_ANDROID)
 // The feature flag for reloading passwords when the trusted vault encryption

@@ -11,6 +11,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/url_formatter/spoof_checks/skeleton_generator.h"
+#include "components/url_formatter/spoof_checks/top_domains/idn_test_domains_trie.h"
+#include "components/url_formatter/spoof_checks/top_domains/test_domains_trie.h"
 #include "components/url_formatter/url_formatter.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/uvernum.h"
@@ -1153,10 +1155,6 @@ const IDNTestCase kIdnCases[] = {
     //    advantage of having Python's IDN encode/decode the tests.
 };
 
-namespace test {
-#include "components/url_formatter/spoof_checks/top_domains/idn_test_domains-trie-inc.cc"
-}
-
 bool IsPunycode(const std::u16string& s) {
   return s.size() > 4 && s[0] == L'x' && s[1] == L'n' && s[2] == L'-' &&
          s[3] == L'-';
@@ -1168,9 +1166,8 @@ class IDNSpoofCheckerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     IDNSpoofChecker::HuffmanTrieParams trie_params{
-        test::kTopDomainsHuffmanTree, sizeof(test::kTopDomainsHuffmanTree),
-        test::kTopDomainsTrie, test::kTopDomainsTrieBits,
-        test::kTopDomainsRootPosition};
+        kIdnTestTopDomainsHuffmanTree, kIdnTestTopDomainsTrie,
+        kIdnTestTopDomainsTrieBits, kIdnTestTopDomainsRootPosition};
     IDNSpoofChecker::SetTrieParamsForTesting(trie_params);
   }
 
@@ -1574,7 +1571,6 @@ TEST(IDNSpoofCheckerNoFixtureTest, MaybeRemoveDiacritics) {
 }
 
 namespace {
-#include "components/url_formatter/spoof_checks/top_domains/test_domains-trie-inc.cc"
 
 // These tests do not use the production top domain list. This is to avoid
 // having to adjust the tests when the top domain list is updated. Instead,
@@ -1583,8 +1579,8 @@ class TopDomainIDNSpoofCheckerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     IDNSpoofChecker::HuffmanTrieParams trie_params{
-        kTopDomainsHuffmanTree, sizeof(kTopDomainsHuffmanTree), kTopDomainsTrie,
-        kTopDomainsTrieBits, kTopDomainsRootPosition};
+        kTestTopDomainsHuffmanTree, kTestTopDomainsTrie,
+        kTestTopDomainsTrieBits, kTestTopDomainsRootPosition};
     IDNSpoofChecker::SetTrieParamsForTesting(trie_params);
   }
 

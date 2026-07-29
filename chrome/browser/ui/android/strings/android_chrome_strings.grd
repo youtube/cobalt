@@ -287,6 +287,9 @@ CHAR_LIMIT guidelines:
       <message name="IDS_NOTIFICATION_CATEGORY_COLLABORATION" desc="Label for collaboration-related notifications, within a list of notification categories. [CHAR_LIMIT=32]">
         Collaboration
       </message>
+      <message name="IDS_NOTIFICATION_CATEGORY_TIPS" desc='Label for tips-related notifications, within a list of notification categories. [CHAR_LIMIT=32]'>
+        Chrome Tips
+      </message>
 
       <!-- Sign-in, sync and personalization preferences -->
       <message name="IDS_PREFS_SECTION_ACCOUNT_AND_GOOGLE_SERVICES" desc="Title for the group of account-related entries and google services in Settings. [CHAR_LIMIT=32]">
@@ -348,8 +351,14 @@ CHAR_LIMIT guidelines:
       <message name ="IDS_SETTINGS_INCOGNITO_TAB_LOCK_TITLE" desc = "Title for a toggle in Settings that allows users to lock their existing Incognito tabs with a device reauthentication mechanism.">
         Lock Incognito tabs when you leave Chrome
       </message>
+      <message name ="IDS_SETTINGS_INCOGNITO_WINDOW_LOCK_TITLE" desc = "Title for a toggle in Settings that allows users to lock their existing Incognito windows with a device reauthentication mechanism.">
+        Lock Incognito windows when you leave Chrome
+      </message>
       <message name ="IDS_SETTINGS_INCOGNITO_TAB_LOCK_SUMMARY_ANDROID_SETTING_ON" desc = "Summary for a toggle in Settings that allows users to lock their existing Incognito tabs with a device reauthentication mechanism. This summary is shown to the user when the screen lock setting is on in the device.">
         Use screen lock to see open Incognito tabs
+      </message>
+      <message name ="IDS_SETTINGS_INCOGNITO_WINDOW_LOCK_SUMMARY_ANDROID_SETTING_ON" desc = "Summary for a toggle in Settings that allows users to lock their existing Incognito windows with a device reauthentication mechanism. This summary is shown to the user when the screen lock setting is on in the device.">
+        Use screen lock to see open Incognito windows
       </message>
       <message name ="IDS_SETTINGS_INCOGNITO_TAB_LOCK_SUMMARY_ANDROID_SETTING_OFF" desc = "Summary for the Incognito tab lock toggle in Settings which asks the user to turn on screen lock in Android settings if it's off. Clicking on the text takes the user to Android settings.">
         <ph name="BEGIN_LINK">&lt;link&gt;</ph>Turn on screen lock in Android settings<ph name="END_LINK">&lt;/link&gt;</ph>
@@ -1460,6 +1469,9 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_SAFETY_HUB_ABUSIVE_NOTIFICATION_PERMISSIONS_SUBLABEL" desc="Description text shown below a site name, when notification permissions were automatically revoked for that site.">
         Notifications <ph name="SEPARATOR">•</ph> Chrome removed these permissions because this site is dangerous
       </message>
+      <message name="IDS_SAFETY_HUB_SUSPICIOUS_NOTIFICATION_PERMISSIONS_SUBLABEL" desc="Description text shown below a site name, when notification permissions were automatically revoked for that site due to suspicious content.">
+         Notifications <ph name="SEPARATOR">•</ph> Chrome removed these permissions because of spam or deceptive contents
+      </message>
       <message name="IDS_SAFETY_HUB_NOTIFICATIONS_RESET_SNACKBAR" desc="Snackbar text displayed when the user clicks the Unsubscribe button for a site which sends a lot of notifications. Informs the user for which site the notifications were unsubscribed.">
        Unsubscribed from <ph name="SITE_NAME">%1$s<ex>https://example.com:443</ex></ph>. You'll be asked again on your next visit.
       </message>
@@ -2498,6 +2510,12 @@ Only someone with your passphrase can read your encrypted data. The passphrase i
       </message>
       <message name="IDS_SYNC_ACCOUNT_INFO"  desc="The message that appears in the options dialog indicating that the user is signed in with the given email address.">
         Signed in as <ph name="USER_EMAIL_ADDRESS">%1$s<ex>foo@gmail.com</ex></ph>.
+      </message>
+      <message name="IDS_SNACKBAR_SIGNED_IN_AS"  desc="This confirmation message is intended to help users understand that they have signed in to Chrome with their Google Account. The confirmation message appears at the bottom after users choose an account to sign in to. The tone should be informative.">
+        Signed in as <ph name="USER_EMAIL_ADDRESS">%1$s<ex>foo@gmail.com</ex></ph>
+      </message>
+      <message name="IDS_SNACKBAR_UNDO_SIGNIN" desc="This string is found on a button that signs the user out when the user taps it. It is on a confirmation message that users see when they sign in to Chrome with their Google Account. This text is a verb and is short for the longer phrase 'Undo my sign-in.' The tone should be informative.">
+        Undo
       </message>
       <message name="IDS_SYNC_PASSPHRASE_CANNOT_BE_BLANK" desc="Inform user that they cannot use a blank password [CHAR_LIMIT=40]">
         This field cannot be blank
@@ -3645,6 +3663,30 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SIGNIN_PROMO_CHOOSE_ACCOUNT" desc="Button that the user can press if they are not the profile that Chrome found (opposite of 'Continue as Joe Doe').">
         Not <ph name="EMAIL">%1$s<ex>john.doe@example.com</ex></ph>?
       </message>
+
+      <!-- Strings for Seamless Sign-in -->
+      <message name="IDS_SIGNIN_PROMO_TITLE_NTP_SIGN_IN_AS_BUTTON" desc="This string is the headline of a card that appears when the user visits Chrome's new tab page; the user isn't signed in to Chrome. The line below this string is ether 'To get your passwords and more on all your devices, sign in to Chrome' or 'To get your passwords and more on all your devices, sign in to Chrome as john.doe@example.com'.">
+        Your Chrome, everywhere
+      </message>
+      <message name="IDS_SIGNIN_PROMO_DESCRIPTION_NTP_GROUP1" desc="This string is the body of a message promotion about signing in to Chrome with the user's Google Account. It explains the overarching user benefit of signing in (access to passwords, etc.). We want users to understand why signing in is beneficial, and click 'Continue as John' to sign in to their Google Account. The tone should be informative and lightweight.">
+        To get your passwords and more on all your devices, sign in as <ph name="EMAIL">%1$s<ex>john.doe@example.com</ex></ph>
+      </message>
+      <message name="IDS_SIGNIN_PROMO_DESCRIPTION_NTP_GROUP2" desc="This string is the body of a message promotion about signing in to Chrome with the user's Google Account. It explains the overarching user benefit of signing in (access to passwords, etc.). We want users to understand why signing in is beneficial, and click 'Continue as John' to sign in to their Google Account. The tone should be informative and lightweight.">
+        Get your passwords and more on all your devices
+      </message>
+      <message name="IDS_SIGNIN_PROMO_DESCRIPTION_NTP_GROUP3" desc="This string is the body of a message promotion about signing in to Chrome with the user's Google Account. It explains the overarching user benefit of signing in (access to passwords, etc.). We want users to understand why signing in is beneficial, and click 'Sign in as John' to sign in to their Google Account. The tone should be informative and lightweight.">
+        To get your passwords and more on all your devices, sign in to Chrome as <ph name="EMAIL">%1$s<ex>john.doe@example.com</ex></ph>
+      </message>
+      <message name="IDS_SIGNIN_PROMO_DESCRIPTION_NTP_GROUP4" desc="This string is the body of a message promotion about signing in to Chrome with the user's Google Account. It explains the overarching user benefit of signing in (access to passwords, etc.). We want users to understand why signing in is beneficial, and click 'Sign in as John' to sign in to their Google Account. The tone should be informative and lightweight.">
+        To get your passwords and more on all your devices, sign in to Chrome
+      </message>
+      <message name="IDS_SIGNIN_PROMO_SIGN_IN_AS" desc="Button to sign into Chrome with the displayed account and without having to reenter a password. ‘John’ is replaced with the user’s given name, or the user’s full name if the given name is not available.">
+        Sign in as <ph name="USER_FULL_NAME">%1$s<ex>John</ex></ph>
+      </message>
+      <message name="IDS_SIGNIN_PROMO_SIGN_IN" desc="Button to sign into Chrome, similar to IDS_SIGNIN_PROMO_SIGN_IN_AS. Used when the user's display names are not available.">
+        Sign in
+      </message>
+
       <!-- Strings for signin promos when Unified Consent is enabled. -->
       <message name="IDS_SYNC_PROMO_TITLE_BOOKMARKS" desc="This string is the headline of a card that appears when the user opens Chrome's bookmarks; the user may be signed in to Chrome, but isn't syncing their Chrome data. The line below this string is 'Sync to get your bookmarks from your other devices'. [CHAR_LIMIT=70]" meaning="This headline means that the user can get the bookmarks from their computer on their phone, and their phone's bookmarks on their computer. We want users to read this card and tap the 'Continue' button and turn on sync. The tone should be inviting.">
         Get all your bookmarks
@@ -4663,16 +4705,16 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Open in browser
       </message>
       <message name="IDS_SHOW_READING_MODE_TEXT" desc='Message shown on the reader mode button bar, to invite the user to tap to open a reading mode. Reading mode extracts content and removes clutter from a web page and puts the result in a panel making it easier to read. This is used when "Reader Mode for Accessibility" is available.'>
-        Show Reading Mode
+        Show Reading mode
       </message>
       <message name="IDS_HIDE_READING_MODE_TEXT" desc='Message shown on the reader mode button bar, to invite the user to tap to close reading mode. Returns user to a non-distilled version of the same web page.'>
-        Hide Reading Mode
+        Hide Reading mode
       </message>
       <message name="IDS_READER_MODE_CPA_BUTTON_TEXT" desc="Message shown on the reader mode CPA button, to invite the user to tap to open a reading mode.">
-        Reading Mode
+        Reading mode
       </message>
       <message name="IDS_READER_MODE_MESSAGE_TITLE" desc="Message shown on the reader mode prompt, to invite the user to tap to open a reading mode.">
-        View Reading Mode?
+        View Reading mode?
       </message>
       <message name="IDS_READER_MODE_MESSAGE_BUTTON" desc="The label for the button to open the current page in reader mode.">
         View
@@ -5510,6 +5552,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <!-- Multi-instance Switcher Dialog strings -->
       <message name="IDS_INSTANCE_SWITCHER_HEADER" desc="The header of multi-instance switcher dialog.">
         Manage windows
+      </message>
+      <message name="IDS_INSTANCE_SWITCHER_TITLE_INCOGNITO_WINDOW" desc="Title of an instance entry that has incognito tabs in it.">
+        Incognito window
       </message>
       <message name="IDS_INSTANCE_SWITCHER_TABS_ACTIVE" desc="The title of the active instances tab header on the multi-instance switcher dialog.">
         Active (<ph name="ITEM_COUNT">%1$s<ex>2</ex></ph>)
@@ -7031,7 +7076,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
 
       <!-- Reader mode -->
       <message name="IDS_READER_MODE_BOTTOM_SHEET_TITLE" desc="Title of the Reading Mode bottom sheet. [CHAR_LIMIT=27]">
-        Reading Mode
+        Reading mode
       </message>
       <message name="IDS_READER_MODE_BOTTOM_SHEET_CONTENT_DESCRIPTION" desc="Content description of the Reading Mode bottom sheet informing the user to swipe up to open the preferences bottom sheet.">
         Reading mode swipe up for preferences

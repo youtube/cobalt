@@ -7,6 +7,7 @@
 #include <ranges>
 #include <utility>
 
+#include "base/check.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/concurrent_closures.h"
 #include "base/strings/to_string.h"
@@ -16,7 +17,7 @@
 #include "components/autofill/core/common/save_password_progress_logger.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
-#include "components/password_manager/core/browser/actor_login/internal/actor_login_util.h"
+#include "components/password_manager/core/browser/actor_login/internal/actor_login_form_finder.h"
 #include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -27,6 +28,7 @@
 #include "components/password_manager/core/browser/password_manager_interface.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/tabs/public/tab_interface.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 
 namespace actor_login {
@@ -97,12 +99,14 @@ ActorLoginCredentialFiller::ActorLoginCredentialFiller(
       credential_(credential),
       should_store_permission_(should_store_permission),
       client_(client),
+      login_form_finder_(std::make_unique<ActorLoginFormFinder>(client_)),
       callback_(std::move(callback)) {}
 
 ActorLoginCredentialFiller::~ActorLoginCredentialFiller() = default;
 
 void ActorLoginCredentialFiller::AttemptLogin(
-    password_manager::PasswordManagerInterface* password_manager) {
+    password_manager::PasswordManagerInterface* password_manager,
+    const tabs::TabInterface& tab) {
   CHECK(client_);
   CHECK(password_manager);
 
@@ -127,7 +131,7 @@ void ActorLoginCredentialFiller::AttemptLogin(
   CHECK(form_cache);
 
   PasswordFormManager* signin_form_manager =
-      GetSigninFormManager(origin_, form_cache);
+      login_form_finder_->GetSigninFormManager(origin_);
   if (!signin_form_manager) {
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_NO_SIGNIN_FORM);
     std::move(callback_).Run(LoginStatusResult::kErrorNoSigninForm);
@@ -169,7 +173,11 @@ void ActorLoginCredentialFiller::AttemptLogin(
 
   if (client_->IsReauthBeforeFillingRequired(device_authenticator_.get())) {
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_WAITING_FOR_REAUTH);
-    ReauthenticateAndFill(std::move(fill_cb));
+    if (!tab.IsActivated()) {
+      std::move(callback_).Run(LoginStatusResult::kErrorDeviceReauthRequired);
+    } else {
+      ReauthenticateAndFill(std::move(fill_cb));
+    }
   } else {
     std::move(fill_cb).Run();
   }
@@ -181,8 +189,8 @@ const PasswordForm* ActorLoginCredentialFiller::GetMatchingStoredCredential(
   for (const password_manager::PasswordForm& stored_credential_form :
        signin_form_manager.GetBestMatches()) {
     if (stored_credential_form.username_value == credential_.username &&
-        GetSourceSiteOrAppFromUrl(stored_credential_form.url) ==
-            credential_.source_site_or_app) {
+        ActorLoginFormFinder::GetSourceSiteOrAppFromUrl(
+            stored_credential_form.url) == credential_.source_site_or_app) {
       matching_stored_credential = &stored_credential_form;
       break;
     }
@@ -216,7 +224,7 @@ void ActorLoginCredentialFiller::OnDeviceReauthCompleted(
     std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
         GetLogger(client_);
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_REAUTH_FAILED);
-    std::move(callback_).Run(LoginStatusResult::kErrorFillingNotAllowed);
+    std::move(callback_).Run(LoginStatusResult::kErrorDeviceReauthFailed);
     return;
   }
 
@@ -276,7 +284,7 @@ void ActorLoginCredentialFiller::FillAllEligibleFields(
 
     const password_manager::PasswordForm* parsed_form =
         manager->GetParsedObservedForm();
-    if (!parsed_form || !IsLoginForm(*parsed_form)) {
+    if (!parsed_form || !login_form_finder_->IsLoginForm(*parsed_form)) {
       continue;
     }
     if (should_store_permission_) {

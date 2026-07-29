@@ -20,6 +20,8 @@ import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityPreferencesManager;
 import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.url.GURL;
 
@@ -126,7 +128,11 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
     }
 
     @Override
-    public int getPageClassification(boolean isPrefetch) {
+    public int getPageClassification(@AutocompleteRequestType int type) {
+        if (type == AutocompleteRequestType.AI_MODE) {
+            return PageClassification.NTP_COMPOSEBOX_VALUE;
+        }
+
         return mPageClassification;
     }
 

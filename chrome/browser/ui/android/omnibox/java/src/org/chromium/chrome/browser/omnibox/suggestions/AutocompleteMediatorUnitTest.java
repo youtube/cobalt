@@ -43,14 +43,11 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.Implementation;
-import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowPausedSystemClock;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -62,7 +59,6 @@ import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
 import org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsCoordinator;
-import org.chromium.chrome.browser.omnibox.navattach.NavigationFulfillmentType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.header.HeaderProcessor;
 import org.chromium.chrome.browser.omnibox.test.R;
@@ -76,6 +72,7 @@ import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.Page
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteResult;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFeatures;
@@ -99,12 +96,7 @@ import java.util.Set;
 
 /** Tests for {@link AutocompleteMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {
-            AutocompleteMediatorUnitTest.ShadowCachedSuggestionsManager.class,
-            ShadowLooper.class
-        })
+@Config(manifest = Config.NONE, shadows = ShadowLooper.class)
 public class AutocompleteMediatorUnitTest {
     private static final int SUGGESTION_MIN_HEIGHT = 20;
     private static final int HEADER_MIN_HEIGHT = 15;
@@ -137,41 +129,18 @@ public class AutocompleteMediatorUnitTest {
     private @Mock DeferredIMEWindowInsetApplicationCallback mDeferredImeCallback;
     private @Mock NavigationAttachmentsCoordinator mNavigationAttachmentsCoordinator;
     private @Captor ArgumentCaptor<OmniboxLoadUrlParams> mOmniboxLoadUrlParamsCaptor;
+    private @Mock CachedZeroSuggestionsManager.OverridesForTesting
+            mMockCachedZeroSuggestionsManager;
 
     private PropertyModel mListModel;
     private AutocompleteMediator mMediator;
     private List<AutocompleteMatch> mSuggestionsList;
     private AutocompleteResult mAutocompleteResult;
     private ModelList mSuggestionModels;
-    private ObservableSupplier<@ControlsPosition Integer> mToolbarPositionSupplier;
+    private ObservableSupplierImpl<@ControlsPosition Integer> mToolbarPositionSupplier;
+    private ObservableSupplierImpl<@AutocompleteRequestType Integer>
+            mAutocompleteRequestTypeSupplier;
     private Context mContext;
-
-    // Interface abstracting calls to CachedZeroSuggestionsManager, making interactions with that
-    // more idiomatic.
-    interface CachedZeroSuggestionsManagerCalls {
-        void saveToCache(int pageClass, AutocompleteResult r);
-
-        AutocompleteResult readFromCache(int pageClass);
-    }
-
-    // CachedZeroSuggestionsManager shadow that helps us intercept interactions with manager's
-    // static methods.
-    @Implements(CachedZeroSuggestionsManager.class)
-    @SuppressWarnings("DirectInvocationOnMock")
-    public static class ShadowCachedSuggestionsManager {
-        public static CachedZeroSuggestionsManagerCalls mock =
-                mock(CachedZeroSuggestionsManagerCalls.class);
-
-        @Implementation
-        public static void saveToCache(int pageClass, AutocompleteResult r) {
-            mock.saveToCache(pageClass, r);
-        }
-
-        @Implementation
-        public static AutocompleteResult readFromCache(int pageClass) {
-            return mock.readFromCache(pageClass);
-        }
-    }
 
     @Before
     public void setUp() {
@@ -179,10 +148,13 @@ public class AutocompleteMediatorUnitTest {
                 new ContextThemeWrapper(
                         ContextUtils.getApplicationContext(), R.style.Theme_BrowserUI_DayNight);
 
+        CachedZeroSuggestionsManager.setOverridesForTesting(mMockCachedZeroSuggestionsManager);
         LargeIconBridgeJni.setInstanceForTesting(mLargeIconBridgeJniMock);
         OmniboxActionFactoryJni.setInstanceForTesting(mActionFactoryJni);
         AutocompleteControllerJni.setInstanceForTesting(mControllerJniMock);
-        mToolbarPositionSupplier = new ObservableSupplierImpl(ControlsPosition.TOP);
+        mToolbarPositionSupplier = new ObservableSupplierImpl<>(ControlsPosition.TOP);
+        mAutocompleteRequestTypeSupplier =
+                new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
 
         lenient().doReturn(mAutocompleteController).when(mControllerJniMock).getForProfile(any());
 
@@ -199,6 +171,11 @@ public class AutocompleteMediatorUnitTest {
                 .doReturn(mToolbarPositionSupplier)
                 .when(mLocationBarDataProvider)
                 .getToolbarPositionSupplier();
+
+        lenient()
+                .doReturn(mAutocompleteRequestTypeSupplier)
+                .when(mNavigationAttachmentsCoordinator)
+                .getAutocompleteRequestTypeSupplier();
 
         mMediator =
                 new AutocompleteMediator(
@@ -289,7 +266,9 @@ public class AutocompleteMediatorUnitTest {
         lenient().when(mLocationBarDataProvider.getCurrentGurl()).thenReturn(url);
         lenient().when(mLocationBarDataProvider.getTitle()).thenReturn(title);
         lenient()
-                .when(mLocationBarDataProvider.getPageClassification(false))
+                .when(
+                        mLocationBarDataProvider.getPageClassification(
+                                AutocompleteRequestType.SEARCH))
                 .thenReturn(pageClassification);
     }
 
@@ -1400,7 +1379,7 @@ public class AutocompleteMediatorUnitTest {
                         PageClassification.ANDROID_SHORTCUTS_WIDGET_VALUE);
 
         doReturn(mAutocompleteResult)
-                .when(ShadowCachedSuggestionsManager.mock)
+                .when(mMockCachedZeroSuggestionsManager)
                 .readFromCache(anyInt());
 
         for (var pageClass : PageClassification.values()) {
@@ -1409,18 +1388,18 @@ public class AutocompleteMediatorUnitTest {
 
             // Should only be invoked if page class is eligible.
             int numTimesInvoked = eligibleClasses.contains(pageClass.getNumber()) ? 1 : 0;
-            verify(ShadowCachedSuggestionsManager.mock, times(numTimesInvoked))
+            verify(mMockCachedZeroSuggestionsManager, times(numTimesInvoked))
                     .readFromCache(anyInt());
-            verify(ShadowCachedSuggestionsManager.mock, never()).saveToCache(anyInt(), any());
+            verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
 
-            clearInvocations(ShadowCachedSuggestionsManager.mock);
+            clearInvocations(mMockCachedZeroSuggestionsManager);
         }
     }
 
     @Test
     public void onTextChanged_cachedZpsNotInvokedInTypedContext() {
         doReturn(mAutocompleteResult)
-                .when(ShadowCachedSuggestionsManager.mock)
+                .when(mMockCachedZeroSuggestionsManager)
                 .readFromCache(anyInt());
 
         for (var pageClass : PageClassification.values()) {
@@ -1429,17 +1408,17 @@ public class AutocompleteMediatorUnitTest {
             mMediator.onTextChanged("text", /* isOnFocusContext= */ false);
 
             // Should only be invoked if page class is eligible.
-            verify(ShadowCachedSuggestionsManager.mock, never()).readFromCache(anyInt());
-            verify(ShadowCachedSuggestionsManager.mock, never()).saveToCache(anyInt(), any());
+            verify(mMockCachedZeroSuggestionsManager, never()).readFromCache(anyInt());
+            verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
 
-            clearInvocations(ShadowCachedSuggestionsManager.mock);
+            clearInvocations(mMockCachedZeroSuggestionsManager);
         }
     }
 
     @Test
     public void onTextChanged_cachedZpsNotInvokedWithAutocompleteControllerReady() {
         doReturn(mAutocompleteResult)
-                .when(ShadowCachedSuggestionsManager.mock)
+                .when(mMockCachedZeroSuggestionsManager)
                 .readFromCache(anyInt());
         mMediator.setAutocompleteProfile(mProfile);
 
@@ -1449,10 +1428,10 @@ public class AutocompleteMediatorUnitTest {
             mMediator.onTextChanged("", /* isOnFocusContext= */ false);
 
             // Should only be invoked if page class is eligible.
-            verify(ShadowCachedSuggestionsManager.mock, never()).readFromCache(anyInt());
-            verify(ShadowCachedSuggestionsManager.mock, never()).saveToCache(anyInt(), any());
+            verify(mMockCachedZeroSuggestionsManager, never()).readFromCache(anyInt());
+            verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
 
-            clearInvocations(ShadowCachedSuggestionsManager.mock);
+            clearInvocations(mMockCachedZeroSuggestionsManager);
         }
     }
 
@@ -1465,7 +1444,7 @@ public class AutocompleteMediatorUnitTest {
 
         mMediator.onOmniboxSessionStateChange(true);
         doReturn(mAutocompleteResult)
-                .when(ShadowCachedSuggestionsManager.mock)
+                .when(mMockCachedZeroSuggestionsManager)
                 .readFromCache(anyInt());
         doReturn(false).when(mAutocompleteResult).isFromCachedResult();
 
@@ -1476,40 +1455,40 @@ public class AutocompleteMediatorUnitTest {
 
             // Should only be invoked if page class is eligible.
             int numTimesInvoked = eligibleClasses.contains(pageClass.getNumber()) ? 1 : 0;
-            verify(ShadowCachedSuggestionsManager.mock, times(numTimesInvoked))
+            verify(mMockCachedZeroSuggestionsManager, times(numTimesInvoked))
                     .saveToCache(anyInt(), any());
 
-            clearInvocations(ShadowCachedSuggestionsManager.mock);
+            clearInvocations(mMockCachedZeroSuggestionsManager);
         }
     }
 
     @Test
     public void onTextChanged_dontCacheTypedSuggestions() {
         doReturn(mAutocompleteResult)
-                .when(ShadowCachedSuggestionsManager.mock)
+                .when(mMockCachedZeroSuggestionsManager)
                 .readFromCache(anyInt());
         doReturn(false).when(mAutocompleteResult).isFromCachedResult();
 
         for (var pageClass : PageClassification.values()) {
             setUpLocationBarDataProvider(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
             mMediator.onTextChanged("x", /* isOnFocusContext= */ false);
-            verify(ShadowCachedSuggestionsManager.mock, never()).saveToCache(anyInt(), any());
-            clearInvocations(ShadowCachedSuggestionsManager.mock);
+            verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
+            clearInvocations(mMockCachedZeroSuggestionsManager);
         }
     }
 
     @Test
     public void onTextChanged_dontCacheCachedSuggestions() {
         doReturn(mAutocompleteResult)
-                .when(ShadowCachedSuggestionsManager.mock)
+                .when(mMockCachedZeroSuggestionsManager)
                 .readFromCache(anyInt());
         doReturn(true).when(mAutocompleteResult).isFromCachedResult();
 
         for (var pageClass : PageClassification.values()) {
             setUpLocationBarDataProvider(PAGE_URL, PAGE_TITLE, pageClass.getNumber());
             mMediator.onTextChanged("", /* isOnFocusContext= */ false);
-            verify(ShadowCachedSuggestionsManager.mock, never()).saveToCache(anyInt(), any());
-            clearInvocations(ShadowCachedSuggestionsManager.mock);
+            verify(mMockCachedZeroSuggestionsManager, never()).saveToCache(anyInt(), any());
+            clearInvocations(mMockCachedZeroSuggestionsManager);
         }
     }
 
@@ -1652,10 +1631,7 @@ public class AutocompleteMediatorUnitTest {
         mMediator.onOmniboxSessionStateChange(true);
         when(mTextStateProvider.getTextWithoutAutocomplete()).thenReturn("test");
         when(mTextStateProvider.getTextWithAutocomplete()).thenReturn("test");
-        ObservableSupplierImpl<Integer> supplier = new ObservableSupplierImpl<>();
-        supplier.set(NavigationFulfillmentType.AI_MODE);
-        when(mNavigationAttachmentsCoordinator.getNavigationFulfillmentTypeSupplier())
-                .thenReturn(supplier);
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
         GURL url = JUnitTestGURLs.BLUE_2;
         when(mNavigationAttachmentsCoordinator.getAimUrl("test")).thenReturn(url);
 

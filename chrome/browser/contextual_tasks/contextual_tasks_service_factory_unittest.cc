@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
@@ -43,7 +44,7 @@ TEST_F(ContextualTasksServiceFactoryTest, ReturnsNullIfFeatureDisabled) {
   EXPECT_EQ(nullptr, service);
 }
 
-TEST_F(ContextualTasksServiceFactoryTest, UsesNullInIncognito) {
+TEST_F(ContextualTasksServiceFactoryTest, UsesRealServiceInIncognito) {
   feature_list_.InitAndEnableFeature(kContextualTasks);
   std::unique_ptr<TestingProfile> profile = TestingProfile::Builder().Build();
 
@@ -51,7 +52,7 @@ TEST_F(ContextualTasksServiceFactoryTest, UsesNullInIncognito) {
       Profile::OTRProfileID::PrimaryID(), /*create_if_needed=*/true);
   ContextualTasksService* service =
       ContextualTasksServiceFactory::GetForProfile(otr_profile);
-  EXPECT_EQ(nullptr, service);
+  EXPECT_NE(nullptr, service);
 }
 
 }  // namespace contextual_tasks

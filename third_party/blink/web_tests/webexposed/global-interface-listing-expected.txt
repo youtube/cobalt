@@ -371,13 +371,6 @@ interface AuthenticatorResponse
     attribute @@toStringTag
     getter clientDataJSON
     method constructor
-interface AutomationDelegate
-    attribute @@toStringTag
-    method clearContext
-    method constructor
-    method provideContext
-    method registerTool
-    method unregisterTool
 interface BackForwardCacheRestoration : PerformanceEntry
     attribute @@toStringTag
     getter pageshowEventEnd
@@ -4313,16 +4306,16 @@ interface HTMLFrameSetElement : HTMLElement
     setter rows
 interface HTMLGeolocationElement : HTMLPermissionElement
     attribute @@toStringTag
+    getter accuracymode
     getter autolocate
     getter error
     getter onlocation
     getter position
-    getter precise
     getter watch
     method constructor
+    setter accuracymode
     setter autolocate
     setter onlocation
-    setter precise
     setter watch
 interface HTMLHRElement : HTMLElement
     attribute @@toStringTag
@@ -6527,6 +6520,13 @@ interface MimeTypeArray
     method constructor
     method item
     method namedItem
+interface ModelContext
+    attribute @@toStringTag
+    method clearContext
+    method constructor
+    method provideContext
+    method registerTool
+    method unregisterTool
 interface Mojo
     static method bindInterface
     static method createDataPipe
@@ -6789,6 +6789,7 @@ interface Navigator
     getter mediaDevices
     getter mediaSession
     getter mimeTypes
+    getter modelContext
     getter onLine
     getter pdfViewerEnabled
     getter permissions
@@ -6848,6 +6849,7 @@ interface Navigator
     method updateAdInterestGroups
     method vibrate
     method webkitGetUserMedia
+    setter modelContext
 interface NavigatorLogin
     attribute @@toStringTag
     method constructor
@@ -7206,8 +7208,6 @@ interface Origin
     method constructor
     method isSameOrigin
     method isSameSite
-    method toJSON
-    method toString
 interface OscillatorNode : AudioScheduledSourceNode
     attribute @@toStringTag
     getter detune
@@ -7426,7 +7426,7 @@ interface PerformanceEventTiming : PerformanceEntry
     getter processingEnd
     getter processingStart
     getter target
-    getter targetIdentifier
+    getter targetSelector
     method constructor
     method toJSON
 interface PerformanceLongAnimationFrameTiming : PerformanceEntry
@@ -10842,6 +10842,7 @@ interface ViewTransition
     getter updateCallbackDone
     method constructor
     method skipTransition
+    method waitUntil
 interface ViewTransitionTypeSet
     attribute @@toStringTag
     getter size
@@ -13296,7 +13297,6 @@ namespace console
     attribute propertyNamesInGlobal
     attribute testRunner
     attribute textInputController
-    getter automationDelegate
     getter caches
     getter clientInformation
     getter closed
@@ -13532,6 +13532,7 @@ namespace console
     method reportError
     method requestAnimationFrame
     method requestIdleCallback
+    method requestResize
     method resizeBy
     method resizeTo
     method restore
@@ -13550,7 +13551,6 @@ namespace console
     method webkitRequestAnimationFrame
     method webkitRequestFileSystem
     method webkitResolveLocalFileSystemURL
-    setter automationDelegate
     setter clientInformation
     setter devicePixelRatio
     setter event

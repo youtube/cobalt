@@ -122,15 +122,6 @@ std::unique_ptr<HttpStreamPool::Job> HttpStreamPool::Group::CreateJob(
                                expected_protocol, request_net_log);
 }
 
-void HttpStreamPool::Group::OnJobComplete(Job* job) {
-  if (attempt_manager_) {
-    attempt_manager_->OnJobComplete(job);
-    // `this` may be deleted.
-  } else {
-    MaybeComplete();
-  }
-}
-
 std::unique_ptr<HttpStreamPoolHandle> HttpStreamPool::Group::CreateHandle(
     std::unique_ptr<StreamSocket> socket,
     StreamSocketHandle::SocketReuseType reuse_type,
@@ -461,7 +452,8 @@ void HttpStreamPool::Group::MaybeComplete() {
 
 void HttpStreamPool::Group::MaybeCompleteLater() {
   if (CanComplete()) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+    // Use IDLE priority since completing group is not urgent.
+    TaskRunner(IDLE)->PostTask(
         FROM_HERE,
         base::BindOnce(&Group::MaybeComplete, weak_ptr_factory_.GetWeakPtr()));
   }

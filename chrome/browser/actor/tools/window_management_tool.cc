@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/tools/observation_delay_controller.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -64,6 +65,10 @@ void WindowManagementTool::Invoke(InvokeCallback callback) {
                                    /*user_gesture=*/false);
       params.initial_show_state = ::ui::mojom::WindowShowState::kNormal;
       Browser* browser = Browser::Create(params);
+      browser_did_become_active_subscription_ =
+          browser->RegisterDidBecomeActive(base::BindRepeating(
+              &WindowManagementTool::OnBrowserDidBecomeActive,
+              base::Unretained(this)));
       content::WebContents* web_contents =
           chrome::AddAndReturnTabAt(browser, GURL(url::kAboutBlankURL),
                                     /*index=*/-1, /*foreground=*/true);
@@ -89,6 +94,10 @@ void WindowManagementTool::Invoke(InvokeCallback callback) {
                                     "The target window could not be found."));
         return;
       }
+      browser_did_become_active_subscription_ =
+          browser->RegisterDidBecomeActive(base::BindRepeating(
+              &WindowManagementTool::OnBrowserDidBecomeActive,
+              base::Unretained(this)));
       browser->GetWindow()->Show();
       break;
     }
@@ -174,13 +183,9 @@ void WindowManagementTool::OnBrowserRemoved(Browser* browser) {
   }
 }
 
-void WindowManagementTool::OnBrowserSetLastActive(Browser* browser) {
-  if (action_ == Action::kCreate) {
-    OnInvokeFinished(MakeOkResult());
-  } else if (action_ == Action::kActivate &&
-             browser->session_id().id() == *window_id_) {
-    OnInvokeFinished(MakeOkResult());
-  }
+void WindowManagementTool::OnBrowserDidBecomeActive(
+    BrowserWindowInterface* Browser) {
+  OnInvokeFinished(MakeOkResult());
 }
 
 void WindowManagementTool::OnInvokeFinished(mojom::ActionResultPtr result) {
@@ -188,6 +193,7 @@ void WindowManagementTool::OnInvokeFinished(mojom::ActionResultPtr result) {
     PostResponseTask(std::move(callback_), std::move(result));
   }
   browser_list_observation_.Reset();
+  browser_did_become_active_subscription_ = {};
 }
 
 }  // namespace actor

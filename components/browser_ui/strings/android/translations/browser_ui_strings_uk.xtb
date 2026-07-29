@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Продовжити</translation>
 <translation id="2379925928934107488">Якщо у веб-перекладачі Chrome активовано темну тему, вона використовуватиметься для сайтів, коли це можливо.</translation>
 <translation id="2390272837142897736">Збільшити масштаб</translation>
+<translation id="2397689164757137845">Дозволено • Точне</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> МБ</translation>
 <translation id="2403474027143565107">Точне</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Дозволено: "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />" і ще <ph name="NUM_MORE" />}one{Дозволено: "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />" і ще <ph name="NUM_MORE" />}few{Дозволено: "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />" і ще <ph name="NUM_MORE" />}many{Дозволено: "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />" і ще <ph name="NUM_MORE" />}other{Дозволено: "<ph name="PERMISSION_1" />", "<ph name="PERMISSION_2" />" і ще <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Довідка й відгуки</translation>
 <translation id="2501278716633472235">Назад</translation>
 <translation id="2533138527374486328">Якщо цей перемикач увімкнено, сайти можуть запитувати дозвіл на підключення до пристроїв у вашій локальній мережі. Якщо його вимкнено, сайти не можуть підключатися до пристроїв у вашій локальній мережі.</translation>
+<translation id="2536779053640817375">Надано разовий доступ • Точне</translation>
 <translation id="2544997614631598250">Колір теми: темний</translation>
 <translation id="2546283357679194313">Файли cookie й дані сайтів</translation>
 <translation id="2570922361219980984">На цьому пристрої також вимкнено доступ до геоданих. Увімкніть його в <ph name="BEGIN_LINK" />налаштуваннях Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">Призупинити відео</translation>
 <translation id="5877248419911025165">Згорнути всі запити</translation>
 <translation id="5878945009165002849">Блокувати підказки щодо входу від сервісів ідентифікації</translation>
+<translation id="588258955323874662">Повноекранний режим</translation>
 <translation id="5884085660368669834">Налаштування для сайту</translation>
 <translation id="5887687176710214216">Останнє відвідування: вчора</translation>
 <translation id="5908617755156109052">Заборонити сайтам створювати 3D-карту вашого оточення або відстежувати положення камери</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">Це налаштування не передбачає вашу ідентифікацію і дозвіл для сайтів на доступ до історії веб-перегляду, хоча сайти можуть надсилати невелику кількість інформації для цілей підтвердження</translation>
 <translation id="7409735910987429903">Сайти можуть показувати спливаючі вікна з оголошеннями або переспрямовувати вас на небажані веб-сайти</translation>
 <translation id="7412160840120117304">Шістнадцятковий код основного кольору</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Масштаб}one{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}few{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}many{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Масштаб: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Спершу запитувати</translation>
 <translation id="7423538860840206698">Заборонено переглядати буфер обміну</translation>
 <translation id="7425915948813553151">Темна тема для сайтів</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">Коли функцію ввімкнено</translation>
 <translation id="8805385115381080995">Ви зможете переглядати веб-сторінки швидше, оскільки сайт більш імовірно не проситиме вас підтвердити, що ви реальна людина</translation>
 <translation id="8816026460808729765">Заборонити сайтам доступ до датчиків</translation>
-<translation id="884765916894384048">Перейти у фоновий режим</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Спробуйте тимчасово дозволити сторонні файли cookie. Це зменшить рівень захисту під час перегляду, але функції сайту з більшою імовірністю працюватимуть належним чином.</translation>
 <translation id="8889294078294184559">Завдяки цьому інші відвідувані вами сайти зможуть перевіряти в Chrome, що ви, імовірно, реальна людина</translation>

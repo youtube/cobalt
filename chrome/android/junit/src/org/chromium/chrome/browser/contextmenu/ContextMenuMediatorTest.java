@@ -41,9 +41,11 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.browser.contextmenu.ContextMenuCoordinator.ContextMenuItemType;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
+import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -83,15 +85,13 @@ public class ContextMenuMediatorTest {
     private ListItem mSubmenuLevel0;
     private ListItem mListItemWithoutModelClickCallback;
 
+    private HierarchicalMenuController mHierarchicalMenuController;
+
     @Before
     public void setup() {
         mMediator =
                 new ContextMenuMediator(
-                        mActivity,
-                        mHeaderCoordinator,
-                        mClickCallback,
-                        mDismissDialog,
-                        /* usePopupWindow= */ false);
+                        mActivity, mHeaderCoordinator, mClickCallback, mDismissDialog);
 
         mListItemWithModelClickCallback =
                 new ListItem(
@@ -137,6 +137,12 @@ public class ContextMenuMediatorTest {
                                 .with(ENABLED, true)
                                 .with(MENU_ITEM_ID, TEST_MENU_ITEM_ID)
                                 .build());
+
+        mHierarchicalMenuController =
+                new HierarchicalMenuController(
+                        new ListMenuUtils.ListMenuKeyProvider(),
+                        /* flyoutHandler= */ null,
+                        /* drillDownOverrideValue= */ true);
     }
 
     @Test
@@ -346,7 +352,8 @@ public class ContextMenuMediatorTest {
     }
 
     private ModelList getItemList(List<ModelList> items, boolean hasHeader) {
-        return mMediator.updateAndGetModelList(items, hasHeader, /* flyoutController= */ null);
+        return mMediator.updateAndGetModelList(
+                items, hasHeader, /* hierarchicalMenuController= */ mHierarchicalMenuController);
     }
 
     private ListItem createListItem(@ChromeContextMenuItem.Item int item) {

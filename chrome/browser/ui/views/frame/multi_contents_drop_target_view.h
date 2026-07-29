@@ -85,11 +85,12 @@ class MultiContentsDropTargetView : public views::View,
   int GetPreferredWidth(int web_contents_width) const;
   // Returns the maximum width that a view should be for the given web
   // contents width.
-  static int GetMaxWidth(int web_contents_width, DropTargetState state);
+  static int GetMaxWidth(int web_contents_width,
+                         DropTargetState state,
+                         DragType drag_type);
 
   // views::View
   void SetVisible(bool visible) override;
-  void OnThemeChanged() override;
   bool GetDropFormats(int* formats,
                       std::set<ui::ClipboardFormatType>* format_types) override;
   bool CanDrop(const ui::OSExchangeData& data) override;

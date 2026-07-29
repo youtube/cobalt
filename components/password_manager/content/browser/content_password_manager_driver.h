@@ -88,9 +88,6 @@ class ContentPasswordManagerDriver final
       const std::u16string& new_password,
       base::OnceCallback<void(const std::optional<autofill::FormData>&)>
           form_data_callback) override;
-  void SubmitFormWithEnter(
-      autofill::FieldRendererId field,
-      base::OnceCallback<void(bool)> success_callback) override;
   void FillSuggestion(const std::u16string& username,
                       const std::u16string& password,
                       base::OnceCallback<void(bool)> success_callback) override;
@@ -129,6 +126,8 @@ class ContentPasswordManagerDriver final
   const url::Origin& GetLastCommittedOrigin() const override;
   void AnnotateFieldsWithParsingResult(
       const autofill::ParsingResult& parsing_result) override;
+  void CheckViewAreaVisible(autofill::FieldRendererId field_id,
+                            base::OnceCallback<void(bool)>) override;
   base::WeakPtr<password_manager::PasswordManagerDriver> AsWeakPtr() override;
 
   base::WeakPtr<ContentPasswordManagerDriver> AsWeakPtrImpl() {

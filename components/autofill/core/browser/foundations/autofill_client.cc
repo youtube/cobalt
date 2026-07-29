@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
@@ -20,6 +21,7 @@
 #include "components/autofill/core/browser/integrators/plus_addresses/autofill_plus_address_delegate.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/studies/autofill_ablation_study.h"
+#include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/ui/popup_open_enums.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
@@ -229,11 +231,16 @@ void AutofillClient::TriggerDeclinedSaveAddressReasonSurvey() {
 
 void AutofillClient::TriggerAutofillAiFillingJourneySurvey(
     bool suggestion_accepted,
-    EntityType entity_type) {
+    EntityType entity_type,
+    const base::flat_set<EntityTypeName>& saved_entities,
+    const FieldTypeSet& triggering_field_types) {
   NOTIMPLEMENTED();
 }
 
-void AutofillClient::TriggerAutofillAiSavePromptSurvey(bool prompt_accepted) {
+void AutofillClient::TriggerAutofillAiSavePromptSurvey(
+    bool prompt_accepted,
+    EntityType entity_type,
+    const base::flat_set<EntityTypeName>& saved_entities) {
   NOTIMPLEMENTED();
 }
 
@@ -283,6 +290,18 @@ bool AutofillClient::IsCvcSavingSupported() const {
   return true;
 }
 
+bool AutofillClient::IsCreditCardUploadEnabled() const {
+  return ::autofill::IsCreditCardUploadEnabled(
+      GetSyncService(), *GetPrefs(),
+      GetPersonalDataManager()
+          .payments_data_manager()
+          .GetCountryCodeForExperimentGroup(),
+      GetPersonalDataManager()
+          .payments_data_manager()
+          .GetPaymentsSigninStateForMetrics(),
+      const_cast<AutofillClient*>(this)->GetCurrentLogManager());
+}
+
 void AutofillClient::set_test_addresses(
     std::vector<AutofillProfile> test_addresses) {}
 
@@ -324,6 +343,11 @@ OtpFieldDetector* AutofillClient::GetOtpFieldDetector() {
 }
 
 one_time_tokens::SmsOtpBackend* AutofillClient::GetSmsOtpBackend() const {
+  return nullptr;
+}
+
+one_time_tokens::OneTimeTokenService* AutofillClient::GetOneTimeTokenService()
+    const {
   return nullptr;
 }
 

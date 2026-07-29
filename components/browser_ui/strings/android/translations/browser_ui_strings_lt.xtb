@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Tęskite</translation>
 <translation id="2379925928934107488">Kai galima, taikyti tamsiąją temą svetainėse, kai „Chrome“ naudoja tamsiąją temą</translation>
 <translation id="2390272837142897736">Padidinti mastelį</translation>
+<translation id="2397689164757137845">Leidžiama • Tiksli</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Tiksli</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Leidžiama: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ir dar <ph name="NUM_MORE" />}one{Leidžiama: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ir dar <ph name="NUM_MORE" />}few{Leidžiama: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ir dar <ph name="NUM_MORE" />}many{Leidžiama: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ir dar <ph name="NUM_MORE" />}other{Leidžiama: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ir dar <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Pagalba ir atsiliepimai</translation>
 <translation id="2501278716633472235">Grįžti</translation>
 <translation id="2533138527374486328">Įjungus svetainės gali prašyti prisijungti prie bet kurio įrenginio vietiniame tinkle. Išjungus svetainės negali prisijungti prie įrenginių vietiniame tinkle.</translation>
+<translation id="2536779053640817375">Leidžiama šį kartą • Tiksli</translation>
 <translation id="2544997614631598250">Temos spalva: tamsi</translation>
 <translation id="2546283357679194313">Slapukai ir svetainės duomenys</translation>
 <translation id="2570922361219980984">Vietos prieiga taip pat išjungta šiame įrenginyje. Įjunkite ją skiltyje <ph name="BEGIN_LINK" />„Android“ nustatymai“<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Naudojant Papildomą apsaugą valdomi toliau nurodyti „Chrome“ nustatymai.
 <translation id="5876056640971328065">Pristabdyti vaizdo įrašą</translation>
 <translation id="5877248419911025165">Sutraukti visas užklausas</translation>
 <translation id="5878945009165002849">Blokuoti raginimus prisijungti iš tapatybės nustatymo paslaugų</translation>
+<translation id="588258955323874662">Visas ekranas</translation>
 <translation id="5884085660368669834">Svetainės nuostata</translation>
 <translation id="5887687176710214216">Paskutinį kartą lankytasi vakar</translation>
 <translation id="5908617755156109052">Neleisti svetainėms sukurti aplinkos 3D žemėlapio ir stebėti vaizdo kameros padėties</translation>
@@ -701,7 +704,6 @@ Naudojant Papildomą apsaugą valdomi toliau nurodyti „Chrome“ nustatymai.
 <translation id="8803526663383843427">Kada įjungta</translation>
 <translation id="8805385115381080995">Naršymo procesas greitesnis, nes mažiau tikėtina, kad bus prašoma patvirtinti, jos esate realus asmuo</translation>
 <translation id="8816026460808729765">Svetainės blokuojamos, kad nepasiektų jutiklių</translation>
-<translation id="884765916894384048">Perjungti į foninį atkūrimą</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Pabandykite laikinai leisti trečiųjų šalių slapukus: tai reiškia, kad naršydami būsite mažiau apsaugoti, bet labiau tikėtina, kad svetainės funkcijos tinkamai veiks.</translation>
 <translation id="8889294078294184559">Jums naršant toliau, svetainės gali tikrinti sistemoje „Chrome“ ir iš ankstesnės svetainės, kurioje lankėtės, patvirtinti, kad tikriausiai esate realus asmuo</translation>

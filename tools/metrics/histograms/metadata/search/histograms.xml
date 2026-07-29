@@ -861,7 +861,7 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 </histogram>
 
 <histogram name="Search.ContextualSearchQuickActions.Category"
-    enum="ContextualSearchQuickActionCategory" expires_after="2026-02-09">
+    enum="ContextualSearchQuickActionCategory" expires_after="2026-04-12">
   <owner>gangwu@chromium.org</owner>
   <owner>contextual-search-eng@chromium.org</owner>
   <summary>
@@ -976,6 +976,22 @@ https://chromium.googlesource.com/chromium/src/tools/+/HEAD/metrics/histograms/R
 
     Recorded each time a DefaultSearchManager is created, after the default
     search engine is loaded from prefs.
+  </summary>
+</histogram>
+
+<histogram name="Search.DefaultSearchEngineResetNotificationShown"
+    enum="BooleanShown" expires_after="2026-09-30">
+  <owner>fikremengistu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records if the Default Search Engine (DSE) reset notification dialog is
+    shown to a user. It is recorded once, at the moment the notification dialog
+    is created. This occurs on the first omnibox search query that a user
+    performs after their DSE has been automatically reset for security. The
+    dialog will NOT be shown if, following a security reset, the user changes
+    the DSE before the dialog is shown.
+
+    This metric is recorded exclusively on macOS and Windows operating systems.
   </summary>
 </histogram>
 

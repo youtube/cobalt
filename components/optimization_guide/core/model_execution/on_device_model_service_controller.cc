@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -20,8 +21,8 @@
 #include "base/strings/strcat.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
-#include "base/containers/contains.h"
 #include "components/optimization_guide/core/delivery/model_util.h"
+#include "components/optimization_guide/core/model_execution/execute_remote_fn.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
@@ -134,12 +135,6 @@ void RecordOnDeviceLoadModelResult(
       "OptimizationGuide.ModelExecution.OnDeviceBaseModelLoadResult", result);
 }
 
-void RecordRankUpdateEviction(bool evicted) {
-  base::UmaHistogramBoolean(
-      "OptimizationGuide.ModelExecution.DidEvictBaseModelForRankUpdate",
-      evicted);
-}
-
 }  // namespace
 
 OnDeviceModelServiceController::OnDeviceModelServiceController(
@@ -186,9 +181,7 @@ OnDeviceModelEligibilityReason OnDeviceModelServiceController::CanCreateSession(
 std::unique_ptr<OptimizationGuideModelExecutor::Session>
 OnDeviceModelServiceController::CreateSession(
     ModelBasedCapabilityKey feature,
-    ExecuteRemoteFn execute_remote_fn,
-    base::WeakPtr<OptimizationGuideLogger> optimization_guide_logger,
-    const std::optional<SessionConfigParams>& config_params) {
+    const SessionConfigParams& config_params) {
   // Ensure an initial solution is computed to avoid giving kUnknown error.
   UpdateSolutionProvider(feature);
   auto& maybe_solution =
@@ -225,17 +218,13 @@ OnDeviceModelServiceController::CreateSession(
   opts.token_limits = solution->adapter()->GetTokenLimits();
   opts.adapter = solution->adapter();
 
-  opts.logger = optimization_guide_logger;
-  if (config_params) {
-    opts.capabilities = config_params->capabilities;
-    // TODO: can this be required?
-    if (config_params->sampling_params) {
-      opts.sampling_params = *config_params->sampling_params;
-    }
+  opts.capabilities = config_params.capabilities;
+  if (config_params.sampling_params) {
+    opts.sampling_params = *config_params.sampling_params;
   }
 
   return std::make_unique<SessionImpl>(
-      feature, std::move(opts), std::move(execute_remote_fn), config_params);
+      feature, std::move(opts), CreateNoOpExecuteRemoteFn(), config_params);
 }
 
 void OnDeviceModelServiceController::SetLanguageDetectionModel(
@@ -463,7 +452,6 @@ void OnDeviceModelServiceController::BaseModelController::RequireAdaptationRank(
   }
   // Add the rank and reset all remotes to force a reload.
   supported_adaptation_ranks_.push_back(required_rank);
-  RecordRankUpdateEviction(remote_.is_bound());
   remote_.reset();
   for (auto& kv : model_adaptation_controllers_) {
     kv.second.ResetRemote();

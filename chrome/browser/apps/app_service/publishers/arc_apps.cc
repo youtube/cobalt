@@ -30,7 +30,6 @@
 #include "chrome/browser/apps/app_service/menu_util.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_registry_cache.h"
-#include "chrome/browser/apps/app_service/publishers/arc_apps_factory.h"
 #include "chrome/browser/apps/app_service/webapk/webapk_manager.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_icon.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
@@ -86,6 +85,10 @@
 // overwritten icon... IIRC this applies to shelf items and ArcAppWindow icon".
 
 namespace {
+
+// NOTE: ArcApps is globally unique because it is only created for the primary
+// profile. CHECKs make sure this condition is met.
+apps::ArcApps* g_instance = nullptr;
 
 std::optional<int> g_test_arc_version_;
 
@@ -549,32 +552,38 @@ void ArcApps::SetArcVersionForTesting(int version) {
   g_test_arc_version_ = version;
 }
 
-// static
-ArcApps* ArcApps::Get(Profile* profile) {
-  return ArcAppsFactory::GetForProfile(profile);
-}
-
 ArcApps::ArcApps(AppServiceProxy* proxy)
     : AppPublisher(proxy), profile_(proxy->profile()) {
-  if (auto* arc_session_manager = arc::ArcSessionManager::Get()) {
-    arc_session_manager_observation_.Observe(arc_session_manager);
-  } else {
-    CHECK_IS_TEST();
-  }
-}
+  CHECK(!g_instance);
+  g_instance = this;
 
-ArcApps::~ArcApps() {
-  proxy()->UnregisterPublisher(AppType::kArc);
-}
-
-void ArcApps::Initialize() {
   if (!arc::IsArcAllowedForProfile(profile_) ||
       (arc::ArcServiceManager::Get() == nullptr)) {
     return;
   }
 
+  if (auto* arc_session_manager = arc::ArcSessionManager::Get()) {
+    arc_session_manager_observation_.Observe(arc_session_manager);
+  } else {
+    CHECK_IS_TEST();
+  }
+
   // Register this to AppService.
   RegisterPublisher(AppType::kArc);
+}
+
+ArcApps::~ArcApps() {
+  proxy()->UnregisterPublisher(AppType::kArc);
+
+  CHECK_EQ(g_instance, this);
+  g_instance = nullptr;
+}
+
+// static
+ArcApps* ArcApps::GetForTesting(Profile* profile) {
+  CHECK(g_instance);
+  CHECK_EQ(g_instance->profile_, profile);
+  return g_instance;
 }
 
 void ArcApps::OnInitialized() {

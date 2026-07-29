@@ -785,6 +785,12 @@ class CONTENT_EXPORT ContentBrowserClient {
       BrowserContext* browser_context,
       const GURL& url);
 
+#if !BUILDFLAG(IS_ANDROID)
+  // Returns true if the given |url| is for the initial WebUI scheme used
+  // by features like the WebUI reload button.
+  virtual bool IsInitialWebUIScheme(const GURL& url);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   // Allows the embedder to enable access to Isolated Context Web APIs for the
   // given |lock_url| -- the URL to which the renderer process is locked.
   // See [IsolatedContext] IDL attribute for more details.
@@ -2732,6 +2738,13 @@ class CONTENT_EXPORT ContentBrowserClient {
       uint64_t line,
       uint64_t column,
       std::optional<LegacyTechCookieIssueDetails> cookie_issue_details);
+
+  // Get the desired URL for clipboard source/destination reporting, if one
+  // exists. For example, given chrome://print and its rfh, return the URL of
+  // the page being printed.
+  virtual std::optional<GURL> MaybeOverrideSourceURLForClipboardAccess(
+      RenderFrameHost* render_frame_host,
+      const GURL& original_url);
 
   // Check whether paste is allowed. To paste, an implementation may require
   // a `render_frame_host` to have user activation or various permissions.

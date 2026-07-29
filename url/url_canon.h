@@ -13,11 +13,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <array>
 #include <optional>
 #include <string_view>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/component_export.h"
+#include "base/containers/span.h"
 #include "base/export_template.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/stack_allocated.h"
@@ -408,12 +411,18 @@ struct CanonHostInfo {
   // |address| contains the parsed IP Address (if any) in its first
   // AddressLength() bytes, in network order. If IsIPAddress() is false
   // AddressLength() will return zero and the content of |address| is undefined.
-  unsigned char address[16];
+  std::array<uint8_t, 16> address;
 
   // Convenience function to calculate the length of an IP address corresponding
   // to the current IP version in |family|, if any. For use with |address|.
   int AddressLength() const {
     return family == IPV4 ? 4 : (family == IPV6 ? 16 : 0);
+  }
+
+  // Returns a span pointing a valid range of `address`. The size of the
+  // resultant span is 4, 16, or 0.
+  base::span<const uint8_t> AddressSpan() const LIFETIME_BOUND {
+    return base::span(address).first(static_cast<size_t>(AddressLength()));
   }
 };
 
@@ -422,12 +431,12 @@ struct CanonHostInfo {
 //
 // TODO(crbug.com/40063064): Check the callers of these functions.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeHost(const char* spec,
+bool CanonicalizeHost(std::string_view spec,
                       const Component& host,
                       CanonOutput* output,
                       Component* out_host);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeHost(const char16_t* spec,
+bool CanonicalizeHost(std::u16string_view spec,
                       const Component& host,
                       CanonOutput* output,
                       Component* out_host);
@@ -437,12 +446,12 @@ bool CanonicalizeHost(const char16_t* spec,
 // The 8-bit version requires UTF-8 encoding. Use this version when you only
 // need to know whether canonicalization succeeded.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeSpecialHost(const char* spec,
+bool CanonicalizeSpecialHost(std::string_view spec,
                              const Component& host,
                              CanonOutput& output,
                              Component& out_host);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeSpecialHost(const char16_t* spec,
+bool CanonicalizeSpecialHost(std::u16string_view spec,
                              const Component& host,
                              CanonOutput& output,
                              Component& out_host);
@@ -452,12 +461,12 @@ bool CanonicalizeSpecialHost(const char16_t* spec,
 // The 8-bit version requires UTF-8 encoding. Use this version when you only
 // need to know whether canonicalization succeeded.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeFileHost(const char* spec,
+bool CanonicalizeFileHost(std::string_view spec,
                           const Component& host,
                           CanonOutput& output,
                           Component& out_host);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeFileHost(const char16_t* spec,
+bool CanonicalizeFileHost(std::u16string_view spec,
                           const Component& host,
                           CanonOutput& output,
                           Component& out_host);
@@ -472,7 +481,12 @@ void CanonicalizeHostVerbose(const char* spec,
                              CanonOutput* output,
                              CanonHostInfo* host_info);
 COMPONENT_EXPORT(URL)
-void CanonicalizeHostVerbose(const char16_t* spec,
+void CanonicalizeHostVerbose(std::string_view spec,
+                             const Component& host,
+                             CanonOutput* output,
+                             CanonHostInfo* host_info);
+COMPONENT_EXPORT(URL)
+void CanonicalizeHostVerbose(std::u16string_view spec,
                              const Component& host,
                              CanonOutput* output,
                              CanonHostInfo* host_info);
@@ -482,12 +496,12 @@ void CanonicalizeHostVerbose(const char16_t* spec,
 // address. A successful return is indicated by host_info->family != BROKEN. See
 // the definition of CanonHostInfo above for details.
 COMPONENT_EXPORT(URL)
-void CanonicalizeSpecialHostVerbose(const char* spec,
+void CanonicalizeSpecialHostVerbose(std::string_view spec,
                                     const Component& host,
                                     CanonOutput& output,
                                     CanonHostInfo& host_info);
 COMPONENT_EXPORT(URL)
-void CanonicalizeSpecialHostVerbose(const char16_t* spec,
+void CanonicalizeSpecialHostVerbose(std::u16string_view spec,
                                     const Component& host,
                                     CanonOutput& output,
                                     CanonHostInfo& host_info);
@@ -497,12 +511,12 @@ void CanonicalizeSpecialHostVerbose(const char16_t* spec,
 // address. A successful return is indicated by host_info->family != BROKEN. See
 // the definition of CanonHostInfo above for details.
 COMPONENT_EXPORT(URL)
-void CanonicalizeFileHostVerbose(const char* spec,
+void CanonicalizeFileHostVerbose(std::string_view spec,
                                  const Component& host,
                                  CanonOutput& output,
                                  CanonHostInfo& host_info);
 COMPONENT_EXPORT(URL)
-void CanonicalizeFileHostVerbose(const char16_t* spec,
+void CanonicalizeFileHostVerbose(std::u16string_view spec,
                                  const Component& host,
                                  CanonOutput& output,
                                  CanonHostInfo& host_info);
@@ -528,22 +542,19 @@ void CanonicalizeFileHostVerbose(const char16_t* spec,
 // host as valid (because it's designed to be used for substrings) while the
 // full version above will mark empty hosts as broken.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeHostSubstring(const char* spec,
-                               const Component& host,
-                               CanonOutput* output);
+bool CanonicalizeHostSubstring(std::string_view host_view, CanonOutput* output);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeHostSubstring(const char16_t* spec,
-                               const Component& host,
+bool CanonicalizeHostSubstring(std::u16string_view host_view,
                                CanonOutput* output);
 
 // Host in non-special URLs.
 COMPONENT_EXPORT(URL)
-bool CanonicalizeNonSpecialHost(const char* spec,
+bool CanonicalizeNonSpecialHost(std::string_view spec,
                                 const Component& host,
                                 CanonOutput& output,
                                 Component& out_host);
 COMPONENT_EXPORT(URL)
-bool CanonicalizeNonSpecialHost(const char16_t* spec,
+bool CanonicalizeNonSpecialHost(std::u16string_view spec,
                                 const Component& host,
                                 CanonOutput& output,
                                 Component& out_host);
@@ -551,12 +562,12 @@ bool CanonicalizeNonSpecialHost(const char16_t* spec,
 // Extended version of CanonicalizeNonSpecialHost, which returns additional
 // information. See CanonicalizeSpecialHost for details.
 COMPONENT_EXPORT(URL)
-void CanonicalizeNonSpecialHostVerbose(const char* spec,
+void CanonicalizeNonSpecialHostVerbose(std::string_view spec,
                                        const Component& host,
                                        CanonOutput& output,
                                        CanonHostInfo& host_info);
 COMPONENT_EXPORT(URL)
-void CanonicalizeNonSpecialHostVerbose(const char16_t* spec,
+void CanonicalizeNonSpecialHostVerbose(std::u16string_view spec,
                                        const Component& host,
                                        CanonOutput& output,
                                        CanonHostInfo& host_info);
@@ -572,26 +583,22 @@ void CanonicalizeNonSpecialHostVerbose(const char16_t* spec,
 // the input is unescaped and name-prepped, etc. It should not normally be
 // necessary or wise to call this directly.
 COMPONENT_EXPORT(URL)
-void CanonicalizeIPAddress(const char* spec,
-                           const Component& host,
+void CanonicalizeIPAddress(std::string_view host_view,
                            CanonOutput* output,
                            CanonHostInfo* host_info);
 COMPONENT_EXPORT(URL)
-void CanonicalizeIPAddress(const char16_t* spec,
-                           const Component& host,
+void CanonicalizeIPAddress(std::u16string_view host_view,
                            CanonOutput* output,
                            CanonHostInfo* host_info);
 
 // Similar to CanonicalizeIPAddress, but supports only IPv6 address.
 COMPONENT_EXPORT(URL)
-void CanonicalizeIPv6Address(const char* spec,
-                             const Component& host,
+void CanonicalizeIPv6Address(std::string_view host_view,
                              CanonOutput& output,
                              CanonHostInfo& host_info);
 
 COMPONENT_EXPORT(URL)
-void CanonicalizeIPv6Address(const char16_t* spec,
-                             const Component& host,
+void CanonicalizeIPv6Address(std::string_view host_view,
                              CanonOutput& output,
                              CanonHostInfo& host_info);
 
@@ -601,14 +608,12 @@ void CanonicalizeIPv6Address(const char16_t* spec,
 //
 // The 8-bit version requires UTF-8 encoding.
 COMPONENT_EXPORT(URL)
-bool CanonicalizePort(const char* spec,
-                      const Component& port,
+bool CanonicalizePort(std::optional<std::string_view> port_view,
                       int default_port_for_scheme,
                       CanonOutput* output,
                       Component* out_port);
 COMPONENT_EXPORT(URL)
-bool CanonicalizePort(const char16_t* spec,
-                      const Component& port,
+bool CanonicalizePort(std::optional<std::u16string_view> port_view,
                       int default_port_for_scheme,
                       CanonOutput* output,
                       Component* out_port);
@@ -676,13 +681,11 @@ bool CanonicalizePartialPath(std::optional<std::u16string_view> path,
 //
 // The 8-bit version requires UTF-8 encoding.
 COMPONENT_EXPORT(URL)
-bool FileCanonicalizePath(const char* spec,
-                          const Component& path,
+bool FileCanonicalizePath(std::optional<std::string_view> path,
                           CanonOutput* output,
                           Component* out_path);
 COMPONENT_EXPORT(URL)
-bool FileCanonicalizePath(const char16_t* spec,
-                          const Component& path,
+bool FileCanonicalizePath(std::optional<std::u16string_view> path,
                           CanonOutput* output,
                           Component* out_path);
 

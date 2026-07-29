@@ -7,18 +7,24 @@ import collections.abc
 import copy
 import contextlib
 import dataclasses
+import json
 import logging
 import pathlib
 import queue
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
 
 import checkout_helpers
+import constants
 import promptfoo_installation
 import results
+
+sys.path.append(str(constants.CHROMIUM_SRC))
+from agents.common import tempfile_ext
 
 _ALL_QUEUED_TESTS_RUN_POLLING_SLEEP_DURATION = 0.5
 _AVAILABLE_TEST_POLLING_SLEEP_DURATION = 0.1
@@ -202,6 +208,115 @@ class WorkerPool:
                     t.native_id)
 
 
+def _extract_metrics_from_promptfoo_results(
+        results_file: pathlib.Path) -> dict[str, dict | float]:
+    """Extracts relevant metrics from promptfoo results.
+
+    Args:
+        results_file: A path to a file containing promptfoo results for a test.
+
+    Returns:
+        A potentially empty dict of extracted metrics.
+    """
+    results_json = _load_promptfoo_results(results_file)
+    if not results_json:
+        return {}
+
+    metrics = {
+        'token_usage':
+        _extract_token_usage_from_promptfoo_results(results_json),
+    }
+    score = _extract_score_from_promptfoo_results(results_json)
+    if score is not None:
+        metrics['score'] = score
+    return metrics
+
+
+def _load_promptfoo_results(results_file: pathlib.Path) -> dict[str, any]:
+    """Loads a promptfoo results file into memory.
+
+    Args:
+        results_file: A path to a file containing promptfoo results for a test.
+
+    Returns:
+        The decoded JSON content of |results_file|. If loading fails for any
+        reason, this will be an empty dict.
+    """
+    with open(results_file, encoding='utf-8') as infile:
+        try:
+            return json.load(infile)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logging.error(
+                'Error when parsing promptfoo results. This is expected if '
+                'promptfoo failed catastrophically: %s', e)
+            return {}
+
+
+def _extract_token_usage_from_promptfoo_results(
+        results_json: dict[str, any]) -> dict[str, int]:
+    """Extracts gemini-cli token usage from promptfoo JSON results.
+
+    Args:
+        results_json: The decoded JSON from a promptfoo results file.
+
+    Returns:
+        A dict mapping gemini-cli token type to tokens used at the end of the
+        test.
+    """
+    token_usage = {}
+    results_list = results_json.get('results', {}).get('results', [])
+    if not results_list:
+        logging.error(
+            'Did not find promptfoo result information, cannot extract token '
+            'usage. This is not expected to ever happen.')
+        return token_usage
+
+    if len(results_list) > 1:
+        logging.warning(
+            'Unexpectedly got %d results from promptfoo when 1 is expected. '
+            'Only using the first result for token usage.', len(results_list))
+    r = results_list[0]
+    token_usage = r.get('response',
+                        {}).get('metrics',
+                                {}).get(constants.GEMINI_CLI_TOKEN_USAGE, {})
+    if not token_usage:
+        logging.warning(
+            'Did not find gemini-cli token usage. This is not expected to '
+            'ever happen')
+    return token_usage
+
+
+def _extract_score_from_promptfoo_results(
+        results_json: dict[str, any]) -> float | None:
+    """Extracts the test score from promptfoo JSON results.
+
+    Args:
+        results_json: The decoded JSON from a promptfoo results file.
+
+    Returns:
+        None if the score cannot be extracted. Otherwise, a float representing
+        the test score reported by promptfoo. This value is expected to be
+        between 0 and 1, inclusive.
+    """
+    results_list = results_json.get('results', {}).get('results', [])
+    if not results_list:
+        logging.error(
+            'Did not find promptfoo result information, cannot extract score. '
+            'This is not expected to ever happen.')
+        return None
+
+    if len(results_list) > 1:
+        logging.warning(
+            'Unexpectedly got %d results from promptfoo when 1 is expected. '
+            'Only using the first result for score.', len(results_list))
+    r = results_list[0]
+    score = r.get('score')
+    if score is None:
+        logging.warning(
+            'Did not find reported score. This is not expected to ever happen')
+    return score
+
+
 class WorkerThread(threading.Thread):
     """Class for running tests from a queue in an isolated environment."""
 
@@ -262,6 +377,8 @@ class WorkerThread(threading.Thread):
                     self._worker_options.force,
                 ) as workdir,
                 tempfile.TemporaryDirectory() as home_dir,
+                tempfile_ext.mkstemp_closed(suffix='.json') as
+                promptfoo_output,
         ):
             command = [
                 'eval',
@@ -277,6 +394,8 @@ class WorkerThread(threading.Thread):
                 f'console_width={self._console_width}',
                 '--var',
                 f'home_dir={home_dir}',
+                '--output',
+                str(promptfoo_output),
             ]
             if self._worker_options.sandbox:
                 command.extend(['--var', 'sandbox=True'])
@@ -292,10 +411,13 @@ class WorkerThread(threading.Thread):
             proc = self._promptfoo.run(command, cwd=workdir.path / 'src')
             duration = time.time() - start_time
 
-            r = results.TestResult(test_file=test_path,
-                                   success=not proc.returncode,
-                                   duration=duration,
-                                   test_log=proc.stdout)
+            r = results.TestResult(
+                test_file=test_path,
+                success=not proc.returncode,
+                duration=duration,
+                test_log=proc.stdout,
+                metrics=_extract_metrics_from_promptfoo_results(
+                    promptfoo_output))
             self._test_result_queue.put(r)
 
     def shutdown(self) -> None:

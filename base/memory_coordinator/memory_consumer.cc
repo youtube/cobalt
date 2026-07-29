@@ -28,19 +28,38 @@ void MemoryConsumer::UpdateMemoryLimit(int percentage) {
   OnUpdateMemoryLimit();
 }
 
-// ScopedMemoryConsumerRegistration ---------------------------------
+// MemoryConsumerRegistration ---------------------------------------
 
-ScopedMemoryConsumerRegistration::ScopedMemoryConsumerRegistration(
+MemoryConsumerRegistration::MemoryConsumerRegistration(
     std::string_view consumer_id,
     MemoryConsumerTraits traits,
-    MemoryConsumer* consumer)
-    : consumer_id_(consumer_id), consumer_(consumer) {
-  MemoryConsumerRegistry::Get().AddMemoryConsumer(consumer_id, traits,
-                                                  consumer_);
+    MemoryConsumer* consumer,
+    CheckUnregister check_unregister)
+    : consumer_id_(consumer_id),
+      consumer_(consumer),
+      check_unregister_(check_unregister),
+      registry_(&MemoryConsumerRegistry::Get()) {
+  registry_->AddDestructionObserver(PassKey(), this);
+  registry_->AddMemoryConsumer(consumer_id, traits, consumer_);
 }
 
-ScopedMemoryConsumerRegistration::~ScopedMemoryConsumerRegistration() {
-  MemoryConsumerRegistry::Get().RemoveMemoryConsumer(consumer_id_, consumer_);
+MemoryConsumerRegistration::~MemoryConsumerRegistration() {
+  if (registry_) {
+    registry_->RemoveMemoryConsumer(consumer_id_, consumer_);
+    registry_->RemoveDestructionObserver(PassKey(), this);
+  }
+}
+
+void MemoryConsumerRegistration::OnBeforeMemoryConsumerRegistryDestroyed() {
+  // If this function is called, this means that the registry is being destroyed
+  // before the unregistration. This is only acceptable if the check is
+  // disabled.
+  CHECK_EQ(check_unregister_, CheckUnregister::kDisabled)
+      << ". The global MemoryConsumerRegistry was destroyed before this "
+         "MemoryConsumerRegistration was destroyed.";
+  registry_->RemoveMemoryConsumer(consumer_id_, consumer_);
+  registry_->RemoveDestructionObserver(PassKey(), this);
+  registry_ = nullptr;
 }
 
 }  // namespace base

@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/extensions/browser_action_drag_data.h"
+#include "chrome/browser/ui/views/extensions/extension_action_platform_delegate_views.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_coordinator.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_view.h"
 #include "chrome/browser/ui/views/extensions/extensions_request_access_button.h"
@@ -285,8 +286,8 @@ void ExtensionsToolbarContainer::UpdateAction(
     const ToolbarActionsModel::ActionId& action_id) {
   ToolbarActionViewController* action = GetActionForId(action_id);
   if (action) {
-    action->UpdateState();
     ToolbarActionView* action_view = GetViewForId(action_id);
+    action_view->UpdateState();
     // Only update hover card if it's currently showing for action, otherwise it
     // would mistakenly show the hover card.
     if (action_hover_card_controller_->IsHoverCardShowingForAction(
@@ -394,8 +395,8 @@ void ExtensionsToolbarContainer::UpdateRequestAccessButton(
 void ExtensionsToolbarContainer::UpdateAllIcons() {
   UpdateControlsVisibility();
 
-  for (const auto& action : actions_) {
-    action->UpdateState();
+  for (const auto& icon : icons_) {
+    icon.second->UpdateState();
   }
 
   if (close_side_panel_button_) {
@@ -700,8 +701,10 @@ void ExtensionsToolbarContainer::ReorderAllChildViews() {
 
 void ExtensionsToolbarContainer::CreateActionForId(
     const ToolbarActionsModel::ActionId& action_id) {
-  actions_.push_back(
-      ExtensionActionViewController::Create(action_id, browser_, this));
+  actions_.push_back(ExtensionActionViewController::Create(
+      action_id, browser_, this,
+      std::make_unique<ExtensionActionPlatformDelegateViews>(browser_.get(),
+                                                             this)));
   auto icon = std::make_unique<ToolbarActionView>(actions_.back().get(), this);
   // Set visibility before adding to prevent extraneous animation.
   icon->SetVisible(ToolbarActionsModel::CanShowActionsInToolbar(*browser_) &&
@@ -1080,6 +1083,22 @@ void ExtensionsToolbarContainer::CollapseConfirmation() {
 
   request_access_button_->ResetConfirmation();
   UpdateControlsVisibility();
+}
+
+void ExtensionsToolbarContainer::ShowContextMenuAsFallback(
+    const extensions::ExtensionId& action_id) {
+  GetViewForId(action_id)->ShowContextMenuAsFallback();
+}
+
+void ExtensionsToolbarContainer::OnPopupShown(
+    const extensions::ExtensionId& action_id,
+    bool by_user) {
+  GetViewForId(action_id)->OnPopupShown(by_user);
+}
+
+void ExtensionsToolbarContainer::OnPopupClosed(
+    const extensions::ExtensionId& action_id) {
+  GetViewForId(action_id)->OnPopupClosed();
 }
 
 void ExtensionsToolbarContainer::OnMouseExited(const ui::MouseEvent& event) {

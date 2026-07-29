@@ -15,6 +15,8 @@
 #import "ios/web/public/lazy_web_state_user_data.h"
 #import "url/gurl.h"
 
+@protocol SnackbarCommands;
+
 namespace web {
 class WebState;
 }
@@ -47,6 +49,12 @@ class DataControlsTabHelper
   // Sets the command handler for Data Controls.
   void SetDataControlsCommandsHandler(id<DataControlsCommands> handler);
 
+  // Sets the snackbar handler.
+  void SetSnackbarHandler(id<SnackbarCommands> snackbar_handler);
+
+  // Called after the clipboard has been read from.
+  void DidFinishClipboardRead();
+
  private:
   friend class web::LazyWebStateUserData<DataControlsTabHelper>;
   explicit DataControlsTabHelper(web::WebState* web_state);
@@ -69,14 +77,24 @@ class DataControlsTabHelper
   // Displays a warning dialog associated with a user's action (e.g., copy,
   // paste, share).
   void ShowWarningDialog(DataControlsDialog::Type dialog_type,
+                         std::string_view org_domain,
                          base::OnceCallback<void(bool)> on_bypassed_callback);
+
+  // Shows a snackbar to inform the user that an action was blocked by policy.
+  void ShowRestrictSnackbar(std::string_view org_domain);
+
+  // Returns the management domain for the given `profile`.
+  std::string GetManagementDomain(ProfileIOS* profile);
 
   // Unowned pointer to the WebState owning `this`. `web_state_` will always
   // outlive `this`.
   raw_ptr<web::WebState> web_state_;
 
-  // The command handler.
+  // The data controller command handler.
   __weak id<DataControlsCommands> commands_handler_ = nil;
+
+  // The snackbar command handler.
+  __weak id<SnackbarCommands> snackbar_handler_ = nil;
 
   base::WeakPtrFactory<DataControlsTabHelper> weak_factory_{this};
 };

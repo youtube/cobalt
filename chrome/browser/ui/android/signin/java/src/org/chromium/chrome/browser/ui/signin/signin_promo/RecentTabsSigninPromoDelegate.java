@@ -67,7 +67,7 @@ public class RecentTabsSigninPromoDelegate extends SigninPromoDelegate {
     }
 
     @Override
-    String getDescription() {
+    String getDescription(@Nullable String accountEmail) {
         return mContext.getString(R.string.signin_promo_description_recent_tabs);
     }
 
@@ -144,6 +144,6 @@ public class RecentTabsSigninPromoDelegate extends SigninPromoDelegate {
             return PromoState.NONE;
         }
         final HistorySyncHelper historySyncHelper = HistorySyncHelper.getForProfile(mProfile);
-        return historySyncHelper.shouldSuppressHistorySync() ? PromoState.NONE : PromoState.SIGNIN;
+        return !historySyncHelper.shouldDisplayHistorySync() ? PromoState.NONE : PromoState.SIGNIN;
     }
 }

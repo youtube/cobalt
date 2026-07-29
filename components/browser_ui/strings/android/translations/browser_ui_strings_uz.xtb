@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Davom etish</translation>
 <translation id="2379925928934107488">Chrome tungi mavzudan foydalansa, saytlarga ham u tatbiq etiladi</translation>
 <translation id="2390272837142897736">Kattalashtirish</translation>
+<translation id="2397689164757137845">Ruxsat berildi • Aniq</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Aniq</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Ruxsat berildi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> va yana <ph name="NUM_MORE" /> ta}other{Ruxsat berildi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> va yana <ph name="NUM_MORE" /> ta}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Yordam/fikr-mulohaza</translation>
 <translation id="2501278716633472235">Ortga qaytish</translation>
 <translation id="2533138527374486328">Yoqilsa, saytlar mahalliy tarmoqdagi istalgan qurilmaga ulanish uchun ruxsat soʻrashi mumkin. Yoqilmasa, saytlar mahalliy tarmoqdagi qurilmalarga ulana olmaydi.</translation>
+<translation id="2536779053640817375">Shu safar ruxsat berildi • Aniq</translation>
 <translation id="2544997614631598250">Mavzu rangi: tungi</translation>
 <translation id="2546283357679194313">Cookie fayllari va sayt ma’lumotlari</translation>
 <translation id="2570922361219980984">Bu qurilmada joylashuv xizmati yoqilmagan, uni <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali yoqing.</translation>
@@ -442,6 +444,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="5876056640971328065">Videoni pauza qilish</translation>
 <translation id="5877248419911025165">Barcha soʻrovlarni yigʻish</translation>
 <translation id="5878945009165002849">Shaxsni tasdiqlash xizmatlariga kirish oynalarini bloklash</translation>
+<translation id="588258955323874662">Butun ekran</translation>
 <translation id="5884085660368669834">Sayt sozlamasi</translation>
 <translation id="5887687176710214216">Oxirgi tashrif: kecha</translation>
 <translation id="5908617755156109052">Saytlarga atrofingiz 3D xaritasini yaratish yoki kamera holatini kuzatish taqiqlansin</translation>
@@ -701,7 +704,6 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="8803526663383843427">Qachon yoqilgan</translation>
 <translation id="8805385115381080995">Saytlar shaxsni tasdiqlashni kamroq soʻraydi va shu sababli brauzerdagi ishdan kamroq chalgʻiysiz</translation>
 <translation id="8816026460808729765">Saytlarga sensorlardan foydalanishni taqiqlash</translation>
-<translation id="884765916894384048">Fonda ijro qilish</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Tashqi cookie fayllarga vaqtincha ruxsat bering, bunda himoya pasayadi, lekin sayt funksiyalari kutilganidek ishlaydi.</translation>
 <translation id="8889294078294184559">Keyin ochiladigan boshqa saytlar brauzerdan bu axborotni soʻrashi mumkin.</translation>

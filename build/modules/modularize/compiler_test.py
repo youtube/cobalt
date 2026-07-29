@@ -4,12 +4,13 @@
 
 import pathlib
 import unittest
-import tempfile
 import textwrap
 
 from compiler import _maybe_cache
 from compiler import Compiler
 from modularize import SOURCE_ROOT
+from platforms import Cpu
+from platforms import Os
 
 
 class TestableCompiler(Compiler):
@@ -19,36 +20,30 @@ class TestableCompiler(Compiler):
   def cached_n(self):
     return self.n
 
-  # Override these to prevent it from invoking GN
-  def _get_os(self):
-    return 'linux'
-
-  def _get_cpu(self):
-    return 'x64'
-
 
 class CompilerTest(unittest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.compiler1 = TestableCompiler(
-        gn_out=pathlib.Path('/tmp/compiler1'),
-        source_root=SOURCE_ROOT,
-        error_dir=None,
-        use_cache=True,
-    )
+    self.compiler1 = TestableCompiler(gn_out=pathlib.Path('/tmp/compiler1'),
+                                      source_root=SOURCE_ROOT,
+                                      error_dir=None,
+                                      use_cache=True,
+                                      os=Os.Linux,
+                                      cpu=Cpu.x64)
     self.compiler1_uncached = TestableCompiler(
         gn_out=pathlib.Path('/tmp/compiler1'),
         source_root=SOURCE_ROOT,
         error_dir=None,
         use_cache=False,
-    )
-    self.compiler2 = TestableCompiler(
-        gn_out=pathlib.Path('/tmp/compiler2'),
-        source_root=SOURCE_ROOT,
-        error_dir=None,
-        use_cache=True,
-    )
+        os=Os.Linux,
+        cpu=Cpu.x64)
+    self.compiler2 = TestableCompiler(gn_out=pathlib.Path('/tmp/compiler2'),
+                                      source_root=SOURCE_ROOT,
+                                      error_dir=None,
+                                      use_cache=True,
+                                      os=Os.Linux,
+                                      cpu=Cpu.x64)
 
   def test_maybe_cache(self):
     # Uncached compilers should write to the cache, but not read from it.
@@ -68,16 +63,18 @@ class CompilerTest(unittest.TestCase):
         self.compiler1._parse_depfile(
             textwrap.dedent("""\
           /dev/null: /tmp/main.cc \\
-            ../up.cc \\
-            path/to/relative.cc \\
-            /path/to/absolute.cc \\
-            path\\ with\\ spaces.cc \\
+            /path/to/foo.txt \\
+            ../up.h \\
+            path/to/relative \\
+            /path/to/absolute.hpp \\
+            path\\ with\\ spaces path2.h \\
           """)),
         [
-            pathlib.Path('/tmp/up.cc'),
-            pathlib.Path('/tmp/compiler1/path/to/relative.cc'),
-            pathlib.Path('/path/to/absolute.cc'),
-            pathlib.Path('/tmp/compiler1/path with spaces.cc'),
+            pathlib.Path('/tmp/up.h'),
+            pathlib.Path('/tmp/compiler1/path/to/relative'),
+            pathlib.Path('/path/to/absolute.hpp'),
+            pathlib.Path('/tmp/compiler1/path with spaces'),
+            pathlib.Path('/tmp/compiler1/path2.h'),
         ],
     )
 

@@ -43,6 +43,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/gfx/geometry/point.h"
+#include "url/url_util.h"
 
 namespace actor {
 
@@ -365,6 +366,23 @@ Actions MakeScriptTool(content::RenderFrameHost& rfh,
   return action;
 }
 
+Actions MakeMediaControl(tabs::TabHandle tab_handle,
+                         MediaControl media_control) {
+  Actions action;
+  auto* media_control_action = action.add_actions()->mutable_media_control();
+  media_control_action->set_tab_id(tab_handle.raw_value());
+
+  if (std::get_if<PlayMedia>(&media_control)) {
+    media_control_action->mutable_play();
+  } else if (std::get_if<PauseMedia>(&media_control)) {
+    media_control_action->mutable_pause();
+  } else if (const auto* seek = std::get_if<SeekMedia>(&media_control)) {
+    media_control_action->mutable_seek()->set_seek_time_microseconds(
+        seek->seek_time_microseconds);
+  }
+  return action;
+}
+
 PageTarget MakeTarget(content::RenderFrameHost& rfh, int content_node_id) {
   std::string document_identifier =
       *DocumentIdentifierUserData::GetDocumentIdentifier(
@@ -541,8 +559,17 @@ void ExpectErrorResult(ActResultFuture& future,
                        mojom::ActionResultCode expected_code) {
   const auto& result = *(future.Get<0>());
   EXPECT_EQ(result.code, expected_code)
-      << "Expected error " << base::to_underlying(expected_code) << ", got "
-      << ToDebugString(result);
+      << "Result is " << ToDebugString(result);
+}
+
+void ExpectErrorResult(PerformActionsFuture& future,
+                       mojom::ActionResultCode expected_code) {
+  const auto& actual_code = future.Get<0>();
+  EXPECT_EQ(actual_code, expected_code);
+}
+
+void PrintTo(const mojom::ActionResultCode& code, std::ostream* os) {
+  *os << base::to_underlying(code);
 }
 
 void SetUpBlocklist(base::CommandLine* command_line,
@@ -573,6 +600,12 @@ void SetUpBlocklist(base::CommandLine* command_line,
 
   command_line->AppendSwitchASCII(
       optimization_guide::switches::kHintsProtoOverride, encoded_config);
+}
+
+std::string EncodeURI(const std::string& component) {
+  url::RawCanonOutputT<char> encoded;
+  url::EncodeURIComponent(component, &encoded);
+  return std::string(encoded.view());
 }
 
 }  // namespace actor

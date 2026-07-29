@@ -157,7 +157,6 @@ typedef NS_ENUM(NSInteger, ItemType) {
   TableViewTextItem* textItem =
       [[TableViewTextItem alloc] initWithType:ItemTypeText];
   textItem.text = @"Simple Text Cell";
-  textItem.textAlignment = NSTextAlignmentCenter;
   textItem.textColor = [UIColor colorNamed:kTextPrimaryColor];
   [model addItem:textItem toSectionWithIdentifier:SectionIdentifierText];
 
@@ -706,14 +705,11 @@ typedef NS_ENUM(NSInteger, ItemType) {
   item.title = @"Chrome | Google Blog";
   item.URL =
       [[CrURL alloc] initWithGURL:GURL("https://blog.google/products/chrome/")];
-  item.supplementalURLText = @"Read 4 days ago";
   [model addItem:item toSectionWithIdentifier:SectionIdentifierURL];
 
   item = [[TableViewURLItem alloc] initWithType:ItemTypeURLWithBadgeImage];
   item.title = @"Photos - Google Photos";
   item.URL = [[CrURL alloc] initWithGURL:GURL("https://photos.google.com/")];
-  item.badgeImage =
-      DefaultSymbolTemplateWithPointSize(kCheckmarkCircleFillSymbol, 13);
   [model addItem:item toSectionWithIdentifier:SectionIdentifierURL];
 
   item =
@@ -748,16 +744,12 @@ typedef NS_ENUM(NSInteger, ItemType) {
   item.URL =
       [[CrURL alloc] initWithGURL:GURL("https://blog.google/products/chrome/")];
   item.metadata = @"176 KB";
-  item.metadataImage = CustomSymbolTemplateWithPointSize(kCloudSlashSymbol, 18);
-  item.metadataImageColor = [UIColor colorNamed:kTextSecondaryColor];
   [model addItem:item toSectionWithIdentifier:SectionIdentifierURL];
 
   item = [[TableViewURLItem alloc] initWithType:ItemTypeURLWithMetadataImage];
   item.title = @"Web Channel with metadata image";
   item.URL =
       [[CrURL alloc] initWithGURL:GURL("https://blog.google/products/chrome/")];
-  item.metadataImage = CustomSymbolTemplateWithPointSize(kCloudSlashSymbol, 18);
-  item.metadataImageColor = [UIColor colorNamed:kTextSecondaryColor];
   [model addItem:item toSectionWithIdentifier:SectionIdentifierURL];
 }
 

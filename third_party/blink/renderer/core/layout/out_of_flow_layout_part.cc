@@ -58,6 +58,8 @@ namespace {
 
 // `margin_box_start`/`margin_box_end` and `imcb_inset_start`/`imcb_inset_end`
 // are relative to the IMCB.
+//
+// Returns true if the margin-box exceeds the IMCB.
 bool CalculateNonOverflowingRangeInOneAxis(
     LayoutUnit margin_box_start,
     LayoutUnit margin_box_end,
@@ -73,14 +75,6 @@ bool CalculateNonOverflowingRangeInOneAxis(
   const LayoutUnit end_available_space = imcb_inset_end - margin_box_end;
 
   if (RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
-    // Check if our margin-box overflows the IMCB.
-    if (start_available_space < LayoutUnit()) {
-      return false;
-    }
-    if (end_available_space < LayoutUnit()) {
-      return false;
-    }
-
     // Determine how far we can scroll in each direction until the margin-box
     // hits the edge of the container.
     //
@@ -99,7 +93,15 @@ bool CalculateNonOverflowingRangeInOneAxis(
       *out_scroll_min = -end_available_space;
     }
 
-    return true;
+    // Check if our margin-box overflows the IMCB.
+    if (start_available_space < LayoutUnit()) {
+      return true;
+    }
+    if (end_available_space < LayoutUnit()) {
+      return true;
+    }
+
+    return false;
   }
 
   if (has_non_auto_inset_start) {
@@ -108,7 +110,7 @@ bool CalculateNonOverflowingRangeInOneAxis(
     // margin box always move by the same amount on scrolling. Then it overflows
     // if and only if it overflows at the initial scroll location.
     if (start_available_space < 0) {
-      return false;
+      return true;
     }
   } else {
     // Otherwise, the start edge of the scroll-adjusted inset-modified
@@ -120,16 +122,16 @@ bool CalculateNonOverflowingRangeInOneAxis(
   // Calculation for the end edge is symmetric.
   if (has_non_auto_inset_end) {
     if (end_available_space < 0) {
-      return false;
+      return true;
     }
   } else {
     *out_scroll_min = -(position_area_end + end_available_space);
   }
   if (*out_scroll_min && *out_scroll_max &&
       out_scroll_min->value() > out_scroll_max->value()) {
-    return false;
+    return true;
   }
-  return true;
+  return false;
 }
 
 // Helper class to enumerate all the candidate styles to be passed to
@@ -145,14 +147,12 @@ class OOFCandidateStyleIterator {
       const LayoutObject& object,
       AnchorEvaluatorImpl& anchor_evaluator,
       WritingDirectionMode container_writing_direction,
-      std::optional<wtf_size_t> last_successful_index,
       const OutOfFlowData::RememberedScrollOffsets* remembered_scroll_offsets)
       : element_(DynamicTo<Element>(object.GetNode())),
         original_style_(object.StyleRef()),
         anchor_evaluator_(anchor_evaluator),
-        container_writing_direction_(container_writing_direction),
-        last_successful_index_(last_successful_index),
-        remembered_scroll_offsets_(remembered_scroll_offsets) {
+        container_writing_direction_(container_writing_direction) {
+    anchor_evaluator_.SetRememberedScrollOffsets(remembered_scroll_offsets);
     Initialize();
   }
 
@@ -177,12 +177,6 @@ class OOFCandidateStyleIterator {
   }
 
   const ComputedStyle& ActivateBaseStyleForTryAttempt() {
-    // If we're activating a base style and we didn't have a last successful
-    // size, that means we can potentially use remembered offsets. on the first
-    // layout, these offsets won't be set anyway, but on subsequent layouts we
-    // need to use them unless there's an anchor recalculation point.
-    UpdateEvaluatorWithScrollOffsets(!last_successful_index_);
-
     if (!HasPositionTryFallbacks()) {
       return GetStyle();
     }
@@ -224,6 +218,7 @@ class OOFCandidateStyleIterator {
 
   void MoveToLastSuccessfulOrStyleWithoutFallbacks() {
     CHECK(element_);
+    anchor_evaluator_.ClearRememberedScrollOffsets();
     std::optional<wtf_size_t> index;
     if (OutOfFlowData* out_of_flow_data = element_->GetOutOfFlowData()) {
       // No successful fallbacks for this pass. Clear out the new successful
@@ -276,6 +271,7 @@ class OOFCandidateStyleIterator {
   }
 
   void Reset() {
+    anchor_evaluator_.ClearRememberedScrollOffsets();
     try_fallback_index_.reset();
     Initialize();
   }
@@ -327,14 +323,6 @@ class OOFCandidateStyleIterator {
     return false;
   }
 
-  void UpdateEvaluatorWithScrollOffsets(bool use_remembered) {
-    if (use_remembered) {
-      anchor_evaluator_.SetRememberedScrollOffsets(remembered_scroll_offsets_);
-    } else {
-      anchor_evaluator_.ClearRememberedScrollOffsets();
-    }
-  }
-
   // Update the style using the specified index into `position_try_fallbacks_`
   // (which must exist), and return that updated style. Returns nullptr if
   // the fallback references a @position-try rule which doesn't exist.
@@ -347,11 +335,6 @@ class OOFCandidateStyleIterator {
 
     try_fallback_index_ = try_fallback_index;
     style_ = nullptr;
-
-    // If we're updating for the last successful index, we have to use the
-    // remembered offsets if they exist.
-    UpdateEvaluatorWithScrollOffsets(last_successful_index_ ==
-                                     try_fallback_index_);
 
     // Previously evaluated anchor is not relevant if another position fallback
     // is applied.
@@ -410,16 +393,6 @@ class OOFCandidateStyleIterator {
   // UpdateStyleAndLayoutTreeForOutOfFlow() in order to resolve logical values
   // for anchored(fallback) container queries.
   WritingDirectionMode container_writing_direction_;
-
-  // Refers to the last successful `position-try-fallbacks` index. If not set,
-  // then potentially last successful attempt was with base styles.
-  std::optional<wtf_size_t> last_successful_index_;
-
-  // Refers to the scroll offsets that were remembered from the last successful
-  // layout (the same as `last_successful_index_`). If not set, then there were
-  // no remembered offsets (e.g. anchor recalculation point has occurred).
-  const OutOfFlowData::RememberedScrollOffsets* remembered_scroll_offsets_ =
-      nullptr;
 };
 
 const Element* GetPositionAnchorElement(
@@ -2337,7 +2310,7 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
   HeapVector<std::optional<wtf_size_t>, kMaxTryAttempts> overflowing_options;
   OOFCandidateStyleIterator iter(
       *node_info.node.GetLayoutBox(), anchor_evaluator,
-      node_info.base_container_info.writing_direction, last_successful_index,
+      node_info.base_container_info.writing_direction,
       oof_data ? oof_data->GetRememberedScrollOffsets() : nullptr);
 
   do {
@@ -2368,8 +2341,8 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
 
       // Also check if it fits the containing block after applying scroll offset
       // (i.e. the scroll-adjusted inset-modified containing block).
-      if (offset_info) {
-        if (try_fit_available_space) {
+      if (try_fit_available_space) {
+        if (offset_info || RuntimeEnabledFeatures::CSSAnchorUpdateEnabled()) {
           non_overflowing_scroll_ranges.push_back(non_overflowing_range);
           if (!non_overflowing_range.Contains(GetAnchorOffset(
                   node_info.node, style, anchor_evaluator.AnchorQuery()))) {
@@ -2385,6 +2358,9 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
             continue;
           }
         }
+      }
+
+      if (offset_info) {
         NonOverflowingCandidate candidate{iter.TryFallbackIndex(),
                                           *offset_info};
         if (find_last_successful_option &&
@@ -2418,7 +2394,8 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
     default_anchor_scroll_shift =
         oof_data->PotentialNextDefaultAnchorScrollShift(
             *node_info.node.GetLayoutBox());
-    if (default_anchor_scroll_shift == last_remembered_scroll_offset) {
+    if (!RuntimeEnabledFeatures::CSSAnchorUpdateEnabled() &&
+        default_anchor_scroll_shift == last_remembered_scroll_offset) {
       // No new scroll offset, and we don't have to try with the same scroll
       // offset twice.
       break;
@@ -2659,33 +2636,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
       alignment, border_padding, replaced_size, container_insets,
       container_writing_direction, &node_dimensions);
 
-  PhysicalToLogicalGetter has_non_auto_inset(
-      candidate_writing_direction, candidate_style,
-      &ComputedStyle::IsTopInsetNonAuto, &ComputedStyle::IsRightInsetNonAuto,
-      &ComputedStyle::IsBottomInsetNonAuto, &ComputedStyle::IsLeftInsetNonAuto);
-
-  // Calculate the inline scroll offset range where the inline dimension fits.
-  std::optional<InsetModifiedContainingBlock> imcb_for_position_fallback;
-  std::optional<LayoutUnit> inline_scroll_min;
-  std::optional<LayoutUnit> inline_scroll_max;
-  if (try_fit_available_space) {
-    imcb_for_position_fallback = ComputeIMCBForPositionFallback(
-        space.AvailableSize(), alignment, insets, static_position,
-        candidate_style, container_writing_direction,
-        candidate_writing_direction);
-    offset_info.imcb_for_position_order = imcb_for_position_fallback;
-    if (!CalculateNonOverflowingRangeInOneAxis(
-            node_dimensions.MarginBoxInlineStart(),
-            node_dimensions.MarginBoxInlineEnd(),
-            imcb_for_position_fallback->inline_start,
-            imcb_for_position_fallback->InlineEndOffset(),
-            container_insets.inline_start, container_insets.inline_end,
-            has_non_auto_inset.InlineStart(), has_non_auto_inset.InlineEnd(),
-            &inline_scroll_min, &inline_scroll_max)) {
-      return std::nullopt;
-    }
-  }
-
   // We may have already pre-computed our block-dimensions when determining
   // our min/max sizes, only run if needed.
   if (node_dimensions.size.block_size == kIndefiniteSize) {
@@ -2695,18 +2645,50 @@ OutOfFlowLayoutPart::TryCalculateOffset(
         container_writing_direction, &node_dimensions);
   }
 
-  // Calculate the block scroll offset range where the block dimension fits.
-  std::optional<LayoutUnit> block_scroll_min;
-  std::optional<LayoutUnit> block_scroll_max;
   if (try_fit_available_space) {
-    if (!CalculateNonOverflowingRangeInOneAxis(
-            node_dimensions.MarginBoxBlockStart(),
-            node_dimensions.MarginBoxBlockEnd(),
-            imcb_for_position_fallback->block_start,
-            imcb_for_position_fallback->BlockEndOffset(),
-            container_insets.block_start, container_insets.block_end,
-            has_non_auto_inset.BlockStart(), has_non_auto_inset.BlockEnd(),
-            &block_scroll_min, &block_scroll_max)) {
+    const PhysicalToLogicalGetter has_non_auto_inset(
+        candidate_writing_direction, candidate_style,
+        &ComputedStyle::IsTopInsetNonAuto, &ComputedStyle::IsRightInsetNonAuto,
+        &ComputedStyle::IsBottomInsetNonAuto,
+        &ComputedStyle::IsLeftInsetNonAuto);
+
+    const InsetModifiedContainingBlock imcb_for_position_fallback =
+        ComputeIMCBForPositionFallback(space.AvailableSize(), alignment, insets,
+                                       static_position, candidate_style,
+                                       container_writing_direction,
+                                       candidate_writing_direction);
+    offset_info.imcb_for_position_order = imcb_for_position_fallback;
+
+    // Determine if the element overflows the IMCB, and calculate the
+    // scroll-range for which it is valid.
+    LogicalScrollRange scroll_range;
+    bool overflows_imcb = CalculateNonOverflowingRangeInOneAxis(
+        node_dimensions.MarginBoxInlineStart(),
+        node_dimensions.MarginBoxInlineEnd(),
+        imcb_for_position_fallback.inline_start,
+        imcb_for_position_fallback.InlineEndOffset(),
+        container_insets.inline_start, container_insets.inline_end,
+        has_non_auto_inset.InlineStart(), has_non_auto_inset.InlineEnd(),
+        &scroll_range.inline_min, &scroll_range.inline_max);
+
+    overflows_imcb |= CalculateNonOverflowingRangeInOneAxis(
+        node_dimensions.MarginBoxBlockStart(),
+        node_dimensions.MarginBoxBlockEnd(),
+        imcb_for_position_fallback.block_start,
+        imcb_for_position_fallback.BlockEndOffset(),
+        container_insets.block_start, container_insets.block_end,
+        has_non_auto_inset.BlockStart(), has_non_auto_inset.BlockEnd(),
+        &scroll_range.block_min, &scroll_range.block_max);
+
+    // Even if we fail to fit in within the IMCB, we need to provide the
+    // scroll-range for which we might need to re-calculate the geometry of the
+    // element as it may fit again at that point.
+    out_non_overflowing_range->containing_block_range =
+        scroll_range.ToPhysical(candidate_writing_direction);
+    out_non_overflowing_range->anchor_element = GetPositionAnchorElement(
+        node_info.node, candidate_style, anchor_evaluator.AnchorQuery());
+
+    if (overflows_imcb) {
       return std::nullopt;
     }
   }
@@ -2743,15 +2725,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   offset_info.insets_for_get_computed_style =
       insets_to_store.ConvertToPhysical(candidate_writing_direction)
           .ConvertToLogical(node_info.default_writing_direction);
-
-  if (try_fit_available_space) {
-    out_non_overflowing_range->containing_block_range =
-        LogicalScrollRange{inline_scroll_min, inline_scroll_max,
-                           block_scroll_min, block_scroll_max}
-            .ToPhysical(candidate_writing_direction);
-    out_non_overflowing_range->anchor_element = GetPositionAnchorElement(
-        node_info.node, candidate_style, anchor_evaluator.AnchorQuery());
-  }
 
   bool anchor_center_x = anchor_center_position.inline_offset.has_value();
   bool anchor_center_y = anchor_center_position.block_offset.has_value();

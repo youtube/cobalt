@@ -1970,16 +1970,17 @@ const CSSValue* BorderTopWidth::CSSValueFromComputedStyleInternal(
 
 namespace {
 
-const CSSValue* ConsumeBasicShapeAndCoordBox(CSSParserTokenStream& stream,
-                                             const CSSParserContext& context) {
+const CSSValue* ConsumeBasicShapeAndGeometryBox(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context) {
   CSSValue* shape = css_parsing_utils::ConsumeBasicShape(stream, context);
   if (!shape) {
     return nullptr;
   }
-  CSSValue* coord_box = css_parsing_utils::ConsumeCoordBox(stream);
-  if (coord_box) {
+  CSSValue* box = css_parsing_utils::ConsumeGeometryBox(stream);
+  if (box) {
     return MakeGarbageCollected<CSSValuePair>(
-        shape, coord_box, CSSValuePair::kKeepIdenticalValues);
+        shape, box, CSSValuePair::kKeepIdenticalValues);
   }
   return shape;
 }
@@ -1995,12 +1996,12 @@ const CSSValue* BorderShape::ParseSingleValue(
     return css_parsing_utils::ConsumeIdent(stream);
   }
 
-  const CSSValue* outer = ConsumeBasicShapeAndCoordBox(stream, context);
+  const CSSValue* outer = ConsumeBasicShapeAndGeometryBox(stream, context);
   if (!outer) {
     return nullptr;
   }
 
-  const CSSValue* inner = ConsumeBasicShapeAndCoordBox(stream, context);
+  const CSSValue* inner = ConsumeBasicShapeAndGeometryBox(stream, context);
   if (!inner || base::ValuesEquivalent(inner, outer)) {
     return outer;
   }
@@ -2020,24 +2021,42 @@ const CSSValue* BorderShape::CSSValueFromComputedStyleInternal(
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
   const StyleBorderShape& border_shape = *style.BorderShape();
+
+  const CSSValue* outer = nullptr;
+  const CSSValue* inner = nullptr;
+
+  // Outer shape and coord box
+  CSSValue* outer_shape = ValueForBasicShape(style, &border_shape.OuterShape());
+  GeometryBox box = border_shape.OuterBox();
+  if (box != GeometryBox::kBorderBox) {
+    CSSValue* outer_box = CSSIdentifierValue::Create(box);
+    outer = MakeGarbageCollected<CSSValuePair>(
+        outer_shape, outer_box, CSSValuePair::kKeepIdenticalValues);
+  } else {
+    outer = outer_shape;
+  }
+
+  // Inner shape and coord box
+  if (border_shape.HasSeparateInnerShape()) {
+    CSSValue* inner_shape =
+        ValueForBasicShape(style, &border_shape.InnerShape());
+    box = border_shape.InnerBox();
+    if (box != GeometryBox::kBorderBox) {
+      CSSValue* inner_box = CSSIdentifierValue::Create(box);
+      inner = MakeGarbageCollected<CSSValuePair>(
+          inner_shape, inner_box, CSSValuePair::kKeepIdenticalValues);
+    } else {
+      inner = inner_shape;
+    }
+  }
+
+  if (!inner || base::ValuesEquivalent(inner, outer)) {
+    return outer;
+  }
+
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  const CSSValue* outer_shape =
-      ValueForBasicShape(style, &border_shape.OuterShape());
-  list->Append(*outer_shape);
-  CoordBox coord_box = border_shape.OuterCoordBox();
-  if (coord_box != CoordBox::kBorderBox) {
-    list->Append(*CSSIdentifierValue::Create(coord_box));
-  }
-  if (!border_shape.HasSeparateInnerShape()) {
-    return list;
-  }
-  const CSSValue* inner_shape =
-      ValueForBasicShape(style, &border_shape.InnerShape());
-  list->Append(*inner_shape);
-  coord_box = border_shape.InnerCoordBox();
-  if (coord_box != CoordBox::kBorderBox) {
-    list->Append(*CSSIdentifierValue::Create(coord_box));
-  }
+  list->Append(*outer);
+  list->Append(*inner);
   return list;
 }
 

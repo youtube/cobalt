@@ -30,10 +30,9 @@
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
-#include "chrome/browser/certificate_provider/certificate_provider.h"
-#include "chrome/browser/certificate_provider/certificate_provider_service.h"
-#include "chrome/browser/certificate_provider/certificate_provider_service_factory.h"
-#include "chrome/browser/certificate_provider/test_certificate_provider_extension.h"
+#include "chrome/browser/ash/certificate_provider/certificate_provider_service.h"
+#include "chrome/browser/ash/certificate_provider/certificate_provider_service_factory.h"
+#include "chrome/browser/ash/certificate_provider/test_certificate_provider_extension.h"
 #include "chrome/browser/extensions/api/certificate_provider/certificate_provider_api.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
@@ -42,6 +41,7 @@
 #include "chrome/browser/ui/views/notifications/request_pin_view_chromeos.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "chromeos/components/certificate_provider/certificate_provider.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_map.h"
@@ -269,8 +269,8 @@ class CertificateProviderApiTest : public extensions::ExtensionApiTest {
 
   std::vector<scoped_refptr<net::X509Certificate>>
   GetAllProvidedCertificates() {
-    std::unique_ptr<chromeos::CertificateProvider> cert_provider =
-        cert_provider_service_->CreateCertificateProvider();
+    std::unique_ptr<chromeos::certificate_provider::CertificateProvider>
+        cert_provider = cert_provider_service_->CreateCertificateProvider();
 
     base::test::TestFuture<net::ClientCertIdentityList> get_certificates_future;
     cert_provider->GetCertificates(get_certificates_future.GetCallback());

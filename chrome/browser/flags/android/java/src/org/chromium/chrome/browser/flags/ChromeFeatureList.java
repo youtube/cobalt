@@ -452,6 +452,7 @@ public abstract class ChromeFeatureList {
     public static final String HISTORY_PANE_ANDROID = "HistoryPaneAndroid";
     public static final String HOMEPAGE_IS_NEW_TAB_PAGE_POLICY_ANDROID =
             "HomepageIsNewTabPagePolicyAndroid";
+    public static final String HOME_MODULE_PREF_REFACTOR = "HomeModulePrefRefactor";
     public static final String HTTPS_FIRST_BALANCED_MODE = "HttpsFirstBalancedMode";
     public static final String HUB_BACK_BUTTON = "HubBackButton";
     public static final String HUB_SLIDE_ANIMATION = "HubSlideAnimation";
@@ -465,6 +466,7 @@ public abstract class ChromeFeatureList {
     public static final String LENS_ON_QUICK_ACTION_SEARCH_WIDGET = "LensOnQuickActionSearchWidget";
     public static final String LOADING_PREDICTOR_LIMIT_PRECONNECT_SOCKET_COUNT =
             "LoadingPredictorLimitPreconnectSocketCount";
+    public static final String LOAD_ALL_TABS_AT_STARTUP = "LoadAllTabsAtStartup";
     public static final String LOAD_NATIVE_EARLY = "LoadNativeEarly";
     public static final String LOCAL_NETWORK_ACCESS = "LocalNetworkAccessChecks";
     public static final String LOCK_BACK_PRESS_HANDLER_AT_START = "LockBackPressHandlerAtStart";
@@ -499,6 +501,8 @@ public abstract class ChromeFeatureList {
     public static final String NOTIFICATION_PERMISSION_VARIANT = "NotificationPermissionVariant";
     public static final String NOTIFICATION_TRAMPOLINE = "NotificationTrampoline";
     public static final String OMAHA_MIN_SDK_VERSION_ANDROID = "OmahaMinSdkVersionAndroid";
+    public static final String OMNIBOX_AUTOFOCUS_ON_INCOGNITO_NTP =
+            "OmniboxAutofocusOnIncognitoNtp";
     public static final String OMNIBOX_CACHE_SUGGESTION_RESOURCES =
             "OmniboxCacheSuggestionResources";
     public static final String OPTIMIZATION_GUIDE_PUSH_NOTIFICATIONS =
@@ -630,6 +634,7 @@ public abstract class ChromeFeatureList {
             "SplitCacheByNetworkIsolationKey";
     public static final String START_SURFACE_RETURN_TIME = "StartSurfaceReturnTime";
     public static final String STOP_APP_INDEXING_REPORT = "StopAppIndexingReport";
+    public static final String SUBMENUS_IN_APP_MENU = "SubmenusInAppMenu";
     public static final String SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP =
             "SubmenusTabContextMenuLffTabStrip";
     public static final String SUGGESTION_ANSWERS_COLOR_REVERSE = "SuggestionAnswersColorReverse";
@@ -657,8 +662,6 @@ public abstract class ChromeFeatureList {
     public static final String TAB_STRIP_LAYOUT_OPTIMIZATION = "TabStripLayoutOptimization";
     public static final String TAB_STRIP_MOUSE_CLOSE_RESIZE_DELAY = "TabStripMouseCloseResizeDelay";
     public static final String TAB_SWITCHER_DRAG_DROP_ANDROID = "TabSwitcherDragDropAndroid";
-    public static final String TAB_SWITCHER_FOREIGN_FAVICON_SUPPORT =
-            "TabSwitcherForeignFaviconSupport";
     public static final String TAB_SWITCHER_GROUP_SUGGESTIONS_ANDROID =
             "TabSwitcherGroupSuggestionsAndroid";
     public static final String TAB_SWITCHER_GROUP_SUGGESTIONS_TEST_MODE_ANDROID =
@@ -697,6 +700,7 @@ public abstract class ChromeFeatureList {
             "UseInitialNetworkStateAtStartup";
     public static final String USE_LIBUNWINDSTACK_NATIVE_UNWINDER_ANDROID =
             "UseLibunwindstackNativeUnwinderAndroid";
+    public static final String VERIFY_QWACS = "VerifyQWACs";
     public static final String VISITED_URL_RANKING_SERVICE = "VisitedURLRankingService";
     public static final String WEB_APK_BACKUP_AND_RESTORE_BACKEND = "WebApkBackupAndRestoreBackend";
     public static final String WEB_APK_INSTALL_FAILURE_NOTIFICATION =
@@ -942,6 +946,11 @@ public abstract class ChromeFeatureList {
                     LEGACY_TAB_STATE_DEPRECATION,
                     /* defaultValue= */ true,
                     /* defaultValueInTests= */ true);
+    public static final CachedFlag sLoadAllTabsAtStartup =
+            newCachedFlag(
+                    LOAD_ALL_TABS_AT_STARTUP,
+                    /* defaultValue= */ false,
+                    /* defaultValueInTests= */ false);
     public static final CachedFlag sLoadNativeEarly =
             newCachedFlag(
                     LOAD_NATIVE_EARLY, /* defaultValue= */ false, /* defaultValueInTests= */ true);
@@ -958,7 +967,7 @@ public abstract class ChromeFeatureList {
                     /* defaultValueInTests= */ true);
     public static final CachedFlag sMiniOriginBar = newCachedFlag(MINI_ORIGIN_BAR, true, true);
     public static final CachedFlag sMitigateLegacySearchEnginePromoOverlap =
-            newCachedFlag(MITIGATE_LEGACY_SEARCH_ENGINE_PROMO_OVERLAP, false, true);
+            newCachedFlag(MITIGATE_LEGACY_SEARCH_ENGINE_PROMO_OVERLAP, true, true);
     public static final CachedFlag sMostVisitedTilesCustomization =
             newCachedFlag(
                     MOST_VISITED_TILES_CUSTOMIZATION,
@@ -1036,7 +1045,7 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sTabModelInitFixes =
             newCachedFlag(
                     TAB_MODEL_INIT_FIXES,
-                    /* defaultValue= */ false,
+                    /* defaultValue= */ true,
                     /* defaultValueInTests= */ true);
     public static final CachedFlag sTabStorageSqlitePrototype =
             newCachedFlag(TAB_STORAGE_SQLITE_PROTOTYPE, false);
@@ -1193,6 +1202,7 @@ public abstract class ChromeFeatureList {
                     sIncognitoThemeOverlayTesting,
                     sKeyboardEscBackNavigation,
                     sLegacyTabStateDeprecation,
+                    sLoadAllTabsAtStartup,
                     sLoadNativeEarly,
                     sLockBackPressHandlerAtStart,
                     sLockTopControlsOnLargeTabletsV2,
@@ -1338,6 +1348,8 @@ public abstract class ChromeFeatureList {
             newMutableFlagWithSafeDefault(MEDIA_INDICATORS_ANDROID, false);
     public static final MutableFlagWithSafeDefault sNoVisibleHintForDifferentTLD =
             newMutableFlagWithSafeDefault(ANDROID_NO_VISIBLE_HINT_FOR_DIFFERENT_TLD, true);
+    public static final MutableFlagWithSafeDefault sOmniboxAutofocusOnIncognitoNtp =
+            newMutableFlagWithSafeDefault(OMNIBOX_AUTOFOCUS_ON_INCOGNITO_NTP, false);
     public static final MutableFlagWithSafeDefault sQuickDeleteAndroidSurvey =
             newMutableFlagWithSafeDefault(QUICK_DELETE_ANDROID_SURVEY, false);
     public static final MutableFlagWithSafeDefault sReadAloudTapToSeek =
@@ -1370,8 +1382,6 @@ public abstract class ChromeFeatureList {
             newMutableFlagWithSafeDefault(TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID, true);
     public static final MutableFlagWithSafeDefault sTabStripLayoutOptimization =
             newMutableFlagWithSafeDefault(TAB_STRIP_LAYOUT_OPTIMIZATION, true);
-    public static final MutableFlagWithSafeDefault sTabSwitcherForeignFaviconSupport =
-            newMutableFlagWithSafeDefault(TAB_SWITCHER_FOREIGN_FAVICON_SUPPORT, true);
     public static final MutableFlagWithSafeDefault sTabSwitcherGroupSuggestionsAndroid =
             newMutableFlagWithSafeDefault(TAB_SWITCHER_GROUP_SUGGESTIONS_ANDROID, false);
     public static final MutableFlagWithSafeDefault sTabSwitcherGroupSuggestionsTestModeAndroid =
@@ -1388,8 +1398,6 @@ public abstract class ChromeFeatureList {
     public static final BooleanCachedFeatureParam sAndroidThemeResourceProviderForceLight =
             newBooleanCachedFeatureParam(
                     ANDROID_THEME_RESOURCE_PROVIDER, "force_light_theme", false);
-    public static final BooleanCachedFeatureParam sCctAdaptiveButtonEnableOpenInBrowser =
-            newBooleanCachedFeatureParam(CCT_ADAPTIVE_BUTTON, "open_in_browser", false);
     public static final BooleanCachedFeatureParam sCctAdaptiveButtonEnableVoice =
             newBooleanCachedFeatureParam(CCT_ADAPTIVE_BUTTON, "voice", false);
     public static final BooleanCachedFeatureParam sCctAdaptiveButtonContextualOnly =
@@ -1677,7 +1685,7 @@ public abstract class ChromeFeatureList {
             newIntCachedFeatureParam(
                     READALOUD_AUDIO_OVERVIEWS,
                     "read_aloud_audio_overviews_speed_addition_percentage",
-                    20);
+                    10);
 
     public static final IntCachedFeatureParam sReadAloudReadabilityDelayMsAfterPageLoad =
             newIntCachedFeatureParam(
@@ -1689,7 +1697,7 @@ public abstract class ChromeFeatureList {
             newBooleanCachedFeatureParam(
               READALOUD_AUDIO_OVERVIEWS,
               "read_aloud_audio_overviews_should_consider_language_in_overview_readability",
-              false
+              true
             );
 
     /** Controls whether Referrer App ID is passed to Search Results Page via client= param. */
@@ -1767,7 +1775,6 @@ public abstract class ChromeFeatureList {
                     sBatchTabRestoreBatchSize,
                     sCctAdaptiveButtonContextualOnly,
                     sCctAdaptiveButtonDefaultVariant,
-                    sCctAdaptiveButtonEnableOpenInBrowser,
                     sCctAdaptiveButtonEnableVoice,
                     sCctAuthTabEnableHttpsRedirectsVerificationTimeoutMs,
                     sCctAutoTranslateAllowAllFirstParties,
@@ -1843,6 +1850,19 @@ public abstract class ChromeFeatureList {
             sDisableInstanceLimit.newIntParam("max_instance_limit_memory_threshold_mb", 6500);
     public static final MutableIntParamWithSafeDefault sDisableInstanceLimitMaxCount =
             sDisableInstanceLimit.newIntParam("max_instance_limit", 20);
+
+    public static final MutableBooleanParamWithSafeDefault
+            sOmniboxAutofocusOnIncognitoNtpNotFirstTab =
+                    sOmniboxAutofocusOnIncognitoNtp.newBooleanParam("not_first_tab", false);
+
+    public static final MutableBooleanParamWithSafeDefault
+            sOmniboxAutofocusOnIncognitoNtpWithHardwareKeyboard =
+                    sOmniboxAutofocusOnIncognitoNtp.newBooleanParam(
+                            "with_hardware_keyboard", false);
+
+    public static final MutableBooleanParamWithSafeDefault
+            sOmniboxAutofocusOnIncognitoNtpWithPrediction =
+                    sOmniboxAutofocusOnIncognitoNtp.newBooleanParam("with_prediction", false);
 
     public static final MutableBooleanParamWithSafeDefault sAndroidTabDeclutterAutoDeletePromoTest =
             sAndroidTabDeclutterAutoDelete.newBooleanParam(

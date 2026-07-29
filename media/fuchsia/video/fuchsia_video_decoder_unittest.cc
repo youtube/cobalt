@@ -108,11 +108,6 @@ class TestRasterContextProvider
     ADD_FAILURE();
     return nullptr;
   }
-  unsigned int GetGrGLTextureFormat(
-      viz::SharedImageFormat format) const override {
-    ADD_FAILURE();
-    return 0;
-  }
 
  private:
   friend class base::RefCountedThreadSafe<TestRasterContextProvider>;
@@ -207,7 +202,7 @@ class FakeClientNativePixmapFactory : public gfx::ClientNativePixmapFactory {
   std::unique_ptr<gfx::ClientNativePixmap> ImportFromHandle(
       gfx::NativePixmapHandle handle,
       const gfx::Size& size,
-      gfx::BufferFormat format,
+      viz::SharedImageFormat format,
       gfx::BufferUsage usage) override {
     return std::make_unique<FakeClientNativePixmap>(std::move(handle));
   }

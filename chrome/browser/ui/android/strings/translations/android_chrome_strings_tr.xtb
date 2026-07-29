@@ -109,7 +109,6 @@ Veri kullanarak Chrome deneyiminizi iyileştiren daha fazla ayar görmek için <
 <translation id="1419753403124156396">Chrome yeniden başlatılsın mı?</translation>
 <translation id="1428770807407000502">Senkronizasyon kapatılsın mı?</translation>
 <translation id="1430915738399379752">Yazdır</translation>
-<translation id="1433478348197382180">Okuma Modu</translation>
 <translation id="1435593198351412143">PDF'leri otomatik olarak aç</translation>
 <translation id="1437543266176261764"><ph name="APP_NAME" /> uygulamasında çalışıyor</translation>
 <translation id="1448440926884431741">Takip edilen ürünlerinizi yer işaretlerinde düzenleyin</translation>
@@ -270,6 +269,7 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2249635629516220541">Sitelerin size reklam göstermek için kullandığı bilgileri özelleştirin</translation>
 <translation id="2251809247798634662">Yeni Gizli pencere</translation>
 <translation id="2253927598983295051"><ph name="APP_NAME" /> ile neyin paylaşılacağını seçin</translation>
+<translation id="2261570557291037252">Uygulama hakkında daha fazla bilgi</translation>
 <translation id="2276696007612801991">Şifrelerinizi kontrol etmek için Google hesabınızda oturum açın</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, Seçili gizli sekme</translation>
 <translation id="2286841657746966508">Fatura adresi</translation>
@@ -369,7 +369,6 @@ Sadece parolanıza sahip olan kişiler şifrelenmiş verilerinizi okuyabilir. Pa
 <translation id="2718352093833049315">Kablosuz ağ varken</translation>
 <translation id="2718846868787000099">Siteler, tercih ettiğiniz dillerde içerik göstermek için tercihlerinizi görebilir</translation>
 <translation id="2723001399770238859">ses</translation>
-<translation id="2734335652257251631">Okuma Modu'nu Göster</translation>
 <translation id="2739887572830526131">Daha sonra sekme eklemek için bu grubu tutun ya da artık ihtiyacınız yoksa silin.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> şu anda kullanılamıyor.</translation>
 <translation id="2760805590727089264">AA / YY</translation>
@@ -1011,7 +1010,6 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="569536719314091526">Diğer seçenekler düğmesini kullanarak bu sayfayı istediğiniz dile çevirin</translation>
 <translation id="5696597120588531049">Chrome; veri ihlallerine, güvenli olmayan web sitelerine ve diğer tehditlere karşı güvende kalmanıza yardımcı olabilir</translation>
 <translation id="5698878456427040674">Seçilen hesabın desteklenip desteklenmediğini kontrol edin.</translation>
-<translation id="570347048394355941">Sekmeye Geç</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> bir seri bağlantı noktasına bağlanmak istiyor</translation>
 <translation id="5715150588940290235">Kayıtlı güvenlik kodları silinsin mi?</translation>
 <translation id="571930967925877633">Yer işaretleri, geçmiş ve diğer Chrome verileriniz artık Google Hesabınız ile senkronize edilmeyecek.</translation>
@@ -1139,6 +1137,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="6232535412751077445">"Do Not Track" seçeneği etkinleştirildiğinde, göz atma trafiğinize bir istek eklenir. Her türlü etki, bir web sitesinin isteğe cevap verip vermemesine ve isteğin nasıl yorumlandığına bağlıdır.
 
 Örneğin bazı web siteleri bu isteği size daha önce gezdiğiniz web sitelerine dayalı olmayan reklamları göstererek yanıtlayabilir. Birçok web sitesi (örneğin güvenliği iyileştirmek; içerik, reklam, öneri sağlamak ve raporlama istatistikleri oluşturmak gibi amaçlarla) göz atma verilerinizi toplayıp kullanmayı sürdürecektir.</translation>
+<translation id="623755660902014047">Okuma Modu</translation>
 <translation id="6247557882553405851">Google Şifre Yöneticisi</translation>
 <translation id="6248988683584659830">Ayarlarda arayın</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, Birden Çok Seçili Sabit Gizli Sekme</translation>
@@ -1300,6 +1299,7 @@ Diğer Google hizmetlerinden yapılan aramalar ve etkinlikler gibi Google hesab�
 <translation id="6865313869410766144">Form otomatik doldurma verileri</translation>
 <translation id="6867400383614725881">Yeni gizli sekme</translation>
 <translation id="686899695320434745">Adresler parolanızla şifrelenmez. Bu sayede, adreslerinizi diğer Google hizmetlerinde kullanabilirsiniz.</translation>
+<translation id="6870625088374152862"><ph name="USER_EMAIL_ADDRESS" /> olarak oturum açıldı</translation>
 <translation id="687838958001010630">Bağlantıya sahip olan herkes tüm sekmeleri düzenleyebilir</translation>
 <translation id="6880903702195291049">İzinlerde bir sorun görünmüyor</translation>
 <translation id="6883204995689174413">Paylaş</translation>
@@ -1396,7 +1396,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="7221869452894271364">Bu sayfayı yeniden yükle</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 indirme işlemi beklemede}other{# indirme işlemi beklemede}}</translation>
 <translation id="7230064152164845085">Gizli moda geçin</translation>
-<translation id="7230836263524391273">Okuma Modu'nu gizle</translation>
 <translation id="7237724030342645845">Google Şifre Yöneticisi çalışmayı durdurdu</translation>
 <translation id="72415438529550637">Şifre önerisi kapatıldı.</translation>
 <translation id="7248671827512403053">Uygulama</translation>
@@ -1731,7 +1730,6 @@ Bu ayarı değiştirmek için <ph name="BEGIN_LINK" />hesabınızdaki Chrome ver
 <translation id="867914734596684889">Yer işaretleri çubuğunu göster veya gizle</translation>
 <translation id="8683039184091909753">resim</translation>
 <translation id="8688183792442786085"><ph name="TAB_TITLE" />, Seçili sekme</translation>
-<translation id="8693232767599693749">Okuma Modu görüntülensin mi?</translation>
 <translation id="8697753151306746444">Bunun yerine pencere veya ekran paylaşın</translation>
 <translation id="8699120352855309748">Şu dilleri çevirmeyi önerme</translation>
 <translation id="8712637175834984815">Anladım</translation>

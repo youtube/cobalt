@@ -5,13 +5,12 @@
 import pathlib
 import typing
 
-from compiler import Cpu
-from compiler import Os
 from graph import all_headers
 from graph import calculate_rdeps
 from graph import Header
 from graph import IncludeDir
 from graph import Target
+from platforms import Os
 
 if typing.TYPE_CHECKING:
   # To fix circular dependency.
@@ -44,6 +43,7 @@ SYSROOT_DIRS = {
 SYSROOT_PRECOMPILED_HEADERS = [
     'fcntl.h',
     'getopt.h',
+    'linux/types.h',
     'sys/ioctl.h',
     'syscall.h',
 ]
@@ -55,7 +55,7 @@ def fix_graph(graph: dict[str, Header],
 
   def force_textual(key: str):
     if key in graph:
-      graph[key].textual = value
+      graph[key].textual = True
 
   def add_dep(frm, to, check=True):
     if check:
@@ -161,6 +161,9 @@ def fix_graph(graph: dict[str, Header],
     # Thus, limits.h exports an undef.
     # if it's textual, limits.h undefs something it defined itself.
     graph['linux/limits.h'].textual = True
+
+    # This is not included on arm32
+    graph['asm-generic/types.h'].textual = True
 
     # On chromeos, x86_64-linux-gnu/foo.h will be either moved to foo.h or to
     # x86_64-cros-gnu.

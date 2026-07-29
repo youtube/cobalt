@@ -165,6 +165,12 @@ bool IsPersistTabContextEnabled() {
   return base::FeatureList::IsEnabled(kPersistTabContext);
 }
 
+BASE_FEATURE(kCleanupPersistedTabContexts, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsCleanupPersistedTabContextsEnabled() {
+  return base::FeatureList::IsEnabled(kCleanupPersistedTabContexts);
+}
+
 // The default Time-To-Live in days for persisted contexts.
 constexpr int kPersistTabContextDefaultTTL = 21;
 
@@ -189,4 +195,34 @@ bool IsGeminiNavigationPromoEnabled() {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiNavigationPromo);
+}
+
+BASE_FEATURE(kZeroStateSuggestions, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsZeroStateSuggestionsEnabled() {
+  return base::FeatureList::IsEnabled(kZeroStateSuggestions);
+}
+
+BASE_FEATURE(kGeminiFullChatHistory, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiFullChatHistoryEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiFullChatHistory);
+}
+
+BASE_FEATURE(kGeminiLoadingStateRedesign, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiLoadingStateRedesignEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiLoadingStateRedesign);
+}
+
+BASE_FEATURE(kGeminiLatencyImprovement, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiLatencyImprovementEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiLatencyImprovement);
+}
+
+BASE_FEATURE(kGeminiOnboardingCards, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiOnboardingCardsEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiOnboardingCards);
 }

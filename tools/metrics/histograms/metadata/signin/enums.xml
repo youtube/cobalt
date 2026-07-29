@@ -763,6 +763,9 @@ chromium-metrics-reviews@google.com.
   <int value="68" label="Devtools Aida Client"/>
   <int value="69" label="Babel Orca"/>
   <int value="70" label="Boca School Tools Auth"/>
+  <int value="71" label="Shared Data Preview"/>
+  <int value="72" label="Access Code Cast Discovery"/>
+  <int value="73" label="Auth Service (Drive Api)"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/identity_manager/oauth_consumer_ids.h:OAuthConsumerId) -->
@@ -1400,20 +1403,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/MismatchNotificationController.java:SuppressedReason) -->
-
-<enum name="SyncButtonClicked">
-  <int value="0" label="Equal weighted sync opt-in button clicked"/>
-  <int value="1" label="Equal weighted sync cancel button clicked"/>
-  <int value="2" label="Equal weighted sync settings button clicked"/>
-  <int value="3" label="Not-Equal weighted sync opt-in button clicked"/>
-  <int value="4" label="Not-Equal weighted sync cancel button clicked"/>
-  <int value="5" label="Not-Equal weighted sync settings button clicked"/>
-  <int value="6" label="Equal weighted history sync opt-in button clicked"/>
-  <int value="7" label="Equal weighted history sync cancel button clicked"/>
-  <int value="8" label="Not-Equal weighted history sync opt-in button clicked"/>
-  <int value="9" label="Not-Equal weighted history sync cancel button clicked"/>
-  <int value="10" label="Unknown weighted sync settings button clicked"/>
-</enum>
 
 <enum name="SyncButtonsType">
   <int value="0" label="Equal weighted buttons on sync screen (deprecated)"/>

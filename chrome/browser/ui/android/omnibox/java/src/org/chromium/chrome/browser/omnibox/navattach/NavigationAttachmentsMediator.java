@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.omnibox.navattach;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
@@ -22,6 +24,7 @@ import android.provider.MediaStore;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 
 import org.chromium.base.Callback;
@@ -38,6 +41,8 @@ import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.MVCListAdapter;
@@ -51,7 +56,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Supplier;
 
 /** Mediator for the Navigation Attachments component. */
 @NullMarked
@@ -64,11 +68,11 @@ class NavigationAttachmentsMediator {
     private final PropertyModel mModel;
     private final NavigationAttachmentsPopup mPopup;
     private final ModelList mModelList;
-    private final Supplier<TabModelSelector> mTabModelSelectorSupplier;
+    private final ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private final ModelList mTabAttachmentsModelList;
     private final Drawable mFallbackDrawable;
-    private final ObservableSupplierImpl<@NavigationFulfillmentType Integer>
-            mNavigationFulfillmentTypeSupplier;
+    private final ObservableSupplierImpl<@AutocompleteRequestType Integer>
+            mAutocompleteRequestTypeSupplier;
     private @Nullable ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
     private boolean mAiModeSessionActive;
 
@@ -79,9 +83,9 @@ class NavigationAttachmentsMediator {
             NavigationAttachmentsViewHolder viewHolder,
             ModelList modelList,
             ObservableSupplier<Profile> profileObservableSupplier,
-            ObservableSupplierImpl<@NavigationFulfillmentType Integer>
-                    navigationFulfillmentTypeSupplier,
-            Supplier<TabModelSelector> tabModelSelectorSupplier,
+            ObservableSupplierImpl<@AutocompleteRequestType Integer>
+                    autocompleteRequestTypeSupplier,
+            ObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             ModelList tabAttachmentsModelList) {
         mContext = context;
         mWindowAndroid = windowAndroid;
@@ -93,7 +97,7 @@ class NavigationAttachmentsMediator {
         mTabAttachmentsModelList = tabAttachmentsModelList;
         mFallbackDrawable =
                 AppCompatResources.getDrawable(mContext, R.drawable.ic_attach_file_24dp);
-        mNavigationFulfillmentTypeSupplier = navigationFulfillmentTypeSupplier;
+        mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
 
         mModel.set(
                 NavigationAttachmentsProperties.BUTTON_ADD_CLICKED, this::onToggleAttachmentsPopup);
@@ -130,8 +134,8 @@ class NavigationAttachmentsMediator {
         if (mAiModeSessionActive == enabled) return;
 
         mAiModeSessionActive = enabled;
-        mNavigationFulfillmentTypeSupplier.set(
-                enabled ? NavigationFulfillmentType.AI_MODE : NavigationFulfillmentType.DEFAULT);
+        mAutocompleteRequestTypeSupplier.set(
+                enabled ? AutocompleteRequestType.AI_MODE : AutocompleteRequestType.SEARCH);
         mModel.set(NavigationAttachmentsProperties.AI_MODE_ENABLED, enabled);
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, enabled);
         if (enabled) {
@@ -167,11 +171,11 @@ class NavigationAttachmentsMediator {
     }
 
     /**
-     * @return An {@link ObservableSupplier} that notifies observers when the navigation fulfillment
+     * @return An {@link ObservableSupplier} that notifies observers when the autocomplete request
      *     type changes.
      */
-    ObservableSupplier<@NavigationFulfillmentType Integer> getNavigationFulfillmentTypeSupplier() {
-        return mNavigationFulfillmentTypeSupplier;
+    ObservableSupplier<@AutocompleteRequestType Integer> getAutocompleteRequestTypeSupplier() {
+        return mAutocompleteRequestTypeSupplier;
     }
 
     /**
@@ -198,12 +202,30 @@ class NavigationAttachmentsMediator {
     }
 
     private void buildModelListForRecentTabs() {
-        if (mTabModelSelectorSupplier.get() == null) return;
         mTabAttachmentsModelList.clear();
+        if (mTabModelSelectorSupplier.get() == null) {
+            mModel.set(NavigationAttachmentsProperties.RECENT_TABS_HEADER_VISIBLE, false);
+            return;
+        }
+
         TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
+        assumeNonNull(tabModelSelector);
+        Iterable<Tab> filteredTabs =
+                Iterables.filter(
+                        tabModelSelector.getCurrentModel(),
+                        (tab) ->
+                                !tab.isIncognitoBranded()
+                                        && tab.isInitialized()
+                                        && !tab.isFrozen()
+                                        && (tab.getUrl()
+                                                        .getScheme()
+                                                        .equals(UrlConstants.HTTP_SCHEME)
+                                                || tab.getUrl()
+                                                        .getScheme()
+                                                        .equals(UrlConstants.HTTPS_SCHEME)));
         List<Tab> tabs =
                 Ordering.from(Comparator.comparingLong(Tab::getTimestampMillis))
-                        .greatestOf(tabModelSelector.getCurrentModel(), MAX_RECENT_TABS_TO_PRESENT);
+                        .greatestOf(filteredTabs, MAX_RECENT_TABS_TO_PRESENT);
         for (Tab tab : tabs) {
             PropertyModel tabProperties =
                     new PropertyModel.Builder(TabAttachmentPopupChoiceProperties.ALL_KEYS)
@@ -220,6 +242,9 @@ class NavigationAttachmentsMediator {
                             tabProperties);
             mTabAttachmentsModelList.add(listItem);
         }
+        mModel.set(
+                NavigationAttachmentsProperties.RECENT_TABS_HEADER_VISIBLE,
+                !mTabAttachmentsModelList.isEmpty());
     }
 
     @VisibleForTesting

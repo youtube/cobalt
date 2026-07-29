@@ -11,10 +11,10 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "components/bookmarks/browser/bookmark_node.h"
+#import "ios/chrome/browser/bookmarks/folder_chooser/coordinator/bookmarks_folder_chooser_coordinator.h"
+#import "ios/chrome/browser/bookmarks/folder_chooser/coordinator/bookmarks_folder_chooser_coordinator_delegate.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_navigation_controller.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/folder_chooser/bookmarks_folder_chooser_coordinator.h"
-#import "ios/chrome/browser/bookmarks/ui_bundled/folder_chooser/bookmarks_folder_chooser_coordinator_delegate.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/folder_editor/bookmarks_folder_editor_view_controller.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -164,7 +164,11 @@
                                            (const std::set<
                                                const bookmarks::BookmarkNode*>&)
                                                hiddenNodes {
-  DCHECK(!_folderChooserCoordinator);
+  if (_folderChooserCoordinator) {
+    // This can occur if the user tap on the button while the previous folder
+    // chooser is being dismissed.
+    return;
+  }
   _folderChooserCoordinator = [[BookmarksFolderChooserCoordinator alloc]
       initWithBaseNavigationController:(_baseNavigationController
                                             ? _baseNavigationController

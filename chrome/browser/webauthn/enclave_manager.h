@@ -111,6 +111,20 @@ class EnclaveManager : public EnclaveManagerInterface {
     // OnKeyStores is called when MagicArch provides keys to the EnclaveManager
     // by calling `StoreKeys`.
     virtual void OnKeysStored() = 0;
+
+    // `OnStateUpdated` is called from `EnclaveManager::Stopped()` - indicating
+    // that the state machine reached its final state (so the state of the
+    // enclave manager might be updated now, e.g. it might become ready).
+    virtual void OnStateUpdated() = 0;
+  };
+
+  // An enum that expresses whether a GPM PIN is set on an account.
+  enum class GpmPinAvailability {
+    // The PIN is set. It doesn't mean it's usable because it could have been
+    // entered incorrectly too many times.
+    kGpmPinSet,
+    // The PIN is unset.
+    kGpmPinUnset,
   };
 
   struct UVKeyOptions {
@@ -316,6 +330,9 @@ class EnclaveManager : public EnclaveManagerInterface {
   };
   UvKeyState uv_key_state(bool platform_has_biometrics) const;
 
+  void CheckGpmPinAvailability(
+      base::OnceCallback<void(GpmPinAvailability)> callback);
+
   // Checks whether UserVerifyingKeyCreationCallback() is available to be
   // called, returning true if not. There should only be one key creation
   // callback in existence at any one time, or else one could overwrite a
@@ -474,6 +491,12 @@ class EnclaveManager : public EnclaveManagerInterface {
   // Called when the OSCrypt encryptor is available.
   void OnOsCryptReady(os_crypt_async::Encryptor encryptor);
 
+  // Called when the result of checking the GPM PIN availability is received.
+  void OnCheckGpmPinAvailabilityResult(
+      base::OnceCallback<void(GpmPinAvailability)> callback,
+      trusted_vault::DownloadAuthenticationFactorsRegistrationStateResult
+          result);
+
   const base::FilePath file_path_;
   const raw_ptr<signin::IdentityManager> identity_manager_;
   device::NetworkContextFactory network_context_factory_;
@@ -527,6 +550,9 @@ class EnclaveManager : public EnclaveManagerInterface {
   base::ObserverList<Observer> observer_list_;
 
   std::optional<os_crypt_async::Encryptor> encryptor_;
+
+  std::unique_ptr<trusted_vault::TrustedVaultConnection::Request>
+      download_account_state_request_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

@@ -17,6 +17,7 @@
 #import "ios/chrome/browser/web/model/choose_file/choose_file_event.h"
 #import "ios/chrome/browser/web/model/choose_file/choose_file_file_utils.h"
 #import "ios/web/public/navigation/navigation_context.h"
+#import "ios/web/public/web_state.h"
 
 ChooseFileTabHelper::ChooseFileTabHelper(web::WebState* web_state)
     : file_urls_ready_for_selection_([NSMutableDictionary dictionary]) {
@@ -29,6 +30,11 @@ void ChooseFileTabHelper::StartChoosingFiles(
     std::unique_ptr<ChooseFileController> controller) {
   CHECK(controller);
   controller_ = std::move(controller);
+  controller_->SetDelegate(this);
+}
+
+ChooseFileController* ChooseFileTabHelper::GetChooseFileController() {
+  return controller_.get();
 }
 
 bool ChooseFileTabHelper::IsChoosingFiles() const {
@@ -58,7 +64,6 @@ void ChooseFileTabHelper::StopChoosingFiles(NSArray<NSURL*>* file_urls,
       isSubsetOfSet:[NSSet setWithArray:[file_urls_ready_for_selection_
                                             allKeys]]]);
   controller_->SubmitSelection(file_urls, display_string, icon_image);
-  controller_.reset();
 }
 
 void ChooseFileTabHelper::SetFileUploadPanelHandler(
@@ -72,6 +77,14 @@ void ChooseFileTabHelper::RunOpenPanel(
     base::OnceCallback<void(NSArray<NSURL*>*)> completion)
     API_AVAILABLE(ios(18.4)) {
   CHECK(base::FeatureList::IsEnabled(kIOSCustomFileUploadMenu));
+
+  web::WebState* web_state = observation_.GetSource();
+  if (!web_state || web_state->IsBeingDestroyed() || !web_state->IsVisible()) {
+    // If there is no WebState anymore, or it is being destroyed or not shown,
+    // then call the completion with no selection and return.
+    std::move(completion).Run(nil);
+    return;
+  }
 
   std::optional<ChooseFileEvent> last_choose_file_event =
       ResetLastChooseFileEvent();
@@ -171,6 +184,16 @@ void ChooseFileTabHelper::CheckFileUrlReadyForSelection(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
       base::BindOnce(base::PathExists, base::apple::NSURLToFilePath(file_url)),
       std::move(completion));
+}
+
+#pragma mark - ChooseFileController::Delegate
+
+void ChooseFileTabHelper::DidSubmitSelection(ChooseFileController* controller,
+                                             NSArray<NSURL*>* file_urls,
+                                             NSString* display_string,
+                                             UIImage* icon_image) {
+  CHECK_EQ(controller, controller_.get());
+  controller_.reset();
 }
 
 #pragma mark - web::WebStateObserver

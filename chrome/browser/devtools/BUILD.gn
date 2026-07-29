@@ -7,7 +7,6 @@ import("//extensions/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 
 if (enable_devtools_frontend) {
-  import("//build/config/features.gni")
   import("//chrome/common/features.gni")
   import("//tools/grit/grit_rule.gni")
 }
@@ -244,9 +243,9 @@ static_library("devtools") {
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_navigator_params_headers",
       "//chrome/browser/ui/exclusive_access",
-      "//chrome/browser/ui/tab_contents",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/webui_browser:headers",
       "//chrome/browser/user_education",
       "//chrome/browser/web_applications",
       "//chrome/common",
@@ -261,6 +260,7 @@ static_library("devtools") {
       "//components/signin/public/identity_manager",
       "//components/sync/service",
       "//components/sync_preferences",
+      "//components/tabs:public",
       "//components/web_modal",
       "//components/webui/flags",
       "//components/zoom",

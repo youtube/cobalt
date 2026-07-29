@@ -34,6 +34,7 @@ import org.chromium.services.tracing.TracingServiceFeatures;
 import org.chromium.ui.accessibility.AccessibilityFeatures;
 import org.chromium.ui.base.UiAndroidFeatures;
 import org.chromium.ui.base.UiBaseFeatures;
+import org.chromium.ui.events.UiEventsFeatures;
 import org.chromium.ui.gfx.GfxSwitches;
 
 /**
@@ -273,18 +274,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_IGNORE_CHECKABLE_ELEMENTS,
                 "Does not extract checkboxes and radio buttons"),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
-                "When enabled, Autofill will offer support for filling the user's loyalty cards"
-                        + " stored in Google Wallet."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ENABLE_LOYALTY_CARDS_FILLING,
-                "When enabled, Autofill will offer support for filling the user's loyalty cards"
-                        + " stored in Google Wallet."),
-        Flag.baseFeature(
-                AutofillFeatures.AUTOFILL_ENABLE_EMAIL_OR_LOYALTY_CARDS_FILLING,
-                "When enabled, Autofill will offer support for Autofill suggestions on fields "
-                        + "requesting email or loyalty card values."),
         Flag.baseFeature(
                 AutofillFeatures.AUTOFILL_PAGE_LANGUAGE_DETECTION,
                 "Enables Autofill to retrieve the page language for form parsing."),
@@ -576,6 +565,9 @@ public final class ProductionSupportedFlagList {
                 GpuFeatures.SYNC_POINT_GRAPH_VALIDATION,
                 "If enabled, replaces synchronous GPU sync point validation with graph based"
                         + " validation"),
+        Flag.baseFeature(
+                UiEventsFeatures.COMPENSATE_GESTURE_DETECTOR_TIMEOUTS,
+                "Componesate for event processing delay for calculating gesture timeouts."),
         Flag.baseFeature("ReduceCpuUtilization2"),
         Flag.baseFeature("NetworkServiceCookiesHighPriorityTaskRunner"),
         Flag.baseFeature("IncreaseCoookieAccesCacheSize"),
@@ -617,10 +609,6 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "PartitionAllocUseSmallSingleSlotSpans",
                 "Uses a more nuanced heuristic to classify small single-slot spans."),
-        Flag.baseFeature(
-                BlinkFeatures.LOADING_PHASE_BUFFER_TIME_AFTER_FIRST_MEANINGFUL_PAINT,
-                "Enables extending the loading phase by some buffer time after "
-                        + "First Meaningful Paint is signaled."),
         Flag.baseFeature(
                 BlinkFeatures.DISCARD_INPUT_EVENTS_TO_RECENTLY_MOVED_FRAMES,
                 "Enables a browser intervention which silently ignores input events "
@@ -1087,9 +1075,6 @@ public final class ProductionSupportedFlagList {
                 "Enable stricter management of the Android process LRU state to ensure that"
                         + " high-rank processes are always more recent than low-rank processes."),
         Flag.baseFeature(
-                BaseFeatures.UPDATE_STATE_BEFORE_UNBINDING,
-                "Update child process binding state before unbinding."),
-        Flag.baseFeature(
                 BaseFeatures.USE_SHARED_REBIND_SERVICE_CONNECTION,
                 "Use a shared service connection to apply service group importance changes."),
         Flag.baseFeature(
@@ -1147,6 +1132,16 @@ public final class ProductionSupportedFlagList {
         Flag.baseFeature(
                 "OriginMatcherNewCopyAssignment",
                 "Use a faster implementation for copying OriginMatchers."),
+        Flag.baseFeature(
+                AwFeatures.WEBVIEW_BYPASS_PROVISIONAL_COOKIE_MANAGER,
+                "When enabled, the temporary cookie manager used before WebView startup is"
+                        + " bypassed. If WebView isn't already started up, calling"
+                        + " `CookieManager.getInstance()` will trigger WebView startup on the main"
+                        + " looper and wait for startup to complete."),
+        Flag.baseFeature(
+                NetworkServiceFeatures.COMPRESSION_DICTIONARY_TTL,
+                "When enabled, adds support an explicit compression dictionary lifetime using the"
+                        + " `ttl` parameter in the `use-as-dictionary` HTTP response header."),
         // Add new commandline switches and features above. The final entry should have a
         // trailing comma for cleaner diffs.
     };

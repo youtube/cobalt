@@ -210,7 +210,7 @@ CreateLevelDBState(const base::FilePath& file_name,
   }
 
   options.write_buffer_size = leveldb_env::WriteBufferSize(
-      base::SysInfo::AmountOfTotalDiskSpace(file_name));
+      base::SysInfo::AmountOfTotalDiskSpace(file_name).value_or(-1));
   options.create_if_missing = create_if_missing;
   std::unique_ptr<leveldb::DB> db;
   leveldb::Status ldb_status =
@@ -221,7 +221,7 @@ CreateLevelDBState(const base::FilePath& file_name,
     }
     constexpr int64_t kBytesInOneKilobyte = 1024;
     int64_t free_disk_space_bytes =
-        base::SysInfo::AmountOfFreeDiskSpace(file_name);
+        base::SysInfo::AmountOfFreeDiskSpace(file_name).value_or(-1);
     bool below_100kb = free_disk_space_bytes != -1 &&
                        free_disk_space_bytes < 100 * kBytesInOneKilobyte;
 
@@ -1587,12 +1587,16 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
                           bucket_context.AsWeakPtr()));
   status = backing_store->Initialize(/*clean_active_blob_journal=*/!in_memory);
   if (!status.ok()) [[unlikely]] {
+    base::WaitableEvent leveldb_destruct_event;
+    backing_store->TearDown(&leveldb_destruct_event);
+    backing_store.reset();
+    leveldb_destruct_event.Wait();
     return {nullptr, status, IndexedDBDataLossInfo(), /*is_disk_full=*/false};
   }
   backing_store->db()->scopes()->StartRecoveryAndCleanupTasks();
   backing_store->bucket_context_ = &bucket_context;
   backing_store->database_path_ = std::move(database_path);
-  return {std::move(backing_store), status, std::move(data_loss_info),
+  return {std::move(backing_store), Status::OK(), std::move(data_loss_info),
           /*is_disk_full=*/false};
 }
 
@@ -4090,6 +4094,12 @@ std::string BackingStore::Database::GetObjectStoreLockIdKey(
 const blink::IndexedDBDatabaseMetadata& BackingStore::Database::GetMetadata()
     const {
   return metadata_;
+}
+
+const IndexedDBDataLossInfo& BackingStore::Database::GetDataLossInfo() const {
+  // Data loss is logged when the backing store is opened, not on a per-DB
+  // level.
+  NOTREACHED();
 }
 
 BackingStore::Transaction::BlobWriteState::BlobWriteState() = default;

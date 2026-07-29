@@ -39,9 +39,9 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
-#include "chrome/browser/apps/app_service/publishers/arc_apps.h"
-#include "chrome/browser/apps/app_service/publishers/arc_apps_factory.h"
+#include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_test.h"
+#include "chrome/browser/ash/arc/privacy_items/arc_privacy_items_bridge.h"
 #include "chrome/browser/ash/borealis/borealis_util.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/common/chrome_features.h"
@@ -268,14 +268,6 @@ class PublisherTest : public extensions::ExtensionServiceTestBase {
     return web_app::test::InstallWebApp(profile(), std::move(web_app_info));
   }
 
-#if BUILDFLAG(IS_CHROMEOS)
-  void RemoveArcApp(const std::string& app_id) {
-    ArcApps* arc_apps = ArcAppsFactory::GetForProfile(profile());
-    ASSERT_TRUE(arc_apps);
-    arc_apps->OnAppRemoved(app_id);
-  }
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
   void VerifyOptionalBool(std::optional<bool> source,
                           std::optional<bool> target) {
     if (source.has_value()) {
@@ -451,43 +443,50 @@ TEST_F(PublisherTest, ArcAppsOnApps) {
           /*allow_close=*/true,
           /*has_badge=*/false, /*paused=*/false,
           /*allow_window_mode_selection=*/std::nullopt);
-      // Simulate the app is removed.
-      RemoveArcApp(app_id);
-      VerifyAppIsRemoved(app_id);
     }
   }
   VerifyAppTypeIsInitialized(AppType::kArc);
 
-  // Verify the initialization process again with a new ArcApps object.
-  std::unique_ptr<ArcApps> arc_apps = std::make_unique<ArcApps>(
-      AppServiceProxyFactory::GetForProfile(profile()));
-  ASSERT_TRUE(arc_apps.get());
-  arc_apps->Initialize();
-  // Call `OnInitialized` manually as ArcSessionManager is already initialized.
-  // TODO(crbug.com/446582547): Fix this test and avoid this call. We should
-  // destroy/reinitialize objects to simulate a restart instead of just
-  // recreating another ArcApps. Do not copy & paste this pattern.
-  arc_apps->OnInitialized();
+  arc_test.TearDown();
+}
 
+TEST_F(PublisherTest, ArcAppsRemoveApps) {
+  ArcAppTest arc_test;
+  arc_test.SetUp(profile());
+
+  // Install fake apps.
+  arc_test.app_instance()->SendRefreshAppList(arc_test.fake_apps());
+  AddArcPackage(arc_test, arc_test.fake_apps());
+
+  ArcAppListPrefs* prefs = ArcAppListPrefs::Get(profile());
+  ASSERT_TRUE(prefs);
   for (const auto& app_id : prefs->GetAppIds()) {
     std::unique_ptr<ArcAppListPrefs::AppInfo> app_info = prefs->GetApp(app_id);
     if (app_info) {
-      VerifyApp(
-          AppType::kArc, app_id, app_info->name, Readiness::kReady,
-          app_info->sticky ? InstallReason::kSystem : InstallReason::kUser,
-          app_info->sticky ? InstallSource::kSystem : InstallSource::kPlayStore,
-          {}, app_info->last_launch_time, app_info->install_time,
-          MakeFakePermissions(),
-          /*is_platform_app=*/false,
-          /*recommendable=*/true, /*searchable=*/true,
-          /*show_in_launcher=*/true, /*show_in_shelf=*/true,
-          /*show_in_search=*/true, /*show_in_management=*/true,
-          /*handles_intents=*/true,
-          /*allow_uninstall=*/app_info->ready && !app_info->sticky,
-          /*allow_close=*/true,
-          /*has_badge=*/false, /*paused=*/false,
-          /*allow_window_mode_selection=*/std::nullopt);
+      // Simulate app is removed.
+      prefs->RemoveApp(app_id);
 
+      // Verify it is marked removed on the registry cache.
+      VerifyAppIsRemoved(app_id);
+    }
+  }
+
+  arc_test.TearDown();
+}
+
+TEST_F(PublisherTest, ArcAppsSetLaunchTime) {
+  ArcAppTest arc_test;
+  arc_test.SetUp(profile());
+
+  // Install fake apps.
+  arc_test.app_instance()->SendRefreshAppList(arc_test.fake_apps());
+  AddArcPackage(arc_test, arc_test.fake_apps());
+
+  ArcAppListPrefs* prefs = ArcAppListPrefs::Get(profile());
+  ASSERT_TRUE(prefs);
+  for (const auto& app_id : prefs->GetAppIds()) {
+    std::unique_ptr<ArcAppListPrefs::AppInfo> app_info = prefs->GetApp(app_id);
+    if (app_info) {
       // Test OnAppLastLaunchTimeUpdated.
       const base::Time before_time = base::Time::Now();
       prefs->SetLastLaunchTime(app_id);
@@ -502,18 +501,12 @@ TEST_F(PublisherTest, ArcAppsOnApps) {
     }
   }
 
-  // TODO(crbug.com/446582547): Fix this test and avoid this call.
-  arc_apps->OnShutdown();
-  arc_apps.reset();
-
   arc_test.TearDown();
 }
 
 TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
   ArcAppTest arc_test;
   arc_test.SetUp(profile());
-  ArcApps* arc_apps = apps::ArcAppsFactory::GetForProfile(profile());
-  ASSERT_TRUE(arc_apps);
 
   const auto& fake_apps = arc_test.fake_apps();
   std::string package_name1 = fake_apps[0]->package_name;
@@ -527,7 +520,9 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
     std::vector<arc::mojom::PrivacyItemPtr> privacy_items;
     privacy_items.push_back(CreateArcPrivacyItem(
         arc::mojom::AppPermissionGroup::CAMERA, package_name1));
-    arc_apps->OnPrivacyItemsChanged(std::move(privacy_items));
+    arc::ArcPrivacyItemsBridge::GetForBrowserContext(profile())
+        ->OnPrivacyItemsChanged(std::move(privacy_items));
+
     VerifyCapabilityAccess(ArcAppTest::GetAppId(*fake_apps[0]),
                            /*accessing_camera=*/true,
                            /*accessing_microphone=*/std::nullopt);
@@ -536,7 +531,9 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
   // Cancel accessing Camera for `package_name1`.
   {
     std::vector<arc::mojom::PrivacyItemPtr> privacy_items;
-    arc_apps->OnPrivacyItemsChanged(std::move(privacy_items));
+    arc::ArcPrivacyItemsBridge::GetForBrowserContext(profile())
+        ->OnPrivacyItemsChanged(std::move(privacy_items));
+
     VerifyCapabilityAccess(ArcAppTest::GetAppId(*fake_apps[0]),
                            /*accessing_camera=*/false,
                            /*accessing_microphone=*/false);
@@ -552,7 +549,9 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
         arc::mojom::AppPermissionGroup::MICROPHONE, package_name1));
     privacy_items.push_back(CreateArcPrivacyItem(
         arc::mojom::AppPermissionGroup::CAMERA, package_name2));
-    arc_apps->OnPrivacyItemsChanged(std::move(privacy_items));
+    arc::ArcPrivacyItemsBridge::GetForBrowserContext(profile())
+        ->OnPrivacyItemsChanged(std::move(privacy_items));
+
     VerifyCapabilityAccess(ArcAppTest::GetAppId(*fake_apps[0]),
                            /*accessing_camera=*/true,
                            /*accessing_microphone=*/true);
@@ -568,7 +567,9 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
         arc::mojom::AppPermissionGroup::CAMERA, package_name1));
     privacy_items.push_back(CreateArcPrivacyItem(
         arc::mojom::AppPermissionGroup::CAMERA, package_name2));
-    arc_apps->OnPrivacyItemsChanged(std::move(privacy_items));
+    arc::ArcPrivacyItemsBridge::GetForBrowserContext(profile())
+        ->OnPrivacyItemsChanged(std::move(privacy_items));
+
     VerifyCapabilityAccess(ArcAppTest::GetAppId(*fake_apps[0]),
                            /*accessing_camera=*/true,
                            /*accessing_microphone=*/false);
@@ -580,7 +581,9 @@ TEST_F(PublisherTest, ArcApps_CapabilityAccess) {
   // Cancel accessing CAMERA for `package_name1` and `package_name2`.
   {
     std::vector<arc::mojom::PrivacyItemPtr> privacy_items;
-    arc_apps->OnPrivacyItemsChanged(std::move(privacy_items));
+    arc::ArcPrivacyItemsBridge::GetForBrowserContext(profile())
+        ->OnPrivacyItemsChanged(std::move(privacy_items));
+
     VerifyCapabilityAccess(ArcAppTest::GetAppId(*fake_apps[0]),
                            /*accessing_camera=*/false,
                            /*accessing_microphone=*/false);

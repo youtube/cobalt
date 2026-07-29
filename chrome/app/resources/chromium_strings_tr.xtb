@@ -203,6 +203,7 @@
 <translation id="3296368748942286671">Chromium kapandığında arka plan uygulamaları çalıştırmaya devam et</translation>
 <translation id="3313189106987092621">Chromium, güvenli olmayan bağlantı kullanan siteleri yüklemeden önce sizi uyarır</translation>
 <translation id="3316771292331273802">Tüm Chromium pencerelerini kapattığınızda çoğu sitedeki oturumunuz kapatılır. Chromium'da oturum açtıysanız Google Hesabınız buna dahil değildir. Sitelerin sizi hatırlamasını sağlamak için <ph name="SETTINGS_LINK" />.</translation>
+<translation id="3322413454779348750">Varsayılan arama motorunuz Chromium dışından değiştirildi. Chromium, sizi korumak için bu işlemi geri aldı.</translation>
 <translation id="3352986031709923790">arama alanının sağ üst köşesi: sağ %<ph name="RIGHT" />, üst %<ph name="TOP" /></translation>
 <translation id="3366305173356742781">Hesabınızdaki Chromium verileri</translation>
 <translation id="3369405342922656244">Bu sayfayı görsel aramayla arayın</translation>
@@ -395,6 +396,7 @@
 <translation id="5941711191222866238">Küçült</translation>
 <translation id="5949225980829865667">Bu yer işaretine ve diğer öğelere tüm cihazlarınızdan erişmek için Chromium'da oturum açın</translation>
 <translation id="5953657885167112863">Chromium'u Kendinize Uyarlayın</translation>
+<translation id="5960071705175224773">Ayarlarınız bilinmeyen bir uygulama tarafından değiştirildi</translation>
 <translation id="5968400720580217226">AI Modu</translation>
 <translation id="5986585015444752010">{COUNT,plural, =1{Kuruluşunuz, 1 dakika kullanılmadığında Chromium'u otomatik olarak kapatır.}other{Kuruluşunuz, # dakika kullanılmadığında Chromium'u otomatik olarak kapatır.}}</translation>
 <translation id="5987687638152509985">Senkronizasyonu başlatmak için Chromium'u güncelleyin</translation>
@@ -446,6 +448,7 @@
 <translation id="6390800440335263989">Devam etmek için Chromium'da <ph name="EMAIL" /> hesabıyla oturum açın. Böylece kuruluşunuzun politikalarına uyabilirsiniz.</translation>
 <translation id="6400112897226594999">Bilgisayar ekranındaki Chromium logosu.</translation>
 <translation id="6403826409255603130">Chromium, Web sayfalarını ve uygulamaları yıldırım hızıyla çalıştıran bir Web tarayıcısıdır. Hızlı ve kararlı çalışır, kolay kullanılır. Chromium'da dahili olarak bulunan zararlı yazılım ve kimlik avı koruması sayesinde Web'de daha güvenli gezinin.</translation>
+<translation id="642132557830635295">Chromium daha hızlı çalışır ve JavaScript kullanan özellikler tasarlandığı şekilde çalışır</translation>
 <translation id="6436260184216827876">Görsel Arama kullanılamıyor. Daha sonra tekrar deneyin.</translation>
 <translation id="6442900851116057561">ChromiumOS'i yeniden başlatın</translation>
 <translation id="6443470774889161065">Chromium, ziyaret etme olasılığınızın yüksek olduğu daha fazla sayfayı önceden yükleyerek bu sayfaları ziyaret ettiğinizde daha hızlı yüklenmelerini sağlar.</translation>

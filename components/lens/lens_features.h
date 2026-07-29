@@ -111,9 +111,13 @@ BASE_DECLARE_FEATURE(kLensSearchNotFoundOnPageToast);
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlayStraightToSrp);
 
-// Enables AIM follow ups with the Lens overlay results side panel.
+// Enables AIM follow ups with the Lens overlay results side panel globally.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensSearchAimM3);
+
+// Enables AIM follow ups with the Lens overlay results side panel in en-US.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSearchAimM3EnUs);
 
 // Enables the Lens button in the AIM Searchbox for reinvocation of selection
 // overlay.
@@ -138,6 +142,10 @@ BASE_DECLARE_FEATURE(kLensOverlayForceEmptyCsbQuery);
 // Enables using a webview for the results frame instead of an iframe.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensSidePanelEnableWebviewResults);
+
+// Enables AIM suggestions in the composebox.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensAimSuggestions);
 
 // Enables the zero state contextual searchbox feature which opens the SRP
 // immediately when entering Lens entry points.
@@ -803,16 +811,6 @@ extern bool ShowContextualSearchboxZeroPrefixSuggest();
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsUpdatedClientContextEnabled();
 
-// Whether the AIM M3 flag is enabled. This does not check individual params
-// such as whether to show AIM in the side panel.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool IsAimM3Enabled();
-
-// Whether to use the AIM eligibility service to check eligibility for AIM
-// features.
-COMPONENT_EXPORT(LENS_FEATURES)
-extern bool ShouldUseAimEligibilityService();
-
 // Whether to show open AIM search pages in the side panel.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool ShouldShowAimInSidePanel();
@@ -1004,6 +1002,28 @@ extern int GetLensUpdatedFeedbackToastTimeoutMs();
 // chip.
 COMPONENT_EXPORT(LENS_FEATURES)
 extern bool IsLensOverlayOptimizationFilterEnabled();
+
+// Enum for the parameter values.
+enum class LensAimSuggestionsType {
+  kNone,
+  kContextual,
+};
+
+// Flag to control the type of suggestions for Lens Aim.
+// Access this value using: kLensAimSuggestionsType.Get()
+COMPONENT_EXPORT(LENS_FEATURES)
+extern const base::FeatureParam<LensAimSuggestionsType>
+    kLensAimSuggestionsType;
+
+// String constants for LensAimSuggestionsType. These are used in the
+// Field Trial configuration.
+inline constexpr char kLensAimSuggestionsTypeNone[] = "None";
+inline constexpr char kLensAimSuggestionsTypeContextual[] = "Contextual";
+
+// Returns the string representation of LensAimSuggestionsType for
+// logging/telemetry.
+std::string_view LensAimSuggestionModeToString(
+    LensAimSuggestionsType type);
 
 }  // namespace lens::features
 #endif  // COMPONENTS_LENS_LENS_FEATURES_H_

@@ -4,6 +4,9 @@
 
 #include "net/http/http_stream_pool_test_util.h"
 
+#include "base/location.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/bind.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/connection_endpoint_metadata.h"
 #include "net/base/features.h"
@@ -13,6 +16,7 @@
 #include "net/http/http_stream_pool_attempt_manager.h"
 #include "net/http/http_stream_pool_group.h"
 #include "net/http/http_stream_pool_job.h"
+#include "net/log/net_log_util.h"
 #include "net/log/net_log_with_source.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/stream_socket.h"
@@ -25,7 +29,7 @@ namespace net {
 
 namespace {
 
-IPEndPoint MakeIPEndPoint(std::string_view addr, uint16_t port = 80) {
+IPEndPoint MakeIPEndPoint(std::string_view addr, uint16_t port) {
   return IPEndPoint(*IPAddress::FromIPLiteral(addr), port);
 }
 
@@ -262,13 +266,13 @@ ServiceEndpointBuilder::~ServiceEndpointBuilder() = default;
 
 ServiceEndpointBuilder& ServiceEndpointBuilder::add_v4(std::string_view addr,
                                                        uint16_t port) {
-  endpoint_.ipv4_endpoints.emplace_back(MakeIPEndPoint(addr));
+  endpoint_.ipv4_endpoints.emplace_back(MakeIPEndPoint(addr, port));
   return *this;
 }
 
 ServiceEndpointBuilder& ServiceEndpointBuilder::add_v6(std::string_view addr,
                                                        uint16_t port) {
-  endpoint_.ipv6_endpoints.emplace_back(MakeIPEndPoint(addr));
+  endpoint_.ipv6_endpoints.emplace_back(MakeIPEndPoint(addr, port));
   return *this;
 }
 
@@ -400,11 +404,17 @@ HttpStreamKey GroupIdToHttpStreamKey(
 void WaitForAttemptManagerComplete(
     HttpStreamPool::AttemptManager* attempt_manager) {
   base::RunLoop run_loop;
-  attempt_manager->SetOnCompleteCallbackForTesting(run_loop.QuitClosure());
+  attempt_manager->SetOnCompleteCallbackForTesting(
+      base::BindLambdaForTesting([&]() {
+        // Add an extra PostTask to let any already posted tasks complete.
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+            FROM_HERE, run_loop.QuitClosure());
+      }));
   run_loop.Run();
 }
 
-TestJobDelegate::TestJobDelegate(std::optional<HttpStreamKey> stream_key) {
+TestJobDelegate::TestJobDelegate(std::optional<HttpStreamKey> stream_key)
+    : flow_(NetLogWithSourceToFlow(net_log_)) {
   if (stream_key.has_value()) {
     key_builder_.from_key(*stream_key);
   } else {
@@ -462,6 +472,10 @@ const ProxyInfo& TestJobDelegate::proxy_info() const {
 
 const NetLogWithSource& TestJobDelegate::net_log() const {
   return net_log_;
+}
+
+const perfetto::Flow& TestJobDelegate::flow() const {
+  return flow_;
 }
 
 void TestJobDelegate::OnStreamFailed(HttpStreamPool::Job* job,

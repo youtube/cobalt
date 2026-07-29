@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">جاری رکھیں</translation>
 <translation id="2379925928934107488">‏ممکن ہو تو سائٹس پر گہری تھیم لاگو ہوتی ہے جب Chrome کو گہری تھیم استعمال کرنے کیلئے سیٹ کیا جاتا ہے</translation>
 <translation id="2390272837142897736">زوم ان کریں</translation>
+<translation id="2397689164757137845">اجازت ہے • قطعی</translation>
 <translation id="2402980924095424747">‎<ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">قطعی</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />، <ph name="PERMISSION_2" /> اور <ph name="NUM_MORE" /> مزید کی اجازت دی گئی}other{<ph name="PERMISSION_1" />، <ph name="PERMISSION_2" /> اور <ph name="NUM_MORE" /> مزید کی اجازت دی گئی}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">مدد اور تاثرات</translation>
 <translation id="2501278716633472235">پیچھے جائیں</translation>
 <translation id="2533138527374486328">آن ہونے پر، سائٹس آپ کے مقامی نیٹ ورک پر کسی بھی آلہ سے منسلک ہونے کی درخواست کر سکتی ہیں۔ آف ہونے پر، سائٹس آپ کے مقامی نیٹ ورک پر موجود آلات سے منسلک نہیں ہو سکتیں۔</translation>
+<translation id="2536779053640817375">اس وقت اجازت ہے • قطعی</translation>
 <translation id="2544997614631598250">گہرے رنگ والی تھیم</translation>
 <translation id="2546283357679194313">کوکیز اور سائٹ ڈیٹا</translation>
 <translation id="2570922361219980984">‏مقام کی رسائی بھی اس آلہ کے لیے آف ہے۔ <ph name="BEGIN_LINK" />Android کی ترتیبات<ph name="END_LINK" />.میں اسے آن کریں۔</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">ویڈیو موقوف کریں</translation>
 <translation id="5877248419911025165">تمام درخواستوں کو سکیڑیں</translation>
 <translation id="5878945009165002849">شناختی سروسز سے سائن ان کے پرامپٹس مسدود کریں</translation>
+<translation id="588258955323874662">پوری اسکرین</translation>
 <translation id="5884085660368669834">سائٹ کی ترجیح</translation>
 <translation id="5887687176710214216">آخری بار گزشتہ کل چیک کیا گیا</translation>
 <translation id="5908617755156109052">‏سائٹس کو اپنے اطراف کا 3D نقشہ تخلیق کرنے یا کیمرے کی پوزیشن کو ٹریک کرنے کی اجازت نہ دیں</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">یہ ترتیب آپ کی شناخت کیے بغیر یا سائٹس کو آپ کی براؤزنگ کی سرگزشت دیکھنے کی اجازت دیے بغیر کام کرتی ہے، اگرچہ سائٹس تصدیق کے حصے کے طور پر تھوڑی سی معلومات کا اشتراک کر سکتی ہیں</translation>
 <translation id="7409735910987429903">سائٹس اشتہارات دکھانے کے لیے پاپ اپس بھیج سکتی ہیں یا ری ڈائریکٹس استعمال کر کے آپ کو ایسی ویب سائٹس پر لے جا سکتی ہیں جن پر شاید آپ نہ جانا چاہیں</translation>
 <translation id="7412160840120117304">بنیادی رنگ کا ہیکس</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{زوم کریں}other{زوم کریں: %%<ph name="ZOOM_PERCENTAGE_NUMBER" />}}</translation>
 <translation id="7423098979219808738">پہلے پوچھیں</translation>
 <translation id="7423538860840206698">کلپ بورڈ پڑھنے سے مسدود کیا گیا</translation>
 <translation id="7425915948813553151">سائٹس کیلئے گہری تھیم</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">آن ہونے پر</translation>
 <translation id="8805385115381080995">براؤزنگ تیز تر ہے کیونکہ کسی سائٹ کے آپ سے اس بات کی تصدیق کرنے کے لیے کہنے کا امکان کم ہوتا ہے کہ آپ ایک حقیقی شخص ہیں</translation>
 <translation id="8816026460808729765">سینسرز تک رسائی حاصل کرنے سے سائٹس کو مسدود کریں</translation>
-<translation id="884765916894384048">پس منظر پر جائیں</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">فریق ثالث کوکیز کو عارضی طور پر اجازت دے کر آزمائیں، جس کا مطلب براؤزنگ کا کم تحفظ ہے لیکن سائٹ کی خصوصیات کے توقع کے مطابق کام کرنے کا زیادہ امکان ہے۔</translation>
 <translation id="8889294078294184559">‏چونکہ آپ براؤز کرتے رہتے ہیں، اس لیے سائٹس Chrome سے رابطہ کر کے آپ کی ملاحظہ کردہ گزشتہ سائٹ سے یہ تصدیق کر سکتی ہیں کہ آپ ممکنہ طور پر ایک حقیقی شخص ہیں</translation>

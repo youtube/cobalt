@@ -712,6 +712,13 @@ bool BrowserAccessibilityAndroid::CanOpenPopup() const {
 const char* BrowserAccessibilityAndroid::GetClassName() const {
   ax::mojom::Role role = GetRole();
 
+  // TODO(crbug.com/447360631): Once auditing role conversions is completed,
+  // consider refactoring this function and `AXRoleToAndroidClassName` for
+  // better readability of type conversions.
+  if (role == ax::mojom::Role::kImage && IsClickable()) {
+    return ui::kAXImageButtonClassname;
+  }
+
   if (IsTextField()) {
     // On Android, contenteditable needs to be handled the same as any
     // other text field.
@@ -1525,31 +1532,42 @@ std::u16string BrowserAccessibilityAndroid::GetRoleDescription() const {
 
   switch (GetRole()) {
     case ax::mojom::Role::kAudio:
+    case ax::mojom::Role::kButton:
+    case ax::mojom::Role::kCheckBox:
     case ax::mojom::Role::kCode:
     case ax::mojom::Role::kDescriptionList:
     case ax::mojom::Role::kDetails:
     case ax::mojom::Role::kEmphasis:
     case ax::mojom::Role::kForm:
+    case ax::mojom::Role::kGrid:
+    case ax::mojom::Role::kImage:
+    case ax::mojom::Role::kProgressIndicator:
     case ax::mojom::Role::kRowGroup:
     case ax::mojom::Role::kSectionFooter:
     case ax::mojom::Role::kSectionHeader:
     case ax::mojom::Role::kSectionWithoutName:
+    case ax::mojom::Role::kSlider:
     case ax::mojom::Role::kStrong:
     case ax::mojom::Role::kSubscript:
     case ax::mojom::Role::kSuperscript:
+    case ax::mojom::Role::kTable:
     case ax::mojom::Role::kTextField:
+    case ax::mojom::Role::kTreeGrid:
     case ax::mojom::Role::kTime:
       // No role description on Android.
       break;
+
+    // Roles not used on Android.
+    case ax::mojom::Role::kListGrid:
+    case ax::mojom::Role::kMenuItemSeparator:
+      NOTREACHED();
+
     case ax::mojom::Role::kFigure:
       // Default is IDS_AX_ROLE_FIGURE.
       return GetLocalizedString(IDS_AX_ROLE_GRAPHIC);
     case ax::mojom::Role::kHeader:
       // Default is IDS_AX_ROLE_HEADER.
       return GetLocalizedString(IDS_AX_ROLE_BANNER);
-    case ax::mojom::Role::kListGrid:
-      // Default is no special role description.
-      return GetLocalizedString(IDS_AX_ROLE_TABLE);
     case ax::mojom::Role::kMenuItemCheckBox:
       // Default is no special role description.
       return GetLocalizedString(IDS_AX_ROLE_CHECK_BOX);

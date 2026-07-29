@@ -83,8 +83,6 @@
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/split_tab_id.h"
-#include "ui/base/clipboard/clipboard.h"
-#include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -2259,8 +2257,6 @@ void TabStrip::NewTabButtonPressed(const ui::Event& event) {
   new_tab_button_pressed_start_time_ = base::TimeTicks::Now();
 
   base::RecordAction(base::UserMetricsAction("NewTab_Button"));
-  UMA_HISTOGRAM_ENUMERATION("Tab.NewTab", NewTabTypes::NEW_TAB_BUTTON,
-                            NewTabTypes::NEW_TAB_ENUM_COUNT);
   GetBrowser()->profile()->SetUserData(
       NewTabGroupingUserData::kNewTabGroupingUserDataKey,
       std::make_unique<NewTabGroupingUserData>(
@@ -2271,26 +2267,8 @@ void TabStrip::NewTabButtonPressed(const ui::Event& event) {
     if (hover_card_controller_) {
       hover_card_controller_->PreventImmediateReshow();
     }
-
-    const ui::MouseEvent& mouse = static_cast<const ui::MouseEvent&>(event);
-    if (mouse.IsOnlyMiddleMouseButton()) {
-      if (ui::Clipboard::IsSupportedClipboardBuffer(
-              ui::ClipboardBuffer::kSelection)) {
-        ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-        CHECK(clipboard)
-            << "Clipboard instance is not available, cannot proceed with "
-               "middle mouse button action.";
-        std::u16string clipboard_text;
-        clipboard->ReadText(ui::ClipboardBuffer::kSelection,
-                            /* data_dst = */ nullptr, &clipboard_text);
-        if (!clipboard_text.empty()) {
-          controller_->CreateNewTabWithLocation(clipboard_text);
-        }
-      }
-      return;
-    }
   }
-  controller_->CreateNewTab();
+  controller_->CreateNewTab(NewTabTypes::NEW_TAB_BUTTON);
 }
 
 bool TabStrip::ShouldHighlightCloseButtonAfterRemove() {
@@ -2343,7 +2321,7 @@ void TabStrip::CloseTabInternal(int model_index, CloseTabSource source) {
     if (controller_->GetCount() == 1) {
       // Prevent the browser from closing when the last grouped tab is closed
       // from the browser by adding a new tab.
-      controller_->CreateNewTab();
+      controller_->CreateNewTab(NewTabTypes::NO_USER_ACTION);
       // In some situations the new tab is assigned a group. So if it is in a
       // group, we remove it from the group so that after closing the tab at
       // `model_index`, the browser shows a tab without a group.

@@ -21,6 +21,7 @@
 #include "base/types/cxx23_to_underlying.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_type.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/autofill_offer_data.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_quality/autofill_data_util.h"
@@ -1511,18 +1512,29 @@ std::string AutofillMetrics::GetHistogramStringForCardType(
 void AutofillMetrics::LogDeleteAddressProfileFromPopup() {
   // Only the "confirmed" bucket can be recorded, as the user cannot cancel this
   // type of deletion.
-  base::UmaHistogramBoolean("Autofill.ProfileDeleted.Popup",
+  base::UmaHistogramBoolean("Autofill.ProfileDeleted.Popup.Total",
                             /*delete_confirmed=*/true);
-  base::UmaHistogramBoolean("Autofill.ProfileDeleted.Any",
+  base::UmaHistogramBoolean("Autofill.ProfileDeleted.Any.Total",
                             /*delete_confirmed=*/true);
 }
 
 // static
 void AutofillMetrics::LogDeleteAddressProfileFromKeyboardAccessory(
-    bool delete_confirmed) {
-  base::UmaHistogramBoolean("Autofill.ProfileDeleted.KeyboardAccessory",
+    bool delete_confirmed,
+    AutofillProfile::RecordType record_type) {
+  base::UmaHistogramBoolean("Autofill.ProfileDeleted.KeyboardAccessory.Total",
                             delete_confirmed);
-  base::UmaHistogramBoolean("Autofill.ProfileDeleted.Any", delete_confirmed);
+  base::UmaHistogramBoolean("Autofill.ProfileDeleted.Any.Total",
+                            delete_confirmed);
+
+  base::UmaHistogramBoolean(
+      base::StrCat({"Autofill.ProfileDeleted.KeyboardAccessory.",
+                    autofill_metrics::GetProfileRecordTypeSuffix(record_type)}),
+      delete_confirmed);
+  base::UmaHistogramBoolean(
+      base::StrCat({"Autofill.ProfileDeleted.Any.",
+                    autofill_metrics::GetProfileRecordTypeSuffix(record_type)}),
+      delete_confirmed);
 }
 
 // static

@@ -98,6 +98,7 @@
 #include "content/browser/preloading/prefetch/prefetch_type.h"
 #include "content/browser/preloading/preloading.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
+#include "content/browser/preloading/prerender/prerender_handle_impl.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/preloading/prerender/prerender_metrics.h"
 #include "content/browser/preloading/prerender/prerender_new_tab_handle.h"
@@ -129,6 +130,7 @@
 #include "content/browser/tpcd_heuristics/opener_heuristic_tab_helper.h"
 #include "content/browser/tpcd_heuristics/redirect_heuristic_tab_helper.h"
 #include "content/browser/wake_lock/wake_lock_context_host.h"
+#include "content/browser/web_contents/file_chooser_impl.h"
 #include "content/browser/web_contents/java_script_dialog_commit_deferring_condition.h"
 #include "content/browser/web_contents/partitioned_popins_controller.h"
 #include "content/browser/web_contents/slow_web_preference_cache.h"
@@ -718,7 +720,7 @@ void RecordRendererUnresponsiveMetrics(
       "Renderer.Unresponsive.PageVisible.RenderProcessHostPriority",
       rph_priority);
 
-  bool widget_visible = !render_widget_host->is_hidden();
+  bool widget_visible = !render_widget_host->IsHidden();
   base::UmaHistogramBoolean(
       "Renderer.Unresponsive.PageVisible.WidgetVisibility", widget_visible);
 
@@ -3024,7 +3026,8 @@ base::TimeTicks WebContentsImpl::GetLastInteractionTimeTicks() {
 }
 
 WebContents::ScopedIgnoreInputEvents WebContentsImpl::IgnoreInputEvents(
-    std::optional<WebInputEventAuditCallback> audit_callback) {
+    std::optional<WebInputEventAuditCallback> audit_callback,
+    bool should_ignore_a11y_input) {
   OPTIONAL_TRACE_EVENT0("content", "WebContentsImpl::IgnoreInputEvents");
 
   uint64_t callback_id = 0;
@@ -3047,18 +3050,22 @@ WebContents::ScopedIgnoreInputEvents WebContentsImpl::IgnoreInputEvents(
     }
 #endif
     ++ignore_input_events_count_;
+    if (should_ignore_a11y_input) {
+      ++ignore_a11y_input_count_;
+    }
   }
 
   // Bind weakly, since the token might outlive us.
   return ScopedIgnoreInputEvents(base::BindOnce(
-      [](base::WeakPtr<WebContentsImpl> wc,
+      [](base::WeakPtr<WebContentsImpl> wc, bool should_ignore_a11y_input,
          std::optional<uint64_t> callback_id) {
         if (wc) {
           OPTIONAL_TRACE_EVENT0("content",
                                 "WebContentsImpl::IgnoreInputEvents.Release");
           if (callback_id.has_value()) {
-            CHECK(wc->web_input_event_audit_callbacks_.contains(*callback_id));
-            wc->web_input_event_audit_callbacks_.erase(*callback_id);
+            auto it = wc->web_input_event_audit_callbacks_.find(*callback_id);
+            CHECK(it != wc->web_input_event_audit_callbacks_.end());
+            wc->web_input_event_audit_callbacks_.erase(it);
           } else {
 #if BUILDFLAG(IS_ANDROID)
             // Reset gesture detection so that we don't continue to generate new
@@ -3077,16 +3084,23 @@ WebContents::ScopedIgnoreInputEvents WebContentsImpl::IgnoreInputEvents(
             }
 #endif
             --wc->ignore_input_events_count_;
+            if (should_ignore_a11y_input) {
+              --wc->ignore_a11y_input_count_;
+            }
           }
         }
       },
-      weak_factory_.GetWeakPtr(),
+      weak_factory_.GetWeakPtr(), should_ignore_a11y_input,
       audit_callback.has_value() ? std::make_optional<uint64_t>(callback_id)
                                  : std::nullopt));
 }
 
 bool WebContentsImpl::ShouldIgnoreInputEventsForTesting() {
   return ShouldIgnoreInputEvents();
+}
+
+bool WebContentsImpl::ShouldIgnoreA11yInputEventsForTesting() {
+  return ShouldIgnoreA11yInputEvents();
 }
 
 bool WebContentsImpl::HasActiveEffectivelyFullscreenVideo() {
@@ -3935,13 +3949,11 @@ void WebContentsImpl::OnWebPreferencesChanged() {
       (force_enable_zoom_ != web_preferences_->force_enable_zoom);
   force_enable_zoom_ = web_preferences_->force_enable_zoom;
   if (force_enable_zoom_changed) {
-    std::vector<viz::FrameSinkId> frame_sink_ids;
     for (FrameTreeNode* node : primary_frame_tree_.Nodes()) {
       RenderFrameHostImpl* rfh = node->current_frame_host();
       if (rfh->is_local_root()) {
         if (auto* rwh = rfh->GetRenderWidgetHost()) {
           rwh->SetForceEnableZoom(force_enable_zoom_);
-          frame_sink_ids.push_back(rwh->GetFrameSinkId());
         }
       }
     }
@@ -4753,8 +4765,8 @@ void WebContentsImpl::FullscreenStateChanged(
       delegate_->FullscreenStateChangedForTab(rfh, *options);
     }
 
-    if (!base::Contains(fullscreen_frames_, rfh)) {
-      fullscreen_frames_.insert(rfh);
+    if (bool was_inserted = fullscreen_frames_.insert(rfh).second;
+        was_inserted) {
       FullscreenFrameSetUpdated();
     }
     return;
@@ -7335,12 +7347,12 @@ void WebContentsImpl::ReadyToCommitNavigation(
     NavigationHandle* navigation_handle) {
   TRACE_EVENT1("navigation", "WebContentsImpl::ReadyToCommitNavigation",
                "navigation_handle", navigation_handle);
+  CHECK(!navigation_handle->IsSameDocument());
 
   // Cross-document navigation of the top-level frame resets the capture
   // handle config. Using IsInPrimaryMainFrame is valid here since the browser
   // caches this state for the active main frame only.
-  if (!navigation_handle->IsSameDocument() &&
-      navigation_handle->IsInPrimaryMainFrame()) {
+  if (navigation_handle->IsInPrimaryMainFrame()) {
     SetCaptureHandleConfig(blink::mojom::CaptureHandleConfig::New());
   }
 
@@ -7365,10 +7377,6 @@ void WebContentsImpl::ReadyToCommitNavigation(
   if (!navigation_handle->IsRendererInitiated()) {
     GpuDataManagerImpl::GetInstance()->UnblockDomainFrom3DAPIs(
         navigation_handle->GetURL());
-  }
-
-  if (navigation_handle->IsSameDocument()) {
-    return;
   }
 
   // SSLInfo is not needed on subframe navigations since the main-frame
@@ -10215,6 +10223,17 @@ bool WebContentsImpl::ShouldIgnoreInputEvents() {
   return web_contents->ShouldIgnoreInputEvents();
 }
 
+bool WebContentsImpl::ShouldIgnoreA11yInputEvents() {
+  if (ignore_a11y_input_count_ > 0) {
+    return true;
+  }
+  WebContentsImpl* web_contents = GetOuterWebContents();
+  if (!web_contents) {
+    return false;
+  }
+  return web_contents->ShouldIgnoreA11yInputEvents();
+}
+
 void WebContentsImpl::FocusOwningWebContents(
     RenderWidgetHostImpl* render_widget_host) {
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::FocusOwningWebContents",
@@ -11334,8 +11353,11 @@ int WebContentsImpl::GetCurrentlyPlayingVideoCount() const {
 std::optional<gfx::Size> WebContentsImpl::GetFullscreenVideoSize() {
   std::optional<MediaPlayerId> id =
       media_web_contents_observer_->GetFullscreenVideoMediaPlayerId();
-  if (id && base::Contains(cached_video_sizes_, id.value())) {
-    return std::optional<gfx::Size>(cached_video_sizes_[id.value()]);
+  if (id) {
+    if (auto it = cached_video_sizes_.find(id.value());
+        it != cached_video_sizes_.end()) {
+      return std::optional<gfx::Size>(it->second);
+    }
   }
   return std::nullopt;
 }
@@ -11811,6 +11833,10 @@ void WebContentsImpl::NotifyPageBecamePrimary(PageImpl& page) {
     save_package_->ClearPage();
     save_package_.reset();
   }
+
+  // Sync draggable regions.
+  SetSupportsDraggableRegions(supports_draggable_regions_);
+
   observers_.NotifyObservers(&WebContentsObserver::PrimaryPageChanged, page);
 }
 
@@ -11939,6 +11965,17 @@ void WebContentsImpl::UpdateBrowserControlsState(
   // they are controlled from the renderer by the main RenderFrame(Host).
   GetPrimaryPage().UpdateBrowserControlsState(constraints, current, animate,
                                               offset_tag_modifications);
+}
+
+void WebContentsImpl::SetSupportsDraggableRegions(
+    bool supports_draggable_regions) {
+  supports_draggable_regions_ = supports_draggable_regions;
+  ExecutePageBroadcastMethod(
+      [supports_draggable_regions](RenderViewHostImpl* rvh) {
+        if (auto& broadcast = rvh->GetAssociatedPageBroadcast()) {
+          broadcast->SetSupportsDraggableRegions(supports_draggable_regions);
+        }
+      });
 }
 
 void WebContentsImpl::SetV8CompileHints(base::ReadOnlySharedMemoryRegion data) {

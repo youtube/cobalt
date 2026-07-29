@@ -286,6 +286,7 @@ Jika tidak, ini akan diblokir oleh setelan privasi Anda. Ini akan memungkinkan k
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Lihat 0 ulasan}=1{Lihat 1 ulasan}other{Lihat semua (#) ulasan}}</translation>
 <translation id="1458059624921545588">Tokoh &amp; Masyarakat</translation>
 <translation id="1458140305240870199">Pakaian Dalam</translation>
+<translation id="1458770162980644530">Layar persyaratan layanan Beli Sekarang, Bayar Nanti. Keyboard disembunyikan.</translation>
 <translation id="1459693405370120464">Cuaca</translation>
 <translation id="1461041542809785877">Performa</translation>
 <translation id="1462245070427461050">JIS B9</translation>
@@ -984,6 +985,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="2596415276201385844">Untuk membuat sambungan aman, jam perlu disetel dengan benar. Hal ini karena sertifikat yang digunakan situs web untuk mengidentifikasi situs web tersebut hanya valid untuk jangka waktu tertentu. Karena jam perangkat tidak benar, Chrome tidak dapat memverifikasi sertifikat ini.</translation>
 <translation id="2597378329261239068">Dokumen ini dilindungi sandi. Masukkan sandi.</translation>
 <translation id="2600083925285092409">Isi otomatis kartu ini untuk pembelian yang dilakukan di Chromium jika kartu tersebut disimpan untuk digunakan dengan Google Pay</translation>
+<translation id="2602283642570832995">Tindakan ini mungkin melanggar kebijakan <ph name="DOMAIN" /></translation>
 <translation id="2605979593348332811">Nama fonetik</translation>
 <translation id="2606760465469169465">Verifikasi otomatis</translation>
 <translation id="2608019759319359258">Jika diblokir, topik tidak akan digunakan untuk mempersonalisasi iklan</translation>
@@ -2021,6 +2023,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="4281998142035485137">{0,plural, =1{Buka file rahasia?}other{Buka file rahasia?}}</translation>
 <translation id="4282280603030594840">Belanja Kendaraan</translation>
 <translation id="4282346679996504092">Notifikasi untuk produk ini telah dinonaktifkan dan bookmark dihapus</translation>
+<translation id="4284885181066817063">Diblokir oleh <ph name="DOMAIN" /></translation>
 <translation id="4285498937028063278">Lepaskan</translation>
 <translation id="4287495839370498922">Privasi iklan yang lebih baik di Chrome</translation>
 <translation id="4288101205645068104">Hapus kendaraan</translation>
@@ -2289,6 +2292,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="4758311279753947758">Tambahkan info kontak</translation>
 <translation id="4761326898079498987">Tinjau untuk mengetahui detail lebih lanjut</translation>
 <translation id="4761869838909035636">Jalankan Pemeriksaan Keamanan Chrome</translation>
+<translation id="4762097990764616058">Lanjutkan pembayaran dengan <ph name="BNPL_ISSUER_NAME" />?</translation>
 <translation id="4763196677855776703">Persyaratan dan ketentuan disediakan oleh <ph name="URL" /></translation>
 <translation id="4764680219299728632">Kompor, Pemanggang, &amp; Oven</translation>
 <translation id="4764776831041365478">Halaman web di <ph name="URL" /> mungkin sedang tidak aktif untuk sementara atau dipindahkan secara permanen ke alamat web baru.</translation>
@@ -2918,9 +2922,9 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="5813119285467412249">&amp;Ulangi Penambahan</translation>
 <translation id="5813753398265398978">Fisika</translation>
 <translation id="5817918615728894473">Sandingkan</translation>
-<translation id="5820625124144807242">Setelah meninjau pesanan, Anda harus login atau membuat akun dengan<ph name="BNPL_ISSUER_NAME" />. Akun ini akan otomatis ditautkan ke Google Pay.</translation>
 <translation id="5826507051599432481">Common Name (CN)</translation>
 <translation id="5830698870816298009">penggunaan &amp; gerakan kamera</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Tidak dikenal</translation>
 <translation id="5832976493438355584">Terkunci</translation>
 <translation id="5837220895135257862">Kosongkan ruang di <ph name="CLOUD_PROVIDER" /> sebelum mencoba lagi</translation>
@@ -3431,6 +3435,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="6649510485211003056">195 x 270 mm</translation>
 <translation id="6651270836885078973">Dikelola oleh:</translation>
 <translation id="6652101503459149953">Gunakan Windows Hello</translation>
+<translation id="6653684225271066234"><ph name="BNPL_ISSUER_NAME" /> akan memeriksa kelayakan Anda (tindakan ini tidak akan memengaruhi skor kredit Anda). Jika Anda memenuhi kriteria kelayakan, <ph name="BNPL_ISSUER_NAME" /> akan memberikan pilihan paket pembayaran untuk menyelesaikan pembelian Anda.</translation>
 <translation id="6654224358955673568">Buat lebih formal</translation>
 <translation id="6654244995031366386">Kaca (Bertekstur)</translation>
 <translation id="6657585470893396449">Sandi</translation>
@@ -3594,6 +3599,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="6925267999184670015">Amerika Utara B+</translation>
 <translation id="6926216138694948720">Seni Rajah dan Tindik</translation>
 <translation id="692638818576287323">Kendaraan Niaga</translation>
+<translation id="6927057753277044239">Setelah meninjau pesanan, Anda harus login atau membuat akun dengan <ph name="BNPL_ISSUER_NAME" />. Akun ini akan otomatis ditautkan ke Akun Google Anda.</translation>
 <translation id="6930607614725241390">Telusuri di panel samping</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Mesin telusur default memungkinkan Anda menelusuri web dan mendukung fitur Chrome<ph name="END_BOLD" /> seperti menelusuri dari kolom URL dan dari gambar di halaman web. Fitur mungkin tidak tersedia jika mesin telusur tidak mendukungnya.</translation>
 <translation id="6934672428414710184">Nama ini dari Akun Google Anda</translation>
@@ -3645,6 +3651,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="6997288673234694149">Perlengkapan Bisbol &amp; Sofbol</translation>
 <translation id="6998512609912910179">Isi formulir dengan lebih cepat</translation>
 <translation id="6999480632062519056">Instruksi Kebugaran &amp; Pelatihan Pribadi</translation>
+<translation id="7002897669829306463">Alamat rumah, <ph name="ADDRESS" /></translation>
 <translation id="7003278537452757231">Permadani &amp; Karpet</translation>
 <translation id="7003322000677139268">Suku Cadang &amp; Aksesori Kendaraan</translation>
 <translation id="7004499039102548441">Tab Terbaru</translation>
@@ -3944,7 +3951,6 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="7485085230273446323">Bisnis &amp; Industri</translation>
 <translation id="7485870689360869515">Tidak ada data yang ditemukan.</translation>
 <translation id="7486880426035242089">OneDrive</translation>
-<translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" /> akan memeriksa kelayakan Anda (tindakan ini tidak akan memengaruhi skor kredit Anda). Jika disetujui, <ph name="BNPL_ISSUER_NAME" /> akan menyediakan paket pembayaran yang dapat Anda pilih sehingga pembelian dapat diselesaikan.</translation>
 <translation id="7489392576326061356">Sampo &amp; Kondisioner</translation>
 <translation id="7489919936111034362">Penyimpanan Google Drive Anda sudah penuh</translation>
 <translation id="7495528107193238112">Konten ini diblokir. Hubungi pemilik situs untuk memperbaiki masalah.</translation>
@@ -4210,6 +4216,8 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="7916162853251942238">Flexo Base</translation>
 <translation id="791698251820376781">Organisasi Anda tidak mengizinkan Anda login</translation>
 <translation id="7926503317156566022">Industri Penerbangan</translation>
+<translation id="7930282586031445870">Layar persyaratan layanan Beli Sekarang, Bayar Nanti ditutup.</translation>
+<translation id="7932035970207573919">Alamat kantor, <ph name="ADDRESS" /></translation>
 <translation id="793209273132572360">Perbarui alamat?</translation>
 <translation id="7932579305932748336">Lapisan</translation>
 <translation id="79338296614623784">Masukkan nomor telepon yang valid</translation>
@@ -4620,6 +4628,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="8601027005147870853"><ph name="BEGIN_BOLD" />Data yang digunakan:<ph name="END_BOLD" /> Aktivitas Anda di situs yang dibuka menggunakan Chrome di perangkat ini.</translation>
 <translation id="8601456038554914806">Peralatan Olahraga Air</translation>
 <translation id="8601782593888534566">Fiksi Ilmiah &amp; Fantasi</translation>
+<translation id="8604103095921958091">Layar persyaratan layanan Beli Sekarang, Bayar Nanti terbuka sepenuhnya.</translation>
 <translation id="8606988009912891950">Topik iklan membantu situs menampilkan iklan yang relevan, sambil tetap melindungi histori penjelajahan dan identitas Anda. Chrome dapat mencatat topik yang Anda minati berdasarkan histori penjelajahan terbaru Anda. Kemudian, situs yang Anda buka dapat meminta topik yang relevan dari Chrome untuk mempersonalisasi iklan yang Anda lihat.</translation>
 <translation id="8612919051706159390">Komunitas Online</translation>
 <translation id="8617269623452051934">penggunaan perangkat Anda</translation>
@@ -4860,6 +4869,7 @@ disusupi oleh penyerang. Hanya buka <ph name="BEGIN_LINK" />situs yang tidak ama
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" /> ingin mencari dan terhubung ke perangkat apa pun di jaringan lokal Anda</translation>
 <translation id="9046864189129893978">Mikrofon (<ph name="MICS_COUNT" />)</translation>
+<translation id="9046865906192819796">Layar persyaratan layanan Beli Sekarang, Bayar Nanti terbuka setengah.</translation>
 <translation id="9047528041803621289">Mesin telusur default memungkinkan Anda menelusuri web. Anda dapat mengubahnya di setelan.</translation>
 <translation id="9048035366624198823">Tindakan ini mengharuskan kebijakan <ph name="POLICY_NAME" /> disetel ke <ph name="POLICY_VALUE" />: <ph name="ACTION_LIST" />.</translation>
 <translation id="9048662076076074925">24 x 36 inci (60 x 91 cm)</translation>

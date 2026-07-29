@@ -410,6 +410,12 @@ bool ContentBrowserClient::ShouldUrlUseApplicationIsolationLevel(
   return false;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
+bool ContentBrowserClient::IsInitialWebUIScheme(const GURL& url) {
+  return false;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
 bool ContentBrowserClient::IsIsolatedContextAllowedForUrl(
     BrowserContext* browser_context,
     const GURL& lock_url) {
@@ -1537,6 +1543,14 @@ void ContentBrowserClient::ReportLegacyTechEvent(
     uint64_t line,
     uint64_t column,
     std::optional<LegacyTechCookieIssueDetails> cookie_issue_details) {}
+
+std::optional<GURL>
+ContentBrowserClient::MaybeOverrideSourceURLForClipboardAccess(
+    RenderFrameHost* render_frame_host,
+    const GURL& original_url) {
+  DCHECK(render_frame_host);
+  return std::nullopt;
+}
 
 bool ContentBrowserClient::IsClipboardPasteAllowed(
     content::RenderFrameHost* render_frame_host) {

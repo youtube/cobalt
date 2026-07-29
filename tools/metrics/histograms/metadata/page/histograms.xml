@@ -236,6 +236,11 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//tools/metrics/histograms/metadata/blink/histograms.xml:BlinkRequestDestination) -->
 
+<variants name="ResponseFromCache">
+  <variant name="" summary="any"/>
+  <variant name=".ResponseFromCache" summary="response from cache"/>
+</variants>
+
 <variants name="SoftNavigationStatus">
   <variant name="Emitted" summary="Emitted"/>
   <variant name="NotEmittedInsufficientPaint"
@@ -253,6 +258,225 @@ chromium-metrics-reviews@google.com.
 <variants name="TabInitializationStatus">
   <variant name="" summary="any"/>
   <variant name=".FromNewTabPage" summary="navigation from new tab page"/>
+</variants>
+
+<variants name="WebUIHost">
+  <variant name=""/>
+  <variant name=".access-code-cast"/>
+  <variant name=".accessibility"/>
+  <variant name=".accessory-update"/>
+  <variant name=".account-manager-error"/>
+  <variant name=".account-migration-welcome"/>
+  <variant name=".actor-overlay"/>
+  <variant name=".add-supervision"/>
+  <variant name=".app-disabled"/>
+  <variant name=".app-install-dialog"/>
+  <variant name=".app-service-internals"/>
+  <variant name=".app-settings"/>
+  <variant name=".apps"/>
+  <variant name=".arc-overview-tracing"/>
+  <variant name=".arc-power-control"/>
+  <variant name=".attribution-internals"/>
+  <variant name=".audio"/>
+  <variant name=".autofill-internals"/>
+  <variant name=".batch-upload"/>
+  <variant name=".bluetooth-internals"/>
+  <variant name=".bluetooth-pairing"/>
+  <variant name=".boca-app"/>
+  <variant name=".bookmarks"/>
+  <variant name=".bookmarks-side-panel.top-chrome"/>
+  <variant name=".borealis-credits"/>
+  <variant name=".borealis-installer"/>
+  <variant name=".borealis-motd"/>
+  <variant name=".browser-switch"/>
+  <variant name=".camera-app"/>
+  <variant name=".cast-feedback"/>
+  <variant name=".certificate-manager"/>
+  <variant name=".chrome"/>
+  <variant name=".chrome-signin"/>
+  <variant name=".chrome-urls"/>
+  <variant name=".class-tools-remote-display"/>
+  <variant name=".cloud-upload"/>
+  <variant name=".color-internals"/>
+  <variant name=".comments-side-panel.top-chrome"/>
+  <variant name=".compare"/>
+  <variant name=".components"/>
+  <variant name=".compose"/>
+  <variant name=".confirm-password-change"/>
+  <variant name=".conflicts"/>
+  <variant name=".connection-help"/>
+  <variant name=".connection-monitoring-detected"/>
+  <variant name=".connectivity-diagnostics"/>
+  <variant name=".connectors-internals"/>
+  <variant name=".contextual-tasks"/>
+  <variant name=".crashes"/>
+  <variant name=".credits"/>
+  <variant name=".crosh"/>
+  <variant name=".crostini-credits"/>
+  <variant name=".crostini-installer"/>
+  <variant name=".crostini-upgrader"/>
+  <variant name=".cryptohome"/>
+  <variant name=".customize-chrome-side-panel.top-chrome"/>
+  <variant name=".data-sharing"/>
+  <variant name=".debug-webuis-disabled"/>
+  <variant name=".demo-mode-app"/>
+  <variant name=".device-emulator"/>
+  <variant name=".device-log"/>
+  <variant name=".diagnostics"/>
+  <variant name=".dlp-internals"/>
+  <variant name=".downloads"/>
+  <variant name=".drive-internals"/>
+  <variant name=".eche-app"/>
+  <variant name=".emoji-picker"/>
+  <variant name=".enterprise-reporting"/>
+  <variant name=".extended-updates-dialog"/>
+  <variant name=".extensions"/>
+  <variant name=".extensions-zero-state"/>
+  <variant name=".feedback"/>
+  <variant name=".file-manager"/>
+  <variant name=".files-internals"/>
+  <variant name=".flags"/>
+  <variant name=".floating-workspace"/>
+  <variant name=".focus-mode-media"/>
+  <variant name=".focus-mode-player"/>
+  <variant name=".gcm-internals"/>
+  <variant name=".glic"/>
+  <variant name=".glic-fre"/>
+  <variant name=".gpu"/>
+  <variant name=".graduation"/>
+  <variant name=".growth-internals"/>
+  <variant name=".healthd-internals"/>
+  <variant name=".help-app"/>
+  <variant name=".help-app-kids-magazine"/>
+  <variant name=".histograms"/>
+  <variant name=".history"/>
+  <variant name=".history-clusters-side-panel.top-chrome"/>
+  <variant name=".history-side-panel.top-chrome"/>
+  <variant name=".history-sync-optin"/>
+  <variant name=".indexeddb-internals"/>
+  <variant name=".inspect"/>
+  <variant name=".internals"/>
+  <variant name=".internet-config-dialog"/>
+  <variant name=".internet-detail-dialog"/>
+  <variant name=".intro"/>
+  <variant name=".kerberos-in-browser"/>
+  <variant name=".launcher-internals"/>
+  <variant name=".lens"/>
+  <variant name=".lens-overlay"/>
+  <variant name=".linux-proxy-config"/>
+  <variant name=".local-files-migration"/>
+  <variant name=".lock-network"/>
+  <variant name=".lock-reauth"/>
+  <variant name=".mako"/>
+  <variant name=".mall"/>
+  <variant name=".manage-mirrorsync"/>
+  <variant name=".managed-user-profile-notice"/>
+  <variant name=".management"/>
+  <variant name=".media-app"/>
+  <variant name=".media-engagement"/>
+  <variant name=".media-internals"/>
+  <variant name=".metrics-internals"/>
+  <variant name=".mobilesetup"/>
+  <variant name=".multidevice-internals"/>
+  <variant name=".multidevice-setup"/>
+  <variant name=".nearby"/>
+  <variant name=".nearby-internals"/>
+  <variant name=".net-export"/>
+  <variant name=".net-internals"/>
+  <variant name=".network"/>
+  <variant name=".new-tab-page"/>
+  <variant name=".new-tab-page-third-party"/>
+  <variant name=".newtab"/>
+  <variant name=".newtab-footer"/>
+  <variant name=".notification-tester"/>
+  <variant name=".ntp-microsoft-auth"/>
+  <variant name=".ntp-tiles-internals"/>
+  <variant name=".office-fallback"/>
+  <variant name=".omnibox-popup.top-chrome"/>
+  <variant name=".on-device-translation-internals"/>
+  <variant name=".oobe"/>
+  <variant name=".os-credits"/>
+  <variant name=".os-feedback"/>
+  <variant name=".os-print"/>
+  <variant name=".os-settings"/>
+  <variant name=".parent-access"/>
+  <variant name=".password-change"/>
+  <variant name=".password-manager"/>
+  <variant name=".password-manager-internals"/>
+  <variant name=".personalization"/>
+  <variant name=".policy"/>
+  <variant name=".power"/>
+  <variant name=".predictors"/>
+  <variant name=".print"/>
+  <variant name=".print-management"/>
+  <variant name=".privacy-sandbox-base-dialog"/>
+  <variant name=".privacy-sandbox-dialog"/>
+  <variant name=".privacy-sandbox-internals"/>
+  <variant name=".private-aggregation-internals"/>
+  <variant name=".process-internals"/>
+  <variant name=".profile-customization"/>
+  <variant name=".profile-picker"/>
+  <variant name=".projector"/>
+  <variant name=".projector-annotator"/>
+  <variant name=".proximity-auth"/>
+  <variant name=".quota-internals"/>
+  <variant name=".read-anything-side-panel.top-chrome"/>
+  <variant name=".read-later.top-chrome"/>
+  <variant name=".recorder-app"/>
+  <variant name=".reload-button.top-chrome"/>
+  <variant name=".reset-password"/>
+  <variant name=".sample-system-web-app"/>
+  <variant name=".sandbox"/>
+  <variant name=".sanitize"/>
+  <variant name=".saved-tab-groups-unsupported"/>
+  <variant name=".scalable-iph-debug"/>
+  <variant name=".scanner-feedback"/>
+  <variant name=".scanning"/>
+  <variant name=".search-engine-choice"/>
+  <variant name=".security-curtain"/>
+  <variant name=".segmentation-internals"/>
+  <variant name=".sensor-info"/>
+  <variant name=".serviceworker-internals"/>
+  <variant name=".set-time"/>
+  <variant name=".settings"/>
+  <variant name=".shimless-rma"/>
+  <variant name=".shopping-insights-side-panel.top-chrome"/>
+  <variant name=".shortcut-customization"/>
+  <variant name=".signin-dice-web-intercept.top-chrome"/>
+  <variant name=".signin-email-confirmation"/>
+  <variant name=".signin-error"/>
+  <variant name=".signin-internals"/>
+  <variant name=".signout-confirmation"/>
+  <variant name=".site-engagement"/>
+  <variant name=".slow"/>
+  <variant name=".slow_trace"/>
+  <variant name=".smb-credentials-dialog"/>
+  <variant name=".smb-share-dialog"/>
+  <variant name=".status-area-internals"/>
+  <variant name=".suggest-internals"/>
+  <variant name=".support-tool"/>
+  <variant name=".sync-confirmation"/>
+  <variant name=".sync-internals"/>
+  <variant name=".sys-internals"/>
+  <variant name=".system"/>
+  <variant name=".tab-group-home"/>
+  <variant name=".tab-search.top-chrome"/>
+  <variant name=".tab-strip.top-chrome"/>
+  <variant name=".terminal"/>
+  <variant name=".terms"/>
+  <variant name=".topics-internals"/>
+  <variant name=".translate-internals"/>
+  <variant name=".urgent-password-expiry-notification"/>
+  <variant name=".usb-internals"/>
+  <variant name=".vc-background"/>
+  <variant name=".version"/>
+  <variant name=".view-cert"/>
+  <variant name=".vm"/>
+  <variant name=".watermark"/>
+  <variant name=".web-app-internals"/>
+  <variant name=".webrtc-internals"/>
+  <variant name=".webui-browser"/>
+  <variant name=".whats-new"/>
 </variants>
 
 <!-- LINT.IfChange(TopChromeWebUIName) -->
@@ -1066,7 +1290,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleHomepage.DomainLookupTiming.NavigationToDomainLookupStart.{NavigationCountType}{BrowserInitializationStatus}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1146,7 +1370,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.ConnectionReuseStatus{ConnectionProtocolType}{Profile}"
-    enum="ConnectionReuseStatus" expires_after="2026-02-09">
+    enum="ConnectionReuseStatus" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1290,7 +1514,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.DomainLookupTiming.NavigationToDomainLookupEnd2.{NavigationCountType}{BrowserInitializationStatus}{TabInitializationStatus}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1312,7 +1536,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.DomainLookupTiming.NavigationToDomainLookupStart2.{NavigationCountType}{BrowserInitializationStatus}{TabInitializationStatus}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1344,7 +1568,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Clients.GoogleSearch.IsFirstNavigationForGWS"
-    enum="Boolean" expires_after="2026-02-09">
+    enum="Boolean" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1356,7 +1580,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients.GoogleSearch.Leakage2.{NavigationMilestone}ToAbandon{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}"
+    name="PageLoad.Clients.GoogleSearch.Leakage2.{NavigationMilestone}ToAbandon{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{ResponseFromCache}"
     units="ms" expires_after="2026-02-22">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
@@ -1372,17 +1596,19 @@ chromium-metrics-reviews@google.com.
     suffixes {BackgroundSuffix} and/or {HiddenSuffix}. The milestone recorded
     will be the latest milestone (if there are multiple milestones reached
     before the abandonment). The metric is emitted when the navigation gets
-    abandoned.
+    abandoned. The &quot;ResponseFromCache&quot; variant was disabled during
+    M141.
   </summary>
   <token key="BackgroundSuffix" variants="BackgroundSuffix"/>
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="NavigationAbandonReason" variants="NavigationAbandonReason"/>
   <token key="NavigationMilestone" variants="NavigationMilestone"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.NavigationSourceType{ConnectionReuseStatus}"
-    enum="NavigationSourceTypeEnum" expires_after="2026-02-09">
+    enum="NavigationSourceTypeEnum" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -1564,7 +1790,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.NavigationTiming.NavigationToConnectStart2.{NavigationCountType}{BrowserInitializationStatus}{TabInitializationStatus}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1602,7 +1828,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.PaintTiming.{MileStone}{PageLoadType}{IncognitoSuffix}{SyntheticResponseSuffix}"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -2869,16 +3095,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.AbandonReasonAt.{NavigationMilestone}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.AbandonReasonAt.{NavigationMilestone}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     enum="NavigationAbandonReasonEnum" expires_after="2026-02-22">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
     Logs the navigation abandonment reason that happens when the last milestone
-    is {NavigationMilestone} on a main frame navigation for
-    {ObservedNavigation}, with potentially some suffixes detaling the navigation
-    {BackgroundSuffix}, {IncognitoSuffix} and/or {HiddenSuffix} .
+    is {NavigationMilestone} on a main frame navigation for {ObservedNavigation}
+    with {ResponseFromCache} connection, with potentially some suffixes detaling
+    the navigation {BackgroundSuffix}, {IncognitoSuffix} and/or {HiddenSuffix} .
 
     The metric is emitted when the navigation gets abandoned.
   </summary>
@@ -2887,10 +3113,11 @@ chromium-metrics-reviews@google.com.
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="NavigationMilestone" variants="NavigationMilestone"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.LastMilestoneBeforeAbandon{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.LastMilestoneBeforeAbandon{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     enum="NavigationMilestoneEnum2" expires_after="2026-02-22">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
@@ -2907,10 +3134,11 @@ chromium-metrics-reviews@google.com.
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="NavigationAbandonReason" variants="NavigationAbandonReason"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NavigationStartToRendererProcessInit{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NavigationStartToRendererProcessInit{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     units="ms" expires_after="2025-12-14">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -2919,18 +3147,19 @@ chromium-metrics-reviews@google.com.
     The time relative to the navigation start that the final renderer process is
     created for a main frame navigation for {ObservedNavigation} with
     potentially some suffixes detaling the navigation {BackgroundSuffix},
-    {HiddenSuffix}, {IncognitoSuffix}. The metric is emitted when the
-    navigation's commit IPC is just sent out, if the renderer process is created
-    after the navigation started.
+    {HiddenSuffix}, {IncognitoSuffix}, {ResponseFromCache}. The metric is
+    emitted when the navigation's commit IPC is just sent out, if the renderer
+    process is created after the navigation started.
   </summary>
   <token key="BackgroundSuffix" variants="BackgroundSuffix"/>
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NavigationStartTo{NavigationMilestone}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NavigationStartTo{NavigationMilestone}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     units="ms" expires_after="2026-02-15">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -2939,24 +3168,25 @@ chromium-metrics-reviews@google.com.
     The time relative to navigation start that a navigation reaches the the
     milestone {NavigationMilestone} on a main frame navigation for
     {ObservedNavigation}, with potentially some suffixes detaling the navigation
-    {BackgroundSuffix}, {HiddenSuffix}, {IncognitoSuffix}. Only recorded for
-    Search navigations that didn't get terminally abandoned at least until the
-    relevant milestone. Note that abandonment from backgrounding or hiding are
-    non-terminal, so milestones after those types of abandonments will still be
-    logged. The metric is emitted when the navigation finishes committing or it
-    gets abandoned (which can happen multiple times during the navigation if
-    non-terminal, so only the milestones that haven't been logged will be
-    logged).
+    {BackgroundSuffix}, {HiddenSuffix}, {IncognitoSuffix}, {ResponseFromCache}.
+    Only recorded for Search navigations that didn't get terminally abandoned at
+    least until the relevant milestone. Note that abandonment from backgrounding
+    or hiding are non-terminal, so milestones after those types of abandonments
+    will still be logged. The metric is emitted when the navigation finishes
+    committing or it gets abandoned (which can happen multiple times during the
+    navigation if non-terminal, so only the milestones that haven't been logged
+    will be logged).
   </summary>
   <token key="BackgroundSuffix" variants="BackgroundSuffix"/>
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="NavigationMilestone" variants="NavigationMilestone"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NavigationStart{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NavigationStart{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     units="ms" expires_after="2026-02-22">
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -2971,17 +3201,18 @@ chromium-metrics-reviews@google.com.
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NetError{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{AbandonedTimeBucket}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.NetError{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}{AbandonedTimeBucket}"
     enum="NetErrorCodes" expires_after="2025-12-14">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
     Network status codes recorded for the abandoned navigation request, with
     potentially some suffixes detaling the navigation {BackgroundSuffix},
-    {HiddenSuffix}, {IncognitoSuffix}.
+    {HiddenSuffix}, {IncognitoSuffix}, {ResponseFromCache}.
 
     The metric is emitted when the navigation gets abandoned.
   </summary>
@@ -2989,6 +3220,7 @@ chromium-metrics-reviews@google.com.
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
   <token key="AbandonedTimeBucket">
     <variant name=""/>
     <variant name=".AbandonedTime100To2000"/>
@@ -2998,7 +3230,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.RendererProcessCreatedBeforeNav{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.RendererProcessCreatedBeforeNav{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     enum="Boolean" expires_after="2026-01-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
@@ -3007,42 +3239,44 @@ chromium-metrics-reviews@google.com.
     Whether the renderer process for the navigation is already created before
     the navigation start or not, for a main frame navigation for
     {ObservedNavigation} with potentially some suffixes detaling the navigation
-    {BackgroundSuffix}, {HiddenSuffix}, {IncognitoSuffix}. The metric is emitted
-    when the navigation's commit IPC is just sent out.
+    {BackgroundSuffix}, {HiddenSuffix}, {IncognitoSuffix}, {ResponseFromCache}.
+    The metric is emitted when the navigation's commit IPC is just sent out.
   </summary>
   <token key="BackgroundSuffix" variants="BackgroundSuffix"/>
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.TimeToAbandonFromNavigationStart.{NavigationMilestone}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.TimeToAbandonFromNavigationStart.{NavigationMilestone}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     units="ms" expires_after="2026-03-20">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
     The Duration from the navigation start time to the time that a navigation
     gets abandoned after the milestone {NavigationMilestone} on a main frame
-    navigation for {ObservedNavigation}. Only the abandonments due to
-    backgrounding and hiding are non-terminal, and other abandonments are
-    terminal. This means this metric might be recorded multiple times if the
-    navigation is only abandoned non-terminally before, but only once for each
-    abandonment reason. &quot;This is logged after non-terminal abandonment of
-    pages which were {BackgroundSuffix}, {HiddenSuffix} and {IncognitoSuffix}.
-    The milestone recorded will be the latest milestone (if there are multiple
-    milestones reached before the abandonment). The metric is emitted when the
-    navigation gets abandoned.
+    navigation for {ObservedNavigation} with {ResponseFromCache}. Only the
+    abandonments due to backgrounding and hiding are non-terminal, and other
+    abandonments are terminal. This means this metric might be recorded multiple
+    times if the navigation is only abandoned non-terminally before, but only
+    once for each abandonment reason. &quot;This is logged after non-terminal
+    abandonment of pages which were {BackgroundSuffix}, {HiddenSuffix} and
+    {IncognitoSuffix}. The milestone recorded will be the latest milestone (if
+    there are multiple milestones reached before the abandonment). The metric is
+    emitted when the navigation gets abandoned.
   </summary>
   <token key="BackgroundSuffix" variants="BackgroundSuffix"/>
   <token key="HiddenSuffix" variants="HiddenSuffix"/>
   <token key="IncognitoSuffix" variants="IncognitoSuffix"/>
   <token key="NavigationMilestone" variants="NavigationMilestone"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram
-    name="PageLoad.Clients{ObservedNavigation}.Leakage2.{NavigationType}To{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}"
+    name="PageLoad.Clients{ObservedNavigation}.Leakage2.{NavigationType}To{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
     units="ms" expires_after="2026-01-23">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
@@ -3050,8 +3284,9 @@ chromium-metrics-reviews@google.com.
   <summary>
     For a navigation of type {NavigationType} that gets abandoned due to
     {NavigationAbandonReason} from the navigation's start time, for a main frame
-    navigation for {ObservedNavigation}, with potentially some suffixes detaling
-    the navigation {BackgroundSuffix}, {HiddenSuffix} and/or {IncognitoSuffix}.
+    navigation for {ObservedNavigation} with {ResponseFromCache} connection,
+    with potentially some suffixes detaling the navigation {BackgroundSuffix},
+    {HiddenSuffix} and/or {IncognitoSuffix}.
 
     The metric is emitted when the navigation gets abandoned.
   </summary>
@@ -3061,6 +3296,7 @@ chromium-metrics-reviews@google.com.
   <token key="NavigationAbandonReason" variants="NavigationAbandonReason"/>
   <token key="NavigationType" variants="NavigationTypeForAbandonment"/>
   <token key="ObservedNavigation" variants="ObservedNavigation"/>
+  <token key="ResponseFromCache" variants="ResponseFromCache"/>
 </histogram>
 
 <histogram name="PageLoad.CommittedPageIsDseSerp" enum="Boolean"
@@ -3132,7 +3368,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Experimental.InputTiming.InputToNavigationStart"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>spelchat@chromium.org</owner>
   <owner>chrome-brapp-loading@google.com</owner>
   <summary>
@@ -3154,7 +3390,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Experimental.InputTiming.InputToNavigationStart.FromLinkClick"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>spelchat@chromium.org</owner>
   <owner>chrome-brapp-loading@google.com</owner>
   <summary>
@@ -3165,7 +3401,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Experimental.InputTiming.InputToNavigationStart.FromOmnibox"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>spelchat@chromium.org</owner>
   <owner>chrome-brapp-loading@google.com</owner>
   <summary>
@@ -3808,7 +4044,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Internal.ErrorCode" enum="InternalErrorLoadEvent"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>csharrison@chromium.org</owner>
   <owner>bmcquade@chromium.org</owner>
   <summary>
@@ -4442,7 +4678,8 @@ chromium-metrics-reviews@google.com.
   <token key="WebUIName" variants="WebUIName"/>
 </histogram>
 
-<histogram name="PageLoad.PaintTiming.NavigationToFirstContentfulPaint.WebUI"
+<histogram
+    name="PageLoad.PaintTiming.NavigationToFirstContentfulPaint.WebUI{WebUIHost}"
     units="ms" expires_after="2026-02-15">
   <owner>anthonyvd@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -4451,6 +4688,7 @@ chromium-metrics-reviews@google.com.
     This is only recorded for webUI pages that are not blocked if users do not
     visit chrome://about and enable debugging pages.
   </summary>
+  <token key="WebUIHost" variants="WebUIHost"/>
 </histogram>
 
 <histogram
@@ -4566,7 +4804,8 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="PageLoad.PaintTiming.NavigationToLargestContentfulPaint.WebUI"
+<histogram
+    name="PageLoad.PaintTiming.NavigationToLargestContentfulPaint.WebUI{WebUIHost}"
     units="ms" expires_after="2026-02-15">
   <owner>anthonyvd@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
@@ -4575,6 +4814,7 @@ chromium-metrics-reviews@google.com.
     webUI. This is only recorded for webUI pages that are not blocked if users
     do not visit chrome://about and enable debugging pages.
   </summary>
+  <token key="WebUIHost" variants="WebUIHost"/>
 </histogram>
 
 <histogram name="PageLoad.PaintTiming.NavigationToLargestContentfulPaint2"

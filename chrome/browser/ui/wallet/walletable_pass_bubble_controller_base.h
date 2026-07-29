@@ -7,11 +7,9 @@
 
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/ui/autofill/bubble_controller_base.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/wallet/core/browser/walletable_pass_client.h"
-
-namespace tabs {
-class TabInterface;
-}  // namespace tabs
+#include "content/public/browser/web_contents.h"
 
 namespace wallet {
 
@@ -43,6 +41,8 @@ class WalletablePassBubbleControllerBase
       const WalletablePassBubbleControllerBase&) = delete;
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override {}
+  bool CanBeReshown() const override;
   void HideBubble(bool initiated_by_bubble_manager) override;
   bool IsShowingBubble() const override;
   bool IsMouseHovered() const override;
@@ -63,9 +63,11 @@ class WalletablePassBubbleControllerBase
 
   void ResetBubbleViewAndInformBubbleManager();
 
-  tabs::TabInterface& tab() { return tab_.get(); }
+  content::WebContents* web_contents() { return tab_->GetContents(); }
 
  private:
+  tabs::TabInterface& tab() { return tab_.get(); }
+
   // Weak reference. Will be nullptr if no bubble is currently shown.
   raw_ptr<WalletablePassBubbleViewBase> bubble_view_ = nullptr;
 

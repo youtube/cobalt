@@ -157,15 +157,19 @@ bool AimEligibilityService::GenericKillSwitchFeatureCheck(
     const base::Feature& feature,
     const std::optional<std::reference_wrapper<const base::Feature>>
         feature_en_us) {
-  // If the generic feature is overridden to be false, return false.
-  auto* feature_list = base::FeatureList::GetInstance();
-  if (feature_list && feature_list->IsFeatureOverridden(feature.name) &&
-      !base::FeatureList::IsEnabled(feature)) {
+  if (!aim_eligibility_service) {
     return false;
   }
 
-  if (!aim_eligibility_service) {
+  // If not locally eligible, return false.
+  if (!aim_eligibility_service->IsAimLocallyEligible()) {
     return false;
+  }
+
+  // If the generic feature is overridden, it takes precedence.
+  auto* feature_list = base::FeatureList::GetInstance();
+  if (feature_list && feature_list->IsFeatureOverridden(feature.name)) {
+    return base::FeatureList::IsEnabled(feature);
   }
 
   // If the server eligibility is enabled, check overall eligibility alone.
@@ -175,12 +179,7 @@ bool AimEligibilityService::GenericKillSwitchFeatureCheck(
     return aim_eligibility_service->IsAimEligible();
   }
 
-  // If not locally eligible, return false.
-  if (!aim_eligibility_service->IsAimLocallyEligible()) {
-    return false;
-  }
-
-  // Otherwise, check the generic entrypoint feature.
+  // Otherwise, check the generic entrypoint feature default value.
   return base::FeatureList::IsEnabled(feature) ||
          (feature_en_us &&
           base::FeatureList::IsEnabled(feature_en_us.value()) &&
@@ -288,6 +287,18 @@ bool AimEligibilityService::IsDeepSearchEligible() const {
 
   if (IsServerEligibilityEnabled()) {
     return most_recent_response_.is_deep_search_eligible();
+  }
+
+  return true;
+}
+
+bool AimEligibilityService::IsCreateImagesEligible() const {
+  if (!IsAimEligible()) {
+    return false;
+  }
+
+  if (IsServerEligibilityEnabled()) {
+    return most_recent_response_.is_image_generation_eligible();
   }
 
   return true;
@@ -519,6 +530,12 @@ void AimEligibilityService::LogEligibilityResponse(
   base::UmaHistogramBoolean(
       base::StrCat({sliced_prefix, ".is_deep_search_eligible"}),
       most_recent_response_.is_deep_search_eligible());
+  base::UmaHistogramBoolean(
+      base::StrCat({prefix, ".is_image_generation_eligible"}),
+      most_recent_response_.is_image_generation_eligible());
+  base::UmaHistogramBoolean(
+      base::StrCat({sliced_prefix, ".is_image_generation_eligible"}),
+      most_recent_response_.is_image_generation_eligible());
 }
 
 void AimEligibilityService::LogEligibilityResponseChange() const {
@@ -542,4 +559,8 @@ void AimEligibilityService::LogEligibilityResponseChange() const {
   base::UmaHistogramBoolean(base::StrCat({prefix, ".is_deep_search_eligible"}),
                             most_recent_response_.is_deep_search_eligible() !=
                                 prefs_response.is_deep_search_eligible());
+  base::UmaHistogramBoolean(
+      base::StrCat({prefix, ".is_image_generation_eligible"}),
+      most_recent_response_.is_image_generation_eligible() !=
+          prefs_response.is_image_generation_eligible());
 }

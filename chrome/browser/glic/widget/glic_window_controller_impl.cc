@@ -96,12 +96,12 @@ mojom::PanelState CreatePanelState(bool widget_visible,
                                    Browser* attached_browser) {
   mojom::PanelState panel_state;
   if (!widget_visible) {
-    panel_state.kind = mojom::PanelState_Kind::kHidden;
+    panel_state.kind = mojom::PanelStateKind::kHidden;
   } else if (attached_browser) {
-    panel_state.kind = mojom::PanelState_Kind::kAttached;
+    panel_state.kind = mojom::PanelStateKind::kAttached;
     panel_state.window_id = attached_browser->session_id().id();
   } else {
-    panel_state.kind = mojom::PanelState_Kind::kDetached;
+    panel_state.kind = mojom::PanelStateKind::kDetached;
   }
   return panel_state;
 }
@@ -149,7 +149,8 @@ GlicWindowControllerImpl::GlicWindowControllerImpl(
   } else {
     previous_position_ = GetPreviousPositionFromPrefs(profile_->GetPrefs());
   }
-  application_hotkey_manager_ = MakeApplicationHotkeyManager(GetWeakPtr());
+  application_hotkey_manager_ =
+      MakeApplicationHotkeyManager(weak_ptr_factory_.GetWeakPtr());
   host_.SetDelegate(this);
   host_observation_.Observe(&host());
 }
@@ -278,27 +279,8 @@ void GlicWindowControllerImpl::ShowAfterSignIn(base::WeakPtr<Browser> browser) {
 void GlicWindowControllerImpl::Toggle(BrowserWindowInterface* bwi,
                                       bool prevent_close,
                                       mojom::InvocationSource source) {
-  // If `bwi` is non-null, the glic button was clicked on a specific window and
-  // glic should be attached to that window. Otherwise glic was invoked from the
-  // hotkey or other OS-level entrypoint.
   Browser* new_attached_browser =
       bwi ? bwi->GetBrowserForMigrationOnly() : nullptr;
-
-  mojom::PanelState panel_state = ComputePanelState();
-  bool is_detached = panel_state.kind == mojom::PanelState_Kind::kDetached;
-
-  // In the case where the user invokes the hotkey, or the status tray glic
-  // icon and the most recently used window for the glic profile is active,
-  // treat this as if the user clicked the glic button on that window if
-  // Chrome is currently in the foreground and we aren't in detached state.
-  if (!new_attached_browser && !is_detached) {
-    BrowserWindowInterface* const active_bwi =
-        GetLastActiveBrowserWindowInterfaceWithAnyProfile();
-    if (active_bwi && IsBrowserGlicAttachable(profile_, active_bwi) &&
-        IsBrowserInForeground(active_bwi)) {
-      new_attached_browser = active_bwi->GetBrowserForMigrationOnly();
-    }
-  }
 
   if (!AlwaysDetached()) {
     ToggleWhenNotAlwaysDetached(new_attached_browser, prevent_close, source);
@@ -490,6 +472,13 @@ GlicInstance* GlicWindowControllerImpl::GetInstanceForTab(
   return this;
 }
 
+bool GlicWindowControllerImpl::FindInstanceFromIdAndBindToTab(
+    const InstanceId& instance_id,
+    tabs::TabInterface* tab_to_bind) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
 bool GlicWindowControllerImpl::BeforeViewCreated(
     Browser* browser,
     mojom::InvocationSource source) {
@@ -518,7 +507,8 @@ bool GlicWindowControllerImpl::BeforeViewCreated(
   host().CreateContents(/*initially_hidden=*/false);
   host().NotifyWindowIntentToShow();
 
-  glic_panel_hotkey_manager_ = MakeGlicWindowHotkeyManager(GetWeakPtr());
+  glic_panel_hotkey_manager_ =
+      MakeGlicWindowHotkeyManager(weak_ptr_factory_.GetWeakPtr());
   return true;
 }
 
@@ -754,7 +744,7 @@ GlicView* GlicWindowControllerImpl::GetGlicView() const {
   return nullptr;
 }
 
-base::WeakPtr<views::View> GlicWindowControllerImpl::GetGlicViewAsView() {
+base::WeakPtr<views::View> GlicWindowControllerImpl::GetView() {
   if (auto* view = GetGlicView()) {
     return view->GetWeakPtr();
   }
@@ -767,15 +757,6 @@ GlicWindowAnimator* GlicWindowControllerImpl::window_animator() {
 
 GlicWidget* GlicWindowControllerImpl::GetGlicWidget() const {
   return glic_widget_.get();
-}
-
-gfx::NativeWindow GlicWindowControllerImpl::GetHostNativeWindow() {
-  if (!glic_widget_) {
-    // TODO(b:440090981): Implement for side panel.
-    NOTIMPLEMENTED();
-    return gfx::NativeWindow();
-  }
-  return glic_widget_->GetNativeWindow();
 }
 
 void GlicWindowControllerImpl::AttachedBrowserDidClose(
@@ -1017,7 +998,9 @@ void GlicWindowControllerImpl::Close() {
 
 void GlicWindowControllerImpl::ClosePanel() {
   Close();
-  glic_service_->GetScreenshotCapturer().CloseScreenPicker();
+  if (screenshot_capturer_) {
+    screenshot_capturer_->CloseScreenPicker();
+  }
 }
 
 void GlicWindowControllerImpl::ResetAndHidePanel() {
@@ -1086,7 +1069,15 @@ mojom::PanelState GlicWindowControllerImpl::GetPanelState() {
   return panel_state_;
 }
 
+mojom::PanelState GlicWindowControllerImpl::GetGlobalPanelState() {
+  return panel_state_;
+}
+
 void GlicWindowControllerImpl::OnDragComplete() {
+  if (AlwaysDetached()) {
+    // Do not handle attachment.
+    return;
+  }
   BrowserWindowInterface* browser = FindBrowserForAttachment();
   // No browser within attachment range.
   if (!browser) {
@@ -1189,6 +1180,16 @@ void GlicWindowControllerImpl::RemoveStateObserver(StateObserver* observer) {
   state_observers_.RemoveObserver(observer);
 }
 
+void GlicWindowControllerImpl::AddGlobalStateObserver(
+    PanelStateObserver* observer) {
+  AddStateObserver(observer);
+}
+
+void GlicWindowControllerImpl::RemoveGlobalStateObserver(
+    PanelStateObserver* observer) {
+  RemoveStateObserver(observer);
+}
+
 void GlicWindowControllerImpl::NotifyIfPanelStateChanged() {
   auto new_state = ComputePanelState();
   if (new_state != panel_state_) {
@@ -1215,6 +1216,10 @@ bool GlicWindowControllerImpl::IsActive() {
   return IsDetached() && GetGlicWidget()->IsActive();
 }
 
+bool GlicWindowControllerImpl::HasFocus() {
+  return IsActive();
+}
+
 bool GlicWindowControllerImpl::IsShowing() const {
   return !(state_ == State::kClosed);
 }
@@ -1223,6 +1228,20 @@ void GlicWindowControllerImpl::SwitchConversation(
     glic::mojom::ConversationInfoPtr info,
     mojom::WebClientHandler::SwitchConversationCallback callback) {
   std::move(callback).Run(mojom::SwitchConversationErrorReason::kUnknown);
+}
+
+void GlicWindowControllerImpl::CaptureScreenshot(
+    glic::mojom::WebClientHandler::CaptureScreenshotCallback callback) {
+  if (!GetGlicWidget()) {
+    std::move(callback).Run(mojom::CaptureScreenshotResult::NewErrorReason(
+        mojom::CaptureScreenshotErrorReason::kUnknown));
+    return;
+  }
+  if (!screenshot_capturer_) {
+    screenshot_capturer_ = std::make_unique<GlicScreenshotCapturer>();
+  }
+  screenshot_capturer_->CaptureScreenshot(GetGlicWidget()->GetNativeWindow(),
+                                          std::move(callback));
 }
 
 bool GlicWindowControllerImpl::IsAttached() const {
@@ -1304,8 +1323,8 @@ base::CallbackListSubscription GlicWindowControllerImpl::RegisterStateChange(
 }
 
 base::CallbackListSubscription
-GlicWindowControllerImpl::RegisterLastActiveInstanceChangedCallback(
-    LastActiveInstanceChangedCallback callback) {
+GlicWindowControllerImpl::AddActiveInstanceChangedCallbackAndNotifyImmediately(
+    ActiveInstanceChangedCallback callback) {
   NOTIMPLEMENTED();
   return base::CallbackListSubscription();
 }

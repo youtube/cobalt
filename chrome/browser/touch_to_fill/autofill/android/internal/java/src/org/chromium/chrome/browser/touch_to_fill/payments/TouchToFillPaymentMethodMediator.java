@@ -11,6 +11,10 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_SELECTION_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.NON_TRANSFORMING_BNPL_ISSUER_CONTEXT_KEYS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ON_ISSUER_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.APPLY_LINK_DEACTIVATED_STYLE;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.HIDE_OPTIONS_LINK_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.ON_LINK_CLICK_CALLBACK;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties.TERMS_TEXT_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.BNPL_ITEM_COLLECTION_INFO;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSuggestionProperties.IS_ENABLED;
@@ -48,6 +52,7 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.ALL_LOYALTY_CARDS;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_ISSUER;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_FOOTER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_SELECTION_PROGRESS_HEADER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.BNPL_TOS_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.CREDIT_CARD;
@@ -59,6 +64,8 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.LOYALTY_CARD;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.PROGRESS_ICON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TERMS_LABEL;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TEXT_BUTTON;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.TOS_FOOTER;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType.WALLET_SETTINGS_BUTTON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.LOYALTY_CARD_ICON;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.LoyaltyCardProperties.LOYALTY_CARD_NUMBER;
@@ -77,7 +84,8 @@ import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaym
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.ERROR_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.HOME_SCREEN;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ScreenId.PROGRESS_SCREEN;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.CARD_BENEFITS_TERMS_AVAILABLE;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties.TERMS_LABEL_TEXT_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TosFooterProperties.LEGAL_MESSAGE;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.VISIBLE;
 
 import android.graphics.drawable.Drawable;
@@ -92,14 +100,15 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.BnplIssuerContext;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
+import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
 import org.chromium.chrome.browser.touch_to_fill.common.BottomSheetFocusHelper;
 import org.chromium.chrome.browser.touch_to_fill.common.FillableItemCollectionInfo;
 import org.chromium.chrome.browser.touch_to_fill.common.TouchToFillResourceProvider;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodComponent.Delegate;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.AllLoyaltyCardsItemProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerTosTextItemProperties;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressFooterProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ButtonProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ErrorDescriptionProperties;
@@ -108,11 +117,13 @@ import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMeth
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ItemType;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.ProgressIconProperties;
 import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TermsLabelProperties;
+import org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.TosFooterProperties;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.IbanRecordType;
 import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.components.autofill.PaymentsPayload;
 import org.chromium.components.autofill.SuggestionType;
+import org.chromium.components.autofill.payments.BnplIssuerContext;
 import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
@@ -320,7 +331,7 @@ class TouchToFillPaymentMethodMediator {
         }
 
         if (cardBenefitsTermsAvailable) {
-            sheetItems.add(buildTermsLabel(cardBenefitsTermsAvailable));
+            sheetItems.add(buildCardBenefitTermsLabel());
         }
 
         if (mSuggestions.size() == 1) {
@@ -329,7 +340,7 @@ class TouchToFillPaymentMethodMediator {
             sheetItems.add(
                     new ListItem(
                             FILL_BUTTON,
-                            createFillButtonModel(
+                            createButtonModel(
                                     R.string.autofill_payment_method_continue_button,
                                     () -> onSelectedCreditCard(mSuggestions.get(0)))));
         }
@@ -380,7 +391,7 @@ class TouchToFillPaymentMethodMediator {
             sheetItems.add(
                     new ListItem(
                             FILL_BUTTON,
-                            createFillButtonModel(
+                            createButtonModel(
                                     R.string.autofill_payment_method_continue_button,
                                     () -> this.onSelectedIban(mIbans.get(0)))));
         }
@@ -468,7 +479,7 @@ class TouchToFillPaymentMethodMediator {
             sheetItems.add(
                     new ListItem(
                             FILL_BUTTON,
-                            createFillButtonModel(
+                            createButtonModel(
                                     R.string.autofill_loyalty_card_autofill_button,
                                     () ->
                                             this.onSelectedLoyaltyCard(
@@ -488,26 +499,38 @@ class TouchToFillPaymentMethodMediator {
     void updateBnplPaymentMethod(
             @Nullable Long extractedAmount, boolean isAmountSupportedByAnyIssuer) {
         assert mSuggestions != null;
+        // `bnplSuggestion` contains the raw data for the BNPL suggestion.
+        // It is decoupled from its presentation in the UI.
+        AutofillSuggestion bnplSuggestion = null;
+        for (int i = 0; i < mSuggestions.size(); ++i) {
+            if (mSuggestions.get(i).getSuggestionType() == SuggestionType.BNPL_ENTRY) {
+                bnplSuggestion = mSuggestions.get(i);
+                break;
+            }
+        }
+        // `bnplModel` holds the properties needed to render the BNPL chip on the bottom sheet.
+        // It acts as a bridge between the data and the view.
+        PropertyModel bnplModel = null;
+        ModelList sheetItems = mModel.get(SHEET_ITEMS);
+        for (int i = 0; i < sheetItems.size(); ++i) {
+            if (sheetItems.get(i).type == ItemType.BNPL) {
+                bnplModel = sheetItems.get(i).model;
+                break;
+            }
+        }
+
+        if (bnplSuggestion == null || bnplModel == null) return;
+
         if (isAmountSupportedByAnyIssuer) {
-            for (int i = 0; i < mSuggestions.size(); ++i) {
-                AutofillSuggestion suggestion = mSuggestions.get(i);
-                if (suggestion.getSuggestionType() == SuggestionType.BNPL_ENTRY) {
-                    suggestion.getPaymentsPayload().setExtractedAmount(extractedAmount);
-                }
-            }
+            bnplSuggestion.getPaymentsPayload().setExtractedAmount(extractedAmount);
+            bnplModel.set(IS_ENABLED, true);
+            bnplModel.set(SECONDARY_TEXT, bnplSuggestion.getSublabel());
         } else {
-            ModelList sheetItems = mModel.get(SHEET_ITEMS);
-            for (int i = 0; i < sheetItems.size(); ++i) {
-                if (sheetItems.get(i).type == ItemType.BNPL) {
-                    PropertyModel bnplModel = sheetItems.get(i).model;
-                    bnplModel.set(IS_ENABLED, false);
-                    bnplModel.set(
-                            SECONDARY_TEXT,
-                            getString(
-                                    R.string
-                                            .autofill_bnpl_suggestion_label_for_unavailable_purchase));
-                }
-            }
+            bnplSuggestion.getPaymentsPayload().setExtractedAmount(null);
+            bnplModel.set(IS_ENABLED, false);
+            bnplModel.set(
+                    SECONDARY_TEXT,
+                    getString(R.string.autofill_bnpl_suggestion_label_for_unavailable_purchase));
         }
     }
 
@@ -545,11 +568,13 @@ class TouchToFillPaymentMethodMediator {
      * <p>This method shows a bottom sheet listing the provided BNPL issuers.
      *
      * @param bnplIssuerContexts A list of {@link BnplIssuerContext} to be displayed.
+     * @param footerText The text to be displayed on the footer.
      */
-    public void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts) {
+    public void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts, String footerText) {
         mInputProtector.markShowTime();
 
         assert bnplIssuerContexts != null;
+        assert footerText != null;
         mBnplIssuerContexts = bnplIssuerContexts;
         mIbans = null;
         mAffiliatedLoyaltyCards = null;
@@ -565,7 +590,7 @@ class TouchToFillPaymentMethodMediator {
             sheetItems.add(new ListItem(BNPL_ISSUER, createBnplIssuerContextModel(issuerContext)));
         }
 
-        // TODO(crbug.com/438784993): Add footer to BNPL issuer selection screen.
+        sheetItems.add(buildFooterForBnplSelectionProgress(footerText, /* isInProgress= */ false));
 
         mModel.set(
                 SHEET_CONTENT_DESCRIPTION_ID,
@@ -591,7 +616,7 @@ class TouchToFillPaymentMethodMediator {
         errorScreenModel.add(
                 new ListItem(
                         FILL_BUTTON,
-                        createFillButtonModel(
+                        createButtonModel(
                                 R.string.autofill_bnpl_error_ok_button,
                                 () -> this.onErrorOkPressed())));
 
@@ -618,6 +643,12 @@ class TouchToFillPaymentMethodMediator {
         ModelList sheetItems = new ModelList();
 
         sheetItems.add(
+                buildHeaderForBnplIssuerTos(
+                        GlobalNightModeStateProviderHolder.getInstance().isInNightMode()
+                                ? bnplIssuerTosDetail.getHeaderIconDarkDrawableId()
+                                : bnplIssuerTosDetail.getHeaderIconDrawableId(),
+                        bnplIssuerTosDetail.getTitle()));
+        sheetItems.add(
                 new ListItem(
                         BNPL_TOS_TEXT,
                         createBnplIssuerTosTextItemModel(
@@ -632,7 +663,19 @@ class TouchToFillPaymentMethodMediator {
                         BNPL_TOS_TEXT,
                         createBnplIssuerTosTextItemModel(
                                 R.drawable.add_link, bnplIssuerTosDetail.getLinkText())));
-
+        sheetItems.add(buildFooterForLegalMessage(bnplIssuerTosDetail.getLegalMessages()));
+        sheetItems.add(
+                new ListItem(
+                        FILL_BUTTON,
+                        createButtonModel(
+                                R.string.autofill_bnpl_tos_ok_button_label,
+                                this::onBnplIssuerTosAccepted)));
+        sheetItems.add(
+                new ListItem(
+                        TEXT_BUTTON,
+                        createButtonModel(
+                                R.string.autofill_bnpl_tos_bottom_sheet_cancel_button_label,
+                                this::onBnplIssuerTosCancelled)));
         mModel.set(
                 SHEET_CONTENT_DESCRIPTION_ID,
                 R.string.autofill_bnpl_issuer_tos_bottom_sheet_content_description);
@@ -704,13 +747,13 @@ class TouchToFillPaymentMethodMediator {
         recordTouchToFillCreditCardOutcomeHistogram(TouchToFillCreditCardOutcome.SCAN_NEW_CARD);
     }
 
+    // TODO(crbug.com/430575808): Log `MANAGE_PAYMENTS` outcome metric for BNPL.
     public void showPaymentMethodSettings() {
         mDelegate.showPaymentMethodSettings();
         if (mSuggestions != null) {
             recordTouchToFillCreditCardOutcomeHistogram(
                     TouchToFillCreditCardOutcome.MANAGE_PAYMENTS);
-        } else {
-            assert mIbans != null;
+        } else if (mIbans != null) {
             recordTouchToFillIbanOutcomeHistogram(TouchToFillIbanOutcome.MANAGE_PAYMENTS);
         }
     }
@@ -775,12 +818,21 @@ class TouchToFillPaymentMethodMediator {
         }
     }
 
-    private void onAcceptedBnplSuggestion() {
-        // TODO(crbug.com/430575808): Handle user clicking the BNPL chip.
+    private void onAcceptedBnplSuggestion(AutofillSuggestion suggestion) {
+        if (!mInputProtector.shouldInputBeProcessed()) return;
+        mDelegate.bnplSuggestionSelected(suggestion.getPaymentsPayload().getExtractedAmount());
     }
 
-    private void onAcceptedBnplIssuer() {
-        // TODO(crbug.com/430575808): Handle user clicking a BNPL issuer.
+    private void onAcceptedBnplIssuer(String issuerId) {
+        // TODO(crbug.com/430575808): During implementation, make sure that when we hide the bottom
+        // sheet to prepare to show the ephemeral tab, we use `mModel.set(VISIBLE, false)` instead
+        // of `hideSheet()`. This preserves the TouchToFill view and delegate on native side, which
+        // is needed when the user completes the flow on the ephemeral tab and reopens the TTF
+        // bottom sheet.
+        if (!mInputProtector.shouldInputBeProcessed()) {
+            return;
+        }
+        mDelegate.onBnplIssuerSuggestionSelected(issuerId);
     }
 
     private void onErrorOkPressed() {
@@ -788,6 +840,14 @@ class TouchToFillPaymentMethodMediator {
             return;
         }
         mDelegate.onErrorOkPressed();
+    }
+
+    private void onBnplIssuerTosAccepted() {
+        // TODO(crbug.com/438784697): Handle ToS accepted event.
+    }
+
+    private void onBnplIssuerTosCancelled() {
+        // TODO(crbug.com/438784697): Dismiss the screen and reset the BNPL flow.
     }
 
     private void showAllLoyaltyCards() {
@@ -851,7 +911,7 @@ class TouchToFillPaymentMethodMediator {
                         .with(BNPL_ICON_ID, suggestion.getIconId())
                         .with(PRIMARY_TEXT, suggestion.getLabel())
                         .with(SECONDARY_TEXT, suggestion.getSublabel())
-                        .with(ON_BNPL_CLICK_ACTION, () -> this.onAcceptedBnplSuggestion())
+                        .with(ON_BNPL_CLICK_ACTION, () -> this.onAcceptedBnplSuggestion(suggestion))
                         .with(BNPL_ITEM_COLLECTION_INFO, itemCollectionInfo)
                         .with(IS_ENABLED, !suggestion.applyDeactivatedStyle());
         return bnplSuggestionModelBuilder.build();
@@ -864,7 +924,9 @@ class TouchToFillPaymentMethodMediator {
                         .with(ISSUER_SELECTION_TEXT, issuerContext.getSelectionText())
                         .with(ISSUER_ICON_ID, issuerContext.getIconId())
                         .with(ISSUER_LINKED, issuerContext.isLinked())
-                        .with(ON_ISSUER_CLICK_ACTION, this::onAcceptedBnplIssuer)
+                        .with(
+                                ON_ISSUER_CLICK_ACTION,
+                                () -> this.onAcceptedBnplIssuer(issuerContext.getIssuerId()))
                         .with(APPLY_ISSUER_DEACTIVATED_STYLE, !issuerContext.isEligible());
         return bnplIssuerModelBuilder.build();
     }
@@ -917,7 +979,7 @@ class TouchToFillPaymentMethodMediator {
                 .build();
     }
 
-    private PropertyModel createFillButtonModel(@StringRes int titleId, Runnable onClickAction) {
+    private PropertyModel createButtonModel(@StringRes int titleId, Runnable onClickAction) {
         return new PropertyModel.Builder(ButtonProperties.ALL_KEYS)
                 .with(TEXT_ID, titleId)
                 .with(ON_CLICK_ACTION, onClickAction)
@@ -931,11 +993,13 @@ class TouchToFillPaymentMethodMediator {
                 .build();
     }
 
-    private ListItem buildTermsLabel(boolean cardBenefitsTermsAvailable) {
+    private ListItem buildCardBenefitTermsLabel() {
         return new ListItem(
                 TERMS_LABEL,
                 new PropertyModel.Builder(TermsLabelProperties.ALL_TERMS_LABEL_KEYS)
-                        .with(CARD_BENEFITS_TERMS_AVAILABLE, cardBenefitsTermsAvailable)
+                        .with(
+                                TERMS_LABEL_TEXT_ID,
+                                R.string.autofill_payment_method_bottom_sheet_benefits_terms_label)
                         .build());
     }
 
@@ -1000,6 +1064,15 @@ class TouchToFillPaymentMethodMediator {
                 BNPL_SELECTION_PROGRESS_HEADER, bnplSelectionProgressHeaderBuilder.build());
     }
 
+    private ListItem buildHeaderForBnplIssuerTos(int issuerImageId, String title) {
+        return new ListItem(
+                HEADER,
+                new PropertyModel.Builder(HeaderProperties.ALL_KEYS)
+                        .with(IMAGE_DRAWABLE_ID, issuerImageId)
+                        .with(TITLE_STRING, title)
+                        .build());
+    }
+
     private ListItem buildFooterForCreditCard(boolean hasScanCardButton) {
         return new ListItem(
                 FOOTER,
@@ -1032,6 +1105,25 @@ class TouchToFillPaymentMethodMediator {
                                 OPEN_MANAGEMENT_UI_TITLE_ID,
                                 R.string.autofill_bottom_sheet_manage_loyalty_cards)
                         .with(OPEN_MANAGEMENT_UI_CALLBACK, this::showManageLoyaltyCards)
+                        .build());
+    }
+
+    private ListItem buildFooterForBnplSelectionProgress(String footerText, boolean isInProgress) {
+        return new ListItem(
+                BNPL_SELECTION_PROGRESS_FOOTER,
+                new PropertyModel.Builder(BnplSelectionProgressFooterProperties.ALL_KEYS)
+                        .with(TERMS_TEXT_ID, R.string.autofill_bnpl_issuer_bottom_sheet_terms_label)
+                        .with(HIDE_OPTIONS_LINK_TEXT, footerText)
+                        .with(ON_LINK_CLICK_CALLBACK, (view) -> showPaymentMethodSettings())
+                        .with(APPLY_LINK_DEACTIVATED_STYLE, isInProgress)
+                        .build());
+    }
+
+    private ListItem buildFooterForLegalMessage(BnplIssuerTosDetail.LegalMessages legalMessages) {
+        return new ListItem(
+                TOS_FOOTER,
+                new PropertyModel.Builder(TosFooterProperties.ALL_KEYS)
+                        .with(LEGAL_MESSAGE, legalMessages)
                         .build());
     }
 

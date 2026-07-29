@@ -27,14 +27,14 @@ export function getHtml(this: ContextMenuEntrypointElement) {
     `}
 
   <cr-action-menu id="menu" role-description="${this.i18n('menu')}">
-    ${this.tabSuggestions_.length > 0 ? html`
+    ${this.tabSuggestions_?.length > 0 ? html`
       <h4 id="tabHeader">${this.i18n('addTab')}</h4>
       ${this.tabSuggestions_.map((tab, index) => html`
         <div class="suggestion-container">
           <button class="dropdown-item"
               title="${tab.title}" data-index="${index}"
-              ?disabled="${this.inCreateImageMode ||
-                           this.disabledTabIds.has(tab.tabId)}"
+              aria-label="${this.i18n('addTab')}, ${tab.title}"
+              ?disabled="${this.isTabDisabled_(tab)}"
               @pointerenter="${this.onTabPointerenter_}"
               @click="${this.addTabContext_}">
             <composebox-tab-favicon .url="${tab.url.url}">
@@ -49,13 +49,14 @@ export function getHtml(this: ContextMenuEntrypointElement) {
       <hr/>
     `: ''}
     <button id="imageUpload" class="dropdown-item"
-        @click="${this.openImageUpload_}">
+        @click="${this.openImageUpload_}"
+         ?disabled="${this.imageUploadDisabled_}">
       <cr-icon icon="composebox:imageUpload"></cr-icon>
       ${this.i18n('addImage')}
     </button>
     <button id="fileUpload" class="dropdown-item"
         @click="${this.openFileUpload_}"
-        ?disabled="${this.inCreateImageMode}">
+        ?disabled="${this.fileUploadDisabled_}">
       <cr-icon icon="composebox:fileUpload"></cr-icon>
       ${this.i18n('uploadFile')}
     </button>
@@ -63,13 +64,14 @@ export function getHtml(this: ContextMenuEntrypointElement) {
     ${this.showDeepSearch_ ?
     html`<button id="deepSearch" class="dropdown-item"
         @click="${this.onDeepSearchClick_}"
-        ?disabled="${this.inCreateImageMode}">
+        ?disabled="${this.deepSearchDisabled_}">
       <cr-icon icon="composebox:deepSearch"></cr-icon>
       ${this.i18n('deepSearch')}
     </button>` : ''}
     ${this.showCreateImage_ ?
     html`<button id="createImage" class="dropdown-item"
-        @click="${this.onCreateImageClick_}">
+        @click="${this.onCreateImageClick_}"
+        ?disabled="${this.createImageDisabled_}">
       <cr-icon icon="composebox:nanoBanana"></cr-icon>
       ${this.i18n('createImages')}
     </button>` : ''}

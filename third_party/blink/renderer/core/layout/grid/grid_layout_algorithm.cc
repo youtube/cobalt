@@ -998,120 +998,66 @@ LayoutUnit GridLayoutAlgorithm::ContributionSizeForGridItem(
                                                       : BlockContributionSize();
       break;
     case GridItemContributionType::kForIntrinsicMinimums: {
-      // TODO(ikilpatrick): All of the below is incorrect for replaced elements.
-      const auto& main_length = is_parallel_with_track_direction
-                                    ? item_style.LogicalWidth()
-                                    : item_style.LogicalHeight();
-      const auto& min_length = is_parallel_with_track_direction
-                                   ? item_style.LogicalMinWidth()
-                                   : item_style.LogicalMinHeight();
+      // See https://drafts.csswg.org/css-grid/#min-size-auto for more details
+      // on the special logic applied for intrinsic minimums.
+      //
+      // Per the spec link above, we apply the automatic min when:
+      // - it spans at least one track in that axis whose min track sizing
+      // function is auto.
+      // - if it spans more than one track in that axis, none of those tracks
+      // are flexible.
+      const bool special_spanning_criteria =
+          !grid_item->IsSpanningAutoMinimumTrack(track_direction) ||
+          (grid_item->IsSpanningFlexibleTrack(track_direction) &&
+           grid_item->SpanSize(track_direction) > 1);
 
-      // We could be clever is and make this an if-stmt, but each type has
-      // subtle consequences. This forces us in the future when we add a new
-      // length type to consider what the best thing is for grid.
-      switch (main_length.GetType()) {
-        case Length::kAuto:
-        case Length::kFitContent:
-        case Length::kStretch:
-        case Length::kPercent:
-        case Length::kCalculated: {
-          const auto border_padding =
-              ComputeBorders(space, node) + ComputePadding(space, item_style);
+      const LayoutUnit min_content_contribution =
+          is_parallel_with_track_direction ? MinContentSize()
+                                           : BlockContributionSize();
+      const LayoutUnit max_content_contribution =
+          is_parallel_with_track_direction ? MaxContentSize()
+                                           : min_content_contribution;
 
-          // All of the above lengths are considered 'auto' if we are querying a
-          // minimum contribution. They all require definite track sizes to
-          // determine their final size.
-          //
-          // From https://drafts.csswg.org/css-grid/#min-size-auto:
-          //   To provide a more reasonable default minimum size for grid items,
-          //   the used value of its automatic minimum size in a given axis is
-          //   the content-based minimum size if all of the following are true:
-          //     - it is not a scroll container
-          //     - it spans at least one track in that axis whose min track
-          //     sizing function is 'auto'
-          //     - if it spans more than one track in that axis, none of those
-          //     tracks are flexible
-          //   Otherwise, the automatic minimum size is zero, as usual.
-          //
-          // Start by resolving the cases where |min_length| is non-auto or its
-          // automatic minimum size should be zero.
-          if (!min_length.HasAuto() || item_style.IsScrollContainer() ||
-              !grid_item->IsSpanningAutoMinimumTrack(track_direction) ||
-              (grid_item->IsSpanningFlexibleTrack(track_direction) &&
-               grid_item->SpanSize(track_direction) > 1)) {
-            // TODO(ikilpatrick): This block needs to respect the aspect-ratio,
-            // and apply the transferred min/max sizes when appropriate. We do
-            // this sometimes elsewhere so should unify and simplify this code.
-            if (is_parallel_with_track_direction) {
-              contribution =
-                  ResolveMinInlineLength(space, item_style, border_padding,
-                                         MinMaxSizesFunc, min_length);
-            } else {
-              contribution = ResolveInitialMinBlockLength(
-                  space, item_style, border_padding, min_length);
-            }
-            break;
-          }
-
-          // Resolve the content-based minimum size.
-          contribution = is_parallel_with_track_direction
-                             ? MinContentSize()
-                             : BlockContributionSize();
-
-          auto spanned_tracks_definite_max_size =
-              track_collection.CalculateSetSpanSize(begin_set_index,
-                                                    end_set_index);
-
-          if (spanned_tracks_definite_max_size != kIndefiniteSize) {
-            // Further clamp the minimum size to less than or equal to the
-            // stretch fit into the grid area’s maximum size in that dimension,
-            // as represented by the sum of those grid tracks’ max track sizing
-            // functions plus any intervening fixed gutters.
-            const auto border_padding_sum = is_parallel_with_track_direction
-                                                ? border_padding.InlineSum()
-                                                : border_padding.BlockSum();
-            DCHECK_GE(contribution, baseline_shim + border_padding_sum);
-
-            // The stretch fit into a given size is that size, minus the box’s
-            // computed margins, border, and padding in the given dimension,
-            // flooring at zero so that the inner size is not negative.
-            spanned_tracks_definite_max_size =
-                (spanned_tracks_definite_max_size - baseline_shim - margin_sum -
-                 border_padding_sum)
-                    .ClampNegativeToZero();
-
-            // Add the baseline shim, border, and padding (margins will be added
-            // later) back to the contribution, since we don't want the outer
-            // size of the minimum size to overflow its grid area; these are
-            // already accounted for in the current value of `contribution`.
-            contribution =
-                std::min(contribution, spanned_tracks_definite_max_size +
-                                           baseline_shim + border_padding_sum);
-          }
-          break;
+      MinMaxSizesResult subgrid_minmax_sizes;
+      if (grid_item->IsSubgrid()) {
+        const GridSizingSubtree& subgrid_sizing_subtree =
+            sizing_subtree.SubgridSizingSubtree(*grid_item);
+        if (subgrid_sizing_subtree.LayoutData().IsSubgridWithStandaloneAxis(
+                kForColumns)) {
+          subgrid_minmax_sizes = To<GridNode>(node).ComputeSubgridMinMaxSizes(
+              subgrid_sizing_subtree, space);
         }
-        case Length::kMinContent:
-        case Length::kMaxContent:
-        case Length::kFixed: {
-          // All of the above lengths are "definite" (non-auto), and don't need
-          // the special min-size treatment above. (They will all end up being
-          // the specified size).
-          if (is_parallel_with_track_direction) {
-            contribution = main_length.IsMaxContent() ? MaxContentSize()
-                                                      : MinContentSize();
-          } else {
-            contribution = BlockContributionSize();
-          }
-          break;
-        }
-        case Length::kMinIntrinsic:
-        case Length::kFlex:
-        case Length::kExtendToZoom:
-        case Length::kDeviceWidth:
-        case Length::kDeviceHeight:
-        case Length::kNone:
-        case Length::kContent:
-          NOTREACHED();
+      }
+
+      bool maybe_clamp = false;
+      contribution = CalculateIntrinsicMinimumContribution(
+          is_parallel_with_track_direction, special_spanning_criteria,
+          min_content_contribution, max_content_contribution, space,
+          subgrid_minmax_sizes, grid_item, maybe_clamp);
+
+      if (!maybe_clamp) {
+        break;
+      }
+
+      // Further clamp the minimum size to less than or equal to the
+      // stretch fit into the grid area’s maximum size in that dimension,
+      // as represented by the sum of those grid tracks’ max track sizing
+      // functions plus any intervening fixed gutters.
+      auto spanned_tracks_definite_max_size =
+          track_collection.CalculateSetSpanSize(begin_set_index, end_set_index);
+      if (spanned_tracks_definite_max_size != kIndefiniteSize) {
+        contribution += margin_sum;
+        const auto border_padding =
+            ComputeBorders(space, node) + ComputePadding(space, item_style);
+        const auto border_padding_sum = is_parallel_with_track_direction
+                                            ? border_padding.InlineSum()
+                                            : border_padding.BlockSum();
+
+        contribution = ClampIntrinsicMinSize(
+            contribution,
+            /*min_clamp_size=*/margin_sum + baseline_shim + border_padding_sum,
+            spanned_tracks_definite_max_size);
+        contribution -= margin_sum;
       }
       break;
     }
@@ -2051,6 +1997,9 @@ class GapAccumulator {
   void BuildGapGeometry(const GridLayoutData& layout_data) {
     BuildMainGaps(layout_data);
     BuildCrossGaps(layout_data);
+
+    main_gaps_aggregator_ = GapSegmentStateAggregator(cross_gaps_.size() + 1);
+    cross_gaps_aggregator_ = GapSegmentStateAggregator(main_gaps_.size() + 1);
   }
 
   // Aggregates the intervals of gaps blocked by a `grid_item`. This identifies
@@ -2066,80 +2015,11 @@ class GapAccumulator {
   //
   // For an item spanning tracks [start_line, end_line], the gap indices it
   // crosses are [start_line, end_line - 1).
-  void AggregateGapsToBlockedTracks(const GridItemData& grid_item) {
-    auto AggregateBlockedTracksFor =
-        [&](GridTrackSizingDirection direction, const GridItemData& grid_item,
-            GapToTrackRangesMap& gap_to_blocked_track) {
-          // Empty or single spans don't block gaps, so return early.
-          if (grid_item.SpanSize(direction) < 2) {
-            return;
-          }
-
-          const GridSpan& main_span = grid_item.Span(direction);
-          GridTrackSizingDirection cross_direction =
-              direction == kForColumns ? kForRows : kForColumns;
-          const GridSpan& cross_span = grid_item.Span(cross_direction);
-          TrackRange cross_track_range{cross_span.StartLine(),
-                                       cross_span.EndLine()};
-
-          // Iterate through all gaps the item spans across. For tracks [start,
-          // end], gaps are [start, end - 1).
-          for (wtf_size_t gap_index = main_span.StartLine();
-               gap_index < main_span.EndLine() - 1; ++gap_index) {
-            auto it = gap_to_blocked_track.find(gap_index);
-            if (it == gap_to_blocked_track.end()) {
-              // First spanning item for this gap: create new entry.
-              gap_to_blocked_track.insert(
-                  gap_index, Vector<TrackRange>(1, cross_track_range));
-            } else {
-              // Additional spanning item for this gap: append to existing list.
-              it->value.push_back(cross_track_range);
-            }
-          }
-        };
-
-    AggregateBlockedTracksFor(kForColumns, grid_item,
-                              col_gaps_to_blocked_row_ranges_);
-    AggregateBlockedTracksFor(kForRows, grid_item,
-                              row_gaps_to_blocked_column_ranges_);
-  }
-
-  // Sorts and merges overlapping or adjacent track ranges to optimize storage.
-  // This reduces memory usage by consolidating multiple overlapping or
-  // consecutive ranges into fewer, larger ranges.
-  //
-  // For Example:
-  // [(1, 3), (2, 4), (7, 8)] ==> [(1, 4), (7, 8)]
-  // The first two ranges overlap, so they merge into (1, 4).
-  void SortAndMergeTrackRanges(Vector<TrackRange>& ranges) {
-    if (ranges.size() < 2) {
-      return;
-    }
-
-    // Sort ranges by their start position to enable linear merging. End
-    // positions will be handled automatically by the merge algorithm, even if
-    // they're out-of-order.
-    std::sort(ranges.begin(), ranges.end(),
-              [](const TrackRange& a, const TrackRange& b) {
-                return a.start < b.start;
-              });
-
-    TrackRanges merged_ranges;
-    merged_ranges.reserve(ranges.size());
-
-    TrackRange current_range = ranges[0];
-    for (wtf_size_t i = 1; i < ranges.size(); ++i) {
-      // Merge if overlapping or adjacent.
-      if (ranges[i].start <= current_range.end) {
-        current_range.end = std::max(current_range.end, ranges[i].end);
-      } else {
-        merged_ranges.push_back(current_range);
-        current_range = ranges[i];
-      }
-    }
-    merged_ranges.push_back(current_range);
-
-    ranges = std::move(merged_ranges);
+  void AggregateCellStates(const GridItemData& grid_item) {
+    main_gaps_aggregator_.ProcessItem(grid_item.Span(kForRows),
+                                      grid_item.Span(kForColumns));
+    cross_gaps_aggregator_.ProcessItem(grid_item.Span(kForColumns),
+                                       grid_item.Span(kForRows));
   }
 
   // Returns a mapping from row gap indices to their corresponding set indices.
@@ -2153,12 +2033,7 @@ class GapAccumulator {
     const auto& rows = layout_data.Rows();
 
     const wtf_size_t range_count = rows.RangeCount();
-    // `EndLineOfImplicitGrid` is equivalent to the total track count.
-    const wtf_size_t total_tracks = rows.EndLineOfImplicitGrid();
     Vector<wtf_size_t> gap_idx_to_set_idx;
-
-    gap_idx_to_set_idx.ReserveInitialCapacity(
-        std::min<wtf_size_t>(total_tracks - 1, kGridMaxTracks));
 
     for (wtf_size_t range_idx = 0; range_idx < range_count; ++range_idx) {
       const wtf_size_t range_set_count = rows.RangeSetCount(range_idx);
@@ -2178,11 +2053,13 @@ class GapAccumulator {
         // `begin_set_index` plus the track's set position within this range.
         // The set position is determined using the modulo operator since sets
         // preserve the order in which track definitions appear in their range.
-        wtf_size_t set_idx = kNotFound;
+        // If a range has no sets, we exclude it from the list because gaps
+        // are not emitted for collapsed tracks.
         if (range_set_count) {
-          set_idx = begin_set_index + (track_idx_in_range % range_set_count);
+          wtf_size_t set_idx =
+              begin_set_index + (track_idx_in_range % range_set_count);
+          gap_idx_to_set_idx.emplace_back(set_idx);
         }
-        gap_idx_to_set_idx.emplace_back(set_idx);
         CHECK_LE(gap_idx_to_set_idx.size(),
                  static_cast<wtf_size_t>(kGridMaxTracks));
         if (gap_idx_to_set_idx.size() == kGridMaxTracks) {
@@ -2213,6 +2090,19 @@ class GapAccumulator {
     gap_geometry->SetInlineGapSize(col_gutter_size_);
     gap_geometry->SetBlockGapSize(row_gutter_size_);
 
+    // Finalize the `GapSegmentStateRanges` for each gap using the aggregated
+    // cell states collected during `AggregateCellStates`.
+    for (wtf_size_t gap_index = 0; gap_index < main_gaps_.size(); ++gap_index) {
+      main_gaps_aggregator_.FinalizeGapSegmentStateRangesFor(
+          main_gaps_[gap_index], gap_index);
+    }
+
+    for (wtf_size_t gap_index = 0; gap_index < cross_gaps_.size();
+         ++gap_index) {
+      cross_gaps_aggregator_.FinalizeGapSegmentStateRangesFor(
+          cross_gaps_[gap_index], gap_index);
+    }
+
     if (row_gutter_size_ > LayoutUnit() && !main_gaps_.empty()) {
       gap_geometry->SetMainGaps(std::move(main_gaps_));
     }
@@ -2221,38 +2111,17 @@ class GapAccumulator {
       gap_geometry->SetCrossGaps(std::move(cross_gaps_));
     }
 
-    if (RuntimeEnabledFeatures::CSSGapDecorationEnabled()) {
-      gap_geometry->SetContentInlineOffsets(content_inline_start_,
-                                            content_inline_end_);
-      gap_geometry->SetContentBlockOffsets(content_block_start_,
-                                           content_block_end_);
+    gap_geometry->SetContentInlineOffsets(content_inline_start_,
+                                          content_inline_end_);
+    gap_geometry->SetContentBlockOffsets(content_block_start_,
+                                         content_block_end_);
 
-      // Optimize the spanning items maps by sorting and merging overlapping
-      // ranges. This step is crucial for paint performance as it:
-      // 1. Reduces the number of ranges to check during gap decoration painting
-      // 2. Eliminates redundant overlapping ranges from multiple spanning items
-      // 3. Merges adjacent ranges that can be treated as a single larger range
-      for (auto& [gap_index, ranges] : col_gaps_to_blocked_row_ranges_) {
-        SortAndMergeTrackRanges(ranges);
-      }
-      for (auto& [gap_index, ranges] : row_gaps_to_blocked_column_ranges_) {
-        SortAndMergeTrackRanges(ranges);
-      }
-
-      gap_geometry->SetRowGapsToBlockedColumnRanges(
-          std::move(row_gaps_to_blocked_column_ranges_));
-      gap_geometry->SetColumnGapsToBlockedRowRanges(
-          std::move(col_gaps_to_blocked_row_ranges_));
-    }
     return gap_geometry;
   }
 
  private:
   MainGaps main_gaps_;
   CrossGaps cross_gaps_;
-
-  GapToTrackRangesMap row_gaps_to_blocked_column_ranges_;
-  GapToTrackRangesMap col_gaps_to_blocked_row_ranges_;
 
   LayoutUnit content_block_start_;
   LayoutUnit content_block_end_;
@@ -2261,6 +2130,9 @@ class GapAccumulator {
 
   LayoutUnit col_gutter_size_;
   LayoutUnit row_gutter_size_;
+
+  GapSegmentStateAggregator main_gaps_aggregator_;
+  GapSegmentStateAggregator cross_gaps_aggregator_;
 };
 
 }  // namespace
@@ -2414,7 +2286,7 @@ void GridLayoutAlgorithm::PlaceGridItems(
     }
 
     if (gap_accumulator) {
-      gap_accumulator->AggregateGapsToBlockedTracks(grid_item);
+      gap_accumulator->AggregateCellStates(grid_item);
     }
   }
 
@@ -2937,8 +2809,8 @@ void GridLayoutAlgorithm::PlaceGridItemsForFragmentation(
          gap_index < main_gaps.size(); ++gap_index) {
       LayoutUnit row_gap_midpoint = main_gaps[gap_index].GetGapOffset() +
                                     *cumulative_gap_offset_adjustment;
+      CHECK_LT(gap_index, track_idx_to_set_idx->size());
       current_processed_gap_set_idx = (*track_idx_to_set_idx)[gap_index];
-      CHECK_NE(current_processed_gap_set_idx, kNotFound);
       row_gap_midpoint +=
           (*row_offset_adjustments)[current_processed_gap_set_idx];
       // Make the gap offset relative to this fragmentainer.

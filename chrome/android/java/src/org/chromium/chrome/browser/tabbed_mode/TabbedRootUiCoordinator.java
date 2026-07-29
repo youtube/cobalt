@@ -275,7 +275,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final ManualFillingComponentSupplier mManualFillingComponentSupplier;
     private final @NonNull DataSharingTabManager mDataSharingTabManager;
     private final Supplier<Boolean> mCanAnimateBrowserControls;
-    private final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     protected @Nullable InstantMessageDelegateImpl mInstantMessageDelegateImpl;
     private @Nullable BookmarkBarCoordinator mBookmarkBarCoordinator;
     private @Nullable BookmarkBarIphController mBookmarkBarIphController;
@@ -566,8 +565,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         mActivity.getResources(),
                         mTabGroupUiActionHandlerSupplier,
                         collaborationControllerDelegateFactory);
-
-        mEdgeToEdgeManager = edgeToEdgeManager;
 
         mBookmarkManagerOpenerSupplier = bookmarkManagerOpenerSupplier;
 
@@ -1902,6 +1899,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(mActivity)) {
                 if (DeviceInfo.isDesktop()) {
                     BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(
+                            mProfileSupplier.get(), /* fromKeyboardShortcut= */ true);
+                } else if (ChromeFeatureList.sAndroidBookmarkBarFastFollow.isEnabled()) {
+                    BookmarkBarUtils.toggleDevicePrefShowBookmarksBar(
                             mProfileSupplier.get(), /* fromKeyboardShortcut= */ true);
                 } else {
                     BookmarkBarUtils.toggleDevicePrefShowBookmarksBar(

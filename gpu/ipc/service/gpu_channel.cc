@@ -57,7 +57,6 @@
 #include "gpu/ipc/service/gles2_command_buffer_stub.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "gpu/ipc/service/gpu_channel_manager_delegate.h"
-#include "gpu/ipc/service/image_decode_accelerator_stub.h"
 #include "gpu/ipc/service/raster_command_buffer_stub.h"
 #include "gpu/ipc/service/webgpu_command_buffer_stub.h"
 #include "ipc/constants.mojom.h"
@@ -133,7 +132,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelMessageFilter
       gpu::GpuChannel* gpu_channel,
       const base::UnguessableToken& channel_token,
       Scheduler* scheduler,
-      ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
       const gfx::GpuExtraInfo& gpu_extra_info,
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
   GpuChannelMessageFilter(const GpuChannelMessageFilter&) = delete;
@@ -175,8 +173,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelMessageFilter
       CreateCommandBufferCallback callback) override;
   void DestroyCommandBuffer(int32_t routing_id,
                             DestroyCommandBufferCallback callback) override;
-  void ScheduleImageDecode(mojom::ScheduleImageDecodeParamsPtr params,
-                           uint64_t decode_release_count) override;
   void FlushDeferredRequests(std::vector<mojom::DeferredRequestPtr> requests,
                              uint32_t flushed_deferred_message_id) override;
 
@@ -253,7 +249,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelMessageFilter
   raw_ptr<Scheduler> scheduler_;
   scoped_refptr<base::SingleThreadTaskRunner> main_task_runner_;
 
-  scoped_refptr<ImageDecodeAcceleratorStub> image_decode_accelerator_stub_;
   const gfx::GpuExtraInfo gpu_extra_info_;
   gpu::GpuMemoryBufferConfigurationSet supported_gmb_configurations_;
   bool supported_gmb_configurations_inited_ = false;
@@ -270,19 +265,12 @@ GpuChannelMessageFilter::GpuChannelMessageFilter(
     gpu::GpuChannel* gpu_channel,
     const base::UnguessableToken& channel_token,
     Scheduler* scheduler,
-    ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
     const gfx::GpuExtraInfo& gpu_extra_info,
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : gpu_channel_(gpu_channel),
       channel_token_(channel_token),
       scheduler_(scheduler),
       main_task_runner_(std::move(main_task_runner)),
-      image_decode_accelerator_stub_(
-          base::MakeRefCounted<ImageDecodeAcceleratorStub>(
-              image_decode_accelerator_worker,
-              gpu_channel,
-              static_cast<int32_t>(
-                  GpuChannelReservedRoutes::kImageDecodeAccelerator))),
       gpu_extra_info_(gpu_extra_info) {
   // GpuChannel and CommandBufferStub implementations assume that it is not
   // possible to simultaneously execute tasks on these two task runners.
@@ -306,8 +294,6 @@ void GpuChannelMessageFilter::Destroy() {
   base::AutoLock auto_lock(gpu_channel_lock_);
   if (!gpu_channel_)
     return;
-
-  image_decode_accelerator_stub_->Shutdown();
 
   gpu_channel_ = nullptr;
   scheduler_ = nullptr;
@@ -551,13 +537,6 @@ void GpuChannelMessageFilter::DestroyCommandBuffer(
       std::move(callback));
 }
 
-void GpuChannelMessageFilter::ScheduleImageDecode(
-    mojom::ScheduleImageDecodeParamsPtr params,
-    uint64_t decode_release_count) {
-  image_decode_accelerator_stub_->ScheduleImageDecode(std::move(params),
-                                                      decode_release_count);
-}
-
 #if BUILDFLAG(IS_WIN)
 void GpuChannelMessageFilter::CreateDCOMPTexture(
     int32_t route_id,
@@ -706,7 +685,6 @@ GpuChannel::GpuChannel(
     uint64_t client_tracing_id,
     bool is_gpu_host,
     bool enable_extra_handles_validation,
-    ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
     const gfx::GpuExtraInfo& gpu_extra_info)
     : gpu_channel_manager_(gpu_channel_manager),
       scheduler_(scheduler),
@@ -722,7 +700,6 @@ GpuChannel::GpuChannel(
           this,
           channel_token,
           scheduler,
-          image_decode_accelerator_worker,
           gpu_extra_info,
           std::move(task_runner))) {
   DCHECK(gpu_channel_manager_);
@@ -761,14 +738,12 @@ std::unique_ptr<GpuChannel> GpuChannel::Create(
     uint64_t client_tracing_id,
     bool is_gpu_host,
     bool enable_extra_handles_validation,
-    ImageDecodeAcceleratorWorker* image_decode_accelerator_worker,
     const gfx::GpuExtraInfo& gpu_extra_info) {
   auto gpu_channel = base::WrapUnique(new GpuChannel(
       gpu_channel_manager, channel_token, scheduler, sync_point_manager,
       std::move(share_group), std::move(task_runner), std::move(io_task_runner),
       client_id, client_tracing_id, is_gpu_host,
-      enable_extra_handles_validation, image_decode_accelerator_worker,
-      gpu_extra_info));
+      enable_extra_handles_validation, gpu_extra_info));
 
   if (!gpu_channel->CreateSharedImageStub(gpu_extra_info)) {
     LOG(ERROR) << "GpuChannel: Failed to create SharedImageStub";

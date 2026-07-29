@@ -124,7 +124,8 @@ class BrowserFeaturePromoController2xUiTestBase
   void OnCustomUiCustomAction(
       const user_education::UserEducationContextPtr& context,
       user_education::FeaturePromoHandle promo_handle) {
-    EXPECT_EQ(GetContext(), context->GetElementContext());
+    EXPECT_EQ(private_test_impl().default_context(),
+              context->GetElementContext());
     continued_promo_handle_ = std::move(promo_handle);
   }
 
@@ -825,9 +826,8 @@ class BrowserFeaturePromoController25UiTest
     : public BrowserFeaturePromoController2xUiTestBase {
  public:
   BrowserFeaturePromoController25UiTest() {
-    static_cast<internal::InteractiveFeaturePromoTestPrivate&>(
-        private_test_impl())
-        .set_use_shortened_timeouts_for_internal_testing(true);
+    feature_promo_test_impl().set_use_shortened_timeouts_for_internal_testing(
+        true);
     SetControllerMode(ControllerMode::kUserEd25);
   }
   ~BrowserFeaturePromoController25UiTest() override = default;

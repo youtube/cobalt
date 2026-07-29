@@ -12,6 +12,7 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "build/chromecast_buildflags.h"
+#include "net/http/http_cache.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/forcedark/forcedark_switches.h"
 #include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
@@ -1541,11 +1542,6 @@ BASE_FEATURE_ENUM_PARAM(LinkPreviewTriggerType,
                         LinkPreviewTriggerType::kAltHover,
                         &link_preview_trigger_type_options);
 
-// A feature to control whether the loading phase should be extended beyond
-// First Meaningful Paint by a configurable buffer.
-BASE_FEATURE(kLoadingPhaseBufferTimeAfterFirstMeaningfulPaint,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Makes network loading tasks unfreezable so that they can be processed while
 // the page is frozen.
 BASE_FEATURE(kLoadingTasksUnfreezable, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1807,7 +1803,13 @@ BASE_FEATURE_PARAM(int,
                    "memory_cache_strong_ref_resource_size_threshold",
                    3 * 1024 * 1024);
 
-BASE_FEATURE(kMemoryPurgeOnFreeze, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kMemoryPurgeOnFreeze,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kMemoryPurgeOnFreezeLimit, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1927,9 +1929,9 @@ BASE_FEATURE(kPrefetchFontLookupTables,
 );
 #endif
 
-// Launch this feature only on Desktop.
-// TODO(crbug.com/436705485): Support this on mobile.
-BASE_FEATURE(kPreloadingEagerHeuristics,
+// Launch mouse hover feature only on Desktop. Note that Android Desktop mode is
+// currently out of scope.
+BASE_FEATURE(kPreloadingEagerHoverHeuristics,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -1938,10 +1940,17 @@ BASE_FEATURE(kPreloadingEagerHeuristics,
 #endif
 );
 BASE_FEATURE_PARAM(base::TimeDelta,
-                   kPreloadingEagerHeuristicsHoverDwellTime,
-                   &kPreloadingEagerHeuristics,
+                   kPreloadingEagerHoverHeuristicsDwellTime,
+                   &kPreloadingEagerHoverHeuristics,
                    "hover_dwell_time",
                    base::Milliseconds(10));
+BASE_FEATURE(kPreloadingEagerViewportHeuristics,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kPreloadingEagerViewportHeuristicsPresentTime,
+                   &kPreloadingEagerViewportHeuristics,
+                   "viewport_present_time",
+                   base::Milliseconds(100));
 
 BASE_FEATURE(kPreloadingHeuristicsMLModel, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(int,
@@ -1977,7 +1986,7 @@ BASE_FEATURE_PARAM(int,
                    "prerender_moderate_threshold",
                    50);
 
-BASE_FEATURE(kPreloadingViewportHeuristics,
+BASE_FEATURE(kPreloadingModerateViewportHeuristics,
 #if BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
@@ -2429,6 +2438,13 @@ BASE_FEATURE(kURLPatternDummyURLCanonicalization,
 // heuristic where images occupying the full viewport are ignored.
 BASE_FEATURE(kUsePageViewportInLCP, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Use PersistentCache on either side of blink.mojom.CodeCacheHost. This feature
+// is dependent on net::HttpCache::IsSplitCacheEnabled() being true. Always use
+// IsPersistentCacheForCodeCacheEnabled() rather than querying this feature
+// directly.
+BASE_FEATURE(kUsePersistentCacheForCodeCache,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enabling this will cause parkable strings to use Snappy for compression iff
 // kCompressParkableStrings is enabled.
 BASE_FEATURE(kUseSnappyForParkableStrings, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2502,8 +2518,7 @@ BASE_FEATURE(kWebAudioAllowDenormalInProcessing,
 
 // Use deferred pull status update instead of updating the status directly
 // on audio thread. See https://crbug.com/40249972.
-BASE_FEATURE(kWebAudioDeferPullStatusUpdate,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAudioDeferPullStatusUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
 /// Enables cache-aware WebFonts loading. See https://crbug.com/570205.
 // The feature is disabled on Android for WebView API issue discussed at
@@ -2604,6 +2619,12 @@ bool IsFencedFramesEnabled() {
 bool IsParkableStringsToDiskEnabled() {
   // Always enabled as soon as compression is enabled.
   return base::FeatureList::IsEnabled(kCompressParkableStrings);
+}
+
+bool IsPersistentCacheForCodeCacheEnabled() {
+  // PersistentCache for CodeCache requires HTTP split cache.
+  return net::HttpCache::IsSplitCacheEnabled() &&
+         base::FeatureList::IsEnabled(kUsePersistentCacheForCodeCache);
 }
 
 bool IsSetIntervalWithoutClampEnabled() {

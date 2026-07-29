@@ -322,14 +322,18 @@
   }
   [self.toolbarMediator locationBarFocusChangedTo:focused];
 
-  BOOL followSteadyState =
-      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
   // Disable toolbar animations when focusing the omnibox on secondary toolbar.
-  // TODO(crbug.com/40275116): Add animation in OmniboxFocusOrchestrator if
-  // needed.
+  ToolbarType editStatePosition;
+  if (omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
+    editStatePosition = _steadyStateOmniboxPosition;
+  } else if (omnibox::ForceBottomOmniboxInEditState()) {
+    editStatePosition = ToolbarType::kSecondary;
+  } else {
+    editStatePosition = ToolbarType::kPrimary;
+  }
+
   BOOL animateTransition = _enableAnimationsForOmniboxFocus &&
-                           (followSteadyState || _steadyStateOmniboxPosition ==
-                                                     ToolbarType::kPrimary);
+                           (editStatePosition == _steadyStateOmniboxPosition);
 
   __weak __typeof(self) weakSelf = self;
   BOOL toolbarExpanded = focused && !CanShowTabStrip(self.traitEnvironment);
@@ -410,7 +414,11 @@
 }
 
 - (CGFloat)expandedSecondaryToolbarHeight {
-  if (!IsSplitToolbarMode(self.traitEnvironment)) {
+  BOOL presentInEditState =
+      self.locationBarFocused && omnibox::ForceBottomOmniboxInEditState();
+  BOOL showsSecondaryToolbarHeight =
+      IsSplitToolbarMode(self.traitEnvironment) || presentInEditState;
+  if (!showsSecondaryToolbarHeight) {
     return 0.0;
   }
   CGFloat height =
@@ -674,17 +682,26 @@
 }
 
 - (CGFloat)keyboardAttachedBottomOmniboxHeight {
-  BOOL followSteadyState =
-      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
-  if (_omniboxPosition == ToolbarType::kPrimary || !followSteadyState) {
+  CGFloat attachedHeight = self.locationBarCoordinator.locationBarViewController
+                               .view.frame.size.height +
+                           2 * kBottomAdaptiveLocationBarTopMargin;
+
+  if (!self.locationBarFocused) {
     return 0;
   }
 
-  // The height of the location bar including symmetrical top and bottom
-  // margins.
-  return self.locationBarCoordinator.locationBarViewController.view.frame.size
-             .height +
-         2 * kBottomAdaptiveLocationBarTopMargin;
+  BOOL forceEditState = omnibox::ForceBottomOmniboxInEditState();
+  if (forceEditState) {
+    return attachedHeight;
+  }
+
+  BOOL followSteadyState =
+      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
+  if (_omniboxPosition == ToolbarType::kSecondary && followSteadyState) {
+    return attachedHeight;
+  }
+
+  return 0;
 }
 
 #pragma mark - Private

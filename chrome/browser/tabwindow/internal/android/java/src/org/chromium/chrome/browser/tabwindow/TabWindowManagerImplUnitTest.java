@@ -684,6 +684,55 @@ public class TabWindowManagerImplUnitTest {
     }
 
     @Test
+    @Feature({"Multiwindow"})
+    public void testGetWindowIdForSelector() {
+        ActivityController<Activity> activityController0 = createActivity();
+        Activity activity0 = activityController0.get();
+        Pair<@WindowId Integer, TabModelSelector> assignment0 =
+                mSubject.requestSelector(
+                        activity0,
+                        mModalDialogManager,
+                        mProfileProviderSupplier,
+                        mTabCreatorManager,
+                        mNextTabPolicySupplier,
+                        mMultiInstanceManager,
+                        mMismatchedIndicesHandler0,
+                        0);
+
+        TabModelSelector selector0 = assignment0.second;
+        assertEquals(0, mSubject.getWindowIdForSelector(selector0));
+
+        // Test with a selector that is not associated with any window.
+        TabModelSelector unassociatedSelector =
+                new MockTabModelSelector(mProfile, mIncognitoProfile, 0, 0, null);
+        assertEquals(INVALID_WINDOW_ID, mSubject.getWindowIdForSelector(unassociatedSelector));
+
+        // Test with multiple selectors.
+        ActivityController<Activity> activityController1 = createActivity();
+        Activity activity1 = activityController1.get();
+        Pair<@WindowId Integer, TabModelSelector> assignment1 =
+                mSubject.requestSelector(
+                        activity1,
+                        mModalDialogManager,
+                        mProfileProviderSupplier,
+                        mTabCreatorManager,
+                        mNextTabPolicySupplier,
+                        mMultiInstanceManager,
+                        mMismatchedIndicesHandler1,
+                        1);
+        TabModelSelector selector1 = assignment1.second;
+        assertEquals(0, mSubject.getWindowIdForSelector(selector0));
+        assertEquals(1, mSubject.getWindowIdForSelector(selector1));
+
+        // Test after destroying an activity.
+        destroyActivity(activityController0);
+        assertEquals(INVALID_WINDOW_ID, mSubject.getWindowIdForSelector(selector0));
+        assertEquals(1, mSubject.getWindowIdForSelector(selector1));
+
+        destroyActivity(activityController1);
+    }
+
+    @Test
     @Config(sdk = VERSION_CODES.Q)
     public void testAssertIndicesMismatch() {
         ActivityController<Activity> activityController0 = createActivity();
@@ -1196,5 +1245,57 @@ public class TabWindowManagerImplUnitTest {
     @Test
     public void testFindWindowIdForTabGroup_notFound() {
         assertEquals(INVALID_WINDOW_ID, mSubject.findWindowIdForTabGroup(GROUP_ID));
+    }
+
+    @Test
+    public void testGetTabWindowInfoById() {
+        ActivityController<Activity> activityController0 = createActivity();
+        Activity activity0 = activityController0.get();
+        ActivityController<Activity> activityController1 = createActivity();
+        Activity activity1 = activityController1.get();
+        @WindowId int window0 = 0;
+        @WindowId int window1 = 1;
+        Pair<@WindowId Integer, TabModelSelector> assignment0 =
+                mSubject.requestSelector(
+                        activity0,
+                        mModalDialogManager,
+                        mProfileProviderSupplier,
+                        mTabCreatorManager,
+                        mNextTabPolicySupplier,
+                        mMultiInstanceManager,
+                        mMismatchedIndicesHandler0,
+                        window0);
+        Pair<@WindowId Integer, TabModelSelector> assignment1 =
+                mSubject.requestSelector(
+                        activity1,
+                        mModalDialogManager,
+                        mProfileProviderSupplier,
+                        mTabCreatorManager,
+                        mNextTabPolicySupplier,
+                        mMultiInstanceManager,
+                        mMismatchedIndicesHandler1,
+                        window1);
+        MockTabModelSelector selector0 = (MockTabModelSelector) assignment0.second;
+        MockTabModelSelector selector1 = (MockTabModelSelector) assignment1.second;
+        Tab tab1 = selector0.addMockTab();
+        Tab tab2 = selector1.addMockIncognitoTab();
+
+        TabWindowInfo info = mSubject.getTabWindowInfoById(tab1.getId() - 1);
+        assertNull(info);
+
+        info = mSubject.getTabWindowInfoById(tab1.getId());
+        assertNotNull(info);
+        assertEquals(tab1, info.tab);
+        assertEquals(selector0, info.tabModelSelector);
+        assertEquals(window0, info.windowId);
+
+        info = mSubject.getTabWindowInfoById(tab2.getId());
+        assertNotNull(info);
+        assertEquals(tab2, info.tab);
+        assertEquals(selector1, info.tabModelSelector);
+        assertEquals(window1, info.windowId);
+
+        info = mSubject.getTabWindowInfoById(tab2.getId() + 1);
+        assertNull(info);
     }
 }

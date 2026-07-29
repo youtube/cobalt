@@ -19,6 +19,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
+#include "chrome/browser/extensions/browser_window_util.h"
 #include "chrome/browser/extensions/chrome_extension_function_details.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/window_controller_list.h"
@@ -121,30 +122,6 @@ enum class NavigationScheme {
 // check).
 WindowController* WindowControllerFromBrowser(BrowserWindowInterface* browser) {
   return BrowserExtensionWindowController::From(browser);
-}
-
-// Returns the BrowserWindowInterface that contains the given `web_contents`,
-// if any.
-BrowserWindowInterface* GetBrowserForWebContents(
-    content::WebContents* web_contents) {
-  tabs::TabInterface* tab =
-      tabs::TabInterface::MaybeGetFromContents(web_contents);
-  if (!tab) {
-    return nullptr;
-  }
-  std::vector<BrowserWindowInterface*> all_browsers =
-      GetAllBrowserWindowInterfaces();
-  for (auto* browser : all_browsers) {
-    TabListInterface* tab_list = TabListInterface::From(browser);
-    if (!tab_list) {
-      continue;
-    }
-    std::vector<tabs::TabInterface*> all_tabs = tab_list->GetAllTabs();
-    if (base::Contains(all_tabs, tab)) {
-      return browser;  // Found it!
-    }
-  }
-  return nullptr;
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -438,7 +415,7 @@ base::expected<base::Value::Dict, std::string> ExtensionTabUtil::OpenTab(
 
   // The tab may have been created in a different window, so make sure we look
   // at the right tab strip.
-  TabStripModel* tab_strip =
+  TabStripModel* const tab_strip =
       navigate_params.browser->GetBrowserForMigrationOnly()->tab_strip_model();
   const int new_index = tab_strip->GetIndexOfWebContents(
       navigate_params.navigated_or_inserted_contents);
@@ -772,7 +749,7 @@ bool ExtensionTabUtil::GetTabListInterface(content::WebContents& web_contents,
 
   BrowserWindowInterface* browser =
 #if BUILDFLAG(IS_ANDROID)
-      GetBrowserForWebContents(&web_contents);
+      browser_window_util::GetBrowserForTabContents(web_contents);
 #else
       tab_interface->GetBrowserWindowInterface();
 #endif
@@ -819,17 +796,22 @@ bool ExtensionTabUtil::GetTabStripModel(const WebContents* web_contents,
   DCHECK(tab_strip_model);
   DCHECK(tab_index);
 
-  for (Browser* browser : *BrowserList::GetInstance()) {
-    TabStripModel* tab_strip = browser->tab_strip_model();
-    int index = tab_strip->GetIndexOfWebContents(web_contents);
-    if (index != -1) {
-      *tab_strip_model = tab_strip;
-      *tab_index = index;
-      return true;
-    }
-  }
+  bool found = false;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [web_contents, tab_strip_model, tab_index,
+       &found](BrowserWindowInterface* browser_window_interface) {
+        TabStripModel* tab_strip = browser_window_interface->GetTabStripModel();
+        int index = tab_strip->GetIndexOfWebContents(web_contents);
+        if (index != -1) {
+          *tab_strip_model = tab_strip;
+          *tab_index = index;
+          found = true;
+          return false;
+        }
+        return true;
+      });
 
-  return false;
+  return found;
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -1206,14 +1188,17 @@ ExtensionTabUtil::GetAllActiveWebContentsForContext(
     }
   }
 #else
-  for (Browser* target_browser : *BrowserList::GetInstance()) {
-    if (target_browser->profile() == profile ||
-        target_browser->profile() == incognito_profile) {
-      TabStripModel* target_tab_strip = target_browser->tab_strip_model();
-
-      active_contents.push_back(target_tab_strip->GetActiveWebContents());
-    }
-  }
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [profile, incognito_profile,
+       &active_contents](BrowserWindowInterface* browser_window_interface) {
+        const Profile* browser_profile = browser_window_interface->GetProfile();
+        if (browser_profile == profile ||
+            browser_profile == incognito_profile) {
+          active_contents.push_back(browser_window_interface->GetTabStripModel()
+                                        ->GetActiveWebContents());
+        }
+        return true;
+      });
 #endif  // BUILDFLAG(IS_ANDROID)
 
   return active_contents;
@@ -1463,7 +1448,8 @@ bool ExtensionTabUtil::OpenOptionsPageFromWebContents(
 // static
 WindowController* ExtensionTabUtil::GetWindowControllerOfTab(
     WebContents* web_contents) {
-  BrowserWindowInterface* browser = GetBrowserForWebContents(web_contents);
+  BrowserWindowInterface* browser =
+      browser_window_util::GetBrowserForTabContents(*web_contents);
   if (browser) {
     return BrowserExtensionWindowController::From(browser);
   }

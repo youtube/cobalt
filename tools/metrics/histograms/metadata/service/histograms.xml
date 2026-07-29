@@ -428,7 +428,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.FetchEvent.Fallback.Time" units="ms"
-    expires_after="2026-02-09">
+    expires_after="2026-04-12">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
@@ -455,7 +455,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.FetchEvent.MainResource.Status"
-    enum="ServiceWorkerStatusCode" expires_after="2026-02-09">
+    enum="ServiceWorkerStatusCode" expires_after="2026-04-12">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
@@ -479,7 +479,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.FetchEvent.Subresource.Status"
-    enum="ServiceWorkerStatusCode" expires_after="2026-02-09">
+    enum="ServiceWorkerStatusCode" expires_after="2026-04-12">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
@@ -498,6 +498,47 @@ chromium-metrics-reviews@google.com.
     the network request which bypasses ServiceWorker, and the other request
     which goes through the fetch handler. This metric is recorded for
     {Resource}.
+  </summary>
+  <token key="Resource">
+    <variant name="MainResource" summary="main resource"/>
+    <variant name="Subresource" summary="subresource"/>
+  </token>
+</histogram>
+
+<histogram
+    name="ServiceWorker.FetchEvent.{Resource}.RaceNetworkRequest.CloneResponseForFetchHandlerCancelled"
+    enum="Boolean" expires_after="2026-03-22">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Recorded as true when the data cloning from the original response to the
+    data pipe for the fetch handler is cancelled not to pause the data transfer
+    for the network request.
+
+    This metric is recorded per {Resource}. Recorded only when
+    `ServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement` is
+    disabled, and recorded in the destructor of
+    `ServiceWorkerRaceNetworkRequestURLLoaderClient`.
+  </summary>
+  <token key="Resource">
+    <variant name="MainResource" summary="main resource"/>
+    <variant name="Subresource" summary="subresource"/>
+  </token>
+</histogram>
+
+<histogram
+    name="ServiceWorker.FetchEvent.{Resource}.RaceNetworkRequest.DataTransferResult"
+    enum="RaceNetworkRequestDataTransferResult" expires_after="2026-03-22">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-worker@google.com</owner>
+  <summary>
+    Recorded the result of data transfer from the original netowrk response to
+    the data pipes for both the network and the fetch handler.
+
+    This metric is recorded per {Resource}. Recorded only when
+    `ServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement` is
+    enabled, and recorded in the destructor of
+    `ServiceWorkerRaceNetworkRequestURLLoaderClient`.
   </summary>
   <token key="Resource">
     <variant name="MainResource" summary="main resource"/>
@@ -1861,7 +1902,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="ServiceWorker.Storage.RegisteredStorageKeyCacheInitialization.Time2"
-    units="ms" expires_after="2026-02-09">
+    units="ms" expires_after="2026-04-12">
   <owner>chikamune@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>

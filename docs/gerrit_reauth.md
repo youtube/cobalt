@@ -7,12 +7,18 @@ If you use your @google.com account, or a @chromium.org account linked to your
 @google.com account: You already ReAuth during your daily `gcert`, no further
 action is required. Feel free to stop reading now.
 
+If you use a @chromium.org account that isn't linked to your google.com account,
+with a Google-issued security key, on devices managed by Google (e.g. gLinux),
+simply run `git credential-luci reauth`, follow the prompts to complete ReAuth.
+You need to ReAuth every 20 hours (just like `gcert`).
+
 Otherwise, follow this guide to ReAuth locally or remotely.
 
 If you aren't sure if your account is linked, follow
 [the steps here](http://go/chromium-account-support#how-can-i-check-if-my-gerrit-accounts-are-linked).
 
-For more information, see [go/gerrit-reauth](http://go/gerrit-reauth).
+For more information, see this internal doc:
+[go/gerrit-reauth](http://go/gerrit-reauth).
 ***
 
 [TOC]
@@ -81,28 +87,34 @@ The line "This key can only be used with a password" indicates a **U2F**
 security key. If the line is missing, the key is a **FIDO2** security key.
 Please include this info when reporting issues.
 
+*** promo
 **Important Note**: Passkeys won't be supported by ReAuth. A physical security
 key is required.
+***
 
-**If you use Firefox**: You need to allow the website to collect extended
-information about your security key in this dialog. Otherwise the key won't be
-able to ReAuth (you'll see BAD_REQUEST error in the log). If you've already
-registered the key, remove it from the security key list, then re-adding it.
+**If you use Firefox**: You need to **allow** the website to request "extended
+information about your security key" when registering your security key (refer
+to the screenshot below).
+Otherwise the key won't be able to ReAuth (you'll see BAD_REQUEST error in the
+log). If you've already registered the key, remove it from the security key
+list, then add it again.
 
-If you’re using a Google Workspace account, make sure
+![Firefox security key popup](./images/gerrit_reauth_firefox_sk.png)
+
+**If you’re using a Google Workspace account**, make sure
 "[2-Step Verification](https://myaccount.google.com/signinoptions/twosv)" is
 turned on.
 
 ![Two-step verification](./images/gerrit_reauth_2sv.png)
 
-""" note
+*** note
 **Known Issue:** If you sign in to your Google account via an external identity provider
 such as **Active Directory, Entra ID, or Okta**, you may see `NO_AVAILABLE_CHALLENGES` error
 when you ReAuth immediately after registering your security key.
 
 You may need to **wait for a few hours** before your first ReAuth can proceed. We're still
 investigating the cause.
-"""
+***
 
 ### Accurate Timezone / Time
 

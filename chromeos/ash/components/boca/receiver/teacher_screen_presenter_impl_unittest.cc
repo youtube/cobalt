@@ -118,11 +118,13 @@ TEST_F(TeacherScreenPresenterImplTest, StartFailureOnGetConnectionCode) {
                   base::DoNothing());
 
   EXPECT_FALSE(start_future.Get());
+  EXPECT_FALSE(presenter.IsPresenting());
 }
 
 TEST_F(TeacherScreenPresenterImplTest, Stop) {
   base::test::TestFuture<bool> start_future;
-  base::test::TestFuture<bool> stop_future;
+  base::test::TestFuture<bool> stop_future1;
+  base::test::TestFuture<bool> stop_future2;
   bool disconnected_called = false;
   EXPECT_CALL(*crd_session_wrapper_, StartCrdHost("robot@email.com", _, _, _))
       .WillOnce(
@@ -146,9 +148,13 @@ TEST_F(TeacherScreenPresenterImplTest, Stop) {
                   }));
   EXPECT_TRUE(start_future.Get());
 
-  presenter.Stop(stop_future.GetCallback());
-  EXPECT_TRUE(stop_future.Get());
+  presenter.Stop(stop_future1.GetCallback());
+  EXPECT_TRUE(stop_future1.Get());
   EXPECT_FALSE(disconnected_called);
+  EXPECT_FALSE(presenter.IsPresenting());
+
+  presenter.Stop(stop_future2.GetCallback());
+  EXPECT_TRUE(stop_future2.Get());
 }
 
 TEST_F(TeacherScreenPresenterImplTest, StopFailsWhenStartInProgress) {
@@ -210,6 +216,7 @@ TEST_P(TeacherScreenPresenterImplTest, Start) {
                     disconnected_called = true;
                   }));
 
+  EXPECT_TRUE(presenter.IsPresenting());
   EXPECT_EQ(start_future.Get(), GetParam().start_success);
 
   std::move(session_finished_callback).Run();

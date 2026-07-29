@@ -14,6 +14,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/types/optional_ref.h"
 #include "base/values.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -21,6 +22,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/privacy_mode.h"
 #include "net/base/proxy_chain.h"
+#include "net/base/proxy_delegate.h"
 #include "net/base/proxy_string_util.h"
 #include "net/base/session_usage.h"
 #include "net/base/task/task_runner.h"
@@ -28,6 +30,7 @@
 #include "net/http/alternate_protocol_usage.h"
 #include "net/http/alternative_service.h"
 #include "net/http/bidirectional_stream_impl.h"
+#include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_key.h"
 #include "net/http/http_stream_pool.h"
 #include "net/http/http_stream_pool_request_info.h"
@@ -228,6 +231,7 @@ std::unique_ptr<HttpStreamRequest> HttpStreamFactory::JobController::Start(
       source_net_log.source());
 
   RunLoop(OK);
+  // `this` may be deleted at this point.
 
   return request;
 }
@@ -241,6 +245,7 @@ void HttpStreamFactory::JobController::Preconnect(int num_streams) {
   num_streams_ = num_streams;
 
   RunLoop(OK);
+  // `this` may be deleted at this point.
 }
 
 LoadState HttpStreamFactory::JobController::GetLoadState() const {
@@ -324,6 +329,8 @@ void HttpStreamFactory::JobController::OnStreamReady(Job* job) {
     OnOrphanedJobComplete(job);
     return;
   }
+
+  NotifyOnStreamCreationAttempted(std::nullopt);
   std::unique_ptr<HttpStream> stream = job->ReleaseStream();
   DCHECK(stream);
 
@@ -462,6 +469,7 @@ void HttpStreamFactory::JobController::OnStreamFailed(Job* job, int status) {
     }
   }
 
+  NotifyOnStreamCreationAttempted(status);
   status = ReconsiderProxyAfterError(job, status);
   if (next_state_ == STATE_RESOLVE_PROXY_COMPLETE) {
     if (status == ERR_IO_PENDING) {
@@ -469,6 +477,7 @@ void HttpStreamFactory::JobController::OnStreamFailed(Job* job, int status) {
     }
     DCHECK_EQ(OK, status);
     RunLoop(status);
+    // `this` may be deleted at this point.
     return;
   }
 
@@ -746,6 +755,7 @@ HttpStreamFactory::JobController::websocket_handshake_stream_create_helper() {
 
 void HttpStreamFactory::JobController::OnIOComplete(int result) {
   RunLoop(result);
+  // `this` may be deleted at this point.
 }
 
 void HttpStreamFactory::JobController::RunLoop(int result) {
@@ -753,6 +763,15 @@ void HttpStreamFactory::JobController::RunLoop(int result) {
   if (rv == ERR_IO_PENDING) {
     return;
   }
+
+  if (switched_to_http_stream_pool_ && !is_preconnect_) {
+    // The request is handed over to the HttpStreamPool. Complete `this`.
+    DCHECK_EQ(rv, OK);
+    MaybeNotifyFactoryOfCompletion();
+    // `this` is deleted.
+    return;
+  }
+
   if (rv != OK) {
     // DoLoop can only fail during proxy resolution step which happens before
     // any jobs are created. Notify |request_| of the failure one message loop
@@ -846,6 +865,7 @@ int HttpStreamFactory::JobController::DoCreateJobs() {
   DCHECK(!alternative_job_);
   DCHECK(request_info_.url.is_valid());
   DCHECK(request_info_.url.IsStandard());
+  stream_creation_attempt_start_time_ = base::TimeTicks::Now();
 
   url::SchemeHostPort destination(request_info_.url);
   DCHECK(destination.IsValid());
@@ -1550,17 +1570,26 @@ void HttpStreamFactory::JobController::SwitchToHttpStreamPool() {
       std::exchange(request_, nullptr), std::exchange(delegate_, nullptr),
       std::move(pool_request_info), priority_, allowed_bad_certs_,
       enable_ip_based_pooling_for_h2_, enable_alternative_services_);
-
-  // Delete `this` later as this method is called while running DoLoop().
-  TaskRunner(priority_)->PostTask(
-      FROM_HERE, base::BindOnce(&JobController::MaybeNotifyFactoryOfCompletion,
-                                ptr_factory_.GetWeakPtr()));
 }
 
 void HttpStreamFactory::JobController::OnPoolPreconnectsComplete(int rv) {
   CHECK(switched_to_http_stream_pool_);
   factory_->OnPreconnectsCompleteInternal();
   MaybeNotifyFactoryOfCompletion();
+}
+
+void HttpStreamFactory::JobController::NotifyOnStreamCreationAttempted(
+    base::optional_ref<int> net_error) {
+  auto* proxy_delegate = session_->context().proxy_delegate.get();
+  if (!proxy_delegate || proxy_info_.is_empty()) {
+    return;
+  }
+
+  base::TimeDelta duration =
+      base::TimeTicks::Now() - stream_creation_attempt_start_time_;
+
+  proxy_delegate->OnStreamCreationAttempted(proxy_info_.proxy_chain(), duration,
+                                            net_error);
 }
 
 }  // namespace net

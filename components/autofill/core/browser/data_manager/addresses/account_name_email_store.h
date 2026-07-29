@@ -87,8 +87,11 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
   // profile.
   void ApplyChange(const AutofillProfileChange& change);
 
-  // Removes the kAccountNameEmail autofill profile if it exists.
-  void SoftRemoveAccountNameEmail();
+  // Removes the kAccountNameEmail autofill profile if it exists. If
+  // `is_soft_removal` is true then the AccountNameEmail profile will be
+  // recreated when conditions are met again, otherwise it will be recreated iff
+  // the account name changed.
+  void RemoveAccountNameEmail(bool is_soft_removal);
 
  private:
   friend class AccountNameEmailStoreTestApi;
@@ -110,7 +113,7 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
 
   // Updates the kAccountNameEmail autofill profile with the account `info`. If
   // the kAccountNameEmail profile doesn't exist, it is created.
-  void UpdateOrCreateAccountNameEmail(const AccountInfo& info);
+  void UpdateOrCreateAccountNameEmail(AccountInfo& info);
 
   // Hashes concatenated full_name and email_address delimited by |.
   std::string HashAccountInfo(const AccountInfo& info) const;

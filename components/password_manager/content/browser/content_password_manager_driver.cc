@@ -34,6 +34,7 @@
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "mojo/public/cpp/bindings/message.h"
@@ -283,14 +284,6 @@ void ContentPasswordManagerDriver::FillChangePasswordForm(
   }
 }
 
-void ContentPasswordManagerDriver::SubmitFormWithEnter(
-    autofill::FieldRendererId field,
-    base::OnceCallback<void(bool)> success_callback) {
-  if (const auto& agent = GetPasswordAutofillAgent()) {
-    agent->SubmitFormWithEnter(field, std::move(success_callback));
-  }
-}
-
 void ContentPasswordManagerDriver::FillSuggestion(
     const std::u16string& username,
     const std::u16string& password,
@@ -400,6 +393,14 @@ const GURL& ContentPasswordManagerDriver::GetLastCommittedURL() const {
 const url::Origin& ContentPasswordManagerDriver::GetLastCommittedOrigin()
     const {
   return render_frame_host_->GetLastCommittedOrigin();
+}
+
+void ContentPasswordManagerDriver::CheckViewAreaVisible(
+    autofill::FieldRendererId field_id,
+    base::OnceCallback<void(bool)> callback) {
+  if (const auto& agent = GetPasswordAutofillAgent()) {
+    agent->CheckViewAreaVisible(field_id, std::move(callback));
+  }
 }
 
 void ContentPasswordManagerDriver::AnnotateFieldsWithParsingResult(

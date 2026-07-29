@@ -510,6 +510,9 @@ chromium-metrics-reviews@google.com.
   <variant name="WalletablePassDetectionAllowlist"
       summary="This optimization provides information about whether a URL is
                eligible for walletable pass detection."/>
+  <variant name="WalletablePassDetectionLoyaltyAllowlist"
+      summary="This optimization provides information about whether a URL is
+               eligible for walletable loyalty pass detection."/>
 </variants>
 
 <variants name="PageContentAnnotationsStorageType">
@@ -599,7 +602,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.TotalLatency" units="ms"
-    expires_after="2026-04-05">
+    expires_after="2026-04-12">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -661,7 +664,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ApplyDecision.{OptimizationType}"
-    enum="OptimizationGuideOptimizationTypeDecision" expires_after="2026-02-09">
+    enum="OptimizationGuideOptimizationTypeDecision" expires_after="2026-04-12">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>
@@ -935,18 +938,6 @@ chromium-metrics-reviews@google.com.
     session following a new context being added.
   </summary>
   <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
-</histogram>
-
-<histogram
-    name="OptimizationGuide.ModelExecution.DidEvictBaseModelForRankUpdate"
-    enum="Boolean" expires_after="2025-10-26">
-  <owner>holte@chromium.org</owner>
-  <owner>cduvall@chromium.org</owner>
-  <summary>
-    Recorded when an adaptation config update is received that requires an
-    additional rank to be supported by the base model. The value indicates
-    whether a loaded model was evicted to force a reload.
-  </summary>
 </histogram>
 
 <histogram
@@ -1314,18 +1305,6 @@ chromium-metrics-reviews@google.com.
     Records the server error returned in the model execution response for
     {ModelExecutionFeature} from the the Optmization Guide Servic. Recorded
     whenever server error is returned.
-  </summary>
-  <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
-</histogram>
-
-<histogram
-    name="OptimizationGuide.ModelExecution.SessionUsedRemoteExecution.{ModelExecutionFeature}"
-    enum="Boolean" expires_after="2026-04-05">
-  <owner>holte@chromium.org</owner>
-  <owner>wittman@chromium.org</owner>
-  <summary>
-    Records whether a created session was one that uses remote execution.
-    Recorded each time an execution session is created.
   </summary>
   <token key="ModelExecutionFeature" variants="ModelExecutionFeature"/>
 </histogram>
@@ -1941,7 +1920,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PredictionManager.ModelDeliveryEvents.{OptimizationTarget}"
-    enum="OptimizationGuideModelDeliveryEvent" expires_after="2026-02-09">
+    enum="OptimizationGuideModelDeliveryEvent" expires_after="2026-04-12">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1969,7 +1948,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.PredictionModelDownloadManager.DownloadStartLatency.{OptimizationTarget}"
-    units="ms" expires_after="2026-02-06">
+    units="ms" expires_after="2026-04-12">
   <owner>rajendrant@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
   <summary>

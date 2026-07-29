@@ -13,6 +13,7 @@ source_set("internal") {
 
   sources = [
     "base_migratable_sync_service.cc",
+    "migratable_sync_bridge.cc",
     "migratable_sync_service_coordinator_impl.cc",
     "migratable_sync_service_coordinator_impl.h",
     "migration_state_database.h",
@@ -23,7 +24,11 @@ source_set("internal") {
   deps = [
     ":migration_state_proto",
     "//base",
+    "//components/data_sharing/migration/public",
     "//components/data_sharing/public",
+    "//components/prefs",
+    "//components/sqlite_proto",
+    "//sql",
   ]
 }
 
@@ -32,8 +37,10 @@ source_set("unit_tests") {
   sources = [ "migration_state_database_impl_unittest.cc" ]
   deps = [
     ":internal",
+    ":migration_state_proto",
     "//base",
     "//base/test:test_support",
+    "//components/data_sharing/public",
     "//testing/gtest",
   ]
 }

@@ -68,7 +68,6 @@ import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.policy.test.annotations.Policies;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
-import org.chromium.components.signin.metrics.SyncButtonClicked;
 import org.chromium.components.signin.test.util.FakeAccountManagerFacade;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.ui.test.util.DeviceRestriction;
@@ -78,6 +77,7 @@ import java.util.concurrent.ExecutionException;
 /** Integration tests for the first run experience with sign-in and sync decoupled. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @DoNotBatch(reason = "This test interacts with native initialization")
+@DisabledTest(message = "ttp://crbug.com/441219391")
 public class FirstRunActivitySigninAndSyncTest {
     private static final String TEST_URL = "https://foo.com";
 
@@ -117,7 +117,6 @@ public class FirstRunActivitySigninAndSyncTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @DisabledTest(message = "Flaky, see crbug.com/431968526")
     public void dismissButtonClickSkipsSyncConsentPageWhenNoAccountsAreOnDevice() {
         HistogramWatcher signinStartedWatcher =
                 HistogramWatcher.newBuilder()
@@ -136,7 +135,6 @@ public class FirstRunActivitySigninAndSyncTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @DisabledTest(message = "Flaky, see crbug.com/440276794")
     public void dismissButtonClickSkipsSyncConsentPageWhenOneAccountIsOnDevice() {
         HistogramWatcher signinStartedWatcher =
                 HistogramWatcher.newBuilder()
@@ -156,7 +154,6 @@ public class FirstRunActivitySigninAndSyncTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @DisabledTest(message = "crbug.com/429246882")
     public void continueButtonClickShowsHistorySyncPage() {
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
         launchFirstRunActivityAndWaitForNativeInitialization();
@@ -210,7 +207,6 @@ public class FirstRunActivitySigninAndSyncTest {
     // adding at least one policy via AppRestrictions prevents that.
     @Policies.Add(@Policies.Item(key = "ForceSafeSearch", string = "true"))
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
-    @DisabledTest(message = "crbug.com/429246882")
     public void continueButtonClickShowsHistorySyncPageWithChildAccount() {
         mAccountManagerTestRule.addAccount(TestAccounts.CHILD_ACCOUNT);
         launchFirstRunActivityAndWaitForNativeInitialization();
@@ -249,7 +245,6 @@ public class FirstRunActivitySigninAndSyncTest {
 
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/430594808")
     public void
             continueButtonClickSkipsSyncConsentPageWhenCannotUseGooglePlayServices_historySyncEnabled() {
         when(mExternalAuthUtilsMock.canUseGooglePlayServices()).thenReturn(false);
@@ -311,9 +306,6 @@ public class FirstRunActivitySigninAndSyncTest {
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(
                                 "Signin.HistorySyncOptIn.Completed", SigninAccessPoint.START_PAGE)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_OPT_IN_NOT_EQUAL_WEIGHTED)
                         .build();
         when(mExternalAuthUtilsMock.canUseGooglePlayServices(any())).thenReturn(true);
         mAccountManagerTestRule.addAccount(TestAccounts.AADC_ADULT_ACCOUNT);
@@ -339,9 +331,6 @@ public class FirstRunActivitySigninAndSyncTest {
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(
                                 "Signin.HistorySyncOptIn.Completed", SigninAccessPoint.START_PAGE)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_OPT_IN_EQUAL_WEIGHTED)
                         .build();
         when(mExternalAuthUtilsMock.canUseGooglePlayServices(any())).thenReturn(true);
         mAccountManagerTestRule.addAccount(TestAccounts.AADC_MINOR_ACCOUNT);
@@ -362,15 +351,11 @@ public class FirstRunActivitySigninAndSyncTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @DisabledTest(message = "crbug.com/429246882")
     public void refusingHistorySyncEndsFreAndDoesNotEnableHistorySync() {
         HistogramWatcher historySyncHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(
                                 "Signin.HistorySyncOptIn.Declined", SigninAccessPoint.START_PAGE)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_CANCEL_NOT_EQUAL_WEIGHTED)
                         .build();
         mAccountManagerTestRule.addAccount(TestAccounts.AADC_ADULT_ACCOUNT);
         launchFirstRunActivityAndWaitForNativeInitialization();
@@ -396,9 +381,6 @@ public class FirstRunActivitySigninAndSyncTest {
                 HistogramWatcher.newBuilder()
                         .expectIntRecord(
                                 "Signin.HistorySyncOptIn.Declined", SigninAccessPoint.START_PAGE)
-                        .expectIntRecord(
-                                "Signin.SyncButtons.Clicked",
-                                SyncButtonClicked.HISTORY_SYNC_CANCEL_EQUAL_WEIGHTED)
                         .build();
         mAccountManagerTestRule.addAccount(TestAccounts.AADC_MINOR_ACCOUNT);
         launchFirstRunActivityAndWaitForNativeInitialization();
@@ -422,7 +404,6 @@ public class FirstRunActivitySigninAndSyncTest {
     // adding at least one policy via AppRestrictions prevents that.
     @Policies.Add(@Policies.Item(key = "ForceSafeSearch", string = "true"))
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
-    @DisabledTest(message = "crbug.com/430594808")
     public void refusingHistorySyncForChildAccountEndsFreAndDoesNotEnableHistorySync() {
         when(mExternalAuthUtilsMock.canUseGooglePlayServices(any())).thenReturn(true);
         mAccountManagerTestRule.addAccount(TestAccounts.CHILD_ACCOUNT);

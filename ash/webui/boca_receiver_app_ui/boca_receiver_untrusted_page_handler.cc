@@ -10,6 +10,7 @@
 #include <string_view>
 #include <utility>
 
+#include "ash/webui/boca_receiver_app_ui/audio_packet_converter.h"
 #include "ash/webui/boca_receiver_app_ui/mojom/boca_receiver.mojom-data-view.h"
 #include "ash/webui/boca_receiver_app_ui/mojom/boca_receiver.mojom.h"
 #include "ash/webui/boca_receiver_app_ui/url_constants.h"
@@ -31,6 +32,7 @@
 #include "google_apis/common/request_sender.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "remoting/proto/audio.pb.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 
@@ -284,6 +286,9 @@ void BocaReceiverUntrustedPageHandler::MaybeStartConnection(
       base::BindRepeating(&BocaReceiverUntrustedPageHandler::OnCrdFrameReceived,
                           weak_ptr_factory_.GetWeakPtr()),
       base::BindRepeating(
+          &BocaReceiverUntrustedPageHandler::OnCrdAudioPacketReceived,
+          weak_ptr_factory_.GetWeakPtr()),
+      base::BindRepeating(
           &BocaReceiverUntrustedPageHandler::OnCrdConnectionStateUpdated,
           weak_ptr_factory_.GetWeakPtr()));
 }
@@ -327,6 +332,17 @@ void BocaReceiverUntrustedPageHandler::OnCrdFrameReceived(
       ::boca::ReceiverConnectionState::CONNECTED);
   UpdateConnection(connection_info_->connection_id(),
                    ::boca::ReceiverConnectionState::CONNECTED);
+}
+
+void BocaReceiverUntrustedPageHandler::OnCrdAudioPacketReceived(
+    std::unique_ptr<remoting::AudioPacket> packet) {
+  boca_receiver::mojom::DecodedAudioPacketPtr mojom_packet =
+      ConvertAudioPacketToMojom(std::move(packet));
+  if (mojom_packet) {
+    page_->OnAudioPacket(std::move(mojom_packet));
+  } else {
+    LOG(ERROR) << "Dropping audio packet due to conversion failure.";
+  }
 }
 
 void BocaReceiverUntrustedPageHandler::OnCrdConnectionStateUpdated(

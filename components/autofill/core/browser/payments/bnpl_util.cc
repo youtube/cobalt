@@ -11,10 +11,13 @@
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/constants.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/payments/core/currency_formatter.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -54,12 +57,21 @@ bool BnplIssuerContext::IsEligible() const {
   NOTREACHED();
 }
 
-BnplIssuerTosDetail::BnplIssuerTosDetail(std::u16string review_text,
-                                         std::u16string approve_text,
-                                         TextWithLink link_text)
-    : review_text(std::move(review_text)),
+BnplIssuerTosDetail::BnplIssuerTosDetail(
+    int header_icon_id,
+    int header_icon_id_dark,
+    std::u16string title,
+    std::u16string review_text,
+    std::u16string approve_text,
+    TextWithLink link_text,
+    std::vector<LegalMessageLine> legal_message_lines)
+    : header_icon_id(header_icon_id),
+      header_icon_id_dark(header_icon_id_dark),
+      title(std::move(title)),
+      review_text(std::move(review_text)),
       approve_text(std::move(approve_text)),
-      link_text(std::move(link_text)) {}
+      link_text(std::move(link_text)),
+      legal_message_lines(std::move(legal_message_lines)) {}
 
 BnplIssuerTosDetail::BnplIssuerTosDetail(const BnplIssuerTosDetail& other) =
     default;
@@ -153,6 +165,12 @@ std::u16string GetBnplIssuerSelectionOptionText(
   NOTREACHED();
 }
 
+#if BUILDFLAG(IS_ANDROID)
+std::u16string GetBnplUiFooterText() {
+  return l10n_util::GetStringUTF16(
+      IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_BOTTOM_SHEET_FOOTNOTE_HIDE_OPTION);
+}
+#else
 TextWithLink GetBnplUiFooterText() {
   TextWithLink text_with_link;
   std::u16string payments_settings_link_text = l10n_util::GetStringUTF16(
@@ -167,6 +185,7 @@ TextWithLink GetBnplUiFooterText() {
 
   return text_with_link;
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 bool ShouldAppendBnplSuggestion(const AutofillClient& client,
                                 bool is_card_number_field_empty,
@@ -187,13 +206,38 @@ bool ShouldAppendBnplSuggestion(const AutofillClient& client,
   }
   // BNPL suggestions require that at least one BNPL issuer is present and the
   // domain is eligible for BNPL.
-  if (!BnplManager::IsEligibleForBnpl(client)) {
+  if (!IsEligibleForBnpl(client)) {
     return false;
   }
   // This feature can only be enabled by the feature flag:
   // `kAutofillEnableAiBasedAmountExtraction`.
   return base::FeatureList::IsEnabled(
       features::kAutofillEnableAiBasedAmountExtraction);
+}
+
+bool IsEligibleForBnpl(const AutofillClient& client) {
+  // BNPL is not supported in off-the-record (incognito) mode.
+  if (client.IsOffTheRecord()) {
+    return false;
+  }
+
+  AutofillOptimizationGuideDecider* autofill_optimization_guide_decider =
+      client.GetAutofillOptimizationGuideDecider();
+  if (!autofill_optimization_guide_decider) {
+    return false;
+  }
+
+  const GURL& url = client.GetLastCommittedPrimaryMainFrameURL();
+
+  return std::ranges::any_of(
+      client.GetPaymentsAutofillClient()
+          ->GetPaymentsDataManager()
+          .GetBnplIssuers(),
+      [&autofill_optimization_guide_decider,
+       &url](const BnplIssuer& bnpl_issuer) {
+        return autofill_optimization_guide_decider->IsUrlEligibleForBnplIssuer(
+            bnpl_issuer.issuer_id(), url);
+      });
 }
 
 }  // namespace autofill::payments

@@ -20,9 +20,12 @@ import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
  * handler remote, resolving the browser call promises with named arguments.
  */
 class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
+  private results_: Map<string, any> = new Map();
+
   constructor() {
     super([
       'deleteAutocompleteMatch',
+      'activateKeyword',
       'executeAction',
       'onNavigationLikely',
       'onThumbnailRemoved',
@@ -44,6 +47,10 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     ]);
   }
 
+  setResultFor(methodName: string, result: any) {
+    this.results_.set(methodName, result);
+  }
+
   setPage(page: PageRemote) {
     this.methodCalled('setPage', page);
   }
@@ -54,6 +61,17 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   deleteAutocompleteMatch(line: number, url: Url) {
     this.methodCalled('deleteAutocompleteMatch', {line, url});
+  }
+
+  activateKeyword(
+      line: number, url: Url, matchSelectionTimestamp: TimeTicks,
+      isMouseEvent: boolean) {
+    this.methodCalled('activateKeyword', {
+      line,
+      url,
+      matchSelectionTimestamp,
+      isMouseEvent,
+    });
   }
 
   executeAction(
@@ -122,6 +140,9 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   getRecentTabs() {
     this.methodCalled('getRecentTabs');
+    if (this.results_.has('getRecentTabs')) {
+      return this.results_.get('getRecentTabs');
+    }
     return Promise.resolve({tabs: []});
   }
 

@@ -46,7 +46,7 @@ void GlicInactiveFloatingUi::Close() {
   NOTIMPLEMENTED();
 }
 
-views::View* GlicInactiveFloatingUi::GetView() {
+base::WeakPtr<views::View> GlicInactiveFloatingUi::GetView() {
   return nullptr;
 }
 
@@ -56,7 +56,7 @@ gfx::Size GlicInactiveFloatingUi::GetPanelSize() {
 
 mojom::PanelState GlicInactiveFloatingUi::GetPanelState() const {
   mojom::PanelState state;
-  state.kind = glic::mojom::PanelState::Kind::kHidden;
+  state.kind = glic::mojom::PanelStateKind::kHidden;
   return state;
 }
 

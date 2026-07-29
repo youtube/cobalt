@@ -27,6 +27,9 @@ BASE_DECLARE_FEATURE(kKeyboardLockPrompt);
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kPermissionElementPromptPositioning);
 
+COMPONENT_EXPORT(PERMISSIONS_COMMON)
+BASE_DECLARE_FEATURE(kPermissionHeuristicAutoGrant);
+
 // DO NOT REMOVE THIS FLAG.
 // This feature was used to enable the V2 version of the permission predictions
 // model. It is enabled by default. This flag is kept around to be able to
@@ -100,8 +103,13 @@ BASE_DECLARE_FEATURE(kGlicActorPermissionsAutoReject);
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(PERMISSIONS_COMMON)
 BASE_DECLARE_FEATURE(kOsAdditionalSecurityPermissionKillSwitch);
+
+COMPONENT_EXPORT(PERMISSIONS_COMMON)
+BASE_DECLARE_FEATURE(kReturnDeniedForNotificationsWhenNoAppLevelSettings);
 #endif
+
 }  // namespace features
+
 namespace feature_params {
 
 enum class PermissionElementPromptPosition {

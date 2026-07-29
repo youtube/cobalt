@@ -70,10 +70,7 @@ import java.io.IOException;
 })
 @Restriction({DeviceFormFactor.PHONE, DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
 @MinAndroidSdkLevel(Build.VERSION_CODES.R)
-@EnableFeatures({
-    ChromeFeatureList.DRAW_CUTOUT_EDGE_TO_EDGE,
-    ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-})
+@EnableFeatures(ChromeFeatureList.DRAW_CUTOUT_EDGE_TO_EDGE)
 public class EdgeToEdgeInstrumentationTest {
     @Rule
     public final AutoResetCtaTransitTestRule mActivityTestRule =
@@ -259,7 +256,6 @@ public class EdgeToEdgeInstrumentationTest {
         activateFeatureToEdge();
         optOutOfToEdge();
         var snackbarManager = mActivity.getSnackbarManager();
-        snackbarManager.setEdgeToEdgeSupplier(mEdgeToEdgeController);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     snackbarManager.showSnackbar(
@@ -305,7 +301,6 @@ public class EdgeToEdgeInstrumentationTest {
         activateFeatureToEdge();
         optOutOfToEdge();
         var snackbarManager = mActivity.getSnackbarManager();
-        snackbarManager.setEdgeToEdgeSupplier(mEdgeToEdgeController);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     snackbarManager.showSnackbar(

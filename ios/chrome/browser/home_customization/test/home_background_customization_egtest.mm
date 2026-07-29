@@ -172,8 +172,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 }
 
 // Tests that a custom gallery background can be set.
-// TODO(crbug.com/450042069): Test is causing almost deterministic failures.
-- (void)DISABLED_testCustomizeGalleryBackground {
+- (void)testCustomizeGalleryBackground {
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
                                    kNTPCustomizationMenuButtonIdentifier)]
@@ -190,14 +189,15 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
               IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_PRESET_GALLERY_TITLE))]
       performAction:grey_tap()];
 
-  [[EarlGrey selectElementWithMatcher:grey_text(base::SysUTF8ToNSString(
-                                          kCollectionTitle))]
-      assertWithMatcher:grey_sufficientlyVisible()];
+  [ChromeEarlGrey
+      waitForMatcher:grey_text(base::SysUTF8ToNSString(kCollectionTitle))];
 
-  [[EarlGrey
-      selectElementWithMatcher:grey_accessibilityLabel(
-                                   base::SysUTF8ToNSString(kImageAttribution))]
-      performAction:grey_tap()];
+  id<GREYMatcher> cellMatcher = grey_allOf(
+      grey_accessibilityLabel(base::SysUTF8ToNSString(kImageAttribution)),
+      grey_ancestor(grey_accessibilityID(
+          kHomeCustomizationGalleryPickerViewAccessibilityIdentifier)),
+      nil);
+  [[EarlGrey selectElementWithMatcher:cellMatcher] performAction:grey_tap()];
 
   EXPECT_TRUE([NewTabPageAppInterface hasBackgroundImage]);
 
@@ -216,8 +216,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 }
 
 // Tests that a custom camera roll image can be set.
-// TODO(crbug.com/450042069): Test is disabled.
-- (void)DISABLED_testCustomizeCameraRollBackground {
+- (void)testCustomizeCameraRollBackground {
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(
                                    kNTPCustomizationMenuButtonIdentifier)]
@@ -233,31 +232,6 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
           chrome_test_util::AlertAction(l10n_util::GetNSStringWithFixup(
               IDS_IOS_HOME_CUSTOMIZATION_BACKGROUND_PICKER_PHOTO_LIBRARY_TITLE))]
       performAction:grey_tap()];
-
-  // This flow uses PHPickerViewController, which presents in a separate process
-  // and view hierarchy, so EarlGrey cannot touch it. XCUITest can though, so
-  // use that instead.
-  XCUIApplication* app = [[XCUIApplication alloc] init];
-  // These queries are manually determined by looking at what available values
-  // will select the PHPickerViewController's view.
-  XCUIElementQuery* photoPicker =
-      [app.otherElements matchingIdentifier:@"photos_layout"];
-  XCUIElementQuery* photosSection =
-      [photoPicker.otherElements matchingIdentifier:@"photos_sectioned_layout"];
-  XCUIElement* image = photosSection.images.firstMatch;
-  XCTAssertTrue([image waitForExistenceWithTimeout:10],
-                @"The first image in the photo picker did not appear.");
-
-  if (@available(iOS 26, *)) {
-    // On iOS 26, tapping the PXGGridLayout-Info item that `image` is does not
-    // work. It fails with the error "Failed to not hittable." Instead, just tap
-    // the center of the screen, which should have an image under it.
-    XCUICoordinate* center =
-        [app coordinateWithNormalizedOffset:CGVectorMake(0.5, 0.5)];
-    [center tap];
-  } else {
-    [image tap];
-  }
 
   [ChromeEarlGrey
       waitForMatcher:grey_accessibilityID(

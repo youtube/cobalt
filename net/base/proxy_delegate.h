@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/types/expected.h"
+#include "base/types/optional_ref.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_export.h"
@@ -43,6 +44,14 @@ class NET_EXPORT ProxyDelegate {
       const std::string& method,
       const ProxyRetryInfoMap& proxy_retry_info,
       ProxyInfo* result) = 0;
+
+  // Called when use of a proxy chain failed due to `net_error`. Allows
+  // overriding whether the request should be retried using the next ProxyChain
+  // in the fallback list. If not implemented, or if this returns std::nullopt,
+  // no override will take place.
+  virtual std::optional<bool> CanFalloverToNextProxyOverride(
+      const ProxyChain& proxy_chain,
+      int net_error);
 
   // Called when use of a proxy chain failed due to `net_error`, but another
   // proxy chain in the list succeeded. The failed proxy is within `bad_chain`,
@@ -112,6 +121,13 @@ class NET_EXPORT ProxyDelegate {
       const std::string scheme,
       const std::vector<std::string>& dns_aliases,
       const net::NetworkAnonymizationKey& network_anonymization_key) = 0;
+
+  // Called after a stream creation succeeds or fails. `duration` indicates
+  // how long the attempt took, from when the jobs started to when the attempt
+  // succeeded or failed.
+  virtual void OnStreamCreationAttempted(const ProxyChain& proxy_chain,
+                                         base::TimeDelta duration,
+                                         base::optional_ref<int> net_error) {}
 };
 
 }  // namespace net

@@ -320,9 +320,7 @@ class CC_EXPORT GpuImageDecodeCache
 
   // Stores the CPU-side decoded bits of an image and supporting fields.
   struct DecodedImageData : public ImageDataBase {
-    explicit DecodedImageData(bool is_bitmap_backed,
-                              bool can_do_hardware_accelerated_decode,
-                              bool do_hardware_accelerated_decode);
+    explicit DecodedImageData(bool is_bitmap_backed);
     ~DecodedImageData();
 
     bool Lock();
@@ -362,14 +360,6 @@ class CC_EXPORT GpuImageDecodeCache
       return aux_image_data_[AuxImageIndex(aux_image)].pixmaps;
     }
 
-    bool can_do_hardware_accelerated_decode() const {
-      return can_do_hardware_accelerated_decode_;
-    }
-
-    bool do_hardware_accelerated_decode() const {
-      return do_hardware_accelerated_decode_;
-    }
-
     // Test-only functions.
     sk_sp<SkImage> ImageForTesting() const {
       return aux_image_data_[kAuxImageIndexDefault].images[0];
@@ -396,17 +386,6 @@ class CC_EXPORT GpuImageDecodeCache
 
     const bool is_bitmap_backed_;
     std::array<DecodedAuxImageData, kAuxImageCount> aux_image_data_;
-
-    // Keeps tracks of images that could go through hardware decode acceleration
-    // though they're possibly prevented from doing so because of a disabled
-    // feature flag.
-    bool can_do_hardware_accelerated_decode_;
-
-    // |do_hardware_accelerated_decode_| keeps track of images that should go
-    // through hardware decode acceleration. Currently, this path is intended
-    // only for Chrome OS and only for some JPEG images (see
-    // https://crbug.com/868400).
-    bool do_hardware_accelerated_decode_;
   };
 
   // Stores the GPU-side image and supporting fields.
@@ -452,8 +431,6 @@ class CC_EXPORT GpuImageDecodeCache
               int upload_scale_mip_level,
               bool needs_mips,
               bool is_bitmap_backed,
-              bool can_do_hardware_accelerated_decode,
-              bool do_hardware_accelerated_decode,
               bool speculative_decode,
               base::span<ImageInfo, kAuxImageCount> image_info);
 
@@ -731,8 +708,6 @@ class CC_EXPORT GpuImageDecodeCache
   raw_ptr<viz::RasterContextProvider> context_;
   int max_texture_size_ = 0;
   const PaintImage::GeneratorClientId generator_client_id_;
-  bool allow_accelerated_jpeg_decodes_ = false;
-  bool allow_accelerated_webp_decodes_ = false;
   SkYUVAPixmapInfo::SupportedDataTypes yuva_supported_data_types_;
   const bool enable_clipped_image_scaling_;
 

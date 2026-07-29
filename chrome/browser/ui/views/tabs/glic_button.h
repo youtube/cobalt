@@ -65,6 +65,7 @@ class GlicButton : public TabStripNudgeButton,
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   void StateChanged(ButtonState old_state) override;
+  void AddedToWidget() override;
 
   // views::ContextMenuController:
   void ShowContextMenuForViewImpl(
@@ -90,13 +91,11 @@ class GlicButton : public TabStripNudgeButton,
   // Sets the button back to its default colors.
   void SetDefaultColors();
 
-  // Sets the button to its highlighted state.
-  void HighlightGlicButton();
-
   // Called when the slide animation finishes.
   void OnAnimationEnded();
 
   gfx::SlideAnimation* GetExpansionAnimationForTesting() override;
+  bool GetLabelEnabledForTesting() const;
 
  private:
   // views::LabelButton:

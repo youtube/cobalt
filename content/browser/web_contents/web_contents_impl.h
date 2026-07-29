@@ -37,7 +37,6 @@
 #include "content/browser/media/forwarding_audio_stream_factory.h"
 #include "content/browser/preloading/prefetch/prefetch_handle_impl.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
-#include "content/browser/preloading/prerender/prerender_handle_impl.h"
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_controller_delegate.h"
@@ -136,16 +135,16 @@ class NativeTheme;
 }  // namespace ui
 
 namespace content {
-class JavaScriptDialogDismissNotifier;
-enum class PictureInPictureResult;
 class BeforeUnloadBlockingDelegate;  // content_browser_test_utils_internal.h
 class BrowserPluginEmbedder;
 class BrowserPluginGuest;
 class FindRequestManager;
+class JavaScriptDialogDismissNotifier;
 class MediaSession;
 class MediaWebContentsObserver;
 class NFCHost;
 class PartitionedPopinsController;
+class PreloadingAttempt;
 class RenderFrameHost;
 class RenderFrameHostImpl;
 class RenderViewHost;
@@ -166,8 +165,8 @@ class WakeLockContextHost;
 class WebContentsDelegate;
 class WebContentsImpl;
 class WebContentsView;
+enum class PictureInPictureResult;
 struct MHTMLGenerationParams;
-class PreloadingAttempt;
 
 namespace mojom {
 class CreateNewWindowParams;
@@ -637,9 +636,14 @@ class CONTENT_EXPORT WebContentsImpl
 #endif
   bool HasRecentInteraction() override;
   base::TimeTicks GetLastInteractionTimeTicks() override;
+  // TODO(crbug.com/452693512): Remove this 'using' declaration when the
+  // 1-argument IgnoreInputEvents helper is removed from the base class.
+  using WebContents::IgnoreInputEvents;
   [[nodiscard]] ScopedIgnoreInputEvents IgnoreInputEvents(
-      std::optional<WebInputEventAuditCallback> audit_callback) override;
+      std::optional<WebInputEventAuditCallback> audit_callback,
+      bool should_ignore_a11y_input) override;
   bool ShouldIgnoreInputEventsForTesting() override;
+  bool ShouldIgnoreA11yInputEventsForTesting() override;
   bool HasActiveEffectivelyFullscreenVideo() override;
   void WriteIntoTrace(perfetto::TracedValue context) override;
   const base::Location& GetCreatorLocation() override;
@@ -651,6 +655,7 @@ class CONTENT_EXPORT WebContentsImpl
       bool animate,
       const std::optional<cc::BrowserControlsOffsetTagModifications>&
           offset_tag_modifications) override;
+  void SetSupportsDraggableRegions(bool supports_draggable_regions) override;
   void SetV8CompileHints(base::ReadOnlySharedMemoryRegion data) override;
   void SetTabSwitchStartTime(base::TimeTicks start_time,
                              bool destination_is_loaded) override;
@@ -734,6 +739,7 @@ class CONTENT_EXPORT WebContentsImpl
   void SetCaptureHandleConfig(
       blink::mojom::CaptureHandleConfigPtr config) override;
   ui::AXMode GetAccessibilityMode() override;
+  bool ShouldIgnoreA11yInputEvents() override;
   // Broadcasts the mode change to all frames.
   void ResetAccessibility() override;
   void AXTreeIDForMainFrameHasChanged() override;
@@ -2372,6 +2378,9 @@ class CONTENT_EXPORT WebContentsImpl
   // Counts the number of outstanding requests to ignore input events. They will
   // not be sent when this is greater than zero.
   int ignore_input_events_count_ = 0;
+  // Counts the number of outstanding requests to ignore a11y input events. They
+  // will not be sent when this is greater than zero.
+  int ignore_a11y_input_count_ = 0;
   uint64_t next_web_input_event_audit_callback_id_ = 0;
   base::flat_map<uint64_t, WebInputEventAuditCallback>
       web_input_event_audit_callbacks_;
@@ -2724,6 +2733,10 @@ class CONTENT_EXPORT WebContentsImpl
 
   // Whether this contents represents a window initially opened as a new popup.
   bool is_popup_{false};
+
+  // Whether this contents has enabled draggable region calculation in the
+  // primary main frame.
+  bool supports_draggable_regions_{false};
 
   // The window open disposition that was originally requested
   // when this WebContents was created.

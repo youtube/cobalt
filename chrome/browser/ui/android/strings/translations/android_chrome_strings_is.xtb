@@ -109,7 +109,6 @@ Til að skoða fleiri stillingar sem nota gögn til að bæta Chrome-upplifunina
 <translation id="1419753403124156396">Endurræsa Chrome?</translation>
 <translation id="1428770807407000502">Slökkva á samstillingu?</translation>
 <translation id="1430915738399379752">Prenta</translation>
-<translation id="1433478348197382180">Lesstilling</translation>
 <translation id="1435593198351412143">Opna PDF-skrár sjálfkrafa</translation>
 <translation id="1437543266176261764">Keyrt í <ph name="APP_NAME" /></translation>
 <translation id="1448440926884431741">Notaðu bókamerki til að flokka vörur sem þú vaktar</translation>
@@ -270,6 +269,7 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2249635629516220541">Sérsníddu upplýsingarnar sem vefsvæði nota til að birta þér auglýsingar</translation>
 <translation id="2251809247798634662">Nýr huliðsgluggi</translation>
 <translation id="2253927598983295051">Veldu hverju á að deila með <ph name="APP_NAME" /></translation>
+<translation id="2261570557291037252">Frekari upplýsingar um forrit</translation>
 <translation id="2276696007612801991">Skráðu þig inn á Google reikninginn þinn til að athuga aðgangsorðin þín</translation>
 <translation id="2281243904606300427">Valinn huliðsflipi: <ph name="TAB_TITLE" /></translation>
 <translation id="2286841657746966508">Heimilisfang greiðanda</translation>
@@ -369,7 +369,6 @@ Aðeins einstaklingar sem eru með aðgangsorðið þitt geta lesið dulkóðuð
 <translation id="2718352093833049315">Aðeins um Wi-Fi</translation>
 <translation id="2718846868787000099">Vefsvæðin sem þú opnar geta séð kjörstillingarnar þínar til að sýna þér efni á þeim tungumálum sem þú hefur valið.</translation>
 <translation id="2723001399770238859">hljóð</translation>
-<translation id="2734335652257251631">Sýna lesstillingu</translation>
 <translation id="2739887572830526131">Haltu flipahópnum ef þú vilt bæta flipum við síðar eða eyddu honum ef þú hefur ekki þörf fyrir hann lengur.</translation>
 <translation id="2742373789128106053"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> er ekki í boði eins og er.</translation>
 <translation id="2760805590727089264">MM / ÁÁ</translation>
@@ -1011,7 +1010,6 @@ Google reikningurinn þinn kann að vera með annars konar vefskoðunarferil, sv
 <translation id="569536719314091526">Notaðu hnappinn „Fleiri valkostir“ til að þýða þessa síðu yfir á hvaða tungumál sem er</translation>
 <translation id="5696597120588531049">Chrome getur veitt þér vernd gegn öryggisbrotum, hættulegum vefsvæðum og fleira</translation>
 <translation id="5698878456427040674">Kannaðu hvort valinn reikningur er studdur.</translation>
-<translation id="570347048394355941">Skipta yfir á flipa</translation>
 <translation id="5709213329446699338"><ph name="SITE" /> vill tengjast við raðtengi</translation>
 <translation id="5715150588940290235">Eyða vistuðum öryggisnúmerum?</translation>
 <translation id="571930967925877633">Bókamerkin þín, ferillinn og önnur gögn úr Chrome verða ekki lengur samstillt við Google reikninginn þinn</translation>
@@ -1139,6 +1137,7 @@ Google reikningurinn þinn kann að vera með annars konar vefskoðunarferil, sv
 <translation id="6232535412751077445">Ef kveikt er á „Ekki rekja“ er beiðni látin fylgja með vefumferðinni þinni. Áhrifin velta á því hvort vefsvæði verður við beiðninni og hvernig beiðnin er túlkuð.
 
 Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að birta þér auglýsingar sem ekki byggja á öðrum vefsvæðum sem þú hefur heimsótt. Mörg vefsvæði munu áfram safna vefnotkunargögnunum þínum og nota þau, til dæmis til að auka öryggi, birta efni, auglýsingar og tillögur og útbúa talnagögn um notkun.</translation>
+<translation id="623755660902014047">Lesstilling</translation>
 <translation id="6247557882553405851">Aðgangsorðastjórnun Google</translation>
 <translation id="6248988683584659830">Leitarstillingar</translation>
 <translation id="6250847299079540062"><ph name="TAB_TITLE" />, margvalinn festur huliðsflipi</translation>
@@ -1300,6 +1299,7 @@ Sum vefsvæði kunna til dæmis að bregðast við beiðninni með því að bir
 <translation id="6865313869410766144">Gögn sjálfvirkrar útfyllingar eyðublaða</translation>
 <translation id="6867400383614725881">Nýr huliðsflipi</translation>
 <translation id="686899695320434745">Vefföng eru ekki dulkóðuð með aðgangsorðinu þínu. Þetta gerir þér kleift að nota þau í öðrum Google-þjónustum.</translation>
+<translation id="6870625088374152862">Skráð(ur) inn sem <ph name="USER_EMAIL_ADDRESS" /></translation>
 <translation id="687838958001010630">Allir með tengilinn geta breytt öllum flipum</translation>
 <translation id="6880903702195291049">Heimildir eru í góðu lagi</translation>
 <translation id="6883204995689174413">Deila</translation>
@@ -1396,7 +1396,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="7221869452894271364">Endurhlaða þessa síðu</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{Ein skrá bíður niðurhals}one{# skrá bíður niðurhals}other{# skrár bíða niðurhals}}</translation>
 <translation id="7230064152164845085">Skipta yfir í huliðsstillingu</translation>
-<translation id="7230836263524391273">Fela lesstillingu</translation>
 <translation id="7237724030342645845">Google-aðgangsorðastjórnun hætti að virka</translation>
 <translation id="72415438529550637">Tillögu að aðgangsorði lokað.</translation>
 <translation id="7248671827512403053">Forrit</translation>
@@ -1731,7 +1730,6 @@ Til að breyta þessari stillingu skaltu <ph name="BEGIN_LINK" />eyða Chrome-g�
 <translation id="867914734596684889">Sýna eða fela bókamerkjastiku</translation>
 <translation id="8683039184091909753">mynd</translation>
 <translation id="8688183792442786085">Valinn flipi: <ph name="TAB_TITLE" /></translation>
-<translation id="8693232767599693749">Sjá lesstillingu?</translation>
 <translation id="8697753151306746444">Deildu glugga eða skjá í staðinn</translation>
 <translation id="8699120352855309748">Ekki bjóða upp á að þýða þessi tungumál</translation>
 <translation id="8712637175834984815">Ég skil</translation>

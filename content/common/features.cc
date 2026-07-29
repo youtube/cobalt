@@ -26,6 +26,14 @@ BASE_FEATURE(kAndroidDownloadableFontsMatching,
 // Adds OOPIF support for android drag and drop.
 BASE_FEATURE(kAndroidDragDropOopif, base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_WIN)
+// Flag guard for Windows Arabic digit substitution workaround.
+// crbug.com/440381284
+BASE_FEATURE(kArabicDigitSubstitution,
+             "ArabicDigitSubstitution",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
+
 // Synchronously continuing with navigation can lead to trying to start another
 // navigation synchronously while the first navigation is still being processed
 // on the stack. This results in re-entrancy which is unsafe and triggers a
@@ -188,7 +196,7 @@ BASE_FEATURE(kFedCmUseOtherAccountAndLabelsNewSyntax,
 BASE_FEATURE(kFedCmSameSiteLax, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables NonString Tokens
-BASE_FEATURE(kFedCmNonStringToken, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFedCmNonStringToken, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether FedCM preserves ports in well-known URLs during testing.
 // When enabled, well-known URLs retain the original port from the provider URL
@@ -277,7 +285,7 @@ BASE_FEATURE(
 
 // Killswitch for prefetch devtools UA override (crbug.com/422193319).
 BASE_FEATURE(kPrefetchDevtoolsUserAgentOverride,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When true, duplicate navigations are ignored only if they are initiated
 // with a user gesture.
@@ -527,6 +535,9 @@ BASE_FEATURE(kReloadHiddenTabsWithCrashedSubframes,
 #endif
 );
 
+BASE_FEATURE(kRendererCancellationThrottleImprovements,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, try to reuse any same-site process that is hosting
 // only prerendered frames for main-frame navigations.
 BASE_FEATURE(kReusePrerenderingProcessForMainFrames,
@@ -587,6 +598,11 @@ BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
 // crashed frame.
 BASE_FEATURE(kSkipEarlyCommitPendingForCrashedFrame,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Feature to skip a redundant NotifyNavigationStateChanged call during
+// RendererDidNavigate.
+BASE_FEATURE(kSkipRedundantNavigationStateNotification,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, ensure high-rank processes are on the LRU list while app is in

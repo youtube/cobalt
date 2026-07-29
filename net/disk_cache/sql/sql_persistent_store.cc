@@ -319,8 +319,9 @@ class Backend {
             // a preferred size based on available disk space.
             max_bytes > 0
                 ? max_bytes
-                : PreferredCacheSize(base::SysInfo::AmountOfFreeDiskSpace(path),
-                                     type)),
+                : PreferredCacheSize(
+                      base::SysInfo::AmountOfFreeDiskSpace(path).value_or(-1),
+                      type)),
         high_watermark_(max_bytes_ -
                         max_bytes_ / kSqlBackendEvictionMarginDivisor),
         low_watermark_(max_bytes_ -
@@ -332,6 +333,8 @@ class Backend {
 #endif  // IS_WIN
                 .set_preload(true)
                 .set_wal_mode(true)
+                .set_no_sync_on_wal_mode(
+                    net::features::kSqlDiskCacheSynchronousOff.Get())
                 .set_wal_commit_callback(base::BindRepeating(
                     &Backend::OnCommitCallback,
                     // This callback is only called while the `db_` instance
@@ -723,7 +726,12 @@ void Backend::DatabaseErrorCallback(int error, sql::Statement* statement) {
   TRACE_EVENT("disk_cache", "SqlBackend.Error", "error", error);
   sql::UmaHistogramSqliteResult(base::StrCat({kHistogramPrefix, "SqliteError"}),
                                 error);
-  if (sql::IsErrorCatastrophic(error) && db_.is_open()) {
+  // For the HTTP Cache, a kFullDisk error is not recoverable and freeing up
+  // disk space is the best course of action. So, we treat it as a catastrophic
+  // error to raze the database.
+  if ((sql::IsErrorCatastrophic(error) ||
+       error == static_cast<int>(sql::SqliteErrorCode::kFullDisk)) &&
+      db_.is_open()) {
     // Normally this will poison the database, causing any subsequent operations
     // to silently fail without any side effects. However, if RazeAndPoison() is
     // called from the error callback in response to an error raised from within

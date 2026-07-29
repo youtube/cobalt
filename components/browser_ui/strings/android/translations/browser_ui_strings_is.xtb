@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Halda áfram</translation>
 <translation id="2379925928934107488">Nota dökkt þema fyrir vefsvæði þegar Chrome notar dökkt þema, sé þess kostur</translation>
 <translation id="2390272837142897736">Auka aðdrátt</translation>
+<translation id="2397689164757137845">Leyft • Nákvæm</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Nákvæm</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{„<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ og <ph name="NUM_MORE" /> í viðbót leyft}one{„<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ og <ph name="NUM_MORE" /> í viðbót leyft}other{„<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ og <ph name="NUM_MORE" /> í viðbót leyft}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Hjálp og ábendingar</translation>
 <translation id="2501278716633472235">Fara til baka</translation>
 <translation id="2533138527374486328">Ef kveikt er á þessu geta vefsvæði beðið um að tengjast hvaða tæki sem er á staðarnetinu þínu. Þegar slökkt er á þessu geta vefsvæði ekki tengst tækjum á staðarnetinu þínu.</translation>
+<translation id="2536779053640817375">Leyft í þetta skipti • Nákvæm</translation>
 <translation id="2544997614631598250">Þemalitur dökkur</translation>
 <translation id="2546283357679194313">Fótspor og gögn vefsvæða</translation>
 <translation id="2570922361219980984">Einnig er slökkt á aðgangi að staðsetningu fyrir þetta tæki. Kveiktu á honum í <ph name="BEGIN_LINK" />stillingum Android<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">Gera hlé á spilun</translation>
 <translation id="5877248419911025165">Minnka allar beiðnir</translation>
 <translation id="5878945009165002849">Útiloka innskráningartilkynningar frá auðkenningarþjónustum</translation>
+<translation id="588258955323874662">Allur skjárinn</translation>
 <translation id="5884085660368669834">Stilling vefsvæðis</translation>
 <translation id="5887687176710214216">Síðast opnað í gær</translation>
 <translation id="5908617755156109052">Ekki leyfa vefsvæðum að búa til þrívíddarkort af umhverfi þínu eða rekja stöðu myndavélar</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">Þessi stilling virkar án þess að auðkenna þig eða leyfa vefsvæðum að sjá vafraferilinn þinn en vefsvæði geta þó deilt litlu magni upplýsinga sem hluta af staðfestingunni</translation>
 <translation id="7409735910987429903">Vefsvæði gætu sent sprettiglugga til að birta auglýsingar eða notað framsendingu til að leiða þig inn á vefsvæði sem þú vilt hugsanlega ekki skoða</translation>
 <translation id="7412160840120117304">Aðallitur (sextándakerfi)</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Stækka}one{Stækka: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Stækka: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Spyrja fyrst</translation>
 <translation id="7423538860840206698">Lokað fyrir lestur klippiborðs</translation>
 <translation id="7425915948813553151">Dökkt þema fyrir vefsvæði</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">Þegar kveikt er á þessu</translation>
 <translation id="8805385115381080995">Vefskoðun verður hraðari vegna þess að ólíklegra er að vefsvæði biðji þig um að staðfesta að þú sért manneskja.</translation>
 <translation id="8816026460808729765">Loka fyrir aðgang vefsvæða að skynjurum</translation>
-<translation id="884765916894384048">Fara í bakgrunn</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Prófaðu að leyfa fótspor þriðju aðila tímabundið, það þýðir minni vernd við vefskoðun en líklegra er að eiginleikar vefsvæðisins virki sem skyldi.</translation>
 <translation id="8889294078294184559">Þegar þú heldur áfram að vafra geta vefsvæði athugað upplýsingarnar hjá Chrome og staðfest frá fyrra vefsvæði að þú sért líklega mennskur notandi</translation>

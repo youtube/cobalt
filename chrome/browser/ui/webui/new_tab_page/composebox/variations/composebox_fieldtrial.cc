@@ -138,6 +138,61 @@ bool IsNtpComposeboxEnabled(Profile* profile) {
       AimEligibilityServiceFactory::GetForProfile(profile), kNtpComposebox);
 }
 
+bool IsDeepSearchEnabled(Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+
+  if (!IsNtpComposeboxEnabled(profile)) {
+    return false;
+  }
+
+  if (kShowToolsAndModels.Get() && kForceToolsAndModels.Get()) {
+    return true;
+  }
+
+  AimEligibilityService* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  return kShowToolsAndModels.Get() && aim_eligibility_service &&
+         aim_eligibility_service->IsDeepSearchEligible();
+}
+
+bool IsCreateImagesEnabled(Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+
+  if (!IsNtpComposeboxEnabled(profile)) {
+    return false;
+  }
+
+  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get() &&
+      kForceToolsAndModels.Get()) {
+    return true;
+  }
+
+  AimEligibilityService* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  return kShowToolsAndModels.Get() && kShowCreateImageTool.Get() &&
+         aim_eligibility_service &&
+         aim_eligibility_service->IsCreateImagesEligible();
+}
+
+std::unique_ptr<ComposeboxQueryController::QueryControllerConfigParams>
+CreateQueryControllerConfigParams() {
+  auto config_params = std::make_unique<
+      ComposeboxQueryController::QueryControllerConfigParams>();
+  config_params->send_lns_surface = kSendLnsSurfaceParam.Get();
+  config_params->suppress_lns_surface_param_if_no_image =
+      kSuppressLnsSurfaceParamIfNoImage.Get();
+  config_params->enable_multi_context_input_flow = kMaxNumFiles.Get() > 1;
+  config_params->enable_viewport_images = kEnableViewportImages.Get();
+  config_params->use_separate_request_ids_for_multi_context_viewport_images =
+      kUseSeparateRequestIdsForMultiContextViewportImages.Get();
+  config_params->clear_previous_state_on_session_start = true;
+  return config_params;
+}
+
 BASE_FEATURE(kNtpComposebox, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kConfigParam(&kNtpComposebox,
@@ -147,6 +202,17 @@ const base::FeatureParam<std::string> kConfigParam(&kNtpComposebox,
 const base::FeatureParam<bool> kSendLnsSurfaceParam(&kNtpComposebox,
                                                     "SendLnsSurfaceParam",
                                                     true);
+
+const base::FeatureParam<bool> kSuppressLnsSurfaceParamIfNoImage(
+    &kNtpComposebox,
+    "SuppressLnsSurfaceParamIfNoImage",
+    true);
+
+const base::FeatureParam<bool>
+    kUseSeparateRequestIdsForMultiContextViewportImages(
+        &kNtpComposebox,
+        "UseSeparateRequestIdsForMultiContextViewportImages",
+        true);
 
 const base::FeatureParam<bool> kShowComposeboxZps(&kNtpComposebox,
                                                   "ShowComposeboxZps",
@@ -165,6 +231,9 @@ const base::FeatureParam<bool> kShowComposeboxImageSuggestions(
 const base::FeatureParam<bool> kShowContextMenu(&kNtpComposebox,
                                                 "ShowContextMenu",
                                                 false);
+const base::FeatureParam<bool> kShowRecentTabChip(&kNtpComposebox,
+                                                  "ShowRecentTabChip",
+                                                  false);
 const base::FeatureParam<bool> kShowContextMenuTabPreviews(
     &kNtpComposebox,
     "ShowContextMenuTabPreviews",
@@ -174,10 +243,9 @@ const base::FeatureParam<bool> kShowContextMenuDescription(
     &kNtpComposebox,
     "ShowContextMenuDescription",
     true);
-const base::FeatureParam<bool> kEnableViewportImages(
-    &kNtpComposebox,
-    "EnableViewportImages",
-    true);
+const base::FeatureParam<bool> kEnableViewportImages(&kNtpComposebox,
+                                                     "EnableViewportImages",
+                                                     true);
 
 const base::FeatureParam<bool> kShowToolsAndModels(&kNtpComposebox,
                                                    "ShowToolsAndModels",
@@ -185,6 +253,12 @@ const base::FeatureParam<bool> kShowToolsAndModels(&kNtpComposebox,
 
 const base::FeatureParam<bool> kShowCreateImageTool(&kNtpComposebox,
                                                     "ShowCreateImageTool",
+                                                    false);
+
+const base::FeatureParam<bool> kShowSubmit(&kNtpComposebox, "ShowSubmit", true);
+
+const base::FeatureParam<bool> kForceToolsAndModels(&kNtpComposebox,
+                                                    "ForceToolsAndModels",
                                                     false);
 
 const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
@@ -208,6 +282,10 @@ namespace ntp_realbox {
 
 bool IsNtpRealboxNextEnabled(Profile* profile) {
   if (!profile) {
+    return false;
+  }
+
+  if (!ntp_composebox::IsNtpComposeboxEnabled(profile)) {
     return false;
   }
 
@@ -238,7 +316,7 @@ const base::FeatureParam<RealboxLayoutMode>::Option
 const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode(
     &kNtpRealboxNext,
     "RealboxLayoutMode",
-    RealboxLayoutMode::kTallBottomContext,
+    RealboxLayoutMode::kCompact,
     &kRealboxLayoutModeOptions);
 
 std::string_view RealboxLayoutModeToString(

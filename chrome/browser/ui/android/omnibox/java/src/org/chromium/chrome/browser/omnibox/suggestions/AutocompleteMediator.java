@@ -27,6 +27,7 @@ import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
@@ -37,7 +38,6 @@ import org.chromium.chrome.browser.omnibox.OmniboxMetrics.RefineActionUsage;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
 import org.chromium.chrome.browser.omnibox.navattach.NavigationAttachmentsCoordinator;
-import org.chromium.chrome.browser.omnibox.navattach.NavigationFulfillmentType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController.OnSuggestionsReceivedListener;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteCoordinator.OmniboxSuggestionsVisualStateObserver;
@@ -55,6 +55,7 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteResult;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
@@ -114,6 +115,8 @@ class AutocompleteMediator
     private final boolean mForcePhoneStyleOmnibox;
     private final Callback<@ControlsPosition Integer> mToolbarPositionChangedCallback =
             this::onToolbarPositionChanged;
+    private final Callback<@AutocompleteRequestType Integer> mOnAutocompleteRequestTypeChanged =
+            this::onAutocompleteRequestTypeChanged;
 
     private @Nullable AutocompleteController mAutocomplete;
     private @Nullable AutocompleteResult mAutocompleteResult;
@@ -226,6 +229,10 @@ class AutocompleteMediator
 
         mAnimationDriver = initializeAnimationDriver();
 
+        mNavigationAttachmentsCoordinator
+                .getAutocompleteRequestTypeSupplier()
+                .addSyncObserver(mOnAutocompleteRequestTypeChanged);
+
         mDataProvider
                 .getToolbarPositionSupplier()
                 .addObserver(mToolbarPositionChangedCallback, NotifyBehavior.NOTIFY_ON_ADD);
@@ -265,6 +272,9 @@ class AutocompleteMediator
         if (mNativeInitialized) {
             OmniboxActionFactoryImpl.get().destroyNativeFactory();
         }
+        mNavigationAttachmentsCoordinator
+                .getAutocompleteRequestTypeSupplier()
+                .removeObserver(mOnAutocompleteRequestTypeChanged);
         mHandler.removeCallbacksAndMessages(null);
         mDropdownViewInfoListBuilder.destroy();
         mLifecycleDispatcher.unregister(this);
@@ -421,7 +431,16 @@ class AutocompleteMediator
 
         if (activated) {
             initAutocompleteInput();
-            mDeferredIMEWindowInsetApplicationCallback.attach(mWindowAndroid);
+
+            // Do not attach IME observer when omnibox autofocus feature enabled and Incognito NTP
+            // visible.
+            if (!ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtp.isEnabled()
+                    || !mDataProvider
+                            .getNewTabPageDelegate()
+                            .isIncognitoNewTabPageCurrentlyVisible()) {
+                mDeferredIMEWindowInsetApplicationCallback.attach(mWindowAndroid);
+            }
+
             dismissDeleteDialog(DialogDismissalCause.DISMISSED_BY_NATIVE);
             mRefineActionUsage = RefineActionUsage.NOT_USED;
             mOmniboxFocusResultedInNavigation = false;
@@ -913,6 +932,15 @@ class AutocompleteMediator
         measureSuggestionRequestToUiModelTime(isFinal);
     }
 
+    public void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
+        if (mOmniboxFocused) {
+            mAutocompleteInput.setPageClassification(mDataProvider.getPageClassification(type));
+            onTextChanged(
+                    mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
+                    /* isOnFocusContext= */ false);
+        }
+    }
+
     /**
      * Load the url corresponding to the typed omnibox text.
      *
@@ -930,9 +958,9 @@ class AutocompleteMediator
         }
 
         if (mNavigationAttachmentsCoordinator
-                .getNavigationFulfillmentTypeSupplier()
+                .getAutocompleteRequestTypeSupplier()
                 .get()
-                .equals(NavigationFulfillmentType.AI_MODE)) {
+                .equals(AutocompleteRequestType.AI_MODE)) {
             AutocompleteMatch suggestionMatch = getSuggestionMatchForUrlText(urlText);
             if (suggestionMatch == null) return;
             loadUrlForOmniboxMatch(
@@ -1158,7 +1186,11 @@ class AutocompleteMediator
      */
     @VisibleForTesting
     void initAutocompleteInput() {
-        mAutocompleteInput.setPageClassification(mDataProvider.getPageClassification(false));
+        mAutocompleteInput.setPageClassification(
+                mDataProvider.getPageClassification(
+                        mNavigationAttachmentsCoordinator
+                                .getAutocompleteRequestTypeSupplier()
+                                .get()));
         mAutocompleteInput.setPageUrl(mDataProvider.getCurrentGurl());
         mAutocompleteInput.setPageTitle(mDataProvider.getTitle());
 

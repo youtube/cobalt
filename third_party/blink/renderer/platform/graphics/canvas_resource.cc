@@ -69,6 +69,12 @@ BASE_FEATURE(kCanvasResourceIsWebGPUCompatible,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+// Controls whether CanvasResource::WaitSyncToken(const SyncToken&) should
+// defer wait (when enabled) or wait immediately (when disabled).
+BASE_FEATURE(kCanvasResourceDefersWaitSyncToken,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 }  // namespace
 
 CanvasResource::CanvasResource()
@@ -464,6 +470,7 @@ void CanvasResourceSharedImage::EndExternalWrite(
   // complete.
   WaitSyncToken(external_write_sync_token);
 
+  WaitSyncToken();
   // Additionally ensure that the next compositor read waits for the external
   // write to complete by ensuring that a new sync token is generated on the
   // internal interface as part of generating the TransferableResource. This new
@@ -507,46 +514,28 @@ void CanvasResourceSharedImage::WaitSyncToken(
     const gpu::SyncToken& sync_token) {
   if (sync_token.HasData()) {
     acquire_sync_token_ = sync_token;
-    WaitSyncToken();
+    if (!base::FeatureList::IsEnabled(kCanvasResourceDefersWaitSyncToken)) {
+      if (auto* interface_base = InterfaceBase()) {
+        interface_base->WaitSyncTokenCHROMIUM(
+            acquire_sync_token_.GetConstData());
+      }
+    }
   }
 }
 
 void CanvasResourceSharedImage::WaitSyncToken() {
-  if (auto* interface_base = InterfaceBase()) {
-    interface_base->WaitSyncTokenCHROMIUM(acquire_sync_token_.GetConstData());
-  }
+  InterfaceBase()->WaitSyncTokenCHROMIUM(acquire_sync_token_.GetConstData());
 }
 
-const gpu::SyncToken CanvasResourceSharedImage::GetSyncToken() {
-  if (GetClientSharedImage()->is_software()) {
-    // This class doesn't currently have a way of verifying the sync token
-    // within this call for software SharedImages, so it instead ensures that it
-    // is verified at the time of generation.
-    DCHECK(sync_token().verified_flush());
-
-    return sync_token();
-  }
-
-  if (is_cross_thread()) {
-    // Sync token should be generated at Transfer time, which must always be
-    // called before cross-thread usage. And since we don't allow writes on
-    // another thread, the sync token generated at Transfer time shouldn't
-    // have been invalidated.
-    DCHECK(sync_token().verified_flush());
-
-    return sync_token();
-  }
+void CanvasResourceSharedImage::GetSyncToken() {
+  CHECK(!GetClientSharedImage()->is_software());
+  DCHECK(!is_cross_thread());
 
   auto* raster_interface = RasterInterface();
+  CHECK(raster_interface);
 
-  // TODO(crbug.com/40286368): Verify that context loss is handled at all
-  // callsites before invoking this method and remove this conditional.
-  if (raster_interface) {
-    raster_interface->GenUnverifiedSyncTokenCHROMIUM(
-        owning_thread_data().sync_token.GetData());
-  }
-
-  return sync_token();
+  raster_interface->GenUnverifiedSyncTokenCHROMIUM(
+      owning_thread_data().sync_token.GetData());
 }
 
 void CanvasResourceSharedImage::VerifySyncToken() {
@@ -596,6 +585,13 @@ CanvasResourceProviderSharedImage* CanvasResourceSharedImage::Provider() {
   return provider_.get();
 }
 
+void CanvasResourceSharedImage::PrepareForWebGPUDummyMailbox() {
+  // In the dummy WebGPU mailbox case, we skip write operation to CanvasResource
+  // and therefore did not wait on `acquire_sync_token_`. Instead, the consumer
+  // needs to do it.
+  owning_thread_data().sync_token = acquire_sync_token_;
+}
+
 // ExternalCanvasResource
 //==============================================================================
 scoped_refptr<ExternalCanvasResource> ExternalCanvasResource::Create(
@@ -624,7 +620,8 @@ ExternalCanvasResource::~ExternalCanvasResource() {
   }
 
   if (release_callback_) {
-    std::move(release_callback_).Run(GetSyncToken(), resource_is_lost_);
+    GetSyncToken();
+    std::move(release_callback_).Run(sync_token(), resource_is_lost_);
   }
 }
 
@@ -652,9 +649,10 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
       },
       base::RetainedRef(this));
 
+  GetSyncToken();
   scoped_refptr<StaticBitmapImage> image =
       AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-          client_si_, GetSyncToken(), GetAlphaType(), context_provider_wrapper_,
+          client_si_, sync_token(), GetAlphaType(), context_provider_wrapper_,
           owning_thread_ref_, owning_thread_task_runner_,
           std::move(release_callback));
   image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
@@ -669,7 +667,7 @@ void ExternalCanvasResource::WaitSyncToken(const gpu::SyncToken& sync_token) {
   }
 }
 
-const gpu::SyncToken ExternalCanvasResource::GetSyncToken() {
+void ExternalCanvasResource::GetSyncToken() {
   // This method is expected to be used both in WebGL and WebGPU, that's why it
   // uses InterfaceBase.
   if (!sync_token_.HasData()) {
@@ -679,8 +677,6 @@ const gpu::SyncToken ExternalCanvasResource::GetSyncToken() {
   } else {
     VerifySyncToken();
   }
-
-  return sync_token_;
 }
 
 void ExternalCanvasResource::VerifySyncToken() {
@@ -777,9 +773,10 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSwapChain::Bitmap() {
       },
       base::RetainedRef(this));
 
+  GetSyncToken();
   scoped_refptr<StaticBitmapImage> image =
       AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-          back_buffer_shared_image_, GetSyncToken(), GetAlphaType(),
+          back_buffer_shared_image_, sync_token(), GetAlphaType(),
           context_provider_wrapper_, owning_thread_ref_,
           owning_thread_task_runner_, std::move(release_callback));
   image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
@@ -799,9 +796,8 @@ void CanvasResourceSwapChain::WaitSyncToken(const gpu::SyncToken& sync_token) {
   }
 }
 
-const gpu::SyncToken CanvasResourceSwapChain::GetSyncToken() {
+void CanvasResourceSwapChain::GetSyncToken() {
   DCHECK(sync_token_.verified_flush());
-  return sync_token_;
 }
 
 void CanvasResourceSwapChain::PresentSwapChain() {

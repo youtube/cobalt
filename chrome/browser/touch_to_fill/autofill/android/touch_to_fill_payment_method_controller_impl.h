@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_TOUCH_TO_FILL_AUTOFILL_ANDROID_TOUCH_TO_FILL_PAYMENT_METHOD_CONTROLLER_IMPL_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
@@ -25,6 +26,7 @@ struct BnplIssuerContext;
 struct BnplIssuerTosDetail;
 }  // namespace payments
 
+class BnplIssuer;
 class ContentAutofillClient;
 class Iban;
 class LoyaltyCard;
@@ -64,11 +66,12 @@ class TouchToFillPaymentMethodControllerImpl
                                bool is_amount_supported_by_any_issuer) override;
   bool ShowProgressScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
                           base::OnceClosure cancel_callback) override;
-  bool ShowBnplIssuers(base::WeakPtr<TouchToFillDelegate> delegate,
-                       base::span<const payments::BnplIssuerContext>
-                           bnpl_issuer_contexts) override;
+  bool ShowBnplIssuers(
+      base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+      const std::string& app_locale,
+      base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
+      base::OnceClosure cancel_callback) override;
   bool ShowErrorScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
-                       base::WeakPtr<TouchToFillDelegate> delegate,
                        const std::u16string& title,
                        const std::u16string& description) override;
   bool ShowBnplIssuerTos(
@@ -93,13 +96,17 @@ class TouchToFillPaymentMethodControllerImpl
   void CreditCardSuggestionSelected(JNIEnv* env,
                                     const std::string& unique_id,
                                     bool is_virtual) override;
+  void BnplSuggestionSelected(JNIEnv* env,
+                              std::optional<int64_t> extracted_amount) override;
   void LocalIbanSuggestionSelected(JNIEnv* env,
                                    const std::string& guid) override;
   void ServerIbanSuggestionSelected(JNIEnv* env, long instrument_id) override;
   void LoyaltyCardSuggestionSelected(JNIEnv* env,
                                      const LoyaltyCard& loyalty_card) override;
   void OnErrorOkPressed(JNIEnv* env) override;
-  int GetJavaResourceId(int native_resource_id) override;
+  void OnBnplIssuerSuggestionSelected(JNIEnv* env,
+                                      const std::string& issuer_id) override;
+  int GetJavaResourceId(int native_resource_id) const override;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject() override;
   void ResetJavaObject();
 

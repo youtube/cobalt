@@ -28,7 +28,6 @@
 #import "ios/chrome/browser/omnibox/ui/popup/row/omnibox_popup_row_delegate.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
 #import "ios/chrome/browser/shared/ui/elements/self_sizing_table_view.h"
-#import "ios/chrome/browser/shared/ui/util/keyboard_observer_helper.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -128,6 +127,9 @@ const CGFloat kHeaderTopPadding = 16.0f;
 /// of.
 @property(nonatomic, readonly) UILayoutGuide* omniboxGuide;
 
+/// Whether to show the omnibox in the bottom when the popup is open.
+@property(nonatomic, assign) BOOL useBottomOmniboxInPopup;
+
 @end
 
 @implementation OmniboxPopupViewController {
@@ -167,8 +169,6 @@ const CGFloat kHeaderTopPadding = 16.0f;
 }
 
 - (void)loadView {
-  // TODO(crbug.com/40866206): Check why largeIconService not available in
-  // incognito.
   if (self.largeIconService) {
     _carouselAttributeProvider = [[FaviconAttributesProvider alloc]
         initWithFaviconSize:kMaxTileFaviconSize
@@ -225,6 +225,15 @@ const CGFloat kHeaderTopPadding = 16.0f;
     _carouselCell.menuProvider = self.carouselMenuProvider;
   }
   return _carouselCell;
+}
+
+- (void)setUseBottomOmniboxInPopup:(BOOL)useBottomOmniboxInPopup {
+  if (_useBottomOmniboxInPopup == useBottomOmniboxInPopup) {
+    return;
+  }
+
+  _useBottomOmniboxInPopup = useBottomOmniboxInPopup;
+  [self.tableView reloadData];
 }
 
 #pragma mark - View lifecycle
@@ -396,6 +405,7 @@ const CGFloat kHeaderTopPadding = 16.0f;
 - (void)setKeyboardAttachedBottomOmniboxHeight:
     (CGFloat)keyboardAttachedBottomOmniboxHeight {
   _keyboardAttachedBottomOmniboxHeight = keyboardAttachedBottomOmniboxHeight;
+  self.shouldUpdateVisibleSuggestionCount = YES;
 }
 
 #pragma mark - OmniboxKeyboardDelegate
@@ -911,6 +921,7 @@ const CGFloat kHeaderTopPadding = 16.0f;
 
       DCHECK(cell);
       DCHECK(configuration);
+      configuration.useBottomOmniboxInPopup = self.useBottomOmniboxInPopup;
       configuration.suggestion = suggestion;
       configuration.delegate = self;
       configuration.indexPath = indexPath;
@@ -1011,15 +1022,10 @@ const CGFloat kHeaderTopPadding = 16.0f;
 #pragma mark - UIScrollViewDelegate
 
 - (void)scrollViewDidScroll:(UIScrollView*)scrollView {
-  // TODO(crbug.com/41325585): Default to the dragging check once it's been
-  // tested on trunk.
   if (!scrollView.dragging) {
     return;
   }
 
-  // TODO(crbug.com/40604984): The following call chain ultimately just
-  // dismisses the keyboard, but involves many layers of plumbing, and should be
-  // refactored.
   if (self.forwardsScrollEvents) {
     [self.mutator onScroll];
   }
@@ -1031,8 +1037,9 @@ const CGFloat kHeaderTopPadding = 16.0f;
 #pragma mark - Keyboard events
 
 - (void)keyboardDidChangeFrame:(NSNotification*)notification {
-  CGFloat keyboardHeight =
-      [KeyboardObserverHelper keyboardHeightInWindow:self.tableView.window];
+  CGRect keyboardFrame =
+      [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+  CGFloat keyboardHeight = keyboardFrame.size.height;
   if (self.keyboardHeight != keyboardHeight) {
     self.keyboardHeight = keyboardHeight;
     self.shouldUpdateVisibleSuggestionCount = YES;
@@ -1150,7 +1157,6 @@ const CGFloat kHeaderTopPadding = 16.0f;
   return carouselItems;
 }
 
-// TODO(crbug.com/40866206): Move to a mediator.
 - (void)fetchFaviconForCarouselItem:(CarouselItem*)carouselItem {
   __weak OmniboxPopupCarouselCell* weakCell = self.carouselCell;
   __weak CarouselItem* weakItem = carouselItem;
@@ -1190,9 +1196,9 @@ const CGFloat kHeaderTopPadding = 16.0f;
 // UITrait has been changed.
 - (void)updateUIOnTraitChange {
   [self updateBackgroundColor];
-  BOOL followSteadyState =
-      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
-  if (followSteadyState ||
+
+  if (omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition() ||
+      omnibox::ForceBottomOmniboxInEditState() ||
       ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     [self.mutator onTraitCollectionChange];
   }

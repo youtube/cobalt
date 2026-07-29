@@ -2,8 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/features.gni")
-
 assert(!is_android)
 
 source_set("service") {
@@ -34,6 +32,7 @@ source_set("unit_tests") {
     "//chrome/browser/password_manager/actor_login/internal:delegate",
     "//chrome/browser/password_manager/actor_login/internal:unit_tests",
     "//chrome/test:test_support",
+    "//components/password_manager/core/browser/actor_login:common",
     "//components/password_manager/core/browser/actor_login/internal:delegate",
     "//components/password_manager/core/browser/actor_login/test:test_support",
     "//components/tabs:public",

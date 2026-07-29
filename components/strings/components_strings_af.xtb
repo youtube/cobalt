@@ -286,6 +286,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="1457992721081300557">{NUM_REVIEWS,plural, =0{Bekyk 0 resensies}=1{Bekyk 1 resensie}other{Bekyk al # resensies}}</translation>
 <translation id="1458059624921545588">Mense en samelewing</translation>
 <translation id="1458140305240870199">Onderklere</translation>
+<translation id="1458770162980644530">Koop nou, betaal later se diensbepalingsskerm. Sleutelbord is versteek.</translation>
 <translation id="1459693405370120464">Weer</translation>
 <translation id="1461041542809785877">Werkverrigting</translation>
 <translation id="1462245070427461050">JIS B9</translation>
@@ -983,6 +984,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="2596415276201385844">Jou horlosie moet reg gestel wees om 'n veilige verbinding te maak. Die rede hiervoor is omdat sertifikate wat webwerwe gebruik om hulself te identifiseer, net vir sekere tydperke beskikbaar is. Chrome kan nie hierdie sertifikate verifieer nie, omdat jou toestel se horlosie nie reg gestel is nie.</translation>
 <translation id="2597378329261239068">Hierdie dokument word deur 'n wagwoord beskerm. Voer asseblief 'n wagwoord in.</translation>
 <translation id="2600083925285092409">Outovul hierdie kaart vir aankope wat in Chromium gemaak word wanneer dit gestoor is om met Google Pay te gebruik</translation>
+<translation id="2602283642570832995">Hierdie handeling kan dalk <ph name="DOMAIN" /> se beleide oortree</translation>
 <translation id="2605979593348332811">Fonetiese naam</translation>
 <translation id="2606760465469169465">Outoverifieer</translation>
 <translation id="2608019759319359258">Wanneer ’n onderwerp geblokkeer is, sal dit nie gebruik word om advertensies te personaliseer nie</translation>
@@ -2021,6 +2023,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="4281998142035485137">{0,plural, =1{Maak vertroulike lêer oop?}other{Maak vertroulike lêers oop?}}</translation>
 <translation id="4282280603030594840">Voertuiginkopies</translation>
 <translation id="4282346679996504092">Opletberigte vir hierdie produk is afgeskakel en die boekmerk is verwyder</translation>
+<translation id="4284885181066817063">Geblokkeer deur <ph name="DOMAIN" /></translation>
 <translation id="4285498937028063278">Ontspeld</translation>
 <translation id="4287495839370498922">Verbeterde advertensieprivaatheid in Chrome</translation>
 <translation id="4288101205645068104">Vee voertuig uit</translation>
@@ -2289,6 +2292,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="4758311279753947758">Voeg kontakinligting by</translation>
 <translation id="4761326898079498987">Gaan na vir meer besonderhede</translation>
 <translation id="4761869838909035636">Doen Chrome-veiligheidskontrole</translation>
+<translation id="4762097990764616058">Gaan voort om te betaal met <ph name="BNPL_ISSUER_NAME" />?</translation>
 <translation id="4763196677855776703">Bepalings en voorwaardes verskaf deur <ph name="URL" /></translation>
 <translation id="4764680219299728632">Stowe, stoofblaaie en oonde</translation>
 <translation id="4764776831041365478">Die webbladsy by <ph name="URL" /> kan dalk tydelik af wees of dit kon permanent na 'n nuwe webadres geskuif het.</translation>
@@ -2918,9 +2922,9 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="5813119285467412249">Herdoen byvoeging</translation>
 <translation id="5813753398265398978">Fisika</translation>
 <translation id="5817918615728894473">Bind saam</translation>
-<translation id="5820625124144807242">Jy moet aanmeld by <ph name="BNPL_ISSUER_NAME" /> of ’n rekening by hulle skep nadat jy jou bestelling nagegaan het. Hierdie rekening sal outomaties aan Google Pay gekoppel word.</translation>
 <translation id="5826507051599432481">Algemene naam (AN)</translation>
 <translation id="5830698870816298009">kameragebruik en -beweging</translation>
+<translation id="5831217499016131155">Google Wallet</translation>
 <translation id="583281660410589416">Onbekend</translation>
 <translation id="5832976493438355584">Gesluit</translation>
 <translation id="5837220895135257862">Maak spasie in <ph name="CLOUD_PROVIDER" /> beskikbaar voordat jy weer probeer</translation>
@@ -3431,6 +3435,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="6649510485211003056">195x270 mm</translation>
 <translation id="6651270836885078973">Bestuur deur:</translation>
 <translation id="6652101503459149953">Gebruik Windows Hello</translation>
+<translation id="6653684225271066234"><ph name="BNPL_ISSUER_NAME" /> sal kyk of jy kwalifiseer (dit sal nie jou krediettelling beïnvloed nie). As jy aan die geskiktheidskriteria voldoen, sal <ph name="BNPL_ISSUER_NAME" /> potensiële betaalplan(ne) verskaf om jou aankoop te voltooi.</translation>
 <translation id="6654224358955673568">Formaliseer</translation>
 <translation id="6654244995031366386">Glas (getekstureerd)</translation>
 <translation id="6657585470893396449">Wagwoord</translation>
@@ -3594,6 +3599,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="6925267999184670015">Noord-Amerikaanse B+</translation>
 <translation id="6926216138694948720">Liggaamkuns</translation>
 <translation id="692638818576287323">Kommersiële voertuie</translation>
+<translation id="6927057753277044239">Jy moet aanmeld by <ph name="BNPL_ISSUER_NAME" /> of ’n rekening by hulle skep nadat jy jou bestelling nagegaan het. Hierdie rekening sal outomaties aan jou Google-rekening gekoppel word.</translation>
 <translation id="6930607614725241390">Deursoek die kantpaneel</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Jou versteksoekenjin laat jou op die web deursoek en dryf Chrome-kenmerke aan<ph name="END_BOLD" />, soos om vanaf die adresbalk en vanaf prente op webblaaie te soek. ’n Kenmerk is dalk nie beskikbaar as jou soekenjin dit nie ondersteun nie.</translation>
 <translation id="6934672428414710184">Hierdie naam is van jou Google-rekening af</translation>
@@ -3645,6 +3651,7 @@ Dit sal andersins deur jou privaatheidinstellings geblokkeer word. Dit sal die i
 <translation id="6997288673234694149">Bofbal- en sagtebaltoerusting</translation>
 <translation id="6998512609912910179">Vul vorms vinniger in</translation>
 <translation id="6999480632062519056">Fiksheid- en persoonlike afrigting</translation>
+<translation id="7002897669829306463">Huisadres, <ph name="ADDRESS" /></translation>
 <translation id="7003278537452757231">Matte en tapyte</translation>
 <translation id="7003322000677139268">Voertuigonderdele en -bykomstighede</translation>
 <translation id="7004499039102548441">Onlangse oortjies</translation>
@@ -3945,7 +3952,6 @@ om uit te vind hoe om die sagteware permanent van jou rekenaar te verwyder&lt;/o
 <translation id="7485085230273446323">Besigheid en nywerheid</translation>
 <translation id="7485870689360869515">Geen data gevind nie.</translation>
 <translation id="7486880426035242089">OneDrive</translation>
-<translation id="7489255442002627311"><ph name="BNPL_ISSUER_NAME" /> sal kyk of jy kwalifiseer (dit sal nie jou krediettelling beïnvloed nie). Met goedkeuring sal <ph name="BNPL_ISSUER_NAME" /> betaalplanne verskaf waaruit jy kan kies en waarmee jy jou aankoop kan voltooi.</translation>
 <translation id="7489392576326061356">Sjampoes en opknappers</translation>
 <translation id="7489919936111034362">Jou Google Drive-berging is vol</translation>
 <translation id="7495528107193238112">Hierdie inhoud is geblokkeer. Kontak die werfeienaar om die kwessie reg te stel.</translation>
@@ -4211,6 +4217,8 @@ om uit te vind hoe om die sagteware permanent van jou rekenaar te verwyder&lt;/o
 <translation id="7916162853251942238">Fleksobasis</translation>
 <translation id="791698251820376781">Jou organisasie laat jou nie toe om aan te meld nie</translation>
 <translation id="7926503317156566022">Lugvaartbedryf</translation>
+<translation id="7930282586031445870">Koop nou, betaal later se diensbepalingsskerm is toegemaak.</translation>
+<translation id="7932035970207573919">Werkadres, <ph name="ADDRESS" /></translation>
 <translation id="793209273132572360">Dateer adres op?</translation>
 <translation id="7932579305932748336">Bestryk</translation>
 <translation id="79338296614623784">Voer 'n geldige foonnommer in</translation>
@@ -4623,6 +4631,7 @@ Bykomende besonderhede:
 <translation id="8601027005147870853"><ph name="BEGIN_BOLD" />Watter data word gebruik:<ph name="END_BOLD" /> Jou aktiwiteit op ’n werf wat jy besoek deur Chrome op hierdie toestel te gebruik.</translation>
 <translation id="8601456038554914806">Watersporttoerusting</translation>
 <translation id="8601782593888534566">Wetenskapsfiksie en fantasie</translation>
+<translation id="8604103095921958091">Koop nou, betaal later se diensbepalingsskerm is teen volle hoogte oopgemaak.</translation>
 <translation id="8606988009912891950">Advertensie-onderwerpe help werwe om vir jou relevante advertensies te wys terwyl dit jou blaaigeskiedenis en identiteit beskerm. Chrome kan kennis neem van onderwerpe waarin jy belangstel gegrond op jou onlangse blaaigeskiedenis. ’n Werf wat jy besoek, kan vir Chrome later vir relevante onderwerpe vra om die advertensies wat jy sien, te personaliseer.</translation>
 <translation id="8612919051706159390">Aanlyn gemeenskappe</translation>
 <translation id="8617269623452051934">jou toestelgebruik</translation>
@@ -4863,6 +4872,7 @@ Bykomende besonderhede:
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> – <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" /> wil enige toestel op jou plaaslike netwerk soek en daaraan koppel</translation>
 <translation id="9046864189129893978">Mikrofone (<ph name="MICS_COUNT" />)</translation>
+<translation id="9046865906192819796">Koop nou, betaal later se diensbepalingsskerm is teen halwe hoogte oopgemaak.</translation>
 <translation id="9047528041803621289">Jou verstekwaarde laat jou toe om op die web te soek. Jy kan dit in instellings verander.</translation>
 <translation id="9048035366624198823">Die volgende handelinge vereis dat die <ph name="POLICY_NAME" />-beleid op <ph name="POLICY_VALUE" /> gestel moet wees: <ph name="ACTION_LIST" />.</translation>
 <translation id="9048662076076074925">24x36 dm.</translation>

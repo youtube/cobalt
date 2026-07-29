@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">চালিয়ে যান</translation>
 <translation id="2379925928934107488">যখনই সম্ভব, Chrome-এ ডার্ক থিম ব্যবহার করার সময় সাইটে ডার্ক থিম প্রয়োগ করুন</translation>
 <translation id="2390272837142897736">জুম বাড়ান</translation>
+<translation id="2397689164757137845">অনুমতি দেওয়া হয়েছে • সুনির্দিষ্ট</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> এমবি</translation>
 <translation id="2403474027143565107">সুনির্দিষ্ট</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ও আরও <ph name="NUM_MORE" />টি সুবিধা ব্যবহারের অনুমতি দেওয়া হয়েছে}one{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ও আরও <ph name="NUM_MORE" />টি সুবিধা ব্যবহারের অনুমতি দেওয়া হয়েছে}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ও আরও <ph name="NUM_MORE" />টি সুবিধা ব্যবহারের অনুমতি দেওয়া হয়েছে}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">সহায়তা ও প্রতিবার্তা</translation>
 <translation id="2501278716633472235">ফিরে যান</translation>
 <translation id="2533138527374486328">চালু থাকলে, আপনার স্থানীয় নেটওয়ার্কে যেকোনও ডিভাইসে কানেক্ট করার জন্য সাইট বলতে পারে। বন্ধ থাকলে, আপনার স্থানীয় নেটওয়ার্কে ডিভাইসে সাইট কানেক্ট করতে পারছে না।</translation>
+<translation id="2536779053640817375">এইবার অনুমতি দেওয়া হয়েছে • সুনির্দিষ্ট</translation>
 <translation id="2544997614631598250">থিম কালার ডার্ক</translation>
 <translation id="2546283357679194313">কুকিজ ও সাইট ডেটা</translation>
 <translation id="2570922361219980984">এই ডিভাইসেও লোকেশন অ্যাক্সেস বন্ধ আছে। চালু করতে <ph name="BEGIN_LINK" />Android সেটিংসে<ph name="END_LINK" /> যান।</translation>
@@ -442,6 +444,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="5876056640971328065">ভিডিও পজ করুন</translation>
 <translation id="5877248419911025165">সব অনুরোধ আড়াল করুন</translation>
 <translation id="5878945009165002849">পরিচয় পরিষেবা প্রদানকারী থেকে সাইন-ইন প্রম্পট ব্লক করুন</translation>
+<translation id="588258955323874662">সম্পূর্নস্ক্রীণ</translation>
 <translation id="5884085660368669834">সাইটের অগ্রাধিকার</translation>
 <translation id="5887687176710214216">গতকাল শেষবার দেখা হয়েছে</translation>
 <translation id="5908617755156109052">সাইটগুলিকে, আপনার আশেপাশের জায়গার 3D ম্যাপ তৈরি করতে অথবা ক্যামেরার অবস্থান ট্র্যাক করার অনুমতি দেবেন না</translation>
@@ -569,6 +572,7 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="7406113532070524618">এই সেটিং আপনাকে শনাক্ত না করে অথবা সাইটকে আপনার ব্রাউজিং ইতিহাস দেখার অনুমতি না দিয়েই কাজ করে, যদিও সাইট যাচাইকরণের অঙ্গ হিসেবে অল্প পরিমাণ তথ্য শেয়ার করতে পারে</translation>
 <translation id="7409735910987429903">আপনি দেখতে চান না এমন ওয়েবসাইটে নিয়ে যেতে সাইট আপনাকে পপ-আপের মাধ্যমে বিজ্ঞাপন দেখাতে পারে অথবা সেই ওয়েবসাইটে রিডাইরেক্ট করতে পারে</translation>
 <translation id="7412160840120117304">প্রাইমারি কালার হেক্স</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{জুম করুন}one{জুম করুন: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{জুম করুন: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">প্রথমে জিজ্ঞাসা করুন</translation>
 <translation id="7423538860840206698">ক্লিপবোর্ড পড়া ব্লক করা হয়েছে</translation>
 <translation id="7425915948813553151">সাইটের জন্য ডার্ক থিম</translation>
@@ -700,7 +704,6 @@ Chrome-এর এই সেটিংস উন্নত সুরক্ষা �
 <translation id="8803526663383843427">যখন চালু থাকে</translation>
 <translation id="8805385115381080995">আপনি একজন প্রকৃত ব্যক্তি তা যাচাই করার জন্য সাইটগুলি আপনাকে জিজ্ঞাসা করার সম্ভাবনা কম, তাই ব্রাউজ করা দ্রুততর হবে</translation>
 <translation id="8816026460808729765">সেন্সর অ্যাক্সেস করা থেকে সাইটকে ব্লক করুন</translation>
-<translation id="884765916894384048">ব্যাকগ্রাউন্ডে যান</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">সাময়িকভাবে থার্ড-পার্টি কুকিকে অনুমতি দিন। এর মানে হল সাইটের ফিচার প্রত্যাশা অনুযায়ী কাজ করবে কিন্তু আপনার ব্রাউজিং সুরক্ষা কম হয়ে যাবে।</translation>
 <translation id="8889294078294184559">ব্রাউজ করা চালিয়ে গেলে, সাইট Chrome-এর মাধ্যমে চেক করতে পারে এবং আপনার দেখা কোনও সাইটের থেকে এটি যাচাই করতে পারে যে আপনি আসলে একজন ব্যক্তি, কোনও বট নন</translation>

@@ -279,10 +279,6 @@ _ANDROID_NEGATIVE_FILTER['chrome'] = (
         'LaunchDesktopTest.*',
         # setWindowBounds not supported on Android
         'ChromeDriverTest.testTakeLargeElementScreenshot',
-        # https://bugs.chromium.org/p/chromedriver/issues/detail?id=2786
-        'ChromeDriverTest.testActionsTouchTap',
-        'ChromeDriverTest.testTouchDownMoveUpElement',
-        'ChromeDriverTest.testTouchFlickElement',
         # Android has no concept of tab or window, and will always lose focus
         # on tab creation. https://crbug.com/chromedriver/3018
         'ChromeDriverTest.testNewWindowDoesNotFocus',
@@ -2034,7 +2030,9 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
       "parameters": {"pointerType": "touch"},
       "id": "pointer1"}]})
     self._driver.PerformActions(actions)
-    self.assertEqual(1, len(self._driver.FindElements('tag name', 'br')))
+    self.assertTrue(
+      self.WaitForCondition(
+        lambda: len(self._driver.FindElements('tag name', 'br')) == 1))
 
   def testActionsMultiTouchPoint(self):
     self._driver.Load(self.GetHttpUrlForFile('/chromedriver/empty.html'))
@@ -2891,6 +2889,25 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
     self.assertRaises(chromedriver.UnknownError,
                       self._driver.GetNetworkConditions)
 
+  '''Regression test for crbug.com/42323833
+  '''
+  def testDeleteEmulateNetworkConditionsAndNavigate(self):
+    initial_url = self.GetHttpUrlForFile('/initial.html')
+    self._http_server.SetDataForPath('/initial.html', bytes("""
+        <html>
+          <title>Initial</title>
+        </html>""", 'utf-8'))
+
+    # Set and delete network conditions
+    latency = 5
+    throughput = 1000
+    self._driver.SetNetworkConditions(latency, throughput, throughput)
+    self._driver.DeleteNetworkConditions()
+
+    # Navigate to a URL
+    self._driver.Load(initial_url)
+    self.assertTrue(self._driver.GetTitle(), "Initial")
+
   def testEmulateNetworkConditionsName(self):
     # DSL: 2Mbps throughput, 5ms RTT
     # latency = 5
@@ -3091,17 +3108,28 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
       elem.Click()
 
   def testTouchDownMoveUpElement(self):
-    self._driver.Load(self.GetHttpUrlForFile(
-        '/chromedriver/touch_action_tests.html'))
-    target = self._driver.FindElement('css selector', '#target')
-    location = target.GetLocation()
-    self._driver.TouchDown(location['x'], location['y'])
-    events = self._driver.FindElement('css selector', '#events')
-    self.assertEqual('events: touchstart', events.GetText())
-    self._driver.TouchMove(location['x'] + 1, location['y'] + 1)
-    self.assertEqual('events: touchstart touchmove', events.GetText())
-    self._driver.TouchUp(location['x'] + 1, location['y'] + 1)
-    self.assertEqual('events: touchstart touchmove touchend', events.GetText())
+      self._driver.Load(self.GetHttpUrlForFile(
+          '/chromedriver/touch_action_tests.html'))
+      target = self._driver.FindElement('css selector', '#target')
+      location = target.GetLocation()
+      self._driver.TouchDown(location['x'], location['y'])
+      expected_string = 'events: touchstart'
+      self.assertTrue(
+        self.WaitForCondition(
+          lambda: self._driver.FindElements('css selector',
+            '#events').GetText() == expected_string))
+      self._driver.TouchMove(location['x'] + 1, location['y'] + 1)
+      expected_string = 'events: touchstart touchmove'
+      self.assertTrue(
+        self.WaitForCondition(
+          lambda: self._driver.FindElements('css selector',
+            '#events').GetText() == expected_string))
+      self._driver.TouchUp(location['x'] + 1, location['y'] + 1)
+      expected_string = 'events: touchstarttouchmove touchend'
+      self.assertTrue(
+        self.WaitForCondition(
+          lambda: self._driver.FindElements('css selector',
+            '#events').GetText() == expected_string))
 
   def testGetElementRect(self):
     self._driver.Load(self.GetHttpUrlForFile(
@@ -3140,7 +3168,9 @@ class ChromeDriverTest(ChromeDriverBaseTestWithWebServer):
         '});'
         'return div;')
     self._driver.TouchFlick(div, dx, dy, speed)
-    self.assertEqual(1, len(self._driver.FindElements('tag name', 'br')))
+    self.assertTrue(
+      self.WaitForCondition(
+        lambda: len(self._driver.FindElements('tag name','br')) == 1))
 
   def testSwitchesToTopFrameAfterNavigation(self):
     self._driver.Load('about:blank')

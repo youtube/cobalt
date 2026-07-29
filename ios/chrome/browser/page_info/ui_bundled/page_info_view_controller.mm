@@ -180,7 +180,6 @@ const char kTrackingProtectionSettingsURL[] =
 
   [TableViewCellContentConfiguration registerCellForTableView:tableView];
   RegisterTableViewCell<TableViewDetailIconCell>(tableView);
-  RegisterTableViewCell<TableViewTextCell>(tableView);
   RegisterTableViewHeaderFooter<TableViewTextHeaderFooterView>(tableView);
   RegisterTableViewHeaderFooter<TableViewLinkHeaderFooterView>(tableView);
   RegisterTableViewHeaderFooter<TableViewAttributedStringHeaderFooterView>(
@@ -313,8 +312,6 @@ const char kTrackingProtectionSettingsURL[] =
 - (void)view:(TableViewLinkHeaderFooterView*)view didTapLinkURL:(CrURL*)URL {
   if (URL.gurl == GURL(kPageInfoHelpCenterURL)) {
     [self.pageInfoPresentationHandler showSecurityHelpPage];
-  } else if (URL.gurl == GURL(kTrackingProtectionSettingsURL)) {
-    [self.pageInfoPresentationHandler showTrackingProtectionSettingsPage];
   }
 }
 

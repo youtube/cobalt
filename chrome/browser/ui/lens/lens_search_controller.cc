@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/branded_strings.h"
 #include "components/lens/lens_features.h"
@@ -790,6 +791,7 @@ void LensSearchController::HandleInteractionResponse(
 void LensSearchController::HandleSuggestInputsResponse(
     lens::proto::LensOverlaySuggestInputs suggest_inputs) {
   lens_searchbox_controller_->HandleSuggestInputsResponse(suggest_inputs);
+  lens_composebox_controller_->UpdateSuggestInputs(suggest_inputs);
 }
 
 void LensSearchController::HandlePageContentUploadProgress(uint64_t position,

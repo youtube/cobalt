@@ -6,6 +6,7 @@
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/actor/ui/handoff_button_controller.h"
@@ -13,6 +14,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -70,16 +72,13 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
     std::vector<std::unique_ptr<actor::ToolRequest>> actions;
     actions.push_back(actor::MakeWaitRequest());
     GetActorKeyedService()->PerformActions(task_id_, std::move(actions),
+                                           actor::ActorTaskMetadata(),
                                            result_future.GetCallback());
     ExpectOkResult(result_future);
   }
 
   auto ClearOmniboxFocus() {
-    return Do([this]() {
-      auto* const omnibox_view =
-          views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
-              kOmniboxElementId, GetContext());
-      ASSERT_TRUE(omnibox_view);
+    return WithView(kOmniboxElementId, [](OmniboxViewViews* omnibox_view) {
       omnibox_view->GetFocusManager()->ClearFocus();
     });
   }
@@ -93,7 +92,7 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
     return [&]() {
       auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
       return browser_view->GetWidget()->IsFullscreen() &&
-             browser_view->immersive_mode_controller()->IsEnabled();
+             ImmersiveModeController::From(browser())->IsEnabled();
     };
   }
 #endif  // BUILDFLAG(IS_MAC)

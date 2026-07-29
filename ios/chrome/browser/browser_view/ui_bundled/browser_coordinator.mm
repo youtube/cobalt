@@ -116,8 +116,6 @@
 #import "ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_coordinator.h"
 #import "ios/chrome/browser/find_in_page/model/find_tab_helper.h"
 #import "ios/chrome/browser/first_run/ui_bundled/omnibox_position/omnibox_position_choice_coordinator.h"
-#import "ios/chrome/browser/follow/model/follow_browser_agent.h"
-#import "ios/chrome/browser/follow/model/followed_web_site.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_reason.h"
 #import "ios/chrome/browser/google_one/coordinator/google_one_coordinator.h"
@@ -289,6 +287,7 @@
 #import "ios/chrome/browser/signin/model/account_consistency_browser_agent.h"
 #import "ios/chrome/browser/signin/model/account_consistency_service_factory.h"
 #import "ios/chrome/browser/snapshots/model/model_swift.h"
+#import "ios/chrome/browser/snapshots/model/snapshot_browser_agent.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/snapshots/model/web_state_snapshot_info.h"
@@ -1355,6 +1354,8 @@ const char kChromeAppStoreUrl[] =
   _viewControllerDependencies.urlLoadingBrowserAgent = _urlLoadingBrowserAgent;
   _viewControllerDependencies.tabUsageRecorderBrowserAgent =
       TabUsageRecorderBrowserAgent::FromBrowser(browser);
+  _viewControllerDependencies.snapshotBrowserAgent =
+      SnapshotBrowserAgent::FromBrowser(browser);
   _viewControllerDependencies.layoutGuideCenter = _layoutGuideCenter;
   _viewControllerDependencies.webStateList =
       browser->GetWebStateList()->AsWeakPtr();
@@ -3372,15 +3373,6 @@ const char kChromeAppStoreUrl[] =
   AccountConsistencyBrowserAgent::CreateForBrowser(self.browser,
                                                    self.viewController);
 
-  CommandDispatcher* commandDispatcher = self.browser->GetCommandDispatcher();
-
-  if (FollowBrowserAgent::FromBrowser(self.browser)) {
-    FollowBrowserAgent::FromBrowser(self.browser)
-        ->SetUIProviders(
-            HandlerForProtocol(commandDispatcher, NewTabPageCommands),
-            static_cast<id<SnackbarCommands>>(commandDispatcher), nil);
-  }
-
   ReaderModeBrowserAgent* readerModeBrowserAgent =
       ReaderModeBrowserAgent::FromBrowser(self.browser);
   if (readerModeBrowserAgent) {
@@ -3418,10 +3410,6 @@ const char kChromeAppStoreUrl[] =
   WebStateDelegateBrowserAgent::FromBrowser(self.browser)->ClearUIProviders();
 
   SyncErrorBrowserAgent::FromBrowser(self.browser)->ClearUIProviders();
-
-  if (FollowBrowserAgent::FromBrowser(self.browser)) {
-    FollowBrowserAgent::FromBrowser(self.browser)->ClearUIProviders();
-  }
 
   ReaderModeBrowserAgent* readerModeBrowserAgent =
       ReaderModeBrowserAgent::FromBrowser(self.browser);
@@ -4200,23 +4188,18 @@ const char kChromeAppStoreUrl[] =
 
 #pragma mark - NewTabPageCommands
 
-- (void)openNTPScrolledIntoFeedType:(FeedType)feedType {
-  // Dismiss any presenting modal. Ex. Follow management page.
-  __weak __typeof(self) weakSelf = self;
-  [self.viewController
-      clearPresentedStateWithCompletion:^{
-        [weakSelf scrollToNTPAfterPresentedStateCleared:feedType];
-      }
-                         dismissOmnibox:YES];
-}
-
 - (void)updateFollowingFeedHasUnseenContent:(BOOL)hasUnseenContent {
   // TODO(crbug.com/448683013): remove.
 }
 
 - (void)handleFeedModelOfType:(FeedType)feedType
                 didEndUpdates:(FeedLayoutUpdateType)updateType {
-  [_NTPCoordinator handleFeedModelOfType:feedType didEndUpdates:updateType];
+  // TODO(crbug.com/448683013): remove.
+  [self handleFeedModelDidEndUpdates:updateType];
+}
+
+- (void)handleFeedModelDidEndUpdates:(FeedLayoutUpdateType)updateType {
+  [_NTPCoordinator handleFeedModelDidEndUpdates:updateType];
 }
 
 - (void)scrollToNTPAfterPresentedStateCleared:(FeedType)feedType {
@@ -4765,11 +4748,18 @@ const char kChromeAppStoreUrl[] =
 
 - (void)showDataControlsWarningDialog:
             (data_controls::DataControlsDialog::Type)dialogType
+                   organizationDomain:(std::string_view)organizationDomain
                              callback:(base::OnceCallback<void(bool)>)callback {
+  // If a dialog is already shown, dismiss it before showing a new one.
+  if (_dataControlsDialogCoordinator) {
+    [_dataControlsDialogCoordinator stop];
+  }
+
   _dataControlsDialogCoordinator = [[DataControlsDialogCoordinator alloc]
-      initWithBaseViewController:self.viewController
+      initWithBaseViewController:self.browserContainerCoordinator.viewController
                          browser:self.browser
                       dialogType:dialogType
+              organizationDomain:organizationDomain
                         callback:std::move(callback)];
   [_dataControlsDialogCoordinator start];
 }

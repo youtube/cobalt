@@ -9,6 +9,7 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/notimplemented.h"
@@ -63,32 +64,43 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
     Profile* profile,
     signin::IdentityManager* identity_manager,
     GlicKeyedService* service,
-    GlicEnabling* enabling)
-    : profile_(profile) {
+    GlicEnabling* enabling,
+    contextual_cueing::ContextualCueingService* contextual_cueing_service)
+    : profile_(profile), contextual_cueing_service_(contextual_cueing_service) {
   host_manager_ = std::make_unique<HostManager>(profile, GetWeakPtr());
 }
 
-GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() = default;
+GlicInstanceCoordinatorImpl::~GlicInstanceCoordinatorImpl() {
+  // Delete all instances before destruction. Destroying web contents can result
+  // in various calls to dependencies.
+  active_instance_ = nullptr;
+  auto instances = std::exchange(instances_, {});
+  instances.clear();
+  warmed_instance_.reset();
+}
+
+void GlicInstanceCoordinatorImpl::OnInstanceActivationChanged(
+    GlicInstance* instance,
+    bool is_active) {
+  if (is_active && active_instance_ != instance) {
+    active_instance_ = instance;
+  } else if (!is_active && active_instance_ == instance) {
+    active_instance_ = nullptr;
+  } else {
+    return;
+  }
+  NotifyActiveInstanceChanged();
+}
 
 void GlicInstanceCoordinatorImpl::OnInstanceVisibilityChanged(
     GlicInstance* instance,
     bool is_showing) {
-  const bool becoming_active =
-      is_showing && (instance != last_active_instance_);
-  const bool becoming_inactive =
-      !is_showing && (instance == last_active_instance_);
-
-  if (becoming_active) {
-    last_active_instance_ = instance;
-    NotifyLastActiveInstanceChanged();
-  } else if (becoming_inactive) {
-    last_active_instance_ = nullptr;
-    NotifyLastActiveInstanceChanged();
-  }
+  // TODO(crbug.com/452963408): We think this will be useful, but if we find
+  // that we're not using it, we should remove it.
 }
 
-void GlicInstanceCoordinatorImpl::NotifyLastActiveInstanceChanged() {
-  last_active_instance_changed_callback_list_.Notify(last_active_instance_);
+void GlicInstanceCoordinatorImpl::NotifyActiveInstanceChanged() {
+  active_instance_changed_callback_list_.Notify(active_instance_);
 }
 
 GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceImplForTab(
@@ -135,9 +147,33 @@ void GlicInstanceCoordinatorImpl::FindInstanceFromGlicContentsAndBindToTab(
   for (auto const& [instance_id, instance] : instances_) {
     if (instance->host().webui_contents() == source_glic_web_contents) {
       // Show the instance in the new tab
-      instance->Show(SidePanelShowOptions(*tab_to_bind));
+      auto show_options = ShowOptions::ForSidePanel(*tab_to_bind);
+      show_options.focus_on_show = tab_to_bind->IsActivated();
+      instance->Show(show_options);
+      return;
     }
   }
+}
+
+// TODO (crbug.com/451718132): Add test coverage for daisy chaining
+// functionality
+bool GlicInstanceCoordinatorImpl::FindInstanceFromIdAndBindToTab(
+    const InstanceId& instance_id,
+    tabs::TabInterface* tab_to_bind) {
+  GlicInstanceImpl* instance = GetInstanceImplFor(instance_id);
+  if (!instance || !tab_to_bind) {
+    return false;
+  }
+
+  // Early return if an instance is already bound to the target tab.
+  if (GetInstanceImplForTab(tab_to_bind)) {
+    return false;
+  }
+
+  auto show_options = ShowOptions::ForSidePanel(*tab_to_bind);
+  show_options.focus_on_show = tab_to_bind->IsActivated();
+  instance->Show(show_options);
+  return true;
 }
 
 void GlicInstanceCoordinatorImpl::Toggle(BrowserWindowInterface* browser,
@@ -148,20 +184,6 @@ void GlicInstanceCoordinatorImpl::Toggle(BrowserWindowInterface* browser,
     return;
   }
   ToggleSidePanel(browser, prevent_close);
-}
-
-bool GlicInstanceCoordinatorImpl::ActivateBrowser() {
-  // TODO(crbug/449179649): This is not called, and should not be called.
-  // Each side panel and floating panel will have it's own instance of
-  // hotkey delegates, which should not call this function.
-  NOTREACHED();
-}
-
-void GlicInstanceCoordinatorImpl::FocusIfOpen() {
-  // TODO(crbug/449179649): This is called from
-  // BrowserView::FocusInactivePopupForAccessibility(), and needs implemented
-  // to focus the floating panel.
-  NOTIMPLEMENTED();
 }
 
 void GlicInstanceCoordinatorImpl::ShowAfterSignIn(
@@ -178,64 +200,52 @@ void GlicInstanceCoordinatorImpl::Shutdown() {
   NOTIMPLEMENTED();
 }
 
-void GlicInstanceCoordinatorImpl::MaybeSetWidgetCanResize() {
-  // Method should only be called on individual panels not the coordinator.
-  NOTIMPLEMENTED();
-}
-
 void GlicInstanceCoordinatorImpl::Close() {
   // TODO(crbug.com/450286204): This is likely needed, or needed to be
   // refactored.
   NOTIMPLEMENTED();
 }
 
-void GlicInstanceCoordinatorImpl::ShowTitleBarContextMenuAt(
-    gfx::Point event_loc) {
-  // TODO(crbug/449179649): Used by the hotkey code. May be needed for the
-  // floating panel.
-  NOTIMPLEMENTED();
-}
-
-mojom::PanelState GlicInstanceCoordinatorImpl::GetPanelState() {
-  // Method should only be called on individual panels not the coordinator.
+mojom::PanelState GlicInstanceCoordinatorImpl::GetGlobalPanelState() {
+  // TODO: Currently called from GlicButtonController. Needs implemented or
+  // refactored and removed.
   NOTIMPLEMENTED();
   return panel_state_;
 }
 
-void GlicInstanceCoordinatorImpl::AddStateObserver(StateObserver* observer) {
+void GlicInstanceCoordinatorImpl::AddGlobalStateObserver(
+    StateObserver* observer) {
   // TODO(b:448604727): The StateObserver needs to be split into two: one for if
   // the floating window is showing and one for the state of an individual
   // panel.
   NOTIMPLEMENTED();
 }
 
-void GlicInstanceCoordinatorImpl::RemoveStateObserver(StateObserver* observer) {
+void GlicInstanceCoordinatorImpl::RemoveGlobalStateObserver(
+    StateObserver* observer) {
   // TODO(b:448604727): The StateObserver needs to be split into two: one for if
   // the floating window is showing and one for the state of an individual
   // panel.
   NOTIMPLEMENTED();
-}
-
-bool GlicInstanceCoordinatorImpl::IsActive() {
-  // Method should only be called on individual panels not the coordinator.
-  NOTIMPLEMENTED();
-  return false;
 }
 
 bool GlicInstanceCoordinatorImpl::IsDetached() const {
-  // Method should only be called on individual panels not the coordinator.
-  NOTIMPLEMENTED();
-  return false;
+  return GetInstanceWithFloaty() != nullptr;
 }
 
 base::CallbackListSubscription
 GlicInstanceCoordinatorImpl::AddWindowActivationChangedCallback(
     WindowActivationChangedCallback callback) {
+  // TODO: Notification of this callback list is not yet implemented.
   return window_activation_callback_list_.Add(std::move(callback));
 }
 
 void GlicInstanceCoordinatorImpl::Preload() {
-  CreateWarmedInstance();
+  if (warming_enabled_) {
+    CreateWarmedInstance();
+  } else {
+    VLOG(1) << "Warming is disabled, skipping warming";
+  }
 }
 
 void GlicInstanceCoordinatorImpl::Reload(
@@ -252,26 +262,15 @@ GlicInstanceCoordinatorImpl::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
-base::WeakPtr<views::View> GlicInstanceCoordinatorImpl::GetGlicViewAsView() {
-  // Method should only be called on individual panels not the coordinator.
-  NOTIMPLEMENTED();
-  return nullptr;
-}
-
 GlicWidget* GlicInstanceCoordinatorImpl::GetGlicWidget() const {
   // Method should only be called on individual panels not the coordinator.
   NOTIMPLEMENTED();
   return nullptr;
 }
 
-gfx::NativeWindow GlicInstanceCoordinatorImpl::GetHostNativeWindow() {
-  // Method should only be called on individual panels not the coordinator.
-  NOTIMPLEMENTED();
-  return gfx::NativeWindow{};
-}
-
 Browser* GlicInstanceCoordinatorImpl::attached_browser() {
   // Method should only be called on individual panels not the coordinator.
+  // TODO: This can be called today, but it should not be.
   NOTIMPLEMENTED();
   return nullptr;
 }
@@ -304,13 +303,13 @@ void GlicInstanceCoordinatorImpl::SetPreviousPositionForTesting(
   NOTIMPLEMENTED();
 }
 
-base::CallbackListSubscription
-GlicInstanceCoordinatorImpl::RegisterLastActiveInstanceChangedCallback(
-    LastActiveInstanceChangedCallback callback) {
-  auto subscription =
-      last_active_instance_changed_callback_list_.Add(std::move(callback));
+base::CallbackListSubscription GlicInstanceCoordinatorImpl::
+    AddActiveInstanceChangedCallbackAndNotifyImmediately(
+        ActiveInstanceChangedCallback callback) {
   // Fire immediately to give subscribers an initial value.
-  NotifyLastActiveInstanceChanged();
+  callback.Run(active_instance_);
+  auto subscription =
+      active_instance_changed_callback_list_.Add(std::move(callback));
   return subscription;
 }
 
@@ -344,7 +343,11 @@ GlicInstanceImpl* GlicInstanceCoordinatorImpl::CreateGlicInstance() {
   }
   auto* instance_ptr = warmed_instance_.get();
   instances_[instance_ptr->id()] = std::move(warmed_instance_);
-  CreateWarmedInstance();
+  if (warming_enabled_) {
+    CreateWarmedInstance();
+  } else {
+    VLOG(1) << "Warming is disabled, skipping warming";
+  }
   return instance_ptr;
 }
 
@@ -353,18 +356,17 @@ void GlicInstanceCoordinatorImpl::CreateWarmedInstance() {
   InstanceId instance_id = base::Uuid::GenerateRandomV4();
   warmed_instance_ = std::make_unique<GlicInstanceImpl>(
       profile_, instance_id, weak_ptr_factory_.GetWeakPtr(),
-      GlicKeyedServiceFactory::GetGlicKeyedService(profile_)->metrics());
+      GlicKeyedServiceFactory::GetGlicKeyedService(profile_)->metrics(),
+      contextual_cueing_service_);
 }
 
 void GlicInstanceCoordinatorImpl::ToggleFloaty(bool prevent_close) {
-  if (!floating_instance_key_.has_value()) {
-    floating_instance_key_ = CreateGlicInstance()->id();
+  auto* floaty_instance = GetInstanceWithFloaty();
+  if (!floaty_instance) {
+    floaty_instance = CreateGlicInstance();
   }
-  auto instance_iter = instances_.find(*floating_instance_key_);
-  CHECK(instance_iter != instances_.end());
-  GlicInstanceImpl* instance = instance_iter->second.get();
-  instance->Toggle(FloatingShowOptions::From(/*anchor_browser=*/nullptr),
-                   prevent_close);
+  floaty_instance->Toggle(ShowOptions::ForFloating(/*anchor_browser=*/nullptr),
+                          prevent_close);
 }
 
 void GlicInstanceCoordinatorImpl::ToggleSidePanel(
@@ -375,20 +377,16 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
     return;
   }
   auto* instance = GetOrCreateGlicInstanceImplForTab(tab);
-  instance->Toggle(SidePanelShowOptions(*tab), prevent_close);
+  instance->Toggle(ShowOptions::ForSidePanel(*tab), prevent_close);
 }
 
 void GlicInstanceCoordinatorImpl::RemoveInstance(GlicInstance* instance) {
-  if (instance == last_active_instance_) {
-    last_active_instance_ = nullptr;
-    NotifyLastActiveInstanceChanged();
-  }
-  instances_.erase(instance->id());
-}
-
-bool GlicInstanceCoordinatorImpl::HasAttachedInstance(GlicInstance* instance) {
-  NOTIMPLEMENTED();
-  return false;
+  OnInstanceActivationChanged(instance, false);
+  // Remove the instance first, and then delete. This way, GetInstances() will
+  // not return the instance being deleted while it's being deleted.
+  InstanceId id = instance->id();
+  auto instance_value = std::exchange(instances_[id], {});
+  instances_.erase(id);
 }
 
 void GlicInstanceCoordinatorImpl::SwitchConversation(
@@ -418,13 +416,39 @@ void GlicInstanceCoordinatorImpl::SwitchConversation(
   }
 
   CHECK(target_instance);
-  if (&source_instance != target_instance) {
-    source_instance.UnbindEmbedder(GetEmbedderKey(options));
-  }
-
   target_instance->Show(options);
 
   std::move(callback).Run(std::nullopt);
 }
 
+void GlicInstanceCoordinatorImpl::UnbindTabFromAnyInstance(
+    tabs::TabInterface* tab) {
+  if (auto* instance = GetInstanceImplForTab(tab)) {
+    instance->UnbindEmbedder(EmbedderKey(tab));
+  }
+}
+
+void GlicInstanceCoordinatorImpl::SetWarmingEnabledForTesting(
+    bool warming_enabled) {
+  warming_enabled_ = warming_enabled;
+  if (!warming_enabled_) {
+    warmed_instance_.reset();
+  }
+}
+
+GlicInstanceImpl* GlicInstanceCoordinatorImpl::GetInstanceWithFloaty() const {
+  for (const auto& [unused, instance] : instances_) {
+    if (instance->GetPanelState().kind == mojom::PanelStateKind::kDetached) {
+      return instance.get();
+    }
+  }
+  return nullptr;
+}
+
+void GlicInstanceCoordinatorImpl::OnDetachRequested(GlicInstance* instance,
+                                                    tabs::TabInterface* tab) {
+  if (auto* floaty_instance = GetInstanceWithFloaty()) {
+    floaty_instance->Close(FloatingEmbedderKey{});
+  }
+}
 }  // namespace glic

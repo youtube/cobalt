@@ -398,6 +398,11 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   // CompositorFrame.
   void SetNeedsCommitWithForcedRedraw();
 
+  // Requests a main frame if a composited animation changes a draw property.
+  void RequestMainFrameOnCompositorAnimation(
+      PropertyChangeForcesCommitCriteria
+          property_change_forces_commit_criteria);
+
   // Input Handling ---------------------------------------------
 
   // Sets the state of the browser controls. (Used for URL bar animations).
@@ -1141,6 +1146,14 @@ class CC_EXPORT LayerTreeHost : public MutatorHostClient {
   mutable std::unique_ptr<CompletionEvent> commit_completion_event_;
 
   EventsMetricsManager events_metrics_manager_;
+
+  // A map from ViewTransition tokens to whether a new LocalSurfaceId is
+  // needed for this ViewTransitionRequest.
+  base::flat_map<blink::ViewTransitionToken, bool>
+      view_transition_needs_new_lsid_;
+  // Make sure there's no unbounded growth of above map, if Animate never
+  // happens after Save.
+  const uint32_t view_transition_needs_new_lsid_max_size_ = 100;
 
   // A list of callbacks that need to be invoked when they are processed.
   base::flat_map<uint32_t, ViewTransitionRequest::ViewTransitionCaptureCallback>

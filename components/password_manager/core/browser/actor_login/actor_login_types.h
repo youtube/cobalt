@@ -110,6 +110,11 @@ enum class LoginStatusResult {
   kErrorNoFillableFields,
   // Filling is disallowed (e.g. because of a policy).
   kErrorFillingNotAllowed,
+  // Returned if the task is in a background tab and filling requires device
+  // reauth. The user needs to focus that tab first.
+  kErrorDeviceReauthRequired,
+  // Returned if the device re-authentication fails.
+  kErrorDeviceReauthFailed,
 };
 
 using LoginStatusResultOrError =

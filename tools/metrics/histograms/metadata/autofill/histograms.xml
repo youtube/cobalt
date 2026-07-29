@@ -45,12 +45,10 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(Autofill.Ai.EntityType) -->
 
 <variants name="Autofill.Ai.EntityType">
-  <variant name=""
-      summary="Emitted for any kind of entities. Note that for a given
-               histogram, this variant will just be the accumulation of all
-               histogram records of the other variants."/>
   <variant name=".DriversLicense"
       summary="Emitted for driver's license forms only."/>
+  <variant name=".FlightReservation"
+      summary="Emitted for flight reservation forms only."/>
   <variant name=".KnownTravelerNumber"
       summary="Emitted for Known Traveler Number forms only."/>
   <variant name=".NationalIdCard"
@@ -677,6 +675,19 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="PHONE_HOME_WHOLE_NUMBER"/>
 </variants>
 
+<!-- LINT.IfChange(ProfileRecordTypeSuffix) -->
+
+<variants name="AutofillProfileRecordTypes">
+  <variant name="Account" summary="Synced cross-device account profile"/>
+  <variant name="AccountHome" summary="Read-only home address from account"/>
+  <variant name="AccountNameEmail"
+      summary="Read-only profile using account name and email"/>
+  <variant name="AccountWork" summary="Read-only work address from account"/>
+  <variant name="LocalOrSyncable" summary="Local or legacy-synced profile"/>
+</variants>
+
+<!-- LINT.ThenChange(/components/autofill/core/browser/metrics/autofill_metrics_utils.cc:ProfileRecordTypeSuffix) -->
+
 <variants name="AutofillSaveCardDestination">
   <variant name="Local" summary="local"/>
   <variant name="Server" summary="server"/>
@@ -1289,7 +1300,12 @@ Called by update_autofill_enums.py. This is a manual comment.-->
                  stored to fill it, this metric records whether the user saw
                  an Autofill AI suggestion or not."/>
   </token>
-  <token key="EntityGranularity" variants="Autofill.Ai.EntityType"/>
+  <token key="EntityGranularity" variants="Autofill.Ai.EntityType">
+    <variant name=""
+        summary="Emitted for any kind of entities. Note that for a given
+                 histogram, this variant will just be the accumulation of all
+                 histogram records of the other variants."/>
+  </token>
 </histogram>
 
 <histogram name="Autofill.Ai.KeyMetrics{KeyMetric}{EntityGranularity}"
@@ -1320,7 +1336,12 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="Records, at form submission, whether the user had Autofill
                  AI data to fill the form or not."/>
   </token>
-  <token key="EntityGranularity" variants="Autofill.Ai.EntityType"/>
+  <token key="EntityGranularity" variants="Autofill.Ai.EntityType">
+    <variant name=""
+        summary="Emitted for any kind of entities. Note that for a given
+                 histogram, this variant will just be the accumulation of all
+                 histogram records of the other variants."/>
+  </token>
 </histogram>
 
 <histogram name="Autofill.Ai.ModelExecutionStatus"
@@ -1565,7 +1586,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.AndroidAutofillManagerErrors"
-    enum="AutofillManagerMethod" expires_after="2026-02-09">
+    enum="AutofillManagerMethod" expires_after="2026-04-12">
   <owner>friedrichh@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -1580,7 +1601,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.Autocomplete.NotOff.EditedAutofilledFieldAtSubmission2{AutofillFormType}"
-    enum="AutofilledFieldUserEditingStatus" expires_after="2026-02-09">
+    enum="AutofilledFieldUserEditingStatus" expires_after="2026-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -1594,7 +1615,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Autocomplete.NotOff.FillingAcceptance.{FormType}"
-    enum="BooleanAutofillFillingAcceptance" expires_after="2026-02-09">
+    enum="BooleanAutofillFillingAcceptance" expires_after="2026-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -1609,7 +1630,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.Autocomplete.Off.EditedAutofilledFieldAtSubmission2{AutofillFormType}"
-    enum="AutofilledFieldUserEditingStatus" expires_after="2026-02-09">
+    enum="AutofilledFieldUserEditingStatus" expires_after="2026-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -1623,7 +1644,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Autocomplete.Off.FillingAcceptance.{FormType}"
-    enum="BooleanAutofillFillingAcceptance" expires_after="2026-02-09">
+    enum="BooleanAutofillFillingAcceptance" expires_after="2026-04-12">
   <owner>schwering@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -2282,6 +2303,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="Virtual card enroll confirmation bubble."/>
     <variant name="WalletablePassConsent"
         summary="Walletable pass consent bubble."/>
+    <variant name="WalletablePassSave" summary="Walletable pass save bubble."/>
   </token>
 <!-- LINT.ThenChange(//chrome/browser/ui/autofill/bubble_manager_impl.cc:BubbleTypeToMetricSuffix) -->
 
@@ -3185,7 +3207,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.EditedDistanceAutofilledFieldAtSubmission.AddressOnTyping"
-    units="units" expires_after="2025-10-26">
+    units="units" expires_after="2026-08-26">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -3197,7 +3219,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.EditedPercentageAutofilledFieldAtSubmission.AddressOnTyping"
-    units="%" expires_after="2025-10-26">
+    units="%" expires_after="2026-08-26">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -5538,7 +5560,20 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="FillingProduct" variants="Autofill.FillingProduct"/>
 </histogram>
 
-<histogram name="Autofill.ProfileDeleted.{DeletionType}"
+<histogram name="Autofill.ProfileDeleted.ImplicitAccountNameEmail"
+    enum="Boolean" expires_after="2026-06-01">
+  <owner>sygiet@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records true when the AccountNameEmail profile gets implicitly removed,
+    because of the not accepted suggestions strike limit hit. Records false if
+    the suggestion contained AccountNameEmail profile, but the counter is lower
+    than the removal threshold. Recorded after user leaves the page with form
+    where a suggestion containing AccountNameEmail profile was shown.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.ProfileDeleted.{DeletionType}.{RecordType}"
     enum="BooleanAutofillDeleteAddress" expires_after="2026-03-01">
   <owner>tchudakov@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -5548,6 +5583,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     sums all of the above.
 
     {DeletionType}
+
+    {RecordType}
   </summary>
   <token key="DeletionType">
     <variant name="Any"
@@ -5567,6 +5604,11 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="This metric records how many users pressed the &quot;Delete
                  address&quot; button in chrome://settings, and whether they
                  canceled or confirmed the deletion."/>
+  </token>
+  <token key="RecordType" variants="AutofillProfileRecordTypes">
+    <variant name="Total"
+        summary="Any record type, it will contain deletions for all record
+                 types."/>
   </token>
 </histogram>
 
@@ -5935,7 +5977,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.ProfileTokenQuality.ObservationCountBeforeSubmission.{Type}"
-    units="Observations" expires_after="2026-02-09">
+    units="Observations" expires_after="2026-04-12">
   <owner>fleimgruber@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -7598,7 +7640,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.ThirdPartyModeDisabled.Provider"
-    enum="AutofillProviderPackageName" expires_after="2026-02-09">
+    enum="AutofillProviderPackageName" expires_after="2026-04-12">
   <owner>friedrichh@chromium.org</owner>
   <owner>izuzic@google.com</owner>
   <summary>

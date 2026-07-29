@@ -12,6 +12,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/version_info/version_info.h"
+#include "build/build_config.h"
 #include "components/variations/client_filterable_state.h"
 #include "components/variations/entropy_provider.h"
 #include "components/variations/proto/layer.pb.h"
@@ -57,8 +58,8 @@ constexpr int kDanglingLayerMemberReferenceBucket = 8;
 constexpr int kEmptyLayerReferenceBucket = 9;
 // LimitedEntropySeedRejectionReason::kInvalidLayerConfiguration
 [[maybe_unused]] constexpr int kInvalidLayerConfigurationBucket = 10;
-// LimitedEntropySeedRejectionReason::kActiveLowAndLimitedLayers
-constexpr int kActiveLowAndLimitedLayersBucket = 11;
+// LimitedEntropySeedRejectionReason::kActiveLowAndLimitedEntropy
+constexpr int kActiveLowAndLimitedEntropyBucket = 11;
 
 Study::Experiment CreateExperiment(int weight) {
   Study::Experiment experiment;
@@ -175,8 +176,6 @@ VariationsSeed CreateTestSeed(const std::vector<Layer>& layers,
   return seed;
 }
 
-}  // namespace
-
 class LimitedEntropyRandomizationTest : public ::testing::Test {
  public:
   LimitedEntropyRandomizationTest()
@@ -193,6 +192,8 @@ class LimitedEntropyRandomizationTest : public ::testing::Test {
   base::HistogramTester histogram_tester_;
   ClientFilterableState client_state_;
 };
+
+}  // namespace
 
 TEST_F(LimitedEntropyRandomizationTest,
        ValidConfiguration_WithValidEntropyUse) {
@@ -553,7 +554,39 @@ TEST_F(LimitedEntropyRandomizationTest,
   EXPECT_FALSE(result.seed_has_active_low_layer.has_value());
   EXPECT_FALSE(result.seed_has_active_limited_layer.has_value());
   histogram_tester_.ExpectUniqueSample(kSeedRejectionReasonHistogram,
-                                       kActiveLowAndLimitedLayersBucket, 1);
+                                       kActiveLowAndLimitedEntropyBucket, 1);
+}
+
+TEST_F(LimitedEntropyRandomizationTest,
+       SeedRejection_SimultaneousLowAndLimitedStudies) {
+  std::vector<Layer> test_layers;
+  std::vector<Study> test_studies;
+  // Create the LIMITED entropy layer.
+  test_layers.push_back(CreateLayer(
+      kLimitedEntropyLayerId, /*num_slots=*/100,
+      /*entropy_mode=*/Layer::LIMITED,
+      /*layer_members=*/{CreateLayerMember(kTestLayerMemberId, {{0, 49}})}));
+
+  // Create an entropy consuming study that refers to the LIMITED entropy layer.
+  test_studies.push_back(
+      CreateTestStudy(CreateExperimentsWithTwoBitsOfEntropy(),
+                      CreateLayerMemberReference(kLimitedEntropyLayerId,
+                                                 {kTestLayerMemberId})));
+
+  // Create an entropy consuming study with no layer reference.
+  test_studies.push_back(
+      CreateTestStudy(CreateExperimentsWithTwoBitsOfEntropy()));
+
+  // The seed is rejected because the client will have both low entropy and
+  // limited entropy studies active.
+  auto test_seed = CreateTestSeed(test_layers, test_studies);
+  auto result = SeedHasMisconfiguredEntropy(client_state_, test_seed,
+                                            kEntropyLimit_10bits);
+  EXPECT_TRUE(result.is_misconfigured);
+  EXPECT_FALSE(result.seed_has_active_low_layer.has_value());
+  EXPECT_FALSE(result.seed_has_active_limited_layer.has_value());
+  histogram_tester_.ExpectUniqueSample(kSeedRejectionReasonHistogram,
+                                       kActiveLowAndLimitedEntropyBucket, 1);
 }
 
 TEST_F(LimitedEntropyRandomizationTest,
@@ -764,6 +797,20 @@ TEST_F(LimitedEntropyRandomizationTest,
              form_factor == Study_FormFactor_PHONE);
     histogram_tester_.ExpectTotalCount(kSeedRejectionReasonHistogram, 0);
   }
+}
+
+TEST(GetGoogleWebEntropyLimitInBits, IsPlatformSpecific) {
+  constexpr double kExpectedEntropyLimitInBits =
+#if BUILDFLAG(IS_ANDROID)
+      21.0;
+#elif BUILDFLAG(IS_IOS) || BUILDFLAG(IS_WIN)
+      18.0;
+#elif BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+      16.0;
+#else
+      1.0;
+#endif
+  EXPECT_EQ(GetGoogleWebEntropyLimitInBits(), kExpectedEntropyLimitInBits);
 }
 
 }  // namespace variations

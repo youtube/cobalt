@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector.h"
 #include "third_party/blink/renderer/platform/fonts/plain_text_painter.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shape_iterator.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/harfbuzz_shaper.h"
 #include "third_party/blink/renderer/platform/graphics/test/mock_paint_canvas.h"
 #include "third_party/blink/renderer/platform/language.h"
@@ -45,9 +44,7 @@ TSAN_TEST(TextRendererThreadedTest, MeasureText) {
     const SimpleFontData* font_data = font->PrimaryFont();
     ASSERT_TRUE(font_data);
 
-    TextRun text_run(text, TextDirection::kLtr,
-                     /* directional_override */ false,
-                     /* normalize_space */ true);
+    TextRun text_run(text, TextDirection::kLtr);
 
     // X direction.
     EXPECT_EQ(78,
@@ -75,9 +72,7 @@ TSAN_TEST(TextRendererThreadedTest, DrawText) {
     Font* font = MakeGarbageCollected<Font>(font_description);
 
     gfx::PointF location(0, 0);
-    TextRun text_run(text, TextDirection::kLtr,
-                     /* directional_override */ false,
-                     /* normalize_space */ true);
+    TextRun text_run(text, TextDirection::kLtr);
 
     MockPaintCanvas mpc;
     cc::PaintFlags flags;

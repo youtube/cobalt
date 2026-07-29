@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
+#include "chrome/browser/ui/views/toolbar/reload_button_web_view.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/color_palette.h"
@@ -24,7 +25,6 @@ class LocationBarViewQuietNotificationInteractiveUITest;
 
 namespace views {
 class View;
-class ViewTargeterDelegate;
 }  // namespace views
 
 class BrowserView;
@@ -33,11 +33,11 @@ class PageActionIconController;
 class PinnedToolbarActionsContainer;
 class WebAppNavigationButtonContainer;
 class WebAppToolbarButtonContainer;
+class WebAppFrameToolbarView;
 
 // A container for web app buttons in the title bar.
 class WebAppFrameToolbarView : public views::AccessiblePaneView,
-                               public ToolbarButtonProvider,
-                               public views::ViewTargeterDelegate {
+                               public ToolbarButtonProvider {
   METADATA_HEADER(WebAppFrameToolbarView, views::AccessiblePaneView)
 
  public:
@@ -88,12 +88,9 @@ class WebAppFrameToolbarView : public views::AccessiblePaneView,
   AvatarToolbarButton* GetAvatarToolbarButton() override;
   ToolbarButton* GetBackButton() override;
   ReloadButton* GetReloadButton() override;
+  ReloadButtonWebView* GetReloadButtonWebView() override;
   IntentChipButton* GetIntentChipButton() override;
   ToolbarButton* GetDownloadButton() override;
-
-  // views::ViewTargeterDelegate
-  bool DoesIntersectRect(const View* target,
-                         const gfx::Rect& rect) const override;
 
   void OnWindowControlsOverlayEnabledChanged();
   void UpdateBorderlessModeEnabled();
@@ -113,6 +110,8 @@ class WebAppFrameToolbarView : public views::AccessiblePaneView,
   void OnThemeChanged() override;
 
  private:
+  class ViewTargeter;
+  friend class WebAppFrameToolbarViewTargeter;
   friend class ImmersiveModeControllerChromeosWebAppBrowserTest;
   friend class WebAppAshInteractiveUITest;
   friend class WebAppFrameViewChromeOSTest;

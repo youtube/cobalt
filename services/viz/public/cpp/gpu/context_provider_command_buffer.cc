@@ -326,7 +326,7 @@ gpu::ContextResult ContextProviderCommandBuffer::BindToCurrentSequence() {
       auto raster_impl = std::make_unique<gpu::raster::RasterImplementation>(
           raster_helper.get(), transfer_buffer.get(),
           attributes_->get_raster()->lose_context_when_out_of_memory,
-          command_buffer_.get(), channel_->image_decode_accelerator_proxy());
+          command_buffer_.get());
       bind_result_ = raster_impl->Initialize(memory_limits_);
       if (bind_result_ != gpu::ContextResult::kSuccess) {
         DLOG(ERROR) << "Failed to initialize RasterImplementation.";
@@ -541,12 +541,6 @@ void ContextProviderCommandBuffer::AddObserver(ContextLostObserver* obs) {
 void ContextProviderCommandBuffer::RemoveObserver(ContextLostObserver* obs) {
   CheckValidSequenceOrLockAcquired();
   observers_.RemoveObserver(obs);
-}
-
-unsigned int ContextProviderCommandBuffer::GetGrGLTextureFormat(
-    SharedImageFormat format) const {
-  return SharedImageFormatRestrictedSinglePlaneUtils::ToGLTextureStorageFormat(
-      format, ContextCapabilities().angle_rgbx_internal_format);
 }
 
 gpu::webgpu::WebGPUInterface* ContextProviderCommandBuffer::WebGPUInterface() {

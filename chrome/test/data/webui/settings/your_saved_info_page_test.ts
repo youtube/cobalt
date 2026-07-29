@@ -4,8 +4,9 @@
 
 import 'chrome://settings/settings.js';
 
-import {AutofillManagerImpl, PaymentsManagerImpl} from 'chrome://settings/lazy_load.js';
-import type {SettingsYourSavedInfoPageElement} from 'chrome://settings/settings.js';
+import {AiEnterpriseFeaturePrefName, AutofillManagerImpl, PaymentsManagerImpl} from 'chrome://settings/lazy_load.js';
+import {CrSettingsPrefs, ModelExecutionEnterprisePolicyValue} from 'chrome://settings/settings.js';
+import type {SettingsPrefsElement, SettingsYourSavedInfoPageElement} from 'chrome://settings/settings.js';
 import {loadTimeData, OpenWindowProxyImpl, PasswordManagerImpl, PasswordManagerPage, Router, routes} from 'chrome://settings/settings.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
@@ -14,11 +15,26 @@ import {TestOpenWindowProxy} from 'chrome://webui-test/test_open_window_proxy.js
 import {createAddressEntry, createCreditCardEntry, createIbanEntry, createPayOverTimeIssuerEntry, TestAutofillManager, TestPaymentsManager} from './autofill_fake_data.js';
 import {TestPasswordManagerProxy} from './test_password_manager_proxy.js';
 
+function setDefaultPrefs(objectToSetup: SettingsPrefsElement) {
+  objectToSetup.set(
+      `prefs.${AiEnterpriseFeaturePrefName.AUTOFILL_AI}.value`,
+      ModelExecutionEnterprisePolicyValue.ALLOW);
+  objectToSetup.set(
+      'prefs.optimization_guide.model_execution.autofill_prediction_improvements_enterprise_policy_allowed.value',
+      ModelExecutionEnterprisePolicyValue.ALLOW);
+}
+
 suite('YourSavedInfoPage', function() {
   let yourSavedInfoPage: SettingsYourSavedInfoPageElement;
   let autofillManager: TestAutofillManager;
   let passwordManager: TestPasswordManagerProxy;
   let paymentsManager: TestPaymentsManager;
+  let settingsPrefs: SettingsPrefsElement;
+
+  suiteSetup(function() {
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
+  });
 
   setup(async function() {
     Router.resetInstanceForTesting(new Router(routes));
@@ -34,8 +50,16 @@ suite('YourSavedInfoPage', function() {
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     yourSavedInfoPage = document.createElement('settings-your-saved-info-page');
+
+    setDefaultPrefs(settingsPrefs);
+    yourSavedInfoPage.prefs = settingsPrefs.prefs!;
+
     document.body.appendChild(yourSavedInfoPage);
     await flushTasks();
+  });
+
+  teardown(function() {
+    CrSettingsPrefs.resetForTesting();
   });
 
   test('TitleExists', function() {
@@ -50,6 +74,9 @@ suite('YourSavedInfoPage', function() {
     const expectedCardTitles = [
       loadTimeData.getString('localPasswordManager'),
       loadTimeData.getString('paymentsTitle'),
+      loadTimeData.getString('contactInfoTitle'),
+      loadTimeData.getString('identityDocsCardTitle'),
+      loadTimeData.getString('travelCardTitle'),
     ];
 
     assertEquals(expectedCardTitles.length, cards.length);
@@ -72,15 +99,23 @@ suite('YourSavedInfoPage', function() {
     assertEquals(PasswordManagerPage.PASSWORDS, page);
   });
 
-  test('paymentsCardNavigatesToPayments', function() {
-    const paymentsCard =
-        yourSavedInfoPage.shadowRoot!.querySelector<HTMLElement>(`
-        category-reference-card[card-title="${
-            loadTimeData.getString('paymentsTitle')}"]`);
-    assertTrue(!!paymentsCard);
+  [
+    {cardTitle: 'paymentsTitle', expectedRoute: routes.PAYMENTS},
+    {cardTitle: 'contactInfoTitle', expectedRoute: routes.ADDRESSES},
+    // TODO(crbug.com/438666322): Update routing once the Identity docs subpage is created.
+    {cardTitle: 'identityDocsCardTitle', expectedRoute: routes.BASIC},
+    // TODO(crbug.com/438666322): Update routing once the Travel subpage is created.
+    {cardTitle: 'travelCardTitle', expectedRoute: routes.BASIC},
+  ].forEach(({cardTitle, expectedRoute}) => {
+    test(`${cardTitle} card navigates to the correct route`, function() {
+      const card = yourSavedInfoPage.shadowRoot!.querySelector<HTMLElement>(
+          `category-reference-card[card-title="${
+              loadTimeData.getString(cardTitle)}"]`);
+      assertTrue(!!card);
 
-    paymentsCard.shadowRoot!.querySelector('cr-link-row')!.click();
-    assertEquals(routes.PAYMENTS, Router.getInstance().currentRoute);
+      card.shadowRoot!.querySelector('cr-link-row')!.click();
+      assertEquals(expectedRoute, Router.getInstance().currentRoute);
+    });
   });
 
   test('AddressesAndPaymentsCountersAreUpdated', async function() {
@@ -114,6 +149,12 @@ suite('RelatedServices', function() {
   let yourSavedInfoPage: SettingsYourSavedInfoPageElement;
   let openWindowProxy: TestOpenWindowProxy;
   let passwordManager: TestPasswordManagerProxy;
+  let settingsPrefs: SettingsPrefsElement;
+
+  suiteSetup(function() {
+    settingsPrefs = document.createElement('settings-prefs');
+    return CrSettingsPrefs.initialized;
+  });
 
   setup(function() {
     Router.resetInstanceForTesting(new Router(routes));
@@ -126,7 +167,10 @@ suite('RelatedServices', function() {
     PasswordManagerImpl.setInstance(passwordManager);
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    yourSavedInfoPage = document.createElement('settings-your-saved-info-page');
+    yourSavedInfoPage =
+        document.createElement('settings-your-saved-info-page');
+    setDefaultPrefs(settingsPrefs);
+    yourSavedInfoPage.prefs = settingsPrefs.prefs!;
     document.body.appendChild(yourSavedInfoPage);
   });
 

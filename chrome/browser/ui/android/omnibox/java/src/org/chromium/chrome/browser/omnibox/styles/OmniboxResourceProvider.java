@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.color.MaterialColors;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -48,6 +49,8 @@ public class OmniboxResourceProvider {
     private static SparseArray<ConstantState> sDrawableCache = new SparseArray<>();
     private static SparseArray<String> sStringCache = new SparseArray<>();
     private static @Nullable Function<Tab, @Nullable Bitmap> sTabFaviconFactory;
+    private static @ColorInt @Nullable Integer sUrlBarPrimaryTextColorForTesting;
+    private static @ColorInt @Nullable Integer sUrlBarHintTextColorForTesting;
 
     /**
      * As {@link androidx.appcompat.content.res.AppCompatResources#getDrawable(Context, int)} but
@@ -196,6 +199,9 @@ public class OmniboxResourceProvider {
      */
     public static @ColorInt int getUrlBarPrimaryTextColor(
             Context context, @BrandedColorScheme int brandedColorScheme) {
+        if (sUrlBarPrimaryTextColorForTesting != null) {
+            return sUrlBarPrimaryTextColorForTesting;
+        }
         final @ColorInt int color;
         if (brandedColorScheme == BrandedColorScheme.LIGHT_BRANDED_THEME) {
             color = context.getColor(R.color.branded_url_text_on_light_bg);
@@ -207,6 +213,11 @@ public class OmniboxResourceProvider {
             color = MaterialColors.getColor(context, R.attr.colorOnSurface, TAG);
         }
         return color;
+    }
+
+    public static void setUrlBarPrimaryTextColorForTesting(@ColorInt int value) {
+        sUrlBarPrimaryTextColorForTesting = value;
+        ResettersForTesting.register(() -> sUrlBarPrimaryTextColorForTesting = null);
     }
 
     /**
@@ -240,7 +251,15 @@ public class OmniboxResourceProvider {
      */
     public static @ColorInt int getUrlBarHintTextColor(
             Context context, @BrandedColorScheme int brandedColorScheme) {
+        if (sUrlBarHintTextColorForTesting != null) {
+            return sUrlBarHintTextColorForTesting;
+        }
         return getUrlBarSecondaryTextColor(context, brandedColorScheme);
+    }
+
+    public static void setUrlBarHintTextColorForTesting(@ColorInt int value) {
+        sUrlBarHintTextColorForTesting = value;
+        ResettersForTesting.register(() -> sUrlBarHintTextColorForTesting = null);
     }
 
     /**
@@ -526,12 +545,12 @@ public class OmniboxResourceProvider {
     }
 
     /**
-     * Returns the amount of pixels the toolbar should increased its height by when the omnibox is
-     * focused.
+     * Returns the amount of pixels the location bar background should increase in height by when
+     * the omnibox is focused.
      */
-    public static @Px int getToolbarOnFocusHeightIncrease(Context context) {
+    public static @Px int getLocationBarBackgroundOnFocusHeightIncrease(Context context) {
         return context.getResources()
-                .getDimensionPixelSize(R.dimen.toolbar_url_focus_height_increase);
+                .getDimensionPixelSize(R.dimen.location_bar_background_on_focus_height_increase);
     }
 
     /** Returns the amount of pixels for the toolbar's side padding when the omnibox is focused. */

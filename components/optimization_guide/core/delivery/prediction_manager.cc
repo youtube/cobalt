@@ -161,6 +161,13 @@ void PredictionManager::RemoveObserverForOptimizationTargetModel(
                                                      observer);
 }
 
+void PredictionManager::SetModelDownloadSchedulingParams(
+    proto::OptimizationTarget optimization_target,
+    const download::SchedulingParams& params) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  custom_scheduling_params_.insert_or_assign(optimization_target, params);
+}
+
 base::flat_set<proto::OptimizationTarget>
 PredictionManager::GetRegisteredOptimizationTargets() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -193,7 +200,7 @@ void PredictionManager::FetchModels() {
   proto::ModelInfo base_model_info;
   // There should only be one supported model engine version at a time.
   base_model_info.add_supported_model_engine_versions(
-      proto::MODEL_ENGINE_VERSION_TFLITE_2_20_1);
+      proto::MODEL_ENGINE_VERSION_TFLITE_2_20_2);
   // This histogram is used for integration tests. Do not remove.
   // Update this to be 10000 if/when we exceed 100 model engine versions.
   LOCAL_HISTOGRAM_COUNTS_100(
@@ -388,8 +395,13 @@ void PredictionManager::StartModelDownload(
               GetStringNameForOptimizationTarget(optimization_target));
 
   if (download_url.is_valid()) {
-    prediction_model_download_manager_->StartDownload(download_url,
-                                                      optimization_target);
+    std::optional<download::SchedulingParams> scheduling_params;
+    auto it = custom_scheduling_params_.find(optimization_target);
+    if (it != custom_scheduling_params_.end()) {
+      scheduling_params = it->second;
+    }
+    prediction_model_download_manager_->StartDownload(
+        download_url, optimization_target, scheduling_params);
     if (optimization_guide_logger_->ShouldEnableDebugLogs()) {
       OPTIMIZATION_GUIDE_LOGGER(
           optimization_guide_common::mojom::LogSource::MODEL_MANAGEMENT,

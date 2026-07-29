@@ -19,19 +19,31 @@ TEST(ContextualTaskTest, GetTaskId) {
   EXPECT_EQ(task_id, task.GetTaskId());
 }
 
+TEST(ContextualTaskTest, IsEphemeral) {
+  base::Uuid task_id1 = base::Uuid::GenerateRandomV4();
+  base::Uuid task_id2 = base::Uuid::GenerateRandomV4();
+  ContextualTask task1(task_id1, /*is_ephemeral=*/true);
+  ContextualTask task2(task_id2, /*is_ephemeral=*/false);
+  EXPECT_TRUE(task1.IsEphemeral());
+  EXPECT_FALSE(task2.IsEphemeral());
+  EXPECT_EQ(task_id1, task1.GetTaskId());
+  EXPECT_EQ(task_id2, task2.GetTaskId());
+}
+
 TEST(ContextualTaskTest, AddAndRemoveUrlResource) {
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   ContextualTask task(task_id);
   UrlResource url_resource(base::Uuid::GenerateRandomV4(),
                            GURL("https://www.google.com"));
 
-  task.AddUrlResource(url_resource);
-  task.AddUrlResource(url_resource);
+  EXPECT_TRUE(task.AddUrlResource(url_resource));
+  EXPECT_FALSE(task.AddUrlResource(url_resource));
 
   EXPECT_EQ(1u, task.GetUrlResources().size());
 
-  task.RemoveUrl(url_resource.url);
+  EXPECT_EQ(url_resource.url_id, task.RemoveUrl(url_resource.url));
   EXPECT_EQ(0u, task.GetUrlResources().size());
+  EXPECT_EQ(std::nullopt, task.RemoveUrl(url_resource.url));
 }
 
 TEST(ContextualTaskTest, AddThread) {
@@ -78,18 +90,30 @@ TEST(ContextualTaskTest, RemoveThread) {
   EXPECT_FALSE(task.GetThread().has_value());
 }
 
-TEST(ContextualTaskTest, AddAndRemoveSessionId) {
+TEST(ContextualTaskTest, AddAndRemoveTabId) {
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   ContextualTask task(task_id);
-  SessionID session_id = SessionID::FromSerializedValue(1);
+  SessionID tab_id = SessionID::FromSerializedValue(1);
 
-  task.AddSessionId(session_id);
-  task.AddSessionId(session_id);
+  task.AddTabId(tab_id);
+  task.AddTabId(tab_id);
 
-  EXPECT_EQ(1u, task.GetSessionIds().size());
+  EXPECT_EQ(1u, task.GetTabIds().size());
 
-  task.RemoveSessionId(session_id);
-  EXPECT_EQ(0u, task.GetSessionIds().size());
+  task.RemoveTabId(tab_id);
+  EXPECT_EQ(0u, task.GetTabIds().size());
+}
+
+TEST(ContextualTaskTest, ClearTabIds) {
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  ContextualTask task(task_id);
+  task.AddTabId(SessionID::FromSerializedValue(1));
+  task.AddTabId(SessionID::FromSerializedValue(2));
+
+  ASSERT_EQ(2u, task.GetTabIds().size());
+
+  task.ClearTabIds();
+  EXPECT_EQ(0u, task.GetTabIds().size());
 }
 
 TEST(ContextualTaskTest, SetAndGetTitle) {

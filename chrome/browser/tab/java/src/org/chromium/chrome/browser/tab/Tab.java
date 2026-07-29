@@ -300,13 +300,26 @@ public interface Tab extends TabLifecycle {
      */
     LoadUrlResult loadUrl(LoadUrlParams params);
 
-    /** Freezes the tab. If the tab is already frozen this is a no-op. */
+    /**
+     * Freezes the tab by saving its {@link WebContents} to an {@link WebContentsState} and
+     * destroying the {@link WebContents}. If the tab is already frozen this is a no-op. The tab
+     * must be closing or inactive to be frozen.
+     *
+     * <p>An experiment is in progress to change the implementation of this method to invoke {@link
+     * WebContents#discard()} instead. See https://crbug.com/448420873. If the experiment is
+     * launched this method will be renamed to {@code discard()}.
+     */
     void freeze();
 
     /**
      * Freezes the tabs and stores the URL in the tab's WebContentsState. If the tab is already
      * frozen this method still appends the navigation entry, but skips the process of freezing the
      * tab.
+     *
+     * <p>An experiment is in progress to change the implementation of this method to invoke {@link
+     * WebContents#discard()} and use a pending {@link LoadUrlParams} instead of freezing the tab.
+     * See https://crbug.com/448420873. If the experiment is launched this method will be renamed to
+     * {@code discardAndAppendPendingNavigation()}.
      *
      * @param params Parameters describing the url load. Note that it is important to set correct
      *     page transition as it is used for ranking URLs in the history so the omnibox can report

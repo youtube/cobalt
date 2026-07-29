@@ -85,8 +85,6 @@
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/layout/map_coordinates_flags.h"
-#include "third_party/blink/renderer/core/paint/cull_rect_updater.h"
-#include "third_party/blink/renderer/core/paint/paint_layer_painter.h"
 #include "third_party/blink/renderer/core/scroll/scroll_alignment.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -111,7 +109,6 @@
 #include "third_party/blink/renderer/platform/graphics/image_orientation.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_filter.h"
-#include "third_party/blink/renderer/platform/graphics/paint/paint_record_builder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/property_tree_state.h"
 #include "third_party/blink/renderer/platform/graphics/platform_focus_ring.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -316,7 +313,7 @@ void CanvasRenderingContext2D::WillDrawImage(CanvasImageSource* source,
     // Recreate the CRP in GPU raster mode and signal that it needs a
     // compositing update.
     canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
-    DropAndRecreateExistingCanvas2DResourceProvider();
+    DropAndRecreateExistingResourceProvider();
     canvas()->SetNeedsCompositingUpdate();
   }
 }
@@ -574,6 +571,8 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
       FontDescription element_font_description(
           computed_style->GetFontDescription());
       element_font_description.SetLocale(locale);
+      element_font_description.SetIsForcedColorsMode(
+          document.InForcedColorsMode());
       // Reset the computed size to avoid inheriting the zoom factor from the
       // <canvas> element.
       element_font_description.SetComputedSize(
@@ -610,6 +609,7 @@ bool CanvasRenderingContext2D::ResolveFont(const String& new_font) {
     // minimum font size for detached canvas.
     FontDescription final_description(resolved_font->GetFontDescription());
     final_description.SetLocale(locale);
+    final_description.SetIsForcedColorsMode(document.InForcedColorsMode());
     final_description.SetComputedSize(final_description.SpecifiedSize());
     final_description.SetAdjustedSize(final_description.SpecifiedSize());
     GetState().SetFont(final_description, Host()->GetFontSelector());
@@ -811,7 +811,7 @@ void CanvasRenderingContext2D::EnableAccelerationIfPossible() {
   if (canvas()->GetRasterModeForCanvas2D() == RasterMode::kCPU &&
       SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade()) {
     canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferGPU);
-    DropAndRecreateExistingCanvas2DResourceProvider();
+    DropAndRecreateExistingResourceProvider();
   }
 }
 
@@ -824,50 +824,22 @@ void CanvasRenderingContext2D::DrawElementInternal(
     ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
 
-  HTMLCanvasElement* canvas_element = HostAsHTMLCanvasElement();
-  DCHECK(canvas_element);
-  canvas_element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawElementImage);
-
   if (!GetOrCreatePaintCanvas()) {
     return;
   }
 
-  if (!IsDrawElementImageEligible(element, "drawElementImage()",
-                                  exception_state)) {
+  std::optional<cc::PaintRecord> paint_record =
+      GetElementImage(element, "drawElementImage()", exception_state);
+  if (!paint_record) {
     return;
   }
-
-  PaintRecordBuilder builder;
-  LayoutBox* layout_box = element->GetLayoutBox();
-  // All drawn elements should have their own stacking contexts.
-  CHECK(layout_box->HasLayer());
-  CHECK(layout_box->IsStacked());
-  PaintLayer* layer = layout_box->EnclosingLayer();
-
-  auto box_rect =
-      gfx::Rect(ToCeiledSize(layer->GetLayoutBox()->StitchedSize()));
-  // TODO(https://issues.chromium.org/379143301): Figure out the actual painted
-  // rect of the element plus its descendants, and use that instead of the
-  // box's size.
-  OverriddenCullRectScope cull_rect_scope(*layer, CullRect(box_rect),
-                                          /*disable_expansion*/ true);
-
-  PaintLayerPainter paint_layer_painter = PaintLayerPainter(*layer);
-  paint_layer_painter.Paint(
-      builder.Context(),
-      PaintFlag::kPrivacyPreserving | PaintFlag::kOmitCompositingInfo);
-
-  PropertyTreeState property_tree_state = canvas_element->GetLayoutBox()
-                                              ->FirstFragment()
-                                              .LocalBorderBoxProperties()
-                                              .Unalias();
-
-  cc::PaintRecord paint_record = builder.EndRecording(property_tree_state);
 
   // The filter needs to be resolved before calling Draw, because it
   // immediately checks IsFilterResolved() and uses a null canvas if not.
   StateGetFilter();
+
+  auto box_rect =
+      gfx::Rect(ToCeiledSize(element->GetLayoutBox()->StitchedSize()));
 
   // TODO(crbug.com/421834883): This code is based on image drawing. Maybe we
   // need a distinct paint_type: kImagePaintType seems to do the right thing
@@ -930,7 +902,7 @@ void CanvasRenderingContext2D::DrawElementInternal(
 
         c->clipRect(SkRect::MakeWH(box_rect.width(), box_rect.height()));
 
-        c->drawPicture(paint_record,
+        c->drawPicture(paint_record.value(),
                        // use a save at the beginning of the record to keep
                        // transforms local:
                        true);
@@ -1187,7 +1159,17 @@ void CanvasRenderingContext2D::UpdateElementAccessibility(const Path& path,
 }
 
 void CanvasRenderingContext2D::DisableAcceleration() {
-  canvas()->DisableAccelerationForCanvas2D();
+  canvas()->OnAccelerationDisabled();
+
+  // Create and configure an unaccelerated CanvasResourceProvider.
+  canvas()->SetPreferred2DRasterMode(RasterModeHint::kPreferCPU);
+
+  DropAndRecreateExistingResourceProvider();
+
+  // We must force a paint invalidation on the canvas even if its
+  // content did not change, because its layer was destroyed.
+  canvas()->DidDraw();
+  canvas()->SetNeedsCompositingUpdate();
 }
 
 bool CanvasRenderingContext2D::ShouldDisableAccelerationBecauseOfReadback()
@@ -1384,7 +1366,7 @@ CanvasRenderingContext2D::GetOrCreateResourceProvider() {
     hibernation_handler_ = std::make_unique<CanvasHibernationHandler>(*this);
   }
 
-  RecreateCanvasResourceProviderForCanvas2D();
+  RecreateResourceProvider();
 
   canvas()->UpdateMemoryUsage();
 
@@ -1394,7 +1376,7 @@ CanvasRenderingContext2D::GetOrCreateResourceProvider() {
 }
 
 std::unique_ptr<CanvasResourceProvider>
-CanvasRenderingContext2D::ReplaceResourceProviderForCanvas2D(
+CanvasRenderingContext2D::ReplaceResourceProvider(
     std::unique_ptr<CanvasResourceProvider> provider) {
   std::unique_ptr<CanvasResourceProvider> old_resource_provider =
       std::move(resource_provider_);
@@ -1406,8 +1388,7 @@ CanvasRenderingContext2D::ReplaceResourceProviderForCanvas2D(
   return old_resource_provider;
 }
 
-void CanvasRenderingContext2D::
-    DropAndRecreateExistingCanvas2DResourceProvider() {
+void CanvasRenderingContext2D::DropAndRecreateExistingResourceProvider() {
   CanvasResourceProvider* old_provider = GetResourceProvider();
   if (old_provider == nullptr) {
     return;
@@ -1424,7 +1405,7 @@ void CanvasRenderingContext2D::
   std::unique_ptr<MemoryManagedPaintRecorder> recorder =
       old_provider->ReleaseRecorder();
   canvas()->ResetLayer();
-  ReplaceResourceProviderForCanvas2D(nullptr);
+  ReplaceResourceProvider(nullptr);
 
   // Bail out if the context is lost.
   if (isContextLost() && !IsContextBeingRestored()) {
@@ -1432,7 +1413,7 @@ void CanvasRenderingContext2D::
   }
 
   // Bail out if it's not possible to create a new provider.
-  RecreateCanvasResourceProviderForCanvas2D();
+  RecreateResourceProvider();
   if (!resource_provider_) {
     return;
   }
@@ -1443,7 +1424,7 @@ void CanvasRenderingContext2D::
   canvas()->UpdateMemoryUsage();
 }
 
-void CanvasRenderingContext2D::RecreateCanvasResourceProviderForCanvas2D() {
+void CanvasRenderingContext2D::RecreateResourceProvider() {
   CHECK(GetHibernationHandler());
   CHECK(!resource_provider_);
 
@@ -1511,7 +1492,7 @@ void CanvasRenderingContext2D::SetCanvas2DResourceProviderForTesting(
   canvas()->DiscardResources();
   canvas()->SetSize(size);
   hibernation_handler_ = std::make_unique<CanvasHibernationHandler>(*this);
-  ReplaceResourceProviderForCanvas2D(std::move(provider));
+  ReplaceResourceProvider(std::move(provider));
 }
 
 }  // namespace blink

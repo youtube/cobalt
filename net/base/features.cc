@@ -521,10 +521,6 @@ inline constexpr auto kMigrateSessionsOnNetworkChangeV2Default =
 BASE_FEATURE(kMigrateSessionsOnNetworkChangeV2,
              kMigrateSessionsOnNetworkChangeV2Default);
 
-BASE_FEATURE(kDisableBlackholeOnNoNewNetwork,
-             "DisableBlackHoleOnNoNewNetwork",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 #if BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kAddressTrackerLinuxIsProxied, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_LINUX)
@@ -595,12 +591,12 @@ BASE_FEATURE_PARAM(int,
                    kDeviceBoundSessionsSchemaVersion,
                    &kDeviceBoundSessions,
                    "SchemaVersion",
-                   1);
+                   2);
 BASE_FEATURE_PARAM(bool,
                    kDeviceBoundSessionsOriginTrialFeedback,
                    &kDeviceBoundSessions,
                    "OriginTrialFeedback",
-                   false);
+                   true);
 
 BASE_FEATURE(kDeviceBoundSessionsFederatedRegistration,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -645,7 +641,12 @@ constexpr base::FeatureParam<DiskCacheBackend>::Option
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 };
 const base::FeatureParam<DiskCacheBackend> kDiskCacheBackendParam{
-    &kDiskCacheBackendExperiment, "backend", DiskCacheBackend::kDefault,
+    &kDiskCacheBackendExperiment, "backend",
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+    DiskCacheBackend::kSql,
+#else   // ENABLE_DISK_CACHE_SQL_BACKEND
+    DiskCacheBackend::kDefault,
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
     &kDiskCacheBackendOptions};
 
 #if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
@@ -664,6 +665,11 @@ BASE_FEATURE_PARAM(int,
                    &kDiskCacheBackendExperiment,
                    "SqlDiskCacheOptimisticWriteBufferSize",
                    32 * 1024 * 1024);
+BASE_FEATURE_PARAM(bool,
+                   kSqlDiskCacheSynchronousOff,
+                   &kDiskCacheBackendExperiment,
+                   "SqlDiskCacheSynchronousOff",
+                   false);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 BASE_FEATURE(kIgnoreHSTSForLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -865,5 +871,8 @@ BASE_FEATURE_PARAM(std::string,
                    &kTryQuicByDefault,
                    "quic_options",
                    "");
+
+BASE_FEATURE(kDnsResponseDiscardPartialQuestions,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace net::features

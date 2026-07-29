@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Jatka</translation>
 <translation id="2379925928934107488">Jos mahdollista, käytä tummaa teemaa sivustoilla, kun se on Chromen käytössä</translation>
 <translation id="2390272837142897736">Lisää zoomausta</translation>
+<translation id="2397689164757137845">Sallittu • Tarkka</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> Mt</translation>
 <translation id="2403474027143565107">Tarkka</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja <ph name="NUM_MORE" /> muuta sallittu}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ja <ph name="NUM_MORE" /> muuta sallittu}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Ohjeet ja palaute</translation>
 <translation id="2501278716633472235">Takaisin</translation>
 <translation id="2533138527374486328">Kun tämä on päällä, sivustot voivat pyytää lupaa yhdistää paikallisessa verkossa oleviin laitteisiin. Kun tämä on pois päältä, sivustot eivät voi yhdistää paikallisessa verkossa oleviin laitteisiin.</translation>
+<translation id="2536779053640817375">Sallittu tällä kertaa • Tarkka</translation>
 <translation id="2544997614631598250">Teeman väri: tumma</translation>
 <translation id="2546283357679194313">Evästeet ja sivustotiedot</translation>
 <translation id="2570922361219980984">Sijainti on poissa käytöstä myös tällä laitteella. Voit ottaa sen käyttöön <ph name="BEGIN_LINK" />Android-asetuksista<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="5876056640971328065">Keskeytä video</translation>
 <translation id="5877248419911025165">Tiivistä kaikki pyynnöt</translation>
 <translation id="5878945009165002849">Estä henkilöllisyyspalveluiden sisäänkirjautumiskehotteet</translation>
+<translation id="588258955323874662">Koko näyttö</translation>
 <translation id="5884085660368669834">Sivustotoivomus</translation>
 <translation id="5887687176710214216">Avattu viimeksi eilen</translation>
 <translation id="5908617755156109052">Älä salli sivustojen luoda 3D-karttaa ympäristöstäsi tai seurata kameran asentoa</translation>
@@ -569,6 +572,7 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="7406113532070524618">Tämä asetus toimii niin, että sinua ei tunnisteta eivätkä sivustot näe selaushistoriaasi, mutta sivustot voivat jakaa pienen määrän tietoja osana todennusta</translation>
 <translation id="7409735910987429903">Sivustot voivat näyttää mainoksia ponnahdusikkunoissa tai ohjata sinut uudelleen sivustoille, joille et halunnut siirtyä</translation>
 <translation id="7412160840120117304">Ensisijaisen värin heksadesimaali</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zoomaa}other{Zoomaa: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Kysy ensin</translation>
 <translation id="7423538860840206698">Leikepöydältä lukeminen estetty</translation>
 <translation id="7425915948813553151">Sivustojen tumma teema</translation>
@@ -700,7 +704,6 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="8803526663383843427">Toiminnon ollessa päällä</translation>
 <translation id="8805385115381080995">Selaaminen on nopeampaa, koska sivusto ei todennäköisesti pyydä sinua vahvistamaan, että olet oikea ihminen</translation>
 <translation id="8816026460808729765">Estä sivustoja käyttämästä tunnistimia</translation>
-<translation id="884765916894384048">Siirry taustatoistoon</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Kokeile sallia kolmannen osapuolen evästeet väliaikaisesti. Selauksen suojaus ei tällöin ole niin vahva, mutta sivuston ominaisuudet toimivat todennäköisemmin oikein.</translation>
 <translation id="8889294078294184559">Kun jatkat selaamista, sivustot voivat Chromen avulla tarkistaa edelliseltä avaamasi sivustolta, että olet todennäköisesti oikea ihminen.</translation>

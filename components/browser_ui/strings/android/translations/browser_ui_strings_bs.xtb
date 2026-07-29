@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">Nastavi</translation>
 <translation id="2379925928934107488">Tamna tema će se primjenjivati na web lokacije kada Chrome koristi tamnu temu, kada je to moguće</translation>
 <translation id="2390272837142897736">Povećavanje zumiranja</translation>
+<translation id="2397689164757137845">Dozvoljeno • Precizno</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">Tačno</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{Dozvoljeno: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}one{Dozvoljeno: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}few{Dozvoljeno: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}other{Dozvoljeno: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i još <ph name="NUM_MORE" />}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">Pomoć i povr. inf.</translation>
 <translation id="2501278716633472235">Nazad</translation>
 <translation id="2533138527374486328">Kada je uključeno, web lokacije mogu zatražiti da se povežu s bilo kojim uređajem na lokalnoj mreži. Kada je isključeno, web lokacije se ne mogu povezati s uređajima na lokalnoj mreži.</translation>
+<translation id="2536779053640817375">Dozvoljeno je ovaj put • Precizno</translation>
 <translation id="2544997614631598250">Tamna boja teme</translation>
 <translation id="2546283357679194313">Kolačići i podaci web lokacije</translation>
 <translation id="2570922361219980984">Pristup lokaciji je također isključen za ovaj uređaj. Uključite ga u <ph name="BEGIN_LINK" />Postavkama Androida<ph name="END_LINK" />.</translation>
@@ -442,6 +444,7 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="5876056640971328065">Pauziranje videozapisa</translation>
 <translation id="5877248419911025165">Suzi sve zahtjeve</translation>
 <translation id="5878945009165002849">Blokiraj upite za prijavu koji potiču od usluga identiteta</translation>
+<translation id="588258955323874662">Cijeli ekran</translation>
 <translation id="5884085660368669834">Postavka web lokacije</translation>
 <translation id="5887687176710214216">Posljednji put je posjećeno jučer</translation>
 <translation id="5908617755156109052">Nemoj dozvoliti web lokacijama da kreiraju 3D mapu okruženja niti da prate položaj kamere</translation>
@@ -569,6 +572,7 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="7406113532070524618">Ova postavka ne otkriva vaš identitet niti web lokacijama dozvoljava da vide vašu historiju pregledanja. Međutim, web lokacije mogu dijeliti malu količinu informacija u okviru potvrde</translation>
 <translation id="7409735910987429903">Web lokacije mogu slati skočne prozore radi prikazivanja oglasa ili koristiti preusmjeravanja da vas odvedu na web lokacije koje možda ne želite posjetiti</translation>
 <translation id="7412160840120117304">Heksadecimalni kôd primarne boje</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{Zumiranje}one{Zumiranje: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}few{Zumiranje: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}other{Zumiranje: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">Prvo pitaj</translation>
 <translation id="7423538860840206698">Čitanje međumemorije je blokirano</translation>
 <translation id="7425915948813553151">Tamna tema za web lokacije</translation>
@@ -700,7 +704,6 @@ Napredna zaštita upravlja ovim postavkama Chromea:
 <translation id="8803526663383843427">Kada je uključeno</translation>
 <translation id="8805385115381080995">Pregledanje je brže jer je malo vjerovatno da će web lokacija tražiti da potvrdite da ste stvarna osoba</translation>
 <translation id="8816026460808729765">Blokiranje web lokacijama pristup senzorima</translation>
-<translation id="884765916894384048">Reprodukcija u pozadini</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">Pokušajte privremeno dozvoliti kolačiće treće strane, što podrazumijeva manju zaštitu prilikom pregledanja, ali i veću vjerovatnost da će funkcije web lokacije funkcionirati prema očekivanjima.</translation>
 <translation id="8889294078294184559">Kako nastavljate pregledati, web lokacije mogu provjeravati u Chromeu i s prethodnom web lokacijom koju ste posjetili potvrditi da ste stvarna osoba</translation>

@@ -10,12 +10,16 @@
 #include <set>
 #include <vector>
 
+#include "base/barrier_closure.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/uuid.h"
 #include "base/version_info/channel.h"
 #include "components/contextual_tasks/internal/ai_thread_sync_bridge.h"
+#include "components/contextual_tasks/internal/contextual_task_sync_bridge.h"
+#include "components/contextual_tasks/internal/proto/ai_thread_entity.pb.h"
+#include "components/contextual_tasks/internal/proto/contextual_task_entity.pb.h"
 #include "components/contextual_tasks/public/context_decorator.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
@@ -23,18 +27,28 @@
 #include "components/sync/model/data_type_store.h"
 #include "url/gurl.h"
 
+class AimEligibilityService;
+
+namespace signin {
+class IdentityManager;
+}
+
 namespace contextual_tasks {
 
 class CompositeContextDecorator;
 struct ContextualTaskContext;
 
 class ContextualTasksServiceImpl : public ContextualTasksService,
-                                   public AiThreadSyncBridge::Observer {
+                                   public AiThreadSyncBridge::Observer,
+                                   public ContextualTaskSyncBridge::Observer {
  public:
   ContextualTasksServiceImpl(
       version_info::Channel channel,
-      syncer::OnceDataTypeStoreFactory data_type_store_factory,
-      std::unique_ptr<CompositeContextDecorator> composite_context_decorator);
+      syncer::RepeatingDataTypeStoreFactory data_type_store_factory,
+      std::unique_ptr<CompositeContextDecorator> composite_context_decorator,
+      AimEligibilityService* aim_eligibility_service,
+      signin::IdentityManager* identity_manager,
+      bool supports_ephemeral_only);
   ~ContextualTasksServiceImpl() override;
 
   ContextualTasksServiceImpl(const ContextualTasksServiceImpl&) = delete;
@@ -42,7 +56,10 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
       delete;
 
   // ContextualTasksService implementation.
+  FeatureEligibility GetFeatureEligibility() override;
+  bool IsInitialized() override;
   ContextualTask CreateTask() override;
+  ContextualTask CreateTaskFromUrl(const GURL& url) override;
   void GetTaskById(const base::Uuid& task_id,
                    base::OnceCallback<void(std::optional<ContextualTask>)>
                        callback) const override;
@@ -54,14 +71,19 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   void RemoveThreadFromTask(const base::Uuid& task_id,
                             ThreadType type,
                             const std::string& server_id) override;
+  void UpdateThreadTurnId(const base::Uuid& task_id,
+                          ThreadType thread_type,
+                          const std::string& server_id,
+                          const std::string& conversation_turn_id) override;
   void AttachUrlToTask(const base::Uuid& task_id, const GURL& url) override;
   void DetachUrlFromTask(const base::Uuid& task_id, const GURL& url) override;
-  void AttachSessionIdToTask(const base::Uuid& task_id,
-                             SessionID session_id) override;
-  void DetachSessionIdFromTask(const base::Uuid& task_id,
-                               SessionID session_id) override;
-  std::optional<ContextualTask> GetMostRecentContextualTaskForSessionID(
-      SessionID session_id) const override;
+  void AssociateTabWithTask(const base::Uuid& task_id,
+                            SessionID tab_id) override;
+  void DisassociateTabFromTask(const base::Uuid& task_id,
+                               SessionID tab_id) override;
+  std::optional<ContextualTask> GetContextualTaskForTab(
+      SessionID tab_id) const override;
+  void ClearAllTabAssociationsForTask(const base::Uuid& task_id) override;
   void GetContextForTask(
       const base::Uuid& task_id,
       const std::set<ContextualTaskContextSource>& sources,
@@ -72,26 +94,48 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetAiThreadControllerDelegate() override;
 
+  size_t GetTabIdMapSizeForTesting() const;
+
+ private:
+  friend class ContextualTasksServiceImplTest;
+
+  void RemoveTaskInternal(const base::Uuid& task_id, TriggerSource source);
+
+  void SetAiThreadSyncBridgeForTesting(
+      std::unique_ptr<AiThreadSyncBridge> bridge);
+  void SetContextualTaskSyncBridgeForTesting(
+      std::unique_ptr<ContextualTaskSyncBridge> bridge);
+
   // AiThreadSyncBridge::Observer implementation.
   void OnThreadDataStoreLoaded() override;
   void OnThreadAddedOrUpdatedRemotely(
-      const std::vector<Thread>& threads) override;
-  void OnThreadRemovedRemotely(const std::vector<Thread>& threads) override;
+      const std::vector<proto::AiThreadEntity>& threads) override;
+  void OnThreadRemovedRemotely(
+      const std::vector<base::Uuid>& thread_ids) override;
 
-  size_t GetSessionIdMapSizeForTesting() const;
+  // ContextualTaskSyncBridge::Observer implementation.
+  void OnContextualTaskDataStoreLoaded() override;
+  void OnTaskAddedOrUpdatedRemotely(
+      const std::vector<ContextualTask>& task_entities) override;
+  void OnTaskRemovedRemotely(
+      const std::vector<base::Uuid>& task_entities) override;
 
- private:
   void NotifyTaskAdded(const ContextualTask& task, TriggerSource source);
   void NotifyTaskUpdated(const ContextualTask& task, TriggerSource source);
   void NotifyTaskRemoved(const base::Uuid& task_id, TriggerSource source);
+  ContextualTask AddTaskAndNotify(ContextualTask task);
+
+  void OnDataStoresLoaded();
+
+  std::vector<ContextualTask> BuildTasks() const;
 
   // The set of all tasks currently managed by the service, indexed by their
   // unique task ID for efficient lookup.
   std::map<base::Uuid, ContextualTask> tasks_;
 
-  // A map from session IDs to task IDs, used to find the most recent task
-  // associated with a given session.
-  std::map<SessionID, base::Uuid> session_to_task_;
+  // A map from tab IDs to task IDs, used to find the task associated with a
+  // given tab.
+  std::map<SessionID, base::Uuid> tab_to_task_;
 
   // The entry point for the decorator chain that enriches the context.
   std::unique_ptr<CompositeContextDecorator> composite_context_decorator_;
@@ -100,6 +144,20 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   base::ObserverList<ContextualTasksService::Observer> observers_;
 
   std::unique_ptr<AiThreadSyncBridge> ai_thread_sync_bridge_;
+  std::unique_ptr<ContextualTaskSyncBridge> contextual_task_sync_bridge_;
+
+  // Barrier to run OnDataStoresLoaded() after both sync bridges have loaded
+  // their data.
+  base::RepeatingClosure on_data_loaded_barrier_;
+
+  // Whether the service is initialized.
+  bool is_initialized_ = false;
+
+  raw_ptr<AimEligibilityService> aim_eligibility_service_;
+  raw_ptr<signin::IdentityManager> identity_manager_;
+
+  // Whether the service only supports ephemeral tasks.
+  const bool supports_ephemeral_only_;
 
   base::WeakPtrFactory<ContextualTasksServiceImpl> weak_ptr_factory_{this};
 };

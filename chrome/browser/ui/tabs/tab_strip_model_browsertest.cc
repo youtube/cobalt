@@ -517,8 +517,9 @@ IN_PROC_BROWSER_TEST_F(TabStripModelBrowserTest, CommandDuplicateSelected) {
 class TabStripModelGlicMultiTabBrowserTest : public TabStripModelBrowserTest {
  public:
   TabStripModelGlicMultiTabBrowserTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        glic::mojom::features::kGlicMultiTab);
+    scoped_feature_list_.InitWithFeatureStates(
+        {{glic::mojom::features::kGlicMultiTab, true},
+         {features::kGlicMultiInstance, false}});
   }
 
  protected:
@@ -656,9 +657,9 @@ IN_PROC_BROWSER_TEST_F(TabStripModelTestTabGroupEntryPointsEnabled,
   ASSERT_TRUE(tab_group_model);
 
   TabStripController* tab_strip_controller = tabstrip()->controller();
-  tab_strip_controller->CreateNewTab();
-  tab_strip_controller->CreateNewTab();
-  tab_strip_controller->CreateNewTab();
+  tab_strip_controller->CreateNewTab(NewTabTypes::NEW_TAB_COMMAND);
+  tab_strip_controller->CreateNewTab(NewTabTypes::NEW_TAB_COMMAND);
+  tab_strip_controller->CreateNewTab(NewTabTypes::NEW_TAB_COMMAND);
 
   ASSERT_TRUE(tab_strip_model->count() == 4);
 

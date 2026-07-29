@@ -4,12 +4,7 @@
 
 #import "ios/chrome/test/providers/discover_feed/test_discover_feed_service.h"
 
-void TestDiscoverFeedService::CreateFeedModels() {}
-
-void TestDiscoverFeedService::CreateFeedModel(
-    FeedModelConfiguration* feed_model_config) {}
-
-void TestDiscoverFeedService::ClearFeedModels() {}
+void TestDiscoverFeedService::CreateFeedModel() {}
 
 void TestDiscoverFeedService::SetIsShownOnStartSurface(
     bool shown_on_start_surface) {}
@@ -28,8 +23,6 @@ void TestDiscoverFeedService::RemoveFeedViewController(
     UIViewController* feed_view_controller) {}
 
 void TestDiscoverFeedService::UpdateTheme() {}
-
-void TestDiscoverFeedService::SetFollowingFeedContentSeen() {}
 
 void TestDiscoverFeedService::UpdateFeedViewVisibilityState(
     UICollectionView* collection_view,

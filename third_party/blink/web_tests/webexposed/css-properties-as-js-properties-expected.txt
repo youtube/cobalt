@@ -428,7 +428,9 @@ rubyAlign
 rubyOverhang
 rubyPosition
 rule
+ruleBreak
 ruleColor
+ruleOutset
 ruleStyle
 ruleWidth
 rx

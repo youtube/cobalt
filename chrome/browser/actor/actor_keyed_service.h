@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
+#include "chrome/browser/actor/actor_task_delegate.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/task_id.h"
@@ -39,7 +40,10 @@ namespace ui {
 class ActorUiStateManagerInterface;
 }
 
+class ActorPolicyChecker;
 class ActorTask;
+class ActorTaskMetadata;
+class ActorTaskDelegate;
 class ToolRequest;
 
 // This class owns all ActorTasks for a given profile. ActorTasks are kept in
@@ -66,9 +70,9 @@ class ActorKeyedService : public KeyedService {
   const std::map<TaskId, const ActorTask*> GetInactiveTasks() const;
 
   std::vector<TaskId> FindTaskIdsInActive(
-      const base::RepeatingCallback<bool(const ActorTask&)>& predicate) const;
+      base::FunctionRef<bool(const ActorTask&)> predicate) const;
   std::vector<TaskId> FindTaskIdsInInactive(
-      const base::RepeatingCallback<bool(const ActorTask&)>& predicate) const;
+      base::FunctionRef<bool(const ActorTask&)> predicate) const;
 
   // Stop and clear all active and inactive tasks for testing only.
   void ResetForTesting();
@@ -77,7 +81,8 @@ class ActorKeyedService : public KeyedService {
   // `options`, when provided, contains information used to initialize the
   // task.
   TaskId CreateTask();
-  TaskId CreateTaskWithOptions(webui::mojom::TaskOptionsPtr options);
+  TaskId CreateTaskWithOptions(webui::mojom::TaskOptionsPtr options,
+                               base::WeakPtr<ActorTaskDelegate> delegate);
 
   // Executes the given ToolRequest actions using the execution engine for the
   // given task id.
@@ -87,6 +92,7 @@ class ActorKeyedService : public KeyedService {
       std::vector<ActionResultWithLatencyInfo> /* action_results */)>;
   void PerformActions(TaskId task_id,
                       std::vector<std::unique_ptr<ToolRequest>>&& actions,
+                      ActorTaskMetadata task_metadata,
                       PerformActionsCallback callback);
 
   // Stops a task by its ID, `success` determines if the task was finished
@@ -102,6 +108,8 @@ class ActorKeyedService : public KeyedService {
 
   // The associated ActorUiStateManager for the associated profile.
   ui::ActorUiStateManagerInterface* GetActorUiStateManager();
+
+  ActorPolicyChecker& GetPolicyChecker();
 
   // Returns true if there is a task that is actively (i.e. not paused) acting
   // in the given `tab`.
@@ -178,6 +186,8 @@ class ActorKeyedService : public KeyedService {
       TaskId request_task_id,
       webui::mojom::UserConfirmationDialogResponsePtr response);
 
+  void OnActuationCapabilityChanged(bool has_actuation_capability);
+
   // Returns the acting task for web_contents. Returns nullptr if acting task
   // does not exist.
   const ActorTask* GetActingActorTaskForWebContents(
@@ -193,6 +203,9 @@ class ActorKeyedService : public KeyedService {
       std::optional<size_t> index_of_failed_action,
       std::vector<ActionResultWithLatencyInfo> action_results);
 
+  // Fails all the active tasks.
+  void FailAllTasks();
+
   // Needs to be declared before the tasks, as they will indirectly have a
   // reference to it. This ensures the correct destruction order.
   std::unique_ptr<ui::ActorUiStateManagerInterface> actor_ui_state_manager_;
@@ -204,6 +217,8 @@ class ActorKeyedService : public KeyedService {
   TaskId::Generator next_task_id_;
 
   AggregatedJournal journal_;
+
+  std::unique_ptr<ActorPolicyChecker> policy_checker_;
 
   base::RepeatingCallbackList<void(const ActorTask&)>
       tab_state_change_callback_list_;

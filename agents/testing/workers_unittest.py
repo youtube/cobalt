@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 """Tests for workers."""
 
+import json
 import pathlib
 import queue
 import shutil
@@ -227,6 +228,360 @@ class WorkDirUnittest(fake_filesystem_unittest.TestCase):
             stderr=subprocess.STDOUT,
         )
         self.mock_rmtree.assert_called_once_with(pathlib.Path('/tmp/workdir'))
+
+
+class ExtractMetricsUnittest(fake_filesystem_unittest.TestCase):
+    """Unit tests for the _extract_metrics_from_promptfoo_results."""
+
+    def setUp(self):
+        self.setUpPyfakefs()
+
+    def test_success(self):
+        """Tests a successful extraction."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'score': 0.5,
+                        'response': {
+                            'metrics': {
+                                'gemini_cli_token_usage': {
+                                    'total_tokens': 10,
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        }
+        results_file = pathlib.Path('/results.json')
+        self.fs.create_file(results_file, contents=json.dumps(results_data))
+        metrics = workers._extract_metrics_from_promptfoo_results(results_file)
+        self.assertEqual(metrics, {
+            'token_usage': {
+                'total_tokens': 10
+            },
+            'score': 0.5
+        })
+
+    def test_no_score(self):
+        """Tests when the score is missing."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'response': {
+                            'metrics': {
+                                'gemini_cli_token_usage': {
+                                    'total_tokens': 10,
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        }
+        results_file = pathlib.Path('/results.json')
+        self.fs.create_file(results_file, contents=json.dumps(results_data))
+        metrics = workers._extract_metrics_from_promptfoo_results(results_file)
+        self.assertEqual(metrics, {'token_usage': {'total_tokens': 10}})
+
+    def test_no_token_usage(self):
+        """Tests when token usage is missing."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'score': 0.5,
+                        'response': {
+                            'metrics': {},
+                        },
+                    },
+                ],
+            },
+        }
+        results_file = pathlib.Path('/results.json')
+        self.fs.create_file(results_file, contents=json.dumps(results_data))
+        metrics = workers._extract_metrics_from_promptfoo_results(results_file)
+        self.assertEqual(metrics, {'token_usage': {}, 'score': 0.5})
+
+    def test_empty_results(self):
+        """Tests when the results file is empty."""
+        results_file = pathlib.Path('/results.json')
+        self.fs.create_file(results_file, contents='')
+        metrics = workers._extract_metrics_from_promptfoo_results(results_file)
+        self.assertEqual(metrics, {})
+
+
+class LoadPromptfooResultsUnittest(fake_filesystem_unittest.TestCase):
+    """Unit tests for the _load_promptfoo_results."""
+
+    def setUp(self):
+        self.setUpPyfakefs()
+
+    def test_success(self):
+        """Tests a successful load."""
+        results_data = {
+            'results': {
+                'results': [],
+            },
+        }
+        results_content = json.dumps(results_data)
+        results_file = pathlib.Path('/results.json')
+        self.fs.create_file(results_file, contents=results_content)
+        data = workers._load_promptfoo_results(results_file)
+        self.assertEqual(data, results_data)
+
+    def test_invalid_json(self):
+        """Tests with invalid JSON content."""
+        results_file = pathlib.Path('/results.json')
+        self.fs.create_file(results_file, contents='{invalid json')
+        with self.assertLogs(level='ERROR') as cm:
+            data = workers._load_promptfoo_results(results_file)
+            self.assertIn('Error when parsing promptfoo results', cm.output[0])
+        self.assertEqual(data, {})
+
+    def test_unicode_error(self):
+        """Tests with invalid unicode content."""
+        results_file = pathlib.Path('/results.json')
+        with open(results_file, 'wb') as f:
+            f.write(b'\x80')
+        with self.assertLogs(level='ERROR') as cm:
+            data = workers._load_promptfoo_results(results_file)
+            self.assertIn('Error when parsing promptfoo results', cm.output[0])
+        self.assertEqual(data, {})
+
+
+class ExtractTokenUsageUnittest(unittest.TestCase):
+    """Unit tests for the _extract_token_usage_from_promptfoo_results."""
+
+    def test_success(self):
+        """Tests a successful extraction."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'response': {
+                            'metrics': {
+                                'gemini_cli_token_usage': {
+                                    'total_tokens': 10,
+                                    'prompt_tokens': 5,
+                                    'completion_tokens': 5,
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        }
+        token_usage = workers._extract_token_usage_from_promptfoo_results(
+            results_data)
+        self.assertEqual(token_usage, {
+            'total_tokens': 10,
+            'prompt_tokens': 5,
+            'completion_tokens': 5,
+        })
+
+    def test_no_results_key(self):
+        """Tests when the top-level 'results' key is missing."""
+        with self.assertLogs(level='ERROR') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                {})
+            self.assertIn('Did not find promptfoo result information',
+                          cm.output[0])
+        self.assertEqual(token_usage, {})
+
+    def test_no_nested_results_key(self):
+        """Tests when the nested 'results' key is missing."""
+        with self.assertLogs(level='ERROR') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results({
+                'results': {},
+            })
+            self.assertIn('Did not find promptfoo result information',
+                          cm.output[0])
+        self.assertEqual(token_usage, {})
+
+    def test_empty_results_list(self):
+        """Tests when the results list is empty."""
+        results_data = {
+            'results': {
+                'results': [],
+            },
+        }
+        with self.assertLogs(level='ERROR') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                results_data)
+            self.assertIn('Did not find promptfoo result information',
+                          cm.output[0])
+        self.assertEqual(token_usage, {})
+
+    def test_multiple_results(self):
+        """Tests that only the first result is used when there are many."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'response': {
+                            'metrics': {
+                                'gemini_cli_token_usage': {
+                                    'total_tokens': 10,
+                                },
+                            },
+                        },
+                    },
+                    {
+                        'response': {
+                            'metrics': {
+                                'gemini_cli_token_usage': {
+                                    'total_tokens': 20,
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                results_data)
+            self.assertIn('Unexpectedly got 2 results', cm.output[0])
+        self.assertEqual(token_usage, {'total_tokens': 10})
+
+    def test_no_response_key(self):
+        """Tests when the 'response' key is missing."""
+        results_data = {
+            'results': {
+                'results': [
+                    {},
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                results_data)
+            self.assertIn('Did not find gemini-cli token usage', cm.output[0])
+        self.assertEqual(token_usage, {})
+
+    def test_no_metrics_key(self):
+        """Tests when the 'metrics' key is missing."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'response': {},
+                    },
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                results_data)
+            self.assertIn('Did not find gemini-cli token usage', cm.output[0])
+        self.assertEqual(token_usage, {})
+
+    def test_no_token_usage_key(self):
+        """Tests when the 'gemini_cli_token_usage' key is missing."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'response': {
+                            'metrics': {},
+                        },
+                    },
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                results_data)
+            self.assertIn('Did not find gemini-cli token usage', cm.output[0])
+        self.assertEqual(token_usage, {})
+
+    def test_empty_token_usage_dict(self):
+        """Tests when the token usage dict is empty."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'response': {
+                            'metrics': {
+                                'gemini_cli_token_usage': {},
+                            },
+                        },
+                    },
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            token_usage = workers._extract_token_usage_from_promptfoo_results(
+                results_data)
+            self.assertIn('Did not find gemini-cli token usage', cm.output[0])
+        self.assertEqual(token_usage, {})
+
+
+class ExtractScoreUnittest(unittest.TestCase):
+    """Unit tests for the _extract_score_from_promptfoo_results."""
+
+    def test_success(self):
+        """Tests a successful extraction."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'score': 0.5,
+                    },
+                ],
+            },
+        }
+        score = workers._extract_score_from_promptfoo_results(results_data)
+        self.assertEqual(score, 0.5)
+
+    def test_no_score(self):
+        """Tests when the score is missing."""
+        results_data = {
+            'results': {
+                'results': [
+                    {},
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            score = workers._extract_score_from_promptfoo_results(results_data)
+            self.assertIn('Did not find reported score', cm.output[0])
+        self.assertIsNone(score)
+
+    def test_multiple_results(self):
+        """Tests that only the first result is used when there are many."""
+        results_data = {
+            'results': {
+                'results': [
+                    {
+                        'score': 0.5,
+                    },
+                    {
+                        'score': 1.0,
+                    },
+                ],
+            },
+        }
+        with self.assertLogs(level='WARNING') as cm:
+            score = workers._extract_score_from_promptfoo_results(results_data)
+            self.assertIn('Unexpectedly got 2 results', cm.output[0])
+        self.assertEqual(score, 0.5)
+
+    def test_empty_results(self):
+        """Tests when the results list is empty."""
+        results_data = {
+            'results': {
+                'results': [],
+            },
+        }
+        with self.assertLogs(level='ERROR') as cm:
+            score = workers._extract_score_from_promptfoo_results(results_data)
+            self.assertIn('Did not find promptfoo result information',
+                          cm.output[0])
+        self.assertIsNone(score)
 
 
 class WorkerThreadUnittest(unittest.TestCase):
@@ -495,7 +850,8 @@ class WorkerPoolUnittest(unittest.TestCase):
         failed_test = results.TestResult(test_file='fail.yaml',
                                          success=False,
                                          duration=1,
-                                         test_log='')
+                                         test_log='',
+                                         metrics={})
         mock_failed_queue = (
             self.mock_result_thread.return_value.failed_result_output_queue)
         mock_failed_queue.empty.side_effect = [False, True]

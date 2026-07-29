@@ -83,6 +83,8 @@ struct AutocompleteMatch {
   // holes for sale in" is "hobbit holes for sale" and the match contents
   // would be the text following "sale".
   mojo_base.mojom.String16? tail_suggest_common_prefix;
+  // Used to determine if keyword visual treatment should be applied.
+  bool has_instant_keyword;
   // Derived from `AutocompleteMatch::associated_keyword` and a few other
   // fields. Determines the text shown in the keyword chip, which is shown if
   // this is non-empty.
@@ -208,9 +210,18 @@ interface PageHandler {
   // it is deletable. |url| is used to confirm the match |line| selection.
   DeleteAutocompleteMatch(uint8 line, url.mojom.Url url);
 
-  // Executes the Pedal Action. match_selection_timestamp is the number of
-  // microseconds since Jan. 1, 1970 (ECMAScript epoch).
-  // |url| is only used to confirm the match |line| selection.
+  // Activate a keyword. `match_selection_timestamp` is the number of
+  // microseconds since Jan. 1, 1970 (ECMAScript epoch). `url` is only used to
+  // confirm the match `line` selection. `is_mouse_event` is used for logging.
+  ActivateKeyword(uint8 line,
+                url.mojom.Url url,
+                mojo_base.mojom.TimeTicks match_selection_timestamp,
+                bool is_mouse_event);
+
+  // Executes the Pedal Action. `match_selection_timestamp` is the number of
+  // microseconds since Jan. 1, 1970 (ECMAScript epoch). `url` is only used to
+  // confirm the match `line` selection. `mouse_button`, and modifier keys are
+  // used to determine the disposition.
   ExecuteAction(uint8 line,
                 uint8 action_index,
                 url.mojom.Url url,
@@ -298,4 +309,7 @@ interface Page {
       mojo_base.mojom.UnguessableToken token,
       composebox_query.mojom.FileUploadStatus status,
       composebox_query.mojom.FileUploadErrorType? error_type);
+
+  // Notifies the page that the tab strip has changed.
+  OnTabStripChanged();
 };

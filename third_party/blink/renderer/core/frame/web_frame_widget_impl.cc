@@ -1357,12 +1357,6 @@ void WebFrameWidgetImpl::StartDragging(LocalFrame* source_frame,
                                        const SkBitmap& drag_image,
                                        const gfx::Vector2d& cursor_offset,
                                        const gfx::Rect& drag_obj_rect) {
-  if (doing_drag_and_drop_) {
-    // TODO: crbug.com/330274075 - Root cause nested drag-start events, remove
-    // once issue has been resolved.
-    base::debug::DumpWithoutCrashing();
-  }
-
   doing_drag_and_drop_ = true;
   if (drag_and_drop_disabled_) {
     DragSourceSystemDragEnded();
@@ -2128,6 +2122,13 @@ void WebFrameWidgetImpl::SetShouldThrottleFrameRate(bool flag) {
   }
   throttling_frame_rate_ = flag;
   return widget_base_->LayerTreeHost()->SetShouldThrottleFrameRate(flag);
+}
+
+void WebFrameWidgetImpl::RequestMainFrameOnCompositorAnimation(
+    cc::PropertyChangeForcesCommitCriteria
+        property_change_forces_commit_criteria) {
+  widget_base_->LayerTreeHost()->RequestMainFrameOnCompositorAnimation(
+      property_change_forces_commit_criteria);
 }
 
 std::optional<int> WebFrameWidgetImpl::GetMaxRenderBufferBounds() const {
@@ -3213,8 +3214,8 @@ void WebFrameWidgetImpl::FlushInputProcessedCallback() {
   widget_base_->FlushInputProcessedCallback();
 }
 
-void WebFrameWidgetImpl::CancelCompositionForPepper() {
-  widget_base_->CancelCompositionForPepper();
+void WebFrameWidgetImpl::CancelComposition() {
+  widget_base_->CancelComposition();
 }
 
 void WebFrameWidgetImpl::RequestMouseLock(

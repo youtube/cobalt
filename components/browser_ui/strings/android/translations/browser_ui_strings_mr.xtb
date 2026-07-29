@@ -121,6 +121,7 @@
 <translation id="2359808026110333948">सुरू ठेवा</translation>
 <translation id="2379925928934107488">शक्य असेल तेव्हा, Chrome गडद थीम वापरते तेव्हा साइटवर गडद थीम लागू करा</translation>
 <translation id="2390272837142897736">झूम वाढवते</translation>
+<translation id="2397689164757137845">अनुमती दिली आहे • अचूक</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2403474027143565107">अचूक</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> आणि आणखी <ph name="NUM_MORE" /> ला अनुमती दिली}other{<ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> आणि आणखी <ph name="NUM_MORE" /> ना अनुमती दिली}}</translation>
@@ -140,6 +141,7 @@
 <translation id="2498359688066513246">मदत आणि अभिप्राय</translation>
 <translation id="2501278716633472235">परत जा</translation>
 <translation id="2533138527374486328">सुरू असल्यावर, साइट तुमच्या स्थानिक नेटवर्कवरील कोणत्याही डिव्हाइससोबत कनेक्ट करण्याची विनंती करू शकतात. बंद असल्यावर, साइट तुमच्या स्थानिक नेटवर्कवरील डिव्हाइससोबत कनेक्ट करू शकत नाहीत.</translation>
+<translation id="2536779053640817375">या वेळी अनुमती दिली आहे • अचूक</translation>
 <translation id="2544997614631598250">थीम रंग गडद</translation>
 <translation id="2546283357679194313">कुकीज आणि साइट डेटा</translation>
 <translation id="2570922361219980984">या डिव्हाइसाठी स्थान अ‍ॅक्सेस देखील बंद आहे, <ph name="BEGIN_LINK" />Android सेटिंग्‍ज<ph name="END_LINK" /> मध्‍ये हे सुरू करा.</translation>
@@ -442,6 +444,7 @@
 <translation id="5876056640971328065">व्हिडिओ थांबवा</translation>
 <translation id="5877248419911025165">सर्व विनंत्या कोलॅप्स करा</translation>
 <translation id="5878945009165002849">ओळखीच्या सेवांकडून मिळणाऱ्या साइन-इन सूचना ब्लॉक करा</translation>
+<translation id="588258955323874662">क्षेत्रे</translation>
 <translation id="5884085660368669834">साइट प्राधान्‍य</translation>
 <translation id="5887687176710214216">काल शेवटची भेट दिली</translation>
 <translation id="5908617755156109052">साइटना तुमच्या सभोवतालच्या परिसराचा 3D नकाशा तयार करण्याची किंवा कॅमेराची स्थिती ट्रॅक करण्याची अनुमती देऊ नका</translation>
@@ -569,6 +572,7 @@
 <translation id="7406113532070524618">हे सेटिंग तुम्हाला ओळखल्याशिवाय किंवा साइटना तुमचा ब्राउझिंग इतिहास पाहण्याची परवानगी न देता काम करते, जरी साइट पडताळणीचा भाग म्हणून थोड्या प्रमाणात माहिती शेअर करू शकतात</translation>
 <translation id="7409735910987429903">जाहिराती दाखवण्यासाठी साइट पॉप-अप पाठवू शकतात किंवा तुम्हाला भेट द्यायच्या नसलेल्या साइटवर नेण्यासाठी रीडिरेक्ट वापरू शकतात</translation>
 <translation id="7412160840120117304">प्राथमिक रंगाचे हेक्स</translation>
+<translation id="7412223528111026033">{ZOOM_PERCENTAGE,plural, =1{झूम करा}other{झूम करा: <ph name="ZOOM_PERCENTAGE_NUMBER" />%%}}</translation>
 <translation id="7423098979219808738">प्रथम विचारा</translation>
 <translation id="7423538860840206698">क्लिपबोर्ड वाचणे ब्लॉक केले</translation>
 <translation id="7425915948813553151">साइटसाठी गडद थीम</translation>
@@ -700,7 +704,6 @@
 <translation id="8803526663383843427">सुरू असल्यास</translation>
 <translation id="8805385115381080995">ब्राउझिंग जलद आहे, कारण साइट तुम्हाला खरी व्यक्ती असल्याची पडताळणी करण्यास सांगण्याची शक्यता कमी आहे</translation>
 <translation id="8816026460808729765">साइटना सेन्सर ॲक्सेस करण्यापासून ब्लॉक करा</translation>
-<translation id="884765916894384048">बॅकग्राउंडवर जा</translation>
 <translation id="8847988622838149491">USB</translation>
 <translation id="8874790741333031443">तृतीय पक्ष कुकीना तात्पुरती अनुमती देऊन पहा, ज्यामुळे ब्राउझ करण्यासंबंधित संरक्षण कमी मिळेल, पण साइटची वैशिष्ट्ये अपेक्षेनुसार काम करण्याची अधिक शक्यता आहे.</translation>
 <translation id="8889294078294184559">तुम्ही ब्राउझ करणे पुढे सुरू ठेवता, तसे साइट Chrome सह तपासू शकतात आणि तुम्ही खरी व्यक्ती असल्याची भेट दिलेल्या मागील साइटवरून पडताळणी करू शकतात</translation>

@@ -8,6 +8,8 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
+import static org.mockito.Mockito.mock;
+
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.base.test.util.ApplicationTestUtils.finishActivity;
 import static org.chromium.chrome.browser.autofill.AutofillTestHelper.createCreditCard;
@@ -42,7 +44,6 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
 import org.chromium.chrome.browser.autofill.AutofillUiUtils;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.BnplIssuerContext;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -56,7 +57,9 @@ import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.LoyaltyCard;
 import org.chromium.components.autofill.SuggestionType;
+import org.chromium.components.autofill.payments.BnplIssuerContext;
 import org.chromium.components.autofill.payments.BnplIssuerTosDetail;
+import org.chromium.components.autofill.payments.LegalMessageLine;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetTestSupport;
 import org.chromium.ui.test.util.RenderTestRule.Component;
@@ -66,6 +69,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * These tests render screenshots of touch to fill for credit cards/IBANs sheet and compare them to
@@ -382,6 +386,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_AFFIRM_LINKED =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.affirm_linked,
+                    /* issuerId= */ "affirm",
                     /* displayName= */ "Affirm",
                     /* selectionText= */ "Monthly or 4 installments",
                     /* isLinked= */ true,
@@ -389,6 +394,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_AFFIRM_UNLINKED =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.affirm_unlinked,
+                    /* issuerId= */ "affirm",
                     /* displayName= */ "Affirm",
                     /* selectionText= */ "Monthly or 4 installments",
                     /* isLinked= */ false,
@@ -396,6 +402,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_KLARNA_LINKED =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.klarna_linked,
+                    /* issuerId= */ "klarna",
                     /* displayName= */ "Klarna",
                     /* selectionText= */ "Pay in low monthly installments",
                     /* isLinked= */ true,
@@ -403,6 +410,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_KLARNA_UNLINKED =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.klarna_unlinked,
+                    /* issuerId= */ "klarna",
                     /* displayName= */ "Klarna",
                     /* selectionText= */ "Pay in low monthly installments",
                     /* isLinked= */ false,
@@ -410,6 +418,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_ZIP_LINKED =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.zip_linked,
+                    /* issuerId= */ "zip",
                     /* displayName= */ "Zip",
                     /* selectionText= */ "Pay in easy installments",
                     /* isLinked= */ true,
@@ -417,6 +426,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_ZIP_UNLINKED =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.zip_unlinked,
+                    /* issuerId= */ "zip",
                     /* displayName= */ "Zip",
                     /* selectionText= */ "Pay in easy installments",
                     /* isLinked= */ false,
@@ -425,6 +435,7 @@ public class TouchToFillPaymentMethodRenderTest {
             BNPL_ISSUER_CONTEXT_INELIGIBLE_NOT_SUPPORTED_BY_MERCHANT =
                     new BnplIssuerContext(
                             /* iconId= */ R.drawable.affirm_linked,
+                            /* issuerId= */ "affirm",
                             /* displayName= */ "Affirm",
                             /* selectionText= */ "Not supported by merchant",
                             /* isLinked= */ true,
@@ -432,6 +443,7 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_INELIGIBLE_CHECKOUT_AMOUNT_TOO_LOW =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.klarna_linked,
+                    /* issuerId= */ "klarna",
                     /* displayName= */ "Klarna",
                     /* selectionText= */ "Purchase must be over $50.00",
                     /* isLinked= */ true,
@@ -439,15 +451,25 @@ public class TouchToFillPaymentMethodRenderTest {
     private static final BnplIssuerContext BNPL_ISSUER_CONTEXT_INELIGIBLE_CHECKOUT_AMOUNT_TOO_HIGH =
             new BnplIssuerContext(
                     /* iconId= */ R.drawable.zip_unlinked,
+                    /* issuerId= */ "zip",
                     /* displayName= */ "Zip",
                     /* selectionText= */ "Purchase must be under $10,000.00",
                     /* isLinked= */ false,
                     /* isEligible= */ false);
+    private static final Consumer<String> MOCK_LINK_OPENER = mock(Consumer.class);
     private static final BnplIssuerTosDetail BNPL_ISSUER_TOS_DETAIL =
             new BnplIssuerTosDetail(
+                    /* headerIconDrawableId= */ R.drawable.bnpl_icon_generic,
+                    /* headerIconDarkDrawableId= */ R.drawable.bnpl_icon_generic,
+                    /* title= */ "Title for affirm",
                     /* reviewText= */ "Review text for affirm",
                     /* approveText= */ "Approve text for affirm",
-                    /* linkText= */ new SpannableString("Link text for affirm"));
+                    /* linkText= */ new SpannableString("Link text for affirm"),
+                    /* legalMessages= */ new BnplIssuerTosDetail.LegalMessages(
+                            Arrays.asList(new LegalMessageLine("Affirm legal message line")),
+                            MOCK_LINK_OPENER));
+    private static final String BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT =
+            "To hide pay later options, go to <link>payment settings</link>";
 
     private BottomSheetController mBottomSheetController;
     private TouchToFillPaymentMethodCoordinator mCoordinator;
@@ -775,7 +797,8 @@ public class TouchToFillPaymentMethodRenderTest {
                             List.of(
                                     BNPL_ISSUER_CONTEXT_AFFIRM_LINKED,
                                     BNPL_ISSUER_CONTEXT_KLARNA_LINKED,
-                                    BNPL_ISSUER_CONTEXT_ZIP_LINKED));
+                                    BNPL_ISSUER_CONTEXT_ZIP_LINKED),
+                            BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 
@@ -794,7 +817,8 @@ public class TouchToFillPaymentMethodRenderTest {
                             List.of(
                                     BNPL_ISSUER_CONTEXT_AFFIRM_UNLINKED,
                                     BNPL_ISSUER_CONTEXT_KLARNA_UNLINKED,
-                                    BNPL_ISSUER_CONTEXT_ZIP_UNLINKED));
+                                    BNPL_ISSUER_CONTEXT_ZIP_UNLINKED),
+                            BNPL_HIDE_OPTIONS_LINK_FOOTER_TEXT);
                 });
         BottomSheetTestSupport.waitForOpen(mBottomSheetController);
 

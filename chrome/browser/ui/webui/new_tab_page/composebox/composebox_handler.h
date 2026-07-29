@@ -25,6 +25,13 @@
 
 class Profile;
 
+// Value to hold the state of an AIM Tool.
+enum class AimToolState {
+  kDisabled = 0,
+  kEnabled = 1,
+  kMaxValue = kEnabled,
+};
+
 class ComposeboxHandler
     : public composebox::mojom::PageHandler,
       public ContextualSearchboxHandler,
@@ -43,7 +50,7 @@ class ComposeboxHandler
   // composebox::mojom::PageHandler:
   void FocusChanged(bool focused) override;
   void SetDeepSearchMode(bool enabled) override;
-  void SetCreateImageMode(bool enabled) override;
+  void SetCreateImageMode(bool enabled, bool image_present) override;
 
   void HandleLensButtonClick() override;
 
@@ -64,6 +71,7 @@ class ComposeboxHandler
                    bool ctrl_key,
                    bool meta_key,
                    bool shift_key) override;
+  void ClearFiles() override;
 
   // This is called from either the ComposeboxOmniboxClient when a match is
   // present in navigation or for the PageHandler's `SubmitQuery()` when there
