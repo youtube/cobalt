@@ -4537,16 +4537,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     const ForEachKeyValueFunction& body,
                                     Label* bailout);
 
-  // |value| is the property backing store's contents, which is either a value
-  // or an accessor pair, as specified by |details|. |holder| is a JSReceiver
-  // or empty std::nullopt if holder is not available.
-  // Returns either the original value, or the result of the getter call.
   TNode<Object> CallGetterIfAccessor(
-      TNode<Object> value, std::optional<TNode<JSReceiver>> holder,
+      TNode<Object> value, TNode<Union<JSReceiver, PropertyCell>> holder,
       TNode<Uint32T> details, TNode<Context> context, TNode<JSAny> receiver,
-      ExpectedReceiverMode expected_receiver_mode, TNode<Object> name,
-      Label* if_bailout,
-      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName);
+      TNode<Object> name, Label* if_bailout,
+      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName,
+      ExpectedReceiverMode expected_receiver_mode = kExpectingJSReceiver);
 
   TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);

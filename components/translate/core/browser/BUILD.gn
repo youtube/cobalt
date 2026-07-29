@@ -78,11 +78,6 @@ static_library("browser") {
 
   public_deps = [ ":translate_pref_names" ]
 
-  if (is_cobalt) {
-    deps -= [ "//components/language_detection/core" ]
-    deps += [ "//components/language_detection/core:constants" ]
-  }
-
   if (is_ios) {
     sources += [
       "translate_infobar_delegate.cc",
@@ -139,11 +134,6 @@ source_set("unit_tests") {
     "//services/network/public/cpp:cpp",
     "//ui/base",
   ]
-
-  if (is_cobalt) {
-    deps -= [ "//components/language_detection/core" ]
-    deps += [ "//components/language_detection/core:constants" ]
-  }
 
   if (is_ios) {
     sources += [ "translate_infobar_delegate_unittest.cc" ]

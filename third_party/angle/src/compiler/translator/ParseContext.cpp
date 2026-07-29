@@ -241,11 +241,6 @@ bool UsesDerivatives(TIntermAggregate *functionCall)
             return false;
     }
 }
-
-bool IsSamplerOrStructWithOnlySamplers(const TType *type)
-{
-    return IsSampler(type->getBasicType()) || type->isStructureContainingOnlySamplers();
-}
 }  // namespace
 
 // This tracks each binding point's current default offset for inheritance of subsequent
@@ -6546,18 +6541,18 @@ TTypeSpecifierNonArray TParseContext::addStructure(const TSourceLoc &structLine,
     }
 
     // To simplify pulling samplers out of structs, reorder the struct fields to put the samplers at
-    // the end.  Structures that *only* contain samplers are also put last.
+    // the end.
     TFieldList *reorderedFields = new TFieldList;
     for (TField *field : *fieldList)
     {
-        if (!IsSamplerOrStructWithOnlySamplers(field->type()))
+        if (!IsSampler(field->type()->getBasicType()))
         {
             reorderedFields->push_back(field);
         }
     }
     for (TField *field : *fieldList)
     {
-        if (IsSamplerOrStructWithOnlySamplers(field->type()))
+        if (IsSampler(field->type()->getBasicType()))
         {
             reorderedFields->push_back(field);
         }

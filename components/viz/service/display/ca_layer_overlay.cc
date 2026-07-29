@@ -17,16 +17,9 @@
 #include "components/viz/common/quads/texture_draw_quad.h"
 #include "components/viz/common/quads/tile_draw_quad.h"
 #include "components/viz/service/display/display_resource_provider.h"
-#include "components/viz/service/display/overlay_candidate_factory.h"
 #include "ui/base/cocoa/remote_layer_api.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gl/gl_bindings.h"
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "components/viz/common/quads/video_hole_draw_quad.h"
-#include "components/viz/service/display/overlay_candidate.h"
-#include "components/viz/service/display/starboard/video_geometry_setter.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace viz {
 
@@ -284,16 +277,6 @@ class CALayerOverlayProcessorInternal {
             ca_layer_overlay);
       case DrawQuad::Material::kSurfaceContent:
         return gfx::kCALayerFailedSurfaceContent;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      // To make hole punching work, we want to avoid the quad-to-CALayer code
-      // path because it is complicated to punch a hole through the CALayer
-      // hierarchy created by CARendererLayerTree.
-      //
-      // To do so, kVideoHole quads will make ProcessForCALayerOverlays() return
-      // false and force PutQuadInSeparateOverlay() to be called.
-      case DrawQuad::Material::kVideoHole:
-        return gfx::kCALayerFailedOverlayDisabled;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       default:
         break;
     }
@@ -380,8 +363,7 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
     const base::flat_map<AggregatedRenderPassId,
                          raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_backdrop_filters,
-    OverlayCandidateList* ca_layer_overlays,
-    const OverlayCandidateFactory& candidate_factory) const {
+    OverlayCandidateList* ca_layer_overlays) const {
   bool failed = false;
 
   for (auto it = quad_list->begin(); it != quad_list->end(); ++it) {
@@ -389,12 +371,6 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
     bool force_quad_to_overlay = false;
     gfx::ProtectedVideoType protected_video_type =
         gfx::ProtectedVideoType::kClear;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (quad->material == DrawQuad::Material::kVideoHole) {
-      force_quad_to_overlay = true;
-    }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (quad->material == ContentDrawQuadBase::Material::kTextureContent) {
       const TextureDrawQuad* texture_quad = TextureDrawQuad::MaterialCast(quad);
@@ -416,10 +392,10 @@ void CALayerOverlayProcessor::PutForcedOverlayContentIntoUnderlays(
     }
 
     if (force_quad_to_overlay) {
-      if (!PutQuadInSeparateOverlay(
-              it, resource_provider, render_pass, display_rect, quad,
-              render_pass_filters, render_pass_backdrop_filters,
-              protected_video_type, ca_layer_overlays, candidate_factory)) {
+      if (!PutQuadInSeparateOverlay(it, resource_provider, render_pass,
+                                    display_rect, quad, render_pass_filters,
+                                    render_pass_backdrop_filters,
+                                    protected_video_type, ca_layer_overlays)) {
         failed = true;
         break;
       }
@@ -531,8 +507,7 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
                          raw_ptr<cc::FilterOperations, CtnExperimental>>&
         render_pass_backdrop_filters,
     gfx::ProtectedVideoType protected_video_type,
-    OverlayCandidateList* ca_layer_overlays,
-    const OverlayCandidateFactory& candidate_factory) const {
+    OverlayCandidateList* ca_layer_overlays) const {
   CALayerOverlayProcessorInternal processor;
   OverlayCandidate ca_layer;
   bool skip = false;
@@ -542,15 +517,8 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
       resource_provider, display_rect, quad, render_pass_filters,
       render_pass_backdrop_filters, &ca_layer, &skip, &render_pass_draw_quad,
       yuv_draw_quad_count);
-  if (result != gfx::kCALayerSuccess
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      // When doing hole-punching, the call above will fail but FromDrawQuad()
-      // below provides the information this function needs.
-      && at->material != DrawQuad::Material::kVideoHole
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  ) {
+  if (result != gfx::kCALayerSuccess)
     return false;
-  }
 
   if (skip)
     return true;
@@ -558,30 +526,9 @@ bool CALayerOverlayProcessor::PutQuadInSeparateOverlay(
   if (!AreClipSettingsValid(ca_layer, ca_layer_overlays))
     return true;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const bool is_video_hole = at->material == DrawQuad::Material::kVideoHole;
-  if (is_video_hole) {
-    CHECK_EQ(candidate_factory.FromDrawQuad(*at, ca_layer),
-             OverlayCandidate::CandidateStatus::kSuccess);
-    DCHECK(GetVideoGeometrySetter());
-    GetVideoGeometrySetter()->SetVideoGeometry(
-        ca_layer.display_rect,
-        std::get<gfx::OverlayTransform>(ca_layer.transform),
-        VideoHoleDrawQuad::MaterialCast(*at)->overlay_plane_id);
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   ca_layer.protected_video_type = protected_video_type;
   render_pass->ReplaceExistingQuadWithHolePunch(at);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // The video hole quad has been replaced. Do not add it to |ca_layer_overlays|
-  // since it does not have a resource id, which causes
-  // SkiaRenderer::ScheduleOverlays() to hit an assertion.
-  if (!is_video_hole)
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  {
-    ca_layer_overlays->push_back(ca_layer);
-  }
+  ca_layer_overlays->push_back(ca_layer);
   return true;
 }
 

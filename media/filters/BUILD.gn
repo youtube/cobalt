@@ -328,9 +328,7 @@ source_set("unit_tests") {
   ]
 
   if (is_android) {
-    if (media_use_ffmpeg) {
-      sources += [ "android/video_frame_extractor_unittest.cc" ]
-    }
+    sources += [ "android/video_frame_extractor_unittest.cc" ]
     sources -= [
       "decrypting_audio_decoder_unittest.cc",
       "decrypting_video_decoder_unittest.cc",
@@ -374,11 +372,11 @@ source_set("unit_tests") {
     }
   }
 
-  if (media_use_libvpx && media_use_ffmpeg) {
+  if (media_use_libvpx) {
     sources += [ "vpx_video_decoder_unittest.cc" ]
   }
 
-  if (enable_dav1d_decoder && media_use_ffmpeg) {
+  if (enable_dav1d_decoder) {
     sources += [ "dav1d_video_decoder_unittest.cc" ]
   }
 

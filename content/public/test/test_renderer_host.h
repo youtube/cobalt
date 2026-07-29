@@ -159,17 +159,15 @@ class RenderFrameHostTester {
   // Creates and appends a fenced frame.
   virtual RenderFrameHost* AppendFencedFrame() = 0;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
   // Creates the HidService and binds `receiver`.
   virtual void CreateHidServiceForTesting(
       mojo::PendingReceiver<blink::mojom::HidService> receiever) = 0;
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-#if !BUILDFLAG(IS_COBALT)
   // Creates the WebUsbService and binds `receiver`.
   virtual void CreateWebUsbServiceForTesting(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) = 0;
-#endif  // !BUILDFLAG(IS_COBALT)
 
   // Detaches the LocalFrame mojo connection to the renderer. This is useful
   // when tests override the creation logic for the LocalFrame and need the
