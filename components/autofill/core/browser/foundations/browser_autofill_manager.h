@@ -276,8 +276,7 @@ class BrowserAutofillManager : public AutofillManager {
   void OnFocusOnNonFormFieldImpl() override;
   void OnFocusOnFormFieldImpl(const FormData& form,
                               const FieldGlobalId& field_id) override;
-  void OnDidAutofillFormImpl(const FormData& form,
-                             const base::TimeTicks timestamp) override;
+  void OnDidAutofillFormImpl(const FormData& form) override;
   void OnDidEndTextFieldEditingImpl() override;
   void OnHidePopupImpl() override;
   void OnSelectFieldOptionsDidChangeImpl(const FormData& form) override;
@@ -550,13 +549,13 @@ class BrowserAutofillManager : public AutofillManager {
       const FormFieldData& field,
       AutofillSuggestionTriggerSource trigger_source,
       SuggestionsContext context,
-      std::optional<std::vector<std::string>> plus_addresses);
+      std::vector<std::string> plus_addresses);
   void GenerateSuggestionsAndMaybeShowUIPhase3(
       const FormData& form,
       const FormFieldData& field,
       AutofillSuggestionTriggerSource trigger_source,
       SuggestionsContext context,
-      std::optional<std::vector<std::string>> plus_addresses,
+      std::vector<std::string> plus_addresses,
       std::vector<std::string> one_time_passwords);
 
   // Receives the lists of plus address and single field form fill suggestions
@@ -565,8 +564,7 @@ class BrowserAutofillManager : public AutofillManager {
   // `OnGenerateSuggestionsCallback`.
   void OnGeneratedPlusAddressAndSingleFieldFillSuggestions(
       AutofillPlusAddressDelegate::SuggestionContext suggestions_context,
-      PasswordFormClassification::Type password_form_type,
-      const FormGlobalId& form_id,
+      const FormData& form,
       const FormFieldData& field,
       OnGenerateSuggestionsCallback callback,
       std::vector<Suggestion> plus_address_suggestions,
@@ -598,7 +596,6 @@ class BrowserAutofillManager : public AutofillManager {
       std::vector<Suggestion> plus_address_suggestions,
       std::vector<Suggestion> address_suggestions,
       AutofillPlusAddressDelegate::SuggestionContext suggestions_context,
-      PasswordFormClassification::Type password_form_type,
       const FormGlobalId& form_id,
       const FieldGlobalId& field_id,
       OnGenerateSuggestionsCallback callback);

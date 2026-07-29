@@ -1587,7 +1587,6 @@ class PolicyTemplateChecker(object):
         continue
 
       self.schema_compatible_errors = []
-      old_schema = {}
       if policy_change['old_policy'] is not None:
         old_schema = policy_change['old_policy']['schema']
         self._CheckSchemasAreCompatible([policy['name']], old_schema,
@@ -1597,7 +1596,9 @@ class PolicyTemplateChecker(object):
         schema_compatible_error_message = '\n  '.join(
             self.schema_compatible_errors)
         self._PolicyError(
-            'Schema compatible errors.\n'
+            'Schema compatible errors. If this is intentional, add '
+            'BYPASS_POLICY_COMPATIBILITY_CHECK=<reason> to your CL '
+            'description.\n'
             f'  {schema_compatible_error_message}', policy)
 
       # Check that defaults have not changed for a launched policy.
@@ -1632,6 +1633,7 @@ class PolicyTemplateChecker(object):
                 'for a launched policy \'%s\'. This will certainly break the '
                 ' contract if the policy is already supported in the Admin '
                 'Console. Please consider contacting '
-                'chromium-enterprise@chromium.org for guidance' % policy['name'])
+                'chromium-enterprise@chromium.org for guidance' %
+                policy['name'])
 
     return self.errors, self.warnings

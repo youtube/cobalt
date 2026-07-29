@@ -91,7 +91,7 @@ enum class ProfileSignout {
   // sign out.
   kUserDeletedAccountCookies = 25,
   // User tapped 'Undo' in a snackbar that is shown right after sign-in through
-  // promo in bookmarks and reading list page. (iOS only).
+  // promo in bookmarks and reading list page.
   kUserTappedUndoRightAfterSignIn = 26,
   // User has signed-in previously for the sole purpose of enabling history sync
   // (eg. using history sync promo in recent tabs), but declined history sync
@@ -305,10 +305,13 @@ enum class AccessPoint : int {
   kEnterpriseManagementDisclaimerAfterSignin = 88,
   // New Tab Page sign-in feature promotion.
   kNtpFeaturePromo = 89,
+  // Access point for the enterprise interception that result in profile
+  // separation.
+  kEnterpriseDialogAfterSigninInterception = 90,
   // Add values above this line with a corresponding label to the
   // "SigninAccessPoint" enum in
   // tools/metrics/histograms/metadata/signin/enums.xml.
-  kMaxValue = kNtpFeaturePromo,  // This must be last.
+  kMaxValue = kEnterpriseDialogAfterSigninInterception,  // This must be last.
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/signin/enums.xml)
 
@@ -656,6 +659,9 @@ void LogSignInOffered(AccessPoint access_point, PromoAction promo_action);
 // completion events are automatically logged when the primary account state
 // changes, see `signin::PrimaryAccountMutator`.
 void LogSignInStarted(AccessPoint access_point);
+
+// Logs that sign in was offered when the user is in SigninPending state.
+void LogSigninPendingOffered(AccessPoint access_point);
 
 #if BUILDFLAG(IS_IOS)
 // Records the account type when the user signs in.

@@ -76,6 +76,7 @@
 #include "third_party/blink/renderer/core/style/style_generated_image.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg/svg_length.h"
+#include "third_party/blink/renderer/core/testing/color_scheme_helper.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
@@ -646,7 +647,8 @@ class LayoutObjectProxy : public LayoutObject {
   static void Dispose(LayoutObjectProxy* proxy) { proxy->Destroy(); }
 
   const char* GetName() const override { return nullptr; }
-  gfx::RectF LocalBoundingBoxRectForAccessibility() const override {
+  gfx::RectF LocalBoundingBoxRectForAccessibility(
+      IncludeDescendants include_descendants) const override {
     return gfx::RectF();
   }
 
@@ -2933,6 +2935,59 @@ TEST_P(AnimationCompositorAnimationsTest, NativePaintWorkletProperties) {
             target->GetElementAnimations()->CompositedClipPathStatus());
 }
 
+TEST_P(AnimationCompositorAnimationsTest, NativePaintWorkletForcedColorsMode) {
+  // Setting forced color mode suppresses background-color as a valid native
+  // paint worklet property.
+  ColorSchemeHelper color_scheme_helper(GetDocument());
+  color_scheme_helper.SetInForcedColors(GetDocument(),
+                                        /*in_forced_colors=*/true);
+
+  std::unique_ptr<ScopedCompositeBGColorAnimationForTest>
+      scoped_composite_bgcolor_animation =
+          std::make_unique<ScopedCompositeBGColorAnimationForTest>(true);
+
+  // Normally, we don't get image generators set up in a testing environment.
+  // Construct fake ones to allow us to test that we are making the correct
+  // compositing decision.
+  ScopedBackgroundColorPaintImageGenerator background_image_generator(
+      GetDocument().GetFrame());
+
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes anim {
+        0% {
+          background-color: red;
+        }
+        100% {
+          background-color: green;
+        }
+      }
+
+      #target {
+        width: 20vw;
+        height: 20vw;
+        display: inline-block;
+        animation: anim 1s linear;
+      }
+    }
+    </style>
+    <div id="target"></div>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  Animation* animation =
+      target->GetElementAnimations()->Animations().begin()->key;
+  EXPECT_EQ(Animation::NativePaintWorkletProperties::kNoPaintWorklet,
+            animation->GetNativePaintWorkletReasons());
+  EXPECT_EQ(CompositorAnimations::kUnsupportedCSSProperty,
+            animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()));
+  EXPECT_EQ(ElementAnimations::CompositedPaintStatus::kNoAnimation,
+            target->GetElementAnimations()->CompositedBackgroundColorStatus());
+}
+
 TEST_P(AnimationCompositorAnimationsTest, BackgroundShorthand) {
   std::unique_ptr<ScopedCompositeBGColorAnimationForTest>
       scoped_composite_bgcolor_animation =
@@ -3377,6 +3432,149 @@ TEST_P(AnimationCompositorAnimationsTest, StaticPropertiesPlusStartDelay) {
       PropertyHandle(GetCSSPropertyOpacity())));
   EXPECT_FALSE(keyframe_effect->HasActiveAnimationsOnCompositor(
       PropertyHandle(GetCSSPropertyTransform())));
+}
+
+TEST_P(AnimationCompositorAnimationsTest,
+       ProvisionallyStaticWithNeutralKeyframe) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes resize-from {
+        from {
+          height: 200px;
+          width: 200px;
+        }
+      }
+      @keyframes resize-to {
+        to {
+          height: 200px;
+          width: 200px;
+        }
+      }
+      #target1, #target2 {
+        height: 200px;
+        width: 200px;
+      }
+      #target1 {
+        animation: resize-from 1s;
+      }
+      #target2 {
+        animation: resize-to 1s;
+      }
+      #target1.tweak, #target2.tweak {
+        height: 100px;
+        width: 100px;
+      }
+    </style>
+    <div id="target1"></div>
+    <div id="target2"></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  Element* target1 = GetDocument().getElementById(AtomicString("target1"));
+  Element* target2 = GetDocument().getElementById(AtomicString("target2"));
+  Animation* animation1 =
+      target1->GetElementAnimations()->Animations().begin()->key;
+  Animation* animation2 =
+      target2->GetElementAnimations()->Animations().begin()->key;
+
+  // Presently static as the underlying height and width match the keyframe
+  // values.
+  EXPECT_EQ(CompositorAnimations::kAnimationHasNoVisibleChange,
+            animation1->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()));
+  EXPECT_EQ(CompositorAnimations::kAnimationHasNoVisibleChange,
+            animation2->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()));
+
+  target1->classList().add({"tweak"}, ASSERT_NO_EXCEPTION);
+  target2->classList().add({"tweak"}, ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+
+  // Start ticking the animation on the main thread.
+  EXPECT_EQ(animation1->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()) &
+                CompositorAnimations::kUnsupportedCSSProperty,
+            CompositorAnimations::kUnsupportedCSSProperty);
+  EXPECT_EQ(animation2->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()) &
+                CompositorAnimations::kUnsupportedCSSProperty,
+            CompositorAnimations::kUnsupportedCSSProperty);
+}
+
+TEST_P(AnimationCompositorAnimationsTest,
+       ProvisionallyStaticWithNeutralKeyframeInheritedProerty) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes resize {
+        to {
+          height: 160px;
+          width: 160px;
+        }
+      }
+      #container {
+        font-size: 16px;
+      }
+      #container.tweak {
+        font-size: 10px;
+      }
+      #target {
+        height: 10em;
+        width: 10em;
+        animation: resize 1s;
+      }
+    </style>
+    <div id="container">
+      <div id="target"></div>
+    </div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  Element* container = GetDocument().getElementById(AtomicString("container"));
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  Animation* animation =
+      target->GetElementAnimations()->Animations().begin()->key;
+
+  // Presently static as the underlying values matches the keyframe values.
+  EXPECT_EQ(CompositorAnimations::kAnimationHasNoVisibleChange,
+            animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()));
+
+  container->classList().add({"tweak"}, ASSERT_NO_EXCEPTION);
+  UpdateAllLifecyclePhasesForTest();
+
+  // Start ticking the animation on the main thread.
+  EXPECT_EQ(animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()) &
+                CompositorAnimations::kUnsupportedCSSProperty,
+            CompositorAnimations::kUnsupportedCSSProperty);
+}
+
+TEST_P(AnimationCompositorAnimationsTest, NeutralKeyframeCompositeAdd) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes resize-from {
+        from {
+          height: 200px;
+          width: 200px;
+        }
+      }
+      #target {
+        height: 200px;
+        width: 200px;
+        animation: resize-from 1s;
+        animation-composition: add;
+      }
+    </style>
+    <div id="target"></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  Animation* animation =
+      target->GetElementAnimations()->Animations().begin()->key;
+
+  // Not static due to composite mode.
+  EXPECT_EQ(animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor()) &
+                CompositorAnimations::kUnsupportedCSSProperty,
+            CompositorAnimations::kUnsupportedCSSProperty);
 }
 
 TEST_P(AnimationCompositorAnimationsTest,

@@ -180,6 +180,8 @@ class NoteTakingHelperTest : public BrowserWithTestWindowTest {
     SessionManagerClient::InitializeFakeInMemory();
     FakeSessionManagerClient::Get()->set_arc_available(true);
 
+    arc_app_test_.PreProfileSetUp();
+
     BrowserWithTestWindowTest::SetUp();
     InitExtensionService(profile());
     InitWebAppProvider(profile());
@@ -198,7 +200,7 @@ class NoteTakingHelperTest : public BrowserWithTestWindowTest {
       NoteTakingHelper::Shutdown();
       intent_helper_host_.reset();
       file_system_bridge_.reset();
-      arc_test_.TearDown();
+      arc_app_test_.TearDown();
     }
     BrowserWithTestWindowTest::TearDown();
     SessionManagerClient::Shutdown();
@@ -236,7 +238,7 @@ class NoteTakingHelperTest : public BrowserWithTestWindowTest {
 
     profile()->GetPrefs()->SetBoolean(arc::prefs::kArcEnabled,
                                       flags & ENABLE_PLAY_STORE);
-    arc_test_.SetUp(profile());
+    arc_app_test_.SetUp(profile());
     // Set up FakeIntentHelperHost to emulate full-duplex IntentHelper
     // connection.
     intent_helper_host_ = std::make_unique<arc::FakeIntentHelperHost>(
@@ -444,7 +446,7 @@ class NoteTakingHelperTest : public BrowserWithTestWindowTest {
   // Has Init() been called?
   bool initialized_ = false;
 
-  ArcAppTest arc_test_{ArcAppTest::UserManagerMode::kDoNothing};
+  ArcAppTest arc_app_test_{ArcAppTest::UserManagerMode::kDoNothing};
   std::unique_ptr<arc::FakeIntentHelperHost> intent_helper_host_;
   base::test::ScopedFeatureList feature_list_;
 };

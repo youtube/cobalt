@@ -14,6 +14,7 @@
 #include "base/timer/timer.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/glic/actor/glic_actor_task_manager.h"
+#include "chrome/browser/glic/host/context/glic_delegating_sharing_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/glic/service/glic_ui_types.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
+#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 
 class Profile;
@@ -75,6 +77,14 @@ class GlicInstanceImpl : public GlicInstance,
 
     // Called by an instance when user requests to undock to Floaty.
     virtual void OnWillCreateFloaty() = 0;
+
+    virtual std::vector<glic::mojom::ConversationInfoPtr>
+    GetRecentlyActiveConversations() = 0;
+
+    // Called when the context access indicator changes on the instance.
+    virtual void ContextAccessIndicatorChanged(
+        GlicInstanceImpl& source_instance,
+        bool enabled) = 0;
   };
 
   GlicInstanceImpl(
@@ -89,6 +99,9 @@ class GlicInstanceImpl : public GlicInstance,
   GlicInstanceImpl& operator=(const GlicInstanceImpl&) = delete;
 
   Profile* profile() { return profile_; }
+
+  // Returns whether host's webcontents are focused.
+  bool HasFocus();
 
   // GlicSharingManagerProvider implementation.
   GlicSharingManager& sharing_manager() override;
@@ -109,7 +122,10 @@ class GlicInstanceImpl : public GlicInstance,
   gfx::Size GetPanelSize() override;
   bool IsActive() override;
 
+  bool IsDetached();
   bool IsActuating() const;
+
+  glic::mojom::ConversationInfoPtr GetConversationInfo() const;
 
   // These methods should only be called by the GlicInstanceCoordinator.
   // This method will either show an embedder or create an inactive embedder and
@@ -123,6 +139,7 @@ class GlicInstanceImpl : public GlicInstance,
 
   void UnbindEmbedder(EmbedderKey key);
   GlicUiEmbedder* GetEmbedderForTab(tabs::TabInterface* tab);
+  bool ContextAccessIndicatorEnabled();
 
   // GlicInstance:
   Host& host() override;
@@ -175,6 +192,7 @@ class GlicInstanceImpl : public GlicInstance,
   void OnWebClientCleared() override;
   void PrepareForOpen() override;
   void OnInteractionModeChange(mojom::WebClientMode new_mode) override;
+  glic::GlicInstanceMetrics* instance_metrics() override;
 
   // GlicUiEmbedder::Delegate:
   void OnEmbedderWindowActivationChanged(bool has_focus) override;
@@ -185,7 +203,8 @@ class GlicInstanceImpl : public GlicInstance,
   void WillCloseFor(EmbedderKey key) override;
   void NotifyPanelStateChanged() override;
   // Opens the floating UI for this instance
-  void Detach(tabs::TabInterface* tab) override;
+  void Detach(tabs::TabInterface& tab) override;
+  void Attach(tabs::TabInterface& tab) override;
 
   // Host::InstanceInterface:
   mojom::PanelState GetPanelState() override;
@@ -196,15 +215,52 @@ class GlicInstanceImpl : public GlicInstance,
   void OnBrowserSetLastActive(Browser* browser) override;
 
   // Host::Observer
+  void ClientReadyToShow(const mojom::OpenPanelInfo& open_info) override;
   void WebUiStateChanged(mojom::WebUiState state) override;
+  void ContextAccessIndicatorChanged(bool enabled) override;
+
+  glic::GlicInstanceMetrics* metrics() { return &instance_metrics_; }
+
+  // Test support.
+  void CloseAllEmbeddersForTesting();
+  views::View* GetActiveEmbedderGlicViewForTesting();
 
   // ActorTaskDelegate:
   void OnTabAddedToTask(actor::TaskId task_id,
                         const tabs::TabInterface::Handle& tab_handle) override;
-
-  glic::GlicInstanceMetrics* metrics() { return &instance_metrics_; }
+  void RequestToShowCredentialSelectionDialog(
+      actor::TaskId task_id,
+      const base::flat_map<std::string, gfx::Image>& icons,
+      const std::vector<actor_login::Credential>& credentials,
+      actor::ActorTaskDelegate::CredentialSelectedCallback callback) override;
+  void RequestToShowUserConfirmationDialog(
+      actor::TaskId task_id,
+      const url::Origin& navigation_origin,
+      actor::ActorTaskDelegate::UserConfirmationDialogCallback callback)
+      override;
+  void RequestToConfirmNavigation(
+      actor::TaskId task_id,
+      const url::Origin& navigation_origin,
+      actor::ActorTaskDelegate::NavigationConfirmationCallback callback)
+      override;
+  void RequestToShowAutofillSuggestionsDialog(
+      actor::TaskId task_id,
+      std::vector<autofill::ActorFormFillingRequest> requests,
+      AutofillSuggestionSelectedCallback callback) override;
 
  private:
+  // We use a delegating constructor pattern so we can hand off ownership of the
+  // focused browser manager as well as provide a reference to it to another
+  // object.
+  GlicInstanceImpl(
+      Profile* profile,
+      InstanceId instance_id,
+      base::WeakPtr<InstanceCoordinatorDelegate> coordinator_delegate,
+      GlicMetrics* metrics,
+      contextual_cueing::ContextualCueingService* contextual_cueing_service,
+      GlicFocusedBrowserManager* detached_mode_focused_browser_manager,
+      GlicFocusedBrowserManager* live_mode_focused_browser_manager);
+
   struct EmbedderEntry {
     EmbedderEntry();
     ~EmbedderEntry();
@@ -230,7 +286,8 @@ class GlicInstanceImpl : public GlicInstance,
   GlicUiEmbedder* CreateActiveEmbedder(const ShowOptions& options);
   GlicUiEmbedder* CreateActiveEmbedderForSidePanel(tabs::TabInterface* tab);
   GlicUiEmbedder* CreateActiveEmbedderForFloaty(
-      const gfx::Rect& initial_bounds);
+      const gfx::Rect& initial_bounds,
+      tabs::TabInterface::Handle source_tab);
   void ShowInactiveSidePanelEmbedderFor(tabs::TabInterface* tab);
   void SetActiveEmbedderAndNotifyStateChange(
       std::optional<EmbedderKey> new_key);
@@ -245,7 +302,7 @@ class GlicInstanceImpl : public GlicInstance,
       mojom::WebClientHandler::GetZeroStateSuggestionsForFocusedTabCallback
           callback,
       std::vector<std::string> returned_suggestions);
-  void MaybeDeactivateEmbedderAndCloseHostUi(EmbedderKey key);
+  void MaybeDeactivateEmbedder(EmbedderKey key);
 
   void MaybeActivateForegroundEmbedder();
   EmbedderEntry& BindTab(tabs::TabInterface* tab);
@@ -253,9 +310,13 @@ class GlicInstanceImpl : public GlicInstance,
   void OnTabPinningStatusChanged(tabs::TabInterface* tab, bool pinned);
   void NotifyPanelWillOpen(mojom::InvocationSource invocation_source);
 
+  void UpdateSharingManagerDelegate();
+
   using StateChangeCallbackList =
       base::RepeatingCallbackList<void(bool, mojom::CurrentView view)>;
   StateChangeCallbackList state_change_callback_list_;
+
+  base::ObserverList<PanelStateObserver> state_observers_;
 
   raw_ptr<Profile> profile_;
   raw_ptr<GlicKeyedService> service_;
@@ -275,16 +336,32 @@ class GlicInstanceImpl : public GlicInstance,
   // The empty embedder delegate is owned by this instance and its lifetime is
   // guaranteed to be longer than `host_` because it is declared before `host_`.
   glic::EmptyEmbedderDelegate empty_embedder_delegate_;
+  // `IsActive` can be called by `host_`, so the member needs to outlive it.
+  bool is_active_ = false;
   Host host_;
   std::optional<ConversationInfo> conversation_info_;
-  GlicSharingManagerImpl sharing_manager_;
+
+  // The pinned tab manager for the instance.
+  // TODO (crbug.com/452150693): move ownership of this instance into the
+  // GlicStablePinningDelegatingSharingManager.
+  GlicPinnedTabManager pinned_tab_manager_;
+
+  // The sharing manager used internally for detached mode.
+  GlicSharingManagerImpl detached_mode_sharing_manager_;
+
+  // The sharing manager used internally for live mode.
+  GlicSharingManagerImpl live_mode_sharing_manager_;
+
+  // The sharing manager used internally for attached mode.
+  GlicSharingManagerImpl attached_mode_sharing_manager_;
+
+  // The source of truth sharing manager for the instance.
+  GlicStablePinningDelegatingSharingManager sharing_manager_;
 
   // Tracks the last non-hidden panel state kind for the instance. This is
   // useful for responding to changes in attached/detached state.
   mojom::PanelStateKind last_non_hidden_panel_state_kind_;
-  mojom::WebClientMode interaction_mode_;
-
-  base::ObserverList<PanelStateObserver> state_observers_;
+  mojom::WebClientMode interaction_mode_ = mojom::WebClientMode::kText;
 
   base::ScopedObservation<BrowserList, BrowserListObserver>
       browser_list_observation_{this};
@@ -297,7 +374,6 @@ class GlicInstanceImpl : public GlicInstance,
 
   base::OneShotTimer inactivity_timer_;
   base::TimeTicks last_active_time_;
-  bool is_active_;
 
   base::WeakPtrFactory<GlicInstanceImpl> weak_ptr_factory_{this};
 };

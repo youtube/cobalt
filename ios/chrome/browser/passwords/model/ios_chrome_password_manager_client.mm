@@ -14,6 +14,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/types/optional_util.h"
+#import "components/autofill/core/browser/integrators/password_manager/password_manager_autofill_helper_delegate.h"
 #import "components/autofill/core/browser/logging/log_manager.h"
 #import "components/autofill/core/browser/logging/log_router.h"
 #import "components/autofill/ios/browser/autofill_client_ios.h"
@@ -277,8 +278,8 @@ void IOSChromePasswordManagerClient::NotifyStorePasswordCalled() {
 void IOSChromePasswordManagerClient::NotifyUserCredentialsWereLeaked(
     password_manager::LeakedPasswordDetails details) {
   [bridge_ showPasswordBreachForLeakType:details.leak_type
-                                     URL:details.origin
-                                username:details.username];
+                                     URL:details.credentials.url
+                                username:details.credentials.username_value];
 }
 
 void IOSChromePasswordManagerClient::NotifyKeychainError() {}
@@ -293,6 +294,21 @@ bool IOSChromePasswordManagerClient::IsSavingAndFillingEnabled(
 bool IOSChromePasswordManagerClient::IsFillingEnabled(const GURL& url) const {
   return url.DeprecatedGetOriginAsURL() !=
          GURL(password_manager::kPasswordManagerAccountDashboardURL);
+}
+
+bool IOSChromePasswordManagerClient::IsFieldFilledWithOtp(
+    autofill::FormGlobalId form_id,
+    autofill::FieldGlobalId field_id) {
+  auto* autofill_client =
+      autofill::AutofillClientIOS::FromWebState(bridge_.webState);
+  if (!autofill_client) {
+    return false;
+  }
+  auto* helper = autofill_client->GetPasswordManagerAutofillHelper();
+  if (!helper) {
+    return false;
+  }
+  return helper->IsFieldFilledWithOtp(form_id, field_id);
 }
 
 bool IOSChromePasswordManagerClient::IsCommittedMainFrameSecure() const {

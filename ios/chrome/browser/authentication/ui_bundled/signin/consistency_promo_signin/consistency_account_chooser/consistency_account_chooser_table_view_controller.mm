@@ -119,12 +119,8 @@ CGFloat kSectionFooterHeight = 8.;
           [self.tableView cellForRowAtIndexPath:indexPath];
       __weak ConsistencyAccountChooserTableViewController* weakSelf = self;
       ProceduralBlock completionBlock = ^{
-        ConsistencyAccountChooserTableViewController* strongSelf = weakSelf;
-        if (!strongSelf) {
-          return;
-        }
-        [strongSelf.actionDelegate
-            consistencyAccountChooserTableViewController:strongSelf
+        [weakSelf.actionDelegate
+            consistencyAccountChooserTableViewController:weakSelf
                              didSelectIdentityWithGaiaID:GaiaId(identityItem
                                                                     .gaiaID)];
       };
@@ -210,6 +206,8 @@ CGFloat kSectionFooterHeight = 8.;
   item.title = l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_ADD_ACCOUNT);
   item.accessibilityIdentifier = kConsistencyAccountChooserAddAccountIdentifier;
   item.textColor = [UIColor colorNamed:kBlueColor];
+  item.isAccessibilityElement = YES;
+  item.accessibilityTraits |= UIAccessibilityTraitButton;
   [model addItem:item toSectionWithIdentifier:AddAccountSectionIdentifier];
 }
 

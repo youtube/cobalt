@@ -6,6 +6,7 @@
 
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
+#include "third_party/blink/renderer/platform/text/justification_opportunity.h"
 
 namespace blink {
 
@@ -29,11 +30,13 @@ bool ShapeResultSpacing::SetSpacing(TextRunLayoutUnit letter_spacing,
   return true;
 }
 
-void ShapeResultSpacing::SetExpansion(InlineLayoutUnit expansion,
+void ShapeResultSpacing::SetExpansion(TextJustify method,
+                                      InlineLayoutUnit expansion,
                                       TextDirection direction,
                                       bool allows_leading_expansion,
                                       bool allows_trailing_expansion) {
   DCHECK_GT(expansion, InlineLayoutUnit());
+  justification_method_ = method;
   expansion_ = expansion;
   ComputeExpansion(allows_leading_expansion, allows_trailing_expansion,
                    direction);
@@ -57,10 +60,10 @@ void ShapeResultSpacing::ComputeExpansion(bool allows_leading_expansion,
   bool is_after_expansion = is_after_expansion_;
   if (text_.Is8Bit()) {
     expansion_opportunity_count_ = Character::ExpansionOpportunityCount(
-        text_.Span8(), direction, is_after_expansion);
+        justification_method_, text_.Span8(), direction, is_after_expansion);
   } else {
     expansion_opportunity_count_ = Character::ExpansionOpportunityCount(
-        text_.Span16(), direction, is_after_expansion);
+        justification_method_, text_.Span16(), direction, is_after_expansion);
   }
   if (is_after_expansion && !allows_trailing_expansion &&
       expansion_opportunity_count_ > 0) {
@@ -128,26 +131,25 @@ TextRunLayoutUnit ShapeResultSpacing::ComputeSpacing(
   if (!HasExpansion())
     return spacing;
 
-  if (treat_as_space)
-    return spacing + NextExpansion();
-
-  if (text_.Is8Bit())
-    return spacing;
-
-  // isCJKIdeographOrSymbol() has expansion opportunities both before and
-  // after each character.
-  // http://www.w3.org/TR/jlreq/#line_adjustment
-  if (U16_IS_LEAD(character) && index + 1 < text_.length() &&
-      U16_IS_TRAIL(text_[index + 1]))
-    character = U16_GET_SUPPLEMENTARY(character, text_[index + 1]);
-  if (!Character::IsCJKIdeographOrSymbol(character)) {
-    if (!Character::IsDefaultIgnorable(character)) {
-      is_after_expansion_ = false;
+  bool opportunity_before = false;
+  bool opportunity_after = false;
+  if (text_.Is8Bit()) {
+    auto pair = CheckJustificationOpportunity8(justification_method_, character,
+                                               is_after_expansion_);
+    opportunity_before = pair.first;
+    opportunity_after = pair.second;
+  } else {
+    if (U16_IS_LEAD(character) && index + 1 < text_.length() &&
+        U16_IS_TRAIL(text_[index + 1])) {
+      character = U16_GET_SUPPLEMENTARY(character, text_[index + 1]);
     }
-    return spacing;
+    auto pair = CheckJustificationOpportunity16(justification_method_,
+                                                character, is_after_expansion_);
+    opportunity_before = pair.first;
+    opportunity_after = pair.second;
   }
 
-  if (!is_after_expansion_) {
+  if (opportunity_before) {
     // Take the expansion opportunity before this ideograph.
     TextRunLayoutUnit expand_before = NextExpansion();
     if (expand_before) {
@@ -157,8 +159,10 @@ TextRunLayoutUnit ShapeResultSpacing::ComputeSpacing(
     if (!HasExpansion())
       return spacing;
   }
-
-  return spacing + NextExpansion();
+  if (opportunity_after) {
+    return spacing + NextExpansion();
+  }
+  return spacing;
 }
 
 }  // namespace blink

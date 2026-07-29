@@ -1993,21 +1993,13 @@ TEST_F(AutofillCrowdsourcingEncoding,
            // Field 4: Expect `initial_value_changed` not set because the field
            // type resolves to `UNKNOWN_TYPE`.
            {.role = USERNAME, .value = u"username"}}});
-  // Form structure preserving the state from page load.
-  FormStructure cached_form_structure(form);
-  // Form structure containing the state on submit.
   FormStructure form_structure(form);
-
-  ParseRationalizeAndSection(cached_form_structure);
+  ParseRationalizeAndSection(form_structure);
 
   // Simulate user changed non-pre-filled field value.
   form_structure.field(0)->set_value(u"John");
   // Simulate user changed pre-filled field value.
   form_structure.field(2)->set_value(u"changed@example.com");
-
-  form_structure.RetrieveFromCache(
-      cached_form_structure,
-      FormStructure::RetrieveFromCacheReason::kFormImport);
 
   EncodeUploadRequestOptions options;
   options.encoder = RandomizedEncoder(
@@ -2617,7 +2609,11 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_JoinedTypes) {
   ASSERT_EQ(form.field_count(), 2U);
 
   // Validate the heuristic and server predictions.
+#if BUILDFLAG(IS_IOS)
+  EXPECT_EQ(form.field(0)->heuristic_type(), EMAIL_ADDRESS);
+#else
   EXPECT_EQ(form.field(0)->heuristic_type(), EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
+#endif
   EXPECT_EQ(form.field(0)->server_type(), EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
 
   // Validate that the server prediction wins for email or loyalty cards.
@@ -2660,12 +2656,16 @@ TEST_F(AutofillCrowdsourcingEncoding, ParseQueryResponse_NoJoinedTypes) {
   ASSERT_EQ(form.field_count(), 2U);
 
   // Validate the heuristic and server predictions.
-  EXPECT_EQ(form.field(0)->heuristic_type(), EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
+#if BUILDFLAG(IS_IOS)
+  FieldType heuristic_type = EMAIL_ADDRESS;
+#else
+  FieldType heuristic_type = EMAIL_OR_LOYALTY_MEMBERSHIP_ID;
+#endif
+  EXPECT_EQ(form.field(0)->heuristic_type(), heuristic_type);
   EXPECT_EQ(form.field(0)->server_type(), EMAIL_ADDRESS);
 
   // Validate that the server prediction wins for email or loyalty cards.
-  EXPECT_THAT(form.field(0)->Type().GetTypes(),
-              ElementsAre(EMAIL_OR_LOYALTY_MEMBERSHIP_ID));
+  EXPECT_THAT(form.field(0)->Type().GetTypes(), ElementsAre(heuristic_type));
   EXPECT_THAT(form.field(1)->Type().GetTypes(), ElementsAre(PASSWORD));
 }
 

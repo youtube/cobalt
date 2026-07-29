@@ -134,8 +134,14 @@ public class OmniboxFeatures {
     public static final CachedFlag sOmniboxMultimodalInput =
             newFlag(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT, FeatureState.ENABLED_IN_TEST);
 
-    public static final BooleanCachedFeatureParam sAimToggleOnly =
-            newBooleanParam(sOmniboxMultimodalInput, "aim_toggle_only", false);
+    public static final BooleanCachedFeatureParam sShowDedicatedModeButton =
+            newBooleanParam(sOmniboxMultimodalInput, "show_dedicated_mode_button", false);
+
+    public static final BooleanCachedFeatureParam sShowTryAiModeHintInDedicatedModeButton =
+            newBooleanParam(sOmniboxMultimodalInput, "show_try_aimode_hint_in_mode_button", false);
+
+    public static final BooleanCachedFeatureParam sCompactFusebox =
+            newBooleanParam(sOmniboxMultimodalInput, "compact_fusebox", false);
 
     public static final CachedFlag sMultilineEditField =
             newFlag(OmniboxFeatureList.MULTILINE_EDIT_FIELD, FeatureState.ENABLED_IN_TEST);

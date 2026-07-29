@@ -169,11 +169,6 @@ BASE_DECLARE_FEATURE(kNetworkContextPrefetchUseMatches);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCloneDevToolsConnectionOnlyIfRequested);
 
-// Should SRI-compliant HTTP Message Signatures be enforced?
-// https://wicg.github.io/signature-based-sri/
-COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
-BASE_DECLARE_FEATURE(kSRIMessageSignatureEnforcement);
-
 // Should Sec-Ad-Auction-Event-Recording-Eligible be sent on requests made
 // with attributionsrc, and should Ad-Auction-Register-Event responses on
 // those requests be processed?
@@ -341,6 +336,11 @@ BASE_DECLARE_FEATURE(kCSPScriptSrcHashesInV1);
 // See https://chromestatus.com/feature/5202380930678784
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE(kCacheSharingForPervasiveScripts);
+
+// When enabled, sends SameSite=Lax cookies for FedCM requests in addition to
+// SameSite=None.
+COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
+BASE_DECLARE_FEATURE(kSendSameSiteLaxForFedCM);
 
 // newline-delimited list of URL patterns for "pervasive" scripts.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)

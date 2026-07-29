@@ -199,6 +199,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHiOSHomepageLensNewBadge,
     &kIPHiOSHomepageCustomizationNewBadge,
     &kIPHiOSAIHubNewBadge,
+    &kIPHiOSGeminiContextualCueChip,
     &kIPHiOSReaderModeOptionsFeature,
 #endif  // BUILDFLAG(IS_IOS)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX) || \
@@ -218,6 +219,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHDownloadEsbPromoFeature,
     &kIPHExplicitBrowserSigninPreferenceRememberedFeature,
     &kIPHGlicPromoFeature,
+    &kIPHGlicTryItFeature,
     &kIPHHistorySearchFeature,
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     &kIPHExtensionsMenuFeature,
@@ -240,6 +242,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHPasswordsWebAppProfileSwitchFeature,
     &kIPHPasswordManagerShortcutFeature,
     &kIPHPasswordSharingFeature,
+    &kIPHPdfInkSignaturesFeature,
     &kIPHPdfSearchifyFeature,
     &kIPHPerformanceInterventionDialogFeature,
     &kIPHPlusAddressFirstSaveFeature,

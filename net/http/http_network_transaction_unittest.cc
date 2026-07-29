@@ -113,6 +113,7 @@
 #include "net/socket/connection_attempts.h"
 #include "net/socket/mock_client_socket_pool_manager.h"
 #include "net/socket/next_proto.h"
+#include "net/socket/socket_pool_additional_capacity.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/socks_connect_job.h"
@@ -438,9 +439,9 @@ class HttpNetworkTransactionTestBase : public PlatformTest,
   ~HttpNetworkTransactionTestBase() override {
     // Important to restore the per-pool limit first, since the pool limit must
     // always be greater than group limit, and the tests reduce both limits.
-    ClientSocketPoolManager::set_max_sockets_per_pool(
+    ClientSocketPoolManager::set_max_sockets_per_pool_for_test(
         HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_pool_sockets_);
-    ClientSocketPoolManager::set_max_sockets_per_group(
+    ClientSocketPoolManager::set_max_sockets_per_group_for_test(
         HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_group_sockets_);
   }
 
@@ -752,6 +753,7 @@ class CaptureGroupIdTransportSocketPool : public TransportClientSocketPool {
       const CommonConnectJobParams* common_connect_job_params)
       : TransportClientSocketPool(/*max_sockets=*/0,
                                   /*max_sockets_per_group=*/0,
+                                  SocketPoolAdditionalCapacity::Create(),
                                   base::TimeDelta(),
                                   ProxyChain::Direct(),
                                   /*is_for_websockets=*/false,
@@ -6291,7 +6293,8 @@ TEST_P(HttpNetworkTransactionTest, SameDestinationForDifferentProxyTypes) {
           std::make_unique<ProxyConfigServiceFixed>(ProxyConfigWithAnnotation(
               ProxyConfig::CreateAutoDetect(), TRAFFIC_ANNOTATION_FOR_TESTS)),
           std::make_unique<SameProxyWithDifferentSchemesProxyResolverFactory>(),
-          nullptr, /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
+          /*quick_check_enabled=*/true);
 
   std::unique_ptr<HttpNetworkSession> session = CreateSession(&session_deps_);
 
@@ -6701,7 +6704,8 @@ TEST_P(HttpNetworkTransactionTest, ProxyResolvedWithNetworkAnonymizationKey) {
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
           std::make_unique<CapturingProxyResolverFactory>(
               &capturing_proxy_resolver),
-          nullptr, /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
+          /*quick_check_enabled=*/true);
 
   std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
 
@@ -9135,6 +9139,7 @@ TEST_P(HttpNetworkTransactionTest,
           std::make_unique<ProxyConfigServiceFixed>(ProxyConfigWithAnnotation(
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
           /*resolver_factory=*/nullptr,
+          /*host_resolver_for_override_rules=*/nullptr,
           /*net_log=*/nullptr, /*quick_check_enabled=*/true);
   session_deps_.net_log = NetLog::Get();
   std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
@@ -10125,7 +10130,8 @@ TEST_P(HttpNetworkTransactionTest, ProxiedH2SessionAppearsDuringAuth) {
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
           std::make_unique<CapturingProxyResolverFactory>(
               &capturing_proxy_resolver),
-          nullptr, /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
+          /*quick_check_enabled=*/true);
 
   std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
 
@@ -10672,7 +10678,8 @@ TEST_P(HttpNetworkTransactionTest, SpdyProxyIsolation1) {
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
           std::make_unique<CapturingProxyResolverFactory>(
               &capturing_proxy_resolver),
-          nullptr, /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
+          /*quick_check_enabled=*/true);
 
   std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
 
@@ -10808,7 +10815,8 @@ TEST_P(HttpNetworkTransactionTest, SpdyProxyIsolation2) {
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
           std::make_unique<CapturingProxyResolverFactory>(
               &capturing_proxy_resolver),
-          nullptr, /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
+          /*quick_check_enabled=*/true);
 
   std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
   // Fetch https://proxy:70/ via HTTP/2.
@@ -18296,7 +18304,8 @@ TEST_P(HttpNetworkTransactionTest, UseOriginNotAlternativeForProxy) {
   session_deps_.proxy_resolution_service =
       std::make_unique<ConfiguredProxyResolutionService>(
           std::move(proxy_config_service), std::move(proxy_resolver_factory),
-          NetLog::Get(), /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, NetLog::Get(),
+          /*quick_check_enabled=*/true);
 
   session_deps_.net_log = NetLog::Get();
 
@@ -18379,7 +18388,8 @@ TEST_P(HttpNetworkTransactionTest, UseAlternativeServiceForTunneledNpnSpdy) {
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
           std::make_unique<CapturingProxyResolverFactory>(
               &capturing_proxy_resolver),
-          nullptr, /*quick_check_enabled=*/true);
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
+          /*quick_check_enabled=*/true);
   session_deps_.net_log = NetLog::Get();
 
   HttpRequestInfo request;
@@ -19567,6 +19577,7 @@ TEST_P(HttpNetworkTransactionTest, MultiRoundAuth) {
   auto transport_pool = std::make_unique<TransportClientSocketPool>(
       kMaxSocketsPerPool,   // Max sockets for pool
       kMaxSocketsPerGroup,  // Max sockets per group
+      SocketPoolAdditionalCapacity::Create(),
       /*unused_idle_socket_timeout=*/base::Seconds(10), ProxyChain::Direct(),
       /*is_for_websockets=*/false, &common_connect_job_params);
   auto* transport_pool_ptr = transport_pool.get();
@@ -22723,9 +22734,9 @@ TEST_P(HttpNetworkTransactionTest, ErrorSocketNotConnected) {
 }
 
 TEST_P(HttpNetworkTransactionTest, CloseIdleSpdySessionToOpenNewOne) {
-  ClientSocketPoolManager::set_max_sockets_per_group(
+  ClientSocketPoolManager::set_max_sockets_per_group_for_test(
       HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
-  ClientSocketPoolManager::set_max_sockets_per_pool(
+  ClientSocketPoolManager::set_max_sockets_per_pool_for_test(
       HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
 
   // Use two different hosts with different IPs so they don't get pooled.
@@ -23091,9 +23102,9 @@ TEST_P(HttpNetworkTransactionTest, HttpAsyncReadError) {
 // Tests that when a used socket is returned to the SSL socket pool, it's closed
 // if the transport socket pool is stalled on the global socket limit.
 TEST_P(HttpNetworkTransactionTest, CloseSSLSocketOnIdleForHttpRequest) {
-  ClientSocketPoolManager::set_max_sockets_per_group(
+  ClientSocketPoolManager::set_max_sockets_per_group_for_test(
       HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
-  ClientSocketPoolManager::set_max_sockets_per_pool(
+  ClientSocketPoolManager::set_max_sockets_per_pool_for_test(
       HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
 
   // Set up SSL request.
@@ -23189,9 +23200,9 @@ TEST_P(HttpNetworkTransactionTest, CloseSSLSocketOnIdleForHttpRequest) {
 // request that needs it, the new socket is closed if the transport socket pool
 // is stalled on the global socket limit.
 TEST_P(HttpNetworkTransactionTest, CloseSSLSocketOnIdleForHttpRequest2) {
-  ClientSocketPoolManager::set_max_sockets_per_group(
+  ClientSocketPoolManager::set_max_sockets_per_group_for_test(
       HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
-  ClientSocketPoolManager::set_max_sockets_per_pool(
+  ClientSocketPoolManager::set_max_sockets_per_pool_for_test(
       HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
 
   // Set up an ssl request.
@@ -24269,10 +24280,10 @@ TEST_P(HttpNetworkTransactionTest, ProxyResolutionFailsSync) {
   MockAsyncProxyResolver resolver;
   session_deps_.proxy_resolution_service =
       std::make_unique<ConfiguredProxyResolutionService>(
-
           std::make_unique<ProxyConfigServiceFixed>(ProxyConfigWithAnnotation(
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
-          std::make_unique<FailingProxyResolverFactory>(), nullptr,
+          std::make_unique<FailingProxyResolverFactory>(),
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
           /*quick_check_enabled=*/true);
 
   HttpRequestInfo request;
@@ -24302,10 +24313,10 @@ TEST_P(HttpNetworkTransactionTest, ProxyResolutionFailsAsync) {
   MockAsyncProxyResolver resolver;
   session_deps_.proxy_resolution_service =
       std::make_unique<ConfiguredProxyResolutionService>(
-
           std::make_unique<ProxyConfigServiceFixed>(ProxyConfigWithAnnotation(
               proxy_config, TRAFFIC_ANNOTATION_FOR_TESTS)),
-          std::move(proxy_resolver_factory), nullptr,
+          std::move(proxy_resolver_factory),
+          /*host_resolver_for_override_rules=*/nullptr, nullptr,
           /*quick_check_enabled=*/true);
   HttpRequestInfo request;
   request.method = "GET";
@@ -28409,9 +28420,6 @@ class IpProtectionProxyDelegate : public TestProxyDelegate {
     }
 
     result->UseProxyList(proxy_list);
-
-    // Emulate delegate with a PRT header value.
-    result->set_prt_header_value(":serializedPRT:");
   }
 
   static std::string GetAuthorizationHeaderValue(
@@ -28737,252 +28745,6 @@ TEST_P(HttpNetworkTransactionTest,
 
   SSLSocketDataProvider ssl2(ASYNC, OK);
   session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl2);
-
-  TestCompletionCallback callback;
-
-  HttpNetworkTransaction trans(DEFAULT_PRIORITY, session.get());
-
-  int rv = trans.Start(&request, callback.callback(),
-                       NetLogWithSource::Make(NetLogSourceType::NONE));
-  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
-
-  rv = callback.WaitForResult();
-  EXPECT_THAT(rv, IsOk());
-
-  const HttpResponseInfo* response = trans.GetResponseInfo();
-  ASSERT_TRUE(response);
-  ASSERT_TRUE(response->headers);
-  EXPECT_EQ("HTTP/1.1 200", response->headers->GetStatusLine());
-}
-
-// Test that for requests sent through an IP Protection proxy, the
-// 'Sec-Probabilistic-Reveal-Token' header is sent as expected when the
-// corresponding feature is enabled.
-TEST_P(HttpNetworkTransactionTest,
-       HttpsNestedProxyProbabilisticRevealTokenRequestHeaderAddedWhenEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{features::kEnableIpProtectionProxy, {}},
-       {features::kEnableProbabilisticRevealTokens,
-        {{features::kProbabilisticRevealTokensAddHeaderToProxiedRequests.name,
-          "true"}}}
-
-      },
-      /*disabled_features=*/{});
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.example.org/");
-  request.traffic_annotation =
-      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-
-  session_deps_.proxy_resolution_service =
-      ConfiguredProxyResolutionService::CreateFixedForTest(
-          "https://not-used:70", TRAFFIC_ANNOTATION_FOR_TESTS);
-  session_deps_.proxy_delegate = std::make_unique<IpProtectionProxyDelegate>();
-  auto* proxy_delegate = static_cast<IpProtectionProxyDelegate*>(
-      session_deps_.proxy_delegate.get());
-  proxy_delegate->set_proxy_chain(nested_proxy_chain_);
-  session_deps_.proxy_resolution_service->SetProxyDelegate(proxy_delegate);
-  session_deps_.net_log = NetLog::Get();
-  std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
-
-  const std::string kProxyServer1AuthHeaderValue =
-      IpProtectionProxyDelegate::GetAuthorizationHeaderValue(proxy_server_1_);
-  const std::string kProxyServer2AuthHeaderValue =
-      IpProtectionProxyDelegate::GetAuthorizationHeaderValue(proxy_server_2_);
-
-  const std::string kProxyServer2Connect = base::StringPrintf(
-      "CONNECT proxy2.test:71 HTTP/1.1\r\n"
-      "Host: proxy2.test:71\r\n"
-      "Proxy-Connection: keep-alive\r\n"
-      "User-Agent: test-ua\r\n"
-      "Authorization: %s\r\n\r\n",
-      kProxyServer1AuthHeaderValue.c_str());
-  const std::string kEndpointConnect = base::StringPrintf(
-      "CONNECT www.example.org:443 HTTP/1.1\r\n"
-      "Host: www.example.org:443\r\n"
-      "Proxy-Connection: keep-alive\r\n"
-      "User-Agent: test-ua\r\n"
-      "Authorization: %s\r\n\r\n",
-      kProxyServer2AuthHeaderValue.c_str());
-
-  MockWrite data_writes[] = {
-      MockWrite(kProxyServer2Connect),
-      MockWrite(kEndpointConnect),
-      MockWrite("GET / HTTP/1.1\r\n"
-                "Host: www.example.org\r\n"
-                "Connection: keep-alive\r\n"
-                // IpProtectionProxyDelegate defined above hard
-                // codes following serialized PRT value
-                "Sec-Probabilistic-Reveal-Token: :serializedPRT:\r\n\r\n"),
-  };
-
-  MockRead data_reads[] = {
-      MockRead("HTTP/1.1 200 Connection Established\r\n\r\n"),
-      MockRead("HTTP/1.1 200 Connection Established\r\n\r\n"),
-      MockRead("HTTP/1.1 200\r\n\r\n"),
-      MockRead(SYNCHRONOUS, OK),
-  };
-
-  StaticSocketDataProvider data(data_reads, data_writes);
-  session_deps_.socket_factory->AddSocketDataProvider(&data);
-
-  SSLSocketDataProvider ssl(ASYNC, OK);
-  session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl);
-
-  SSLSocketDataProvider ssl2(ASYNC, OK);
-  session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl2);
-
-  SSLSocketDataProvider ssl3(ASYNC, OK);
-  session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl3);
-
-  TestCompletionCallback callback;
-
-  HttpNetworkTransaction trans(DEFAULT_PRIORITY, session.get());
-
-  int rv = trans.Start(&request, callback.callback(),
-                       NetLogWithSource::Make(NetLogSourceType::NONE));
-  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
-
-  rv = callback.WaitForResult();
-  EXPECT_THAT(rv, IsOk());
-
-  const HttpResponseInfo* response = trans.GetResponseInfo();
-  ASSERT_TRUE(response);
-  ASSERT_TRUE(response->headers);
-  EXPECT_EQ("HTTP/1.1 200", response->headers->GetStatusLine());
-}
-
-// Test that the 'Sec-Probabilistic-Reveal-Token' header is not sent for
-// requests that are not sent through an IP Protection proxy.
-TEST_P(
-    HttpNetworkTransactionTest,
-    HttpsNestedProxyProbabilisticRevealTokenRequestHeaderNotAddedForNonProxiedRequests) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{features::kEnableIpProtectionProxy,
-        {{features::kIpPrivacyDirectOnly.name, "true"}}},
-       {features::kEnableProbabilisticRevealTokens,
-        {{features::kProbabilisticRevealTokensAddHeaderToProxiedRequests.name,
-          "true"},
-         {features::kEnableProbabilisticRevealTokensForNonProxiedRequests.name,
-          "false"}}}},
-      /*disabled_features=*/{});
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.example.org/");
-  request.traffic_annotation =
-      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-
-  const auto kIpProtectionDirectChain =
-      ProxyChain::ForIpProtection(std::vector<ProxyServer>());
-
-  session_deps_.proxy_resolution_service =
-      ConfiguredProxyResolutionService::CreateFixedForTest(
-          "https://not-used:70", TRAFFIC_ANNOTATION_FOR_TESTS);
-  session_deps_.proxy_delegate = std::make_unique<IpProtectionProxyDelegate>();
-  auto* proxy_delegate = static_cast<IpProtectionProxyDelegate*>(
-      session_deps_.proxy_delegate.get());
-  proxy_delegate->set_proxy_chain(kIpProtectionDirectChain);
-  session_deps_.proxy_resolution_service->SetProxyDelegate(proxy_delegate);
-  session_deps_.net_log = NetLog::Get();
-  std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
-
-  MockWrite data_writes[] = {
-      MockWrite("GET / HTTP/1.1\r\n"
-                "Host: www.example.org\r\n"
-                "Connection: keep-alive\r\n\r\n"),
-  };
-
-  MockRead data_reads[] = {
-      MockRead("HTTP/1.1 200\r\n\r\n"),
-      MockRead(SYNCHRONOUS, OK),
-  };
-
-  StaticSocketDataProvider data(data_reads, data_writes);
-  session_deps_.socket_factory->AddSocketDataProvider(&data);
-
-  SSLSocketDataProvider ssl(ASYNC, OK);
-  session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl);
-
-  TestCompletionCallback callback;
-
-  HttpNetworkTransaction trans(DEFAULT_PRIORITY, session.get());
-
-  int rv = trans.Start(&request, callback.callback(),
-                       NetLogWithSource::Make(NetLogSourceType::NONE));
-  EXPECT_THAT(rv, IsError(ERR_IO_PENDING));
-
-  rv = callback.WaitForResult();
-  EXPECT_THAT(rv, IsOk());
-
-  const HttpResponseInfo* response = trans.GetResponseInfo();
-  ASSERT_TRUE(response);
-  ASSERT_TRUE(response->headers);
-  EXPECT_EQ("HTTP/1.1 200", response->headers->GetStatusLine());
-}
-
-// Test that the 'Sec-Probabilistic-Reveal-Token' header is sent for
-// requests that are not sent through an IP Protection proxy if the
-// corresponding feature is enabled.
-TEST_P(
-    HttpNetworkTransactionTest,
-    HttpsNestedProxyProbabilisticRevealTokenRequestHeaderAddedForNonProxiedRequestsWhenFeatureEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{features::kEnableIpProtectionProxy,
-        {{features::kIpPrivacyDirectOnly.name, "true"}}},
-       {features::kEnableProbabilisticRevealTokens,
-        {{features::kProbabilisticRevealTokensAddHeaderToProxiedRequests.name,
-          "true"},
-         {features::kEnableProbabilisticRevealTokensForNonProxiedRequests.name,
-          "true"}}}},
-      /*disabled_features=*/{});
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.example.org/");
-  request.traffic_annotation =
-      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
-
-  const auto kIpProtectionDirectChain =
-      ProxyChain::ForIpProtection(std::vector<ProxyServer>());
-
-  session_deps_.proxy_resolution_service =
-      ConfiguredProxyResolutionService::CreateFixedForTest(
-          "https://not-used:70", TRAFFIC_ANNOTATION_FOR_TESTS);
-  session_deps_.proxy_delegate = std::make_unique<IpProtectionProxyDelegate>();
-  auto* proxy_delegate = static_cast<IpProtectionProxyDelegate*>(
-      session_deps_.proxy_delegate.get());
-  proxy_delegate->set_proxy_chain(kIpProtectionDirectChain);
-  session_deps_.proxy_resolution_service->SetProxyDelegate(proxy_delegate);
-  session_deps_.net_log = NetLog::Get();
-  std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
-
-  MockWrite data_writes[] = {
-      MockWrite("GET / HTTP/1.1\r\n"
-                "Host: www.example.org\r\n"
-                "Connection: keep-alive\r\n"
-                // IpProtectionProxyDelegate defined above hard
-                // codes following serialized PRT value
-                "Sec-Probabilistic-Reveal-Token: :serializedPRT:\r\n\r\n"),
-  };
-
-  MockRead data_reads[] = {
-      MockRead("HTTP/1.1 200\r\n\r\n"),
-      MockRead(SYNCHRONOUS, OK),
-  };
-
-  StaticSocketDataProvider data(data_reads, data_writes);
-  session_deps_.socket_factory->AddSocketDataProvider(&data);
-
-  SSLSocketDataProvider ssl(ASYNC, OK);
-  session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback;
 

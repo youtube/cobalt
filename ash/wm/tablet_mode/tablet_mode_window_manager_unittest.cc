@@ -1596,6 +1596,23 @@ TEST_F(TabletModeWindowManagerTest, SetPropertyOnUnmanagedWindow) {
   window->Show();
 }
 
+// Test that showing after creation keeps the fullscreen state in tablet mode.
+// See crbug.com/7073232 for the regression.
+TEST_F(TabletModeWindowManagerTest, ShowAfterCreateionKeepsFullscreenState) {
+  Shell::Get()->tablet_mode_controller()->SetEnabledForTest(true);
+  InitParams params(aura::client::WINDOW_TYPE_NORMAL);
+  params.bounds = {10, 10, 100, 100};
+  params.show_on_creation = false;
+  std::unique_ptr<aura::Window> window(CreateWindowInWatchedContainer(params));
+  ::wm::SetWindowFullscreen(window.get(), true);
+
+  // Show after creation will trigger ADDED_TO_WORKSPACE event.
+  window->Show();
+
+  EXPECT_TRUE(::wm::WindowStateIs(window.get(),
+                                  ui::mojom::WindowShowState::kFullscreen));
+}
+
 // Test that the minimized window bounds doesn't change until it's unminimized.
 TEST_F(TabletModeWindowManagerTest, DontChangeBoundsForMinimizedWindow) {
   gfx::Rect rect(10, 10, 200, 50);
@@ -2010,6 +2027,56 @@ TEST_F(TabletModeWindowManagerTest, NonMaximizableWindowRestore) {
   // Restoring a kNormal window will keep it in the same kNormal state.
   window_state->Restore();
   EXPECT_EQ(window_state->GetStateType(), WindowStateType::kNormal);
+}
+
+TEST_F(TabletModeWindowManagerTest, StateTypeOnAttachNewDragWindow) {
+  CreateTabletModeWindowManager();
+
+  // Simulate tab drag out of maximized window.
+  {
+    std::unique_ptr<aura::Window> source_window =
+        CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+    WindowState* source_window_state = WindowState::Get(source_window.get());
+
+    std::unique_ptr<aura::Window> drag_window = CreateAppWindow(
+        gfx::Rect(), chromeos::AppType::BROWSER, kShellWindowId_Invalid,
+        /*delegate=*/nullptr, /*show=*/false);
+    WindowState* drag_window_state = WindowState::Get(drag_window.get());
+    drag_window->SetProperty(ash::kIsDraggingTabsKey, true);
+    drag_window->SetProperty(ash::kTabDraggingSourceWindowKey,
+                             source_window.get());
+
+    EXPECT_EQ(source_window_state->GetStateType(), WindowStateType::kMaximized);
+    EXPECT_EQ(drag_window_state->GetStateType(), WindowStateType::kDefault);
+    drag_window->Show();
+    EXPECT_EQ(drag_window_state->GetStateType(), WindowStateType::kMaximized);
+  }
+
+  // Simulate tab drag out of snapped window.
+  {
+    std::unique_ptr<aura::Window> source_window =
+        CreateAppWindow(gfx::Rect(), chromeos::AppType::BROWSER);
+    WindowState* source_window_state = WindowState::Get(source_window.get());
+    const WindowSnapWMEvent primary_snap_event(WM_EVENT_SNAP_PRIMARY);
+    source_window_state->OnWMEvent(&primary_snap_event);
+
+    std::unique_ptr<aura::Window> drag_window = CreateAppWindow(
+        gfx::Rect(), chromeos::AppType::BROWSER, kShellWindowId_Invalid,
+        /*delegate=*/nullptr, /*show=*/false);
+    WindowState* drag_window_state = WindowState::Get(drag_window.get());
+    drag_window->SetProperty(ash::kIsDraggingTabsKey, true);
+    drag_window->SetProperty(ash::kTabDraggingSourceWindowKey,
+                             source_window.get());
+
+    EXPECT_EQ(source_window_state->GetStateType(),
+              WindowStateType::kPrimarySnapped);
+    EXPECT_EQ(drag_window_state->GetStateType(), WindowStateType::kDefault);
+    drag_window->Show();
+    EXPECT_EQ(drag_window_state->GetStateType(),
+              WindowStateType::kPrimarySnapped);
+  }
+
+  DestroyTabletModeWindowManager();
 }
 
 }  // namespace ash

@@ -104,6 +104,8 @@
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/qrcode_generator/qrcode_generator_bubble_controller.h"
+#include "chrome/browser/ui/read_anything/read_anything_controller.h"
+#include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -112,7 +114,6 @@
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
-#include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller_utils.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/webauthn/context_menu_helper.h"
 #include "chrome/browser/ui/webui/history/foreign_session_handler.h"
@@ -162,7 +163,7 @@
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/pdf/common/pdf_util.h"
-#include "components/policy/content/policy_blocklist_service.h"
+#include "components/policy/core/browser/url_list/policy_blocklist_service.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_member.h"
 #include "components/prefs/pref_service.h"
@@ -747,7 +748,7 @@ void OnBrowserCreated(const GURL& link_url,
   // We are opening the link across profiles, so sending the referer
   // header is a privacy risk.
   nav_params.referrer = content::Referrer();
-  nav_params.window_action = NavigateParams::SHOW_WINDOW;
+  nav_params.window_action = NavigateParams::WindowAction::kShowWindow;
   Navigate(&nav_params);
 }
 
@@ -1087,6 +1088,17 @@ void RenderViewContextMenu::InitMenu() {
     if (params_.media_type != ContextMenuDataMediaType::kNone) {
       menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
     }
+  } else {
+#if BUILDFLAG(ENABLE_GLIC)
+    // Add "Copy Link Address" menu option for Glic Multi instance. Link
+    // options are not supported by default (since Glic uses WebView's context
+    // menu).
+    if (glic::GlicEnabling::IsMultiInstanceEnabledByFlags() &&
+        IsGlicWindow(this, browser_context_) && !params_.link_url.is_empty()) {
+      AppendCopyLinkLocationItem();
+      menu_model_.AddSeparator(ui::NORMAL_SEPARATOR);
+    }
+#endif  // BUILDFLAG(ENABLE_GLIC)
   }
 
   bool media_image = content_type_->SupportsGroup(
@@ -1880,17 +1892,20 @@ void RenderViewContextMenu::AppendLinkItems() {
                                     IDS_CONTENT_CONTEXT_SAVELINKAS);
   }
 
-  menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_COPYLINKLOCATION,
-                                  params_.link_url.SchemeIs(url::kMailToScheme)
-                                      ? IDS_CONTENT_CONTEXT_COPYEMAILADDRESS
-                                      : IDS_CONTENT_CONTEXT_COPYLINKLOCATION);
-
+  AppendCopyLinkLocationItem();
   if (params_.source_type == ui::mojom::MenuSourceType::kTouch &&
       params_.media_type != ContextMenuDataMediaType::kImage &&
       !params_.link_text.empty()) {
     menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_COPYLINKTEXT,
                                     IDS_CONTENT_CONTEXT_COPYLINKTEXT);
   }
+}
+
+void RenderViewContextMenu::AppendCopyLinkLocationItem() {
+  menu_model_.AddItemWithStringId(IDC_CONTENT_CONTEXT_COPYLINKLOCATION,
+                                  params_.link_url.SchemeIs(url::kMailToScheme)
+                                      ? IDS_CONTENT_CONTEXT_COPYEMAILADDRESS
+                                      : IDS_CONTENT_CONTEXT_COPYLINKLOCATION);
 }
 
 void RenderViewContextMenu::AppendOpenWithLinkItems() {
@@ -2892,7 +2907,6 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
     navigation_allowed = false;
   }
 #endif
-
   switch (id) {
     case IDC_BACK:
       return embedder_web_contents_->GetController().CanGoBack();
@@ -3372,7 +3386,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
         auto* glic_service = glic::GlicKeyedService::Get(browser_context_);
         if (glic_service) {
           // TODO(crbug.com/454112198): Clean up after multi-instance launches.
-          if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+          if (glic::GlicEnabling::IsMultiInstanceEnabledByFlags()) {
             if (auto* rfh = GetRenderFrameHost()) {
               glic_service->Close(rfh->GetOutermostMainFrame());
             }
@@ -4202,8 +4216,16 @@ void RenderViewContextMenu::ExecOpenInReadAnything() {
   if (!browser) {
     return;
   }
-  ShowReadAnythingSidePanel(browser,
-                            SidePanelOpenTrigger::kReadAnythingContextMenu);
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    if (tabs::TabInterface* tab = browser->tab_strip_model()->GetActiveTab()) {
+      auto* controller = ReadAnythingController::From(tab);
+      CHECK(controller);
+      controller->ShowUI(SidePanelOpenTrigger::kReadAnythingContextMenu);
+    }
+  } else {
+    ShowReadAnythingSidePanel(browser,
+                              SidePanelOpenTrigger::kReadAnythingContextMenu);
+  }
 }
 
 void RenderViewContextMenu::ExecInspectElement() {

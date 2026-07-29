@@ -31,6 +31,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -41,9 +42,11 @@ import org.chromium.chrome.browser.collaboration.CollaborationServiceFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
+import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
+import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListItemSizeChangedObserver;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel;
@@ -56,6 +59,8 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.ViewRectProvider;
+
+import java.util.List;
 
 /** Unit tests for {@link PinnedTabStripMediator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -150,6 +155,23 @@ public class PinnedTabStripMediatorTest {
         View view = new View(mActivity);
         int tabId = 123123;
         mMediator.onLongPress(tabId, view);
+        verify(mMenuCoordinator).showMenu(any(ViewRectProvider.class), eq(tabId));
+    }
+
+    @Test
+    public void testContextClickListener() {
+        int tabId = 123123;
+        mTabListModel.add(createTabListItem(tabId, true));
+        when(mLayoutManager.findFirstVisibleItemPosition()).thenReturn(1);
+        mMediator.onScrolled();
+        assertThat(mPinnedTabsModelList.size()).isEqualTo(1);
+
+        PropertyModel model = mPinnedTabsModelList.get(0).model;
+        TabActionListener listener = model.get(TabProperties.TAB_CONTEXT_CLICK_LISTENER);
+        Assert.assertNotNull(listener);
+
+        View view = new View(mActivity);
+        listener.run(view, tabId, null);
         verify(mMenuCoordinator).showMenu(any(ViewRectProvider.class), eq(tabId));
     }
 
@@ -446,10 +468,23 @@ public class PinnedTabStripMediatorTest {
     }
 
     @Test
-    public void testTabClosureUndone_updatePinnedBar() {
+    public void testOnTabClosePending_updatePinnedBar() {
+        mMediator.onScrolled(); // Initial state.
+        mTabModelObserverCaptor
+                .getValue()
+                .onTabClosePending(List.of(mTab1), false, TabClosingSource.UNKNOWN);
+        // Should be called twice, once for the initial scroll and once for the pending closure
+        // event.
+        verify(mLayoutManager, times(2)).findFirstVisibleItemPosition();
+    }
+
+    @Test
+    public void testTabClosureUndone_updatePinnedBar_postsToUiThread() {
         mMediator.onScrolled(); // Initial state.
         mTabModelObserverCaptor.getValue().tabClosureUndone(mTab1);
-        // Should be called twice, once for the initial scroll and once for the closure event.
+        // The updatePinnedTabsBar() call is now posted to the UI thread.
+        // We need to advance the looper to ensure the posted task is executed.
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
         verify(mLayoutManager, times(2)).findFirstVisibleItemPosition();
     }
 

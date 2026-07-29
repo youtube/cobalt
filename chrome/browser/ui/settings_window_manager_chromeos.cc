@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
@@ -165,7 +166,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
     }
 
     NavigateParams params(browser, gurl, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-    params.window_action = NavigateParams::SHOW_WINDOW;
+    params.window_action = NavigateParams::WindowAction::kShowWindow;
     params.user_gesture = true;
     Navigate(&params);
     if (callback) {
@@ -178,7 +179,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
   NavigateParams params(profile, gurl, ui::PAGE_TRANSITION_AUTO_BOOKMARK);
   params.disposition = WindowOpenDisposition::NEW_POPUP;
   params.trusted_source = true;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.user_gesture = true;
   params.path_behavior = NavigateParams::IGNORE_AND_NAVIGATE;
   Navigate(&params);
@@ -245,12 +246,15 @@ Browser* SettingsWindowManager::FindBrowserForProfile(Profile* profile) {
   return nullptr;
 }
 
-bool SettingsWindowManager::IsSettingsBrowser(Browser* browser) const {
+bool SettingsWindowManager::IsSettingsBrowser(
+    BrowserWindowInterface* browser) const {
   DCHECK(browser);
 
-  Profile* profile = browser->profile();
+  Profile* const profile = browser->GetProfile();
   if (!UseDeprecatedSettingsWindow(profile)) {
-    if (!browser->app_controller()) {
+    const web_app::AppBrowserController* const app_controller =
+        web_app::AppBrowserController::From(browser);
+    if (!app_controller) {
       return false;
     }
 
@@ -259,12 +263,12 @@ bool SettingsWindowManager::IsSettingsBrowser(Browser* browser) const {
     std::optional<std::string> settings_app_id =
         ash::GetAppIdForSystemWebApp(profile, ash::SystemWebAppType::SETTINGS);
     return settings_app_id &&
-           browser->app_controller()->app_id() == settings_app_id.value();
-  } else {
-    auto iter = settings_session_map_.find(profile);
-    return iter != settings_session_map_.end() &&
-           iter->second == browser->session_id();
+           app_controller->app_id() == settings_app_id.value();
   }
+
+  auto iter = settings_session_map_.find(profile);
+  return iter != settings_session_map_.end() &&
+         iter->second == browser->GetSessionID();
 }
 
 }  // namespace chrome

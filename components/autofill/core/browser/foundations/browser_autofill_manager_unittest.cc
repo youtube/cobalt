@@ -790,8 +790,6 @@ class MockAutofillClient : public TestAutofillClient {
     };
 
     set_payments_autofill_client(create_payments_autofill_client());
-    SetPrefs(test::PrefServiceForTesting());
-    GetPersonalDataManager().SetPrefService(GetPrefs());
     GetPersonalDataManager().SetSyncServiceForTest(sync_service);
     set_test_strike_database(std::make_unique<TestStrikeDatabase>());
     set_single_field_fill_router(
@@ -892,6 +890,7 @@ class MockTouchToFillDelegate : public TouchToFillDelegate {
               OnBnplIssuerSuggestionSelected,
               (const std::string& issuer_id),
               (override));
+  MOCK_METHOD(void, OnBnplTosAccepted, (), (override));
   MOCK_METHOD(void,
               LogMetricsAfterSubmission,
               (const FormStructure&),
@@ -903,6 +902,10 @@ class MockTouchToFillDelegate : public TouchToFillDelegate {
   MOCK_METHOD(void,
               SetSelectedIssuerCallback,
               (base::OnceCallback<void(BnplIssuer)> selected_issuer_callback),
+              (override));
+  MOCK_METHOD(void,
+              SetBnplTosAcceptCallback,
+              (base::OnceClosure cancel_callback),
               (override));
 };
 
@@ -5833,7 +5836,7 @@ TEST_F(BrowserAutofillManagerTest, OnDidAutofillFormAndUnfocus_Upload) {
   test_api(form).field(0).set_value(u"Elvis");
   test_api(form).field(1).set_value(u"Presley");
   test_api(form).field(2).set_value(u"theking@gmail.com");
-  autofill_manager().OnDidAutofillForm(form, base::TimeTicks::Now());
+  autofill_manager().OnDidAutofillForm(form);
 
   // Simulate lost of focus on the form.
   autofill_manager().OnFocusOnNonFormField();
@@ -8839,8 +8842,8 @@ TEST_F(BrowserAutofillManagerPlusAddressTest, NoPlusAddressesWithNameFields) {
       });
   EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
       .WillOnce(RunOnceCallback<1>(plus_addresses));
-  EXPECT_CALL(plus_address_delegate(), GetSuggestionsFromPlusAddresses(
-                                           plus_addresses, _, _, _, _, _, _, _))
+  EXPECT_CALL(plus_address_delegate(),
+              GetSuggestionsFromPlusAddresses(plus_addresses, _, _, _))
       .Times(0);
   // Set up our form data.
   FormData form = test::GetFormData(
@@ -8877,8 +8880,8 @@ TEST_F(BrowserAutofillManagerPlusAddressTest,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
       .WillOnce(RunOnceCallback<1>(plus_addresses));
-  EXPECT_CALL(plus_address_delegate(), GetSuggestionsFromPlusAddresses(
-                                           plus_addresses, _, _, _, _, _, _, _))
+  EXPECT_CALL(plus_address_delegate(),
+              GetSuggestionsFromPlusAddresses(plus_addresses, _, _, _))
       .WillOnce(Return(std::vector<Suggestion>{
           Suggestion(SuggestionType::kFillExistingPlusAddress)}));
   // No single field form fill suggestions requests.
@@ -8983,62 +8986,6 @@ TEST_F(BrowserAutofillManagerIdentityCredentialTest,
   EXPECT_THAT(
       external_delegate()->suggestions(),
       Not(Contains(EqualsSuggestion(SuggestionType::kIdentityCredential))));
-}
-
-// Tests that plus address suggestions are queried and shown for email fields
-// when no single field form suggestions are available. In this case, a
-// ManagePlusAddress suggestion is also offered.
-TEST_F(BrowserAutofillManagerPlusAddressTest,
-       CreatePlusAddressSuggestionShown) {
-  using enum AutofillPlusAddressDelegate::SuggestionContext;
-  using enum PasswordFormClassification::Type;
-  personal_data().test_address_data_manager().ClearProfiles();
-
-  // Plus address suggestions request.
-  EXPECT_CALL(plus_address_delegate(), IsFieldEligibleForPlusAddress)
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
-      .WillOnce(RunOnceCallback<1>(std::vector<std::string>{}));
-  EXPECT_CALL(plus_address_delegate(), GetSuggestionsFromPlusAddresses)
-      .WillOnce(Return(std::vector<Suggestion>{
-          Suggestion(SuggestionType::kCreateNewPlusAddress)}));
-  // Single field form fill suggestions request - No results.
-  EXPECT_CALL(merchant_promo_code_manager(), OnGetSingleFieldSuggestions)
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(iban_manager(), OnGetSingleFieldSuggestions)
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(autocomplete_history_manager(), OnGetSingleFieldSuggestions)
-      .WillRepeatedly(
-          [](const FormData& form, const FormStructure* form_structure,
-             const FormFieldData& field, const AutofillField* autofill_field,
-             const AutofillClient& client,
-             SingleFieldFillRouter::OnSuggestionsReturnedCallback
-                 on_suggestions_returned) {
-            std::move(on_suggestions_returned).Run(field.global_id(), {});
-          });
-
-  EXPECT_CALL(plus_address_delegate(),
-              OnPlusAddressSuggestionShown(
-                  Ref(autofill_manager()), _, _, kAutocomplete, kNoPasswordForm,
-                  SuggestionType::kCreateNewPlusAddress));
-
-  // Set up our form data. Notably, the first field is an email address.
-  FormData form = test::GetFormData(
-      {.fields = {{.role = EMAIL_ADDRESS, .autocomplete_attribute = "email"}}});
-  form.set_name(u"MyForm");
-  form.set_url(GURL("https://myform.com/form.html"));
-  form.set_action(GURL("https://myform.com/submit.html"));
-
-  FormsSeen({form});
-
-  // Check that the plus address suggestion is offered.
-  OnAskForValuesToFill(form, form.fields()[0]);
-  EXPECT_TRUE(external_delegate()->on_suggestions_returned_seen());
-  EXPECT_THAT(
-      external_delegate()->suggestions(),
-      ElementsAre(EqualsSuggestion(SuggestionType::kCreateNewPlusAddress),
-                  EqualsSuggestion(SuggestionType::kSeparator),
-                  EqualsSuggestion(SuggestionType::kManagePlusAddress)));
 }
 
 // Tests that single field form suggestions (IBANs in this case) are shown
@@ -9148,8 +9095,8 @@ TEST_F(BrowserAutofillManagerPlusAddressTest,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
       .WillOnce(RunOnceCallback<1>(plus_addresses));
-  EXPECT_CALL(plus_address_delegate(), GetSuggestionsFromPlusAddresses(
-                                           plus_addresses, _, _, _, _, _, _, _))
+  EXPECT_CALL(plus_address_delegate(),
+              GetSuggestionsFromPlusAddresses(plus_addresses, _, _, _))
       .WillOnce(Return(std::vector<Suggestion>{
           Suggestion(SuggestionType::kFillExistingPlusAddress)}));
   // Single field form fill suggestions request.
@@ -9210,7 +9157,7 @@ TEST_F(BrowserAutofillManagerPlusAddressTest,
   EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
       .WillOnce(RunOnceCallback<1>(std::vector<std::string>{}));
   EXPECT_CALL(plus_address_delegate(), GetSuggestionsFromPlusAddresses)
-      .WillOnce(Return(std::vector<Suggestion>{}));
+      .Times(0);
   EXPECT_CALL(plus_address_delegate(), GetManagePlusAddressSuggestion).Times(0);
   EXPECT_CALL(plus_address_delegate(), OnPlusAddressSuggestionShown).Times(0);
   // Single field form fill suggestions request - No results.
@@ -9251,7 +9198,7 @@ TEST_F(BrowserAutofillManagerPlusAddressTest, ManualFallbackPlusAddress) {
   EXPECT_CALL(plus_address_delegate(), GetAffiliatedPlusAddresses)
       .WillOnce(RunOnceCallback<1>(std::vector<std::string>{}));
   EXPECT_CALL(plus_address_delegate(),
-              GetSuggestionsFromPlusAddresses(_, _, _, _, _, _, _, true))
+              GetSuggestionsFromPlusAddresses(_, _, _, true))
       .WillOnce(Return(std::vector<Suggestion>{
           Suggestion(SuggestionType::kCreateNewPlusAddress)}));
   EXPECT_CALL(plus_address_delegate(),
@@ -9374,8 +9321,8 @@ TEST_F(BrowserAutofillManagerPlusAddressTest,
       .WillOnce(RunOnceCallback<1>(plus_addresses));
   // No plus address suggestions are built as the plus address replaced the
   // address profile email.
-  EXPECT_CALL(plus_address_delegate(), GetSuggestionsFromPlusAddresses(
-                                           plus_addresses, _, _, _, _, _, _, _))
+  EXPECT_CALL(plus_address_delegate(),
+              GetSuggestionsFromPlusAddresses(plus_addresses, _, _, _))
       .Times(0);
   // No single field form fill suggestions requests.
   EXPECT_CALL(plus_address_delegate(), IsFieldEligibleForPlusAddress)

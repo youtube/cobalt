@@ -1270,7 +1270,7 @@ void MainThreadSchedulerImpl::WillHandleInputEventOnMainThread(
 void MainThreadSchedulerImpl::DidHandleInputEventOnMainThread(
     const WebInputEvent& web_input_event,
     WebInputEventResult result,
-    bool frame_requested) {
+    bool is_frame_expected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                "MainThreadSchedulerImpl::DidHandleInputEventOnMainThread");
   helper_.CheckOnValidThread();
@@ -1292,8 +1292,8 @@ void MainThreadSchedulerImpl::DidHandleInputEventOnMainThread(
 
   if (WebInputEvent::IsWebInteractionEvent(web_input_event.GetType())) {
     main_thread_only().is_current_task_discrete_input = true;
-    main_thread_only().is_frame_requested_after_discrete_input =
-        frame_requested;
+    main_thread_only().is_frame_expected_after_discrete_input =
+        is_frame_expected;
   }
 }
 
@@ -1360,7 +1360,6 @@ void MainThreadSchedulerImpl::EnsureUrgentPolicyUpdatePostedOnMainThread(
     const base::Location& from_here) {
   // TODO(scheduler-dev): Check that this method isn't called from the main
   // thread.
-  any_thread_lock_.AssertAcquired();
   if (!policy_may_need_update_.IsSet()) {
     policy_may_need_update_.SetWhileLocked(true);
     control_task_queue_->GetTaskRunnerWithDefaultTaskType()->PostTask(
@@ -1380,7 +1379,6 @@ void MainThreadSchedulerImpl::ForceUpdatePolicy() {
 
 void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
   helper_.CheckOnValidThread();
-  any_thread_lock_.AssertAcquired();
   if (helper_.IsShutdown())
     return;
 
@@ -1641,7 +1639,6 @@ void MainThreadSchedulerImpl::UpdateTaskQueueState(
 UseCase MainThreadSchedulerImpl::ComputeCurrentUseCase(
     base::TimeTicks now,
     base::TimeDelta* expected_use_case_duration) const {
-  any_thread_lock_.AssertAcquired();
 
   // Above all else we want to be responsive to user input.
   *expected_use_case_duration = base::TimeDelta();
@@ -1806,6 +1803,7 @@ void MainThreadSchedulerImpl::CreateTraceEventObjectSnapshotLocked() const {
   TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
       TRACE_DISABLED_BY_DEFAULT("renderer.scheduler.debug"),
       "MainThreadScheduler", this, [&](perfetto::TracedValue context) {
+        any_thread_lock_.AssertAcquired();
         WriteIntoTraceLocked(std::move(context), helper_.NowTicks());
       });
 }
@@ -1814,7 +1812,6 @@ void MainThreadSchedulerImpl::WriteIntoTraceLocked(
     perfetto::TracedValue context,
     base::TimeTicks optional_now) const {
   helper_.CheckOnValidThread();
-  any_thread_lock_.AssertAcquired();
 
   auto dict = std::move(context).WriteDictionary();
 
@@ -2030,7 +2027,6 @@ void MainThreadSchedulerImpl::ResetForNavigationLocked() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
                "MainThreadSchedulerImpl::ResetForNavigationLocked");
   helper_.CheckOnValidThread();
-  any_thread_lock_.AssertAcquired();
   any_thread().user_model.Reset(helper_.NowTicks());
   any_thread().have_seen_a_blocking_gesture = false;
   any_thread().waiting_for_any_main_frame_contentful_paint =
@@ -2603,7 +2599,7 @@ void MainThreadSchedulerImpl::MaybeUpdatePolicyOnTaskCompleted(
         needs_policy_update = true;
       }
     } else if (queue->queue_type() == MainThreadTaskQueue::QueueType::kInput &&
-               main_thread_only().is_frame_requested_after_discrete_input) {
+               main_thread_only().is_frame_expected_after_discrete_input) {
       CHECK(main_thread_only().is_current_task_discrete_input);
       any_thread().awaiting_discrete_input_response = true;
       any_thread().user_model.DidProcessDiscreteInputEvent(
@@ -2617,7 +2613,7 @@ void MainThreadSchedulerImpl::MaybeUpdatePolicyOnTaskCompleted(
   UpdateRenderingPrioritizationStateOnTaskCompleted(queue, task_timing);
 
   main_thread_only().is_current_task_discrete_input = false;
-  main_thread_only().is_frame_requested_after_discrete_input = false;
+  main_thread_only().is_frame_expected_after_discrete_input = false;
   main_thread_only().is_current_task_main_frame = false;
 
   if (needs_policy_update) {

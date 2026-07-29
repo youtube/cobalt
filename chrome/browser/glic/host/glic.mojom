@@ -288,7 +288,7 @@ struct WebClientInitialState {
   // Whether the panel is active. See `NotifyPanelActiveChange`.
   bool panel_is_active;
   bool browser_is_open;
-  bool browser_is_active;
+  bool instance_is_active;
   // Reflects the enabling state of always-detached mode.
   bool always_detached_mode;
   bool enable_zero_state_suggestions;
@@ -928,6 +928,9 @@ struct PanelOpeningData {
   // If set, the textbox for user input will be populated with the given string
   // before the panel opens.
   string? prompt_suggestion;
+  // Up to 3 most recently active conversations, ordered by most recently active
+  // first.
+  array<ConversationInfo>? recently_active_conversations;
 };
 
 // @generate glic_api
@@ -1021,10 +1024,11 @@ enum WebUseCounter {
   // Default counter. Never used.
   [Default] kDefault = 0,
   kSubmitPromptWithAutoMode = 1,
+  kTaskInterruptedForUserConfirmation = 2,
+  kTaskInterruptedForUserClarification = 3,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicWebUseCounter)
-
 [Stable, Extensible]
 enum ResponseStopCause {
   [Default] kUnknown = 0,
@@ -1134,11 +1138,10 @@ interface WebClient {
   // True if the browser has at least one open window.
   NotifyBrowserIsOpenChanged(bool browser_is_open);
 
-  // The browser (or at least, some browser window which is potentially
-  // relevant to this glic panel) has become active or inactive (in the sense
-  // of visibility and focus). Some activity, such as responsiveness checks,
-  // may be paused or resumed accordingly.
-  NotifyBrowserIsActiveChanged(bool browser_active);
+  // The window holding the glic panel has become active or inactive (in the
+  // sense of visibility and focus). Some activity, such as responsiveness
+  // checks, may be paused or resumed accordingly.
+  NotifyInstanceActivationChanged(bool instance_active);
 
   // Notify that the closed captioning setting has changed.
   NotifyClosedCaptioningSettingChanged(bool enabled);
@@ -1184,6 +1187,16 @@ interface WebClient {
   RequestToShowCredentialSelectionDialog(
       actor.webui.mojom.SelectCredentialDialogRequest request)
       => (actor.webui.mojom.SelectCredentialDialogResponse response);
+
+  // Requests the web client to show a dialog to the user to select autofill
+  // suggestions. The web client should show the dialog and wait for the user
+  // to interact with it.
+  //
+  // Selections for multiple forms can be requested by populating multiple
+  // FormFillingRequest objects.
+  RequestToShowAutofillSuggestionsDialog(
+      actor.webui.mojom.SelectAutofillSuggestionsDialogRequest request)
+      => (actor.webui.mojom.SelectAutofillSuggestionsDialogResponse response);
 
   // Requests the web client to show a dialog for deterministic user
   // confirmation. This should occur when Chrome detects the actor
@@ -1356,6 +1369,7 @@ enum CaptureRegionErrorReason {
   // There is no focused tab that can be used for region capture.
   kNoFocusableTab = 1,
 };
+
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:CaptureRegionErrorReason)
 
 // Observer for the capture region process.

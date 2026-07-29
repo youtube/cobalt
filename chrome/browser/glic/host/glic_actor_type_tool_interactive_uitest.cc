@@ -97,7 +97,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest, BasicTypeActionSucceeds) {
   RunTestSequence(
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(task_url, kTypingTestTabId),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       TypeAction(kElementLabel, kExpectedText,
                  optimization_guide::proto::TypeAction::TypeMode::
                      TypeAction_TypeMode_DELETE_EXISTING),
@@ -124,7 +124,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
                 content::JsReplace(
                     "() => { document.getElementById('input2').value = $1; }",
                     kInitialText)),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       TypeAction(kElementLabel, kExpectedText,
                  optimization_guide::proto::TypeAction::TypeMode::
                      TypeAction_TypeMode_DELETE_EXISTING),
@@ -143,7 +143,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
 
   RunTestSequence(InitializeWithOpenGlicWindow(),
                   StartActorTaskInNewTab(task_url, kTypingTestTabId),
-                  GetPageContextFromFocusedTab(),
+                  GetPageContextForActorTab(),
                   // Attempt to type, expecting the specific error code.
                   TypeAction(kElementLabel, "should fail",
                              optimization_guide::proto::TypeAction::TypeMode::
@@ -178,9 +178,20 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
                     actor::mojom::ActionResultCode::kInvalidDomNodeId));
 }
 
+class GlicActorTypeToolUiTestWithoutMultiInstance
+    : public GlicActorTypeToolUiTest {
+ public:
+  GlicActorTypeToolUiTestWithoutMultiInstance() {
+    feature_list_.InitAndDisableFeature(features::kGlicMultiInstance);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
 // Tests that if focusing the target element causes focus to move to a
 // different element, the type action correctly types into that new element.
-IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
+IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTestWithoutMultiInstance,
                        TypeActionOnFocusRedirectSucceeds) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTypingTestTabId);
   const GURL task_url = embedded_test_server()->GetURL("/actor/input.html");
@@ -201,7 +212,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
                    });
                  }
                )JS"),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       TypeAction(kElementLabel, kExpectedText,
                  optimization_guide::proto::TypeAction::TypeMode::
                      TypeAction_TypeMode_DELETE_EXISTING),
@@ -240,7 +251,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest, TypeActionCoordinatesSucceeds) {
   RunTestSequence(
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(task_url, kTypingTestTabId),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       // First test case - input in a form
       GetClientRect(kTypingTestTabId, "input", current_bounds),
       ExecuteAction(type_in_current_bounds),
@@ -255,7 +266,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest, TypeActionCoordinatesSucceeds) {
                       kTypedString),
       // Third test case - input obscured by pseudo-element. Just try to click
       // and type on the container.
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       GetClientRect(kTypingTestTabId, "pseudoContainer", current_bounds),
       ExecuteAction(type_in_current_bounds),
       WaitForJsResult(kTypingTestTabId,
@@ -272,7 +283,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
   RunTestSequence(
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(task_url, kTypingTestTabId),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
 
       // Attempt to type at an impossible coordinate.
       TypeAction(gfx::Point(-1, -1), "should fail",
@@ -294,7 +305,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
   RunTestSequence(
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(task_url, kTypingTestTabId),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
 
       // Action targets the original readonly input. The tool will click it,
       // the page script will replace it with '#inputclone' and focus that.
@@ -322,7 +333,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
   RunTestSequence(
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(task_url, kTypingTestTabId),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       // The element 'keyHandlingInput' has JS listeners that manually build the
       // value from key events. This test proves our action triggers those
       // events.
@@ -365,7 +376,7 @@ IN_PROC_BROWSER_TEST_F(GlicActorTypeToolUiTest,
   RunTestSequence(
       InitializeWithOpenGlicWindow(),
       StartActorTaskInNewTab(task_url, kTypingTestTabId),
-      GetPageContextFromFocusedTab(),
+      GetPageContextForActorTab(),
       GetClientRect(kTypingTestTabId, "keyHandlingInput", handler_input_bounds),
       ExecuteAction(std::move(type_provider)),
       WaitForJsResult(kTypingTestTabId,

@@ -15,6 +15,7 @@
 #include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
+#include "components/grit/components_scaled_resources.h"
 
 namespace autofill::payments {
 
@@ -33,20 +34,22 @@ void AndroidBnplUiDelegate::ShowSelectBnplIssuerUi(
                                       std::move(cancel_callback));
 }
 
-void AndroidBnplUiDelegate::DismissSelectBnplIssuerUi() {
-  // TODO(crbug.com/438783909): Add JNI call to dismiss the TouchToFill bottom
-  // sheet with the BNPL issuer selection screen.
+void AndroidBnplUiDelegate::RemoveSelectBnplIssuerOrProgressUi() {
+  client_->SetTouchToFillVisible(/*visible=*/false);
 }
 
 void AndroidBnplUiDelegate::ShowBnplTosUi(BnplTosModel bnpl_tos_model,
                                           base::OnceClosure accept_callback,
                                           base::OnceClosure cancel_callback) {
-  // TODO(crbug.com/438783909): Add JNI call to show the TouchToFill bottom
-  // sheet with the ToS screen.
+  client_->ShowTouchToFillBnplTos(std::move(bnpl_tos_model),
+                                  std::move(accept_callback),
+                                  std::move(cancel_callback));
 }
 
-void AndroidBnplUiDelegate::CloseBnplTosUi() {
-  // TODO(crbug.com/438783909): Add JNI call to close the ToS screen.
+void AndroidBnplUiDelegate::RemoveBnplTosOrProgressUi() {
+  // If the user accepted BNPL Terms of Service, then progress touch to fill
+  // screen must be showing, so close it.
+  client_->SetTouchToFillVisible(/*visible=*/false);
 }
 
 void AndroidBnplUiDelegate::ShowProgressUi(
@@ -56,13 +59,34 @@ void AndroidBnplUiDelegate::ShowProgressUi(
 }
 
 void AndroidBnplUiDelegate::CloseProgressUi(
-    bool show_confirmation_before_closing) {
-  // TODO(crbug.com/438783909): Add JNI call to hide the progress spinner.
+    bool credit_card_fetched_successfully) {
+  client_->HideTouchToFillPaymentMethod();
 }
 
 void AndroidBnplUiDelegate::ShowAutofillErrorUi(
     AutofillErrorDialogContext context) {
   client_->ShowTouchToFillError(context);
+}
+
+// Static.
+int AndroidBnplUiDelegate::GetDuoBrandedIconForBnplIssuer(
+    BnplIssuer::IssuerId issuer_id,
+    bool is_dark_mode) {
+  switch (issuer_id) {
+    case BnplIssuer::IssuerId::kBnplAffirm:
+      return is_dark_mode ? IDR_AUTOFILL_GOOGLE_PAY_AFFIRM_DARK
+                          : IDR_AUTOFILL_GOOGLE_PAY_AFFIRM;
+    case BnplIssuer::IssuerId::kBnplAfterpay:
+      return is_dark_mode ? IDR_AUTOFILL_GOOGLE_PAY_AFTERPAY_DARK
+                          : IDR_AUTOFILL_GOOGLE_PAY_AFTERPAY;
+    case BnplIssuer::IssuerId::kBnplKlarna:
+      return is_dark_mode ? IDR_AUTOFILL_GOOGLE_PAY_KLARNA_DARK
+                          : IDR_AUTOFILL_GOOGLE_PAY_KLARNA;
+    case BnplIssuer::IssuerId::kBnplZip:
+      return is_dark_mode ? IDR_AUTOFILL_GOOGLE_PAY_ZIP_DARK
+                          : IDR_AUTOFILL_GOOGLE_PAY_ZIP;
+  }
+  NOTREACHED();
 }
 
 }  // namespace autofill::payments

@@ -218,9 +218,8 @@ void DidVisibilityChange(LayerTreeHostImpl* id, bool visible) {
                   perfetto::Track::FromPointer(id));
 }
 
-void PopulateMetadataContentColorUsage(
-    const LayerTreeHostImpl::FrameData* frame,
-    viz::CompositorFrameMetadata* metadata) {
+void PopulateMetadataContentColorUsage(const FrameData* frame,
+                                       viz::CompositorFrameMetadata* metadata) {
   metadata->content_color_usage = gfx::ContentColorUsage::kSRGB;
   for (const LayerImpl* layer : frame->will_draw_layers) {
     metadata->content_color_usage =
@@ -455,8 +454,6 @@ const LayerTreeHostImpl& LayerTreeHostImpl::GetImplDeprecated() const {
   return *this;
 }
 
-LayerTreeHostImpl::FrameData::FrameData() = default;
-LayerTreeHostImpl::FrameData::~FrameData() = default;
 LayerTreeHostImpl::UIResourceData::UIResourceData() = default;
 LayerTreeHostImpl::UIResourceData::~UIResourceData() = default;
 LayerTreeHostImpl::UIResourceData::UIResourceData(UIResourceData&&) noexcept =
@@ -1282,38 +1279,6 @@ void LayerTreeHostImpl::QueueSwapPromiseForMainThreadScrollUpdate(
       std::move(swap_promise));
 }
 
-void LayerTreeHostImpl::FrameData::AsValueInto(
-    base::trace_event::TracedValue* value) const {
-  value->SetBoolean("has_no_damage", has_no_damage);
-
-  // Quad data can be quite large, so only dump render passes if we are
-  // logging verbosely or viz.quads tracing category is enabled.
-  bool quads_enabled = VerboseLogEnabled();
-  if (!quads_enabled) {
-    TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("viz.quads"),
-                                       &quads_enabled);
-  }
-  if (quads_enabled) {
-    value->BeginArray("render_passes");
-    for (const auto& render_pass : render_passes) {
-      value->BeginDictionary();
-      render_pass->AsValueInto(value);
-      value->EndDictionary();
-    }
-    value->EndArray();
-  }
-}
-
-std::string LayerTreeHostImpl::FrameData::ToString() const {
-  base::trace_event::TracedValueJSON value;
-  AsValueInto(&value);
-  return value.ToFormattedJSON();
-}
-void LayerTreeHostImpl::FrameData::set_trees_in_viz_timestamps(
-    const viz::TreesInVizTiming& timing_details) {
-  trees_in_viz_timing_details = timing_details;
-}
-
 DrawMode LayerTreeHostImpl::GetDrawMode() const {
   if (resourceless_software_draw_) {
     return DRAW_MODE_RESOURCELESS_SOFTWARE;
@@ -1418,10 +1383,12 @@ bool LayerTreeHostImpl::HasDamage() const {
          hud_wants_to_draw_ || active_tree_->HasViewTransitionRequests();
 }
 
-DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
+DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
+                                                    bool expects_to_draw) {
   DCHECK(frame->render_passes.empty());
   DCHECK(CanDraw());
   DCHECK(!active_tree_->LayerListIsEmpty());
+  DCHECK(!expects_to_draw || settings_.trees_in_viz_in_viz_process);
 
   // For now, we use damage tracking to compute a global scissor. To do this, we
   // must compute all damage tracking before drawing anything, so that we know
@@ -1431,7 +1398,16 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
   frame->damage_reasons =
       active_tree_->RootRenderSurface()->damage_tracker()->GetDamageReasons();
 
-  if (HasDamage()) {
+  bool has_damage = HasDamage();
+
+  if (expects_to_draw) {
+    // Force drawing, but assert in DCHECK builds.
+    DUMP_WILL_BE_CHECK(has_damage)
+        << "crbug.com/454680865: Has no damage while expects_to_draw is set";
+    has_damage = true;
+  }
+
+  if (has_damage) {
     consecutive_frame_with_damage_count_++;
   } else {
     TRACE_EVENT0("cc",
@@ -1677,7 +1653,13 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
   // so there's no reason to stop the draw now (and this is not supported by
   // SingleThreadProxy).
   if (have_missing_animated_tiles && !CommitsToActiveTree()) {
-    draw_result = DrawResult::kAbortedCheckerboardAnimations;
+    if (expects_to_draw) {
+      // Force drawing, but assert in DCHECK builds.
+      DCHECK(false) << "crbug.com/454680865: Has checkerboarded animations "
+                       "while expects_to_draw is set";
+    } else {
+      draw_result = DrawResult::kAbortedCheckerboardAnimations;
+    }
   }
 
   // When we require high res to draw, abort the draw (almost) always. This does
@@ -1685,8 +1667,15 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame) {
   // drawing until we finally complete, so the copy request will not be lost.
   // TODO(weiliangc): Remove RequiresHighResToDraw. crbug.com/469175
   if (frame->checkerboarded_needs_raster) {
-    if (RequiresHighResToDraw())
-      draw_result = DrawResult::kAbortedMissingHighResContent;
+    if (RequiresHighResToDraw()) {
+      if (expects_to_draw) {
+        // Force drawing, but assert in DCHECK builds.
+        DCHECK(false) << "crbug.com/454680865: Is missing high res content "
+                         "while expects_to_draw is set";
+      } else {
+        draw_result = DrawResult::kAbortedMissingHighResContent;
+      }
+    }
   }
 
   // When doing a resourceless software draw, we don't have control over the
@@ -1792,7 +1781,10 @@ void LayerTreeHostImpl::InvalidateLayerTreeFrameSink(bool needs_redraw) {
   layer_tree_frame_sink()->Invalidate(needs_redraw);
 }
 
-DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame) {
+DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame,
+                                            bool expects_to_draw) {
+  DCHECK(!expects_to_draw || settings_.trees_in_viz_in_viz_process);
+
   TRACE_EVENT1("cc", "LayerTreeHostImpl::PrepareToDraw", "SourceFrameNumber",
                active_tree_->source_frame_number());
   if (input_delegate_)
@@ -1843,13 +1835,20 @@ DrawResult LayerTreeHostImpl::PrepareToDraw(FrameData* frame) {
         viewport_damage_rect_);
   }
 
-  DrawResult draw_result = CalculateRenderPasses(frame);
+  DrawResult draw_result = CalculateRenderPasses(frame, expects_to_draw);
 
   // Dump render passes and draw quads if VerboseLogEnabled().
   VERBOSE_LOG() << "Prepare to draw\n" << frame->ToString();
 
   if (draw_result != DrawResult::kSuccess) {
     DCHECK(!resourceless_software_draw_);
+    if (expects_to_draw) {
+      // Force drawing, but assert in DCHECK builds.
+      DUMP_WILL_BE_CHECK(false)
+          << "crbug.com/454680865: Draw result is not success while "
+             "expects_to_draw is set";
+      return DrawResult::kSuccess;
+    }
     return draw_result;
   }
 
@@ -2954,8 +2953,7 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
   if (dump_compositor_frame_ && frame_token >= dump_compositor_frame_begin_ &&
       frame_token <= dump_compositor_frame_end_) {
     // This is purely for debugging TreesInViz and TreeAnimationInViz purposes.
-    std::string data = viz::TransitionUtils::CompositorFrameToString(
-        compositor_frame, /*full_data=*/true);
+    std::string data = compositor_frame.ToString();
     base::ThreadPool::PostTask(
         FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
         base::BindOnce(&DoDumpCompositorFrame, data,
@@ -2999,7 +2997,7 @@ std::optional<SubmitInfo> LayerTreeHostImpl::DrawLayers(FrameData* frame) {
   // Dump property trees and layers if VerboseLogEnabled().
   VERBOSE_LOG() << "Submitting a frame:\n"
                 << viz::TransitionUtils::CompositorFrameToString(
-                       compositor_frame, /*full_data=*/false);
+                       compositor_frame);
 
   base::TimeTicks submit_time = base::TimeTicks::Now();
   base::TimeTicks trees_in_viz_submit_time;
@@ -3730,7 +3728,7 @@ void LayerTreeHostImpl::DidNotProduceFrame(const viz::BeginFrameAck& ack,
   TRACE_EVENT2(
       "cc,benchmark", "LayerTreeHostImpl::DidNotProduceFrame",
       "FrameSkippedReason",
-      [](FrameSkippedReason reason) {
+      [&reason] {
         switch (reason) {
           case FrameSkippedReason::kRecoverLatency:
             return "kRecoverLatency";
@@ -3742,17 +3740,21 @@ void LayerTreeHostImpl::DidNotProduceFrame(const viz::BeginFrameAck& ack,
             return "kDrawThrottled";
         }
         return "";
-      }(reason),
+      }(),
       "Frame Sequence Number", ack.frame_id.sequence_number);
   if (layer_tree_frame_sink_) {
     layer_tree_frame_sink_->DidNotProduceFrame(ack, reason);
   }
-  // While scrolling, we save all event metrics. It is possible that this
-  // results in a 0 delta scroll, which has no damage. We drop the metrics here
-  // so that they are terminated now. This prevents them from being incorrectly
-  // associated with a future produced frame. So that jank measurements have
-  // accurate deltas.
-  events_metrics_manager_.DropSavedEventMetricsForNoFrameUpdate();
+  if (reason == FrameSkippedReason::kNoDamage ||
+      !base::FeatureList::IsEnabled(
+          features::kDropMetricsFromNonProducedFramesOnlyIfTheyHadNoDamage)) {
+    // While scrolling, we save all event metrics. It is possible that this
+    // results in a 0 delta scroll, which has no damage. We drop the metrics
+    // here so that they are terminated now. This prevents them from being
+    // incorrectly associated with a future produced frame. So that jank
+    // measurements have accurate deltas.
+    events_metrics_manager_.DropSavedEventMetricsForNoFrameUpdate();
+  }
 }
 
 void LayerTreeHostImpl::OnBeginImplFrameDeadline() {
@@ -5765,22 +5767,13 @@ void LayerTreeHostImpl::CreateUIResource(UIResourceId uid,
   // Mailbox+SyncToken as well. The OnUIResourceReleased() method will be called
   // once the resource is deleted and the display compositor is no longer using
   // it, to free the memory allocated in this method above.
-  viz::TransferableResource transferable;
-  if (layer_tree_frame_sink_->context_provider()) {
-    gpu::SyncToken sync_token = layer_tree_frame_sink_->context_provider()
-                                    ->SharedImageInterface()
-                                    ->GenUnverifiedSyncToken();
+  gpu::SyncToken sync_token = layer_tree_frame_sink_->shared_image_interface()
+                                  ->GenUnverifiedSyncToken();
 
-    transferable = viz::TransferableResource::Make(
-        client_shared_image, viz::TransferableResource::ResourceSource::kUI,
-        sync_token);
-  } else {
-    auto sii = layer_tree_frame_sink_->shared_image_interface();
-    gpu::SyncToken sync_token = sii->GenVerifiedSyncToken();
-    transferable = viz::TransferableResource::Make(
-        client_shared_image, viz::TransferableResource::ResourceSource::kUI,
-        sync_token);
-  }
+  viz::TransferableResource transferable = viz::TransferableResource::Make(
+      client_shared_image, viz::TransferableResource::ResourceSource::kUI,
+      sync_token);
+
   id = resource_provider_->ImportResource(
       transferable,
       // The OnUIResourceReleased method is bound with a WeakPtr, but the

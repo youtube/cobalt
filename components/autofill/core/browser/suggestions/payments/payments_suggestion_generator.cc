@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -68,7 +69,7 @@ namespace autofill {
 
 namespace {
 
-constexpr uint64_t kCentsPerDollar = 100;
+constexpr int64_t kCentsPerDollar = 100;
 constexpr char16_t kEllipsisDotSeparator[] = u"\u2022";
 
 Suggestion CreateUndoOrClearFormSuggestion() {
@@ -218,31 +219,6 @@ void RemoveExpiredLocalCreditCardsNotUsedSinceTimestamp(
       num_cards_suppressed);
 }
 
-// Return a nickname for the |card| to display. This is generally the nickname
-// stored in |card|, unless |card| exists as a local and a server copy. In
-// this case, we prefer the nickname of the local if it is defined. If only
-// one copy has a nickname, take that.
-std::u16string GetDisplayNicknameForCreditCard(
-    const CreditCard& card,
-    const PaymentsDataManager& payments_data) {
-  // Always prefer a local nickname if available.
-  if (card.HasNonEmptyValidNickname() &&
-      card.record_type() == CreditCard::RecordType::kLocalCard) {
-    return card.nickname();
-  }
-  // Either the card a) has no nickname or b) is a server card and we would
-  // prefer to use the nickname of a local card.
-  for (const CreditCard* candidate : payments_data.GetCreditCards()) {
-    if (candidate->guid() != card.guid() &&
-        candidate->MatchingCardDetails(card) &&
-        candidate->HasNonEmptyValidNickname()) {
-      return candidate->nickname();
-    }
-  }
-  // Fall back to nickname of |card|, which may be empty.
-  return card.nickname();
-}
-
 // Return the texts shown as the first line of the suggestion, based on the
 // `credit_card` and the `trigger_field_type`. The first index in the pair
 // represents the main text, and the second index represents the minor text.
@@ -327,31 +303,6 @@ Suggestion::Text GetBenefitTextWithTermsAppended(
       IDS_AUTOFILL_CREDIT_CARD_BENEFIT_TEXT_FOR_SUGGESTIONS, benefit_text));
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-// Returns the benefit text to display in credit card suggestions if it is
-// available.
-std::optional<Suggestion::Text> GetCreditCardBenefitSuggestionLabel(
-    const CreditCard& credit_card,
-    const AutofillClient& client) {
-  const std::u16string& benefit_description =
-      client.GetPersonalDataManager()
-          .payments_data_manager()
-          .GetApplicableBenefitDescriptionForCardAndOrigin(
-              credit_card, client.GetLastCommittedPrimaryMainFrameOrigin(),
-              client.GetAutofillOptimizationGuideDecider());
-  if (benefit_description.empty()) {
-    return std::nullopt;
-  }
-#if BUILDFLAG(IS_ANDROID)
-  // The TTF bottom sheet displays a separate `Terms apply for card benefits`
-  // message after listing all card suggestion, so it should not be appended
-  // to each one like on Desktop.
-  return std::optional<Suggestion::Text>(benefit_description);
-#else
-  return std::optional<Suggestion::Text>(
-      GetBenefitTextWithTermsAppended(benefit_description));
-#endif  // BUILDFLAG(IS_ANDROID)
-}
 
 // Set the labels to be shown in the suggestion. Note that this does not
 // account for virtual cards or card-linked offers.
@@ -618,31 +569,6 @@ void AdjustVirtualCardSuggestionContent(Suggestion& suggestion,
 #endif  // BUILDFLAG(IS_IOS)
 }
 
-// Set the URL for the card art image to be shown in the `suggestion`.
-void SetCardArtURL(Suggestion& suggestion,
-                   const CreditCard& credit_card,
-                   const PaymentsDataManager& payments_data,
-                   bool virtual_card_option) {
-  const GURL card_art_url = payments_data.GetCardArtURL(credit_card);
-  // The Capital One icon for virtual cards is not card metadata, it only helps
-  // distinguish FPAN from virtual cards when metadata is unavailable. FPANs
-  // should only ever use the network logo or rich card art. The Capital One
-  // logo is reserved for virtual cards only.
-  if (!virtual_card_option && card_art_url == kCapitalOneCardArtUrl) {
-    return;
-  }
-
-  if constexpr (BUILDFLAG(IS_ANDROID)) {
-    suggestion.custom_icon = Suggestion::CustomIconUrl(card_art_url);
-  } else {
-    const gfx::Image* image =
-        payments_data.GetCachedCardArtImageForUrl(card_art_url);
-    if (image) {
-      suggestion.custom_icon = *image;
-    }
-  }
-}
-
 // Returns non credit card suggestions which are displayed below credit card
 // suggestions in the Autofill popup. `should_show_scan_credit_card` is used
 // to conditionally add scan credit card suggestion. `is_autofilled` is used to
@@ -883,7 +809,7 @@ Suggestion CreateCreditCardSuggestion(
 // Returns the lowest eligible price in all `bnpl_issuers`.
 std::u16string GetBnplPriceLowerBound(
     const std::vector<BnplIssuer>& bnpl_issuers) {
-  uint64_t lower_bound = UINT64_MAX;
+  int64_t lower_bound = INT64_MAX;
 
   // Get the lowest eligible price in USD as it's the only supported currency
   // for now.
@@ -897,12 +823,16 @@ std::u16string GetBnplPriceLowerBound(
     }
   }
 
+  if (lower_bound < 0) {
+    lower_bound = 0;
+  }
+
   // Suggestion update shouldn't be triggered if there is no matching
   // `eligible_price_range`.
-  CHECK(lower_bound != UINT64_MAX);
+  CHECK(lower_bound != INT64_MAX);
 
   // Round the lower_bound to the nearest higher cents.
-  if (uint64_t remainder = lower_bound % (kMicrosPerDollar / kCentsPerDollar);
+  if (int64_t remainder = lower_bound % (kMicrosPerDollar / kCentsPerDollar);
       remainder != 0) {
     lower_bound = lower_bound - remainder + kMicrosPerDollar / kCentsPerDollar;
   }
@@ -1011,6 +941,81 @@ std::vector<const CreditCard*> GetCreditCardsToSuggest(
         return a->HasGreaterRankingThan(*b, comparison_time);
       });
   return cards_to_suggest;
+}
+
+// Set the URL for the card art image to be shown in the `suggestion`.
+void SetCardArtURL(Suggestion& suggestion,
+                   const CreditCard& credit_card,
+                   const PaymentsDataManager& payments_data,
+                   bool virtual_card_option) {
+  const GURL card_art_url = payments_data.GetCardArtURL(credit_card);
+  // The Capital One icon for virtual cards is not card metadata, it only helps
+  // distinguish FPAN from virtual cards when metadata is unavailable. FPANs
+  // should only ever use the network logo or rich card art. The Capital One
+  // logo is reserved for virtual cards only.
+  if (!virtual_card_option && card_art_url == kCapitalOneCardArtUrl) {
+    return;
+  }
+
+  if constexpr (BUILDFLAG(IS_ANDROID)) {
+    suggestion.custom_icon = Suggestion::CustomIconUrl(card_art_url);
+  } else {
+    const gfx::Image* image =
+        payments_data.GetCachedCardArtImageForUrl(card_art_url);
+    if (image) {
+      suggestion.custom_icon = *image;
+    }
+  }
+}
+
+// Return a nickname for the |card| to display. This is generally the nickname
+// stored in |card|, unless |card| exists as a local and a server copy. In
+// this case, we prefer the nickname of the local if it is defined. If only
+// one copy has a nickname, take that.
+std::u16string GetDisplayNicknameForCreditCard(
+    const CreditCard& card,
+    const PaymentsDataManager& payments_data) {
+  // Always prefer a local nickname if available.
+  if (card.HasNonEmptyValidNickname() &&
+      card.record_type() == CreditCard::RecordType::kLocalCard) {
+    return card.nickname();
+  }
+  // Either the card a) has no nickname or b) is a server card and we would
+  // prefer to use the nickname of a local card.
+  for (const CreditCard* candidate : payments_data.GetCreditCards()) {
+    if (candidate->guid() != card.guid() &&
+        candidate->MatchingCardDetails(card) &&
+        candidate->HasNonEmptyValidNickname()) {
+      return candidate->nickname();
+    }
+  }
+  // Fall back to nickname of |card|, which may be empty.
+  return card.nickname();
+}
+
+// Returns the benefit text to display in credit card suggestions if it is
+// available.
+std::optional<Suggestion::Text> GetCreditCardBenefitSuggestionLabel(
+    const CreditCard& credit_card,
+    const AutofillClient& client) {
+  const std::u16string& benefit_description =
+      client.GetPersonalDataManager()
+          .payments_data_manager()
+          .GetApplicableBenefitDescriptionForCardAndOrigin(
+              credit_card, client.GetLastCommittedPrimaryMainFrameOrigin(),
+              client.GetAutofillOptimizationGuideDecider());
+  if (benefit_description.empty()) {
+    return std::nullopt;
+  }
+#if BUILDFLAG(IS_ANDROID)
+  // The TTF bottom sheet displays a separate `Terms apply for card benefits`
+  // message after listing all card suggestion, so it should not be appended
+  // to each one like on Desktop.
+  return std::optional<Suggestion::Text>(benefit_description);
+#else
+  return std::optional<Suggestion::Text>(
+      GetBenefitTextWithTermsAppended(benefit_description));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 std::vector<Suggestion> GetSuggestionsForCreditCards(
@@ -1224,7 +1229,7 @@ std::vector<Suggestion> GetVirtualCardStandaloneCvcFieldSuggestions(
 BnplSuggestionUpdateResult MaybeUpdateDesktopSuggestionsWithBnpl(
     const base::span<const Suggestion>& current_suggestions,
     std::vector<BnplIssuer> bnpl_issuers,
-    uint64_t extracted_amount_in_micros) {
+    int64_t extracted_amount_in_micros) {
   // No need to add BNPL suggestion if the current suggestion list is empty.
   if (current_suggestions.empty()) {
     return BnplSuggestionUpdateResult();
@@ -1272,7 +1277,7 @@ BnplSuggestionUpdateResult MaybeUpdateDesktopSuggestionsWithBnpl(
 
 Suggestion CreateBnplSuggestion(
     std::vector<BnplIssuer> bnpl_issuers,
-    std::optional<uint64_t> extracted_amount_in_micros) {
+    std::optional<int64_t> extracted_amount_in_micros) {
   Suggestion bnpl_suggestion(SuggestionType::kBnplEntry);
   bnpl_suggestion.icon = Suggestion::Icon::kBnpl;
   bnpl_suggestion.main_text = Suggestion::Text(
@@ -1461,6 +1466,7 @@ std::vector<Suggestion> GetCreditCardSuggestionsForTouchToFill(
                                  .payments_data_manager()
                                  .GetBnplIssuers(),
                              /*extracted_amount_in_micros=*/std::nullopt));
+    manager.GetCreditCardFormEventLogger().OnBnplSuggestionShown();
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
     manager.client()

@@ -49,6 +49,7 @@ const char kShouldShowNonRoleManagerDefaultBrowserPromo[] =
     "should_show_non_role_manager_default_browser_promo";
 const char kHasDefaultBrowserPromoShownInOtherSurface[] =
     "has_default_browser_promo_shown_in_other_surface";
+const char kDefaultBrowserPromoShownCount[] = "default_browser_shown_count";
 const char kTabGroupExists[] = "tab_group_exists";
 const char kNumberOfTabs[] = "number_of_tabs";
 const char kTabGroupPromoShownCount[] = "tab_group_shown_count";
@@ -101,11 +102,24 @@ inline constexpr auto kLensEphemeralModuleVariationLabels =
     });
 
 // Labels for emphemeral android modules.
-const char kDefaultBrowserPromo[] = "DefaultBrowserPromo";
-const char kTabGroupPromo[] = "TabGroupPromo";
-const char kTabGroupSyncPromo[] = "TabGroupSyncPromo";
-const char kQuickDeletePromo[] = "QuickDeletePromo";
-const char kHistorySyncPromo[] = "HistorySyncPromo";
+inline constexpr char kDefaultBrowserPromo[] = "DefaultBrowserPromo";
+inline constexpr char kTabGroupPromo[] = "TabGroupPromo";
+inline constexpr char kTabGroupSyncPromo[] = "TabGroupSyncPromo";
+inline constexpr char kQuickDeletePromo[] = "QuickDeletePromo";
+inline constexpr char kHistorySyncPromo[] = "HistorySyncPromo";
+
+// General limits for emphemeral android modules.
+// This controls the display frequency limit for the general educational tip
+// card on Android. It can be shown at most once within the number of days
+// specified by this parameter.
+inline constexpr int KDaysToShowEphemeralCardOnce = 3;
+// This defines the display frequency limit for each educational tip card on
+// Android. Each card can be shown at most once within the number of days
+// specified by this parameter.
+inline constexpr int KDaysToShowEachEphemeralCardOnce = 7;
+// The maximum visibility count for each educational tip card on Android
+// (excluding the default browser promo card).
+inline constexpr int kSingleEphemeralCardMaxImpressions = 10;
 
 // Commandline ASCII Switch key to indicate that the test module backend ranker
 // should be used.

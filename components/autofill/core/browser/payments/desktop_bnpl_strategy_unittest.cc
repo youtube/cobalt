@@ -41,4 +41,22 @@ TEST_F(DesktopBnplStrategyTest, GetNextActionOnAmountExtractionReturned) {
                 kNotifyUpdateCallbackOfAmountExtractionReturnedResponse);
 }
 
+// Verify that GetBeforeViewSwitchAction() returns the correct action for
+// the desktop platform.
+TEST_F(DesktopBnplStrategyTest, GetBeforeViewSwitchAction) {
+  EXPECT_EQ(desktop_bnpl_strategy_.GetBeforeViewSwitchAction(),
+            BnplStrategy::BeforeSwitchingViewAction::kCloseCurrentUi);
+}
+
+// Verify that ShouldRemoveExistingUiOnServerReturn() returns the correct
+// value for the desktop platform.
+TEST_F(DesktopBnplStrategyTest, ShouldRemoveExistingUiOnServerReturn) {
+  EXPECT_EQ(desktop_bnpl_strategy_.ShouldRemoveExistingUiOnServerReturn(
+                PaymentsAutofillClient::PaymentsRpcResult::kSuccess),
+            true);
+  EXPECT_EQ(desktop_bnpl_strategy_.ShouldRemoveExistingUiOnServerReturn(
+                PaymentsAutofillClient::PaymentsRpcResult::kPermanentFailure),
+            true);
+}
+
 }  // namespace autofill::payments

@@ -471,16 +471,16 @@ using base::UserMetricsAction;
   // before this one completes.
   self.latestFaviconURL = pageURL;
   __weak __typeof(self) weakSelf = self;
-  auto handleFaviconResult = ^void(FaviconAttributes* faviconCacheResult) {
-    if (weakSelf.latestFaviconURL != pageURL ||
-        !faviconCacheResult.faviconImage ||
-        faviconCacheResult.usesDefaultImage) {
-      return;
-    }
-    if (completion) {
-      completion(faviconCacheResult.faviconImage);
-    }
-  };
+  auto handleFaviconResult =
+      ^void(FaviconAttributes* faviconCacheResult, bool cached) {
+        if (weakSelf.latestFaviconURL != pageURL ||
+            !faviconCacheResult.faviconImage) {
+          return;
+        }
+        if (completion) {
+          completion(faviconCacheResult.faviconImage);
+        }
+      };
 
   // Download the favicon.
   // The code below mimics that in OmniboxPopupMediator.
@@ -534,7 +534,7 @@ using base::UserMetricsAction;
 // Returns the size of the favicon.
 - (CGFloat)faviconSize {
   if (_presentationContext == OmniboxPresentationContext::kLensOverlay ||
-      _presentationContext == OmniboxPresentationContext::kAIMPrototype) {
+      _presentationContext == OmniboxPresentationContext::kComposebox) {
     return kDesiredSmallFaviconSizePt;
   } else {
     return kMinFaviconSizePt;

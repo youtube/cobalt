@@ -13,12 +13,13 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
+#include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/filling/form_filler.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
+#include "components/autofill/core/browser/suggestions/addresses/address_on_typing_suggestion_data.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_generator.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
@@ -35,9 +36,12 @@ class FormFieldData;
 // profile data whose prefix matches what the user has typed. As for now, only
 // use the top profile to generate suggestions.
 // `field_contents` is the string contained in the triggering field.
+// TODO(crbug.com/409962888): Remove once the new suggestion generation logic is
+// launched.
 std::vector<Suggestion> GetSuggestionsOnTypingForProfile(
-    const AddressDataManager& adress_data_manager,
-    const std::u16string& field_contents);
+    const AutofillClient& client,
+    const FormData& form,
+    const FormFieldData& trigger_field);
 
 // Generates a footer suggestion "Manage addresses..." menu item which will
 // redirect to Chrome address settings page.
@@ -76,9 +80,7 @@ class AddressSuggestionGenerator : public SuggestionGenerator {
   // has to be removed once the plus address suggestion generator and
   // suggestions merging are implemented.
   AddressSuggestionGenerator(
-      const AutofillClient& client,
       const std::optional<std::string>& plus_address_email_override,
-      base::WeakPtr<FormFiller> form_filler,
       LogManager* log_manager);
   ~AddressSuggestionGenerator() override;
 
@@ -98,6 +100,7 @@ class AddressSuggestionGenerator : public SuggestionGenerator {
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
       const AutofillField* trigger_autofill_field,
+      const AutofillClient& client,
       const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
           all_suggestion_data,
       base::OnceCallback<void(ReturnedSuggestions)> callback) override;
@@ -122,6 +125,7 @@ class AddressSuggestionGenerator : public SuggestionGenerator {
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
       const AutofillField* trigger_autofill_field,
+      const AutofillClient& client,
       const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
           all_suggestion_data,
       base::FunctionRef<void(ReturnedSuggestions)> callback);
@@ -134,7 +138,8 @@ class AddressSuggestionGenerator : public SuggestionGenerator {
       const FormData& form,
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
-      const AutofillField* trigger_autofill_field);
+      const AutofillField* trigger_autofill_field,
+      const AutofillClient& client);
 
   // Returns a vector of suggestions that will be suggested on a
   // `trigger_field` in a `form`.
@@ -143,6 +148,7 @@ class AddressSuggestionGenerator : public SuggestionGenerator {
       const FormFieldData& trigger_field,
       const FormStructure* form_structure,
       const AutofillField* trigger_autofill_field,
+      const AutofillClient& client,
       std::vector<AutofillProfile>& profiles_to_suggest);
 
   // Used to change the emails matching the GAIA email in suggestions with
@@ -151,10 +157,6 @@ class AddressSuggestionGenerator : public SuggestionGenerator {
   // once the plus address suggestion generator and suggestions merging are
   // implemented.
   const std::optional<std::string> plus_address_email_override_;
-  const raw_ref<const AutofillClient> client_;
-
-  // Used to obtain field filling skip reasons.
-  base::WeakPtr<FormFiller> form_filler_;
 
   raw_ptr<LogManager> log_manager_;
 

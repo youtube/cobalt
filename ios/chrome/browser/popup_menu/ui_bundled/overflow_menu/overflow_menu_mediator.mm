@@ -70,7 +70,6 @@
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/search_engines/model/search_engines_util.h"
 #import "ios/chrome/browser/settings/model/sync/utils/identity_error_util.h"
-#import "ios/chrome/browser/settings/ui_bundled/password/password_manager_ui_features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group_utils.h"
@@ -194,6 +193,9 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   std::unique_ptr<PrefChangeRegistrar> _prefChangeRegistrar;
   // Search engine observer.
   std::unique_ptr<SearchEngineObserverBridge> _searchEngineObserver;
+
+  // Whether or not model initialization has finished.
+  BOOL _modelInitialized;
 }
 
 // The current web state.
@@ -494,6 +496,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 #pragma mark - Model Creation
 
 - (void)initializeModel {
+  _modelInitialized = NO;
+
   __weak __typeof(self) weakSelf = self;
 
   // Bookmarks destination.
@@ -743,6 +747,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     self.appActionsGroup, self.pageActionsGroup, self.editActionsGroup,
     self.helpActionsGroup
   ];
+  _modelInitialized = YES;
 }
 
 - (OverflowMenuAction*)toggleReaderModeAction {
@@ -1494,6 +1499,9 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 // Updates the model to match the current page state.
 - (void)updateModel {
+  if (!_modelInitialized) {
+    return;
+  }
   // First update the items' states, and then update all the orders.
   [self updateModelItemsState];
   [self updateModelOrdering];
@@ -1571,7 +1579,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   }
 
   if ([self isGeminiAvailable]) {
-    self.askBWGAction.enabled = !_webState->IsLoading();
+    self.askBWGAction.enabled =
+        IsGeminiImmediateOverlayEnabled() || !_webState->IsLoading();
   }
 
   if (base::FeatureList::IsEnabled(kHideToolbarsInOverflowMenu)) {
@@ -2034,9 +2043,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       return self.readingListModel->loaded() ? self.readingListDestination
                                              : nil;
     case overflow_menu::Destination::Passwords:
-      if ([self shouldIndicateMissingTrustedVaultKeyForPasswordsError] &&
-          password_manager::features::
-              IsPasswordManagerTrustedVaultWidgetEnabled()) {
+      if ([self shouldIndicateMissingTrustedVaultKeyForPasswordsError]) {
         self.passwordsDestination.badge = BadgeTypeError;
       }
       return self.passwordsDestination;

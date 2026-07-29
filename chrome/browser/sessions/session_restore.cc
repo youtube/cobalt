@@ -1047,8 +1047,7 @@ class SessionRestoreImpl : public BrowserListObserver {
 
     for (const std::unique_ptr<sessions::SessionSplitTab>& session_split_tab :
          split_tabs) {
-      if (!browser->tab_strip_model()->ListSplits().contains(
-              session_split_tab->id_)) {
+      if (!browser->tab_strip_model()->ContainsSplit(session_split_tab->id_)) {
         continue;
       }
 
@@ -1198,7 +1197,6 @@ class SessionRestoreImpl : public BrowserListObserver {
                                ? WindowOpenDisposition::NEW_FOREGROUND_TAB
                                : WindowOpenDisposition::NEW_BACKGROUND_TAB;
       params.tabstrip_add_types = add_types;
-      params.suggested_system_entropy = blink::mojom::SystemEntropy::kHigh;
       is_first_tab = false;
       Navigate(&params);
     }

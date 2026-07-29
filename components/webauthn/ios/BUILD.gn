@@ -7,6 +7,7 @@ import("//ios/web/public/js_messaging/optimize_ts.gni")
 source_set("ios") {
   deps = [
     ":passkey_controller_js",
+    ":passkey_types",
     "//base",
     "//components/webauthn/core/browser:client_data",
     "//components/webauthn/core/browser:passkey_model",
@@ -15,11 +16,17 @@ source_set("ios") {
   ]
 
   sources = [
+    "ios_passkey_client.h",
     "passkey_java_script_feature.h",
     "passkey_java_script_feature.mm",
     "passkey_tab_helper.h",
     "passkey_tab_helper.mm",
   ]
+}
+
+source_set("passkey_types") {
+  sources = [ "passkey_types.h" ]
+  deps = [ "//base" ]
 }
 
 optimize_ts("passkey_controller_js") {
@@ -30,7 +37,10 @@ optimize_ts("passkey_controller_js") {
 
   sources = [ "resources/passkey_controller.ts" ]
 
-  deps = [ "//ios/web/public/js_messaging:util_scripts" ]
+  deps = [
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
 }
 
 source_set("features") {

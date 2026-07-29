@@ -16,7 +16,6 @@
 #include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/sequence_bound.h"
@@ -129,8 +128,8 @@ class SessionStorageImpl : public base::trace_event::MemoryDumpProvider,
   void FlushAreaForTesting(const std::string& namespace_id,
                            const blink::StorageKey& storage_key);
 
-  // Access the underlying DomStorageDatabase. May be null if the database is
-  // not yet open.
+  // Access the underlying DomStorageDatabaseLevelDB. May be null if the
+  // database is not yet open.
   base::SequenceBound<DomStorageDatabase>& GetDatabaseForTesting() {
     return database_->database();
   }

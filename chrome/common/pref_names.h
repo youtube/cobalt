@@ -1540,6 +1540,9 @@ inline constexpr char kEnableHyperlinkAuditing[] = "enable_a_ping";
 // Whether to enable sending referrers.
 inline constexpr char kEnableReferrers[] = "enable_referrers";
 
+// Whether to send the DNT header.
+inline constexpr char kEnableDoNotTrack[] = "enable_do_not_track";
+
 // Whether to allow the use of Encrypted Media Extensions (EME), except for the
 // use of Clear Key key sytems, which is always allowed as required by the spec.
 // TODO(crbug.com/40549758): This pref was used as a WebPreference which is why
@@ -1786,6 +1789,9 @@ inline constexpr char kAccessibilityForceEnableZoom[] =
 
 inline constexpr char kAccessibilityTextSizeContrastFactor[] =
     "settings.a11y.text_size_contrast_factor";
+
+inline constexpr char kAccessibilityTouchpadOverscrollHistoryNavigation[] =
+    "settings.a11y.touchpad_overscroll_history_navigation";
 
 // Boolean pref indicating whether notification permissions were migrated to
 // notification channels (on Android O+ we use channels to store notification
@@ -2385,6 +2391,15 @@ inline constexpr char kDisableExtensions[] = "extensions.disabled";
 inline constexpr char kNtpCollapsedForeignSessions[] =
     "ntp.collapsed_foreign_sessions";
 
+inline constexpr char kNtpCustomBackgroundDict[] =
+    "ntp.custom_background_dict2";
+inline constexpr char kNtpCustomBackgroundLocalToDevice[] =
+    "ntp.custom_background_local_to_device";
+inline constexpr char kNtpCustomBackgroundLocalToDeviceId[] =
+    "ntp.custom_background_local_to_device_id";
+inline constexpr char kNtpCustomBackgroundInspiration[] =
+    "ntp.custom_background_inspiration";
+
 #if BUILDFLAG(IS_ANDROID)
 // Keeps track of recently closed tabs collapsed state in the Other Devices
 // menu.
@@ -2405,14 +2420,6 @@ inline const char kNtpComposeButtonShownCountPrefName[] =
 // Use `kNtpCustomBackgroundDict` only.
 inline constexpr char kDeprecatedNtpCustomBackgroundDictDoNotUse[] =
     "ntp.custom_background_dict";
-inline constexpr char kNtpCustomBackgroundDict[] =
-    "ntp.custom_background_dict2";
-inline constexpr char kNtpCustomBackgroundLocalToDevice[] =
-    "ntp.custom_background_local_to_device";
-inline constexpr char kNtpCustomBackgroundLocalToDeviceId[] =
-    "ntp.custom_background_local_to_device_id";
-inline constexpr char kNtpCustomBackgroundInspiration[] =
-    "ntp.custom_background_inspiration";
 // Number of times the user has opened the side panel with the customize chrome
 // button.
 inline constexpr char kNtpCustomizeChromeButtonOpenCount[] =
@@ -2428,6 +2435,9 @@ inline constexpr char kNtpCustomizeChromeSidePanelAutoOpeningsCount[] =
 // Whether user has explicitly canceled Customize Chrome side panel.
 inline constexpr char kNtpCustomizeChromeExplicitlyClosed[] =
     "NewTabPage.CustomizeChromeExplicitlyClosed";
+// Whether Customize Chrome IPH was auto opened on NTP.
+inline constexpr char kNtpCustomizeChromeIPHAutoOpened[] =
+    "NewTabPage.CustomizeChromeIPHAutoOpened";
 // List keeping track of modules not allowed to show on New Tab Page.
 inline constexpr char kNtpHiddenModules[] = "NewTabPage.HiddenModules";
 // Time the Microsoft files module was last dismissed.
@@ -4313,6 +4323,18 @@ inline constexpr char kOriginKeyedProcessesEnabled[] =
 inline constexpr char kNonMilestoneUpdateToastVersion[] =
     "toast.non_milestone_update_toast_version";
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+// Boolean prefs indicating whether a tip notification has already been shown.
+inline constexpr char kAndroidTipNotificationShownESB[] =
+    "android.tips.notifications.esb_shown";
+inline constexpr char kAndroidTipNotificationShownQuickDelete[] =
+    "android.tips.notifications.quick_delete_shown";
+inline constexpr char kAndroidTipNotificationShownLens[] =
+    "android.tips.notifications.lens_shown";
+inline constexpr char kAndroidTipNotificationShownBottomOmnibox[] =
+    "android.tips.notifications.bottom_omnibox_shown";
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace prefs
 

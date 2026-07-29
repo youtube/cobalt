@@ -16,11 +16,17 @@ BASE_DECLARE_FEATURE(kAimEnabled);
 // If enabled, uses the server response for AIM eligibility for all locales.
 BASE_DECLARE_FEATURE(kAimServerEligibilityEnabled);
 
+// If enabled, uses a custom retry policy for the server request.
+BASE_DECLARE_FEATURE(kAimServerEligibilityCustomRetryPolicyEnabled);
+
 // If enabled, notifies AIM eligibility changes.
 BASE_DECLARE_FEATURE(kAimServerEligibilityChangedNotification);
 
 // If enabled, makes a server request on service startup.
 BASE_DECLARE_FEATURE(kAimServerRequestOnStartupEnabled);
+
+// If enabled, delays the startup server request until the network is available.
+BASE_DECLARE_FEATURE(kAimStartupRequestDelayedUntilNetworkAvailableEnabled);
 
 // If enabled, makes a server request on identity changes.
 BASE_DECLARE_FEATURE(kAimServerRequestOnIdentityChangeEnabled);

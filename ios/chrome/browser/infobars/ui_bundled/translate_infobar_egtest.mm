@@ -30,6 +30,7 @@
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/scoped_disable_timer_tracking.h"
 #import "ios/chrome/test/earl_grey/web_http_server_chrome_test_case.h"
+#import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
@@ -1423,12 +1424,16 @@ void TestResponseProvider::GetLanguageResponse(
       waitForUIElementToDisappearWithMatcher:
           grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
 
-  // Verify badge is shown and page is translated.
+  // Verify translate badge and Reading Mode contextual chip are shown and page
+  // is translated.
   [[EarlGrey selectElementWithMatcher:
                  grey_accessibilityID(
                      kBadgeButtonTranslateAcceptedAccessibilityIdentifier)]
       assertWithMatcher:grey_notNil()];
   [ChromeEarlGrey waitForWebStateContainingText:"Translated"];
+  [ChromeEarlGrey
+      waitForSufficientlyVisibleElementWithMatcher:
+          grey_accessibilityID(@"ContextualPanelEntrypointImageViewAXID")];
 }
 
 // Tests that translation settings in Reader Mode is displayed and that
@@ -1459,6 +1464,11 @@ void TestResponseProvider::GetLanguageResponse(
       waitForSufficientlyVisibleElementWithMatcher:
           grey_accessibilityID(kReaderModeViewAccessibilityIdentifier)];
 
+  // iOS26 introduces latency in the UI detection logic, which results in the
+  // infobar disappearing before the EG test attempts to detect it.
+  // Temporarily disabling synchronization allows the infobar to be detected
+  // within the expected latency.
+  ScopedSynchronizationDisabler disabler;
   // Select translation in the tools menu.
   [ChromeEarlGreyUI openToolsMenu];
 

@@ -10,7 +10,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
-#include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/password_manager/password_change_delegate.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/affiliations/core/browser/affiliation_service.h"
@@ -30,6 +29,7 @@
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/password_manager/password_change/model_quality_logs_uploader.h"
 #include "chrome/browser/password_manager/password_change_delegate_impl.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -170,21 +170,20 @@ bool ChromePasswordChangeService::UserIsActivePasswordChangeUser() const {
 }
 
 void ChromePasswordChangeService::OfferPasswordChangeUi(
-    const GURL& url,
-    const std::u16string& username,
-    const std::u16string& password,
+    password_manager::PasswordForm credentials,
     content::WebContents* web_contents) {
 #if !BUILDFLAG(IS_ANDROID)
-  GURL change_pwd_url = GetChangePasswordURLOverride(url);
+  GURL change_pwd_url = GetChangePasswordURLOverride(credentials.url);
   if (!change_pwd_url.is_valid()) {
-    change_pwd_url = affiliation_service_->GetChangePasswordURL(url);
+    change_pwd_url =
+        affiliation_service_->GetChangePasswordURL(credentials.url);
   }
 
   CHECK(change_pwd_url.is_valid());
 
   std::unique_ptr<PasswordChangeDelegate> delegate =
       std::make_unique<PasswordChangeDelegateImpl>(
-          std::move(change_pwd_url), username, password,
+          std::move(change_pwd_url), std::move(credentials),
           tabs::TabInterface::GetFromContents(web_contents));
   delegate->AddObserver(this);
   password_change_delegates_.push_back(std::move(delegate));
@@ -283,6 +282,15 @@ PasswordChangeAvailability ChromePasswordChangeService::GetGeneralAvailability()
       !pref_service_->GetInteger(
           password_manager::prefs::kTotalPasswordsAvailableForProfile)) {
     return PasswordChangeAvailability::kNoSavedPasswords;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kThrottlePasswordChangeDialog) &&
+      base::Time::Now() -
+              pref_service_->GetTime(password_manager::prefs::
+                                         kLastNegativePasswordChangeTimestamp) <
+          password_manager::features::kPasswordChangeThrottleTime.Get()) {
+    return PasswordChangeAvailability::kThrottled;
   }
 
   const bool result = base::FeatureList::IsEnabled(

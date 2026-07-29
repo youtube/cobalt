@@ -4,8 +4,11 @@
 
 package org.chromium.chrome.browser.ui.system;
 
+import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.graphics.Color;
+import android.os.Build;
 import android.view.View;
 import android.view.Window;
 
@@ -83,6 +86,7 @@ public class StatusBarColorController
 
     private final Window mWindow;
     private final boolean mIsTablet;
+    private final Activity mActivity;
     private @Nullable LayoutStateProvider mLayoutStateProvider;
     private final StatusBarColorProvider mStatusBarColorProvider;
     private final ActivityTabProvider.ActivityTabTabObserver mStatusBarColorTabObserver;
@@ -140,9 +144,8 @@ public class StatusBarColorController
     /**
      * Constructs a StatusBarColorController.
      *
-     * @param window The Android app window, used to access decor view and set the status color.
+     * @param activity The Activity.
      * @param isTablet Whether the current context is on a tablet.
-     * @param context The Android context used to load colors.
      * @param statusBarColorProvider An implementation of {@link StatusBarColorProvider}.
      * @param layoutManagerSupplier Supplies the layout manager.
      * @param activityLifecycleDispatcher Allows observation of the activity lifecycle.
@@ -151,12 +154,10 @@ public class StatusBarColorController
      * @param edgeToEdgeSystemBarColorHelper Draws status bar color for Edge to Edge.
      * @param desktopWindowStateManager Instance to retrieve desktop window information.
      * @param overviewColorSupplier Notifies when the overview color changes.
-     * @param supportEdgeToEdge Whether to support making NTPs edge-to-edge.
      */
     public StatusBarColorController(
-            Window window,
+            Activity activity,
             boolean isTablet,
-            Context context,
             StatusBarColorProvider statusBarColorProvider,
             ObservableSupplier<LayoutManager> layoutManagerSupplier,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
@@ -164,34 +165,32 @@ public class StatusBarColorController
             TopUiThemeColorProvider topUiThemeColorProvider,
             EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
-            ObservableSupplier<Integer> overviewColorSupplier,
-            boolean supportEdgeToEdge) {
-        mWindow = window;
+            ObservableSupplier<Integer> overviewColorSupplier) {
+        mActivity = activity;
+        mWindow = activity.getWindow();
         mIsTablet = isTablet;
         mStatusBarColorProvider = statusBarColorProvider;
         mAllowToolbarColorOnTablets = false;
         mOverviewColorSupplier = overviewColorSupplier;
 
         mStandardDefaultThemeColor =
-                ChromeColors.getDefaultThemeColor(context, /* isIncognito= */ false);
+                ChromeColors.getDefaultThemeColor(activity, /* isIncognito= */ false);
         mIncognitoDefaultThemeColor =
-                ChromeColors.getDefaultThemeColor(context, /* isIncognito= */ true);
-        var ntpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
+                ChromeColors.getDefaultThemeColor(activity, /* isIncognito= */ true);
+
         mBackgroundColorForNtp =
-                supportEdgeToEdge
-                        ? ntpCustomizationConfigManager.getBackgroundColor(context)
-                        : ContextCompat.getColor(context, R.color.home_surface_background_color);
+                ContextCompat.getColor(activity, R.color.home_surface_background_color);
         mStatusIndicatorColor = UNDEFINED_STATUS_BAR_COLOR;
 
         // TODO(b/41494931): Share code with LocationBarCoordinator's constructor.
         mActiveOmniboxDefaultColor =
-                ContextCompat.getColor(context, R.color.omnibox_suggestion_dropdown_bg);
+                ContextCompat.getColor(activity, R.color.omnibox_suggestion_dropdown_bg);
 
-        mIncognitoActiveOmniboxColor = context.getColor(R.color.omnibox_dropdown_bg_incognito);
+        mIncognitoActiveOmniboxColor = activity.getColor(R.color.omnibox_dropdown_bg_incognito);
         // TODO(b/41494931): Share code with ToolbarPhone#getToolbarDefaultColor().
         mStandardScrolledOmniboxColor =
-                ContextCompat.getColor(context, R.color.toolbar_text_box_bg_color);
-        mIncognitoScrolledOmniboxColor = context.getColor(R.color.omnibox_scrolled_bg_incognito);
+                ContextCompat.getColor(activity, R.color.toolbar_text_box_bg_color);
+        mIncognitoScrolledOmniboxColor = activity.getColor(R.color.omnibox_scrolled_bg_incognito);
 
         mStatusBarColorTabObserver =
                 new ActivityTabProvider.ActivityTabTabObserver(tabProvider) {
@@ -280,24 +279,35 @@ public class StatusBarColorController
             mIsTopResumedActivity = !mDesktopWindowStateManager.isInUnfocusedDesktopWindow();
         }
         mOverviewColorSupplier.addObserver(mOverviewColorObserver);
+    }
 
-        if (supportEdgeToEdge) {
-            mHomepageStateListener =
-                    new NtpCustomizationConfigManager.HomepageStateListener() {
-                        @Override
-                        public void onBackgroundColorChanged(
-                                int backgroundColor,
-                                boolean fromInitialization,
-                                @NtpBackgroundImageType int oldType,
-                                @NtpBackgroundImageType int newType) {
-                            if (mBackgroundColorForNtp == backgroundColor) return;
+    /**
+     * Initializes to support customized NTP's background color if supportEdgeToEdge is true.
+     *
+     * @param context The application context.
+     * @param supportEdgeToEdge Whether to support making NTPs edge-to-edge.
+     */
+    public void maybeInitializeForCustomizedNtp(Context context, boolean supportEdgeToEdge) {
+        if (!supportEdgeToEdge) return;
 
-                            mBackgroundColorForNtp = backgroundColor;
-                            updateStatusBarColor();
-                        }
-                    };
-            ntpCustomizationConfigManager.addListener(mHomepageStateListener, context);
-        }
+        var ntpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
+        mBackgroundColorForNtp = ntpCustomizationConfigManager.getBackgroundColor(context);
+
+        mHomepageStateListener =
+                new NtpCustomizationConfigManager.HomepageStateListener() {
+                    @Override
+                    public void onBackgroundColorChanged(
+                            int backgroundColor,
+                            boolean fromInitialization,
+                            @NtpBackgroundImageType int oldType,
+                            @NtpBackgroundImageType int newType) {
+                        if (mBackgroundColorForNtp == backgroundColor) return;
+
+                        mBackgroundColorForNtp = backgroundColor;
+                        updateStatusBarColor();
+                    }
+                };
+        ntpCustomizationConfigManager.addListener(mHomepageStateListener, context);
     }
 
     // DestroyObserver implementation.
@@ -417,7 +427,7 @@ public class StatusBarColorController
     /** Calculate and update the status bar's color. */
     public void updateStatusBarColor() {
         @ColorInt int statusBarColor = calculateFinalStatusBarColor();
-        setStatusBarColor(mEdgeToEdgeSystemBarColorHelper, mWindow, statusBarColor);
+        setStatusBarColor(mEdgeToEdgeSystemBarColorHelper, mActivity, statusBarColor);
     }
 
     /**
@@ -514,13 +524,14 @@ public class StatusBarColorController
      *
      * @param edgeToEdgeSystemBarColorHelper The interface that draws system bar color for Edge to
      *     Edge.
-     * @param window The current window of the UI view.
+     * @param activity The current Activity.
      * @param color The color that the status bar should be set to.
      */
     public static void setStatusBarColor(
             @Nullable EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper,
-            Window window,
+            Activity activity,
             @ColorInt int color) {
+        Window window = activity.getWindow();
         final View root = window.getDecorView().getRootView();
         boolean needsDarkStatusBarIcons = !ColorUtils.shouldUseLightForegroundOnBackground(color);
         if (EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()
@@ -529,6 +540,12 @@ public class StatusBarColorController
         } else {
             UiUtils.setStatusBarIconColor(root, needsDarkStatusBarIcons);
             UiUtils.setStatusBarColor(window, color);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            var taskDescription =
+                    new ActivityManager.TaskDescription.Builder().setStatusBarColor(color).build();
+            activity.setTaskDescription(taskDescription);
         }
     }
 

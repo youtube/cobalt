@@ -5,17 +5,13 @@
 
 import dataclasses
 import logging
-import pprint
 import queue
 import sys
 import threading
+from typing import Callable
 
-import constants
 import eval_config
-
-sys.path.insert(0, str(constants.CHROMIUM_SRC / 'build' / 'util'))
-from lib.results import result_sink
-from lib.results import result_types
+import metrics
 
 _RESULT_THREAD_POLLING_SLEEP_DURATION = 0.5
 
@@ -29,14 +25,8 @@ class IterationResult:
     duration: float
     # Stdout/stderr of the iteration.
     test_log: str
-    # A mapping of metric name to value. Metric names can be nested, e.g.
-    # {
-    #   'token_usage': {
-    #     'input': 10,
-    #     'output': 20,
-    #   },
-    # }
-    metrics: dict[str, dict | float]
+    # Metrics collected from the iteration.
+    metrics: metrics.MetricsMapping
 
 
 @dataclasses.dataclass
@@ -82,10 +72,11 @@ class ResultOptions:
     """Options for configuring result reporting."""
     # Always print test logs to stdout instead of only for failed tests.
     print_output_on_success: bool
-    # Upload metrics to the perf dashboard.
-    enable_perf_uploading: bool
-    # The git revision to report to the perf dashboard.
-    git_revision: str | None
+    # The handlers that will process test results. Handlers are called on the
+    # thread owned by the ResultThread that the ResultOptions are ultimately
+    # passed to, so any communication, state modification, etc. in these
+    # handlers must be done in a thread-safe manner.
+    result_handlers: list[Callable[TestResult, None]]
 
 
 class AtomicCounter:
@@ -104,32 +95,11 @@ class AtomicCounter:
             self._counter += 1
 
 
-def report_result(result_sink_client: result_sink.ResultSinkClient,
-                  test_result: TestResult) -> None:
-    """Reports a test result to ResultDB if possible.
-
-    Args:
-        result_sink_client: A ResultSinkClient to use for reporting.
-        test_result: A TestResult instance containing the result to report.
-    """
-    relative_path = test_result.config.test_file.relative_to(
-        constants.CHROMIUM_SRC)
-    posix_path = relative_path.as_posix()
-    result_sink_client.Post(
-        test_id=str(posix_path),
-        status=result_types.PASS if test_result.success else result_types.FAIL,
-        duration=test_result.total_duration * 1000,
-        test_log=test_result.combined_logs,
-        test_id_structured={
-            'coarseName': '',  # Leave blank for scheme 'flat'.
-            'fineName': '',  # Leave blank for scheme 'flat'.
-            'caseNameComponents': [str(posix_path)],
-        },
-        test_file=f'//{str(posix_path)}')
-
-
 class ResultThread(threading.Thread):
-    """Class for reporting test results from a queue."""
+    """Class for processing test results from a queue.
+
+    Actual processing is delegated to user-provided result handlers.
+    """
 
     def __init__(self, result_options: ResultOptions, **kwargs):
         """
@@ -143,7 +113,6 @@ class ResultThread(threading.Thread):
         self.total_results_reported = AtomicCounter()
         self._result_options = result_options
         self._shutdown_event = threading.Event()
-        self._result_sink_client = result_sink.TryInitClient()
         self._fatal_exception = None
 
     def run(self) -> None:
@@ -160,17 +129,9 @@ class ResultThread(threading.Thread):
             except queue.Empty:
                 continue
 
-            # TODO(crbug.com/449818513): Actually report this to the perf
-            # dashboard or to ResultDB, whichever we end up using for tracking
-            # token usage and test scores.
-            pp = pprint.PrettyPrinter(indent=2)
-            logging.debug('Metrics: %s',
-                          pp.pformat(test_result.iteration_results[0].metrics))
             if (not test_result.success
                     or self._result_options.print_output_on_success):
                 sys.stdout.write(test_result.combined_logs)
-            if self._result_sink_client:
-                report_result(self._result_sink_client, test_result)
             if test_result.success:
                 logging.info('Test passed in %.2f seconds: %s',
                              test_result.total_duration,
@@ -180,6 +141,9 @@ class ResultThread(threading.Thread):
                                 test_result.total_duration,
                                 str(test_result.config.test_file))
                 self.failed_result_output_queue.put(test_result)
+
+            for result_handler in self._result_options.result_handlers:
+                result_handler(test_result)
 
             self.total_results_reported.increment()
 

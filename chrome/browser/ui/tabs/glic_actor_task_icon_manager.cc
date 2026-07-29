@@ -4,24 +4,13 @@
 
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
 
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/profiles/profile.h"
 
 namespace tabs {
-namespace {
-
-// TODO(crbug.com/438204230): Remove this condition.
-bool IsRecentlyCompletedTask(const actor::ActorTask& task) {
-  bool is_finished = (task.GetState() == actor::ActorTask::State::kFinished);
-  bool is_not_expired =
-      (base::Time::Now() - task.GetEndTime() <
-       base::Seconds(
-           features::kGlicActorUiCompletedTaskExpiryDelaySeconds.Get()));
-  return is_finished && is_not_expired;
-}
-
-}  // namespace
 
 using actor::ActorKeyedService;
 using actor::ActorTask;
@@ -58,6 +47,12 @@ void GlicActorTaskIconManager::RegisterSubscriptions() {
           ->RegisterActorTaskStateChange(base::BindRepeating(
               &GlicActorTaskIconManager::OnActorTaskStateUpdate,
               base::Unretained(this))));
+  callback_subscriptions_.push_back(
+      actor::ActorKeyedService::Get(profile_)
+          ->GetActorUiStateManager()
+          ->RegisterActorTaskStopped(
+              base::BindRepeating(&GlicActorTaskIconManager::OnActorTaskStopped,
+                                  base::Unretained(this))));
 }
 
 void GlicActorTaskIconManager::OnInstanceStateChange(bool is_showing,
@@ -76,7 +71,7 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
     return;
   }
   glic::GlicInstance* instance = instances.front();
-  if (features::kGlicActorUiNudgeRedesign.Get()) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
     UpdateTaskNudge();
   } else {
     UpdateTaskIcon(instance->IsShowing(),
@@ -84,29 +79,46 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
   }
 }
 
+void GlicActorTaskIconManager::OnActorTaskStopped(
+    actor::TaskId task_id,
+    actor::ActorTask::State final_state,
+    std::string task_title) {
+  if (final_state == actor::ActorTask::State::kFinished) {
+    has_unprocessed_completed_tasks_ = true;
+  } else if (final_state == actor::ActorTask::State::kFailed) {
+    has_unprocessed_failed_tasks_ = true;
+  }
+}
+
+void GlicActorTaskIconManager::ClearStoppedTasks() {
+  has_unprocessed_completed_tasks_ = false;
+  has_unprocessed_failed_tasks_ = false;
+  OnActorTaskStateUpdate(current_task_id_);
+}
+
 void GlicActorTaskIconManager::Shutdown() {}
 
 void GlicActorTaskIconManager::UpdateTaskIcon(bool is_showing,
                                               CurrentView current_view) {
   auto active_tasks = actor_service_->GetActiveTasks();
-  // TODO(crbug.com/431015299): Cache some of these values.
-  auto completed_tasks =
-      actor_service_->FindTaskIdsInInactive(&IsRecentlyCompletedTask);
-  auto paused_by_actor_tasks =
+  auto paused_or_yielded_actor_tasks =
       actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
-        return (task.GetState() == ActorTask::State::kPausedByActor ||
-                task.GetState() == ActorTask::State::kWaitingOnUser);
+        return (task.GetState() == actor::ActorTask::State::kPausedByActor ||
+                task.GetState() == actor::ActorTask::State::kWaitingOnUser);
       });
-
+  auto old_state = current_actor_task_icon_state_;
   // If there are no active tasks and no recently completed tasks, we can hide
   // the task icon.
-  if (active_tasks.empty() && completed_tasks.empty()) {
+  if (active_tasks.empty() && !has_unprocessed_completed_tasks_ &&
+      !has_unprocessed_failed_tasks_) {
     current_actor_task_icon_state_ = {
         .is_visible = false,
         .text = ActorTaskIconState::Text::kDefault,
     };
-    task_icon_state_change_callback_list_.Notify(
-        is_showing, current_view, current_actor_task_icon_state_);
+    if (old_state != current_actor_task_icon_state_) {
+      task_icon_state_change_callback_list_.Notify(
+          is_showing, current_view, current_actor_task_icon_state_);
+    }
     return;
   }
 
@@ -114,36 +126,38 @@ void GlicActorTaskIconManager::UpdateTaskIcon(bool is_showing,
   current_actor_task_icon_state_.is_visible = true;
 
   // Apply text state change.
-  if (!paused_by_actor_tasks.empty()) {
+  if (!paused_or_yielded_actor_tasks.empty() || has_unprocessed_failed_tasks_) {
     current_actor_task_icon_state_.text =
         ActorTaskIconState::Text::kNeedsAttention;
-  } else if (!completed_tasks.empty()) {
+  } else if (has_unprocessed_completed_tasks_) {
     current_actor_task_icon_state_.text =
         ActorTaskIconState::Text::kCompleteTasks;
   } else {
     // If no tasks needing attention or completed, reset the icon.
     current_actor_task_icon_state_.text = ActorTaskIconState::Text::kDefault;
   }
-
-  task_icon_state_change_callback_list_.Notify(is_showing, current_view,
-                                               current_actor_task_icon_state_);
+  if (old_state != current_actor_task_icon_state_) {
+    task_icon_state_change_callback_list_.Notify(
+        is_showing, current_view, current_actor_task_icon_state_);
+  }
 }
 
 void GlicActorTaskIconManager::UpdateTaskNudge() {
   auto active_tasks = actor_service_->GetActiveTasks();
-  // TODO(crbug.com/431015299): Cache some of these values.
-  auto completed_tasks =
-      actor_service_->FindTaskIdsInInactive(&IsRecentlyCompletedTask);
-  auto paused_by_actor_tasks =
+  // TODO(b/440770955): Replace has_unprocessed_completed_tasks_ with a
+  // snapshot (task title, state and tab handle) of the completed or failed
+  // tasks for the pop-over.
+  auto paused_or_yielded_actor_tasks =
       actor_service_->FindTaskIdsInActive([](const ActorTask& task) {
-        return (task.GetState() == ActorTask::State::kPausedByActor ||
-                task.GetState() == ActorTask::State::kWaitingOnUser);
+        return (task.GetState() == actor::ActorTask::State::kPausedByActor ||
+                task.GetState() == actor::ActorTask::State::kWaitingOnUser);
       });
 
-  if (!paused_by_actor_tasks.empty()) {
+  ActorTaskNudgeState old_state = current_actor_task_nudge_state_;
+  if (!paused_or_yielded_actor_tasks.empty()) {
     current_actor_task_nudge_state_.text =
         ActorTaskNudgeState::Text::kNeedsAttention;
-  } else if (!completed_tasks.empty()) {
+  } else if (has_unprocessed_completed_tasks_) {
     current_actor_task_nudge_state_.text =
         ActorTaskNudgeState::Text::kCompleteTasks;
   } else {
@@ -151,8 +165,10 @@ void GlicActorTaskIconManager::UpdateTaskNudge() {
     current_actor_task_nudge_state_.text = ActorTaskNudgeState::Text::kDefault;
   }
 
-  task_nudge_state_change_callback_list_.Notify(
-      current_actor_task_nudge_state_);
+  if (old_state != current_actor_task_nudge_state_) {
+    task_nudge_state_change_callback_list_.Notify(
+        current_actor_task_nudge_state_);
+  }
 }
 
 base::CallbackListSubscription

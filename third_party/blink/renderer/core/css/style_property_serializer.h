@@ -65,9 +65,14 @@ class CORE_EXPORT StylePropertySerializer {
                            String separator = " ") const;
   String GetShorthandValueForRule(const StylePropertyShorthand&,
                                   const StylePropertyShorthand&) const;
+  String GetShorthandValueForBidirectionalGapRuleOutset(
+      const StylePropertyShorthand&) const;
   String GetShorthandValueForBidirectionalGapRules(
       const StylePropertyShorthand&) const;
   String GetShorthandValueForGapDecorationsRule(
+      const StylePropertyShorthand&,
+      CSSGapDecorationPropertyDirection direction) const;
+  String GetShorthandValueForGapDecorationsRuleOutset(
       const StylePropertyShorthand&,
       CSSGapDecorationPropertyDirection direction) const;
   String GetShorthandValueForColumnRule(const StylePropertyShorthand&) const;

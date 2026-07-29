@@ -18,7 +18,6 @@
 #include "base/feature_list.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/concurrent_closures.h"
@@ -771,6 +770,11 @@ void PreinstalledWebAppManager::SetSkipStartupSynchronizeForTesting(  // IN-TEST
 void PreinstalledWebAppManager::LoadAndSynchronizeForTesting(
     SynchronizeCallback callback) {
   LoadAndSynchronize(std::move(callback));
+}
+
+void PreinstalledWebAppManager::SetPreinstalledAppForUpdatingForTesting(
+    PreinstalledAppForUpdating preinstalled_app_for_updating) {
+  preinstalled_app_for_updating_ = preinstalled_app_for_updating;
 }
 
 void PreinstalledWebAppManager::LoadAndSynchronize(

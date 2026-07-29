@@ -284,7 +284,7 @@ void HeadsUpDisplayLayerImpl::UpdateHudTexture(
     if (backing->returned_sync_token.HasData()) {
       backing->returned_sync_token = gpu::SyncToken();
     }
-    if (layer_tree_impl()->use_gpu_rasterization()) {
+    if (raster_caps.use_gpu_rasterization) {
       // If using |gpu_raster|, DrawHudContents() directly to a gpu texture
       // which is wrapped in an SkSurface.
       const auto& size = pool_resource.size();
@@ -364,7 +364,7 @@ void HeadsUpDisplayLayerImpl::UpdateHudTexture(
     DrawHudContents(&canvas);
 
     auto sii = layer_tree_frame_sink->shared_image_interface();
-    backing->mailbox_sync_token = sii->GenVerifiedSyncToken();
+    backing->mailbox_sync_token = sii->GenUnverifiedSyncToken();
   }
 
   // Exports the backing to the ResourceProvider, giving it a ResourceId that
@@ -830,7 +830,7 @@ SkRect HeadsUpDisplayLayerImpl::DrawGpuRasterizationStatus(PaintCanvas* canvas,
                                                            int width) const {
   std::string status;
   SkColor color = SK_ColorRED;
-  if (layer_tree_impl()->use_gpu_rasterization()) {
+  if (layer_tree_impl()->raster_caps().use_gpu_rasterization) {
     status = "on";
     color = SK_ColorGREEN;
   } else {

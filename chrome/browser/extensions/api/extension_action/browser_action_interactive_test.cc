@@ -763,7 +763,7 @@ IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest, OpenPopupOnPopup) {
   NavigateParams params(browser(), GURL("http://www.google.com/"),
                         ui::PAGE_TRANSITION_LINK);
   params.disposition = WindowOpenDisposition::NEW_POPUP;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   ui_test_utils::NavigateToURL(&params);
   ASSERT_TRUE(params.browser);
   Browser* popup_browser = params.browser->GetBrowserForMigrationOnly();
@@ -779,7 +779,8 @@ IN_PROC_BROWSER_TEST_F(BrowserActionInteractiveTest, OpenPopupOnPopup) {
   EXPECT_TRUE(popup_browser->window()->IsActive());
 #endif
   EXPECT_FALSE(browser()->window()->IsActive());
-  EXPECT_FALSE(popup_browser->SupportsWindowFeature(Browser::FEATURE_TOOLBAR));
+  EXPECT_FALSE(popup_browser->SupportsWindowFeature(
+      Browser::WindowFeature::kFeatureToolbar));
   EXPECT_EQ(popup_browser,
             chrome::FindLastActiveWithProfile(browser()->profile()));
 

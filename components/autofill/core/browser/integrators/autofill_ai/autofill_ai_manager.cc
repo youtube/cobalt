@@ -311,11 +311,6 @@ bool AutofillAiManager::OnFormSubmitted(const FormStructure& form,
 
 bool AutofillAiManager::MaybeImportForm(const FormStructure& form,
                                         ukm::SourceId ukm_source_id) {
-  // TODO(crbug.com/450060416): Remove this MayPerformAutofillAiAction() check.
-  if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kImport)) {
-    return false;
-  }
-
   std::vector<EntityImportPromptCandidate> prompt_candidates =
       GetEntityPromptCandidates(form);
 
@@ -388,19 +383,19 @@ void AutofillAiManager::HandlePromptResult(
 std::vector<Suggestion> AutofillAiManager::GetSuggestions(
     const FormStructure& form,
     const FormFieldData& trigger_field) {
-  AutofillAiSuggestionGenerator suggestion_generator(*client_);
+  AutofillAiSuggestionGenerator suggestion_generator;
   std::vector<Suggestion> suggestions;
   const AutofillField* autofill_field =
       form.GetFieldById(trigger_field.global_id());
 
   auto on_suggestion_data_returned =
-      [&form, &autofill_field, &trigger_field, &suggestions,
+      [&form, &autofill_field, &trigger_field, &suggestions, this,
        &suggestion_generator](
           std::pair<SuggestionGenerator::SuggestionDataSource,
                     std::vector<SuggestionGenerator::SuggestionData>>
               suggestion_data) {
         suggestion_generator.GenerateSuggestions(
-            form.ToFormData(), trigger_field, &form, autofill_field,
+            form.ToFormData(), trigger_field, &form, autofill_field, *client_,
             {std::move(suggestion_data)},
             [&suggestions](
                 SuggestionGenerator::ReturnedSuggestions returned_suggestions) {
@@ -418,8 +413,11 @@ std::vector<Suggestion> AutofillAiManager::GetSuggestions(
 
 bool AutofillAiManager::ShouldDisplayIph(const FormStructure& form,
                                          FieldGlobalId field_id) const {
-  // TODO(crbug.com/450060416): Remove this MayPerformAutofillAiAction() check.
-  if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kIphForOptIn)) {
+  // This early return is just a performance optimization:
+  // AutofillAiAction::kIphForOptIn requires an EntityType, which we don't know
+  // at this point yet. Since kIphForOptIn is a stronger requirement than
+  // kOptIn, we can check kOptIn first.
+  if (!MayPerformAutofillAiAction(*client_, AutofillAiAction::kOptIn)) {
     return false;
   }
 

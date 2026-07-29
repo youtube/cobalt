@@ -50,8 +50,10 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.LifecycleObserver;
@@ -63,7 +65,10 @@ import org.chromium.components.browser_ui.widget.highlight.ViewHighlighterTestUt
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
+import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController.SubmenuHeaderFactory;
 import org.chromium.ui.modelutil.MVCListAdapter;
+import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.NightModeTestUtils;
@@ -72,6 +77,8 @@ import org.chromium.ui.widget.Toast;
 import org.chromium.ui.widget.ToastManager;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -81,6 +88,7 @@ import java.util.concurrent.TimeoutException;
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
+@EnableFeatures({ChromeFeatureList.SUBMENUS_IN_APP_MENU})
 @Batch(Batch.PER_CLASS)
 public class AppMenuTest {
     @ClassRule
@@ -154,6 +162,20 @@ public class AppMenuTest {
         mDelegate = new TestAppMenuDelegate(sActivity);
         mTestMenuButtonDelegate = () -> sActivity.findViewById(R.id.top_button);
 
+        SubmenuHeaderFactory submenuHeaderFactory =
+                (clickedItem, backRunnable) -> {
+                    PropertyModel.Builder builder =
+                            new PropertyModel.Builder(AppMenuSubmenuHeaderItemProperties.ALL_KEYS);
+                    HierarchicalMenuController.populateDefaultHeaderProperties(
+                            builder,
+                            new AppMenuUtil.AppMenuKeyProvider(),
+                            clickedItem.model.get(AppMenuItemProperties.TITLE),
+                            backRunnable);
+                    builder.with(AppMenuItemProperties.MENU_ITEM_ID, R.id.submenu_header_menu_id);
+                    return new ListItem(
+                            AppMenuHandler.AppMenuItemType.SUBMENU_HEADER, builder.build());
+                };
+
         mAppMenuCoordinator =
                 new AppMenuCoordinatorImpl(
                         sActivity,
@@ -164,7 +186,9 @@ public class AppMenuTest {
                         sActivity.findViewById(R.id.menu_anchor_stub),
                         this::getAppRect,
                         mWindowAndroid,
-                        mBrowserControlsStateProvider);
+                        mBrowserControlsStateProvider,
+                        submenuHeaderFactory);
+
         mAppMenuHandler = mAppMenuCoordinator.getAppMenuHandlerImplForTesting();
         mMenuObserver = new TestAppMenuObserver();
         mAppMenuCoordinator.getAppMenuHandler().addObserver(mMenuObserver);
@@ -343,6 +367,72 @@ public class AppMenuTest {
                 "Item selected callback should not have been called.",
                 0,
                 mDelegate.itemSelectedCallbackHelper.getCallCount());
+    }
+
+    @Test
+    @MediumTest
+    public void testSubmenu_ItemWithSubmenuAdded() throws TimeoutException {
+        showMenuAndAssert(mAppMenuHandler);
+
+        int menuItemWithSubmenuId = 30;
+        int menuItemSubmenuOneId = 31;
+        int menuItemSubmenuTwoId = 32;
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    List<ListItem> submenuItems = new ArrayList<>();
+                    submenuItems.add(
+                            new MVCListAdapter.ListItem(
+                                    AppMenuItemType.STANDARD,
+                                    new PropertyModel.Builder(AppMenuItemProperties.ALL_KEYS)
+                                            .with(
+                                                    AppMenuItemProperties.MENU_ITEM_ID,
+                                                    menuItemSubmenuOneId)
+                                            .with(AppMenuItemProperties.TITLE, "Submenu Item One")
+                                            .build()));
+
+                    submenuItems.add(
+                            new MVCListAdapter.ListItem(
+                                    AppMenuItemType.STANDARD,
+                                    new PropertyModel.Builder(AppMenuItemProperties.ALL_KEYS)
+                                            .with(
+                                                    AppMenuItemProperties.MENU_ITEM_ID,
+                                                    menuItemSubmenuTwoId)
+                                            .with(AppMenuItemProperties.TITLE, "Submenu Item Two")
+                                            .build()));
+
+                    ListItem menuItemWithSubmenu =
+                            new MVCListAdapter.ListItem(
+                                    AppMenuItemType.MENU_ITEM_WITH_SUBMENU,
+                                    new PropertyModel.Builder(
+                                                    AppMenuItemWithSubmenuProperties.ALL_KEYS)
+                                            .with(
+                                                    AppMenuItemProperties.MENU_ITEM_ID,
+                                                    menuItemWithSubmenuId)
+                                            .with(
+                                                    AppMenuItemProperties.TITLE,
+                                                    "Menu Item With Submenu")
+                                            .with(
+                                                    AppMenuItemWithSubmenuProperties.SUBMENU_ITEMS,
+                                                    submenuItems)
+                                            .build());
+
+                    mAppMenuHandler.getModelListForTesting().add(menuItemWithSubmenu);
+
+                    PropertyModel submenuItemOneModel =
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                    mAppMenuCoordinator, menuItemSubmenuOneId);
+                    Assert.assertNotNull(
+                            submenuItemOneModel.get(AppMenuItemProperties.CLICK_HANDLER));
+                    Assert.assertEquals(0, submenuItemOneModel.get(AppMenuItemProperties.POSITION));
+
+                    PropertyModel submenuItemTwoModel =
+                            AppMenuTestSupport.getMenuItemPropertyModel(
+                                    mAppMenuCoordinator, menuItemSubmenuTwoId);
+                    Assert.assertNotNull(
+                            submenuItemTwoModel.get(AppMenuItemProperties.CLICK_HANDLER));
+                    Assert.assertEquals(1, submenuItemTwoModel.get(AppMenuItemProperties.POSITION));
+                });
     }
 
     @Test

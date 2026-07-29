@@ -99,6 +99,31 @@ source_set("profile") {
   }
 }
 
+source_set("profile_io_data") {
+  sources = [
+    "profile_io_data.cc",
+    "profile_io_data.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/common",
+    "//chrome/common:buildflags",
+    "//components/dom_distiller/core",
+    "//extensions/buildflags",
+    "//net:buildflags",
+    "//url",
+  ]
+
+  if (is_linux || is_win || is_mac || is_chromeos) {
+    deps += [ "//components/webapps/isolated_web_apps:scheme" ]
+  }
+
+  if (enable_extensions) {
+    deps += [ "//extensions/common:common_constants" ]
+  }
+}
+
 source_set("profile_util") {
   sources = [
     "nuke_profile_directory_utils.h",
@@ -249,6 +274,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/content_index",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/contextual_tasks",
+    "//chrome/browser/custom_handlers",
     "//chrome/browser/dom_distiller",
     "//chrome/browser/engagement",
     "//chrome/browser/favicon",
@@ -264,6 +290,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/passage_embeddings",
     "//chrome/browser/password_manager/factories",
+    "//chrome/browser/payments/browser_binding:browser_bound_key_deleter",
     "//chrome/browser/permissions",
     "//chrome/browser/persisted_state_db",
     "//chrome/browser/plus_addresses",
@@ -316,7 +343,6 @@ source_set("profiles_extra_parts_impl") {
     "//components/optimization_guide/core",
     "//components/password_manager/content/browser",
     "//components/payments/content",
-    "//components/payments/content/browser_binding:browser_bound_key_deleter",
     "//components/permissions:permissions_common",
     "//components/policy/content",
     "//components/policy/content:safe_sites_navigation_throttle",
@@ -350,6 +376,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/badging",
       "//chrome/browser/contextual_cueing",
       "//chrome/browser/contextual_tasks:ui",
+      "//chrome/browser/device_api",
       "//chrome/browser/devtools",
       "//chrome/browser/feedback",
       "//chrome/browser/hid",
@@ -364,6 +391,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ui/media_router",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/promos:service",
+      "//chrome/browser/ui/read_anything",
       "//chrome/browser/ui/tabs/organization",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/views/side_panel",

@@ -44,6 +44,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.SelectionActionMenuClientWrapper.MenuType;
 import org.chromium.base.UserData;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
@@ -154,7 +155,6 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     private @Nullable ActionModeCallback mCallback;
     private @Nullable RenderFrameHost mRenderFrameHost;
     private long mNativeSelectionPopupController;
-    private final HierarchicalMenuController mHierarchicalMenuController;
 
     private final SelectionClient.ResultCallback mResultCallback;
 
@@ -360,12 +360,6 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         mResultCallback = new SmartSelectionCallback();
         mLastSelectedText = "";
         getPopupController().registerPopup(this);
-
-        // TODO(crbug.com/433410990): Implement flyouts for selected text context menu.
-        assumeNonNull(mContext);
-        mHierarchicalMenuController =
-                ListMenuUtils.createHierarchicalMenuController(
-                        mContext, /* flyoutHandler= */ null, /* drillDownOverrideValue= */ true);
     }
 
     private void reset() {
@@ -678,7 +672,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
         MVCListAdapter.ModelList items = new MVCListAdapter.ModelList();
         if (mDropdownMenuDelegate != null) {
             assumeNonNull(mContext);
-            PendingSelectionMenu pendingMenu = getPendingSelectionMenu();
+            PendingSelectionMenu pendingMenu = getPendingSelectionMenu(MenuType.DROPDOWN);
             items = pendingMenu.getMenuAsDropdown(mDropdownMenuDelegate);
         }
         return items;
@@ -721,12 +715,16 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
             }
         }
 
-        mHierarchicalMenuController.setupCallbacksRecursively(
+        assumeNonNull(mContext);
+        HierarchicalMenuController hierarchicalMenuController =
+                ListMenuUtils.createHierarchicalMenuController(mContext);
+        hierarchicalMenuController.setupCallbacksRecursively(
                 /* headerModelList= */ null, items, this::dismissMenu);
 
         SelectionDropdownMenuDelegate.ItemClickListener itemClickListener =
                 getDropdownItemClickListener(mDropdownMenuDelegate);
-        mDropdownMenuDelegate.show(mContext, mView, items, itemClickListener, x, y);
+        mDropdownMenuDelegate.show(
+                mContext, mView, items, itemClickListener, hierarchicalMenuController, x, y);
     }
 
     // HideablePopup implementation
@@ -902,13 +900,13 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     @Override
     public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
         assumeNonNull(mContext);
-        PendingSelectionMenu pendingMenu = getPendingSelectionMenu();
+        PendingSelectionMenu pendingMenu = getPendingSelectionMenu(MenuType.FLOATING);
         pendingMenu.getMenuAsActionMode(menu);
         return true;
     }
 
     @VisibleForTesting
-    public PendingSelectionMenu getPendingSelectionMenu() {
+    public PendingSelectionMenu getPendingSelectionMenu(@MenuType int menuType) {
         // If the menu items haven't been cached, process new menu and cache it.
         if (mSelectionMenuCachedResult == null
                 || !mSelectionMenuCachedResult.canReuseResult(
@@ -916,6 +914,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
                         isSelectionPassword(),
                         !isFocusedNodeEditable(),
                         getSelectedText(),
+                        menuType,
                         mSelectionActionMenuDelegate)) {
             assert mContext != null;
             PendingSelectionMenu pendingMenu = new PendingSelectionMenu(mContext);
@@ -924,6 +923,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
                     pendingMenu,
                     mContext,
                     mClassificationResult,
+                    menuType,
                     isSelectionPassword(),
                     !isFocusedNodeEditable(),
                     getSelectedText(),
@@ -935,6 +935,7 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
                             isSelectionPassword(),
                             !isFocusedNodeEditable(),
                             getSelectedText(),
+                            menuType,
                             pendingMenu);
         }
 
@@ -1010,7 +1011,13 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
 
         List<SelectionMenuItem> textProcessingItems =
                 SelectActionMenuHelper.getTextProcessingItems(
-                        mContext, false, false, "test", true, mSelectionActionMenuDelegate);
+                        mContext,
+                        MenuType.FLOATING,
+                        false,
+                        false,
+                        "test",
+                        true,
+                        mSelectionActionMenuDelegate);
         if (textProcessingItems != null && !textProcessingItems.isEmpty()) {
             PendingSelectionMenu pendingMenu = new PendingSelectionMenu(mContext);
             pendingMenu.addAll(textProcessingItems);
@@ -1069,7 +1076,9 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     }
 
     private boolean handlePrimaryAssistMenuItemClick() {
-        if (mClassificationResult == null || mClassificationResult.textClassification == null) {
+        if (mClassificationResult == null
+                || mClassificationResult.textClassification == null
+                || mClassificationResult.textClassification.getActions().isEmpty()) {
             return false;
         }
         // Primary assist action is always the first action in the list.
@@ -1101,15 +1110,14 @@ public class SelectionPopupControllerImpl extends ActionModeCallbackHelper
     }
 
     private boolean handleAssistMenuItemClick(int order) {
-        if (mClassificationResult == null || mClassificationResult.textClassification == null) {
+        // Primary assist action is always the first action in the list so offset by 1.
+        int index = 1 + order - SelectionMenuItem.ItemGroupOffset.SECONDARY_ASSIST_ITEMS;
+        if (mClassificationResult == null
+                || mClassificationResult.textClassification == null
+                || mClassificationResult.textClassification.getActions().size() <= index) {
             return false;
         }
-        // Primary assist action is always the first action in the list so offset by 1.
-        RemoteAction action =
-                mClassificationResult
-                        .textClassification
-                        .getActions()
-                        .get(1 + order - SelectionMenuItem.ItemGroupOffset.SECONDARY_ASSIST_ITEMS);
+        RemoteAction action = mClassificationResult.textClassification.getActions().get(index);
         return handleRemoteAction(action);
     }
 

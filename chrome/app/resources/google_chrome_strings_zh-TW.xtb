@@ -89,6 +89,7 @@
 <translation id="2018528049276128029">每個設定檔都有獨立專屬的 Chrome 資訊，例如書籤、歷史記錄和密碼等等</translation>
 <translation id="2018879682492276940">無法安裝，請再試一次。</translation>
 <translation id="2024959665595762054">如要將 Chrome 資料儲存到 Google 帳戶，或使用帳戶中的 Chrome 資料，請驗證身分</translation>
+<translation id="2026377840141807639">你可以使用 Chrome 設定檔，區分個人瀏覽內容和工作資料。立即新增設定檔！</translation>
 <translation id="2034233344106846793">Chrome 會盡可能自動將不安全的連線升級為 HTTPS</translation>
 <translation id="2039417478970545937">設定。</translation>
 <translation id="2091012649849228750">如要取得日後的 Google Chrome 更新，必須使用 Windows 10 以上版本。這部電腦目前版本為 Windows 8。</translation>
@@ -151,8 +152,8 @@
 <translation id="2738871930057338499">無法連線至網際網路。發生 HTTP 403 禁止錯誤，請檢查 Proxy 設定。</translation>
 <translation id="2742320827292110288">警告：Google Chrome 無法禁止擴充功能記錄你的瀏覽記錄。如要在無痕模式中停用這個擴充功能，請取消選取這個選項。</translation>
 <translation id="2753623023919742414">按一下即可搜尋</translation>
+<translation id="2757826245013442432">{COUNT,plural, =0{「進階保護」要求你重新啟動 Chrome，以套用更新}=1{「進階保護」要求你重新啟動 Chrome，以套用更新。無痕視窗不會重新開啟。}other{「進階保護」要求你重新啟動 Chrome，以套用更新。# 個無痕視窗不會重新開啟。}}</translation>
 <translation id="2765403129283291972">Chrome 需要相關權限，才能讓這個網站使用你的麥克風</translation>
-<translation id="2770231113462710648">將預設瀏覽器變更為：</translation>
 <translation id="2775140325783767197">Chrome 無法檢查你的密碼，請查看你的網際網路連線狀態。</translation>
 <translation id="2797864378188255696">使用 <ph name="USER_EMAIL" /> 登入 Gmail 或 YouTube 等 Google 服務時，可以用同一個帳戶自動登入 Chrome</translation>
 <translation id="2799162042226656283">你的 Chrome</translation>
@@ -264,6 +265,7 @@
 <translation id="3968962723676998462">請輸入通關密語，才能將 Chrome 資料儲存到帳戶 (<ph name="ACCOUNT_EMAIL" />)，或使用帳戶中的 Chrome 資料</translation>
 <translation id="3973161977468201858">Google Chrome 要刪除 Google 密碼管理工具資料。如果允許，請輸入 Windows 密碼。</translation>
 <translation id="400161754580828648">如要分享螢幕內容，請前往「系統設定」允許 Chrome 螢幕錄影。</translation>
+<translation id="4012899077942246412">登入帳戶就能在 Chrome 使用 Google 帳戶儲存的密碼和其他資訊。如要變更，請前往「你在 Chrome 中的帳戶」。</translation>
 <translation id="4022972681110646219">翻譯這個畫面</translation>
 <translation id="4023601594785368013">原文語言：<ph name="LANGUAGE" /></translation>
 <translation id="4035053306113201399">Chrome OS 必須重新啟動，才能套用更新。</translation>
@@ -360,6 +362,7 @@
 <translation id="5170938038195470297">由於你的設定檔是來自較新版本的 Google Chrome，所以系統無法使用該檔案。這表示你可能無法使用部分功能。請指定另一個設定檔目錄，或使用較新版本的 Google Chrome。</translation>
 <translation id="5174969993834422967">系統已按照你的使用習慣封鎖通知。如要允許這個網站傳送通知，請點選網址列右上角的通知圖示。</translation>
 <translation id="5174983315706567306">磁碟空間不足。</translation>
+<translation id="5190467473654176081">自訂 Chrome，讓瀏覽器煥然一新</translation>
 <translation id="5201744974236816379">Chrome 更新</translation>
 <translation id="521447420733633466">如果你與親朋好友共用裝置，人人皆可享有獨立的瀏覽空間，依照自己的偏好設定 Chrome</translation>
 <translation id="5234764350956374838">關閉</translation>
@@ -383,6 +386,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="5510398294750420479">在手機上下載 Chrome，隨時隨地多添一層保障</translation>
 <translation id="5524890928877629608">搜尋區域的左上角：左側 <ph name="LEFT" />%，頂端 <ph name="TOP" />%</translation>
 <translation id="5530733413481476019">提升 Chrome 的運作速度</translation>
+<translation id="5550137307985173298">點選新分頁的「自訂 Chrome」按鈕，即可變更 Chrome 外觀</translation>
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">啟動錯誤：請以一般使用者身分 (非系統管理員) 執行安裝程式。</translation>
 <translation id="5596627076506792578">更多選項</translation>
@@ -411,6 +415,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="5736850870166430177">如果有網站試圖竊取你的密碼，或當你下載有害檔案時，Chrome 可能也會將網址 (包括部分網頁內容) 傳送至安全瀏覽功能</translation>
 <translation id="5756509061973259733">這部裝置已有與此帳戶相關聯的 Chrome 設定檔</translation>
 <translation id="5759947850379142561">選取要使用 Google 智慧鏡頭搜尋的文字或圖片，或按下 Escape 鍵退出 Google 智慧鏡頭</translation>
+<translation id="5762867845020858790">新增 Chrome 設定檔，區分不同使用者的書籤、密碼和設定。</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> - Google Chrome Canary 版</translation>
 <translation id="5804318322022881572">無法啟動 Chrome，請再試一次。</translation>
 <translation id="5809516625706423866">無法連線至網際網路。發生 HTTP 401 未授權錯誤，請檢查 Proxy 設定。</translation>
@@ -438,6 +443,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6025087594896450715">Google Chrome 將於 <ph name="REMAINING_TIME" /> 後重新啟動</translation>
 <translation id="6040143037577758943">關閉</translation>
 <translation id="604424701295382420">已固定！如果要再使用 Google 智慧鏡頭，只要點選工具列上的新按鈕即可</translation>
+<translation id="6046028983725193307">如要分享系統音訊，請開啟「系統設定」，允許 Chrome 使用「僅限系統錄音」權限，接著重新啟動 Chrome。</translation>
 <translation id="6069027071882229820">複製為圖片</translation>
 <translation id="6070348360322141662">為了提升安全性，Google Chrome 會將你的資料加密保護</translation>
 <translation id="6075300983329039771">貴機構 (<ph name="MANAGER" />) 要求你登入 Chrome</translation>
@@ -511,13 +517,13 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6800285125190089494">在 iOS 版 Chrome 上使用儲存的密碼，加快登入網站的速度</translation>
 <translation id="6831043979455480757">翻譯</translation>
 <translation id="683440813066116847">允許 mDNS 流量的 Google Chrome Canary 輸入規則。</translation>
+<translation id="6841242485723266823">你可以根據不同的生活用途建立 Chrome 設定檔。立即新增設定檔！</translation>
 <translation id="684888714667046800">無法連上網際網路。如果你使用防火牆，請確認 <ph name="PRODUCT_EXE_NAME" /> 已加入許可清單。</translation>
 <translation id="6877155553248388166">搜尋區域的右下角：右側 <ph name="RIGHT" />%，底部 <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">正在更新 Chrome</translation>
 <translation id="6885412569789873916">Chrome Beta 版應用程式</translation>
 <translation id="6893363893008038481">從 Chrome 中移除帳戶</translation>
 <translation id="6896758677409633944">複製</translation>
-<translation id="6927941417289800361">登入帳戶就能在 Chrome 使用 Google 帳戶儲存的密碼和其他資訊。你隨時可以前往設定進行變更。</translation>
 <translation id="6930294499209825">讓 Google 軟體保持最新狀態。如果停用或停止這項服務，Google 軟體就無法保持最新狀態。這樣一來，假如有安全漏洞，可能無法修正。Google 的功能也可能無法正常運作。如果這項服務沒有用於任何 Google 軟體，就會自行解除安裝。</translation>
 <translation id="6933858244219479645">ChromeOS 系統</translation>
 <translation id="6938166777909186039">如要取得日後的 Google Chrome 更新，必須使用 Windows 10 以上版本。這部電腦目前版本為 Windows 8.1。</translation>
@@ -642,6 +648,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8255190535488645436">Google Chrome 正在使用你的攝影機和麥克風。</translation>
 <translation id="8267953129876836456">請查看 Chrome 提供的安全防護建議</translation>
 <translation id="8286862437124483331">Google Chrome 現在會嘗試顯示密碼。如果你同意的話，請輸入你的 Windows 密碼。</translation>
+<translation id="8289399803055125418">使用<ph name="BEGIN_LINK" />通關密語<ph name="END_LINK" />加密 Google 帳戶的所有 Chrome 資料。地址和儲存在 Google 錢包中的資料都不會使用通關密語加密，Chrome 中的瀏覽記錄也不會同步。</translation>
 <translation id="829923460755755423">新增 Google 密碼管理工具的捷徑</translation>
 <translation id="8313851650939857356">啟動錯誤：<ph name="STARTUP_ERROR" />。</translation>
 <translation id="8321888067342493336">另存成圖片</translation>
@@ -668,13 +675,13 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8533056045953418157">將 Google Chrome 設為預設 PDF 檢視器</translation>
 <translation id="8555465886620020932">服務錯誤：<ph name="SERVICE_ERROR" />。</translation>
 <translation id="856656450041460113">搜尋語言清單</translation>
-<translation id="8575047640889685742">使用<ph name="BEGIN_LINK" />通關密語<ph name="END_LINK" />加密 Google 帳戶中的所有 Chrome 資料。系統將不會加密你在 Google Pay 中的付款方式和地址，也不會同步 Chrome 中的瀏覽記錄。</translation>
 <translation id="8601359445272098721">新功能！點選「翻譯畫面」按鈕即可翻譯畫面上的文字和圖片</translation>
 <translation id="8614913330719544658">Google Chrome 沒有回應，要立即重新啟動嗎？</translation>
 <translation id="861702415419836452">Chrome 需要取得攝影機權限，才能根據你的周遭環境建立 3D 地圖</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome 將在 1 分鐘後重新啟動}other{Chrome 將在 # 分鐘後重新啟動}}</translation>
 <translation id="8637932705841171563">如要分享視窗內容，請前往「系統設定」允許 Chrome 螢幕錄影</translation>
 <translation id="8641606876632989680">如果你使用遭外洩的密碼登入帳戶，Chrome 會通知你</translation>
+<translation id="8647930742055103497">用 Chrome 集中管理所有內容</translation>
 <translation id="8656634243791296665">開啟 Chrome 內建 Gemini (開發人員版)</translation>
 <translation id="8669527147644353129">Google Chrome 小幫手</translation>
 <translation id="8677922833187616101">一律顯示 Google AI 模式捷徑</translation>

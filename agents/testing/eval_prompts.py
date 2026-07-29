@@ -14,8 +14,11 @@ import sys
 import checkout_helpers
 import constants
 import eval_config
+import gemini_cli_installation
 import promptfoo_installation
+import resultdb
 import results
+import skia_perf
 import workers
 
 sys.path.append(str(constants.CHROMIUM_SRC))
@@ -148,6 +151,7 @@ def _get_tests_to_run(
     shard_index: int | None,
     total_shards: int | None,
     test_filter: str | None,
+    tag_filter: str | None = None,
 ) -> list[eval_config.TestConfig]:
     """Retrieves which tests should be run for this invocation.
 
@@ -159,6 +163,7 @@ def _get_tests_to_run(
         total_shards: The swarming shard total parsed from arguments.
         test_filter: The test filter parsed from arguments. Should be a string
             containing a ::-separated list of globs to use for filtering.
+        tag_filter: A comma-separated string of tags to filter tests by.
 
     Returns:
         A potentially empty list of TestConfigs, each pointing to a valid test
@@ -172,6 +177,25 @@ def _get_tests_to_run(
         configs_to_run = [
             c for c in configs_to_run if c.matches_filter(filters)
         ]
+    if tag_filter:
+        positive_filters = []
+        negative_filters = []
+        for f in tag_filter.split(','):
+            if f.startswith('-'):
+                negative_filters.append(f[1:])
+            else:
+                positive_filters.append(f)
+
+        if positive_filters:
+            configs_to_run = [
+                c for c in configs_to_run
+                if any(tag in c.tags for tag in positive_filters)
+            ]
+        if negative_filters:
+            configs_to_run = [
+                c for c in configs_to_run
+                if not any(tag in c.tags for tag in negative_filters)
+            ]
     configs_to_run.sort()
     configs_to_run = configs_to_run[shard_index::total_shards]
     return configs_to_run
@@ -276,7 +300,7 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
         0 on success, a non-zero value on failure.
     """
     configs_to_run = _get_tests_to_run(args.shard_index, args.total_shards,
-                                       args.filter)
+                                       args.filter, args.tag_filter)
     configs_to_run = configs_to_run * (args.isolated_script_test_repeat + 1)
     if len(configs_to_run) == 0:
         logging.info('No tests to run after filtering and sharding')
@@ -299,15 +323,34 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
     if args.sandbox and not _fetch_sandbox_image():
         return 1
 
+    gemini_cli_bin = args.gemini_cli_bin
+    node_bin = args.node_bin
+    if args.use_pinned_binaries:
+        (gemini_cli_bin,
+         node_bin) = gemini_cli_installation.fetch_cipd_gemini_cli(
+             args.verbose)
+
     worker_options = workers.WorkerOptions(clean=not args.no_clean,
                                            verbose=args.verbose,
                                            force=args.force,
                                            sandbox=args.sandbox,
-                                           gemini_cli_bin=args.gemini_cli_bin)
+                                           gemini_cli_bin=gemini_cli_bin,
+                                           node_bin=node_bin)
+
+    rdb_reporter = resultdb.ResultDBReporter()
+    perf_reporter = skia_perf.SkiaPerfMetricReporter(
+        git_revision=args.git_revision,
+        bucket=args.gcs_bucket,
+        build_id=args.build_id,
+        builder=args.builder,
+        builder_group=args.builder_group,
+        build_number=args.build_number)
     result_options = results.ResultOptions(
         print_output_on_success=args.print_output_on_success,
-        enable_perf_uploading=args.enable_perf_uploading,
-        git_revision=args.git_revision)
+        result_handlers=[
+            rdb_reporter.report_result,
+            perf_reporter.queue_result_for_upload,
+        ])
 
     worker_pool = workers.WorkerPool(
         args.parallel_workers
@@ -321,6 +364,9 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
                                                   args.retries)
 
     worker_pool.shutdown_blocking()
+    if args.enable_perf_uploading:
+        perf_reporter.upload_queued_metrics()
+
     returncode = 0
     if failed_test_results:
         returncode = 1
@@ -347,9 +393,27 @@ def _validate_args(args: argparse.Namespace,
         parser: The parser that parsed |args|.
     """
     # Perf Arguments group.
-    if args.enable_perf_uploading and not args.git_revision:
-        parser.error(
-            '--git-revision must be passed if --enable-perf-uploading is')
+    if args.enable_perf_uploading:
+        if not args.git_revision:
+            parser.error(
+                '--git-revision must be passed if --enable-perf-uploading is')
+        if not args.gcs_bucket:
+            parser.error(
+                '--gcs-bucket must be passed if --enable-perf-uploading is')
+        if not args.build_id:
+            parser.error(
+                '--build-id must be passed if --enable-perf-uploading is')
+        if not args.builder:
+            parser.error(
+                '--builder must be passed if --enable-perf-uploading is')
+        if not args.builder_group:
+            parser.error(
+                '--builder-group must be passed if --enable-perf-uploading is')
+        if args.build_number is None:
+            parser.error(
+                '--build-number must be passed if --enable-perf-uploading is')
+        if args.build_number <= 0:
+            parser.error('--build-number must be positive')
 
     # Test Selection Arguments group.
     if args.shard_index is not None and args.shard_index < 0:
@@ -416,8 +480,39 @@ def _parse_args() -> argparse.Namespace:
     group.add_argument('--git-revision',
                        help=('The git revision being tested. Must be set if '
                              '--enable-perf-uploading is set.'))
+    group.add_argument('--gcs-bucket',
+                       help=('The GCS bucket to upload perf results to. Must '
+                             'be set if --enable-perf-uploading is set.'))
+    group.add_argument('--build-id',
+                       help=('The Buildbucket build ID to associate with perf '
+                             'results. Must be set if --enable-perf-uploading '
+                             'is set.'))
+    group.add_argument('--builder',
+                       help=('The name of the builder running these tests. '
+                             'Must be set if --enable-perf-uploading is set.'))
+    group.add_argument(
+        '--builder-group',
+        # TODO(crbug.com/449818513): Remove default once the
+        # recipe is updated to pass this in.
+        default='chromium.prompt_eval',
+        help=('The name of the group the builder running these '
+              'tests belongs to. Must be set if '
+              '--enable-perf-uploading is set.'))
+    group.add_argument(
+        '--build-number',
+        # TODO(crbug.com/449818513): Remove default once the
+        # recipe is updated to pass this in.
+        default=1,
+        type=int,
+        help=('The build number of the build running these '
+              'tests. Must be set if --enable-perf-uploading '
+              'is set.'))
 
     group = parser.add_argument_group('Test Selection Arguments')
+    group.add_argument(
+        '--tag-filter',
+        help='A comma-separated list of tags to filter tests by. Only tests '
+        'with at least one of these tags will be run.')
     filter_group = group.add_mutually_exclusive_group()
     filter_group.add_argument(
         '--filter', help='A ::-separated list of globs of tests to run.')
@@ -455,6 +550,15 @@ def _parse_args() -> argparse.Namespace:
     group.add_argument('--gemini-cli-bin',
                        type=pathlib.Path,
                        help='Path to a custom gemini-cli binary to use.')
+    group.add_argument('--node-bin',
+                       type=pathlib.Path,
+                       help='Path to a custom nodejs binary to use.')
+    group.add_argument(
+        '--use-pinned-binaries',
+        action='store_true',
+        help=('Use the pinned cipd version. This is to control what is under '
+              'test i.e. separating the changes in gemini-cli from the '
+              'changing prompt/codebase.'))
 
     group = parser.add_argument_group('Test Runner Arguments')
     group.add_argument(

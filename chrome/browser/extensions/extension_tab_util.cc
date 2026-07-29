@@ -30,6 +30,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
+#include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/split_tab_id.h"
@@ -647,7 +648,6 @@ base::Value::Dict ExtensionTabUtil::CreateWindowValueForExtension(
       extension, populate_tab_behavior, context);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 // static
 api::tabs::MutedInfo ExtensionTabUtil::CreateMutedInfo(
     content::WebContents* contents) {
@@ -671,7 +671,6 @@ api::tabs::MutedInfo ExtensionTabUtil::CreateMutedInfo(
   }
   return info;
 }
-#endif
 
 // static
 ExtensionTabUtil::ScrubTabBehavior ExtensionTabUtil::GetScrubTabBehavior(
@@ -1239,7 +1238,7 @@ void ExtensionTabUtil::NavigateToURL(WindowOpenDisposition disposition,
   NavigateParams params(chrome::FindBrowserWithTab(web_contents), url,
                         ui::PAGE_TRANSITION_FROM_API);
   params.disposition = disposition;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   if (web_contents) {
     params.source_contents = web_contents;
   }
@@ -1386,7 +1385,7 @@ void ExtensionTabUtil::CreateTab(
 
   params.disposition = disposition;
   params.window_features = window_features;
-  params.window_action = NavigateParams::SHOW_WINDOW;
+  params.window_action = NavigateParams::WindowAction::kShowWindow;
   params.user_gesture = user_gesture;
   Navigate(&params);
 

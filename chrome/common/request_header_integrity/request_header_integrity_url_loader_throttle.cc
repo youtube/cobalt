@@ -14,7 +14,6 @@
 #include "base/strings/string_util.h"
 #include "build/branding_buildflags.h"
 #include "chrome/common/channel_info.h"
-#include "chrome/common/request_header_integrity/build_derived_values.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/google/core/common/google_util.h"
 #include "google_apis/google_api_keys.h"
@@ -23,7 +22,9 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+#include "chrome/common/request_header_integrity/internal/build_derived_values.h"
 #include "chrome/common/request_header_integrity/internal/google_header_names.h"
+#include "chrome/common/request_header_integrity/internal/integrity_seed_internal.h"
 #endif
 
 #if !defined(CHANNEL_NAME_HEADER_NAME)
@@ -42,11 +43,24 @@
 #define COPYRIGHT_HEADER_NAME "X-Placeholder-4"
 #endif
 
+#if !defined(CHROME_COPYRIGHT)
+#define CHROME_COPYRIGHT "X-COPYRIGHT"
+#endif
+
+#if !defined(LASTCHANGE_YEAR)
+#define LASTCHANGE_YEAR "1969"
+#endif
+
 namespace request_header_integrity {
 
 namespace {
 
 BASE_FEATURE(kRequestHeaderIntegrity, base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(GOOGLE_CHROME_BRANDING)
+// Seed for header integrity (empty for unbranded builds).
+constexpr char kIntegritySeed[] = "";
+#endif
 
 // Returns extended, stable, beta, dev, or canary if a channel is available,
 // otherwise the empty string.
@@ -71,7 +85,8 @@ std::string GetChannelName() {
 void AddRequestIntegrityHeaders(net::HttpRequestHeaders* headers) {
   const std::string digest =
       base::Base64Encode(base::SHA1Hash(base::as_byte_span(
-          google_apis::GetAPIKey() + embedder_support::GetUserAgent())));
+          std::string(kIntegritySeed) + google_apis::GetAPIKey() +
+          embedder_support::GetUserAgent())));
   const std::string channel_name = GetChannelName();
   if (!channel_name.empty()) {
     headers->SetHeader(CHANNEL_NAME_HEADER_NAME, channel_name);

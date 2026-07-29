@@ -90,6 +90,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -162,19 +163,19 @@ using sessions::SerializedNavigationEntryTestHelper;
 namespace {
 
 GURL GetUrl1() {
-  return ui_test_utils::GetTestUrl(
+  return chrome_test_utils::GetTestUrl(
       base::FilePath().AppendASCII("session_history"),
       base::FilePath().AppendASCII("bot1.html"));
 }
 
 GURL GetUrl2() {
-  return ui_test_utils::GetTestUrl(
+  return chrome_test_utils::GetTestUrl(
       base::FilePath().AppendASCII("session_history"),
       base::FilePath().AppendASCII("bot2.html"));
 }
 
 GURL GetUrl3() {
-  return ui_test_utils::GetTestUrl(
+  return chrome_test_utils::GetTestUrl(
       base::FilePath().AppendASCII("session_history"),
       base::FilePath().AppendASCII("bot3.html"));
 }
@@ -493,7 +494,7 @@ class SessionRestoreWithURLInCommandLineTest : public SessionRestoreTest {
  protected:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     SessionRestoreTest::SetUpCommandLine(command_line);
-    command_line_url_ = ui_test_utils::GetTestUrl(
+    command_line_url_ = chrome_test_utils::GetTestUrl(
         base::FilePath(base::FilePath::kCurrentDirectory),
         base::FilePath(FILE_PATH_LITERAL("title1.html")));
     command_line->AppendArg(command_line_url_.spec());
@@ -539,7 +540,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoredTabsShouldHaveWindow) {
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
                        RestoredTabsHaveCorrectVisibilityState) {
   // Create tabs.
-  GURL test_page(ui_test_utils::GetTestUrl(
+  GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(),
       base::FilePath(FILE_PATH_LITERAL("tab-restore-visibility.html"))));
   ui_test_utils::NavigateToURLWithDisposition(
@@ -574,7 +575,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
 
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoredTabsHaveCorrectInitialSize) {
   // Create tabs.
-  GURL test_page(ui_test_utils::GetTestUrl(
+  GURL test_page(chrome_test_utils::GetTestUrl(
       base::FilePath(),
       base::FilePath(FILE_PATH_LITERAL("tab-restore-visibility.html"))));
   ui_test_utils::NavigateToURLWithDisposition(
@@ -621,7 +622,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, NoSessionRestoreNewWindowChromeOS) {
   SessionStartupPref pref(SessionStartupPref::DEFAULT);
   SessionStartupPref::SetStartupPref(profile, pref);
 
-  GURL url(ui_test_utils::GetTestUrl(
+  GURL url(chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
       base::FilePath(FILE_PATH_LITERAL("title1.html"))));
 
@@ -704,12 +705,12 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, NormalAndPopup) {
 #endif
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
                        MAYBE_RestoreIndividualTabFromWindow) {
-  GURL url1(ui_test_utils::GetTestUrl(
+  GURL url1(chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
       base::FilePath(FILE_PATH_LITERAL("title1.html"))));
   // Any page that will yield a 200 status code will work here.
   GURL url2(chrome::kChromeUIVersionURL);
-  GURL url3(ui_test_utils::GetTestUrl(
+  GURL url3(chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
       base::FilePath(FILE_PATH_LITERAL("title3.html"))));
 
@@ -792,7 +793,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
 // Verifies we remember the last browser window when closing the last
 // non-incognito window while an incognito window is open.
 IN_PROC_BROWSER_TEST_F(SessionRestoreTest, IncognitotoNonIncognito) {
-  GURL url(ui_test_utils::GetTestUrl(
+  GURL url(chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
       base::FilePath(FILE_PATH_LITERAL("title1.html"))));
 
@@ -1800,7 +1801,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest,
   helper.SetForceBrowserNotAliveWithNoWindows(true);
 
   // Create a new browser by navigating to the test page.
-  GURL url = ui_test_utils::GetTestUrl(
+  GURL url = chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
       base::FilePath(FILE_PATH_LITERAL("title1.html")));
   NavigateParams params(profile, url, ui::PAGE_TRANSITION_LINK);
@@ -4045,13 +4046,14 @@ IN_PROC_BROWSER_TEST_F(AppSessionRestoreTest, MAYBE_RestoreMaximizedApp) {
 
   // Open a PWA.
   webapps::AppId app_id = InstallPWA(profile, example_url);
-  Browser* app_browser = web_app::LaunchWebAppBrowserAndWait(profile, app_id);
+  BrowserWindowInterface* app_browser =
+      web_app::LaunchWebAppBrowserAndWait(profile, app_id);
   ASSERT_TRUE(app_browser);
 
   // Maximize.
-  app_browser->window()->Maximize();
+  app_browser->GetWindow()->Maximize();
   ASSERT_TRUE(ui_test_utils::WaitForMaximized(app_browser));
-  EXPECT_TRUE(app_browser->window()->IsMaximized());
+  EXPECT_TRUE(app_browser->GetWindow()->IsMaximized());
 
   // Pretend to 'close the browser'.
   // Just shutdown the services as we would if the browser is shutting down for
@@ -4080,26 +4082,30 @@ IN_PROC_BROWSER_TEST_F(AppSessionRestoreTest, MAYBE_RestoreMaximizedApp) {
                                  {});
 
   app_browser = nullptr;
-  Browser* normal_browser = nullptr;
-  for (Browser* browser : *(BrowserList::GetInstance())) {
-    if (browser->type() == Browser::Type::TYPE_APP) {
-      EXPECT_TRUE(web_app::AppBrowserController::IsForWebApp(browser, app_id));
+  BrowserWindowInterface* normal_browser = nullptr;
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&app_browser, &normal_browser, app_id,
+       example_url](BrowserWindowInterface* browser) {
+        if (browser->GetType() == BrowserWindowInterface::TYPE_APP) {
+          EXPECT_TRUE(
+              web_app::AppBrowserController::IsForWebApp(browser, app_id));
 #if !BUILDFLAG(IS_LINUX)
-      EXPECT_TRUE(ui_test_utils::WaitForMaximized(browser));
-      EXPECT_TRUE(browser->window()->IsMaximized());
+          EXPECT_TRUE(ui_test_utils::WaitForMaximized(browser));
+          EXPECT_TRUE(browser->GetWindow()->IsMaximized());
 #endif
-      EXPECT_EQ(browser->tab_strip_model()->GetWebContentsAt(0)->GetURL(),
-                example_url);
-      app_browser = browser;
-    } else {
-      normal_browser = browser;
-    }
-  }
+          EXPECT_EQ(browser->GetTabStripModel()->GetWebContentsAt(0)->GetURL(),
+                    example_url);
+          app_browser = browser;
+        } else {
+          normal_browser = browser;
+        }
+        return true;
+      });
 
   // It opens up the browser and the app.
   ASSERT_NE(app_browser, nullptr);
   ASSERT_NE(normal_browser, nullptr);
-  profile = normal_browser->profile();
+  profile = normal_browser->GetProfile();
   ASSERT_EQ(2u, BrowserList::GetInstance()->size());
 
   keep_alive.reset();
@@ -4280,21 +4286,26 @@ IN_PROC_BROWSER_TEST_F(AppSessionRestoreTest,
   bool app2_seen = false;
   bool app3_seen = false;
   ASSERT_EQ(4u, BrowserList::GetInstance()->size());
-  for (Browser* browser : *(BrowserList::GetInstance())) {
-    if (web_app::AppBrowserController::IsForWebApp(browser, app_id)) {
-      EXPECT_FALSE(app1_seen);
-      EXPECT_TRUE(browser->is_type_app());
-      app1_seen = true;
-    } else if (web_app::AppBrowserController::IsForWebApp(browser, app_id2)) {
-      EXPECT_FALSE(app2_seen);
-      EXPECT_TRUE(browser->is_type_app_popup());
-      app2_seen = true;
-    } else if (web_app::AppBrowserController::IsForWebApp(browser, app_id3)) {
-      EXPECT_FALSE(app3_seen);
-      EXPECT_TRUE(browser->is_type_app());
-      app3_seen = true;
-    }
-  }
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&app1_seen, &app2_seen, &app3_seen, app_id, app_id2,
+       app_id3](BrowserWindowInterface* browser) {
+        if (web_app::AppBrowserController::IsForWebApp(browser, app_id)) {
+          EXPECT_FALSE(app1_seen);
+          EXPECT_EQ(browser->GetType(), BrowserWindowInterface::TYPE_APP);
+          app1_seen = true;
+        } else if (web_app::AppBrowserController::IsForWebApp(browser,
+                                                              app_id2)) {
+          EXPECT_FALSE(app2_seen);
+          EXPECT_EQ(browser->GetType(), BrowserWindowInterface::TYPE_APP_POPUP);
+          app2_seen = true;
+        } else if (web_app::AppBrowserController::IsForWebApp(browser,
+                                                              app_id3)) {
+          EXPECT_FALSE(app3_seen);
+          EXPECT_EQ(browser->GetType(), BrowserWindowInterface::TYPE_APP);
+          app3_seen = true;
+        }
+        return true;
+      });
   EXPECT_TRUE(app1_seen);
   EXPECT_TRUE(app2_seen);
   EXPECT_TRUE(app3_seen);
@@ -4536,23 +4547,27 @@ IN_PROC_BROWSER_TEST_F(TabbedAppSessionRestoreTest, RestorePinnedAppTab) {
   ASSERT_EQ(2u, BrowserList::GetInstance()->size());
   // Check the tabbed app was restored with the pinned tab.
   bool app_checked = false;
-  for (Browser* browser : *(BrowserList::GetInstance())) {
-    if (browser->type() == Browser::Type::TYPE_APP) {
-      EXPECT_TRUE(web_app::AppBrowserController::IsForWebApp(browser, app_id));
-      EXPECT_TRUE(web_app::WebAppProvider::GetForTest(browser->profile())
-                      ->registrar_unsafe()
-                      .IsTabbedWindowModeEnabled(app_id));
+  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+      [&app_checked, app_id, app_url](BrowserWindowInterface* browser) {
+        if (browser->GetType() == BrowserWindowInterface::TYPE_APP) {
+          EXPECT_TRUE(
+              web_app::AppBrowserController::IsForWebApp(browser, app_id));
+          EXPECT_TRUE(web_app::WebAppProvider::GetForTest(browser->GetProfile())
+                          ->registrar_unsafe()
+                          .IsTabbedWindowModeEnabled(app_id));
 
-      EXPECT_EQ(browser->tab_strip_model()->GetWebContentsAt(0)->GetURL(),
-                app_url);
-      EXPECT_EQ(browser->tab_strip_model()->count(), 2);
-      EXPECT_TRUE(browser->tab_strip_model()->IsTabPinned(0));
-      EXPECT_FALSE(browser->tab_strip_model()->IsTabPinned(1));
+          EXPECT_EQ(browser->GetTabStripModel()->GetWebContentsAt(0)->GetURL(),
+                    app_url);
+          EXPECT_EQ(browser->GetTabStripModel()->count(), 2);
+          EXPECT_TRUE(browser->GetTabStripModel()->IsTabPinned(0));
+          EXPECT_FALSE(browser->GetTabStripModel()->IsTabPinned(1));
 
-      EXPECT_TRUE(browser->app_controller()->GetPinnedHomeTab());
-      app_checked = true;
-    }
-  }
+          EXPECT_TRUE(
+              web_app::AppBrowserController::From(browser)->GetPinnedHomeTab());
+          app_checked = true;
+        }
+        return true;
+      });
   EXPECT_TRUE(app_checked);
 }
 

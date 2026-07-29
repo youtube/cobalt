@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/common/actor/task_id.h"
+#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/views/widget/widget.h"
 
@@ -34,6 +35,7 @@ class GlicKeyedService;
 class GlicPageHandler;
 class GlicWindowController;
 class WebUIContentsContainer;
+class GlicInstanceMetrics;
 
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
@@ -128,6 +130,9 @@ class Host : public GlicSharingManagerProvider {
     virtual void PrepareForOpen() = 0;
 
     virtual void OnInteractionModeChange(mojom::WebClientMode new_mode) = 0;
+    virtual GlicInstanceMetrics* instance_metrics() = 0;
+
+    virtual bool IsActive() = 0;
   };
 
   class Observer : public base::CheckedObserver {
@@ -175,6 +180,10 @@ class Host : public GlicSharingManagerProvider {
     // If set, the textbox for user input will be populated with the given
     // string before the panel opens.
     std::optional<std::string> prompt_suggestion;
+    // Up to 3 most recently active conversations, ordered by most recently
+    // active first.
+    std::optional<std::vector<glic::mojom::ConversationInfoPtr>>
+        recently_active_conversations;
   };
   void PanelWillOpen(mojom::InvocationSource invocation_source,
                      PanelWillOpenOptions options);
@@ -212,6 +221,10 @@ class Host : public GlicSharingManagerProvider {
   GlicSharingManager& sharing_manager() override;
 
   Host::InstanceDelegate& instance_delegate();
+
+  GlicInstanceMetrics* instance_metrics() {
+    return instance_delegate().instance_metrics();
+  }
 
   WebUIContentsContainer* contents_container() { return contents_.get(); }
   // Returns the WebUI web contents. May be null.
@@ -253,6 +266,8 @@ class Host : public GlicSharingManagerProvider {
 
   // Sends a ViewChangeRequest to the primary client.
   void SendViewChangeRequest(mojom::ViewChangeRequestPtr change_request);
+
+  void NotifyInstanceActivationChanged(bool is_active);
 
   // Informs the web client that additional context is available.
   void NotifyAdditionalContext(mojom::AdditionalContextPtr context);
@@ -327,6 +342,29 @@ class Host : public GlicSharingManagerProvider {
 
   base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
+  void RequestToShowCredentialSelectionDialog(
+      actor::TaskId task_id,
+      const base::flat_map<std::string, gfx::Image>& icons,
+      const std::vector<actor_login::Credential>& credentials,
+      actor::ActorTaskDelegate::CredentialSelectedCallback callback);
+
+  void RequestToShowUserConfirmationDialog(
+      actor::TaskId task_id,
+      const url::Origin& navigation_origin,
+      actor::ActorTaskDelegate::UserConfirmationDialogCallback callback);
+
+  void RequestToConfirmNavigation(
+      actor::TaskId task_id,
+      const url::Origin& navigation_origin,
+      actor::ActorTaskDelegate::NavigationConfirmationCallback callback);
+
+  void RequestToShowAutofillSuggestionsDialog(
+      actor::TaskId task_id,
+      std::vector<autofill::ActorFormFillingRequest> requests,
+      actor::ActorTaskDelegate::AutofillSuggestionSelectedCallback callback);
+
+  void FloatingPanelCanAttachChanged(bool can_attach);
+
  private:
   friend class HostManager;
 
@@ -354,6 +392,7 @@ class Host : public GlicSharingManagerProvider {
     bool context_access_indicator_enabled = false;
     raw_ptr<GlicWebClientAccess> web_client = nullptr;
   };
+
   void PanelWillOpenComplete(GlicWebClientAccess* client,
                              mojom::OpenPanelInfoPtr open_info);
   PageHandlerInfo* FindInfo(GlicPageHandler* handler);

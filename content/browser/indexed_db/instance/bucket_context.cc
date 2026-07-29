@@ -78,6 +78,10 @@
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(IS_WIN)
+#include "base/win/windows_types.h"
+#endif
+
 namespace content::indexed_db {
 namespace {
 
@@ -498,27 +502,31 @@ void BucketContext::AddReceiver(
 }
 
 void BucketContext::GetDatabaseInfo(GetDatabaseInfoCallback callback) {
-  Status s;
-  DatabaseError error;
-  std::tie(s, error, std::ignore) =
-      InitBackingStoreIfNeeded(/*create_if_missing=*/false);
-  DCHECK_EQ(s.ok(), !!backing_store_);
-  if (!s.ok()) {
-    // Since `create_if_missing` is false, "not found" is a valid, non-error
-    // status.
-    CHECK_EQ(s.IsNotFound(),
-             error.code() == blink::mojom::IDBException::kNoError)
-        << error.code();
-    std::move(callback).Run(
-        {}, blink::mojom::IDBError::New(error.code(), error.message()));
+  base::ElapsedTimer timer;
+  if (!backing_store_) {
+    Status s;
+    DatabaseError error;
+    std::tie(s, error, std::ignore) =
+        InitBackingStore(/*create_if_missing=*/false);
+    if (!s.ok()) {
+      // Since `create_if_missing` is false, "not found" is a valid, non-error
+      // status.
+      CHECK_EQ(s.IsNotFound(),
+               error.code() == blink::mojom::IDBException::kNoError)
+          << error.code();
+      std::move(callback).Run(
+          {}, blink::mojom::IDBError::New(error.code(), error.message()));
 
-    if (s.IsCorruption()) {
-      HandleBackingStoreCorruption(base::UTF16ToUTF8(error.message()));
+      if (s.IsCorruption()) {
+        HandleBackingStoreCorruption(base::UTF16ToUTF8(error.message()));
+      }
+      return;
     }
-    return;
   }
 
-  auto names_and_versions = backing_store_->GetDatabaseNamesAndVersions();
+  auto names_and_versions = LOG_RESULT(
+      backing_store_->GetDatabaseNamesAndVersions(),
+      "IndexedDB.BackingStore.GetDatabaseNamesAndVersions", in_memory());
   if (!names_and_versions.has_value()) {
     std::move(callback).Run({}, blink::mojom::IDBError::New(
                                     blink::mojom::IDBException::kUnknownError,
@@ -526,6 +534,8 @@ void BucketContext::GetDatabaseInfo(GetDatabaseInfoCallback callback) {
                                     "indexedDB.databases()."));
     return;
   }
+  LogDuration(timer.Elapsed(), "IndexedDB.IDBFactory.GetDatabaseInfo",
+              in_memory());
   std::move(callback).Run(
       std::move(*names_and_versions),
       blink::mojom::IDBError::New(blink::mojom::IDBException::kNoError,
@@ -549,17 +559,20 @@ void BucketContext::Open(
   // created) if this origin is already over quota.
 
   bool was_cold_open = !backing_store_;
-  Status s;
-  DatabaseError error;
   IndexedDBDataLossInfo data_loss_info;
-  std::tie(s, error, data_loss_info) =
-      InitBackingStoreIfNeeded(/*create_if_missing=*/true);
   if (!backing_store_) {
-    FactoryClient(std::move(factory_client)).OnError(error);
-    if (s.IsCorruption()) {
-      HandleBackingStoreCorruption(base::UTF16ToUTF8(error.message()));
+    Status s;
+    DatabaseError error;
+    std::tie(s, error, data_loss_info) =
+        InitBackingStore(/*create_if_missing=*/true);
+    LogStatus(s, "IndexedDB.BackingStore.CreateIfMissing", in_memory());
+    if (!s.ok()) {
+      FactoryClient(std::move(factory_client)).OnError(error);
+      if (s.IsCorruption()) {
+        HandleBackingStoreCorruption(base::UTF16ToUTF8(error.message()));
+      }
+      return;
     }
-    return;
   }
 
   auto connection = std::make_unique<PendingConnection>(
@@ -620,27 +633,6 @@ void BucketContext::DeleteDatabase(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("IndexedDB", "BucketContext::DeleteDatabase");
   std::string force_close_message = "The database is deleted.";
-
-  {
-    Status s;
-    DatabaseError error;
-    // Note: Any data loss information here is not piped up to the renderer, and
-    // will be lost.
-    std::tie(s, error, std::ignore) = InitBackingStoreIfNeeded(
-        /*create_if_missing=*/false);
-    if (!backing_store_) {
-      if (s.IsNotFound()) {
-        FactoryClient(std::move(factory_client)).OnDeleteSuccess(/*version=*/0);
-        return;
-      }
-
-      FactoryClient(std::move(factory_client)).OnError(error);
-      if (s.IsCorruption()) {
-        HandleBackingStoreCorruption(base::UTF16ToUTF8(error.message()));
-      }
-      return;
-    }
-  }
   auto on_deletion_complete =
       base::BindOnce(delegate().on_files_written, /*flushed=*/true);
 
@@ -649,6 +641,7 @@ void BucketContext::DeleteDatabase(
   // we're done.
   auto it = databases_.find(name);
   if (it != databases_.end()) {
+    CHECK(backing_store_);
     base::WeakPtr<Database> database = it->second->AsWeakPtr();
     database->ScheduleDeleteDatabase(
         std::make_unique<FactoryClient>(std::move(factory_client)),
@@ -662,8 +655,30 @@ void BucketContext::DeleteDatabase(
     return;
   }
 
-  // Otherwise, verify that a database with the given name exists in the backing
-  // store. If not, report success.
+  // Otherwise, initialize the backing store and verify that a database with the
+  // given name exists in the backing store. If not, report success.
+  if (!backing_store_) {
+    Status s;
+    DatabaseError error;
+    // Note: Any data loss information here is not piped up to the renderer, and
+    // will be lost.
+    std::tie(s, error, std::ignore) = InitBackingStore(
+        /*create_if_missing=*/false);
+    if (!s.ok()) {
+      if (s.IsNotFound()) {
+        FactoryClient(std::move(factory_client))
+            .OnDeleteSuccess(/*old_version=*/0);
+        return;
+      }
+
+      FactoryClient(std::move(factory_client)).OnError(error);
+      if (s.IsCorruption()) {
+        HandleBackingStoreCorruption(base::UTF16ToUTF8(error.message()));
+      }
+      return;
+    }
+  }
+
   StatusOr<bool> exists = backing_store()->DatabaseExists(name);
   if (!exists.has_value()) {
     std::string error_message =
@@ -947,10 +962,8 @@ bool BucketContext::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
 }
 
 std::tuple<Status, DatabaseError, IndexedDBDataLossInfo>
-BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
-  if (backing_store_) {
-    return {};
-  }
+BucketContext::InitBackingStore(bool create_if_missing) {
+  CHECK(!backing_store_);
 
   // Construct paths and create required directories.
   base::FilePath blob_path;
@@ -972,6 +985,32 @@ BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
     } else {
       database_path = data_path_.Append(GetLevelDBFileName(bucket_locator()));
       blob_path = data_path_.Append(GetBlobStoreFileName(bucket_locator()));
+
+#if BUILDFLAG(IS_WIN)
+      int max_ldb_file_path_length =
+          // The longest file path LevelDB uses.
+          database_path.AppendASCII("MANIFEST-000001").value().size();
+
+      // Underflow (i.e. file path length <= MAX_PATH) intentionally emits to
+      // the 0 bucket.
+      base::UmaHistogramCounts100("IndexedDB.FilePathLengthOverflow.LevelDB",
+                                  max_ldb_file_path_length - MAX_PATH);
+
+      int max_sqlite_file_path_length =
+          data_path_
+              .Append(GetSqliteDbDirectory(bucket_locator()))
+              // All database names hash to the same length file name.
+              .Append(DatabaseNameToFileName(u"any_string"))
+              // The WAL file will use the path with "-wal" appended. This appends ".wal".
+              .AddExtensionASCII("wal")
+              .value()
+              .size();
+
+      // Underflow (i.e. file path length <= MAX_PATH) intentionally emits to
+      // the 0 bucket.
+      base::UmaHistogramCounts100("IndexedDB.FilePathLengthOverflow.SQLite",
+                                  max_sqlite_file_path_length - MAX_PATH);
+#endif
     }
 
     if (IsPathTooLong(database_path)) {
@@ -1034,7 +1073,8 @@ BucketContext::InitBackingStoreIfNeeded(bool create_if_missing) {
     base::UmaHistogramEnumeration(kBackingStoreActionUmaName,
                                   IndexedDBAction::kBackingStoreOpenAttempt);
 
-    first_try_status.Log("WebCore.IndexedDB.BackingStore.OpenFirstTryResult");
+    first_try_status.LogLevelDbStatus(
+        "WebCore.IndexedDB.BackingStore.OpenFirstTryResult");
 
     if (first_try_status.ok()) [[likely]] {
       UMA_HISTOGRAM_TIMES(

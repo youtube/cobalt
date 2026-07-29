@@ -75,7 +75,6 @@ Notas importantes:
 <translation id="2576431527583832481">Chrome sigue mejorando. Hay una nueva versión disponible.</translation>
 <translation id="257708665678654955">¿Quieres que Google Chrome te ofrezca la posibilidad de traducir las páginas en <ph name="LANGUAGE_NAME" /> de este sitio web la próxima vez?</translation>
 <translation id="2668242166988961773">Busca por voz en Chrome.</translation>
-<translation id="2695886661449553974">Chrome no ha podido comprobar si hay actualizaciones. Prueba de nuevo más tarde.</translation>
 <translation id="2703746758996815929">Para recibir consejos útiles sobre Chrome, activa las notificaciones en los ajustes de iOS.</translation>
 <translation id="2728851697704606655">Traduce con Google Lens</translation>
 <translation id="2736805085127235148">Las notificaciones de Chrome están desactivadas actualmente en los ajustes del dispositivo.</translation>
@@ -170,6 +169,7 @@ Prueba a esperar unos minutos antes de cerrar sesión. Si cierras sesión ahora,
 <translation id="5162467219239570114">Chrome no está actualizado. Si no hay ninguna actualización disponible en el <ph name="BEGIN_LINK" />App Store<ph name="END_LINK" />, es posible que el dispositivo ya no sea compatible con las nuevas versiones de Chrome.</translation>
 <translation id="5184329579814168207">Abrir en Chrome</translation>
 <translation id="5190139289262548459">Tu organización, <ph name="DOMAIN" />, gestiona la cuenta en la que has iniciado sesión y el modo en que se usa Chrome.</translation>
+<translation id="5209238444239954363">Chrome no ha podido comprobar si hay actualizaciones. Inténtalo de nuevo más tarde.</translation>
 <translation id="5305440589062022504">Abre el Gestor de contraseñas en Chrome</translation>
 <translation id="5310957470610282541">Algunos de tus datos de Chrome aún no se han guardado en tu cuenta de Google.
 Prueba a esperar unos minutos antes de cerrar sesión. Si cierras sesión ahora, estos datos se eliminarán.</translation>

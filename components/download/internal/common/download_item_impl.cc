@@ -187,6 +187,8 @@ std::string GetDownloadDangerNames(DownloadDangerType type) {
       return "ASYNC_LOCAL_PASSWORD_SCANNING";
     case DOWNLOAD_DANGER_TYPE_BLOCKED_SCAN_FAILED:
       return "BLOCKED_SCAN_FAILED";
+    case DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE:
+      return "FORCE_SAVE_TO_GDRIVE";
     case DOWNLOAD_DANGER_TYPE_MAX:
       NOTREACHED();
   }
@@ -472,7 +474,7 @@ DownloadItemImpl::DownloadItemImpl(DownloadItemImplDelegate* delegate,
       download_source_(info.download_source)
 #if BUILDFLAG(IS_ANDROID)
       ,
-      is_must_download_(info.is_must_download)
+      allow_auto_open_after_completion_(info.allow_auto_open_after_completion)
 #endif  // BUILDFLAG(IS_ANDROID)
 {
   delegate_->Attach();
@@ -1050,8 +1052,8 @@ bool DownloadItemImpl::IsFromExternalApp() {
   return is_from_external_app_;
 }
 
-bool DownloadItemImpl::IsMustDownload() {
-  return is_must_download_;
+bool DownloadItemImpl::AllowAutoOpenAfterCompletion() {
+  return allow_auto_open_after_completion_;
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1072,6 +1074,7 @@ bool DownloadItemImpl::IsDangerous() const {
     case DOWNLOAD_DANGER_TYPE_DANGEROUS_ACCOUNT_COMPROMISE:
     case DOWNLOAD_DANGER_TYPE_PROMPT_FOR_LOCAL_PASSWORD_SCANNING:
     case DOWNLOAD_DANGER_TYPE_BLOCKED_SCAN_FAILED:
+    case DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE:
       return true;
     case DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS:
     case DOWNLOAD_DANGER_TYPE_MAYBE_DANGEROUS_CONTENT:

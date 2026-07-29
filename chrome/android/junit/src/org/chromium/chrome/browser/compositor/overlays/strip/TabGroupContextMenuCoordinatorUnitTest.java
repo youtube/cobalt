@@ -53,6 +53,7 @@ import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
@@ -537,7 +538,9 @@ public class TabGroupContextMenuCoordinatorUnitTest {
                 /* listViewTouchTracker= */ null);
 
         // Verify.
-        verify(mMultiInstanceManager).moveTabGroupToOtherWindow(any(TabGroupMetadata.class));
+        verify(mMultiInstanceManager)
+                .moveTabGroupToOtherWindow(
+                        any(TabGroupMetadata.class), eq(NewWindowAppSource.MENU));
     }
 
     @Test
@@ -592,7 +595,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         StripLayoutContextMenuCoordinatorTestUtils.clickMoveToNewWindow(modelList, 4, mMenuView);
 
         verify(mMultiInstanceManager, times(1))
-                .moveTabGroupToNewWindow(any(TabGroupMetadata.class));
+                .moveTabGroupToNewWindow(any(TabGroupMetadata.class), eq(NewWindowAppSource.MENU));
     }
 
     @Test
@@ -716,19 +719,15 @@ public class TabGroupContextMenuCoordinatorUnitTest {
 
         ListItem moveLeftItem = modelList.get(6);
         assertEquals(
-                "Move toward start item has wrong title, was "
-                        + mActivity.getString(
-                                moveLeftItem.model.get(ListMenuItemProperties.TITLE_ID)),
-                R.string.move_tab_group_left,
-                moveLeftItem.model.get(ListMenuItemProperties.TITLE_ID));
+                "Move toward start item has wrong title",
+                mActivity.getString(R.string.move_tab_group_left),
+                moveLeftItem.model.get(ListMenuItemProperties.TITLE));
 
         ListItem moveRightItem = modelList.get(7);
         assertEquals(
-                "Move toward end item has wrong title, was "
-                        + mActivity.getString(
-                                moveRightItem.model.get(ListMenuItemProperties.TITLE_ID)),
-                R.string.move_tab_group_right,
-                moveRightItem.model.get(ListMenuItemProperties.TITLE_ID));
+                "Move toward end item has wrong title",
+                mActivity.getString(R.string.move_tab_group_right),
+                moveRightItem.model.get(ListMenuItemProperties.TITLE));
     }
 
     @Test
@@ -771,21 +770,17 @@ public class TabGroupContextMenuCoordinatorUnitTest {
 
         assertEquals("Number of items in the list menu is incorrect", 8, modelList.size());
 
-        ListItem moveLeftItem = modelList.get(6);
+        ListItem moveStartItem = modelList.get(6);
         assertEquals(
-                "Move toward start item has wrong title, was "
-                        + mActivity.getString(
-                                moveLeftItem.model.get(ListMenuItemProperties.TITLE_ID)),
-                R.string.move_tab_group_right,
-                moveLeftItem.model.get(ListMenuItemProperties.TITLE_ID));
+                "Move toward start item has wrong title",
+                mActivity.getString(R.string.move_tab_group_right),
+                moveStartItem.model.get(ListMenuItemProperties.TITLE));
 
-        ListItem moveRightItem = modelList.get(7);
+        ListItem moveEndItem = modelList.get(7);
         assertEquals(
-                "Move toward end item has wrong title, was "
-                        + mActivity.getString(
-                                moveRightItem.model.get(ListMenuItemProperties.TITLE_ID)),
-                R.string.move_tab_group_left,
-                moveRightItem.model.get(ListMenuItemProperties.TITLE_ID));
+                "Move toward start item has wrong title",
+                mActivity.getString(R.string.move_tab_group_left),
+                moveEndItem.model.get(ListMenuItemProperties.TITLE));
     }
 
     @Test
@@ -830,11 +825,11 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         ModelList modelList = mTabGroupContextMenuCoordinator.getModelListForTesting();
 
         for (ListItem listItem : modelList) {
-            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE_ID)) continue;
+            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE)) continue;
             assertNotEquals(
                     "Did not expect any item to have 'Move group left' title",
-                    R.string.move_tab_group_left,
-                    listItem.model.get(ListMenuItemProperties.TITLE_ID));
+                    mActivity.getString(R.string.move_tab_group_left),
+                    listItem.model.get(ListMenuItemProperties.TITLE));
         }
     }
 
@@ -852,11 +847,11 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         // In RTL, moving toward the start is "Move right". This option should not be available for
         // the first group.
         for (ListItem listItem : modelList) {
-            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE_ID)) continue;
+            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE)) continue;
             assertNotEquals(
                     "Did not expect any item to have 'Move group right' title",
-                    R.string.move_tab_group_right,
-                    listItem.model.get(ListMenuItemProperties.TITLE_ID));
+                    mActivity.getString(R.string.move_tab_group_right),
+                    listItem.model.get(ListMenuItemProperties.TITLE));
         }
     }
 
@@ -873,11 +868,11 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         ModelList modelList = mTabGroupContextMenuCoordinator.getModelListForTesting();
 
         for (ListItem listItem : modelList) {
-            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE_ID)) continue;
+            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE)) continue;
             assertNotEquals(
                     "Did not expect any item to have 'Move group right' title",
-                    R.string.move_tab_group_right,
-                    listItem.model.get(ListMenuItemProperties.TITLE_ID));
+                    mActivity.getString(R.string.move_tab_group_right),
+                    listItem.model.get(ListMenuItemProperties.TITLE));
         }
     }
 
@@ -896,11 +891,11 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         // In RTL, moving toward the end is "Move left". This option should not be available for
         // the last group.
         for (ListItem listItem : modelList) {
-            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE_ID)) continue;
+            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE)) continue;
             assertNotEquals(
                     "Did not expect any item to have 'Move group left' title",
-                    R.string.move_tab_group_left,
-                    listItem.model.get(ListMenuItemProperties.TITLE_ID));
+                    mActivity.getString(R.string.move_tab_group_left),
+                    listItem.model.get(ListMenuItemProperties.TITLE));
         }
     }
 
@@ -923,11 +918,11 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         ModelList modelList = mTabGroupContextMenuCoordinator.getModelListForTesting();
 
         for (ListItem listItem : modelList) {
-            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE_ID)) continue;
+            if (!listItem.model.containsKey(ListMenuItemProperties.TITLE)) continue;
             assertNotEquals(
                     "Did not expect any item to have 'Move group left' title",
-                    R.string.move_tab_group_left,
-                    listItem.model.get(ListMenuItemProperties.TITLE_ID));
+                    mActivity.getString(R.string.move_tab_group_left),
+                    listItem.model.get(ListMenuItemProperties.TITLE));
         }
     }
 

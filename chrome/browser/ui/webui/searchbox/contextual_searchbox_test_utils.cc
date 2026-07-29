@@ -5,6 +5,8 @@
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
 
 #include "chrome/browser/search_engines/template_url_service_factory.h"
+#include "components/search_engines/template_url.h"
+#include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_contents.h"
 
 MockQueryController::MockQueryController(
@@ -14,15 +16,17 @@ MockQueryController::MockQueryController(
     std::string locale,
     TemplateURLService* template_url_service,
     variations::VariationsClient* variations_client,
-    std::unique_ptr<QueryControllerConfigParams> query_controller_config_params)
+    std::unique_ptr<
+        contextual_search::ContextualSearchContextController::ConfigParams>
+        query_controller_config_params)
     : TestComposeboxQueryController(identity_manager,
                                     url_loader_factory,
                                     channel,
                                     locale,
                                     template_url_service,
                                     variations_client,
-                                    std::move(query_controller_config_params)) {
-}
+                                    std::move(query_controller_config_params),
+                                    /*enable_cluster_info_ttl=*/false) {}
 MockQueryController::~MockQueryController() = default;
 
 content::WebContents* TestWebContentsDelegate::OpenURLFromTab(
@@ -35,9 +39,11 @@ content::WebContents* TestWebContentsDelegate::OpenURLFromTab(
   return source;
 }
 
-MockComposeboxMetricsRecorder::MockComposeboxMetricsRecorder()
-    : ComposeboxMetricsRecorder("NewTabPage.") {}
-MockComposeboxMetricsRecorder::~MockComposeboxMetricsRecorder() = default;
+MockContextualSearchMetricsRecorder::MockContextualSearchMetricsRecorder()
+    : ContextualSearchMetricsRecorder(
+          contextual_search::ContextualSearchSource::kNewTabPage) {}
+MockContextualSearchMetricsRecorder::~MockContextualSearchMetricsRecorder() =
+    default;
 
 ContextualSearchboxHandlerTestHarness::ContextualSearchboxHandlerTestHarness()
     : ChromeRenderViewHostTestHarness(

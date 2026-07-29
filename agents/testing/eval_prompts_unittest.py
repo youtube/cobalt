@@ -399,6 +399,76 @@ class GetTestsToRunUnittest(fake_filesystem_unittest.TestCase):
         result = eval_prompts._get_tests_to_run(None, None, None)
         self.assertEqual(len(result), 0)
 
+    def test_get_tests_to_run_with_negative_tag_filter(self):
+        """Tests that tests are filtered correctly by negative tags."""
+        self.mock_determine_shard_values.return_value = (0, 1)
+        test_configs = [
+            eval_config.TestConfig(test_file=pathlib.Path('/test/a.yaml'),
+                                   tags=['t1']),
+            eval_config.TestConfig(test_file=pathlib.Path('/test/b.yaml'),
+                                   tags=['t2']),
+            eval_config.TestConfig(test_file=pathlib.Path('/test/c.yaml'),
+                                   tags=['t1', 't3']),
+        ]
+        self.mock_discover_testcase_files.return_value = test_configs
+
+        result = eval_prompts._get_tests_to_run(None, None, None, '-t1')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 1)
+        self.assertIn(pathlib.Path('/test/b.yaml'), result_paths)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, '-t2')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 2)
+        self.assertIn(pathlib.Path('/test/a.yaml'), result_paths)
+        self.assertIn(pathlib.Path('/test/c.yaml'), result_paths)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, 't1,-t3')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 1)
+        self.assertIn(pathlib.Path('/test/a.yaml'), result_paths)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, '-t1,-t2')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 0)
+
+    def test_get_tests_to_run_with_tag_filter(self):
+        """Tests that tests are filtered correctly by metadata."""
+        self.mock_determine_shard_values.return_value = (0, 1)
+        test_configs = [
+            eval_config.TestConfig(test_file=pathlib.Path('/test/a.yaml'),
+                                   tags=['t1']),
+            eval_config.TestConfig(test_file=pathlib.Path('/test/b.yaml'),
+                                   tags=['t2']),
+            eval_config.TestConfig(test_file=pathlib.Path('/test/c.yaml'),
+                                   tags=['t1', 't3']),
+        ]
+        self.mock_discover_testcase_files.return_value = test_configs
+
+        result = eval_prompts._get_tests_to_run(None, None, None, 't1')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 2)
+        self.assertIn(pathlib.Path('/test/a.yaml'), result_paths)
+        self.assertIn(pathlib.Path('/test/c.yaml'), result_paths)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, 't2')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 1)
+        self.assertIn(pathlib.Path('/test/b.yaml'), result_paths)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, 't1,t2')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 3)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, 't3')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 1)
+        self.assertIn(pathlib.Path('/test/c.yaml'), result_paths)
+
+        result = eval_prompts._get_tests_to_run(None, None, None, 't4')
+        result_paths = [c.test_file for c in result]
+        self.assertEqual(len(result_paths), 0)
+
 
 class PerformChromiumSetupUnittest(unittest.TestCase):
     """Unit tests for the `_perform_chromium_setup` function."""
@@ -543,6 +613,7 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         self.args.shard_index = None
         self.args.total_shards = None
         self.args.filter = None
+        self.args.tag_filter = None
         self.args.force = False
         self.args.no_build = False
         self.args.no_clean = False
@@ -556,6 +627,11 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         self.args.isolated_script_test_repeat = 0
         self.args.enable_perf_uploading = False
         self.args.git_revision = None
+        self.args.builder = None
+        self.args.builder_group = None
+        self.args.build_number = None
+        self.args.use_pinned_binaries = False
+        self.args.node_bin = None
 
     def _setUpPatches(self):
         """Set up patches for the tests."""
@@ -571,6 +647,12 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
             'promptfoo_installation.FromCipdPromptfooInstallation')
         self.mock_from_cipd = from_cipd_patcher.start()
         self.addCleanup(from_cipd_patcher.stop)
+
+        gcli_cipd_patcher = mock.patch(
+            'gemini_cli_installation.fetch_cipd_gemini_cli')
+        self.mock_gcli_cipd_patcher = gcli_cipd_patcher.start()
+        self.mock_gcli_cipd_patcher.return_value = ('foo_gcli', 'foo_node')
+        self.addCleanup(gcli_cipd_patcher.stop)
 
         perform_chromium_setup_patcher = mock.patch(
             'eval_prompts._perform_chromium_setup')
@@ -593,6 +675,11 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
             'eval_prompts._fetch_sandbox_image')
         self.mock_fetch_sandbox_image = fetch_sandbox_image_patcher.start()
         self.addCleanup(fetch_sandbox_image_patcher.stop)
+
+        skia_perf_reporter_patcher = mock.patch(
+            'eval_prompts.skia_perf.SkiaPerfMetricReporter')
+        self.mock_skia_perf_reporter_cls = skia_perf_reporter_patcher.start()
+        self.addCleanup(skia_perf_reporter_patcher.stop)
 
     def test_run_prompt_eval_tests_no_tests(self):
         """Tests that the function returns 1 if there are no tests to run."""
@@ -620,8 +707,6 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         self.assertEqual(promptfoo, self.mock_from_cipd.return_value)
         self.assertEqual(worker_opts.verbose, False)
         self.assertEqual(result_opts.print_output_on_success, False)
-        self.assertEqual(result_opts.enable_perf_uploading, False)
-        self.assertEqual(result_opts.git_revision, None)
 
         self.mock_worker_pool.return_value.queue_tests.assert_called_once_with(
             [eval_config.TestConfig(test_file=pathlib.Path('/test/a.yaml'))])
@@ -874,16 +959,35 @@ class RunPromptEvalTestsUnittest(unittest.TestCase):
         """Tests that perf arguments are passed to the worker pool."""
         self.args.enable_perf_uploading = True
         self.args.git_revision = 'test_revision'
+        self.args.gcs_bucket = 'test_bucket'
+        self.args.build_id = '123'
+        self.args.builder = 'test_builder'
+        self.args.builder_group = 'test_builder_group'
+        self.args.build_number = 1
         self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
             return_value = []
 
         eval_prompts._run_prompt_eval_tests(self.args)
+        self.mock_skia_perf_reporter_cls.assert_called_once_with(
+            git_revision='test_revision',
+            bucket='test_bucket',
+            build_id='123',
+            builder='test_builder',
+            builder_group='test_builder_group',
+            build_number=1)
+        self.mock_skia_perf_reporter_cls.return_value.upload_queued_metrics \
+            .assert_called_once()
 
-        self.mock_worker_pool.assert_called_once()
-        result_opts = self.mock_worker_pool.call_args[0][3]
-        self.assertEqual(result_opts.enable_perf_uploading, True)
-        self.assertEqual(result_opts.git_revision, 'test_revision')
+    def test_run_prompt_eval_tests_perf_disabled(self):
+        """Tests that metrics are not uploaded when perf uploading is
+        disabled."""
+        self.args.enable_perf_uploading = False
+        self.mock_worker_pool.return_value.wait_for_all_queued_tests.\
+            return_value = []
 
+        eval_prompts._run_prompt_eval_tests(self.args)
+        self.mock_skia_perf_reporter_cls.return_value.upload_queued_metrics \
+            .assert_not_called()
 
 
 class ParseArgsUnittest(unittest.TestCase):
@@ -941,12 +1045,20 @@ class ParseArgsUnittest(unittest.TestCase):
         """Tests that all perf arguments are parsed correctly."""
         self.mock_argv[:] = [
             'eval_prompts.py', '--enable-perf-uploading', '--git-revision',
-            'my-revision'
+            'my-revision', '--gcs-bucket', 'my-bucket', '--build-id', '123',
+            '--builder', 'my-builder', '--builder-group', 'my-builder-group',
+            '--build-number', '1'
         ]
         args = eval_prompts._parse_args()
         self.assertTrue(args.enable_perf_uploading)
         self.assertEqual(args.git_revision, 'my-revision')
-
+        self.assertEqual(args.gcs_bucket, 'my-bucket')
+        self.assertEqual(args.build_id, '123')
+        self.assertEqual(args.builder, 'my-builder')
+        self.assertEqual(args.builder_group, 'my-builder-group')
+        self.assertEqual(args.build_number, 1)
+        self.assertEqual(args.builder_group, 'my-builder-group')
+        self.assertEqual(args.build_number, 1)
 
     def test_parse_args_all_test_selection_args(self):
         """Tests that all test selection arguments are parsed correctly."""
@@ -1098,13 +1210,43 @@ class ParseArgsUnittest(unittest.TestCase):
         with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
             eval_prompts._parse_args()
 
-    def test_parse_args_enable_perf_uploading_no_git_revision(self):
-        """Tests that providing --enable-perf-uploading without
-        --git-revision raises an error."""
-        self.mock_argv[:] = ['eval_prompts.py', '--enable-perf-uploading']
+    def test_parse_args_enable_perf_uploading_missing_args(self):
+        """Tests --enable-perf-uploading w/o other required args."""
+        base_args = ['eval_prompts.py', '--enable-perf-uploading']
+        perf_args = {
+            '--git-revision': 'my-revision',
+            '--gcs-bucket': 'my-bucket',
+            '--build-id': '123',
+            '--builder': 'my-builder',
+            '--builder-group': 'my-builder-group',
+            '--build-number': '1',
+        }
+
+        for key_to_omit in perf_args:
+            # TODO(crbug.com/449818513): Remove this once the default values
+            # for these arguments are removed.
+            if key_to_omit in ('--builder-group', '--build-number'):
+                continue
+            with self.subTest(missing_arg=key_to_omit):
+                args_list = base_args[:]
+                for arg, value in perf_args.items():
+                    if arg != key_to_omit:
+                        args_list.extend([arg, value])
+
+                self.mock_argv[:] = args_list
+                with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+                    eval_prompts._parse_args()
+
+    def test_parse_args_non_positive_build_number(self):
+        """Tests that a non-positive build_number raises an error."""
+        self.mock_argv[:] = [
+            'eval_prompts.py', '--enable-perf-uploading', '--git-revision',
+            'my-revision', '--gcs-bucket', 'my-bucket', '--build-id', '123',
+            '--builder', 'my-builder', '--builder-group', 'my-builder-group',
+            '--build-number', '0'
+        ]
         with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
             eval_prompts._parse_args()
-
 
 
 if __name__ == '__main__':

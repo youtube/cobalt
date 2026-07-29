@@ -48,6 +48,7 @@ struct BrowserViewLayoutViews {
   // NOTE: If you add a view, try to add it as a views::View, which makes
   // testing much easier.
   raw_ptr<views::View> window_scrim = nullptr;
+  raw_ptr<views::View> main_background_region = nullptr;
   raw_ptr<views::View> main_container = nullptr;
   raw_ptr<views::View> top_container = nullptr;
   raw_ptr<WebAppFrameToolbarView> web_app_frame_toolbar = nullptr;
@@ -58,7 +59,7 @@ struct BrowserViewLayoutViews {
   raw_ptr<InfoBarContainerView> infobar_container = nullptr;
   raw_ptr<views::View> contents_container = nullptr;
   raw_ptr<MultiContentsView> multi_contents_view = nullptr;
-  raw_ptr<views::View> toolbar_height_side_panel = nullptr;
+  raw_ptr<SidePanel> toolbar_height_side_panel = nullptr;
   raw_ptr<SidePanel> contents_height_side_panel = nullptr;
 
   // TODO(crbug.com/424236535): These can be removed once `SideBySide` is

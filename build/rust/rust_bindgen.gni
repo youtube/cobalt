@@ -20,7 +20,10 @@ if (host_os == "win") {
 # On Windows, the libclang.dll is beside the bindgen.exe, otherwise it is in
 # ../lib.
 _libclang_path = rust_bindgen_root
-if (host_os == "win") {
+if (!use_chromium_rust_toolchain &&
+    (current_cpu == "ppc64" || current_cpu == "s390x")) {
+  _libclang_path = rust_sysroot_absolute + "/lib64"
+} else if (host_os == "win") {
   _libclang_path += "/bin"
 } else {
   _libclang_path += "/lib"
@@ -85,6 +88,10 @@ template("rust_bindgen") {
                                  "library_name",
                                  "output_name",
                                ] + TESTONLY_AND_VISIBILITY)
+
+    if (defined(invoker.testonly)) {
+      testonly = invoker.testonly
+    }
 
     # This will allow the rust_static_library to depend on the
     # `rust_bindgen_generator` through visibility.

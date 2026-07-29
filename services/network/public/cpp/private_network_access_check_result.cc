@@ -32,12 +32,6 @@ std::string_view PrivateNetworkAccessCheckResultToStringPiece(Result result) {
       return "insecure-private-network";
     case Result::kBlockedByTargetIpAddressSpace:
       return "blocked-by-target-ip-address-space";
-    case Result::kBlockedByPolicyPreflightWarn:
-      return "blocked-by-policy-preflight-warn";
-    case Result::kBlockedByPolicyPreflightBlock:
-      return "blocked-by-policy-preflight-block";
-    case Result::kAllowedByPolicyPreflightWarn:
-      return "allowed-by-policy-preflight-warn";
     case Result::kBlockedByInconsistentIpAddressSpace:
       return "blocked-by-inconsistent-ip-address-space";
     case Result::kAllowedPotentiallyTrustworthySameOrigin:
@@ -46,6 +40,8 @@ std::string_view PrivateNetworkAccessCheckResultToStringPiece(Result result) {
       return "lna-permission-required";
     case Result::kLNAAllowedByPolicyWarn:
       return "lna-allowed-by-policy-warn";
+    case Result::kBlockedByRequiredIpAddressSpaceMismatch:
+      return "blocked-by-required-ip-address-space-mismatch";
   }
 }
 
@@ -62,7 +58,6 @@ std::optional<CorsError> PrivateNetworkAccessCheckResultToCorsError(
     case Result::kAllowedByPolicyAllow:
     case Result::kAllowedByPolicyWarn:
     case Result::kAllowedByTargetIpAddressSpace:
-    case Result::kAllowedByPolicyPreflightWarn:
     case Result::kAllowedPotentiallyTrustworthySameOrigin:
     case Result::kLNAAllowedByPolicyWarn:
       return std::nullopt;
@@ -73,10 +68,8 @@ std::optional<CorsError> PrivateNetworkAccessCheckResultToCorsError(
       return CorsError::kInsecurePrivateNetwork;
     case Result::kBlockedByTargetIpAddressSpace:
     case Result::kBlockedByInconsistentIpAddressSpace:
+    case Result::kBlockedByRequiredIpAddressSpaceMismatch:
       return CorsError::kInvalidPrivateNetworkAccess;
-    case Result::kBlockedByPolicyPreflightWarn:
-    case Result::kBlockedByPolicyPreflightBlock:
-      return CorsError::kUnexpectedPrivateNetworkAccess;
     case Result::kLNAPermissionRequired:
       return CorsError::kLocalNetworkAccessPermissionDenied;
   }

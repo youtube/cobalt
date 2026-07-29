@@ -401,8 +401,7 @@ net::CookieSettingOverrides CalculateCookieSettingOverrides(
   // each other's storage access API grants. This must be updated on redirects.
   if (net::cookie_util::ShouldAddInitialStorageAccessApiOverride(
           request.url, request.storage_access_api_status,
-          request.request_initiator, emit_metrics,
-          request.credentials_mode == mojom::CredentialsMode::kInclude)) {
+          request.request_initiator)) {
     overrides.Put(net::CookieSettingOverride::kStorageAccessGrantEligible);
   }
 
@@ -664,6 +663,15 @@ void ConfigureUrlRequest(const ResourceRequest& request,
 
   url_request.set_allows_device_bound_session_registration(
       request.allows_device_bound_session_registration);
+
+  if (base::FeatureList::IsEnabled(features::kSendSameSiteLaxForFedCM) &&
+      (request.destination == mojom::RequestDestination::kWebIdentity ||
+       request.destination == mojom::RequestDestination::kEmailVerification)) {
+    // This check is enforced by CorsURLLoaderFactory::IsValidRequest.
+    CHECK(request.redirect_mode == mojom::RedirectMode::kError ||
+          request.credentials_mode == mojom::CredentialsMode::kOmit);
+    url_request.set_ignore_unsafe_method_for_same_site_lax(true);
+  }
 }
 
 void SetRequestCredentials(

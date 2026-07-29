@@ -513,11 +513,15 @@ static void AdjustStyleForMarker(ComputedStyleBuilder& builder,
 // static
 void StyleAdjuster::AdjustStyleForHTMLElement(ComputedStyleBuilder& builder,
                                               HTMLElement& element) {
-  if (builder.HasBaseAppearance()) {
-    if (element.SupportsBaseAppearance(builder.Appearance())) {
-      builder.SetInBaseAppearance(true);
-    } else {
-      // TODO(crbug.com/393500003): Don't set InBaseAppearance to false here.
+  if (builder.HasBaseAppearance() &&
+      element.SupportsBaseAppearance(builder.Appearance())) {
+    builder.SetInBaseAppearance(true);
+  }
+  if (builder.InBaseAppearance() && !builder.HasBaseAppearance()) {
+    // Don't allow base appearance to be inherited to elements which actually
+    // support the appearance property.
+    if (element.SupportsBaseAppearance(AppearanceValue::kBase) ||
+        element.SupportsBaseAppearance(AppearanceValue::kBaseSelect)) {
       builder.SetInBaseAppearance(false);
     }
   }
@@ -801,6 +805,11 @@ void StyleAdjuster::AdjustStyleForDisplay(
       builder.Display() == EDisplay::kTableHeaderGroup ||
       builder.Display() == EDisplay::kTableRow ||
       builder.Display() == EDisplay::kTableRowGroup) {
+    // TODO(crbug.com/40527196): This effectively changes the *computed
+    // value* of 'writing-mode', which is too late at this point.
+    //
+    // Note: if/when this is fixed, we can reinstate the NOTREACHED()
+    // at the end of StyleCascade::ResolvePendingSubstitution().
     builder.SetWritingMode(layout_parent_style.GetWritingMode());
     builder.SetTextOrientation(layout_parent_style.GetTextOrientation());
     builder.UpdateFontOrientation();
@@ -992,6 +1001,16 @@ void StyleAdjuster::AdjustForForcedColorsMode(ComputedStyleBuilder& builder,
     builder.SetInternalForcedBackgroundColor(
         builder.InternalForcedBackgroundColor().ResolveSystemColor(
             color_scheme, color_provider, is_in_web_app_scope));
+  }
+  // Per the CSS Color Adjustment specification [1]:
+  // In forced-colors mode, if 'font-variant-emoji' computes to 'normal' or
+  // 'unicode', emoji should be forced to render in their monochrome
+  // (text-style) variant, if available.
+  //
+  // [1] https://www.w3.org/TR/css-color-adjust-1/#forced-colors-properties
+  FontVariantEmoji variant = builder.GetFontDescription().VariantEmoji();
+  if (variant == kNormalVariantEmoji || variant == kUnicodeVariantEmoji) {
+    builder.SetFontVariantEmoji(kTextVariantEmoji);
   }
   if (builder.InternalForcedColor().IsSystemColor()) {
     builder.SetInternalForcedColor(

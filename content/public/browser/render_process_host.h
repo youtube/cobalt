@@ -229,6 +229,11 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Listener,
   virtual void OnImmersiveXrSessionStarted() = 0;
   virtual void OnImmersiveXrSessionStopped() = 0;
 
+#if !BUILDFLAG(IS_ANDROID)
+  // Returns true if the process is for an initial WebUI.
+  virtual bool IsForInitialWebUI() const = 0;
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   // Indicates whether the current RenderProcessHost is exclusively hosting
   // guest RenderFrames. Not all guest RenderFrames are created equal.  A guest,
   // as indicated by BrowserPluginGuest::IsGuest, may coexist with other
@@ -389,6 +394,7 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Listener,
   virtual void ClearPriorityOverride() = 0;
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
   // Sets whether to consider the process as a spare renderer when
   // calculating the priority. Note that this is not exactly the same
   // as IsSpare(). The value will be kept true after the spare renderer
@@ -398,7 +404,12 @@ class CONTENT_EXPORT RenderProcessHost : public IPC::Listener,
   // and should not be called outside of content/.
   virtual void GraduateSpareToNormalRendererPriority() = 0;
 
-#if BUILDFLAG(IS_ANDROID)
+  // Returns if the renderer is still of the lowest priority on Android.
+  // Since the spare renderer priority update is asynchronous on Android,
+  // the function will return true until it gets the update complete
+  // callback for GraduateSpareToNormalRendererPriority.
+  virtual bool ShouldThrottleNavigationForSpareRendererGraduation() = 0;
+
   // Return the highest importance of all widgets in this process.
   virtual ChildProcessImportance GetEffectiveImportance() = 0;
 

@@ -410,6 +410,7 @@ mojom("mojom_proxy_config") {
   public_deps = [
     ":mojom_network_param",
     "//mojo/public/mojom/base",
+    "//url/mojom:url_mojom_scheme_host_port",
   ]
 
   shared_cpp_typemaps = [
@@ -445,8 +446,8 @@ mojom("mojom_proxy_config") {
     {
       types = [
         {
-          mojom = "network.mojom.ProxyBypassRules"
-          cpp = "::net::ProxyBypassRules"
+          mojom = "network.mojom.ProxyHostMatchingRules"
+          cpp = "::net::ProxyHostMatchingRules"
         },
         {
           mojom = "network.mojom.ProxyList"
@@ -1735,6 +1736,7 @@ mojom("mojom") {
     "cert_verifier_service_updater.mojom",
     "connection_change_observer_client.mojom",
     "cookie_encryption_provider.mojom",
+    "ct_policy.mojom",
     "default_credentials.mojom",
     "dhcp_wpad_url_client.mojom",
     "digitally_signed.mojom",

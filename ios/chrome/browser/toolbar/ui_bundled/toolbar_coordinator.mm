@@ -204,7 +204,7 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   }
 
   [self updateToolbarsLayout];
-  [self updateLocationBarHeightWithAnimation:NO];
+  [self updateLocationBarHeightWithAnimation:NO focusStateDidChange:NO];
 
   [super start];
   self.started = YES;
@@ -338,7 +338,11 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   if (omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
     editStatePosition = _steadyStateOmniboxPosition;
   } else if (omnibox::ForceBottomOmniboxInEditState()) {
-    editStatePosition = ToolbarType::kSecondary;
+    if (IsCompactHeight(self.traitEnvironment.traitCollection)) {
+      editStatePosition = ToolbarType::kPrimary;
+    } else {
+      editStatePosition = ToolbarType::kSecondary;
+    }
   } else {
     editStatePosition = ToolbarType::kPrimary;
   }
@@ -366,8 +370,12 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
                                                          completion:completion];
                              }];
   }
+
+  [self.primaryToolbarCoordinator.viewController setLocationBarFocused:focused];
+  [self.secondaryToolbarCoordinator.viewController
+      setLocationBarFocused:focused];
   self.locationBarFocused = focused;
-  [self updateLocationBarHeightWithAnimation:YES];
+  [self updateLocationBarHeightWithAnimation:YES focusStateDidChange:YES];
 }
 
 - (BOOL)isOmniboxFirstResponder {
@@ -384,6 +392,10 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
 
 - (void)setBottomOmniboxOffsetForPopup:(CGFloat)bottomOffset {
   [self.toolbarMediator setBottomOmniboxOffsetForPopup:bottomOffset];
+}
+
+- (ToolbarType)omniboxPosition {
+  return _omniboxPosition;
 }
 
 #pragma mark ToolbarHeightProviding
@@ -563,6 +575,21 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   // Do nothing.
 }
 
+- (ToolbarCancelButtonStyle)styleForCancelButtonInToolbar {
+  BOOL userPreferenceBottom =
+      _toolbarMediator.preferredOmniboxPosition == ToolbarType::kSecondary;
+  BOOL followSteadyState =
+      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition();
+  BOOL forcedBottomInEditState = omnibox::ForceBottomOmniboxInEditState();
+  BOOL inTheBottomInEditState =
+      (followSteadyState && userPreferenceBottom) || forcedBottomInEditState;
+  if (inTheBottomInEditState) {
+    return ToolbarCancelButtonStyle::kXCircle;
+  }
+
+  return ToolbarCancelButtonStyle::kCancelLabel;
+}
+
 #pragma mark - SideSwipeToolbarInteracting
 
 - (BOOL)isInsideToolbar:(CGPoint)point {
@@ -650,10 +677,11 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
     return;
   }
   self.locationBarEditStateHeight = height;
-  [self updateLocationBarHeightWithAnimation:NO];
+  [self updateLocationBarHeightWithAnimation:NO focusStateDidChange:NO];
 }
 
-- (void)updateLocationBarHeightWithAnimation:(BOOL)animated {
+- (void)updateLocationBarHeightWithAnimation:(BOOL)animated
+                         focusStateDidChange:(BOOL)focusStateDidChange {
   if (!IsMultilineBrowserOmniboxEnabled()) {
     // Location bar height is constant when multiline is not enabled. The height
     // is management in primary and secondary toolbar view controllers.
@@ -663,7 +691,10 @@ constexpr CGFloat kLocationBarCompactBottomPadding = 10.0;
   CGFloat height =
       LocationBarHeight(self.primaryToolbarViewController.traitCollection
                             .preferredContentSizeCategory);
-  if (self.locationBarFocused) {
+
+  // Apply the edit state height only when the location bar is focused and we
+  // are not in a transition to focused state.
+  if (self.locationBarFocused && !focusStateDidChange) {
     height = self.locationBarEditStateHeight;
   }
 

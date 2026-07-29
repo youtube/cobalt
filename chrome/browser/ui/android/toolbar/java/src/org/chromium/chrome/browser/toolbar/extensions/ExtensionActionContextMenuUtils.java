@@ -84,8 +84,7 @@ public final class ExtensionActionContextMenuUtils {
                 () -> {
                     buttonView.dismiss();
                 },
-                /* drillDownOverrideValue= */ null,
-                buttonView.getHost());
+                buttonView.getHost().getHierarchicalMenuController());
 
         ListMenuDelegate listDelegate =
                 new ListMenuDelegate() {
@@ -121,6 +120,8 @@ public final class ExtensionActionContextMenuUtils {
                         buttonView.removePopupListener(this);
                     }
                 });
+
+        buttonView.tryToFitLargestItem(true);
 
         buttonView.showMenu();
     }

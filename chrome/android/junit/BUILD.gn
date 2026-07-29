@@ -211,6 +211,7 @@ if (is_android) {
       "//chrome/browser/ui/android/signin:java",
       "//chrome/browser/ui/android/theme:java",
       "//chrome/browser/ui/android/toolbar:java",
+      "//chrome/browser/ui/browser_window/public/android:java",
       "//chrome/browser/ui/messages/android:java",
       "//chrome/browser/uid/android:java",
       "//chrome/browser/url_constants/android:java",
@@ -439,7 +440,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/app/tab_activity_glue/TabReparentingControllerTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabCollectionMigrationUtilTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabModelOrchestratorUnitTest.java",
-      "src/org/chromium/chrome/browser/app/tabmodel/TabPersistentStoreIntegrationTest.java",
       "src/org/chromium/chrome/browser/app/tabmodel/TabbedModeTabModelOrchestratorUnitTest.java",
     ]
 
@@ -510,7 +510,11 @@ if (is_android) {
       "chrome_junit_tests_org.chromium.chrome.browser.chrome_item_picker") {
     sources = [ "src/org/chromium/chrome/browser/chrome_item_picker/TabItemPickerCoordinatorUnitTest.java" ]
 
-    deps = [ ":chrome_junit_tests_helper" ]
+    deps = [
+      ":chrome_junit_tests_helper",
+      "//chrome/browser/page_content_annotations:factory_java",
+      "//chrome/browser/page_content_annotations:java",
+    ]
   }
 
   robolectric_library(
@@ -838,6 +842,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/notifications/NotificationSuspenderUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/NotificationTriggerBackgroundTaskTest.java",
       "src/org/chromium/chrome/browser/notifications/NotificationTriggerSchedulerTest.java",
+      "src/org/chromium/chrome/browser/notifications/tips/TipsOptInCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsPromoCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsPromoViewBinderUnitTest.java",
       "src/org/chromium/chrome/browser/notifications/tips/TipsUtilsUnitTest.java",
@@ -1125,7 +1130,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorImplTest.java",
       "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorProfileSupplierTest.java",
       "src/org/chromium/chrome/browser/tabmodel/TabPersistentStoreUnitTest.java",
-      "src/org/chromium/chrome/browser/tabmodel/UndoTabModelUnitTest.java",
     ]
 
     deps = [
@@ -1241,6 +1245,7 @@ if (is_android) {
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorCloseActionUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorCloseArchivedTabsActionUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorLegacyGroupActionUnitTest.java",
+      "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorPinActionUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorRestoreAllArchivedTabsActionUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorRestoreArchivedTabsActionUnitTest.java",
       "//chrome/android/features/tab_ui/junit/src/org/chromium/chrome/browser/tasks/tab_management/TabListEditorSelectArchivedTabsActionUnitTest.java",
@@ -1315,9 +1320,6 @@ if (is_android) {
       "src/org/chromium/chrome/browser/settings/SettingsActivityUnitTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsEnumsTest.java",
       "src/org/chromium/chrome/browser/settings/SettingsNavigationImplTest.java",
-      "src/org/chromium/chrome/browser/settings/search/BaseSearchIndexProviderTest.java",
-      "src/org/chromium/chrome/browser/settings/search/PreferenceParserTest.java",
-      "src/org/chromium/chrome/browser/settings/search/SettingsIndexDataTest.java",
     ]
 
     deps = [
@@ -1370,6 +1372,7 @@ if (is_android) {
       "src/org/chromium/chrome/browser/gesturenav/HistoryNavigationCoordinatorUnitTest.java",
       "src/org/chromium/chrome/browser/gsa/GSAUtilsUnitTest.java",
       "src/org/chromium/chrome/browser/incognito/IncognitoTabbedSnapshotControllerTest.java",
+      "src/org/chromium/chrome/browser/incognito/IncognitoWindowNightModeStateProviderUnitTest.java",
       "src/org/chromium/chrome/browser/init/ActivityProfileProviderTest.java",
       "src/org/chromium/chrome/browser/init/AsyncInitTaskRunnerTest.java",
       "src/org/chromium/chrome/browser/invalidation/ResumableDelayedTaskRunnerTest.java",

@@ -111,6 +111,7 @@ suite('NewTabPageComposeboxTest', () => {
 
   function createAutocompleteMatch(): AutocompleteMatch {
     return {
+      isHidden: false,
       a11yLabel: '',
       actions: [],
       allowedToBeDefaultMatch: false,
@@ -521,6 +522,7 @@ suite('NewTabPageComposeboxTest', () => {
   });
 
   test('delete file', async () => {
+    loadTimeData.overrideValues({composeboxFileMaxCount: 5});
     createComposeboxElement();
     let i = 0;
     searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
@@ -919,6 +921,28 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
   });
 
+  test('submit button is a no-op when disabled', async () => {
+    createComposeboxElement();
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
+    assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+
+    // Arrange.
+    composeboxElement.$.input.value = '';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    await microtasksFinished();
+
+    // Assert submit is disabled.
+    assertTrue(composeboxElement.$.submitContainer.hasAttribute('disabled'));
+
+    // Act.
+    composeboxElement.$.submitContainer.click();
+    await microtasksFinished();
+
+    // Assert no calls were made.
+    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
+    assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+  });
+
   test('empty input has disabled submit container', async () => {
     createComposeboxElement();
 
@@ -1236,6 +1260,77 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(composeboxDropdown.hidden);
   });
 
+  test('dropdown does not show for typed suggest with context', async () => {
+    loadTimeData.overrideValues(
+        {composeboxShowZps: true, composeboxShowTypedSuggest: true});
+    createComposeboxElement();
+    await microtasksFinished();
+
+    // Add typed input.
+    composeboxElement.$.input.value = 'Test';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    await microtasksFinished();
+
+    const composeboxDropdown =
+        composeboxElement.shadowRoot.querySelector<HTMLElement>('#matches');
+    assertTrue(!!composeboxDropdown);
+
+    const matches = [
+      createSearchMatch(
+          {fillIntoEdit: 'hello world 1', allowedToBeDefaultMatch: true}),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
+      createSearchMatch({fillIntoEdit: 'hello world 3'}),
+      createSearchMatch({fillIntoEdit: 'hello world 4'}),
+    ];
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          matches: matches,
+          input: 'Test',
+        }));
+    await microtasksFinished();
+
+    // Dropdown should show for when matches are available.
+    assertFalse(composeboxDropdown.hidden);
+
+    // If context files are added, the dropdown should no longer be visible.
+    composeboxElement.$.context.dispatchEvent(
+      new CustomEvent('on-context-files-changed', {
+        detail: {files: 1},
+      }));
+    await microtasksFinished();
+    assertTrue(composeboxDropdown.hidden);
+  });
+
+  test('dropdown does not show for typed suggest with verbatim match only',
+       async () => {
+        loadTimeData.overrideValues(
+            {composeboxShowZps: true, composeboxShowTypedSuggest: true});
+        createComposeboxElement();
+        await microtasksFinished();
+
+        // Add typed input.
+        composeboxElement.$.input.value = 'Test';
+        composeboxElement.$.input.dispatchEvent(new Event('input'));
+        await microtasksFinished();
+
+        const composeboxDropdown =
+            composeboxElement.shadowRoot.querySelector<HTMLElement>('#matches');
+        assertTrue(!!composeboxDropdown);
+
+        const matches = [
+          createSearchMatch(),
+        ];
+        searchboxCallbackRouterRemote.autocompleteResultChanged(
+            createAutocompleteResult({
+              matches: matches,
+              input: 'Test',
+            }));
+        await microtasksFinished();
+
+        // Dropdown should not show when only the verbatim match is present.
+        assertTrue(composeboxDropdown.hidden);
+      });
+
   test('notify browser when image is added in create image mode', async () => {
     loadTimeData.overrideValues({
       composeboxShowZps: true,
@@ -1280,42 +1375,6 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
     assertEquals(handler.getCallCount('setCreateImageMode'), 3);
   });
-
-  test(
-      'dropdown visibility change fires an event when Realbox Next is enabled',
-      async () => {
-        loadTimeData.overrideValues({
-          composeboxShowZps: true,
-          composeboxShowTypedSuggest: true,
-        });
-        createComposeboxElement();
-        composeboxElement.ntpRealboxNextEnabled = true;
-
-        let whenDropdownVisibleChanged = eventToPromise(
-            'composebox-dropdown-visible-changed', composeboxElement);
-
-        // Add typed input.
-        composeboxElement.$.input.value = 'Test';
-        composeboxElement.$.input.style.height = '48px';
-        composeboxElement.$.input.dispatchEvent(new Event('input'));
-        await microtasksFinished();
-        const matches = [
-          createSearchMatch(),
-        ];
-        searchboxCallbackRouterRemote.autocompleteResultChanged(
-            createAutocompleteResult({
-              input: 'Test',
-              matches: matches,
-            }));
-        const e1 = await whenDropdownVisibleChanged;
-        assertTrue(e1.detail.value);
-
-        whenDropdownVisibleChanged = eventToPromise(
-            'composebox-dropdown-visible-changed', composeboxElement);
-        composeboxElement.closeDropdown();
-        const e2 = await whenDropdownVisibleChanged;
-        assertFalse(e2.detail.value);
-      });
 
   test('arrow up/down moves selection / focus', async () => {
     loadTimeData.overrideValues({composeboxShowZps: true});
@@ -1826,6 +1885,138 @@ suite('NewTabPageComposeboxTest', () => {
         loadTimeData.getString('searchboxComposePlaceholder'),
         composeboxElement.$.input.placeholder);
   });
+
+  test('pasting valid files calls addFileContext', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({'composeboxFileMaxCount': 5});
+    createComposeboxElement();
+    searchboxHandler.setResultFor(
+        ADD_FILE_CONTEXT_FN,
+        Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
+
+    const pngFile = new File(['foo'], 'foo.png', {type: 'image/png'});
+    const pdfFile = new File(['foo'], 'foo.pdf', {type: 'application/pdf'});
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(pngFile);
+    dataTransfer.items.add(pdfFile);
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    // Act.
+    composeboxElement.$.input.dispatchEvent(pasteEvent);
+
+    // Assert.
+    // Check that addFileContext (ADD_FILE_CONTEXT_FN) was called twice.
+    await waitForAddFileCallCount(2);
+    const [[fileInfo1], [fileInfo2]] =
+        searchboxHandler.getArgs(ADD_FILE_CONTEXT_FN);
+    assertEquals('foo.png', fileInfo1.fileName);
+    assertEquals('foo.pdf', fileInfo2.fileName);
+
+    // Check that the default paste event was prevented.
+    assertTrue(pasteEvent.defaultPrevented);
+  });
+
+  test('pasting too many files records metric and prevents paste', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({'composeboxFileMaxCount': 1});
+    createComposeboxElement();
+
+    const pngFile1 = new File(['foo'], 'foo1.png', {type: 'image/png'});
+    const pngFile2 = new File(['foo'], 'foo2.png', {type: 'image/png'});
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(pngFile1);
+    dataTransfer.items.add(pngFile2);
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    // Act.
+    composeboxElement.$.input.dispatchEvent(pasteEvent);
+    await microtasksFinished();
+
+    // Assert.
+    // Check that no files were added.
+    assertEquals(0, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+
+    // Check that the "too many files" metric was recorded (Enum value 1).
+    assertEquals(
+        1,
+        metrics.count(
+            'NewTabPage.Composebox.File.WebUI.UploadAttemptFailure',
+            1));
+
+    // Check that the paste event was prevented.
+    assertTrue(pasteEvent.defaultPrevented);
+  });
+
+  test('pasting unsupported files fires validation error', async () => {
+    // Arrange.
+    createComposeboxElement();
+    const txtFile = new File(['foo'], 'foo.txt', {type: 'text/plain'});
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(txtFile);
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    // Listen for the error event.
+    const errorEventPromise =
+        eventToPromise('on-file-validation-error', composeboxElement.$.context);
+
+    // Act.
+    composeboxElement.$.input.dispatchEvent(pasteEvent);
+
+    // Assert.
+    // Check that the correct error event was fired.
+    const errorEvent = await errorEventPromise;
+    assertEquals(
+        loadTimeData.getString('composeboxFileUploadImageProcessingError'),
+        errorEvent.detail.errorMessage);
+
+    // Check that no files were added.
+    assertEquals(0, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+
+    // Check that the paste event was prevented.
+    assertTrue(pasteEvent.defaultPrevented);
+  });
+
+  test(
+      'pasting only text does not call addFiles or prevent default',
+      async () => {
+        // Arrange.
+        createComposeboxElement();
+        const dataTransfer = new DataTransfer();
+        dataTransfer.setData('text/plain', 'hello');
+        const pasteEvent = new ClipboardEvent('paste', {
+          clipboardData: dataTransfer,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        });
+
+        // Act.
+        composeboxElement.$.input.dispatchEvent(pasteEvent);
+        await microtasksFinished();
+
+        // Assert.
+        // Check that no files were added.
+        assertEquals(0, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+
+        // Check the paste event was not prevented (onPaste_ returns early).
+        assertFalse(pasteEvent.defaultPrevented);
+      });
+
 
   suite('Context menu', () => {
     suiteSetup(() => {

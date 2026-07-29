@@ -77,12 +77,6 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
       !security_interstitial_tab_helper->IsDisplayingInterstitial() ||
       security_interstitial_tab_helper->ShouldDisplayURL();
 
-  content::NavigationEntry* entry =
-      contents->GetController().GetLastCommittedEntry();
-  if (!entry || entry->IsInitialEntry()) {
-    should_display_url = false;
-  }
-
   TabRendererData data;
 
   tabs::TabFeatures* const features = tab->GetTabFeatures();
@@ -90,14 +84,12 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
   data.favicon = tab_ui_helper->GetFavicon();
   data.title = tab_ui_helper->GetTitle();
 
-  // Tabbed web apps should use the app icon on the home tab.
-  BrowserWindowInterface* browser = tab->GetBrowserWindowInterface();
-
-  if (browser && browser->GetAppBrowserController() &&
-      browser->GetAppBrowserController()->ShouldShowAppIconOnTab(index)) {
-    web_app::WebAppBrowserController* app_controller =
-        browser->GetAppBrowserController()->AsWebAppBrowserController();
-    if (app_controller) {
+  // Note that in unit tests, this may be null.
+  if (auto* const bwi = tab->GetBrowserWindowInterface()) {
+    // Tabbed web apps should use the app icon on the home tab.
+    if (auto* const app_controller =
+            web_app::WebAppBrowserController::From(bwi);
+        app_controller && app_controller->ShouldShowAppIconOnTab(index)) {
       gfx::ImageSkia home_tab_icon = app_controller->GetHomeTabIcon();
       if (!home_tab_icon.isNull()) {
         data.is_monochrome_favicon = true;
@@ -112,7 +104,7 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
   }
 
   ThumbnailTabHelper* const thumbnail_tab_helper =
-      ThumbnailTabHelper::From(tab);
+      ThumbnailTabHelper::FromWebContents(contents);
   if (thumbnail_tab_helper) {
     data.thumbnail = thumbnail_tab_helper->thumbnail();
   }
@@ -120,7 +112,15 @@ TabRendererData TabRendererData::FromTabInModel(const TabStripModel* model,
 
   data.collaboration_messaging = GetCollaborationMessage(tab);
   data.network_state = TabNetworkStateForWebContents(contents);
-  data.visible_url = contents->GetVisibleURL();
+
+  // In the case of reverted uncommitted navigations, there might not be a valid
+  // NavigationEntry. In that case, show about:blank to match the omnibox.
+  content::NavigationEntry* entry =
+      contents->GetController().GetLastCommittedEntry();
+  const bool missing_navigation_entry = !entry || entry->IsInitialEntry();
+  data.visible_url = missing_navigation_entry ? GURL(url::kAboutBlankURL)
+                                              : contents->GetVisibleURL();
+
   // Allow empty title for chrome-untrusted:// URLs.
   if (data.title.empty() &&
       data.visible_url.SchemeIs(content::kChromeUIUntrustedScheme)) {

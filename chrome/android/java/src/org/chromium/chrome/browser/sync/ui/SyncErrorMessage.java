@@ -19,7 +19,6 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.UnownedUserData;
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.UnownedUserDataKey;
 import org.chromium.base.metrics.RecordHistogram;
@@ -60,7 +59,7 @@ import org.chromium.ui.modelutil.PropertyModel;
  * in the whole application will exist at a time.
  */
 @NullMarked
-public class SyncErrorMessage implements SyncService.SyncStateChangedListener, UnownedUserData {
+public class SyncErrorMessage implements SyncService.SyncStateChangedListener {
     // Note: Not all SyncErrors have a corresponding SyncErrorMessage, see getError().
     private final @UserActionableError int mError;
     private final Activity mActivity;
@@ -72,7 +71,7 @@ public class SyncErrorMessage implements SyncService.SyncStateChangedListener, U
     private static @Nullable MessageDispatcher sMessageDispatcherForTesting;
 
     private static final UnownedUserDataKey<SyncErrorMessage> SYNC_ERROR_MESSAGE_KEY =
-            new UnownedUserDataKey<>(SyncErrorMessage.class);
+            new UnownedUserDataKey<>();
     private static final String PASSWORDS_SYNC_ERROR_MESSAGE_VERSION_PARAM_NAME = "version";
     private static final String TAG = "SyncErrorMessage";
 

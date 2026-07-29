@@ -72,6 +72,8 @@ const base::FeatureParam<base::TimeDelta> kUseDnsHttpsSvcbSecureExtraTimeMin{
     &kUseDnsHttpsSvcb, "UseDnsHttpsSvcbSecureExtraTimeMin",
     base::Milliseconds(5)};
 
+BASE_FEATURE(kUseStructuredDnsErrors, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kUseHostResolverCache, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHappyEyeballsV3, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -213,9 +215,6 @@ extern const base::FeatureParam<base::TimeDelta>
 BASE_FEATURE(kRequestStorageAccessNoCorsRequired,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kStorageAccessApiFollowsSameOriginPolicy,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kStaticKeyPinningEnforcement, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCookieDomainRejectNonASCII, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -223,10 +222,6 @@ BASE_FEATURE(kCookieDomainRejectNonASCII, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables partitioning of third party storage (IndexedDB, CacheStorage, etc.)
 // by the top level site to reduce fingerprinting.
 BASE_FEATURE(kThirdPartyStoragePartitioning, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTpcdTrialSettings,
-             "TpcdSupportSettings",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTpcdMetadataGrants, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -286,57 +281,6 @@ BASE_FEATURE(kAsyncMultiPortPath,
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
-// Probabilistic reveal tokens configuration settings
-BASE_FEATURE(kEnableProbabilisticRevealTokens,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-const base::FeatureParam<std::string> kProbabilisticRevealTokenServer{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"ProbabilisticRevealTokenServer",
-    /*default_value=*/"https://aaftokenissuer.pa.googleapis.com"};
-
-const base::FeatureParam<std::string> kProbabilisticRevealTokenServerPath{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"ProbabilisticRevealTokenServerPath",
-    /*default_value=*/"/v1/issueprts"};
-
-const base::FeatureParam<bool> kBypassProbabilisticRevealTokenRegistry{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"BypassProbabilisticRevealTokenRegistry",
-    /*default_value=*/false};
-
-const base::FeatureParam<bool> kUseCustomProbabilisticRevealTokenRegistry{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"UseCustomProbabilisticRevealTokenRegistry",
-    /*default_value=*/false};
-
-const base::FeatureParam<std::string> kCustomProbabilisticRevealTokenRegistry{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"CustomProbabilisticRevealTokenRegistry",
-    /*default_value=*/""};
-
-const base::FeatureParam<bool> kProbabilisticRevealTokensOnlyInIncognito{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"ProbabilisticRevealTokensOnlyInIncognito",
-    /*default_value=*/false};
-
-const base::FeatureParam<bool> kProbabilisticRevealTokenFetchOnly{
-    &kEnableProbabilisticRevealTokens,
-    /*name=*/"ProbabilisticRevealTokenFetchOnly",
-    /*default_value=*/false};
-
-const base::FeatureParam<bool>
-    kEnableProbabilisticRevealTokensForNonProxiedRequests{
-        &kEnableProbabilisticRevealTokens,
-        /*name=*/"EnableProbabilisticRevealTokensForNonProxiedRequests",
-        /*default_value=*/false};
-
-const base::FeatureParam<bool>
-    kProbabilisticRevealTokensAddHeaderToProxiedRequests{
-        &kEnableProbabilisticRevealTokens,
-        /*name=*/"ProbabilisticRevealTokensAddHeaderToProxiedRequests",
-        /*default_value=*/false};
 
 // IP protection experiment configuration settings
 BASE_FEATURE(kEnableIpProtectionProxy,
@@ -606,6 +550,17 @@ BASE_FEATURE_PARAM(bool,
                    "CheckWellKnown",
                    true);
 
+BASE_FEATURE(kDeviceBoundSessionProactiveRefresh,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kDeviceBoundSessionProactiveRefreshThreshold,
+                   &kDeviceBoundSessionProactiveRefresh,
+                   "Threshold",
+                   base::Seconds(120));
+
+BASE_FEATURE(kDeviceBoundSessionSigningQuotaAndCaching,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSpdySessionForProxyAdditionalChecks,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -843,6 +798,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kExtendQuicHandshakeTimeout,
                    "QuicHandshakeTimeout",
                    base::Seconds(quic::kMaxTimeForCryptoHandshakeSecs));
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kMaxIdleTimeBeforeCryptoHandshake,
+                   &kExtendQuicHandshakeTimeout,
+                   "MaxIdleTimeBeforeCryptoHandshake",
+                   base::Seconds(quic::kInitialIdleTimeoutSecs));
 
 BASE_FEATURE(kQuicLongerIdleConnectionTimeout,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -865,8 +825,6 @@ BASE_FEATURE_PARAM(std::string,
                    &kConfigureQuicHints,
                    /*name=*/"wildcard_quic_hints",
                    /*default_value=*/"");
-
-BASE_FEATURE(kDnsFilteringDetails, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUpdateIsMainFrameOriginRecentlyAccessed,
              base::FEATURE_DISABLED_BY_DEFAULT);

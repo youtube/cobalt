@@ -12,7 +12,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "components/affiliations/core/browser/affiliation_utils.h"
+#include "components/autofill/core/common/form_field_data.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
+#include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/variations/service/variations_service.h"
@@ -26,6 +28,11 @@ using PasswordChangeOutcome = optimization_guide::proto ::
 using PageType = optimization_guide::proto::OpenFormResponseData_PageType;
 using LoginPasswordType =
     optimization_guide::proto::LoginAttemptOutcome_PasswordType;
+using FormData = optimization_guide::proto::PasswordChangeQuality_FormData;
+using FieldData =
+    optimization_guide::proto::PasswordChangeQuality_FormData_FieldData;
+using FieldType = optimization_guide::proto::
+    PasswordChangeQuality_FormData_FieldData_FieldType;
 
 namespace {
 int64_t ComputeRequestLatencyMs(base::Time server_request_start_time) {
@@ -97,34 +104,6 @@ ModelQualityLogsUploader::QualityStatus GetVerifySubmissionQualityStatus(
       PasswordChangeQuality_StepQuality_SubmissionStatus_ACTION_SUCCESS;
 }
 
-optimization_guide::proto::PasswordChangeQuality_StepQuality*
-GetNextStepQuality(optimization_guide::proto::LogAiDataRequest& log) {
-  optimization_guide::proto::PasswordChangeQuality* quality =
-      log.mutable_password_change_submission()->mutable_quality();
-  if (quality->submit_form().status() !=
-      ModelQualityLogsUploader::QualityStatus::
-          PasswordChangeQuality_StepQuality_SubmissionStatus_UNKNOWN_STATUS) {
-    return quality->mutable_verify_submission();
-  }
-
-  if (quality->open_form().status() !=
-      ModelQualityLogsUploader::QualityStatus::
-          PasswordChangeQuality_StepQuality_SubmissionStatus_UNKNOWN_STATUS) {
-    return quality->mutable_submit_form();
-  }
-
-  // TODO(crbug.com/446883346): Remove flag after feature is launched.
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kCheckLoginStateBeforePasswordChange) ||
-      (quality->logged_in_check().status() !=
-       ModelQualityLogsUploader::QualityStatus::
-           PasswordChangeQuality_StepQuality_SubmissionStatus_UNKNOWN_STATUS)) {
-    return quality->mutable_open_form();
-  }
-
-  return quality->mutable_logged_in_check();
-}
-
 optimization_guide::proto::PasswordChangeQuality_StepQuality* GetStepQuality(
     ModelQualityLogsUploader::FlowStep step,
     optimization_guide::proto::LogAiDataRequest& log) {
@@ -192,6 +171,75 @@ LoginPasswordType GetLoginAttemptPasswordType(
 bool ReachedAttemptsLimit(int state_checks_count) {
   return state_checks_count >= LoginStateChecker::kMaxLoginChecks;
 }
+
+ModelQualityLogsUploader::QualityStatus GetStepStatus(
+    actor::mojom::ActionResultCode failure) {
+  CHECK_NE(actor::mojom::ActionResultCode::kOk, failure);
+  switch (failure) {
+    case actor::mojom::ActionResultCode::kInvalidDomNodeId:
+      return ModelQualityLogsUploader::QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_NOT_FOUND;
+    case actor::mojom::ActionResultCode::kElementDisabled:
+      return ModelQualityLogsUploader::QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_DISABLED;
+    case actor::mojom::ActionResultCode::kElementOffscreen:
+      return ModelQualityLogsUploader::QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_OFFSCREEN;
+    case actor::mojom::ActionResultCode::kTargetNodeInteractionPointObscured:
+      return ModelQualityLogsUploader::QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_OBSCURED;
+    default:
+      return ModelQualityLogsUploader::QualityStatus::
+          PasswordChangeQuality_StepQuality_SubmissionStatus_UNEXPECTED_STATE;
+  }
+}
+
+FieldType GetFieldType(const autofill::FormFieldData& field,
+                       const password_manager::PasswordForm& form) {
+  autofill::FieldRendererId field_id = field.renderer_id();
+  if (field_id == form.username_element_renderer_id) {
+    return optimization_guide::proto::
+        PasswordChangeQuality_FormData_FieldData_FieldType_USERNAME;
+  } else if (field_id == form.password_element_renderer_id) {
+    return optimization_guide::proto::
+        PasswordChangeQuality_FormData_FieldData_FieldType_PASSWORD;
+  } else if (field_id == form.new_password_element_renderer_id) {
+    return optimization_guide::proto::
+        PasswordChangeQuality_FormData_FieldData_FieldType_NEW_PASSWORD;
+  } else if (field_id == form.confirmation_password_element_renderer_id) {
+    return optimization_guide::proto::
+        PasswordChangeQuality_FormData_FieldData_FieldType_CONFIRMATION_PASSWORD;
+  }
+  return optimization_guide::proto::
+      PasswordChangeQuality_FormData_FieldData_FieldType_UNKNOWN;
+}
+
+void SetFormData(FormData& form_data_proto,
+                 const password_manager::PasswordForm& form) {
+  form_data_proto.set_form_signature(
+      autofill::CalculateFormSignature(form.form_data).value());
+  form_data_proto.set_form_id(base::UTF16ToUTF8(form.form_data.id_attribute()));
+  form_data_proto.set_form_name(
+      base::UTF16ToUTF8(form.form_data.name_attribute()));
+  form_data_proto.set_url(form.url.spec());
+  for (const auto& button : form.form_data.button_titles()) {
+    form_data_proto.add_button_text(base::UTF16ToUTF8(button.first));
+  }
+  for (const auto& field : form.form_data.fields()) {
+    FieldData field_data;
+    field_data.set_signature(
+        autofill::CalculateFieldSignatureForField(field).value());
+    field_data.set_id(base::UTF16ToUTF8(field.id_attribute()));
+    field_data.set_name(base::UTF16ToUTF8(field.name_attribute()));
+    field_data.set_label(base::UTF16ToUTF8(field.label()));
+    field_data.set_html_type(
+        autofill::FormControlTypeToString(field.form_control_type()));
+    field_data.set_placeholder(base::UTF16ToUTF8(field.placeholder()));
+    field_data.set_field_type(GetFieldType(field, form));
+    *form_data_proto.add_field_data() = field_data;
+  }
+}
+
 }  // namespace
 
 ModelQualityLogsUploader::ModelQualityLogsUploader(
@@ -247,8 +295,7 @@ void ModelQualityLogsUploader::SetLoggedInCheckQuality(
 void ModelQualityLogsUploader::SetOpenFormQuality(
     const std::optional<optimization_guide::proto::PasswordChangeResponse>&
         response,
-    std::unique_ptr<LoggingData> logging_data,
-    base::Time server_request_start_time) {
+    std::unique_ptr<LoggingData> logging_data) {
   if (!logging_data) {
     return;
   }
@@ -286,15 +333,12 @@ void ModelQualityLogsUploader::SetOpenFormQuality(
 
   open_form_quality->mutable_request()->CopyFrom(logging_data->request());
   open_form_quality->set_status(quality_status);
-  open_form_quality->set_request_latency_ms(
-      ComputeRequestLatencyMs(server_request_start_time));
 }
 
 void ModelQualityLogsUploader::SetSubmitFormQuality(
     const std::optional<optimization_guide::proto::PasswordChangeResponse>&
         response,
-    std::unique_ptr<LoggingData> logging_data,
-    base::Time server_request_start_time) {
+    std::unique_ptr<LoggingData> logging_data) {
   if (!logging_data) {
     return;
   }
@@ -322,15 +366,12 @@ void ModelQualityLogsUploader::SetSubmitFormQuality(
 
   submit_form_quality->mutable_request()->CopyFrom(logging_data->request());
   submit_form_quality->set_status(quality_status);
-  submit_form_quality->set_request_latency_ms(
-      ComputeRequestLatencyMs(server_request_start_time));
 }
 
 void ModelQualityLogsUploader::SetVerifySubmissionQuality(
     const std::optional<optimization_guide::proto::PasswordChangeResponse>&
         response,
-    std::unique_ptr<LoggingData> logging_data,
-    base::Time server_request_start_time) {
+    std::unique_ptr<LoggingData> logging_data) {
   if (!logging_data) {
     return;
   }
@@ -354,8 +395,6 @@ void ModelQualityLogsUploader::SetVerifySubmissionQuality(
   verify_submission_quality->mutable_request()->CopyFrom(
       logging_data->request());
   verify_submission_quality->set_status(quality_status);
-  verify_submission_quality->set_request_latency_ms(
-      ComputeRequestLatencyMs(server_request_start_time));
 }
 
 void ModelQualityLogsUploader::FormNotDetectedAfterOpening() {
@@ -367,27 +406,10 @@ void ModelQualityLogsUploader::FormNotDetectedAfterOpening() {
               PasswordChangeQuality_StepQuality_SubmissionStatus_FORM_NOT_FOUND);
 }
 
-void ModelQualityLogsUploader::SetOpenFormUnexpectedFailure() {
-  final_log_data_.mutable_password_change_submission()
-      ->mutable_quality()
-      ->mutable_open_form()
-      ->set_status(
-          QualityStatus::
-              PasswordChangeQuality_StepQuality_SubmissionStatus_UNEXPECTED_STATE);
-}
-
-void ModelQualityLogsUploader::SetFlowInterrupted() {
-  GetNextStepQuality(final_log_data_)
-      ->set_status(
-          QualityStatus::
-              PasswordChangeQuality_StepQuality_SubmissionStatus_FLOW_INTERRUPTED);
-}
-
-void ModelQualityLogsUploader::SetOtpDetected() {
-  GetNextStepQuality(final_log_data_)
-      ->set_status(
-          QualityStatus::
-              PasswordChangeQuality_StepQuality_SubmissionStatus_OTP_DETECTED);
+void ModelQualityLogsUploader::SetFlowInterrupted(
+    FlowStep step,
+    QualityStatus quality_status) {
+  GetStepQuality(step, final_log_data_)->set_status(quality_status);
 }
 
 void ModelQualityLogsUploader::MarkStepSkipped(
@@ -398,22 +420,13 @@ void ModelQualityLogsUploader::MarkStepSkipped(
               PasswordChangeQuality_StepQuality_SubmissionStatus_STEP_SKIPPED);
 }
 
-void ModelQualityLogsUploader::OpenFormTargetElementNotFound() {
-  final_log_data_.mutable_password_change_submission()
-      ->mutable_quality()
-      ->mutable_open_form()
-      ->set_status(
-          QualityStatus::
-              PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_NOT_FOUND);
-}
-
-void ModelQualityLogsUploader::SubmitFormTargetElementNotFound() {
-  final_log_data_.mutable_password_change_submission()
-      ->mutable_quality()
-      ->mutable_submit_form()
-      ->set_status(
-          QualityStatus::
-              PasswordChangeQuality_StepQuality_SubmissionStatus_ELEMENT_NOT_FOUND);
+void ModelQualityLogsUploader::RecordButtonClickFailure(
+    FlowStep step,
+    actor::mojom::ActionResultCode failure) {
+  CHECK_NE(FlowStep::PasswordChangeRequest_FlowStep_IS_LOGGED_IN_STEP, step);
+  CHECK_NE(FlowStep::PasswordChangeRequest_FlowStep_VERIFY_SUBMISSION_STEP,
+           step);
+  GetStepQuality(step, final_log_data_)->set_status(GetStepStatus(failure));
 }
 
 void ModelQualityLogsUploader::LoginCheckSkipped() {
@@ -421,6 +434,28 @@ void ModelQualityLogsUploader::LoginCheckSkipped() {
       ->mutable_quality()
       ->mutable_logged_in_check()
       ->set_classification_overridden_by_user(true);
+}
+
+void ModelQualityLogsUploader::SetLoginPasswordFormInfo(
+    const password_manager::PasswordForm& password_form) {
+  optimization_guide::proto::PasswordChangeQuality* quality =
+      final_log_data_.mutable_password_change_submission()->mutable_quality();
+  quality->set_was_password_stored(
+      password_form.in_store != password_manager::PasswordForm::Store::kNotSet);
+  SetFormData(*quality->mutable_login_form_data(), password_form);
+}
+
+void ModelQualityLogsUploader::SetChangePasswordFormData(
+    const password_manager::PasswordForm& password_form) {
+  optimization_guide::proto::PasswordChangeQuality* quality =
+      final_log_data_.mutable_password_change_submission()->mutable_quality();
+  SetFormData(*quality->mutable_change_password_form_data(), password_form);
+}
+
+void ModelQualityLogsUploader::SetStepDuration(FlowStep step,
+                                               base::TimeDelta duration) {
+  GetStepQuality(step, final_log_data_)
+      ->set_request_latency_ms(duration.InMilliseconds());
 }
 
 // static

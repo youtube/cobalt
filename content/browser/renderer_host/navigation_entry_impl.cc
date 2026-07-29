@@ -936,7 +936,6 @@ NavigationEntryImpl::ConstructCommitNavigationParams(
     int current_history_list_length,
     const blink::FramePolicy& frame_policy,
     bool ancestor_or_self_has_cspee,
-    blink::mojom::SystemEntropy system_entropy_at_navigation_start,
     std::optional<blink::scheduler::TaskAttributionId>
         soft_navigation_heuristics_task_id) {
   // Set the redirect chain to the navigation's redirects, unless returning to a
@@ -1017,7 +1016,8 @@ NavigationEntryImpl::ConstructCommitNavigationParams(
           /*initial_permission_statuses=*/std::nullopt,
           /*should_skip_screenshot*/ false,
           /*force_new_document_sequence_number=*/false,
-          /*navigation_metrics_token=*/base::UnguessableToken::Create());
+          /*navigation_metrics_token=*/base::UnguessableToken::Create(),
+          /*commit_target_frame_token=*/std::nullopt);
 #if BUILDFLAG(IS_ANDROID)
   // `data_url_as_string` is saved in NavigationEntry but should only be used by
   // main frames, because loadData* navigations can only happen on the main
@@ -1029,9 +1029,6 @@ NavigationEntryImpl::ConstructCommitNavigationParams(
     commit_params->data_url_as_string = string->as_string();
   }
 #endif
-
-  commit_params->navigation_timing->system_entropy_at_navigation_start =
-      system_entropy_at_navigation_start;
 
   return commit_params;
 }

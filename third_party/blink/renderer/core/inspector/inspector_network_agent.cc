@@ -548,14 +548,6 @@ String BuildCorsError(network::mojom::CorsError cors_error) {
     case network::mojom::CorsError::kPreflightInvalidAllowCredentials:
       return protocol::Network::CorsErrorEnum::PreflightInvalidAllowCredentials;
 
-    case network::mojom::CorsError::kPreflightMissingAllowPrivateNetwork:
-      return protocol::Network::CorsErrorEnum::
-          PreflightMissingAllowPrivateNetwork;
-
-    case network::mojom::CorsError::kPreflightInvalidAllowPrivateNetwork:
-      return protocol::Network::CorsErrorEnum::
-          PreflightInvalidAllowPrivateNetwork;
-
     case network::mojom::CorsError::kInvalidAllowMethodsPreflightResponse:
       return protocol::Network::CorsErrorEnum::
           InvalidAllowMethodsPreflightResponse;
@@ -580,25 +572,6 @@ String BuildCorsError(network::mojom::CorsError cors_error) {
 
     case network::mojom::CorsError::kInvalidPrivateNetworkAccess:
       return protocol::Network::CorsErrorEnum::InvalidPrivateNetworkAccess;
-
-    case network::mojom::CorsError::kUnexpectedPrivateNetworkAccess:
-      return protocol::Network::CorsErrorEnum::UnexpectedPrivateNetworkAccess;
-
-    case network::mojom::CorsError::kPreflightMissingPrivateNetworkAccessId:
-      return protocol::Network::CorsErrorEnum::
-          PreflightMissingPrivateNetworkAccessId;
-
-    case network::mojom::CorsError::kPreflightMissingPrivateNetworkAccessName:
-      return protocol::Network::CorsErrorEnum::
-          PreflightMissingPrivateNetworkAccessName;
-
-    case network::mojom::CorsError::kPrivateNetworkAccessPermissionUnavailable:
-      return protocol::Network::CorsErrorEnum::
-          PrivateNetworkAccessPermissionUnavailable;
-
-    case network::mojom::CorsError::kPrivateNetworkAccessPermissionDenied:
-      return protocol::Network::CorsErrorEnum::
-          PrivateNetworkAccessPermissionDenied;
 
     case network::mojom::CorsError::kLocalNetworkAccessPermissionDenied:
       return protocol::Network::CorsErrorEnum::
@@ -832,11 +805,19 @@ InspectorNetworkAgent::URLPatternMatcher::Create(const String& pattern,
 void InspectorNetworkAgent::Restore() {
   if (enabled_.Get())
     Enable();
-  for (const String& pattern : blocked_patterns_.Keys()) {
-    if (auto matcher =
-            URLPatternMatcher::Create(pattern, blocked_patterns_.Get(pattern));
-        matcher.matcher) {
-      blocked_pattern_matchers_.emplace_back(std::move(matcher));
+  if (!blocked_patterns_cbor_.Get().empty()) {
+    protocol::Array<protocol::Network::BlockPattern> blocked_patterns;
+    crdtp::DeserializerState state(blocked_patterns_cbor_.Get());
+    bool result = crdtp::ProtocolTypeTraits<protocol::Array<
+        protocol::Network::BlockPattern>>::Deserialize(&state,
+                                                       &blocked_patterns);
+    CHECK(result);
+    for (auto& pattern : blocked_patterns) {
+      if (auto matcher = URLPatternMatcher::Create(pattern->getUrlPattern(),
+                                                   pattern->getBlock());
+          matcher.matcher) {
+        blocked_pattern_matchers_.emplace_back(std::move(matcher));
+      }
     }
   }
 }
@@ -1250,7 +1231,7 @@ void InspectorNetworkAgent::Trace(Visitor* visitor) const {
 }
 
 void InspectorNetworkAgent::ShouldBlockRequest(const KURL& url, bool* result) {
-  if (blocked_patterns_.IsEmpty() && blocked_urls_.IsEmpty())
+  if (blocked_pattern_matchers_.empty() && blocked_urls_.IsEmpty())
     return;
 
   GURL gurl(url);
@@ -2462,13 +2443,15 @@ protocol::Response InspectorNetworkAgent::setBlockedURLs(
   }
 
   blocked_urls_.Clear();
-  blocked_patterns_.Clear();
+  blocked_patterns_cbor_.Clear();
   std::swap(blocked_pattern_matchers_, blocked_pattern_matchers);
 
   if (url_patterns) {
-    for (auto& pattern : *url_patterns) {
-      blocked_patterns_.Set(pattern->getUrlPattern(), pattern->getBlock());
-    }
+    std::vector<uint8_t> serialized;
+    crdtp::ProtocolTypeTraits<protocol::Array<
+        protocol::Network::BlockPattern>>::Serialize(*url_patterns,
+                                                     &serialized);
+    blocked_patterns_cbor_.Set(serialized);
   }
 
   if (urls) {
@@ -2808,7 +2791,7 @@ InspectorNetworkAgent::InspectorNetworkAgent(
       cache_disabled_(&agent_state_, /*default_value=*/false),
       bypass_service_worker_(&agent_state_, /*default_value=*/false),
       blocked_urls_(&agent_state_, /*default_value=*/false),
-      blocked_patterns_(&agent_state_, /*default_value=*/false),
+      blocked_patterns_cbor_(&agent_state_, /*default_value=*/{}),
       extra_request_headers_(&agent_state_, /*default_value=*/String()),
       attach_debug_stack_enabled_(&agent_state_, /*default_value=*/false),
       total_buffer_size_(&agent_state_,

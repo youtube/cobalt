@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/sequence_checker.h"
 #include "components/metrics/dwa/dwa_recorder.h"
 #include "components/metrics/metrics_rotation_scheduler.h"
@@ -32,6 +34,13 @@ namespace metrics::dwa {
 // analytics events.
 class DwaService {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    // Called when the encryption public key is changed.
+    virtual void OnEncryptionPublicKeyChanged(
+        const fcp::confidential_compute::OkpCwt& decoded_public_key) = 0;
+  };
+
   DwaService(MetricsServiceClient* client,
              PrefService* pref_service,
              scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
@@ -48,6 +57,14 @@ class DwaService {
 
   // Clears all event and log data.
   void Purge();
+
+  // Adds an observer to be notified of changes to the encryption public key.
+  // Adding an observer will also dispatch the current key to the observer so
+  // the initial state can be determined.
+  void AddObserver(Observer* observer);
+
+  // Removes an observer to be notified of changes to the encryption public key.
+  void RemoveObserver(Observer* observer);
 
   // Refresh the public key used to encrypt private metric reports.
   void RefreshEncryptionPublicKey();
@@ -128,6 +145,16 @@ class DwaService {
       std::string_view public_key,
       const fcp::confidential_compute::OkpCwt& decoded_public_key);
 
+  // Builds a PrivateMetricEndpointPayload from an
+  // EncryptedPrivateMetricReport. This function is used to wrap the encrypted
+  // DWAs in a PrivateMetricEndpointPayload before uploading to the Private
+  // Metrics Collector (PMC) endpoint. The param is passed by value using
+  // std::move() to avoid a copy. An empty optional is returned if the
+  // report type is invalid.
+  static std::optional<::private_metrics::PrivateMetricEndpointPayload>
+  BuildPrivateMetricEndpointPayloadFromEncryptedReport(
+      ::private_metrics::EncryptedPrivateMetricReport encrypted_report);
+
   // Returns false if the public key `cwt` is expired or should not be used.
   // Otherwise, returns true.
   static bool ValidateEncryptionPublicKey(
@@ -163,6 +190,9 @@ class DwaService {
       std::optional<fcp::confidentialcompute::DataUploadConfig>
           maybe_data_upload_config);
 
+  // Returns true if the decoded public key is valid. Otherwise, returns false.
+  bool IsValidCwt(const fcp::confidential_compute::OkpCwt& cwt);
+
   // Manages on-device recording of events.
   raw_ptr<DwaRecorder> recorder_;
 
@@ -194,6 +224,9 @@ class DwaService {
   // Otherwise, the callback should return true.
   base::RepeatingCallback<bool(const fcp::confidential_compute::OkpCwt&)>
       encryption_public_key_verifier_;
+
+  // List of observers to be notified of changes to the encryption public key.
+  base::ObserverList<Observer> observers_;
 
   // Weak pointers factory used to post task on different threads. All weak
   // pointers managed by this factory have the same lifetime as DwaService.

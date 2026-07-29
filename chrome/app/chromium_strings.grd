@@ -710,9 +710,6 @@ Chromium is unable to recover your settings.
         <message name="IDS_UNINSTALL_DELETE_PROFILE" desc="Text to show user to ask whether to delete all the profile data also during uninstallation.">
           Also delete your browsing data?
         </message>
-        <message name="IDS_UNINSTALL_SET_DEFAULT_BROWSER" desc="Text to ask whether to set another browser as default when Chromium is uninstalled.">
-          Change default browser to:
-        </message>
         <message name="IDS_UNINSTALL_BUTTON_TEXT" desc="Label for uninstall button on Uninstall confirmation dialog.">
           Uninstall
         </message>
@@ -1178,6 +1175,14 @@ Chromium is unable to recover your settings.
         Click the Customize Chromium button on the New Tab Page to give Chromium a new look
       </message>
 
+      <!-- Realbox Strings -->
+      <message name="IDS_IPH_REALBOX_CONTEXTUAL_ENTRYPOINT" desc="The description of the IPH shown for the realbox contextual entrypoint.">
+        Deepen your search by adding multiple tabs, files, and tools
+      </message>
+      <message name="IDS_IPH_REALBOX_CONTEXTUAL_ENTRYPOINT_SCREENREADER" desc="The screenreader text of the IPH shown for the realbox contextual entrypoint.">
+        Deepen your search by adding multiple tabs, files, and tools using the "Add a tab and more" button.
+      </message>
+
       <!-- Signin Email Confirmation tab modal dialog -->
       <if expr="not is_chromeos">
         <message name="IDS_SIGNIN_EMAIL_CONFIRMATION_TITLE" desc="Title of the signin email confirmation tab modal dialog.">
@@ -1242,7 +1247,7 @@ Chromium is unable to recover your settings.
           To stay safer online with your parent’s choices, sign in to Chromium
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER" desc="This string is the body text of a reminder message, which is intended to help users understand that they have been signed in to Chromium. The user previously signed in to a Google service (like Gmail or Maps), and saw the Chrome Signin Bubble intercept; when asked whether the user wanted to sign in to Chromium as well, the user selected yes. After a period of time, this reminder message appears at the top right of Chromium (pointing at the Profile Menu) to remind the user that they made this choice a while ago. This body text string comes after the 'Welcome back, USER_NAME' string. We are focusing on the benefit that user enjoys, now that they're signed in to Chromium. The tone should be welcoming.">
-          While you're signed in, you can use your passwords and more from your Google Account in Chromium. You can change this anytime in settings.
+          While you're signed in, you can use your passwords and more from your Google Account in Chromium. To change this, go to “Your account in Chromium”.
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER_SCREENREADER" desc="This string is the accessibility text of a reminder message, which is intended to help users understand that they have been signed in to Chrome.">
           While you're signed in, you can use your passwords and more from your Google Account in Chromium. <ph name="SHORTCUT">$1<ex>CTRL+SHIFT+M</ex></ph> can change your Google services settings.
@@ -1684,6 +1689,9 @@ Chromium is unable to recover your settings.
       </message>
       <message name="IDS_DESKTOP_MEDIA_PICKER_PERMISSION_RESTART_TEXT_MAC" desc="Supplementary text about the need to restart Chrome, displayed below the message about enabling screen-recording permissions on Mac when those permissions are missing." >
         You'll then need to restart Chromium.
+      </message>
+      <message name="IDS_DESKTOP_MEDIA_PICKER_SYSTEM_AUDIO_PERMISSION_TEXT_MAC" desc="Instructive text for how to enable system audio capture on Mac." >
+        To share system audio, open System Settings and allow 'System Audio Recording Only' for Chromium. You'll then need to restart Chromium.
       </message>
 
       <!-- Runtime permission strings -->

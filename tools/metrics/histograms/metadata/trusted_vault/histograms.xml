@@ -83,7 +83,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TrustedVault.FileReadStatus{SecurityDomainId}"
-    enum="TrustedVaultFileReadStatus" expires_after="2025-11-30">
+    enum="TrustedVaultFileReadStatus" expires_after="2026-11-30">
   <owner>mmoskvitin@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -266,7 +266,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="TrustedVault.SecurityDomainServiceURLFetchResponse{Reason}{SecurityDomainId}"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-02-22">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-04-26">
   <owner>mastiz@chromium.org</owner>
   <owner>mmoskvitin@chromium.org</owner>
   <owner>martinkr@google.com</owner>
@@ -333,7 +333,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="TrustedVault.TrustedVaultHintDegradedRecoverabilityChangedReason"
     enum="TrustedVaultHintDegradedRecoverabilityChangedReason"
-    expires_after="2025-11-17">
+    expires_after="2026-11-17">
   <owner>mmrashad@google.com</owner>
   <owner>mmoskvitin@google.com</owner>
   <summary>

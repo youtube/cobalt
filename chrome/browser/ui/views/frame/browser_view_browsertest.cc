@@ -48,6 +48,7 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
@@ -465,10 +466,9 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsWindowResetsSize) {
 // Verifies that the side panel's rounded corner is being correctly layed out.
 IN_PROC_BROWSER_TEST_F(BrowserViewWithoutSideBySideTest,
                        SidePanelRoundedCornerLayout) {
-  SidePanelCoordinator* coordinator =
-      (browser())->GetFeatures().side_panel_coordinator();
-  coordinator->SetNoDelaysForTesting(true);
-  coordinator->Show(SidePanelEntry::Id::kBookmarks);
+  SidePanelUI* const side_panel_ui = browser()->GetFeatures().side_panel_ui();
+  side_panel_ui->SetNoDelaysForTesting(true);
+  side_panel_ui->Show(SidePanelEntry::Id::kBookmarks);
   EXPECT_EQ(side_panel()->bounds().x(),
             side_panel_rounded_corner()->bounds().right());
   EXPECT_EQ(side_panel()->bounds().y(),
@@ -557,7 +557,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, TitleAndLoadState) {
 
   TabStrip* tab_strip = browser_view()->tabstrip();
   // Navigate without blocking.
-  const GURL test_url = ui_test_utils::GetTestUrl(
+  const GURL test_url = chrome_test_utils::GetTestUrl(
       base::FilePath(base::FilePath::kCurrentDirectory),
       base::FilePath(FILE_PATH_LITERAL("title2.html")));
   contents->GetController().LoadURL(test_url, content::Referrer(),

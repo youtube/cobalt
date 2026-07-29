@@ -68,6 +68,7 @@
 #include "components/sync/test/test_sync_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/themes/ntp_background_data.h"
+#include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_web_contents_factory.h"
@@ -114,6 +115,7 @@ class MockPage : public new_tab_page::mojom::Page {
   MOCK_METHOD(void, SetModulesLoadable, ());
   MOCK_METHOD(void, SetModulesFreVisibility, (bool));
   MOCK_METHOD(void, SetCustomizeChromeSidePanelVisibility, (bool));
+  MOCK_METHOD(void, SetActionChipsVisibility, (bool));
   MOCK_METHOD(void, SetPromo, (new_tab_page::mojom::PromoPtr));
   MOCK_METHOD(void, ShowWebstoreToast, ());
   MOCK_METHOD(void, SetWallpaperSearchButtonVisibility, (bool));
@@ -247,7 +249,8 @@ class MockFeaturePromoHelper : public NewTabPageFeaturePromoHelper {
               (override));
   MOCK_METHOD(void,
               MaybeShowFeaturePromo,
-              (const base::Feature& iph_feature, content::WebContents*),
+              (user_education::FeaturePromoParams params,
+               content::WebContents*),
               (override));
   MOCK_METHOD(bool,
               IsSigninModalDialogOpen,
@@ -1210,6 +1213,21 @@ TEST_F(NewTabPageHandlerTest, ModulesVisiblePrefChangeTriggersPageCall) {
   profile_->GetPrefs()->SetBoolean(prefs::kNtpModulesVisible, true);
   EXPECT_CALL(mock_page_, SetDisabledModules).Times(1);
   mock_page_.FlushForTesting();
+}
+
+// Tests that UpdateActionChipsVisibility calls the page with
+// SetActionChipsVisibility
+TEST_F(NewTabPageHandlerTest, UpdateActionChipsVisibility) {
+  bool visible;
+  EXPECT_CALL(mock_page_, SetActionChipsVisibility)
+      .Times(1)
+      .WillOnce([&visible](bool visible_arg) { visible = visible_arg; });
+
+  profile_->GetPrefs()->SetBoolean(prefs::kNtpToolChipsVisible, true);
+  mock_page_.FlushForTesting();
+
+  EXPECT_TRUE(visible);
+  EXPECT_TRUE(profile_->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible));
 }
 
 // TODO (crbug/1521350): Fails when ChromeRefresh2023 is enabled.

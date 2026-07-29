@@ -9,7 +9,7 @@ import {html} from '//resources/lit/v3_0/lit.rollup.js';
 import type {ContextualEntrypointAndCarouselElement} from './contextual_entrypoint_and_carousel.js';
 
 export function getHtml(this: ContextualEntrypointAndCarouselElement) {
-  const showDescription = this.realboxLayoutMode !== 'Compact' &&
+  const showDescription = this.searchboxLayoutMode !== 'Compact' &&
       this.showContextMenuDescription_ && !this.shouldShowRecentTabChip_;
   const toolChipsVisible = this.shouldShowRecentTabChip_ ||
       this.inDeepSearchMode_ || this.inCreateImageMode_;
@@ -27,16 +27,29 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
         <cr-composebox-tool-chip
             icon="composebox:deepSearch"
             label="${this.i18n('deepSearch')}"
+            remove-chip-aria-label="${
+      this.i18n('removeToolChipAriaLabel', this.i18n('deepSearch'))}"
             ?visible="${this.inDeepSearchMode_}"
             @click="${this.onDeepSearchClick_}">
         </cr-composebox-tool-chip>
         <cr-composebox-tool-chip
             icon="composebox:nanoBanana"
             label="${this.i18n('createImages')}"
+            remove-chip-aria-label="${
+      this.i18n('removeToolChipAriaLabel', this.i18n('createImages'))}"
             ?visible="${this.inCreateImageMode_}"
             @click="${this.onCreateImageClick_}">
         </cr-composebox-tool-chip>
   `;
+
+  const voiceSearchButton = html`
+          <cr-icon-button id="voiceSearchButton" class="voice-icon"
+              part="voice-icon" iron-icon="cr:mic"
+              @click="${this.onVoiceSearchClick_}"
+              title="${this.i18n('voiceSearchButtonLabel')}">
+          </cr-icon-button>
+        `;
+
   const contextMenu = html`
       <div class="context-menu-container" part="context-menu-and-tools">
         <cr-composebox-context-menu-entrypoint id="contextEntrypoint"
@@ -57,31 +70,39 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
             ?inputs-disabled="${this.inputsDisabled_}"
             ?show-context-menu-description="${showDescription}">
         </cr-composebox-context-menu-entrypoint>
-        ${this.realboxLayoutMode !== 'Compact' ? toolChips : ''}
+        ${
+      this.searchboxLayoutMode === 'Compact' && this.showVoiceSearch ?
+          voiceSearchButton :
+          ''}
+        ${this.searchboxLayoutMode !== 'Compact' ? toolChips : ''}
+        ${
+      this.searchboxLayoutMode === 'TallTopContext' && this.showVoiceSearch ?
+          voiceSearchButton :
+          ''}
       </div>
   `;
 
   // clang-format off
   return html`<!--_html_template_start_-->
-  ${this.realboxLayoutMode === 'Compact' ? contextMenu : ''}
+  ${this.searchboxLayoutMode === 'Compact' ? contextMenu : ''}
   ${this.showFileCarousel_ ? html`
     <cr-composebox-file-carousel
       part="cr-composebox-file-carousel"
       id="carousel"
       class="${this.carouselOnTop_ ? 'top' : ''}"
-      .files=${Array.from(this.files_.values())}
-      @delete-file=${this.onDeleteFile_}>
+      .files="${Array.from(this.files_.values())}"
+      @delete-file="${this.onDeleteFile_}">
     </cr-composebox-file-carousel> ` : ''}
-  ${this.realboxLayoutMode === 'TallTopContext' ? contextMenu : ''}
-  ${this.showDropdown && (this.showFileCarousel_ || this.realboxLayoutMode === 'TallTopContext') ? html`
+  ${this.searchboxLayoutMode === 'TallTopContext' ? contextMenu : ''}
+  ${this.showDropdown && (this.showFileCarousel_ || this.searchboxLayoutMode === 'TallTopContext') ? html`
   <div class="carousel-divider" part="carousel-divider"></div>` : ''}
   <!-- Suggestions are slotted in from the parent component. -->
   <slot id="dropdownMatches"></slot>
-  ${this.realboxLayoutMode === 'Compact' && toolChipsVisible ? html`
+  ${this.searchboxLayoutMode === 'Compact' && toolChipsVisible ? html`
     <div class="context-menu-container" id='toolChipsContainer'
         part="tool-chips-container">${toolChips}</div>
   ` : ''}
-  ${this.realboxLayoutMode === 'TallBottomContext' || this.realboxLayoutMode === '' ? html`
+  ${this.searchboxLayoutMode === 'TallBottomContext' || this.searchboxLayoutMode === '' ? html`
     ${this.contextMenuEnabled_ ? contextMenu : html`
       <div part="upload-container" id="uploadContainer" class="icon-fade">
           <cr-icon-button
@@ -117,13 +138,9 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
       @change="${this.onFileChange_}"
       hidden>
   </input>
-  ${this.realboxLayoutMode.startsWith('Tall') && this.showDropdown ? html`
-      <cr-icon-button id="voiceSearchButton" class="voice-icon"
-          part="voice-icon" iron-icon="cr:mic"
-          @click="${this.onVoiceSearchClick_}"
-          title="${this.i18n('voiceSearchButtonLabel')}">
-      </cr-icon-button>
-  ` : ''}
+  ${(this.searchboxLayoutMode === 'TallBottomContext' || !this.searchboxLayoutMode) && this.showVoiceSearch ?
+          voiceSearchButton :
+          ''}
 <!--_html_template_end_-->`;
   // clang-format on
 }

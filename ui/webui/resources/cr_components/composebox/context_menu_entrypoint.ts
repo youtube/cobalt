@@ -134,6 +134,11 @@ export class ContextMenuEntrypointElement extends
   }
 
   protected onEntrypointClick_() {
+    if (this.entrypointName === 'Omnibox') {
+      this.fire('context-menu-entrypoint-click');
+      return;
+    }
+
     const metricName =
         'NewTabPage.' + this.entrypointName + '.ContextMenuEntry.Clicked';
     chrome.metricsPrivate.recordBoolean(metricName, true);

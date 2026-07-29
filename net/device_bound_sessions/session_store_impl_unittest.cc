@@ -49,7 +49,7 @@ unexportable_keys::UnexportableKeyId GenerateNewKey(
 
 std::vector<uint8_t> GetWrappedKey(
     unexportable_keys::UnexportableKeyService& key_service,
-    const unexportable_keys::UnexportableKeyId& key_id) {
+    unexportable_keys::UnexportableKeyId key_id) {
   unexportable_keys::ServiceErrorOr<std::vector<uint8_t>> wrapped_key =
       key_service.GetWrappedKey(key_id);
   CHECK(wrapped_key.has_value());
@@ -128,10 +128,7 @@ SessionStore::SessionsMap CreateAndSaveSessions(
 
 class SessionStoreImplTest : public testing::Test {
  public:
-  SessionStoreImplTest()
-      : unexportable_key_service_(unexportable_key_task_manager_) {
-    EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
-  }
+  SessionStoreImplTest() { EXPECT_TRUE(temp_dir_.CreateUniqueTempDir()); }
 
   ~SessionStoreImplTest() override = default;
 
@@ -209,9 +206,10 @@ class SessionStoreImplTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   base::ScopedTempDir temp_dir_;
   crypto::ScopedFakeUnexportableKeyProvider scoped_key_provider_;
-  unexportable_keys::UnexportableKeyTaskManager unexportable_key_task_manager_{
+  unexportable_keys::UnexportableKeyTaskManager unexportable_key_task_manager_;
+  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_{
+      unexportable_key_task_manager_,
       crypto::UnexportableKeyProvider::Config()};
-  unexportable_keys::UnexportableKeyServiceImpl unexportable_key_service_;
   std::unique_ptr<SessionStoreImpl> store_;
 };
 

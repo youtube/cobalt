@@ -649,6 +649,9 @@ public final class ChromePreferenceKeys {
     public static final String PIH_PRIVACY_NOTICE_SHOWN_TOTAL_COUNT =
             "Chrome.PageInsightsHub.NumberOfTimesPageInsightsHubOpenedByUser";
 
+    /** Whether NTP magic stack cards are enabled (if false, no cards can show). */
+    public static final String HOME_MODULE_CARDS_ENABLED = "Chrome.HomeModules.Enabled";
+
     /**
      * The number at the end should be consistent with {@link
      * org.chromium.chrome.browser.magic_stack.ModuleDelegate.ModuleType}
@@ -974,6 +977,10 @@ public final class ChromePreferenceKeys {
     public static final String TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_COUNT =
             "Chrome.TabOrGroupTearing.MaxInstancesFailureCount";
 
+    // Whether the Tips Notifications Opt In promo has been shown.
+    public static final String TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN =
+            "Chrome.TipsNotifications.OptInShown";
+
     // If the toolbar should be shown on top.
     public static final String TOOLBAR_TOP_ANCHORED = "Chrome.Toolbar.TopAnchored";
 
@@ -1029,6 +1036,13 @@ public final class ChromePreferenceKeys {
     /** Key used to save the number of times the WebFeed intro for the WebFeed ID was shown. */
     public static final KeyPrefix WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_COUNT_PREFIX =
             new KeyPrefix("Chrome.WebFeed.IntroWebFeedIdShownCount.*");
+
+    /**
+     * Key used to track the names of client packages that requested the Window Controls Overlay
+     * windowing mode and had the user enable it.
+     */
+    public static final String WINDOW_CONTROLS_OVERLAY_ENABLED_PACKAGES =
+            "Chrome.WindowControlsOverlay.EnabledPackages";
 
     /** Cached Suggestions and Suggestion Headers. */
     public static final String KEY_ZERO_SUGGEST_LIST_SIZE = "zero_suggest_list_size";
@@ -1137,6 +1151,7 @@ public final class ChromePreferenceKeys {
                 FIRST_CTA_START_TIMESTAMP,
                 FLAGS_LAST_CACHED_MINIMAL_BROWSER_FLAGS_TIME_MILLIS,
                 HISTORY_APP_SPECIFIC_INFO_SEEN,
+                HOME_MODULE_CARDS_ENABLED,
                 HOME_MODULES_MODULE_TYPE.pattern(),
                 HOME_MODULES_FRESHNESS_COUNT.pattern(),
                 HOME_MODULES_FRESHNESS_TIMESTAMP_MS.pattern(),
@@ -1250,6 +1265,7 @@ public final class ChromePreferenceKeys {
                 TAB_DECLUTTER_DIALOG_IPH_DISMISS_COUNT,
                 TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_START_TIME_MS,
                 TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_COUNT,
+                TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN,
                 TOOLBAR_TOP_ANCHORED,
                 TWA_DISCLOSURE_SEEN_PACKAGES,
                 UMA_ON_POSTCREATE_COUNTER,
@@ -1259,7 +1275,8 @@ public final class ChromePreferenceKeys {
                 WEB_FEED_INTRO_LAST_SHOWN_TIME_MS,
                 WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_TIME_MS_PREFIX.pattern(),
                 WEB_FEED_INTRO_WEB_FEED_ID_SHOWN_COUNT_PREFIX.pattern(),
-                WEB_SIGNIN_ACCOUNT_PICKER_ACTIVE_DISMISSAL_COUNT);
+                WEB_SIGNIN_ACCOUNT_PICKER_ACTIVE_DISMISSAL_COUNT,
+                WINDOW_CONTROLS_OVERLAY_ENABLED_PACKAGES);
     }
 
     private ChromePreferenceKeys() {}

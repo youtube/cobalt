@@ -78,6 +78,9 @@ struct SchedulerLoopQuarantineConfig {
   bool leak_on_destruction = false;
   bool enable_quarantine = false;
   bool enable_zapping = false;
+  // Accepts allocations up to this bucket size. If the given number does not
+  // match bucket size, it is rounded up to next bucket size.
+  size_t max_quarantine_size = BucketIndexLookup::kMaxBucketSize;
   // For informational purposes only.
   char branch_name[32] = "";
 };
@@ -161,6 +164,11 @@ class SchedulerLoopQuarantineBranch {
   void AllowScanlessPurge();
   void DisallowScanlessPurge();
 
+  // Once called, all the branches stop purging. This means every branch grows
+  // unbounded, potentially resulting in OOM. However, if we know the program
+  // is being terminated, this can help reduce hangs.
+  static void DangerouslyDisablePurge();
+
   const SchedulerLoopQuarantineConfig& GetConfigurationForTesting();
 
   class ScopedQuarantineExclusion {
@@ -210,6 +218,8 @@ class SchedulerLoopQuarantineBranch {
   bool enable_quarantine_ = false;
   bool enable_zapping_ = false;
   bool leak_on_destruction_ = false;
+
+  uint16_t largest_bucket_index_ = BucketIndexLookup::kNumBuckets - 1;
 
   // When non-zero, this branch temporarily stops accepting incoming quarantine
   // requests.

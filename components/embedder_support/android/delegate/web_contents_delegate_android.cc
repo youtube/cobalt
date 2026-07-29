@@ -268,23 +268,17 @@ bool WebContentsDelegateAndroid::DidAddMessageToConsole(
       env, obj, jlevel, jmessage, line_no, jsource_id);
 }
 
-// This is either called from TabContents::DidNavigateMainFramePostCommit() with
-// an empty GURL or responding to RenderViewHost::OnMsgUpateTargetURL(). In
-// Chrome, the latter is not always called, especially not during history
-// navigation. So we only handle the first case and pass the source TabContents'
-// url to Java to update the UI.
+// Called when the target URL under the cursor changes. For example, when
+// the user hovers over a link. Passes the URL to the Java side.
 void WebContentsDelegateAndroid::UpdateTargetURL(WebContents* source,
                                                  const GURL& url) {
-  if (!url.is_empty()) {
-    return;
-  }
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
   if (obj.is_null()) {
     return;
   }
-  Java_WebContentsDelegateAndroid_onUpdateUrl(
-      env, obj, url::GURLAndroid::FromNativeGURL(env, source->GetVisibleURL()));
+  Java_WebContentsDelegateAndroid_onUpdateTargetUrl(
+      env, obj, url::GURLAndroid::FromNativeGURL(env, url));
 }
 
 content::KeyboardEventProcessingResult
@@ -371,7 +365,7 @@ void WebContentsDelegateAndroid::EnterFullscreenModeForTab(
     return;
   }
   Java_WebContentsDelegateAndroid_enterFullscreenModeForTab(
-      env, obj, reinterpret_cast<jlong>(requesting_frame),
+      env, obj, requesting_frame->GetJavaRenderFrameHost(),
       options.prefers_navigation_bar, options.prefers_status_bar,
       options.display_id);
 }
@@ -385,7 +379,7 @@ void WebContentsDelegateAndroid::FullscreenStateChangedForTab(
     return;
   }
   Java_WebContentsDelegateAndroid_fullscreenStateChangedForTab(
-      env, obj, reinterpret_cast<jlong>(requesting_frame),
+      env, obj, requesting_frame->GetJavaRenderFrameHost(),
       options.prefers_navigation_bar, options.prefers_status_bar,
       options.display_id);
 }

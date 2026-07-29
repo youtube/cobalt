@@ -7,6 +7,8 @@
 
 #include "base/functional/callback_forward.h"
 #include "chrome/common/actor/task_id.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
+#include "url/origin.h"
 
 namespace tabs {
 class TabInterface;
@@ -22,16 +24,38 @@ class AggregatedJournal;
 // Called during initialization of the given profile, to load the blocklist.
 void InitActionBlocklist(Profile* profile);
 
+enum class MayActOnUrlBlockReason {
+  kAllowed,
+  kActuactionDisabled,
+  kExternalProtocol,
+  kIpAddress,
+  kLookalikeDomain,
+  kOptimizationGuideBlock,
+  kSafeBrowsing,
+  kTabIsErrorDocument,
+  kUrlNotInAllowlist,
+  kWrongScheme,
+};
+
 using DecisionCallback = base::OnceCallback<void(/*may_act=*/bool)>;
+using DecisionCallbackWithReason =
+    base::OnceCallback<void(MayActOnUrlBlockReason reason)>;
 
 // Checks whether the actor may perform actions on the given tab based on the
 // last committed document and URL. Invokes the callback with true if it is
 // allowed.
+// `MayActOnTab` takes a set of `allowed_origins` where for which do not apply
+// the optimization guide check. We do so because `MayActOnTab` is called before
+// any navigations can take place, so we need to check if the current URL when a
+// task starts. However, any future URLs the actor navigates to should undergo
+// blocklist checks in `MayActOnUrl` or
+// `ShouldBlockNavigationUrlForOriginGating`.
 // Please use ActorPolicyChecker instead of calling this directly.
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 DecisionCallback callback);
+                 const absl::flat_hash_set<url::Origin>& allowed_origins,
+                 DecisionCallbackWithReason callback);
 
 // Like MayActOnTab, but considers a URL on its own.
 // This can optionally allow insecure HTTP URLs as in practice sites may have
@@ -44,6 +68,16 @@ void MayActOnUrl(const GURL& url,
                  AggregatedJournal& journal,
                  TaskId task_id,
                  DecisionCallback callback);
+
+// Same as above, but the callback includes a `MayActOnUrlBlockReason`.
+// TODO(crbug.com/458045204): Migrate callers of other function to use this one
+// instead.
+void MayActOnUrl(const GURL& url,
+                 bool allow_insecure_http,
+                 Profile* profile,
+                 AggregatedJournal& journal,
+                 TaskId task_id,
+                 DecisionCallbackWithReason callback);
 
 // Checks if navigation to `url` should be blocked using
 // OptimizationGuideService. If the callback is invoked with `may_act` set to

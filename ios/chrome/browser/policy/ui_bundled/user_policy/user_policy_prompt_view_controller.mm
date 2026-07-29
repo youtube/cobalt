@@ -7,6 +7,7 @@
 #import <UIKit/UIKit.h>
 
 #import "base/strings/sys_string_conversions.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
@@ -20,16 +21,20 @@ constexpr CGFloat kCustomSpacingAfterImage = 1;
 @implementation UserPolicyPromptViewController
 
 - (instancetype)initWithManagedDomain:(NSString*)managedDomain {
-  if ((self = [super init])) {
+  ButtonStackConfiguration* configuration =
+      [[ButtonStackConfiguration alloc] init];
+  configuration.primaryActionString =
+      l10n_util::GetNSString(IDS_IOS_ENTERPRISE_SIGNED_OUT_CONTINUE);
+  configuration.secondaryActionString =
+      l10n_util::GetNSString(IDS_IOS_ENTERPRISE_SIGNED_OUT_LEARN_MORE);
+
+  self = [super initWithConfiguration:configuration];
+  if (self) {
     self.titleString = l10n_util::GetNSString(
         IDS_IOS_USER_POLICY_NOTIFICATION_NO_SIGNOUT_TITLE);
     self.subtitleString = l10n_util::GetNSStringF(
         IDS_IOS_USER_POLICY_NOTIFICATION_NO_SIGNOUT_SUBTITLE,
         base::SysNSStringToUTF16(managedDomain));
-    self.primaryActionString =
-        l10n_util::GetNSString(IDS_IOS_ENTERPRISE_SIGNED_OUT_CONTINUE);
-    self.secondaryActionString =
-        l10n_util::GetNSString(IDS_IOS_ENTERPRISE_SIGNED_OUT_LEARN_MORE);
   }
   return self;
 }

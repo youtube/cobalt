@@ -52,7 +52,7 @@ namespace {
 // `bnpl_issuers`.
 bool IsExtractedAmountSupportedByAnyBnplIssuer(
     const std::vector<BnplIssuer>& bnpl_issuers,
-    uint64_t extracted_amount_in_micros) {
+    int64_t extracted_amount_in_micros) {
   return std::any_of(
       bnpl_issuers.begin(), bnpl_issuers.end(),
       [extracted_amount_in_micros](const BnplIssuer& bnpl_issuer) {
@@ -96,7 +96,7 @@ bool BnplManager::IsBnplIssuerSupported(std::string_view issuer_id) {
 }
 
 void BnplManager::OnDidAcceptBnplSuggestion(
-    std::optional<uint64_t> final_checkout_amount,
+    std::optional<int64_t> final_checkout_amount,
     OnBnplVcnFetchedCallback on_bnpl_vcn_fetched_callback) {
   ongoing_flow_state_ = std::make_unique<OngoingFlowState>();
 
@@ -165,7 +165,7 @@ void BnplManager::NotifyOfSuggestionGeneration(
   }
 
   update_suggestions_barrier_callback_ = base::BarrierCallback<
-      std::variant<SuggestionsShownResponse, std::optional<uint64_t>>>(
+      std::variant<SuggestionsShownResponse, std::optional<int64_t>>>(
       2U, base::BindOnce(&BnplManager::MaybeUpdateDesktopSuggestionsWithBnpl,
                          weak_factory_.GetWeakPtr(), trigger_source));
 }
@@ -199,7 +199,7 @@ void BnplManager::OnSuggestionsShown(
 }
 
 void BnplManager::OnAmountExtractionReturned(
-    const std::optional<uint64_t>& extracted_amount,
+    const std::optional<int64_t>& extracted_amount,
     bool timeout_reached) {
   CHECK(payments_autofill_client().GetBnplStrategy());
   using enum BnplStrategy::BnplAmountExtractionReturnedNextAction;
@@ -243,7 +243,7 @@ void BnplManager::OnAmountExtractionReturned(
 }
 
 void BnplManager::OnAmountExtractionReturnedFromAi(
-    const std::optional<uint64_t>& extracted_amount_in_micros,
+    const std::optional<int64_t>& extracted_amount_in_micros,
     bool timeout_reached) {
   CHECK(payments_autofill_client().GetBnplStrategy());
   using enum BnplStrategy::BnplAmountExtractionReturnedNextAction;
@@ -303,8 +303,13 @@ void BnplManager::OnVcnDetailsFetched(
       result == PaymentsAutofillClient::PaymentsRpcResult::kSuccess;
 
   CHECK(payments_autofill_client().GetBnplUiDelegate());
-  payments_autofill_client().GetBnplUiDelegate()->CloseProgressUi(
-      /*show_confirmation_before_closing=*/successful);
+  CHECK(payments_autofill_client().GetBnplStrategy());
+  if (payments_autofill_client()
+          .GetBnplStrategy()
+          ->ShouldRemoveExistingUiOnServerReturn(result)) {
+    payments_autofill_client().GetBnplUiDelegate()->CloseProgressUi(
+        /*credit_card_fetched_successfully=*/successful);
+  }
 
   if (successful) {
     CHECK(ongoing_flow_state_);
@@ -403,10 +408,24 @@ void BnplManager::OnDidGetLegalMessageFromServer(
     PaymentsAutofillClient::PaymentsRpcResult result,
     std::string context_token,
     LegalMessageLines legal_message) {
-  // Dismiss the loading throbber in the issuer selection UI after the server
-  // call completion to show the next UI.
+  // Dismiss the loading throbber in the issuer selection UI or progress
+  // throbber UI after the server call completion to show the next UI.
   CHECK(payments_autofill_client().GetBnplUiDelegate());
-  payments_autofill_client().GetBnplUiDelegate()->DismissSelectBnplIssuerUi();
+  CHECK(payments_autofill_client().GetBnplStrategy());
+  using enum BnplStrategy::BeforeSwitchingViewAction;
+
+  switch (payments_autofill_client()
+              .GetBnplStrategy()
+              ->GetBeforeViewSwitchAction()) {
+    case kDoNothing:
+      // The `kDoNothing` case is for platforms where the view is flipped to the
+      // ToS or error UI within the same view, so removing it is not necessary.
+      break;
+    case kCloseCurrentUi:
+      payments_autofill_client()
+          .GetBnplUiDelegate()
+          ->RemoveSelectBnplIssuerOrProgressUi();
+  }
 
   if (result == payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess) {
     ongoing_flow_state_->context_token = std::move(context_token);
@@ -448,6 +467,31 @@ void BnplManager::OnRiskDataLoadedAfterIssuerSelectionDialogAcceptance(
   FetchRedirectUrl();
 }
 
+void BnplManager::OnFailureAfterTosAccepted(
+    PaymentsAutofillClient::PaymentsRpcResult result) {
+  CHECK(payments_autofill_client().GetBnplUiDelegate());
+  CHECK(payments_autofill_client().GetBnplStrategy());
+  using enum BnplStrategy::BeforeSwitchingViewAction;
+
+  switch (payments_autofill_client()
+              .GetBnplStrategy()
+              ->GetBeforeViewSwitchAction()) {
+    // This case is for platforms (i.e. Android) that will flip to the error
+    // screen within the same view, so no need to remove the current view.
+    case kDoNothing:
+      break;
+    case kCloseCurrentUi:
+      payments_autofill_client()
+          .GetBnplUiDelegate()
+          ->RemoveBnplTosOrProgressUi();
+  }
+
+  payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
+      AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+          /*is_permanent_error=*/ShouldShowPermanentErrorDialog(result)));
+  Reset();
+}
+
 void BnplManager::FetchRedirectUrl() {
   GetBnplPaymentInstrumentForFetchingUrlRequestDetails request_details;
   request_details.billing_customer_number =
@@ -476,15 +520,25 @@ void BnplManager::OnRedirectUrlFetched(
     PaymentsAutofillClient::PaymentsRpcResult result,
     const BnplFetchUrlResponseDetails& response) {
   CHECK(payments_autofill_client().GetBnplUiDelegate());
-  if (ongoing_flow_state_->issuer.payment_instrument().has_value() &&
-      !AcceptTosActionRequired()) {
-    // If the BNPL issuer selected is linked and doesn't require ToS acceptance,
-    // then the issuer selection UI must be showing, so close it.
-    payments_autofill_client().GetBnplUiDelegate()->DismissSelectBnplIssuerUi();
-  } else {
-    // If the BNPL issuer selected is not linked, or is linked but requires ToS
-    // acceptance, then the ToS UI must be showing, so close it.
-    payments_autofill_client().GetBnplUiDelegate()->CloseBnplTosUi();
+  CHECK(payments_autofill_client().GetBnplStrategy());
+  if (payments_autofill_client()
+          .GetBnplStrategy()
+          ->ShouldRemoveExistingUiOnServerReturn(result)) {
+    if (ongoing_flow_state_->issuer.payment_instrument().has_value() &&
+        !AcceptTosActionRequired()) {
+      // If the BNPL issuer selected is linked and doesn't require ToS
+      // acceptance, then the issuer selection UI or progress UI must be
+      // showing, so close it.
+      payments_autofill_client()
+          .GetBnplUiDelegate()
+          ->RemoveSelectBnplIssuerOrProgressUi();
+    } else {
+      // If the BNPL issuer selected is unlinked, or is linked but requires ToS
+      // acceptance, then the ToS/progress UI must be showing, so remove it.
+      payments_autofill_client()
+          .GetBnplUiDelegate()
+          ->RemoveBnplTosOrProgressUi();
+    }
   }
 
   if (result == payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess) {
@@ -535,18 +589,18 @@ void BnplManager::OnPopupWindowCompleted(
 
 void BnplManager::MaybeUpdateDesktopSuggestionsWithBnpl(
     const AutofillSuggestionTriggerSource trigger_source,
-    std::vector<std::variant<SuggestionsShownResponse, std::optional<uint64_t>>>
+    std::vector<std::variant<SuggestionsShownResponse, std::optional<int64_t>>>
         responses) {
   update_suggestions_barrier_callback_ = std::nullopt;
 
   SuggestionsShownResponse* suggestions_shown_response = nullptr;
-  std::optional<uint64_t>* extracted_amount = nullptr;
+  std::optional<int64_t>* extracted_amount = nullptr;
   for (auto& response : responses) {
     if (std::holds_alternative<SuggestionsShownResponse>(response)) {
       suggestions_shown_response =
           std::get_if<SuggestionsShownResponse>(&response);
     } else {
-      extracted_amount = std::get_if<std::optional<uint64_t>>(&response);
+      extracted_amount = std::get_if<std::optional<int64_t>>(&response);
     }
   }
 
@@ -666,12 +720,7 @@ void BnplManager::OnBnplPaymentInstrumentCreated(
     ongoing_flow_state_->instrument_id = std::move(instrument_id);
     FetchRedirectUrl();
   } else {
-    CHECK(payments_autofill_client().GetBnplUiDelegate());
-    payments_autofill_client().GetBnplUiDelegate()->CloseBnplTosUi();
-    payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
-        AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-            /*is_permanent_error=*/ShouldShowPermanentErrorDialog(result)));
-    Reset();
+    OnFailureAfterTosAccepted(result);
   }
 }
 
@@ -701,12 +750,7 @@ void BnplManager::OnBnplPaymentInstrumentUpdated(
   if (result == payments::PaymentsAutofillClient::PaymentsRpcResult::kSuccess) {
     FetchRedirectUrl();
   } else {
-    CHECK(payments_autofill_client().GetBnplUiDelegate());
-    payments_autofill_client().GetBnplUiDelegate()->CloseBnplTosUi();
-    payments_autofill_client().GetBnplUiDelegate()->ShowAutofillErrorUi(
-        AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
-            /*is_permanent_error=*/ShouldShowPermanentErrorDialog(result)));
-    Reset();
+    OnFailureAfterTosAccepted(result);
   }
 }
 

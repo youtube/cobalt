@@ -57,6 +57,8 @@ enum class BWGPageContextComputationState {
   // The page contains blocked content that could be used for Gemini, but will
   // likely be rejected due to its content.
   kBlocked,
+  // The page context is still being created.
+  kPending,
 };
 
 // Enum representing the page context attachment state of the BWG experience.
@@ -104,9 +106,6 @@ void ResetGemini();
 // Updates the page attachment state of the floaty if it's invoked.
 void UpdatePageAttachmentState(
     BWGPageContextAttachmentState bwg_attachment_state);
-
-// Passes the zero-state suggestions to the floaty.
-void SetZeroStateSuggestions(NSArray<NSString*>* suggestions);
 
 // Returns true if a URL is protected.
 bool IsProtectedUrl(std::string url);

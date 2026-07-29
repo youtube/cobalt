@@ -541,10 +541,6 @@ void Shell::OnDictationEnded() {
   }
 }
 
-bool Shell::IsInTabletMode() const {
-  return display::Screen::Get()->InTabletMode();
-}
-
 bool Shell::ShouldSaveDisplaySettings() {
   return !(
       screen_orientation_controller_->ignore_display_configuration_updates() ||
@@ -1391,7 +1387,7 @@ void Shell::Init(
   // `ScheduledFeature` ctor will access `geolocation_controller_` from
   // `Shell`.
   geolocation_controller_ = std::make_unique<GeolocationController>(
-      SimpleGeolocationProvider::GetInstance());
+      SystemLocationProvider::GetInstance());
 
   // Night Light depends on the display manager, the display color manager,
   // aura::Env, and geolocation controller, so initialize it after all have

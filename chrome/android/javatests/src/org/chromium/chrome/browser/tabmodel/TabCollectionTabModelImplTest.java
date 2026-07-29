@@ -46,6 +46,7 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tab.TabTestUtils;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter.MergeNotificationType;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabModelActionListener.DialogType;
@@ -3022,6 +3023,52 @@ public class TabCollectionTabModelImplTest {
 
     @Test
     @MediumTest
+    public void testGetTabsNavigatedInTimeWindow() {
+        Tab tab1 = getTabAt(0);
+        Tab tab2 = createTab();
+        Tab tab3 = createTab();
+        Tab tab4 = createTab();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab1, 200);
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab2, 50);
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab3, 100);
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab4, 10);
+
+                    assertEquals(
+                            Arrays.asList(tab2, tab4),
+                            mCollectionModel.getTabsNavigatedInTimeWindow(10, 100));
+                });
+    }
+
+    @Test
+    @MediumTest
+    public void testCloseTabsNavigatedInTimeWindow() {
+        Tab tab1 = getTabAt(0);
+        Tab tab2 = createTab();
+        Tab tab3 = createTab();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab1, 200);
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab2, 30);
+                    TabTestUtils.setLastNavigationCommittedTimestampMillis(tab3, 20);
+                });
+
+        assertEquals(3, getCount());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.closeTabsNavigatedInTimeWindow(20, 50);
+                });
+
+        assertEquals(1, getCount());
+        assertEquals(tab1, getTabAt(0));
+    }
+
+    @Test
+    @MediumTest
     public void testCloseTab_Commit() throws Exception {
         Tab tab0 = getTabAt(0);
         Tab tab1 = createTab();
@@ -3057,6 +3104,31 @@ public class TabCollectionTabModelImplTest {
         assertTrue(tab1.isDestroyed());
 
         ThreadUtils.runOnUiThreadBlocking(() -> mCollectionModel.removeObserver(observer));
+    }
+
+    @Test
+    @MediumTest
+    public void testCloseTab_UponExitNotUndoable() throws Exception {
+        Tab tab0 = getTabAt(0);
+        Tab tab1 = createTab();
+        assertTabsInOrderAre(List.of(tab0, tab1));
+        assertEquals(tab1, getCurrentTab());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mCollectionModel.closeTabs(
+                            TabClosureParams.closeTab(tab1).allowUndo(true).uponExit(true).build());
+                });
+
+        assertEquals(1, getCount());
+        assertTabsInOrderAre(List.of(tab0));
+        assertEquals(tab0, getCurrentTab());
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertFalse(mCollectionModel.isClosurePending(tab1.getId()));
+                });
+        assertTrue(tab1.isDestroyed());
     }
 
     @Test

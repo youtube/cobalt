@@ -1186,6 +1186,21 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "gpu_win11_intel_arc_b570_experimental",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "display_attached": "1",
+            "gpu": "8086:e20c-32.0.101.8132",
+            "os": "Windows-11-26100",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
     name = "gpu_intel_arc_140v_linux_experimental",
     # We always need this entry to be generated since it is used by
     # //content/test/gpu/find_bad_machines.py.
@@ -1606,6 +1621,21 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "linux_intel_arc_b570_experimental",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "gpu": "8086:e20c-25.0.7",
+            "os": "Ubuntu-22.04",
+            "display_attached": "1",
+            "pool": "chromium.tests.gpu.experimental",
+        },
+    ),
+)
+
+targets.mixin(
     name = "linux_intel_uhd_630_experimental",
     # We always need this entry to be generated since it is used by
     # //content/test/gpu/find_bad_machines.py.
@@ -1684,8 +1714,22 @@ targets.mixin(
     generate_pyl_entry = targets.IGNORE_UNUSED,
     swarming = targets.swarming(
         dimensions = {
-            "gpu": "10de:2184-440.100|10de:2184-535.183.01",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6|Ubuntu-22.04",
+            "gpu": "10de:2184-535.183.01",
+            "os": "Ubuntu-22.04",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "linux_nvidia_rtx_4070_super_stable",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "gpu": "10de:2783-580.95.05",
+            "os": "Ubuntu-24.04",
             "pool": "chromium.tests.gpu",
         },
     ),
@@ -2324,6 +2368,12 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "retry_only_failed_tests",
+    generate_pyl_entry = False,
+    retry_only_failed_tests = True,
+)
+
+targets.mixin(
     name = "skia_gold_test",
     args = [
         "--git-revision=${got_revision}",
@@ -2860,12 +2910,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17b5045g",
+        "17b54",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17b5045g",
+                name = "xcode_ios_17b54",
                 path = "Xcode.app",
             ),
         ],
@@ -2876,12 +2926,12 @@ targets.mixin(
     name = "xcode_26_main",
     args = [
         "--xcode-build-version",
-        "17a324",
+        "17a400",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17a324",
+                name = "xcode_ios_17a400",
                 path = "Xcode.app",
             ),
         ],

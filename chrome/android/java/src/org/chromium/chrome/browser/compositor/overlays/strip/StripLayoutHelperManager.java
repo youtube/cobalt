@@ -6,6 +6,9 @@ package org.chromium.chrome.browser.compositor.overlays.strip;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.BUTTON_TOUCH_TARGET_SIZE_DP;
+import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MIN_TAB_WIDTH_DP;
+import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_OVERLAP_WIDTH_DP;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -194,7 +197,7 @@ public class StripLayoutHelperManager
 
     // Caching Variables
     private final RectF mStripFilterArea = new RectF();
-    private final boolean mIsLayoutOptimizationsEnabled;
+    private final boolean mIsHeaderCustomizationSupported;
 
     // External influences
     private @MonotonicNonNull TabModelSelector mTabModelSelector; // Set on native initialization.
@@ -488,12 +491,12 @@ public class StripLayoutHelperManager
         mEventFilter =
                 new AreaMotionEventFilter(context, mTabStripEventHandler, null, false, false);
 
-        mIsLayoutOptimizationsEnabled =
-                ToolbarFeatures.isTabStripWindowLayoutOptimizationEnabled(
+        mIsHeaderCustomizationSupported =
+                ToolbarFeatures.isAppHeaderCustomizationSupported(
                         /* isTablet= */ true, DisplayUtil.isContextInDefaultDisplay(mContext));
         mScrollableStripHeight = res.getDimension(R.dimen.tab_strip_height) / mDensity;
         mHeight =
-                mIsLayoutOptimizationsEnabled
+                mIsHeaderCustomizationSupported
                         ? toolbarManager.getTabStripHeightSupplier().get() / mDensity
                         : mScrollableStripHeight;
         mTopPadding = mHeight - mScrollableStripHeight;
@@ -966,7 +969,7 @@ public class StripLayoutHelperManager
             setStripVisibilityState(StripVisibilityState.HIDDEN_BY_FADE, /* clear= */ true);
         }
 
-        if (mIsLayoutOptimizationsEnabled) {
+        if (mIsHeaderCustomizationSupported) {
             // Convert the input HeightPx to Dp.
             mHeight = newHeightPx / mDensity;
 
@@ -1055,6 +1058,26 @@ public class StripLayoutHelperManager
                 ScrimProperties.INVALID_COLOR, mStripTransitionScrimOpacity);
     }
 
+    @Override
+    public int getFadeTransitionThresholdDp() {
+        if (mTabModelSelector == null) return 0;
+        TabModel incognitoTabModel = mTabModelSelector.getModel(/* incognito= */ true);
+        boolean hasIncognitoTabs = incognitoTabModel != null && incognitoTabModel.getCount() > 0;
+        boolean shouldShowMsb =
+                !ChromeFeatureList.sTabStripIncognitoMigration.isEnabled() && hasIncognitoTabs;
+
+        // Tablet: 284 = 2 * minTabWidth(108) - tabOverlap(28) + newTabButton (48) +
+        // [optional] modelSelectorButton(48).
+        // Desktop: 188 = 2 * minTabWidth(76) - tabOverlap(28) + newTabButton (32) +
+        // [optional] modelSelectorButton(32).
+        float thresholdDp =
+                (2 * MIN_TAB_WIDTH_DP)
+                        - TAB_OVERLAP_WIDTH_DP
+                        + BUTTON_TOUCH_TARGET_SIZE_DP
+                        + (shouldShowMsb ? BUTTON_TOUCH_TARGET_SIZE_DP : 0f);
+        return Math.round(thresholdDp);
+    }
+
     private boolean duringTabStripHeightTransition() {
         return mIsHeightTransitioning;
     }
@@ -1093,7 +1116,7 @@ public class StripLayoutHelperManager
     @Override
     public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
         // TODO (crbug/328055199): Check if losing focus to a non-Chrome task.
-        if (!mIsLayoutOptimizationsEnabled) return;
+        if (!mIsHeaderCustomizationSupported) return;
         mIsTopResumedActivity = isTopResumedActivity;
         mUpdateHost.requestUpdate();
     }
@@ -1161,7 +1184,7 @@ public class StripLayoutHelperManager
 
     /** Allow / disallow system gestures on touchable areas on the strip. */
     private void updateTouchableAreas() {
-        if (!mIsLayoutOptimizationsEnabled) return;
+        if (!mIsHeaderCustomizationSupported) return;
 
         if ((getStripVisibilityStateSupplier().get() & StripVisibilityState.HIDDEN_BY_FADE) != 0) {
             // Reset the system gesture exclusion rects to allow system gestures on the tab strip

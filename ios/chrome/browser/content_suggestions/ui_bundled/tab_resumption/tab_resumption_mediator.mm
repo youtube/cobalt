@@ -322,9 +322,17 @@ class TabResumptionMediatorProxy {
       optimization_guide::proto::RequestContext request_context,
       optimization_guide::OnDemandOptimizationGuideDecisionRepeatingCallback
           callback) {
-    optimizationGuideService->CanApplyOptimizationOnDemand(
-        {url}, {optimization_type}, request_context, std::move(callback),
-        std::nullopt);
+    // It is possible for this method to be called with a null pointer as
+    // the some blocks end up calling those methods after -disconnect has
+    // been called on the TabResumptionMediator (which clears all the C++
+    // pointers).
+    //
+    // See https://crbug.com/457339557 for a sample crash.
+    if (optimizationGuideService) {
+      optimizationGuideService->CanApplyOptimizationOnDemand(
+          {url}, {optimization_type}, request_context, std::move(callback),
+          std::nullopt);
+    }
   }
 };
 
@@ -1082,15 +1090,17 @@ class TabResumptionMediatorProxy {
 
   _faviconLoader->FaviconForPageUrl(
       item.tabURL, kDesiredSmallFaviconSizePt, kMinFaviconSizePt,
-      /*fallback_to_google_server=*/true, ^(FaviconAttributes* attributes) {
-        [weakSelf faviconReceived:attributes forItem:item];
+      /*fallback_to_google_server=*/true,
+      ^(FaviconAttributes* attributes, bool cached) {
+        [weakSelf faviconReceived:attributes cached:cached forItem:item];
       });
 }
 
 // The favicon has been received. Display it.
 - (void)faviconReceived:(FaviconAttributes*)attributes
+                 cached:(BOOL)cached
                 forItem:(TabResumptionItem*)item {
-  if (!attributes.usesDefaultImage) {
+  if (item.faviconImage || !cached) {
     if ([UIImagePNGRepresentation(item.faviconImage)
             isEqual:UIImagePNGRepresentation(attributes.faviconImage)]) {
       return;

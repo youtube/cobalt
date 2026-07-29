@@ -89,6 +89,7 @@
 <translation id="2018528049276128029">Ogni profilo dispone delle proprie informazioni di Chrome, come preferiti, cronologia, password e altro</translation>
 <translation id="2018879682492276940">Installazione non riuscita. Riprova.</translation>
 <translation id="2024959665595762054">Verifica la tua identità per usare e salvare i dati di Chrome nel tuo Account Google</translation>
+<translation id="2026377840141807639">I profili di Chrome ti consentono di tenere separata la navigazione personale da quella di lavoro. Aggiungi subito un nuovo profilo.</translation>
 <translation id="2034233344106846793">Quando possibile, Chrome esegue automaticamente l'upgrade delle connessioni non sicure a HTTPS</translation>
 <translation id="2039417478970545937">Impostazioni.</translation>
 <translation id="2091012649849228750">Per ricevere gli aggiornamenti futuri di Google Chrome, devi avere Windows 10 o versioni successive. Su questo computer è installato Windows 8.</translation>
@@ -151,8 +152,8 @@
 <translation id="2738871930057338499">Impossibile connettersi a internet. HTTP 403 Accesso negato. Controlla la configurazione del proxy.</translation>
 <translation id="2742320827292110288">Avviso: Google Chrome non è in grado di impedire alle estensioni di registrare la tua cronologia di navigazione. Per disattivare questa estensione in modalità di navigazione in incognito, deseleziona questa opzione.</translation>
 <translation id="2753623023919742414">Fai clic per cercare</translation>
+<translation id="2757826245013442432">{COUNT,plural, =0{La protezione avanzata richiede il riavvio di Chrome per installare un aggiornamento}=1{La protezione avanzata richiede il riavvio di Chrome per installare un aggiornamento. La finestra Incognito non verrà riaperta.}other{La protezione avanzata richiede il riavvio di Chrome per installare un aggiornamento. # finestre Incognito non verranno riaperte.}}</translation>
 <translation id="2765403129283291972">Per questo sito Chrome ha bisogno dell'autorizzazione ad accedere al microfono</translation>
-<translation id="2770231113462710648">Cambia browser predefinito con:</translation>
 <translation id="2775140325783767197">Chrome non può controllare le tue password. Prova a controllare la connessione a Internet.</translation>
 <translation id="2797864378188255696">Quando accedi a servizi Google come Gmail o YouTube con <ph name="USER_EMAIL" />, puoi accedere automaticamente a Chrome con lo stesso account</translation>
 <translation id="2799162042226656283">Il tuo Chrome</translation>
@@ -264,6 +265,7 @@
 <translation id="3968962723676998462">Inserisci la tua passphrase per utilizzare e salvare i dati di Chrome nel tuo account, <ph name="ACCOUNT_EMAIL" /></translation>
 <translation id="3973161977468201858">Google Chrome vuole eliminare i tuoi dati del Gestore delle password di Google. Digita la tua password di Windows per consentire l'operazione.</translation>
 <translation id="400161754580828648">Per condividere lo schermo, consenti la Registrazione dello schermo per Chrome nelle Impostazioni di sistema.</translation>
+<translation id="4012899077942246412">Se hai eseguito l'accesso, puoi usare le password e altri dati del tuo Account Google in Chrome. Per modificare questa impostazione, vai a "Il tuo account in Chrome".</translation>
 <translation id="4022972681110646219">Traduci schermata</translation>
 <translation id="4023601594785368013">Lingua originale: <ph name="LANGUAGE" /></translation>
 <translation id="4035053306113201399">Per applicare l'aggiornamento è necessario riavviare ChromeOS.</translation>
@@ -360,6 +362,7 @@
 <translation id="5170938038195470297">Non è possibile utilizzare il tuo profilo perché è associato a una versione di Google Chrome più recente. Alcune funzioni potrebbero non essere disponibili. Specifica una directory del profilo diversa o utilizza una versione di Chrome più recente.</translation>
 <translation id="5174969993834422967">Di solito blocchi le notifiche. Per ricevere notifiche da questo sito, fai clic sull'icona delle notifiche nell'angolo destro della barra degli indirizzi.</translation>
 <translation id="5174983315706567306">Spazio su disco insufficiente.</translation>
+<translation id="5190467473654176081">Personalizza Chrome per dargli un nuovo aspetto</translation>
 <translation id="5201744974236816379">Aggiornamento di Chrome</translation>
 <translation id="521447420733633466">Se condividi un dispositivo, i tuoi amici e la tua famiglia possono navigare separatamente e configurare Chrome in base alle proprie esigenze</translation>
 <translation id="5234764350956374838">Ignora</translation>
@@ -381,6 +384,7 @@
 <translation id="5510398294750420479">Scarica Chrome sul tuo smartphone per aggiungere un ulteriore livello di protezione ovunque ti trovi</translation>
 <translation id="5524890928877629608">angolo in alto a sinistra dell'area di ricerca: sinistra <ph name="LEFT" />%, in alto <ph name="TOP" />%</translation>
 <translation id="5530733413481476019">Rendi Chrome più veloce</translation>
+<translation id="5550137307985173298">Fai clic sul pulsante Personalizza Chrome nella pagina Nuova scheda per dare un nuovo aspetto a Chrome</translation>
 <translation id="5566025111015594046">Google Chrome (mDNS-In)</translation>
 <translation id="5579324208890605088">Errore di avvio: esegui il programma di installazione come utente normale, non come amministratore.</translation>
 <translation id="5596627076506792578">Altre opzioni</translation>
@@ -409,6 +413,7 @@
 <translation id="5736850870166430177">Se un sito cerca di rubare la tua password o se scarichi un file dannoso, Chrome potrebbe anche inviare gli URL, inclusi frammenti dei contenuti delle pagine, a Navigazione sicura</translation>
 <translation id="5756509061973259733">Esiste già un profilo Chrome con questo account su questo dispositivo</translation>
 <translation id="5759947850379142561">Seleziona un testo o un'immagine da cercare con Google Lens o premi Esc per uscire da Google Lens</translation>
+<translation id="5762867845020858790">Aggiungi un nuovo profilo Chrome per tenere separati preferiti, password e impostazioni.</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> - Google Chrome Canary</translation>
 <translation id="5804318322022881572">Impossibile avviare Chrome. Riprova.</translation>
 <translation id="5809516625706423866">Impossibile connettersi a internet. HTTP 401 Autorizzazione assente. Controlla la configurazione del proxy.</translation>
@@ -436,6 +441,7 @@
 <translation id="6025087594896450715">Google Chrome verrà riavviato tra <ph name="REMAINING_TIME" /></translation>
 <translation id="6040143037577758943">Chiudi</translation>
 <translation id="604424701295382420">Riquadro fissato. Puoi accedere nuovamente a Google Lens dal nuovo pulsante sulla barra degli strumenti.</translation>
+<translation id="6046028983725193307">Per condividere l'audio di sistema, apri Impostazioni di sistema e consenti "Registrazione solo audio di sistema" per Chrome. Dovrai quindi riavviare Chrome.</translation>
 <translation id="6069027071882229820">Copia come immagine</translation>
 <translation id="6070348360322141662">Per maggiore sicurezza, Google Chrome cripterà i tuoi dati</translation>
 <translation id="6075300983329039771">La tua organizzazione, <ph name="MANAGER" />, richiede l'accesso a Chrome</translation>
@@ -509,13 +515,13 @@
 <translation id="6800285125190089494">Accedi più rapidamente ai siti usando le password salvate per Chrome su iOS</translation>
 <translation id="6831043979455480757">Traduci</translation>
 <translation id="683440813066116847">Regola inbound per consentire il traffico mDNS in Google Chrome Canary.</translation>
+<translation id="6841242485723266823">I profili Chrome ti aiutano a separare le diverse attività della tua vita quotidiana. Aggiungi subito un nuovo profilo.</translation>
 <translation id="684888714667046800">Impossibile connettersi a internet. Se utilizzi un firewall, assicurati che <ph name="PRODUCT_EXE_NAME" /> sia nella lista consentita.</translation>
 <translation id="6877155553248388166">angolo in basso a destra dell'area di ricerca: destra <ph name="RIGHT" />%, in basso <ph name="BOTTOM" />%</translation>
 <translation id="6881299373831449287">Aggiornamento di Chrome</translation>
 <translation id="6885412569789873916">App di Chrome Beta</translation>
 <translation id="6893363893008038481">Rimuovi account da Chrome</translation>
 <translation id="6896758677409633944">Copia</translation>
-<translation id="6927941417289800361">Se hai eseguito l'accesso, puoi usare le password e altri dati del tuo Account Google in Chrome. Puoi modificare questa preferenza in qualsiasi momento nelle Impostazioni.</translation>
 <translation id="6930294499209825">Mantiene aggiornato il software di Google. Se questo servizio viene disattivato o interrotto, il software di Google non verrà aggiornato, il che significa che le vulnerabilità di sicurezza che potrebbero verificarsi non potranno essere corrette e le funzionalità potrebbero non essere eseguite correttamente. Questo servizio si disinstalla autonomamente quando non viene utilizzato da nessun software di Google.</translation>
 <translation id="6933858244219479645">Sistema ChromeOS</translation>
 <translation id="6938166777909186039">Per ricevere gli aggiornamenti futuri di Google Chrome, devi avere Windows 10 o versioni successive. Su questo computer è installato Windows 8.1.</translation>
@@ -640,6 +646,7 @@
 <translation id="8255190535488645436">Google Chrome sta utilizzando videocamera e microfono.</translation>
 <translation id="8267953129876836456">Chrome ha trovato alcuni consigli per la sicurezza che puoi esaminare</translation>
 <translation id="8286862437124483331">Google Chrome sta cercando di visualizzare le password. Per consentire la visualizzazione, digita la tua password Windows.</translation>
+<translation id="8289399803055125418">Usa la <ph name="BEGIN_LINK" />tua passphrase<ph name="END_LINK" /> per criptare tutti i dati di Chrome nel tuo Account Google. Gli indirizzi e tutti i dati salvati in Google Wallet non verranno criptati con la tua passphrase. La cronologia di navigazione di Chrome non verrà sincronizzata.</translation>
 <translation id="829923460755755423">Aggiungi una scorciatoia a Gestore delle password di Google</translation>
 <translation id="8313851650939857356">Errore di avvio: <ph name="STARTUP_ERROR" /></translation>
 <translation id="8321888067342493336">Salva come immagine</translation>
@@ -666,13 +673,13 @@
 <translation id="8533056045953418157">Imposta Google Chrome come visualizzatore PDF predefinito</translation>
 <translation id="8555465886620020932">Errore del servizio: <ph name="SERVICE_ERROR" /></translation>
 <translation id="856656450041460113">Elenco di ricerca delle lingue</translation>
-<translation id="8575047640889685742">Usa la <ph name="BEGIN_LINK" />tua passphrase<ph name="END_LINK" /> per criptare tutti i dati di Chrome nel tuo Account Google. I metodi di pagamento e gli indirizzi memorizzati su Google Pay non verranno criptati. La cronologia di navigazione di Chrome non verrà sincronizzata.</translation>
 <translation id="8601359445272098721">Novità. Puoi tradurre sia testo che immagini sullo schermo selezionando il pulsante "Traduzione schermata"</translation>
 <translation id="8614913330719544658">Google Chrome non risponde. Riavviarlo ora?</translation>
 <translation id="861702415419836452">Chrome ha bisogno dell'autorizzazione ad accedere alla fotocamera per creare una mappa 3D dell'ambiente circostante</translation>
 <translation id="8625237574518804553">{0,plural, =1{Chrome verrà riavviato tra 1 minuto}other{Chrome verrà riavviato tra # minuti}}</translation>
 <translation id="8637932705841171563">Per condividere la finestra, consenti la Registrazione dello schermo per Chrome nelle Impostazioni di sistema.</translation>
 <translation id="8641606876632989680">Chrome ti invierà una notifica quando esegui l'accesso con una password compromessa</translation>
+<translation id="8647930742055103497">Tieni tutte le tue attività in Chrome</translation>
 <translation id="8656634243791296665">Apri Gemini in Chrome Dev</translation>
 <translation id="8669527147644353129">Supporto Google Chrome</translation>
 <translation id="8677922833187616101">Mostra sempre la scorciatoia di Google AI Mode</translation>

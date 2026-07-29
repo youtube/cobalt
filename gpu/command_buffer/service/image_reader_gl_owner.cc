@@ -22,13 +22,10 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
-#include "gpu/command_buffer/service/abstract_texture_android.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "ui/gfx/android/android_surface_control_compat.h"
 #include "ui/gl/gl_fence_android_native_fence_sync.h"
 #include "ui/gl/gl_utils.h"
-#include "ui/gl/scoped_binders.h"
-#include "ui/gl/scoped_make_current.h"
 
 namespace gpu {
 
@@ -126,21 +123,13 @@ class ImageReaderGLOwner::ScopedHardwareBufferImpl
 };
 
 ImageReaderGLOwner::ImageReaderGLOwner(
-    std::unique_ptr<AbstractTextureAndroid> texture,
     Mode mode,
     scoped_refptr<SharedContextState> context_state,
     scoped_refptr<RefCountedLock> drdc_lock,
     TextureOwnerCodecType type_for_metrics)
-    : TextureOwner(false /* binds_texture_on_image_update */,
-                   std::move(texture),
-                   std::move(context_state)),
+    : TextureOwner(std::move(context_state)),
       RefCountedLockHelperDrDc(std::move(drdc_lock)),
-      context_(gl::GLContext::GetCurrent()),
-      surface_(gl::GLSurface::GetCurrent()),
       type_for_metrics_(type_for_metrics) {
-  DCHECK(context_);
-  DCHECK(surface_);
-
   // Set the width, height and format to some default value. This parameters
   // are/maybe overriden by the producer sending buffers to this imageReader's
   // Surface.
@@ -266,10 +255,6 @@ gl::ScopedJavaSurface ImageReaderGLOwner::CreateJavaSurface() const {
 
 bool ImageReaderGLOwner::UpdateTexImage(bool discard) {
   base::AutoLock auto_lock(lock_);
-
-  // If we've lost the texture, then do nothing.
-  if (!texture())
-    return false;
 
   DCHECK(image_reader_);
 
@@ -483,16 +468,6 @@ void ImageReaderGLOwner::ReleaseRefOnImageLocked(AImage* image,
 void ImageReaderGLOwner::ReleaseBackBuffers() {
   DCHECK_CALLED_ON_VALID_THREAD(gpu_main_thread_checker_);
   // ReleaseBackBuffers() call is not required with image reader.
-}
-
-gl::GLContext* ImageReaderGLOwner::GetContext() const {
-  DCHECK_CALLED_ON_VALID_THREAD(gpu_main_thread_checker_);
-  return context_.get();
-}
-
-gl::GLSurface* ImageReaderGLOwner::GetSurface() const {
-  DCHECK_CALLED_ON_VALID_THREAD(gpu_main_thread_checker_);
-  return surface_.get();
 }
 
 // This callback function will be called when there is a new image available

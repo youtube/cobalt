@@ -418,10 +418,10 @@ PipelineStatus PipelineIntegrationTestBase::Start(
                        prepend_audio_decoders_cb);
 }
 
-PipelineStatus PipelineIntegrationTestBase::Start(const uint8_t* data,
-                                                  size_t size,
-                                                  uint8_t test_type) {
-  return StartInternal(std::make_unique<MemoryDataSource>(data, size), nullptr,
+PipelineStatus PipelineIntegrationTestBase::Start(
+    base::span<const uint8_t> data,
+    uint8_t test_type) {
+  return StartInternal(std::make_unique<MemoryDataSource>(data), nullptr,
                        test_type);
 }
 
@@ -694,7 +694,7 @@ std::string PipelineIntegrationTestBase::GetVideoHash() {
   DCHECK(hashing_enabled_);
   std::array<uint8_t, crypto::hash::kSha256Size> digest;
   hash_context_->Finish(digest);
-  return base::ToLowerASCII(base::HexEncode(digest));
+  return base::HexEncodeLower(digest);
 }
 
 const AudioHash& PipelineIntegrationTestBase::GetAudioHash() const {
