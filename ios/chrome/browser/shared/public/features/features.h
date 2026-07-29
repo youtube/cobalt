@@ -158,6 +158,9 @@ BASE_DECLARE_FEATURE(kShareInWebContextMenuIOS);
 // Feature flag to log metrics for the edit menu.
 BASE_DECLARE_FEATURE(kIOSBrowserEditMenuMetrics);
 
+// Feature flag to enable the custom file upload menu.
+BASE_DECLARE_FEATURE(kIOSCustomFileUploadMenu);
+
 // Docking Promo experiment variations.
 
 // A parameter representing the experimental arm for when the Docking Promo is
@@ -293,6 +296,9 @@ BASE_DECLARE_FEATURE(kLensOverlayForceShowOnboardingScreen);
 // Feature flag to add lens overlay navigation to history.
 BASE_DECLARE_FEATURE(kLensOverlayNavigationHistory);
 
+// Feature flag to add a custom bottom sheet presentation Lens results.
+BASE_DECLARE_FEATURE(kLensOverlayCustomBottomSheet);
+
 // Feature flag to check headers for lens searches.
 BASE_DECLARE_FEATURE(kLensSearchHeadersCheckEnabled);
 
@@ -304,12 +310,18 @@ extern const char kNTPMIAEntrypointParamOmniboxContainedEnlargedFakebox[];
 extern const char kNTPMIAEntrypointParamEnlargedFakeboxNoIncognito[];
 extern const char kNTPMIAEntrypointParamAIMInQuickActions[];
 
-// Feature flag to change the MIA entrypoint in NTP.
+// Feature flag to change the MIA entrypoint in NTP. Applies to en-US locales
+// only.
 BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
+// Like above, but applies regardless of client's locale.
+BASE_DECLARE_FEATURE(kNTPMIAEntrypointAllLocales);
 
 // When enabled the AIM ZPS entrypoint will open the AIM prototype which
 // contains temporary UI exploration for AIM.
 BASE_DECLARE_FEATURE(kAIMPrototype);
+
+// Used to gate the immersive SRP in the AIM prototype.
+BASE_DECLARE_FEATURE(kAIMPrototypeImmersiveSRP);
 
 // Variations of AIM prototype.
 extern const char kAIMPrototypeParam[];
@@ -472,8 +484,6 @@ int SafetyCheckNotificationsImpressionLimit();
 
 // Feature flag enabling Choose from Drive.
 BASE_DECLARE_FEATURE(kIOSChooseFromDrive);
-// Feature flag enabling support for simulated clicks in Choose from Drive.
-BASE_DECLARE_FEATURE(kIOSChooseFromDriveSimulatedClick);
 
 // Feature flag enabling a fix for the Download manager mediator.
 BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
@@ -670,9 +680,6 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // to be deprecated, so we're not adding liquid glass support to it). Returns
 // false otherwise.
 bool IsLiquidGlassEffectEnabled();
-
-// Feature for the Magic Stack.
-BASE_DECLARE_FEATURE(kMagicStack);
 
 // Feature that enables tab resumption.
 BASE_DECLARE_FEATURE(kTabResumption);
@@ -1001,6 +1008,13 @@ bool IsSignInButtonNoAvatarEnabled();
 
 // Feature flag to enable background customization on the NTP.
 BASE_DECLARE_FEATURE(kNTPBackgroundCustomization);
+
+// The parameter representing the maximum number of recently used NTP
+// backgrounds to store.
+extern const base::FeatureParam<int> kMaxRecentlyUsedBackgrounds;
+
+// The maximum number of recently used NTP backgrounds to store.
+int MaxRecentlyUsedBackgrounds();
 
 // Checks if background customization is enabled on the NTP.
 bool IsNTPBackgroundCustomizationEnabled();

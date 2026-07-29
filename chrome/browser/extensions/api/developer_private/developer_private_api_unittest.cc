@@ -57,7 +57,6 @@
 #include "components/crx_file/id_util.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/signin/public/base/signin_pref_names.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/supervised_user/core/common/features.h"
 #include "components/sync/test/fake_sync_change_processor.h"
@@ -948,8 +947,6 @@ TEST_F(DeveloperPrivateApiUnitTest, DeveloperPrivateChoosePath) {
   EXPECT_EQ(std::string("File selection was canceled."), function->GetError());
 }
 
-// TODO(crbug.com/439448250): Enable on desktop android.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test developerPrivate.loadUnpacked.
 TEST_F(DeveloperPrivateApiUnitTest, DeveloperPrivateLoadUnpacked) {
   std::unique_ptr<content::WebContents> web_contents(
@@ -975,7 +972,17 @@ TEST_F(DeveloperPrivateApiUnitTest, DeveloperPrivateLoadUnpacked) {
   function = base::MakeRefCounted<api::DeveloperPrivateLoadUnpackedFunction>();
   base::FilePath path = data_dir().AppendASCII("simple_with_popup");
   function->set_accept_dialog_for_testing(true);
+#if BUILDFLAG(IS_ANDROID)
+  base::ScopedTempDir temp_dir_copy;
+  ASSERT_TRUE(temp_dir_copy.CreateUniqueTempDir());
+
+  base::FilePath cache_path =
+      *base::test::android::CreateCacheCopyAndGetContentUri(path,
+                                                            temp_dir_copy);
+  function->set_selected_file_for_testing(ui::SelectedFileInfo(cache_path));
+#else
   function->set_selected_file_for_testing(ui::SelectedFileInfo(path));
+#endif  // BUILDFLAG(IS_ANDROID)
   function->SetRenderFrameHost(web_contents->GetPrimaryMainFrame());
 
   // Function should succeed and extension is added.
@@ -985,15 +992,29 @@ TEST_F(DeveloperPrivateApiUnitTest, DeveloperPrivateLoadUnpacked) {
       registry()->enabled_extensions().GetIDs(), current_ids);
   ASSERT_EQ(1u, id_difference.size());
   // The new extension should have the same path.
+#if BUILDFLAG(IS_ANDROID)
+  // In Android, the unpacked extension source will be resolved as virtual
+  // document path.
+  EXPECT_EQ(
+      *base::ResolveToVirtualDocumentPath(cache_path),
+      registry()->enabled_extensions().GetByID(*id_difference.begin())->path());
+#else
   EXPECT_EQ(
       path,
       registry()->enabled_extensions().GetByID(*id_difference.begin())->path());
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Try loading a bad extension and accepting the dialog.
   function = base::MakeRefCounted<api::DeveloperPrivateLoadUnpackedFunction>();
   path = data_dir().AppendASCII("empty_manifest");
   function->set_accept_dialog_for_testing(true);
+#if BUILDFLAG(IS_ANDROID)
+  cache_path = *base::test::android::CreateCacheCopyAndGetContentUri(
+      path, temp_dir_copy);
+  function->set_selected_file_for_testing(ui::SelectedFileInfo(cache_path));
+#else
   function->set_selected_file_for_testing(ui::SelectedFileInfo(path));
+#endif  // BUILDFLAG(IS_ANDROID)
   function->SetRenderFrameHost(web_contents->GetPrimaryMainFrame());
   base::Value::List unpacked_args;
   base::Value::Dict options;
@@ -1009,6 +1030,8 @@ TEST_F(DeveloperPrivateApiUnitTest, DeveloperPrivateLoadUnpacked) {
                     .size());
 }
 
+// TODO(crbug.com/439448250): Enable on desktop android.
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 TEST_F(DeveloperPrivateApiUnitTest, DeveloperPrivateLoadUnpackedLoadError) {
   std::unique_ptr<content::WebContents> web_contents(
       content::WebContentsTester::CreateTestWebContents(profile(), nullptr));
@@ -3506,14 +3529,15 @@ TEST_F(DeveloperPrivateApiWithMV2DeprecationDisabledUnitTest,
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+// Signing into transport mode and Sign outs are not supported for ChromeOS
+// hence DeveloperPrivateApiTransportModeUnitTest is not run for ChromeOS.
+// TODO(crbug.com/439448250): Enable on desktop android. Currently all the
+// DeveloperPrivateApiTransportModeUnitTest tests block forever on WaitForEvent.
+#if BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_CHROMEOS)
 class DeveloperPrivateApiTransportModeUnitTest
     : public DeveloperPrivateApiUnitTest {
  public:
-  DeveloperPrivateApiTransportModeUnitTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {switches::kEnableExtensionsExplicitBrowserSignin},
-        /*disabled_features=*/{});
-  }
+  DeveloperPrivateApiTransportModeUnitTest() = default;
 
   void SetUp() override {
     DeveloperPrivateApiUnitTest::SetUp();
@@ -3592,15 +3616,10 @@ class DeveloperPrivateApiTransportModeUnitTest
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_profile_adaptor_;
 };
 
-// TODO(crbug.com/439448250): Enable on desktop android. Currently all the
-// DeveloperPrivateApiTransportModeUnitTest tests block forever on WaitForEvent.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test that extensions cannot be uploaded if the user is signed out.
 TEST_F(DeveloperPrivateApiTransportModeUnitTest,
        UploadExtensionToAccount_SignedOut) {
@@ -3824,9 +3843,6 @@ TEST_F(DeveloperPrivateApiTransportModeUnitTest,
   EXPECT_FALSE(CanUploadToAccount(*extension));
 }
 
-// Sign outs are not supported for ChromeOS hence this test is not run for
-// ChromeOS.
-#if !BUILDFLAG(IS_CHROMEOS)
 // Test that extensions can no longer be uploaded once the user signs out.
 TEST_F(DeveloperPrivateApiTransportModeUnitTest, CannotUploadAfterSignOut) {
   // Test setup: Sign in and simulate an empty initial sync so the extension is
@@ -3853,7 +3869,6 @@ TEST_F(DeveloperPrivateApiTransportModeUnitTest, CannotUploadAfterSignOut) {
   EXPECT_FALSE(info.can_upload_as_account_extension);
   EXPECT_FALSE(CanUploadToAccount(*extension));
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // Test that extensions can no longer be uploaded by the user if they sign into
 // full sync mode.
@@ -3921,6 +3936,6 @@ TEST_F(DeveloperPrivateApiTransportModeUnitTest,
   EXPECT_FALSE(info.can_upload_as_account_extension);
   EXPECT_FALSE(CanUploadToAccount(*extension));
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS) && !BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace extensions

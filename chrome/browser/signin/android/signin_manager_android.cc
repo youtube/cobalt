@@ -213,6 +213,7 @@ void SigninManagerAndroid::RegisterPolicyWithAccount(
 
   user_policy_signin_service_->RegisterForPolicyWithAccountId(
       account.email, account.account_id,
+      /*is_registration_for_management_consistency_check=*/false,
       base::BindOnce(
           [](RegisterPolicyWithAccountCallback callback,
              const std::string& dm_token, const std::string& client_id,
@@ -269,7 +270,6 @@ void SigninManagerAndroid::IsAccountManaged(
     JNIEnv* env,
     const JavaParamRef<jobject>& j_account_info,
     const JavaParamRef<jobject>& j_callback) {
-  base::Time start_time = base::Time::Now();
   CoreAccountInfo account = ConvertFromJavaCoreAccountInfo(env, j_account_info);
   base::android::ScopedJavaGlobalRef<jobject> callback(env, j_callback);
 
@@ -286,19 +286,13 @@ void SigninManagerAndroid::IsAccountManaged(
       account,
       base::BindOnce(
           &SigninManagerAndroid::OnPolicyRegisterDoneForIsAccountManaged,
-          weak_factory_.GetWeakPtr(), account, std::move(callback),
-          start_time));
+          weak_factory_.GetWeakPtr(), account, std::move(callback)));
 }
 
 void SigninManagerAndroid::OnPolicyRegisterDoneForIsAccountManaged(
     const CoreAccountInfo& account,
     base::android::ScopedJavaGlobalRef<jobject> callback,
-    base::Time start_time,
     const std::optional<ManagementCredentials>& credentials) {
-  DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
-      "Signin.Android.IsAccountManagedDuration",
-      (base::Time::Now() - start_time));
-
   bool is_managed = credentials.has_value();
   // Cache result in case IsAccountManaged() is invoked again for the same user.
   cached_is_account_managed_.emplace(

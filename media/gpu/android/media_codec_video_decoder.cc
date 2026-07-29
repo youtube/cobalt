@@ -266,8 +266,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       device_info_(device_info),
       enable_threaded_texture_mailboxes_(
           gpu_preferences.enable_threaded_texture_mailboxes),
-      allow_nonsecure_overlays_(
-          base::FeatureList::IsEnabled(media::kAllowNonSecureOverlays)),
       use_block_model_(device_info_->SdkVersion() >=
                            base::android::android_info::SDK_VERSION_V &&
                        base::FeatureList::IsEnabled(kMediaCodecBlockModel)) {
@@ -550,12 +548,6 @@ void MediaCodecVideoDecoder::StartLazyInit() {
     overlay_mode = VideoFrameFactory::OverlayMode::kRequestPromotionHints;
   }
 
-  // Regardless of whether we're using SurfaceControl or Dialog overlays, don't
-  // allow any overlays in A/B power testing mode, unless this requires a
-  // secure surface.  Don't fail the playback for power testing.
-  if (!requires_secure_codec_ && !allow_nonsecure_overlays_)
-    overlay_mode = VideoFrameFactory::OverlayMode::kDontRequestPromotionHints;
-
   video_frame_factory_->Initialize(
       overlay_mode, base::BindRepeating(
                         &MediaCodecVideoDecoder::OnVideoFrameFactoryInitialized,
@@ -576,23 +568,16 @@ void MediaCodecVideoDecoder::OnVideoFrameFactoryInitialized(
   texture_owner_bundle_ =
       new CodecSurfaceBundle(std::move(texture_owner), GetDrDcLock());
 
-  // This is for A/B power testing only.  Turn off Dialog-based overlays in
-  // power testing mode, unless we need them for L1 content.
-  // See https://crbug.com/1081346 .
-  const bool allowed_for_experiment =
-      requires_secure_codec_ || allow_nonsecure_overlays_;
-
   // Overlays are disabled when |enable_threaded_texture_mailboxes| is true
   // (http://crbug.com/582170).
-  if (enable_threaded_texture_mailboxes_ || !allowed_for_experiment) {
+  if (enable_threaded_texture_mailboxes_) {
     OnSurfaceChosen(nullptr);
     return;
   }
 
   // Request OverlayInfo updates. Initialization continues on the first one.
   std::move(request_overlay_info_cb_)
-      .Run(/*restart_for_transitions=*/false,
-           base::BindRepeating(&MediaCodecVideoDecoder::OnOverlayInfoChanged,
+      .Run(base::BindRepeating(&MediaCodecVideoDecoder::OnOverlayInfoChanged,
                                weak_factory_.GetWeakPtr()));
 }
 
@@ -802,19 +787,16 @@ void MediaCodecVideoDecoder::OnCodecConfigured(
   // Since we can't get the coded size w/o rendering the frame, we try to guess
   // in cases where we are unable to render the frame (resolution changes). If
   // we can't guess, there will be a visible rendering glitch.
-  std::optional<gfx::Size> coded_size_alignment;
-  if (base::FeatureList::IsEnabled(kMediaCodecCodedSizeGuessing)) {
-    coded_size_alignment =
-        MediaCodecUtil::LookupCodedSizeAlignment(codec_name_);
-    if (coded_size_alignment) {
-      MEDIA_LOG(INFO, media_log_) << "Using a coded size alignment of "
-                                  << coded_size_alignment->ToString();
-    } else {
-      // TODO(crbug.com/40917948): If the known cases work well, we can try
-      // guessing generically since we get a glitch either way.
-      MEDIA_LOG(WARNING, media_log_)
-          << "Unable to lookup coded size alignment for codec " << codec_name_;
-    }
+  std::optional<gfx::Size> coded_size_alignment =
+      MediaCodecUtil::LookupCodedSizeAlignment(codec_name_);
+  if (coded_size_alignment) {
+    MEDIA_LOG(INFO, media_log_) << "Using a coded size alignment of "
+                                << coded_size_alignment->ToString();
+  } else {
+    // TODO(crbug.com/40917948): If the known cases work well, we can try
+    // guessing generically since we get a glitch either way.
+    MEDIA_LOG(WARNING, media_log_)
+        << "Unable to lookup coded size alignment for codec " << codec_name_;
   }
 
   max_input_size_ = codec->GetMaxInputSize();
@@ -989,8 +971,7 @@ bool MediaCodecVideoDecoder::QueueInput() {
   //
   // If this ever changes, the code below runs the risk of dropping all frames
   // which haven't been received and rendered from the MediaCodec instance.
-  if (base::FeatureList::IsEnabled(kMediaCodecElideEOS) &&
-      pending_buffer->end_of_stream() && pending_buffer->next_config()) {
+  if (pending_buffer->end_of_stream() && pending_buffer->next_config()) {
     const auto new_config =
         std::get<VideoDecoderConfig>(*pending_buffer->next_config());
 

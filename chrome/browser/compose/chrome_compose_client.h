@@ -73,7 +73,9 @@ class ChromeComposeClient
         const std::u16string& text_value) override;
     // Used to reset the field content changes count when a new suggestions UI
     // is shown.
-    void OnSuggestionsShown(autofill::AutofillManager& manager) override;
+    void OnSuggestionsShown(
+        autofill::AutofillManager& manager,
+        base::span<const autofill::Suggestion> suggestions) override;
 
     // Asks Autofill to hide any open compose-related popups.
     void HideComposeNudges();
@@ -179,7 +181,8 @@ class ChromeComposeClient
   // Called when the focused element changes. This is only used to inform
   // the proactive nudge tracker that focus has changed until the
   // AutofillManager::Observer APIs for focus tracking are fixed.
-  void OnFocusChangedInPage(content::FocusedNodeDetails* details) override;
+  void OnFocusChangedInPage(
+      const content::FocusedNodeDetails& details) override;
 
   // compose::ProactiveNudgeTracker::Delegate implementation.
   void ShowProactiveNudge(autofill::FormGlobalId form,

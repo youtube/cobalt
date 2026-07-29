@@ -5,19 +5,24 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AMOUNT_EXTRACTION_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_AMOUNT_EXTRACTION_MANAGER_H_
 
+#include <optional>
 #include <string>
 
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/common/dense_set.h"
 
 namespace autofill {
 class AutofillDriver;
 class BrowserAutofillManager;
-struct SuggestionsContext;
 }  // namespace autofill
+
+namespace optimization_guide::proto {
+class AnnotatedPageContent;
+}
 
 namespace autofill::payments {
 
@@ -67,29 +72,34 @@ class AmountExtractionManager {
 
   // Returns the set of all eligible features that depend on amount extraction
   // result when:
-  //   Autofill is available in the given `SuggestionsContext`;
+  //   Autofill Payment Methods are enabled for the user;
   //   Autofill provides non-empty, non-suppressed suggestions;
   //   The form being interacted with is a credit card form but not the CVC
   //   field of the credit card form;
   //   There is a feature that can use amount extraction on the current
   //   checkout page;
   //   Amount Extraction feature is enabled;
-  DenseSet<EligibleFeature> GetEligibleFeatures(
-      const SuggestionsContext& context,
+  virtual DenseSet<EligibleFeature> GetEligibleFeatures(
+      bool is_autofill_payments_enabled,
       bool should_suppress_suggestions,
       bool has_suggestions,
+      FillingProduct filling_product,
       FieldType field_type) const;
+
+  // Fetch the page content for the AI-based amount extraction.
+  virtual void FetchAiPageContent();
+
+  // Callback function for `AutofillClient::GetAiPageContent`.
+  virtual void OnAiPageContentReceived(
+      std::optional<optimization_guide::proto::AnnotatedPageContent> result);
 
   // Trigger the search for the final checkout amount from the DOM of the
   // current page.
   virtual void TriggerCheckoutAmountExtraction();
 
-  void SetSearchRequestPendingForTesting(bool search_request_pending);
-
-  bool GetSearchRequestPendingForTesting();
-
  private:
   friend class AmountExtractionManagerTest;
+  friend class AmountExtractionManagerTestApi;
 
   // Invoked after the amount extraction process completes.
   // `extracted_amount` provides the extracted amount upon success and an
@@ -124,6 +134,19 @@ class AmountExtractionManager {
   // to avoid re-triggering amount extraction multiple times during an ongoing
   // search.
   bool search_request_pending_ = false;
+
+  // Member variable to store the fetched page content temporarily. This data is
+  // generated when credit card form is clicked and BNPL feature is available
+  // for this profile. It is about 10Kb in size depending on the merchant
+  // checkout page.
+  std::unique_ptr<optimization_guide::proto::AnnotatedPageContent>
+      ai_page_content_;
+
+  // Flag to indicate if an AI page content fetch is in progress. If set, do not
+  // trigger the next request to generate the page content. This is to avoid
+  // multiple page content requests when a user quickly clicks on the payment
+  // form multiple times or by scripts.
+  bool is_fetching_ai_page_content_ = false;
 
   base::WeakPtrFactory<AmountExtractionManager> weak_ptr_factory_{this};
 };

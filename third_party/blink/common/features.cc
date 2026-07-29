@@ -1718,6 +1718,79 @@ BASE_FEATURE_PARAM(double,
                    "type_weight",
                    100.0);
 
+BASE_FEATURE(kMemoryCacheStrongReferenceExtensions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// --- High Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefXSLStyleSheet,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "xsl_stylesheet",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefRaw,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "raw",
+                   false);
+
+// --- Medium Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefImage,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "image",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefSVGDocument,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "svg_document",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefManifest,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "manifest",
+                   false);
+
+// --- Low Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefAudio,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "audio",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefVideo,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "video",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefTextTrack,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "text_track",
+                   false);
+
+// --- Lowest Priority ---
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefLinkPrefetch,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "link_prefetch",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefSpeculationRules,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "speculation_rules",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kMemoryCacheStrongRefDictionary,
+                   &kMemoryCacheStrongReferenceExtensions,
+                   "dictionary",
+                   false);
+
 BASE_FEATURE(kMemoryCacheStrongReference,
 // Finch study showed no improvement on Android for strong memory cache.
 #if BUILDFLAG(IS_ANDROID)
@@ -2418,6 +2491,11 @@ BASE_FEATURE(kWebAppManifestLockScreen, base::FEATURE_DISABLED_BY_DEFAULT);
 // JavaScript denormal compliance.  See https://crbug.com/382005099.
 BASE_FEATURE(kWebAudioAllowDenormalInProcessing,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Use deferred pull status update instead of updating the status directly
+// on audio thread. See https://crbug.com/40249972.
+BASE_FEATURE(kWebAudioDeferPullStatusUpdate,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 /// Enables cache-aware WebFonts loading. See https://crbug.com/570205.
 // The feature is disabled on Android for WebView API issue discussed at

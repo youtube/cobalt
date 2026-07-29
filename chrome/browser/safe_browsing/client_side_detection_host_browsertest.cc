@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/barrier_callback.h"
 #include "base/compiler_specific.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_client_side_detection_host_delegate.h"
 #include "chrome/browser/safe_browsing/chrome_safe_browsing_blocking_page_factory.h"
@@ -232,13 +235,10 @@ class ClientSideDetectionHostPrerenderBrowserTest
   ClientSideDetectionHostPrerenderBrowserTest() {
     if (GetParam()) {
       scoped_feature_list_.InitWithFeatures(
-          {kClientSideDetectionDebuggingMetadataCache,
-           kClientSideDetectionOnlyExtractVisualFeatures},
-          {});
+          {kClientSideDetectionOnlyExtractVisualFeatures}, {});
     } else {
       scoped_feature_list_.InitWithFeatures(
-          {kClientSideDetectionDebuggingMetadataCache},
-          {kClientSideDetectionOnlyExtractVisualFeatures});
+          {}, {kClientSideDetectionOnlyExtractVisualFeatures});
     }
     prerender_helper_ = std::make_unique<content::test::PrerenderTestHelper>(
         base::BindRepeating(
@@ -318,10 +318,6 @@ class ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest
   }
 
   std::string client_side_model() { return flatbuffer_model_str_; }
-
- protected:
-  base::test::ScopedFeatureList scoped_feature_list_{
-      kClientSideDetectionKeyboardPointerLockRequest};
 
  private:
   content::test::PrerenderTestHelper prerender_helper_;
@@ -578,9 +574,7 @@ IN_PROC_BROWSER_TEST_P(
 IN_PROC_BROWSER_TEST_F(
     ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest,
     KeyboardLockTriggersPreclassificationCheck) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) ||
-      !base::FeatureList::IsEnabled(
-          kClientSideDetectionKeyboardPointerLockRequest)) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
 
@@ -626,9 +620,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest,
     PointerLockTriggersPreClassificationCheck) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) ||
-      !base::FeatureList::IsEnabled(
-          kClientSideDetectionKeyboardPointerLockRequest)) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
   SetWebContentsGrantedSilentPointerLockPermission();
@@ -674,9 +666,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest,
     KeyboardLockClassificationTriggersCSPPPing) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) ||
-      !base::FeatureList::IsEnabled(
-          kClientSideDetectionKeyboardPointerLockRequest)) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
 
@@ -748,9 +738,7 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     ClientSideDetectionHostPrerenderExclusiveAccessBrowserTest,
     PointerLockClassificationTriggersCSPPPing) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch) ||
-      !base::FeatureList::IsEnabled(
-          kClientSideDetectionKeyboardPointerLockRequest)) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
 
@@ -1324,10 +1312,8 @@ class ClientSideDetectionHostCreditCardFormTest : public InProcessBrowserTest {
   std::string flatbuffer_model_str_;
 };
 
-// TODO(crbug.com/443098659): Deflake and re-enable this test before enabling
-// credit card form pings feature flag.
 IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
-                       DISABLED_CreditCardFormTriggersPreclassificationCheck) {
+                       CreditCardFormTriggersPreclassificationCheck) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
@@ -1352,20 +1338,25 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.PreClassificationCheckResult.CreditCardForm", 0);
 
+  base::RunLoop run_loop;
+  csd_host->set_preclassification_done_callback_for_testing(
+      base::BindLambdaForTesting([&](ClientSideDetectionType detection_type) {
+        if (detection_type == ClientSideDetectionType::CREDIT_CARD_FORM) {
+          run_loop.Quit();
+        }
+      }));
+
   const GURL url(embedded_test_server()->GetURL(
       "/autofill/autofill_creditcard_form.html"));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  ASSERT_TRUE(content::WaitForRenderFrameReady(
-      GetWebContents()->GetPrimaryMainFrame()));
+  run_loop.Run();
 
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.PreClassificationCheckResult.CreditCardForm", 1);
 }
 
-// TODO(crbug.com/443098659): Deflake and re-enable this test before enabling
-// credit card form pings feature flag.
 IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
-                       DISABLED_CreditCardFormClassificationTriggersCSDPing) {
+                       CreditCardFormClassificationTriggersCSDPing) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
     GTEST_SKIP();
   }
@@ -1387,14 +1378,19 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
   csd_host->set_ui_manager(mock_ui_manager.get());
   fake_csd_service.SendModelToRenderers();
 
-  base::RunLoop run_loop;
-  fake_csd_service.SetRequestCallback(run_loop.QuitClosure());
-
+  // Navigate page, expecting to trigger 2 preclassification checks.
+  // (1 TriggerModel, 1 CreditCardForm)
+  // Wait to ensure each has happened since each one will invalidate the host
+  // weak pointer and effectively cancel any other pending check. This
+  // ensures that the manual preclassification check below won't be clobbered.
+  base::test::TestFuture<std::vector<ClientSideDetectionType>> future;
+  csd_host->set_preclassification_started_callback_for_testing(
+      base::BarrierCallback<ClientSideDetectionType>(2, future.GetCallback()));
   const GURL url(embedded_test_server()->GetURL(
       "/autofill/autofill_creditcard_form.html"));
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  ASSERT_TRUE(content::WaitForRenderFrameReady(
-      GetWebContents()->GetPrimaryMainFrame()));
+  EXPECT_THAT(future.Take(),
+              testing::Contains(ClientSideDetectionType::CREDIT_CARD_FORM));
 
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.PhishingDetectorResult.CreditCardForm", 0);
@@ -1402,6 +1398,9 @@ IN_PROC_BROWSER_TEST_F(ClientSideDetectionHostCreditCardFormTest,
       "SBClientPhishing.ClientSideDetectionTypeRequest", 0);
   histogram_tester.ExpectTotalCount(
       "SBClientPhishing.ServerModelDetectsPhishing.CreditCardForm", 0);
+
+  base::RunLoop run_loop;
+  fake_csd_service.SetRequestCallback(run_loop.QuitClosure());
 
   // Bypass the pre-classification check because it would otherwise return
   // `PreClassificationCheckResult::NO_CLASSIFY_PRIVATE_IP`.

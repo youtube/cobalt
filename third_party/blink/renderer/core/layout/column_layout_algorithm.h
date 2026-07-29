@@ -140,6 +140,9 @@ class CORE_EXPORT ColumnLayoutAlgorithm
   // See third_party/blink/renderer/core/layout/gap/README.md for more info.
   void AddCrossGapForColumn(LayoutUnit inline_offset, LayoutUnit block_offset);
 
+  void AddMainGapForSpanner(LayoutUnit block_offset,
+                            LayoutUnit logical_fragment_block_size);
+
   // Populates `range_of_cross_gaps_before_current_main_gap_` with
   // `CrossGapRanges` for each group of `CrossGap`s before each `MainGap`.
   // For each `MainGap` we say that the `CrossGaps` associated with it are any
@@ -242,23 +245,9 @@ class CORE_EXPORT ColumnLayoutAlgorithm
   LayoutUnit tallest_unbreakable_block_size_;
   bool is_constrained_by_outer_fragmentation_context_ = false;
 
-  // This is used to determine whether we need to add new intersections for
-  // the edge of the container and the column gaps, or whether we need to
-  // modify the last intersection in each column gap. For instance, if we have
-  // a row of columns with fewer columns than the previous row.
-  bool need_to_add_final_intersections_to_column_gaps_ = false;
-  wtf_size_t num_columns_in_last_processed_row_ = 0;
-
-  Vector<GapIntersectionList> column_gaps_;
-  Vector<GapIntersectionList> row_gaps_;
-
   LayoutUnit column_gap_size_;
   LayoutUnit row_gap_size_;
 
-  // TODO(crbug.com/436140061): The following are for the optimized version of
-  // GapDecorations. Once the optimized version is implemented, we can remove
-  // all the other unused methods and members from the old version.
-  //
   //`main_gaps_` are the row gaps, while `cross_gaps_` are the column gaps.
   Vector<MainGap> main_gaps_;
   Vector<CrossGap> cross_gaps_;
@@ -266,12 +255,6 @@ class CORE_EXPORT ColumnLayoutAlgorithm
 
   std::optional<LayoutUnit> content_inline_start_;
   std::optional<LayoutUnit> content_block_start_;
-
-  // We use this to keep track of the indices of `MainGap`s that are created by
-  // spanners. This is used later by `GapGeometry` during paint time, since
-  // CrossGaps end at spanners. The indices correspond to indices in
-  // `main_gaps_`.
-  Vector<wtf_size_t> spanner_main_gaps_indices_;
 
   // This will be set during (outer) block fragmentation once we've processed
   // the first piece of content of the multicol container. It is used to check

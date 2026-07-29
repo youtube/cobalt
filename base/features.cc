@@ -6,6 +6,8 @@
 
 #include <atomic>
 
+#include "base/containers/variant_map.h"
+#include "base/debug/stack_trace.h"
 #include "base/files/file_path.h"
 #include "base/task/sequence_manager/sequence_manager_impl.h"
 #include "base/threading/platform_thread.h"
@@ -85,6 +87,27 @@ BASE_FEATURE_PARAM(int,
 
 BASE_FEATURE(kReducePPMs, FEATURE_DISABLED_BY_DEFAULT);
 
+// Whether to restrict the max gap between the frame pointer and the stack end
+// for stack scanning. If the gap is beyond the given gap threshold, the stack
+// end is treated as unreliable. Stack scanning stops when that happens.
+// This feature is only in effect when BUILDFLAG(CAN_UNWIND_WITH_FRAME_POINTERS)
+// is on and `TraceStackFramePointers` would run stack scanning. Default gap
+// threshold is an absurdly large 100MB.
+// The feature is enabled by default on ChromeOS where crashes caused by
+// unreliable stack end are found. See https://crbug.com/402542102
+BASE_FEATURE(kStackScanMaxFramePointerToStackEndGap,
+#if BUILDFLAG(IS_CHROMEOS)
+             FEATURE_ENABLED_BY_DEFAULT
+#else
+             FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+BASE_FEATURE_PARAM(int,
+                   kStackScanMaxFramePointerToStackEndGapThresholdMB,
+                   &kStackScanMaxFramePointerToStackEndGap,
+                   "StackScanMaxFramePointerToStackEndGapThresholdMB",
+                   100);
+
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 // Force to enable LowEndDeviceMode partially on Android 3Gb devices.
 // (see PartialLowEndModeOnMidRangeDevices below)
@@ -132,6 +155,10 @@ BASE_FEATURE(kRebindingChildServiceConnectionController,
 // Update child process binding state before unbinding.
 BASE_FEATURE(kUpdateStateBeforeUnbinding, FEATURE_DISABLED_BY_DEFAULT);
 
+// Use ChildServiceConnectionController.isUnbound() instead of isConnected() to
+// check the connection state in ChildProcessConnection.
+BASE_FEATURE(kUseIsUnboundCheck, FEATURE_DISABLED_BY_DEFAULT);
+
 // Use shared service connection to rebind a service binding to update the LRU
 // in the ProcessList of OomAdjuster.
 BASE_FEATURE(kUseSharedRebindServiceConnection, FEATURE_ENABLED_BY_DEFAULT);
@@ -170,7 +197,9 @@ void Init(EmitThreadControllerProfilerMetadata
   sequence_manager::internal::ThreadController::InitializeFeatures(
       emit_thread_controller_profiler_metadata);
 
+  debug::StackTrace::InitializeFeatures();
   FilePath::InitializeFeatures();
+  InitializeVariantMapFeatures();
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   MessagePumpEpoll::InitializeFeatures();

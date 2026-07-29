@@ -28,8 +28,11 @@ _gclient_path = "//third_party/depot_tools/gclient.py"
 _gn_path = "//buildtools/linux64/gn"
 _ninja_path = "//third_party/ninja/ninja"
 
-assert(!is_component_build)
 assert(is_cronet_build)
+
+assert(!is_component_build)
+assert(use_platform_icu_alternatives,
+       "Cronet only supports being built with ICU alternatives")
 
 generate_jni("cronet_jni_headers") {
   sources = [
@@ -198,7 +201,6 @@ source_set("cronet_static") {
     "//net",
     "//third_party/zlib",
     "//url",
-    "//url:buildflags",
   ]
   if (!is_cronet_for_aosp_build) {
     deps += [ "//components/cronet/native:cronet_native_impl" ]
@@ -239,10 +241,6 @@ source_set("cronet_static") {
     "android",
     "log",
   ]
-
-  if (!use_platform_icu_alternatives) {
-    deps += [ "//base:i18n" ]
-  }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
@@ -1190,7 +1188,6 @@ shared_library("cronet_tests") {
     ":cronet_test_apk_jni",
     ":cronet_tests_jni_headers",
     "//base",
-    "//base:i18n",
     "//base/test:test_support",
     "//components/cronet:cronet_common",
     "//components/cronet:cronet_version_header",
@@ -1261,6 +1258,7 @@ android_library("cronet_test_apk_java") {
     ":cronet_all_java",
     "//base:base_java",
     "//base:base_java_test_support",
+    "//net/android:net_java",
     "//net/android:net_java_test_support",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/google-truth:google_truth_java",
@@ -1974,11 +1972,13 @@ copy("cronet_package_copy_test_files") {
     "//net/data/ssl/certificates/cronet-quic-chain.pem",
     "//net/data/ssl/certificates/cronet-quic-leaf-cert.key",
     "//net/data/ssl/certificates/cronet-quic-leaf-cert.key.pkcs8.pem",
+    "//net/data/ssl/certificates/cronet-quic-root.pem",
     "//net/data/ssl/certificates/expired_cert.pem",
     "//net/data/ssl/certificates/ok_cert.pem",
     "//net/data/ssl/certificates/quic-chain.pem",
     "//net/data/ssl/certificates/quic-leaf-cert.key",
     "//net/data/ssl/certificates/quic-leaf-cert.key.pkcs8.pem",
+    "//net/data/ssl/certificates/quic-root.pem",
     "//net/data/ssl/certificates/root_ca_cert.pem",
   ]
   outputs = [ "$_test_package_dir/assets/test_files/net/data/ssl/certificates/{{source_file_part}}" ]
@@ -2143,11 +2143,9 @@ if (!using_sanitizer) {
 
 group("cronet_non_test_package") {
   # Target containing all of cronet's non-test targets.
-  # Enforce building with ICU alternatives, crbug.com/611621.
   # Enforce that arm_use_neon==false when building for ARMv7 by
   # not including any deps in cronet_package target otherwise.
-  if (use_platform_icu_alternatives &&
-      (!(target_cpu == "arm" && arm_version == 7) || !arm_use_neon)) {
+  if (!(target_cpu == "arm" && arm_version == 7) || !arm_use_neon) {
     deps = [
       ":cronet_package_copy",
       ":cronet_package_copy_native_headers",
@@ -2219,32 +2217,5 @@ group("cronet_package_android") {
 # Everything added here will be executed in the CI.
 group("cronet_package_ci") {
   testonly = true
-  deps = [
-    ":generate_build_script_test",
-    "//components/cronet/gn2bp/tests/test_rlib_crate:rust_test_targets",
-    "//components/cronet/license/tests/target_a",
-  ]
-}
-
-group("cronet_android_mainline") {
-  # Target for android mainline which removed unnecessary deps from
-  # "cronet_package_android"
-
-  # Enforce building with ICU alternatives, crbug.com/611621.
-  # Enforce that arm_use_neon==false when building for ARMv7 by
-  # not including any deps in cronet_package target otherwise.
-  if (use_platform_icu_alternatives &&
-      (!(target_cpu == "arm" && arm_version == 7) || !arm_use_neon)) {
-    deps = [
-      ":cronet_package_copy_native_lib",
-      ":jar_cronet_api_source",
-      ":repackage_api",
-      ":repackage_impl_common",
-      ":repackage_native",
-      ":repackage_shared",
-    ]
-    if (current_cpu == "arm" && arm_version == 7) {
-      deps += [ ":enforce_no_neon" ]
-    }
-  }
+  deps = [ "//components/cronet/license/tests/target_a" ]
 }

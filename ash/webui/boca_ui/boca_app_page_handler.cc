@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "ash/constants/ash_features.h"
@@ -21,15 +22,18 @@
 #include "ash/webui/boca_ui/provider/tab_info_collector.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/wm_event.h"
+#include "base/check.h"
 #include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/sequence_checker.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/boca/boca_app_client.h"
 #include "chromeos/ash/components/boca/boca_metrics_util.h"
@@ -50,6 +54,8 @@
 #include "chromeos/ash/components/boca/session_api/session_client_impl.h"
 #include "chromeos/ash/components/boca/session_api/update_session_request.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_constants.h"
+#include "chromeos/ash/components/boca/student_screen_presenter.h"
+#include "chromeos/ash/components/boca/teacher_screen_presenter.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ui/frame/multitask_menu/float_controller_base.h"
 #include "chromeos/ui/wm/constants.h"
@@ -328,7 +334,7 @@ BocaAppHandler::~BocaAppHandler() {
   // Best effort end session. Not handling response, if update failed,
   // persistent notification will stay.
   EndSession(base::BindOnce([](std::optional<mojom::UpdateSessionError>) {}));
-  if (ash::features::IsBocaMarkerModeEnabled() && is_producer_) {
+  if (ash::features::IsAnnotatorModeEnabled() && is_producer_) {
     ash::boca::util::EnableOrDisableMarkerMode(/*enable=*/false);
   }
 }
@@ -638,27 +644,13 @@ void BocaAppHandler::EndViewScreenSession(
     const std::string& id,
     EndViewScreenSessionCallback callback) {
   CHECK(spotlight_service_);
-
-  if (ash::features::IsBocaSpotlightRobotRequesterEnabled()) {
-    GetSessionManager()->EndSpotlightSession();
+  if (student_screen_presenter() &&
+      student_screen_presenter()->IsPresenting()) {
+    // Already ended and a presentation is in progress.
+    std::move(callback).Run(std::nullopt);
+    return;
   }
-
-  spotlight_service_->UpdateViewScreenState(
-      id, ::boca::ViewScreenConfig::INACTIVE, base_url_,
-      base::BindOnce(
-          [](EndViewScreenSessionCallback cb,
-             base::expected<bool, google_apis::ApiErrorCode> result) {
-            if (!result.has_value()) {
-              boca::RecordEndViewStudentScreenErrorCode(result.error());
-              LOG(WARNING)
-                  << "[Boca] Error setting view screen state to inactive: "
-                  << result.error();
-              std::move(cb).Run(mojom::EndViewScreenSessionError::kHTTPError);
-              return;
-            }
-            std::move(cb).Run(std::nullopt);
-          },
-          std::move(callback)));
+  EndViewScreenSessionInternal(id, std::move(callback));
 }
 
 void BocaAppHandler::SetViewScreenSessionActive(
@@ -766,6 +758,59 @@ void BocaAppHandler::StartSpotlight(const std::string& crd_connection_code,
   std::move(callback).Run();
 }
 
+void BocaAppHandler::PresentStudentScreen(
+    mojom::IdentityPtr student,
+    const std::string& receiver_id,
+    PresentStudentScreenCallback callback) {
+  auto* session = GetSessionManager()->GetCurrentSession();
+  if (!student_screen_presenter() || !session ||
+      !IsActiveSession(session->session_id())) {
+    LOG(ERROR) << "[Boca] unexpected call to present student screen";
+    std::move(callback).Run(false);
+    return;
+  }
+  std::string student_id = student->id;
+  auto end_view_screen_cb = base::BindOnce(
+      &BocaAppHandler::OnEndViewScreenResponseForPresentStudentScreen,
+      weak_ptr_factory_.GetWeakPtr(), session->session_id(), std::move(student),
+      receiver_id, std::move(callback));
+  EndViewScreenSessionInternal(student_id, std::move(end_view_screen_cb));
+}
+
+void BocaAppHandler::StopPresentingStudentScreen(
+    StopPresentingStudentScreenCallback callback) {
+  if (!student_screen_presenter()) {
+    LOG(ERROR) << "[Boca] unexpected call to stop presenting student screen";
+    std::move(callback).Run(false);
+    return;
+  }
+  student_screen_presenter()->Stop(std::move(callback));
+}
+
+void BocaAppHandler::PresentOwnScreen(const std::string& receiver_id,
+                                      PresentOwnScreenCallback callback) {
+  if (!teacher_screen_presenter()) {
+    LOG(ERROR) << "[Boca] unexpected call to present teacher's own screen";
+    std::move(callback).Run(false);
+    return;
+  }
+  teacher_screen_presenter()->Start(
+      receiver_id, user_identity_, std::move(callback),
+      base::BindOnce(&BocaAppHandler::OnPresentOwnScreenEnded,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void BocaAppHandler::StopPresentingOwnScreen(
+    StopPresentingOwnScreenCallback callback) {
+  if (!teacher_screen_presenter()) {
+    LOG(ERROR)
+        << "[Boca] unexpected call to stop presenting teacher's own screen";
+    std::move(callback).Run(false);
+    return;
+  }
+  teacher_screen_presenter()->Stop(std::move(callback));
+}
+
 void BocaAppHandler::OnStudentActivityUpdated(
     std::vector<mojom::IdentifiedActivityPtr> activities) {
   remote_->OnStudentActivityUpdated(std::move(activities));
@@ -835,6 +880,13 @@ void BocaAppHandler::OnSessionEnded(const std::string& session_id) {
   ResetProducerSessionCaptionConfig();
   OnSessionConfigUpdated(
       mojom::ConfigResult::NewError(mojom::GetSessionError::kEmpty));
+  if (student_screen_presenter() &&
+      student_screen_presenter()->IsPresenting()) {
+    // Ending the session should disconnect the student remoting so update the
+    // UI.
+    remote_->OnPresentStudentScreenEnded();
+    student_screen_presenter()->Stop(base::DoNothing());
+  }
 }
 
 void BocaAppHandler::OnBundleUpdated(const ::boca::Bundle& bundle) {
@@ -879,6 +931,13 @@ void BocaAppHandler::OnSessionCaptionClosed(bool is_error) {
                               producer_current_session_caption_config_->Clone(),
                               /*callback=*/base::DoNothing(),
                               /*can_proceed=*/true);
+}
+
+void BocaAppHandler::OnReceiverInvalidation() {
+  if (!student_screen_presenter()) {
+    return;
+  }
+  student_screen_presenter()->CheckConnection();
 }
 
 void BocaAppHandler::NotifyLocalCaptionConfigUpdate(
@@ -1265,6 +1324,103 @@ void BocaAppHandler::SetAccountImage(user_manager::User* user) {
     user_identity_.set_photo_url(
         webui::GetBitmapDataUrl(maybe_account_info.account_image.AsBitmap()));
   }
+}
+
+void BocaAppHandler::OnPresentStudentScreenEnded() {
+  remote_->OnPresentStudentScreenEnded();
+}
+
+void BocaAppHandler::OnPresentOwnScreenEnded() {
+  remote_->OnPresentOwnScreenEnded();
+}
+
+void BocaAppHandler::EndViewScreenSessionInternal(
+    const std::string& id,
+    EndViewScreenSessionCallback callback) {
+  CHECK(spotlight_service_);
+
+  if (ash::features::IsBocaSpotlightRobotRequesterEnabled()) {
+    GetSessionManager()->EndSpotlightSession();
+  }
+
+  spotlight_service_->UpdateViewScreenState(
+      id, ::boca::ViewScreenConfig::INACTIVE, base_url_,
+      base::BindOnce(
+          [](EndViewScreenSessionCallback cb,
+             base::expected<bool, google_apis::ApiErrorCode> result) {
+            if (!result.has_value()) {
+              boca::RecordEndViewStudentScreenErrorCode(result.error());
+              LOG(WARNING)
+                  << "[Boca] Error setting view screen state to inactive: "
+                  << result.error();
+              std::move(cb).Run(mojom::EndViewScreenSessionError::kHTTPError);
+              return;
+            }
+            std::move(cb).Run(std::nullopt);
+          },
+          std::move(callback)));
+}
+
+void BocaAppHandler::PresentStudentScreenInternal(
+    const std::string& session_id,
+    mojom::IdentityPtr student,
+    const std::string& receiver_id,
+    PresentStudentScreenCallback callback) {
+  if (!IsActiveSession(session_id)) {
+    std::move(callback).Run(false);
+    return;
+  }
+  if (!student_screen_presenter()) {
+    LOG(ERROR) << "[Boca] unexpected call to present student screen";
+    std::move(callback).Run(false);
+    return;
+  }
+  ::boca::UserIdentity student_identity;
+  student_identity.set_gaia_id(student->id);
+  student_identity.set_email(student->email);
+  student_identity.set_full_name(student->name);
+  std::optional<std::string> student_device_id =
+      GetSessionManager()->GetStudentActiveDeviceId(student->id);
+  if (!student_device_id.has_value()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  student_screen_presenter()->Start(
+      receiver_id, student_identity, student_device_id.value(),
+      std::move(callback),
+      base::BindOnce(&BocaAppHandler::OnPresentStudentScreenEnded,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void BocaAppHandler::OnEndViewScreenResponseForPresentStudentScreen(
+    const std::string& session_id,
+    mojom::IdentityPtr student,
+    const std::string& receiver_id,
+    PresentStudentScreenCallback callback,
+    std::optional<mojom::EndViewScreenSessionError> end_view_screen_error) {
+  if (end_view_screen_error.has_value()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  // Delay presentation to increase the likelihood the host receives the
+  // inactive connection notification and can accept the new one.
+  // TODO(crbug.com/445259545): The race condition is still there even with the
+  // delay. Update the host side to allow new connection even if the previous
+  // one is ongoing and then remove this delay.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&BocaAppHandler::PresentStudentScreenInternal,
+                     weak_ptr_factory_.GetWeakPtr(), session_id,
+                     std::move(student), receiver_id, std::move(callback)),
+      base::Seconds(5));
+}
+
+TeacherScreenPresenter* BocaAppHandler::teacher_screen_presenter() {
+  return GetSessionManager()->GetTeacherScreenPresenter();
+}
+
+StudentScreenPresenter* BocaAppHandler::student_screen_presenter() {
+  return GetSessionManager()->GetStudentScreenPresenter();
 }
 
 }  // namespace ash::boca

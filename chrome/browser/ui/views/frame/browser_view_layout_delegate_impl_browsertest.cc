@@ -6,10 +6,14 @@
 
 #include <memory>
 
+#include "base/run_loop.h"
+#include "base/scoped_observation.h"
+#include "build/build_config.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_view_layout.h"
+#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
@@ -18,18 +22,134 @@
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "content/public/test/browser_test.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/test/views_test_utils.h"
+#include "ui/views/widget/widget_observer.h"
 #include "url/gurl.h"
 
-class BrowserViewLayoutDelegateImplBrowsertest : public InteractiveBrowserTest {
+namespace {
+
+// Requires that gfx::Rect `arg` approximately equals `expected`, with an origin
+// within `allowed_origin_error` of `expected`'s, and a bottom right corner
+// within `allowed_bottom_right_error` of `expected`. If the errors are zero, is
+// equivalent to checking equality.
+//
+// For example:
+// ```
+//   ApproximatelyEquals(
+//       expected,
+//       gfx::Outsets::TLBR(1, 1, 0, 0),
+//       gfx::Outsets::TLBR(0, 0, 1, 1))
+// ```
+// Would match a rectangle which can be up to one unit bigger than `expected` in
+// any direction.
+MATCHER_P3(ApproximatelyEquals,
+           /* gfx::Rect */ expected,
+           /* gfx::Outsets */ allowed_origin_error,
+           /* gfx::Outsets */ allowed_bottom_right_error,
+           "Is Approximately Equal To") {
+  gfx::Rect origin_target(expected.origin(), gfx::Size(1, 1));
+  origin_target.Outset(allowed_origin_error);
+  gfx::Rect bottom_right_target(expected.right(), expected.bottom(), 1, 1);
+  bottom_right_target.Outset(allowed_bottom_right_error);
+  if (origin_target.Contains(arg.origin()) &&
+      bottom_right_target.Contains(arg.bottom_right())) {
+    return true;
+  }
+  LOG(ERROR) << "Expected bounds: " << expected.ToString()
+             << "\nActual bounds: " << arg.ToString()
+             << "\nEither top left: " << arg.origin().ToString() << " not in "
+             << origin_target.ToString()
+             << "\nOr bottom right: " << arg.bottom_right().ToString()
+             << " not in " << bottom_right_target.ToString();
+  return false;
+}
+
+enum class WindowState { kNormal, kMaximized, kImmersiveMode };
+
+std::string WindowStateToString(WindowState state) {
+  constexpr std::array kWindowStateNames = {"Normal", "Maximized",
+                                            "ImmersiveMode"};
+  return kWindowStateNames[static_cast<int>(state)];
+}
+
+class WidgetResizedWaiter : public views::WidgetObserver {
+ public:
+  explicit WidgetResizedWaiter(views::Widget* widget)
+      : original_bounds_(widget->GetWindowBoundsInScreen()) {
+    observation_.Observe(widget);
+  }
+
+  bool Wait() {
+    run_loop_.Run();
+    return resized_;
+  }
+
+ private:
+  // WidgetObserver:
+  void OnWidgetBoundsChanged(views::Widget*,
+                             const gfx::Rect& new_bounds) override {
+    resized_ =
+        new_bounds != original_bounds_ && new_bounds.Contains(original_bounds_);
+    run_loop_.Quit();
+  }
+  void OnWidgetDestroying(views::Widget*) override { observation_.Reset(); }
+
+  const gfx::Rect original_bounds_;
+  bool resized_ = false;
+  base::ScopedObservation<views::Widget, views::WidgetObserver> observation_{
+      this};
+  base::RunLoop run_loop_{base::RunLoop::Type::kNestableTasksAllowed};
+};
+
+gfx::Rect GetBoundsInWindow(views::View* view) {
+  auto* const widget = view->GetWidget();
+  auto* const root = widget->GetRootView();
+  return views::View::ConvertRectToTarget(view, root, view->GetLocalBounds());
+}
+
+}  // namespace
+
+class BrowserViewLayoutDelegateImplBrowsertest
+    : public InteractiveBrowserTest,
+      public testing::WithParamInterface<WindowState> {
  public:
   BrowserViewLayoutDelegateImplBrowsertest() = default;
   ~BrowserViewLayoutDelegateImplBrowsertest() override = default;
 
-  gfx::Rect GetBoundsInWindow(views::View* view, views::View* window) {
-    return views::View::ConvertRectToTarget(view, window,
-                                            view->GetLocalBounds());
+  void ApplyWindowState(Browser* browser) {
+    switch (GetParam()) {
+      case WindowState::kNormal:
+        break;
+      case WindowState::kMaximized: {
+        auto* const widget =
+            BrowserView::GetBrowserViewForBrowser(browser)->GetWidget();
+        WidgetResizedWaiter waiter(widget);
+        widget->Maximize();
+        ASSERT_TRUE(waiter.Wait());
+        ASSERT_TRUE(widget->IsMaximized());
+        break;
+      }
+      case WindowState::kImmersiveMode: {
+        auto* const browser_view =
+            BrowserView::GetBrowserViewForBrowser(browser);
+        auto* const controller = browser_view->immersive_mode_controller();
+        // Note: this will enter immersive mode without going fullscreen.
+        controller->SetEnabled(true);
+        ASSERT_TRUE(controller->IsEnabled());
+        immersive_mode_lock_ = controller->GetRevealedLock(
+            ImmersiveModeController::AnimateReveal::ANIMATE_REVEAL_NO);
+        ASSERT_TRUE(controller->IsRevealed());
+        break;
+      }
+    }
+  }
+
+  void TearDownOnMainThread() override {
+    immersive_mode_lock_.reset();
+    InteractiveBrowserTest::TearDownOnMainThread();
   }
 
   void SetUseLayoutDelegate(Browser* browser, bool use_new_delegate) {
@@ -54,18 +174,30 @@ class BrowserViewLayoutDelegateImplBrowsertest : public InteractiveBrowserTest {
 
  private:
   web_app::OsIntegrationTestOverrideBlockingRegistration faked_os_integration_;
+  std::unique_ptr<ImmersiveRevealedLock> immersive_mode_lock_;
 };
 
-// TODO(crbug.com/445725696): Fix failing test on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_CompareOldAndNewLayout_TabbedBrowser \
-  DISABLED_CompareOldAndNewLayout_TabbedBrowser
-#else
-#define MAYBE_CompareOldAndNewLayout_TabbedBrowser \
-  CompareOldAndNewLayout_TabbedBrowser
+INSTANTIATE_TEST_SUITE_P(,
+                         BrowserViewLayoutDelegateImplBrowsertest,
+// Immersive mode is only available on Mac and ChromeOS, but Mac does not
+// support maximization in the same sense as other platforms.
+#if BUILDFLAG(IS_MAC)
+                         testing::Values(WindowState::kNormal,
+                                         WindowState::kImmersiveMode),
+#elif BUILDFLAG(IS_CHROMEOS)
+                         testing::Values(WindowState::kNormal,
+                                         WindowState::kMaximized,
+                                         WindowState::kImmersiveMode),
+#else  // Linux or Windows
+                         testing::Values(WindowState::kNormal,
+                                         WindowState::kMaximized),
 #endif
-IN_PROC_BROWSER_TEST_F(BrowserViewLayoutDelegateImplBrowsertest,
-                       MAYBE_CompareOldAndNewLayout_TabbedBrowser) {
+                         [](testing::TestParamInfo<WindowState> info) {
+                           return WindowStateToString(info.param);
+                         });
+
+IN_PROC_BROWSER_TEST_P(BrowserViewLayoutDelegateImplBrowsertest,
+                       CompareOldAndNewLayout_TabbedBrowser) {
   BrowserView* const browser_view =
       BrowserView::GetBrowserViewForBrowser(browser());
   TabStrip* const tabstrip = browser_view->tabstrip();
@@ -73,68 +205,84 @@ IN_PROC_BROWSER_TEST_F(BrowserViewLayoutDelegateImplBrowsertest,
   gfx::Rect tabstrip_bounds;
   gfx::Rect toolbar_bounds;
 
+  ApplyWindowState(browser());
+
   // Get the bounds using the old layout.
   {
     SetUseLayoutDelegate(browser(), false);
-    tabstrip_bounds = GetBoundsInWindow(tabstrip, browser_view);
-    toolbar_bounds = GetBoundsInWindow(toolbar, browser_view);
+    tabstrip_bounds = GetBoundsInWindow(tabstrip);
+    toolbar_bounds = GetBoundsInWindow(toolbar);
   }
 
   // Get the bounds in the new layout and confirm that they match.
   {
     SetUseLayoutDelegate(browser(), true);
-    EXPECT_EQ(tabstrip_bounds, GetBoundsInWindow(tabstrip, browser_view))
+
+    // Ensure the tabstrip is in the correct location.
+    gfx::Outsets allowed_tl_error;
+    gfx::Outsets allowed_br_error;
+#if BUILDFLAG(IS_CHROMEOS)
+    // On ChromeOS under the new layout, the frame buttons can be a pixel taller
+    // than the default toolbar size; this will be reflected in the new API's
+    // sizing of the toolbar.
+    allowed_br_error = gfx::Outsets::TLBR(0, 0, 1, 0);
+#endif
+    const gfx::Rect actual_tabstrip_bounds = GetBoundsInWindow(tabstrip);
+    EXPECT_THAT(actual_tabstrip_bounds,
+                ApproximatelyEquals(tabstrip_bounds, allowed_tl_error,
+                                    allowed_br_error))
         << "Tabstrip bounds differ.";
-    EXPECT_EQ(toolbar_bounds, GetBoundsInWindow(toolbar, browser_view))
+
+    // Because the position of the tabstrip can vary, normalize expected toolbar
+    // location by the bottom of the actual tabstrip.
+    gfx::Rect expected_toolbar_bounds = toolbar_bounds;
+    expected_toolbar_bounds.Offset(
+        0, actual_tabstrip_bounds.bottom() - tabstrip_bounds.bottom());
+    EXPECT_EQ(expected_toolbar_bounds, GetBoundsInWindow(toolbar))
         << "Toolbar bounds differ.";
   }
 }
 
-// TODO(crbug.com/445725696): Fix failing test on Mac and Linux.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-#define MAYBE_CompareOldAndNewLayout_AppBrowser \
-  DISABLED_CompareOldAndNewLayout_AppBrowser
-#else
-#define MAYBE_CompareOldAndNewLayout_AppBrowser \
-  CompareOldAndNewLayout_AppBrowser
-#endif
-IN_PROC_BROWSER_TEST_F(BrowserViewLayoutDelegateImplBrowsertest,
-                       MAYBE_CompareOldAndNewLayout_AppBrowser) {
+IN_PROC_BROWSER_TEST_P(BrowserViewLayoutDelegateImplBrowsertest,
+                       CompareOldAndNewLayout_AppBrowser) {
   Browser* const app_browser = CreateAppBrowser();
-  BrowserView* const browser_view =
-      BrowserView::GetBrowserViewForBrowser(app_browser);
   WebAppFrameToolbarView* const toolbar =
-      browser_view->web_app_frame_toolbar_for_testing();
+      BrowserView::GetBrowserViewForBrowser(app_browser)
+          ->web_app_frame_toolbar_for_testing();
   gfx::Rect toolbar_bounds;
+
+  ApplyWindowState(app_browser);
 
   // Get the bounds using the old layout.
   {
     SetUseLayoutDelegate(app_browser, false);
-    toolbar_bounds = GetBoundsInWindow(toolbar, browser_view);
+    toolbar_bounds = GetBoundsInWindow(toolbar);
   }
 
   // Get the bounds in the new layout and confirm that they match.
   {
     SetUseLayoutDelegate(app_browser, true);
-    EXPECT_EQ(toolbar_bounds, GetBoundsInWindow(toolbar, browser_view))
+    EXPECT_EQ(toolbar_bounds, GetBoundsInWindow(toolbar))
         << "Toolbar bounds differ.";
   }
 }
 
-IN_PROC_BROWSER_TEST_F(BrowserViewLayoutDelegateImplBrowsertest,
+IN_PROC_BROWSER_TEST_P(BrowserViewLayoutDelegateImplBrowsertest,
                        Screenshot_TabbedBrowser) {
   SetUseLayoutDelegate(browser(), true);
+
+  ApplyWindowState(browser());
 
   gfx::Rect bounds;
   RunTestSequence(
       SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
                               "Screenshot not supported on all platforms"),
       WithView(kBrowserViewElementId,
-               [this, &bounds](BrowserView* browser_view) {
+               [&bounds](BrowserView* browser_view) {
                  TabStrip* const tabstrip = browser_view->tabstrip();
                  tabstrip->InvalidateLayout();
                  views::test::RunScheduledLayout(browser_view);
-                 bounds = GetBoundsInWindow(tabstrip, browser_view);
+                 bounds = GetBoundsInWindow(tabstrip);
                  bounds.set_x(0);
                  bounds.set_width(browser_view->width());
                }),
@@ -142,32 +290,30 @@ IN_PROC_BROWSER_TEST_F(BrowserViewLayoutDelegateImplBrowsertest,
                  std::ref(bounds)));
 }
 
-// TODO(crbug.com/445725696): Fix failing test on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_Screenshot_AppBrowser DISABLED_Screenshot_AppBrowser
-#else
-#define MAYBE_Screenshot_AppBrowser Screenshot_AppBrowser
-#endif
-IN_PROC_BROWSER_TEST_F(BrowserViewLayoutDelegateImplBrowsertest,
-                       MAYBE_Screenshot_AppBrowser) {
-  Browser* const app_browser = CreateAppBrowser();
-  SetUseLayoutDelegate(app_browser, true);
+IN_PROC_BROWSER_TEST_P(BrowserViewLayoutDelegateImplBrowsertest,
+                       Screenshot_AppBrowser) {
+  // App browser can't be created inside RunTestSequence due to RunLoop issues.
+  auto* const app_browser = CreateAppBrowser();
+
+  ApplyWindowState(app_browser);
 
   gfx::Rect bounds;
-  RunTestSequenceInContext(
-      BrowserElements::From(app_browser)->GetContext(),
+  RunTestSequence(
       SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
                               "Screenshot not supported on all platforms"),
-      WithView(kBrowserViewElementId,
-               [this, &bounds](BrowserView* browser_view) {
-                 WebAppFrameToolbarView* const toolbar =
-                     browser_view->web_app_frame_toolbar_for_testing();
-                 toolbar->InvalidateLayout();
-                 views::test::RunScheduledLayout(browser_view);
-                 bounds = GetBoundsInWindow(toolbar, browser_view);
-                 bounds.set_x(0);
-                 bounds.set_width(browser_view->width());
-               }),
-      Screenshot(kBrowserViewElementId, "tabstrip_region", "6956029",
-                 std::ref(bounds)));
+      InContext(
+          BrowserElements::From(app_browser)->GetContext(),
+          WaitForShow(kBrowserViewElementId),
+          WithView(kBrowserViewElementId,
+                   [&bounds](BrowserView* browser_view) {
+                     WebAppFrameToolbarView* const toolbar =
+                         browser_view->web_app_frame_toolbar_for_testing();
+                     toolbar->InvalidateLayout();
+                     views::test::RunScheduledLayout(browser_view);
+                     bounds = GetBoundsInWindow(toolbar);
+                     bounds.set_x(0);
+                     bounds.set_width(browser_view->width());
+                   }),
+          Screenshot(kBrowserViewElementId, "tabstrip_region", "6956029",
+                     std::ref(bounds))));
 }

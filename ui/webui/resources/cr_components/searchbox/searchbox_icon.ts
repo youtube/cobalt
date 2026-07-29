@@ -145,20 +145,20 @@ export class SearchboxIconElement extends CrLitElement {
     };
   }
 
-  accessor backgroundImage: string;
+  accessor backgroundImage: string = '';
   accessor defaultIcon: string = '';
-  accessor hasIconContainerBackground: boolean;
+  accessor hasIconContainerBackground: boolean = false;
   accessor inSearchbox: boolean = false;
-  accessor isAnswer: boolean;
-  accessor isWeatherAnswer: boolean;
-  accessor isEnterpriseSearchAggregatorPeopleType: boolean;
-  accessor maskImage: string;
-  accessor match: AutocompleteMatch;
-  protected accessor iconStyle_: string;
-  protected accessor iconSrc_: string;
+  accessor isAnswer: boolean = false;
+  accessor isWeatherAnswer: boolean = false;
+  accessor isEnterpriseSearchAggregatorPeopleType: boolean = false;
+  accessor maskImage: string = '';
+  accessor match: AutocompleteMatch|null = null;
+  protected accessor iconStyle_: string = '';
+  protected accessor iconSrc_: string = '';
   private accessor iconLoading_: boolean = false;
-  protected accessor showIconImg_: boolean;
-  protected accessor imageSrc_: string;
+  protected accessor showIconImg_: boolean = false;
+  protected accessor imageSrc_: string = '';
   private accessor imageLoading_: boolean = false;
   private accessor isLensSearchbox_: boolean =
       loadTimeData.getBoolean('isLensSearchbox');
@@ -242,7 +242,7 @@ export class SearchboxIconElement extends CrLitElement {
   }
 
   private computeIsAnswer_(): boolean {
-    return this.match && !!this.match.answer;
+    return !!this.match && !!this.match.answer;
   }
 
   private computeIsWeatherAnswer_(): boolean {
@@ -255,7 +255,7 @@ export class SearchboxIconElement extends CrLitElement {
 
   private computeShowIconImg_(): boolean {
     // Lens searchbox should not use icon URL.
-    return !this.isLensSearchbox_ && this.match && !!this.match.iconUrl.url &&
+    return !this.isLensSearchbox_ && !!this.match && !!this.match.iconUrl.url &&
         !this.iconLoading_;
   }
 
@@ -314,6 +314,7 @@ export class SearchboxIconElement extends CrLitElement {
       'drive_slides',
       'drive_video',
       'google_agentspace_logo',
+      'google_agentspace_logo_25',
       'google_g',
       'google_g_gradient',
       'note',
@@ -352,10 +353,11 @@ export class SearchboxIconElement extends CrLitElement {
   protected getContainerBgColor_(): string {
     // If the match has an image dominant color, show that color in place of the
     // image until it loads. This helps the image appear to load more smoothly.
-    return (this.imageLoading_ && this.match.imageDominantColor) ?
+    return (this.imageLoading_ && this.match?.imageDominantColor) ?
         // .25 opacity matching c/b/u/views/omnibox/omnibox_match_cell_view.cc.
         `${this.match.imageDominantColor}40` :
-        'transparent';
+        'var(--color-searchbox-results-icon-container-background-fallback,' +
+        'transparent)';
   }
 
   protected onIconLoad_() {

@@ -1900,49 +1900,6 @@ void RasterImplementation::IssueImageDecodeCacheEntryCreation(
       sync_token.release_count(), target_color_space, needs_mips);
 }
 
-GLuint RasterImplementation::CreateAndConsumeForGpuRaster(
-    const gpu::Mailbox& mailbox) {
-  NOTREACHED();
-}
-
-GLuint RasterImplementation::CreateAndConsumeForGpuRaster(
-    const scoped_refptr<gpu::ClientSharedImage>& shared_image) {
-  NOTREACHED();
-}
-
-void RasterImplementation::DeleteGpuRasterTexture(GLuint texture) {
-  NOTREACHED();
-}
-
-void RasterImplementation::BeginGpuRaster() {
-  NOTREACHED();
-}
-void RasterImplementation::EndGpuRaster() {
-  NOTREACHED();
-}
-
-void RasterImplementation::BeginSharedImageAccessDirectCHROMIUM(GLuint texture,
-                                                                GLenum mode) {
-  NOTREACHED();
-}
-
-void RasterImplementation::EndSharedImageAccessDirectCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
-void RasterImplementation::InitializeDiscardableTextureCHROMIUM(
-    GLuint texture) {
-  NOTREACHED();
-}
-
-void RasterImplementation::UnlockDiscardableTextureCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
-bool RasterImplementation::LockDiscardableTextureCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
 void RasterImplementation::TraceBeginCHROMIUM(const char* category_name,
                                               const char* trace_name) {
   GPU_CLIENT_SINGLE_THREAD_CHECK();

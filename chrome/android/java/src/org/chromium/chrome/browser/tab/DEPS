@@ -61,6 +61,8 @@ include_rules = [
   "+chrome/browser/tabmodel/android/java/src/org/chromium/chrome/browser/tabmodel/TabGroupModelFilter.java",
   "+chrome/browser/ui/messages/android/java/src/org/chromium/chrome/browser/ui/messages/snackbar/SnackbarManager.java",
   "+chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/TabObscuringHandler.java",
+  "+chrome/browser/url_constants/android/java/src/org/chromium/chrome/browser/url_constants/UrlConstantResolver.java",
+  "+chrome/browser/url_constants/android/java/src/org/chromium/chrome/browser/url_constants/UrlConstantResolverFactory.java",
   "+chrome/browser/util/android/java/src/org/chromium/chrome/browser/util/WindowFeatures.java",
   "+chrome/browser/feature_engagement/java/src/org/chromium/chrome/browser/feature_engagement/TrackerFactory.java",
   "+chrome/browser/flags",
@@ -126,6 +128,7 @@ specific_include_rules = {
     "+chrome/browser/util/android/java/src/org/chromium/chrome/browser/util/UrlConstants.java",
     "+chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfUtils.java",
     "+chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfInfo.java",
+    "+chrome/android/java/src/org/chromium/chrome/browser/compositor/overlays/strip/StripLayoutUtils.java",
 
     "-components",
     "+components/android_autofill/browser/java/src/org/chromium/components/autofill",

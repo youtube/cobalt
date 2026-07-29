@@ -639,9 +639,6 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_SAME_VERSION_REPAIR_FAILED" desc="Error displayed if installation fails due to Chrome running.">
           Can not install the same Google Chrome version that is currently running. Please close Google Chrome and try again.
         </message>
-        <message name="IDS_SETUP_PATCH_FAILED" desc="Error message when setup.exe fails to patch itself.">
-          Installation failed due to unspecified error. Please download Google Chrome again.
-        </message>
         <message name="IDS_INSTALL_OS_NOT_SUPPORTED" desc="Error displayed if OS is not supported">
           Google Chrome requires Windows 10 or higher.
         </message>
@@ -998,10 +995,22 @@ Google Chrome is unable to recover your settings.
             <message name="IDS_CUSTOMIZE_CHROME" desc="In Title Case: The text label of the Customize Chrome menu item">
               C&amp;ustomize Your Chrome
             </message>
+            <message name="IDS_OTHER_CHROME_PROFILES_TITLE" desc="In Title Case: The title of the Other Chrome profiles section">
+              Other Chrome Profiles
+            </message>
+            <message name="IDS_MANAGE_CHROME_PROFILES" desc="In Title Case: The text label of the manage chrome profile item">
+              &amp;Manage Chrome Profiles
+            </message>
           </then>
           <else>
             <message name="IDS_CUSTOMIZE_CHROME" desc="The text label of the Customize Chrome menu item">
               C&amp;ustomize your Chrome
+            </message>
+            <message name="IDS_OTHER_CHROME_PROFILES_TITLE" desc="The title of the Other Chrome profiles section">
+              Other Chrome profiles
+            </message>
+            <message name="IDS_MANAGE_CHROME_PROFILES" desc="The text label of the manage chrome profile item">
+              &amp;Manage Chrome profiles
             </message>
           </else>
         </if>
@@ -1191,7 +1200,7 @@ Google Chrome is unable to recover your settings.
           To stay safer online with your parent’s choices, sign in to Chrome
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER" desc="This string is the body text of a reminder message, which is intended to help users understand that they have been signed in to Chrome. The user previously signed in to a Google service (like Gmail or Maps), and saw the Chrome Signin Bubble intercept; when asked whether the user wanted to sign in to Chrome as well, the user selected yes. After a period of time, this reminder message appears at the top right of Chrome (pointing at the Profile Menu) to remind the user that they made this choice a while ago. This body text string comes after the 'Welcome back, USER_NAME' string. We are focusing on the benefit that user enjoys, now that they're signed in to Chrome. The tone should be welcoming.">
-          While you're signed in, you can use your passwords and more from your Google Account in Chrome. You can change this at any time in settings.
+          While you're signed in, you can use your passwords and more from your Google Account in Chrome. You can change this anytime in settings.
         </message>
         <message name="IDS_SIGNIN_DICE_WEB_INTERCEPT_BUBBLE_CHROME_SIGNIN_IPH_TEXT_SIGNIN_REMINDER_SCREENREADER" desc="This string is the accessibility text of a reminder message, which is intended to help users understand that they have been signed in to Chrome.">
           While you're signed in, you can use your passwords and more from your Google Account in Chrome. <ph name="SHORTCUT">$1<ex>CTRL+SHIFT+M</ex></ph> can change your Google services settings.
@@ -1793,6 +1802,10 @@ Google Chrome is unable to recover your settings.
           desc="The message on the toast prompting the user to share their thoughts by sending feedback.">
           Share your thoughts
         </message>
+        <message name="IDS_LENS_OVERLAY_FEEDBACK_TOAST_MESSAGE_ALT"
+          desc="The message on the toast asking the user if the results are useful and to send feedback.">
+          Are these results useful?
+        </message>
         <message name="IDS_LENS_OVERLAY_SEND_FEEDBACK_BUTTON_LABEL"
           desc="The label for the button that on click opens a feedback form for the user to send feedback about the feature.">
           Send feedback
@@ -2118,6 +2131,13 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_LENS_CONTEXTUAL_SEARCH_DEFAULT_QUERY"
           desc="Default query for Lens searchbox to request help with the current page context.">
           help me with this
+        </message>
+        <message name="IDS_LENS_CONTEXTUAL_SEARCH_ZERO_STATE_QUERY"
+          is_accessibility_with_no_ui="true"
+          desc="Default query for Lens searchbox to request help with the current page context in a low intent state.">
+          **Summarize:** In a single sentence under 30 words, describe the primary subject and purpose of the content in the screenshot.
+
+          **Suggest Questions:** Generate a bulleted list of 3-5 thought-provoking questions a user could ask to better understand the screenshot. These questions should include at least one that is specifically about a visual object, its design, or its placement.
         </message>
 
         <!-- AI Mode Strings -->

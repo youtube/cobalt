@@ -41,7 +41,6 @@
 #include "content/public/common/content_features.h"
 #include "media/audio/audio_features.h"
 #include "media/base/media_switches.h"
-#include "sandbox/policy/features.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -184,10 +183,6 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
       chrome::android::kLockTopControlsOnLargeTablets);
   feature_overrides.EnableFeature(
       chrome::android::kLockTopControlsOnLargeTabletsV2);
-  // TODO(crbug.com/445446479): Remove when rollout is complete to all form
-  // factors.
-  feature_overrides.EnableFeature(
-      sandbox::policy::features::kAndroidGpuSandbox);
   // Bypass the WebAudio output buffer, to reduce audio latency.
   // TODO(crbug.com/436988695): Remove when the long term solution is
   // implemented.
@@ -224,6 +219,9 @@ void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
   // TODO(crbug.com/445475304): Remove when tablet rollout is complete.
   feature_overrides.EnableFeature(feed::kAndroidOpenIncognitoAsWindow);
   feature_overrides.EnableFeature(chrome::android::kTabStripIncognitoMigration);
+  // TODO(crbug.com/427242080): Remove when tablet rollout is complete.
+  feature_overrides.EnableFeature(
+      chrome::android::kAndroidPinnedTabsTabletTabStrip);
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
   // Desktop-first features which are past incubation should either end up here,
   // or to a finch trial that enables it for all form factors.

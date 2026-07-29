@@ -185,9 +185,9 @@ rust_static_library("font_format_check") {
   sources = [ crate_root ]
   cxx_bindings = [ crate_root ]
   deps = [
-    "//third_party/rust/font_types/v0_9:lib",
-    "//third_party/rust/read_fonts/v0_34:lib",
-    "//third_party/rust/skrifa/v0_36:lib",
+    "//third_party/rust/font_types/v0_10:lib",
+    "//third_party/rust/read_fonts/v0_35:lib",
+    "//third_party/rust/skrifa/v0_37:lib",
   ]
 }
 
@@ -236,7 +236,6 @@ group("blink_platform_public_deps") {
     "//third_party/blink/renderer/platform/network:make_generated",
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/boringssl",
-    "//third_party/libpng",
     "//third_party/libwebp",
     "//third_party/ots",
     "//ui/gfx/animation/keyframe",
@@ -1808,6 +1807,7 @@ component("platform") {
     "//cc",
     "//cc/ipc",
     "//cc/mojo_embedder",
+    "//components/input",
     "//components/language_detection/content/common",
     "//components/language_detection/content/common:common_blink",
     "//components/language_detection/content/renderer",
@@ -2463,6 +2463,7 @@ source_set("blink_platform_unittests_sources") {
     "//base/test:test_support",
     "//cc",
     "//cc:test_support",
+    "//components/input",
     "//components/viz/common:shared_image_format",
     "//gin",
     "//media:test_support",
@@ -2875,7 +2876,6 @@ fuzzer_test("blink_png_decoder_fuzzer") {
     ":blink_fuzzer_test_support",
     ":blink_image_decoder_fuzzer_test_support",
     ":platform",
-    "//third_party/libpng",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/png.dict"
   seed_corpuses = [

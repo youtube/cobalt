@@ -53,7 +53,6 @@
 #include "gpu/ipc/common/memory_stats.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "gpu/ipc/service/image_decode_accelerator_worker.h"
 #include "gpu/vulkan/buildflags.h"
@@ -115,6 +114,7 @@
 
 #if BUILDFLAG(SKIA_USE_DAWN)
 #include "gpu/command_buffer/service/dawn_context_provider.h"
+#include "gpu/command_buffer/service/gpu_persistent_cache.h"
 #endif
 
 #if BUILDFLAG(SKIA_USE_METAL)
@@ -241,15 +241,21 @@ GpuServiceImpl::GpuServiceImpl(
     if (dawn_context_provider_) {
       // GpuServiceImpl holds the instance of DawnContextProvider, so it
       // outlives the DawnContextProvider.
-      auto cache_blob_callback = base::BindRepeating(
-          [](GpuServiceImpl* self, const std::string& key,
-             const std::string& blob) {
-            self->StoreBlobToDisk(gpu::kGraphiteDawnGpuDiskCacheHandle, key,
-                                  blob);
-          },
-          base::Unretained(this));
-      auto caching_interface = dawn_caching_interface_factory_->CreateInstance(
-          gpu::kGraphiteDawnGpuDiskCacheHandle, std::move(cache_blob_callback));
+      std::unique_ptr<dawn::platform::CachingInterface> caching_interface;
+      if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+        caching_interface = std::make_unique<gpu::GpuPersistentCache>();
+      } else {
+        auto cache_blob_callback = base::BindRepeating(
+            [](GpuServiceImpl* self, const std::string& key,
+               const std::string& blob) {
+              self->StoreBlobToDisk(gpu::kGraphiteDawnGpuDiskCacheHandle, key,
+                                    blob);
+            },
+            base::Unretained(this));
+        caching_interface = dawn_caching_interface_factory_->CreateInstance(
+            gpu::kGraphiteDawnGpuDiskCacheHandle,
+            std::move(cache_blob_callback));
+      }
       dawn_context_provider_->SetCachingInterface(std::move(caching_interface));
     }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
@@ -277,9 +283,6 @@ GpuServiceImpl::GpuServiceImpl(
         base::SequencedTaskRunner::GetCurrentDefault());
   }
 #endif
-
-  gpu_memory_buffer_factory_ = gpu::GpuMemoryBufferFactory::CreateNativeType(
-      vulkan_context_provider(), io_runner_);
 
   weak_ptr_ = weak_ptr_factory_.GetWeakPtr();
 }
@@ -321,18 +324,9 @@ GpuServiceImpl::~GpuServiceImpl() {
   if (watchdog_thread_)
     watchdog_thread_->OnGpuProcessTearDown();
 
-#if !BUILDFLAG(IS_ANDROID)
-  if (owned_shared_image_manager_) {
-    // Clear the SharedImageManager's raw_ptr to the GMB factory before
-    // destroying the latter below.
-    owned_shared_image_manager_->clear_gpu_memory_buffer_factory();
-  }
-#endif
-
   compositor_gpu_thread_.reset();
   media_gpu_channel_manager_.reset();
   gpu_channel_manager_.reset();
-  gpu_memory_buffer_factory_.reset();
 
   // WebNN must be destroyed before the scheduler is destroyed.
   webnn_context_provider_.reset();
@@ -936,6 +930,30 @@ void GpuServiceImpl::SetChannelClientPid(int32_t client_id,
   gpu_channel_manager_->SetChannelClientPid(client_id, client_pid);
 }
 
+void GpuServiceImpl::SetChannelPersistentCacheFile(
+    int32_t client_id,
+    const gpu::GpuDiskCacheHandle& handle,
+    base::File db_file,
+    base::File journal_file,
+    base::UnsafeSharedMemoryRegion shared_lock) {
+  TRACE_EVENT2("gpu", "GpuServiceImpl::SetChannelPersistentCacheFile",
+               "client_id", client_id, "handle_type", GetHandleType(handle));
+#if BUILDFLAG(SKIA_USE_DAWN)
+  // TODO(399642827): Support other cache types.
+  CHECK_EQ(client_id, gpu::kGraphiteDawnClientId);
+  CHECK_EQ(GetHandleType(handle), gpu::GpuDiskCacheType::kDawnGraphite);
+  if (!dawn_context_provider_) {
+    return;
+  }
+
+  auto* persistent_cache = static_cast<gpu::GpuPersistentCache*>(
+      dawn_context_provider_->GetCachingInterface());
+  CHECK(persistent_cache);
+  persistent_cache->InitializeCache(std::move(db_file), std::move(journal_file),
+                                    std::move(shared_lock));
+#endif
+}
+
 void GpuServiceImpl::SetChannelDiskCacheHandle(
     int32_t client_id,
     const gpu::GpuDiskCacheHandle& handle) {
@@ -1322,7 +1340,7 @@ gpu::SharedImageManager* GpuServiceImpl::CreateSharedImageManager(
   bool thread_safe_manager = true;
   owned_shared_image_manager_ = std::make_unique<gpu::SharedImageManager>(
       thread_safe_manager, display_context_on_another_thread,
-      gpu_memory_buffer_factory_.get());
+      vulkan_context_provider(), io_runner_);
 #if BUILDFLAG(IS_OZONE)
   owned_shared_image_manager_->SetSupportsOverlays(supports_overlays);
 #endif

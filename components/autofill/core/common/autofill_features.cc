@@ -33,6 +33,12 @@ BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
 BASE_FEATURE(kAutofillAcrossIframesIosTriggerFormExtraction,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, whitespace is discarded during normalization of a house
+// number field.
+// TODO(crbug.com/447111009): Remove when launched.
+BASE_FEATURE(kAutofillAddressDiscardWhitespaceInHouseNumber,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature flag to control displaying of Autofill suggestions on
 // unclassified fields based on prefix matching. These suggestions are displayed
 // after the user typed a certain number of characters that match some data
@@ -198,6 +204,12 @@ const base::FeatureParam<bool> kAutofillAiServerModelUseCacheResults{
 BASE_FEATURE(kAutofillAiVoteForFormatStringsForAffixes,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, votes for the format of flight number fields are uploaded. For
+// example, if there is a flight number "LH89" on file, a submitted value of
+// "89" on a field with type `FLIGHT_RESERVATION_FLIGHT_NUMBER` uploads "N".
+BASE_FEATURE(kAutofillAiVoteForFormatStringsForFlightNumbers,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the second iteration AutofillAI.
 BASE_FEATURE(kAutofillAiWithDataSchema,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
@@ -251,33 +263,6 @@ BASE_FEATURE(kAutofillDisableFilling, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch for Autofill address import.
 BASE_FEATURE(kAutofillDisableAddressImport, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, autofill will use the new ranking algorithm for address profile
-// autofill suggestions.
-BASE_FEATURE(kAutofillEnableRankingFormulaAddressProfiles,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// The half life applied to the use count of profiles in the ranking formula.
-const base::FeatureParam<int>
-    kAutofillRankingFormulaAddressProfilesUsageHalfLife{
-        &kAutofillEnableRankingFormulaAddressProfiles,
-        "autofill_ranking_formula_address_profiles_usage_half_life", 20};
-
-// When enabled, autofill will use the new ranking algorithm for credit card
-// autofill suggestions.
-BASE_FEATURE(kAutofillEnableRankingFormulaCreditCards,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-// The half life applied to the use count.
-const base::FeatureParam<int> kAutofillRankingFormulaCreditCardsUsageHalfLife{
-    &kAutofillEnableRankingFormulaCreditCards,
-    "autofill_ranking_formula_credit_cards_usage_half_life", 20};
-// The boost factor applied to ranking virtual cards.
-const base::FeatureParam<int> kAutofillRankingFormulaVirtualCardBoost{
-    &kAutofillEnableRankingFormulaCreditCards,
-    "autofill_ranking_formula_virtual_card_boost", 5};
-// The half life applied to the virtual card boost.
-const base::FeatureParam<int> kAutofillRankingFormulaVirtualCardBoostHalfLife{
-    &kAutofillEnableRankingFormulaCreditCards,
-    "autofill_ranking_formula_virtual_card_boost_half_life", 15};
 
 // Enables a new implementation for address field parsing that is based on
 // backtracking.

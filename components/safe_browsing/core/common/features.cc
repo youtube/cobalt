@@ -40,6 +40,9 @@ BASE_FEATURE(kAdSamplerTriggerFeature,
 BASE_FEATURE(kAddWarningShownTSToClientSafeBrowsingReport,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAutoRevokeSuspiciousNotification,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kBundledSecuritySettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionBrandAndIntentForScamDetection,
@@ -69,21 +72,12 @@ const base::FeatureParam<double> kCsdCreditCardFormSampleRate{
     &kClientSideDetectionCreditCardForm, "SampleRate",
     /*default_value=*/0.0};
 
-BASE_FEATURE(kClientSideDetectionDebuggingMetadataCache,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kClientSideDetectionKeyboardPointerLockRequest,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionKillswitch, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionLlamaForcedTriggerInfoForScamDetection,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kClientSideDetectionNotificationPrompt,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kClientSideDetectionOnlyExtractVisualFeatures,
@@ -348,10 +342,9 @@ base::Value::List GetFeatureStatusList() {
   // chrome://safe-browsing. Features should be listed in alphabetical order.
   const base::Feature* kExperimentalFeatures[] = {
       // keep-sorted start
+      &kAutoRevokeSuspiciousNotification,
       &kClientSideDetectionForcedLlamaRedirectChainKillswitch,
-      &kClientSideDetectionKeyboardPointerLockRequest,
       &kClientSideDetectionKillswitch,
-      &kClientSideDetectionNotificationPrompt,
       &kClientSideDetectionRedirectChainKillswitch,
       &kCreateNotificationsAcceptedClientSafeBrowsingReports,
       &kDelayedWarnings,

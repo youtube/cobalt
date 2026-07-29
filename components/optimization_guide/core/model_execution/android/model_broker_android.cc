@@ -11,6 +11,7 @@
 #include "base/functional/callback_forward.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
+#include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_feature_adapter.h"
@@ -31,10 +32,34 @@ using BaseModelSpec = on_device_model::ModelDownloaderAndroid::BaseModelSpec;
 using DownloadFailureReason =
     on_device_model::ModelDownloaderAndroid::DownloadFailureReason;
 
+bool IsModelAllowed(PrefService* local_state) {
+  return features::IsOnDeviceExecutionEnabled() &&
+         optimization_guide::
+                 GetGenAILocalFoundationalModelEnterprisePolicySettings(
+                     local_state) ==
+             model_execution::prefs::
+                 GenAILocalFoundationalModelEnterprisePolicySettings::kAllowed;
+}
+
+proto::OnDeviceModelVersions GetModelVersions(const OnDeviceBaseModelSpec& spec,
+                                              int64_t adaptation_version) {
+  proto::OnDeviceModelVersions versions;
+  auto* on_device_model_version =
+      versions.mutable_on_device_model_service_version();
+  on_device_model_version->set_model_adaptation_version(adaptation_version);
+  auto* base_model_metadata =
+      on_device_model_version->mutable_on_device_base_model_metadata();
+  base_model_metadata->set_base_model_name(spec.model_name);
+  base_model_metadata->set_base_model_version(spec.model_version);
+  return versions;
+}
+
 class SolutionImpl : public ModelBrokerImpl::Solution {
  public:
   SolutionImpl(base::WeakPtr<ModelBrokerAndroid> parent,
-               scoped_refptr<const OnDeviceModelFeatureAdapter> adapter);
+               scoped_refptr<const OnDeviceModelFeatureAdapter> adapter,
+               const OnDeviceBaseModelSpec& spec,
+               int64_t adaptation_version);
   ~SolutionImpl() override;
 
  private:
@@ -53,12 +78,19 @@ class SolutionImpl : public ModelBrokerImpl::Solution {
 
   base::WeakPtr<ModelBrokerAndroid> parent_;
   scoped_refptr<const OnDeviceModelFeatureAdapter> adapter_;
+  const OnDeviceBaseModelSpec spec_;
+  const int64_t adaptation_version_;
 };
 
 SolutionImpl::SolutionImpl(
     base::WeakPtr<ModelBrokerAndroid> parent,
-    scoped_refptr<const OnDeviceModelFeatureAdapter> adapter)
-    : parent_(std::move(parent)), adapter_(std::move(adapter)) {}
+    scoped_refptr<const OnDeviceModelFeatureAdapter> adapter,
+    const OnDeviceBaseModelSpec& spec,
+    int64_t adaptation_version)
+    : parent_(std::move(parent)),
+      adapter_(std::move(adapter)),
+      spec_(spec),
+      adaptation_version_(adaptation_version) {}
 SolutionImpl::~SolutionImpl() = default;
 
 bool SolutionImpl::IsValid() const {
@@ -70,9 +102,8 @@ bool SolutionImpl::IsValid() const {
 mojom::ModelSolutionConfigPtr SolutionImpl::MakeConfig() const {
   auto config = mojom::ModelSolutionConfig::New();
   config->feature_config = mojo_base::ProtoWrapper(adapter_->config());
-  // TODO: crbug.com/441578339 - Add model versions.
   config->model_versions =
-      mojo_base::ProtoWrapper(proto::OnDeviceModelVersions());
+      mojo_base::ProtoWrapper(GetModelVersions(spec_, adaptation_version_));
   config->max_tokens = adapter_->GetTokenLimits().max_tokens;
   // TODO: crbug.com/442914748 - Add safety config.
   config->text_safety_config =
@@ -125,7 +156,7 @@ class ModelBrokerAndroid::SolutionFactory final
       ModelBasedCapabilityKey feature) override;
 
   // Asks AICore to download the base model.
-  void StartDownload(ModelBasedCapabilityKey feature);
+  void MaybeStartDownload(ModelBasedCapabilityKey feature);
 
   // Called when an AICore model was found (or not supported).
   void OnAICoreModelUpdated(
@@ -148,6 +179,11 @@ class ModelBrokerAndroid::SolutionFactory final
   // The current model adaptation assets.
   AdaptationMetadataMap adaptation_metadata_;
 
+  // The base model spec for each feature. This is set when the base model is
+  // downloaded.
+  absl::flat_hash_map<ModelBasedCapabilityKey, OnDeviceBaseModelSpec>
+      base_model_specs_;
+
   // Map from feature to the downloader for the base model. The downloader is
   // not null if and only if a download is ongoing.
   absl::flat_hash_map<ModelBasedCapabilityKey,
@@ -169,7 +205,7 @@ ModelBrokerAndroid::SolutionFactory::SolutionFactory(ModelBrokerAndroid& parent)
   for (auto feature : kAllModelBasedCapabilityKeys) {
     if (parent_->usage_tracker_.WasOnDeviceEligibleFeatureRecentlyUsed(
             feature)) {
-      StartDownload(feature);
+      MaybeStartDownload(feature);
     }
   }
 }
@@ -179,11 +215,16 @@ ModelBrokerAndroid::SolutionFactory::~SolutionFactory() {
 
 void ModelBrokerAndroid::SolutionFactory::OnDeviceEligibleFeatureFirstUsed(
     ModelBasedCapabilityKey feature) {
-  StartDownload(feature);
+  MaybeStartDownload(feature);
 }
 
-void ModelBrokerAndroid::SolutionFactory::StartDownload(
+void ModelBrokerAndroid::SolutionFactory::MaybeStartDownload(
     ModelBasedCapabilityKey feature) {
+  if (!IsModelAllowed(&(*parent_->local_state_))) {
+    MaybeUpdateModelAdaptation(
+        feature, base::unexpected(AdaptationUnavailability::kNotSupported));
+    return;
+  }
   // If there is an ongoing download, do nothing.
   if (model_downloaders_.contains(feature)) {
     return;
@@ -207,6 +248,7 @@ void ModelBrokerAndroid::SolutionFactory::OnAICoreModelUpdated(
     OnDeviceBaseModelSpec spec{
         result->name, result->version,
         proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_UNSPECIFIED};
+    base_model_specs_.insert_or_assign(feature, spec);
     loader_map_.MaybeRegisterModelDownload(
         feature, spec,
         parent_->usage_tracker_.WasOnDeviceEligibleFeatureRecentlyUsed(
@@ -263,14 +305,19 @@ ModelBrokerAndroid::SolutionFactory::MakeSolution(
         OnDeviceModelEligibilityReason::kModelAdaptationNotAvailable);
   }
 
+  auto spec_it = base_model_specs_.find(feature);
+  // Base model specs should always be set before adaptation becomes available.
+  CHECK(spec_it != base_model_specs_.end());
   return std::make_unique<SolutionImpl>(parent_->weak_ptr_factory_.GetWeakPtr(),
-                                        metadata->adapter());
+                                        metadata->adapter(), spec_it->second,
+                                        metadata->version());
 }
 
 ModelBrokerAndroid::ModelBrokerAndroid(
     PrefService& local_state,
     OptimizationGuideModelProvider& model_provider)
-    : model_provider_(model_provider),
+    : local_state_(local_state),
+      model_provider_(model_provider),
       usage_tracker_(&local_state),
       impl_(usage_tracker_,
             base::BindRepeating(&ModelBrokerAndroid::EnsureSolutionFactory,
@@ -293,9 +340,10 @@ ModelBrokerAndroid::GetOrCreateModelRemote(
         std::move(backend_model), service.remote.BindNewPipeAndPassReceiver(),
         base::BindOnce(&ModelBrokerAndroid::OnModelDisconnected,
                        weak_ptr_factory_.GetWeakPtr(), feature));
-    service.remote.reset_on_disconnect();
-    service.remote.reset_on_idle_timeout(
-        features::GetOnDeviceModelIdleTimeout());
+    service.remote.set_idle_handler(
+        features::GetOnDeviceModelIdleTimeout(),
+        base::BindRepeating(&ModelBrokerAndroid::OnModelDisconnected,
+                            weak_ptr_factory_.GetWeakPtr(), feature, nullptr));
     model_services_.emplace(feature, std::move(service));
   }
   return model_services_.at(feature).remote;

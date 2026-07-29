@@ -43,6 +43,12 @@ gfx::Rect ComputePopupWindowBounds(content::WebContents* source_window) {
   return gfx::Rect(x_coordinate, y_coordinate, kPopupWindowWidth,
                    kPopupWindowHeight);
 }
+
+// Returns true if the account has full name, email, and account image.
+bool HasCriticalAccountInfo(const AccountInfo& account) {
+  return !account.full_name.empty() && !account.email.empty() &&
+         !account.account_image.IsEmpty();
+}
 }  // namespace
 
 /////////////////
@@ -80,13 +86,10 @@ class AccountChooserController::AddAccountPopupObserver
 // AccountChooserController //
 //////////////////////////////
 
-WEB_CONTENTS_USER_DATA_KEY_IMPL(AccountChooserController);
-
 AccountChooserController::AccountChooserController(
     content::WebContents* web_contents,
     signin::IdentityManager* identity_manager)
-    : WebContentsUserData<AccountChooserController>(*web_contents),
-      tab_(tabs::TabInterface::MaybeGetFromContents(web_contents)),
+    : tab_(tabs::TabInterface::MaybeGetFromContents(web_contents)),
       identity_manager_(identity_manager),
       add_account_popup_observer_(
           std::make_unique<AddAccountPopupObserver>(this)) {}
@@ -103,14 +106,25 @@ void AccountChooserController::GetAccount(
   Show();
 }
 
+void AccountChooserController::OnErrorStateOfRefreshTokenUpdatedForAccount(
+    const CoreAccountInfo& account_info,
+    const GoogleServiceAuthError& error,
+    signin_metrics::SourceForRefreshTokenOperation token_operation_source) {
+  Show();
+}
+
 void AccountChooserController::OnExtendedAccountInfoUpdated(
     const AccountInfo& info) {
   // If the account is not fully populated, then we should not show the account
   // chooser dialog.
-  if (info.full_name.empty() || info.email.empty() ||
-      info.account_image.IsEmpty()) {
+  if (!HasCriticalAccountInfo(info)) {
     return;
   }
+  Show();
+}
+
+void AccountChooserController::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event) {
   Show();
 }
 
@@ -162,6 +176,9 @@ void AccountChooserController::ShowAccountChooserDialog(
       tab_->GetTabFeatures()->tab_dialog_manager()->CreateAndShowDialog(
           account_chooser_dialog_delegate_.get(),
           std::make_unique<tabs::TabDialogManager::Params>());
+  account_chooser_widget_->MakeCloseSynchronous(
+      base::BindOnce(&AccountChooserController::OnWidgetCancelledFlow,
+                     base::Unretained(this)));
 }
 
 void AccountChooserController::ShowAddAccountDialog() {
@@ -209,12 +226,33 @@ void AccountChooserController::OnSaveButtonClicked() {
 AccountChooserController::ProfileInfo
 AccountChooserController::GetProfileInfo() {
   ProfileInfo profile_info;
-  profile_info.accounts =
+  std::vector<AccountInfo> accounts =
       identity_manager_->GetExtendedAccountInfoForAccountsWithRefreshToken();
+  // Remove accounts that are not fully populated; they cannot be shown.
+  std::erase_if(accounts, std::not_fn(&HasCriticalAccountInfo));
+
+  std::optional<CoreAccountId> primary_account_id = std::nullopt;
   if (identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
-    profile_info.primary_account_id =
+    primary_account_id =
         identity_manager_->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   }
+
+  if (primary_account_id.has_value() &&
+      identity_manager_->HasPrimaryAccountWithRefreshToken(
+          signin::ConsentLevel::kSignin) &&
+      !identity_manager_->HasAccountWithRefreshTokenInPersistentErrorState(
+          *primary_account_id)) {
+    // Primary account has a valid refresh token.
+    profile_info.primary_account_id = primary_account_id;
+  } else if (primary_account_id.has_value()) {
+    // The primary account does not have a valid refresh token.  Remove primary
+    // account id from list of accounts with valid refresh tokens, if it exists.
+    std::erase_if(accounts, [&primary_account_id](const AccountInfo& account) {
+      return account.account_id == *primary_account_id;
+    });
+  }
+
+  profile_info.accounts = std::move(accounts);
   return profile_info;
 }
 
@@ -271,6 +309,11 @@ void AccountChooserController::CloseAddAccountPopup() {
 void AccountChooserController::CloseDialogs() {
   CloseAddAccountPopup();
   CloseWidget();
+}
+
+void AccountChooserController::OnWidgetCancelledFlow(
+    views::Widget::ClosedReason reason) {
+  OnFlowCancelled();
 }
 
 }  // namespace save_to_drive

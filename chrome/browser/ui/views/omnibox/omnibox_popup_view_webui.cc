@@ -15,6 +15,8 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_result_view.h"
@@ -22,9 +24,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
-#include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
-#include "components/omnibox/browser/omnibox_controller.h"
-#include "components/omnibox/browser/omnibox_edit_model.h"
+#include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "ui/accessibility/ax_node_data.h"
@@ -60,14 +60,6 @@ bool OmniboxPopupViewWebUI::IsOpen() const {
 }
 
 void OmniboxPopupViewWebUI::InvalidateLine(size_t line) {}
-
-void OmniboxPopupViewWebUI::OnSelectionChanged(
-    OmniboxPopupSelection old_selection,
-    OmniboxPopupSelection new_selection) {
-  if (RealboxHandler* handler = presenter_->GetHandler()) {
-    handler->UpdateSelection(old_selection, new_selection);
-  }
-}
 
 void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
   // Measure time since construction just once.

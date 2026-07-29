@@ -255,6 +255,8 @@ class DiceWebSigninInterceptionBubblePixelTest
     : public DialogBrowserTest,
       public testing::WithParamInterface<TestParam> {
  public:
+  DiceWebSigninInterceptionBubblePixelTest() = default;
+
   // DialogBrowserTest:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     if (GetParam().use_dark_theme) {

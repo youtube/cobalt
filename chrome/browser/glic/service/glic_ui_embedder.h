@@ -1,0 +1,53 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_GLIC_SERVICE_GLIC_UI_EMBEDDER_H_
+#define CHROME_BROWSER_GLIC_SERVICE_GLIC_UI_EMBEDDER_H_
+
+#include <memory>
+
+#include "chrome/browser/glic/host/glic.mojom-forward.h"
+#include "chrome/browser/glic/host/host.h"
+#include "ui/views/view.h"
+
+namespace tabs {
+class TabInterface;
+}
+
+namespace glic {
+
+class GlicUiEmbedder {
+ public:
+  class Delegate {
+   public:
+    virtual ~Delegate() = default;
+    virtual void SwitchConversation(
+        tabs::TabInterface* tab,
+        glic::mojom::ConversationInfoPtr info,
+        mojom::WebClientHandler::SwitchConversationCallback callback) = 0;
+    virtual void WillCloseFor(tabs::TabInterface* tab) = 0;
+    virtual Host& host() = 0;
+  };
+
+  virtual ~GlicUiEmbedder() = default;
+
+  // Returns the Host::EmbedderDelegate if this embedder uses one.
+  virtual Host::EmbedderDelegate* GetHostEmbedderDelegate() = 0;
+
+  // Show the glic UI.
+  virtual void Show() = 0;
+
+  // Returns true if the embedder is currently showing.
+  virtual bool IsShowing() const = 0;
+
+  // Close the glic UI (keeps webclient alive for now)
+  virtual void Close() = 0;
+
+  // Creates the inactive version of this embedder.
+  virtual std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const = 0;
+};
+
+}  // namespace glic
+
+#endif  // CHROME_BROWSER_GLIC_SERVICE_GLIC_UI_EMBEDDER_H_

@@ -207,12 +207,52 @@ bool ShouldResourceBeAddedToMemoryCache(const FetchParameters& params,
 bool ShouldResourceBeKeptStrongReferenceByType(
     Resource* resource,
     const SecurityOrigin* settings_object_origin) {
-  // Image, fonts, stylesheets and scripts are the most commonly reused scripts.
+  // By default, only the most commonly reused, critical resource types are
+  // candidates for being kept as strong references in the MemoryCache.
+  const auto resource_type = resource->GetType();
 
-  return resource->GetType() == ResourceType::kScript ||
-         resource->GetType() == ResourceType::kFont ||
-         resource->GetType() == ResourceType::kCSSStyleSheet ||
-         resource->GetType() == ResourceType::kMock;  // For tests.
+  // Some resource types are kept as strong references by default. Others can
+  // be enabled via kMemoryCacheStrongReferenceExtensions feature flags. The
+  // groupings below are based on the priorities from GetResourceTypePriority.
+  switch (resource_type) {
+    // --- Default values ---
+    case ResourceType::kScript:
+    case ResourceType::kFont:
+    case ResourceType::kCSSStyleSheet:
+      return true;
+    case ResourceType::kMock:  // Used by tests.
+      return true;
+
+    // --- High Priority ---
+    case ResourceType::kXSLStyleSheet:
+      return features::kMemoryCacheStrongRefXSLStyleSheet.Get();
+    case ResourceType::kRaw:
+      return features::kMemoryCacheStrongRefRaw.Get();
+
+    // --- Medium Priority ---
+    case ResourceType::kImage:
+      return features::kMemoryCacheStrongRefImage.Get();
+    case ResourceType::kSVGDocument:
+      return features::kMemoryCacheStrongRefSVGDocument.Get();
+    case ResourceType::kManifest:
+      return features::kMemoryCacheStrongRefManifest.Get();
+
+    // --- Low Priority ---
+    case ResourceType::kAudio:
+      return features::kMemoryCacheStrongRefAudio.Get();
+    case ResourceType::kVideo:
+      return features::kMemoryCacheStrongRefVideo.Get();
+    case ResourceType::kTextTrack:
+      return features::kMemoryCacheStrongRefTextTrack.Get();
+
+    // --- Lowest Priority ---
+    case ResourceType::kLinkPrefetch:
+      return features::kMemoryCacheStrongRefLinkPrefetch.Get();
+    case ResourceType::kSpeculationRules:
+      return features::kMemoryCacheStrongRefSpeculationRules.Get();
+    case ResourceType::kDictionary:
+      return features::kMemoryCacheStrongRefDictionary.Get();
+  }
 }
 
 bool ShouldResourceBeKeptStrongReference(
@@ -363,40 +403,6 @@ void RecordDeferUnusedPreloadHistograms(const Resource* resource) {
                       LinkPreloadStrForHistogram(resource->IsLinkPreload())}),
         resource->GetType());
   }
-}
-
-int CompareResourcePriorities(const ResourcePriority& a,
-                              const ResourcePriority& b) {
-  if (a.visibility != b.visibility) {
-    return a.visibility == ResourcePriority::kVisible ? 1 : -1;
-  }
-  // TODO(https://crbug.com/378623805): We may be able to use `is_lcp_resource`
-  // as a signal here, but there is an active experiment modifying how this
-  // works, so we are not checking it here to avoid experiment crosstalk.
-  // if (a.is_lcp_resource != b.is_lcp_resource) {
-  //   return a.is_lcp_resource ? 1 : -1;
-  // }
-  return a.intra_priority_value - b.intra_priority_value;
-}
-
-Resource* PopHighestPriorityDecodableResource(
-    HeapHashSet<WeakMember<Resource>>& resources) {
-  Resource* result = nullptr;
-  for (Resource* resource : resources) {
-    const ResourcePriority& priority = resource->PriorityFromObservers().first;
-    if (priority.visibility != ResourcePriority::kVisible ||
-        !resource->IsAboveSpeculativeDecodeSizeThreshold()) {
-      continue;
-    }
-    if (!result || CompareResourcePriorities(
-                       priority, result->PriorityFromObservers().first) > 0) {
-      result = resource;
-    }
-  }
-  if (result) {
-    resources.erase(result);
-  }
-  return result;
 }
 
 }  // namespace
@@ -1489,9 +1495,10 @@ Resource* ResourceFetcher::RequestResource(FetchParameters& params,
       }
       if (resource->GetType() == ResourceType::kImage &&
           resource->GetContentStatus() == ResourceStatus::kCached &&
-          base::FeatureList::IsEnabled(features::kSpeculativeImageDecodes)) {
+          base::FeatureList::IsEnabled(features::kSpeculativeImageDecodes) &&
+          resource->IsAboveSpeculativeDecodeSizeThreshold()) {
         speculative_decode_candidate_images_.insert(resource);
-        MaybeStartSpeculativeImageDecode();
+        StartSpeculativeImageDecodes();
       }
       break;
   }
@@ -2523,9 +2530,10 @@ void ResourceFetcher::HandleLoaderFinish(Resource* resource,
     resource->Finish(response_end, freezable_task_runner_.get());
     if (resource->GetType() == ResourceType::kImage &&
         resource->GetContentStatus() == ResourceStatus::kCached &&
-        base::FeatureList::IsEnabled(features::kSpeculativeImageDecodes)) {
+        base::FeatureList::IsEnabled(features::kSpeculativeImageDecodes) &&
+        resource->IsAboveSpeculativeDecodeSizeThreshold()) {
       speculative_decode_candidate_images_.insert(resource);
-      MaybeStartSpeculativeImageDecode();
+      StartSpeculativeImageDecodes();
     }
 
     // Since this resource came from the network stack we only schedule a stale
@@ -2819,11 +2827,11 @@ void ResourceFetcher::UpdateImagePrioritiesAndSpeculativeDecodes() {
   }
   speculative_decode_candidate_images_.erase_if(
       [](const WeakMember<Resource>& resource) -> bool {
-        return resource->PriorityFromObservers().first.visibility ==
-                   ResourcePriority::kNotVisible ||
-               !resource->IsAboveSpeculativeDecodeSizeThreshold();
+        return resource->PriorityFromObservers()
+                   .first.value_or(ResourcePriority())
+                   .visibility == ResourcePriority::kNotVisible;
       });
-  MaybeStartSpeculativeImageDecode();
+  StartSpeculativeImageDecodes();
 
   HeapVector<Member<Resource>> to_be_removed;
   for (Resource* resource : not_loaded_image_resources_) {
@@ -2838,7 +2846,8 @@ void ResourceFetcher::UpdateImagePrioritiesAndSpeculativeDecodes() {
 
     resource->UpdateResourceInfoFromObservers();
     auto priorities = resource->PriorityFromObservers();
-    ResourcePriority resource_priority = priorities.first;
+    ResourcePriority resource_priority =
+        priorities.first.value_or(ResourcePriority());
     ResourceLoadPriority computed_load_priority = ComputeLoadPriority(
         ResourceType::kImage, resource->GetResourceRequest(),
         resource_priority.visibility, FetchParameters::DeferOption::kNoDefer,
@@ -2848,7 +2857,7 @@ void ResourceFetcher::UpdateImagePrioritiesAndSpeculativeDecodes() {
         resource_priority.is_lcp_resource);
 
     ResourcePriority resource_priority_excluding_image_loader =
-        priorities.second;
+        priorities.second.value_or(ResourcePriority());
     ResourceLoadPriority computed_load_priority_excluding_image_loader =
         ComputeLoadPriority(
             ResourceType::kImage, resource->GetResourceRequest(),
@@ -3227,32 +3236,28 @@ void ResourceFetcher::MaybeSaveResourceToStrongReference(Resource* resource) {
   }
 }
 
-void ResourceFetcher::MaybeStartSpeculativeImageDecode() {
-  CHECK(base::FeatureList::IsEnabled(features::kSpeculativeImageDecodes) ||
-        !Context().SpeculativeDecodeRequestInFlight());
+void ResourceFetcher::StartSpeculativeImageDecodes() {
   CHECK(base::FeatureList::IsEnabled(features::kSpeculativeImageDecodes) ||
         speculative_decode_candidate_images_.empty());
-  if (Context().SpeculativeDecodeRequestInFlight()) {
-    return;
-  }
-  // Find the highest priority image to decode.
-  while (true) {
-    Resource* image_to_decode = PopHighestPriorityDecodableResource(
-        speculative_decode_candidate_images_);
-    if (!image_to_decode) {
-      break;
+  HeapVector<Member<Resource>> candidate_vector(
+      speculative_decode_candidate_images_);
+  for (Resource* resource : candidate_vector) {
+    // We may not have computed a priority yet, either because we have never run
+    // layout on the img element, or because we ran layout but skipped the
+    // computation because the intrinsic size was not available and the layout
+    // size was below the size threshold (see
+    // HTMLImageElement::DidFinishLayout). In that case, postpone making a
+    // decision about this candidate until the next layout runs.
+    std::optional<ResourcePriority> priority =
+        resource->PriorityFromObservers().first;
+    if (!priority.has_value()) {
+      continue;
     }
-    if (Context().StartSpeculativeImageDecode(
-            image_to_decode,
-            BindOnce(&ResourceFetcher::SpeculativeImageDecodeFinished,
-                     WrapWeakPersistent(this)))) {
-      break;
+    if (priority->visibility == ResourcePriority::kVisible) {
+      Context().StartSpeculativeImageDecode(resource);
     }
+    speculative_decode_candidate_images_.erase(resource);
   }
-}
-
-void ResourceFetcher::SpeculativeImageDecodeFinished() {
-  MaybeStartSpeculativeImageDecode();
 }
 
 void ResourceFetcher::OnMemoryPressure(

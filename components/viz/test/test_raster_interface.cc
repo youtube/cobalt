@@ -96,49 +96,6 @@ gpu::SyncToken TestRasterInterface::ScheduleImageDecode(
   return gpu::SyncToken();
 }
 
-GLuint TestRasterInterface::CreateAndConsumeForGpuRaster(
-    const gpu::Mailbox& mailbox) {
-  NOTREACHED();
-}
-
-GLuint TestRasterInterface::CreateAndConsumeForGpuRaster(
-    const scoped_refptr<gpu::ClientSharedImage>& shared_image) {
-  NOTREACHED();
-}
-
-void TestRasterInterface::DeleteGpuRasterTexture(GLuint texture) {
-  NOTREACHED();
-}
-
-void TestRasterInterface::BeginGpuRaster() {
-  NOTREACHED();
-}
-
-void TestRasterInterface::EndGpuRaster() {
-  NOTREACHED();
-}
-
-void TestRasterInterface::BeginSharedImageAccessDirectCHROMIUM(GLuint texture,
-                                                               GLenum mode) {
-  NOTREACHED();
-}
-
-void TestRasterInterface::EndSharedImageAccessDirectCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
-void TestRasterInterface::InitializeDiscardableTextureCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
-void TestRasterInterface::UnlockDiscardableTextureCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
-bool TestRasterInterface::LockDiscardableTextureCHROMIUM(GLuint texture) {
-  NOTREACHED();
-}
-
 void TestRasterInterface::GenSyncTokenCHROMIUM(GLbyte* sync_token) {
   // Don't return a valid sync token if context is lost. This matches behavior
   // of CommandBufferProxyImpl.

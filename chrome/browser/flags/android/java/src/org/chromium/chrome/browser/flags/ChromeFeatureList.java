@@ -172,6 +172,8 @@ public abstract class ChromeFeatureList {
     public static final String ANDROID_APP_INTEGRATION_MODULE = "AndroidAppIntegrationModule";
     public static final String ANDROID_APP_INTEGRATION_MULTI_DATA_SOURCE =
             "AndroidAppIntegrationMultiDataSource";
+    public static final String ANDROID_AUTOFILL_SUPPORT_FOR_HTTP_AUTH =
+            "AndroidAutofillSupportForHttpAuth";
     public static final String ANDROID_BOOKMARK_BAR = "AndroidBookmarkBar";
     public static final String ANDROID_BOTTOM_TOOLBAR = "AndroidBottomToolbar";
     public static final String ANDROID_BOTTOM_TOOLBAR_V2 = "AndroidBottomToolbarV2";
@@ -263,10 +265,6 @@ public abstract class ChromeFeatureList {
             "AutofillEnableLoyaltyCardsFilling";
     public static final String AUTOFILL_ENABLE_NEW_CARD_BENEFITS_TOGGLE_TEXT =
             "AutofillEnableNewCardBenefitsToggleText";
-    public static final String AUTOFILL_ENABLE_RANKING_FORMULA_ADDRESS_PROFILES =
-            "AutofillEnableRankingFormulaAddressProfiles";
-    public static final String AUTOFILL_ENABLE_RANKING_FORMULA_CREDIT_CARDS =
-            "AutofillEnableRankingFormulaCreditCards";
     public static final String AUTOFILL_ENABLE_SECURITY_TOUCH_EVENT_FILTERING_ANDROID =
             "AutofillEnableSecurityTouchEventFilteringAndroid";
     public static final String AUTOFILL_ENABLE_SEPARATE_PIX_PREFERENCE_ITEM =
@@ -350,6 +348,7 @@ public abstract class ChromeFeatureList {
     public static final String CCT_TAB_MODAL_DIALOG = "CCTTabModalDialog";
     public static final String CCT_TOOLBAR_REFACTOR = "CCTToolbarRefactor";
     public static final String CHANGE_UNFOCUSED_PRIORITY = "ChangeUnfocusedPriority";
+    public static final String CHROME_ITEM_PICKER_UI = "ChromeItemPickerUi";
     public static final String CHROME_NATIVE_URL_OVERRIDING = "ChromeNativeUrlOverriding";
     public static final String CHROME_SURVEY_NEXT_ANDROID = "ChromeSurveyNextAndroid";
     public static final String CLAMP_AUTOMOTIVE_SCALING = "ClampAutomotiveScaling";
@@ -834,7 +833,7 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sCctBlockTouchesDuringEnterAnimation =
             newCachedFlag(CCT_BLOCK_TOUCHES_DURING_ENTER_ANIMATION, true);
     public static final CachedFlag sCctContextualMenuItems =
-            newCachedFlag(CCT_CONTEXTUAL_MENU_ITEMS, false);
+            newCachedFlag(CCT_CONTEXTUAL_MENU_ITEMS, true);
     public static final CachedFlag sCctDestroyTabWhenModelIsEmpty =
             newCachedFlag(CCT_DESTROY_TAB_WHEN_MODEL_IS_EMPTY, true);
     public static final CachedFlag sCctFixWarmup =
@@ -876,6 +875,8 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sCctTabModalDialog = newCachedFlag(CCT_TAB_MODAL_DIALOG, true);
     public static final CachedFlag sCctToolbarRefactor =
             newCachedFlag(CCT_TOOLBAR_REFACTOR, false, true);
+    public static final CachedFlag sChromeItemPickerUi =
+            newCachedFlag(CHROME_ITEM_PICKER_UI, /* defaultValue= */ false);
     public static final CachedFlag sClampAutomotiveScaling =
             newCachedFlag(CLAMP_AUTOMOTIVE_SCALING, true);
     public static final CachedFlag sClankStartupLatencyInjection =
@@ -1081,7 +1082,10 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sToolbarTabletResizeRefactor =
             newCachedFlag(TOOLBAR_TABLET_RESIZE_REFACTOR, /* defaultValue= */ false);
     public static final CachedFlag sTopControlsRefactor =
-            newCachedFlag(TOP_CONTROLS_REFACTOR, true);
+            newCachedFlag(
+                    TOP_CONTROLS_REFACTOR,
+                    /* defaultValue= */ false,
+                    /* defaultValueInTests= */ true);
     public static final CachedFlag sTouchToSearchCallout =
             newCachedFlag(
                     TOUCH_TO_SEARCH_CALLOUT,
@@ -1168,6 +1172,7 @@ public abstract class ChromeFeatureList {
                     sCctRevampedBranding,
                     sCctTabModalDialog,
                     sCctToolbarRefactor,
+                    sChromeItemPickerUi,
                     sClampAutomotiveScaling,
                     sClankStartupLatencyInjection,
                     sCleanupLegacyTabState,
@@ -1290,9 +1295,9 @@ public abstract class ChromeFeatureList {
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterArchiveAllButActiveTab =
             newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_ARCHIVE_ALL_BUT_ACTIVE, false);
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterArchiveTabGroups =
-            newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS, false);
+            newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS, true);
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterAutoDelete =
-            newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_AUTO_DELETE, false);
+            newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_AUTO_DELETE, true);
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterAutoDeleteKillSwitch =
             newMutableFlagWithSafeDefault(ANDROID_TAB_DECLUTTER_AUTO_DELETE_KILL_SWITCH, true);
     public static final MutableFlagWithSafeDefault sAndroidTabDeclutterPerformanceImprovements =
@@ -1578,6 +1583,9 @@ public abstract class ChromeFeatureList {
                             "disable_edge_to_edge_layout_color_animation",
                             false);
 
+    public static final BooleanCachedFeatureParam sNewTabPageCustomizationV2ShowColorPicker =
+            newBooleanCachedFeatureParam(NEW_TAB_PAGE_CUSTOMIZATION_V2, "show_color_picker", false);
+
     /**
      * Param for the OEMs that need an exception for min versions. Its value should be a comma
      * separated list of integers, and its index should match {@link #sEdgeToEdgeBottomChinOemList}.
@@ -1808,6 +1816,7 @@ public abstract class ChromeFeatureList {
                     sMostVisitedTilesReselectLaxSchemeHost,
                     sNavBarColorAnimationDisableBottomChinColorAnimation,
                     sNavBarColorAnimationDisableEdgeToEdgeLayoutColorAnimation,
+                    sNewTabPageCustomizationV2ShowColorPicker,
                     sNotificationTrampolineImmediateJobDurationMs,
                     sNotificationTrampolineLongJobDurationMs,
                     sNotificationTrampolineNormalJobDurationMs,

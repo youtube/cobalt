@@ -158,6 +158,15 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
             signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, true);
             return;
         }
+
+        // If ReaderModeDistillInApp is enabled and the param for showing the CPA is disabled, don't
+        // show the button.
+        if (DomDistillerFeatures.sReaderModeDistillInApp.isEnabled()
+                && !DomDistillerFeatures.sReaderModeDistillInAppShowCpa.getValue()) {
+            signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.READER_MODE, false);
+            return;
+        }
+
         final TabDistillabilityProvider tabDistillabilityProvider =
                 TabDistillabilityProvider.get(tab);
         if (tabDistillabilityProvider == null) return;
@@ -177,6 +186,8 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
                 && DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
             return;
         }
+        ReaderModeMetrics.recordReaderModeContextualPageActionEvent(
+                ReaderModeMetrics.ReaderModeContextualPageActionEvent.SHOWN);
         // Always notify the rate limiter that the action was shown to ensure the rate limiting
         // logic is applied.
         ReaderModeActionRateLimiter.getInstance().onActionShown();
@@ -207,7 +218,13 @@ public class ReaderModeActionProvider implements ContextualPageActionController.
 
     private void notifyActionAvailable(
             Tab tab, boolean isDistillable, SignalAccumulator signalAccumulator) {
+        ReaderModeMetrics.recordReaderModeContextualPageActionEvent(
+                isDistillable
+                        ? ReaderModeMetrics.ReaderModeContextualPageActionEvent.ELIGIBLE
+                        : ReaderModeMetrics.ReaderModeContextualPageActionEvent.NOT_ELIGIBLE);
         if (ReaderModeActionRateLimiter.getInstance().isActionSuppressed()) {
+            ReaderModeMetrics.recordReaderModeContextualPageActionEvent(
+                    ReaderModeMetrics.ReaderModeContextualPageActionEvent.SUPPRESSED);
             ReaderModeActionRateLimiter.getInstance().onActionSuppressed();
             return;
         }

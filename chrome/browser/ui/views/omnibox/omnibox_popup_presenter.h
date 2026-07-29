@@ -6,7 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_OMNIBOX_OMNIBOX_POPUP_PRESENTER_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
+#include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "content/public/browser/render_frame_host.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/geometry/rect.h"
@@ -27,7 +27,6 @@ class OmniboxController;
 // code, work with OmniboxPopupViewWebUI directly.
 class OmniboxPopupPresenter : public views::WebView,
                               public views::WidgetObserver,
-                              public OmniboxWebUIPopupChangeObserver,
                               public views::ViewObserver {
   METADATA_HEADER(OmniboxPopupPresenter, views::WebView)
 
@@ -47,16 +46,22 @@ class OmniboxPopupPresenter : public views::WebView,
 
   // Get the handler for communicating with the WebUI interface.
   // Returns nullptr if handler is not ready.
-  RealboxHandler* GetHandler();
+  WebuiOmniboxHandler* GetHandler();
+
+  // views::View:
+  void AddedToWidget() override;
 
   // views::WidgetObserver:
   void OnWidgetDestroyed(views::Widget* widget) override;
 
-  // RealboxWebUIChangeClient:
-  void OnPopupElementSizeChanged(gfx::Size size) override;
-
   // views::ViewObserver:
   void OnViewBoundsChanged(View* observed_view) override;
+
+  // content::WebContentsDelegate:
+  void ResizeDueToAutoResize(content::WebContents* source,
+                             const gfx::Size& new_size) override;
+
+  void SetWidgetContentHeight(int content_height);
 
  private:
   friend class OmniboxPopupViewWebUITest;
@@ -77,9 +82,6 @@ class OmniboxPopupPresenter : public views::WebView,
 
   // Whether any call to `GetHandler` has been made.
   bool requested_handler_ = false;
-
-  // Last reported WebUI element size.
-  gfx::Size webui_element_size_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_OMNIBOX_POPUP_PRESENTER_H_

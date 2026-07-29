@@ -373,6 +373,10 @@ class Type():
       properties['items'] = ArrayType(type_details).Process()
     elif type_details.IsA('Any'):
       properties['type'] = 'any'
+    elif type_details.IsA('UnionType'):
+      properties['choices'] = [
+          Type(node).Process() for node in type_details.GetListOf('Type')
+      ]
     else:
       raise SchemaCompilerError('Unsupported type class when processing type.',
                                 type_details)
@@ -529,9 +533,8 @@ class DictionaryMember(TypedProperty):
     # TODO(crbug.com/340297705): Add support for extended attributes on custom
     # type members.
     self.properties['name'] = self.node.GetName()
-    # We consider nullable properties on custom types as being "optional" in the
-    # schema compiler's logic.
-    if self.type_node.GetProperty('NULLABLE'):
+
+    if not self.node.GetProperty('REQUIRED'):
       self.properties['optional'] = True
 
     if deprecated := GetExtendedAttributeValue(self.node, 'deprecated'):
@@ -861,6 +864,19 @@ class Namespace:
       if node.GetClass() == 'Enum':
         types.append(Enum(node).process())
       if node.GetClass() == 'Dictionary':
+        # Manifest keys defined in the schema are separate from normal custom
+        # types and instead get put into the manifest_keys property.
+        if node.GetName() == 'Manifest':
+          if not node.GetProperty('PARTIAL'):
+            raise SchemaCompilerError(
+                'If using a "Manifest" dictionary to define manifest keys, it'
+                ' must be declared "partial".',
+                node,
+            )
+          manifest_keys = Dictionary(node).process()['properties']
+          continue
+        # Otherwise this is a normal Dictionary defined type and goes in the
+        # normal types.
         types.append(Dictionary(node).process())
 
     # Events are defined as Attributes on the API Interface definition, which

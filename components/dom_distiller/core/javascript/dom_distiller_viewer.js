@@ -31,19 +31,202 @@ function addToPage(html) {
   $('content').appendChild(div);
   // Readability will leave iframes around, but they need the proper structure
   // and classes to be styled correctly.
-  addClassesToYoutubeIFrames();
+  addClassesToYoutubeIFrames(div);
   // DomDistiller will leave placeholders, which need to be replaced with
   // actual iframes.
-  fillYouTubePlaceholders();
-  sanitizeLinks();
+  fillYouTubePlaceholders(div);
+  sanitizeLinks(div);
+  ImageClassifier.processImagesIn(div);
+}
+
+/**
+ * A utility class for classifying images in distilled content.
+ *
+ * Uses a prioritized cascade of heuristics to classify an image as either
+ * inline (e.g., icon) or full-width (e.g., feature image). The checks are:
+ * 1. Rendered size vs. viewport size (for visually dominant images).
+ * 2. Intrinsic size and metadata (for small or decorative images).
+ * 3. Structural context (e.g., inside a <figure>).
+ * 4. A final fallback based on intrinsic width.
+ *
+ * All checks use density-independent units (CSS pixels).
+ */
+class ImageClassifier {
+  static INLINE_CLASS = 'distilled-inline-img';
+  static FULL_WIDTH_CLASS = 'distilled-full-width-img';
+  static DOMINANT_IMAGE_MIN_VIEWPORT_RATIO = 0.8;
+
+  constructor() {
+    // Baseline thresholds in density-independent units (CSS pixels).
+    this.smallAreaUpperBoundDp = 64 * 64;
+    this.inlineWidthFallbackUpperBoundDp = 300;
+
+    // Matches common keywords for icons or mathematical formulas.
+    const mathyKeywords =
+        ['math', 'latex', 'equation', 'formula', 'tex', 'icon'];
+    this._mathyKeywordsRegex =
+        new RegExp('\\b(' + mathyKeywords.join('|') + ')\\b', 'i');
+
+    // Matches characters commonly found in inline formulas.
+    this._mathyAltTextRegex = /[+\-=_^{}\\]/;
+
+    // Extracts the filename from a URL path.
+    this._filenameRegex = /(?:.*\/)?([^?#]*)/;
+  }
+
+  /**
+   * Checks for strong signals that the image is INLINE based on its intrinsic
+   * properties.
+   * @param {HTMLImageElement} img The image element to check.
+   * @return {boolean} True if the image should be inline.
+   * @private
+   */
+  _isDefinitelyInline(img) {
+    // Use natural dimensions (in CSS pixels) to check for small area.
+    const area = img.naturalWidth * img.naturalHeight;
+    if (area > 0 && area < this.smallAreaUpperBoundDp) {
+      return true;
+    }
+
+    // "Mathy" or decorative clues in attributes.
+    const classAndId = (img.className + ' ' + img.id);
+    if (this._mathyKeywordsRegex.test(classAndId)) {
+      return true;
+    }
+
+    // Check the filename of the src URL, ignoring data URIs.
+    if (img.src && !img.src.startsWith('data:')) {
+      const filename = img.src.match(this._filenameRegex)?.[1] || '';
+      if (filename && this._mathyKeywordsRegex.test(filename)) {
+        return true;
+      }
+    }
+
+    // "Mathy" alt text.
+    const alt = img.getAttribute('alt') || '';
+    if (alt.length > 0 && alt.length < 80 &&
+        this._mathyAltTextRegex.test(alt)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Checks if the image is the primary content of its container.
+   * @param {HTMLImageElement} img The image element to check.
+   * @return {boolean} True if the image should be full-width.
+   * @private
+   */
+  _isDefinitelyFullWidth(img) {
+    // Image is in a <figure> with a <figcaption>.
+    const parent = img.parentElement;
+    if (parent && parent.tagName === 'FIGURE' &&
+        parent.querySelector('figcaption')) {
+      return true;
+    }
+
+    // Image is the only significant content in its container.
+    let container = parent;
+    while (container &&
+           !['P', 'DIV', 'FIGURE', 'BODY'].includes(container.tagName)) {
+      container = container.parentElement;
+    }
+
+    if (container) {
+      for (const child of container.childNodes) {
+        // Skip insignificant nodes.
+        if (child === img) continue;
+        if (child.tagName === 'BR') continue;
+        if (child.nodeType === Node.TEXT_NODE &&
+            child.textContent.trim() === '') {
+          continue;
+        }
+
+        // If we reach this point, the node must be significant.
+        return false;
+      }
+      // If we finish the loop, no significant siblings were found.
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Classifies the image based on a simple intrinsic width fallback.
+   * @param {HTMLImageElement} img The image element to check.
+   * @return {string} The CSS class to apply.
+   * @private
+   */
+  _classifyByFallback(img) {
+    // Use naturalWidth (in CSS pixels) and compare against the dp threshold.
+    return img.naturalWidth > this.inlineWidthFallbackUpperBoundDp ?
+        ImageClassifier.FULL_WIDTH_CLASS :
+        ImageClassifier.INLINE_CLASS;
+  }
+
+  /**
+   * Determines an image's display style using a prioritized cascade of checks.
+   * @param {HTMLImageElement} img The image element to classify.
+   * @return {string} The CSS class to apply.
+   */
+  classify(img) {
+    // Check for visually dominant images first, as this is the most reliable
+    // signal and overrides all other heuristics.
+    const renderedWidth = img.getBoundingClientRect().width;
+    if (renderedWidth > 0 && window.innerWidth > 0 &&
+        (renderedWidth / window.innerWidth) >
+            ImageClassifier.DOMINANT_IMAGE_MIN_VIEWPORT_RATIO) {
+      return ImageClassifier.FULL_WIDTH_CLASS;
+    }
+
+    // Fall back to checks based on intrinsic properties and structure.
+    if (this._isDefinitelyInline(img)) {
+      return ImageClassifier.INLINE_CLASS;
+    }
+
+    if (this._isDefinitelyFullWidth(img)) {
+      return ImageClassifier.FULL_WIDTH_CLASS;
+    }
+
+    return this._classifyByFallback(img);
+  }
+
+  /**
+   * Post-processes all images in an element to apply classification classes.
+   * @param {HTMLElement} element The element to search for images in.
+   */
+  static processImagesIn(element) {
+    const classifier = new ImageClassifier();
+    const images = element.getElementsByTagName('img');
+
+    const imageLoadHandler = (event) => {
+      const img = event.currentTarget;
+      const classification = classifier.classify(img);
+      img.classList.add(classification);
+    };
+
+    for (const img of images) {
+      img.onload = imageLoadHandler;
+
+      // If the image is already loaded (e.g., from cache), manually trigger.
+      if (img.complete) {
+        // We use .call() to ensure `this` is correctly bound if the handler
+        // were a traditional function, and to pass a mock event object.
+        imageLoadHandler.call(img, {currentTarget: img});
+      }
+    }
+  }
 }
 
 /**
  * Visits all links on the page, preserve http and https links and have them
  * open to new tab. Remove (i.e., unwrap) otherwise.
+ * @param {HTMLElement} element The element to sanitize links in.
  */
-function sanitizeLinks() {
-  const allLinks = document.querySelectorAll('a');
+function sanitizeLinks(element) {
+  const allLinks = element.querySelectorAll('a');
 
   allLinks.forEach(linkElement => {
     const href = linkElement.getAttribute('href');
@@ -89,10 +272,12 @@ function sanitizeLinks() {
 /**
  * Locates youtube embeds generated by DomDistiller, and creates an iframe for
  * each.
+ * @param {HTMLElement} element The element to search for placeholders in.
  */
-function fillYouTubePlaceholders() {
-  const placeholders = document.getElementsByClassName('embed-placeholder');
-  for (let i = 0; i < placeholders.length; i++) {
+function fillYouTubePlaceholders(element) {
+  const placeholders = element.getElementsByClassName('embed-placeholder');
+  for (let i = 0; i < placeholders.length;
+ i++) {
     if (!placeholders[i].hasAttribute('data-type') ||
         placeholders[i].getAttribute('data-type') !== 'youtube' ||
         !placeholders[i].hasAttribute('data-id')) {
@@ -113,9 +298,10 @@ function fillYouTubePlaceholders() {
  * is only relevant to readability which leave iframes in the result.
  * DomDistiller leaves behind placeholders, which are handled by
  * #fillYouTubePlaceholders.
+ * @param {HTMLElement} element The element to search for iframes in.
  */
-function addClassesToYoutubeIFrames() {
-  const iframes = document.getElementsByTagName('iframe');
+function addClassesToYoutubeIFrames(element) {
+  const iframes = element.getElementsByTagName('iframe');
   for (let i = 0; i < iframes.length; i++) {
     const iframe = iframes[i];
     if (!isYouTubeIframe(iframe.src)) {
@@ -250,7 +436,7 @@ class FontSizeSlider {
     this.update(this.element.value);
   }
   // TODO(meredithl): validate |scale| and snap to nearest supported font size.
-  useFontScaling(scale) {
+  useFontScaling(scale, restoreCenter = true) {
     this.element.value = this.fontSizeScale.indexOf(scale);
     document.documentElement.style.fontSize = scale * this.baseSize + 'px';
     this.update(this.element.value);
@@ -530,13 +716,17 @@ class Pincher {
     };
   }
 
-  useFontScaling(scaling) {
-    this.saveCenter_({x: window.innerWidth / 2, y: window.innerHeight / 2});
+  useFontScaling(scaling, restoreCenter = true) {
+    if (restoreCenter) {
+      this.saveCenter_({x: window.innerWidth / 2, y: window.innerHeight / 2});
+    }
     this.shiftX = 0;
     this.shiftY = 0;
     document.documentElement.style.fontSize = scaling * this.baseSize + 'px';
     this.clampedScale = scaling;
-    this.restoreCenter_();
+    if (restoreCenter) {
+      this.restoreCenter_();
+    }
   }
 
   useBaseFontSize(size) {
@@ -566,18 +756,23 @@ function useBaseFontSize(size) {
   }
 }
 
-function useFontScaling(scale) {
+function useFontScaling(scale, restoreCenter = true) {
   if (navigator.userAgent.toLowerCase().indexOf('android') > -1) {
-    pincher.useFontScaling(scale);
+    pincher.useFontScaling(scale, restoreCenter);
   } else {
-    fontSizeSlider.useFontScaling(scale);
+    fontSizeSlider.useFontScaling(scale, restoreCenter);
   }
 }
 
-// Finds a paragraph with `innerText` matching `hash` and `charCount`, then
-// scrolls to that paragraph with the provided `progress` corresponding to the
-// location to scroll to wrt. that paragraph, 0 being the top of that paragraph,
-// 1 being the bottom.
+/**
+ * Finds a paragraph with `innerText` matching `hash` and `charCount`, then
+ * scrolls to that paragraph with the provided `progress` corresponding to the
+ * location to scroll to wrt. that paragraph, 0 being the top of that
+ * paragraph, 1 being the bottom.
+ * @param {number} hash The hash of the paragraph's innerText.
+ * @param {number} charCount The character count of the paragraph's innerText.
+ * @param {number} progress The scroll progress within the paragraph (0-1).
+ */
 function scrollToParagraphByHash(hash, charCount, progress) {
   const targetHash = hash;
   const targetCharCount = charCount;

@@ -518,6 +518,7 @@ void Navigator::DidNavigate(
     was_within_same_document = false;
   }
 
+#if BUILDFLAG(IS_ANDROID)
   // This is the last point where the browser still embeds the `viz::Surface` of
   // the old page. The next `WebContentsImpl::DidNavigateMainFramePreCommit()`
   // will hide the old View, and the
@@ -528,6 +529,7 @@ void Navigator::DidNavigate(
         CaptureNavigationEntryScreenshotForCrossDocumentNavigations(
             *navigation_request, /*did_receive_commit_ack=*/true);
   }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (ui::PageTransitionIsMainFrame(params.transition)) {
     // Run tasks that must execute just before the commit.
@@ -846,9 +848,6 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
   bool is_duplicate_navigation = false;
   base::TimeDelta nav_start_diff;
   if (ongoing_navigation_request &&
-      request->common_params().navigation_start -
-              ongoing_navigation_request->common_params().navigation_start <=
-          features::kDuplicateNavThreshold.Get() &&
       ongoing_navigation_request->IsRendererInitiated() ==
           request->IsRendererInitiated() &&
       request->GetURL() == ongoing_navigation_request->GetURL() &&
@@ -873,9 +872,12 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
       request->common_params().transition ==
           ongoing_navigation_request->common_params().transition) {
     is_duplicate_navigation = true;
+    nav_start_diff =
+        (request->common_params().navigation_start -
+         ongoing_navigation_request->common_params().navigation_start);
   }
   base::UmaHistogramBoolean(
-      "Navigation.BrowserInitiated.IsDuplicateWithoutThresholdCheck",
+      "Navigation.BrowserInitiated.IsDuplicateWithoutThresholdCheck2",
       is_duplicate_navigation);
   if (is_duplicate_navigation) {
     // The navigation is similar to a previous navigation. Check if it's started
@@ -884,10 +886,10 @@ void Navigator::Navigate(std::unique_ptr<NavigationRequest> request,
     bool start_diff_under_threshold =
         (nav_start_diff <= features::kDuplicateNavThreshold.Get());
     base::UmaHistogramBoolean(
-        "Navigation.BrowserInitiated.DuplicateNavIsUnderThreshold",
+        "Navigation.BrowserInitiated.DuplicateNavIsUnderThreshold2",
         start_diff_under_threshold);
     base::UmaHistogramTimes(
-        "Navigation.BrowserInitiated.DuplicateNavStartTimeDiff",
+        "Navigation.BrowserInitiated.DuplicateNavStartTimeDiff2",
         nav_start_diff);
     if (start_diff_under_threshold &&
         base::FeatureList::IsEnabled(features::kIgnoreDuplicateNavs)) {

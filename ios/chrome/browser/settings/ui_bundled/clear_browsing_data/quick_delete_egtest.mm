@@ -4,6 +4,7 @@
 
 #import <XCTest/XCTest.h>
 
+#import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/test/metrics/histogram_tester.h"
@@ -14,8 +15,8 @@
 #import "components/signin/internal/identity_manager/account_capabilities_constants.h"
 #import "components/strings/grit/components_strings.h"
 #import "components/sync/base/command_line_switches.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/recent_tabs/ui_bundled/recent_tabs_constants.h"
@@ -1043,10 +1044,13 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // also tests that the tabs in tab groups get closed when the deletion of tabs
 // is selected.
 - (void)testTabsForDeletionInTabGroup {
-  if (@available(iOS 17, *)) {
-  } else if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_SKIPPED(@"Only available on iOS 17+ on iPad.");
+  // TODO(crbug.com/446597022): Re-enable the test on iOS26 device.
+#if !TARGET_OS_SIMULATOR
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26 and on device.");
   }
+#endif
+
   // Set pref to close tabs.
   [ChromeEarlGrey setBoolValue:true
                    forUserPref:browsing_data::prefs::kCloseTabs];
@@ -1092,7 +1096,8 @@ NSString* CapitalizeFirstLetter(NSString* string) {
 // tabs should include tabs in all windows, not just the ones where quick delete
 // is triggered from. It also tests that the tabs in both windows get closed
 // when the deletion of tabs is selected.
-- (void)testTabsForDeletionInMultiwindow {
+// TODO(crbug.com/358141981): Deflake the test.
+- (void)FLAKY_testTabsForDeletionInMultiwindow {
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }

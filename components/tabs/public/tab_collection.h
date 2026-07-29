@@ -16,9 +16,11 @@
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/stack_allocated.h"
+#include "base/observer_list.h"
 #include "base/types/pass_key.h"
 #include "components/tabs/public/supports_handles.h"
 #include "components/tabs/public/tab_collection_storage.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace tabs_api {
 class MojoTreeBuilder;
@@ -27,6 +29,7 @@ class MojoTreeBuilder;
 namespace tabs {
 
 class TabInterface;
+class TabCollectionObserver;
 
 DECLARE_HANDLE_FACTORY(TabCollection);
 
@@ -123,6 +126,12 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   TabCollection(const TabCollection&) = delete;
   TabCollection& operator=(const TabCollection&) = delete;
 
+  void AddObserver(TabCollectionObserver* observer);
+
+  void RemoveObserver(TabCollectionObserver* observer);
+
+  bool HasObserver(TabCollectionObserver* observer) const;
+
   // Returns true is the tab collection contains the collection. This is a
   // non-recursive check.
   bool ContainsCollection(TabCollection* collection) const;
@@ -217,6 +226,13 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
     return GetChildren();
   }
 
+  void NotifyOnChildrenAdded(
+      base::PassKey<TabCollection> pass_key,
+      const std::vector<std::variant<TabCollection::Handle, tabs::TabHandle>>&
+          handles,
+      const std::pair<tabs::TabCollection*, int>& insertion_details,
+      TabCollection* notification_root);
+
  protected:
   explicit TabCollection(Type type,
                          std::unordered_set<Type> supported_child_collections,
@@ -239,11 +255,16 @@ class TabCollection : public SupportsHandles<TabCollectionHandleFactory> {
   std::unordered_set<Type> supported_child_collections_;
   bool supports_tabs_;
 
+  base::ObserverList<TabCollectionObserver> observers_;
+
   // Underlying implementation for the storage of children.
   std::unique_ptr<TabCollectionStorage> impl_;
 };
 
 using TabCollectionHandle = TabCollection::Handle;
+using TabCollectionNodeHandle =
+    std::variant<tabs::TabCollectionHandle, tabs::TabHandle>;
+using TabCollectionNodes = std::vector<TabCollectionNodeHandle>;
 
 }  // namespace tabs
 

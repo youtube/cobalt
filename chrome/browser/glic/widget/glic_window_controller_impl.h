@@ -57,7 +57,7 @@ class GlicWindowControllerImpl
     : public display::DisplayObserver,
       public GlicWindowController,
       public views::WidgetObserver,
-      public Host::Delegate,
+      public Host::EmbedderDelegate,
       public Host::Observer,
       public web_modal::WebContentsModalDialogManagerDelegate,
       public web_modal::WebContentsModalDialogHost,
@@ -119,8 +119,6 @@ class GlicWindowControllerImpl
   std::unique_ptr<views::View> CreateViewForSidePanel(
       tabs::TabInterface& tab) override;
   void SidePanelShown(BrowserWindowInterface* browser) override;
-  base::CallbackListSubscription RegisterFloatyStateChange(
-      FloatyStateChangeCallback callback) override;
 
   // views::WidgetObserver implementation, monitoring the glic window widget.
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
@@ -130,7 +128,7 @@ class GlicWindowControllerImpl
   void OnWidgetUserResizeStarted() override;
   void OnWidgetUserResizeEnded() override;
 
-  // Host::Delegate implementation
+  // Host::EmbedderDelegate implementation
   const mojom::PanelState& GetPanelState() const override;
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
@@ -143,7 +141,7 @@ class GlicWindowControllerImpl
   void SetMinimumWidgetSize(const gfx::Size& size) override;
   bool IsShowing() const override;
   void SwitchConversation(
-      const std::string& conversation_id,
+      glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
   // display::DisplayObserver implementation
@@ -153,10 +151,15 @@ class GlicWindowControllerImpl
   HostManager& host_manager() override;
   std::vector<GlicInstance*> GetInstances() override;
   GlicInstance* GetInstanceForTab(tabs::TabInterface* tab) override;
+  void FindInstanceFromGlicContentsAndBindToTab(
+      content::WebContents* source_glic_web_contents,
+      tabs::TabInterface* tab_to_bind) override {}
 
   // GlicInstance implementation
   Host& host() override;
   const InstanceId& id() const override;
+  base::CallbackListSubscription RegisterStateChange(
+      StateChangeCallback callback) override;
 
  private:
   // Sets the floating attributes of the glic window.
@@ -299,9 +302,9 @@ class GlicWindowControllerImpl
   // Check if the invocation source matches the entry point for the given view.
   bool InvocationSourceMatchesCurrentView(mojom::InvocationSource source);
 
-  using FloatyStateChangeCallbackList =
-      base::RepeatingCallbackList<void(State, mojom::CurrentView view)>;
-  FloatyStateChangeCallbackList floaty_state_change_callback_list_;
+  using StateChangeCallbackList =
+      base::RepeatingCallbackList<void(bool, mojom::CurrentView view)>;
+  StateChangeCallbackList state_change_callback_list_;
 
   // Observes the glic widget.
   base::ScopedObservation<views::Widget, views::WidgetObserver>

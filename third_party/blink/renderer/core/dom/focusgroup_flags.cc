@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/core/dom/focusgroup_flags.h"
 
+#include <ostream>
+
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -50,6 +52,8 @@ FocusgroupFlags ParseFocusgroup(const Element* element,
   bool has_flow = false;
   bool has_row_flow = false;
   bool has_col_flow = false;
+  bool has_opt_out = false;
+  bool has_no_memory = false;
   StringBuilder invalid_tokens;
 
   SpaceSplitString tokens(input);
@@ -75,6 +79,10 @@ FocusgroupFlags ParseFocusgroup(const Element* element,
       has_row_flow = true;
     } else if (lowercase_token == "col-flow") {
       has_col_flow = true;
+    } else if (lowercase_token == "none") {
+      has_opt_out = true;
+    } else if (lowercase_token == "no-memory") {
+      has_no_memory = true;
     } else {
       if (!invalid_tokens.empty())
         invalid_tokens.Append(", ");
@@ -95,6 +103,23 @@ FocusgroupFlags ParseFocusgroup(const Element* element,
   }
 
   FocusgroupFlags flags = FocusgroupFlags::kNone;
+
+  // Opt-out short-circuits all other semantics. If combined with any other
+  // recognized token emit a console message and ignore the others.
+  if (has_opt_out) {
+    if (has_inline || has_block || has_grid || has_wrap || has_row_wrap ||
+        has_col_wrap || has_flow || has_row_flow || has_col_flow ||
+        has_no_memory) {
+      element->GetDocument().AddConsoleMessage(
+          MakeGarbageCollected<ConsoleMessage>(
+              mojom::blink::ConsoleMessageSource::kOther,
+              mojom::blink::ConsoleMessageLevel::kError,
+              "Focusgroup attribute value 'none' cannot be combined with other"
+              " focusgroup attribute values; all others ignored."));
+    }
+    flags = FocusgroupFlags::kOptOut;
+    return flags;
+  }
 
   // 2. Apply the grid focusgroup logic:
   //     * 'grid' can only be set on an HTML table element.
@@ -219,6 +244,9 @@ FocusgroupFlags ParseFocusgroup(const Element* element,
               "on grid focusgroups."));
     }
 
+    if (has_no_memory) {
+      flags |= FocusgroupFlags::kNoMemory;
+    }
     return flags;
   }
 
@@ -300,7 +328,53 @@ FocusgroupFlags ParseFocusgroup(const Element* element,
     }
   }
 
+  if (has_no_memory) {
+    flags |= FocusgroupFlags::kNoMemory;
+  }
   return flags;
+}
+
+String FocusgroupFlagsToStringForTesting(FocusgroupFlags flags) {
+  if (flags == FocusgroupFlags::kNone) {
+    return String("FocusgroupFlags(None)");
+  }
+  Vector<const char*> names;
+  names.ReserveInitialCapacity(8);
+  auto append_flag_name_if_set = [&](FocusgroupFlags flag, const char* name) {
+    if (flags & flag) {
+      names.push_back(name);
+    }
+  };
+  append_flag_name_if_set(FocusgroupFlags::kExtend, "Extend");
+  append_flag_name_if_set(FocusgroupFlags::kInline, "Inline");
+  append_flag_name_if_set(FocusgroupFlags::kBlock, "Block");
+  append_flag_name_if_set(FocusgroupFlags::kGrid, "Grid");
+  append_flag_name_if_set(FocusgroupFlags::kWrapInline, "WrapInline");
+  append_flag_name_if_set(FocusgroupFlags::kWrapBlock, "WrapBlock");
+  append_flag_name_if_set(FocusgroupFlags::kRowFlow, "RowFlow");
+  append_flag_name_if_set(FocusgroupFlags::kColFlow, "ColFlow");
+  append_flag_name_if_set(FocusgroupFlags::kOptOut, "OptOut");
+  append_flag_name_if_set(FocusgroupFlags::kNoMemory, "NoMemory");
+  StringBuilder builder;
+  builder.Append("FocusgroupFlags(");
+  for (wtf_size_t i = 0; i < names.size(); ++i) {
+    if (i) {
+      builder.Append('|');
+    }
+    builder.Append(names[i]);
+  }
+  builder.Append(')');
+  return builder.ToString();
+}
+
+bool IsActualFocusgroup(FocusgroupFlags flags) {
+  // OptOut is a mutually exclusive state used to explicitly disable focusgroup
+  // behavior for a subtree. The parser guarantees that if kOptOut is set no
+  // other semantic flags are present. This DCHECK defends against accidental
+  // combinations.
+  DCHECK(!(flags & FocusgroupFlags::kOptOut) ||
+         (flags == FocusgroupFlags::kOptOut));
+  return flags != FocusgroupFlags::kNone && !(flags & FocusgroupFlags::kOptOut);
 }
 
 }  // namespace blink::focusgroup

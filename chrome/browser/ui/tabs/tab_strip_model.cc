@@ -533,7 +533,7 @@ gfx::Range TabStripModel::InsertDetachedSplitTabAt(
 
   return InsertDetachedCollectionImpl(
       split_collection, split->active_index_,
-      base::BindOnce(&tabs::TabStripCollection::InsertSplitTabAt,
+      base::BindOnce(&tabs::TabStripCollection::InsertTabCollectionAt,
                      base::Unretained(contents_data_.get()),
                      std::move(split_collection_unique_ptr), index, pinned,
                      group_id),
@@ -777,7 +777,8 @@ void TabStripModel::InsertDetachedTabGroupImpl(
     int index) {
   group_model_->AddTabGroup(group_collection->GetTabGroup(),
                             base::PassKey<TabStripModel>());
-  contents_data_->InsertTabGroupAt(std::move(group_collection), index);
+  contents_data_->InsertTabCollectionAt(std::move(group_collection), index,
+                                        false, std::nullopt);
 }
 
 std::unique_ptr<DetachedTab> TabStripModel::DetachTabImpl(
@@ -1879,19 +1880,6 @@ void TabStripModel::RestoreSplit(split_tabs::SplitTabId split_id,
   // changes.
   AddToSplitImpl(split_id, indices, indices[0], visual_data,
                  SplitTabChange::SplitTabAddReason::kNewSplitTabAdded);
-}
-
-void TabStripModel::AddTabGroup(const tab_groups::TabGroupId group_id,
-                                tab_groups::TabGroupVisualData visual_data) {
-  ReentrancyCheck reentrancy_check(&reentrancy_guard_);
-  CHECK(SupportsTabGroups());
-  TabGroupDesktop::Factory factory(profile());
-  std::unique_ptr<tabs::TabGroupTabCollection> group_collection =
-      std::make_unique<tabs::TabGroupTabCollection>(factory, group_id,
-                                                    visual_data);
-  group_model_->AddTabGroup(group_collection->GetTabGroup(),
-                            base::PassKey<TabStripModel>());
-  contents_data_->CreateTabGroup(std::move(group_collection));
 }
 
 tab_groups::TabGroupId TabStripModel::AddToNewGroup(

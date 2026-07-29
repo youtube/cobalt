@@ -82,13 +82,17 @@ TrackingProtectionSettings::TrackingProtectionSettings(
   // It's possible enterprise status changed while profile was shut down.
   OnEnterpriseControlForPrefsChanged();
 
-  if (IsTrackingProtection3pcdEnabled() &&
+  if (pref_service_->GetBoolean(prefs::kTrackingProtection3pcdEnabled) &&
       base::FeatureList::IsEnabled(kRollBackModeB)) {
-    // Only show rollback UI to users whose new state will be allow 3PCs.
-    if (!pref_service_->GetBoolean(prefs::kBlockAll3pcToggleEnabled) &&
-        // The `CookieControlsMode` enum cannot be used due to a circular
-        // dependency, so hardcode the value for block 3PCs.
-        pref_service_->GetInteger(prefs::kCookieControlsMode) != 1) {
+    // Hardcode this as using CookieControlsMode creates a circular dependency.
+    const int kBlockThirdParty = 1;
+    // Preserve the choice to block all 3PCs upon offboarding.
+    if (pref_service_->GetBoolean(prefs::kBlockAll3pcToggleEnabled)) {
+      pref_service_->SetInteger(prefs::kCookieControlsMode, kBlockThirdParty);
+    }
+    // Only show rollback UI to users who will not have 3PCs blocked.
+    if (pref_service_->GetInteger(prefs::kCookieControlsMode) !=
+        kBlockThirdParty) {
       pref_service_->SetBoolean(prefs::kShowRollbackUiModeB, true);
     }
     base::UmaHistogramBoolean(

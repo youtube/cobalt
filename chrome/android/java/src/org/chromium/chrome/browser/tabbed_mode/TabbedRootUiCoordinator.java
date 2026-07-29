@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.dom_distiller.ReaderModeActionRateLimiter;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeIphController;
 import org.chromium.chrome.browser.dragdrop.ChromeTabbedOnDragListener;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
+import org.chromium.chrome.browser.extensions.ExtensionsUrlOverrideRegistryManagerFactory;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedBridge;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedFollowIntroController;
@@ -184,7 +185,7 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.signin.FullscreenSigninPromoLauncher;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController.StatusBarColorProvider;
 import org.chromium.chrome.browser.webapps.PwaRestorePromoUtils;
-import org.chromium.components.browser_ui.accessibility.PageZoomBarCoordinator;
+import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.components.browser_ui.widget.CoordinatorLayoutForPointer;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
@@ -1005,6 +1006,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     protected void initProfileDependentFeatures(Profile currentlySelectedProfile) {
         super.initProfileDependentFeatures(currentlySelectedProfile);
         Profile originalProfile = currentlySelectedProfile.getOriginalProfile();
+
+        if (ChromeFeatureList.sChromeNativeUrlOverriding.isEnabled()) {
+            ExtensionsUrlOverrideRegistryManagerFactory.getForProfile(originalProfile);
+        }
+
         if (TabGroupSyncFeatures.isTabGroupSyncEnabled(originalProfile)) {
             mTabGroupSyncController =
                     new TabGroupSyncControllerImpl(
@@ -1286,7 +1292,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mSnackbarManagerSupplier.get());
         }
 
-        if (!didTriggerPromo && PageZoomBarCoordinator.shouldShowMenuItem()) {
+        if (!didTriggerPromo && PageZoomUtils.shouldShowZoomMenuItem()) {
             // Page Zoom IPH should only show if the menu item is visible, and not on NTP or CCT.
             if (tab != null && tab.getWebContents() != null && !tab.isNativePage()) {
                 PageZoomIphController mPageZoomIphController =
@@ -1833,6 +1839,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mBookmarkBarCoordinator =
                     new BookmarkBarCoordinator(
                             mActivity,
+                            mActivityLifecycleDispatcher,
                             mLayoutManager,
                             mLayoutManager::requestUpdate,
                             mFullscreenManager,

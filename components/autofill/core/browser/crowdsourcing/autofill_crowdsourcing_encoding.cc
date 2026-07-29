@@ -29,6 +29,7 @@
 #include "components/autofill/core/browser/form_structure_sectioning_util.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_internals/log_message.h"
 #include "components/autofill/core/common/autofill_internals/logging_scope.h"
@@ -473,6 +474,8 @@ void EncodeFormFieldsForUpload(
               return data_util::IsValidAffixFormat(string);
             case FormatString_Type_DATE:
               return data_util::IsValidDateFormat(string);
+            case FormatString_Type_FLIGHT_NUMBER:
+              return data_util::IsValidFlightNumberFormat(string);
           }
           return false;
         }());
@@ -1054,10 +1057,13 @@ void ProcessServerPredictionsQueryResponse(
         switch (field_suggestion->format_string().type()) {
           case FormatString_Type_AFFIX:
           case FormatString_Type_DATE:
+          case FormatString_Type_FLIGHT_NUMBER:
             field->set_format_string_unless_overruled(
-                base::UTF8ToUTF16(
-                    field_suggestion->format_string().format_string()),
-                AutofillField::FormatStringSource::kServer);
+                AutofillFormatString(
+                    base::UTF8ToUTF16(
+                        field_suggestion->format_string().format_string()),
+                    field_suggestion->format_string().type()),
+                AutofillFormatStringSource::kServer);
             break;
         }
       }

@@ -1168,6 +1168,47 @@ TEST_F(ClientSideDetectionHostTest, TestPreClassificationCheckTwoNavigations) {
   fake_phishing_detector_.CheckMessage(&url2);
 }
 
+TEST_F(ClientSideDetectionHostTest, TestPreClassificationCheckCancelActor) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
+    GTEST_SKIP();
+  }
+  base::HistogramTester histogram_tester;
+
+  // Although we'll navigate to url1 and keep loading, we will not complete the
+  // preclassification check and continue loading, so that url2 can cancel it.
+  GURL url1("http://host1.com/");
+  database_manager_->SetAllowlistLookupDetailsForUrl(url1, false);
+  NavigateAndKeepLoading(web_contents(), url1);
+
+  GURL url2("http://host2.com/");
+  database_manager_->SetAllowlistLookupDetailsForUrl(url2, false);
+  NavigateAndKeepLoading(web_contents(), url2);
+
+  // Navigating to a second page will cancel the preclassification check of the
+  // first page.
+  histogram_tester.ExpectBucketCount(
+      "SBClientPhishing.PreClassificationCheckCancelActor.TriggerModel",
+      ClientSideDetectionType::TRIGGER_MODELS, 1);
+
+  SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
+
+  // Keyboard lock request incoming, which triggers preclassification checks,
+  // meaning it will cancel the TriggerModel preclassification check result from
+  // url2.
+  ExpectPreClassificationChecks(url2, &kFalse, &kFalse, nullptr, nullptr,
+                                &kFalse);
+
+  csd_host_->KeyboardLockRequested();
+  WaitAndCheckPreClassificationChecks();
+
+  histogram_tester.ExpectBucketCount(
+      "SBClientPhishing.PreClassificationCheckCancelActor.TriggerModel",
+      ClientSideDetectionType::KEYBOARD_LOCK_REQUESTED, 1);
+  histogram_tester.ExpectBucketCount(
+      "SBClientPhishing.PreClassificationCheckResult",
+      PreClassificationCheckResult::NO_CLASSIFY_CANCEL, 2);
+}
+
 TEST_F(ClientSideDetectionHostTest,
        TestPreClassificationCheckPrivateIpAddress) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
@@ -1434,10 +1475,7 @@ TEST_F(ClientSideDetectionHostTest,
     GTEST_SKIP();
   }
 
-  std::vector<base::test::FeatureRef> enabled_features = {};
-  enabled_features.push_back(kClientSideDetectionDebuggingMetadataCache);
   SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
-  SetFeatures(enabled_features, {});
 
   ClientPhishingRequest* verdict_from_cache = nullptr;
   LoginReputationClientRequest::DebuggingMetadata* debugging_metadata = nullptr;
@@ -2124,13 +2162,8 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
     GTEST_SKIP();
   }
 
-  // Feature enabled, 0% HC allowlist acceptance, 100% sample rate:
-  feature_list_.InitAndEnableFeatureWithParameters(
-      kClientSideDetectionCreditCardForm,
-      {{kCsdCreditCardFormHCAcceptanceRate.name, "0.0"},
-       {kCsdCreditCardFormSampleRate.name, "1.0"}});
+  SetFeatures({}, {kClientSideDetectionCreditCardForm});
   SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
-
   base::HistogramTester histogram_tester;
 
   GURL url("http://host.com/");
@@ -2139,37 +2172,7 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
 
   csd_host_->RegisterAutofillManager();
 
-  TestFuture<void> future;
-  csd_host_->set_preclassification_started_callback_for_testing(
-      future.GetRepeatingCallback());
-
-  auto form_data = autofill::test::CreateTestEmailOrLoyaltyCardFormData();
-  autofill_manager()->OnFormsSeen({form_data}, {});
-
-  // Preclassification should not have been triggered by OnFormsSeen.
-  EXPECT_FALSE(future.IsReady());
-}
-
-TEST_F(ClientSideDetectionHostCreditCardFormTest,
-       FeatureDisabledDoesNotTriggerPreclassificationChecks) {
-  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
-    GTEST_SKIP();
-  }
-
-  // CSD pings for credit card forms are not enabled. (ESB is.)
-  SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
-
-  base::HistogramTester histogram_tester;
-
-  GURL url("http://host.com/");
-  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/true);
-  NavigateAndCommit(url);
-
-  // This won't actually register for Autofill events since the
-  // feature is disabled.
-  csd_host_->RegisterAutofillManager();
-
-  TestFuture<void> future;
+  TestFuture<ClientSideDetectionType> future;
   csd_host_->set_preclassification_started_callback_for_testing(
       future.GetRepeatingCallback());
 
@@ -2186,13 +2189,39 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
     GTEST_SKIP();
   }
 
-  // Feature enabled, 100% HC allowlist acceptance, 100% sample rate,
-  // but ESB is not enabled.
-  feature_list_.InitAndEnableFeatureWithParameters(
-      kClientSideDetectionCreditCardForm,
-      {{kCsdCreditCardFormHCAcceptanceRate.name, "1.0"},
-       {kCsdCreditCardFormSampleRate.name, "1.0"}});
+  SetFeatures({}, {kClientSideDetectionCreditCardForm});
   SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), false);
+  base::HistogramTester histogram_tester;
+
+  GURL url("http://host.com/");
+  database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/true);
+  NavigateAndCommit(url);
+
+  // This should not actually register since ESB is disabled.
+  csd_host_->RegisterAutofillManager();
+
+  TestFuture<ClientSideDetectionType> future;
+  csd_host_->set_preclassification_started_callback_for_testing(
+      future.GetRepeatingCallback());
+
+  auto form_data = autofill::test::CreateTestCreditCardFormData(
+      /*is_https=*/true, /*use_month_type=*/true);
+  autofill_manager()->OnFormsSeen({form_data}, {});
+
+  // Preclassification should not have been triggered by OnFormsSeen.
+  EXPECT_FALSE(future.IsReady());
+}
+
+TEST_F(ClientSideDetectionHostCreditCardFormTest,
+       EventDoesNotTriggerPreclassificationChecksWhenESBDisabled) {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
+    GTEST_SKIP();
+  }
+
+  // Feature enabled, 100% HC allowlist acceptance, 0% sample rate
+  // (default params):
+  feature_list_.InitAndEnableFeature(kClientSideDetectionCreditCardForm);
+  SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
 
   base::HistogramTester histogram_tester;
 
@@ -2200,14 +2229,24 @@ TEST_F(ClientSideDetectionHostCreditCardFormTest,
   database_manager_->SetAllowlistLookupDetailsForUrl(url, /*match=*/true);
   NavigateAndCommit(url);
 
-  // This won't actually register for Autofill events since ESB is disabled.
+  // Check that histograms haven't been recorded yet.
+  histogram_tester.ExpectTotalCount(
+      "SBClientPhishing.MatchHighConfidenceAllowlist.CreditCardForm", 0);
+  histogram_tester.ExpectTotalCount(
+      "SBClientPhishing.MatchCSDAllowlistOnCreditCardForm", 0);
+
+  // This registers to listen for Autofill events since ESB is enabled.
   csd_host_->RegisterAutofillManager();
 
-  TestFuture<void> future;
+  // Now disable ESB to test whether preclassification gates on it.
+  SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), false);
+
+  TestFuture<ClientSideDetectionType> future;
   csd_host_->set_preclassification_started_callback_for_testing(
       future.GetRepeatingCallback());
 
-  auto form_data = autofill::test::CreateTestEmailOrLoyaltyCardFormData();
+  auto form_data = autofill::test::CreateTestCreditCardFormData(
+      /*is_https=*/true, /*use_month_type=*/true);
   autofill_manager()->OnFormsSeen({form_data}, {});
 
   // Preclassification should not have been triggered by OnFormsSeen.
@@ -2361,7 +2400,6 @@ class ClientSideDetectionHostNotificationTest
     ClientSideDetectionHostTest::SetUp();
 
     SetEnhancedProtectionPrefForTests(profile()->GetPrefs(), true);
-    SetFeatures({kClientSideDetectionNotificationPrompt}, {});
 
     permissions::PermissionRequestManager::CreateForWebContents(web_contents());
     auto* manager =

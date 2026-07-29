@@ -12,19 +12,21 @@ import '//resources/cr_elements/cr_button/cr_button.js';
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
+import {assert} from '//resources/js/assert.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PageHandlerRemote as SearchboxPageHandlerRemote, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
+import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './context_menu_entrypoint.css.js';
 import {getHtml} from './context_menu_entrypoint.html.js';
+
 
 /** The width of the dropdown menu in pixels. */
 const MENU_WIDTH_PX = 190;
 
 export interface ContextMenuEntrypointElement {
   $: {
-    entrypoint: HTMLElement,
-    entrypointIcon: HTMLElement,
     menu: CrActionMenuElement,
   };
 }
@@ -48,36 +50,55 @@ export class ContextMenuEntrypointElement extends
   static override get properties() {
     return {
       inputsDisabled: {type: Boolean},
-      tabSuggestions: {type: Array},
+      showContextMenuDescription: {type: Boolean},
+      tabSuggestions_: {type: Array},
+      tabPreviewUrl_: {type: String},
+      tabPreviewsEnabled_: {type: Boolean},
+      showDeepSearch_: {
+        reflect: true,
+        type: Boolean,
+      },
     };
   }
 
   accessor inputsDisabled: boolean = false;
-  accessor tabSuggestions: TabInfo[] = [];
+  accessor showContextMenuDescription: boolean = false;
+  protected accessor tabSuggestions_: TabInfo[] = [];
+  protected accessor tabPreviewUrl_: string = '';
+  protected accessor showDeepSearch_: boolean =
+      loadTimeData.getBoolean('composeboxShowDeepSearchButton');
+  protected accessor tabPreviewsEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxShowContextMenuTabPreviews');
+
+  private searchboxHandler_: SearchboxPageHandlerRemote;
 
   constructor() {
     super();
+    this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
   }
 
   protected onEntrypointClick_() {
-    this.fire('refresh-tab-suggestions', {onRefreshComplete: () => {
-      this.$.menu.showAt(this.$.entrypointIcon, {
-        top: this.$.entrypointIcon.getBoundingClientRect().bottom,
-        width: MENU_WIDTH_PX,
-        anchorAlignmentX: AnchorAlignment['AFTER_START'],
-      });
-    }});
+    this.fire('refresh-tab-suggestions', {
+      onRefreshComplete: (tabs: TabInfo[]) => {
+        this.tabSuggestions_ = tabs;
+        const entrypoint =
+            this.shadowRoot.querySelector<HTMLElement>('#entrypoint');
+        assert(entrypoint);
+        this.$.menu.showAt(entrypoint, {
+          top: entrypoint.getBoundingClientRect().bottom,
+          width: MENU_WIDTH_PX,
+          anchorAlignmentX: AnchorAlignment['AFTER_START'],
+        });
+      }});
   }
 
   protected addTabContext(e: Event) {
     e.stopPropagation();
 
     const tabElement = e.currentTarget! as HTMLButtonElement;
-    const tabInfo = this.tabSuggestions[Number(tabElement.dataset['index'])];
+    const tabInfo = this.tabSuggestions_[Number(tabElement.dataset['index'])];
 
-    if (!tabInfo) {
-      return;
-    }
+    assert(tabInfo);
 
     this.fire('add-tab-context', {
       id: tabInfo.tabId,
@@ -87,6 +108,27 @@ export class ContextMenuEntrypointElement extends
     this.$.menu.close();
   }
 
+  protected async onTabPointerenter_(e: Event) {
+    if (!this.tabPreviewsEnabled_) {
+      return;
+    }
+
+    const tabElement = e.currentTarget! as HTMLElement;
+    const tabInfo = this.tabSuggestions_[Number(tabElement.dataset['index'])];
+    assert(tabInfo);
+
+    // Clear the preview URL before fetching the new one to make sure an old
+    // or incorrect preview doesn't show while the new one is loading.
+    this.tabPreviewUrl_ = '';
+    const {previewDataUrl} =
+        await this.searchboxHandler_.getTabPreview(tabInfo.tabId);
+    this.tabPreviewUrl_ = previewDataUrl || '';
+  }
+
+  protected shouldShowTabPreview(): boolean {
+    return this.tabPreviewsEnabled_ && this.tabPreviewUrl_ !== '';
+  }
+
   protected openImageUpload() {
     this.fire('open-image-upload');
     this.$.menu.close();
@@ -94,6 +136,12 @@ export class ContextMenuEntrypointElement extends
 
   protected openFileUpload() {
     this.fire('open-file-upload');
+    this.$.menu.close();
+  }
+
+  protected onDeepSearchClick_() {
+    this.inputsDisabled = !this.inputsDisabled;
+    this.fire('deep-search-click');
     this.$.menu.close();
   }
 }

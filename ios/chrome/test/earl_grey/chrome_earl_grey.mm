@@ -13,6 +13,7 @@
 #import "base/logging.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
+#import "components/omnibox/browser/omnibox_pref_names.h"
 #import "ios/chrome/browser/reader_mode/test/reader_mode_app_interface.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_app_interface.h"
@@ -1318,7 +1319,8 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
   std::string jsonRepresentation = base::SysNSStringToUTF8(result.result);
   base::JSONReader::Result jsonValue =
-      base::JSONReader::ReadAndReturnValueWithError(jsonRepresentation);
+      base::JSONReader::ReadAndReturnValueWithError(
+          jsonRepresentation, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
 
   NSString* message = nil;
   if (!jsonValue.has_value()) {
@@ -1415,7 +1417,7 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
 
 - (BOOL)isUnfocusedOmniboxAtBottom {
   return !self.isIPadIdiom && self.isSplitToolbarMode &&
-         [self localStateBooleanPref:prefs::kBottomOmnibox];
+         [self localStateBooleanPref:omnibox::kIsOmniboxInBottomPosition];
 }
 
 #pragma mark - ContentSettings
@@ -1506,7 +1508,8 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   std::string jsonRepresentation =
       base::SysNSStringToUTF8([ChromeEarlGreyAppInterface
           localStatePrefValue:base::SysUTF8ToNSString(prefName)]);
-  return base::JSONReader::Read(jsonRepresentation);
+  return base::JSONReader::Read(jsonRepresentation,
+                                base::JSON_PARSE_CHROMIUM_EXTENSIONS);
 }
 
 - (bool)localStateBooleanPref:(const std::string&)prefName {
@@ -1577,7 +1580,8 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration) {
   std::string jsonRepresentation =
       base::SysNSStringToUTF8([ChromeEarlGreyAppInterface
           userPrefValue:base::SysUTF8ToNSString(prefName)]);
-  return base::JSONReader::Read(jsonRepresentation);
+  return base::JSONReader::Read(jsonRepresentation,
+                                base::JSON_PARSE_CHROMIUM_EXTENSIONS);
 }
 
 - (bool)userBooleanPref:(const std::string&)prefName {

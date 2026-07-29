@@ -120,6 +120,8 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "enableWebviewResults",
       lens::features::IsLensSidePanelWebviewResultsEnabled());
+  html_source->AddBoolean("enableLensAimSuggestions",
+                          lens::features::GetAimSuggestionsEnabled());
 
   // Aim M3 flags
   const bool aim_enabled = lens::IsAimM3Enabled(Profile::FromWebUI(web_ui));
@@ -159,14 +161,16 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddString("composeboxAttachmentFileTypes", "");
   html_source->AddInteger("composeboxFileMaxSize", 0);
   html_source->AddInteger("composeboxFileMaxCount", 0);
-  // Disable ZPS.
-  html_source->AddBoolean("composeboxShowZps", false);
   // Disable typed suggest.
   html_source->AddBoolean("composeboxShowTypedSuggest", false);
+  // Enable ZPS if suggestions are enabled.
+  html_source->AddBoolean("composeboxShowZps",
+                          lens::features::GetAimSuggestionsEnabled());
   // Disable image context suggestions.
   html_source->AddBoolean("composeboxShowImageSuggest", false);
-  // Disable context menu.
+  // Disable context menu and related features.
   html_source->AddBoolean("composeboxShowContextMenu", false);
+  html_source->AddBoolean("composeboxShowContextMenuDescription", true);
   // Send event when escape is pressed.
   html_source->AddBoolean("composeboxCloseByEscape", true);
 
@@ -202,7 +206,6 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "forceHideEllipsis",
       lens::features::GetVisualSelectionUpdatesHideCsbEllipsis());
-  html_source->AddBoolean("queryAutocompleteOnEmptyInput", true);
   html_source->AddBoolean(
       "enableCsbMotionTweaks",
       lens::features::GetVisualSelectionUpdatesEnableCsbMotionTweaks());
@@ -217,6 +220,7 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
       l10n_util::GetStringUTF8(IDS_LENS_COMPOSEBOX_HINT_TEXT));
   html_source->AddBoolean("composeboxShowPdfUpload", false);
   html_source->AddBoolean("composeboxSmartComposeEnabled", false);
+  html_source->AddBoolean("composeboxShowDeepSearchButton", false);
 
   // If the ThemeSource isn't added here, since this WebUI is
   // chrome-untrusted, it will be unable to load stylesheets until a new tab

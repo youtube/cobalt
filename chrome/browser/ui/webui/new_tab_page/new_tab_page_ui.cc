@@ -166,6 +166,7 @@ NewTabPageUIConfig::CreateWebUIController(content::WebUI* web_ui,
 namespace {
 
 constexpr char kPrevNavigationTimePrefName[] = "NewTabPage.PrevNavigationTime";
+constexpr char kComposeboxMetricsReporterPrefName[] = "NewTabPage.";
 
 bool HasCredentials(Profile* profile) {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
@@ -553,21 +554,30 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
        ntp_composebox::IsNtpComposeboxEnabled(profile)));
   source->AddBoolean("composeboxShowContextMenu",
                      ntp_composebox::kShowContextMenu.Get());
+  source->AddBoolean("composeboxShowContextMenuTabPreviews",
+                     ntp_composebox::kShowContextMenuTabPreviews.Get());
   source->AddBoolean("searchboxShowComposebox",
                      ntp_composebox::IsNtpComposeboxEnabled(profile));
   source->AddBoolean("composeboxShowZps",
                      ntp_composebox::kShowComposeboxZps.Get());
   source->AddBoolean("composeboxShowTypedSuggest",
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
-  source->AddBoolean("showNextRealbox", ntp_composebox::kShowNextRealbox.Get());
+  source->AddString(
+      "realboxLayoutMode",
+      ntp_composebox::RealboxLayoutModeToString(
+          ntp_composebox::kRealboxLayoutMode.Get()));
   source->AddBoolean("composeboxShowImageSuggest",
                      ntp_composebox::kShowComposeboxImageSuggestions.Get());
+  source->AddBoolean("composeboxShowContextMenuDescription",
+                     ntp_composebox::kShowContextMenuDescription.Get());
 
   source->AddBoolean("composeboxCloseByEscape",
                      composebox_config.close_by_escape());
   source->AddBoolean("composeboxCloseByClickOutside",
                      composebox_config.close_by_click_outside());
   source->AddBoolean("composeboxSmartComposeEnabled", true);
+  source->AddBoolean("composeboxShowDeepSearchButton",
+                     ntp_composebox::kShowToolsAndModels.Get());
 
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
@@ -827,9 +837,27 @@ void NewTabPageUI::BindInterface(
     mojo::PendingReceiver<searchbox::mojom::PageHandler> pending_page_handler) {
   MetricsReporterService* service =
       MetricsReporterService::GetFromWebContents(web_ui()->GetWebContents());
+  std::unique_ptr<ComposeboxQueryController> query_controller;
+  std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder;
+  // Only create the composebox query controller and metrics recorder needed for
+  // contextual search if realbox next is enabled.
+  if (ntp_composebox::kRealboxLayoutMode.Get() !=
+      ntp_composebox::RealboxLayoutMode::kDefault) {
+    query_controller = std::make_unique<ComposeboxQueryController>(
+        IdentityManagerFactory::GetForProfile(profile_),
+        g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
+        g_browser_process->GetApplicationLocale(),
+        TemplateURLServiceFactory::GetForProfile(profile_),
+        profile_->GetVariationsClient(),
+        ntp_composebox::kSendLnsSurfaceParam.Get(),
+        ntp_composebox::kMaxNumFiles.Get() > 1);
+    composebox_metrics_recorder = std::make_unique<ComposeboxMetricsRecorder>(
+        kComposeboxMetricsReporterPrefName);
+  }
   realbox_handler_ = std::make_unique<RealboxHandler>(
-      std::move(pending_page_handler), profile_, web_contents(),
-      service->metrics_reporter(), /*omnibox_controller=*/nullptr);
+      std::move(pending_page_handler), std::move(query_controller),
+      std::move(composebox_metrics_recorder), profile_, web_contents(),
+      service->metrics_reporter());
 }
 
 void NewTabPageUI::BindInterface(
@@ -1044,8 +1072,9 @@ void NewTabPageUI::CreatePageHandler(
           profile_->GetVariationsClient(),
           ntp_composebox::kSendLnsSurfaceParam.Get(),
           enable_multi_context_input_flow),
-      std::make_unique<ComposeboxMetricsRecorder>("NewTabPage."), profile_,
-      web_contents(), service->metrics_reporter());
+      std::make_unique<ComposeboxMetricsRecorder>(
+          kComposeboxMetricsReporterPrefName),
+      profile_, web_contents(), service->metrics_reporter());
 
   // TODO(crbug.com/435288212): Move searchbox mojom to use factory pattern.
   composebox_handler_->SetPage(std::move(pending_searchbox_page));

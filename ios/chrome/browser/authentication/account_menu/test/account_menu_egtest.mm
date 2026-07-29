@@ -7,9 +7,9 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
-#import "ios/chrome/browser/authentication/ui_bundled/separate_profiles_util.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
+#import "ios/chrome/browser/authentication/test/separate_profiles_util.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey.h"
+#import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/bookmark_earl_grey.h"
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_constants.h"
@@ -398,10 +398,11 @@ id<GREYMatcher> identityDiscMatcher() {
   [self assertAccountMenuIsNotShown];
 }
 
+// TODO(crbug.com/446869344): This test is flaky.
 // Tests that tapping on a managed account button causes the primary account
 // to be changed and the account menu view to be closed after showing managed
 // account sign-in dialog.
-- (void)testSwitchToManagedAccount {
+- (void)FLAKY_testSwitchToManagedAccount {
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
   [SigninEarlGrey addFakeIdentity:kManagedIdentity1];
   [self selectIdentityDisc];

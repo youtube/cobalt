@@ -98,8 +98,8 @@ std::optional<DriveUploader::Item> ParseClientFolderResponse(
       endpoint_response->http_status_code != net::HTTP_OK) {
     return std::nullopt;
   }
-  std::optional<base::Value::Dict> dict =
-      base::JSONReader::ReadDict(endpoint_response->response);
+  std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(
+      endpoint_response->response, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return std::nullopt;
   }
@@ -126,8 +126,8 @@ SaveToDriveProgress CreateSuccessProgress(
   if (endpoint_response.response.empty()) {
     return progress;
   }
-  std::optional<base::Value::Dict> dict =
-      base::JSONReader::ReadDict(endpoint_response.response);
+  std::optional<base::Value::Dict> dict = base::JSONReader::ReadDict(
+      endpoint_response.response, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
   if (!dict) {
     return progress;
   }
@@ -200,6 +200,7 @@ void DriveUploader::Start() {
     NotifyError(SaveToDriveErrorType::kOauthError);
     return;
   }
+  scoped_identity_manager_observation_.Observe(identity_manager_);
   access_token_fetcher_ = identity_manager_->CreateAccessTokenFetcherForAccount(
       account_info_.account_id, signin::OAuthConsumerId::kSaveToDrive,
       base::BindOnce(&DriveUploader::OnFetchAccessToken,
@@ -287,7 +288,7 @@ DriveUploader::CreateEndpointFetcher(
       /*request_params=*/std::move(request_params));
 }
 
-DriveUploaderType DriveUploader::get_drive_uploader_type_for_testing() const {
+DriveUploaderType DriveUploader::get_drive_uploader_type() const {
   return drive_uploader_type_;
 }
 
@@ -316,6 +317,13 @@ void DriveUploader::NotifyError(SaveToDriveErrorType error_type) {
   progress.status = SaveToDriveStatus::kUploadFailed;
   progress.error_type = error_type;
   progress_callback_.Run(std::move(progress));
+}
+
+void DriveUploader::OnRefreshTokenRemovedForAccount(
+    const CoreAccountId& account_id) {
+  if (account_info_.account_id == account_id) {
+    NotifyError(SaveToDriveErrorType::kOauthError);
+  }
 }
 
 }  // namespace save_to_drive

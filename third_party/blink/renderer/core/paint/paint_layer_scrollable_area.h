@@ -286,7 +286,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
   bool IsThrottled() const override;
   ChromeClient* GetChromeClient() const override;
 
-  void DidCompositorScroll(const gfx::PointF&) override;
+  void DidCompositorScroll(const gfx::PointF&,
+                           cc::ScrollSourceType type) override;
 
   bool ShouldScrollOnMainThread() const override;
 
@@ -366,7 +367,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
           mojom::blink::ScrollType::kProgrammatic,
       cc::ScrollSourceType source_type = cc::ScrollSourceType::kNone) {
     return SetScrollOffset(ScrollOffset(position - gfx::PointF(ScrollOrigin())),
-                           scroll_type, scroll_behavior, source_type);
+                           scroll_type, source_type, scroll_behavior);
   }
 
   // This will set the scroll position without clamping, and it will do all

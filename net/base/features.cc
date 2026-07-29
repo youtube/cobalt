@@ -485,6 +485,10 @@ const base::FeatureParam<bool> kIpPrivacyEnableIppPanelInDevTools{
     /*name=*/"IpPrivacyEnableIppPanelInDevTools",
     /*default_value=*/false};
 
+const base::FeatureParam<std::string> kIpPrivacyUnconditionalProxyDomainList{
+    &kEnableIpProtectionProxy,
+    /*name=*/"IpPrivacyUnconditionalProxyDomainList", /*default_value=*/""};
+
 BASE_FEATURE(kEnableIpPrivacyProxyAdvancedFallbackLogic,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -583,13 +587,24 @@ BASE_FEATURE_PARAM(bool,
                    &kDeviceBoundSessions,
                    "CheckSubdomainRegistration",
                    true);
-BASE_FEATURE_PARAM(bool,
-                   kDeviceBoundSessionsCheckFederatedRegistration,
+BASE_FEATURE_PARAM(int,
+                   kDeviceBoundSessionsSchemaVersion,
                    &kDeviceBoundSessions,
-                   "CheckFederatedRegistration",
-                   true);
-BASE_FEATURE(kDeviceBoundSessionsOriginTrialFeedback,
+                   "SchemaVersion",
+                   1);
+BASE_FEATURE_PARAM(bool,
+                   kDeviceBoundSessionsOriginTrialFeedback,
+                   &kDeviceBoundSessions,
+                   "OriginTrialFeedback",
+                   false);
+
+BASE_FEATURE(kDeviceBoundSessionsFederatedRegistration,
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kDeviceBoundSessionsFederatedRegistrationCheckWellKnown,
+                   &kDeviceBoundSessionsFederatedRegistration,
+                   "CheckWellKnown",
+                   true);
 
 BASE_FEATURE(kSpdySessionForProxyAdditionalChecks,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -658,18 +673,19 @@ const base::FeatureParam<base::TimeDelta>
         /*name=*/"SimpleCachePrioritizedCachingPrioritizationPeriod",
         /*default_value=*/base::Days(1)};
 
-#if BUILDFLAG(USE_NSS_CERTS)
-// TODO(crbug.com/390333881): Remove this flag after a few milestones.
-BASE_FEATURE(kNewClientCertPathBuilding, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(USE_NSS_CERTS)
-
 BASE_FEATURE(kHstsTopLevelNavigationsOnly, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kHttpCacheMappedFileFlushWin, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
-BASE_FEATURE(kHttpCacheNoVarySearch, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kHttpCacheNoVarySearch,
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE_PARAM(size_t,
                    kHttpCacheNoVarySearchCacheMaxEntries,
@@ -724,12 +740,12 @@ BASE_FEATURE_PARAM(int,
                    "SocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit",
                    256);
 
-BASE_FEATURE(kNetTaskScheduler, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNetTaskScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpProxyConnectJob,
                    &kNetTaskScheduler,
                    "http_proxy_connect_job",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpCache,
                    &kNetTaskScheduler,
@@ -744,32 +760,32 @@ BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpStreamFactoryJob,
                    &kNetTaskScheduler,
                    "http_stream_factory_job",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpStreamFactoryJobController,
                    &kNetTaskScheduler,
                    "http_stream_factory_job_controller",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerURLRequestErrorJob,
                    &kNetTaskScheduler,
                    "url_request_error_job",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerURLRequestHttpJob,
                    &kNetTaskScheduler,
                    "url_request_http_job",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerURLRequestJob,
                    &kNetTaskScheduler,
                    "url_request_job",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerURLRequestRedirectJob,
                    &kNetTaskScheduler,
                    "url_request_redirect_job",
-                   false);
+                   true);
 
 BASE_FEATURE(kAdditionalDelayMainJob, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,
@@ -789,6 +805,9 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kExtendQuicHandshakeTimeout,
                    "QuicHandshakeTimeout",
                    base::Seconds(quic::kMaxTimeForCryptoHandshakeSecs));
+
+BASE_FEATURE(kQuicLongerIdleConnectionTimeout,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLowerQuicMaxPacketSize, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(size_t,

@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinatorPhone;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
+import org.chromium.chrome.browser.omnibox.UrlBarData;
 import org.chromium.chrome.browser.omnibox.navattach.NavigationFulfillmentType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
@@ -74,6 +75,7 @@ import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.url.GURL;
+import org.chromium.url.JUnitTestGURLs;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
@@ -155,7 +157,8 @@ public class ToolbarControlContainerTest {
                 mBrowserStateBrowserControlsVisibilityDelegate,
                 mIsVisibleSupplier,
                 mLayoutStateProviderSupplier,
-                mFullscreenManager);
+                mFullscreenManager,
+                mToolbarDataProvider);
         // The adapter may observe some of these already, which will post events.
         ShadowLooper.idleMainLooper();
         // The initial addObserver triggers an event that we don't care about. Reset count.
@@ -258,6 +261,8 @@ public class ToolbarControlContainerTest {
         when(mToolbar.isReadyForTextureCapture()).thenReturn(CaptureReadinessResult.unknown(true));
         verifyIsDirtyWasAllowed(TopToolbarAllowCaptureReason.UNKNOWN);
 
+        UrlBarData urlBarData = UrlBarData.forUrl(JUnitTestGURLs.RED_1);
+        when(mToolbarDataProvider.getUrlBarData()).thenReturn(urlBarData);
         mAdapter.triggerBitmapCapture();
         verifyIsDirtyWasBlocked(TopToolbarBlockCaptureReason.VIEW_NOT_DIRTY);
     }
@@ -549,7 +554,7 @@ public class ToolbarControlContainerTest {
     @Test
     public void testShowLocationBarOnly() {
         doReturn(mLocationBarView).when(mToolbar).removeLocationBarView();
-        doReturn(Color.RED).when(mToolbar).getPrimaryColor();
+        doReturn(Color.RED).when(mToolbarDataProvider).getPrimaryColor();
         ToolbarControlContainer controlContainer =
                 (ToolbarControlContainer)
                         mActivity.getLayoutInflater().inflate(R.layout.control_container, null);
@@ -564,7 +569,8 @@ public class ToolbarControlContainerTest {
                 mBrowserStateBrowserControlsVisibilityDelegate,
                 mLayoutStateProviderSupplier,
                 mFullscreenManager,
-                mTopControlsStacker);
+                mTopControlsStacker,
+                mToolbarDataProvider);
 
         ToolbarPhone toolbarPhone = controlContainer.findViewById(R.id.toolbar);
         doReturn(mLocationBarCoordinatorPhone).when(mLocationBarCoordinator).getPhoneCoordinator();
@@ -595,7 +601,12 @@ public class ToolbarControlContainerTest {
         verify(mProgressBar).setVisibility(View.GONE);
         verify(mToolbarView).setVisibility(View.GONE);
         verify(mToolbarView).removeView(mLocationBarView);
+
         assertEquals(Color.RED, ((ColorDrawable) controlContainer.getBackground()).getColor());
+        doReturn(Color.GREEN).when(mToolbarDataProvider).getPrimaryColor();
+        controlContainer.onPrimaryColorChanged();
+        assertEquals(Color.GREEN, ((ColorDrawable) controlContainer.getBackground()).getColor());
+
         ToolbarViewResourceCoordinatorLayout toolbarViewResourceFrameLayout =
                 controlContainer.getToolbarContainerForTesting();
         assertEquals(
@@ -629,7 +640,8 @@ public class ToolbarControlContainerTest {
                 mBrowserStateBrowserControlsVisibilityDelegate,
                 mLayoutStateProviderSupplier,
                 mFullscreenManager,
-                mTopControlsStacker);
+                mTopControlsStacker,
+                mToolbarDataProvider);
         ToolbarControlContainer.ToolbarViewResourceCoordinatorLayout toolbarContainer =
                 controlContainer.findViewById(R.id.toolbar_container);
         toolbarContainer.setVisibility(View.GONE);
@@ -666,5 +678,68 @@ public class ToolbarControlContainerTest {
         controlContainer.setOnHeightChangedListener(heightSupplier);
         controlContainer.onSizeChanged(100, 100, 100, 100);
         assertEquals(null, heightSupplier.get());
+    }
+
+    @Test
+    public void testStaleCapturedUrlOnScroll_Stale() {
+        makeAndInitAdapter();
+        mConstraintsSupplier.set(BrowserControlsState.BOTH);
+
+        UrlBarData urlBarData1 = UrlBarData.forUrl(JUnitTestGURLs.RED_1);
+        when(mToolbarDataProvider.getUrlBarData()).thenReturn(urlBarData1);
+        mAdapter.onCaptureEnd();
+
+        UrlBarData urlBarData2 = UrlBarData.forUrl(JUnitTestGURLs.RED_2);
+        when(mToolbarDataProvider.getUrlBarData()).thenReturn(urlBarData2);
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord("Android.Toolbar.StaleCapturedUrlOnScroll", 1)
+                        .build();
+        mAdapter.onContentViewScrollingStateChanged(true);
+        histogramWatcher.assertExpected();
+    }
+
+    @Test
+    public void testStaleCapturedUrlOnScroll_NotStale() {
+        makeAndInitAdapter();
+        mConstraintsSupplier.set(BrowserControlsState.BOTH);
+
+        UrlBarData urlBarData1 = UrlBarData.forUrl(JUnitTestGURLs.RED_1);
+        when(mToolbarDataProvider.getUrlBarData()).thenReturn(urlBarData1);
+        mAdapter.onCaptureEnd();
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectIntRecord("Android.Toolbar.StaleCapturedUrlOnScroll", 0)
+                        .build();
+        mAdapter.onContentViewScrollingStateChanged(true);
+        histogramWatcher.assertExpected();
+    }
+
+    @Test
+    public void testStaleCapturedUrlOnScroll_ControlsLocked() {
+        makeAndInitAdapter();
+        setConstraintsOverride(BrowserControlsState.SHOWN);
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("Android.Toolbar.StaleCapturedUrlOnScroll")
+                        .build();
+        mAdapter.onContentViewScrollingStateChanged(true);
+        histogramWatcher.assertExpected();
+    }
+
+    @Test
+    public void testStaleCapturedUrlOnScroll_NotScrolling() {
+        makeAndInitAdapter();
+        mConstraintsSupplier.set(BrowserControlsState.BOTH);
+
+        var histogramWatcher =
+                HistogramWatcher.newBuilder()
+                        .expectNoRecords("Android.Toolbar.StaleCapturedUrlOnScroll")
+                        .build();
+        mAdapter.onContentViewScrollingStateChanged(false);
+        histogramWatcher.assertExpected();
     }
 }

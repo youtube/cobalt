@@ -785,6 +785,10 @@ void BaseRenderingContext2D::Trace(Visitor* visitor) const {
 }
 
 bool BaseRenderingContext2D::Is2DCanvasAccelerated() const {
+  if (IsHibernating()) {
+    return false;
+  }
+
   auto* resource_provider = GetResourceProvider();
   return resource_provider ? resource_provider->IsAccelerated()
                            : Host()->ShouldTryToUseGpuRaster();
@@ -1513,7 +1517,7 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   gpu::SyncToken canvas_access_sync_token;
   bool performed_copy = false;
   scoped_refptr<gpu::ClientSharedImage> client_si =
-      GetResourceProvider()->GetBackingClientSharedImageForExternalWrite(
+      provider->GetBackingClientSharedImageForExternalWrite(
           gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
               gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
           canvas_access_sync_token, &performed_copy);
@@ -1620,7 +1624,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
 
   // Restore the canvas' resource provider back onto the canvas host,
   // surrendering our temporary ownership of the provider.
-  CanvasResourceProvider* resource_provider =
+  CanvasResourceProviderSharedImage* resource_provider =
       resource_provider_from_webgpu_access_.get();
   ReplaceResourceProviderForCanvas2D(
       std::move(resource_provider_from_webgpu_access_));

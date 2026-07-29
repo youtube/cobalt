@@ -283,7 +283,8 @@ class LensOverlayQueryController {
   // request id proto. Also updates the suggest signals with the new request id
   // and runs the suggest inputs callback.
   std::unique_ptr<lens::LensOverlayRequestId> GetNextRequestId(
-      lens::RequestIdUpdateMode update_mode);
+      lens::RequestIdUpdateMode update_mode,
+      lens::LensOverlayRequestId::MediaType media_type);
 
   // Updates the suggest inputs with the feature params and latest cluster info
   // response, then runs the callback. The request id in the suggest inputs will
@@ -525,7 +526,8 @@ class LensOverlayQueryController {
       std::optional<std::string> object_id,
       lens::LensOverlaySelectionType selection_type,
       std::map<std::string, std::string> additional_search_query_params,
-      std::optional<SkBitmap> region_bytes);
+      std::optional<SkBitmap> region_bytes,
+      lens::LensOverlayRequestId::MediaType media_type);
 
   // Creates the interaction request that is sent to the server and tries to
   // perform the interaction request. If not all asynchronous flows have
@@ -639,6 +641,7 @@ class LensOverlayQueryController {
   // Gets the visual search interaction log data param as a base64url
   // encoded string.
   std::string GetEncodedVisualSearchInteractionLogData(
+      const std::optional<std::string>& selected_text,
       lens::LensOverlaySelectionType selection_type);
 
   // Creates the metadata for an interaction request using the latest
@@ -898,6 +901,9 @@ class LensOverlayQueryController {
 
   // Whether or not the upload is being chunked.
   bool chunk_upload_in_progress_ = false;
+
+  // True if a page content upload is being retried due to missing chunk errors.
+  bool retrying_page_content_upload_ = false;
 
   // Stores the last reported upload progress position for each chunk, indexed
   // by chunk id.

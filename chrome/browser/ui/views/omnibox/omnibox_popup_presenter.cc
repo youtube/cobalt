@@ -10,15 +10,17 @@
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
-#include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
+#include "chrome/browser/ui/webui/searchbox/webui_omnibox_handler.h"
 #include "chrome/common/webui_url_constants.h"
-#include "components/omnibox/browser/omnibox_view.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 
 OmniboxPopupPresenter::OmniboxPopupPresenter(LocationBarView* location_bar_view,
                                              OmniboxController* controller)
@@ -64,13 +66,13 @@ void OmniboxPopupPresenter::Show() {
 
     widget_->ShowInactive();
 
-    widget_->SetContentsView(std::make_unique<RoundedOmniboxResultsFrame>(
-        this, location_bar_view_, /*is_webui=*/true));
+    widget_->SetContentsView(
+        std::make_unique<RoundedOmniboxResultsFrame>(this, location_bar_view_));
     widget_->AddObserver(this);
-  }
-  RealboxHandler* handler = GetHandler();
-  if (handler && !handler->HasObserver(this)) {
-    handler->AddObserver(this);
+
+    // On Show(), the widget height can not be 0 or else the compositor thinks
+    // the webview is hidden and will not calculate its preferred size.
+    SetWidgetContentHeight(1);
   }
 }
 
@@ -85,7 +87,7 @@ bool OmniboxPopupPresenter::IsShown() const {
   return !!widget_;
 }
 
-RealboxHandler* OmniboxPopupPresenter::GetHandler() {
+WebuiOmniboxHandler* OmniboxPopupPresenter::GetHandler() {
   const bool ready = IsHandlerReady();
   if (!requested_handler_) {
     // Only log on first access.
@@ -100,37 +102,53 @@ RealboxHandler* OmniboxPopupPresenter::GetHandler() {
   return omnibox_popup_ui->handler();
 }
 
+void OmniboxPopupPresenter::AddedToWidget() {
+  views::WebView::AddedToWidget();
+  const float corner_radius =
+      views::LayoutProvider::Get()->GetCornerRadiusMetric(
+          views::ShapeContextTokens::kOmniboxExpandedRadius);
+  gfx::RoundedCornersF rounded_corner_radii =
+      gfx::RoundedCornersF(0, 0, corner_radius, corner_radius);
+  holder()->SetCornerRadii(rounded_corner_radii);
+}
+
 void OmniboxPopupPresenter::OnWidgetDestroyed(views::Widget* widget) {
   if (widget == widget_) {
     widget_ = nullptr;
   }
 }
 
-void OmniboxPopupPresenter::OnPopupElementSizeChanged(gfx::Size size) {
-  webui_element_size_ = size;
+void OmniboxPopupPresenter::SetWidgetContentHeight(int content_height) {
   if (widget_) {
     // The width is known, and is the basis for consistent web content rendering
     // so width is specified exactly; then only height adjusts dynamically.
     gfx::Rect widget_bounds = location_bar_view_->GetBoundsInScreen();
     widget_bounds.Inset(
         -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
-
-    // TODO(crbug.com/40062053): Change max height according to max suggestion
-    //  count and calculated row height, or use a more general maximum value.
-    constexpr int kMaxHeight = 600;
-    // TODO(crbug.com/445458864): Temporarily set a min height of 1 to avoid the
-    // compositor from thinking the view is hidden.
-    const int temp_height = size.height() == 0 ? 1 : size.height();
-    widget_bounds.set_height(widget_bounds.height() +
-                             std::min(kMaxHeight, temp_height));
+    widget_bounds.set_height(widget_bounds.height() + content_height);
     widget_bounds.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());
     widget_->SetBounds(widget_bounds);
   }
 }
 
+void OmniboxPopupPresenter::ResizeDueToAutoResize(content::WebContents* source,
+                                                  const gfx::Size& new_size) {
+  SetWidgetContentHeight(new_size.height());
+}
+
 void OmniboxPopupPresenter::OnViewBoundsChanged(View* observed_view) {
   CHECK(observed_view == location_bar_view_);
-  OnPopupElementSizeChanged(webui_element_size_);
+  const int width =
+      location_bar_view_->width() +
+      RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets().width();
+  gfx::Size min_size(width, 1);
+  gfx::Size max_size(INT_MAX, INT_MAX);
+
+  content::RenderWidgetHostView* render_widget_host_view =
+      GetWebContents()->GetRenderWidgetHostView();
+  if (render_widget_host_view) {
+    render_widget_host_view->EnableAutoResize(min_size, max_size);
+  }
 }
 
 bool OmniboxPopupPresenter::IsHandlerReady() {
@@ -141,10 +159,6 @@ bool OmniboxPopupPresenter::IsHandlerReady() {
 }
 
 void OmniboxPopupPresenter::ReleaseWidget(bool close) {
-  RealboxHandler* handler = GetHandler();
-  if (handler && handler->HasObserver(this)) {
-    handler->RemoveObserver(this);
-  }
   if (widget_) {
     // Avoid possibility of dangling raw_ptr by nulling before cleanup.
     views::Widget* widget = widget_;

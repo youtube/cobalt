@@ -191,15 +191,26 @@ void AppendSuggestionIfMatching(
     // The UI code will pick up an icon from the resources based on the string.
     suggestion.icon = Suggestion::Icon::kGlobe;
     suggestions->emplace_back(std::move(suggestion));
-    if (credential.backup_password_value &&
+
+#if BUILDFLAG(IS_ANDROID)
+    // Backup password is displayed every time on Android.
+    bool show_recovery_password =
+        base::FeatureList::IsEnabled(features::kFillRecoveryPassword);
+#else
+    // Backup password is displayed only after the first attempt to login on
+    // Desktop.
+    bool show_recovery_password =
         undo_password_change_controller.GetState(credential.username_value) ==
             PasswordRecoveryState::kIncludeBackup &&
-        base::FeatureList::IsEnabled(features::kShowRecoveryPassword)) {
+        base::FeatureList::IsEnabled(features::kShowRecoveryPassword);
+#endif
+    if (credential.backup_password_value && show_recovery_password) {
       AppendBackupSuggestion(credential, suggestions);
     }
   }
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void AppendTroubleSigningInSuggestion(
     const autofill::PasswordAndMetadata& credential,
     std::vector<Suggestion>* suggestions) {
@@ -240,6 +251,7 @@ void MaybeAppendTroubleSigningInSuggestion(
     }
   }
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // This function attempts to fill |suggestions| from |fill_data| based on
 // |current_username| that is the current value of the field.
@@ -264,8 +276,10 @@ void GetSuggestions(
             [](const Suggestion& a, const Suggestion& b) {
               return a.main_text.value < b.main_text.value;
             });
+#if !BUILDFLAG(IS_ANDROID)
   MaybeAppendTroubleSigningInSuggestion(undo_password_change_controller,
                                         fill_data, suggestions);
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 Suggestion CreateFillPasswordChildSuggestion(

@@ -353,16 +353,6 @@ public class AwBrowserContext implements BrowserContextHandle {
         AwGeolocationPermissions.migrateGeolocationPreferences(oldGlobalPrefs, mSharedPreferences);
     }
 
-    /** Used by {@link AwServiceWorkerSettings#setRequestedWithHeaderOriginAllowList(Set)} */
-    Set<String> updateServiceWorkerXRequestedWithAllowListOriginMatcher(
-            Set<String> allowedOriginRules) {
-        String[] badRules =
-                AwBrowserContextJni.get()
-                        .updateServiceWorkerXRequestedWithAllowListOriginMatcher(
-                                mNativeAwBrowserContext, allowedOriginRules.toArray(new String[0]));
-        return Set.of(badRules);
-    }
-
     public void setOriginMatchedHeader(
             @NonNull String headerName, @NonNull String headerValue, @NonNull Set<String> rules) {
         ThreadUtils.assertOnUiThread();
@@ -426,13 +416,7 @@ public class AwBrowserContext implements BrowserContextHandle {
                 .hasOriginMatchedHeader(mNativeAwBrowserContext, headerName);
     }
 
-    public void clearOriginMatchedHeader(@NonNull String headerName) {
-        ThreadUtils.assertOnUiThread();
-        AwBrowserContextJni.get()
-                .clearOriginMatchedHeader(mNativeAwBrowserContext, headerName, null);
-    }
-
-    public void clearOriginMatchedHeader(@NonNull String headerName, @NonNull String headerValue) {
+    public void clearOriginMatchedHeader(@NonNull String headerName, @Nullable String headerValue) {
         ThreadUtils.assertOnUiThread();
         AwBrowserContextJni.get()
                 .clearOriginMatchedHeader(mNativeAwBrowserContext, headerName, headerValue);
@@ -546,9 +530,6 @@ public class AwBrowserContext implements BrowserContextHandle {
         String getDefaultContextRelativePath();
 
         long getQuotaManagerBridge(long nativeAwBrowserContext);
-
-        String[] updateServiceWorkerXRequestedWithAllowListOriginMatcher(
-                long nativeAwBrowserContext, String[] rules);
 
         void clearPersistentOriginTrialStorageForTesting(long nativeAwBrowserContext);
 

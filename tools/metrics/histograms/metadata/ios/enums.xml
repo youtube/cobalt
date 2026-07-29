@@ -270,6 +270,16 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Fetching Time Out Error"/>
 </enum>
 
+<!-- LINT.IfChange(IOSBackgroundSelectionOutcome) -->
+
+<enum name="IOSBackgroundSelectionOutcome">
+  <int value="0" label="Background change was applied"/>
+  <int value="1" label="Background change was canceled"/>
+  <int value="2" label="Background was selected but change was canceled"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:BackgroundSelectionOutcome) -->
+
 <!-- LINT.IfChange(IOSBestFeaturesDetailScreenActionType) -->
 
 <enum name="IOSBestFeaturesDetailScreenActionType">
@@ -649,6 +659,17 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Tips tile"/>
   <int value="12" label="ShopCard tile"/>
 </enum>
+
+<!-- LINT.IfChange(IOSHomeCustomizationBackgroundStyle) -->
+
+<enum name="IOSHomeCustomizationBackgroundStyle">
+  <int value="0" label="Default NTP background was loaded"/>
+  <int value="1" label="Gallery image background was loaded"/>
+  <int value="2" label="Color background was loaded"/>
+  <int value="3" label="User uploaded image background was loaded"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:HomeCustomizationBackgroundStyle) -->
 
 <enum name="IOSHomeCustomizationEntrypoint">
   <int value="0" label="Main entrypoint"/>
@@ -1312,6 +1333,17 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Invalid Version"/>
 </enum>
 
+<!-- LINT.IfChange(IOSUserUploadedImageError) -->
+
+<enum name="IOSUserUploadedImageError">
+  <int value="0" label="No error"/>
+  <int value="1" label="Failed to create directory"/>
+  <int value="2" label="Failed to write file"/>
+  <int value="3" label="Failed to convert to JPEG"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/home_customization/utils/home_customization_constants.h:UserUploadedImageError) -->
+
 <enum name="IOSWebFileInputAttributes">
   <int value="0" label="No Accept"/>
   <int value="1" label="No Accept, Multiple files"/>
@@ -1542,6 +1574,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Safety Check"/>
   <int value="6" label="Send Tab"/>
   <int value="7" label="Reminders"/>
+  <int value="8" label="Cross-Platform Promos"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/push_notification_client_id.h:PushNotificationClientId) -->
@@ -1661,6 +1694,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeAccessPoint) -->
+
+<!-- LINT.IfChange(ReaderModeAccessPointWithMode) -->
+
+<enum name="ReaderModeAccessPointWithMode">
+  <int value="0" label="Contextual Chip in Regular"/>
+  <int value="1" label="Contextual Chip in Incognito"/>
+  <int value="2" label="Tools Menu in Regular"/>
+  <int value="3" label="Tools Menu in Incognito"/>
+  <int value="4" label="AI Hub in Regular"/>
+  <int value="5" label="AI Hub in Incognito"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/reader_mode/model/constants.h:ReaderModeAccessPointWithMode) -->
 
 <!-- LINT.IfChange(ReaderModeCustomizationType) -->
 

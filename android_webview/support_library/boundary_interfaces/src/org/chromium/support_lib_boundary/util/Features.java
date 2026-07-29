@@ -222,6 +222,10 @@ public class Features {
     // WebSettingsCompat.getRequestedWithHeaderAllowList
     // ServiceWorkerWebSettingsCompat.setRequestedWithHeaderAllowList
     // ServiceWorkerWebSettingsCompat.getRequestedWithHeaderAllowList
+    /**
+     * @deprecated API has been disabled since the XRW origin trial ended.
+     */
+    @Deprecated
     public static final String REQUESTED_WITH_HEADER_ALLOW_LIST =
             "REQUESTED_WITH_HEADER_ALLOW_LIST";
 
@@ -369,9 +373,12 @@ public class Features {
 
     // Profile.setExtraHeaderForOrigins
     // Profile.hasExtraHeaderForOrigins
-    // Profile.clearExtraHeaderForOrigins
+    // Profile.clearExtraHeaderForOrigins(String)
     // Profile.clearAllExtraHeadersForOrigins
-    public static final String EXTRA_HEADER_FOR_ORIGINS = "EXTRA_HEADER_FOR_ORIGINS";
+    /**
+     * @deprecated to be replaced by {@link #CUSTOM_REQUEST_HEADERS}
+     */
+    @Deprecated public static final String EXTRA_HEADER_FOR_ORIGINS = "EXTRA_HEADER_FOR_ORIGINS";
 
     // WebSettingsCompat.setBackForwardCacheSettings
     // WebSettingsCompat.getBackForwardCacheSettings
@@ -382,4 +389,15 @@ public class Features {
 
     // WebSettingsCompat#setHyperlinkContextMenuItems
     public static final String HYPERLINK_CONTEXT_MENU_ITEMS = "HYPERLINK_CONTEXT_MENU_ITEMS";
+
+    // Page.isPrerendering
+    public static final String PAGE_IS_PRERENDERING = "PAGE_IS_PRERENDERING";
+
+    // Profile.addCustomHeader
+    // Profile.clearAllCustomHeaders
+    // Profile.clearCustomHeader
+    // Profile.getCustomHeaders
+    // Profile.hasCustomHeader
+    public static final String CUSTOM_REQUEST_HEADERS = "CUSTOM_REQUEST_HEADERS";
+
 }

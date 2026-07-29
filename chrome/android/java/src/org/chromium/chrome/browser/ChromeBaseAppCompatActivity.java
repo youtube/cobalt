@@ -34,6 +34,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.DynamicColorsOptions;
 
 import org.chromium.base.BundleUtils;
 import org.chromium.base.CommandLine;
@@ -54,10 +55,11 @@ import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.language.GlobalAppLocaleController;
-import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
 import org.chromium.chrome.browser.night_mode.NightModeUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeStateProvider;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerCreator;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeFieldTrialImpl;
@@ -137,6 +139,7 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     private @Nullable EdgeToEdgeManager mEdgeToEdgeManager;
     private @Nullable EdgeToEdgeLayoutCoordinator mEdgeToEdgeLayoutCoordinator;
     private @Nullable EdgeToEdgeControllerCreator mEdgeToEdgeControllerCreator;
+    private NtpThemeStateProvider.@Nullable Observer mNtpThemeStateObserver;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -230,6 +233,11 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
                     R.anim.shared_x_axis_close_exit,
                     SemanticColorUtils.getDefaultBgColor(this));
         }
+
+        if (ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()) {
+            mNtpThemeStateObserver = () -> recreate();
+            NtpThemeStateProvider.getInstance().addObserver(mNtpThemeStateObserver);
+        }
     }
 
     /**
@@ -310,6 +318,10 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
         if (mEdgeToEdgeControllerCreator != null) {
             mEdgeToEdgeControllerCreator.destroy();
             mEdgeToEdgeControllerCreator = null;
+        }
+        if (mNtpThemeStateObserver != null) {
+            NtpThemeStateProvider.getInstance().removeObserver(mNtpThemeStateObserver);
+            mNtpThemeStateObserver = null;
         }
         super.onDestroy();
     }
@@ -532,21 +544,8 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
         // UI that's pre-inflated using a themed application context as part of CCT warmup.
         // Note: this should be called before any calls to `Window#getDecorView`.
         if (shouldApplyDynamicColors()) {
-            DynamicColors.applyToActivityIfAvailable(this);
+            applyDynamicColors();
         }
-
-        DeferredStartupHandler.getInstance()
-                .addDeferredTask(
-                        () -> {
-                            // #registerSyntheticFieldTrial requires native.
-                            boolean isDynamicColorAvailable =
-                                    DynamicColors.isDynamicColorAvailable();
-                            RecordHistogram.recordBooleanHistogram(
-                                    "Android.DynamicColors.IsAvailable", isDynamicColorAvailable);
-                            UmaSessionStats.registerSyntheticFieldTrial(
-                                    "IsDynamicColorAvailable",
-                                    isDynamicColorAvailable ? "Enabled" : "Disabled");
-                        });
 
         // TODO(https://crbug.com/392634251): Explore setting elegantTextHeight to 'true' on older
         // OS versions.
@@ -755,5 +754,19 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     /** Returns whether dynamic colors should be applied. */
     protected boolean shouldApplyDynamicColors() {
         return true;
+    }
+
+    /** Applies dynamic colors or a selected color theme generated using DynamicColors API. */
+    private void applyDynamicColors() {
+        @ColorInt
+        Integer primaryColor = NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor();
+        if (primaryColor != null) {
+            DynamicColorsOptions.Builder builder = new DynamicColorsOptions.Builder();
+            builder.setContentBasedSource(primaryColor);
+            DynamicColorsOptions dynamicColorsOptions = builder.build();
+            DynamicColors.applyToActivityIfAvailable(this, dynamicColorsOptions);
+        } else {
+            DynamicColors.applyToActivityIfAvailable(this);
+        }
     }
 }

@@ -10,6 +10,7 @@
 #include "base/strings/string_split.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
+#include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/webid/delegation/dns_request.h"
 #include "content/browser/webid/delegation/jwt_signer.h"
 #include "content/browser/webid/delegation/sd_jwt.h"
@@ -49,7 +50,7 @@ class MockDnsRequest : public DnsRequest {
               (override));
 };
 
-class EmailVerificationRequestTest : public testing::Test {
+class EmailVerificationRequestTest : public RenderViewHostTestHarness {
  public:
   EmailVerificationRequestTest() = default;
 
@@ -68,7 +69,8 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
   NiceMock<MockIdpNetworkRequestManager>* mock_network_manager_ =
       mock_network_manager_ptr.get();
   webid::EmailVerificationRequest email_verification_request_(
-      std::move(mock_network_manager_ptr), std::move(mock_dns_request_ptr));
+      std::move(mock_network_manager_ptr), std::move(mock_dns_request_ptr),
+      static_cast<RenderFrameHostImpl*>(main_rfh())->GetSafeRef());
 
   const std::string kEmail = "test@example.com";
   const std::string kNonce = "test_nonce";
@@ -80,14 +82,13 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
 
   EXPECT_CALL(*mock_dns_request_,
               SendRequest("email._web-identity.example.com", _))
-      .WillOnce(
-          WithArgs<1>(Invoke([&](DnsRequest::DnsRequestCallback callback) {
-            std::move(callback).Run(
-                std::vector<std::string>{"iss=issuer.example.com"});
-          })));
+      .WillOnce(WithArgs<1>([&](DnsRequest::DnsRequestCallback callback) {
+        std::move(callback).Run(
+            std::vector<std::string>{"iss=issuer.example.com"});
+      }));
 
   EXPECT_CALL(*mock_network_manager_, FetchWellKnown(kIssuerUrl, _))
-      .WillOnce(WithArgs<1>(Invoke(
+      .WillOnce(WithArgs<1>(
           [&](IdpNetworkRequestManager::FetchWellKnownCallback callback) {
             IdpNetworkRequestManager::WellKnown well_known;
             well_known.issuance_endpoint = kIssuanceEndpoint;
@@ -95,13 +96,13 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
                 IdpNetworkRequestManager::FetchStatus{
                     IdpNetworkRequestManager::ParseStatus::kSuccess},
                 well_known);
-          })));
+          }));
 
   EXPECT_CALL(*mock_network_manager_,
               SendTokenRequest(kIssuanceEndpoint, kEmail, _, _, _, _, _))
       .WillOnce(WithArgs<2, 4>(
-          Invoke([&](const std::string& url_encoded_post_data,
-                     IdpNetworkRequestManager::TokenRequestCallback callback) {
+          [&](const std::string& url_encoded_post_data,
+              IdpNetworkRequestManager::TokenRequestCallback callback) {
             base::StringPairs params;
             EXPECT_TRUE(base::SplitStringIntoKeyValuePairs(
                 url_encoded_post_data, '=', '&', &params));
@@ -115,19 +116,19 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
             auto jwt = sdjwt::Jwt::From(*jwt_json);
             EXPECT_TRUE(jwt);
 
-            auto header = sdjwt::Header::From(
-                *base::JSONReader::ReadDict(jwt->header.value()));
+            auto header = sdjwt::Header::From(*base::JSONReader::ReadDict(
+                jwt->header.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS));
             EXPECT_TRUE(header);
             EXPECT_EQ(header->typ, "JWT");
             EXPECT_EQ(header->alg, "RS256");
             // Asserts that the JWK is present in the header.
             EXPECT_TRUE(header->jwk);
 
-            auto payload = sdjwt::Payload::From(
-                *base::JSONReader::ReadDict(jwt->payload.value()));
+            auto payload = sdjwt::Payload::From(*base::JSONReader::ReadDict(
+                jwt->payload.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS));
             EXPECT_TRUE(payload);
             EXPECT_EQ(payload->aud,
-                      url::Origin::Create(kIssuerUrl).Serialize());
+                      main_rfh()->GetLastCommittedOrigin().Serialize());
             EXPECT_EQ(payload->email, kEmail);
 
             sdjwt::SdJwt token;
@@ -157,12 +158,11 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
                 IdpNetworkRequestManager::FetchStatus{
                     IdpNetworkRequestManager::ParseStatus::kSuccess},
                 std::move(result));
-          })));
+          }));
 
   base::test::TestFuture<std::optional<std::string>> future;
   std::string nonce = kNonce;
-  email_verification_request_.Send(kEmail, nonce, kRpOrigin,
-                                   future.GetCallback());
+  email_verification_request_.Send(kEmail, nonce, future.GetCallback());
   std::optional<std::string> token = future.Get();
   EXPECT_TRUE(token.has_value());
 
@@ -173,10 +173,10 @@ TEST_F(EmailVerificationRequestTest, SuccessfulVerification) {
   EXPECT_TRUE(kb_jwt_json);
   auto kb_jwt = sdjwt::Jwt::From(*kb_jwt_json);
   EXPECT_TRUE(kb_jwt);
-  auto kb_payload = sdjwt::Payload::From(
-      *base::JSONReader::ReadDict(kb_jwt->payload.value()));
+  auto kb_payload = sdjwt::Payload::From(*base::JSONReader::ReadDict(
+      kb_jwt->payload.value(), base::JSON_PARSE_CHROMIUM_EXTENSIONS));
   EXPECT_TRUE(kb_payload);
-  EXPECT_EQ(kb_payload->aud, kRpOrigin.Serialize());
+  EXPECT_EQ(kb_payload->aud, main_rfh()->GetLastCommittedOrigin().Serialize());
   EXPECT_EQ(kb_payload->nonce, kNonce);
 }
 

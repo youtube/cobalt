@@ -129,6 +129,11 @@ public class TopToolbarOverlayMediator {
                     @Override
                     public void onTimeUpdate(
                             TimeAnimator animation, long totalTimeMs, long deltaTimeMs) {
+                        if (MathUtils.areFloatsEqual(mAnimatedProgress, mTargetProgress)
+                                || mAnimatedProgress > mTargetProgress) {
+                            return;
+                        }
+
                         mAnimatedProgress += (deltaTimeMs / ((float) ANIMATION_DURATION_MS));
                         mAnimatedProgress = Math.min(mAnimatedProgress, mTargetProgress);
                         updateProgress();
@@ -197,18 +202,11 @@ public class TopToolbarOverlayMediator {
 
                             @Override
                             public void onLoadProgressChanged(Tab tab, float progress) {
-                                mTargetProgress = progress;
                                 if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser
                                         .isEnabled()) {
-                                    if (MathUtils.areFloatsEqual(1.0f, progress)) {
-                                        mProgressBarAnimation.cancel();
-                                        updateProgress();
-                                    } else if (!mProgressBarAnimation.isStarted()) {
-                                        mProgressBarAnimation.start();
-                                    }
-                                } else {
-                                    updateProgress();
+                                    mTargetProgress = progress;
                                 }
+                                updateProgress();
                             }
 
                             @Override
@@ -320,6 +318,13 @@ public class TopToolbarOverlayMediator {
     }
 
     private int getBookmarkBarAdjustedContentOffset() {
+        // To resolve conflict with LockTopControls features, when either is enabled, we do not
+        // adjust the offset by the bookmarks bar or the toolbar will appear over the tab strip.
+        if (BrowserControlsUtils.doSyncMinHeightWithTotalHeight(mContext)
+                || ChromeFeatureList.sLockTopControlsOnLargeTabletsV2.isEnabled()) {
+            return mBrowserControlsStateProvider.getTopControlsHeight();
+        }
+
         int offset = mBookmarkBarHeightSupplier != null ? mBookmarkBarHeightSupplier.get() : 0;
         return mBrowserControlsStateProvider.getTopControlsHeight() - offset;
     }
@@ -436,6 +441,13 @@ public class TopToolbarOverlayMediator {
         }
 
         if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
+            if (drawingInfo.visible && !mProgressBarAnimation.isStarted()) {
+                mAnimatedProgress = 0;
+                mProgressBarAnimation.start();
+            } else if (!drawingInfo.visible) {
+                mProgressBarAnimation.cancel();
+            }
+
             Rect foregroundRect = drawingInfo.progressBarRect;
             Rect backgroundRect = drawingInfo.progressBarBackgroundRect;
             Rect staticBackgroundRect = drawingInfo.progressBarStaticBackgroundRect;

@@ -80,6 +80,19 @@ base::Value::Dict GetServiceEndpointRequestAsValue(
   return dict;
 }
 
+// Converts a NextProtoSet containing allowed ALPNs to a value usable in NetLog
+// events - currently a std::string, though could make it a Value::List instead.
+std::string AllowedAlpnsToValue(const NextProtoSet& allowed_alpns) {
+  std::string list;
+  for (const auto proto : allowed_alpns) {
+    if (!list.empty()) {
+      list.append(",");
+    }
+    list.append(NextProtoToString(proto));
+  }
+  return list;
+}
+
 }  // namespace
 
 // static
@@ -148,10 +161,16 @@ HttpStreamPool::AttemptManager::AttemptManager(Group* group, NetLog* net_log)
           NetLogSourceType::HTTP_STREAM_POOL_ATTEMPT_MANAGER)),
       track_(base::trace_event::GetNextGlobalTraceId()),
       created_time_(base::TimeTicks::Now()),
+      // This must be before the GetTcpBasedAttemptDelay() call, since it needs
+      // to know that QUIC is not allowed, or it will try to create an invalid
+      // QUIC destination and trigger a CHECK.
+      allowed_alpns_(UsingTls() ? kAllProtocols : kTcpBasedProtocols),
       request_jobs_(NUM_PRIORITIES),
       tcp_based_attempt_delay_(GetTcpBasedAttemptDelay()),
       should_block_tcp_based_attempt_(!tcp_based_attempt_delay_.is_zero()) {
   CHECK(group_);
+  // Since this is only one of two fixed values, seems not worth CHECKing.
+  DCHECK(!allowed_alpns_.Has(NextProto::kProtoUnknown));
 
   TRACE_EVENT_BEGIN("net.stream", "AttemptManager::AttemptManager", track_,
                     "destination", stream_key().destination().Serialize());
@@ -164,6 +183,7 @@ HttpStreamPool::AttemptManager::AttemptManager(Group* group, NetLog* net_log)
                  static_cast<int>(tcp_based_attempt_delay_.InMilliseconds()));
         dict.Set("should_block_tcp_based_attempt",
                  should_block_tcp_based_attempt_);
+        dict.Set("supports_spdy", SupportsSpdy());
         group_->net_log().source().AddToEventParameters(dict);
         return dict;
       });
@@ -224,8 +244,7 @@ void HttpStreamPool::AttemptManager::RequestStream(Job* job) {
         dict.Set("allowed_bad_certs", std::move(allowed_bad_certs_list));
         dict.Set("enable_ip_based_pooling_for_h2",
                  job->enable_ip_based_pooling_for_h2());
-        dict.Set("enable_alternative_services",
-                 job->enable_alternative_services());
+        dict.Set("allowed_alpns", AllowedAlpnsToValue(job->allowed_alpns()));
         dict.Set("quic_version",
                  quic::ParsedQuicVersionToString(job->quic_version()));
         job->net_log().source().AddToEventParameters(dict);
@@ -518,7 +537,6 @@ void HttpStreamPool::AttemptManager::OnJobComplete(Job* job) {
   preconnect_jobs_.erase(job);
   limit_ignoring_jobs_.erase(job);
   ip_based_pooling_disabling_jobs_.erase(job);
-  alternative_service_disabling_jobs_.erase(job);
 
   auto notified_it = notified_jobs_.find(job);
   if (notified_it != notified_jobs_.end()) {
@@ -942,6 +960,8 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetStatesAsNetLogParams()
            static_cast<int>(group_->ActiveStreamSocketCount()));
   dict.Set("num_idle_sockets",
            static_cast<int>(group_->IdleStreamSocketCount()));
+  dict.Set("num_handed_out_sockets",
+           static_cast<int>(group_->HandedOutStreamSocketCount()));
   dict.Set("num_total_sockets",
            static_cast<int>(group_->ActiveStreamSocketCount()));
   dict.Set("num_jobs", static_cast<int>(request_jobs_.size()));
@@ -952,7 +972,7 @@ base::Value::Dict HttpStreamPool::AttemptManager::GetStatesAsNetLogParams()
   dict.Set("num_slow_attempts",
            static_cast<int>(slow_tcp_based_attempt_count_));
   dict.Set("enable_ip_based_pooling_for_h2", IsIpBasedPoolingEnabledForH2());
-  dict.Set("enable_alternative_services", IsAlternativeServiceEnabled());
+  dict.Set("allowed_alpns", AllowedAlpnsToValue(allowed_alpns_));
   dict.Set("quic_attempt_alive", !!quic_attempt_);
   if (quic_attempt_result_.has_value()) {
     dict.Set("quic_attempt_result", *quic_attempt_result_);
@@ -1000,11 +1020,8 @@ void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
     ip_based_pooling_disabling_jobs_.emplace(job);
   }
 
-  if (!job->enable_alternative_services()) {
-    alternative_service_disabling_jobs_.emplace(job);
-  }
-
   quic_version_ = job->quic_version();
+  RestrictAllowedProtocols(job->allowed_alpns());
 
   // JobController should check the existing QUIC/SPDY sessions before starting
   // a Job.
@@ -1015,7 +1032,6 @@ void HttpStreamPool::AttemptManager::StartInternal(Job* job) {
         !HasAvailableSpdySession());
 
   MaybeChangeServiceEndpointRequestPriority();
-  RestrictAllowedProtocols(job->allowed_alpns());
   UpdateTcpBasedAttemptState();
 
   if (service_endpoint_request_ || service_endpoint_request_finished_) {
@@ -1059,6 +1075,8 @@ void HttpStreamPool::AttemptManager::ResetServiceEndpointRequest() {
 
 void HttpStreamPool::AttemptManager::RestrictAllowedProtocols(
     NextProtoSet allowed_alpns) {
+  CHECK(!allowed_alpns.Has(NextProto::kProtoUnknown));
+
   allowed_alpns_ = base::Intersection(allowed_alpns_, allowed_alpns);
   CHECK(!allowed_alpns_.empty());
 
@@ -1422,10 +1440,6 @@ bool HttpStreamPool::AttemptManager::ShouldRespectLimits() const {
 
 bool HttpStreamPool::AttemptManager::IsIpBasedPoolingEnabledForH2() const {
   return ip_based_pooling_disabling_jobs_.empty();
-}
-
-bool HttpStreamPool::AttemptManager::IsAlternativeServiceEnabled() const {
-  return alternative_service_disabling_jobs_.empty();
 }
 
 bool HttpStreamPool::AttemptManager::SupportsSpdy() const {
@@ -2019,16 +2033,15 @@ bool HttpStreamPool::AttemptManager::CanUseTcpBasedProtocols() {
   return allowed_alpns_.HasAny(kTcpBasedProtocols);
 }
 
-bool HttpStreamPool::AttemptManager::CanUseQuic() {
-  return allowed_alpns_.HasAny(kQuicBasedProtocols) &&
-         pool()->CanUseQuic(stream_key().destination(),
-                            stream_key().network_anonymization_key(),
-                            IsAlternativeServiceEnabled());
+bool HttpStreamPool::AttemptManager::CanUseQuic() const {
+  return allowed_alpns_.HasAny(kQuicBasedProtocols);
 }
 
-bool HttpStreamPool::AttemptManager::CanUseExistingQuicSession() {
-  return pool()->CanUseExistingQuicSession(quic_session_alias_key(),
-                                           IsAlternativeServiceEnabled());
+bool HttpStreamPool::AttemptManager::CanUseExistingQuicSession() const {
+  const QuicSessionAliasKey& session_alias_key = quic_session_alias_key();
+  return CanUseQuic() &&
+         http_network_session()->quic_session_pool()->CanUseExistingSession(
+             session_alias_key.session_key(), session_alias_key.destination());
 }
 
 bool HttpStreamPool::AttemptManager::IsEchEnabled() const {
@@ -2080,7 +2093,6 @@ void HttpStreamPool::AttemptManager::MaybeComplete() {
 
   CHECK(limit_ignoring_jobs_.empty());
   CHECK(ip_based_pooling_disabling_jobs_.empty());
-  CHECK(alternative_service_disabling_jobs_.empty());
 
   if (on_complete_callback_for_testing_) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(

@@ -9,6 +9,7 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/enterprise/signin/profile_management_disclaimer_service.h"
@@ -83,6 +84,22 @@ std::unique_ptr<KeyedService> BuildMockProfileManagementDisclaimerService(
       Profile::FromBrowserContext(context));
 }
 
+class HistorySyncOptinHelperTestObserver
+    : public HistorySyncOptinHelper::Observer {
+ public:
+  explicit HistorySyncOptinHelperTestObserver(
+      base::test::TestFuture<void>& future)
+      : future_(future) {}
+
+  // HistorySyncOptinHelper::Observer implementation:
+  void OnHistorySyncOptinHelperFlowFinished() override { future_->SetValue(); }
+
+  ~HistorySyncOptinHelperTestObserver() override = default;
+
+ private:
+  base::raw_ref<base::test::TestFuture<void>> future_;
+};
+
 // TODO(crbug.com/434964019): When management screen support is implemented
 // for the browser case, make this test parametrizable.
 class HistorySyncOptinHelperBrowserTest
@@ -91,12 +108,7 @@ class HistorySyncOptinHelperBrowserTest
           HistorySyncOptinHelper::LaunchContext> {
  public:
   HistorySyncOptinHelperBrowserTest()
-      : SigninBrowserTestBase(/*use_main_profile=*/true) {
-    scoped_features_.InitWithFeatures(
-        /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos,
-                              switches::kEnforceManagementDisclaimer},
-        /*disabled_features=*/{});
-  }
+      : SigninBrowserTestBase(/*use_main_profile=*/true) {}
 
   AccountInfo MakeAccountInfoAvailableAndSignIn() {
     AccountInfo account_info =
@@ -132,6 +144,9 @@ class HistorySyncOptinHelperBrowserTest
         ProfileManagementDisclaimerServiceFactory::GetForProfile(GetProfile()));
   }
 
+ protected:
+  base::UserActionTester user_action_tester_;
+
  private:
   void OnWillCreateBrowserContextServices(
       content::BrowserContext* context) override {
@@ -156,7 +171,8 @@ class HistorySyncOptinHelperBrowserTest
         base::BindRepeating(&BuildMockProfileManagementDisclaimerService));
   }
 
-  base::test::ScopedFeatureList scoped_features_;
+  base::test::ScopedFeatureList scoped_features_{
+      syncer::kReplaceSyncPromosWithSignInPromos};
 };
 
 IN_PROC_BROWSER_TEST_P(
@@ -181,6 +197,11 @@ IN_PROC_BROWSER_TEST_P(
 
   // Subsequent updates should have no impact.
   UpdateAccountManagementInfo(account_info, /*is_managed=*/false);
+
+  EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Started"),
+            1);
+  EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Skipped"),
+            0);
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -202,9 +223,11 @@ IN_PROC_BROWSER_TEST_P(
           .WillOnce(testing::Invoke(
               [&](const CoreAccountId&, signin_metrics::AccessPoint,
                   base::OnceCallback<void(Profile*, bool)> callback) {
-                // The callback must be executed asynchronously, to better
-                // reflect the production implementation.
-                std::move(callback).Run(GetProfile(), true);
+                // The callback is executed asynchronously, to better reflect
+                // the production implementation.
+                base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+                    FROM_HERE,
+                    base::BindOnce(std::move(callback), GetProfile(), true));
               }));
       break;
     case HistorySyncOptinHelper::LaunchContext::kInProfilePicker:
@@ -252,9 +275,11 @@ IN_PROC_BROWSER_TEST_P(
           .WillOnce(testing::Invoke(
               [&](const CoreAccountId&, signin_metrics::AccessPoint,
                   base::OnceCallback<void(Profile*, bool)> callback) {
-                // The callback must be executed asynchronously, to better
-                // reflect the production implementation.
-                std::move(callback).Run(nullptr, false);
+                // The callback is executed asynchronously, to better reflect
+                // the production implementation.
+                base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+                    FROM_HERE,
+                    base::BindOnce(std::move(callback), nullptr, false));
               }));
       break;
     case HistorySyncOptinHelper::LaunchContext::kInProfilePicker:
@@ -265,12 +290,13 @@ IN_PROC_BROWSER_TEST_P(
       break;
   }
   EXPECT_CALL(delegate, ShowHistorySyncOptinScreen).Times(0);
-  EXPECT_CALL(delegate, FinishFlowWithoutHistorySyncOptin)
-      .WillOnce(testing::Invoke([&future]() { future.SetValue(); }));
 
   auto history_sync_optin_helper = HistorySyncOptinHelper::Create(
       identity_test_env()->identity_manager(), GetProfile(), account_info,
       &delegate, GetParam());
+  HistorySyncOptinHelperTestObserver history_sync_optin_helper_observer(future);
+  history_sync_optin_helper->AddObserver(&history_sync_optin_helper_observer);
+
   history_sync_optin_helper->StartHistorySyncOptinFlow();
 
   // This triggers the flow that reaches the delegate's
@@ -280,6 +306,11 @@ IN_PROC_BROWSER_TEST_P(
 
   // Subsequent updates should have no impact on the flow.
   UpdateAccountManagementInfo(account_info, /*is_managed=*/true);
+
+  EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Started"),
+            1);
+  EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Skipped"),
+            1);
 }
 
 IN_PROC_BROWSER_TEST_P(
@@ -359,6 +390,11 @@ IN_PROC_BROWSER_TEST_P(HistorySyncOptinHelperBrowserTest,
       identity_test_env()->identity_manager(), GetProfile(), account_info,
       &delegate, GetParam());
   history_sync_optin_helper->StartHistorySyncOptinFlow();
+
+  EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Started"),
+            1);
+  EXPECT_EQ(user_action_tester_.GetActionCount("Signin_HistorySync_Skipped"),
+            1);
 }
 
 INSTANTIATE_TEST_SUITE_P(

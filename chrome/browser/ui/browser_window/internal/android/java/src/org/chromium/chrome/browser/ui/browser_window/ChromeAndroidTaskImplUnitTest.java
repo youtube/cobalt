@@ -429,12 +429,29 @@ public class ChromeAndroidTaskImplUnitTest {
     }
 
     @Test
-    public void getOrCreateNativeBrowserWindowPtr_returnsPtrValue() {
+    public void getOrCreateNativeBrowserWindowPtr_returnsPtrValueForAliveTask() {
         // Arrange.
         var chromeAndroidTaskWithMockDeps =
                 ChromeAndroidTaskUnitTestSupport.createChromeAndroidTaskWithMockDeps(
                         /* taskId= */ 1);
         var chromeAndroidTask = chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+
+        // Act.
+        long nativeBrowserWindowPtr = chromeAndroidTask.getOrCreateNativeBrowserWindowPtr();
+
+        // Assert.
+        assertEquals(
+                ChromeAndroidTaskUnitTestSupport.FAKE_NATIVE_ANDROID_BROWSER_WINDOW_PTR,
+                nativeBrowserWindowPtr);
+    }
+
+    @Test
+    public void getOrCreateNativeBrowserWindowPtr_returnsPtrValueForPendingTask() {
+        // Arrange.
+        ChromeAndroidTaskUnitTestSupport.createMockAndroidBrowserWindowNatives();
+        var mockParams =
+                ChromeAndroidTaskUnitTestSupport.createMockAndroidBrowserWindowCreateParams();
+        var chromeAndroidTask = new ChromeAndroidTaskImpl(/* pendingId= */ 1, mockParams);
 
         // Act.
         long nativeBrowserWindowPtr = chromeAndroidTask.getOrCreateNativeBrowserWindowPtr();
@@ -673,16 +690,16 @@ public class ChromeAndroidTaskImplUnitTest {
                         /* taskId= */ 1);
         var chromeAndroidTask =
                 (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var mockActivityWindowAndroid =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityWindowAndroidMocks
+                        .mMockActivityWindowAndroid;
         var mockActivity = chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockActivity;
         var mockWindowManager =
                 chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockWindowManager;
 
-        // Mock isInDesktopWindowing() to return true.
-        var mockWindowMetrics = mock(WindowMetrics.class);
-        var mockWindowInsets = mock(WindowInsets.class);
-        when(mockWindowManager.getCurrentWindowMetrics()).thenReturn(mockWindowMetrics);
-        when(mockWindowMetrics.getWindowInsets()).thenReturn(mockWindowInsets);
-        when(mockWindowInsets.isVisible(WindowInsets.Type.captionBar())).thenReturn(true);
+        // Mock isInMultiWindowMode() to return true.
+        when(mockActivity.isInMultiWindowMode()).thenReturn(true);
 
         // Mock getMaximizedBounds().
         var mockMaxWindowMetrics = mock(WindowMetrics.class);
@@ -724,18 +741,22 @@ public class ChromeAndroidTaskImplUnitTest {
                         /* taskId= */ 1);
         var chromeAndroidTask =
                 (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var mockActivityWindowAndroid =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityWindowAndroidMocks
+                        .mMockActivityWindowAndroid;
         var mockWindowManager =
                 chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockWindowManager;
 
-        // Mock isInDesktopWindowing() to return true.
+        // Mock isInMultiWindowMode() to return true.
         var mockWindowMetrics = mock(WindowMetrics.class);
-        var mockWindowInsets = mock(WindowInsets.class);
-        when(mockWindowManager.getCurrentWindowMetrics()).thenReturn(mockWindowMetrics);
-        when(mockWindowMetrics.getWindowInsets()).thenReturn(mockWindowInsets);
-        when(mockWindowInsets.isVisible(WindowInsets.Type.captionBar())).thenReturn(true);
+        when(chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockActivity
+                        .isInMultiWindowMode())
+                .thenReturn(true);
 
         // Mock getBounds() to return non-maximized bounds.
         var currentBounds = new Rect(0, 0, 800, 600);
+        when(mockWindowManager.getCurrentWindowMetrics()).thenReturn(mockWindowMetrics);
         when(mockWindowMetrics.getBounds()).thenReturn(currentBounds);
 
         // Mock getMaximizedBounds().
@@ -794,6 +815,10 @@ public class ChromeAndroidTaskImplUnitTest {
                 ChromeAndroidTaskUnitTestSupport.createChromeAndroidTaskWithMockDeps(taskId);
         var chromeAndroidTask =
                 (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var mockActivityWindowAndroid =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityWindowAndroidMocks
+                        .mMockActivityWindowAndroid;
         var mockActivity = chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockActivity;
         var mockWindowManager =
                 chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockWindowManager;
@@ -808,14 +833,15 @@ public class ChromeAndroidTaskImplUnitTest {
         // 1. Mock isMinimizedInternalLocked() to be false. (Assuming task is visible)
         ApplicationStatus.onStateChangeForTesting(mockActivity, ActivityState.CREATED);
         ApplicationStatus.onStateChangeForTesting(mockActivity, ActivityState.RESUMED);
-        assertFalse(chromeAndroidTask.isMinimized());
+        assertFalse("Task is minimized", chromeAndroidTask.isMinimized());
 
         // 2. Mock isMaximizedInternalLocked() to be false.
+        // Mock isInMultiWindowMode() to return true.
         var mockWindowMetrics = mock(WindowMetrics.class);
-        var mockWindowInsets = mock(WindowInsets.class);
         when(mockWindowManager.getCurrentWindowMetrics()).thenReturn(mockWindowMetrics);
-        when(mockWindowMetrics.getWindowInsets()).thenReturn(mockWindowInsets);
-        when(mockWindowInsets.isVisible(WindowInsets.Type.captionBar())).thenReturn(true);
+        when(chromeAndroidTaskWithMockDeps.mActivityWindowAndroidMocks.mMockActivity
+                        .isInMultiWindowMode())
+                .thenReturn(true);
 
         var restoredBounds = new Rect(0, 0, 800, 600);
         when(mockWindowMetrics.getBounds()).thenReturn(restoredBounds);
@@ -827,12 +853,19 @@ public class ChromeAndroidTaskImplUnitTest {
         when(mockMaxWindowInsets.getInsets(WindowInsets.Type.tappableElement()))
                 .thenReturn(Insets.of(0, 0, 0, 0));
         when(mockMaxWindowMetrics.getBounds()).thenReturn(new Rect(0, 0, 1920, 1080));
+        assertFalse("Task is maximized", chromeAndroidTask.isMaximized());
 
         // 3. Mock isFullscreenInternalLocked() to be false.
         when(mockMaxWindowInsets.isVisible(WindowInsets.Type.statusBars())).thenReturn(true);
+        assertFalse("Task is fullscreen", chromeAndroidTask.isFullscreen());
 
         // Call maximize(). This should set mRestoredBounds to the current bounds.
         chromeAndroidTask.maximize();
+
+        assertEquals(
+                "restored bounds should be set to the current bounds",
+                restoredBounds,
+                chromeAndroidTask.getRestoredBoundsForTesting());
 
         // Act
         chromeAndroidTask.restore();

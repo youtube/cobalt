@@ -18,12 +18,8 @@ enum class SuppressReason {
   kNotSuppressed,
   // Suggestions are not shown because an ablation experiment is enabled.
   kAblation,
-  // Suggestions are not shown because this form is on a secure site, but
-  // submits insecurely. This is only used when the user has started typing,
-  // otherwise a warning is shown.
-  kInsecureForm,
   // Suggestions are not shown because the field is annotated with
-  // an unrecognized autocompelte attribute and the field is not credit card
+  // an unrecognized autocomplete attribute and the field is not credit card
   // related. For credit card fields, the unrecognized attribute is ignored.
   kAutocompleteUnrecognized,
 };
@@ -39,9 +35,6 @@ struct SuggestionsContext {
   // `trigger_source`.
   DenseSet<FillingProduct> GetFillingProductsToSuggest() const;
 
-  bool is_autofill_available = false;
-  bool is_context_secure = false;
-  bool should_show_mixed_content_warning = false;
   FillingProduct filling_product = FillingProduct::kNone;
   SuppressReason suppress_reason = SuppressReason::kNotSuppressed;
   // Indicates whether generating Autofill and AutofillAI suggestions
@@ -51,11 +44,6 @@ struct SuggestionsContext {
   // TODO(crbug.com/409962888): Remove once each suggestion generator is capable
   // of checking all of their requirements.
   bool do_not_generate_autofill_suggestions = false;
-  // Indicates whether fetching the list of plus addresses is required to
-  // generate the overall list of suggestions.
-  // TODO(crbug.com/409962888): Remove once each suggestion generator is capable
-  // of checking all of their requirements.
-  bool field_is_relevant_for_plus_addresses = false;
   AutofillSuggestionTriggerSource trigger_source =
       AutofillSuggestionTriggerSource::kUnspecified;
 };

@@ -155,6 +155,8 @@ static std::string TerminationStatusToString(base::TerminationStatus status) {
     case base::TERMINATION_STATUS_INTEGRITY_FAILURE:
       return "integrity failure";
 #endif
+    case base::TERMINATION_STATUS_EVICTED_FOR_MEMORY:
+      return "evicted for memory";
     case base::TERMINATION_STATUS_MAX_ENUM:
       break;
   }
@@ -274,8 +276,8 @@ class BrowserToPageConnector {
     std::string_view message_sp(reinterpret_cast<const char*>(message.data()),
                                 message.size());
     if (agent_host == page_host_.get()) {
-      std::optional<base::Value::Dict> value =
-          base::JSONReader::ReadDict(message_sp);
+      std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(
+          message_sp, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
       if (!value) {
         return;
       }
@@ -539,9 +541,10 @@ class TargetHandler::Session : public DevToolsAgentHostClient {
     DCHECK(!flatten_protocol_);
 
     if (throttle_ || worker_throttle_) {
-      std::optional<base::Value::Dict> value =
-          base::JSONReader::ReadDict(std::string_view(
-              reinterpret_cast<const char*>(message.data()), message.size()));
+      std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(
+          std::string_view(reinterpret_cast<const char*>(message.data()),
+                           message.size()),
+          base::JSON_PARSE_CHROMIUM_EXTENSIONS);
       const std::string* method;
       if (value && (method = value->FindString(kMethod)) &&
           *method == kResumeMethod) {
@@ -1163,9 +1166,6 @@ Response TargetHandler::AttachToBrowserTarget(std::string* out_session_id) {
 
 Response TargetHandler::DetachFromTarget(std::optional<std::string> session_id,
                                          std::optional<std::string> target_id) {
-  if (access_mode_ == AccessMode::kAutoAttachOnly) {
-    return Response::ServerError(kNotAllowedError);
-  }
   Session* session = nullptr;
   Response response =
       FindSession(std::move(session_id), std::move(target_id), &session);
@@ -1302,6 +1302,16 @@ Response TargetHandler::CreateTarget(
   }
 
   if (hidden.value_or(false)) {
+    // Hidden target can be created only when remote debugging is enabled.
+    DevToolsManagerDelegate* delegate =
+        DevToolsManager::GetInstance()->delegate();
+    if (!delegate || delegate
+                         ->RemoteDebuggingTargets(
+                             DevToolsManagerDelegate::TargetType::kFrame)
+                         .empty()) {
+      return protocol::Response::ServerError(
+          "Hidden target can be created only when remote debugging is enabled");
+    }
     if (for_tab.value_or(false)) {
       return protocol::Response::InvalidParams(
           "Hidden target cannot be created for tab");

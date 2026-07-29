@@ -41,6 +41,35 @@ if (is_ios) {
   import("//build/ios/extension_bundle_data.gni")
 }
 
+# Exposes a free function to enable the field trial testing config.
+# This allows testing new features enabled in the Dev/Beta/Stable channels.
+#
+# This is part of its own target. The goal is to isolate the internal
+# dependencies it requires, which are not part of the normal layering of
+# content. This avoids granting other sources access to these dependencies.
+#
+# The field trial testing config is enabled by default in unbranded builds.
+# It can be configured at runtime using:
+# --enable-field-trial-config
+# --disable-field-trial-config
+static_library("setup_field_trials") {
+  testonly = true
+
+  public = [ "../public/test/setup_field_trials.h" ]
+  public_deps = []  # No transitive dependencies.
+
+  sources = [ "setup_field_trials.cc" ]
+  deps = [
+    "//cc/base",
+    "//components/metrics",
+    "//components/metrics:test_support",
+    "//components/prefs",
+    "//components/variations:test_support",
+    "//components/variations/service",
+    "//content/public/common",
+  ]
+}
+
 # Use a static library here because many test binaries depend on this but don't
 # require many files from it. This makes linking more efficient.
 static_library("test_support") {
@@ -292,8 +321,6 @@ static_library("test_support") {
     "../public/test/navigation_handle_observer.cc",
     "../public/test/navigation_handle_observer.h",
     "../public/test/navigation_simulator.h",
-    "../public/test/navigation_transition_test_utils.cc",
-    "../public/test/navigation_transition_test_utils.h",
     "../public/test/network_connection_change_simulator.cc",
     "../public/test/network_connection_change_simulator.h",
     "../public/test/network_service_test_helper.cc",
@@ -453,6 +480,8 @@ static_library("test_support") {
     "mock_overscroll_observer.h",
     "mock_platform_notification_service.cc",
     "mock_platform_notification_service.h",
+    "mock_process_selection_deferring_condition_tester.cc",
+    "mock_process_selection_deferring_condition_tester.h",
     "mock_reduce_accept_language_controller_delegate.cc",
     "mock_reduce_accept_language_controller_delegate.h",
     "mock_render_input_router.cc",
@@ -537,6 +566,7 @@ static_library("test_support") {
   ]
 
   public_deps = [
+    ":setup_field_trials",
     ":test_interfaces",
     "//components/attribution_reporting:test_support",
     "//components/download/public/common:test_support",
@@ -682,6 +712,8 @@ static_library("test_support") {
 
   if (is_android) {
     sources += [
+      "../public/test/navigation_transition_test_utils.cc",
+      "../public/test/navigation_transition_test_utils.h",
       "../public/test/test_synchronous_compositor_android.cc",
       "../public/test/test_synchronous_compositor_android.h",
     ]
@@ -1467,6 +1499,7 @@ test("content_browsertests") {
     "../browser/attribution_reporting/privacy_sandbox_ads_apis_browsertest.cc",
     "../browser/attribution_reporting/source_declaration_browsertest.cc",
     "../browser/attribution_reporting/trigger_registration_browsertest.cc",
+    "../browser/audio/audio_service_browsertest.cc",
     "../browser/back_forward_cache_basics_browsertest.cc",
     "../browser/back_forward_cache_browsertest.cc",
     "../browser/back_forward_cache_browsertest.h",
@@ -1964,6 +1997,7 @@ test("content_browsertests") {
     "//net:simple_quic_tools",
     "//net:test_support",
     "//pdf:buildflags",
+    "//services/audio",
     "//services/audio/public/cpp",
     "//services/cert_verifier/public/mojom",
     "//services/data_decoder/public/cpp",
@@ -2842,13 +2876,12 @@ test("content_unittests") {
     "../browser/renderer_host/navigation_policy_container_builder_unittest.cc",
     "../browser/renderer_host/navigation_request_unittest.cc",
     "../browser/renderer_host/navigation_throttle_runner_unittest.cc",
-    "../browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache_unittest.cc",
-    "../browser/renderer_host/navigation_transitions/navigation_entry_screenshot_manager_unittest.cc",
     "../browser/renderer_host/navigator_unittest.cc",
     "../browser/renderer_host/overscroll_controller_unittest.cc",
     "../browser/renderer_host/partitioned_popins/partitioned_popins_policy_unittest.cc",
     "../browser/renderer_host/policy_container_host_unittest.cc",
     "../browser/renderer_host/private_network_access_util_unittest.cc",
+    "../browser/renderer_host/process_selection_deferring_condition_runner_unittest.cc",
     "../browser/renderer_host/randomized_confidence_utils_unittest.cc",
     "../browser/renderer_host/recently_destroyed_hosts_unittest.cc",
     "../browser/renderer_host/render_frame_host_csp_context_unittest.cc",
@@ -3116,6 +3149,8 @@ test("content_unittests") {
       "../browser/display_cutout/safe_area_insets_host_impl_unittest.cc",
       "../browser/navigation_transitions/physics_model_unittest.cc",
       "../browser/renderer_host/input/input_transfer_handler_android_unittest.cc",
+      "../browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache_unittest.cc",
+      "../browser/renderer_host/navigation_transitions/navigation_entry_screenshot_manager_unittest.cc",
       "../browser/screen_orientation/screen_orientation_delegate_android_unittest.cc",
       "../browser/web_contents/color_chooser_unittest.cc",
       "../common/android/cpu_time_metrics_unittest.cc",

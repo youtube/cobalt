@@ -63,6 +63,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/device_reauth/mock_device_authenticator.h"
+#include "components/one_time_tokens/core/browser/sms_otp_backend.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/machine_learning_tflite_buildflags.h"
@@ -78,6 +79,8 @@
 #include "services/metrics/public/cpp/delegating_ukm_recorder.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
@@ -283,7 +286,7 @@ class TestAutofillClientTemplate : public T {
   }
 
   url::Origin GetLastCommittedPrimaryMainFrameOrigin() const override {
-    return url::Origin::Create(last_committed_primary_main_frame_url_);
+    return last_committed_primary_main_frame_origin_;
   }
 
   security_state::SecurityLevel GetSecurityLevelForUmaHistograms() override {
@@ -556,6 +559,7 @@ class TestAutofillClientTemplate : public T {
 
   void set_last_committed_primary_main_frame_url(const GURL& url) {
     last_committed_primary_main_frame_url_ = url;
+    last_committed_primary_main_frame_origin_ = url::Origin::Create(url);
   }
 
   void SetVariationConfigCountryCode(
@@ -631,6 +635,19 @@ class TestAutofillClientTemplate : public T {
     return identity_test_env_;
   }
 
+  // Allows to return an injected SMS OTP backend which can be set using the
+  // `set_sms_otp_backend`. If no backend is injected, the test client will
+  // revert to the one provided by the real AutofillClient.
+  one_time_tokens::SmsOtpBackend* GetSmsOtpBackend() const override {
+    return injected_sms_otp_backend_ ? injected_sms_otp_backend_.get()
+                                     : T::GetSmsOtpBackend();
+  }
+
+  void set_sms_otp_backend(
+      std::unique_ptr<one_time_tokens::SmsOtpBackend> sms_otp_backend) {
+    injected_sms_otp_backend_ = std::move(sms_otp_backend);
+  }
+
  private:
   ukm::TestAutoSetUkmRecorder test_ukm_recorder_;
   signin::IdentityTestEnvironment identity_test_env_;
@@ -652,6 +669,7 @@ class TestAutofillClientTemplate : public T {
   ::testing::NiceMock<MockFastCheckoutClient> mock_fast_checkout_client_;
   std::unique_ptr<device_reauth::MockDeviceAuthenticator>
       device_authenticator_ = nullptr;
+  std::unique_ptr<one_time_tokens::SmsOtpBackend> injected_sms_otp_backend_;
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::unique_ptr<FieldClassificationModelHandler>
@@ -717,6 +735,8 @@ class TestAutofillClientTemplate : public T {
   // The last URL submitted in the primary main frame by the user. Set in the
   // constructor.
   GURL last_committed_primary_main_frame_url_{"https://example.test"};
+  url::Origin last_committed_primary_main_frame_origin_ =
+      url::Origin::Create(last_committed_primary_main_frame_url_);
 
   std::optional<AutofillClient::SuggestionUiSessionId>
       suggestion_ui_session_id_;

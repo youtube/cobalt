@@ -215,7 +215,7 @@ BASE_FEATURE_PARAM(int,
 // (PNA), and if this is on PNA features may stop working.
 //
 // Spec: https://wicg.github.io/local-network-access/
-BASE_FEATURE(kLocalNetworkAccessChecks, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kLocalNetworkAccessChecks, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If true, local network access checks will only be warnings.
 BASE_FEATURE_PARAM(bool,
@@ -545,7 +545,7 @@ BASE_FEATURE(kStorageAccessHeadersRespectPermissionsPolicy,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDeviceBoundSessionAccessObserverSharedRemote,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCSPScriptSrcV2, "ScriptSrcV2", base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -575,16 +575,16 @@ BASE_FEATURE_PARAM(size_t,
                    /*name=*/"max_size",
                    1'000'000);
 
-BASE_FEATURE(kNetworkServiceTaskScheduler, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kNetworkServiceTaskScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kNetworkServiceTaskSchedulerResourceScheduler,
                    &kNetworkServiceTaskScheduler,
                    "resource_scheduler",
-                   false);
+                   true);
 BASE_FEATURE_PARAM(bool,
                    kNetworkServiceTaskSchedulerURLLoader,
                    &kNetworkServiceTaskScheduler,
                    "url_loader",
-                   false);
+                   true);
 
 }  // namespace network::features

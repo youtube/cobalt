@@ -50,6 +50,7 @@
 #include "content/public/browser/login_delegate.h"
 #include "content/public/browser/mojo_binder_policy_map.h"
 #include "content/public/browser/privacy_sandbox_invoking_api.h"
+#include "content/public/browser/process_selection_deferring_condition.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/common/alternative_error_page_override_info.mojom-forward.h"
@@ -79,7 +80,6 @@
 #include "services/network/public/mojom/web_sandbox_flags.mojom-forward.h"
 #include "services/network/public/mojom/web_transport.mojom-forward.h"
 #include "services/network/public/mojom/websocket.mojom-forward.h"
-#include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/file_system/file_system_context.h"
 #include "third_party/blink/public/common/mediastream/media_devices.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
@@ -103,11 +103,6 @@
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "content/public/browser/posix_file_descriptor_info.h"
 #endif
-
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-#include "media/capture/mojom/video_effects_manager.mojom.h"
-#include "services/video_effects/public/mojom/video_effects_processor.mojom-forward.h"
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "third_party/blink/public/mojom/installedapp/related_application.mojom-forward.h"
@@ -1760,6 +1755,13 @@ class CONTENT_EXPORT ContentBrowserClient {
       NavigationHandle* navigation_handle,
       content::CommitDeferringCondition::NavigationType type);
 
+  // Allows the embedder to register one or more
+  // `ProcessSelectionDeferringCondition` for the navigation indicated by
+  // `navigation_handle`.
+  virtual std::vector<std::unique_ptr<ProcessSelectionDeferringCondition>>
+  CreateProcessSelectionDeferringConditionsForNavigation(
+      NavigationHandle& navigation_handle);
+
   // Called at the start of the navigation to get opaque data the embedder
   // wants to see passed to the corresponding URLRequest on the IO thread.
   virtual std::unique_ptr<NavigationUIData> GetNavigationUIData(
@@ -3099,24 +3101,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // where the Web application is trusted.
   virtual bool UseOutermostMainFrameOrEmbedderForSubCaptureTargets() const;
 
-#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-  // Allows the embedder to correlate backend media services with profile-keyed
-  // effect settings.
-  virtual void BindReadonlyVideoEffectsManager(
-      const std::string& device_id,
-      BrowserContext* browser_context,
-      mojo::PendingReceiver<media::mojom::ReadonlyVideoEffectsManager>
-          readonly_video_effects_manager);
-
-  // Allows the embedder to correlate backend media services with profile-keyed
-  // effect settings.
-  virtual void BindVideoEffectsProcessor(
-      const std::string& device_id,
-      BrowserContext* browser_context,
-      mojo::PendingReceiver<video_effects::mojom::VideoEffectsProcessor>
-          video_effects_processor);
-#endif  // BUILDFLAG(ENABLE_VIDEO_EFFECTS)
-
   // Re-order audio device `infos` based on user preference. The ordering will
   // be from most preferred to least preferred.
   virtual void PreferenceRankVideoDeviceInfos(
@@ -3257,18 +3241,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       base::OnceCallback<void(std::optional<blink::mojom::RelatedApplication>)>
           callback);
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN)
-  // Invoked when an accessibility client requests the UI automation root object
-  // for a window. `uia_provider_enabled` is true when the request was
-  // satisfied, and false when the request was refused.
-  virtual void OnUiaProviderRequested(bool uia_provider_enabled);
-
-  // Invoked when the UI Automation Provider for Windows has been disabled due
-  // to a detected assistive technology that may cause issues with the
-  // provider, such as JAWS.
-  virtual void OnUiaProviderDisabled();
-#endif
 
   // Indicates whether this client allows paint holding in cross-origin
   // navigations even if there was no user activation.

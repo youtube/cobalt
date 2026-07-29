@@ -783,6 +783,9 @@ BASE_FEATURE(kOnDeviceWebSpeech,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 );
 
+// Enables on-device speech recognition using on-device Gemini Nano.
+BASE_FEATURE(kOnDeviceWebSpeechGeminiNano, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the Live Caption feature on supported devices.
 BASE_FEATURE(kLiveCaption, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -962,11 +965,6 @@ BASE_FEATURE(kAVDColorSpaceChanges, base::FEATURE_ENABLED_BY_DEFAULT);
 // the sourceRectHint PictureInPictureParam.
 BASE_FEATURE(kAllowEnhancedPipTransition, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Should we allow video playback to use an overlay if it's not needed for
-// security?  Normally, we'd always want to allow this, except as part of the
-// power testing A/B experiment.  https://crbug.com/1081346 .
-BASE_FEATURE(kAllowNonSecureOverlays, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables automatic Picture-in-Picture on Android for supported websites.
 // This triggers for active video playback or camera/microphone usage on sites
 // that have registered an auto picture-in-picture action.
@@ -983,12 +981,6 @@ BASE_FEATURE(kEnableSurfaceInputForAndroidVEA,
 
 // Enables block model (LinearBlock) on supported devices.
 BASE_FEATURE(kMediaCodecBlockModel, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Allow FrameInfoHelper to guess coded size information for MediaCodec frames.
-BASE_FEATURE(kMediaCodecCodedSizeGuessing, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Allow EOS buffers to be elided by MediaCodecVideoDecoder.
-BASE_FEATURE(kMediaCodecElideEOS, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allow selection of low latency decoders in low delay mode.
 BASE_FEATURE(kMediaCodecLowDelayMode, base::FEATURE_DISABLED_BY_DEFAULT);

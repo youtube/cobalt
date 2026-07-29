@@ -2742,11 +2742,12 @@ IN_PROC_BROWSER_TEST_F(LensOverlayBrowserTest,
                                              base::NullCallback());
       }));
 
-  // Clicking the search for text entrypoint should eventually result in CSB
-  // state.
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return controller->state() == LensOverlayController::State::kHidden;
-  }));
+  // Wait for the side panel to load.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->GetSidePanelWebContentsForTesting(); }));
+  EXPECT_TRUE(content::WaitForLoadStop(
+      controller->GetSidePanelWebContentsForTesting()));
+  ASSERT_EQ(controller->state(), LensOverlayController::State::kOff);
 }
 
 IN_PROC_BROWSER_TEST_F(LensOverlayBrowserTest,

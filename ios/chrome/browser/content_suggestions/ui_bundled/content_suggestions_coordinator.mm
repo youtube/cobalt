@@ -8,6 +8,7 @@
 #import <vector>
 
 #import "base/apple/foundation_util.h"
+#import "base/containers/contains.h"
 #import "base/ios/block_types.h"
 #import "base/ios/ios_util.h"
 #import "base/memory/raw_ptr.h"
@@ -79,11 +80,11 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_action_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_magic_stack_mediator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_metrics.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_module_state.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_passwords_coordinator.h"
-#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/tips_prefs.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/coordinator/tips_magic_stack_mediator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/coordinator/tips_passwords_coordinator.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_metrics.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/model/tips_prefs.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/tips/ui/tips_module_state.h"
 #import "ios/chrome/browser/default_browser/model/promo_source.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_service.h"
@@ -409,7 +410,8 @@ using segmentation_platform::TipIdentifier;
     [moduleMediators addObject:_priceTrackingPromoMediator];
   }
   if (base::FeatureList::IsEnabled(commerce::kShopCard) &&
-      (commerce::kShopCardVariation.Get() == commerce::kShopCardArm1 ||
+      (base::Contains(commerce::kShopCardVariation.Get(),
+                      commerce::kShopCardArm1) ||
        commerce::kShopCardVariation.Get() == commerce::kShopCardArm2)) {
     // If ShopCard experiment is on, create the ShopCard mediator.
     // Note at this point we don't know which of the 4 variants will show.
@@ -884,7 +886,8 @@ using segmentation_platform::TipIdentifier;
       [self showMagicStackRecentTabs];
       break;
     case ContentSuggestionsModuleType::kShopCard:
-      if (commerce::kShopCardVariation.Get() == commerce::kShopCardArm1) {
+      if (base::Contains(commerce::kShopCardVariation.Get(),
+                         commerce::kShopCardArm1)) {
         id<PriceTrackedItemsCommands> priceNotificationsCommands =
             HandlerForProtocol(self.browser->GetCommandDispatcher(),
                                PriceTrackedItemsCommands);
@@ -1430,9 +1433,7 @@ using segmentation_platform::TipIdentifier;
       return ContentSuggestionsModuleType::kSafetyCheck;
     case PushNotificationClientId::kSendTab:
       return ContentSuggestionsModuleType::kSendTabPromo;
-    case PushNotificationClientId::kContent:
-    case PushNotificationClientId::kSports:
-    case PushNotificationClientId::kReminders:
+    default:
       NOTREACHED();
   }
 }

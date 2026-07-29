@@ -17,6 +17,7 @@
 #include "components/autofill/core/browser/form_structure_rationalization_engine.h"
 #include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
+#include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_internals/log_message.h"
 #include "components/autofill/core/common/autofill_internals/logging_scope.h"
@@ -710,8 +711,9 @@ void FormStructureRationalizer::RationalizeDateFormatStrings(
                         << "Set format string of " << field.global_id()
                         << " to " << format_string;
     field.set_format_string_unless_overruled(
-        std::move(format_string),
-        AutofillField::FormatStringSource::kHeuristics);
+        AutofillFormatString(std::move(format_string),
+                             FormatString_Type::FormatString_Type_DATE),
+        AutofillFormatStringSource::kHeuristics);
   };
 
   auto get_autofill_ai_date_types = [](const AutofillField& field) {
@@ -732,11 +734,11 @@ void FormStructureRationalizer::RationalizeDateFormatStrings(
       continue;
     }
     switch (field.format_string_source()) {
-      case AutofillField::FormatStringSource::kUnset:
-      case AutofillField::FormatStringSource::kHeuristics:
+      case AutofillFormatStringSource::kUnset:
+      case AutofillFormatStringSource::kHeuristics:
         break;  // Breaks the switch, not the loop.
-      case AutofillField::FormatStringSource::kModelResult:
-      case AutofillField::FormatStringSource::kServer:
+      case AutofillFormatStringSource::kModelResult:
+      case AutofillFormatStringSource::kServer:
         continue;
     }
 

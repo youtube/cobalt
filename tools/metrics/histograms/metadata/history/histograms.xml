@@ -97,7 +97,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.ClearBrowsingData.Duration.ChromeTask.{Task}"
-    units="ms" expires_after="2026-01-18">
+    units="ms" expires_after="2026-03-22">
   <owner>dullweber@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <component>1456716</component>
@@ -223,7 +223,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.ClearBrowsingData.Duration.Task.{Task}" units="ms"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>dullweber@chromium.org</owner>
   <owner>msramek@chromium.org</owner>
   <component>1456716</component>
@@ -432,7 +432,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.Clusters.Actions.InitialState"
-    enum="HistoryClustersInitialState" expires_after="2026-01-18">
+    enum="HistoryClustersInitialState" expires_after="2026-03-22">
   <owner>mcrouse@chromium.org</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1457319</component>
@@ -1549,7 +1549,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.DomainCount28Day_V3" units="domains"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>mpearson@chromium.org</owner>
   <owner>mjzhang@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
@@ -1629,7 +1629,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.DomainCount7Day_V3" units="domains"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>mpearson@chromium.org</owner>
   <owner>mjzhang@chromium.org</owner>
   <owner>chrome-analysis-team@google.com</owner>
@@ -2597,7 +2597,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.ForeignVisitsTotal" units="visits"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>treib@chromium.org</owner>
   <component>1456716</component>
   <summary>
@@ -2608,7 +2608,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.HistoryPageView" enum="HistoryPageView"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>calamity@chromium.org</owner>
   <owner>src/chrome/browser/resources/history/OWNERS</owner>
   <component>1456716</component>
@@ -2887,6 +2887,39 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="History.VisitAddedDueTo404" enum="Boolean"
+    expires_after="2026-09-25">
+  <owner>svend@chromium.org</owner>
+  <owner>kyraseevers@chromium.org</owner>
+  <summary>
+    Whether a page visit recorded in the History DB was added due to a
+    navigation with an HTTP response code of 404. Visits added due to a 404
+    includes a) 404 visits themselves and b) redirects in chains that end in a
+    404 visit. Recorded after a visit is successfully added to the History DB
+    (because this includes redirects, one user-initiated navigation can result
+    in multiple emissions). Intended to monitor what proportion of newly
+    recorded visits are 404s when saving page visits with HTTP response code 404
+    to the History database. See also
+    `History.VisitedLinks.AdditionCausedBy404`.
+  </summary>
+</histogram>
+
+<histogram name="History.VisitedLinks.AdditionCausedBy404" enum="Boolean"
+    expires_after="2026-09-23">
+  <owner>svend@chromium.org</owner>
+  <owner>kyraseevers@chromium.org</owner>
+  <summary>
+    When we attempt to add a VisitedLink to the in-memory partitioned hashtable,
+    records whether that record is added due to a visit with an HTTP response
+    code 404. Recorded on every attempt to write a VisitedLink entry, including
+    those for redirects (i.e., for a redirect chain ending in a 404, there will
+    be one emission per redirect, all emitted as true, since the 404 is what is
+    causing the redirects' addition to the hashtable). Intended to monitor the
+    proportion of VisitedLink entries that are for 404s, after allowing 404
+    visits to be saved to History. See also `History.VisitAddedDueTo404`.
+  </summary>
+</histogram>
+
 <histogram name="History.VisitedLinks.HashTableLengthOnReaderInit"
     units="entries" expires_after="2026-02-22">
   <owner>kyraseevers@chromium.org</owner>
@@ -2972,7 +3005,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.VisitedLinkTableCount" units="VisitedLinks"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>kyraseevers@chromium.org</owner>
   <owner>janiceliu@chromium.org</owner>
   <component>1456589</component>
@@ -2983,7 +3016,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.VisitTableCount" units="visits"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>mpearson@chromium.org</owner>
   <owner>sky@chromium.org</owner>
   <component>1456716</component>

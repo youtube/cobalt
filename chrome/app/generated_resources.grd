@@ -492,21 +492,22 @@ are declared in tools/grit/grit_args.gni.
         To get your tabs from your other devices, turn on sync
       </message>
 
-<!-- TODO: crbug.com/418144047 - Remove translateable="false" once strings are finalized. -->
-      <message translateable="false" name="IDS_HISTORY_SYNC_HISTORY_PROMO" desc="Text of the sync hystory promo. This will show up if a user is not logged in and has no synced tabs.">
+      <message name="IDS_HISTORY_SYNC_HISTORY_PROMO" desc="Text of the sync hystory promo. This will show up if a user is not logged in and has no synced tabs.">
         Browse across devices
       </message>
-      <message translateable="false" name="IDS_HISTORY_SYNC_HISTORY_PROMO_DESC" desc="Description of the sync hystory promo. Further tells users to sign in and sync hystory to see synced tabs from other devices.">
-        To get your tabs from your other devices, sign in and sync history. You can stop syncing anytime in settings. Google may personalize Search and other services based on your history.
+      <message name="IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_SIGNED_OUT" desc="Body of the sync hystory promo for signed out users. Tells users to sign in and sync hystory to see synced tabs, passwords, and other data from other devices.">
+        To get your tabs from your other devices, sign in and sync history. You’ll also get your passwords and more on all your devices. You can stop syncing anytime in settings. Google may personalize Search and other services based on your history.
       </message>
-      <message translateable="false" name="IDS_HISTORY_SIGNED_IN_SYNC_HISTORY_PROMO" desc="Text of the sync hystory promo. This will show up if a user is not logged in and has no synced tabs.">
-        Continue from another device
+      <message name="IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_PENDING_SIGN_IN" desc="Body of the sync hystory promo for users with pending sign in, who have history sync off.">
+        To get your tabs from your other devices, verify it’s you and sync your history and tabs. You can stop syncing anytime in settings. Google may personalize Search and other services based on your history.
       </message>
-      <message translateable="false" name="IDS_HISTORY_SIGNED_IN_SYNC_HISTORY_PROMO_DESC" desc="Description of the sync hystory promo. Further tells users to sign in and sync hystory to see synced tabs from other devices.">
-        To get your tabs from your other devices, sync your tabs and History to . You can stop syncing anytime in settings. Google may personalize Search and other services based on your History.
+      <message name="IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_PENDING_SIGN_IN_SYNC_HISTORY_ON" desc="Body of the sync hystory promo for users with pending sign in, who have history sync on.">
+        To get your tabs from your other devices, verify it’s you. You can stop syncing anytime in settings. Google may personalize Search and other services based on your history.
       </message>
-
-      <message translateable="false" name="IDS_HISTORY_SYNC_HISTORY_BUTTON" desc="Label displayed on a button to let user turn on sync history or sign in to Chrome to get synced tab history.">
+      <message name="IDS_RECENT_TABS_SYNC_HISTORY_PROMO_BODY_SIGNED_IN_SYNC_OFF" desc="Body of the sync hystory promo for signed in users with sync turned off.">
+        To get your tabs from your other devices, sync your history and tabs to <ph name="ACCOUNT_EMAIL">$1<ex>john@google.com</ex></ph>. You can stop syncing anytime in settings. Google may personalize Search and other services based on your history.
+      </message>
+      <message name="IDS_HISTORY_SYNC_HISTORY_BUTTON" desc="Label displayed on a button to let user turn on sync history or sign in to Chrome to get synced tab history.">
         Sync history
       </message>
 
@@ -1408,17 +1409,11 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_MANAGE_GOOGLE_ACCOUNT" desc="The text label of the Manage Google account item">
             Manage your &amp;Google Account
           </message>
-          <message name="IDS_OTHER_CHROME_PROFILES_TITLE" desc="The title of the Other Chrome profiles section">
-            Other Chrome profiles
-          </message>
           <message name="IDS_OPEN_GUEST_PROFILE" desc="The text label of the open guest profile item">
             &amp;Open Guest profile
           </message>
           <message name="IDS_ADD_NEW_PROFILE" desc="The text label of the add new profile item">
             &amp;Add new profile
-          </message>
-          <message name="IDS_MANAGE_CHROME_PROFILES" desc="The text label of the manage chrome profile item">
-            &amp;Manage Chrome profiles
           </message>
         </if>
         <if expr="use_titlecase">
@@ -1556,17 +1551,11 @@ are declared in tools/grit/grit_args.gni.
           <message name="IDS_MANAGE_GOOGLE_ACCOUNT" desc="In Title Case: The text label of the Manage Google account item">
             Manage Your &amp;Google Account
           </message>
-          <message name="IDS_OTHER_CHROME_PROFILES_TITLE" desc="In Title Case: The title of the Other Chrome profiles section">
-            Other Chrome Profiles
-          </message>
           <message name="IDS_OPEN_GUEST_PROFILE" desc="In Title Case: The text label of the open guest profile item">
             &amp;Open Guest Profile
           </message>
           <message name="IDS_ADD_NEW_PROFILE" desc="In Title Case: The text label of the add new profile item">
             &amp;Add New Profile
-          </message>
-          <message name="IDS_MANAGE_CHROME_PROFILES" desc="In Title Case: The text label of the manage chrome profile item">
-            &amp;Manage Chrome Profiles
           </message>
         </if>
       </if>
@@ -2329,6 +2318,10 @@ are declared in tools/grit/grit_args.gni.
       <message name="IDS_DOWNLOADS_TOAST_COPY_DOWNLOAD_LINK_FAILED"
                desc="On the chrome://downloads page, the text for the toast shown when the user tried to copy a download's url but the operation failed.">
         Failed to copy link
+      </message>
+
+      <message name="IDS_EMAIL_VERIFIED" desc="Toast message to notify the user when their email is automatically verified by the browser.">
+        Email automaticaly verified
       </message>
 
       <if expr="is_chromeos">
@@ -8570,16 +8563,19 @@ Keep your key file in a safe place. You will need it to create new versions of y
         Upload file
       </message>
       <message name="IDS_NTP_COMPOSE_ADD_CONTEXT" desc="The text to display to ask user to add context to their search e.g. pdf or image.">
-        Add tab or file
+        Add tabs or more
       </message>
       <message name="IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE" desc="The a11y title for a button that allows users to add context to their search e.g. pdf or image.">
-        Add a tab or file to your search
+        Add a tab or file to your search, and also use a tool
       </message>
       <message name="IDS_NTP_COMPOSE_SUGGESTIONS_INFO" desc="The text underneath the composebox that explains to users how suggestions are generated.">
         Suggestions based on your <ph name="BEGIN_LINK_GOOGLE_ACTIVITY">&lt;a target="_blank" href="$1"&gt;</ph>Google activity<ph name="END_LINK_GOOGLE_ACTIVITY">&lt;/a&gt;</ph>
       </message>
       <message name="IDS_NTP_COMPOSE_SMART_COMPOSE_TAB" desc="The label for the call to action to accept the inline suggestion.">
         Tab
+      </message>
+      <message name="IDS_NTP_COMPOSE_DEEP_SEARCH" desc="The label for the deep search button in the context menu in the composebox as well as the chip that indicates that the user is in deep search mode.">
+        Deep Search
       </message>
 
       <!-- NTP Modules -->
@@ -12145,7 +12141,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           Create new tab group
         </message>
         <message name="IDS_GROUP_UNGROUPED_TABS" desc="The label of item in system context menu to create a new tab group and put all ungrouped tabs in it.">
-          Group all ungrouped tabs
+          Group all tabs
         </message>
         <message name="IDS_SAVED_TAB_GROUPS_MENU" desc="The title of the 'Tab groups' menu in the App Menu.">
           Tab groups
@@ -12162,7 +12158,7 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           Create New Tab Group
         </message>
         <message name="IDS_GROUP_UNGROUPED_TABS" desc="The label of item in system context menu to create a new tab group and put all ungrouped tabs in it.">
-          Group All Ungrouped Tabs
+          Group All Tabs
         </message>
         <message name="IDS_SAVED_TAB_GROUPS_MENU" desc="The title of the 'Tab Groups' menu in the App Menu.">
           Tab Groups
@@ -14750,10 +14746,13 @@ Please help our engineers fix this problem. Tell us what happened right before y
           {NUM_TABS, plural, =1 {1 Tab} other {# Tabs}}
         </message>
         <message name="IDS_RECENT_TABS_NO_DEVICE_TABS" desc="In Title Case: The label in the Recent Tabs menu in the wrench menu when there's no tabs from other devices.">
-          No Tabs From Other Devices
+          No Tabs from Other Devices
         </message>
         <message name="IDS_RECENT_TABS_LOGIN_FOR_DEVICE_TABS" desc="In Title Case: The label in the Recent Tabs menu in the wrench menu to suggest logging in to see tabs from other devices.">
           Sign In To See Tabs From Other Devices
+        </message>
+        <message name="IDS_RECENT_TABS_SEE_DEVICE_TABS" desc="The label in the Recent Tabs menu in the wrench menu to see tabs from other devices.">
+          See Tabs from Other Devices
         </message>
       </if>
       <if expr="not use_titlecase">
@@ -14774,6 +14773,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
         </message>
         <message name="IDS_RECENT_TABS_LOGIN_FOR_DEVICE_TABS" desc="The label in the Recent Tabs menu in the wrench menu to suggest logging in to see tabs from other devices.">
           Sign in to see tabs from other devices
+        </message>
+        <message name="IDS_RECENT_TABS_SEE_DEVICE_TABS" desc="The label in the Recent Tabs menu in the wrench menu to see tabs from other devices.">
+          See tabs from other devices
         </message>
       </if>
 
@@ -19313,23 +19315,11 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_NTP_CUSTOMIZATION_PROMO" desc="The text shown in the body of the New Tab Page browser customization promotion">
         Customize Chrome to give your browser a new look
       </message>
-      <message name="IDS_NTP_CUSTOMIZATION_PROMO_ACTION_BUTTON" is_accessibility_with_no_ui="true" desc="The screenreader text for the action button on the Customization New Tab Page promo">
-        Customize Chrome
-      </message>
       <message name="IDS_NTP_EXTENSIONS_PROMO" desc="The text shown in the body of the New Tab Page extensions promotion">
         Add extensions to stay organized, simplify tasks, and enhance your browsing
       </message>
-      <message name="IDS_NTP_EXTENSIONS_PROMO_ACTION_BUTTON" is_accessibility_with_no_ui="true" desc="The screenreader text for the action button on the Extensions New Tab Page promo">
-        Add extensions
-      </message>
-      <message name="IDS_NTP_SIGN_IN_PROMO" desc="The text shown in the body of the New Tab Page sign in promotion">
-        Sign in to Chrome to get your passwords and more on all your devices
-      </message>
       <message name="IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS" desc="The text shown in the body of the New Tab Page sign in promotion">
         Sign in to Chrome to get your passwords, bookmarks, and more on all your devices
-      </message>
-      <message name="IDS_NTP_SIGN_IN_PROMO_ACTION_BUTTON" is_accessibility_with_no_ui="true" desc="The screenreader text for the action button on the Sign In New Tab Page promo">
-        Sign in
       </message>
     </if>
 
@@ -19351,6 +19341,12 @@ Please help our engineers fix this problem. Tell us what happened right before y
     </message>
     <message name="IDS_ACCOUNT_CHOOSER_ADD_ACCOUNT" desc="Text for the button to add an account.">
       Use a different account
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_RADIO_GROUP_ACCESSIBILITY_LABEL" is_accessibility_with_no_ui="true" desc="Text for account chooser radio group's accessibility label.">
+      Account selection
+    </message>
+    <message name="IDS_ACCOUNT_CHOOSER_HEADER_ACCESSIBILITY_LABEL" is_accessibility_with_no_ui="true" desc="Text for the account chooser header's accessibility label.  'Drive' is a product name, please translate accordingly.">
+      Choose Drive account
     </message>
 
     <!-- Tips Notifications-->

@@ -32,7 +32,6 @@
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/size.h"
 
-class GrBackendTexture;
 class SkSurface;
 
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_RESOURCE_H_
@@ -116,7 +115,7 @@ class PLATFORM_EXPORT CanvasResource
 
   // Issues a wait for this sync token on the context used by this resource for
   // rendering.
-  void WaitSyncToken(const gpu::SyncToken&);
+  virtual void WaitSyncToken(const gpu::SyncToken&) = 0;
 
   bool OriginClean() const { return is_origin_clean_; }
   void SetOriginClean(bool flag) { is_origin_clean_ = flag; }
@@ -160,8 +159,6 @@ class PLATFORM_EXPORT CanvasResource
   gpu::webgpu::WebGPUInterface* WebGPUInterface() const;
   virtual base::WeakPtr<WebGraphicsContext3DProviderWrapper>
   ContextProviderWrapper() const = 0;
-
-  virtual CanvasResourceProvider* Provider() { return nullptr; }
 
   const base::PlatformThreadRef owning_thread_ref_;
   const scoped_refptr<base::SingleThreadTaskRunner> owning_thread_task_runner_;
@@ -217,10 +214,10 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   scoped_refptr<StaticBitmapImage> Bitmap() final;
   void Transfer() final;
 
+  void WaitSyncToken(const gpu::SyncToken&) override;
   const gpu::SyncToken GetSyncToken() override;
 
   void NotifyResourceLost() final;
-  GrBackendTexture CreateGrTexture() const;
 
   void WillDraw();
   bool IsLost() const { return owning_thread_data().is_lost; }
@@ -258,7 +255,7 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   void VerifySyncToken() override;
   bool UsesAcceleratedRaster() const final { return is_accelerated_; }
 
-  CanvasResourceProvider* Provider() override;
+  CanvasResourceProviderSharedImage* Provider();
 
   CanvasResourceSharedImage(
       gfx::Size size,
@@ -324,6 +321,7 @@ class PLATFORM_EXPORT ExternalCanvasResource final : public CanvasResource {
       const final {
     return client_si_;
   }
+  void WaitSyncToken(const gpu::SyncToken&) override;
   const gpu::SyncToken GetSyncToken() override;
 
   scoped_refptr<StaticBitmapImage> Bitmap() override;
@@ -381,7 +379,6 @@ class PLATFORM_EXPORT CanvasResourceSwapChain final : public CanvasResource {
 
   scoped_refptr<StaticBitmapImage> Bitmap() override;
 
-  GLuint GetBackBufferTextureId() const { return back_buffer_texture_id_; }
   scoped_refptr<gpu::ClientSharedImage> GetBackBufferClientSharedImage() {
     CHECK(back_buffer_shared_image_);
     return back_buffer_shared_image_;
@@ -389,6 +386,7 @@ class PLATFORM_EXPORT CanvasResourceSwapChain final : public CanvasResource {
   void PresentSwapChain();
   const scoped_refptr<gpu::ClientSharedImage>& GetClientSharedImage()
       const override;
+  void WaitSyncToken(const gpu::SyncToken&) override;
   const gpu::SyncToken GetSyncToken() override;
 
  private:
@@ -409,13 +407,11 @@ class PLATFORM_EXPORT CanvasResourceSwapChain final : public CanvasResource {
       context_provider_wrapper_;
   scoped_refptr<gpu::ClientSharedImage> front_buffer_shared_image_;
   scoped_refptr<gpu::ClientSharedImage> back_buffer_shared_image_;
-  GLuint back_buffer_texture_id_ = 0u;
   gpu::SyncToken sync_token_;
-  const bool use_oop_rasterization_;
   const SkAlphaType alpha_type_;
   base::WeakPtr<CanvasResourceProvider> provider_;
 
-  CanvasResourceProvider* Provider() override;
+  CanvasResourceProvider* Provider();
 };
 
 }  // namespace blink

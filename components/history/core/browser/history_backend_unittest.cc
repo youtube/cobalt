@@ -369,7 +369,7 @@ class HistoryBackendTestBase : public testing::Test {
           HistoryBackend::IsTypedIncrement(visit.second),
           /*opener_visit=*/0,
           /*consider_for_ntp_most_visited=*/true,
-          /*is_ephemeral=*/false,
+          VisitContextEphemerality::kNotEphemeral,
           /*local_navigation_id=*/std::nullopt);
     }
   }
@@ -565,11 +565,12 @@ class HistoryBackendTest : public HistoryBackendTestBase {
     redirects.push_back(url2);
     ui::PageTransition redirect_transition = ui::PageTransitionFromInt(
         ui::PAGE_TRANSITION_FORM_SUBMIT | ui::PAGE_TRANSITION_SERVER_REDIRECT);
-    HistoryAddPageArgs request(
-        url2, time, dummy_context_id, 0, std::nullopt, url1, redirects,
-        redirect_transition, false, SOURCE_BROWSED,
-        VisitResponseCodeCategory::kNot404, did_replace, true,
-        /*is_ephemeral=*/false, std::optional<std::u16string>(page2_title));
+    HistoryAddPageArgs request(url2, time, dummy_context_id, 0, std::nullopt,
+                               url1, redirects, redirect_transition, false,
+                               SOURCE_BROWSED,
+                               VisitResponseCodeCategory::kNot404, did_replace,
+                               true, VisitContextEphemerality::kNotEphemeral,
+                               std::optional<std::u16string>(page2_title));
     backend_->AddPage(request);
 
     transition1 = GetTransition(url1);
@@ -1276,7 +1277,8 @@ TEST_F(HistoryBackendTest, OpenerWithRedirect) {
       std::nullopt, GURL(),
       /*redirects=*/{server_redirect_url, client_redirect_url},
       ui::PAGE_TRANSITION_TYPED, false, SOURCE_BROWSED,
-      VisitResponseCodeCategory::kNot404, false, true, false, std::nullopt,
+      VisitResponseCodeCategory::kNot404, false, true,
+      VisitContextEphemerality::kNotEphemeral, std::nullopt,
       /*top_level_url*/ std::nullopt,
       /*frame_url*/ std::nullopt,
       Opener(context_id1, nav_entry_id, initial_url));
@@ -1328,11 +1330,12 @@ TEST_F(HistoryBackendTest, FormSubmitRedirect) {
 
   // User goes to form page.
   GURL url_a("http://www.google.com/a");
-  HistoryAddPageArgs request(
-      url_a, base::Time::Now(), 0, 0, std::nullopt, GURL(), RedirectList(),
-      ui::PAGE_TRANSITION_TYPED, false, SOURCE_BROWSED,
-      VisitResponseCodeCategory::kNot404, false, true,
-      /*is_ephemeral=*/false, std::optional<std::u16string>(page1_title));
+  HistoryAddPageArgs request(url_a, base::Time::Now(), 0, 0, std::nullopt,
+                             GURL(), RedirectList(), ui::PAGE_TRANSITION_TYPED,
+                             false, SOURCE_BROWSED,
+                             VisitResponseCodeCategory::kNot404, false, true,
+                             VisitContextEphemerality::kNotEphemeral,
+                             std::optional<std::u16string>(page1_title));
   backend_->AddPage(request);
 
   // Check that URL was added.
@@ -4233,7 +4236,8 @@ TEST_F(HistoryBackendTest, AddPageWithContextAnnotations) {
       /*referrer=*/GURL(), RedirectList(), ui::PAGE_TRANSITION_TYPED,
       /*hidden=*/false, SOURCE_BROWSED, VisitResponseCodeCategory::kNot404,
       /*did_replace_entry=*/false, /*consider_for_ntp_most_visited=*/true,
-      /*is_ephemeral=*/false, /*title=*/std::nullopt,
+      VisitContextEphemerality::kNotEphemeral,
+      /*title=*/std::nullopt,
       /*top_level_url*/ std::nullopt,
       /*frame_url*/ std::nullopt,
       /*opener=*/std::nullopt,
@@ -4251,6 +4255,69 @@ TEST_F(HistoryBackendTest, AddPageWithContextAnnotations) {
 
   EXPECT_EQ(context_annotations,
             annotated_visits[0].context_annotations.on_visit);
+}
+
+TEST_F(HistoryBackendTest, AddPageVisitAddedDueTo404) {
+  // Allow 404s to be saved to History.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(history::kVisitedLinksOn404);
+
+  base::HistogramTester histogram_tester;
+
+  // Test a redirect chain ending in a 404.
+  {
+    // Create a redirect chain of length 2 (the last entry in the chain is the
+    // ultimate destination of the chain).
+    RedirectList redirects;
+    redirects.emplace_back("http://example.com/a");
+    redirects.emplace_back("http://example.com/b");
+
+    HistoryAddPageArgs add_page_args(
+        redirects.back(), base::Time::Now(), /*context_id=*/1,
+        /*nav_entry_id=*/1,
+        /*local_navigation_id=*/std::nullopt, GURL(), redirects,
+        ui::PageTransitionFromInt(ui::PAGE_TRANSITION_SERVER_REDIRECT |
+                                  ui::PAGE_TRANSITION_CHAIN_END),
+        /*hidden=*/true, SOURCE_BROWSED, VisitResponseCodeCategory::k404,
+        /*did_replace_entry=*/false,
+        /*consider_for_ntp_most_visited=*/false);
+    add_page_args.context_annotations = {.response_code = 404};
+    backend_->AddPage(add_page_args);
+
+    // The redirect visit and the actual 404 are added due to a 404, so both
+    // should go in the `true` bucket and none in the `false` bucket.
+    histogram_tester.ExpectBucketCount("History.VisitAddedDueTo404", true, 2);
+    histogram_tester.ExpectBucketCount("History.VisitAddedDueTo404", false, 0);
+  }
+
+  // Test a redirect chain ending in a non-404.
+  {
+    // Create a redirect chain of length 3 (the last entry in the chain is the
+    // ultimate destination of the chain).
+    RedirectList redirects;
+    redirects.emplace_back("http://example.com/c");
+    redirects.emplace_back("http://example.com/d");
+    redirects.emplace_back("http://example.com/e");
+
+    HistoryAddPageArgs add_page_args(
+        redirects.back(), base::Time::Now(), /*context_id=*/2,
+        /*nav_entry_id=*/2,
+        /*local_navigation_id=*/std::nullopt, GURL(), redirects,
+        ui::PageTransitionFromInt(ui::PAGE_TRANSITION_SERVER_REDIRECT |
+                                  ui::PAGE_TRANSITION_CHAIN_END),
+        /*hidden=*/false, SOURCE_BROWSED, VisitResponseCodeCategory::kNot404,
+        /*did_replace_entry=*/false,
+        /*consider_for_ntp_most_visited=*/true);
+    add_page_args.context_annotations = {.response_code = 401};
+    backend_->AddPage(add_page_args);
+
+    // Neither the redirect visits nor the ultimate destination are added due to
+    // a 404, so all three should go in the `false` bucket.
+    histogram_tester.ExpectBucketCount("History.VisitAddedDueTo404", false, 3);
+    // None should go in the `true` bucket, so the count should be the same as
+    // before.
+    histogram_tester.ExpectBucketCount("History.VisitAddedDueTo404", true, 2);
+  }
 }
 
 TEST_F(HistoryBackendTest, GetAnnotatedVisits) {
@@ -5984,7 +6051,7 @@ class HistoryBackendTestForVisitedLinks
                        /*should_increment_typed_count=*/false,
                        /*opener_visit=*/kInvalidVisitID,
                        /*consider_for_ntp_most_visited=*/true,
-                       /*is_ephemeral=*/false,
+                       VisitContextEphemerality::kNotEphemeral,
                        /*local_navigation_id=*/std::nullopt,
                        /*title=*/std::nullopt, top_level_url, frame_url)
         .second;
@@ -5993,7 +6060,7 @@ class HistoryBackendTestForVisitedLinks
   VisitID AddPageVisit(const GURL& link_url,
                        std::optional<GURL> top_level_url,
                        std::optional<GURL> frame_url,
-                       bool is_ephemeral) {
+                       VisitContextEphemerality visit_context_ephemerality) {
     return backend_
         ->AddPageVisit(link_url, base::Time::Now(),
                        /*referring_visit=*/kInvalidVisitID,
@@ -6002,7 +6069,8 @@ class HistoryBackendTestForVisitedLinks
                        VisitResponseCodeCategory::kNot404,
                        /*should_increment_typed_count=*/false,
                        /*opener_visit=*/kInvalidVisitID,
-                       /*consider_for_ntp_most_visited=*/true, is_ephemeral,
+                       /*consider_for_ntp_most_visited=*/true,
+                       visit_context_ephemerality,
                        /*local_navigation_id=*/std::nullopt,
                        /*title=*/std::nullopt, top_level_url, frame_url,
                        /*app_id=*/std::nullopt,
@@ -6147,7 +6215,7 @@ TEST_P(HistoryBackendTestForVisitedLinks, OnlyAddValidVisitedLinks) {
 
   // Add a local visit that is ephemeral.
   VisitID ephemeral_id = AddPageVisit(link_url, top_level_url, frame_url,
-                                      /*is_ephemeral=*/true);
+                                      VisitContextEphemerality::kEphemeral);
 
   // Ensure the visit is added to the VisitDatabase but NOT to the
   // VisitedLlinkDatabase.
@@ -6158,7 +6226,7 @@ TEST_P(HistoryBackendTestForVisitedLinks, OnlyAddValidVisitedLinks) {
 
   // Add a local visit that has all valid triple-key components.
   VisitID valid_id = AddPageVisit(link_url, top_level_url, frame_url,
-                                  /*is_ephemeral=*/false);
+                                  VisitContextEphemerality::kNotEphemeral);
 
   // Ensure the visit is added to the VisitedLinkDatabase.
   EXPECT_NE(valid_id, kInvalidVisitID);
@@ -6185,7 +6253,7 @@ TEST_P(HistoryBackendTestForVisitedLinks, AddWholeRedirectChain) {
       /*redirects=*/{server_redirect_url, client_redirect_url},
       ui::PAGE_TRANSITION_LINK, false, SOURCE_BROWSED,
       VisitResponseCodeCategory::kNot404, false, true,
-      /*is_ephemeral=*/false, std::nullopt, top_level_url);
+      VisitContextEphemerality::kNotEphemeral, std::nullopt, top_level_url);
   backend_->AddPage(request);
 
   VisitVector visits;
@@ -6354,7 +6422,7 @@ TEST_P(HistoryBackendTestForVisitedLinks, NotifyVisitedLinksAdded) {
       std::nullopt, frame_url,
       /*redirects=*/{}, link_transition_, false, SOURCE_BROWSED,
       VisitResponseCodeCategory::kNot404, false, true,
-      /*is_ephemeral=*/false, std::nullopt, top_level_url);
+      VisitContextEphemerality::kNotEphemeral, std::nullopt, top_level_url);
 
   // Notify the HistoryBackend of our mock navigation.
   backend_->AddPage(request);

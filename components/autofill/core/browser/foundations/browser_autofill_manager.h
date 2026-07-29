@@ -24,6 +24,7 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/crowdsourcing/votes_uploader.h"
+#include "components/autofill/core/browser/data_manager/addresses/account_name_email_strike_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
@@ -36,6 +37,7 @@
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/fast_checkout/fast_checkout_delegate.h"
+#include "components/autofill/core/browser/integrators/one_time_tokens/metrics/otp_form_event_logger.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager.h"
 #include "components/autofill/core/browser/integrators/password_form_classification.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
@@ -79,7 +81,6 @@ struct SuggestionsContext;
 namespace autofill_metrics {
 
 class CreditCardFormEventLogger;
-struct SuggestionRankingContext;
 
 }  // namespace autofill_metrics
 
@@ -103,16 +104,53 @@ class BrowserAutofillManager;
 // forms. One per frame; owned by the AutofillDriver.
 class BrowserAutofillManager : public AutofillManager {
  public:
+  // Utilities for logging form events. The loggers emit metrics during their
+  // destruction, effectively when the BrowserAutofillManager is reset or
+  // destroyed.
+  struct MetricsState {
+    explicit MetricsState(BrowserAutofillManager* owner);
+    ~MetricsState();
+
+    // The address and credit card event loggers are used to emit key and funnel
+    // metrics.
+    autofill_metrics::AddressFormEventLogger address_form_event_logger;
+    autofill_metrics::CreditCardFormEventLogger credit_card_form_event_logger;
+    autofill_metrics::LoyaltyCardFormEventLogger loyalty_card_form_event_logger;
+    autofill_metrics::OtpFormEventLogger otp_form_event_logger;
+
+    // Have we logged whether Autofill is enabled for this page load?
+    bool has_logged_autofill_enabled = false;
+    // Has the user manually edited at least one form field among the
+    // autofillable ones?
+    bool user_did_type = false;
+
+    // TODO(crbug.com/354043809): Move out of BAM.
+    // Does |this| have any parsed forms?
+    bool has_parsed_forms = false;
+    // Is there a field with autocomplete="one-time-code" observed?
+    bool has_observed_one_time_code_field = false;
+    // Is there a field with phone number collection observed?
+    bool has_observed_phone_number_field = false;
+
+    // Should be set at the beginning of the interaction and reused
+    // throughout the context of this manager.
+    AutofillMetrics::PaymentsSigninState signin_state_for_metrics =
+        AutofillMetrics::PaymentsSigninState::kUnknown;
+
+    // When the user first interacted with a potentially fillable form on this
+    // page.
+    base::TimeTicks initial_interaction_timestamp;
+
+    // When the form was submitted.
+    base::TimeTicks form_submitted_timestamp;
+  };
+
   // Triggered when `GenerateSuggestionsAndMaybeShowUIPhase2` is complete.
   // `show_suggestions` indicates whether or not the list of `suggestions`
-  // should be displayed (via the `external_delegate_`). `ranking_context`
-  // contains information regarding the ranking of suggestions and is used for
-  // metrics logging.
-  using OnGenerateSuggestionsCallback = base::OnceCallback<void(
-      bool show_suggestions,
-      std::vector<Suggestion> suggestions,
-      std::optional<autofill_metrics::SuggestionRankingContext>
-          ranking_context)>;
+  // should be displayed (via the `external_delegate_`).
+  using OnGenerateSuggestionsCallback =
+      base::OnceCallback<void(bool show_suggestions,
+                              std::vector<Suggestion> suggestions)>;
 
   explicit BrowserAutofillManager(AutofillDriver* driver);
 
@@ -120,10 +158,6 @@ class BrowserAutofillManager : public AutofillManager {
   BrowserAutofillManager& operator=(const BrowserAutofillManager&) = delete;
 
   ~BrowserAutofillManager() override;
-
-  // Whether the |field| should show an entry to scan a credit card.
-  virtual bool ShouldShowScanCreditCard(const FormData& form,
-                                        const FormFieldData& field);
 
   // Fills or previews `form` with the information in `filling_payload`.
   // `field_id` is the ID of the field that triggered the filling operation.
@@ -240,8 +274,8 @@ class BrowserAutofillManager : public AutofillManager {
   void OnFocusOnNonFormFieldImpl() override;
   void OnFocusOnFormFieldImpl(const FormData& form,
                               const FieldGlobalId& field_id) override;
-  void OnDidFillAutofillFormDataImpl(const FormData& form,
-                                     const base::TimeTicks timestamp) override;
+  void OnDidAutofillFormImpl(const FormData& form,
+                             const base::TimeTicks timestamp) override;
   void OnDidEndTextFieldEditingImpl() override;
   void OnHidePopupImpl() override;
   void OnSelectFieldOptionsDidChangeImpl(const FormData& form) override;
@@ -315,6 +349,8 @@ class BrowserAutofillManager : public AutofillManager {
   autofill_metrics::FormEventLoggerBase* GetEventFormLogger(
       const AutofillField& field);
 
+  std::optional<MetricsState>& GetMetricState() { return metrics_; }
+
  protected:
   // Returns the card image for `credit_card`. If the `credit_card` has a card
   // art image linked, prefer it. Otherwise fall back to the network icon.
@@ -348,45 +384,6 @@ class BrowserAutofillManager : public AutofillManager {
  private:
   friend class BrowserAutofillManagerTestApi;
 
-  // Utilities for logging form events. The loggers emit metrics during their
-  // destruction, effectively when the BrowserAutofillManager is reset or
-  // destroyed.
-  struct MetricsState {
-    explicit MetricsState(BrowserAutofillManager* owner);
-    ~MetricsState();
-
-    // The address and credit card event loggers are used to emit key and funnel
-    // metrics.
-    autofill_metrics::AddressFormEventLogger address_form_event_logger;
-    autofill_metrics::CreditCardFormEventLogger credit_card_form_event_logger;
-    autofill_metrics::LoyaltyCardFormEventLogger loyalty_card_form_event_logger;
-
-    // Have we logged whether Autofill is enabled for this page load?
-    bool has_logged_autofill_enabled = false;
-    // Has the user manually edited at least one form field among the
-    // autofillable ones?
-    bool user_did_type = false;
-
-    // TODO(crbug.com/354043809): Move out of BAM.
-    // Does |this| have any parsed forms?
-    bool has_parsed_forms = false;
-    // Is there a field with autocomplete="one-time-code" observed?
-    bool has_observed_one_time_code_field = false;
-    // Is there a field with phone number collection observed?
-    bool has_observed_phone_number_field = false;
-
-    // Should be set at the beginning of the interaction and re-used
-    // throughout the context of this manager.
-    AutofillMetrics::PaymentsSigninState signin_state_for_metrics =
-        AutofillMetrics::PaymentsSigninState::kUnknown;
-
-    // When the user first interacted with a potentially fillable form on this
-    // page.
-    base::TimeTicks initial_interaction_timestamp;
-
-    // When the form was submitted.
-    base::TimeTicks form_submitted_timestamp;
-  };
 
   // Emits all metrics that should be recorded at submission time.
   void LogSubmissionMetrics(const FormStructure* submitted_form,
@@ -424,16 +421,14 @@ class BrowserAutofillManager : public AutofillManager {
 
   // Returns a list of values from the stored credit cards that match
   // the type and value of `trigger_field` and returns the labels of the
-  // matching credit cards. `ranking_context` contains information regarding the
-  // ranking of suggestions and is used for metrics logging.
+  // matching credit cards.
   // TODO(crbug.com/40227496): Keep only one of `form` or `form_structure` and
   // `trigger_field` or `autofill_trigger_field`.
   std::vector<Suggestion> GetCreditCardSuggestions(
       const FormData& form,
       const FormStructure& form_structure,
       const FormFieldData& trigger_field,
-      const AutofillField& autofill_trigger_field,
-      autofill_metrics::SuggestionRankingContext& ranking_context);
+      const AutofillField& autofill_trigger_field);
 
   // Returns a list of suggestions from the stored loyalty cards for the given
   // last committed primary main frame URL obtained from `client()` and the
@@ -463,9 +458,13 @@ class BrowserAutofillManager : public AutofillManager {
   // latter check is needed because IPC messages can arrive out of order.
   void UpdateInitialInteractionTimestamp(base::TimeTicks interaction_timestamp);
 
-  // Examines |form| and returns true if it is in a non-secure context or
-  // its action attribute targets a HTTP url.
-  bool IsFormNonSecure(const FormData& form) const;
+  // Whether the `trigger_field` should show an entry to scan a credit card.
+  bool ShouldShowScanCreditCard(const FormStructure& form,
+                                const AutofillField& trigger_field);
+
+  // Examines `form` and returns true if it is in a non-secure context or its
+  // action attribute targets a HTTP url.
+  bool IsFormNonSecure(const FormStructure& form) const;
 
   // Checks whether JavaScript cleared an autofilled value within
   // kLimitBeforeRefill after the filling and records metrics for this. This
@@ -474,15 +473,6 @@ class BrowserAutofillManager : public AutofillManager {
   // modification. `cleared_value` is true if JS wiped the previous value.
   void AnalyzeJavaScriptChangedAutofilledValue(const FormStructure& form,
                                                AutofillField& field);
-
-  // Populates all the fields (except for ablation study related fields) in
-  // `SuggestionsContext` based on the given params.
-  SuggestionsContext BuildSuggestionsContext(
-      const FormData& form,
-      const FormStructure* form_structure,
-      const FormFieldData& field,
-      const AutofillField* autofill_field,
-      AutofillSuggestionTriggerSource trigger_source);
 
   // Evaluates the specifics of the ablation study, updates `context`, and
   // returns whether the study is enabled/disabled.
@@ -494,8 +484,7 @@ class BrowserAutofillManager : public AutofillManager {
   // Returns a list with the suggestions available for `field`. Which fields of
   // the `form` are filled depends on the `trigger_source`. `context` could
   // contain additional information about the suggestions, such as ablation
-  // study related fields.  `ranking_context` contains information
-  // regarding the ranking of suggestions and is used for metrics logging.
+  // study related fields.
   // TODO(crbug.com/340494671): Move ablation study fields out of the function
   // and make the context a const ref.
   std::vector<Suggestion> GetAvailableSuggestions(
@@ -506,8 +495,7 @@ class BrowserAutofillManager : public AutofillManager {
       AutofillSuggestionTriggerSource trigger_source,
       std::optional<std::string> plus_address_email_override,
       const std::vector<std::string>& one_time_passwords,
-      SuggestionsContext& context,
-      autofill_metrics::SuggestionRankingContext& ranking_context);
+      SuggestionsContext& context);
 
   // Called when all suggestion generators have finished fetching their data for
   // the given `field` in `form`. It schedules the generation of the individual
@@ -544,7 +532,11 @@ class BrowserAutofillManager : public AutofillManager {
   // OTP values fetching) in the middle.
   //
   // Phase 3 requires the list of `plus_addresses` as these can influence how
-  // address profile suggestions are shown. Other flows that rely on the
+  // address profile suggestions are shown. If `plus_addresses` is std::nullopt
+  // it means that plus addresses are irrelevant for the current suggestion
+  // context.
+  //
+  // Other flows that rely on the
   // `external_delegate_` to show their suggestions, pass the suggestions list
   // to the delegate via `OnGenerateSuggestionsComplete` and request them to be
   // shown (via `show_suggestions`).
@@ -557,13 +549,13 @@ class BrowserAutofillManager : public AutofillManager {
       const FormFieldData& field,
       AutofillSuggestionTriggerSource trigger_source,
       SuggestionsContext context,
-      std::vector<std::string> plus_addresses);
+      std::optional<std::vector<std::string>> plus_addresses);
   void GenerateSuggestionsAndMaybeShowUIPhase3(
       const FormData& form,
       const FormFieldData& field,
       AutofillSuggestionTriggerSource trigger_source,
       SuggestionsContext context,
-      const std::vector<std::string>& plus_addresses,
+      std::optional<std::vector<std::string>> plus_addresses,
       std::vector<std::string> one_time_passwords);
 
   // Receives the lists of plus address and single field form fill suggestions
@@ -590,17 +582,14 @@ class BrowserAutofillManager : public AutofillManager {
   // `GenerateSuggestionsAndMaybeShowUIPhase2` and displays them if
   // `show_suggestions` is true (via the `external_delegate_`). It also logs
   // whether there is a suggestion for the user and whether the suggestion is
-  // shown. `ranking_context` contains information regarding the ranking of
-  // suggestions and is used for metrics logging.
+  // shown.
   void OnGenerateSuggestionsComplete(
       const FormGlobalId& form_id,
       const FieldGlobalId& field_id,
       AutofillSuggestionTriggerSource trigger_source,
       const SuggestionsContext& context,
       bool show_suggestions,
-      std::vector<Suggestion> suggestions,
-      std::optional<autofill_metrics::SuggestionRankingContext>
-          ranking_context);
+      std::vector<Suggestion> suggestions);
 
   // Combines plus address and address profile suggestions into a single list,
   // prioritizing plus address suggestions first. Runs `callback` with the
@@ -701,6 +690,9 @@ class BrowserAutofillManager : public AutofillManager {
       std::make_unique<FormFiller>(*this);
 
   std::unique_ptr<OtpManager> otp_manager_;
+
+  std::unique_ptr<AccountNameEmailStrikeManager>
+      account_name_email_strike_manager_;
 
   // Contains a list of four digit combinations that were found in the webpage
   // DOM. Populated after a standalone cvc field is processed on a form.

@@ -60,6 +60,18 @@ chromium-metrics-reviews@google.com.
                wrapper started"/>
 </variants>
 
+<histogram name="CustomTab.AdaptiveToolbarButton.FallbackUi"
+    enum="AdaptiveToolbarButtonVariant" expires_after="2025-09-25">
+  <owner>jinsukkiim@google.com</owner>
+  <owner>clank-app-team@google.com</owner>
+  <summary>
+    Records the variant of adaptive toolbar button when its fallback UI was
+    clicked. The fallback UI becomes available in the form of overflow menu or
+    Message UI when when the button itself was hidden due to various reasons.
+    Recorded when the user click the fallback UI. Android only.
+  </summary>
+</histogram>
+
 <histogram name="CustomTab.SessionDuration{CustomTabOpenSource}" units="ms"
     expires_after="2020-10-18">
   <owner>ranj@chromium.org</owner>
@@ -84,18 +96,6 @@ chromium-metrics-reviews@google.com.
     Records the ranking of the toolbar button variant picked up for display. It
     will be either 0 or 1. Recorded when the suggested list of variants are
     checked in the filtering process. Android only.
-  </summary>
-</histogram>
-
-<histogram name="CustomTabs.AdaptiveToolbarButton.FallbackUi"
-    enum="AdaptiveToolbarButtonVariant" expires_after="2025-09-25">
-  <owner>jinsukkiim@google.com</owner>
-  <owner>clank-app-team@google.com</owner>
-  <summary>
-    Records the variant of adaptive toolbar button when its fallback UI was
-    clicked. The fallback UI becomes available in the form of overflow menu or
-    Message UI when when the button itself was hidden due to various reasons.
-    Recorded when the user click the fallback UI. Android only.
   </summary>
 </histogram>
 
@@ -226,7 +226,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.ClientAppId" enum="ClientAppId"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>yusufo@chromium.org</owner>
   <summary>
     Android: AppId declared by the launching application in EXTRA_APPLICATION_ID
@@ -258,7 +258,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.CloseCause" enum="CustomTabsCloseCause"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>jinsukkim@chromium.org</owner>
   <owner>twellington@chromium.org</owner>
   <owner>cct-team@google.com</owner>
@@ -298,7 +298,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.ContextMenu.DisplayedContextualCustomActionType"
-    enum="ContextualCustomActionType" expires_after="2025-10-30">
+    enum="ContextualCustomActionType" expires_after="2025-12-31">
   <owner>adelm@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -310,7 +310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.ContextMenu.SelectedContextualCustomActionType"
-    enum="ContextualCustomActionType" expires_after="2025-10-30">
+    enum="ContextualCustomActionType" expires_after="2025-12-31">
   <owner>adelm@google.com</owner>
   <owner>chrome-connective-tissue@google.com</owner>
   <summary>
@@ -906,7 +906,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.WarmupStateOnLaunch" enum="WarmupStateOnLaunch"
-    expires_after="2026-01-18">
+    expires_after="2026-03-22">
   <owner>lizeb@chromium.org</owner>
   <summary>
     Recorded only on Android. Reports whether warmup() has been called when a

@@ -136,12 +136,22 @@ void SessionServiceImpl::RegisterBoundSession(
     const NetLogWithSource& net_log,
     const std::optional<url::Origin>& original_request_initiator) {
   Session* federated_provider_session = nullptr;
+  bool is_google_subdomain_for_histograms = IsSubdomainOf(
+      registration_params.registration_endpoint().host_piece(), "google.com");
   if (registration_params.provider_session_id().has_value()) {
+    if (!base::FeatureList::IsEnabled(
+            features::kDeviceBoundSessionsFederatedRegistration)) {
+      // Simply ignore headers with a provider_session_id if the flag
+      // isn't enabled.
+      return;
+    }
+
     base::expected<Session*, SessionError> provider_session_or_error =
         GetFederatedProviderSessionIfValid(registration_params);
     if (!provider_session_or_error.has_value()) {
       OnRegistrationComplete(
-          std::move(on_access_callback), /*fetcher=*/nullptr,
+          std::move(on_access_callback), is_google_subdomain_for_histograms,
+          /*fetcher=*/nullptr,
           RegistrationResult(std::move(provider_session_or_error.error())));
       return;
     }
@@ -162,21 +172,24 @@ void SessionServiceImpl::RegisterBoundSession(
           std::move(registration_params));
   std::unique_ptr<RegistrationFetcher> fetcher =
       RegistrationFetcher::CreateFetcher(
-          request_params, key_service_.get(), context_.get(), isolation_info,
-          net_log_source_for_registration, original_request_initiator);
+          request_params, *this, key_service_.get(), context_.get(),
+          isolation_info, net_log_source_for_registration,
+          original_request_initiator);
   RegistrationFetcher* fetcher_raw = fetcher.get();
   registration_fetchers_.insert(std::move(fetcher));
 
-  auto callback =
-      base::BindOnce(&SessionServiceImpl::OnRegistrationComplete,
-                     weak_factory_.GetWeakPtr(), std::move(on_access_callback));
+  auto callback = base::BindOnce(
+      &SessionServiceImpl::OnRegistrationComplete, weak_factory_.GetWeakPtr(),
+      std::move(on_access_callback), is_google_subdomain_for_histograms);
   if (federated_provider_session) {
     fetcher_raw->StartFetchWithFederatedKey(
         request_params, *federated_provider_session->unexportable_key_id(),
         *provider_url, std::move(callback));
+    // `fetcher_raw` may be deleted.
   } else {
     fetcher_raw->StartCreateTokenAndFetch(request_params, supported_algos,
                                           std::move(callback));
+    // `fetcher_raw` may be deleted.
   }
 }
 
@@ -255,8 +268,13 @@ void SessionServiceImpl::OnLoadSessionsComplete(
 
 void SessionServiceImpl::OnRegistrationComplete(
     OnAccessCallback on_access_callback,
+    bool is_google_subdomain_for_histograms,
     RegistrationFetcher* fetcher,
     RegistrationResult registration_result) {
+  if (is_google_subdomain_for_histograms) {
+    base::UmaHistogramBoolean(
+        "Net.DeviceBoundSessions.GoogleRegistrationIsFromStandard", true);
+  }
   SessionError::ErrorType result = OnRegistrationCompleteInternal(
       std::move(on_access_callback), fetcher, std::move(registration_result));
   base::UmaHistogramEnumeration("Net.DeviceBoundSessions.RegistrationResult",
@@ -456,8 +474,7 @@ void SessionServiceImpl::SetChallengeForBoundSession(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(
-          features::kDeviceBoundSessionsOriginTrialFeedback) &&
+  if (features::kDeviceBoundSessionsOriginTrialFeedback.Get() &&
       !session->CanSetBoundCookie(request, first_party_set_metadata)) {
     return;
   }
@@ -495,12 +512,17 @@ void SessionServiceImpl::DeleteSessionAndNotify(
   DeleteSessionAndNotifyInternal(reason, it, per_request_callback);
 }
 
-Session* SessionServiceImpl::GetSession(const SessionKey& session_key) const {
+const Session* SessionServiceImpl::GetSession(
+    const SessionKey& session_key) const {
   auto it = unpartitioned_sessions_.find(session_key);
   if (it != unpartitioned_sessions_.end()) {
     return it->second.get();
   }
   return nullptr;
+}
+
+Session* SessionServiceImpl::GetSession(const SessionKey& session_key) {
+  return const_cast<Session*>(std::as_const(*this).GetSession(session_key));
 }
 
 void SessionServiceImpl::AddSession(const SchemefulSite& site,
@@ -721,13 +743,14 @@ void SessionServiceImpl::RefreshSessionInternal(
       request->device_bound_session_access_callback(), session_key);
   std::unique_ptr<RegistrationFetcher> fetcher =
       RegistrationFetcher::CreateFetcher(
-          registration_param, key_service_.get(), context_.get(),
+          registration_param, *this, key_service_.get(), context_.get(),
           request->isolation_info(), net_log_source_for_refresh,
           request->initiator());
   RegistrationFetcher* fetcher_raw = fetcher.get();
   registration_fetchers_.insert(std::move(fetcher));
   fetcher_raw->StartFetchWithExistingKey(registration_param, key_id,
                                          std::move(callback));
+  // `fetcher_raw` may be deleted.
 }
 
 bool SessionServiceImpl::RefreshQuotaExceeded(const SchemefulSite& site) {

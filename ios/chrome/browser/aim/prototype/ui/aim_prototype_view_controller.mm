@@ -4,11 +4,18 @@
 
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_view_controller.h"
 
+#import "base/cancelable_callback.h"
+#import "base/functional/bind.h"
+#import "base/location.h"
+#import "base/memory/weak_ptr.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/bind_post_task.h"
+#import "base/time/time.h"
 #import "base/unguessable_token.h"
 #import "build/branding_buildflags.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_input_item.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_input_item_cell.h"
+#import "ios/chrome/browser/aim/prototype/ui/aim_input_item_view.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_animation_context_provider.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_mutator.h"
 #import "ios/chrome/browser/omnibox/ui/text_field_view_containing.h"
@@ -42,10 +49,6 @@ const CGFloat kAIMButtonWidth = 94.0f;
 const CGFloat kButtonsStackViewSpacing = 6.0f;
 /// The spacing for the main vertical input plate stack view.
 const CGFloat kInputPlateStackViewSpacing = 16.0f;
-/// The padding for the close button.
-const CGFloat kCloseButtonPadding = 16.0f;
-/// The horizontal and bottom padding for the input plate container.
-const CGFloat kInputPlatePadding = 10.0f;
 /// The vertical padding for the input plate stack view.
 const CGFloat kInputPlateStackViewVerticalPadding = 10.0f;
 /// The leading padding for the input plate stack view.
@@ -64,26 +67,23 @@ const CGFloat kGenericButtonHeight = 32.0f;
 /// The duration for the glow effect.
 const CGFloat kGlowEffectDuration = 1.0f;
 /// The width of the glow effect border.
-const CGFloat kGlowEffectWidth = 4.0f;
+const CGFloat kGlowEffectWidth = 40.0f;
 
 /// The top padding between the omnibox container and the mic button.
 const CGFloat kMicButtonTopPadding = 2.0f;
 /// The trailing padding between the omnibox container and the mic button.
 const CGFloat kMicButtonTrailingPadding = 5.0f;
 
-/// The size for the close button.
-const CGFloat kCloseButtonSize = 30.0f;
-/// The alpha for the close button.
-const CGFloat kCloseButtonAlpha = 0.6f;
 /// The fade view width.
 const CGFloat kFadeViewWidth = 30.0f;
 /// The duration for the AIM button animation.
 const CGFloat kAIMButtonAnimationDuration = 0.25f;
-}
+}  // namespace
 
 @interface AIMPrototypeViewController () <UITextViewDelegate,
                                           AIMInputItemCellDelegate,
-                                          UICollectionViewDelegate>
+                                          UICollectionViewDelegate,
+                                          UICollectionViewDelegateFlowLayout>
 
 /// Whether the AI mode is enabled.
 @property(nonatomic, assign) BOOL AIModeEnabled;
@@ -125,10 +125,11 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   BOOL _canAttachCurrentTab;
   /// Container for the omnibox.
   UIView* _omniboxContainer;
-  /// Container for the omnibox popup.
-  UIView* _omniboxPopupContainer;
   /// A spacer view used in the stack view.
   UIView* _spacerView;
+
+  /// The cancellable callback for updating the glow effect.
+  base::CancelableOnceClosure _updateGlowCallback;
 }
 
 /// AIMPrototypeAnimationContextProvider
@@ -138,7 +139,6 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   self = [super init];
   if (self) {
     _omniboxContainer = [[UIView alloc] init];
-    _omniboxPopupContainer = [[UIView alloc] init];
   }
   return self;
 }
@@ -146,43 +146,6 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  // Close button
-  UIButton* closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  closeButton.translatesAutoresizingMaskIntoConstraints = NO;
-  UIImageSymbolConfiguration* symbolConfiguration = [UIImageSymbolConfiguration
-      configurationWithPointSize:kCloseButtonSize
-                          weight:UIImageSymbolWeightRegular
-                           scale:UIImageSymbolScaleMedium];
-  UIImage* buttonImage =
-      SymbolWithPalette(DefaultSymbolWithConfiguration(kXMarkCircleFillSymbol,
-                                                       symbolConfiguration),
-                        @[
-                          [[UIColor tertiaryLabelColor]
-                              colorWithAlphaComponent:kCloseButtonAlpha],
-                          [UIColor tertiarySystemFillColor]
-                        ]);
-  [closeButton setImage:buttonImage forState:UIControlStateNormal];
-
-  [closeButton addTarget:self
-                  action:@selector(closeButtonTapped)
-        forControlEvents:UIControlEventTouchUpInside];
-  [self.view addSubview:closeButton];
-
-  // Omnibox popup container.
-  _omniboxPopupContainer.hidden = YES;
-  _omniboxPopupContainer.translatesAutoresizingMaskIntoConstraints = NO;
-  [self.view addSubview:_omniboxPopupContainer];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_omniboxPopupContainer.topAnchor
-        constraintEqualToAnchor:closeButton.bottomAnchor],
-    [_omniboxPopupContainer.leadingAnchor
-        constraintEqualToAnchor:self.view.leadingAnchor],
-    [_omniboxPopupContainer.trailingAnchor
-        constraintEqualToAnchor:self.view.trailingAnchor],
-    [_omniboxPopupContainer.bottomAnchor
-        constraintEqualToAnchor:self.view.bottomAnchor],
-  ]];
 
   // --- Bottom Input Area ---
 
@@ -206,7 +169,8 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
     _glowEffectView.userInteractionEnabled = NO;
     [self.view insertSubview:_glowEffectView
                 belowSubview:_inputPlateContainerView];
-    AddSameConstraints(_inputPlateContainerView, _glowEffectView);
+    AddSameConstraintsWithInset(_inputPlateContainerView, _glowEffectView,
+                                kGlowEffectWidth);
   }
 
   _omniboxContainer.translatesAutoresizingMaskIntoConstraints = NO;
@@ -231,7 +195,6 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   UICollectionViewFlowLayout* layout =
       [[UICollectionViewFlowLayout alloc] init];
   layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-  layout.estimatedItemSize = UICollectionViewFlowLayoutAutomaticSize;
   layout.minimumLineSpacing = kCarouselItemSpacing;
   _carouselView = [[UICollectionView alloc] initWithFrame:CGRectZero
                                      collectionViewLayout:layout];
@@ -398,29 +361,10 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   _inputPlateStackView.spacing = kInputPlateStackViewSpacing;
   [_inputPlateContainerView addSubview:_inputPlateStackView];
 
+  AddSameConstraints(_inputPlateContainerView, self.view);
+
   // Layout.
   [NSLayoutConstraint activateConstraints:@[
-    // Close button.
-    [closeButton.topAnchor
-        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor
-                       constant:kCloseButtonPadding],
-    [closeButton.trailingAnchor
-        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor
-                       constant:-kCloseButtonPadding],
-    [closeButton.heightAnchor constraintEqualToConstant:kCloseButtonSize],
-    [closeButton.widthAnchor constraintEqualToAnchor:closeButton.heightAnchor],
-
-    // Input Plate.
-    [_inputPlateContainerView.leadingAnchor
-        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor
-                       constant:kInputPlatePadding],
-    [_inputPlateContainerView.trailingAnchor
-        constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor
-                       constant:-kInputPlatePadding],
-    [_inputPlateContainerView.bottomAnchor
-        constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor
-                       constant:-kInputPlatePadding],
-
     // Main Stack View in Plate.
     [_inputPlateStackView.topAnchor
         constraintEqualToAnchor:_inputPlateContainerView.topAnchor
@@ -454,33 +398,6 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   _editView.translatesAutoresizingMaskIntoConstraints = NO;
   [_omniboxContainer addSubview:editView];
   AddSameConstraints(_editView, _omniboxContainer);
-}
-
-#pragma mark - OmniboxPopupPresenterDelegate
-
-- (UIView*)popupParentViewForPresenter:(OmniboxPopupPresenter*)presenter {
-  return _omniboxPopupContainer;
-}
-
-- (UIViewController*)popupParentViewControllerForPresenter:
-    (OmniboxPopupPresenter*)presenter {
-  return self;
-}
-
-- (UIColor*)popupBackgroundColorForPresenter:(OmniboxPopupPresenter*)presenter {
-  return [UIColor colorNamed:kPrimaryBackgroundColor];
-}
-
-- (GuideName*)omniboxGuideNameForPresenter:(OmniboxPopupPresenter*)presenter {
-  return nil;
-}
-
-- (void)popupDidOpenForPresenter:(OmniboxPopupPresenter*)presenter {
-  _omniboxPopupContainer.hidden = NO;
-}
-
-- (void)popupDidCloseForPresenter:(OmniboxPopupPresenter*)presenter {
-  _omniboxPopupContainer.hidden = YES;
 }
 
 #pragma mark - AIMInputItemCellDelegate
@@ -540,10 +457,6 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
 }
 
 #pragma mark - Actions
-
-- (void)closeButtonTapped {
-  [self.delegate aimPrototypeViewControllerDidTapCloseButton:self];
-}
 
 - (void)galleryButtonTapped {
   [self.delegate aimPrototypeViewControllerDidTapGalleryButton:self];
@@ -609,6 +522,20 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   [self updateCarouselFade];
 }
 
+#pragma mark - UICollectionViewDelegateFlowLayout
+
+- (CGSize)collectionView:(UICollectionView*)collectionView
+                    layout:(UICollectionViewLayout*)collectionViewLayout
+    sizeForItemAtIndexPath:(NSIndexPath*)indexPath {
+  AIMInputItem* item = [_dataSource itemIdentifierForIndexPath:indexPath];
+
+  if (!item || item.type == AIMInputItemType::kAIMInputItemTypeImage) {
+    return kImageInputItemSize;
+  }
+
+  return kTabFileInputItemSize;
+}
+
 #pragma mark - Private
 
 - (void)updateCarouselFade {
@@ -628,15 +555,51 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   _AIModeEnabled = AIModeEnabled;
   [self updateAIMButtonAppearance];
   [self.mutator setAIModeEnabled:_AIModeEnabled];
+  [self triggerGlowEffect];
+}
 
-  if (_AIModeEnabled && _glowEffectView) {
-    [NSObject cancelPreviousPerformRequestsWithTarget:self
-                                             selector:@selector(stopGlowEffect)
-                                               object:nil];
+- (void)triggerGlowEffect {
+  if (!_glowEffectView) {
+    return;
+  }
+
+  // Cancel any previously scheduled updates.
+  _updateGlowCallback.Cancel();
+
+  if (_AIModeEnabled) {
+    // When turning on, ensure the glow is started. The view's state machine
+    // will prevent it from restarting if it's already active.
     [_glowEffectView startGlow];
-    [self performSelector:@selector(stopGlowEffect)
-               withObject:nil
-               afterDelay:kGlowEffectDuration];
+  } else if (_glowEffectView.glowState == GlowState::kStoppingRotation) {
+    // If the user toggles off while the rotation is already stopping, stop the
+    // glow immediately.
+    [_glowEffectView stopGlow];
+    return;
+  }
+
+  // Schedule the next state transition after the delay, regardless of whether
+  // the mode was turned on or off.
+  __weak __typeof__(self) weakSelf = self;
+  _updateGlowCallback.Reset(base::BindOnce(^{
+    AIMPrototypeViewController* strongSelf = weakSelf;
+    if (!strongSelf) {
+      return;
+    }
+    [strongSelf updateGlow];
+  }));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE, _updateGlowCallback.callback(),
+      base::Seconds(kGlowEffectDuration));
+}
+
+/// Called after a delay to transition the glow effect to its next state.
+- (void)updateGlow {
+  if (self.AIModeEnabled) {
+    // If the mode is still enabled, stop the rotation but keep the glow.
+    [_glowEffectView stopRotation];
+  } else {
+    // If the mode has been disabled, stop the glow entirely.
+    [_glowEffectView stopGlow];
   }
 }
 

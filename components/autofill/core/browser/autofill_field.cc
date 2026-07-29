@@ -21,10 +21,12 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
+#include "components/autofill/core/browser/data_model/data_model_utils.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
+#include "components/autofill/core/browser/proto/api_v1.pb.h"
 #include "components/autofill/core/browser/proto/server.pb.h"
 #include "components/autofill/core/common/autofill_constants.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -34,9 +36,6 @@
 #include "components/autofill/core/common/signatures.h"
 
 namespace autofill {
-
-using FieldPrediction =
-    AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction;
 
 template <>
 struct DenseSetTraits<FieldPrediction::Source>
@@ -415,6 +414,27 @@ std::ostream& operator<<(std::ostream& os, const Section& section) {
   return os << section.ToString();
 }
 
+AutofillFormatString::AutofillFormatString() = default;
+
+AutofillFormatString::AutofillFormatString(std::u16string v,
+                                           FormatString_Type type)
+    : value(std::move(v)), type(type) {
+  // TODO(crbug.com/446883719): Add a DCHECK that the format is valid.
+}
+
+AutofillFormatString::AutofillFormatString(const AutofillFormatString&) =
+    default;
+
+AutofillFormatString& AutofillFormatString::operator=(
+    const AutofillFormatString&) = default;
+
+AutofillFormatString::AutofillFormatString(AutofillFormatString&&) = default;
+
+AutofillFormatString& AutofillFormatString::operator=(AutofillFormatString&&) =
+    default;
+
+AutofillFormatString::~AutofillFormatString() = default;
+
 AutofillField::AutofillField() {
   local_type_predictions_.fill(NO_SERVER_DATA);
 }
@@ -518,9 +538,7 @@ void AutofillField::set_server_predictions(
   }
 }
 
-void AutofillField::MaybeAddServerPrediction(
-    AutofillQueryResponse::FormSuggestion::FieldSuggestion::FieldPrediction
-        prediction) {
+void AutofillField::MaybeAddServerPrediction(FieldPrediction prediction) {
   overall_type_ = std::nullopt;
   if (server_predictions_.size() == 1 &&
       server_predictions_[0].type() == NO_SERVER_DATA &&
@@ -771,16 +789,19 @@ void AutofillField::SetPasswordRequirements(PasswordRequirementsSpec spec) {
   password_requirements_ = std::move(spec);
 }
 
-base::optional_ref<const std::u16string> AutofillField::format_string() const {
+base::optional_ref<const AutofillFormatString> AutofillField::format_string()
+    const {
   if (form_control_type() == FormControlType::kInputDate) {
-    static const base::NoDestructor<std::u16string> kFormat(u"YYYY-MM-DD");
+    static const base::NoDestructor<AutofillFormatString> kFormat(
+        AutofillFormatString(u"YYYY-MM-DD", FormatString_Type_DATE));
     return *kFormat;
   }
   if (form_control_type() == FormControlType::kInputMonth) {
-    static const base::NoDestructor<std::u16string> kFormat(u"YYYY-MM");
+    static const base::NoDestructor<AutofillFormatString> kFormat(
+        AutofillFormatString(u"YYYY-MM", FormatString_Type_DATE));
     return *kFormat;
   }
-  if (format_string_source_ == FormatStringSource::kUnset) {
+  if (format_string_source_ == AutofillFormatStringSource::kUnset) {
     return std::nullopt;
   }
   return format_string_;

@@ -256,8 +256,7 @@ class LayerTreeHostImpl::ImageDecodeCacheHolder {
     if (raster_caps.use_gpu_rasterization) {
       auto color_type = viz::ToClosestSkColorType(raster_caps.tile_format);
       image_decode_cache_ = std::make_unique<GpuImageDecodeCache>(
-          worker_context_provider.get(),
-          /*use_transfer_cache=*/true, color_type,
+          worker_context_provider.get(), color_type,
           decoded_image_working_set_budget_bytes, raster_caps.max_texture_size,
           dark_mode_filter);
     } else {
@@ -3623,11 +3622,13 @@ void LayerTreeHostImpl::DidNotProduceFrame(const viz::BeginFrameAck& ack,
     layer_tree_frame_sink_->DidNotProduceFrame(ack, reason);
   }
   // While scrolling, we save all event metrics. It is possible that this
-  // results in a 0 delta scroll, which has no damage. We take the metrics here
+  // results in a 0 delta scroll, which has no damage. We drop the metrics here
   // so that they are terminated now. This prevents them from being incorrectly
   // associated with a future produced frame. So that jank measurements have
-  // accurate deltas.
-  events_metrics_manager_.TakeSavedEventsMetrics();
+  // accurate deltas. The only exception are scroll end metrics, which we keep
+  // around to  ensure `ScrollJankDroppedFrameReporter` emits per-scroll
+  // metrics.
+  events_metrics_manager_.DropSavedEventMetricsExceptScrollEnds();
 }
 
 void LayerTreeHostImpl::OnBeginImplFrameDeadline() {

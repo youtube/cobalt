@@ -14,9 +14,13 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/prefs/testing_pref_service.h"
+#include "components/signin/public/base/consent_level.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/test/test_sync_service.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/device_info_util.h"
 #include "components/sync_device_info/fake_device_info_sync_service.h"
@@ -81,6 +85,15 @@ MATCHER_P2(IsTimestampedPrefValue, expected_value, expected_time, "") {
   return true;
 }
 
+// A gMock matcher to verify the GUID of a syncer::DeviceInfo object.
+MATCHER_P(HasGuid, expected_guid, "") {
+  if (arg.guid() != expected_guid) {
+    *result_listener << "whose GUID is " << arg.guid();
+    return false;
+  }
+  return true;
+}
+
 // A fake `CrossDevicePrefProvider` for controlling which prefs are tracked.
 class FakeCrossDevicePrefProvider : public CrossDevicePrefProvider {
  public:
@@ -103,6 +116,17 @@ class FakeCrossDevicePrefProvider : public CrossDevicePrefProvider {
   base::flat_set<std::string_view> local_state_prefs_;
 };
 
+// A mock observer to verify remote pref change notifications.
+class MockObserver : public CrossDevicePrefTracker::Observer {
+ public:
+  MOCK_METHOD(void,
+              OnRemotePrefChanged,
+              (std::string_view pref_name,
+               const TimestampedPrefValue& value,
+               const syncer::DeviceInfo& device_info),
+              (override));
+};
+
 class CrossDevicePrefTrackerTest : public testing::Test {
  public:
   CrossDevicePrefTrackerTest() {
@@ -111,6 +135,7 @@ class CrossDevicePrefTrackerTest : public testing::Test {
     // By default, `DeviceInfo` is ready. Tests requiring delayed initialization
     // will call `ResetLocalDeviceInfo()`.
     InitializeLocalDeviceInfo();
+    SetSyncEnabled(true);
   }
 
   ~CrossDevicePrefTrackerTest() override {
@@ -138,6 +163,10 @@ class CrossDevicePrefTrackerTest : public testing::Test {
     GetTracker()->Add(GetLocalProvider()->GetLocalDeviceInfo());
     // Tell the tracker which device in its list is the local one.
     GetTracker()->SetLocalCacheGuid(kLocalCacheGuid);
+
+    if (tracker_) {
+      tracker_->OnDeviceInfoChange();
+    }
   }
 
   void ResetLocalDeviceInfo() {
@@ -154,9 +183,38 @@ class CrossDevicePrefTrackerTest : public testing::Test {
     }
   }
 
-  void CreateTracker() {
+  // Helper to configure the TestSyncService state.
+  void SetSyncEnabled(bool active) {
+    if (active) {
+      test_sync_service_.SetSignedIn(signin::ConsentLevel::kSignin);
+      test_sync_service_.SetAllowedByEnterprisePolicy(true);
+      test_sync_service_.SetHasUnrecoverableError(false);
+      test_sync_service_.ClearAuthError();
+      test_sync_service_.SetMaxTransportState(
+          syncer::SyncService::TransportState::ACTIVE);
+      test_sync_service_.GetUserSettings()->SetSelectedTypes(
+          /*sync_everything=*/false,
+          {syncer::UserSelectableType::kPreferences});
+    } else {
+      test_sync_service_.SetSignedOut();
+      test_sync_service_.GetUserSettings()->SetSelectedTypes(
+          /*sync_everything=*/false, {});
+    }
+  }
+
+  // Helper to simulate the SyncService state changing and notifying observers.
+  void ChangeSyncState(bool active) {
+    SetSyncEnabled(active);
+    if (tracker_) {
+      // Notify the tracker of the state change.
+      test_sync_service_.FireStateChanged();
+    }
+  }
+
+  void CreateTracker(bool pass_sync_service = true) {
     tracker_ = std::make_unique<CrossDevicePrefTrackerImpl>(
         &profile_prefs_, &local_state_prefs_, &device_info_sync_service_,
+        pass_sync_service ? &test_sync_service_ : nullptr,
         std::make_unique<FakeCrossDevicePrefProvider>());
   }
 
@@ -246,13 +304,14 @@ class CrossDevicePrefTrackerTest : public testing::Test {
   TestingPrefServiceSimple profile_prefs_;
   TestingPrefServiceSimple local_state_prefs_;
   syncer::FakeDeviceInfoSyncService device_info_sync_service_;
+  syncer::TestSyncService test_sync_service_;
   std::unique_ptr<CrossDevicePrefTrackerImpl> tracker_;
 };
 
-// Verifies that when the tracker is initialized with `DeviceInfo` already
-// available, it performs an initial sync of all tracked preferences.
+// Verifies that when the tracker is initialized with `DeviceInfo` and Sync
+// already available, it performs an initial sync of all tracked preferences.
 TEST_F(CrossDevicePrefTrackerTest,
-       InitializesAndSyncsPrefsWhenDeviceInfoIsReady) {
+       InitializesAndSyncsPrefsWhenDeviceInfoAndSyncAreReady) {
   profile_prefs_.SetInteger(kTrackedProfilePref, 10);
   local_state_prefs_.SetInteger(kTrackedLocalStatePref, 20);
 
@@ -343,6 +402,7 @@ TEST_F(CrossDevicePrefTrackerTest, IgnoresUntrackedPrefChange) {
 
 // Verifies that if the tracker is initialized before `DeviceInfo` is ready, it
 // waits until `DeviceInfo` is available and then performs the initial sync.
+// (Sync is active by default).
 TEST_F(CrossDevicePrefTrackerTest, DelayedInitializationWaitsForDeviceInfo) {
   profile_prefs_.SetInteger(kTrackedProfilePref, 10);
   ResetLocalDeviceInfo();
@@ -394,32 +454,6 @@ TEST_F(CrossDevicePrefTrackerTest, SyncsLatestValueAfterDelayedInitialization) {
       GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
   ASSERT_NE(entry2, nullptr);
   EXPECT_EQ(entry2->FindInt(kValueKey), 55);
-  EXPECT_TRUE(entry2->contains(kUpdateTimeKey));
-  EXPECT_TRUE(entry2->contains(kLastObservedChangeTimeKey));
-}
-
-// Verifies that after `Shutdown()` is called, the tracker no longer observes or
-// syncs pref changes.
-TEST_F(CrossDevicePrefTrackerTest, ShutdownStopsTrackingChanges) {
-  CreateTracker();
-  profile_prefs_.SetInteger(kTrackedProfilePref, 10);
-  const base::Value::Dict* entry1 =
-      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
-  ASSERT_NE(entry1, nullptr);
-  EXPECT_EQ(entry1->FindInt(kValueKey), 10);
-  EXPECT_TRUE(entry1->contains(kUpdateTimeKey));
-  EXPECT_TRUE(entry1->contains(kLastObservedChangeTimeKey));
-
-  tracker_->Shutdown();
-
-  // This change should be ignored.
-  profile_prefs_.SetInteger(kTrackedProfilePref, 100);
-
-  // The value should remain at the state before shutdown.
-  const base::Value::Dict* entry2 =
-      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
-  ASSERT_NE(entry2, nullptr);
-  EXPECT_EQ(entry2->FindInt(kValueKey), 10);
   EXPECT_TRUE(entry2->contains(kUpdateTimeKey));
   EXPECT_TRUE(entry2->contains(kLastObservedChangeTimeKey));
 }
@@ -850,6 +884,678 @@ TEST_F(CrossDevicePrefTrackerTest,
   std::optional<TimestampedPrefValue> result =
       tracker_->GetMostRecentValue(kTrackedProfilePref, filter);
   EXPECT_FALSE(result.has_value());
+}
+
+// Verifies that observers are notified when a remote device updates a pref
+// value, provided the DeviceInfo is already available.
+TEST_F(CrossDevicePrefTrackerTest,
+       NotifiesObserverWhenRemoteDeviceUpdatesPrefValue) {
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kUpdateTime = base::Time::Now() + base::Seconds(10);
+  const int kNewValue = 100;
+
+  // Add the remote device info.
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(remote_device.get());
+
+  // Expect a notification when the remote update occurs.
+  EXPECT_CALL(
+      mock_observer,
+      OnRemotePrefChanged(
+          testing::StrEq(kTrackedProfilePref),
+          // Value 100, No observed time (base::Time()).
+          IsTimestampedPrefValue(kNewValue, base::Time()),
+          // Use testing::Ref to ensure the correct DeviceInfo is passed.
+          testing::Ref(*remote_device)));
+
+  // Simulate a remote update by injecting the entry directly into the pref
+  // service. This triggers the `cross_device_pref_registrar_`.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(kNewValue), kUpdateTime, std::nullopt);
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that observers are NOT notified when the local device removes
+// (clears) a pref value (suppression of self-notification for removals).
+TEST_F(CrossDevicePrefTrackerTest,
+       DoesNotNotifyObserverWhenLocalDeviceRemovesPrefValue) {
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // 1. Set an initial non-default value locally.
+  profile_prefs_.SetInteger(kTrackedProfilePref, 50);
+  ASSERT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  // Ensure no notifications are sent for local removals.
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(0);
+
+  // 2. Trigger a local removal (clear back to default). This updates the
+  // cross-device pref dictionary synchronously by removing the local entry.
+  // The implementation should identify this removal as local and suppress the
+  // notification.
+  profile_prefs_.ClearPref(kTrackedProfilePref);
+
+  ASSERT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that if a pref is removed remotely, but the corresponding
+// DeviceInfo is no longer available (e.g., device removed from Sync),
+// observers are NOT notified, as the source metadata is missing.
+TEST_F(CrossDevicePrefTrackerTest,
+       DoesNotNotifyObserverOfRemovalIfDeviceInfoIsMissing) {
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kInitialTime = base::Time::Now();
+
+  // 1. Initialize the state with an existing value from the remote device.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(100), kInitialTime, std::nullopt);
+
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // Note: Do NOT add the DeviceInfo for kRemoteGuid to the tracker.
+
+  // Expect no notification because the DeviceInfo is missing when the removal
+  // is processed.
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(0);
+
+  // 2. Simulate a remote removal.
+  ScopedDictPrefUpdate update(&profile_prefs_, kCrossDeviceProfilePref);
+  update->Remove(kRemoteGuid);
+
+  // If DeviceInfo arrived later, it would only trigger notifications for
+  // existing values (if any), not past removals.
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that if pref data arrives via Sync before the corresponding
+// DeviceInfo, observers are notified later when the DeviceInfo becomes
+// available.
+TEST_F(CrossDevicePrefTrackerTest,
+       NotifiesObserverWhenDeviceInfoArrivesAfterPrefData) {
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kUpdateTime = base::Time::Now() + base::Seconds(10);
+  const int kValue = 200;
+
+  // 1. Initialize the tracker. DeviceInfo for kRemoteGuid is NOT present yet.
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // 2. Set expectation that no calls should occur when the data is injected.
+  // Although the data will be cached, the corresponding DeviceInfo is missing.
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(0);
+
+  // 3. Inject pref data. This simulates data arriving via Sync before
+  // DeviceInfo.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(kValue), kUpdateTime, std::nullopt);
+
+  // 4. Simulate DeviceInfo becoming available.
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kLinux,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+
+  // Expect a notification now that the DeviceInfo is available, triggered by
+  // HandleRemoteDeviceInfoChanges().
+  EXPECT_CALL(mock_observer,
+              OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
+                                  IsTimestampedPrefValue(kValue, base::Time()),
+                                  testing::Ref(*remote_device)));
+
+  // Adding the device triggers OnDeviceInfoChange().
+  GetTracker()->Add(remote_device.get());
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that the tracker correctly notifies multiple observers for different
+// preferences and handles observer removal.
+TEST_F(CrossDevicePrefTrackerTest, HandlesMultipleObserversAndPrefs) {
+  CreateTracker();
+  MockObserver mock_observer1;
+  MockObserver mock_observer2;
+  tracker_->AddObserver(&mock_observer1);
+  tracker_->AddObserver(&mock_observer2);
+
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kTime1 = base::Time::Now() + base::Seconds(10);
+  const base::Time kTime2 = base::Time::Now() + base::Seconds(20);
+
+  // Add the remote device info.
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(remote_device.get());
+
+  // Expect both observers to be notified for the first pref change.
+  EXPECT_CALL(mock_observer1,
+              OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
+                                  IsTimestampedPrefValue(100, base::Time()),
+                                  testing::Ref(*remote_device)));
+  EXPECT_CALL(mock_observer2,
+              OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
+                                  IsTimestampedPrefValue(100, base::Time()),
+                                  testing::Ref(*remote_device)));
+
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(100), kTime1, std::nullopt);
+
+  // Remove one observer.
+  tracker_->RemoveObserver(&mock_observer2);
+
+  // Expect only the remaining observer to be notified for the second pref
+  // change.
+  EXPECT_CALL(
+      mock_observer1,
+      OnRemotePrefChanged(testing::StrEq(kTrackedLocalStatePref),
+                          // Observed time included in this notification.
+                          IsTimestampedPrefValue(200, kTime2),
+                          testing::Ref(*remote_device)));
+  EXPECT_CALL(mock_observer2, OnRemotePrefChanged).Times(0);
+
+  // Inject change for a different pref (LocalState).
+  InjectCrossDevicePrefEntry(kCrossDeviceLocalStatePref, kRemoteGuid,
+                             base::Value(200), kTime2, kTime2);
+
+  // Ensure the remaining observer is also removed before destruction.
+  tracker_->RemoveObserver(&mock_observer1);
+}
+
+// Verifies that observers are NOT notified if a remote update contains
+// malformed or incomplete data.
+TEST_F(CrossDevicePrefTrackerTest, DoesNotNotifyIfRemoteUpdateIsMalformed) {
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  const std::string kRemoteGuid = "remote_guid";
+
+  // Add the remote device info.
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(remote_device.get());
+
+  // Ensure no notifications are sent for malformed data.
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(0);
+
+  // Simulate a remote update with invalid data (e.g., missing timestamp).
+  // Manually manipulate the dictionary as InjectCrossDevicePrefEntry enforces
+  // the correct format.
+  ScopedDictPrefUpdate update(&profile_prefs_, kCrossDeviceProfilePref);
+  base::Value::Dict entry;
+  entry.Set(kValueKey, base::Value(100));
+  // Missing kUpdateTimeKey, which makes ParseCrossDevicePrefEntry() fail.
+  update->Set(kRemoteGuid, std::move(entry));
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that the internal caching mechanism prevents duplicate notifications
+// if the PrefService signals a change but the actual dictionary content remains
+// the same.
+TEST_F(CrossDevicePrefTrackerTest, DoesNotNotifyIfRemoteValueIsUnchanged) {
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kUpdateTime = base::Time::Now() + base::Seconds(10);
+  const int kValue = 100;
+
+  // Add the remote device info.
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(remote_device.get());
+
+  // Expect the first notification.
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(1);
+
+  // First update.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(kValue), kUpdateTime, std::nullopt);
+
+  // Reset mocks to check for the second update.
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(0);
+
+  // Second update with the exact same data. Injecting it again triggers the
+  // PrefChangeRegistrar, but the tracker logic in OnCrossDevicePrefChanged()
+  // should compare the new dictionary with the cached one and skip
+  // notification.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(kValue), kUpdateTime, std::nullopt);
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that if Sync is inactive during initialization, the initial sync
+// of preferences does not happen.
+TEST_F(CrossDevicePrefTrackerTest, DoesNotInitializeWhenSyncIsInactive) {
+  profile_prefs_.SetInteger(kTrackedProfilePref, 10);
+  SetSyncEnabled(false);
+
+  CreateTracker();
+
+  // Verify that the initial values are NOT synced because Sync is inactive.
+  const base::Value::Dict* profile_pref_entry =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  EXPECT_EQ(profile_pref_entry, nullptr);
+}
+
+// Verifies that local changes to tracked prefs are ignored when Sync is
+// inactive.
+TEST_F(CrossDevicePrefTrackerTest, IgnoresLocalChangesWhenSyncIsInactive) {
+  SetSyncEnabled(false);
+  CreateTracker();
+
+  // Change the tracked pref.
+  profile_prefs_.SetInteger(kTrackedProfilePref, 50);
+
+  // Verify the change is NOT propagated.
+  const base::Value::Dict* entry =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  EXPECT_EQ(entry, nullptr);
+}
+
+// Verifies that when Sync becomes active (via OnStateChanged), the tracker
+// refreshes and pushes the current state of all tracked prefs.
+TEST_F(CrossDevicePrefTrackerTest, RefreshesPrefsWhenSyncBecomesActive) {
+  profile_prefs_.SetInteger(kTrackedProfilePref, 10);
+  SetSyncEnabled(false);
+  CreateTracker();
+
+  // Verify initial state (no sync).
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  // Simulate Sync becoming active.
+  ChangeSyncState(true);
+
+  // Verify that the current value (10) is now synced. This is a refresh, not
+  // an observed change.
+  const base::Value::Dict* entry =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  ASSERT_NE(entry, nullptr);
+  EXPECT_EQ(entry->FindInt(kValueKey), 10);
+  EXPECT_TRUE(entry->contains(kUpdateTimeKey));
+  EXPECT_FALSE(entry->contains(kLastObservedChangeTimeKey));
+}
+
+// Verifies that if a pref changes while Sync is inactive, the tracker
+// syncs the latest value once Sync becomes available.
+TEST_F(CrossDevicePrefTrackerTest, SyncsLatestValueWhenSyncBecomesActive) {
+  SetSyncEnabled(false);
+  CreateTracker();
+
+  // Change a pref while inactive.
+  profile_prefs_.SetInteger(kTrackedProfilePref, 50);
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  // Simulate Sync becoming active.
+  ChangeSyncState(true);
+
+  // Verify the latest value (50) is synced.
+  const base::Value::Dict* entry =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  ASSERT_NE(entry, nullptr);
+  EXPECT_EQ(entry->FindInt(kValueKey), 50);
+}
+
+// Verifies behavior when the SyncService pointer is null (e.g., in tests or
+// specific configurations). The tracker should initialize but not sync
+// anything.
+TEST_F(CrossDevicePrefTrackerTest, HandlesNullSyncService) {
+  profile_prefs_.SetInteger(kTrackedProfilePref, 10);
+
+  // Create tracker passing nullptr for SyncService.
+  CreateTracker(/*pass_sync_service=*/false);
+
+  EXPECT_EQ(tracker_->sync_service(), nullptr);
+
+  // Verify that no sync occurs.
+  const base::Value::Dict* entry1 =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  EXPECT_EQ(entry1, nullptr);
+
+  // Verify that local changes are also ignored.
+  profile_prefs_.SetInteger(kTrackedProfilePref, 20);
+  const base::Value::Dict* entry2 =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  EXPECT_EQ(entry2, nullptr);
+}
+
+// Verifies that if DeviceInfo is delayed AND Sync is inactive, initialization
+// is correctly deferred until both are ready.
+TEST_F(CrossDevicePrefTrackerTest, DelayedInitWaitsForDeviceInfoAndSync) {
+  profile_prefs_.SetInteger(kTrackedProfilePref, 10);
+  ResetLocalDeviceInfo();
+  SetSyncEnabled(false);
+  CreateTracker();
+
+  // Nothing should be written.
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  // Make DeviceInfo ready. This triggers OnDeviceInfoChange ->
+  // OnLocalDeviceInfoReady.
+  InitializeLocalDeviceInfo();
+  // Still shouldn't sync because Sync is inactive.
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  // Make Sync active. This triggers OnStateChanged ->
+  // SyncAllOnDevicePrefsToCrossDevice. Now initialization should complete.
+  ChangeSyncState(true);
+
+  // Verify sync occurred.
+  const base::Value::Dict* entry =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  ASSERT_NE(entry, nullptr);
+  EXPECT_EQ(entry->FindInt(kValueKey), 10);
+}
+
+// Verifies that writes are suppressed if the transport state is active but the
+// required data type (PREFERENCES) is not.
+TEST_F(CrossDevicePrefTrackerTest, InactiveWhenDataTypeIsDisabled) {
+  // Configure SyncService to be ACTIVE but without PREFERENCES.
+  test_sync_service_.SetSignedIn(signin::ConsentLevel::kSignin);
+  test_sync_service_.SetAllowedByEnterprisePolicy(true);
+  test_sync_service_.SetHasUnrecoverableError(false);
+  test_sync_service_.ClearAuthError();
+  test_sync_service_.SetMaxTransportState(
+      syncer::SyncService::TransportState::ACTIVE);
+
+  // Set selected types *without* kPreferences. This is the key part.
+  test_sync_service_.GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, {syncer::UserSelectableType::kBookmarks});
+
+  profile_prefs_.SetInteger(kTrackedProfilePref, 10);
+  CreateTracker();
+  test_sync_service_.FireStateChanged();  // Trigger initial check
+
+  // Verify that the initial value is NOT synced.
+  const base::Value::Dict* entry =
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  EXPECT_EQ(entry, nullptr);
+
+  // Verify subsequent changes are also not synced.
+  profile_prefs_.SetInteger(kTrackedProfilePref, 20);
+  entry = GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  EXPECT_EQ(entry, nullptr);
+
+  // Enable the data type by re-selecting it.
+  test_sync_service_.GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, {syncer::UserSelectableType::kPreferences});
+  // Notify the tracker that the configuration changed.
+  test_sync_service_.FireStateChanged();
+
+  // Verify the latest value is now synced.
+  entry = GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid);
+  ASSERT_NE(entry, nullptr);
+  EXPECT_EQ(entry->FindInt(kValueKey), 20);
+}
+
+// Verifies that entries corresponding to devices removed from DeviceInfoTracker
+// are garbage collected from the cross-device preference dictionaries.
+TEST_F(CrossDevicePrefTrackerTest, GarbageCollectsStaleCacheGuids) {
+  CreateTracker();
+  const base::Time kNow = base::Time::Now();
+  const std::string kGuidA = "guid_a";
+  const std::string kGuidB = "guid_b";
+
+  // 1. Add two remote devices.
+  std::unique_ptr<syncer::DeviceInfo> device_a =
+      CreateDeviceInfo(kGuidA, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  std::unique_ptr<syncer::DeviceInfo> device_b =
+      CreateDeviceInfo(kGuidB, syncer::DeviceInfo::OsType::kMac,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  // Adding devices triggers OnDeviceInfoChange, updating `known_device_guids_`.
+  GetTracker()->Add(device_a.get());
+  GetTracker()->Add(device_b.get());
+
+  // 2. Inject pref entries for both. This updates the internal cache via
+  // OnCrossDevicePrefChanged.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidA, base::Value(100),
+                             kNow, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidB, base::Value(200),
+                             kNow, std::nullopt);
+
+  // 3. Verify both entries exist.
+  ASSERT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidA), nullptr);
+  ASSERT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidB), nullptr);
+
+  // 4. Remove Device B and manually trigger the device info change notification
+  // to run GarbageCollectStaleCacheGuids().
+  GetTracker()->Remove(device_b.get());
+  tracker_->OnDeviceInfoChange();
+
+  // 5. Verify Device A persists and Device B is removed.
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidA), nullptr);
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidB), nullptr);
+}
+
+// Verifies that garbage collection works correctly across multiple tracked
+// preferences simultaneously.
+TEST_F(CrossDevicePrefTrackerTest,
+       GarbageCollectsStaleGuidsAcrossMultiplePrefs) {
+  CreateTracker();
+  const base::Time kNow = base::Time::Now();
+  const std::string kStaleGuid = "guid_stale";
+  const std::string kActiveGuid = "guid_active";
+
+  // Add devices.
+  std::unique_ptr<syncer::DeviceInfo> stale_device =
+      CreateDeviceInfo(kStaleGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  std::unique_ptr<syncer::DeviceInfo> active_device =
+      CreateDeviceInfo(kActiveGuid, syncer::DeviceInfo::OsType::kMac,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(stale_device.get());
+  GetTracker()->Add(active_device.get());
+
+  // Inject entries for both devices in both tracked prefs.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid,
+                             base::Value(1), kNow, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kActiveGuid,
+                             base::Value(2), kNow, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceLocalStatePref, kStaleGuid,
+                             base::Value(3), kNow, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceLocalStatePref, kActiveGuid,
+                             base::Value(4), kNow, std::nullopt);
+
+  // Verify initial state.
+  ASSERT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid),
+            nullptr);
+  ASSERT_NE(GetCrossDevicePrefEntry(kCrossDeviceLocalStatePref, kStaleGuid),
+            nullptr);
+
+  // Remove the stale device.
+  GetTracker()->Remove(stale_device.get());
+  tracker_->OnDeviceInfoChange();
+
+  // Verify stale entries are gone from both prefs.
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid),
+            nullptr);
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceLocalStatePref, kStaleGuid),
+            nullptr);
+
+  // Verify active entries remain.
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kActiveGuid),
+            nullptr);
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceLocalStatePref, kActiveGuid),
+            nullptr);
+}
+
+// Verifies that the removal of entries during garbage collection does not
+// trigger OnRemotePrefChanged notifications.
+TEST_F(CrossDevicePrefTrackerTest,
+       GarbageCollectionDoesNotTriggerRemoteNotifications) {
+  CreateTracker();
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  const std::string kRemoteGuid = "remote_guid";
+  const base::Time kNow = base::Time::Now();
+
+  // Add the remote device.
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(remote_device.get());
+
+  // Inject an entry. Expect one notification (for the addition).
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(1);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(100), kNow, std::nullopt);
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+
+  ASSERT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid),
+            nullptr);
+
+  // Remove the device. This triggers garbage collection.
+  // Ensure no notifications are sent during this process. The implementation
+  // of ProcessRemoteUpdates only iterates over the *new* dictionary to find
+  // additions/updates, so removals (like garbage collection) shouldn't trigger
+  // notifications.
+  EXPECT_CALL(mock_observer, OnRemotePrefChanged).Times(0);
+  GetTracker()->Remove(remote_device.get());
+  tracker_->OnDeviceInfoChange();
+
+  // Verify the entry is gone.
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid),
+            nullptr);
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that the local device's entry is preserved during garbage collection
+// as long as the local device remains active in the DeviceInfoTracker.
+TEST_F(CrossDevicePrefTrackerTest, GarbageCollectionPreservesLocalDeviceEntry) {
+  CreateTracker();
+  // The local device (kLocalCacheGuid) is active by default in the test setup.
+
+  // Set a local pref, creating an entry for the local device.
+  profile_prefs_.SetInteger(kTrackedProfilePref, 50);
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  // Add and then remove a remote device to trigger OnDeviceInfoChange() and
+  // garbage collection explicitly.
+  const std::string kRemoteGuid = "remote_guid";
+  std::unique_ptr<syncer::DeviceInfo> remote_device =
+      CreateDeviceInfo(kRemoteGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+
+  GetTracker()->Add(remote_device.get());
+  // Inject an entry for the remote device to ensure garbage collection has
+  // potential work.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
+                             base::Value(100), base::Time::Now(), std::nullopt);
+
+  // Remove the remote device, triggering garbage collection.
+  GetTracker()->Remove(remote_device.get());
+  tracker_->OnDeviceInfoChange();
+
+  // Verify the remote entry is gone, but the local entry remains.
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid),
+            nullptr);
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+}
+
+// Verifies that multiple entries corresponding to devices removed from
+// DeviceInfoTracker are garbage collected simultaneously in a single pass.
+TEST_F(CrossDevicePrefTrackerTest,
+       GarbageCollectsMultipleStaleCacheGuidsSimultaneously) {
+  CreateTracker();
+  const base::Time kNow = base::Time::Now();
+  const std::string kActiveGuid = "guid_active";
+  const std::string kStaleGuid1 = "guid_stale_1";
+  const std::string kStaleGuid2 = "guid_stale_2";
+
+  // 1. Add devices.
+  std::unique_ptr<syncer::DeviceInfo> active_device =
+      CreateDeviceInfo(kActiveGuid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  std::unique_ptr<syncer::DeviceInfo> stale_device1 =
+      CreateDeviceInfo(kStaleGuid1, syncer::DeviceInfo::OsType::kMac,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  std::unique_ptr<syncer::DeviceInfo> stale_device2 =
+      CreateDeviceInfo(kStaleGuid2, syncer::DeviceInfo::OsType::kLinux,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(active_device.get());
+  GetTracker()->Add(stale_device1.get());
+  GetTracker()->Add(stale_device2.get());
+
+  // 2. Inject pref entries.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kActiveGuid,
+                             base::Value(1), kNow, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid1,
+                             base::Value(2), kNow, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid2,
+                             base::Value(3), kNow, std::nullopt);
+
+  // 3. Remove stale devices and trigger garbage collection once.
+  GetTracker()->Remove(stale_device1.get());
+  GetTracker()->Remove(stale_device2.get());
+  tracker_->OnDeviceInfoChange();
+
+  // 4. Verify results.
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kActiveGuid),
+            nullptr);
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid1),
+            nullptr);
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kStaleGuid2),
+            nullptr);
+}
+
+// Verifies that garbage collection correctly handles the case where all entries
+// for a preference are stale, resulting in an empty dictionary.
+TEST_F(CrossDevicePrefTrackerTest, GarbageCollectsAllEntriesIfAllAreStale) {
+  CreateTracker();
+  // Ensure the local device doesn't have an entry initially for this pref
+  // to allow the dictionary to become empty.
+  ASSERT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, kLocalCacheGuid),
+            nullptr);
+
+  const base::Time kNow = base::Time::Now();
+  const std::string kGuidA = "guid_a";
+
+  // 1. Add device and pref entry.
+  std::unique_ptr<syncer::DeviceInfo> device_a =
+      CreateDeviceInfo(kGuidA, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop);
+  GetTracker()->Add(device_a.get());
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kGuidA, base::Value(100),
+                             kNow, std::nullopt);
+
+  ASSERT_FALSE(profile_prefs_.GetDict(kCrossDeviceProfilePref).empty());
+
+  // 2. Remove device and trigger garbage collection.
+  GetTracker()->Remove(device_a.get());
+  tracker_->OnDeviceInfoChange();
+
+  // 3. Verify the dictionary is now empty.
+  EXPECT_TRUE(profile_prefs_.GetDict(kCrossDeviceProfilePref).empty());
 }
 
 }  // namespace

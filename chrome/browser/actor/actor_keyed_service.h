@@ -13,15 +13,13 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
-#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
-#include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
+#include "chrome/common/actor/action_result.h"
+#include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/buildflags.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/proto/features/actions_data.pb.h"
-#include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/gfx/image/image.h"
@@ -38,6 +36,7 @@ namespace ui {
 class ActorUiStateManagerInterface;
 }
 
+class ActorTask;
 class ToolRequest;
 
 // This class owns all ActorTasks for a given profile. ActorTasks are kept in
@@ -100,9 +99,13 @@ class ActorKeyedService : public KeyedService {
   // The associated ActorUiStateManager for the associated profile.
   ui::ActorUiStateManagerInterface* GetActorUiStateManager();
 
-  // Returns an acting task on provided `tab`. A null TaskId is returned if no
-  // task is acting on `tab`.
-  TaskId IsAnyTaskActingOnTab(const tabs::TabInterface& tab) const;
+  // Returns true if there is a task that is actively (i.e. not paused) acting
+  // in the given `tab`.
+  bool IsActiveOnTab(const tabs::TabInterface& tab) const;
+
+  // Returns the id of an ActorTask which has the given tab in its set. Returns
+  // a null TaskId if no task has `tab`. Note: a returned task may be paused.
+  TaskId GetTaskFromTab(const tabs::TabInterface& tab) const;
 
   Profile* GetProfile();
 
