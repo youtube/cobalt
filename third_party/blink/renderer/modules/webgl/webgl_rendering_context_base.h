@@ -633,7 +633,9 @@ class MODULES_EXPORT WebGLRenderingContextBase
     Member<WebGLTexture> texture3d_binding_;
     Member<WebGLTexture> texture2d_array_binding_;
     Member<WebGLTexture> texture_video_image_binding_;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
     Member<WebGLTexture> texture_external_oes_binding_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     Member<WebGLTexture> texture_rectangle_arb_binding_;
 
     void Trace(Visitor*) const;
@@ -704,6 +706,13 @@ class MODULES_EXPORT WebGLRenderingContextBase
   friend class WebGLMultiDrawInstancedBaseVertexBaseInstance;
   friend class WebGLPolygonMode;
   friend class WebGLShaderPixelLocalStorage;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  friend class OESEGLImageExternal;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+  friend class CobaltVideoTextureTransform;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+
 
   WebGLRenderingContextBase(CanvasRenderingContextHost*,
                             std::unique_ptr<WebGraphicsContext3DProvider>,

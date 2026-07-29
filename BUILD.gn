@@ -847,6 +847,13 @@ group("gn_all") {
   if (checkout_clusterfuzz_data) {
     deps += [ "//clusterfuzz-data:all" ]
   }
+
+  if (is_cobalt) {
+    deps += [
+      "//cobalt:gn_all",
+      "//cobalt:cobalt_browsertests",
+    ]
+  }
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to
@@ -862,8 +869,10 @@ group("all_rust") {
 
   # TODO(https://crbug.com/405379314): This fails to build on some iOS ASAN
   # builders.
+  if (!is_cobalt_hermetic_build) {
   if (!is_ios || !is_asan) {
     deps += [ "//testing/rust_gtest_interop:rust_gtest_interop_unittests" ]
+  }
   }
 
   if (enable_rust_mojo) {
@@ -1385,7 +1394,78 @@ if (use_blink && !is_cronet_build) {
   # this target.
   group("blink_web_tests_expectations") {
     testonly = true
+<<<<<<< HEAD
     data_deps = [ "//third_party/blink/web_tests:expectations" ]
+=======
+
+    data = [
+      # Include virtual baselines.
+      "//third_party/blink/web_tests/virtual/",
+
+      # List all test expectations here
+      "//third_party/blink/web_tests/LeakExpectations",
+      "//third_party/blink/web_tests/NeverFixTests",
+      "//third_party/blink/web_tests/SlowTests",
+      "//third_party/blink/web_tests/StaleTestExpectations",
+      "//third_party/blink/web_tests/TestExpectations",
+    ]
+
+    if (is_asan) {
+      data += [ "//third_party/blink/web_tests/ASANExpectations" ]
+    }
+    if (is_chrome_for_testing) {
+      data += [ "//third_party/blink/web_tests/CfTTestExpectations" ]
+    }
+    if (is_msan) {
+      data += [ "//third_party/blink/web_tests/MSANExpectations" ]
+    }
+    if (enable_ml_internal) {
+      data += [ "//third_party/blink/web_tests/OptimizationGuideExpectations" ]
+    }
+
+    if (is_win || is_linux || is_fuchsia) {
+      data += [
+        "//third_party/blink/web_tests/platform/win/",
+        "//third_party/blink/web_tests/platform/win10/",
+        "//third_party/blink/web_tests/platform/win11-arm64/",
+      ]
+      if (is_linux || is_fuchsia) {
+        data += [ "//third_party/blink/web_tests/platform/linux/" ]
+      }
+      if (is_fuchsia) {
+        data += [
+          "//third_party/blink/web_tests/platform/fuchsia/",
+          "$root_gen_dir/package_metadata/content_shell.meta",
+        ]
+      }
+    } else if (is_mac) {
+      data += [
+        "//third_party/blink/web_tests/platform/mac/",
+        "//third_party/blink/web_tests/platform/mac-mac12/",
+        "//third_party/blink/web_tests/platform/mac-mac12-arm64/",
+        "//third_party/blink/web_tests/platform/mac-mac13/",
+        "//third_party/blink/web_tests/platform/mac-mac13-arm64/",
+        "//third_party/blink/web_tests/platform/mac-mac14/",
+        "//third_party/blink/web_tests/platform/mac-mac14-arm64/",
+        "//third_party/blink/web_tests/platform/mac-mac15-arm64/",
+      ]
+    }
+
+    # flag-specific tests only runs on linux & mac as of now
+    if (is_linux || is_mac) {
+      data += [
+        "//third_party/blink/web_tests/FlagSpecificConfig",
+        "//third_party/blink/web_tests/FlagExpectations/",
+        "//third_party/blink/web_tests/flag-specific/",
+      ]
+    }
+
+    if (is_cobalt) {
+      data += [
+        "//third_party/blink/web_tests/wpt_internal/cobalt",
+      ]
+    }
+>>>>>>> parent of 1ccee01d771 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
   # https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/web_tests.md

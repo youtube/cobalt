@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -30,6 +31,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
@@ -39,6 +41,12 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "cc/paint/clear_for_opaque_raster.h"
+#include "cc/paint/display_item_list.h"
+#include "cc/paint/image_provider.h"
+#include "cc/paint/image_transfer_cache_entry.h"
+#include "gpu/command_buffer/common/in_process_raster_payload.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "cc/paint/paint_cache.h"
 #include "cc/paint/paint_op.h"
 #include "cc/paint/paint_op_buffer.h"
@@ -147,6 +155,52 @@ namespace raster {
 namespace {
 
 base::AtomicSequenceNumber g_raster_decoder_id;
+
+#if BUILDFLAG(IS_COBALT)
+// An ImageProvider that resolves cc::PaintImages directly from the GPU
+// ServiceTransferCache using the transfer cache IDs collected during
+// in-process raster preprocessing.
+class GpuTransferCacheImageProvider : public cc::ImageProvider {
+ public:
+  GpuTransferCacheImageProvider(
+      int raster_decoder_id,
+      ServiceTransferCache* transfer_cache,
+      const base::flat_map<cc::PaintImage::Id, uint32_t>& image_map)
+      : raster_decoder_id_(raster_decoder_id),
+        transfer_cache_(transfer_cache),
+        image_map_(image_map) {}
+
+  ScopedResult GetRasterContent(const cc::DrawImage& draw_image) override {
+    auto it = image_map_.find(draw_image.paint_image().stable_id());
+    if (it != image_map_.end() && transfer_cache_) {
+      auto* entry = transfer_cache_->GetEntry(
+          ServiceTransferCache::EntryKey(raster_decoder_id_,
+                                         cc::TransferCacheEntryType::kImage,
+                                         it->second));
+      if (entry && entry->Type() == cc::TransferCacheEntryType::kImage) {
+        auto* image_entry =
+            static_cast<cc::ServiceImageTransferCacheEntry*>(entry);
+        if (image_entry->image()) {
+          return ScopedResult(cc::DecodedDrawImage(
+              image_entry->image(), /*dark_mode_color_filter=*/nullptr,
+              SkSize::Make(0, 0), SkSize::Make(1.f, 1.f),
+              draw_image.filter_quality(), /*is_budgeted=*/true));
+        }
+      }
+    }
+
+    return ScopedResult(cc::DecodedDrawImage(
+        draw_image.paint_image().GetSwSkImage(), nullptr,
+        SkSize::Make(0, 0), SkSize::Make(1.f, 1.f),
+        draw_image.filter_quality(), true));
+  }
+
+ private:
+  int raster_decoder_id_;
+  raw_ptr<ServiceTransferCache> transfer_cache_;
+  const base::flat_map<cc::PaintImage::Id, uint32_t>& image_map_;
+};
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Controls whether we may yield during rasterization.
 BASE_FEATURE(GpuYieldRasterization, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -777,6 +831,10 @@ class RasterDecoderImpl final : public RasterDecoder,
                                 GLuint font_shm_id,
                                 GLuint font_shm_offset,
                                 GLuint font_shm_size);
+#if BUILDFLAG(IS_COBALT)
+  error::Error DoRasterCHROMIUMInProcess(
+      std::unique_ptr<InProcessRasterPayload> payload);
+#endif  // BUILDFLAG(IS_COBALT)
   void DoEndRasterCHROMIUM();
   void DoCreateTransferCacheEntryINTERNAL(GLuint entry_type,
                                           GLuint entry_id,
@@ -3028,6 +3086,21 @@ error::Error RasterDecoderImpl::DoRasterCHROMIUM(GLuint raster_shm_id,
     return error::kNoError;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltInProcessDirectRaster) &&
+      raster_shm_size == sizeof(InProcessRasterPayload*)) {
+    InProcessRasterPayload* in_process_payload = nullptr;
+    std::memcpy(&in_process_payload, paint_buffer_memory,
+                sizeof(in_process_payload));
+    if (in_process_payload &&
+        InProcessRasterPayloadRegistry::GetInstance().Take(
+            in_process_payload)) {
+      return DoRasterCHROMIUMInProcess(
+          base::WrapUnique(in_process_payload));
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   cc::PlaybackParams playback_params(nullptr, SkM44());
   playback_params.destination_hdr_headroom = sk_surface_hdr_headroom_;
   TransferCacheDeserializeHelperImpl impl(raster_decoder_id_, transfer_cache());
@@ -3118,6 +3191,89 @@ error::Error RasterDecoderImpl::DoRasterCHROMIUM(GLuint raster_shm_id,
 
   return error::kNoError;
 }
+
+#if BUILDFLAG(IS_COBALT)
+error::Error RasterDecoderImpl::DoRasterCHROMIUMInProcess(
+    std::unique_ptr<InProcessRasterPayload> payload) {
+  // |scoped_shared_image_raster_write_| is only used by RawDraw, which is not
+  // used in Cobalt. Skip the handling for it in DoRasterCHROMIUMInProcess.
+  DCHECK(!scoped_shared_image_raster_write_);
+
+  if (raster_canvas_) {
+    SkIRect raster_bounds = gfx::RectToSkIRect(payload->full_raster_rect);
+    if (!payload->playback_rect.IsEmpty() &&
+        !raster_bounds.intersect(
+            gfx::RectToSkIRect(payload->playback_rect))) {
+      return error::kNoError;
+    }
+
+    int save_count = raster_canvas_->getSaveCount();
+
+    // Replicate tile setup preamble (PaintOpBufferSerializer::SerializePreamble)
+    // directly onto the canvas, since in-process raster bypasses serialization.
+    bool is_partial_raster =
+        payload->full_raster_rect != payload->playback_rect;
+    if (!payload->requires_clear) {
+      gfx::Rect outer_rect;
+      gfx::Rect inner_rect;
+      if (cc::CalculateClearForOpaqueRasterRects(
+              payload->post_translate, payload->post_scale,
+              payload->content_size, payload->full_raster_rect,
+              payload->playback_rect, outer_rect, inner_rect)) {
+        raster_canvas_->save();
+        raster_canvas_->clipRect(gfx::RectToSkRect(outer_rect),
+                                 SkClipOp::kIntersect);
+        if (!inner_rect.IsEmpty()) {
+          raster_canvas_->clipRect(gfx::RectToSkRect(inner_rect),
+                                   SkClipOp::kDifference);
+        }
+        raster_canvas_->drawColor(payload->background_color.toSkColor(),
+                                  SkBlendMode::kSrc);
+        raster_canvas_->restore();
+      }
+    } else if (!is_partial_raster) {
+      raster_canvas_->clear(SK_ColorTRANSPARENT);
+    }
+
+    raster_canvas_->save();
+    if (!payload->full_raster_rect.OffsetFromOrigin().IsZero()) {
+      raster_canvas_->translate(-payload->full_raster_rect.x(),
+                                -payload->full_raster_rect.y());
+    }
+    raster_canvas_->clipRect(SkRect::Make(raster_bounds));
+    if (!payload->post_translate.IsZero()) {
+      raster_canvas_->translate(payload->post_translate.x(),
+                                payload->post_translate.y());
+    }
+    if (payload->post_scale.x() != 1.f || payload->post_scale.y() != 1.f) {
+      raster_canvas_->scale(payload->post_scale.x(),
+                            payload->post_scale.y());
+    }
+
+    // If a transparent tile is partially rastered, clear only the clipped
+    // dirty section that is being re-rastered.
+    if (is_partial_raster && payload->requires_clear) {
+      raster_canvas_->clear(SK_ColorTRANSPARENT);
+    }
+
+    GpuTransferCacheImageProvider gpu_image_provider(
+        raster_decoder_id_, transfer_cache(),
+        payload->image_to_transfer_cache_id);
+    cc::PlaybackParams params(&gpu_image_provider);
+    if (payload->raster_inducing_scroll_offsets.has_value()) {
+      params.raster_inducing_scroll_offsets =
+          &payload->raster_inducing_scroll_offsets.value();
+    }
+    if (payload->display_item_list) {
+      payload->display_item_list->Raster(raster_canvas_, params);
+    }
+
+    raster_canvas_->restoreToCount(save_count);
+  }
+
+  return error::kNoError;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 error::Error RasterDecoderImpl::HandleRasterCHROMIUM(
     uint32_t immediate_data_size,

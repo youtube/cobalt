@@ -88,8 +88,10 @@ import re
 import shlex
 import shutil
 import subprocess
+import urllib
 
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
+from urllib.error import URLError
 
 sys.path.append(
     os.path.join(
@@ -794,8 +796,42 @@ def _ValidateCurrentPlatformIsSupported():
                                                    supported_platforms)
 
 
+def _ProcessGnFile(file_path, args_dict, processed_files):
+  """Recursively processes a .gn file and its imports."""
+  if file_path in processed_files:
+    return
+  processed_files.add(file_path)
+
+  if not os.path.exists(file_path):
+    return
+
+  with open(file_path, 'r') as f:
+    for line in f:
+      line_without_comment = line.split('#')[0].strip()
+      if not line_without_comment:
+        continue
+
+      match = re.match(r'import\("([^"]+)"\)', line_without_comment)
+      if match:
+        import_path_str = match.group(1)
+        if import_path_str.startswith('//'):
+          import_path = os.path.join(SRC_ROOT_PATH, import_path_str[2:])
+        else:
+          import_path = os.path.join(
+              os.path.dirname(file_path), import_path_str)
+
+        _ProcessGnFile(import_path, args_dict, processed_files)
+        continue
+
+      key_value_pair = line_without_comment.split('=')
+      if len(key_value_pair) == 2:
+        key = key_value_pair[0].strip()
+        value = key_value_pair[1].strip().strip('"')
+        args_dict[key] = value
+
+
 def _GetBuildArgs():
-  """Parses args.gn file and returns results as a dictionary.
+  """Parses args.gn file and its imports and returns results as a dictionary.
 
   Returns:
     A dictionary representing the build args.
@@ -808,21 +844,9 @@ def _GetBuildArgs():
   build_args_path = os.path.join(BUILD_DIR, 'args.gn')
   assert os.path.exists(build_args_path), ('"%s" is not a build directory, '
                                            'missing args.gn file.' % BUILD_DIR)
-  with open(build_args_path) as build_args_file:
-    build_args_lines = build_args_file.readlines()
 
-  for build_arg_line in build_args_lines:
-    build_arg_without_comments = build_arg_line.split('#')[0]
-    key_value_pair = build_arg_without_comments.split('=')
-    if len(key_value_pair) != 2:
-      continue
-
-    key = key_value_pair[0].strip()
-
-    # Values are wrapped within a pair of double-quotes, so remove the leading
-    # and trailing double-quotes.
-    value = key_value_pair[1].strip().strip('"')
-    _BUILD_ARGS[key] = value
+  processed_files = set()
+  _ProcessGnFile(build_args_path, _BUILD_ARGS, processed_files)
 
   return _BUILD_ARGS
 
@@ -922,6 +946,32 @@ def _GetBinaryPathForWebTests():
     assert False, 'This platform is not supported for web tests.'
 
 
+def _GetComponentMappings(component_mappings_file):
+  """Returns a dictionary of component mappings.
+
+  If a local file is provided, it is loaded directly. Otherwise, the mapping
+  is fetched from a GCP URL, attempting to use gcloud for authentication.
+  """
+  if component_mappings_file:
+    component_mappings = json.load(component_mappings_file)
+    component_mappings_file.close()
+    return component_mappings
+
+  try:
+    gcloud_token_command = ['gcloud', 'auth', 'print-access-token']
+    token = subprocess.check_output(gcloud_token_command,
+                                    stderr=subprocess.PIPE).strip()
+    req = Request(
+        COMPONENT_MAPPING_URL,
+        headers={'Authorization': 'Bearer ' + token.decode('utf-8')})
+    return json.load(urlopen(req))
+  except (subprocess.CalledProcessError, OSError, URLError) as e:
+    logging.warning(
+        'Could not get gcloud auth token. Falling back to unauthenticated '
+        'request. This may fail if the bucket is not public. Error: %s', e)
+    return json.load(urllib.request.urlopen(COMPONENT_MAPPING_URL))
+
+
 def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
                             absolute_filter_paths):
   """Generate the coverage report in the supported format."""
@@ -947,7 +997,7 @@ def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
                                              args.format)
   component_mappings = None
   if not args.no_component_view:
-    component_mappings = json.load(urlopen(COMPONENT_MAPPING_URL))
+    component_mappings = _GetComponentMappings(args.component_mappings_file)
 
   # Call prepare here.
   processor = coverage_utils.CoverageReportPostProcessor(
@@ -1063,6 +1113,12 @@ def _ParseCommandArguments():
       '--no-component-view',
       action='store_true',
       help='Don\'t generate the component view in the coverage report.')
+
+  arg_parser.add_argument(
+      '--component-mappings-file',
+      type=argparse.FileType('r'),
+      help='Path to a local component map JSON file. If provided, this file '
+      'is used instead of fetching from the network.')
 
   arg_parser.add_argument(
       '--no-report',
