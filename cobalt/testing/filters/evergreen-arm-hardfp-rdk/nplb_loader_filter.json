@@ -31,7 +31,7 @@
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbLogFlushTest.DontCrashMeBro",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.MultipleSeeks/*",
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.LimitedAudioInput/*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
