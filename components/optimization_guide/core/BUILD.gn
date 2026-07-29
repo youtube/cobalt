@@ -207,6 +207,7 @@ source_set("model_execution") {
     ":core_util",
     ":features",
     "//base",
+    "//base/version_info",
     "//components/optimization_guide/optimization_guide_internals/webui:mojo_bindings",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/optimization_guide/public/mojom",
@@ -228,6 +229,8 @@ source_set("model_execution") {
       "model_execution/json_response_parser.h",
       "model_execution/model_broker_client.cc",
       "model_execution/model_broker_client.h",
+      "model_execution/model_broker_state.cc",
+      "model_execution/model_broker_state.h",
       "model_execution/model_execution_features.cc",
       "model_execution/model_execution_features.h",
       "model_execution/model_execution_features_controller.cc",
@@ -351,6 +354,8 @@ static_library("prediction") {
     "delivery/model_enums.h",
     "delivery/model_info.cc",
     "delivery/model_info.h",
+    "delivery/model_provider_registry.cc",
+    "delivery/model_provider_registry.h",
     "delivery/model_store_metadata_entry.cc",
     "delivery/model_store_metadata_entry.h",
     "delivery/model_util.cc",
@@ -371,6 +376,7 @@ static_library("prediction") {
     "delivery/prediction_model_override.h",
     "delivery/prediction_model_store.cc",
     "delivery/prediction_model_store.h",
+    "delivery/profile_download_service_tracker.h",
   ]
   deps = [
     ":core_util",
@@ -705,6 +711,10 @@ source_set("model_execution_unit_tests") {
       "//third_party/tflite:buildflags",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {

@@ -39,7 +39,7 @@
 // mark the file to ignore instead.
 GC_PLUGIN_IGNORE_FILE("crbug.com/428987863")
 
-namespace WTF {
+namespace blink {
 
 template <typename KeyTypeArg, typename ValueTypeArg>
 struct KeyValuePair {
@@ -60,22 +60,18 @@ struct KeyValuePair {
 };
 
 template <typename K, typename V>
-struct IsWeak<KeyValuePair<K, V>>
+struct IsWeak<blink::KeyValuePair<K, V>>
     : std::integral_constant<bool, IsWeak<K>::value || IsWeak<V>::value> {};
 
 template <typename K, typename V>
-struct IsTraceable<KeyValuePair<K, V>>
+struct IsTraceable<blink::KeyValuePair<K, V>>
     : std::integral_constant<bool,
                              IsTraceable<K>::value || IsTraceable<V>::value> {};
 
-}  // namespace WTF
-
-namespace blink {
-
 template <typename KeyTraitsArg,
           typename ValueTraitsArg,
-          typename P = WTF::KeyValuePair<typename KeyTraitsArg::TraitType,
-                                         typename ValueTraitsArg::TraitType>>
+          typename P = KeyValuePair<typename KeyTraitsArg::TraitType,
+                                    typename ValueTraitsArg::TraitType>>
 struct KeyValuePairHashTraits
     : TwoFieldsHashTraits<P, &P::key, &P::value, KeyTraitsArg, ValueTraitsArg> {
   using TraitType = P;
@@ -88,18 +84,15 @@ struct KeyValuePairHashTraits
   static constexpr bool kCanTraceConcurrently =
       KeyTraits::kCanTraceConcurrently &&
       (ValueTraits::kCanTraceConcurrently ||
-       !WTF::IsTraceable<typename ValueTraits::TraitType>::value);
+       !IsTraceableV<typename ValueTraits::TraitType>);
   static constexpr bool kSupportsCompaction =
       KeyTraits::kSupportsCompaction && ValueTraits::kSupportsCompaction;
 };
 
 template <typename Key, typename Value>
-struct HashTraits<WTF::KeyValuePair<Key, Value>>
+struct HashTraits<KeyValuePair<Key, Value>>
     : public KeyValuePairHashTraits<HashTraits<Key>, HashTraits<Value>> {};
 
-}  // namespace blink
-
-namespace WTF {
 namespace internal {
 
 template <typename T, bool NeedsStackCheck = IsTraceable<T>::value>
@@ -487,6 +480,6 @@ inline bool operator!=(const HashTableValuesIterator<T, U, V>& a,
   return a.impl_ != b.impl_;
 }
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_KEY_VALUE_PAIR_H_

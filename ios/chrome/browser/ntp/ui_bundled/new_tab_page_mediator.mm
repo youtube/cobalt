@@ -25,6 +25,7 @@
 #import "components/signin/public/base/signin_switches.h"
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/aim/model/aim_availability.h"
 #import "ios/chrome/browser/browser_view/model/browser_view_visibility_notifier_browser_agent.h"
 #import "ios/chrome/browser/browser_view/model/browser_view_visibility_observer_bridge.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/content_suggestions_mediator.h"
@@ -42,12 +43,14 @@
 #import "ios/chrome/browser/ntp/shared/metrics/new_tab_page_metrics_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_control_delegate.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_wrapper_view_controller.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_content_delegate.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_constants.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_view_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/theme_utils.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
@@ -308,10 +311,7 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
         std::make_unique<HomeBackgroundCustomizationServiceObserverBridge>(
             _backgroundCustomizationService, self);
   }
-
-  BOOL miaPolicyAllowed = omnibox::IsAimAllowedByPolicy(_prefService);
-  [self.consumer setMIAAllowedByPolicy:miaPolicyAllowed];
-  [self.headerConsumer setMIAAllowedByPolicy:miaPolicyAllowed];
+  [self updateAIMAvailability];
 }
 
 - (void)shutdown {
@@ -392,18 +392,26 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
       _backgroundCustomizationService->GetCurrentColorTheme();
 
   if (colorTheme && colorTheme->color()) {
-    [self.consumer
-        updateBackgroundWithColorPalette:
-            CreateColorPaletteFromSeedColor(
-                skia::UIColorFromSkColor(colorTheme->color()),
-                ProtoEnumToSchemeVariant(colorTheme->browser_color_variant()))];
+    // Sets the New Tab Page trait to a color palette generated from the current
+    // theme.
+    NewTabPageColorPalette* colorPalette = CreateColorPaletteFromSeedColor(
+        skia::UIColorFromSkColor(colorTheme->color()),
+        ProtoEnumToSchemeVariant(colorTheme->browser_color_variant()));
+
+    [self.consumer.traitOverrides setObject:colorPalette
+                                   forTrait:NewTabPageTrait.class];
     [self.consumer setBackgroundImage:nil];
+    [self.headerConsumer updateLogoColor:colorPalette.tintColor];
     return;
   }
 
-  [self.consumer updateBackgroundWithColorPalette:nil];
+  // Clears the color palette associated with the New Tab Page trait,
+  // reverting to the default colors defined by the trait.
+  [self.consumer.traitOverrides setObject:[NewTabPageTrait defaultValue]
+                                 forTrait:NewTabPageTrait.class];
   if (!background) {
     [self.consumer setBackgroundImage:nil];
+    [self.headerConsumer updateLogoColor:nil];
     return;
   }
 
@@ -446,6 +454,8 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
     return;
   }
   _defaultSearchEngine = updatedDefaultSearchEngine;
+  // AIM availability must be updated before default search engine.
+  [self updateAIMAvailability];
   [self.headerConsumer setLogoIsShowing:search::DefaultSearchProviderIsGoogle(
                                             self.templateURLService)];
   [self.feedControlDelegate updateFeedForDefaultSearchEngineChanged];
@@ -526,6 +536,12 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
 
 #pragma mark - Private
 
+- (void)updateAIMAvailability {
+  BOOL aimAllowed = IsAIMAvailable(_prefService, self.templateURLService);
+  [self.consumer setAIMAllowed:aimAllowed];
+  [self.headerConsumer setAIMAllowed:aimAllowed];
+}
+
 // Fetches and update user's avatar on NTP, or use default avatar if user is
 // not signed in.
 - (void)updateAccountImage {
@@ -591,6 +607,7 @@ void LogLensButtonNewBadgeShownHistogram(IOSNTPNewBadgeShownResult result) {
 // image for the new tab page.
 - (void)handleBackgroundImageFetch:(const gfx::Image&)image {
   [self.consumer setBackgroundImage:image.ToUIImage()];
+  [self.headerConsumer updateLogoColor:UIColor.whiteColor];
 }
 
 @end

@@ -97,14 +97,9 @@ class PersonalDataManagerAndroid : public PersonalDataManagerObserver {
   // Gets the labels for the profiles to suggest to the user. These labels are
   // useful for distinguishing the profiles from one another.
   //
-  // The labels never contain the email address, or phone numbers. The
-  // `include_name_in_label` argument controls whether the name is included.
-  // All other fields are included in the label.
+  // The labels never contain the name, the email address, or phone numbers.
   base::android::ScopedJavaLocalRef<jobjectArray> GetProfileLabelsToSuggest(
-      JNIEnv* env,
-      jboolean include_name_in_label,
-      jboolean include_organization_in_label,
-      jboolean include_country_in_label);
+      JNIEnv* env);
 
   // Returns the shipping label of the given profile for PaymentRequest. This
   // label does not contain the full name or the email address but will include
@@ -179,15 +174,6 @@ class PersonalDataManagerAndroid : public PersonalDataManagerObserver {
   // date to the current time.
   void RecordAndLogCreditCardUse(JNIEnv* env, std::string& guid);
 
-  // Checks whether the Autofill PersonalDataManager has profiles.
-  jboolean HasProfiles(JNIEnv* env);
-
-  // Checks whether the Autofill PersonalDataManager has credit cards.
-  jboolean HasCreditCards(JNIEnv* env);
-
-  // Checks whether FIDO authentication is available.
-  jboolean IsFidoAuthenticationAvailable(JNIEnv* env);
-
   static base::android::ScopedJavaLocalRef<jobject> CreateJavaIbanFromNative(
       JNIEnv* env,
       const Iban& iban);
@@ -257,6 +243,10 @@ class PersonalDataManagerAndroid : public PersonalDataManagerObserver {
       JNIEnv* env,
       const base::android::JavaParamRef<jobject>& jewallet);
 
+  // Returns whether a card with the specified `guid` is eligible for card
+  // benefits.
+  jboolean IsCardEligibleForBenefits(JNIEnv* env, const std::string& guid);
+
  private:
   ~PersonalDataManagerAndroid() override;
 
@@ -280,9 +270,6 @@ class PersonalDataManagerAndroid : public PersonalDataManagerObserver {
   base::android::ScopedJavaLocalRef<jobjectArray> GetProfileLabels(
       JNIEnv* env,
       bool address_only,
-      bool include_name_in_label,
-      bool include_organization_in_label,
-      bool include_country_in_label,
       std::vector<const AutofillProfile*> profiles);
 
   // Shared method used when creating Java PaymentInstrument.

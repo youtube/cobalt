@@ -68,7 +68,6 @@ source_set("base") {
     "audio_capturer_source.h",
     "audio_codecs.cc",
     "audio_codecs.h",
-    "audio_codecs.h",
     "audio_converter.cc",
     "audio_converter.h",
     "audio_decoder.cc",
@@ -230,7 +229,6 @@ source_set("base") {
     "media_content_type.cc",
     "media_content_type.h",
     "media_controller.h",
-    "media_export.h",
     "media_export.h",
     "media_log.cc",
     "media_log.h",
@@ -715,6 +713,10 @@ source_set("unit_tests") {
   if (is_castos) {
     sources += [ "demuxer_memory_limit_cast_unittest.cc" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("perftests") {

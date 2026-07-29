@@ -16,6 +16,7 @@ declare global {
     errorPageController?: ErrorPageController;
     // `loadTimeDataRaw` is injected to the `window` scope from C++.
     loadTimeDataRaw: LoadTimeDataRaw;
+    initializeEasterEggHighScore: (score: number) => void;
   }
 }
 
@@ -27,6 +28,9 @@ interface ErrorPageController {
   portalSigninButtonClick(): void;
   savePageForLater(): void;
   cancelSavePage(): void;
+  updateEasterEggHighScore(score: number): void;
+  resetEasterEggHighScore(): void;
+  trackEasterEgg(): void;
 }
 
 interface TemplateData {
@@ -226,14 +230,14 @@ function onDocumentLoad() {
 }
 
 function onTemplateDataReceived(newData: TemplateData) {
-  lastData = newData as TemplateData;
+  lastData = newData;
   render(getHtml(lastData, showingDetails), getRequiredElement('content'));
 
   if (!isSubFrame && newData.iconClass === 'icon-offline') {
     document.documentElement.classList.add('offline');
     // Set loadTimeData.data because it is used by the dino code.
     loadTimeData.data = newData;
-    new Runner('.interstitial-wrapper');
+    Runner.initializeInstance('.interstitial-wrapper');
   }
 }
 

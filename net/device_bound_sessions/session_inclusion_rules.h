@@ -9,9 +9,12 @@
 #include <optional>
 #include <vector>
 
+#include "base/types/expected.h"
 #include "net/base/net_export.h"
 #include "net/base/scheme_host_port_matcher_rule.h"
 #include "net/base/schemeful_site.h"
+#include "net/device_bound_sessions/session_error.h"
+#include "net/device_bound_sessions/session_params.h"
 #include "url/origin.h"
 
 namespace net::device_bound_sessions {
@@ -50,13 +53,10 @@ class NET_EXPORT SessionInclusionRules final {
     kInclude,
   };
 
-  // Initializes a default rule for the given origin. Does not do any checks
-  // on the origin; caller should enforce semantic checks on the origin such as
-  // desired schemes.
-  explicit SessionInclusionRules(const url::Origin& origin);
-
-  // Default, matches nothing.
-  SessionInclusionRules();
+  static base::expected<SessionInclusionRules, SessionError> Create(
+      const url::Origin& origin,
+      const SessionParams::Scope& scope_params,
+      const GURL& refresh_endpoint);
 
   SessionInclusionRules(const SessionInclusionRules& other) = delete;
   SessionInclusionRules& operator=(const SessionInclusionRules& other) = delete;
@@ -68,6 +68,34 @@ class NET_EXPORT SessionInclusionRules final {
 
   bool operator==(const SessionInclusionRules& other) const;
 
+  // Evaluates `url` to determine whether a request to `url` may be included
+  // (i.e. potentially deferred on account of this DBSC session, if other
+  // conditions are met).
+  InclusionResult EvaluateRequestUrl(const GURL& url) const;
+
+  // Returns whether a request with initiator `initiator` is allowed to trigger
+  // a refresh by default.
+  bool AllowsRefreshForInitiator(const url::Origin& initiator) const;
+
+  bool may_include_site_for_testing() const { return may_include_site_; }
+  const url::Origin& origin() const { return origin_; }
+
+  size_t num_url_rules_for_testing() const;
+
+  proto::SessionInclusionRules ToProto() const;
+  static std::optional<SessionInclusionRules> CreateFromProto(
+      const proto::SessionInclusionRules& proto);
+
+  std::string DebugString() const;
+
+ private:
+  struct UrlRule;
+
+  // Initializes a default rule for the given origin. Does not do any checks
+  // on the origin; caller should enforce semantic checks on the origin such as
+  // desired schemes.
+  explicit SessionInclusionRules(const url::Origin& origin);
+
   // Sets the basic include rule underlying the more specific URL rules. This
   // should be derived from the "include_site" param in the config. If not set
   // explicitly, the default is false (meaning an origin-scoped session). If
@@ -78,36 +106,25 @@ class NET_EXPORT SessionInclusionRules final {
   void SetIncludeSite(bool include_site);
 
   // Adds a specific URL rule that includes/excludes certain URLs based on their
-  // host part matching `host_pattern` and the path matching `path_prefix`. Any
-  // matching rule takes precedence over the basic scope. Does some validity
-  // checks on the inputs first. The `host_pattern` must either be a full domain
-  // (host piece) or a pattern containing a wildcard ('*' character) in the
-  // most-specific (leftmost) label position followed by a dot and a non-eTLD.
-  // The `path_prefix` must begin with '/' and cannot contain wildcards, and
-  // will match paths that start with the same path components. Returns whether
-  // the specified rule was added.
+  // host part matching `host_pattern` and the path matching `path_prefix`. The
+  // basic scope takes precedence over any matching rule. Does some validity
+  // checks on the inputs first.
+  //
+  // The `host_pattern` must either be a full domain (host piece) or a pattern
+  // containing a wildcard ('*' character) in the most-specific (leftmost) label
+  // position followed by a dot and the rest of the domain. The `host_pattern`
+  // must also match at least one host within the scope (the origin itself for
+  // origin-scoped sessions, or some subdomain of the site for site-scoped
+  // sessions). This helps catch the most egregious configuration errors.
+  //
+  // The `path_prefix` must begin with '/' and cannot contain
+  // wildcards, and will match paths that start with the same path
+  // components.
+  //
+  // Returns whether the specified rule was added.
   bool AddUrlRuleIfValid(InclusionResult rule_type,
                          const std::string& host_pattern,
                          const std::string& path_prefix);
-
-  // Evaluates `url` to determine whether a request to `url` may be included
-  // (i.e. potentially deferred on account of this DBSC session, if other
-  // conditions are met).
-  InclusionResult EvaluateRequestUrl(const GURL& url) const;
-
-  bool may_include_site_for_testing() const { return may_include_site_; }
-  const url::Origin& origin() const { return origin_; }
-
-  size_t num_url_rules_for_testing() const;
-
-  proto::SessionInclusionRules ToProto() const;
-  static std::unique_ptr<SessionInclusionRules> CreateFromProto(
-      const proto::SessionInclusionRules& proto);
-
-  std::string DebugString() const;
-
- private:
-  struct UrlRule;
 
   // The origin that created/set the session that this applies to. By default,
   // sessions are origin-scoped unless specified otherwise.

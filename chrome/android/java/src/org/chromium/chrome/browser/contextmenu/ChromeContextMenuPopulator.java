@@ -43,6 +43,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.bookmarks.BookmarkUtils;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuItem.Item;
+import org.chromium.chrome.browser.contextmenu.ContextMenuCoordinator.ContextMenuItemType;
 import org.chromium.chrome.browser.download.DownloadUtils;
 import org.chromium.chrome.browser.enterprise.util.DataProtectionBridge;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
@@ -89,9 +90,9 @@ import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.listmenu.ContextMenuSubmenuItemProperties;
 import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
+import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -386,7 +387,11 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
 
     @VisibleForTesting
     boolean shouldShowEmptySpaceContextMenu() {
-        return DeviceInput.supportsPrecisionPointer()
+        // Enable empty space context menu for large screen devices, and devices
+        // (with any screen size) with input periperals attached.
+        return (DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
+                        || (DeviceInput.supportsPrecisionPointer()
+                                && DeviceInput.supportsKeyboard()))
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXT_MENU_EMPTY_SPACE);
     }
 
@@ -461,17 +466,6 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                         mShowEphemeralTabNewLabel = showNewLabel;
                     }
                 }
-
-                if (ChromeFeatureList.sCctContextualMenuItems.isEnabled()
-                        && mMode == ContextMenuMode.CUSTOM_TAB) {
-                    for (CustomContentAction action : mCustomContentActions) {
-                        if (action.getTargetType() == CustomTabsIntent.CONTENT_TARGET_TYPE_LINK) {
-                            mCustomActionMap.put(nextCustomMenuItemId, action);
-                            linkGroup.add(createCustomListItem(action, nextCustomMenuItemId));
-                            nextCustomMenuItemId++;
-                        }
-                    }
-                }
             }
             if (!MailTo.isMailTo(mParams.getLinkUrl().getSpec())
                     && !UrlUtilities.isTelScheme(mParams.getLinkUrl())) {
@@ -488,6 +482,16 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                     Item.SAVE_LINK_AS,
                                     /* showInProductHelp= */ false,
                                     !mIsDownloadRestrictedByPolicy));
+                }
+                if (ChromeFeatureList.sCctContextualMenuItems.isEnabled()
+                        && mMode == ContextMenuMode.CUSTOM_TAB) {
+                    for (CustomContentAction action : mCustomContentActions) {
+                        if (action.getTargetType() == CustomTabsIntent.CONTENT_TARGET_TYPE_LINK) {
+                            mCustomActionMap.put(nextCustomMenuItemId, action);
+                            linkGroup.add(createCustomListItem(action, nextCustomMenuItemId));
+                            nextCustomMenuItemId++;
+                        }
+                    }
                 }
                 if (!mParams.isImage()
                         && BookmarkUtils.isReadingListSupported(mParams.getLinkUrl())) {
@@ -556,6 +560,17 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                                 !mIsDownloadRestrictedByPolicy));
             }
 
+            if (ChromeFeatureList.sCctContextualMenuItems.isEnabled()
+                    && mMode == ContextMenuMode.CUSTOM_TAB) {
+                for (CustomContentAction action : mCustomContentActions) {
+                    if (action.getTargetType() == CustomTabsIntent.CONTENT_TARGET_TYPE_IMAGE) {
+                        mCustomActionMap.put(nextCustomMenuItemId, action);
+                        imageGroup.add(createCustomListItem(action, nextCustomMenuItemId));
+                        nextCustomMenuItemId++;
+                    }
+                }
+            }
+
             if (mMode == ContextMenuMode.CUSTOM_TAB || mMode == ContextMenuMode.NORMAL) {
                 if (checkSupportsGoogleSearchByImage(isSrcDownloadableScheme)) {
                     // Determine which image search menu item would be shown.
@@ -572,17 +587,6 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                     LensMetrics.recordLensSupportStatus(
                             LENS_SUPPORT_STATUS_HISTOGRAM_NAME,
                             LensMetrics.LensSupportStatus.SEARCH_BY_IMAGE_UNAVAILABLE);
-                }
-            }
-
-            if (ChromeFeatureList.sCctContextualMenuItems.isEnabled()
-                    && mMode == ContextMenuMode.CUSTOM_TAB) {
-                for (CustomContentAction action : mCustomContentActions) {
-                    if (action.getTargetType() == CustomTabsIntent.CONTENT_TARGET_TYPE_IMAGE) {
-                        mCustomActionMap.put(nextCustomMenuItemId, action);
-                        imageGroup.add(createCustomListItem(action, nextCustomMenuItemId));
-                        nextCustomMenuItemId++;
-                    }
                 }
             }
 
@@ -756,7 +760,12 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                             intent.putExtra(
                                     CustomTabsIntent.EXTRA_CONTEXT_IMAGE_ALT_TEXT,
                                     getTitleOrGuessIfNotPresent());
-                            intent.setData(Uri.parse(mItemDelegate.getPageUrl().getSpec()));
+                            // We do not return the page url for image-link items since there is not
+                            // enough room in the context menu to display the page url along with
+                            // the other existing urls.
+                            if (!mParams.isAnchor()) {
+                                intent.setData(Uri.parse(mItemDelegate.getPageUrl().getSpec()));
+                            }
                             try {
                                 mPendingIntentSender.send(pendingIntent, mContext, 0, intent);
                             } catch (PendingIntent.CanceledException e) {
@@ -1298,13 +1307,13 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
         int menuItemId = ChromeContextMenuItem.getMenuId(item);
 
         final PropertyModel model = buildListItemModel(title, menuItemId, enabled);
-        return new ListItem(ListItemType.CONTEXT_MENU_ITEM, model);
+        return new ListItem(ListItemType.MENU_ITEM, model);
     }
 
     private ListItem createCustomListItem(CustomContentAction action, int customMenuItemId) {
         final PropertyModel model =
                 buildListItemModel(action.getLabel(), customMenuItemId, /* enabled= */ true);
-        return new ListItem(ListItemType.CONTEXT_MENU_ITEM, model);
+        return new ListItem(ListItemType.MENU_ITEM, model);
     }
 
     /**
@@ -1340,19 +1349,18 @@ public class ChromeContextMenuPopulator implements ContextMenuPopulator {
                         .with(END_BUTTON_CONTENT_DESC, shareInfo.second)
                         .with(END_BUTTON_MENU_ID, ChromeContextMenuItem.getMenuId(iconButtonItem))
                         .build();
-        return new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_ICON_BUTTON, model);
+        return new ListItem(ContextMenuItemType.CONTEXT_MENU_ITEM_WITH_ICON_BUTTON, model);
     }
 
     @VisibleForTesting
-    ListItem createListItemWithSubmenu(String title, int menuItemId, List<ListItem> submenuItems) {
+    ListItem createListItemWithSubmenu(String title, List<ListItem> submenuItems) {
         final PropertyModel model =
-                new PropertyModel.Builder(ContextMenuSubmenuItemProperties.ALL_KEYS)
-                        .with(ContextMenuSubmenuItemProperties.TITLE, title)
-                        .with(MENU_ITEM_ID, menuItemId)
+                new PropertyModel.Builder(ListMenuSubmenuItemProperties.ALL_KEYS)
+                        .with(TITLE, title)
                         .with(ENABLED, true)
-                        .with(ContextMenuSubmenuItemProperties.SUBMENU_ITEMS, submenuItems)
+                        .with(ListMenuSubmenuItemProperties.SUBMENU_ITEMS, submenuItems)
                         .build();
-        return new ListItem(ListItemType.CONTEXT_MENU_ITEM_WITH_SUBMENU, model);
+        return new ListItem(ListItemType.MENU_ITEM_WITH_SUBMENU, model);
     }
 
     /**

@@ -59,6 +59,7 @@ class BrowserViewLayout : public views::LayoutManager {
                     InfoBarContainerView* infobar_container,
                     views::View* contents_container,
                     MultiContentsView* multi_contents_view,
+                    views::View* vertical_tab_strip_container,
                     views::View* left_aligned_side_panel_separator,
                     views::View* unified_side_panel,
                     views::View* right_aligned_side_panel_separator,
@@ -78,9 +79,6 @@ class BrowserViewLayout : public views::LayoutManager {
   void set_loading_bar(views::View* loading_bar) { loading_bar_ = loading_bar; }
   void set_bookmark_bar(BookmarkBarView* bookmark_bar) {
     bookmark_bar_ = bookmark_bar;
-  }
-  void set_download_shelf(views::View* download_shelf) {
-    download_shelf_ = download_shelf;
   }
   void set_contents_border_widget(views::Widget* contents_border_widget) {
     contents_border_widget_ = contents_border_widget;
@@ -120,43 +118,40 @@ class BrowserViewLayout : public views::LayoutManager {
  private:
   FRIEND_TEST_ALL_PREFIXES(BrowserViewLayoutTest, BrowserViewLayout);
   FRIEND_TEST_ALL_PREFIXES(BrowserViewLayoutTest, Layout);
-  FRIEND_TEST_ALL_PREFIXES(BrowserViewLayoutTest, LayoutDownloadShelf);
   class WebContentsModalDialogHostViews;
 
-  // Layout the following controls, starting at |top|, returns the coordinate
-  // of the bottom of the control, for laying out the next control.
-  int LayoutTitleBarForWebApp(int top);
-  int LayoutTabStripRegion(int top);
-  int LayoutWebUITabStrip(int top);
-  int LayoutToolbar(int top);
-  int LayoutBookmarkAndInfoBars(int top, int browser_view_y);
-  int LayoutBookmarkBar(int top);
-  int LayoutInfoBar(int top);
+  // Layout the following controls, updating `available_bounds` to leave the
+  // remaining space available for future controls.
+  void LayoutTitleBarForWebApp(gfx::Rect& available_bounds);
+  void LayoutVerticalTabStrip(gfx::Rect& available_bounds);
+  void LayoutTabStripRegion(gfx::Rect& available_bounds);
+  void LayoutWebUITabStrip(gfx::Rect& available_bounds);
+  void LayoutToolbar(gfx::Rect& available_bounds);
+  void LayoutBookmarkAndInfoBars(gfx::Rect& available_bounds,
+                                 int browser_view_y);
+  void LayoutBookmarkBar(gfx::Rect& available_bounds);
+  void LayoutInfoBar(gfx::Rect& available_bounds);
 
   // Helper struct and function for LayoutContentsContainerView that calculates
-  // bounds for |contents_container_| and |unified_side_panel_|.
+  // bounds for `contents_container_` and `unified_side_panel_`.
   struct ContentsContainerLayoutResult;
   ContentsContainerLayoutResult CalculateContentsContainerLayout(
-      int top,
-      int bottom) const;
+      const gfx::Rect& available_bounds) const;
 
-  // Layout the |contents_container_| view between the coordinates |top| and
-  // |bottom|. See browser_view.h for details of the relationship between
-  // |contents_container_| and other views. Also lays out |unified_side_panel_|.
-  void LayoutContentsContainerView(int top, int bottom);
+  // Layout the `contents_container_` within the available bounds.
+  // See browser_view.h for details of the relationship between
+  // `contents_container_` and other views. Also lays out `unified_side_panel_`.
+  void LayoutContentsContainerView(const gfx::Rect& available_bounds);
 
-  // Updates |top_container_|'s bounds. The new bounds depend on the size of
+  // Updates `top_container_`'s bounds. The new bounds depend on the size of
   // the bookmark bar and the toolbar.
-  void UpdateTopContainerBounds();
-
-  // Layout the Download Shelf, returns the coordinate of the top of the
-  // control, for laying out the previous control.
-  int LayoutDownloadShelf(int bottom);
+  void UpdateTopContainerBounds(const gfx::Rect& available_bounds);
 
   // Layout the contents border, which indicates the tab is being captured.
   void LayoutContentBorder();
 
-  // Returns the minimum acceptable width for the browser web contents.
+  // Returns the minimum acceptable width for the browser web contents. If split
+  // view is active, this includes the full split view.
   int GetMinWebContentsWidth() const;
 
   void UpdateSplitViewInsets();
@@ -179,6 +174,7 @@ class BrowserViewLayout : public views::LayoutManager {
   const raw_ptr<InfoBarContainerView> infobar_container_;
   const raw_ptr<views::View> contents_container_;
   const raw_ptr<MultiContentsView> multi_contents_view_;
+  const raw_ptr<views::View> vertical_tab_strip_container_;
   const raw_ptr<views::View> left_aligned_side_panel_separator_;
   const raw_ptr<views::View> unified_side_panel_;
   const raw_ptr<views::View> right_aligned_side_panel_separator_;
@@ -190,19 +186,12 @@ class BrowserViewLayout : public views::LayoutManager {
   raw_ptr<views::View> loading_bar_ = nullptr;
   raw_ptr<TabStrip> tab_strip_ = nullptr;
   raw_ptr<BookmarkBarView> bookmark_bar_ = nullptr;
-  raw_ptr<views::View> download_shelf_ = nullptr;
 
   // The widget displaying a border on top of contents container for
   // highlighting the content. Not created by default.
   // TODO(crbug.com/393551539): reset the pointer at appropriate time and
   // remove the DanglingUntriaged tag.
   raw_ptr<views::Widget, DanglingUntriaged> contents_border_widget_ = nullptr;
-
-  // The bounds within which the vertically-stacked contents of the BrowserView
-  // should be laid out within. This is just the local bounds of the
-  // BrowserView.
-  // TODO(jamescook): Remove this and just use browser_view_->GetLocalBounds().
-  gfx::Rect vertical_layout_rect_;
 
   // The host for use in positioning the web contents modal dialog.
   std::unique_ptr<WebContentsModalDialogHostViews> dialog_host_;

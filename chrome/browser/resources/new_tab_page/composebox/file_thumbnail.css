@@ -11,6 +11,31 @@
   margin-top: 20px;
 }
 
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  height: 24px;
+  width: 24px;
+}
+
+.spinner-circle {
+  animation: spin 1.5s linear infinite;
+  fill: none;
+  stroke: var(--color-new-tab-page-composebox-upload-button);
+  stroke-dasharray: 240;
+  stroke-dashoffset: 60;
+  stroke-linecap: round;
+  stroke-width: 10;
+  transform-origin: 50% 50%;
+}
+
 .img-thumbnail {
   height: 100%;
   object-fit: cover;
@@ -19,8 +44,11 @@
 }
 
 #imgChip {
+  align-items: center;
   border-radius: 8px;
+  display: flex;
   height: 52px;
+  justify-content: center;
   overflow: hidden;
   position: relative;
   width: 52px;
@@ -58,8 +86,7 @@
 }
 
 #pdfThumbnail{
-  align-items: center;
-  display: flex;
+  flex-shrink: 0;
   height: 36px;
   position: relative;
   width: 36px;
@@ -77,8 +104,10 @@
 
 .pdf-overlay {
   height: 100%;
+  left: 0;
   opacity: 0;
   position: absolute;
+  top: 0;
   width: 100%;
 }
 

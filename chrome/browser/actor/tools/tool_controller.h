@@ -33,18 +33,36 @@ class ToolRequest;
 class ToolController {
  public:
   using ResultCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
+
+  enum class State {
+    kInit = 0,
+    kReady,  // Ready for CreateToolAndValidate().
+    kCreating,
+    kValidating,
+    kPostValidate,
+    kInvokable,  // Ready for Invoke().
+    kPreInvoke,
+    kInvoking,
+    kPostInvoke,
+  };
+
   ToolController(ActorTask& actor_task, AggregatedJournal& journal);
   ~ToolController();
   ToolController(const ToolController&) = delete;
   ToolController& operator=(const ToolController&) = delete;
 
   // Invokes a tool action.
-  void Invoke(
+  void CreateToolAndValidate(
       const ToolRequest& request,
       const optimization_guide::proto::AnnotatedPageContent* last_observation,
-      ResultCallback result_callback);
+      ResultCallback callback);
+  void Invoke(ResultCallback result_callback);
+
+  static std::string StateToString(State state);
 
  private:
+  void SetState(State state);
+
   // Called when the tool itself finishes its invocation.
   void DidFinishToolInvoke(mojom::ActionResultPtr result);
 
@@ -52,7 +70,11 @@ class ToolController {
   // the initiator. Must only be called when a tool invocation is in-progress.
   void CompleteToolRequest(mojom::ActionResultPtr result);
 
-  void ValidationComplete(mojom::ActionResultPtr result);
+  void PostValidate(mojom::ActionResultPtr result);
+  void PostUpdateTask(mojom::ActionResultPtr result);
+  void PostInvokeTool(mojom::ActionResultPtr result);
+
+  State state_ = State::kInit;
 
   // This state is non-null whenever a tool invocation is in progress.
   struct ActiveState {
@@ -68,6 +90,9 @@ class ToolController {
 
     // Both `tool` and `completion_callback` are guaranteed to be non-null while
     // active_state_ is set.
+    // `completion_callback` holds two different callbacks over its lifetime:
+    // a callback for when CreateToolAndValidate is finished and, next, a
+    // callback for when Invoke is finished.
     std::unique_ptr<Tool> tool;
     ResultCallback completion_callback;
     std::unique_ptr<AggregatedJournal::PendingAsyncEntry> journal_entry;

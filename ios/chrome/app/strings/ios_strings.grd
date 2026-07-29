@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <grit base_dir="." latest_public_release="0" current_release="1" source_lang_id="en" enc_check="möl">
   <!--
   This file contains definition of resources that will be translated for each
@@ -1095,6 +1095,15 @@
       <message name="IDS_IOS_BWG_IPH_TEXT" desc="Text for the BWG In-Product Help bubble.">
           You can open Gemini here
       </message>
+      <message name="IDS_IOS_BWG_LOCATION_BACK_BUTTON_TITLE" desc="The back button text of BWG location settings page.">
+        Gemini
+      </message>
+      <message name="IDS_IOS_BWG_LOCATION_SWITCH_TITLE" desc="The switch title text of the BWG location settings page.">
+        Share precise location
+      </message>
+      <message name="IDS_IOS_BWG_LOCATION_TITLE" desc="The title text of the BWG location settings page.">
+        Precise Location
+      </message>
       <message name="IDS_IOS_BWG_PROMO_FIRST_BOX_BODY" desc="First box body text for the Gemini Promo page.">
           Get relevant answers based on the content of the page you're on
       </message>
@@ -1118,6 +1127,24 @@
       </message>
       <message name="IDS_IOS_BWG_PROMO_SECOND_BOX_TITLE" desc="Second box title text for the Gemini Promo page.">
           Summarize
+      </message>
+      <message name="IDS_IOS_BWG_SETTINGS_APP_ACTIVITY_FOOTER_TEXT" desc="The footer text of app activity row in BWG settings page.">
+        View and manage Gemini activity like your chats, feedback, and prompts
+      </message>
+      <message name="IDS_IOS_BWG_SETTINGS_APP_ACTIVITY_TITLE" desc="The title text of app activity row in BWG settings page.">
+        Gemini App Activity
+      </message>
+      <message name="IDS_IOS_BWG_SETTINGS_LOCATION_FOOTER_TEXT" desc="The footer text of location row in BWG settings page.">
+        Use your precise location for the most accurate Gemini results, instead of an estimated location based on your IP address. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
+      </message>
+      <message name="IDS_IOS_BWG_SETTINGS_LOCATION_TITLE" desc="The title text of location row in BWG settings page.">
+        Precise location
+      </message>
+      <message name="IDS_IOS_BWG_SETTINGS_PAGE_CONTENT_FOOTER_TEXT" desc="The footer text of page content sharing row in BWG settings page.">
+        Share page content with Gemini to get more relevant answers. When you share a page with Gemini, the page’s full content and URL are sent to Google. <ph name="BEGIN_LINK">BEGIN_LINK</ph>Learn more<ph name="END_LINK">END_LINK</ph>
+      </message>
+      <message name="IDS_IOS_BWG_SETTINGS_PAGE_CONTENT_SHARING_TITLE" desc="The title text of page content sharing row in BWG settings page.">
+        Page content sharing
       </message>
       <message name="IDS_IOS_CALL_OMNIBOX_ACTION" desc="Call suggestion action button [iOS only]">
         Call
@@ -1914,6 +1941,15 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_DEVICE_ACCOUNTS_MANAGEMENT" desc="Title of a page that shows all accounts on the user's device and lets them add, remove and otherwise manage their accounts. Avoid long strings given the limited space between surrounding buttons. [iOS only]">
         Manage Accounts
+      </message>
+      <message name="IDS_IOS_DIAMOND_PROTOTYPE_ALL_TABS" desc="Title of the button opening the Tab Grid, containing all the tabs">
+        All Tabs
+      </message>
+      <message name="IDS_IOS_DIAMOND_PROTOTYPE_ASK_GEMINI" desc="Title of the button opening a gemini prompt">
+        Ask Gemini
+      </message>
+      <message name="IDS_IOS_DIAMOND_PROTOTYPE_NEW_TAB" desc="Title of the button opening a new tab">
+        New Tab
       </message>
       <message name="IDS_IOS_DIRECTIONS_OMNIBOX_ACTION" desc="Directions suggestion action button [iOS only]">
         Directions
@@ -3164,7 +3200,7 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_KEEP_RECENT_PASSWORD" desc="Action button which will keep the most recently used password for a given site, and discard any older passwords, when the user is moving a password to their Google Account. [iOS only]">
         Keep recent password
       </message>
-      <message name="IDS_IOS_KEYBOARD_ACCESSORY_RECOVERY_PASSWORD_ACCESSIBILITY_LABEL" desc="Accessibility label for a recovery password suggestion available in the keyboard accessory. Indicates to the user that the recovery password can be used to log in if the main password doesn't work. [iOS only]">
+      <message name="IDS_IOS_KEYBOARD_ACCESSORY_RECOVERY_PASSWORD_ACCESSIBILITY_LABEL" desc="Accessibility label for a recovery password suggestion available in the keyboard accessory. Indicates to the user that the recovery password can be used to log in if the main password doesn't work. A recovery password is a temporary backup of an old password that is kept after an automated password change occurred. It acts as a safety net in case the new password doesn't work. [iOS only]">
         Temp recovery in case of trouble
       </message>
       <message name="IDS_IOS_KEYBOARD_ACCESSORY_VIEW_LENS" desc="Accessibility label for a button that opens Lens [iOS only].">
@@ -3218,13 +3254,13 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_KEYBOARD_GO_TO_REGULAR_TAB_GRID" desc="The title of the keyboard shortcut to go to the regular tab grid from the tab grid menu." meaning="Used as a command title in the iPad command menu.">
         Regular tab grid
       </message>
-      <message name="IDS_IOS_KEYBOARD_GO_TO_REMOTE_TAB_GRID" desc="The title of the keyboard shortcut to go to the remote tab grid from the tab grid menu." meaning="Used as a command title in the iPad command menu.">
-        Remote tab grid
-      </message>
-    <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GRID" desc="The title of the keyboard shortcut to open the Tab Switcher." meaning="Used as a command title in the iPad command menu.">
+      <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GRID" desc="The title of the keyboard shortcut to open the Tab Switcher." meaning="Used as a command title in the iPad command menu.">
         Go to tab switcher
       </message>
-      <message name="IDS_IOS_KEYBOARD_HISTORY" desc="Title of the menu listing history-related keyboard shortcuts." meaning="Used as a menu title in the iPad command menu.">
+      <message name="IDS_IOS_KEYBOARD_GO_TO_TAB_GROUPS_GRID" desc="The title of the keyboard shortcut to go to the tab groups grid from the tab grid menu." meaning="Used as a command title in the iPad command menu.">
+        Tab groups grid
+      </message>
+    <message name="IDS_IOS_KEYBOARD_HISTORY" desc="Title of the menu listing history-related keyboard shortcuts." meaning="Used as a menu title in the iPad command menu.">
         History
       </message>
       <message name="IDS_IOS_KEYBOARD_HISTORY_BACK" desc="Title of the keyboard shortcut to go back in the history menu." meaning="Used as a command title in the iPad command menu.">
@@ -3632,6 +3668,9 @@ See your search engine’s instructions for deleting your search history, if app
              =1 {{position} of {count} payment method}
              other {{position} of {count} payment methods}}
       </message>
+      <message name="IDS_IOS_MANUAL_FALLBACK_RECOVERY_PASSWORD_SUGGESTION_TITLE" desc="The title for a recovery password suggestion shown in the password manual fallback screen. A recovery password is a temporary backup of an old password that is kept after an automated password change occurred. It acts as a safety net in case the new password doesn't work.">
+        Recovery password
+      </message>
       <message name="IDS_IOS_MANUAL_FALLBACK_SELECT_PASSWORD_DIALOG_MESSAGE" desc="The contents of a dialog asking the user to confirm they trust the current site before selecting a saved password to fill.">
         If you trust <ph name="SITE">$1<ex>example.com</ex></ph>, you can use a saved password to sign in.
       </message>
@@ -3755,6 +3794,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_NEW_TAB_RECENT_TABS" desc="The header of the panel containing the list of recently closed tabs and the tabs synced from other devices.[Length: 17em]">
         Recent tabs
       </message>
+      <message name="IDS_IOS_NEW_TAB_SEARCH_ENGINE_LOGO_ACCESSIBILITY_LABEL" desc="Label of the search engine logo shown on the New Tab Page to signal that the name of the current search engine. Read by VoiceOver.">
+        Searching with <ph name="SEARCH_ENGINE">$1<ex>Google</ex></ph>
+      </message>
       <message name="IDS_IOS_NON_MODAL_SIGNIN_PROMO_ADD_BOOKMARK" desc="Infobar subtitle for non modal signin promo when user adds a bookmark.">
         Sign in to get your bookmarks and more on all your devices
       </message>
@@ -3806,6 +3848,9 @@ See your search engine’s instructions for deleting your search history, if app
       <message name="IDS_IOS_NOTIFICATIONS_TIPS_OMNIBOX_POSITION_BODY" desc="Text for the body of a Tips notification that reminds the user to set their preferred omnibox position">
         Switch the position of your address bar for a customized experience.
       </message>
+      <message name="IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_BODY" desc="TODO">
+        Verify it's you to access all your passwords on this device.
+      </message>
       <message name="IDS_IOS_NOTIFICATIONS_TITLE" desc="Title for Notifications settings menu.">
         Notifications
       </message>
@@ -3853,6 +3898,9 @@ See your search engine’s instructions for deleting your search history, if app
       </message>
       <message name="IDS_IOS_OMNIBOX_POPUP_APPEND" desc="Label for the accessibility action for the address and search bar autocomplete suggestion. It replaces the text in the search bar by the suggestion. [Read by Text-to-Speech]">
         Refine
+      </message>
+      <message name="IDS_IOS_OMNIBOX_POPUP_SEARCH_WITH_AIM" desc="Label for the accessibility action for the address and search bar autocomplete suggestion. Using this will invoke AI Mode with a query corresponding to the suggestion text. [Read by Text-to-Speech]">
+        Search with AI Mode
       </message>
       <message name="IDS_IOS_OMNIBOX_POPUP_SWITCH_TO_OPEN_TAB" desc="Label for the accessibility action for the address and search bar autocomplete suggestion. Using this will switch to the already opened tab corresponding to the suggestion. [Read by Text-to-Speech]">
         Switch to existing tab
@@ -4254,7 +4302,7 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_PASSWORD_MANAGER" desc="The password bottom sheet's long press menu item to open the password manager.">
         Password Manager
       </message>
-      <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_RECOVERY_PASSWORD_LABEL" desc="Text shown for a recovery password suggestion available in the Password Bottom Sheet. Indicates to the user that the recovery password can be used to log in if the main password doesn't work. [iOS only]">
+      <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_RECOVERY_PASSWORD_LABEL" desc="Text shown for a recovery password suggestion available in the Password Bottom Sheet. Indicates to the user that the recovery password can be used to log in if the main password doesn't work. A recovery password is a temporary backup of an old password that is kept after an automated password change occurred. It acts as a safety net in case the new password doesn't work. [iOS only]">
         Temp recovery in case of trouble
       </message>
       <message name="IDS_IOS_PASSWORD_BOTTOM_SHEET_SELECT_PASSWORD" desc="This message is mentioned right after the title when the Password Bottom Sheet opens. For example, in English, it would say: 'Google Password Manager. Select a password to fill.'. This is spoken by VoiceOver. [iOS only]">
@@ -5034,6 +5082,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_QR_SCANNER_VIEWPORT_CAPTION" desc="Message displayed below the QR scanner viewport instructing the user to position the scanned QR or bar code inside the viewport. [Length: unlimited] [iOS only]">
         Position QR code or barcode in this frame
       </message>
+      <message name="IDS_IOS_READER_MODE_CHIP_ACCESSIBILITY_LABEL" desc="Accessibility label for a button which opens the Reading mode options view.">
+        Open Reading mode options
+      </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_COLOR_THEME_BUTTON_ACCESSIBILITY_LABEL_DARK" desc="Label of a Reading mode options button which changes the Reading mode dark color scheme.">
         Dark
       </message>
@@ -5075,6 +5126,9 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_READER_MODE_OPTIONS_TITLE" desc="Title of the Reading mode options UI which gives user control over the Reading mode font family, font size, color scheme.">
         Reading Mode
+      </message>
+      <message name="IDS_IOS_READER_MODE_SNACKBAR_FAILURE_MESSAGE" desc="Message displayed in a snackbar when Reading mode failed to activate on the current page.">
+        Reading mode failed
       </message>
       <message name="IDS_IOS_READING_LIST_ACCESSIBILITY_STATE_DOWNLOADED" desc="Accessibility label for the offline status of the reading list entry. Read by Text To Speech.">
         Available offline
@@ -5319,11 +5373,59 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_REVIEWS_OMNIBOX_ACTION_ACCESSIBILITY_LABEL" desc="The accessibility label for the Reviews suggestion action button  [iOS only]">
         Read customer evaluations of products, services, or experience to help inform your decisions with reviews
       </message>
+      <message name="IDS_IOS_SAFARI" desc="The Safari browser">
+        Safari
+      </message>
       <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_SECONDARY_ACTION" desc="Safari import entry point screen - Button text to create a reminder to import data from Safari. [iOS only]">
         Remind me later
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_ENTRY_POINT_TITLE" desc="Safari import entry point screen - Title.">
         Bring your data from Safari
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_1_TITLE" desc="Title of the 1st screen displayed by the Lottie animation educating user on the Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -> Apps'">
+        Apps
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_CLEAR_DATA" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -> Apps -> Safari' and scrolls down to 'History and Website Data'">
+        Clear History and Website Data
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_EXPORT" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -> Apps -> Safari' and scrolls down to 'History and Website Data'">
+        Export
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_2_ITEM_IMPORT" desc="An option in the 2nd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the respective item displayed when the user goes to '(iOS) Settings -> Apps -> Safari' and scrolls down to 'History and Website Data'">
+        Import
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_3_BUTTON" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the bottom button displayed when the user goes to '(iOS) Settings -> Apps -> Safari -> Export'">
+        Save to Downloads
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_3_TITLE" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -> Apps -> Safari -> Export'">
+        Export Browsing Data
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_ANIMATED_INSTRUCTION_PAGE_4_TITLE" desc="An option in the 3rd screen displayed by the Lottie animation educating user Safari data export process. [iOS only]" meaning="Needs to exactly match the title displayed when the user goes to '(iOS) Settings -> Apps -> Safari -> Export -> Save to Downloads'">
+        Export Successful
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_BUTTON_CONTINUE" desc="Safari import export education screen - Button text to let the user indicate that Safari data has been exported, and can continue the import process. [iOS only]">
+        I've exported my data
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_BUTTON_GO_TO_SETTINGS" desc="Safari import export education screen - Button text to redirect the user to Settings. [iOS only]">
+        Go to Settings…
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_STATIC_INSTRUCTION_STEP_1" desc="Safari import export education screen - Step 1 to export Safari data. Displayed in the static text instructions below the animated tutorial. [iOS only]">
+        Open <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Safari Settings<ph name="END_BOLD">END_BOLD</ph>
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_STATIC_INSTRUCTION_STEP_2" desc="Safari import export education screen - Step 2 to export Safari data. Displayed in the static text instructions below the animated tutorial. [iOS only]">
+        Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Export<ph name="END_BOLD">END_BOLD</ph>
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_STATIC_INSTRUCTION_STEP_3" desc="Safari import export education screen - Step 3 to export Safari data. Displayed in the static text instructions below the animated tutorial. [iOS only]">
+        Choose the data you want to export
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_EXPORT_STATIC_INSTRUCTION_STEP_4" desc="Safari import export education screen - Step 4 to export Safari data. Displayed in the static text instructions below the animated tutorial. [iOS only]">
+        Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Save to Downloads<ph name="END_BOLD">END_BOLD</ph>
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ACTION_BUTTON_DONE" desc="Safari import screen that handles the import process - Button text to finish the process to import data from Safari. The screen will be dismissed after the user taps this button. [iOS only]" meaning="End a workflow">
+        Done
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ACTION_BUTTON_IMPORT" desc="Safari import screen that handles the import process - Button text to start the process to import data from Safari. [iOS only]" meaning="To bring data from a foreign or external source">
+        Import
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ACTION_BUTTON_SELECT_YOUR_FILE" desc="Safari import screen that handles the import process - Button text to select the file to import data from Safari. [iOS only]">
         Select your file
@@ -5331,14 +5433,93 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_ONE" desc="Instructions view to teach users how to import data from Safari - step 1. [iOS only]">
         Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Select your file<ph name="END_BOLD">END_BOLD</ph>
       </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_THREE" desc="Instructions view to teach users how to import data from Safari - step 2. [iOS only]">
-        Tap <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>Done<ph name="END_BOLD">END_BOLD</ph>
-      </message>
-      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_TWO" desc="Instructions view to teach users how to import data from Safari - step 3. [iOS only]">
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_INSTRUCTIONS_TWO" desc="Instructions view to teach users how to import data from Safari - step 2. [iOS only]">
         Select your Safari export <ph name="BEGIN_BOLD">BEGIN_BOLD</ph>.zip<ph name="END_BOLD">END_BOLD</ph> file
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_IMPORTED_DETAILED_TEXT_BOOKMARKS" desc="The detailed text of the 'Bookmarks' row displayed on Safari import screen displaying the number of bookmarks imported. [iOS only]">
+        {count, plural,
+          =1 {Imported {count} bookmark}
+          other {Imported {count} bookmarks}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_IMPORTED_DETAILED_TEXT_CREDIT_CARDS" desc="The detailed text of the 'Credit card' row displayed on Safari import screen displaying the number of credit cards imported. [iOS only]">
+        {count, plural,
+          =1 {Imported {count} card}
+          other {Imported {count} cards}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_IMPORTED_DETAILED_TEXT_HISTORY" desc="The detailed text of the 'History' row displayed on Safari import screen displaying the number of history items imported. [iOS only]">
+        {count, plural,
+          =1 {Imported {count} history item}
+          other {Imported {count} history items}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_IMPORTED_DETAILED_TEXT_INVALID_PASSWORDS" desc="The description of the 'Password' row displayed on Safari import screen displaying the number of passwords that has failed to be imported. Will not be displayed when all passwords are successfully imported. Do not include a period - it will be handled separately. [iOS only]">
+        {count, plural,
+          =1 {Couldn't import {count} password}
+          other {Couldn't import {count} passwords}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_IMPORTED_DETAILED_TEXT_PASSWORDS" desc="The description of the 'Password' row displayed on Safari import screen displaying the number of passwords imported. Do not include a period - it will be handled separately. [iOS only]">
+        {count, plural,
+          =0 {No password imported}
+          =1 {Imported {count} password}
+          other {Imported {count} passwords}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_BOOKMARKS" desc="The detailed text of the 'Bookmarks' row displayed on Safari import screen displaying the number of bookmarks that will be imported. [iOS only]">
+        {count, plural,
+          =1 {{count} bookmarks}
+          other {{count} bookmarks}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_CREDIT_CARDS" desc="The detailed text of the 'Credit card' row displayed on Safari import screen displaying the number of credit cards that will be imported. [iOS only]">
+        {count, plural,
+          =1 {{count} card}
+          other {{count} cards}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_HISTORY" desc="The detailed text of the 'History' row displayed on Safari import screen displaying the number of history items that will be imported. [iOS only]">
+        {count, plural,
+          =1 {{count} history item from Safari private and work profiles}
+          other {{count} history items from Safari private and work profiles}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_NO_DATA" desc="The detailed text of each row displayed on Safari import screen when there is no item of the type to be imported. [iOS only]">
+        Nothing to import
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DETAILED_TEXT_PASSWORDS" desc="The detailed text of the 'Password' row displayed on Safari import screen displaying the number of passwords that will be imported. Only used when no password has failed to be imported. [iOS only]">
+        {count, plural,
+          =1 {{count} password}
+          other {{count} passwords}}
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_PENDING_DISCLAIMER" desc="The bottom text displayed on Safari import screen to declare that the data will be saved to the user's Google account. [iOS only]">
+        Your data will be saved to your Google Account, <ph name="USER_EMAIL">$1<ex>elisa.g.beckett@gmail.com</ex></ph>
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_TITLE_BOOKMARKS" desc="The title of the 'Bookmarks' row displayed on Safari import screen that handles the import process. [iOS only]">
+        Bookmarks
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_TITLE_CREDIT_CARDS" desc="The title of the 'Credit cards' row displayed on Safari import screen that handles the import process. [iOS only]">
+        Credit cards
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_TITLE_HISTORY" desc="The title of the 'History' row displayed on Safari import screen that handles the import process. [iOS only]">
+        History
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_ITEM_TYPE_TITLE_PASSWORDS" desc="The title of the 'Passwords' row displayed on Safari import screen that handles the import process. [iOS only]">
+        Passwords
       </message>
       <message name="IDS_IOS_SAFARI_IMPORT_IMPORT_TITLE" desc="Safari import screen that handles the import process - Title. [iOS only]">
         Import your data
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_CONTINUE" desc="Bar button to import selected passwords from Safari to override those on Google Password Manager. It shows up on the top-right (or top-left in RTL) of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
+        Continue
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_DESELECT_ALL" desc="Bar button to automatically deselect all passwords displayed on the screen . It shows up at the bottom of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
+        Deselect all
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_BUTTON_SELECT_ALL" desc="Bar button to automatically mark all passwords displayed on the screen as selected. It shows up at the bottom of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
+        Select all
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_DISCLAIMER" desc="Disclaimer showing on the top of the modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
+        You already have passwords for these accounts in your Google Password Manager. If you choose to import one of the passwords below, it will replace the existing one.
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_CONFLICT_RESOLUTION_TITLE" desc="Title modal that enables user to resolve conflict between existing Passwords in Google Password Manager and those imported from Safari. [iOS only]">
+        Replace Passwords
+      </message>
+      <message name="IDS_IOS_SAFARI_IMPORT_PASSWORD_UNMASK_REAUTH_REASON" desc="Message explaining that the reason why we are requiring the user to re-authenticate is to be able to show the password in plain text. This is shown by iOS in the passcode reauthentication system dialogue, right under the OS string 'Enter iPhone Passcode for $BROWSER_NAME'. [Length: 22em]">
+        Unlock to show password
       </message>
       <message name="IDS_IOS_SAFETY_CHECK_COMPACT_DESCRIPTION_COMPROMISED_PASSWORD" desc="Tag label description displayed for the Safety Check module in the Magic Stack when the Password check finds a compromised password issue. [iOS only]">
         You have compromised passwords.
@@ -6161,15 +6342,6 @@ While in Incognito, sites can't use cookies to see your browsing activity across
       </message>
       <message name="IDS_IOS_SHARE_KIT_BLOCK_MESSAGE" desc="The message shown when the user tries to block another user.">
         <ph name="USER_NAME">$1<ex>John Doe</ex></ph> (<ph name="USER_EMAIL">$2<ex>john.doe@gmail.com</ex></ph>) will immediately lose access to the “<ph name="GROUP_NAME">$3<ex>Vacation</ex></ph>" tab group, and will no longer be able to interact with you across Google services
-      </message>
-      <message name="IDS_IOS_SHARE_KIT_JOIN_ALERT_EXPIRED_ACTION_TITLE" desc="The title of the button in the alert displayed when the shared link has expired.">
-        Got it
-      </message>
-      <message name="IDS_IOS_SHARE_KIT_JOIN_ALERT_EXPIRED_MESSAGE" desc="The message in the alert displayed when the shared link has expired.">
-        Contact the sender to ask for a new link
-      </message>
-      <message name="IDS_IOS_SHARE_KIT_JOIN_ALERT_EXPIRED_TITLE" desc="The title of the alert displayed when the shared link has expired.">
-        This link doesn’t work
       </message>
       <message name="IDS_IOS_SHARE_KIT_JOIN_DISCLAIMER_CAPTION" desc="The caption part of the disclaimer for sharing a tab group.">
         <ph name="USER_NAME">$1<ex>John Doe</ex></ph> (<ph name="USER_EMAIL">$2<ex>john.doe@gmail.com</ex></ph>) wants you to join a tab group. Anyone with the link can edit all tabs, so join with care. Link expires in 48 hr.
@@ -7128,7 +7300,7 @@ While in Incognito, sites can't use cookies to see your browsing activity across
         https://support.google.com/chrome/?p=chrome_help&amp;hl=[GRITLANGCODE]&amp;ios=1
       </message>
       <message name="IDS_IOS_TOOLS_MENU_HIDE_READER_MODE" desc="The iOS menu item for closing the Reading Mode UI displayed for the current page. [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
-        Hide Reading Mode
+        Turn off Reading Mode
       </message>
       <message name="IDS_IOS_TOOLS_MENU_HISTORY" desc="The Tools menu item for opening the navigation history menu" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
         History
@@ -7173,7 +7345,7 @@ While in Incognito, sites can't use cookies to see your browsing activity across
         Scan QR Code
       </message>
       <message name="IDS_IOS_TOOLS_MENU_READER_MODE" desc="The iOS menu item for opening the current page in Reading Mode. [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
-        Show Reading Mode
+        Turn on Reading Mode
       </message>
       <message name="IDS_IOS_TOOLS_MENU_READING_LIST" desc="The iOS menu item for opening the reading list [iOS only]" meaning="[Length: 16em] [iOS only] This is a feature name in title case.">
         Reading List

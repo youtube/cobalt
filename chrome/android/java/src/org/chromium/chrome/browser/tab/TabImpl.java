@@ -588,13 +588,11 @@ class TabImpl implements Tab {
 
     @Override
     public int getBackgroundColor() {
-        if (ChromeFeatureList.sNavBarColorMatchesTabBackground.isEnabled()) {
-            if (mCustomView != null && mCustomViewBackgroundColor != null) {
-                return mCustomViewBackgroundColor;
-            }
-            if (mNativePage != null) {
-                return mNativePage.getBackgroundColor();
-            }
+        if (mCustomView != null && mCustomViewBackgroundColor != null) {
+            return mCustomViewBackgroundColor;
+        }
+        if (mNativePage != null) {
+            return mNativePage.getBackgroundColor();
         }
         return mWebContentBackgroundColor;
     }
@@ -1221,7 +1219,8 @@ class TabImpl implements Tab {
             TabDelegateFactory delegateFactory,
             boolean initiallyHidden,
             @Nullable TabState tabState,
-            boolean initializeRenderer) {
+            boolean initializeRenderer,
+            boolean isPinned) {
         try {
             TraceEvent.begin("Tab.initialize");
 
@@ -1231,6 +1230,7 @@ class TabImpl implements Tab {
 
             mTabLaunchTypeAtCreation = mLaunchType;
             mCreationState = creationState;
+            mIsPinned = isPinned;
 
             // If applicable set up for a lazy background tab load.
             mPendingLoadParams = loadUrlParams;
@@ -1783,8 +1783,7 @@ class TabImpl implements Tab {
 
     /** Called to notify when the page had painted something non-empty. */
     void notifyDidFirstVisuallyNonEmptyPaint() {
-        if (ChromeFeatureList.sNavBarColorMatchesTabBackground.isEnabled()
-                && mWaitingOnBgColorAfterHidingNativePage) {
+        if (mWaitingOnBgColorAfterHidingNativePage) {
             onBackgroundColorChanged(
                     BackgroundColorChangeOrigin.BG_COLOR_UPDATE_AFTER_HIDING_NATIVE_PAGE);
         }
@@ -1805,8 +1804,7 @@ class TabImpl implements Tab {
 
         int newBackgroundColor = getBackgroundColor();
         // Avoid notifying the observers if the background color hasn't actually changed.
-        if (mTabBackgroundColor == newBackgroundColor
-                && ChromeFeatureList.sNavBarColorMatchesTabBackground.isEnabled()) return;
+        if (mTabBackgroundColor == newBackgroundColor) return;
 
         mTabBackgroundColor = newBackgroundColor;
 
@@ -2065,10 +2063,7 @@ class TabImpl implements Tab {
                         mNativePageSmoothTransitionDelegate.prepare();
                     }
                     pushNativePageStateToNavigationEntry();
-
-                    if (ChromeFeatureList.sNavBarColorMatchesTabBackground.isEnabled()) {
-                        onBackgroundColorChanged(BackgroundColorChangeOrigin.NATIVE_PAGE_SHOWN);
-                    }
+                    onBackgroundColorChanged(BackgroundColorChangeOrigin.NATIVE_PAGE_SHOWN);
                     updateThemeColor(TabState.UNSPECIFIED_THEME_COLOR);
                 });
     }
@@ -2710,6 +2705,7 @@ class TabImpl implements Tab {
     }
 
     @Override
+    @CalledByNative
     public boolean isMultiSelected() {
         if (mSelectionStateSupplier == null) return false;
         return mSelectionStateSupplier.isTabMultiSelected(mId);
@@ -2730,7 +2726,7 @@ class TabImpl implements Tab {
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
-        TabImpl fromWebContents(WebContents webContents);
+        TabImpl fromWebContents(@Nullable WebContents webContents);
 
         void init(TabImpl caller, @JniType("Profile*") Profile profile, int id);
 

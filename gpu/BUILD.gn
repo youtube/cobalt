@@ -135,6 +135,10 @@ static_library("test_support") {
     ]
   }
   deps += [ "//third_party/angle:translator" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_android && !is_fuchsia && !is_chromeos && !is_ios) {
@@ -380,6 +384,10 @@ test("gl_tests") {
   if (is_chromeos) {
     deps += [ "//ui/gfx/linux:gbm" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("gpu_unittests") {
@@ -448,7 +456,6 @@ test("gpu_unittests") {
     "command_buffer/service/gpu_tracer_unittest.cc",
     "command_buffer/service/gr_cache_controller_unittest.cc",
     "command_buffer/service/gr_shader_cache_unittest.cc",
-    "command_buffer/service/graphite_shared_context_unittest.cc",
     "command_buffer/service/id_manager_unittest.cc",
     "command_buffer/service/indexed_buffer_binding_host_unittest.cc",
     "command_buffer/service/memory_program_cache_unittest.cc",
@@ -546,6 +553,14 @@ test("gpu_unittests") {
     ]
   }
 
+  if (is_apple) {
+    sources += [
+      "ipc/service/image_transport_surface_overlay_mac.h",
+      "ipc/service/image_transport_surface_overlay_mac.mm",
+      "ipc/service/image_transport_surface_overlay_mac_unittest.mm",
+    ]
+  }
+
   if (is_linux || is_chromeos || use_ozone) {
     sources += [
       "ipc/common/gpu_memory_buffer_impl_native_pixmap_unittest.cc",
@@ -591,6 +606,10 @@ test("gpu_unittests") {
       "command_buffer/service/dawn_caching_interface_unittest.cc",
       "config/webgpu_blocklist_unittest.cc",
     ]
+  }
+
+  if (skia_use_dawn) {
+    sources += [ "command_buffer/service/graphite_shared_context_unittest.cc" ]
   }
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -661,6 +680,14 @@ test("gpu_unittests") {
     bundle_deps =
         [ "//testing/buildbot/filters:gpu_unittests_filters_bundle_data" ]
   }
+
+  if (is_apple) {
+    deps += [ "//ui/accelerated_widget_mac:accelerated_widget_mac" ]
+  }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("gpu_perftests") {

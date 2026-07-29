@@ -10,6 +10,7 @@
 #include "ui/views/view.h"
 
 namespace views {
+class FlexLayout;
 class ImageButton;
 class ImageView;
 class Label;
@@ -18,7 +19,7 @@ class Throbber;
 }  // namespace views
 
 // Toast view displaying the progress of password change. Displayed content can
-// be updated using UpdateConfiguration() without closing the toast.
+// be updated using `UpdateLayout()` without closing the toast.
 class PasswordChangeToast : public views::View {
   METADATA_HEADER(PasswordChangeToast, views::View)
  public:
@@ -60,8 +61,6 @@ class PasswordChangeToast : public views::View {
   // `configuration`.
   void UpdateLayout(ToastOptions configuration);
 
-  gfx::Insets CalculateMargins();
-
   views::Throbber* throbber() { return throbber_; }
   views::ImageView* icon_view() { return icon_view_; }
   views::Label* label() { return label_; }
@@ -69,7 +68,8 @@ class PasswordChangeToast : public views::View {
   views::ImageButton* close_button() { return close_button_; }
 
  private:
-  void UpdateConfiguration(ToastOptions configuration);
+  // Calculates interior margins based on currently visible child views.
+  gfx::Insets CalculateInteriorMargin();
 
   // views::View
   void OnThemeChanged() override;
@@ -80,6 +80,7 @@ class PasswordChangeToast : public views::View {
   std::optional<raw_ref<const gfx::VectorIcon>> icon_;
   base::OnceClosure action_button_closure_;
 
+  raw_ptr<views::FlexLayout> layout_manager_ = nullptr;
   raw_ptr<views::Throbber> throbber_ = nullptr;
   raw_ptr<views::Label> label_ = nullptr;
   raw_ptr<views::ImageView> icon_view_ = nullptr;

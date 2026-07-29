@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "content/web_test/renderer/test_plugin.h"
 
 #include <stddef.h>
@@ -15,6 +10,8 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/unsafe_shared_memory_region.h"
@@ -60,9 +57,9 @@ namespace content {
 
 namespace {
 
-void PremultiplyAlpha(const uint8_t color_in[3],
+void PremultiplyAlpha(base::span<const uint8_t, 3> color_in,
                       float alpha,
-                      float color_out[4]) {
+                      base::span<float, 4> color_out) {
   for (int i = 0; i < 3; ++i)
     color_out[i] = (color_in[i] / 255.0f) * alpha;
 
@@ -406,7 +403,8 @@ TestPlugin::Primitive TestPlugin::ParsePrimitive(
 
 // FIXME: This method should already exist. Use it.
 // For now just parse primary colors.
-void TestPlugin::ParseColor(const blink::WebString& string, uint8_t color[3]) {
+void TestPlugin::ParseColor(const blink::WebString& string,
+                            base::span<uint8_t, 3> color) {
   color[0] = color[1] = color[2] = 0;
   if (string == "black")
     return;
@@ -625,8 +623,10 @@ blink::WebInputEventResult TestPlugin::HandleInputEvent(
   auto* frame_proxy = static_cast<WebFrameTestProxy*>(
       RenderFrame::FromWebFrame(web_local_frame_));
   const char* event_name = blink::WebInputEvent::GetName(event.GetType());
-  if (!strcmp(event_name, "") || !strcmp(event_name, "Undefined"))
+  if (!UNSAFE_TODO(strcmp(event_name, "")) ||
+      !UNSAFE_TODO(strcmp(event_name, "Undefined"))) {
     event_name = "unknown";
+  }
   test_runner_->PrintMessage(
       std::string("Plugin received event: ") + event_name + "\n", *frame_proxy);
   if (print_event_details_)

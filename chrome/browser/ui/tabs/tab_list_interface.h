@@ -15,6 +15,7 @@
 #include "url/gurl.h"
 
 class BrowserWindowInterface;
+class TabListInterfaceObserver;
 
 // Interface for supporting a basic set of tab operations on Android and
 // Desktop.
@@ -26,12 +27,14 @@ class TabListInterface {
   TabListInterface(const TabListInterface& other) = delete;
   void operator=(const TabListInterface& other) = delete;
 
-  // TODO(https://crbug.com/427503497): Include this on Android when the
-  // implementation is get-able from a BrowserWindowInterface.
-#if !BUILDFLAG(IS_ANDROID)
   // Returns the TabListInterface associated with the given `browser`.
   static TabListInterface* From(BrowserWindowInterface* browser);
-#endif
+
+  // Adds / removes observers from this tab list.
+  virtual void AddTabListInterfaceObserver(
+      TabListInterfaceObserver* observer) = 0;
+  virtual void RemoveTabListInterfaceObserver(
+      TabListInterfaceObserver* observer) = 0;
 
   // Returns the count of tabs within the tab list.
   virtual int GetTabCount() const = 0;
@@ -39,6 +42,9 @@ class TabListInterface {
   // Returns the index of the currently-active tab. Note that this is different
   // from the selected tab (of which there may be multiple).
   virtual int GetActiveIndex() const = 0;
+
+  // Returns the `TabInterface` for the currently-active tab.
+  virtual tabs::TabInterface* GetActiveTab() = 0;
 
   // Opens a new tab to the given `url`, inserting it at `index` in the tab
   // strip. `index` may be ignored by the implementation if necessary.
@@ -57,8 +63,16 @@ class TabListInterface {
   // if the index is out-of-bounds.
   virtual tabs::TabInterface* GetTab(int index) = 0;
 
-  // Highlights / selects the `tabs`.
-  virtual void HighlightTabs(const std::set<tabs::TabHandle>& tabs) = 0;
+  // Returns the index of the given `tab`, if it exists in the tab strip.
+  // Otherwise, returns -1.
+  virtual int GetIndexOfTab(tabs::TabHandle tab) = 0;
+
+  // Highlights a set of tabs, adding them to the multi-selection set and
+  // activating one of them. This is an additive operation; it does not clear
+  // other currently selected tabs. The `tab_to_activate` becomes the active
+  // tab. The `tab_to_activate` must be present in `tabs`.
+  virtual void HighlightTabs(tabs::TabHandle tab_to_activate,
+                             const std::set<tabs::TabHandle>& tabs) = 0;
 
   // Moves the `tab` to `index`. The nearest valid index will be used.
   virtual void MoveTab(tabs::TabHandle tab, int index) = 0;

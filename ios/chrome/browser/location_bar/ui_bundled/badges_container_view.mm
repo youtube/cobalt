@@ -16,6 +16,8 @@
   /// view trumps the entrypoint when kLensOverlayPriceInsightsCounterfactual is
   /// enabled.
   BOOL _contextualPanelEntrypointShouldBeVisible;
+  /// Whether the incognito badge view should be visible.
+  BOOL _incognitoBadgeViewShouldBeVisible;
   /// Whether the badge view should be visible.
   BOOL _badgeViewShouldBeVisible;
   /// Whether the reader mode chip should be visible.
@@ -48,11 +50,15 @@
     [accessibleElements addObject:self.contextualPanelEntrypointView];
   }
 
+  if (self.incognitoBadgeView && !self.incognitoBadgeView.hidden) {
+    [accessibleElements addObject:self.incognitoBadgeView];
+  }
+
   if (self.badgeView && !self.badgeView.hidden) {
     [accessibleElements addObject:self.badgeView];
   }
 
-  if (self.readerModeChipView && !self.readerModeChipView.hidden) {
+  if (self.readerModeChipView) {
     [accessibleElements addObject:self.readerModeChipView];
   }
 
@@ -61,6 +67,13 @@
   }
 
   return accessibleElements;
+}
+
+#pragma mark - IncognitoBadgeViewVisibilityDelegate
+
+- (void)setIncognitoBadgeViewHidden:(BOOL)hidden {
+  _incognitoBadgeViewShouldBeVisible = !hidden;
+  [self updateViewsVisibility];
 }
 
 #pragma mark - BadgeViewVisibilityDelegate
@@ -87,6 +100,22 @@
 
 #pragma mark - Setters
 
+- (void)setIncognitoBadgeView:(UIView*)incognitoBadgeView {
+  if (_incognitoBadgeView) {
+    return;
+  }
+  _incognitoBadgeView = incognitoBadgeView;
+  _incognitoBadgeView.translatesAutoresizingMaskIntoConstraints = NO;
+  _incognitoBadgeView.isAccessibilityElement = NO;
+  [_containerStackView insertArrangedSubview:_incognitoBadgeView atIndex:0];
+  _incognitoBadgeView.hidden = YES;
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_incognitoBadgeView.heightAnchor
+        constraintEqualToAnchor:_containerStackView.heightAnchor],
+  ]];
+}
+
 - (void)setBadgeView:(UIView*)badgeView {
   if (_badgeView) {
     return;
@@ -105,6 +134,9 @@
 
 - (void)setContextualPanelEntrypointView:
     (UIView*)contextualPanelEntrypointView {
+  if (IsDiamondPrototypeEnabled()) {
+    return;
+  }
   if (_contextualPanelEntrypointView) {
     return;
   }
@@ -124,6 +156,9 @@
 }
 
 - (void)setReaderModeChipView:(UIView*)readerModeChipView {
+  if (IsDiamondPrototypeEnabled()) {
+    return;
+  }
   if (_readerModeChipView) {
     return;
   }
@@ -131,7 +166,10 @@
   _readerModeChipView.translatesAutoresizingMaskIntoConstraints = NO;
   _readerModeChipView.isAccessibilityElement = NO;
   _readerModeChipView.hidden = YES;
-  [_containerStackView insertArrangedSubview:_readerModeChipView atIndex:0];
+  // Reading Mode chip should be shown to the right of the incognito badge
+  // view.
+  int index = _incognitoBadgeView ? 1 : 0;
+  [_containerStackView insertArrangedSubview:_readerModeChipView atIndex:index];
 
   [NSLayoutConstraint activateConstraints:@[
     [_readerModeChipView.heightAnchor
@@ -140,6 +178,9 @@
 }
 
 - (void)setPlaceholderView:(UIView*)placeholderView {
+  if (IsDiamondPrototypeEnabled()) {
+    return;
+  }
   if (_placeholderView == placeholderView) {
     return;
   }
@@ -166,8 +207,12 @@
 // Updates the hidden state of the views.
 - (void)updateViewsVisibility {
   self.readerModeChipView.hidden = !_readerModeChipShouldBeVisible;
+  self.incognitoBadgeView.hidden = !_incognitoBadgeViewShouldBeVisible;
   self.badgeView.hidden =
       !_badgeViewShouldBeVisible || _readerModeChipShouldBeVisible;
+  if (IsDiamondPrototypeEnabled()) {
+    self.badgeView.hidden = YES;
+  }
   self.contextualPanelEntrypointView.hidden =
       !_contextualPanelEntrypointShouldBeVisible ||
       _readerModeChipShouldBeVisible;

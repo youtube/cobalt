@@ -139,7 +139,7 @@ template <
     typename OutElement = decltype(ConvertToBlink(std::declval<InElement>()))>
 ::blink::Vector<OutElement> ConvertToBlink(const std::vector<InElement>& in) {
   ::blink::Vector<OutElement> out;
-  out.reserve(base::checked_cast<wtf_size_t>(in.size()));
+  out.reserve(base::checked_cast<::blink::wtf_size_t>(in.size()));
   for (const auto& element : in) {
     out.push_back(ConvertToBlink(element));
   }
@@ -325,6 +325,14 @@ blink::SRIMessageSignatureComponentParameter::Type ConvertToBlink(
 // by both the non-Blink Mojo variant and the Blink Mojo variant.
 blink::SRIMessageSignatureError ConvertToBlink(SRIMessageSignatureError in) {
   return in;
+}
+
+std::optional<::blink::Vector<uint8_t>> ConvertToBlink(
+    const std::optional<std::vector<uint8_t>>& in) {
+  if (!in) {
+    return std::nullopt;
+  }
+  return ConvertToBlink<uint8_t, uint8_t>(*in);
 }
 
 blink::SRIMessageSignatureComponentParameterPtr ConvertToBlink(

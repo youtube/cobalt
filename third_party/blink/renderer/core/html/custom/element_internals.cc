@@ -152,6 +152,14 @@ HTMLElement* ElementInternals::formForBinding(
   return ListedElement::RetargetedForm();
 }
 
+String ElementInternals::type() const {
+  return type_;
+}
+
+void ElementInternals::setType(const String& value) {
+  type_ = value;
+}
+
 void ElementInternals::setValidity(ValidityStateFlags* flags,
                                    ExceptionState& exception_state) {
   setValidity(flags, String(), nullptr, exception_state);
@@ -466,7 +474,8 @@ bool ElementInternals::IsTargetFormAssociated() const {
   // ElementInternals needs to handle elements to be form-associated same as
   // form-associated custom elements because web authors want to call
   // form-related operations of ElementInternals in constructors.
-  CustomElementRegistry* registry = CustomElement::Registry(Target());
+  CustomElementRegistry* registry =
+      Target().GetTreeScope().customElementRegistry();
   if (!registry)
     return false;
   auto* definition = registry->DefinitionForName(Target().localName());

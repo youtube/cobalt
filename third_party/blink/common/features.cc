@@ -119,6 +119,12 @@ BASE_FEATURE(kAudioWorkletThreadPool,
              "AudioWorkletThreadPool",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, synthetic select metrics are logged.
+// See go/analyzing-synthetic-selects for more details.
+BASE_FEATURE(kAutofillEnableSyntheticSelectMetricsLogging,
+             "AutofillEnableSyntheticSelectMetricsLogging",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, WebFormElement applies the same special case to nested forms
 // as it does for the outermost form. The fix is relevant only to Autofill.
 // For other callers of HTMLFormElement::ListedElements(), which don't traverse
@@ -489,10 +495,6 @@ BASE_FEATURE(kConsumeCodeCacheOffThread,
 // Enables the constant streaming in the ContentCapture task.
 BASE_FEATURE(kContentCaptureConstantStreaming,
              "ContentCaptureConstantStreaming",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCorrectFloatExtensionTestForWebGL,
-             "CorrectFloatExtensionTestForWebGL",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, add a new option, {imageOrientation: 'none'}, to
@@ -1912,6 +1914,36 @@ BASE_FEATURE(kMixedContentAutoupgrade,
              "AutoupgradeMixedContent",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kMemoryCacheIntelligentPruning,
+             "MemoryCacheIntelligentPruning",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Weight for the resource's type priority in the value calculation.
+// A high default makes type a primary factor in determining importance.
+BASE_FEATURE_PARAM(double,
+                   kMemoryCacheIntelligentPruningFreqWeight,
+                   &kMemoryCacheIntelligentPruning,
+                   "freq_weight",
+                   50.0);
+
+// This weight is intentionally low to scale down the raw byte size. It ensures
+// that cost acts as a secondary, tie-breaking factor and does not dominate
+// the score compared to the more critical signals of resource type or
+// frequency.
+BASE_FEATURE_PARAM(double,
+                   kMemoryCacheIntelligentPruningCostWeight,
+                   &kMemoryCacheIntelligentPruning,
+                   "cost_weight",
+                   0.0001);
+
+// Weight for the resource's usage frequency score in the value calculation.
+// This is tuned to balance the logarithmic hit count against other factors.
+BASE_FEATURE_PARAM(double,
+                   kMemoryCacheIntelligentPruningTypeWeight,
+                   &kMemoryCacheIntelligentPruning,
+                   "type_weight",
+                   100.0);
+
 BASE_FEATURE(kMemoryCacheStrongReference,
              "MemoryCacheStrongReference",
 // Finch study showed no improvement on Android for strong memory cache.
@@ -2016,16 +2048,8 @@ BASE_FEATURE(kOriginAgentClusterDefaultEnabled,
              "OriginAgentClusterDefaultEnable",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kOriginTrialStateHostApplyFeatureDiff,
-             "OriginTrialStateHostApplyFeatureDiff",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enable defer commits to avoid flash of unstyled content, for all navigations.
 BASE_FEATURE(kPaintHolding, "PaintHolding", base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kParkableImagesToDisk,
-             "ParkableImagesToDisk",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 // A parameter to exclude or not exclude CanvasFontCache from
@@ -2086,11 +2110,14 @@ BASE_FEATURE(kPrefetchFontLookupTables,
 );
 #endif
 
-// Prefetch request properties are updated to be privacy-preserving. See
-// crbug.com/988956.
-BASE_FEATURE(kPrefetchPrivacyChanges,
-             "PrefetchPrivacyChanges",
+BASE_FEATURE(kPreloadingEagerHeuristics,
+             "PreloadingEagerHeuristics",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kPreloadingEagerHeuristicsHoverDwellTime,
+                   &kPreloadingEagerHeuristics,
+                   "hover_dwell_time",
+                   base::Milliseconds(5));
 
 BASE_FEATURE(kPreloadingHeuristicsMLModel,
              "PreloadingHeuristicsMLModel",
@@ -2151,47 +2178,6 @@ const char kPrerender2MemoryAcceptablePercentOfSystemMemoryParamName[] =
 BASE_FEATURE(kPrerender2EarlyDocumentLifecycleUpdate,
              "Prerender2EarlyDocumentLifecycleUpdate",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable limiting previews loading hints to specific resource types.
-BASE_FEATURE(kPreviewsResourceLoadingHintsSpecificResourceTypes,
-             "PreviewsResourceLoadingHintsSpecificResourceTypes",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kPrewarmDefaultFontFamilies,
-             "PrewarmDefaultFontFamilies",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(bool,
-                   kPrewarmStandard,
-                   &kPrewarmDefaultFontFamilies,
-                   "prewarm_standard",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kPrewarmFixed,
-                   &kPrewarmDefaultFontFamilies,
-                   "prewarm_fixed",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kPrewarmSerif,
-                   &kPrewarmDefaultFontFamilies,
-                   "prewarm_serif",
-                   true);
-BASE_FEATURE_PARAM(bool,
-                   kPrewarmSansSerif,
-                   &kPrewarmDefaultFontFamilies,
-                   "prewarm_sans_serif",
-                   true);
-BASE_FEATURE_PARAM(bool,
-                   kPrewarmCursive,
-                   &kPrewarmDefaultFontFamilies,
-                   "prewarm_cursive",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kPrewarmFantasy,
-                   &kPrewarmDefaultFontFamilies,
-                   "prewarm_fantasy",
-                   false);
-#endif
 
 // Enables the Private Aggregation API.
 BASE_FEATURE(kPrivateAggregationApi,
@@ -2259,10 +2245,6 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kForceProduceCompileHints,
              "ForceProduceCompileHints",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kConsumeCompileHints,
-             "ConsumeCompileHints",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLocalCompileHints,
              "LocalCompileHints",
@@ -2340,11 +2322,6 @@ BASE_FEATURE(kResourceFetcherStoresStrongReferences,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // https://html.spec.whatwg.org/multipage/system-state.html#safelisted-scheme
-BASE_FEATURE(kSafelistFTPToRegisterProtocolHandler,
-             "SafelistFTPToRegisterProtocolHandler",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// https://html.spec.whatwg.org/multipage/system-state.html#safelisted-scheme
 BASE_FEATURE(kSafelistPaytoToRegisterProtocolHandler,
              "SafelistPaytoToRegisterProtocolHandler",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2371,6 +2348,12 @@ BASE_FEATURE(kScriptStreamingForNonHTTP,
 #endif
 );
 
+// Enables sending Sec-Purpose: "prefetch" header for
+// NoStatePrefetchURLLoaderThrottle.
+BASE_FEATURE(kSecPurposePrefetchHeaderNoStatePrefetch,
+             "SecPurposePrefetchHeaderNoStatePrefetch",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables sending Sec-Purpose: "prefetch" header for rel="prefetch".
 BASE_FEATURE(kSecPurposePrefetchHeaderRelPrefetch,
              "SecPurposePrefetchHeaderRelPrefetch",
@@ -2379,11 +2362,6 @@ BASE_FEATURE(kSecPurposePrefetchHeaderRelPrefetch,
 BASE_FEATURE(kSelectiveInOrderScript,
              "SelectiveInOrderScript",
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kSelectiveInOrderScriptTarget,
-             "SelectiveInOrderScriptTarget",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<std::string> kSelectiveInOrderScriptAllowList{
-    &kSelectiveInOrderScriptTarget, "allow_list", ""};
 
 // When enabled, the SubresourceFilter receives calls from the ResourceLoader
 // to perform additional checks against any aliases found from DNS CNAME records
@@ -2396,12 +2374,6 @@ BASE_FEATURE(kSendCnameAliasesToSubresourceFilterFromRenderer,
 // worker's script.
 BASE_FEATURE(kServiceWorkerUpdateDelay,
              "ServiceWorkerUpdateDelay",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, beacons (and friends) have ResourceLoadPriority::kLow,
-// not ResourceLoadPriority::kVeryLow.
-BASE_FEATURE(kSetLowPriorityForBeacon,
-             "SetLowPriorityForBeacon",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, calling setInterval(..., 0) will not clamp to 1ms.
@@ -2792,10 +2764,6 @@ BASE_FEATURE(kWebFontsCacheAwareTimeoutAdaption,
 #endif
 );
 
-BASE_FEATURE(kWebRtcCombinedNetworkAndWorkerThread,
-             "WebRtcCombinedNetworkAndWorkerThread",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // TODO(crbug.com/355256378): OpenH264 for encoding and FFmpeg for H264 decoding
 // should be detangled such that software decoding can be enabled without
 // software encoding.
@@ -2892,10 +2860,6 @@ bool IsFencedFramesEnabled() {
 bool IsParkableStringsToDiskEnabled() {
   // Always enabled as soon as compression is enabled.
   return base::FeatureList::IsEnabled(kCompressParkableStrings);
-}
-
-bool IsParkableImagesToDiskEnabled() {
-  return base::FeatureList::IsEnabled(kParkableImagesToDisk);
 }
 
 bool IsSetIntervalWithoutClampEnabled() {

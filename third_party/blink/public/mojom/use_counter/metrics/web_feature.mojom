@@ -3222,7 +3222,8 @@ enum WebFeature {
   kV8URLPattern_Exec_Method = 3961,
   kSameSiteCookieInclusionChangedByCrossSiteRedirect = 3962,
   // The items above roughly this point are available in the M93 branch.
-  kOBSOLETE_BlobStoreAccessAcrossAgentClustersInResolveAsURLLoaderFactory = 3963,
+  kOBSOLETE_BlobStoreAccessAcrossAgentClustersInResolveAsURLLoaderFactory =
+      3963,
   kOBSOLETE_BlobStoreAccessAcrossAgentClustersInResolveForNavigation = 3964,
   kTapDelayEnabled = 3965,
   kV8URLPattern_CompareComponent_Method = 3966,
@@ -3455,7 +3456,7 @@ enum WebFeature {
   // The items above roughly this point are available in the M101 branch.
   kElementShowPopover = 4189,
   kElementHidePopover = 4190,
-  kValidPopoverAttribute = 4191,
+  kOBSOLETE_ValidPopoverAttribute = 4191,
   kDeprecationExample = 4192,  // Used as an example Deprecation code pointer.
   kRTCLocalSdpModificationOpusStereo = 4193,
   kNavigatorUAData_Mobile = 4194,
@@ -3538,7 +3539,7 @@ enum WebFeature {
   kSharedStorageAPI_SelectURL_Method = 4269,
   kSharedStorageAPI_Run_Method = 4270,
   kViewTimelineConstructor = 4271,
-  kH1UserAgentFontSizeInSectionApplied = 4272,
+  kOBSOLETE_H1UserAgentFontSizeInSectionApplied = 4272,
   kOBSOLETE_kV8PendingBeacon_Constructor = 4273,
   kOBSOLETE_kV8PendingBeacon_Url_AttributeGetter = 4274,
   kOBSOLETE_kV8PendingBeacon_Url_AttributeSetter = 4275,
@@ -3560,7 +3561,7 @@ enum WebFeature {
   kDeviceOrientationUsedWithoutPermissionRequest = 4290,
   kDeviceMotionPermissionRequested = 4291,
   kDeviceMotionUsedWithoutPermissionRequest = 4292,
-  kPrivateNetworkAccessPermissionPrompt = 4293,
+  kOBSOLETE_PrivateNetworkAccessPermissionPrompt = 4293,
   kPseudoBeforeAfterForDateTimeInputElement = 4294,
   kOBSOLETE_kV8PendingBeacon_IsPending_AttributeGetter = 4295,
   kParentOfDisabledFormControlRespondsToMouseEvents = 4296,
@@ -3803,7 +3804,7 @@ enum WebFeature {
   kOBSOLETE_WindowOpenFullscreenRequested = 4525,
   kOBSOLETE_FullscreenAllowedByWindowOpen = 4526,
   // The items above roughly this point are available in the M113 branch.
-  kOBSOLETE_AttributeValueContainsLtOrGt = 4527,
+  kAttributeValueContainsLtOrGt = 4527,
   kOBSOLETE_V8ImportAssertionDeprecatedSyntax = 4528,
   kImageCaptureBackgroundBlur = 4529,
   kPrivateNetworkAccessPreflightError = 4530,
@@ -4914,6 +4915,16 @@ enum WebFeature {
   kHTMLCanvasElementLowLatency_WebGL_Discard = 5604,
   kAnimatedImageUsedMoreThanOnce = 5605,
   kClipboardPlatformPermissionDenied = 5606,
+  kValidPopoverAttribute = 5607,
+  kCanvasFallbackContent = 5608,
+  kCanvasFallbackElementContent = 5609,
+  kAutofillMaybeSyntheticSelect = 5610,
+  kAutofillSyntheticSelect = 5611,
+  kFetchRetry = 5612,
+  kMessageEventDataBeforeSameOrigin = 5613,
+  kMessageEventDataBeforeSameSiteOrigin = 5614,
+  kMessageEventDataBeforeCrossSiteOrigin = 5615,
+  kMessageEventDataBeforeOpaqueOrigin = 5616,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

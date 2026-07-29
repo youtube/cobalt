@@ -275,46 +275,78 @@ suite('NewTabPageRealboxTest', () => {
     });
   });
 
-  test('Color source baseline search icon has background image', async () => {
-    // Arrange.
-    loadTimeData.overrideValues({searchboxCr23Theming: true});
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    realbox = document.createElement('cr-searchbox');
-    realbox.colorSourceIsBaseline = true;
-    document.body.appendChild(realbox);
-    await waitAfterNextRender(realbox);
+  const webkitTestCases = [
+    {
+      description: 'theming refresh disabled',
+      properties: {
+        composeButtonEnabled: false,
+        searchboxChromeRefreshTheming: false,
+        colorSourceIsBaseline: true,
+      },
+      shouldUseWebkit: false,
+    },
+    {
+      description: 'theming refresh with baseline color',
+      properties: {
+        composeButtonEnabled: false,
+        searchboxChromeRefreshTheming: true,
+        colorSourceIsBaseline: true,
+      },
+      shouldUseWebkit: false,
+    },
+    {
+      description: 'theming refresh with non-baseline color',
+      properties: {
+        composeButtonEnabled: false,
+        searchboxChromeRefreshTheming: true,
+        colorSourceIsBaseline: false,
+      },
+      shouldUseWebkit: true,
+    },
+    {
+      description: 'compose button enabled',
+      properties: {
+        composeButtonEnabled: true,
+        searchboxChromeRefreshTheming: false,
+        colorSourceIsBaseline: false,
+      },
+      shouldUseWebkit: true,
+    },
+  ];
+  webkitTestCases.forEach(({description, properties, shouldUseWebkit}) => {
+    test(`useWebkitSearchIcons ${description}`, async () => {
+      // Arrange.
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      realbox = document.createElement('cr-searchbox');
 
-    // Assert.
-    const voiceSearchButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#voiceSearchButton');
-    assertTrue(!!voiceSearchButton);
-    assertStyle(
-        voiceSearchButton, 'background-image',
-        'url("chrome://resources/cr_components/searchbox/icons/mic.svg")');
+      // Act.
+      Object.assign(realbox, properties);
+      document.body.appendChild(realbox);
+      await waitAfterNextRender(realbox);
 
-    // Restore.
-    loadTimeData.overrideValues({searchboxCr23Theming: false});
-  });
-
-  test('Color source not baseline search icon has mask image', async () => {
-    // Arrange.
-    loadTimeData.overrideValues({searchboxCr23Theming: true});
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    realbox = document.createElement('cr-searchbox');
-    realbox.colorSourceIsBaseline = false;
-    document.body.appendChild(realbox);
-    await waitAfterNextRender(realbox);
-
-    // Assert.
-    const voiceSearchButton =
-        realbox.shadowRoot!.querySelector<HTMLElement>('#voiceSearchButton');
-    assertTrue(!!voiceSearchButton);
-    assertStyle(
-        voiceSearchButton, '-webkit-mask-image',
-        'url("chrome://resources/cr_components/searchbox/icons/mic.svg")');
-
-    // Restore.
-    loadTimeData.overrideValues({searchboxCr23Theming: false});
+      // Assert
+      const [iconProperty, nonIconProperty] = shouldUseWebkit ?
+          ['-webkit-mask-image', 'background-image'] :
+          ['background-image', '-webkit-mask-image'];
+      const buttonsToTest = [
+        {
+          selector: '#voiceSearchButton',
+          iconUrl:
+              'url("chrome://resources/cr_components/searchbox/icons/mic.svg")',
+        },
+        {
+          selector: '#lensSearchButton',
+          iconUrl: 'url("chrome://resources/cr_components/searchbox/icons/' +
+              'camera.svg")',
+        },
+      ];
+      for (const {selector, iconUrl} of buttonsToTest) {
+        const button = realbox.shadowRoot!.querySelector<HTMLElement>(selector);
+        assertTrue(!!button);
+        assertStyle(button, iconProperty, iconUrl);
+        assertStyle(button, nonIconProperty, 'none');
+      }
+    });
   });
 
   test('Compose button is not enabled by default.', async () => {
@@ -499,6 +531,9 @@ suite('NewTabPageRealboxTest', () => {
     assertEquals(2, matchEls.length);
 
     // Left click does not query autocomplete when matches are showing.
+    // Need to manually focus in order to trigger `onFocusChanged()` since
+    // `autocompleteResultChanged` does not focus input.
+    realbox.$.input.focus();
     realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
     assertEquals(0, testProxy.handler.getCallCount('queryAutocomplete'));
     await testProxy.handler.whenCalled('onFocusChanged');
@@ -1098,6 +1133,30 @@ suite('NewTabPageRealboxTest', () => {
     loadTimeData.overrideValues({
       queryAutocompleteOnEmptyInput: false,
     });
+  });
+
+  test('autocomplete result change does not impact focus', async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    realbox = document.createElement('cr-searchbox');
+    document.body.appendChild(realbox);
+    await waitAfterNextRender(realbox);
+
+    realbox.$.input.value = 'he';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+    realbox.shadowRoot!.querySelector<HTMLElement>(
+                           '#voiceSearchButton')!.focus();
+    assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
+
+    const matches = [createSearchMatch(), createUrlMatch()];
+    testProxy.callbackRouterRemote.autocompleteResultChanged({
+      input: stringToMojoString16(realbox.$.input.value.trimStart()),
+      matches,
+      suggestionGroupsMap: {},
+    });
+    assertTrue(await areMatchesShowing());
+
+    assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
   });
 
   //============================================================================

@@ -5,6 +5,7 @@
 <translation id="1086486568852410168">Rechercher avec Google Lens</translation>
 <translation id="1143896152279775643">Votre mot de passe sera enregistré dans le Gestionnaire de mots de passe Google pour <ph name="EMAIL" /></translation>
 <translation id="1146503048444965320">Ouvrir un nouvel onglet dans Chrome</translation>
+<translation id="1158134713295836892">Gemini dans Chrome</translation>
 <translation id="1166460004393506534">Supprimer les données de navigation dans Chrome</translation>
 <translation id="1179527450541388808">Accédez plus rapidement à Chrome depuis le dock de l'écran d'accueil de votre iPad.</translation>
 <translation id="1180362651362502943">Continuez d'utiliser les données Chrome de votre compte Google.</translation>
@@ -117,6 +118,7 @@ Patientez quelques minutes avant de vous déconnecter. Si vous vous déconnectez
 <translation id="3863841106411295595">Ajoute les URL saisies à votre liste de lecture dans Chrome.</translation>
 <translation id="3901001113120561395">Profitez pleinement de Chrome.</translation>
 <translation id="3913386780052199712">Connecté à Google Chrome</translation>
+<translation id="3932250749914183695">Astuce Chrome : confirmez votre identité</translation>
 <translation id="3984746313391923992">Votre organisation vous demande de rester déconnecté de Chrome.</translation>
 <translation id="3988789688219830639">Google Chrome n'a pas accès à vos photos ni à vos vidéos. Activez l'accès dans iOS via Réglages &gt; Confidentialité &gt; Photos.</translation>
 <translation id="4064699917955374540">Pour utiliser et enregistrer des données Chrome dans votre compte Google, confirmez votre identité.</translation>
@@ -286,7 +288,7 @@ Pour voir d'autres paramètres qui utilisent les données pour améliorer votre 
 <translation id="8069507567842347179">Ce colis a déjà fait l'objet d'un suivi dans Chrome.</translation>
 <translation id="8136856065410661948">Cela permettra de créer des événements dans votre calendrier Apple à partir de Chrome et de Google Lens.</translation>
 <translation id="8154120522323162874">Profitez pleinement de Chrome en continuant à configurer votre navigateur.</translation>
-<translation id="8160472928944011082">Impossible mettre à jour Chrome</translation>
+<translation id="8160472928944011082">Impossible de mettre à jour Chrome</translation>
 <translation id="8245080522851805544">Protégez la confidentialité de votre navigation avec l'authentification de l'appareil lorsque vous fermez Chrome</translation>
 <translation id="8248887045858762645">Astuce Chrome</translation>
 <translation id="8265730590513812063">Ouvrir le menu Chrome</translation>

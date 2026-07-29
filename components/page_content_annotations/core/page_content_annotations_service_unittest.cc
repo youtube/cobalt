@@ -171,6 +171,8 @@ class PageContentAnnotationsServiceTest : public testing::Test {
         /*database_dir=*/base::FilePath(),
         /*optimization_guide_logger=*/nullptr,
         optimization_guide_decider_.get(),
+        /*embedder_metadata_provider=*/nullptr,
+        /*embedder_=*/nullptr,
         /*background_task_runner=*/nullptr);
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -396,9 +398,7 @@ class PageContentAnnotationsServiceRemotePageMetadataTest
     : public PageContentAnnotationsServiceTest {
  public:
   PageContentAnnotationsServiceRemotePageMetadataTest() {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-    features::kRemotePageMetadata,
-    {{"supported_locales", "*"}, {"supported_countries", "*"}});
+    scoped_feature_list_.InitAndEnableFeature(features::kRemotePageMetadata);
   }
 
  private:
@@ -441,9 +441,8 @@ class PageContentAnnotationsServiceSalientImageMetadataTest
     : public PageContentAnnotationsServiceTest {
  public:
   PageContentAnnotationsServiceSalientImageMetadataTest() {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-      features::kPageContentAnnotationsPersistSalientImageMetadata,
-      {{"supported_locales", "*"}, {"supported_countries", "*"}});
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kPageContentAnnotationsPersistSalientImageMetadata);
   }
 
  private:

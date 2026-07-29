@@ -27,7 +27,6 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
@@ -47,6 +46,7 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/browser/ui/views/tabs/window_finder.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/web_contents.h"
@@ -655,7 +655,8 @@ void GlicWindowControllerImpl::Show(Browser* browser,
       GetGlicWidget()->GetNearestDisplay();
   gfx::Point glic_center_point =
       GetGlicWidget()->GetWindowBoundsInScreen().CenterPoint();
-  glic_service_->metrics()->OnGlicWindowShown(display, glic_center_point);
+  glic_service_->metrics()->OnGlicWindowShown(browser, display,
+                                              glic_center_point);
 }
 
 void GlicWindowControllerImpl::SetupGlicWidget(Browser* browser) {
@@ -1080,7 +1081,8 @@ void GlicWindowControllerImpl::Close() {
       GetGlicWidget()->GetNearestDisplay();
   gfx::Point glic_center_point =
       GetGlicWidget()->GetWindowBoundsInScreen().CenterPoint();
-  glic_service_->metrics()->OnGlicWindowClose(display, glic_center_point);
+  glic_service_->metrics()->OnGlicWindowClose(
+      BrowserList::GetInstance()->GetLastActive(), display, glic_center_point);
   base::UmaHistogramEnumeration("Glic.PanelWebUiState.FinishState2",
                                 host().GetPrimaryWebUiState());
 
@@ -1481,10 +1483,11 @@ void GlicWindowControllerImpl::SetWindowState(State new_state) {
   // TODO(crbug.com/431015299): Instead of piping events through the
   // ActorUiStateManager, consider calling the Toast and TaskIcon code directly
   // on state change.
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiStateManager)) {
+  if (features::kGlicActorUiToast.Get()) {
+    Browser* last_active_browser = BrowserList::GetInstance()->GetLastActive();
     actor::ActorKeyedService::Get(profile_)
         ->GetActorUiStateManager()
-        ->OnGlicUpdateFloatyState(state_);
+        ->OnGlicUpdateFloatyState(state_, last_active_browser);
   }
 
   if (IsWindowOpenAndReady()) {

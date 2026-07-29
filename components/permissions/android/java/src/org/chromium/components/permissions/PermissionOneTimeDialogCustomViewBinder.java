@@ -4,9 +4,6 @@
 
 package org.chromium.components.permissions;
 
-import static android.view.View.GONE;
-import static android.view.View.VISIBLE;
-
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.text.Spannable;
@@ -14,15 +11,12 @@ import android.text.SpannableStringBuilder;
 import android.text.style.StyleSpan;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import androidx.core.util.Pair;
 
-import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.browser_ui.widget.RadioButtonLayout;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -49,13 +43,10 @@ class PermissionOneTimeDialogCustomViewBinder {
             updateIcon(customView, model.get(PermissionDialogCustomViewProperties.ICON));
         } else if (PermissionDialogCustomViewProperties.ICON_TINT == propertyKey) {
             updateTintColor(customView, model.get(PermissionDialogCustomViewProperties.ICON_TINT));
-        } else if (PermissionDialogCustomViewProperties.RADIO_BUTTONS == propertyKey) {
-            updateRadioButtons(
-                    customView, model.get(PermissionDialogCustomViewProperties.RADIO_BUTTONS));
-        } else if (PermissionDialogCustomViewProperties.RADIO_BUTTON_CALLBACK == propertyKey) {
-            updateRadioButtonCallback(
+        } else if (PermissionDialogCustomViewProperties.CLOSE_BUTTON_CALLBACK == propertyKey) {
+            updateCloseButtonCallback(
                     customView,
-                    model.get(PermissionDialogCustomViewProperties.RADIO_BUTTON_CALLBACK));
+                    model.get(PermissionDialogCustomViewProperties.CLOSE_BUTTON_CALLBACK));
         }
     }
 
@@ -85,21 +76,10 @@ class PermissionOneTimeDialogCustomViewBinder {
         iconView.setImageTintList(iconTint);
     }
 
-    private static void updateRadioButtons(View customView, List<CharSequence> radioButtonTexts) {
-        RadioButtonLayout radioButtons = customView.findViewById(R.id.radio_buttons);
-        if (radioButtons.getChildCount() > 0) {
-            radioButtons.removeAllViews();
+    private static void updateCloseButtonCallback(View customView, Runnable closeButtonCallback) {
+        View closeButton = customView.findViewById(R.id.close_button);
+        if (closeButton != null) {
+            closeButton.setOnClickListener(view -> closeButtonCallback.run());
         }
-        radioButtons.setVisibility(radioButtonTexts.isEmpty() ? GONE : VISIBLE);
-        radioButtons.addOptions(radioButtonTexts, null);
-    }
-
-    private static void updateRadioButtonCallback(
-            View customView, Callback<Integer> radioButtonCallback) {
-        RadioGroup radioButtons = customView.findViewById(R.id.radio_buttons);
-        radioButtons.setOnCheckedChangeListener(
-                (view, id) -> {
-                    radioButtonCallback.onResult(view.indexOfChild(view.findViewById(id)));
-                });
     }
 }

@@ -5,11 +5,15 @@
 #import "ios/chrome/browser/reader_mode/model/reader_mode_browser_agent.h"
 
 #import "base/task/single_thread_task_runner.h"
+#import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/page_side_swipe_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_chip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
+#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 
 namespace {
 
@@ -35,6 +39,11 @@ void ReaderModeBrowserAgent::SetReaderModeHandler(
 void ReaderModeBrowserAgent::SetReaderModeChipHandler(
     id<ReaderModeChipCommands> reader_mode_chip_handler) {
   reader_mode_chip_handler_ = reader_mode_chip_handler;
+}
+
+void ReaderModeBrowserAgent::SetSnackbarHandler(
+    id<SnackbarCommands> snackbar_handler) {
+  snackbar_handler_ = snackbar_handler;
 }
 
 #pragma mark - Private
@@ -108,9 +117,9 @@ void ReaderModeBrowserAgent::WebStateListDidChange(
 
   // Show or hide the Reader mode UI if necessary.
   const bool old_reader_mode_web_state_available =
-      old_tab_helper && old_tab_helper->IsReaderModeWebStateAvailable();
+      old_tab_helper && (old_tab_helper->GetReaderModeWebState() != nullptr);
   const bool new_reader_mode_web_state_available =
-      new_tab_helper && new_tab_helper->IsReaderModeWebStateAvailable();
+      new_tab_helper && (new_tab_helper->GetReaderModeWebState() != nullptr);
   if (!old_reader_mode_web_state_available &&
       new_reader_mode_web_state_available) {
     ShowReaderModeUI(/* animated= */ false);
@@ -128,7 +137,7 @@ void ReaderModeBrowserAgent::WebStateListDestroyed(
 
 #pragma mark - ReaderModeTabHelper::Observer
 
-void ReaderModeBrowserAgent::ReaderModeWebStateDidBecomeAvailable(
+void ReaderModeBrowserAgent::ReaderModeWebStateDidLoadContent(
     ReaderModeTabHelper* tab_helper) {
   // If Reader mode becomes active in the active WebState, show the Reader mode
   // UI.
@@ -142,6 +151,17 @@ void ReaderModeBrowserAgent::ReaderModeWebStateWillBecomeUnavailable(
   // mode UI.
   HideReaderModeUI();
   crash_keys::SetCurrentlyInReaderMode(false);
+}
+
+void ReaderModeBrowserAgent::ReaderModeDistillationFailed(
+    ReaderModeTabHelper* tab_helper) {
+  // Show distillation failure snackbar.
+  [snackbar_handler_
+      showSnackbarWithMessage:l10n_util::GetNSString(
+                                  IDS_IOS_READER_MODE_SNACKBAR_FAILURE_MESSAGE)
+                   buttonText:l10n_util::GetNSString(IDS_DONE)
+                messageAction:nil
+             completionAction:nil];
 }
 
 void ReaderModeBrowserAgent::ReaderModeTabHelperDestroyed(

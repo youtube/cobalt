@@ -33,6 +33,7 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_mutator.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_quick_actions_view_controller.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_shortcuts_handler.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/overscroll_actions/ui_bundled/overscroll_actions_controller.h"
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -188,8 +189,8 @@ CGFloat SpaceBetweenModules() {
   // The view controller holding the NTP quick actions buttons.
   // Only created when the fakebox buttons are replaced.
   NewTabPageQuickActionsViewController* _quickActionsViewController;
-  // Whether MIA is allowed by policy.
-  BOOL _MIAAllowedByPolicy;
+  // Whether AIM is allowed.
+  BOOL _isAIMAllowed;
 }
 
 // Properties synthesized from NewTabPageConsumer.
@@ -273,8 +274,14 @@ CGFloat SpaceBetweenModules() {
       [weakSelf updateUIOnTraitChange:previousCollection];
     };
     [self registerForTraitChanges:traits withHandler:handler];
+    if (IsNTPBackgroundCustomizationEnabled()) {
+      NSArray<UITrait>* colorTraits =
+          TraitCollectionSetForTraits(@[ NewTabPageTrait.class ]);
+      [self registerForTraitChanges:colorTraits
+                         withAction:@selector(applyBackgroundColors)];
+      [self applyBackgroundColors];
+    }
   }
-
   [self.mutator checkNewBadgeEligibility];
 }
 
@@ -484,7 +491,9 @@ CGFloat SpaceBetweenModules() {
     _feedContainer = [[UIView alloc] initWithFrame:CGRectZero];
     _feedContainer.userInteractionEnabled = YES;
     _feedContainer.translatesAutoresizingMaskIntoConstraints = NO;
-    _feedContainer.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+    if (!IsNTPBackgroundCustomizationEnabled()) {
+      _feedContainer.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+    }
 
     // Add corner radius to the top border.
     _feedContainer.clipsToBounds = YES;
@@ -829,23 +838,8 @@ CGFloat SpaceBetweenModules() {
   [self updateBackgroundImageView];
 }
 
-- (void)updateBackgroundWithColorPalette:(NewTabPageColorPalette*)colorPalette {
-  [_headerViewController updateBackgroundWithColorPalette:colorPalette];
-
-  if (colorPalette) {
-    self.view.backgroundColor = colorPalette.primaryColor;
-    [_backgroundGradientView setStartColor:colorPalette.secondaryColor
-                                  endColor:colorPalette.primaryColor];
-  } else {
-    self.view.backgroundColor = [UIColor colorNamed:@"ntp_background_color"];
-    [_backgroundGradientView
-        setStartColor:[UIColor colorNamed:kSecondaryBackgroundColor]
-             endColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
-  }
-}
-
-- (void)setMIAAllowedByPolicy:(BOOL)policyAllowed {
-  _MIAAllowedByPolicy = policyAllowed;
+- (void)setAIMAllowed:(BOOL)allowed {
+  _isAIMAllowed = allowed;
 }
 
 #pragma mark - UIScrollViewDelegate
@@ -1103,6 +1097,26 @@ CGFloat SpaceBetweenModules() {
 
 #pragma mark - Private
 
+// Sets the background using the current color palette, or defaults if none is
+// set.
+- (void)applyBackgroundColors {
+  NewTabPageColorPalette* colorPalette =
+      [self.traitCollection objectForTrait:NewTabPageTrait.class];
+
+  if (colorPalette) {
+    self.view.backgroundColor = colorPalette.primaryColor;
+    [_backgroundGradientView setStartColor:colorPalette.secondaryColor
+                                  endColor:colorPalette.primaryColor];
+    _feedContainer.backgroundColor = colorPalette.secondaryCellColor;
+  } else {
+    self.view.backgroundColor = [UIColor colorNamed:@"ntp_background_color"];
+    [_backgroundGradientView
+        setStartColor:[UIColor colorNamed:kSecondaryBackgroundColor]
+             endColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
+    _feedContainer.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+  }
+}
+
 - (void)setNTPShortcutsHandler:
     (id<NewTabPageShortcutsHandler>)NTPShortcutsHandler {
   _NTPShortcutsHandler = NTPShortcutsHandler;
@@ -1111,8 +1125,7 @@ CGFloat SpaceBetweenModules() {
 
 // Whether the quick actions button row is visible.
 - (BOOL)quickActionsVisible {
-  return self.headerViewController.isGoogleDefaultSearchEngine &&
-         ShouldShowQuickActionsRow() && _MIAAllowedByPolicy;
+  return _isAIMAllowed && ShouldShowQuickActionsRow();
 }
 
 // Returns YES if scroll should be skipped when focusing the omnibox.
@@ -1703,7 +1716,7 @@ CGFloat SpaceBetweenModules() {
   // to the top of the screen. Also computes the total NTP scrolling height
   // for Discover infinite feed.
   CGFloat minimumHeight = collectionViewHeight + headerHeight;
-  if (!IsRegularXRegularSizeClass(self.collectionView)) {
+  if (!CanShowTabStrip(self.collectionView)) {
     minimumHeight -= self.collectionView.contentInset.bottom;
     if (IsSplitToolbarMode(self)) {
       minimumHeight -= [self stickyOmniboxHeight];
@@ -1868,7 +1881,7 @@ CGFloat SpaceBetweenModules() {
 // toolbar. The former is for narrower devices like portait iPhones, and the
 // latter is for wider devices like iPads and landscape iPhones.
 - (BOOL)shouldPinFakeOmnibox {
-  return !IsRegularXRegularSizeClass(self) && IsSplitToolbarMode(self);
+  return !CanShowTabStrip(self) && IsSplitToolbarMode(self);
 }
 
 // Modifies the view controller depending on which UITrait was changed.

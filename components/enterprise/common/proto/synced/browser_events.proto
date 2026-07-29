@@ -462,6 +462,7 @@ message SafeBrowsingDangerousDownloadEvent {
     UNKNOWN = 5;
     DANGEROUS_FILE_TYPE = 6;
     DANGEROUS_URL = 7;
+    DANGEROUS_ACCOUNT_COMPROMISE = 8;
   }
 
   // Category of dangerous download.
@@ -784,8 +785,8 @@ message DlpSensitiveDataEvent {
       // copybara:datapol_end
       ;
 
-  // Copy origin webp app signed-in account for paste event only. Only populated for
-  // Workspace sites.
+  // Copy origin webp app signed-in account for paste event only. Only populated
+  // for Workspace sites.
   string source_web_app_signed_in_account = 36
       // copybara:datapol_begin
       // [
@@ -1006,8 +1007,8 @@ message ContentTransferEvent {
       // copybara:datapol_end
       ;
 
-  // Copy origin webp app signed-in account for paste event only. Only populated for
-  // Workspace sites.
+  // Copy origin webp app signed-in account for paste event only. Only populated
+  // for Workspace sites.
   string source_web_app_signed_in_account = 25
       // copybara:datapol_begin
       // [
@@ -1217,7 +1218,7 @@ message BrowserCrashEvent {
   repeated SecurityAgent security_agents = 7;
 }
 
-// Next ID: 13
+// Next ID: 14
 message UrlFilteringInterstitialEvent {
   // Top level URL that triggers this interstitial.
   string url = 1;
@@ -1275,6 +1276,15 @@ message UrlFilteringInterstitialEvent {
   // The referrers of the webpage that sent the user to the url that triggered
   // the event.
   repeated UrlInfo referrers = 12;
+
+  // The account email of the content area. Only populated for Workspace sites.
+  string web_app_signed_in_account = 13
+      // copybara:datapol_begin
+      // [
+      //   (datapol.semantic_type) = ST_IDENTIFYING_ID
+      // ]
+      // copybara:datapol_end
+      ;
 }
 
 // Next ID: 5

@@ -47,7 +47,7 @@ class IntWrapper : public blink::GarbageCollected<IntWrapper> {
   int x_;
 };
 
-static_assert(WTF::IsTraceable<IntWrapper>::value,
+static_assert(blink::IsTraceableV<IntWrapper>,
               "IsTraceable<> template failed to recognize trace method.");
 
 }  // namespace
@@ -402,7 +402,7 @@ TEST_F(HeapCompactTest, AvoidCompactionWhenTraitsProhibitMemcpy) {
   // This test checks that compaction does not happen in cases where
   // `VectorTraits<T>::kCanMoveWithMemcpy` doesn't hold.
 
-  static_assert(WTF::VectorTraits<NestedType>::kCanMoveWithMemcpy == false,
+  static_assert(VectorTraits<NestedType>::kCanMoveWithMemcpy == false,
                 "should not allow move using memcpy");
   // Create a vector with a backing store that immediately gets reclaimed. The
   // backing store leaves free memory to be reused for compaction.

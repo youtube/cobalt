@@ -28,14 +28,14 @@ import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
 import org.chromium.base.test.util.ViewActionOnDescendant;
-import org.chromium.chrome.browser.hub.HubToolbarMediator;
+import org.chromium.chrome.browser.hub.HubUtils;
 import org.chromium.chrome.browser.hub.PaneId;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridView;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.SoftKeyboardFacility;
-import org.chromium.chrome.test.transit.page.PageStation;
+import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.transit.tabmodel.TabCountChangedCondition;
 import org.chromium.chrome.test.util.TabBinningUtil;
 
@@ -105,11 +105,12 @@ public abstract class TabSwitcherStation extends HubBaseStation {
 
     /**
      * @param index The tab index to select.
-     * @param destinationBuilder Builder for the specific type of PageStation expected to appear.
-     * @return Builder of the {@link PageStation} for the tab that was selected.
+     * @param destinationBuilder Builder for the specific type of {@link CtaPageStation} expected to
+     *     appear.
+     * @return Builder of the {@link CtaPageStation} for the tab that was selected.
      */
-    public <T extends PageStation> T selectTabAtIndex(
-            int index, PageStation.Builder<T> destinationBuilder) {
+    public <T extends CtaPageStation> T selectTabAtIndex(
+            int index, CtaPageStation.Builder<T> destinationBuilder) {
         recheckActiveConditions();
 
         return selectTabAtCardIndexTo(index)
@@ -183,11 +184,12 @@ public abstract class TabSwitcherStation extends HubBaseStation {
     /**
      * Returns to the previous tab via the back button.
      *
-     * @param destinationBuilder Builder for the specific type of PageStation expected to appear.
-     * @return the {@link PageStation} that Hub returned to.
+     * @param destinationBuilder Builder for the specific type of {@link CtaPageStation} expected to
+     *     appear.
+     * @return the {@link CtaPageStation} that Hub returned to.
      */
-    public <T extends PageStation> T leaveHubToPreviousTabViaBack(
-            PageStation.Builder<T> destinationBuilder) {
+    public <T extends CtaPageStation> T leaveHubToPreviousTabViaBack(
+            CtaPageStation.Builder<T> destinationBuilder) {
         T destination =
                 destinationBuilder.initSelectingExistingTab().withIncognito(mIsIncognito).build();
         return pressBackTo().withRetry().arriveAt(destination);
@@ -223,7 +225,7 @@ public abstract class TabSwitcherStation extends HubBaseStation {
     }
 
     private boolean shouldHubSearchBoxBeVisible() {
-        return HubToolbarMediator.isScreenWidthTablet(
+        return HubUtils.isScreenWidthTablet(
                 mActivityElement.get().getResources().getConfiguration().screenWidthDp);
     }
 }

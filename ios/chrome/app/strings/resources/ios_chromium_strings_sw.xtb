@@ -53,6 +53,7 @@
 <translation id="2195025571279539885">Je, ungependa Chromium ijitolee kutafsiri kurasa za <ph name="LANGUAGE_NAME" /> kwenye tovuti hii wakati ujao?</translation>
 <translation id="22313767259766852">Anwani hii kwa sasa imehifadhiwa kwenye Chromium. Ili uitumie kwenye bidhaa mbalimbali za Google, ihifadhi kwenye Akaunti yako ya Google, <ph name="USER_EMAIL" />.</translation>
 <translation id="2236584955986023187">Hii inamaanisha kwamba Chromium itahitaji tovuti ya kompyuta kila wakati.</translation>
+<translation id="2245694534483711162">Gemini inaweza kutumia eneo mahususi uliko, kulingana na ruhusa ambazo tayari umeipa Chromium</translation>
 <translation id="2270466829363945454">Kununua</translation>
 <translation id="2313870531055795960">Hukagua URL ili kuona iwapo zipo kwenye orodha ya tovuti zisizo salama zilizohifadhiwa katika Chromium. Ikiwa tovuti inajaribu kuiba nenosiri lako au unapopakua faili hatari, Chromium inaweza pia kutuma URL, ikiwa ni pamoja na sehemu za maudhui ya ukurasa, kwa kipengele cha Kuvinjari Salama.</translation>
 <translation id="2314220608288760290">Chromium hufungua kiotomatiki viungo vya Faraghani vya YouTube katika hali ya Faraghani.</translation>
@@ -113,6 +114,7 @@ Jaribu kusubiri dakika chache kabla ya kubadilisha akaunti. Ukibadilisha akaunti
 <translation id="3728124580182886854">Unganisha Chromium na huduma nyingine za Google ili upate mapendeleo na madhumuni mengine</translation>
 <translation id="377649297473651452">Mwonekano uliopanuliwa wa Kipengele cha Kujaza Kiotomatiki cha Chromium</translation>
 <translation id="3780779443901618967">Hukutahadharisha kuhusu tovuti hatari, hata zile ambazo hazikutambuliwa na Google hapo awali, kwa kuchambua data zaidi kutoka kwenye tovuti kuliko ulinzi wa kawaida. Unaweza kuchagua kuruka tahadhari za Chromium.</translation>
+<translation id="3804124559081428680">Kidokezo cha Chromium: Thibitisha kuwa ni wewe</translation>
 <translation id="3805899903892079518">Chromium haina uwezo wa kufikia picha au video zako. Washa uwezo wa kufikia katika Mipangilio ya iOS &gt; Faragha &gt; Picha.</translation>
 <translation id="3816686541346279443">Chromium itakuomba kuhifadhi nenosiri lako.</translation>
 <translation id="3827545470516145620">Unapata ulinzi wa kawaida kwenye kifaa hiki</translation>
@@ -252,6 +254,7 @@ Mambo ya kuzingatia:
 
 Mtu aliye na kauli yako ya siri pekee ndiye anaweza kusoma data yako iliyosimbwa kwa njia fiche. Kauli ya siri haitumwi kwa au kuhifadhiwa na Google. Ukisahau kauli yako ya siri au ukitaka kubadilisha mipangilio hii, <ph name="BEGIN_LINK" />futa data ya Chromium kwenye akaunti yako<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Kwa sasa arifa za Chromium zimezimwa kwenye mipangilio ya kifaa chako.</translation>
+<translation id="7195217321165708458">Gemini kwenye Chromium</translation>
 <translation id="7219205286115692265">Fikia Chromium kwa haraka katika sehemu iiyopachikwa kwenye skrini ya kwanza ya iPad yako.</translation>
 <translation id="7222001353246886083">Kutatufa ${searchPhrase} kwenye Chromium</translation>
 <translation id="7228180817326917122">Kidokezo cha Chromium: Chagua nafasi ya sehemu ya anwani</translation>

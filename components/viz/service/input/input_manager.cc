@@ -20,9 +20,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_input_receiver_compat.h"
-#include "base/debug/crash_logging.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/time/time.h"
 #include "components/input/android/android_input_callback.h"
 #include "components/input/android/input_token_forwarder.h"
 #include "components/input/android/scoped_input_receiver.h"
@@ -51,22 +48,15 @@ void ForwardVizInputTransferToken(
     const gpu::SurfaceHandle& surface_handle) {
   JNIEnv* env = jni_zero::AttachCurrentThread();
   base::android::ScopedJavaGlobalRef<jobject> viz_input_token_java(
-      env, base::AndroidInputReceiverCompat::GetInstance()
-               .AInputTransferToken_toJavaFn(
-                   env, viz_input_token.a_input_transfer_token()));
+      base::android::ScopedJavaLocalRef<jobject>(
+          env, base::AndroidInputReceiverCompat::GetInstance()
+                   .AInputTransferToken_toJavaFn(
+                       env, viz_input_token.a_input_transfer_token())));
 
   input::InputTokenForwarder::GetInstance()->ForwardVizInputTransferToken(
       surface_handle, viz_input_token_java);
 }
 
-void SetNumInputReceiversCrashKey(int num_input_receivers) {
-  static auto* const crash_key = base::debug::AllocateCrashKeyString(
-      "431139615-NumReceivers", base::debug::CrashKeySize::Size32);
-  if (crash_key) {
-    base::debug::SetCrashKeyString(crash_key,
-                                   base::NumberToString(num_input_receivers));
-  }
-}
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -139,9 +129,6 @@ enum class InputOnVizStateProcessingResult {
 
 InputManager::~InputManager() {
   frame_sink_manager_->RemoveObserver(this);
-#if BUILDFLAG(IS_ANDROID)
-  SetNumInputReceiversCrashKey(num_input_receivers_);
-#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 InputManager::InputManager(FrameSinkManagerImpl* frame_sink_manager)
@@ -283,13 +270,12 @@ void InputManager::OnDestroyedCompositorFrameSink(
   }
 
   if (receiver_data_ && receiver_data_->root_frame_sink_id() == frame_sink_id) {
-    receiver_data_->OnDestroyedCompositorFrameSink();
     if (base::android::android_info::sdk_int() >=
         base::android::android_info::SdkVersion::SDK_VERSION_BAKLAVA) {
-      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&InputManager::DestroyReceiverData,
-                                    weak_ptr_factory_.GetWeakPtr(),
-                                    std::move(receiver_data_)));
+      input::InputReceiverData* receiver = receiver_data_.get();
+      receiver->OnDestroyedCompositorFrameSink(std::move(receiver_data_));
+    } else {
+      receiver_data_->OnDestroyedCompositorFrameSink(nullptr);
     }
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -671,16 +657,18 @@ bool InputManager::ReturnInputBackToBrowser() {
   }
   JNIEnv* env = jni_zero::AttachCurrentThread();
   base::android::ScopedJavaGlobalRef<jobject> viz_input_token_java(
-      env,
-      base::AndroidInputReceiverCompat::GetInstance()
-          .AInputTransferToken_toJavaFn(
-              env, receiver_data_->viz_input_token().a_input_transfer_token()));
+      base::android::ScopedJavaLocalRef<jobject>(
+          env,
+          base::AndroidInputReceiverCompat::GetInstance()
+              .AInputTransferToken_toJavaFn(
+                  env,
+                  receiver_data_->viz_input_token().a_input_transfer_token())));
   base::android::ScopedJavaGlobalRef<jobject> browser_input_token_java(
-      env,
-      base::AndroidInputReceiverCompat::GetInstance()
-          .AInputTransferToken_toJavaFn(
-              env,
-              receiver_data_->browser_input_token().a_input_transfer_token()));
+      base::android::ScopedJavaLocalRef<jobject>(
+          env, base::AndroidInputReceiverCompat::GetInstance()
+                   .AInputTransferToken_toJavaFn(
+                       env, receiver_data_->browser_input_token()
+                                .a_input_transfer_token())));
 
   return static_cast<bool>(Java_InputTransferHandlerViz_transferInput(
       env, viz_input_token_java, browser_input_token_java));
@@ -944,26 +932,10 @@ void InputManager::CreateOrReuseAndroidInputReceiver(
       parent_input_surface, input_surface, std::move(browser_input_token),
       std::move(android_input_callback), std::move(callbacks),
       std::move(receiver), std::move(viz_input_token));
-  num_input_receivers_++;
-  SetNumInputReceiversCrashKey(num_input_receivers_);
 }
 
 bool InputManager::TransferInputBackToBrowser() {
   return ReturnInputBackToBrowser();
-}
-
-void InputManager::DestroyReceiverData(
-    std::unique_ptr<input::InputReceiverData> receiver_data) {
-  static auto* const crash_key = base::debug::AllocateCrashKeyString(
-      "431139615-DestroyReceiverTs", base::debug::CrashKeySize::Size64);
-  if (crash_key) {
-    base::debug::SetCrashKeyString(
-        crash_key,
-        base::NumberToString(base::TimeTicks::Now().ToUptimeMillis()));
-  }
-  num_input_receivers_--;
-  SetNumInputReceiversCrashKey(num_input_receivers_);
-  receiver_data.reset();
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

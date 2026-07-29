@@ -9,6 +9,9 @@
   .dropdown-row {
     --cr-section-min-height: 64px;
   }
+  #optimizedChargingManagedIndicator {
+    margin: 0 16px;
+  }
 </style>
 <div id="powerSourceRow" class="cr-row first"
     hidden$="[[!batteryStatus_.present]]">
@@ -53,15 +56,24 @@
         </div>
       </div>
     </div>
+    <template is="dom-if" if="[[adaptiveChargingManaged_]]">
+      <cr-policy-pref-indicator id="optimizedChargingManagedIndicator"
+          pref="[[adaptiveChargingPref_]]"
+          icon-aria-label="$i18n{powerOptimizedChargingLabel}">
+      </cr-policy-pref-indicator>
+    </template>
     <cr-button id="optimizedChargingChangeButton"
         on-click="makeOptimizedChargingDialogVisible_"
+        disabled="[[adaptiveChargingManaged_]]"
         deep-link-focus-id$="[[Setting.kAdaptiveCharging]]
             [[Setting.kChargeLimit]]">
       $i18n{powerOptimizedChargingChangeLabel}
     </cr-button>
     <div class="separator"></div>
     <settings-toggle-v2 id="optimizedChargingToggle"
+        checked="[[optimizedChargingEnabled_]]"
         on-change="onOptimizedChargingToggleChange_"
+        disabled="[[adaptiveChargingManaged_]]"
         deep-link-focus-id$="[[Setting.kOptimizedCharging]]">
     </settings-toggle-v2>
   </div>

@@ -28,15 +28,11 @@
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
+#include "services/on_device_model/public/cpp/cpu.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace optimization_guide {
 namespace {
-
-base::WeakPtr<OnDeviceModelComponentStateManager>& GetInstance() {
-  static base::NoDestructor<base::WeakPtr<OnDeviceModelComponentStateManager>>
-      state_manager_instance;
-  return *state_manager_instance.get();
-}
 
 bool WasAnyOnDeviceEligibleFeatureRecentlyUsed(const PrefService& local_state) {
   for (const ModelBasedCapabilityKey key : kAllModelBasedCapabilityKeys) {
@@ -50,11 +46,14 @@ bool WasAnyOnDeviceEligibleFeatureRecentlyUsed(const PrefService& local_state) {
   return false;
 }
 
-bool IsDeviceCapable(const PrefService& local_state) {
+bool IsDeviceGPUCapable(const PrefService& local_state) {
   return IsPerformanceClassCompatible(
-             features::kPerformanceClassListForOnDeviceModel.Get(),
-             PerformanceClassFromPref(local_state)) ||
-         features::ForceCpuBackendForOnDeviceModel();
+      features::kPerformanceClassListForOnDeviceModel.Get(),
+      PerformanceClassFromPref(local_state));
+}
+
+bool IsDeviceCapable(const PrefService& local_state) {
+  return IsDeviceGPUCapable(local_state) || on_device_model::IsCpuCapable();
 }
 
 void LogInstallCriteria(std::string_view event_name,
@@ -109,8 +108,7 @@ OnDeviceBaseModelSpec::OnDeviceBaseModelSpec() = default;
 OnDeviceBaseModelSpec::OnDeviceBaseModelSpec(
     const std::string& model_name,
     const std::string& model_version,
-    const base::flat_set<proto::OnDeviceModelPerformanceHint>&
-        supported_performance_hints)
+    PerformanceHints supported_performance_hints)
     : model_name(model_name),
       model_version(model_version),
       supported_performance_hints(supported_performance_hints) {}
@@ -220,9 +218,6 @@ void OnDeviceModelComponentStateManager::DevicePerformanceClassChanged(
     OnDeviceModelPerformanceClass performance_class) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   UpdatePerformanceClassPref(local_state_, performance_class);
-  local_state_->SetString(
-      model_execution::prefs::localstate::kOnDevicePerformanceClassVersion,
-      version_info::GetVersionNumber());
   BeginUpdateRegistration(std::move(complete));
 }
 
@@ -315,10 +310,10 @@ void OnDeviceModelComponentStateManager::CompleteUpdateRegistration(
     // Don't allow UpdateRegistration to do anything until after
     // UninstallComplete.
     component_installer_registered_ = true;
-    delegate_->Uninstall(this);
+    delegate_->Uninstall(GetWeakPtr());
   } else if (criteria.should_install() || criteria.is_already_installing) {
     component_installer_registered_ = true;
-    delegate_->RegisterInstaller(this, criteria.is_already_installing);
+    delegate_->RegisterInstaller(GetWeakPtr(), criteria.is_already_installing);
   }
 
   // Log metrics only for first registration attempt.
@@ -379,21 +374,6 @@ OnDeviceModelComponentStateManager::GetState() {
   return is_model_allowed_ ? state_.get() : nullptr;
 }
 
-scoped_refptr<OnDeviceModelComponentStateManager>
-OnDeviceModelComponentStateManager::CreateOrGet(
-    PrefService* local_state,
-    std::unique_ptr<Delegate> delegate) {
-  base::WeakPtr<OnDeviceModelComponentStateManager>& instance = GetInstance();
-  if (!instance) {
-    auto state_manager =
-        base::WrapRefCounted(new OnDeviceModelComponentStateManager(
-            local_state, std::move(delegate)));
-    instance = state_manager->GetWeakPtr();
-    return state_manager;
-  }
-  return scoped_refptr<OnDeviceModelComponentStateManager>(instance.get());
-}
-
 void OnDeviceModelComponentStateManager::AddObserver(Observer* observer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   observers_.AddObserver(observer);
@@ -402,12 +382,6 @@ void OnDeviceModelComponentStateManager::AddObserver(Observer* observer) {
 void OnDeviceModelComponentStateManager::RemoveObserver(Observer* observer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   observers_.RemoveObserver(observer);
-}
-
-// static
-OnDeviceModelComponentStateManager*
-OnDeviceModelComponentStateManager::GetInstanceForTesting() {
-  return GetInstance().get();
 }
 
 // static
@@ -481,9 +455,9 @@ OnDeviceModelComponentStateManager::ProcessBaseModelSpecFromManifest(
   return OnDeviceBaseModelSpec(
       *name, *version,
       supported_performance_hint_enum
-          ? base::flat_set<proto::OnDeviceModelPerformanceHint>(
+          ? OnDeviceBaseModelSpec::PerformanceHints(
                 {*supported_performance_hint_enum})
-          : base::flat_set<proto::OnDeviceModelPerformanceHint>({}));
+          : OnDeviceBaseModelSpec::PerformanceHints  ({}));
 }
 
 std::optional<proto::OnDeviceModelPerformanceHint>
@@ -496,25 +470,40 @@ OnDeviceModelComponentStateManager::
     return std::nullopt;
   }
 
+  absl::flat_hash_set<int> supported_hints;
   for (const auto& supported_performance_hint_val :
        *manifest_performance_hints) {
     std::optional<int> supported_performance_hint_int =
         supported_performance_hint_val.GetIfInt();
-
-    if (IsLowTierDevice() &&
-        *supported_performance_hint_int ==
-            proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE) {
-      return proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE;
+    if (supported_performance_hint_int) {
+      supported_hints.insert(*supported_performance_hint_int);
     }
-    // `IsDeviceCapable` is a superset of `IsLowTierDevice`, so assume that
-    // !`IsLowTier` = highest quality capable.
-    if (IsDeviceCapable(*local_state_) && !IsLowTierDevice() &&
-        *supported_performance_hint_int ==
-            proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY) {
-      return proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY;
+  }
+  for (auto hint : GetPossibleHints()) {
+    if (supported_hints.contains(hint)) {
+      return hint;
     }
   }
   return std::nullopt;
+}
+
+std::vector<proto::OnDeviceModelPerformanceHint>
+OnDeviceModelComponentStateManager::GetPossibleHints() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::vector<proto::OnDeviceModelPerformanceHint> hints;
+  if (IsDeviceGPUCapable(*local_state_)) {
+    // Best option is highest quality for GPU device that is not low tier.
+    if (!IsLowTierDevice()) {
+      hints.push_back(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY);
+    }
+    // Other GPU capable devices get fastest inference.
+    hints.push_back(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE);
+  }
+  if (on_device_model::IsCpuCapable()) {
+    // Last option is CPU if the device is capable but not GPU capable.
+    hints.push_back(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU);
+  }
+  return hints;
 }
 
 OnDeviceModelComponentState::OnDeviceModelComponentState() = default;

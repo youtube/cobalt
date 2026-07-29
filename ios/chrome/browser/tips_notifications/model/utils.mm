@@ -64,16 +64,31 @@ ContentIDs ContentIDsForType(TipsNotificationType type) {
     case TipsNotificationType::kLensOverlay:
       return {IDS_IOS_NOTIFICATIONS_TIPS_LENS_OVERLAY_TITLE,
               IDS_IOS_NOTIFICATIONS_TIPS_LENS_OVERLAY_BODY};
+    case TipsNotificationType::kTrustedVaultKeyRetrieval:
+      return {IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_TITLE,
+              IDS_IOS_NOTIFICATIONS_TIPS_TRUSTED_VAULT_KEY_RETRIVAL_BODY};
     case TipsNotificationType::kIncognitoLock:
     case TipsNotificationType::kError:
       NOTREACHED();
   }
 }
 
-// Returns the default trigger TimeDelta for the given `user_type` depending
-// on whether this is for a reactivation notification or not.
-base::TimeDelta DefaultTriggerDelta(bool for_reactivation,
-                                    TipsNotificationUserType user_type) {
+// Returns the default trigger TimeDelta for the given `user_type` and
+// `notification_type` depending on whether this is for a reactivation
+// notification or not.
+base::TimeDelta DefaultTriggerDelta(
+    bool for_reactivation,
+    TipsNotificationUserType user_type,
+    std::optional<TipsNotificationType> notification_type) {
+  if (notification_type.has_value() &&
+      notification_type.value() ==
+          TipsNotificationType::kTrustedVaultKeyRetrieval) {
+    // We need to use a short trigger delta for the notification type
+    // `kTrustedVaultKeyRetrieval` because we want to ensure that users fix the
+    // issue as soon as possible. The trigger delta of 5 minutes in this case
+    // has been chosen arbitrarily.
+    return base::Minutes(5);
+  }
   if (for_reactivation) {
     return base::Days(7);
   }
@@ -191,9 +206,10 @@ UNNotificationContent* ContentForTipsNotificationType(
 
 base::TimeDelta TipsNotificationTriggerDelta(
     bool for_reactivation,
-    TipsNotificationUserType user_type) {
+    TipsNotificationUserType user_type,
+    std::optional<TipsNotificationType> notification_type) {
   base::TimeDelta default_trigger =
-      DefaultTriggerDelta(for_reactivation, user_type);
+      DefaultTriggerDelta(for_reactivation, user_type, notification_type);
   if (for_reactivation) {
     return GetFieldTrialParamByFeatureAsTimeDelta(
         kIOSReactivationNotifications,
@@ -212,13 +228,19 @@ int TipsNotificationsEnabledBitfield() {
 std::vector<TipsNotificationType> TipsNotificationsTypesOrder(
     bool for_reactivation) {
   if (for_reactivation) {
+    std::vector<TipsNotificationType> notification_types{
+        TipsNotificationType::kLens,
+        TipsNotificationType::kEnhancedSafeBrowsing,
+        TipsNotificationType::kWhatsNew,
+    };
+    if (IsIOSTrustedVaultNotificationEnabled()) {
+      notification_types.insert(
+          notification_types.begin(),
+          TipsNotificationType::kTrustedVaultKeyRetrieval);
+    }
     return GetFieldTrialParamByFeatureAsVector<TipsNotificationType>(
         kIOSReactivationNotifications, kIOSReactivationNotificationsOrderParam,
-        {
-            TipsNotificationType::kLens,
-            TipsNotificationType::kEnhancedSafeBrowsing,
-            TipsNotificationType::kWhatsNew,
-        });
+        notification_types);
   } else if (IsIOSExpandedTipsEnabled()) {
     return GetFieldTrialParamByFeatureAsVector<TipsNotificationType>(
         kIOSExpandedTips, kIOSExpandedTipsOrderParam,
@@ -272,6 +294,8 @@ NotificationType NotificationTypeForTipsNotificationType(
       return NotificationType::kTipsCPE;
     case TipsNotificationType::kIncognitoLock:
       return NotificationType::kTipsIncognitoLock;
+    case TipsNotificationType::kTrustedVaultKeyRetrieval:
+      return NotificationType::kTipsTrustedVaultKeyRetrieval;
     case TipsNotificationType::kError:
       NOTREACHED();
   }

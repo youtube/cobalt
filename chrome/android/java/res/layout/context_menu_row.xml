@@ -22,19 +22,17 @@ found in the LICENSE file.
         android:focusable="true"
         android:gravity="center"
         android:orientation="horizontal"
-        android:background="?attr/selectableItemBackground"
+        android:background="?attr/listChoiceBackgroundIndicator"
         android:paddingHorizontal="@dimen/context_menu_list_lateral_padding">
         <org.chromium.ui.widget.ChromeImageView
             android:id="@+id/menu_row_icon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="@dimen/list_item_start_icon_width"
+            android:layout_height="@dimen/context_menu_chip_icon_size"
             android:layout_marginEnd="6dp"
             android:gravity="center"
             android:duplicateParentState="true"
             android:importantForAccessibility="no"
-            android:visibility="gone"
-            android:tint="@color/default_icon_color_secondary_tint_list"
-            android:tintMode="src_in" />
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/menu_row_text"
@@ -64,7 +62,7 @@ found in the LICENSE file.
         android:paddingTop="12dp"
         android:paddingBottom="12dp"
         android:paddingHorizontal="@dimen/context_menu_list_lateral_padding"
-        android:background="?attr/selectableItemBackground"
+        android:background="?attr/listChoiceBackgroundIndicator"
         android:visibility="gone"
         android:focusable="true"
         tools:ignore="contentDescription" />

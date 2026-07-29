@@ -15,11 +15,17 @@
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
 #include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace content {
 enum class WebContentsCapabilityType;
 class WebContents;
 }  // namespace content
+
+namespace glic {
+class FocusedTabData;
+class GlicKeyedService;
+}  // namespace glic
 
 namespace tabs {
 class TabInterface;
@@ -38,6 +44,9 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
                            public vr::VrTabHelper::Observer {
  public:
   explicit TabAlertController(TabInterface& tab);
+
+  TabAlertController(TabInterface& tab,
+                     glic::GlicKeyedService* glic_keyed_service);
   TabAlertController(const TabAlertController&) = delete;
   TabAlertController& operator=(const TabAlertController&) = delete;
   ~TabAlertController() override;
@@ -51,6 +60,10 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   // Gets all active tab alerts that is sorted from highest priority
   // to lowest priority to be shown.
   std::vector<TabAlert> GetAllActiveAlerts();
+
+  // Returns true if `alert` is currently active for this tab and false
+  // otherwise.
+  bool IsAlertActive(TabAlert alert) const;
 
   // WebContentsObserver:
   void OnDiscardContents(TabInterface* tab_interface,
@@ -79,6 +92,14 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   void OnIsContentDisplayedInHeadsetChanged(bool state) override;
 
  private:
+#if BUILDFLAG(ENABLE_GLIC)
+  void OnGlicContextAccessIndicatorStatusChanged(bool is_accessing);
+  void OnGlicSharingFocusedTabChanged(
+      const glic::FocusedTabData& focused_tab_data);
+  void OnGlicTabPinningChanged(tabs::TabInterface* tab_interface,
+                               bool is_sharing);
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
   // Adds `alert` to the set of already active alerts for this tab if it isn't
   // currently active. Otherwise, removes `alert` from the set and is considered
   // inactive.
@@ -102,6 +123,9 @@ class TabAlertController : public tabs::ContentsObservingTabFeature,
   // is displaying content to a headset.
   base::ScopedObservation<vr::VrTabHelper, vr::VrTabHelper::Observer>
       vr_tab_helper_observation_{this};
+
+  // Subscriptions to be notified when an alert status has changed.
+  std::vector<base::CallbackListSubscription> callback_subscriptions_;
 };
 }  // namespace tabs
 

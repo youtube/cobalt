@@ -47,7 +47,7 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-namespace WTF {
+namespace blink {
 
 template <typename T, wtf_size_t InlineCapacity, typename Allocator>
 class DequeIteratorBase;
@@ -207,7 +207,7 @@ class Deque {
                         !VectorTraits<T>::kCanInitializeWithMemset,
                     "Cannot initialize with memset if there is a vtable");
       static_assert(Allocator::kIsGarbageCollected || !IsDisallowNew<T> ||
-                        !IsTraceable<T>::value,
+                        !IsTraceableV<T>,
                     "Cannot put DISALLOW_NEW objects that "
                     "have trace methods into an off-heap Deque");
       static_assert(
@@ -766,8 +766,6 @@ inline void swap(Deque<T, InlineCapacity, Allocator>& a,
   a.Swap(b);
 }
 
-}  // namespace WTF
-
-using WTF::Deque;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_DEQUE_H_

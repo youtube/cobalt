@@ -504,6 +504,9 @@ SharedDictionaryManagerOnDisk::SharedDictionaryManagerOnDisk(
                          std::move(file_operations_factory));
   MaybePostExpiredDictionaryDeletionTask();
   if (cache_max_size_ != 0u) {
+    base::UmaHistogramMemoryMB(
+        "Net.SharedDictionaryManagerOnDisk.PolicySpecifiedCacheMaxSize",
+        cache_max_size_ / (1000 * 1000));
     MaybePostCacheEvictionTask();
   }
 }
@@ -522,6 +525,8 @@ SharedDictionaryManagerOnDisk::CreateStorage(
 }
 
 void SharedDictionaryManagerOnDisk::SetCacheMaxSize(uint64_t cache_max_size) {
+  base::UmaHistogramMemoryMB("Net.SharedDictionaryManagerOnDisk.CacheMaxSize",
+                             cache_max_size_ / (1000 * 1000));
   cache_max_size_ = cache_max_size;
   MaybePostExpiredDictionaryDeletionTask();
   MaybePostCacheEvictionTask();
@@ -662,11 +667,11 @@ void SharedDictionaryManagerOnDisk::OnDictionaryWrittenInDatabase(
     return;
   }
 
-  base::UmaHistogramMemoryKB(
-      "Net.SharedDictionaryManagerOnDisk.DictionarySizeKB", info.size());
-  base::UmaHistogramMemoryKB(
-      "Net.SharedDictionaryManagerOnDisk.TotalDictionarySizeKBWhenAdded",
-      result.value().total_dictionary_size());
+  base::UmaHistogramMemoryKB("Net.SharedDictionaryManagerOnDisk.DictionarySize",
+                             info.size());
+  base::UmaHistogramMemoryMB(
+      "Net.SharedDictionaryManagerOnDisk.TotalDictionarySizeWhenAdded",
+      result.value().total_dictionary_size() / (1000 * 1000));
   base::UmaHistogramCounts1000(
       "Net.SharedDictionaryManagerOnDisk.TotalDictionaryCountWhenAdded",
       result.value().total_dictionary_count());

@@ -377,6 +377,11 @@ interface AuthenticatorResponse
     attribute @@toStringTag
     getter clientDataJSON
     method constructor
+interface AutomationDelegate
+    attribute @@toStringTag
+    method constructor
+    method registerTool
+    method unregisterTool
 interface BackForwardCacheRestoration : PerformanceEntry
     attribute @@toStringTag
     getter pageshowEventEnd
@@ -623,6 +628,11 @@ interface CSSCounterStyleRule : CSSRule
     setter suffix
     setter symbols
     setter system
+interface CSSCustomMediaRule : CSSRule
+    attribute @@toStringTag
+    getter name
+    getter query
+    method constructor
 interface CSSFontFaceRule : CSSRule
     attribute @@toStringTag
     getter style
@@ -1520,6 +1530,11 @@ interface CountQueuingStrategy
     getter highWaterMark
     getter size
     method constructor
+interface CrashReportStorage
+    attribute @@toStringTag
+    method constructor
+    method remove
+    method set
 interface CreateMonitor : EventTarget
     attribute @@toStringTag
     getter ondownloadprogress
@@ -1905,6 +1920,7 @@ interface DevicePosture : EventTarget
     method constructor
     setter onchange
 interface DigitalCredential : Credential
+    static method userAgentAllowsProtocol
     attribute @@toStringTag
     getter data
     getter protocol
@@ -2167,6 +2183,8 @@ interface Document : Node
     method importNode
     method moveBefore
     method open
+    method patchAll
+    method patchSelf
     method prepend
     method queryCommandEnabled
     method queryCommandIndeterm
@@ -2335,6 +2353,8 @@ interface DocumentFragment : Node
     method getElementById
     method getPartRoot
     method moveBefore
+    method patchAll
+    method patchSelf
     method prepend
     method querySelector
     method querySelectorAll
@@ -2478,6 +2498,7 @@ interface Element : Node
     getter containerTiming
     getter containerTimingIgnore
     getter currentCSSZoom
+    getter currentPatch
     getter elementTiming
     getter firstElementChild
     getter headingOffset
@@ -2539,6 +2560,8 @@ interface Element : Node
     method insertAdjacentText
     method matches
     method moveBefore
+    method patchAll
+    method patchSelf
     method prepend
     method pseudo
     method querySelector
@@ -2704,6 +2727,7 @@ interface ElementInternals
     getter role
     getter shadowRoot
     getter states
+    getter type
     getter validationMessage
     getter validity
     getter willValidate
@@ -2765,6 +2789,7 @@ interface ElementInternals
     setter ariaValueText
     setter ariaVirtualContent
     setter role
+    setter type
 interface EncodedAudioChunk
     attribute @@toStringTag
     getter byteLength
@@ -4244,6 +4269,11 @@ interface HTMLFrameSetElement : HTMLElement
     setter onunhandledrejection
     setter onunload
     setter rows
+interface HTMLGeolocationElement : HTMLPermissionElement
+    attribute @@toStringTag
+    getter onlocation
+    method constructor
+    setter onlocation
 interface HTMLHRElement : HTMLElement
     attribute @@toStringTag
     getter align
@@ -6690,7 +6720,6 @@ interface Navigator
     getter gpu
     getter hardwareConcurrency
     getter hid
-    getter identity
     getter ink
     getter keyboard
     getter language
@@ -7180,6 +7209,15 @@ interface PasswordCredential : Credential
     getter iconURL
     getter name
     getter password
+    method constructor
+interface PatchEvent : Event
+    attribute @@toStringTag
+    getter patch
+    method constructor
+interface PatchStatus
+    attribute @@toStringTag
+    getter finished
+    getter source
     method constructor
 interface Path2D
     attribute @@toStringTag
@@ -13112,10 +13150,12 @@ namespace console
     attribute propertyNamesInGlobal
     attribute testRunner
     attribute textInputController
+    getter automationDelegate
     getter caches
     getter clientInformation
     getter closed
     getter cookieStore
+    getter crashReport
     getter credentialless
     getter crossOriginEmbedderPolicy
     getter crossOriginIsolated
@@ -13363,6 +13403,7 @@ namespace console
     method webkitRequestAnimationFrame
     method webkitRequestFileSystem
     method webkitResolveLocalFileSystemURL
+    setter automationDelegate
     setter clientInformation
     setter devicePixelRatio
     setter event

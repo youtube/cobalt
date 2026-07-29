@@ -173,6 +173,7 @@ TEST(ReportingUtilsTest, GetUrlFilteringInterstitialEvent) {
       /*threat_type=*/"ENTERPRISE_BLOCKED_SEEN", /*response=*/response,
       /*profile_identifier=*/"identifier",
       /*profile_username=*/"profile_username",
+      /*active_user=*/"active_user@example.com",
       /*referrer_chain=*/referrer_chain);
 
   ASSERT_EQ(event.url(), "https://filteredurl.com/");
@@ -194,6 +195,7 @@ TEST(ReportingUtilsTest, GetUrlFilteringInterstitialEvent) {
   ASSERT_FALSE(triggered_rule_info.has_watermarking());
   ASSERT_EQ(event.profile_identifier(), "identifier");
   ASSERT_EQ(event.profile_user_name(), "profile_username");
+  ASSERT_EQ(event.web_app_signed_in_account(), "active_user@example.com");
 
   if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
     ASSERT_EQ(event.referrers_size(), 1);
@@ -214,6 +216,112 @@ TEST(ReportingUtilsTest, GetBrowserCrashEvent) {
   ASSERT_EQ(event.version(), "100.0.0000.000");
   ASSERT_EQ(event.report_id(), "123");
   ASSERT_EQ(event.platform(), "Windows");
+}
+
+TEST(ReportingUtilsTest, GetUnscannedFileEvent) {
+  auto event = GetUnscannedFileEvent(
+      /*url=*/GURL("https://google.com/"), /*tab_url=*/GURL("about:blank"),
+      /*source=*/"source", /*destination=*/"destination",
+      /*file_name=*/"encrypted.zip",
+      /*download_digest_sha256=*/"sha256_of_data",
+      /*mime_type=*/"application/zip", /*trigger=*/"FILE_UPLOAD",
+      /*reason=*/"FILE_PASSWORD_PROTECTED",
+      /*content_transfer_method=*/"CONTENT_TRANSFER_METHOD_DRAG_AND_DROP",
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username", /*content_size=*/-1,
+      /*event_result=*/EventResult::ALLOWED);
+
+  ASSERT_EQ(event.url(), "https://google.com/");
+  ASSERT_EQ(event.tab_url(), "about:blank");
+  ASSERT_EQ(event.source(), "source");
+  ASSERT_EQ(event.destination(), "destination");
+  ASSERT_EQ(event.file_name(), "encrypted.zip");
+  ASSERT_EQ(event.download_digest_sha_256(), "sha256_of_data");
+  ASSERT_EQ(event.content_type(), "application/zip");
+  ASSERT_EQ(
+      event.trigger(),
+      chrome::cros::reporting::proto::DataTransferEventTrigger::FILE_UPLOAD);
+  ASSERT_EQ(event.unscanned_reason(),
+            chrome::cros::reporting::proto::UnscannedFileEvent::
+                FILE_PASSWORD_PROTECTED);
+  ASSERT_EQ(
+      event.content_transfer_method(),
+      chrome::cros::reporting::proto::CONTENT_TRANSFER_METHOD_DRAG_AND_DROP);
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
+  ASSERT_FALSE(event.content_size());
+  ASSERT_EQ(event.event_result(),
+            chrome::cros::reporting::proto::EventResult::EVENT_RESULT_ALLOWED);
+}
+
+TEST(ReportingUtilsTest, GetDlpSensitiveDataEvent) {
+  ReferrerChain referrer_chain;
+  referrer_chain.Add(test::MakeReferrerChainEntry());
+
+  ContentAnalysisResponse response;
+  response.set_request_token("123");
+  auto* result = response.add_results();
+  result->set_tag("dlp");
+  result->set_status(
+      enterprise_connectors::ContentAnalysisResponse::Result::SUCCESS);
+  auto* rule = result->add_triggered_rules();
+  rule->set_action(enterprise_connectors::TriggeredRule::BLOCK);
+  rule->set_rule_name("fake rule");
+  rule->set_rule_id("12345");
+  rule->set_url_category("test rule category");
+
+  auto event = GetDlpSensitiveDataEvent(
+      /*url=*/GURL("https://google.com/"), /*tab_url=*/GURL("about:blank"),
+      /*source=*/"source", /*destination=*/"destination",
+      /*file_name=*/"encrypted.zip",
+      /*download_digest_sha256=*/"sha256_of_data",
+      /*mime_type=*/"application/zip", /*trigger=*/"FILE_UPLOAD",
+      /*scan_id=*/"123",
+      /*content_transfer_method=*/"CONTENT_TRANSFER_METHOD_DRAG_AND_DROP",
+      /*source_email=*/"source@gmail.com",
+      /*content_area_account_email=*/"content@gmail.com",
+      /*profile_identifier=*/"identifier",
+      /*profile_username=*/"profile_username", /*content_size=*/-1,
+      /*result=*/*result,
+      /*referrer_chain=*/referrer_chain,
+      /*event_result=*/EventResult::BLOCKED);
+
+  ASSERT_EQ(event.url(), "https://google.com/");
+  ASSERT_EQ(event.tab_url(), "about:blank");
+  ASSERT_EQ(event.source(), "source");
+  ASSERT_EQ(event.destination(), "destination");
+  ASSERT_EQ(event.file_name(), "encrypted.zip");
+  ASSERT_EQ(event.download_digest_sha_256(), "sha256_of_data");
+  ASSERT_EQ(event.content_type(), "application/zip");
+  ASSERT_EQ(
+      event.trigger(),
+      chrome::cros::reporting::proto::DataTransferEventTrigger::FILE_UPLOAD);
+  ASSERT_EQ(event.scan_id(), "123");
+  ASSERT_EQ(
+      event.content_transfer_method(),
+      chrome::cros::reporting::proto::CONTENT_TRANSFER_METHOD_DRAG_AND_DROP);
+  ASSERT_EQ(event.source_web_app_signed_in_account(), "source@gmail.com");
+  ASSERT_EQ(event.web_app_signed_in_account(), "content@gmail.com");
+  ASSERT_EQ(event.profile_identifier(), "identifier");
+  ASSERT_EQ(event.profile_user_name(), "profile_username");
+  ASSERT_FALSE(event.content_size());
+  ASSERT_EQ(event.event_result(),
+            chrome::cros::reporting::proto::EventResult::EVENT_RESULT_BLOCKED);
+
+  ASSERT_EQ(event.triggered_rule_info_size(), 1);
+  auto triggered_rule = event.triggered_rule_info()[0];
+  ASSERT_EQ(triggered_rule.rule_id(), 12345);
+  ASSERT_EQ(triggered_rule.url_category(), "test rule category");
+  ASSERT_EQ(triggered_rule.rule_name(), "fake rule");
+
+  if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+    ASSERT_EQ(event.referrers_size(), 1);
+    auto referrer = event.referrers()[0];
+    ASSERT_EQ(referrer.url(), "https://referrer.com");
+    ASSERT_EQ(referrer.ip(), "1.2.3.4");
+  } else {
+    ASSERT_EQ(event.referrers_size(), 0);
+  }
 }
 
 TEST(ReportingUtilsTest, TestEventLocalIp) {

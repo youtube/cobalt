@@ -22,10 +22,6 @@ assert(xcode_version_int >= 1600, "Xcode 16.0 or higher is required.")
 # LINT.ThenChange(//docs/ios/build_instructions.md)
 
 declare_args() {
-  # Disable notification center widget extensions.
-  ios_enable_content_widget_extension = false
-  ios_enable_search_widget_extension = false
-
   # Enable share extension.
   ios_enable_share_extension = true
 
@@ -80,9 +76,9 @@ declare_args() {
   ios_enable_background_mode = true
 
   # Enable iOS 17 widgets improvements to support multi profile.
-  ios_enable_widgets_for_mim = false
+  ios_enable_widgets_for_mim = true
 
-  # Disable iOS 26 liquid glass until reasonably supported.
+  # Enable iOS 26 liquid glass.
   ios_enable_liquid_glass = true
 
   # Value of the encryption export compliance code. See "Cryptography and
@@ -128,8 +124,6 @@ declare_args() {
 
 if (target_environment == "catalyst") {
   # Some extensions uses API that are not available in "catalyst" environment.
-  ios_enable_content_widget_extension = false
-  ios_enable_search_widget_extension = false
   ios_enable_credential_provider_extension = false
   ios_enable_widget_kit_extension = false
   ios_enable_prebuilt_widget_kit_extension = false
@@ -148,8 +142,6 @@ if (ios_chrome_generate_order_file) {
 
   # Disable all extensions as the order file is only generated based on running
   # the primary application.
-  ios_enable_content_widget_extension = false
-  ios_enable_search_widget_extension = false
   ios_enable_credential_provider_extension = false
   ios_enable_widget_kit_extension = false
   ios_enable_prebuilt_widget_kit_extension = false

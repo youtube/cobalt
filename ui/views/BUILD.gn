@@ -697,6 +697,8 @@ component("views") {
       "controls/views_text_services_context_menu_mac.mm",
       "drag_utils_mac.mm",
       "event_monitor_mac.mm",
+      "event_monitor_remote_cocoa.h",
+      "event_monitor_remote_cocoa.mm",
       "metrics_mac.cc",
       "style/platform_style_mac.mm",
       "widget/native_widget_mac.mm",
@@ -1627,7 +1629,10 @@ source_set("views_interactive_ui_tests") {
   public_deps = [ "//ui/base/mojom:mojom" ]
 
   if (is_win) {
-    sources += [ "accessibility/ax_system_caret_win_interactive_uitest.cc" ]
+    sources += [
+      "accessibility/ax_system_caret_win_interactive_uitest.cc",
+      "win/hwnd_message_handler_interactive_uitest.cc",
+    ]
   }
 
   if (is_mac) {

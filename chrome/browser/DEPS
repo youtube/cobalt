@@ -549,10 +549,6 @@ include_rules = [
   "+chrome/browser/performance_manager/public",
   "+chrome/browser/performance_manager/test_support",
 
-  # Explicitly disallow using SyncMessageFilter to prevent browser from
-  # sending synchronous IPC messages on non-UI threads.
-  "-ipc/ipc_sync_message_filter.h",
-
   # ASK TEXT-TO-SPEECH content/browser/speech/OWNERS BEFORE OVERRIDING THIS IN A
   # SUBDIRECTORY.
   "-content/public/browser/tts_controller.h",
@@ -635,6 +631,7 @@ specific_include_rules = {
     "+content/common/content_navigation_policy.h",
   ],
   r"about_flags\.cc" : [
+    "+components/stylus_handwriting/win/features.h",
     "+mojo/core/embedder/features.h",
     "+sandbox/policy/features.h",
     "+skia/rusty_png_feature.h",
@@ -647,6 +644,9 @@ specific_include_rules = {
   ],
   "browsing_data_model_browsertest.cc" : [
     "+components/services/storage/shared_storage/shared_storage_manager.h",
+  ],
+  "ash_session_restore_page_load_metrics_observer\\.cc": [
+    "+ash/wm/window_restore/window_restore_util.h",
   ],
   r"ash_session_restore_page_load_metrics_observer_browsertest\.cc": [
     "+ash/wm/window_restore/window_restore_util.h",

@@ -157,6 +157,14 @@ id<GREYMatcher> CancelButton() {
   return [ChromeMatchersAppInterface cancelButton];
 }
 
+id<GREYMatcher> ActionSheetCancelButton() {
+  return [ChromeMatchersAppInterface actionSheetCancelButton];
+}
+
+id<GREYMatcher> CloseButton() {
+  return [ChromeMatchersAppInterface closeButton];
+}
+
 id<GREYMatcher> NavigationBarCancelButton() {
   return [ChromeMatchersAppInterface navigationBarCancelButton];
 }
@@ -179,6 +187,10 @@ id<GREYMatcher> ReloadButton() {
 
 id<GREYMatcher> StopButton() {
   return [ChromeMatchersAppInterface stopButton];
+}
+
+id<GREYMatcher> SearchBarClearTextButton() {
+  return [ChromeMatchersAppInterface searchBarClearTextButton];
 }
 
 id<GREYMatcher> Omnibox() {
@@ -491,14 +503,6 @@ id<GREYMatcher> SettingsMenuSafetyCheckButton() {
   return [ChromeMatchersAppInterface settingsMenuSafetyCheckButton];
 }
 
-id<GREYMatcher> PaymentRequestView() {
-  return [ChromeMatchersAppInterface paymentRequestView];
-}
-
-id<GREYMatcher> PaymentRequestErrorView() {
-  return [ChromeMatchersAppInterface paymentRequestErrorView];
-}
-
 id<GREYMatcher> VoiceSearchButton() {
   return [ChromeMatchersAppInterface voiceSearchButton];
 }
@@ -563,20 +567,12 @@ id<GREYMatcher> NTPFeedMenuDisableButton() {
   return [ChromeMatchersAppInterface ntpFeedMenuDisableButton];
 }
 
-id<GREYMatcher> WarningMessageView() {
-  return [ChromeMatchersAppInterface warningMessageView];
-}
-
-id<GREYMatcher> PaymentRequestPickerRow() {
-  return [ChromeMatchersAppInterface paymentRequestPickerRow];
-}
-
-id<GREYMatcher> PaymentRequestPickerSearchBar() {
-  return [ChromeMatchersAppInterface paymentRequestPickerSearchBar];
-}
-
 id<GREYMatcher> OpenNewWindowMenuButton() {
   return [ChromeMatchersAppInterface openNewWindowMenuButton];
+}
+
+id<GREYMatcher> SearchBar() {
+  return [ChromeMatchersAppInterface searchBar];
 }
 
 id<GREYMatcher> SystemSelectionCallout() {
@@ -629,6 +625,10 @@ id<GREYMatcher> ReadingListMarkAsUnreadButton() {
 
 id<GREYMatcher> DeleteButton() {
   return [ChromeMatchersAppInterface deleteButton];
+}
+
+id<GREYMatcher> SwipeActionDeleteButton() {
+  return [ChromeMatchersAppInterface swipeActionDeleteButton];
 }
 
 id<GREYMatcher> ContextMenuCopyButton() {

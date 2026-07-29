@@ -49,11 +49,13 @@ build_webui("build") {
     "//chrome/browser/new_tab_page/modules/v2/authentication:mojo_bindings_ts__generator",
     "//chrome/browser/new_tab_page/modules/v2/calendar:mojo_bindings_ts__generator",
     "//chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption:mojo_bindings_ts__generator",
+    "//chrome/browser/new_tab_page/modules/v2/tab_groups:mojo_bindings_ts__generator",
     "//chrome/browser/ui/webui/customize_buttons:mojo_bindings_ts__generator",
     "//chrome/browser/ui/webui/new_tab_page:mojo_bindings_ts__generator",
     "//chrome/browser/ui/webui/new_tab_page/composebox:mojo_bindings_ts__generator",
     "//chrome/browser/ui/webui/new_tab_page/ntp_promo:mojo_bindings_ts__generator",
     "//chrome/browser/ui/webui/ntp_microsoft_auth:shared_ts__generator",
+    "//components/omnibox/composebox:mojo_bindings_ts__generator",
   ]
   mojo_files = [
     "$root_gen_dir/chrome/browser/new_tab_page/modules/file_suggestion/drive_suggestion.mojom-webui.ts",
@@ -65,11 +67,13 @@ build_webui("build") {
     "$root_gen_dir/chrome/browser/new_tab_page/modules/v2/calendar/outlook_calendar.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/url_visit_types.mojom-webui.ts",
+    "$root_gen_dir/chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/new_tab_page/new_tab_page.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/ntp_microsoft_auth/ntp_microsoft_auth_shared_ui.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/customize_buttons/customize_buttons.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/new_tab_page/composebox/composebox.mojom-webui.ts",
     "$root_gen_dir/chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo.mojom-webui.ts",
+    "$root_gen_dir/components/omnibox/composebox/composebox_query.mojom-webui.ts",
   ]
 
   if (!is_official_build) {

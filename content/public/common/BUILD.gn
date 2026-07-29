@@ -10,7 +10,6 @@ import("//content/public/common/features.gni")
 import("//content/public/common/zygote/features.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//third_party/webrtc/webrtc.gni")
 import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 import("//ui/webui/webui_features.gni")
@@ -24,6 +23,7 @@ buildflag_header("buildflags") {
   flags = [
     "ENABLE_DEVTOOLS_FRONTEND=$enable_devtools_frontend",
     "ENABLE_PLUGINS=$enable_plugins",
+    "ENABLE_PWA_INSTALL_ON_CROS_TEST=$enable_pwa_install_on_cros_test",
     "ENABLE_SCREEN_CAPTURE=$enable_screen_capture",
     "LOAD_WEBUI_FROM_DISK=$load_webui_from_disk",
   ]
@@ -39,10 +39,16 @@ group("common") {
   }
 }
 
-# This target allows other targets to depend on result_codes.h which is a
-# header-only dependency, without bringing in all of content.
-source_set("result_codes") {
-  sources = [ "result_codes.h" ]
+component("result_codes") {
+  public = [ "result_codes.h" ]
+  sources = [
+    "//content/common/content_export.h",
+    "result_codes.cc",
+  ]
+
+  deps = [ "//base" ]
+
+  configs += [ "//content:content_implementation" ]
 }
 
 # This target allows other targets to depend on content_descriptors.h which is
@@ -70,7 +76,7 @@ if (is_linux || is_chromeos) {
     ]
 
     deps = [
-      "//base:base",
+      "//base",
       "//content/public/common/zygote:buildflags",
     ]
   }
@@ -208,7 +214,6 @@ source_set("common_sources") {
     "resource_request_blocked_reason.h",
     "resource_usage_reporter_type_converters.cc",
     "resource_usage_reporter_type_converters.h",
-    "result_codes.h",
     "sandboxed_process_launcher_delegate.cc",
     "sandboxed_process_launcher_delegate.h",
     "socket_permission_request.h",
@@ -251,6 +256,7 @@ source_set("common_sources") {
     ":interfaces",
     ":main_function_params",
     ":renderer_type",
+    ":result_codes",
     ":switches",
     "//content/common",
     "//content/public/common/zygote:buildflags",
@@ -284,7 +290,6 @@ source_set("common_sources") {
     "//device/vr/buildflags",
     "//media",
     "//media/mojo/mojom",
-    "//ppapi/buildflags",
     "//services/network/public/cpp",
     "//services/service_manager/public/cpp",
     "//skia",
@@ -345,7 +350,7 @@ source_set("common_sources") {
       "content_plugin_info.cc",
       "content_plugin_info.h",
     ]
-    public_deps += [ "//ppapi/buildflags" ]
+    public_deps += [ "//content/public/common:buildflags" ]
   }
 
   if (use_clang_profiling_inside_sandbox) {
@@ -394,7 +399,7 @@ mojom("interfaces") {
   }
 
   deps = [
-    "//mojo/public/mojom/base:base",
+    "//mojo/public/mojom/base",
     "//services/network/public/mojom",
     "//skia/public/mojom",
     "//url/mojom:url_mojom_gurl",

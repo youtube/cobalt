@@ -6,8 +6,11 @@
 
 #include <memory>
 
+#include "base/memory/ptr_util.h"
 #include "base/strings/escape.h"
+#include "base/types/expected_macros.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
+#include "net/base/features.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_access_params.h"
@@ -16,6 +19,7 @@
 #include "net/cookies/cookie_store.h"
 #include "net/cookies/cookie_util.h"
 #include "net/device_bound_sessions/cookie_craving.h"
+#include "net/device_bound_sessions/host_patterns.h"
 #include "net/device_bound_sessions/proto/storage.pb.h"
 #include "net/device_bound_sessions/session_binding_utils.h"
 #include "net/device_bound_sessions/session_error.h"
@@ -57,10 +61,10 @@ constexpr net::BackoffEntry::Policy kBackoffPolicy = {
 };
 }
 
-Session::Session(Id id, url::Origin origin, GURL refresh)
+Session::Session(Id id, SessionInclusionRules inclusion_rules, GURL refresh)
     : id_(id),
       refresh_url_(refresh),
-      inclusion_rules_(origin),
+      inclusion_rules_(std::move(inclusion_rules)),
       backoff_(&kBackoffPolicy) {}
 
 Session::Session(Id id,
@@ -69,7 +73,8 @@ Session::Session(Id id,
                  std::vector<CookieCraving> cookie_cravings,
                  bool should_defer_when_expired,
                  base::Time creation_date,
-                 base::Time expiry_date)
+                 base::Time expiry_date,
+                 std::vector<std::string> allowed_refresh_initiators)
     : id_(id),
       refresh_url_(refresh),
       inclusion_rules_(std::move(inclusion_rules)),
@@ -77,7 +82,8 @@ Session::Session(Id id,
       should_defer_when_expired_(should_defer_when_expired),
       creation_date_(creation_date),
       expiry_date_(expiry_date),
-      backoff_(&kBackoffPolicy) {}
+      backoff_(&kBackoffPolicy),
+      allowed_refresh_initiators_(std::move(allowed_refresh_initiators)) {}
 
 Session::~Session() = default;
 
@@ -137,41 +143,41 @@ base::expected<std::unique_ptr<Session>, SessionError> Session::CreateIfValid(
         SessionError{SessionError::ErrorType::kRefreshUrlSameSiteMismatch});
   }
 
-  std::unique_ptr<Session> session(new Session(
-      Id(params.session_id), scope_origin, candidate_refresh_endpoint));
-  for (const auto& spec : params.scope.specifications) {
-    if (!spec.domain.empty() && !spec.path.empty()) {
-      const auto inclusion_result =
-          spec.type == SessionParams::Scope::Specification::Type::kExclude
-              ? SessionInclusionRules::InclusionResult::kExclude
-              : SessionInclusionRules::InclusionResult::kInclude;
-      session->inclusion_rules_.AddUrlRuleIfValid(inclusion_result, spec.domain,
-                                                  spec.path);
-    }
-  }
-
-  // Sessions should never include the refresh endpoint, since that would
-  // prevent them from ever refreshing when a cookie expires.
-  session->inclusion_rules_.AddUrlRuleIfValid(
-      SessionInclusionRules::InclusionResult::kExclude,
-      candidate_refresh_endpoint.host(), candidate_refresh_endpoint.path());
-
-  session->inclusion_rules_.SetIncludeSite(params.scope.include_site);
+  ASSIGN_OR_RETURN(SessionInclusionRules session_inclusion_rules,
+                   SessionInclusionRules::Create(scope_origin, params.scope,
+                                                 candidate_refresh_endpoint));
+  std::unique_ptr<Session> session(
+      new Session(Id(params.session_id), std::move(session_inclusion_rules),
+                  candidate_refresh_endpoint));
 
   for (const auto& cred : params.credentials) {
-    if (!cred.name.empty()) {
-      std::optional<CookieCraving> craving =
-          CookieCraving::Create(params.fetcher_url, cred.name, cred.attributes,
-                                base::Time::Now(), std::nullopt);
-      if (craving) {
-        session->cookie_cravings_.push_back(*craving);
-      }
+    if (cred.name.empty()) {
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidCredentials});
+    }
+
+    std::optional<CookieCraving> craving = CookieCraving::Create(
+        params.fetcher_url, cred.name, cred.attributes, base::Time::Now());
+    if (craving) {
+      session->cookie_cravings_.push_back(*craving);
+    } else {
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidCredentials});
     }
   }
 
   session->set_creation_date(base::Time::Now());
   session->set_expiry_date(base::Time::Now() + kSessionTtl);
   session->set_unexportable_key_id(std::move(params.key_id));
+
+  for (const std::string& initiator : params.allowed_refresh_initiators) {
+    if (!IsValidHostPattern(initiator)) {
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidRefreshInitiators});
+    }
+  }
+  session->set_allowed_refresh_initiators(
+      std::move(params.allowed_refresh_initiators));
 
   return base::ok(std::move(session));
 }
@@ -193,7 +199,7 @@ std::unique_ptr<Session> Session::CreateFromProto(const proto::Session& proto) {
     return nullptr;
   }
 
-  std::unique_ptr<SessionInclusionRules> inclusion_rules =
+  std::optional<SessionInclusionRules> inclusion_rules =
       SessionInclusionRules::CreateFromProto(proto.session_inclusion_rules());
   if (!inclusion_rules) {
     return nullptr;
@@ -221,12 +227,19 @@ std::unique_ptr<Session> Session::CreateFromProto(const proto::Session& proto) {
     return nullptr;
   }
 
-  std::unique_ptr<Session> result(new Session(
+  std::vector<std::string> allowed_refresh_initiators;
+  allowed_refresh_initiators.reserve(proto.allowed_refresh_initiators_size());
+  for (const std::string& initiator : proto.allowed_refresh_initiators()) {
+    if (!IsValidHostPattern(initiator)) {
+      return nullptr;
+    }
+    allowed_refresh_initiators.emplace_back(initiator);
+  }
+
+  return base::WrapUnique(new Session(
       Id(proto.id()), std::move(refresh), std::move(*inclusion_rules),
       std::move(cravings), proto.should_defer_when_expired(), creation_date,
-      expiry_date));
-
-  return result;
+      expiry_date, std::move(allowed_refresh_initiators)));
 }
 
 proto::Session Session::ToProto() const {
@@ -241,8 +254,12 @@ proto::Session Session::ToProto() const {
 
   *session_proto.mutable_session_inclusion_rules() = inclusion_rules_.ToProto();
 
-  for (auto& craving : cookie_cravings_) {
+  for (const auto& craving : cookie_cravings_) {
     session_proto.mutable_cookie_cravings()->Add(craving.ToProto());
+  }
+
+  for (const std::string& initiator : allowed_refresh_initiators_) {
+    *session_proto.add_allowed_refresh_initiators() = initiator;
   }
 
   return session_proto;
@@ -284,6 +301,20 @@ bool Session::ShouldDeferRequest(
 
         return dict;
       });
+
+  if (base::FeatureList::IsEnabled(
+          features::kDeviceBoundSessionsOriginTrialFeedback) &&
+      !AllowedToInitiateRefresh(request->initiator())) {
+    request->net_log().AddEvent(
+        net::NetLogEventType::CHECK_DBSC_REFRESH_REQUIRED,
+        [&](NetLogCaptureMode capture_mode) {
+          base::Value::Dict dict;
+          dict.Set("refresh_required_reason",
+                   "refresh_not_allowed_for_initiator");
+          return dict;
+        });
+    return false;
+  }
 
   // TODO(crbug.com/353766029): Refactor this.
   // The below is all copied from AddCookieHeaderAndStart. We should refactor
@@ -395,7 +426,8 @@ bool Session::IsEqualForTesting(const Session& other) const {
          creation_date_ == other.creation_date_ &&
          expiry_date_ == other.expiry_date_ &&
          key_id_or_error_ == other.key_id_or_error_ &&
-         cached_challenge_ == other.cached_challenge_;
+         cached_challenge_ == other.cached_challenge_ &&
+         allowed_refresh_initiators_ == other.allowed_refresh_initiators_;
 }
 
 void Session::RecordAccess() {
@@ -405,6 +437,25 @@ void Session::RecordAccess() {
 bool Session::IncludesUrl(const GURL& url) const {
   return inclusion_rules_.EvaluateRequestUrl(url) ==
          SessionInclusionRules::kInclude;
+}
+
+bool Session::AllowedToInitiateRefresh(
+    const std::optional<url::Origin>& initiator) const {
+  // The initiator is missing only for browser-initiated requests.
+  if (!initiator.has_value()) {
+    return true;
+  }
+
+  if (inclusion_rules_.AllowsRefreshForInitiator(initiator.value())) {
+    return true;
+  }
+
+  for (const std::string& initiator_pattern : allowed_refresh_initiators_) {
+    if (MatchesHostPattern(initiator_pattern, initiator->host())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool Session::ShouldBackoff() const {
@@ -434,6 +485,11 @@ void Session::InformOfRefreshResult(SessionError::ErrorType error_type) {
     case kRefreshUrlSameSiteMismatch:
     case kInvalidScopeOrigin:
     case kMismatchedSessionId:
+    case kInvalidRefreshInitiators:
+    case kInvalidScopeRule:
+    case kMissingScope:
+    case kNoCredentials:
+    case kInvalidScopeIncludeSite:
 
     // We do not want to back off on many network connection errors
     // (e.g. internet disconnected), so we do not hit our maximum

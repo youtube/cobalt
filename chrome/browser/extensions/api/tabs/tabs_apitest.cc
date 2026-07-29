@@ -132,6 +132,14 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, TabAudible) {
       << message_;
 }
 
+// Tests removing a tab while it is part of a group and an extension has a
+// listener for both chrome.tabs.onUpdated and chrome.tabs.onRemoved.
+// Regression test for https://crbug.com/431965152.
+IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, RemovingTabWhilePartOfGroup) {
+  ASSERT_TRUE(RunExtensionTest("tabs/removing_tab_while_part_of_group"))
+      << message_;
+}
+
 // TODO(crbug.com/40925613): Re-enable this test
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_Muted DISABLED_Muted

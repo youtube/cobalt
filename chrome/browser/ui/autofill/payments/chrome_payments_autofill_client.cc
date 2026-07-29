@@ -1001,7 +1001,26 @@ void ChromePaymentsAutofillClient::ShowCreditCardLocalSaveAndFillDialog(
     save_and_fill_dialog_controller_ =
         std::make_unique<SaveAndFillDialogControllerImpl>();
   }
-  save_and_fill_dialog_controller_->ShowDialog(
+  save_and_fill_dialog_controller_->ShowLocalDialog(
+      base::BindOnce(&CreateAndShowSaveAndFillDialog,
+                     save_and_fill_dialog_controller_->GetWeakPtr(),
+                     web_contents()),
+      std::move(callback));
+#else
+  NOTIMPLEMENTED();
+#endif  // !BUILDFLAG(IS_ANDROID)
+}
+
+void ChromePaymentsAutofillClient::ShowCreditCardUploadSaveAndFillDialog(
+    const LegalMessageLines& legal_message_lines,
+    CardSaveAndFillDialogCallback callback) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (!save_and_fill_dialog_controller_) {
+    save_and_fill_dialog_controller_ =
+        std::make_unique<SaveAndFillDialogControllerImpl>();
+  }
+  save_and_fill_dialog_controller_->ShowUploadDialog(
+      std::move(legal_message_lines),
       base::BindOnce(&CreateAndShowSaveAndFillDialog,
                      save_and_fill_dialog_controller_->GetWeakPtr(),
                      web_contents()),
@@ -1017,7 +1036,7 @@ SaveAndFillManager* ChromePaymentsAutofillClient::GetSaveAndFillManager() {
 #else
   if (!save_and_fill_manager_) {
     save_and_fill_manager_ =
-        std::make_unique<payments::SaveAndFillManagerImpl>(this);
+        std::make_unique<payments::SaveAndFillManagerImpl>(&client_.get());
   }
   return save_and_fill_manager_.get();
 #endif  // BUILDFLAG(IS_ANDROID)

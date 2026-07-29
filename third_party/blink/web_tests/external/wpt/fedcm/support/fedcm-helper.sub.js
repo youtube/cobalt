@@ -129,12 +129,27 @@ export function request_options_with_two_idps(mediation = 'required') {
 export function fedcm_test(test_func, test_name) {
   promise_test(async t => {
     assert_implements(window.IdentityCredential, "FedCM is not supported");
+
     // Turn off delays that are not useful in tests.
     try {
       await test_driver.set_fedcm_delay_enabled(false);
     } catch (e) {
       // Failure is not critical; it just might slow down tests.
     }
+
+    t.add_cleanup(async () => {
+      try {
+        await IdentityCredential.disconnect(alt_disconnect_options(""));
+      } catch (ex){
+        // Failure is not critical, test state is reset.
+      }
+
+      try {
+        await IdentityCredential.disconnect(disconnect_options(""));
+      } catch (ex){
+        // Failure is not critical, test state is reset.
+      }
+    });
 
     await set_fedcm_cookie();
     await set_alt_fedcm_cookie();
@@ -181,20 +196,26 @@ export function request_options_with_domain_hint(manifest_filename, domain_hint)
 }
 
 export function fedcm_get_dialog_type_promise(t) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     async function helper() {
-      // Try to get the dialog type. If the UI is not up yet, we'll catch an exception
-      // and try again in 100ms.
+      // Try to get the dialog type. If the UI is not up yet, we'll catch a 'no such alert'
+      // exception and try again in 100ms. Other exceptions will be rejected.
       try {
         const type = await window.test_driver.get_fedcm_dialog_type();
         resolve(type);
       } catch (ex) {
-        t.step_timeout(helper, 100);
+        if (String(ex).includes("no such alert")) {
+          t.step_timeout(helper, 100);
+        } else {
+          reject(ex);
+        }
       }
     }
+
     helper();
   });
 }
+
 
 export async function fedcm_settles_without_dialog(t, cred_promise) {
   let dialog_promise = fedcm_get_dialog_type_promise(t);

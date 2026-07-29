@@ -5,6 +5,7 @@
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
 
 import type {ManagementUiElement} from './management_ui.js';
+import {getPromotionBannerHtml} from './promotion_banner.html.js';
 
 export function getHtml(this: ManagementUiElement) {
   // clang-format off
@@ -16,10 +17,7 @@ export function getHtml(this: ManagementUiElement) {
 <div id="cr-container-shadow-top"
     class="cr-container-shadow has-shadow"></div>
 <main id="mainContent">
-  ${this.shouldShowPromotion_ ? html`
-    <div id="promotion-banner"></div>
-  ` : ''}
-  <div class="cr-centered-card-container">
+   <div class="cr-centered-card-container">
     <div class="card">
       <section ?hidden="${!this.managed_}" class="page-subtitle">
         <cr-icon-button class="icon-arrow-back" id="closeButton"
@@ -27,6 +25,7 @@ export function getHtml(this: ManagementUiElement) {
         </cr-icon-button>
         <h2 class="cr-title-text">${this.subtitle_}</h2>
       </section>
+      ${getPromotionBannerHtml.call(this)}
 <if expr="is_chromeos">
       <section class="eol-section" ?hidden="${!this.eolMessage_}">
         <div class="eol-warning-icon">

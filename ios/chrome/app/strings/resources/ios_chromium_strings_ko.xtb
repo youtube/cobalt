@@ -113,6 +113,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="3728124580182886854">맞춤설정 등의 목적으로 Chromium과 기타 Google 서비스를 연결합니다</translation>
 <translation id="377649297473651452">Chromium 자동 완성 펼쳐 보기</translation>
 <translation id="3780779443901618967">표준 보호 모드보다 더 많은 사이트에서 데이터를 분석하여 위험한 사이트에 관해 경고합니다. Google이 이전에 몰랐던 사이트도 여기에 포함됩니다. Chromium 경고를 건너뛸 수 있습니다.</translation>
+<translation id="3804124559081428680">Chromium 도움말: 본인 인증</translation>
 <translation id="3805899903892079518">Chromium에서 사진 또는 동영상에 액세스할 수 없습니다. 'iOS 설정 &gt; 개인 정보 보호 &gt; 사진'에서 액세스를 허용하세요.</translation>
 <translation id="3816686541346279443">Chromium에서 비밀번호 저장을 제안합니다.</translation>
 <translation id="3827545470516145620">이 기기에 표준 보안 보호 조치가 적용되고 있습니다.</translation>
@@ -244,7 +245,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 <translation id="6887138405044152640">이 탭을 다른 기기로 보내려면 해당 기기에서 Chromium에 로그인하세요.</translation>
 <translation id="6911341667534646387">Google 계정의 Chromium 데이터를 계속 사용하세요.</translation>
 <translation id="7018284295775193585">Chromium을 업데이트할 수 없습니다.</translation>
-<translation id="7055269218854630176">내가 로그인한 계정과 Chromium이 사용될 수 있는 방식은 <ph name="DOMAIN" /> 조직에서 관리합니다. 관리자는 특정 기능을 설정하거나 제한할 수 있습니다</translation>
+<translation id="7055269218854630176">내가 로그인한 계정과 Chromium이 사용 방식은 <ph name="DOMAIN" /> 조직에서 관리합니다. 관리자는 특정 기능을 설정하거나 제한할 수 있습니다.</translation>
 <translation id="7099326575020694068">Chromium에서는 분할 모드에서 카메라를 사용할 수 없습니다.</translation>
 <translation id="7165402419892018581">자동 완성에 사용할 Chromium 선택</translation>
 <translation id="7175400662502680481">정보 유출로 인해 비밀번호가 노출되었습니다. 비밀번호 관리자에서 지금 바로 비밀번호를 변경하시기 바랍니다.</translation>
@@ -252,6 +253,7 @@ Chromium 환경을 개선하는 데 데이터를 사용하는 설정을 더 보�
 
 암호를 아는 사람만 암호화된 내 데이터를 읽을 수 있습니다. 암호는 Google로 전송되거나 Google에 저장되지 않습니다. 암호가 기억나지 않거나 이 설정을 변경하려면 <ph name="BEGIN_LINK" />계정의 Chromium 데이터를 삭제<ph name="END_LINK" />하세요.</translation>
 <translation id="7192111075364461693">현재 기기 설정에서 Chromium 알림이 사용 중지되어 있습니다.</translation>
+<translation id="7195217321165708458">Chromium의 Gemini</translation>
 <translation id="7219205286115692265">iPad의 홈 화면 도크에서 Chromium에 더 빠르게 액세스하세요.</translation>
 <translation id="7222001353246886083">Chromium에서 ${searchPhrase} 검색</translation>
 <translation id="7228180817326917122">Chromium 도움말: 주소 표시줄 위치 선택</translation>

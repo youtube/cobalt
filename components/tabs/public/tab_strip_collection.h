@@ -86,6 +86,8 @@ class TabStripCollection : public TabCollection {
       std::unique_ptr<tabs::TabGroupTabCollection> tab_group_collection);
 
   // Group operations.
+  // NOTE: These operations only work for attached tab groups.
+
   // Use AddTabGroup and RemoveGroup to add/remove groups to the collection
   // structure while keeping track of the group ids in group_mapping_ so that
   // they can be looked up with GetTabGroupCollection.
@@ -94,7 +96,9 @@ class TabStripCollection : public TabCollection {
       int index);
   std::unique_ptr<TabCollection> RemoveGroup(TabGroupTabCollection* group);
   TabGroupTabCollection* GetTabGroupCollection(tab_groups::TabGroupId group_id);
-
+  // Returns a list of all tab group IDs, the order of the IDs is not
+  // guaranteed.
+  std::vector<tab_groups::TabGroupId> GetAllTabGroupIds() const;
   void MoveTabGroupTo(const tab_groups::TabGroupId& group, int to_index);
 
   // Adds the `tab_group_collection` to the collection hierarchy
@@ -102,9 +106,15 @@ class TabStripCollection : public TabCollection {
   void InsertTabGroupAt(std::unique_ptr<TabGroupTabCollection> group_collection,
                         int index);
 
+  // Detached tab group operations.
+
   // Clears the detached group with `group_id` in `detached_group_collections_`.
   // Crashes if the group is not found in the detached tab groups list.
   void CloseDetachedTabGroup(const tab_groups::TabGroupId& group_id);
+  // Returns the detached tab group with `group_id` if it exists, returns
+  // nullptr otherwise.
+  TabGroupTabCollection* GetDetachedTabGroup(
+      const tab_groups::TabGroupId& group_id);
 
   // Split tab operations.
   SplitTabCollection* GetSplitTabCollection(split_tabs::SplitTabId split_id);

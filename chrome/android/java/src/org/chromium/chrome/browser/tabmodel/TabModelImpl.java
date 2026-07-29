@@ -323,7 +323,19 @@ public class TabModelImpl extends TabModelJniBridge {
                                     && type == TabLaunchType.FROM_LONGPRESS_BACKGROUND);
 
             index = mOrderController.determineInsertionIndex(type, index, tab);
-            assert index <= mTabs.size();
+            if (tab.getIsPinned()) {
+                int firstNonPinnedTabIndex = mPinnedTabReorderManager.findFirstNonPinnedTabIndex();
+                if (firstNonPinnedTabIndex == INVALID_TAB_INDEX) {
+                    // All tabs are pinned or the model is empty, next valid non-pinned index is at
+                    // the end of the list.
+                    firstNonPinnedTabIndex = mTabs.size();
+                }
+
+                // Insert in next non-pinned index if index wasn't handled in
+                // TabModelOrderController.
+                if (index == INVALID_TAB_INDEX) index = firstNonPinnedTabIndex;
+                assert index <= firstNonPinnedTabIndex;
+            }
 
             if (tab.isIncognito() != isIncognito()) {
                 throw new IllegalStateException("Attempting to open tab in wrong model");
@@ -595,7 +607,9 @@ public class TabModelImpl extends TabModelJniBridge {
         if (allowUndo) {
             assumeNonNull(mPendingTabClosureManager);
             mPendingTabClosureManager.addTabClosureEvent(tabs, undoRunnable);
-            for (TabModelObserver obs : mObservers) obs.multipleTabsPendingClosure(tabs, false);
+            for (TabModelObserver obs : mObservers) {
+                obs.multipleTabsPendingClosure(tabs, false, tabClosingSource);
+            }
         }
     }
 
@@ -660,7 +674,7 @@ public class TabModelImpl extends TabModelJniBridge {
         if (supportsPendingClosures()) {
             mPendingTabClosureManager.addTabClosureEvent(closedTabs, undoRunnable);
             for (TabModelObserver obs : mObservers) {
-                obs.multipleTabsPendingClosure(closedTabs, true);
+                obs.multipleTabsPendingClosure(closedTabs, true, tabClosingSource);
             }
         }
     }
@@ -1080,6 +1094,10 @@ public class TabModelImpl extends TabModelJniBridge {
     @Override
     public void setTabsMultiSelected(Set<Integer> tabIds, boolean isSelected) {
         TabModelImplUtil.setTabsMultiSelected(tabIds, isSelected, mMultiSelectedTabs, mObservers);
+        assert mMultiSelectedTabs.isEmpty()
+                        || mMultiSelectedTabs.contains(TabModelUtils.getCurrentTabId(this))
+                : "If the selection is not empty, the current tab must always be present within the"
+                        + " set.";
     }
 
     @Override

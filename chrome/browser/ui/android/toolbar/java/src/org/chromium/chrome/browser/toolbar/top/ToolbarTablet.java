@@ -10,7 +10,6 @@ import static org.chromium.ui.accessibility.KeyboardFocusUtil.setFocusOnFirstFoc
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -47,6 +46,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.back_button.BackButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.extensions.ExtensionToolbarCoordinator;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
@@ -59,7 +59,6 @@ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorListener;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.ui.base.DeviceFormFactor;
-import org.chromium.ui.interpolators.Interpolators;
 import org.chromium.ui.widget.ChromeImageButton;
 
 import java.util.ArrayList;
@@ -69,15 +68,11 @@ import java.util.Collection;
 @SuppressLint("Instantiatable")
 @NullMarked
 public class ToolbarTablet extends ToolbarLayout {
-    private static final int ICON_FADE_IN_ANIMATION_DELAY_MS = 75;
-    private static final int ICON_FADE_ANIMATION_DURATION_MS = 150;
-
     private ImageButton mHomeButton;
     private ImageButton mBackButton;
     private ChromeImageButton mForwardButton;
     private ImageButton mReloadButton;
     private ImageButton mBookmarkButton;
-    private ImageButton mSaveOfflineButton;
     private @Nullable View mIncognitoIndicator;
 
     private boolean mIsInTabSwitcherMode;
@@ -100,6 +95,7 @@ public class ToolbarTablet extends ToolbarLayout {
     private @Nullable ObservableSupplier<Integer> mTabCountSupplier;
     private @Nullable TabletCaptureStateToken mLastCaptureStateToken;
     private @DrawableRes int mBookmarkButtonImageRes;
+    private @Nullable ExtensionToolbarCoordinator mExtensionToolbarCoordinator;
 
     /**
      * Constructs a ToolbarTablet object.
@@ -124,7 +120,6 @@ public class ToolbarTablet extends ToolbarLayout {
         mReloadButton = findViewById(R.id.refresh_button);
 
         mBookmarkButton = findViewById(R.id.bookmark_button);
-        mSaveOfflineButton = findViewById(R.id.save_offline_button);
         setIncognitoIndicatorVisibility();
 
         // Initialize values needed for showing/hiding toolbar buttons when the activity size
@@ -275,8 +270,6 @@ public class ToolbarTablet extends ToolbarLayout {
             @BrandedColorScheme int brandedColorScheme) {
         ImageViewCompat.setImageTintList(mHomeButton, activityFocusTint);
         ImageViewCompat.setImageTintList(mForwardButton, activityFocusTint);
-        // The tint of the |mSaveOfflineButton| should not be affected by an activity focus change.
-        ImageViewCompat.setImageTintList(mSaveOfflineButton, tint);
 
         if (mOptionalButton != null && mOptionalButtonUsesTint) {
             ImageViewCompat.setImageTintList(mOptionalButton, activityFocusTint);
@@ -326,8 +319,11 @@ public class ToolbarTablet extends ToolbarLayout {
         getMenuButtonCoordinator().updateButtonBackground(toolbarIconRippleId);
 
         mBookmarkButton.setBackgroundResource(omniboxIconRippleId);
-        mSaveOfflineButton.setBackgroundResource(omniboxIconRippleId);
         mLocationBar.updateButtonBackground(omniboxIconRippleId);
+
+        if (mExtensionToolbarCoordinator != null) {
+            mExtensionToolbarCoordinator.updateMenuButtonBackground(toolbarIconRippleId);
+        }
     }
 
     @Override
@@ -398,7 +394,8 @@ public class ToolbarTablet extends ToolbarLayout {
             ToolbarProgressBar progressBar,
             @Nullable ReloadButtonCoordinator reloadButtonCoordinator,
             @Nullable BackButtonCoordinator backButtonCoordinator,
-            @Nullable HomeButtonDisplay homeButtonDisplay) {
+            @Nullable HomeButtonDisplay homeButtonDisplay,
+            @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator) {
         super.initialize(
                 toolbarDataProvider,
                 tabController,
@@ -410,11 +407,13 @@ public class ToolbarTablet extends ToolbarLayout {
                 progressBar,
                 reloadButtonCoordinator,
                 backButtonCoordinator,
-                homeButtonDisplay);
+                homeButtonDisplay,
+                extensionToolbarCoordinator);
         mHistoryDelegate = historyDelegate;
         mReloadButtonCoordinator = assertNonNull(reloadButtonCoordinator);
         mBackButtonCoordinator = assertNonNull(backButtonCoordinator);
         menuButtonCoordinator.setVisibility(true);
+        mExtensionToolbarCoordinator = extensionToolbarCoordinator;
     }
 
     @Override
@@ -625,18 +624,8 @@ public class ToolbarTablet extends ToolbarLayout {
         Collection<Animator> animators = new ArrayList<>();
 
         animators.add(mLocationBar.createShowButtonAnimatorForTablet(mForwardButton));
-
-        final var reloadButtonAnimator = mReloadButtonCoordinator.getFadeAnimator(true);
-        reloadButtonAnimator.setInterpolator(Interpolators.LINEAR_OUT_SLOW_IN_INTERPOLATOR);
-        reloadButtonAnimator.setStartDelay(ICON_FADE_IN_ANIMATION_DELAY_MS);
-        reloadButtonAnimator.setDuration(ICON_FADE_ANIMATION_DURATION_MS);
-        animators.add(reloadButtonAnimator);
-
-        final var backButtonAnimator = mBackButtonCoordinator.getFadeAnimator(true);
-        backButtonAnimator.setInterpolator(Interpolators.LINEAR_OUT_SLOW_IN_INTERPOLATOR);
-        backButtonAnimator.setStartDelay(ICON_FADE_IN_ANIMATION_DELAY_MS);
-        backButtonAnimator.setDuration(ICON_FADE_ANIMATION_DURATION_MS);
-        animators.add(backButtonAnimator);
+        animators.add(mReloadButtonCoordinator.getFadeAnimator(/* shouldShow= */ true));
+        animators.add(mBackButtonCoordinator.getFadeAnimator(/* shouldShow= */ true));
 
         // Add animators for location bar.
         animators.addAll(
@@ -674,21 +663,10 @@ public class ToolbarTablet extends ToolbarLayout {
     private AnimatorSet buildHideToolbarButtonsAnimation() {
         Collection<Animator> animators = new ArrayList<>();
 
-        ObjectAnimator hideButtonAnimator =
-                mLocationBar.createHideButtonAnimatorForTablet(mForwardButton);
-        if (hideButtonAnimator != null) {
-            animators.add(hideButtonAnimator);
-        }
+        animators.add(mLocationBar.createHideButtonAnimatorForTablet(mForwardButton));
 
-        final var reloadButtonAnimator = mReloadButtonCoordinator.getFadeAnimator(false);
-        reloadButtonAnimator.setInterpolator(Interpolators.FAST_OUT_LINEAR_IN_INTERPOLATOR);
-        reloadButtonAnimator.setDuration(ICON_FADE_ANIMATION_DURATION_MS);
-        animators.add(reloadButtonAnimator);
-
-        final var backButtonAnimator = mBackButtonCoordinator.getFadeAnimator(false);
-        backButtonAnimator.setInterpolator(Interpolators.FAST_OUT_LINEAR_IN_INTERPOLATOR);
-        backButtonAnimator.setDuration(ICON_FADE_ANIMATION_DURATION_MS);
-        animators.add(backButtonAnimator);
+        animators.add(mReloadButtonCoordinator.getFadeAnimator(/* shouldShow= */ false));
+        animators.add(mBackButtonCoordinator.getFadeAnimator(/* shouldShow= */ false));
 
         // Add animators for location bar.
         animators.addAll(

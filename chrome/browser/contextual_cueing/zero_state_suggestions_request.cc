@@ -29,8 +29,10 @@ ZeroStateSuggestionsRequest::ZeroStateSuggestionsRequest(
   OPTIMIZATION_GUIDE_LOG(
       optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
       optimization_guide_keyed_service_->GetOptimizationGuideLogger(),
-      "ZeroStateSuggestionsRequest: Creating new zero state suggestions "
-      "request");
+      base::StringPrintf(
+          "ZeroStateSuggestionsRequest: Creating new zero state suggestions "
+          "request for %llu tabs",
+          requested_tabs.size()));
   auto barrier_callback = base::BarrierCallback<
       std::optional<optimization_guide::proto::ZeroStatePageContext>>(
       requested_tabs.size(),
@@ -59,22 +61,23 @@ ZeroStateSuggestionsRequest::ZeroStateSuggestionsRequest(
   }
 }
 
-ZeroStateSuggestionsRequest::~ZeroStateSuggestionsRequest() = default;
+ZeroStateSuggestionsRequest::~ZeroStateSuggestionsRequest() {
+  OPTIMIZATION_GUIDE_LOG(
+      optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
+      optimization_guide_keyed_service_->GetOptimizationGuideLogger(),
+      "ZeroStateSuggestionsRequest: Destructing zero state suggestions "
+      "request");
+}
 
 void ZeroStateSuggestionsRequest::AddCallback(
-    base::OnceCallback<void(std::optional<std::vector<std::string>>)>
-        callback) {
+    base::OnceCallback<void(std::vector<std::string>)> callback) {
   // Check if we have cached suggestions if we are in focused tab mode.
   if (focused_tab_page_data_) {
     if (auto cached_suggestions =
             focused_tab_page_data_->cached_suggestions_for_focused_tab()) {
       // Post cached suggestions to back of UI thread.
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE,
-          base::BindOnce(std::move(callback),
-                         cached_suggestions->empty()
-                             ? std::nullopt
-                             : std::make_optional(*cached_suggestions)));
+          FROM_HERE, base::BindOnce(std::move(callback), *cached_suggestions));
       return;
     }
   }
@@ -103,7 +106,7 @@ void ZeroStateSuggestionsRequest::OnAllPageContextExtracted(
         "ZeroStateSuggestionsRequest: No page context to fetch suggestions "
         "for.");
     CacheFocusedTabSuggestions({});
-    pending_callbacks_.Notify(std::nullopt);
+    pending_callbacks_.Notify(std::vector<std::string>({}));
     return;
   }
 
@@ -123,8 +126,10 @@ void ZeroStateSuggestionsRequest::OnAllPageContextExtracted(
   OPTIMIZATION_GUIDE_LOG(
       optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
       optimization_guide_keyed_service_->GetOptimizationGuideLogger(),
-      "ZeroStateSuggestionsRequest: Starting fetch for "
-      "suggestions.");
+      base::StringPrintf(
+          "ZeroStateSuggestionsRequest: Starting fetch for "
+          "suggestions. Is-mulitab request: %s",
+          pending_base_request_.has_page_context_list() ? "true" : "false"));
   optimization_guide_keyed_service_->ExecuteModel(
       optimization_guide::ModelBasedCapabilityKey::kZeroStateSuggestions,
       pending_base_request_,
@@ -150,7 +155,7 @@ void ZeroStateSuggestionsRequest::OnModelExecutionResponse(
                            suggestions_duration.InMilliseconds(),
                            static_cast<int>(result.response.error().error())));
 
-    pending_callbacks_.Notify(std::nullopt);
+    pending_callbacks_.Notify(std::vector<std::string>({}));
     CacheFocusedTabSuggestions({});
     return;
   }
@@ -171,7 +176,7 @@ void ZeroStateSuggestionsRequest::OnModelExecutionResponse(
         optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,
         optimization_guide_keyed_service_->GetOptimizationGuideLogger(),
         "ZeroStateSuggestionsRequest: No response available.");
-    pending_callbacks_.Notify(std::nullopt);
+    pending_callbacks_.Notify(std::vector<std::string>({}));
     // Treat this as a transient error that server returned bad data
     // momentarily. Do not cache.
     return;

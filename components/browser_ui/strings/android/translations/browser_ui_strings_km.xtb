@@ -121,6 +121,7 @@
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{បានអនុញ្ញាត <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> និង <ph name="NUM_MORE" /> ទៀត}other{បានអនុញ្ញាត <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> និង <ph name="NUM_MORE" /> ទៀត}}</translation>
 <translation id="2410940059315936967">គេហទំព័រ​ដែលអ្នកចូលមើល​អាច​បង្កប់ខ្លឹមសារ​ពីគេហទំព័រ​ផ្សេងទៀត ដូចជា​រូបភាព ការផ្សាយពាណិជ្ជកម្ម និង​អក្សរ​ជាដើម។ ខូគី​ដែលបានកំណត់ដោយ​គេហទំព័រផ្សេងទៀត​ទាំង​នេះត្រូវបាន​ហៅ​ថា​ខូគី​ភាគីទីបី។</translation>
+<translation id="2411116727035790889">បើក​ផ្លូវកាត់</translation>
 <translation id="2433507940547922241">ការបង្ហាញខ្លួន</translation>
 <translation id="2434158240863470628">ការទាញយក​បានបញ្ចប់ <ph name="SEPARATOR" /> <ph name="BYTES_DOWNLOADED" /></translation>
 <translation id="2438120137003069591">អ្នក​បាន​អនុញ្ញាត​ឱ្យ​គេហទំព័រ​នេះ​ប្រើ​ខូគី​ភាគីទីបី​ជា​បណ្ដោះអាសន្ន ដែលមាន​ន័យ​ថា​មានការការពារ​ការរុករកតិចជាង​មុន ប៉ុន្តែ​មុខងារ​គេហទំព័រ​កាន់តែ​ទំនង​នឹង​ដំណើរការដូច​ការរំពឹង​ទុក។ <ph name="BEGIN_LINK" />ផ្ញើមតិកែលម្អ<ph name="END_LINK" /></translation>
@@ -187,6 +188,7 @@
 <translation id="3114012059975132928">កម្មវិធី​ចាក់​វីដេអូ</translation>
 <translation id="3115898365077584848">បង្ហាញព័ត៌មាន</translation>
 <translation id="3123473560110926937">បាន​ទប់ស្កាត់នៅលើគេហទំព័រ​មួយចំនួន</translation>
+<translation id="3132996321662585180">ផ្ទុក​ឡើងវិញ​រាល់ថ្ងៃ</translation>
 <translation id="3143754809889689516">ចាក់​ពីដំបូង</translation>
 <translation id="3162899666601560689">គេហទំព័រ​អាចប្រើខូគី ដើម្បី​កែលម្អ​បទពិសោធន៍​រុករក​របស់អ្នក ឧទាហរណ៍ ដើម្បីឱ្យអ្នក​បន្តចូលគណនី ឬចងចាំទំនិញ​នៅក្នុង​រទេះទិញទំនិញ​របស់អ្នក</translation>
 <translation id="3165022941318558018">អនុញ្ញាត​ឱ្យ​គេហទំព័រ​ប្រើ​ខូគី​ភាគីទីបី</translation>
@@ -610,7 +612,6 @@
 <translation id="8186479265534291036">គេហទំព័រ​មិន​ដំណើរការ​ឬ? បានទប់ស្កាត់​ខូគី​ភាគីទីបី</translation>
 <translation id="8197286292360124385">បាន​អនុញ្ញាត <ph name="PERMISSION_1" /></translation>
 <translation id="8200772114523450471">បន្ត</translation>
-<translation id="8206354486702514201">ការកំណត់នេះត្រូវបានអនុវត្តដោយអ្នកគ្រប់គ្រងរបស់អ្នក។</translation>
 <translation id="8211406090763984747">ការតភ្ជាប់មានសុវត្ថិភាព</translation>
 <translation id="822964464349305906"><ph name="TYPE_1" />, <ph name="TYPE_2" /></translation>
 <translation id="8249310407154411074">ផ្លាស់ទីទៅខាង​លើបំផុត</translation>
@@ -621,6 +622,7 @@
 <translation id="8324158725704657629">កុំ​សួរ​ម្ដងទៀត</translation>
 <translation id="8362795839483915693">អ្នកអាចពង្រីក ឬបង្រួមលើគេហទំព័រដែលអ្នកចូលមើល</translation>
 <translation id="8372893542064058268">អនុញ្ញាតការធ្វើសមកាលកម្មផ្ទៃខាងក្រោយសម្រាប់គេហទំព័រជាក់លាក់។</translation>
+<translation id="8378714024927312812">គ្រប់គ្រងដោយ​ស្ថាប័ន​របស់អ្នក</translation>
 <translation id="83792324527827022">គេហទំព័រមួយ​កំពុង​ប្រើប្រាស់កាមេរ៉ា និងមីក្រូហ្វូនរបស់អ្នក</translation>
 <translation id="8380167699614421159">គេហទំព័រ​នេះបង្ហាញ​ការផ្សាយពាណិជ្ជកម្ម​ដែលនាំឱ្យយល់ច្រឡំ ឬរំខាន</translation>
 <translation id="8394832520002899662">ចុចដើម្បីត្រឡប់ទៅគេហទំព័រវិញ</translation>

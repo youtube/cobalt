@@ -247,6 +247,22 @@ AccountExtensionTracker::GetSignedInAccountExtensions() const {
   return signed_in_account_extensions;
 }
 
+std::vector<const Extension*>
+AccountExtensionTracker::GetUploadableLocalExtensions() const {
+  ExtensionRegistry* extension_registry = ExtensionRegistry::Get(profile_);
+  const ExtensionSet extensions =
+      extension_registry->GenerateInstalledExtensionsSet();
+
+  std::vector<const Extension*> uploadable_local_extensions;
+  for (const auto& extension : extensions) {
+    if (CanUploadAsAccountExtension(*extension)) {
+      uploadable_local_extensions.push_back(extension.get());
+    }
+  }
+
+  return uploadable_local_extensions;
+}
+
 void AccountExtensionTracker::OnInitialExtensionsSyncDataReceived() {
   NotifyOnExtensionsUploadabilityChanged();
 }
@@ -362,9 +378,8 @@ void AccountExtensionTracker::PromoteLocalToAccountExtension(
     AccountExtensionType type) {
   // Make sure we're actually promoting a local extension to an account
   // extension!
-  DCHECK_EQ(GetAccountExtensionType(extension_id),
-            AccountExtensionType::kLocal);
-  DCHECK_NE(type, AccountExtensionType::kLocal);
+  CHECK_EQ(GetAccountExtensionType(extension_id), AccountExtensionType::kLocal);
+  CHECK_NE(type, AccountExtensionType::kLocal);
   SetAccountExtensionType(extension_id, type);
 
   // The extension's uploadability may change when its AccountExtensionType

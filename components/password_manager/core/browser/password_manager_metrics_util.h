@@ -549,18 +549,20 @@ enum class ProcessIncomingPasswordSharingInvitationResult {
   kMaxValue = kInvalidInvitation,
 };
 
-#if BUILDFLAG(IS_ANDROID)
 // These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused. Keep in sync with `
-// `LocalPwdMigrationProgressState` in the passwords' enums.xml.
-enum class LocalPwdMigrationProgressState {
-  kScheduled = 0,
-  kStarted = 1,
-  // Finished is recorded irrespective of success status.
-  kFinished = 2,
-  kMaxValue = kFinished,
+// numeric values should never be reused. Always keep in sync with
+// PasswordChangeFlowStep in enums.xml.
+// LINT.IfChange(PasswordChangeFlowStep)
+enum PasswordChangeFlowStep {
+  // Represents the current step of the password change flow.
+  kOpenFormStep = 0,
+  kSubmitFormStep = 1,
+  kVerifySubmissionStep = 2,
+  kMaxValue = kVerifySubmissionStep,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/password/enums.xml:PasswordChangeFlowStep)
 
+#if BUILDFLAG(IS_ANDROID)
 // Enum specifying the outcome of an attempt to access credentials stored in a
 // SharedPref. These values are persisted to logs. Entries should not be
 // renumbered and numeric values should never be reused. Keep in sync with
@@ -739,11 +741,6 @@ void LogPasswordAcceptedSaveUpdateSubmissionIndicatorEvent(
 void LogDownloadedPasswordsCountFromAccountStoreAfterUnlock(
     int account_store_passwords_count);
 
-// Logs how many blocklisted entries are downloaded to the account store right
-// after unlock.
-void LogDownloadedBlocklistedEntriesCountFromAccountStoreAfterUnlock(
-    int blocklist_entries_count);
-
 // Logs the result of a re-auth challenge in the password settings.
 void LogPasswordSettingsReauthResult(device_reauth::ReauthResult result);
 
@@ -804,13 +801,6 @@ void LogUserInteractionsInSharedPasswordsNotificationBubble(
 // Log the result of processing an incoming password sharing invitation.
 void LogProcessIncomingPasswordSharingInvitationResult(
     ProcessIncomingPasswordSharingInvitationResult result);
-
-#if BUILDFLAG(IS_ANDROID)
-// Records the scheduling state of the local passwords migration to the
-// Android backend.
-void LogLocalPwdMigrationProgressState(
-    LocalPwdMigrationProgressState scheduling_state);
-#endif
 
 // Wraps |callback| into another callback that measures the elapsed time between
 // construction and actual execution of the callback. Records the result to
@@ -885,6 +875,10 @@ void LogFillSuggestionGroupedMatchAccepted(bool grouped_match_accepted);
 // histogram for both Chrome and third party requests.
 void LogCumulativeGetCredentialsMetrics(
     password_manager::CredentialManagerError error);
+
+// Logs the failure to capture annotated page content during a specific
+// step of the password change flow.
+void LogPageContentCaptureFailure(PasswordChangeFlowStep step);
 
 }  // namespace password_manager::metrics_util
 

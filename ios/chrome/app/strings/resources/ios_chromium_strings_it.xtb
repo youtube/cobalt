@@ -113,6 +113,7 @@ Prova ad attendere qualche minuto prima di cambiare account. Se cambi account or
 <translation id="3728124580182886854">Collega Chromium e altri servizi Google per la personalizzazione e altri scopi</translation>
 <translation id="377649297473651452">Visualizzazione espansa della compilazione automatica di Chromium</translation>
 <translation id="3780779443901618967">Ricevi un avviso in caso di siti pericolosi, inclusi quelli di cui Google non era a conoscenza, analizzando più dati provenienti dai siti rispetto al livello Protezione standard. Puoi scegliere di ignorare gli avvisi di Chromium.</translation>
+<translation id="3804124559081428680">Suggerimento per Chromium: verifica la tua identità</translation>
 <translation id="3805899903892079518">Chromium non ha accesso alle tue foto o ai tuoi video. Attiva l'accesso in Impostazioni iOS &gt; Privacy &gt; Foto.</translation>
 <translation id="3816686541346279443">Chromium ti proporrà di salvare la password.</translation>
 <translation id="3827545470516145620">Stai utilizzando la protezione di sicurezza standard su questo dispositivo</translation>
@@ -252,6 +253,7 @@ Aspetti da considerare:
 
 Solo chi conosce la tua passphrase può leggere i tuoi dati criptati. La passphrase non viene inviata a Google o memorizzata da Google. Se dimentichi la passphrase o vuoi modificare questa impostazione, <ph name="BEGIN_LINK" />elimina i dati di Chromium nel tuo account<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">Le notifiche di Chromium sono attualmente disattivate nelle impostazioni del dispositivo.</translation>
+<translation id="7195217321165708458">Gemini in Chromium</translation>
 <translation id="7219205286115692265">Accedi più velocemente a Chromium dal dock della schermata Home del tuo iPad.</translation>
 <translation id="7222001353246886083">Cerca ${searchPhrase} in Chromium</translation>
 <translation id="7228180817326917122">Suggerimento per Chromium: scegli la posizione della barra degli indirizzi</translation>

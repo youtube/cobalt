@@ -18,6 +18,7 @@
 #include "storage/browser/file_system/file_system_url.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_cloud_identifier.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_error.mojom.h"
+#include "third_party/blink/public/mojom/file_system_access/file_system_access_permission_mode.mojom.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom.h"
 
 namespace storage {
@@ -61,19 +62,27 @@ class CONTENT_EXPORT FileSystemAccessHandleBase {
     return manager()->context();
   }
 
+  // Returns the permission status for reading. This does not check the write
+  // permission status.
   PermissionStatus GetReadPermissionStatus();
+  // Returns the permission status for writing. This does not check the read
+  // permission status.
   PermissionStatus GetWritePermissionStatus();
+  // TODO(crbug.com/40276567): Update call sites to use
+  // `GetWritePermissionStatus()` if appropriate. Returns the permission status
+  // for reading and writing.
+  PermissionStatus GetReadWritePermissionStatus();
   storage::FileSystemURL GetParentURLForTesting() { return GetParentURL(); }
 
   // Implementation for the GetPermissionStatus method in the
   // blink::mojom::FileSystemAccessFileHandle and DirectoryHandle interfaces.
   void DoGetPermissionStatus(
-      bool writable,
+      blink::mojom::FileSystemAccessPermissionMode mode,
       base::OnceCallback<void(PermissionStatus)> callback);
   // Implementation for the RequestPermission method in the
   // blink::mojom::FileSystemAccessFileHandle and DirectoryHandle interfaces.
   void DoRequestPermission(
-      bool writable,
+      blink::mojom::FileSystemAccessPermissionMode mode,
       base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr,
                               PermissionStatus)> callback);
 
@@ -115,7 +124,7 @@ class CONTENT_EXPORT FileSystemAccessHandleBase {
   // permission isn't granted, `no_permission_callback` is invoked instead. The
   // callbacks can be invoked synchronously.
   template <typename CallbackArgType>
-  void RunWithWritePermission(
+  void RunWithReadWritePermission(
       base::OnceCallback<void(CallbackArgType)> callback,
       base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr,
                               CallbackArgType)> no_permission_callback,
@@ -129,7 +138,7 @@ class CONTENT_EXPORT FileSystemAccessHandleBase {
  private:
   storage::FileSystemURL GetParentURL();
   void DidRequestPermission(
-      bool writable,
+      blink::mojom::FileSystemAccessPermissionMode mode,
       base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr,
                               PermissionStatus)> callback,
       FileSystemAccessPermissionGrant::PermissionRequestOutcome outcome);
@@ -187,6 +196,9 @@ class CONTENT_EXPORT FileSystemAccessHandleBase {
            url.type() != storage::kFileSystemTypeTest;
   }
 
+  PermissionStatus GetPermissionStatusForMode(
+      blink::mojom::FileSystemAccessPermissionMode mode);
+
   // The FileSystemAccessManagerImpl that owns this instance.
   const raw_ptr<FileSystemAccessManagerImpl, DanglingUntriaged> manager_ =
       nullptr;
@@ -198,14 +210,15 @@ class CONTENT_EXPORT FileSystemAccessHandleBase {
 };
 
 template <typename CallbackArgType>
-void FileSystemAccessHandleBase::RunWithWritePermission(
+void FileSystemAccessHandleBase::RunWithReadWritePermission(
     base::OnceCallback<void(CallbackArgType)> callback,
     base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr,
                             CallbackArgType)> no_permission_callback,
     CallbackArgType callback_arg) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DoRequestPermission(
-      /*writable=*/true,
+      // TODO(crbug.com/40276567): Update to "write"-only after spec discussion.
+      blink::mojom::FileSystemAccessPermissionMode::kReadWrite,
       base::BindOnce(
           [](base::OnceCallback<void(CallbackArgType)> callback,
              base::OnceCallback<void(blink::mojom::FileSystemAccessErrorPtr,

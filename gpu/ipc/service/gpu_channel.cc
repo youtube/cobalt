@@ -46,6 +46,7 @@
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/scheduler.h"
 #include "gpu/command_buffer/service/service_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_memory_image_backing_factory.h"
 #include "gpu/command_buffer/service/sync_point_manager.h"
 #include "gpu/command_buffer/service/task_graph.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -60,6 +61,7 @@
 #include "gpu/ipc/service/image_decode_accelerator_stub.h"
 #include "gpu/ipc/service/raster_command_buffer_stub.h"
 #include "gpu/ipc/service/webgpu_command_buffer_stub.h"
+#include "ipc/constants.mojom.h"
 #include "ipc/ipc_channel.h"
 #include "mojo/public/cpp/base/shared_memory_version.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
@@ -186,9 +188,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelMessageFilter
                              const viz::SharedImageFormat& format,
                              gfx::BufferUsage buffer_usage,
                              CreateGpuMemoryBufferCallback callback) override;
-  void GetGpuMemoryBufferHandleInfo(
-      const gpu::Mailbox& mailbox,
-      GetGpuMemoryBufferHandleInfoCallback callback) override;
 #if BUILDFLAG(IS_WIN)
   void CreateDCOMPTexture(
       int32_t route_id,
@@ -459,9 +458,8 @@ void GpuChannelMessageFilter::CreateGpuMemoryBuffer(
         MappableSIClientGmbId::kGpuChannel, size, buffer_format, buffer_usage);
   } else {
     if (gpu::GpuMemoryBufferImplSharedMemory::IsUsageSupported(buffer_usage) &&
-        gpu::GpuMemoryBufferImplSharedMemory::IsSizeValidForFormat(
-            size, buffer_format)) {
-      handle = gpu::GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
+        SharedMemoryImageBackingFactory::IsSizeValidForFormat(size, format)) {
+      handle = SharedMemoryImageBackingFactory::CreateGpuMemoryBufferHandle(
           size, buffer_format, buffer_usage);
     }
   }
@@ -469,33 +467,6 @@ void GpuChannelMessageFilter::CreateGpuMemoryBuffer(
     LOG(ERROR) << "Buffer Handle is null.";
   }
   std::move(callback).Run(std::move(handle));
-}
-
-void GpuChannelMessageFilter::GetGpuMemoryBufferHandleInfo(
-    const gpu::Mailbox& mailbox,
-    GetGpuMemoryBufferHandleInfoCallback callback) {
-  TRACE_EVENT0("gpu", "GpuChannelMessageFilter::GetGpuMemoryBufferHandleInfo");
-  base::AutoLock auto_lock(gpu_channel_lock_);
-  int32_t routing_id =
-      static_cast<int32_t>(GpuChannelReservedRoutes::kSharedImageInterface);
-  auto it = route_sequences_.find(routing_id);
-  if (it == route_sequences_.end()) {
-    LOG(ERROR) << "Invalid route id in flush list.";
-    std::move(callback).Run(gfx::GpuMemoryBufferHandle(),
-                            viz::SharedImageFormat(), gfx::Size(),
-                            gfx::BufferUsage::GPU_READ);
-    return;
-  }
-  std::vector<Scheduler::Task> tasks;
-  tasks.emplace_back(
-      it->second,
-      base::BindOnce(
-          &gpu::GpuChannel::GetGpuMemoryBufferHandleInfo,
-          gpu_channel_->AsWeakPtr(), mailbox,
-          base::BindPostTask(base::SingleThreadTaskRunner::GetCurrentDefault(),
-                             std::move(callback))),
-      std::vector<::gpu::SyncToken>());
-  scheduler_->ScheduleTasks(std::move(tasks));
 }
 
 void GpuChannelMessageFilter::CrashForTesting() {
@@ -801,11 +772,6 @@ base::WeakPtr<GpuChannel> GpuChannel::AsWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 
-bool GpuChannel::OnMessageReceived(const IPC::Message& msg) {
-  // All messages should be pushed to channel_messages_ and handled separately.
-  NOTREACHED();
-}
-
 void GpuChannel::OnChannelError() {
   gpu_channel_manager_->RemoveChannel(client_id_);
 }
@@ -899,23 +865,6 @@ void GpuChannel::ExecuteDeferredRequest(
       shared_image_stub_->ExecuteDeferredRequest(
           std::move(params->get_shared_image_request()));
       break;
-  }
-}
-
-void GpuChannel::GetGpuMemoryBufferHandleInfo(
-    const gpu::Mailbox& mailbox,
-    mojom::GpuChannel::GetGpuMemoryBufferHandleInfoCallback callback) {
-  gfx::GpuMemoryBufferHandle handle;
-  viz::SharedImageFormat format;
-  gfx::Size size;
-  gfx::BufferUsage buffer_usage;
-  if (shared_image_stub_->GetGpuMemoryBufferHandleInfo(mailbox, handle, format,
-                                                       size, buffer_usage)) {
-    std::move(callback).Run(std::move(handle), format, size, buffer_usage);
-  } else {
-    std::move(callback).Run(gfx::GpuMemoryBufferHandle(),
-                            viz::SharedImageFormat(), gfx::Size(),
-                            gfx::BufferUsage::GPU_READ);
   }
 }
 
@@ -1043,7 +992,7 @@ void GpuChannel::CreateCommandBuffer(
   int32_t share_group_id = init_params->share_group_id;
   CommandBufferStub* share_group = LookupCommandBuffer(share_group_id);
 
-  if (!share_group && share_group_id != MSG_ROUTING_NONE) {
+  if (!share_group && share_group_id != IPC::mojom::kRoutingIdNone) {
     LOG(ERROR) << "ContextResult::kFatalFailure: invalid share group id";
     return;
   }

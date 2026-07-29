@@ -4,8 +4,8 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
+import("//content/public/common/features.gni")
 import("//pdf/features.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
@@ -73,6 +73,12 @@ if (enable_pdf) {
       "//base",
       "//build:chromeos_buildflags",
     ]
+  }
+
+  source_set("structs") {
+    configs += [ ":strict" ]
+
+    public = [ "page_character_index.h" ]
   }
 
   source_set("internal") {
@@ -179,6 +185,7 @@ if (enable_pdf) {
       ":buildflags",
       ":content_restriction",
       ":features",
+      ":structs",
       "//base",
       "//base:i18n",
       "//build:chromeos_buildflags",
@@ -335,6 +342,8 @@ if (enable_pdf) {
 
     configs += [ ":strict" ]
 
+    public_deps = [ ":structs" ]
+
     deps = [
       "//base",
       "//services/screen_ai/buildflags",
@@ -352,11 +361,15 @@ if (enable_pdf) {
     ]
 
     sources = [
+      "pdf_annotation_agent.cc",
+      "pdf_annotation_agent.h",
       "pdf_view_web_plugin.cc",
       "post_message_receiver.cc",
       "post_message_receiver.h",
       "v8_value_converter.h",
     ]
+
+    friend = [ ":pdf_unittests" ]
 
     configs += [ ":strict" ]
 
@@ -399,6 +412,8 @@ if (enable_pdf) {
     testonly = true
 
     sources = [
+      "test/fake_annotation_agent_host.cc",
+      "test/fake_annotation_agent_host.h",
       "test/mock_web_associated_url_loader.cc",
       "test/mock_web_associated_url_loader.h",
       "test/mouse_event_builder.cc",
@@ -441,6 +456,7 @@ if (enable_pdf) {
       "page_orientation_unittest.cc",
       "paint_manager_unittest.cc",
       "parsed_params_unittest.cc",
+      "pdf_annotation_agent_unittest.cc",
       "pdf_caret_unittest.cc",
       "pdf_transform_unittest.cc",
       "pdf_utils/dates_unittest.cc",
@@ -483,6 +499,7 @@ if (enable_pdf) {
       ":pdf",
       ":pdf_test_utils",
       ":pdf_view_web_plugin",
+      ":structs",
       "//base",
       "//base:i18n",
       "//base/test:test_support",
@@ -515,11 +532,6 @@ if (enable_pdf) {
     data_deps = [
       ":pdf_unittests_pak",
       "//ui/resources:ui_test_pak_data",
-    ]
-
-    assert_no_deps = [
-      "//ppapi/c/*",
-      "//ppapi/cpp/*",
     ]
 
     if (enable_pdf_ink2) {
@@ -557,6 +569,10 @@ if (enable_pdf) {
       ]
       configs += [ "//v8:external_startup_data" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   repack("pdf_unittests_pak") {

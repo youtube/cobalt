@@ -82,6 +82,8 @@ source_set("push_notification_util") {
 
 source_set("push_notification_delegate") {
   sources = [
+    "notification_metrics_recorder.h",
+    "notification_metrics_recorder.mm",
     "push_notification_delegate.h",
     "push_notification_delegate.mm",
   ]
@@ -181,6 +183,10 @@ source_set("push_notification_service") {
     "//ios/chrome/common/app_group",
     "//ios/web/public/thread",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("push_notification_settings_util_header") {
@@ -231,6 +237,7 @@ source_set("constants") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "notification_metrics_recorder_unittest.mm",
     "push_notification_account_context_manager+testing.h",
     "push_notification_account_context_manager_unittest.mm",
     "push_notification_client_manager_unittest.mm",
@@ -243,6 +250,7 @@ source_set("unit_tests") {
     ":constants",
     ":push_notification_client",
     ":push_notification_client_id",
+    ":push_notification_delegate",
     ":push_notification_service",
     ":push_notification_service_header",
     ":push_notification_settings_util_header",
@@ -271,6 +279,10 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//third_party/ocmock",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {

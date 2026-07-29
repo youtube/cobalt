@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.keyboard_accessory;
 
+import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.IS_FULLSCREEN;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.KEYBOARD_EXTENSION_STATE;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.KeyboardExtensionState.EXTENDING_KEYBOARD;
@@ -35,6 +36,7 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingProperties.KeyboardExtensionState;
@@ -54,6 +56,7 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabClosingSource;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
@@ -94,6 +97,8 @@ class ManualFillingMediator
                 BackPressHandler {
     private static final int MINIMAL_AVAILABLE_VERTICAL_SPACE = 128; // in DP.
     private static final int MINIMAL_AVAILABLE_HORIZONTAL_SPACE = 180; // in DP.
+    private static final int MIN_WINDOW_HEIGHT_FOR_UNDOCKED_BAR_DP = 480;
+    private static final int MIN_WINDOW_WIDTH_FOR_UNDOCKED_BAR_DP = 600;
 
     private final SparseArray<AccessorySheetTabCoordinator> mSheets = new SparseArray<>();
     private final PropertyModel mModel = ManualFillingProperties.createFillingModel();
@@ -216,7 +221,7 @@ class ManualFillingMediator
         mTabModelObserver =
                 new TabModelSelectorTabModelObserver(mActivity.getTabModelSelector()) {
                     @Override
-                    public void didSelectTab(Tab tab, int type, int lastId) {
+                    public void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
                         ensureObserverRegistered(tab);
                         refreshTabs();
                     }
@@ -392,7 +397,10 @@ class ManualFillingMediator
         mPopup = popup;
     }
 
-    void show(boolean waitForKeyboard) {
+    void show(boolean waitForKeyboard, boolean isCredentialFieldOrHasAutofillSuggestions) {
+        mModel.set(
+                IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS,
+                isCredentialFieldOrHasAutofillSuggestions);
         showWithKeyboardExtensionState(waitForKeyboard);
     }
 
@@ -498,6 +506,10 @@ class ManualFillingMediator
             // in HIDDEN state.
             assert mModel.get(SHOULD_EXTEND_KEYBOARD) || is(HIDDEN);
             return;
+        } else if (property == IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS) {
+            // Do nothing. IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS is used with
+            // KEYBOARD_EXTENSION_STATE.
+            return;
         }
         throw new IllegalArgumentException("Unhandled property: " + property);
     }
@@ -535,6 +547,10 @@ class ManualFillingMediator
                     mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
                     return false;
                 }
+                if (shouldHideKeyboardAccessoryForLargeFormFactor()) {
+                    mModel.set(KEYBOARD_EXTENSION_STATE, HIDDEN);
+                    return false;
+                }
                 return true;
             case FLOATING_SHEET:
                 if (isSoftKeyboardShowing(getContentView())) {
@@ -557,6 +573,26 @@ class ManualFillingMediator
         }
         throw new IllegalArgumentException(
                 "Unhandled transition into state: " + mModel.get(KEYBOARD_EXTENSION_STATE));
+    }
+
+    private boolean shouldHideKeyboardAccessoryForLargeFormFactor() {
+        // Hides keyboard accessory if it is large form factor and does not have autofill
+        // suggestions for non credential fields. The check for feature flag needs to happen before
+        // `IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS` check to ensure we get the unbiased
+        // metrics.
+        return isLargeFormFactor()
+                && ChromeFeatureList.isEnabled(
+                        ChromeFeatureList.AUTOFILL_ANDROID_DESKTOP_SUPPRESS_ACCESSORY_ON_EMPTY)
+                && !mModel.get(IS_CREDENTIAL_FIELD_OR_HAS_AUTOFILL_SUGGESTIONS);
+    }
+
+    // TODO(crbug.com/430304112): update the conditions once we have confirmed mocks.
+    private boolean isLargeFormFactor() {
+        int windowHeightDp = mActivity.getResources().getConfiguration().screenWidthDp;
+        int windowWidthDp = mActivity.getResources().getConfiguration().screenHeightDp;
+
+        return windowHeightDp > MIN_WINDOW_HEIGHT_FOR_UNDOCKED_BAR_DP
+                && windowWidthDp > MIN_WINDOW_WIDTH_FOR_UNDOCKED_BAR_DP;
     }
 
     private void enforceStateProperties(@KeyboardExtensionState int extensionState) {
@@ -677,10 +713,14 @@ class ManualFillingMediator
         if (isInitialized() && mAccessorySheet.isShown()) onCloseAccessorySheet();
     }
 
-    void confirmOperation(
-            String title, String message, Runnable confirmedCallback, Runnable declinedCallback) {
+    void confirmDeletionOperation(
+            String title,
+            CharSequence message,
+            String confirmButtonText,
+            Runnable confirmedCallback,
+            Runnable declinedCallback) {
         mConfirmationHelper.showConfirmation(
-                title, message, R.string.ok, confirmedCallback, declinedCallback);
+                title, message, confirmButtonText, confirmedCallback, declinedCallback);
     }
 
     private void changeBottomControlSpaceForState(int extensionState) {

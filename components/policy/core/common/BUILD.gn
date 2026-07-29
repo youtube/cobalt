@@ -193,15 +193,12 @@ source_set("internal") {
     "proxy_policy_provider.h",
     "remote_commands/remote_command_job.cc",
     "remote_commands/remote_command_job.h",
-    "remote_commands/remote_commands_constants.cc",
     "remote_commands/remote_commands_constants.h",
     "remote_commands/remote_commands_factory.cc",
     "remote_commands/remote_commands_factory.h",
     "remote_commands/remote_commands_fetch_reason.h",
     "remote_commands/remote_commands_invalidator.cc",
     "remote_commands/remote_commands_invalidator.h",
-    "remote_commands/remote_commands_invalidator_impl.cc",
-    "remote_commands/remote_commands_invalidator_impl.h",
     "remote_commands/remote_commands_queue.cc",
     "remote_commands/remote_commands_queue.h",
     "remote_commands/remote_commands_service.cc",
@@ -226,7 +223,6 @@ source_set("internal") {
     ":policy_namespace",
     ":util",
     "//components/invalidation:invalidation",
-    "//components/invalidation/public",
     "//components/policy:generated",
     "//components/policy/proto",
     "//components/reporting/proto:record_constants",
@@ -537,7 +533,6 @@ source_set("unit_tests") {
     "policy_statistics_collector_unittest.cc",
     "proxy_policy_provider_unittest.cc",
     "remote_commands/remote_commands_invalidator_unittest.cc",
-    "remote_commands/remote_commands_invalidator_with_listener_unittest.cc",
     "remote_commands/remote_commands_queue_unittest.cc",
     "remote_commands/remote_commands_service_unittest.cc",
     "schema_map_unittest.cc",
@@ -645,7 +640,6 @@ source_set("unit_tests") {
     "//components/enterprise/common/proto:upload_request_response",
     "//components/enterprise/connectors/core:constants",
     "//components/invalidation:test_support",
-    "//components/invalidation/impl:test_support",
     "//components/policy:generated",
     "//components/prefs:test_support",
     "//components/version_info:version_info",
@@ -664,6 +658,10 @@ source_set("unit_tests") {
   if (is_android) {
     deps += [ "//components/policy/android:test_jni_headers" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("policy_schema_fuzzer") {

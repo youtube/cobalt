@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "chrome/browser/spellchecker/spellcheck_custom_dictionary.h"
 
 #include <stddef.h>
@@ -421,10 +416,6 @@ std::string SpellcheckCustomDictionary::GetClientTag(
     const syncer::EntityData& entity_data) const {
   DCHECK(entity_data.specifics.has_dictionary());
   return entity_data.specifics.dictionary().word();
-}
-
-bool SpellcheckCustomDictionary::SupportsGetClientTag() const {
-  return true;
 }
 
 SpellcheckCustomDictionary::LoadFileResult::LoadFileResult()

@@ -113,6 +113,7 @@ Pabandykite palaukti kelias minutes prieš perjungdami paskyras. Jei dabar perju
 <translation id="3728124580182886854">Susiekite „Chromium“ ir kitas „Google“ paslaugas, kad būtų galima suasmeninti ir kitais tikslais</translation>
 <translation id="377649297473651452">„Chromium“ automatinio pildymo išplėstinis rodinys</translation>
 <translation id="3780779443901618967">Įspėjama apie pavojingas svetaines, net ir apie tas, apie kurias anksčiau „Google“ nežinojo, analizuojant daugiau duomenų iš svetainių, nei taikant įprastą apsaugą. Galite pasirinkti praleisti „Chromium“ įspėjimus.</translation>
+<translation id="3804124559081428680">„Chromium“ patarimas: patvirtinkite savo tapatybę</translation>
 <translation id="3805899903892079518">„Chromium“ nepasiekia nuotraukų ar vaizdo įr. Įgalinkite prieigą apsil. „iOS“ nustatymai“ &gt; „Privatumas“ &gt; „Nuotraukos“.</translation>
 <translation id="3816686541346279443">„Chromium“ pasiūlys išsaugoti slaptažodį.</translation>
 <translation id="3827545470516145620">Šiame įrenginyje naudojate įprastos apsaugos funkciją</translation>
@@ -252,6 +253,7 @@ Jei norite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chro
 
 Tik jūsų slaptafrazę turintis asmuo galės perskaityti šifruotus duomenis. Slaptafrazė nesiunčiama ir nesaugoma „Google“. Jei pamiršite slaptafrazę ar norėsite pakeisti šį nustatymą, <ph name="BEGIN_LINK" />ištrinkite „Chromium“ duomenis paskyroje<ph name="END_LINK" />.</translation>
 <translation id="7192111075364461693">„Chromium“ pranešimai šiuo metu išjungti įrenginio nustatymuose.</translation>
+<translation id="7195217321165708458">„Gemini“ narš. „Chromium“</translation>
 <translation id="7219205286115692265">Greičiau pasiekite „Chromium“ naudodami „iPad“ pagrindinio ekrano doką.</translation>
 <translation id="7222001353246886083">Ieškoti pagal užklausą „${searchPhrase}“ naršyklėje „Chromium“</translation>
 <translation id="7228180817326917122">„Chromium“ patarimas: pasirinkite adreso juostos poziciją</translation>

@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
@@ -37,6 +38,8 @@ class TabDialogWidgetObserver;
 class TabDialogManager : public content::WebContentsObserver,
                          public gfx::AnimationDelegate {
  public:
+  using ShouldShowCallback = base::RepeatingCallback<void(bool&)>;
+  using GetDialogBounds = base::RepeatingCallback<gfx::Rect()>;
   explicit TabDialogManager(TabInterface* tab_interface);
   TabDialogManager(const TabDialogManager&) = delete;
   TabDialogManager& operator=(const TabDialogManager&) = delete;
@@ -44,6 +47,8 @@ class TabDialogManager : public content::WebContentsObserver,
 
   // Parameters that are used to configure the behavior of the tab dialog.
   struct Params {
+    Params();
+    ~Params();
     // If the tab's main frame performs a different-site navigation, close the
     // dialog.
     bool close_on_navigate = true;
@@ -59,6 +64,22 @@ class TabDialogManager : public content::WebContentsObserver,
     // responsible for calling `UpdateModalDialogBounds()` when the dialog size
     // changes to trigger the animation.
     bool animated = false;
+
+    // Ensure that TabInterface::CanShowModalUI() reflects whether another modal
+    // dialog can be shown while another is currently being shown. When this
+    // flag is false, a subsequent dialog will hide/dismiss the existing dialog.
+    bool block_new_modal = true;
+
+    // Assign a callback here if the client intends to handle all sizing and
+    // positioning responsibilities. Useful for when the dialog is a bubble
+    // or similar and needs different positioning logic.
+    GetDialogBounds get_dialog_bounds;
+
+    // By default, TabDialogManager will show the widget if the tab is visible,
+    // and the browser window is not minimized. This callback can be set to add
+    // an additional condition that will be checked to determine widget
+    // visibility.
+    ShouldShowCallback should_show_callback;
   };
 
   // Create a dialog widget from the given DialogDelegate suitable for showing
@@ -110,14 +131,25 @@ class TabDialogManager : public content::WebContentsObserver,
   // call this when the dialog's preferred size changes.
   void UpdateModalDialogBounds();
 
+  // Trigger the dialog manager to re-evaluate the dialog's visibility.
+  // Optionally pass in a `requested_visibility` which is the state the client
+  // thinks the dialog should be in, assuming the tab is visible and the window
+  // is not minimized. This will also make sure the `should_show_callback` is
+  // properly invoked and update the widget's visibility accordingly. Clients
+  // should call this when their internal state has changed which may affect the
+  // currently showing dialog's visibility. Function returns the new visibility
+  // state of the dialog.
+  bool UpdateDialogVisibility(
+      std::optional<bool> requested_visibility = std::nullopt);
+
   // Overridden from gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
   void AnimationEnded(const gfx::Animation* animation) override;
 
  private:
   class BrowserWindowWidgetObserver;
-
-  // Overridden from content::WebContentObserver:
+  friend class BrowserWindowWidgetObserver;
+  //  Overridden from content::WebContentObserver:
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
@@ -129,9 +161,9 @@ class TabDialogManager : public content::WebContentsObserver,
   bool GetDialogWidgetVisibility();
 
   raw_ptr<TabInterface> tab_interface_ = nullptr;
-  base::CallbackListSubscription tab_did_enter_foreground_subscription_;
-  base::CallbackListSubscription tab_will_enter_background_subscription_;
-  base::CallbackListSubscription tab_will_detach_subscription_;
+
+  // Holds subscriptions for TabInterface callbacks.
+  std::vector<base::CallbackListSubscription> tab_subscriptions_;
 
   // Active dialog and associated state. These members should be set and cleared
   // simultaneously.

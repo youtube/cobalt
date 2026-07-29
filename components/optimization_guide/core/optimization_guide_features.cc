@@ -57,16 +57,6 @@ BASE_FEATURE(kOptimizationTargetPrediction,
              "OptimizationTargetPrediction",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables the downloading of models.
-BASE_FEATURE(kOptimizationGuideModelDownloading,
-             "OptimizationGuideModelDownloading",
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else   // BUILD_WITH_TFLITE_LIB
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // !BUILD_WITH_TFLITE_LIB
-);
-
 // Enables push notification of hints.
 BASE_FEATURE(kPushNotifications,
              "OptimizationGuidePushNotifications",
@@ -186,6 +176,10 @@ BASE_FEATURE(kOnDeviceModelPerformanceParams,
 
 BASE_FEATURE(kAnnotatedPageContentWithActionableElements,
              "AnnotatedPageContentWithActionableElements",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAnnotatedPageContentWithMediaData,
+             "AnnotatedPageContentWithMediaData",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kPerformanceClassListForOnDeviceModel{
@@ -395,16 +389,6 @@ base::TimeDelta ModelExecutionWatchdogDefaultTimeout() {
       2000
 #endif
       ));
-}
-
-bool IsModelDownloadingEnabled() {
-  return base::FeatureList::IsEnabled(kOptimizationGuideModelDownloading);
-}
-
-bool IsUnrestrictedModelDownloadingEnabled() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kOptimizationGuideModelDownloading, "unrestricted_model_downloading",
-      true);
 }
 
 bool ShouldMetadataValidationFetchHostKeyed() {
@@ -698,13 +682,6 @@ std::vector<uint32_t> GetOnDeviceModelAllowedAdaptationRanks() {
     }
   }
   return ranks;
-}
-
-bool ForceCpuBackendForOnDeviceModel() {
-  static const base::FeatureParam<bool> kForceCpuBackend{
-      &kOptimizationGuideOnDeviceModel, "on_device_model_force_cpu_backend",
-      false};
-  return kForceCpuBackend.Get();
 }
 
 bool ShouldEnableOptimizationGuideIconView() {

@@ -85,6 +85,7 @@ enum FieldTypeGroupForMetrics {
   GROUP_STANDALONE_CREDIT_CARD_VERIFICATION = 47,
   GROUP_AUTOFILL_AI = 48,
   GROUP_LOYALTY_CARD = 49,
+  GROUP_ONE_TIME_PASSWORD = 50,
   // Note: if adding an enum value here, run
   // tools/metrics/histograms/update_autofill_enums.py
   NUM_FIELD_TYPE_GROUPS_FOR_METRICS
@@ -476,6 +477,10 @@ int GetFieldTypeGroupPredictionQualityMetric(FieldType field_type,
       group = GROUP_UNFILLABLE;
       break;
 
+    case FieldTypeGroup::kOneTimePassword:
+      group = GROUP_ONE_TIME_PASSWORD;
+      break;
+
     case FieldTypeGroup::kTransaction:
       NOTREACHED();
   }
@@ -700,7 +705,8 @@ void LogPredictionQualityMetrics(
 
   const FieldTypeSet& possible_types =
       metric_type == TYPE_AUTOCOMPLETE_BASED
-          ? FieldTypeSet{AutofillType(field.html_type()).GetStorableType()}
+          ? FieldTypeSet{HtmlFieldTypeToBestCorrespondingFieldType(
+                field.html_type())}
           : field.possible_types();
 
   // Get the best type classification we can for the field.

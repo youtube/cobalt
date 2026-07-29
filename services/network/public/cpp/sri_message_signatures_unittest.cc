@@ -150,7 +150,7 @@ class SRIMessageSignatureParserTest : public testing::Test {
     EXPECT_EQ("signature", sig->label);
     EXPECT_EQ(std::nullopt, sig->created);
     EXPECT_EQ(std::nullopt, sig->expires);
-    EXPECT_EQ(kPublicKey, sig->keyid);
+    EXPECT_EQ(base::Base64Decode(kPublicKey), sig->keyid);
     EXPECT_EQ(std::nullopt, sig->nonce);
     EXPECT_EQ("ed25519-integrity", sig->tag);
     EXPECT_EQ(kSignature, base::Base64Encode(sig->signature));
@@ -400,9 +400,6 @@ TEST_F(SRIMessageSignatureParserTest, MalformedSignatureInputComponents) {
       {"signature=(\"@unknown-derived-components\")",
        mojom::SRIMessageSignatureError::
            kSignatureInputHeaderInvalidComponentName},
-      {"signature=(\"not-unencoded-digest\")",
-       mojom::SRIMessageSignatureError::
-           kSignatureInputHeaderInvalidComponentName},
       {"signature=(\"Unencoded-Digest\")",
        mojom::SRIMessageSignatureError::
            kSignatureInputHeaderInvalidComponentName},
@@ -414,7 +411,7 @@ TEST_F(SRIMessageSignatureParserTest, MalformedSignatureInputComponents) {
            kSignatureInputHeaderInvalidHeaderComponentParameter},
       {"signature=(\"something-else\" \"unencoded-digest\")",
        mojom::SRIMessageSignatureError::
-           kSignatureInputHeaderInvalidComponentName},
+           kSignatureInputHeaderInvalidHeaderComponentParameter},
 
       // Invalid component params:
       {"signature=(\"unencoded-digest\")",
@@ -451,12 +448,6 @@ TEST_F(SRIMessageSignatureParserTest, MalformedSignatureInputComponents) {
        mojom::SRIMessageSignatureError::kInvalidSignatureInputHeader},
 
       // One valid, one invalid component:
-      {"signature=(\"unencoded-digest\";sf \"unknown\")",
-       mojom::SRIMessageSignatureError::
-           kSignatureInputHeaderInvalidComponentName},
-      {"signature=(\"unknown\" \"unencoded-digest\";sf)",
-       mojom::SRIMessageSignatureError::
-           kSignatureInputHeaderInvalidComponentName},
       {"signature=(\"unencoded-digest\";sf \"@path\")",
        mojom::SRIMessageSignatureError::
            kSignatureInputHeaderInvalidDerivedComponentParameter},
@@ -478,6 +469,9 @@ TEST_F(SRIMessageSignatureParserTest, MalformedSignatureInputComponents) {
       {"signature=(\"unencoded-digest\";sf token;req)",
        mojom::SRIMessageSignatureError::
            kSignatureInputHeaderInvalidComponentType},
+      {"signature=(\"unencoded-digest\";sf \"header-with-sf\";sf)",
+       mojom::SRIMessageSignatureError::
+           kSignatureInputHeaderInvalidHeaderComponentParameter},
       {"signature=(token;req \"unencoded-digest\";sf)",
        mojom::SRIMessageSignatureError::
            kSignatureInputHeaderInvalidComponentType},
@@ -491,7 +485,7 @@ TEST_F(SRIMessageSignatureParserTest, MalformedSignatureInputComponents) {
            kSignatureInputHeaderInvalidHeaderComponentParameter},
       {"signature=(\"@path\";req \"not-unencoded-digest\";sf)",
        mojom::SRIMessageSignatureError::
-           kSignatureInputHeaderInvalidComponentName},
+           kSignatureInputHeaderInvalidHeaderComponentParameter},
   };
 
   for (const auto& test : cases) {
@@ -1356,6 +1350,51 @@ TEST_F(SRIMessageSignatureBaseTest, UnknownParameters) {
   }
 }
 
+TEST_F(SRIMessageSignatureBaseTest, ArbitraryResponseHeaderComponent) {
+  const char* kTestHeaderName = "arbitrary-header";
+  const char* kTestHeaderValue = "test-value";
+
+  std::string input_header =
+      base::StrCat({"signature=(\"unencoded-digest\";sf \"arbitrary-header\");",
+                    "keyid=\"", kPublicKey, "\";tag=\"ed25519-integrity\""});
+
+  std::stringstream expected_base;
+  expected_base << "\"unencoded-digest\";sf: " << kValidDigestHeader << '\n'
+                << "\"arbitrary-header\": " << kTestHeaderValue << '\n'
+                << "\"@signature-params\": (\"unencoded-digest\";sf "
+                   "\"arbitrary-header\");"
+                << "keyid=\"" << kPublicKey << "\";tag=\"ed25519-integrity\"";
+
+  auto headers = ValidHeadersPlusInput(input_header.c_str());
+
+  // First, verify failure when the header is missing:
+  {
+    ASSERT_FALSE(headers->HasHeader("arbitrary-header"));
+
+    auto parsed = ParseSRIMessageSignaturesFromHeaders(*headers);
+    ASSERT_EQ(1u, parsed->signatures.size());
+    EXPECT_EQ(0u, parsed->issues.size());
+
+    std::optional<std::string> result =
+        ConstructSignatureBase(parsed->signatures[0], request(), *headers);
+    EXPECT_FALSE(result.has_value());
+  }
+
+  // Then, add the header and verify success:
+  {
+    headers->AddHeader(kTestHeaderName, kTestHeaderValue);
+
+    auto parsed = ParseSRIMessageSignaturesFromHeaders(*headers);
+    ASSERT_EQ(1u, parsed->signatures.size());
+    EXPECT_EQ(0u, parsed->issues.size());
+
+    std::optional<std::string> result =
+        ConstructSignatureBase(parsed->signatures[0], request(), *headers);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(expected_base.str(), result.value());
+  }
+}
+
 //
 // Validation Tests
 //
@@ -1528,6 +1567,29 @@ TEST_F(SRIMessageSignatureValidationTest, ValidSignatureDigestHeaderMismatch) {
   }
 }
 
+TEST_F(SRIMessageSignatureValidationTest, MissingHeader) {
+  // This signature is valid for a base that includes "unencoded-digest".
+  // We'll try to validate it against a signature declaration that also
+  // includes "x-test-header". The signature base will be different, so
+  // validation should fail.
+  std::string input_header =
+      base::StrCat({"signature=(\"unencoded-digest\";sf \"x-test-header\");",
+                    "keyid=\"", kPublicKey, "\";tag=\"ed25519-integrity\""});
+
+  auto headers =
+      Headers(kValidDigestHeader, kValidSignatureHeader, input_header);
+  // Not adding x-test-header.
+  auto parsed = ParseSRIMessageSignaturesFromHeaders(*headers);
+  ASSERT_EQ(1u, parsed->signatures.size());
+  EXPECT_EQ(0u, parsed->issues.size());
+
+  EXPECT_FALSE(
+      ValidateSRIMessageSignaturesOverHeaders(parsed, request(), *headers));
+  ASSERT_EQ(1u, parsed->issues.size());
+  EXPECT_EQ(mojom::SRIMessageSignatureError::kValidationFailedSignatureMismatch,
+            parsed->issues[0]->error);
+}
+
 class SRIMessageSignatureEnforcementTest
     : public SRIMessageSignatureValidationTest,
       public testing::WithParamInterface<bool> {
@@ -1582,26 +1644,28 @@ TEST_P(SRIMessageSignatureEnforcementTest, ValidHeadersWithMatchingIntegrity) {
   auto head = ResponseHead(kValidDigestHeader, kValidSignatureHeader,
                            kValidSignatureInputHeader);
 
+  const std::vector<uint8_t> public_key = *base::Base64Decode(kPublicKey);
+
   // Matching key.
   {
     auto result = MaybeBlockResponseForSRIMessageSignature(request(), *head,
-                                                           {kPublicKey});
+                                                           {public_key});
     EXPECT_FALSE(result.has_value());
   }
 
   // Matching key + non-matching key.
+  std::string wrong_key_str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  const std::vector<uint8_t> wrong_key = *base::Base64Decode(wrong_key_str);
   {
-    std::string wrong_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     auto result = MaybeBlockResponseForSRIMessageSignature(
-        request(), *head, {kPublicKey, wrong_key});
+        request(), *head, {public_key, wrong_key});
     EXPECT_FALSE(result.has_value());
   }
 
   // Non-matching key + matching key.
   {
-    std::string wrong_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     auto result = MaybeBlockResponseForSRIMessageSignature(
-        request(), *head, {wrong_key, kPublicKey});
+        request(), *head, {wrong_key, public_key});
     EXPECT_FALSE(result.has_value());
   }
 }
@@ -1609,7 +1673,8 @@ TEST_P(SRIMessageSignatureEnforcementTest, ValidHeadersWithMatchingIntegrity) {
 TEST_P(SRIMessageSignatureEnforcementTest,
        ValidHeadersWithMismatchedIntegrity) {
   bool feature_flag_enabled = GetParam();
-  std::string wrong_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  std::string wrong_key_str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  auto wrong_key = *base::Base64Decode(wrong_key_str);
 
   base::test::ScopedFeatureList scoped_feature_list_;
   scoped_feature_list_.InitWithFeatureState(
@@ -1662,14 +1727,16 @@ TEST_P(SRIMessageSignatureEnforcementTest, MismatchedHeadersAndForcedChecks) {
   scoped_feature_list_.InitWithFeatureState(
       features::kSRIMessageSignatureEnforcement, feature_flag_enabled);
 
-  const char* wrong_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  const char* wrong_key_str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  auto wrong_key = *base::Base64Decode(wrong_key_str);
+
   const char* wrong_signature =
       "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
       "AAAAAAAAAAAAAA==";
 
-  auto head = ResponseHead(kValidDigestHeader,
-                           SignatureHeader("bad-signature", wrong_signature),
-                           SignatureInputHeader("bad-signature", wrong_key));
+  auto head = ResponseHead(
+      kValidDigestHeader, SignatureHeader("bad-signature", wrong_signature),
+      SignatureInputHeader("bad-signature", wrong_key_str));
   auto result =
       MaybeBlockResponseForSRIMessageSignature(request(), *head, {wrong_key});
   ASSERT_TRUE(result.has_value());
@@ -1717,88 +1784,53 @@ TEST_P(SRIMessageSignatureRequestHeaderTest, NoSignaturesNoHeader) {
                    .has_value());
 }
 
+// Most invalid data is filtered out by the binary encoding: really all that's
+// left is to ensure that the public key is the proper length for ed25519.
 TEST_P(SRIMessageSignatureRequestHeaderTest, InvalidSignatures) {
-  const std::vector<std::string> cases[] = {
-      // Not base64:
-      {"invalid"},
-      {"also\rinvalid"},
-      {"also\ninvalid"},
-      {"also\r\ninvalid"},
-      {"also\"invalid"},
-      // Incorrect padding:
-      {"JrQLj5P/89iXES9+vFgrIy29clF9CC/oPPsw3c5D0bs"},
-      // base64url:
-      {"JrQLj5P_89iXES9-vFgrIy29clF9CC_oPPsw3c5D0bs="},
-      // Incorrect length:
-      {"YQ=="},
-      // Prefixed:
-      {"ed25519-JrQLj5P/89iXES9+vFgrIy29clF9CC/oPPsw3c5D0bs="},
-      // Multiple invalid:
-      {"invalid", "and also invalid"},
-      {"JrQLj5P/89iXES9+vFgrIy29clF9CC/oPPsw3c5D0bs",
-       "JrQLj5P/89iXES9+vFgrIy29clF9CC/oPPsw3c5D0bs"},
-  };
-
-  for (const auto& test : cases) {
-    SCOPED_TRACE(base::JoinString(test, ", "));
-    MaybeSetAcceptSignatureHeader(url_request(), test);
-    EXPECT_FALSE(url_request()
-                     ->extra_request_headers()
-                     .GetHeader(kAcceptSignature)
-                     .has_value());
-  }
+  MaybeSetAcceptSignatureHeader(url_request(), {*base::Base64Decode("YQ==")});
+  EXPECT_FALSE(url_request()
+                   ->extra_request_headers()
+                   .GetHeader(kAcceptSignature)
+                   .has_value());
 }
 
-TEST_P(SRIMessageSignatureRequestHeaderTest, ValidSignature) {
-  const std::vector<std::string> cases[] = {
-      {kPublicKey},
-      // Valid, invalid => valid
-      {kPublicKey, "invalid"},
-      // Invalid, valid => valid
-      {"invalid", kPublicKey},
-      // Invalid, valid, invalid => valid
-      {"invalid", kPublicKey, "invalid"},
-  };
+TEST_P(SRIMessageSignatureRequestHeaderTest, ValidSignatures) {
+  const std::vector<uint8_t> public_key = *base::Base64Decode(kPublicKey);
+  const std::vector<uint8_t> public_key2 = *base::Base64Decode(kPublicKey2);
 
-  for (const auto& test : cases) {
-    SCOPED_TRACE(base::JoinString(test, ", "));
-    MaybeSetAcceptSignatureHeader(url_request(), test);
-
+  // One valid signature:
+  {
+    MaybeSetAcceptSignatureHeader(url_request(), {public_key});
     auto result =
         url_request()->extra_request_headers().GetHeader(kAcceptSignature);
-
-    // The result does not depend on the feature flag: we rely on the caller to
-    // give us expected signatures iff they should be delivered.
     std::string expected =
         base::StrCat({"sig0=(\"unencoded-digest\";sf);keyid=\"", kPublicKey,
                       "\";tag=\"ed25519-integrity\""});
     EXPECT_THAT(result, testing::Optional(expected));
   }
-}
 
-TEST_P(SRIMessageSignatureRequestHeaderTest, ValidSignatures) {
-  const std::vector<std::string> cases[] = {
-      {kPublicKey, kPublicKey2},
-      // Valid, invalid => valid
-      {kPublicKey, kPublicKey2, "invalid"},
-      // Invalid, valid => valid
-      {"invalid", kPublicKey, kPublicKey2},
-      // Invalid, valid, invalid => valid
-      {"invalid", kPublicKey, kPublicKey2, "invalid"},
-  };
-
-  for (const auto& test : cases) {
-    SCOPED_TRACE(base::JoinString(test, ", "));
-    MaybeSetAcceptSignatureHeader(url_request(), test);
-
+  // Two valid signature:
+  {
+    MaybeSetAcceptSignatureHeader(url_request(), {public_key, public_key2});
     auto result =
         url_request()->extra_request_headers().GetHeader(kAcceptSignature);
-    // The result does not depend on the feature flag: we rely on the caller to
-    // give us expected signatures iff they should be delivered.
     std::string expected =
         base::StrCat({"sig0=(\"unencoded-digest\";sf);keyid=\"", kPublicKey,
                       "\";tag=\"ed25519-integrity\", ",
                       "sig1=(\"unencoded-digest\";sf);keyid=\"", kPublicKey2,
+                      "\";tag=\"ed25519-integrity\""});
+    EXPECT_THAT(result, testing::Optional(expected));
+  }
+
+  // Two valid signature, order matters:
+  {
+    MaybeSetAcceptSignatureHeader(url_request(), {public_key2, public_key});
+    auto result =
+        url_request()->extra_request_headers().GetHeader(kAcceptSignature);
+    std::string expected =
+        base::StrCat({"sig0=(\"unencoded-digest\";sf);keyid=\"", kPublicKey2,
+                      "\";tag=\"ed25519-integrity\", ",
+                      "sig1=(\"unencoded-digest\";sf);keyid=\"", kPublicKey,
                       "\";tag=\"ed25519-integrity\""});
     EXPECT_THAT(result, testing::Optional(expected));
   }

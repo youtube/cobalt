@@ -15,9 +15,12 @@
 #include "net/base/features.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_inclusion_status.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+
+using ::testing::ElementsAre;
 
 TEST(ParsedCookieTest, TestBasic) {
   ParsedCookie pc1("a=b");
@@ -31,7 +34,7 @@ TEST(ParsedCookieTest, TestBasic) {
   EXPECT_FALSE(pc1.Domain());
   EXPECT_FALSE(pc1.Expires());
   EXPECT_FALSE(pc1.MaxAge());
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc1.SameSite());
+  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc1.SameSite().first);
   EXPECT_EQ(CookiePriority::COOKIE_PRIORITY_DEFAULT, pc1.Priority());
 
   ParsedCookie pc2(
@@ -47,7 +50,7 @@ TEST(ParsedCookieTest, TestBasic) {
   EXPECT_EQ("bar.test", pc2.Domain());
   EXPECT_FALSE(pc2.Expires());
   EXPECT_EQ("60", pc2.MaxAge());
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc2.SameSite());
+  EXPECT_EQ(CookieSameSite::LAX_MODE, pc2.SameSite().first);
   EXPECT_EQ(CookiePriority::COOKIE_PRIORITY_HIGH, pc2.Priority());
 }
 
@@ -219,7 +222,7 @@ TEST(ParsedCookieTest, TestAttributeCase) {
   EXPECT_TRUE(pc.IsSecure());
   EXPECT_TRUE(pc.IsHttpOnly());
   EXPECT_TRUE(pc.IsPartitioned());
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite().first);
   EXPECT_EQ("/", pc.Path());
   EXPECT_EQ("", pc.Name());
   EXPECT_EQ("BLAH", pc.Value());
@@ -299,7 +302,7 @@ TEST(ParsedCookieTest, Whitespace) {
   EXPECT_FALSE(pc.Domain());
   EXPECT_TRUE(pc.IsSecure());
   EXPECT_FALSE(pc.IsHttpOnly());
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite().first);
   EXPECT_EQ(COOKIE_PRIORITY_DEFAULT, pc.Priority());
   // We parse anything between ; as attributes, so we end up with two
   // attributes with an empty string name and value.
@@ -314,7 +317,7 @@ TEST(ParsedCookieTest, MultipleEquals) {
   EXPECT_FALSE(pc.Domain());
   EXPECT_TRUE(pc.IsSecure());
   EXPECT_TRUE(pc.IsHttpOnly());
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite().first);
   EXPECT_EQ(COOKIE_PRIORITY_DEFAULT, pc.Priority());
   EXPECT_EQ(4U, pc.NumberOfAttributes());
 }
@@ -743,7 +746,7 @@ TEST(ParsedCookieTest, SetAttributes) {
   EXPECT_TRUE(pc.MaxAge());
   EXPECT_TRUE(pc.IsSecure());
   EXPECT_TRUE(pc.IsHttpOnly());
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite().first);
   EXPECT_EQ(COOKIE_PRIORITY_HIGH, pc.Priority());
 
   // Modify one attribute in the middle.
@@ -794,7 +797,7 @@ TEST(ParsedCookieTest, SetAttributes) {
   EXPECT_FALSE(pc.MaxAge());
   EXPECT_FALSE(pc.IsSecure());
   EXPECT_FALSE(pc.IsHttpOnly());
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite().first);
   EXPECT_TRUE(pc.SetIsPartitioned(false));
   EXPECT_EQ("name2=value2", pc.ToCookieLine());
   EXPECT_FALSE(pc.IsPartitioned());
@@ -854,43 +857,43 @@ TEST(ParsedCookieTest, SetSameSite) {
   EXPECT_TRUE(pc.IsValid());
 
   EXPECT_EQ("name=value", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite().first);
 
   // Test each samesite directive, expect case-insensitive compare.
   EXPECT_TRUE(pc.SetSameSite("strict"));
   EXPECT_EQ("name=value; samesite=strict", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::STRICT_MODE, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::STRICT_MODE, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 
   EXPECT_TRUE(pc.SetSameSite("lAx"));
   EXPECT_EQ("name=value; samesite=lAx", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 
   EXPECT_TRUE(pc.SetSameSite("LAX"));
   EXPECT_EQ("name=value; samesite=LAX", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 
   EXPECT_TRUE(pc.SetSameSite("None"));
   EXPECT_EQ("name=value; samesite=None", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::NO_RESTRICTION, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::NO_RESTRICTION, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 
   EXPECT_TRUE(pc.SetSameSite("NONE"));
   EXPECT_EQ("name=value; samesite=NONE", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::NO_RESTRICTION, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::NO_RESTRICTION, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 
   // Remove the SameSite attribute.
   EXPECT_TRUE(pc.SetSameSite(""));
   EXPECT_EQ("name=value", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 
   EXPECT_TRUE(pc.SetSameSite("Blah"));
   EXPECT_EQ("name=value; samesite=Blah", pc.ToCookieLine());
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite());
+  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite().first);
   EXPECT_TRUE(pc.IsValid());
 }
 
@@ -898,33 +901,39 @@ TEST(ParsedCookieTest, SetSameSite) {
 // string.
 TEST(ParsedCookieTest, CookieSameSiteStringEnum) {
   ParsedCookie pc("name=value; SameSite");
-  CookieSameSiteString actual = CookieSameSiteString::kLax;
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kEmptyString, actual);
+  EXPECT_EQ(std::make_pair(CookieSameSite::UNSPECIFIED,
+                           CookieSameSiteString::kEmptyString),
+            pc.SameSite());
 
   pc.SetSameSite("Strict");
-  EXPECT_EQ(CookieSameSite::STRICT_MODE, pc.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kStrict, actual);
+  EXPECT_EQ(std::make_pair(CookieSameSite::STRICT_MODE,
+                           CookieSameSiteString::kStrict),
+            pc.SameSite());
 
   pc.SetSameSite("Lax");
-  EXPECT_EQ(CookieSameSite::LAX_MODE, pc.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kLax, actual);
+  EXPECT_EQ(
+      std::make_pair(CookieSameSite::LAX_MODE, CookieSameSiteString::kLax),
+      pc.SameSite());
 
   pc.SetSameSite("None");
-  EXPECT_EQ(CookieSameSite::NO_RESTRICTION, pc.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kNone, actual);
+  EXPECT_EQ(std::make_pair(CookieSameSite::NO_RESTRICTION,
+                           CookieSameSiteString::kNone),
+            pc.SameSite());
 
   pc.SetSameSite("Extended");
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kExtended, actual);
+  EXPECT_EQ(std::make_pair(CookieSameSite::UNSPECIFIED,
+                           CookieSameSiteString::kExtended),
+            pc.SameSite());
 
   pc.SetSameSite("Bananas");
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kUnrecognized, actual);
+  EXPECT_EQ(std::make_pair(CookieSameSite::UNSPECIFIED,
+                           CookieSameSiteString::kUnrecognized),
+            pc.SameSite());
 
   ParsedCookie pc2("no_samesite=1");
-  EXPECT_EQ(CookieSameSite::UNSPECIFIED, pc2.SameSite(&actual));
-  EXPECT_EQ(CookieSameSiteString::kUnspecified, actual);
+  EXPECT_EQ(std::make_pair(CookieSameSite::UNSPECIFIED,
+                           CookieSameSiteString::kUnspecified),
+            pc2.SameSite());
 }
 
 TEST(ParsedCookieTest, SettersInputValidation) {
@@ -1056,7 +1065,7 @@ TEST(ParsedCookieTest, SameSiteValues) {
     SCOPED_TRACE(test.cookie);
     ParsedCookie pc(test.cookie);
     EXPECT_EQ(test.valid, pc.IsValid());
-    EXPECT_EQ(test.mode, pc.SameSite());
+    EXPECT_EQ(test.mode, pc.SameSite().first);
   }
 }
 
@@ -1232,6 +1241,36 @@ TEST(ParsedCookieTest, HtabInNameOrValue) {
   std::string htab_value_string = "foo=b\tar";
   ParsedCookie htab_value(htab_value_string);
   EXPECT_TRUE(htab_value.HasInternalHtab());
+}
+
+TEST(ParsedCookieTest, ForEachAttribute) {
+  ParsedCookie pc("a=b; secure; httponly; path=/foo; domain=bar.test");
+  std::vector<std::pair<std::string, std::string>> attributes;
+
+  EXPECT_TRUE(pc.ForEachAttribute(
+      [&](std::string_view attribute, std::string_view value) {
+        attributes.emplace_back(attribute, value);
+        return true;
+      }));
+
+  std::vector<std::pair<std::string, std::string>> expected_attributes{
+      {"secure", ""},
+      {"httponly", ""},
+      {"path", "/foo"},
+      {"domain", "bar.test"}};
+  EXPECT_EQ(attributes, expected_attributes);
+
+  attributes.clear();
+
+  EXPECT_FALSE(pc.ForEachAttribute(
+      [&](std::string_view attribute, std::string_view value) {
+        attributes.emplace_back(attribute, value);
+        return attribute != "httponly";
+      }));
+
+  expected_attributes = std::vector<std::pair<std::string, std::string>>{
+      {"secure", ""}, {"httponly", ""}};
+  EXPECT_EQ(attributes, expected_attributes);
 }
 
 }  // namespace net

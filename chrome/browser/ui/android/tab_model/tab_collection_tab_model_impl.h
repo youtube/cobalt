@@ -7,12 +7,14 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "base/android/jni_weak_ref.h"
 #include "base/memory/raw_ptr.h"
 
 class Profile;
 class TabAndroid;
+class TabGroup;
 
 namespace base {
 class Token;
@@ -20,9 +22,11 @@ class Token;
 
 namespace tab_groups {
 class TabGroupId;
+class TabGroupVisualData;
 }  // namespace tab_groups
 
 namespace tabs {
+class TabGroupTabCollection;
 class TabStripCollection;
 
 // The C++ portion of TabCollectionTabModelImpl.java. Note this is intentionally
@@ -52,7 +56,8 @@ class TabCollectionTabModelImpl {
   // Recurses until reaching the given index. Returns null if not found.
   TabAndroid* GetTabAtIndexRecursive(JNIEnv* env, size_t index) const;
 
-  // Moves a tab updating its group or pinned state if applicable.
+  // Moves a tab updating its group or pinned state if applicable. Returns the
+  // final index of the tab.
   int MoveTabRecursive(JNIEnv* env,
                        size_t current_index,
                        size_t new_index,
@@ -76,10 +81,11 @@ class TabCollectionTabModelImpl {
                       jint j_color_id,
                       bool is_collapsed);
 
-  // Moves the tab group to a the new index.
-  void MoveTabGroupTo(JNIEnv* env,
-                      const base::Token& tab_group_id,
-                      int to_index);
+  // Moves the tab group to a the new index. Returns the final index of the
+  // group.
+  int MoveTabGroupTo(JNIEnv* env,
+                     const base::Token& tab_group_id,
+                     int to_index);
 
   // Returns the tabs in a group. If the group is not found, returns an empty
   // vector.
@@ -94,20 +100,53 @@ class TabCollectionTabModelImpl {
       const std::optional<jint>& j_color_id,
       const std::optional<bool>& is_collapsed);
 
+  // Getters for tab group visual data.
+  std::u16string GetTabGroupTitle(JNIEnv* env, const base::Token& tab_group_id);
+  jint GetTabGroupColor(JNIEnv* env, const base::Token& tab_group_id);
+  bool GetTabGroupCollapsed(JNIEnv* env, const base::Token& tab_group_id);
+
   // Closes a detached tab group.
   void CloseDetachedTabGroup(JNIEnv* env, const base::Token& tab_group_id);
 
   // Gets a list of all tabs.
   std::vector<TabAndroid*> GetAllTabs(JNIEnv* env);
 
+  // Gets a list of all tab group IDs.
+  std::vector<base::Token> GetAllTabGroupIds(JNIEnv* env);
+
+  // Gets a list of representative tabs.
+  std::vector<TabAndroid*> GetRepresentativeTabList(JNIEnv* env);
+
+  // Sets the last shown tab for a group.
+  void SetLastShownTabForGroup(JNIEnv* env,
+                               const base::Token& group_id,
+                               TabAndroid* tab_android);
+
+  // Gets the last shown tab for a group.
+  TabAndroid* GetLastShownTabForGroup(JNIEnv* env, const base::Token& group_id);
+
  private:
-  // Returns a safe index for adding or moving a single tab without it changing
-  // state.
-  size_t GetSafeIndex(bool is_move,
+  // Returns a safe index for adding or moving a tab or tab group.
+  // `is_tab_group` is used to indicate if we are working with a tab or a tab
+  // group. `current_index` is the current index of the tab; it should be
+  // nullopt when adding a new tab to the collection. `proposed_index` is the
+  // index at which the tab or group is proposed to be moved or added. The
+  // returned value should be used instead. `tab_group_id` and `is_pinned` are
+  // the collection the tab or group will be in after the add or move operation.
+  size_t GetSafeIndex(bool is_tab_group,
+                      const std::optional<size_t>& current_index,
                       size_t proposed_index,
                       const std::optional<tab_groups::TabGroupId>& tab_group_id,
                       bool is_pinned) const;
   std::optional<tab_groups::TabGroupId> GetGroupIdAt(size_t index) const;
+  TabGroupTabCollection* GetTabGroupCollectionChecked(
+      const tab_groups::TabGroupId& tab_group_id,
+      bool allow_detached = false) const;
+  TabGroup* GetTabGroupChecked(const tab_groups::TabGroupId& tab_group_id,
+                               bool allow_detached = false) const;
+  const tab_groups::TabGroupVisualData* GetTabGroupVisualDataChecked(
+      const tab_groups::TabGroupId& tab_group_id,
+      bool allow_detached = false) const;
 
   JavaObjectWeakGlobalRef java_object_;
   raw_ptr<Profile> profile_;

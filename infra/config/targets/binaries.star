@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/targets.star", "targets")
+load("@chromium-luci//targets.star", "targets")
 
 targets.binaries.console_test_launcher(
     name = "absl_hardening_tests",
@@ -919,6 +919,12 @@ targets.binaries.generated_script(
 targets.binaries.console_test_launcher(
     name = "device_unittests",
     label = "//device:device_unittests",
+)
+
+targets.binaries.console_test_launcher(
+    name = "device_realtarget_browsertests",
+    label = "//chrome/test:device_realtarget_browsertests",
+    skip_usage_check = True,
 )
 
 targets.binaries.generated_script(

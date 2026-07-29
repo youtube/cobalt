@@ -22,7 +22,7 @@ target(libcxxabi_target_type, "libc++abi") {
     deps += [ "//buildtools/third_party/libunwind" ]
   }
 
-  if (use_libcxx_modules) {
+  if (use_clang_modules) {
     deps += [
       "//buildtools/third_party/libc++:copy_custom_headers",
       "//buildtools/third_party/libc++:copy_libcxx_headers",
@@ -105,4 +105,8 @@ target(libcxxabi_target_type, "libc++abi") {
 
   # libc++abi depends on libc++ internals.
   include_dirs = [ "//third_party/libc++/src/src" ]
+
+  # Disabling -Wexit-time-destructors, as libc++abi uses a static object for
+  # at exit management (see `static DtorsManager manager`).
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

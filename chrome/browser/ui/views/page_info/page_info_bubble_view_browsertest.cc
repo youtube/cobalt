@@ -58,6 +58,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/content_settings/core/common/pref_names.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/page_info/core/about_this_site_service.h"
 #include "components/page_info/core/about_this_site_validation.h"
@@ -184,7 +185,8 @@ void AddHintForTesting(Browser* browser,
   optimization_guide::OptimizationMetadata optimization_metadata;
   page_info::proto::AboutThisSiteMetadata metadata;
   *metadata.mutable_site_info() = site_info;
-  optimization_metadata.SetAnyMetadataForTesting(metadata);
+  optimization_metadata.set_any_metadata(
+      optimization_guide::AnyWrapProto(metadata));
 
   auto* optimization_guide_decider =
       OptimizationGuideKeyedServiceFactory::GetForProfile(browser->profile());
@@ -1845,7 +1847,7 @@ IN_PROC_BROWSER_TEST_P(
 
   EXPECT_THAT(tracking_protections_button->GetText(),
               l10n_util::GetStringUTF16(
-                  IDS_TRACKING_PROTECTIONS_BUBBLE_RESUME_PROTECTIONS_LABEL));
+                  IDS_TRACKING_PROTECTIONS_BUTTON_RESUME_PROTECTIONS_LABEL));
   EXPECT_EQ(
       host_content_settings_map()->GetContentSetting(
           GURL(), GURL(kUrl), ContentSettingsType::TRACKING_PROTECTION, &info),
@@ -1859,7 +1861,7 @@ IN_PROC_BROWSER_TEST_P(
 
   EXPECT_THAT(tracking_protections_button->GetText(),
               l10n_util::GetStringUTF16(
-                  IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSE_PROTECTIONS_LABEL));
+                  IDS_TRACKING_PROTECTIONS_BUTTON_PAUSE_PROTECTIONS_LABEL));
   EXPECT_EQ(
       host_content_settings_map()->GetContentSetting(
           GURL(), GURL(kUrl), ContentSettingsType::TRACKING_PROTECTION, &info),
@@ -1893,11 +1895,11 @@ IN_PROC_BROWSER_TEST_P(PageInfoBubbleViewBrowserTestTrackingProtectionSubpage,
   EXPECT_EQ(
       settings_button->GetTitleText(),
       l10n_util::GetStringUTF16(
-          IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTION_SETTINGS_BUTTON_TITLE));
+          IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_TITLE));
   EXPECT_EQ(
       settings_button->GetSubtitleText(),
       l10n_util::GetStringUTF16(
-          IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTION_SETTINGS_BUTTON_SUBTITLE));
+          IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_SUBTITLE));
 
   content::WebContentsAddedObserver new_tab_observer;
   PerformMouseClickOnView(settings_button);

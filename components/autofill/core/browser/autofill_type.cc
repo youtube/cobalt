@@ -45,6 +45,8 @@ bool AutofillType::ServerPrediction::is_override() const {
   return server_predictions.empty() ? false : server_predictions[0].override();
 }
 
+AutofillType::AutofillType() : server_type_(NO_SERVER_DATA) {}
+
 AutofillType::AutofillType(FieldType field_type)
     : server_type_(ToSafeFieldType(field_type, UNKNOWN_TYPE)) {}
 
@@ -55,12 +57,6 @@ FieldTypeGroup AutofillType::group() const {
                                       : GroupTypeOfHtmlFieldType(html_type_);
 }
 
-bool AutofillType::IsUnknown() const {
-  return server_type_ == UNKNOWN_TYPE &&
-         (html_type_ == HtmlFieldType::kUnspecified ||
-          html_type_ == HtmlFieldType::kUnrecognized);
-}
-
 FieldType AutofillType::GetStorableType() const {
   return server_type_ != UNKNOWN_TYPE
              ? server_type_
@@ -68,7 +64,10 @@ FieldType AutofillType::GetStorableType() const {
 }
 
 std::string_view AutofillType::ToStringView() const {
-  return IsUnknown()                    ? "UNKNOWN_TYPE"
+  const bool is_unknown = server_type_ == UNKNOWN_TYPE &&
+                          (html_type_ == HtmlFieldType::kUnspecified ||
+                           html_type_ == HtmlFieldType::kUnrecognized);
+  return is_unknown                     ? "UNKNOWN_TYPE"
          : server_type_ != UNKNOWN_TYPE ? FieldTypeToStringView(server_type_)
                                         : FieldTypeToStringView(html_type_);
 }

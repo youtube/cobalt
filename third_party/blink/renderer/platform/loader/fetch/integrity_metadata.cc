@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/platform/loader/fetch/integrity_metadata.h"
 
+#include "third_party/blink/renderer/platform/wtf/text/base64.h"
+
 namespace blink {
 
 void IntegrityMetadataSet::Insert(IntegrityMetadata item) {
@@ -23,9 +25,5 @@ void IntegrityMetadataSet::Insert(IntegrityMetadata item) {
       break;
   }
 }
-
-IntegrityMetadata::IntegrityMetadata(WTF::String digest,
-                                     IntegrityAlgorithm algorithm)
-    : digest(std::move(digest)), algorithm(algorithm) {}
 
 }  // namespace blink

@@ -61,11 +61,12 @@ struct InflowChildData {
 };
 
 struct BlockLineClampData {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
+ public:
   explicit BlockLineClampData(LineClampData line_clamp_data)
       : data(line_clamp_data) {
-    if (data.state == LineClampData::kClampByLines) {
+    if (data.IsClampByLines()) {
       initial_lines_until_clamp = data.lines_until_clamp;
     }
   }
@@ -82,107 +83,36 @@ struct BlockLineClampData {
     if (!previous_inflow_position_when_clamped.has_value()) {
       return false;
     }
-    DCHECK_EQ(data.state, LineClampData::kClampByLines);
+    DCHECK(data.IsClampByLines());
     return data.lines_until_clamp == 0;
   }
 
-  void UpdateClampOffsetFromStyle(LayoutUnit clamp_bfc_offset,
-                                  LayoutUnit content_edge) {
-    if (ignore_line_clamp) {
-      DCHECK_EQ(data.state, LineClampData::kDisabled);
-      return;
-    }
-
-    if (data.state == LineClampData::kMeasureLinesUntilBfcOffset) {
-      // We're doing relayout with a different BFC offset which we obtained from
-      // the previous layout. This offset must be less than the one we get from
-      // style.
-      DCHECK_LT(data.clamp_bfc_offset, clamp_bfc_offset);
-      return;
-    }
-
-    DCHECK_EQ(data.state, LineClampData::kDisabled);
-    if (clamp_bfc_offset == kIndefiniteSize) {
-      data.state = LineClampData::kDisabled;
-    } else {
-      data.state = LineClampData::kMeasureLinesUntilBfcOffset;
-      data.lines_until_clamp = 0;
-      data.clamp_bfc_offset = clamp_bfc_offset;
-    }
-  }
-
-  void UpdateLinesFromStyle(int lines_until_clamp) {
-    if (ignore_line_clamp) {
-      DCHECK_EQ(data.state, LineClampData::kDisabled);
-      return;
-    }
-
-    DCHECK_EQ(data.state, LineClampData::kDisabled);
-    data.state = LineClampData::kClampByLines;
-    data.lines_until_clamp = lines_until_clamp;
-  }
+  void UpdateFromStyle(int lines_until_clamp, LayoutUnit clamp_bfc_offset);
 
   // Returns false if we need to relayout with a different clamp BFC offset.
   bool UpdateAfterLayout(const LayoutResult* layout_result,
                          LayoutUnit bfc_block_offset,
                          const PreviousInflowPosition& previous_inflow_position,
-                         LayoutUnit block_end_padding) {
-    if (data.state == LineClampData::kClampByLines) {
-      if (!layout_result->GetPhysicalFragment().IsFormattingContextRoot() &&
-          !ignore_further_lines) {
-        data.lines_until_clamp = layout_result->LinesUntilClamp();
+                         LayoutUnit block_end_padding);
 
-        if (layout_result->WouldBeLastLineIfNotForEllipsis()) {
-          DCHECK(layout_result->GetPhysicalFragment().IsLineBox());
-          DCHECK_EQ(data.lines_until_clamp, 0);
-          ignore_further_lines = true;
-        }
-      }
-
-      if (IsPastClampPoint() &&
-          !previous_inflow_position_when_clamped.has_value()) {
-        previous_inflow_position_when_clamped = previous_inflow_position;
-      }
+  // If a child box's layout fails because it overflows, and we're propagating
+  // that failure up until the line-clamp container, this method returns the
+  // "clamp after layout object" value we should propagate upwards.
+  const LayoutObject* PropagateClampAfterLayoutObject(
+      const LayoutResult* layout_result) const {
+    // The child overflew after a lineless box; propagate that layout object.
+    if (layout_result->LineClampAfterLayoutObject()) {
+      return layout_result->LineClampAfterLayoutObject();
     }
-
-    if (data.state == LineClampData::kMeasureLinesUntilBfcOffset) {
-      // We compute the margin strut we'd have after this block if we were to
-      // clamp here.
-      MarginStrut collapsed_strut = previous_inflow_position.margin_strut;
-      collapsed_strut.positive_margin = std::max(
-          collapsed_strut.positive_margin, end_margin_strut.positive_margin);
-      collapsed_strut.quirky_positive_margin =
-          std::max(collapsed_strut.quirky_positive_margin,
-                   end_margin_strut.quirky_positive_margin);
-      collapsed_strut.negative_margin = std::max(
-          collapsed_strut.negative_margin, end_margin_strut.negative_margin);
-
-      // The extra space after the current box that would be added by ruby
-      // annotations, considering that the annotations eat into the following
-      // padding if it exists, and that we have already subtracted the block end
-      // padding from the clamp BFC offset.
-      LayoutUnit padding_annotation_overflow;
-      if (previous_inflow_position.block_end_annotation_space < LayoutUnit()) {
-        padding_annotation_overflow =
-            std::max(previous_inflow_position.block_end_annotation_space,
-                     -block_end_padding);
-      }
-
-      LayoutUnit bfc_offset = bfc_block_offset +
-                              previous_inflow_position.logical_block_offset +
-                              padding_annotation_overflow +
-                              (collapsed_strut.Sum() - end_margin_strut.Sum());
-
-      if (bfc_offset > data.clamp_bfc_offset) {
-        return false;
-      }
-
-      if (!layout_result->GetPhysicalFragment().IsFormattingContextRoot()) {
-        data.lines_until_clamp = layout_result->LinesUntilClamp();
-      }
+    // If the child advanced the number of lines, then it clamped after a line.
+    if (layout_result->LinesUntilClamp() != data.lines_until_clamp) {
+      return nullptr;
     }
-
-    return true;
+    // The child must have overflown at the beginning of the box. Since the
+    // beginning of a child box isn't a valid clamp point, we must clamp before
+    // it instead. If the previous child was a lineless box, we return that
+    // layout object.
+    return last_layout_object;
   }
 
   LineClampData data;
@@ -210,6 +140,10 @@ struct BlockLineClampData {
   // remaining lines in this block box would not exist if we weren't
   // ellipsizing. Can only be set if data.state == kClampByLines.
   bool ignore_further_lines = false;
+
+  // The last LayoutObject encountered since the last line.
+  // Can only be set if data.state == kMeasureLinesUntilBfcOffset.
+  const LayoutObject* last_layout_object = nullptr;
 };
 
 // A class for general block layout (e.g. a <div> with no special style).
@@ -237,8 +171,9 @@ class CORE_EXPORT BlockLayoutAlgorithm
       const InlineNode& child);
 
   NOINLINE const LayoutResult* RelayoutIgnoringLineClamp();
-  NOINLINE const LayoutResult* RelayoutWithLineClampBlockSize(
-      int lines_until_clamp);
+  NOINLINE const LayoutResult* RelayoutClampingByLines(int lines_until_clamp);
+  NOINLINE const LayoutResult* RelayoutClampingAfterLayoutObject(
+      const LayoutObject*);
   NOINLINE const LayoutResult* RelayoutForTextBoxTrimEnd();
 
   inline const LayoutResult* Layout(

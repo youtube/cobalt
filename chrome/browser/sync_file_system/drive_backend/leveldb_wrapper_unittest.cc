@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/browser/sync_file_system/drive_backend/leveldb_wrapper.h"
 
 #include <stddef.h>
@@ -16,6 +11,7 @@
 #include <string>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/strings/string_number_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -63,12 +59,17 @@ class LevelDBWrapperTest : public testing::Test {
     return db_.get();
   }
 
-  void CheckDBContents(const TestData expects[], size_t size) {
+  void CheckDBContents(base::span<const TestData> expects,
+                       size_t spanification_suspected_redundant_size) {
+    // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+    // redundant in M143.
+    CHECK(spanification_suspected_redundant_size == expects.size(),
+          base::NotFatalUntil::M143);
     DCHECK(db_);
 
     std::unique_ptr<LevelDBWrapper::Iterator> itr = db_->NewIterator();
     itr->SeekToFirst();
-    for (size_t i = 0; i < size; ++i) {
+    for (size_t i = 0; i < spanification_suspected_redundant_size; ++i) {
       ASSERT_TRUE(itr->Valid());
       EXPECT_EQ(expects[i].key, itr->key().ToString());
       EXPECT_EQ(expects[i].value, itr->value().ToString());

@@ -71,6 +71,7 @@ class DocumentInit;
 class DOMSelection;
 class DOMViewport;
 class DOMVisualViewport;
+class CrashReportStorage;
 class Element;
 class ExceptionState;
 class External;
@@ -330,10 +331,19 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   // FIXME: ScrollBehaviorSmooth is currently unsupported in VisualViewport.
   // crbug.com/434497
-  void scrollBy(double x, double y) const;
-  void scrollBy(const ScrollToOptions*) const;
-  void scrollTo(double x, double y) const;
-  void scrollTo(const ScrollToOptions*) const;
+  ScriptPromise<IDLUndefined> scrollBy(ScriptState* script_state,
+                                       double x,
+                                       double y) const;
+  ScriptPromise<IDLUndefined> scrollBy(ScriptState* script_state,
+                                       const ScrollToOptions*) const;
+  ScriptPromise<IDLUndefined> scrollTo(ScriptState* script_state,
+                                       double x,
+                                       double y) const;
+  ScriptPromise<IDLUndefined> scrollTo(ScriptState* script_state,
+                                       const ScrollToOptions*) const;
+
+  void scrollByForTesting(double x, double y) const;
+  void scrollToForTesting(double x, double y) const;
 
   void moveBy(int x, int y) const;
   void moveTo(int x, int y) const;
@@ -510,6 +520,8 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
 
   Fence* fence();
 
+  CrashReportStorage* crashReport();
+
   CloseWatcher::WatcherStack* closewatcher_stack() {
     return closewatcher_stack_.Get();
   }
@@ -669,6 +681,8 @@ class CORE_EXPORT LocalDOMWindow final : public DOMWindow,
   // Collection of fenced frame APIs.
   // https://github.com/shivanigithub/fenced-frame/issues/14
   Member<Fence> fence_;
+
+  Member<CrashReportStorage> crash_report_storage_;
 
   Member<CloseWatcher::WatcherStack> closewatcher_stack_;
 

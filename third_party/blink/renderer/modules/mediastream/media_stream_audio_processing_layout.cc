@@ -211,8 +211,8 @@ MediaStreamAudioProcessingLayout::MakeForUnprocessedLocalSource(
     int platform_effects) {
   AudioProcessingProperties properties_aec_only(
       AudioProcessingProperties::Disabled());
-  properties_aec_only.echo_cancellation_type =
-      properties.echo_cancellation_type;
+  properties_aec_only.echo_cancellation_mode =
+      properties.echo_cancellation_mode;
 
   EchoCanceller echo_canceller =
       EchoCanceller::From(properties_aec_only, platform_effects);
@@ -238,8 +238,7 @@ MediaStreamAudioProcessingLayout::MakeForUnprocessedLocalSourceForTests(
   AudioProcessingProperties properties(AudioProcessingProperties::Disabled());
   if (platform_aec) {
     CHECK(available_platform_effects & media::AudioParameters::ECHO_CANCELLER);
-    properties.echo_cancellation_type = AudioProcessingProperties::
-        EchoCancellationType::kEchoCancellationSystem;
+    properties.echo_cancellation_mode = EchoCancellationMode::kAll;
   }
 
   return MakeForUnprocessedLocalSource(properties, available_platform_effects);

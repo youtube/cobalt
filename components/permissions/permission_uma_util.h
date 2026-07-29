@@ -54,7 +54,9 @@ enum class PredictionModelType {
   kUnknown = 0,
   kServerSideCpssV3Model = 1,
   kOnDeviceCpssV1Model = 2,
-  kOnDeviceAiV3Model = 3,
+  kOnDeviceAiV1Model = 3,
+  kOnDeviceAiV3Model = 4,
+  kOnDeviceAiV4Model = 5,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/histograms.xml:PredictionModels)
 
@@ -575,6 +577,8 @@ enum class PermissionChangeInfo {
   kMaxValue = kInfobarNotShownNoPageReloadPermissionNotUsed,
 };
 
+// LINT.IfChange(DismissalType)
+
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.components.permissions
 // GENERATED_JAVA_CLASS_NAME_OVERRIDE: DismissalType
 enum class DismissalType {
@@ -602,9 +606,14 @@ enum class DismissalType {
   // inflated in some embedders (e.g WebEngine).
   kAutodismissNoDialogManager = 5,
 
+  // The user dismissed by clicking on the close button.
+  kCloseButtonClicked = 6,
+
   // Always keep this at the end.
-  kMaxValue = kAutodismissNoDialogManager,
+  kMaxValue = kCloseButtonClicked,
 };
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/permissions/enums.xml:PermissionPromptDismissMethod)
 
 // Provides a convenient way of logging UMA for permission related operations.
 class PermissionUmaUtil {
@@ -860,9 +869,9 @@ class PermissionUmaUtil {
       base::TimeDelta time_delta);
 
   static void RecordPermissionRequestRelevance(
-    permissions::RequestType permission_request_type,
+      permissions::RequestType permission_request_type,
       PermissionRequestRelevance permission_request_relevance,
-      std::string model_version);
+      PredictionModelType model_type);
 
   // Records if the browser was always active while the prompt was
   // displaying.
@@ -879,6 +888,12 @@ class PermissionUmaUtil {
   // Records the execution time of prediction model inquiries.
   static void RecordPredictionModelInquireTime(
       base::TimeTicks model_inquire_start_time,
+      PredictionModelType model_type);
+
+  // Records the success and duration of taking a screenshot for AIvX models.
+  static void RecordSnapshotTakenTimeAndSuccessForAivX(
+      bool success,
+      base::TimeTicks snapshot_inquire_start_time,
       PredictionModelType model_type);
 
   // Records if the browser was active at the time the prompt started displaying

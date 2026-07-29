@@ -100,6 +100,8 @@ constexpr int kAutofillPopupPasswordMaxWidth = 108;
 
 // Max width for the Autofill suggestion text.
 constexpr int kAutofillSuggestionMaxWidth = 192;
+// Multiline suggestions look crammed without extra vertical margin.
+constexpr int kAutofillMultilineSuggestionAdditionalVerticalMargin = 8;
 
 constexpr auto kMainTextStyle = views::style::TextStyle::STYLE_BODY_3_MEDIUM;
 constexpr auto kMainTextStyleLight = views::style::TextStyle::STYLE_BODY_3;
@@ -166,6 +168,7 @@ void FormatLabel(views::Label& label,
     case FillingProduct::kPassword:
     case FillingProduct::kDataList:
     case FillingProduct::kNone:
+    case FillingProduct::kOneTimePassword:
       break;
   }
 }
@@ -302,6 +305,11 @@ std::unique_ptr<PopupRowContentView> CreateFooterPopupRowContentView(
       suggestion.type == SuggestionType::kFreeformFooter) {
     main_text_label->SetMultiLine(true);
     main_text_label->SetHorizontalAlignment(gfx::ALIGN_TO_HEAD);
+    view->SetInsideBorderInsets(
+        gfx::Insets(view->GetInsideBorderInsets())
+            .set_top_bottom(
+                kAutofillMultilineSuggestionAdditionalVerticalMargin,
+                kAutofillMultilineSuggestionAdditionalVerticalMargin));
   }
 
   view->AddChildView(std::move(main_text_label));

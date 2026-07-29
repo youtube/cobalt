@@ -25,6 +25,7 @@
 #include "chrome/browser/profiles/reporting_util.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/enterprise/browser/identifiers/profile_id_service.h"
+#include "components/enterprise/connectors/core/content_area_user_provider.h"
 #include "components/enterprise/connectors/core/reporting_service_settings.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
 #include "components/policy/core/common/cloud/cloud_policy_util.h"
@@ -217,6 +218,11 @@ std::string RealtimeReportingClient::GetProfileIdentifier() {
   return Profile::FromBrowserContext(context_)->GetPath().AsUTF8Unsafe();
 }
 
+std::string RealtimeReportingClient::GetContentAreaAccountEmail(
+    const GURL& url) {
+  return GetActiveContentAreaUser(identity_manager_, url);
+}
+
 std::string RealtimeReportingClient::GetBrowserClientId() {
   std::string client_id;
 #if BUILDFLAG(IS_CHROMEOS)
@@ -256,6 +262,8 @@ void RealtimeReportingClient::MaybeCollectDeviceSignalsAndReportEvent(
   if (signals_aggregator) {
     device_signals::SignalsAggregationRequest request;
     request.signal_names.emplace(device_signals::SignalName::kAgent);
+    request.agent_signal_parameters.emplace(
+        device_signals::AgentSignalCollectionType::kCrowdstrikeIdentifiers);
     signals_aggregator->GetSignals(
         request,
         base::BindOnce(&RealtimeReportingClient::PopulateSignalsAndReportEvent,

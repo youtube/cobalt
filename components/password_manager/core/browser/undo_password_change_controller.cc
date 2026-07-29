@@ -19,8 +19,17 @@
 #include "components/password_manager/core/browser/password_manager_driver.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_suggestion_generator.h"
+#include "url/origin.h"
 
 namespace password_manager {
+
+namespace {
+
+constexpr char kPasswordChangeRecoveryFlowStateHistogram[] =
+    "PasswordManager.PasswordChangeRecoveryFlow";
+
+}  // namespace
+
 UndoPasswordChangeController::UndoPasswordChangeController() = default;
 UndoPasswordChangeController::~UndoPasswordChangeController() {
   FinishObserving();
@@ -47,12 +56,21 @@ void UndoPasswordChangeController::OnTroubleSigningInClicked(
   CHECK_EQ(suggestion_details.username, current_username_);
 
   current_state_ = PasswordRecoveryState::kIncludeBackup;
+
+  base::UmaHistogramEnumeration(
+      kPasswordChangeRecoveryFlowStateHistogram,
+      PasswordChangeRecoveryFlowState::kTroubleSigningInClicked);
+  ukm::builders::PasswordManager_ChangeRecovery(ukm_source_id_)
+      .SetPasswordChangeRecoveryFlow(
+          static_cast<int>(password_manager::PasswordChangeRecoveryFlowState::
+                               kTroubleSigningInClicked))
+      .Record(ukm::UkmRecorder::Get());
 }
 
 void UndoPasswordChangeController::OnLoginPotentiallyFailed(
     PasswordManagerDriver* driver,
     const PasswordForm& login_form) {
-  driver_ = driver;
+  driver_ = driver->AsWeakPtr();
   failed_login_form_ = login_form;
   password_form_cache_ = driver_->GetPasswordManager()->GetPasswordFormCache();
   password_form_cache_->AddObserver(this);
@@ -89,12 +107,32 @@ UndoPasswordChangeController::FindLoginWithProactiveRecoveryState(
 void UndoPasswordChangeController::OnSuggestionsHidden() {
   if (current_state_ == PasswordRecoveryState::kShowProactiveRecovery) {
     current_state_ = PasswordRecoveryState::kIncludeBackup;
+
+    base::UmaHistogramEnumeration(
+        kPasswordChangeRecoveryFlowStateHistogram,
+        PasswordChangeRecoveryFlowState::kProactiveRecoveryPopupShown);
+    ukm::builders::PasswordManager_ChangeRecovery(ukm_source_id_)
+        .SetPasswordChangeRecoveryFlow(
+            static_cast<int>(password_manager::PasswordChangeRecoveryFlowState::
+                                 kProactiveRecoveryPopupShown))
+        .Record(ukm::UkmRecorder::Get());
   }
   FinishObserving();
 }
+
+void UndoPasswordChangeController::OnNavigation(const url::Origin& origin,
+                                                ukm::SourceId ukm_source_id) {
+  if (current_origin_ != origin) {
+    ResetFlow();
+  }
+  current_origin_ = origin;
+  ukm_source_id_ = ukm_source_id;
+}
+
 void UndoPasswordChangeController::ResetFlow() {
   current_state_ = PasswordRecoveryState::kRegularFlow;
   current_username_ = u"";
+  FinishObserving();
 }
 
 void UndoPasswordChangeController::FinishObserving() {
@@ -113,7 +151,7 @@ void UndoPasswordChangeController::OnPasswordFormParsed(
   }
 
   if (form_manager->DoesManageSimilarForm(failed_login_form_.value(),
-                                          driver_)) {
+                                          driver_.get())) {
     const PasswordForm* form_best_match =
         password_manager_util::FindFormByUsername(
             form_manager->GetBestMatches(), failed_login_form_->username_value);

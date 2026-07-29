@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -16,6 +17,7 @@
 #include "base/version_info/channel.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
+#include "chrome/browser/actor/aggregated_journal_file_serializer.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tab_management_tool_request.h"
@@ -27,9 +29,12 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/extensions/api/experimental_actor.h"
+#include "chrome/common/extensions/api/tabs.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/tab_handle_factory.h"
+#include "components/tabs/public/tab_interface.h"
 #include "extensions/common/features/feature_channel.h"
 
 namespace extensions {
@@ -40,31 +45,17 @@ namespace {
 int32_t ConvertSessionTabIdToTabHandle(
     int32_t session_tab_id,
     content::BrowserContext* browser_context) {
-  content::WebContents* web_contents = nullptr;
-  if (!ExtensionTabUtil::GetTabById(session_tab_id, browser_context,
-                                    /*include_incognito=*/true,
-                                    &web_contents)) {
-    return tabs::TabHandle::Null().raw_value();
-  }
-  tabs::TabInterface* tab =
-      tabs::TabInterface::MaybeGetFromContents(web_contents);
-  // Can be null for pre-render web-contents.
-  // TODO(crbug.com/369319589): Remove this logic.
-  if (!tab) {
-    return tabs::TabHandle::Null().raw_value();
-  }
-  return tab->GetHandle().raw_value();
+  return tabs::SessionMappedTabHandleFactory::GetInstance()
+      .GetHandleForSessionId(session_tab_id);
 }
 
 // Converts a tab handle to a session tab id.
 int32_t ConvertTabHandleToSessionTabId(
     int32_t tab_handle,
     content::BrowserContext* browser_context) {
-  tabs::TabInterface* tab = tabs::TabHandle(tab_handle).Get();
-  if (!tab) {
-    return api::tabs::TAB_ID_NONE;
-  }
-  return sessions::SessionTabHelper::IdForTab(tab->GetContents()).id();
+  return tabs::SessionMappedTabHandleFactory::GetInstance()
+      .GetSessionIdForHandle(tab_handle)
+      .value_or(api::tabs::TAB_ID_NONE);
 }
 
 // Helper function to convert the session tab id to a tab handle for any action
@@ -75,6 +66,44 @@ void ConvertActionTabId(T* action_payload,
   action_payload->set_tab_id(ConvertSessionTabIdToTabHandle(
       action_payload->tab_id(), browser_context));
 }
+
+const void* const kSerializerKey = &kSerializerKey;
+
+// File location that the actor journal should be serialized to.
+const char kExperimentalActorJournalLog[] = "experimental-actor-journal";
+
+class Serializer : public base::SupportsUserData::Data {
+ public:
+  explicit Serializer(actor::AggregatedJournal& journal) {
+    base::FilePath path =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+            kExperimentalActorJournalLog);
+    if (!path.empty()) {
+      serializer_ =
+          std::make_unique<actor::AggregatedJournalFileSerializer>(journal);
+      serializer_->Init(
+          path, base::BindOnce(&Serializer::InitDone, base::Unretained(this)));
+    }
+  }
+
+  static void EnsureInitialized(content::BrowserContext* context,
+                                actor::AggregatedJournal& journal) {
+    if (!context->GetUserData(kSerializerKey)) {
+      context->SetUserData(kSerializerKey,
+                           std::make_unique<Serializer>(journal));
+    }
+  }
+
+ private:
+  void InitDone(bool success) {
+    if (!success) {
+      serializer_.reset();
+    }
+  }
+
+  std::unique_ptr<actor::AggregatedJournalFileSerializer> serializer_;
+};
+
 }  // namespace
 
 ExperimentalActorApiFunction::ExperimentalActorApiFunction() = default;
@@ -99,6 +128,7 @@ bool ExperimentalActorApiFunction::PreRunValidation(std::string* error) {
     return false;
   }
 
+  Serializer::EnsureInitialized(browser_context(), actor_service->GetJournal());
   return true;
 }
 
@@ -234,8 +264,21 @@ ExperimentalActorExecuteActionFunction::Run() {
   auto* actor_service =
       actor::ActorKeyedServiceFactory::GetActorKeyedService(browser_context());
 
+  actor_service->GetJournal().Log(
+      GURL(), actor::TaskId(action.task_id()), "ExperimentalActorExecutAction",
+      absl::StrFormat("Proto: %s", actor::ToBase64(action)));
+
+  // BuildToolRequest looks for tab_ids on the individual action structs since
+  // that's where Glic puts them. However, the extension puts the tab_id on the
+  // BrowserAction itself. Use the BrowserAction's tab_id as the fallback tab so
+  // that, if Action doesn't provide a tab_id we'll use the
+  // BrowserAction.tab_id. This path should go away once extension clients are
+  // migrated to PerformActions.
+  tabs::TabInterface* browser_action_tab =
+      action.has_tab_id() ? tabs::TabHandle(action.tab_id()).Get() : nullptr;
+
   actor::BuildToolRequestResult requests =
-      actor::BuildToolRequest(action, /*deprecated_fallback_tab=*/nullptr);
+      actor::BuildToolRequest(action, browser_action_tab);
 
   if (!requests.has_value()) {
     return RespondNow(
@@ -336,6 +379,12 @@ ExperimentalActorPerformActionsFunction::Run() {
       case optimization_guide::proto::Action::kAttemptLogin:
         ConvertActionTabId(action.mutable_attempt_login(), browser_context());
         break;
+      case optimization_guide::proto::Action::kScriptTool:
+        ConvertActionTabId(action.mutable_script_tool(), browser_context());
+        break;
+      case optimization_guide::proto::Action::kScrollTo:
+        ConvertActionTabId(action.mutable_scroll_to(), browser_context());
+        break;
       case optimization_guide::proto::Action::kWait:
       case optimization_guide::proto::Action::kCreateTab:
       case optimization_guide::proto::Action::kCreateWindow:
@@ -349,6 +398,10 @@ ExperimentalActorPerformActionsFunction::Run() {
   }
 
   auto* actor_service = actor::ActorKeyedService::Get(browser_context());
+  actor_service->GetJournal().Log(
+      GURL(), actor::TaskId(actions.task_id()), "ExperimentalActorExecutAction",
+      absl::StrFormat("Proto: %s", actor::ToBase64(actions)));
+
   actor::TaskId task_id(actions.task_id());
 
   actor::BuildToolRequestResult requests = actor::BuildToolRequest(actions);

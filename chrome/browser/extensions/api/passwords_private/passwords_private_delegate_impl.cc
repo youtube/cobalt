@@ -13,6 +13,7 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/i18n/time_formatting.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
@@ -28,7 +29,7 @@
 #include "chrome/browser/extensions/profile_util.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
-#include "chrome/browser/password_manager/password_sender_service_factory.h"
+#include "chrome/browser/password_manager/factories/password_sender_service_factory.h"
 #include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -839,7 +840,7 @@ PasswordsPrivateDelegateImpl::GetExportProgressStatus() {
 
 bool PasswordsPrivateDelegateImpl::IsAccountStorageEnabled() {
   return password_manager::features_util::IsAccountStorageEnabled(
-      profile_->GetPrefs(), SyncServiceFactory::GetForProfile(profile_));
+      SyncServiceFactory::GetForProfile(profile_));
 }
 
 void PasswordsPrivateDelegateImpl::SetAccountStorageEnabled(
@@ -858,7 +859,7 @@ void PasswordsPrivateDelegateImpl::SetAccountStorageEnabled(
 
 bool PasswordsPrivateDelegateImpl::ShouldShowAccountStorageSettingToggle() {
   return password_manager::features_util::ShouldShowAccountStorageSettingToggle(
-      profile_->GetPrefs(), SyncServiceFactory::GetForProfile(profile_));
+      SyncServiceFactory::GetForProfile(profile_));
 }
 
 std::vector<api::passwords_private::PasswordUiEntry>
@@ -1037,6 +1038,18 @@ PasswordsPrivateDelegateImpl::AsWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
+void PasswordsPrivateDelegateImpl::CopyPlaintextBackupPassword(
+    int id,
+    content::WebContents* web_contents,
+    base::OnceCallback<void(bool)> callback) {
+  AuthenticateUser(
+      web_contents, kPasswordManagerAuthValidity,
+      GetReauthPurpose(api::passwords_private::PlaintextReason::kCopy),
+      base::BindOnce(
+          &PasswordsPrivateDelegateImpl::OnCopyBackupPasswordAuthResult,
+          weak_ptr_factory_.GetWeakPtr(), id, std::move(callback)));
+}
+
 password_manager::InsecureCredentialsManager*
 PasswordsPrivateDelegateImpl::GetInsecureCredentialsManager() {
   return password_check_delegate_.GetInsecureCredentialsManager();
@@ -1097,6 +1110,27 @@ void PasswordsPrivateDelegateImpl::OnRequestPlaintextPasswordAuthResult(
     std::move(callback).Run(entry->password);
   }
   EmitHistogramsForCredentialAccess(*entry, reason);
+}
+
+void PasswordsPrivateDelegateImpl::OnCopyBackupPasswordAuthResult(
+    int id,
+    base::OnceCallback<void(bool)> callback,
+    bool authenticated) {
+  if (!authenticated) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  const CredentialUIEntry* entry = credential_id_generator_.TryGetKey(id);
+  if (!entry || !entry->backup_password) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  ui::ScopedClipboardWriter clipboard_writer(ui::ClipboardBuffer::kCopyPaste);
+  clipboard_writer.WriteText(entry->backup_password->value);
+  clipboard_writer.MarkAsConfidential();
+  std::move(callback).Run(true);
 }
 
 void PasswordsPrivateDelegateImpl::OnRequestCredentialDetailsAuthResult(
@@ -1320,10 +1354,16 @@ PasswordsPrivateDelegateImpl::CreatePasswordUiEntryFromCredentialUiEntry(
   if (change_password_url.has_value()) {
     entry.change_password_url = change_password_url->spec();
   }
-  entry.backup_password =
-      credential.backup_password.has_value()
-          ? std::optional(base::UTF16ToUTF8(credential.backup_password.value()))
-          : std::nullopt;
+  if (credential.backup_password.has_value()) {
+    api::passwords_private::BackupPasswordInfo backup_password_info;
+    backup_password_info.value =
+        base::UTF16ToUTF8(credential.backup_password->value);
+    backup_password_info.creation_date =
+        base::UTF16ToUTF8(base::LocalizedTimeFormatWithPattern(
+            credential.backup_password->creation_timestamp,
+            /*pattern=*/"MMM dd"));
+    entry.backup_password = std::move(backup_password_info);
+  }
   entry.id = credential_id_generator_.GenerateId(std::move(credential));
   return entry;
 }

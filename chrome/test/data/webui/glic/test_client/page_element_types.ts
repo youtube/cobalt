@@ -69,6 +69,7 @@ export interface PageElementTypes {
   createTabInBackground: HTMLInputElement;
   canAttachCheckbox: HTMLInputElement;
   scrollToDocumentId: HTMLSpanElement;
+  scrollToURL: HTMLSpanElement;
   scrollToExactText: HTMLInputElement;
   scrollToExactTextSearchStart: HTMLSelectElement;
   scrollToFetchAPCBn: HTMLButtonElement;
@@ -97,7 +98,6 @@ export interface PageElementTypes {
   growHeight: HTMLButtonElement;
   resetHeight: HTMLButtonElement;
   dump: HTMLElement;
-  fitWindow: HTMLInputElement;
   naturalSizing: HTMLInputElement;
   startMic: HTMLButtonElement;
   successUI: HTMLDivElement;
@@ -109,6 +109,9 @@ export interface PageElementTypes {
   getOsMicrophonePermissionButton: HTMLButtonElement;
   osMicrophonePermissionResult: HTMLSpanElement;
   osGlicHotkey: HTMLInputElement;
+  createActorTask: HTMLButtonElement;
+  stopActorTask: HTMLButtonElement;
+  actorTaskId: HTMLInputElement;
   executeAction: HTMLButtonElement;
   actionProtoEncodedText: HTMLInputElement;
   actionStatus: HTMLSpanElement;
@@ -130,6 +133,7 @@ export interface PageElementTypes {
   shareCandidateQuery: HTMLInputElement;
   shareCandidates: HTMLElement;
   unpin: HTMLButtonElement;
+  mqlsClientIdBtn: HTMLButtonElement;
 }
 
 export const $: PageElementTypes = new Proxy({}, {

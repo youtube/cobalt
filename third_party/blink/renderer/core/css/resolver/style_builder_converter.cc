@@ -96,6 +96,7 @@
 #include "third_party/blink/renderer/core/style/style_svg_resource.h"
 #include "third_party/blink/renderer/core/style/style_view_transition_group.h"
 #include "third_party/blink/renderer/core/style/superellipse.h"
+#include "third_party/blink/renderer/core/style/text_overflow_data.h"
 #include "third_party/blink/renderer/platform/fonts/font_palette.h"
 #include "third_party/blink/renderer/platform/fonts/opentype/open_type_math_support.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
@@ -629,24 +630,39 @@ OpticalSizing StyleBuilderConverter::ConvertFontOpticalSizing(
 scoped_refptr<FontFeatureSettings>
 StyleBuilderConverter::ConvertFontFeatureSettings(StyleResolverState& state,
                                                   const CSSValue& value) {
+  return StyleBuilderConverterBase::ConvertFontFeatureSettings(
+      state.CssToLengthConversionData(), value);
+}
+
+scoped_refptr<FontFeatureSettings>
+StyleBuilderConverterBase::ConvertFontFeatureSettings(
+    const CSSLengthResolver& length_resolver,
+    const CSSValue& value) {
   auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
   if (identifier_value &&
       identifier_value->GetValueID() == CSSValueID::kNormal) {
-    return FontBuilder::InitialFeatureSettings();
+    return FontFeatureSettings::Create();
   }
 
   if (value.IsPendingSystemFontValue()) {
-    return FontBuilder::InitialFeatureSettings();
+    return FontFeatureSettings::Create();
   }
 
   const auto& list = To<CSSValueList>(value);
-  scoped_refptr<FontFeatureSettings> settings = FontFeatureSettings::Create();
-  int len = list.length();
-  for (int i = 0; i < len; ++i) {
-    const auto& feature = To<cssvalue::CSSFontFeatureValue>(list.Item(i));
-    settings->Append(FontFeature(
-        feature.Tag(), feature.Value(state.CssToLengthConversionData())));
+  std::map<uint32_t, int> features;
+
+  for (const auto& css_value : list) {
+    const auto& feature = To<cssvalue::CSSFontFeatureValue>(*css_value);
+    features[AtomicStringToFourByteTag(feature.Tag())] =
+        feature.Value(length_resolver);
   }
+
+  scoped_refptr<FontFeatureSettings> settings = FontFeatureSettings::Create();
+  for (const auto& [tag, feature_value] : features) {
+    settings->Append(FontFeature(tag, feature_value));
+  }
+
+  DCHECK(std::is_sorted(settings->begin(), settings->end()));
   return settings;
 }
 
@@ -1043,8 +1059,13 @@ FontSelectionValue StyleBuilderConverterBase::ConvertFontStyle(
     const CSSValueList* values = style_range_value->GetObliqueValues();
     CHECK_LT(values->length(), 2u);
     if (values->length()) {
-      return FontSelectionValue(To<CSSPrimitiveValue>(values->Item(0))
-                                    .ComputeDegrees(length_resolver));
+      const double angle_degrees = To<CSSPrimitiveValue>(values->Item(0))
+                                       .ComputeDegrees(length_resolver);
+      if (RuntimeEnabledFeatures::FontStyleObliqueZeroDegreeAsNormalEnabled() &&
+          angle_degrees == 0.0) {
+        return kNormalSlopeValue;
+      }
+      return FontSelectionValue(angle_degrees);
     } else {
       identifier_value = style_range_value->GetFontStyleValue();
       if (identifier_value->GetValueID() == CSSValueID::kNormal) {
@@ -1601,16 +1622,17 @@ GridTrackList StyleBuilderConverter::ConvertGridTrackSizeList(
   return track_list;
 }
 
-void StyleBuilderConverter::ConvertGridTrackList(
-    const CSSValue& value,
-    ComputedGridTrackList& computed_grid_track_list,
-    StyleResolverState& state) {
+ComputedGridTrackList* StyleBuilderConverter::ConvertGridTrackList(
+    StyleResolverState& state,
+    const CSSValue& value) {
   if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kNone);
-    return;
+    return nullptr;
   }
 
-  GridTrackList& track_list = computed_grid_track_list.track_list;
+  ComputedGridTrackList* computed_grid_track_list =
+      MakeGarbageCollected<ComputedGridTrackList>();
+  GridTrackList& track_list = computed_grid_track_list->GetMutableTrackList();
 
   wtf_size_t current_named_grid_line = 0;
   auto ConvertLineNameOrTrackSize =
@@ -1621,15 +1643,15 @@ void StyleBuilderConverter::ConvertGridTrackList(
       ++line_name_indices_count;
       ConvertGridLineNamesList(
           curr_value, current_named_grid_line,
-          computed_grid_track_list.named_grid_lines,
-          computed_grid_track_list.ordered_named_grid_lines, is_in_repeat,
-          is_first_repeat);
-      if (computed_grid_track_list.IsSubgriddedAxis()) {
+          computed_grid_track_list->GetMutableNamedGridLines(),
+          computed_grid_track_list->GetMutableOrderedNamedGridLines(),
+          is_in_repeat, is_first_repeat);
+      if (computed_grid_track_list->IsSubgriddedAxis()) {
         ++current_named_grid_line;
         track_list.IncrementNonAutoRepeatLineCount();
       }
     } else {
-      DCHECK_EQ(computed_grid_track_list.axis_type,
+      DCHECK_EQ(computed_grid_track_list->GetGridAxisType(),
                 GridAxisType::kStandaloneAxis);
       ++current_named_grid_line;
     }
@@ -1644,7 +1666,7 @@ void StyleBuilderConverter::ConvertGridTrackList(
   if (identifier_value &&
       identifier_value->GetValueID() == CSSValueID::kSubgrid) {
     state.GetDocument().CountUse(WebFeature::kCSSSubgridLayout);
-    computed_grid_track_list.axis_type = GridAxisType::kSubgriddedAxis;
+    computed_grid_track_list->SetGridAxisType(GridAxisType::kSubgriddedAxis);
     track_list.SetAxisType(GridAxisType::kSubgriddedAxis);
     is_subgrid = true;
     UNSAFE_TODO(++curr_value);
@@ -1658,16 +1680,17 @@ void StyleBuilderConverter::ConvertGridTrackList(
       CSSValueID auto_repeat_id = grid_auto_repeat_value->AutoRepeatID();
       DCHECK(auto_repeat_id == CSSValueID::kAutoFill ||
              auto_repeat_id == CSSValueID::kAutoFit);
-      computed_grid_track_list.auto_repeat_type =
+      computed_grid_track_list->SetAutoRepeatType(
           (auto_repeat_id == CSSValueID::kAutoFill) ? AutoRepeatType::kAutoFill
-                                                    : AutoRepeatType::kAutoFit;
+                                                    : AutoRepeatType::kAutoFit);
       for (const CSSValue* auto_repeat_value : To<CSSValueList>(**curr_value)) {
         if (auto_repeat_value->IsGridLineNamesValue()) {
           ConvertGridLineNamesList(
               *auto_repeat_value, auto_repeat_index,
-              computed_grid_track_list.auto_repeat_named_grid_lines,
-              computed_grid_track_list.auto_repeat_ordered_named_grid_lines);
-          if (computed_grid_track_list.IsSubgriddedAxis()) {
+              computed_grid_track_list->GetMutableAutoRepeatNamedGridLines(),
+              computed_grid_track_list
+                  ->GetMutableOrderedAutoRepeatNamedGridLines());
+          if (computed_grid_track_list->IsSubgriddedAxis()) {
             ++auto_repeat_index;
           }
           continue;
@@ -1679,10 +1702,10 @@ void StyleBuilderConverter::ConvertGridTrackList(
       // `repeat_count` is always 1 for auto-repeaters.
       track_list.AddRepeater(repeated_track_sizes,
                              static_cast<GridTrackRepeater::RepeatType>(
-                                 computed_grid_track_list.auto_repeat_type),
+                                 computed_grid_track_list->GetAutoRepeatType()),
                              /*repeat_count=*/1u, auto_repeat_index);
-      computed_grid_track_list.auto_repeat_insertion_point =
-          current_named_grid_line++;
+      computed_grid_track_list->SetAutoRepeatInsertionPoint(
+          current_named_grid_line++);
       continue;
     }
 
@@ -1745,7 +1768,9 @@ void StyleBuilderConverter::ConvertGridTrackList(
   // <track-list> without any <track-size> as this is not conformant to
   // the syntax.
   DCHECK(track_list.RepeaterCount() ||
-         computed_grid_track_list.IsSubgriddedAxis());
+         computed_grid_track_list->IsSubgriddedAxis());
+
+  return computed_grid_track_list;
 }
 
 ScrollMarkerGroup* StyleBuilderConverter::ConvertScrollMarkerGroup(
@@ -2579,27 +2604,14 @@ ShapeValue* StyleBuilderConverter::ConvertShapeValue(StyleResolverState& state,
   return MakeGarbageCollected<ShapeValue>(css_box);
 }
 
-// TODO(crbug.com/327740939): Merge ConvertLetterSpacing and ConvertWordSpacing
-// if percentage for word-spacing is implemented.
-Length StyleBuilderConverter::ConvertLetterSpacing(StyleResolverState& state,
-                                                   const CSSValue& value) {
+Length StyleBuilderConverter::ConvertSpacing(StyleResolverState& state,
+                                             const CSSValue& value) {
   auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
   if (identifier_value &&
       identifier_value->GetValueID() == CSSValueID::kNormal) {
-    return ComputedStyleInitialValues::InitialLetterSpacing();
+    return Length::Fixed();
   }
   return ConvertLength(state, value);
-}
-
-float StyleBuilderConverter::ConvertWordSpacing(StyleResolverState& state,
-                                                const CSSValue& value) {
-  auto* identifier_value = DynamicTo<CSSIdentifierValue>(value);
-  if (identifier_value &&
-      identifier_value->GetValueID() == CSSValueID::kNormal) {
-    return 0;
-  }
-  return To<CSSPrimitiveValue>(value).ComputeLength<float>(
-      state.CssToLengthConversionData());
 }
 
 SVGDashArray* StyleBuilderConverter::ConvertStrokeDasharray(
@@ -4049,6 +4061,20 @@ FitText StyleBuilderConverter::ConvertFitText(StyleResolverState& state,
         To<CSSPrimitiveValue>(list.Item(next_index)), parent_size));
   }
   return FitText(target, method, size_limit);
+}
+
+TextOverflowData StyleBuilderConverter::ConvertTextOverflow(
+    StyleResolverState& state,
+    const CSSValue& value) {
+  if (const auto* string_value = DynamicTo<CSSStringValue>(value)) {
+    return TextOverflowData(string_value->Value());
+  }
+  const auto& identifier_value = To<CSSIdentifierValue>(value);
+  if (identifier_value.GetValueID() == CSSValueID::kEllipsis) {
+    return TextOverflowData(TextOverflowData::Type::kEllipsis);
+  }
+  DCHECK(identifier_value.GetValueID() == CSSValueID::kClip);
+  return TextOverflowData(TextOverflowData::Type::kClip);
 }
 
 ScopedCSSNameList* StyleBuilderConverter::ConvertTimelineTriggerName(

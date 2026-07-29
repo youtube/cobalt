@@ -483,12 +483,30 @@ TEST_F(WebNNGraphImplTest, ClampTest) {
         .Test(*this);
   }
   {
-    // Test the invalid graph when max value = 0 and min value = 0.
+    // Test clamp operator when max value = 0 and min value = 0.
     ClampTester{.input = {.type = OperandDataType::kFloat32,
                           .dimensions = {1, 2, 2, 7}},
                 .output = {.type = OperandDataType::kFloat32,
                            .dimensions = {1, 2, 2, 7}},
-                .expected = false}
+                .expected = true}
+        .Test(*this);
+  }
+  {
+    // Test clamp operator when the min value is NAN.
+    ClampTester{
+        .input = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
+        .attributes = {.min_value = NAN, .max_value = 3.0},
+        .output = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
+        .expected = true}
+        .Test(*this);
+  }
+  {
+    // Test clamp operator when the max value is NAN.
+    ClampTester{
+        .input = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
+        .attributes = {.min_value = -3.0, .max_value = NAN},
+        .output = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
+        .expected = true}
         .Test(*this);
   }
   {
@@ -497,24 +515,6 @@ TEST_F(WebNNGraphImplTest, ClampTest) {
         .input = {.type = OperandDataType::kFloat32, .dimensions = {4, 2}},
         .attributes = {.min_value = 7.0, .max_value = 3.0},
         .output = {.type = OperandDataType::kFloat32, .dimensions = {4, 2}},
-        .expected = false}
-        .Test(*this);
-  }
-  {
-    // Test the invalid graph when the min value is NAN.
-    ClampTester{
-        .input = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
-        .attributes = {.min_value = NAN, .max_value = 3.0},
-        .output = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
-        .expected = false}
-        .Test(*this);
-  }
-  {
-    // Test the invalid graph when the max value is NAN.
-    ClampTester{
-        .input = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
-        .attributes = {.min_value = 0.0, .max_value = NAN},
-        .output = {.type = OperandDataType::kInt32, .dimensions = {2, 3, 4}},
         .expected = false}
         .Test(*this);
   }
@@ -1675,8 +1675,8 @@ TEST_F(WebNNGraphImplTest, DequantizeLinearTest) {
     // Test dequantizeLinear operator with a broadcastable scale.
     DequantizeLinearTester{
         .input = {.type = OperandDataType::kInt8, .dimensions = {3, 2, 5}},
-        .scale = {.type = OperandDataType::kFloat32, .dimensions = {5}},
-        .zero_point = {.type = OperandDataType::kInt8, .dimensions = {5}},
+        .scale = {.type = OperandDataType::kFloat32, .dimensions = {1, 1, 5}},
+        .zero_point = {.type = OperandDataType::kInt8, .dimensions = {1, 1, 5}},
         .output = {.type = OperandDataType::kFloat32, .dimensions = {3, 2, 5}},
         .expected = true}
         .Test(*this);
@@ -1689,6 +1689,16 @@ TEST_F(WebNNGraphImplTest, DequantizeLinearTest) {
         .zero_point = {.type = OperandDataType::kInt8, .dimensions = {3, 1, 1}},
         .output = {.type = OperandDataType::kFloat32, .dimensions = {3, 2, 5}},
         .expected = true}
+        .Test(*this);
+  }
+  {
+    // Test the invalid graph whose scale rank is not equal to input rank.
+    DequantizeLinearTester{
+        .input = {.type = OperandDataType::kInt8, .dimensions = {3, 2, 5}},
+        .scale = {.type = OperandDataType::kFloat32, .dimensions = {5}},
+        .zero_point = {.type = OperandDataType::kInt8, .dimensions = {5}},
+        .output = {.type = OperandDataType::kFloat32, .dimensions = {3, 2, 5}},
+        .expected = false}
         .Test(*this);
   }
   {
@@ -5228,8 +5238,8 @@ TEST_F(WebNNGraphImplTest, QuantizeLinearTest) {
     // Test quantizeLinear operator with a broadcastable scale.
     QuantizeLinearTester{
         .input = {.type = OperandDataType::kFloat32, .dimensions = {3, 2, 5}},
-        .scale = {.type = OperandDataType::kFloat32, .dimensions = {5}},
-        .zero_point = {.type = OperandDataType::kInt8, .dimensions = {5}},
+        .scale = {.type = OperandDataType::kFloat32, .dimensions = {1, 1, 5}},
+        .zero_point = {.type = OperandDataType::kInt8, .dimensions = {1, 1, 5}},
         .output = {.type = OperandDataType::kInt8, .dimensions = {3, 2, 5}},
         .expected = true}
         .Test(*this);
@@ -5242,6 +5252,16 @@ TEST_F(WebNNGraphImplTest, QuantizeLinearTest) {
         .zero_point = {.type = OperandDataType::kInt8, .dimensions = {3, 1, 1}},
         .output = {.type = OperandDataType::kInt8, .dimensions = {3, 2, 5}},
         .expected = true}
+        .Test(*this);
+  }
+  {
+    // Test the invalid graph whose scale rank is not equal to input rank.
+    QuantizeLinearTester{
+        .input = {.type = OperandDataType::kFloat32, .dimensions = {3, 2, 5}},
+        .scale = {.type = OperandDataType::kFloat32, .dimensions = {5}},
+        .zero_point = {.type = OperandDataType::kInt8, .dimensions = {5}},
+        .output = {.type = OperandDataType::kInt8, .dimensions = {3, 2, 5}},
+        .expected = false}
         .Test(*this);
   }
   {

@@ -34,6 +34,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/autofill_resource_utils.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/password_manager/core/common/password_manager_constants.h"
 #include "components/strings/grit/components_strings.h"
@@ -108,10 +109,6 @@ constexpr SkColor kMonochromeIconBgColor = SkColorSetARGB(255, 237, 242, 250);
 // The text color of the letter monochrome icons.
 constexpr SkColor kMonochromeIconTextColor = SkColorSetARGB(255, 71, 71, 71);
 
-constexpr auto kSuggestionTypesWithDoubleHeight =
-    DenseSet<SuggestionType>({SuggestionType::kBackupPasswordEntry,
-                              SuggestionType::kTroubleSigningInEntry});
-
 // Returns the name of the network for payment method icons, empty string
 // otherwise.
 std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
@@ -182,6 +179,7 @@ std::u16string GetIconAccessibleName(Suggestion::Icon icon) {
     case Suggestion::Icon::kSettingsAndroid:
     case Suggestion::Icon::kUndo:
     case Suggestion::Icon::kWork:
+    case Suggestion::Icon::kAndroidMessages:
       return std::u16string();
   }
   NOTREACHED();
@@ -425,7 +423,8 @@ std::optional<ui::ImageModel> GetIconImageModelFromIcon(Suggestion::Icon icon) {
     case Suggestion::Icon::kCardUnionPay:
     case Suggestion::Icon::kCardVerve:
     case Suggestion::Icon::kCardVisa:
-    case Suggestion::Icon::kBnpl: {
+    case Suggestion::Icon::kBnpl:
+    case Suggestion::Icon::kAndroidMessages: {
       // For other suggestion entries, get the icon from PNG files.
       int icon_id = GetIconResourceID(icon);
       DCHECK_NE(icon_id, 0);
@@ -561,7 +560,9 @@ void AddSuggestionContentToView(
   // Adjust the row height based on the number of subtexts (lines of text).
   int row_height = views::MenuConfig::instance().touchable_menu_height;
   if (!subtext_views.empty() ||
-      kSuggestionTypesWithDoubleHeight.contains(suggestion.type)) {
+      (suggestion.type == SuggestionType::kCreditCardEntry &&
+       base::FeatureList::IsEnabled(
+           autofill::features::kAutofillEnableNewFopDisplayDesktop))) {
     row_height += kAutofillPopupAdditionalDoubleRowHeight;
   }
   content_view.SetMinimumCrossAxisSize(row_height);

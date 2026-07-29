@@ -50,6 +50,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
+#include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
@@ -244,6 +245,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
       // suggestions related to standalone CVC fields.
     case SuggestionType::kVirtualCreditCardEntry:
     case SuggestionType::kLoyaltyCardEntry:
+    case SuggestionType::kOneTimePasswordEntry:
       return true;
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAllLoyaltyCardsEntry:
@@ -677,6 +679,10 @@ void AutofillExternalDelegate::DidSelectSuggestion(
     case SuggestionType::kScanCreditCard:
     case SuggestionType::kSeePromoCodeDetails:
     case SuggestionType::kBnplEntry:
+    // So far OTP suggestions are only available on Android, so no preview
+    // is needed. This needs to be changed once Desktop suggestions and UI
+    // are implemented.
+    case SuggestionType::kOneTimePasswordEntry:
       break;
     case SuggestionType::kTitle:
     case SuggestionType::kSeparator:
@@ -895,6 +901,16 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       }
       break;
     }
+    case SuggestionType::kOneTimePasswordEntry: {
+      auto otp_payload =
+          suggestion.GetPayload<Suggestion::OneTimePasswordPayload>()
+              .filling_data;
+      manager_->FillOrPreviewForm(
+          mojom::ActionPersistence::kFill, query_form_,
+          query_field_.global_id(), &otp_payload,
+          TriggerSourceFromSuggestionTriggerSource(trigger_source_));
+      break;
+    }
     case SuggestionType::kTitle:
     case SuggestionType::kSeparator:
     case SuggestionType::kPasswordEntry:
@@ -1040,6 +1056,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoyaltyCardEntry:
+    case SuggestionType::kOneTimePasswordEntry:
       return false;
   }
 }
@@ -1381,7 +1398,21 @@ void AutofillExternalDelegate::DidAcceptPaymentsSuggestion(
               ->GetSaveAndFillManager();
       CHECK(save_and_fill_manager);
 
-      save_and_fill_manager->OnDidAcceptCreditCardSaveAndFillSuggestion();
+      save_and_fill_manager->OnDidAcceptCreditCardSaveAndFillSuggestion(
+          base::BindOnce(
+              [](base::WeakPtr<AutofillExternalDelegate> delegate,
+                 const CreditCard& card) {
+                if (delegate) {
+                  delegate->manager_->FillOrPreviewForm(
+                      mojom::ActionPersistence::kFill, delegate->query_form_,
+                      delegate->query_field_.global_id(), &card,
+                      AutofillTriggerSource::kCreditCardSaveAndFill);
+                }
+              },
+              GetWeakPtr()));
+
+      manager_->GetCreditCardFormEventLogger()
+          .OnDidAcceptSaveAndFillSuggestion();
       break;
     }
     case SuggestionType::kScanCreditCard:

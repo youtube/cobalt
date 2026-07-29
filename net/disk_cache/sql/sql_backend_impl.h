@@ -152,6 +152,13 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
     return background_task_runner_;
   }
 
+  // Enables a strict corruption checking mode for testing purposes. When
+  // enabled, any detected database corruption will cause an immediate crash
+  // via a `CHECK` failure. This is primarily useful for fuzzers, which can more
+  // easily identify problematic inputs if the process fails fast, rather than
+  // silently recovering.
+  void EnableStrictCorruptionCheckForTesting();
+
  private:
   class IteratorImpl;
 
@@ -342,6 +349,18 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   WrapErrorCallbackToPopInFlightEntryModification(
       const CacheEntryKey& key,
       SqlPersistentStore::ErrorCallback callback);
+
+  // Schedules the `HandleDeleteDoomedEntriesOperation` task to run. This is the
+  // entry point for the one-time cleanup of entries that were doomed in a
+  // previous session.
+  void TriggerDeleteDoomedEntries();
+
+  // Physically deletes entries that were marked as "doomed" in previous
+  // sessions from the database. It excludes any currently active doomed entries
+  // to prevent data corruption. This method is executed as an exclusive
+  // operation to ensure it has sole access to the cache during cleanup.
+  void HandleDeleteDoomedEntriesOperation(
+      std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle);
 
   // Task runner for all background SQLite operations.
   scoped_refptr<base::SequencedTaskRunner> background_task_runner_;

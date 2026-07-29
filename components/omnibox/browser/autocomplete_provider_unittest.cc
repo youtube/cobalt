@@ -17,6 +17,7 @@
 
 #include "base/base64url.h"
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
@@ -383,15 +384,14 @@ class AutocompleteProviderTest : public testing::Test {
   // UpdateAssociatedKeywords, and checks that the matches have associated
   // keywords as expected.
   void RunKeywordTest(const std::u16string& input,
-                      const KeywordTestData* match_data,
-                      size_t size);
+                      base::span<const KeywordTestData> match_data);
 
   void UpdateResultsWithSuggestionGroupsTestData(
       const SuggestionGroupsTestData& test_data);
 
-  void RunSearchboxStatsTest(const SearchboxStatsTestData* sbs_test_data,
-                             size_t size,
-                             bool input_is_zero_suggest);
+  void RunSearchboxStatsTest(
+      base::span<const SearchboxStatsTestData> sbs_test_data,
+      bool input_is_zero_suggest);
 
   void RunQuery(const std::string& query, bool allow_exact_keyword_match);
 
@@ -596,11 +596,11 @@ void AutocompleteProviderTest::RunTest() {
   RunQuery("a", true);
 }
 
-void AutocompleteProviderTest::RunKeywordTest(const std::u16string& input,
-                                              const KeywordTestData* match_data,
-                                              size_t size) {
+void AutocompleteProviderTest::RunKeywordTest(
+    const std::u16string& input,
+    base::span<const KeywordTestData> match_data) {
   ACMatches matches;
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i < match_data.size(); ++i) {
     AutocompleteMatch match;
     match.relevance = 1000;  // Arbitrary non-zero value.
     match.allowed_to_be_default_match = true;
@@ -650,8 +650,7 @@ void AutocompleteProviderTest::UpdateResultsWithSuggestionGroupsTestData(
 }
 
 void AutocompleteProviderTest::RunSearchboxStatsTest(
-    const SearchboxStatsTestData* sbs_test_data,
-    size_t size,
+    base::span<const SearchboxStatsTestData> sbs_test_data,
     bool input_is_zero_suggest) {
   if (input_is_zero_suggest) {
     // Prepare the input.
@@ -664,7 +663,7 @@ void AutocompleteProviderTest::RunSearchboxStatsTest(
   // Prepare the results.
   const size_t kMaxRelevance = 1000;
   ACMatches matches;
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i < sbs_test_data.size(); ++i) {
     AutocompleteMatch match(nullptr, kMaxRelevance - i, false,
                             sbs_test_data[i].match_type);
     match.suggestion_group_id = sbs_test_data[i].group_id;
@@ -686,7 +685,7 @@ void AutocompleteProviderTest::RunSearchboxStatsTest(
   controller_->UpdateSearchboxStats(&result_);
 
   // Verify data.
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i < sbs_test_data.size(); ++i) {
     std::string serialized_searchbox_stats;
     result_.match_at(i)->search_terms_args->searchbox_stats.SerializeToString(
         &serialized_searchbox_stats);
@@ -857,7 +856,7 @@ TEST_F(AutocompleteProviderTest, RedundantKeywordsIgnoredInResult) {
         {u"foo.com", std::u16string(), std::u16string()}};
 
     SCOPED_TRACE("Duplicate url");
-    RunKeywordTest(u"fo", duplicate_url, std::size(duplicate_url));
+    RunKeywordTest(u"fo", duplicate_url);
   }
 
   {
@@ -866,7 +865,7 @@ TEST_F(AutocompleteProviderTest, RedundantKeywordsIgnoredInResult) {
         {u"foo.com", std::u16string(), std::u16string()}};
 
     SCOPED_TRACE("Duplicate url with keyword match");
-    RunKeywordTest(u"fo", keyword_match, std::size(keyword_match));
+    RunKeywordTest(u"fo", keyword_match);
   }
 
   {
@@ -878,7 +877,7 @@ TEST_F(AutocompleteProviderTest, RedundantKeywordsIgnoredInResult) {
     };
 
     SCOPED_TRACE("Duplicate url with multiple keywords");
-    RunKeywordTest(u"fo", multiple_keyword, std::size(multiple_keyword));
+    RunKeywordTest(u"fo", multiple_keyword);
   }
 }
 
@@ -892,7 +891,7 @@ TEST_F(AutocompleteProviderTest, ExactMatchKeywords) {
         {u"foo.com", std::u16string(), u"foo.com"}};
 
     SCOPED_TRACE("keyword match as usual");
-    RunKeywordTest(u"fo", keyword_match, std::size(keyword_match));
+    RunKeywordTest(u"fo", keyword_match);
   }
 
   // The same result set with an input of "f" (versus "fo") should get
@@ -903,7 +902,7 @@ TEST_F(AutocompleteProviderTest, ExactMatchKeywords) {
     KeywordTestData keyword_match[] = {{u"foo.com", std::u16string(), u"f"}};
 
     SCOPED_TRACE("keyword exact match");
-    RunKeywordTest(u"f", keyword_match, std::size(keyword_match));
+    RunKeywordTest(u"f", keyword_match);
   }
 }
 
@@ -1049,15 +1048,8 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
 
   {
     omnibox::metrics::ChromeSearchboxStats searchbox_stats;
-    SearchboxStatsTestData test_data[] = {
-        //  MSVC doesn't support zero-length arrays, so supply some dummy data.
-        {AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED,
-         {/* GroupID */},
-         searchbox_stats,
-         omnibox::TYPE_NATIVE_CHROME}};
     SCOPED_TRACE("No matches");
-    // Note: We pass 0 here to ignore the dummy data above.
-    RunSearchboxStatsTest(test_data, 0, /*input_is_zero_suggest=*/false);
+    RunSearchboxStatsTest({}, /*input_is_zero_suggest=*/false);
   }
 
   // Note: See suggest.proto for the types and subtypes referenced below.
@@ -1078,8 +1070,7 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
          searchbox_stats,
          omnibox::TYPE_NATIVE_CHROME}};
     SCOPED_TRACE("One match");
-    RunSearchboxStatsTest(test_data, std::size(test_data),
-                          /*input_is_zero_suggest=*/false);
+    RunSearchboxStatsTest(test_data, /*input_is_zero_suggest=*/false);
   }
 
   {
@@ -1101,7 +1092,7 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
          omnibox::TYPE_ENTITY,
          {omnibox::SUBTYPE_PERSONAL}}};
     SCOPED_TRACE("One match with provider populated subtypes");
-    RunSearchboxStatsTest(test_data, std::size(test_data),
+    RunSearchboxStatsTest(test_data,
                           /*input_is_zero_suggest=*/false);
   }
 
@@ -1141,8 +1132,7 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
          {omnibox::SUBTYPE_ZERO_PREFIX_LOCAL_FREQUENT_QUERIES}},
     };
     SCOPED_TRACE("Multiple matches in horizontal render group");
-    RunSearchboxStatsTest(test_data, std::size(test_data),
-                          /*input_is_zero_suggest=*/true);
+    RunSearchboxStatsTest(test_data, /*input_is_zero_suggest=*/true);
   }
 
   {
@@ -1215,8 +1205,7 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
          {omnibox::SUBTYPE_ZERO_PREFIX}},
     };
     SCOPED_TRACE("Multiple matches with horizontal render group");
-    RunSearchboxStatsTest(test_data, std::size(test_data),
-                          /*input_is_zero_suggest=*/true);
+    RunSearchboxStatsTest(test_data, /*input_is_zero_suggest=*/true);
   }
 
   {
@@ -1316,8 +1305,7 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
          {omnibox::SUBTYPE_PERSONAL, omnibox::SUBTYPE_TRENDS}},
     };
     SCOPED_TRACE("Complex set of matches with repetitive subtypes");
-    RunSearchboxStatsTest(test_data, std::size(test_data),
-                          /*input_is_zero_suggest=*/true);
+    RunSearchboxStatsTest(test_data, /*input_is_zero_suggest=*/true);
   }
 
   // This test confirms that selection of trivial suggestions does not get
@@ -1441,8 +1429,7 @@ TEST_F(AutocompleteProviderTest, UpdateSearchboxStats) {
          omnibox::TYPE_NATIVE_CHROME},
     };
     SCOPED_TRACE("Trivial and zero-prefix matches");
-    RunSearchboxStatsTest(test_data, std::size(test_data),
-                          /*input_is_zero_suggest=*/true);
+    RunSearchboxStatsTest(test_data, /*input_is_zero_suggest=*/true);
   }
 }
 

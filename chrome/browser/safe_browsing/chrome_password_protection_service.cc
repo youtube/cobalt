@@ -28,7 +28,7 @@
 #include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/password_reuse_manager_factory.h"
+#include "chrome/browser/password_manager/factories/password_reuse_manager_factory.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
@@ -1145,15 +1145,7 @@ void ChromePasswordProtectionService::OpenPasswordCheck(
 
       bool should_show_checkup_for_local = true;
 
-      // After login db deprecation, all users have split stores.
-      bool uses_split_password_stores =
-          base::FeatureList::IsEnabled(
-              password_manager::features::kLoginDbDeprecationAndroid) ||
-          password_manager::UsesSplitStoresAndUPMForLocal(profile_->GetPrefs());
       if (credentials_store.is_account_store) {
-        should_show_checkup_for_local = false;
-      } else if (credentials_store.is_profile_store && is_syncing_passwords &&
-                 !uses_split_password_stores) {
         should_show_checkup_for_local = false;
       }
       checkup_launcher_->LaunchCheckupOnDevice(

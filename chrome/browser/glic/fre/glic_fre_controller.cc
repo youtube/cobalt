@@ -132,6 +132,8 @@ void GlicFreController::ShowFreDialog(Browser* browser,
   } else {
     // Sign-in required and handled by AuthController. In this case, do not
     // record the FRE load time metric.
+    base::RecordAction(
+        base::UserMetricsAction("Glic.Fre.CheckAuthBeforeShowSync"));
     show_start_time_ = base::TimeTicks();
   }
 }
@@ -153,6 +155,7 @@ void GlicFreController::ShowFreDialogAfterAuthCheck(
 
   source_browser_ = browser.get();
 
+  widget_creation_start_time_ = base::TimeTicks::Now();
   CreateView();
 
   tab_showing_modal_ = browser->GetActiveTabInterface();
@@ -165,7 +168,12 @@ void GlicFreController::ShowFreDialogAfterAuthCheck(
                     ->tab_dialog_manager()
                     ->CreateTabScopedDialog(fre_view_.release());
   auto params = std::make_unique<tabs::TabDialogManager::Params>();
+  // Don't close the dialog on navigations, as the FRE is a web-based dialog
+  // and can have its own internal navigations.
   params->close_on_navigate = false;
+  // Don't close the dialog on tab detach, as we have custom logic to handle
+  // this in OnTabShowingModalWillDetach() which includes metrics.
+  params->close_on_detach = false;
   tab_showing_modal_->GetTabFeatures()->tab_dialog_manager()->ShowDialog(
       fre_widget_.get(), std::move(params));
   GetWebContents()->Focus();
@@ -177,6 +185,10 @@ void GlicFreController::ShowFreDialogAfterAuthCheck(
 
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown"));
   base::UmaHistogramEnumeration("Glic.FRE.InvocationSource", source);
+  base::UmaHistogramMediumTimes(
+      "Glic.Fre.WidgetCreationTime",
+      base::TimeTicks::Now() - widget_creation_start_time_);
+  webui_load_start_time_ = base::TimeTicks::Now();
   auth_controller_.OnGlicWindowOpened();
 
   // Recording the load latency time when FRE contents were preloaded.
@@ -192,6 +204,7 @@ void GlicFreController::DismissFreIfOpenOnActiveTab(Browser* browser) {
 
   // If the FRE is being shown on the current tab, close it.
   if (fre_widget_ && tab_showing_modal_ == tab) {
+    base::RecordAction(base::UserMetricsAction("Glic.Fre.CloseWithToggle"));
     DismissFre(webui_state_);
   }
 }
@@ -228,6 +241,20 @@ void GlicFreController::AcceptFre() {
 
 void GlicFreController::CloseWithReason(views::Widget::ClosedReason reason) {
   base::UmaHistogramEnumeration("Glic.Fre.WidgetClosedReason", reason);
+  switch (reason) {
+    case views::Widget::ClosedReason::kAcceptButtonClicked:
+    case views::Widget::ClosedReason::kCancelButtonClicked:
+    case views::Widget::ClosedReason::kEscKeyPressed:
+    case views::Widget::ClosedReason::kUnspecified:
+      break;
+    case views::Widget::ClosedReason::kLostFocus:
+      base::RecordAction(
+          base::UserMetricsAction("Glic.Fre.CloseByClickOutside"));
+      break;
+    case views::Widget::ClosedReason::kCloseButtonClicked:
+      base::RecordAction(base::UserMetricsAction("Glic.Fre.CloseWithX"));
+      break;
+  }
   DismissFre(webui_state_);
 }
 
@@ -248,7 +275,7 @@ void GlicFreController::DismissFre(mojom::FreWebUiState panel) {
           base::UserMetricsAction("Glic.Fre.LoadingPanelClosed"));
       break;
     case mojom::FreWebUiState::kReady:
-      base::RecordAction(base::UserMetricsAction("Glic.Fre.NoThanks"));
+      base::RecordAction(base::UserMetricsAction("Glic.Fre.ReadyPanelClosed"));
       break;
     case mojom::FreWebUiState::kUninitialized:
       base::RecordAction(
@@ -462,7 +489,17 @@ void GlicFreController::OnCheckIsDefaultBrowserFinished(
 void GlicFreController::OnTabShowingModalWillDetach(
     tabs::TabInterface* tab,
     tabs::TabInterface::DetachReason reason) {
-  DismissFre(webui_state_);
+  switch (reason) {
+    case tabs::TabInterface::DetachReason::kDelete:
+      base::RecordAction(
+          base::UserMetricsAction("Glic.Fre.CloseByClosingHostTab"));
+      break;
+    case tabs::TabInterface::DetachReason::kInsertIntoOtherWindow:
+      base::RecordAction(
+          base::UserMetricsAction("Glic.Fre.CloseByMovingHostTab"));
+      break;
+  }
+  CloseWithReason(views::Widget::ClosedReason::kUnspecified);
 }
 
 void GlicFreController::CreateView() {
@@ -480,10 +517,27 @@ void GlicFreController::CreateView() {
 void GlicFreController::RecordMetricsIfDialogIsShowingAndReady() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!!fre_widget_ && webui_state_ == mojom::FreWebUiState::kReady &&
-      !show_start_time_.is_null()) {
+      !show_start_time_.is_null() && !web_client_load_start_time_.is_null()) {
+    base::UmaHistogramMediumTimes(
+        "Glic.Fre.WebClientLoadTime",
+        base::TimeTicks::Now() - web_client_load_start_time_);
     base::UmaHistogramMediumTimes("Glic.FrePresentationTime",
                                   (base::TimeTicks::Now() - show_start_time_));
     show_start_time_ = base::TimeTicks();
+    web_client_load_start_time_ = base::TimeTicks();
+  }
+}
+
+void GlicFreController::LogWebUiLoadComplete() {
+  if (!webui_load_start_time_.is_null()) {
+    base::UmaHistogramMediumTimes(
+        "Glic.Fre.WebUiFrameworkLoadTime",
+        base::TimeTicks::Now() - webui_load_start_time_);
+    webui_load_start_time_ = base::TimeTicks();
+
+    // The FRE webclient begins loading as soon as the web ui is loaded
+    // successfully.
+    web_client_load_start_time_ = base::TimeTicks::Now();
   }
 }
 

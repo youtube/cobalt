@@ -178,56 +178,60 @@ function createRoutes(): SettingsRoutes {
   r.SEARCH_ENGINES = r.SEARCH.createChild('/searchEngines');
   r.SEARCH_ENGINES.hasMigratedToPlugin = true;
 
-  if (!loadTimeData.getBoolean('isGuest')) {
+  const visibility = pageVisibility || {};
+
+  if (visibility.people !== false) {
     r.PEOPLE = r.BASIC.createSection(
         '/people', 'people', loadTimeData.getString('peoplePageTitle'));
+    r.PEOPLE.hasMigratedToPlugin = true;
     // <if expr="not is_chromeos">
     r.SIGN_OUT = r.PEOPLE.createChild('/signOut');
     r.SIGN_OUT.isNavigableDialog = true;
+    r.SIGN_OUT.hasMigratedToPlugin = true;
     r.IMPORT_DATA = r.PEOPLE.createChild('/importData');
     r.IMPORT_DATA.isNavigableDialog = true;
+    r.IMPORT_DATA.hasMigratedToPlugin = true;
     if (loadTimeData.getBoolean('replaceSyncPromosWithSignInPromos')) {
       r.ACCOUNT = r.PEOPLE.createChild('/account');
+      r.ACCOUNT.hasMigratedToPlugin = true;
     }
+    r.MANAGE_PROFILE = r.PEOPLE.createChild('/manageProfile');
+    r.MANAGE_PROFILE.hasMigratedToPlugin = true;
     // </if>
 
     r.SYNC = r.PEOPLE.createChild('/syncSetup');
+    r.SYNC.hasMigratedToPlugin = true;
     r.SYNC_ADVANCED = r.SYNC.createChild('/syncSetup/advanced');
+    r.SYNC_ADVANCED.hasMigratedToPlugin = true;
   }
-
-  const visibility = pageVisibility || {};
 
   if (visibility.ai !== false && loadTimeData.getBoolean('showAiPage')) {
     r.AI = r.BASIC.createSection(
         '/ai', 'ai', loadTimeData.getString('aiInnovationsPageTitle'));
+    r.AI.hasMigratedToPlugin = true;
     if (loadTimeData.getBoolean('showTabOrganizationControl')) {
       r.AI_TAB_ORGANIZATION = r.AI.createChild('/ai/tabOrganizer');
+      r.AI_TAB_ORGANIZATION.hasMigratedToPlugin = true;
     }
     if (loadTimeData.getBoolean('showHistorySearchControl')) {
       r.HISTORY_SEARCH = r.AI.createChild('/ai/historySearch');
+      r.HISTORY_SEARCH.hasMigratedToPlugin = true;
     }
     if (loadTimeData.getBoolean('showComposeControl')) {
       r.OFFER_WRITING_HELP = r.AI.createChild('/ai/helpMeWrite');
+      r.OFFER_WRITING_HELP.hasMigratedToPlugin = true;
     }
     if (loadTimeData.getBoolean('showCompareControl')) {
       r.COMPARE = r.AI.createChild('/ai/compareProducts');
+      r.COMPARE.hasMigratedToPlugin = true;
     }
     // <if expr="enable_glic">
     if (loadTimeData.getBoolean('showGlicSettings')) {
-      r.GLIC_SECTION = r.AI.createSection(
-          '/ai/glicSection', 'glicSection',
-          loadTimeData.getString('glicPageTitle'));
-      r.GEMINI = r.GLIC_SECTION.createChild('/ai/gemini');
+      r.GEMINI = r.AI.createChild('/ai/gemini');
+      r.GEMINI.hasMigratedToPlugin = true;
     }
     // </if>
   }
-
-  // <if expr="not is_chromeos">
-  if (visibility.people !== false) {
-    assert(r.PEOPLE);
-    r.MANAGE_PROFILE = r.PEOPLE.createChild('/manageProfile');
-  }
-  // </if>
 
   if (visibility.appearance !== false) {
     r.APPEARANCE = r.BASIC.createSection(

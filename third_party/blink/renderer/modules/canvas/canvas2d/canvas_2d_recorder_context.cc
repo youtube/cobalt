@@ -379,10 +379,6 @@ String LineJoinName(LineJoin join) {
 
 }  // namespace
 
-BASE_FEATURE(kDisableCanvasOverdrawOptimization,
-             "DisableCanvasOverdrawOptimization",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Maximum number of colors in the color cache
 // (`Canvas2DRecorderContext::color_cache_`).
 constexpr size_t kColorCacheMaxSize = 8;
@@ -766,8 +762,7 @@ void Canvas2DRecorderContext::PopAndRestore(cc::PaintCanvas& canvas) {
 void Canvas2DRecorderContext::ValidateStateStackImpl(
     const cc::PaintCanvas* canvas) const {
   DCHECK_GE(state_stack_.size(), 1u);
-  DCHECK_GT(state_stack_.size(),
-            base::checked_cast<WTF::wtf_size_t>(layer_count_));
+  DCHECK_GT(state_stack_.size(), base::checked_cast<wtf_size_t>(layer_count_));
 
   using SaveType = CanvasRenderingContext2DState::SaveType;
   DCHECK_EQ(state_stack_[0]->GetSaveType(), SaveType::kInitial);
@@ -807,7 +802,7 @@ void Canvas2DRecorderContext::ValidateStateStackImpl(
 
       // The state stack depth should match the number of saves in the
       // recording (taking in to account that some layers require two saves).
-      DCHECK_EQ(base::checked_cast<WTF::wtf_size_t>(main_saves + layer_saves),
+      DCHECK_EQ(base::checked_cast<wtf_size_t>(main_saves + layer_saves),
                 state_stack_.size() + extra_layer_saves);
     }
   }

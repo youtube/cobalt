@@ -26,8 +26,6 @@ NSString* const kBWGSeparatorColor = @"bwg_separator_color";
 NSString* const kSolidButtonTextColor = @"solid_button_text_color";
 NSString* const kTableViewRowHighlightColor = @"table_view_row_highlight_color";
 NSString* const kTertiaryBackgroundColor = @"tertiary_background_color";
-NSString* const kUpdatedTertiaryBackgroundColor =
-    @"updated_tertiary_background_color";
 NSString* const kTextPrimaryColor = @"text_primary_color";
 NSString* const kInvertedTextPrimaryColor = @"inverted_text_primary_color";
 NSString* const kTextSecondaryColor = @"text_secondary_color";
@@ -134,7 +132,9 @@ NSString* const kGrey600Color = @"grey_600_color";
 NSString* const kGrey700Color = @"grey_700_color";
 NSString* const kGrey800Color = @"grey_800_color";
 NSString* const kGrey900Color = @"grey_900_color";
+NSString* const kStaticGrey50Color = @"static_grey_50_color";
 NSString* const kStaticGrey300Color = @"static_grey_300_color";
+NSString* const kStaticGrey400Color = @"static_grey_400_color";
 NSString* const kStaticGrey600Color = @"static_grey_600_color";
 NSString* const kStaticGrey900Color = @"static_grey_900_color";
 

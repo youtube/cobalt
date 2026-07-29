@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_loader_factory.h"
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -18,8 +16,6 @@
 #include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
@@ -42,6 +38,9 @@
 #include "components/web_package/test_support/signed_web_bundles/web_bundle_signer.h"
 #include "components/web_package/web_bundle_builder.h"
 #include "components/webapps/common/web_app_id.h"
+#include "components/webapps/isolated_web_apps/types/source.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
+#include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
@@ -332,31 +331,6 @@ TEST_F(IsolatedWebAppURLLoaderFactoryTest,
   std::optional<webapps::AppId> installed_app =
       fake_provider().registrar_unsafe().FindBestAppWithUrlInScope(
           kDevAppStartUrl, web_app::WebAppFilter::InstalledInChrome());
-  EXPECT_THAT(installed_app.has_value(), IsTrue());
-
-  CreateFactoryForFrame();
-
-  auto request = std::make_unique<network::ResourceRequest>();
-  request->url = kDevAppStartUrl;
-  EXPECT_THAT(CreateLoaderAndRun(std::move(request)),
-              IsNetError(net::ERR_FAILED));
-  EXPECT_THAT(ResponseInfo(), IsNull());
-}
-
-TEST_F(IsolatedWebAppURLLoaderFactoryTest,
-       RequestFailsWithErrFailedIfAppNotLocallyInstalled) {
-  std::unique_ptr<WebApp> iwa = CreateIsolatedWebApp(
-      kDevAppStartUrl, IsolationData::Builder(IwaStorageProxy{kProxyOrigin},
-                                              base::Version("1.0.0"))
-                           .Build());
-  iwa->SetInstallState(proto::InstallState::SUGGESTED_FROM_ANOTHER_DEVICE);
-  RegisterWebApp(std::move(iwa));
-
-  // Verify that a PWA is installed at kAppStartUrl's origin, but only
-  // suggested.
-  std::optional<webapps::AppId> installed_app =
-      fake_provider().registrar_unsafe().FindBestAppWithUrlInScope(
-          kDevAppStartUrl, web_app::WebAppFilter::IsSuggestedApp());
   EXPECT_THAT(installed_app.has_value(), IsTrue());
 
   CreateFactoryForFrame();

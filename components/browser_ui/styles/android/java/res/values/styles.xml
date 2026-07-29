@@ -55,7 +55,6 @@ found in the LICENSE file.
     <style name="Base.OverflowMenuThemeOverlay" parent="">
         <item name="android:popupMenuStyle">@android:style/Widget.Material.PopupMenu</item>
         <item name="android:popupBackground">@null</item>
-        <item name="android:listChoiceBackgroundIndicator">@drawable/list_item_ripple</item>
         <item name="android:colorControlHighlight">@color/control_highlight_color</item>
     </style>
     <style name="OverflowMenuThemeOverlay" parent="Base.OverflowMenuThemeOverlay" />
@@ -145,11 +144,6 @@ found in the LICENSE file.
 
     <style name="TextAppearance.TextLarge.Primary">
         <item name="android:textColor">@color/default_text_color_list</item>
-    </style>
-
-    <style name="TextAppearance.TextLarge.Primary.Bold">
-        <item name="android:textColor">@color/default_text_color_list</item>
-        <item name="android:textStyle">bold</item>
     </style>
 
     <style name="TextAppearance.TextMediumThick.Primary">

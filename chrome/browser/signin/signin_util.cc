@@ -21,7 +21,6 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/profile_management/profile_management_features.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
-#include "chrome/browser/policy/cloud/user_policy_signin_service_internal.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/signin/account_reconcilor_factory.h"
@@ -72,8 +71,6 @@ const ChromeIdentityHatsTriggerFeatureMappingEntry
     kChromeIdentityHatsTriggerFeatureMapping[] = {
         {kHatsSurveyTriggerIdentityAddressBubbleSignin,
          &switches::kChromeIdentitySurveyAddressBubbleSignin},
-        {kHatsSurveyTriggerIdentitySigninPromoBubbleDismissed,
-         &switches::kChromeIdentitySurveySigninPromoBubbleDismissed},
         {kHatsSurveyTriggerIdentityDiceWebSigninAccepted,
          &switches::kChromeIdentitySurveyDiceWebSigninAccepted},
         {kHatsSurveyTriggerIdentityDiceWebSigninDeclined,
@@ -82,12 +79,20 @@ const ChromeIdentityHatsTriggerFeatureMappingEntry
          &switches::kChromeIdentitySurveyFirstRunSignin},
         {kHatsSurveyTriggerIdentityPasswordBubbleSignin,
          &switches::kChromeIdentitySurveyPasswordBubbleSignin},
+        {kHatsSurveyTriggerIdentityProfileMenuDismissed,
+         &switches::kChromeIdentitySurveyProfileMenuDismissed},
         {kHatsSurveyTriggerIdentityProfileMenuSignin,
          &switches::kChromeIdentitySurveyProfileMenuSignin},
         {kHatsSurveyTriggerIdentityProfilePickerAddProfileSignin,
          &switches::kChromeIdentitySurveyProfilePickerAddProfileSignin},
         {kHatsSurveyTriggerIdentitySigninInterceptProfileSeparation,
          &switches::kChromeIdentitySurveySigninInterceptProfileSeparation},
+        {kHatsSurveyTriggerIdentitySigninPromoBubbleDismissed,
+         &switches::kChromeIdentitySurveySigninPromoBubbleDismissed},
+        {kHatsSurveyTriggerIdentitySwitchProfileFromProfileMenu,
+         &switches::kChromeIdentitySurveySwitchProfileFromProfileMenu},
+        {kHatsSurveyTriggerIdentitySwitchProfileFromProfilePicker,
+         &switches::kChromeIdentitySurveySwitchProfileFromProfilePicker},
 };
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 

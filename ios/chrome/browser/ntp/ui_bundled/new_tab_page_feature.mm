@@ -35,7 +35,7 @@ BASE_FEATURE(kEnableDiscoverFeedStaticResourceServing,
 
 BASE_FEATURE(kEnableDiscoverFeedDiscoFeedEndpoint,
              "EnableDiscoFeedEndpoint",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableNTPViewHierarchyRepair,
              "NTPViewHierarchyRepair",
@@ -175,21 +175,6 @@ bool UseFeedEligibilityService() {
 }
 
 NTPMIAEntrypointVariation GetNTPMIAEntrypointVariation() {
-  // MIA entry point is currently enabled only for phone form factor.
-  bool phone_form_factor =
-      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
-  if (!phone_form_factor) {
-    return NTPMIAEntrypointVariation::kDisabled;
-  }
-
-  BOOL isUSCountry = [NSLocale.currentLocale.countryCode isEqual:@"US"];
-  BOOL isEnglishLocale = [NSLocale.currentLocale.languageCode hasPrefix:@"en"];
-  BOOL allowedByLocale = isUSCountry && isEnglishLocale;
-
-  if (!allowedByLocale) {
-    return NTPMIAEntrypointVariation::kDisabled;
-  }
-
   std::string feature_param = base::GetFieldTrialParamValueByFeature(
       kNTPMIAEntrypoint, kNTPMIAEntrypointParam);
   if (feature_param == kNTPMIAEntrypointParamOmniboxContainedSingleButton) {
