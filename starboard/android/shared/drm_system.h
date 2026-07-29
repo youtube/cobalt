@@ -48,6 +48,8 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     SbDrmSessionUpdatedFunc session_updated;
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed;
   };
+  static void SetAppProvisioningEnabled(bool enabled);
+
   static std::unique_ptr<DrmSystem> Create(std::string_view key_system,
                                            void* context,
                                            Callbacks callbacks);

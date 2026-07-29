@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "starboard/android/shared/drm_session_id_mapper.h"
-#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
@@ -55,7 +54,14 @@ constexpr int kSpontaneousDrmTicketId = kSbDrmTicketInvalid;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
+std::atomic_bool g_app_provisioning_enabled = false;
+
 }  // namespace
+
+// static
+void DrmSystem::SetAppProvisioningEnabled(bool enabled) {
+  g_app_provisioning_enabled.store(enabled);
+}
 
 // static
 std::unique_ptr<DrmSystem> DrmSystem::Create(std::string_view key_system,
@@ -75,8 +81,7 @@ DrmSystem::DrmSystem(PassKey<DrmSystem>,
                      Callbacks callbacks)
     : Thread("DrmSystemThread"),
       key_system_(key_system),
-      enable_app_provisioning_(
-          MediaCapabilitiesCache::GetInstance()->IsAppProvisioningEnabled()),
+      enable_app_provisioning_(g_app_provisioning_enabled.load()),
       context_(context),
       callbacks_(callbacks),
       hdcp_lost_(false),
