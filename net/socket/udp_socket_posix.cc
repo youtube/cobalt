@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "base/debug/alias.h"
+#include "base/debug/crash_logging.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -61,6 +62,7 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include "net/base/apple/guarded_fd.h"
+#include "net/socket/socket_apple.h"
 #endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(IS_MAC)
@@ -215,7 +217,13 @@ void UDPSocketPosix::Close() {
     // because it may have been reused by another thread in the meantime. We may
     // leak file handles here and cause a crash indirectly later. See
     // https://crbug.com/40732798.
-    PCHECK(errno == ENOTCONN || errno == EPROTOTYPE);
+    if (errno != ENOTCONN && errno != EPROTOTYPE) {
+      // TODO(crbug.com/437414746): Remove this once the new crash has been
+      // diagnosed.
+      SCOPED_CRASH_KEY_NUMBER("UdpSocketPosix", "guarded_close_np_errno",
+                              errno);
+      PLOG(FATAL) << "Unexpected errno from guarded_close_np";
+    }
   }
 #else
   PCHECK(IGNORE_EINTR(close(socket_)) == 0);
@@ -815,12 +823,26 @@ int UDPSocketPosix::InternalSendTo(IOBuffer* buf,
     }
   }
 
-  int result = HANDLE_EINTR(sendto(socket_, buf->data(), buf_len, sendto_flags_,
-                                   addr, storage.addr_len));
-  if (result < 0)
+#if !defined(WORK_AROUND_CRBUG_40064248)
+  ssize_t result = HANDLE_EINTR(sendto(socket_, buf->data(), buf_len,
+                                       sendto_flags_, addr, storage.addr_len));
+#else   // !WORK_AROUND_CRBUG_40064248
+  ssize_t result = HANDLE_EINTR(SendtoAndDetectBogusReturnValue(
+      socket_, buf->data(), buf_len, sendto_flags_, addr, storage.addr_len));
+  if (result == kSendBogusReturnValueDetected) {
+    // https://crbug.com/40064248 is known to occur as a result of certain
+    // network configuration changes.
+    result = ERR_NETWORK_CHANGED;
+  } else
+#endif  // !WORK_AROUND_CRBUG_40064248
+  if (result < 0) {
     result = MapSystemError(errno);
-  if (result != ERR_IO_PENDING)
+  } else {
+    CHECK_LE(result, buf_len);
+  }
+  if (result != ERR_IO_PENDING) {
     LogWrite(result, buf->data(), address);
+  }
   return result;
 }
 

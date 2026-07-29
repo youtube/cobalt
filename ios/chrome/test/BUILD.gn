@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/c++/c++.gni")
+import("//components/enterprise/buildflags/buildflags.gni")
 import("//ios/build/chrome_build.gni")
 import("//ios/build/config.gni")
 import("//ios/chrome/features.gni")
@@ -77,6 +78,7 @@ source_set("test_support") {
     "//components/variations/service",
     "//ios/chrome/browser/content_settings/model",
     "//ios/chrome/browser/download/model/auto_deletion",
+    "//ios/chrome/browser/optimization_guide/model",
     "//ios/chrome/browser/policy/model",
     "//ios/chrome/browser/profile/model:ios_thread",
     "//ios/chrome/browser/promos_manager/model:features",
@@ -353,6 +355,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/omnibox/eg_tests:unit_tests",
     "//ios/chrome/browser/omnibox/model:unit_tests",
     "//ios/chrome/browser/omnibox/model/placeholder_service:unit_tests",
+    "//ios/chrome/browser/omnibox/model/suggestions:unit_tests",
     "//ios/chrome/browser/omnibox/ui:unit_tests",
     "//ios/chrome/browser/omnibox/ui/popup:unit_tests",
     "//ios/chrome/browser/omnibox/ui/popup/carousel:unit_tests",
@@ -512,6 +515,7 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator:unit_tests",
     "//ios/chrome/browser/tab_switcher/tab_grid/base_grid/suggested_actions:unit_tests",
     "//ios/chrome/browser/tab_switcher/tab_strip/coordinator:unit_tests",
+    "//ios/chrome/browser/tab_switcher/tab_strip/ui:unit_tests",
     "//ios/chrome/browser/tab_switcher/ui_bundled:unit_tests",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:unit_tests",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid:unit_tests",
@@ -520,7 +524,6 @@ test("ios_chrome_unittests") {
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/pinned_tabs/tests:unit_tests",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_groups:unit_tests",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars:unit_tests",
-    "//ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/ui:unit_tests",
     "//ios/chrome/browser/tabs/model:unit_tests",
     "//ios/chrome/browser/tabs/model/inactive_tabs:unit_tests",
     "//ios/chrome/browser/tabs_search/model:unit_tests",
@@ -567,6 +570,10 @@ test("ios_chrome_unittests") {
     deps += [
       "//ios/chrome/browser/default_browser/model/default_status:unit_tests",
     ]
+  }
+
+  if (enterprise_data_controls) {
+    deps += [ "//ios/chrome/browser/enterprise/data_controls:unit_tests" ]
   }
 
   if (ios_enable_widget_kit_extension) {

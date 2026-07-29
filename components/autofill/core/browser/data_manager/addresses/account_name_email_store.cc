@@ -18,8 +18,10 @@
 namespace autofill {
 
 namespace {
+
 constexpr std::string_view kSeparator = "|";
-}
+
+}  // namespace
 
 AccountNameEmailStore::AccountNameEmailStore(
     AddressDataManager& address_data_manager,
@@ -33,6 +35,13 @@ AccountNameEmailStore::AccountNameEmailStore(
 }
 
 AccountNameEmailStore::~AccountNameEmailStore() = default;
+
+void AccountNameEmailStore::OnExtendedAccountInfoRemoved(
+    const AccountInfo& info) {
+  if (!identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
+    RemoveAccountNameEmail();
+  }
+}
 
 void AccountNameEmailStore::OnExtendedAccountInfoUpdated(
     const AccountInfo& info) {
@@ -72,9 +81,14 @@ void AccountNameEmailStore::OnAddressDataChanged() {
 
 void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
     const AccountInfo& info) {
-  if (info.IsEmpty()) {
+  // During signin the `OnExtendedAccountInfoUpdated` method might call this
+  // method with an empty `info.full_name` since not all data arrives all at
+  // once and `AccountiInfo` is updated multiple times. The `kAccountNameEmail`
+  // profile and hash signature require non-empty `full_name` value.
+  if (info.IsEmpty() || info.full_name.empty()) {
     return;
   }
+  CHECK(!info.email.empty());
 
   // Calculate hash and see if it's different than one cached in pref.
   const std::string new_hash = HashAccountInfo(info);
@@ -106,6 +120,18 @@ void AccountNameEmailStore::UpdateOrCreateAccountNameEmail(
   // changed their full name.
   pref_service_->SetInteger(
       prefs::kAutofillNameAndEmailProfileNotSelectedCounter, 0);
+}
+
+void AccountNameEmailStore::RemoveAccountNameEmail() {
+  const std::vector<const AutofillProfile*> account_name_email_profiles =
+      address_data_manager_->GetProfilesByRecordType(
+          AutofillProfile::RecordType::kAccountNameEmail);
+  if (account_name_email_profiles.empty()) {
+    return;
+  }
+  CHECK_EQ(1u, account_name_email_profiles.size());
+
+  address_data_manager_->RemoveProfile(account_name_email_profiles[0]->guid());
 }
 
 std::string AccountNameEmailStore::HashAccountInfo(

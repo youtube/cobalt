@@ -38,7 +38,6 @@ namespace {
 
 using ::testing::_;
 using ::testing::ElementsAre;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
@@ -191,8 +190,7 @@ void AddToStoreWithEKURestriction(
   crypto::ScopedPCCERT_CONTEXT os_cert(CertCreateCertificateContext(
       X509_ASN_ENCODING, cert->der_cert().data(), cert->der_cert().size()));
 
-  CERT_ENHKEY_USAGE usage;
-  UNSAFE_TODO(memset(&usage, 0, sizeof(usage)));
+  CERT_ENHKEY_USAGE usage = {};
   CertSetEnhancedKeyUsage(os_cert.get(), &usage);
   if (usage_identifier) {
     CertAddEnhancedKeyUsageIdentifier(os_cert.get(), usage_identifier);

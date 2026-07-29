@@ -140,7 +140,7 @@ class ElementTrackerViewsTest : public ViewsTestBase {
   }
 
   ui::ElementContext context() const {
-    return ui::ElementContext(widget_.get());
+    return ElementTrackerViews::GetContextForWidget(widget_.get());
   }
 
   std::unique_ptr<Widget> CreateWidget() {
@@ -777,6 +777,34 @@ TEST_F(ElementTrackerViewsTest, AssignTemporaryId) {
                          ui::ElementTracker::kTemporaryIdentifier, context()));
 }
 
+TEST_F(ElementTrackerViewsTest, GetNativeView) {
+  // A view not in a widget has no native view.
+  auto button = std::make_unique<LabelButton>();
+  TrackedElementViews element_no_widget(button.get(), kTestElementID,
+                                        ui::ElementContext());
+  EXPECT_EQ(gfx::NativeView(), element_no_widget.GetNativeView());
+
+  // Once added to a widget, it should have the widget's native view.
+  auto* button_in_widget = widget_->SetContentsView(std::move(button));
+  EXPECT_EQ(widget_->GetNativeView(), element_no_widget.GetNativeView());
+
+  // The element returned from the tracker should also have the correct native
+  // view.
+  button_in_widget->SetProperty(kElementIdentifierKey, kTestElementID);
+  TrackedElementViews* tracked_element =
+      ElementTrackerViews::GetInstance()->GetElementForView(button_in_widget);
+  ASSERT_NE(nullptr, tracked_element);
+  EXPECT_EQ(widget_->GetNativeView(), tracked_element->GetNativeView());
+}
+
+TEST_F(ElementTrackerViewsTest, TestElementSetAndGetNativeView) {
+  ui::test::TestElement e(kTestElementID, context());
+  EXPECT_EQ(gfx::NativeView(), e.GetNativeView());
+  gfx::NativeView view = widget_->GetNativeView();
+  e.SetNativeView(view);
+  EXPECT_EQ(view, e.GetNativeView());
+}
+
 // The following tests ensure conformity with the different platforms' Views
 // implementation to ensure that Views are reported as visible to the user at
 // the correct times, including during Widget close/delete.
@@ -857,14 +885,15 @@ TEST_F(ElementTrackerViewsTest, WidgetDestroyed) {
   View* const contents = widget_->SetContentsView(std::make_unique<View>());
   auto child_ptr = std::make_unique<View>();
   child_ptr->SetProperty(kElementIdentifierKey, kTestElementID);
+  const auto current_context = context();
   EXPECT_FALSE(ui::ElementTracker::GetElementTracker()->IsElementVisible(
-      kTestElementID, context()));
+      kTestElementID, current_context));
   contents->AddChildView(std::move(child_ptr));
   EXPECT_TRUE(ui::ElementTracker::GetElementTracker()->IsElementVisible(
-      kTestElementID, context()));
+      kTestElementID, current_context));
   widget_.reset();
   EXPECT_FALSE(ui::ElementTracker::GetElementTracker()->IsElementVisible(
-      kTestElementID, context()));
+      kTestElementID, current_context));
 }
 
 TEST_F(ElementTrackerViewsTest, WidgetShownAfterAdd) {
@@ -1324,7 +1353,7 @@ class ElementTrackerTwoWidgetTest : public ElementTrackerViewsTest {
   }
 
   ui::ElementContext context2() const {
-    return ui::ElementContext(widget2_.get());
+    return ElementTrackerViews::GetContextForWidget(widget2_.get());
   }
 
  protected:
@@ -1485,7 +1514,7 @@ TEST_F(ElementTrackerTwoWidgetTest,
 // what context is returned for one or both widgets.
 
 TEST_F(ElementTrackerTwoWidgetTest, OverrideContextCallbackCollapsesContexts) {
-  const ui::ElementContext kContext{1};
+  constexpr auto kContext = ui::ElementContext::CreateFakeContextForTesting(1);
   ElementTrackerViews::SetContextOverrideCallback(
       base::BindLambdaForTesting([kContext](Widget*) { return kContext; }));
   ElementEventWatcher shown(kTestElementID, kContext, ElementEventType::kShown);
@@ -1511,7 +1540,7 @@ TEST_F(ElementTrackerTwoWidgetTest, OverrideContextCallbackCollapsesContexts) {
 
 TEST_F(ElementTrackerTwoWidgetTest,
        OverrideContextCallbackOverridesContextSelectively) {
-  const ui::ElementContext kContext{1};
+  constexpr auto kContext = ui::ElementContext::CreateFakeContextForTesting(1);
   ElementTrackerViews::SetContextOverrideCallback(
       base::BindLambdaForTesting([this, kContext](Widget* widget) {
         return widget == widget_.get() ? kContext : ui::ElementContext();

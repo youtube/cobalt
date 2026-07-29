@@ -10,9 +10,10 @@
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
-#include "content/browser/preloading/prefetch/prefetch_params.h"
+#include "content/browser/preloading/prefetch/prefetch_request.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/prerender/prerender_features.h"
+#include "content/public/browser/prefetch_priority.h"
 #include "content/public/common/content_features.h"
 
 namespace content {
@@ -62,8 +63,8 @@ size_t GetActiveSetSizeLimitForBurst() {
 
 PrefetchSchedulerPriority CalculatePriorityImpl(
     const PrefetchContainer& prefetch_container) {
-  if (prefetch_container.GetPrefetchPriority().has_value()) {
-    switch (prefetch_container.GetPrefetchPriority().value()) {
+  if (prefetch_container.request().priority().has_value()) {
+    switch (prefetch_container.request().priority().value()) {
       case PrefetchPriority::kLow:
       case PrefetchPriority::kMedium:
       case PrefetchPriority::kHigh:
@@ -105,14 +106,16 @@ bool IsReadyToStartPrefetch(const PrefetchQueue::Item& item) {
     return true;
   }
 
-  if (!item.prefetch_container->IsRendererInitiated()) {
+  auto* renderer_initiator_info =
+      item.prefetch_container->request().GetRendererInitiatorInfo();
+  if (!renderer_initiator_info) {
     // TODO(crbug.com/40946257): Revisit the resource limits and
     // conditions for starting browser-initiated prefetch.
     return true;
   }
 
   auto* prefetch_document_manager =
-      item.prefetch_container->GetPrefetchDocumentManager();
+      renderer_initiator_info->prefetch_document_manager();
   // If there is no manager in renderer-initiated prefetch (can happen
   // only in tests), just bypass the check.
   if (!prefetch_document_manager) {
@@ -368,8 +371,14 @@ void PrefetchScheduler::ProgressOne(
 
   // Evict if needed.
   [&]() {
+    auto* renderer_initiator_info =
+        prefetch_container->request().GetRendererInitiatorInfo();
+    if (!renderer_initiator_info) {
+      return;
+    }
+
     auto* prefetch_document_manager =
-        prefetch_container->GetPrefetchDocumentManager();
+        renderer_initiator_info->prefetch_document_manager();
     if (!prefetch_document_manager) {
       return;
     }

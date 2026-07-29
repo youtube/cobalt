@@ -29,6 +29,14 @@ template("system_webview_apk_or_module_tmpl") {
          "If trichrome library is used, static_library_provider must be set " +
              "so that a dep can be added on the library APK.")
 
+  if (!_is_trichrome) {
+    if (!defined(mergeable_android_manifests)) {
+      mergeable_android_manifests = []
+    }
+    mergeable_android_manifests +=
+        [ "//android_webview/AndroidManifest_standalone_webview.xml" ]
+  }
+
   _include_64_bit_webview =
       android_64bit_target_cpu && (!defined(invoker.include_64_bit_webview) ||
                                    invoker.include_64_bit_webview)
@@ -181,9 +189,9 @@ template("system_webview_apk_or_module_tmpl") {
     _include_primary_support = false
     _include_secondary_support = false
 
-    if (!_is_trichrome) {
-      shared_resources = true
+    app_as_shared_lib = true
 
+    if (!_is_trichrome) {
       if ((!android_64bit_target_cpu && _include_32_bit_webview) ||
           (android_64bit_target_cpu && _include_64_bit_webview)) {
         shared_libraries = [ "//android_webview:libwebviewchromium" ]
@@ -195,8 +203,6 @@ template("system_webview_apk_or_module_tmpl") {
       }
       deps += [ "//third_party/icu:icu_assets" ]
     } else {
-      app_as_shared_lib = true
-
       # Include placeholder libraries to ensure we are treated as the desired
       # architecture.
       if (android_64bit_target_cpu) {

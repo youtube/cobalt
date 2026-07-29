@@ -764,7 +764,13 @@ const base::FeatureParam<std::string> kMediaFoundationClearKeyCdmPathForTesting{
 #endif  // BUILDFLAG(IS_WIN)
 
 // Enables the On-Device Web Speech feature on supported devices.
-BASE_FEATURE(OnDeviceWebSpeech, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(OnDeviceWebSpeech,
+#if BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_CHROMEOS)
+);
 
 // Enables the Live Caption feature on supported devices.
 BASE_FEATURE(LiveCaption, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -937,6 +943,10 @@ BASE_FEATURE(AutoplayDisableSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(AVDColorSpaceChanges, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
+// Allows the enhanced picture-in-picture transition animation that depend on
+// the sourceRectHint PictureInPictureParam.
+BASE_FEATURE(AllowEnhancedPipTransition, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Should we allow video playback to use an overlay if it's not needed for
 // security?  Normally, we'd always want to allow this, except as part of the
 // power testing A/B experiment.  https://crbug.com/1081346 .
@@ -949,6 +959,11 @@ BASE_FEATURE(AutoPictureInPictureAndroid, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Picture-in-Picture menu item on the video context menu on Android.
 BASE_FEATURE(ContextMenuPictureInPictureAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the use of a Surface (ANativeWindow) as the input for the
+// NdkVideoEncodeAccelerator on Android.
+BASE_FEATURE(EnableSurfaceInputForAndroidVEA,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables block model (LinearBlock) on supported devices.
@@ -1471,13 +1486,11 @@ BASE_FEATURE(D3D12VideoDecoder, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(D3D12VideoEncodeAccelerator, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(D3D12VideoEncodeAcceleratorL1T3,
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_ARM64)
-// Allow MF-accelerated video encoding.
-BASE_FEATURE(MediaFoundationAcceleratedEncodeOnArm64,
+// Controls whether to cache shared handles for D3D12 video encode accelerator.
+BASE_FEATURE(D3D12VideoEncodeAcceleratorSharedHandleCaching,
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(D3D12SharedImageEncode, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1490,6 +1503,15 @@ BASE_FEATURE(MediaFoundationSharedImageEncode,
 
 // Controls whether muted media stream audio should continue to render.
 BASE_FEATURE(RenderMutedAudio, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether audio is permitted to play if it's inaudible on a background
+// tab. This is separate to the kRenderMutedAudio flag, which routes decoded
+// audio into nowhere if the media is playing back. This flag instead _pauses_
+// playback when the media goes to background to avoid wasting CPU power on
+// decoding audio that cannot be heard. This flag will be switched on gradually
+// via Finch.
+BASE_FEATURE(PauseMutedBackgroundAudio,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls headless Live Caption experiment, which is likely unstable.
 BASE_FEATURE(HeadlessLiveCaption, base::FEATURE_DISABLED_BY_DEFAULT);

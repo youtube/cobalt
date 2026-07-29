@@ -678,12 +678,9 @@ bool IsDeterministicAimActionInTypedStateEnabled(AutocompleteProviderClient* cli
   }
 
   const auto* aim_eligibility_service = client->GetAimEligibilityService();
-#if BUILDFLAG(IS_IOS)
-  // TODO (ameurhosni): Remove this once AimEligibilityService is ready in iOS.
   if (!aim_eligibility_service) {
-    return base::FeatureList::IsEnabled(omnibox::kOmniboxAimShortcutTypedState);
+    return false;
   }
-#endif
 
   // If the server eligibility is enabled, check overall eligibility alone.
   // The service will control locale rollout so there's no need to check the
@@ -701,7 +698,8 @@ bool IsDeterministicAimActionInTypedStateEnabled(AutocompleteProviderClient* cli
   return base::FeatureList::IsEnabled(omnibox::kOmniboxAimShortcutTypedState);
 }
 
-bool IsAimOmniboxEntrypointEnabled(const AutocompleteProviderClient* client) {
+bool IsAimOmniboxEntrypointEnabled(
+    const AimEligibilityService* aim_eligibility_service) {
   // If the generic entrypoint feature is overridden to be false, return false.
   auto* feature_list = base::FeatureList::GetInstance();
   if (feature_list &&
@@ -711,7 +709,10 @@ bool IsAimOmniboxEntrypointEnabled(const AutocompleteProviderClient* client) {
     return false;
   }
 
-  const auto* aim_eligibility_service = client->GetAimEligibilityService();
+  if (!aim_eligibility_service) {
+    return false;
+  }
+
   // If the server eligibility is enabled, check overall eligibility alone.
   // The service will control locale rollout so there's no need to check locale
   // or the state of kAiModeOmniboxEntryPoint below.

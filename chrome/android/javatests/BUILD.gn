@@ -246,7 +246,6 @@ android_library("chrome_test_java_helper") {
     "//components/browser_ui/desktop_windowing/android:java",
     "//components/browser_ui/device_lock/android:java",
     "//components/browser_ui/display_cutout/android:java",
-    "//components/browser_ui/edge_to_edge/android:java",
     "//components/browser_ui/media/android:java",
     "//components/browser_ui/modaldialog/android:java",
     "//components/browser_ui/modaldialog/android:java_resources",
@@ -441,6 +440,7 @@ android_library("chrome_test_java_helper") {
     "//ui/android:ui_java_test_support",
     "//ui/base/ime/mojom:mojom_java",
     "//ui/base/mojom:mojom_java",
+    "//ui/edge_to_edge:java",
     "//url:android_test_helper_java",
     "//url:gurl_java",
     "//url:gurl_junit_test_support",
@@ -1076,6 +1076,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.privacy") {
 
   sources = [
     "src/org/chromium/chrome/browser/privacy/settings/HttpsFirstModeLegacySettingTest.java",
+    "src/org/chromium/chrome/browser/privacy/settings/PasswordEchoSettingHandlerTest.java",
     "src/org/chromium/chrome/browser/privacy/settings/PrivacyPreferencesManagerImplNativeTest.java",
     "src/org/chromium/chrome/browser/privacy/settings/PrivacySettingsFragmentTest.java",
   ]
@@ -1328,6 +1329,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tabmodel") {
     "src/org/chromium/chrome/browser/tabmodel/TabGroupsTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelImplTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelMergingTest.java",
+    "src/org/chromium/chrome/browser/tabmodel/TabModelMultiWindowTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorObserverTestRule.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorTabModelObserverTest.java",
     "src/org/chromium/chrome/browser/tabmodel/TabModelSelectorTabObserverTest.java",
@@ -1336,7 +1338,11 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tabmodel") {
     "src/org/chromium/chrome/browser/tabmodel/UndoTabModelTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/ui/browser_window:factory_java",
+    "//chrome/browser/ui/browser_window:java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.tasks") {
@@ -1519,6 +1525,7 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/status_indicator/StatusIndicatorTest.java",
     "src/org/chromium/chrome/browser/storage/BlobUrlStoreTest.java",
     "src/org/chromium/chrome/browser/survey/ChromeStartupSurveyIntegrationTest.java",
+    "src/org/chromium/chrome/browser/tab/WebContentsStateBridgeTest.java",
     "src/org/chromium/chrome/browser/tabbed_mode/KeyboardFocusRowManagerTest.java",
     "src/org/chromium/chrome/browser/tabbed_mode/TabbedNavigationBarColorControllerTest.java",
     "src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinatorTest.java",
@@ -1786,7 +1793,6 @@ android_library("chrome_unit_test_java_various") {
     "src/org/chromium/chrome/browser/search_engines/settings/SearchEngineSettingsRenderTest.java",
     "src/org/chromium/chrome/browser/share/ShareUrlTest.java",
     "src/org/chromium/chrome/browser/status_indicator/StatusIndicatorViewBinderTest.java",
-    "src/org/chromium/chrome/browser/tab/WebContentsStateBridgeTest.java",
     "src/org/chromium/chrome/browser/tab/state/PersistedTabDataTest.java",
     "src/org/chromium/chrome/browser/tabmodel/AsyncTabCreationParamsManagerTest.java",
     "src/org/chromium/chrome/browser/tabmodel/RestoreMigrateTest.java",

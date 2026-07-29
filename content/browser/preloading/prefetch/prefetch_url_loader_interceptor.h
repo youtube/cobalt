@@ -5,7 +5,6 @@
 #ifndef CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_URL_LOADER_INTERCEPTOR_H_
 #define CONTENT_BROWSER_PRELOADING_PREFETCH_PREFETCH_URL_LOADER_INTERCEPTOR_H_
 
-#include <memory>
 #include <optional>
 
 #include "base/memory/weak_ptr.h"
@@ -14,12 +13,10 @@
 #include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/frame_tree_node_id.h"
-#include "content/public/browser/global_routing_id.h"
-#include "services/network/public/cpp/resource_request.h"
+#include "third_party/blink/public/mojom/tokens/tokens.mojom.h"
 
 namespace content {
 
-class BrowserContext;
 class PrefetchContainer;
 class PrefetchServingPageMetricsContainer;
 class ServiceWorkerMainResourceHandle;
@@ -90,7 +87,7 @@ class CONTENT_EXPORT PrefetchURLLoaderInterceptor final
 
   // Corresponds to the ID of "navigable's active document" used for "finding a
   // matching prefetch record" in the spec. This is used as a part of
-  // `PrefetchContainer::Key` to make prefetches per-Document.
+  // `PrefetchKey` to make prefetches per-Document.
   // https://wicg.github.io/nav-speculation/prefetch.html
   const std::optional<blink::DocumentToken> initiator_document_token_;
 

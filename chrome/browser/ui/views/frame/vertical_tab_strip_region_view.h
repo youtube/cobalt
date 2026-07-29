@@ -10,6 +10,9 @@
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/controls/resize_area_delegate.h"
+#include "ui/views/layout/delegating_layout_manager.h"
+
+class VerticalUnpinnedTabContainerView;
 
 namespace tabs {
 class VerticalTabStripStateController;
@@ -24,7 +27,8 @@ class View;
 // Container for the vertical tabstrip and the other views sharing space with
 // it, excluding the caption buttons.
 class VerticalTabStripRegionView final : public views::AccessiblePaneView,
-                                         public views::ResizeAreaDelegate {
+                                         public views::ResizeAreaDelegate,
+                                         public views::LayoutDelegate {
   METADATA_HEADER(VerticalTabStripRegionView, views::AccessiblePaneView)
 
  public:
@@ -39,9 +43,16 @@ class VerticalTabStripRegionView final : public views::AccessiblePaneView,
 
   views::Separator* tabs_separator_for_testing() { return tabs_separator_; }
   views::ResizeArea* resize_area_for_testing() { return resize_area_; }
+  views::View* pinned_tabs_container_for_testing() {
+    return pinned_tabs_container_;
+  }
+  VerticalUnpinnedTabContainerView* unpinned_tabs_container_for_testing() {
+    return unpinned_tabs_container_;
+  }
 
-  // views::View:
-  void Layout(PassKey) override;
+  // LayoutDelegate:
+  views::ProposedLayout CalculateProposedLayout(
+      const views::SizeBounds& size_bounds) const override;
 
   // views::ResizeAreaDelegate:
   void OnResize(int resize_amount, bool done_resizing) override;
@@ -54,7 +65,7 @@ class VerticalTabStripRegionView final : public views::AccessiblePaneView,
   raw_ptr<views::Separator> top_button_separator_ = nullptr;
   raw_ptr<views::View> pinned_tabs_container_ = nullptr;
   raw_ptr<views::Separator> tabs_separator_ = nullptr;
-  raw_ptr<views::View> unpinned_tabs_container_ = nullptr;
+  raw_ptr<VerticalUnpinnedTabContainerView> unpinned_tabs_container_ = nullptr;
   raw_ptr<views::View> segmented_button_ = nullptr;
   raw_ptr<views::View> gemini_button_ = nullptr;
   raw_ptr<views::ResizeArea> resize_area_ = nullptr;

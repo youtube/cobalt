@@ -29,6 +29,10 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
     @GuardedBy("mTasksLock")
     private final Map<Integer, ChromeAndroidTask> mTasks = new ArrayMap<>();
 
+    /** List of observers currently observing this instance. */
+    @GuardedBy("mTasksLock")
+    private final List<ChromeAndroidTaskTrackerObserver> mObservers = new ArrayList();
+
     private final Object mTasksLock = new Object();
 
     static ChromeAndroidTaskTrackerImpl getInstance() {
@@ -41,18 +45,22 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
     private ChromeAndroidTaskTrackerImpl() {}
 
     @Override
-    public ChromeAndroidTask obtainTask(ActivityWindowAndroid activityWindowAndroid) {
+    public ChromeAndroidTask obtainTask(
+            @BrowserWindowType int browserWindowType, ActivityWindowAndroid activityWindowAndroid) {
         int taskId = getTaskId(activityWindowAndroid);
 
         synchronized (mTasksLock) {
             var existingTask = mTasks.get(taskId);
             if (existingTask != null) {
+                assert existingTask.getBrowserWindowType() == browserWindowType
+                        : "The browser window type of an existing task can't be changed.";
                 existingTask.setActivityWindowAndroid(activityWindowAndroid);
                 return existingTask;
             }
 
-            var newTask = new ChromeAndroidTaskImpl(activityWindowAndroid);
+            var newTask = new ChromeAndroidTaskImpl(browserWindowType, activityWindowAndroid);
             mTasks.put(taskId, newTask);
+            mObservers.forEach((observer) -> observer.onTaskAdded(newTask));
             return newTask;
         }
     }
@@ -119,6 +127,20 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
         }
     }
 
+    @Override
+    public void addObserver(ChromeAndroidTaskTrackerObserver observer) {
+        synchronized (mTasksLock) {
+            mObservers.add(observer);
+        }
+    }
+
+    @Override
+    public boolean removeObserver(ChromeAndroidTaskTrackerObserver observer) {
+        synchronized (mTasksLock) {
+            return mObservers.remove(observer);
+        }
+    }
+
     /** Returns an array of the native {@code BrowserWindowInterface} addresses. */
     long[] getAllNativeBrowserWindowPtrs() {
         synchronized (mTasksLock) {
@@ -160,6 +182,7 @@ final class ChromeAndroidTaskTrackerImpl implements ChromeAndroidTaskTracker {
     private void removeInternalLocked(int taskId) {
         var taskRemoved = mTasks.remove(taskId);
         if (taskRemoved != null) {
+            mObservers.forEach((observer) -> observer.onTaskRemoved(taskRemoved));
             taskRemoved.destroy();
         }
     }

@@ -40,6 +40,7 @@ class Button;
 
 namespace ui {
 class ColorProvider;
+class TrackedElement;
 }  // namespace ui
 
 // This class provides the UI for different menus that are created by user
@@ -81,7 +82,8 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
     kAutofillSettingsButton = 22,
     // DEPRECATED: kHistorySyncOptInButton = 23,
     kBatchUploadButton = 24,
-    kMaxValue = kBatchUploadButton,
+    kAccountSettingsButton = 25,
+    kMaxValue = kAccountSettingsButton,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/profile/enums.xml:ProfileMenuActionableItem)
 
@@ -143,7 +145,7 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   static constexpr int kOtherProfileImageSize = 16;
 
   // `browser` must not be nullptr.
-  ProfileMenuViewBase(views::Button* anchor_button, Browser* browser);
+  ProfileMenuViewBase(ui::TrackedElement* anchor_element, Browser* browser);
   ~ProfileMenuViewBase() override;
 
   ProfileMenuViewBase(const ProfileMenuViewBase&) = delete;
@@ -166,11 +168,10 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
                       base::RepeatingClosure action,
                       const gfx::VectorIcon& icon);
 
-  void AddFeatureButton(
-      const std::u16string& text,
-      base::RepeatingClosure action,
-      const gfx::VectorIcon& icon = gfx::VectorIcon::EmptyIcon(),
-      float icon_to_image_ratio = 1.0f);
+  void AddFeatureButton(const std::u16string& text,
+                        base::RepeatingClosure action,
+                        const gfx::VectorIcon& icon,
+                        float icon_to_image_ratio = 1.0f);
   void SetProfileManagementHeading(const std::u16string& heading);
   void AddAvailableProfile(const ui::ImageModel& image_model,
                            const std::u16string& name,
@@ -233,9 +234,9 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
 
   const raw_ref<Profile> profile_;
 
-  // `anchor_button_` usually lives in a separate Views hierarchy than the menu
+  // `anchor_view_` usually lives in a separate Views hierarchy than the menu
   // view. Use a ViewTracker to avoid potential UAF crashes.
-  views::ViewTracker anchor_button_;
+  views::ViewTracker anchor_view_;
 
   // Component containers.
   raw_ptr<views::View> identity_info_container_ = nullptr;

@@ -265,7 +265,7 @@ void MagnifierSurfaceControl::CreateDisplayAndFrameSink() {
   root_params->display_client = GetBoundRemote(task_runner);
 
   gfx::DisplayColorSpaces display_color_spaces =
-      display::Screen::GetScreen()
+      display::Screen::Get()
           ->GetDisplayNearestWindow(window_android)
           .GetColorSpaces();
 
@@ -282,7 +282,7 @@ void MagnifierSurfaceControl::CreateDisplayAndFrameSink() {
   root_params->refresh_rate = window_android->GetRefreshRate();
 
   GetHostFrameSinkManager()->CreateRootCompositorFrameSink(
-      std::move(root_params), /*maybe_wait_on_destruction=*/false);
+      std::move(root_params));
 
   display_private_->SetDisplayVisible(true);
   display_private_->Resize(surface_size_);

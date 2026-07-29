@@ -147,6 +147,8 @@ TEST_F(ReaderModeTabHelperTest, TriggerHeuristicFlushedOnNewNavigation) {
   LoadWebpage(web_state(), test_url);
   WaitForPageLoadDelayAndRunUntilIdle();
 
+  SetReaderModeState(web_state(), test_url,
+                     ReaderModeHeuristicResult::kReaderModeEligible, "");
   LoadWebpage(web_state(), test_url);
   WaitForPageLoadDelayAndRunUntilIdle();
 
@@ -303,6 +305,57 @@ TEST_F(ReaderModeTabHelperTest, ReaderModeEligibleForSamePageNavigation) {
   web_state()->OnNavigationFinished(&navigation_context);
 
   ASSERT_TRUE(reader_mode_tab_helper()->CurrentPageIsDistillable());
+
+  // The last committed URL result should be the same as the previous same-page
+  // navigation result.
+  __block std::optional<bool>
+      current_page_supports_reader_mode_completion_result;
+  reader_mode_tab_helper()->FetchLastCommittedUrlDistillabilityResult(
+      base::BindOnce(^(std::optional<bool> current_page_supports_reader_mode) {
+        current_page_supports_reader_mode_completion_result =
+            std::move(current_page_supports_reader_mode);
+      }));
+
+  ASSERT_TRUE(current_page_supports_reader_mode_completion_result.has_value());
+  EXPECT_TRUE(current_page_supports_reader_mode_completion_result.value());
+}
+
+// Tests that reader mode page eligibility supports same-page navigations from
+// fragment change navigations or pushState/replaceState, which do not result
+// in a document change. Regression test for crbug.com/438667588.
+TEST_F(ReaderModeTabHelperTest,
+       ReaderModeEligibleForFragmentChangeNavigations) {
+  GURL test_url("https://test.url/ref-with-page-one");
+  SetReaderModeState(web_state(), test_url,
+                     ReaderModeHeuristicResult::kReaderModeEligible, "");
+
+  LoadWebpage(web_state(), test_url);
+  WaitForPageLoadDelayAndRunUntilIdle();
+
+  // Start same page navigation.
+  GURL test_url_with_ref("https://test.url/ref-with-page-two");
+  web::FakeNavigationContext navigation_context;
+  navigation_context.SetIsSameDocument(true);
+  navigation_context.SetHasCommitted(true);
+  web_state()->OnNavigationStarted(&navigation_context);
+  // Fragment change navigation will not call PageLoaded, set new committed URL.
+  web_state()->SetCurrentURL(test_url_with_ref);
+  web_state()->OnNavigationFinished(&navigation_context);
+
+  ASSERT_TRUE(reader_mode_tab_helper()->CurrentPageIsDistillable());
+
+  // The last committed URL result should be the same as the previous same-page
+  // navigation result.
+  __block std::optional<bool>
+      current_page_supports_reader_mode_completion_result;
+  reader_mode_tab_helper()->FetchLastCommittedUrlDistillabilityResult(
+      base::BindOnce(^(std::optional<bool> current_page_supports_reader_mode) {
+        current_page_supports_reader_mode_completion_result =
+            std::move(current_page_supports_reader_mode);
+      }));
+
+  ASSERT_TRUE(current_page_supports_reader_mode_completion_result.has_value());
+  EXPECT_TRUE(current_page_supports_reader_mode_completion_result.value());
 }
 
 // Tests that
@@ -381,10 +434,9 @@ TEST_F(ReaderModeTabHelperTest, NotifiesObserverOfDestruction) {
   // called.
   EXPECT_CALL(mock_observer,
               ReaderModeTabHelperDestroyed(reader_mode_tab_helper()))
-      .WillOnce(
-          testing::Invoke([&mock_observer](ReaderModeTabHelper* tab_helper) {
-            tab_helper->RemoveObserver(&mock_observer);
-          }));
+      .WillOnce([&mock_observer](ReaderModeTabHelper* tab_helper) {
+        tab_helper->RemoveObserver(&mock_observer);
+      });
   ReaderModeTabHelper::RemoveFromWebState(web_state_.get());
 }
 

@@ -127,7 +127,7 @@ void ImmersiveModeControllerChromeos::OnFindBarVisibleBoundsChanged(
 bool ImmersiveModeControllerChromeos::
     ShouldStayImmersiveAfterExitingFullscreen() {
   return !browser_view_->GetSupportsTabStrip() &&
-         display::Screen::GetScreen()->InTabletMode();
+         display::Screen::Get()->InTabletMode();
 }
 
 int ImmersiveModeControllerChromeos::GetMinimumContentOffset() const {
@@ -259,7 +259,8 @@ void ImmersiveModeControllerChromeos::OnWindowPropertyChanged(
   if (key == chromeos::kWindowStateTypeKey) {
     auto old_type = static_cast<chromeos::WindowStateType>(old);
     // Check if there is a transition into or out of a pinned state.
-    if (IsWindowPinned(window) || chromeos::IsPinnedWindowStateType(old_type)) {
+    if (ash::IsWindowPinned(window) ||
+        chromeos::IsPinnedWindowStateType(old_type)) {
       browser_view_->FullscreenStateChanging();
       return;
     }

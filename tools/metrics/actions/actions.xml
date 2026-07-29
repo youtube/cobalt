@@ -6275,6 +6275,60 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="BookmarkTabGroupConversion_ConvertToBookmarkConfirmed">
+  <owner>yuhengh@google.com</owner>
+  <description>
+    User selects the save button from the bookmark editor dialog to complete
+    converting a tab group to bookmark folder.
+  </description>
+</action>
+
+<action name="BookmarkTabGroupConversion_ConvertToBookmarkSelected">
+  <owner>yuhengh@google.com</owner>
+  <description>
+    User selected the menu item to convert a tab group to bookmark folder
+  </description>
+</action>
+
+<action name="BookmarkTabGroupConversion_ShowGroupAlreadyCreatedDialog">
+  <owner>yuhengh@google.com</owner>
+  <description>
+    The user tries to open a bookmark folder as group but the bookmark folder is
+    already connected to an existing group. A dialog is shown to prompt user to
+    make a choice.
+  </description>
+</action>
+
+<action name="BookmarkTabGroupConversion_UserSelectCancel">
+  <owner>yuhengh@google.com</owner>
+  <description>
+    The user tries to open a bookmark folder as group but the bookmark folder is
+    already connected to an existing group. A dialog is shown to prompt user to
+    make a choice. User dismisses the dialog without selecting either the create
+    new group button or the replace old group button.
+  </description>
+</action>
+
+<action name="BookmarkTabGroupConversion_UserSelectCreateNewGroup">
+  <owner>yuhengh@google.com</owner>
+  <description>
+    The user tries to open a bookmark folder as group but the bookmark folder is
+    already connected to an existing group. A dialog is shown to prompt user to
+    make a choice. User selects the create new group button. This action is used
+    for logging user selection, it's not equivalent to creating new group.
+  </description>
+</action>
+
+<action name="BookmarkTabGroupConversion_UserSelectReplaceOldGroup">
+  <owner>yuhengh@google.com</owner>
+  <description>
+    The user tries to open a bookmark folder as group but the bookmark folder is
+    already connected to an existing group. A dialog is shown to prompt user to
+    make a choice. User selects the replace old group button. This action is
+    used for logging user selection, it's not equivalent to replacing old group.
+  </description>
+</action>
+
 <action name="BottomSheet_CreditCard_SuggestionAccepted">
   <owner>noemies@google.com</owner>
   <owner>sugoi@google.com</owner>
@@ -16459,6 +16513,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="IOSMagicStackParcelTrackingFreshSignal" not_user_triggered="true">
+  <obsolete>
+    Unused as of 08/2025, as ParcelTracking code has been turned down and
+    removed from the codebase
+  </obsolete>
   <owner>thegreenfrog@google.com</owner>
   <owner>bling-team@google.com</owner>
   <description>
@@ -28475,6 +28533,25 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileToolbarReorderTab.TabsAddedToGroup">
+  <owner>clank-app-team@google.com</owner>
+  <owner>hitarthkothari@google.com</owner>
+  <description>
+    User long-pressed on a tab part of a multi-tab selection, dragged and
+    dropped it within a tab group in the tablet tab strip. Android Only.
+  </description>
+</action>
+
+<action name="MobileToolbarReorderTab.TabsRemovedFromGroup">
+  <owner>clank-app-team@google.com</owner>
+  <owner>hitarthkothari@google.com</owner>
+  <description>
+    User long-pressed on a tab part of a multi-tab selection with in a group,
+    dragged and dropped it outside of the group in the tablet tab strip. Android
+    Only.
+  </description>
+</action>
+
 <action name="MobileToolbarSearchButtonTapped">
   <obsolete>Deprecate as of 3/2020</obsolete>
   <owner>stkhapugin@chromium.org</owner>
@@ -28580,6 +28657,14 @@ should be able to be added at any place in this file.
 <action name="MobileToolbarStackViewNewTab">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
+</action>
+
+<action name="MobileToolbarStartMultiTabReorder">
+  <owner>clank-app-team@google.com</owner>
+  <owner>hitarthkothari@google.org</owner>
+  <description>
+    User started to drag a multi-tab re-order in tablet tab strip. Android only.
+  </description>
 </action>
 
 <action name="MobileToolbarStartReorderGroup">
@@ -28737,91 +28822,13 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="MobileToolbarTabMenu.AddToTabGroup">
+<action name="MobileToolbarTabMenu">
   <owner>jhimawan@google.com</owner>
+  <owner>hitarthkothari@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <description>
-    User opened the bottom sheet to add a tab to a new or existing tab group,
-    via the tab context menu on tab strip on Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.CloseTab">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User closed a tab via the tab context menu on tab strip on Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.MoveTabToGroup">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User moved a tab to a synced tab group via the tab context menu on tab strip
-    on Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.MoveTabToIncognitoGroup">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User moved a tab to an incognito tab group via the tab context menu on tab
-    strip on Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.MoveTabToNewWindow">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User moved a tab to a new window via the tab context menu on tab strip on
+    Recorded when the user interacts with the tab menu on the tab strip on
     Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.MoveTabToOtherWindow">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User moved a tab to another window via the tab context menu on tab strip on
-    Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.NewGroup">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User created a new tab group via the tab context menu on tab strip on
-    Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.RemoveFromTabGroup">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User removed a tab from its tab group via the tab context menu on tab strip
-    on Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.ShareTab">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User shared the URL open in a tab, via the tab context menu on tab strip on
-    Android.
-  </description>
-</action>
-
-<action name="MobileToolbarTabMenu.Shown">
-  <owner>jhimawan@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <description>
-    User opened the tab context menu via long-press on tab strip on Android.
   </description>
 </action>
 
@@ -39511,6 +39518,12 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="SidePanel.Glic.Shown">
+  <owner>perrier@chromium.org</owner>
+  <owner>dewittj@google.com</owner>
+  <description>Recorded when the Glic side panel entry is shown.</description>
+</action>
+
 <action name="SidePanel.Hide">
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -44382,6 +44395,15 @@ should be able to be added at any place in this file.
   <description>
     Recorded right before Suggestions.SurfaceVisible when this is the first time
     a suggestions surface is made visible to the user on that device.
+  </description>
+</action>
+
+<action name="Suggestions.Keyboard.ReorderItem">
+  <owner>ckitagawa@chromium.org</owner>
+  <owner>huangs@chromium.org</owner>
+  <description>
+    Android: Recorded user using keyboard to rearrange Custom Tiles in the Most
+    Visited Tiles area on the NTP.
   </description>
 </action>
 
@@ -50230,8 +50252,6 @@ should be able to be added at any place in this file.
   <suffix name="DesktopCustomizeChrome" label="For Customize Chrome feature."/>
   <suffix name="DesktopCustomizeChromeRefresh"
       label="For Customize Chrome refresh feature."/>
-  <suffix name="DesktopNewTabPageModulesCustomize"
-      label="For Desktop NTP modules customize feature."/>
   <suffix name="DesktopPwaInstall" label="For desktop PWA install icon."/>
   <suffix name="DesktopPWAsLinkCapturingLaunch"
       label="For desktop PWAs launched via Link Capturing."/>
@@ -50755,8 +50775,13 @@ should be able to be added at any place in this file.
   <suffix name="DownloadItem" label="Download a suggested item."/>
   <suffix name="EditItem" label="Open a modal dialog to edit a custom item."/>
   <suffix name="LearnMore" label="Open the learn more link for product help."/>
+  <suffix name="MoveItemDown" label="Move a custom item to the next position."/>
+  <suffix name="MoveItemUp"
+      label="Move a custom item to the previous position."/>
   <suffix name="OpenItemInIncognitoTab"
       label="Open a suggested item in an incognito tab."/>
+  <suffix name="OpenItemInIncognitoWindow"
+      label="Open a suggested item in an incognito window."/>
   <suffix name="OpenItemInNewTab" label="Open a suggested item in a new tab."/>
   <suffix name="OpenItemInNewTabInGroup"
       label="Open a suggested item in a new tab in group."/>
@@ -51501,6 +51526,78 @@ should be able to be added at any place in this file.
       label="Recorded when a group suggestion is considered invalid."/>
   <suffix name="Shown" label="Recorded when a group suggestion is shown."/>
   <affected-action name="TabSwitcher.GroupSuggest"/>
+</action-suffix>
+
+<action-suffix separator="." ordering="suffix">
+  <suffix name="AddToTabGroup"
+      label="User opened the bottom sheet to add a tab to a new or existing
+             tab group, via the tab context menu on tab strip on Android."/>
+  <suffix name="AddToTabGroup.MultiTab"
+      label="User opened the bottom sheet to add multiple tabs to a new or
+             existing tab group, via the tab context menu on tab strip on
+             Android."/>
+  <suffix name="CloseTab"
+      label="User closed a tab via the tab context menu on tab strip on
+             Android."/>
+  <suffix name="CloseTab.MultiTab"
+      label="User closed multiple tabs via the tab context menu on tab strip
+             on Android."/>
+  <suffix name="MoveTabToGroup"
+      label="User moved a tab to a synced tab group via the tab context menu
+             on tab strip on Android."/>
+  <suffix name="MoveTabToGroup.MultiTab"
+      label="User moved multiple tabs to a synced tab group via the tab
+             context menu on tab strip on Android."/>
+  <suffix name="MoveTabToIncognitoGroup"
+      label="User moved a tab to an incognito tab group via the tab context
+             menu on tab strip on Android."/>
+  <suffix name="MoveTabToIncognitoGroup.MultiTab"
+      label="User moved multiple tabs to an incognito tab group via the tab
+             context menu on tab strip on Android."/>
+  <suffix name="MoveTabToNewWindow"
+      label="User moved a tab to a new window via the tab context menu on tab
+             strip on Android."/>
+  <suffix name="MoveTabToNewWindow.MultiTab"
+      label="User moved multiple tabs to a new window via the tab context
+             menu on tab strip on Android."/>
+  <suffix name="MoveTabToOtherWindow"
+      label="User moved a tab to another window via the tab context menu on
+             tab strip on Android."/>
+  <suffix name="MoveTabToOtherWindow.MultiTab"
+      label="User moved multiple tabs to another window via the tab context
+             menu on tab strip on Android."/>
+  <suffix name="NewGroup"
+      label="User created a new tab group via the tab context menu on tab
+             strip on Android."/>
+  <suffix name="NewGroup.MultiTab"
+      label="User created a new tab group with multiple tabs via the tab
+             context menu on tab strip on Android."/>
+  <suffix name="PinTab"
+      label="User pinned a tab via the tab context menu on tab strip on
+             Android."/>
+  <suffix name="PinTab.MultiTab"
+      label="User pinned multiple tabs via the tab context menu on tab strip
+             on Android."/>
+  <suffix name="RemoveTabFromTabGroup"
+      label="User removed a tab from its tab group via the tab context menu
+             on tab strip on Android."/>
+  <suffix name="RemoveTabFromTabGroup.MultiTab"
+      label="User removed multiple tabs from their tab group via the tab
+             context menu on tab strip on Android."/>
+  <suffix name="ShareTab"
+      label="User shared the URL open in a tab, via the tab context menu on
+             tab strip on Android."/>
+  <suffix name="Shown" label="Recorded when the tab context menu is shown."/>
+  <suffix name="Shown.MultiTab"
+      label="Recorded when the tab context menu is shown with multiple tabs
+             selected."/>
+  <suffix name="UnpinTab"
+      label="User unpinned a tab via the tab context menu on tab strip on
+             Android."/>
+  <suffix name="UnpinTab.MultiTab"
+      label="User unpinned multiple tabs via the tab context menu on tab
+             strip on Android."/>
+  <affected-action name="MobileToolbarTabMenu"/>
 </action-suffix>
 
 </actions>

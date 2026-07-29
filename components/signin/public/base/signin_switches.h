@@ -46,6 +46,9 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 extern const base::FeatureParam<int> kHistoryOptInEducationalTipVariation;
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kMigrateAccountManagerDelegate);
+
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSkipCheckForAccountManagementOnSignin);
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -59,7 +62,10 @@ BASE_DECLARE_FEATURE(kMakeAccountsAvailableInIdentityManager);
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSmartEmailLineBreaking);
-#endif
+
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kSupportWebSigninAddSession);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -150,15 +156,12 @@ BASE_DECLARE_FEATURE(kFullscreenSignInPromoUseDate);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kInterceptBubblesDismissibleByAvatarButton);
 
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+
 // When enabled, an implicitly signed-in user will be offered a dialog to
 // migrate to explicit browser sign-in.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kOfferMigrationToDiceUsers);
-
-// When enabled, rolls back the DICe migration for implicitly signed-in users.
-// Overrides `kOfferMigrationToDiceUsers`.
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kRollbackDiceMigration);
 
 // The minimum delay after a browser startup before the dialog can be shown.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -167,6 +170,19 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kOfferMigrationToDiceUsersMinDelay);
 // The maximum delay after a browser startup before the dialog can be shown.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kOfferMigrationToDiceUsersMaxDelay);
+
+// When enabled, rolls back the DICe migration for implicitly signed-in users.
+// Overrides `kOfferMigrationToDiceUsers` and `kForcedDiceMigration`.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kRollbackDiceMigration);
+
+// When enabled, forces the users out of the implicitly signed-in state - either
+// signing them out of Chromium (i.e. signed into web-only) or explicitly
+// signing them in.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kForcedDiceMigration);
+
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // The minimum time from the last time the dialog was shown before it can be
 // shown again.
@@ -193,6 +209,11 @@ BASE_DECLARE_FEATURE(kEnableASWebAuthenticationSession);
 // other scopes will be ignored.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kAllowlistScopesForMdmErrors);
+
+// Killswitch for the feature to prefill the email of the account to add when
+// opening the "add account" flow for an ADDSESSION header.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kSupportAddSessionEmailPrefill);
 #endif
 
 // Enables users to perform an explicit signin upon installing an extension.

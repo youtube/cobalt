@@ -259,6 +259,13 @@ void ContentBrowserClient::OverrideURLLoaderFactoryParams(
     bool is_for_service_worker,
     network::mojom::URLLoaderFactoryParams* factory_params) {}
 
+// Returns true if the given URL is in any of the NavigationEntries for the
+// given |browser_context|. This is used to determine if a URL is already
+// in the navigation history of any of the tabs in a given browser context.
+bool ContentBrowserClient::IsURLAccessibleByHistoryNavigation(const GURL& url) {
+  return false;
+}
+
 void ContentBrowserClient::GetAdditionalViewSourceSchemes(
     std::vector<std::string>* additional_schemes) {
   GetAdditionalWebUISchemes(additional_schemes);
@@ -1930,11 +1937,6 @@ void ContentBrowserClient::QueryInstalledWebAppsByManifestId(
   std::move(callback).Run(std::nullopt);
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-bool ContentBrowserClient::IsSaveableNavigation(
-    NavigationHandle* navigation_handle) {
-  return false;
-}
 
 #if BUILDFLAG(IS_WIN)
 void ContentBrowserClient::OnUiaProviderRequested(bool uia_provider_enabled) {}

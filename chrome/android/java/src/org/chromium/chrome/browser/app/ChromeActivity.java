@@ -41,11 +41,11 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.InputHintChecker;
 import org.chromium.base.Log;
 import org.chromium.base.PowerMonitor;
@@ -253,6 +253,8 @@ import org.chromium.ui.display.DisplayAndroid.DisplayAndroidObserver;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.theme.ThemeResourceWrapper;
+import org.chromium.ui.theme.ThemeResourceWrapperProvider;
 import org.chromium.ui.widget.Toast;
 import org.chromium.url.GURL;
 import org.chromium.webapk.lib.client.WebApkNavigationClient;
@@ -274,7 +276,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 AppMenuBlocker,
                 MenuOrKeyboardActionController,
                 CompositorViewHolder.Initializer,
-                TabModelInitializer {
+                TabModelInitializer,
+                ThemeResourceWrapperProvider {
     public static final String UNFOLD_LATENCY_BEGIN_TIMESTAMP = "unfold_latency_begin_timestamp";
     public static final String IS_FROM_RECREATING = "is_from_recreating";
 
@@ -354,7 +357,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             new ObservableSupplierImpl<>();
     private TabContentManager mTabContentManager;
 
-    private final UmaActivityObserver mUmaActivityObserver;
+    private UmaActivityObserver mUmaActivityObserver;
 
     private boolean mPartnerBrowserRefreshNeeded;
 
@@ -428,7 +431,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         mManualFillingComponentSupplier.set(ManualFillingComponentFactory.createComponent());
         sNextActivityId++;
         mActivityId = sNextActivityId;
-        mUmaActivityObserver = new UmaActivityObserver(this);
     }
 
     private void incrementCounter(String key) {
@@ -506,6 +508,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @Override
     public void performPreInflationStartup() {
+        mUmaActivityObserver =
+                new UmaActivityObserver(this, getLifecycleDispatcher(), getActivityType());
         setupUnownedUserDataSuppliers();
 
         View rootView = getWindow().getDecorView().getRootView();
@@ -513,8 +517,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         // insets.
         rootView.setFitsSystemWindows(false);
 
-        if (BuildInfo.getInstance().isAutomotive
-                || EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()) {
+        if (DeviceInfo.isAutomotive() || EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()) {
             mBaseChromeLayout = new FrameLayout(this);
         }
 
@@ -985,7 +988,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     public void onStartWithNative() {
         assert mNativeInitialized : "onStartWithNative was called before native was initialized.";
 
-        startUmaSession();
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES)) {
+            startUmaSession();
+        }
 
         super.onStartWithNative();
 
@@ -1166,6 +1171,18 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @Override
     public void onTopResumedActivityChangedWithNative(boolean isTopResumedActivity) {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES)) {
+            if (isTopResumedActivity) {
+                startUmaSession();
+            }
+        } else {
+            if (isTopResumedActivity
+                    && getActivityType() != UmaActivityObserver.getCurrentActivityType()) {
+                endUmaSession();
+                startUmaSession();
+            }
+        }
+
         super.onTopResumedActivityChangedWithNative(isTopResumedActivity);
 
         View view = isTopResumedActivity ? getWindow().getDecorView() : null;
@@ -1178,7 +1195,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     private void checkForDeviceLockOnAutomotive() {
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             KeyguardManager keyguardManager =
                     (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
             RecordHistogram.recordBooleanHistogram(
@@ -1285,7 +1302,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
         getManualFillingComponent().onPause();
         super.onPauseWithNative();
-        endUmaSession();
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES)) {
+            endUmaSession();
+        }
     }
 
     @Override
@@ -1461,12 +1480,6 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     @Override
     public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
-        if (isTopResumedActivity
-                && mNativeInitialized
-                && getActivityType() != UmaActivityObserver.getCurrentActivityType()) {
-            endUmaSession();
-            startUmaSession();
-        }
         if (mNativeInitialized
                 && ChromeFeatureList.isEnabled(ChromeFeatureList.CHANGE_UNFOCUSED_PRIORITY)) {
             ChildProcessLauncherHelper.setIgnoreMainFrameVisibilityForImportance();
@@ -1717,16 +1730,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             mStylusWritingCoordinator = null;
         }
 
-        WarmupManager warmupManager = WarmupManager.getInstance();
-        if (!warmupManager.isCctPrewarmTabFeatureEnabled(false)) {
-            // Destroy spare tab on activity destruction.
-            warmupManager.destroySpareTab();
-        }
         // Ensure WarmupManager does not hold on to views created with old context, tied to old
         // Theme.
         // TODO(b/357901623): remove the line below once we have a reliable solution to the theming
         // problem, or after we stop supporting API levels < 29.
-        warmupManager.clearViewHierarchy();
+        WarmupManager.getInstance().clearViewHierarchy();
 
         mActivityTabProvider.destroy();
 
@@ -1793,8 +1801,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     protected Drawable getBackgroundDrawable() {
         // Set the window background to black on R cars to better blend in with the keyboard
         // background and minimize flickering - More context on b/302039878.
-        if (BuildInfo.getInstance().isAutomotive
-                && Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
+        if (DeviceInfo.isAutomotive() && Build.VERSION.SDK_INT == Build.VERSION_CODES.R) {
             return new ColorDrawable(getColor(R.color.baseline_neutral_0));
         }
         return new ColorDrawable(getColor(R.color.window_background_color));
@@ -1830,6 +1837,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     @Override
     public void finishNativeInitialization() {
         mNativeInitialized = true;
+
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES)) {
+            startUmaSession();
+        }
+
         OfflineContentAggregatorNotificationBridgeUiFactory.instance();
         maybeRemoveWindowBackground();
         DownloadManagerService.getDownloadManagerService()
@@ -2233,10 +2245,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             // TODO(https://crbug.com/354039289): densityDpi is overridden on the Configuration so
             // changes to densityDpi won't show up in the newConfig. Once Chrome migrates to adapt
             // app, test this flow again.
-            if (newConfig.densityDpi != mConfig.densityDpi
-                    && !BuildInfo.getInstance().isAutomotive) {
-                doRecreateActivity();
-                return;
+            if (newConfig.densityDpi != mConfig.densityDpi) {
+                if (!DeviceInfo.isAutomotive()) {
+                    doRecreateActivity();
+                    return;
+                }
             }
 
             // Maintain tab state by re-parenting tabs when a Chrome window is moved between
@@ -2280,7 +2293,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         if (mNativeInitialized) {
             recordMultiWindowModeChanged(isInMultiWindowMode, /* isDeferredStartup= */ false);
 
-            if (!isInMultiWindowMode
+            // With UMA_SESSION_CORRECTNESS_FIXES, onPause no longer ends the session, so we should
+            // restart the session every time multi-window changes.
+            if ((!isInMultiWindowMode
+                            || ChromeFeatureList.isEnabled(
+                                    ChromeFeatureList.UMA_SESSION_CORRECTNESS_FIXES))
                     && ApplicationStatus.getStateForActivity(this) == ActivityState.RESUMED) {
                 // Start a new UMA session when exiting multi-window mode if the activity is
                 // currently resumed. When entering multi-window Android recents gains focus, so
@@ -2410,7 +2427,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             RecordUserAction.record("MobileMenuHideReaderMode");
         } else {
             // Show Reading Mode menu option is visible.
-            readerModeManager.activateReaderMode();
+            readerModeManager.activateReaderMode(ReaderModeManager.EntryPoint.APP_MENU);
             RecordUserAction.record("MobileMenuShowReaderMode");
         }
     }
@@ -2664,12 +2681,15 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return true;
         }
 
-        if (id == R.id.dev_tools) {
+        if (id == R.id.dev_tools
+                && DevToolsWindowAndroid.isDevToolsAllowedFor(
+                        currentTab.getProfile(), currentTab.getWebContents())) {
             DevToolsWindowAndroid.openDevTools(currentTab.getWebContents());
             return true;
         }
 
-        if (id == R.id.task_manager) {
+        if (id == R.id.task_manager
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.TASK_MANAGER_CLANK)) {
             TaskManager taskManager = TaskManagerFactory.createTaskManager();
             taskManager.launch(ContextUtils.getApplicationContext());
             return true;
@@ -2700,8 +2720,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     protected void startUmaSession() {
-        mUmaActivityObserver.startUmaSession(
-                getActivityType(), getTabModelSelector(), getWindowAndroid());
+        mUmaActivityObserver.startUmaSession(getTabModelSelector(), getWindowAndroid());
     }
 
     /** Mark that the UMA session has ended. */
@@ -3049,6 +3068,16 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         return AutomotiveToolbarImplementation.WITH_TOOLBAR_VIEW;
     }
 
+    @Override
+    public boolean shouldAllocateChildConnection() {
+        if (!getProfileProviderSupplier().hasValue()) return true;
+
+        // If a spare Tab exists, a child connection has already been allocated that will be
+        // used by the next created tab.
+        Profile profile = getProfileProviderSupplier().get().getOriginalProfile();
+        return !WarmupManager.getInstance().hasSpareTab(profile, /* targetsNetwork= */ false);
+    }
+
     // === START of ThemeResourceProvider functionality ===
 
     private void initializeThemeResourceWrapper() {
@@ -3057,8 +3086,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return;
         }
 
-        // TODO: This is temporary. Replace with real theme overlay.
-        int resourceId = R.style.ThemeOverlay_BrowserUI_Switch_Incognito;
+        int resourceId = ChromeFeatureList.sAndroidThemeResourceProviderForceLight.getValue() ?
+                R.style.ThemeOverlay_BrowserUI_ForcedLightForTesting :
+                R.style.ThemeOverlay_BrowserUI_TabbedMode_Incognito;
         mThemeResourceProvider =
                 new TabStateThemeResourceProvider(
                         this, resourceId, getActivityTabProvider(), getLayoutManagerSupplier());
@@ -3094,6 +3124,25 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             return mThemeResourceProvider.getSystemService(name);
         }
         return super.getSystemService(name);
+    }
+
+    @Override
+    public boolean hasThemeResourceWrapper() {
+        return mThemeResourceProvider != null;
+    }
+
+    @Override
+    public void attachThemeObserver(ThemeResourceWrapper.ThemeObserver observer) {
+        if (mThemeResourceProvider != null) {
+            mThemeResourceProvider.addObserver(observer);
+        }
+    }
+
+    @Override
+    public void detachThemeObserver(ThemeResourceWrapper.ThemeObserver observer) {
+        if (mThemeResourceProvider != null) {
+            mThemeResourceProvider.removeObserver(observer);
+        }
     }
 
     public TabStateThemeResourceProvider getThemeResourceProviderForTesting() {

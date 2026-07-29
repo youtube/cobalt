@@ -15,7 +15,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/proto/strike_data.pb.h"
-#include "components/autofill/core/common/autofill_clock.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 
 namespace autofill {
@@ -50,7 +49,7 @@ StrikeDatabase::~StrikeDatabase() = default;
 int StrikeDatabase::AddStrikes(int strikes_increase, const std::string& key) {
   DCHECK_GT(strikes_increase, 0);
   int num_strikes =
-      strike_map_cache_.count(key)  // Cache has entry for |key|.
+      strike_map_cache_.contains(key)
           ? strike_map_cache_[key].num_strikes() + strikes_increase
           : strikes_increase;
   SetStrikeData(key, num_strikes);
@@ -87,16 +86,17 @@ void StrikeDatabase::SetStrikeData(const std::string& key, int num_strikes) {
   StrikeData data;
   data.set_num_strikes(num_strikes);
   data.set_last_update_timestamp(
-      AutofillClock::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds());
   UpdateCache(key, data);
   SetProtoStrikeData(key, data, base::DoNothing());
 }
 
-int64_t StrikeDatabase::GetLastUpdatedTimestamp(const std::string& key) {
+base::Time StrikeDatabase::GetLastUpdatedTimestamp(const std::string& key) {
   auto iter = strike_map_cache_.find(key);
-  return (iter != strike_map_cache_.end())
-             ? iter->second.last_update_timestamp()
-             : 0;
+  return iter != strike_map_cache_.end()
+             ? base::Time::FromDeltaSinceWindowsEpoch(
+                   base::Microseconds(iter->second.last_update_timestamp()))
+             : base::Time();
 }
 
 std::vector<std::string> StrikeDatabase::GetAllStrikeKeysForProject(
@@ -129,7 +129,7 @@ void StrikeDatabase::ClearAllStrikes() {
 }
 
 std::string StrikeDatabase::GetPrefixFromKey(const std::string& key) const {
-  return key.substr(0, key.find(KeyDeliminator()));
+  return key.substr(0, key.find(kKeyDeliminator));
 }
 
 StrikeDatabase::StrikeDatabase() : db_(nullptr) {}

@@ -9,8 +9,10 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/metrics/payments/credit_card_save_metrics.h"
+#include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/payments/client_behavior_constants.h"
 #include "components/autofill/core/browser/payments/multiple_request_payments_network_interface.h"
+#include "components/autofill/core/browser/payments/multiple_request_payments_network_interface_base.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_request_details.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
@@ -35,6 +37,7 @@ SaveAndFillManagerImpl::~SaveAndFillManagerImpl() = default;
 
 void SaveAndFillManagerImpl::OnDidAcceptCreditCardSaveAndFillSuggestion(
     FillCardCallback fill_card_callback) {
+  save_and_fill_suggestion_selected_ = true;
   fill_card_callback_ = std::move(fill_card_callback);
 
   if (IsCreditCardUploadEnabled()) {
@@ -48,17 +51,54 @@ void SaveAndFillManagerImpl::OnDidAcceptCreditCardSaveAndFillSuggestion(
             upload_details_,
             base::BindOnce(
                 &SaveAndFillManagerImpl::OnDidGetDetailsForCreateCard,
-                weak_ptr_factory_.GetWeakPtr()));
+                weak_ptr_factory_.GetWeakPtr(), base::TimeTicks::Now()));
   } else {
     OfferLocalSaveAndFill();
   }
 }
 
-bool SaveAndFillManagerImpl::IsMaxStrikesLimitReached() {
-  if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
-    return strike_database->ShouldBlockFeature();
+void SaveAndFillManagerImpl::OnSuggestionOffered() {
+  save_and_fill_suggestion_offered_ = true;
+}
+
+void SaveAndFillManagerImpl::OnCreditCardFormSubmitted() {
+  if (save_and_fill_suggestion_offered_ &&
+      !save_and_fill_suggestion_selected_) {
+    GetSaveAndFillStrikeDatabase()->AddStrike();
   }
-  return false;
+}
+
+bool SaveAndFillManagerImpl::ShouldBlockFeature() {
+  SaveAndFillStrikeDatabase::StrikeDatabaseDecision decision =
+      SaveAndFillStrikeDatabase::kDoNotBlock;
+  if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+    decision = strike_database->GetStrikeDatabaseDecision();
+  }
+  switch (decision) {
+    case SaveAndFillStrikeDatabase::StrikeDatabaseDecision::kDoNotBlock:
+      return false;
+    case SaveAndFillStrikeDatabase::StrikeDatabaseDecision::
+        kMaxStrikeLimitReached:
+      autofill_metrics::LogSaveAndFillStrikeDatabaseBlockReason(
+          AutofillMetrics::AutofillStrikeDatabaseBlockReason::
+              kMaxStrikeLimitReached);
+      return true;
+    case SaveAndFillStrikeDatabase::StrikeDatabaseDecision::
+        kRequiredDelayNotPassed:
+      autofill_metrics::LogSaveAndFillStrikeDatabaseBlockReason(
+          AutofillMetrics::AutofillStrikeDatabaseBlockReason::
+              kRequiredDelayNotMet);
+      return true;
+  }
+}
+
+void SaveAndFillManagerImpl::MaybeLogSaveAndFillSuggestionNotShownReason(
+    autofill_metrics::SaveAndFillSuggestionNotShownReason reason) {
+  if (has_logged_save_and_fill_suggestion_not_shown_reason_) {
+    return;
+  }
+  autofill_metrics::LogSaveAndFillSuggestionNotShownReason(reason);
+  has_logged_save_and_fill_suggestion_not_shown_reason_ = true;
 }
 
 void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
@@ -68,6 +108,8 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
   switch (user_decision) {
     case CardSaveAndFillDialogUserDecision::kAccepted: {
       if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+        autofill_metrics::LogSaveAndFillNumOfStrikesPresentWhenDialogAccepted(
+            strike_database->GetStrikes());
         strike_database->ClearStrikes();
       }
       CreditCard card_save_candidate;
@@ -89,6 +131,8 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
       payments_autofill_client()
           ->GetPaymentsDataManager()
           .OnAcceptedLocalCreditCardSave(card_save_candidate);
+
+      payments_autofill_client()->HideCreditCardSaveAndFillDialog();
       // TODO(crbug.com/435506033): Add local save confirmation as a separate
       // effort.
       break;
@@ -99,7 +143,8 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnLocalSave(
       }
       break;
   }
-  fill_card_callback_.Reset();
+
+  Reset();
 }
 
 void SaveAndFillManagerImpl::SetCreditCardUploadEnabledOverrideForTesting(
@@ -152,24 +197,30 @@ bool SaveAndFillManagerImpl::IsCreditCardUploadEnabled() const {
 }
 
 void SaveAndFillManagerImpl::OnDidGetDetailsForCreateCard(
+    base::TimeTicks request_sent_timestamp,
     PaymentsAutofillClient::PaymentsRpcResult result,
     const std::u16string& context_token,
     std::unique_ptr<base::Value::Dict> legal_message,
     std::vector<std::pair<int, int>> supported_card_bin_ranges) {
+  autofill_metrics::LogSaveAndFillGetDetailsForCreateCardResultAndLatency(
+      result == PaymentsRpcResult::kSuccess,
+      base::TimeTicks::Now() - request_sent_timestamp);
+
   if (result == PaymentsRpcResult::kSuccess) {
     LegalMessageLines parsed_legal_message_lines;
     LegalMessageLine::Parse(*legal_message, &parsed_legal_message_lines,
                             /*escape_apostrophes=*/true);
     if (parsed_legal_message_lines.empty()) {
-      // If parsing the legal messages fails, upload Save and Fill should not be
-      // offered. Offer local Save and Fill instead.
+      // If parsing the legal messages fails, upload Save and Fill should not
+      // be offered. Offer local Save and Fill instead.
       OfferLocalSaveAndFill();
       return;
     }
     upload_details_.context_token = context_token;
     OfferUploadSaveAndFill(parsed_legal_message_lines);
   } else {
-    // If the pre-flight call fails, fall back to offering local Save and Fill.
+    // If the pre-flight call fails, fall back to offering local Save and
+    // Fill.
     OfferLocalSaveAndFill();
   }
 }
@@ -235,6 +286,8 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave(
     case CardSaveAndFillDialogUserDecision::kAccepted:
       upload_save_and_fill_dialog_accepted_ = true;
       if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
+        autofill_metrics::LogSaveAndFillNumOfStrikesPresentWhenDialogAccepted(
+            strike_database->GetStrikes());
         strike_database->ClearStrikes();
       }
       PopulateCreditCardInfo(upload_details_.card,
@@ -252,14 +305,13 @@ void SaveAndFillManagerImpl::OnUserDidDecideOnUploadSave(
       if (auto* strike_database = GetSaveAndFillStrikeDatabase()) {
         strike_database->AddStrike();
       }
+      Reset();
       break;
   }
 
   payments_autofill_client()
       ->GetPaymentsDataManager()
       .OnUserAcceptedUpstreamOffer();
-
-  fill_card_callback_.Reset();
 }
 
 void SaveAndFillManagerImpl::OnDidLoadRiskData(const std::string& risk_data) {
@@ -274,28 +326,43 @@ void SaveAndFillManagerImpl::SendCreateCardRequest() {
       ->GetMultipleRequestPaymentsNetworkInterface()
       ->CreateCard(upload_details_,
                    base::BindOnce(&SaveAndFillManagerImpl::OnDidCreateCard,
-                                  weak_ptr_factory_.GetWeakPtr()));
+                                  weak_ptr_factory_.GetWeakPtr(),
+                                  base::TimeTicks::Now()));
 }
 
 void SaveAndFillManagerImpl::OnDidCreateCard(
+    base::TimeTicks request_sent_timestamp,
     PaymentsAutofillClient::PaymentsRpcResult result,
     const std::string& instrument_id) {
+  autofill_metrics::LogSaveAndFillCreateCardResultAndLatency(
+      result == PaymentsRpcResult::kSuccess,
+      base::TimeTicks::Now() - request_sent_timestamp);
+
   if (result != PaymentsAutofillClient::PaymentsRpcResult::kSuccess) {
     // If card creation fails, save the card locally instead. All card
     // information should exist, except for the optional CVC.
-    // TODO(crbug.com/378164165): Add CVC pref check in SaveCardLocallyIfNew so
-    // we don't need to strip the CVC from upload_details_.card. The missing
-    // check may be causing issue for CVC saving flows.
     autofill_metrics::LogCreditCardUploadRanLocalSaveFallbackMetric(
         /*new_local_card_added=*/payments_autofill_client()
             ->GetPaymentsDataManager()
             .SaveCardLocallyIfNew(upload_details_.card));
   }
 
+  payments_autofill_client()->HideCreditCardSaveAndFillDialog();
   // Invoke feedback bubble. No callback needed (virtual card enrollment is not
   // eligible for card saved via the Save and Fill flow).
   payments_autofill_client()->CreditCardUploadCompleted(
       result, /*on_confirmation_closed_callback=*/std::nullopt);
+
+  Reset();
+}
+
+void SaveAndFillManagerImpl::Reset() {
+  weak_ptr_factory_.InvalidateWeakPtrs();
+  upload_details_ = payments::UploadCardRequestDetails();
+  fill_card_callback_.Reset();
+  upload_save_and_fill_dialog_accepted_ = false;
+  save_and_fill_suggestion_offered_ = false;
+  save_and_fill_suggestion_selected_ = false;
 }
 
 SaveAndFillStrikeDatabase*

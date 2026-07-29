@@ -745,9 +745,12 @@ void ReadAnythingAppController::RecordEstimatedWordsSeen() {
 }
 
 void ReadAnythingAppController::RecordEstimatedWordsHeard() {
-  VLOG(1) << "Words heard: " << model_.words_heard();
-  base::UmaHistogramCustomCounts(kWordsHeardHistogramName, model_.words_heard(),
-                                 1, kMaxWordsConsumed, kWordsConsumedBuckets);
+  if (IsReadAloudEnabled()) {
+    VLOG(1) << "Words heard: " << model_.words_heard();
+    base::UmaHistogramCustomCounts(kWordsHeardHistogramName,
+                                   model_.words_heard(), 1, kMaxWordsConsumed,
+                                   kWordsConsumedBuckets);
+  }
   model_.set_words_heard(0);
 }
 
@@ -1125,6 +1128,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("isGoogleDocs", &ReadAnythingAppController::IsGoogleDocs)
       .SetProperty("isReadAloudEnabled",
                    &ReadAnythingAppController::IsReadAloudEnabled)
+      .SetProperty("isTsTextSegmentationEnabled",
+                   &ReadAnythingAppController::IsTsTextSegmentationEnabled)
       .SetProperty("isChromeOsAsh", &ReadAnythingAppController::IsChromeOsAsh)
       .SetProperty("baseLanguageForSpeech",
                    &ReadAnythingAppController::GetLanguageCodeForSpeech)
@@ -1201,6 +1206,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("getCurrentTextEndIndex",
                  &ReadAnythingAppController::GetCurrentTextEndIndex)
       .SetMethod("getCurrentText", &ReadAnythingAppController::GetCurrentText)
+      .SetMethod("getCurrentTextContent",
+                 &ReadAnythingAppController::GetCurrentTextContent)
       .SetMethod("shouldShowUi", &ReadAnythingAppController::ShouldShowUI)
       .SetMethod("onIsSpeechActiveChanged",
                  &ReadAnythingAppController::OnIsSpeechActiveChanged)
@@ -1226,6 +1233,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                  &ReadAnythingAppController::SendInstallVoicePackRequest)
       .SetMethod("sendUninstallVoiceRequest",
                  &ReadAnythingAppController::SendUninstallVoiceRequest)
+      .SetMethod("getCurrentTextSegments",
+                 &ReadAnythingAppController::GetCurrentTextSegments)
       .SetMethod("getHighlightForCurrentSegmentIndex",
                  &ReadAnythingAppController::GetHighlightForCurrentSegmentIndex)
       .SetMethod("getValidatedFontName",
@@ -1574,6 +1583,10 @@ bool ReadAnythingAppController::IsLeafNode(ui::AXNodeID ax_node_id) const {
 
 bool ReadAnythingAppController::IsReadAloudEnabled() const {
   return features::IsReadAnythingReadAloudEnabled();
+}
+
+bool ReadAnythingAppController::IsTsTextSegmentationEnabled() const {
+  return features::IsReadAnythingReadAloudTSTextSegmentationEnabled();
 }
 
 bool ReadAnythingAppController::IsChromeOsAsh() const {
@@ -1989,7 +2002,14 @@ bool ReadAnythingAppController::IsSpeechTreeInitialized() {
 
 std::vector<ui::AXNodeID> ReadAnythingAppController::GetCurrentText() {
   return read_aloud_model_.GetCurrentText(model_.is_pdf(), model_.IsDocs(),
-                                          model_.GetCurrentlyVisibleNodes());
+                                          model_.GetCurrentlyVisibleNodes()).node_ids;
+}
+
+std::u16string ReadAnythingAppController::GetCurrentTextContent() {
+  return read_aloud_model_
+      .GetCurrentText(model_.is_pdf(), model_.IsDocs(),
+                      model_.GetCurrentlyVisibleNodes())
+      .text;
 }
 
 void ReadAnythingAppController::PreprocessTextForSpeech() {
@@ -2031,8 +2051,10 @@ void ReadAnythingAppController::SetLanguageCode(const std::string& code) {
 
 #if BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingAppController::OnDeviceLocked() {
-  read_aloud_model_.LogSpeechStop(
-      ReadAloudAppModel::ReadAloudStopSource::kLockChromeosDevice);
+  if (read_aloud_model_.speech_playing()) {
+    read_aloud_model_.LogSpeechStop(
+        ReadAloudAppModel::ReadAloudStopSource::kLockChromeosDevice);
+  }
   RecordEstimatedWordsSeen();
   RecordEstimatedWordsHeard();
   // Signal to the WebUI that the device has been locked. We'll only receive
@@ -2047,16 +2069,20 @@ void ReadAnythingAppController::OnTtsEngineInstalled() {
 
 void ReadAnythingAppController::OnReadingModeHidden() {
   model_.set_will_hide(true);
-  read_aloud_model_.LogSpeechStop(
-      ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode);
+  if (read_aloud_model_.speech_playing()) {
+    read_aloud_model_.LogSpeechStop(
+        ReadAloudAppModel::ReadAloudStopSource::kCloseReadingMode);
+  }
   RecordEstimatedWordsSeen();
   RecordEstimatedWordsHeard();
 }
 
 void ReadAnythingAppController::OnTabWillDetach() {
   model_.set_will_hide(true);
-  read_aloud_model_.LogSpeechStop(
-      ReadAloudAppModel::ReadAloudStopSource::kCloseTabOrWindow);
+  if (read_aloud_model_.speech_playing()) {
+    read_aloud_model_.LogSpeechStop(
+        ReadAloudAppModel::ReadAloudStopSource::kCloseTabOrWindow);
+  }
   RecordEstimatedWordsSeen();
   RecordEstimatedWordsHeard();
 }
@@ -2150,6 +2176,32 @@ int ReadAnythingAppController::GetAccessibleBoundary(const std::u16string& text,
       shorter_string.length() - 1, ax::mojom::MoveDirection::kBackward,
       ax::mojom::TextAffinity::kDefaultValue);
   return word_ends;
+}
+
+v8::Local<v8::Value> ReadAnythingAppController::GetCurrentTextSegments() {
+  v8::Isolate* isolate =
+      render_frame()->GetWebFrame()->GetAgentGroupScheduler()->Isolate();
+  auto context = isolate->GetCurrentContext();
+
+  std::vector<ReadAloudTextSegment> nodes =
+      read_aloud_model_.GetCurrentTextSegments(
+          model_.is_pdf(), model_.IsDocs(), model_.GetCurrentlyVisibleNodes());
+
+  v8::Local<v8::Array> highlight_array = v8::Array::New(isolate, nodes.size());
+  for (int i = 0; i < (int)nodes.size(); i++) {
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+    auto checked = obj->DefineOwnProperty(
+        context, v8::String::NewFromUtf8(isolate, "nodeId").ToLocalChecked(),
+        v8::Number::New(isolate, nodes[i].id));
+    checked = obj->DefineOwnProperty(
+        context, v8::String::NewFromUtf8(isolate, "start").ToLocalChecked(),
+        v8::Number::New(isolate, nodes[i].text_start));
+    checked = obj->DefineOwnProperty(
+        context, v8::String::NewFromUtf8(isolate, "length").ToLocalChecked(),
+        v8::Number::New(isolate, (nodes[i].text_end - nodes[i].text_start)));
+    checked = highlight_array->Set(isolate->GetCurrentContext(), i, obj);
+  }
+  return highlight_array;
 }
 
 v8::Local<v8::Value>

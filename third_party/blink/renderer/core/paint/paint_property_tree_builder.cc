@@ -609,13 +609,22 @@ static bool NeedsPaintOffsetTranslation(
     // Don't let paint offset cross composited layer boundaries when possible,
     // to avoid unnecessary full layer paint/raster invalidation when paint
     // offset in ancestor transform node changes which should not affect the
-    // descendants of the composited layer. For now because of
+    // descendants of the composited layer. When
+    // PaintOffsetTranslationForBackdropFilterWithInlineElement is enabled,
+    // inline elements with backdrop-filter are also included to fix paint
+    // offset issue (see crbug.com/40716515). For now because of
     // crbug.com/780242, this is limited to LayoutBlocks and LayoutReplaceds
     // that won't be escaped by floating objects and column spans when finding
     // their containing blocks. TODO(crbug.com/780242): This can be avoided if
     // we have fully correct paint property tree states for floating objects
     // and column spans.
+    bool include_inline_for_backdrop_filter =
+        RuntimeEnabledFeatures::
+            PaintOffsetTranslationForBackdropFilterWithInlineElementEnabled() &&
+        !object.StyleRef().BackdropFilter().IsEmpty() &&
+        object.IsLayoutInline();
     if (box_model.IsLayoutBlock() || object.IsLayoutReplaced() ||
+        include_inline_for_backdrop_filter ||
         (direct_compositing_reasons &
          CompositingReason::kViewTransitionElement) ||
         (direct_compositing_reasons & CompositingReason::kElementCapture)) {
@@ -4097,6 +4106,14 @@ void PaintPropertyTreeBuilder::IssueInvalidationsAfterUpdate() {
   }
 
   if (max_change > PaintPropertyChangeType::kChangedOnlyCompositedValues) {
+    // Elements under canvas can only be rendered with `drawElement` and need
+    // to use regular paint invalidation to ensure js is notified of
+    // invalidations.
+    if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
+        IsA<Element>(object_.GetNode()) &&
+        To<Element>(object_.GetNode())->IsInCanvasSubtree()) {
+      context_.painting_layer->SetNeedsRepaint();
+    }
     object_.GetFrameView()->SetPaintArtifactCompositorNeedsUpdate();
   }
 
@@ -4143,6 +4160,13 @@ bool PaintPropertyTreeBuilder::CanDoDeferredTransformNodeUpdate(
     }
   }
 
+  // Elements under canvas can only be rendered with `drawElement` and need to
+  // use regular paint invalidation to ensure js is notified of invalidations.
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
+      IsA<Element>(object.GetNode()) &&
+      To<Element>(object.GetNode())->IsInCanvasSubtree()) {
+    return false;
+  }
   return true;
 }
 
@@ -4178,6 +4202,13 @@ bool PaintPropertyTreeBuilder::CanDoDeferredOpacityNodeUpdate(
     return false;
   }
 
+  // Elements under canvas can only be rendered with `drawElement` and need to
+  // use regular paint invalidation to ensure js is notified of invalidations.
+  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled() &&
+      IsA<Element>(object.GetNode()) &&
+      To<Element>(object.GetNode())->IsInCanvasSubtree()) {
+    return false;
+  }
   return true;
 }
 

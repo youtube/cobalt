@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "base/notreached.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -19,6 +20,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
+#include "components/user_education/common/ntp_promo/ntp_promo_controller.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_registry.h"
 #include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
 #include "components/user_education/common/user_education_data.h"
@@ -37,17 +39,20 @@
 
 namespace {
 
+using user_education::ShowNtpPromosResult;
 using user_education::features::NtpBrowserPromoType;
 using Eligibility = user_education::NtpPromoSpecification::Eligibility;
 
 inline constexpr char kTestPromoName[] = "test_promo";
 const InteractiveBrowserTestApi::DeepQuery kPathToSimplePromo = {
-    "ntp-app", "ntp-single-promo"};
+    "ntp-app", "individual-promos"};
 const InteractiveBrowserTestApi::DeepQuery kPathToSetupList = {
     "ntp-app", "setup-list-module-wrapper", "setup-list", "setup-list-item"};
-constexpr char kActionButtonId[] = "#actionButton";
-constexpr char kActionTextId[] = "#bodyText";
-constexpr char kActionIconId[] = "#bodyIcon";
+constexpr char kActionIconId[] = "#actionIcon";
+constexpr char kPromoTextId[] = "#bodyText";
+constexpr char kPromoIconId[] = "#bodyIcon";
+constexpr char kIconName[] = "account_circle";
+
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kNtpElementId);
 DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kTestPromoShownEvent);
 DEFINE_LOCAL_CUSTOM_ELEMENT_EVENT_TYPE(kTestPromoClickedEvent);
@@ -92,7 +97,7 @@ class NtpPromoUiTest : public InteractiveBrowserTest,
     registry->ClearPromosForTesting();
     user_education::NtpPromoSpecification spec(
         kTestPromoName,
-        user_education::NtpPromoContent("chrome-filled", IDS_NTP_SIGN_IN_PROMO,
+        user_education::NtpPromoContent(kIconName, IDS_NTP_SIGN_IN_PROMO,
                                         IDS_NTP_SIGN_IN_PROMO_ACTION_BUTTON),
         base::BindRepeating(&NtpPromoUiTest::GetTestPromoEligibility,
                             base::Unretained(this)),
@@ -130,13 +135,13 @@ class NtpPromoUiTest : public InteractiveBrowserTest,
   }
 
   auto GetActionButtonPath() const {
-    return GetFirstPromoPath() + kActionButtonId;
+    return GetFirstPromoPath() + kActionIconId;
   }
 
-  auto GetActionIconPath() const { return GetFirstPromoPath() + kActionIconId; }
+  auto GetPromoIconPath() const { return GetFirstPromoPath() + kPromoIconId; }
 
-  auto WaitForActionIcon(std::string_view expected_icon) {
-    const auto path = GetActionIconPath();
+  auto WaitForPromoIcon(std::string_view expected_icon) {
+    const auto path = GetPromoIconPath();
     auto steps = Steps(
         WaitForElementVisible(kNtpElementId, path),
         // Verify the icon shows the correct image.
@@ -149,12 +154,16 @@ class NtpPromoUiTest : public InteractiveBrowserTest,
     MultiStep steps;
     switch (eligibility) {
       case Eligibility::kEligible:
-        steps += WaitForActionIcon("ntp-promo:chrome-filled");
+        steps += WaitForPromoIcon(std::string("ntp-promo:") + kIconName);
         steps += WaitForElementVisible(kNtpElementId, GetActionButtonPath());
         break;
       case Eligibility::kCompleted:
-        steps += WaitForActionIcon("ntp-promo:completed");
-        steps += EnsureNotVisible(kNtpElementId, GetActionButtonPath());
+        steps += WaitForPromoIcon("cr:check");
+        if (GetParam() == NtpBrowserPromoType::kSimple) {
+          steps += EnsureNotVisible(kNtpElementId, GetActionButtonPath());
+        } else {
+          steps += WaitForElementVisible(kNtpElementId, GetActionButtonPath());
+        }
         break;
       case Eligibility::kIneligible:
         NOTREACHED();
@@ -164,7 +173,7 @@ class NtpPromoUiTest : public InteractiveBrowserTest,
   }
 
   auto VerifyTestPromoText() {
-    return CheckJsResultAt(kNtpElementId, GetFirstPromoPath() + kActionTextId,
+    return CheckJsResultAt(kNtpElementId, GetFirstPromoPath() + kPromoTextId,
                            "el => el.innerText",
                            l10n_util::GetStringUTF8(IDS_NTP_SIGN_IN_PROMO))
         .AddDescriptionPrefix(__func__);
@@ -172,6 +181,21 @@ class NtpPromoUiTest : public InteractiveBrowserTest,
 
   auto PressActionButton() {
     return ClickElement(kNtpElementId, GetActionButtonPath())
+        .AddDescriptionPrefix(__func__);
+  }
+
+  static constexpr std::string_view kShowResultHistogramName =
+      "UserEducation.NtpPromos.ShowResult";
+
+  auto CheckShowMetrics(std::optional<ShowNtpPromosResult> expected_result) {
+    return Do([this, expected_result]() {
+             if (expected_result) {
+               histogram_tester_.ExpectBucketCount(kShowResultHistogramName,
+                                                   *expected_result, 1);
+             }
+             histogram_tester_.ExpectTotalCount(kShowResultHistogramName,
+                                                expected_result ? 1 : 0);
+           })
         .AddDescriptionPrefix(__func__);
   }
 
@@ -193,6 +217,7 @@ class NtpPromoUiTest : public InteractiveBrowserTest,
 
   Eligibility test_promo_eligibility_ = Eligibility::kEligible;
   base::test::ScopedFeatureList feature_list_;
+  base::HistogramTester histogram_tester_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -223,24 +248,22 @@ IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, TestPromoEligible) {
       // run these in parallel.
       InParallel(RunSubsequence(PressActionButton()),
                  RunSubsequence(WaitForEvent(kBrowserViewElementId,
-                                             kTestPromoClickedEvent))));
-
-  // TODD(https://crbug.com/433607240): Check model, histograms.
+                                             kTestPromoClickedEvent))),
+      // Verify that the correct histogram was recorded.
+      CheckShowMetrics(ShowNtpPromosResult::kShown));
 }
 
 IN_PROC_BROWSER_TEST_P(NtpPromoUiTest, TestPromoCompleted) {
-  // Single promo does not [yet] show completed promos.
-  if (GetParam() == NtpBrowserPromoType::kSimple) {
-    GTEST_SKIP();
-  }
-
   InstallTestPromo(Eligibility::kCompleted);
   RunTestSequence(
       InstrumentTab(kNtpElementId),
       NavigateWebContents(kNtpElementId, GURL(chrome::kChromeUINewTabPageURL)),
-      WaitForPromoVisible(Eligibility::kCompleted), VerifyTestPromoText());
-
-  // TODD(https://crbug.com/433607240): Check model, histograms.
+      If([]() { return GetParam() == NtpBrowserPromoType::kSetupList; },
+         Then(WaitForPromoVisible(Eligibility::kCompleted),
+              VerifyTestPromoText(),
+              CheckShowMetrics(ShowNtpPromosResult::kShown)),
+         Else(EnsureNotVisible(kNtpElementId, GetFirstPromoPath()),
+              CheckShowMetrics(ShowNtpPromosResult::kNotShownNoPromos))));
 }
 
 // Tests in this block rely on the fact that the top priority promotion is

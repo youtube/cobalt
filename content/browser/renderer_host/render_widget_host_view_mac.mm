@@ -98,8 +98,7 @@ namespace {
 // called after a delay. This is done as `updateWindows` can be quite
 // costly, and if the text input state is changing rapidly there is no need to
 // update it immediately.
-BASE_FEATURE(kDelayUpdateWindowsAfterTextInputStateChanged,
-             "DelayUpdateWindowsAfterTextInputStateChanged",
+BASE_FEATURE(DelayUpdateWindowsAfterTextInputStateChanged,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace
@@ -219,7 +218,7 @@ RenderWidgetHostViewMac::RenderWidgetHostViewMac(RenderWidgetHost* widget)
   // Guess that the initial screen we will be on is the screen of the current
   // window (since that's the best guess that we have, and is usually right).
   // https://crbug.com/357443
-  auto* screen = display::Screen::GetScreen();
+  auto* screen = display::Screen::Get();
   screen_infos_ = screen->GetScreenInfosNearestDisplay(
       screen->GetDisplayNearestWindow(gfx::NativeWindow(NSApp.keyWindow)).id());
   original_screen_infos_ = screen_infos_;
@@ -305,9 +304,8 @@ void RenderWidgetHostViewMac::MigrateNSViewBridge(
     // To workaround that case, this code removes the observer first, which is a
     // safe no-op if the bridge is already not an observer.
     // TODO(crbug.com/40179941): Maybe recreate `in_process_ns_view_bridge_`?
-    display::Screen::GetScreen()->RemoveObserver(
-        in_process_ns_view_bridge_.get());
-    display::Screen::GetScreen()->AddObserver(in_process_ns_view_bridge_.get());
+    display::Screen::Get()->RemoveObserver(in_process_ns_view_bridge_.get());
+    display::Screen::Get()->AddObserver(in_process_ns_view_bridge_.get());
     return;
   }
 
@@ -339,8 +337,7 @@ void RenderWidgetHostViewMac::MigrateNSViewBridge(
   // End local display::Screen observation via `in_process_ns_view_bridge_`;
   // the remote NSWindow's display::Screen information will be sent by Mojo.
   // TODO(crbug.com/40179941): Maybe just destroy `in_process_ns_view_bridge_`?
-  display::Screen::GetScreen()->RemoveObserver(
-      in_process_ns_view_bridge_.get());
+  display::Screen::Get()->RemoveObserver(in_process_ns_view_bridge_.get());
 
   // Popup windows will specify an invalid |parent_ns_view_id|, because popups
   // have their own NSWindows (of which they are the content NSView).

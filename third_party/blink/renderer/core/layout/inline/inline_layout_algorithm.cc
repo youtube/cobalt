@@ -11,15 +11,13 @@
 #include "base/metrics/histogram_macros.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
-#include "third_party/blink/renderer/core/frame/local_frame.h"
-#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
-#include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/block_break_token.h"
 #include "third_party/blink/renderer/core/layout/constraint_space.h"
 #include "third_party/blink/renderer/core/layout/disable_layout_side_effects_scope.h"
 #include "third_party/blink/renderer/core/layout/floats_utils.h"
 #include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
+#include "third_party/blink/renderer/core/layout/inline/fit_text_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/initial_letter_utils.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_box_state.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_break_token.h"
@@ -49,9 +47,7 @@
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
 #include "third_party/blink/renderer/core/layout/unpositioned_float.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
-#include "third_party/blink/renderer/core/style/fit_text.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
-#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -235,209 +231,6 @@ void PlaceRelativePositionedItems(const ConstraintSpace& constraint_space,
     child.rect.offset += ComputeRelativeOffsetForInline(
         constraint_space, physical_fragment->Style());
   }
-}
-
-// Show a console message with ConsoleMessage::Source::kRendering and
-// discard_duplicates==true.
-void AddConsoleMessage(const InlineNode node,
-                       ConsoleMessage::Level level,
-                       const String& message) {
-  node.GetDocument().AddConsoleMessage(
-      MakeGarbageCollected<ConsoleMessage>(ConsoleMessage::Source::kRendering,
-                                           level, message),
-      /* discard_duplicates */ true);
-}
-
-// Returns true if LogicalLineBuilder needs to scale line-height.
-bool ScaleLine(bool is_grow,
-               float scale_factor,
-               bool is_scaled_inline_only,
-               std::optional<float> limit,
-               LineInfo& line_info) {
-  bool should_scale_line_height = false;
-  for (auto& item : *line_info.MutableResults()) {
-    if (item.item->Type() != InlineItem::kText) {
-      continue;
-    }
-    if (!item.fit_text_scale) {
-      item.fit_text_scale = MakeGarbageCollected<FitTextScale>();
-    }
-    if (limit) {
-      if (is_grow) {
-        float max_scale = *limit / item.item->Style()->ComputedFontSize();
-        item.fit_text_scale->scale = std::min(scale_factor, max_scale);
-      } else {
-        float min_scale = *limit / item.item->Style()->ComputedFontSize();
-        item.fit_text_scale->scale = std::max(scale_factor, min_scale);
-      }
-    } else {
-      item.fit_text_scale->scale = scale_factor;
-    }
-    item.fit_text_scale->is_scaled_inline_only = is_scaled_inline_only;
-    if (item.fit_text_scale->scale != 1.0f) {
-      should_scale_line_height = true;
-    }
-  }
-  return !is_scaled_inline_only && should_scale_line_height;
-}
-
-ShapeResult* ShapeForFit(const InlineItemResult& item,
-                         const HarfBuzzShaper& shaper,
-                         const Font& font,
-                         const InlineItemSegments* segments) {
-  ShapeOptions options;  // TODO(crbug.com/417306102): Pass correct options.
-  if (segments) {
-    return segments->ShapeText(&shaper, &font, item.item->Direction(),
-                               item.StartOffset(), item.EndOffset(),
-                               item.item->Index(), options);
-  }
-  RunSegmenter::RunSegmenterRange range = item.item->CreateRunSegmenterRange();
-  range.end = item.item->EndOffset();
-  return shaper.Shape(&font, item.item->Direction(), item.item->StartOffset(),
-                      item.item->EndOffset(), range, options);
-}
-
-// Updates text scaling factor of InlineItemResults in `line_info`.
-// Returns true if LogicalLineBuilder needs to scale line-height.
-//
-// `NOINLINE` prevents the size growth in the fuchsia-binary-size bot.
-NOINLINE bool FitLine(const InlineNode node, LineInfo& line_info) {
-  const double device_pixel_ratio =
-      node.GetDocument().GetFrame()->DevicePixelRatio();
-  LayoutUnit epsilon = LayoutUnit(2.0 * device_pixel_ratio);
-  LayoutUnit original_width = line_info.Width();
-  LayoutUnit container_width = line_info.AvailableWidth();
-  LayoutUnit diff = container_width - original_width;
-  if (diff.Abs() < epsilon) {
-    return false;
-  }
-  const FitText& text_grow = node.Style().TextGrow();
-  const FitText& text_shrink = node.Style().TextShrink();
-  bool apply_text_grow = text_grow.Target() == FitTextTarget::kPerLine;
-  bool apply_text_shrink = text_shrink.Target() == FitTextTarget::kPerLine;
-  if ((diff > LayoutUnit() && !apply_text_grow) ||
-      (diff < LayoutUnit() && !apply_text_shrink)) {
-    return false;
-  }
-  const bool is_grow = diff > LayoutUnit();
-  const FitText& fit_text = is_grow ? text_grow : text_shrink;
-
-  // Measure the static parts and the flexible parts in the items.
-  LayoutUnit static_total_size;
-  LayoutUnit flexible_total_size;
-  const auto& items_data = node.ItemsData(line_info.UseFirstLineStyle());
-  HarfBuzzShaper shaper(items_data.text_content);
-  ShapeResultSpacing<String> spacing(items_data.text_content);
-  // TODO(crbug.com/4173061029): Apply TextAutoSpace as well as letter-spacing
-  // and word-spacing.
-  for (auto& item : *line_info.MutableResults()) {
-    if (item.item->Type() == InlineItem::kText) {
-      if (fit_text.Method() == FitTextMethod::kFontSize &&
-          spacing.SetSpacing(item.item->Style()->GetFontDescription())) {
-        ShapeResult* nospacing_shape =
-            ShapeForFit(item, shaper, *item.item->Style()->GetFont(),
-                        items_data.segments.get());
-        LayoutUnit size = nospacing_shape->SnappedWidth().ClampNegativeToZero();
-        flexible_total_size += size;
-        static_total_size += item.inline_size - size;
-      } else {
-        flexible_total_size += item.inline_size;
-      }
-    } else {
-      static_total_size += item.inline_size;
-    }
-  }
-  if (flexible_total_size <= 0) {
-    return false;
-  }
-
-  float scale_factor =
-      (container_width - static_total_size) / flexible_total_size;
-  auto limit = fit_text.SizeLimit();
-  if (!is_grow) {
-    if (const auto* settings = node.GetDocument().GetSettings()) {
-      if (int min_size = settings->GetMinimumFontSize(); min_size > 0) {
-        float physical_min = min_size * device_pixel_ratio;
-        limit = limit ? std::max(*limit, physical_min) : physical_min;
-      }
-    }
-  }
-
-  switch (fit_text.Method()) {
-    case FitTextMethod::kScale:
-      return ScaleLine(is_grow, scale_factor,
-                       /* is_scaled_inline_only */ false, limit, line_info);
-
-    case FitTextMethod::kScaleInline:
-      return ScaleLine(is_grow, scale_factor,
-                       /* is_scaled_inline_only */ true, limit, line_info);
-
-    case FitTextMethod::kFontSize: {
-      flexible_total_size = LayoutUnit();
-      bool restricted = false;
-      for (auto& item : *line_info.MutableResults()) {
-        if (item.item->Type() != InlineItem::kText) {
-          continue;
-        }
-        float item_scale = scale_factor;
-        if (limit) {
-          if (is_grow) {
-            float max_scale = *limit / item.item->Style()->ComputedFontSize();
-            item_scale = std::min(scale_factor, max_scale);
-          } else {
-            float min_scale = *limit / item.item->Style()->ComputedFontSize();
-            item_scale = std::max(scale_factor, min_scale);
-          }
-          if (item_scale != scale_factor) {
-            restricted = true;
-          }
-        }
-        const Font& font = *item.item->Style()->GetFont();
-        FontDescription scaled_desc(font.GetFontDescription());
-        scaled_desc.SetComputedSize(font.GetFontDescription().ComputedSize() *
-                                    item_scale);
-        Font* scaled_font =
-            MakeGarbageCollected<Font>(scaled_desc, font.GetFontSelector());
-        ShapeResult* shape_result =
-            ShapeForFit(item, shaper, *scaled_font, items_data.segments.get());
-        LayoutUnit size_without_spacing =
-            shape_result->SnappedWidth().ClampNegativeToZero();
-        if (spacing.SetSpacing(scaled_desc)) {
-          shape_result->ApplySpacing(spacing);
-          item.inline_size = shape_result->SnappedWidth().ClampNegativeToZero();
-        } else {
-          item.inline_size = size_without_spacing;
-        }
-        item.shape_result = ShapeResultView::Create(shape_result);
-        if (!item.fit_text_scale) {
-          item.fit_text_scale = MakeGarbageCollected<FitTextScale>();
-        }
-        item.fit_text_scale->font = scaled_font;
-        item.fit_text_scale->scale = 1.0f;
-        item.fit_text_scale->is_scaled_inline_only = false;
-        flexible_total_size += size_without_spacing;
-      }
-      // Final adjustment by paint-time scaling. We skip it if font-size
-      // scaling for an item was restricted by specifying a minimum or maximum
-      // value.
-      if (!restricted &&
-          (container_width - line_info.ComputeWidth()).Abs() >= epsilon) {
-        scale_factor =
-            (container_width - static_total_size) / flexible_total_size;
-        ScaleLine(is_grow, scale_factor, /* is_scaled_inline_only */ false,
-                  limit, line_info);
-      }
-      return true;
-    }
-
-    case FitTextMethod::kLetterSpacing:
-      AddConsoleMessage(
-          node, ConsoleMessage::Level::kInfo,
-          StrCat({"`text-", is_grow ? StringView("grow") : StringView("shrink"),
-                  ": ... letter-spacing` is not implemented yet."}));
-      break;
-  }
-  return false;
 }
 
 }  // namespace
@@ -720,7 +513,7 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
   if (line_builder.HasRelativePositionedItems()) {
     PlaceRelativePositionedItems(GetConstraintSpace(), line_box);
   }
-  for (auto annotation_line : line_container->AnnotationLineList()) {
+  for (const auto& annotation_line : line_container->AnnotationLineList()) {
     PlaceRelativePositionedItems(GetConstraintSpace(),
                                  annotation_line.line_items);
   }
@@ -1328,45 +1121,7 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
     container_builder_.SetIsLineForParallelFlow();
   }
 
-  if (RuntimeEnabledFeatures::CssFitWidthTextEnabled()) {
-    const ComputedStyle& style = Node().Style();
-    bool apply_text_grow = style.TextGrow().Target() != FitTextTarget::kNone;
-    bool apply_text_shrink =
-        style.TextShrink().Target() != FitTextTarget::kNone;
-    if (apply_text_grow || apply_text_shrink) {
-      if (Node().HasFloats() || Node().HasInitialLetterBox() ||
-          Node().HasRuby()) {
-        if (apply_text_grow) {
-          Node().GetDocument().AddConsoleMessage(
-              MakeGarbageCollected<ConsoleMessage>(
-                  ConsoleMessage::Source::kRendering,
-                  ConsoleMessage::Level::kInfo,
-                  "Disable `text-grow` due to `float`, `initial-letter`, or "
-                  "ruby annotations."),
-              /* discard_duplicates */ true);
-          apply_text_grow = false;
-        }
-        if (apply_text_shrink) {
-          AddConsoleMessage(Node(), ConsoleMessage::Level::kInfo,
-                            "Disable `text-shrink` due to `float`, "
-                            "`initial-letter`, or ruby annotations.");
-          apply_text_shrink = false;
-        }
-      }
-
-      if (style.TextGrow().Target() == FitTextTarget::kConsistent) {
-        AddConsoleMessage(Node(), ConsoleMessage::Level::kInfo,
-                          "`text-grow: consistent` is not implemented yet.");
-        apply_text_grow = false;
-      }
-      if (style.TextShrink().Target() == FitTextTarget::kConsistent) {
-        AddConsoleMessage(Node(), ConsoleMessage::Level::kInfo,
-                          "`text-shrink: consistent` is not implemented yet.");
-        apply_text_shrink = false;
-      }
-    }
-    apply_fit_text_ = apply_text_grow || apply_text_shrink;
-  }
+  apply_fit_text_ = ShouldApplyFitText(Node());
 
   FragmentItemsBuilder* const items_builder = context_->ItemsBuilder();
   DCHECK(items_builder);
@@ -1557,7 +1312,7 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
     }
 
     bool should_scale_line_height =
-        apply_fit_text_ && FitLine(Node(), line_info);
+        apply_fit_text_ && LineFitter(Node(), &line_info).FitLine();
 
     PrepareBoxStates(line_info, should_scale_line_height, break_token);
 

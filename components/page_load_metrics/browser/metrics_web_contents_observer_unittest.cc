@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/byte_count.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/process/kill.h"
@@ -69,7 +70,7 @@ blink::mojom::ResourceLoadInfoPtr CreateResourceLoadInfo(
   resource_load_info->original_url = url;
   resource_load_info->request_destination = request_destination;
   resource_load_info->was_cached = false;
-  resource_load_info->raw_body_bytes = 0;
+  resource_load_info->raw_body_bytes = base::ByteCount(0);
   resource_load_info->net_error = net::OK;
   resource_load_info->network_info = blink::mojom::CommonNetworkInfo::New();
   resource_load_info->network_info->remote_endpoint = net::IPEndPoint();
@@ -1373,17 +1374,18 @@ TEST_F(MetricsWebContentsObserverNonPrimaryPageTest, MemoryUpdates) {
   EXPECT_EQ(1, CountOnBackForwardCacheEntered());
   EXPECT_EQ(2, tracker_committed_count());
 
-  std::vector<MemoryUpdate> memory_updates = {{rfh1_id, 100}, {rfh2_id, 200}};
+  std::vector<MemoryUpdate> memory_updates = {{rfh1_id, base::ByteCount(100)},
+                                              {rfh2_id, base::ByteCount(200)}};
   observer()->OnV8MemoryChanged(memory_updates);
 
   // Verify that memory updates are observed both in primary URL2 and
   // non-primary URL1.
   ASSERT_EQ(2u, observed_memory_updates_.size());
   ASSERT_EQ(1u, observed_memory_updates_[GURL(kDefaultTestUrl)].size());
-  EXPECT_EQ(100,
+  EXPECT_EQ(base::ByteCount(100),
             observed_memory_updates_[GURL(kDefaultTestUrl)][0].delta_bytes);
   ASSERT_EQ(1u, observed_memory_updates_[GURL(kDefaultTestUrl2)].size());
-  EXPECT_EQ(200,
+  EXPECT_EQ(base::ByteCount(200),
             observed_memory_updates_[GURL(kDefaultTestUrl2)][0].delta_bytes);
 }
 

@@ -91,8 +91,7 @@ class GroupMapAccessor {
     GroupToIDMap::const_iterator it = group_to_id_map->find(group_identifier);
     if (it == group_to_id_map->end() ||
         (current_time.has_value() &&
-         (*current_time < it->second.time_window.start() ||
-          *current_time > it->second.time_window.end()))) {
+         !it->second.time_window.Contains(*current_time))) {
       return EMPTY_ID;
     }
     return it->second.id;
@@ -108,7 +107,7 @@ class GroupMapAccessor {
     }
   }
 
-  base::Time GetNextTimeWindowEvent(base::Time current_time) const {
+  base::Time GetNextTimeWindowEvent(base::Time time) const {
     base::AutoLock scoped_lock(lock_);
     base::Time next_event = base::Time::Max();
     // This double loop is O(N) where N is the number of field trials having an
@@ -116,12 +115,12 @@ class GroupMapAccessor {
     for (const auto& id_map : group_to_id_maps_) {
       for (const auto& [id, entry] : id_map) {
         // Update the next time window event if the start or end time is after
-        // 'current_time' but also before `next_event`.
-        if (entry.time_window.start() > current_time &&
+        // `time`  but also before `next_event`.
+        if (entry.time_window.start() > time &&
             entry.time_window.start() < next_event) {
           next_event = entry.time_window.start();
         }
-        if (entry.time_window.end() > current_time &&
+        if (entry.time_window.end() > time &&
             entry.time_window.end() < next_event) {
           next_event = entry.time_window.end();
         }
@@ -146,11 +145,6 @@ class GroupMapAccessor {
 };
 
 }  // namespace
-
-TimeWindow::TimeWindow(base::Time start, base::Time end)
-    : start_(start), end_(end) {
-  CHECK_LT(start_, end_);
-}
 
 void AssociateGoogleVariationID(IDCollectionKey key,
                                 std::string_view trial_name,

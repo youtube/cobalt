@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/files/scoped_temp_dir.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -30,6 +31,7 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_client.h"
@@ -109,6 +111,26 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
     ASSERT_TRUE(embedded_test_server()->Start());
     ASSERT_TRUE(embedded_https_test_server().Start());
 
+    StartNewTask();
+
+    // Optimization guide uses this histogram to signal initialization in tests.
+    optimization_guide::RetryForHistogramUntilCountReached(
+        &histogram_tester_for_init_,
+        "OptimizationGuide.HintsManager.HintCacheInitialized", 1);
+
+    // Simulate the component loading, as the implementation checks it, but the
+    // actual list is set via the command line.
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    optimization_guide::OptimizationHintsComponentUpdateListener::GetInstance()
+        ->MaybeUpdateHintsComponent(
+            {base::Version("123"),
+             temp_dir_.GetPath().Append(FILE_PATH_LITERAL("dont_care"))});
+
+    content::SetBrowserClientForTesting(&mock_browser_client_);
+  }
+
+ protected:
+  void StartNewTask() {
     auto execution_engine =
         std::make_unique<ExecutionEngine>(browser()->profile());
     ExecutionEngine* raw_execution_engine = execution_engine.get();
@@ -118,16 +140,8 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
         GetProfile(), std::move(execution_engine), std::move(event_dispatcher));
     raw_execution_engine->SetOwner(task.get());
     task_id_ = actor_keyed_service()->AddActiveTask(std::move(task));
-
-    // Optimization guide uses this histogram to signal initialization in tests.
-    optimization_guide::RetryForHistogramUntilCountReached(
-        &histogram_tester_for_init_,
-        "OptimizationGuide.HintsManager.HintCacheInitialized", 1);
-
-    content::SetBrowserClientForTesting(&mock_browser_client_);
   }
 
- protected:
   tabs::TabInterface* active_tab() {
     return browser()->tab_strip_model()->GetActiveTab();
   }
@@ -175,6 +189,7 @@ class ExecutionEngineBrowserTest : public InProcessBrowserTest {
   base::HistogramTester histogram_tester_for_init_;
   base::test::ScopedFeatureList scoped_feature_list_;
   FakeChromeContentBrowserClient mock_browser_client_;
+  base::ScopedTempDir temp_dir_;
 };
 
 // The coordinator does not yet handle multi-tab cases. For now,
@@ -374,6 +389,12 @@ class ExecutionEngineOriginGatingBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+std::string EncodeURI(const std::string& component) {
+  url::RawCanonOutputT<char> encoded;
+  url::EncodeURIComponent(component, &encoded);
+  return std::string(encoded.view());
+}
+
 IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
                        GateCrossOriginNavigations) {
   const GURL start_url =
@@ -394,6 +415,58 @@ IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
               origin_gating_enabled()
                   ? mojom::ActionResultCode::kTriggeredNavigationBlocked
                   : mojom::ActionResultCode::kOk);
+}
+
+IN_PROC_BROWSER_TEST_P(ExecutionEngineOriginGatingBrowserTest,
+                       OriginGatingNavigateAction) {
+  // This test is not meaningful if origin gating is disabled.
+  if (!origin_gating_enabled()) {
+    return;
+  }
+
+  const GURL start_url =
+      embedded_https_test_server().GetURL("foo.com", "/actor/blank.html");
+  const GURL cross_origin_url =
+      embedded_https_test_server().GetURL("bar.com", "/actor/blank.html");
+  const GURL link_page_url = embedded_https_test_server().GetURL(
+      "foo.com", base::StrCat({"/actor/link_full_page.html?href=",
+                               EncodeURI(cross_origin_url.spec())}));
+
+  // Start on foo.com.
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), start_url));
+  // Navigate to bar.com.
+  std::unique_ptr<ToolRequest> navigate_x_origin =
+      MakeNavigateRequest(*active_tab(), cross_origin_url.spec());
+  // Navigate to foo.com page with a link to bar.com.
+  std::unique_ptr<ToolRequest> navigate_to_link_page =
+      MakeNavigateRequest(*active_tab(), link_page_url.spec());
+  // Clicks on full-page link to bar.com.
+  std::unique_ptr<ToolRequest> click_link =
+      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
+
+  ActResultFuture result1;
+  actor_task().Act(
+      ToRequestList(navigate_x_origin, navigate_to_link_page, click_link),
+      result1.GetCallback());
+  ExpectOkResult(result1);
+
+  // Test that navigation allowlist is not persisted across separate tasks.
+  auto previous_id = actor_task().id();
+  actor_keyed_service()->ResetForTesting();
+  StartNewTask();
+  ASSERT_NE(previous_id, actor_task().id());
+
+  // Start on link page on foo.com.
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), link_page_url));
+  // Click on full-page link to bar.com only.
+  std::unique_ptr<ToolRequest> click_link_only =
+      MakeClickRequest(*active_tab(), gfx::Point(1, 1));
+
+  ActResultFuture result2;
+  actor_task().Act(ToRequestList(click_link_only), result2.GetCallback());
+  // Expect the navigation to be blocked by origin gating.
+  ExpectErrorResult(result2,
+                    mojom::ActionResultCode::kTriggeredNavigationBlocked);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

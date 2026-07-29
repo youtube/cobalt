@@ -118,6 +118,7 @@ NSString* const kPasswordManagerTrustedVaultWidgetPromoDisabledImage =
     @"password_manager_trusted_vault_widget_promo_disabled";
 NSString* const kPhoneSparkleSymbol = @"phone_sparkle";
 NSString* const kTextSearchSymbol = @"text_search";
+NSString* const kIncognitoRectangle = @"incognito_rectangle";
 
 // Custom symbol names which can be configured with a color palette.
 NSString* const kIncognitoCircleFillSymbol = @"incognito_circle_fill";
@@ -164,8 +165,10 @@ NSString* const kMarkAsUnreadActionSymbol = @"text.badge.minus";
 NSString* const kMarkAsReadActionSymbol = @"text.badge.checkmark";
 NSString* const kReadLaterActionSymbol = @"text.badge.plus";
 NSString* const kAddBookmarkActionSymbol = @"star";
+NSString* const kStarLeadingHalfFilledSymbol = @"star.leadinghalf.filled";
 NSString* const kCopyActionSymbol = @"doc.on.doc";
 NSString* const kPasteActionSymbol = @"doc.on.clipboard";
+NSString* const kPlusRectangleSymbol = @"plus.rectangle";
 NSString* const kNewWindowActionSymbol = @"square.split.2x1";
 NSString* const kShowActionSymbol = @"eye";
 NSString* const kHideActionSymbol = @"eye.slash";
@@ -188,6 +191,8 @@ NSString* const kSettingsSymbol = @"gearshape";
 NSString* const kSettingsFilledSymbol = @"gearshape.fill";
 NSString* const kShareSymbol = @"square.and.arrow.up";
 NSString* const kXMarkSymbol = @"xmark";
+NSString* const kXMarkSquareSymbol = @"xmark.square";
+NSString* const kXMarkSquareFillSymbol = @"xmark.square.fill";
 NSString* const kXMarkCircleFillSymbol = @"xmark.circle.fill";
 NSString* const kPlusSymbol = @"plus";
 NSString* const kSearchSymbol = @"magnifyingglass";
@@ -241,6 +246,10 @@ NSString* const kEqualSymbol = @"equal";
 NSString* const kBookClosedSymbol = @"book.closed";
 NSString* const kSunFillSymbol = @"sun.max.fill";
 NSString* const kCalendarSymbol = @"calendar";
+NSString* const kArrowLeftSymbol = @"arrow.left";
+NSString* const kArrowRightSymbol = @"arrow.right";
+NSString* const kClockArrowTriangleheadCounterclockwiseRotate90Symbol =
+    @"clock.arrow.trianglehead.counterclockwise.rotate.90";
 NSString* const kTabsSymbol = @"square.on.square";
 NSString* const kHighlighterSymbol = @"highlighter";
 NSString* const kSealFillSymbol = @"seal.fill";

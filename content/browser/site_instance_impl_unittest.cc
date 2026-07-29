@@ -70,13 +70,17 @@ bool DoesURLRequireDedicatedProcess(const IsolationContext& isolation_context,
 
 SiteInfo CreateSimpleSiteInfo(const GURL& process_lock_url,
                               bool requires_origin_keyed_process) {
+  AgentClusterKey agent_cluster_key =
+      requires_origin_keyed_process
+          ? AgentClusterKey::CreateOriginKeyed(
+                url::Origin::Create(process_lock_url))
+          : AgentClusterKey::CreateSiteKeyed(process_lock_url);
   AgentClusterKey::OACStatus oac_status =
       requires_origin_keyed_process
           ? AgentClusterKey::OACStatus::kOriginKeyedByDefault
           : AgentClusterKey::OACStatus::kSiteKeyedByDefault;
   GURL site_url("https://www.foo.com");
-  return SiteInfo(AgentClusterKey::CreateSiteKeyed(process_lock_url), site_url,
-                  process_lock_url, requires_origin_keyed_process, oac_status,
+  return SiteInfo(agent_cluster_key, site_url, oac_status,
                   /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
                   CreateStoragePartitionConfigForTesting(),
                   WebExposedIsolationInfo::CreateNonIsolated(),
@@ -303,8 +307,6 @@ TEST_F(SiteInstanceTest, SiteInfoAsContainerKey) {
   auto site_info_1_with_isolation_request =
       SiteInfo(AgentClusterKey::CreateSiteKeyed(GURL("https://foo.com")),
                GURL("https://www.foo.com") /* site_url */,
-               GURL("https://foo.com") /* process_lock_url */,
-               /*requires_origin_keyed_process=*/false,
                AgentClusterKey::OACStatus::kSiteKeyedByDefault,
                /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
                CreateStoragePartitionConfigForTesting(),
@@ -323,8 +325,6 @@ TEST_F(SiteInstanceTest, SiteInfoAsContainerKey) {
   auto site_info_1_with_jit_disabled =
       SiteInfo(AgentClusterKey::CreateSiteKeyed(GURL("https://foo.com")),
                GURL("https://www.foo.com") /* site_url */,
-               GURL("https://foo.com") /* process_lock_url */,
-               /*requires_origin_keyed_process=*/false,
                AgentClusterKey::OACStatus::kSiteKeyedByDefault,
                /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
                CreateStoragePartitionConfigForTesting(),
@@ -341,8 +341,6 @@ TEST_F(SiteInstanceTest, SiteInfoAsContainerKey) {
   auto site_info_1_with_optimizations_disabled =
       SiteInfo(AgentClusterKey::CreateSiteKeyed(GURL("https://foo.com")),
                GURL("https://www.foo.com") /* site_url */,
-               GURL("https://foo.com") /* process_lock_url */,
-               /*requires_origin_keyed_process=*/false,
                AgentClusterKey::OACStatus::kSiteKeyedByDefault,
                /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
                CreateStoragePartitionConfigForTesting(),
@@ -360,8 +358,6 @@ TEST_F(SiteInstanceTest, SiteInfoAsContainerKey) {
   auto site_info_1_with_pdf =
       SiteInfo(AgentClusterKey::CreateSiteKeyed(GURL("https://foo.com")),
                GURL("https://www.foo.com") /* site_url */,
-               GURL("https://foo.com") /* process_lock_url */,
-               /*requires_origin_keyed_process=*/false,
                AgentClusterKey::OACStatus::kSiteKeyedByDefault,
                /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
                CreateStoragePartitionConfigForTesting(),
@@ -376,8 +372,6 @@ TEST_F(SiteInstanceTest, SiteInfoAsContainerKey) {
   auto site_info_1_with_is_fenced =
       SiteInfo(AgentClusterKey::CreateSiteKeyed(GURL("https://foo.com")),
                GURL("https://www.foo.com") /* site_url */,
-               GURL("https://foo.com") /* process_lock_url */,
-               /*requires_origin_keyed_process=*/false,
                AgentClusterKey::OACStatus::kSiteKeyedByDefault,
                /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
                CreateStoragePartitionConfigForTesting(),
@@ -599,11 +593,13 @@ TEST_F(SiteInstanceTest,
   bool dedicated_processes_for_all_sites =
       SiteIsolationPolicy::UseDedicatedProcessesForAllSites();
   EXPECT_EQ(dedicated_processes_for_all_sites,
-            site_info.requires_origin_keyed_process());
+            site_info.agent_cluster_key().IsOriginKeyed());
   if (dedicated_processes_for_all_sites) {
-    EXPECT_EQ(url, site_info.process_lock_url());
+    EXPECT_EQ(url::Origin::Create(url),
+              site_info.agent_cluster_key().GetOrigin());
   } else {
-    EXPECT_EQ(GURL("https://foo.com/"), site_info.process_lock_url());
+    EXPECT_EQ(GURL("https://foo.com/"),
+              site_info.agent_cluster_key().GetSite());
   }
 }
 
@@ -902,9 +898,10 @@ TEST_F(SiteInstanceTest, ProcessLockDoesNotUseEffectiveURL) {
 
     auto site_info = SiteInfo::CreateForTesting(isolation_context, test_url);
     if (origin_keyed_processes_by_default) {
-      EXPECT_EQ(test_url, site_info.process_lock_url());
+      EXPECT_EQ(url::Origin::Create(test_url),
+                site_info.agent_cluster_key().GetOrigin());
     } else {
-      EXPECT_EQ(nonapp_site_url, site_info.process_lock_url());
+      EXPECT_EQ(nonapp_site_url, site_info.agent_cluster_key().GetSite());
     }
     EXPECT_EQ(app_url, site_info.site_url());
   }
@@ -923,8 +920,7 @@ TEST_F(SiteInstanceTest, ProcessLockDoesNotUseEffectiveURL) {
           ? AgentClusterKey::OACStatus::kOriginKeyedByDefault
           : AgentClusterKey::OACStatus::kSiteKeyedByDefault;
   SiteInfo expected_site_info(
-      agent_cluster_key, app_url /* site_url */, expected_process_lock_url,
-      is_origin_keyed_processes_by_default, oac_status,
+      agent_cluster_key, app_url /* site_url */, oac_status,
       /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
       CreateStoragePartitionConfigForTesting(),
       WebExposedIsolationInfo::CreateNonIsolated(),
@@ -1731,9 +1727,7 @@ TEST_F(SiteInstanceTest, OriginalURL) {
           ? AgentClusterKey::OACStatus::kOriginKeyedByDefault
           : AgentClusterKey::OACStatus::kSiteKeyedByDefault;
   SiteInfo expected_site_info(
-      agent_cluster_key, app_url /* site_url */,
-      original_url /* process_lock_url */, is_origin_keyed_processes_by_default,
-      oac_status,
+      agent_cluster_key, app_url /* site_url */, oac_status,
       /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
       CreateStoragePartitionConfigForTesting(),
       WebExposedIsolationInfo::CreateNonIsolated(),
@@ -1866,8 +1860,6 @@ ProcessLock ProcessLockFromString(const std::string& url) {
   return ProcessLock::FromSiteInfo(SiteInfo(
       AgentClusterKey::CreateSiteKeyed(GURL(url)),
       /*site_url=*/GURL(url),
-      /*process_lock_url=*/GURL(url),
-      /*requires_origin_keyed_process=*/false,
       AgentClusterKey::OACStatus::kSiteKeyedByDefault,
       /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
       CreateStoragePartitionConfigForTesting(),
@@ -2007,7 +1999,7 @@ TEST_F(SiteInstanceTest, CreateForUrlInfo) {
   if (AreStrictSiteInstancesEnabled()) {
     EXPECT_FALSE(instance5->IsDefaultSiteInstance());
     EXPECT_EQ("custom-standard://custom/", instance5->GetSiteURL());
-    EXPECT_EQ("http://foo.com/", instance5->GetSiteInfo().process_lock_url());
+    EXPECT_EQ("http://foo.com/", instance5->GetSiteInfo().GetProcessLockURL());
   } else {
     EXPECT_TRUE(instance5->IsDefaultSiteInstance());
   }
@@ -2162,9 +2154,9 @@ TEST_F(SiteInstanceTest, DoWebUIURLsWithSubdomainsUseTLDForProcessLock) {
   EXPECT_EQ(webui_host_baz_url, webui_host_baz_site_info.site_url());
 
   // WebUI URLs should use their TLD for ProcessLockURLs.
-  EXPECT_EQ(webui_tld_url, webui_tld_site_info.process_lock_url());
-  EXPECT_EQ(webui_tld_url, webui_host_bar_site_info.process_lock_url());
-  EXPECT_EQ(webui_tld_url, webui_host_baz_site_info.process_lock_url());
+  EXPECT_EQ(webui_tld_url, webui_tld_site_info.GetProcessLockURL());
+  EXPECT_EQ(webui_tld_url, webui_host_bar_site_info.GetProcessLockURL());
+  EXPECT_EQ(webui_tld_url, webui_host_baz_site_info.GetProcessLockURL());
 }
 
 TEST_F(SiteInstanceTest, ErrorPage) {
@@ -2258,14 +2250,19 @@ TEST_F(SiteInstanceTest, GetNonOriginKeyedEquivalentPreservesIsPdf) {
   // but has the is_origin_keyed flag cleared.
   EXPECT_TRUE(site_info_pdf_with_origin_key.is_pdf());
   EXPECT_TRUE(site_info_pdf_no_origin_key.is_pdf());
-  EXPECT_TRUE(site_info_pdf_with_origin_key.requires_origin_keyed_process());
-  EXPECT_FALSE(site_info_pdf_no_origin_key.requires_origin_keyed_process());
+  EXPECT_TRUE(
+      site_info_pdf_with_origin_key.agent_cluster_key().IsOriginKeyed());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByHeader,
+            site_info_pdf_with_origin_key.oac_status());
+  EXPECT_FALSE(site_info_pdf_no_origin_key.agent_cluster_key().IsOriginKeyed());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kSiteKeyedByDefault,
+            site_info_pdf_no_origin_key.oac_status());
 }
 
 // This test makes sure that if we create a SiteInfo with a UrlInfo where
 // kOriginAgentClusterByHeader is set but kRequiresOriginKeyedProcessByHeader is
-// not, that the resulting SiteInfo does not have
-// `requires_origin_keyed_process_` true.
+// not, that the resulting SiteInfo does not have an origin-keyed value of
+// `oac_status_`.
 TEST_F(SiteInstanceTest, SiteInfoDetermineProcessLock_OriginAgentCluster) {
   GURL a_foo_url("https://a.foo.com/");
   GURL foo_url("https://foo.com");
@@ -2288,8 +2285,10 @@ TEST_F(SiteInstanceTest, SiteInfoDetermineProcessLock_OriginAgentCluster) {
       UrlInfo(UrlInfoInit(a_foo_url).WithOACHeaderRequest(oac_header_request)));
   EXPECT_TRUE(
       SiteIsolationPolicy::IsProcessIsolationForOriginAgentClusterEnabled());
-  EXPECT_EQ(foo_url, site_info_for_a_foo.process_lock_url());
-  EXPECT_FALSE(site_info_for_a_foo.requires_origin_keyed_process());
+  EXPECT_FALSE(site_info_for_a_foo.agent_cluster_key().IsOriginKeyed());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kSiteKeyedByDefault,
+            site_info_for_a_foo.oac_status());
+  EXPECT_EQ(foo_url, site_info_for_a_foo.agent_cluster_key().GetSite());
 }
 
 TEST_F(SiteInstanceTest, ShouldAssignSiteForAboutBlank) {

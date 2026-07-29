@@ -139,14 +139,15 @@ void LensSearchController::OpenLensOverlay(
   // If flag enabled, perform an empty contextual query instead of opening the
   // overlay as normal. For internal debugging only.
   if (lens::features::IsLensOverlayForceEmptyCsbQueryEnabled()) {
-    IssueContextualSearchRequestWithQuery(
+    IssueTextSearchRequest(
         lens::LensOverlayInvocationSource::kContentAreaContextMenuText,
         /*query_text=*/"",
         /*additional_query_parameters=*/{},
         // TODO(crbug.com/432490312): Match type here is likely not ideal.
         // Investigate removing match type from this function.
         AutocompleteMatchType::Type::SEARCH_SUGGEST,
-        /*is_zero_prefix_suggestion=*/false);
+        /*is_zero_prefix_suggestion=*/false,
+        /*suppress_contextualization=*/false);
     return;
   }
 
@@ -229,36 +230,37 @@ void LensSearchController::IssueContextualSearchRequest(
   std::map<std::string, std::string> additional_query_parameters =
       lens::GetParametersMapWithoutQuery(destination_url);
 
-  IssueContextualSearchRequestWithQuery(invocation_source, query_text,
-                                        additional_query_parameters, match_type,
-                                        is_zero_prefix_suggestion);
+  IssueTextSearchRequest(
+      invocation_source, query_text, additional_query_parameters, match_type,
+      is_zero_prefix_suggestion, /*suppress_contextualization=*/false);
 }
 
-void LensSearchController::IssueContextualSearchRequestWithQuery(
+void LensSearchController::IssueTextSearchRequest(
     lens::LensOverlayInvocationSource invocation_source,
     std::string query_text,
     std::map<std::string, std::string> additional_query_parameters,
     AutocompleteMatchType::Type match_type,
-    bool is_zero_prefix_suggestion) {
+    bool is_zero_prefix_suggestion,
+    bool suppress_contextualization) {
   // If the eligibility checks fail, do not procced with opening any UI.
   if (!RunLensEligibilityChecks(
           invocation_source,
           /*permission_granted_callback=*/base::BindRepeating(
-              &LensSearchController::IssueContextualSearchRequestWithQuery,
+              &LensSearchController::IssueTextSearchRequest,
               weak_ptr_factory_.GetWeakPtr(), invocation_source, query_text,
               additional_query_parameters, match_type,
-              is_zero_prefix_suggestion))) {
+              is_zero_prefix_suggestion, suppress_contextualization))) {
     return;
   }
 
   if (IsOff()) {
     // If the state is off, the Lens sessions needs to be initialized.
-    StartLensSession(invocation_source);
+    StartLensSession(invocation_source, suppress_contextualization);
   }
 
   // TODO(crbug.com/404941800): This flow should not start the overlay once
   // contextualization is separated from the overlay.
-  lens_overlay_controller_->IssueContextualSearchRequest(
+  lens_overlay_controller_->IssueTextSearchRequest(
       query_text, additional_query_parameters,
       lens_overlay_query_controller_.get(), match_type,
       is_zero_prefix_suggestion, invocation_source);
@@ -326,6 +328,24 @@ void LensSearchController::HideOverlay(
     lens_overlay_controller_->TriggerOverlayFadeOutAnimation(
         base::BindOnce(&LensSearchController::OnOverlayHidden,
                        weak_ptr_factory_.GetWeakPtr(), dismissal_source));
+  }
+}
+
+void LensSearchController::HideOverlay() {
+  if (state() == State::kOff) {
+    return;
+  }
+
+  // This method should only be called when the side panel is open.
+  DCHECK(lens_overlay_side_panel_coordinator_->state() !=
+         lens::LensOverlaySidePanelCoordinator::State::kOff);
+
+  // If the overlay is showing, the overlay needs to fade out. Play the fade out
+  // animation and then clean up the rest of the UI afterwards.
+  if (lens_overlay_controller_->state() != LensOverlayController::State::kOff) {
+    lens_overlay_controller_->TriggerOverlayFadeOutAnimation(
+        base::BindOnce(&LensSearchController::OnOverlayHidden,
+                       weak_ptr_factory_.GetWeakPtr(), std::nullopt));
   }
 }
 
@@ -498,7 +518,9 @@ LensSearchController::CreateLensSearchboxController() {
 
 std::unique_ptr<lens::LensComposeboxController>
 LensSearchController::CreateLensComposeboxController() {
-  return std::make_unique<lens::LensComposeboxController>(this);
+  Profile* profile =
+      Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
+  return std::make_unique<lens::LensComposeboxController>(this, profile);
 }
 
 std::unique_ptr<lens::LensSearchContextualizationController>
@@ -532,7 +554,8 @@ LensSearchController::CreateLensQueryController(
 }
 
 void LensSearchController::StartLensSession(
-    lens::LensOverlayInvocationSource invocation_source) {
+    lens::LensOverlayInvocationSource invocation_source,
+    bool suppress_contextualization) {
   state_ = State::kInitializing;
 
   // Create the query controller to be used for the current invocation.
@@ -545,7 +568,7 @@ void LensSearchController::StartLensSession(
 
   // Let the searchbox controller know that a new session has started so it can
   // initialize any data needed for the searchbox.
-  lens_searchbox_controller_->OnSessionStart();
+  lens_searchbox_controller_->OnSessionStart(suppress_contextualization);
 
   // Reset session state.
   hats_triggered_in_session_ = false;
@@ -616,11 +639,20 @@ void LensSearchController::CloseLensPart2(
 }
 
 void LensSearchController::OnOverlayHidden(
-    lens::LensOverlayDismissalSource dismissal_source) {
+    std::optional<lens::LensOverlayDismissalSource> dismissal_source) {
   // If the side panel is not open, end the session.
   if (lens_overlay_side_panel_coordinator_->state() ==
       lens::LensOverlaySidePanelCoordinator::State::kOff) {
-    CloseLensPart2(dismissal_source);
+    // The caller should not have called this function without a dismissal
+    // source if the side panel is not open, because it would leave the Lens
+    // session in an inconsistent state.
+    // TODO(crbug.com/440608864): Make this a CHECK once this is verified.
+    if (!dismissal_source.has_value()) {
+      // Exit early to avoid a crash.
+      DCHECK(dismissal_source.has_value());
+      return;
+    }
+    CloseLensPart2(dismissal_source.value());
     return;
   }
 

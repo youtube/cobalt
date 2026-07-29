@@ -128,6 +128,13 @@ linux_memory_builder(
             target_platform = builder_config.target_platform.LINUX,
         ),
     ),
+    builder_config_settings = builder_config.ci_settings(
+        # Some shards of browser_tests often encounter some slowdown, and end up
+        # timing out without any results. Such shards are considered "invalid".
+        # TODO(crbug.com/429435587): Fix the underlying flakiness.
+        retry_failed_shards = True,
+        retry_invalid_shards = True,
+    ),
     targets = targets.bundle(
         targets = [
             "chromium_linux_and_gl_gtests",
@@ -698,7 +705,7 @@ linux_memory_builder(
             ),
             "interactive_ui_tests": targets.mixin(
                 swarming = targets.swarming(
-                    shards = 10,
+                    shards = 12,
                 ),
             ),
             "services_unittests": targets.remove(
@@ -1298,6 +1305,9 @@ ci.builder(
         chromium_config = builder_config.chromium_config(
             config = "chromium_win_clang_asan",
             apply_configs = [
+                # TODO(https://crbug.com/440203328): cache is causing build
+                # failures.
+                "clobber",
                 "mb",
             ],
             build_config = builder_config.build_config.RELEASE,
@@ -1467,7 +1477,7 @@ ci.builder(
             "mac_default_x64",
             "mac_toolchain",
             "out_dir_arg",
-            "xcode_16_main",
+            "xcode_26_main",
             "xctest",
         ],
     ),

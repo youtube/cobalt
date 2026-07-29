@@ -217,7 +217,6 @@ RendererBlinkPlatformImpl::RendererBlinkPlatformImpl(
       sk_sp<font_data_service::FontDataManager> font_data_manager =
           sk_make_sp<font_data_service::FontDataManager>();
 
-      blink::WebFontRendering::SetSkiaFontManager(font_data_manager);
       skia::OverrideDefaultSkFontMgr(font_data_manager);
     }
 #endif
@@ -993,8 +992,8 @@ std::unique_ptr<media::MediaLog> RendererBlinkPlatformImpl::GetMediaLog(
   }
 
   // For devtools' media tab.
-  handlers.push_back(
-      std::make_unique<InspectorMediaEventHandler>(inspector_context));
+  handlers.push_back(std::make_unique<InspectorMediaEventHandler>(
+      inspector_context, 0 /* dom_node_id */));
 
   return std::make_unique<BatchingMediaLog>(owner_task_runner,
                                             std::move(handlers));

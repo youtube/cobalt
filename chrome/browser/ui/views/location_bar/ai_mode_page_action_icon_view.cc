@@ -6,6 +6,8 @@
 
 #include "base/check.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/autocomplete/chrome_autocomplete_provider_client.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -16,7 +18,10 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/grit/branded_strings.h"
+#include "components/omnibox/browser/omnibox_controller.h"
 #include "components/omnibox/browser/omnibox_edit_model.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/omnibox_view.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_features.h"
@@ -67,7 +72,7 @@ void AiModePageActionIconView::OnExecuting(
     PageActionIconView::ExecuteSource source) {
   OmniboxView* omnibox_view = GetOmniboxView();
   CHECK(omnibox_view);
-  omnibox_view->model()->OpenAiMode();
+  omnibox_view->model()->OpenAiMode(/*via_keyboard=*/false);
 }
 
 views::BubbleDialogDelegate* AiModePageActionIconView::GetBubble() const {
@@ -92,7 +97,7 @@ bool AiModePageActionIconView::OnKeyPressed(const ui::KeyEvent& event) {
   if (event.key_code() == ui::VKEY_RETURN) {
     OmniboxView* omnibox_view = GetOmniboxView();
     CHECK(omnibox_view);
-    omnibox_view->model()->OpenAiMode();
+    omnibox_view->model()->OpenAiMode(/*via_keyboard=*/true);
     return true;
   }
 
@@ -105,18 +110,25 @@ void AiModePageActionIconView::ExecuteWithKeyboardSourceForTesting() {
 }
 
 void AiModePageActionIconView::UpdateImpl() {
-  SetVisible(ShouldShow());
+  const bool should_show = ShouldShow();
+  UpdateFeatureTriggered(/*page_action_shown=*/should_show);
+  SetVisible(should_show);
   ResetSlideAnimation(true);
 }
 
 bool AiModePageActionIconView::ShouldShow() {
+  const auto* aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(browser_->GetProfile());
+  if (!OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(
+          aim_eligibility_service)) {
+    return false;
+  }
+
   // If the feature is enabled to hide the AIM entrypoint on user input, don't
-  // show the AIM entrypoint if the user is currently typing and the user text
-  // is non-empty.
+  // show the AIM entrypoint if the user typed text is non-empty.
   if (base::FeatureList::IsEnabled(omnibox::kHideAimEntrypointOnUserInput)) {
     OmniboxView* omnibox_view = GetOmniboxView();
-    if (omnibox_view && omnibox_view->model()->user_input_in_progress() &&
-        !omnibox_view->GetText().empty()) {
+    if (omnibox_view && !omnibox_view->model()->user_text().empty()) {
       return false;
     }
   }
@@ -141,6 +153,25 @@ OmniboxView* AiModePageActionIconView::GetOmniboxView() {
     return nullptr;
   }
   return search::GetOmniboxView(web_contents);
+}
+
+void AiModePageActionIconView::UpdateFeatureTriggered(bool page_action_shown) {
+  if (!page_action_shown) {
+    return;
+  }
+
+  OmniboxView* omnibox_view = GetOmniboxView();
+  if (!omnibox_view) {
+    return;
+  }
+
+  const auto* client = omnibox_view->controller()
+                           ->autocomplete_controller()
+                           ->autocomplete_provider_client();
+  auto* triggered_feature_service = client->GetOmniboxTriggeredFeatureService();
+  triggered_feature_service->FeatureTriggered(
+      metrics::OmniboxEventProto_Feature::
+          OmniboxEventProto_Feature_AIM_PAGE_ACTION_OMNIBOX_ENTRYPOINT);
 }
 
 BEGIN_METADATA(AiModePageActionIconView)

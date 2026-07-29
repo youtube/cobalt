@@ -143,6 +143,13 @@ class EventReportValidator : public EventReportValidatorBase {
           expected_user_justifications);
 
   void ExpectDangerousDeepScanningResultAndSensitiveDataEvent(
+      chrome::cros::reporting::proto::SafeBrowsingDangerousDownloadEvent
+          expected_dangerous_download_event,
+      chrome::cros::reporting::proto::DlpSensitiveDataEvent
+          expected_sensitive_data_event,
+      const std::set<std::string>* expected_mimetypes);
+
+  void ExpectDangerousDeepScanningResultAndSensitiveDataEvent(
       const std::string& expected_url,
       const std::string& expected_tab_url,
       const std::string& expected_source,
@@ -198,6 +205,13 @@ class EventReportValidator : public EventReportValidatorBase {
       const std::optional<std::string>& expected_content_transfer_method);
 
   void ExpectUnscannedFileEvents(
+      chrome::cros::reporting::proto::UnscannedFileEvent
+          expected_unscanned_file_event,
+      const std::vector<std::string>& expected_filenames,
+      const std::vector<std::string>& expected_sha256s,
+      const std::set<std::string>* expected_mimetypes);
+
+  void ExpectUnscannedFileEvents(
       const std::string& expected_url,
       const std::string& expected_tab_url,
       const std::string& expected_source,
@@ -215,7 +229,8 @@ class EventReportValidator : public EventReportValidatorBase {
 
   void ExpectDangerousDownloadEvent(
       chrome::cros::reporting::proto::SafeBrowsingDangerousDownloadEvent
-          expected_dangerous_download_event);
+          expected_dangerous_download_event,
+      const std::set<std::string>* expected_mimetypes = nullptr);
 
   void ExpectDangerousDownloadEvent(
       const std::string& expected_url,
@@ -233,6 +248,8 @@ class EventReportValidator : public EventReportValidatorBase {
   void ExpectActiveUser(const std::string& user);
   void ExpectSourceActiveUser(const std::string& user);
 
+  void ExpectFrameUrlChain(const std::vector<std::string>& frame_urls);
+
  private:
   void ValidateReport(const base::Value::Dict* report);
   void ValidateFederatedOrigin(const base::Value::Dict* value);
@@ -248,6 +265,7 @@ class EventReportValidator : public EventReportValidatorBase {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   void ValidateDataMaskingAttributes(const base::Value::Dict* event);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+  void ValidateFrameUrlChain(const base::Value::Dict* value);
 
   std::string event_key_;
   std::optional<std::string> url_;
@@ -272,6 +290,7 @@ class EventReportValidator : public EventReportValidatorBase {
   data_controls::Verdict::TriggeredRules data_controls_triggered_rules_;
   std::optional<std::string> active_content_area_user_;
   std::optional<std::string> source_active_content_area_user_;
+  std::optional<std::vector<std::string>> frame_urls_;
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // `DataMaskingEvent`'s copy constructor is deleted, so to keep

@@ -10,7 +10,6 @@
 #import "ios/chrome/browser/home_customization/ui/home_customization_main_consumer.h"
 
 @protocol HomeCustomizationBackgroundPickerPresentationDelegate;
-@protocol HomeCustomizationColorPaletteProvider;
 @protocol HomeCustomizationDelegate;
 @protocol HomeCustomizationMutator;
 @protocol HomeCustomizationSearchEngineLogoMediatorProvider;
@@ -35,9 +34,12 @@
 @property(nonatomic, weak) id<HomeCustomizationSearchEngineLogoMediatorProvider>
     searchEngineLogoMediatorProvider;
 
-// A provider responsible for supplying a color palette object.
-@property(nonatomic, weak) id<HomeCustomizationColorPaletteProvider>
-    colorPaletteProvider;
+// Whether the NTP custom background is enabled by enterprise policy.
+@property(nonatomic, assign) BOOL isNTPCustomBackgroundEnabledByPolicy;
+
+// Whether interaction with the background customization section is enabled.
+// Prevents the background from changing when it should not change.
+@property(nonatomic, assign) BOOL backgroundCustomizationUserInteractionEnabled;
 
 @end
 

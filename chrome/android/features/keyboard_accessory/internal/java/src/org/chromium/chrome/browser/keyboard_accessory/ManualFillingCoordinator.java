@@ -7,12 +7,15 @@ package org.chromium.chrome.browser.keyboard_accessory;
 import android.content.Context;
 import android.view.View;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.back_press.BackPressManager;
+import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
+import org.chromium.chrome.browser.fullscreen.BrowserControlsManagerSupplier;
 import org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData;
 import org.chromium.chrome.browser.keyboard_accessory.data.PropertyProvider;
@@ -74,7 +77,12 @@ class ManualFillingCoordinator implements ManualFillingComponent {
                         mMediator,
                         edgeToEdgeControllerSupplier,
                         insetObserver,
-                        barStub);
+                        barStub,
+                        mMediator::isLargeFormFactor,
+                        this::dismiss);
+        BrowserControlsManager browserControlsManager =
+                BrowserControlsManagerSupplier.getValueOrNullFrom(windowAndroid);
+
         initialize(
                 windowAndroid,
                 mKeyboardAccessoryCoordinator,
@@ -84,7 +92,8 @@ class ManualFillingCoordinator implements ManualFillingComponent {
                 backPressManager,
                 edgeToEdgeControllerSupplier,
                 keyboardDelegate,
-                new ConfirmationDialogHelper(context));
+                new ConfirmationDialogHelper(context),
+                browserControlsManager);
     }
 
     @VisibleForTesting
@@ -97,7 +106,8 @@ class ManualFillingCoordinator implements ManualFillingComponent {
             BackPressManager backPressManager,
             Supplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             SoftKeyboardDelegate keyboardDelegate,
-            ConfirmationDialogHelper confirmationHelper) {
+            ConfirmationDialogHelper confirmationHelper,
+            @Nullable BrowserControlsManager controlsManager) {
         mMediator.initialize(
                 accessoryBar,
                 accessorySheet,
@@ -107,7 +117,8 @@ class ManualFillingCoordinator implements ManualFillingComponent {
                 backPressManager,
                 edgeToEdgeControllerSupplier,
                 keyboardDelegate,
-                confirmationHelper);
+                confirmationHelper,
+                controlsManager);
     }
 
     @Override

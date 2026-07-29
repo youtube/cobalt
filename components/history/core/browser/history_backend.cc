@@ -1029,7 +1029,8 @@ void HistoryBackend::AddPage(const HistoryAddPageArgs& request) {
     last_visit_id =
         AddPageVisit(request.url, request.time, last_visit_id,
                      external_referrer_url, t, request.hidden,
-                     request.visit_source, IsTypedIncrement(t), opener_visit,
+                     request.visit_source, request.response_code_category,
+                     IsTypedIncrement(t), opener_visit,
                      request.consider_for_ntp_most_visited,
                      request.is_ephemeral, request.local_navigation_id,
                      request.title, top_level_url, frame_url, request.app_id)
@@ -1160,6 +1161,7 @@ void HistoryBackend::AddPage(const HistoryAddPageArgs& request) {
           AddPageVisit(redirects[redirect_index], request.time, last_visit_id,
                        redirect_index == 0 ? external_referrer_url : GURL(), t,
                        request.hidden, request.visit_source,
+                       request.response_code_category,
                        should_increment_typed_count,
                        redirect_index == 0 ? opener_visit : 0,
                        request.consider_for_ntp_most_visited,
@@ -1209,14 +1211,24 @@ void HistoryBackend::AddPage(const HistoryAddPageArgs& request) {
   // real navigation, and are added to ensure autocompletion in the omnibox
   // works. As they are artificial they shouldn't be tracked for referral
   // chains.
+  // TODO: crbug.com/439886906 - Stop excluding 404s from `VisitTracker`. 404
+  // visits are temporarily excluded until `history::kVisitedLinksOn404` is
+  // enabled by default, to avoid making a feature change to `VisitTracker` at
+  // the same time as making 404s eligible for History (404 visits were not
+  // eligible for History prior to `history::kVisitedLinksOn404` and were
+  // skipped upstream of this code).
   // TODO(evanm): Due to http://b/1194536 we lose the referrers of a subframe
   // navigation anyway, so last_visit_id is always zero for them.  But adding
   // them here confuses main frame history, so we skip them for now.
-  if (!ui::PageTransitionCoreTypeIs(request_transition,
-                                    ui::PAGE_TRANSITION_AUTO_SUBFRAME) &&
-      !ui::PageTransitionCoreTypeIs(request_transition,
-                                    ui::PAGE_TRANSITION_MANUAL_SUBFRAME) &&
-      !is_keyword_generated && current_visit_was_successfully_added) {
+  bool is_subframe_navigation =
+      ui::PageTransitionCoreTypeIs(request_transition,
+                                   ui::PAGE_TRANSITION_AUTO_SUBFRAME) ||
+      ui::PageTransitionCoreTypeIs(request_transition,
+                                   ui::PAGE_TRANSITION_MANUAL_SUBFRAME);
+  if (!is_subframe_navigation && !is_keyword_generated &&
+      request.response_code_category !=
+          history::VisitResponseCodeCategory::k404 &&
+      current_visit_was_successfully_added) {
     tracker_.AddVisit(request.context_id, request.nav_entry_id, request.url,
                       last_visit_id);
   }
@@ -1366,6 +1378,7 @@ std::pair<URLID, VisitID> HistoryBackend::AddPageVisit(
     ui::PageTransition transition,
     bool hidden,
     VisitSource visit_source,
+    VisitResponseCodeCategory response_code_category,
     bool should_increment_typed_count,
     VisitID opener_visit,
     bool consider_for_ntp_most_visited,
@@ -1382,6 +1395,12 @@ std::pair<URLID, VisitID> HistoryBackend::AddPageVisit(
     std::optional<VisitID> originator_opener_visit,
     bool is_known_to_sync) {
   DCHECK(url.is_valid());
+  if (!base::FeatureList::IsEnabled(history::kVisitedLinksOn404)) {
+    // 404s should not be recorded in history unless the feature
+    // `history::kVisitedLinksOn404` is enabled. If 404s are reaching this point
+    // with the flag disabled, something is broken.
+    CHECK_NE(response_code_category, VisitResponseCodeCategory::k404);
+  }
   // See if this URL is already in the DB.
   URLRow url_info(url);
   URLID url_id = db_->GetRowForURL(url, &url_info);
@@ -1727,11 +1746,18 @@ VisitID HistoryBackend::AddSyncedVisit(
 
   DCHECK(url.is_valid());
 
+  const VisitResponseCodeCategory response_code_category =
+      (context_annotations.has_value() &&
+       context_annotations->on_visit.response_code == 404)
+          ? VisitResponseCodeCategory::k404
+          : VisitResponseCodeCategory::kNot404;
+
   auto [url_id, visit_id] = AddPageVisit(
       url, visit.visit_time, visit.referring_visit, visit.external_referrer_url,
       visit.transition, hidden, VisitSource::SOURCE_SYNCED,
-      IsTypedIncrement(visit.transition), visit.opener_visit,
-      visit.consider_for_ntp_most_visited, /*is_ephemeral=*/false,
+      response_code_category, IsTypedIncrement(visit.transition),
+      visit.opener_visit, visit.consider_for_ntp_most_visited,
+      /*is_ephemeral=*/false,
       /*local_navigation_id=*/std::nullopt, title,
       /*top_level_url=*/std::nullopt, /*frame_url=*/std::nullopt, visit.app_id,
       visit.visit_duration, visit.originator_cache_guid,

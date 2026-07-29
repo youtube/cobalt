@@ -650,6 +650,11 @@ class CONTENT_EXPORT ContentBrowserClient {
       content::Referrer* referrer,
       std::optional<url::Origin>* initiator_origin) {}
 
+  // Returns true if the given URL is in any of the NavigationEntries. This is
+  // used to determine if a URL is already in the navigation history of any of
+  // the tabs in a given browser context.
+  virtual bool IsURLAccessibleByHistoryNavigation(const GURL& url);
+
   // Temporary hack to determine whether to skip OOPIFs on the new tab page.
   // TODO(creis): Remove when https://crbug.com/566091 is fixed.
   virtual bool ShouldStayInParentProcessForNTP(const GURL& url,
@@ -3241,12 +3246,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       base::OnceCallback<void(std::optional<blink::mojom::RelatedApplication>)>
           callback);
 #endif  // !BUILDFLAG(IS_ANDROID)
-
-  // Whether the destination URL from a NavigationHandle can be saved and
-  // synced to another machine and reloaded there. Some navigations, such as
-  // http POST requests, cannot be synced across machines as the request body
-  // is no longer available when reloading the URL.
-  virtual bool IsSaveableNavigation(NavigationHandle* navigation_handle);
 
 #if BUILDFLAG(IS_WIN)
   // Invoked when an accessibility client requests the UI automation root object

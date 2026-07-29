@@ -396,11 +396,9 @@ void HighlightPainter::SelectionPaintState::
 // GetNode() for first-letter fragment returns null because it is anonymous.
 // Use AssociatedTextNode() of LayoutTextFragment to get the associated node.
 static Node* AssociatedNode(const LayoutObject* layout_object) {
-  if (RuntimeEnabledFeatures::PaintHighlightsForFirstLetterEnabled()) {
-    if (auto* layout_text_fragment =
-            DynamicTo<LayoutTextFragment>(layout_object)) {
-      return layout_text_fragment->AssociatedTextNode();
-    }
+  if (auto* layout_text_fragment =
+          DynamicTo<LayoutTextFragment>(layout_object)) {
+    return layout_text_fragment->AssociatedTextNode();
   }
   return layout_object->GetNode();
 }
@@ -490,8 +488,9 @@ HighlightPainter::HighlightPainter(
         originating_text_style_, paint_info_, selection_status, custom_,
         grammar_, spelling_, target_, search_);
     Vector<HighlightEdge> edges = HighlightOverlay::ComputeEdges(
-        node_, fragment_item_.IsGeneratedText(), fragment_dom_offsets_, layers_,
-        selection_status, custom_, grammar_, spelling_, target_, search_);
+        node_, layout_object_, fragment_item_.IsGeneratedText(),
+        fragment_dom_offsets_, layers_, selection_status, custom_, grammar_,
+        spelling_, target_, search_);
     parts_ =
         HighlightOverlay::ComputeParts(fragment_paint_info_, layers_, edges);
 
@@ -545,7 +544,7 @@ void HighlightPainter::PaintNonCssMarkers(Phase phase) {
   const StringView text = cursor_.CurrentText();
 
   const auto* text_node = DynamicTo<Text>(node_);
-  const MarkerRangeMappingContext mapping_context(*text_node,
+  const MarkerRangeMappingContext mapping_context(*text_node, *layout_object_,
                                                   *fragment_dom_offsets_);
   for (const DocumentMarker* marker : markers_) {
     std::optional<TextOffsetRange> marker_offsets =
@@ -709,7 +708,7 @@ void HighlightPainter::FastPaintSpellingGrammarDecorations(
     const Text& text_node,
     const StringView& text,
     const DocumentMarkerVector& markers) {
-  const MarkerRangeMappingContext mapping_context(text_node,
+  const MarkerRangeMappingContext mapping_context(text_node, *layout_object_,
                                                   *fragment_dom_offsets_);
   for (const DocumentMarker* marker : markers) {
     std::optional<TextOffsetRange> marker_offsets =
