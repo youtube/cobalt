@@ -1,0 +1,21 @@
+// -*- protobuffer -*
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+// validation: gcl --message=kokoro.BuildConfig --objtype=config group2.gcl appendascii
+
+import 'common.gcl' as common
+
+config build = common.build {
+  build_file = 'src/cobalt/devinfra/kokoro/bin/dind_builder_runner.sh'
+  env_vars = super.env_vars + [
+    {
+      key = 'CONFIG'
+      value = 'qa'
+    },
+    // TODO: b/454936903 - Loader targets don't build yet.
+    // {
+    //   key = 'BOOTLOADER_TARGET'
+    //   value = 'loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
+    // },
+  ]
+}

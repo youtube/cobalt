@@ -245,7 +245,11 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
   __ LoadProtectedPointerField(
       internal_function,
       MemOperand(
+<<<<<<< HEAD
           internal_function,
+=======
+          function_data,
+>>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
           WasmExportedFunctionData::kProtectedInternalOffset - kHeapObjectTag));
 
   Register signature = internal_function;
@@ -1644,7 +1648,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg.W(), MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
-         Immediate(sizeof(int32_t)));
+         Immediate(kSystemPointerSize));
   __ jmp(&return_done);
 
   __ bind(&return_kWasmI32_not_smi);

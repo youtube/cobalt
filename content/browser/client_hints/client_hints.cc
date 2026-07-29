@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/preloading/prerender/prerender_host.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -547,12 +548,14 @@ struct ClientHintsExtendedData {
       // fenced frame properties from the urn iframe because it does a bottom
       // up traversal.
       // See crbug.com/1470634.
+      base::span<const network::mojom::PermissionsPolicyFeature> permissions;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       const std::optional<FencedFrameProperties>& fenced_frame_properties =
           frame_tree_node->GetFencedFrameProperties();
-      base::span<const network::mojom::PermissionsPolicyFeature> permissions;
       if (fenced_frame_properties) {
         permissions = fenced_frame_properties->effective_enabled_permissions();
       }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       permissions_policy =
           network::PermissionsPolicy::CreateFixedForFencedFrame(
               resource_origin, /*header_policy=*/{}, permissions);

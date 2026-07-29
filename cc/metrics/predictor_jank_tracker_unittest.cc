@@ -146,6 +146,7 @@ TEST_F(PredictorJankTrackerTest, BasicMissedLowerJankCase) {
   EXPECT_EQ(histogram_tester_->GetTotalSum(missed_fast_histogram_name), 380);
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 TEST_F(PredictorJankTrackerTest, BasicNonMissedUpperJankCaseWithTracing) {
   base::test::TestTraceProcessor ttp;
   ttp.StartTrace("input.scrolling");
@@ -181,6 +182,7 @@ TEST_F(PredictorJankTrackerTest, BasicNonMissedUpperJankCaseWithTracing) {
                                       "prev_delta", "cur_delta", "next_delta"},
                                   std::vector<std::string>{"10", "50", "11"}));
 }
+#endif
 
 TEST_F(PredictorJankTrackerTest, NoReportingDirectionChange) {
   // [50, -100, 50] means the user changed their scrolling direction
@@ -244,6 +246,7 @@ TEST_F(PredictorJankTrackerTest, JankyFramePercentageEmittedWhenReset) {
   EXPECT_EQ(histogram_tester_->GetTotalSum(janky_percentage_name), 18);
 }
 
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // Verify that the stdlib implementation of this metric is consistent with
 // PredictorJankTracker.
 TEST_F(PredictorJankTrackerTest, VerifySqlThresholds) {
@@ -351,5 +354,6 @@ TEST_F(PredictorJankTrackerTest, VerifySqlPredictorJank) {
           std::vector<std::string>{"10", "50", "11", "3.34545", "3.34545"},
           std::vector<std::string>{"50", "11", "55", "3.34545", "3.34545"}));
 }
+#endif
 
 }  // namespace cc

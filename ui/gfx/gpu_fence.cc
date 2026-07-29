@@ -10,7 +10,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #include <sync/sync.h>
 #endif
 
@@ -43,7 +43,7 @@ void GpuFence::Wait() {
     return;
   }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   static const int kInfiniteSyncWaitTimeout = -1;
   DCHECK_GE(fence_handle_.Peek(), 0);
   if (sync_wait(fence_handle_.Peek(), kInfiniteSyncWaitTimeout) < 0) {
@@ -58,8 +58,12 @@ void GpuFence::Wait() {
 GpuFence::FenceStatus GpuFence::GetStatusChangeTime(int fd,
                                                     base::TimeTicks* time) {
   DCHECK_NE(fd, -1);
+<<<<<<< HEAD
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 #if BUILDFLAG(IS_CHROMEOS_DEVICE)
+=======
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+>>>>>>> parent of 02e01ed75ba (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   auto info =
       std::unique_ptr<sync_fence_info_data, void (*)(sync_fence_info_data*)>{
           sync_fence_info(fd), sync_fence_info_free};
@@ -114,7 +118,7 @@ GpuFence::FenceStatus GpuFence::GetStatusChangeTime(int fd,
 }
 
 base::TimeTicks GpuFence::GetMaxTimestamp() const {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   base::TimeTicks timestamp;
   FenceStatus status = GetStatusChangeTime(fence_handle_.Peek(), &timestamp);
   DCHECK_EQ(status, FenceStatus::kSignaled);

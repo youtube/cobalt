@@ -23,7 +23,7 @@ source_set("tests") {
     "wait_unittest.cc",
   ]
 
-  if (use_blink) {
+  if (use_blink && !is_starboard) {
     sources += [ "invitation_unittest.cc" ]
   }
 
