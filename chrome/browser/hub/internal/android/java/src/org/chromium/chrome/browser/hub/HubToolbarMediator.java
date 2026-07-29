@@ -173,7 +173,7 @@ public class HubToolbarMediator {
 
         mPropertyModel.set(SEARCH_LISTENER, this::onSearchClicked);
         mPropertyModel.set(BACK_BUTTON_LISTENER, exitHubRunnable);
-        mPropertyModel.set(BACK_BUTTON_ENABLED, mCurrentTabSupplier.hasValue());
+        mPropertyModel.set(BACK_BUTTON_ENABLED, mCurrentTabSupplier.get() != null);
         mCurrentTabSupplier.addObserver(mOnCurrentTabChange);
 
         // Fire an event for the original setup.
@@ -369,7 +369,10 @@ public class HubToolbarMediator {
     }
 
     private boolean maybeExcludeHubSearchForTabGroupsPane(@PaneId int focusedPaneId) {
-        if (!OmniboxFeatures.sAndroidHubSearchEnableOnTabGroupsPane.getValue()) return true;
+        if (!OmniboxFeatures.sAndroidHubSearchTabGroups.isEnabled()
+                || !OmniboxFeatures.sAndroidHubSearchEnableOnTabGroupsPane.getValue()) {
+            return true;
+        }
 
         return focusedPaneId != PaneId.TAB_GROUPS;
     }

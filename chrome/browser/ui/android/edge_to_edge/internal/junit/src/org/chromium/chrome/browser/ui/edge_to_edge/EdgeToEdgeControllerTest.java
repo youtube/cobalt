@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.edge_to_edge;
 
+import static android.view.Display.INVALID_DISPLAY;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -27,7 +29,6 @@ import static org.mockito.hamcrest.MockitoHamcrest.intThat;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.graphics.Rect;
 import android.os.Build.VERSION_CODES;
 import android.view.View;
 import android.view.Window;
@@ -244,7 +245,6 @@ public class EdgeToEdgeControllerTest {
     @Captor private ArgumentCaptor<WindowInsetsConsumer> mWindowInsetsListenerCaptor;
 
     @Captor private ArgumentCaptor<TabObserver> mTabObserverArgumentCaptor;
-    @Captor private ArgumentCaptor<Rect> mSafeAreaRectCaptor;
 
     @Mock private View mViewMock;
 
@@ -292,14 +292,6 @@ public class EdgeToEdgeControllerTest {
                 .addInsetsConsumer(
                         mWindowInsetsListenerCaptor.capture(),
                         eq(InsetConsumerSource.EDGE_TO_EDGE_CONTROLLER_IMPL));
-        doAnswer(
-                        invocationOnMock -> {
-                            int bottomInset = invocationOnMock.getArgument(0);
-                            mWebContents.setDisplayCutoutSafeArea(new Rect(0, 0, 0, bottomInset));
-                            return null;
-                        })
-                .when(mInsetObserver)
-                .updateBottomInsetForEdgeToEdge(anyInt());
 
         EdgeToEdgeUtils.setObservedTappableNavigationBarForTesting(false);
         mEdgeToEdgeControllerImpl =
@@ -705,7 +697,8 @@ public class EdgeToEdgeControllerTest {
     @Test
     public void switchFullscreenMode_NoStatusBarNoNavBar() {
         doReturn(true).when(mFullscreenManager).getPersistentFullscreenMode();
-        mEdgeToEdgeControllerImpl.onEnterFullscreen(mTab, new FullscreenOptions(false, false));
+        mEdgeToEdgeControllerImpl.onEnterFullscreen(
+                mTab, new FullscreenOptions(false, false, INVALID_DISPLAY));
 
         verify(mOsWrapper, atLeastOnce()).setPadding(any(), eq(0), eq(0), eq(0), eq(0));
 
@@ -1547,10 +1540,12 @@ public class EdgeToEdgeControllerTest {
     }
 
     void assertBottomInsetForSafeArea(int bottomInset) {
-        verify(mWebContents, atLeastOnce()).setDisplayCutoutSafeArea(mSafeAreaRectCaptor.capture());
-        Rect safeAreaRect = mSafeAreaRectCaptor.getValue();
+        ArgumentCaptor<Integer> captor = ArgumentCaptor.forClass(Integer.class);
+        verify(mInsetObserver, atLeastOnce()).updateBottomInsetForEdgeToEdge(captor.capture());
         assertEquals(
-                "Bottom insets for safe area does not match.", bottomInset, safeAreaRect.bottom);
+                "Bottom insets for safe area does not match.",
+                bottomInset,
+                (int) captor.getValue());
     }
 
     Window mockWindowWithRootInsets(WindowInsetsCompat rootInsets) {

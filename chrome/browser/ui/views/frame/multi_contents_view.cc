@@ -79,6 +79,15 @@ MultiContentsView::MultiContentsView(
   drop_target_controller_ =
       std::make_unique<MultiContentsViewDropTargetController>(
           *drop_target_view_, *delegate_);
+  is_drag_drop_pref_enabled_ =
+      browser_view_->GetProfile()->GetPrefs()->GetBoolean(
+          prefs::kSplitViewDragAndDropEnabled);
+
+  pref_change_registrar_.Init(browser_view_->GetProfile()->GetPrefs());
+  pref_change_registrar_.Add(
+      prefs::kSplitViewDragAndDropEnabled,
+      base::BindRepeating(&MultiContentsView::OnDragAndDropPrefStateChange,
+                          base::Unretained(this)));
 }
 
 MultiContentsView::~MultiContentsView() {
@@ -90,30 +99,39 @@ MultiContentsView::~MultiContentsView() {
   RemoveAllChildViews();
 }
 
-ContentsWebView* MultiContentsView::GetActiveContentsView() {
+ContentsWebView* MultiContentsView::GetActiveContentsView() const {
   return GetActiveContentsContainerView()->contents_view();
 }
 
-ContentsWebView* MultiContentsView::GetInactiveContentsView() {
+ContentsWebView* MultiContentsView::GetInactiveContentsView() const {
   return GetInactiveContentsContainerView()->contents_view();
 }
 
-ContentsContainerView* MultiContentsView::GetActiveContentsContainerView() {
+ContentsContainerView* MultiContentsView::GetActiveContentsContainerView()
+    const {
   return contents_container_views_[active_index_];
 }
 
-ContentsContainerView* MultiContentsView::GetInactiveContentsContainerView() {
+ContentsContainerView* MultiContentsView::GetInactiveContentsContainerView()
+    const {
   return contents_container_views_[GetInactiveIndex()];
 }
 
 ContentsContainerView* MultiContentsView::GetContentsContainerViewFor(
-    content::WebContents* web_contents) {
+    content::WebContents* web_contents) const {
   for (auto* container_view : contents_container_views_) {
     if (container_view->contents_view()->web_contents() == web_contents) {
       return container_view;
     }
   }
   return nullptr;
+}
+
+gfx::Size MultiContentsView::GetContentsSize() const {
+  const int drop_target_width =
+      IsDragAndDropEnabled() ? drop_target_view_->GetPreferredWidth(width())
+                             : 0;
+  return gfx::Size(width() - drop_target_width, height());
 }
 
 bool MultiContentsView::IsInSplitView() const {
@@ -201,9 +219,9 @@ void MultiContentsView::UpdateSplitRatio(double ratio) {
   InvalidateLayout();
 }
 
-void MultiContentsView::SetInactiveScrimVisibility(bool show_inactive_scrim) {
-  if (show_inactive_scrim_ != show_inactive_scrim) {
-    show_inactive_scrim_ = show_inactive_scrim;
+void MultiContentsView::SetHighlightActiveContentsView(bool is_highlighted) {
+  if (active_contents_view_highlighted_ != is_highlighted) {
+    active_contents_view_highlighted_ = is_highlighted;
     UpdateContentsBorderAndOverlay();
   }
 }
@@ -292,7 +310,7 @@ void MultiContentsView::OnThemeChanged() {
   UpdateContentsBorderAndOverlay();
 }
 
-int MultiContentsView::GetInactiveIndex() {
+int MultiContentsView::GetInactiveIndex() const {
   return active_index_ == 0 ? 1 : 0;
 }
 
@@ -435,8 +453,9 @@ void MultiContentsView::UpdateContentsBorderAndOverlay() {
   for (auto* contents_container_view : contents_container_views_) {
     const bool is_active =
         contents_container_view->contents_view() == GetActiveContentsView();
-    contents_container_view->UpdateBorderAndOverlay(IsInSplitView(), is_active,
-                                                    show_inactive_scrim_);
+    contents_container_view->UpdateBorderAndOverlay(
+        IsInSplitView(), is_active,
+        is_active && active_contents_view_highlighted_);
   }
 }
 
@@ -459,9 +478,14 @@ bool MultiContentsView::IsDragAndDropEnabled() const {
 #endif
 
   // Split view drag and drop is only supported on normal browser types.
-  return browser_view_->GetIsNormalType() &&
-         browser_view_->browser()->profile()->GetPrefs()->GetBoolean(
-             prefs::kSplitViewDragAndDropEnabled);
+  return browser_view_->GetIsNormalType() && is_drag_drop_pref_enabled_;
+}
+
+void MultiContentsView::OnDragAndDropPrefStateChange() {
+  is_drag_drop_pref_enabled_ =
+      browser_view_->GetProfile()->GetPrefs()->GetBoolean(
+          prefs::kSplitViewDragAndDropEnabled);
+  InvalidateLayout();
 }
 
 BEGIN_METADATA(MultiContentsView)

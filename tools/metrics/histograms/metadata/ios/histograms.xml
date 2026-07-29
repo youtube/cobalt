@@ -425,7 +425,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.CommittedNavigationHasContext" enum="Boolean"
-    expires_after="2025-09-07">
+    expires_after="2026-09-07">
   <owner>gambard@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -439,7 +439,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.CommittedURLMatchesCurrentItem" enum="Boolean"
-    expires_after="2025-09-07">
+    expires_after="2026-09-07">
   <owner>gambard@chromium.org</owner>
   <owner>bling-fundamentals@google.com</owner>
   <summary>
@@ -469,6 +469,19 @@ chromium-metrics-reviews@google.com.
   <summary>
     The index of the URL selected by the user in the Content Extension.
   </summary>
+</histogram>
+
+<histogram name="IOS.ContentRuleListProvider.Compile.Error.{RuleListKey}"
+    units="WKErrorCode" expires_after="2026-08-12">
+  <owner>rsailer@google.com</owner>
+  <owner>bling-team@google.com</owner>
+  <summary>
+    Records the WKErrorDomain error code when compiling a WKContentRuleList
+    fails. {RuleListKey} is the unique identifier for the list that failed to
+    compile. See WebKit's WKError.h for specific WKErrorCode values.
+  </summary>
+  <token key="RuleListKey"
+      variants="IOSContentRuleListProviderRuleListKeyVariant"/>
 </histogram>
 
 <histogram name="IOS.ContentRuleListProvider.Compile.Success.{RuleListKey}"
@@ -2452,16 +2465,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records when the user is shown the Guided Tour modal promo and either
     decides to go through the tour or not.
-  </summary>
-</histogram>
-
-<histogram name="IOS.HomeCustomization.MagicStack.ParcelTracking.Enabled"
-    enum="Boolean" expires_after="2025-12-14">
-  <owner>adamta@google.com</owner>
-  <owner>bling-pandamonium@google.com</owner>
-  <summary>
-    Records whether the Parcel Tracking module is currently enabled in the Magic
-    Stack from the Home Customization menu. Logged on each NTP impression.
   </summary>
 </histogram>
 
@@ -5220,19 +5223,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.ApplicationSupportSize" units="MB"
-    expires_after="2024-03-09">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
     The amount of storage used by the &quot;Application Support&quot; directory
     excluding the storage used by all currently open tabs. Logged at application
     startup, maximum once every 2 weeks, if the
-    `kLogApplicationStorageSizeMetrics` flag is enabled.
+    `kLogApplicationStorageSizeMetrics` flag is enabled. Warning: this histogram
+    was expired from 2024-03-09 to 2025-08-28; data may be missing.
   </summary>
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.AverageColorSnapshotSize" units="KB"
-    expires_after="2025-09-28">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5243,7 +5247,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.AverageGreySnapshotSize" units="KB"
-    expires_after="2025-09-14">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5254,7 +5258,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.ChromeCacheSize" units="MB"
-    expires_after="2025-09-28">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5265,18 +5269,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.ChromeTempSize" units="MB"
-    expires_after="2024-03-09">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
     The amount of storage used by the Chrome tmp directory. Logged at
     application startup, maximum once every 2 weeks, if the
-    `kLogApplicationStorageSizeMetrics` flag is enabled.
+    `kLogApplicationStorageSizeMetrics` flag is enabled. Warning: this histogram
+    was expired from 2024-03-09 to 2025-08-28; data may be missing.
   </summary>
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.DocumentsSize2" units="MB"
-    expires_after="2025-09-14">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5288,18 +5293,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.FaviconsSize" units="KB"
-    expires_after="2024-03-09">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
     The total amount of storage used by the favicons file. Logged at application
     startup, maximum once every 2 weeks, if the
-    `kLogApplicationStorageSizeMetrics` flag is enabled.
+    `kLogApplicationStorageSizeMetrics` flag is enabled. Warning: this histogram
+    was expired from 2024-03-09 to 2025-08-28; data may be missing.
   </summary>
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.LibrarySize" units="MB"
-    expires_after="2025-09-14">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5311,7 +5317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.OptimizationGuideModelDownloadedItems"
-    units="items" expires_after="2025-09-14">
+    units="items" expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5322,7 +5328,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.OptimizationGuideModelDownloadsSize"
-    units="MB" expires_after="2025-09-14">
+    units="MB" expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5333,7 +5339,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.TotalOTRSessionSize" units="MB"
-    expires_after="2025-09-14">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5345,7 +5351,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.TotalRegularSessionSize" units="MB"
-    expires_after="2025-09-07">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5358,7 +5364,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.WebKitCacheSize" units="MB"
-    expires_after="2025-09-07">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5369,7 +5375,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.WebKitTempSize" units="MB"
-    expires_after="2025-09-14">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>
@@ -5380,7 +5386,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.SandboxMetrics.WebsiteLocalData" units="MB"
-    expires_after="2025-09-14">
+    expires_after="2026-08-01">
   <owner>michaeldo@chromium.org</owner>
   <owner>rohitrao@chromium.org</owner>
   <summary>

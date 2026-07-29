@@ -1118,6 +1118,9 @@ const CSSValue* StyleCascade::Resolve(const CSSProperty& property,
   if (result->IsRevertLayerValue() || TreatAsRevertLayer(priority)) {
     return ResolveRevertLayer(property, tree_scope, priority, origin, resolver);
   }
+  if (result->IsRevertRuleValue()) {
+    return ResolveRevertRule(property, tree_scope, priority, origin, resolver);
+  }
   if (const auto* v = DynamicTo<CSSFlipRevertValue>(result)) {
     return ResolveFlipRevert(property, *v, tree_scope, priority, origin,
                              resolver);
@@ -1350,6 +1353,22 @@ const CSSValue* StyleCascade::ResolveRevertLayer(const CSSProperty& property,
                                                  CascadeResolver& resolver) {
   const CascadePriority* p = map_.FindRevertLayer(
       property.GetCSSPropertyName(), priority.ForLayerComparison());
+  if (!p || !p->HasOrigin()) {
+    origin = CascadeOrigin::kNone;
+    return cssvalue::CSSUnsetValue::Create();
+  }
+  origin = p->GetOrigin();
+  return Resolve(property, *ValueAt(match_result_, p->GetPosition()),
+                 GetTreeScope(*p), *p, origin, resolver);
+}
+
+const CSSValue* StyleCascade::ResolveRevertRule(const CSSProperty& property,
+                                                const TreeScope* tree_scope,
+                                                CascadePriority priority,
+                                                CascadeOrigin& origin,
+                                                CascadeResolver& resolver) {
+  const CascadePriority* p = map_.FindRevertRule(property.GetCSSPropertyName(),
+                                                 priority.GetRuleIndex());
   if (!p || !p->HasOrigin()) {
     origin = CascadeOrigin::kNone;
     return cssvalue::CSSUnsetValue::Create();
@@ -2024,7 +2043,7 @@ bool StyleCascade::ResolveEnvInto(CSSParserTokenStream& stream,
   DCHECK(stream.AtEnd() || (stream.Peek().GetType() == kCommaToken) ||
          (stream.Peek().GetType() == kNumberToken));
 
-  WTF::Vector<unsigned> indices;
+  Vector<unsigned> indices;
   if (!stream.AtEnd() && stream.Peek().GetType() != kCommaToken) {
     do {
       const CSSParserToken& token = stream.ConsumeIncludingWhitespaceRaw();
@@ -2088,17 +2107,19 @@ bool StyleCascade::ResolveAttrInto(CSSParserTokenStream& stream,
     // substitutions.
     if (!CSSVariableParser::ParseDeclarationValue(attribute_value, false,
                                                   context)) {
-      return false;
-    }
-    if (!ResolveTokensInto(attribute_value_stream, tree_scope, resolver,
-                           context, function_context,
-                           /* stop_type */ kEOFToken,
-                           substituted_attribute_token_sequence)) {
       // Trigger fallback:
       substituted_attribute_value = g_null_atom;
     } else {
-      substituted_attribute_value =
-          substituted_attribute_token_sequence.OriginalText();
+      if (!ResolveTokensInto(attribute_value_stream, tree_scope, resolver,
+                             context, function_context,
+                             /* stop_type */ kEOFToken,
+                             substituted_attribute_token_sequence)) {
+        // Trigger fallback:
+        substituted_attribute_value = g_null_atom;
+      } else {
+        substituted_attribute_value =
+            substituted_attribute_token_sequence.OriginalText();
+      }
     }
   }
   if (resolver.InCycle()) {
@@ -2555,7 +2576,7 @@ CSSVariableData* StyleCascade::GetVariableData(
 
 CSSVariableData* StyleCascade::GetEnvironmentVariable(
     const AtomicString& name,
-    WTF::Vector<unsigned> indices) const {
+    Vector<unsigned> indices) const {
   // If we are in a User Agent Shadow DOM then we should not record metrics.
   ContainerNode& scope_root = state_.GetElement().GetTreeScope().RootNode();
   auto* shadow_root = DynamicTo<ShadowRoot>(&scope_root);

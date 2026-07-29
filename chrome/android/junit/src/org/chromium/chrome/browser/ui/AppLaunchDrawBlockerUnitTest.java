@@ -39,7 +39,6 @@ import org.robolectric.annotation.LooperMode.Mode;
 import org.robolectric.shadows.ShadowSystemClock;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -58,6 +57,7 @@ import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.search_engines.TemplateUrlService;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Unit tests for AppLaunchDrawBlocker behavior. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -71,7 +71,6 @@ public class AppLaunchDrawBlockerUnitTest {
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private View mView;
     @Mock private ViewTreeObserver mViewTreeObserver;
-    @Mock private Intent mIntent;
     @Mock private Profile mProfile;
     @Mock private TemplateUrlServiceFactory.Natives mTemplateUrlServiceFactory;
     @Mock private TemplateUrlService mTemplateUrlService;
@@ -90,6 +89,7 @@ public class AppLaunchDrawBlockerUnitTest {
 
     private static final int INITIAL_TIME = 1000;
 
+    private Intent mIntent;
     private final Supplier<View> mViewSupplier = () -> mView;
     private final Supplier<Intent> mIntentSupplier = () -> mIntent;
     private InflationObserver mInflationObserver;

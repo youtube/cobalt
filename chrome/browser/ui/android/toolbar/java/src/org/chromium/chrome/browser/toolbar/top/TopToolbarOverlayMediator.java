@@ -12,7 +12,6 @@ import androidx.annotation.ColorInt;
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
@@ -34,6 +33,8 @@ import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.function.Supplier;
 
 /** The business logic for controlling the top toolbar's cc texture. */
 @NullMarked
@@ -271,8 +272,7 @@ public class TopToolbarOverlayMediator {
                         mControlsPosition = controlsPosition;
                         if (ChromeFeatureList.sBcivBottomControls.isEnabled()) {
                             updateOffsetTag();
-                            if (ChromeFeatureList.sAndroidAnimatedCompositedProgressBar
-                                    .isEnabled()) {
+                            if (ChromeFeatureList.sAndroidAnimatedProgressBarInViz.isEnabled()) {
                                 updateProgress();
                             }
                         }
@@ -373,7 +373,7 @@ public class TopToolbarOverlayMediator {
         // property skips the object equality check.
         DrawingInfo drawingInfo = mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO);
         mProgressInfoCallback.onResult(drawingInfo);
-        if (ChromeFeatureList.sAndroidAnimatedCompositedProgressBar.isEnabled()) {
+        if (ChromeFeatureList.sAndroidAnimatedProgressBarInViz.isEnabled()) {
             if (drawingInfo.visible) {
                 if (mTopProgressBarOffsetTag == null) {
                     mTopProgressBarOffsetTag = OffsetTag.createRandom();

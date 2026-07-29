@@ -9,7 +9,6 @@ import android.view.View;
 
 import androidx.activity.OnBackPressedCallback;
 
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -20,6 +19,8 @@ import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
+
+import java.util.function.Supplier;
 
 /** Contains the logic to set the state of the model and react to events like clicks. */
 @NullMarked
@@ -103,9 +104,8 @@ public class RestoreTabsDialogMediator extends RestoreTabsMediator {
      * @return True if the request was successful, false otherwise.
      */
     public boolean setVisible(boolean isVisible, View content) {
-        if (!mModalDialogManagerSupplier.hasValue()) return false;
-
         ModalDialogManager dialogManager = mModalDialogManagerSupplier.get();
+        if (dialogManager == null) return false;
 
         if (isVisible) {
             mHostDialogModel.set(ModalDialogProperties.CUSTOM_VIEW, content);

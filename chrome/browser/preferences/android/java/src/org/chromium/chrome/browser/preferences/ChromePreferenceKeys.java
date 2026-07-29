@@ -466,8 +466,12 @@ public final class ChromePreferenceKeys {
     // terminated.
     public static final KeyPrefix MULTI_INSTANCE_TAB_COUNT_FOR_RELAUNCH =
             new KeyPrefix("Chrome.MultiInstance.TabCountForRelaunch.*");
+    // The default window title, equivalent to the active tab title.
     public static final KeyPrefix MULTI_INSTANCE_TITLE =
             new KeyPrefix("Chrome.MultiInstance.Title.*");
+    // A custom window title set by the user.
+    public static final KeyPrefix MULTI_INSTANCE_CUSTOM_TITLE =
+            new KeyPrefix("Chrome.MultiInstance.CustomTitle.*");
     public static final KeyPrefix MULTI_INSTANCE_LAST_ACCESSED_TIME =
             new KeyPrefix("Chrome.MultiInstance.LastAccessedTime.*");
     public static final KeyPrefix MULTI_INSTANCE_URL = new KeyPrefix("Chrome.MultiInstance.Url.*");
@@ -733,6 +737,10 @@ public final class ChromePreferenceKeys {
      */
     public static final String READER_MODE_ACTION_FIRST_SHOWN_TIMESTAMP =
             "Chrome.ReaderMode.ActionFirstShownTimestamp";
+
+    /** The timestamp until which the reader mode contextual page action should be suppressed. */
+    public static final String READER_MODE_ACTION_SUPPRESSION_COUNT =
+            "Chrome.ReaderMode.ActionSuppressionCount";
 
     /** The timestamp until which the reader mode contextual page action should be suppressed. */
     public static final String READER_MODE_ACTION_SUPPRESSION_END_TIMESTAMP =
@@ -1118,6 +1126,7 @@ public final class ChromePreferenceKeys {
                 MULTI_INSTANCE_TAB_COUNT_FOR_RELAUNCH.pattern(),
                 MULTI_INSTANCE_TASK_MAP.pattern(),
                 MULTI_INSTANCE_TITLE.pattern(),
+                MULTI_INSTANCE_CUSTOM_TITLE.pattern(),
                 MULTI_INSTANCE_URL.pattern(),
                 NOTIFICATION_PERMISSION_RATIONALE_TIMESTAMP_KEY,
                 NOTIFICATION_PERMISSION_REQUEST_COUNT,
@@ -1159,6 +1168,7 @@ public final class ChromePreferenceKeys {
                 PWA_RESTORE_PROMO_STAGE,
                 READER_MODE_ACTION_FIRST_SHOWN_TIMESTAMP,
                 READER_MODE_ACTION_SHOW_COUNT,
+                READER_MODE_ACTION_SUPPRESSION_COUNT,
                 READER_MODE_ACTION_SUPPRESSION_END_TIMESTAMP,
                 SEARCH_ENGINE_CHOICE_OS_CHOICE_APPLIED_TIMESTAMP,
                 SEARCH_ENGINE_CHOICE_PENDING_OS_CHOICE_DIALOG_SHOWN_ATTEMPTS,

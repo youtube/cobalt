@@ -30,6 +30,11 @@ extern const base::FeatureParam<std::string> kConfigParam;
 extern const base::FeatureParam<bool> kSendLnsSurfaceParam;
 // Whether to show zps suggestions under the composebox.
 extern const base::FeatureParam<bool> kShowComposeboxZps;
+// Whether to show typed suggestions under the composebox.
+extern const base::FeatureParam<bool> kShowComposeboxTypedSuggest;
+// Whether to show the + entrypoint and contextual input menu in the realbox and
+// composebox.
+extern const base::FeatureParam<bool> kShowContextMenu;
 
 bool IsNtpComposeboxEnabled(Profile* profile);
 

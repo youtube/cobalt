@@ -51,7 +51,7 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
-#include "chrome/browser/apps/app_service/publisher_host.h"
+#include "chrome/browser/apps/app_service/publisher_host_impl.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_manager.h"
 #include "chrome/browser/ash/app_mode/kiosk_app_data.h"
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
@@ -116,6 +116,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/session_manager/core/fake_session_manager_delegate.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/upload_list/upload_list.h"
 #include "components/user_manager/scoped_user_manager.h"
@@ -128,6 +129,7 @@
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
 #include "mojo/core/embedder/embedder.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "storage/browser/file_system/external_mount_points.h"
 #include "storage/browser/file_system/mount_points.h"
 #include "storage/common/file_system/file_system_mount_option.h"
@@ -1118,8 +1120,10 @@ class DeviceStatusCollectorTest : public testing::Test {
       const DeviceLocalAccount& auto_launch_app_account,
       const std::string& required_platform_version) {
     if (!kiosk_chrome_app_manager_) {
-      kiosk_chrome_app_manager_ =
-          std::make_unique<ash::KioskChromeAppManager>();
+      kiosk_chrome_app_manager_ = std::make_unique<ash::KioskChromeAppManager>(
+          TestingBrowserProcess::GetGlobal()->local_state(),
+          TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+          &kiosk_cryptohome_remover_);
     }
     kiosk_chrome_app_manager_->AddAppForTest(
         auto_launch_app_account.kiosk_app_id,
@@ -1144,7 +1148,10 @@ class DeviceStatusCollectorTest : public testing::Test {
 
   void MockAutoLaunchWebKioskApp(
       const DeviceLocalAccount& auto_launch_app_account) {
-    kiosk_web_app_manager_ = std::make_unique<ash::KioskWebAppManager>();
+    kiosk_web_app_manager_ = std::make_unique<ash::KioskWebAppManager>(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
+        &kiosk_cryptohome_remover_);
     kiosk_web_app_manager_->AddAppForTesting(
         AccountId::FromUserEmail(auto_launch_app_account.user_id),
         GURL(auto_launch_app_account.web_kiosk_app_info.url()));
@@ -1162,8 +1169,9 @@ class DeviceStatusCollectorTest : public testing::Test {
 
   void MockAutoLaunchKioskIwa(
       const DeviceLocalAccount& auto_launch_app_account) {
-    kiosk_iwa_manager_ = std::make_unique<ash::KioskIwaManager>(CHECK_DEREF(
-        TestingBrowserProcess::GetGlobal()->GetTestingLocalState()));
+    kiosk_iwa_manager_ = std::make_unique<ash::KioskIwaManager>(
+        CHECK_DEREF(TestingBrowserProcess::GetGlobal()->GetTestingLocalState()),
+        &kiosk_cryptohome_remover_);
     kiosk_iwa_manager_->AddAppForTesting(auto_launch_app_account);
 
     std::vector<DeviceLocalAccount> accounts;
@@ -1208,6 +1216,8 @@ class DeviceStatusCollectorTest : public testing::Test {
       scoped_testing_cros_settings_.device_settings(), nullptr};
   // Only set after MockRunningKioskApp was called.
   std::unique_ptr<TestingProfile> testing_profile_;
+  ash::KioskCryptohomeRemover kiosk_cryptohome_remover_{
+      TestingBrowserProcess::GetGlobal()->local_state()};
   // Only set after MockAutoLaunchWebKioskApp was called.
   std::unique_ptr<ash::KioskWebAppManager> kiosk_web_app_manager_;
   // Only set after MockAutoLaunchKioskIwa was called.
@@ -1243,7 +1253,8 @@ class DeviceStatusCollectorTest : public testing::Test {
 
   // This property is required to instantiate the session manager, a singleton
   // which is used by the device status collector.
-  session_manager::SessionManager session_manager_;
+  session_manager::SessionManager session_manager_{
+      std::make_unique<session_manager::FakeSessionManagerDelegate>()};
   std::unique_ptr<::ash::mojo_service_manager::FakeMojoServiceManager>
       fake_service_manager_;
 };
@@ -3816,8 +3827,8 @@ TEST_F(DeviceStatusCollectorTest, GenerateAppInfo) {
   base::Time start_time;
   EXPECT_TRUE(base::Time::FromString("29-MAR-2020 1:30pm", &start_time));
   test_clock_.SetNow(start_time);
-  std::unique_ptr<aura::Window> window(
-      aura::test::CreateTestWindowWithId(/*id=*/0, nullptr));
+  std::unique_ptr<aura::Window> window =
+      aura::test::CreateTestWindow({.window_id = 0});
   apps::InstanceParams params("id", window.get());
   params.state = std::make_pair(apps::InstanceState::kStarted, start_time);
   app_proxy->InstanceRegistry().CreateOrUpdateInstance(std::move(params));

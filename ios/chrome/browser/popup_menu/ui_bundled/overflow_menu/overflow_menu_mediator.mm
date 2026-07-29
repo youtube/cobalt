@@ -764,7 +764,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   int nameID = isReaderModeActive ? IDS_IOS_TOOLS_MENU_HIDE_READER_MODE
                                   : IDS_IOS_TOOLS_MENU_READER_MODE;
   __weak __typeof(self) weakSelf = self;
-  return [self
+  OverflowMenuAction* action = [self
       createOverflowMenuActionWithNameID:nameID
                               actionType:overflow_menu::ActionType::ReaderMode
                               symbolName:GetReaderModeSymbolName()
@@ -776,6 +776,20 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
                                    [weakSelf setReaderModeVisibility:
                                                  !isReaderModeActive];
                                  }];
+
+  // Show "New" label icon if Reader mode is eligible for triggering and
+  // currently available for the page.
+  if (self.engagementTracker &&
+      self.engagementTracker->ShouldTriggerHelpUI(
+          feature_engagement::kIPHBadgedReaderModeFeature) &&
+      self.isReaderModeEnabled) {
+    action.displayNewLabelIcon = YES;
+
+    self.engagementTracker->Dismissed(
+        feature_engagement::kIPHBadgedReaderModeFeature);
+  }
+
+  return action;
 }
 
 - (OverflowMenuAction*)newFollowAction {
@@ -1502,6 +1516,10 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   if (IsReaderModeAvailable()) {
     self.readerModeAction.enabled = [self isReaderModeEnabled];
   }
+
+  if ([self isGeminiAvailable]) {
+    self.askBWGAction.enabled = !_webState->IsLoading();
+  }
 }
 
 // Updates the order of the items in each section or group.
@@ -1571,8 +1589,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 // Returns whether translate is enabled on the current page.
 - (BOOL)isTranslateEnabled {
   return [self canManuallyTranslate:NO] && ![self isLensOverlayVisible] &&
-         (![self isReaderModeActive] ||
-          base::FeatureList::IsEnabled(kEnableReaderModeTranslation));
+         ![self isReaderModeActive];
 }
 
 - (BOOL)isLensOverlayEnabled {

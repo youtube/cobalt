@@ -730,7 +730,7 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="AdPageLoadCustomSampling3" singular="True">
+<event name="AdPageLoadCustomSampling4" singular="True">
   <owner>yaoxia@chromium.org</owner>
   <owner>johnidel@chromium.org</owner>
   <owner>jkarlin@chromium.org</owner>
@@ -739,7 +739,8 @@ be describing additional metrics about the same event.
     enters the background on mobile. This is separate from the `AdPageLoad`
     event to allow it to be recorded on all pages (i.e. not only pages that have
     loaded non-zero ad byte), and to allow a potentially different sampling.
-    Both iframe and img ads are covered.
+    Both iframe and img ads are covered. Ads obscured by non-ad content are
+    excluded.
   </summary>
   <metric name="AverageViewportAdDensity">
     <summary>
@@ -3942,8 +3943,8 @@ be describing additional metrics about the same event.
   <summary>
     Records performance metrics for FedCM (Federated Credential Management) API.
     Recorded when a FedCmMetrics object is destroyed, typically when cleaning up
-    a FederatedAuthRequestImpl object which is created and associated with a
-    call to the FedCM API.
+    a RequestImpl object which is created and associated with a call to the
+    FedCM API.
   </summary>
   <metric name="AccountLabel.NumMatchingAccounts" enum="FedCmNumAccounts">
     <summary>
@@ -4389,8 +4390,8 @@ be describing additional metrics about the same event.
   <summary>
     Records performance metrics for FedCM (Federated Credential Management) API.
     Recorded when a FedCmMetrics object is destroyed, typically when cleaning up
-    a FederatedAuthRequestImpl object which is created and associated with a
-    call to the FedCM API.
+    a RequestImpl object which is created and associated with a call to the
+    FedCM API.
 
     This event uses the specific WEB_IDENTITY ukm_source_id which is generated
     from the identity provider's origin.
@@ -25624,6 +25625,13 @@ be describing additional metrics about the same event.
       Main thread only duration of a whole garbage collection of the managed C++
       heap. This is rounded down to the nearest exponential bucket (with a
       bucket ratio of 1.3).
+    </summary>
+  </metric>
+  <metric name="Duration.SinceLastMarkCompact">
+    <summary>
+      Time between the start of the full garbage collection and the end of
+      previous full cycle. This is rounded down to the nearest exponential
+      bucket (with a bucket ratio of 1.3).
     </summary>
   </metric>
   <metric name="Duration.Total">

@@ -16,10 +16,12 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_capture_border_view.h"
+#include "chrome/browser/ui/views/frame/contents_container_outline.h"
 #include "chrome/browser/ui/views/frame/contents_separator.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view_mini_toolbar.h"
 #include "chrome/browser/ui/views/frame/scrim_view.h"
+#include "chrome/browser/ui/views/frame/tab_modal_dialog_host.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
 #include "chrome/browser/ui/views/new_tab_footer/footer_web_view.h"
 #include "chrome/common/chrome_features.h"
@@ -50,9 +52,6 @@
 namespace {
 constexpr float kContentCornerRadius = 6;
 constexpr gfx::RoundedCornersF kContentRoundedCorners{kContentCornerRadius};
-
-constexpr int kContentOutlineCornerRadius = 8;
-constexpr int kContentOutlineThickness = 1;
 constexpr int kSplitViewContentPadding = 4;
 
 constexpr int kNewTabFooterSeparatorHeight = 1;
@@ -60,7 +59,8 @@ constexpr int kNewTabFooterHeight = 56;
 }  // namespace
 
 ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
-    : browser_view_(browser_view) {
+    : browser_view_(browser_view),
+      web_contents_modal_dialog_host_(browser_view_, this) {
   SetLayoutManager(std::make_unique<views::DelegatingLayoutManager>(this));
   SetProperty(views::kElementIdentifierKey, kContentsContainerViewElementId);
 
@@ -85,6 +85,7 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     new_tab_footer_view_separator_ =
         AddChildView(std::make_unique<ContentsSeparator>());
+    new_tab_footer_view_separator_->SetVisible(false);
     new_tab_footer_view_separator_->SetProperty(
         views::kElementIdentifierKey, kFooterWebViewSeparatorElementId);
 
@@ -99,14 +100,6 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
 
   contents_scrim_view_ = AddChildView(std::make_unique<ScrimView>());
   contents_scrim_view_->layer()->SetName("ContentsScrimView");
-
-  if (base::FeatureList::IsEnabled(features::kSideBySide)) {
-    inactive_split_scrim_view_ =
-        AddChildView(std::make_unique<ScrimView>(kColorSplitViewScrim));
-    inactive_split_scrim_view_->SetProperty(views::kElementIdentifierKey,
-                                            kInactiveSplitScrimViewElementId);
-    inactive_split_scrim_view_->SetRoundedCorners(kContentRoundedCorners);
-  }
 
   if (features::kGlicActorUiOverlay.Get()) {
     auto actor_overlay_view = std::make_unique<views::View>();
@@ -131,6 +124,9 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   if (base::FeatureList::IsEnabled(features::kSideBySide)) {
     mini_toolbar_ = AddChildView(std::make_unique<MultiContentsViewMiniToolbar>(
         browser_view, contents_view_));
+
+    container_outline_ =
+        AddChildView(std::make_unique<ContentsContainerOutline>(mini_toolbar_));
   }
 
   view_bounds_observer_.Observe(contents_view_);
@@ -154,38 +150,27 @@ std::vector<views::View*> ContentsContainerView::GetAccessiblePanes() {
 
 void ContentsContainerView::UpdateBorderAndOverlay(bool is_in_split,
                                                    bool is_active,
-                                                   bool show_scrim) {
+                                                   bool is_highlighted) {
   is_in_split_ = is_in_split;
+
   // The border, mini toolbar, and scrim should not be visible if not in a
   // split.
   if (!is_in_split) {
     SetBorder(nullptr);
     ClearBorderRoundedCorners();
     mini_toolbar_->SetVisible(false);
-    inactive_split_scrim_view_->SetVisible(false);
+    container_outline_->SetVisible(false);
     return;
   }
 
-  // Draw active/inactive outlines around the contents areas and updates mini
-  // toolbar visibility.
-  const SkColor color =
-      is_active ? GetColorProvider()->GetColor(
-                      kColorMulitContentsViewActiveContentOutline)
-                : GetColorProvider()->GetColor(
-                      kColorMulitContentsViewInactiveContentOutline);
-  SetBorder(views::CreatePaddedBorder(
-      views::CreateRoundedRectBorder(kContentOutlineThickness,
-                                     kContentOutlineCornerRadius, color),
-      gfx::Insets(kSplitViewContentPadding)));
-
+  SetBorder(views::CreateEmptyBorder(gfx::Insets(
+      kSplitViewContentPadding + ContentsContainerOutline::kThickness)));
   UpdateBorderRoundedCorners();
 
+  container_outline_->UpdateState(is_active, is_highlighted);
   // Mini toolbar should only be visible for the inactive contents
   // container view or both depending on configuration.
-  mini_toolbar_->UpdateState(is_active);
-  // Scrim should only be allowed to show the scrim for inactive contents
-  // container view.
-  inactive_split_scrim_view_->SetVisible(!is_active && show_scrim);
+  mini_toolbar_->UpdateState(is_active, is_highlighted);
 }
 
 void ContentsContainerView::UpdateBorderRoundedCorners() {
@@ -466,23 +451,24 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
       GetMirroredRect(devtools_bounds),
       views::SizeBounds(full_contents_bounds.size()));
 
-  if (new_tab_footer_view_ && new_tab_footer_view_->GetVisible()) {
-    // Shrink the rect for the contents view if the ntp footer is visible.
-    contents_view_bounds.set_height(non_devtools_contents_bounds.height() -
-                                    kNewTabFooterHeight -
-                                    kNewTabFooterSeparatorHeight);
+  if (new_tab_footer_view_) {
+    gfx::Rect footer_separator_rect, footer_rect;
+    if (new_tab_footer_view_->GetVisible()) {
+      // Shrink the rect for the contents view if the ntp footer is visible.
+      contents_view_bounds.set_height(non_devtools_contents_bounds.height() -
+                                      kNewTabFooterHeight -
+                                      kNewTabFooterSeparatorHeight);
+      footer_separator_rect =
+          gfx::Rect(contents_view_bounds.x(), contents_view_bounds.bottom(),
+                    contents_view_bounds.width(), kNewTabFooterSeparatorHeight);
+      footer_rect =
+          gfx::Rect(contents_view_bounds.x(), contents_view_bounds.bottom(),
+                    contents_view_bounds.width(), kNewTabFooterHeight);
+    }
 
-    gfx::Rect footer_separator_rect =
-        gfx::Rect(contents_view_bounds.x(), contents_view_bounds.bottom(),
-                  contents_view_bounds.width(), kNewTabFooterSeparatorHeight);
-    gfx::Rect footer_rect =
-        gfx::Rect(contents_view_bounds.x(), contents_view_bounds.bottom(),
-                  contents_view_bounds.width(), kNewTabFooterHeight);
-
-    layouts.child_layouts.emplace_back(
-        new_tab_footer_view_separator_.get(),
-        new_tab_footer_view_separator_->GetVisible(), footer_separator_rect);
-
+    layouts.child_layouts.emplace_back(new_tab_footer_view_separator_.get(),
+                                       new_tab_footer_view_->GetVisible(),
+                                       footer_separator_rect);
     layouts.child_layouts.emplace_back(new_tab_footer_view_.get(),
                                        new_tab_footer_view_->GetVisible(),
                                        footer_rect);
@@ -512,14 +498,6 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
                                      watermark_view_->GetVisible(),
                                      full_contents_bounds);
 
-  // The inactive split scrim view should cover the entire contents bounds
-  // including over devtools and other views.
-  if (inactive_split_scrim_view_) {
-    layouts.child_layouts.emplace_back(inactive_split_scrim_view_.get(),
-                                       inactive_split_scrim_view_->GetVisible(),
-                                       full_contents_bounds);
-  }
-
   // Actor Overlay view bounds are the same as the contents view.
   if (actor_overlay_view_) {
     layouts.child_layouts.emplace_back(
@@ -530,17 +508,21 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
   if (mini_toolbar_) {
     // |mini_toolbar_| should be offset in the bottom right corner, overlapping
     // the outline.
-    gfx::Size mini_toolbar_size = mini_toolbar_->GetPreferredSize(
-        views::SizeBounds(width - kContentOutlineCornerRadius, height));
-    const int offset_x =
-        width - mini_toolbar_size.width() + (kContentOutlineThickness / 2.0f);
-    const int offset_y =
-        height - mini_toolbar_size.height() + (kContentOutlineThickness / 2.0f);
+    gfx::Size mini_toolbar_size =
+        mini_toolbar_->GetPreferredSize(views::SizeBounds(width, height));
+    const int offset_x = width - mini_toolbar_size.width();
+    const int offset_y = height - mini_toolbar_size.height();
     const gfx::Rect mini_toolbar_rect =
         gfx::Rect(offset_x, offset_y, mini_toolbar_size.width(),
                   mini_toolbar_size.height());
     layouts.child_layouts.emplace_back(
         mini_toolbar_.get(), mini_toolbar_->GetVisible(), mini_toolbar_rect);
+  }
+
+  if (container_outline_) {
+    layouts.child_layouts.emplace_back(container_outline_.get(),
+                                       container_outline_->GetVisible(),
+                                       gfx::Rect(0, 0, width, height));
   }
 
   layouts.host_size = gfx::Size(width, height);

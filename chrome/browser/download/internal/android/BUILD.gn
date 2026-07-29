@@ -145,6 +145,7 @@ android_library("java") {
     "//third_party/androidx:androidx_vectordrawable_vectordrawable_java",
     "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
+    "//ui/edge_to_edge:java",
     "//url:gurl_java",
   ]
 
@@ -250,6 +251,7 @@ android_library("javatests") {
     "//third_party/junit",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
+    "//ui/edge_to_edge:java",
     "//url:gurl_java",
     "//url:gurl_junit_test_support",
   ]
@@ -277,6 +279,8 @@ android_library("unit_device_javatests") {
     "//chrome/browser/flags:java",
     "//chrome/browser/preferences:java",
     "//chrome/browser/profiles/android:java",
+    "//chrome/browser/ui/android/edge_to_edge:factory_java",
+    "//chrome/browser/ui/android/edge_to_edge:java",
     "//chrome/browser/ui/messages/android:java",
     "//chrome/test/android:chrome_java_integration_test_support",
     "//components/browser_ui/modaldialog/android:java",
@@ -309,6 +313,7 @@ android_library("unit_device_javatests") {
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
     "//ui/android:ui_java_test_support",
+    "//ui/edge_to_edge:java",
     "//url:gurl_java",
     "//url:gurl_junit_test_support",
   ]

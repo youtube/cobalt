@@ -25,6 +25,7 @@ source_set("signin") {
     "//chrome/common",
     "//components/signin/public/base",
     "//components/sync/base",
+    "//ui/base/interaction",
     "//url",
   ]
 
@@ -89,7 +90,7 @@ source_set("impl") {
     "//components/sync/service",
     "//content/public/browser",
     "//google_apis",
-    "//ui/base",
+    "//ui/base/interaction",
     "//url",
   ]
 
@@ -212,6 +213,7 @@ if (!is_android) {
         "signin_view_controller_browsertest.cc",
       ]
       deps += [
+        "//chrome/browser/ui/toasts/api:toasts",
         "//chrome/browser/ui/webui/signin/signout_confirmation",
         "//chrome/browser/web_applications:web_applications_test_support",
         "//chrome/test:sync_integration_test_support",

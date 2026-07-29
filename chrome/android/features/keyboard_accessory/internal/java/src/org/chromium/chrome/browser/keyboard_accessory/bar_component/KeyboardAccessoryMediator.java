@@ -11,22 +11,18 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_STICKY_LAST_ITEM;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_SUGGESTIONS;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.OBFUSCATED_CHILD_AT_CALLBACK;
-import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.OFFSET_AND_GRAVITY;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.ON_TOUCH_EVENT_CALLBACK;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SHEET_OPENER_ITEM;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SHOW_SWIPING_IPH;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SKIP_CLOSING_ANIMATION;
+import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.STYLE;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.VISIBLE;
 
-import android.util.Pair;
-
 import androidx.annotation.Nullable;
-import androidx.annotation.Px;
 import androidx.annotation.StringRes;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryAction;
 import org.chromium.chrome.browser.keyboard_accessory.KeyboardAccessoryVisualStateProvider;
@@ -56,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * This is the second part of the controller of the keyboard accessory component. It is responsible
@@ -318,7 +315,7 @@ class KeyboardAccessoryMediator
             }
             return;
         }
-        if (propertyKey == OFFSET_AND_GRAVITY
+        if (propertyKey == STYLE
                 || propertyKey == SHEET_OPENER_ITEM
                 || propertyKey == DISMISS_ITEM
                 || propertyKey == SKIP_CLOSING_ANIMATION
@@ -372,8 +369,8 @@ class KeyboardAccessoryMediator
         return mModel.get(BAR_ITEMS).size() > 1; // Ignore tab switcher item.
     }
 
-    void setOffsetAndGravity(@Px int offset, int gravity) {
-        mModel.set(OFFSET_AND_GRAVITY, new Pair<Integer, Integer>(offset, gravity));
+    void setStyle(KeyboardAccessoryStyle style) {
+        mModel.set(STYLE, style);
     }
 
     void setHasStickyLastItem(boolean hasStickyLastItem) {

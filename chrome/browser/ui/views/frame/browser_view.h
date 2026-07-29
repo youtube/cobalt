@@ -255,7 +255,7 @@ class BrowserView : public BrowserWindow,
   }
 
   // Accessor for the TabStrip.
-  TabStrip* tabstrip() { return tabstrip_; }
+  TabStrip* tabstrip() { return tab_strip_region_view_->tab_strip(); }
 
   // Accessor for the WebUI tab strip.
   WebUITabStripContainerView* webui_tab_strip() { return webui_tab_strip_; }
@@ -512,7 +512,7 @@ class BrowserView : public BrowserWindow,
   ui::mojom::WindowShowState GetWindowShowState() const override;
   void EnterFullscreen(const url::Origin& origin,
                        ExclusiveAccessBubbleType bubble_type,
-                       int64_t display_id) override;
+                       FullscreenTabParams fullscreen_tab_params) override;
   void ExitFullscreen() override;
   void UpdateExclusiveAccessBubble(
       const ExclusiveAccessBubbleParams& params,
@@ -533,8 +533,6 @@ class BrowserView : public BrowserWindow,
   void UpdateToolbar(content::WebContents* contents) override;
   bool UpdateToolbarSecurityState() override;
   void UpdateCustomTabBarVisibility(bool visible, bool animate) override;
-  void SetContentScrimVisibility(content::WebContents* contents,
-                                 bool visible) override;
   void SetDevToolsScrimVisibility(bool visible) override;
   void ResetToolbarTabState(content::WebContents* contents) override;
   void FocusToolbar() override;
@@ -583,7 +581,6 @@ class BrowserView : public BrowserWindow,
       content::WebContents* contents,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
-  views::Button* GetSharingHubIconButton() override;
   void ToggleMultitaskMenu() const override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
@@ -611,7 +608,6 @@ class BrowserView : public BrowserWindow,
       base::OnceCallback<void(bool)> callback) override;
   void UserChangedTheme(BrowserThemeChangeType theme_change_type) override;
   void ShowAppMenu() override;
-  bool PreHandleMouseEvent(const blink::WebMouseEvent& event) override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
       const input::NativeWebKeyboardEvent& event) override;
   void PreHandleDragUpdate(const content::DropData& drop_data,
@@ -622,6 +618,8 @@ class BrowserView : public BrowserWindow,
   std::unique_ptr<FindBar> CreateFindBar() override;
   web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHost()
       override;
+  web_modal::WebContentsModalDialogHost* GetWebContentsModalDialogHostFor(
+      content::WebContents* web_contents) override;
   void ShowAvatarBubbleFromAvatarButton(bool is_source_accelerator) override;
   void MaybeShowProfileSwitchIPH() override;
   void MaybeShowSupervisedUserProfileSignInIPH() override;
@@ -794,6 +792,16 @@ class BrowserView : public BrowserWindow,
   std::u16string GetAccessibleTabLabel(int index,
                                        bool is_for_tab = false) const;
 
+  // Gets the string id to format a tab's accessible label if it is part of a
+  // split.
+  int GetAccessibleTabLabelFormatStringForSplit(
+      split_tabs::SplitTabLayout layout,
+      int tab_index_in_split) const;
+
+  // Gets the string id to format a tab's accessible label based on its tab
+  // alert.
+  int GetAccessibleTabLabelFormatStringForTabAlert(tabs::TabAlert alert) const;
+
   // Testing interface:
   views::View* GetContentsContainerForTest() { return contents_container_; }
   views::View* GetSidePanelRoundedCornerForTesting() {
@@ -912,6 +920,9 @@ class BrowserView : public BrowserWindow,
   // tab navigations and need to give users a visual clue as to what tabs are
   // affected.
   void RevealTabStripIfNeeded();
+
+  void OnVerticalTabStripStateChanged(
+      tabs::VerticalTabStripStateController* controller);
 
   // Make sure the WebUI tab strip exists if it should.
   void MaybeInitializeWebUITabStrip();
@@ -1133,9 +1144,6 @@ class BrowserView : public BrowserWindow,
   // The view that contains the tabstrip, new tab button, and grab handle space.
   raw_ptr<TabStripRegionView> tab_strip_region_view_ = nullptr;
 
-  // The TabStrip.
-  raw_ptr<TabStrip> tabstrip_ = nullptr;
-
   // the webui based tabstrip, when applicable. see https://crbug.com/989131.
   raw_ptr<WebUITabStripContainerView> webui_tab_strip_ = nullptr;
 
@@ -1345,6 +1353,8 @@ class BrowserView : public BrowserWindow,
   PrefChangeRegistrar registrar_;
 
   ui::OmniboxPopupCloser omnibox_popup_closer_{this};
+
+  base::CallbackListSubscription vertical_tab_subscription_;
 
   mutable base::WeakPtrFactory<BrowserView> weak_ptr_factory_{this};
 };

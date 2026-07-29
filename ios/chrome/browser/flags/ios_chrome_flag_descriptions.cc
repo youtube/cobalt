@@ -47,6 +47,12 @@ extern const char kAutofillAcrossIframesDescription[] =
     "When enabled, Autofill will fill and save information on forms that "
     "spread across multiple iframes.";
 
+const char kAutofillBottomSheetNewBlurName[] =
+    "New Blur Method for Autofill Bottom Sheet";
+const char kAutofillBottomSheetNewBlurDescription[] =
+    "Enables a new method for blurring the autofill bottom sheet to prevent "
+    "the keyboard from showing up. This uses `mousedown` instead of `focus`.";
+
 const char kAutofillCreditCardScannerIosName[] =
     "Enable the credit card scanner for Autofill";
 const char kAutofillCreditCardScannerIosDescription[] =
@@ -464,9 +470,9 @@ const char kDefaultBrowserBannerPromoDescription[] =
     "When enabled, the default browser banner promo will show when conditions "
     "are met.";
 
-const char kDefaultBrowserMagicStackName[] =
+const char kDefaultBrowserMagicStackIosName[] =
     "Default Browser Magic Stack card.";
-const char kDefaultBrowserMagicStackDescription[] =
+const char kDefaultBrowserMagicStackIosDescription[] =
     "When enabled, display the Default Browser module in the Magic Stack.";
 
 const char kDefaultBrowserOffCyclePromoName[] =
@@ -774,6 +780,10 @@ const char kIOSOmniboxAimShortcutDescription[] =
     "When enabled, an aim shortcut entrypoint will be displayed when the "
     "omnibox is on edit mode.";
 
+const char kIOSOmniboxAimServerEligibilityName[] = "AIM Server Eligibility";
+const char kIOSOmniboxAimServerEligibilityDescription[] =
+    "Enable AIM server eligibility checks.";
+
 const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
     "Remove section break for address detection.";
 const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[] =
@@ -1022,6 +1032,11 @@ extern const char kLensPrewarmHardStickinessInQueryFormulationName[] =
     "Lens prewarm hard stickiness in query formulation";
 extern const char kLensPrewarmHardStickinessInQueryFormulationDescription[] =
     "When enabled, query formulation prewarms hard stickiness.";
+
+extern const char kLensSearchHeadersCheckEnabledName[] =
+    "Lens search headers check";
+extern const char kLensSearchHeadersCheckEnabledDescription[] =
+    "When enabled, ensures headers are attached to Lens search requests.";
 
 extern const char kLensSingleTapTextSelectionDisabledName[] =
     "Disable Lens single tap text selection";

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.autofill.options;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.THIRD_PARTY_AUTOFILL_ENABLED;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.THIRD_PARTY_TOGGLE_HINT;
 import static org.chromium.chrome.browser.autofill.options.AutofillOptionsProperties.THIRD_PARTY_TOGGLE_IS_READ_ONLY;
@@ -20,9 +21,9 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.IntentUtils;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.autofill.R;
@@ -38,6 +39,8 @@ import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.text.ChromeClickableSpan;
 import org.chromium.ui.text.SpanApplier;
+
+import java.util.function.Supplier;
 
 /**
  * The mediator of the autofill options component. Ensures that the model and the pref are in sync
@@ -60,14 +63,14 @@ class AutofillOptionsMediator implements ModalDialogProperties.Controller {
 
     private final Profile mProfile;
     private final Runnable mRestartRunnable;
-    private final Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
     private final Supplier<PropertyModel> mRestartConfirmationDialogModelSupplier;
     private PropertyModel mModel;
     private Context mContext;
 
     AutofillOptionsMediator(
             Profile profile,
-            Supplier<ModalDialogManager> modalDialogManagerSupplier,
+            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             Supplier<PropertyModel> restartConfirmationDialogModelSupplier,
             Runnable restartRunnable) {
         mProfile = profile;
@@ -86,11 +89,10 @@ class AutofillOptionsMediator implements ModalDialogProperties.Controller {
                 return;
             case ModalDialogProperties.ButtonType.NEGATIVE:
                 RecordHistogram.recordBooleanHistogram(HISTOGRAM_RESTART_ACCEPTED, false);
-                mModalDialogManagerSupplier
-                        .get()
-                        .dismissDialog(
-                                restartConfirmationModel,
-                                DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
+                ModalDialogManager dialogManager = mModalDialogManagerSupplier.get();
+                assumeNonNull(dialogManager);
+                dialogManager.dismissDialog(
+                        restartConfirmationModel, DialogDismissalCause.NEGATIVE_BUTTON_CLICKED);
                 return;
             case ModalDialogProperties.ButtonType.POSITIVE_EPHEMERAL:
                 assert false : "Unhandled button click!";

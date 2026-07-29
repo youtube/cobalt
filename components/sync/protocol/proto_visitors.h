@@ -2023,10 +2023,17 @@ VISIT_PROTO_FIELDS(
   VISIT(is_collapsed);
 }
 
+VISIT_PROTO_FIELDS(const sync_pb::Any& proto) {
+  VISIT_REP(type_url);
+  VISIT_REP(value);
+}
+
 VISIT_PROTO_FIELDS(const sync_pb::AutofillValuableSpecifics& proto) {
   VISIT(id);
   VISIT(loyalty_card);
   VISIT(vehicle_registration);
+  VISIT(flight_reservation);
+  VISIT(serialized_chrome_valuables_metadata);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::LoyaltyCard& proto) {
@@ -2046,6 +2053,17 @@ VISIT_PROTO_FIELDS(const sync_pb::VehicleRegistration& proto) {
   VISIT(license_plate_region);
   VISIT(license_plate_country);
   VISIT(owner_name);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::FlightReservation& proto) {
+  VISIT(flight_number);
+  VISIT(flight_ticket_number);
+  VISIT(flight_confirmation_code);
+  VISIT(passenger_name);
+  VISIT(departure_airport);
+  VISIT(arrival_airport);
+  VISIT(departure_date_unix_epoch_micros);
+  VISIT(arrival_date_unix_epoch_micros);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SharedTabDetails& proto) {

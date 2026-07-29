@@ -16,6 +16,7 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -65,6 +66,7 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/feedback/content/content_tracing_manager.h"
@@ -73,6 +75,7 @@
 #include "components/metrics/metrics_service.h"
 #include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -364,10 +367,25 @@ class JournalHandler {
             actor::mojom::JournalTrack::kFrontEnd, event, details);
   }
 
-  void LogEndAsyncEvent(uint64_t event_async_id, const std::string& details) {
+  void LogEndAsyncEvent(mojom::WebClientModel model,
+                        uint64_t event_async_id,
+                        const std::string& details) {
     auto it = active_journal_events_.find(event_async_id);
     if (it != active_journal_events_.end()) {
       it->second->EndEntry(details);
+
+      if (model == mojom::WebClientModel::kActor) {
+        // Log a histogram for each async event.
+        std::string histogram_name;
+        // The event name may have whitespaces and that won't work as a
+        // histogram name.
+        base::RemoveChars(it->second->event_name(), " ", &histogram_name);
+
+        base::UmaHistogramLongTimes100(
+            "Glic.Actor.JournalEvent." + histogram_name,
+            base::TimeTicks::Now() - it->second->begin_time());
+      }
+
       active_journal_events_.erase(it);
     }
   }
@@ -605,6 +623,13 @@ class GlicWebClientHandler
             actor_service->AddTaskStateChangedCallback(base::BindRepeating(
                 &GlicWebClientHandler::NotifyActorTaskStateChanged,
                 base::Unretained(this)));
+        request_to_show_credential_selection_dialog_subscription_ =
+            actor_service
+                ->AddRequestToShowCredentialSelectionDialogSubscriberCallback(
+                    base::BindRepeating(
+                        &GlicWebClientHandler::
+                            RequestToShowCredentialSelectionDialog,
+                        base::Unretained(this)));
       }
     }
 
@@ -693,7 +718,7 @@ class GlicWebClientHandler
   }
 
   void WebClientInitialized() override {
-    host().SetWebClient(page_handler_, this);
+    host().SetWebClient(this);
     // If chrome://glic is opened in a tab for testing, send a synthetic open
     // signal.
     if (page_handler_->webui_contents() != host().webui_contents()) {
@@ -1018,7 +1043,7 @@ class GlicWebClientHandler
   }
 
   void SetContextAccessIndicator(bool enabled) override {
-    glic_service_->host().SetContextAccessIndicator(page_handler_, enabled);
+    host().SetContextAccessIndicator(page_handler_, enabled);
   }
 
   void GetUserProfileInfo(GetUserProfileInfoCallback callback) override {
@@ -1063,7 +1088,8 @@ class GlicWebClientHandler
 
   void LogEndAsyncEvent(uint64_t event_async_id,
                         const std::string& details) override {
-    journal_handler_.LogEndAsyncEvent(event_async_id, details);
+    journal_handler_.LogEndAsyncEvent(glic_service_->metrics()->current_model(),
+                                      event_async_id, details);
   }
 
   void LogInstantEvent(int32_t task_id,
@@ -1114,6 +1140,10 @@ class GlicWebClientHandler
   void OnTurnCompleted(glic::mojom::WebClientModel model,
                        base::TimeDelta duration) override {
     glic_service_->metrics()->OnTurnCompleted(model, duration);
+  }
+
+  void OnModelChanged(glic::mojom::WebClientModel model) override {
+    glic_service_->metrics()->OnModelChanged(model);
   }
 
   void OnResponseRated(bool positive) override {
@@ -1339,13 +1369,14 @@ class GlicWebClientHandler
   void Uninstall() {
     page_metadata_manager_.reset();
     SetAudioDucking(false, base::DoNothing());
-    glic_service_->host().SetWebClient(page_handler_, nullptr);
+    host().UnsetWebClient(this);
     pref_change_registrar_.Reset();
     local_state_pref_change_registrar_.Reset();
     glic_service_->window_controller().RemoveStateObserver(this);
     focus_changed_subscription_ = {};
     pinned_tabs_changed_subscription_ = {};
     pinned_tab_data_changed_subscription_ = {};
+    request_to_show_credential_selection_dialog_subscription_ = {};
     browser_attach_observation_.reset();
     glic_service_->zero_state_suggestions_manager().Reset();
   }
@@ -1436,6 +1467,32 @@ class GlicWebClientHandler
     web_client_->NotifyActorTaskStateChanged(task.id().value(), state);
   }
 
+  void RequestToShowCredentialSelectionDialog(
+      actor::TaskId task_id,
+      const std::vector<actor_login::Credential>& credentials,
+      actor::ActorKeyedService::CredentialSelectedCallback
+          on_credential_selected) {
+    // Note: mojom::<Type>Ptr is not copyable, meaning it can't be passed to the
+    // argument of base::RepeatingCallbackList::Notify (who makes a copy of the
+    // argument). All of the mojom::<Type>Ptr will be constructed locally before
+    // being passed into the mojom interface.
+    std::vector<actor::webui::mojom::CredentialPtr> mojo_credentials;
+    for (const auto& credential : credentials) {
+      mojo_credentials.push_back(actor::webui::mojom::Credential::New(
+          credential.id.value(), base::UTF16ToUTF8(credential.username),
+          base::UTF16ToUTF8(credential.source_site_or_app)));
+    }
+    auto dialog_request =
+        actor::webui::mojom::SelectCredentialDialogRequest::New(
+            task_id.value(),
+            // TODO(crbug.com/440147814): `show_dialog` should be based on the
+            // user granted permission duration.
+            /*show_dialog=*/true, std::move(mojo_credentials));
+
+    web_client_->RequestToShowCredentialSelectionDialog(
+        std::move(dialog_request), std::move(on_credential_selected));
+  }
+
   PrefChangeRegistrar pref_change_registrar_;
   PrefChangeRegistrar local_state_pref_change_registrar_;
   raw_ptr<Profile> profile_;
@@ -1452,6 +1509,8 @@ class GlicWebClientHandler
   base::CallbackListSubscription focused_browser_changed_subscription_;
   base::CallbackListSubscription active_browser_changed_subscription_;
   base::CallbackListSubscription actor_task_state_changed_subscription_;
+  base::CallbackListSubscription
+      request_to_show_credential_selection_dialog_subscription_;
   mojo::Receiver<glic::mojom::WebClientHandler> receiver_;
   mojo::Remote<glic::mojom::WebClient> web_client_;
   std::unique_ptr<BrowserAttachObservation> browser_attach_observation_;
@@ -1471,7 +1530,7 @@ GlicPageHandler::GlicPageHandler(
       browser_context_(webui_contents->GetBrowserContext()),
       receiver_(this, std::move(receiver)),
       page_(std::move(page)) {
-  host().WebUIPageHandlerAdded(this);
+  host_ = GetGlicService()->host_manager().WebUIPageHandlerAdded(this);
   subscriptions_.push_back(
       GetGlicService()->enabling().RegisterAllowedChanged(base::BindRepeating(
           &GlicPageHandler::AllowedChanged, base::Unretained(this))));
@@ -1482,7 +1541,8 @@ GlicPageHandler::~GlicPageHandler() {
   WebUiStateChanged(glic::mojom::WebUiState::kUninitialized);
   // `GlicWebClientHandler` holds a pointer back to us, so delete it first.
   web_client_handler_.reset();
-  host().WebUIPageHandlerRemoved(this);
+  host_ = nullptr;
+  GetGlicService()->host_manager().WebUIPageHandlerRemoved(this);
 }
 
 GlicKeyedService* GlicPageHandler::GetGlicService() {
@@ -1588,7 +1648,4 @@ void GlicPageHandler::ZeroStateSuggestionChanged(
       std::move(returned_suggestions), std::move(options));
 }
 
-Host& GlicPageHandler::host() {
-  return GetGlicService()->host();
-}
 }  // namespace glic

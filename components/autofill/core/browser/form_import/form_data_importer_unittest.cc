@@ -88,6 +88,7 @@ using ::testing::_;
 using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::Eq;
+using ::testing::IsEmpty;
 using ::testing::NiceMock;
 using ::testing::Pair;
 using ::testing::Pointee;
@@ -108,11 +109,7 @@ constexpr char kDefaultZip[] = "94102";
 constexpr char kDefaultCity[] = "Los Angeles";
 constexpr char kDefaultState[] = "California";
 constexpr char kDefaultCountry[] = "US";
-// Unlike phone numbers from other countries, US phone numbers are stored
-// without a leading "+". Formatting a US or CA phone number drops the leading
-// "+". As these tests check equality, we drop the "+" in the input as it would
-// be gone in the output.
-constexpr char kDefaultPhone[] = "1 650-555-0000";
+constexpr char kDefaultPhone[] = "+1 650-555-0000";
 constexpr char kDefaultPhoneAreaCode[] = "650";
 constexpr char kDefaultPhonePrefix[] = "555";
 constexpr char kDefaultPhoneSuffix[] = "0000";
@@ -125,7 +122,7 @@ constexpr char kSecondAddressLine1[] = "23 Main St";
 constexpr char kSecondZip[] = "94106";
 constexpr char kSecondCity[] = "Los Angeles";
 constexpr char kSecondState[] = "California";
-constexpr char kSecondPhone[] = "1 651-666-1111";
+constexpr char kSecondPhone[] = "+1 651-666-1111";
 constexpr char kSecondPhoneAreaCode[] = "651";
 constexpr char kSecondPhonePrefix[] = "666";
 constexpr char kSecondPhoneSuffix[] = "1111";
@@ -138,7 +135,7 @@ constexpr char kThirdAddressLine1[] = "742 Evergreen Terrace";
 constexpr char kThirdZip[] = "65619";
 constexpr char kThirdCity[] = "Springfield";
 constexpr char kThirdState[] = "Oregon";
-constexpr char kThirdPhone[] = "1 850-777-2222";
+constexpr char kThirdPhone[] = "+1 850-777-2222";
 
 constexpr char kDefaultCreditCardName[] = "Biggie Smalls";
 constexpr char kDefaultCreditCardNumber[] = "4111 1111 1111 1111";
@@ -148,6 +145,9 @@ constexpr char kDefaultCreditCardExpYear[] = "2999";
 constexpr char kDefaultPhoneGermany[] = "+49 89 123456";
 constexpr char kDefaultPhoneMexico[] = "+52 55 1234 5678";
 constexpr char kDefaultPhoneArmenia[] = "+374 10 123456";
+
+constexpr char kDefaultGuid[] = "a21f010a-eac1-41fc-aee9-c06bbedfb292";
+constexpr char kSecondGuid[] = "a21f010a-eac1-41fc-aee9-c06bbedfb293";
 
 // For a given FieldType |type| returns a pair of field name and label
 // that should be parsed into this type by our field type parsers.
@@ -211,7 +211,8 @@ std::unique_ptr<FormStructure> ConstructFormStructureFromFormData(
     GeoIpCountryCode geo_country = GeoIpCountryCode("")) {
   auto cached_form_structure =
       std::make_unique<FormStructure>(test::WithoutValues(form));
-  cached_form_structure->DetermineHeuristicTypes(geo_country, nullptr);
+  cached_form_structure->DetermineHeuristicTypes(geo_country, LanguageCode(""),
+                                                 nullptr);
 
   auto form_structure = std::make_unique<FormStructure>(form);
   form_structure->RetrieveFromCache(
@@ -2455,6 +2456,29 @@ TEST_F(FormDataImporterTest,
   EXPECT_THAT(*results[0], ComparesEqual(credit_card));
 }
 
+// Tests that if Save and Fill suggestion was clicked on before the form
+// extraction, no payments post-checkout flows are offered. But we should still
+// log the "submitted card state" metrics correctly.
+TEST_F(FormDataImporterTest, ExtractCreditCard_SaveAndFillOccurred) {
+  FormData form = CreateFullCreditCardForm("Jim Johansen", "4111111111111111",
+                                           "02", "2999");
+  form_data_importer()
+      .fetched_payments_data_context()
+      .card_submitted_through_save_and_fill = true;
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructFormStructureFromFormData(form);
+  base::HistogramTester histogram_tester;
+
+  std::optional<CreditCard> extracted_credit_card =
+      ExtractCreditCard(*form_structure);
+
+  EXPECT_FALSE(extracted_credit_card);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.SubmittedCardState",
+      AutofillMetrics::HAS_CARD_NUMBER_AND_EXPIRATION_DATE, 1);
+  ASSERT_EQ(0U, payments_data_manager().GetCreditCards().size());
+}
+
 // Ensures that
 // `FormDataImporterTest::credit_card_import_type_` is set and
 // reset correctly.
@@ -3652,9 +3676,9 @@ TEST_F(FormDataImporterTest, ProcessExtractedCreditCard_VirtualCardEligible) {
   test_api(form_data_importer())
       .set_credit_card_import_type(
           FormDataImporter::CreditCardImportType::kServerCard);
-  FormDataImporter::FetchedPaymentsDataContext context;
-  context.fetched_card_instrument_id = 2222;
-  form_data_importer().set_fetched_payments_data_context(context);
+  form_data_importer()
+      .fetched_payments_data_context()
+      .fetched_card_instrument_id = 2222;
 
   EXPECT_CALL(virtual_card_enrollment_manager(),
               InitVirtualCardEnroll(_, VirtualCardEnrollmentSource::kDownstream,
@@ -3667,8 +3691,9 @@ TEST_F(FormDataImporterTest, ProcessExtractedCreditCard_VirtualCardEligible) {
                                       /*is_credit_card_upstream_enabled=*/true,
                                       ukm_source_id()));
 
-  context.fetched_card_instrument_id = 1111;
-  form_data_importer().set_fetched_payments_data_context(context);
+  form_data_importer()
+      .fetched_payments_data_context()
+      .fetched_card_instrument_id = 1111;
   EXPECT_CALL(virtual_card_enrollment_manager(),
               InitVirtualCardEnroll(_, VirtualCardEnrollmentSource::kDownstream,
                                     _, _, _, _));
@@ -3929,6 +3954,40 @@ TEST_F(FormDataImporterTest, AutofillPromptStatusMetric_AddressAndCreditCard) {
   histogram_tester.ExpectUniqueSample(
       "Autofill.PromptStatus",
       AutofillMetrics::AutofillPromptStatus::kAddressAndCreditCardShown, 1);
+}
+
+TEST_F(FormDataImporterTest, ExtractGUIDsOfProfilesWithoutManualEdits) {
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructDefaultProfileFormStructure();
+  int counter = 0;
+  for (auto& field : *form_structure) {
+    field->set_autofill_source_profile_guid(counter % 2 ? kDefaultGuid
+                                                        : kSecondGuid);
+    field->set_is_user_edited(false);
+    ++counter;
+  }
+  base::flat_set<std::string> guids =
+      test_api(form_data_importer())
+          .ExtractGUIDsOfProfilesWithoutManualEdits(*form_structure);
+  EXPECT_THAT(guids, UnorderedElementsAre(kDefaultGuid, kSecondGuid));
+}
+
+TEST_F(FormDataImporterTest,
+       ExtractGUIDsOfProfilesWithoutManualEdits_FieldWasEdited) {
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructDefaultProfileFormStructure();
+  int counter = 0;
+  for (auto& field : *form_structure) {
+    field->set_autofill_source_profile_guid(counter % 2 ? kDefaultGuid
+                                                        : kSecondGuid);
+    field->set_is_user_edited(false);
+    ++counter;
+  }
+  form_structure->field(0)->set_is_user_edited(true);
+  base::flat_set<std::string> guids =
+      test_api(form_data_importer())
+          .ExtractGUIDsOfProfilesWithoutManualEdits(*form_structure);
+  EXPECT_THAT(guids, IsEmpty());
 }
 
 class SkipSaveCardInFormDataImporterTest

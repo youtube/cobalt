@@ -21,6 +21,9 @@
 #include "components/prefs/pref_service.h"
 #include "components/search/search.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/signin/public/identity_manager/accounts_in_cookie_jar_info.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/load_flags.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -45,21 +48,32 @@ BASE_FEATURE(kAimServerEligibilityEnabledEn,
              "AimServerEligibilityEnabledEn",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// For recording UMA metrics. These aren't strictly omnibox-only, but omnibox is
-// a major consumer of `AimEligibilityService`, and the few metrics here don't
-// warrant creating a new metric namespace.
-// The status of the server request. See `ServerRequestStatus`.
-static constexpr char kUmaServerRequestStatusHistogramName[] =
-    "Omnibox.AimEligibility.ServerRequestStatus";
-// Which AIM features were eligible according to the server request.
-static constexpr char kUmaServerEligibilityHistogramPrefix[] =
-    "Omnibox.AimEligibility.ServerEligibility.";
+// UMA histograms:
+// Histogram for the eligibility request status.
+static constexpr char kEligibilityRequestStatusHistogramName[] =
+    "Omnibox.AimEligibility.EligibilityRequestStatus";
+// Histogram for the eligibility request response code.
+static constexpr char kEligibilityRequestResponseCodeHistogramName[] =
+    "Omnibox.AimEligibility.EligibilityResponseCode";
+// Histogram for the eligibility response source.
+static constexpr char kEligibilityResponseSourceHistogramName[] =
+    "Omnibox.AimEligibility.EligibilityResponseSource";
+// Histogram prefix for the eligibility response.
+static constexpr char kEligibilityResponseHistogramPrefix[] =
+    "Omnibox.AimEligibility.EligibilityResponse";
+// Histogram prefix for changes to the eligibility response.
+static constexpr char kEligibilityResponseChangeHistogramPrefix[] =
+    "Omnibox.AimEligibility.EligibilityResponseChange";
 
 static constexpr char kRequestPath[] = "/async/folae";
 static constexpr char kRequestQuery[] = "async=_fmt:pb";
 
 // The default value for the AIM policy pref; 0 = allowed, 1 = disallowed.
 constexpr int kAIModeAllowedDefault = 0;
+
+// The pref name used for storing the eligibility response proto.
+constexpr char kResponsePrefName[] =
+    "aim_eligibility_service.aim_eligibility_response";
 
 // Returns the request URL or an empty GURL if a valid URL cannot be created;
 // e.g., Google is not the default search provider.
@@ -124,6 +138,24 @@ bool ParseResponseString(const std::string& response_string,
   return true;
 }
 
+// Reads `kResponsePrefName` and parses it into `response_proto`. Does not
+// modify `response_proto` if parsing fails. Returns false on failure.
+bool GetResponseFromPrefs(const PrefService* prefs,
+                          omnibox::AimEligibilityResponse* response_proto) {
+  std::string encoded_response = prefs->GetString(kResponsePrefName);
+  if (encoded_response.empty()) {
+    return false;
+  }
+  std::string response_string;
+  if (!base::Base64Decode(encoded_response, &response_string)) {
+    return false;
+  }
+  if (!ParseResponseString(response_string, response_proto)) {
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 // static
@@ -140,10 +172,12 @@ bool AimEligibilityService::IsAimAllowedByPolicy(const PrefService* prefs) {
 AimEligibilityService::AimEligibilityService(
     PrefService& pref_service,
     TemplateURLService* template_url_service,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    signin::IdentityManager* identity_manager)
     : pref_service_(pref_service),
       template_url_service_(template_url_service),
-      url_loader_factory_(url_loader_factory) {
+      url_loader_factory_(url_loader_factory),
+      identity_manager_(identity_manager) {
   if (base::FeatureList::IsEnabled(kAimEnabled)) {
     Initialize();
   }
@@ -202,7 +236,21 @@ bool AimEligibilityService::IsAimEligible() const {
 
   // Conditionally check server response eligibility requirement.
   if (IsServerEligibilityEnabled()) {
+    base::UmaHistogramEnumeration(kEligibilityResponseSourceHistogramName,
+                                  most_recent_response_source_);
     return most_recent_response_.is_eligible();
+  }
+
+  return true;
+}
+
+bool AimEligibilityService::IsPdfUploadEligible() const {
+  if (!IsAimEligible()) {
+    return false;
+  }
+
+  if (IsServerEligibilityEnabled()) {
+    return most_recent_response_.is_pdf_upload_eligible();
   }
 
   return true;
@@ -229,18 +277,33 @@ void AimEligibilityService::Initialize() {
 
   initialized_ = true;
 
+  pref_change_registrar_.Init(&pref_service_.get());
+  pref_change_registrar_.Add(
+      kResponsePrefName,
+      base::BindRepeating(&AimEligibilityService::OnEligibilityResponseChanged,
+                          weak_factory_.GetWeakPtr()));
+
   LoadMostRecentResponse();
-  // TODO(crbug.com/436898763): Call `StartServerEligibilityRequest()` to
-  // refresh the server response when user sign-in state changes.
-  StartServerEligibilityRequest();
+  StartServerEligibilityRequest(RequestSource::kStartup);
+  if (identity_manager_) {
+    identity_manager_observation_.Observe(identity_manager_);
+  }
 }
 
-void AimEligibilityService::NotifyObservers() const {
+void AimEligibilityService::OnAccountsInCookieUpdated(
+    const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
+    const GoogleServiceAuthError& error) {
+  // Change to the accounts in the cookie jar might affect AIM eligibility.
+  // Refresh the server eligibility state.
+  StartServerEligibilityRequest(RequestSource::kCookieChange);
+}
+
+void AimEligibilityService::OnEligibilityResponseChanged() {
   CHECK(initialized_);
 
-  for (auto& observer : observers_) {
-    observer.OnAimEligibilityChanged();
-  }
+  LogEligibilityResponseChange();
+
+  observers_.Notify(&AimEligibilityServiceObserver::OnAimEligibilityChanged);
 }
 
 void AimEligibilityService::UpdateMostRecentResponse(
@@ -253,30 +316,23 @@ void AimEligibilityService::UpdateMostRecentResponse(
   pref_service_->SetString(kResponsePrefName, encoded_response);
 
   most_recent_response_ = response_proto;
+  most_recent_response_source_ = EligibilityResponseSource::kServer;
 }
 
 void AimEligibilityService::LoadMostRecentResponse() {
   CHECK(initialized_);
 
-  std::string encoded_response = pref_service_->GetString(kResponsePrefName);
-  if (encoded_response.empty()) {
+  omnibox::AimEligibilityResponse prefs_response;
+  if (!GetResponseFromPrefs(&pref_service_.get(), &prefs_response)) {
     return;
   }
 
-  std::string response_string;
-  if (!base::Base64Decode(encoded_response, &response_string)) {
-    return;
-  }
-
-  omnibox::AimEligibilityResponse response_proto;
-  if (!ParseResponseString(response_string, &response_proto)) {
-    return;
-  }
-
-  most_recent_response_ = response_proto;
+  most_recent_response_ = prefs_response;
+  most_recent_response_source_ = EligibilityResponseSource::kPrefs;
 }
 
-void AimEligibilityService::StartServerEligibilityRequest() {
+void AimEligibilityService::StartServerEligibilityRequest(
+    RequestSource request_source) {
   CHECK(initialized_);
 
   // URLLoaderFactory may be null in tests.
@@ -300,16 +356,19 @@ void AimEligibilityService::StartServerEligibilityRequest() {
   std::unique_ptr<network::SimpleURLLoader> loader =
       network::SimpleURLLoader::Create(std::move(request),
                                        kRequestTrafficAnnotation);
-  base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
-                                ServerRequestStatus::kSent);
+
+  LogEligibilityRequestStatus(EligibilityRequestStatus::kSent, request_source);
+
   loader->DownloadToStringOfUnboundedSizeUntilCrashAndDie(
       url_loader_factory_.get(),
       base::BindOnce(&AimEligibilityService::OnServerEligibilityResponse,
-                     weak_factory_.GetWeakPtr(), std::move(loader)));
+                     weak_factory_.GetWeakPtr(), std::move(loader),
+                     request_source));
 }
 
 void AimEligibilityService::OnServerEligibilityResponse(
     std::unique_ptr<network::SimpleURLLoader> loader,
+    RequestSource request_source,
     std::unique_ptr<std::string> response_string) {
   CHECK(initialized_);
 
@@ -318,30 +377,90 @@ void AimEligibilityService::OnServerEligibilityResponse(
           ? loader->ResponseInfo()->headers->response_code()
           : 0;
 
+  LogEligibilityRequestResponseCode(response_code, request_source);
+
   if (response_code != 200 || !response_string) {
-    base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
-                                  ServerRequestStatus::kErrorResponse);
+    LogEligibilityRequestStatus(EligibilityRequestStatus::kErrorResponse,
+                                request_source);
     return;
   }
   omnibox::AimEligibilityResponse response_proto;
   if (!ParseResponseString(*response_string, &response_proto)) {
-    base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
-                                  ServerRequestStatus::kFailedToParse);
+    LogEligibilityRequestStatus(EligibilityRequestStatus::kFailedToParse,
+                                request_source);
     return;
   }
-  base::UmaHistogramEnumeration(kUmaServerRequestStatusHistogramName,
-                                ServerRequestStatus::kSuccess);
+  LogEligibilityRequestStatus(EligibilityRequestStatus::kSuccess,
+                              request_source);
 
+  UpdateMostRecentResponse(response_proto);
+  LogEligibilityResponse(request_source);
+}
+
+std::string AimEligibilityService::GetHistogramNameSlicedByRequestSource(
+    const std::string& histogram_name,
+    RequestSource request_source) const {
+  auto request_source_suffix = [](RequestSource request_source) {
+    switch (request_source) {
+      case RequestSource::kStartup:
+        return ".Startup";
+      case RequestSource::kCookieChange:
+        return ".CookieChange";
+    }
+    return "";
+  };
+  return base::StrCat({histogram_name, request_source_suffix(request_source)});
+}
+
+void AimEligibilityService::LogEligibilityRequestStatus(
+    EligibilityRequestStatus status,
+    RequestSource request_source) const {
+  const auto& name = kEligibilityRequestStatusHistogramName;
+  const auto& sliced_name =
+      GetHistogramNameSlicedByRequestSource(name, request_source);
+  base::UmaHistogramEnumeration(name, status);
+  base::UmaHistogramEnumeration(sliced_name, status);
+}
+
+void AimEligibilityService::LogEligibilityRequestResponseCode(
+    int response_code,
+    RequestSource request_source) const {
+  const auto& name = kEligibilityRequestResponseCodeHistogramName;
+  const auto& sliced_name =
+      GetHistogramNameSlicedByRequestSource(name, request_source);
+  base::UmaHistogramSparse(name, response_code);
+  base::UmaHistogramSparse(sliced_name, response_code);
+}
+
+void AimEligibilityService::LogEligibilityResponse(
+    RequestSource request_source) const {
+  const auto& prefix = kEligibilityResponseHistogramPrefix;
+  const auto& sliced_prefix =
+      GetHistogramNameSlicedByRequestSource(prefix, request_source);
+  base::UmaHistogramBoolean(base::StrCat({prefix, ".is_eligible"}),
+                            most_recent_response_.is_eligible());
+  base::UmaHistogramBoolean(base::StrCat({sliced_prefix, ".is_eligible"}),
+                            most_recent_response_.is_eligible());
+  base::UmaHistogramBoolean(base::StrCat({prefix, ".is_pdf_upload_eligible"}),
+                            most_recent_response_.is_pdf_upload_eligible());
   base::UmaHistogramBoolean(
-      base::StrCat({kUmaServerEligibilityHistogramPrefix, "is_eligible"}),
-      response_proto.is_eligible());
+      base::StrCat({sliced_prefix, ".is_pdf_upload_eligible"}),
+      most_recent_response_.is_pdf_upload_eligible());
+}
 
-  // Update the most recent response if server eligibility checking is enabled.
-  // This ensures the prefs are not tainted until server eligibility checking is
-  // rolled out.
-  if (IsServerEligibilityEnabled()) {
-    UpdateMostRecentResponse(response_proto);
+void AimEligibilityService::LogEligibilityResponseChange() const {
+  // Prefs are updated before `most_recent_response_` is. Compare the prefs with
+  // the previous state of the server response and log changes to each field.
+  omnibox::AimEligibilityResponse prefs_response;
+  if (!GetResponseFromPrefs(&pref_service_.get(), &prefs_response)) {
+    return;
   }
 
-  NotifyObservers();
+  const auto& prefix = kEligibilityResponseChangeHistogramPrefix;
+  base::UmaHistogramBoolean(
+      base::StrCat({prefix, ".is_eligible"}),
+      most_recent_response_.is_eligible() != prefs_response.is_eligible());
+  base::UmaHistogramBoolean(base::StrCat({prefix, ".is_pdf_upload_eligible"}),
+                            most_recent_response_.is_pdf_upload_eligible() !=
+                                prefs_response.is_pdf_upload_eligible());
 }

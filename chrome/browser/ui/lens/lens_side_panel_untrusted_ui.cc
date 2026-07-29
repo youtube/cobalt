@@ -34,36 +34,6 @@
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 #include "ui/webui/webui_util.h"
 
-namespace {
-static constexpr webui::LocalizedString kStrings[] = {
-    // Composebox.
-    {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
-    {"composeboxCancelButtonTitleInput",
-     IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL_INPUT},
-    {"composeboxImageUploadButtonTitle",
-     IDS_NTP_COMPOSE_IMAGE_UPLOAD_BUTTON_A11Y_LABEL},
-    {"composeboxPdfUploadButtonTitle",
-     IDS_NTP_COMPOSE_PDF_UPLOAD_BUTTON_A11Y_LABEL},
-    {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
-    {"composeboxSubmitButtonTitle", IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL},
-    {"composeboxDeleteFileTitle", IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL},
-    {"composeboxFileUploadStartedText",
-     IDS_NTP_COMPOSE_FILE_UPLOAD_STARTED_A11Y_TEXT},
-    {"composeboxFileUploadCompleteText",
-     IDS_NTP_COMPOSE_FILE_UPLOAD_COMPLETE_A11Y_TEXT},
-    {"composeboxFileUploadInvalidEmptySize",
-     IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_EMPTY_SIZE},
-    {"composeboxFileUploadInvalidTooLarge",
-     IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_TOO_LARGE},
-    {"composeboxFileUploadImageProcessingError",
-     IDS_NTP_COMPOSE_FILE_UPLOAD_IMAGE_PROCESSING_ERROR},
-    {"composeboxFileUploadValidationFailed",
-     IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED},
-    {"composeboxFileUploadFailed", IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED},
-    {"composeboxFileUploadExpired", IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED},
-};
-}
-
 namespace lens {
 
 LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
@@ -146,13 +116,21 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddBoolean(
       "enableSummarizeSuggestionHint",
       lens::features::ShouldEnableSummarizeHintForContextualSuggest());
-  html_source->AddBoolean("enableFloatingGForHeader",
-                          lens::features::GetEnableFloatingGForHeader());
-  html_source->AddBoolean("enableClientSideAimHeader",
-                          lens::features::GetEnableClientSideHeader());
-  html_source->AddBoolean("enableAimSearchbox",
-                          lens::IsAimM3Enabled(Profile::FromWebUI(web_ui)) &&
-                              lens::features::GetAimSearchboxEnabled());
+  html_source->AddBoolean(
+      "enableWebviewResults",
+      lens::features::IsLensSidePanelWebviewResultsEnabled());
+
+  // Aim M3 flags
+  const bool aim_enabled = lens::IsAimM3Enabled(Profile::FromWebUI(web_ui));
+  html_source->AddBoolean(
+      "enableFloatingGForHeader",
+      aim_enabled && lens::features::GetEnableFloatingGForHeader());
+  html_source->AddBoolean(
+      "enableClientSideAimHeader",
+      aim_enabled && lens::features::GetEnableClientSideHeader());
+  html_source->AddBoolean(
+      "enableAimSearchbox",
+      aim_enabled && lens::features::GetAimSearchboxEnabled());
 
   // Allow FrameSrc from all Google subdomains as redirects can occur.
   GURL results_side_panel_url =
@@ -173,8 +151,6 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
       network::mojom::CSPDirectiveName::StyleSrc,
       "style-src 'self' chrome-untrusted://resources chrome-untrusted://theme");
 
-  // ComposeBox LoadTimeData
-  html_source->AddLocalizedStrings(kStrings);
   // Support no file types.
   html_source->AddString("composeboxImageFileTypes", "");
   html_source->AddString("composeboxAttachmentFileTypes", "");
@@ -182,6 +158,10 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddInteger("composeboxFileMaxCount", 0);
   // Disable ZPS.
   html_source->AddBoolean("composeboxShowZps", false);
+  // Disable typed suggest.
+  html_source->AddBoolean("composeboxShowTypedSuggest", false);
+  // Disable context menu.
+  html_source->AddBoolean("composeboxShowContextMenu", false);
   // Send event when escape is pressed.
   html_source->AddBoolean("composeboxCloseByEscape", true);
 
@@ -230,6 +210,7 @@ LensSidePanelUntrustedUI::LensSidePanelUntrustedUI(content::WebUI* web_ui)
   html_source->AddString(
       "searchboxComposePlaceholder",
       l10n_util::GetStringUTF8(IDS_LENS_COMPOSEBOX_HINT_TEXT));
+  html_source->AddBoolean("composeboxShowPdfUpload", false);
 }
 
 void LensSidePanelUntrustedUI::BindInterface(
@@ -287,9 +268,9 @@ void LensSidePanelUntrustedUI::CreatePageHandler(
         pending_searchbox_handler) {
   DCHECK(pending_page.is_valid());
   auto* controller = GetLensSearchController().lens_composebox_controller();
-  controller->BindComposebox(std::move(pending_page_handler),
-                             std::move(pending_page),
-                             std::move(pending_searchbox_handler));
+  controller->BindComposebox(
+      std::move(pending_page_handler), std::move(pending_page),
+      std::move(pending_searchbox_page), std::move(pending_searchbox_handler));
 }
 
 LensSearchController& LensSidePanelUntrustedUI::GetLensSearchController() {

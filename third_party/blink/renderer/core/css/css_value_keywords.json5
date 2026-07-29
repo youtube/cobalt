@@ -1376,6 +1376,7 @@
     // inherit
     "revert",
     "revert-layer",
+    "revert-rule",
     "unset",
 
     // background-image, etc.
@@ -2034,5 +2035,8 @@
 
     // continue
     "-webkit-legacy",
+
+    // block-ellipsis
+    "no-ellipsis",
   ],
 }

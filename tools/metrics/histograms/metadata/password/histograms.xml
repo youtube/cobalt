@@ -823,18 +823,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PasswordManager.AndroidAccountStorageNotice.CloseReason"
-    enum="AndroidAccountStorageNoticeCloseReason" expires_after="2025-12-28">
-  <owner>treib@chromium.org</owner>
-  <owner>src/components/password_manager/OWNERS</owner>
-  <summary>
-    Android only. The &quot;account storage notice&quot; is a one-off UI shown
-    to users who went from saving passwords locally to saving in their signed-in
-    account (and thus need to be notified). This histogram is recorded when such
-    notice is closed, and records the event which caused this.
-  </summary>
-</histogram>
-
 <histogram name="PasswordManager.ApplySyncChanges.AddLoginSyncError"
     enum="PasswordAddLoginSyncError" expires_after="2025-12-29">
   <owner>mamir@chromium.org</owner>
@@ -984,6 +972,7 @@ chromium-metrics-reviews@google.com.
   <owner>yigu@chromium.org</owner>
   <owner>kenrb@chromium.org</owner>
   <owner>markusheintz@google.com</owner>
+  <owner>derinel@google.com</owner>
   <summary>
     Records the type of logins assisted by the browser. e.g. via passwords,
     passkeys or federation. Recorded once per user logging into a website. Note:
@@ -1446,7 +1435,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PasswordManager.CredentialRequest.ThirdParty.Get"
+<histogram name="PasswordManager.CredentialRequest.ThirdParty.Get2"
     enum="CredentialManagerAndroidGetResult" expires_after="2026-02-09">
   <owner>izuzic@google.com</owner>
   <owner>anki-team@google.com</owner>
@@ -1457,7 +1446,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PasswordManager.CredentialRequest.ThirdParty.Store"
+<histogram name="PasswordManager.CredentialRequest.ThirdParty.Store2"
     enum="CredentialManagerStoreResult" expires_after="2026-02-09">
   <owner>izuzic@google.com</owner>
   <owner>anki-team@google.com</owner>

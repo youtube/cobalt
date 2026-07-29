@@ -139,6 +139,7 @@
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "base/values.h"
 #include "build/build_config.h"
@@ -480,23 +481,17 @@ FormFieldData ParseFieldFromJsonDict(const base::Value::Dict& field_dict,
       return result;
     }
     auto form_structure = std::make_unique<FormStructure>(form_data);
-    form_structure->set_current_page_language(page_language);
     if (ml_predictions_handler) {
-      base::RunLoop run_loop;
+      base::test::TestFuture<ModelPredictions> future;
       ml_predictions_handler->GetModelPredictionsForForm(
-          std::move(form_structure),
-          base::BindLambdaForTesting(
-              [&form_structure,
-               &run_loop](std::unique_ptr<FormStructure> result_form) {
-                form_structure = std::move(result_form);
-                run_loop.Quit();
-              }));
-      run_loop.Run();
+          form_structure->ToFormData(), client_country, future.GetCallback());
+      future.Get().ApplyTo(form_structure->fields());
     }
     // Similarly to AutofillManager::ParseFormsAsync, the heuristics are
     // executed after the ML model. If ML predictions are enabled, this does
     // not override the heuristic types but performs rationalization.
-    form_structure->DetermineHeuristicTypes(client_country, log_manager);
+    form_structure->DetermineHeuristicTypes(client_country, page_language,
+                                            log_manager);
 
     result_analyzer.AnalyzeClassification(*form_structure, form.GetDict());
   }

@@ -650,20 +650,21 @@ WebGLRenderingContextBase::CreateContextProviderInternal(
   ExecutionContext* execution_context = host->GetTopExecutionContext();
   DCHECK(execution_context);
 
-  Platform::ContextAttributes context_attributes =
-      ToPlatformContextAttributes(attributes, context_type);
-
+  bool prefer_low_power_gpu =
+      (PowerPreferenceToGpuPreference(attributes.power_preference) ==
+       gl::GpuPreference::kLowPower);
   // To run our tests with Chrome rendering on the low power GPU and WebGL on
   // the high performance GPU, we need to force the power preference attribute.
   if (base::FeatureList::IsEnabled(
           blink::features::kForceHighPerformanceGPUForWebGL)) {
-    context_attributes.prefer_low_power_gpu = false;
+    prefer_low_power_gpu = false;
   }
 
   const auto& url = execution_context->Url();
   std::unique_ptr<WebGraphicsContext3DProvider> context_provider =
-      CreateOffscreenGraphicsContext3DProvider(context_attributes,
-                                               graphics_info, url);
+      CreateWebGLGraphicsContextProvider(
+          prefer_low_power_gpu, attributes.fail_if_major_performance_caveat,
+          context_type, graphics_info, url);
   if (context_provider && !context_provider->BindToCurrentSequence()) {
     context_provider = nullptr;
     graphics_info->error_message = String("BindToCurrentSequence failed: " +
@@ -960,8 +961,8 @@ void WebGLRenderingContextBase::MakeXrCompatibleAsync() {
   if (XRSystem* xr = GetXrSystemFromHost(Host())) {
     // The promise will be completed on the callback.
     xr->MakeXrCompatibleAsync(
-        WTF::BindOnce(&WebGLRenderingContextBase::OnMakeXrCompatibleFinished,
-                      WrapWeakPersistent(this)));
+        blink::BindOnce(&WebGLRenderingContextBase::OnMakeXrCompatibleFinished,
+                        WrapWeakPersistent(this)));
   } else {
     xr_compatible_ = false;
     CompleteXrCompatiblePromiseIfPending(DOMExceptionCode::kAbortError);
@@ -1332,8 +1333,10 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
   // non-WebGLImageChromium for OffscreenCanvas.
   // See detailed discussion in crbug.com/649668.
   DrawingBuffer::ChromiumImageUsage chromium_image_usage =
-      Host()->IsOffscreenCanvas() ? DrawingBuffer::kDisallowChromiumImage
-                                  : DrawingBuffer::kAllowChromiumImage;
+      SharedGpuContext::MaySupportImageChromium() &&
+              !Host()->IsOffscreenCanvas()
+          ? DrawingBuffer::kAllowChromiumImage
+          : DrawingBuffer::kDisallowChromiumImage;
 
   bool using_swap_chain = context_provider->SharedImageInterface()
                               ->GetCapabilities()
@@ -1440,13 +1443,13 @@ void WebGLRenderingContextBase::InitializeNewContext() {
                        scissor_box_[3]);
 
   GetDrawingBuffer()->ContextProvider()->SetLostContextCallback(
-      WTF::BindRepeating(&WebGLRenderingContextBase::ForceLostContext,
-                         WrapWeakPersistent(this),
-                         WebGLRenderingContextBase::kRealLostContext,
-                         WebGLRenderingContextBase::kAuto));
+      blink::BindRepeating(&WebGLRenderingContextBase::ForceLostContext,
+                           WrapWeakPersistent(this),
+                           WebGLRenderingContextBase::kRealLostContext,
+                           WebGLRenderingContextBase::kAuto));
   GetDrawingBuffer()->ContextProvider()->SetErrorMessageCallback(
-      WTF::BindRepeating(&WebGLRenderingContextBase::OnErrorMessage,
-                         WrapWeakPersistent(this)));
+      blink::BindRepeating(&WebGLRenderingContextBase::OnErrorMessage,
+                           WrapWeakPersistent(this)));
 
   // This ensures that the context has a valid "lastFlushID" and won't be
   // mistakenly identified as the "least recently used" context.
@@ -1631,9 +1634,10 @@ bool WebGLRenderingContextBase::PushFrame() {
   if (isContextLost() || !GetDrawingBuffer())
     return false;
 
-  bool must_clear_now = ClearIfComposited(kClearCallerOther) != kSkipped;
-  if (!must_paint_to_canvas_ && !must_clear_now)
+  bool cleared_content = ClearIfComposited(kClearCallerOther) != kSkipped;
+  if (!must_paint_to_canvas_ && !cleared_content) {
     return false;
+  }
 
   if (GetDrawingBuffer()->IsUsingGpuCompositing()) {
     // Export the DrawingBuffer's SI directly if possible.
@@ -1914,9 +1918,9 @@ WebGLRenderingContextBase::ExportLowLatencyCanvasResource(
     return nullptr;
   }
 
-  bool must_clear_now = ClearIfComposited(kClearCallerOther) != kSkipped;
+  bool cleared_content = ClearIfComposited(kClearCallerOther) != kSkipped;
 
-  if (!must_paint_to_canvas_ && !must_clear_now && export_only_if_update) {
+  if (!must_paint_to_canvas_ && !cleared_content && export_only_if_update) {
     return nullptr;
   }
 
@@ -2072,10 +2076,10 @@ WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
   }
 
   if (isContextLost() || !GetDrawingBuffer()) {
-    return resource_provider_.get();
+    return nullptr;
   }
 
-  bool must_clear_now = ClearIfComposited(kClearCallerOther) != kSkipped;
+  bool cleared_content = ClearIfComposited(kClearCallerOther) != kSkipped;
 
   if (resource_provider_.get() &&
       resource_provider_.get()->Size() != GetDrawingBuffer()->Size()) {
@@ -2086,7 +2090,12 @@ WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
   // The host's ResourceProvider is purged to save memory when the tab
   // is backgrounded.
 
-  if (!must_paint_to_canvas_ && !must_clear_now && resource_provider_.get()) {
+  if (!must_paint_to_canvas_ && !cleared_content && resource_provider_.get() &&
+      (use_bitmap_provider ||
+       resource_provider_->GetType() !=
+           CanvasResourceProvider::ResourceProviderType::kBitmap)) {
+    // `resource_provider_` already has the current contents, so it can can be
+    // used by the caller as-is.
     return resource_provider_.get();
   }
 
@@ -2106,12 +2115,16 @@ WebGLRenderingContextBase::PaintRenderingResultsToResourceProvider(
   // during the resolve process, specifically during automatic
   // graphics switching. Guard against this.
   if (!GetDrawingBuffer()->ResolveAndBindForReadAndDraw())
-    return resource_provider;
+    return nullptr;
 
   bool copy_succeeded = CopyRenderingResultsFromDrawingBuffer(
       resource_provider_.get(), source_buffer);
+  if (!copy_succeeded) {
+    return nullptr;
+  }
+
   if (resource_provider_was_updated != nullptr) {
-    *resource_provider_was_updated = copy_succeeded;
+    *resource_provider_was_updated = true;
   }
   return resource_provider;
 }
@@ -2146,7 +2159,7 @@ bool WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBuffer(
     gpu::SyncToken sync_token;
     auto client_si =
         resource_provider->GetBackingClientSharedImageForExternalWrite(
-            &sync_token, gpu::SharedImageUsageSet());
+            gpu::SharedImageUsageSet(), sync_token);
     if (!client_si) {
       return false;
     }
@@ -6822,6 +6835,18 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
                                              GLenum type,
                                              Element* element,
                                              ExceptionState& exception_state) {
+  texHTMLElement2D(target, level, internalformat, format, type, element,
+                   exception_state);
+}
+
+void WebGLRenderingContextBase::texHTMLElement2D(
+    GLenum target,
+    GLint level,
+    GLint internalformat,
+    GLenum format,
+    GLenum type,
+    Element* element,
+    ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::CanvasDrawElementEnabled());
   if (isContextLost()) {
     return;
@@ -6831,7 +6856,7 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
     return;
   }
 
-  if (!IsDrawElementEligible(element, "texElement2D()", exception_state)) {
+  if (!IsDrawElementEligible(element, "texHTMLElement2D()", exception_state)) {
     return;
   }
 
@@ -6846,7 +6871,8 @@ void WebGLRenderingContextBase::texElement2D(GLenum target,
   LayoutBox* layout_box = element->GetLayoutBox();
   PaintLayer* layer = layout_box->EnclosingLayer();
 
-  auto box_rect = gfx::Rect(ToCeiledSize(layer->GetLayoutBox()->Size()));
+  auto box_rect =
+      gfx::Rect(ToCeiledSize(layer->GetLayoutBox()->StitchedSize()));
   OverriddenCullRectScope cull_rect_scope(*layer, CullRect(box_rect),
                                           /*disable_expansion*/ true);
   PaintRecordBuilder builder;
@@ -7488,9 +7514,9 @@ void WebGLRenderingContextBase::ForceLostContext(
     // a reference to the DrawingBuffer until this function is done executing.
     GetContextTaskRunner()->PostTask(
         FROM_HERE,
-        WTF::BindOnce(&WebGLRenderingContextBase::HoldReferenceToDrawingBuffer,
-                      WrapWeakPersistent(this),
-                      WTF::RetainedRef(drawing_buffer_)));
+        blink::BindOnce(
+            &WebGLRenderingContextBase::HoldReferenceToDrawingBuffer,
+            WrapWeakPersistent(this), blink::RetainedRef(drawing_buffer_)));
   }
 
   // Always destroy the context, regardless of context loss mode. This will
@@ -8882,13 +8908,18 @@ void WebGLRenderingContextBase::MaybeRestoreContext(TimerBase*) {
   // ensure its resources were freed.
   DCHECK(!GetDrawingBuffer());
 
-  Platform::ContextAttributes attributes =
-      ToPlatformContextAttributes(CreationAttributes(), context_type_);
+  const auto& creation_attributes = CreationAttributes();
+  bool prefer_low_power_gpu =
+      (PowerPreferenceToGpuPreference(creation_attributes.power_preference) ==
+       gl::GpuPreference::kLowPower);
   Platform::GraphicsInfo gl_info;
   const auto& url = Host()->GetExecutionContextUrl();
 
   std::unique_ptr<WebGraphicsContext3DProvider> context_provider =
-      CreateOffscreenGraphicsContext3DProvider(attributes, &gl_info, url);
+      CreateWebGLGraphicsContextProvider(
+          prefer_low_power_gpu,
+          creation_attributes.fail_if_major_performance_caveat, context_type_,
+          &gl_info, url);
   scoped_refptr<DrawingBuffer> buffer;
   if (context_provider && context_provider->BindToCurrentSequence()) {
     // Construct a new drawing buffer with the new GL context.
@@ -8943,7 +8974,7 @@ void WebGLRenderingContextBase::MaybeRestoreContext(TimerBase*) {
 
 String WebGLRenderingContextBase::EnsureNotNull(const String& text) const {
   if (text.IsNull())
-    return WTF::g_empty_string;
+    return g_empty_string;
   return text;
 }
 

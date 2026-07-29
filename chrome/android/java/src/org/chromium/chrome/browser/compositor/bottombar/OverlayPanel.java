@@ -21,7 +21,6 @@ import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ApplicationStatus.ActivityStateListener;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -54,6 +53,7 @@ import org.chromium.ui.resources.ResourceManager;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Controls the Overlay Panel. */
 @NullMarked
@@ -448,13 +448,15 @@ public class OverlayPanel extends OverlayPanelAnimation
     }
 
     /**
-     * Set the visibility of the base page text selection controls. This will also attempt to
-     * remove focus from the base page to clear any open controls.
+     * Set the visibility of the base page text selection controls. This will also attempt to remove
+     * focus from the base page to clear any open controls.
+     *
      * @param visible If the text controls are visible.
      */
     protected void setBasePageTextControlsVisibility(boolean visible) {
         if (mActivity == null) return;
-        if (!mCurrentTabSupplier.hasValue()) return;
+        var currentTab = mCurrentTabSupplier.get();
+        if (currentTab == null) return;
 
         WebContents baseWebContents = assumeNonNull(mCurrentTabSupplier.get()).getWebContents();
         if (baseWebContents == null) return;

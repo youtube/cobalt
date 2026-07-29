@@ -29,7 +29,6 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/invalidate_type.h"
-#include "content/public/browser/page.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/prefetch_priority.h"
 #include "content/public/browser/preloading.h"
@@ -61,6 +60,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "content/public/browser/android/child_process_importance.h"
+#include "content/public/browser/android/selection_popup_delegate.h"
 #include "third_party/jni_zero/jni_zero.h"
 #endif
 
@@ -121,6 +121,7 @@ class BrowserPluginGuestDelegate;
 class GuestPageHolder;
 class NavigationController;
 class NavigationEntry;
+class Page;
 class PrefetchHandle;
 class PreloadPipelineInfo;
 class PrerenderHandle;
@@ -136,6 +137,9 @@ class WebUI;
 struct DropData;
 struct MHTMLGenerationParams;
 class PreloadingAttempt;
+#if BUILDFLAG(IS_ANDROID)
+class SelectionPopupDelegate;
+#endif
 
 // WebContents is the core class in content/. A WebContents renders web content
 // (usually HTML) in a rectangular area.
@@ -1516,6 +1520,11 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
   virtual void SetPrimaryPageImportance(
       ChildProcessImportance main_frame_importance,
       ChildProcessImportance subframe_importance) = 0;
+
+  // Set a SelectionPopupDelegate (see documentation of SelectionPopupDelegate
+  // methods).
+  virtual void SetSelectionPopupDelegate(
+      std::unique_ptr<SelectionPopupDelegate> delegate) = 0;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   // Returns true if the WebContents has completed its first meaningful paint

@@ -88,6 +88,7 @@ public class ReaderModeActionProviderTest {
     @Mock private ReaderModeActionRateLimiter mReaderModeActionRateLimiter;
 
     @Before
+    @SuppressWarnings("DirectInvocationOnMock")
     public void setUp() {
         initializeReaderModeBackend();
         ReaderModeActionRateLimiter.setInstanceForTesting(mReaderModeActionRateLimiter);
@@ -119,7 +120,7 @@ public class ReaderModeActionProviderTest {
         TabDistillabilityProvider tabDistillabilityProvider =
                 TabDistillabilityProvider.get(mMockTab);
         tabDistillabilityProvider.onIsPageDistillableResult(
-                mMockTab.getUrl(),
+                TEST_URL,
                 isDistillable,
                 /* isLast= */ true,
                 /* isLongArticle= */ false,
@@ -162,14 +163,10 @@ public class ReaderModeActionProviderTest {
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
                         .expectBooleanRecord(
-                                ReaderModeActionProvider
-                                        .SIGNAL_ACCUMULATOR_WITHIN_TIMEOUT_HISTOGRAM,
-                                true)
+                                "DomDistiller.Android.AnyPageSignalWithinTimeout", true)
                         .expectBooleanRecord(
-                                ReaderModeActionProvider
-                                        .SIGNAL_ACCUMULATOR_DISTILLABLE_WITHIN_TIMEOUT_HISTOGRAM,
-                                true)
-                        .expectAnyRecord(ReaderModeActionProvider.READER_MODE_SIGNAL_TIME_HISTOGRAM)
+                                "DomDistiller.Android.DistillablePageSignalWithinTimeout", true)
+                        .expectAnyRecord("DomDistiller.Time.TimeToProvideResultToAccumulator")
                         .build();
         setReaderModeBackendSignal(true);
         provider.getAction(mMockTab, mMockSignalAccumulator);
@@ -190,14 +187,10 @@ public class ReaderModeActionProviderTest {
         HistogramWatcher watcher =
                 HistogramWatcher.newBuilder()
                         .expectBooleanRecord(
-                                ReaderModeActionProvider
-                                        .SIGNAL_ACCUMULATOR_WITHIN_TIMEOUT_HISTOGRAM,
-                                false)
+                                "DomDistiller.Android.AnyPageSignalWithinTimeout", false)
                         .expectBooleanRecord(
-                                ReaderModeActionProvider
-                                        .SIGNAL_ACCUMULATOR_DISTILLABLE_WITHIN_TIMEOUT_HISTOGRAM,
-                                false)
-                        .expectAnyRecord(ReaderModeActionProvider.READER_MODE_SIGNAL_TIME_HISTOGRAM)
+                                "DomDistiller.Android.DistillablePageSignalWithinTimeout", false)
+                        .expectAnyRecord("DomDistiller.Time.TimeToProvideResultToAccumulator")
                         .build();
         setReaderModeBackendSignal(true);
         provider.getAction(mMockTab, mMockSignalAccumulator);

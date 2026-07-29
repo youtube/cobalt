@@ -125,7 +125,7 @@ public class AppMenuTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> sActivity.setContentView(R.layout.test_app_menu_activity_layout));
         when(mWindowAndroid.getKeyboardDelegate()).thenReturn(mKeyboardDelegate);
-        when(mKeyboardDelegate.isKeyboardShowing(any(), any())).thenReturn(false);
+        when(mKeyboardDelegate.isKeyboardShowing(any())).thenReturn(false);
         when(mMockAppMenuHandler.getAppMenu()).thenReturn(mMockAppMenu);
         when(mMockAppMenuHandler.showAppMenu(any(), anyBoolean()))
                 .thenAnswer(
@@ -714,6 +714,7 @@ public class AppMenuTest {
 
     @Test
     @MediumTest
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testAppMenuButtonHelper_DownUp() throws Exception {
         // Use a mock app menu handler so we don't actually show the menu (which blocks the button)
         AppMenuButtonHelperImpl buttonHelper = new AppMenuButtonHelperImpl(mMockAppMenuHandler);
@@ -744,6 +745,7 @@ public class AppMenuTest {
 
     @Test
     @MediumTest
+    @SuppressWarnings("DirectInvocationOnMock")
     public void testAppMenuButtonHelper_DownCancel() throws Exception {
         // Use a mock app menu handler so we don't actually show the menu (which blocks the button)
         AppMenuButtonHelperImpl buttonHelper = new AppMenuButtonHelperImpl(mMockAppMenuHandler);
@@ -1161,7 +1163,7 @@ public class AppMenuTest {
     @Test
     @MediumTest
     public void testAppMenu_keyboardVisible() throws Exception {
-        doReturn(true).when(mKeyboardDelegate).isKeyboardShowing(any(), any());
+        doReturn(true).when(mKeyboardDelegate).isKeyboardShowing(any());
         ThreadUtils.runOnUiThreadBlocking(() -> mAppMenuCoordinator.showAppMenuForKeyboardEvent());
 
         verify(mKeyboardDelegate, timeout(500))

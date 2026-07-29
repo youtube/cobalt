@@ -12,7 +12,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide.h"
+#include "components/autofill/core/browser/integrators/optimization_guide/mock_autofill_optimization_guide_decider.h"
 #include "components/autofill/core/browser/metrics/payments/amount_extraction_metrics.h"
 #include "components/autofill/core/browser/payments/amount_extraction_heuristic_regexes.h"
 #include "components/autofill/core/browser/payments/constants.h"
@@ -66,7 +66,7 @@ class AmountExtractionManagerTest : public Test {
  public:
   AmountExtractionManagerTest() {
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillEnableAmountExtractionDesktop,
+        /*enabled_features=*/{features::kAutofillEnableAmountExtraction,
                               features::kAutofillEnableBuyNowPayLaterSyncing,
                               features::kAutofillEnableBuyNowPayLater},
         /*disabled_features=*/{
@@ -91,9 +91,10 @@ class AmountExtractionManagerTest : public Test {
 
     test_api(payments_data()).AddBnplIssuer(test::GetTestUnlinkedBnplIssuer());
 
-    ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-                autofill_manager_->client().GetAutofillOptimizationGuide()),
-            IsUrlEligibleForBnplIssuer)
+    ON_CALL(
+        *static_cast<MockAutofillOptimizationGuideDecider*>(
+            autofill_manager_->client().GetAutofillOptimizationGuideDecider()),
+        IsUrlEligibleForBnplIssuer)
         .WillByDefault(Return(true));
   }
 
@@ -159,7 +160,7 @@ TEST_F(AmountExtractionManagerTest, ShouldTriggerWhenEligible) {
 
 TEST_F(AmountExtractionManagerTest, ShouldNotTriggerWhenCvcFieldIsClicked) {
   base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillEnableAmountExtractionDesktop};
+      features::kAutofillEnableAmountExtraction};
 
   SuggestionsContext context;
   context.is_autofill_available = true;
@@ -183,7 +184,7 @@ TEST_F(AmountExtractionManagerTest, ShouldNotTriggerWhenFeatureIsNotEnabled) {
   scoped_feature_list_.InitWithFeatures(
       /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterSyncing,
                             features::kAutofillEnableBuyNowPayLater},
-      /*disabled_features=*/{features::kAutofillEnableAmountExtractionDesktop});
+      /*disabled_features=*/{features::kAutofillEnableAmountExtraction});
 
   SuggestionsContext context;
   context.is_autofill_available = true;
@@ -263,9 +264,10 @@ TEST_F(AmountExtractionManagerTest, ShouldNotTriggerIfUrlNotEligible) {
   context.is_autofill_available = true;
   context.filling_product = FillingProduct::kCreditCard;
 
-  ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-              autofill_manager_->client().GetAutofillOptimizationGuide()),
-          IsUrlEligibleForBnplIssuer)
+  ON_CALL(
+      *static_cast<MockAutofillOptimizationGuideDecider*>(
+          autofill_manager_->client().GetAutofillOptimizationGuideDecider()),
+      IsUrlEligibleForBnplIssuer)
       .WillByDefault(Return(false));
 
   EXPECT_THAT(amount_extraction_manager_->GetEligibleFeatures(

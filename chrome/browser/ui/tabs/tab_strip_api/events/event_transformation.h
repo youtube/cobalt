@@ -23,7 +23,7 @@ mojom::OnTabsCreatedEventPtr ToEvent(
     const tabs_api::TabStripModelAdapter* adapter);
 mojom::OnTabsClosedEventPtr ToEvent(const TabStripModelChange::Remove& remove);
 mojom::OnTabMovedEventPtr ToEvent(const TabStripModelChange::Move& move);
-mojom::OnTabDataChangedEventPtr ToEvent(
+mojom::OnDataChangedEventPtr ToEvent(
     const tabs_api::TabStripModelAdapter* adapter,
     size_t index,
     TabChangeType change_type);
@@ -50,8 +50,9 @@ mojom::OnTabMovedEventPtr FromTabGroupedStateChangedToTabMovedEvent(
     std::optional<tab_groups::TabGroupId> new_group,
     tabs::TabInterface* tab,
     int index);
+mojom::OnDataChangedEventPtr ToEvent(const TabGroupChange& tab_group_change);
 
-mojom::OnTabGroupVisualsChangedEventPtr ToTabGroupVisualsChangedEvent(
+mojom::OnTabMovedEventPtr ToTabGroupMovedEvent(
     const TabGroupChange& tab_group_change);
 
 }  // namespace tabs_api::events

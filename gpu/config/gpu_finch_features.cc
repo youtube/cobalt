@@ -4,6 +4,8 @@
 
 #include "gpu/config/gpu_finch_features.h"
 
+#include <string_view>
+
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
@@ -35,7 +37,7 @@ namespace features {
 namespace {
 
 #if BUILDFLAG(IS_ANDROID)
-bool IsDeviceBlocked(const std::string& field, const std::string& block_list) {
+bool IsDeviceBlocked(std::string_view field, std::string_view block_list) {
   auto disable_patterns = base::SplitString(
       block_list, "|", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (const auto& disable_pattern : disable_patterns) {
@@ -61,24 +63,10 @@ BASE_FEATURE(AggressiveShaderCacheLimits, base::FEATURE_DISABLED_BY_DEFAULT);
 // SurfaceControl.
 BASE_FEATURE(AndroidSurfaceControl, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// https://crbug.com/1176185 List of devices on which SurfaceControl should be
-// disabled.
-const base::FeatureParam<std::string> kAndroidSurfaceControlDeviceBlocklist{
-    &kAndroidSurfaceControl, "AndroidSurfaceControlDeviceBlocklist",
-    "capri|caprip"};
-
-// List of models on which SurfaceControl should be disabled.
-const base::FeatureParam<std::string> kAndroidSurfaceControlModelBlocklist{
-    &kAndroidSurfaceControl, "AndroidSurfaceControlModelBlocklist",
-    "SM-F9*|SM-W202?|SCV44|SCG05|SCG11|SC-55B"};
-
 // Hardware Overlays for WebView.
 BASE_FEATURE(WebViewSurfaceControl, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(WebViewSurfaceControlForTV, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Use thread-safe media path on WebView.
-BASE_FEATURE(WebViewThreadSafeMedia, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // This is used as default state because it's different for webview and chrome.
 // WebView hardcodes this as enabled in AwMainDelegate.
@@ -513,13 +501,6 @@ bool IsUsingThreadSafeMediaForWebView() {
     return false;
   }
 
-  // If the feature is overridden from command line or finch we will use its
-  // value. If not we use kWebViewThreadSafeMediaDefault which is set in
-  // AwMainDelegate for WebView.
-  if (auto state =
-          base::FeatureList::GetStateIfOverridden(kWebViewThreadSafeMedia)) {
-    return *state;
-  }
   return base::FeatureList::IsEnabled(kWebViewThreadSafeMediaDefault);
 #else
   return false;
@@ -748,14 +729,11 @@ bool EnablePruneOldTransferCacheEntries() {
 
 #if BUILDFLAG(IS_ANDROID)
 bool IsAndroidSurfaceControlEnabled() {
-  if (IsDeviceBlocked(base::android::android_info::device(),
-                      kAndroidSurfaceControlDeviceBlocklist.Get()) ||
-      (IsDeviceBlocked(base::android::android_info::model(),
-                       kAndroidSurfaceControlModelBlocklist.Get()) &&
-       // Power issue due to pre-rotate in the models has been fixed in S_V2.
-       // crbug.com/1328738
-       base::android::android_info::sdk_int() <=
-           base::android::android_info::SDK_VERSION_S)) {
+  if (base::android::android_info::sdk_int() <=
+          base::android::android_info::SDK_VERSION_S &&
+      (IsDeviceBlocked(base::android::android_info::device(), "capri|caprip") ||
+       IsDeviceBlocked(base::android::android_info::model(),
+                       "SM-F9*|SM-W202?|SCV44|SCG05|SCG11|SC-55B"))) {
     return false;
   }
 
@@ -765,6 +743,18 @@ bool IsAndroidSurfaceControlEnabled() {
   // SurfaceControl requires at least 3 frames in flight.
   if (LimitAImageReaderMaxSizeToOne())
     return false;
+
+  // Check conditions that egl_android_native_fence_sync is enabled.
+  // LINT.IfChange(AndroidSurfaceControlCondition)
+  if (base::SysInfo::GetAndroidHardwareEGL() == "swiftshader" ||
+      base::SysInfo::GetAndroidHardwareEGL() == "emulation") {
+    return false;
+  }
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kDisableAndroidNativeFenceSyncForTesting)) {
+    return false;
+  }
+  // LINT.ThenChange(//gpu/config/gpu_finch_features.cc:AndroidSurfaceControlCondition)
 
   // On WebView we require thread-safe media to use SurfaceControl
   if (IsUsingThreadSafeMediaForWebView()) {

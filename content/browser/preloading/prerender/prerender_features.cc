@@ -4,6 +4,8 @@
 
 #include "content/browser/preloading/prerender/prerender_features.h"
 
+#include "content/public/browser/content_browser_client.h"
+#include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 
 namespace features {
@@ -45,6 +47,10 @@ const base::FeatureParam<Prerender2FallbackPrefetchSchedulerPolicy>
         "kPrerender2FallbackPrefetchSchedulerPolicy",
         Prerender2FallbackPrefetchSchedulerPolicy::kNotUse,
         &kPrerender2FallbackPrefetchSchedulerPolicyOptios};
+
+const base::FeatureParam<bool> kPrerender2FallbackUsePreloadServingMetrics{
+    &kPrerender2FallbackPrefetchSpecRules,
+    "kPrerender2FallbackUsePreloadServingMetrics", false};
 
 BASE_FEATURE(Prerender2NoVarySearch,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -92,7 +98,11 @@ BASE_FEATURE(Prerender2WarmUpCompositorForNonImmediate,
 bool UsePrefetchPrerenderIntegration() {
   return base::FeatureList::IsEnabled(
              features::kPrerender2FallbackPrefetchSpecRules) ||
-         base::FeatureList::IsEnabled(features::kPrefetchPrerenderIntegration);
+         base::FeatureList::IsEnabled(
+             features::kPrefetchPrerenderIntegration) ||
+         content::GetContentClient()
+             ->browser()
+             ->UsePrefetchPrerenderIntegration();
 }
 
 }  // namespace features

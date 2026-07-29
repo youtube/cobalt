@@ -26,6 +26,10 @@ namespace base {
 class Time;
 }  // namespace base
 
+namespace regional_capabilities {
+class RegionalCapabilitiesService;
+}  // namespace regional_capabilities
+
 namespace search_engines {
 
 inline constexpr char
@@ -294,15 +298,29 @@ struct ChoiceCompletionMetadata {
     kInvalidVersion,
     kMissingTimestamp,
     kNullTimestamp,
+    kInvalidProgram,
   };
 
   base::Time timestamp;
   base::Version version;
+  int serialized_program;
 };
 
 base::expected<ChoiceCompletionMetadata, ChoiceCompletionMetadata::ParseError>
 GetChoiceCompletionMetadata(const PrefService& prefs);
 
+// Creates a `ChoiceCompletionMetadata` with the specified program and current
+// timestamp and version.
+ChoiceCompletionMetadata CreateChoiceCompletionMetadataWithProgram(
+    int serialized_program);
+
+// Creates a `ChoiceCompletionMetadata` for the current state by getting the
+// active program from `regional_capabilities_service`.
+ChoiceCompletionMetadata CreateChoiceCompletionMetadataForCurrentState(
+    regional_capabilities::RegionalCapabilitiesService&
+        regional_capabilities_service);
+
+// Persists the choice completion metadata to prefs.
 void SetChoiceCompletionMetadata(PrefService& prefs,
                                  ChoiceCompletionMetadata metadata);
 
@@ -313,15 +331,7 @@ std::optional<base::Time> GetChoiceScreenCompletionTimestamp(
 
 void ClearSearchEngineChoiceInvalidation(PrefService& prefs);
 
-bool IsSearchEngineChoiceInvalid(PrefService& prefs);
-
-#if !BUILDFLAG(IS_ANDROID)
-// Returns the engine marketing snippet string resource id or -1 if the snippet
-// was not found.
-// The function definition is generated in `generated_marketing_snippets.cc`.
-// `engine_keyword` is the search engine keyword.
-int GetMarketingSnippetResourceId(const std::u16string& engine_keyword);
-#endif  // !BUILDFLAG(IS_ANDROID)
+bool IsSearchEngineChoiceInvalid(const PrefService& prefs);
 
 }  // namespace search_engines
 

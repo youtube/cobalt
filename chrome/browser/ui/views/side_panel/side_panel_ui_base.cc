@@ -11,6 +11,20 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_waiter.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "content/public/browser/web_contents.h"
+
+namespace {
+
+SidePanelRegistry* GetSidePanelRegistryFromWebContents(
+    content::WebContents* web_contents) {
+  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents);
+  if (!tab || !tab->GetTabFeatures()) {
+    return nullptr;
+  }
+  return tab->GetTabFeatures()->side_panel_registry();
+}
+
+}  // namespace
 
 SidePanelUIBase::SidePanelUIBase(Browser* browser)
     : browser_(browser),
@@ -35,6 +49,40 @@ void SidePanelUIBase::Show(
   Show(unique_key.value(), open_trigger, /*suppress_animations=*/false);
 }
 
+std::optional<SidePanelEntry::Id> SidePanelUIBase::GetCurrentEntryId() const {
+  if (!current_key_.has_value()) {
+    return std::nullopt;
+  }
+  return current_key_->key.id();
+}
+
+int SidePanelUIBase::GetCurrentEntryDefaultContentWidth() const {
+  if (!current_key_.has_value()) {
+    return SidePanelEntry::kSidePanelDefaultContentWidth;
+  }
+
+  const SidePanelEntry* const entry = GetEntryForUniqueKey(*current_key_);
+  CHECK(entry);
+
+  return entry->GetDefaultContentWidth();
+}
+
+bool SidePanelUIBase::IsSidePanelShowing() const {
+  return current_key_.has_value();
+}
+
+bool SidePanelUIBase::IsSidePanelEntryShowing(
+    const SidePanelEntry::Key& entry_key) const {
+  return current_key_.has_value() && current_key_->key == entry_key;
+}
+
+bool SidePanelUIBase::IsSidePanelEntryShowing(
+    const SidePanelEntry::Key& entry_key,
+    bool for_tab) const {
+  return current_key_.has_value() && current_key_->key == entry_key &&
+         current_key_->tab_handle.has_value() == for_tab;
+}
+
 std::optional<SidePanelUIBase::UniqueKey> SidePanelUIBase::GetUniqueKeyForKey(
     const SidePanelEntry::Key& entry_key) const {
   // For tab-scoped side panels.
@@ -50,6 +98,17 @@ std::optional<SidePanelUIBase::UniqueKey> SidePanelUIBase::GetUniqueKeyForKey(
   return std::nullopt;
 }
 
+SidePanelEntry* SidePanelUIBase::GetEntryForUniqueKey(
+    const UniqueKey& unique_key) const {
+  SidePanelEntry* entry = nullptr;
+  if (unique_key.tab_handle) {
+    entry = GetActiveContextualEntryForKey(unique_key.key);
+  } else {
+    entry = window_registry_->GetEntryForKey(unique_key.key);
+  }
+  return entry;
+}
+
 SidePanelRegistry* SidePanelUIBase::GetActiveContextualRegistry() const {
   if (browser_->tab_strip_model()->empty()) {
     return nullptr;
@@ -59,7 +118,89 @@ SidePanelRegistry* SidePanelUIBase::GetActiveContextualRegistry() const {
       ->side_panel_registry();
 }
 
+SidePanelEntry* SidePanelUIBase::GetActiveContextualEntryForKey(
+    const SidePanelEntry::Key& entry_key) const {
+  if (auto* contextual_registry = GetActiveContextualRegistry()) {
+    return contextual_registry->GetEntryForKey(entry_key);
+  }
+  return nullptr;
+}
+
+std::optional<SidePanelUIBase::UniqueKey>
+SidePanelUIBase::GetNewActiveKeyOnTabChanged() {
+  // This function should only be called when the side panel view is shown.
+  CHECK(IsSidePanelShowing());
+
+  // Attempt to return an entry in the following fallback order:
+  //  - the new tab's registry's active entry
+  //  - if the active entry's key is registered in the global registry:
+  //    - the new tab's registry's entry with the same key
+  //    - the global registry's entry with the same key (note that
+  //      GetEntryForKey will return this fallback order)
+  //  - if there is an active entry in the global registry:
+  //    - the new tab's registry's entry with the same key
+  //    - the global registry's active entry (note that GetEntryForKey will
+  //      return this fallback order)
+  //  - no entry (this closes the side panel)
+  // Note: GetActiveContextualRegistry() returns the registry for the new tab in
+  // this function.
+  // Note: If Show() is called with an entry returned by this function, then
+  // that entry will be active in its owning registry.
+  auto* active_contextual_registry = GetActiveContextualRegistry();
+  if (active_contextual_registry &&
+      active_contextual_registry->active_entry()) {
+    return UniqueKey{browser_->GetActiveTabInterface()->GetHandle(),
+                     (*active_contextual_registry->active_entry())->key()};
+  }
+
+  if (current_key_ && window_registry_->GetEntryForKey(current_key_->key)) {
+    return GetUniqueKeyForKey(current_key_->key);
+  }
+
+  if (window_registry_->active_entry()) {
+    return GetUniqueKeyForKey((*window_registry_->active_entry())->key());
+  }
+
+  return std::nullopt;
+}
+
 void SidePanelUIBase::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
-    const TabStripSelectionChange& selection) {}
+    const TabStripSelectionChange& selection) {
+  // If the browser window is closing, do nothing.
+  if (tab_strip_model->closing_all()) {
+    return;
+  }
+
+  if (!selection.active_tab_changed()) {
+    return;
+  }
+
+  // Only background tabs can be discarded. In this case, nothing needs to
+  // happen.
+  if (change.type() == TabStripModelChange::kReplaced) {
+    return;
+  }
+
+  // Handle removing the previous tab's contextual registry if one exists.
+  bool tab_removed_for_deletion =
+      (change.type() == TabStripModelChange::kRemoved) &&
+      (change.GetRemove()->contents[0].remove_reason ==
+       TabStripModelChange::RemoveReason::kDeleted);
+  SidePanelRegistry* old_contextual_registry = nullptr;
+  if (!tab_removed_for_deletion && selection.old_contents) {
+    old_contextual_registry =
+        GetSidePanelRegistryFromWebContents(selection.old_contents);
+  }
+
+  // Add the current tab's contextual registry.
+  SidePanelRegistry* new_contextual_registry = nullptr;
+  if (selection.new_contents) {
+    new_contextual_registry =
+        GetSidePanelRegistryFromWebContents(selection.new_contents);
+  }
+
+  MaybeShowEntryOnTabStripModelChanged(old_contextual_registry,
+                                       new_contextual_registry);
+}

@@ -103,9 +103,13 @@ void ActorTask::SetState(State state) {
 
   // If the state is to be finished/cancelled record a histogram.
   if (state_ == kFinished) {
+    base::UmaHistogramCounts1000("Actor.Task.Count.Completed",
+                                 number_of_steps_);
     base::UmaHistogramLongTimes100("Actor.Task.Duration.Completed",
                                    total_active_time_);
   } else if (state_ == kCancelled) {
+    base::UmaHistogramCounts1000("Actor.Task.Count.Cancelled",
+                                 number_of_steps_);
     base::UmaHistogramLongTimes100("Actor.Task.Duration.Cancelled",
                                    total_active_time_);
   }
@@ -124,6 +128,7 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
     return;
   }
   SetState(State::kActing);
+  number_of_steps_ += actions.size();
   execution_engine_->Act(
       std::move(actions),
       base::BindOnce(&ActorTask::OnFinishedAct, weak_ptr_factory_.GetWeakPtr(),
@@ -134,15 +139,14 @@ void ActorTask::OnFinishedAct(
     ActCallback callback,
     mojom::ActionResultPtr result,
     std::optional<size_t> index_of_failed_action,
-    std::vector<optimization_guide::proto::ScriptToolResult>
-        script_tool_results) {
+    std::vector<ActionResultWithLatencyInfo> action_results) {
   if (state_ != State::kActing) {
     std::move(callback).Run(MakeErrorResult(), std::nullopt, {});
     return;
   }
   SetState(State::kReflecting);
   std::move(callback).Run(std::move(result), std::nullopt,
-                          std::move(script_tool_results));
+                          std::move(action_results));
 }
 
 void ActorTask::Stop(bool success) {
@@ -220,6 +224,18 @@ base::Time ActorTask::GetEndTime() const {
 }
 
 void ActorTask::AddTab(tabs::TabHandle tab_handle, AddTabCallback callback) {
+  if (IsPaused() || IsStopped()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            std::move(callback),
+            MakeResult(IsPaused() ? mojom::ActionResultCode::kTaskPaused
+                                  : mojom::ActionResultCode::kTaskWentAway)));
+    return;
+  }
+  // Make this tab the most recently actuated on, even if it was actuated on
+  // before.
+  last_actuated_tab_handle_ = tab_handle;
   if (acting_tabs_.contains(tab_handle)) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), MakeOkResult()));
@@ -253,6 +269,10 @@ void ActorTask::AddTab(tabs::TabHandle tab_handle, AddTabCallback callback) {
 }
 
 void ActorTask::RemoveTab(tabs::TabHandle tab_handle) {
+  // Reset the last actuated tab if it is being removed.
+  if (tab_handle == last_actuated_tab_handle_) {
+    last_actuated_tab_handle_ = tabs::TabHandle::Null();
+  }
   // Erasing the entry from the map triggers the ScopedClosureRunner's
   // destructor (via std::optional's destructor), which automatically calls
   // DecrementCapturerCount on the WebContents.
@@ -303,6 +323,12 @@ absl::flat_hash_set<tabs::TabHandle> ActorTask::GetLastActedTabs() const {
   // TODO(bokan): Currently the client only acts on a single tab but this
   // should track which tabs were acted on in the last call to Act.
   return GetTabs();
+}
+
+tabs::TabHandle ActorTask::GetLastActedTab() {
+  // TODO(crbug.com/441064175): Use GetLastActedTabs() or update implementation
+  // for multi-tab actuation.
+  return last_actuated_tab_handle_;
 }
 
 absl::flat_hash_set<tabs::TabHandle> ActorTask::GetTabs() const {
