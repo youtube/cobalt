@@ -189,7 +189,7 @@
 #include "media/base/win/mf_feature_checks.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 #include "content/child/sandboxed_process_thread_type_handler.h"
 #endif
 
@@ -335,6 +335,15 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
       return false;
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool IsCriticalAllowedInForeground() {
+  static const bool kAllowCriticalInForeground =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "allow-critical-memory-pressure-handling-in-foreground");
+  return kAllowCriticalInForeground;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
@@ -598,7 +607,7 @@ void RenderThreadImpl::Init() {
   }
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   SandboxedProcessThreadTypeHandler::NotifyMainChildThreadCreated();
 #endif
 
@@ -645,7 +654,7 @@ void RenderThreadImpl::Init() {
   base::DiscardableMemoryAllocator::SetInstance(
       discardable_memory_allocator_.get());
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   ChildProcess::current()->SetIOThreadType(base::ThreadType::kDisplayCritical);
 #endif
 
@@ -1194,6 +1203,20 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
 
   return shared_main_thread_contexts_;
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t RenderThreadImpl::GetMediaSourceMaximumMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceMaximumMemoryCapacity();
+}
+
+uint64_t RenderThreadImpl::GetMediaSourceCurrentMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceCurrentMemoryCapacity();
+}
+
+uint64_t RenderThreadImpl::GetMediaSourceTotalAllocatedMemory() const {
+  return RenderMediaClient::GetMediaSourceTotalAllocatedMemory();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_WIN)
 scoped_refptr<DCOMPTextureFactory> RenderThreadImpl::GetDCOMPTextureFactory() {
@@ -1757,9 +1780,15 @@ void RenderThreadImpl::OnSyncMemoryPressure(
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
   // moderate level for foreground renderer.
+#if BUILDFLAG(IS_COBALT)
+  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
+    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#else
   if (!RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(

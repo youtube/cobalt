@@ -34,6 +34,9 @@ NOTICE_SECTION = 'com.apple.actool.compilation-results'
 # App icon asset type.
 APP_ICON_ASSET_TYPE = '.appiconset'
 
+# Brand assets type (tvOS-specific).
+BRAND_ASSETS_TYPE = '.brandassets'
+
 # Map special type of asset catalog to the corresponding command-line
 # parameter that need to be passed to actool.
 ACTOOL_FLAG_FOR_ASSET_TYPE = {
@@ -138,6 +141,7 @@ def CompileAssetCatalog(output, target_os, target_environment, product_type,
             '--target-device',
             'mac',
         ])
+<<<<<<< HEAD
     elif target_os == 'ios':
         if target_platform == 'tvos':
             if target_environment == 'simulator':
@@ -158,6 +162,71 @@ def CompileAssetCatalog(output, target_os, target_environment, product_type,
                 sys.stderr.write('Unsupported tvos environment: %s' %
                                  target_environment)
                 sys.exit(1)
+=======
+      else:
+        sys.stderr.write(
+          'Unsupported iphoneos environment: %s' % target_environment)
+        sys.exit(1)
+  elif target_os == 'watchos':
+    if target_environment == 'simulator':
+      command.extend([
+          '--platform',
+          'watchsimulator',
+          '--target-device',
+          'watch',
+      ])
+    elif target_environment == 'device':
+      command.extend([
+          '--platform',
+          'watchos',
+          '--target-device',
+          'watch',
+      ])
+    else:
+      sys.stderr.write(
+        'Unsupported watchos environment: %s' % target_environment)
+      sys.exit(1)
+
+  # Unzip any input zipfiles to a temporary directory.
+  inputs = []
+  for relative_path in possibly_zipped_inputs:
+    if os.path.isfile(relative_path) and zipfile.is_zipfile(relative_path):
+      catalog_name = os.path.basename(relative_path)
+      unzip_path = os.path.join(temporary_dir, os.path.dirname(relative_path))
+      with zipfile.ZipFile(relative_path) as z:
+        invalid_files = [
+            x for x in z.namelist()
+            if '..' in x or not x.startswith(catalog_name)
+        ]
+        if invalid_files:
+          sys.stderr.write('Invalid files in zip: %s' % invalid_files)
+          sys.exit(1)
+        z.extractall(unzip_path)
+      inputs.append(os.path.join(unzip_path, catalog_name))
+    else:
+      inputs.append(relative_path)
+
+  # Scan the input directories for the presence of asset catalog types that
+  # require special treatment, and if so, add them to the actool command-line.
+  for relative_path in inputs:
+
+    if not os.path.isdir(relative_path):
+      continue
+
+    for file_or_dir_name in os.listdir(relative_path):
+      if not os.path.isdir(os.path.join(relative_path, file_or_dir_name)):
+        continue
+
+      asset_name, asset_type = os.path.splitext(file_or_dir_name)
+
+      # If the asset is either an app icon or a brand asset, and the
+      # caller has specified an app icon to use, then skip this asset as
+      # it will be included in the app icon set. Otherwise, add the asset
+      # to the command-line.
+      if asset_type in (APP_ICON_ASSET_TYPE, BRAND_ASSETS_TYPE):
+        if app_icon:
+          continue
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
         else:
             if target_environment == 'simulator':
                 command.extend([

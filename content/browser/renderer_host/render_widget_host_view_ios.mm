@@ -891,7 +891,11 @@ void RenderWidgetHostViewIOS::UpdateFrameBounds() {
   frameBounds.size = parentBounds.size;
 
   // If we are scrolling we don't resize the WebView immediately.
-  if (!is_scrolling_ && !IsTesting()) {
+  if (!is_scrolling_ && !IsTesting()
+#if BUILDFLAG(IS_COBALT)
+      && allow_view_bounds_updates_
+#endif
+  ) {
     view_bounds_ = gfx::Rect(frameBounds);
   }
   [ui_view_->view_ setFrame:frameBounds];
@@ -1057,5 +1061,11 @@ void RenderWidgetHostViewIOS::ComputeDisplayFeature() {
                         transformed_display_feature.width()};
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+void RenderWidgetHostViewIOS::SetAllowAutomaticViewBoundsUpdates(bool allowed) {
+  allow_view_bounds_updates_ = allowed;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace content

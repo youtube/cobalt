@@ -46,7 +46,7 @@
 #include "wow64apiset.h"
 #endif
 
-#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 #endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
 
@@ -289,7 +289,7 @@ void PartitionAllocMallocInitOnce() {
     return;
   }
 
-#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+#if (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
   // When fork() is called, only the current thread continues to execute in the
   // child process. If the lock is held, but *not* by this thread when fork() is
   // called, we have a deadlock.
@@ -314,7 +314,7 @@ void PartitionAllocMallocInitOnce() {
   int err =
       pthread_atfork(BeforeForkInParent, AfterForkInParent, AfterForkInChild);
   PA_CHECK(err == 0);
-#endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)
+#endif  // (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
 }
 
 }  // namespace
@@ -1797,6 +1797,41 @@ PA_NOINLINE void PartitionRoot::QuarantineForBrp(
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
 // static
+<<<<<<< HEAD
+=======
+#if PA_CONFIG(ENABLE_SHADOW_METADATA)
+void PartitionRoot::EnableShadowMetadata(internal::PoolHandleMask mask) {
+#if PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+  // TODO(crbug.com/40238514): implement ModuleCache() or something to
+  // load required shared libraries in advance.
+  // Since memfd_create() causes dlsym(), it is not possible to invoke
+  // memfd_create() while PartitionRoot-s are locked.
+  // So invoke memfd_create() here and invoke dysym() in advance.
+  // This is required to enable ShadowMetadata on utility processes.
+  { close(memfd_create("module_cache", MFD_CLOEXEC)); }
+#endif
+  internal::UniqueLock unique_lock(g_shadow_metadata_init_mutex_);
+
+  internal::ScopedGuard guard(g_root_enumerator_lock);
+  // Must lock all PartitionRoot-s and ThreadCache.
+  internal::PartitionRootEnumerator::Instance().Enumerate(
+      LockRoot, false,
+      internal::PartitionRootEnumerator::EnumerateOrder::kNormal);
+  {
+    internal::ScopedGuard thread_cache_guard(ThreadCacheRegistry::GetLock());
+    internal::PartitionAddressSpace::InitShadowMetadata(mask);
+    internal::PartitionRootEnumerator::Instance().Enumerate(
+        MakeSuperPageExtentEntriesShared, mask,
+        internal::PartitionRootEnumerator::EnumerateOrder::kNormal);
+  }
+  internal::PartitionRootEnumerator::Instance().Enumerate(
+      UnlockOrReinitRoot, false,
+      internal::PartitionRootEnumerator::EnumerateOrder::kReverse);
+}
+#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
+
+// static
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 void PartitionRoot::CheckMetadataIntegrity(const void* ptr) {
   uintptr_t address = internal::ObjectInnerPtr2Addr(ptr);
   if (!IsManagedByPartitionAlloc(address)) {

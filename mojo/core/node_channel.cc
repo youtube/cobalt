@@ -261,9 +261,13 @@ scoped_refptr<NodeChannel> NodeChannel::Create(
     Channel::HandlePolicy channel_handle_policy,
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner,
     const ProcessErrorCallback& process_error_callback) {
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(FATAL) << "Multi-process not yet supported on Starboard";
+#else
   return new NodeChannel(delegate, std::move(connection_params),
                          channel_handle_policy, io_task_runner,
                          process_error_callback);
+#endif
 }
 
 // static
@@ -478,7 +482,7 @@ void NodeChannel::Broadcast(Channel::MessagePtr message) {
 }
 
 void NodeChannel::BindBrokerHost(PlatformHandle broker_host_handle) {
-#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_FUCHSIA)
   DCHECK(broker_host_handle.is_valid());
   BindBrokerHostData* data;
   std::vector<PlatformHandle> handles;
@@ -546,11 +550,15 @@ NodeChannel::NodeChannel(
     const ProcessErrorCallback& process_error_callback)
     : base::RefCountedDeleteOnSequence<NodeChannel>(io_task_runner),
       delegate_(delegate),
-      process_error_callback_(process_error_callback),
+      process_error_callback_(process_error_callback)
+#if !BUILDFLAG(IS_STARBOARD)
+      ,
       channel_(Channel::Create(this,
                                std::move(connection_params),
                                channel_handle_policy,
-                               std::move(io_task_runner))) {
+                               std::move(io_task_runner)))
+#endif
+{
   InitializeLocalCapabilities();
 }
 
@@ -560,7 +568,7 @@ NodeChannel::~NodeChannel() {
 
 void NodeChannel::CreateAndBindLocalBrokerHost(
     PlatformHandle broker_host_handle) {
-#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_FUCHSIA)
   // Self-owned.
   ConnectionParams connection_params(
       PlatformChannelEndpoint(std::move(broker_host_handle)));
@@ -872,8 +880,10 @@ void NodeChannel::WriteChannelMessage(Channel::MessagePtr message) {
 }
 
 void NodeChannel::OfferChannelUpgrade() {
+#if !BUILDFLAG(IS_STARBOARD)
   base::AutoLock lock(channel_lock_);
   channel_->OfferChannelUpgrade();
+#endif
 }
 
 uint64_t NodeChannel::RemoteCapabilities() const {
@@ -909,9 +919,11 @@ void NodeChannel::InitializeLocalCapabilities() {
     return;
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   if (core::Channel::SupportsChannelUpgrade()) {
     SetLocalCapabilities(kNodeCapabilitySupportsUpgrade);
   }
+#endif
 }
 
 }  // namespace core

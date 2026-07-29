@@ -204,6 +204,24 @@ template <class charT> class messages_byname;
 #    include <ios>
 #    include <version>
 
+<<<<<<< HEAD
+=======
+// TODO: Properly qualify calls now that the locale base API defines functions instead of macros
+// NOLINTBEGIN(libcpp-robust-against-adl)
+
+#    if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+// Most unix variants have catopen.  These are the specific ones that don't.
+#      if !defined(__BIONIC__) && !defined(_NEWLIB_VERSION) && !defined(__EMSCRIPTEN__) && !defined(STARBOARD)
+#        define _LIBCPP_HAS_CATOPEN 1
+#        include <nl_types.h>
+#      else
+#        define _LIBCPP_HAS_CATOPEN 0
+#      endif
+#    else
+#      define _LIBCPP_HAS_CATOPEN 0
+#    endif
+
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #    if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
 #      pragma GCC system_header
 #    endif

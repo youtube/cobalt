@@ -49,6 +49,13 @@ blink_modules_sources("ml") {
     "//services/webnn/public/mojom:mojom_blink",
     "//third_party/blink/renderer/modules/webgpu",
   ]
+
+  if (is_cobalt) {
+    # TODO(b/543717825): Cobalt excludes "ml" from the "modules" component's sub
+    #_modules, so it no longer gets modules_export.h via that target's
+    # allow_circular_includes_from. Depend on it directly instead.
+    deps += [ "//third_party/blink/renderer/modules" ]
+  }
 }
 
 source_set("operand_id_hash_traits") {
@@ -79,4 +86,11 @@ source_set("unit_tests") {
     "//third_party/blink/renderer/platform:test_support",
     "//third_party/blink/renderer/platform/wtf",
   ]
+
+  if (is_cobalt) {
+    # TODO(b/543717825): Cobalt excludes "ml" from the "modules" component's
+    # sub_modules, so depending on "modules" no longer transitively forwards
+    # ":ml"'s headers.
+    deps += [ ":ml" ]
+  }
 }

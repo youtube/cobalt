@@ -10,6 +10,7 @@ import("//build/config/features.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
+import("//content/browser/devtools/features.gni")
 import("//content/common/features.gni")
 import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -785,6 +786,33 @@ static_library("test_support") {
     libs = [ "oleacc.lib" ]
   }
 
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+      "../browser/fenced_frame/*",
+      "../public/test/*browsing_topics*",
+      "../public/test/*shared_storage*",
+      "../public/test/*attribution*",
+      "../public/test/*interest_group*",
+      "../public/test/*private_aggregation*",
+      "../public/test/*aggregation_service*",
+      "../public/test/*fenced_frame*",
+      "fenced_frame_test_utils.*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+    ]
+  }
+
   if (is_android) {
     sources += [
       "mock_overscroll_refresh_handler_android.cc",
@@ -845,9 +873,31 @@ static_library("test_support") {
     public_deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.mediacodec:fuchsia.mediacodec_hlcpp" ]
   }
 
+<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+=======
+  if (is_cobalt) {
+    sources -= [
+      "../browser/bluetooth/test/mock_bluetooth_delegate.cc",
+      "../browser/bluetooth/test/mock_bluetooth_delegate.h",
+      "../public/test/bluetooth_test_utils.cc",
+      "../public/test/bluetooth_test_utils.h",
+      "../public/test/embedded_worker_instance_test_harness.cc",
+      "../public/test/embedded_worker_instance_test_harness.h",
+    ]
+  }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "../public/test/mock_devtools_agent_host.cc",
+      "../public/test/mock_devtools_agent_host.h",
+      "../public/test/test_devtools_protocol_client.cc",
+      "../public/test/test_devtools_protocol_client.h",
+    ]
+  }
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 # Fuchsia performance tests on smart displays use web_engine and a browser
@@ -1829,11 +1879,15 @@ test("content_browsertests") {
     sources += [ "../browser/network/sandboxed_socket_broker_browsertest.cc" ]
   }
 
+  if (is_cobalt) {
+    sources -= [ "../browser/bluetooth/web_bluetooth_service_impl_browsertest.cc" ]
+  }
+
   if (enable_reporting) {
     sources += [ "../browser/security/coop/cross_origin_opener_policy_reporting_browsertest.cc" ]
   }
 
-  if (use_viz_debugger) {
+  if (use_viz_debugger && enable_devtools_backend) {
     sources += [
       "../browser/devtools/protocol/visual_debugger_handler_browsertest.cc",
     ]
@@ -2004,6 +2058,10 @@ test("content_browsertests") {
 
   if (!(is_chromeos && target_cpu == "arm64" && current_cpu == "arm")) {
     deps += [ "//components/variations" ]
+  }
+
+  if (is_cobalt) {
+    deps -= [ "//device/bluetooth:mocks" ]
   }
 
   data_deps = [ "//content/shell:pak" ]
@@ -2419,9 +2477,44 @@ test("content_browsertests") {
     ]
   }
 
+<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+=======
+  if (!enable_devtools_backend) {
+    sources -= [
+      "../browser/devtools/devtools_issue_storage_browsertest.cc",
+      "../browser/devtools/devtools_trust_token_browsertest.cc",
+      "../browser/devtools/devtools_video_consumer_browsertest.cc",
+      "../browser/devtools/protocol/devtools_network_resource_loader_browsertest.cc",
+      "../browser/devtools/protocol/devtools_protocol_browsertest.cc",
+      "../browser/devtools/protocol/devtools_protocol_test_support.cc",
+      "../browser/devtools/protocol/devtools_protocol_test_support.h",
+      "../browser/devtools/render_frame_devtools_agent_host_browsertest.cc",
+      "../browser/devtools/site_per_process_devtools_browsertest.cc",
+    ]
+  }
+
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+      "../browser/fenced_frame/*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+    ]
+  }
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 grit("web_ui_mojo_test_resources") {
@@ -3019,6 +3112,19 @@ test("content_unittests") {
     "FirstPartySetFuzzer.ParsesSetsCorrectly",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "../browser/bluetooth/bluetooth_allowed_devices_unittest.cc",
+      "../browser/bluetooth/bluetooth_blocklist_unittest.cc",
+      "../browser/bluetooth/bluetooth_device_chooser_controller_unittest.cc",
+      "../browser/bluetooth/bluetooth_util_unittest.cc",
+      "../browser/bluetooth/frame_connected_bluetooth_devices_unittest.cc",
+      "../browser/bluetooth/web_bluetooth_pairing_manager_impl_unittest.cc",
+      "../browser/bluetooth/web_bluetooth_service_impl_unittest.cc",
+      "../browser/service_worker/embedded_worker_instance_unittest.cc",
+    ]
+  }
+
   if (is_mac) {
     sources += [
       "../browser/child_process_task_port_provider_mac_unittest.cc",
@@ -3087,6 +3193,11 @@ test("content_unittests") {
       "../browser/webid/digital_credentials/cross_device_request_dispatcher_unittest.cc",
       "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
     ]
+    if (is_cobalt) {
+      sources -= [
+        "../browser/webid/digital_credentials/cross_device_transaction_impl_unittest.cc",
+      ]
+    }
   }
 
   if (!is_android && !is_ios) {
@@ -3131,6 +3242,19 @@ test("content_unittests") {
       ":content_test_perfetto_chrome_bundle_data",
       "//media/test:media_bundle_data",
       "//testing/buildbot/filters:content_unittests_filters_bundle_data",
+    ]
+  }
+
+  if (!enable_devtools_backend) {
+    sources -= [
+      "../browser/devtools/devtools_background_services_context_impl_unittest.cc",
+      "../browser/devtools/devtools_frontend_host_impl_unittest.cc",
+      "../browser/devtools/devtools_http_handler_unittest.cc",
+      "../browser/devtools/devtools_video_consumer_unittest.cc",
+      "../browser/devtools/protocol/tracing_handler_unittest.cc",
+      "../browser/devtools/protocol_unittest.cc",
+      "../browser/devtools/request_body_collector_unittest.cc",
+      "../browser/devtools/shared_storage_worklet_devtools_agent_host_unittest.cc",
     ]
   }
 
@@ -3315,8 +3439,21 @@ test("content_unittests") {
     "//url",
   ]
 
+  if (!enable_devtools_backend) {
+    deps -= [
+      "//content/browser/devtools:devtools_background_services_proto",
+    ]
+  }
+
   if (enable_nocompile_tests) {
     deps += [ ":content_nocompile_tests" ]
+  }
+
+  if (is_cobalt) {
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth:mocks",
+    ]
   }
 
   data_deps = [ "//testing/buildbot/filters:content_unittests_filters" ]
@@ -3333,7 +3470,7 @@ test("content_unittests") {
   }
 
   # Platforms where sqlite_dev_shell is defined.
-  if (is_win || is_mac || is_linux || is_chromeos) {
+  if ((is_win || is_mac || is_linux || is_chromeos) && enable_privacy_sandbox_apis) {
     sources += [ "../browser/attribution_reporting/attribution_storage_sql_query_plans_unittest.cc" ]
     deps += [ "../browser/attribution_reporting:sqlite_test_utils" ]
   }
@@ -3527,11 +3664,17 @@ test("content_unittests") {
         "//media/mojo/mojom:speech_recognition",
       ]
     }
+
+    if (!enable_devtools_backend) {
+      sources -= [
+        "../browser/devtools/protocol/webauthn_handler_unittest.cc",
+      ]
+    }
   }
 
   # HID support is not available without udev.
   is_linux_without_udev = (is_linux || is_chromeos) && !use_udev
-  if (!is_linux_without_udev && !is_android) {
+  if (!is_linux_without_udev && !is_android && !is_cobalt) {
     sources += [
       "../browser/hid/hid_service_unittest.cc",
       "../browser/service_worker/service_worker_hid_delegate_observer_unittest.cc",
@@ -3605,9 +3748,42 @@ test("content_unittests") {
     deps += [ "//chromecast:chromecast_buildflags" ]
   }
 
+<<<<<<< HEAD
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+=======
+  if (!enable_privacy_sandbox_apis) {
+    _filtered_sources = filter_exclude(sources, [
+      "../browser/browsing_topics/*",
+      "../browser/attribution_reporting/*",
+      "../browser/shared_storage/*",
+      "../browser/interest_group/*",
+      "../browser/private_aggregation/*",
+      "../browser/aggregation_service/*",
+      "../browser/fenced_frame/*",
+      "../public/test/*browsing_topics*",
+      "../public/test/*shared_storage*",
+      "../public/test/*attribution*",
+      "../public/test/*interest_group*",
+      "../public/test/*private_aggregation*",
+      "../public/test/*aggregation_service*",
+      "../public/test/*fenced_frame*",
+      "*fenced_frame*",
+      "*test_aggregation_service*",
+    ])
+    sources = []
+    sources = _filtered_sources
+
+    deps -= [
+      "//content/browser/attribution_reporting:attribution_reporting_proto",
+      "//content/browser/attribution_reporting:mojo_bindings",
+      "//content/browser/attribution_reporting:registration_result_mojom",
+      "//content/browser/interest_group:interest_group_proto",
+      "//content/browser/private_aggregation:for_content_tests",
+    ]
+  }
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 if (is_ios) {

@@ -197,7 +197,11 @@ void SetIntermediateDumpExtraMemoryRanges(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 // Logs message and immediately crashes the current process without triggering a
 // crash dump.
+#if BUILDFLAG(IS_COBALT)
+void CrashWithoutDumping(const std::string& message);
+#else
 [[noreturn]] void CrashWithoutDumping(const std::string& message);
+#endif
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
         // BUILDFLAG(IS_ANDROID)
 

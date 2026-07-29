@@ -5,6 +5,7 @@
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_CONFIG_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_CONFIG_H_
 
+#include "build/build_config.h"
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 
@@ -50,9 +51,13 @@ static_assert(sizeof(void*) != 8, "");
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#define PA_CONFIG_HAS_LINUX_KERNEL() false
+#else
 #define PA_CONFIG_HAS_LINUX_KERNEL()                      \
   (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS) || \
    PA_BUILDFLAG(IS_ANDROID))
+#endif
 
 // Need TLS support.
 #define PA_CONFIG_THREAD_CACHE_SUPPORTED() \
@@ -162,10 +167,17 @@ constexpr bool kUseLazyCommit = false;
 
 // On these platforms, lock all the partitions before fork(), and unlock after.
 // This may be required on more platforms in the future.
+<<<<<<< HEAD
 #define PA_CONFIG_HAS_ATFORK_HANDLER()                 \
   (PA_BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(IS_LINUX) || \
    PA_BUILDFLAG(IS_CHROMEOS))
 
+=======
+#define PA_CONFIG_HAS_ATFORK_HANDLER()                                      \
+  (PA_BUILDFLAG(IS_APPLE) || (PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || PA_BUILDFLAG(IS_CHROMEOS))
+// Enable shadow metadata.
+//
+>>>>>>> parent of dd8062a82eb (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // With this flag, shadow pools will be mapped, on which writable shadow
 // metadatas are placed, and the real metadatas are set to read-only instead.
 // This feature is only enabled with 64-bit environment because pools work

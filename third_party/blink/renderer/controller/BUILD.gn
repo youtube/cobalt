@@ -17,6 +17,9 @@ visibility = [
   "//:gn_all",
   "//third_party/blink/*",
 ]
+if (is_cobalt) {
+  visibility += [ "//cobalt/*" ]
+}
 
 component("controller") {
   output_name = "blink_controller"
@@ -267,6 +270,10 @@ source_set("blink_unittests_sources") {
     "tests/run_all_tests.cc",
     "tests/thread_state_test_environment.h",
   ]
+  if (is_cobalt_hermetic_build) {
+    sources += [ "tests/starboard/run_all_tests.cc" ]
+    sources -= [ "tests/run_all_tests.cc" ]
+  }
   if (is_linux || is_chromeos) {
     sources += [ "memory_usage_monitor_posix_test.cc" ]
   }
