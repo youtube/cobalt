@@ -51,21 +51,18 @@ class MEDIA_EXPORT AudioBus {
   // to wrap externally allocated memory.
   static std::unique_ptr<AudioBus> CreateWrapper(int channels);
 
-  // Creates a new AudioBus from an existing channel vector.  Does not transfer
-  // ownership of |channel_data| to AudioBus; i.e., |channel_data| must outlive
-  // the returned AudioBus.  Each channel must be aligned by kChannelAlignment.
-  static std::unique_ptr<AudioBus> WrapVector(
-      int frames,
-      const std::vector<float*>& channel_data);
-
   // Creates a new AudioBus by wrapping an existing block of memory.  Block must
   // be at least CalculateMemorySize() bytes in size.  |data| must outlive the
   // returned AudioBus.  |data| must be aligned by kChannelAlignment.
   static std::unique_ptr<AudioBus> WrapMemory(int channels,
                                               int frames,
-                                              void* data);
+                                              base::span<float> data);
   static std::unique_ptr<AudioBus> WrapMemory(const AudioParameters& params,
                                               void* data);
+  static std::unique_ptr<AudioBus> WrapMemory(const AudioParameters& params,
+                                              base::span<uint8_t> data);
+  static std::unique_ptr<AudioBus> WrapMemory(const AudioParameters& params,
+                                              base::span<float> data);
   static std::unique_ptr<const AudioBus> WrapReadOnlyMemory(
       const AudioParameters& params,
       const void* data);
@@ -179,17 +176,7 @@ class MEDIA_EXPORT AudioBus {
   // Returns a raw pointer to the requested channel.  Pointer is guaranteed to
   // have a 16-byte alignment.  Warning: Do not rely on having sane (i.e. not
   // inf, nan, or between [-1.0, 1.0]) values in the channel data.
-  // TODO(crbug.com/373960632): Remove these methods, and rename `channel_span`
-  // to `channel`.
-  float* channel(int channel) {
-    CHECK(!is_bitstream_format_);
-    return channel_data_[channel].data();
-  }
-  const float* channel(int channel) const {
-    CHECK(!is_bitstream_format_);
-    return channel_data_[channel].data();
-  }
-
+  // TODO(crbug.com/373960632): Rename `channel_span` to `channel`.
   Channel channel_span(int channel) {
     CHECK(!is_bitstream_format_);
     return channel_data_[channel];
@@ -237,9 +224,7 @@ class MEDIA_EXPORT AudioBus {
 
  protected:
   AudioBus(int channels, int frames);
-  AudioBus(int channels, int frames, float* data);
   AudioBus(int channels, int frames, base::span<float> data);
-  AudioBus(int frames, const std::vector<float*>& channel_data);
   explicit AudioBus(int channels);
 
  private:

@@ -275,7 +275,6 @@
 <translation id="409936259433005390">በቅርቡ ወደ Windows 11 እያላቁ ነው? ከመጀመሪያው ቀን ጀምሮ ዝግጁ እንዲሆኑ One Drive ላይ Chrome ጫኝ ያውርዱ።</translation>
 <translation id="4110895483821904099">አዲሱን የChrome መገለጫዎ ያቀናብሩት</translation>
 <translation id="4111566860456076004">Chrome ይህ ቅጥያ ከየት እንደመጣ ማረጋገጥ አይችልም፣ እና ደህንነቱ ያልተጠበቀ ሊሆን ይችላል። የግል መረጃን ጨምሮ ከእንግዲህ እርስዎ በሚጎበኟቸው ጣቢያዎች ላይ ያለዎን ውሂብ ማየት እና መለወጥ እንዳይችል ከChrome ያስወግዱት።</translation>
-<translation id="4128488089242627000">Chrome ይበልጥ በፍጥነት ይሰራል እና ጃቫስክሪፕት የሚጠቀሙ ባህሪያት በተነደፉት መስራት አለባቸው (የሚመከር)</translation>
 <translation id="4147555960264124640">በሚተዳደር መለያ እየገቡ ነው፣ እና አስተዳዳሪው በእርስዎ Google Chrome መገለጫ ላይ ቁጥጥር እየሰጡት ነው። እንደ የእርስዎ መተግበሪያዎች፣ ዕልባቶች፣ ታሪክ፣ የይለፍ ቃላት እና ሌሎች ቅንብሮች ያሉ የእርስዎ Chrome ውሂብ እስከ መጨረሻው ከ<ph name="USER_NAME" /> ጋር የተያያዙ ይሆናሉ። ይህን ውሂብ በGoogle የመለያዎች Dashboard አማካኝነት ሊሰርዙት ይችላሉ፣ ነገር ግን ይህን ውሂብ ከሌላ መለያ ጋር ሊያጎዳኙት አይችሉም። <ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">በመጫን ላይ...</translation>
 <translation id="4149882025268051530">ጫኝው መዝገብ ለመበተን አልቻለም። እባክዎ Google Chromeን እንደገና ያውርዱ።</translation>
@@ -528,6 +527,7 @@ Google Chrome ቅንጅቶችዎን ማስመለስ አልቻለም።</translat
 <translation id="6967962315388095737">የmDNS ትራፊክን ለመፍቀድ የGoogle Chrome ቅድመ-ይሁንታ የውስጥ ደንብ።</translation>
 <translation id="6979589607440534284">Chrome ለምን አንዳንድ ፋይሎችን እንደሚያግድ ይወቁ፣ በአዲስ ትር ውስጥ ይከፍታል</translation>
 <translation id="6991926986715044139">የGoogle ሌንስ አቋራጭን ሁልጊዜ አሳይ</translation>
+<translation id="6999131147875565462">Chrome ይበልጥ በፍጥነት ይሄዳል እና ጃቫስክሪፕት የሚጠቀሙ ባህሪያት እንደተነደፉት ሊሠሩ ይገባል</translation>
 <translation id="7011190694940573312">ይህ የስርዓተ ክወናው ስሪት ስለማይደገፍ መጫኑ አልተሳካም።</translation>
 <translation id="7024536598735240744">ተጠናቆ ያለማቅረብ ስህተት፦ <ph name="UNPACK_ERROR" />።</translation>
 <translation id="7025789849649390912">መጫኑ ቆሟል።</translation>

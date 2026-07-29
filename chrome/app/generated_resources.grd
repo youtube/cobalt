@@ -7555,6 +7555,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
         </else>
       </if>
 
+      <!-- WebUI Omnibox -->
+      <message name="IDS_WEBUI_OMNIBOX_PLACEHOLDER_TEXT" desc="The text displayed in the WebUI Omnibox when it is empty and unfocused.">
+        Ask <ph name="SEARCH_ENGINE_NAME">$1<ex>Google</ex></ph> or type a URL
+      </message>
+
       <!-- NTP -->
       <message name="IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD" desc="The text displayed in the fakebox (on the New Tab page) when it is empty, Google is the default search engine, and the Material Design UI is enabled.">
         Search Google or type a URL
@@ -8577,8 +8582,14 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_NTP_COMPOSE_DEEP_SEARCH" desc="The label for the deep search button in the context menu in the composebox as well as the chip that indicates that the user is in deep search mode.">
         Deep Search
       </message>
-      <message name="IDS_NTP_COMPOSE_CREATE_IMAGES" desc="The label for the create images button in the context menu in the composebox as well as the chip that indicates that the user is in create images mode." translateable="false">
+      <message name="IDS_NTP_COMPOSE_CREATE_IMAGES" desc="The label for the create images button in the context menu in the composebox as well as the chip that indicates that the user is in create images mode.">
         Create images
+      </message>
+      <message name="IDS_COMPOSE_DEEP_SEARCH_PLACEHOLDER" desc="Placeholder text for the composebox when in deep search mode.">
+        Research anything
+      </message>
+      <message name="IDS_COMPOSE_CREATE_IMAGE_PLACEHOLDER" desc="Placeholder text for the composebox when in create image mode.">
+        Describe your image
       </message>
 
       <!-- NTP Modules -->
@@ -9788,6 +9799,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
       </message>
       <message name="IDS_TOOLTIP_LENS_SEARCH" desc="The tooltip for search-by-image button">
         Search by image
+      </message>
+      <message name="IDS_TOOLTIP_LENS_REINVOKE_VISUAL_SELECTION_A11Y_LABEL" desc="The a11y label for the reinvoke visual selection button in the compose box.">
+        Select region of screen for follow up
       </message>
       <message name="IDS_LENS_SEARCH_UPLOAD_DIALOG_CLOSE_BUTTON_LABEL" desc="Aria label for the button to close the upload dialog.">
         Close
@@ -12152,6 +12166,18 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         <message name="IDS_OPEN_GROUP_IN_BROWSER_MENU" desc="The title of the 'Open group' submenu item in the App Menu.">
           Open group
         </message>
+        <message name="IDS_NEW_TAB_IN_GROUP" desc="The label of a context menu item for adding a new tab into an existing group.">
+          New tab in <ph name="GROUP_NAME">$1<ex>Vacation</ex></ph>
+        </message>
+        <message name="IDS_NEW_TAB_IN_GROUP_NO_GROUPS" desc="The label of a context menu item for adding a new tab into a group, and no groups are open.">
+          New tab in group
+        </message>
+        <message name="IDS_NEW_TAB_IN_GROUP_NO_NAME" desc="The label of a context menu item for adding a new tab into an existing group with no name.">
+          {NUM_TABS, plural, =1 {New tab in 1 tab} other {New tab in # tabs}}
+        </message>
+        <message name="IDS_NEW_TAB_GROUP" desc="The label of a context menu item for creating a new tab group.">
+          New tab group
+        </message>
       </if>
       <if expr="use_titlecase">
         <message name="IDS_SAVED_TAB_GROUP_TABS_COUNT" desc="In Title Case: Title of unnamed saved tab group in Everything menu. [ICU_Syntax]">
@@ -12168,6 +12194,18 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
         </message>
         <message name="IDS_OPEN_GROUP_IN_BROWSER_MENU" desc="The title of the 'Open Group' submenu item in the App Menu.">
           Open Group
+        </message>
+        <message name="IDS_NEW_TAB_IN_GROUP" desc="The label of a context menu item for adding a new tab into a group.">
+          New Tab in <ph name="GROUP_NAME">$1<ex>Vacation</ex></ph>
+        </message>
+        <message name="IDS_NEW_TAB_IN_GROUP_NO_GROUPS" desc="The label of a context menu item for adding a new tab into a group, and no groups are open.">
+          New Tab in Group
+        </message>
+        <message name="IDS_NEW_TAB_IN_GROUP_NO_NAME" desc="The label of a context menu item for adding a new tab into an existing group with no name.">
+          {NUM_TABS, plural, =1 {New Tab in 1 Tab} other {New Tab in # Tabs}}
+        </message>
+        <message name="IDS_NEW_TAB_GROUP" desc="The label of a context menu item for creating a new tab group.">
+          New Tab Group
         </message>
       </if>
 
@@ -19143,6 +19181,10 @@ Please help our engineers fix this problem. Tell us what happened right before y
 
         <message name="IDS_PROTOCOL_HANDLER_PICKER_PARAGRAPH_GENERIC" desc="Paragraph in the protocol handler picker dialog explaining that a website initiated the request to open a link in an app. Used when the specific website is not known.">
           The website wants to open this link in an app.
+        </message>
+
+        <message name="IDS_PROTOCOL_HANDLER_PICKER_APPLICATION_OPTIONS_ACCESSIBLE_NAME" desc="Accessible name for the list of potential protocol handlers.">
+          Application options
         </message>
     </if>
 

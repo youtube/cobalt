@@ -71,6 +71,7 @@ std::string_view AutoEnrollmentStateToUmaSuffix(AutoEnrollmentState state) {
       case AutoEnrollmentResult::kEnrollment:
       case AutoEnrollmentResult::kSuggestedEnrollment:
         return kUMASuffixEnrollment;
+      case AutoEnrollmentResult::kDeviceAlreadyOwned:
       case AutoEnrollmentResult::kNoEnrollment:
         return kUMASuffixNoEnrollment;
       case AutoEnrollmentResult::kDisabled:
@@ -817,24 +818,7 @@ class EnrollmentStateFetcherImpl : public EnrollmentStateFetcher {
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       ServerBackedStateKeysBroker* state_key_broker,
       ash::DeviceSettingsService* device_settings_service,
-      ash::OobeConfiguration* oobe_configuration) {
-    DCHECK(report_result);
-    DCHECK(local_state);
-    DCHECK(rlwe_client_factory);
-    DCHECK(device_management_service);
-    DCHECK(url_loader_factory);
-    DCHECK(state_key_broker);
-    DCHECK(device_settings_service);
-    DCHECK(oobe_configuration);
-
-    call_sequence_ = std::make_unique<Sequence>(
-        std::move(report_result), local_state,
-        DeterminationContext{std::move(rlwe_client_factory),
-                             ash::system::StatisticsProvider::GetInstance(),
-                             device_management_service, url_loader_factory,
-                             state_key_broker, device_settings_service,
-                             GetEnrollmentToken(oobe_configuration)});
-  }
+      ash::OobeConfiguration* oobe_configuration);
 
   void Start() override;
 
@@ -908,7 +892,7 @@ class EnrollmentStateFetcherImpl::Sequence {
     if (status ==
         ash::DeviceSettingsService::OwnershipStatus::kOwnershipTaken) {
       LOG(WARNING) << "Device ownership is already taken. Skipping enrollment";
-      return ReportResult(AutoEnrollmentResult::kNoEnrollment);
+      return ReportResult(AutoEnrollmentResult::kDeviceAlreadyOwned);
     }
 
     oprf_.Request(context_, base::BindOnce(&Sequence::OnOprfRequestDone,
@@ -1054,6 +1038,33 @@ class EnrollmentStateFetcherImpl::Sequence {
   DeterminationContext context_;
   base::WeakPtrFactory<Sequence> weak_factory_{this};
 };
+
+EnrollmentStateFetcherImpl::EnrollmentStateFetcherImpl(
+    base::OnceCallback<void(AutoEnrollmentState)> report_result,
+    PrefService* local_state,
+    RlweClientFactory rlwe_client_factory,
+    DeviceManagementService* device_management_service,
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    ServerBackedStateKeysBroker* state_key_broker,
+    ash::DeviceSettingsService* device_settings_service,
+    ash::OobeConfiguration* oobe_configuration) {
+  DCHECK(report_result);
+  DCHECK(local_state);
+  DCHECK(rlwe_client_factory);
+  DCHECK(device_management_service);
+  DCHECK(url_loader_factory);
+  DCHECK(state_key_broker);
+  DCHECK(device_settings_service);
+  DCHECK(oobe_configuration);
+
+  call_sequence_ = std::make_unique<Sequence>(
+      std::move(report_result), local_state,
+      DeterminationContext{std::move(rlwe_client_factory),
+                           ash::system::StatisticsProvider::GetInstance(),
+                           device_management_service, url_loader_factory,
+                           state_key_broker, device_settings_service,
+                           GetEnrollmentToken(oobe_configuration)});
+}
 
 void EnrollmentStateFetcherImpl::Start() {
   call_sequence_->Start();

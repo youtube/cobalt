@@ -320,7 +320,6 @@
 <translation id="1521655867290435174">Google табеле</translation>
 <translation id="1524669537550112617">Изнајмљивање опремљених некретнина</translation>
 <translation id="1527263332363067270">Чека се веза…</translation>
-<translation id="1528311629279578926">Веза је блокирана зато што ју је покренула јавна страница за повезивање са уређајима или серверима на приватној мрежи. Поново учитајте ову страницу да бисте дозволили повезивање.</translation>
 <translation id="1529789484829130889">8. фиока</translation>
 <translation id="1530707389502320859">Сајт који сте управо пробали да посетите делује лажно. Нападачи понекад имитирају сајтове тако што незнатно и скоро неприметно измене URL.</translation>
 <translation id="1532118530259321453">Ова страница наводи:</translation>
@@ -814,6 +813,7 @@
 <translation id="2321291402658100099">Управљај информацијама</translation>
 <translation id="2322254345061973671">{COUNT,plural, =1{1 прозор}one{# прозор}few{# прозора}other{# прозора}}</translation>
 <translation id="232390861414237658">Аутоматски попуњавајте ову картицу за куповине у Chrome-у када је сачувате да бисте је користили уз Google Pay</translation>
+<translation id="2326283484705860548">Сада можете да аутоматски попуњавате више информација из Google новчаника</translation>
 <translation id="2328651992442742497">Дозвољено (подразумевано)</translation>
 <translation id="2328955282645810595">Грађевински и електрични алати</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />, истиче <ph name="EXPIRATION_DATE_ABBR" /></translation>
@@ -824,6 +824,7 @@
 <translation id="2346319942568447007">Копирана слика</translation>
 <translation id="2347764072711098973">Плаћајте на рате уз Affirm, Zip или Klarna</translation>
 <translation id="2348509731468399833">Праћење цена је заустављено.</translation>
+<translation id="2348836501965732644">Управљајте информацијама или искључите ове предлоге у Подешавањима</translation>
 <translation id="2349957959687031096">Дугме Отвори картицу без архивирања, активирајте га да бисте отворили нову картицу без архивирања и прегледали приватно</translation>
 <translation id="2350796302381711542">Желите ли да дозволите да <ph name="HANDLER_HOSTNAME" /> отвара све <ph name="PROTOCOL" /> линкове за које сте до сада користили <ph name="REPLACED_HANDLER_TITLE" />?</translation>
 <translation id="2351718832234620840">Овај сервер не може да докаже да је <ph name="DOMAIN" /> јер користи безбедносни сертификат који Chromium или конфигурација система за шифровање веб-саобраћаја не сматрају поузданим. Узрок томе је можда погрешна конфигурација или нападач који је прекинуо везу.</translation>
@@ -1409,7 +1410,6 @@
 <translation id="3325662270238538525">Недавни приступ фајловима и измене фајлова, укључујући називе фајлова, дигиталне отиске садржаја фајлова, извор преузимања и метаподатке</translation>
 <translation id="3329013043687509092">Засићеност боја</translation>
 <translation id="3333762389743153920">Не испуњава услове за виртуелну картицу</translation>
-<translation id="3336044043987989409">Притисните дугме за поновно учитавање да бисте омогућили повезивање са уређајима или серверима на приватној мрежи.</translation>
 <translation id="3338095232262050444">Безбедан</translation>
 <translation id="333839153442689579">Интервални тренинг великог интензитета</translation>
 <translation id="3339446062576134663">Клауд (Ash)</translation>
@@ -1453,6 +1453,7 @@
 <translation id="340924996148642843">Поређење тренутно није доступно</translation>
 <translation id="3409896703495473338">Управљајте безбедносним подешавањима</translation>
 <translation id="3411091017011773343">Отпреми за <ph name="HOURS" /> с</translation>
+<translation id="341134412449102894">Информације се чувају у <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />-у за <ph name="ACCOUNT" /></translation>
 <translation id="3413466783792948876">Најбезбедније је да посетите овај сајт касније ако користите јавну мрежу. Ризик је мањи са поуздане мреже, попут кућне или пословне WiFi мреже.</translation>
 <translation id="3414275587143250384">Дистрибуирано рачунарство и рачунарство у клауду</translation>
 <translation id="3414952576877147120">Величина:</translation>
@@ -3143,6 +3144,7 @@
 <translation id="6189351761800074311">Текст и садржај странице се шаљу Google-у, али се неће користити за побољшање вештачке интелигенције.
     <ph name="BEGIN_LINK" />Сазнајте више<ph name="END_LINK" /></translation>
 <translation id="6190518157737269631">Замена уноса неких тастера на тастатури, као што је Esc</translation>
+<translation id="6192524964213419211">Сачувајте информације да бисте брже обављали ствари у Google производима. Информације се чувају у <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE" />-у за <ph name="ACCOUNT" /></translation>
 <translation id="6194209731893739467">Погледајте све производе које пратите овде</translation>
 <translation id="6195371403461054755">Геологија</translation>
 <translation id="6195418151868446719">Апарати за домаћинство</translation>
@@ -3309,6 +3311,7 @@
 <translation id="6433501201775827830">Изаберите претраживач</translation>
 <translation id="6433595998831338502">Хост <ph name="HOST_NAME" /> је одбио повезивање.</translation>
 <translation id="6433797564277305076">Од сада брже потврђујте картице уз откључавање уређаја</translation>
+<translation id="6436994298828707228">Веза је блокирана зато што ју је покренула јавна страница за повезивање са уређајима или серверима на локалној мрежи.</translation>
 <translation id="6437647869369934905">Google цртежи</translation>
 <translation id="643917412048333145">Хаљине</translation>
 <translation id="6440503408713884761">Занемарено</translation>
@@ -3380,6 +3383,7 @@
 <translation id="6547208576736763147">Двоструко бушење на левој страни</translation>
 <translation id="6549443526281184652">Костими</translation>
 <translation id="6550245281449521513">Закључавање миша није дозвољено</translation>
+<translation id="6552566579578780089">Плаћања</translation>
 <translation id="6554732001434021288">Последња посета: пре <ph name="NUM_DAYS" /> дана</translation>
 <translation id="6556866813142980365">Понови</translation>
 <translation id="6557715786897013164">14×17 in</translation>
@@ -3528,6 +3532,7 @@
 <translation id="6817217109584391709">javascript</translation>
 <translation id="6820143000046097424">серијски портови</translation>
 <translation id="6820686453637990663">CVC</translation>
+<translation id="6820949753458790123">Плаћајте у малим ратама</translation>
 <translation id="6825578344716086703">Покушали сте да посетите <ph name="DOMAIN" />, али је сервер послао сертификат потписан слабим алгоритмом (као што је SHA-1). То значи да су безбедносни акредитиви које је сервер послао можда кривотворени и сервер можда није онај који мислите да јесте (можда комуницирате са нападачем).</translation>
 <translation id="6826993739343257035">Дозволићете ПР?</translation>
 <translation id="6828150717884939426">Позив</translation>
@@ -3976,6 +3981,7 @@
 <translation id="753556296624075801">Омогућава Google</translation>
 <translation id="753713322968419914">Желите да уклоните кућну адресу из Chrome аутоматског попуњавања?</translation>
 <translation id="7537536606612762813">Обавезно</translation>
+<translation id="7541043894191476250">Контекстуални задаци</translation>
 <translation id="7543525346216957623">Питај родитеља</translation>
 <translation id="7546409722674205727">Покреће се <ph name="APP_NAME" /></translation>
 <translation id="7548892272833184391">Отклоните грешке при повезивању</translation>
@@ -4501,6 +4507,7 @@
 <translation id="8406071103346257942">да престане са коришћењем закључавања екрана за попуњавање лозинки</translation>
 <translation id="8407031780528483338">Посуђе за кување</translation>
 <translation id="8409413588194360210">обрађивачи плаћања</translation>
+<translation id="8410956920192583322">Месечно или у 4 рате</translation>
 <translation id="8412145213513410671">Отказивања (<ph name="CRASH_COUNT" />)</translation>
 <translation id="8412392972487953978">Потребно је да двапут унесете исту приступну фразу.</translation>
 <translation id="8414322570408428950">Откривен је догађај додатка</translation>
@@ -4792,6 +4799,7 @@
 <translation id="8922734931659847428">Ограничена листа URL-ова страница које посећујете на којима се дешавају <ph name="BEGIN_LINK" />догађаји са застарелом технологијом<ph name="END_LINK" /></translation>
 <translation id="892588693504540538">Бушење у горњем десном углу</translation>
 <translation id="8926389886865778422">Не питај ме поново</translation>
+<translation id="8926400492587758246">Плаћајте у малим месечним ратама</translation>
 <translation id="8932102934695377596">Сат вам касни</translation>
 <translation id="893332455753468063">Додајте име</translation>
 <translation id="8938242527120341116">Филтери садржаја уређаја су блокирали <ph name="BLOCKED_URL" /></translation>

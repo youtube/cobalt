@@ -33,7 +33,7 @@ import {afterNextRender, PolymerElement} from 'chrome://resources/polymer/v3_0/p
 import {loadTimeData} from '../../i18n_setup.js';
 import type {MetricsBrowserProxy} from '../../metrics_browser_proxy.js';
 import {MetricsBrowserProxyImpl, PrivacyGuideInteractions, PrivacyGuideStepsEligibleAndReached} from '../../metrics_browser_proxy.js';
-import {SafeBrowsingSetting} from '../../privacy_page/security_page.js';
+import {SafeBrowsingSetting} from '../../privacy_page/security/security_page.js';
 import {routes} from '../../route.js';
 import type {Route} from '../../router.js';
 import {RouteObserverMixin, Router} from '../../router.js';
@@ -254,7 +254,8 @@ export class SettingsPrivacyGuidePageElement extends PrivacyGuideBase {
           // unavailable. Otherwise we would skip it in
           // `navigateForwardIfCurrentCardNoLongerAvailable` before
           // `onSyncStatusChanged_` is called asynchronously.
-          isAvailable: () => !this.syncStatus_ || this.isSyncOn_(),
+          isAvailable: () =>
+              !this.syncStatus_ || this.shouldShowHistorySyncCard_(),
         },
       ],
       [
@@ -519,10 +520,14 @@ export class SettingsPrivacyGuidePageElement extends PrivacyGuideBase {
     };
   }
 
-  private isSyncOn_(): boolean {
+  private shouldShowHistorySyncCard_(): boolean {
     assert(this.syncStatus_);
-    return this.syncStatus_.signedInState === SignedInState.SYNCING &&
-        !this.syncStatus_.hasError;
+    if (this.syncStatus_.hasError) {
+      return false;
+    }
+    return this.syncStatus_.signedInState === SignedInState.SYNCING ||
+        (loadTimeData.getBoolean('replaceSyncPromosWithSignInPromos') &&
+         this.syncStatus_.signedInState === SignedInState.SIGNED_IN);
   }
 
   private shouldShowCookiesCard_(): boolean {

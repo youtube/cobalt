@@ -5,6 +5,8 @@
 source_set("tab_resumption") {
   sources = [
     "tab_resumption_commands.h",
+    "tab_resumption_consumer.h",
+    "tab_resumption_consumer_source.h",
     "tab_resumption_helper_delegate.h",
     "tab_resumption_item.h",
     "tab_resumption_item.mm",
@@ -23,6 +25,7 @@ source_set("tab_resumption") {
     "//components/commerce/core:proto",
     "//components/commerce/core:shopping_service",
     "//components/commerce/core:utils",
+    "//components/ntp_tiles:pref_names",
     "//components/optimization_guide/core",
     "//components/page_image_service",
     "//components/payments/core:currency_formatter",

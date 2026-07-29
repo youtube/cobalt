@@ -118,10 +118,10 @@ OnDeviceTailModelService::OnDeviceTailModelService(
           OPTIMIZATION_TARGET_OMNIBOX_ON_DEVICE_TAIL_SUGGEST,
       /* model_metadata= */ std::nullopt, model_task_runner_, this);
 
-  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-      FROM_HERE, base::MemoryPressureListenerTag::kOnDeviceTailModelService,
-      base::BindRepeating(&OnDeviceTailModelService::OnMemoryPressure,
-                          weak_ptr_factory_.GetWeakPtr()));
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::MemoryPressureListenerRegistration>(
+          FROM_HERE, base::MemoryPressureListenerTag::kOnDeviceTailModelService,
+          this);
 }
 
 OnDeviceTailModelService::OnDeviceTailModelService()
@@ -138,10 +138,7 @@ OnDeviceTailModelService::~OnDeviceTailModelService() {
 }
 
 void OnDeviceTailModelService::Shutdown() {
-  if (memory_pressure_listener_) {
-    memory_pressure_listener_.reset();
-  }
-  weak_ptr_factory_.InvalidateWeakPtrs();
+  memory_pressure_listener_registration_.reset();
 }
 
 void OnDeviceTailModelService::OnModelUpdated(
@@ -183,8 +180,8 @@ void OnDeviceTailModelService::OnModelUpdated(
 }
 
 void OnDeviceTailModelService::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
-  if (level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    base::MemoryPressureLevel level) {
+  if (level != base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     return;
   }
 
@@ -204,7 +201,7 @@ void OnDeviceTailModelService::GetPredictionsForInput(
     if (!monitor ||
         monitor->GetCurrentPressureLevel(
             base::MemoryPressureMonitorTag::kOnDeviceTailModelService) !=
-            base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+            base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
       model_task_runner_->PostTaskAndReplyWithResult(
           FROM_HERE,
           base::BindOnce(&RunTailModelExecutor, tail_model_executor_.get(),

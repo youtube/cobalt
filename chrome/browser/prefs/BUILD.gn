@@ -98,7 +98,7 @@ source_set("impl") {
     "//components/browsing_data/core",
     "//components/certificate_transparency",
     "//components/collaboration/public:prefs",
-    "//components/commerce/core:pref_names",
+    "//components/commerce/core:prefs",
     "//components/content_settings/core/browser",
     "//components/custom_handlers",
     "//components/domain_reliability:prefs",
@@ -120,6 +120,7 @@ source_set("impl") {
     "//components/media_device_salt",
     "//components/metrics/demographics",
     "//components/network_time",
+    "//components/ntp_tiles:pref_names",
     "//components/omnibox/browser",
     "//components/optimization_guide/core:features",
     "//components/password_manager/core/browser",
@@ -134,6 +135,7 @@ source_set("impl") {
     "//components/regional_capabilities",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
+    "//components/safety_check:prefs",
     "//components/saved_tab_groups/public:prefs",
     "//components/security_interstitials/content:security_interstitial_page",
     "//components/segmentation_platform/embedder/default_model",
@@ -282,9 +284,6 @@ source_set("impl") {
       "//chrome/browser/browser_switcher",
       "//chrome/browser/ui/webui/whats_new",
     ]
-    if (is_win || is_mac) {
-      deps += [ "//components/os_crypt/sync" ]
-    }
   }
 
   if (is_win) {

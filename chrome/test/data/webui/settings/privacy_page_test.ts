@@ -4,12 +4,11 @@
 
 // clang-format off
 import {webUIListenerCallback} from 'chrome://resources/js/cr.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {CrToastElement} from 'chrome://settings/lazy_load.js';
 import {ClearBrowsingDataBrowserProxyImpl, CookieControlsMode} from 'chrome://settings/lazy_load.js';
-import type {CrLinkRowElement, Route, SettingsPrefsElement, SettingsPrivacyPageElement, SyncStatus} from 'chrome://settings/settings.js';
-import {CrSettingsPrefs, HatsBrowserProxyImpl, MetricsBrowserProxyImpl, PrivacyGuideInteractions, PrivacyPageBrowserProxyImpl, resetRouterForTesting, Router, routes, StatusAction, TrustSafetyInteraction} from 'chrome://settings/settings.js';
+import type {CrLinkRowElement, SettingsPrefsElement, SettingsPrivacyPageElement, SyncStatus} from 'chrome://settings/settings.js';
+import {CrSettingsPrefs, HatsBrowserProxyImpl, loadTimeData, MetricsBrowserProxyImpl, PrivacyGuideInteractions, resetRouterForTesting, Router, routes, StatusAction, TrustSafetyInteraction} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue, assertThrows} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, isChildVisible} from 'chrome://webui-test/test_util.js';
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
@@ -17,25 +16,8 @@ import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {TestClearBrowsingDataBrowserProxy} from './test_clear_browsing_data_browser_proxy.js';
 import {TestHatsBrowserProxy} from './test_hats_browser_proxy.js';
 import {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
-import {TestPrivacyPageBrowserProxy} from './test_privacy_page_browser_proxy.js';
 
-const redesignedPages: Route[] = [
-  routes.SITE_SETTINGS_HANDLERS,
-  routes.SITE_SETTINGS_NOTIFICATIONS,
-  routes.SITE_SETTINGS_PDF_DOCUMENTS,
-  routes.SITE_SETTINGS_PROTECTED_CONTENT,
 
-  // TODO(crbug.com/40719916) After restructure add coverage for elements on
-  // routes which depend on flags being enabled.
-  // routes.SITE_SETTINGS_BLUETOOTH_SCANNING,
-  // routes.SITE_SETTINGS_BLUETOOTH_DEVICES,
-  // routes.SITE_SETTINGS_WINDOW_MANAGEMENT,
-
-  // Doesn't contain toggle or radio buttons
-  // routes.SITE_SETTINGS_AUTOMATIC_FULLSCREEN,
-  // routes.SITE_SETTINGS_INSECURE_CONTENT,
-  // routes.SITE_SETTINGS_ZOOM_LEVELS,
-];
 
 // clang-format on
 
@@ -68,8 +50,6 @@ suite('PrivacyPage', function() {
     testClearBrowsingDataBrowserProxy = new TestClearBrowsingDataBrowserProxy();
     ClearBrowsingDataBrowserProxyImpl.setInstance(
         testClearBrowsingDataBrowserProxy);
-    const testBrowserProxy = new TestPrivacyPageBrowserProxy();
-    PrivacyPageBrowserProxyImpl.setInstance(testBrowserProxy);
     metricsBrowserProxy = new TestMetricsBrowserProxy();
     MetricsBrowserProxyImpl.setInstance(metricsBrowserProxy);
 
@@ -130,48 +110,7 @@ suite('PrivacyPage', function() {
   });
 });
 
-// Isolated ContentSettingsVisibility test suite due to significantly higher
-// execution time (10-20x factor) of that specific tests compare to other
-// sub-tests.
-suite('ContentSettingsVisibility', function() {
-  let page: SettingsPrivacyPageElement;
-  let settingsPrefs: SettingsPrefsElement;
 
-  suiteSetup(function() {
-    settingsPrefs = document.createElement('settings-prefs');
-    return CrSettingsPrefs.initialized;
-  });
-
-  setup(function() {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-
-    page = document.createElement('settings-privacy-page');
-    page.prefs = settingsPrefs.prefs!;
-    document.body.appendChild(page);
-    return flushTasks();
-  });
-
-  test('ContentSettingsVisibility', async function() {
-    // Ensure pages are visited so that HTML components are stamped.
-    redesignedPages.forEach(route => Router.getInstance().navigateTo(route));
-    await flushTasks();
-
-    // All redesigned pages will use `settings-category-default-radio-group`,
-    // except
-    //   1. protocol handlers,
-    //   2. pdf documents,
-    //   3. protected content (is in its own element),
-    //   4. notifications (is in its own element)
-    //   5. geolocation (is in its own element)
-    const expectedPagesCount = redesignedPages.length - 4;
-
-    assertEquals(
-        page.shadowRoot!
-            .querySelectorAll('settings-category-default-radio-group')
-            .length,
-        expectedPagesCount);
-  });
-});
 
 suite(`PrivacySandbox`, function() {
   let page: SettingsPrivacyPageElement;
@@ -237,12 +176,6 @@ suite(`PrivacySandbox`, function() {
     await flushTasks();
     assertEquals(
         routes.PRIVACY_SANDBOX, Router.getInstance().getCurrentRoute());
-  });
-});
-
-suite('WebPrintingNotShown', function () {
-  test('navigateToWebPrinting', function () {
-    assertThrows(() => Router.getInstance().navigateTo(routes.SITE_SETTINGS_WEB_PRINTING));
   });
 });
 
@@ -600,107 +533,6 @@ suite('PrivacyGuideRow', function() {
     // Ensure the privacy guide dialog is shown.
     assertTrue(
         !!page.shadowRoot!.querySelector<HTMLElement>('#privacyGuideDialog'));
-  });
-});
-
-suite('PrivacyPageSound', function() {
-  let testBrowserProxy: TestPrivacyPageBrowserProxy;
-  let page: SettingsPrivacyPageElement;
-
-  function getToggleElement() {
-    return page.shadowRoot!.querySelector<HTMLElement>(
-        '#block-autoplay-setting')!;
-  }
-
-  setup(() => {
-    loadTimeData.overrideValues({enableBlockAutoplayContentSetting: true});
-    resetRouterForTesting();
-
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
-
-    testBrowserProxy = new TestPrivacyPageBrowserProxy();
-    PrivacyPageBrowserProxyImpl.setInstance(testBrowserProxy);
-
-    Router.getInstance().navigateTo(routes.SITE_SETTINGS_SOUND);
-    page = document.createElement('settings-privacy-page');
-    document.body.appendChild(page);
-    return flushTasks();
-  });
-
-  teardown(() => {
-    page.remove();
-  });
-
-  test('UpdateStatus', () => {
-    assertTrue(getToggleElement().hasAttribute('disabled'));
-    assertFalse(getToggleElement().hasAttribute('checked'));
-
-    webUIListenerCallback(
-        'onBlockAutoplayStatusChanged', {pref: {value: true}, enabled: true});
-
-    return flushTasks().then(() => {
-      // Check that we are on and enabled.
-      assertFalse(getToggleElement().hasAttribute('disabled'));
-      assertTrue(getToggleElement().hasAttribute('checked'));
-
-      // Toggle the pref off.
-      webUIListenerCallback(
-          'onBlockAutoplayStatusChanged',
-          {pref: {value: false}, enabled: true});
-
-      return flushTasks().then(() => {
-        // Check that we are off and enabled.
-        assertFalse(getToggleElement().hasAttribute('disabled'));
-        assertFalse(getToggleElement().hasAttribute('checked'));
-
-        // Disable the autoplay status toggle.
-        webUIListenerCallback(
-            'onBlockAutoplayStatusChanged',
-            {pref: {value: false}, enabled: false});
-
-        return flushTasks().then(() => {
-          // Check that we are off and disabled.
-          assertTrue(getToggleElement().hasAttribute('disabled'));
-          assertFalse(getToggleElement().hasAttribute('checked'));
-        });
-      });
-    });
-  });
-
-  test('Hidden', () => {
-    assertTrue(loadTimeData.getBoolean('enableBlockAutoplayContentSetting'));
-    assertFalse(getToggleElement().hidden);
-
-    loadTimeData.overrideValues({enableBlockAutoplayContentSetting: false});
-    resetRouterForTesting();
-
-    page.remove();
-    page = document.createElement('settings-privacy-page');
-    document.body.appendChild(page);
-
-    return flushTasks().then(() => {
-      assertFalse(loadTimeData.getBoolean('enableBlockAutoplayContentSetting'));
-      assertTrue(getToggleElement().hidden);
-    });
-  });
-
-  test('Click', async () => {
-    assertTrue(getToggleElement().hasAttribute('disabled'));
-    assertFalse(getToggleElement().hasAttribute('checked'));
-
-    webUIListenerCallback(
-        'onBlockAutoplayStatusChanged', {pref: {value: true}, enabled: true});
-
-    await flushTasks();
-    // Check that we are on and enabled.
-    assertFalse(getToggleElement().hasAttribute('disabled'));
-    assertTrue(getToggleElement().hasAttribute('checked'));
-
-    // Click on the toggle and wait for the proxy to be called.
-    getToggleElement().click();
-    const enabled =
-        await testBrowserProxy.whenCalled('setBlockAutoplayEnabled');
-    assertFalse(enabled);
   });
 });
 

@@ -20,6 +20,22 @@ import java.nio.ByteBuffer;
 @JNINamespace("tabs")
 @NullMarked
 public class TabStateStorageService {
+    /** Simple data container for a TabState and its corresponding creation callback. */
+    public static class LoadedTabState {
+        public final @TabId int tabId;
+        public final TabState tabState;
+        public final Callback<@Nullable Tab> onTabCreationCallback;
+
+        public LoadedTabState(
+                @TabId int tabId,
+                TabState tabState,
+                Callback<@Nullable Tab> onTabCreationCallback) {
+            this.tabId = tabId;
+            this.tabState = tabState;
+            this.onTabCreationCallback = onTabCreationCallback;
+        }
+    }
+
     private final long mNativeTabStateStorageService;
 
     private TabStateStorageService(long nativeTabStateStorageService) {
@@ -47,8 +63,14 @@ public class TabStateStorageService {
      *
      * @param callback Run with loaded tab data.
      */
-    public void loadAllTabs(Callback<TabState[]> callback) {
+    public void loadAllTabs(Callback<LoadedTabState[]> callback) {
         TabStateStorageServiceJni.get().loadAllTabs(mNativeTabStateStorageService, callback);
+    }
+
+    @CalledByNative
+    public static LoadedTabState createLoadedTabState(
+            @TabId int tabId, TabState tabState, Callback<@Nullable Tab> onTabCreationCallback) {
+        return new LoadedTabState(tabId, tabState, onTabCreationCallback);
     }
 
     @CalledByNative
@@ -95,6 +117,7 @@ public class TabStateStorageService {
     interface Natives {
         void save(long nativeTabStateStorageServiceAndroid, @JniType("TabAndroid*") Tab tab);
 
-        void loadAllTabs(long nativeTabStateStorageServiceAndroid, Callback<TabState[]> callback);
+        void loadAllTabs(
+                long nativeTabStateStorageServiceAndroid, Callback<LoadedTabState[]> callback);
     }
 }

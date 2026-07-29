@@ -468,6 +468,9 @@ inline constexpr char kAddressesAndPaymentMethodsLearnMoreURL[] =
 inline constexpr char16_t kPayOverTimeLearnMoreUrl[] =
     u"https://support.google.com/googlepay?p=bnpl_autofill_chrome";
 
+// The URL for the Wallet website.
+inline constexpr char16_t kWalletUrl[] = u"https://wallet.google.com";
+
 // Help URL for Autofill AI.
 inline constexpr char16_t kAutofillAiLearnMoreURL[] =
     u"https://support.google.com/chrome?p=autofill_ai";
@@ -613,6 +616,10 @@ inline constexpr char16_t kHistorySearchSettingURL[] =
 // The URL for the "Learn more" page for Wallpaper Search.
 inline constexpr char kWallpaperSearchLearnMorePageURL[] =
     "https://support.google.com/chrome?p=create_themes_with_ai";
+
+// The URL for the passed in Google Wallet.
+inline constexpr char kWalletPassesPageURL[] =
+    "https://wallet.google.com/wallet/passes";
 
 // The URL for the "Learn more" page for Tab Organization.
 inline constexpr char kTabOrganizationLearnMorePageURL[] =

@@ -89,7 +89,16 @@ class BnplManager {
   // that the manager can update suggestions for buy-now-pay-later.
   virtual void OnAmountExtractionReturned(
       const std::optional<uint64_t>& extracted_amount,
-      bool timeout_reached = false);
+      bool timeout_reached);
+
+  // Runs after amount extraction is complete from the server-side AI.
+  // `extracted_amount_in_micros` is the final checkout amount in micro units on
+  // a checkout page. `timeout_reached` is true if the server-side AI
+  // prediction takes more than
+  // `AmountExtractionManager::kAiBasedAmountExtractionWaitTime` time to finish.
+  virtual void OnAmountExtractionReturnedFromAi(
+      const std::optional<uint64_t>& extracted_amount_in_micros,
+      bool timeout_reached);
 
   // Returns true if the issuer for the ongoing flow contains the required
   // action `PaymentInstrument::ActionRequired::kAcceptTos`.

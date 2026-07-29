@@ -15,7 +15,6 @@ namespace gpu {
 class SharedContextState;
 struct GpuFeatureInfo;
 struct GPUInfo;
-class SchedulerTaskRunner;
 class MemoryTracker;
 class SharedImageManager;
 }  // namespace gpu
@@ -42,13 +41,13 @@ CreateContextFromOptions(
     const gpu::GPUInfo& gpu_info,
     const gpu::SharedContextState* shared_context_state,
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
-    WebNNContextProviderImpl* context_provider,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
-    gpu::SharedImageManager* shared_image_manager);
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
 }  // namespace dml
 

@@ -106,6 +106,10 @@ class CONTENT_EXPORT IndexedDBContextImpl
   void AddObserver(
       mojo::PendingRemote<storage::mojom::IndexedDBObserver> observer) override;
 
+  base::FilePath GetFilePathForTesting(
+      const storage::BucketLocator& bucket_locator,
+      bool sqlite);
+
   // mojom::IndexedDBControlTest implementation:
   void GetBaseDataPathForTesting(
       GetBaseDataPathForTestingCallback callback) override;
@@ -119,6 +123,9 @@ class CONTENT_EXPORT IndexedDBContextImpl
       GetPathForBlobForTestingCallback callback) override;
   void FlushBackingStoreForTesting(const storage::BucketLocator& bucket_locator,
                                    base::OnceClosure callback) override;
+  void FlushBucketSequenceForTesting(
+      const storage::BucketLocator& bucket_locator,
+      base::OnceClosure callback) override;
   void GetUsageForTesting(GetUsageForTestingCallback) override;
   void BindMockFailureSingletonForTesting(
       mojo::PendingReceiver<storage::mojom::MockFailureInjector> receiver)
@@ -206,9 +213,9 @@ class CONTENT_EXPORT IndexedDBContextImpl
   // by `FindIndexedDBFiles`.
   std::map<blink::StorageKey, base::FilePath> FindLegacyIndexedDBFiles() const;
 
-  // Reads IDB files from disk, looking in the directories where
-  // third-party-context IDB files are stored.
-  std::map<storage::BucketId, base::FilePath> FindIndexedDBFiles() const;
+  // Finds buckets in the profile that have an IndexedDB directory, e.g.
+  // will return 6 if <profile>/WebStorage/6/IndexedDB exists.
+  std::vector<storage::BucketId> FindBucketsWithIndexedDBDirs() const;
 
   void DidForceCloseForDeleteBucketData(
       const storage::BucketLocator& bucket_locator,
@@ -260,6 +267,10 @@ class CONTENT_EXPORT IndexedDBContextImpl
 
   std::optional<storage::BucketLocator> LookUpBucket(
       storage::BucketId bucket_id);
+
+  // Returns nullptr if the bucket context does not exist.
+  base::SequenceBound<BucketContext>* GetBucketContextForTesting(
+      const storage::BucketLocator& bucket_locator);
 
   bool in_memory() const { return base_data_path_.empty(); }
 

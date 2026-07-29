@@ -19,10 +19,14 @@
 #include "base/synchronization/lock.h"
 #include "base/thread_annotations.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "components/persistent_cache/persistent_cache.h"
 #include "gpu/gpu_gles2_export.h"
 #include "gpu/ipc/common/gpu_disk_cache_type.h"
 
 namespace gpu {
+
+class GpuPersistentCache;
+
 namespace webgpu {
 
 class DawnCachingInterfaceFactory;
@@ -33,16 +37,15 @@ namespace detail {
 // with a simple LRU eviction algorithm implemented on top. This is the actual
 // backing cache for instances of DawnCachingInterface. The eviction queue is
 // set up so that the entries in the front are the first entries to be deleted.
-class GPU_GLES2_EXPORT DawnCachingBackend
-    : public base::RefCounted<DawnCachingBackend> {
+class GPU_GLES2_EXPORT DawnMemoryCache
+    : public base::RefCounted<DawnMemoryCache> {
  public:
-  explicit DawnCachingBackend(size_t max_size);
+  explicit DawnMemoryCache(size_t max_size);
 
   size_t LoadData(const std::string& key, void* value_out, size_t value_size);
   void StoreData(const std::string& key, const void* value, size_t value_size);
 
-  void PurgeMemory(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void PurgeMemory(base::MemoryPressureLevel memory_pressure_level);
 
   void OnMemoryDump(const std::string& dump_name,
                     base::trace_event::ProcessMemoryDump* pmd);
@@ -74,8 +77,8 @@ class GPU_GLES2_EXPORT DawnCachingBackend
   friend bool operator<(const std::string& lhs,
                         const std::unique_ptr<Entry>& rhs);
 
-  friend class base::RefCounted<DawnCachingBackend>;
-  ~DawnCachingBackend();
+  friend class base::RefCounted<DawnMemoryCache>;
+  ~DawnMemoryCache();
 
   void EvictEntry(Entry* entry) EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
@@ -89,15 +92,9 @@ class GPU_GLES2_EXPORT DawnCachingBackend
 
 }  // namespace detail
 
-// Provides a wrapper class around an in-memory DawnCachingBackend. This class
-// was originally designed to handle both disk and in-memory cache backends, but
-// because it lives on the GPU process and does not have permissions (due to
-// sandbox restrictions) to disk, the disk functionality was removed. Should it
-// become necessary to provide interfaces over a disk level disk_cache::Backend,
-// please refer to the file history for reference. Note that the big difference
-// between in-memory and disk backends are the sync vs async nature of the two
-// respectively. Because we are only handling in-memory backends now, the logic
-// can be simplified to handle everything synchronously.
+// Provides a wrapper class around an in-memory DawnMemoryCache and a disk
+// cache. The disk cache controller can be provided either via a
+// CacheBlobCallback or a GpuPersistentCache pointer.
 class GPU_GLES2_EXPORT DawnCachingInterface
     : public dawn::platform::CachingInterface {
  public:
@@ -107,11 +104,13 @@ class GPU_GLES2_EXPORT DawnCachingInterface
 
   ~DawnCachingInterface() override;
 
+  void InitializePersistentCache(
+      persistent_cache::BackendParams backend_params);
+
   size_t LoadData(const void* key,
                   size_t key_size,
                   void* value_out,
                   size_t value_size) override;
-
   void StoreData(const void* key,
                  size_t key_size,
                  const void* value,
@@ -121,19 +120,29 @@ class GPU_GLES2_EXPORT DawnCachingInterface
   friend class DawnCachingInterfaceFactory;
 
   // Simplified accessor to the backend.
-  detail::DawnCachingBackend* backend() { return backend_.get(); }
+  detail::DawnMemoryCache* memory_cache() {
+    return memory_cache_backend_.get();
+  }
 
   // Constructor is private because creation of interfaces should be deferred to
   // the factory.
+  explicit DawnCachingInterface(scoped_refptr<detail::DawnMemoryCache> backend,
+                                CacheBlobCallback callback = {});
   explicit DawnCachingInterface(
-      scoped_refptr<detail::DawnCachingBackend> backend,
-      CacheBlobCallback callback = {});
+      scoped_refptr<detail::DawnMemoryCache> backend,
+      std::unique_ptr<GpuPersistentCache> persistent_cache);
 
   // Caching interface owns a reference to the backend.
-  scoped_refptr<detail::DawnCachingBackend> backend_ = nullptr;
+  scoped_refptr<detail::DawnMemoryCache> memory_cache_backend_ = nullptr;
 
   // The callback provides ability to store cache entries to persistent disk.
   CacheBlobCallback cache_blob_callback_;
+
+  // The interface that allows storing and loading cache entries directly
+  // to/from disk.
+  // TODO(crbug.com/399642827): Remove the above callback once we migrate
+  // everything to use GpuPersistentCache API.
+  std::unique_ptr<GpuPersistentCache> persistent_cache_;
 };
 
 // Factory class for producing and managing DawnCachingInterfaces.
@@ -145,7 +154,7 @@ class GPU_GLES2_EXPORT DawnCachingInterfaceFactory
  public:
   // Factory for backend creation, especially for testing.
   using BackendFactory =
-      base::RepeatingCallback<scoped_refptr<detail::DawnCachingBackend>()>;
+      base::RepeatingCallback<scoped_refptr<detail::DawnMemoryCache>()>;
 
   explicit DawnCachingInterfaceFactory(BackendFactory factory);
   DawnCachingInterfaceFactory();
@@ -157,6 +166,10 @@ class GPU_GLES2_EXPORT DawnCachingInterfaceFactory
   std::unique_ptr<DawnCachingInterface> CreateInstance(
       const gpu::GpuDiskCacheHandle& handle,
       DawnCachingInterface::CacheBlobCallback callback = {});
+
+  std::unique_ptr<DawnCachingInterface> CreateInstance(
+      const gpu::GpuDiskCacheHandle& handle,
+      std::unique_ptr<GpuPersistentCache> persistent_cache);
 
   // Returns a pointer to a DawnCachingInterface that owns the in memory
   // backend. This is used for incognito cases where the cache should not be
@@ -175,24 +188,25 @@ class GPU_GLES2_EXPORT DawnCachingInterfaceFactory
   // released.
   void ReleaseHandle(const gpu::GpuDiskCacheHandle& handle);
 
-  void PurgeMemory(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void PurgeMemory(base::MemoryPressureLevel memory_pressure_level);
 
   // base::trace_event::MemoryDumpProvider implementation.
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
 
  private:
+  scoped_refptr<detail::DawnMemoryCache> GetOrCreateMemoryCache(
+      const gpu::GpuDiskCacheHandle& handle);
+
   // Creates a default backend for assignment.
-  static scoped_refptr<detail::DawnCachingBackend>
-  CreateDefaultInMemoryBackend();
+  static scoped_refptr<detail::DawnMemoryCache> CreateDefaultInMemoryBackend();
 
   // Factory to create backends.
   BackendFactory backend_factory_;
 
   // Map that holds existing backends.
   base::flat_map<gpu::GpuDiskCacheHandle,
-                 scoped_refptr<detail::DawnCachingBackend>>
+                 scoped_refptr<detail::DawnMemoryCache>>
       backends_;
 };
 

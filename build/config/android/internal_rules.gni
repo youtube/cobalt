@@ -110,6 +110,24 @@ _manifest_merger_jar_path =
 # the error message about why non-existent dependencies are there.
 build_config_target_suffix = "__build_config_crbug_908819"
 
+# Paths for Java location rewriter
+_asm_deps = [
+  "//third_party/android_deps:org_ow2_asm_asm_commons_java",
+  "//third_party/android_deps:org_ow2_asm_asm_java",
+]
+
+rebased_asm_params_path = []
+foreach(_asm_dep, _asm_deps) {
+  _asm_dep_gen_dir = get_label_info(_asm_dep, "target_gen_dir")
+  _asm_dep_name = get_label_info(_asm_dep, "name")
+  rebased_asm_params_path +=
+      [ rebase_path("$_asm_dep_gen_dir/$_asm_dep_name.params.json",
+                    root_build_dir) ]
+}
+
+rebased_location_rewriter_path =
+    rebase_path("$root_build_dir/bin/helper/location_rewriter", root_build_dir)
+
 # Write the target's .build_config.json file. This is a json file that contains a
 # dictionary of information about how to build this target (things that
 # require knowledge about this target's dependencies and cannot be calculated
@@ -3070,6 +3088,7 @@ if (enable_java_templates) {
         }
         inputs += _java_srcjars
       }
+
       inputs += invoker.source_files + [ _build_config ] + java_paths_for_inputs
 
       if (invoker.source_files != []) {
@@ -3636,8 +3655,12 @@ if (enable_java_templates) {
         # Skip "process device" step if the step would be just a copy.
         _processed_jar_path = invoker.jar_path
       } else if (_has_sources) {
-        # Filter directly in compile_java.py when no other processing is required.
-        _processed_jar_path = _javac_jar_path
+        if (defined(invoker.bytecode_rewriter_target)) {
+          _processed_jar_path = "$target_out_dir/$target_name.rewritten.jar"
+        } else {
+          # Filter directly in compile_java.py when no other processing is required.
+          _processed_jar_path = _javac_jar_path
+        }
       }
 
       if (_build_device_jar) {
@@ -4140,7 +4163,7 @@ if (enable_java_templates) {
       assert(_build_host_jar || _build_device_jar,
              "A host or device jar must be created to use bytecode rewriting")
 
-      _rewritten_jar = "$target_out_dir/${target_name}_rewritten.jar"
+      _rewritten_jar = "$target_out_dir/${target_name}.rewritten.jar"
       _rewritten_jar_target_name = "${target_name}__rewritten"
       _rewriter_path = root_build_dir + "/bin/helper/" +
                        get_label_info(invoker.bytecode_rewriter_target, "name")
@@ -4172,9 +4195,9 @@ if (enable_java_templates) {
                [ invoker.bytecode_rewriter_target ]
       }
 
-      _unprocessed_jar_deps = []
-      _unprocessed_jar_deps = [ ":$_rewritten_jar_target_name" ]
+      _unprocessed_jar_deps += [ ":$_rewritten_jar_target_name" ]
       _unprocessed_jar_path = _rewritten_jar
+      _process_jar_target_name = _rewritten_jar_target_name
     }
 
     if (_is_prebuilt) {

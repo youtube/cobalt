@@ -163,10 +163,9 @@ class URLCanonTest : public ::testing::Test {
     // First see if it is relative.
     bool is_relative;
     Component relative_component;
-    bool succeed_is_rel = IsRelativeURL(
-        relative_case.base.data(), parsed, relative_case.rel.data(),
-        relative_case.rel.size(), relative_case.is_base_hier, &is_relative,
-        &relative_component);
+    bool succeed_is_rel = IsRelativeUrl(
+        relative_case.base, parsed, relative_case.rel,
+        relative_case.is_base_hier, &is_relative, &relative_component);
 
     EXPECT_EQ(is_relative, relative_case.expected_is_relative);
     if (succeed_is_rel && is_relative) {
@@ -493,9 +492,9 @@ TEST_F(URLCanonHostTest, Host) {
        L"a\x200c"
        L"b\x200d"
        L"c",
-       "xn--abc-9m0ag",
-       Component(0, 13),
-       CanonHostInfo::NEUTRAL, -1, ""},
+       "a%E2%80%8Cb%E2%80%8Dc",
+       Component(0, 21),
+       CanonHostInfo::BROKEN, -1, ""},
 
       // ZWJ between Devanagari characters was still mapped away in UTS 46
       // transitional handling. IDNA 2008 gives xn--11bo0mv54g.
@@ -2853,12 +2852,11 @@ TEST_F(URLCanonTest, ResolveRelativeURL) {
       parsed = ParsePathURL(cur_case.base, false);
 
     // First see if it is relative.
-    int test_len = static_cast<int>(strlen(cur_case.test));
     bool is_relative;
     Component relative_component;
-    bool succeed_is_rel = IsRelativeURL(
-        cur_case.base, parsed, cur_case.test, test_len, cur_case.is_base_hier,
-        &is_relative, &relative_component);
+    bool succeed_is_rel =
+        IsRelativeUrl(cur_case.base, parsed, cur_case.test,
+                      cur_case.is_base_hier, &is_relative, &relative_component);
 
     EXPECT_EQ(cur_case.succeed_relative, succeed_is_rel) <<
         "succeed is rel failure on " << cur_case.test;

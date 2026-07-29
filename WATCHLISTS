@@ -1364,6 +1364,9 @@
                   'chromeos/crosapi/mojom/.*holding_space|'\
                   'tools/metrics/histograms/metadata/holding_space'
     },
+    'hsts': {
+      'filepath': 'net/http/transport_security_state.*'
+    },
     'i18n': {
       'filepath': 'base/i18n/|base/string|l10n|icu|'\
                   'locale_settings|encoding',
@@ -3015,6 +3018,7 @@
     'headless': ['headless-reviews@chromium.org'],
     'heap_mojo': ['chikamune+watch@chromium.org'],
     'holding_space': ['tote-eng+reviews@google.com'],
+    'hsts': ['jdeblasio+watch@chromium.org'],
     'i18n': ['jshin+watch@chromium.org'],
     'incident_reporting': ['grt+watch@chromium.org'],
     'incognito': ['roagarwal+watch@chromium.org'],
@@ -3194,8 +3198,7 @@
                         'lizeb+pa@chromium.org',
                         'bartekn+watch@chromium.org'],
     'password_manager': ['gcasto+watchlist@chromium.org',
-                         'vasilii+watchlistpasswordmanager@chromium.org',
-                        'milicau+watchlistpasswordmanager@google.com'],
+                         'vasilii+watchlistpasswordmanager@chromium.org'],
     'payments': ['slobodan+watch@chromium.org'],
     'pdf': ['pdf-reviews@chromium.org'],
     'pdf_ocr': ['kyungjunlee+watch@google.com',

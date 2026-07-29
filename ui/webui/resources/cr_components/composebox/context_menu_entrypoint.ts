@@ -15,9 +15,8 @@ import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PageHandlerRemote as SearchboxPageHandlerRemote, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 
-import {ComposeboxProxyImpl} from './composebox_proxy.js';
 import {getCss} from './context_menu_entrypoint.css.js';
 import {getHtml} from './context_menu_entrypoint.html.js';
 
@@ -55,6 +54,7 @@ export class ContextMenuEntrypointElement extends
         reflect: true,
         type: Boolean,
       },
+      disabledTabIds: {type: Object},
       tabSuggestions_: {type: Array},
       tabPreviewUrl_: {type: String},
       tabPreviewsEnabled_: {type: Boolean},
@@ -71,7 +71,8 @@ export class ContextMenuEntrypointElement extends
 
   accessor inputsDisabled: boolean = false;
   accessor showContextMenuDescription: boolean = false;
-  protected accessor inCreateImageMode: boolean = false;
+  accessor inCreateImageMode: boolean = false;
+  accessor disabledTabIds: Set<number> = new Set();
   protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor tabPreviewUrl_: string = '';
   protected accessor tabPreviewsEnabled_: boolean =
@@ -79,13 +80,11 @@ export class ContextMenuEntrypointElement extends
   protected accessor showDeepSearch_: boolean =
       loadTimeData.getBoolean('composeboxShowDeepSearchButton');
 
-  private searchboxHandler_: SearchboxPageHandlerRemote;
   protected accessor showCreateImage_: boolean =
       loadTimeData.getBoolean('composeboxShowCreateImageButton');
 
   constructor() {
     super();
-    this.searchboxHandler_ = ComposeboxProxyImpl.getInstance().searchboxHandler;
   }
 
   protected onEntrypointClick_() {
@@ -103,7 +102,7 @@ export class ContextMenuEntrypointElement extends
       }});
   }
 
-  protected addTabContext(e: Event) {
+  protected addTabContext_(e: Event) {
     e.stopPropagation();
 
     const tabElement = e.currentTarget! as HTMLButtonElement;
@@ -119,7 +118,7 @@ export class ContextMenuEntrypointElement extends
     this.$.menu.close();
   }
 
-  protected async onTabPointerenter_(e: Event) {
+  protected onTabPointerenter_(e: Event) {
     if (!this.tabPreviewsEnabled_) {
       return;
     }
@@ -131,21 +130,24 @@ export class ContextMenuEntrypointElement extends
     // Clear the preview URL before fetching the new one to make sure an old
     // or incorrect preview doesn't show while the new one is loading.
     this.tabPreviewUrl_ = '';
-    const {previewDataUrl} =
-        await this.searchboxHandler_.getTabPreview(tabInfo.tabId);
-    this.tabPreviewUrl_ = previewDataUrl || '';
+    this.fire('get-tab-preview', {
+      tabId: tabInfo.tabId,
+      onPreviewFetched: (previewDataUrl: string) => {
+        this.tabPreviewUrl_ = previewDataUrl;
+      },
+    });
   }
 
-  protected shouldShowTabPreview(): boolean {
+  protected shouldShowTabPreview_(): boolean {
     return this.tabPreviewsEnabled_ && this.tabPreviewUrl_ !== '';
   }
 
-  protected openImageUpload() {
+  protected openImageUpload_() {
     this.fire('open-image-upload');
     this.$.menu.close();
   }
 
-  protected openFileUpload() {
+  protected openFileUpload_() {
     this.fire('open-file-upload');
     this.$.menu.close();
   }
@@ -157,8 +159,7 @@ export class ContextMenuEntrypointElement extends
   }
 
   protected onCreateImageClick_() {
-    this.fire('create-image-click',
-        {inCreateImageMode: this.inCreateImageMode});
+    this.fire('create-image-click');
     this.$.menu.close();
   }
 }

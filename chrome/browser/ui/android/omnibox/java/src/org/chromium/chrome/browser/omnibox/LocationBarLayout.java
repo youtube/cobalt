@@ -41,6 +41,7 @@ public class LocationBarLayout extends ConstraintLayout {
     protected ImageButton mDeleteButton;
     protected ImageButton mMicButton;
     protected ImageButton mLensButton;
+    protected ImageButton mZoomButton;
     protected ImageButton mInstallButton;
     protected ImageButton mComposeplateButton;
     protected UrlBar mUrlBar;
@@ -81,12 +82,15 @@ public class LocationBarLayout extends ConstraintLayout {
         mUrlBar = findViewById(R.id.url_bar);
         mMicButton = findViewById(R.id.mic_button);
         mLensButton = findViewById(R.id.lens_camera_button);
+        mZoomButton = findViewById(R.id.zoom_button);
         mInstallButton = findViewById(R.id.install_button);
         mComposeplateButton = findViewById(R.id.composeplate_button);
         mUrlActionContainer = findViewById(R.id.url_action_container);
         mMarginSpacer = findViewById(R.id.margin_spacer);
         mMinimumActionContainerWidthPx =
-                context.getResources().getDimensionPixelSize(R.dimen.min_touch_target_size);
+                context.getResources().getDimensionPixelSize(R.dimen.min_touch_target_size)
+                        - context.getResources()
+                                .getDimensionPixelSize(R.dimen.location_bar_url_action_offset);
         mStatusIconAndUrlBarOffset =
                 OmniboxResourceProvider.getToolbarSidePaddingForNtp(context)
                         - OmniboxResourceProvider.getToolbarSidePadding(context);
@@ -244,6 +248,11 @@ public class LocationBarLayout extends ConstraintLayout {
     /** Sets the visibility of the lens button. */
     /* package */ void setLensButtonVisibility(boolean shouldShow) {
         mLensButton.setVisibility(shouldShow ? VISIBLE : GONE);
+    }
+
+    /** Sets the visibility of the zoom button. */
+    /* package */ void setZoomButtonVisibility(boolean shouldShow) {
+        mZoomButton.setVisibility(shouldShow ? VISIBLE : GONE);
     }
 
     /** Sets the visibility of the install button. */
@@ -474,7 +483,7 @@ public class LocationBarLayout extends ConstraintLayout {
     public void updateUrlActionContainerEndMargin(boolean useDefaultUrlActionContainerEndMargin) {
         // ConstraintLayout doesn't trivially support negative margins. We emulate one here by
         // positioning a spacer view past the end of the layout and constraining the url action
-        // container to start at the end of this view.
+        // container to end at the end of this view.
         mUrlActionContainerEndMargin =
                 useDefaultUrlActionContainerEndMargin
                         ? getResources()

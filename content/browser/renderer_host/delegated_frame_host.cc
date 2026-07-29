@@ -22,6 +22,7 @@
 #include "cc/base/switches.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/copy_output_request.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "components/viz/common/quads/compositor_frame.h"
 #include "components/viz/common/resources/release_callback.h"
 #include "components/viz/common/resources/shared_image_format.h"
@@ -144,7 +145,8 @@ void DelegatedFrameHost::WasHidden(HiddenCause cause) {
 void DelegatedFrameHost::CopyFromCompositingSurface(
     const gfx::Rect& src_subrect,
     const gfx::Size& output_size,
-    base::OnceCallback<void(const SkBitmap&)> callback) {
+    base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+        callback) {
   const viz::SurfaceId surface_id(frame_sink_id_, local_surface_id_);
 
   ui::Compositor::ScopedKeepSurfaceAliveCallback keep_surface_alive;
@@ -159,14 +161,16 @@ void DelegatedFrameHost::CopyFromCompositingSurface(
       viz::CopyOutputRequest::ResultFormat::RGBA,
       viz::CopyOutputRequest::ResultDestination::kSystemMemory,
       base::BindOnce(
-          [](base::OnceCallback<void(const SkBitmap&)> callback,
+          [](base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+                 callback,
              ui::Compositor::ScopedKeepSurfaceAliveCallback keep_alive,
              std::unique_ptr<viz::CopyOutputResult> result) {
             if (keep_alive) {
               std::move(keep_alive).RunAndReset();
             }
             auto scoped_bitmap = result->ScopedAccessSkBitmap();
-            std::move(callback).Run(scoped_bitmap.GetOutScopedBitmap());
+            std::move(callback).Run(
+                scoped_bitmap.GetOutScopedBitmapAndMetadata());
           },
           std::move(callback), std::move(keep_surface_alive)));
 }
@@ -352,11 +356,8 @@ void DelegatedFrameHost::EmbedSurface(
     client_->DelegatedFrameHostGetLayer()->SetShowSurface(
         new_primary_surface_id, current_frame_size_in_dip_, GetGutterColor(),
         deadline_policy, false /* stretch_content_to_fill_bounds */);
-#if BUILDFLAG(IS_CHROMEOS)
-    if (compositor_) {
+    if (compositor_)
       compositor_->OnChildResizing();
-    }
-#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 }
 
@@ -369,13 +370,7 @@ SkColor DelegatedFrameHost::GetGutterColor() const {
 
 void DelegatedFrameHost::OnFirstSurfaceActivation(
     const viz::SurfaceInfo& surface_info) {
-#if BUILDFLAG(IS_CHROMEOS)
-  if (compositor_) {
-    compositor_->OnChildResizeActivated();
-  }
-#else
   NOTREACHED();
-#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 void DelegatedFrameHost::OnFrameTokenChanged(uint32_t frame_token,
@@ -719,13 +714,7 @@ void DelegatedFrameHost::SetIsFrameSinkIdOwner(bool is_owner) {
   owns_frame_sink_id_ = is_owner;
   if (owns_frame_sink_id_) {
     host_frame_sink_manager_->RegisterFrameSinkId(
-        frame_sink_id_, this,
-#if BUILDFLAG(IS_CHROMEOS)
-        viz::ReportFirstSurfaceActivation::kYes
-#else
-        viz::ReportFirstSurfaceActivation::kNo
-#endif  // BUILDFLAG(IS_CHROMEOS)
-    );
+        frame_sink_id_, this, viz::ReportFirstSurfaceActivation::kNo);
     host_frame_sink_manager_->SetFrameSinkDebugLabel(frame_sink_id_,
                                                      "DelegatedFrameHost");
   }

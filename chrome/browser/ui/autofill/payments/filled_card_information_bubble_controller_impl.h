@@ -65,6 +65,7 @@ class FilledCardInformationBubbleControllerImpl
   bool EducationalBodyHasLearnMoreLink() const override;
 
   // BubbleControllerBase:
+  void OnBubbleDiscarded() override;
   BubbleType GetBubbleType() const override;
   base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
@@ -95,6 +96,9 @@ class FilledCardInformationBubbleControllerImpl
   // fallback bubble.
   void LogFilledCardInformationBubbleFieldClicked(
       FilledCardInformationBubbleField field) const;
+
+  // Logs metrics when the bubble is closed.
+  void LogBubbleCloseMetrics(PaymentsUiClosedReason closed_reason);
 
   // Returns whether the webcontents related to the controller is active.
   bool IsWebContentsActive();

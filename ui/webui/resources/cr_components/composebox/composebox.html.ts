@@ -28,6 +28,7 @@ export function getHtml(this: ComposeboxElement) {
             type="search" spellcheck="false"
             placeholder="${this.inputPlaceholder_}"
             part="input"
+            .value="${this.input_}"
             @input=${this.handleInput_}
             @scroll="${this.handleScroll_}"
             @focusin="${this.handleInputFocusIn_}"></textarea>
@@ -42,7 +43,7 @@ export function getHtml(this: ComposeboxElement) {
           `: ''}
         </div>
       </div>
-      <contextual-entrypoint-and-carousel id="context"
+      <contextual-entrypoint-and-carousel id="context" part="context-entrypoint"
           @add-tab-context="${this.addTabContext_}"
           @add-file-context="${this.addFileContext_}"
           @delete-context="${this.deleteContext_}"
@@ -50,6 +51,7 @@ export function getHtml(this: ComposeboxElement) {
           @on-file-validation-error="${this.onFileValidationError_}"
           @set-deep-search-mode="${this.setDeepSearchMode_}"
           @set-create-image-mode="${this.setCreateImageMode_}"
+          @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.showDropdown_}"
           ?inputs-disabled="${this.inputsDisabled_}"
           ?show-context-menu-description="${this.showContextMenuDescription_}">
@@ -80,11 +82,13 @@ export function getHtml(this: ComposeboxElement) {
       </cr-icon-button>
     </div>
     <cr-icon-button
-        class="action-icon icon-fade"
+        class="action-icon"
         id="lensIcon"
         part="action-icon lens-icon"
         title="${this.i18n('lensSearchButtonLabel')}"
-        @click="${this.onLensClick_}">
+        @click="${this.onLensClick_}"
+        ?disabled="${this.lensButtonDisabled_}"
+        @mousedown="${this.onLensIconMouseDown_}">
     </cr-icon-button>
     <!-- A seperate container is needed for the submit button so the
        expand/collapse animation can be applied without affecting the submit

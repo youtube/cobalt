@@ -882,22 +882,17 @@ class VideoTextureBacking : public cc::TextureBacking {
                                          kPremul_SkAlphaType,
                                          color_space.ToSkColorSpace())) {
     raster_context_provider_ = std::move(raster_context_provider);
+    CHECK(raster_context_provider_->ContextCapabilities().gpu_rasterization);
     auto* sii = raster_context_provider_->SharedImageInterface();
 
-    // This SI is used to cache the VideoFrame. We will eventually read out
-    // its contents into a destination GL texture via the GLES2 interface.
+    // This SI is used to cache the VideoFrame. We copy the contents of the
+    // source VideoFrame into the cached SI over the raster interface and will
+    // eventually read out its contents into a destination GL texture via the
+    // GLES2 interface.
     gpu::SharedImageUsageSet flags = gpu::SHARED_IMAGE_USAGE_GLES2_READ |
-                                     gpu::SHARED_IMAGE_USAGE_RASTER_READ;
-    // We copy the contents of the source VideoFrame *into* the
-    // cached SI over the raster interface - the usage bits depend on
-    // whether OOP-Raster is enabled.
-    flags |= gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
-    if (raster_context_provider_->ContextCapabilities().gpu_rasterization) {
-      flags |= gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
-    } else {
-      flags |= gpu::SHARED_IMAGE_USAGE_GLES2_WRITE;
-    }
-
+                                     gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+                                     gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
     shared_image_ =
         sii->CreateSharedImage({SHARED_IMAGE_FORMAT, coded_size, color_space,
                                 flags, "PaintCanvasVideoRenderer"},
@@ -918,7 +913,6 @@ class VideoTextureBacking : public cc::TextureBacking {
   const scoped_refptr<gpu::ClientSharedImage>& GetSharedImage() const {
     return shared_image_;
   }
-  sk_sp<SkImage> GetAcceleratedSkImage() override { return sk_image_; }
   const scoped_refptr<viz::RasterContextProvider>& raster_context_provider()
       const {
     return raster_context_provider_;
@@ -926,7 +920,6 @@ class VideoTextureBacking : public cc::TextureBacking {
 
   void BeginAccess(gpu::raster::RasterInterface* ri) {
     CHECK(!ri_access_);
-    CHECK(raster_context_provider()->ContextCapabilities().gpu_rasterization);
     ri_access_ =
         shared_image_->BeginRasterAccess(ri, sync_token_, /*readonly=*/true);
   }
@@ -955,36 +948,9 @@ class VideoTextureBacking : public cc::TextureBacking {
                   int src_y) override {
     gpu::raster::RasterInterface* ri =
         raster_context_provider_->RasterInterface();
-    if (sk_image_) {
-      GrGLTextureInfo texture_info;
-      GrBackendTexture texture;
-      if (!SkImages::GetBackendTextureFromImage(
-              sk_image_, &texture,
-              /*flushPendingGrContextIO=*/true)) {
-        DLOG(ERROR) << "Failed to get backend texture for VideoTextureBacking.";
-        return false;
-      }
-      if (!GrBackendTextures::GetGLTextureInfo(texture, &texture_info)) {
-        DLOG(ERROR) << "Failed to getGLTextureInfo for VideoTextureBacking.";
-        return false;
-      }
-      return sk_image_->readPixels(dst_info, dst_pixels, dst_row_bytes, src_x,
-                                   src_y);
-    }
     return ri->ReadbackImagePixels(shared_image_->mailbox(), dst_info,
                                    dst_info.minRowBytes(), src_x, src_y,
                                    /*plane_index=*/0, dst_pixels);
-  }
-
-  void FlushPendingSkiaOps() override {
-    if (!raster_context_provider_ || !sk_image_) {
-      return;
-    }
-    GrDirectContext* ctx = raster_context_provider_->GrContext();
-    if (!ctx) {
-      return;
-    }
-    ctx->flushAndSubmit(sk_image_);
   }
 
   const gpu::SyncToken& sync_token() { return sync_token_; }
@@ -993,7 +959,6 @@ class VideoTextureBacking : public cc::TextureBacking {
   }
 
  private:
-  sk_sp<SkImage> sk_image_;
   SkImageInfo sk_image_info_;
   scoped_refptr<viz::RasterContextProvider> raster_context_provider_;
 
@@ -1031,11 +996,9 @@ void PaintCanvasVideoRenderer::Paint(
           << "Can't render textured frames w/o viz::RasterContextProvider";
       return;  // Unable to get/create a shared main thread context.
     }
-    if (!raster_context_provider->GrContext() &&
-        !raster_context_provider->ContextCapabilities().gpu_rasterization) {
-      DLOG(ERROR)
-          << "Can't render textured frames w/o valid GrContext or GPU raster.";
-      return;  // The context has been lost.
+    if (!raster_context_provider->ContextCapabilities().gpu_rasterization) {
+      DLOG(ERROR) << "Can't render textured frames w/o GPU raster.";
+      return;
     }
   }
 
@@ -1545,10 +1508,7 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
   if (!raster_context_provider) {
     return false;
   }
-  GrDirectContext* gr_context = raster_context_provider->GrContext();
-  const bool gpu_rasterization =
-      raster_context_provider->ContextCapabilities().gpu_rasterization;
-  if (!gr_context && !gpu_rasterization) {
+  if (!raster_context_provider->ContextCapabilities().gpu_rasterization) {
     return false;
   }
   gpu::raster::RasterInterface* canvas_ri =
@@ -1561,19 +1521,14 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
     rgb_shared_image_cache_ = std::make_unique<VideoFrameSharedImageCache>();
   }
 
-  // This SI is used to cache the VideoFrame. We will eventually read out
-  // its contents into a destination GL texture via the GLES2 interface.
+  // This SI is used to cache the VideoFrame. We copy the contents of the source
+  // VideoFrame into the cached SI over the raster interface and will eventually
+  // read out its contents into a destination GL texture via the GLES2
+  // interface.
   gpu::SharedImageUsageSet src_usage =
-      gpu::SHARED_IMAGE_USAGE_GLES2_READ | gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
-  // We copy the contents of the source VideoFrame *into* the cached SI over the
-  // raster interface - the usage bits depend on whether OOP-Raster is enabled.
-  // TODO(crbug.com/40194377): Always use OOP_RASTERIZATION usage once OOP-C is
-  // fully launched.
-  if (gpu_rasterization) {
-    src_usage |= gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
-  } else {
-    src_usage |= gpu::SHARED_IMAGE_USAGE_GLES2_WRITE;
-  }
+      gpu::SHARED_IMAGE_USAGE_GLES2_READ |
+      gpu::SHARED_IMAGE_USAGE_RASTER_WRITE |
+      gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
   auto [rgb_shared_image, rgb_sync_token, status] =
       rgb_shared_image_cache_->GetOrCreateSharedImage(
           video_frame.get(), raster_context_provider, src_usage,
@@ -1818,13 +1773,7 @@ PaintCanvasVideoRenderer::Cache::~Cache() = default;
 
 bool PaintCanvasVideoRenderer::Cache::Recycle() {
   paint_image = cc::PaintImage();
-  if (!texture_backing->unique()) {
-    return false;
-  }
-
-  // Flush any pending GPU work using this texture.
-  texture_backing->FlushPendingSkiaOps();
-  return true;
+  return texture_backing->unique();
 }
 
 bool PaintCanvasVideoRenderer::UpdateLastImage(
@@ -1849,10 +1798,8 @@ bool PaintCanvasVideoRenderer::UpdateLastImage(
   // Holding |video_frame| longer than this call when using GPUVideoDecoder
   // could cause problems since the pool of VideoFrames has a fixed size.
   if (video_frame->HasSharedImage()) {
-    DCHECK(raster_context_provider);
-    bool gpu_rasterization =
-        raster_context_provider->ContextCapabilities().gpu_rasterization;
-    DCHECK(gpu_rasterization || raster_context_provider->GrContext());
+    CHECK(raster_context_provider);
+    CHECK(raster_context_provider->ContextCapabilities().gpu_rasterization);
     auto* ri = raster_context_provider->RasterInterface();
     DCHECK(ri);
     const auto video_frame_si = video_frame->shared_image();
@@ -1890,10 +1837,6 @@ bool PaintCanvasVideoRenderer::UpdateLastImage(
     ri->CopySharedImage(
         video_frame_si->mailbox(), client_shared_image->mailbox(), 0, 0, 0, 0,
         video_frame->coded_size().width(), video_frame->coded_size().height());
-
-    if (!gpu_rasterization) {
-      raster_context_provider->GrContext()->flushAndSubmit();
-    }
 
     // Ensure that |video_frame| not be deleted until the above copy is
     // completed.

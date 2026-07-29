@@ -881,15 +881,15 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, ScrimForTabModalInSplitView) {
       active_contents_container_view()->contents_scrim_view()->GetVisible());
 
   // Swapping the tab with the tab modal dialog into the inactive spot in the
-  // split should make that view active and show the scrim.
+  // split should show the scrim but not change the active tab.
   browser()->tab_strip_model()->UpdateTabInSplit(
       browser()->tab_strip_model()->GetTabAtIndex(1), 2,
       TabStripModel::SplitUpdateType::kSwap);
-  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
   EXPECT_TRUE(
-      active_contents_container_view()->contents_scrim_view()->GetVisible());
-  EXPECT_FALSE(
       inactive_contents_container_view()->contents_scrim_view()->GetVisible());
+  EXPECT_FALSE(
+      active_contents_container_view()->contents_scrim_view()->GetVisible());
 }
 
 // Tests that GetAccessibleTabLabel correctly labels each tab in a split.
@@ -974,7 +974,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewFullscreenLayout) {
   views::View* overlay_view = browser_view()->overlay_view();
 
   // Verify top_container is parented to browser_view before fullscreen
-  EXPECT_EQ(browser_view(), top_container->parent());
+  EXPECT_EQ(browser_view()->main_container(), top_container->parent());
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
 
   // Verify top_container is parented to overlay after entering fullscreen
@@ -983,7 +983,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewFullscreenLayout) {
   browser_view()->ExitFullscreen();
 
   // Verify top_container is re-parented to browser_view after fullscreen exit
-  EXPECT_EQ(browser_view(), top_container->parent());
+  EXPECT_EQ(browser_view()->main_container(), top_container->parent());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewTabRevealFullscreen) {

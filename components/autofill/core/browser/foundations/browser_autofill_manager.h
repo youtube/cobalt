@@ -474,12 +474,11 @@ class BrowserAutofillManager : public AutofillManager {
   void AnalyzeJavaScriptChangedAutofilledValue(const FormStructure& form,
                                                AutofillField& field);
 
-  // Evaluates the specifics of the ablation study, updates `context`, and
-  // returns whether the study is enabled/disabled.
-  bool EvaluateAblationStudy(
-      const std::vector<Suggestion>& address_and_credit_card_suggestions,
-      AutofillField& autofill_field,
-      SuggestionsContext& context);
+  // Evaluates the specifics of the ablation study, and returns whether the
+  // study is enabled/disabled.
+  bool EvaluateAblationStudy(AutofillField& autofill_field,
+                             FillingProduct filling_product,
+                             bool has_suggestions);
 
   // Returns a list with the suggestions available for `field`. Which fields of
   // the `form` are filled depends on the `trigger_source`. `context` could
@@ -649,9 +648,10 @@ class BrowserAutofillManager : public AutofillManager {
           identification_time);
 
   // Populates `suggestion_generators_` with those capable of producing
-  // suggestions for field with `field_id` given `context`.
-  void InitializeSuggestionGenerators(const SuggestionsContext& context,
-                                      FieldGlobalId field_id);
+  // suggestions for field with `field_id` given `trigger_source`.
+  void InitializeSuggestionGenerators(
+      AutofillSuggestionTriggerSource trigger_source,
+      FieldGlobalId field_id);
 
   // Delegates to perform external processing (display, selection) on
   // our behalf.

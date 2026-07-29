@@ -89,7 +89,6 @@ For å se flere innstillinger som bruker data for å forbedre Chromium-opplevels
 <translation id="2977470724722393594">Chromium er oppdatert</translation>
 <translation id="3044857325852340337">Slettet Chromium-data</translation>
 <translation id="3054480780637153380">Åpne Chromium-innstillingene i iOS, trykk på «Standard nettleserapp», og velg Chromium.</translation>
-<translation id="3102849287235003384">For å logge av Google-kontoen din på alle nettsteder, <ph name="BEGIN_LINK" />logg av Chromium<ph name="END_LINK" />.</translation>
 <translation id="3115956258722352278">Vil du gjøre Chromium til standardnettleseren din?</translation>
 <translation id="3180939591219927904">Slå på «Lås inkognitofaner når du lukker Chromium»</translation>
 <translation id="328933489847748230">{count,plural, =1{Viser nå 1 Chromium-vindu}other{Viser nå {count} Chromium-vinduer}}</translation>
@@ -200,6 +199,9 @@ For å endre denne innstillingen, <ph name="BEGIN_LINK" />slett Chromium-dataene
 <translation id="5671188105328420281">Chromium-tips</translation>
 <translation id="5688047395118852662">På dette kortet ser du forslag til hvordan du får mest mulig ut av Chromium.</translation>
 <translation id="5700709190537129682">Chromium kan ikke sjekke passordene dine</translation>
+<translation id="5731004036450828399">For å holde passnøklene dine trygge må du først opprette en PIN-kode for gjenoppretting.
+
+        Passnøkler lagres i Passordlagring, slik at du kan bruke dem i Chromium på alle enheter.</translation>
 <translation id="584550191241316896">Logget på Chromium</translation>
 <translation id="5862307444128926510">Velkommen til Chromium</translation>
 <translation id="5889847953983052353">Når dette er på,
@@ -265,8 +267,8 @@ Bare personer som har passordfrasen din, kan lese de krypterte dataene. Passordf
 <translation id="7269362888766543920">Noen tillegg fører til at Chromium krasjer. Prøv å avinstallere dem.</translation>
 <translation id="7285031092584344905">Få tilgang til Chromium-passord med mer i andre apper.</translation>
 <translation id="7337881442233988129">Chromium</translation>
-<translation id="7357211569052832586">De valgte dataene er fjernet fra Chromium og alle synkroniserte enheter. Det kan hende Google-kontoen din har andre typer nettleserlogger, for eksempel for søk og aktivitet fra andre Google-tjenester, på history.google.com.</translation>
 <translation id="7395825497086981028">Passordet blir lagret i Passordlagring for <ph name="EMAIL" />.</translation>
+<translation id="7434848749522628428">Denne passnøkkelen lagres i Google Passordlagring for <ph name="USER_EMAIL" />.</translation>
 <translation id="7504829997542308412">Åpne Chromium</translation>
 <translation id="7531461704633548377">Fra Chromium</translation>
 <translation id="7554983317097061001">Chromium-tips: Flytt Chromium til dokken</translation>
@@ -300,6 +302,7 @@ Bare personer som har passordfrasen din, kan lese de krypterte dataene. Passordf
 <translation id="8254729934443216898">Utforsk nye funksjoner som hjelper deg med å få mest mulig ut av Chromium.</translation>
 <translation id="8293572045658095405">Du er i Chromium Inkognito</translation>
 <translation id="830951810931292870">Åpner de angitte nettadressene i Chromium i Inkognito.</translation>
+<translation id="8385503371191508165">Begynn å lagre passnøkler med Passordlagring</translation>
 <translation id="8390323835464055390">Logg på med de lagrede passordene og passnøklene dine fra alle apper ved å bruke Chromium for Autoutfyll</translation>
 <translation id="8409374867500149834">Du har den sterkeste sikkerheten i Chromium mot skadelige nettsteder</translation>
 <translation id="8543509361021925846">{THRESHOLD,plural, =1{Dette skjer når Chromium ikke har vært i bruk på {THRESHOLD} minutt. Data som ble lagret kun på denne enheten mens du var logget på, blir slettet. Dette kan omfatte logg og passord.}other{Dette skjer når Chromium ikke har vært i bruk på {THRESHOLD} minutter. Data som ble lagret kun på denne enheten mens du var logget på, blir slettet. Dette kan omfatte logg og passord.}}</translation>

@@ -242,11 +242,9 @@ class FreedesktopSecretKeyProvider::Prompter
 
 FreedesktopSecretKeyProvider::FreedesktopSecretKeyProvider(
     const std::string& password_store,
-    bool use_for_encryption,
     const std::string& product_name,
     scoped_refptr<dbus::Bus> bus)
     : password_store_(password_store),
-      use_for_encryption_(use_for_encryption),
       product_name_(product_name),
       bus_(std::move(bus)) {
   if (!bus_) {
@@ -275,7 +273,7 @@ void FreedesktopSecretKeyProvider::GetKey(KeyCallback callback) {
   default_collection_proxy_ = nullptr;
 
   if (password_store_ == "basic") {
-    // Use FallbackLinuxKeyProvider.
+    // Use PosixKeyProvider.
     FinalizeFailure(InitStatus::kDisabled, ErrorDetail::kNone);
   } else if (password_store_ == "gnome-libsecret") {
     InitializeFreedesktopSecretService();
@@ -318,7 +316,7 @@ void FreedesktopSecretKeyProvider::GetKey(KeyCallback callback) {
 }
 
 bool FreedesktopSecretKeyProvider::UseForEncryption() {
-  return use_for_encryption_;
+  return true;
 }
 
 bool FreedesktopSecretKeyProvider::IsCompatibleWithOsCryptSync() {

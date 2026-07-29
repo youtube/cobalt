@@ -10,26 +10,25 @@
  * #css_wrapper_metadata_end */
 
 :host {
-  --action-height: 28px;
-  --border-width: 1px;
-  border: solid var(--border-width) var(--color-searchbox-results-action-chip);
+  border: solid 1px var(--color-searchbox-results-action-chip);
   border-radius: 8px;
   display: flex;
-  height: var(--action-height);
+  height: var(--cr-searchbox-results-action-chip-height, 28px);
   min-width: 0;
   outline: none;
   padding-inline-end: 8px;
   padding-inline-start: 8px;
   position: relative;
+  transition: background-color 0.25s;
 }
 
 :host(:hover) {
   background-color: var(--color-searchbox-results-button-hover);
 }
 
-:host(:focus) {
+:host(:focus),
+:host(.selected) {
   margin: 2px;
-  border: solid var(--border-width) var(--color-searchbox-results-action-chip);
   box-shadow: none;
 }
 
@@ -74,6 +73,11 @@
   background-repeat: no-repeat;
   height: 16px;
   width: 16px;
+}
+
+:host-context(:is(:focus, [selected])) #action-icon {
+  background-color: var(--color-searchbox-results-action-chip-icon-selected,
+      var(--color-searchbox-results-action-chip-icon));
 }
 
 #text {

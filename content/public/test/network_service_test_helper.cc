@@ -426,14 +426,12 @@ class SimpleCache : public network::mojom::SimpleCache {
 
 class NetworkServiceTestHelper::NetworkServiceTestImpl
     : public network::mojom::NetworkServiceTest,
-      public base::CurrentThread::DestructionObserver {
+      public base::CurrentThread::DestructionObserver,
+      public base::MemoryPressureListener {
  public:
   NetworkServiceTestImpl() : test_host_resolver_(new TestHostResolver()) {
-    memory_pressure_listener_.emplace(
-        base::MemoryPressureListenerTag::kTest,
-        base::BindRepeating(
-            &NetworkServiceTestHelper::NetworkServiceTestImpl::OnMemoryPressure,
-            weak_factory_.GetWeakPtr()));
+    memory_pressure_listener_registration_.emplace(
+        base::MemoryPressureListenerTag::kTest, this);
 
     if (base::CommandLine::ForCurrentProcess()->HasSwitch(
             switches::kUseMockCertVerifierForTesting)) {
@@ -807,7 +805,7 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
 
  private:
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+      base::MemoryPressureLevel memory_pressure_level) override {
     latest_memory_pressure_level_ = memory_pressure_level;
   }
 
@@ -836,10 +834,10 @@ class NetworkServiceTestHelper::NetworkServiceTestImpl
   std::unique_ptr<net::MockCertVerifier> mock_cert_verifier_;
   std::unique_ptr<net::ScopedTransportSecurityStateSource>
       transport_security_state_source_;
-  std::optional<base::SyncMemoryPressureListener> memory_pressure_listener_;
-  base::MemoryPressureListener::MemoryPressureLevel
-      latest_memory_pressure_level_ =
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE;
+  std::optional<base::SyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
+  base::MemoryPressureLevel latest_memory_pressure_level_ =
+      base::MEMORY_PRESSURE_LEVEL_NONE;
   int write_result_;
   std::unique_ptr<disk_cache::Backend> disk_cache_backend_;
 

@@ -527,7 +527,10 @@ CompositorFrameReporter::ProcessedVizBreakdown::CreateIterator(
 
 CompositorFrameReporter::ProcessedTreesInVizBreakdown::Iterator::Iterator(
     const ProcessedTreesInVizBreakdown* owner)
-    : owner_(owner) {}
+    : owner_(owner) {
+  DCHECK(owner_);
+  SkipBreakdownsIfNecessary();
+}
 
 CompositorFrameReporter::ProcessedTreesInVizBreakdown::Iterator::~Iterator() =
     default;
@@ -541,6 +544,7 @@ void CompositorFrameReporter::ProcessedTreesInVizBreakdown::Iterator::
     Advance() {
   DCHECK(IsValid());
   index_++;
+  SkipBreakdownsIfNecessary();
 }
 
 TreesInVizBreakdown
@@ -577,6 +581,13 @@ bool CompositorFrameReporter::ProcessedTreesInVizBreakdown::Iterator::HasValue()
   return owner_->list_[index_].has_value();
 }
 
+void CompositorFrameReporter::ProcessedTreesInVizBreakdown::Iterator::
+    SkipBreakdownsIfNecessary() {
+  while (IsValid() && (!HasValue())) {
+    index_++;
+  }
+}
+
 // CompositorFrameReporter::ProcessedBlinkBreakdown ============================
 
 CompositorFrameReporter::ProcessedTreesInVizBreakdown::
@@ -584,6 +595,12 @@ CompositorFrameReporter::ProcessedTreesInVizBreakdown::
                                  base::TimeTicks trees_in_viz_branch_time,
                                  base::TimeTicks trees_in_viz_viz_time,
                                  const viz::FrameTimingDetails& viz_breakdown) {
+  // Check if `viz_breakdown` is set, avoid reporting negative times.
+  // See VizBreakdown().
+  if (viz_breakdown.received_compositor_frame_timestamp.is_null()) {
+    return;
+  }
+
   // New stages introduced by CC.
   list_[static_cast<int>(TreesInVizBreakdown::kEndActivateToDrawLayers)] =
       std::make_pair(activate_time,              // end activate to
@@ -595,7 +612,7 @@ CompositorFrameReporter::ProcessedTreesInVizBreakdown::
 
   // CC -> Viz mojo time
   list_[static_cast<int>(
-      TreesInVizBreakdown::kSendUpdateDisplayTreeToRecieveUpdateDisplayTree)] =
+      TreesInVizBreakdown::kSendUpdateDisplayTreeToReceiveUpdateDisplayTree)] =
       std::make_pair(
           trees_in_viz_viz_time,                     // send over wire to
           viz_breakdown.start_update_display_tree);  // receive over wire.
@@ -603,7 +620,7 @@ CompositorFrameReporter::ProcessedTreesInVizBreakdown::
   // New stages introduced in Viz.
   list_[static_cast<int>(
       TreesInVizBreakdown::
-          kRecieveUpdateDisplayTreeToStartPrepareToDraw)] =  // receive over the
+          kReceiveUpdateDisplayTreeToStartPrepareToDraw)] =  // receive over the
                                                              // wire to start
                                                              // prepare to draw
       std::make_pair(viz_breakdown.start_update_display_tree,
@@ -781,8 +798,8 @@ const char* CompositorFrameReporter::GetStageName(
           return "EndActivateToSubmitUpdateDisplayTree."
                  "DrawLayersToSubmitUpdateDisplayTree";
         case TreesInVizBreakdown::
-            kSendUpdateDisplayTreeToRecieveUpdateDisplayTree:
-        case TreesInVizBreakdown::kRecieveUpdateDisplayTreeToStartPrepareToDraw:
+            kSendUpdateDisplayTreeToReceiveUpdateDisplayTree:
+        case TreesInVizBreakdown::kReceiveUpdateDisplayTreeToStartPrepareToDraw:
         case TreesInVizBreakdown::kStartPrepareToDrawToStartDrawLayers:
         case TreesInVizBreakdown::kStartDrawLayersToSubmitCompositorFrame:
         case TreesInVizBreakdown::kTreesInVizBreakdownCount:
@@ -830,12 +847,12 @@ const char* CompositorFrameReporter::GetStageName(
         case TreesInVizBreakdown::kDrawLayersToSubmitUpdateDisplayTree:
           NOTREACHED();
         case TreesInVizBreakdown::
-            kSendUpdateDisplayTreeToRecieveUpdateDisplayTree:
+            kSendUpdateDisplayTreeToReceiveUpdateDisplayTree:
           return "SubmitUpdateDisplayTreeToPresentationCompositorFrame."
-                 "SendUpdateDisplayTreeToRecieveUpdateDisplayTree";
-        case TreesInVizBreakdown::kRecieveUpdateDisplayTreeToStartPrepareToDraw:
+                 "SendUpdateDisplayTreeToReceiveUpdateDisplayTree";
+        case TreesInVizBreakdown::kReceiveUpdateDisplayTreeToStartPrepareToDraw:
           return "SubmitUpdateDisplayTreeToPresentationCompositorFrame."
-                 "RecieveUpdateDisplayTreeToStartPrepareToDraw";
+                 "ReceiveUpdateDisplayTreeToStartPrepareToDraw";
         case TreesInVizBreakdown::kStartPrepareToDrawToStartDrawLayers:
           return "SubmitUpdateDisplayTreeToPresentationCompositorFrame."
                  "StartPrepareToDrawToStartDrawLayers";
@@ -860,10 +877,10 @@ const char* CompositorFrameReporter::GetTreesInVizBreakdownName(
       return "EndActivateToDrawLayers";
     case TreesInVizBreakdown::kDrawLayersToSubmitUpdateDisplayTree:
       return "DrawLayersToSendUpdateDisplayTree";
-    case TreesInVizBreakdown::kSendUpdateDisplayTreeToRecieveUpdateDisplayTree:
-      return "SendUpdateDisplayTreeToRecieveUpdateDisplayTree";
-    case TreesInVizBreakdown::kRecieveUpdateDisplayTreeToStartPrepareToDraw:
-      return "RecieveUpdateDisplayTreeToStartPrepareToDraw";
+    case TreesInVizBreakdown::kSendUpdateDisplayTreeToReceiveUpdateDisplayTree:
+      return "SendUpdateDisplayTreeToReceiveUpdateDisplayTree";
+    case TreesInVizBreakdown::kReceiveUpdateDisplayTreeToStartPrepareToDraw:
+      return "ReceiveUpdateDisplayTreeToStartPrepareToDraw";
     case TreesInVizBreakdown::kStartPrepareToDrawToStartDrawLayers:
       return "StartPrepareToDrawToStartDrawLayers";
     case TreesInVizBreakdown::kStartDrawLayersToSubmitCompositorFrame:
@@ -1131,17 +1148,16 @@ void CompositorFrameReporter::TerminateReporter() {
     processed_viz_breakdown_ = std::make_unique<ProcessedVizBreakdown>(
         viz_start_time_, viz_breakdown_);
 
-  if (base::FeatureList::IsEnabled(features::kTreesInViz) &&
-      !processed_trees_in_viz_breakdown_ &&
-      trees_in_viz_timestamps_.has_value()) {
+  if (!processed_trees_in_viz_breakdown_) {
     // TODO(crbug.com/445500514): Should be possible to report breakdowns for
     // partial updates.
+    TreesInVizTimestamps cc_timestamps =
+        trees_in_viz_timestamps_.value_or(TreesInVizTimestamps{});
     processed_trees_in_viz_breakdown_ =
         std::make_unique<ProcessedTreesInVizBreakdown>(
-            trees_in_viz_timestamps_->trees_in_viz_activate_time_,
-            trees_in_viz_timestamps_->trees_in_viz_branch_time_,
-            trees_in_viz_timestamps_->trees_in_viz_viz_start_time_,
-            viz_breakdown_);
+            cc_timestamps.trees_in_viz_activate_time_,
+            cc_timestamps.trees_in_viz_branch_time_,
+            cc_timestamps.trees_in_viz_viz_start_time_, viz_breakdown_);
   }
 
   DCHECK_EQ(current_stage_.start_time, base::TimeTicks());
@@ -1228,7 +1244,7 @@ void CompositorFrameReporter::ReportCompositorLatencyMetrics() const {
     global_trackers_.latency_ukm_reporter->ReportCompositorLatencyUkm(
         report_types_, stage_history_, active_trackers_,
         *processed_blink_breakdown_, *processed_viz_breakdown_,
-        processed_trees_in_viz_breakdown_.get());
+        *processed_trees_in_viz_breakdown_);
   }
 
   if (!should_report_histograms_)

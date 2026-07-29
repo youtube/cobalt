@@ -70,6 +70,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+#include "chrome/browser/ui/views/search_engines/dse_reset_dialog.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/pref_names.h"
 #include "components/bookmarks/browser/bookmark_model.h"
@@ -93,6 +94,7 @@
 #include "components/search_engines/template_url_starter_pack_data.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_view_host.h"
@@ -593,7 +595,12 @@ void ChromeOmniboxClient::OnResultChanged(
               /*output_size=*/gfx::Size(),
               base::BindPostTask(
                   base::SequencedTaskRunner::GetCurrentDefault(),
-                  base::BindOnce(on_bitmap_fetched, result_index, GURL())));
+                  base::BindOnce(
+                      [](const viz::CopyOutputBitmapWithMetadata& result) {
+                        return result.bitmap;
+                      })
+                      .Then(base::BindOnce(on_bitmap_fetched, result_index,
+                                           GURL()))));
         }
       }
     }
@@ -789,6 +796,8 @@ void ChromeOmniboxClient::OnAutocompleteAccept(
     auto navigation = chrome::OpenCurrentURL(browser_);
     ChromeOmniboxNavigationObserver::Create(navigation.get(), profile_, text,
                                             match, alternative_nav_match);
+    search_engines::MaybeShowSearchEngineResetNotification(browser_,
+                                                           match_type);
   }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)

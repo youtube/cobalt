@@ -216,6 +216,7 @@ component("services") {
       "//components/viz/common",
       "//media/gpu/chromeos",
       "//media/mojo/common",
+      "//services/viz/public/cpp/gpu",
     ]
   }
 

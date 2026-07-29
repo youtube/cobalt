@@ -39,35 +39,33 @@ namespace webnn {
 
 WebNNContextImpl::WebNNContextImpl(
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
-    WebNNContextProviderImpl* context_provider,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
     ContextProperties properties,
     mojom::CreateContextOptionsPtr options,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
-    gpu::SharedImageManager* shared_image_manager)
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNObjectImpl<mojom::WebNNContext,
                       blink::WebNNContextToken,
                       mojo::Receiver<mojom::WebNNContext>>(
           std::move(receiver),
-          scheduler_task_runner,
+          sequence->scheduler_task_runner(),
           std::move(owning_task_runner)),
-      context_provider_(context_provider),
+      context_provider_(std::move(context_provider)),
       properties_(IntersectWithBaseProperties(std::move(properties))),
       options_(std::move(options)),
       command_buffer_id_(command_buffer_id),
       sequence_(std::move(sequence)),
-      scheduler_task_runner_(std::move(scheduler_task_runner)),
       write_tensor_consumer_(std::move(write_tensor_consumer)),
       read_tensor_producer_(std::move(read_tensor_producer)),
       memory_type_tracker_(std::move(memory_tracker)),
-      shared_image_manager_(shared_image_manager) {
-  CHECK(context_provider_);
-
+      shared_image_manager_(shared_image_manager),
+      main_task_runner_(std::move(main_task_runner)) {
 #if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
   // Initialize XNNPACK
   const xnn_status status = xnn_initialize(/*allocator=*/nullptr);
@@ -82,10 +80,6 @@ WebNNContextImpl::~WebNNContextImpl() {
     impl->ResetMojoReceiver();
   }
 
-  // Note: ShutDown() prevents new tasks from being scheduled and drops existing
-  // ones from executing.
-  scheduler_task_runner_->ShutDown();
-
 #if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
   // Deinitialize XNNPACK
   const xnn_status status = xnn_deinitialize();
@@ -94,8 +88,32 @@ WebNNContextImpl::~WebNNContextImpl() {
 }
 
 void WebNNContextImpl::OnDisconnect() {
-  context_provider_->RemoveWebNNContextImpl(this);
+  if (!main_task_runner_->RunsTasksInCurrentSequence()) {
+    main_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&WebNNContextProviderImpl::RemoveWebNNContextImpl,
+                       context_provider_, handle()));
+    return;
+  }
+
+  context_provider_->RemoveWebNNContextImpl(handle());
 }
+
+#if BUILDFLAG(IS_WIN)
+void WebNNContextImpl::DestroyAllContextsAndKillGpuProcess(
+    const std::string& reason) {
+  if (!main_task_runner_->RunsTasksInCurrentSequence()) {
+    main_task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            &WebNNContextProviderImpl::DestroyAllContextsAndKillGpuProcess,
+            context_provider_, reason));
+    return;
+  }
+
+  context_provider_->DestroyAllContextsAndKillGpuProcess(reason);
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 void WebNNContextImpl::ReportBadGraphBuilderMessage(
     const std::string& message,
@@ -183,6 +201,12 @@ void WebNNContextImpl::CreateTensor(
   // Associates a `WebNNTensor` instance with this context so the WebNN service
   // can access the implementation.
   tensor_impls_.emplace(*std::move(result));
+}
+
+const scoped_refptr<gpu::SchedulerTaskRunner>&
+WebNNContextImpl::scheduler_task_runner() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(gpu_sequence_checker_);
+  return sequence_->scheduler_task_runner();
 }
 
 void WebNNContextImpl::WaitSyncToken(const gpu::SyncToken& fence) {
@@ -275,7 +299,8 @@ void WebNNContextImpl::CreateTensorFromMailbox(mojom::TensorInfoPtr tensor_info,
   auto receiver = remote.InitWithNewEndpointAndPassReceiver();
 
   // Must be a scheduled task since this depends on shared image creation task.
-  PostTaskToSchedulerTaskRunner(
+  scheduler_task_runner()->PostTask(
+      FROM_HERE,
       base::BindOnce(
           [](base::WeakPtr<WebNNContextImpl> self,
              mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
@@ -358,12 +383,14 @@ void WebNNContextImpl::OnLost(const std::string& reason) {
   // Safe to use base::Unretained because `this` is sequence-bound to
   // scheduler_task_runner_. Deletion occurs via Shutdown(), which drops all
   // pending tasks - including this one - before the object is destroyed.
-  PostTaskToSchedulerTaskRunner(base::BindOnce(
-      [](WebNNContextImpl* self, const std::string& reason) {
-        self->GetMojoReceiver().ResetWithReason(/*custom_reason=*/0, reason);
-        self->OnDisconnect();
-      },
-      base::Unretained(this), reason));
+  scheduler_task_runner()->PostTask(
+      FROM_HERE, base::BindOnce(
+                     [](WebNNContextImpl* self, const std::string& reason) {
+                       self->GetMojoReceiver().ResetWithReason(
+                           /*custom_reason=*/0, reason);
+                       self->OnDisconnect();
+                     },
+                     base::Unretained(this), reason));
 }
 
 scoped_refptr<WebNNTensorImpl> WebNNContextImpl::GetWebNNTensorImpl(
@@ -381,23 +408,41 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   // A specific maximum rank is still under discussion, but 8 is the highest
   // supported by any backend.
   constexpr SupportedRanks kNonScalarMaxRank = SupportedRanks::NonScalarUpTo(8);
+  constexpr SupportedRanks kAtLeast2D{2, 8};
 
   // Only intersects for ones that have limits defined in the specification.
   // For ones that has no limit, no need to intersect with
   // `SupportedDataTypes::All()`.
+  backend_context_properties.data_type_limits.arg_min_max_input.ranks
+      .IntersectWith(kNonScalarMaxRank);
+  backend_context_properties.data_type_limits.arg_min_max_output.data_types
+      .RetainAll(DataTypeConstraint::kInt32To64);
   backend_context_properties.data_type_limits.batch_normalization_input
-      .data_types.RetainAll(DataTypeConstraint::kFloat16To32);
+      .IntersectWith({DataTypeConstraint::kFloat16To32, kNonScalarMaxRank});
   backend_context_properties.data_type_limits.batch_normalization_mean
       .IntersectWith(
           {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)});
-  backend_context_properties.data_type_limits.conv2d_input.ranks.IntersectWith(
-      SupportedRanks::Exactly(4));
-  backend_context_properties.data_type_limits.conv2d_bias.ranks.IntersectWith(
-      SupportedRanks::Exactly(1));
-  backend_context_properties.data_type_limits.conv_transpose2d_input.ranks
-      .IntersectWith(SupportedRanks::Exactly(4));
-  backend_context_properties.data_type_limits.conv_transpose2d_bias.ranks
-      .IntersectWith(SupportedRanks::Exactly(1));
+  backend_context_properties.data_type_limits.concat_inputs.ranks.IntersectWith(
+      kNonScalarMaxRank);
+  backend_context_properties.data_type_limits.conv2d_input.IntersectWith(
+      {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
+  backend_context_properties.data_type_limits.conv2d_bias.IntersectWith(
+      {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)});
+  backend_context_properties.data_type_limits.conv_transpose2d_input
+      .IntersectWith(
+          {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
+  backend_context_properties.data_type_limits.conv_transpose2d_bias
+      .IntersectWith(
+          {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)});
+  backend_context_properties.data_type_limits.cumulative_sum_input
+      .IntersectWith(
+          {DataTypeConstraint::kFloat16To32Ints32To64, kNonScalarMaxRank});
+  backend_context_properties.data_type_limits.dequantize_linear_input.data_types
+      .RetainAll(DataTypeConstraint::kInts4Ints8Ints32);
+  backend_context_properties.data_type_limits.dequantize_linear_scale.data_types
+      .RetainAll(DataTypeConstraint::kFloat16To32);
+  backend_context_properties.data_type_limits.dequantize_linear_zero_point
+      .data_types.RetainAll(DataTypeConstraint::kInts4Ints8Ints32);
   backend_context_properties.data_type_limits.logical_and_input.data_types
       .RetainAll(DataTypeConstraint::kUint8);
   backend_context_properties.data_type_limits.logical_or_input.data_types
@@ -418,15 +463,6 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
       DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.cos_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
-  backend_context_properties.data_type_limits.cumulative_sum_input
-      .IntersectWith(
-          {DataTypeConstraint::kFloat16To32Ints32To64, kNonScalarMaxRank});
-  backend_context_properties.data_type_limits.dequantize_linear_input.data_types
-      .RetainAll(DataTypeConstraint::kInts4Ints8Ints32);
-  backend_context_properties.data_type_limits.dequantize_linear_scale.data_types
-      .RetainAll(DataTypeConstraint::kFloat16To32);
-  backend_context_properties.data_type_limits.dequantize_linear_zero_point
-      .data_types.RetainAll(DataTypeConstraint::kInts4Ints8Ints32);
   backend_context_properties.data_type_limits.erf_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.exp_input.data_types.RetainAll(
@@ -452,20 +488,20 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   backend_context_properties.data_type_limits.elu_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.gather_input.ranks.IntersectWith(
-      SupportedRanks::NonScalarUpTo(8));
+      kNonScalarMaxRank);
   backend_context_properties.data_type_limits.gather_indices.data_types
       .RetainAll(DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes);
   backend_context_properties.data_type_limits.gather_elements_input.ranks
-      .IntersectWith(SupportedRanks::NonScalarUpTo(8));
+      .IntersectWith(kNonScalarMaxRank);
   backend_context_properties.data_type_limits.gather_elements_indices
       .IntersectWith(
           {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-           SupportedRanks::NonScalarUpTo(8)});
+           kNonScalarMaxRank});
   backend_context_properties.data_type_limits.gather_nd_input.ranks
-      .IntersectWith(SupportedRanks::NonScalarUpTo(8));
+      .IntersectWith(kNonScalarMaxRank);
   backend_context_properties.data_type_limits.gather_nd_indices.IntersectWith(
       {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-       SupportedRanks::NonScalarUpTo(8)});
+       kNonScalarMaxRank});
   backend_context_properties.data_type_limits.gelu_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.gemm_a.IntersectWith(
@@ -510,16 +546,14 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   backend_context_properties.data_type_limits.lstm_cell_bias.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)});
   backend_context_properties.data_type_limits.matmul_input.IntersectWith(
-      {DataTypeConstraint::kFloat16To32, {2, 8}});
-  backend_context_properties.data_type_limits.pad_input.IntersectWith(
-      {SupportedDataTypes::All(), kNonScalarMaxRank});
+      {DataTypeConstraint::kFloat16To32, kAtLeast2D});
   backend_context_properties.data_type_limits.average_pool2d_input
       .IntersectWith(
           {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
   backend_context_properties.data_type_limits.l2_pool2d_input.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
-  backend_context_properties.data_type_limits.max_pool2d_input.IntersectWith(
-      {SupportedDataTypes::All(), SupportedRanks::Exactly(4)});
+  backend_context_properties.data_type_limits.max_pool2d_input.ranks
+      .IntersectWith(SupportedRanks::Exactly(4));
   backend_context_properties.data_type_limits.prelu_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32Int8To64);
   backend_context_properties.data_type_limits.quantize_linear_input.data_types
@@ -547,29 +581,29 @@ ContextProperties WebNNContextImpl::IntersectWithBaseProperties(
   backend_context_properties.data_type_limits.resample2d_input.IntersectWith(
       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)});
   backend_context_properties.data_type_limits.scatter_elements_input.ranks
-      .IntersectWith(SupportedRanks::NonScalarUpTo(8));
+      .IntersectWith(kNonScalarMaxRank);
   backend_context_properties.data_type_limits.scatter_elements_indices
       .data_types.RetainAll(
           DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes);
   backend_context_properties.data_type_limits.scatter_nd_input.ranks
-      .IntersectWith(SupportedRanks::NonScalarUpTo(8));
+      .IntersectWith(kNonScalarMaxRank);
   backend_context_properties.data_type_limits.scatter_nd_indices.IntersectWith(
       {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-       SupportedRanks::NonScalarUpTo(8)});
+       kNonScalarMaxRank});
   backend_context_properties.data_type_limits.sigmoid_input.data_types
       .RetainAll(DataTypeConstraint::kFloat16To32);
-  backend_context_properties.data_type_limits.slice_input.IntersectWith(
-      {SupportedDataTypes::All(), kNonScalarMaxRank});
-  backend_context_properties.data_type_limits.softmax_input.data_types
-      .RetainAll(DataTypeConstraint::kFloat16To32);
+  backend_context_properties.data_type_limits.softmax_input.IntersectWith(
+      {DataTypeConstraint::kFloat16To32, kNonScalarMaxRank});
   backend_context_properties.data_type_limits.softplus_input.data_types
       .RetainAll(DataTypeConstraint::kFloat16To32);
   backend_context_properties.data_type_limits.softsign_input.data_types
       .RetainAll(DataTypeConstraint::kFloat16To32);
+  backend_context_properties.data_type_limits.split_input.ranks.IntersectWith(
+      kNonScalarMaxRank);
   backend_context_properties.data_type_limits.tanh_input.data_types.RetainAll(
       DataTypeConstraint::kFloat16To32);
-  backend_context_properties.data_type_limits.triangular_input.IntersectWith(
-      {SupportedDataTypes::All(), {2, 8}});
+  backend_context_properties.data_type_limits.triangular_input.ranks
+      .IntersectWith(kAtLeast2D);
   backend_context_properties.data_type_limits.where_condition.data_types
       .RetainAll(DataTypeConstraint::kUint8);
   return backend_context_properties;

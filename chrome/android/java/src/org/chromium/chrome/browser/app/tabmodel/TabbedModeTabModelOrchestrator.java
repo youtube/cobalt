@@ -27,6 +27,7 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
+import org.chromium.chrome.browser.tab.TabStateStorageFlagHelper;
 import org.chromium.chrome.browser.tab.TabStateStorageServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
@@ -39,6 +40,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorImpl;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
+import org.chromium.chrome.browser.tabmodel.TabPersistentStoreImpl;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.widget.Toast;
@@ -58,6 +60,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     private final CipherFactory mCipherFactory;
 
     private OneshotSupplier<ProfileProvider> mProfileProviderSupplier;
+    private TabCreatorManager mTabCreatorManager;
 
     // This class is driven by TabbedModeTabModelOrchestrator to prevent duplicate glue code in
     // ChromeTabbedActivity.
@@ -123,6 +126,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             MismatchedIndicesHandler mismatchedIndicesHandler,
             int selectorIndex) {
         mProfileProviderSupplier = profileProviderSupplier;
+        mTabCreatorManager = tabCreatorManager;
         boolean mergeTabsOnStartup = shouldMergeTabs(activity);
         if (mergeTabsOnStartup) {
             MultiInstanceManager.mergedOnStartup();
@@ -164,8 +168,8 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
                 new TabbedModeTabPersistencePolicy(
                         assignedIndex, mergeTabsOnStartup, mTabMergingEnabled);
         mTabPersistentStore =
-                new TabPersistentStore(
-                        TabPersistentStore.CLIENT_TAG_REGULAR,
+                new TabPersistentStoreImpl(
+                        TabPersistentStoreImpl.CLIENT_TAG_REGULAR,
                         mTabPersistencePolicy,
                         mTabModelSelector,
                         tabCreatorManager,
@@ -234,13 +238,8 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             createArchivedTabModelInDeferredTask(tabContentManager);
         }
 
-        if (ChromeFeatureList.sTabStorageSqlitePrototype.isEnabled()
-                && ChromeFeatureList.sTabCollectionAndroid.isEnabled()) {
-            mTabStateStoreIsAuthoritative =
-                    ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                            ChromeFeatureList.TAB_STORAGE_SQLITE_PROTOTYPE,
-                            "authoritative_read_source",
-                            false);
+        if (TabStateStorageFlagHelper.isTabStorageEnabled()) {
+            mTabStateStoreIsAuthoritative = TabStateStorageFlagHelper.isStorageAuthoritative();
             // Temporary variable usage to avoid unused variable warning.
             Log.i(TAG, "mTabStateStoreIsAuthoritative: " + mTabStateStoreIsAuthoritative);
 
@@ -251,7 +250,8 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             mTabStateStore =
                     new TabStateStore(
                             TabStateStorageServiceFactory.getForProfile(profile),
-                            mTabModelSelector);
+                            mTabModelSelector,
+                            mTabCreatorManager);
         }
     }
 
@@ -293,7 +293,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
         mArchivedTabModelOrchestrator.registerTabModelOrchestrator(this);
     }
 
-    public TabPersistentStore getTabPersistentStoreForTesting() {
-        return mTabPersistentStore;
+    public TabPersistentStoreImpl getTabPersistentStoreForTesting() {
+        return (TabPersistentStoreImpl) mTabPersistentStore;
     }
 }

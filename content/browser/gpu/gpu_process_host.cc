@@ -736,10 +736,9 @@ GpuProcessHost::GpuProcessHost(int host_id, GpuProcessKind kind)
   }
 #if !BUILDFLAG(IS_ANDROID)
   if (!in_process_ && kind != GPU_PROCESS_KIND_INFO_COLLECTION) {
-    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, base::MemoryPressureListenerTag::kGpuProcessHost,
-        base::BindRepeating(&GpuProcessHost::OnMemoryPressure,
-                            base::Unretained(this)));
+    memory_pressure_listener_registration_ =
+        std::make_unique<base::MemoryPressureListenerRegistration>(
+            FROM_HERE, base::MemoryPressureListenerTag::kGpuProcessHost, this);
   }
 #endif
 
@@ -1484,8 +1483,7 @@ int GpuProcessHost::GetIDForTesting() const {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-void GpuProcessHost::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void GpuProcessHost::OnMemoryPressure(base::MemoryPressureLevel level) {
   gpu_host_->gpu_service()->OnMemoryPressure(level);
 }
 #endif

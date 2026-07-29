@@ -59,7 +59,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
-import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
+import org.chromium.chrome.browser.tabmodel.TabPersistenceUtils;
 import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
@@ -95,9 +95,6 @@ public class MultiWindowUtils implements ActivityStateListener {
             "Android.MultiInstance.NumActivities.DesktopWindow";
     static final String HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW =
             "Android.MultiInstance.NumInstances.DesktopWindow";
-    static final String HISTOGRAM_DESKTOP_WINDOW_COUNT_NEW_INSTANCE_SUFFIX = ".NewInstance";
-    static final String HISTOGRAM_DESKTOP_WINDOW_COUNT_EXISTING_INSTANCE_SUFFIX =
-            ".ExistingInstance";
     static final String OPEN_ADJACENTLY_PARAM = "open_adjacently";
 
     private static MultiWindowUtils sInstance = new MultiWindowUtils();
@@ -152,6 +149,17 @@ public class MultiWindowUtils implements ActivityStateListener {
         int NEW_INSTANCE_NEW_TASK = 5;
         int EXISTING_INSTANCE_NEW_TASK = 6;
         int INVALID_INSTANCE = 7;
+    }
+
+    // These values are persisted to logs. Entries should not be renumbered and numeric values
+    // should never be reused.
+    @IntDef({NewWindowEntryPoint.OTHER, NewWindowEntryPoint.MENU})
+    public @interface NewWindowEntryPoint {
+        int OTHER = 0;
+        int MENU = 1;
+
+        // Be sure to also update enums.xml when updating these values.
+        int NUM_ENTRIES = 2;
     }
 
     protected MultiWindowUtils() {
@@ -495,6 +503,15 @@ public class MultiWindowUtils implements ActivityStateListener {
             }
         }
         return count;
+    }
+
+    /**
+     * @return The number of active Chrome instances, that are associated with a live task.
+     */
+    public static int getActiveInstanceCount() {
+        return MultiInstanceManagerApi31.getPersistedInstanceIds(
+                        MultiInstanceManagerApi31.PersistedInstanceType.ACTIVE)
+                .size();
     }
 
     /**
@@ -1045,31 +1062,16 @@ public class MultiWindowUtils implements ActivityStateListener {
         if (!isColdStart) return;
 
         // Emit histograms for running activity count.
-        recordDesktopWindowCountHistograms(
-                instanceAllocationType,
+        RecordHistogram.recordExactLinearHistogram(
                 HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW,
-                MultiInstanceManagerApi31.getRunningTabbedActivityCount());
+                MultiInstanceManagerApi31.getRunningTabbedActivityCount(),
+                TabWindowManager.MAX_SELECTORS + 1);
 
         // Emit histograms for total instance count.
-        recordDesktopWindowCountHistograms(
-                instanceAllocationType, HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW, getInstanceCount());
-    }
-
-    private static void recordDesktopWindowCountHistograms(
-            @InstanceAllocationType int instanceAllocationType, String histogramName, int count) {
-        // Emit generic histogram, irrespective of instance allocation type.
         RecordHistogram.recordExactLinearHistogram(
-                histogramName, count, TabWindowManager.MAX_SELECTORS + 1);
-
-        // Emit histogram variant based on instance allocation type.
-        String histogramSuffix = HISTOGRAM_DESKTOP_WINDOW_COUNT_NEW_INSTANCE_SUFFIX;
-        if (instanceAllocationType != InstanceAllocationType.NEW_INSTANCE_NEW_TASK
-                && instanceAllocationType != InstanceAllocationType.PREFER_NEW_INSTANCE_NEW_TASK) {
-            histogramSuffix = HISTOGRAM_DESKTOP_WINDOW_COUNT_EXISTING_INSTANCE_SUFFIX;
-        }
-
-        RecordHistogram.recordExactLinearHistogram(
-                histogramName + histogramSuffix, count, TabWindowManager.MAX_SELECTORS + 1);
+                HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW,
+                getInstanceCount(),
+                TabWindowManager.MAX_SELECTORS + 1);
     }
 
     /**
@@ -1086,7 +1088,7 @@ public class MultiWindowUtils implements ActivityStateListener {
         int totalCount = 0;
         for (TabModel model : models) {
             for (Tab tab : model) {
-                if (!TabPersistentStore.shouldSkipTab(tab)) {
+                if (!TabPersistenceUtils.shouldSkipTab(tab)) {
                     totalCount++;
                 }
             }

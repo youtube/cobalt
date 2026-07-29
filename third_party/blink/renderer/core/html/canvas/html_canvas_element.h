@@ -249,19 +249,6 @@ class CORE_EXPORT HTMLCanvasElement final
   UkmParameters GetUkmParameters() override;
   void SetNeedsCompositingUpdate() override;
 
-  // This method attempts to ensure that the canvas' resource exists on the GPU.
-  // A HTMLCanvasElement can downgrade itself from GPU to CPU when readback
-  // occurs too frequently, so a canvas may exist on the CPU even if the browser
-  // is normally GPU-capable. If the canvas needed to be migrated off of the
-  // CPU, the canvas resource provider and canvas 2D layer bridge will be
-  // destroyed and recreated; when this occurs, any existing pointers to these
-  // objects will be invalidated. If the canvas resource provider did not exist
-  // at all, it may be created.  NOTE: This method might fail to enable
-  // acceleration. Clients needing to know whether it succeeded should check
-  // whether the Canvas2D resource provider is accelerated after calling this
-  // method.
-  void EnableAccelerationForCanvas2D();
-
   void DisableAccelerationForCanvas2D();
 
   // ImageBitmapSource implementation
@@ -295,9 +282,6 @@ class CORE_EXPORT HTMLCanvasElement final
   bool CreateLayer();
 
   void DetachContext() override { context_ = nullptr; }
-
-  void WillDrawImageInCanvas2D(CanvasImageSource*,
-                               bool image_is_texture_backed);
 
   ExecutionContext* GetTopExecutionContext() const override {
     return GetDocument().GetExecutionContext();
@@ -422,8 +406,6 @@ class CORE_EXPORT HTMLCanvasElement final
 
   static std::pair<blink::Image*, float> BrokenCanvas(
       float device_scale_factor);
-
-  bool RecreateCanvasInGPURasterModeForCanvas2D();
 
   void ChildrenChanged(const ChildrenChange&) override;
 

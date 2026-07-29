@@ -242,10 +242,11 @@ GpuServiceImpl::GpuServiceImpl(
     if (dawn_context_provider_) {
       // GpuServiceImpl holds the instance of DawnContextProvider, so it
       // outlives the DawnContextProvider.
-      std::unique_ptr<dawn::platform::CachingInterface> caching_interface;
+      std::unique_ptr<gpu::webgpu::DawnCachingInterface> caching_interface;
       if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
-        caching_interface =
-            std::make_unique<gpu::GpuPersistentCache>("GraphiteDawn");
+        caching_interface = dawn_caching_interface_factory_->CreateInstance(
+            gpu::kGraphiteDawnGpuDiskCacheHandle,
+            std::make_unique<gpu::GpuPersistentCache>("GraphiteDawn"));
       } else {
         auto cache_blob_callback = base::BindRepeating(
             [](GpuServiceImpl* self, const std::string& key,
@@ -866,6 +867,7 @@ bool GpuServiceImpl::IsExiting() const {
 void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
                                          uint64_t client_tracing_id,
                                          bool is_gpu_host,
+                                         bool enable_extra_handles_validation,
                                          EstablishGpuChannelCallback callback) {
   // This should always be called on the IO thread first.
   if (io_runner_->BelongsToCurrentThread()) {
@@ -890,14 +892,15 @@ void GpuServiceImpl::EstablishGpuChannel(int32_t client_id,
     main_runner_->PostTask(
         FROM_HERE, base::BindOnce(&GpuServiceImpl::EstablishGpuChannel,
                                   weak_ptr_, client_id, client_tracing_id,
-                                  is_gpu_host, std::move(wrap_callback)));
+                                  is_gpu_host, enable_extra_handles_validation,
+                                  std::move(wrap_callback)));
     return;
   }
 
   auto channel_token = base::UnguessableToken::Create();
   gpu::GpuChannel* gpu_channel = gpu_channel_manager_->EstablishChannel(
       channel_token, client_id, client_tracing_id, is_gpu_host,
-      gpu_extra_info_);
+      enable_extra_handles_validation, gpu_extra_info_);
 
   if (!gpu_channel) {
     // This returns a null handle, which is treated by the client as a failure
@@ -946,10 +949,9 @@ void GpuServiceImpl::SetChannelPersistentCacheParams(
     return;
   }
 
-  auto* persistent_cache = static_cast<gpu::GpuPersistentCache*>(
-      dawn_context_provider_->GetCachingInterface());
-  CHECK(persistent_cache);
-  persistent_cache->InitializeCache(std::move(backend_params));
+  auto* cache = dawn_context_provider_->GetCachingInterface();
+  CHECK(cache);
+  cache->InitializePersistentCache(std::move(backend_params));
 #endif
 }
 
@@ -1160,8 +1162,7 @@ void GpuServiceImpl::OnForegroundedOnMainThread() {
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-void GpuServiceImpl::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void GpuServiceImpl::OnMemoryPressure(base::MemoryPressureLevel level) {
   // Forward the notification to the registry of MemoryPressureListeners.
   base::SingleThreadTaskRunner::GetMainThreadDefault()->PostTask(
       FROM_HERE,

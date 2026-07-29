@@ -22,7 +22,8 @@
 
 #actions-focus-border:focus-within,
 /* Keep outline when chip receives active state after being focused. */
-#actions-focus-border:focus-within:has(#action:active) {
+#actions-focus-border:focus-within:has(#action:active),
+#actions-focus-border:has(#action.selected) {
   outline: 2px solid var(--color-searchbox-results-action-chip-focus-outline);
   border-radius: 10px;
   margin-inline-start: -2px;
@@ -57,6 +58,12 @@
   padding-bottom: 3px;
 }
 
+:host([has-action][is-top-chrome-searchbox_]) .container {
+  height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 :host(:not([is-lens-searchbox_])) .container:not(.actions) {
   margin-inline-end: 16px;
   border-start-end-radius: 24px;
@@ -67,9 +74,13 @@
   margin-inline-end: 0px;
 }
 
-.container:not(.actions):hover,
-:host(:is(:focus-visible, [selected]))  .container:not(.actions) {
+.container:not(.actions):hover {
   background-color: var(--color-searchbox-results-background-hovered);
+}
+
+:host(:is(:focus-visible, [selected]))  .container:not(.actions) {
+  background-color: var(--color-searchbox-results-background-selected,
+      var(--color-searchbox-results-background-hovered));
 }
 
 :host([enable-csb-motion-tweaks_][is-lens-searchbox_]) .container {
@@ -127,6 +138,11 @@
 /* Focus indicator only shown for vertically rendered matches. */
 :host-context(.vertical):host(:is(:focus-visible, [selected]:not(:focus-within))) #focus-indicator:not(.selected-within) {
   display: block;
+}
+
+:host-context(cr-searchbox-match:-webkit-any(:focus-within, [selected])) #icon {
+  --color-searchbox-search-icon-background:
+      var(--color-searchbox-results-dim-selected);
 }
 
 #prefix {
@@ -222,10 +238,18 @@
 }
 
 #remove {
-  --cr-icon-button-fill-color:
-      var(--color-searchbox-results-icon-selected);
   display: none;
   margin-inline-end: 1px;
+}
+
+:host-context(cr-searchbox-match:-webkit-any(:focus-within, [selected])) #remove {
+  --cr-icon-button-fill-color: var(--color-searchbox-results-icon-selected);
+}
+
+
+:host-context(cr-searchbox-match:-webkit-any(:focus-within, [selected])) #remove:hover {
+  --cr-icon-button-hover-background-color:
+      var(--color-searchbox-results-button-selected-hover);
 }
 
 :host-context(.vertical) .container:hover #remove,
@@ -233,7 +257,7 @@
   display: inline-flex;
 }
 
-.selected {
+.selected:not(#action) {
   box-shadow: inset 0 0 0 2px
       var(--color-searchbox-results-icon-focused-outline);
 }

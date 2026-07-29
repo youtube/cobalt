@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.ntp_customization.theme.chrome_colors;
 
+import static android.view.View.INVISIBLE;
+import static android.view.View.VISIBLE;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -48,11 +51,13 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpChromeColorsCoordinator.ColorGridView;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
 import org.chromium.ui.widget.ButtonCompat;
 
 /** Unit tests for {@link NtpChromeColorsCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@Features.EnableFeatures({ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2})
 public class NtpChromeColorsCoordinatorUnitTest {
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -165,11 +170,9 @@ public class NtpChromeColorsCoordinatorUnitTest {
 
     @Test
     public void testOnItemClicked_noPrimaryColorSelected() {
-        @Nullable
-        @ColorInt
-        Integer primaryColor = mCoordinator.getPrimaryColorForTesting();
+        @Nullable NtpThemeColorInfo primaryColorInfo = mCoordinator.getPrimaryColorInfoForTesting();
 
-        assertNull(primaryColor);
+        assertNull(primaryColorInfo);
         NtpThemeColorInfo colorInfo =
                 NtpThemeColorUtils.createNtpThemeColorInfo(
                         mContext, NtpThemeColorInfo.NtpThemeColorId.BLUE);
@@ -181,19 +184,20 @@ public class NtpChromeColorsCoordinatorUnitTest {
     @Test
     @Features.EnableFeatures({ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2})
     public void testOnItemClicked_withPrimaryColorSelected() {
-        NtpThemeColorInfo colorInfo =
-                NtpThemeColorUtils.createNtpThemeColorInfo(
-                        mContext, NtpThemeColorInfo.NtpThemeColorId.BLUE);
+        @NtpThemeColorId int colorId = NtpThemeColorId.BLUE;
+        NtpThemeColorInfo colorInfo = NtpThemeColorUtils.createNtpThemeColorInfo(mContext, colorId);
         NtpThemeColorInfo colorInfo1 =
                 NtpThemeColorUtils.createNtpThemeColorInfo(
                         mContext, NtpThemeColorInfo.NtpThemeColorId.LIGHT_BLUE);
-        @ColorInt Integer primaryColor = colorInfo.primaryColor;
-        NtpCustomizationUtils.setCustomizedPrimaryColor(primaryColor);
-        NtpCustomizationUtils.setNtpBackgroundImageType(NtpBackgroundImageType.CHROME_COLOR);
-        assertEquals(primaryColor, NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor());
+        NtpCustomizationUtils.setNtpThemeColorIdToSharedPreference(colorId);
+        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
+                NtpBackgroundImageType.CHROME_COLOR);
+        assertEquals(colorId, NtpCustomizationUtils.getNtpThemeColorIdFromSharedPreference());
 
         createCoordinator();
-        assertEquals(primaryColor, mCoordinator.getPrimaryColorForTesting());
+        assertEquals(
+                colorInfo.primaryColorResId,
+                mCoordinator.getPrimaryColorInfoForTesting().primaryColorResId);
 
         mCoordinator.onItemClicked(colorInfo);
         verify(mBottomSheetDelegate).onNewColorSelected(eq(false));
@@ -230,7 +234,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
                 backgroundColor, NtpCustomizationUtils.getBackgroundColorFromSharedPreference(-1));
         assertEquals(
                 primaryColor,
-                NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor().intValue());
+                NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(mContext).intValue());
     }
 
     @Test
@@ -240,21 +244,25 @@ public class NtpChromeColorsCoordinatorUnitTest {
         createCoordinator();
         ImageView colorCircleImageView = mCoordinator.getBackgroundColorCircleImageViewForTesting();
         assertNotNull(colorCircleImageView);
+        assertEquals(INVISIBLE, colorCircleImageView.getVisibility());
 
         // Verifies null is returned for an invalid hexadecimal string.
         assertNull(mCoordinator.updateColorCircle("FF00", colorCircleImageView));
+        assertEquals(INVISIBLE, colorCircleImageView.getVisibility());
 
         // Verifies the method returns the expected color value for a valid hexadecimal string.
         String colorHex = "#FF0000";
         @ColorInt int color = Color.parseColor(colorHex);
         assertEquals(
                 color, mCoordinator.updateColorCircle(colorHex, colorCircleImageView).intValue());
+        assertEquals(VISIBLE, colorCircleImageView.getVisibility());
 
         // Verifies the missing "#" will be added automatically, and the method returns the expected
         // color value.
         colorHex = "FF0000";
         assertEquals(
                 color, mCoordinator.updateColorCircle(colorHex, colorCircleImageView).intValue());
+        assertEquals(VISIBLE, colorCircleImageView.getVisibility());
     }
 
     private void createCoordinator() {

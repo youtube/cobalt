@@ -376,7 +376,7 @@ auto RunOOPArcVideoAcceleratorFactoryService(
 auto RunOOPVideoDecoderFactoryProcessService(
     mojo::PendingReceiver<media::mojom::VideoDecoderFactoryProcess> receiver) {
   return std::make_unique<media::OOPVideoDecoderFactoryProcessService>(
-      std::move(receiver));
+      std::move(receiver), ChildProcess::current()->io_task_runner());
 }
 
 auto RunVideoEncodeAcceleratorProviderFactory(
@@ -402,10 +402,6 @@ void RegisterIOThreadServices(mojo::ServiceFactory& services) {
   // loop of type IO that can get notified when pipes have data.
   services.Add(RunNetworkService);
 
-#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
-  services.Add(RunOOPVideoDecoderFactoryProcessService);
-#endif
-
   // Add new IO-thread services above this line.
   GetContentClient()->utility()->RegisterIOThreadServices(services);
 }
@@ -421,6 +417,10 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 
 #if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
   services.Add(RunVideoEffects);
+#endif
+
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+  services.Add(RunOOPVideoDecoderFactoryProcessService);
 #endif
 
   if (optimization_guide::features::CanLaunchOnDeviceModelService()) {

@@ -633,6 +633,7 @@ Online opnieuw verifiëren kan om verschillende redenen vereist zijn, zoals wach
 <translation id="1438739959477268107">Standaardinstelling voor het genereren van sleutels</translation>
 <translation id="1440408958042020947">Hierdoor kunnen gebruikers die Telefoonhub toestaan, toegang krijgen tot recente foto's en video's die ze hebben gemaakt op hun telefoon</translation>
 <translation id="1443532790824582949">Het virtuele aanraaktoetsenbord aanzetten</translation>
+<translation id="1447252610864877219">Toestaan dat de Gemini-app actie onderneemt op de webpagina's.</translation>
 <translation id="1449083855104537880">Als je het beleid instelt op True, worden de toegankelijkheidsopties weergegeven in het systeemvakmenu. Als je het beleid instelt op False, worden de opties niet weergegeven in het menu.
 
       Als je het beleid instelt, kunnen gebruikers het niet wijzigen. Als je het beleid niet instelt, worden de toegankelijkheidsopties niet weergegeven in het menu, maar kunnen gebruikers ze tonen via de pagina Instellingen.
@@ -783,6 +784,7 @@ Ga naar https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns vo
 <translation id="1523774894176285446">Alternatieve browser die wordt gestart voor geconfigureerde websites.</translation>
 <translation id="152657506688053119">Lijst met alternatieve URL's voor de standaardzoekprovider</translation>
 <translation id="1530812829012954197">De volgende URL-patronen altijd verwerken in de hostbrowser</translation>
+<translation id="1533353321560451784">Vids (ondersteund vanaf versie 143)</translation>
 <translation id="1534007181698071943">Toestaan dat unload-gebeurtenishandlers standaard worden uitgezet tijdens de beëindiging</translation>
 <translation id="1539343118617844331">School</translation>
 <translation id="1542491165152947087">Sta gebruikers toe de <ph name="PRIVACY_SANDBOX_NAME" />-instelling voor advertentieonderwerpen op hun apparaat aan of uit te zetten.</translation>
@@ -1306,6 +1308,17 @@ Als je dit beleid instelt op False, worden er geen gegevens verzameld die kunnen
 
 Dit beleid is alleen van kracht als de machine is ingeschreven met <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> voor <ph name="PRODUCT_NAME" />.
 Dit beleid is altijd van kracht voor <ph name="PRODUCT_OS_NAME" />.</translation>
+<translation id="1878535132109943599">Als je dit beleid toepast, worden er alleen waarschuwingen getoond in <ph name="CHROME_DEVTOOLS_NAME" /> voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken omdat de <ph name="LOCAL_NETWORK_ACCESS" />-controles mislukken.
+
+Als je dit beleid niet toepast of niet instelt, wordt de standaardafhandeling van deze verzoeken gebruikt voor <ph name="LOCAL_NETWORK_ACCESS" />-verzoeken.
+
+Zie https://wicg.github.io/local-network-access/ voor beperkingen voor <ph name="LOCAL_NETWORK_ACCESS" />.
+
+Dit bedrijfsbeleid is tijdelijk en wordt verwijderd na M146.
+
+Op de lange termijn kun je het beleid <ph name="LOCAL_NETWORK_ACCESS_ALLOWED_FOR_URLS_POLICY_NAME" /> gebruiken om URL-patronen op de toelatingslijst te zetten waarvoor het recht <ph name="LOCAL_NETWORK_ACCESS" /> automatisch moet worden verleend.
+
+Als je het beleid <ph name="LOCAL_NETWORK_ACCESS_RESTRICTIONS_ENABLED_POLICY_NAME" /> aanzet, krijgt het voorrang op dit beleid.</translation>
 <translation id="187961648719201562">Bestaande lokale bestanden verwijderen (ondersteund vanaf versie 137)</translation>
 <translation id="1883274744253492031">Automatisch upgraden van gemengde content aanzetten</translation>
 <translation id="1885782360784839335">Promotiecontent op volledig tabblad tonen</translation>
@@ -6764,6 +6777,21 @@ Als dit beleid is ingesteld voor de <ph name="PRODUCT_OS_NAME" />-kiosk, wordt d
 <translation id="5625771176514429288">Chrome-apps kunnen op deze platforms worden uitgevoerd.</translation>
 <translation id="5627270992026554674">Niet toestaan dat docenten de klassenlijst van Google Classroom gebruiken</translation>
 <translation id="5630352020869108293">De laatste sessie herstellen</translation>
+<translation id="5630952076819481843">Als je het beleid instelt, kun je een lijst met URL-patronen opgeven van sites waarvoor Chrome automatisch een clientcertificaat kan selecteren. De waarde is een matrix van JSON-woordenboeken met tekenreeksen, elk met de indeling <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_EXAMPLE" />, waarbij <ph name="URL_PATTERN_PLACEHOLDER" /> een patroon voor het instellen van content is. <ph name="FILTER_PLACEHOLDER" /> beperkt de clientcertificaten waaruit de browser automatisch kan kiezen. Onafhankelijk van het filter worden alleen certificaten geselecteerd die overeenkomen met het certificaatverzoek van de server. Op Android kan Chrome alleen clientcertificaten selecteren die het zelf heeft ingesteld. Chrome heeft geen toegang tot certificaten die zijn geïnstalleerd op het niveau van het besturingssysteem.
+
+      Voorbeelden voor het gebruik van het gedeelte <ph name="FILTER_PLACEHOLDER" />:
+
+      * Als <ph name="FILTER_PLACEHOLDER" /> is ingesteld op <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_FILTER_EXAMPLE" />, worden er alleen clientcertificaten geselecteerd die zijn uitgegeven door een certificaat met de CommonName <ph name="ISSUER_CN_PLACEHOLDER" />.
+
+      * Als <ph name="FILTER_PLACEHOLDER" /> zowel het gedeelte <ph name="ISSUER_STRING_VALUE" /> als het gedeelte <ph name="SUBJECT_STRING_VALUE" /> bevat, worden alleen clientcertificaten geselecteerd die aan beide voorwaarden voldoen.
+
+      * Als <ph name="FILTER_PLACEHOLDER" /> een gedeelte <ph name="SUBJECT_STRING_VALUE" /> met de waarde <ph name="FILTER_STRING_ORGANIZATION" /> bevat, moet een certificaat ten minste één organisatie hebben die overeenkomt met de opgegeven waarde om te worden geselecteerd.
+
+      * Als <ph name="FILTER_PLACEHOLDER" /> een gedeelte <ph name="SUBJECT_STRING_VALUE" /> met een waarde <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" /> bevat, moet een certificaat ten minste één organisatie-eenheid hebben die overeenkomt met de opgegeven waarde om te worden geselecteerd.
+
+      * Als <ph name="FILTER_PLACEHOLDER" /> is ingesteld op <ph name="EMPTY_DICTIONARY" />, wordt de selectie van clientcertificaten niet verder beperkt. Houd er rekening mee dat filters die door de webserver worden geleverd, nog steeds van toepassing zijn.
+
+      Als je het beleid niet instelt, worden clientcertificaten voor geen enkele site automatisch geselecteerd.</translation>
 <translation id="5633871703004128675">Toegankelijkheidsfunctie voor markering van het caret-teken aanzetten</translation>
 <translation id="5634032995857968056">De sandbox voor de app-container van het weergaveprogramma aanzetten</translation>
 <translation id="5638334542697444045">Niet toestaan dat gebruikers instant tethering gebruiken</translation>
@@ -6966,6 +6994,7 @@ Op desktopplatforms kan het downloaden van modellen ook worden uitgezet door <ph
 <translation id="5774856474228476867">Zoek-URL voor standaardzoekprovider</translation>
 <translation id="5775235485119094648">Laad de batterij op wanneer de lading zich binnen een bepaald bereik bevindt.</translation>
 <translation id="5776485039795852974">Altijd goedkeuring vragen wanneer een site bureaubladmeldingen wil tonen</translation>
+<translation id="5776508475264864949">De Gemini-app niet toestaan om actie te ondernemen op de webpagina's.</translation>
 <translation id="5783009211970309878">Kop- en voetteksten afdrukken</translation>
 <translation id="5790763087505467169">Minder meldingen voor automatisch starten van beheerde gastsessies</translation>
 <translation id="5794205610250307906">Met dit beleid wordt bepaald of de browser aanpasbare buffering voor Web Audio gebruikt. Dit kan audioproblemen verminderen, maar de vertraging met een variabele hoeveelheid verhogen.
@@ -7545,6 +7574,7 @@ Ga naar https://support.google.com/chrome/a?p=url_blocklist_filter_format voor u
       Als je het beleid instelt op <ph name="ASK_LOCAL_FONTS_POLICY_NAME" /> (waarde 3), wordt de gebruiker standaard om toestemming gevraagd als het recht voor lokale lettertypen wordt aangevraagd. Als gebruikers het recht verlenen, hebben sites de mogelijkheid om informatie over lokale lettertypen te bekijken.
 
       Als je het beleid niet instelt, wordt het standaardgedrag toegepast en krijgt de gebruiker een prompt. Gebruikers kunnen deze instelling wijzigen.</translation>
+<translation id="6203014458380972093">Tijdelijk afmelden voor beperkingen voor verzoeken naar lokale netwerkeindpunten</translation>
 <translation id="6203715554101884845">Als je het beleid instelt, kun je een lijst met URL's opgeven met de sites die op het inlogscherm automatisch toegangsrechten krijgen voor een HID-apparaat met de opgegeven leveranciers- en product-ID's. Het beleid is alleen geldig als elk item in de lijst de velden <ph name="DEVICES_FIELD_NAME" /> en <ph name="URLS_FIELD_NAME" /> bevat, anders wordt het item genegeerd. Elk item in het veld <ph name="DEVICES_FIELD_NAME" /> moet een veld <ph name="VENDOR_ID_FIELD_NAME" /> hebben en kan een veld <ph name="PRODUCT_ID_FIELD_NAME" /> hebben. Als je het veld <ph name="PRODUCT_ID_FIELD_NAME" /> weglaat, wordt een beleid gemaakt dat geschikt is voor elk apparaat met de opgegeven leveranciers-ID. Een item dat het veld <ph name="PRODUCT_ID_FIELD_NAME" /> heeft zonder het veld <ph name="VENDOR_ID_FIELD_NAME" />, is ongeldig en wordt genegeerd.
 
 Als je het beleid niet instelt, wordt de algemene standaardwaarde gebruikt voor alle sites (geen automatische toegang).</translation>
@@ -7821,6 +7851,14 @@ WAARSCHUWING: Als je deze instelling wijzigt, kan dit ervoor zorgen dat ander be
 Als je dit beleid instelt op <ph name="DISALLOW" />, werken de opties <ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDWIFIACCESSPOINTS" /> en <ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDALLLOCATIONINFO" /> van het beleid <ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" /> niet meer en gebruiken ze alleen de op <ph name="IP" /> gebaseerde locatie-omzetting op het scherm <ph name="LOG_IN" />.</translation>
 <translation id="6338982178236723271">Systeemgegevens rapporteren</translation>
 <translation id="6339355882150329269">Gebruiker niet als inactief beschouwen tijdens afspelen van video's</translation>
+<translation id="6347110299837147365">Met dit beleid kunnen beheerders het HTTP-browsercachegeheugen op de schijf versleutelen.
+Wordt op dit moment alleen ondersteund in Windows.
+
+Als je dit beleid toepast, wordt het browsercachegeheugen versleuteld.
+
+Als je dit beleid niet toepast of niet instelt, wordt het browsercachegeheugen niet versleuteld.
+
+Versleuteling van het browsercachegeheugen kan invloed hebben op de prestaties.</translation>
 <translation id="6352714113109004581">Als je het beleid instelt, kun je een lijst met URL-patronen maken om op te geven welke sites gebruikers mogen vragen om toegang tot een HID-apparaat.
 
       Als je het beleid niet instelt, is <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> (indien ingesteld) van toepassing op alle sites. Zo niet, dan gelden de persoonlijke instellingen van gebruikers.
@@ -9338,6 +9376,7 @@ Dit vervangt het beëindigde beleid <ph name="WINDOW_PLACEMENT_BLOCKED_FOR_URLS_
 <translation id="7323896582714668701">Extra opdrachtregelparameters voor <ph name="PRODUCT_NAME" /></translation>
 <translation id="7325801934761922681">Voorkomen dat Chrome navigatie naar externe protocollen in iframes in sandboxes blokkeert</translation>
 <translation id="7326394567531622570">Vergelijkbaar met Wipe (waarde 2), maar probeert inlogtokens te behouden, zodat de gebruiker niet opnieuw hoeft in te loggen.</translation>
+<translation id="7331098674887251788">Hiermee kunnen Gemini-app-integraties rechtstreeks acties uitvoeren op webpagina's</translation>
 <translation id="7331387825106440104">Geen beperkingen afdwingen in lokaal toegevoegde vertrouwensankers</translation>
 <translation id="7331962793961469250">Wanneer dit is ingesteld op 'true', worden promoties voor apps van de Chrome Web Store niet weergegeven op de pagina 'Nieuw tabblad'.
 
@@ -10137,6 +10176,7 @@ Dit beleid is tijdelijk en wordt in de toekomst verwijderd.</translation>
 <translation id="7985242821674907985"><ph name="PRODUCT_NAME" /></translation>
 <translation id="7985781946183471651">Glanceables in <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="7986473886676689183">Android-rapporten aanzetten</translation>
+<translation id="798671159602573821">Bepaalt of je je (tijdelijk) wilt afmelden voor beperkingen voor toegang tot lokaal netwerk</translation>
 <translation id="7990280274626154329"><ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /> aanzetten</translation>
 <translation id="7991022023019679916">Dit beleid is beëindigd en wordt verwijderd in <ph name="PRODUCT_OS_NAME" />-versie 85. Gebruik in plaats daarvan <ph name="POWER_MANAGEMENT_IDLE_SETTINGS_POLICY_NAME" />.
 
@@ -10464,6 +10504,15 @@ Zie RFC 8828 artikel 5.2 (https://tools.ietf.org/html/rfc8828.html#section-5.2) 
       Als je het beleid niet toepast, kunnen ingeschreven apparaten geen opties voor gedetailleerde rapportage krijgen.</translation>
 <translation id="82530263956734297">Extensie-ID's die zijn vrijgesteld van de blokkeringslijst</translation>
 <translation id="8254749125469750814">Niet valideren of een extensie wel of niet kan worden geïnstalleerd met een cloudservice.</translation>
+<translation id="825509998103089977">Hiermee bepaal je of de Gemini-app actie mag ondernemen op de webpagina's namens de gebruiker.
+
+0/niet ingesteld  = De Gemini-app mag actie ondernemen op de webpagina's.
+
+1 = De Gemini-app mag geen actie ondernemen op de webpagina's.
+
+Dit beleid heeft geen effect als de Gemini-app is uitgezet. De Gemini-app kan bijvoorbeeld worden uitgezet met het beleid <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Ga voor meer informatie naar https://support.google.com/chrome/a/answer/16291696.</translation>
 <translation id="8256006033157034334">Dit beleid is beëindigd en wordt niet ondersteund. Gebruik in plaats daarvan <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" />.</translation>
 <translation id="8256688113167012935">Hiermee wordt de weergave van de accountnaam in <ph name="PRODUCT_OS_NAME" /> op het aanmeldscherm beheerd voor het bijbehorende lokale account van het apparaat.
 

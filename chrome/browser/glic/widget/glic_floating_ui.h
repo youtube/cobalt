@@ -9,19 +9,32 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
+#include "chrome/browser/glic/widget/glic_window_event_observer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
+class BrowserWindowInterface;
+
 namespace glic {
 
+class GlicWindowAnimator;
 class GlicWidget;
 class GlicView;
 
 // A stub implementation of GlicUiEmbedder for floating UIs.
-class GlicFloatingUi : public GlicUiEmbedder, public Host::EmbedderDelegate {
+class GlicFloatingUi : public GlicUiEmbedder,
+                       public Host::EmbedderDelegate,
+                       public GlicWindowEventObserver::Delegate {
  public:
-  GlicFloatingUi(Profile* profile, GlicUiEmbedder::Delegate& delegate);
+  GlicFloatingUi(Profile* profile,
+                 BrowserWindowInterface* browser,
+                 GlicUiEmbedder::Delegate& delegate);
+  GlicFloatingUi(Profile* profile,
+                 gfx::Rect initial_bounds,
+                 GlicUiEmbedder::Delegate& delegate);
   ~GlicFloatingUi() override;
+
+  static gfx::Size GetDefaultSize();
 
   // GlicUiEmbedder:
   Host::EmbedderDelegate* GetHostEmbedderDelegate() override;
@@ -29,10 +42,12 @@ class GlicFloatingUi : public GlicUiEmbedder, public Host::EmbedderDelegate {
   bool IsShowing() const override;
   void Close() override;
   std::unique_ptr<GlicUiEmbedder> CreateInactiveEmbedder() const override;
-  views::View* GetViewForTesting() override;
+  void Focus() override;
+  views::View* GetView() override;
+  mojom::PanelState GetPanelState() const override;
+  gfx::Size GetPanelSize() override;
 
   // Host::EmbedderDelegate:
-  const mojom::PanelState& GetPanelState() const override;
   void Resize(const gfx::Size& size,
               base::TimeDelta duration,
               base::OnceClosure callback) override;
@@ -47,17 +62,18 @@ class GlicFloatingUi : public GlicUiEmbedder, public Host::EmbedderDelegate {
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
   void ClosePanel() override;
 
+  // GlicWindowEventObserver::Delegate:
+  GlicWindowAnimator* window_animator() override;
+  void OnDragComplete() override;
+
  private:
   GlicWidget* GetGlicWidget() const;
   GlicView* GetGlicView() const;
-  void CreateAndSetupWidget();
-  // void SetDraggingAreasAndWatchForMouseEvents();
+  void CreateAndSetupWidget(gfx::Rect initial_bounds);
 
-  // Used to monitor key and mouse events from native window.
-  // class WindowEventObserver;
-  // std::unique_ptr<WindowEventObserver> window_event_observer_;
-
+  std::unique_ptr<GlicWindowAnimator> glic_window_animator_;
   std::unique_ptr<GlicWidget> glic_widget_;
+  std::unique_ptr<GlicWindowEventObserver> window_event_observer_;
   mojom::PanelState panel_state_;
 
   raw_ptr<Profile> profile_;

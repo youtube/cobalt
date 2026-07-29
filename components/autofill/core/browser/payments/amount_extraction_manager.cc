@@ -12,6 +12,7 @@
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -22,6 +23,9 @@
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/optimization_guide/core/optimization_guide_model_executor.h"
+#include "components/optimization_guide/core/optimization_guide_util.h"
+#include "components/optimization_guide/proto/features/amount_extraction.pb.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "url/gurl.h"
@@ -65,6 +69,44 @@ AmountExtractionManager::MaybeParseAmountToMonetaryMicroUnits(
     return std::nullopt;
   }
   return micro_amount;
+}
+
+bool AmountExtractionManager::IsValidAmountExtractionResponse(
+    const AmountExtractionResponse& response) {
+  // TODO(crbug.com/444683986): Log the metric for the invalid amount extraction
+  // predication in the invalid cases.
+  if (!response.has_final_checkout_amount()) {
+    return false;
+  }
+
+  // The final checkout amount should never be negative.
+  if (response.final_checkout_amount() < 0) {
+    return false;
+  }
+
+  if (!response.has_currency()) {
+    return false;
+  }
+
+  if (!base::IsStringASCII(response.currency())) {
+    return false;
+  }
+
+  // ISO 4217 is always 3-letter.
+  if (response.currency().length() != 3) {
+    return false;
+  }
+
+  // ISO 4217 is always upper case.
+  // Don't uppercase this code to proceed. It could convert invalid code into a
+  // valid one. For example \u00DFP (Eszett+P) becomes SSP.
+  if ((!base::IsAsciiUpper(response.currency()[0])) ||
+      (!base::IsAsciiUpper(response.currency()[1])) ||
+      (!base::IsAsciiUpper(response.currency()[2]))) {
+    return false;
+  }
+
+  return true;
 }
 
 DenseSet<AmountExtractionManager::EligibleFeature>
@@ -137,6 +179,26 @@ void AmountExtractionManager::OnAiPageContentReceived(
   // TODO(crbug.com/444683986): Log ApcGenerationResult to UMA.
 }
 
+void AmountExtractionManager::TriggerCheckoutAmountExtractionWithAi() {
+  if (!ai_page_content_) {
+    // TODO(crbug.com/444685164) If the member variable `ai_page_content_` is
+    // not initialized, another attempt to fetch it will be made. Retry only
+    // once.
+    return;
+  }
+
+  // Construct request
+  optimization_guide::proto::AmountExtractionRequest request;
+  *request.mutable_annotated_page_content() = std::move(*ai_page_content_);
+  ai_page_content_.reset();
+
+  autofill_manager_->client().GetOptimizationGuideModelExecutor()->ExecuteModel(
+      optimization_guide::ModelBasedCapabilityKey::kAmountExtraction,
+      std::move(request), kAiBasedAmountExtractionWaitTime,
+      base::BindOnce(&AmountExtractionManager::OnCheckoutAmountReceivedFromAi,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
 void AmountExtractionManager::TriggerCheckoutAmountExtraction() {
   if (search_request_pending_) {
     return;
@@ -182,7 +244,8 @@ void AmountExtractionManager::OnCheckoutAmountReceived(
       MaybeParseAmountToMonetaryMicroUnits(extracted_amount);
 
   if (BnplManager* bnpl_manager = autofill_manager_->GetPaymentsBnplManager()) {
-    bnpl_manager->OnAmountExtractionReturned(parsed_extracted_amount);
+    bnpl_manager->OnAmountExtractionReturned(parsed_extracted_amount,
+                                             /*timeout_reached=*/false);
   }
   if constexpr (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
                 BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) {
@@ -195,6 +258,41 @@ void AmountExtractionManager::OnCheckoutAmountReceived(
               << latency.InMilliseconds() << " milliseconds.";
     }
   }
+}
+
+void AmountExtractionManager::OnCheckoutAmountReceivedFromAi(
+    optimization_guide::OptimizationGuideModelExecutionResult result,
+    std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry) {
+  if (!result.response.has_value()) {
+    return;
+  }
+
+  std::optional<optimization_guide::proto::AmountExtractionResponse> response =
+      optimization_guide::ParsedAnyMetadata<
+          optimization_guide::proto::AmountExtractionResponse>(
+          result.response.value());
+
+  if (!response) {
+    return;
+  }
+
+  BnplManager* bnpl_manager = autofill_manager_->GetPaymentsBnplManager();
+
+  if (!bnpl_manager) {
+    return;
+  }
+
+  if (!IsValidAmountExtractionResponse(response.value())) {
+    bnpl_manager->OnAmountExtractionReturnedFromAi(std::nullopt,
+                                                   /*timeout_reached=*/false);
+    return;
+  }
+
+  uint64_t parsed_extracted_amount = static_cast<uint64_t>(
+      response->final_checkout_amount() * kMicrosPerDollar);
+
+  bnpl_manager->OnAmountExtractionReturnedFromAi(parsed_extracted_amount,
+                                                 /*timeout_reached=*/false);
 }
 
 void AmountExtractionManager::OnTimeoutReached() {

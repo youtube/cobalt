@@ -125,35 +125,21 @@ MediaQuerySet* MediaQueryParser::ParseMediaQuerySet(
 MediaQuerySet* MediaQueryParser::ParseMediaQuerySet(
     CSSParserTokenStream& stream,
     ExecutionContext* execution_context) {
-  return MediaQueryParser(kMediaQuerySetParser, kHTMLStandardMode,
-                          execution_context)
-      .ParseImpl(stream);
-}
-
-MediaQuerySet* MediaQueryParser::ParseMediaQuerySetInMode(
-    CSSParserTokenStream& stream,
-    CSSParserMode mode,
-    ExecutionContext* execution_context) {
-  return MediaQueryParser(kMediaQuerySetParser, mode, execution_context)
+  return MediaQueryParser(kMediaQuerySetParser, execution_context)
       .ParseImpl(stream);
 }
 
 MediaQuerySet* MediaQueryParser::ParseMediaCondition(
     CSSParserTokenStream& stream,
     ExecutionContext* execution_context) {
-  return MediaQueryParser(kMediaConditionParser, kHTMLStandardMode,
-                          execution_context)
+  return MediaQueryParser(kMediaConditionParser, execution_context)
       .ParseImpl(stream);
 }
 
 MediaQueryParser::MediaQueryParser(ParserType parser_type,
-                                   CSSParserMode mode,
-                                   ExecutionContext* execution_context,
-                                   SyntaxLevel syntax_level)
+                                   ExecutionContext* execution_context)
     : parser_type_(parser_type),
-      mode_(mode),
       execution_context_(execution_context),
-      syntax_level_(syntax_level),
       fake_context_(*MakeGarbageCollected<CSSParserContext>(
           kHTMLStandardMode,
           SecureContextMode::kInsecureContext,
@@ -402,6 +388,13 @@ const MediaQueryExpNode* MediaQueryParser::ConsumeFeature(
     // <mf-boolean> = <mf-name>
     if (!feature_name.IsNull() && stream.AtEnd() &&
         feature_set.IsAllowedWithoutValue(feature_name, execution_context_)) {
+      if (RuntimeEnabledFeatures::CSSCustomMediaEnabled() &&
+          CSSVariableParser::IsValidVariableName(feature_name) &&
+          !feature_set.IsAllowedWithValue(feature_name)) {
+        // custom media query
+        return MakeGarbageCollected<MediaQueryFeatureExpNode>(
+            MediaQueryExp::Create(feature_name));
+      }
       return MakeGarbageCollected<MediaQueryFeatureExpNode>(
           MediaQueryExp::Create(feature_name, MediaQueryExpBounds()));
     }

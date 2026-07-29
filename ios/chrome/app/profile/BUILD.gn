@@ -85,9 +85,11 @@ source_set("profile_controller") {
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/snapshots/model:constants",
     "//ios/chrome/browser/translate/model",
     "//ios/chrome/browser/web_state_list/model:session_metrics",
     "//ios/chrome/browser/web_state_list/model/web_usage_enabler",
+    "//ios/chrome/browser/welcome_back/model:features",
     "//ios/components/cookie_util",
     "//ios/public/provider/chrome/browser/raccoon:raccoon_api",
     "//ios/web/public/thread",
@@ -124,6 +126,7 @@ source_set("application_storage_metrics") {
     "//components/optimization_guide/core:features",
     "//ios/chrome/browser/sessions/model:session_constants",
     "//ios/chrome/browser/shared/model/paths",
+    "//ios/chrome/browser/snapshots/model:constants",
   ]
 }
 
@@ -329,7 +332,6 @@ source_set("welcome_back_profile_agent") {
     "//components/signin/public/identity_manager",
     "//ios/chrome/app/profile",
     "//ios/chrome/browser/first_run/ui_bundled:features",
-    "//ios/chrome/browser/first_run/ui_bundled/welcome_back/model",
     "//ios/chrome/browser/metrics/model",
     "//ios/chrome/browser/promos_manager/model",
     "//ios/chrome/browser/promos_manager/model:constants",
@@ -337,6 +339,8 @@ source_set("welcome_back_profile_agent") {
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/welcome_back/model",
+    "//ios/chrome/browser/welcome_back/model:features",
   ]
   frameworks = [ "UIKit.framework" ]
 }
@@ -399,6 +403,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:fake_system_identity_manager",
     "//ios/chrome/browser/signin/model:signin_util",
     "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/browser/welcome_back/model:features",
     "//ios/chrome/test:test_support",
     "//ios/web/public/security",
     "//ios/web/public/session",

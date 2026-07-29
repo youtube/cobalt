@@ -272,14 +272,14 @@ class PLATFORM_EXPORT UrlData : public RefCounted<UrlData> {
 };
 
 // The UrlIndex lets you look up UrlData instances by url.
-class PLATFORM_EXPORT UrlIndex {
+class PLATFORM_EXPORT UrlIndex : public base::MemoryPressureListener {
  public:
   UrlIndex(ResourceFetchContext* fetch_context,
            scoped_refptr<base::SingleThreadTaskRunner> task_runner);
   UrlIndex(ResourceFetchContext* fetch_context,
            int block_shift,
            scoped_refptr<base::SingleThreadTaskRunner> task_runner);
-  virtual ~UrlIndex();
+  ~UrlIndex() override;
 
   // Look up an UrlData in the index and return it. If none is found,
   // create a new one. Note that newly created UrlData entries are NOT
@@ -328,8 +328,7 @@ class PLATFORM_EXPORT UrlIndex {
       UrlData::CorsMode cors_mode,
       UrlData::CacheMode cache_lookup_mode);
 
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnMemoryPressure(base::MemoryPressureLevel) override;
 
   raw_ptr<ResourceFetchContext> fetch_context_;
   using UrlDataMap = HashMap<UrlData::KeyType, scoped_refptr<UrlData>>;
@@ -342,7 +341,8 @@ class PLATFORM_EXPORT UrlIndex {
 
   // Must be async, because it runs on the renderer's main thread, which is not
   // the process's main thread in --single-process mode.
-  base::AsyncMemoryPressureListener memory_pressure_listener_;
+  base::AsyncMemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
   const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 
   base::WeakPtrFactory<UrlIndex> weak_factory_{this};

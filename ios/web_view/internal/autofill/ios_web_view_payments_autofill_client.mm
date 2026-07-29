@@ -7,17 +7,24 @@
 #import <optional>
 
 #import "base/check_deref.h"
+#import "base/functional/callback.h"
 #import "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
+#import "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
 #import "components/autofill/core/browser/payments/credit_card_cvc_authenticator.h"
+#import "components/autofill/core/browser/payments/credit_card_risk_based_authenticator.h"
 #import "components/autofill/core/browser/payments/mandatory_reauth_manager.h"
 #import "components/autofill/core/browser/payments/payments_autofill_client.h"
 #import "components/autofill/core/browser/payments/payments_network_interface.h"
+#import "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_prompt_controller.h"
+#import "components/prefs/pref_service.h"
 #import "ios/web/public/web_state.h"
+#import "ios/web_view/internal/autofill/cwv_autofill_prefs.h"
 #import "ios/web_view/internal/autofill/web_view_autofill_client_ios.h"
+#import "ios/web_view/internal/web_view_browser_state.h"
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #import "url/gurl.h"
 
@@ -150,7 +157,15 @@ void IOSWebViewPaymentsAutofillClient::ShowUnmaskAuthenticatorSelectionDialog(
     const std::vector<CardUnmaskChallengeOption>& challenge_options,
     base::OnceCallback<void(const std::string&)>
         confirm_unmask_challenge_option_callback,
-    base::OnceClosure cancel_unmasking_closure) {}
+    base::OnceClosure cancel_unmasking_closure) {
+  [bridge_
+      showUnmaskAuthenticatorSelectorWithOptions:challenge_options
+                                  acceptCallback:
+                                      std::move(
+                                          confirm_unmask_challenge_option_callback)
+                                  cancelCallback:std::move(
+                                                     cancel_unmasking_closure)];
+}
 
 void IOSWebViewPaymentsAutofillClient::
     DismissUnmaskAuthenticatorSelectionDialog(bool server_success) {}
@@ -223,11 +238,20 @@ IOSWebViewPaymentsAutofillClient::GetOtpAuthenticator() {
 
 CreditCardRiskBasedAuthenticator*
 IOSWebViewPaymentsAutofillClient::GetRiskBasedAuthenticator() {
-  return nullptr;
+  if (!risk_based_authenticator_) {
+    risk_based_authenticator_ =
+        std::make_unique<CreditCardRiskBasedAuthenticator>(&client_.get());
+  }
+  return risk_based_authenticator_.get();
 }
 
 bool IOSWebViewPaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable()
     const {
+  return GetPrefService()->GetBoolean(
+      ios_web_view::kCWVAutofillVCNUsageEnabled);
+}
+
+bool IOSWebViewPaymentsAutofillClient::IsMandatoryReauthEnabled() {
   return false;
 }
 
@@ -295,13 +319,13 @@ bool IOSWebViewPaymentsAutofillClient::UpdateTouchToFillBnplPaymentMethod(
 }
 
 bool IOSWebViewPaymentsAutofillClient::ShowTouchToFillProgress(
-    base::WeakPtr<TouchToFillDelegate> delegate) {
+    base::OnceClosure cancel_callback) {
   return false;
 }
 
 bool IOSWebViewPaymentsAutofillClient::ShowTouchToFillBnplIssuers(
     base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const BnplIssuer> bnpl_issuers_to_suggest) {
+    base::span<const BnplIssuerContext> bnpl_issuer_contexts) {
   return false;
 }
 
@@ -354,6 +378,12 @@ BnplStrategy* IOSWebViewPaymentsAutofillClient::GetBnplStrategy() {
 
 BnplUiDelegate* IOSWebViewPaymentsAutofillClient::GetBnplUiDelegate() {
   return nullptr;
+}
+
+PrefService* IOSWebViewPaymentsAutofillClient::GetPrefService() const {
+  return ios_web_view::WebViewBrowserState::FromBrowserState(
+             web_state_->GetBrowserState())
+      ->GetPrefs();
 }
 
 }  // namespace autofill::payments

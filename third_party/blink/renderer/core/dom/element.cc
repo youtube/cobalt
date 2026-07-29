@@ -6783,7 +6783,7 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
       shadow_root_init_dict->customElementRegistry();
   auto* registry = scoped_registry
                        ? shadow_root_init_dict->customElementRegistry()
-                       : customElementRegistry();
+                       : GetTreeScope().customElementRegistry();
   // 2-2. If registry's "is scoped" is false and registry is not this's node
   // document's custom element registry, then throw a "NotSupportedError"
   // DOMException.
@@ -9710,7 +9710,12 @@ PseudoElement* Element::GetPseudoElement(
 
 CSSPseudoElement* Element::pseudo(const AtomicString& type) {
   PseudoId pseudo_id = CSSPseudoElement::ConvertTypeToSupportedPseudoId(type);
-  if (pseudo_id == kPseudoIdInvalid) {
+  return EnsureCSSPseudoElement(pseudo_id);
+}
+
+CSSPseudoElement* Element::EnsureCSSPseudoElement(PseudoId pseudo_id) {
+  DCHECK(RuntimeEnabledFeatures::CSSPseudoElementInterfaceEnabled());
+  if (!CSSPseudoElement::IsSupportedTypeForCSSPseudoElement(pseudo_id)) {
     return nullptr;
   }
   EnsureElementRareData();
@@ -11898,6 +11903,21 @@ FocusgroupData Element::GetFocusgroupData() const {
     return data->GetFocusgroupData();
   }
   return {};
+}
+
+Element* Element::FocusgroupLastFocused() const {
+  // It only makes sense to check this on a focusgroup.
+  DCHECK(IsActualFocusgroup(GetFocusgroupData()));
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->GetFocusgroupLastFocused();
+  }
+  return nullptr;
+}
+
+void Element::SetFocusgroupLastFocused(Element* element) {
+  // It only makes sense to set this on a focusgroup.
+  DCHECK(IsActualFocusgroup(GetFocusgroupData()));
+  EnsureElementRareData().SetFocusgroupLastFocused(element);
 }
 
 bool Element::checkVisibility(CheckVisibilityOptions* options) const {

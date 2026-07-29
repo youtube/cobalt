@@ -20,6 +20,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.Toolbar;
@@ -71,6 +72,8 @@ import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.ui.base.UiAndroidFeatureList;
+import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 
@@ -154,6 +157,12 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     private @Nullable SettingsSearchCoordinator mSearchCoordinator;
 
+    // Update handler of the Settings activity title. mTitleUpdater is used (i.e. nonnull)
+    // in multi-column mode is disabled, and mMultiColumnTitleUpdater is used iff
+    // multi-column mode is enabled.
+    private @Nullable TitleUpdater mTitleUpdater;
+    private @Nullable MultiColumnTitleUpdater mMultiColumnTitleUpdater;
+
     @SuppressLint("InlinedApi")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -179,15 +188,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         mSnackbarManagerSupplier,
                         mBottomSheetControllerSupplier,
                         getModalDialogManagerSupplier()),
-                true /* recursive */);
+                /* recursive= */ true);
         fragmentManager.registerFragmentLifecycleCallbacks(
-                new WideDisplayPaddingApplier(), false /* recursive */);
+                new WideDisplayPaddingApplier(), /* recursive= */ false);
         fragmentManager.registerFragmentLifecycleCallbacks(
-                new SettingsMetricsReporter(), false /* recursive */);
-        if (!mStandalone) {
-            fragmentManager.registerFragmentLifecycleCallbacks(
-                    new TitleUpdater(), false /* recursive */);
-        }
+                new SettingsMetricsReporter(), /* recursive= */ false);
 
         if (isContainmentEnabled()) {
             // In multi-column mode, the main settings fragment is a child of the
@@ -271,6 +276,24 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                             this, this::getUseMultiColumn, mMultiColumnSettings);
             mSearchCoordinator.initializeSearchUi();
         }
+
+        if (!mStandalone) {
+            if (ChromeFeatureList.sSettingsMultiColumn.isEnabled()) {
+                assert mMultiColumnSettings != null;
+                mMultiColumnTitleUpdater =
+                        new MultiColumnTitleUpdater(
+                                mMultiColumnSettings,
+                                /* context= */ this,
+                                findViewById(R.id.settings_detailed_pane_title),
+                                this::setTitle);
+                mMultiColumnSettings.addObserver(mMultiColumnTitleUpdater);
+            } else {
+                mTitleUpdater = new TitleUpdater();
+                fragmentManager.registerFragmentLifecycleCallbacks(
+                        mTitleUpdater, /* recursive= */ true);
+            }
+        }
+
         setStatusBarColor();
         initBottomSheet();
 
@@ -289,6 +312,21 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         super.onConfigurationChanged(newConfig);
         updateContainmentForMultiColumnLayout();
         if (mSearchCoordinator != null) mSearchCoordinator.onConfigurationChanged(newConfig);
+    }
+
+    @Override
+    @CallSuper
+    protected boolean applyOverrides(Context baseContext, Configuration overrideConfig) {
+        super.applyOverrides(baseContext, overrideConfig);
+        if (!UiAndroidFeatureList.sRefactorMinWidthContextOverride.isEnabled()) {
+
+            // We override the smallestScreenWidthDp here to ensure mIsTablet which relies on
+            // smallestScreenWidthDp is set based on display size instead of window size.
+            overrideConfig.smallestScreenWidthDp =
+                    DisplayUtil.getCurrentSmallestScreenWidth(baseContext);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -620,6 +658,13 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     @Override
     protected void onDestroy() {
         mScrimManager.destroy();
+        if (mMultiColumnTitleUpdater != null) {
+            assert mMultiColumnSettings != null;
+            mMultiColumnSettings.removeObserver(mMultiColumnTitleUpdater);
+        }
+        if (mTitleUpdater != null) {
+            getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(mTitleUpdater);
+        }
         super.onDestroy();
     }
 
@@ -867,6 +912,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
         @Override
         public void onFragmentStarted(FragmentManager fragmentManager, Fragment fragment) {
+            assert mMultiColumnSettings == null;
             if (!MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
                 return;
             }

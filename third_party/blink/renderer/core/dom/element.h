@@ -1341,6 +1341,7 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   CSSPseudoElement* pseudo(const AtomicString& type);
 
   // Used to cache CSSPseudoElement objects.
+  CSSPseudoElement* EnsureCSSPseudoElement(PseudoId);
   void CacheCSSPseudoElement(PseudoId, CSSPseudoElement&);
   CSSPseudoElement* GetCSSPseudoElement(PseudoId) const;
 
@@ -1707,6 +1708,8 @@ class CORE_EXPORT Element : public ContainerNode, public Animatable {
   virtual bool IsInertRoot() const;
 
   FocusgroupData GetFocusgroupData() const;
+  Element* FocusgroupLastFocused() const;
+  void SetFocusgroupLastFocused(Element* element);
 
   bool checkVisibility(CheckVisibilityOptions* options) const;
 

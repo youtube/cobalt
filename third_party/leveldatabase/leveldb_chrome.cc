@@ -27,7 +27,6 @@
 #include "third_party/leveldatabase/src/helpers/memenv/memenv.h"
 #include "util/mutexlock.h"
 
-using MemoryPressureLevel = base::MemoryPressureListener::MemoryPressureLevel;
 using base::trace_event::MemoryAllocatorDump;
 using base::trace_event::MemoryDumpArgs;
 using base::trace_event::MemoryDumpProvider;
@@ -53,7 +52,7 @@ std::string GetDumpNameForMemEnv(const leveldb::Env* memenv) {
 }
 
 // Singleton owning resources shared by Chrome's leveldb databases.
-class Globals {
+class Globals : public base::MemoryPressureListener {
  public:
   static Globals* GetInstance() {
     static base::NoDestructor<Globals> singleton;
@@ -67,17 +66,17 @@ class Globals {
                 : NewLRUCache(DefaultBlockCacheSize())),
         browser_block_cache_(NewLRUCache(DefaultBlockCacheSize())),
         // Using |this| here (when Globals is only partially constructed) is
-        // safe because base::MemoryPressureListener calls our callback
-        // asynchronously, so this instance will be fully constructed by the
-        // time it is called.
-        memory_pressure_listener_(
+        // safe because the memory pressure notification is sent asynchronously,
+        // so this instance will be fully constructed by the time it is called.
+        memory_pressure_listener_registration_(
             FROM_HERE,
             base::MemoryPressureListenerTag::kLevelDb,
-            base::BindRepeating(&Globals::OnMemoryPressure,
-                                base::Unretained(this))) {}
+            this) {}
 
   Globals(const Globals&) = delete;
   Globals& operator=(const Globals&) = delete;
+
+  ~Globals() override = default;
 
   Cache* web_block_cache() const {
     if (web_block_cache_)
@@ -88,9 +87,8 @@ class Globals {
   Cache* browser_block_cache() const { return browser_block_cache_.get(); }
 
   // Called when the system is under memory pressure.
-  void OnMemoryPressure(MemoryPressureLevel memory_pressure_level) {
-    if (memory_pressure_level ==
-        MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_NONE)
+  void OnMemoryPressure(base::MemoryPressureLevel memory_pressure_level) override {
+    if (memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_NONE)
       return;
     browser_block_cache()->Prune();
     if (browser_block_cache() == web_block_cache())
@@ -119,17 +117,13 @@ class Globals {
                           base::trace_event::ProcessMemoryDump* pmd);
 
  private:
-  // Instances are never destroyed.
-  // If this destructor needs to exist in the future, the callback given to
-  // base::MemoryPressureListener() must use a WeakPtr.
-  ~Globals() = delete;
-
   std::unique_ptr<Cache> web_block_cache_;      // null on low end devices.
   std::unique_ptr<Cache> browser_block_cache_;  // Never null.
   mutable leveldb::port::Mutex env_mutex_;
   base::flat_set<leveldb::Env*> in_memory_envs_;
   // Listens for the system being under memory pressure.
-  const base::AsyncMemoryPressureListener memory_pressure_listener_;
+  const base::AsyncMemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 };
 
 class ChromeMemEnv : public leveldb::EnvWrapper {

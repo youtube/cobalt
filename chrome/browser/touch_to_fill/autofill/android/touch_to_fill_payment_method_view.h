@@ -11,7 +11,11 @@
 
 namespace autofill {
 
-class BnplIssuer;
+namespace payments {
+struct BnplIssuerContext;
+struct BnplIssuerTosDetail;
+}  // namespace payments
+
 class Iban;
 class LoyaltyCard;
 struct Suggestion;
@@ -39,11 +43,13 @@ class TouchToFillPaymentMethodView {
   virtual bool ShowProgressScreen(
       TouchToFillPaymentMethodViewController* controller) = 0;
   virtual bool ShowBnplIssuers(
-      base::span<const BnplIssuer> bnpl_issuers_to_suggest) = 0;
+      base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) = 0;
   virtual bool ShowErrorScreen(
       TouchToFillPaymentMethodViewController* controller,
       const std::u16string& title,
       const std::u16string& description) = 0;
+  virtual bool ShowBnplIssuerTos(
+      const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) = 0;
   virtual void Hide() = 0;
 };
 

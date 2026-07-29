@@ -16,10 +16,14 @@ source_set("contextual_tasks") {
     ":internal",
     "//base",
     "//chrome/browser/autocomplete:aim_eligibility_service",
+    "//chrome/browser/favicon",
+    "//chrome/browser/history",
     "//chrome/browser/sync",
     "//chrome/common:channel_info",
     "//components/contextual_tasks/internal",
     "//components/contextual_tasks/public",
+    "//components/favicon/core",
+    "//components/history/core/browser",
     "//components/omnibox/browser",
     "//components/sync/model",
     "//content/public/browser",
@@ -67,12 +71,15 @@ if (!is_android) {
     sources = [
       "contextual_tasks_page_handler.cc",
       "contextual_tasks_page_handler.h",
+      "contextual_tasks_side_panel_coordinator.cc",
+      "contextual_tasks_side_panel_coordinator.h",
       "contextual_tasks_ui.cc",
       "contextual_tasks_ui.h",
     ]
 
     public_deps = [
       ":mojo_bindings",
+      "//components/contextual_tasks/public:feature_list",
       "//content/public/browser",
       "//content/public/common",
       "//ui/webui",
@@ -81,8 +88,10 @@ if (!is_android) {
     deps = [
       "//base",
       "//chrome/browser/resources/contextual_tasks:resources",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/webui",
-      "//components/contextual_tasks/public:feature_list",
+      "//chrome/browser/ui/webui/top_chrome",
     ]
   }
 

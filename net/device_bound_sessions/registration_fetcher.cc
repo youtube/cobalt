@@ -58,6 +58,7 @@ void RecordHttpResponseOrErrorCode(const char* metric_name,
 
 void OnDataSigned(
     crypto::SignatureVerifier::SignatureAlgorithm algorithm,
+    const std::vector<uint8_t>& pubkey,
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
     std::string header_and_payload,
     base::OnceCallback<
@@ -70,7 +71,7 @@ void OnDataSigned(
 
   const std::vector<uint8_t>& signature = result.value();
   std::optional<std::string> registration_token =
-      AppendSignatureToHeaderAndPayload(header_and_payload, algorithm,
+      AppendSignatureToHeaderAndPayload(header_and_payload, algorithm, pubkey,
                                         signature);
   std::move(callback).Run(std::move(registration_token));
 }
@@ -91,14 +92,15 @@ void SignChallengeWithKey(
     return;
   }
 
+  auto expected_public_key =
+      unexportable_key_service.GetSubjectPublicKeyInfo(key_id);
+  if (!expected_public_key.has_value()) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+
   std::optional<std::string> header_and_payload;
   if (!features::kDeviceBoundSessionsOriginTrialFeedback.Get()) {
-    auto expected_public_key =
-        unexportable_key_service.GetSubjectPublicKeyInfo(key_id);
-    if (!expected_public_key.has_value()) {
-      std::move(callback).Run(std::nullopt);
-      return;
-    }
     header_and_payload = CreateLegacyKeyRegistrationHeaderAndPayload(
         challenge, registration_url, expected_algorithm.value(),
         expected_public_key.value(), base::Time::Now(),
@@ -107,12 +109,6 @@ void SignChallengeWithKey(
     header_and_payload =
         CreateKeyRefreshHeaderAndPayload(challenge, expected_algorithm.value());
   } else {
-    auto expected_public_key =
-        unexportable_key_service.GetSubjectPublicKeyInfo(key_id);
-    if (!expected_public_key.has_value()) {
-      std::move(callback).Run(std::nullopt);
-      return;
-    }
     header_and_payload = CreateKeyRegistrationHeaderAndPayload(
         challenge, expected_algorithm.value(), expected_public_key.value(),
         std::move(authorization));
@@ -125,8 +121,9 @@ void SignChallengeWithKey(
 
   unexportable_key_service.SignSlowlyAsync(
       key_id, base::as_byte_span(*header_and_payload), kTaskPriority,
-      /*max_retries=*/0,
+      /*max_retries=*/3,
       base::BindOnce(&OnDataSigned, expected_algorithm.value(),
+                     std::move(expected_public_key).value(),
                      std::ref(unexportable_key_service), *header_and_payload,
                      std::move(callback)));
 }
@@ -456,7 +453,6 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     return SessionError::kSuccess;
   }
 
-  static constexpr size_t kMaxSigningFailures = 2;
   static constexpr size_t kMaxChallenges = 5;
 
   void AttemptChallengeSigning() {
@@ -476,17 +472,10 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       std::optional<RegistrationFetcher::RegistrationToken>
           registration_token) {
     if (!registration_token) {
-      number_of_signing_failures_++;
-      if (number_of_signing_failures_ < kMaxSigningFailures) {
-        AttemptChallengeSigning();
-        // `this` may be deleted.
-        return;
-      } else {
-        RunCallback(
-            RegistrationResult(SessionError{SessionError::kSigningError}));
-        // `this` may be deleted.
-        return;
-      }
+      RunCallback(
+          RegistrationResult(SessionError{SessionError::kSigningError}));
+      // `this` may be deleted.
+      return;
     }
 
     url_fetcher_ = std::make_unique<URLFetcher>(context_, fetcher_endpoint_,
@@ -605,7 +594,8 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
 
     if (url_fetcher_->data_received().empty()) {
       RunCallback(
-          RegistrationResult(RegistrationResult::NoSessionConfigChange()));
+          RegistrationResult(RegistrationResult::NoSessionConfigChange(),
+                             url_fetcher_->maybe_stored_cookies()));
       // `this` may be deleted.
       return;
     }
@@ -786,7 +776,6 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
   GURL provider_url_;
   std::optional<std::string> current_challenge_;
   std::optional<std::string> current_authorization_;
-  size_t number_of_signing_failures_ = 0;
   size_t number_of_challenges_ = 0;
 
   base::WeakPtrFactory<RegistrationFetcherImpl> weak_ptr_factory_{this};

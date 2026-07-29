@@ -525,6 +525,33 @@ TEST_F(RemoteSuggestionsServiceTest, CrOSOverridenOrAppendedQueryParams) {
 }
 
 TEST_F(RemoteSuggestionsServiceTest,
+       AimToolModeQueryParamsAppendedIfAvailable) {
+  // Set up a Google search provider.
+  TemplateURLData google_template_url_data;
+  google_template_url_data.SetURL(
+      "https://www.google.com/search?q={searchTerms}&client=chrome-compose");
+  google_template_url_data.suggestions_url =
+      "https://www.google.com/suggest?q={searchTerms}&client=chrome-compose";
+  google_template_url_data.id = SEARCH_ENGINE_GOOGLE;
+  TemplateURL google_template_url(google_template_url_data);
+
+  TemplateURLRef::SearchTermsArgs search_terms_args(u"query");
+  search_terms_args.page_classification =
+      metrics::OmniboxEventProto::NTP_COMPOSEBOX;
+  search_terms_args.aim_tool_mode =
+      omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH;
+
+  GURL endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // `azm` param should be getting attached as a URL param and the
+  // chrome-compose param should not be getting overridden.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/suggest?q=query&client=chrome-compose&azm=1");
+}
+
+TEST_F(RemoteSuggestionsServiceTest,
        LensOverlaySuggestInputsAppendedQueryParamsForContextualSearchbox) {
   // Set up a Google search provider.
   TemplateURLData google_template_url_data;
@@ -733,6 +760,62 @@ TEST_F(
       "gsessionid=gsessionid");
 }
 
+TEST_F(
+    RemoteSuggestionsServiceTest,
+    LensOverlaySuggestInputsAppendedQueryParamsForRealboxSearchboxIfSignals) {
+  // Set up a Google search provider.
+  TemplateURLData google_template_url_data;
+  google_template_url_data.SetURL(
+      "https://www.google.com/search?q={searchTerms}");
+  google_template_url_data.suggestions_url =
+      "https://www.google.com/suggest?q={searchTerms}";
+  google_template_url_data.id = SEARCH_ENGINE_GOOGLE;
+  TemplateURL google_template_url(google_template_url_data);
+
+  TemplateURLRef::SearchTermsArgs search_terms_args(u"query");
+  search_terms_args.page_classification =
+      metrics::OmniboxEventProto::NTP_REALBOX;
+  search_terms_args.lens_overlay_suggest_inputs =
+      std::make_optional<lens::proto::LensOverlaySuggestInputs>();
+
+  search_terms_args.lens_overlay_suggest_inputs->set_encoded_request_id(
+      "vsrid");
+  search_terms_args.lens_overlay_suggest_inputs->set_search_session_id(
+      "gsessionid");
+  GURL endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // No additional query params are appended for empty Lens suggest inputs
+  // because send_gsession_vsrid_for_contextual_suggest is false.
+  ASSERT_EQ(endpoint_url.spec(),
+            "https://www.google.com/"
+            "suggest?q=query&client=chrome-contextual&gs_ps=1");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_send_gsession_vsrid_for_contextual_suggest(true);
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended gsessionid and vsrids.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/"
+      "suggest?q=query&client=chrome-contextual&gs_ps=1&vsrid=vsrid&gsessionid="
+      "gsessionid");
+
+  search_terms_args.lens_overlay_suggest_inputs
+      ->set_contextual_visual_input_type("vit");
+  endpoint_url = RemoteSuggestionsService::EndpointUrl(
+      google_template_url, search_terms_args, SearchTermsData());
+
+  // Appended vit.
+  ASSERT_EQ(
+      endpoint_url.spec(),
+      "https://www.google.com/"
+      "suggest?q=query&client=chrome-contextual&gs_ps=1&vit=vit&vsrid=vsrid&"
+      "gsessionid=gsessionid");
+}
+
 TEST_F(RemoteSuggestionsServiceTest,
        LensOverlaySuggestInputsAppendedNothingForOtherPageClassifications) {
   // Set up a Google search provider.
@@ -746,7 +829,7 @@ TEST_F(RemoteSuggestionsServiceTest,
 
   TemplateURLRef::SearchTermsArgs search_terms_args(u"query");
   search_terms_args.page_classification =
-      metrics::OmniboxEventProto::NTP_REALBOX;
+      metrics::OmniboxEventProto::NTP_ZPS_PREFETCH;
   search_terms_args.lens_overlay_suggest_inputs =
       std::make_optional<lens::proto::LensOverlaySuggestInputs>();
   search_terms_args.lens_overlay_suggest_inputs->set_encoded_image_signals(

@@ -4,11 +4,15 @@
 
 #include "components/autofill/core/browser/suggestions/autocomplete_suggestion_generator.h"
 
+#include <algorithm>
+
 #include "base/containers/to_vector.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_quality/autofill_data_util.h"
+#include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/single_field_fillers/autocomplete/autocomplete_history_manager.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
+#include "components/autofill/core/browser/suggestions/suggestion_util.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 
 namespace autofill {
@@ -71,6 +75,20 @@ void AutocompleteSuggestionGenerator::FetchSuggestionData(
     return;
   }
 
+  auto is_autofillable = [](const std::unique_ptr<AutofillField>& field) {
+    return !field->ShouldSuppressSuggestionsAndFillingByDefault() &&
+           !field->Type().GetTypes().contains(UNKNOWN_TYPE);
+  };
+  // If Autofill (not Autocomplete) suggestions may be shown on some other field
+  // of the form, we want to suppress Autocomplete suggestions on this field.
+  if (trigger_autofill_field &&
+      SuppressSuggestionsForAutocompleteUnrecognizedField(
+          *trigger_autofill_field) &&
+      std::ranges::any_of(*form_structure, is_autofillable)) {
+    std::move(callback).Run({SuggestionDataSource::kAutocomplete, {}});
+    return;
+  }
+
   // Do not offer autocomplete suggestions for credit card number, cvc, and
   // expiration date related fields. Standalone cvc fields (used to
   // re-authenticate the use of a credit card the website has on file) will be
@@ -114,13 +132,17 @@ void AutocompleteSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
-    const std::vector<
-        std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
+    const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
         all_suggestion_data,
     base::OnceCallback<void(ReturnedSuggestions)> callback) {
+  auto it = all_suggestion_data.find(SuggestionDataSource::kAutocomplete);
   std::vector<SuggestionData> autocomplete_suggestion_data =
-      ExtractSuggestionDataForSource(all_suggestion_data,
-                                     SuggestionDataSource::kAutocomplete);
+      it != all_suggestion_data.end() ? it->second
+                                      : std::vector<SuggestionData>();
+  if (autocomplete_suggestion_data.empty()) {
+    std::move(callback).Run({FillingProduct::kAutocomplete, {}});
+    return;
+  }
 
   std::vector<AutocompleteEntry> autocomplete_entries =
       base::ToVector(std::move(autocomplete_suggestion_data),
@@ -128,14 +150,6 @@ void AutocompleteSuggestionGenerator::GenerateSuggestions(
                        return std::get<autofill::AutocompleteEntry>(
                            std::move(suggestion_data));
                      });
-
-  // If there is only one suggestion that is the exact same string as
-  // what is in the input box, then don't show the suggestion.
-  if (autocomplete_entries.size() == 1 &&
-      trigger_field.value() == autocomplete_entries[0].key().value()) {
-    std::move(callback).Run({FillingProduct::kAutocomplete, {}});
-    return;
-  }
 
   std::vector<Suggestion> suggestions;
   suggestions.reserve(autocomplete_entries.size());
@@ -175,6 +189,16 @@ void AutocompleteSuggestionGenerator::OnAutofillValuesReturned(
       static_cast<const WDResult<std::vector<AutocompleteEntry>>*>(
           result.get());
   std::vector<AutocompleteEntry> entries = autocomplete_result->GetValue();
+
+  // If there is only one entry that is the exact same string as what is in the
+  // input box, then don't offer it as a suggestion.
+  if (entries.size() == 1 &&
+      query_handler.prefix == entries.front().key().value()) {
+    std::move(query_handler.on_suggestions_returned)
+        .Run({SuggestionDataSource::kAutocomplete, {}});
+    return;
+  }
+
   std::vector<SuggestionGenerator::SuggestionData> suggestion_data =
       base::ToVector(std::move(entries), [](AutocompleteEntry& entry) {
         return SuggestionGenerator::SuggestionData(std::move(entry));

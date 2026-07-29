@@ -11,7 +11,6 @@
 #include "components/autofill/core/browser/metrics/payments/virtual_card_enrollment_metrics.h"
 #include "components/autofill/core/browser/payments/virtual_card_enroll_metrics_logger.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_flow.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/visibility.h"
@@ -100,7 +99,9 @@ void VirtualCardEnrollBubbleControllerImpl::ShowConfirmationBubbleView(
     autofill_vcn_enroll_bottom_sheet_bridge_->Hide();
   }
 #else  // !BUILDFLAG(IS_ANDROID)
-  HideBubble();
+  DoNotShowNextQueuedBubbleGuard guard = DoNotShowNextQueuedBubble();
+
+  HideBubble(/*initiated_by_bubble_manager=*/false);
   ResetBubble();
   UpdatePageActionIcon();
   if (result == PaymentsRpcResult::kClientSideTimeout) {
@@ -139,7 +140,7 @@ VirtualCardEnrollBubbleControllerImpl::GetVirtualCardBubbleView() const {
 
 #if !BUILDFLAG(IS_ANDROID)
 void VirtualCardEnrollBubbleControllerImpl::HideIconAndBubble() {
-  HideBubble();
+  HideBubble(/*initiated_by_bubble_manager=*/false);
   ResetBubble();
   UpdatePageActionIcon();
 }
@@ -209,17 +210,14 @@ void VirtualCardEnrollBubbleControllerImpl::OnLinkClicked(
 #endif
 }
 
-void VirtualCardEnrollBubbleControllerImpl::OnBubbleClosed(
+void VirtualCardEnrollBubbleControllerImpl::OnBubbleDiscarded() {
+  LogBubbleCloseMetrics(was_bubble_shown_
+                            ? PaymentsUiClosedReason::kNotInteracted
+                            : PaymentsUiClosedReason::kUnknown);
+}
+
+void VirtualCardEnrollBubbleControllerImpl::LogBubbleCloseMetrics(
     PaymentsUiClosedReason closed_reason) {
-  ResetBubbleViewAndInformBubbleManager();
-  UpdatePageActionIcon();
-
-  // If the dialog is to be shown again because user clicked on links, do not
-  // log metrics.
-  if (reprompt_required_) {
-    return;
-  }
-
   auto get_metric = [](PaymentsUiClosedReason reason) {
     switch (reason) {
       case PaymentsUiClosedReason::kAccepted:
@@ -269,6 +267,22 @@ void VirtualCardEnrollBubbleControllerImpl::OnBubbleClosed(
         ui_model_->enrollment_fields().virtual_card_enrollment_source,
         is_user_gesture_, ui_model_->enrollment_fields().previously_declined);
   }
+}
+
+void VirtualCardEnrollBubbleControllerImpl::OnBubbleClosed(
+    PaymentsUiClosedReason closed_reason) {
+  ResetBubbleViewAndInformBubbleManager();
+  UpdatePageActionIcon();
+
+  // If the dialog is to be shown again because user clicked on links, do not
+  // log metrics.
+  if (reprompt_required_) {
+    return;
+  }
+
+  if (!bubble_hide_initiated_by_bubble_manager_) {
+    LogBubbleCloseMetrics(closed_reason);
+  }
 
 #if !BUILDFLAG(IS_ANDROID)
   // If the bubble is closed with the enrollment_status_ as
@@ -304,8 +318,7 @@ bool VirtualCardEnrollBubbleControllerImpl::IsIconVisible() const {
 void VirtualCardEnrollBubbleControllerImpl::OnVisibilityChanged(
     content::Visibility visibility) {
 #if !BUILDFLAG(IS_ANDROID)
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillShowBubblesBasedOnPriorities)) {
+  if (IsBubbleManagerEnabled()) {
     if (visibility == content::Visibility::HIDDEN &&
         bubble_state_ != BubbleState::kShowingIcon) {
       bubble_state_ = BubbleState::kHidden;
@@ -318,7 +331,7 @@ void VirtualCardEnrollBubbleControllerImpl::OnVisibilityChanged(
       bubble_state_ == BubbleState::kShowingIconAndBubble) {
     QueueOrShowBubble();
   } else if (visibility == content::Visibility::HIDDEN) {
-    HideBubble();
+    HideBubble(/*initiated_by_bubble_manager=*/false);
     if (bubble_state_ != BubbleState::kShowingIcon) {
       bubble_state_ = BubbleState::kHidden;
     }
@@ -343,7 +356,7 @@ void VirtualCardEnrollBubbleControllerImpl::DoShowBubble() {
 #else
   // If bubble is already showing for another card, close it.
   if (bubble_view()) {
-    HideBubble();
+    HideBubble(/*initiated_by_bubble_manager=*/false);
   }
 
   bubble_state_ = BubbleState::kShowingIconAndBubble;
@@ -400,6 +413,14 @@ void VirtualCardEnrollBubbleControllerImpl::DoShowBubble() {
   if (bubble_shown_closure_for_testing_) {
     bubble_shown_closure_for_testing_.Run();
   }
+}
+
+bool VirtualCardEnrollBubbleControllerImpl::CanBeReshown() const {
+#if !BUILDFLAG(IS_ANDROID)
+  return enrollment_status_ != EnrollmentStatus::kCompleted;
+#else
+  NOTREACHED();
+#endif
 }
 
 BubbleType VirtualCardEnrollBubbleControllerImpl::GetBubbleType() const {

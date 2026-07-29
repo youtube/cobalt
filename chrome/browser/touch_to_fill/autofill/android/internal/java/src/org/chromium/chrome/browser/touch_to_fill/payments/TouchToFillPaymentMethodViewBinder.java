@@ -5,10 +5,12 @@
 package org.chromium.chrome.browser.touch_to_fill.payments;
 
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BACK_PRESS_HANDLER;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerProperties.ISSUER_ICON_ID;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerProperties.ISSUER_LINKED;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerProperties.ISSUER_NAME;
-import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerProperties.ON_ISSUER_CLICK_ACTION;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.APPLY_ISSUER_DEACTIVATED_STYLE;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_ICON_ID;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_LINKED;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_NAME;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ISSUER_SELECTION_TEXT;
+import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerContextProperties.ON_ISSUER_CLICK_ACTION;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerTosTextItemProperties.BNPL_TOS_ICON_ID;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplIssuerTosTextItemProperties.DESCRIPTION_TEXT;
 import static org.chromium.chrome.browser.touch_to_fill.payments.TouchToFillPaymentMethodProperties.BnplSelectionProgressHeaderProperties.BNPL_BACK_BUTTON_ENABLED;
@@ -394,14 +396,14 @@ class TouchToFillPaymentMethodViewBinder {
      */
     static void bindBnplSelectionProgressHeaderView(
             PropertyModel model, View view, PropertyKey propertyKey) {
-        ImageView back_button = view.findViewById(R.id.bnpl_header_back_button);
+        ImageView backButton = view.findViewById(R.id.bnpl_header_back_button);
 
         if (propertyKey == BNPL_BACK_BUTTON_ENABLED) {
             final boolean isEnabled = model.get(BNPL_BACK_BUTTON_ENABLED);
-            back_button.setEnabled(isEnabled);
-            back_button.setAlpha(isEnabled ? COMPLETE_OPACITY_ALPHA : GRAYED_OUT_OPACITY_ALPHA);
+            backButton.setEnabled(isEnabled);
+            backButton.setAlpha(isEnabled ? COMPLETE_OPACITY_ALPHA : GRAYED_OUT_OPACITY_ALPHA);
         } else if (propertyKey == BNPL_ON_BACK_BUTTON_CLICKED) {
-            back_button.setOnClickListener(
+            backButton.setOnClickListener(
                     unusedView -> model.get(BNPL_ON_BACK_BUTTON_CLICKED).run());
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
@@ -550,14 +552,14 @@ class TouchToFillPaymentMethodViewBinder {
 
     static void bindBnplIssuerItemView(PropertyModel model, View view, PropertyKey propertyKey) {
         TextView issuerName = view.findViewById(R.id.bnpl_issuer_name);
+        TextView selectionText = view.findViewById(R.id.bnpl_issuer_selection_text);
         TextView linkedStatusPill = view.findViewById(R.id.bnpl_issuer_linked_status_pill);
         ImageView issuerIcon = view.findViewById(R.id.bnpl_issuer_icon);
-        // TODO(crbug.com/430575808): Handle `ISSUER_SELECTION_TEXT` property
-        // keys once we get this value from the native side.
-        // TODO(crbug.com/430575808): Handle `APPLY_ISSUER_DEACTIVATED_STYLE`
-        // property key once we get this value from the native side.
+
         if (propertyKey == ISSUER_NAME) {
             issuerName.setText(model.get(ISSUER_NAME));
+        } else if (propertyKey == ISSUER_SELECTION_TEXT) {
+            selectionText.setText(model.get(ISSUER_SELECTION_TEXT));
         } else if (propertyKey == ISSUER_ICON_ID) {
             issuerIcon.setImageDrawable(
                     AppCompatResources.getDrawable(view.getContext(), model.get(ISSUER_ICON_ID)));
@@ -565,6 +567,20 @@ class TouchToFillPaymentMethodViewBinder {
             linkedStatusPill.setVisibility(model.get(ISSUER_LINKED) ? View.VISIBLE : View.GONE);
         } else if (propertyKey == ON_ISSUER_CLICK_ACTION) {
             view.setOnClickListener(v -> model.get(ON_ISSUER_CLICK_ACTION).run());
+        } else if (propertyKey == APPLY_ISSUER_DEACTIVATED_STYLE) {
+            if (model.get(APPLY_ISSUER_DEACTIVATED_STYLE)) {
+                view.setEnabled(false);
+                issuerName.setTextAppearance(R.style.TextAppearance_TextMedium_Disabled);
+                selectionText.setTextAppearance(R.style.TextAppearance_TextMedium_Disabled);
+                linkedStatusPill.setAlpha(GRAYED_OUT_OPACITY_ALPHA);
+                issuerIcon.setAlpha(GRAYED_OUT_OPACITY_ALPHA);
+            } else {
+                view.setEnabled(true);
+                issuerName.setTextAppearance(R.style.TextAppearance_TextMedium_Primary);
+                selectionText.setTextAppearance(R.style.TextAppearance_TextMedium_Secondary);
+                linkedStatusPill.setAlpha(COMPLETE_OPACITY_ALPHA);
+                issuerIcon.setAlpha(COMPLETE_OPACITY_ALPHA);
+            }
         } else {
             assert false : "Unhandled update to property:" + propertyKey;
         }

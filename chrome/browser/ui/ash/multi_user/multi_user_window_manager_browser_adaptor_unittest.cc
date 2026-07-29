@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string_view>
 #include <vector>
@@ -38,6 +39,7 @@
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller_impl.h"
 #include "chrome/browser/ash/login/users/scoped_account_id_annotator.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
@@ -345,6 +347,8 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
 
   // The maximized window manager (if enabled).
   std::unique_ptr<TabletModeWindowManager> tablet_mode_window_manager_;
+
+  std::optional<ash::BrowserControllerImpl> browser_controller_;
 };
 
 void MultiUserWindowManagerBrowserAdaptorTest::SetUp() {
@@ -374,6 +378,8 @@ void MultiUserWindowManagerBrowserAdaptorTest::SetUp() {
   multi_user_window_manager_browser_adaptor_ =
       std::make_unique<MultiUserWindowManagerBrowserAdaptor>(
           ash::Shell::Get()->multi_user_window_manager());
+
+  browser_controller_.emplace();
 }
 
 void MultiUserWindowManagerBrowserAdaptorTest::SetUpForThisManyWindows(
@@ -382,7 +388,7 @@ void MultiUserWindowManagerBrowserAdaptorTest::SetUpForThisManyWindows(
 
   ASSERT_TRUE(windows_.empty());
   for (int i = 0; i < windows; i++) {
-    windows_.push_back(CreateTestWindowInShellWithId(i));
+    windows_.push_back(CreateTestWindowInShell({.window_id = i}));
     windows_[i]->Show();
   }
 }
@@ -422,6 +428,8 @@ MultiUserWindowManagerBrowserAdaptorTest::SetUpOneWindowEachDeskForUser() {
 }
 
 void MultiUserWindowManagerBrowserAdaptorTest::TearDown() {
+  browser_controller_.reset();
+
   // Since the AuraTestBase is needed to create our assets, we have to
   // also delete them before we tear it down.
   while (!windows_.empty()) {
@@ -1655,7 +1663,7 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest, FindBrowserWithActiveWindow) {
           kAccountIdA));
   Browser::CreateParams params(profile, true);
   std::unique_ptr<Browser> browser(CreateTestBrowser(
-      CreateTestWindowInShellWithId(0), gfx::Rect(16, 32, 640, 320), &params));
+      CreateTestWindowInShell({.window_id = 0}), {16, 32, 640, 320}, &params));
   browser->window()->Activate();
   // Manually set last active browser in BrowserList for testing.
   BrowserList::GetInstance()->SetLastActive(browser.get());

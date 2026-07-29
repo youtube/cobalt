@@ -29,7 +29,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #include "third_party/blink/renderer/platform/fonts/font_fallback_list.h"
 #include "third_party/blink/renderer/platform/fonts/font_fallback_map.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shaper.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shape_iterator.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_bloberizer.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_spacing.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
@@ -101,7 +101,8 @@ void Font::DrawText(cc::PaintCanvas* canvas,
   if (ShouldSkipDrawing())
     return;
 
-  ShapeResultBloberizer::FillGlyphsNG bloberizer(
+  // For performance avoid stack initialization on this large object.
+  STACK_UNINITIALIZED ShapeResultBloberizer::FillGlyphsNG bloberizer(
       GetFontDescription(), text_info.text, text_info.from, text_info.to,
       text_info.shape_result,
       draw_type == Font::DrawType::kGlyphsOnly
@@ -264,7 +265,9 @@ GlyphData Font::GetEmphasisMarkGlyphData(const AtomicString& mark) const {
   if (mark.empty())
     return GlyphData();
   if (!RuntimeEnabledFeatures::EmphasisMarkShapeCacheEnabled()) {
-    return CachingWordShaper(*this).EmphasisMarkGlyphData(TextRun(mark));
+    return CachingWordShapeIterator::ShapeWordWithoutSpacing(TextRun(mark),
+                                                             this)
+        ->EmphasisMarkGlyphData(font_description_);
   }
   return EnsureFontFallbackList()
       ->GetOrCreateEmphasisMarkShape(*this, mark)

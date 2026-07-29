@@ -32,7 +32,7 @@ class Clock;
 
 namespace net {
 
-class NET_EXPORT SSLClientSessionCache {
+class NET_EXPORT SSLClientSessionCache : public base::MemoryPressureListener {
  public:
   struct Config {
     // The maximum number of entries in the cache.
@@ -66,7 +66,7 @@ class NET_EXPORT SSLClientSessionCache {
   SSLClientSessionCache(const SSLClientSessionCache&) = delete;
   SSLClientSessionCache& operator=(const SSLClientSessionCache&) = delete;
 
-  ~SSLClientSessionCache();
+  ~SSLClientSessionCache() override;
 
   // Returns true if |entry| is expired as of |now|.
   static bool IsExpired(SSL_SESSION* session, time_t now);
@@ -131,14 +131,15 @@ class NET_EXPORT SSLClientSessionCache {
 
   // Clear cache on low memory notifications callback.
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   raw_ptr<base::Clock> clock_;
   uint64_t generation_number_ = 0;
   Config config_;
   base::LRUCache<Key, Entry> cache_;
   size_t lookups_since_flush_ = 0;
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 };
 
 }  // namespace net

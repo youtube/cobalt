@@ -8,6 +8,7 @@
 
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/ntp_tiles/pref_names.h"
 #import "components/password_manager/core/browser/password_manager_util.h"
 #import "components/prefs/ios/pref_observer_bridge.h"
 #import "components/prefs/pref_change_registrar.h"
@@ -55,7 +56,6 @@ bool GetIsItemComplete(SetUpListItemType type,
       return push_notification_settings::
           IsMobileNotificationsEnabledForAnyClient(account.gaia, prefs);
     }
-    case SetUpListItemType::kFollow:
     case SetUpListItemType::kAllSet:
       NOTREACHED();
   }
@@ -132,7 +132,7 @@ std::vector<SetUpListItemType> GetSetUpListItemTypeOrder() {
 + (instancetype)buildFromPrefs:(PrefService*)prefs
                identityManager:(signin::IdentityManager*)identityManager
                     localState:(PrefService*)localState {
-  if (!prefs->GetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled)) {
+  if (!prefs->GetBoolean(ntp_tiles::prefs::kTipsHomeModuleEnabled)) {
     return nil;
   }
 
@@ -153,7 +153,6 @@ std::vector<SetUpListItemType> GetSetUpListItemTypeOrder() {
     set_up_list_prefs::MarkAllItemsComplete(localState);
   }
 
-  // TODO(crbug.com/40262090): Add a Follow item to the Set Up List.
   return [[self alloc] initWithItems:items localState:localState];
 }
 
@@ -169,8 +168,6 @@ std::vector<SetUpListItemType> GetSetUpListItemTypeOrder() {
         set_up_list_prefs::kDefaultBrowserItemState, &_prefChangeRegistrar);
     _prefObserverBridge->ObserveChangesForPreference(
         set_up_list_prefs::kAutofillItemState, &_prefChangeRegistrar);
-    _prefObserverBridge->ObserveChangesForPreference(
-        set_up_list_prefs::kFollowItemState, &_prefChangeRegistrar);
     _prefObserverBridge->ObserveChangesForPreference(
         set_up_list_prefs::kNotificationsItemState, &_prefChangeRegistrar);
   }

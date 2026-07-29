@@ -165,6 +165,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void EstablishGpuChannel(int32_t client_id,
                            uint64_t client_tracing_id,
                            bool is_gpu_host,
+                           bool enable_extra_handles_validation,
                            EstablishGpuChannelCallback callback) override;
   void SetChannelClientPid(int32_t client_id,
                            base::ProcessId client_pid) override;
@@ -228,8 +229,7 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   void OnBackgrounded() override;
   void OnForegrounded() override;
 #if !BUILDFLAG(IS_ANDROID)
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level) override;
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 #endif
 #if BUILDFLAG(IS_APPLE)
   void BeginCATransaction() override;

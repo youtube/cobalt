@@ -44,11 +44,10 @@ static const size_t kDefaultMaxTotalSizeOfHeapEntries = 32 * 1024 * 1024;
 ImageDecodingStore::ImageDecodingStore()
     : heap_limit_in_bytes_(kDefaultMaxTotalSizeOfHeapEntries),
       heap_memory_usage_in_bytes_(0),
-      memory_pressure_listener_(
+      memory_pressure_listener_registration_(
           FROM_HERE,
           base::MemoryPressureListenerTag::kImageDecodingStore,
-          blink::BindRepeating(&ImageDecodingStore::OnMemoryPressure,
-                               blink::Unretained(this))) {}
+          this) {}
 
 ImageDecodingStore::~ImageDecodingStore() {
 #if DCHECK_IS_ON()
@@ -228,13 +227,12 @@ void ImageDecodingStore::Prune() {
   }
 }
 
-void ImageDecodingStore::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void ImageDecodingStore::OnMemoryPressure(base::MemoryPressureLevel level) {
   switch (level) {
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE:
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE:
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
       break;
-    case base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL:
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
       Clear();
       break;
   }

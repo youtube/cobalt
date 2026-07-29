@@ -824,8 +824,7 @@ void ServiceWorkerContainer::DispatchMessageEvent(
     if (!msg.sender_origin ||
         !msg.sender_origin->IsSameOriginWith(target_origin)) {
       event = MessageEvent::CreateError(
-          GetExecutionContext()->GetSecurityOrigin()->ToString(),
-          service_worker);
+          GetExecutionContext()->GetSecurityOrigin(), service_worker);
     }
   }
   if (!event) {
@@ -834,12 +833,12 @@ void ServiceWorkerContainer::DispatchMessageEvent(
          context->IsSameAgentCluster(msg.sender_agent_cluster_id)) &&
         msg.message->CanDeserializeIn(context)) {
       event = MessageEvent::Create(ports, std::move(msg.message),
-                                   context->GetSecurityOrigin()->ToString(),
+                                   context->GetSecurityOrigin(),
                                    MessageEvent::kMessageIsSameOrigin,
                                    String() /* lastEventId */, service_worker);
     } else {
-      event = MessageEvent::CreateError(
-          context->GetSecurityOrigin()->ToString(), service_worker);
+      event = MessageEvent::CreateError(context->GetSecurityOrigin(),
+                                        service_worker);
     }
   }
   // Schedule the event to be dispatched on the correct task source:

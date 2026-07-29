@@ -141,10 +141,7 @@ void HeadlessBrowserImpl::Shutdown() {
   // Make sure GetAllBrowserContexts is sane if called after this point.
   auto tmp = std::move(browser_contexts_);
   tmp.clear();
-  if (system_request_context_manager_) {
-    content::GetIOThreadTaskRunner({})->DeleteSoon(
-        FROM_HERE, system_request_context_manager_.release());
-  }
+  system_request_context_manager_.reset();
   // We might have posted task during shutdown, let these run
   // before quitting the message loop. See ~HeadlessWebContentsImpl
   // for additional context.

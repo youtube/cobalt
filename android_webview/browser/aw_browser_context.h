@@ -37,7 +37,6 @@
 #include "content/public/browser/zoom_level_delegate.h"
 #include "net/http/http_request_headers.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom-forward.h"
-#include "services/network/public/cpp/cookie_encryption_provider_impl.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom-shared.h"
 
@@ -155,7 +154,7 @@ class AwBrowserContext : public content::BrowserContext,
       override;
   std::unique_ptr<content::ZoomLevelDelegate> CreateZoomLevelDelegate(
       const base::FilePath& partition_path) override;
-  net::HttpRequestHeaders GetExtraHeadersForUrl(const GURL& url) override;
+  std::string GetExtraHeadersForUrl(const GURL& url) override;
 
   // visitedlink::VisitedLinkDelegate implementation.
   void RebuildTable(const scoped_refptr<URLEnumerator>& enumerator) override;
@@ -289,7 +288,7 @@ class AwBrowserContext : public content::BrowserContext,
 
   // Map of extra headers for specific URLs supplied through the loadUrl(String,
   // Map) API.
-  std::map<std::string, net::HttpRequestHeaders> extra_headers_for_urls_;
+  std::map<std::string, std::string> extra_headers_for_urls_;
 
   base::android::ScopedJavaGlobalRef<jobject> obj_;
 
@@ -301,8 +300,6 @@ class AwBrowserContext : public content::BrowserContext,
   //
   // In generally, use GetCookieManager() rather than using this directly.
   std::unique_ptr<CookieManager> cookie_manager_;
-
-  std::unique_ptr<CookieEncryptionProviderImpl> cookie_encryption_provider_;
 
   std::unique_ptr<AwPrefetchManager> prefetch_manager_;
   std::unique_ptr<AwPreconnector> preconnector_;

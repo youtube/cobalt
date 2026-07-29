@@ -109,6 +109,17 @@ class SqlBackendImplTest : public testing::Test {
     }
   }
 
+  bool LoadInMemoryIndex(SqlBackendImpl& backend) {
+    auto* store = backend.GetSqlStoreForTest();
+    base::test::TestFuture<SqlPersistentStore::Error> future;
+    auto ret = store->MaybeLoadInMemoryIndex(future.GetCallback());
+    if (ret) {
+      CHECK_EQ(future.Get(), SqlPersistentStore::Error::kOk);
+      return true;
+    }
+    return false;
+  }
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
@@ -1220,6 +1231,7 @@ TEST_F(SqlBackendImplTest, DoomedEntriesCleanup) {
 
   // 3. Recreate the backend
   backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
 
   // 4. Open and doom the first and the second entries and let them as active.
   TestEntryResultCompletionCallback cb_open1;
@@ -1235,8 +1247,13 @@ TEST_F(SqlBackendImplTest, DoomedEntriesCleanup) {
   entry2->Doom();
 
   base::HistogramTester histogram_tester;
-  task_environment_.FastForwardBy(kSqlBackendDeleteDoomedEntriesDelay +
-                                  base::Seconds(1));
+  backend->OnBrowserIdle();
+
+  // Flush the queue to ensure that cleanup task is completed.
+  net::TestCompletionCallback flush_cb;
+  backend->FlushQueueForTest(flush_cb.callback());
+  EXPECT_THAT(flush_cb.WaitForResult(), IsOk());
+
   // Verify that `DeleteDoomedEntriesCount` UMA was recorded in the histogram.
   histogram_tester.ExpectUniqueSample(
       "Net.SqlDiskCache.DeleteDoomedEntriesCount", 1, 1);
@@ -1251,6 +1268,8 @@ TEST_F(SqlBackendImplTest, DoomedEntriesCleanup) {
 
 TEST_F(SqlBackendImplTest, SpeculativeCreateEntry) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
+
   const std::string kKey = "my-key";
 
   // 1. Create an entry. This should return immediately with a speculatively
@@ -1288,6 +1307,7 @@ TEST_F(SqlBackendImplTest, SpeculativeCreateEntry) {
 
 TEST_F(SqlBackendImplTest, SpeculativeCreateEntrySyncClose) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   const std::string kKey = "my-key";
 
   TestEntryResultCompletionCallback cb_create;
@@ -1310,6 +1330,7 @@ TEST_F(SqlBackendImplTest, SpeculativeCreateEntrySyncClose) {
 
 TEST_F(SqlBackendImplTest, SpeculativeCreateEntrySyncDoom) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   const std::string kKey = "my-key";
 
   TestEntryResultCompletionCallback cb_create;
@@ -1330,6 +1351,7 @@ TEST_F(SqlBackendImplTest, SpeculativeCreateEntrySyncDoom) {
 
 TEST_F(SqlBackendImplTest, SpeculativeCreateEntrySyncWrite) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   const std::string kKey = "my-key";
   const std::string kData = "some data";
 
@@ -1370,6 +1392,7 @@ TEST_F(SqlBackendImplTest, SpeculativeCreateEntrySyncWrite) {
 
 TEST_F(SqlBackendImplTest, SpeculativeCreateEntryWithDbFailure) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   backend->GetSqlStoreForTest()->SetSimulateDbFailureForTesting(true);
   const std::string kKey = "my-key";
 
@@ -1412,6 +1435,7 @@ TEST_F(SqlBackendImplTest, SpeculativeCreateEntryWithDbFailure) {
 TEST_F(SqlBackendImplTest,
        SpeculativeCreateEntryDbFailureOperationsBeforeErrorSet) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   backend->GetSqlStoreForTest()->SetSimulateDbFailureForTesting(true);
   TestEntryResultCompletionCallback cb;
   disk_cache::EntryResult entry_result =
@@ -1445,6 +1469,7 @@ TEST_F(SqlBackendImplTest,
 TEST_F(SqlBackendImplTest,
        SpeculativeCreateEntryDbFailureOperationsAfterErrorSet) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   backend->GetSqlStoreForTest()->SetSimulateDbFailureForTesting(true);
   TestEntryResultCompletionCallback cb;
   disk_cache::EntryResult entry_result =
@@ -1487,6 +1512,7 @@ TEST_F(SqlBackendImplTest,
 
 TEST_F(SqlBackendImplTest, SpeculativeCreateEntryDbFailureDoom) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   backend->GetSqlStoreForTest()->SetSimulateDbFailureForTesting(true);
   TestEntryResultCompletionCallback cb;
   disk_cache::EntryResult entry_result =
@@ -1516,6 +1542,7 @@ TEST_F(SqlBackendImplTest, OptimisticWriteBufferSize) {
       {{net::features::kSqlDiskCacheOptimisticWriteBufferSize.name, "100"}});
 
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   TestEntryResultCompletionCallback cb;
   disk_cache::EntryResult entry_result =
       backend->CreateEntry("key", net::HIGHEST, cb.callback());
@@ -1554,6 +1581,7 @@ TEST_F(SqlBackendImplTest, OptimisticWriteBufferLifecycle) {
       {{net::features::kSqlDiskCacheOptimisticWriteBufferSize.name, "100"}});
 
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   TestEntryResultCompletionCallback cb;
   disk_cache::EntryResult entry_result =
       backend->CreateEntry("key", net::HIGHEST, cb.callback());
@@ -1626,6 +1654,7 @@ TEST_F(SqlBackendImplTest, OptimisticWriteFailure) {
       {{net::features::kSqlDiskCacheOptimisticWriteBufferSize.name, "100"}});
 
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
   const std::string kKey = "my-key";
   const std::string kInitialData = "initial data";
 
@@ -1687,6 +1716,7 @@ TEST_F(SqlBackendImplTest, OptimisticWriteFailure) {
 
 TEST_F(SqlBackendImplTest, OptimisticWriteAfterSpeculativeCreateEntry) {
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
 
   // 1. Enable failure simulation.
   backend->GetSqlStoreForTest()->SetSimulateDbFailureForTesting(true);
@@ -1744,6 +1774,7 @@ TEST_F(SqlBackendImplTest,
       {{net::features::kSqlDiskCacheOptimisticWriteBufferSize.name, "100"}});
 
   auto backend = CreateBackendAndInit();
+  EXPECT_TRUE(LoadInMemoryIndex(*backend));
 
   // Create the first entry.
   disk_cache::EntryResult entry_result1 = backend->CreateEntry(

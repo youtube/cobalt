@@ -165,19 +165,18 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/autofill/core/browser/webdata/autofill_ai/entity_table.cc:DecryptionStatus) -->
 
-<!-- LINT.IfChange(AutofillAiEntityType) -->
-
 <enum name="AutofillAiEntityType">
+<!-- Generated from components/autofill/core/browser/data_model/autofill_ai/entity_schema.json.
+Called by update_autofill_enums.py.-->
+
   <int value="0" label="Passport"/>
-  <int value="1" label="Driver's License"/>
-  <int value="2" label="Vehicle Information"/>
-  <int value="3" label="National ID Card"/>
+  <int value="1" label="Driver's license"/>
+  <int value="2" label="Vehicle"/>
+  <int value="3" label="National Id Card"/>
   <int value="4" label="Known Traveler Number"/>
   <int value="5" label="Redress Number"/>
   <int value="6" label="Flight Reservation"/>
 </enum>
-
-<!-- LINT.ThenChange(//components/autofill/core/browser/data_model/autofill_ai/entity_type.cc:EntityType) -->
 
 <enum name="AutofillAiModelExecutionStatus">
   <int value="0"
@@ -2389,14 +2388,14 @@ Called by update_autofill_enums.py.-->
       label="(DEPRECATED) Suggestions were shown, and no card had a benefit
              available (once)"/>
   <int value="93"
-      label="Suggestion for a masked server card with a benefit available was
-             selected"/>
+      label="(DEPRECATED) Suggestion for a masked server card with a benefit
+             available was selected"/>
   <int value="94"
       label="(DEPRECATED) Suggestion for a masked server card with no benefit
              available was selected"/>
   <int value="95"
-      label="Suggestion for a masked server card with a benefit available was
-             selected (once)"/>
+      label="(DEPRECATED) Suggestion for a masked server card with a benefit
+             available was selected (once)"/>
   <int value="96"
       label="(DEPRECATED) Suggestion for a masked server card with no benefit
              available was selected (once)"/>
@@ -2427,9 +2426,9 @@ Called by update_autofill_enums.py.-->
       label="(DEPRECATED) Form was submitted after a suggestion for a masked
              server card with no benefit available was filled (once)"/>
   <int value="105"
-      label="Suggestion for a masked server card was selected after
-             suggestions containing cards with a benefit available were shown
-             (once)"/>
+      label="(DEPRECATED) Suggestion for a masked server card was selected
+             after suggestions containing cards with a benefit available were
+             shown (once)"/>
   <int value="106"
       label="Suggestion for a masked server card was filled after suggestions
              containing cards with a benefit available were shown (once)"/>
@@ -4132,6 +4131,14 @@ Called by update_autofill_enums.py.-->
   <int value="1" label="Settings link clicked"/>
 </enum>
 
+<!-- LINT.IfChange(OneTimeTokensBackendErrorCode) -->
+
+<enum name="OneTimeTokensBackendErrorCode">
+  <int value="0" label="GMSCore version not supported"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/one_time_tokens/android/backend/common/java/src/org/chromium/components/one_time_tokens/backend/OneTimeTokensBackendErrorCode.java) -->
+
 <enum name="PaymentsWindowUserConsentDialogResult">
   <int value="0" label="The tab or browser was closed"/>
   <int value="1" label="The escape key was pressed, closing the dialog"/>
@@ -4272,6 +4279,19 @@ Called by update_autofill_enums.py.-->
 </enum>
 
 <!-- LINT.ThenChange(/components/autofill/core/browser/metrics/payments/bnpl_metrics.h:SelectBnplIssuerDialogResult) -->
+
+<!-- LINT.IfChange(SmsOtpRetrievalApiErrorCode) -->
+
+<enum name="SmsOtpRetrievalApiErrorCode">
+  <int value="13" label="CommonStatusCodes.ERROR"/>
+  <int value="15" label="Timeout"/>
+  <int value="36500" label="Platform does not support SmsCodeAutofillClient"/>
+  <int value="36501"
+      label="Calling app not allowlisted by SmsCodeAutofillClient"/>
+  <int value="36502" label="Permission denied by user"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/one_time_tokens/android/backend/sms/sms_otp_retrieval_api_error_codes.h:SmsOtpRetrievalApiErrorCode) -->
 
 <!-- LINT.IfChange(SuggestionType) -->
 

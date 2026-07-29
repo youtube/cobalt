@@ -1604,7 +1604,9 @@ Your Google account may have other forms of browsing history like searches and a
         Chrome will let you know about sites that may be sending too many notifications
       </message>
       <message name="IDS_SAFETY_HUB_NOTIFICATIONS_REVIEW_WARNING_SUMMARY" desc="Summary for the notifications module in the Safety Hub dashboard. It is displayed when the user has some notification permissions that need to be reviewed.">
-        You can stop these sites from sending future notifications
+        {NUM_SITES, plural,
+        =1 {You can stop this site from sending future notifications}
+        other {You can stop these sites from sending future notifications}}
       </message>
       <message name="IDS_SAFETY_HUB_PERMISSIONS_OK_SUMMARY" desc="Summary for the permissions module in the Safety Hub dashboard. It is displayed when the user has no automatically revoked permissions that need to be reviewed.">
         Chrome automatically removes permissions from sites that abuse notifications or that you haven’t visited recently
@@ -2366,12 +2368,6 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_ACCOUNT_ADVANCED_HEADER" desc="Heading of a section with settings related to the user's Google Account and data.">
         Control your data &amp; account
       </message>
-      <message name="IDS_SIGN_IN_GOOGLE_ACTIVITY_CONTROLS_TITLE" desc="Title of Google activity controls preference in signed in accounts settings screen">
-        Google activity controls
-      </message>
-      <message name="IDS_SIGN_IN_GOOGLE_ACTIVITY_CONTROLS_SUMMARY" desc="Message of Google activity controls preference in signed in accounts settings screen">
-        Control how your browsing history is used to personalize Search and more
-      </message>
       <message name="IDS_SYNC_ENCRYPTION" desc="Preference category name for sync encryption. [CHAR_LIMIT=32]">
         Encryption
       </message>
@@ -2961,6 +2957,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_CONTEXTMENU_UNPIN" desc="This string is shown in the context menu to remove an existing Custom Tile.">
         Unpin
       </message>
+      <message name="IDS_CONTEXTMENU_VIEW_PAGE_SOURCE" desc="This string is shown in the context menu to display non-editable HTML source code for the current page. [CHAR_LIMIT=30]">
+        View page source
+      </message>
       <message name="IDS_CONTEXTMENU_INSPECT_ELEMENT" desc="This string is shown in the context menu to inspect an element in a web page using the developer tools. [CHAR_LIMIT=30]">
         Inspect
       </message>
@@ -3534,9 +3533,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_DEVICE_LOCK_CREATE_LOCK_BUTTON" desc="Text for the button that navigates the user to create a profile lock on the device.">
         Create a car profile lock
-      </message>
-      <message name="IDS_DIALOG_NOT_NOW" desc="Label for the negative ('not now') button of a dialog that prompts user action. Clicking on this button dismisses the dialog without further actions.">
-        Not now
       </message>
 
       <!-- Strings for a missing device lock. -->
@@ -4908,9 +4904,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ACCESSIBILITY_OMNIBOX_REVEAL_BUTTON_ANNOUNCEMENT" desc="Accessibility announcement when the omnibox clipboard reveal button is clicked.">
         Clipboard contents shown
       </message>
-      <message name="IDS_ACCESSIBILITY_OMNIBOX_SWITCH_TO_TAB" desc="Content description for the omnibox switch to tab button.">
-        Switch To Tab
-      </message>
       <message name="IDS_ACCESSIBILITY_OMNIBOX_SHOWING_SUGGESTIONS_FOR_WEBSITE" desc="Whenever the User is visiting a Website, when they click the Omnibox, we will announce this message, if we have suggestions to show.">
         Showing suggestions for <ph name="WEBSITE_TITLE">%1$s<ex>Crater Lake National Park (U.S. National Park Service)</ex></ph>
       </message>
@@ -5120,14 +5113,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_OVERSCROLL_NAVIGATION_SHEET_CLOSED" desc="Accessibility string read when the navigation bottom sheet is closed.">
         Navigation history is closed
-      </message>
-
-      <!-- Rtl Gesture Nav Iph -->
-      <message name="IDS_RTL_GESTURE_NAV_IPH_DIALOG_TITLE" desc="Title string for help dialog of educating users on how to navigate by gesture in RTL mode.">
-        A new way to swipe
-      </message>
-      <message name="IDS_RTL_GESTURE_NAV_IPH_DIALOG_CONTENT" desc="Content string for help dialog of educating users on how to navigate by gesture in RTL mode.">
-        Now, a right swipe takes you backward to see previous pages you’ve visited and a left swipe moves you forward
       </message>
 
       <!-- Ephemeral Tab -->
@@ -5344,6 +5329,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- WebAPK/TWA related strings -->
+      <message name="IDS_APP_INFO_SETTINGS" desc="Label for 3-dot menu item that opens Android's settings to view information about the current app. Info is short for information.">
+        More app info
+      </message>
       <message name="IDS_TWA_RUNNING_IN_CHROME" desc="Message on a snackbar indicating that the current Activity may use Chrome data (the rest of the app may not be).">
         Running in Chrome
       </message>

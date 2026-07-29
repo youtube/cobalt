@@ -45,7 +45,8 @@ class GpuServiceFactory;
 // rendering commands to the GPU.
 class GpuChildThread : public ChildThreadImpl,
                        public viz::VizMainImpl::Delegate,
-                       public base::TaskObserver {
+                       public base::TaskObserver,
+                       public base::MemoryPressureListener {
  public:
   GpuChildThread(base::RepeatingClosure quit_closure,
                  std::unique_ptr<gpu::GpuInit> gpu_init);
@@ -84,8 +85,7 @@ class GpuChildThread : public ChildThreadImpl,
                        bool was_blocked_or_low_priority) override;
   void DidProcessTask(const base::PendingTask& pending_task) override {}
 
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void OnMemoryPressure(base::MemoryPressureLevel level) override;
 
   // Returns a closure which calls into the VizMainImpl to perform shutdown
   // before quitting the main message loop. Must be called on the main thread.
@@ -112,7 +112,8 @@ class GpuChildThread : public ChildThreadImpl,
   // A closure which quits the main message loop.
   base::RepeatingClosure quit_closure_;
 
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
 
   performance_scenarios::InputScenario last_input_scenario_;
 

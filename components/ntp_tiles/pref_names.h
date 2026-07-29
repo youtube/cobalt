@@ -6,6 +6,7 @@
 #define COMPONENTS_NTP_TILES_PREF_NAMES_H_
 
 #include "build/branding_buildflags.h"
+#include "build/build_config.h"
 
 namespace ntp_tiles::prefs {
 
@@ -60,6 +61,17 @@ inline constexpr char kEnterpriseShortcutsUserList[] =
 // for preinstalled default chrome apps
 inline constexpr char kCustomLinksForPreinstalledAppsRemoved[] =
     "custom_links.preinstalledremoved";
+
+// The pref that stores if the Tab Resumption Home Module is enabled.
+inline constexpr char kTabResumptionHomeModuleEnabled[] =
+    "home.module.tab_resumption.enabled";
+
+// The pref that stores if the Tips Home Module is enabled.
+inline constexpr char kTipsHomeModuleEnabled[] = "home.module.tips.enabled";
+
+// The pref that stores if the Tab Resumption Home Module is enabled.
+inline constexpr char kMagicStackHomeModuleEnabled[] =
+    "home.module.magic_stack.enabled";
 
 }  // namespace ntp_tiles::prefs
 

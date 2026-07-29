@@ -154,7 +154,6 @@
 #include "third_party/blink/renderer/platform/fonts/font.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #include "third_party/blink/renderer/platform/fonts/font_custom_platform_data.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/caching_word_shaper.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
@@ -1457,6 +1456,11 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
   if (!document.IsActive())
     return protocol::Response::ServerError("Document is not active");
 
+  // Trigger layout update if needed.
+  if (element->GetDocument().NeedsLayoutTreeUpdateForNode(*element)) {
+    element->GetDocument().UpdateStyleAndLayoutForNode(
+        element, DocumentUpdateReason::kInspector);
+  }
   InspectorGhostRules ghost_rules;
   HeapVector<Member<CSSStyleSheet>> ghost_sheets;
 
@@ -1716,8 +1720,6 @@ InspectorCSSAgent::PositionTryRulesForElement(
     Element* element,
     std::optional<size_t> active_position_try_index) {
   Document& document = element->GetDocument();
-  CHECK(!document.NeedsLayoutTreeUpdateForNode(*element));
-
   const ComputedStyle* style = element->EnsureComputedStyle();
   if (!style) {
     return nullptr;
@@ -1838,8 +1840,6 @@ InspectorCSSAgent::CustomPropertiesForNode(Element* element) {
       std::make_unique<
           protocol::Array<protocol::CSS::CSSPropertyRegistration>>());
   Document& document = element->GetDocument();
-  DCHECK(!document.NeedsLayoutTreeUpdateForNode(*element));
-
   auto style_sheets = document_to_css_style_sheets_.find(&document);
   if (style_sheets == document_to_css_style_sheets_.end()) {
     return result;
@@ -2019,7 +2019,6 @@ InspectorCSSAgent::AnimationsForNode(Element* element,
   auto css_keyframes_rules =
       std::make_unique<protocol::Array<protocol::CSS::CSSKeyframesRule>>();
   Document& document = element->GetDocument();
-  DCHECK(!document.NeedsLayoutTreeUpdateForNode(*element));
   // We want to match the animation name of the animating element not the parent
   // element's animation names for pseudo-elements. When the `element` is a
   // non-pseudo-element then `animating_element` and the `element` are the same.
@@ -2332,7 +2331,7 @@ protocol::Response InspectorCSSAgent::resolveValues(
 
     StyleResolverState state(element->GetDocument(), *element);
     state.EnsureParentStyle();
-    state.SetStyle(*element->GetComputedStyle());
+    state.CreateNewClonedStyle(*element->GetComputedStyle());
     // TODO: When Devtools gets mixin support, we need to figure out
     // what @env bindings to use here.
     const CSSUnparsedDeclarationValue* substituted =

@@ -35,14 +35,18 @@ class TabInterface;
 }
 
 namespace gfx {
-class Size;
 class Point;
 }  // namespace gfx
 
 namespace glic {
-class GlicInstanceCoordinatorImpl
+
+// An interface to GlicInstanceCoordinatorImpl. Should be used instead of direct
+// access to GlicInstanceCoordinatorImpl to allow for test fakes.
+class GlicInstanceCoordinator
     : public GlicWindowController,
-      public GlicInstanceImpl::InstanceCoordinatorDelegate {
+      public GlicInstanceImpl::InstanceCoordinatorDelegate {};
+
+class GlicInstanceCoordinatorImpl : public GlicInstanceCoordinator {
  public:
   GlicInstanceCoordinatorImpl(const GlicInstanceCoordinatorImpl&) = delete;
   GlicInstanceCoordinatorImpl& operator=(const GlicInstanceCoordinatorImpl&) =
@@ -55,11 +59,11 @@ class GlicInstanceCoordinatorImpl
   ~GlicInstanceCoordinatorImpl() override;
 
   // GlicInstanceImpl::InstanceCoordinatorDelegate implementation
-  void OnInstanceOrphaned(GlicInstance* instance) override;
   void OnInstanceVisibilityChanged(GlicInstance* instance,
                                    bool is_showing) override;
   void SwitchConversation(
-      tabs::TabInterface* tab,
+      GlicInstanceImpl& source_instance,
+      const ShowOptions& options,
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback) override;
 
@@ -73,53 +77,36 @@ class GlicInstanceCoordinatorImpl
               mojom::InvocationSource source) override;
   bool ActivateBrowser() override;
   void ShowAfterSignIn(base::WeakPtr<Browser> browser) override;
-  void ToggleWhenNotAlwaysDetached(Browser* new_attached_browser,
-                                   bool prevent_close,
-                                   mojom::InvocationSource source) override;
   void FocusIfOpen() override;
   void Shutdown() override;
   void MaybeSetWidgetCanResize() override;
-  gfx::Size GetSize() override;
   void Close() override;
-  void CloseWithReason(views::Widget::ClosedReason reason) override;
   void ShowTitleBarContextMenuAt(gfx::Point event_loc) override;
-  bool ShouldStartDrag(const gfx::Point& initial_press_loc,
-                       const gfx::Point& mouse_location) override;
 
   void AddStateObserver(StateObserver* observer) override;
   void RemoveStateObserver(StateObserver* observer) override;
 
-  const mojom::PanelState& GetPanelState() const override;
-  bool IsShowing() const override;
+  mojom::PanelState GetPanelState() override;
 
   bool IsActive() override;
-  bool IsAttached() const override;
   bool IsDetached() const override;
   base::CallbackListSubscription AddWindowActivationChangedCallback(
       WindowActivationChangedCallback callback) override;
   void Preload() override;
-  void Reload() override;
-  bool IsWarmed() const override;
-  base::WeakPtr<GlicWindowController> GetWeakPtr() override;
+  void Reload(content::RenderFrameHost* render_frame_host) override;
+  base::WeakPtr<GlicInstanceCoordinatorImpl> GetWeakPtr();
 
-  GlicView* GetGlicView() const override;
   base::WeakPtr<views::View> GetGlicViewAsView() override;
   GlicWidget* GetGlicWidget() const override;
   gfx::NativeWindow GetHostNativeWindow() override;
 
   Browser* attached_browser() override;
   State state() const override;
-  GlicWindowAnimator* window_animator() override;
   Profile* profile() override;
   gfx::Rect GetInitialBounds(Browser* browser) override;
   void ShowDetachedForTesting() override;
   void SetPreviousPositionForTesting(gfx::Point position) override;
-  std::unique_ptr<views::View> CreateViewForSidePanel(
-      tabs::TabInterface& tab) override;
-  void SidePanelShown(BrowserWindowInterface* browser) override;
 
-  base::CallbackListSubscription RegisterStateChange(
-      StateChangeCallback callback) override;
   base::CallbackListSubscription RegisterLastActiveInstanceChangedCallback(
       LastActiveInstanceChangedCallback callback) override;
 
@@ -137,7 +124,7 @@ class GlicInstanceCoordinatorImpl
   void ToggleFloaty(bool prevent_close);
   void ToggleSidePanel(BrowserWindowInterface* browser, bool prevent_close);
 
-  void RemoveInstance(GlicInstance* instance);
+  void RemoveInstance(GlicInstance* instance) override;
   bool HasAttachedInstance(GlicInstance* instance);
 
   void NotifyLastActiveInstanceChanged();

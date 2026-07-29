@@ -10,6 +10,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/containers/span.h"
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_controller.h"
 #include "components/autofill/android/touch_to_fill_keyboard_suppressor.h"
@@ -19,7 +20,11 @@
 
 namespace autofill {
 
-class BnplIssuer;
+namespace payments {
+struct BnplIssuerContext;
+struct BnplIssuerTosDetail;
+}  // namespace payments
+
 class ContentAutofillClient;
 class Iban;
 class LoyaltyCard;
@@ -58,14 +63,16 @@ class TouchToFillPaymentMethodControllerImpl
   bool UpdateBnplPaymentMethod(std::optional<uint64_t> extracted_amount,
                                bool is_amount_supported_by_any_issuer) override;
   bool ShowProgressScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
-                          base::WeakPtr<TouchToFillDelegate> delegate) override;
-  bool ShowBnplIssuers(
-      base::WeakPtr<TouchToFillDelegate> delegate,
-      base::span<const BnplIssuer> bnpl_issuers_to_suggest) override;
+                          base::OnceClosure cancel_callback) override;
+  bool ShowBnplIssuers(base::WeakPtr<TouchToFillDelegate> delegate,
+                       base::span<const payments::BnplIssuerContext>
+                           bnpl_issuer_contexts) override;
   bool ShowErrorScreen(std::unique_ptr<TouchToFillPaymentMethodView> view,
                        base::WeakPtr<TouchToFillDelegate> delegate,
                        const std::u16string& title,
                        const std::u16string& description) override;
+  bool ShowBnplIssuerTos(
+      const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) override;
   void Hide() override;
 
   // content::WebContentsObserver:

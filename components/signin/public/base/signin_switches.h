@@ -67,11 +67,6 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kBoundSessionCredentialsKillSwitch);
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kBrowserSigninInSyncHeaderOnGaiaIntegration);
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-
 #if BUILDFLAG(IS_IOS)
 // Feature flag to enable caching identities in ios_internal.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -223,6 +218,10 @@ COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kFullscreenSignInPromoUseDate);
 #endif
 
+// Feature to handle mdm errors on Enterprise and EDU accounts
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kHandleMdmErrorsForDasherAccounts);
+
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kHistoryOptInEducationalTip);
@@ -270,11 +269,6 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kProfilesReordering);
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kRetryInterceptionBubbleOnDiceSyncHeaderTimeout);
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // When enabled, rolls back the DICe migration for implicitly signed-in users.
@@ -338,11 +332,6 @@ BASE_DECLARE_FEATURE(kSupportWebSigninAddSession);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kSyncEnableBookmarksInTransportMode);
 
-#if BUILDFLAG(IS_ANDROID)
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kUnoForAuto);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kUseIssueTokenToFetchAccessTokens);
@@ -353,6 +342,20 @@ BASE_DECLARE_FEATURE(kUseIssueTokenToFetchAccessTokens);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kWebSigninLeadsToImplicitlySignedInState);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+#if BUILDFLAG(IS_ANDROID)
+enum class SeamlessSigninStringType {
+  // Strings with "Sign in to Chrome" in the title and "Continue as" in the
+  // primary button
+  kContinueButton,
+  // Strings with "Sign in to Chrome" in the description and "Sign in as" in the
+  // primary button
+  kSigninButton,
+};
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<SeamlessSigninStringType>
+    kSeamlessSigninStringType;
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // keep-sorted end
 

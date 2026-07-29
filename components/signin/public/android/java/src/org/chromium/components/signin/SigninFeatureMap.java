@@ -25,7 +25,11 @@ public final class SigninFeatureMap extends FeatureMap {
     private SigninFeatureMap() {}
 
     public static final CachedFlag sMigrateAccountManagerDelegate =
-            new CachedFlag(sInstance, SigninFeatures.MIGRATE_ACCOUNT_MANAGER_DELEGATE, false);
+            new CachedFlag(
+                    sInstance,
+                    SigninFeatures.MIGRATE_ACCOUNT_MANAGER_DELEGATE,
+                    /* defaultValue= */ false,
+                    /* defaultValueInTests= */ true);
     public static final List<CachedFlag> sCachedFlags = List.of(sMigrateAccountManagerDelegate);
 
     /** Layout type for the sign-in promo. */
@@ -54,6 +58,35 @@ public final class SigninFeatureMap extends FeatureMap {
                 return SeamlessSigninPromoType.TWO_BUTTONS;
             default:
                 return SeamlessSigninPromoType.NON_SEAMLESS;
+        }
+    }
+
+    /** Strings for the sign-in promo. */
+    @IntDef({
+        SeamlessSigninStringType.NON_SEAMLESS,
+        SeamlessSigninStringType.CONTINUE_BUTTON,
+        SeamlessSigninStringType.SIGNIN_BUTTON
+    })
+    public @interface SeamlessSigninStringType {
+        int NON_SEAMLESS = 0;
+        int CONTINUE_BUTTON = 1;
+        int SIGNIN_BUTTON = 2;
+    }
+
+    /** Returns the set of strings that is currently enabled for the seamless sign-in experiment. */
+    public @SeamlessSigninStringType int getSeamlessSigninStringType() {
+        String stringType =
+                SigninFeatureMap.getInstance()
+                        .getFieldTrialParamByFeature(
+                                SigninFeatures.ENABLE_SEAMLESS_SIGNIN,
+                                "seamless-signin-string-type");
+        switch (stringType) {
+            case "continueButton":
+                return SeamlessSigninStringType.CONTINUE_BUTTON;
+            case "signinButton":
+                return SeamlessSigninStringType.SIGNIN_BUTTON;
+            default:
+                return SeamlessSigninStringType.NON_SEAMLESS;
         }
     }
 

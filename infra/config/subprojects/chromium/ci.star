@@ -148,6 +148,7 @@ luci.gitiles_poller(
         "chromium.swangle",
         "chromium.updater",
         "chromium.enterprise_companion",
+        "crossbench",
     ],
 ) for name, title in (
     ("main", "{} Main Console".format(settings.project_title)),
@@ -252,6 +253,7 @@ exec("./ci/chromium.linux.star")
 exec("./ci/chromium.mac.star")
 exec("./ci/chromium.memory.star")
 exec("./ci/chromium.memory.fyi.star")
+exec("./ci/chromium.prompt_eval.star")
 exec("./ci/chromium.rust.star")
 exec("./ci/chromium.swangle.star")
 exec("./ci/chromium.updater.star")

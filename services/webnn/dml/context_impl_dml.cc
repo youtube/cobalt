@@ -589,7 +589,7 @@ ContextProperties ContextImplDml::GetProperties(
 ContextImplDml::ContextImplDml(
     scoped_refptr<Adapter> adapter,
     mojo::PendingReceiver<mojom::WebNNContext> receiver,
-    WebNNContextProviderImpl* context_provider,
+    base::WeakPtr<WebNNContextProviderImpl> context_provider,
     mojom::CreateContextOptionsPtr options,
     mojo::ScopedDataPipeConsumerHandle write_tensor_consumer,
     mojo::ScopedDataPipeProducerHandle read_tensor_producer,
@@ -597,22 +597,22 @@ ContextImplDml::ContextImplDml(
     const gpu::GpuFeatureInfo& gpu_feature_info,
     gpu::CommandBufferId command_buffer_id,
     std::unique_ptr<ScopedSequence> sequence,
-    scoped_refptr<gpu::SchedulerTaskRunner> scheduler_task_runner,
     scoped_refptr<gpu::MemoryTracker> memory_tracker,
     scoped_refptr<base::SingleThreadTaskRunner> owning_task_runner,
-    gpu::SharedImageManager* shared_image_manager)
+    gpu::SharedImageManager* shared_image_manager,
+    scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(std::move(receiver),
-                       context_provider,
+                       std::move(context_provider),
                        GetProperties(adapter->max_supported_feature_level()),
                        std::move(options),
                        std::move(write_tensor_consumer),
                        std::move(read_tensor_producer),
                        command_buffer_id,
                        std::move(sequence),
-                       std::move(scheduler_task_runner),
                        std::move(memory_tracker),
                        std::move(owning_task_runner),
-                       shared_image_manager),
+                       shared_image_manager,
+                       std::move(main_task_runner)),
       adapter_(std::move(adapter)),
       command_recorder_(std::move(command_recorder)),
       gpu_feature_info_(gpu_feature_info) {
@@ -982,7 +982,7 @@ void ContextImplDml::HandleContextLostOrCrash(std::string_view message_for_log,
     // device removal.
     // TODO(crbug.com/364445586): Move non-GPU backends like TFLite outside of
     // the GPU process.
-    context_provider()->DestroyContextsAndKillGpuProcess("device removed.");
+    DestroyAllContextsAndKillGpuProcess("device removed.");
     return;
   }
 

@@ -44,7 +44,7 @@
 <translation id="1830634592642484976">บันทึกที่อยู่นี้ไว้ใน Chrome แล้ว หากต้องการใช้ในผลิตภัณฑ์ต่างๆ ของ Google ให้บันทึกไว้ในบัญชี Google <ph name="USER_EMAIL" /></translation>
 <translation id="1891812034154776216">ซ่อนแท็บที่ไม่ระบุตัวตนที่เปิดอยู่เมื่อออกจาก Chrome</translation>
 <translation id="1894434821386148799">คุณดูการตั้งค่า Chrome และอื่นๆ ได้ที่นี่</translation>
-<translation id="1917964099031477364">บัญชีนี้และข้อมูลที่ไม่ได้บันทึกจะถูกนำออกจาก Chrome และแอปอื่นๆ ของ Google ในอุปกรณ์นี้</translation>
+<translation id="1917964099031477364">ระบบจะนำบัญชีนี้และข้อมูลที่ไม่ได้บันทึกไว้ออกจาก Chrome และแอปอื่นๆ ของ Google ในอุปกรณ์นี้</translation>
 <translation id="1919130412786645364">อนุญาตให้ลงชื่อเข้าใช้ Chrome</translation>
 <translation id="1965935827552890526">ทำสิ่งที่กำลังทำในหน้าต่าง Chrome ที่เปิดอยู่อีกอันให้เสร็จ</translation>
 <translation id="1966638102563776885">เคล็ดลับสำหรับ Chrome: เรียกดูรหัสผ่านในแอปใดก็ได้</translation>
@@ -71,7 +71,6 @@
 <translation id="2576431527583832481">Chrome พัฒนาใหม่! มีรุ่นใหม่ให้ใช้งานแล้ว</translation>
 <translation id="257708665678654955">คุณต้องการให้ Google Chrome เสนอการแปลหน้าภาษา<ph name="LANGUAGE_NAME" />จากเว็บไซต์นี้ในครั้งถัดไปไหม</translation>
 <translation id="2668242166988961773">ค้นหาด้วยเสียงใน Chrome</translation>
-<translation id="2689064829982324496">หากต้องการออกจากระบบบัญชี Google ในเว็บไซต์ทั้งหมด ให้<ph name="BEGIN_LINK" />ออกจากระบบ Chrome<ph name="END_LINK" /></translation>
 <translation id="2695886661449553974">Chrome ตรวจหาอัปเดตไม่ได้ โปรดลองอีกครั้งภายหลัง</translation>
 <translation id="2703746758996815929">หากต้องการรับเคล็ดลับที่มีประโยชน์เกี่ยวกับ Chrome ให้เปิดการแจ้งเตือนในการตั้งค่า iOS</translation>
 <translation id="2728851697704606655">แปลด้วย Google Lens</translation>
@@ -87,6 +86,9 @@
 <translation id="2940565985148833945">เคล็ดลับสำหรับ Chrome: ค้นหาด้วย Lens</translation>
 <translation id="2957447865124070833">เลือก <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">เพิ่มบุ๊กมาร์กใน Chrome</translation>
+<translation id="3027236223714901838">หากต้องการรักษาพาสคีย์ให้ปลอดภัย คุณจะต้องสร้าง PIN การกู้คืนก่อน
+
+        ระบบจะบันทึกพาสคีย์ไว้ในเครื่องมือจัดการรหัสผ่านบน Google ซึ่งช่วยให้คุณใช้พาสคีย์ใน Chrome บนอุปกรณ์ใดก็ได้</translation>
 <translation id="3030414234702425231">เนื่องจากคุณกำลังออกจากระบบบัญชีที่จัดการโดย <ph name="SIGNOUT_MANAGED_DOMAIN" /> ข้อมูล Chrome ของคุณจะถูกลบออกจากอุปกรณ์นี้ แต่ข้อมูลจะยังคงอยู่ในบัญชี Google</translation>
 <translation id="3042447686908081308">นําเข้าไปยัง Chrome</translation>
 <translation id="3051521853355903257">จัดการรหัสผ่านใน Chrome</translation>
@@ -309,7 +311,6 @@
 <translation id="8413500425974960807">เคล็ดลับสำหรับ Chrome: ย้าย Chrome ไปที่แถบแอป</translation>
 <translation id="8413795581997394485">ปกป้องจากเว็บไซต์ การดาวน์โหลด และส่วนขยายที่ทราบแล้วว่าเป็นอันตราย เมื่อคุณเข้าชมเว็บไซต์ Chrome จะนำเฉพาะบางส่วนของ URL มาปรับให้ยากต่อการอ่าน (Obfuscate) แล้วส่งไปยัง Google ผ่านเซิร์ฟเวอร์ส่วนตัวที่ซ่อนที่อยู่ IP ของคุณ หากเว็บไซต์ทำสิ่งที่น่าสงสัย ระบบจะส่ง URL แบบเต็มและเนื้อหาของหน้าเว็บบางส่วนด้วย</translation>
 <translation id="84594714173170813">ใช้ข้อมูล Chrome ในบัญชี Google ต่อไป</translation>
-<translation id="8459495907675268833">ระบบได้นำข้อมูลที่เลือกไว้ออกจาก Chrome และอุปกรณ์ที่ซิงค์แล้ว บัญชี Google ของคุณอาจมีประวัติการท่องเว็บในรูปแบบอื่นๆ เช่น การค้นหาและกิจกรรมจากบริการอื่นๆ ของ Google ที่ history.google.com</translation>
 <translation id="8491300088149538575">ลงชื่อเข้าใช้ด้วย <ph name="EMAIL" />
 
 ข้อมูลของคุณมีการเข้ารหัสด้วยรหัสผ่านเมื่อ <ph name="TIME" /> ป้อนรหัสผ่านเพื่อใช้และบันทึกข้อมูล Chrome ในบัญชี Google</translation>

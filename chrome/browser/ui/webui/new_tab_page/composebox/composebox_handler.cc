@@ -22,115 +22,48 @@ ComposeboxHandler::ComposeboxHandler(
     mojo::PendingRemote<composebox::mojom::Page> pending_page,
     mojo::PendingReceiver<searchbox::mojom::PageHandler>
         pending_searchbox_handler,
-    std::unique_ptr<ComposeboxQueryController> query_controller,
     std::unique_ptr<ComposeboxMetricsRecorder> composebox_metrics_recorder,
     Profile* profile,
-    content::WebContents* web_contents,
-    MetricsReporter* metrics_reporter)
+    content::WebContents* web_contents)
     : ContextualSearchboxHandler(
           std::move(pending_searchbox_handler),
           profile,
           web_contents,
-          metrics_reporter,
           std::move(composebox_metrics_recorder),
           std::make_unique<OmniboxController>(
               /*view=*/nullptr,
               std::make_unique<composebox::ComposeboxOmniboxClient>(
                   profile,
                   web_contents,
-                  this,
-                  query_controller.get())),
-          std::move(query_controller)),
+                  this))),
       web_contents_(web_contents),
       page_{std::move(pending_page)},
       handler_(this, std::move(pending_handler)) {
   autocomplete_controller_observation_.Observe(autocomplete_controller());
 }
 
-ComposeboxHandler::~ComposeboxHandler() {
-  autocomplete_controller_observation_.Reset();
-  // Even though these are owned by `SearchboxHandler` whose destructor would
-  // have destroyed these anyways, they have to be deconstructed here because
-  // they have a pointer to `query_controller_`.
-  controller_ = nullptr;
-  owned_controller_.reset();
+ComposeboxHandler::~ComposeboxHandler() = default;
+
+omnibox::ChromeAimToolsAndModels ComposeboxHandler::GetAimToolMode() {
+  return aim_tool_mode_;
 }
 
-void ComposeboxHandler::SubmitQuery(
-    const std::string& query_text,
-    WindowOpenDisposition disposition,
-    std::map<std::string, std::string> additional_params) {
-  // Update the query controller state to reflect any deleted contexts.
-  std::erase_if(deleted_context_tokens_,
-                [this](const base::UnguessableToken& context_token) {
-                  ComposeboxQueryController::FileInfo* file_info =
-                      query_controller_->GetFileInfo(context_token);
-
-                  if (file_info == nullptr) {
-                    return false;
-                  }
-
-                  lens::MimeType file_type = file_info
-                                                 ? file_info->mime_type_
-                                                 : lens::MimeType::kUnknown;
-                  FileUploadStatus file_status =
-                      file_info ? file_info->GetFileUploadStatus()
-                                : FileUploadStatus::kNotUploaded;
-
-                  bool success = query_controller_->DeleteFile(context_token);
-                  composebox_metrics_recorder_->RecordFileDeletedMetrics(
-                      success, file_type, file_status);
-
-                  return success;
-                });
-
-  if (deep_search_mode_enabled_) {
-    additional_params["dr"] = "1";
-  }
-
-  if (create_image_mode_enabled_) {
-    additional_params["imgn"] = "1";
-  }
-
-  // This is the time that the user clicked the submit button, however optional
-  // autocomplete logic may be run before this if there was a match associated
-  // with the query.
-  base::Time query_start_time = base::Time::Now();
-  composebox_metrics_recorder_->NotifySessionStateChanged(
-      SessionState::kQuerySubmitted);
-  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
-      search_url_request_info = std::make_unique<
-          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
-  search_url_request_info->query_text = query_text;
-  search_url_request_info->query_start_time = query_start_time;
-  search_url_request_info->additional_params = additional_params;
-  OpenUrl(
-      query_controller_->CreateSearchUrl(std::move(search_url_request_info)),
-      disposition);
-  composebox_metrics_recorder_->NotifySessionStateChanged(
-      SessionState::kNavigationOccurred);
-  composebox_metrics_recorder_->RecordQueryMetrics(
-      query_text.size(), query_controller_->num_files_in_request());
-}
-
+// TODO(crbug.com/450894455): Clean up how we set the tool mode. Create a enum
+// on the WebUI side that can set this.
 void ComposeboxHandler::SetDeepSearchMode(bool enabled) {
-  deep_search_mode_enabled_ = enabled;
+  if (enabled) {
+    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH;
+  } else {
+    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+  }
 }
 
 void ComposeboxHandler::SetCreateImageMode(bool enabled) {
-  create_image_mode_enabled_ = enabled;
-}
-
-void ComposeboxHandler::SubmitQuery(const std::string& query_text,
-                                    uint8_t mouse_button,
-                                    bool alt_key,
-                                    bool ctrl_key,
-                                    bool meta_key,
-                                    bool shift_key) {
-  const WindowOpenDisposition disposition = ui::DispositionFromClick(
-      /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
-      shift_key);
-  SubmitQuery(query_text, disposition, /*additional_params=*/{});
+  if (enabled) {
+    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_CANVAS;
+  } else {
+    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+  }
 }
 
 void ComposeboxHandler::FocusChanged(bool focused) {
@@ -140,13 +73,6 @@ void ComposeboxHandler::FocusChanged(bool focused) {
 
 void ComposeboxHandler::HandleLensButtonClick() {
   // Ignore, intentionally unimplemented for NTP.
-}
-
-void ComposeboxHandler::OpenUrl(GURL url,
-                                const WindowOpenDisposition disposition) {
-  content::OpenURLParams params(url, content::Referrer(), disposition,
-                                ui::PAGE_TRANSITION_LINK, false);
-  web_contents_->OpenURL(params, base::DoNothing());
 }
 
 void ComposeboxHandler::ExecuteAction(uint8_t line,
@@ -163,4 +89,34 @@ void ComposeboxHandler::ExecuteAction(uint8_t line,
 
 void ComposeboxHandler::OnThumbnailRemoved() {
   NOTREACHED();
+}
+
+void ComposeboxHandler::SubmitQuery(const std::string& query_text,
+                                    uint8_t mouse_button,
+                                    bool alt_key,
+                                    bool ctrl_key,
+                                    bool meta_key,
+                                    bool shift_key) {
+  const WindowOpenDisposition disposition = ui::DispositionFromClick(
+      /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
+      shift_key);
+  SubmitQuery(query_text, disposition, /*additional_params=*/{});
+}
+
+void ComposeboxHandler::SubmitQuery(
+    const std::string& query_text,
+    WindowOpenDisposition disposition,
+    std::map<std::string, std::string> additional_params) {
+  switch (aim_tool_mode_) {
+    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH:
+      additional_params["dr"] = "1";
+      break;
+    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_CANVAS:
+      additional_params["imgn"] = "1";
+      break;
+    default:
+      break;
+  }
+
+  ComputeAndOpenQueryUrl(query_text, disposition, std::move(additional_params));
 }

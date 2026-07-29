@@ -324,7 +324,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.ClientKeepActiveRemotesCount" units="count"
-    expires_after="2026-03-29">
+    expires_after="2026-04-05">
   <owner>pmonette@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -523,6 +523,19 @@ chromium-metrics-reviews@google.com.
     PartitionedLockManager when LockRequestCancelled() takes over 2ms to
     complete. This is intended to facilitate tracking down performance issues.
     See crbug.com/384476946
+  </summary>
+</histogram>
+
+<histogram
+    name="IndexedDB.NumTransactionsInIDBDatabaseOnTransactionCreated.10kTransactions"
+    units="transactions" expires_after="2026-03-30">
+  <owner>fdoray@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    Number of transactions in a blink::IDBDatabase when a blink::IDBTransaction
+    is created. Recorded every time a blink::IDBTransaction is created and the
+    number of transactions in the blink::IDBDatabase is greater than 10k. Will
+    be used to diagnose crbug.com/381086791.
   </summary>
 </histogram>
 

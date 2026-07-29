@@ -46,8 +46,18 @@ void GlicInactiveFloatingUi::Close() {
   NOTIMPLEMENTED();
 }
 
-views::View* GlicInactiveFloatingUi::GetViewForTesting() {
+views::View* GlicInactiveFloatingUi::GetView() {
   return nullptr;
+}
+
+gfx::Size GlicInactiveFloatingUi::GetPanelSize() {
+  return gfx::Size();
+}
+
+mojom::PanelState GlicInactiveFloatingUi::GetPanelState() const {
+  mojom::PanelState state;
+  state.kind = glic::mojom::PanelState::Kind::kHidden;
+  return state;
 }
 
 std::unique_ptr<GlicUiEmbedder> GlicInactiveFloatingUi::CreateInactiveEmbedder()
@@ -55,4 +65,7 @@ std::unique_ptr<GlicUiEmbedder> GlicInactiveFloatingUi::CreateInactiveEmbedder()
   NOTREACHED() << "The embedder is already inactive.";
 }
 
+void GlicInactiveFloatingUi::Focus() {
+  NOTIMPLEMENTED();
+}
 }  // namespace glic

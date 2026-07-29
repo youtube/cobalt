@@ -55,6 +55,7 @@ import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarIphController;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarUtils;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarVisibilityProvider;
 import org.chromium.chrome.browser.bookmarks.bar.BookmarkBarVisibilityProvider.BookmarkBarVisibilityObserver;
+import org.chromium.chrome.browser.browser_controls.BottomOverscrollHandler;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.collaboration.CollaborationControllerDelegateFactory;
@@ -74,7 +75,6 @@ import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.data_sharing.InstantMessageDelegateFactory;
 import org.chromium.chrome.browser.data_sharing.InstantMessageDelegateImpl;
 import org.chromium.chrome.browser.desktop_site.DesktopSiteSettingsIphController;
-import org.chromium.chrome.browser.dom_distiller.ReaderModeActionRateLimiter;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeIphController;
 import org.chromium.chrome.browser.dragdrop.ChromeTabbedOnDragListener;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
@@ -89,10 +89,8 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.gesturenav.BackActionDelegate;
-import org.chromium.chrome.browser.gesturenav.GestureNavigationUtils;
 import org.chromium.chrome.browser.gesturenav.HistoryNavigationCoordinator;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
-import org.chromium.chrome.browser.gesturenav.RtlGestureNavIphController;
 import org.chromium.chrome.browser.gesturenav.TabbedSheetDelegate;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.hub.HubManager;
@@ -194,7 +192,6 @@ import org.chromium.components.browser_ui.widget.loading.LoadingFullscreenCoordi
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.collaboration.CollaborationService;
-import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
@@ -212,7 +209,7 @@ import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.ui.base.LocalizationUtils;
+import org.chromium.ui.base.UiAndroidFeatureList;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeManager;
@@ -242,10 +239,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private OfflineIndicatorInProductHelpController mOfflineIndicatorInProductHelpController;
     private ReadAloudIphController mReadAloudIphController;
     private ReadLaterIphController mReadLaterIphController;
-    private ReaderModeIphController mReaderModeIphController;
     private DesktopSiteSettingsIphController mDesktopSiteSettingsIphController;
     private PdfPageIphController mPdfPageIphController;
-    private RtlGestureNavIphController mRtlGestureNavIphController;
     private WebFeedFollowIntroController mWebFeedFollowIntroController;
     private UrlFocusChangeListener mUrlFocusChangeListener;
     private @Nullable ToolbarButtonInProductHelpController mToolbarButtonInProductHelpController;
@@ -256,6 +251,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private LayoutManagerImpl mLayoutManager;
     private CommerceSubscriptionsService mCommerceSubscriptionsService;
     private UndoGroupSnackbarController mUndoGroupSnackbarController;
+    private PrivacySandbox3pcdRollbackMessageController
+            mPrivacySandbox3pcdRollbackMessageController;
     private final InsetObserver mInsetObserver;
     private final Function<Tab, Boolean> mBackButtonShouldCloseTabFn;
     private final Callback<Tab> mSendToBackground;
@@ -314,14 +311,17 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             if (mTab != null && !mTab.isDestroyed()) {
                 var swipeHandler = SwipeRefreshHandler.from(mTab);
                 swipeHandler.setNavigationCoordinator(null);
-                swipeHandler.setBrowserControls(null);
+                swipeHandler.setBottomOverscrollHandler(null);
             }
             mTab = tab;
 
             if (tab != null) {
                 var swipeHandler = SwipeRefreshHandler.from(mTab);
                 swipeHandler.setNavigationCoordinator(mHistoryNavigationCoordinator);
-                swipeHandler.setBrowserControls(mBrowserControlsManager);
+                if (UiAndroidFeatureList.sReportBottomOverscrolls.isEnabled()) {
+                    swipeHandler.setBottomOverscrollHandler(
+                            new BottomOverscrollHandler(mBrowserControlsManager));
+                }
             }
             setActivityTitle(tab, /* isTabSwitcher= */ false);
         }
@@ -632,11 +632,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mReadAloudIphController.destroy();
         }
 
-        if (mReaderModeIphController != null) {
-            mReaderModeIphController.destroy();
-            mReaderModeIphController = null;
-        }
-
         if (mWebFeedFollowIntroController != null) {
             mWebFeedFollowIntroController.destroy();
         }
@@ -679,11 +674,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (mPdfPageIphController != null) {
             mPdfPageIphController.destroy();
             mPdfPageIphController = null;
-        }
-
-        if (mRtlGestureNavIphController != null) {
-            mRtlGestureNavIphController.destroy();
-            mRtlGestureNavIphController = null;
         }
 
         if (mCoordinator != null && mDragDropTouchObserver != null) {
@@ -729,6 +719,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (mBookmarkBarIphController != null) {
             mBookmarkBarIphController.destroy();
             mBookmarkBarIphController = null;
+        }
+
+        if (mPrivacySandbox3pcdRollbackMessageController != null) {
+            mPrivacySandbox3pcdRollbackMessageController.destroy();
+            mPrivacySandbox3pcdRollbackMessageController = null;
         }
 
         super.onDestroy();
@@ -897,20 +892,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                         break;
                                 }
                             }
-
-                            @Override
-                            public void onGestureUnhandled() {
-                                if (mRtlGestureNavIphController != null) {
-                                    mRtlGestureNavIphController.onGestureUnhandled();
-                                }
-                            }
-
-                            @Override
-                            public void onGestureHandled() {
-                                if (mRtlGestureNavIphController != null) {
-                                    mRtlGestureNavIphController.onGestureHandled();
-                                }
-                            }
                         },
                         mCompositorViewHolderSupplier::get,
                         mFullscreenManager);
@@ -999,7 +980,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 () -> addVoiceSearchAdaptiveButton(trackerSupplier),
                 groupSuggestionsButtonControllerSupplier,
                 mTabModelSelectorSupplier,
-                mModalDialogManagerSupplier);
+                mModalDialogManagerSupplier,
+                mTabStripVisibilitySupplier);
     }
 
     @Override
@@ -1182,13 +1164,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         profile,
                         getToolbarManager().getMenuButtonView(),
                         mAppMenuCoordinator.getAppMenuHandler());
-        mReaderModeIphController =
+        mReaderModeIphControllerSupplier.set(
                 new ReaderModeIphController(
                         mActivity,
                         profile,
                         getToolbarManager().getMenuButtonView(),
-                        mAppMenuCoordinator.getAppMenuHandler(),
-                        ReaderModeActionRateLimiter.getInstance());
+                        mAppMenuCoordinator.getAppMenuHandler()));
 
         // Initializes Privacy Sandbox related logic
         recordPrivacySandboxActivityType(profile);
@@ -1247,15 +1228,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         new LinkToTextIphController(
                 mActivityTabProvider, mTabModelSelectorSupplier.get(), mProfileSupplier);
-        if (!didTriggerPromo
-                && mWindowAndroid.getWindow() != null
-                && LocalizationUtils.isLayoutRtl()
-                && GestureNavigationUtils.areBackForwardTransitionsEnabled()
-                && ChromeFeatureList.isEnabled(FeatureConstants.IPH_RTL_GESTURE_NAVIGATION)
-                && !UiUtils.isGestureNavigationMode(mWindowAndroid.getWindow())) {
-            mRtlGestureNavIphController =
-                    new RtlGestureNavIphController(mActivityTabProvider, mProfileSupplier);
-        }
 
         Tab tab = mActivityTabProvider.get();
 
@@ -1506,6 +1478,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             return null;
         }
 
+        int tabStripHeightFromResourcePx =
+                activity.getResources().getDimensionPixelSize(R.dimen.tab_strip_height);
         return new AppHeaderCoordinator(
                 activity,
                 activity.getWindow().getDecorView().getRootView(),
@@ -1513,7 +1487,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 insetObserver,
                 activityLifecycleDispatcher,
                 savedInstanceState,
-                edgeToEdgeStateProvider);
+                edgeToEdgeStateProvider,
+                tabStripHeightFromResourcePx);
     }
 
     private void initCollaborationDelegatesOnProfile(Profile profile) {
@@ -1676,10 +1651,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         return mNavigationSheet;
     }
 
-    public RtlGestureNavIphController getRtlGestureNavIphControllerForTesting() {
-        return mRtlGestureNavIphController;
-    }
-
     public TabbedSystemUiCoordinator getTabbedSystemUiCoordinatorForTesting() {
         return mSystemUiCoordinator;
     }
@@ -1706,8 +1677,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             return true;
         }
 
-        if (PrivacySandbox3pcdRollbackMessageController.maybeShow(
-                mActivity, profile, mMessageDispatcher)) {
+        mPrivacySandbox3pcdRollbackMessageController =
+                new PrivacySandbox3pcdRollbackMessageController(
+                        mActivity, profile, mActivityTabProvider, mMessageDispatcher);
+        if (mPrivacySandbox3pcdRollbackMessageController.maybeShow()) {
             return true;
         }
 

@@ -776,7 +776,7 @@ void RenderWidgetHostViewMac::OnSelectionBoundsChanged(
   gfx_caret_rect += window_frame_in_screen_dip_.OffsetFromOrigin();
 
   // Note that UAZoomChangeFocus wants unflipped screen coordinates.
-  NSRect caret_rect = NSRectFromCGRect(gfx_caret_rect.ToCGRect());
+  NSRect caret_rect = gfx_caret_rect.ToCGRect();
   UAZoomChangeFocus(&caret_rect, &caret_rect, kUAZoomFocusTypeInsertionPoint);
 }
 
@@ -1043,7 +1043,8 @@ uint32_t RenderWidgetHostViewMac::GetCaptureSequenceNumber() const {
 void RenderWidgetHostViewMac::CopyFromSurface(
     const gfx::Rect& src_subrect,
     const gfx::Size& dst_size,
-    base::OnceCallback<void(const SkBitmap&)> callback) {
+    base::OnceCallback<void(const viz::CopyOutputBitmapWithMetadata&)>
+        callback) {
   base::WeakPtr<RenderWidgetHostImpl> popup_host;
   base::WeakPtr<DelegatedFrameHost> popup_frame_host;
   if (popup_child_host_view_) {
@@ -1311,7 +1312,7 @@ void RenderWidgetHostViewMac::FocusedNodeChanged(
   // Don't do anything if it's an editable node, as this will be handled by
   // OnSelectionBoundsChanged instead.
   if (UAZoomEnabled() && !is_editable_node) {
-    NSRect bounds = NSRectFromCGRect(node_bounds_in_screen.ToCGRect());
+    NSRect bounds = node_bounds_in_screen.ToCGRect();
     UAZoomChangeFocus(&bounds, nullptr, kUAZoomFocusTypeOther);
   }
 }

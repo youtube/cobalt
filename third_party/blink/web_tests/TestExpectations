@@ -728,22 +728,24 @@ crbug.com/388922812 external/wpt/svg/animations/reftests/discard-rect-with-anim-
 crbug.com/388922812 external/wpt/svg/animations/reftests/discard-rect-with-anim-child-b.svg [ Failure ]
 
 # Svg2Cascade implementation
+# Tests passing only with Svg2Cascade enabled
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/linking/reftests/use-descendant-combinator-003.html [ Pass ]
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/struct/reftests/use-inheritance-001.svg [ Pass ]
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/struct/reftests/use-inheritance-nth-child-of.svg [ Pass ]
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/struct/reftests/use-inheritance-nth-last-child-of.svg [ Pass ]
+crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/styling/use-element-attr-selector-transition.tentative.html [ Pass ]
+crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/styling/use-element-id-selector-transition.tentative.html [ Pass ]
+# Tests below fails for missing <animate>/<symbol> instantiations
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/animations/use-animate-display-none-symbol-2.html [ Failure ]
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/animations/use-animate-display-none-symbol.html [ Failure ]
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/layout/svg-use-symbol-opacity-print.html [ Failure ]
 crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/linking/reftests/use-symbol-rendered-001.html [ Failure ]
-crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/struct/reftests/use-external-resource-target-pseudo-002.html [ Failure ]
-crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/styling/use-element-attr-selector-transition.tentative.html [ Failure ]
-crbug.com/40550039 virtual/svg2-cascade/external/wpt/svg/styling/use-element-transitions.tentative.html [ Failure ]
+crbug.com/40550039 virtual/svg2-cascade/svg/W3C-SVG-1.1/animate-elem-30-t.svg [ Failure ]
+crbug.com/40550039 virtual/svg2-cascade/svg/W3C-SVG-1.1/animate-elem-40-t.svg [ Failure ]
+# Tests below expects SVG1.1 <use> cascade behavior
 crbug.com/40550039 virtual/svg2-cascade/svg/css/use-replicates-changes-class.html [ Failure ]
 crbug.com/40550039 virtual/svg2-cascade/svg/css/use-replicates-changes-pseudo.html [ Failure ]
 crbug.com/40550039 virtual/svg2-cascade/svg/W3C-SVG-1.1-SE/struct-use-11-f.svg [ Failure ]
-crbug.com/40550039 virtual/svg2-cascade/svg/W3C-SVG-1.1/animate-elem-30-t.svg [ Failure ]
-crbug.com/40550039 virtual/svg2-cascade/svg/W3C-SVG-1.1/animate-elem-40-t.svg [ Failure ]
 
 # SVGElement::InvalidateInstances() for id attribute and tree mutation changes
 # is too destructive and stops running transitions.
@@ -761,6 +763,8 @@ crbug.com/438515315 external/wpt/css/css-anchor-position/last-successful-change-
 crbug.com/438515315 external/wpt/css/css-anchor-position/last-successful-change-try-rule.html [ Failure ]
 crbug.com/438515315 external/wpt/css/css-anchor-position/last-successful-iframe.html [ Failure ]
 crbug.com/438515315 external/wpt/css/css-anchor-position/last-successful-intermediate-ignored.html [ Failure ]
+crbug.com/450513405 external/wpt/css/css-anchor-position/position-area-overflow-icb-001.html [ Failure ]
+crbug.com/450513405 external/wpt/css/css-anchor-position/position-area-overflow-icb-002.html [ Failure ]
 crbug.com/438515315 external/wpt/css/css-anchor-position/position-area-scrolling-001.tentative.html [ Failure ]
 crbug.com/438515315 external/wpt/css/css-anchor-position/position-area-scrolling-003.tentative.html [ Failure ]
 crbug.com/438515315 external/wpt/css/css-anchor-position/position-area-self-alignment-overflow.html [ Failure ]
@@ -776,6 +780,8 @@ crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-ancho
 crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/last-successful-change-try-rule.html [ Pass ]
 crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/last-successful-iframe.html [ Pass ]
 crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/last-successful-intermediate-ignored.html [ Pass ]
+crbug.com/450513405 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-area-overflow-icb-001.html [ Pass ]
+crbug.com/450513405 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-area-overflow-icb-002.html [ Pass ]
 crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-area-scrolling-001.tentative.html [ Pass ]
 crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-area-scrolling-003.tentative.html [ Pass ]
 crbug.com/438515315 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-area-self-alignment-overflow.html [ Pass ]
@@ -1089,10 +1095,6 @@ crbug.com/1176323 external/wpt/css/css-counter-styles/counter-style-at-rule/symb
 crbug.com/1168277 external/wpt/css/css-counter-styles/counter-style-at-rule/disclosure-styles.html [ Failure ]
 crbug.com/1176315 external/wpt/css/css-counter-styles/counter-style-at-rule/symbols-function.html [ Failure ]
 
-# [css-overflow]
-# Incorrect WPT tests.
-crbug.com/993813 [ Mac ] external/wpt/css/css-overflow/line-clamp/webkit-line-clamp-025.html [ Failure ]
-
 # Maybe WontFix according to the bug
 crbug.com/750992 external/wpt/css/css-overflow/margin-block-end-scroll-area-001.html [ Failure ]
 
@@ -1123,8 +1125,6 @@ crbug.com/1076027 external/wpt/css/css-grid/masonry/tentative/track-sizing/auto-
 crbug.com/1076027 external/wpt/css/css-grid/masonry/tentative/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-006.html [ Failure ]
 # Masonry named line failures
 crbug.com/1076027 external/wpt/css/css-grid/masonry/tentative/grid-placement/masonry-grid-placement-named-lines-002.html [ Failure ]
-# Timing out on Windows
-crbug.com/1076027 [ Win ] external/wpt/css/css-grid/masonry/tentative/item-placement/dense-packing/column-dense-packing-multi-span-005.html [ Failure Skip ]
 
 # external/wpt/css/css-fonts/... tests triaged away from the default WPT bug ID
 crbug.com/1211460 external/wpt/css/css-fonts/alternates-order.html [ Failure ]
@@ -1667,7 +1667,6 @@ crbug.com/846981 fast/webgl/texImage-imageBitmap-from-imageData-resize.html [ Cr
 crbug.com/915903 http/tests/security/inactive-document-with-empty-security-origin.html [ Pass Timeout ]
 crbug.com/987138 [ Linux ] media/controls/doubletap-to-jump-forwards.html [ Pass Timeout ]
 crbug.com/987138 [ Win ] media/controls/doubletap-to-jump-forwards.html [ Pass Timeout ]
-crbug.com/805756 external/wpt/html/semantics/tabular-data/processing-model-1/span-limits.html [ Pass Timeout ]
 
 # Sheriff 2020-02-06
 
@@ -2392,7 +2391,8 @@ crbug.com/1467692 virtual/forced-high-contrast-colors/fast/css/forced-colors-mod
 
 crbug.com/825270 external/wpt/payment-request/delegate-request.https.sub.html [ Failure ]
 
-# css-borders-4 corner shaping
+# external/wpt/css/css-borders/
+crbug.com/451531616 external/wpt/css/css-borders/outline-offset-rounding.tentative.html [ Failure ]
 crbug.com/330758166 external/wpt/css/css-borders/tentative/border-radius-side-shorthands/border-radius-side-shorthands-001.html [ Failure ]
 crbug.com/330758166 external/wpt/css/css-borders/tentative/border-radius-side-shorthands/border-radius-side-shorthands-002.html [ Failure ]
 
@@ -2935,7 +2935,6 @@ crbug.com/442617303 external/wpt/css/css-color/display-p3-linear-004.html [ Fail
 crbug.com/442617303 external/wpt/css/css-color/display-p3-linear-005.html [ Failure ]
 crbug.com/442617303 external/wpt/css/css-color/display-p3-linear-006.html [ Failure ]
 
-crbug.com/445726759 external/wpt/css/css-cascade/scope-visited.html [ Failure ]
 crbug.com/445726873 external/wpt/css/css-overflow/line-clamp/discard/discard-multicol-001.html [ Failure ]
 crbug.com/445726873 external/wpt/css/css-overflow/line-clamp/discard/discard-multicol-002.html [ Failure ]
 crbug.com/445726873 external/wpt/css/css-overflow/line-clamp/discard/discard-multicol-003.html [ Failure ]
@@ -2960,7 +2959,24 @@ external/wpt/navigation-api/navigation-methods/return-value/navigate-javascript-
 # Flaky UUID in assertion failure
 external/wpt/webdriver/tests/bidi/browsing_context/download_will_begin/download_will_begin.py [ Failure ]
 
+# Flaky output
+crbug.com/450876665 external/wpt/html/semantics/embedded-content/media-elements/loading-the-media-resource/resource-selection-invoke-in-sync-event.html [ Failure Pass ]
+
 # ====== New tests from wpt-importer added here ======
+crbug.com/451655444 external/wpt/webdriver/tests/bidi/network/get_data/persistence.py [ Failure ]
+crbug.com/451655444 external/wpt/webdriver/tests/bidi/network/set_extra_headers/invalid.py [ Failure ]
+crbug.com/450776558 external/wpt/css/css-text/line-breaking/segment-break-transformation-punctuation-003.html [ Failure ]
+crbug.com/450555241 [ Win ] external/wpt/compression/decompression-extra-input.https.any.shadowrealm-in-serviceworker.html [ Pass Timeout ]
+crbug.com/450532078 external/wpt/css/css-overflow/overflow-clip-margin-border-radius.html [ Failure ]
+crbug.com/450513406 external/wpt/css/css-writing-modes/text-shadow-sideways-001.html [ Failure ]
+crbug.com/450555241 [ Win ] external/wpt/speculation-rules/prefetch/tentative/cookie-indices.https.html?include=changedWithRedirect [ Pass Timeout ]
+crbug.com/450555241 external/wpt/speculation-rules/prefetch/tentative/cookie-indices.https.html?include=changedWithRedirect3 [ Skip Timeout ]
+crbug.com/450508310 external/wpt/webdriver/tests/bidi/emulation/set_network_conditions/contexts.py [ Crash Failure Timeout ]
+crbug.com/450508310 external/wpt/webdriver/tests/bidi/emulation/set_network_conditions/global.py [ Failure ]
+crbug.com/450508310 external/wpt/webdriver/tests/bidi/emulation/set_network_conditions/invalid.py [ Failure ]
+crbug.com/450508310 external/wpt/webdriver/tests/bidi/emulation/set_network_conditions/network_conditions_offline.py [ Failure ]
+crbug.com/450508310 external/wpt/webdriver/tests/bidi/emulation/set_network_conditions/user_contexts.py [ Failure ]
+crbug.com/450513405 virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-visibility-no-overflow-scroll-002.html [ Failure ]
 crbug.com/448843863 [ Win11-arm64 ] external/wpt/fetch/fetch-later/basic.https.window.html [ Pass Timeout ]
 crbug.com/448843863 [ Mac14 ] external/wpt/fetch/fetch-later/basic.https.window.html [ Pass Timeout ]
 crbug.com/448843863 [ Win10.20h2 ] external/wpt/fetch/fetch-later/basic.https.window.html [ Pass Timeout ]
@@ -2970,8 +2986,6 @@ crbug.com/448472314 external/wpt/css/css-anchor-position/align-dialog-002.html [
 crbug.com/448461169 external/wpt/css/css-animations/animation-name-in-nested-shadow.html [ Failure ]
 crbug.com/448461169 external/wpt/css/css-animations/animation-name-in-shadow-part-outer-match.html [ Failure ]
 crbug.com/448461169 external/wpt/css/css-animations/animation-name-in-shadow-part.html [ Failure ]
-crbug.com/448462499 [ Win11-arm64 ] external/wpt/css/css-tables/fixed-layout-2.html [ Pass Timeout ]
-crbug.com/448462499 [ Win11 ] external/wpt/css/css-tables/fixed-layout-2.html [ Pass Timeout ]
 crbug.com/448461186 external/wpt/html/semantics/popovers/popover-alignment-002.html [ Failure ]
 external/wpt/notifications/event-onclose.https.html [ Timeout ]
 crbug.com/448458570 external/wpt/webdriver/tests/bidi/browser/set_download_behavior/download_behavior_allowed.py [ Failure ]
@@ -3052,7 +3066,7 @@ crbug.com/440829301 [ Mac14-arm64 ] external/wpt/webtransport/streams-close.http
 crbug.com/440829301 [ Mac14 ] external/wpt/webtransport/streams-close.https.any.serviceworker.html [ Timeout ]
 crbug.com/440829301 [ Mac14-arm64 ] virtual/close-watcher/external/wpt/close-watcher/iframes/dialog-same-origin-nn.html [ Skip Timeout ]
 crbug.com/440829301 [ Mac12 ] virtual/close-watcher/external/wpt/close-watcher/iframes/dialog-same-origin-nn.html [ Skip Timeout ]
-crbug.com/440374815 [ Mac12 ] external/wpt/storage-access-api/requestStorageAccess-nested-cross-site-iframe.sub.https.window.html [ Timeout ]
+crbug.com/440374815 crbug.com/429979543 [ Mac12 ] external/wpt/storage-access-api/requestStorageAccess-nested-cross-site-iframe.sub.https.window.html [ Failure Timeout ]
 crbug.com/440371011 [ Mac ] virtual/css-anchor-update-enabled/external/wpt/css/css-anchor-position/position-visibility-anchors-visible-chained-004.html [ Failure ]
 crbug.com/439645285 [ Win10.20h2 ] external/wpt/bluetooth/bidi/characteristic/getDescriptors/gen-service-is-removed.https.window.html [ Pass Timeout ]
 crbug.com/439622502 [ Mac15-arm64 ] external/wpt/css/css-text-decor/text-emphasis-punctuation-2.html [ Failure ]
@@ -3283,7 +3297,6 @@ crbug.com/431040244 [ Mac14 ] external/wpt/focus/nested-focus-within-iframe-focu
 crbug.com/431038527 [ Mac14 ] external/wpt/font-access/font_access_sorted.tentative.https.window.html [ Skip Timeout ]
 crbug.com/431039947 [ Mac14 ] external/wpt/html-aam/roles-minimum.tentative.html [ Timeout ]
 crbug.com/431040245 [ Mac14 ] external/wpt/html/cross-origin-embedder-policy/shared-workers.https.html [ Timeout ]
-crbug.com/431038528 [ Mac14 ] external/wpt/html/interaction/focus/focusgroup/tentative/grid-navigation/empty-spaces.html [ Timeout ]
 crbug.com/431039948 [ Mac14 ] external/wpt/html/semantics/forms/the-select-element/customizable-select/select-optgroup-arrow-keys.optional.html [ Timeout ]
 crbug.com/431039948 [ Mac14 ] external/wpt/html/semantics/forms/the-select-element/customizable-select/select-option-hover-styles.html [ Timeout ]
 crbug.com/431040246 [ Mac14 ] external/wpt/html/semantics/interactive-elements/the-dialog-element/dialog-closedby-show-stacked.html [ Timeout ]
@@ -4494,6 +4507,8 @@ crbug.com/626703 [ Win11 ] wpt_internal/geolocation-api/watchPosition-page-visib
 crbug.com/626703 [ Mac ] external/wpt/url/a-element-xhtml.xhtml?exclude=(file|javascript|mailto) [ Crash Failure ]
 crbug.com/626703 [ Win10.20h2 ] wpt_internal/geolocation-api/watchPosition-page-visibility.https.html [ Timeout ]
 crbug.com/626703 [ Win ] external/wpt/fetch/metadata/generated/element-meta-refresh.optional.sub.html [ Timeout ]
+crbug.com/331556923 external/wpt/geolocation-API/enabled-by-permission-policy-attribute-redirect-on-load.https.sub.html [ Timeout ]
+crbug.com/331556923 external/wpt/geolocation-API/enabled-by-permission-policy-attribute.https.sub.html [ Timeout ]
 crbug.com/626703 [ Mac12 ] external/wpt/webxr/ar-module/xrSession_interactionMode.https.html [ Timeout ]
 crbug.com/626703 [ Mac12 ] external/wpt/webxr/dom-overlay/ar_dom_overlay.https.html [ Timeout ]
 crbug.com/626703 [ Mac13 ] external/wpt/webxr/dom-overlay/ar_dom_overlay.https.html [ Timeout ]
@@ -5064,8 +5079,8 @@ crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decomp
 crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-buffersource.tentative.https.any.shadowrealm-in-serviceworker.html [ Pass Timeout ]
 crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-constructor-error.tentative.https.any.shadowrealm-in-audioworklet.html [ Pass Timeout ]
 crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-constructor-error.tentative.https.any.shadowrealm-in-serviceworker.html [ Pass Timeout ]
-crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-correct-input.tentative.https.any.shadowrealm-in-audioworklet.html [ Pass Timeout ]
-crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-correct-input.tentative.https.any.shadowrealm-in-serviceworker.html [ Pass Timeout ]
+crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-correct-input.https.any.shadowrealm-in-audioworklet.html [ Pass Timeout ]
+crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-correct-input.https.any.shadowrealm-in-serviceworker.html [ Pass Timeout ]
 crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-empty-input.tentative.https.any.shadowrealm-in-audioworklet.html [ Pass Timeout ]
 crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-empty-input.tentative.https.any.shadowrealm-in-serviceworker.html [ Pass Timeout ]
 crbug.com/376786819 virtual/shadow-realm-enabled/external/wpt/compression/decompression-split-chunk.tentative.https.any.shadowrealm-in-audioworklet.html [ Pass Timeout ]
@@ -8513,6 +8528,7 @@ crbug.com/356930166 [ Mac15 ] external/wpt/webrtc/RTCSctpTransport-maxChannels.h
 crbug.com/356930166 [ Mac15 ] external/wpt/webrtc/simplecall-no-ssrcs.https.html [ Crash Timeout ]
 crbug.com/356930166 [ Mac14 ] external/wpt/webrtc/simplecall.https.html [ Timeout ]
 crbug.com/356930166 [ Mac15 ] external/wpt/webrtc/simplecall.https.html [ Crash Timeout ]
+crbug.com/356930166 [ Mac15 ] external/wpt/webcodecs/videoFrame-metadata-rtpTimestamp.https.html [ Timeout ]
 crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webrtc-encoded-transform/tentative/RTCPeerConnection-insertable-streams-errors.https.html [ Timeout ]
 crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webrtc-extensions/RTCRtpSynchronizationSource-captureTimestamp.html [ Skip Timeout ]
 crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webrtc-extensions/RTCRtpSynchronizationSource-senderCaptureTimeOffset.html [ Skip Timeout ]
@@ -8570,6 +8586,7 @@ crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webrtc/RTCSctpTransport-maxChan
 crbug.com/356930166 [ Release Win11-arm64 ] external/wpt/webrtc/RTCSctpTransport-maxChannels.html [ Timeout ]
 crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webrtc/simplecall-no-ssrcs.https.html [ Crash Timeout ]
 crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webrtc/simplecall.https.html [ Crash Timeout ]
+crbug.com/356930166 [ Mac15-arm64 ] external/wpt/webcodecs/videoFrame-metadata-rtpTimestamp.https.html [ Timeout ]
 
 # Mac15/arm64 - Other timeouts
 [ Mac15 ] external/wpt/fetch/api/abort/serviceworker-intercepted.https.html [ Timeout ]
@@ -8716,8 +8733,7 @@ crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-024.h
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-025.html [ Failure ]
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-027.html [ Failure ]
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-028.html [ Failure ]
-crbug.com/40336192 [ Linux ] external/wpt/css/css-overflow/line-clamp/block-ellipsis-029.html [ Failure ]
-crbug.com/40336192 [ Win ] external/wpt/css/css-overflow/line-clamp/block-ellipsis-029.html [ Failure ]
+crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-029.html [ Failure ]
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-030.html [ Failure ]
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/block-ellipsis-repaint-003.html [ Failure ]
 crbug.com/40336192 external/wpt/css/css-overflow/line-clamp/webkit-line-clamp-024.html [ Failure ]
@@ -9541,6 +9557,8 @@ crbug.com/415870039 external/wpt/web-animations/interfaces/Animation/finished.ht
 # view-transitions do not trigger DOM callbacks in creation order
 crbug.com/424474086 external/wpt/css/css-view-transitions/scoped/callback-order.tentative.html [ Failure Pass ]
 
+# DCHECK starting simultaneous outer + inner transitions with snapshot capture
+crbug.com/449920603 external/wpt/css/css-view-transitions/scoped/crashtests/implicit-stacking-context.html [ Crash Pass Timeout ]
 
 # Gardener 2025-06-03
 crbug.com/422174062 [ Win ] external/wpt/css/css-masking/clip-path/clip-path-inline-009.html [ Failure Pass ]
@@ -9719,8 +9737,8 @@ crbug.com/414630818 http/tests/devtools/coverage/coverage-view-per-function.js [
 crbug.com/414630818 http/tests/devtools/coverage/coverage-view.js [ Failure Pass ]
 
 
-# Gardener 2025-09-25
-crbug.com/444048840 [ Linux ] inspector-protocol/sessions/page-set-document-content.js [ Pass Timeout ]
+
+
 
 # Gardener 2025-09-26
 crbug.com/448325313 [ Mac ] http/tests/devtools/persistence/persistence-move-breakpoints-on-reload.js [ Failure Pass ]
@@ -9737,3 +9755,21 @@ crbug.com/448507881 [ Linux ] virtual/css-anchor-update-enabled/external/wpt/css
 # Gardener 2025-10-02
 crbug.com/427523525 [ Mac ] external/wpt/css/cssom-view/idlharness.html [ Failure Pass ]
 crbug.com/427523525 [ Mac ] virtual/threaded-prefer-compositing/external/wpt/css/cssom-view/idlharness.html [ Failure Pass ]
+
+# Gardener 2025-10-06
+# crbug.com/449751911 failure pass for linux debug, crbug.com/331556923 and crbug.com/347055177 for timeouts and failures on all platforms
+crbug.com/449751911 crbug.com/331556923 crbug.com/347055177 external/wpt/geolocation/enabled-on-self-origin-by-permissions-policy.https.sub.html [ Failure Pass Timeout ]
+crbug.com/449751911 crbug.com/331556923 crbug.com/347055177 external/wpt/geolocation/enabled-by-permissions-policy.https.sub.html [ Failure Pass Timeout ]
+crbug.com/449751911 [ Debug Linux ] virtual/scalefactor200/external/wpt/largest-contentful-paint/animated/observe-animated-image.tentative.html [ Failure Pass ]
+# crbug.com/449751911 failure pass for linux debug, crbug.com/805756 for timeouts on all platforms.
+crbug.com/449751911 crbug.com/805756 external/wpt/html/semantics/tabular-data/processing-model-1/span-limits.html [ Failure Pass Timeout ]
+
+# WebAudio AudioWorklet test failure in MSAN
+crbug.com/446563923 [ Linux ] external/wpt/webaudio/the-audio-api/the-audioworklet-interface/simple-input-output.https.html [ Crash Pass Timeout ]
+
+# Gardener 2025-10-10
+crbug.com/450592015 [ Mac12-arm64 ] external/wpt/webxr/idlharness.https.window.html [ Failure ]
+crbug.com/450592015 [ Mac13-arm64 ] external/wpt/webxr/idlharness.https.window.html [ Failure ]
+crbug.com/450592015 [ Mac14-arm64 ] external/wpt/webxr/idlharness.https.window.html [ Failure ]
+crbug.com/450592015 [ Mac15-arm64 ] external/wpt/webxr/idlharness.https.window.html [ Failure ]
+crbug.com/450592015 [ Win11-arm64 ] external/wpt/webxr/idlharness.https.window.html [ Failure ]

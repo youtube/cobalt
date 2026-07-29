@@ -150,6 +150,9 @@ BASE_FEATURE(kDevToolsAiSubmenuPrompts, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether DevTools shows 'Debug with AI' and new badges.
 BASE_FEATURE(kDevToolsAiDebugWithAi, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Turns on the GreenDev experimental UI.
+BASE_FEATURE(kDevToolsGreenDevUi, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Whether the global AI entrypoint is enabled.
 BASE_FEATURE(kDevToolsGlobalAiButton, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether the promotion animation is enabled.
@@ -184,5 +187,8 @@ BASE_FEATURE(kDevToolsAiPromptApi, base::FEATURE_DISABLED_BY_DEFAULT);
 // Whether showing animation styles in the styles tab is enabled.
 BASE_FEATURE(kDevToolsStartingStyleDebugging,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Whether Network panel should use Durable Messages to preserve network bodies.
+BASE_FEATURE(kDevToolsEnableDurableMessages, base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

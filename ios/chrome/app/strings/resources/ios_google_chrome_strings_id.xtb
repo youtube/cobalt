@@ -71,7 +71,6 @@ Hal-hal yang perlu dipertimbangkan:
 <translation id="2576431527583832481">Chrome jadi semakin baik! Versi baru telah tersedia.</translation>
 <translation id="257708665678654955">Ingin Google Chrome menawarkan untuk menerjemahkan halaman berbahasa <ph name="LANGUAGE_NAME" /> dari situs ini saat Anda mengunjunginya lagi?</translation>
 <translation id="2668242166988961773">Menelusuri dengan suara di Chrome.</translation>
-<translation id="2689064829982324496">Untuk logout dari Akun Google Anda di semua situs, <ph name="BEGIN_LINK" />logout dari Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Chrome tidak dapat memeriksa update. Coba lagi nanti.</translation>
 <translation id="2703746758996815929">Untuk mendapatkan tips Chrome yang berguna, aktifkan notifikasi di setelan iOS.</translation>
 <translation id="2728851697704606655">Terjemahkan dengan Google Lens</translation>
@@ -87,6 +86,9 @@ Coba tunggu beberapa menit sebelum logout. Jika Anda logout sekarang, data ini a
 <translation id="2940565985148833945">Tips Chrome: Melakukan Penelusuran dengan Lens</translation>
 <translation id="2957447865124070833">Pilih <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" /></translation>
 <translation id="2986402782150919988">Tambahkan bookmark ke Chrome</translation>
+<translation id="3027236223714901838">Agar kunci sandi Anda tetap aman, Anda harus membuat PIN pemulihan terlebih dahulu.
+
+        Kunci sandi disimpan di Pengelola Sandi Google, yang memungkinkan Anda menggunakannya di Chrome di perangkat mana pun.</translation>
 <translation id="3030414234702425231">Karena Anda logout dari akun yang dikelola oleh <ph name="SIGNOUT_MANAGED_DOMAIN" />, data Chrome Anda akan dihapus dari perangkat ini. Data Anda akan tetap tersedia di Akun Google Anda.</translation>
 <translation id="3042447686908081308">Impor ke Chrome</translation>
 <translation id="3051521853355903257">Kelola sandi di Chrome</translation>
@@ -309,7 +311,6 @@ Hanya orang yang memiliki frasa sandi Anda yang dapat membaca data terenkripsi A
 <translation id="8413500425974960807">Tips Chrome: Pindahkan Chrome ke dok</translation>
 <translation id="8413795581997394485">Melindungi dari situs, download, dan ekstensi yang diketahui berbahaya. Saat Anda membuka situs, Chrome mengirimkan bagian URL yang disamarkan ke Google melalui server privasi yang menyembunyikan alamat IP Anda. Jika situs melakukan hal yang mencurigakan, URL lengkap dan bit konten halaman juga akan dikirim.</translation>
 <translation id="84594714173170813">Tetap gunakan data Chrome di Akun Google Anda</translation>
-<translation id="8459495907675268833">Data yang dipilih telah dihapus dari Chrome dan perangkat yang disinkronkan. Akun Google Anda mungkin memiliki bentuk histori penjelajahan lain seperti penelusuran dan aktivitas dari layanan Google lainnya di history.google.com.</translation>
 <translation id="8491300088149538575">Login sebagai <ph name="EMAIL" />.
 
 Data Anda dienkripsi dengan frasa sandi pada <ph name="TIME" />. Masukkan frasa sandi untuk menggunakan dan menyimpan data Chrome di Akun Google Anda.</translation>

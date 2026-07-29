@@ -71,7 +71,6 @@ Svarīga informācija
 <translation id="2576431527583832481">Pārlūkprogramma Chrome ir uzlabota! Ir pieejama jauna versija.</translation>
 <translation id="257708665678654955">Vai vēlaties, lai Google Chrome nākamreiz piedāvātu tulkot šīs vietnes lapas, kuru saturs ir šādā valodā: <ph name="LANGUAGE_NAME" />?</translation>
 <translation id="2668242166988961773">Meklējiet ar balsi pārlūkā Chrome.</translation>
-<translation id="2689064829982324496">Lai izrakstītos no sava Google konta visās vietnēs, <ph name="BEGIN_LINK" />izrakstieties no pārlūka Chrome<ph name="END_LINK" />.</translation>
 <translation id="2695886661449553974">Pārlūkā Chrome nevarēja pārbaudīt atjauninājumu pieejamību. Vēlāk mēģiniet vēlreiz.</translation>
 <translation id="2703746758996815929">Lai saņemtu noderīgus Chrome padomus, ieslēdziet paziņojumus iOS iestatījumos.</translation>
 <translation id="2728851697704606655">Tulkošana, izmantojot Google Lens</translation>
@@ -87,6 +86,9 @@ Pirms izrakstāties, uzgaidiet dažas minūtes. Ja izrakstīsieties tūlīt, ši
 <translation id="2940565985148833945">Chrome padoms: meklējiet, izmantojot Lens</translation>
 <translation id="2957447865124070833">Atlasiet <ph name="BEGIN_BOLD" />Chrome<ph name="END_BOLD" />.</translation>
 <translation id="2986402782150919988">Grāmatzīmju pievienošana pārlūkā Chrome</translation>
+<translation id="3027236223714901838">Lai aizsargātu piekļuves atslēgas, vispirms jums būs jāizveido atkopšanas PIN.
+
+        Piekļuves atslēgas tiek saglabātas Google paroļu pārvaldniekā, tādējādi varat tās izmantot pārlūkā Chrome jebkurā ierīcē.</translation>
 <translation id="3030414234702425231">Jūs izrakstāties no konta, kas tiek pārvaldīts domēnā <ph name="SIGNOUT_MANAGED_DOMAIN" />, tādēļ jūsu Chrome dati tiks dzēsti no šīs ierīces. Dati joprojām būs pieejami jūsu Google kontā.</translation>
 <translation id="3042447686908081308">Importēt pārlūkā Chrome</translation>
 <translation id="3051521853355903257">Paroļu pārvaldība pārlūkā Chrome</translation>
@@ -309,7 +311,6 @@ Jūsu šifrētos datus var lasīt tikai personas, kurām ir jūsu ieejas frāze.
 <translation id="8413500425974960807">Chrome padoms: pārvietojiet pārlūku Chrome uz lietotņu doku</translation>
 <translation id="8413795581997394485">Tiek nodrošināta aizsardzība pret zināmām bīstamām vietnēm, lejupielādēm un paplašinājumiem. Kad apmeklējat kādu vietni, pārlūks Chrome nosūta Google serveriem pieslēptu URL daļu, izmantojot konfidencialitātes serveri, kas slēpj jūsu IP adresi. Ja vietnē tiek veiktas aizdomīgas darbības, tiek nosūtīti arī pilni URL un lapas satura fragmenti.</translation>
 <translation id="84594714173170813">Turpiniet izmantot Google kontā saglabātos Chrome datus</translation>
-<translation id="8459495907675268833">Atlasītie dati ir noņemti no pārlūka Chrome un sinhronizētajām ierīcēm. Jūsu Google kontam vietnē history.google.com var būt citu veidu pārlūkošanas vēstures dati, piemēram, meklēšanas vaicājumi un darbības citos Google pakalpojumos.</translation>
 <translation id="8491300088149538575">Jūs esat pierakstījies kā <ph name="EMAIL" />.
 
 Jūsu dati tika šifrēti, izmantojot jūsu ieejas frāzi, šādā datumā: <ph name="TIME" />. Ievadiet ieejas frāzi, lai izmantotu un saglabātu Chrome datus savā Google kontā.</translation>

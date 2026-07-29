@@ -48,7 +48,10 @@ enum class ManifestSilentUpdateCommandStage {
   kDeletingPendingUpdateIconsFromDisk
 };
 
-// This enum is recorded by UMA, the numeric values must not change.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(ManifestSilentUpdateCheckResult)
 enum class ManifestSilentUpdateCheckResult {
   kAppNotInstalled = 0,
   kAppUpdateFailedDuringInstall = 1,
@@ -64,15 +67,36 @@ enum class ManifestSilentUpdateCheckResult {
   kInvalidPendingUpdateInfo = 11,
   kUserNavigated = 12,
   kManifestToWebAppInstallInfoError = 13,
-  kMaxValue = kManifestToWebAppInstallInfoError,
+  kAppHasSecurityUpdateDueToThrottle = 14,
+  kMaxValue = kAppHasSecurityUpdateDueToThrottle,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/webapps/enums.xml:WebAppManifestSilentUpdateCheckResult)
 
 bool IsAppUpdated(ManifestSilentUpdateCheckResult result);
 
 // Declare the logging operator before the command declaration, so the templated
 // completion method can use it to log the result.
 std::ostream& operator<<(std::ostream& os,
-                         ManifestSilentUpdateCheckResult stage);
+                         ManifestSilentUpdateCheckResult result);
+
+// Returns all the information necessary for a manifest's silent update to have
+// finished running, including the result of a silent update command and the
+// timestamp of a silent icon update if that happened.
+struct ManifestSilentUpdateCompletionInfo {
+  ManifestSilentUpdateCompletionInfo();
+  explicit ManifestSilentUpdateCompletionInfo(
+      ManifestSilentUpdateCheckResult result);
+  ~ManifestSilentUpdateCompletionInfo() = default;
+  base::Value::Dict ToDebugValue();
+
+  // Move operation only for simplicity.
+  ManifestSilentUpdateCompletionInfo(ManifestSilentUpdateCompletionInfo&&);
+  ManifestSilentUpdateCompletionInfo& operator=(
+      ManifestSilentUpdateCompletionInfo&&);
+
+  ManifestSilentUpdateCheckResult result;
+  std::optional<base::Time> time_for_icon_diff_check;
+};
 
 // Downloads a currently linked manifest in the given web contents. Non-security
 // -sensitive manifest members are updated immediately. Security sensitive
@@ -93,14 +117,16 @@ std::ostream& operator<<(std::ostream& os,
 //   image diff) or store it as a PendingUpdateInfo (>10% image diff).
 // - Finalize silent update of icon (if needed) and destroy command.
 class ManifestSilentUpdateCommand
-    : public WebAppCommand<NoopLock, ManifestSilentUpdateCheckResult>,
+    : public WebAppCommand<NoopLock, ManifestSilentUpdateCompletionInfo>,
       public content::WebContentsObserver {
  public:
   using CompletedCallback =
-      base::OnceCallback<void(ManifestSilentUpdateCheckResult check_result)>;
+      base::OnceCallback<void(ManifestSilentUpdateCompletionInfo check_result)>;
 
-  ManifestSilentUpdateCommand(content::WebContents& web_contents,
-                              CompletedCallback callback);
+  ManifestSilentUpdateCommand(
+      content::WebContents& web_contents,
+      std::optional<base::Time> previous_time_for_silent_icon_update,
+      CompletedCallback callback);
 
   ~ManifestSilentUpdateCommand() override;
 
@@ -170,7 +196,7 @@ class ManifestSilentUpdateCommand
       std::optional<proto::PendingUpdateInfo>,
       ManifestSilentUpdateCheckResult result);
 
-  void WritePendingUpdateToWebApp(
+  void WritePendingUpdateToWebAppUpdateObservers(
       std::optional<proto::PendingUpdateInfo> pending_update);
 
   void CompleteCommandAndSelfDestruct(
@@ -214,7 +240,6 @@ class ManifestSilentUpdateCommand
   IconBitmaps pending_manifest_icon_bitmaps_;
   ShortcutsMenuIconBitmaps existing_shortcuts_menu_icon_bitmaps_;
   bool silent_update_required_ = false;
-  bool pending_updated_changed_ = false;
 
   base::WeakPtr<content::WebContents> web_contents_;
   // Note: This must be destroyed before `new_install_info_` since it holds a
@@ -224,6 +249,11 @@ class ManifestSilentUpdateCommand
   // Debug info.
   ManifestSilentUpdateCommandStage stage_ =
       ManifestSilentUpdateCommandStage::kFetchingNewManifestData;
+
+  // Stores the last time a silent icon update was triggered for `app_id_` if
+  // that happened.
+  std::optional<base::Time> previous_time_for_silent_icon_update_;
+  ManifestSilentUpdateCompletionInfo completion_info_;
 
   base::WeakPtrFactory<ManifestSilentUpdateCommand> weak_factory_{this};
 };

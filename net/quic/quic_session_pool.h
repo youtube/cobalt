@@ -933,7 +933,8 @@ class NET_EXPORT_PRIVATE QuicSessionPool
 // consumers are using it currently. When the last reference is freed, the
 // QuicCryptoClientConfigHandle informs the owning QuicSessionPool, moves it
 // into an MRU cache.
-class QuicSessionPool::QuicCryptoClientConfigOwner {
+class QuicSessionPool::QuicCryptoClientConfigOwner
+    : public base::MemoryPressureListener {
  public:
   QuicCryptoClientConfigOwner(
       std::unique_ptr<quic::ProofVerifier> proof_verifier,
@@ -944,7 +945,7 @@ class QuicSessionPool::QuicCryptoClientConfigOwner {
   QuicCryptoClientConfigOwner& operator=(const QuicCryptoClientConfigOwner&) =
       delete;
 
-  ~QuicCryptoClientConfigOwner();
+  ~QuicCryptoClientConfigOwner() override;
 
   quic::QuicCryptoClientConfig* config() { return &config_; }
 
@@ -953,7 +954,7 @@ class QuicSessionPool::QuicCryptoClientConfigOwner {
   QuicSessionPool* quic_session_pool() { return quic_session_pool_; }
 
   void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+      base::MemoryPressureLevel memory_pressure_level) override;
 
  private:
   friend class CryptoClientConfigHandle;
@@ -973,7 +974,8 @@ class QuicSessionPool::QuicCryptoClientConfigOwner {
   int num_refs_ = 0;
   quic::QuicCryptoClientConfig config_;
   raw_ptr<base::Clock> clock_;
-  std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
+      memory_pressure_listener_registration_;
   const raw_ptr<QuicSessionPool> quic_session_pool_;
 };
 

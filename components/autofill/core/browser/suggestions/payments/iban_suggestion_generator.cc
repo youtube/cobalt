@@ -49,8 +49,7 @@ void IbanSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
-    const std::vector<
-        std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
+    const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
         all_suggestion_data,
     base::OnceCallback<void(ReturnedSuggestions)> callback) {
   GenerateSuggestions(
@@ -106,6 +105,15 @@ void IbanSuggestionGenerator::FetchSuggestionData(
   std::vector<Iban> ibans = client.GetPaymentsAutofillClient()
                                 ->GetPaymentsDataManager()
                                 .GetOrderedIbansToSuggest();
+  // If the input box content equals any of the available IBANs, then
+  // assume the IBAN has been filled, and don't show any suggestions.
+  if (!trigger_autofill_field ||
+      (!trigger_autofill_field->value().empty() &&
+       base::Contains(ibans, trigger_autofill_field->value(), &Iban::value))) {
+    callback({SuggestionDataSource::kIban, {}});
+    return;
+  }
+
   FilterIbansToSuggest(trigger_autofill_field->value(), ibans);
   std::vector<SuggestionData> suggestion_data = base::ToVector(
       std::move(ibans),
@@ -118,26 +126,22 @@ void IbanSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
-    const std::vector<
-        std::pair<SuggestionDataSource, std::vector<SuggestionData>>>&
+    const base::flat_map<SuggestionDataSource, std::vector<SuggestionData>>&
         all_suggestion_data,
     base::FunctionRef<void(ReturnedSuggestions)> callback) {
+  auto it = all_suggestion_data.find(SuggestionDataSource::kIban);
   std::vector<SuggestionData> iban_suggestion_data =
-      ExtractSuggestionDataForSource(all_suggestion_data,
-                                     SuggestionDataSource::kIban);
+      it != all_suggestion_data.end() ? it->second
+                                      : std::vector<SuggestionData>();
+  if (iban_suggestion_data.empty()) {
+    callback({FillingProduct::kIban, {}});
+    return;
+  }
 
   std::vector<Iban> ibans = base::ToVector(
       std::move(iban_suggestion_data), [](SuggestionData& suggestion_data) {
         return std::get<autofill::Iban>(std::move(suggestion_data));
       });
-  // If the input box content equals any of the available IBANs, then
-  // assume the IBAN has been filled, and don't show any suggestions.
-  if (!trigger_autofill_field ||
-      (!trigger_autofill_field->value().empty() &&
-       base::Contains(ibans, trigger_autofill_field->value(), &Iban::value))) {
-    callback({FillingProduct::kIban, {}});
-    return;
-  }
 
   callback({FillingProduct::kIban, GetSuggestionsForIbans(ibans)});
 }

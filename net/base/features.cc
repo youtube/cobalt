@@ -443,6 +443,12 @@ const base::FeatureParam<bool> kIpPrivacyUseQuicProxiesOnly{
     /*name=*/"IpPrivacyUseQuicProxiesOnly",
     /*default_value=*/false};
 
+const base::FeatureParam<bool>
+    kIpPrivacyUseQuicProxiesWithoutWaitingForConnectResponse{
+        &kEnableIpProtectionProxy,
+        /*name=*/"IpPrivacyUseQuicProxiesWithoutWaitingForConnectResponse",
+        /*default_value=*/false};
+
 const base::FeatureParam<bool> kIpPrivacyFallbackToDirect{
     &kEnableIpProtectionProxy,
     /*name=*/"IpPrivacyFallbackToDirect",
@@ -683,7 +689,8 @@ BASE_FEATURE(kHttpCacheMappedFileFlushWin, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kHttpCacheNoVarySearch,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
@@ -706,7 +713,7 @@ BASE_FEATURE_PARAM(bool,
                    kHttpCacheNoVarySearchKeepNotSuitable,
                    &kHttpCacheNoVarySearch,
                    "keep_not_suitable",
-                   false);
+                   true);
 
 BASE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent,
              base::FEATURE_DISABLED_BY_DEFAULT);

@@ -166,7 +166,7 @@ linux_memory_builder(
                 # These are very slow on the ASAN trybot for some reason.
                 # crbug.com/1257927
                 swarming = targets.swarming(
-                    shards = 55,
+                    shards = 70,
                 ),
             ),
             "components_unittests": targets.mixin(
@@ -1388,7 +1388,7 @@ ci.builder(
                     "--test-launcher-jobs=3",
                 ],
                 swarming = targets.swarming(
-                    shards = 12,
+                    shards = 18,
                 ),
             ),
             "net_unittests": targets.mixin(

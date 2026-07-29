@@ -790,7 +790,7 @@ int BrowserMainLoop::PreCreateThreads() {
 
   InitializeMemoryManagementComponent();
 #if BUILDFLAG(IS_ANDROID)
-  memory_pressure::UserLevelMemoryPressureSignalGenerator::Initialize();
+  content::UserLevelMemoryPressureSignalGenerator::Initialize();
 #endif
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -853,6 +853,9 @@ int BrowserMainLoop::PreCreateThreads() {
   base::UmaHistogramBoolean(
       "SiteIsolation.IsSitePerProcessOrStricter.AndroidDesktop",
       SiteIsolationPolicy::IsSitePerProcessOrStricter());
+  base::UmaHistogramEnumeration(
+      "SiteIsolation.DisabledReason.AndroidDesktop",
+      SiteIsolationPolicy::GetSiteIsolationDisabledReason());
 #endif
 
   // Generate the browser process salt. This is then accessible by calls to

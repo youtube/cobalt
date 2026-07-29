@@ -208,6 +208,7 @@ found in the LICENSE file.
     <dimen name="bookmark_bar_button_icon_size">24dp</dimen>
     <dimen name="bookmark_bar_divider_height">20dp</dimen>
     <dimen name="bookmark_bar_divider_width">2dp</dimen>
+    <dimen name="bookmark_bar_item_min_width">84dp</dimen>
     <dimen name="bookmark_bar_item_max_width">124dp</dimen>
     <dimen name="bookmark_bar_item_spacing">4dp</dimen>
     <dimen name="bookmark_bar_padding">8dp</dimen>
@@ -355,6 +356,7 @@ found in the LICENSE file.
     <dimen name="settings_search_ui_height">48dp</dimen>
     <dimen name="settings_search_ui_horizontal_margin">16dp</dimen>
     <dimen name="settings_search_icon_padding">16dp</dimen>
+    <dimen name="settings_detailed_title_padding">10dp</dimen>
 
     <!-- Sharing Hub dimensions -->
     <dimen name="sharing_hub_preview_icon_padding">12dp</dimen>
@@ -438,11 +440,6 @@ found in the LICENSE file.
 
     <!-- Tab Strip Reorder dimensions -->
     <dimen name="tab_strip_dragged_tab_shadow_thickness">8dp</dimen>
-
-    <!-- Page zoom menu item dimensions -->
-    <dimen name="symbol_padding">2dp</dimen>
-    <dimen name="zoom_percentage_padding">8dp</dimen>
-    <dimen name="zoom_percentage_width">56dp</dimen>
 
     <!-- Tips Notifications dimensions -->
     <dimen name="tips_notifications_bottom_sheet_horizontal_margin">24dp</dimen>

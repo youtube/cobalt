@@ -353,6 +353,7 @@ if (!is_android) {
     ]
     if (enable_glic) {
       sources += [
+        "glic_actor_nudge_controller.h",
         "glic_actor_task_icon_controller.h",
         "glic_actor_task_icon_manager.h",
         "glic_actor_task_icon_manager_factory.h",
@@ -384,6 +385,7 @@ if (!is_android) {
     ]
     if (enable_glic) {
       sources += [
+        "glic_actor_nudge_controller.cc",
         "glic_actor_task_icon_controller.cc",
         "glic_actor_task_icon_manager.cc",
         "glic_actor_task_icon_manager_factory.cc",
@@ -678,6 +680,7 @@ if (!is_android) {
       "//base",
       "//base/test:test_support",
       "//chrome/browser",
+      "//chrome/browser/favicon",
       "//chrome/browser/policy:test_support",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/profiles/keep_alive",

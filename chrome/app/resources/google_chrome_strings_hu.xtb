@@ -271,7 +271,6 @@
 <translation id="409936259433005390">Hamarosan frissít a Windows 11-re? Töltse le a Chrome-telepítőt a OneDrive-ra, hogy rögtön készen álljon.</translation>
 <translation id="4110895483821904099">Új saját Chrome-profil beállítása</translation>
 <translation id="4111566860456076004">A Chrome nem tudja ellenőrizni, hogy honnan származik a bővítmény, amely lehet, hogy nem biztonságos. Távolítsa el a Chrome-ból, hogy a bővítmény a továbbiakban már ne láthassa és módosíthassa az Ön adatait a felkeresett webhelyeken (a személyes adatokat is beleértve).</translation>
-<translation id="4128488089242627000">A Chrome gyorsabban fut, a JavaScriptet használó funkcióknak pedig a tervezett módon kell működniük (ajánlott)</translation>
 <translation id="4147555960264124640">Kezelt fiókkal jelentkezik be, és annak adminisztrátora számára hozzáférést biztosít Google Chrome-profiljához. Chrome-adatait – például alkalmazásait, könyvjelzőit, előzményeit, jelszavait és más beállításait – a rendszer véglegesen társítja a(z) <ph name="USER_NAME" /> fiókhoz. Ezen adatokat a Google-fiókok Irányítópultján törölheti, de más fiókhoz nem társíthatja őket. <ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">Telepítés...</translation>
 <translation id="4149882025268051530">Nem sikerült a telepítőnek kibontani a tömörített állományt. Kérjük, töltse le újra a Google Chrome böngészőt.</translation>
@@ -520,6 +519,7 @@
 <translation id="6967962315388095737">Bejövő szabály a Google Chrome Bétához az mDNS forgalom engedélyezése céljából.</translation>
 <translation id="6979589607440534284">További információ arról, hogy miért tilt le bizonyos fájlokat a Chrome (új lapon nyílik meg)</translation>
 <translation id="6991926986715044139">Mindig jelenjen meg a Google Lens gyorsparancsa</translation>
+<translation id="6999131147875565462">A Chrome gyorsabban fut, a JavaScriptet használó funkcióknak pedig a tervezett módon kell működniük</translation>
 <translation id="7011190694940573312">A telepítés sikertelen volt, mert az operációs rendszer aktuális verziója nem támogatott.</translation>
 <translation id="7024536598735240744">Kicsomagolási hiba: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Telepítés leállítva.</translation>

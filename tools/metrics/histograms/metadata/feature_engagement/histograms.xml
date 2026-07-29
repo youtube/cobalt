@@ -729,7 +729,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="InProductHelp.Config.ParsingEvent" enum="ConfigParsingEvent"
-    expires_after="2026-02-01">
+    expires_after="2026-04-05">
   <owner>nyquist@chromium.org</owner>
   <summary>
     Records if in-product help configuration is parsed correctly, and the
@@ -776,7 +776,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.DismissalReason.iOS"
-    enum="InProductHelpDismissalReason" expires_after="2026-02-01">
+    enum="InProductHelpDismissalReason" expires_after="2026-04-05">
   <owner>lpromero@google.com</owner>
   <owner>gambard@chromium.org</owner>
   <summary>
@@ -785,7 +785,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.EventStorageMigration.Status"
-    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-02-01">
+    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-04-05">
   <owner>cheickcisse@google.com</owner>
   <owner>shaktisahu@chromium.org</owner>
   <summary>

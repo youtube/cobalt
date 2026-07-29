@@ -29,6 +29,7 @@
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 #include "components/device_event_log/device_event_log.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "ui/display/display.h"
 #include "ui/display/display_features.h"
 #include "ui/display/display_layout.h"
@@ -190,8 +191,8 @@ gfx::DisplayColorSpaces CreateDisplayColorSpaces(
     const gfx::ColorSpace& color_space,
     float sdr_white_level) {
   gfx::DisplayColorSpaces display_color_spaces(color_space);
-  display_color_spaces.SetOutputBufferFormats(gfx::BufferFormat::BGRA_8888,
-                                              gfx::BufferFormat::BGRA_8888);
+  display_color_spaces.SetOutputFormats(viz::SinglePlaneFormat::kBGRA_8888,
+                                        viz::SinglePlaneFormat::kBGRA_8888);
   display_color_spaces.SetSDRMaxLuminanceNits(sdr_white_level);
   return display_color_spaces;
 }
@@ -233,15 +234,15 @@ gfx::DisplayColorSpaces GetDisplayColorSpacesForHdr(
     // Windows RS3, but RGB10A2 with HDR10 color space works fine (see
     // https://crbug.com/937108#c92).
     if (base::win::GetVersion() > base::win::Version::WIN10_RS3) {
-      color_spaces.SetOutputColorSpaceAndBufferFormat(
-          usage, !kNeedsAlpha, scrgb_linear, gfx::BufferFormat::RGBA_F16);
+      color_spaces.SetOutputColorSpaceAndFormat(
+          usage, !kNeedsAlpha, scrgb_linear, viz::SinglePlaneFormat::kRGBA_F16);
     } else {
-      color_spaces.SetOutputColorSpaceAndBufferFormat(
-          usage, !kNeedsAlpha, hdr10, gfx::BufferFormat::RGBA_1010102);
+      color_spaces.SetOutputColorSpaceAndFormat(
+          usage, !kNeedsAlpha, hdr10, viz::SinglePlaneFormat::kRGBA_1010102);
     }
     // Use RGBA F16 backbuffers for HDR if alpha channel is required.
-    color_spaces.SetOutputColorSpaceAndBufferFormat(
-        usage, kNeedsAlpha, scrgb_linear, gfx::BufferFormat::RGBA_F16);
+    color_spaces.SetOutputColorSpaceAndFormat(
+        usage, kNeedsAlpha, scrgb_linear, viz::SinglePlaneFormat::kRGBA_F16);
   }
   return color_spaces;
 }
@@ -256,11 +257,12 @@ gfx::DisplayColorSpaces GetForcedDisplayColorSpaces() {
       color_space, gfx::ColorSpace::kDefaultSDRWhiteLevel);
   // Use the forced color profile's buffer format for all content usages.
   if (color_space.GetTransferID() == gfx::ColorSpace::TransferID::PQ) {
-    display_color_spaces.SetOutputBufferFormats(
-        gfx::BufferFormat::RGBA_1010102, gfx::BufferFormat::RGBA_1010102);
+    display_color_spaces.SetOutputFormats(
+        viz::SinglePlaneFormat::kRGBA_1010102,
+        viz::SinglePlaneFormat::kRGBA_1010102);
   } else if (color_space.IsHDR()) {
-    display_color_spaces.SetOutputBufferFormats(gfx::BufferFormat::RGBA_F16,
-                                                gfx::BufferFormat::RGBA_F16);
+    display_color_spaces.SetOutputFormats(viz::SinglePlaneFormat::kRGBA_F16,
+                                          viz::SinglePlaneFormat::kRGBA_F16);
   }
   return display_color_spaces;
 }

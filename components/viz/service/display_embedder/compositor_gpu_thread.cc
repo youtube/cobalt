@@ -230,8 +230,8 @@ bool CompositorGpuThread::Initialize() {
   return init_succeeded_;
 }
 
-void CompositorGpuThread::HandleMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level) {
+void CompositorGpuThread::OnMemoryPressure(
+    base::MemoryPressureLevel memory_pressure_level) {
   DCHECK(task_runner()->BelongsToCurrentThread());
 
   // Context should be current for cache/memory cleanup.
@@ -253,18 +253,17 @@ void CompositorGpuThread::Init() {
   // Making sure to create the |memory_pressure_listener_| on
   // CompositorGpuThread since this callback will be called on the thread it was
   // created on.
-  memory_pressure_listener_ =
-      std::make_unique<base::AsyncMemoryPressureListener>(
+  memory_pressure_listener_registration_ =
+      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
           FROM_HERE, base::MemoryPressureListenerTag::kCompositorGpuThread,
-          base::BindRepeating(&CompositorGpuThread::HandleMemoryPressure,
-                              base::Unretained(this))),
+          this),
   init_succeeded_ = true;
 }
 
 void CompositorGpuThread::CleanUp() {
   // Destroying |memory_pressure_listener_| here to ensure its destroyed on the
   // same thread on which it was created on.
-  memory_pressure_listener_.reset();
+  memory_pressure_listener_registration_.reset();
   if (watchdog_thread_)
     watchdog_thread_->OnGpuProcessTearDown();
 
@@ -292,9 +291,7 @@ void CompositorGpuThread::OnBackgroundedOnCompositorGpuThread() {
   DCHECK(task_runner()->BelongsToCurrentThread());
 
   if (shared_context_state_) {
-    shared_context_state_->PurgeMemory(
-        base::MemoryPressureListener::MemoryPressureLevel::
-            MEMORY_PRESSURE_LEVEL_CRITICAL);
+    shared_context_state_->PurgeMemory(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   }
 }
 

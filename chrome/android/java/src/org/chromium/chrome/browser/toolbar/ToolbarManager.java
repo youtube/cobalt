@@ -54,7 +54,6 @@ import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.IntentHandler;
-import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.back_press.BackPressMetrics;
 import org.chromium.chrome.browser.back_press.BackPressMetrics.NavigationDirection;
@@ -63,11 +62,13 @@ import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.bookmarks.BookmarkModelObserver;
 import org.chromium.chrome.browser.bookmarks.TabBookmarker;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsSizer;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
 import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
+import org.chromium.chrome.browser.browser_controls.TopControlsStacker.TopControlType;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelManager.OverlayPanelManagerObserver;
 import org.chromium.chrome.browser.compositor.layouts.Layout;
@@ -127,6 +128,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.tab.TabArchiveSettings;
 import org.chromium.chrome.browser.tab.TabBrowserControlsConstraintsHelper;
+import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
@@ -188,6 +190,7 @@ import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.chrome.browser.util.BrowserUiUtils.ModuleTypeOnStartAndNtp;
+import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.styles.ChromeColors;
@@ -302,6 +305,7 @@ public class ToolbarManager
     private final AppMenuDelegate mAppMenuDelegate;
     private final CompositorViewHolder mCompositorViewHolder;
     private final BottomControlsStacker mBottomControlsStacker;
+    private final TopControlsStacker mTopControlsStacker;
     private final BrowserControlsSizer mBrowserControlsSizer;
     private final FullscreenManager mFullscreenManager;
     private final ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
@@ -762,6 +766,7 @@ public class ToolbarManager
      * @param topInsetCoordinatorSupplier Supplier of (@link TopInsetCoordinator}.
      * @param xrSpaceModeObservableSupplier Supplies current XR space mode status. True for XR full
      *     space mode, false otherwise.
+     * @param pageZoomManager The {@link PageZoomManager} used to manage the page zoom.
      */
     public ToolbarManager(
             AppCompatActivity activity,
@@ -810,12 +815,14 @@ public class ToolbarManager
             MenuButtonCoordinator.@Nullable VisibilityDelegate menuButtonVisibilityDelegate,
             TopControlsStacker topControlsStacker,
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
-            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier) {
+            @Nullable ObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            PageZoomManager pageZoomManager) {
         TraceEvent.begin("ToolbarManager.ToolbarManager");
         mActivity = activity;
         mWindowAndroid = windowAndroid;
         mCompositorViewHolder = compositorViewHolder;
         mBottomControlsStacker = bottomControlsStacker;
+        mTopControlsStacker = topControlsStacker;
         mBrowserControlsSizer = controlsSizer;
         mFullscreenManager = fullscreenManager;
         mEdgeToEdgeControllerSupplier = edgeToEdgeControllerSupplier;
@@ -1219,10 +1226,8 @@ public class ToolbarManager
                             mOverrideUrlLoadingDelegate,
                             new BackKeyBehaviorDelegate() {},
                             toolbarPageInfo::show,
-                            IntentHandler::bringTabToFront,
                             IntentHandler::bringTabGroupToFront,
                             NewTabPageUma::recordOmniboxNavigation,
-                            TabWindowManagerSingleton::getInstance,
                             (url) -> {
                                 BookmarkModel bridge = mBookmarkModelSupplier.get();
                                 return bridge != null && bridge.isBookmarked(url);
@@ -1242,7 +1247,9 @@ public class ToolbarManager
                             onLongClickListener,
                             mBrowserControlsSizer,
                             ToolbarPositionController.isToolbarPositionCustomizationEnabled(
-                                    mActivity, mIsCustomTab));
+                                    mActivity, mIsCustomTab),
+                            pageZoomManager,
+                            TabFavicon::getBitmap);
             mToolbarLayout.setLocationBarCoordinator(locationBarCoordinator);
             mToolbarLayout.setBrowserControlsVisibilityDelegate(mControlsVisibilityDelegate);
             mToolbarLayout.setBrowserControlsStateProvider(mBrowserControlsSizer);
@@ -1271,7 +1278,10 @@ public class ToolbarManager
 
         mProgressBarCoordinator =
                 new LoadProgressCoordinator(
-                        mActivityTabProvider, mToolbar.getProgressBar(), topControlsStacker);
+                        mActivityTabProvider,
+                        mToolbar.getProgressBar(),
+                        topControlsStacker,
+                        mBrowserControlsSizer);
         mToolbar.setToolbarColorObserver(statusBarColorController);
 
         mActivityTabTabObserver =
@@ -1387,16 +1397,6 @@ public class ToolbarManager
                         mLocationBarModel.notifySecurityStateChanged();
                         onBackPressStateChanged();
                         applyIncognitoNtpAccessibilityOrder(tab);
-                    }
-
-                    @Override
-                    public void onWebContentsSwapped(
-                            Tab tab, boolean didStartLoad, boolean didFinishLoad) {
-                        onBackPressStateChanged();
-                        if (!didStartLoad) return;
-                        mLocationBarModel.notifyWebContentsSwapped();
-                        mLocationBarModel.notifyUrlChanged(false);
-                        mLocationBarModel.notifySecurityStateChanged();
                     }
 
                     @Override
@@ -1855,7 +1855,9 @@ public class ToolbarManager
                         new Handler(Looper.getMainLooper()),
                         mActivity,
                         mToolbarPositionSupplier,
-                        (ObservableSupplier<Profile>) mProfileSupplier);
+                        (ObservableSupplier<Profile>) mProfileSupplier,
+                        assertNonNull(mWindowAndroid.getInsetObserver())
+                                .getSupplierForKeyboardInset());
         if (ChromeFeatureList.sMiniOriginBar.isEnabled()) {
             mMiniOriginBarController =
                     new MiniOriginBarController(
@@ -1956,7 +1958,8 @@ public class ToolbarManager
                                 ? mHomePageButtonsCoordinator
                                 : mHomeButtonCoordinator,
                         mExtensionToolbarCoordinator,
-                        topControlsStacker);
+                        topControlsStacker,
+                        mBrowserControlsSizer);
 
         mHomepageStateListener =
                 () -> {
@@ -2351,6 +2354,28 @@ public class ToolbarManager
                                             progressBarContainerY - controlContainerY,
                                             0,
                                             mControlContainer.getHeight());
+
+                    if (ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()) {
+                        // TODO(peilinwang) update these calculations and move them to the stackers
+                        // when the progress bar gets decoupled from the toolbar and when top
+                        // stacker is complete.
+                        int toolbarPosition = mToolbarPositionSupplier.get();
+                        if (toolbarPosition == ControlsPosition.TOP) {
+                            yOffset =
+                                    mTopControlsStacker.getHeightFromLayerToTop(
+                                                    TopControlType.PROGRESS_BAR)
+                                            - mTopControlsStacker.getHeightFromLayerToTop(
+                                                    TopControlType.TOOLBAR);
+                        } else if (toolbarPosition == ControlsPosition.BOTTOM) {
+                            yOffset =
+                                    -(mBottomControlsStacker.getHeightFromLayerToBottom(
+                                                            LayerType.PROGRESS_BAR)
+                                                    - mBottomControlsStacker
+                                                            .getHeightFromLayerToBottom(
+                                                                    LayerType.BOTTOM_TOOLBAR))
+                                            - mProgressBarContainer.getHeight();
+                        }
+                    }
                     drawingInfo.progressBarRect.offset(0, yOffset);
                     drawingInfo.progressBarBackgroundRect.offset(0, yOffset);
                 };
@@ -2439,6 +2464,7 @@ public class ToolbarManager
                 && !currentTab.getUrl().isEmpty()) {
             mControlContainer.setReadyForBitmapCapture(true);
         }
+
         TraceEvent.end("ToolbarManager.initializeWithNative");
     }
 

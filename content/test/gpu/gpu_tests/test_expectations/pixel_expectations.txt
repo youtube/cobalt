@@ -530,15 +530,7 @@ crbug.com/431824747 [ win ] Pixel_RenderPasses_TreesInViz [ Failure ]
 crbug.com/431824747 [ android android-chromium no-clang-coverage ] Pixel_RenderPasses_TreesInViz [ Failure ]
 
 # brya/Android Desktop
-crbug.com/437973213 [ android android-brya ] Pixel_Video_BackdropFilter [ Failure ]
 crbug.com/437973213 [ android android-brya ] Pixel_Video_Context_Loss_VP9 [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_HEVC [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4 [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4_FourColors_Aspect_4x3 [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4_FourColors_Rot_180 [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4_FourColors_Rot_270 [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4_FourColors_Rot_90 [ Failure ]
-crbug.com/437973213 [ android android-brya ] Pixel_Video_MP4_Rounded_Corner [ Failure ]
 
 
 # Linux/AMD 780M failures
@@ -564,6 +556,27 @@ crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_MP
 crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_MP4_FourColors_Rot_90 [ Failure ]
 crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_MP4_Rounded_Corner [ Failure ]
 crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_VP9 [ Failure ]
+
+# Win11/RTX 4070 Super failures
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_Canvas2DRedBox [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_Canvas2DRedBoxScrgbLinear [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_CanvasDisplaySRGBAccelerated2D [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_GpuRasterization_ConcavePaths [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasAccelerated2DWorker [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasIBRCWorker [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasTransferBeforeStyleResize [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasTransferToImageBitmap [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_PaintWorkletTransform [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_ScissorTestWithPreserveDrawingBuffer [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_WebGLGreenTriangle_NoAA_NoAlpha [ RetryOnFailure ]
+crbug.com/450326412 [ win11 nvidia-0x2783 ] Pixel_WebglResizedCanvas [ RetryOnFailure ]
+crbug.com/450326413 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasWebGLPaintAfterResize [ RetryOnFailure ]
+crbug.com/450326413 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasWebglResizeOnWorker [ RetryOnFailure ]
+crbug.com/450326413 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasWebGLSoftwareCompositing [ RetryOnFailure ]
+crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_DirectComposition_Video_VP9_Fullsize [ RetryOnFailure ]
+crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_OffscreenCanvasUnaccelerated2DGPUCompositing [ RetryOnFailure ]
+crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_WebGLTextureFromWebGLReadback [ RetryOnFailure ]
+crbug.com/450325666 [ win11 nvidia-0x2783 ] Pixel_WebGPUImportVideoFrame [ RetryOnFailure ]
 
 #######################################################################
 # Automated Entries After This Point - Do Not Manually Add Below Here #

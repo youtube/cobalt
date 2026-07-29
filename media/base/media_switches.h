@@ -387,6 +387,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebRTCHardwareVideoEncoderFrameDrop);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebRTCColorAccuracy);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebrtcMediaCapabilitiesParameters);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWidevinePersistentLicenseSupport);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kResolutionBasedDecoderPriority);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMatchSourceAudioChannelLayout);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -448,27 +449,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationClearPlayback);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowMediaFoundationFrameServerMode);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kD3D11Vp9kSVCHWDecoding);
 
-// Strategy affecting how Media Foundation Renderer determines its rendering
-// mode when used with clear video media. This strategy does not impact
-// protected media which must always use Direct Composition mode.
-enum class MediaFoundationClearRenderingStrategy {
-  // The renderer will operate in Direct Composition mode (e.g. windowless
-  // swapchain).
-  kDirectComposition,
-  // The renderer will operate in Frame Server mode.
-  kFrameServer,
-  // The renderer is allowed to switch between Direct Composition & Frame Server
-  // mode at its discretion.
-  kDynamic,
-};
-
-// Under this feature, a given MediaFoundationClearRenderingStrategy param is
-// used by the Media Foundation Renderer for Clear content scenarios.
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationClearRendering);
-MEDIA_EXPORT extern const base::FeatureParam<
-    MediaFoundationClearRenderingStrategy>
-    kMediaFoundationClearRenderingStrategyParam;
-
 // Enables the batch audio/video buffers reading for media playback.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationBatchRead);
 
@@ -493,6 +473,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kBackgroundListening);
 // is enabled instead of directly checking this feature flag. The reason is that
 // that function may perform checks beyond the feature flag.
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseOutOfProcessVideoDecoding);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseSharedImageInOOPVDProcess);
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -507,8 +488,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseTaskRunnerForMojoAudioDecoderService);
 #if BUILDFLAG(IS_FUCHSIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kFuchsiaMediacodecVideoEncoder);
 #endif  // BUILDFLAG(IS_FUCHSIA)
-
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoDecodeBatching);
 
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kClearPipCachedBoundsWhenPermissionPromptVisible);

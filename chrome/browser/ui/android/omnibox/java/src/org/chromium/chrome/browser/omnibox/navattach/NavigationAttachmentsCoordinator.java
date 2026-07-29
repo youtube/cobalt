@@ -15,6 +15,7 @@ import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.WindowAndroid;
@@ -22,6 +23,8 @@ import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.url.GURL;
+
+import java.util.function.Supplier;
 
 /** Coordinator for the Navigation Attachments component. */
 @NullMarked
@@ -31,6 +34,8 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
     private final ObservableSupplierImpl<@NavigationFulfillmentType Integer>
             mNavigationFulfillmentTypeSupplier =
                     new ObservableSupplierImpl<>(NavigationFulfillmentType.DEFAULT);
+    private final boolean mAimToggleOnly;
+    private final PropertyModel mModel;
     private @Nullable NavigationAttachmentsMediator mMediator;
 
     public NavigationAttachmentsCoordinator(
@@ -38,42 +43,52 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
             WindowAndroid windowAndroid,
             ViewGroup parent,
             ObservableSupplier<Profile> profileObservableSupplier,
-            LocationBarDataProvider locationBarDataProvider) {
+            LocationBarDataProvider locationBarDataProvider,
+            Supplier<TabModelSelector> tabModelSelectorSupplier) {
         if (!OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
-                || parent.findViewById(R.id.location_bar_navigation_toolbar) == null) {
+                || parent.findViewById(R.id.location_bar_attachments_toolbar) == null) {
             mMediator = null;
             mViewHolder = null;
             mLocationBarDataProvider = null;
+            mAimToggleOnly = false;
+            mModel = new PropertyModel();
             return;
         }
 
+        mAimToggleOnly = OmniboxFeatures.sAimToggleOnly.getValue();
         mLocationBarDataProvider = locationBarDataProvider;
+        ModelList tabAttachmentsModelList = new ModelList();
 
         var popup =
                 new NavigationAttachmentsPopup(
-                        context, parent.findViewById(R.id.location_bar_attachments_add));
+                        context,
+                        parent.findViewById(R.id.location_bar_attachments_add),
+                        tabAttachmentsModelList);
         mViewHolder = new NavigationAttachmentsViewHolder(parent, popup);
 
         var modelList = new ModelList();
         var adapter = new NavigationAttachmentsRecyclerViewAdapter(modelList);
         mViewHolder.attachmentsView.setAdapter(adapter);
 
-        PropertyModel model =
+        mModel =
                 new PropertyModel.Builder(NavigationAttachmentsProperties.ALL_KEYS)
                         .with(NavigationAttachmentsProperties.ADAPTER, adapter)
-                        .with(NavigationAttachmentsProperties.TOOLBAR_VISIBLE, false)
+                        .with(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE, false)
+                        .with(NavigationAttachmentsProperties.NAVIGATION_TYPE_VISIBLE, false)
                         .build();
         PropertyModelChangeProcessor.create(
-                model, mViewHolder, NavigationAttachmentsViewBinder::bind);
+                mModel, mViewHolder, NavigationAttachmentsViewBinder::bind);
         mMediator =
                 new NavigationAttachmentsMediator(
                         context,
                         windowAndroid,
-                        model,
+                        mModel,
                         mViewHolder,
                         modelList,
                         profileObservableSupplier,
-                        mNavigationFulfillmentTypeSupplier);
+                        mNavigationFulfillmentTypeSupplier,
+                        tabModelSelectorSupplier,
+                        tabAttachmentsModelList);
     }
 
     public void destroy() {
@@ -94,12 +109,14 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
                 switch (pageClass) {
                     case PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE,
                             PageClassification.SEARCH_RESULT_PAGE_NO_SEARCH_TERM_REPLACEMENT_VALUE,
-                            PageClassification.OTHER_VALUE -> true;
+                            PageClassification.OTHER_VALUE ->
+                            true;
                     default -> false;
                 };
 
-        boolean shouldShowToolbar = hasFocus && isSupportedPageClass;
-
+        boolean showNavigationType = hasFocus && isSupportedPageClass;
+        mMediator.setNavigationTypeVisible(showNavigationType);
+        boolean shouldShowToolbar = showNavigationType && !mAimToggleOnly;
         mMediator.setToolbarVisible(shouldShowToolbar);
     }
 
@@ -124,5 +141,9 @@ public class NavigationAttachmentsCoordinator implements UrlFocusChangeListener 
     public GURL getAimUrl(String queryText) {
         if (mMediator == null) return GURL.emptyGURL();
         return mMediator.getAimUrl(queryText);
+    }
+
+    public PropertyModel getModelForTesting() {
+        return mModel;
     }
 }

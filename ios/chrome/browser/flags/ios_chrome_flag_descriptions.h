@@ -26,6 +26,9 @@ extern const char kAIMPrototypeDevToolsDescription[];
 extern const char kAIMPrototypeName[];
 extern const char kAIMPrototypeDescription[];
 
+extern const char kAIMPrototypeAutoattachTabName[];
+extern const char kAIMPrototypeAutoattachTabDescription[];
+
 extern const char kAIMPrototypeImmersiveSRPName[];
 extern const char kAIMPrototypeImmersiveSRPDescription[];
 
@@ -320,9 +323,6 @@ extern const char kEnableAutofillAddressSavePromptDescription[];
 extern const char kEnableASWebAuthenticationSessionName[];
 extern const char kEnableASWebAuthenticationSessionDescription[];
 
-extern const char kEnableDiscoverFeedDiscoFeedEndpointName[];
-extern const char kEnableDiscoverFeedDiscoFeedEndpointDescription[];
-
 extern const char kEnableFeedAblationName[];
 extern const char kEnableFeedAblationDescription[];
 
@@ -466,9 +466,6 @@ extern const char kInvalidateSearchEngineChoiceOnDeviceRestoreDetectionName[];
 extern const char
     kInvalidateSearchEngineChoiceOnDeviceRestoreDetectionDescription[];
 
-extern const char kIOSQuickDeleteName[];
-extern const char kIOSQuickDeleteDescription[];
-
 extern const char kIOSChooseFromDriveName[];
 extern const char kIOSChooseFromDriveDescription[];
 
@@ -511,6 +508,9 @@ extern const char kIOSOneTimeDefaultBrowserNotificationDescription[];
 
 extern const char kIOSProvidesAppNotificationSettingsName[];
 extern const char kIOSProvidesAppNotificationSettingsDescription[];
+
+extern const char kIOSTipsNotificationsStringAlternativesName[];
+extern const char kIOSTipsNotificationsStringAlternativesDescription[];
 
 extern const char
     kLensBlockFetchObjectsInteractionRPCsOnSeparateHandshakeName[];
@@ -558,9 +558,6 @@ extern const char kLensOverlayEnableIPadCompatibilityDescription[];
 
 extern const char kLensOverlayEnableLandscapeCompatibilityName[];
 extern const char kLensOverlayEnableLandscapeCompatibilityDescription[];
-
-extern const char kLensOverlayEnableSameTabNavigationName[];
-extern const char kLensOverlayEnableSameTabNavigationDescription[];
 
 extern const char kLensOverlayNavigationHistoryName[];
 extern const char kLensOverlayNavigationHistoryDescription[];
@@ -747,9 +744,6 @@ extern const char kPageContentAnnotationsRemotePageMetadataDescription[];
 extern const char kPageContextAnchorTagsName[];
 extern const char kPageContextAnchorTagsDescription[];
 
-extern const char kPageInfoLastVisitedIOSName[];
-extern const char kPageInfoLastVisitedIOSDescription[];
-
 extern const char kPageVisibilityPageContentAnnotationsName[];
 extern const char kPageVisibilityPageContentAnnotationsDescription[];
 
@@ -800,6 +794,9 @@ extern const char kReaderModeReadabilityDistillerDescription[];
 
 extern const char kReaderModeTranslationName[];
 extern const char kReaderModeTranslationDescription[];
+
+extern const char kReaderModeTranslationWithInfobarName[];
+extern const char kReaderModeTranslationWithInfobarDescription[];
 
 extern const char kReaderModeDefaultBrowserPromoName[];
 extern const char kReaderModeDefaultBrowserPromoDescription[];
@@ -950,6 +947,9 @@ extern const char kEnableLensOverlayDescription[];
 
 extern const char kEnableLensViewFinderUnifiedExperienceName[];
 extern const char kEnableLensViewFinderUnifiedExperienceDescription[];
+
+extern const char kTabGridDragAndDropName[];
+extern const char kTabGridDragAndDropDescription[];
 
 extern const char kTabGridNewTransitionsName[];
 extern const char kTabGridNewTransitionsDescription[];

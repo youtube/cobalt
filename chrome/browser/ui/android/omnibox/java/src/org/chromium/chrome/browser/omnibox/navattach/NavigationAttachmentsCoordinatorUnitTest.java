@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doReturn;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,14 +37,23 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.OmniboxFeatureList;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Unit tests for {@link NavigationAttachmentsCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -55,12 +65,18 @@ public class NavigationAttachmentsCoordinatorUnitTest {
     private @Mock Profile mProfileMock;
     private @Mock LocationBarDataProvider mLocationBarDataProvider;
     private @Mock NavigationAttachmentsMediator mMediator;
+    private @Mock TabModelSelector mTabModelSelector;
+    private @Mock TabModel mTabModel;
+    private @Mock Bitmap mBitmap;
 
     private Activity mActivity;
     private WindowAndroid mWindowAndroid;
     private NavigationAttachmentsCoordinator mCoordinator;
     private ViewGroup mParent;
     private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
+    private final Supplier<TabModelSelector> mTabModelSelectorSupplier = () -> mTabModelSelector;
+    private final Function<Tab, Bitmap> mTabFaviconFunction = (tab) -> mBitmap;
+    private final List<Tab> mTabs = new ArrayList<>();
 
     @Before
     public void setUp() {
@@ -76,6 +92,9 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                             LayoutInflater.from(activity)
                                     .inflate(R.layout.navigation_attachments_bar, mParent, true);
                         });
+        OmniboxResourceProvider.setTabFaviconFactory(mTabFaviconFunction);
+        doReturn(mTabModel).when(mTabModelSelector).getCurrentModel();
+        doReturn(new ArrayList<>(mTabs).iterator()).when(mTabModel).iterator();
     }
 
     @After
@@ -92,14 +111,15 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                         mWindowAndroid,
                         mParent,
                         mProfileSupplier,
-                        mLocationBarDataProvider);
+                        mLocationBarDataProvider,
+                        mTabModelSelectorSupplier);
 
         doReturn(PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE)
                 .when(mLocationBarDataProvider)
                 .getPageClassification(anyBoolean());
 
         mProfileSupplier.set(mProfileMock);
-        View navigationToolbar = mParent.findViewById(R.id.location_bar_navigation_toolbar);
+        View navigationToolbar = mParent.findViewById(R.id.location_bar_attachments_toolbar);
         assertEquals(View.GONE, navigationToolbar.getVisibility());
 
         mCoordinator.onUrlFocusChange(true);
@@ -118,7 +138,8 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                         mWindowAndroid,
                         mParent,
                         mProfileSupplier,
-                        mLocationBarDataProvider);
+                        mLocationBarDataProvider,
+                        mTabModelSelectorSupplier);
         NavigationAttachmentsViewHolder viewHolder = mCoordinator.getViewHolderForTesting();
         assertNotNull(viewHolder);
         assertNotNull(viewHolder.attachmentsView.getAdapter());
@@ -133,7 +154,8 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                         mWindowAndroid,
                         mParent,
                         mProfileSupplier,
-                        mLocationBarDataProvider);
+                        mLocationBarDataProvider,
+                        mTabModelSelectorSupplier);
         assertNull(mCoordinator.getViewHolderForTesting());
     }
 
@@ -146,7 +168,8 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                         mWindowAndroid,
                         mParent,
                         mProfileSupplier,
-                        mLocationBarDataProvider);
+                        mLocationBarDataProvider,
+                        mTabModelSelectorSupplier);
         NavigationAttachmentsViewHolder viewHolder = mCoordinator.getViewHolderForTesting();
         assertNotNull(viewHolder);
         View addButton = viewHolder.addButton;
@@ -175,7 +198,8 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                         mWindowAndroid,
                         mParent,
                         mProfileSupplier,
-                        mLocationBarDataProvider);
+                        mLocationBarDataProvider,
+                        mTabModelSelectorSupplier);
         mCoordinator.setMediatorForTesting(mMediator);
         mProfileSupplier.set(mProfileMock);
 
@@ -196,5 +220,24 @@ public class NavigationAttachmentsCoordinatorUnitTest {
             boolean shouldBeVisible = supportedPageClassifications.contains(pageClass);
             Mockito.verify(mMediator).setToolbarVisible(shouldBeVisible);
         }
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    public void testAimToggleOnly() {
+        OmniboxFeatures.sAimToggleOnly.setForTesting(true);
+        mCoordinator =
+                new NavigationAttachmentsCoordinator(
+                        mActivity,
+                        mWindowAndroid,
+                        mParent,
+                        mProfileSupplier,
+                        mLocationBarDataProvider,
+                        mTabModelSelectorSupplier);
+
+        assertFalse(
+                mCoordinator
+                        .getModelForTesting()
+                        .get(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE));
     }
 }

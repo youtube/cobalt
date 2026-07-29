@@ -174,10 +174,6 @@ BASE_FEATURE(kLensOverlayEnableLandscapeCompatibility,
              "EnableLensOverlayLandscapeSupport",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kLensOverlayEnableSameTabNavigation,
-             "EnableLensOverlaySameTabNavigation",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kLensOverlayForceShowOnboardingScreen,
              "EnableLensOverlayForceShowOnboardingScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -217,6 +213,8 @@ const char kAIMPrototypeParam[] = "AIMPrototypeParam";
 const char kAIMPrototypeParamAllOmniboxEntrypoints[] =
     "AIMPrototypeAllOmniboxEntrypoints";
 
+BASE_FEATURE(kAIMPrototypeAutoattachTab, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Used to gate the immersive SRP in the AIM prototype.
 BASE_FEATURE(kAIMPrototypeImmersiveSRP, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -233,6 +231,8 @@ BASE_FEATURE(kRemoveExcessNTPs, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kTCRexKillSwitch,
              "kTCRexKillSwitch",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTabGridDragAndDrop, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabGridEmptyThumbnail, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -738,14 +738,7 @@ bool ShouldDeprecateFeedHeader() {
 BASE_FEATURE(kEnableAppBackgroundRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAppBackgroundRefreshEnabled() {
-  version_info::Channel channel = ::GetChannel();
-  // Always off in beta/stable.
-  if (channel == version_info::Channel::BETA ||
-      channel == version_info::Channel::STABLE) {
-    return false;
-  }
-
-  // To test background refresh in conjuntion with the keychain access
+  // To test background refresh in conjunction with the keychain access
   // migration, enable app background refresh if *either* its flag or
   // the keychain access flag is enabled.
   return base::FeatureList::IsEnabled(kEnableAppBackgroundRefresh) ||
@@ -782,9 +775,9 @@ BASE_FEATURE(kSeparateProfilesForManagedAccountsForceMigration,
 
 BASE_FEATURE(kOmahaResyncTimerOnForeground, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kChromeStartupParametersAsync, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kChromeStartupParametersAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kYoutubeIncognito, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kYoutubeIncognito, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kYoutubeIncognitoTargetApps[] = "youtube-incognito-target-apps";
 
@@ -872,7 +865,7 @@ bool FRESignInSecondaryActionLabelUpdate() {
 
 BASE_FEATURE(kConfirmationButtonSwapOrder, base::FEATURE_DISABLED_BY_DEFAULT);
 
-bool IConfirmationButtonSwapOrderEnabled() {
+bool IsConfirmationButtonSwapOrderEnabled() {
   return base::FeatureList::IsEnabled(kConfirmationButtonSwapOrder);
 }
 
@@ -1143,3 +1136,25 @@ bool ShouldShowEditMenuItemsSynchronously() {
   }
   return false;
 }
+
+BASE_FEATURE(kIOSTipsNotificationsAlternativeStrings,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsTipsNotificationsAlternativeStringsEnabled() {
+  return base::FeatureList::IsEnabled(kIOSTipsNotificationsAlternativeStrings);
+}
+
+const char kTipsNotificationsAlternativeStringVersion[] =
+    "TipsNotificationsAlternativeStringVersion";
+
+TipsNotificationsAlternativeStringVersion
+GetTipsNotificationsAlternativeStringVersion() {
+  return static_cast<TipsNotificationsAlternativeStringVersion>(
+      base::GetFieldTrialParamByFeatureAsInt(
+          kIOSTipsNotificationsAlternativeStrings,
+          kTipsNotificationsAlternativeStringVersion,
+          /*default_value=*/
+          static_cast<int>(
+              TipsNotificationsAlternativeStringVersion::kDefault)));
+}
+
+BASE_FEATURE(kImportPasswordsFromSafari, base::FEATURE_DISABLED_BY_DEFAULT);

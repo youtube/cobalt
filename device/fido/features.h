@@ -12,6 +12,13 @@
 
 namespace device {
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+// Allows the passkey unlock error UI to be shown.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kPasskeyUnlockErrorUi);
+#endif
+
 #if BUILDFLAG(IS_WIN)
 // Controls whether on Windows, U2F/CTAP2 requests are forwarded to the
 // native WebAuthentication API, where available.
@@ -62,6 +69,12 @@ BASE_DECLARE_FEATURE(kWebAuthnPublishPrelinkingInfo);
 // Enables the WebAuthn Signal API for Windows Hello.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnHelloSignal);
+
+#if BUILDFLAG(IS_ANDROID)
+// Enables the WebAuthn Signal API for Chrome on Android.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnAndroidSignal);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // When enabled, skips configuring hybrid when Windows can do hybrid. Hybrid may
 // still be delegated to Windows regardless of this flag.

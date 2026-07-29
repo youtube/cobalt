@@ -82,7 +82,8 @@ class DawnCachingInterfaceFactory;
 // managing the lifetimes of GPU channels and forwarding IPC requests from the
 // browser process to them based on the corresponding renderer ID.
 class GPU_IPC_SERVICE_EXPORT GpuChannelManager
-    : public raster::GrShaderCache::Client {
+    : public raster::GrShaderCache::Client,
+      public base::MemoryPressureListener {
  public:
   GpuChannelManager(
       const GpuPreferences& gpu_preferences,
@@ -117,6 +118,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
                                int client_id,
                                uint64_t client_tracing_id,
                                bool is_gpu_host,
+                               bool enable_extra_handles_validation,
                                const gfx::GpuExtraInfo& gpu_extra_info);
 
   void SetChannelClientPid(int client_id, base::ProcessId client_pid);
@@ -298,8 +300,8 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   void DoWakeUpGpu();
 #endif
 
-  void HandleMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+  void OnMemoryPressure(
+      base::MemoryPressureLevel memory_pressure_level) override;
 
   // These objects manage channels to individual renderer processes. There is
   // one channel for each renderer process that has connected to this GPU
@@ -341,7 +343,8 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   // shaders. Read by the browser process on GPU process crash.
   const raw_ptr<GpuProcessShmCount> use_shader_cache_shm_count_;
 
-  base::AsyncMemoryPressureListener memory_pressure_listener_;
+  base::AsyncMemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 
   // The SharedContextState is shared across all RasterDecoders. Note
   // that this class needs to be ref-counted to conveniently manage the lifetime

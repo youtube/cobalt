@@ -238,8 +238,7 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   bool IsPaintable() const final;
   bool IsHibernating() const final;
 
-  void WillDrawImage(CanvasImageSource*,
-                     bool image_is_texture_backed) const final;
+  void WillDrawImage(CanvasImageSource*, bool image_is_texture_backed) final;
 
   std::optional<cc::PaintRecord> FlushCanvas(FlushReason) override;
 
@@ -283,6 +282,8 @@ class MODULES_EXPORT CanvasRenderingContext2D final
     return GetResourceProvider();
   }
 
+  void EnableAccelerationIfPossible() override;
+
  protected:
   HTMLCanvasElement* HostAsHTMLCanvasElement() const final;
   UniqueFontSelector* GetFontSelector() const final;
@@ -310,8 +311,6 @@ class MODULES_EXPORT CanvasRenderingContext2D final
   void Dispose() override;
 
   std::unique_ptr<CanvasResourceProvider> CreateCanvasResourceProvider();
-
-  void EnableAccelerationIfPossible() override;
 
   void DrawElementInternal(Element* element,
                            double x,

@@ -174,9 +174,6 @@ constexpr base::FeatureParam<base::TimeDelta>
 // Enables or disables locked quiz migration to leverage the OnTask SWA.
 BASE_FEATURE(kBocaOnTaskLockedQuizMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables or disables Boca OnTask mute ARC audio requests on ChromeOS.
-BASE_FEATURE(kBocaOnTaskMuteArcAudio, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables or disables the Boca OnTask pod on ChromeOS.
 BASE_FEATURE(kBocaOnTaskPod, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -598,9 +595,6 @@ BASE_FEATURE(kEnableExternalKeyboardsInDiagnostics,
 
 // Enables setting the device hostname.
 BASE_FEATURE(kEnableHostnameSetting, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable keyboard rewriter fix.
-BASE_FEATURE(kEnableKeyboardRewriterFix, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables OAuth support when printing via the IPP protocol.
 BASE_FEATURE(kEnableOAuthIpp, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2030,6 +2024,10 @@ BASE_FEATURE(kDemoSessionToSNotification, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDemoModeSecondaryGoogleAccountSigninAllowedFalse,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Controls whether to include the device info in the demo account setup request
+// to the demo server in signed-in experience.
+BASE_FEATURE(kSendDeviceInfoToDemoServer, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Moves toasts to the bottom-side corner where the status area is instead of
 // the center when enabled.
 BASE_FEATURE(kSideAlignedToasts, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2473,10 +2471,6 @@ bool IsBocaOnTaskLockedQuizMigrationEnabled() {
   return base::FeatureList::IsEnabled(kBocaOnTaskLockedQuizMigration);
 }
 
-bool IsBocaOnTaskMuteArcAudioEnabled() {
-  return base::FeatureList::IsEnabled(kBocaOnTaskMuteArcAudio);
-}
-
 bool IsBocaOnTaskPodEnabled() {
   return base::FeatureList::IsEnabled(kBocaOnTaskPod);
 }
@@ -2705,6 +2699,10 @@ bool IsDemoSessionToSNotificationEnabled() {
 bool IsDemoModeSecondaryGoogleAccountSigninAllowedFalse() {
   return base::FeatureList::IsEnabled(
       kDemoModeSecondaryGoogleAccountSigninAllowedFalse);
+}
+
+bool IsSendDeviceInfoToDemoServerEnabled() {
+  return base::FeatureList::IsEnabled(kSendDeviceInfoToDemoServer);
 }
 
 bool IsEcheSWAEnabled() {
@@ -3056,10 +3054,6 @@ bool IsJupiterScreensaverEnabled() {
 
 bool IsKerberosRememberPasswordByDefaultEnabled() {
   return base::FeatureList::IsEnabled(kKerberosRememberPasswordByDefault);
-}
-
-bool IsKeyboardRewriterFixEnabled() {
-  return base::FeatureList::IsEnabled(kEnableKeyboardRewriterFix);
 }
 
 bool IsLanguagePacksInOobeEnabled() {

@@ -9,6 +9,7 @@
 #import "base/test/gtest_util.h"
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/ntp_tiles/pref_names.h"
 #import "components/password_manager/core/browser/password_manager_util.h"
 #import "components/prefs/scoped_user_pref_update.h"
 #import "components/signin/public/base/signin_metrics.h"
@@ -274,13 +275,6 @@ TEST_F(SetUpListTest, BuildListWithNotifications_Content) {
             SetUpListItemState::kCompleteNotInList);
 }
 
-// Tests that the SetUpList uses the correct criteria when including the
-// Follow item.
-TEST_F(SetUpListTest, BuildListWithFollow) {
-  BuildSetUpList();
-  ExpectListToNotInclude(SetUpListItemType::kFollow);
-}
-
 // Tests that SetUpList observes local state changes, updates the item, and
 // calls the delegate.
 TEST_F(SetUpListTest, ObservesPrefs) {
@@ -342,7 +336,7 @@ TEST_F(SetUpListTest, RecordsAllItemsCompleteOnce) {
 // Tests that the Set Up List can be disabled.
 TEST_F(SetUpListTest, Disable) {
   EXPECT_FALSE(set_up_list_prefs::IsSetUpListDisabled(prefs_));
-  prefs_->SetBoolean(prefs::kHomeCustomizationMagicStackTipsEnabled, false);
+  prefs_->SetBoolean(ntp_tiles::prefs::kTipsHomeModuleEnabled, false);
   EXPECT_TRUE(set_up_list_prefs::IsSetUpListDisabled(prefs_));
 
   BuildSetUpList();

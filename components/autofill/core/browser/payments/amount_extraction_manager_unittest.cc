@@ -4,8 +4,14 @@
 
 #include "components/autofill/core/browser/payments/amount_extraction_manager.h"
 
+#include <cmath>
+#include <memory>
+
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/mock_callback.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager_test_api.h"
@@ -21,6 +27,9 @@
 #include "components/autofill/core/browser/payments/test/mock_bnpl_manager.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "components/optimization_guide/core/mock_optimization_guide_model_executor.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
+#include "components/optimization_guide/proto/features/amount_extraction.pb.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,13 +38,18 @@
 namespace autofill::payments {
 
 namespace {
+using base::test::EqualsProto;
 using ::testing::_;
+using ::testing::A;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsEmpty;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::Test;
+using ModelExecutionCallback = base::OnceCallback<void(
+    optimization_guide::OptimizationGuideModelExecutionResult,
+    std::unique_ptr<optimization_guide::ModelQualityLogEntry>)>;
 }  // namespace
 
 class MockAutofillDriver : public TestAutofillDriver {
@@ -63,6 +77,10 @@ class MockAutofillClient : public TestAutofillClient {
       (base::OnceCallback<void(
            std::optional<optimization_guide::proto::AnnotatedPageContent>)>),
       (override));
+  MOCK_METHOD(optimization_guide::OptimizationGuideModelExecutor*,
+              GetOptimizationGuideModelExecutor,
+              (),
+              (override));
 };
 
 class MockAmountExtractionManager : public AmountExtractionManager {
@@ -109,11 +127,13 @@ class AmountExtractionManagerTest
 
     test_api(payments_data()).AddBnplIssuer(test::GetTestUnlinkedBnplIssuer());
 
-    ON_CALL(
-        *static_cast<MockAutofillOptimizationGuideDecider*>(
-            autofill_manager().client().GetAutofillOptimizationGuideDecider()),
-        IsUrlEligibleForBnplIssuer)
+    ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+                autofill_client().GetAutofillOptimizationGuideDecider()),
+            IsUrlEligibleForBnplIssuer)
         .WillByDefault(Return(true));
+
+    ON_CALL(autofill_client(), GetOptimizationGuideModelExecutor())
+        .WillByDefault(Return(model_executor()));
   }
 
   TestPaymentsDataManager& payments_data() {
@@ -132,6 +152,27 @@ class AmountExtractionManagerTest
     amount_extraction_manager_->OnTimeoutReached();
   }
 
+  void FakeCheckoutAmountReceivedFromAi(
+      const std::double_t& final_checkout_amount,
+      const std::string& currency,
+      const bool is_successful) {
+    optimization_guide::proto::AmountExtractionResponse response;
+    response.set_final_checkout_amount(final_checkout_amount);
+    response.set_currency(currency);
+    response.set_is_successful(is_successful);
+    std::string serialized_metadata;
+    response.SerializeToString(&serialized_metadata);
+    optimization_guide::proto::Any any_result;
+    any_result.set_type_url(
+        base::StrCat({"type.googleapis.com/", response.GetTypeName()}));
+    any_result.set_value(serialized_metadata);
+
+    amount_extraction_manager_->OnCheckoutAmountReceivedFromAi(
+        optimization_guide::OptimizationGuideModelExecutionResult(any_result,
+                                                                  nullptr),
+        nullptr);
+  }
+
   void SetUpCheckoutAmountExtractionCall(const std::string& extracted_amount,
                                          int latency_ms = 0) {
     auto extract_action =
@@ -146,12 +187,19 @@ class AmountExtractionManagerTest
         .WillByDefault(std::move(extract_action));
   }
 
+  NiceMock<optimization_guide::MockOptimizationGuideModelExecutor>*
+  model_executor() {
+    return &mock_model_executor_;
+  }
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<AmountExtractionManager> amount_extraction_manager_;
   std::unique_ptr<MockAmountExtractionManager> mock_amount_extraction_manager_;
   ukm::TestAutoSetUkmRecorder ukm_recorder_;
+  NiceMock<optimization_guide::MockOptimizationGuideModelExecutor>
+      mock_model_executor_;
 };
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -462,6 +510,84 @@ TEST_F(AmountExtractionManagerTest, AmountParser_OverflowValue) {
             std::nullopt);
 }
 
+TEST_F(AmountExtractionManagerTest, ValidResponse) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  response.set_currency("USD");
+  response.set_is_successful(true);
+
+  EXPECT_TRUE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, ValidResponseZeroAmount) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(0.0);
+  response.set_currency("EUR");
+  EXPECT_TRUE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, MissingAmount) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_currency("USD");
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, NegativeAmount) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(-10.50);
+  response.set_currency("USD");
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, MissingCurrency) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, NonAsciiCurrency) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  response.set_currency("USĐ");
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, CurrencyTooShort) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  response.set_currency("US");
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, CurrencyTooLong) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  response.set_currency("USDD");
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, CurrencyWithLowerCase) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  response.set_currency("UsD");
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
+TEST_F(AmountExtractionManagerTest, EmptyResponse) {
+  optimization_guide::proto::AmountExtractionResponse response;
+  EXPECT_FALSE(
+      amount_extraction_manager_->IsValidAmountExtractionResponse(response));
+}
+
 TEST_F(AmountExtractionManagerTest,
        TriggerCheckoutAmountExtraction_Success_Metric) {
   constexpr int kDefaultAmountExtractionLatencyMs = 200;
@@ -695,7 +821,8 @@ TEST_F(AmountExtractionManagerTest, ResponseBeforeTimeout) {
 TEST_F(AmountExtractionManagerTest,
        OnCheckoutAmountReceived_EmptyResult_BnplManagerNotified) {
   EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnAmountExtractionReturned(std::optional<uint64_t>(), false))
+              OnAmountExtractionReturned(std::optional<uint64_t>(),
+                                         /*timeout_reached=*/false))
       .Times(1);
 
   FakeCheckoutAmountReceived("");
@@ -705,9 +832,10 @@ TEST_F(AmountExtractionManagerTest,
 // extraction receives a result with correct format.
 TEST_F(AmountExtractionManagerTest,
        OnCheckoutAmountReceived_AmountInCorrectFormat_BnplManagerNotified) {
-  EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnAmountExtractionReturned(
-                  std::optional<uint64_t>(123'450'000ULL), false))
+  EXPECT_CALL(
+      *autofill_manager().GetPaymentsBnplManager(),
+      OnAmountExtractionReturned(std::optional<uint64_t>(123'450'000ULL),
+                                 /*timeout_reached=*/false))
       .Times(1);
 
   FakeCheckoutAmountReceived("$ 123.45");
@@ -717,11 +845,38 @@ TEST_F(AmountExtractionManagerTest,
 // extraction times out.
 TEST_F(AmountExtractionManagerTest,
        OnCheckoutAmountReceived_AmountExtractionTimeout_BnplManagerNotified) {
-  EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
-              OnAmountExtractionReturned(Eq(std::nullopt), true))
+  EXPECT_CALL(
+      *autofill_manager().GetPaymentsBnplManager(),
+      OnAmountExtractionReturned(Eq(std::nullopt), /*timeout_reached=*/true))
       .Times(1);
 
   FakeAmountExtractionTimeout();
+}
+
+// This test checks that `BnplManager::OnAmountExtractionReturned` will not be
+// invoked when an invalid amount extraction result is received from the
+// server-side AI.
+TEST_F(AmountExtractionManagerTest,
+       OnCheckoutAmountReceivedFromAi_InvalidResult) {
+  EXPECT_CALL(
+      *autofill_manager().GetPaymentsBnplManager(),
+      OnAmountExtractionReturnedFromAi(std::optional<uint64_t>(), false))
+      .Times(1);
+
+  FakeCheckoutAmountReceivedFromAi(123.45, "InvalidCurrency", true);
+}
+
+// This test checks that `BnplManager::OnAmountExtractionReturned` will be
+// invoked when a valid amount extraction result is received from the
+// server-side AI.
+TEST_F(AmountExtractionManagerTest,
+       OnCheckoutAmountReceivedFromAi_ValidResult) {
+  EXPECT_CALL(*autofill_manager().GetPaymentsBnplManager(),
+              OnAmountExtractionReturnedFromAi(
+                  std::optional<uint64_t>(123'450'000ULL), false))
+      .Times(1);
+
+  FakeCheckoutAmountReceivedFromAi(123.45, "USD", true);
 }
 
 // This test checks AutofillClient::GetAiPageContent is called when no page
@@ -800,6 +955,46 @@ TEST_F(AmountExtractionManagerTest, OnAiPageContentReceived_NullOpt) {
       test_api(*amount_extraction_manager_).GetIsFetchingAiPageContent());
   EXPECT_THAT(test_api(*amount_extraction_manager_).GetAiPageContent(),
               nullptr);
+}
+
+// Verify that if the page content is not fetched, `ExecuteModel` should not be
+// called.
+TEST_F(AmountExtractionManagerTest, ShouldNotCallExecuteModel) {
+  ASSERT_EQ(test_api(*amount_extraction_manager_).GetAiPageContent(), nullptr);
+  EXPECT_CALL(*model_executor(), ExecuteModel).Times(0);
+  amount_extraction_manager_->TriggerCheckoutAmountExtractionWithAi();
+}
+
+// Verify that when `TriggerCheckoutAmountExtractionWithAi` is called with
+// annotated page contents present, `ExecuteModel` from
+// `OptimizationGuideModelExecutor` should be invoked.
+TEST_F(AmountExtractionManagerTest, ShouldCallExecuteModel) {
+  test_api(*amount_extraction_manager_).SetAiPageContent();
+  optimization_guide::proto::AmountExtractionRequest expected_request;
+  *expected_request.mutable_annotated_page_content() =
+      optimization_guide::proto::AnnotatedPageContent();
+
+  optimization_guide::proto::AmountExtractionResponse response;
+  response.set_final_checkout_amount(123.45);
+  response.set_currency("USD");
+  response.set_is_successful(true);
+
+  EXPECT_CALL(
+      *model_executor(),
+      ExecuteModel(
+          optimization_guide::ModelBasedCapabilityKey::kAmountExtraction,
+          EqualsProto(expected_request),
+          Eq(AmountExtractionManager::kAiBasedAmountExtractionWaitTime),
+          A<ModelExecutionCallback>()))
+      .WillOnce(base::test::RunOnceCallback<3>(
+          optimization_guide::OptimizationGuideModelExecutionResult(
+              optimization_guide::AnyWrapProto(response),
+              /*execution_info=*/nullptr),
+          /*log_entry=*/nullptr));
+
+  amount_extraction_manager_->TriggerCheckoutAmountExtractionWithAi();
+
+  ASSERT_EQ(test_api(*amount_extraction_manager_).GetAiPageContent(), nullptr);
 }
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||

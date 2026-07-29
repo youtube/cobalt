@@ -20,9 +20,13 @@ source_set("extensions") {
 
   if (enable_extensions_core) {
     sources += [
+      "controlled_home_dialog_controller.h",
+      "controlled_home_dialog_controller_interface.h",
       "extension_dialog_utils.h",
       "extension_install_ui.h",
       "extensions_dialogs.h",
+      "extensions_menu_view_model.h",
+      "extensions_menu_view_platform_delegate.h",
       "reload_page_dialog_controller.h",
       "settings_overridden_dialog.h",
     ]
@@ -37,6 +41,7 @@ source_set("extensions") {
     }
     public_deps += [
       "//base",
+      "//extensions/browser",
       "//extensions/common",
       "//ui/base:types",
       "//ui/base/interaction",
@@ -49,8 +54,6 @@ source_set("extensions") {
       "accelerator_priority.h",
       "app_launch_params.h",
       "application_launch.h",
-      "controlled_home_dialog_controller.h",
-      "controlled_home_dialog_controller_interface.h",
       "extension_action_platform_delegate.h",
       "extension_action_view_controller.h",
       "extension_enable_flow.h",
@@ -102,11 +105,13 @@ source_set("impl") {
   if (enable_extensions_core) {
     sources += [
       "controlled_home_dialog.cc",
+      "controlled_home_dialog_controller.cc",
       "extension_install_blocked_dialog.cc",
       "extension_install_friction_dialog.cc",
       "extension_install_ui.cc",
       "extension_multiple_uninstall_dialog.cc",
       "extension_uninstall_dialog_impl.cc",
+      "extensions_menu_view_model.cc",
       "reload_page_dialog_controller.cc",
       "settings_overridden_dialog.cc",
     ]
@@ -152,7 +157,6 @@ source_set("impl") {
     sources += [
       "app_launch_params.cc",
       "application_launch.cc",
-      "controlled_home_dialog_controller.cc",
       "extension_action_view_controller.cc",
       "extension_enable_flow.cc",
       "extension_installed_bubble_model.cc",

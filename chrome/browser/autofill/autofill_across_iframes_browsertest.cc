@@ -78,12 +78,24 @@ constexpr char kExp[] = "12/2035";
 constexpr char kCvc[] = "123";
 
 // Adds waiting capabilities to BrowserAutofillManager.
-class TestAutofillManager : public BrowserAutofillManager {
+// TODO(crbug.com/447986303): Remove the LOG statements.
+class TestAutofillManager : public BrowserAutofillManager,
+                            public AutofillManager::Observer {
  public:
   explicit TestAutofillManager(ContentAutofillDriver* driver)
       : BrowserAutofillManager(driver) {
+    LOG(ERROR) << __func__ << " " << this << " for "
+               << driver->render_frame_host()->GetFrameToken();
     test_api(test_api(*this).form_filler())
         .set_limit_before_refill(base::Hours(1));
+    manager_observation_.Observe(this);
+  }
+
+  ~TestAutofillManager() override {
+    LOG(ERROR) << __func__ << " " << this << " for "
+               << static_cast<ContentAutofillDriver&>(driver())
+                      .render_frame_host()
+                      ->GetFrameToken();
   }
 
   static TestAutofillManager& GetForRenderFrameHost(
@@ -116,6 +128,193 @@ class TestAutofillManager : public BrowserAutofillManager {
 
   std::optional<FormData> submitted_form() const { return submitted_form_; }
 
+  void OnAutofillManagerStateChanged(AutofillManager& manager,
+                                     LifecycleState previous,
+                                     LifecycleState current) override {
+    LOG(ERROR) << __func__ << " " << this << " "
+               << base::to_underlying(previous) << " -> "
+               << base::to_underlying(current);
+  }
+
+  void OnBeforeLanguageDetermined(AutofillManager& manager) override {
+    LOG(ERROR) << __func__ << " " << this;
+  }
+  void OnAfterLanguageDetermined(AutofillManager& manager) override {
+    LOG(ERROR) << __func__ << " " << this;
+  }
+
+  void OnBeforeFormsSeen(
+      AutofillManager& manager,
+      base::span<const FormGlobalId> updated_forms,
+      base::span<const FormGlobalId> removed_forms) override {
+    LOG(ERROR) << __func__ << " " << this;
+    for (const FormGlobalId form : updated_forms) {
+      LOG(ERROR) << __func__ << " " << this << " updated " << form;
+    }
+    for (const FormGlobalId form : removed_forms) {
+      LOG(ERROR) << __func__ << " " << this << " removed " << form;
+    }
+  }
+  void OnAfterFormsSeen(AutofillManager& manager,
+                        base::span<const FormGlobalId> updated_forms,
+                        base::span<const FormGlobalId> removed_forms) override {
+    LOG(ERROR) << __func__ << " " << this;
+    for (const FormGlobalId form : updated_forms) {
+      LOG(ERROR) << __func__ << " " << this << " updated " << form;
+    }
+    for (const FormGlobalId form : removed_forms) {
+      LOG(ERROR) << __func__ << " " << this << " removed " << form;
+    }
+  }
+
+  void OnBeforeCaretMovedInFormField(AutofillManager& manager,
+                                     const FormGlobalId& form,
+                                     const FieldGlobalId& field_id,
+                                     const std::u16string& selection,
+                                     const gfx::Rect& caret_bounds) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field_id;
+  }
+  void OnAfterCaretMovedInFormField(AutofillManager& manager,
+                                    const FormGlobalId& form,
+                                    const FieldGlobalId& field_id,
+                                    const std::u16string& selection,
+                                    const gfx::Rect& caret_bounds) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field_id;
+  }
+
+  void OnBeforeTextFieldValueChanged(AutofillManager& manager,
+                                     FormGlobalId form,
+                                     FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+
+  void OnAfterTextFieldValueChanged(AutofillManager& manager,
+                                    FormGlobalId form,
+                                    FieldGlobalId field,
+                                    const std::u16string& text_value) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field << " '"
+               << text_value << "'";
+  }
+
+  void OnBeforeTextFieldDidScroll(AutofillManager& manager,
+                                  FormGlobalId form,
+                                  FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+  void OnAfterTextFieldDidScroll(AutofillManager& manager,
+                                 FormGlobalId form,
+                                 FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+
+  void OnBeforeSelectControlSelectionChanged(AutofillManager& manager,
+                                             FormGlobalId form,
+                                             FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+  void OnAfterSelectControlSelectionChanged(AutofillManager& manager,
+                                            FormGlobalId form,
+                                            FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+
+  void OnBeforeAskForValuesToFill(AutofillManager& manager,
+                                  FormGlobalId form,
+                                  FieldGlobalId field,
+                                  const FormData& form_data) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+  void OnAfterAskForValuesToFill(AutofillManager& manager,
+                                 FormGlobalId form,
+                                 FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+
+  void OnBeforeFocusOnFormField(AutofillManager& manager,
+                                FormGlobalId form,
+                                FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+  void OnAfterFocusOnFormField(AutofillManager& manager,
+                               FormGlobalId form,
+                               FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form << " " << field;
+  }
+
+  void OnBeforeSelectFieldOptionsDidChange(AutofillManager& manager,
+                                           FormGlobalId form) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+  void OnAfterSelectFieldOptionsDidChange(AutofillManager& manager,
+                                          FormGlobalId form) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+
+  void OnBeforeDidAutofillForm(AutofillManager& manager,
+                               FormGlobalId form) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+  void OnAfterDidAutofillForm(AutofillManager& manager,
+                              FormGlobalId form) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+
+  void OnBeforeJavaScriptChangedAutofilledValue(AutofillManager& manager,
+                                                FormGlobalId form,
+                                                FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+  void OnAfterJavaScriptChangedAutofilledValue(AutofillManager& manager,
+                                               FormGlobalId form,
+                                               FieldGlobalId field) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+
+  void OnBeforeLoadedServerPredictions(AutofillManager& manager) override {
+    LOG(ERROR) << __func__ << " " << this;
+  }
+  void OnAfterLoadedServerPredictions(AutofillManager& manager) override {
+    LOG(ERROR) << __func__ << " " << this;
+  }
+
+  void OnFieldTypesDetermined(AutofillManager& manager,
+                              FormGlobalId form,
+                              FieldTypeSource source) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+
+  void OnSuggestionsShown(AutofillManager& manager,
+                          base::span<const Suggestion> suggestions) override {
+    LOG(ERROR) << __func__ << " " << this;
+  }
+  void OnSuggestionsHidden(AutofillManager& manager) override {
+    LOG(ERROR) << __func__ << " " << this;
+  }
+
+  void OnFillOrPreviewForm(
+      AutofillManager& manager,
+      FormGlobalId form_id,
+      mojom::ActionPersistence action_persistence,
+      const base::flat_set<FieldGlobalId>& filled_field_ids,
+      const FillingPayload& filling_payload) override {
+    if (action_persistence != mojom::ActionPersistence::kFill) {
+      return;
+    }
+    LOG(ERROR) << __func__ << " " << this << " form = " << form_id;
+    for (const FieldGlobalId& field_id : filled_field_ids) {
+      LOG(ERROR) << __func__ << " " << this << " field = " << field_id;
+    }
+  }
+
+  void OnBeforeFormSubmitted(AutofillManager& manager,
+                             const FormData& form) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+  void OnAfterFormSubmitted(AutofillManager& manager,
+                            const FormData& form) override {
+    LOG(ERROR) << __func__ << " " << this << " " << form;
+  }
+
  private:
   TestAutofillManagerWaiter did_autofill_{
       *this,
@@ -124,6 +323,10 @@ class TestAutofillManager : public BrowserAutofillManager {
       *this,
       {AutofillManagerEvent::kFormSubmitted}};
   std::optional<FormData> submitted_form_;
+  // TODO(crbug.com/447986303): Remove `manager_observation_` and make this
+  // class no longer an AutofillManager::Observer.
+  base::ScopedObservation<AutofillManager, AutofillManager::Observer>
+      manager_observation_{this};
 };
 
 // Fakes an Autofill on of a given form.
@@ -537,6 +740,18 @@ class AutofillAcrossIframesTest_Dynamic : public AutofillAcrossIframesTest {
     EXPECT_EQ(3u, form.fields().size());  // The CVC field doesn't exist yet.
     TestAutofillManager& manager = main_autofill_manager();
     FillCard(main_frame(), form, trigger_field);
+    {
+      // TODO(crbug.com/447986303): Remove this block. Its sole purpose is
+      // to collect more information about flaky tests that hit a timeout in
+      // WaitForAutofill() below. The question is
+      const FormStructure* autofilled_form =
+          GetOrWaitForFormWithFocusableFields(4);
+      for (const auto& field : autofilled_form->fields()) {
+        LOG(ERROR) << field->global_id() << " has value " << field->value()
+                   << " and is " << (field->is_autofilled() ? "" : "not ")
+                   << "autofilled";
+      }
+    }
     // Now, after FillCard(), the form gets filled in the renderer (which
     // triggers three OnDidAutofillForm() events) and then changes.
     // The change triggers an OnFormsSeen() event, followed by a form

@@ -18,8 +18,8 @@ import 'chrome://resources/cr_elements/icons.html.js';
 import './category_setting_exceptions.js';
 import './settings_category_default_radio_group.js';
 import './site_settings_shared.css.js';
+import '../controls/collapse_radio_button.js';
 import '../privacy_icons.html.js';
-import '../privacy_page/collapse_radio_button.js';
 import '../safety_hub/safety_hub_module.js';
 import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
@@ -41,8 +41,8 @@ import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
 
 import {ContentSetting, ContentSettingsTypes, SettingsState} from './constants.js';
 import {getTemplate} from './notifications_page.html.js';
-import type {SiteSettingsPrefsBrowserProxy} from './site_settings_prefs_browser_proxy.js';
-import {SiteSettingsPrefsBrowserProxyImpl} from './site_settings_prefs_browser_proxy.js';
+import type {SiteSettingsBrowserProxy} from './site_settings_browser_proxy.js';
+import {SiteSettingsBrowserProxyImpl} from './site_settings_browser_proxy.js';
 
 const NotificationsPageElementBase = RouteObserverMixin(
     SettingsViewMixin(WebUiListenerMixin(PrefsMixin(PolymerElement))));
@@ -121,8 +121,8 @@ export class NotificationsPageElement extends NotificationsPageElementBase {
   declare private showNotificationPermissionsReview_: boolean;
   declare private notificationPermissionsReviewHeader_: string;
   declare private notificationPermissionsReviewSubheader_: string;
-  private siteSettingsPrefsBrowserProxy_: SiteSettingsPrefsBrowserProxy =
-      SiteSettingsPrefsBrowserProxyImpl.getInstance();
+  private siteSettingsBrowserProxy_: SiteSettingsBrowserProxy =
+      SiteSettingsBrowserProxyImpl.getInstance();
   private safetyHubBrowserProxy_: SafetyHubBrowserProxy =
       SafetyHubBrowserProxyImpl.getInstance();
   private metricsBrowserProxy_: MetricsBrowserProxy =
@@ -181,7 +181,7 @@ export class NotificationsPageElement extends NotificationsPageElementBase {
 
   private async updateNotificationState_() {
     const [notificationDefaultValue] = await Promise.all([
-      this.siteSettingsPrefsBrowserProxy_.getDefaultValueForContentType(
+      this.siteSettingsBrowserProxy_.getDefaultValueForContentType(
           ContentSettingsTypes.NOTIFICATIONS),
     ]);
     this.isNotificationAllowed_ =

@@ -165,7 +165,6 @@ class ReusingTextShaper final {
       return ShapeWithoutCache(start_item, font, end_offset);
     };
     if (allow_shape_cache_) {
-      DCHECK(RuntimeEnabledFeatures::LayoutNGShapeCacheEnabled());
       return font.PrimaryFont()->GetShapeCache().GetOrCreate(
           shaper_.GetText(), start_item.Direction(), ShapeFunc);
     }
@@ -1395,14 +1394,10 @@ void InlineNode::SegmentBidiRuns(InlineNodeData* data) const {
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
 }
 
-bool InlineNode::IsNGShapeCacheAllowed(
-    const String& text_content,
-    const Font* override_font,
-    const InlineItems& items,
-    ShapeResultSpacing<String>& spacing) const {
-  if (!RuntimeEnabledFeatures::LayoutNGShapeCacheEnabled()) {
-    return false;
-  }
+bool InlineNode::IsNGShapeCacheAllowed(const String& text_content,
+                                       const Font* override_font,
+                                       const InlineItems& items,
+                                       ShapeResultSpacing& spacing) const {
   // For consistency with similar usages of ShapeCache (e.g. canvas) and in
   // order to avoid caching bugs (e.g. with scripts having Arabic joining)
   // NGShapeCache is only enabled when the IFC is made of a single text item. To
@@ -1448,7 +1443,7 @@ void InlineNode::ShapeText(InlineItemsData* data,
   InlineItem::CheckIndex(*items);
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
 
-  ShapeResultSpacing<String> spacing(
+  ShapeResultSpacing spacing(
       text_content,
       /*allow_word_spacing_anywhere=*/IsSvgText() ||
           (RuntimeEnabledFeatures::WordSpacingWhiteSpacePreEnabled() &&

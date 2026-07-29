@@ -5,6 +5,7 @@
 """A script to evaluate prompts using promptfoo."""
 
 import argparse
+import dataclasses
 import fnmatch
 import logging
 import os
@@ -12,15 +13,26 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import yaml
 
 import checkout_helpers
 import constants
 import promptfoo_installation
 import workers
 
+sys.path.append(str(constants.CHROMIUM_SRC))
+from agents.common import gemini_helpers
+
 TESTCASE_EXTENSION = '.promptfoo.yaml'
 _SHARD_INDEX_ENV_VAR = 'GTEST_SHARD_INDEX'
 _TOTAL_SHARDS_ENV_VAR = 'GTEST_TOTAL_SHARDS'
+
+
+@dataclasses.dataclass
+class PassKConfig:
+    """Configuration for a pass@k test."""
+    runs_per_test: int
+    pass_k_threshold: int
 
 
 def _check_uncommitted_changes(cwd):
@@ -48,7 +60,8 @@ def _check_uncommitted_changes(cwd):
 
 def _build_chromium(cwd):
     logging.info('Running `gn gen out/Default`')
-    subprocess.check_call(['gn', 'gen', 'out/Default'], cwd=cwd)
+    subprocess.check_call(
+        ['gn', 'gen', 'out/Default', '--args=use_remoteexec=true'], cwd=cwd)
     logging.info('Running `autoninja -C out/Default`')
     subprocess.check_call(['autoninja', '-C', 'out/Default'], cwd=cwd)
     logging.info('Finished building')
@@ -191,7 +204,7 @@ def _perform_chromium_setup(force: bool, build: bool) -> None:
         _build_chromium(src_path)
 
 
-def _fetch_sandbox_image(gemini_cli_bin: pathlib.Path | None = None) -> bool:
+def _fetch_sandbox_image() -> bool:
     """Pre-fetches the sandbox image.
 
     Args:
@@ -201,29 +214,66 @@ def _fetch_sandbox_image(gemini_cli_bin: pathlib.Path | None = None) -> bool:
         True on success, False on failure.
     """
     logging.info('Pre-fetching sandbox image. This may take a minute...')
-    # Use a simple, non-destructive prompt to trigger the one-time
-    # sandbox image download.
-    with tempfile.TemporaryDirectory() as tmpdir:
-        try:
-            command = [gemini_cli_bin or 'gemini', '--sandbox', 'no-op']
-            subprocess.run(
-                command,
-                text=True,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                cwd=tmpdir,
-            )
-            return True
-        except subprocess.CalledProcessError as e:
-            output = ''
-            if e.stdout:
-                output += f'\noutput:\n{e.stdout}'
-            logging.error(
-                'Failed to pre-fetch sandbox image: %s. This may be '
-                'because you are in an environment that does not support '
-                'sandboxing. Try running with --no-sandbox.%s', e, output)
+    image = ''
+    try:
+        version = gemini_helpers.get_gemini_version()
+        if not version:
+            logging.error('Failed to get gemini version.')
             return False
+
+        image = f'{constants.GEMINI_SANDBOX_IMAGE_URL}:{version}'
+        subprocess.run(
+            ['docker', 'pull', image],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        output = ''
+        if hasattr(e, 'stdout') and e.stdout:
+            output += f'\noutput:\n{e.stdout}'
+        logging.error(
+            'Failed to pre-fetch sandbox image from %s: %s. This may be '
+            'because you are in an environment that does not support '
+            'sandboxing. Try running with --no-sandbox.%s', image, e, output)
+        return False
+
+
+def _read_pass_k_config(test_file: pathlib.Path) -> PassKConfig:
+    """Reads the pass@k config from the test file.
+
+    Args:
+        test_file: The path to the test file.
+
+    Returns:
+        A PassKConfig object with the pass@k settings.
+    """
+    with open(test_file, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+
+    runs_per_test = 1
+    pass_k_threshold = 1
+    if config.get('tests'):
+        if len(config['tests']) > 1:
+            logging.warning(
+                'Pass@k settings can only be specified on the first test in a '
+                'promptfoo config. Settings on other tests will be ignored.')
+
+        test = config['tests'][0]
+        if test.get('metadata'):
+            runs_per_test = test['metadata'].get('runs_per_test', 1)
+            if not isinstance(runs_per_test, int):
+                raise ValueError(
+                    f'runs_per_test in {test_file} must be an integer.')
+
+            pass_k_threshold = test['metadata'].get('pass_k_threshold', 1)
+            if not isinstance(pass_k_threshold, int):
+                raise ValueError(
+                    f'pass_k_threshold in {test_file} must be an integer.')
+
+    return PassKConfig(runs_per_test=runs_per_test,
+                       pass_k_threshold=pass_k_threshold)
 
 
 def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
@@ -252,7 +302,7 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
         promptfoo = promptfoo_installation.setup_promptfoo(
             promptfoo_dir, args.promptfoo_revision, args.promptfoo_version)
 
-    if args.sandbox and not _fetch_sandbox_image(args.gemini_cli_bin):
+    if args.sandbox and not _fetch_sandbox_image():
         return 1
 
     worker_options = workers.WorkerOptions(clean=not args.no_clean,
@@ -261,9 +311,13 @@ def _run_prompt_eval_tests(args: argparse.Namespace) -> int:
                                            sandbox=args.sandbox,
                                            gemini_cli_bin=args.gemini_cli_bin)
 
-    worker_pool = workers.WorkerPool(args.parallel_workers, promptfoo,
-                                     worker_options,
-                                     args.print_output_on_success)
+    worker_pool = workers.WorkerPool(
+        args.parallel_workers
+        if args.parallel_workers != -1 else len(configs_to_run),
+        promptfoo,
+        worker_options,
+        args.print_output_on_success,
+    )
     configs_for_current_iteration = configs_to_run
     failed_test_results = []
     for iteration in range(args.retries + 1):
@@ -317,8 +371,8 @@ def _validate_args(args: argparse.Namespace,
             'all')
 
     # Test Runner Arguments group.
-    if args.parallel_workers < 1:
-        parser.error('--parallel-workers must be positive')
+    if args.parallel_workers < 1 and args.parallel_workers != -1:
+        parser.error('--parallel-workers must be positive or -1')
     if args.retries < 0:
         parser.error('--retries must be non-negative')
     if args.isolated_script_test_repeat < 0:
@@ -424,11 +478,18 @@ def _parse_args() -> argparse.Namespace:
         default=1,
         help=('The number of parallel workers to run tests in. Changing this '
               'is not recommended if the Chromium checkout being used is not '
-              'on btrfs.'))
-    group.add_argument('--retries',
-                       type=int,
-                       default=0,
-                       help='Number of times to retry a failed test.')
+              'on btrfs. A value of -1 will use a separate worker for each '
+              'eval.'))
+    retry_group = group.add_mutually_exclusive_group()
+    retry_group.add_argument('--retries',
+                             type=int,
+                             default=0,
+                             help='Number of times to retry a failed test.')
+    retry_group.add_argument('--isolated-script-test-launcher-retry-limit',
+                             dest='retries',
+                             type=int,
+                             help=('Alias for --retries to conform to the '
+                                   'isolated script standard.'))
     group.add_argument('--isolated-script-test-repeat',
                        type=int,
                        default=0,

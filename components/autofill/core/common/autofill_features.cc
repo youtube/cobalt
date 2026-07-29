@@ -63,6 +63,11 @@ BASE_FEATURE(kAutofillAddressUserDeclinedSaveSurvey,
 BASE_FEATURE(kAutofillAddressUserPerceptionSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, autofill will fill not skip filling fields that had an initial
+// value which was modified.
+BASE_FEATURE(kAutofillAllowFillingModifiedInitialValues,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled (and if `AutofillAiServerModel` is also enabled), this ignores
 // the `may_run_server_model` boolean sent by the Autofill server and, instead,
 // queries the server model for every encountered form that is not already
@@ -84,6 +89,13 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif
 );
+
+// Kill switch: If enabled, MayPerformAutofillAiAction() also depends on two
+// prefs that enable/disable filling and import of identity-related and
+// travel-related entities.
+// TODO(crbug.com/450060416): Remove after M144 branch point (2025-01-12).
+BASE_FEATURE(kAutofillAiIdentityAndTravelPrefs,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, no account-level capabilities are checked to determine whether
 // a user is eligible for AutofillAI.
@@ -354,11 +366,6 @@ BASE_FEATURE(kAutofillEnableLoyaltyCardsFilling,
 BASE_FEATURE(kAutofillEnableEmailOrLoyaltyCardsFilling,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, the Blink renderer extracts forms only on admissible URLs.
-// TODO(crbug.com/409401613): Remove after M142 branch point (2025-09-29).
-BASE_FEATURE(kAutofillExtractOnlyOnAdmissibleUrls,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, only non-ad frames are extracted.
 // Otherwise, non-ad frames as well as *visible* ad frames are extracted.
 // "Extracted" means that FormFieldData::child_frames is populated, which is
@@ -388,7 +395,7 @@ BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
 // in order to reduce false positive classifications of city fields.
 // TODO(crbug.com/330508437): Clean up when launched.
 BASE_FEATURE(kAutofillImproveCityFieldClassification,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, focusing on a credit card number field that was traditionally
 // autofilled will yield all credit card suggestions.
@@ -458,12 +465,6 @@ BASE_FEATURE(kAutofillFixFormTracking, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAutofillUseSubmittedFormInHtmlSubmission,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, the ordering for rationalization and sectioning is the same for
-// server and heuristic predictions.
-// TODO(crbug.com/408497919): Remove when launched.
-BASE_FEATURE(kAutofillUnifyRationalizationAndSectioningOrder,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Replaces blink::WebFormElementObserver usage in FormTracker by updated logic
 // for tracking the disappearance of forms as well as other submission
 // triggering events. See `AutofillAgent::GetSubmittedForm()` for more
@@ -483,12 +484,6 @@ BASE_FEATURE(kAutofillRelaxAddressImport, base::FEATURE_DISABLED_BY_DEFAULT);
 // TODO(crbug.com/40281981): Remove when launched.
 BASE_FEATURE(kAutofillReplaceFormElementObserver,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, FormFieldData::is_visible is a heuristic for actual visibility on
-// Blink platforms.
-// Otherwise and on iOS, it's an alias for FormFieldData::is_focusable.
-// TODO(crbug.com/324199622) When abandoned, remove FormFieldData::is_visible.
-BASE_FEATURE(kAutofillDetectFieldVisibility, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, new heuristics are applied for disambiguating multiple possible
 // types in a form field. Otherwise, only the already established heuristic for
@@ -515,6 +510,13 @@ BASE_FEATURE(kAutofillSupportLastNamePrefix, base::FEATURE_DISABLED_BY_DEFAULT);
 // importing split zip codes from two adjacent fields.
 // TODO(crbug.com/369503318): Clean up when launched.
 BASE_FEATURE(kAutofillSupportSplitZipCode, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch: If true, FormFieldData::IsFocusable will allow returning false
+// for fields with role="presentation" html attribute.
+// TODO(crbug.com/444754999): Clean up after confirming this is safe after M143
+// release.
+BASE_FEATURE(kAutofillSupportPresentationRole,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Kill switch: If true, AutofillManager::AfterParsingFinishesDeprecated()
 // becomes the identity function. That is, it does not delay the callback until
@@ -708,13 +710,6 @@ BASE_FEATURE(kAutofillEnableCacheForRegexMatching,
 const base::FeatureParam<int>
     kAutofillEnableCacheForRegexMatchingCacheSizeParam{
         &kAutofillEnableCacheForRegexMatching, "cache_size", 1000};
-
-// If enabled, AutofillType may be populated with multiple FieldTypes where all
-// but one FieldType are Autofill AI FieldTypes.
-// This is a kill switch.
-// TODO(crbug.com/432645177): Clean up when launched.
-BASE_FEATURE(kAutofillUnionTypesForAutofillAi,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAutofillUKMExperimentalFields, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kAutofillUKMExperimentalFieldsBucket0{

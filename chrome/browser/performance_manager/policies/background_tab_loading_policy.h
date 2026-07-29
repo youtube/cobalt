@@ -36,7 +36,8 @@ namespace policies {
 // background tab loading at all times.
 class BackgroundTabLoadingPolicy : public GraphOwned,
                                    public NodeDataDescriberDefaultImpl,
-                                   public PageNodeObserver {
+                                   public PageNodeObserver,
+                                   public base::MemoryPressureListener {
  public:
   // `all_restored_tabs_loaded_callback` is invoked when all tabs passed to
   // ScheduleLoadForRestoredTabs() are loaded.
@@ -127,8 +128,7 @@ class BackgroundTabLoadingPolicy : public GraphOwned,
   base::Value::Dict DescribeSystemNodeData(
       const SystemNode* node) const override;
 
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel new_level);
+  void OnMemoryPressure(base::MemoryPressureLevel new_level) override;
 
   // Returns the SiteDataReader instance for |page_node|, if any. Virtual for
   // testing.
@@ -217,7 +217,8 @@ class BackgroundTabLoadingPolicy : public GraphOwned,
   // The mechanism used to load the pages.
   std::unique_ptr<performance_manager::mechanism::PageLoader> page_loader_;
 
-  base::MemoryPressureListener memory_pressure_listener_;
+  base::MemoryPressureListenerRegistration
+      memory_pressure_listener_registration_;
 
   // The set of PageNodes that have been restored for which we need to schedule
   // loads.

@@ -91,6 +91,8 @@
 #include "net/test/embedded_test_server/http_response.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "third_party/blink/public/mojom/webpreferences/web_preferences.mojom.h"
+#include "ui/base/clipboard/clipboard.h"
+#include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
 #include "ui/base/data_transfer_policy/data_transfer_endpoint.h"
 #include "ui/color/color_provider.h"
@@ -1857,8 +1859,9 @@ IN_PROC_BROWSER_TEST_F(AutomaticBeaconCredentialsBrowserTest,
             first_response.http_request()->headers.at("Cookie"));
 
   // Disable 3rd party cookies.
-  browser()->profile()->GetPrefs()->SetBoolean(
-      prefs::kTrackingProtection3pcdEnabled, true);
+  browser()->profile()->GetPrefs()->SetInteger(
+      prefs::kCookieControlsMode,
+      static_cast<int>(content_settings::CookieControlsMode::kBlockThirdParty));
 
   // Verify automatic beacons no longer are sent with cookie data.
   EXPECT_TRUE(
@@ -2068,23 +2071,12 @@ class DevToolsOverridesThirdPartyCookiesBrowserTest
  public:
   DevToolsOverridesThirdPartyCookiesBrowserTest()
       : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
-    std::vector<base::test::FeatureRefAndParams> enabled_features;
-    std::vector<base::test::FeatureRef> disabled_features;
-    // The 3PCD tracking protection feature must be disabled so that we can
-    // disable third-party cookies by changing the devtools overrides.
-    disabled_features.push_back(
-        content_settings::features::kTrackingProtection3pcd);
-
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
     // This feature must be enabled to align the behavior in the test with the
     // actual behavior in the branded-build. Related bug: crbug.com/385032014.
-    enabled_features.push_back(
-        {extensions_features::kForceWebRequestProxyForTest, {}});
-
+    feature_list_.InitAndEnableFeature(
+        extensions_features::kForceWebRequestProxyForTest);
 #endif
-
-    feature_list_.InitWithFeaturesAndParameters(enabled_features,
-                                                disabled_features);
   }
 
   void SetUpOnMainThread() override {

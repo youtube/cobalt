@@ -275,7 +275,6 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="409936259433005390">Netrukus naujovinsite į „Windows 11“? Atsisiųskite „Chrome“ diegimo programą į „OneDrive“, kad būtumėte pasiruošę nuo pirmos dienos.</translation>
 <translation id="4110895483821904099">Nustatykite naują „Chrome“ profilį</translation>
 <translation id="4111566860456076004">„Chrome“ negali patvirtinti, iš kur gaunamas šis plėtinys, ir jis gali būti nesaugus. Pašalinkite jį iš „Chrome“, kad jis nebematytų ir negalėtų pakeisti jūsų duomenų svetainėse, kuriose lankotės, įskaitant jūsų asmens informaciją.</translation>
-<translation id="4128488089242627000">„Chrome“ veikia sparčiau, o „JavaScript“ naudojančios funkcijos turėtų veikti, kaip numatyta (rekomenduojama)</translation>
 <translation id="4147555960264124640">Prisijungiate su valdoma paskyra ir leidžiate jos administratoriui valdyti jūsų „Google Chrome“ profilį. „Chrome“ duomenys, pvz., programos, žymės, istorija, slaptažodžiai ir kiti nustatymai, bus visam laikui susieti su <ph name="USER_NAME" />. Galėsite ištrinti šiuos duomenis naudodami „Google“ paskyrų informacijos suvestinę, bet negalėsite susieti šių duomenų su kita paskyra. <ph name="LEARN_MORE" /></translation>
 <translation id="4148957013307229264">Diegiama...</translation>
 <translation id="4149882025268051530">Diegimo programai nepavyko išpakuoti archyvo. Atsisiųskite „Google Chrome“ dar kartą.</translation>
@@ -528,6 +527,7 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="6967962315388095737">Beta versijos „Google Chrome“ skirta taisyklė, pagal kurią leidžiamas gaunamas mDNS srautas.</translation>
 <translation id="6979589607440534284">Sužinokite, kodėl „Chrome“ blokuoja kai kuriuos failus (atidaroma naujame skirtuke)</translation>
 <translation id="6991926986715044139">Visada rodyti „Google Lens“ spartųjį klavišą</translation>
+<translation id="6999131147875565462">„Chrome“ veikia sparčiau, o „JavaScript“ naudojančios funkcijos turėtų veikti, kaip numatyta</translation>
 <translation id="7011190694940573312">Įdiegti nepavyko, nes ši operacinės sistemos versija nepalaikoma.</translation>
 <translation id="7024536598735240744">Išpakavimo klaida: <ph name="UNPACK_ERROR" />.</translation>
 <translation id="7025789849649390912">Diegimas sustabdytas.</translation>
