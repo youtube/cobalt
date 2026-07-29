@@ -455,6 +455,8 @@ void HttpStreamPool::AttemptManager::SetInitialAttemptState() {
       });
   base::UmaHistogramEnumeration("Net.HttpStreamPool.InitialAttemptState2",
                                 *initial_attempt_state_);
+  base::UmaHistogramTimes("Net.HttpStreamPool.InitialAttemptStartTime",
+                          base::TimeTicks::Now() - created_time_);
 }
 
 SSLConfig HttpStreamPool::AttemptManager::GetBaseSSLConfig() {
@@ -765,7 +767,7 @@ void HttpStreamPool::AttemptManager::OnTcpBasedAttemptComplete(
         spdy_session_pool()->CreateAvailableSessionFromSocketHandle(
             spdy_session_key(), std::move(handle), net_log(),
             MultiplexedSessionCreationInitiator::kUnknown, &spdy_session,
-            SpdySessionInitiator::kHttpStreamPoolAttemptManager);
+            std::nullopt, SpdySessionInitiator::kHttpStreamPoolAttemptManager);
     if (create_result != OK) {
       HandleTcpBasedAttemptFailure(std::move(tcp_based_attempt), create_result);
       return;
@@ -1354,8 +1356,8 @@ void HttpStreamPool::AttemptManager::CreateAndStartTcpBasedAttempt(
 
   CHECK(!preconnect_jobs_.empty() || group_->IdleStreamSocketCount() == 0);
 
-  auto attempt = std::make_unique<TcpBasedAttempt>(this, slot, using_tls,
-                                                   std::move(ip_endpoint));
+  auto attempt =
+      std::make_unique<TcpBasedAttempt>(this, slot, std::move(ip_endpoint));
   TcpBasedAttempt* raw_attempt = attempt.get();
   slot->AllocateAttempt(std::move(attempt));
   raw_attempt->Start();
@@ -1794,6 +1796,21 @@ void HttpStreamPool::AttemptManager::OnJobDone(Job* job) {
 }
 
 bool HttpStreamPool::AttemptManager::HasAvailableSpdySession() const {
+  if (!is_using_tls_) {
+    return false;
+  }
+
+  // Check for an available session before checking if it can be used. It's
+  // rare for HTTP/1.1 to be required in general, and checking it is can be
+  // slow. Also, it's fairly rare for there to be a session available here
+  // (outside of the session aliasing case), since the Job already checked for
+  // one.
+  if (!spdy_session_pool()->HasAvailableSession(spdy_session_key(),
+                                                IsIpBasedPoolingEnabledForH2(),
+                                                /*is_websocket=*/false)) {
+    return false;
+  }
+
   // If the destination is marked as requiring HTTP/1.1, act as if there's no
   // available SPDY session. This matches the behavior of
   // HttpStreamPool::FindAvailableSpdySession().
@@ -1801,10 +1818,7 @@ bool HttpStreamPool::AttemptManager::HasAvailableSpdySession() const {
                              stream_key().network_anonymization_key())) {
     return false;
   }
-
-  return spdy_session_pool()->HasAvailableSession(
-      spdy_session_key(), IsIpBasedPoolingEnabledForH2(),
-      /*is_websocket=*/false);
+  return true;
 }
 
 void HttpStreamPool::AttemptManager::MaybeStartDraining() {

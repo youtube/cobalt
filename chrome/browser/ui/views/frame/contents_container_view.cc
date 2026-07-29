@@ -28,6 +28,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/search/ntp_features.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
@@ -98,6 +99,16 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
 
   watermark_view_ =
       AddChildView(std::make_unique<enterprise_watermark::WatermarkView>());
+
+  if (features::IsImmersiveReadAnythingEnabled()) {
+    auto immersive_read_anything_overlay_view = std::make_unique<views::View>();
+    immersive_read_anything_overlay_view->SetID(VIEW_ID_READ_ANYTHING_OVERLAY);
+    immersive_read_anything_overlay_view->SetVisible(false);
+    immersive_read_anything_overlay_view->SetLayoutManager(
+        std::make_unique<views::FillLayout>());
+    immersive_read_anything_overlay_view_ =
+        AddChildView(std::move(immersive_read_anything_overlay_view));
+  }
 
   contents_scrim_view_ = AddChildView(std::make_unique<ScrimView>());
   contents_scrim_view_->layer()->SetName("ContentsScrimView");
@@ -222,6 +233,12 @@ void ContentsContainerView::UpdateBorderRoundedCorners() {
         content_lower_rounded_corners);
   }
 
+  if (actor_overlay_web_view_) {
+    // ActorOverlayWebView should use the same radii as the contents view since
+    // it acts as a full transparent layer directly over the main web content.
+    actor_overlay_web_view_->holder()->SetCornerRadii(radii);
+  }
+
 #if BUILDFLAG(ENABLE_GLIC)
   if (glic_border_) {
     glic_border_->SetRoundedCorners(content_rounded_corners);
@@ -243,6 +260,10 @@ void ContentsContainerView::ClearBorderRoundedCorners() {
   }
 
   contents_scrim_view_->SetRoundedCorners(kNoRoundedCorners);
+
+  if (actor_overlay_web_view_) {
+    actor_overlay_web_view_->holder()->SetCornerRadii(kNoRoundedCorners);
+  }
 
 #if BUILDFLAG(ENABLE_GLIC)
   if (glic_border_) {
@@ -526,6 +547,15 @@ views::ProposedLayout ContentsContainerView::CalculateProposedLayout(
   if (actor_overlay_web_view_) {
     layouts.child_layouts.emplace_back(
         actor_overlay_web_view_.get(), actor_overlay_web_view_->GetVisible(),
+        non_devtools_contents_bounds, size_bounds);
+  }
+
+  // Reading Mode overlay view bounds are the same as the contents view.
+  if (features::IsImmersiveReadAnythingEnabled() &&
+      immersive_read_anything_overlay_view_) {
+    layouts.child_layouts.emplace_back(
+        immersive_read_anything_overlay_view_.get(),
+        immersive_read_anything_overlay_view_->GetVisible(),
         non_devtools_contents_bounds, size_bounds);
   }
 

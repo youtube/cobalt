@@ -12,17 +12,24 @@ namespace actor {
 // A fake tool request that creates a FakeTool.
 class FakeToolRequest : public ToolRequest {
  public:
-  FakeToolRequest(base::OnceClosure on_invoke, base::OnceClosure on_destroy);
+  FakeToolRequest(
+      base::OnceCallback<void(base::OnceCallback<void(mojom::ActionResultPtr)>)>
+          on_invoke,
+      base::OnceClosure on_destroy);
   ~FakeToolRequest() override;
+  FakeToolRequest(const FakeToolRequest&) = delete;
+  FakeToolRequest& operator=(const FakeToolRequest&) = delete;
 
   CreateToolResult CreateTool(TaskId task_id,
                               ToolDelegate& tool_delegate) const override;
 
   void Apply(ToolRequestVisitorFunctor& f) const override;
-  std::string JournalEvent() const override;
+  std::string Name() const override;
 
  private:
-  mutable base::OnceClosure on_invoke_;
+  mutable base::OnceCallback<void(
+      base::OnceCallback<void(mojom::ActionResultPtr)>)>
+      on_invoke_;
   mutable base::OnceClosure on_destroy_;
 };
 

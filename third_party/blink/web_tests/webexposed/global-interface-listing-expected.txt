@@ -3276,6 +3276,7 @@ interface GPUQueue
     attribute @@toStringTag
     getter label
     method constructor
+    method copyElementImageToTexture
     method copyExternalImageToTexture
     method onSubmittedWorkDone
     method submit
@@ -6790,6 +6791,7 @@ interface Navigator
     getter mediaSession
     getter mimeTypes
     getter modelContext
+    getter modelContextTesting
     getter onLine
     getter pdfViewerEnabled
     getter permissions
@@ -6850,6 +6852,7 @@ interface Navigator
     method vibrate
     method webkitGetUserMedia
     setter modelContext
+    setter modelContextTesting
 interface NavigatorLogin
     attribute @@toStringTag
     method constructor
@@ -8373,15 +8376,23 @@ interface SVGAElement : SVGGraphicsElement
     attribute @@toStringTag
     getter download
     getter href
+    getter hreflang
     getter interestForElement
+    getter ping
+    getter referrerPolicy
     getter rel
     getter relList
     getter target
+    getter type
     method constructor
     setter download
+    setter hreflang
     setter interestForElement
+    setter ping
+    setter referrerPolicy
     setter rel
     setter relList
+    setter type
 interface SVGAngle
     attribute @@toStringTag
     attribute SVG_ANGLETYPE_DEG
@@ -12581,6 +12592,15 @@ interface XRCompositionLayer : XRLayer
     setter chromaticAberrationCorrection
     setter forceMonoPresentation
     setter opacity
+interface XRCubeLayer : XRCompositionLayer
+    attribute @@toStringTag
+    getter onredraw
+    getter orientation
+    getter space
+    method constructor
+    setter onredraw
+    setter orientation
+    setter space
 interface XRCylinderLayer : XRCompositionLayer
     attribute @@toStringTag
     getter aspectRatio
@@ -12843,6 +12863,7 @@ interface XRSession : EventTarget
     getter onsqueezeend
     getter onsqueezestart
     getter onvisibilitychange
+    getter onvisibilitymaskchange
     getter preferredReflectionFormat
     getter renderState
     getter supportedFrameRates
@@ -12870,6 +12891,7 @@ interface XRSession : EventTarget
     setter onsqueezeend
     setter onsqueezestart
     setter onvisibilitychange
+    setter onvisibilitymaskchange
 interface XRSessionEvent : Event
     attribute @@toStringTag
     getter session
@@ -12901,6 +12923,7 @@ interface XRView
     attribute @@toStringTag
     getter camera
     getter eye
+    getter index
     getter isFirstPersonObserver
     getter projectionMatrix
     getter recommendedViewportScale
@@ -12918,11 +12941,20 @@ interface XRViewport
     getter x
     getter y
     method constructor
+interface XRVisibilityMaskChangeEvent : Event
+    attribute @@toStringTag
+    getter eye
+    getter index
+    getter indices
+    getter session
+    getter vertices
+    method constructor
 interface XRWebGLBinding
     attribute @@toStringTag
     getter nativeProjectionScaleFactor
     getter usesDepthValues
     method constructor
+    method createCubeLayer
     method createCylinderLayer
     method createEquirectLayer
     method createProjectionLayer

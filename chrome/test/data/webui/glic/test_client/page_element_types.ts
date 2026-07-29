@@ -77,6 +77,8 @@ export interface PageElementTypes {
   desktopScreenshotImg: HTMLImageElement;
   desktopScreenshotErrorReason: HTMLSpanElement;
   panelScreenshot: HTMLButtonElement;
+  captureRegionBtn: HTMLButtonElement;
+  captureRegionResultList: HTMLUListElement;
   createTabInBackground: HTMLInputElement;
   canAttachCheckbox: HTMLInputElement;
   scrollToDocumentId: HTMLSpanElement;
@@ -161,6 +163,8 @@ export interface PageElementTypes {
   switchConversationBtn: HTMLButtonElement;
   registerConversationBtn: HTMLButtonElement;
   conversationId: HTMLInputElement;
+  textmode: HTMLInputElement;
+  audiomode: HTMLInputElement;
 }
 
 export const $: PageElementTypes = new Proxy({}, {

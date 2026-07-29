@@ -65,19 +65,15 @@ class GlicWindowController {
 
   virtual HostManager& host_manager() = 0;
   virtual std::vector<GlicInstance*> GetInstances() = 0;
-  virtual GlicInstance* GetInstanceForTab(tabs::TabInterface* tab) = 0;
-  virtual void FindInstanceFromGlicContentsAndBindToTab(
-      content::WebContents* source_glic_web_contents,
-      tabs::TabInterface* tab_to_bind) = 0;
-  virtual bool FindInstanceFromIdAndBindToTab(
-      const InstanceId& instance_id,
-      tabs::TabInterface* tab_to_bind) = 0;
+  virtual GlicInstance* GetInstanceForTab(
+      const tabs::TabInterface* tab) const = 0;
 
   // Show, summon, or activate the panel if needed, or close it if it's already
   // active and prevent_close is false.
   virtual void Toggle(BrowserWindowInterface* bwi,
                       bool prevent_close,
-                      mojom::InvocationSource source) = 0;
+                      mojom::InvocationSource source,
+                      std::optional<std::string> prompt_suggestion) = 0;
 
   // If the panel is opened, but sign-in is required, we provide a sign-in
   // button which closes the panel. This is called after the user signs in to
@@ -93,6 +89,11 @@ class GlicWindowController {
   // Returns wehether or not the glic window is currently showing detached.
   // When True |GetGlicWidget| will return a valid ptr.
   virtual bool IsDetached() const = 0;
+
+  // Returns whether the given browser is showing a glic panel for its active
+  // tab.
+  virtual bool IsPanelShowingForBrowser(
+      const BrowserWindowInterface& bwi) const = 0;
 
   using WindowActivationChangedCallback =
       base::RepeatingCallback<void(bool active)>;
@@ -177,10 +178,6 @@ class GlicWindowControllerInterface : public GlicWindowController,
   // Returns whether or not the glic web contents are loaded (this can also be
   // true if `IsActive()` (i.e., if the contents are loaded in the glic window).
   virtual bool IsWarmed() const = 0;
-
-  // Returns whether the views::Widget associated with the glic window is active
-  // (e.g. will receive keyboard events).
-  virtual bool IsActive() = 0;
 
   virtual void SidePanelShown(BrowserWindowInterface* browser) = 0;
   virtual std::unique_ptr<views::View> CreateViewForSidePanel(

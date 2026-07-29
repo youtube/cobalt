@@ -79,6 +79,7 @@
 <translation id="1132735979845538847">‫<ph name="ORIGIN" /> – כדי לצאת ממסך מלא, צריך לגרור מלמעלה וללחוץ על הכפתור "הקודם".</translation>
 <translation id="1138458427267715730">קבלת התראות כשיש הנחות באתרים באינטרנט</translation>
 <translation id="1142713751288681188">סוג הנייר</translation>
+<translation id="1142965388643537393">מידע למטיילים</translation>
 <translation id="1144136880160289237">עוד אין נושאים פעילים</translation>
 <translation id="1149617035358809955">לאמת את זהותך לצורך מילוי פרטי התשלום שלך</translation>
 <translation id="1150565364351027703">משקפי שמש</translation>
@@ -788,6 +789,7 @@
 <translation id="22792995594807632">נדרשת בדיקה לפני ההורדה</translation>
 <translation id="2283340219607151381">שמירה ומילוי של כתובות</translation>
 <translation id="2283447177162560884">בוצעה מחיקה של '<ph name="PAGE_TITLE" />'</translation>
+<translation id="2283599456633275070">נסיעות</translation>
 <translation id="2286383991450886080">‏34x44 אינץ'</translation>
 <translation id="2288422996159078444">כל הקלדת טקסט, הצגת דף או פעילות אחרת באינטרנט נמצאת במעקב. בנוסף, התוכן באתרים עשוי להשתנות ללא ידיעתך.</translation>
 <translation id="2289385804009217824">חיתוך</translation>
@@ -836,6 +838,7 @@
 <translation id="2357481397660644965">המכשיר שלך מנוהל על ידי <ph name="DEVICE_MANAGER" /> והחשבון שלך מנוהל על ידי <ph name="ACCOUNT_MANAGER" />.</translation>
 <translation id="2359629602545592467">מטבעות מרובים</translation>
 <translation id="2359808026110333948">המשך</translation>
+<translation id="236000571258713023">כלי רכב</translation>
 <translation id="2361263712565360498">‏275x395 מ"מ</translation>
 <translation id="236340516568226369">תפריט מתגים לשינוי גודל</translation>
 <translation id="2365355378251437925">יש להזין <ph name="FIELD" /></translation>
@@ -882,6 +885,7 @@
 <translation id="2436976580469434549">אומנויות טקסטיל ואריגים</translation>
 <translation id="243815215670139125">‏לא ניתן לשמור את הכרטיס הזה בחשבון שלך ב-Google. במקום זאת, הוא נשמר ב-Chrome במכשיר הזה.</translation>
 <translation id="2438874542388153331">4 ניקובים בצד ימין</translation>
+<translation id="2440855519769445271">כדי להסתיר את האפשרויות לתשלום אחר כך, צריך לעבור אל <ph name="BEGIN_LINK" />הגדרות התשלומים<ph name="END_LINK" /></translation>
 <translation id="2441854154602066476">רשימת אמצעי התשלום הזמינים למילוי במגע. המקלדת מוסתרת.</translation>
 <translation id="2442865686365739754">‏<ph name="BEGIN_EMPHASIS" />לא יישמרו<ph name="END_EMPHASIS" /> ב-Chrome הנתונים הבאים:
           <ph name="BEGIN_LIST" />
@@ -2140,7 +2144,7 @@
 <translation id="4480760608050410381">‏סרטון MP4</translation>
 <translation id="448363931695049633">פיצריות</translation>
 <translation id="4489023393592172404">‏מעטפה – Kaku 4</translation>
-<translation id="4489977488133295402">כדי למלא אוטומטית את פרטי אמצעי התשלום, עליך לאמת את הזהות שלך</translation>
+<translation id="4489977488133295402">מילוי אוטומטי של פרטי אמצעי התשלום יותנה באימות הזהות</translation>
 <translation id="4490717597759821841">A7</translation>
 <translation id="449126573531210296">‏הצפנת סיסמאות מסונכרנות באמצעות חשבון Google</translation>
 <translation id="4493480324863638523">‏כתובת URL לא חוקית. הסכימה של כתובת ה-URL צריכה להיות רגילה, כלומר: http://example.com או https://example.com.</translation>
@@ -2197,6 +2201,7 @@
 <translation id="4598556348158889687">ניהול אחסון</translation>
 <translation id="459914240367517409">עיצוב ופיתוח אתרי אינטרנט</translation>
 <translation id="4602465984861132303">באולינג</translation>
+<translation id="4603727370377253901">הזמנת מקומות בטיסה</translation>
 <translation id="4607608436550361748">‏הצגת טיפים לשימוש ב-Chrome</translation>
 <translation id="460848736049414407">הכתובת נחסמה על ידי האדמין</translation>
 <translation id="4610279718074907952">האתר הזה שייך לקבוצת אתרים שיש להם הרשאה לראות את הפעילות שלך. הקבוצה הוגדרה על ידי <ph name="SET_OWNER" /></translation>
@@ -2205,6 +2210,7 @@
 <translation id="4619564267100705184">אימות הזהות שלך</translation>
 <translation id="4622292761762557753">אעביר בכל זאת</translation>
 <translation id="4622647778991854660">ניתן להפעיל התראות במרכז ההתראות. הוא זמין דרך <ph name="LINK" />.</translation>
+<translation id="4623894491222334521">תעודות מזהות</translation>
 <translation id="4627675673814409125">‏לא ניתן להגדיר את המדיניות הזאת ברמה של פרופיל Chrome. המערכת תתעלם מהמדיניות.</translation>
 <translation id="4628678854894591460">הצעות לחופשה</translation>
 <translation id="4628948037717959914">תמונה</translation>
@@ -2222,6 +2228,7 @@
 <translation id="4648262692072505866">‏הגיבוב חייב להיות בפורמט SHA-256.</translation>
 <translation id="4652266463001779298">אין הרשאה</translation>
 <translation id="4652440160515225514">האתר הזה נחסם על ידי הארגון שלך עקב הפרת מדיניות.</translation>
+<translation id="4654457557264366314">תוכניות התשלומים כפופות לעמידה בדרישות.</translation>
 <translation id="4658638640878098064">סיכת הידוק בפינה השמאלית העליונה</translation>
 <translation id="4660592918803576381">‏פתיחה ב-Drive</translation>
 <translation id="4661556981531699496">חיות מחמד ובעלי חיים</translation>
@@ -4808,7 +4815,7 @@ Del</translation>
 <translation id="8918062451146297192">‏קוד אימות (CVC) לכרטיס הווירטואלי</translation>
 <translation id="8919740778133505789">מכוניות ספורט</translation>
 <translation id="8919895429178014996">הסתרת כל הפריטים</translation>
-<translation id="8919989290032064330">לאמת את הזהות שלך כדי למלא אוטומטית את פרטי אמצעי התשלום?</translation>
+<translation id="8919989290032064330">למלא אוטומטית את פרטי התשלום רק אחרי שאימתת את הזהות שלך?</translation>
 <translation id="8922013791253848639">תמיד לאפשר מודעות באתר הזה</translation>
 <translation id="8922734931659847428">‏רשימה חלקית של כתובות URL של דפים עם <ph name="BEGIN_LINK" />אירועי שימוש בטכנולוגיה מדור קודם<ph name="END_LINK" /> שביקרת בהם</translation>
 <translation id="892588693504540538">ניקוב בפינה הימנית העליונה</translation>

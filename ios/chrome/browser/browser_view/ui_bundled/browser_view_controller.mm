@@ -87,6 +87,7 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_configuration.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/fullscreen/toolbars_size.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/fullscreen/toolbars_size_broadcasting_util.h"
+#import "ios/chrome/browser/toolbar/ui_bundled/public/omnibox_position_util.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/toolbar_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -123,6 +124,9 @@ enum HeaderBehaviour {
 // Inset to remove from the toolbar height when in full-screen mode with the
 // dynamic island visible.
 const CGFloat kTopDynamicIslandInset = 24;
+
+// The animation duration of focusing/defocusing the multiline omnibox.
+const CGFloat kMultilineOmniboxAnimationDuration = 0.3f;
 
 }  // namespace
 
@@ -330,6 +334,9 @@ const CGFloat kTopDynamicIslandInset = 24;
 // Height constraint for the secondary toolbar.
 @property(nonatomic, strong)
     NSLayoutConstraint* secondaryToolbarHeightConstraint;
+// Keyboard height stored for the secondary toolbar, used when updating the
+// multiline omnibox height while editing.
+@property(nonatomic, assign) CGFloat secondaryToolbarKeyboardHeight;
 // Current Fullscreen progress for the footers.
 @property(nonatomic, assign) CGFloat footerFullscreenProgress;
 // Y-dimension offset for placement of the header.
@@ -1313,12 +1320,27 @@ const CGFloat kTopDynamicIslandInset = 24;
 // The height of the secondary toolbar with the bottom safe area inset included.
 // Returns 0 if the toolbar should be hidden.
 - (CGFloat)secondaryToolbarHeightWithInset {
+  if (omnibox::ForceBottomOmniboxInEditState() ||
+      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
+    if ([self.toolbarCoordinator inEditState]) {
+      CGFloat safeAreaBottom = self.view.safeAreaInsets.bottom;
+      CGFloat locationBarDisplayHeight =
+          self.toolbarCoordinator.locationBarCompactDisplayHeight;
+      return safeAreaBottom + locationBarDisplayHeight;
+    }
+  }
+
   CGFloat height = self.toolbarCoordinator.expandedSecondaryToolbarHeight;
   if (!height) {
     return 0.0;
   }
   if (IsDiamondPrototypeEnabled()) {
     return kDiamondToolbarHeight;
+  }
+  if (IsMultilineBrowserOmniboxEnabled() &&
+      self.secondaryToolbarKeyboardHeight) {
+    return self.secondaryToolbarKeyboardHeight +
+           self.toolbarCoordinator.keyboardAttachedBottomOmniboxHeight;
   }
   // Add the safe area inset to the toolbar height.
   CGFloat unsafeHeight = self.rootSafeAreaInsets.bottom;
@@ -2003,6 +2025,20 @@ const CGFloat kTopDynamicIslandInset = 24;
   self.visibilityState = BrowserViewVisibilityState::kVisible;
   self.toolbarCoordinator.secondaryToolbarViewController.view
       .accessibilityElementsHidden = NO;
+
+  // It's safe to revert the secondary toolbar to the initial size only if the
+  // user fully exited edit state.
+  if (omnibox::ForceBottomOmniboxInEditState() ||
+      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
+    if (![self.toolbarCoordinator inEditState]) {
+      [self
+          adjustSecondaryToolbarForKeyboardHeight:0
+                                      isCollapsed:NO
+                                         duration:0.1
+                                            curve:
+                                                UIViewAnimationCurveEaseInOut];
+    }
+  }
 }
 
 #pragma mark - FullscreenUIElement methods
@@ -2784,7 +2820,28 @@ const CGFloat kTopDynamicIslandInset = 24;
       [self primaryToolbarHeightWithInset];
   self.secondaryToolbarHeightConstraint.constant =
       [self secondaryToolbarHeightWithInset];
+
+  if (IsMultilineBrowserOmniboxEnabled()) {
+    [self.toolbarCoordinator
+        setBottomOmniboxOffsetForPopup:self.secondaryToolbarHeightConstraint
+                                           .constant];
+  }
   [self updateForFullscreenProgress:self.footerFullscreenProgress];
+}
+
+- (void)layoutToolbarHeightChangeWithAnimation:(BOOL)animated {
+  if (!self.viewLoaded) {
+    return;
+  }
+
+  if (animated) {
+    [UIView animateWithDuration:kMultilineOmniboxAnimationDuration
+                     animations:^{
+                       [self.view layoutIfNeeded];
+                     }];
+  } else {
+    [self.view layoutIfNeeded];
+  }
 }
 
 - (void)secondaryToolbarMovedAboveKeyboard {
@@ -2804,6 +2861,7 @@ const CGFloat kTopDynamicIslandInset = 24;
                                        duration:(NSTimeInterval)duration
                                           curve:(UIViewAnimationCurve)curve {
   CHECK(ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET);
+  self.secondaryToolbarKeyboardHeight = keyboardHeight;
   CGFloat keyboardAttachedOffset =
       keyboardHeight +
       self.toolbarCoordinator.keyboardAttachedBottomOmniboxHeight;
@@ -2821,6 +2879,11 @@ const CGFloat kTopDynamicIslandInset = 24;
   if (alreadyInPosition) {
     [self.toolbarCoordinator setBottomOmniboxOffsetForPopup:offsetRequired];
     return;
+  }
+
+  if (omnibox::ForceBottomOmniboxInEditState() ||
+      omnibox::ShouldFocusedOmniboxFollowSteadyStatePosition()) {
+    [self updateToolbarState];
   }
 
   // The shift converts an animation curve to animation options.

@@ -13,10 +13,13 @@
 #include "base/supports_user_data.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
+#include "components/optimization_guide/content/browser/autofill_annotations_provider.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/page_content_proto_serializer.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom-data-view.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom-forward.h"
@@ -27,7 +30,34 @@
 
 namespace optimization_guide {
 
+namespace features {
+// Killswitch to adding autofill information to form controls.
+BASE_FEATURE(kAnnotatedPageContentWithAutofillAnnotations,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+}  // namespace features
+
 namespace {
+
+std::optional<AutofillFieldMetadata> GetAutofillFieldData(
+    content::GlobalRenderFrameHostToken source_frame_token,
+    ConvertAIPageContentToProtoSession& session,
+    const optimization_guide::proto::ContentAttributes& proto_attributes) {
+  if (base::FeatureList::IsEnabled(
+          features::kAnnotatedPageContentWithAutofillAnnotations)) {
+    content::RenderFrameHost* render_frame_host =
+        content::RenderFrameHost::FromFrameToken(source_frame_token);
+    content::WebContents* web_contents =
+        content::WebContents::FromRenderFrameHost(render_frame_host);
+    if (auto* autofill_annotations_provider =
+            AutofillAnnotationsProvider::GetFor(web_contents)) {
+      return autofill_annotations_provider->GetAutofillFieldData(
+          *render_frame_host, proto_attributes.common_ancestor_dom_node_id(),
+          session);
+    }
+  }
+
+  return std::nullopt;
+}
 
 optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
     blink::mojom::AIPageContentClickabilityReason reason) {
@@ -60,6 +90,8 @@ optimization_guide::proto::ClickabilityReason ConvertClickabilityReason(
       return optimization_guide::proto::CLICKABILITY_REASON_MOUSE_CLICK;
     case blink::mojom::AIPageContentClickabilityReason::kMouseHover:
       return optimization_guide::proto::CLICKABILITY_REASON_MOUSE_HOVER;
+    case blink::mojom::AIPageContentClickabilityReason::kHoverPseudoClass:
+      return optimization_guide::proto::CLICKABILITY_REASON_HOVER_PSEUDO_CLASS;
   }
   NOTREACHED();
 }
@@ -208,6 +240,9 @@ void ConvertNodeInteractionInfo(
     proto_interaction_info->add_clickability_reasons(
         ConvertClickabilityReason(reason));
   }
+
+  proto_interaction_info->set_is_disabled(
+      mojom_node_interaction_info.is_disabled);
 }
 
 void ConvertPoint(const gfx::Point& mojom_point,
@@ -446,6 +481,7 @@ optimization_guide::proto::RedactionDecision ConvertRedactionDecision(
 
 void ConvertFormControlData(
     const blink::mojom::AIPageContentFormControlData& mojom_form_control_data,
+    const std::optional<AutofillFieldMetadata>& autofill_metadata,
     optimization_guide::proto::FormControlData* proto_form_control_data) {
   proto_form_control_data->set_form_control_type(
       ConvertFormControlType(mojom_form_control_data.form_control_type));
@@ -475,6 +511,14 @@ void ConvertFormControlData(
   }
   proto_form_control_data->set_redaction_decision(
       ConvertRedactionDecision(mojom_form_control_data.redaction_decision));
+
+  // Incorporate any information received from Autofill.
+  if (autofill_metadata) {
+    proto_form_control_data->set_autofill_section_id(
+        autofill_metadata->section_id);
+    proto_form_control_data->add_coarse_autofill_field_type(
+        autofill_metadata->coarse_field_type);
+  }
 }
 
 void ConvertTableData(
@@ -505,6 +549,8 @@ void ConvertTableRowData(
 }
 
 base::expected<void, std::string> ConvertAttributes(
+    content::GlobalRenderFrameHostToken source_frame_token,
+    ConvertAIPageContentToProtoSession& session,
     const blink::mojom::AIPageContentAttributes& mojom_attributes,
     optimization_guide::proto::ContentAttributes* proto_attributes) {
   if (mojom_attributes.dom_node_id.has_value()) {
@@ -580,8 +626,10 @@ base::expected<void, std::string> ConvertAttributes(
       return base::unexpected(
           "form_control_data present, but node isn't kFormControl");
     }
-    ConvertFormControlData(*mojom_attributes.form_control_data,
-                           proto_attributes->mutable_form_control_data());
+    ConvertFormControlData(
+        *mojom_attributes.form_control_data,
+        GetAutofillFieldData(source_frame_token, session, *proto_attributes),
+        proto_attributes->mutable_form_control_data());
   } else if (mojom_attributes.table_data) {
     if (mojom_attributes.attribute_type !=
         blink::mojom::AIPageContentAttributeType::kTable) {
@@ -744,8 +792,9 @@ class Converter {
       const blink::mojom::AIPageContentNode& mojom_node,
       optimization_guide::proto::ContentNode* proto_node) {
     const auto& mojom_attributes = *mojom_node.content_attributes;
-    RETURN_IF_ERROR(ConvertAttributes(
-        mojom_attributes, proto_node->mutable_content_attributes()));
+    RETURN_IF_ERROR(
+        ConvertAttributes(source_frame_token, session_, mojom_attributes,
+                          proto_node->mutable_content_attributes()));
 
     std::optional<RenderFrameInfo> render_frame_info;
     if (mojom_attributes.attribute_type ==
@@ -882,9 +931,48 @@ class Converter {
   GetRenderFrameInfo get_render_frame_info_;
   raw_ref<FrameTokenSet> frame_token_set_;
   raw_ref<blink::mojom::PageMetadata> page_metadata_;
+  ConvertAIPageContentToProtoSession session_;
 };
 
+// Private helper template to handle both mutable and const traversals for
+// VisitContentNodes().
+template <typename ContentNodeType, typename VisitorType>
+  requires std::is_same_v<std::remove_const_t<ContentNodeType>,
+                          optimization_guide::proto::ContentNode>
+void VisitContentNodesImpl(ContentNodeType& node,
+                           std::string_view document_identifier,
+                           VisitorType visitor) {
+  visitor(node, document_identifier);
+
+  // In case of an iframe, replace the document_identifier for the traversal
+  // of children.
+  if (node.content_attributes().has_iframe_data()) {
+    const optimization_guide::proto::IframeData& iframe_data =
+        node.content_attributes().iframe_data();
+    if (iframe_data.has_frame_data()) {
+      const optimization_guide::proto::FrameData& frame_data =
+          iframe_data.frame_data();
+      document_identifier = frame_data.document_identifier().serialized_token();
+    }
+  }
+
+  if constexpr (std::is_const_v<std::remove_reference_t<ContentNodeType>>) {
+    for (const auto& child : node.children_nodes()) {
+      VisitContentNodesImpl(child, document_identifier, visitor);
+    }
+  } else {
+    for (auto& child : *node.mutable_children_nodes()) {
+      VisitContentNodesImpl(child, document_identifier, visitor);
+    }
+  }
+}
+
 }  // namespace
+
+ConvertAIPageContentToProtoSession::ConvertAIPageContentToProtoSession() =
+    default;
+ConvertAIPageContentToProtoSession::~ConvertAIPageContentToProtoSession() =
+    default;
 
 base::expected<void, std::string> ConvertAIPageContentToProto(
     blink::mojom::AIPageContentOptionsPtr main_frame_options,
@@ -1116,6 +1204,28 @@ std::optional<TargetNodeInfo> FindNodeWithID(
                                  content_node_id);
 }
 
+content::RenderFrameHost* GetRenderFrameForDocumentIdentifier(
+    content::WebContents& web_contents,
+    std::string_view target_document_token) {
+  content::RenderFrameHost* render_frame = nullptr;
+  web_contents.ForEachRenderFrameHostWithAction(
+      [&target_document_token, &render_frame](content::RenderFrameHost* rfh) {
+        // Skip inactive frame and its children.
+        if (!rfh->IsActive()) {
+          return content::RenderFrameHost::FrameIterationAction::kSkipChildren;
+        }
+        auto* user_data =
+            DocumentIdentifierUserData::GetForCurrentDocument(rfh);
+        if (user_data &&
+            user_data->serialized_token() == target_document_token) {
+          render_frame = rfh;
+          return content::RenderFrameHost::FrameIterationAction::kStop;
+        }
+        return content::RenderFrameHost::FrameIterationAction::kContinue;
+      });
+  return render_frame;
+}
+
 RenderFrameInfo::RenderFrameInfo() = default;
 RenderFrameInfo::RenderFrameInfo(const RenderFrameInfo& other) = default;
 RenderFrameInfo::~RenderFrameInfo() = default;
@@ -1128,6 +1238,22 @@ GURL GetURLForFrameMetadata(const GURL& committed_url,
     return committed_origin.GetTupleOrPrecursorTupleIfOpaque().GetURL();
   }
   return committed_url;
+}
+
+void VisitContentNodes(
+    optimization_guide::proto::ContentNode& node,
+    std::string_view document_identifier,
+    base::FunctionRef<void(optimization_guide::proto::ContentNode& node,
+                           std::string_view document_identifier)> visitor) {
+  VisitContentNodesImpl(node, document_identifier, visitor);
+}
+
+void VisitContentNodes(
+    const optimization_guide::proto::ContentNode& node,
+    std::string_view document_identifier,
+    base::FunctionRef<void(const optimization_guide::proto::ContentNode& node,
+                           std::string_view document_identifier)> visitor) {
+  VisitContentNodesImpl(node, document_identifier, visitor);
 }
 
 }  // namespace optimization_guide

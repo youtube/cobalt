@@ -55,7 +55,6 @@
 #include "chrome/browser/notifications/platform_notification_service_impl.h"
 #include "chrome/browser/permissions/quiet_notification_permission_ui_state.h"
 #include "chrome/browser/platform_experience/prefs.h"
-#include "chrome/browser/policy/developer_tools_policy_handler.h"
 #include "chrome/browser/prefs/chrome_pref_service_factory.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
@@ -78,6 +77,7 @@
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/signin/chrome_signin_client.h"
 #include "chrome/browser/ssl/ssl_config_service_manager.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "chrome/browser/tracing/chrome_tracing_delegate.h"
 #include "chrome/browser/ui/browser_ui_prefs.h"
 #include "chrome/browser/ui/hats/hats_service_desktop.h"
@@ -345,7 +345,6 @@
 #include "chrome/browser/apps/app_discovery_service/almanac_fetcher.h"
 #include "chrome/browser/apps/app_preload_service/app_preload_service.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics_service.h"
-#include "chrome/browser/apps/app_service/webapk/webapk_prefs.h"
 #include "chrome/browser/ash/account_manager/account_apps_availability.h"
 #include "chrome/browser/ash/account_manager/account_manager_edu_coexistence_controller.h"
 #include "chrome/browser/ash/app_list/app_list_syncable_service.h"
@@ -353,6 +352,7 @@
 #include "chrome/browser/ash/app_mode/kiosk_controller.h"
 #include "chrome/browser/ash/app_restore/full_restore_prefs.h"
 #include "chrome/browser/ash/apps/apk_web_app_service.h"
+#include "chrome/browser/ash/apps/webapk/webapk_prefs.h"
 #include "chrome/browser/ash/arc/boot_phase_monitor/arc_boot_phase_monitor_bridge.h"
 #include "chrome/browser/ash/arc/policy/arc_policy_bridge.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
@@ -1072,6 +1072,8 @@ constexpr char kSessionRestoreTurnOffFromSessionInfoBarTimesShown[] =
 
 constexpr char kSessionRestorePrefChanged[] = "session.restore_pref_changed";
 
+constexpr char kLegacySyncSessionsGUID[] = "sync.session_sync_guid";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1523,6 +1525,9 @@ void RegisterProfilePrefsForMigration(
   // Deprecated 10/2025.
   registry->RegisterIntegerPref(ntp_prefs::kNtpShortcutsType, 0);
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Deprecated 10/2025.
+  registry->RegisterStringPref(kLegacySyncSessionsGUID, std::string());
 }
 
 }  // namespace
@@ -1903,7 +1908,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   PermissionBubbleMediaAccessHandler::RegisterProfilePrefs(registry);
   PlatformNotificationServiceImpl::RegisterProfilePrefs(registry);
   plus_addresses::prefs::RegisterProfilePrefs(registry);
-  policy::DeveloperToolsPolicyHandler::RegisterProfilePrefs(registry);
   policy::URLBlocklistManager::RegisterProfilePrefs(registry);
   PolicyUI::RegisterProfilePrefs(registry);
   PrefProxyConfigTrackerImpl::RegisterProfilePrefs(registry);
@@ -1945,6 +1949,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   SharingSyncPreference::RegisterProfilePrefs(registry);
   SigninPrefs::RegisterProfilePrefs(registry);
   site_engagement::SiteEngagementService::RegisterProfilePrefs(registry);
+  subscription_eligibility::prefs::RegisterProfilePrefs(registry);
   supervised_user::RegisterProfilePrefs(registry);
   sync_sessions::SessionSyncPrefs::RegisterProfilePrefs(registry);
   syncer::DeviceInfoPrefs::RegisterProfilePrefs(registry);
@@ -2027,7 +2032,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   commerce::CommerceUiTabHelper::RegisterProfilePrefs(registry);
   contextual_cueing::prefs::RegisterProfilePrefs(registry);
   DriveService::RegisterProfilePrefs(registry);
-  extensions::TabsCaptureVisibleTabFunction::RegisterProfilePrefs(registry);
   first_run::RegisterProfilePrefs(registry);
   gcm::RegisterProfilePrefs(registry);
   GoogleCalendarPageHandler::RegisterProfilePrefs(registry);
@@ -2221,6 +2225,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(prefs::kLensDesktopNTPSearchEnabled, true);
 #endif
 
+  registry->RegisterBooleanPref(prefs::kDisableScreenshots, false);
   registry->RegisterListPref(
       webauthn::pref_names::kRemoteDesktopAllowedOrigins);
 
@@ -2825,6 +2830,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   // Added 10/2025
   NewTabPageUI::MigrateDeprecatedShortcutsTypePref(profile_prefs);
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  // Added 10/2025.
+  profile_prefs->ClearPref(kLegacySyncSessionsGUID);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

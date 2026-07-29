@@ -33,6 +33,7 @@
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_source_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_url_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_web_app_job.h"
+#include "chrome/browser/web_applications/model/app_installed_by.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcuts_menu.h"
@@ -214,29 +215,6 @@ void ApplyUserDisplayModeSyncMitigations(
   web_app.SetSyncProto(std::move(sync_proto));
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-// Returns true if the WebAppManagement type can be considered "trusted" to
-// consider all manifest icons as trusted ones.
-bool CanSourceUseManifestIconsAsTrusted(const WebAppManagement::Type type) {
-  switch (type) {
-    case WebAppManagement::kDefault:
-    case WebAppManagement::kPolicy:
-      return true;
-    case WebAppManagement::kSystem:
-    case WebAppManagement::kIwaShimlessRma:
-    case WebAppManagement::kKiosk:
-    case WebAppManagement::kIwaPolicy:
-    case WebAppManagement::kOem:
-    case WebAppManagement::kSubApp:
-    case WebAppManagement::kWebAppStore:
-    case WebAppManagement::kOneDriveIntegration:
-    case WebAppManagement::kSync:
-    case WebAppManagement::kUserInstalled:
-    case WebAppManagement::kIwaUserInstalled:
-    case WebAppManagement::kApsDefault:
-      return false;
-  }
-}
 
 }  // namespace
 
@@ -444,6 +422,11 @@ void WebAppInstallFinalizer::OnOriginAssociationValidated(
     web_app->SetGeneratedIconFix(web_app_info.generated_icon_fix);
   }
 
+  if (web_app_info.installed_by.has_value()) {
+    web_app->AddInstalledByInfo(
+        AppInstalledBy(clock_->Now(), web_app_info.installed_by.value()));
+  }
+
   WriteExternalConfigMapInfo(
       *web_app, options.source, web_app_info.is_placeholder,
       web_app_info.install_url, web_app_info.additional_policy_ids);
@@ -468,8 +451,7 @@ void WebAppInstallFinalizer::OnOriginAssociationValidated(
   if (options.overwrite_existing_manifest_fields || !existing_web_app) {
     SetWebAppManifestFieldsAndWriteData(
         web_app_info, std::move(web_app), std::move(commit_callback),
-        options.skip_icon_writes_on_download_failure,
-        CanSourceUseManifestIconsAsTrusted(options.source));
+        options.skip_icon_writes_on_download_failure);
   } else {
     // Updates the web app with an additional source.
     CommitToSyncBridge(std::move(web_app), std::move(commit_callback),
@@ -597,33 +579,22 @@ void WebAppInstallFinalizer::OnOriginAssociationValidatedForUpdate(
   }
   web_app->SetValidatedScopeExtensions(validated_scope_extensions);
 
-  // Only trusted installs like policy or preinstalled apps are allowed to
-  // overwrite their trusted icons with manifest provided ones.
-  // TODO(http://crbug.com/447607762): Move the logic for
-  // `should_consider_manifest_icons_as_trusted` into the creation of the
-  // WebAppInstallInfo, to remove the need for this here.
-  bool add_manifest_icons_to_trusted_icons =
-      web_app->IsPolicyInstalledApp() || web_app->IsPreinstalledApp();
-
   // Prepare copy-on-write to update existing app.
   // This is not reached unless the data obtained from the manifest
   // update process is valid, so an invariant of the system is that
   // icons are valid here.
   SetWebAppManifestFieldsAndWriteData(
       web_app_info, std::move(web_app), std::move(commit_callback),
-      /*skip_icon_writes_on_download_failure=*/false,
-      add_manifest_icons_to_trusted_icons);
+      /*skip_icon_writes_on_download_failure=*/false);
 }
 
 void WebAppInstallFinalizer::SetWebAppManifestFieldsAndWriteData(
     const WebAppInstallInfo& web_app_info,
     std::unique_ptr<WebApp> web_app,
     CommitCallback commit_callback,
-    bool skip_icon_writes_on_download_failure,
-    bool overwrite_trusted_icons_with_manifest_ones) {
+    bool skip_icon_writes_on_download_failure) {
   SetWebAppManifestFields(web_app_info, *web_app,
-                          skip_icon_writes_on_download_failure,
-                          overwrite_trusted_icons_with_manifest_ones);
+                          skip_icon_writes_on_download_failure);
 
   webapps::AppId app_id = web_app->app_id();
   auto write_translations_callback = base::BindOnce(
@@ -648,12 +619,6 @@ void WebAppInstallFinalizer::SetWebAppManifestFieldsAndWriteData(
         web_app_info.shortcuts_menu_icon_bitmaps;
     IconsMap other_icon_bitmaps = web_app_info.other_icon_bitmaps;
     IconBitmaps trusted_icon_bitmaps = web_app_info.trusted_icon_bitmaps;
-
-    // Overwrite bitmaps if the trusted icon metadata is populated but trusted
-    // icons are not and needs to be overwritten.
-    if (overwrite_trusted_icons_with_manifest_ones) {
-      trusted_icon_bitmaps = icon_bitmaps;
-    }
 
     provider_->icon_manager().WriteData(
         app_id, std::move(icon_bitmaps), std::move(trusted_icon_bitmaps),

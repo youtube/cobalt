@@ -831,7 +831,8 @@ NetworkContext::NetworkContext(
   }
 
   device_bound_session_manager_ = DeviceBoundSessionManager::Create(
-      url_request_context_->device_bound_session_service());
+      url_request_context_->device_bound_session_service(),
+      cookie_manager_.get());
 }
 
 NetworkContext::NetworkContext(
@@ -2427,7 +2428,8 @@ void NetworkContext::PreconnectSockets(
   net::HttpNetworkSession* session = factory->GetSession();
   net::HttpStreamFactory* http_stream_factory = session->http_stream_factory();
   http_stream_factory->PreconnectStreams(
-      base::saturated_cast<int32_t>(num_streams), request_info);
+      base::saturated_cast<int32_t>(num_streams), request_info,
+      base::OnceClosure());
 }
 
 #if BUILDFLAG(IS_P2P_ENABLED)
@@ -2835,6 +2837,14 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
             params_->file_paths->no_vary_search_directory->path();
       }
       cache_params.type = network_session_configurator::ChooseCacheType();
+#if BUILDFLAG(IS_WIN)
+      // For enterprise users, we always use simple backend when encryption is
+      // enabled.
+      if (params_->enable_encrypted_http_cache) {
+        cache_params.type =
+            net::URLRequestContextBuilder::HttpCacheParams::DISK_SIMPLE;
+      }
+#endif
       if (params_->http_cache_file_operations_factory) {
         cache_params.file_operations_factory =
             base::MakeRefCounted<MojoBackendFileOperationsFactory>(
@@ -3563,6 +3573,34 @@ void NetworkContext::GetDeviceBoundSessionManager(
   if (device_bound_session_manager_) {
     device_bound_session_manager_->AddReceiver(
         std::move(device_bound_session_manager));
+  }
+}
+
+void NetworkContext::AddQuicHints(
+    const std::vector<url::SchemeHostPort>& origins,
+    const net::NetworkAnonymizationKey& network_anonymization_key) {
+  CHECK(url_request_context_);
+
+  for (const auto& origin : origins) {
+    url::CanonHostInfo host_info;
+    std::string canonical_host(
+        net::CanonicalizeHost(origin.host(), &host_info));
+    if (!host_info.IsIPAddress() &&
+        !net::IsCanonicalizedHostCompliant(canonical_host)) {
+      LOG(ERROR) << "Invalid QUIC hint host: " << origin.host();
+      continue;
+    }
+
+    // The AlternativeService hostname can be used to signal a change of host.
+    // By passing in an empty host, the origin's host will be used.
+    net::AlternativeService alternative_service(net::NextProto::kProtoQUIC, "",
+                                                origin.port());
+
+    url::SchemeHostPort canonical_origin(url::kHttpsScheme, canonical_host,
+                                         origin.port());
+    url_request_context_->http_server_properties()->SetQuicAlternativeService(
+        canonical_origin, network_anonymization_key, alternative_service,
+        base::Time::Max(), quic::ParsedQuicVersionVector());
   }
 }
 

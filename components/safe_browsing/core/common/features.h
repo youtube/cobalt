@@ -68,10 +68,10 @@ BASE_DECLARE_FEATURE(kClientSideDetectionCreditCardForm);
 extern const base::FeatureParam<double> kCsdCreditCardFormHCAcceptanceRate;
 // Sets the percentage of credit card forms that trigger a CSD ping.
 extern const base::FeatureParam<double> kCsdCreditCardFormSampleRate;
-// Sets the maximum site engagement allowed when sending a CSD ping.
-// The int value corresponds to the value of blink::mojom::EngagementLevel
-// (//third_party/blink/public/mojom/site_engagement/site_engagement.mojom).
-extern const base::FeatureParam<int> kCsdCreditCardFormMaxSiteEngagement;
+// Sets the maximum site visit count allowed when sending a CSD ping.
+// If the user has visited more times than this max, then the CSD ping is
+// blocked.
+extern const base::FeatureParam<int> kCsdCreditCardFormMaxUserVisit;
 
 // Killswitch for Llama forced trigger info redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch);
@@ -294,6 +294,11 @@ BASE_DECLARE_FEATURE_PARAM(bool, kMaliciousApkDownloadCheckTelemetryOnly);
 //  disabling user protection.
 BASE_DECLARE_FEATURE(kModifiedESBFetchErrorHandling);
 
+// When enabled, the Password Leak detection toggle is moved out from under the
+// 'Standard protection' Safe Browsing option to the top-level 'Privacy and
+// security' page.
+BASE_DECLARE_FEATURE(kMovePasswordLeakDetectionToggleIos);
+
 // Enable the collection of Notification Telemetry to track potentially abusive
 // notifications.
 BASE_DECLARE_FEATURE(kNotificationTelemetry);
@@ -317,6 +322,10 @@ extern const base::FeatureParam<std::string> kRedWarningSurveyDidProceedFilter;
 extern const base::FeatureParam<std::string> kRedWarningSurveyReportTypeFilter;
 // Specifies the HaTS survey's identifier.
 extern const base::FeatureParam<std::string> kRedWarningSurveyTriggerId;
+
+// If enabled, advanced protection program users are shown relaunch to apply
+// update required.
+BASE_DECLARE_FEATURE(kRelaunchNotificationForAdvancedProtection);
 
 // Enables reporting notification contents and metadata to the server, upon user
 // consent.

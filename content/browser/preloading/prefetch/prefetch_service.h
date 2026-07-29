@@ -11,6 +11,7 @@
 #include "base/containers/lru_cache.h"
 #include "base/dcheck_is_on.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_key.h"
 #include "content/browser/preloading/prefetch/prefetch_streaming_url_loader_common_types.h"
@@ -235,6 +236,9 @@ class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
                      base::WeakPtr<PrefetchContainer> prefetch_container);
   bool StartSinglePrefetch(base::PassKey<PrefetchScheduler>,
                            base::WeakPtr<PrefetchContainer> prefetch_container);
+
+  bool StartSinglePrefetchForTesting(
+      base::WeakPtr<PrefetchContainer> prefetch_container);
 
   PrefetchScheduler& GetPrefetchSchedulerForTesting() { return *scheduler_; }
 

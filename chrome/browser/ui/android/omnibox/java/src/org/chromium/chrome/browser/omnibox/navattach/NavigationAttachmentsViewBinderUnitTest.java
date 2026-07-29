@@ -9,11 +9,11 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import android.app.Activity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
-import androidx.appcompat.widget.SwitchCompat;
 import androidx.constraintlayout.widget.Group;
 
 import org.junit.Before;
@@ -24,14 +24,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.Robolectric;
 
-import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.R;
+import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
-import org.chromium.ui.widget.ChromeImageButton;
+import org.chromium.ui.widget.ButtonCompat;
+import org.chromium.ui.widget.ChromeImageView;
 
 /** Unit tests for {@link NavigationAttachmentsViewBinder}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -41,25 +43,35 @@ public class NavigationAttachmentsViewBinderUnitTest {
     private @Mock ViewGroup mParent;
     private @Mock Group mAttachmentsToolbar;
     private @Mock NavigationAttachmentsPopup mPopup;
-    private @Mock ChromeImageButton mAddButton;
+    private @Mock ChromeImageView mAddButton;
+    private @Mock ChromeImageView mSettingsButton;
     private @Mock Button mCameraButton;
     private @Mock Button mGalleryButton;
     private @Mock Button mFileButton;
     private @Mock NavigationAttachmentsRecyclerView mRecyclerView;
-    private @Mock SwitchCompat mSwitch;
+    private @Mock ButtonCompat mRequestType;
     private @Mock View mRecentTabsHeader;
 
+    private Activity mActivity;
     private PropertyModel mModel;
     private NavigationAttachmentsViewHolder mViewHolder;
 
     @Before
     public void setUp() {
+        mActivity = Robolectric.buildActivity(TestActivity.class).setup().get();
+
+        doReturn(mActivity).when(mParent).getContext();
+        doReturn(mActivity.getResources()).when(mParent).getResources();
+
         doReturn(mAttachmentsToolbar)
                 .when(mParent)
                 .findViewById(R.id.location_bar_attachments_toolbar);
         doReturn(mAddButton).when(mParent).findViewById(R.id.location_bar_attachments_add);
+        doReturn(mSettingsButton)
+                .when(mParent)
+                .findViewById(R.id.location_bar_attachments_settings);
         doReturn(mRecyclerView).when(mParent).findViewById(R.id.location_bar_attachments);
-        doReturn(mSwitch).when(mParent).findViewById(R.id.location_bar_navigation_type);
+        doReturn(mRequestType).when(mParent).findViewById(R.id.navigation_attachments_request_type);
         doReturn(mRecentTabsHeader)
                 .when(mParent)
                 .findViewById(R.id.navigation_attachments_recent_tabs_header);
@@ -86,17 +98,9 @@ public class NavigationAttachmentsViewBinderUnitTest {
     public void attachmentsVisible_setsVisibilityAndTogglesSwitch() {
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, true);
         verify(mRecyclerView).setVisibility(View.VISIBLE);
-        verify(mSwitch).setChecked(true);
 
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, false);
         verify(mRecyclerView).setVisibility(View.GONE);
-    }
-
-    @Test
-    public void useAiModeChanged_setsListener() {
-        Callback<Boolean> callback = mock(Callback.class);
-        mModel.set(NavigationAttachmentsProperties.ON_USE_AI_MODE_CHANGED, callback);
-        verify(mSwitch).setOnCheckedChangeListener(any());
     }
 
     @Test
@@ -164,5 +168,12 @@ public class NavigationAttachmentsViewBinderUnitTest {
         verify(mPopup.mRecentTabsHeader).setVisibility(View.VISIBLE);
         mModel.set(NavigationAttachmentsProperties.RECENT_TABS_HEADER_VISIBLE, false);
         verify(mPopup.mRecentTabsHeader).setVisibility(View.GONE);
+    }
+
+    @Test
+    public void autocompleteRequestTypeClicked_setsListener() {
+        Runnable runnable = mock(Runnable.class);
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED, runnable);
+        verify(mRequestType).setOnClickListener(any());
     }
 }

@@ -22,11 +22,12 @@ export {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_bu
 export {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 export {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 export {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
+export {ContextualEntrypointAndCarouselElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 export {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
 export {ComposeboxFileThumbnailElement} from 'chrome://resources/cr_components/composebox/file_thumbnail.js';
 export {PageImageServiceBrowserProxy} from 'chrome://resources/cr_components/page_image_service/browser_proxy.js';
 export {PluralStringProxyImpl as NTPPluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
-export {ActionChipsElement} from './action_chips.js';
+export {ActionChipsElement} from './action_chips/action_chips.js';
 export {LensErrorType, LensFormElement, LensSubmitType} from './lens_form.js';
 export {LensUploadDialogAction, LensUploadDialogElement, LensUploadDialogError} from './lens_upload_dialog.js';
 export {MiddleSlotPromoElement, PromoDismissAction} from './middle_slot_promo.js';

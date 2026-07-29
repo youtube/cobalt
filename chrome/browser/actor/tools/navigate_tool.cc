@@ -86,8 +86,7 @@ std::string NavigateTool::JournalEvent() const {
 }
 
 std::unique_ptr<ObservationDelayController> NavigateTool::GetObservationDelayer(
-    std::optional<ObservationDelayController::PageStabilityConfig>
-        page_stability_config) {
+    ObservationDelayController::PageStabilityConfig page_stability_config) {
   return std::make_unique<ObservationDelayController>(
       *web_contents()->GetPrimaryMainFrame(), task_id(), journal(),
       page_stability_config);
@@ -105,8 +104,7 @@ tabs::TabHandle NavigateTool::GetTargetTab() const {
 void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {
   if (pending_navigation_handle_id_ &&
       navigation_handle->GetNavigationId() == *pending_navigation_handle_id_) {
-    journal().Log(url_, task_id(), mojom::JournalTrack::kActor,
-                  "NavigateTool::DidFinishNavigation",
+    journal().Log(url_, task_id(), "NavigateTool::DidFinishNavigation",
                   JournalDetailsBuilder()
                       .Add("id", navigation_handle->GetNavigationId())
                       .Build());
@@ -124,8 +122,7 @@ void NavigateTool::DidFinishNavigation(NavigationHandle* navigation_handle) {
 
 void NavigateTool::NavigationHandleCallback(NavigationHandle& handle) {
   journal().Log(
-      url_, task_id(), mojom::JournalTrack::kActor,
-      "NavigateTool::NavigationHandleCallback",
+      url_, task_id(), "NavigateTool::NavigationHandleCallback",
       JournalDetailsBuilder().Add("id", handle.GetNavigationId()).Build());
   pending_navigation_handle_id_ = handle.GetNavigationId();
 }

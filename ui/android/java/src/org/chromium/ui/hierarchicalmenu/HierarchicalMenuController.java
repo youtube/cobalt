@@ -8,20 +8,25 @@ import static org.chromium.ui.base.KeyNavigationUtil.isGoBackward;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
 
 import androidx.annotation.StringRes;
+import androidx.annotation.VisibleForTesting;
 import androidx.core.view.ViewCompat;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.R;
+import org.chromium.ui.base.DeviceInput;
+import org.chromium.ui.display.DisplayAndroidManager;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.ListObservable.ListObserver;
@@ -45,6 +50,22 @@ import java.util.List;
  */
 @NullMarked
 public class HierarchicalMenuController<T> {
+
+    /** An interface for creating the ListItem for drilldown's header. */
+    public interface SubmenuHeaderFactory {
+        /**
+         * Creates the ListItem for drilldown's header.
+         *
+         * @param clickedItem The item that was clicked to open this submenu.
+         * @param backRunnable The runnable to execute when the header is clicked or a "back" key
+         *     event is received, allowing navigation back to the parent menu.
+         * @return The {@link ListItem} to be used as the submenu's header.
+         */
+        ListItem createHeaderItem(ListItem clickedItem, Runnable backRunnable);
+    }
+
+    private final Context mContext;
+
     private final @Nullable FlyoutController<T> mFlyoutController;
     private final HierarchicalMenuKeyProvider mKeyProvider;
 
@@ -53,10 +74,13 @@ public class HierarchicalMenuController<T> {
     private @Nullable Runnable mPendingHoverExitRunnable;
 
     private final @Nullable Boolean mDrillDownOverrideValue;
+    private final SubmenuHeaderFactory mSubmenuHeaderFactory;
 
     /**
      * Creates an instance of the controller.
      *
+     * @param context The application's {@link Context} to retrieve resources.
+     * @param submenuHeaderFactory The {@link SubmenuHeaderFactory} to use.
      * @param keyProvider The {@link HierarchicalMenuKeyProvider} for the controller to use.
      * @param flyoutHandler The {@link FlyoutHandler} for the controller to use for displaying
      *     flyout popups.
@@ -64,9 +88,13 @@ public class HierarchicalMenuController<T> {
      *     true}) or flyout ({@code false}), overriding the default.
      */
     public HierarchicalMenuController(
+            Context context,
             HierarchicalMenuKeyProvider keyProvider,
+            SubmenuHeaderFactory submenuHeaderFactory,
             @Nullable FlyoutHandler<T> flyoutHandler,
             @Nullable Boolean drillDownOverrideValue) {
+        mContext = context;
+        mSubmenuHeaderFactory = submenuHeaderFactory;
         mFlyoutController =
                 flyoutHandler != null
                         ? new FlyoutController<T>(flyoutHandler, keyProvider, this)
@@ -85,10 +113,14 @@ public class HierarchicalMenuController<T> {
     }
 
     /**
-     * Determines whether to use a drill-down menu style. Currently defaults to using drilldown
-     * unless an override value is given.
+     * Determines whether to use a drill-down menu style. If an override value is given, it is
+     * respected. If the override value is null and a pointer device is connected, we use the window
+     * width and the position of the main, non-flyout popup to calculate whether to use flyout or
+     * drilldown. For flyout to be chosen, there has to be enough space for a set margin and a set
+     * spacing in at least one side of the main popup window for the maximum width flyout popup to
+     * fit in.
      *
-     * @return True to use the drill-down style, false to use the flyout style.
+     * @return True to use the drilldown, false to use the flyout style.
      */
     public boolean shouldUseDrillDown() {
         if (mDrillDownOverrideValue != null) {
@@ -102,7 +134,57 @@ public class HierarchicalMenuController<T> {
             return true;
         }
 
-        // TODO(http://crbug.com/440938039): Return `false` when conditions qualify for flyout.
+        if (!DeviceInput.supportsPrecisionPointer()) {
+            return true;
+        }
+
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        DisplayAndroidManager.getDefaultDisplayForContext(mContext).getMetrics(displayMetrics);
+
+        return !possibleToFitFlyout(
+                mFlyoutController.getMainPopupRect(),
+                displayMetrics.widthPixels,
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.hierarchical_menu_min_spacing_for_flyout),
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.hierarchical_menu_min_margin_for_flyout),
+                mContext.getResources().getDimensionPixelSize(R.dimen.list_menu_width));
+    }
+
+    /**
+     * In order for flyout to fit, the available space, either to the left or the right of the main
+     * popup, has to be larger than minSpacing + maxFlyoutWidth + minMargin.
+     *
+     * <pre>
+     *     +----------------------+
+     *     +----------------------+
+     *     |     +------+         |
+     *     |     | main |         |
+     *     |     |  +--------+    |
+     *     |     +--| flyout |    |
+     *     |        +--------+    |
+     *     +----------------------+
+     *           <-->         <--->
+     *        minSpacing    minMargin
+     *           <---------------->
+     *             availableSpace
+     * </pre>
+     */
+    @VisibleForTesting
+    static boolean possibleToFitFlyout(
+            Rect mainPopupRect,
+            int windowWidth,
+            int minSpacing,
+            int minMargin,
+            int maxFlyoutWidth) {
+        int spaceToLeft = mainPopupRect.right;
+        int spaceToRight = windowWidth - mainPopupRect.left;
+        int availableSpace = spaceToLeft > spaceToRight ? spaceToLeft : spaceToRight;
+
+        if (availableSpace < minSpacing + maxFlyoutWidth + minMargin) {
+            return false;
+        }
+
         return true;
     }
 
@@ -241,27 +323,8 @@ public class HierarchicalMenuController<T> {
                     }
                     setModelListContent(contentModelList, parentModelList);
                 };
-        final PropertyModel model =
-                new PropertyModel.Builder(mKeyProvider.getAllHeaderItemKeys())
-                        .with(
-                                mKeyProvider.getTitleKey(),
-                                item.model.get(mKeyProvider.getTitleKey()))
-                        .with(mKeyProvider.getEnabledKey(), true)
-                        .with(
-                                mKeyProvider.getClickListenerKey(),
-                                (unusedView) -> headerBackClick.run())
-                        .with(
-                                mKeyProvider.getKeyListenerKey(),
-                                (view, keyCode, keyEvent) -> {
-                                    if (isGoBackward(keyEvent)) {
-                                        headerBackClick.run();
-                                        return true;
-                                    }
-                                    // Return false because the listener has not consumed the event.
-                                    return false;
-                                })
-                        .build();
-        ListItem headerItem = new ListItem(mKeyProvider.getSubmenuHeaderType(), model);
+
+        ListItem headerItem = mSubmenuHeaderFactory.createHeaderItem(item, headerBackClick);
         List<ListItem> newContentList = new ArrayList<>();
         if (headerModelList == null) {
             newContentList.add(headerItem);
@@ -462,6 +525,37 @@ public class HierarchicalMenuController<T> {
             contentView.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
             contentView.clearFocus();
         }
+    }
+
+    /**
+     * Populates a PropertyModel.Builder with the default properties for a submenu header.
+     *
+     * <p>This helper is for use by {@link SubmenuHeaderFactory} implementers to easily set up the
+     * required header behavior while allowing them to add their own custom properties.
+     *
+     * @param builder The builder to populate.
+     * @param keyProvider The key provider to use for setting properties.
+     * @param title The title of the parent menu item with submenu.
+     * @param backRunnable The runnable to execute for back navigation.
+     */
+    public static void populateDefaultHeaderProperties(
+            PropertyModel.Builder builder,
+            HierarchicalMenuKeyProvider keyProvider,
+            CharSequence title,
+            Runnable backRunnable) {
+        builder.with(keyProvider.getTitleKey(), title)
+                .with(keyProvider.getEnabledKey(), true)
+                .with(keyProvider.getClickListenerKey(), (unusedView) -> backRunnable.run())
+                .with(
+                        keyProvider.getKeyListenerKey(),
+                        (view, keyCode, keyEvent) -> {
+                            if (isGoBackward(keyEvent)) {
+                                backRunnable.run();
+                                return true;
+                            }
+                            // Return false because the listener has not consumed the event.
+                            return false;
+                        });
     }
 
     /** Watches a ModelList and updates the accessibility pane title of the View accordingly. */

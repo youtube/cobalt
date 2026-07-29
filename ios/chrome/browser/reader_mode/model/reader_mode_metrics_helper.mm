@@ -108,12 +108,12 @@ ReaderModeMetricsHelper::ReaderModeMetricsHelper(
 }
 
 ReaderModeMetricsHelper::~ReaderModeMetricsHelper() {
-  Flush();
+  Flush(ReaderModeDeactivationReason::kHostTabDestructionDeactivated);
 }
 
 void ReaderModeMetricsHelper::RecordReaderHeuristicCanceled() {
   last_reader_mode_state_ = ReaderModeState::kHeuristicCanceled;
-  Flush();
+  Flush(ReaderModeDeactivationReason::kNavigationDeactivated);
 }
 
 void ReaderModeMetricsHelper::RecordReaderHeuristicTriggered() {
@@ -166,13 +166,14 @@ void ReaderModeMetricsHelper::RecordReaderDistillerTriggered(
 void ReaderModeMetricsHelper::RecordReaderDistillerTimedOut() {
   last_reader_mode_state_ = ReaderModeState::kDistillationTimedOut;
   RecordDistillationTime(std::nullopt);
-  Flush();
+  Flush(ReaderModeDeactivationReason::kDistillationFailureDeactivated);
 }
 
 void ReaderModeMetricsHelper::RecordReaderDistillerCompleted(
     ReaderModeAccessPoint access_point,
     ReaderModeDistillerResult result) {
   last_reader_mode_state_ = ReaderModeState::kDistillationCompleted;
+  reader_mode_distilled_access_point_ = access_point;
 
   CHECK(distiller_timer_);
   RecordDistillationTime(result);
@@ -188,10 +189,22 @@ void ReaderModeMetricsHelper::RecordReaderShown() {
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState())->GetPrefs();
   UpdateRecentlyUsedTimestamps(pref_service);
 
+  const ukm::SourceId source_id =
+      ukm::GetSourceIdForWebStateDocument(web_state_);
+  if (reader_mode_distilled_access_point_.has_value() &&
+      source_id != ukm::kInvalidSourceId) {
+    ukm::builders::IOS_ReaderMode_ReaderModeShown_AccessPoint(source_id)
+        .SetAccessPoint(
+            static_cast<int64_t>(reader_mode_distilled_access_point_.value()))
+        .Record(ukm::UkmRecorder::Get());
+  }
+  reader_mode_distilled_access_point_.reset();
+
   reading_timer_ = std::make_unique<base::ElapsedTimer>();
 }
 
-void ReaderModeMetricsHelper::Flush() {
+void ReaderModeMetricsHelper::Flush(ReaderModeDeactivationReason reason) {
+  base::UmaHistogramEnumeration(kReaderModeDeactivationReasonHistogram, reason);
   if (last_reader_mode_state_.has_value()) {
     base::UmaHistogramEnumeration(kReaderModeStateHistogram,
                                   last_reader_mode_state_.value());
@@ -203,6 +216,7 @@ void ReaderModeMetricsHelper::Flush() {
     reading_timer_.reset();
   }
   heuristic_timer_.reset();
+  reader_mode_distilled_access_point_.reset();
 }
 
 void ReaderModeMetricsHelper::OnChangeFontFamily(

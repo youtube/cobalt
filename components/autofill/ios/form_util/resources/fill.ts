@@ -70,8 +70,9 @@ function extractFieldsFromControlElements(
     fieldsExtracted[i] = false;
     elementArray[i] = null;
 
-    const controlElement = controlElements[i];
-    if (!gCrWebLegacy.fill.isAutofillableElement(controlElement)) {
+    const controlElement =
+        controlElements[i] as fillConstants.FormControlElement;
+    if (!inferenceUtil.isAutofillableElement(controlElement)) {
       continue;
     }
 
@@ -518,13 +519,13 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
   field.aria_label = fillUtil.getAriaLabel(element);
   field.aria_description = fillUtil.getAriaDescription(element);
 
-  if (!gCrWebLegacy.fill.isAutofillableElement(element)) {
+  if (!inferenceUtil.isAutofillableElement(element)) {
     return;
   }
 
-  if (gCrWebLegacy.fill.isAutofillableInputElement(element) ||
+  if (inferenceUtil.isAutofillableInputElement(element) ||
       inferenceUtil.isTextAreaElement(element) ||
-      gCrWebLegacy.fill.isSelectElement(element)) {
+      inferenceUtil.isSelectElement(element)) {
     field.is_autofilled = (element as any).isAutofilled;
     field.is_user_edited = gCrWebLegacy.form.fieldWasEditedByUser(element);
     field.should_autocomplete = fillUtil.shouldAutocomplete(element);
@@ -532,7 +533,7 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
         element.tabIndex >= 0 && fillUtil.isVisibleNode(element);
   }
 
-  if (gCrWebLegacy.fill.isAutofillableInputElement(element)) {
+  if (inferenceUtil.isAutofillableInputElement(element)) {
     if (isTextField(element)) {
       field.max_length = (element as HTMLInputElement).maxLength;
       if (field.max_length === -1) {
@@ -540,7 +541,7 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
         field.max_length = 524288;
       }
     }
-    field.is_checkable = gCrWebLegacy.fill.isCheckableElement(element);
+    field.is_checkable = inferenceUtil.isCheckableElement(element);
   } else if (inferenceUtil.isTextAreaElement(element)) {
     // Nothing more to do in this case.
   } else {
@@ -605,7 +606,7 @@ gCrWebLegacy.fill.getUnownedAutofillableFormFieldElements = function(
       }
     }
 
-    if (gCrWebLegacy.fill.hasTagName(element, 'fieldset') &&
+    if (inferenceUtil.hasTagName(element, 'fieldset') &&
         !fillUtil.isElementInsideFormOrFieldSet(element)) {
       fieldsets.push(element);
     }
@@ -736,7 +737,7 @@ function extractAutofillableElementsFromSet(
   const autofillableElements
       : fillConstants.FormControlElement[] = [];
   for (const element of controlElements) {
-    if (!gCrWebLegacy.fill.isAutofillableElement(element)) {
+    if (!inferenceUtil.isAutofillableElement(element)) {
       continue;
     }
     autofillableElements.push(element);

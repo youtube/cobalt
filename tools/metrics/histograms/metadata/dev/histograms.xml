@@ -48,6 +48,14 @@ chromium-metrics-reviews@google.com.
   <summary>Playback rate is changed in Animations panel in DevTools.</summary>
 </histogram>
 
+<histogram name="DevTools.BuiltInAiAvailability"
+    enum="DevToolsBuiltInAiAvailability" expires_after="2026-10-24">
+  <owner>wolfi@google.com</owner>
+  <owner>alexrudenko@google.com</owner>
+  <component>1559716</component>
+  <summary>Availability of the built-in AI in DevTools.</summary>
+</histogram>
+
 <histogram name="DevTools.CDPCommandFrom{ClientType}" enum="CDPCommands"
     expires_after="2026-03-22">
   <owner>wolfi@google.com</owner>
@@ -187,6 +195,15 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="DevTools.Insights.TeaserGenerationTime" units="ms"
+    expires_after="2026-10-24">
+  <owner>wolfi@google.com</owner>
+  <owner>alexrudenko@google.com</owner>
+  <summary>
+    Measures the time it takes to generate a console insight teaser.
+  </summary>
+</histogram>
+
 <histogram name="DevTools.InspectElement" units="ms" expires_after="2026-03-22">
   <owner>yangguo@google.com</owner>
   <owner>bmeurer@google.com</owner>
@@ -260,7 +277,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.KeybindSetSettingChanged" enum="DevToolsKeybindSets"
-    expires_after="2025-12-01">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>jalyn@microsoft.com</owner>
   <owner>leo.lee@microsoft.com</owner>
@@ -271,7 +288,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.KeyboardShortcutFired"
-    enum="DevToolsKeyboardShortcutAction" expires_after="2025-12-01">
+    enum="DevToolsKeyboardShortcutAction" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>jalyn@microsoft.com</owner>
   <owner>leo.lee@microsoft.com</owner>
@@ -282,7 +299,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.Language" enum="DevToolsLanguage"
-    expires_after="2025-12-01">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
   <owner>yangguo@google.com</owner>
@@ -497,7 +514,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.SyncSetting" enum="DevToolsSyncSetting"
-    expires_after="2025-12-01">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>szuend@google.com</owner>
   <owner>yangguo@google.com</owner>
@@ -539,7 +556,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.Workspaces.NumberOfDirectoriesTraversed"
-    units="count" expires_after="2025-12-01">
+    units="count" expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>hablich@google.com</owner>
   <component>1456920</component>
@@ -550,7 +567,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.Workspaces.NumberOfFilesLoaded" units="count"
-    expires_after="2025-12-01">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>hablich@google.com</owner>
   <component>1456920</component>
@@ -561,7 +578,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.Workspaces.PopulateWallClockTime" units="ms"
-    expires_after="2025-12-01">
+    expires_after="M150">
   <owner>bmeurer@google.com</owner>
   <owner>hablich@google.com</owner>
   <component>1456920</component>

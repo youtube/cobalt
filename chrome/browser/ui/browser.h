@@ -104,10 +104,6 @@ namespace web_modal {
 class WebContentsModalDialogHost;
 }
 
-namespace views {
-class View;
-}
-
 // This enum is not a member of `Browser` so that it can be forward
 // declared in `unload_controller.h` to avoid circular includes.
 enum class BrowserClosingStatus {
@@ -777,9 +773,7 @@ class Browser : public TabStripModelObserver,
     return &unload_controller_;
   }
 
-
   // BrowserWindowInterface overrides:
-  views::WebView* GetWebView() override;
   Profile* GetProfile() override;
   const Profile* GetProfile() const override;
   void OpenGURL(const GURL& gurl, WindowOpenDisposition disposition) override;
@@ -796,9 +790,7 @@ class Browser : public TabStripModelObserver,
       BrowserDidCloseCallback callback) override;
   base::CallbackListSubscription RegisterBrowserCloseCancelled(
       BrowserCloseCancelledCallback callback) override;
-  views::View* TopContainer() override;
   base::WeakPtr<BrowserWindowInterface> GetWeakPtr() override;
-  views::View* LensOverlayView() override;
   base::CallbackListSubscription RegisterActiveTabDidChange(
       ActiveTabChangeCallback callback) override;
   tabs::TabInterface* GetActiveTabInterface() override;
@@ -876,15 +868,15 @@ class Browser : public TabStripModelObserver,
 
   // Used to describe why a tab is being detached. This is used by
   // TabDetachedAtImpl.
-  enum DetachType {
+  enum class DetachType {
     // Result of TabDetachedAt.
-    DETACH_TYPE_DETACH,
+    kDetach,
 
     // Result of TabReplacedAt.
-    DETACH_TYPE_REPLACE,
+    kReplace,
 
     // Result of the tab strip not having any significant tabs.
-    DETACH_TYPE_EMPTY
+    kEmpty
   };
 
   // Tracks whether a tabstrip call to action UI is showing.
@@ -1314,11 +1306,11 @@ class Browser : public TabStripModelObserver,
 
   // In-progress download termination handling /////////////////////////////////
 
-  enum CancelDownloadConfirmationState {
-    NOT_PROMPTED,          // We have not asked the user.
-    WAITING_FOR_RESPONSE,  // We have asked the user and have not received a
-                           // reponse yet.
-    RESPONSE_RECEIVED      // The user was prompted and made a decision already.
+  enum class CancelDownloadConfirmationState {
+    kNotPrompted,         // We have not asked the user.
+    kWaitingForResponse,  // We have asked the user and have not received a
+                          // response yet.
+    kResponseReceived     // The user was prompted and made a decision already.
   };
 
   // State used to figure-out whether we should prompt the user for confirmation

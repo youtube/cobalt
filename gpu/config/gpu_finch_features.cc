@@ -211,7 +211,7 @@ const base::FeatureParam<std::string> kWebGPUUnsafeFeatures{
 // Whether to enable Dawn's spontaneous wire mode on the server side for faster
 // async resolution and timed wait any on the client side.
 const base::FeatureParam<bool> kWebGPUSpontaneousWireServer{
-    &kWebGPUService, "DawnSpontaneousWireServer", false};
+    &kWebGPUService, "DawnSpontaneousWireServer", true};
 // List of WGSL feature names, delimited by ,
 // The FeatureParam may be overridden via Finch config, or via the command line
 // For example:
@@ -227,6 +227,8 @@ BASE_FEATURE(kWebGPUEnableRangeAnalysisForRobustness,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebGPUUseSpirv14, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebGPUDecomposeUniformBuffers, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 
@@ -748,7 +750,7 @@ bool IsAndroidSurfaceControlEnabled() {
           switches::kDisableAndroidNativeFenceSyncForTesting)) {
     return false;
   }
-  // LINT.ThenChange(//gpu/config/gpu_finch_features.cc:AndroidSurfaceControlCondition)
+  // LINT.ThenChange(//ui/gl/gl_display.cc:AndroidSurfaceControlCondition)
 
   // On WebView we require thread-safe media to use SurfaceControl
   if (IsUsingThreadSafeMediaForWebView()) {
@@ -869,4 +871,10 @@ BASE_FEATURE(kWebGPUAndroidOpenGLES, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebGPUQualcommWindows, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// Enables runtime configuration of the GPU watchdog timeout via
+// experimentation.
+BASE_FEATURE(kConfigurableGPUWatchdogTimeout,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kConfigurableGPUWatchdogTimeoutSeconds{
+    &kConfigurableGPUWatchdogTimeout, "watchdog_timeout_seconds", 30};
 }  // namespace features

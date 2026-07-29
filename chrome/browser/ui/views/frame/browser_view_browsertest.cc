@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/tab_modal_confirm_dialog.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -845,7 +846,8 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, MAYBE_DragNotSupportedInFullscreen) {
 
   // Attempt to start a drag
   content::DropData drop_data;
-  drop_data.url = GURL("https://mail.google.com");
+  drop_data.url_infos = {
+      ui::ClipboardUrlInfo(GURL("https://mail.google.com"), u"")};
   const gfx::Rect bounds = browser_view()->GetBoundsInScreen();
   const gfx::PointF point(bounds.left_center().x() + 10,
                           bounds.left_center().y());
@@ -980,7 +982,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, SplitViewFullscreenLayout) {
   // Verify top_container is parented to overlay after entering fullscreen
   EXPECT_EQ(overlay_view, top_container->parent());
 
-  browser_view()->ExitFullscreen();
+  browser_view()->GetExclusiveAccessContext()->ExitFullscreen();
 
   // Verify top_container is re-parented to browser_view after fullscreen exit
   EXPECT_EQ(browser_view()->main_container(), top_container->parent());

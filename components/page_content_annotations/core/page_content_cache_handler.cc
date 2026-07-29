@@ -48,16 +48,24 @@ PageContentCacheHandler::PageContentCacheHandler(
 PageContentCacheHandler::~PageContentCacheHandler() = default;
 
 void PageContentCacheHandler::OnTabClosed(int64_t tab_id) {
+  closed_tabs_.insert(tab_id);
   RecordExtractionAndCachingStatus(
       PageContentExtractionAndCachingStatus::kContentsDeletedOnTabClose);
   page_content_cache_->RemovePageContentForTab(tab_id);
 }
 
+void PageContentCacheHandler::OnTabCloseUndone(int64_t tab_id) {
+  // TODO(haileywang): It would be nice to also restore the deleted page
+  // contents.
+  closed_tabs_.erase(tab_id);
+}
+
 void PageContentCacheHandler::OnVisibilityChanged(
     std::optional<int64_t> tab_id,
     const WebStateWrapper& web_state,
-    std::optional<optimization_guide::proto::PageContext> page_context) {
-  if (!tab_id || web_state.is_off_the_record) {
+    std::optional<optimization_guide::proto::PageContext> page_context,
+    const base::Time& extraction_time) {
+  if (!tab_id || web_state.is_off_the_record || IsTabClosed(tab_id.value())) {
     return;
   }
   if (web_state.visibility != PageContentVisibility::kHidden) {
@@ -73,10 +81,9 @@ void PageContentCacheHandler::OnVisibilityChanged(
   // was hidden. If extraction succeeds, then cache would be updated again in
   // ProcessPageContentExtraction().
 
-  // TODO(crbug.com/440643544): Pass in the extraction timestamp.
   page_content_cache_->CachePageContent(*tab_id, web_state.last_committed_url,
                                         web_state.navigation_timestamp,
-                                        base::Time::Now(), *page_context);
+                                        extraction_time, *page_context);
   RecordExtractionAndCachingStatus(PageContentExtractionAndCachingStatus::
                                        kContentsAvailableWhenBackgrounded);
 }
@@ -96,8 +103,9 @@ void PageContentCacheHandler::OnNewNavigation(
 void PageContentCacheHandler::ProcessPageContentExtraction(
     std::optional<int64_t> tab_id,
     const WebStateWrapper& web_state,
-    const optimization_guide::proto::PageContext& page_context) {
-  if (!tab_id || web_state.is_off_the_record) {
+    const optimization_guide::proto::PageContext& page_context,
+    const base::Time& extraction_time) {
+  if (!tab_id || web_state.is_off_the_record || IsTabClosed(tab_id.value())) {
     return;
   }
 
@@ -109,11 +117,15 @@ void PageContentCacheHandler::ProcessPageContentExtraction(
         PageContentExtractionAndCachingStatus::kExtractionObservedInBackground);
     page_content_cache_->CachePageContent(*tab_id, web_state.last_committed_url,
                                           web_state.navigation_timestamp,
-                                          base::Time::Now(), page_context);
+                                          extraction_time, page_context);
   } else {
     RecordExtractionAndCachingStatus(
         PageContentExtractionAndCachingStatus::kExtractionObservedInForeground);
   }
+}
+
+bool PageContentCacheHandler::IsTabClosed(int64_t tab_id) const {
+  return closed_tabs_.count(tab_id) > 0;
 }
 
 }  // namespace page_content_annotations

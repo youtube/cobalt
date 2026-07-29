@@ -18,6 +18,7 @@
 #include "ui/views/view_observer.h"
 
 class BrowserView;
+class SidePanel;
 
 namespace views {
 class View;
@@ -62,9 +63,8 @@ class SidePanelCoordinator final : public SidePanelUIBase,
   content::WebContents* GetWebContentsForTest(SidePanelEntryId id) override;
   void DisableAnimationsForTesting() override;
 
-  SidePanelEntry* GetCurrentSidePanelEntryForTesting();
-
-  SidePanelEntry* GetLoadingEntryForTesting() const;
+  SidePanelEntry* GetLoadingEntryForTesting(
+      SidePanelEntry::PanelType type) const;
 
  private:
   // Returns the corresponding entry for `entry_key` or a nullptr if this key is
@@ -97,6 +97,9 @@ class SidePanelCoordinator final : public SidePanelUIBase,
   void ClosePromoAndMaybeNotifyUsed(const base::Feature& promo_feature,
                                     SidePanelEntryId promo_id,
                                     SidePanelEntryId actual_id);
+
+  // Returns the corresponding side panel for the provided panel type.
+  SidePanel* GetSidePanelFor(SidePanelEntry::PanelType type);
 
   const raw_ptr<BrowserView, AcrossTasksDanglingUntriaged> browser_view_;
 

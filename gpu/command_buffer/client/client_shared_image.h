@@ -11,6 +11,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/unsafe_shared_memory_pool.h"
 #include "base/task/single_thread_task_runner.h"
@@ -620,8 +621,8 @@ class GPU_COMMAND_BUFFER_CLIENT_EXPORT WebGPUBufferScopedAccess {
   const raw_ptr<webgpu::WebGPUInterface> webgpu_;
   std::unique_ptr<wgpu::dawn::wire::client::Buffer> buffer_;
   raw_ptr<gpu::ClientSharedImage> shared_image_;
-  uint32_t wire_buffer_id_ = 0;
-  uint32_t wire_buffer_generation_ = 0;
+  uint32_t buffer_id_ = 0;
+  uint32_t buffer_generation_ = 0;
 };
 
 }  // namespace gpu

@@ -100,6 +100,8 @@
 #include "third_party/blink/renderer/core/page/autoscroll_controller.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/paint/border_shape_painter.h"
+#include "third_party/blink/renderer/core/paint/border_shape_utils.h"
 #include "third_party/blink/renderer/core/paint/box_paint_invalidator.h"
 #include "third_party/blink/renderer/core/paint/contoured_border_geometry.h"
 #include "third_party/blink/renderer/core/paint/object_paint_invalidator.h"
@@ -1313,7 +1315,7 @@ LayoutUnit LayoutBox::DefaultIntrinsicContentInlineSize() const {
   const bool apply_fixed_size = StyleRef().ApplyControlFixedSize(&element);
   const auto* select = DynamicTo<HTMLSelectElement>(element);
   if (select && select->UsesMenuList() &&
-      StyleRef().EffectiveAppearance() != AppearanceValue::kBaseSelect)
+      !select->SupportsBaseAppearance(StyleRef().EffectiveAppearance()))
       [[unlikely]] {
     return apply_fixed_size ? MenuListIntrinsicInlineSize(*select, *this)
                             : kIndefiniteSize;
@@ -1368,7 +1370,7 @@ LayoutUnit LayoutBox::DefaultIntrinsicContentBlockSize(
     return kIndefiniteSize;
   }
   if (const auto* select = DynamicTo<HTMLSelectElement>(GetNode())) {
-    if (effective_appearance != AppearanceValue::kBaseSelect) {
+    if (!select->SupportsBaseAppearance(effective_appearance)) {
       if (!select->UsesMenuList()) {
         if (!children_have_geometry) {
           return kIndefiniteSize;
@@ -3335,6 +3337,22 @@ PhysicalBoxStrut LayoutBox::ComputeVisualEffectOverflowOutsets() {
 
   PhysicalBoxStrut outsets = style.BoxDecorationOutsets();
 
+  if (style.HasBorderShape()) {
+    PhysicalRect border_rect(PhysicalOffset(), StitchedSize());
+    std::optional<BorderShapeReferenceRects> border_shape_rects =
+        ComputeBorderShapeReferenceRects(border_rect, style, *this);
+    const PhysicalRect outer_reference_rect =
+        border_shape_rects ? border_shape_rects->outer : border_rect;
+    const PhysicalRect inner_reference_rect =
+        border_shape_rects ? border_shape_rects->inner : border_rect;
+    if (std::optional<PhysicalBoxStrut> border_shape_outsets =
+            BorderShapePainter::VisualOutsets(style, border_rect,
+                                              outer_reference_rect,
+                                              inner_reference_rect)) {
+      outsets.Unite(*border_shape_outsets);
+    }
+  }
+
   if (style.HasOutline()) {
     OutlineInfo info;
     Vector<PhysicalRect> outline_rects =
@@ -4269,6 +4287,12 @@ BackgroundPaintLocation LayoutBox::ComputeBackgroundPaintLocation(
   // context than the scrolling contents.
   if (!StyleRef().Preserves3D() && Parent() &&
       Parent()->StyleRef().Preserves3D()) {
+    return kBackgroundPaintInBorderBoxSpace;
+  }
+
+  if (StyleRef().HasBorderShape()) {
+    // Border-shape clips are applied in the border box space. Painting the
+    // background in the scrolling contents layer would bypass that clip.
     return kBackgroundPaintInBorderBoxSpace;
   }
 

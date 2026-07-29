@@ -756,6 +756,7 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> Gambar</translation>
 <translation id="4300272766492248925">Buka aplikasi</translation>
 <translation id="430786093962686457">sifon</translation>
+<translation id="4309762678330556039">Otomatis membuat transkripsi dan menelusuri audio. Anda dapat membuat rekaman bahkan saat Anda tidak terhubung ke internet.</translation>
 <translation id="4310735698903592804">Wallpaper terbaru yang didukung teknologi AI Google</translation>
 <translation id="4320904097188876154">merah muda neon</translation>
 <translation id="432961742358282111">Klik kanan atau tekan lama untuk mendapatkan definisi, terjemahan, atau konversi unit. Gunakan tombol Panah kiri atau kanan untuk mengelola fitur ini.</translation>
@@ -1472,6 +1473,7 @@ Download model transkripsi (hingga 100 MB) untuk mendapatkan transkripsi ini.</t
 <translation id="7425832472614771259">Model transkripsi <ph name="LANGUAGE_NAME" /> <ph name="PROGRESS_PERCENTAGE" />% didownload</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Tidak dapat menonaktifkan atau menghapus APN ini. Pastikan APN <ph name="ATTACH" /> aktif telah dinonaktifkan atau dihapus.</translation>
+<translation id="7458359366992324037">Layar jarak jauh</translation>
 <translation id="7458970041932198923">Hubungkan ke jaringan dan muat ulang halaman untuk melihat dan menyetel avatar.</translation>
 <translation id="7469648432129124067">Portal terdeteksi</translation>
 <translation id="7481312909269577407">Maju</translation>

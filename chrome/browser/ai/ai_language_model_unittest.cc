@@ -26,12 +26,12 @@
 #include "chrome/browser/ai/ai_utils.h"
 #include "chrome/browser/ai/features.h"
 #include "chrome/browser/component_updater/optimization_guide_on_device_model_installer.h"
-#include "components/optimization_guide/core/mock_optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/model_execution/multimodal_message.h"
+#include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_broker.h"
+#include "components/optimization_guide/core/model_execution/test/mock_on_device_capability.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
 #include "components/optimization_guide/proto/descriptors.pb.h"
@@ -68,7 +68,6 @@ constexpr float kTestDefaultTemperature = 0.0f;
 constexpr uint32_t kTestMaxTopK = 5u;
 constexpr float kTestMaxTemperature = 1.5;
 constexpr uint32_t kTestMaxTokens = 100u;
-constexpr uint32_t kTestModelMaxTokens = 200u;
 constexpr uint64_t kTestModelDownloadSize = 572u;
 static_assert(kTestDefaultTopK <= kTestMaxTopK);
 static_assert(kTestDefaultTemperature <= kTestMaxTemperature);
@@ -300,11 +299,7 @@ class AILanguageModelTest : public AITestUtils::AITestBase {
         {{blink::features::kAIPromptAPIMultimodalInput, {}},
          {features::kAILanguageModelOverrideConfiguration,
           {{"ai_language_model_output_buffer", "100"}}},
-         {optimization_guide::features::kOptimizationGuideOnDeviceModel,
-          {{"on_device_model_max_tokens_for_execute", "0"},
-           {"on_device_model_max_tokens_for_output", "0"},
-           {"on_device_model_max_tokens_for_context",
-            base::NumberToString(kTestModelMaxTokens)}}}},
+         {optimization_guide::features::kOptimizationGuideOnDeviceModel, {}}},
         {});
     // Reset the adaptation to make sure the feature params get picked up.
     fake_broker_.UpdateModelAdaptation(
@@ -754,7 +749,7 @@ TEST_F(AILanguageModelTest, OutputOverflowsModelMaxTokens) {
 
   // Set a fake response that will overrun the max model tokens.
   fake_broker_.settings().set_execute_result(
-      {std::string(kTestModelMaxTokens, 'a')});
+      {std::string(2 * optimization_guide::kOnDeviceModelMaxTokens, 'a')});
   TestStreamingResponder responder;
   session->Prompt(MakeInput("bar"), nullptr, responder.BindRemote());
   EXPECT_FALSE(responder.WaitForCompletion());

@@ -60,7 +60,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "chromeos/ash/services/assistant/public/cpp/assistant_browser_delegate.h"
-#include "chromeos/ash/services/assistant/public/cpp/assistant_enums.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ui/vector_icons/vector_icons.h"
 #include "components/vector_icons/vector_icons.h"
@@ -526,16 +525,14 @@ SearchBoxView::SearchBoxView(SearchBoxViewDelegate* delegate,
   SetPreferredStyleForAutocompleteText(font_list,
                                        cros_tokens::kCrosSysOnSurfaceVariant);
 
-  if (features::IsLauncherSearchControlEnabled()) {
-    views::ImageButton* filter_button = CreateFilterButton(base::BindRepeating(
-        &SearchBoxView::ShowFilterMenu, weak_ptr_factory_.GetWeakPtr()));
-    filter_button->SetFlipCanvasOnPaintForRTLUI(false);
-    std::u16string filter_button_label(
-        l10n_util::GetStringUTF16(IDS_ASH_SEARCH_BOX_FILTER_BUTTON_TOOLTIP));
-    filter_button->GetViewAccessibility().SetName(
-        l10n_util::GetStringUTF16(IDS_ASH_SEARCH_CATEGORY_FILTER_MENU_TITLE));
-    filter_button->SetTooltipText(filter_button_label);
-  }
+  views::ImageButton* filter_button = CreateFilterButton(base::BindRepeating(
+      &SearchBoxView::ShowFilterMenu, weak_ptr_factory_.GetWeakPtr()));
+  filter_button->SetFlipCanvasOnPaintForRTLUI(false);
+  std::u16string filter_button_label(
+      l10n_util::GetStringUTF16(IDS_ASH_SEARCH_BOX_FILTER_BUTTON_TOOLTIP));
+  filter_button->GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ASH_SEARCH_CATEGORY_FILTER_MENU_TITLE));
+  filter_button->SetTooltipText(filter_button_label);
 
   views::ImageButton* close_button = CreateCloseButton(base::BindRepeating(
       &SearchBoxView::CloseButtonPressed, base::Unretained(this)));

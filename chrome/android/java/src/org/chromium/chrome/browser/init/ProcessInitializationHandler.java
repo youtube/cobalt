@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.init;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.app.ActivityManager;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
@@ -113,6 +114,8 @@ import org.chromium.chrome.browser.webapps.WebApkUninstallTracker;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.background_task_scheduler.BackgroundTaskSchedulerFactory;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
+import org.chromium.components.browser_ui.contacts_picker.ContactsFetcher;
+import org.chromium.components.browser_ui.contacts_picker.ContactsFetcherImpl;
 import org.chromium.components.browser_ui.contacts_picker.ContactsPickerDialog;
 import org.chromium.components.browser_ui.photo_picker.DecoderServiceHost;
 import org.chromium.components.browser_ui.photo_picker.PhotoPickerDelegateBase;
@@ -439,6 +442,8 @@ public class ProcessInitializationHandler {
                     assumeNonNull(windowAndroid);
                     Context context = windowAndroid.getContext().get();
                     assumeNonNull(context);
+                    ContentResolver contentResolver = context.getContentResolver();
+                    ContactsFetcher contactsFetcher = new ContactsFetcherImpl(contentResolver);
                     ContactsPickerDialog dialog =
                             new ContactsPickerDialog(
                                     windowAndroid,
@@ -452,7 +457,8 @@ public class ProcessInitializationHandler {
                                     includeAddresses,
                                     includeIcons,
                                     formattedOrigin,
-                                    shouldDialogPadForContent(windowAndroid));
+                                    shouldDialogPadForContent(windowAndroid),
+                                    contactsFetcher);
                     assumeNonNull(dialog.getWindow()).getAttributes().windowAnimations =
                             R.style.PickerDialogAnimation;
                     dialog.show();
@@ -596,22 +602,24 @@ public class ProcessInitializationHandler {
     }
 
     /**
-     * Handle application level deferred startup tasks that can be lazily done after all
-     * the necessary initialization has been completed. Should only be triggered once per browser
+     * Handle application level deferred startup tasks that can be lazily done after all the
+     * necessary initialization has been completed. Should only be triggered once per browser
      * process lifetime. Any calls requiring network access should probably go here.
      *
-     * Keep these tasks short and break up long tasks into multiple smaller tasks, as they run on
+     * <p>Keep these tasks short and break up long tasks into multiple smaller tasks, as they run on
      * the UI thread and are blocking. Remember to follow RAIL guidelines, as much as possible, and
      * that most devices are quite slow, so leave enough buffer.
+     *
+     * @param profile The profile associated with deferred startup.
      */
-    public final void initializeDeferredStartupTasks() {
+    public final void initializeDeferredStartupTasks(Profile profile) {
         ThreadUtils.checkUiThread();
         if (mInitializedDeferredStartupTasks) return;
         mInitializedDeferredStartupTasks = true;
 
         DeferredStartupHandler deferredStartupHandler = DeferredStartupHandler.getInstance();
         List<Runnable> deferredTasks = new ArrayList<>();
-        addPerApplicationStartupDeferredTasks(deferredTasks);
+        addPerApplicationStartupDeferredTasks(deferredTasks, profile);
         deferredStartupHandler.addDeferredTasks(deferredTasks);
     }
 
@@ -621,7 +629,7 @@ public class ProcessInitializationHandler {
      * lifetime. Any calls requiring network access should probably go here.
      *
      * @param profile The Profile associated with the startup tasks.
-     * @see #initializeDeferredStartupTasks() for timing considerations.
+     * @see #initializeDeferredStartupTasks(Profile) for timing considerations.
      */
     public final void initializeProfileDependentDeferredStartupTasks(Profile profile) {
         ThreadUtils.checkUiThread();
@@ -646,9 +654,10 @@ public class ProcessInitializationHandler {
      * the application.
      *
      * @param tasks The list where new tasks should be added.
+     * @param profile The profile associated with deferred startup.
      */
     @CallSuper
-    protected void addPerApplicationStartupDeferredTasks(List<Runnable> tasks) {
+    protected void addPerApplicationStartupDeferredTasks(List<Runnable> tasks, Profile profile) {
         tasks.add(
                 () -> {
                     initAsyncDiskTask();
@@ -664,7 +673,9 @@ public class ProcessInitializationHandler {
                                     () -> {
                                         HomepageManager homepageManager =
                                                 HomepageManager.getInstance();
-                                        GURL homepageGurl = homepageManager.getHomepageGurl();
+                                        GURL homepageGurl =
+                                                homepageManager.getHomepageGurl(
+                                                        profile.isOffTheRecord());
                                         LaunchMetrics.recordHomePageLaunchMetrics(
                                                 homepageManager.isHomepageEnabled(),
                                                 UrlUtilities.isNtpUrl(homepageGurl),

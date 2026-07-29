@@ -170,6 +170,8 @@ BASE_FEATURE_PARAM(bool,
                    "FallbackInLowPowerMode",
                    false);
 
+BASE_FEATURE(kConnectionKeepAliveForHttp2, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kShortLaxAllowUnsafeThreshold, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSameSiteDefaultChecksMethodRigorously,
@@ -224,10 +226,6 @@ BASE_FEATURE(kThirdPartyStoragePartitioning, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTpcdTrialSettings,
              "TpcdSupportSettings",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kTopLevelTpcdTrialSettings,
-             "TopLevelTpcdSupportSettings",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTpcdMetadataGrants, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -568,6 +566,8 @@ BASE_FEATURE(kTruncateBodyToContentLength, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_MAC)
 BASE_FEATURE(kReduceIPAddressChangeNotification,
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kUseNetworkPathMonitorForNetworkChangeNotifier,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
 BASE_FEATURE(kDeviceBoundSessions, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -670,6 +670,11 @@ BASE_FEATURE_PARAM(bool,
                    &kDiskCacheBackendExperiment,
                    "SqlDiskCacheSynchronousOff",
                    false);
+BASE_FEATURE_PARAM(int,
+                   kSqlDiskCacheShardCount,
+                   &kDiskCacheBackendExperiment,
+                   "SqlDiskCacheShardCount",
+                   3);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 BASE_FEATURE(kIgnoreHSTSForLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -724,12 +729,6 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kHttpNoVarySearchDataUseNewAreEquivalent,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE_PARAM(bool,
-                   kHttpNoVarySearchDataAreEquivalentCheckResult,
-                   &kHttpNoVarySearchDataUseNewAreEquivalent,
-                   "check_result",
-                   false);
-
 BASE_FEATURE(kReportingApiCorsOriginHeader, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -750,20 +749,32 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTLSTrustAnchorIDs, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSocketPoolSizePerTopLevelSiteTrial,
+BASE_FEATURE(kTcpSocketPoolLimitRandomization,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE_PARAM(int,
-                   kSocketPoolSizePerTopLevelSiteTrialNormalProfileLimit,
-                   &kSocketPoolSizePerTopLevelSiteTrial,
-                   "SocketPoolSizePerTopLevelSiteTrialNormalProfileLimit",
-                   256);
+BASE_FEATURE_PARAM(double,
+                   kTcpSocketPoolLimitRandomizationBase,
+                   &kTcpSocketPoolLimitRandomization,
+                   "TcpSocketPoolLimitRandomizationBase",
+                   0.0);
 
 BASE_FEATURE_PARAM(int,
-                   kSocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit,
-                   &kSocketPoolSizePerTopLevelSiteTrial,
-                   "SocketPoolSizePerTopLevelSiteTrialWebSocketProfileLimit",
-                   256);
+                   kTcpSocketPoolLimitRandomizationCapacity,
+                   &kTcpSocketPoolLimitRandomization,
+                   "TcpSocketPoolLimitRandomizationCapacity",
+                   0);
+
+BASE_FEATURE_PARAM(double,
+                   kTcpSocketPoolLimitRandomizationMinimum,
+                   &kTcpSocketPoolLimitRandomization,
+                   "TcpSocketPoolLimitRandomizationMinimum",
+                   0.0);
+
+BASE_FEATURE_PARAM(double,
+                   kTcpSocketPoolLimitRandomizationNoise,
+                   &kTcpSocketPoolLimitRandomization,
+                   "TcpSocketPoolLimitRandomizationNoise",
+                   0.0);
 
 BASE_FEATURE(kNetTaskScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
@@ -771,16 +782,6 @@ BASE_FEATURE_PARAM(bool,
                    &kNetTaskScheduler,
                    "http_proxy_connect_job",
                    true);
-BASE_FEATURE_PARAM(bool,
-                   kNetTaskSchedulerHttpCache,
-                   &kNetTaskScheduler,
-                   "http_cache",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kNetTaskSchedulerHttpCacheTransaction,
-                   &kNetTaskScheduler,
-                   "http_cache_transaction",
-                   false);
 BASE_FEATURE_PARAM(bool,
                    kNetTaskSchedulerHttpStreamFactoryJob,
                    &kNetTaskScheduler,
@@ -811,6 +812,18 @@ BASE_FEATURE_PARAM(bool,
                    &kNetTaskScheduler,
                    "url_request_redirect_job",
                    true);
+
+BASE_FEATURE(kNetTaskScheduler2, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpCache,
+                   &kNetTaskScheduler2,
+                   "http_cache",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpCacheTransaction,
+                   &kNetTaskScheduler2,
+                   "http_cache_transaction",
+                   false);
 
 BASE_FEATURE(kAdditionalDelayMainJob, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,

@@ -21,16 +21,16 @@
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
-#include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
+#include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor/task_id.h"
+#include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace {
@@ -109,7 +109,7 @@ const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks()
     const {
   std::map<TaskId, const ActorTask*> active_tasks;
   for (const auto& [id, task] : active_tasks_) {
-    CHECK_NE(task->IsStopped(), true);
+    CHECK_NE(task->IsCompleted(), true);
     active_tasks[id] = task.get();
   }
   return active_tasks;
@@ -140,6 +140,14 @@ TaskId ActorKeyedService::CreateTaskWithOptions(
     webui::mojom::TaskOptionsPtr options,
     base::WeakPtr<ActorTaskDelegate> delegate) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
+  if (!policy_checker_->can_act_on_web()) {
+    base::UmaHistogramBoolean("Actor.Task.Created", false);
+    GetJournal().Log(GURL(), TaskId(), "CreateTask",
+                     JournalDetailsBuilder()
+                         .AddError("Actuation capability disabled")
+                         .Build());
+    return TaskId();
+  }
   base::UmaHistogramBoolean("Actor.Task.Created", true);
   auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
   auto actor_task = std::make_unique<ActorTask>(
@@ -210,10 +218,9 @@ ActorKeyedService::AddRequestToShowUserConfirmationDialogSubscriberCallback(
 
 void ActorKeyedService::NotifyRequestToShowUserConfirmationDialog(
     TaskId task_id,
-    const std::optional<url::Origin>& navigation_origin,
-    const std::optional<int32_t> download_id) {
+    const url::Origin& navigation_origin) {
   request_to_show_user_confirmation_dialog_callback_list_.Notify(
-      navigation_origin, download_id,
+      navigation_origin,
       base::BindRepeating(&ActorKeyedService::OnUserConfirmationDialogDecision,
                           weak_ptr_factory_.GetWeakPtr(), task_id));
 }
@@ -222,20 +229,50 @@ void ActorKeyedService::OnUserConfirmationDialogDecision(
     TaskId request_task_id,
     webui::mojom::UserConfirmationDialogResponsePtr response) {
   if (auto* task = GetTask(request_task_id)) {
-    task->GetExecutionEngine()->OnUserConfirmation(std::move(response));
+    task->GetExecutionEngine()->OnUserConfirmationDialogResponse(
+        std::move(response));
   } else {
     VLOG(1) << "Task not found for task id: " << request_task_id;
   }
 }
 
-void ActorKeyedService::OnActuationCapabilityChanged(
-    bool has_actuation_capability) {
-  if (!has_actuation_capability) {
+base::CallbackListSubscription
+ActorKeyedService::AddRequestToConfirmNavigationSubscriberCallback(
+    RequestToConfirmNavigationSubscriberCallback callback) {
+  return request_to_confirm_navigation_callback_list_.Add(std::move(callback));
+}
+
+void ActorKeyedService::NotifyRequestToConfirmNavigation(
+    const TaskId& task_id,
+    const url::Origin& navigation_origin) {
+  request_to_confirm_navigation_callback_list_.Notify(
+      task_id, navigation_origin,
+      base::BindRepeating(&ActorKeyedService::OnNavigationConfirmationDecision,
+                          weak_ptr_factory_.GetWeakPtr(), task_id));
+}
+
+void ActorKeyedService::OnNavigationConfirmationDecision(
+    TaskId request_task_id,
+    webui::mojom::NavigationConfirmationResponsePtr response) {
+  if (auto* task = GetTask(request_task_id)) {
+    task->GetExecutionEngine()->OnNavigationConfirmationResponse(
+        std::move(response));
+  } else {
+    VLOG(1) << "Task not found for task id: " << request_task_id;
+  }
+}
+
+void ActorKeyedService::OnActOnWebCapabilityChanged(bool can_act_on_web) {
+  if (!can_act_on_web) {
     FailAllTasks();
   }
-  // TODO(crbug.com/450525715): Depends on the shape of the Chrome API to signal
-  // the HostCapability (Set vs Observable), we might need to inform the web
-  // client about the capability change.
+  act_on_web_capability_changed_callback_list_.Notify(can_act_on_web);
+}
+
+base::CallbackListSubscription
+ActorKeyedService::AddActOnWebCapabilityChangedCallback(
+    ActOnWebCapabilityChangedCallback callback) {
+  return act_on_web_capability_changed_callback_list_.Add(std::move(callback));
 }
 
 void ActorKeyedService::RequestTabObservation(
@@ -245,7 +282,7 @@ void ActorKeyedService::RequestTabObservation(
   TRACE_EVENT0("actor", "ActorKeyedService::RequestTabObservation");
   const GURL& last_committed_url = tab.GetContents()->GetLastCommittedURL();
   auto journal_entry = journal_.CreatePendingAsyncEntry(
-      last_committed_url, task_id, mojom::JournalTrack::kActor,
+      last_committed_url, task_id, MakeBrowserTrackUUID(task_id),
       "RequestTabObservation", {});
   page_content_annotations::FetchPageContextOptions options;
 

@@ -187,7 +187,6 @@ component("cpp") {
   deps = [
     "//base",
     "//components/link_header_util",
-    "//components/miracle_parameter/common",
     "//components/os_crypt/async/browser",
     "//components/os_crypt/async/common",
     "//components/prefs",
@@ -271,6 +270,24 @@ component("integrity_policy") {
     "//services/network/public/mojom:mojom_integrity_policy_shared",
   ]
   defines = [ "IS_NETWORK_CPP_INTEGRITY_POLICY_IMPL" ]
+}
+
+component("connection_allowlist") {
+  sources = [
+    "connection_allowlist.cc",
+    "connection_allowlist.h",
+    "connection_allowlist_mojom_traits.cc",
+    "connection_allowlist_mojom_traits.h",
+    "connection_allowlist_parser.cc",
+    "connection_allowlist_parser.h",
+  ]
+  deps = [
+    ":flags_and_switches",
+    "//net",
+    "//services/network/public/mojom:mojom_connection_allowlist_shared",
+  ]
+  public_deps = [ "//base" ]
+  defines = [ "IS_NETWORK_CPP_CONNECTION_ALLOWLIST_IMPL" ]
 }
 
 component("fetch_retry_options") {
@@ -653,6 +670,7 @@ component("cpp_base") {
 
   public_deps = [
     ":ad_auction_support",
+    ":connection_allowlist",
     ":cookies_mojom_support",
     ":crash_keys",
     ":cross_origin_embedder_policy",
@@ -750,6 +768,7 @@ source_set("tests") {
     "avail_language_header_parser_unittest.cc",
     "browsing_topics_parser_unittest.cc",
     "client_hints_unittest.cc",
+    "connection_allowlist_unittest.cc",
     "content_decoding_interceptor_unittest.cc",
     "content_language_parser_unittest.cc",
     "content_security_policy/content_security_policy_unittest.cc",
@@ -769,6 +788,7 @@ source_set("tests") {
     "cross_thread_pending_shared_url_loader_factory_unittest.cc",
     "data_pipe_to_source_stream_unittest.cc",
     "default_credentials_mojom_traits_unittest.cc",
+    "device_bound_sessions_mojom_traits_unittest.cc",
     "devtools_observer_unittest.cc",
     "digitally_signed_mojom_traits_unittest.cc",
     "document_isolation_policy_parser_unittest.cc",

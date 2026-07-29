@@ -29,20 +29,41 @@ std::optional<DeletionReason> SessionError::GetDeletionReason() const {
       return DeletionReason::kRefreshFatalError;
     case kInvalidConfigJson:
     case kInvalidSessionId:
-    case kInvalidCredentials:
+    case kInvalidCredentialsConfig:
+    case kInvalidCredentialsType:
+    case kInvalidCredentialsEmptyName:
+    case kInvalidCredentialsCookie:
+    case kInvalidCredentialsCookieCreationTime:
+    case kInvalidCredentialsCookieName:
+    case kInvalidCredentialsCookieParsing:
+    case kInvalidCredentialsCookieUnpermittedAttribute:
+    case kInvalidCredentialsCookieInvalidDomain:
+    case kInvalidCredentialsCookiePrefix:
     case kInvalidFetcherUrl:
     case kInvalidRefreshUrl:
     case kScopeOriginSameSiteMismatch:
     case kRefreshUrlSameSiteMismatch:
     case kInvalidScopeOrigin:
+    case kScopeOriginContainsPath:
     case kMismatchedSessionId:
-    case kInvalidRefreshInitiators:
-    case kInvalidScopeRule:
+    case kRefreshInitiatorNotString:
+    case kRefreshInitiatorInvalidHostPattern:
+    case kInvalidScopeRulePath:
+    case kInvalidScopeRuleHostPattern:
+    case kScopeRuleOriginScopedHostPatternMismatch:
+    case kScopeRuleSiteScopedHostPatternMismatch:
+    case kInvalidScopeSpecification:
+    case kMissingScopeSpecificationType:
+    case kEmptyScopeSpecificationDomain:
+    case kEmptyScopeSpecificationPath:
+    case kInvalidScopeSpecificationType:
     case kMissingScope:
     case kNoCredentials:
     case kInvalidScopeIncludeSite:
+    case kMissingScopeIncludeSite:
       return DeletionReason::kInvalidSessionParams;
     case kNetError:
+    case kProxyError:
     case kTransientHttpError:
     case kBoundCookieSetForbidden:
       return std::nullopt;
@@ -50,16 +71,22 @@ std::optional<DeletionReason> SessionError::GetDeletionReason() const {
     case kSubdomainRegistrationWellKnownUnavailable:
     case kSubdomainRegistrationUnauthorized:
     case kSubdomainRegistrationWellKnownMalformed:
-    case kFederatedNotAuthorized:
+    case kFederatedNotAuthorizedByProvider:
+    case kFederatedNotAuthorizedByRelyingParty:
     case kSessionProviderWellKnownUnavailable:
     case kSessionProviderWellKnownMalformed:
+    case kSessionProviderWellKnownHasProviderOrigin:
     case kRelyingPartyWellKnownUnavailable:
     case kRelyingPartyWellKnownMalformed:
+    case kRelyingPartyWellKnownHasRelyingOrigins:
     case kFederatedKeyThumbprintMismatch:
     case kInvalidFederatedSessionUrl:
-    case kInvalidFederatedSession:
+    case kInvalidFederatedSessionProviderSessionMissing:
+    case kInvalidFederatedSessionWrongProviderOrigin:
     case kInvalidFederatedKey:
     case kTooManyRelyingOriginLabels:
+    case kEmptySessionConfig:
+    case kRegistrationAttemptedChallenge:
       NOTREACHED();
   }
 }
@@ -70,11 +97,21 @@ bool SessionError::IsServerError() const {
     case kKeyError:
     case kSigningError:
     case kNetError:
+    case kProxyError:
       return false;
     case kServerRequestedTermination:
     case kInvalidConfigJson:
     case kInvalidSessionId:
-    case kInvalidCredentials:
+    case kInvalidCredentialsConfig:
+    case kInvalidCredentialsType:
+    case kInvalidCredentialsEmptyName:
+    case kInvalidCredentialsCookie:
+    case kInvalidCredentialsCookieCreationTime:
+    case kInvalidCredentialsCookieName:
+    case kInvalidCredentialsCookieParsing:
+    case kInvalidCredentialsCookieUnpermittedAttribute:
+    case kInvalidCredentialsCookieInvalidDomain:
+    case kInvalidCredentialsCookiePrefix:
     case kInvalidChallenge:
     case kTooManyChallenges:
     case kInvalidFetcherUrl:
@@ -83,29 +120,46 @@ bool SessionError::IsServerError() const {
     case kScopeOriginSameSiteMismatch:
     case kRefreshUrlSameSiteMismatch:
     case kInvalidScopeOrigin:
+    case kScopeOriginContainsPath:
     case kTransientHttpError:
     case kMismatchedSessionId:
-    case kInvalidRefreshInitiators:
-    case kInvalidScopeRule:
+    case kRefreshInitiatorNotString:
+    case kRefreshInitiatorInvalidHostPattern:
+    case kInvalidScopeRulePath:
+    case kInvalidScopeRuleHostPattern:
+    case kScopeRuleOriginScopedHostPatternMismatch:
+    case kScopeRuleSiteScopedHostPatternMismatch:
+    case kInvalidScopeSpecification:
+    case kMissingScopeSpecificationType:
+    case kEmptyScopeSpecificationDomain:
+    case kEmptyScopeSpecificationPath:
+    case kInvalidScopeSpecificationType:
     case kMissingScope:
     case kNoCredentials:
     case kInvalidScopeIncludeSite:
+    case kMissingScopeIncludeSite:
     case kBoundCookieSetForbidden:
       return true;
     // Registration-only errors never get reported to the server.
     case kSubdomainRegistrationWellKnownUnavailable:
     case kSubdomainRegistrationUnauthorized:
     case kSubdomainRegistrationWellKnownMalformed:
-    case kFederatedNotAuthorized:
+    case kFederatedNotAuthorizedByProvider:
+    case kFederatedNotAuthorizedByRelyingParty:
     case kSessionProviderWellKnownUnavailable:
     case kSessionProviderWellKnownMalformed:
+    case kSessionProviderWellKnownHasProviderOrigin:
     case kRelyingPartyWellKnownUnavailable:
     case kRelyingPartyWellKnownMalformed:
+    case kRelyingPartyWellKnownHasRelyingOrigins:
     case kFederatedKeyThumbprintMismatch:
     case kInvalidFederatedSessionUrl:
-    case kInvalidFederatedSession:
+    case kInvalidFederatedSessionProviderSessionMissing:
+    case kInvalidFederatedSessionWrongProviderOrigin:
     case kInvalidFederatedKey:
     case kTooManyRelyingOriginLabels:
+    case kEmptySessionConfig:
+    case kRegistrationAttemptedChallenge:
       NOTREACHED();
   }
 }

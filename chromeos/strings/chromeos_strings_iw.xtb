@@ -756,6 +756,7 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> תמונות</translation>
 <translation id="4300272766492248925">פתיחת האפליקציה</translation>
 <translation id="430786093962686457">בד שיפון</translation>
+<translation id="4309762678330556039">אפשר ליצור תמלילים באופן אוטומטי ולחפש אודיו. אפשר ליצור הקלטות גם כשאין חיבור לאינטרנט.</translation>
 <translation id="4310735698903592804">‏הטפטים האחרונים שנוצרו על ידי AI מבית Google</translation>
 <translation id="4320904097188876154">ורוד ניאון</translation>
 <translation id="432961742358282111">בלחיצה ימנית או בלחיצה ארוכה על טקסט, יוצגו הגדרות, תרגומים או המרת יחידות. כדי לשנות את ההגדרות של התכונה הזו אפשר ללחוץ על מקש החץ הימני או השמאלי.</translation>
@@ -1472,6 +1473,7 @@
 <translation id="7425832472614771259">‏התקדמות ההורדה של מודל התמלול ב<ph name="LANGUAGE_NAME" />: ‎<ph name="PROGRESS_PERCENTAGE" />%‎</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">‏לא ניתן להשבית או להסיר את ה-APN הזה. צריך להשבית או להסיר את פריטי ה-APN שהופעלו מסוג '<ph name="ATTACH" />'.</translation>
+<translation id="7458359366992324037">תצוגה מרוחקת</translation>
 <translation id="7458970041932198923">כדי לראות ולהגדיר דמויות, צריך להתחבר לרשת ולטעון מחדש את הדף.</translation>
 <translation id="7469648432129124067">זוהה פורטל</translation>
 <translation id="7481312909269577407">קדימה</translation>

@@ -26,7 +26,6 @@
 #import "base/timer/timer.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/component_updater/component_updater_service.h"
-#import "components/component_updater/installer_policies/afp_content_rule_list_component_installer.h"
 #import "components/component_updater/installer_policies/autofill_states_component_installer.h"
 #import "components/component_updater/installer_policies/on_device_head_suggest_component_installer.h"
 #import "components/component_updater/installer_policies/optimization_hints_component_installer.h"
@@ -253,8 +252,6 @@ void RegisterComponentsForUpdate() {
                                   GetApplicationContext()->GetLocalState());
   RegisterOptimizationHintsComponent(cus);
   RegisterPlusAddressBlocklistComponent(cus);
-  component_updater::AntiFingerprintingContentRuleListComponentInstallerPolicy::
-      Register(cus);
 }
 
 // The delay before beginning memory experimentation.
@@ -502,8 +499,9 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   // appropriate pref changes.
   MemoryDebuggerManager* _memoryDebuggerManager;
 
-  // Variable backing metricsMediator property.
-  __weak MetricsMediator* _metricsMediator;
+  // Metrics mediator used to check and update the metrics accordingly to the
+  // user preferences.
+  MetricsMediator* _metricsMediator;
 
   // Holds the ProfileController for all loaded profiles.
   std::map<std::string, ProfileController*, std::less<>> _profileControllers;
@@ -563,6 +561,7 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   if ((self = [super init])) {
     _isFirstRun = ShouldPresentFirstRunExperience();
     _startupTasks = [[StartupTasks alloc] init];
+    _metricsMediator = [[MetricsMediator alloc] init];
   }
   return self;
 }

@@ -17,6 +17,9 @@
 
 namespace tabs {
 
+using OpenTransaction = TabStateStorageDatabase::OpenTransaction;
+using TransactionCallback = base::OnceCallback<bool(OpenTransaction*)>;
+
 namespace {
 constexpr base::TaskTraits kDBTaskTraits = {
     base::MayBlock(), base::TaskPriority::BEST_EFFORT,
@@ -63,6 +66,12 @@ void TabStateStorageBackend::LoadAllNodes(
                      base::Unretained(database_.get())),
       base::BindOnce(&TabStateStorageBackend::OnAllTabsRead,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void TabStateStorageBackend::ClearAllNodes() {
+  db_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&TabStateStorageDatabase::ClearAllNodes,
+                                base::Unretained(database_.get())));
 }
 
 void TabStateStorageBackend::OnDBReady(bool success) {}

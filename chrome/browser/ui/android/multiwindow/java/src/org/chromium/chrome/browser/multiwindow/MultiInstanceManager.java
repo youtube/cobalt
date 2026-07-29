@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.multiwindow;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.hardware.display.DisplayManager;
 import android.util.Pair;
 
@@ -15,6 +16,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.CommandLine;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -82,6 +84,30 @@ public abstract class MultiInstanceManager {
      * @return True if the activity should proceed with startup. False otherwise.
      */
     public abstract boolean isStartedUpCorrectly(int activityTaskId);
+
+    /**
+     * Creates a new {@link Intent} for a new instance of the main Chrome window (Task).
+     *
+     * <p>The root {@link Activity} of the new Chrome window depends on the implementation. It can
+     * be either {@code ChromeTabbedActivity} or {@code ChromeTabbedActivity2}.
+     *
+     * <p>The intended use cases of this method:
+     *
+     * <ul>
+     *   <li>The caller doesn't (need to) know the specifics of the {@link Intent}, such as flags,
+     *       Extras, the target {@link Activity}, the new window's instance ID, etc. An example of
+     *       this is the "open new window" option in the app menu.
+     *   <li>The caller is in a modularized target and can't depend on code at the "glue" layer,
+     *       such as {@link MultiWindowUtils#createNewWindowIntent}. In this case, the caller should
+     *       inject {@link MultiInstanceManager} at the "glue" layer, then use it in the caller's
+     *       internal logic to create the {@link Intent}.
+     * </ul>
+     *
+     * @param isIncognito Whether the new window should be in the incognito mode.
+     * @return The new {@link Intent} as described above, or {@code null} if the new window cannot
+     *     be created.
+     */
+    public abstract @Nullable Intent createNewWindowIntent(boolean isIncognito);
 
     /**
      * Merges tabs from a second ChromeTabbedActivity instance if necessary and calls
@@ -293,6 +319,15 @@ public abstract class MultiInstanceManager {
      * @param messageDispatcher The {@link MessageDispatcher} to enqueue the instance limit message.
      */
     public void showInstanceCreationLimitMessage(@Nullable MessageDispatcher messageDispatcher) {
+        // Not implemented
+    }
+
+    /**
+     * Shows a dialog to name the current window.
+     *
+     * @param source The {@link NameWindowDialogSource} that tracks the caller of this method.
+     */
+    public void showNameWindowDialog(@NameWindowDialogSource int source) {
         // Not implemented
     }
 

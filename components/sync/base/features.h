@@ -27,6 +27,9 @@ BASE_DECLARE_FEATURE(kSyncAccountSettings);
 // Enables syncing of Loyalty Cards coming from Google Wallet.
 BASE_DECLARE_FEATURE(kSyncAutofillLoyaltyCard);
 
+// Makes the AUTOFILL_VALUABLE sync type non-encryptable.
+BASE_DECLARE_FEATURE(kSyncMakeAutofillValuableNonEncryptable);
+
 // Enables syncing of usage metadata from Google Wallet passes.
 BASE_DECLARE_FEATURE(kSyncAutofillValuableMetadata);
 
@@ -60,6 +63,11 @@ BASE_DECLARE_FEATURE(kUnoPhase2FollowUp);
 
 // Controls whether to enable syncing of Autofill Wallet Credential Data.
 BASE_DECLARE_FEATURE(kSyncAutofillWalletCredentialData);
+
+// If enabled, the bookmarks count limit is controlled by a finch parameter.
+BASE_DECLARE_FEATURE(kSyncBookmarksLimit);
+inline constexpr base::FeatureParam<size_t> kSyncBookmarksLimitValue{
+    &kSyncBookmarksLimit, "sync-bookmarks-limit-value", 100000};
 
 BASE_DECLARE_FEATURE(kSyncEnableContactInfoDataTypeForCustomPassphraseUsers);
 BASE_DECLARE_FEATURE(kSyncEnableContactInfoDataTypeForDasherUsers);
@@ -200,6 +208,10 @@ BASE_DECLARE_FEATURE(kSyncUseOsCryptAsync);
 BASE_DECLARE_FEATURE(kSyncDetermineAccountManagedStatus);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kSyncDetermineAccountManagedStatusTimeout);
+
+// If enabled, the new sync dashboard URL will be opened when the user clicks
+// on the "Review your synced data" (or equivalent) entrypoint in settings.
+BASE_DECLARE_FEATURE(kSyncEnableNewSyncDashboardUrl);
 
 }  // namespace syncer
 

@@ -147,10 +147,7 @@ void MockSharedWorkerFactory::CreateSharedWorker(
     mojo::PendingReceiver<blink::mojom::ReportingObserver>
         coep_reporting_observer,
     mojo::PendingReceiver<blink::mojom::ReportingObserver>
-        dip_reporting_observer,
-    std::optional<blink::NoiseToken> canvas_noise_token,
-    mojo::PendingReceiver<blink::mojom::CanvasNoiseTokenUpdater>
-        canvas_noise_token_observer) {
+        dip_reporting_observer) {
   DCHECK(!create_params_);
   create_params_ = std::make_unique<CreateParams>();
   create_params_->info = std::move(info);

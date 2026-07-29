@@ -79,6 +79,7 @@
 <translation id="1132735979845538847"><ph name="ORIGIN" /> – ដើម្បី​ចាកចេញពី​អេក្រង់ពេញ សូមអូស​ពីខាងលើ ហើយចុច​ប៊ូតុង​ថយក្រោយ</translation>
 <translation id="1138458427267715730">ទទួលបានការជូនដំណឹង នៅពេលដែលតម្លៃធ្លាក់ចុះនៅលើគេហទំព័រណាមួយលើបណ្ដាញ</translation>
 <translation id="1142713751288681188">ប្រភេទក្រដាស</translation>
+<translation id="1142965388643537393">ព័ត៌មាន​អំពី​ការធ្វើដំណើរ</translation>
 <translation id="1144136880160289237">អ្នកមិនទាន់មានប្រធានបទសកម្មនៅឡើយទេ</translation>
 <translation id="1149617035358809955">ផ្ទៀងផ្ទាត់ថា​ជាអ្នក ដើម្បីឱ្យវា​អាចបំពេញ​ព័ត៌មាននៃ​ការទូទាត់ប្រាក់​របស់អ្នក​បាន</translation>
 <translation id="1150565364351027703">វ៉ែនតា​ការពារពន្លឺព្រះអាទិត្យ</translation>
@@ -790,6 +791,7 @@
 <translation id="22792995594807632">តម្រូវឱ្យ​ពិនិត្យមើល មុនពេល​ទាញយក</translation>
 <translation id="2283340219607151381">រក្សាទុក និង​បំពេញ​អាសយដ្ឋាន</translation>
 <translation id="2283447177162560884">បានលុប '<ph name="PAGE_TITLE" />'</translation>
+<translation id="2283599456633275070">ការ​ធ្វើដំណើរ</translation>
 <translation id="2286383991450886080">34 x 44 in</translation>
 <translation id="2288422996159078444">អ្វី​ដែលអ្នក​វាយបញ្ចូល ទំព័រ​ទាំងឡាយ​ដែលអ្នក​មើល ឬ​សកម្មភាព​ផ្សេងទៀត​នៅលើ​បណ្ដាញ​កំពុង​ត្រូវបាន​ឃ្លាំមើល​។ ខ្លឹមសារ​នៅលើ​គេហទំព័រ​ផ្សេងៗ​អាចនឹង​ត្រូវបាន​ប្ដូរ​ដោយ​មិនឱ្យ​អ្នក​ដឹង​។</translation>
 <translation id="2289385804009217824">តម្រឹម</translation>
@@ -838,6 +840,7 @@
 <translation id="2357481397660644965">ឧបករណ៍​របស់អ្នក​ស្ថិតក្រោមការគ្រប់គ្រង​របស់ <ph name="DEVICE_MANAGER" /> ហើយ​គណនី​របស់អ្នកស្ថិតក្រោមការគ្រប់គ្រង​របស់ <ph name="ACCOUNT_MANAGER" />។</translation>
 <translation id="2359629602545592467">ច្រើន</translation>
 <translation id="2359808026110333948">បន្ត</translation>
+<translation id="236000571258713023">យានជំនិះ</translation>
 <translation id="2361263712565360498">275 x 395 mm</translation>
 <translation id="236340516568226369">ប្ដូរទំហំ​ម៉ឺនុយ​បិទ/បើក</translation>
 <translation id="2365355378251437925">បញ្ចូល <ph name="FIELD" /></translation>
@@ -885,6 +888,7 @@
 <translation id="2436976580469434549">សិល្បៈ​សរសៃអំបោះ និងវាយនភណ្ឌ</translation>
 <translation id="243815215670139125">មិនអាច​រក្សាទុក​កាតនេះ​នៅក្នុង​គណនី Google របស់អ្នក​បានទេ។ កាតនេះ​ត្រូវបាន​រក្សាទុក​ទៅក្នុង Chrome នៅលើ​ឧបករណ៍នេះ​ជំនួសវិញ។</translation>
 <translation id="2438874542388153331">ចោះ​បួនរន្ធ​ខាងស្ដាំ</translation>
+<translation id="2440855519769445271">ដើម្បីលាក់​ជម្រើស​ទូទាត់​ពេលក្រោយ សូម​ចូលទៅកាន់<ph name="BEGIN_LINK" />ការកំណត់​ការបង់ប្រាក់<ph name="END_LINK" /></translation>
 <translation id="2441854154602066476">វិធីបង់ប្រាក់​ដែលអាចរើសបានសម្រាប់បំពេញ​នៅ​ពេល​ប៉ះ។ បាន​លាក់​ក្ដារចុច។</translation>
 <translation id="2442865686365739754">Chrome <ph name="BEGIN_EMPHASIS" />នឹងមិន​រក្សាទុក<ph name="END_EMPHASIS" />៖
           <ph name="BEGIN_LIST" />
@@ -2201,6 +2205,7 @@
 <translation id="4598556348158889687">ការគ្រប់គ្រងទំហំផ្ទុក</translation>
 <translation id="459914240367517409">ការរចនា និងការអភិវឌ្ឍគេហទំព័រ</translation>
 <translation id="4602465984861132303">ប៊ូលីង</translation>
+<translation id="4603727370377253901">ការ​កក់ទុក​ជើងហោះហើរ</translation>
 <translation id="4607608436550361748">មើលគន្លឹះ Chrome</translation>
 <translation id="460848736049414407">បានទប់ស្កាត់​ដោយអ្នកគ្រប់គ្រង</translation>
 <translation id="4610279718074907952">គេហទំព័រ​នេះ​ស្ថិត​នៅ​ក្នុងក្រុមដែលបាន​កំណត់​ដោយ <ph name="SET_OWNER" /> ហើយក្រុមនោះអាច​មើលឃើញ​សកម្មភាព​របស់​អ្នក</translation>
@@ -2209,6 +2214,7 @@
 <translation id="4619564267100705184">ផ្ទៀងផ្ទាត់ថា​ជាអ្នក</translation>
 <translation id="4622292761762557753">មិន​អី​ទេ ផ្ទេរ​ចុះ</translation>
 <translation id="4622647778991854660">បើក​ការជូនដំណឹង​នៅក្នុង​មជ្ឈមណ្ឌល​ជូនដំណឹង។ បើក<ph name="LINK" />។</translation>
+<translation id="4623894491222334521">ឯកសារ​សម្គាល់ខ្លួន</translation>
 <translation id="4627675673814409125">គោលការណ៍នេះមិនអាចកំណត់នៅកម្រិតកម្រងព័ត៌មាន Chrome ហើយ​នឹងមិនត្រូវបាន​អើពើទេ។</translation>
 <translation id="4628678854894591460">កញ្ចប់វិស្សមកាល</translation>
 <translation id="4628948037717959914">រូបថត</translation>
@@ -2226,6 +2232,7 @@
 <translation id="4648262692072505866">កូដតំណាង​ត្រូវតែ​មាន​ទម្រង់ SHA-256។</translation>
 <translation id="4652266463001779298">មិន​អនុញ្ញាត</translation>
 <translation id="4652440160515225514">ស្ថាប័ន​របស់អ្នក​បានទប់ស្កាត់​គេហទំព័រ​នេះ ដោយសារ​វា​បំពាន​គោលការណ៍។</translation>
+<translation id="4654457557264366314">គម្រោង​បង់ប្រាក់​អាស្រ័យលើ​សិទ្ធិទទួលបាន។</translation>
 <translation id="4658638640878098064">កិប​ខាងលើ​ផ្នែកខាងឆ្វេង</translation>
 <translation id="4660592918803576381">បើក​នៅក្នុង​ថាស</translation>
 <translation id="4661556981531699496">សត្វ​ចិញ្ចឹម និងសត្វពាហនៈ</translation>

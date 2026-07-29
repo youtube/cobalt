@@ -138,7 +138,7 @@ public class OmniboxFeatures {
             newBooleanParam(sOmniboxMultimodalInput, "aim_toggle_only", false);
 
     public static final CachedFlag sMultilineEditField =
-            newFlag(OmniboxFeatureList.MULTILINE_EDIT_FIELD, FeatureState.DISABLED);
+            newFlag(OmniboxFeatureList.MULTILINE_EDIT_FIELD, FeatureState.ENABLED_IN_TEST);
 
     public static final CachedFlag sAndroidHubSearchTabGroups =
             newFlag(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS, FeatureState.ENABLED_IN_TEST);
@@ -212,8 +212,14 @@ public class OmniboxFeatures {
             newBooleanParam(sOmniboxImprovementForLFF, "switch_to_tab_chip", false);
 
     // This parameter enables removing suggestion via "x" button.
-    public static final BooleanCachedFeatureParam sOmniboxImprovementForRemoveSuggestionViaButton =
-            newBooleanParam(sOmniboxImprovementForLFF, "remove_suggestion_via_button", false);
+    public static final BooleanCachedFeatureParam
+            sOmniboxImprovementForLFFRemoveSuggestionViaButton =
+                    newBooleanParam(
+                            sOmniboxImprovementForLFF, "remove_suggestion_via_button", false);
+
+    // This parameter enables persisting editing state.
+    public static final BooleanCachedFeatureParam sOmniboxImprovementForLFFPersistEditingState =
+            newBooleanParam(sOmniboxImprovementForLFF, "persist_editing_state", false);
 
     // Omnibox Diagnostics
     private static final CachedFlag sDiagnostics =

@@ -277,13 +277,17 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     @CalledByNative
     private boolean createTabWithWebContents(
             Tab parent, Profile profile, WebContents webContents, boolean select) {
+        @TabLaunchType
+        int type =
+                select ? TabLaunchType.FROM_RECENT_TABS_FOREGROUND : TabLaunchType.FROM_RECENT_TABS;
         return getTabCreator(profile.isOffTheRecord())
                         .createTabWithWebContents(
                                 parent,
+                                /* shouldPin= */ false,
                                 webContents,
-                                select
-                                        ? TabLaunchType.FROM_RECENT_TABS_FOREGROUND
-                                        : TabLaunchType.FROM_RECENT_TABS)
+                                type,
+                                webContents.getVisibleUrl(),
+                                /* addTabToModel= */ true)
                 != null;
     }
 
@@ -442,7 +446,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                 return;
             }
         }
-        getTabCreator(false).launchNtp();
+        TabCreatorUtil.launchNtp(getTabCreator(/* isIncognito= */ false));
     }
 
     /** Returns whether or not a sync session is currently being restored. */
@@ -486,7 +490,9 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                         parentTab,
                         parentTab.getIsPinned(),
                         webContents,
-                        TabLaunchType.FROM_TAB_LIST_INTERFACE);
+                        TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                        webContents.getVisibleUrl(),
+                        /* addTabToModel= */ true);
     }
 
     /**

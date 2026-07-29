@@ -11,7 +11,6 @@
 #include "chrome/browser/lens/core/mojom/lens_side_panel.mojom.h"
 #include "chrome/browser/ui/webui/searchbox/lens_searchbox_client.h"
 #include "chrome/browser/ui/webui/searchbox/lens_searchbox_handler.h"
-#include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/sessions/core/session_id.h"
 #include "content/public/browser/web_contents.h"
@@ -26,6 +25,9 @@ using GetIsContextualSearchboxCallback =
 namespace lens {
 
 struct SearchQuery;
+namespace proto {
+class LensOverlaySuggestInputs;
+}  // namespace proto
 
 // Controller for the Lens searchbox. This class is responsible for handling
 // communications between the Lens WebUI searchbox and other Lens components.
@@ -85,12 +87,6 @@ class LensSearchboxController : public LensSearchboxClient {
 
   // Sets whether the thumbnail is shown in the side panel.
   void SetShowSidePanelSearchboxThumbnail(bool shown);
-
-  // Handles the create of a new thumbnail from a bitmap.
-  void HandleThumbnailCreatedBitmap(const SkBitmap& thumbnail);
-
-  // Handles the creation of a new thumbnail based on the user selection.
-  void HandleThumbnailCreated(const std::string& thumbnail_bytes);
 
   // Handles an update to the suggest inputs. This will be called whenever
   // any part of the suggest inputs changes, such as when a new objects
@@ -160,9 +156,6 @@ class LensSearchboxController : public LensSearchboxClient {
     // Whether the thumbnail should be shown in the side panel.
     bool show_side_panel_thumbnail = true;
   };
-
-  // Called on the UI thread with the processed thumbnail URI.
-  void OnThumbnailProcessed(const std::string& thumbnail_uri);
 
   // Returns the WebContents associated with the tab this instance of Lens is
   // invoked on.

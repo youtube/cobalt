@@ -84,6 +84,7 @@
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
+#include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views_impl.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
@@ -158,6 +159,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -307,11 +309,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   cookie_controls_bubble_coordinator_ =
       GetUserDataFactory().CreateInstance<CookieControlsBubbleCoordinator>(
-          *browser, browser);
+          *browser, browser, browser_actions_->root_action_item());
 
   tab_menu_model_delegate_ =
       std::make_unique<chrome::BrowserTabMenuModelDelegate>(
-          browser->GetSessionID(), profile, app_browser_controller_.get());
+          browser->GetSessionID(), profile, app_browser_controller_.get(),
+          tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile));
 
   tab_group_deletion_dialog_controller_ =
       std::make_unique<tab_groups::DeletionDialogController>(browser, profile,
@@ -504,17 +507,6 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
       }
     }
 
-    if (features::HasTabSearchToolbarButton()) {
-      // TODO(crbug.com/360163254): We should really be using
-      // Browser::GetBrowserView, which always returns a non-null BrowserView
-      // in production, but this crashes during unittests using
-      // BrowserWithTestWindowTest; these should eventually be refactored.
-      if (browser_view) {
-        tab_search_toolbar_button_controller_ =
-            std::make_unique<TabSearchToolbarButtonController>(browser_view);
-      }
-    }
-
     if (browser->GetTabStripModel()->SupportsTabGroups() &&
         tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups() &&
         tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile)) {
@@ -627,6 +619,10 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   if (auto* const provider =
           browser_elements_->AsA<BrowserElementsViewsImpl>()) {
     provider->Init(browser_view);
+    provider->AddRetrievalCallback(
+        kActiveContentsWebViewRetrievalId,
+        base::BindRepeating(&BrowserView::GetActiveContentsWebView,
+                            base::Unretained(browser_view)));
   }
 
   scrim_view_controller_ = std::make_unique<ScrimViewController>(browser_view);
@@ -706,6 +702,10 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                       BrowserElementsViews::From(browser_view->browser())
                           ->GetViewAs<TabStripActionContainer>(
                               kTabStripActionContainerElementId));
+          actor_task_list_bubble_controller_ =
+              GetUserDataFactory()
+                  .CreateInstance<ActorTaskListBubbleController>(*browser_,
+                                                                 browser_);
         } else {
           glic_actor_task_icon_controller_ =
               GetUserDataFactory()
@@ -751,6 +751,11 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
             .CreateInstance<
                 enterprise_data_protection::DataProtectionUIController>(
                 *browser_view->browser(), browser_view);
+
+    if (features::HasTabSearchToolbarButton()) {
+      tab_search_toolbar_button_controller_ =
+          std::make_unique<TabSearchToolbarButtonController>(browser_view);
+    }
   }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -807,6 +812,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   glic_button_controller_.reset();
   glic_actor_task_icon_controller_.reset();
   glic_actor_nudge_controller_.reset();
+  actor_task_list_bubble_controller_.reset();
 #endif
 
   contextual_tasks_side_panel_coordinator_.reset();

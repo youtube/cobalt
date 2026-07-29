@@ -122,7 +122,6 @@
 #include "ash/constants/ash_features.h"
 #include "ash/webui/settings/public/constants/routes.mojom.h"
 #include "chrome/browser/ash/account_manager/account_manager_util.h"
-#include "chrome/browser/ash/assistant/assistant_util.h"
 #include "chrome/browser/ash/kerberos/kerberos_credentials_manager.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_utils.h"
 #include "chrome/browser/ash/ownership/owner_settings_service_ash.h"
@@ -160,6 +159,12 @@
 
 #if BUILDFLAG(ENABLE_VR)
 #include "device/vr/public/cpp/features.h"
+#endif
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #endif
 
 namespace settings {
@@ -730,7 +735,46 @@ void AddDownloadsStrings(content::WebUIDataSource* html_source) {
 }
 
 #if BUILDFLAG(ENABLE_GLIC)
-void AddGlicStrings(content::WebUIDataSource* html_source) {
+
+bool ShouldShowWebActuationToggle(Profile* profile) {
+  if (!base::FeatureList::IsEnabled(features::kGlicWebActuationSetting)) {
+    return false;
+  }
+  static const base::NoDestructor<base::flat_set<int32_t>> allowed_tiers([] {
+    std::string allowed_tiers_str =
+        features::kGlicWebActuationAllowedTiers.Get();
+    std::vector<std::string_view> tier_pieces =
+        base::SplitStringPiece(allowed_tiers_str, ",", base::TRIM_WHITESPACE,
+                               base::SPLIT_WANT_NONEMPTY);
+    std::vector<int32_t> tiers;
+    tiers.reserve(tier_pieces.size());
+    for (const auto& piece : tier_pieces) {
+      int32_t tier_id = 0;
+      if (base::StringToInt(piece, &tier_id)) {
+        tiers.push_back(tier_id);
+      }
+    }
+    return base::flat_set<int32_t>(std::move(tiers));
+  }());
+
+  if (!allowed_tiers->empty()) {
+    auto* subscription_service = subscription_eligibility::
+        SubscriptionEligibilityServiceFactory::GetForProfile(profile);
+    if (!subscription_service) {
+      return false;
+    }
+    return allowed_tiers->contains(
+        subscription_service->GetAiSubscriptionTier());
+  }
+
+  // If no specific tiers are allowlisted, show the toggle only if the user
+  // has explicitly modified the preference before.
+  const PrefService::Preference* pref = profile->GetPrefs()->FindPreference(
+      glic::prefs::kGlicUserEnabledActuationOnWeb);
+  return pref && !pref->IsDefaultValue();
+}
+
+void AddGlicStrings(content::WebUIDataSource* html_source, Profile* profile) {
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"glicPageTitle", IDS_SETTINGS_GLIC_PAGE_TITLE},
       {"glicSectionTitle", IDS_SETTINGS_GLIC_SECTION_TITLE},
@@ -777,6 +821,10 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE_SUBLABEL},
       {"glicDefaultTabAccessToggleSublabelDataProtected",
        IDS_SETTINGS_GLIC_PERMISSIONS_DEFAULT_TAB_ACCESS_TOGGLE_SUBLABEL_DATA_PROTECTED},
+      {"glicWebActuationToggle",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE},
+      {"glicWebActuationToggleSublabel",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_SUBLABEL},
       {"glicActivityButton", IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON},
       {"glicActivityButtonSublabel",
        IDS_SETTINGS_GLIC_PERMISSIONS_ACTIVITY_BUTTON_SUBLABEL},
@@ -800,6 +848,12 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
       {"glicPersonalContextSettingLabel", IDS_SETTINGS_GLIC_PERSONAL_CONTEXT},
       {"glicPersonalContextSettingSublabel",
        IDS_SETTINGS_GLIC_PERSONAL_CONTEXT_LABEL},
+      {"glicWebActuationToggleWhenOn1",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_WHEN_ON_1},
+      {"glicWebActuationToggleWhenOn2",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_WHEN_ON_2},
+      {"glicWebActuationToggleConsider1",
+       IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_1},
   };
   html_source->AddLocalizedStrings(kLocalizedStrings);
 
@@ -831,6 +885,17 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
                          features::kGlicSettingsPageLearnMoreURL.Get());
   html_source->AddString("glicExtensionsManagementUrl",
                          features::kGlicExtensionsManagementUrl.Get());
+  html_source->AddString("glicWebActuationToggleLearnMoreUrl",
+                         features::kGlicWebActuationToggleLearnMoreURL.Get());
+  html_source->AddString(
+      "glicWebActuationToggleConsider2",
+      l10n_util::GetStringFUTF16(
+          IDS_SETTINGS_GLIC_PERMISSIONS_WEB_ACTUATION_TOGGLE_CONSIDER_2,
+          base::UTF8ToUTF16(
+              features::kGlicWebActuationToggleConsiderSafelyURL.Get()),
+          base::UTF8ToUTF16(
+              features::kGlicWebActuationToggleConsiderUnexpectedResultsURL
+                  .Get())));
   html_source->AddBoolean(
       "glicClosedCaptionsFeatureEnabled",
       base::FeatureList::IsEnabled(features::kGlicClosedCaptioning));
@@ -845,6 +910,10 @@ void AddGlicStrings(content::WebUIDataSource* html_source) {
   html_source->AddBoolean(
       "showGlicDefaultTabContextSetting",
       base::FeatureList::IsEnabled(features::kGlicDefaultTabContextSetting));
+  html_source->AddBoolean("glicWebActuationFeatureEnabled",
+                          ShouldShowWebActuationToggle(profile));
+  html_source->AddBoolean("glicActorEnabled",
+                          base::FeatureList::IsEnabled(features::kGlicActor));
 }
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -864,6 +933,12 @@ void AddResetStrings(content::WebUIDataSource* html_source, Profile* profile) {
 
       // Automatic reset banner (now a dialog).
       {"resetAutomatedDialogTitle", IDS_SETTINGS_RESET_AUTOMATED_DIALOG_TITLE},
+      {"resetAutomatedDialogV2Title",
+       IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_TITLE},
+      {"resetAutomatedDialogV2Body",
+       IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_BODY},
+      {"resetPinnedTabs", IDS_SETTINGS_RESET_PINNED_TABS},
+      {"gotIt", IDS_SETTINGS_GOT_IT},
       {"resetProfileBannerButton", IDS_SETTINGS_RESET_BANNER_RESET_BUTTON_TEXT},
       {"resetProfileBannerDescription", IDS_SETTINGS_RESET_BANNER_TEXT},
       {"resetLearnMoreAccessibilityText",
@@ -1247,7 +1322,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"travelCardTitle", IDS_AUTOFILL_TRAVEL_TITLE},
       {"yourSavedInfoVehiclesChip", IDS_AUTOFILL_AI_VEHICLES_TITLE},
       {"yourSavedInfoTravelInfoChip", IDS_AUTOFILL_AI_TRAVEL_INFO_TITLE},
-      {"yourSavedInfoFlightReservationsChip", IDS_AUTOFILL_AI_FLIGHT_RESERVATIONS_TITLE},
+      {"yourSavedInfoFlightReservationsChip",
+       IDS_AUTOFILL_AI_FLIGHT_RESERVATIONS_TITLE},
       {"passwordsDescription", IDS_SETTINGS_PASSWORD_MANAGER_DESCRIPTION},
       {"genericCreditCard", IDS_AUTOFILL_CC_GENERIC},
       {"creditCards", IDS_AUTOFILL_PAYMENT_METHODS},
@@ -1320,8 +1396,7 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_AUTOFILL_EDIT_ADDRESS_REQUIRED_FIELD_FORM_ERROR},
       {"editAddressRequiredFieldsError",
        IDS_AUTOFILL_EDIT_ADDRESS_REQUIRED_FIELDS_FORM_ERROR},
-      {"creditAndDebitCardTitle",
-       IDS_SETTINGS_CREDIT_AND_DEBIT_CARD_TITLE},
+      {"creditAndDebitCardTitle", IDS_SETTINGS_CREDIT_AND_DEBIT_CARD_TITLE},
       {"creditCardExpiration", IDS_SETTINGS_CREDIT_CARD_EXPIRATION_DATE},
       {"creditCardName", IDS_SETTINGS_NAME_ON_CREDIT_CARD},
       {"creditCardNickname", IDS_SETTINGS_CREDIT_CARD_NICKNAME},
@@ -1442,8 +1517,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_USE_TO_FILL},
       {"autofillAiToConsiderDataUsage",
        IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_DATA_USAGE},
-      {"autofillAiToConsiderDataStorage",
-       IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_STORAGE},
       {"autofillAiEntityInstancesHeader",
        IDS_SETTINGS_AUTOFILL_AI_ENTITY_INSTANCES_HEADER},
       {"autofillAiEntityInstancesNone",
@@ -1636,7 +1709,10 @@ void AddSignOutDialogStrings(content::WebUIDataSource* html_source,
                              Profile* profile) {
   std::string sync_dashboard_url =
       google_util::AppendGoogleLocaleParam(
-          GURL(chrome::kSyncGoogleDashboardURL),
+          GURL(base::FeatureList::IsEnabled(
+                   syncer::kSyncEnableNewSyncDashboardUrl)
+                   ? chrome::kNewSyncGoogleDashboardURL
+                   : chrome::kLegacySyncGoogleDashboardURL),
           g_browser_process->GetApplicationLocale())
           .spec();
 
@@ -2915,6 +2991,8 @@ void AddSiteSettingsStrings(content::WebUIDataSource* html_source,
        IDS_SETTINGS_SITE_SETTINGS_AUTOMATIC_DEFAULT_MENU},
       {"siteSettingsActionBlockDefault",
        IDS_SETTINGS_SITE_SETTINGS_BLOCK_DEFAULT_MENU},
+      {"siteSettingsActionBlockOnUnfamiliarSitesDefaultMenu",
+       IDS_SETTINGS_SITE_SETTINGS_ACTION_BLOCK_ON_UNFAMILIAR_SITES_DEFAULT_MENU},
       {"siteSettingsActionMuteDefault",
        IDS_SETTINGS_SITE_SETTINGS_MUTE_DEFAULT_MENU},
       {"siteSettingsActionAllow", IDS_SETTINGS_SITE_SETTINGS_ALLOW_MENU},
@@ -3905,7 +3983,7 @@ void AddLocalizedStrings(content::WebUIDataSource* html_source,
   AddDownloadsStrings(html_source);
   AddExtensionsStrings(html_source);
 #if BUILDFLAG(ENABLE_GLIC)
-  AddGlicStrings(html_source);
+  AddGlicStrings(html_source, profile);
 #endif
   AddPerformanceStrings(html_source);
   AddLanguagesStrings(html_source, profile);

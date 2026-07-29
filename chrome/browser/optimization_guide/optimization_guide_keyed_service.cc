@@ -59,13 +59,13 @@
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
+#include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #include "components/optimization_guide/core/model_quality/model_quality_log_entry.h"
 #include "components/optimization_guide/core/model_quality/model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
-#include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
@@ -174,13 +174,14 @@ void OptimizationGuideKeyedService::BindModelBroker(
           optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
     return;
   }
-  GetGlobalState().BindBroker(std::move(receiver));
+  GetGlobalState().on_device_capability().BindModelBroker(std::move(receiver));
 }
 
 std::unique_ptr<optimization_guide::ModelBrokerClient>
 OptimizationGuideKeyedService::CreateModelBrokerClient() {
   mojo::PendingRemote<optimization_guide::mojom::ModelBroker> remote;
-  GetGlobalState().BindBroker(remote.InitWithNewPipeAndPassReceiver());
+  GetGlobalState().on_device_capability().BindModelBroker(
+      remote.InitWithNewPipeAndPassReceiver());
   return std::make_unique<optimization_guide::ModelBrokerClient>(
       std::move(remote));
 }
@@ -322,18 +323,10 @@ void OptimizationGuideKeyedService::InitializeModelExecution(Profile* profile) {
         "HistorySearch");
   }
 
-  base::WeakPtr<optimization_guide::OnDeviceModelServiceController>
-      service_controller;
-  if (base::FeatureList::IsEnabled(
-          optimization_guide::features::kOptimizationGuideOnDeviceModel)) {
-    service_controller = GetGlobalState().GetServiceControllerWeakPtr();
-    on_device_asset_manager_ = GetGlobalState().CreateAssetManager(this);
-  }
-
   model_execution_manager_ =
       std::make_unique<optimization_guide::ModelExecutionManager>(
           url_loader_factory, IdentityManagerFactory::GetForProfile(profile),
-          std::move(service_controller), optimization_guide_logger_.get(),
+          optimization_guide_logger_.get(),
           model_quality_logs_uploader_service_
               ? model_quality_logs_uploader_service_->GetWeakPtr()
               : nullptr);
@@ -437,14 +430,12 @@ void OptimizationGuideKeyedService::CanApplyOptimizationOnDemand(
                                                request_context_metadata);
 }
 
-std::unique_ptr<optimization_guide::OptimizationGuideModelExecutor::Session>
+std::unique_ptr<optimization_guide::OnDeviceSession>
 OptimizationGuideKeyedService::StartSession(
     optimization_guide::ModelBasedCapabilityKey feature,
     const optimization_guide::SessionConfigParams& config_params) {
-  if (!model_execution_manager_) {
-    return nullptr;
-  }
-  return model_execution_manager_->StartSession(feature, config_params);
+  return GetGlobalState().on_device_capability().StartSession(feature,
+                                                              config_params);
 }
 
 void OptimizationGuideKeyedService::ExecuteModel(
@@ -475,26 +466,23 @@ void OptimizationGuideKeyedService::ExecuteModel(
 void OptimizationGuideKeyedService::AddOnDeviceModelAvailabilityChangeObserver(
     optimization_guide::ModelBasedCapabilityKey feature,
     optimization_guide::OnDeviceModelAvailabilityObserver* observer) {
-  GetGlobalState().AddOnDeviceModelAvailabilityChangeObserver(feature,
-                                                              observer);
+  GetGlobalState()
+      .on_device_capability()
+      .AddOnDeviceModelAvailabilityChangeObserver(feature, observer);
 }
 
 void OptimizationGuideKeyedService::
     RemoveOnDeviceModelAvailabilityChangeObserver(
         optimization_guide::ModelBasedCapabilityKey feature,
         optimization_guide::OnDeviceModelAvailabilityObserver* observer) {
-  GetGlobalState().RemoveOnDeviceModelAvailabilityChangeObserver(feature,
-                                                                 observer);
+  GetGlobalState()
+      .on_device_capability()
+      .RemoveOnDeviceModelAvailabilityChangeObserver(feature, observer);
 }
 
 on_device_model::Capabilities
 OptimizationGuideKeyedService::GetOnDeviceCapabilities() {
-  if (!model_execution_manager_) {
-    return {};
-  }
-  auto capabilities = model_execution_manager_->GetOnDeviceCapabilities();
-  capabilities.RetainAll(GetPossibleOnDeviceCapabilities());
-  return capabilities;
+  return GetGlobalState().on_device_capability().GetOnDeviceCapabilities();
 }
 
 void OptimizationGuideKeyedService::OnProfileInitializationComplete(
@@ -678,12 +666,8 @@ void OptimizationGuideKeyedService::
 optimization_guide::OnDeviceModelEligibilityReason
 OptimizationGuideKeyedService::GetOnDeviceModelEligibility(
     optimization_guide::ModelBasedCapabilityKey feature) {
-  if (!model_execution_manager_) {
-    return optimization_guide::OnDeviceModelEligibilityReason::
-        kFeatureNotEnabled;
-  }
-
-  return model_execution_manager_->GetOnDeviceModelEligibility(feature);
+  return GetGlobalState().on_device_capability().GetOnDeviceModelEligibility(
+      feature);
 }
 
 void OptimizationGuideKeyedService::GetOnDeviceModelEligibilityAsync(
@@ -691,52 +675,19 @@ void OptimizationGuideKeyedService::GetOnDeviceModelEligibilityAsync(
     const on_device_model::Capabilities& capabilities,
     base::OnceCallback<void(optimization_guide::OnDeviceModelEligibilityReason)>
         callback) {
-  EnsurePerformanceClassAvailable(base::BindOnce(
-      &OptimizationGuideKeyedService::FinishGetOnDeviceModelEligibility,
-      weak_factory_.GetWeakPtr(), feature, capabilities, std::move(callback)));
+  GetGlobalState().on_device_capability().GetOnDeviceModelEligibilityAsync(
+      feature, capabilities, std::move(callback));
 }
 
 std::optional<optimization_guide::SamplingParamsConfig>
 OptimizationGuideKeyedService::GetSamplingParamsConfig(
     optimization_guide::ModelBasedCapabilityKey feature) {
-  if (!model_execution_manager_) {
-    return std::nullopt;
-  }
-
-  return model_execution_manager_->GetSamplingParamsConfig(feature);
+  return GetGlobalState().on_device_capability().GetSamplingParamsConfig(
+      feature);
 }
 
 std::optional<const optimization_guide::proto::Any>
 OptimizationGuideKeyedService::GetFeatureMetadata(
     optimization_guide::ModelBasedCapabilityKey feature) {
-  if (!model_execution_manager_) {
-    return std::nullopt;
-  }
-
-  return model_execution_manager_->GetFeatureMetadata(feature);
-}
-
-void OptimizationGuideKeyedService::EnsurePerformanceClassAvailable(
-    base::OnceClosure complete) {
-  GetGlobalState().EnsurePerformanceClassAvailable(std::move(complete));
-}
-
-void OptimizationGuideKeyedService::FinishGetOnDeviceModelEligibility(
-    optimization_guide::ModelBasedCapabilityKey feature,
-    const on_device_model::Capabilities& capabilities,
-    base::OnceCallback<void(optimization_guide::OnDeviceModelEligibilityReason)>
-        callback) {
-  // If this device will never support the requested capabilities, return not
-  // available.
-  if (!GetPossibleOnDeviceCapabilities().HasAll(capabilities)) {
-    std::move(callback).Run(optimization_guide::OnDeviceModelEligibilityReason::
-                                kModelAdaptationNotAvailable);
-    return;
-  }
-  std::move(callback).Run(GetOnDeviceModelEligibility(feature));
-}
-
-on_device_model::Capabilities
-OptimizationGuideKeyedService::GetPossibleOnDeviceCapabilities() {
-  return GetGlobalState().GetPossibleOnDeviceCapabilities();
+  return GetGlobalState().on_device_capability().GetFeatureMetadata(feature);
 }

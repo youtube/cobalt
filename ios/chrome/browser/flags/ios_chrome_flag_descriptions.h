@@ -257,6 +257,9 @@ extern const char kDiamondPrototypeDescription[];
 extern const char kDisableAutofillStrikeSystemName[];
 extern const char kDisableAutofillStrikeSystemDescription[];
 
+extern const char kDisableKeyboardAccessoryName[];
+extern const char kDisableKeyboardAccessoryDescription[];
+
 extern const char kDisableLensCameraName[];
 extern const char kDisableLensCameraDescription[];
 
@@ -479,6 +482,9 @@ extern const char kIOSProvidesAppNotificationSettingsDescription[];
 
 extern const char kIOSReactivationNotificationsName[];
 extern const char kIOSReactivationNotificationsDescription[];
+
+extern const char kIOSSaveToDriveClientFolderName[];
+extern const char kIOSSaveToDriveClientFolderDescription[];
 
 extern const char kIOSSoftLockName[];
 extern const char kIOSSoftLockDescription[];
@@ -905,8 +911,8 @@ extern const char kShopCardDescription[];
 extern const char kShowAutofillTypePredictionsName[];
 extern const char kShowAutofillTypePredictionsDescription[];
 
-extern const char kShowTabGridOnStartName[];
-extern const char kShowTabGridOnStartDescription[];
+extern const char kShowTabGroupInGridOnStartName[];
+extern const char kShowTabGroupInGridOnStartDescription[];
 
 extern const char kSignInButtonNoAvatarName[];
 extern const char kSignInButtonNoAvatarDescription[];

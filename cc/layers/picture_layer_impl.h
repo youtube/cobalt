@@ -19,7 +19,7 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "cc/cc_export.h"
 #include "cc/layers/layer.h"
-#include "cc/layers/layer_impl.h"
+#include "cc/layers/tile_based_layer_impl.h"
 #include "cc/layers/tile_size_calculator.h"
 #include "cc/paint/discardable_image_map.h"
 #include "cc/paint/image_id.h"
@@ -38,7 +38,7 @@ class MicroBenchmarkImpl;
 class Tile;
 
 class CC_EXPORT PictureLayerImpl
-    : public LayerImpl,
+    : public TileBasedLayerImpl,
       public PictureLayerTilingClient,
       public ImageAnimationController::AnimationDriver {
  public:
@@ -51,23 +51,11 @@ class CC_EXPORT PictureLayerImpl
 
   PictureLayerImpl& operator=(const PictureLayerImpl&) = delete;
 
-  void SetIsBackdropFilterMask(bool is_backdrop_filter_mask) {
-    if (is_backdrop_filter_mask_ == is_backdrop_filter_mask) {
-      return;
-    }
-    is_backdrop_filter_mask_ = is_backdrop_filter_mask;
-    SetNeedsPushProperties();
-  }
-  bool is_backdrop_filter_mask() const { return is_backdrop_filter_mask_; }
-
   // LayerImpl overrides.
   mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void PushPropertiesTo(LayerImpl* layer) override;
-  void AppendQuads(const AppendQuadsContext& context,
-                   viz::CompositorRenderPass* render_pass,
-                   AppendQuadsData* append_quads_data) override;
   void NotifyTileStateChanged(const Tile* tile, bool update_damage) override;
   gfx::Rect GetDamageRect() const override;
   void ResetChangeTracking() override;
@@ -342,8 +330,6 @@ class CC_EXPORT PictureLayerImpl
     return std::max(raster_contents_scale_.x(), raster_contents_scale_.y());
   }
 
-  bool is_backdrop_filter_mask_ : 1 = false;
-
   bool was_screen_space_transform_animating_ : 1 = false;
   bool produced_tile_last_append_quads_ : 1 = true;
 
@@ -400,6 +386,12 @@ class CC_EXPORT PictureLayerImpl
   // Denotes an area that is damaged and needs redraw. This is in the layer's
   // space.
   gfx::Rect damage_rect_;
+
+ private:
+  // TileBasedLayerImpl:
+  void AppendQuadsSpecialization(const AppendQuadsContext& context,
+                                 viz::CompositorRenderPass* render_pass,
+                                 AppendQuadsData* append_quads_data) override;
 };
 
 }  // namespace cc

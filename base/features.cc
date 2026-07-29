@@ -87,6 +87,11 @@ BASE_FEATURE_PARAM(int,
 
 BASE_FEATURE(kReducePPMs, FEATURE_DISABLED_BY_DEFAULT);
 
+// Apply base::ScopedBestEffortExecutionFence to registered task queues as well
+// as the thread pool.
+BASE_FEATURE(kScopedBestEffortExecutionFenceForTaskQueue,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Whether to restrict the max gap between the frame pointer and the stack end
 // for stack scanning. If the gap is beyond the given gap threshold, the stack
 // end is treated as unreliable. Stack scanning stops when that happens.
@@ -151,6 +156,9 @@ BASE_FEATURE(kPostGetMyMemoryStateToBackground, FEATURE_ENABLED_BY_DEFAULT);
 // process service.
 BASE_FEATURE(kRebindingChildServiceConnectionController,
              FEATURE_DISABLED_BY_DEFAULT);
+
+// Use a batch API to rebind service connections.
+BASE_FEATURE(kRebindServiceBatchApi, FEATURE_DISABLED_BY_DEFAULT);
 
 // Update child process binding state before unbinding.
 BASE_FEATURE(kUpdateStateBeforeUnbinding, FEATURE_ENABLED_BY_DEFAULT);

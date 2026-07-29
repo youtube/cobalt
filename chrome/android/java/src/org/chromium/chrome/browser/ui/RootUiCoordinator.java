@@ -80,6 +80,7 @@ import org.chromium.chrome.browser.findinpage.FindToolbarObserver;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
+import org.chromium.chrome.browser.fullscreen.FullscreenBackPressHandler;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
 import org.chromium.chrome.browser.host_zoom.HostZoomListenerFactory;
@@ -108,9 +109,9 @@ import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
+import org.chromium.chrome.browser.omnibox.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
-import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.paint_preview.DemoPaintPreview;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
@@ -618,6 +619,11 @@ public class RootUiCoordinator
                                                 /* displayId= */ display.getDisplayId()));
                                 mAppMenuCoordinator.getAppMenuHandler().hideAppMenu();
                             }
+
+                            @Override
+                            public boolean isCurrentTabNull() {
+                                return mActivityTabProvider.get() == null;
+                            }
                         });
 
         mPageZoomBarCoordinator =
@@ -654,8 +660,14 @@ public class RootUiCoordinator
                             mFullscreenManager,
                             mActivityTabProvider,
                             mDesktopWindowStateManager);
+            mBackPressManager.addHandler(
+                    new ExclusiveAccessManagerBackPressHandler(mExclusiveAccessManager),
+                    BackPressHandler.Type.FULLSCREEN);
         } else {
             mExclusiveAccessManager = null;
+            mBackPressManager.addHandler(
+                    new FullscreenBackPressHandler(mBrowserControlsManager.getFullscreenManager()),
+                    BackPressHandler.Type.FULLSCREEN);
         }
 
         if (BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2()) {
@@ -757,7 +769,6 @@ public class RootUiCoordinator
             if (mMicStateObserver != null && mToolbarManager.getVoiceRecognitionHandler() != null) {
                 mToolbarManager.getVoiceRecognitionHandler().removeObserver(mMicStateObserver);
             }
-            mTopControlsStacker.removeControl(mToolbarContainer);
             mToolbarManager.destroy();
             mToolbarManager = null;
         }
@@ -1577,7 +1588,6 @@ public class RootUiCoordinator
             final View controlContainer = mActivity.findViewById(R.id.control_container);
             assert controlContainer != null;
             mToolbarContainer = (ToolbarControlContainer) controlContainer;
-            mTopControlsStacker.addControl(mToolbarContainer);
 
             Callback<Boolean> urlFocusChangedCallback =
                     hasFocus -> {
@@ -2177,6 +2187,10 @@ public class RootUiCoordinator
      */
     public TopControlsStacker getTopControlsStacker() {
         return mTopControlsStacker;
+    }
+
+    public boolean getBookmarkBarVisibility() {
+        return false;
     }
 
     /**

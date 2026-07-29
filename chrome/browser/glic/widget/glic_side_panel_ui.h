@@ -30,6 +30,7 @@ class TabInterface;
 namespace glic {
 
 class GlicView;
+class GlicInstanceMetrics;
 
 // Implementation of GlicUiEmbedder for side panel UIs.
 class GlicSidePanelUi : public GlicUiEmbedder,
@@ -38,7 +39,8 @@ class GlicSidePanelUi : public GlicUiEmbedder,
  public:
   GlicSidePanelUi(Profile* profile,
                   base::WeakPtr<tabs::TabInterface> tab,
-                  GlicUiEmbedder::Delegate& delegate);
+                  GlicUiEmbedder::Delegate& delegate,
+                  GlicInstanceMetrics& instance_metrics);
   ~GlicSidePanelUi() override;
 
   // GlicUiEmbedder:
@@ -83,6 +85,8 @@ class GlicSidePanelUi : public GlicUiEmbedder,
  private:
   void OnBrowserWindowActivated(BrowserWindowInterface* bwi);
   void OnBrowserWindowDeactivated(BrowserWindowInterface* bwi);
+  // Focuses on embedder's webcontens.
+  void SetFocusDelayed();
 
   GlicSidePanelCoordinator* GetGlicSidePanelCoordinator() const;
   base::CallbackListSubscription panel_visibility_subscription_;
@@ -91,6 +95,7 @@ class GlicSidePanelUi : public GlicUiEmbedder,
   raw_ptr<Profile> profile_;
   base::WeakPtr<tabs::TabInterface> tab_;
   raw_ref<GlicUiEmbedder::Delegate> delegate_;
+  raw_ref<GlicInstanceMetrics> instance_metrics_;
   base::WeakPtr<GlicView> glic_view_;
   std::unique_ptr<LocalHotkeyManager> application_hotkey_manager_;
   std::unique_ptr<LocalHotkeyManager> glic_panel_hotkey_manager_;

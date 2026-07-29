@@ -34,6 +34,8 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kLowMemoryDeviceThresholdMB);
 // is to measure their aggregated impact.
 BASE_EXPORT BASE_DECLARE_FEATURE(kReducePPMs);
 
+BASE_EXPORT BASE_DECLARE_FEATURE(kScopedBestEffortExecutionFenceForTaskQueue);
+
 BASE_EXPORT BASE_DECLARE_FEATURE(kStackScanMaxFramePointerToStackEndGap);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
     int,
@@ -51,6 +53,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(
     kPostPowerMonitorBroadcastReceiverInitToBackground);
 BASE_EXPORT BASE_DECLARE_FEATURE(kPostGetMyMemoryStateToBackground);
 BASE_EXPORT BASE_DECLARE_FEATURE(kRebindingChildServiceConnectionController);
+BASE_EXPORT BASE_DECLARE_FEATURE(kRebindServiceBatchApi);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUpdateStateBeforeUnbinding);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseIsUnboundCheck);
 BASE_EXPORT BASE_DECLARE_FEATURE(kUseSharedRebindServiceConnection);

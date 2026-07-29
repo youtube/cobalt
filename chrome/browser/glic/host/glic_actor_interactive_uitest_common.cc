@@ -82,7 +82,11 @@ GlicActorUiTest::GlicActorUiTest() {
        {optimization_guide::features::
             kAnnotatedPageContentWithActionableElements,
         {}}},
-      /*disabled_features=*/{});
+      /*disabled_features=*/{
+          // TODO(b/454665367): Most GlicActorUiTest tests are broken for
+          // multi-instance. Temporarily disable glic multi-instance.
+          features::kGlicMultiInstance,
+      });
 }
 GlicActorUiTest::~GlicActorUiTest() = default;
 
@@ -282,6 +286,20 @@ MultiStep GlicActorUiTest::ClickAction(const gfx::Point& coordinate,
                      std::move(expected_result));
 }
 
+MultiStep GlicActorUiTest::ClickAction(const gfx::Point* coordinate,
+                                       ClickType click_type,
+                                       ClickCount click_count,
+                                       ExpectedErrorResult expected_result) {
+  auto click_provider =
+      base::BindLambdaForTesting([this, coordinate, click_type, click_count]() {
+        Actions action =
+            actor::MakeClick(tab_handle_, *coordinate, click_type, click_count);
+        action.set_task_id(task_id_.value());
+        return EncodeActionProto(action);
+      });
+  return ExecuteAction(std::move(click_provider), std::move(expected_result));
+}
+
 MultiStep GlicActorUiTest::NavigateAction(GURL url,
                                           actor::TaskId& task_id,
                                           tabs::TabHandle& tab_handle,
@@ -373,8 +391,24 @@ MultiStep GlicActorUiTest::PauseActorTask() {
                RoundTrip());
 }
 
-MultiStep GlicActorUiTest::ResumeActorTask(base::Value::Dict context_options,
-                                           bool expected) {
+MultiStep GlicActorUiTest::ResumeActorTask(
+    base::Value::Dict context_options,
+    ExpectedResumeResult expected_result) {
+  static constexpr std::string_view kFailureString = "<Failure>";
+
+  const std::string expected_result_string = std::visit(
+      absl::Overload{
+          [](std::monostate) {
+            return base::ToString(actor::mojom::ActionResultCode::kOk);
+          },
+          [](actor::mojom::ActionResultCode r) { return base::ToString(r); },
+          [](bool r) {
+            return r ? base::ToString(actor::mojom::ActionResultCode::kOk)
+                     : std::string(kFailureString);
+          },
+      },
+      expected_result);
+
   return InAnyContext(CheckElement(
       kGlicContentsElementId,
       [&task_id = task_id_, context_options = std::move(context_options)](
@@ -383,19 +417,29 @@ MultiStep GlicActorUiTest::ResumeActorTask(base::Value::Dict context_options,
             AsInstrumentedWebContents(el)->web_contents();
         std::string script = content::JsReplace(
             R"js(
-                              (async () => {
-                                try {
-                                  await client.browser.resumeActorTask($1, $2);
-                                  return true;
-                                } catch (err) {
-                                  return false;
-                                }
-                              })();
-                            )js",
+                  (async () => {
+                    try {
+                      const res = await client.browser.resumeActorTask($1, $2);
+                      return res.actionResult;
+                    } catch (err) {
+                      return false;
+                    }
+                  })();
+          )js",
             task_id.value(), std::move(context_options));
-        return content::EvalJs(glic_contents, script).ExtractBool();
+
+        auto res = content::EvalJs(glic_contents, script);
+        if (res.is_bool()) {
+          return res.ExtractBool()
+                     ? base::ToString(actor::mojom::ActionResultCode::kOk)
+                     : std::string(kFailureString);
+        }
+        auto result_enum =
+            static_cast<actor::mojom::ActionResultCode>(res.ExtractInt());
+        EXPECT_TRUE(actor::mojom::IsKnownEnumValue(result_enum));
+        return base::ToString(result_enum);
       },
-      expected));
+      expected_result_string));
 }
 
 MultiStep GlicActorUiTest::WaitForActorTaskState(
@@ -444,6 +488,37 @@ MultiStep GlicActorUiTest::WaitForActorTaskStateChangeToStopped() {
             "  return state == $1; "
             "});",
             base::to_underlying(mojom::ActorTaskState::kStopped));
+        ASSERT_TRUE(content::ExecJs(glic_contents, script));
+      }));
+}
+
+MultiStep GlicActorUiTest::ActivateTaskTab() {
+  return Steps(InAnyContext(WithElement(
+                   kGlicContentsElementId,
+                   [&tab_handle = tab_handle_](ui::TrackedElement* el) {
+                     content::WebContents* glic_contents =
+                         AsInstrumentedWebContents(el)->web_contents();
+                     std::string script =
+                         content::JsReplace("client.browser.activateTab('$1');",
+                                            tab_handle.raw_value());
+                     ASSERT_TRUE(content::ExecJs(glic_contents, script));
+                   })),
+               RoundTrip());
+}
+
+MultiStep GlicActorUiTest::WaitForTaskTabForground(bool expected_foreground) {
+  return InAnyContext(WithElement(
+      kGlicContentsElementId,
+      [&tab_handle = tab_handle_, expected_foreground](ui::TrackedElement* el) {
+        content::WebContents* glic_contents =
+            AsInstrumentedWebContents(el)->web_contents();
+        std::string script = content::JsReplace(
+            R"js(
+            client.browser.getTabById('$1').waitUntil((tabData) => {
+              return tabData.isActiveInWindow == $2;
+            });
+            )js",
+            tab_handle.raw_value(), expected_foreground);
         ASSERT_TRUE(content::ExecJs(glic_contents, script));
       }));
 }

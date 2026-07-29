@@ -22,9 +22,11 @@
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/signin/public/identity_manager/tribool.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/base/features.h"
 #include "components/sync/base/user_selectable_type.h"
+#include "components/sync/service/sync_service.h"
 #include "google_apis/gaia/core_account_id.h"
 
 HistorySyncOptinServiceDefaultDelegate::
@@ -87,14 +89,21 @@ bool HistorySyncOptinService::StartHistorySyncOptinFlow(
 
 bool HistorySyncOptinService::
     ResumeShowHistorySyncOptinScreenFlowForManagedUser(
-        const AccountInfo& account_info,
+        CoreAccountId account_id,
         std::unique_ptr<HistorySyncOptinHelper::Delegate> delegate,
         signin_metrics::AccessPoint access_point) {
+  auto account_info = IdentityManagerFactory::GetForProfile(profile_)
+                          ->FindExtendedAccountInfoByAccountId(account_id);
+  CHECK(!account_info.IsEmpty());
   bool should_start =
       Initialize(account_info, std::move(delegate), access_point);
   CHECK(should_start);
+  // Sanity check that this method should be invoked for managed accounts only.
+  // The information about the management should already be available as during
+  // the profile swap the account is moved to the new managed profile.
+  CHECK(account_info.IsManaged() == signin::Tribool::kTrue);
   history_sync_optin_helper_
-      ->ResumeShowHistorySyncOptinScreenFlowForManagedAccount(account_info);
+      ->ResumeShowHistorySyncOptinScreenFlowForManagedAccount(account_id);
   return true;
 }
 
@@ -184,7 +193,7 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
   switch (access_point.value()) {
     case signin_metrics::AccessPoint::kRecentTabs:
       required_types = {syncer::UserSelectableType::kTabs};
-      error_message_id = IDS_HISTORY_SYNC_DISABLED_ERROR_DESCRIPTION;
+      error_message_id = IDS_TABS_DISABLED_ERROR_DESCRIPTION;
       break;
     case signin_metrics::AccessPoint::kCollaborationJoinTabGroup:
     case signin_metrics::AccessPoint::kCollaborationShareTabGroup:
@@ -278,24 +287,34 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
   CoreAccountId primary_account_id =
       event_details.GetCurrentState().primary_account.account_id;
 
-  auto maybe_show_error_callback = base::BindOnce(
+  auto management_accepted_callback = base::BindOnce(
       [](const syncer::UserSelectableTypeSet& required_types,
          int error_message_id, Profile* profile, bool) {
         if (!profile) {
           return;
         }
 
-        // If the required data types can be enabled, there is no need to
-        // display an error.
-        if (signin_util::IsSyncingUserSelectableTypesAllowedByPolicy(
-                SyncServiceFactory::GetForProfile(profile), required_types) ||
-            signin_util::GetSignedInState(IdentityManagerFactory::GetForProfile(
+        // Don't do anything if the user is not signed in.
+        if (signin_util::GetSignedInState(IdentityManagerFactory::GetForProfile(
                 profile)) != signin_util::SignedInState::kSignedIn) {
           return;
         }
 
-        signin_util::ShowErrorDialogWithMessage(
-            chrome::FindLastActiveWithProfile(profile), error_message_id);
+        syncer::SyncService* sync_service =
+            SyncServiceFactory::GetForProfile(profile);
+        if (!sync_service) {
+          return;
+        }
+
+        // Try to turn on history sync. Disabled types are simply skipped.
+        signin_util::EnableHistorySync(sync_service);
+
+        // If the required data types cannot be enabled, show an error.
+        if (!signin_util::IsSyncingUserSelectableTypesAllowedByPolicy(
+                sync_service, required_types)) {
+          signin_util::ShowErrorDialogWithMessage(
+              chrome::FindLastActiveWithProfile(profile), error_message_id);
+        }
       },
       required_types, error_message_id);
 
@@ -315,5 +334,5 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
 
   profile_management_disclaimer_service->EnsureManagedProfileForAccount(
       primary_account_id, access_point.value(),
-      std::move(maybe_show_error_callback));
+      std::move(management_accepted_callback));
 }

@@ -788,6 +788,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="22792995594807632">Examen requis avant le téléchargement</translation>
 <translation id="2283340219607151381">Enregistrer et renseigner les adresses</translation>
 <translation id="2283447177162560884">Page "<ph name="PAGE_TITLE" />" supprimée</translation>
+<translation id="2283599456633275070">Voyages</translation>
 <translation id="2286383991450886080">34 x 44 pouces</translation>
 <translation id="2288422996159078444">Tout texte saisi, toute page consultée ou toute activité effectuée sur le Web sont surveillés. Le contenu des sites peut être modifié à votre insu.</translation>
 <translation id="2289385804009217824">Couper</translation>
@@ -882,6 +883,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="2436976580469434549">Arts de la fibre et du textile</translation>
 <translation id="243815215670139125">Impossible d'enregistrer cette carte dans votre compte Google. Elle a été enregistrée dans Chrome sur cet appareil à la place.</translation>
 <translation id="2438874542388153331">Quadruple perforation à droite</translation>
+<translation id="2440855519769445271">Pour masquer les options de paiement différé, accédez aux <ph name="BEGIN_LINK" />paramètres de paiement<ph name="END_LINK" /></translation>
 <translation id="2441854154602066476">Liste des modes de paiement à saisir de façon tactile. Clavier masqué.</translation>
 <translation id="2442865686365739754">Chrome <ph name="BEGIN_EMPHASIS" />n'enregistrera pas<ph name="END_EMPHASIS" /> :
           <ph name="BEGIN_LIST" />
@@ -2140,7 +2142,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="4480760608050410381">Vidéo MP4</translation>
 <translation id="448363931695049633">Pizzerias</translation>
 <translation id="4489023393592172404">Enveloppe Kaku 4</translation>
-<translation id="4489977488133295402">Confirmer votre identité pour compléter automatiquement les modes de paiement</translation>
+<translation id="4489977488133295402">Confirmer votre identité pour saisir automatiquement les modes de paiement</translation>
 <translation id="4490717597759821841">A7</translation>
 <translation id="449126573531210296">Chiffrer les mots de passe synchronisés avec votre compte Google</translation>
 <translation id="4493480324863638523">URL non valide : vous devez saisir une URL avec un schéma standard, comme http://example.com ou https://example.com.</translation>
@@ -2222,6 +2224,7 @@ Par défaut, ce type d'accès est bloqué par vos paramètres de confidentialit�
 <translation id="4648262692072505866">Le hachage doit être au format SHA-256.</translation>
 <translation id="4652266463001779298">Non autorisé</translation>
 <translation id="4652440160515225514">Votre organisation a bloqué ce site, car il ne respecte pas une règle.</translation>
+<translation id="4654457557264366314">Les forfaits sont soumis à des critères d'éligibilité.</translation>
 <translation id="4658638640878098064">Agrafe en haut à gauche</translation>
 <translation id="4660592918803576381">Ouvrir dans Drive</translation>
 <translation id="4661556981531699496">Animaux sauvages et domestiques</translation>
@@ -4804,7 +4807,7 @@ Informations supplémentaires :
 <translation id="8918062451146297192">Code CVC pour la carte virtuelle</translation>
 <translation id="8919740778133505789">Voitures de sport</translation>
 <translation id="8919895429178014996">Masquer tous les éléments</translation>
-<translation id="8919989290032064330">Confirmer votre identité pour compléter automatiquement les modes de paiement ?</translation>
+<translation id="8919989290032064330">Confirmer votre identité pour saisir automatiquement les modes de paiement ?</translation>
 <translation id="8922013791253848639">Toujours autoriser les annonces sur ce site</translation>
 <translation id="8922734931659847428">Liste limitée des URL des pages que vous consultez sur lesquelles ont lieu des <ph name="BEGIN_LINK" />événements technologiques anciens<ph name="END_LINK" /></translation>
 <translation id="892588693504540538">Perforation en haut à droite</translation>

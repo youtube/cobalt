@@ -179,6 +179,7 @@ void UserLevelMemoryPressureSignalGenerator::CollectMemoryMetrics() {
     total_process_count++;
     RenderProcessHost* host = iter.GetCurrentValue();
     if (host && host->IsInitializedAndNotDead() &&
+        host->GetProcess().IsValid() &&
         host->GetEffectiveChildBindingState() >=
             base::android::ChildBindingState::VISIBLE) {
       visible_renderer_count++;

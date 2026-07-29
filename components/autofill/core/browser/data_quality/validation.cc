@@ -81,40 +81,33 @@ bool IsValidZip(std::u16string_view text,
                 bool extended_validation) {
   static constexpr char16_t kUsZipPattern[] = u"^\\d{5}(-\\d{4})?$";
   if (extended_validation) {
-    // A valid zip code string can contain only digits, uppercase Latin letters,
+    // In most countries, a valid zip code string can contain only digits,
     // hyphens, and spaces.
     // [Ref: https://en.wikipedia.org/wiki/List_of_postal_codes]
-    static constexpr char16_t kDefaultZipPattern[] = u"^[A-Z0-9- ]+$";
-    static constexpr char16_t kNumericZipPattern[] = u"^[0-9- ]+$";
+    // \p{Nd} matches any Unicode decimal digit: standard digits (0-9),
+    // full-width digits, Eastern Arabic numerals, etc.
+    static constexpr char16_t kNumericZipPattern[] = u"^[\\p{Nd}- ]+$";
     static constexpr char16_t kJpZipCharacters[] = u"^[〒0-9- ０-９－　]+$";
+    static constexpr char16_t kBrZipCharacters[] = u"^[0-9- .]+$";
 
-    // Defines the lower boundary of zip code lengths for countries with split
-    // zip format. This check prevents a ZIP prefix (e.g., the first 3 digits
-    // out of 8 in JP) from being imported as a full ZIP code from a form with
-    // split zip fields. For most countries, the min length constant is simply
-    // the prefix length + 1, because it's safer to use a smaller value than
-    // the exact minimal zip length in case the zip format changes.
+    // Defines the lower boundary of zip code lengths for some countries with
+    // split zip format. This check prevents a ZIP prefix (e.g., the first 3
+    // digits out of 8 in JP) from being imported as a full ZIP code from a form
+    // with split zip fields. The min length constant is simply the prefix
+    // length + 1, because it's safer to use a smaller value than the exact
+    // minimal zip length in case the zip format changes.
     // [Ref: https://en.wikipedia.org/wiki/List_of_postal_codes]
     static constexpr auto kZipCodeMinLengthMap =
-        base::MakeFixedFlatMap<std::string_view, std::size_t>({{"BR", 6},
-                                                               {"CA", 4},
-                                                               {"CZ", 4},
-                                                               {"GB", 5},
-                                                               {"GR", 4},
-                                                               {"IE", 4},
-                                                               {"IN", 4},
-                                                               {"JP", 4},
-                                                               {"NL", 5},
-                                                               {"PL", 3},
-                                                               {"PT", 5},
-                                                               {"SE", 4}});
+        base::MakeFixedFlatMap<std::string_view, std::size_t>(
+            {{"BR", 6}, {"CA", 4}, {"IE", 4}, {"JP", 4}, {"PL", 3}, {"PT", 5}});
 
     // A set of some of the biggest countries with a strictly numeric zip code
-    // format + countries with split numeric zip format (e.g., "GR", "PT").
+    // format.
     static constexpr auto kNumericZipCodeCountriesSet =
-        base::MakeFixedFlatSet<std::string_view>({"BR", "CH", "CN", "DE", "ES",
-                                                  "GR", "IN", "IT", "MX", "PL",
-                                                  "PT", "RU", "SE"});
+        base::MakeFixedFlatSet<std::string_view>(
+            {"IN", "FR", "DE", "IT", "ES", "JP", "PL", "MX", "RU",
+             "AU", "IR", "ZA", "BE", "ID", "PT", "PH", "RO", "TR",
+             "SE", "CL", "CO", "CH", "AT", "SG", "CN", "SA"});
     auto it = kZipCodeMinLengthMap.find(country_code.value());
     if (it != kZipCodeMinLengthMap.end() && text.length() < it->second) {
       return false;
@@ -125,10 +118,13 @@ bool IsValidZip(std::u16string_view text,
     if (country_code == AddressCountryCode("JP")) {
       return MatchesRegex<kJpZipCharacters>(text);
     }
+    if (country_code == AddressCountryCode("BR")) {
+      return MatchesRegex<kBrZipCharacters>(text);
+    }
     if (base::Contains(kNumericZipCodeCountriesSet, country_code.value())) {
       return MatchesRegex<kNumericZipPattern>(text);
     }
-    return MatchesRegex<kDefaultZipPattern>(text);
+    return true;
   } else {
     if (country_code != AddressCountryCode("US")) {
       return true;
@@ -213,6 +209,41 @@ bool IsInternationalBankAccountNumber(std::u16string_view value) {
   std::u16string no_spaces;
   base::RemoveChars(value, u" ", &no_spaces);
   return MatchesRegex<kInternationalBankAccountNumberValueRe>(no_spaces);
+}
+
+bool IsAchRoutingTransitNumber(std::u16string_view value) {
+  // For a 9-digit Routing Transit Number, multiply the first eight digits by
+  // [3,7,1,3,7,1,3,7], and total the results. The remaining ninth digit is the
+  // checksum necessary to make the total sum up to the nearest value that is
+  // evenly divisible by 10.
+  std::u16string trimmed_value;
+  base::TrimWhitespace(value, base::TRIM_ALL, &trimmed_value);
+
+  if (trimmed_value.length() != 9) {
+    return false;
+  }
+
+  auto kMultipliers = std::to_array<int>({3, 7, 1, 3, 7, 1, 3, 7});
+  int sum = 0;
+  for (int i = 0; i < 8; ++i) {
+    char16_t c = trimmed_value.at(i);
+    if (!base::IsAsciiDigit(c)) {
+      return false;
+    }
+    int digit = c - '0';
+    sum += digit * kMultipliers[i];
+  }
+
+  // Do an extra `% 10` at the end to turn 10 into 0 if necessary.
+  int expected_checksum_digit = (10 - (sum % 10)) % 10;
+
+  char16_t checksum_char = trimmed_value.at(8);
+  if (!base::IsAsciiDigit(checksum_char)) {
+    return false;
+  }
+  int checksum_digit = checksum_char - '0';
+
+  return checksum_digit == expected_checksum_digit;
 }
 
 bool IsPlausibleCreditCardCVCNumber(std::u16string_view value) {

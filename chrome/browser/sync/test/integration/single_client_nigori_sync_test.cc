@@ -618,7 +618,7 @@ IN_PROC_BROWSER_TEST_F(
   passwords_helper::InjectEncryptedServerPassword(
       password_form, kDefaultKeyParams.password,
       kDefaultKeyParams.derivation_params, GetFakeServer());
-  ASSERT_TRUE(SetupSync(NO_WAITING));
+  ASSERT_TRUE(SetupSync(kSyncTheFeature, NO_WAITING));
 
   EXPECT_TRUE(PassphraseRequiredChecker(GetSyncService(0)).Wait());
   EXPECT_TRUE(GetSyncService(0)->GetUserSettings()->SetDecryptionPassphrase(
@@ -1138,11 +1138,6 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(SetupClients());
   ASSERT_TRUE(GetClient(0)->AwaitSyncSetupCompletion());
 
-  // Verify that the key pair was corrupted on browser startup.
-  histogram_tester.ExpectUniqueSample("Sync.CrossUserSharingKeyPairState",
-                                      /*kCorruptedKeyPair*/ 3,
-                                      /*expected_bucket_count=*/1);
-
   EXPECT_TRUE(
       ServerCrossUserSharingPublicKeyChangedChecker(old_public_key).Wait());
 
@@ -1168,7 +1163,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriSyncTestWithNotAwaitQuiescence,
   GetFakeServer()->TriggerCommitError(sync_pb::SyncEnums::THROTTLED);
 
   // Do not wait for commits due to commit error.
-  ASSERT_TRUE(SetupSync(WAIT_FOR_SYNC_SETUP_TO_COMPLETE));
+  ASSERT_TRUE(SetupSync(kSyncTheFeature, WAIT_FOR_SYNC_SETUP_TO_COMPLETE));
 
   sync_pb::NigoriSpecifics specifics;
   ASSERT_TRUE(GetServerNigori(GetFakeServer(), &specifics));
@@ -1815,7 +1810,7 @@ IN_PROC_BROWSER_TEST_F(
   // SharingService. From this test perspective it doesn't matter whether to use
   // WAIT_FOR_COMMITS_TO_COMPLETE or WAIT_FOR_SYNC_SETUP_TO_COMPLETE, but it
   // would be nice to use default argument once the issue is resolved.
-  ASSERT_TRUE(SetupSync(WAIT_FOR_SYNC_SETUP_TO_COMPLETE));
+  ASSERT_TRUE(SetupSync(kSyncTheFeature, WAIT_FOR_SYNC_SETUP_TO_COMPLETE));
 
   ASSERT_TRUE(GetSyncService(0)
                   ->GetUserSettings()

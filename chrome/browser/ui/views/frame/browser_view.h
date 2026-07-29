@@ -22,13 +22,10 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
-#include "chrome/browser/ui/views/exclusive_access_bubble_views_context.h"
-#include "chrome/browser/ui/views/frame/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
@@ -50,6 +47,7 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/interaction/typed_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/base/pointer/touch_ui_controller.h"
@@ -71,10 +69,12 @@ class AccessibilityFocusHighlight;
 class BookmarkBarController;
 class BookmarkBarView;
 class Browser;
+class BrowserViewLayout;
 class ContentsContainerView;
 class ContentsLayoutManager;
 struct DropData;
 class ExclusiveAccessBubbleViews;
+class ExclusiveAccessBubbleViewsContext;
 class InfoBarContainerView;
 class LocationBarView;
 class MultiContentsView;
@@ -129,17 +129,12 @@ class BrowserView : public BrowserWindow,
                     public content::WebContentsObserver,
                     public views::ClientView,
                     public infobars::InfoBarContainer::Delegate,
-                    public ExclusiveAccessContext,
-                    public ExclusiveAccessBubbleViewsContext,
                     public ImmersiveModeController::Observer,
                     public webapps::AppBannerManager::Observer,
                     public views::FocusChangeListener {
   METADATA_HEADER(BrowserView, views::ClientView)
 
  public:
-  // The width of the vertical tab strip.
-  static constexpr int kVerticalTabStripWidth = 240;
-
   // The name of a key to store on the window handle so that other code can
   // locate this object using just the handle.
   static constexpr char kBrowserViewKey[] = "__BROWSER_VIEW__";
@@ -180,6 +175,8 @@ class BrowserView : public BrowserWindow,
   // Returns a Browser instance of this view.
   Browser* browser() { return browser_; }
   const Browser* browser() const { return browser_; }
+
+  Profile* GetProfile();
 
   const TopControlsSlideController* top_controls_slide_controller() const {
     return top_controls_slide_controller_.get();
@@ -252,6 +249,8 @@ class BrowserView : public BrowserWindow,
 
   views::View* main_container() { return main_container_; }
 
+  SidePanel* toolbar_height_side_panel() { return toolbar_height_side_panel_; }
+
   SidePanel* contents_height_side_panel() {
     return contents_height_side_panel_;
   }
@@ -289,11 +288,6 @@ class BrowserView : public BrowserWindow,
   // Accessor for the InfobarContainer.
   InfoBarContainerView* infobar_container() { return infobar_container_; }
 
-  // Accessor for the FullscreenExitBubbleViews.
-  ExclusiveAccessBubbleViews* exclusive_access_bubble() {
-    return exclusive_access_bubble_.get();
-  }
-
   // Accessors for the contents WebView.
   // Will return the single active contents view. If side by side is enabled,
   // it may make more sense to use GetAllVisibleContentsWebViews() depending on
@@ -310,6 +304,13 @@ class BrowserView : public BrowserWindow,
 
   // Accessor for the BrowserView's TabSearchBubbleHost instance.
   TabSearchBubbleHost* GetTabSearchBubbleHost();
+
+  // Accessor for the ExclusiveAccessBubble.
+  ExclusiveAccessBubbleViews* GetExclusiveAccessBubble();
+
+  // Test-specific accessor for the bubble view context.
+  ExclusiveAccessBubbleViewsContext*
+  GetExclusiveAccessBubbleViewsContextForTesting();
 
   // Returns true if the top UI are visible on screen.
   bool GetTabStripVisible() const;
@@ -518,15 +519,6 @@ class BrowserView : public BrowserWindow,
   void OnWebApiWindowResizableChanged() override;
   bool GetCanResize() override;
   ui::mojom::WindowShowState GetWindowShowState() const override;
-  void EnterFullscreen(const url::Origin& origin,
-                       ExclusiveAccessBubbleType bubble_type,
-                       FullscreenTabParams fullscreen_tab_params) override;
-  void ExitFullscreen() override;
-  void UpdateExclusiveAccessBubble(
-      const ExclusiveAccessBubbleParams& params,
-      ExclusiveAccessBubbleHideCallback first_hide_callback) override;
-  bool IsExclusiveAccessBubbleDisplayed() const override;
-  void OnExclusiveAccessUserInput() override;
   bool ShouldHideUIForFullscreen() const override;
   bool IsFullscreen() const override;
   bool IsFullscreenBubbleVisible() const override;
@@ -562,7 +554,6 @@ class BrowserView : public BrowserWindow,
   bool IsLocationBarVisible() const override;
   bool IsBorderlessModeEnabled() const override;
   void ShowChromeLabs() override;
-  views::WebView* GetContentsWebView() override;
   BrowserView* AsBrowserView() override;
   SharingDialog* ShowSharingDialog(content::WebContents* contents,
                                    SharingDialogData data) override;
@@ -588,7 +579,6 @@ class BrowserView : public BrowserWindow,
       content::WebContents* contents,
       bool show_signin_button) override;
 #if BUILDFLAG(IS_CHROMEOS)
-  views::Button* GetSharingHubIconButton() override;
   void ToggleMultitaskMenu() override;
 #else
   sharing_hub::SharingHubBubbleView* ShowSharingHubBubble(
@@ -607,8 +597,6 @@ class BrowserView : public BrowserWindow,
   void ShowOneClickSigninConfirmation(
       const std::u16string& email,
       base::OnceCallback<void(bool)> confirmed_callback) override;
-  views::View* GetTopContainer() override;
-  views::View* GetLensOverlayView() override;
   DownloadBubbleUIController* GetDownloadBubbleUIController() override;
   void ConfirmBrowserCloseWithPendingDownloads(
       int download_count,
@@ -761,16 +749,10 @@ class BrowserView : public BrowserWindow,
   // ui::AcceleratorTarget:
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
-  // ExclusiveAccessContext:
-  Profile* GetProfile() override;
-  void UpdateUIForTabFullscreen() override;
-  content::WebContents* GetWebContentsForExclusiveAccess() override;
-  bool CanUserEnterFullscreen() const override;
-  bool CanUserExitFullscreen() const override;
-
   // ImmersiveModeController::Observer:
   void OnImmersiveRevealStarted() override;
   void OnImmersiveRevealEnded() override;
+  void OnImmersiveFullscreenEntered() override;
   void OnImmersiveFullscreenExited() override;
   void OnImmersiveModeControllerDestroyed() override;
 
@@ -825,6 +807,8 @@ class BrowserView : public BrowserWindow,
     return accessibility_focus_highlight_.get();
   }
 #endif
+
+  views::WebView* GetActiveContentsWebView();
 
   // Returns the list of tab content's web views that is visible.
   // It returns > 1 elements when there is a split view that is active.
@@ -884,15 +868,6 @@ class BrowserView : public BrowserWindow,
   FRIEND_TEST_ALL_PREFIXES(PermissionChipUnitTest, AccessibleName);
 
   class AccessibilityModeObserver;
-
-  // ExclusiveAccessBubbleViewsContext:
-  ExclusiveAccessManager* GetExclusiveAccessManager() override;
-  ui::AcceleratorProvider* GetAcceleratorProvider() override;
-  gfx::NativeView GetBubbleParentView() const override;
-  gfx::Rect GetClientAreaBoundsInScreen() const override;
-  bool IsImmersiveModeEnabled() const override;
-  gfx::Rect GetTopContainerBoundsInScreen() override;
-  void DestroyAnyExclusiveAccessBubble() override;
 
   // Sets or clears the flags to force showing bookmark bar.
   void SetForceShowBookmarkBarFlag(BookmarkBarController::ForceShowFlag flag);
@@ -1120,8 +1095,8 @@ class BrowserView : public BrowserWindow,
   // when it should not be able to.
   void UpdateFullscreenAllowedFromPolicy(bool allowed_without_policy);
 
-  bool ShouldUseBrowserContentMinimumSize() const;
-  bool IsBrowserAWebApp() const;
+  class ExclusiveAccessContextImpl;
+  std::unique_ptr<ExclusiveAccessContextImpl> exclusive_access_context_;
 
   // The BrowserWidget that owns this view.
   std::unique_ptr<BrowserWidget> browser_widget_;
@@ -1132,38 +1107,39 @@ class BrowserView : public BrowserWindow,
   base::CallbackListSubscription chip_visibility_subscription_;
 
   // BrowserView layout (LTR one is pictured here).
-  // -----------------------------------------------------------------------
-  // | Tabs (tab_strip_region_view_) |
-  // |---------------------------------------------------------------------|
-  // | MainRegion (main_region_)                                           |
-  // |  ----------------------------------------------------------------   |
-  // |  | MainContainer (main_container_)                               |  |
-  // |  |  ------------------------------------------------------------ |  |
-  // |  |  | TopContainerView (top_container)                           |  |
-  // |  |  |  --------------------------------------------------------- |  |
-  // |  |  |  | Web App toolbar and title (web_app_frame_toolbar_)      |  |
-  // |  |  |  |-------------------------------------------------------- |  |
-  // |  |  |  | Navigation buttons, address bar, menu (toolbar_)        |  |
-  // |  |  |  |-------------------------------------------------------- |  |
-  // |  |  |  | Bookmarks (bookmark_bar_view_)                          |  |
-  // |  |  |  --------------------------------------------------------- |  |
-  // |  |  |----------------------------------------------------------- |  |
-  // |  |  | All infobars (infobar_container_)                          |  |
-  // |  |  |----------------------------------------------------------- |  |
-  // |  |  | Contents container (contents_container_)                   |  |
-  // |  |  |  --------------------------------------------------------- |  |
-  // |  |  |  |  contents_web_view_ (or multi_contents_view_ if defined)|  |
-  // |  |  |  --------------------------------------------------------- |  |
-  // |  |  |----------------------------------------------------------- |  |
-  // |  |  | ContentHeightSidePanel (contents_height_side_panel_)       |  |
-  // |  |  |----------------------------------------------------------- |  |
-  // |  ----------------------------------------------------------------   |
-  // |  | ToolbarHeightSidePanel ()                                     |  |
-  // |  |---------------------------------------------------------------|  |
-  // ----------------------------------------------------------------------
+  // --------------------------------------------------------------------------
+  // | Tabs (tab_strip_region_view_) (no immersive)                           |
+  // |------------------------------------------------------------------------|
+  // | Web App toolbar and title (web_app_frame_toolbar_)(no immersive)       |
+  // |------------------------------------------------------------------------|
+  // | MainContainer (main_container_)                                        |
+  // |------------------------------------------------------------------------|
+  // |  | TopContainerView (top_container)                                    |
+  // |  |  ----------------------------------------------------------------|  |
+  // |  |  | Tabs (tab_strip_region_view)(immersive)                       |  |
+  // |  |  |---------------------------------------------------------------|  |
+  // |  |  | Web app toolbar and title (web_app_frame_toolbar_)(immersive) |  |
+  // |  |  |---------------------------------------------------------------|  |
+  // |  |  | Navigation buttons, address bar, menu (toolbar_)              |  |
+  // |  |  |---------------------------------------------------------------|  |
+  // |  |  | Bookmarks (bookmark_bar_view_)                                |  |
+  // |  |  ----------------------------------------------------------------|  |
+  // |  |---------------------------------------------------------------------|
+  // |  | All infobars (infobar_container_)                                   |
+  // |  |---------------------------------------------------------------------|
+  // |  | Contents container (contents_container_)                            |
+  // |  |  -----------------------------------------------------------------  |
+  // |  |  |  contents_web_view_ (or multi_contents_view_ if defined       |  |
+  // |  |  -----------------------------------------------------------------  |
+  // |  |---------------------------------------------------------------------|
+  // |  | ContentHeightSidePanel (contents_height_side_panel_)                |
+  // |  |---------------------------------------------------------------------|
+  // |------------------------------------------------------------------------|
+  // | ToolbarHeightSidePanel ()                                              |
+  // --------------------------------------------------------------------------
 
-  // The view that contains the MainContainer and the toolbar height side panel
-  // when it is implemented.
+  // The view that draws the background the main_container and
+  // toolbar_height_side_panel are displayed on.
   raw_ptr<views::View> main_region_ = nullptr;
 
   // The view that contains the primary UI (Toolbar, BookmarksBar, InfoBar,
@@ -1173,6 +1149,9 @@ class BrowserView : public BrowserWindow,
   // The view that manages the tab strip, toolbar, and sometimes the bookmark
   // bar. Stacked top in the view hiearachy so it can be used to slide out
   // the top views in immersive fullscreen.
+  // Note: The TabStrip and Web App toolbar are only added to TopContainer while
+  // in immersive fullscreen mode. In all other cases, they live directly in
+  // BrowserView.
   raw_ptr<TopContainerView> top_container_ = nullptr;
 
   // Menu button and page status icons. Only used by web-app windows.
@@ -1187,7 +1166,7 @@ class BrowserView : public BrowserWindow,
   // The view that contains the tabstrip, new tab button, and grab handle space.
   raw_ptr<TabStripRegionView> tab_strip_region_view_ = nullptr;
 
-  // the webui based tabstrip, when applicable. see https://crbug.com/989131.
+  // The webui based tabstrip, when applicable. see https://crbug.com/989131.
   raw_ptr<WebUITabStripContainerView> webui_tab_strip_ = nullptr;
 
   // Allows us to react to changes in accessibility mode. Having an observer
@@ -1266,6 +1245,9 @@ class BrowserView : public BrowserWindow,
   // The view responsible for housing the contents of the vertical tab strip.
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_container_ = nullptr;
 
+  // Side panel that extends to the height of the toolbar.
+  raw_ptr<SidePanel> toolbar_height_side_panel_ = nullptr;
+
   // The side panel aligned to the left or the right side of the browser window
   // depending on the kSidePanelHorizontalAlignment pref's value.
   // Conceptually this member should exist if and only if the
@@ -1304,12 +1286,6 @@ class BrowserView : public BrowserWindow,
   // to ignore requests to layout while in ProcessFullscreen() to reduce
   // jankiness.
   bool in_process_fullscreen_ = false;
-
-  std::unique_ptr<ExclusiveAccessBubbleViews> exclusive_access_bubble_;
-  // Tracks the task to asynchronously destroy the exclusive access bubble.
-  base::CancelableTaskTracker exclusive_access_bubble_cancelable_task_tracker_;
-  std::optional<base::CancelableTaskTracker::TaskId>
-      exclusive_access_bubble_destruction_task_id_;
 
   // True when we do not want to allow exiting fullscreen, e.g. in Chrome OS
   // Kiosk session.

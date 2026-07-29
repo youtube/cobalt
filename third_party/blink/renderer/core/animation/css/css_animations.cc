@@ -2823,9 +2823,15 @@ void CSSAnimations::CalculateTransitionUpdate(
   const ComputedStyle* scope_old_style =
       PostStyleUpdateScope::GetOldStyle(animating_element);
 
-  bool force_starting_style = false;
-  probe::ForceStartingStyle(&animating_element, &force_starting_style);
   bool is_starting_style = old_style && old_style->IsStartingStyle();
+
+  bool force_starting_style = false;
+  Element* originating_element =
+      animating_element.IsPseudoElement()
+          ? &To<PseudoElement>(animating_element).UltimateOriginatingElement()
+          : &animating_element;
+  probe::ForceStartingStyle(originating_element, &force_starting_style);
+
   DCHECK(old_style == scope_old_style ||
          !scope_old_style && is_starting_style || force_starting_style)
       << "The old_style passed in should be the style for the element at the "
@@ -3053,7 +3059,7 @@ const ComputedStyle& CSSAnimations::EnsureAfterChangeStyle(
       layout_parent_style = parent_style;
     }
     if (after_change_style.IsContainerForSizeContainerQueries()) {
-      context.container = ancestor;
+      context.size_container = ancestor;
     }
   }
   context = style_recalc_context;

@@ -89,8 +89,8 @@ public class BasicListMenu implements ListMenu {
             boolean isIconTintable,
             boolean groupContainsIcon,
             boolean enabled,
-            View.@Nullable OnClickListener clickListener,
-            @Nullable Intent intent) {
+            @Nullable Intent intent,
+            int order) {
         PropertyModel.Builder modelBuilder =
                 new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
                         .with(ListMenuItemProperties.TITLE, title)
@@ -99,7 +99,6 @@ public class BasicListMenu implements ListMenu {
                         .with(ListMenuItemProperties.MENU_ITEM_ID, id)
                         .with(ListMenuItemProperties.START_ICON_DRAWABLE, startIcon)
                         .with(ListMenuItemProperties.ENABLED, enabled)
-                        .with(ListMenuItemProperties.CLICK_LISTENER, clickListener)
                         .with(ListMenuItemProperties.INTENT, intent)
                         .with(
                                 ListMenuItemProperties.KEEP_START_ICON_SPACING_WHEN_HIDDEN,
@@ -109,7 +108,8 @@ public class BasicListMenu implements ListMenu {
                                 R.style.TextAppearance_DensityAdaptive_ListMenuItem)
                         .with(
                                 ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID,
-                                isIconTintable ? R.color.list_menu_item_icon_color_list : 0);
+                                isIconTintable ? R.color.list_menu_item_icon_color_list : 0)
+                        .with(ListMenuItemProperties.ORDER, order);
         return new ListItem(ListItemType.MENU_ITEM, modelBuilder.build());
     }
 
@@ -250,10 +250,8 @@ public class BasicListMenu implements ListMenu {
             @Nullable Boolean drillDownOverrideValue,
             @Nullable FlyoutHandler flyoutHandler) {
         HierarchicalMenuController hierarchicalMenuController =
-                new HierarchicalMenuController(
-                        new ListMenuUtils.ListMenuKeyProvider(),
-                        flyoutHandler,
-                        drillDownOverrideValue);
+                ListMenuUtils.createHierarchicalMenuController(
+                        mListMenuLayout.getContext(), flyoutHandler, drillDownOverrideValue);
 
         AccessibilityListObserver observer =
                 hierarchicalMenuController

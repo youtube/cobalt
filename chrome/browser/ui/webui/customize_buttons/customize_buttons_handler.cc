@@ -16,6 +16,9 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_ui.h"
 
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(CustomizeButtonsHandler,
+                                      kCustomizeChromeButtonElementId);
+
 CustomizeButtonsHandler::CustomizeButtonsHandler(
     mojo::PendingReceiver<customize_buttons::mojom::CustomizeButtonsHandler>
         pending_handler,
@@ -136,7 +139,10 @@ void CustomizeButtonsHandler::SetCustomizeChromeSidePanelVisible(
   feature_promo_helper_->RecordPromoFeatureUsageAndClosePromo(
       feature_engagement::kIPHDesktopCustomizeChromeRefreshFeature, contents);
   feature_promo_helper_->RecordPromoFeatureUsageAndClosePromo(
-      feature_engagement::kIPHDesktopCustomizeChromeFeature, contents);
+      feature_engagement::kIPHDesktopCustomizeChromeExperimentFeature,
+      contents);
+  feature_promo_helper_->RecordPromoFeatureUsageAndClosePromo(
+      feature_engagement::kIPHDesktopCustomizeChromeAutoOpenFeature, contents);
 }
 
 void CustomizeButtonsHandler::IncrementCustomizeChromeButtonOpenCount() {

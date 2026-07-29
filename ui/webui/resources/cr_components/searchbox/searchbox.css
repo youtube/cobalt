@@ -127,7 +127,7 @@ input {
 }
 
 :host([compose-button-enabled][dropdown-is-visible]) input,
-:host([realbox-layout-mode='Tall']) input {
+:host([realbox-layout-mode^='Tall']) input {
   --cr-searchbox-input-trailing-padding: calc(12px
       + var(--cr-compose-button-width)
       + var(--cr-searchbox-icon-spacing));
@@ -401,7 +401,16 @@ cr-searchbox-icon {
   padding-top: unset;
 }
 
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
+  --cr-icon-button-icon-size: 24px;
+}
+
 :host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
+  z-index: 100;
+}
+
+:host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(tool-chips-container) {
+  position: relative;
   z-index: 100;
 }
 
@@ -417,6 +426,10 @@ cr-searchbox-icon {
   overflow: hidden;
   padding-bottom: var(--cr-searchbox-dropdown-padding-bottom);
   padding-top: var(--cr-searchbox-dropdown-padding-top);
+}
+
+:host([ntp-realbox-next-enabled][dropdown-is-visible]) {
+  --cr-searchbox-border-radius: 24px;
 }
 
 :host([ntp-realbox-next-enabled][dropdown-is-visible]),
@@ -493,7 +506,7 @@ cr-searchbox-icon {
   --cr-button-height: 36px;
 }
 
-:host([realbox-layout-mode='TallBottomContext'][dropdown-is-visible]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
+:host([realbox-layout-mode='TallBottomContext'][dropdown-is-visible]) contextual-entrypoint-and-carousel::part(context-menu-and-tools) {
   margin-top: 10px;
 }
 
@@ -502,6 +515,7 @@ cr-searchbox-icon {
 }
 
 :host([realbox-layout-mode='Compact']) {
+  --cr-searchbox-border-radius: 30px;
   --cr-searchbox-dropdown-padding-top: 12px;
   --cr-searchbox-height: 56px;
 }
@@ -535,4 +549,23 @@ cr-searchbox-icon {
 
 :host([realbox-layout-mode='Compact']) cr-searchbox-dropdown::part(dropdown-content) {
   padding-top: 12px;
+}
+
+:host([realbox-layout-mode^='Tall']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  --cr-icon-button-fill-color: var(--color-new-tab-page-composebox-font-light);
+  --cr-icon-button-hover-background-color: var(--color-new-tab-page-composebox-context-entrypoint-hover-background);
+  --cr-icon-button-margin-end: 0px;
+  --cr-icon-button-margin-start: 0px;
+  --cr-icon-button-size: 36px;
+  display: flex;
+  position: absolute;
+  inset-inline-end: 14px;
+}
+
+:host([realbox-layout-mode='TallBottomContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  bottom: 10px;
+}
+
+:host([realbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(voice-icon) {
+  top: 60px;
 }

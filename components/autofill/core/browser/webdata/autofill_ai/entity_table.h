@@ -36,23 +36,28 @@ class AttributeInstance;
 //   entity_type            The instance's entity type, represented as string
 //                          EntityType::name_as_string().
 //   nickname               The instance's string nickname.
-//   date_modified          The date on which this instance was last modified,
-//                          in time_t.
-//   use_count              The number of times that this instance has been
-//                          used.
-//   use_date               The last time that this instance was used to fill a
-//                          form.
 //   record_type            Information about the original storage of the
 //                          entity (local/server).
 //   attributes_read_only   Boolean flag backed by an integer. If 1,
 //                          the attributes of the entity instance are not
 //                          editable by the user.
 // -----------------------------------------------------------------------------
+// entities_metadata    Contains metadata for entity instances.
+//
+//   entity_guid            Uniquely identifies the entity instance (primary
+//                          key as well as foreign key into the entities table).
+//   use_count              The number of times that this instance has been
+//                          used.
+//   use_date               The last time that this instance was used to fill a
+//                          form.
+//   date_modified          The date on which this instance was last modified,
+//                          in time_t.
+// -----------------------------------------------------------------------------
 // attributes               Contains the attribute instances of the entity
 //                          instances from the `entities` table.
 //
-//  entity_guid             Identifies the owning entity instance (it is a
-//                          foreign key).
+//  entity_guid             Identifies the owning entity instance (primary
+//                          key as well as foreign key into the entities table).
 //  attribute_type          The instance's attribute type, represented as string
 //                          AttributeType::name_as_string().
 //  field_type              The FieldType, represented by its integer value in
@@ -105,6 +110,18 @@ class EntityTable : public WebDatabaseTable {
   // database.
   bool EntityInstanceExists(const EntityInstance::EntityId& guid) const;
 
+  // Adds or updates the entity `metadata` in the `entities_metadata` table.
+  // Returns true on success.
+  bool AddOrUpdateEntityMetadata(
+      const EntityInstance::EntityMetadata& metadata);
+
+  // Returns true if removing the entity metadata succeeded.
+  bool RemoveEntityMetadata(const EntityInstance::EntityId& guid);
+
+  // Returns the entity metadata for the given `guid`.
+  std::optional<EntityInstance::EntityMetadata> GetEntityMetadata(
+      const EntityInstance::EntityId& guid) const;
+
   // Returns the valid entity instances; ignores invalid instances.
   //
   // An instance is valid only if all the following is true:
@@ -118,6 +135,12 @@ class EntityTable : public WebDatabaseTable {
       std::optional<EntityInstance::RecordType> record_type =
           std::nullopt) const;
 
+  // Returns the content of `autofill_ai_entities_metadata` table that is synced
+  // by the server i.e. all metadata entries without a corresponding `local`
+  // entity.
+  std::map<EntityInstance::EntityId, EntityInstance::EntityMetadata>
+  GetSyncedMetadata() const;
+
  private:
   // Contains information about an attribute stored in the `attributes` table.
   // Note that this doesn't contain the owning entity's GUID or the attribute
@@ -129,10 +152,18 @@ class EntityTable : public WebDatabaseTable {
     std::underlying_type_t<VerificationStatus> verification_status;
   };
 
+  // In this version `use_count`, `use_date`, and `date_modified` were
+  // moved from `autofill_ai_entities` to `autofill_ai_entities_metadata`.
+  bool MigrateToVersion147AddEntitiesMetadataTable();
+
   // Returns true if adding the entity succeeded.
   // It does not validate the entity itself, but it does check that no such
   // entity with the same GUID exists.
   bool AddEntityInstance(const EntityInstance& entity);
+
+  // Returns true if adding the entity `metadata` to the `entities_metadata`
+  // table succeeded.
+  bool AddEntityMetadata(const EntityInstance::EntityMetadata& metadata);
 
   // Returns true if adding the attribute to the `attributes` table succeeded.
   bool AddAttribute(const EntityInstance& entity,
@@ -143,6 +174,11 @@ class EntityTable : public WebDatabaseTable {
   std::map<EntityInstance::EntityId,
            std::map<std::string, std::vector<AttributeRecord>>>
   LoadAttributes() const;
+
+  // Loads the content of `autofill_ai_entities_metadata` table into memory. The
+  // map returned is keyed by EntityId of the loaded attributes.
+  std::map<EntityInstance::EntityId, EntityInstance::EntityMetadata>
+  LoadMetadata() const;
 
   // Attempts to create an `EntityInstance` object provided information loaded
   // from the database. Returns the instance itself if creation was successful

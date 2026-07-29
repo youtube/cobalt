@@ -6,19 +6,23 @@
 
 #include "base/feature_list.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
-#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/zoom/zoom_controller.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/views/controls/menu/menu_runner.h"
 
 OmniboxPopupWebUIContent::OmniboxPopupWebUIContent(
     OmniboxPopupPresenter* presenter,
@@ -30,12 +34,17 @@ OmniboxPopupWebUIContent::OmniboxPopupWebUIContent(
       omnibox_popup_presenter_(presenter),
       controller_(controller),
       include_location_bar_cutout_(include_location_bar_cutout) {
+  contents_wrapper_ = std::make_unique<WebUIContentsWrapperT<OmniboxPopupUI>>(
+      GURL(chrome::kChromeUIOmniboxPopupURL), location_bar_view->profile(),
+      IDS_TASK_MANAGER_OMNIBOX);
+  contents_wrapper_->SetHost(weak_factory_.GetWeakPtr());
+  SetWebContents(contents_wrapper_->web_contents());
+  webui::SetBrowserWindowInterface(contents_wrapper_->web_contents(),
+                                   location_bar_view->browser());
   // Make the OmniboxController available to the OmniboxPopupUI.
   OmniboxPopupWebContentsHelper::CreateForWebContents(GetWebContents());
   OmniboxPopupWebContentsHelper::FromWebContents(GetWebContents())
       ->set_omnibox_controller(controller);
-
-  LoadInitialURL(GURL(chrome::kChromeUIOmniboxPopupURL));
 }
 
 OmniboxPopupWebUIContent::~OmniboxPopupWebUIContent() = default;
@@ -62,6 +71,30 @@ void OmniboxPopupWebUIContent::AddedToWidget() {
   }
   zoom_controller->SetZoomMode(zoom::ZoomController::ZOOM_MODE_ISOLATED);
   zoom_controller->SetZoomLevel(0);
+}
+
+void OmniboxPopupWebUIContent::ShowUI() {
+  // The OmniboxPopupPresenter manages the widget visibility,
+  // so this is a no-op.
+}
+
+void OmniboxPopupWebUIContent::CloseUI() {
+  // The OmniboxPopupPresenter manages the widget visibility,
+  // so this is a no-op.
+}
+
+void OmniboxPopupWebUIContent::ShowCustomContextMenu(
+    gfx::Point point,
+    std::unique_ptr<ui::MenuModel> menu_model) {
+  ConvertPointToScreen(this, &point);
+  context_menu_model_ = std::move(menu_model);
+  context_menu_runner_ = std::make_unique<views::MenuRunner>(
+      context_menu_model_.get(),
+      views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+  context_menu_runner_->RunMenuAt(
+      GetWidget(), nullptr, gfx::Rect(point, gfx::Size()),
+      views::MenuAnchorPosition::kTopLeft, ui::mojom::MenuSourceType::kMouse,
+      contents_wrapper_->web_contents()->GetContentNativeView());
 }
 
 void OmniboxPopupWebUIContent::ResizeDueToAutoResize(

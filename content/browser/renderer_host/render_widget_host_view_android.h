@@ -27,6 +27,7 @@
 #include "cc/trees/render_frame_metadata.h"
 #include "components/input/android_input_helper.h"
 #include "components/viz/common/quads/selection.h"
+#include "components/viz/common/resources/release_callback.h"
 #include "components/viz/common/surfaces/parent_local_surface_id_allocator.h"
 #include "content/browser/device_posture/device_posture_platform_provider.h"
 #include "content/browser/renderer_host/input/input_transfer_handler_android.h"
@@ -193,7 +194,8 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void CopySharedImageFromExactSurface(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
-      base::OnceCallback<void(scoped_refptr<gpu::ClientSharedImage>)> callback);
+      base::OnceCallback<void(scoped_refptr<gpu::ClientSharedImage>,
+                              viz::ReleaseCallback release_callback)> callback);
 
   void EnsureSurfaceSynchronizedForWebTest() override;
   uint32_t GetCaptureSequenceNumber() const override;
@@ -537,6 +539,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   FRIEND_TEST_ALL_PREFIXES(SitePerProcessBrowserTest,
                            GestureManagerListensToChildFrames);
   FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostViewAndroidTest, DisplayFeature);
+  FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostViewAndroidTest, UpdateControls);
   FRIEND_TEST_ALL_PREFIXES(RenderWidgetHostViewAndroidFluidResizeBrowserTest,
                            ResizeDefersSynchronizationToNextFrame);
 
@@ -761,6 +764,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   float prev_top_controls_translate_;
   float prev_top_controls_min_height_offset_pix_;
   float prev_bottom_shown_pix_;
+  float prev_bottom_controls_pix_;
   float prev_bottom_controls_translate_;
   float prev_bottom_controls_min_height_offset_pix_;
   float page_scale_;

@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -199,9 +200,9 @@ class MEDIA_GPU_EXPORT MediaFoundationVideoEncodeAccelerator
   HRESULT PopulateInputSampleBuffer(const PendingInput& input,
                                     scoped_refptr<VideoFrame> frame);
   HRESULT PopulateInputSampleBufferGpu(scoped_refptr<VideoFrame> frame,
-                                       ComMFSample& input_sample);
+                                       const PendingInput& input);
   HRESULT CopyInputSampleBufferFromGpu(scoped_refptr<VideoFrame> frame,
-                                       ComMFSample& input_sample);
+                                       const PendingInput& input);
 
   bool IsTemporalScalabilityCoding() const { return num_temporal_layers_ > 1; }
 

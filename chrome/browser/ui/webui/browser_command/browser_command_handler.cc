@@ -368,7 +368,8 @@ void BrowserCommandHandler::OpenGlic() {
 
   glic_service->window_controller().Toggle(
       browser_window, /*prevent_close=*/false,
-      glic::mojom::InvocationSource::kWhatsNew);
+      glic::mojom::InvocationSource::kWhatsNew,
+      /*prompt_suggestion=*/std::nullopt);
 #endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
@@ -413,7 +414,7 @@ void BrowserCommandHandler::PrewarmGlicFre() {
 void BrowserCommandHandler::OpenSplitView() {
   tabs::TabInterface* tab =
       tabs::TabInterface::MaybeGetFromContents(web_contents_);
-  if (tab) {
+  if (tab && !tab->IsSplit()) {
     chrome::NewSplitTab(tab->GetBrowserWindowInterface(),
                         split_tabs::SplitTabCreatedSource::kWhatsNew);
   }

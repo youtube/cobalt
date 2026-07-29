@@ -2566,16 +2566,31 @@ RenderFrameHostManager::SiteInstanceDescriptor::SiteInstanceDescriptor(
 }
 
 void RenderFrameHostManager::CleanupSpeculativeRfhForRenderProcessGone() {
-  CHECK(speculative_render_frame_host_);
-  // TODO(crbug.com/41268960): This should just clean up the speculative
-  // RFH without canceling the request.
+  // The speculative RFH will be always cleaned up. If the feature
+  // ResumeNavigationWithSpeculativeRFHProcessGone is enabled, we will
+  // resume the navigation if it has not received the network response
+  // yet. A new RFH will be created when the navigation calls
+  // GetFrameHostForNavigation in
+  // NavigationRequest::SelectFrameHostForOnResponseStarted.
+  // See crbug.com/453878130 for the experiment progress of the feature.
   if (frame_tree_node_->navigation_request()) {
-    // TODO(crbug.com/41268960): This might cancel an unrelated
-    // NavigationRequest. Maybe check if the navigation request uses the
-    // speculative RFH first?
-    frame_tree_node_->navigation_request()->set_net_error(net::ERR_ABORTED);
-    frame_tree_node_->ResetNavigationRequest(
-        NavigationDiscardReason::kRenderProcessGone);
+    bool may_resume = frame_tree_node_->navigation_request()->state() <
+                      NavigationRequest::NavigationState::WILL_PROCESS_RESPONSE;
+    base::UmaHistogramBoolean("Navigation.SpeculativeRFHProcessGone.MayResume",
+                              may_resume);
+    if (!may_resume ||
+        !base::FeatureList::IsEnabled(
+            features::kResumeNavigationWithSpeculativeRFHProcessGone)) {
+      // TODO(crbug.com/41268960): This might cancel an unrelated
+      // NavigationRequest. Maybe check if the navigation request uses the
+      // speculative RFH first?
+      frame_tree_node_->navigation_request()->set_net_error(net::ERR_ABORTED);
+      frame_tree_node_->ResetNavigationRequest(
+          NavigationDiscardReason::kRenderProcessGone);
+    } else {
+      frame_tree_node_->navigation_request()->SetAssociatedRFHType(
+          NavigationRequest::AssociatedRenderFrameHostType::NONE);
+    }
   }
   // It's possible that we are far enough into the navigation that
   // TransferNavigationRequestOwnership has already been called then the
@@ -4157,9 +4172,6 @@ RenderFrameHostManager::CreateRenderFrameHost(
   // RenderViewHost.
   if (create_rvh_case == CreateRenderViewHostCase::kDefault) {
     render_view_host = frame_tree.GetRenderViewHost(site_instance->group());
-  } else if (current_frame_host()->ShouldReuseCompositing(*site_instance)) {
-    frame_sink_id =
-        current_frame_host()->GetRenderWidgetHost()->GetFrameSinkId();
   }
 
   switch (create_frame_case) {

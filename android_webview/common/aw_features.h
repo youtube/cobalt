@@ -15,17 +15,18 @@ namespace android_webview::features {
 // alongside the definition of their values in the .cc file.
 
 // Alphabetical:
+BASE_DECLARE_FEATURE(kWebViewAddQuicHints);
 BASE_DECLARE_FEATURE(kWebViewAutoSAA);
 BASE_DECLARE_FEATURE(kWebViewBackForwardCache);
+// TODO(crbug.com/455296998): Remove this code for M145.
+BASE_DECLARE_FEATURE(kWebViewBypassHttpCacheForPrefetchFromHeader);
 BASE_DECLARE_FEATURE(kWebViewConfigurableLibraryPrefetch);
 BASE_DECLARE_FEATURE(kWebViewDigitalAssetLinksLoadIncludes);
 BASE_DECLARE_FEATURE(kWebViewDisableCHIPS);
 BASE_DECLARE_FEATURE(kWebViewDrainPrefetchQueueDuringInit);
 BASE_DECLARE_FEATURE(kWebViewFileSystemAccess);
+BASE_DECLARE_FEATURE(kWebViewIgnoreDuplicateNavs);
 BASE_DECLARE_FEATURE(kWebViewInvokeZoomPickerOnGSU);
-// Feature parameter for `network::features::kMaskedDomainList` which is
-// defined in //services/network.
-extern const base::FeatureParam<int> kWebViewIpProtectionExclusionCriteria;
 BASE_DECLARE_FEATURE(kWebViewLazyFetchHandWritingIcon);
 BASE_DECLARE_FEATURE(kWebViewMixedContentAutoupgrades);
 BASE_DECLARE_FEATURE(kWebViewMuteAudio);
@@ -74,6 +75,10 @@ BASE_DECLARE_FEATURE(kWebViewCacheBoundaryInterfaceMethods);
 BASE_DECLARE_FEATURE(kWebViewOptInToGmsBindServiceOptimization);
 BASE_DECLARE_FEATURE(kWebViewMoveWorkToProviderInit);
 BASE_DECLARE_FEATURE(kWebViewBypassProvisionalCookieManager);
+BASE_DECLARE_FEATURE(kWebViewPersistentMetricsInNoBackupDir);
+BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForWebView);
+BASE_DECLARE_FEATURE(kWebViewFetchOriginTrialsComponent);
+
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

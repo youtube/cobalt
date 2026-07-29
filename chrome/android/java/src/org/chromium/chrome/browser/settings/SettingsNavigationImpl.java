@@ -69,7 +69,16 @@ public class SettingsNavigationImpl implements SettingsNavigation {
             Context context,
             @Nullable Class<? extends Fragment> fragment,
             @Nullable Bundle fragmentArgs) {
-        Intent intent = createSettingsIntent(context, fragment, fragmentArgs);
+        startSettings(context, fragment, fragmentArgs, /* addToBackStack= */ false);
+    }
+
+    @Override
+    public void startSettings(
+            Context context,
+            @Nullable Class<? extends Fragment> fragment,
+            @Nullable Bundle fragmentArgs,
+            boolean addToBackStack) {
+        Intent intent = createSettingsIntent(context, fragment, fragmentArgs, addToBackStack);
         IntentUtils.safeStartActivity(context, intent);
     }
 
@@ -84,8 +93,17 @@ public class SettingsNavigationImpl implements SettingsNavigation {
             Context context,
             @Nullable Class<? extends Fragment> fragment,
             @Nullable Bundle fragmentArgs) {
+        return createSettingsIntent(context, fragment, fragmentArgs, /* addToBackStack= */ false);
+    }
+
+    @Override
+    public Intent createSettingsIntent(
+            Context context,
+            @Nullable Class<? extends Fragment> fragment,
+            @Nullable Bundle fragmentArgs,
+            boolean addToBackStack) {
         String fragmentName = fragment == null ? null : fragment.getName();
-        return SettingsIntentUtil.createIntent(context, fragmentName, fragmentArgs);
+        return SettingsIntentUtil.createIntent(context, fragmentName, fragmentArgs, addToBackStack);
     }
 
     @Override

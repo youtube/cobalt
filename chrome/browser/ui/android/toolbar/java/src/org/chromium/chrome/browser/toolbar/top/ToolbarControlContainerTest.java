@@ -42,9 +42,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
-import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
@@ -115,8 +113,6 @@ public class ToolbarControlContainerTest {
     @Mock private ThemeColorProvider mThemeColorProvider;
     @Mock private IncognitoStateProvider mIncognitoStateProvider;
     @Mock private NewTabPageDelegate mNewTabPageDelegate;
-    @Mock private TopControlsStacker mTopControlsStacker;
-    @Mock private BrowserControlsStateProvider mBrowserControls;
 
     private final Supplier<Tab> mTabSupplier = () -> mTab;
     private final ObservableSupplierImpl<Boolean> mCompositorInMotionSupplier =
@@ -587,7 +583,7 @@ public class ToolbarControlContainerTest {
         ToolbarControlContainer controlContainer =
                 (ToolbarControlContainer)
                         mActivity.getLayoutInflater().inflate(R.layout.control_container, null);
-        controlContainer.initWithToolbar(R.layout.toolbar_phone);
+        controlContainer.initWithToolbar(R.layout.toolbar_phone, R.dimen.toolbar_height_no_shadow);
         controlContainer.setPostInitializationDependencies(
                 mToolbar,
                 mToolbarView,
@@ -598,9 +594,7 @@ public class ToolbarControlContainerTest {
                 mBrowserStateBrowserControlsVisibilityDelegate,
                 mLayoutStateProviderSupplier,
                 mFullscreenManager,
-                mTopControlsStacker,
-                mToolbarDataProvider,
-                mBrowserControls);
+                mToolbarDataProvider);
 
         ToolbarPhone toolbarPhone = controlContainer.findViewById(R.id.toolbar);
         doReturn(mLocationBarCoordinatorPhone).when(mLocationBarCoordinator).getPhoneCoordinator();
@@ -659,7 +653,7 @@ public class ToolbarControlContainerTest {
         ToolbarControlContainer controlContainer =
                 (ToolbarControlContainer)
                         mActivity.getLayoutInflater().inflate(R.layout.control_container, null);
-        controlContainer.initWithToolbar(R.layout.toolbar_phone);
+        controlContainer.initWithToolbar(R.layout.toolbar_phone, R.dimen.toolbar_height_no_shadow);
         controlContainer.setPostInitializationDependencies(
                 mToolbar,
                 mToolbarView,
@@ -670,9 +664,7 @@ public class ToolbarControlContainerTest {
                 mBrowserStateBrowserControlsVisibilityDelegate,
                 mLayoutStateProviderSupplier,
                 mFullscreenManager,
-                mTopControlsStacker,
-                mToolbarDataProvider,
-                mBrowserControls);
+                mToolbarDataProvider);
         ToolbarControlContainer.ToolbarViewResourceCoordinatorLayout toolbarContainer =
                 controlContainer.findViewById(R.id.toolbar_container);
         toolbarContainer.setVisibility(View.GONE);

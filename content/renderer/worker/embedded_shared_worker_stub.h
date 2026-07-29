@@ -16,14 +16,12 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
-#include "third_party/blink/public/common/fingerprinting_protection/noise_token.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/browser_interface_broker.mojom-forward.h"
 #include "third_party/blink/public/mojom/devtools/devtools_agent.mojom-forward.h"
-#include "third_party/blink/public/mojom/fingerprinting_protection/canvas_interventions.mojom-forward.h"
 #include "third_party/blink/public/mojom/frame/policy_container.mojom.h"
 #include "third_party/blink/public/mojom/frame/reporting_observer.mojom.h"
 #include "third_party/blink/public/mojom/renderer_preference_watcher.mojom-forward.h"
@@ -90,9 +88,6 @@ class EmbeddedSharedWorkerStub : public blink::WebSharedWorkerClient,
           coep_reporting_observer,
       mojo::PendingReceiver<blink::mojom::ReportingObserver>
           dip_reporting_observer,
-      std::optional<blink::NoiseToken> canvas_noise_token,
-      mojo::PendingReceiver<blink::mojom::CanvasNoiseTokenUpdater>
-          canvas_noise_token_observer,
       const std::vector<std::string>& cors_exempt_header_list);
 
   EmbeddedSharedWorkerStub(const EmbeddedSharedWorkerStub&) = delete;

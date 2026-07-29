@@ -1155,8 +1155,6 @@ component("base") {
   # Android.
   if (is_android) {
     sources += [
-      "android/android_hardware_buffer_compat.cc",
-      "android/android_hardware_buffer_compat.h",
       "android/android_info.cc",
       "android/android_info.h",
       "android/android_input_receiver_compat.cc",
@@ -1216,17 +1214,14 @@ component("base") {
       "android/radio_utils.cc",
       "android/radio_utils.h",
       "android/requires_api.h",
-      "android/scoped_hardware_buffer_fence_sync.cc",
-      "android/scoped_hardware_buffer_fence_sync.h",
-      "android/scoped_hardware_buffer_handle.cc",
-      "android/scoped_hardware_buffer_handle.h",
       "android/scoped_input_event.cc",
       "android/scoped_input_event.h",
+      "android/scoped_service_binding_batch.cc",
+      "android/scoped_service_binding_batch.h",
       "android/self_compaction_manager.cc",
       "android/self_compaction_manager.h",
       "android/shared_preferences/shared_preferences_manager.cc",
       "android/shared_preferences/shared_preferences_manager.h",
-      "android/statistics_recorder_android.cc",
       "android/sys_utils.cc",
       "android/sys_utils.h",
       "android/task_scheduler/post_task_android.cc",
@@ -1285,9 +1280,7 @@ component("base") {
       ":content_uri_utils_jni",
       ":features_jni",
       ":file_utils_jni",
-      ":jni_android_jni",
       ":memory_jni",
-      ":metrics_jni",
       ":path_utils_jni",
       ":process_launcher_jni",
       ":sys_utils_jni",
@@ -1300,6 +1293,14 @@ component("base") {
 
     if (android_ndk_api_level >= 29) {
       deps += [ ":build_info_aidl_native" ]
+      sources += [
+        # Cronet uses lower NDK API level than is required for these files,
+        # but it doesn't need AHardwareBuffer anyway.
+        "android/scoped_hardware_buffer_fence_sync.cc",
+        "android/scoped_hardware_buffer_fence_sync.h",
+        "android/scoped_hardware_buffer_handle.cc",
+        "android/scoped_hardware_buffer_handle.h",
+      ]
     }
 
     if (use_clang_profiling) {
@@ -1378,6 +1379,7 @@ component("base") {
       "android/library_loader/library_prefetcher_hooks.cc",
       "android/native_uma_recorder.cc",
       "android/scoped_java_ref.h",
+      "android/statistics_recorder_android.cc",
       "android/token_android.cc",
       "android/token_android.h",
       "android/trace_event_binding.cc",
@@ -1389,7 +1391,9 @@ component("base") {
       ":base_minimal_jni($default_toolchain)",
       ":callback_jni($default_toolchain)",
       ":command_line_jni($default_toolchain)",
+      ":jni_android_jni($default_toolchain)",
       ":library_loader_jni($default_toolchain)",
+      ":metrics_jni($default_toolchain)",
       ":tasks_minimal_jni($default_toolchain)",
       "//build:robolectric_buildflags",
     ]
@@ -1727,8 +1731,6 @@ component("base") {
     sources += [
       "allocator/dispatcher/memory_tagging.cc",
       "allocator/dispatcher/memory_tagging.h",
-      "allocator/miracle_parameter.cc",
-      "allocator/miracle_parameter.h",
       "allocator/partition_alloc_features.cc",
       "allocator/partition_alloc_features.h",
       "allocator/partition_alloc_support.cc",
@@ -3592,6 +3594,7 @@ test("base_unittests") {
     "task/default_delayed_task_handle_delegate_unittest.cc",
     "task/deferred_sequenced_task_runner_unittest.cc",
     "task/delayed_task_handle_unittest.cc",
+    "task/execution_fence_unittest.cc",
     "task/lazy_thread_pool_task_runner_unittest.cc",
     "task/post_job_unittest.cc",
     "task/scoped_set_task_priority_for_current_thread_unittest.cc",
@@ -3779,6 +3782,7 @@ test("base_unittests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/abseil-cpp:absl",
+    "//third_party/abseil-cpp:test_support",
     "//third_party/icu",
     "//third_party/modp_b64",
 
@@ -4547,7 +4551,10 @@ if (is_android) {
   }
 
   generate_jni("process_launcher_jni") {
-    sources = [ "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java" ]
+    sources = [
+      "android/java/src/org/chromium/base/process_launcher/ChildProcessService.java",
+      "android/java/src/org/chromium/base/process_launcher/ScopedServiceBindingBatch.java",
+    ]
   }
 
   generate_jni("clang_profiler_jni") {
@@ -4633,6 +4640,7 @@ if (is_android) {
       "android/java/src/org/chromium/base/process_launcher/LegacyChildServiceConnectionController.java",
       "android/java/src/org/chromium/base/process_launcher/RebindServiceConnection.java",
       "android/java/src/org/chromium/base/process_launcher/RebindingChildServiceConnectionController.java",
+      "android/java/src/org/chromium/base/process_launcher/ScopedServiceBindingBatch.java",
     ]
   }
 
@@ -4776,6 +4784,7 @@ if (is_android) {
     ]
   }
 
+  # Separated out for cronet.
   android_library("metrics_ScopedSysTraceEvent_java") {
     sources = [
       "android/java/src/org/chromium/base/metrics/ScopedSysTraceEvent.java",
@@ -5264,6 +5273,7 @@ if (is_android) {
     android_library("ui_java") {
       sources = [ "android/java/src/org/chromium/base/ui/KeyboardUtils.java" ]
       deps = [
+        ":build_info_java",
         ":log_java",
         ":tasks_java",
         "//third_party/androidx:androidx_annotation_annotation_java",
@@ -5332,8 +5342,10 @@ if (is_android) {
 
   android_library("flagged_apis_java") {
     deps = [ ":service_loader_java" ]
-    sources =
-        [ "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java" ]
+    sources = [
+      "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java",
+      "android/java/src/org/chromium/base/BindingRequestQueue.java",
+    ]
   }
 
   # Most cached_flags code is in components/cached_flags. These classes are
@@ -5703,6 +5715,7 @@ if (is_android) {
       "android/junit/src/org/chromium/base/metrics/CachingUmaRecorderTest.java",
       "android/junit/src/org/chromium/base/process_launcher/ChildConnectionAllocatorTest.java",
       "android/junit/src/org/chromium/base/process_launcher/ChildProcessConnectionTest.java",
+      "android/junit/src/org/chromium/base/process_launcher/ScopedServiceBindingBatchTest.java",
       "android/junit/src/org/chromium/base/shared_preferences/KeyPrefixTest.java",
       "android/junit/src/org/chromium/base/shared_preferences/KnownPreferenceKeyRegistriesTest.java",
       "android/junit/src/org/chromium/base/shared_preferences/SharedPreferencesManagerTest.java",
@@ -5745,6 +5758,8 @@ if (is_android) {
       ":base_java_test_support_uncommon",
       ":base_junit_test_support",
       ":base_shared_preferences_java",
+      ":features_java",
+      ":flagged_apis_java",
       ":location_junit_tests",
       ":task_executor_java",
       "//base/test:public_transit_robolectric_tests_java",

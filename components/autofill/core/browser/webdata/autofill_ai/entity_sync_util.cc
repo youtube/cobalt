@@ -17,7 +17,10 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/proto/autofill_ai_chrome_metadata.pb.h"
+#include "components/sync/protocol/autofill_valuable_metadata_specifics.pb.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
+#include "components/sync/protocol/entity_data.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 
 namespace autofill {
 
@@ -134,6 +137,18 @@ GetFlightReservationAttributesFromSpecifics(
                 flight_reservation.departure_airport());
   add_attribute(kFlightReservationArrivalAirport,
                 flight_reservation.arrival_airport());
+  if (flight_reservation.has_departure_date_unix_epoch_micros()) {
+    // Timestamp is adjusted by Sync so that UTC date resembles the date in the
+    // departure airport's timezone.
+    base::Time departure_time = base::Time::FromMillisecondsSinceUnixEpoch(
+        specifics.flight_reservation().departure_date_unix_epoch_micros() /
+        1000);
+    // Departure date is stored in this format to be consistent with how
+    // other dates are stored.
+    add_attribute(kFlightReservationDepartureDate,
+                  base::UnlocalizedTimeFormatWithPattern(
+                      departure_time, "yyyy-MM-dd", icu::TimeZone::getGMT()));
+  }
 
   ReadChromeValuablesMetadata(attributes,
                               EntityType(EntityTypeName::kFlightReservation),
@@ -319,6 +334,40 @@ std::optional<EntityInstance> CreateEntityInstanceFromSpecifics(
       return std::nullopt;
   }
   return std::nullopt;
+}
+
+sync_pb::AutofillValuableMetadataSpecifics CreateSpecificsFromEntityMetadata(
+    const EntityInstance::EntityMetadata& metadata) {
+  sync_pb::AutofillValuableMetadataSpecifics specifics;
+  specifics.set_valuable_id(*metadata.guid);
+  specifics.set_use_count(metadata.use_count);
+  specifics.set_last_used_date_unix_epoch_micros(
+      metadata.use_date.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  specifics.set_last_modified_date_unix_epoch_micros(
+      metadata.date_modified.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  return specifics;
+}
+
+EntityInstance::EntityMetadata CreateValuableMetadataFromSpecifics(
+    const sync_pb::AutofillValuableMetadataSpecifics& specifics) {
+  return EntityInstance::EntityMetadata{
+      .guid = EntityInstance::EntityId(specifics.valuable_id()),
+      .date_modified = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(specifics.last_modified_date_unix_epoch_micros())),
+      .use_count = static_cast<size_t>(specifics.use_count()),
+      .use_date = base::Time::FromDeltaSinceWindowsEpoch(
+          base::Microseconds(specifics.last_used_date_unix_epoch_micros()))};
+}
+
+std::unique_ptr<syncer::EntityData> CreateEntityDataFromEntityMetadata(
+    const EntityInstance::EntityMetadata& metadata) {
+  sync_pb::AutofillValuableMetadataSpecifics metadata_specifics =
+      CreateSpecificsFromEntityMetadata(metadata);
+  std::unique_ptr<syncer::EntityData> entity_data =
+      std::make_unique<syncer::EntityData>();
+  *entity_data->specifics.mutable_autofill_valuable_metadata() =
+      std::move(metadata_specifics);
+  return entity_data;
 }
 
 }  // namespace autofill

@@ -162,6 +162,17 @@ BASE_DECLARE_FEATURE(kZeroStateSuggestions);
 // Returns true if zero-state suggestions are enabled.
 bool IsZeroStateSuggestionsEnabled();
 
+// Parameter names for the zero-state suggestions placement.
+extern const char kZeroStateSuggestionsPlacementAIHub[];
+extern const char kZeroStateSuggestionsPlacementAskGemini[];
+
+// Returns true if zero-state suggestions should be executed in the AI Hub.
+bool IsZeroStateSuggestionsAIHubEnabled();
+
+// Returns true if zero-state suggestions should be executed in the Ask Gemini
+// overlay.
+bool IsZeroStateSuggestionsAskGeminiEnabled();
+
 // Feature flag for showing full chat history in the floaty.
 BASE_DECLARE_FEATURE(kGeminiFullChatHistory);
 bool IsGeminiFullChatHistoryEnabled();
@@ -177,5 +188,9 @@ bool IsGeminiLatencyImprovementEnabled();
 // Feature flag for the discovery onboarding cards.
 BASE_DECLARE_FEATURE(kGeminiOnboardingCards);
 bool IsGeminiOnboardingCardsEnabled();
+
+// Feature flag to use the new refactored version of the page context extractor.
+// Acts as a killswitch where the feature is enabled by default.
+BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

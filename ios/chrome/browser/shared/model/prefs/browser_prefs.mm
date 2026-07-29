@@ -60,6 +60,7 @@
 #import "components/policy/core/common/policy_statistics_collector.h"
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/prefs/pref_service.h"
+#import "components/privacy_sandbox/tracking_protection_prefs.h"
 #import "components/proxy_config/pref_proxy_config_tracker_impl.h"
 #import "components/regional_capabilities/regional_capabilities_prefs.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -232,6 +233,15 @@ inline constexpr char kFirstFollowUIShownCount[] =
 // enabled.
 inline constexpr char kFirstFollowUpdateUIShownCount[] =
     "follow.first_follow_update_ui_modal_count";
+inline constexpr char kLongFollowingFeedVisitTimeAggregateKey[] =
+    "LongFollowingFeedInteractionTimeDelta";
+inline constexpr char kLastInteractionTimeForFollowingGoodVisits[] =
+    "LastInteractionTimeForGoodVisitsFollowing";
+inline constexpr char kLastInteractionTimeForGoodVisits[] =
+    "LastInteractionTimeForGoodVisits";
+inline constexpr char kLongFeedVisitTimeAggregateKey[] = "LongFeedInteractionTimeDelta";
+inline constexpr char kLastUsedFeedForGoodVisitsKey[] = "LastUsedFeedForGoodVisits";
+inline constexpr char kLegacySyncSessionsGUID[] = "sync.session_sync_guid";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -627,6 +637,12 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterTimePref(prefs::kIOSGMOSKOPlacementIDNextLogDate,
                              base::Time());
   registry->RegisterIntegerPref(prefs::kIOSGMOSKOLastAttributionWindowType, 0);
+  registry->RegisterIntegerPref(prefs::kIOSAppPreviewLastAttributionPlacementID,
+                                0);
+  registry->RegisterTimePref(prefs::kIOSAppPreviewPlacementIDNextLogDate,
+                             base::Time());
+  registry->RegisterIntegerPref(prefs::kIOSAppPreviewLastAttributionWindowType,
+                                0);
 
   // Deprecated 02/2025.
   registry->RegisterIntegerPref(kNumberOfProfiles, 0);
@@ -889,6 +905,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       enterprise_reporting::kLastUploadSucceededTimestamp, base::Time());
   registry->RegisterTimeDeltaPref(
       enterprise_reporting::kCloudReportingUploadFrequency, base::Hours(24));
+  registry->RegisterBooleanPref(
+      enterprise_reporting::kPoliciesEverFetchedWithProfileId, false);
 
   // Preferences related to parcel tracking.
   // Deprecated 03/2025.
@@ -907,16 +925,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(kActivityBucketKey, 0);
   registry->RegisterDoublePref(kTimeSpentInFeedAggregateKey, 0.0);
   registry->RegisterTimePref(kLastDayTimeInFeedReportedKey, base::Time());
-  registry->RegisterTimePref(kLastInteractionTimeForFollowingGoodVisits,
-                             base::Time());
   registry->RegisterTimePref(kLastInteractionTimeForDiscoverGoodVisits,
                              base::Time());
-  registry->RegisterTimePref(kLastInteractionTimeForGoodVisits, base::Time());
   registry->RegisterDoublePref(kLongDiscoverFeedVisitTimeAggregateKey, 0.0);
-  registry->RegisterDoublePref(kLongFollowingFeedVisitTimeAggregateKey, 0.0);
-  registry->RegisterDoublePref(kLongFeedVisitTimeAggregateKey, 0.0);
   registry->RegisterTimePref(kArticleVisitTimestampKey, base::Time());
-  registry->RegisterIntegerPref(kLastUsedFeedForGoodVisitsKey, 0);
   registry->RegisterListPref(kActivityBucketLastReportedDateArrayKey);
 
   registry->RegisterBooleanPref(prefs::kDetectUnitsEnabled, true);
@@ -1115,6 +1127,12 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       prefs::kHomeCustomizationMagicStackSafetyCheckEnabled, true);
   registry->RegisterIntegerPref(kFirstFollowUIShownCount, 0);
   registry->RegisterIntegerPref(kFirstFollowUpdateUIShownCount, 0);
+  registry->RegisterDoublePref(kLongFollowingFeedVisitTimeAggregateKey, 0.0);
+  registry->RegisterTimePref(kLastInteractionTimeForFollowingGoodVisits,
+                             base::Time());
+  registry->RegisterTimePref(kLastInteractionTimeForGoodVisits, base::Time());
+  registry->RegisterDoublePref(kLongFeedVisitTimeAggregateKey, 0.0);
+  registry->RegisterIntegerPref(kLastUsedFeedForGoodVisitsKey, 0);
 
   // Deprecated 10/2025. Use
   // `ntp_tiles::prefs::kTabResumptionHomeModuleEnabled` instead.
@@ -1140,6 +1158,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // instead.
   registry->RegisterBooleanPref(prefs::kHomeCustomizationMostVisitedEnabled,
                                 true);
+
+  // Deprecated 10/2025.
+  registry->RegisterStringPref(kLegacySyncSessionsGUID, std::string());
+  registry->RegisterBooleanPref(prefs::kFingerprintingProtectionEnabled, true);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1332,6 +1354,13 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
                     prefs::kHomeCustomizationMostVisitedEnabled, prefs);
   prefs->ClearPref(kFirstFollowUIShownCount);
   prefs->ClearPref(kFirstFollowUpdateUIShownCount);
+  prefs->ClearPref(kLongFollowingFeedVisitTimeAggregateKey);
+  prefs->ClearPref(kLastInteractionTimeForFollowingGoodVisits);
+  prefs->ClearPref(kLastInteractionTimeForGoodVisits);
+  prefs->ClearPref(kLongFeedVisitTimeAggregateKey);
+  prefs->ClearPref(kLastUsedFeedForGoodVisitsKey);
+  prefs->ClearPref(kLegacySyncSessionsGUID);
+  prefs->ClearPref(prefs::kFingerprintingProtectionEnabled);
 }
 
 void MigrateObsoleteUserDefault() {

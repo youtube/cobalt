@@ -2287,7 +2287,7 @@ _KNOWN_TEST_DATA_AND_INVALID_JSON_FILE_PATTERNS = [
     r'^tools/vscode/',
 ]
 
-# These are not checked on the public chromium-presubmit trybot.
+# These are not checked on the public linux-presubmit trybot.
 # Add files here that rely on .py files that exists only for target_os="android"
 # checkouts.
 _ANDROID_SPECIFIC_PYDEPS_FILES = [
@@ -2523,7 +2523,7 @@ def CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
     comment_pattern = input_api.re.compile(r'//.*(%s)' % base_function_pattern)
     allowlist_pattern = input_api.re.compile(r'// IN-TEST$')
     exclusion_pattern = input_api.re.compile(
-        r'::[A-Za-z0-9_]+(%s)|(%s)[^;]+\{' %
+        r'(::[A-Za-z0-9_]+(%s)|(%s))[^;]+\{' %
         (base_function_pattern, base_function_pattern))
     # Avoid a false positive in this case, where the method name, the ::, and
     # the closing { are all on different lines due to line wrapping.

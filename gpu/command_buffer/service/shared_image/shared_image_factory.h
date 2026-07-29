@@ -40,6 +40,10 @@ class D3DImageBackingFactory;
 struct GpuFeatureInfo;
 struct GpuPreferences;
 
+#if BUILDFLAG(IS_ANDROID)
+class AHardwareBufferImageBackingFactory;
+#endif
+
 class GPU_GLES2_EXPORT SharedImageFactory {
  public:
   // All objects passed are expected to outlive this class.
@@ -174,6 +178,10 @@ class GPU_GLES2_EXPORT SharedImageFactory {
   SharedContextState* shared_context_state() { return context_state_.get(); }
   const scoped_refptr<SharedImageCopyManager>& copy_manager();
 
+  static bool IsNativeBufferSupported(viz::SharedImageFormat format,
+                                      gfx::BufferUsage usage,
+                                      const gfx::GpuExtraInfo& gpu_extra_info);
+
   base::WeakPtr<SharedImageFactory> GetWeakPtr();
 
  private:
@@ -195,8 +203,6 @@ class GPU_GLES2_EXPORT SharedImageFactory {
                            gfx::GpuMemoryBufferType gmb_type,
                            const gfx::Size& size,
                            const std::string& debug_label);
-  bool IsNativeBufferSupported(gfx::BufferFormat format,
-                               gfx::BufferUsage usage);
 #if BUILDFLAG(IS_WIN)
   bool IsD3DSharedImageSupported() const;
 #endif
@@ -236,13 +242,15 @@ class GPU_GLES2_EXPORT SharedImageFactory {
 #endif
 
   gfx::GpuExtraInfo gpu_extra_info_;
-  gpu::GpuMemoryBufferConfigurationSet supported_gmb_configurations_;
-  bool supported_gmb_configurations_inited_ = false;
   gpu::GpuPreferences gpu_preferences_;
 #if BUILDFLAG(IS_MAC)
   uint32_t texture_target_for_io_surfaces_;
 #endif
   gpu::GpuDriverBugWorkarounds workarounds_;
+
+#if BUILDFLAG(IS_ANDROID)
+  raw_ptr<AHardwareBufferImageBackingFactory> ahb_factory_ = nullptr;
+#endif
 
   raw_ptr<SharedImageBackingFactory> backing_factory_for_testing_ = nullptr;
   base::WeakPtrFactory<SharedImageFactory> weak_ptr_factory_{this};

@@ -70,9 +70,13 @@ MATCHER_P(HasIntValue, expected_value, "") {
   return true;
 }
 
-// A gMock matcher to verify both the integer value and the last observed change
-// time inside a TimestampedPrefValue.
-MATCHER_P2(IsTimestampedPrefValue, expected_value, expected_time, "") {
+// A gMock matcher to verify the integer value, the last observed change
+// time, and the guid inside a TimestampedPrefValue.
+MATCHER_P3(IsTimestampedPrefValue,
+           expected_value,
+           expected_time,
+           expected_guid,
+           "") {
   if (!arg.value.is_int()) {
     *result_listener << "whose 'value' is not an integer (" << arg.value << ")";
     return false;
@@ -85,6 +89,10 @@ MATCHER_P2(IsTimestampedPrefValue, expected_value, expected_time, "") {
   if (arg.last_observed_change_time != expected_time) {
     *result_listener << "whose 'last_observed_change_time' is "
                      << arg.last_observed_change_time;
+    return false;
+  }
+  if (arg.device_sync_cache_guid != expected_guid) {
+    *result_listener << "whose 'guid' is " << arg.device_sync_cache_guid;
     return false;
   }
   return true;
@@ -278,10 +286,12 @@ class CrossDevicePrefTrackerTest : public testing::Test {
   std::unique_ptr<syncer::DeviceInfo> CreateDeviceInfo(
       const std::string& guid,
       syncer::DeviceInfo::OsType os_type,
-      syncer::DeviceInfo::FormFactor form_factor) {
+      syncer::DeviceInfo::FormFactor form_factor,
+      base::Time last_updated_timestamp = base::Time::Now()) {
     return CreateFakeDeviceInfo(guid, "Device Name", std::nullopt,
                                 sync_pb::SyncEnums::TYPE_UNSET, os_type,
-                                form_factor);
+                                form_factor, "manufacturer", "model",
+                                std::string(), last_updated_timestamp);
   }
 
   // Helper to manually populate the cross-device dictionary pref.
@@ -593,9 +603,10 @@ TEST_F(CrossDevicePrefTrackerTest,
   InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, "guid3", base::Value(300),
                              kTime2, kTime1);
 
-  auto expected_results = testing::ElementsAre(
-      IsTimestampedPrefValue(200, base::Time()),
-      IsTimestampedPrefValue(300, kTime1), IsTimestampedPrefValue(100, kTime1));
+  auto expected_results =
+      testing::ElementsAre(IsTimestampedPrefValue(200, base::Time(), "guid2"),
+                           IsTimestampedPrefValue(300, kTime1, "guid3"),
+                           IsTimestampedPrefValue(100, kTime1, "guid1"));
 
   // Query using the tracked pref name.
   std::vector<TimestampedPrefValue> results =
@@ -638,6 +649,7 @@ TEST_F(CrossDevicePrefTrackerTest, GetMostRecentValue) {
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result->value.GetInt(), 200);
   EXPECT_EQ(result->last_observed_change_time, kTime2);
+  EXPECT_EQ(result->device_sync_cache_guid, "guid2");
 
   // Query the most recent value using the cross-device pref name.
   std::optional<TimestampedPrefValue> result_cross_device =
@@ -646,6 +658,7 @@ TEST_F(CrossDevicePrefTrackerTest, GetMostRecentValue) {
   ASSERT_TRUE(result_cross_device.has_value());
   EXPECT_EQ(result_cross_device->value.GetInt(), 200);
   EXPECT_EQ(result_cross_device->last_observed_change_time, kTime2);
+  EXPECT_EQ(result_cross_device->device_sync_cache_guid, "guid2");
 }
 
 // Verifies that GetValues can filter results based on OS Type.
@@ -749,6 +762,40 @@ TEST_F(CrossDevicePrefTrackerTest, GetValuesFiltersByOsTypeAndFormFactor) {
   EXPECT_THAT(results, testing::ElementsAre(HasIntValue(1)));
 }
 
+// Verifies that GetValues can filter results based on an active syncing period.
+TEST_F(CrossDevicePrefTrackerTest, GetValuesFiltersByActiveSyncingPeriod) {
+  CreateTracker();
+  const base::Time kOldSync = base::Time::Now() - base::Days(365);
+  const base::Time kRecentSync = base::Time::Now();
+  // Device that has not connected to sync servers in a long time.
+  GetTracker()->Add(CreateDeviceInfo(
+      "guid_inactive_android_phone", syncer::DeviceInfo::OsType::kAndroid,
+      syncer::DeviceInfo::FormFactor::kPhone, kOldSync));
+
+  // Device that has recently connected to sync servers (Match).
+  GetTracker()->Add(CreateDeviceInfo(
+      "guid_syncing_android_phone", syncer::DeviceInfo::OsType::kAndroid,
+      syncer::DeviceInfo::FormFactor::kPhone, kRecentSync));
+
+  // Add corresponding entries.
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref,
+                             "guid_inactive_android_phone", base::Value(1),
+                             kOldSync, std::nullopt);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref,
+                             "guid_syncing_android_phone", base::Value(2),
+                             kOldSync, std::nullopt);
+
+  // Filter for devices that have connected to the sync servers within a recency
+  // window.
+  CrossDevicePrefTracker::DeviceFilter filter;
+  base::TimeDelta lastSyncRecency = base::Days(90);
+  filter.max_sync_recency = lastSyncRecency;
+  std::vector<TimestampedPrefValue> results =
+      tracker_->GetValues(kTrackedProfilePref, filter);
+
+  EXPECT_THAT(results, testing::ElementsAre(HasIntValue(2)));
+}
+
 // Verifies that GetMostRecentValue respects filters.
 TEST_F(CrossDevicePrefTrackerTest, GetMostRecentValueWithFilter) {
   CreateTracker();
@@ -780,6 +827,7 @@ TEST_F(CrossDevicePrefTrackerTest, GetMostRecentValueWithFilter) {
 
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result->value.GetInt(), 100);
+  EXPECT_EQ(result->device_sync_cache_guid, "guid_win");
 }
 
 // Verifies that GetValues gracefully handles Cache GUIDs present in the pref
@@ -929,7 +977,7 @@ TEST_F(CrossDevicePrefTrackerTest,
       OnRemotePrefChanged(
           testing::StrEq(kTrackedProfilePref),
           // Value 100, No observed time (base::Time()).
-          IsTimestampedPrefValue(kNewValue, base::Time()),
+          IsTimestampedPrefValue(kNewValue, base::Time(), kRemoteGuid),
           // Use testing::Ref to ensure the correct DeviceInfo is passed.
           testing::Ref(*remote_device)));
 
@@ -1032,9 +1080,10 @@ TEST_F(CrossDevicePrefTrackerTest,
   // Expect a notification now that the DeviceInfo is available, triggered by
   // HandleRemoteDeviceInfoChanges().
   EXPECT_CALL(mock_observer,
-              OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
-                                  IsTimestampedPrefValue(kValue, base::Time()),
-                                  testing::Ref(*remote_device)));
+              OnRemotePrefChanged(
+                  testing::StrEq(kTrackedProfilePref),
+                  IsTimestampedPrefValue(kValue, base::Time(), kRemoteGuid),
+                  testing::Ref(*remote_device)));
 
   // Adding the device triggers OnDeviceInfoChange().
   GetTracker()->Add(remote_device.get());
@@ -1063,13 +1112,15 @@ TEST_F(CrossDevicePrefTrackerTest, HandlesMultipleObserversAndPrefs) {
 
   // Expect both observers to be notified for the first pref change.
   EXPECT_CALL(mock_observer1,
-              OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
-                                  IsTimestampedPrefValue(100, base::Time()),
-                                  testing::Ref(*remote_device)));
+              OnRemotePrefChanged(
+                  testing::StrEq(kTrackedProfilePref),
+                  IsTimestampedPrefValue(100, base::Time(), kRemoteGuid),
+                  testing::Ref(*remote_device)));
   EXPECT_CALL(mock_observer2,
-              OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
-                                  IsTimestampedPrefValue(100, base::Time()),
-                                  testing::Ref(*remote_device)));
+              OnRemotePrefChanged(
+                  testing::StrEq(kTrackedProfilePref),
+                  IsTimestampedPrefValue(100, base::Time(), kRemoteGuid),
+                  testing::Ref(*remote_device)));
 
   InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, kRemoteGuid,
                              base::Value(100), kTime1, std::nullopt);
@@ -1083,7 +1134,7 @@ TEST_F(CrossDevicePrefTrackerTest, HandlesMultipleObserversAndPrefs) {
       mock_observer1,
       OnRemotePrefChanged(testing::StrEq(kTrackedLocalStatePref),
                           // Observed time included in this notification.
-                          IsTimestampedPrefValue(200, kTime2),
+                          IsTimestampedPrefValue(200, kTime2, kRemoteGuid),
                           testing::Ref(*remote_device)));
   EXPECT_CALL(mock_observer2, OnRemotePrefChanged).Times(0);
 
@@ -1347,7 +1398,8 @@ TEST_F(CrossDevicePrefTrackerTest, GarbageCollectsStaleCacheGuids) {
   std::unique_ptr<syncer::DeviceInfo> device_b =
       CreateDeviceInfo(kGuidB, syncer::DeviceInfo::OsType::kMac,
                        syncer::DeviceInfo::FormFactor::kDesktop);
-  // Adding devices triggers OnDeviceInfoChange, updating `known_device_guids_`.
+  // Adding devices triggers OnDeviceInfoChange, updating
+  // `active_device_guids_`.
   GetTracker()->Add(device_a.get());
   GetTracker()->Add(device_b.get());
 
@@ -1672,6 +1724,133 @@ TEST_F(CrossDevicePrefTrackerTest,
       CrossDevicePrefTrackerAvailabilityAtQuery::kAvailable, 1);
 
   histogram_tester.ExpectTotalCount(kAvailabilityAtQueryHistogram, 2);
+}
+
+// Verifies that devices that are already expired when the tracker is
+// initialized are immediately garbage collected.
+TEST_F(CrossDevicePrefTrackerTest,
+       GarbageCollectsStaleEntriesFromInitiallyExpiredDevice) {
+  // Set up an active device that should not be garbage collected.
+  const base::Time recent_time = base::Time::Now() - base::Days(1);
+  const std::string active_guid = "guid_active";
+  GetTracker()->Add(
+      CreateDeviceInfo(active_guid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop, recent_time));
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, active_guid,
+                             base::Value(100), recent_time, std::nullopt);
+
+  // Set up an expired device that should be garbage collected.
+  const base::Time expired_time = base::Time::Now() - base::Days(15);
+  const std::string expired_guid = "guid_expired";
+  GetTracker()->Add(
+      CreateDeviceInfo(expired_guid, syncer::DeviceInfo::OsType::kMac,
+                       syncer::DeviceInfo::FormFactor::kDesktop, expired_time));
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, expired_guid,
+                             base::Value(200), expired_time, std::nullopt);
+
+  // Creating the tracker runs the initialization logic, which should identify
+  // the expired device and garbage collect its entries.
+  CreateTracker();
+
+  EXPECT_NE(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, active_guid),
+            nullptr);
+  EXPECT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, expired_guid),
+            nullptr);
+}
+
+// Verifies that a device that becomes expired over time has its entries
+// garbage collected when device info changes.
+TEST_F(CrossDevicePrefTrackerTest,
+       GarbageCollectsStaleEntriesFromNewlyExpiredDevice) {
+  CreateTracker();
+  const base::Time start_time = base::Time::Now();
+
+  // Set up the first device, which will eventually expire.
+  const std::string should_expire_guid = "guid_expire";
+  std::unique_ptr<syncer::DeviceInfo> device_to_expire =
+      CreateDeviceInfo(should_expire_guid, syncer::DeviceInfo::OsType::kWindows,
+                       syncer::DeviceInfo::FormFactor::kDesktop, start_time);
+  GetTracker()->Add(device_to_expire.get());
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, should_expire_guid,
+                             base::Value(100), start_time, std::nullopt);
+
+  // Set up the second device, which will remain active.
+  const std::string should_remain_guid = "guid_remain";
+  std::unique_ptr<syncer::DeviceInfo> device_to_remain =
+      CreateDeviceInfo(should_remain_guid, syncer::DeviceInfo::OsType::kMac,
+                       syncer::DeviceInfo::FormFactor::kDesktop, start_time);
+  GetTracker()->Add(device_to_remain.get());
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, should_remain_guid,
+                             base::Value(200), start_time, std::nullopt);
+
+  // Verify initial state.
+  ASSERT_NE(
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, should_expire_guid),
+      nullptr);
+  ASSERT_NE(
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, should_remain_guid),
+      nullptr);
+
+  // Fast forward time, making the original timestamps stale.
+  task_environment_.FastForwardBy(base::Days(15));
+
+  // Simulate one device coming back online by updating its timestamp.
+  const base::Time updated_time = base::Time::Now();
+  std::unique_ptr<syncer::DeviceInfo> updated_device =
+      CreateDeviceInfo(should_remain_guid, syncer::DeviceInfo::OsType::kMac,
+                       syncer::DeviceInfo::FormFactor::kDesktop, updated_time);
+  GetTracker()->Add(updated_device.get());
+
+  // Trigger a device info change. The tracker should now see that
+  // `device_to_expire` is stale, but `device_to_remain` is active.
+  tracker_->OnDeviceInfoChange();
+
+  EXPECT_EQ(
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, should_expire_guid),
+      nullptr);
+  EXPECT_NE(
+      GetCrossDevicePrefEntry(kCrossDeviceProfilePref, should_remain_guid),
+      nullptr);
+}
+
+// Verifies that if an expired device comes back online, it is correctly
+// identified as a "new or reactivated" device and observers are notified.
+TEST_F(CrossDevicePrefTrackerTest,
+       NotifiesObserverForReactivatedExpiredDevice) {
+  // Start with an expired device with an existing pref entry.
+  const base::Time expired_time = base::Time::Now() - base::Days(15);
+  const std::string guid = "guid_reactivated";
+  GetTracker()->Add(CreateDeviceInfo(guid, syncer::DeviceInfo::OsType::kWindows,
+                                     syncer::DeviceInfo::FormFactor::kDesktop,
+                                     expired_time));
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, guid, base::Value(100),
+                             expired_time, std::nullopt);
+
+  // Initialize the tracker, which should garbage collect the expired entry.
+  CreateTracker();
+  ASSERT_EQ(GetCrossDevicePrefEntry(kCrossDeviceProfilePref, guid), nullptr);
+
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // Simulate the device coming back online with a fresh timestamp and pref.
+  const base::Time reactivated_time = base::Time::Now();
+  std::unique_ptr<syncer::DeviceInfo> reactivated_device = CreateDeviceInfo(
+      guid, syncer::DeviceInfo::OsType::kWindows,
+      syncer::DeviceInfo::FormFactor::kDesktop, reactivated_time);
+  InjectCrossDevicePrefEntry(kCrossDeviceProfilePref, guid, base::Value(200),
+                             reactivated_time, std::nullopt);
+
+  // Expect a notification because the device was not in the set of known
+  // *active* devices, so it's treated as new.
+  EXPECT_CALL(
+      mock_observer,
+      OnRemotePrefChanged(testing::StrEq(kTrackedProfilePref),
+                          IsTimestampedPrefValue(200, base::Time(), guid),
+                          testing::Ref(*reactivated_device)));
+
+  GetTracker()->Add(reactivated_device.get());
+  tracker_->RemoveObserver(&mock_observer);
 }
 
 }  // namespace

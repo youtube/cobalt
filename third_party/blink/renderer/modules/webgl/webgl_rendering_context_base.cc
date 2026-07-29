@@ -5829,20 +5829,28 @@ scoped_refptr<Image> WebGLRenderingContextBase::DrawImageIntoBufferForTexImage(
     return nullptr;
   }
 
-  if (!image->IsOpaque()) {
-    resource_provider->Canvas().clear(SkColors::kTransparent);
-  }
+  CHECK_EQ(resource_provider->GetType(),
+           CanvasResourceProvider::ResourceProviderType::kBitmap);
+  CanvasResourceProviderBitmap* resource_provider_bitmap =
+      static_cast<CanvasResourceProviderBitmap*>(resource_provider);
 
-  gfx::Rect src_rect(image->Size());
-  gfx::Rect dest_rect(0, 0, width, height);
-  cc::PaintFlags flags;
-  // TODO(ccameron): WebGL should produce sRGB images.
-  // https://crbug.com/672299
-  ImageDrawOptions draw_options;
-  draw_options.clamping_mode = Image::kDoNotClampImageToSourceRect;
-  image->Draw(&resource_provider->Canvas(), flags, gfx::RectF(dest_rect),
-              gfx::RectF(src_rect), draw_options);
-  return resource_provider->Snapshot(FlushReason::kWebGLTexImage);
+  resource_provider_bitmap->ExternalCanvasDrawHelper(
+      [&](MemoryManagedPaintCanvas& canvas) {
+        if (!image->IsOpaque()) {
+          canvas.clear(SkColors::kTransparent);
+        }
+        gfx::Rect src_rect(image->Size());
+        gfx::Rect dest_rect(0, 0, width, height);
+        cc::PaintFlags flags;
+        // TODO(ccameron): WebGL should produce sRGB images.
+        // https://crbug.com/672299
+        ImageDrawOptions draw_options;
+        draw_options.clamping_mode = Image::kDoNotClampImageToSourceRect;
+        image->Draw(&canvas, flags, gfx::RectF(dest_rect), gfx::RectF(src_rect),
+                    draw_options);
+      });
+
+  return resource_provider_bitmap->Snapshot(FlushReason::kWebGLTexImage);
 }
 
 WebGLTexture* WebGLRenderingContextBase::ValidateTexImageBinding(
@@ -6627,7 +6635,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
       std::move(media_video_frame),
       image_cache.GetCanvasResourceProvider(dest_rect.size(), format,
                                             alpha_type, color_space),
-      video_renderer, dest_rect, /*prefer_tagged_orientation=*/false,
+      video_renderer, /*prefer_tagged_orientation=*/false,
       /*reinterpret_video_as_srgb=*/!params.unpack_colorspace_conversion);
   if (!image)
     return;
@@ -6846,27 +6854,11 @@ void WebGLRenderingContextBase::texElementImage2D(
     return;
   }
 
-  std::optional<cc::PaintRecord> paint_record =
-      GetElementImage(element, "texElementImage2D()", exception_state);
-  if (!paint_record) {
-    return;
-  }
-
-  SkSurfaceProps surface_props;
-  auto box_rect =
-      gfx::Rect(ToCeiledSize(element->GetLayoutBox()->StitchedSize()));
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::MakeN32Premul(box_rect.width(), box_rect.height()),
-      &surface_props);
-  if (!surface) {
-    return;
-  }
-
-  SkiaPaintCanvas skia_paint_canvas(surface->getCanvas());
-  skia_paint_canvas.drawPicture(paint_record.value());
-
   scoped_refptr<Image> image_for_render =
-      UnacceleratedStaticBitmapImage::Create(surface->makeImageSnapshot());
+      GetElementImage(element, "texElementImage2D()", exception_state);
+  if (!image_for_render) {
+    return;
+  }
 
   TexImageParams params = {
       .source_type = kSourceImageBitmap,

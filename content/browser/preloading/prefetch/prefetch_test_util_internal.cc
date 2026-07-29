@@ -89,6 +89,7 @@ CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
     base::TimeDelta timeout_duration) {
   auto on_complete_callback = base::BindOnce(
       [](NotReachedTagForTestsOr<OnPrefetchCompleteTestFuture*> on_complete,
+         bool is_success,
          const network::URLLoaderCompletionStatus& completion_status) {
         if (std::holds_alternative<NotReachedTagForTests>(on_complete)) {
           NOTREACHED();
@@ -100,7 +101,8 @@ CreateStreamingURLLoaderWithoutPrefetchContainerForTests(
       on_complete);
 
   auto on_head_received_callback = base::BindOnce(
-      [](NotReachedTagForTestsOr<base::RunLoop*> on_head_received) {
+      [](NotReachedTagForTestsOr<base::RunLoop*> on_head_received,
+         bool is_successful_determined_head) {
         if (std::holds_alternative<NotReachedTagForTests>(on_head_received)) {
           NOTREACHED();
         }
@@ -739,14 +741,32 @@ std::vector<PrefetchRearchParam> PrefetchRearchParam::Params() {
   return {PrefetchRearchParam{
               .prefetch_scheduler = false,
               .prefetch_scheduler_progress_sync_best_effort = false,
+              .graceful_notification = false,
           },
           PrefetchRearchParam{
               .prefetch_scheduler = true,
               .prefetch_scheduler_progress_sync_best_effort = false,
+              .graceful_notification = false,
           },
           PrefetchRearchParam{
               .prefetch_scheduler = true,
               .prefetch_scheduler_progress_sync_best_effort = true,
+              .graceful_notification = false,
+          },
+          PrefetchRearchParam{
+              .prefetch_scheduler = false,
+              .prefetch_scheduler_progress_sync_best_effort = false,
+              .graceful_notification = true,
+          },
+          PrefetchRearchParam{
+              .prefetch_scheduler = true,
+              .prefetch_scheduler_progress_sync_best_effort = false,
+              .graceful_notification = true,
+          },
+          PrefetchRearchParam{
+              .prefetch_scheduler = true,
+              .prefetch_scheduler_progress_sync_best_effort = true,
+              .graceful_notification = true,
           }};
 }
 
@@ -762,6 +782,10 @@ void WithPrefetchRearchParam::InitRearchFeatures() {
             },
         }},
         {});
+  }
+  if (!param_.graceful_notification) {
+    feature_list_graceful_notification_.InitAndDisableFeature(
+        features::kPrefetchGracefulNotification);
   }
 }
 

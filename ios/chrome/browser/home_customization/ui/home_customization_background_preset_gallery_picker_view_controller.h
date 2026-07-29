@@ -8,7 +8,6 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_configuration_consumer.h"
-#import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_action_sheet_consumer.h"
 
 @protocol HomeCustomizationBackgroundPickerPresentationDelegate;
 @protocol HomeCustomizationSearchEngineLogoMediatorProvider;
@@ -19,7 +18,6 @@
 // backgrounds.
 @interface HomeCustomizationBackgroundPresetGalleryPickerViewController
     : UIViewController <HomeCustomizationBackgroundConfigurationConsumer,
-                        HomeCustomizationBackgroundPickerActionSheetConsumer,
                         UICollectionViewDelegate>
 
 // A provider responsible for supplying a logo vendor object.
@@ -36,8 +34,8 @@
     id<HomeCustomizationBackgroundPickerPresentationDelegate>
         presentationDelegate;
 
-// The index of the selected item in the gallery.
-@property(nonatomic, readonly) NSInteger selectedIndex;
+// The index of the selected section in the gallery.
+@property(nonatomic, readonly) NSInteger selectedSectionIndex;
 
 @end
 

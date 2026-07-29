@@ -974,6 +974,7 @@
           "--typ-max-failures=3",
           "--magic-vm-cache=magic_cros_vm_cache"
         ],
+        "experiment_percentage": 100,
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1018,6 +1019,7 @@
           "--typ-max-failures=3",
           "--magic-vm-cache=magic_cros_vm_cache"
         ],
+        "experiment_percentage": 100,
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
@@ -1048,7 +1050,7 @@
             }
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 40
+          "shards": 67
         },
         "test": "telemetry_unittests",
         "test_id_prefix": "ninja://chrome/test:telemetry_unittests/"
@@ -1069,6 +1071,7 @@
           "--remote-ssh-port=9222",
           "--magic-vm-cache=magic_cros_vm_cache"
         ],
+        "experiment_percentage": 100,
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },

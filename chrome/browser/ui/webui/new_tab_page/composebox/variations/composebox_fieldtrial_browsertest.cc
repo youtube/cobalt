@@ -205,8 +205,12 @@ INSTANTIATE_TEST_SUITE_P(,
                              ::testing::Values(true, false)));
 
 IN_PROC_BROWSER_TEST_P(NtpComposeboxFieldTrialBrowserTest, Test) {
+  bool expected = GetExpectedEnabled();
+  if (!base::FeatureList::IsEnabled(ntp_composebox::kNtpComposebox)) {
+    expected = false;
+  }
   EXPECT_EQ(ntp_composebox::IsNtpComposeboxEnabled(browser()->profile()),
-            GetExpectedEnabled());
+            expected);
 }
 
 class NtpRealboxNextFieldTrialBrowserTest : public NtpFieldTrialBrowserTest {
@@ -265,6 +269,10 @@ INSTANTIATE_TEST_SUITE_P(,
                              ::testing::Values(true, false)));
 
 IN_PROC_BROWSER_TEST_P(NtpRealboxNextFieldTrialBrowserTest, Test) {
+  bool expected = GetExpectedEnabled();
+  if (!base::FeatureList::IsEnabled(ntp_realbox::kNtpRealboxNext)) {
+    expected = false;
+  }
   EXPECT_EQ(ntp_realbox::IsNtpRealboxNextEnabled(browser()->profile()),
-            GetExpectedEnabled());
+            expected);
 }

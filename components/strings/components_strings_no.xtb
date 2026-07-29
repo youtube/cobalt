@@ -79,6 +79,7 @@
 <translation id="1132735979845538847"><ph name="ORIGIN" /> – For å gå ut av fullskjerm, dra fra toppen og trykk på tilbakeknappen</translation>
 <translation id="1138458427267715730">Få varsler om avslag hvor som helst på nettet</translation>
 <translation id="1142713751288681188">Papirtype</translation>
+<translation id="1142965388643537393">Reiseinformasjon</translation>
 <translation id="1144136880160289237">Du har ingen aktive emner ennå</translation>
 <translation id="1149617035358809955">bekrefte at det er deg, så den kan fylle ut betalingsopplysningene dine</translation>
 <translation id="1150565364351027703">Solbriller</translation>
@@ -788,6 +789,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="22792995594807632">Filene må gjennomgås før de kan lastes ned</translation>
 <translation id="2283340219607151381">Lagre og fyll inn adresser</translation>
 <translation id="2283447177162560884">«<ph name="PAGE_TITLE" />» er slettet</translation>
+<translation id="2283599456633275070">Reise</translation>
 <translation id="2286383991450886080">34 x 44 tommer</translation>
 <translation id="2288422996159078444">Alt du skriver, alle sider du besøker, og all annen aktivitet på nettet blir overvåket. Innholdet på nettsteder kan bli endret uten at du vet om det.</translation>
 <translation id="2289385804009217824">Beskjær</translation>
@@ -836,6 +838,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="2357481397660644965">Enheten administreres av <ph name="DEVICE_MANAGER" />, og kontoen administreres av <ph name="ACCOUNT_MANAGER" />.</translation>
 <translation id="2359629602545592467">Flere</translation>
 <translation id="2359808026110333948">Fortsett</translation>
+<translation id="236000571258713023">Kjøretøy</translation>
 <translation id="2361263712565360498">275 x 395 mm</translation>
 <translation id="236340516568226369">Meny med av/på-alternativer for størrelsesendring</translation>
 <translation id="2365355378251437925">Skriv inn <ph name="FIELD" />.</translation>
@@ -882,6 +885,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="2436976580469434549">Fiber- og tekstilkunst</translation>
 <translation id="243815215670139125">Kunne ikke lagre dette kortet i Google-kontoen din. Det ble lagret i Chrome på denne enheten i stedet.</translation>
 <translation id="2438874542388153331">Fire hull høyre</translation>
+<translation id="2440855519769445271">Gå til <ph name="BEGIN_LINK" />betalingsinnstillingene<ph name="END_LINK" /> for å skjule alternativene for å betale senere.</translation>
 <translation id="2441854154602066476">Betalingsmåter som kan fylles ut ved å trykkes på. Tastaturet er skjult.</translation>
 <translation id="2442865686365739754">Chrome <ph name="BEGIN_EMPHASIS" />lagrer ikke<ph name="END_EMPHASIS" />:
           <ph name="BEGIN_LIST" />
@@ -2197,6 +2201,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="4598556348158889687">Lagringsbehandling</translation>
 <translation id="459914240367517409">Design og utvikling av nettsteder</translation>
 <translation id="4602465984861132303">Bowling</translation>
+<translation id="4603727370377253901">Flybestillinger</translation>
 <translation id="4607608436550361748">Se Chrome-tips</translation>
 <translation id="460848736049414407">Blokkert av administrator</translation>
 <translation id="4610279718074907952">Dette nettstedet er med i en gruppe som er definert av <ph name="SET_OWNER" /> og kan se aktiviteten din</translation>
@@ -2205,6 +2210,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="4619564267100705184">Bekreft at det er deg</translation>
 <translation id="4622292761762557753">Overfør likevel</translation>
 <translation id="4622647778991854660">Slå på varsler i varselsenteret. Åpne <ph name="LINK" />.</translation>
+<translation id="4623894491222334521">Identitetsdokumenter</translation>
 <translation id="4627675673814409125">Denne regelen kan ikke konfigureres på Chrome-profilnivå og blir derfor ignorert.</translation>
 <translation id="4628678854894591460">Ferietilbud</translation>
 <translation id="4628948037717959914">Bilde</translation>
@@ -2222,6 +2228,7 @@ I motsatt fall blir dette blokkert av personverninnstillingene. Dette gjør at i
 <translation id="4648262692072505866">Hash-verdien må være i formatet SHA-256.</translation>
 <translation id="4652266463001779298">Ikke tillatt</translation>
 <translation id="4652440160515225514">Organisasjonen din har blokkert dette nettstedet fordi det bryter en regel.</translation>
+<translation id="4654457557264366314">Betalingsavtaler er avhengig av kvalifikasjon.</translation>
 <translation id="4658638640878098064">Stift oppe til venstre</translation>
 <translation id="4660592918803576381">Åpne i Disk</translation>
 <translation id="4661556981531699496">Dyr og kjæledyr</translation>

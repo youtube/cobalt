@@ -134,8 +134,12 @@ class CustomizeChromePageHandler
       side_panel::mojom::ChromeWebStoreCollection collection) override;
   void OpenChromeWebStoreHomePage() override;
   void OpenNtpManagedByPage() override;
-  void SetMostVisitedSettings(ntp_tiles::TileType type, bool visible) override;
+  void SetMostVisitedSettings(const std::vector<ntp_tiles::TileType>& types,
+                              bool visible,
+                              bool personal_shortcuts_visible) override;
   void UpdateMostVisitedSettings() override;
+  void SetToolChipsVisible(bool visible) override;
+  void UpdateToolChipsSettings() override;
   void SetFooterVisible(bool visible) override;
   void UpdateFooterSettings() override;
   void SetModulesVisible(bool visible) override;
@@ -148,9 +152,11 @@ class CustomizeChromePageHandler
  private:
   void LogEvent(NTPLoggingEventType event);
 
-  ntp_tiles::TileType GetTileType() const;
+  std::set<ntp_tiles::TileType> GetTileTypes() const;
   bool IsShortcutsVisible() const;
+  bool IsPersonalShortcutsVisible() const;
   bool IsEnterpriseShortcutsVisible() const;
+  bool IsEnterpriseShortcutsEmpty() const;
 
   // Returns the type of New Tab Page the SidePanel is attached to.
   side_panel::mojom::NewTabPageType GetNewTabPageType(const GURL& url);

@@ -161,6 +161,7 @@
 <translation id="1582732959743469162">यामुळे तुमच्या सुरू असलेल्या डाउनलोडची पुढची सर्व प्रगती थांबेल.</translation>
 <translation id="1594034544529347967">सुरू होईल</translation>
 <translation id="1598751033135758830">ॲपमध्ये उघडा…</translation>
+<translation id="1601560923496285236">लागू करा</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{१ ॲड्रेस}other{# ॲड्रेस}}</translation>
 <translation id="1605405588277479165">बंद - शिफारस केलेले नाही</translation>
 <translation id="1605658421715042784">इमेज कॉपी करा</translation>
@@ -778,6 +779,7 @@
 <translation id="4049507953662678203">आपल्याकडे नेटवर्क कनेक्शन आहे हे सुनिश्चित करा आणि पुन्हा प्रयत्न करा.</translation>
 <translation id="4070132839822635162">साइन इन करू नका</translation>
 <translation id="4092655288299341041">मदत दाखवा</translation>
+<translation id="4095483462103784441">नवीन टॅब गट तयार करा</translation>
 <translation id="4099756562043439968">रिमाइंडर सेट करा</translation>
 <translation id="4108998448622696017">धोकादायक घटना घडल्यावर ती ओळखून तुम्हाला चेतावणी देतो.</translation>
 <translation id="4111985840824673503">सर्वांवर वाचलेल्या अशी खूण करा</translation>
@@ -837,7 +839,6 @@
 <translation id="4286718549648564014">पत्ता तुमच्या <ph name="USER_EMAIL" /> खात्यावर हलवला आहे</translation>
 <translation id="4287172530684295552">वाचलेल्या अशी खूण करा</translation>
 <translation id="428768789042547925">नवीन काय आहे</translation>
-<translation id="428858055663163046">तुम्ही डाउनलोड केलेल्या फाइल उपलब्ध झाल्यावर त्या तुम्हाला इथे अ‍ॅक्सेस करता येतील</translation>
 <translation id="429074084062258019">{count,plural, =1{गट मध्ये टॅब जोडा}other{गट मध्ये टॅब जोडा}}</translation>
 <translation id="4302061870579014542">स्थान सेट करा</translation>
 <translation id="4304713468139749426">पासवर्ड व्यवस्थापक</translation>
@@ -1236,6 +1237,7 @@
 <translation id="5758759241456233788">Maps पूर्वावलोकने बंद आहेत. सेटिंग्ज मध्ये ती परत सुरू करा.</translation>
 <translation id="5759484603608560822">डाउनलोड लपवा</translation>
 <translation id="5767099457279594162">पासवर्ड शेअर केला नव्हता</translation>
+<translation id="5768870767339201169">तुम्ही जिथे सोडले होते तिथून सुरुवात करा</translation>
 <translation id="5779117921996157216">{count,plural, =1{तुमच्याकडे ज्यामुळे तुमची सुरक्षा धोक्यात येऊ शकते असा {count} धोक्यात असलेला पासवर्ड आहे. सुरक्षित राहण्यासाठी त्याचे आता निराकरण करा.}other{तुमच्याकडे ज्यांमुळे तुमची सुरक्षा धोक्यात येऊ शकते असे {count} धोक्यात असलेले पासवर्ड आहेत. सुरक्षित राहण्यासाठी त्यांचे आता निराकरण करा.}}</translation>
 <translation id="5791632441210678828">फॉलो करत आहे या फीडसाठी क्रमाने लावा बटण.</translation>
 <translation id="5803566855766646066">तुम्हाला हे नवीन कार्ड नक्की काढून टाकायचे आहे का?</translation>
@@ -1455,6 +1457,7 @@
 <translation id="6537746030088321027">example.com</translation>
 <translation id="6550675742724504774">पर्याय</translation>
 <translation id="6550891580932862748">धोकादायक वेबसाइट, डाउनलोड आणि एक्स्टेंशनपासून तुमचे संरक्षण करत नाही. तुमच्या इतर Google उत्पादनांमधील सुरक्षित ब्राउझिंग सेटिंग्जवर परिणाम होणार नाही.</translation>
+<translation id="6556866813142980365">पुन्हा करा</translation>
 <translation id="6559301491397835130">{count,plural, =1{बुकमार्क "{title}" मध्ये सेव्ह केला आहे. तो फक्त या डिव्हाइसवर सेव्ह केला आहे.}other{बुकमार्क "{title}" मध्ये सेव्ह केले आहेत. ते फक्त या डिव्हाइसवर सेव्ह केले आहेत.}}</translation>
 <translation id="656065428026159829">आणखी पहा</translation>
 <translation id="6571070086367343653">क्रेडिट कार्ड संपादित करा</translation>
@@ -1693,6 +1696,7 @@
 <translation id="7484645889979462775">या साइटसाठी कधीही नाही</translation>
 <translation id="7486006552035434095">तुमची डिव्हाइस सिंकमध्ये ठेवा</translation>
 <translation id="7491131399623468277">सेटिंग्ज वर जा…</translation>
+<translation id="7491161827858509164">तुम्ही यापूर्वी डाउनलोड केलेल्या फाइल पाहण्यासाठी, <ph name="BEGIN_LINK" />Files<ph name="END_LINK" /> उघडा</translation>
 <translation id="7498234416455752244">संपादन सुरू ठेवा</translation>
 <translation id="7500244509706269886">फॉर्म ऑटोफिल करा</translation>
 <translation id="750493650310597496">0 निवडले</translation>
@@ -1730,6 +1734,7 @@
 <translation id="7612619742409846846">Google मध्ये हे म्हणून साइन इन केले</translation>
 <translation id="7612849887607288481">AI प्रोटोटायपिंग मेनू</translation>
 <translation id="7620522820075868385">रद्द करा</translation>
+<translation id="762078666799342162">तुम्ही <ph name="BEGIN_LINK" />Files<ph name="END_LINK" /> मध्ये तुमचे मागील डाउनलोड पाहू शकता</translation>
 <translation id="7638584964844754484">अयोग्य सांकेतिक पासफ्रेझ</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Compromised passwords}=1{धोक्यात असलेला {COUNT} पासवर्ड}other{धोक्यात असलेले {COUNT} पासवर्ड}}</translation>
 <translation id="7640669552036055091">Android वरील टॅब</translation>
@@ -1794,6 +1799,7 @@
 <translation id="7851858861565204677">इतर डिव्हाइसेस</translation>
 <translation id="7853202427316060426">गतिविधी</translation>
 <translation id="7854006015462979438">साधारण उघडा</translation>
+<translation id="7855678267851972597">ऑडिओ</translation>
 <translation id="7859988229622350291">कधीही भाषांतर करू नका</translation>
 <translation id="7863211248337747225">ॲप मिळवा</translation>
 <translation id="7865127013871431856">भाषांतराचे पर्याय</translation>
@@ -1910,7 +1916,6 @@
 <translation id="8273982424131314219">तुम्ही <ph name="URL" /> मध्ये माहिती भराल</translation>
 <translation id="8275068909952022340">आणखी…</translation>
 <translation id="8277328362018795342">अधिक सुसंबद्ध उत्तरांसाठी तुमच्या पेजचा आशय शेअर केला आहे</translation>
-<translation id="8278488584187265939">होम पेज कस्टमाइझ करा</translation>
 <translation id="8281781826761538115">डीफॉल्ट - <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">वगळा</translation>
 <translation id="8282657446819506217">टॅब गट यामध्ये उघडा</translation>
@@ -1974,6 +1979,7 @@
 <translation id="8524799873541103884"><ph name="NUMBER_OF_OPEN_TABS" /> पैकी <ph name="LAST_VISIBLE_TAB" /> ते <ph name="FIRST_VISIBLE_TAB" /> <ph name="INCOGNITO" /> टॅब</translation>
 <translation id="8528009254289981965">गुप्त मोड मध्ये इतर ॲप्समधील लिंक उघडा</translation>
 <translation id="8529767659511976195">नवीन</translation>
+<translation id="8531572740963685410">PDFs</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">सुरक्षित ब्राउझिंग सुरू आहे</translation>
 <translation id="8534481786647257214">Google+ पोस्ट पूर्ण केले.</translation>
@@ -2180,6 +2186,7 @@
 <translation id="945522503751344254">अभिप्राय पाठवा</translation>
 <translation id="94870150074703282">गट हटवायचा आहे का?</translation>
 <translation id="952704832371081537">रद्द करा</translation>
+<translation id="95332591904104970">कनेक्ट केलेली अ‍ॅप्स</translation>
 <translation id="954667170699278022">वाचन सूची</translation>
 <translation id="956218893102219091">सर्वात अचूक Gemini परिणामांसाठी तुमच्या आयपी अ‍ॅड्रेसवर आधारित अंदाजे स्थानाऐवजी, तुमचे नेमके स्थान वापरा. <ph name="BEGIN_LINK" />अधिक जाणून घ्या<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">ब्राउझिंग डेटा हटवा</translation>

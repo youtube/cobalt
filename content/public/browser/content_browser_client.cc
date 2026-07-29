@@ -61,6 +61,7 @@
 #include "media/audio/audio_manager.h"
 #include "media/capture/content/screen_enumerator.h"
 #include "media/mojo/mojom/media_service.mojom.h"
+#include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "net/base/isolation_info.h"
 #include "net/cookies/cookie_setting_override.h"
@@ -96,6 +97,7 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "content/browser/renderer_host/navigation_transitions/navigation_transition_config.h"
 #include "content/public/browser/tts_environment_android.h"
 #else
 #include "content/public/browser/authenticator_request_client_delegate.h"
@@ -891,6 +893,18 @@ bool ContentBrowserClient::CanCreateWindow(
 SpeechRecognitionManagerDelegate*
 ContentBrowserClient::CreateSpeechRecognitionManagerDelegate() {
   return nullptr;
+}
+
+std::unique_ptr<optimization_guide::ModelBrokerClient>
+ContentBrowserClient::CreateModelBrokerClient(BrowserContext* browser_context) {
+  return nullptr;
+}
+
+media::mojom::AvailabilityStatus
+ContentBrowserClient::GetOnDeviceSpeechRecognitionAvailabilityStatus(
+    BrowserContext* context,
+    const std::string& language) {
+  return media::mojom::AvailabilityStatus::kUnavailable;
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1774,6 +1788,11 @@ bool ContentBrowserClient::
   return true;
 }
 
+bool ContentBrowserClient::IsFileSystemAccessApiFilePickerAllowed(
+    WebContents* web_contents) {
+  return true;
+}
+
 bool ContentBrowserClient::ShouldUseFirstPartyStorageKey(
     const url::Origin& origin) {
   return false;
@@ -1993,6 +2012,21 @@ bool ContentBrowserClient::UsePrefetchPrerenderIntegration() {
 
 bool ContentBrowserClient::UsePreloadServingMetrics() {
   return false;
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+bool ContentBrowserClient::ShouldDisallowCredentialRequest(
+    WebContents* web_contents) {
+  return false;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+bool ContentBrowserClient::ShouldAnimateBackForwardTransitions() {
+#if BUILDFLAG(IS_ANDROID)
+  return NavigationTransitionConfig::SupportsBackForwardTransitions({});
+#else
+  return false;
+#endif
 }
 
 }  // namespace content

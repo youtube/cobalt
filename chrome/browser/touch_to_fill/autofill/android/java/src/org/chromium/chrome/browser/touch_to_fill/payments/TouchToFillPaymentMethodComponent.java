@@ -163,9 +163,8 @@ interface TouchToFillPaymentMethodComponent {
      *
      * @param bnplIssuerContexts A list of {@link BnplIssuerContext} objects, each representing a
      *     BNPL issuer context, to be displayed on the bottom sheet for the user to select from.
-     * @param footerText The footer text to be displayed on the bottom sheet.
      */
-    void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts, String footerText);
+    void showBnplIssuers(List<BnplIssuerContext> bnplIssuerContexts);
 
     /**
      * Displays an error screen bottom sheet.
@@ -184,4 +183,11 @@ interface TouchToFillPaymentMethodComponent {
 
     /** Hides the bottom sheet if shown. */
     void hideSheet();
+
+    /**
+     * Sets the bottom sheet visibility.
+     *
+     * @param visible The value to set the bottom sheet visibility to.
+     */
+    void setVisible(boolean visible);
 }

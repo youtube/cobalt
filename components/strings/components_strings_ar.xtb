@@ -79,6 +79,7 @@
 <translation id="1132735979845538847"><ph name="ORIGIN" /> - للخروج من وضع ملء الشاشة، يمكنك السحب من أعلى الشاشة والنقر على زرّ الرجوع</translation>
 <translation id="1138458427267715730">تلقَّ تنبيهات عند انخفاض السعر على أي موقع إلكتروني على الويب</translation>
 <translation id="1142713751288681188">نوع الورق</translation>
+<translation id="1142965388643537393">معلومات السفر</translation>
 <translation id="1144136880160289237">ليس لديك أي مواضيع نشِطة حتى الآن</translation>
 <translation id="1149617035358809955">يجب إثبات هويتك لملء معلومات الدفع.</translation>
 <translation id="1150565364351027703">نظارات شمسية</translation>
@@ -788,6 +789,7 @@
 <translation id="22792995594807632">يجب مراجعة الملفات قبل تنزيلها</translation>
 <translation id="2283340219607151381">حفظ العناوين وملؤها</translation>
 <translation id="2283447177162560884">تم حذف "<ph name="PAGE_TITLE" />".</translation>
+<translation id="2283599456633275070">السفر</translation>
 <translation id="2286383991450886080">34 × 44 بوصة</translation>
 <translation id="2288422996159078444">تتم مراقبة أي نص تكتبه أو أي صفحات تطّلع عليها أو أي نشاط آخر تجريه على الإنترنت، ويمكن أن يتم تغيير المحتوى على المواقع الإلكترونية بدون معرفتك.</translation>
 <translation id="2289385804009217824">قطع</translation>
@@ -836,6 +838,7 @@
 <translation id="2357481397660644965">يدير <ph name="DEVICE_MANAGER" /> جهازك، ويدير <ph name="ACCOUNT_MANAGER" /> حسابك.</translation>
 <translation id="2359629602545592467">متعددة</translation>
 <translation id="2359808026110333948">متابعة</translation>
+<translation id="236000571258713023">مركبات</translation>
 <translation id="2361263712565360498">‏‎275 × 395 ملم</translation>
 <translation id="236340516568226369">تغيير حجم قائمة التبديل</translation>
 <translation id="2365355378251437925">عليك إدخال قيمة في حقل "<ph name="FIELD" />".</translation>
@@ -882,6 +885,7 @@
 <translation id="2436976580469434549">أعمال فنية بالغزل والنسيج</translation>
 <translation id="243815215670139125">‏تعذَّر حفظ هذه البطاقة في حسابك على Google، وتم حفظها في Chrome على هذا الجهاز بدلاً من ذلك.</translation>
 <translation id="2438874542388153331">عمل أربعة ثقوب يمينًا</translation>
+<translation id="2440855519769445271">لإخفاء خيارات "الدفع لاحقًا"، يُرجى الانتقال إلى <ph name="BEGIN_LINK" />إعدادات الدفع<ph name="END_LINK" /></translation>
 <translation id="2441854154602066476">تم فتح قائمة طرق الدفع التي يمكن ملء بياناتها باللمس. لوحة المفاتيح مخفية.</translation>
 <translation id="2442865686365739754">‏<ph name="BEGIN_EMPHASIS" />لن يحفظ<ph name="END_EMPHASIS" /> Chrome ما يلي:
         <ph name="BEGIN_LIST" />
@@ -2197,6 +2201,7 @@
 <translation id="4598556348158889687">إدارة مساحة التخزين</translation>
 <translation id="459914240367517409">تصميم وتطوير مواقع إلكترونية</translation>
 <translation id="4602465984861132303">بولينغ</translation>
+<translation id="4603727370377253901">حجوزات رحلات الطيران</translation>
 <translation id="4607608436550361748">‏الاطّلاع على معلومات بشأن استخدام متصفّح Chrome</translation>
 <translation id="460848736049414407">‏حظَر المشرف عنوان URL هذا</translation>
 <translation id="4610279718074907952">يندرج هذا الموقع الإلكتروني ضمن مجموعة حدّدها <ph name="SET_OWNER" /> ويمكنها الاطّلاع على نشاطك.</translation>
@@ -2205,6 +2210,7 @@
 <translation id="4619564267100705184">إثبات هويّتك</translation>
 <translation id="4622292761762557753">النقل على أي حال</translation>
 <translation id="4622647778991854660">‏يؤدي هذا الخيار إلى تفعيل الإشعارات في "مركز الإشعارات" (Notification Center). فتح <ph name="LINK" /></translation>
+<translation id="4623894491222334521">مستندات الهوية</translation>
 <translation id="4627675673814409125">‏يتعذّر ضبط هذه السياسة على مستوى الملف الشخصي على Chrome وسيتم تجاهلها.</translation>
 <translation id="4628678854894591460">عروض للعطلات</translation>
 <translation id="4628948037717959914">صورة</translation>
@@ -2222,6 +2228,7 @@
 <translation id="4648262692072505866">‏يجب أن يكون تنسيق التجزئة SHA-256.</translation>
 <translation id="4652266463001779298">غير مسموح به</translation>
 <translation id="4652440160515225514">حظرت مؤسستك هذا الموقع الإلكتروني لأنه ينتهك إحدى السياسات.</translation>
+<translation id="4654457557264366314">تخضع خطط الدفع لمتطلبات الأهلية.</translation>
 <translation id="4658638640878098064">وضع دبوس أعلى اليسار</translation>
 <translation id="4660592918803576381">‏الفتح في Drive</translation>
 <translation id="4661556981531699496">حيوانات أليفة وحيوانات برية</translation>
@@ -4635,7 +4642,7 @@
 <translation id="8601027005147870853">‏<ph name="BEGIN_BOLD" />البيانات المستخدَمة:<ph name="END_BOLD" /> نشاطك على موقع إلكتروني تنتقل إليه باستخدام Chrome على هذا الجهاز</translation>
 <translation id="8601456038554914806">معدّات رياضات مائية</translation>
 <translation id="8601782593888534566">خيال علمي وفانتازيا</translation>
-<translation id="8604103095921958091">‏تم فتح شاشة بنود خدمة "الدفع الآجل" (BNPL) بطول الشاشة.</translation>
+<translation id="8604103095921958091">‏تم فتح صفحة بنود خدمة "الدفع الآجل" (BNPL) على كامل الشاشة.</translation>
 <translation id="8606988009912891950">‏تساعد ميزة "مواضيع الإعلانات" المواقع الإلكترونية في عرض إعلانات ملائمة لك، مع حماية سجلّ تصفّحك وهويتك. ويمكن لمتصفِّح Chrome تحديد المواضيع التي تهمّك بناءً على أحدث سجلّ تصفّح خاص بك. بعد ذلك، يمكن للموقع الإلكتروني الذي تنتقل إليه أن يطلب من Chrome مشاركته المواضيع المهمّة لك، وذلك بهدف تخصيص الإعلانات التي تظهر لك.</translation>
 <translation id="8612919051706159390">منتديات إلكترونية</translation>
 <translation id="8617269623452051934">استخدامك للجهاز</translation>
@@ -4876,7 +4883,7 @@
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618">يريد الموقع الإلكتروني <ph name="URL" /> البحث عن أي جهاز على شبكتك المحلية والاتصال به</translation>
 <translation id="9046864189129893978">الميكروفونات (<ph name="MICS_COUNT" />)</translation>
-<translation id="9046865906192819796">‏تم فتح شاشة بنود خدمة "الدفع الآجل" (BNPL) في نصف الشاشة.</translation>
+<translation id="9046865906192819796">‏تم فتح صفحة بنود خدمة "الدفع الآجل" (BNPL) في النصف السفلي.</translation>
 <translation id="9047528041803621289">يتيح لك محرك البحث التلقائي البحث على الويب، ويمكنك تغييره في الإعدادات.</translation>
 <translation id="9048035366624198823">تتطلّب هذه الإجراءات ضبط سياسة <ph name="POLICY_NAME" /> على "<ph name="POLICY_VALUE" />": <ph name="ACTION_LIST" />.</translation>
 <translation id="9048662076076074925">24 × 36 بوصة</translation>

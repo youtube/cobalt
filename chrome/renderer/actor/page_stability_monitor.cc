@@ -22,14 +22,12 @@
 #include "content/public/renderer/render_frame.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/web/web_document.h"
-#include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
 
 namespace actor {
 
 using ::blink::WebDocument;
-using ::blink::WebFrameWidget;
 using ::blink::WebLocalFrame;
 using ::content::RenderFrame;
 using ::content::RenderFrameObserver;
@@ -52,6 +50,12 @@ base::TimeDelta GetGlobalTimeoutDelay() {
 // used after network requests are completed.
 base::TimeDelta GetMainThreadTimeoutDelay() {
   return features::kGlicActorPageStabilityLocalTimeout.Get();
+}
+
+// Minimum amount of time to wait for network/main thread work, and paint
+// stability.
+base::TimeDelta GetMinWait() {
+  return features::kGlicActorPageStabilityMinWait.Get();
 }
 
 }  // namespace
@@ -199,6 +203,7 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       break;
     }
     case State::kStartMonitoring: {
+      start_monitoring_time_ = base::TimeTicks::Now();
       WebDocument document = render_frame()->GetWebFrame()->GetDocument();
       int after_request_count = document.ActiveResourceRequestCount();
       journal_entry_->Log(
@@ -231,7 +236,11 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       break;
     }
     case State::kWaitForMainThreadIdle: {
-      SetTimeout(State::kTimeoutMainThread, GetMainThreadTimeoutDelay());
+      // Min wait is going to replace the local timeout so we avoid setting it.
+      // We keep it flag guarded until the min wait feature lands safely.
+      if (GetMinWait().is_zero()) {
+        SetTimeout(State::kTimeoutMainThread, GetMainThreadTimeoutDelay());
+      }
       main_thread_idle_callback_.Reset(base::BindOnce(
           [](base::OnceClosure callback, base::TimeTicks unused_deadline) {
             std::move(callback).Run();
@@ -254,36 +263,39 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       network_idle_callback_.Cancel();
       main_thread_idle_callback_.Cancel();
 
-      base::TimeDelta callback_invoke_delay =
-          features::kGlicActorPageStabilityInvokeCallbackDelay.Get();
-      if (callback_invoke_delay.is_zero()) {
-        MoveToState(State::kInvokeCallback);
+      base::TimeDelta min_wait_time = GetMinWait();
+
+      if (!min_wait_time.is_zero()) {
+        paint_stability_monitor_.reset();
+        paint_stability_delayed_handle_.CancelTask();
+      }
+
+      base::TimeDelta callback_invoke_delay;
+
+      if (min_wait_time.is_zero()) {
+        callback_invoke_delay =
+            features::kGlicActorPageStabilityInvokeCallbackDelay.Get();
       } else {
+        base::TimeDelta elapsed_time =
+            base::TimeTicks::Now() - start_monitoring_time_;
+        callback_invoke_delay = min_wait_time - elapsed_time;
+      }
+
+      if (callback_invoke_delay.is_positive()) {
         PostMoveToStateClosure(State::kInvokeCallback, callback_invoke_delay)
             .Run();
+      } else {
+        MoveToState(State::kInvokeCallback);
       }
       break;
     }
     case State::kInvokeCallback: {
       CHECK(is_stable_callback_);
 
-      // Ensure we release the network and main thread idle callback slots.
-      network_idle_callback_.Cancel();
-      main_thread_idle_callback_.Cancel();
-      if (receiver_.is_bound()) {
-        // It's important to run the callback synchronously so a mojo reply is
-        // sent before disconnect. If done from the state machine we reset the
-        // receiver when moving to kDone. Once GeneralPageStability is enabled
-        // the mojo is the only caller so we can always invoke synchronously.
-        std::move(is_stable_callback_).Run();
-      } else {
-        // This path is only used when the monitor is called from the renderer
-        // and can be removed when GeneralPageStability is fully enabled.
-        CHECK_NE(features::kActorGeneralPageStabilityMode.Get(),
-                 features::ActorGeneralPageStabilityMode::kAllEnabled);
-        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-            FROM_HERE, std::move(is_stable_callback_));
-      }
+      // It's important to run the callback synchronously so a mojo reply is
+      // sent before disconnect.
+      std::move(is_stable_callback_).Run();
+
       MoveToState(State::kDone);
       break;
     }
@@ -293,7 +305,11 @@ void PageStabilityMonitor::MoveToState(State new_state) {
       break;
     }
     case State::kPaintStabilityReached:
-      MoveToState(State::kInvokeCallback);
+      if (GetMinWait().is_zero()) {
+        MoveToState(State::kInvokeCallback);
+      } else {
+        MoveToState(State::kMaybeDelayCallback);
+      }
       break;
     case State::kDone: {
       CHECK(!is_stable_callback_);
@@ -310,6 +326,7 @@ void PageStabilityMonitor::Cleanup() {
   start_monitoring_delayed_handle_.CancelTask();
   receiver_.reset();
   paint_stability_monitor_.reset();
+  paint_stability_delayed_handle_.CancelTask();
   journal_entry_.reset();
 }
 
@@ -356,7 +373,8 @@ void PageStabilityMonitor::OnPaintStabilityReached() {
   // when registered.
   // TODO(bokan): It'd be better for PaintStabilityMonitor to post the reply in
   // this case.
-  PostMoveToStateClosure(State::kPaintStabilityReached).Run();
+  paint_stability_delayed_handle_ =
+      PostCancelableMoveToStateClosure(State::kPaintStabilityReached).Run();
 }
 
 void PageStabilityMonitor::OnRenderFrameGoingAway() {
@@ -414,6 +432,7 @@ void PageStabilityMonitor::DCheckStateTransition(State old_state,
           {State::kRenderFrameGoingAway, {
               State::kInvokeCallback}},
           {State::kPaintStabilityReached, {
+              State::kMaybeDelayCallback,
               State::kInvokeCallback}},
           {State::kInvokeCallback, {
               State::kDone}}
@@ -431,9 +450,6 @@ void PageStabilityMonitor::DCheckStateTransition(State old_state,
 
 void PageStabilityMonitor::Bind(
     mojo::PendingReceiver<mojom::PageStabilityMonitor> receiver) {
-  CHECK_NE(features::kActorGeneralPageStabilityMode.Get(),
-           features::ActorGeneralPageStabilityMode::kDisabled);
-
   CHECK(!receiver_.is_bound());
   receiver_.Bind(std::move(receiver));
 

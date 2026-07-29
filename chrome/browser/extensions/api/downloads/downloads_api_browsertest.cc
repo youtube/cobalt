@@ -29,6 +29,7 @@
 #include "base/strings/utf_string_conversion_utils.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/uuid.h"
@@ -40,11 +41,16 @@
 #include "chrome/browser/download/download_open_prompt.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/download/download_test_file_activity_observer.h"
+#include "chrome/browser/extensions/api/downloads/download_extension_errors.h"
 #include "chrome/browser/extensions/api/downloads/downloads_api.h"
 #include "chrome/browser/extensions/api/downloads_internal/downloads_internal_api.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/platform_util_internal.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/common/extensions/api/downloads.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -117,13 +123,14 @@ const char kFirstDownloadUrl[] = "/download1";
 const char kSecondDownloadUrl[] = "/download2";
 const int kDownloadSize = 1024 * 10;
 
+bool IsDownloadExternallyRemoved(download::DownloadItem* item) {
+  CHECK(item);
+  return item->GetFileExternallyRemoved();
+}
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 
 void OnFileDeleted(bool success) {}
-
-bool IsDownloadExternallyRemoved(download::DownloadItem* item) {
-  return item->GetFileExternallyRemoved();
-}
 
 void OnOpenPromptCreated(download::DownloadItem* item,
                          DownloadOpenPrompt* prompt) {
@@ -377,25 +384,18 @@ class DownloadExtensionTest : public ExtensionApiTest {
 
   Profile* current_profile() { return current_profile_; }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  Browser* current_browser() { return current_browser_; }
-#endif
+  BrowserWindowInterface* current_browser() { return current_browser_; }
 
   content::RenderProcessHost* AddFilenameDeterminer() {
-    ExtensionDownloadsEventRouter::SetDetermineFilenameTimeoutSecondsForTesting(
-        2);
+    ExtensionDownloadsEventRouter::SetDetermineFilenameTimeoutForTesting(
+        base::Seconds(2));
     GURL url(extension_->GetResourceURL("empty.html"));
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-    content::WebContents* const tab = chrome::AddSelectedTabWithURL(
-        current_browser(), url, ui::PAGE_TRANSITION_LINK);
-#else
-    // TODO(crbug.com/405219117): Support incognito when we can load an URL into
-    // an existing incognito window on Android.
-    CHECK(current_profile()->IsRegularProfile())
-        << "Incognito not supported yet";
-    content::WebContents* const tab =
-        LoadURLNoWait(url, WindowOpenDisposition::NEW_FOREGROUND_TAB);
-#endif
+    // NOTE: `current_browser()` could be incognito.
+    NavigateParams params(current_browser(), url, ui::PAGE_TRANSITION_LINK);
+    params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    base::WeakPtr<content::NavigationHandle> handle = Navigate(&params);
+    CHECK(handle);
+    content::WebContents* const tab = handle->GetWebContents();
     EventRouter::Get(current_profile())
         ->AddEventListener(downloads::OnDeterminingFilename::kEventName,
                            tab->GetPrimaryMainFrame()->GetProcess(),
@@ -443,34 +443,39 @@ class DownloadExtensionTest : public ExtensionApiTest {
     second_extension_ = nullptr;
     current_profile_ = nullptr;
     incognito_profile_ = nullptr;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
     current_browser_ = nullptr;
     incognito_browser_ = nullptr;
-#endif
     ExtensionApiTest::TearDownOnMainThread();
   }
 
   void GoOnTheRecord() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-    current_browser_ = browser();
-#endif
+    current_browser_ = browser_window_interface();
     current_profile_ = profile();
     if (events_listener_.get())
       events_listener_->UpdateProfile(current_profile());
   }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  // TODO(crbug.com/405219117): Support incognito. This may require support for
-  // CreateBrowserWindow() with incognito profiles on Android.
+  // TODO(crbug.com/453777179): Add this when CreateBrowserWindow() supports
+  // incognito profiles on Android.
   void GoOffTheRecord() {
     if (!incognito_browser_) {
-      incognito_browser_ = CreateIncognitoBrowser();
-      incognito_profile_ = incognito_browser_->profile();
+      incognito_profile_ =
+          profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+      BrowserWindowCreateParams params(*incognito_profile_,
+                                       /*from_user_gesture=*/false);
+      // NOTE: CreateBrowserWindow() is async and takes a callback, so use a
+      // future to retrieve the value.
+      base::test::TestFuture<BrowserWindowInterface*> future;
+      CreateBrowserWindow(std::move(params), future.GetCallback());
+      incognito_browser_ = future.Get();
+      CHECK(incognito_browser_);
       // Disable file chooser for incognito profile.
       DownloadTestFileActivityObserver observer(incognito_profile_);
       observer.EnableFileChooser(false);
     }
-    SetPromptForDownload(incognito_browser_, false);
+    incognito_profile_->GetPrefs()->SetBoolean(prefs::kPromptForDownload,
+                                               false);
     current_browser_ = incognito_browser_;
     current_profile_ = incognito_profile_;
     if (events_listener_.get())
@@ -598,6 +603,7 @@ class DownloadExtensionTest : public ExtensionApiTest {
 
   DownloadItem* CreateFirstSlowTestDownload() {
     DownloadManager* manager = GetCurrentManager();
+    CHECK(manager);
 
     EXPECT_EQ(0, manager->BlockingShutdownCount());
     EXPECT_EQ(0, manager->InProgressCount());
@@ -822,10 +828,8 @@ class DownloadExtensionTest : public ExtensionApiTest {
   raw_ptr<const Extension> second_extension_ = nullptr;
   raw_ptr<Profile> current_profile_ = nullptr;
   raw_ptr<Profile> incognito_profile_ = nullptr;
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  raw_ptr<Browser> current_browser_ = nullptr;
-  raw_ptr<Browser> incognito_browser_ = nullptr;
-#endif
+  raw_ptr<BrowserWindowInterface> current_browser_ = nullptr;
+  raw_ptr<BrowserWindowInterface> incognito_browser_ = nullptr;
   std::unique_ptr<DownloadsEventsListener> events_listener_;
 
   std::unique_ptr<net::test_server::ControllableHttpResponse> first_download_;
@@ -993,9 +997,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, ParseSearchQuery) {
 }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-// The open dialog is not yet implemented on desktop Android. Also, Java-side
-// org.chromium.ui.permissions.ContextualNotificationPermissionRequester may
-// need to be initialized in android_browsertests for this test to pass.
+// The open dialog is not yet implemented on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_Open) {
   platform_util::internal::DisableShellOperationsForTesting();
 
@@ -1059,8 +1061,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_Open) {
   observer.WaitForEvent();
   EXPECT_TRUE(download_item->GetOpened());
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-// Flaky on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_PauseResumeCancelErase) {
   DownloadItem* download_item = CreateFirstSlowTestDownload();
@@ -1152,7 +1154,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   ASSERT_TRUE(result_list[0].is_int());
   EXPECT_EQ(id, result_list[0].GetInt());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Open_Remove_Open) {
@@ -1196,12 +1197,8 @@ scoped_refptr<ExtensionFunction> MockedGetFileIconFunction(
   return function;
 }
 
-// TODO(crbug.com/405219117): Port more tests to desktop Android.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-
 // Test downloads.getFileIcon() on in-progress, finished, cancelled and deleted
 // download items.
-// Flaky on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_FileIcon_Active) {
   DownloadItem* download_item = CreateFirstSlowTestDownload();
@@ -1288,7 +1285,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   EXPECT_STREQ(errors::kInvalidId,
                error.c_str());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that we can acquire file icons for history downloads regardless of
 // whether they exist or not.  If the file doesn't exist we should receive a
@@ -1327,14 +1323,12 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   }
 }
 
-// TODO(crbug.com/405219117): Enable more tests on desktop Android.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-
 // Test passing the empty query to search().
-// Crashes on desktop Android with no logs and no stack.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_SearchEmptyQuery) {
-  ScopedCancellingItem item(CreateFirstSlowTestDownload());
+  DownloadItem* download_item = CreateFirstSlowTestDownload();
+  ASSERT_TRUE(download_item);
+  ScopedCancellingItem item(download_item);
   ASSERT_TRUE(item.get());
 
   std::optional<base::Value> result = RunFunctionAndReturnResult(
@@ -1345,7 +1339,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
 }
 
 // Test that file existence check should be performed after search.
-// Crashes on desktop Android with no logs and no stack.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, FileExistenceCheckAfterSearch) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   DownloadItem* download_item = CreateFirstSlowTestDownload();
@@ -1380,7 +1373,11 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   RunFunction(base::MakeRefCounted<DownloadsShowFunction>(),
               DownloadItemIdAsArgList(item.get()));
 }
+#endif
 
+#if !BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(ENABLE_EXTENSIONS)
+// Desktop Android does not support platform_util::OpenItem(), which is required
+// for this API.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadsShowDefaultFolderFunction) {
   platform_util::internal::DisableShellOperationsForTesting();
@@ -1391,8 +1388,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
               DownloadItemIdAsArgList(item.get()));
 }
 #endif
-
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test the |filenameRegex| parameter for search().
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
@@ -1418,9 +1413,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   ASSERT_EQ(all_downloads[0]->GetId(), static_cast<uint32_t>(*item_id));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test the |id| parameter for search().
-// Flaky on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_SearchId) {
   DownloadManager::DownloadVector items;
   CreateTwoDownloads(&items);
@@ -1440,7 +1433,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest, DownloadExtensionTest_SearchId) {
 }
 
 // Test specifying both the |id| and |filename| parameters for search().
-// Flaky on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_SearchIdAndFilename) {
   DownloadManager::DownloadVector items;
@@ -1454,7 +1446,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   ASSERT_TRUE(result->is_list());
   ASSERT_EQ(0UL, result->GetList().size());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test a single |orderBy| parameter for search().
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
@@ -1538,9 +1529,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   ASSERT_EQ(1UL, result->GetList().size());
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test the |state| option for search().
-// Flaky on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_SearchState) {
   DownloadManager::DownloadVector items;
@@ -1558,7 +1547,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
 }
 
 // Test the |limit| option for search().
-// Flaky on desktop Android.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_SearchLimit) {
   DownloadManager::DownloadVector items;
@@ -1571,7 +1559,6 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   ASSERT_TRUE(result->is_list());
   ASSERT_EQ(1UL, result->GetList().size());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test invalid search parameters.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
@@ -3066,8 +3053,8 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(StartEmbeddedTestServer());
   std::string download_url = embedded_test_server()->GetURL("/slow?0").spec();
 
-  ExtensionDownloadsEventRouter::SetDetermineFilenameTimeoutSecondsForTesting(
-      0);
+  ExtensionDownloadsEventRouter::SetDetermineFilenameTimeoutForTesting(
+      base::Seconds(0));
 
   // Start downloading a file.
   std::optional<base::Value> result = RunFunctionAndReturnResult(
@@ -4587,6 +4574,7 @@ class DownloadExtensionBubbleEnabledTest : public DownloadExtensionTest {
 
   DownloadDisplay* GetDownloadToolbarButton() {
     return current_browser()
+        ->GetBrowserForMigrationOnly()
         ->window()
         ->GetDownloadBubbleUIController()
         ->GetDownloadDisplayController()

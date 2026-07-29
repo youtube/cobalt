@@ -52,19 +52,27 @@ std::string SkColorToRGBAString(SkColor4f color) {
   return SkColorToRGBAString(color.toSkColor());
 }
 
-std::unordered_set<uint64_t> ProcessStack(
-    std::ostringstream& str,
-    std::vector<StackFrame>& stack,
-    const CompositorRenderPassList& list) {
+std::unordered_set<uint64_t> ProcessStack(std::ostringstream& str,
+                                          std::vector<StackFrame>& stack,
+                                          const CompositorRenderPassList& list,
+                                          bool full_data) {
   auto write_indent = [&str](int indent) {
     for (int i = 0; i < indent; ++i)
       str << " ";
   };
-  auto write_render_pass = [&str](const CompositorRenderPass* pass) {
-    str << "(" << pass << ") render pass id=" << pass->id.GetUnsafeValue()
-        << " output_rect=" << pass->output_rect.ToString();
-    if (pass->view_transition_element_resource_id.IsValid())
-      str << " " << pass->view_transition_element_resource_id.ToString();
+  auto write_render_pass = [&str, full_data](const CompositorRenderPass* pass) {
+    if (full_data) {
+      str << "(" << pass << ") " << pass->ToString();
+    } else {
+      str << "(" << pass << ") render pass id=" << pass->id.GetUnsafeValue()
+          << " output_rect=" << pass->output_rect.ToString();
+      if (pass->view_transition_element_resource_id.IsValid()) {
+        str << " " << pass->view_transition_element_resource_id.ToString();
+      }
+      if (!pass->backdrop_filters.IsEmpty()) {
+        str << " w/backdrop_filters";
+      }
+    }
     str << "\n";
   };
   auto write_sqs = [&str](const SharedQuadState* sqs) {
@@ -116,7 +124,7 @@ std::unordered_set<uint64_t> ProcessStack(
         stack.pop_back();
         continue;
       }
-      if (++quads_per_frame_logged > kMaxQuadsPerFrame) {
+      if (++quads_per_frame_logged > kMaxQuadsPerFrame && !full_data) {
         write_indent(frame.indent);
         str << "(more quads - orphaned list may not be correct)\n";
         quads_per_frame_logged = 0;
@@ -173,11 +181,19 @@ std::unordered_set<uint64_t> ProcessStack(
 
 }  // namespace
 
-std::string TransitionUtils::RenderPassListToString(
-    const CompositorRenderPassList& list) {
+std::string TransitionUtils::CompositorFrameToString(
+    const CompositorFrame& frame,
+    bool full_data) {
   std::ostringstream str;
+  if (full_data) {
+    str << "meta data:\n";
+    str << frame.metadata.ToString();
+    str << "\n";
+  }
 
-  if (list.size() > kMaxListToProcess || list.empty()) {
+  const CompositorRenderPassList& list = frame.render_pass_list;
+
+  if ((list.size() > kMaxListToProcess && !full_data) || list.empty()) {
     str << "RenderPassList too large or too small (" << list.size()
         << "), max supported list length " << kMaxListToProcess;
     return str.str();
@@ -194,7 +210,7 @@ std::string TransitionUtils::RenderPassListToString(
 
   str << "rooted render pass tree:\n";
   std::unordered_set<uint64_t> seen_render_pass_ids =
-      ProcessStack(str, stack, list);
+      ProcessStack(str, stack, list, full_data);
   if (list.size() != seen_render_pass_ids.size())
     str << "orphaned render pass tree(s):\n";
   while (true) {
@@ -209,7 +225,7 @@ std::string TransitionUtils::RenderPassListToString(
     DCHECK(stack.empty());
     stack.emplace_back(i, list[i]->shared_quad_state_list.begin(),
                        list[i]->quad_list.begin(), 0);
-    auto new_seen_pass_ids = ProcessStack(str, stack, list);
+    auto new_seen_pass_ids = ProcessStack(str, stack, list, full_data);
     seen_render_pass_ids.insert(new_seen_pass_ids.begin(),
                                 new_seen_pass_ids.end());
   }

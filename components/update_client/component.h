@@ -17,7 +17,7 @@
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
@@ -349,8 +349,6 @@ class Component {
 
   // The error reported by the update checker.
   int update_check_error_ = 0;
-
-  base::FilePath payload_path_;
 
   // The byte counts below are valid for the current url being fetched.
   // |total_bytes| is equal to the size of the CRX file and |downloaded_bytes|

@@ -419,47 +419,6 @@ base::TimeDelta GetOnDeviceModelExecutionValidationStartupDelay() {
   return kOnDeviceModelExecutionValidationStartupDelay.Get();
 }
 
-int GetOnDeviceModelMinTokensForContext() {
-  static const base::FeatureParam<int> kOnDeviceModelMinTokensForContext{
-      &kOptimizationGuideOnDeviceModel,
-      "on_device_model_min_tokens_for_context", 1024};
-  return kOnDeviceModelMinTokensForContext.Get();
-}
-
-int GetOnDeviceModelMaxTokensForContext() {
-  static const base::FeatureParam<int> kOnDeviceModelMaxTokensForContext{
-      &kOptimizationGuideOnDeviceModel,
-      "on_device_model_max_tokens_for_context", 8192};
-  return kOnDeviceModelMaxTokensForContext.Get();
-}
-
-int GetOnDeviceModelContextTokenChunkSize() {
-  static const base::FeatureParam<int> kOnDeviceModelContextTokenChunkSize{
-      &kOptimizationGuideOnDeviceModel,
-      "on_device_model_context_token_chunk_size", 512};
-  return kOnDeviceModelContextTokenChunkSize.Get();
-}
-
-int GetOnDeviceModelMaxTokensForExecute() {
-  static const base::FeatureParam<int> kOnDeviceModelMaxTokensForExecute{
-      &kOptimizationGuideOnDeviceModel,
-      "on_device_model_max_tokens_for_execute", 1024};
-  return kOnDeviceModelMaxTokensForExecute.Get();
-}
-
-int GetOnDeviceModelMaxTokensForOutput() {
-  static const base::FeatureParam<int> kOnDeviceModelMaxTokensForOutput{
-      &kOptimizationGuideOnDeviceModel, "on_device_model_max_tokens_for_output",
-      1024};
-  return kOnDeviceModelMaxTokensForOutput.Get();
-}
-
-uint32_t GetOnDeviceModelMaxTokens() {
-  return static_cast<uint32_t>(GetOnDeviceModelMaxTokensForContext() +
-                               GetOnDeviceModelMaxTokensForExecute() +
-                               GetOnDeviceModelMaxTokensForOutput());
-}
-
 int GetOnDeviceModelCrashCountBeforeDisable() {
   static const base::FeatureParam<int> kOnDeviceModelDisableCrashCount{
       &kOptimizationGuideOnDeviceModel, "on_device_model_disable_crash_count",
@@ -488,14 +447,6 @@ base::TimeDelta GetOnDeviceStartupMetricDelay() {
       &kLogOnDeviceMetricsOnStartup, "on_device_startup_metric_delay",
       base::Minutes(3)};
   return kOnDeviceStartupMetricDelay.Get();
-}
-
-bool GetOnDeviceFallbackToServerOnDisconnect() {
-  static const base::FeatureParam<bool>
-      kOnDeviceModelFallbackToServerOnDisconnect{
-          &kOptimizationGuideOnDeviceModel,
-          "on_device_fallback_to_server_on_disconnect", true};
-  return kOnDeviceModelFallbackToServerOnDisconnect.Get();
 }
 
 bool CanLaunchOnDeviceModelService() {

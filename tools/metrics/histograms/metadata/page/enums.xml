@@ -99,6 +99,21 @@ chromium-metrics-reviews@google.com.
       label="Ad Creative Origin Differs from Main Frame and Ad Not Throttled"/>
 </enum>
 
+<!-- LINT.IfChange(GwsWarmUpType) -->
+
+<enum name="GwsWarmUpType">
+  <int value="0" label="RegularSignedIn"/>
+  <int value="1" label="RegularPrewarmed"/>
+  <int value="2" label="ReegularCold"/>
+  <int value="3" label="OffTheRecordSignedIn"/>
+  <int value="4" label="OffTheRecordPrewarmed"/>
+  <int value="5" label="OffTheRecordColdButRegularSignedIn"/>
+  <int value="6" label="OffTheRecordColdButRegularPrewarmed"/>
+  <int value="7" label="OffTheRecordAndRegularCold"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/page_load_metrics/google/browser/gws_page_load_metrics_observer.cc:WarmUpType) -->
+
 <enum name="HeavyAdStatus2">
   <int value="0" label="Not heavy"/>
   <int value="1" label="Network">
@@ -380,6 +395,17 @@ chromium-metrics-reviews@google.com.
       label="Origin UI Visit; the page is opened from UI, and followed by a
              link navigation."/>
 </enum>
+
+<!-- LINT.IfChange(PrerenderPrewarmNavigationStatus) -->
+
+<enum name="PrerenderPrewarmNavigationStatus">
+  <int value="0" label="Not prewarmed, prerender host not reused"/>
+  <int value="1" label="Not prewarmed, prerender host reused"/>
+  <int value="2" label="Prewarmed, prerender host not reused"/>
+  <int value="3" label="Prewarmed, prerender host reused"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/page_load_metrics/google/browser/prerender_prewarm_navigation_data.h:PrerenderPrewarmNavigationStatus) -->
 
 <enum name="PreviewFinalStatus">
   <int value="0" label="just previewed"/>

@@ -51,6 +51,8 @@ BASE_FEATURE(kExtensionsCollapseMainMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+BASE_FEATURE(kInfobarRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kOfferPinToTaskbarWhenSettingToDefault,
              "OfferPinToTaskbarWhenSettingDefault",
@@ -426,6 +428,8 @@ BASE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel,
 BASE_FEATURE(kManagedProfileRequiredInterstitial,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kUseNewTabbedBrowserLayout, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables a web-based tab strip. See https://crbug.com/989131. Note this
 // feature only works when the ENABLE_WEBUI_TAB_STRIP buildflag is enabled.
 BASE_FEATURE(kWebUITabStrip,
@@ -448,7 +452,7 @@ BASE_FEATURE(kWebUITabStripContextMenuAfterTap,
 );
 
 #if BUILDFLAG(IS_MAC)
-BASE_FEATURE(kViewsFirstRunDialog, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kViewsFirstRunDialog, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kViewsJSAppModalDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif

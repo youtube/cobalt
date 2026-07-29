@@ -40,6 +40,16 @@ ActorUiContentsContainerController::ActorUiContentsContainerController(
 ActorUiContentsContainerController::~ActorUiContentsContainerController() =
     default;
 
+void ActorUiContentsContainerController::OnViewBoundsChanged(
+    views::View* observed_view) {
+  if (auto* tab = tabs::TabInterface::GetFromContents(
+          contents_container_view_->web_contents())) {
+    if (auto* tab_controller = ActorUiTabControllerInterface::From(tab)) {
+      tab_controller->OnViewBoundsChanged();
+    }
+  }
+}
+
 void ActorUiContentsContainerController::OnWebContentsAttached(
     views::WebView* web_view) {
   if (!web_view->web_contents()) {
@@ -48,22 +58,23 @@ void ActorUiContentsContainerController::OnWebContentsAttached(
 
   // Start observing on the new web contents.
   Observe(web_view->web_contents());
+  view_observation_.Observe(web_view);
 
   // Start observing on tab scoped actor ui state changes.
   if (auto* tab =
           tabs::TabInterface::GetFromContents(web_view->web_contents())) {
     if (auto* tab_controller = ActorUiTabControllerInterface::From(tab)) {
       if (features::kGlicActorUiOverlay.Get()) {
-        actor_ui_tab_controller_callback_subscriptions_.push_back(
+        actor_ui_tab_controller_callback_runners_.push_back(
             tab_controller->RegisterActorOverlayStateChange(base::BindRepeating(
                 &ActorUiContentsContainerController::UpdateOverlayState,
                 weak_ptr_factory_.GetWeakPtr())));
+        actor_ui_tab_controller_callback_runners_.push_back(
+            tab_controller->RegisterActorOverlayBackgroundChange(
+                base::BindRepeating(&ActorUiContentsContainerController::
+                                        OnActorOverlayBackgroundChange,
+                                    weak_ptr_factory_.GetWeakPtr())));
       }
-      actor_ui_tab_controller_callback_subscriptions_.push_back(
-          tab_controller->RegisterActorOverlayBackgroundChange(
-              base::BindRepeating(&ActorUiContentsContainerController::
-                                      OnActorOverlayBackgroundChange,
-                                  weak_ptr_factory_.GetWeakPtr())));
 
       // Record user action if associated task isn't paused or stopped
       actor::ActorKeyedService* actor_service =
@@ -116,7 +127,8 @@ void ActorUiContentsContainerController::OnWebContentsDetached(
   // Stop observing on web contents and clear all subscriptions related to a
   // tab.
   Observe(nullptr);
-  actor_ui_tab_controller_callback_subscriptions_.clear();
+  view_observation_.Reset();
+  actor_ui_tab_controller_callback_runners_.clear();
 
   if (overlay_) {
     overlay_->CloseUI();
@@ -133,8 +145,10 @@ void ActorUiContentsContainerController::OnActorOverlayBackgroundChange(
 
 void ActorUiContentsContainerController::UpdateOverlayState(
     bool is_visible,
-    ActorOverlayState state) {
+    ActorOverlayState state,
+    base::OnceClosure callback) {
   if (!overlay_) {
+    std::move(callback).Run();
     return;
   }
 
@@ -146,6 +160,7 @@ void ActorUiContentsContainerController::UpdateOverlayState(
   }
 
   overlay_->SetBorderGlowVisibility(state.border_glow_visible);
+  std::move(callback).Run();
 }
 
 }  // namespace actor::ui

@@ -231,6 +231,7 @@ class LocationBarMediator
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
     private final ObservableSupplier<@AutocompleteRequestType Integer>
             mAutocompleteRequestTypeSupplier;
+    private final boolean mPersistEditingState;
 
     private final ButtonToolbarWidthConsumer mBookmarkButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mInstallButtonToolbarWidthConsumer;
@@ -282,8 +283,8 @@ class LocationBarMediator
         mBrowserControlsStateProvider = browserControlsStateProvider;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
         mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
-        mAutocompleteRequestTypeSupplier.addObserver(
-                mCallbackController.makeCancelable((v) -> updateButtonVisibility()));
+        mAutocompleteRequestTypeSupplier.addSyncObserver(
+                mCallbackController.makeCancelable(this::onAutocompleteRequestTypeChanged));
         mPageZoomIndicatorCoordinator = pageZoomIndicatorCoordinator;
         if (mPageZoomIndicatorCoordinator != null) {
             mPageZoomIndicatorCoordinator.setOnDismissCallbacks(this::updateZoomButtonVisibility);
@@ -314,6 +315,11 @@ class LocationBarMediator
                         mIsTablet,
                         this::shouldShowLensButton,
                         this::updateLensButtonVisibility);
+
+        mPersistEditingState =
+                OmniboxFeatures.sOmniboxImprovementForLFF.isEnabled()
+                        && OmniboxFeatures.sOmniboxImprovementForLFFPersistEditingState.getValue()
+                        && mIsTablet;
     }
 
     /**
@@ -890,7 +896,7 @@ class LocationBarMediator
                     && ChromeAccessibilityUtil.get().isAccessibilityEnabled()) {
                 String existingText = mUrlCoordinator.getTextWithoutAutocomplete();
                 mUrlCoordinator.clearFocus();
-                mUrlCoordinator.requestFocus();
+                requestUrlFocus();
                 // Existing text (e.g. if the user pasted via the fakebox) from the fake box
                 // should be restored after toggling the focus.
                 if (!TextUtils.isEmpty(existingText)) {
@@ -1217,6 +1223,18 @@ class LocationBarMediator
         mAutocompleteCoordinator.onTextChanged(textWithoutAutocomplete);
     }
 
+    /**
+     * Requests the URL focus.
+     *
+     * <p>Notifies listeners that the URL focus is about to be requested.
+     */
+    /* package */ void requestUrlFocus() {
+        for (UrlFocusChangeListener listener : mUrlFocusChangeListeners) {
+            listener.onUrlFocusWillBeRequested(mLocationBarDataProvider.getTab());
+        }
+        mUrlCoordinator.requestFocus();
+    }
+
     // Private methods
 
     @VisibleForTesting
@@ -1342,7 +1360,8 @@ class LocationBarMediator
         if (!ChromeFeatureList.sAndroidZoomIndicator.isEnabled()
                 || !DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
                 || mPageZoomIndicatorCoordinator == null
-                || getWebContentsForCurrentTab() == null) {
+                || getWebContentsForCurrentTab() == null
+                || mPageZoomIndicatorCoordinator.isZoomLevelDefault()) {
             return false;
         }
         return !mPageZoomIndicatorCoordinator.isZoomLevelDefault();
@@ -1510,6 +1529,11 @@ class LocationBarMediator
         return !mUrlHasFocus && mIsLocationBarFocusedFromNtpScroll;
     }
 
+    private void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
+        updateButtonVisibility();
+        onSearchBoxHintTextChanged();
+    }
+
     private boolean isLensOnOmniboxEnabled() {
         if (sLastCachedIsLensOnOmniboxEnabled == null) {
             sLastCachedIsLensOnOmniboxEnabled =
@@ -1602,6 +1626,10 @@ class LocationBarMediator
     /* package */ static class LocationBarState implements UserData {
         public String userText = "";
         public boolean isUrlBarFocused;
+        // On Android, we don't need to persist the cursor position since it is provided in
+        // selectionStart or selectionEnd when no text is selected.
+        public int selectionStart;
+        public int selectionEnd;
 
         static @Nullable LocationBarState from(@Nullable Tab tab) {
             if (tab == null || tab.isDestroyed()) {
@@ -1628,6 +1656,11 @@ class LocationBarMediator
             if (previousState != null) {
                 previousState.userText = mUrlCoordinator.getTextWithoutAutocomplete();
                 previousState.isUrlBarFocused = isUrlBarFocused();
+
+                if (mPersistEditingState) {
+                    previousState.selectionStart = mUrlCoordinator.getSelectionStart();
+                    previousState.selectionEnd = mUrlCoordinator.getSelectionEnd();
+                }
             }
         }
 
@@ -1639,6 +1672,10 @@ class LocationBarMediator
             clearOmniboxFocus();
             setUrlBarFocus(
                     true, currentState.userText, OmniboxFocusReason.LOCATION_BAR_STATE_RESTORATION);
+            if (mPersistEditingState) {
+                mUrlCoordinator.setSelection(
+                        currentState.selectionStart, currentState.selectionEnd);
+            }
         }
     }
 
@@ -1703,7 +1740,7 @@ class LocationBarMediator
             if (urlHasFocus && mUrlFocusedWithoutAnimations) {
                 handleUrlFocusAnimation(true);
             } else {
-                mUrlCoordinator.requestFocus();
+                requestUrlFocus();
             }
         } else {
             assert pastedText == null;
@@ -2032,8 +2069,10 @@ class LocationBarMediator
     }
 
     @Override
-    public void onSearchBoxHintTextChanged(String newHintText) {
-        mUrlCoordinator.setUrlBarHintText(newHintText);
+    public void onSearchBoxHintTextChanged() {
+        mUrlCoordinator.setUrlBarHintText(
+                assertNonNull(mSearchEngineUtils)
+                        .getOmniboxHintText(mAutocompleteRequestTypeSupplier.get()));
     }
 
     /* package */ ToolbarWidthConsumer getBookmarkButtonToolbarWidthConsumer() {

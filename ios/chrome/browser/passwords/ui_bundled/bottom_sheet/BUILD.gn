@@ -4,11 +4,11 @@
 
 source_set("bottom_sheet") {
   sources = [
-    "password_suggestion_bottom_sheet_coordinator.h",
-    "password_suggestion_bottom_sheet_coordinator.mm",
+    "credential_suggestion_bottom_sheet_coordinator.h",
+    "credential_suggestion_bottom_sheet_coordinator.mm",
+    "credential_suggestion_bottom_sheet_mediator.h",
+    "credential_suggestion_bottom_sheet_mediator.mm",
     "password_suggestion_bottom_sheet_exit_reason.h",
-    "password_suggestion_bottom_sheet_mediator.h",
-    "password_suggestion_bottom_sheet_mediator.mm",
   ]
   deps = [
     ":bottom_sheet_ui",
@@ -60,12 +60,12 @@ source_set("bottom_sheet") {
 
 source_set("bottom_sheet_ui") {
   sources = [
-    "password_suggestion_bottom_sheet_consumer.h",
-    "password_suggestion_bottom_sheet_delegate.h",
-    "password_suggestion_bottom_sheet_handler.h",
-    "password_suggestion_bottom_sheet_presenter.h",
-    "password_suggestion_bottom_sheet_view_controller.h",
-    "password_suggestion_bottom_sheet_view_controller.mm",
+    "credential_suggestion_bottom_sheet_consumer.h",
+    "credential_suggestion_bottom_sheet_delegate.h",
+    "credential_suggestion_bottom_sheet_handler.h",
+    "credential_suggestion_bottom_sheet_presenter.h",
+    "credential_suggestion_bottom_sheet_view_controller.h",
+    "credential_suggestion_bottom_sheet_view_controller.mm",
   ]
   deps = [
     "//base",
@@ -91,8 +91,8 @@ source_set("bottom_sheet_ui") {
 
 source_set("common") {
   sources = [
-    "scoped_password_suggestion_bottom_sheet_reauth_module_override.h",
-    "scoped_password_suggestion_bottom_sheet_reauth_module_override.mm",
+    "scoped_credential_suggestion_bottom_sheet_reauth_module_override.h",
+    "scoped_credential_suggestion_bottom_sheet_reauth_module_override.mm",
   ]
   deps = [
     "//base",
@@ -103,7 +103,7 @@ source_set("common") {
 source_set("eg2_tests") {
   configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
-  sources = [ "password_suggestion_bottom_sheet_egtest.mm" ]
+  sources = [ "credential_suggestion_bottom_sheet_egtest.mm" ]
   deps = [
     ":eg_test_support+eg2",
     "//components/password_manager/core/browser/features:password_features",
@@ -139,8 +139,8 @@ source_set("eg_app_support+eg2") {
   configs += [ "//build/config/ios:xctest_config" ]
   testonly = true
   sources = [
-    "password_suggestion_bottom_sheet_app_interface.h",
-    "password_suggestion_bottom_sheet_app_interface.mm",
+    "credential_suggestion_bottom_sheet_app_interface.h",
+    "credential_suggestion_bottom_sheet_app_interface.mm",
   ]
   deps = [
     ":common",
@@ -150,6 +150,7 @@ source_set("eg_app_support+eg2") {
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/common/ui/reauthentication",
+    "//ios/chrome/common/ui/reauthentication:mock_reauthentication_module",
     "//ios/chrome/test/app:test_support",
   ]
 
@@ -163,8 +164,8 @@ source_set("eg_test_support+eg2") {
   testonly = true
 
   sources = [
-    "password_suggestion_bottom_sheet_app_interface.h",
-    "password_suggestion_bottom_sheet_app_interface_stub.mm",
+    "credential_suggestion_bottom_sheet_app_interface.h",
+    "credential_suggestion_bottom_sheet_app_interface_stub.mm",
   ]
   deps = [
     "//ios/chrome/common/ui/reauthentication",
@@ -174,7 +175,7 @@ source_set("eg_test_support+eg2") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "password_suggestion_bottom_sheet_mediator_unittest.mm" ]
+  sources = [ "credential_suggestion_bottom_sheet_mediator_unittest.mm" ]
   deps = [
     ":bottom_sheet",
     ":bottom_sheet_ui",

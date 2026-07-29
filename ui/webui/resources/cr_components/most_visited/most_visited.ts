@@ -23,6 +23,7 @@ import {isMac} from '//resources/js/platform.js';
 import {hasKeyModifiers} from '//resources/js/util.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {TileSource} from '//resources/mojo/components/ntp_tiles/tile_source.mojom-webui.js';
 import {TextDirection} from '//resources/mojo/mojo/public/mojom/base/text_direction.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
@@ -31,6 +32,10 @@ import {getCss} from './most_visited.css.js';
 import {getHtml} from './most_visited.html.js';
 import type {MostVisitedInfo, MostVisitedPageCallbackRouter, MostVisitedPageHandlerRemote, MostVisitedTheme, MostVisitedTile} from './most_visited.mojom-webui.js';
 import {MostVisitedWindowProxy} from './window_proxy.js';
+
+const MAX_TILES_DEFAULT = 8;
+export const MAX_TILES_FOR_CUSTOM_LINKS = 10;
+const MAX_TILES_FOR_ENTERPRISE_SHORTCUTS = 10;
 
 function resetTilePosition(tile: HTMLElement) {
   tile.style.position = '';
@@ -131,6 +136,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
       dialogShortcutAlreadyExists_: {type: Boolean, state: true},
       dialogTileUrlError_: {type: String, state: true},
       dialogIsReadonly_: {type: Boolean, state: true},
+      dialogSource_: {type: Number, state: true},
       info_: {type: Object, state: true},
 
       actionMenuRemoveDisabled_: {type: Boolean, state: true},
@@ -157,8 +163,9 @@ export class MostVisitedElement extends MostVisitedElementBase {
       maxVisibleColumnCount_: {type: Number, state: true},
       tiles_: {type: Array, state: true},
       toastContent_: {type: String, state: true},
+      toastSource_: {type: Number, state: true},
 
-      ntpNextFeaturesEnabled_: {type: Boolean},
+      enableShowMoreButton: {type: Boolean, reflect: true},
       showAll_: {type: Boolean, state: true},
       showShowMore_: {type: Boolean, state: true},
 
@@ -172,6 +179,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
   accessor theme: MostVisitedTheme|null = null;
   accessor reflowOnOverflow: boolean = false;
   accessor singleRow: boolean = false;
+  accessor enableShowMoreButton: boolean = false;
   private accessor showAll_: boolean = false;
   protected accessor showShowMore_: boolean = false;
   protected accessor useWhiteTileIcon_: boolean = false;
@@ -187,6 +195,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
   private accessor dialogShortcutAlreadyExists_: boolean = false;
   protected accessor dialogTileUrlError_: string = '';
   protected accessor dialogIsReadonly_: boolean = false;
+  protected accessor dialogSource_: TileSource = TileSource.CUSTOM_LINKS;
   protected accessor actionMenuRemoveDisabled_: boolean = false;
   protected accessor actionMenuViewOrEditTitle_: string = '';
   protected accessor isDark_: boolean = false;
@@ -196,11 +205,9 @@ export class MostVisitedElement extends MostVisitedElementBase {
   protected accessor showAdd_: boolean = false;
   private accessor maxVisibleColumnCount_: number = 0;
   protected accessor tiles_: MostVisitedTile[] = [];
+  protected accessor toastSource_: TileSource = TileSource.CUSTOM_LINKS;
   protected accessor visible_: boolean = false;
-  protected accessor ntpNextFeaturesEnabled_: boolean =
-      loadTimeData.getBoolean('ntpNextFeaturesEnabled');
-  private maxTilesBeforeShowMore_: number =
-      loadTimeData.getInteger('maxTilesBeforeShowMore');
+  private maxTilesBeforeShowMore_: number = 5;
   private adding_: boolean = false;
   private callbackRouter_: MostVisitedPageCallbackRouter;
   private pageHandler_: MostVisitedPageHandlerRemote;
@@ -296,8 +303,11 @@ export class MostVisitedElement extends MostVisitedElementBase {
       this.visible_ = this.info_.visible;
       this.customLinksEnabled_ = this.info_.customLinksEnabled;
       this.enterpriseShortcutsEnabled_ = this.info_.enterpriseShortcutsEnabled;
-      this.maxTiles_ =
-          this.customLinksEnabled_ || this.enterpriseShortcutsEnabled_ ? 10 : 8;
+      this.maxTiles_ = (this.customLinksEnabled_ ? MAX_TILES_FOR_CUSTOM_LINKS :
+                                                   MAX_TILES_DEFAULT) +
+          (this.enterpriseShortcutsEnabled_ ?
+               MAX_TILES_FOR_ENTERPRISE_SHORTCUTS :
+               0);
       this.tiles_ = this.info_.tiles.slice(0, this.maxTiles_);
     }
 
@@ -319,6 +329,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
     if (changedPrivateProperties.has('dialogTitle_') ||
         changedPrivateProperties.has('dialogTileUrl_')) {
       this.dialogSaveDisabled_ = this.computeDialogSaveDisabled_();
+    }
+
+    if (changedPrivateProperties.has('enableShowMoreButton')) {
+      this.maxTilesBeforeShowMore_ = this.computeMaxTilesBeforeShowMore_();
     }
   }
 
@@ -401,7 +415,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
   }
 
   private computeMaxVisibleTiles_(): number {
-    if (this.ntpNextFeaturesEnabled_ && this.showShowMore_) {
+    if (this.enableShowMoreButton && this.showShowMore_) {
       return this.maxTilesBeforeShowMore_ + 1;
     }
 
@@ -416,12 +430,26 @@ export class MostVisitedElement extends MostVisitedElementBase {
     if (this.showShowMore_) {
       return false;
     }
-    return this.customLinksEnabled_ && !this.enterpriseShortcutsEnabled_ &&
-        this.tiles_ && this.tiles_.length < this.maxVisibleTiles_;
+    if (!this.customLinksEnabled_) {
+      return false;
+    }
+    // When uninitialized, the custom links may have a different source like
+    // TOP_SITES or POPULAR.
+    const customLinkTilesCount =
+        this.tiles_.filter(tile => !this.isFromEnterpriseShortcut_(tile.source))
+            .length;
+    return this.tiles_.length < this.maxVisibleTiles_ &&
+        customLinkTilesCount < MAX_TILES_FOR_CUSTOM_LINKS;
+  }
+
+  private computeMaxTilesBeforeShowMore_(): number {
+    return this.enableShowMoreButton ?
+        loadTimeData.getInteger('maxTilesBeforeShowMore') :
+        5;
   }
 
   private computeShowShowMore_(): boolean {
-    return this.ntpNextFeaturesEnabled_ && !this.showAll_ && this.tiles_ &&
+    return this.enableShowMoreButton && !this.showAll_ && this.tiles_ &&
         this.tiles_.length > this.maxTilesBeforeShowMore_;
   }
 
@@ -530,12 +558,28 @@ export class MostVisitedElement extends MostVisitedElementBase {
     const dragIndex = Number(dragElement.dataset['index']);
     const dropIndex = getHitIndex(this.tileRects_, x, y);
     if (dragIndex !== dropIndex && dropIndex > -1) {
+      const dragTile = this.tiles_[dragIndex];
+      assert(dragTile);
+      const dropTile = this.tiles_[dropIndex];
+      assert(dropTile);
+      if (this.isFromEnterpriseShortcut_(dragTile.source) !==
+          this.isFromEnterpriseShortcut_(dropTile.source)) {
+        return;
+      }
       const [draggingTile] = this.tiles_.splice(dragIndex, 1);
       assert(draggingTile);
       this.tiles_.splice(dropIndex, 0, draggingTile);
       this.requestUpdate();
 
-      this.pageHandler_.reorderMostVisitedTile(draggingTile.url, dropIndex);
+      let newDropIndex = dropIndex;
+      // When reordering custom links, the index needs to be adjusted by the
+      // number of enterprise shortcuts, which are always shown first.
+      if (!this.isFromEnterpriseShortcut_(draggingTile.source)) {
+        newDropIndex -=
+            this.tiles_.filter(t => this.isFromEnterpriseShortcut_(t.source))
+                .length;
+      }
+      this.pageHandler_.reorderMostVisitedTile(draggingTile, newDropIndex);
 
       // Remove the "dragging" class here to prevent flickering.
       dragElement.classList.remove('dragging');
@@ -566,7 +610,15 @@ export class MostVisitedElement extends MostVisitedElementBase {
       x: x - this.dragOffset_!.x,
       y: y - this.dragOffset_!.y,
     });
-    const dropIndex = getHitIndex(this.tileRects_, x, y);
+    let dropIndex = getHitIndex(this.tileRects_, x, y);
+    if (dropIndex > -1) {
+      const dragTile = this.tiles_[dragIndex]!;
+      const dropTile = this.tiles_[dropIndex]!;
+      if (this.isFromEnterpriseShortcut_(dragTile.source) !==
+          this.isFromEnterpriseShortcut_(dropTile.source)) {
+        dropIndex = -1;
+      }
+    }
     this.tileElements_.forEach((element, i) => {
       let positionIndex;
       if (i === dragIndex) {
@@ -630,9 +682,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
 
   protected getRestoreButtonText_(): string {
     return loadTimeData.getString(
-        this.enterpriseShortcutsEnabled_ ? 'restoreDefaultEnterpriseShortcuts' :
-            this.customLinksEnabled_     ? 'restoreDefaultLinks' :
-                                           'restoreThumbnailsShort');
+        this.isFromEnterpriseShortcut_(this.toastSource_) ?
+            'restoreDefaultEnterpriseShortcuts' :
+            this.customLinksEnabled_ ? 'restoreDefaultLinks' :
+                                       'restoreThumbnailsShort');
   }
 
   protected getTileTitleDirectionClass_(tile: MostVisitedTile): string {
@@ -735,7 +788,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
   }
 
   protected onDragStart_(e: DragEvent) {
-    if (!this.customLinksEnabled_ && !this.enterpriseShortcutsEnabled_) {
+    const item = this.tiles_[this.getCurrentTargetIndex_(e)]!;
+    assert(item);
+    if (!this.customLinksEnabled_ &&
+        !this.isFromEnterpriseShortcut_(item.source)) {
       return;
     }
     // |dataTransfer| is null in tests.
@@ -784,6 +840,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
     const tile = this.tiles_[this.actionMenuTargetIndex_]!;
     const isReadonly = !tile.allowUserEdit;
     this.dialogIsReadonly_ = isReadonly;
+    this.dialogSource_ = tile.source;
     this.dialogTitle_ =
         loadTimeData.getString(isReadonly ? 'viewLinkTitle' : 'editLinkTitle');
     this.dialogTileTitle_ = tile.title;
@@ -797,7 +854,7 @@ export class MostVisitedElement extends MostVisitedElementBase {
       return;
     }
     this.$.toastManager.hide();
-    this.pageHandler_.restoreMostVisitedDefaults();
+    this.pageHandler_.restoreMostVisitedDefaults(this.toastSource_);
   }
 
   protected async onRemove_() {
@@ -820,13 +877,17 @@ export class MostVisitedElement extends MostVisitedElementBase {
     if (this.adding_) {
       const {success} =
           await this.pageHandler_.addMostVisitedTile(newUrl, newTitle);
-      this.toast_(success ? 'linkAddedMsg' : 'linkCantCreate', success);
+      this.toast_(
+          success ? 'linkAddedMsg' : 'linkCantCreate', success,
+          TileSource.TOP_SITES);
     } else {
-      const {url, title} = this.tiles_[this.actionMenuTargetIndex_]!;
-      if (url.url !== newUrl.url || title !== newTitle) {
+      const oldTile = this.tiles_[this.actionMenuTargetIndex_]!;
+      if (oldTile.url.url !== newUrl.url || oldTile.title !== newTitle) {
         const {success} = await this.pageHandler_.updateMostVisitedTile(
-            url, newUrl, newTitle);
-        this.toast_(success ? 'linkEditedMsg' : 'linkCantEdit', success);
+            oldTile, newUrl, newTitle);
+        this.toast_(
+            success ? 'linkEditedMsg' : 'linkCantEdit', success,
+            oldTile.source);
       }
       this.actionMenuTargetIndex_ = -1;
     }
@@ -956,12 +1017,17 @@ export class MostVisitedElement extends MostVisitedElementBase {
       return;
     }
     this.$.toastManager.hide();
-    this.pageHandler_.undoMostVisitedTileAction();
+    this.pageHandler_.undoMostVisitedTileAction(this.toastSource_);
   }
 
   protected onTouchStart_(e: TouchEvent) {
-    if (this.reordering_ ||
-        (!this.customLinksEnabled_ && !this.enterpriseShortcutsEnabled_)) {
+    if (this.reordering_) {
+      return;
+    }
+    const item = this.tiles_[this.getCurrentTargetIndex_(e)]!;
+    assert(item);
+    if (!this.customLinksEnabled_ &&
+        !this.isFromEnterpriseShortcut_(item.source)) {
       return;
     }
     const tileElement =
@@ -1002,19 +1068,21 @@ export class MostVisitedElement extends MostVisitedElementBase {
     }
   }
 
-  private toast_(msgId: string, showButtons: boolean) {
+  private toast_(msgId: string, showButtons: boolean, source: TileSource) {
+    this.toastSource_ = source;
     this.$.toastManager.show(loadTimeData.getString(msgId), !showButtons);
   }
 
   private async tileRemove_(index: number) {
-    const {url, isQueryTile} = this.tiles_[index]!;
-    this.pageHandler_.deleteMostVisitedTile(url);
+    const tile = this.tiles_[index]!;
+    this.pageHandler_.deleteMostVisitedTile(tile);
     // Do not show the toast buttons when a query tile is removed unless it is
     // a custom link. Removal is not reversible for non custom link query tiles.
     this.toast_(
         'linkRemovedMsg',
         /* showButtons= */ this.customLinksEnabled_ ||
-            this.enterpriseShortcutsEnabled_ || !isQueryTile);
+            this.enterpriseShortcutsEnabled_ || !tile.isQueryTile,
+        tile.source);
 
     // Move focus after the next render so that tileElements_ is updated.
     await this.updateComplete;
@@ -1034,6 +1102,10 @@ export class MostVisitedElement extends MostVisitedElementBase {
     return loadTimeData.getString('shortcutMoreActions') ?
         loadTimeData.getStringF('shortcutMoreActions', title) :
         '';
+  }
+
+  protected isFromEnterpriseShortcut_(source: number) {
+    return source === TileSource.ENTERPRISE_SHORTCUTS;
   }
 }
 

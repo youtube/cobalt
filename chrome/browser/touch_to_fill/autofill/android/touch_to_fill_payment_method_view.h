@@ -43,7 +43,9 @@ class TouchToFillPaymentMethodView {
   virtual bool ShowProgressScreen(
       TouchToFillPaymentMethodViewController* controller) = 0;
   virtual bool ShowBnplIssuers(
-      base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts) = 0;
+      const TouchToFillPaymentMethodViewController& controller,
+      base::span<const payments::BnplIssuerContext> bnpl_issuer_contexts,
+      const std::string& app_locale) = 0;
   virtual bool ShowErrorScreen(
       TouchToFillPaymentMethodViewController* controller,
       const std::u16string& title,
@@ -52,6 +54,7 @@ class TouchToFillPaymentMethodView {
       const TouchToFillPaymentMethodViewController& controller,
       const payments::BnplIssuerTosDetail& bnpl_issuer_tos_detail) = 0;
   virtual void Hide() = 0;
+  virtual void SetVisible(bool visible) = 0;
 };
 
 }  // namespace autofill

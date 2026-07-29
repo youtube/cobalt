@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import type {SelectedFileInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {ComposeboxElement, ComposeboxProxyImpl} from 'chrome://new-tab-page/lazy_load.js';
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
@@ -23,6 +24,7 @@ enum Attributes {
 
 const ADD_FILE_CONTEXT_FN = 'addFileContext';
 const ADD_TAB_CONTEXT_FN = 'addTabContext';
+const FAKE_TOKEN_STRING = '00000000000000001234567890ABCDEF';
 
 function generateZeroId(): string {
   // Generate 128 bit unique identifier.
@@ -60,6 +62,13 @@ suite('NewTabPageComposeboxTest', () => {
     document.body.appendChild(composeboxElement);
   }
 
+  async function getRecentTabChip(): Promise<HTMLElement|null> {
+    const contextElement = composeboxElement.$.context;
+    await microtasksFinished();
+    await contextElement.updateComplete;
+    return contextElement.shadowRoot.querySelector<HTMLElement>(
+        '#recentTabChip');
+  }
   async function waitForAddFileCallCount(expectedCount: number): Promise<void> {
     const startTime = Date.now();
     return new Promise((resolve, reject) => {
@@ -216,7 +225,7 @@ suite('NewTabPageComposeboxTest', () => {
         Promise.resolve({token: {low: BigInt(1), high: BigInt(2)}}));
 
     // Check submit button disabled.
-    assertStyle(composeboxElement.$.submitIcon, 'cursor', 'default');
+    assertStyle(composeboxElement.$.submitContainer, 'cursor', 'default');
     // Add input.
     composeboxElement.$.input.value = 'test';
     composeboxElement.$.input.dispatchEvent(new Event('input'));
@@ -230,7 +239,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Check submit button enabled and file uploaded.
-    assertStyle(composeboxElement.$.submitIcon, 'cursor', 'pointer');
+    assertStyle(composeboxElement.$.submitContainer, 'cursor', 'pointer');
     assertEquals(composeboxElement.$.context.$.carousel.files.length, 1);
 
     // Clear input.
@@ -241,7 +250,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(searchboxHandler.getCallCount('clearFiles'), 1);
 
     // Check submit button disabled and files empty.
-    assertStyle(composeboxElement.$.submitIcon, 'cursor', 'default');
+    assertStyle(composeboxElement.$.submitContainer, 'cursor', 'default');
     assertFalse(!!$$<HTMLElement>(composeboxElement.$.context, '#carousel'));
 
     // Close composebox.
@@ -253,11 +262,11 @@ suite('NewTabPageComposeboxTest', () => {
 
   test('upload image', async () => {
     createComposeboxElement();
-    assertStyle(composeboxElement.$.submitIcon, 'cursor', 'default');
+    assertStyle(composeboxElement.$.submitContainer, 'cursor', 'default');
     const token = {low: BigInt(1), high: BigInt(2)};
     await uploadFileAndVerify(
         token, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
-    assertStyle(composeboxElement.$.submitIcon, 'cursor', 'pointer');
+    assertStyle(composeboxElement.$.submitContainer, 'cursor', 'pointer');
   });
 
   test('uploading/deleting pdf file queries zps', async () => {
@@ -601,6 +610,88 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(event.defaultPrevented);
   });
 
+  test('set and delete visual selection thumbnail', async () => {
+    createComposeboxElement();
+    await microtasksFinished();
+
+    // Initially, carousel is not shown.
+    assertFalse(composeboxElement.hasAttribute('show-file-carousel_'));
+
+    // Set a thumbnail.
+    const thumbnailUrl = 'data:image/png;base64,sometestdata';
+    searchboxCallbackRouterRemote.addFileContext(FAKE_TOKEN_STRING, {
+      fileName: 'Visual Selection',
+      mimeType: 'image/png',
+      imageDataUrl: thumbnailUrl,
+      isDeletable: true,
+      selectionTime: new Date(),
+    } as SelectedFileInfo);
+    await microtasksFinished();
+
+    // Assert thumbnail is shown.
+    assertTrue(composeboxElement.hasAttribute('show-file-carousel_'));
+    const fileCarousel = composeboxElement.$.context.$.carousel;
+    assertTrue(!!fileCarousel);
+    await microtasksFinished();
+
+    assertEquals(fileCarousel.files.length, 1);
+    assertDeepEquals(fileCarousel.files[0]!.uuid, FAKE_TOKEN_STRING);
+    assertEquals(fileCarousel.files[0]!.dataUrl, thumbnailUrl);
+    assertTrue(fileCarousel.files[0]!.isDeletable);
+
+    // Delete the thumbnail.
+    const fileThumbnail =
+        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+    assertTrue(!!fileThumbnail);
+
+    const removeImgButton =
+        fileThumbnail.shadowRoot.querySelector<HTMLElement>('#removeImgButton');
+    assertTrue(!!removeImgButton);
+    removeImgButton.click();
+    await microtasksFinished();
+
+    // Assert thumbnail is removed.
+    assertEquals(searchboxHandler.getCallCount('deleteContext'), 1);
+    const [idArg] = searchboxHandler.getArgs('deleteContext');
+    assertEquals(idArg, FAKE_TOKEN_STRING);
+    // The carousel is removed from the DOM when there are no files, so
+    // assert its absence.
+    assertFalse(
+        !!composeboxElement.$.context.shadowRoot.querySelector('#carousel'));
+    assertFalse(composeboxElement.hasAttribute('show-file-carousel_'));
+  });
+
+  test('setVisualSelectionThumbnail not deletable', async () => {
+    createComposeboxElement();
+    await microtasksFinished();
+
+    // Set a thumbnail that is not deletable.
+    const thumbnailUrl = 'data:image/png;base64,sometestdata';
+    searchboxCallbackRouterRemote.addFileContext(FAKE_TOKEN_STRING, {
+      fileName: 'Visual Selection',
+      mimeType: 'image/png',
+      imageDataUrl: thumbnailUrl,
+      isDeletable: false,
+      selectionTime: new Date(),
+    } as SelectedFileInfo);
+    await microtasksFinished();
+
+    // Assert thumbnail is shown.
+    assertTrue(composeboxElement.hasAttribute('show-file-carousel_'));
+    const fileCarousel = composeboxElement.$.context.$.carousel;
+    assertTrue(!!fileCarousel);
+    assertEquals(fileCarousel.files.length, 1);
+    assertFalse(fileCarousel.files[0]!.isDeletable);
+
+    // Assert delete button is not present.
+    const fileThumbnail =
+        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+    assertTrue(!!fileThumbnail);
+    const removeButton =
+        fileThumbnail.shadowRoot.querySelector<HTMLElement>('#removeImgButton');
+    assertEquals(null, removeButton);
+  });
+
   test('image upload button clicks file input', async () => {
     loadTimeData.overrideValues({
       'composeboxShowContextMenu': false,
@@ -668,7 +759,10 @@ suite('NewTabPageComposeboxTest', () => {
 
   test(
       'inputs disabled based on file count and create image mode', async () => {
-        loadTimeData.overrideValues({'composeboxFileMaxCount': 1});
+        loadTimeData.overrideValues({
+          'composeboxFileMaxCount': 1,
+          'composeboxShowCreateImageButton': true,
+        });
 
         createComposeboxElement();
         await microtasksFinished();
@@ -744,6 +838,48 @@ suite('NewTabPageComposeboxTest', () => {
     assertEquals(event.detail.composeboxText, 'test');
   });
 
+  test('escape key behavior with suggestions', async () => {
+    loadTimeData.overrideValues({composeboxShowZps: true});
+    createComposeboxElement();
+    await microtasksFinished();
+
+    const matches = [
+      createSearchMatch(),
+      createSearchMatch({fillIntoEdit: 'hello world 2'}),
+    ];
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({matches}));
+    await microtasksFinished();
+    assertTrue(await areMatchesShowing());
+    const matchEls =
+        composeboxElement.$.matches.shadowRoot.querySelectorAll(
+            'cr-composebox-match');
+
+    // Case 1: composeboxCloseByEscape_ = false. Escape should select the
+    // first suggestion.
+    (composeboxElement as any).composeboxCloseByEscape_ = false;
+    assertFalse(matchEls[0]!.hasAttribute(Attributes.SELECTED));
+    const closePromise = eventToPromise('close-composebox', composeboxElement);
+    let closed = false;
+    closePromise.then(() => closed = true);
+
+    composeboxElement.$.input.dispatchEvent(new KeyboardEvent(
+        'keydown', {key: 'Escape', bubbles: true, composed: true}));
+    await microtasksFinished();
+
+    assertFalse(closed);
+    assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
+
+    // Case 2: composeboxCloseByEscape_ = true. Escape should close the
+    // composebox.
+    (composeboxElement as any).composeboxCloseByEscape_ = true;
+    const whenCloseComposebox =
+        eventToPromise('close-composebox', composeboxElement);
+    composeboxElement.$.input.dispatchEvent(new KeyboardEvent(
+        'keydown', {key: 'Escape', bubbles: true, composed: true}));
+    await whenCloseComposebox;
+  });
+
   test('session abandoned on cancel button click', async () => {
     // Arrange.
     createComposeboxElement();
@@ -776,26 +912,23 @@ suite('NewTabPageComposeboxTest', () => {
         }));
     await searchboxCallbackRouterRemote.$.flushForTesting();
     await microtasksFinished();
-    composeboxElement.$.submitIcon.click();
+    composeboxElement.$.submitContainer.click();
     await microtasksFinished();
 
     // Assert call occurs.
     assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
   });
 
-  test('empty input does not lead to submission', async () => {
+  test('empty input has disabled submit container', async () => {
     createComposeboxElement();
 
     // Arrange.
     composeboxElement.$.input.value = '';
     composeboxElement.$.input.dispatchEvent(new Event('input'));
     await microtasksFinished();
-    composeboxElement.$.submitIcon.click();
-    await microtasksFinished();
 
-    // Assert call does not occur.
-    assertEquals(searchboxHandler.getCallCount('submitQuery'), 0);
-    assertEquals(searchboxHandler.getCallCount('openAutocompleteMatch'), 0);
+    // Assert call cannot occur.
+    assertTrue(composeboxElement.$.submitContainer.hasAttribute('disabled'));
   });
 
   test('submit button is disabled', async () => {
@@ -805,7 +938,7 @@ suite('NewTabPageComposeboxTest', () => {
     await microtasksFinished();
 
     // Assert.
-    assertTrue(composeboxElement.$.submitIcon.hasAttribute('disabled'));
+    assertTrue(composeboxElement.$.submitContainer.hasAttribute('disabled'));
   });
 
   test('keydown submit only works for enter', async () => {
@@ -1019,7 +1152,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertFalse(composeboxDropdown.hidden);
 
     const matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(4, matchEls.length);
     const matchEl = matchEls[0];
     assertTrue(!!matchEl);
@@ -1205,7 +1338,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     const matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(2, matchEls.length);
 
     const arrowDownEvent = new KeyboardEvent('keydown', {
@@ -1282,7 +1415,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     let matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(1, matchEls.length);
     // First match is not selected.
     assertFalse(matchEls[0]!.hasAttribute(Attributes.SELECTED));
@@ -1310,7 +1443,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(2, matchEls.length);
 
     // First match is not selected.
@@ -1464,7 +1597,7 @@ suite('NewTabPageComposeboxTest', () => {
     await uploadFileAndVerify(
         token, new File(['foo'], 'foo.jpg', {type: 'image/jpeg'}));
 
-    composeboxElement.$.submitIcon.click();
+    composeboxElement.$.submitContainer.click();
     await microtasksFinished();
 
     // Assert call occurs.
@@ -1529,7 +1662,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     let matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(2, matchEls.length);
     let matchEl = matchEls[0];
     assertTrue(!!matchEl);
@@ -1547,7 +1680,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(2, matchEls.length);
     matchEl = matchEls[0];
     assertTrue(!!matchEl);
@@ -1574,7 +1707,7 @@ suite('NewTabPageComposeboxTest', () => {
     assertTrue(await areMatchesShowing());
 
     const matchEls = composeboxElement.$.matches.shadowRoot.querySelectorAll(
-        'ntp-composebox-match');
+        'cr-composebox-match');
     assertEquals(2, matchEls.length);
     const matchEl = matchEls[0];
     assertTrue(!!matchEl);
@@ -1740,7 +1873,6 @@ suite('NewTabPageComposeboxTest', () => {
       assertEquals(files[0]!.name, sampleTabTitle);
     });
 
-
     test('shows recent tab chip when suggestions are available', async () => {
       const tabInfo = {
         tabId: 1,
@@ -1751,14 +1883,7 @@ suite('NewTabPageComposeboxTest', () => {
       searchboxHandler.setResultFor(
           'getRecentTabs', Promise.resolve({tabs: [tabInfo]}));
       createComposeboxElement();
-      const contextElement = composeboxElement.$.context;
-
-      await microtasksFinished();
-      await contextElement.updateComplete;
-
-      const recentTabChip =
-          contextElement.shadowRoot.querySelector<HTMLElement>(
-              '#recentTabChip');
+      const recentTabChip = await getRecentTabChip();
       assertTrue(
           recentTabChip !== null, 'recent tab chip should not be visible');
     });
@@ -1777,8 +1902,11 @@ suite('NewTabPageComposeboxTest', () => {
       await microtasksFinished();
       await contextElement.updateComplete;
 
-      let recentTabChip = contextElement.shadowRoot.querySelector<HTMLElement>(
-          '#recentTabChip');
+      // Focus the input to simulate parent focus
+      composeboxElement.$.input.focus();
+      await microtasksFinished();
+
+      let recentTabChip = await getRecentTabChip();
       assertTrue(recentTabChip !== null);
 
       // Add the tab to the context.
@@ -1791,8 +1919,7 @@ suite('NewTabPageComposeboxTest', () => {
       await searchboxHandler.whenCalled(ADD_TAB_CONTEXT_FN);
       await microtasksFinished();
 
-      recentTabChip = contextElement.shadowRoot.querySelector<HTMLElement>(
-          '#recentTabChip');
+      recentTabChip = await getRecentTabChip();
 
       assertTrue(recentTabChip === null);
     });

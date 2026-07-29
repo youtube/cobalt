@@ -18,7 +18,6 @@ import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.annotation.IdRes;
@@ -110,15 +109,15 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
         SamsungDefaultItemOrder.WEB_SEARCH
     })
     public @interface SamsungDefaultItemOrder {
-        int WRITING_TOOLKIT = 1;
-        int CUT = 2;
-        int COPY = 3;
-        int PASTE = 4;
-        int TRANSLATE = 5;
-        int PASTE_AS_PLAIN_TEXT = 6;
-        int SELECT_ALL = 7;
-        int SHARE = 8;
-        int WEB_SEARCH = 9;
+        int WRITING_TOOLKIT = 0;
+        int CUT = 1;
+        int COPY = 2;
+        int PASTE = 3;
+        int TRANSLATE = 4;
+        int PASTE_AS_PLAIN_TEXT = 5;
+        int SELECT_ALL = 6;
+        int SHARE = 7;
+        int WEB_SEARCH = 8;
     }
 
     public SamsungSelectionActionMenuDelegate() {
@@ -138,7 +137,8 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
         for (SelectionMenuItem.Builder builder : menuItemBuilders) {
             int menuItemOrder = getMenuItemOrder(builder.mId);
             if (menuItemOrder == -1) continue;
-            builder.setOrderInCategory(menuItemOrder);
+            builder.setOrderAndCategory(
+                    menuItemOrder, SelectionMenuItem.ItemGroupOffset.DEFAULT_ITEMS);
         }
         // TODO(crbug.com/41485684) Rewrite to have content APIs which support moving menu
         // items within groups instead of filtering our and re-adding.
@@ -168,7 +168,9 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
                             .setGroupId(org.chromium.content.R.id.select_action_menu_delegate_items)
                             .setIcon(null)
                             .setShowAsActionFlags(MenuItem.SHOW_AS_ACTION_IF_ROOM)
-                            .setOrderInCategory(SamsungDefaultItemOrder.TRANSLATE)
+                            .setOrderAndCategory(
+                                    SamsungDefaultItemOrder.TRANSLATE,
+                                    SelectionMenuItem.ItemGroupOffset.DEFAULT_ITEMS)
                             .setIntent(
                                     getTranslationActionIntent(
                                             selectedText, translateResolveInfo)));
@@ -179,7 +181,9 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
                             .setId(SCAN_TEXT_ID)
                             .setGroupId(org.chromium.content.R.id.select_action_menu_delegate_items)
                             .setShowAsActionFlags(MenuItem.SHOW_AS_ACTION_ALWAYS)
-                            .setOrderInCategory(SamsungDefaultItemOrder.WRITING_TOOLKIT)
+                            .setOrderAndCategory(
+                                    SamsungDefaultItemOrder.WRITING_TOOLKIT,
+                                    SelectionMenuItem.ItemGroupOffset.DEFAULT_ITEMS)
                             .setIntent(
                                     createWritingToolkitIntent(selectedText, isSelectionReadOnly)));
         }
@@ -240,7 +244,9 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
                         .setId(R.id.select_action_menu_manage_apps)
                         .setGroupId(org.chromium.content.R.id.select_action_menu_delegate_items)
                         .setIcon(null)
-                        .setOrderInCategory(Menu.CATEGORY_SECONDARY)
+                        .setOrderAndCategory(
+                                Menu.CATEGORY_SECONDARY,
+                                SelectionMenuItem.ItemGroupOffset.TEXT_PROCESSING_ITEMS)
                         .setShowAsActionFlags(MenuItem.SHOW_AS_ACTION_IF_ROOM)
                         .setIntent(createManageAppsIntent())
                         .build());
@@ -325,18 +331,18 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
 
     @Override
     public boolean handleMenuItemClick(
-            MenuItem item, WebContents webContents, ViewGroup containerView) {
-        if ((item.getItemId() == R.id.select_action_menu_translate
-                        || item.getItemId() == R.id.select_action_menu_manage_apps)
-                && item.getIntent() != null) {
-            startActivity(item.getIntent());
+            SelectionMenuItem item, WebContents webContents, @Nullable View containerView) {
+        if ((item.id == R.id.select_action_menu_translate
+                        || item.id == R.id.select_action_menu_manage_apps)
+                && item.intent != null) {
+            startActivity(item.intent);
             return true;
         }
         if (isWritingToolKitMenuItem(item)) {
             SelectionPopupController selectionPopupController =
                     SelectionPopupController.fromWebContents(webContents);
             selectionPopupController.setPreserveSelectionOnNextLossOfFocus(true);
-            Intent intent = item.getIntent();
+            Intent intent = item.intent;
             launchWritingToolkit(containerView, intent, selectionPopupController);
             return true;
         }
@@ -345,12 +351,12 @@ public class SamsungSelectionActionMenuDelegate extends AutofillSelectionActionM
         return super.handleMenuItemClick(item, webContents, containerView);
     }
 
-    private static boolean isWritingToolKitMenuItem(MenuItem item) {
-        return SCAN_TEXT_ID != 0 && item.getItemId() == SCAN_TEXT_ID;
+    private static boolean isWritingToolKitMenuItem(SelectionMenuItem item) {
+        return SCAN_TEXT_ID != 0 && item.id == SCAN_TEXT_ID;
     }
 
     private static void launchWritingToolkit(
-            View containerView,
+            @Nullable View containerView,
             @Nullable Intent intent,
             SelectionPopupController selectionPopupController) {
         Context context = ContextUtils.getApplicationContext();

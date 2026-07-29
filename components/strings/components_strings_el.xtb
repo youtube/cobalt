@@ -788,6 +788,7 @@
 <translation id="22792995594807632">Απαιτείται έλεγχος πριν τη λήψη</translation>
 <translation id="2283340219607151381">Αποθήκευση και συμπλήρωση διευθύνσεων</translation>
 <translation id="2283447177162560884">Το "<ph name="PAGE_TITLE" />" διαγράφηκε</translation>
+<translation id="2283599456633275070">Ταξίδια</translation>
 <translation id="2286383991450886080">34 x 44 ίντσες</translation>
 <translation id="2288422996159078444">Οτιδήποτε πληκτρολογείτε, τυχόν σελίδες που βλέπετε ή οποιαδήποτε άλλη δραστηριότητα στον ιστό παρακολουθείται. Το περιεχόμενο σε ιστοτόπους μπορεί να αλλάξει χωρίς να το γνωρίζετε.</translation>
 <translation id="2289385804009217824">Περικοπή</translation>
@@ -882,6 +883,7 @@
 <translation id="2436976580469434549">Κλωστοϋφαντουργικές τέχνες</translation>
 <translation id="243815215670139125">Δεν ήταν δυνατή η αποθήκευση αυτής της κάρτας στον Λογαριασμό σας Google. Αποθηκεύτηκε στο Chrome σε αυτή τη συσκευή.</translation>
 <translation id="2438874542388153331">Τετραπλό τρύπημα στα δεξιά</translation>
+<translation id="2440855519769445271">Για να αποκρύψετε τις επιλογές πληρωμής αργότερα, μεταβείτε στις <ph name="BEGIN_LINK" />ρυθμίσεις πληρωμής<ph name="END_LINK" /></translation>
 <translation id="2441854154602066476">Τρόποι πληρωμής που είναι διαθέσιμοι για συμπλήρωση μέσω αφής. Έχει γίνει απόκρυψη του πληκτρολογίου.</translation>
 <translation id="2442865686365739754">Το Chrome <ph name="BEGIN_EMPHASIS" />δεν θα αποθηκεύει<ph name="END_EMPHASIS" />:
           <ph name="BEGIN_LIST" />
@@ -2223,6 +2225,7 @@
 <translation id="4648262692072505866">Ο κατακερματισμός πρέπει να έχει τη μορφή SHA-256.</translation>
 <translation id="4652266463001779298">Δεν επιτρέπεται</translation>
 <translation id="4652440160515225514">Ο οργανισμός σας έχει αποκλείσει αυτόν τον ιστότοπο, επειδή παραβαίνει μια πολιτική.</translation>
+<translation id="4654457557264366314">Τα προγράμματα πληρωμών εξαρτώνται από την καταλληλότητα.</translation>
 <translation id="4658638640878098064">Συρραφή επάνω αριστερά</translation>
 <translation id="4660592918803576381">Άνοιγμα στο Drive</translation>
 <translation id="4661556981531699496">Κατοικίδια και άλλα ζώα</translation>
@@ -2407,7 +2410,7 @@
 <translation id="4934780484581617878">Διαχείριση παραθύρων</translation>
 <translation id="4936134414789135531">Δεν ήταν δυνατή η εύρεση της τιμής <ph name="VALUE_NAME" /> που εισάχθηκε.</translation>
 <translation id="4936573216809994970">Η μεταφόρτωση του αρχείου σας στο <ph name="CLOUD_PROVIDER" /> θα ξεκινήσει σε 1 ώρα</translation>
-<translation id="4936675324097895694">Οικονομικά</translation>
+<translation id="4936675324097895694">Χρηματοοικονομικά</translation>
 <translation id="4941627891654116707">Μέγεθος γραμματοσειράς</translation>
 <translation id="4943620199112228840">Χρήση των μικροφώνων σας</translation>
 <translation id="4943872375798546930">Δεν υπάρχουν αποτελέσματα</translation>

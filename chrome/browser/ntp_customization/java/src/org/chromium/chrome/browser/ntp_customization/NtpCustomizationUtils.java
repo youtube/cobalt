@@ -4,7 +4,7 @@
 
 package org.chromium.chrome.browser.ntp_customization;
 
-import static android.support.annotation.VisibleForTesting.PACKAGE_PRIVATE;
+import static androidx.annotation.VisibleForTesting.PACKAGE_PRIVATE;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.CHROME_COLORS;
@@ -577,6 +577,7 @@ public class NtpCustomizationUtils {
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_COLOR);
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR);
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID);
+        prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE);
     }
 
     /** Returns whether all flags are enabled to allow edge-to-edge for customized theme. */
@@ -667,7 +668,7 @@ public class NtpCustomizationUtils {
             tintColor = Color.WHITE;
         }
 
-        defaultGoogleLogoDrawable.setTint(tintColor);
+        defaultGoogleLogoDrawable.mutate().setTint(tintColor);
     }
 
     public static void resetSharedPreferenceForTesting() {

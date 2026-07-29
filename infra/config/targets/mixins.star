@@ -1597,7 +1597,7 @@ targets.mixin(
     generate_pyl_entry = targets.IGNORE_UNUSED,
     swarming = targets.swarming(
         dimensions = {
-            "gpu": "1002:7480-24.2.8",
+            "gpu": "1002:7480-25.0.7",
             "os": "Ubuntu-24.04",
             "display_attached": "1",
             "pool": "chromium.tests.gpu",
@@ -1664,14 +1664,28 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "linux_nvidia_gtx_1660_stable",
+    name = "linux_nvidia_gtx_1660_obsolete",
     # We always need this entry to be generated since it is used by
     # //content/test/gpu/find_bad_machines.py.
     generate_pyl_entry = targets.IGNORE_UNUSED,
     swarming = targets.swarming(
         dimensions = {
             "gpu": "10de:2184-440.100",
-            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6",
+            "os": "Ubuntu-18.04",
+            "pool": "chromium.tests.gpu",
+        },
+    ),
+)
+
+targets.mixin(
+    name = "linux_nvidia_gtx_1660_stable",
+    # We always need this entry to be generated since it is used by
+    # //content/test/gpu/find_bad_machines.py.
+    generate_pyl_entry = targets.IGNORE_UNUSED,
+    swarming = targets.swarming(
+        dimensions = {
+            "gpu": "10de:2184-440.100|10de:2184-535.183.01",
+            "os": "Ubuntu-18.04.5|Ubuntu-18.04.6|Ubuntu-22.04",
             "pool": "chromium.tests.gpu",
         },
     ),
@@ -2716,7 +2730,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "display_attached": "1",
-            "gpu": "10de:2783-32.0.15.8088|10de:2783-32.0.15.8129",
+            "gpu": "10de:2783-32.0.15.8129",
             "os": "Windows-11",
             "pool": "chromium.tests.gpu",
         },
@@ -2846,12 +2860,12 @@ targets.mixin(
     generate_pyl_entry = False,
     args = [
         "--xcode-build-version",
-        "17b5035f",
+        "17b5045g",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_17b5035f",
+                name = "xcode_ios_17b5045g",
                 path = "Xcode.app",
             ),
         ],

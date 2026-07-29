@@ -1252,13 +1252,8 @@ void WebViewImpl::DidFirstVisuallyNonEmptyPaint() {
   local_main_frame_host_remote_->DidFirstVisuallyNonEmptyPaint();
 }
 
-void WebViewImpl::OnFirstContentfulPaint() {
-  DCHECK(MainFrameImpl());
-  WebPerformanceMetricsForReporting metrics =
-      MainFrameImpl()->PerformanceMetricsForReporting();
-  local_main_frame_host_remote_->OnFirstContentfulPaint(
-      metrics.FirstContentfulPaintAsMonotonicTime() -
-      metrics.NavigationStartAsMonotonicTime());
+void WebViewImpl::OnFirstContentfulPaint(const base::TimeDelta& duration) {
+  local_main_frame_host_remote_->OnFirstContentfulPaint(duration);
 }
 
 void WebViewImpl::UpdateICBAndResizeViewport(
@@ -1936,12 +1931,6 @@ void WebView::ApplyWebPreferences(const web_pref::WebPreferences& prefs,
 
   RuntimeEnabledFeatures::SetPaymentRequestEnabled(
       prefs.payment_request_enabled);
-
-  if (prefs.api_based_fingerprinting_interventions_enabled) {
-    RuntimeEnabledFeatures::SetReduceDeviceMemoryEnabled(true);
-    RuntimeEnabledFeatures::SetReduceHardwareConcurrencyEnabled(true);
-    RuntimeEnabledFeatures::SetReduceScreenSizeEnabled(true);
-  }
 
   if (prefs.ai_prompt_api_enabled) {
     RuntimeEnabledFeatures::SetAIPromptAPIEnabled(true);

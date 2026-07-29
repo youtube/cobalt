@@ -1277,6 +1277,26 @@ void HTMLSelectElement::DefaultEventHandler(Event& event) {
   HTMLFormControlElementWithState::DefaultEventHandler(event);
 }
 
+void HTMLSelectElement::ChildrenChanged(const ChildrenChange& change) {
+  HTMLFormControlElementWithState::ChildrenChanged(change);
+  if (RuntimeEnabledFeatures::SelectChildrenRemovedFixEnabled()) {
+    // OptionRemoved is normally called in HTMLOptionElement::RemovedFrom, but
+    // as a direct child we call OptionRemoved here in order to avoid
+    // https://issues.chromium.org/issues/444330901
+    if (change.type == ChildrenChangeType::kAllChildrenRemoved) {
+      for (Node* node : change.removed_nodes) {
+        if (auto* option = DynamicTo<HTMLOptionElement>(node)) {
+          OptionRemoved(*option);
+        }
+      }
+    } else if (change.type == ChildrenChangeType::kElementRemoved) {
+      if (auto* option = DynamicTo<HTMLOptionElement>(change.sibling_changed)) {
+        OptionRemoved(*option);
+      }
+    }
+  }
+}
+
 HTMLOptionElement* HTMLSelectElement::LastSelectedOption() const {
   const ListItems& items = GetListItems();
   for (wtf_size_t i = items.size(); i;) {
@@ -1757,17 +1777,6 @@ bool HTMLSelectElement::IsPopoverPickerElement(const Element* element) {
   return false;
 }
 
-// static
-HTMLSelectElement* HTMLSelectElement::GetSelectForPopoverPickerElement(
-    const Element* element) {
-  if (auto* root = DynamicTo<ShadowRoot>(element->parentNode())) {
-    if (element->ShadowPseudoId() == shadow_element_names::kPickerSelect) {
-      return DynamicTo<HTMLSelectElement>(root->host());
-    }
-  }
-  return nullptr;
-}
-
 bool HTMLSelectElement::IsAppearanceBase() const {
   return select_type_->IsAppearanceBase();
 }
@@ -1969,7 +1978,12 @@ String HTMLSelectElement::MultipleOptionsSelectedText(
                             localized_number_string);
 }
 
-bool HTMLSelectElement::SupportsBaseAppearance() const {
+bool HTMLSelectElement::SupportsBaseAppearanceInternal(
+    BaseAppearanceValue appearance_value) const {
+  if (!RuntimeEnabledFeatures::AppearanceBaseEnabled() &&
+      appearance_value == BaseAppearanceValue::kBase) {
+    return false;
+  }
   if (!IsMultiple() ||
       RuntimeEnabledFeatures::CustomizableSelectMultiplePopupEnabled()) {
     // Single-selects are always supported. When

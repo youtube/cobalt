@@ -407,6 +407,19 @@ bool WebApp::WasInstalledByUser() const {
          sources_.Has(WebAppManagement::kIwaUserInstalled);
 }
 
+bool WebApp::WasInstalledByTrustedSources() const {
+  // WebAppChromeOsData::oem_installed is not included here as
+  // we would like to keep WebAppManagement::kOem and
+  // WebAppChromeOsData::oem_installed separate.
+  // WebAppChromeOsData::oem_installed will be migrated to
+  // WebAppManagement::kOem eventually.
+  return sources_.Has(WebAppManagement::kDefault) ||
+         sources_.Has(WebAppManagement::kPolicy) ||
+         sources_.Has(WebAppManagement::kKiosk) ||
+         sources_.Has(WebAppManagement::kOem) ||
+         sources_.Has(WebAppManagement::kApsDefault);
+}
+
 WebAppManagement::Type WebApp::GetHighestPrioritySource() const {
   // `WebAppManagementTypes` is iterated in order of priority.
   // Top priority sources are iterated first.
@@ -876,6 +889,38 @@ void WebApp::SetStoredTrustedIconSizes(IconPurpose purpose,
   }
 }
 
+void WebApp::SetInstalledBy(InstalledByPassKey,
+                            std::deque<AppInstalledBy> installed_by) {
+  for (const AppInstalledBy& data : installed_by) {
+    CHECK(data.requesting_url().is_valid());
+  }
+  installed_by_ = std::move(installed_by);
+}
+
+constexpr int kMaxInstalledBySize = 10;
+void WebApp::AddInstalledByInfo(AppInstalledBy installed_by_info) {
+  CHECK(installed_by_info.requesting_url().is_valid());
+
+  // Check for duplicates - only compare URLs, not timestamps.
+  // Remove duplicate entry so it can be re-added with updated timestamp.
+  installed_by_.erase(
+      std::remove_if(installed_by_.begin(), installed_by_.end(),
+                     [&installed_by_info](const AppInstalledBy& info) {
+                       return info.requesting_url() ==
+                              installed_by_info.requesting_url();
+                     }),
+      installed_by_.end());
+
+  // Add the new entry.
+  installed_by_.push_back(std::move(installed_by_info));
+
+  // Enforce max 10 entries - remove oldest if exceeding capacity.
+  if (installed_by_.size() > kMaxInstalledBySize) {
+    installed_by_.pop_front();
+  }
+  CHECK(installed_by_.size() <= kMaxInstalledBySize);
+}
+
 WebApp::ClientData::ClientData() = default;
 
 WebApp::ClientData::~ClientData() = default;
@@ -1023,7 +1068,8 @@ bool WebApp::operator==(const WebApp& other) const {
         app.pending_update_info_,
         app.trusted_icons_,
         app.stored_trusted_icon_sizes_any_,
-        app.stored_trusted_icon_sizes_maskable_
+        app.stored_trusted_icon_sizes_maskable_,
+        app.installed_by_
         // clang-format on
     );
   };
@@ -1245,6 +1291,12 @@ base::Value WebApp::AsDebugValueWithOnlyPlatformAgnosticFields() const {
 
   root.Set("trusted_icons", ConvertDebugValueList(trusted_icons_));
 
+  base::Value::List installed_by_list;
+  for (const auto& installed_by_data : installed_by_) {
+    installed_by_list.Append(installed_by_data.InstalledByToDebugValue());
+  }
+  root.Set("installed_by", std::move(installed_by_list));
+
   base::Value::Dict stored_trusted_icon_sizes_json;
   for (IconPurpose purpose : kIconPurposes) {
     // There can never be trusted monochrome icons.
@@ -1271,6 +1323,11 @@ base::Value WebApp::AsDebugValue() const {
   root.Set("chromeos_data", OptionalAsDebugValue(chromeos_data_));
 
   root.Set("client_data", client_data_.AsDebugValue());
+
+  // The user_display_mode getter CHECK fails if sync_proto_ isn't initialized.
+  if (sync_proto_.has_start_url()) {
+    root.Set("user_display_mode", base::ToString(user_display_mode()));
+  }
 
   return value;
 }

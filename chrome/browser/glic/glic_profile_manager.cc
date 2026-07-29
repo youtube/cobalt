@@ -126,6 +126,8 @@ Profile* GlicProfileManager::GetProfileForLaunch() const {
 void GlicProfileManager::SetActiveGlic(GlicKeyedService* glic) {
   if (last_active_glic_ && last_active_glic_.get() != glic &&
       last_active_glic_->IsWindowShowing()) {
+    // This is only relevant to single-instance glic, as IsWindowShowing remains
+    // unimplemented in multi-instance.
     last_active_glic_->window_controller().Close();
   }
   Profile* last_active_glic_profile = nullptr;
@@ -143,6 +145,9 @@ void GlicProfileManager::SetCurrentDetachedGlic(Profile* profile) {
   if (!profile) {
     current_detached_glic_.reset();
     return;
+  }
+  if (current_detached_glic_ && current_detached_glic_->profile() != profile) {
+    current_detached_glic_->window_controller().Close();
   }
   current_detached_glic_ = GlicKeyedService::Get(profile)->GetWeakPtr();
 }
@@ -162,8 +167,9 @@ void GlicProfileManager::OnLoadingClientForService(GlicKeyedService* glic) {
     return;
   }
 
-  if (last_loaded_glic_ && last_loaded_glic_.get() != glic) {
-    last_loaded_glic_->CloseUI();
+  if (last_loaded_glic_ && last_loaded_glic_.get() != glic &&
+      !base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    last_loaded_glic_->CloseAndShutdown();
   }
 
   if (glic) {
@@ -182,17 +188,24 @@ void GlicProfileManager::OnUnloadingClientForService(GlicKeyedService* glic) {
 void GlicProfileManager::ShouldPreloadForProfile(
     Profile* profile,
     ShouldPreloadCallback callback) {
+  if (!base::FeatureList::IsEnabled(features::kGlicWarming)) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       GlicPrewarmingChecksResult::kWarmingDisabled));
+    return;
+  }
   if (!profile || IsProfileDirectoryMarkedForDeletion(profile->GetPath())) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback),
                                   GlicPrewarmingChecksResult::kProfileGone));
     return;
   }
-  if (!base::FeatureList::IsEnabled(features::kGlicWarming)) {
+  if (profile->ShutdownStarted()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback),
-                       GlicPrewarmingChecksResult::kWarmingDisabled));
+                       GlicPrewarmingChecksResult::kBrowserShuttingDown));
     return;
   }
   GlicPrewarmingChecksResult result;
@@ -351,6 +364,9 @@ void GlicProfileManager::CanPreloadForProfile(Profile* profile,
   };
   if (!profile || profile->ShutdownStarted()) {
     return produce_result(GlicPrewarmingChecksResult::kProfileGone);
+  }
+  if (profile->ShutdownStarted()) {
+    return produce_result(GlicPrewarmingChecksResult::kBrowserShuttingDown);
   }
   auto enablement = GlicEnabling::EnablementForProfile(profile);
   if (!enablement.IsProfileEligible()) {

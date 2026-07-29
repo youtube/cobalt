@@ -19,3 +19,7 @@ bool IsForInitialWebUI(const GURL& url) {
   }
   return false;
 }
+
+bool IsInitialWebUIMetricsLoggingEnabled() {
+  return base::FeatureList::IsEnabled(features::kInitialWebUIMetrics);
+}

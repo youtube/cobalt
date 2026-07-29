@@ -60,13 +60,11 @@ gfx::BufferUsage GetBufferUsage(SharedImageUsageSet usage) {
 
 constexpr SharedImageUsageSet kSupportedUsage =
     SHARED_IMAGE_USAGE_GLES2_READ | SHARED_IMAGE_USAGE_GLES2_WRITE |
-    SHARED_IMAGE_USAGE_GLES2_FOR_RASTER_ONLY |
     SHARED_IMAGE_USAGE_DISPLAY_WRITE | SHARED_IMAGE_USAGE_DISPLAY_READ |
     SHARED_IMAGE_USAGE_RASTER_READ | SHARED_IMAGE_USAGE_RASTER_WRITE |
-    SHARED_IMAGE_USAGE_RASTER_OVER_GLES2_ONLY |
-    SHARED_IMAGE_USAGE_OOP_RASTERIZATION | SHARED_IMAGE_USAGE_SCANOUT |
-    SHARED_IMAGE_USAGE_WEBGPU_READ | SHARED_IMAGE_USAGE_WEBGPU_WRITE |
-    SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE | SHARED_IMAGE_USAGE_VIDEO_DECODE |
+    SHARED_IMAGE_USAGE_SCANOUT | SHARED_IMAGE_USAGE_WEBGPU_READ |
+    SHARED_IMAGE_USAGE_WEBGPU_WRITE | SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE |
+    SHARED_IMAGE_USAGE_VIDEO_DECODE |
     SHARED_IMAGE_USAGE_WEBGPU_SWAP_CHAIN_TEXTURE |
     SHARED_IMAGE_USAGE_HIGH_PERFORMANCE_GPU | SHARED_IMAGE_USAGE_CPU_UPLOAD |
     SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
@@ -94,7 +92,8 @@ OzoneImageBackingFactory::CreateGpuMemoryBufferHandle(
     viz::SharedImageFormat format,
     gfx::BufferUsage usage) {
   CHECK(viz::HasEquivalentBufferFormat(format));
-  gfx::BufferFormat buffer_format = ToBufferFormat(format);
+  gfx::BufferFormat buffer_format =
+      viz::SharedImageFormatToBufferFormat(format);
   scoped_refptr<gfx::NativePixmap> pixmap =
       ui::OzonePlatform::GetInstance()
           ->GetSurfaceFactoryOzone()
@@ -131,7 +130,8 @@ OzoneImageBackingFactory::CreateSharedImageInternal(
     SharedImageUsageSet usage,
     std::string debug_label,
     std::optional<gfx::BufferUsage> buffer_usage) {
-  gfx::BufferFormat buffer_format = ToBufferFormat(format);
+  gfx::BufferFormat buffer_format =
+      viz::SharedImageFormatToBufferFormat(format);
   VulkanDeviceQueue* device_queue = nullptr;
 #if BUILDFLAG(ENABLE_VULKAN)
   DCHECK(shared_context_state_);
@@ -241,7 +241,7 @@ std::unique_ptr<SharedImageBacking> OzoneImageBackingFactory::CreateSharedImage(
     ui::SurfaceFactoryOzone* surface_factory =
         ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
     pixmap = surface_factory->CreateNativePixmapFromHandle(
-        kNullSurfaceHandle, size, ToBufferFormat(format),
+        kNullSurfaceHandle, size, format,
         std::move(handle).native_pixmap_handle());
     if (!pixmap) {
       return nullptr;
@@ -310,13 +310,12 @@ bool OzoneImageBackingFactory::IsSupported(
   }
   auto* factory = ui::OzonePlatform::GetInstance()->GetSurfaceFactoryOzone();
   if (viz::HasEquivalentBufferFormat(format) &&
-      !factory->CanCreateNativePixmapForFormat(ToBufferFormat(format))) {
+      !factory->CanCreateNativePixmapForFormat(format)) {
     return false;
   }
 
   ui::GLOzone* gl_ozone = factory->GetCurrentGLOzone();
-  if (used_by_gl &&
-      (!gl_ozone || !gl_ozone->CanImportNativePixmap(ToBufferFormat(format)))) {
+  if (used_by_gl && (!gl_ozone || !gl_ozone->CanImportNativePixmap(format))) {
     return false;
   }
 

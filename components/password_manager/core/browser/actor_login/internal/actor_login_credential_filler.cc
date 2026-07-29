@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/concurrent_closures.h"
 #include "base/strings/to_string.h"
@@ -115,13 +116,23 @@ void ActorLoginCredentialFiller::AttemptLogin(
 
   LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_FILLING_ATTEMPT_STARTED);
 
-  // AttemptLogin wouldn't fill even without this check, because
-  // `PasswordFormManager` isn't created if this returns false. However, if we
-  // don't add the check here, the error message returned to the caller would be
-  // "kErrorNoSigninForm", which would be inaccurate.
+  CHECK(network::IsOriginPotentiallyTrustworthy(origin_));
+
+  // The check is added separately in order to differentiate between having
+  // no signin form on the page and filling being disallowed.
   if (!client_->IsFillingEnabled(origin_.GetURL())) {
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_FILLING_NOT_ALLOWED);
-    std::move(callback_).Run(LoginStatusResult::kErrorFillingNotAllowed);
+    std::move(callback_).Run(
+        base::unexpected(ActorLoginError::kFillingNotAllowed));
+    return;
+  }
+
+  // Disallow filling a credential requested for a different primary main frame
+  // origin than the one it was requested for.
+  if (!origin_.IsSameOriginWith(credential_.request_origin)) {
+    LogStatus(logger.get(),
+              Logger::STRING_ACTOR_LOGIN_PRIMARY_MAIN_FRAME_ORIGIN_CHANGED);
+    std::move(callback_).Run(LoginStatusResult::kErrorInvalidCredential);
     return;
   }
 
@@ -157,10 +168,13 @@ void ActorLoginCredentialFiller::AttemptLogin(
   base::OnceClosure fill_cb = base::DoNothing();
   if (base::FeatureList::IsEnabled(
           password_manager::features::kActorLoginFillingHeuristics)) {
-    fill_cb = base::BindOnce(&ActorLoginCredentialFiller::FillAllEligibleFields,
-                             weak_ptr_factory_.GetWeakPtr(),
-                             stored_credential->username_value,
-                             stored_credential->password_value);
+    fill_cb = base::BindOnce(
+        &ActorLoginCredentialFiller::FillAllEligibleFields,
+        weak_ptr_factory_.GetWeakPtr(), stored_credential->username_value,
+        stored_credential->password_value,
+        // If there is a login form in the primary main frame, don't fill
+        // iframes as we prefer forms from the primary main frame.
+        signin_form_manager->GetDriver()->IsInPrimaryMainFrame());
   } else {
     if (should_store_permission_) {
       signin_form_manager->SetShouldStoreActorLoginPermission();
@@ -173,7 +187,9 @@ void ActorLoginCredentialFiller::AttemptLogin(
 
   if (client_->IsReauthBeforeFillingRequired(device_authenticator_.get())) {
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_WAITING_FOR_REAUTH);
-    if (!tab.IsActivated()) {
+    if (base::FeatureList::IsEnabled(
+            password_manager::features::kActorLoginReauthTaskRefocus) &&
+        !tab.IsActivated()) {
       std::move(callback_).Run(LoginStatusResult::kErrorDeviceReauthRequired);
     } else {
       ReauthenticateAndFill(std::move(fill_cb));
@@ -268,29 +284,24 @@ void ActorLoginCredentialFiller::FillForm(
 
 void ActorLoginCredentialFiller::FillAllEligibleFields(
     std::u16string username,
-    std::u16string password) {
-  PasswordManagerInterface* password_manager = client_->GetPasswordManager();
-  PasswordFormCache* form_cache = password_manager->GetPasswordFormCache();
-
+    std::u16string password,
+    bool should_skip_iframes) {
   base::ConcurrentClosures concurrent_filling;
-  for (const auto& manager : form_cache->GetFormManagers()) {
-    if (!manager->GetDriver()) {
-      continue;
-    }
-    if (!manager->GetDriver()->GetLastCommittedOrigin().IsSameOriginWith(
-            origin_)) {
-      continue;
-    }
+  std::vector<PasswordFormManager*> eligible_forms =
+      login_form_finder_->GetEligibleLoginFormManagers(origin_);
+  if (should_skip_iframes) {
+    std::erase_if(eligible_forms, [](const PasswordFormManager* form_manager) {
+      return !form_manager->GetDriver()->IsInPrimaryMainFrame();
+    });
+  }
 
-    const password_manager::PasswordForm* parsed_form =
-        manager->GetParsedObservedForm();
-    if (!parsed_form || !login_form_finder_->IsLoginForm(*parsed_form)) {
-      continue;
-    }
+  for (PasswordFormManager* manager : eligible_forms) {
     if (should_store_permission_) {
       manager->SetShouldStoreActorLoginPermission();
     }
 
+    const password_manager::PasswordForm* parsed_form =
+        manager->GetParsedObservedForm();
     FillField(manager->GetDriver().get(),
               parsed_form->username_element_renderer_id, username,
               FieldType::kUsername, concurrent_filling.CreateClosure());

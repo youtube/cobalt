@@ -144,7 +144,7 @@ class CORE_EXPORT StyleCascade {
   const CSSValue* Resolve(const CSSPropertyName&,
                           const CSSValue&,
                           const TreeScope*,
-                          const CustomEnvBindings*,
+                          const MixinParameterBindings*,
                           CascadeOrigin,
                           CascadeResolver&);
 
@@ -176,7 +176,7 @@ class CORE_EXPORT StyleCascade {
                                  const CSSPropertyName&,
                                  const CSSValue&,
                                  const TreeScope*,
-                                 const CustomEnvBindings*);
+                                 const MixinParameterBindings*);
 
   // Resolve arbitrary substitution functions `var()`, `attr()`, `if()`, etc.
   // within `value` in the context of the `element`.
@@ -186,7 +186,7 @@ class CORE_EXPORT StyleCascade {
       StyleResolverState&,
       const CSSUnparsedDeclarationValue& value,
       const TreeScope*,
-      const CustomEnvBindings*);
+      const MixinParameterBindings*);
 
   // Interpret CSSUnparsedDeclarationValue value against a numeric literal
   // syntax. Used to resolve values in the range syntax of style queries.
@@ -386,29 +386,47 @@ class CORE_EXPORT StyleCascade {
   const CSSValue* Resolve(const CSSProperty&,
                           const CSSValue&,
                           const TreeScope*,
-                          const CustomEnvBindings*,
+                          const MixinParameterBindings*,
                           CascadePriority,
                           CascadeOrigin&,
                           CascadeResolver&);
+
+  // Convert the chain of mixin parameter bindings (if any) to a chain of
+  // @function contexts, as mixin parameter substitution is (tentatively)
+  // spec-ed in terms of CSS functions. We do this recursively (using
+  // binding_index to find out how far down the chain we are), because
+  // FunctionContext is stack-only.
+  //
+  // TODO(sesse): See if we can cache this somehow, especially if none of
+  // the parameters depend on the ComputedStyle of the element.
+  const CSSValue* MakeFunctionContextFromMixinAndResolveSubstitutions(
+      const CSSProperty& property,
+      const CSSValue& value,
+      const TreeScope* tree_scope,
+      const HeapVector<Member<const MixinParameterBindings>, 4>& binding_chain,
+      unsigned binding_index,
+      FunctionContext* function_context,
+      CascadeResolver& resolver);
+
   const CSSValue* ResolveSubstitutions(const CSSProperty&,
                                        const CSSValue&,
                                        const TreeScope*,
-                                       const CustomEnvBindings*,
+                                       const MixinParameterBindings*,
                                        CascadeResolver&);
   const CSSValue* ResolveCustomProperty(const CSSProperty&,
                                         const CSSUnparsedDeclarationValue&,
                                         const TreeScope*,
-                                        const CustomEnvBindings*,
+                                        FunctionContext*,
                                         CascadeResolver&);
   const CSSValue* ResolveVariableReference(const CSSProperty&,
                                            const CSSUnparsedDeclarationValue&,
                                            const TreeScope*,
-                                           const CustomEnvBindings*,
+                                           FunctionContext*,
                                            CascadeResolver&);
   const CSSValue* ResolvePendingSubstitution(const CSSProperty&,
                                              const CSSPendingSubstitutionValue&,
                                              const TreeScope*,
-                                             const CustomEnvBindings*,
+                                             FunctionContext*,
                                              CascadeResolver&);
   const CSSValue* ResolveRevert(const CSSProperty&,
                                 const CSSValue&,
@@ -428,7 +446,6 @@ class CORE_EXPORT StyleCascade {
   const CSSValue* ResolveFlipRevert(const CSSProperty&,
                                     const CSSFlipRevertValue&,
                                     const TreeScope*,
-                                    const CustomEnvBindings*,
                                     CascadePriority,
                                     CascadeOrigin&,
                                     CascadeResolver&);
@@ -438,7 +455,6 @@ class CORE_EXPORT StyleCascade {
 
   CSSVariableData* ResolveVariableData(CSSVariableData*,
                                        const TreeScope*,
-                                       const CustomEnvBindings*,
                                        const CSSParserContext&,
                                        FunctionContext*,
                                        CascadeResolver&);
@@ -469,7 +485,7 @@ class CORE_EXPORT StyleCascade {
     STACK_ALLOCATED();
 
    public:
-    StyleRuleFunction& function;
+    StyleRuleFunction* function = nullptr;
 
     // The TreeScope owning the corresponding function rule.
     const TreeScope* tree_scope = nullptr;
@@ -512,7 +528,6 @@ class CORE_EXPORT StyleCascade {
 
   bool ResolveTokensInto(CSSParserTokenStream&,
                          const TreeScope*,
-                         const CustomEnvBindings*,
                          CascadeResolver&,
                          const CSSParserContext&,
                          FunctionContext*,
@@ -520,40 +535,34 @@ class CORE_EXPORT StyleCascade {
                          TokenSequence&);
   bool ResolveVarInto(CSSParserTokenStream&,
                       const TreeScope*,
-                      const CustomEnvBindings*,
                       CascadeResolver&,
                       const CSSParserContext&,
                       FunctionContext*,
                       TokenSequence&);
   bool ResolveInheritInto(CSSParserTokenStream&,
                           const TreeScope*,
-                          const CustomEnvBindings*,
                           CascadeResolver&,
                           const CSSParserContext&,
                           FunctionContext*,
                           TokenSequence&);
   bool ResolveEnvInto(CSSParserTokenStream&,
                       const TreeScope*,
-                      const CustomEnvBindings*,
                       CascadeResolver&,
                       const CSSParserContext&,
                       TokenSequence&);
   bool ResolveAttrInto(CSSParserTokenStream&,
                        const TreeScope*,
-                       const CustomEnvBindings*,
                        CascadeResolver&,
                        const CSSParserContext&,
                        FunctionContext*,
                        TokenSequence&);
   bool ResolveAutoBaseInto(CSSParserTokenStream&,
                            const TreeScope*,
-                           const CustomEnvBindings*,
                            CascadeResolver&,
                            const CSSParserContext&,
                            TokenSequence&);
   bool ResolveIfInto(CSSParserTokenStream&,
                      const TreeScope*,
-                     const CustomEnvBindings*,
                      CascadeResolver&,
                      const CSSParserContext&,
                      FunctionContext*,
@@ -570,21 +579,18 @@ class CORE_EXPORT StyleCascade {
 
   KleeneValue EvalIfTest(const IfCondition& node,
                          const TreeScope* tree_scope,
-                         const CustomEnvBindings* env_bindings,
                          CascadeResolver& resolver,
                          const CSSParserContext& context,
                          FunctionContext* function_context,
                          bool& is_attr_tainted);
   bool EvalIfCondition(CSSParserTokenStream&,
                        const TreeScope*,
-                       const CustomEnvBindings*,
                        CascadeResolver&,
                        const CSSParserContext&,
                        FunctionContext*,
                        bool& is_attr_tainted);
   KleeneValue EvalIfStyleFeature(const MediaQueryFeatureExpNode&,
                                  const TreeScope*,
-                                 const CustomEnvBindings*,
                                  CascadeResolver&,
                                  const CSSParserContext& context,
                                  FunctionContext*,
@@ -617,12 +623,41 @@ class CORE_EXPORT StyleCascade {
   // definition.
   bool ResolveFunctionInto(StringView function_name,
                            const TreeScope*,
-                           const CustomEnvBindings*,
                            CSSParserTokenStream& stream,
                            CascadeResolver& resolver,
                            const CSSParserContext& context,
                            FunctionContext* function_context,
                            TokenSequence& out);
+
+  // Resolve a single function parameter (e.g., resolving var() in the right
+  // context, doing type checking, etc.) to get its canonical value on function
+  // entry. Normally inserts the result into function_arguments, but if
+  // default_value was used (because substitution failed), will insert into
+  // unresolved_defaults instead (see ResolveUnresolvedFunctionDefaults()).
+  void ResolveFunctionParameter(
+      const String& name,
+      CSSVariableData* argument_data,
+      CSSVariableData* default_value,
+      const CSSSyntaxDefinition& type,
+      const TreeScope* tree_scope,
+      CascadeResolver& resolver,
+      const CSSParserContext& context,
+      FunctionContext* function_context,
+      HeapHashMap<String, Member<CSSVariableData>>& function_arguments,
+      HeapHashMap<String, Member<CSSVariableData>>& unresolved_defaults);
+
+  // Resolve default values after all other parameters have been resolved
+  // (as they can refer to other parameters). Returns false if a cycle
+  // has been detected.
+  bool ResolveUnresolvedFunctionDefaults(
+      const HeapHashMap<String, Member<CSSVariableData>>& unresolved_defaults,
+      const HashMap<String, const CSSSyntaxDefinition*>& local_types,
+      StyleRuleFunction* function,
+      const TreeScope* tree_scope,
+      FunctionContext* function_context,
+      CascadeResolver& resolver,
+      const CSSParserContext* context,
+      HeapHashMap<String, Member<CSSVariableData>>& function_arguments);
 
   // If `data` is non-nullptr, append that to `out`. Otherwise, consume
   // a fallback from the stream (starting with a kCommaToken),
@@ -633,7 +668,6 @@ class CORE_EXPORT StyleCascade {
   bool AppendDataWithFallback(CSSVariableData* data,
                               CSSParserTokenStream&,
                               const TreeScope*,
-                              const CustomEnvBindings*,
                               CascadeResolver&,
                               const CSSParserContext&,
                               FunctionContext*,
@@ -641,7 +675,6 @@ class CORE_EXPORT StyleCascade {
 
   CSSVariableData* ResolveTypedExpression(CSSVariableData& unresolved,
                                           const TreeScope*,
-                                          const CustomEnvBindings*,
                                           const CSSSyntaxDefinition* type,
                                           CascadeResolver&,
                                           const CSSParserContext&,
@@ -762,7 +795,8 @@ class CORE_EXPORT StyleCascade {
 
   const Document& GetDocument() const;
   const TreeScope* GetTreeScope(CascadePriority) const;
-  const CustomEnvBindings* GetEnvBindings(CascadePriority) const;
+  const MixinParameterBindings* GetMixinParameterBindings(
+      CascadePriority) const;
   const CSSProperty& ResolveSurrogate(const CSSProperty& surrogate);
 
   void CountUse(WebFeature);

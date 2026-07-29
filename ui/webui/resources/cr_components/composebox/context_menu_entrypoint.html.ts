@@ -19,6 +19,7 @@ export function getHtml(this: ContextMenuEntrypointElement) {
     </cr-button>
     `: html`
       <cr-icon-button id="entrypoint"
+          part="context-menu-entrypoint-icon"
           iron-icon="cr:add"
           @click="${this.onEntrypointClick_}"
           ?disabled="${this.inputsDisabled}"
@@ -27,9 +28,9 @@ export function getHtml(this: ContextMenuEntrypointElement) {
     `}
 
   <cr-action-menu id="menu" role-description="${this.i18n('menu')}">
-    ${this.tabSuggestions_?.length > 0 ? html`
+    ${this.tabSuggestions?.length > 0 ? html`
       <h4 id="tabHeader">${this.i18n('addTab')}</h4>
-      ${this.tabSuggestions_.map((tab, index) => html`
+      ${this.tabSuggestions.map((tab, index) => html`
         <div class="suggestion-container">
           <button class="dropdown-item"
               title="${tab.title}" data-index="${index}"
@@ -37,8 +38,8 @@ export function getHtml(this: ContextMenuEntrypointElement) {
               ?disabled="${this.isTabDisabled_(tab)}"
               @pointerenter="${this.onTabPointerenter_}"
               @click="${this.addTabContext_}">
-            <composebox-tab-favicon .url="${tab.url.url}">
-            </composebox-tab-favicon>
+            <cr-composebox-tab-favicon .url="${tab.url.url}">
+            </cr-composebox-tab-favicon>
             <span class="tab-title">${tab.title}</span>
           </button>
           ${this.shouldShowTabPreview_() ? html`

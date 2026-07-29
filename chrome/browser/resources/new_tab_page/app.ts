@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import './action_chips.js';
+import './action_chips/action_chips.js';
 import './iframe.js';
 import './logo.js';
 import '/strings.m.js';
@@ -120,7 +120,7 @@ const OGB_IFRAME_ORIGIN = 'chrome-untrusted://new-tab-page';
 const MSAL_IFRAME_ORIGIN = 'chrome-untrusted://ntp-microsoft-auth';
 
 export const CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID =
-    'NewTabPageUI::kCustomizeChromeButtonElementId';
+    'CustomizeButtonsHandler::kCustomizeChromeButtonElementId';
 
 // 900px ~= 561px (max value for --ntp-search-box-width) * 1.5 + some margin.
 const realboxCanShowSecondarySideMediaQueryList =
@@ -595,7 +595,6 @@ export class AppElement extends AppElementBase {
     if (!this.modulesEnabled_) {
       this.recordBrowserPromoMetrics_();
     }
-    this.pageHandler_.maybeTriggerAutomaticCustomizeChromePromo();
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -685,6 +684,10 @@ export class AppElement extends AppElementBase {
       this.onThemeChange_();
     }
 
+    if (changedPrivateProperties.has('isFooterVisible_') && this.lazyRender_) {
+      this.maybeRegisterCustomizeButtonHelpBubble_();
+    }
+
     if (changedPrivateProperties.has('logoColor_')) {
       this.style.setProperty(
           '--ntp-logo-color', this.rgbaOrInherit_(this.logoColor_));
@@ -765,15 +768,23 @@ export class AppElement extends AppElementBase {
     // Integration tests use this attribute to determine when lazy load has
     // completed.
     document.documentElement.setAttribute('lazy-loaded', String(true));
+    if (this.maybeRegisterCustomizeButtonHelpBubble_()) {
+      this.pageHandler_.maybeTriggerAutomaticCustomizeChromePromo();
+    }
+    if (this.showWallpaperSearchButton_) {
+      this.customizeButtonsHandler_.incrementWallpaperSearchButtonShownCount();
+    }
+  }
+
+  private maybeRegisterCustomizeButtonHelpBubble_(): boolean {
     if (!this.isFooterVisible_) {
       this.registerHelpBubble(
           CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID,
           ['ntp-customize-buttons', '#customizeButton'], {fixed: true});
       this.pageHandler_.maybeShowFeaturePromo(IphFeature.kCustomizeChrome);
+      return true;
     }
-    if (this.showWallpaperSearchButton_) {
-      this.customizeButtonsHandler_.incrementWallpaperSearchButtonShownCount();
-    }
+    return false;
   }
 
   protected onComposeboxInitialized_(e: CustomEvent<{
@@ -1134,6 +1145,9 @@ export class AppElement extends AppElementBase {
     }
 
     switch (this.browserPromoType_) {
+      case 'disabled':
+        recordShowBrowserPromosResult(ShowNtpPromosResult.kNotShownDueToPolicy);
+        break;
       case 'empty':
         recordShowBrowserPromosResult(ShowNtpPromosResult.kNotShownNoPromos);
         break;

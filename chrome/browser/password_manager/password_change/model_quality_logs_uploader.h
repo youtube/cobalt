@@ -40,7 +40,8 @@ class ModelQualityLogsUploader {
   void UploadFinalLog();
 
   // Sets quality data for Step=LOGGED_IN_CHECK.
-  void SetLoggedInCheckQuality(int retry_count, QualityStatus quality_status);
+  void SetLoggedInCheckQuality(int retry_count,
+                               std::unique_ptr<LoggingData> logging_data);
 
   // Sets quality data for Step=OPEN_FORM_STEP.
   void SetOpenFormQuality(
@@ -128,6 +129,7 @@ class ModelQualityLogsUploader {
 #endif
 
  private:
+  const base::Time flow_start_time_;
   optimization_guide::proto::LogAiDataRequest final_log_data_;
   raw_ptr<Profile> profile_;
   base::WeakPtrFactory<ModelQualityLogsUploader> weak_ptr_factory_{this};

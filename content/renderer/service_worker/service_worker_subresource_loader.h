@@ -7,7 +7,7 @@
 
 #include <optional>
 
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/task/sequenced_task_runner.h"
@@ -97,7 +97,7 @@ class CONTENT_EXPORT ServiceWorkerSubresourceLoader
 
   void OnMojoDisconnect();
 
-  void StartRequest(const network::ResourceRequest& resource_request);
+  void StartRequest();
   void DispatchFetchEvent();
   void DispatchFetchEventForSubresource();
   void OnFetchEventFinished(blink::mojom::ServiceWorkerEventStatus status);

@@ -1977,7 +1977,7 @@ const CSSValue* ConsumeBasicShapeAndGeometryBox(
   if (!shape) {
     return nullptr;
   }
-  CSSValue* box = css_parsing_utils::ConsumeGeometryBox(stream);
+  CSSValue* box = css_parsing_utils::ConsumeGeometryBoxForBorderShape(stream);
   if (box) {
     return MakeGarbageCollected<CSSValuePair>(
         shape, box, CSSValuePair::kKeepIdenticalValues);
@@ -2002,7 +2002,14 @@ const CSSValue* BorderShape::ParseSingleValue(
   }
 
   const CSSValue* inner = ConsumeBasicShapeAndGeometryBox(stream, context);
-  if (!inner || base::ValuesEquivalent(inner, outer)) {
+  // If the inner shape is not present or is identical to the outer shape,
+  // we can return the outer shape. Note that we need to check for value pair
+  // equality here because both outer and inner shapes can have an associated
+  // geometry box and when they are omitted, they aren't equal.
+  // E.g. circle() circle() is not the same as circle(), it's actually
+  // circle() border-box circle() padding-box.
+  if (!inner || (outer->IsValuePair() && inner->IsValuePair() &&
+                 base::ValuesEquivalent(inner, outer))) {
     return outer;
   }
 
@@ -2024,33 +2031,37 @@ const CSSValue* BorderShape::CSSValueFromComputedStyleInternal(
 
   const CSSValue* outer = nullptr;
   const CSSValue* inner = nullptr;
+  bool is_single_shape = !border_shape.HasSeparateInnerShape();
 
   // Outer shape and coord box
   CSSValue* outer_shape = ValueForBasicShape(style, &border_shape.OuterShape());
-  GeometryBox box = border_shape.OuterBox();
-  if (box != GeometryBox::kBorderBox) {
-    CSSValue* outer_box = CSSIdentifierValue::Create(box);
+  GeometryBox outer_box = border_shape.OuterBox();
+  // For single-shape border-shape, half-border-box is the default and should
+  // be omitted from serialization
+  bool should_omit_outer_box =
+      (is_single_shape && outer_box == GeometryBox::kHalfBorderBox) ||
+      (!is_single_shape && outer_box == GeometryBox::kBorderBox);
+  if (!should_omit_outer_box) {
+    CSSValue* outer_box_value = CSSIdentifierValue::Create(outer_box);
     outer = MakeGarbageCollected<CSSValuePair>(
-        outer_shape, outer_box, CSSValuePair::kKeepIdenticalValues);
+        outer_shape, outer_box_value, CSSValuePair::kKeepIdenticalValues);
   } else {
     outer = outer_shape;
   }
 
   // Inner shape and coord box
-  if (border_shape.HasSeparateInnerShape()) {
+  if (!is_single_shape) {
     CSSValue* inner_shape =
         ValueForBasicShape(style, &border_shape.InnerShape());
-    box = border_shape.InnerBox();
-    if (box != GeometryBox::kBorderBox) {
-      CSSValue* inner_box = CSSIdentifierValue::Create(box);
+    GeometryBox inner_box = border_shape.InnerBox();
+    if (inner_box != GeometryBox::kPaddingBox) {
+      CSSValue* inner_box_value = CSSIdentifierValue::Create(inner_box);
       inner = MakeGarbageCollected<CSSValuePair>(
-          inner_shape, inner_box, CSSValuePair::kKeepIdenticalValues);
+          inner_shape, inner_box_value, CSSValuePair::kKeepIdenticalValues);
     } else {
       inner = inner_shape;
     }
-  }
-
-  if (!inner || base::ValuesEquivalent(inner, outer)) {
+  } else {
     return outer;
   }
 
@@ -5907,6 +5918,22 @@ const CSSValue* RowRuleOutset::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ZoomAdjustedPixelValueForLength(
       style.RowRuleOutset(), style);
+}
+
+const CSSValue* ColumnRuleVisibilityItems::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.ColumnRuleVisibilityItems());
+}
+
+const CSSValue* RowRuleVisibilityItems::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.RowRuleVisibilityItems());
 }
 
 const blink::Color InternalVisitedColumnRuleColor::ColorIncludingFallback(
@@ -9996,6 +10023,14 @@ void TextIndent::ApplyValue(StyleResolverState& state,
   }
 
   state.StyleBuilder().SetTextIndent(length_or_percentage_value);
+}
+
+const CSSValue* TextJustify::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.TextJustify());
 }
 
 const CSSValue* TextOrientation::CSSValueFromComputedStyleInternal(

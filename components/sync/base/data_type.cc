@@ -654,6 +654,13 @@ DataTypeSet EncryptableUserTypes() {
                 "If adding an unencryptable type, remove from "
                 "encryptable_user_types below.");
   DataTypeSet encryptable_user_types = UserTypes();
+  // Account settings are read-only and therefore never encrypted.
+  encryptable_user_types.Remove(ACCOUNT_SETTING);
+  if (base::FeatureList::IsEnabled(kSyncMakeAutofillValuableNonEncryptable)) {
+    // Valuables are never encrypted because they can be generated from outside
+    // of Chrome.
+    encryptable_user_types.Remove(AUTOFILL_VALUABLE);
+  }
   // Wallet data is not encrypted since it actually originates on the server.
   encryptable_user_types.Remove(AUTOFILL_WALLET_DATA);
   encryptable_user_types.Remove(AUTOFILL_WALLET_OFFER);
@@ -684,6 +691,8 @@ DataTypeSet EncryptableUserTypes() {
   // originate from outside Chrome.
   encryptable_user_types.Remove(PLUS_ADDRESS);
   encryptable_user_types.Remove(PLUS_ADDRESS_SETTING);
+  // Valuable metadata is accessed on the server.
+  encryptable_user_types.Remove(AUTOFILL_VALUABLE_METADATA);
 
   return encryptable_user_types;
 }

@@ -105,16 +105,12 @@ bool ResourcePool::Backing::CreateSharedImage(
 void ResourcePool::InUsePoolResource::InstallGpuBacking(
     gpu::SharedImageInterface* sii,
     bool is_overlay_candidate,
-    bool use_gpu_rasterization,
     std::string_view debug_label) const {
   auto backing =
       std::make_unique<ResourcePool::Backing>(size(), format(), color_space());
 
   gpu::SharedImageUsageSet flags = gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
                                    gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
-  if (use_gpu_rasterization) {
-    flags |= gpu::SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
-  }
   if (is_overlay_candidate) {
     flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
   }

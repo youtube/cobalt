@@ -491,7 +491,6 @@ Cette fonctionnalité est disponible à partir de <ph name="MAC_OS_NAME" /> 10.
       Inversement, si elle est activée, ils le sont aussi.
       Si elle n'est pas configurée, elle est désactivée pour les appareils gérés et activée pour les appareils non gérés.
       Notez qu'il s'agit d'une règle temporaire afin que les utilisateurs gérés puissent quand même utiliser les anciens raccourcis obsolètes. Elle prendra fin une fois que des raccourcis clavier personnalisés seront disponibles.</translation>
-<translation id="1357214899305978790">Définir des raccourcis sur la page "Nouvel onglet" (bêta)</translation>
 <translation id="1361661842732478894">Afficher le bouton Accueil dans la barre d'outils</translation>
 <translation id="1363275621236827384">Activer l'envoi de requêtes de profils matériels à Quirks Server</translation>
 <translation id="1363839375295535439">Si cette règle est activée ou qu'elle n'est pas configurée, le bac à sable LPAC est activé pour les services d'impression lorsque la configuration du système le permet.
@@ -746,13 +745,6 @@ Si cette règle est désactivée ou n'est pas configurée, le sélecteur d'emoji
 Si cette règle n'est pas configurée, le sélecteur d'emoji est activé pour les utilisateurs standards, mais désactivé pour les utilisateurs gérés.</translation>
 <translation id="1494138678487405397">Désactiver le contraste élevé sur l'écran de connexion</translation>
 <translation id="1497797462580613666">Le gestionnaire de téléchargement proposera l'option d'enregistrer des fichiers dans <ph name="GOOGLE_DRIVE_NAME" />.</translation>
-<translation id="1498640472634891941">Permet de lister les formats d'URL indiquant les sites dont l'accès aux imprimantes locales est automatiquement refusé via l'API WebPrinting.
-
-Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> s'applique pour tous les sites, à condition qu'elle soit définie. Si ce n'est pas le cas, les paramètres spécifiés par les utilisateurs s'appliquent.
-
-Les formats d'URL ne doivent pas entrer en conflit avec ceux de la règle <ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" />. Aucune règle ne prévaut si un format d'URL est indiqué dans les deux règles.
-
-Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="1499129134689253257">Contrôler le nouveau comportement de <ph name="OFFSET_PARENT" /></translation>
 <translation id="1501644502684303995">Appliquer uniquement les connexions en ligne depuis l'écran de connexion</translation>
 <translation id="1502843533062797703">Activer le blocage de l'injection de logiciels tiers</translation>
@@ -3413,7 +3405,6 @@ Si cette règle est définie sur <ph name="DATA_REGION_SETTING_UNITED_STATES_OPT
 Si cette règle est définie sur <ph name="DATA_REGION_SETTING_EUROPE_OPTION_NAME" /> (valeur 2), les données couvertes sont stockées dans l'Union européenne.
 
 Cette règle ne peut être configurée que dans la <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> via Données &gt; Conformité &gt; Régions de données &gt; Région &gt; Données au repos.</translation>
-<translation id="3379326579027180941">Autoriser les sites à demander aux utilisateurs l'accès aux imprimantes locales via l'API WebPrinting</translation>
 <translation id="3379368498958498146">Permet d'activer ou de désactiver la fonctionnalité d'écriture prédictive sur le clavier physique.
 
 Si cette règle est activée ou n'est pas configurée, la fonctionnalité d'écriture prédictive est activée pour le clavier physique.
@@ -4924,6 +4915,11 @@ Elle est toujours appliquée pour <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="4467952432486360968">Bloquer les cookies tiers</translation>
 <translation id="4472740647327683596">Largeur de la page en micromètres.</translation>
 <translation id="4474167089968829729">Activer l'enregistrement des mots de passe dans le gestionnaire de mots de passe</translation>
+<translation id="4474266799109921560">Si cette règle est définie sur "2", les origines d'applis Web isolées ne peuvent pas utiliser l'API WebPrinting.
+
+Si cette règle est définie sur "3", l'utilisateur reçoit une invite lorsqu'une origine d'appli Web isolée souhaite utiliser l'API WebPrinting.
+
+Si cette règle n'est pas configurée, les origines d'applis Web isolées peuvent demander l'accès aux imprimantes locales. Toutefois, les utilisateurs peuvent modifier ce paramètre.</translation>
 <translation id="447692108909279121">Gestion des adresses IP WebRTC</translation>
 <translation id="4478248026668918517">Bloquez la détection du champ d'application des règles.</translation>
 <translation id="4479671363221255277">Permet de dresser la liste des formats d'URL pour lesquels les sites sont autorisés à demander aux utilisateurs l'accès en lecture aux fichiers ou répertoires figurant dans le système de fichiers du système d'exploitation hôte via l'API File System.
@@ -5281,6 +5277,14 @@ Les utilisateurs peuvent activer ou désactiver les services de localisation Goo
 <translation id="4674542060943819878">Activer la fermeture des alertes de mot de passe compromis</translation>
 <translation id="4674871290487541952">Autoriser les algorithmes non sécurisés dans les vérifications de l'intégrité des mises à jour et des installations d'extension</translation>
 <translation id="4680961954980851756">Activer la saisie automatique</translation>
+<translation id="4681603713834987752">Permet de lister les formats d'URL indiquant les sites automatiquement autorisés à accéder aux imprimantes locales via l'API WebPrinting.
+Les formats valides sont limités aux applis Web isolées.
+
+Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> s'applique pour tous les sites, à condition qu'elle soit définie. Si ce n'est pas le cas, les paramètres spécifiés par les utilisateurs s'appliquent.
+
+Les formats d'URL ne doivent pas entrer en conflit avec ceux de la règle <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />. Aucune règle ne prévaut si un format d'URL est répertorié dans les deux règles.
+
+Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="46845898956959634">Autoriser M'aider à écrire et améliorer les modèles d'IA.</translation>
 <translation id="4685721728282448265">Algorithme clé-contrat post-quantique CECPQ2 activé pour TLS</translation>
 <translation id="468822697351680932">Utiliser la règle SiteList d'Internet Explorer comme source des règles</translation>
@@ -5301,17 +5305,6 @@ L'utilisateur restera connecté à son compte Google lorsqu'il supprimera les co
 Jusqu'à Chrome 114, cette règle exigeait que la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> soit définie sur "true". À partir de Chrome 115, si vous configurez cette règle, la synchronisation sera désactivée pour les types de données respectifs si <ph name="CHROME_SYNC_NAME" /> n'est pas désactivé en définissant la règle <ph name="SYNC_DISABLED_POLICY_NAME" /> et que <ph name="BROWSER_SIGNIN_POLICY_NAME" /> n'est pas désactivé.</translation>
 <translation id="4694138212536142867">Activer les rapports sur l'état du matériel de l'appareil</translation>
 <translation id="4697581738794063407">Contrôler la fonctionnalité de filtrage des paramètres d'URL</translation>
-<translation id="4698488381632756664">En développement : en preview anticipée uniquement.
-
-Cette règle permet de préconfigurer jusqu'à 10 raccourcis personnalisés sur la page "Nouvel onglet" de <ph name="PRODUCT_NAME" />.
-
-Si elle est configurée, les utilisateurs verront ces raccourcis par défaut. Ils pourront passer de "Mes raccourcis" à "Sites les plus consultés" ou "Raccourcis de mon organisation" dans le panneau "Personnaliser Chrome". Si elle est vide ou n'est pas définie, l'utilisateur ne pourra basculer qu'entre "Mes raccourcis" et "Sites les plus consultés" dans le panneau "Personnaliser Chrome".
-
-Les URL de raccourci doivent être uniques.
-
-Si <ph name="NTP_SHORTCUTS_ALLOW_USER_EDIT_NAME" /> est défini sur "True", les utilisateurs peuvent modifier le nom du raccourci. Si la valeur est définie sur "False" ou n'est pas configurée, les utilisateurs ne peuvent pas modifier le nom.
-
-Si <ph name="NTP_SHORTCUTS_ALLOW_USER_DELETE_NAME" /> est défini sur "True", les utilisateurs peuvent supprimer le raccourci. Si la valeur est définie sur "False" ou n'est pas configurée, les utilisateurs ne peuvent pas supprimer le raccourci.</translation>
 <translation id="4698895924806859508">Ne pas signaler les événements réseau</translation>
 <translation id="4699172675775169585">Images et fichiers en cache</translation>
 <translation id="4699592681017489215">Cette règle configure un interrupteur local pouvant être utilisé pour désactiver les contrôles d'interception des requêtes DNS. Ces contrôles ont pour but de déterminer si le navigateur est situé derrière un proxy qui redirige les noms d'hôte inconnus.
@@ -7352,6 +7345,14 @@ Cette règle ne s'applique qu'aux nouvelles tentatives de connexion et n'invalid
 <translation id="5983274643567559194">La définition d'un raccourci pour l'action "Supprimer" est désactivée.</translation>
 <translation id="5984099692320899605">Ne pas utiliser l'authentification NTLM</translation>
 <translation id="5984237109586500246">Accepter les contenus Web diffusés via Signed HTTP Exchange</translation>
+<translation id="5985770641601021372">Permet de lister les formats d'URL indiquant les sites dont l'accès aux imprimantes locales est automatiquement refusé via l'API WebPrinting.
+Les formats valides sont limités aux applis Web isolées.
+
+Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> s'applique pour tous les sites, à condition qu'elle soit définie. Si ce n'est pas le cas, les paramètres spécifiés par les utilisateurs s'appliquent.
+
+Les formats d'URL ne doivent pas entrer en conflit avec ceux de la règle <ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" />. Aucune règle ne prévaut si un format d'URL est répertorié dans les deux règles.
+
+Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="5987654816293745077">Signaler les compteurs d'exécution de l'appareil</translation>
 <translation id="5991707691018985057">Afficher la boîte de dialogue d'annulation quand event.preventDefault() est appelé pour l'événement beforeunload. Ne pas afficher de boîte de dialogue d'annulation quand event.returnValue est la chaîne vide pour l'événement beforeunload.</translation>
 <translation id="5992485316563377005">Si cette règle est activée ou qu'elle n'est pas configurée, l'Intégrité du code du moteur de rendu est activée.
@@ -7480,7 +7481,6 @@ REMARQUE : Seuls les nouveaux processus du moteur de rendu refléteront les mod
 <translation id="6089679180657323464">Contrôle les paramètres du dispositif de contrôle de diagnostic et de télémétrie de Wilco.</translation>
 <translation id="6091233616732024397">Obliger les utilisateurs à se connecter pour se servir du navigateur</translation>
 <translation id="6092073071805297119">Autoriser l'utilisation du filtrage des performances d'accessibilité.</translation>
-<translation id="60925735895026302">Interdire à tous les sites de demander l'accès aux imprimantes locales via l'API WebPrinting</translation>
 <translation id="6093156968240188330">Permettre aux utilisateurs distants d'interagir avec des fenêtres élevées dans les sessions d'assistance à distance</translation>
 <translation id="6093551397728373988">Exiger l'activation de tous les modes de saisie autorisés dans une session utilisateur</translation>
 <translation id="6094314311474620462">Désactivez l'impression</translation>
@@ -7895,14 +7895,6 @@ Si cette règle n'est pas configurée ou qu'elle est définie sur <ph name="ALLO
 AVERTISSEMENT : Faites attention quand vous modifiez ce paramètre, car cela pourrait affecter d'autres règles liées à la géolocalisation (<ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" />, par exemple). Plus précisément, si cette règle est définie sur <ph name="DISALLOW" />, les options <ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDWIFIACCESSPOINTS" /> et <ph name="POLICY_ENUM_SYSTEMTIMEZONEAUTOMATICDETECTION_TIMEZONEAUTOMATICDETECTIONSENDALLLOCATIONINFO" /> de la règle <ph name="SYSTEM_TIMEZONE_AUTOMATIC_DETECTION_POLICY" /> ne fonctionneront pas correctement et n'utiliseront que la résolution de localisation basée sur <ph name="IP" /> sur l'écran de connexion (<ph name="LOG_IN" />).</translation>
 <translation id="6338982178236723271">Transmettre les informations système</translation>
 <translation id="6339355882150329269">Ne pas considérer l'utilisateur comme inactif pendant la lecture de la vidéo</translation>
-<translation id="6347110299837147365">Cette règle permet aux administrateurs de chiffrer le cache HTTP du navigateur sur le disque.
-Actuellement disponible sur Windows uniquement.
-
-Lorsque cette règle est activée, le cache du navigateur est chiffré.
-
-Si elle est désactivée ou qu'elle n'est pas configurée, le cache du navigateur n'est pas chiffré.
-
-Le chiffrement du cache du navigateur peut avoir un impact sur les performances.</translation>
 <translation id="6352714113109004581">Permet de dresser la liste des formats d'URL pour lesquels les sites peuvent demander aux utilisateurs de leur accorder l'accès à un appareil HID.
 
       Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_WEB_HID_GUARD_SETTING_POLICY_NAME" /> s'applique pour tous les sites, à condition qu'elle soit définie. Si ce n'est pas le cas, les paramètres spécifiés par les utilisateurs s'appliquent.
@@ -8478,6 +8470,7 @@ Lorsqu'elle est activée, la fonctionnalité de mise à jour GREASE User-Agent C
 <translation id="6687291630099400188">Ne pas afficher les informations système sur l'écran de connexion</translation>
 <translation id="6689343802305995925">Aucune action ne se produit.</translation>
 <translation id="6689792153960219308">Envoyer des rapports sur l'état du matériel</translation>
+<translation id="6690130879720759384">Ne pas autoriser les origines d'applis Web isolées à demander l'accès aux imprimantes locales via l'API WebPrinting</translation>
 <translation id="6690425645391461516">Désactiver les contrôles d'interception des requêtes DNS ; autoriser les barres d'infos "Essayez avec http://siteintranet/".</translation>
 <translation id="669066148640728553">Permet de définir une fenêtre cible pour la fin de la période de notification du redémarrage.
 
@@ -8724,13 +8717,9 @@ Si elle est désactivée ou n'est pas configurée, l'utilisateur est déconnect�
 Si la règle est définie sur "false" ou si elle n'est pas configurée, cette disposition de clavier n'est pas disponible. Un redémarrage est nécessaire pour que la règle soit prise en compte.</translation>
 <translation id="685769593149966548">Appliquer le mode restreint strict sur YouTube</translation>
 <translation id="686079137349561371">Microsoft Windows 7 ou version ultérieure</translation>
+<translation id="6863927303509860338">Définir des raccourcis sur la page "Nouvel onglet"</translation>
 <translation id="6866755486434471318">Autorise <ph name="PEPPER_NAME" /> à utiliser des images partagées pour le décodage vidéo.</translation>
 <translation id="6878757724611298427">Autoriser les utilisateurs à se servir d'applis Android sur des appareils non affiliés</translation>
-<translation id="6881397131210596522">Si cette règle est définie sur "2", cela empêche automatiquement les sites d'utiliser l'API WebPrinting.
-
-Si cette règle est définie sur "3", l'utilisateur reçoit une invite lorsqu'un site souhaite utiliser l'API WebPrinting.
-
-Si cette règle n'est pas configurée, les sites Web peuvent demander l'accès aux imprimantes locales. Toutefois, les utilisateurs peuvent modifier ce paramètre.</translation>
 <translation id="6881447940489194100">Hachage SHA-256 des données, encodé en hexadécimal.</translation>
 <translation id="68818134518270542">Permet de spécifier les applications que les utilisateurs peuvent activer comme applications de prise de notes sur l'écran de verrouillage <ph name="PRODUCT_OS_NAME" />.
 
@@ -10554,15 +10543,6 @@ Consultez la section 5.2 du document RFC 8828 (https://tools.ietf.org/html/rfc
       Si cette règle est désactivée, les appareils enregistrés ne reçoivent pas de contrôles de rapports précis.</translation>
 <translation id="82530263956734297">Identifiants d'extension à exclure de la liste de blocage</translation>
 <translation id="8254749125469750814">Ne pas valider si une extension peut être installée ou non avec un service cloud.</translation>
-<translation id="825509998103089977">Détermine si l'appli Gemini est autorisée à effectuer des actions sur les pages Web au nom de l'utilisateur.
-
-0/Non définie = L'appli Gemini est autorisée à effectuer des actions sur les pages Web.
-
-1 = L'appli Gemini n'est pas autorisée à effectuer des actions sur les pages Web.
-
-Cette règle n'a aucun effet lorsque l'appli Gemini est désactivée. Par exemple, l'appli Gemini peut être désactivée par la règle <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
-
-Pour en savoir plus, consultez https://support.google.com/chrome/a/answer/16291696.</translation>
 <translation id="8256006033157034334">Cette règle est obsolète et incompatible, veuillez utiliser la règle <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME_POLICY_NAME" /> à la place.</translation>
 <translation id="8256688113167012935">Définit quel nom de compte s'affiche sur l'écran de connexion de <ph name="PRODUCT_OS_NAME" /> pour le compte local de l'appareil correspondant.
 
@@ -10810,17 +10790,6 @@ Les certificats doivent être encodés en base64.</translation>
 <translation id="8381774264911275515">Désactiver le transfert des cookies d'authentification unique SAML dans la session utilisateur lors de la connexion</translation>
 <translation id="8382184662529825177">Autoriser l'utilisation de l'attestation à distance pour assurer la protection du contenu de l'appareil</translation>
 <translation id="838870586332499308">Activer l'itinérance des données</translation>
-<translation id="8389925503559691525">Cette règle détermine si les URL blob sont partitionnées lors de l'extraction et de la navigation.
-Si cette règle est activée ou n'est pas configurée, les URL blob sont partitionnées.
-Si elle est désactivée, les URL blob ne sont pas partitionnées.
-
-De plus, si le partitionnement du stockage est désactivé pour une origine de premier niveau donnée par <ph name="THIRD_PARTY_STORAGE_PARTITIONING_BLOCKED_FOR_ORIGINS_POLICY_NAME" /> ou <ph name="DEFAULT_THIRD_PARTY_STORAGE_PARTITIONING_SETTING_POLICY_NAME" />, les URL blob ne sont pas partitionnées.
-
-Si vous devez utiliser cette règle, veuillez signaler un bug sur <ph name="BUG_URL" /> en expliquant votre cas d'utilisation. Cette règle sera disponible jusqu'à la version 143 de <ph name="PRODUCT_NAME" />, après quoi l'ancienne implémentation sera supprimée.
-
-REMARQUE : Seuls les nouveaux processus du moteur de rendu refléteront les modifications apportées à cette règle lorsque le navigateur sera en cours d'exécution.
-
-Pour en savoir plus sur le partitionnement du stockage tiers, consultez https://developers.google.com/privacy-sandbox/cookies/storage-partitioning.</translation>
 <translation id="8392478748777481636">Cette règle est obsolète et non compatible, veuillez utiliser la règle <ph name="EXTENSION_INSTALL_BLOCKLIST_POLICY_NAME" /> à la place.</translation>
 <translation id="8393850527597048037">Plate-forme uniquement</translation>
 <translation id="8395350646076131800">Délai d'inactivité pour l'écran de verrouillage de l'économiseur d'écran de l'utilisateur.</translation>
@@ -11079,6 +11048,7 @@ Si la règle n'est pas configurée, son comportement est déterminé par la règ
 Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA générative, veuillez consulter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="8566842294717252664">Masquer le Chrome Web Store sur la page Nouvel onglet et dans le lanceur d'applications</translation>
 <translation id="8567697114274003779">Définir un libellé d'entreprise personnalisé pour un profil géré</translation>
+<translation id="8571069584826006598">Autoriser les origines d'applis Web isolées à demander à l'utilisateur l'accès aux imprimantes locales via l'API WebPrinting</translation>
 <translation id="8571119890730528225">Désactiver le partitionnement du stockage tiers.</translation>
 <translation id="8571314270766672278">Effectuer un rollback et réinitialiser l'appareil lors du retour à une version antérieure, en conservant l'enregistrement si possible</translation>
 <translation id="8571871284943706125">Signale les événements de sessions CRD sur les appareils enregistrés pour les utilisateurs affiliés.
@@ -11383,13 +11353,6 @@ Si <ph name="LIVE_CAPTION_ENABLED_POLICY_NAME" /> est désactivée, la traductio
 <translation id="8789338675663014675">Permet de configurer les règles relatives aux extensions. L'utilisateur n'est pas autorisé à installer des extensions bloquées, à moins qu'elles aient été ajoutées à la liste blanche. Vous pouvez également forcer <ph name="PRODUCT_NAME" /> à installer automatiquement des extensions en les spécifiant dans <ph name="EXTENSION_INSTALL_FORCELIST_POLICY_NAME" />. Cette méthode permet d'installer des extensions inscrites sur la liste de blocage.</translation>
 <translation id="879697755145469671">Ne pas détecter une fenêtre recouverte</translation>
 <translation id="8798099450830957504">Par défaut</translation>
-<translation id="879863472982972634">Permet de lister les formats d'URL indiquant les sites automatiquement autorisés à accéder aux imprimantes locales via l'API WebPrinting.
-
-Si cette règle n'est pas configurée, la règle <ph name="DEFAULT_WEB_PRINTING_SETTING_POLICY_NAME" /> s'applique pour tous les sites, à condition qu'elle soit définie. Si ce n'est pas le cas, les paramètres spécifiés par les utilisateurs s'appliquent.
-
-Les formats d'URL ne doivent pas entrer en conflit avec ceux de la règle <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" />. Aucune règle ne prévaut si un format d'URL est indiqué dans les deux règles.
-
-Pour en savoir plus sur les formats d'URL valides, veuillez consulter https://cloud.google.com/docs/chrome-enterprise/policies/url-patterns. La valeur <ph name="WILDCARD_VALUE" /> n'est pas acceptée pour cette règle.</translation>
 <translation id="8799492680917278474">Si cette règle est activée, les connexions d'accès à distance se termineront automatiquement une fois le nombre de minutes défini écoulé. Cela n'empêche pas le client de se reconnecter après avoir atteint la durée maximale de session. Si la durée définie dans cette règle n'est pas comprise dans les limites indiquées, l'hôte risque de ne pas démarrer. Cette règle ne concerne pas les cas d'assistance à distance.
 
           Elle n'a aucun effet si elle n'est pas définie. Dans ce cas, les connexions d'accès à distance n'auront pas de limite de durée sur cet ordinateur.</translation>

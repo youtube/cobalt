@@ -18,6 +18,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/i18n/rtl.h"
 #include "base/logging.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
@@ -55,6 +56,7 @@
 #include "chrome/browser/navigation_predictor/navigation_predictor_keyed_service_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/platform_util.h"
+#include "chrome/browser/policy/chrome_policy_blocklist_service_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
@@ -1711,9 +1713,19 @@ void RenderViewContextMenu::AppendLinkItems() {
       Browser* const browser = GetBrowser();
       if (base::FeatureList::IsEnabled(features::kSideBySide) && browser &&
           browser->is_type_normal()) {
+        int string_id = IDS_CONTENT_CONTEXT_OPENLINKSPLITVIEW;
+        tabs::TabInterface* tab =
+            tabs::TabInterface::MaybeGetFromContents(GetWebContents());
+        if (tab && tab->IsSplit()) {
+          split_tabs::SplitTabData* split_data =
+              browser->tab_strip_model()->GetSplitData(tab->GetSplit().value());
+          string_id = split_data->ListTabs()[base::i18n::IsRTL() ? 1 : 0] == tab
+                          ? IDS_CONTENT_CONTEXT_OPENLINKRIGHTVIEW
+                          : IDS_CONTENT_CONTEXT_OPENLINKLEFTVIEW;
+        }
+
         menu_model_.AddItemWithStringIdAndIcon(
-            IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW,
-            IDS_CONTENT_CONTEXT_OPENLINKSPLITVIEW,
+            IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW, string_id,
             ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
                                            kTabMenuIconSize));
         const int command_index =
@@ -3359,7 +3371,14 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       if (glic::GlicEnabling::IsEnabledByFlags()) {
         auto* glic_service = glic::GlicKeyedService::Get(browser_context_);
         if (glic_service) {
-          glic_service->CloseUI();
+          // TODO(crbug.com/454112198): Clean up after multi-instance launches.
+          if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+            if (auto* rfh = GetRenderFrameHost()) {
+              glic_service->Close(rfh->GetOutermostMainFrame());
+            }
+          } else {
+            glic_service->CloseAndShutdown();
+          }
         }
       }
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -3720,7 +3739,8 @@ bool RenderViewContextMenu::IsSaveAsItemAllowedByPolicy(
   }
 
   PolicyBlocklistService* service =
-      PolicyBlocklistFactory::GetForBrowserContext(browser_context_);
+      ChromePolicyBlocklistServiceFactory::GetForProfile(
+          Profile::FromBrowserContext(browser_context_));
   if (service->GetURLBlocklistState(item_url) ==
       policy::URLBlocklist::URLBlocklistState::URL_IN_BLOCKLIST) {
     return false;

@@ -413,6 +413,10 @@ void AddClickabilityReasons(
     interaction_info.clickability_reasons.push_back(Reason::kCursorPointer);
   }
 
+  if (style.AffectedByHover()) {
+    interaction_info.clickability_reasons.push_back(Reason::kHoverPseudoClass);
+  }
+
   if (ui::IsClickable(role)) {
     interaction_info.clickability_reasons.push_back(Reason::kAriaRole);
   }
@@ -468,11 +472,6 @@ bool ShouldSkipSubtree(const LayoutObject& object) {
   // List markers are communicated by the kOrderedList and kUnorderedList
   // annotated roles.
   if (object.IsListMarker()) {
-    return true;
-  }
-
-  // Table caption is communicated by the table name.
-  if (object.IsTableCaption()) {
     return true;
   }
 
@@ -1820,6 +1819,9 @@ void AIPageContentAgent::ContentBuilder::AddNodeInteractionInfo(
   if (disabled) {
     if (node_interaction_info->document_scoped_z_order) {
       attributes.node_interaction_info = std::move(node_interaction_info);
+      // `is_disabled` is only set for nodes with `document_scoped_z_order`.
+      // This implies offscreen nodes will not be marked as disabled.
+      attributes.node_interaction_info->is_disabled = true;
     }
 
     return;

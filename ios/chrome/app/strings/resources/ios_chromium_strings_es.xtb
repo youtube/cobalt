@@ -131,7 +131,7 @@ Espera unos minutos antes de cambiar de cuenta. Si cambias de cuenta ahora, esto
 <translation id="3845223911364528001">Vuelve a Chromium para subir tu archivo</translation>
 <translation id="3855938650519180865">Novedades de Chromium</translation>
 <translation id="3886689467633467988">Inicia sesión en este sitio y en Chromium para acceder a tus marcadores y a más cosas en todos tus dispositivos.</translation>
-<translation id="3949514465204582407">Consejo de Chromium: puedes acceder a tus contraseñas en cualquier aplicación</translation>
+<translation id="3949514465204582407">Consejo de Chromium: Puedes acceder a tus contraseñas en cualquier aplicación</translation>
 <translation id="4005283307739974863">Abre y ejecuta una comprobación de seguridad en Chromium.</translation>
 <translation id="4043291146360695975">Las contraseñas se guardan en el gestor de contraseñas solo en este dispositivo.</translation>
 <translation id="4066426933127344530">Usa Chromium de forma predeterminada</translation>
@@ -331,6 +331,7 @@ Solo las personas que tengan tu frase de contraseña podrán leer tus datos cifr
 <translation id="8730503818204408000">Abre el ajuste de Chromium para establecer Chromium como navegador predeterminado.</translation>
 <translation id="8754966941001340678">Chromium recomienda la protección mejorada</translation>
 <translation id="8759037115129007407">Este miembro de tu familia no puede recibir contraseñas en este momento. Pídele que actualice Chromium y sincronice sus contraseñas. <ph name="BEGIN_LINK" />Más información<ph name="END_LINK" /></translation>
+<translation id="8769418653786388149">Llévate Chromium a cualquier lugar</translation>
 <translation id="8776843108004031667">Se quitarán de Chromium esta cuenta y los datos sin guardar.</translation>
 <translation id="8793333988063379360">Aquí puedes encontrar la configuración de Chromium y más</translation>
 <translation id="8805148242934787134">Establece Chromium como navegador predeterminado</translation>

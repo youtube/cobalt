@@ -19,7 +19,6 @@ origin_files = glob([
     "chrome/VERSION",
     "components/metrics/**",
     # See https://chromium-review.googlesource.com/c/chromium/src/+/4896104
-    "components/miracle_parameter/**",
     "components/nacl/**",
     "components/prefs/**",
     "components/unexportable_keys/**",
@@ -248,6 +247,16 @@ origin_files = glob([
     # Exclude GN-specific files to reduce the number of gn2bp files
     "**/BUILD.gn",
     "**/*.gni",
+
+    # Exclude aconfig files that may be present in some subprojects (e.g.
+    # Perfetto). These files are dead code as far as the import is concerned,
+    # and they can confuse linters on the AOSP file as they incorrectly assume
+    # they will be used.
+    "**/*.aconfig",
+
+    # Exclude Typescript files. Realistically Cronet will never use Typescript,
+    # and they tend to create a lot of diff noise, especially from Perfetto.
+    "**/*.ts",
 
     # These files may be generated when running local Python scripts locally -
     # make sure we don't accidentally import them.

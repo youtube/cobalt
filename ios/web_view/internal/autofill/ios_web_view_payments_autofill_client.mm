@@ -255,7 +255,8 @@ bool IOSWebViewPaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable()
 }
 
 bool IOSWebViewPaymentsAutofillClient::IsMandatoryReauthEnabled() {
-  return false;
+  return GetPrefService()->GetBoolean(
+      ios_web_view::kCWVAutofillVCNUsageEnabled);
 }
 
 void IOSWebViewPaymentsAutofillClient::ShowMandatoryReauthOptInPrompt(
@@ -340,6 +341,8 @@ bool IOSWebViewPaymentsAutofillClient::ShowTouchToFillError(
 }
 
 void IOSWebViewPaymentsAutofillClient::HideTouchToFillPaymentMethod() {}
+
+void IOSWebViewPaymentsAutofillClient::SetTouchToFillVisible(bool visible) {}
 
 PaymentsDataManager&
 IOSWebViewPaymentsAutofillClient::GetPaymentsDataManager() {

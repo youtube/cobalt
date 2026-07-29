@@ -40,8 +40,9 @@
 #include "chrome/browser/glic/host/context/glic_share_image_handler.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
-#include "chrome/browser/glic/host/context/glic_tab_source_observer.h"
+#include "chrome/browser/glic/host/context/glic_tab_data_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/glic_region_capture_controller.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/host/webui_contents_container.h"
@@ -151,6 +152,8 @@ GlicKeyedService::GlicKeyedService(
                                                 contextual_cueing_service)),
       sharing_manager_(
           CreateSharingManager(profile, &window_controller(), metrics_.get())),
+      region_capture_controller_(
+          std::make_unique<GlicRegionCaptureController>()),
       auth_controller_(std::make_unique<AuthController>(profile,
                                                         identity_manager,
                                                         /*use_for_fre=*/false)),
@@ -160,6 +163,7 @@ GlicKeyedService::GlicKeyedService(
                               : nullptr),
       actor_task_manager_(
           std::make_unique<GlicActorTaskManager>(profile, actor_keyed_service)),
+      tab_data_observer_(std::make_unique<GlicTabDataObserver>()),
       contextual_cueing_service_(contextual_cueing_service) {
   CHECK(GlicEnabling::IsProfileEligible(Profile::FromBrowserContext(profile)));
   CHECK(actor_keyed_service);
@@ -202,11 +206,6 @@ GlicKeyedService::GlicKeyedService(
         static_cast<int>(prefs::FreStatus::kCompleted));
   }
 
-  if (!UseDefaultWindowController()) {
-    glic_tab_source_observer_ = std::make_unique<GlicTabSourceObserver>(
-        window_controller_.get(), profile_);
-  }
-
   // This is only used by automation for tests.
   glic_profile_manager->MaybeAutoOpenGlicPanel();
 }
@@ -215,16 +214,21 @@ GlicKeyedService::~GlicKeyedService() {
   metrics_->SetControllers(nullptr, nullptr);
 }
 
+GlicRegionCaptureController& GlicKeyedService::region_capture_controller() {
+  return *region_capture_controller_;
+}
+
 // static
 GlicKeyedService* GlicKeyedService::Get(content::BrowserContext* context) {
   return GlicKeyedServiceFactory::GetGlicKeyedService(context);
 }
 
 void GlicKeyedService::Shutdown() {
-  CloseUI();
-
-  if (!UseDefaultWindowController()) {
-    glic_tab_source_observer_.reset();
+  if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    window_controller().Shutdown();
+    fre_controller_->Shutdown();
+  } else {
+    CloseAndShutdown();
   }
 
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
@@ -235,7 +239,8 @@ void GlicKeyedService::Shutdown() {
 
 void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
                                 bool prevent_close,
-                                mojom::InvocationSource source) {
+                                mojom::InvocationSource source,
+                                std::optional<std::string> prompt_suggestion) {
   // Glic may be disabled for certain user profiles (the user is browsing in
   // incognito or guest mode, policy, etc). In those cases, the entry points to
   // this method should already have been removed.
@@ -246,22 +251,24 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
     glic_profile_manager->SetActiveGlic(this);
   }
 
-  // Show the FRE if not yet completed, and if we have a browser to use.
-  if (fre_controller_->ShouldShowFreDialog()) {
-    Browser* browser = bwi ? bwi->GetBrowserForMigrationOnly() : nullptr;
-    if (!fre_controller_->CanShowFreDialog(browser)) {
-      // If the FRE is blocked because it is already showing, we should instead
-      // dismiss it. This allows the glic button to be used to toggle the
-      // presence of the FRE.
-      fre_controller_->DismissFreIfOpenOnActiveTab(browser);
+  if (!GlicEnabling::IsUnifiedFreEnabled(profile_)) {
+    // Show the FRE if not yet completed, and if we have a browser to use.
+    if (fre_controller_->ShouldShowFreDialog()) {
+      Browser* browser = bwi ? bwi->GetBrowserForMigrationOnly() : nullptr;
+      if (!fre_controller_->CanShowFreDialog(browser)) {
+        // If the FRE is blocked because it is already showing, we should
+        // instead dismiss it. This allows the glic button to be used to toggle
+        // the presence of the FRE.
+        fre_controller_->DismissFreIfOpenOnActiveTab(browser);
+        return;
+      }
+      fre_controller_->ShowFreDialog(browser, source);
       return;
     }
-    fre_controller_->ShowFreDialog(browser, source);
-    return;
   }
 
   window_controller().Toggle(bwi ? bwi : GetActiveGlicEligibleBrowser(profile_),
-                             prevent_close, source);
+                             prevent_close, source, prompt_suggestion);
 }
 
 void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
@@ -278,13 +285,14 @@ void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
   fre_controller().OpenFreDialogInNewTab(bwi, source);
 }
 
-void GlicKeyedService::CloseUI() {
+void GlicKeyedService::CloseAndShutdown() {
+  CHECK(!base::FeatureList::IsEnabled(features::kGlicMultiInstance));
   window_controller().Shutdown();
   host_manager().Shutdown();
   fre_controller_->Shutdown();
 }
 
-void GlicKeyedService::ClosePanel() {
+void GlicKeyedService::CloseFloatingPanel() {
   window_controller().Close();
 }
 
@@ -391,6 +399,8 @@ void GlicKeyedService::GuestAdded(content::WebContents* guest_contents) {
   host_manager().GuestAdded(guest_contents);
 }
 
+// TODO(crbug.com/454367781): Update callers to use IsPanelShowingForBrowser()
+// instead.
 bool GlicKeyedService::IsWindowShowing() const {
   if (UseDefaultWindowController()) {
     return GetSingleInstanceWindowController().IsShowing();
@@ -398,6 +408,11 @@ bool GlicKeyedService::IsWindowShowing() const {
   // TODO: Investigate if this is needed for multi-instance.
   NOTIMPLEMENTED() << "IsWindowShowing not implemented for multi-instance.";
   return false;
+}
+
+bool GlicKeyedService::IsPanelShowingForBrowser(
+    const BrowserWindowInterface& bwi) const {
+  return window_controller().IsPanelShowingForBrowser(bwi);
 }
 
 bool GlicKeyedService::IsWindowDetached() const {
@@ -463,8 +478,8 @@ void GlicKeyedService::CreateTask(
     base::WeakPtr<actor::ActorTaskDelegate> delegate,
     actor::webui::mojom::TaskOptionsPtr options,
     mojom::WebClientHandler::CreateTaskCallback callback) {
-  actor_task_manager_->CreateTask(std::move(delegate), std::move(options),
-                                  std::move(callback));
+  actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(),
+                                  std::move(options), std::move(callback));
 }
 
 void GlicKeyedService::PerformActions(
@@ -492,6 +507,25 @@ void GlicKeyedService::ResumeActorTask(
                                        std::move(callback));
 }
 
+void GlicKeyedService::InterruptActorTask(actor::TaskId task_id) {
+  actor_task_manager_->InterruptActorTask(task_id);
+}
+
+void GlicKeyedService::UninterruptActorTask(actor::TaskId task_id) {
+  actor_task_manager_->UninterruptActorTask(task_id);
+}
+
+base::CallbackListSubscription GlicKeyedService::AddTabDataChangedCallback(
+    TabDataChangedCallback callback) {
+  return tab_data_observer_->AddTabDataChangedCallback(std::move(callback));
+}
+
+void GlicKeyedService::OnTabAddedToTask(
+    actor::TaskId task_id,
+    const tabs::TabInterface::Handle& tab_handle) {
+  tab_data_observer_->ObserveTabData(tab_handle);
+}
+
 void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
   user_input_submitted_callback_list_.Notify();
 }
@@ -499,6 +533,12 @@ void GlicKeyedService::OnUserInputSubmitted(glic::mojom::WebClientMode mode) {
 base::CallbackListSubscription GlicKeyedService::AddUserInputSubmittedCallback(
     base::RepeatingClosure callback) {
   return user_input_submitted_callback_list_.Add(std::move(callback));
+}
+
+void GlicKeyedService::CaptureRegion(
+    content::WebContents* web_contents,
+    mojo::PendingRemote<mojom::CaptureRegionObserver> observer) {
+  region_capture_controller_->CaptureRegion(web_contents, std::move(observer));
 }
 
 void GlicKeyedService::ShareContextImage(tabs::TabInterface* tab,
@@ -522,13 +562,6 @@ void GlicKeyedService::AddPreloadCallback(base::OnceCallback<void()> callback) {
 }
 
 void GlicKeyedService::TryPreload() {
-  if (base::FeatureList::IsEnabled(features::kGlicDisableWarming) &&
-      !base::FeatureList::IsEnabled(features::kGlicWarming)) {
-    // This is to ensure the preload process completes and preload_callback_ is
-    // called.
-    FinishPreload(GlicPrewarmingChecksResult::kWarmingDisabled);
-    return;
-  }
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
   CHECK(glic_profile_manager);
   base::TimeDelta delay = GetWarmingDelay();
@@ -558,8 +591,8 @@ void GlicKeyedService::TryPreloadAfterDelay() {
 }
 
 void GlicKeyedService::TryPreloadFre(GlicPrewarmingFreSource source) {
-  if (base::FeatureList::IsEnabled(features::kGlicDisableWarming) &&
-      !base::FeatureList::IsEnabled(features::kGlicFreWarming)) {
+  if (!base::FeatureList::IsEnabled(features::kGlicFreWarming)) {
+    // Early/duplicate FRE warming enabling check just to record this metric.
     base::UmaHistogramEnumeration(
         "Glic.PrewarmingFre.DisabledShouldNotPreloadFreForSource", source);
     return;
@@ -591,8 +624,10 @@ void GlicKeyedService::OnMemoryPressure(base::MemoryPressureLevel level) {
       (this == GlicProfileManager::GetInstance()->GetLastActiveGlic())) {
     return;
   }
-
-  CloseUI();
+  if (!base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
+    CloseAndShutdown();
+  }
+  // TODO(crbug.com/453747043): Handle Multi Instance.
 }
 
 base::WeakPtr<GlicKeyedService> GlicKeyedService::GetWeakPtr() {
@@ -670,6 +705,23 @@ void GlicKeyedService::SendAdditionalContext(
   auto* tab = tab_handle.Get();
   auto* host = &window_controller().GetInstanceForTab(tab)->host();
   host->NotifyAdditionalContext(std::move(context));
+}
+
+void GlicKeyedService::Close(
+    content::RenderFrameHost* outermost_render_frame_host) {
+  for (auto* instance : window_controller().GetInstances()) {
+    if (instance) {
+      instance->host().Close(outermost_render_frame_host);
+    }
+  }
+}
+
+void GlicKeyedService::OnWebClientCleared() {
+  actor_task_manager_->CancelTask();
+}
+
+void GlicKeyedService::OnInteractionModeChange(mojom::WebClientMode new_mode) {
+  // Unused in single instance mode.
 }
 
 }  // namespace glic

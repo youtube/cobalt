@@ -675,9 +675,6 @@
   <message name="IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_DATA_USAGE" desc="Bullet 1 of 2 that appears beneath the 'Things to consider' title. The point of this bullet is to convey to the user the types of data that get shared with Google to support this feature. There are 2 data types: 1) 'the page’s URL' and 2) 'content', by which we mean the words, visuals, and layout of the pages the user visits. This notion that Google is considering 'page content' is new. We want to lead with 'To offer suggestions' even though it might be a bit grammatically awkward, because we want to express the need / value before explaining the data that gets shared.">
     To offer suggestions and improve this feature, the page’s URL and content are shared with Google
   </message>
-  <message name="IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_STORAGE" desc="Bullet 2 of 2 that appears beneath the 'Things to consider' title. This statement isn't immediately relevant to how enhanced autofill works, but it's intended as a reassuring statement.">
-    Your saved information is stored on your device
-  </message>
   <message name="IDS_SETTINGS_AUTOFILL_AI_ENTERPRISE_LOGGING_MANAGED_DISABLED" desc="Text only seen by enterprise users (Google services provided for a company). Users should understand that their content saved with autofill won't be used to improve AI, neither AI features specifically or AI models generally.">
     Your content will not be used to improve AI. Your organization may change these settings at any time.
   </message>
@@ -2165,6 +2162,24 @@
   <message name="IDS_SETTINGS_RESET_LEARN_MORE_ACCESSIBILITY_TEXT" desc="Accessibility label for a 'Learn more' link that links out to a help article about resetting settings.">
     Learn more about resetting settings
   </message>
+  <message name="IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_TITLE" desc="The title of the dialog informing the user that automated resetting of some settings occurred.">
+    Chrome reset these settings
+  </message>
+  <message name="IDS_SETTINGS_RESET_AUTOMATED_DIALOG_V2_BODY" desc="The body of the dialog informing the user that automated resetting of some settings occurred.">
+    These settings were changed from outside of Chrome. To protect you, Chrome reset them.
+  </message>
+  <message name="IDS_SETTINGS_RESET_PINNED_TABS" desc="A string that is used to describe the pinned tabs setting.">
+    Pinned tabs
+  </message>
+  <message name="IDS_SETTINGS_RESET_EXTENSIONS" desc="A string that is used to describe the extensions setting.">
+    Extension(s)
+  </message>
+  <message name="IDS_SETTINGS_RESET_HOMEPAGE" desc="A string that is used to describe the homepage setting.">
+    Homepage
+  </message>
+  <message name="IDS_SETTINGS_RESET_DSE" desc="A string that is used to describe the DSE setting.">
+    Default Search Engine (DSE)
+  </message>
 
   <!-- Reset card title and Chrome Cleanup item on Windows -->
   <if expr="is_win and _google_chrome">
@@ -3183,6 +3198,9 @@
   </message>
   <message name="IDS_SETTINGS_SITE_SETTINGS_BLOCK_DEFAULT_MENU" desc="Label for the default menu item to block a permission for a particular site.">
     Block (default)
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_ACTION_BLOCK_ON_UNFAMILIAR_SITES_DEFAULT_MENU" desc="Label for the default menu item for blocking permission on sites which the browser thinks are unfamiliar to the user based on the user's chrome history.">
+    Block if site is unfamiliar (default)
   </message>
   <message name="IDS_SETTINGS_SITE_SETTINGS_MUTE_DEFAULT_MENU" desc="Label for the default menu item to mute sound for a particular site.">
     Mute (default)
@@ -4418,7 +4436,7 @@
     This feature uses AI and is experimental
   </message>
   <message name="IDS_SETTINGS_PASSWORD_CHANGE_CONTENT" desc="One of the things to consider when using the feature.">
-    Content from this site is sent to Google and may be seen by human reviewers to improve this feature
+    Content from this site, including its URL, is sent to Google and may be seen by human reviewers to improve this feature
   </message>
   <message name="IDS_SETTINGS_PASSWORD_CHANGE_ENCRYPTION" desc="One of the things to consider when using the feature.">
     Your password is encrypted and never seen by anyone

@@ -307,6 +307,13 @@ public final class ChromePreferenceKeys {
     public static final String DOWNLOAD_UMA_ENTRY = "DownloadUmaEntry";
 
     /**
+     * Stores whether the educational tip default browser promo is allowed to be displayed on
+     * relaunch.
+     */
+    public static final String EDUCATIONAL_TIP_DEFAULT_BROWSER_PROMO_ALLOW_DISPLAY_FOR_RELAUNCH =
+            "Chrome.EducationalTip.DefaultBrowserPromoAllowDisplayForRelaunch";
+
+    /**
      * Indicates whether or not there are prefetched content in chrome that can be viewed offline.
      */
     public static final String EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS =
@@ -495,6 +502,20 @@ public final class ChromePreferenceKeys {
     public static final KeyPrefix MULTI_INSTANCE_LAST_ACCESSED_TIME =
             new KeyPrefix("Chrome.MultiInstance.LastAccessedTime.*");
     public static final KeyPrefix MULTI_INSTANCE_URL = new KeyPrefix("Chrome.MultiInstance.Url.*");
+
+    // Start timestamp of 1-day period for measuring the duration of disjoint time spent in various
+    // windowing modes.
+    public static final String MULTI_WINDOW_MODE_CYCLE_START_TIME =
+            "Chrome.MultiWindowMode.CycleStartTime";
+    // Start timestamp of the current windowing mode.
+    public static final KeyPrefix MULTI_WINDOW_MODE_START_TIME =
+            new KeyPrefix("Chrome.MultiWindowMode.StartTime.*");
+    // Number of activities in the current windowing mode.
+    public static final KeyPrefix MULTI_WINDOW_MODE_ACTIVITY_COUNT =
+            new KeyPrefix("Chrome.MultiWindowMode.ActivityCount.*");
+    // Aggregated duration of time spent in a given windowing mode.
+    public static final KeyPrefix MULTI_WINDOW_MODE_DURATION_MS =
+            new KeyPrefix("Chrome.MultiWindowMode.DurationMs.*");
 
     public static final String NOTIFICATIONS_CHANNELS_VERSION = "channels_version_key";
     public static final String NOTIFICATIONS_LAST_SHOWN_NOTIFICATION_TYPE =
@@ -1109,6 +1130,7 @@ public final class ChromePreferenceKeys {
                 DOWNLOAD_INTERSTITIAL_DOWNLOAD_PENDING_REMOVAL,
                 DSE_NEW_TAB_URL,
                 HOME_MODULES_IMPRESSION_COUNT_BEFORE_INTERACTION.pattern(),
+                EDUCATIONAL_TIP_DEFAULT_BROWSER_PROMO_ALLOW_DISPLAY_FOR_RELAUNCH,
                 EXPLORE_OFFLINE_CONTENT_AVAILABILITY_STATUS,
                 EXTENSIONS_CHROME_PAGE_URL_OVERRIDE_ENABLED.pattern(),
                 FIRST_RUN_SKIPPED_BY_POLICY,
@@ -1153,6 +1175,10 @@ public final class ChromePreferenceKeys {
                 MULTI_INSTANCE_TITLE.pattern(),
                 MULTI_INSTANCE_CUSTOM_TITLE.pattern(),
                 MULTI_INSTANCE_URL.pattern(),
+                MULTI_WINDOW_MODE_ACTIVITY_COUNT.pattern(),
+                MULTI_WINDOW_MODE_CYCLE_START_TIME,
+                MULTI_WINDOW_MODE_DURATION_MS.pattern(),
+                MULTI_WINDOW_MODE_START_TIME.pattern(),
                 NOTIFICATION_PERMISSION_RATIONALE_TIMESTAMP_KEY,
                 NOTIFICATION_PERMISSION_REQUEST_COUNT,
                 OFFLINE_INDICATOR_V2_WALL_TIME_SHOWN_MS,

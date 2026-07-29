@@ -32,7 +32,6 @@ import android.graphics.Bitmap;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
@@ -148,7 +147,7 @@ public class TabSwitcherPaneCoordinatorUnitTest {
     @Mock private TabGridContextMenuCoordinator mTabGridContextMenuCoordinator;
     @Mock private TabListGroupMenuCoordinator mTabListGroupMenuCoordinator;
     @Mock private PriceWelcomeMessageController mPriceWelcomeMessageController;
-    @Mock private DirectionalScrollListener mDirectionalScrollListener;
+    @Mock private ObservableSupplierImpl<Boolean> mHubSearchBoxVisibilitySupplier;
 
     private final ObservableSupplierImpl<TabGroupModelFilter> mTabGroupModelFilterSupplier =
             new ObservableSupplierImpl<>();
@@ -258,7 +257,7 @@ public class TabSwitcherPaneCoordinatorUnitTest {
                         mUndoBarThrottle,
                         mOverlayViewSupplier::set,
                         /* tabSwitcherDragHandler= */ null,
-                        mDirectionalScrollListener);
+                        mHubSearchBoxVisibilitySupplier);
         watcher.assertExpected();
         mOverlayViewManager = new SingleChildViewManager(overlayView, mOverlayViewSupplier);
 
@@ -563,9 +562,7 @@ public class TabSwitcherPaneCoordinatorUnitTest {
 
         // Verify that the container is a LinearLayout.
         ViewGroup container = (ViewGroup) mContainerView.getChildAt(0);
-        assertTrue(container instanceof LinearLayout);
-        assertEquals(LinearLayout.VERTICAL, ((LinearLayout) container).getOrientation());
-
+        assertTrue(container instanceof FrameLayout);
         // Verify the children of the LinearLayout.
         assertEquals(2, container.getChildCount());
         FrameLayout pinnedTabsContainer = container.findViewById(R.id.pinned_tabs_container);
@@ -583,11 +580,26 @@ public class TabSwitcherPaneCoordinatorUnitTest {
 
         // Verify that the container is a LinearLayout with the original TabListRecyclerView.
         ViewGroup container = (ViewGroup) mContainerView.getChildAt(0);
-        assertTrue(container instanceof LinearLayout);
+        assertTrue(container instanceof FrameLayout);
         FrameLayout pinnedTabsContainer = container.findViewById(R.id.pinned_tabs_container);
         FrameLayout tabListContainer = container.findViewById(R.id.tab_list_container);
         assertEquals(0, pinnedTabsContainer.getChildCount());
         assertEquals(1, tabListContainer.getChildCount());
         assertTrue(tabListContainer.getChildAt(0) instanceof TabListRecyclerView);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testDirectionalScrollListener() {
+        DirectionalScrollListener listener = mCoordinator.getDirectionalScrollListenerForTesting();
+        assertNotNull(listener);
+
+        listener.onScrolled(null, 0, 20);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        verify(mHubSearchBoxVisibilitySupplier, times(1)).set(false);
+
+        listener.onScrolled(null, 0, -20);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        verify(mHubSearchBoxVisibilitySupplier, times(1)).set(true);
     }
 }

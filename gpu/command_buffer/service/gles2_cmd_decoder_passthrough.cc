@@ -827,7 +827,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   multi_draw_manager_ = std::make_unique<MultiDrawManager>(
       MultiDrawManager::IndexStorageType::Pointer);
 
-  auto result = group_->Initialize(this, context_type, DisallowedFeatures());
+  auto result = group_->Initialize(this, context_type);
   if (result != gpu::ContextResult::kSuccess) {
     // Must not destroy ContextGroup if it is not initialized.
     group_ = nullptr;
@@ -924,7 +924,8 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   // Each context initializes its own feature info because some extensions may
   // be enabled dynamically.  Don't disallow any features, leave it up to ANGLE
   // to dynamically enable extensions.
-  InitializeFeatureInfo(context_type, DisallowedFeatures(), false);
+  feature_info_->Initialize(context_type, /*is_passthrough_cmd_decoder=*/true,
+                            DisallowedFeatures());
 
   // Check for required extensions
   // TODO(geofflang): verify
@@ -1713,14 +1714,6 @@ void GLES2DecoderPassthroughImpl::SetOptionalExtensionsRequestedForTesting(
   request_optional_extensions_ = request_extensions;
 }
 
-void GLES2DecoderPassthroughImpl::InitializeFeatureInfo(
-    ContextType context_type,
-    const DisallowedFeatures& disallowed_features,
-    bool force_reinitialize) {
-  feature_info_->Initialize(context_type, true /* is_passthrough_cmd_decoder */,
-                            disallowed_features, force_reinitialize);
-}
-
 template <typename T>
 error::Error GLES2DecoderPassthroughImpl::PatchGetNumericResults(GLenum pname,
                                                                  GLsizei length,
@@ -2136,7 +2129,6 @@ bool GLES2DecoderPassthroughImpl::IsEmulatedQueryTarget(GLenum target) const {
     case GL_COMMANDS_COMPLETED_CHROMIUM:
     case GL_READBACK_SHADOW_COPIES_UPDATED_CHROMIUM:
     case GL_COMMANDS_ISSUED_CHROMIUM:
-    case GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM:
     case GL_ASYNC_PIXEL_PACK_COMPLETED_CHROMIUM:
     case GL_GET_ERROR_QUERY_CHROMIUM:
     case GL_PROGRAM_COMPLETION_QUERY_CHROMIUM:
@@ -2178,14 +2170,6 @@ error::Error GLES2DecoderPassthroughImpl::ProcessQueries(bool did_finish) {
       case GL_COMMANDS_ISSUED_CHROMIUM:
         result_available = GL_TRUE;
         result = query.commands_issued_time.InMicroseconds();
-        break;
-
-      case GL_COMMANDS_ISSUED_TIMESTAMP_CHROMIUM:
-        result_available = GL_TRUE;
-        DCHECK_GT(
-            query.commands_issued_timestamp.since_origin().InMicroseconds(), 0);
-        result =
-            query.commands_issued_timestamp.since_origin().InMicroseconds();
         break;
 
       case GL_ASYNC_PIXEL_PACK_COMPLETED_CHROMIUM:

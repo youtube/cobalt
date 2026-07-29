@@ -42,7 +42,7 @@ declare_args() {
   #
   # Setting the variable 'use_internal_autofill_patterns' in args.gn overrides
   # this default.
-  use_internal_autofill_patterns = is_chrome_branded
+  use_internal_autofill_patterns = enable_src_internal
 }
 
 buildflag_header("buildflags") {
@@ -103,6 +103,14 @@ compiled_action("generate_country_native_names") {
 
 proto_library("amount_extraction_heuristic_regexes_proto") {
   sources = [ "payments/amount_extraction_heuristic_regexes.proto" ]
+}
+
+source_set("unique_ids") {
+  sources = [ "../common/unique_ids.h" ]
+  deps = [
+    "//base",
+    "//components/autofill/core/common",
+  ]
 }
 
 static_library("browser") {
@@ -380,6 +388,8 @@ static_library("browser") {
     "geo/subkey_requester.h",
     "heuristic_source.cc",
     "heuristic_source.h",
+    "integrators/address_on_typing/address_on_typing_manager.cc",
+    "integrators/address_on_typing/address_on_typing_manager.h",
     "integrators/autofill_ai/autofill_ai_import_utils.cc",
     "integrators/autofill_ai/autofill_ai_import_utils.h",
     "integrators/autofill_ai/autofill_ai_labels.cc",
@@ -648,9 +658,9 @@ static_library("browser") {
     "single_field_fillers/payments/merchant_promo_code_manager.h",
     "single_field_fillers/single_field_fill_router.cc",
     "single_field_fillers/single_field_fill_router.h",
+    "strike_databases/addresses/address_on_typing_suggestion_strike_database.h",
     "strike_databases/addresses/address_suggestion_strike_database.cc",
     "strike_databases/addresses/address_suggestion_strike_database.h",
-    "strike_databases/addresses/autofill_on_typing_suggestion_strike_database.h",
     "strike_databases/addresses/autofill_profile_migration_strike_database.h",
     "strike_databases/addresses/autofill_profile_save_strike_database.h",
     "strike_databases/addresses/autofill_profile_update_strike_database.h",
@@ -953,6 +963,7 @@ static_library("browser") {
     ":country_data",
     ":legal_message_line",
     ":payments_sync_utils",
+    ":unique_ids",
     "//components/autofill/core/browser/payments:card_unmask_challenge_option",
     "//components/autofill/core/browser/proto",
     "//components/autofill/core/browser/proto:autofill_ai_proto",
@@ -1542,6 +1553,7 @@ source_set("unit_tests") {
     "geo/phone_number_i18n_unittest.cc",
     "geo/subkey_requester_unittest.cc",
     "heuristic_source_unittest.cc",
+    "integrators/address_on_typing/address_on_typing_manager_unittest.cc",
     "integrators/autofill_ai/autofill_ai_import_utils_unittest.cc",
     "integrators/autofill_ai/autofill_ai_manager_unittest.cc",
     "integrators/autofill_ai/metrics/autofill_ai_logger_unittest.cc",
@@ -1678,6 +1690,7 @@ source_set("unit_tests") {
     "webdata/payments/autofill_wallet_usage_data_sync_bridge_unittest.cc",
     "webdata/payments/payments_autofill_table_unittest.cc",
     "webdata/payments/payments_sync_bridge_util_unittest.cc",
+    "webdata/valuables/valuable_metadata_sync_bridge_unittest.cc",
     "webdata/valuables/valuable_sync_bridge_unittest.cc",
     "webdata/valuables/valuables_sync_util_unittest.cc",
     "webdata/valuables/valuables_table_unittest.cc",

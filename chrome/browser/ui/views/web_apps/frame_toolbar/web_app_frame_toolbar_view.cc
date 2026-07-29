@@ -298,12 +298,8 @@ ToolbarButton* WebAppFrameToolbarView::GetBackButton() {
   return left_container_ ? left_container_->back_button() : nullptr;
 }
 
-ReloadButton* WebAppFrameToolbarView::GetReloadButton() {
+ReloadControl* WebAppFrameToolbarView::GetReloadButton() {
   return left_container_ ? left_container_->reload_button() : nullptr;
-}
-
-ReloadButtonWebView* WebAppFrameToolbarView::GetReloadButtonWebView() {
-  return nullptr;
 }
 
 IntentChipButton* WebAppFrameToolbarView::GetIntentChipButton() {
@@ -409,7 +405,7 @@ void WebAppFrameToolbarView::UpdateChildrenColor(bool color_changed) {
 }
 
 // A view targeter delegate for the WebAppFrameToolbarView that
-// allows mouse events to fall through to the underlying web contents
+// allows mouse events to fall through to the underlying WebContents
 // in regions with no interactive UI.
 class WebAppFrameToolbarView::ViewTargeter
     : public views::ViewTargeterDelegate {
@@ -424,12 +420,15 @@ class WebAppFrameToolbarView::ViewTargeter
                          const gfx::Rect& rect) const override {
     CHECK_EQ(target, view_);
 
-    if (!view_->browser_view_->IsWindowControlsOverlayEnabled()) {
+    // A custom implementation is needed in one of two cases:
+    // 1. The WindowControlsOverlay is enabled. In this case the
+    // WebAppFrameToolbarView overlaps the WebContents.
+    // 2. In PWAs or ChromeOS System Apps with TabStrip the
+    // WebAppFrameToolbarView overlaps with it.
+    if (!view_->browser_view_->IsWindowControlsOverlayEnabled() &&
+        !view_->browser_view_->tab_strip_view()->GetVisible()) {
       return views::ViewTargeterDelegate::DoesIntersectRect(view_, rect);
     }
-
-    // When WindowControlsOverlay is enabled, only target the toolbar if the
-    // event hits the visible button containers on the left or right.
 
     // Check the left container if it exists.
     if (view_->left_container_) {

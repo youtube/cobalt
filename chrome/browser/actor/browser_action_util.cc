@@ -435,7 +435,10 @@ std::unique_ptr<ToolRequest> CreateWaitRequest(const WaitAction& action) {
   const base::TimeDelta wait_time =
       action.has_wait_time_ms() ? base::Milliseconds(action.wait_time_ms())
                                 : base::Seconds(3);
-  return std::make_unique<WaitToolRequest>(wait_time);
+  const tabs::TabHandle observe_tab_handle =
+      action.has_observe_tab_id() ? TabHandle(action.observe_tab_id())
+                                  : TabHandle::Null();
+  return std::make_unique<WaitToolRequest>(wait_time, observe_tab_handle);
 }
 
 std::unique_ptr<ToolRequest> CreateAttemptLoginRequest(
@@ -513,7 +516,8 @@ class ActorJournalFetchPageProgressListener
 
   void BeginScreenshot() override {
     screenshot_entry_ = journal_->CreatePendingAsyncEntry(
-        url_, task_id_, mojom::JournalTrack::kActor, "GrabScreenshot", {});
+        url_, task_id_, journal_->AllocateDynamicTrackUUID(), "GrabScreenshot",
+        {});
   }
 
   void EndScreenshot(std::optional<std::string> error) override {
@@ -527,7 +531,7 @@ class ActorJournalFetchPageProgressListener
 
   void BeginAPC() override {
     apc_entry_ = journal_->CreatePendingAsyncEntry(
-        url_, task_id_, mojom::JournalTrack::kActor, "GrabAPC", {});
+        url_, task_id_, journal_->AllocateDynamicTrackUUID(), "GrabAPC", {});
   }
 
   void EndAPC(std::optional<std::string> error) override {
@@ -723,7 +727,7 @@ void FetchCallback(
   if (!result.has_value()) {
     auto* actor_service = actor::ActorKeyedService::Get(profile.get());
     actor_service->GetJournal().Log(
-        GURL(), task_id, actor::mojom::JournalTrack::kActor, result.error(),
+        GURL(), task_id, result.error(),
         JournalDetailsBuilder().Add("tabId", tab_observation->id()).Build());
     // For now record everything as a timeout.
     tab_observation->set_result(
@@ -799,7 +803,7 @@ void BuildActionsResultWithObservations(
 
   std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry> journal_entry =
       actor_service->GetJournal().CreatePendingAsyncEntry(
-          GURL(), task.id(), actor::mojom::JournalTrack::kActor,
+          GURL(), task.id(), MakeBrowserTrackUUID(task.id()),
           "BuildActionsResultWithObservations", {});
 
   auto response = std::make_unique<apc::ActionsResult>();
@@ -871,7 +875,6 @@ void BuildActionsResultWithObservations(
       tab_observation->set_result(
           apc::TabObservation::TAB_OBSERVATION_TAB_WENT_AWAY);
       actor_service->GetJournal().Log(GURL(), task.id(),
-                                      actor::mojom::JournalTrack::kActor,
                                       "TabObservationFailed",
                                       JournalDetailsBuilder()
                                           .Add("tabId", handle.raw_value())
@@ -887,7 +890,6 @@ void BuildActionsResultWithObservations(
       tab_observation->set_result(
           apc::TabObservation::TAB_OBSERVATION_PAGE_CRASHED);
       actor_service->GetJournal().Log(GURL(), task.id(),
-                                      actor::mojom::JournalTrack::kActor,
                                       "TabObservationFailed",
                                       JournalDetailsBuilder()
                                           .Add("tabId", handle.raw_value())

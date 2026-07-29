@@ -15,6 +15,8 @@
 #include "chrome/browser/permissions/permission_revocation_request.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/safety_hub/disruptive_notification_permissions_manager.h"
+#include "chrome/browser/ui/safety_hub/revoked_permissions_os_notification_display_manager.h"
+#include "chrome/browser/ui/safety_hub/revoked_permissions_os_notification_display_manager_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_util.h"
@@ -60,7 +62,7 @@ void RecordAbusiveNotificationPermissionChangedHistogram(
       source_str = "SocialEngineeringBlocklist";
       break;
     case safe_browsing::NotificationRevocationSource::
-        kManualSafeBrowsingRevocation:
+        kSafeBrowsingUnwantedRevocation:
       source_str = "ManualSafeBrowsingRevocation";
       break;
     case safe_browsing::NotificationRevocationSource::
@@ -86,15 +88,15 @@ safe_browsing::NotificationRevocationSource GetNotificationRevocationSource(
     return safe_browsing::NotificationRevocationSource::
         kSocialEngineeringBlocklist;
   }
-  if (source_str == kManualSafeBrowsingRevocationStr) {
+  if (source_str == kSafeBrowsingUnwantedRevocationStr) {
     return safe_browsing::NotificationRevocationSource::
-        kManualSafeBrowsingRevocation;
+        kSafeBrowsingUnwantedRevocation;
   }
   if (source_str == kSuspiciousContentAutoRevocationStr) {
     return safe_browsing::NotificationRevocationSource::
         kSuspiciousContentAutoRevocation;
   }
-  // Only `kSocialEngineeringBlocklist` and `kManualSafeBrowsingRevocation` are
+  // Only `kSocialEngineeringBlocklist` and `kSafeBrowsingUnwantedRevocation` are
   // stored in `REVOKED_ABUSIVE_NOTIFICATION_PERMISSIONS`, other type of
   // `NotificationRevocationSource` should never be the reason for abusive
   // notification revocation.
@@ -298,6 +300,11 @@ bool AbusiveNotificationPermissionsManager::
   base::UmaHistogramEnumeration("SafeBrowsing.NotificationRevocationSource",
                                 safe_browsing::NotificationRevocationSource::
                                     kSuspiciousContentAutoRevocation);
+  if (auto* notification_manager =
+          RevokedPermissionsOSNotificationDisplayManagerFactory::GetForProfile(
+              profile)) {
+    notification_manager->DisplayNotification();
+  }
   return true;
 }
 
@@ -705,8 +712,8 @@ AbusiveNotificationPermissionsManager::GetRevocationSourceString(
         kSocialEngineeringBlocklist:
       return kSocialEngineeringBlocklistStr;
     case safe_browsing::NotificationRevocationSource::
-        kManualSafeBrowsingRevocation:
-      return kManualSafeBrowsingRevocationStr;
+        kSafeBrowsingUnwantedRevocation:
+      return kSafeBrowsingUnwantedRevocationStr;
     case safe_browsing::NotificationRevocationSource::
         kSuspiciousContentAutoRevocation:
       return kSuspiciousContentAutoRevocationStr;

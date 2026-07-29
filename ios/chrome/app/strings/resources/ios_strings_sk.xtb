@@ -161,6 +161,7 @@
 <translation id="1582732959743469162">Tým zastavíte ďalší postup aktuálneho sťahovania.</translation>
 <translation id="1594034544529347967">Začína sa</translation>
 <translation id="1598751033135758830">Otvoriť v aplikácii…</translation>
+<translation id="1601560923496285236">Použiť</translation>
 <translation id="1603718000246404895">{COUNT,plural, =1{1 adresa}few{# adresy}many{# addresses}other{# adries}}</translation>
 <translation id="1605405588277479165">Vypnuté – neodporúča sa</translation>
 <translation id="1605658421715042784">Kopírovať obrázok</translation>
@@ -778,6 +779,7 @@
 <translation id="4049507953662678203">Uistite sa, že máte pripojenie k sieti, a skúste to znova.</translation>
 <translation id="4070132839822635162">Neprihlasovať sa</translation>
 <translation id="4092655288299341041">Zobraziť pomocníka</translation>
+<translation id="4095483462103784441">Vytvoriť novú skupinu kariet</translation>
 <translation id="4099756562043439968">Nastaviť pripomenutie</translation>
 <translation id="4108998448622696017">Zisťuje škodlivé udalosti a upozorní vás, keď k nim dôjde.</translation>
 <translation id="4111985840824673503">Označiť všetko ako prečítané</translation>
@@ -837,7 +839,6 @@
 <translation id="4286718549648564014">Adresa bola presunutá do vášho účtu <ph name="USER_EMAIL" /></translation>
 <translation id="4287172530684295552">Označiť ako prečítané</translation>
 <translation id="428768789042547925">Novinky</translation>
-<translation id="428858055663163046">Keď budú stiahnuté súbory k dispozícii, budete k nim mať prístup tu</translation>
 <translation id="429074084062258019">{count,plural, =1{Pridať kartu do skupiny}few{Pridať karty do skupiny}many{Pridať karty do skupiny}other{Pridať karty do skupiny}}</translation>
 <translation id="4302061870579014542">Nastaviť umiestnenie</translation>
 <translation id="4304713468139749426">Správca hesiel</translation>
@@ -1236,6 +1237,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="5758759241456233788">Predbežné verzie Máp sú vypnuté. Môžete ich znova zapnúť v Nastaveniach.</translation>
 <translation id="5759484603608560822">Skryť položku Stiahnuté</translation>
 <translation id="5767099457279594162">Heslo nebolo zdieľané</translation>
+<translation id="5768870767339201169">Pokračujte tam, kde ste skončili</translation>
 <translation id="5779117921996157216">{count,plural, =1{Máte {count} odhalené heslo, ktoré môže ohroziť vaše zabezpečenie. Zmeňte ho, aby ste boli v bezpečí.}few{Máte {count} odhalené heslá, ktoré môžu ohroziť vaše zabezpečenie. Zmeňte ich, aby ste boli v bezpečí.}many{You have {count} compromised passwords that could put your security at risk. Fix them now to stay safe.}other{Máte {count} odhalených hesiel, ktoré môžu ohroziť vaše zabezpečenie. Zmeňte ich, aby ste boli v bezpečí.}}</translation>
 <translation id="5791632441210678828">Tlačidlo na zoradenie informačného kanála Sledované.</translation>
 <translation id="5803566855766646066">Naozaj chcete zahodiť túto novú kartu?</translation>
@@ -1454,6 +1456,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="6537746030088321027">priklad.sk</translation>
 <translation id="6550675742724504774">Možnosti</translation>
 <translation id="6550891580932862748">Nechráni vás pred nebezpečnými webmi, stiahnutým súbormi ani rozšíreniami. Nastavenie Bezpečné prehliadanie v iných službách Googlu nebude ovplyvnené.</translation>
+<translation id="6556866813142980365">Znova</translation>
 <translation id="6559301491397835130">{count,plural, =1{Záložka bola uložená do priečinka {title}. Je uložená iba v tomto zariadení.}few{Záložky boli uložené do priečinka {title}. Sú uložené iba v tomto zariadení.}many{Záložky boli uložené do priečinka {title}. Sú uložené iba v tomto zariadení.}other{Záložky boli uložené do priečinka {title}. Sú uložené iba v tomto zariadení.}}</translation>
 <translation id="656065428026159829">Zobraziť viac</translation>
 <translation id="6571070086367343653">Upraviť kreditnú kartu</translation>
@@ -1692,6 +1695,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="7484645889979462775">Nikdy pre tieto stránky</translation>
 <translation id="7486006552035434095">Majte svoje zariadenia synchronizované</translation>
 <translation id="7491131399623468277">Prejsť do Nastavení…</translation>
+<translation id="7491161827858509164">Ak si chcete pozrieť súbory, ktoré ste stiahli v minulosti, otvorte <ph name="BEGIN_LINK" />Súbory<ph name="END_LINK" /></translation>
 <translation id="7498234416455752244">Pokračovať v úprave</translation>
 <translation id="7500244509706269886">Automaticky doplniť formulár</translation>
 <translation id="750493650310597496">Počet vybraných záložiek: 0</translation>
@@ -1729,6 +1733,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="7612619742409846846">Prihlásený účet Google</translation>
 <translation id="7612849887607288481">Otvoriť ponuku vytvárania prototypov pomocou umelej inteligencie</translation>
 <translation id="7620522820075868385">Zrušiť</translation>
+<translation id="762078666799342162">Súbory stiahnuté v minulosti si môžete pozrieť v <ph name="BEGIN_LINK" />Súboroch<ph name="END_LINK" /></translation>
 <translation id="7638584964844754484">Nesprávna prístupová fráza</translation>
 <translation id="7639276194483401980">{COUNT,plural, =0{Odhalené heslá}=1{{COUNT} odhalené heslo}few{{COUNT} odhalené heslá}many{{COUNT} compromised passwords}other{{COUNT} odhalených hesiel}}</translation>
 <translation id="7640669552036055091">Karty z Androidu</translation>
@@ -1793,6 +1798,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="7851858861565204677">Ďalšie zariadenia</translation>
 <translation id="7853202427316060426">Aktivita</translation>
 <translation id="7854006015462979438">Otvorte všeobecné</translation>
+<translation id="7855678267851972597">Zvukové záznamy</translation>
 <translation id="7859988229622350291">Nikdy neprekladať tieto jazyky</translation>
 <translation id="7863211248337747225">Získať aplikáciu</translation>
 <translation id="7865127013871431856">Možnosti prekladu</translation>
@@ -1909,7 +1915,6 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="8273982424131314219">Vyplníte informácie na webe <ph name="URL" /></translation>
 <translation id="8275068909952022340">Viac…</translation>
 <translation id="8277328362018795342">Obsah stránky sa zdieľa, aby ste mohli dostávať relevantnejšie odpovede</translation>
-<translation id="8278488584187265939">Prispôsobenie domovskej stránky</translation>
 <translation id="8281781826761538115">Predvolené – <ph name="DEFAULT_LOCALE" /></translation>
 <translation id="8281886186245836920">Preskočiť</translation>
 <translation id="8282657446819506217">Otvoriť v skupine kariet</translation>
@@ -1973,6 +1978,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="8524799873541103884"><ph name="INCOGNITO" /> – karty <ph name="FIRST_VISIBLE_TAB" /> až <ph name="LAST_VISIBLE_TAB" /> z <ph name="NUMBER_OF_OPEN_TABS" /></translation>
 <translation id="8528009254289981965">Otváranie odkazov z iných aplikácií v režime inkognito</translation>
 <translation id="8529767659511976195">Nové</translation>
+<translation id="8531572740963685410">Súbory PDF</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Bezpečné prehliadanie je zapnuté</translation>
 <translation id="8534481786647257214">Príspevok bol uverejnený v Google+.</translation>
@@ -2179,6 +2185,7 @@ Funkciu Handoff musíte povoliť v nastaveniach v časti Všeobecné a vaše zar
 <translation id="945522503751344254">Odoslať spätnú väzbu</translation>
 <translation id="94870150074703282">Chcete skupinu odstrániť?</translation>
 <translation id="952704832371081537">Zrušiť</translation>
+<translation id="95332591904104970">Pripojené aplikácie</translation>
 <translation id="954667170699278022">Čitateľský zoznam</translation>
 <translation id="956218893102219091">Získavajte od Gemini presnejšie výsledky vychádzajúce z presnej polohy, nie z odhadovanej polohy na základe adresy IP. <ph name="BEGIN_LINK" />Ďalšie informácie<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Odstrániť dáta prehliadania</translation>

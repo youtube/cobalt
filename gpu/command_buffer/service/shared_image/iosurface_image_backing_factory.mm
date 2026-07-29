@@ -112,13 +112,11 @@ bool IsPixelDataValid(viz::SharedImageFormat format,
 
 constexpr SharedImageUsageSet kSupportedUsage =
     SHARED_IMAGE_USAGE_GLES2_READ | SHARED_IMAGE_USAGE_GLES2_WRITE |
-    SHARED_IMAGE_USAGE_GLES2_FOR_RASTER_ONLY |
     SHARED_IMAGE_USAGE_DISPLAY_WRITE | SHARED_IMAGE_USAGE_DISPLAY_READ |
     SHARED_IMAGE_USAGE_RASTER_READ | SHARED_IMAGE_USAGE_RASTER_WRITE |
-    SHARED_IMAGE_USAGE_RASTER_OVER_GLES2_ONLY |
-    SHARED_IMAGE_USAGE_OOP_RASTERIZATION | SHARED_IMAGE_USAGE_SCANOUT |
-    SHARED_IMAGE_USAGE_WEBGPU_READ | SHARED_IMAGE_USAGE_WEBGPU_WRITE |
-    SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE | SHARED_IMAGE_USAGE_VIDEO_DECODE |
+    SHARED_IMAGE_USAGE_SCANOUT | SHARED_IMAGE_USAGE_WEBGPU_READ |
+    SHARED_IMAGE_USAGE_WEBGPU_WRITE | SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE |
+    SHARED_IMAGE_USAGE_VIDEO_DECODE |
     SHARED_IMAGE_USAGE_WEBGPU_SWAP_CHAIN_TEXTURE |
     SHARED_IMAGE_USAGE_MACOS_VIDEO_TOOLBOX |
     SHARED_IMAGE_USAGE_HIGH_PERFORMANCE_GPU |
@@ -145,11 +143,10 @@ IOSurfaceImageBackingFactory::IOSurfaceImageBackingFactory(
       gr_context_type_(gr_context_type),
       max_texture_size_(max_texture_size),
       angle_texture_usage_(feature_info->feature_flags().angle_texture_usage),
-      gpu_memory_buffer_formats_(
-          feature_info->feature_flags().gpu_memory_buffer_formats),
       progress_reporter_(progress_reporter),
       texture_target_(texture_target) {
-  for (gfx::BufferFormat buffer_format : gpu_memory_buffer_formats_) {
+  for (gfx::BufferFormat buffer_format :
+       feature_info->feature_flags().gpu_memory_buffer_formats) {
     viz::SharedImageFormat format = viz::GetSharedImageFormat(buffer_format);
     // Add supported single-plane formats.
     if (format.is_single_plane() && IsFormatSupported(format)) {
@@ -164,9 +161,7 @@ IOSurfaceImageBackingFactory::IOSurfaceImageBackingFactory(
   supported_formats_.insert(viz::MultiPlaneFormat::kNV12);
   supported_formats_.insert(viz::MultiPlaneFormat::kP210);
   supported_formats_.insert(viz::MultiPlaneFormat::kP410);
-  if (feature_info->feature_flags().chromium_image_ycbcr_p010) {
-    supported_formats_.insert(viz::MultiPlaneFormat::kP010);
-  }
+  supported_formats_.insert(viz::MultiPlaneFormat::kP010);
   supported_formats_.insert(viz::MultiPlaneFormat::kNV12A);
   supported_formats_.insert(viz::MultiPlaneFormat::kNV16);
   supported_formats_.insert(viz::MultiPlaneFormat::kNV24);
