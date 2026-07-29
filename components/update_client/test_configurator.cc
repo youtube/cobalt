@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/update_client/test_configurator.h"
+#include "build/build_config.h"
 
 #include <memory>
 #include <optional>
@@ -25,20 +26,26 @@
 #include "components/update_client/activity_data_service.h"
 #include "components/update_client/crx_cache.h"
 #include "components/update_client/crx_downloader_factory.h"
-#include "components/update_client/net/network_chromium.h"
+#include "components/update_client/net/network_chromium.h"  // nogncheck
 #include "components/update_client/patch/patch_impl.h"
 #include "components/update_client/patcher.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/protocol_handler.h"
 #include "components/update_client/test_activity_data_service.h"
-#include "components/update_client/unzip/unzip_impl.h"
+#include "components/update_client/unzip/unzip_impl.h"  // nogncheck
 #include "components/update_client/unzipper.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+#include "components/update_client/net/network_impl_cobalt.h"
+#include "components/update_client/unzip/unzip_impl_cobalt.h"
+#endif
+
 namespace update_client {
 
 namespace {
+
 
 std::vector<GURL> MakeDefaultUrls() {
   std::vector<GURL> urls;
@@ -49,20 +56,31 @@ std::vector<GURL> MakeDefaultUrls() {
 
 }  // namespace
 
+
 TestConfigurator::TestConfigurator(PrefService* pref_service)
     : enabled_cup_signing_(false),
       pref_service_(pref_service),
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+      unzip_factory_(base::MakeRefCounted<UnzipCobaltFactory>()),
+#else
       unzip_factory_(base::MakeRefCounted<update_client::UnzipChromiumFactory>(
           base::BindRepeating(&unzip::LaunchInProcessUnzipper))),
+#endif
       patch_factory_(base::MakeRefCounted<update_client::PatchChromiumFactory>(
           base::BindRepeating(&patch::LaunchInProcessFilePatcher))),
       test_shared_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory_)),
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+      network_fetcher_factory_(
+          base::MakeRefCounted<NetworkFetcherCobaltFactory>(
+              test_shared_loader_factory_)),
+#else
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherChromiumFactory>(
               test_shared_loader_factory_,
               base::BindRepeating([](const GURL& url) { return false; }))),
+#endif
       updater_state_provider_(base::BindRepeating(
           [](bool /*is_machine*/) { return UpdaterStateAttributes(); })),
       is_network_connection_metered_(false) {

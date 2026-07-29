@@ -73,10 +73,15 @@ WebContentsViewIOS::WebContentsViewIOS(
   [ui_view_->view_ setScrollEnabled:NO];
   [ui_view_->view_ setAutoresizingMask:UIViewAutoresizingFlexibleWidth |
                                        UIViewAutoresizingFlexibleHeight];
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Setting a background color here prevents punchout mode from working.
   ui_view_->view_.backgroundColor = [UIColor lightGrayColor];
+#endif
 }
 
-WebContentsViewIOS::~WebContentsViewIOS() {}
+WebContentsViewIOS::~WebContentsViewIOS() {
+  [ui_view_->view_ removeFromSuperview];
+}
 
 gfx::NativeView WebContentsViewIOS::GetNativeView() const {
   return gfx::NativeView(ui_view_->view_);
