@@ -86,6 +86,8 @@ class BLINK_EXPORT WebElement : public WebNode {
 
   void Focus();
 
+  void Blur();
+
   // Returns true if the element's computed writing suggestions value is true.
   // https://html.spec.whatwg.org/#writing-suggestions:computed-writing-suggestions-value
   bool WritingSuggestions() const;
@@ -172,6 +174,9 @@ class BLINK_EXPORT WebElement : public WebNode {
   // will be completed via a smooth scroll animation), false if the element
   // cannot scroll (e.g. it's not rendered, no scroll extent).
   bool SetScrollOffset(const gfx::Vector2dF& offset);
+
+  // Scrolls the element into view if it isn't already visible.
+  void ScrollIntoViewIfNeeded();
 
   // Returns true if this element has scroll-behavior: smooth style, meaning
   // that programmatic scrolls will animate rather than instantly jumping to the

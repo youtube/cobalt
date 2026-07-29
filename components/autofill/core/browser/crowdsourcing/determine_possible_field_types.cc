@@ -404,8 +404,10 @@ PossibleTypes GetPossibleTypes(
     card.GetMatchingTypes(value_u16, app_locale, &pt.types);
   }
 
+  // Do not issue loyalty card votes on values matching the email format.
   if (base::FeatureList::IsEnabled(
-          features::kAutofillEnableLoyaltyCardsFilling)) {
+          features::kAutofillEnableLoyaltyCardsFilling) &&
+      !IsValidEmailAddress(value_u16)) {
     const std::string value_u8 = base::UTF16ToUTF8(value_u16);
     for (const LoyaltyCard& card : loyalty_cards) {
       if (value_u8 == card.loyalty_card_number()) {
@@ -442,8 +444,9 @@ std::set<FieldGlobalId> PreProcessStateMatchingTypes(
       continue;
     }
 
-    const std::u16string& country_code =
-        profile->GetInfo(AutofillType(HtmlFieldType::kCountryCode), app_locale);
+    const std::u16string& country_code = profile->GetInfo(
+        AutofillType(ADDRESS_HOME_COUNTRY, /*is_country_code=*/true),
+        app_locale);
 
     for (auto& field : fields) {
       if (fields_that_match_state.contains(field->global_id())) {

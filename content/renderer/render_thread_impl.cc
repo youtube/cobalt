@@ -162,6 +162,7 @@
 #include "third_party/blink/public/web/web_user_level_memory_pressure_signal_generator.h"
 #include "third_party/blink/public/web/web_v8_features.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkGraphics.h"
 #include "ui/base/ui_base_switches.h"
@@ -278,7 +279,6 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateOffscreenContext(
     bool support_gles2_interface,
     bool support_raster_interface,
     bool support_gpu_rasterization,
-    bool support_grcontext,
     bool automatic_flushes,
     viz::command_buffer_metrics::ContextType type,
     int32_t stream_id,
@@ -294,7 +294,6 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateOffscreenContext(
   attributes.lose_context_when_out_of_memory = true;
   attributes.enable_gles2_interface = support_gles2_interface;
   attributes.enable_raster_interface = support_raster_interface;
-  attributes.enable_grcontext = support_grcontext;
   // Using RasterDecoder for OOP-R backend, so we need support_raster_interface
   // and !support_gles2_interface.
   attributes.enable_gpu_rasterization = support_gpu_rasterization &&
@@ -633,9 +632,15 @@ void RenderThreadImpl::Init() {
   memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
       FROM_HERE,
       base::BindRepeating(&RenderThreadImpl::OnMemoryPressure,
-                          base::Unretained(this)),
-      base::BindRepeating(&RenderThreadImpl::OnSyncMemoryPressure,
                           base::Unretained(this)));
+  // In tests or in single-process mode, the render thread does not live on the
+  // main thread of the process, so we can't register a sync listener.
+  if (base::SingleThreadTaskRunner::GetMainThreadDefault()
+          ->BelongsToCurrentThread()) {
+    sync_memory_pressure_listener_ =
+        std::make_unique<base::SyncMemoryPressureListener>(base::BindRepeating(
+            &RenderThreadImpl::OnSyncMemoryPressure, base::Unretained(this)));
+  }
 
   discardable_memory_allocator_ = CreateDiscardableMemoryAllocator();
 
@@ -1015,13 +1020,11 @@ media::GpuVideoAcceleratorFactories* RenderThreadImpl::GetGpuFactories() {
   bool support_gles2_interface = true;
   bool support_raster_interface = false;
   bool support_oop_rasterization = false;
-  bool support_grcontext = false;
   bool automatic_flushes = false;
   scoped_refptr<viz::ContextProviderCommandBuffer> media_context_provider =
       CreateOffscreenContext(gpu_channel_host, limits, support_locking,
                              support_gles2_interface, support_raster_interface,
-                             support_oop_rasterization, support_grcontext,
-                             automatic_flushes,
+                             support_oop_rasterization, automatic_flushes,
                              viz::command_buffer_metrics::ContextType::MEDIA,
                              kGpuStreamIdMedia, kGpuStreamPriorityMedia);
 
@@ -1107,12 +1110,10 @@ RenderThreadImpl::GetVideoFrameCompositorContextProvider(
   bool support_gles2_interface = false;
   bool support_raster_interface = true;
   bool support_oop_rasterization = false;
-  bool support_grcontext = false;
   bool automatic_flushes = false;
   video_frame_compositor_context_provider_ = CreateOffscreenContext(
       gpu_channel_host, limits, support_locking, support_gles2_interface,
-      support_raster_interface, support_oop_rasterization, support_grcontext,
-      automatic_flushes,
+      support_raster_interface, support_oop_rasterization, automatic_flushes,
       viz::command_buffer_metrics::ContextType::RENDER_COMPOSITOR,
       kGpuStreamIdMedia, kGpuStreamPriorityMedia);
   return video_frame_compositor_context_provider_;
@@ -1158,32 +1159,23 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
     return nullptr;
   }
 
-  if (base::FeatureList::IsEnabled(
-          ::features::kDisallowRasterInterfaceWithoutSkiaBackend) &&
-      gpu_channel_host->gpu_info().skia_backend_type ==
-          gpu::SkiaBackendType::kNone) {
+  if (gpu_channel_host->gpu_info().skia_backend_type ==
+      gpu::SkiaBackendType::kNone) {
     return nullptr;
   }
 
-  bool support_locking = false;
-  bool support_raster_interface = true;
-  // TODO(zmo): today if Skia backend is set, Chrome either runs in GPU
-  // acceleration mode, either on top of real GPU, or on top of SwiftShader
-  // (for testing). This may change in the future if we move Skia software
-  // rendering to be OOP as well.
-  bool support_oop_rasterization =
-      gpu_channel_host->gpu_info().skia_backend_type !=
-      gpu::SkiaBackendType::kNone;
-  bool support_gles2_interface = false;
-  bool support_grcontext = !support_oop_rasterization;
+  const bool support_locking = false;
+  const bool support_raster_interface = true;
+  const bool support_oop_rasterization = true;
+  const bool support_gles2_interface = false;
   // Enable automatic flushes to improve canvas throughput.
   // See https://crbug.com/880901
-  bool automatic_flushes = true;
+  const bool automatic_flushes = true;
 
   shared_main_thread_contexts_ = CreateOffscreenContext(
       std::move(gpu_channel_host), gpu::SharedMemoryLimits(), support_locking,
       support_gles2_interface, support_raster_interface,
-      support_oop_rasterization, support_grcontext, automatic_flushes,
+      support_oop_rasterization, automatic_flushes,
       viz::command_buffer_metrics::ContextType::RENDERER_MAIN_THREAD,
       kGpuStreamIdDefault, kGpuStreamPriorityDefault);
   auto result = shared_main_thread_contexts_->BindToCurrentSequence();
@@ -1429,13 +1421,12 @@ scoped_refptr<gpu::GpuChannelHost> RenderThreadImpl::EstablishGpuChannelSync() {
 
 void RenderThreadImpl::EstablishGpuChannel(
     EstablishGpuChannelCallback callback) {
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      "gpu", "RenderThreadImpl::EstablishGpuChannel", this);
+  TRACE_EVENT_BEGIN("gpu", "RenderThreadImpl::EstablishGpuChannel",
+                    perfetto::Track::FromPointer(this));
   gpu_->EstablishGpuChannel(base::BindOnce(
       [](EstablishGpuChannelCallback callback, RenderThreadImpl* thread,
          scoped_refptr<gpu::GpuChannelHost> host) {
-        TRACE_EVENT_NESTABLE_ASYNC_END0(
-            "gpu", "RenderThreadImpl::EstablishGpuChannel", thread);
+        TRACE_EVENT_END("gpu", perfetto::Track::FromPointer(thread));
         if (host)
           GetContentClient()->SetGpuInfo(host->gpu_info());
         std::move(callback).Run(std::move(host));
@@ -1678,7 +1669,6 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
 
   bool support_gles2_interface = false;
   bool support_raster_interface = true;
-  bool support_grcontext = false;
   bool automatic_flushes = false;
   auto shared_memory_limits =
       support_gpu_rasterization ? gpu::SharedMemoryLimits::ForOOPRasterContext()
@@ -1686,7 +1676,7 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
   shared_worker_context_provider_ = CreateOffscreenContext(
       std::move(gpu_channel_host), shared_memory_limits, support_locking,
       support_gles2_interface, support_raster_interface,
-      support_gpu_rasterization, support_grcontext, automatic_flushes,
+      support_gpu_rasterization, automatic_flushes,
       viz::command_buffer_metrics::ContextType::RENDER_WORKER,
       kGpuStreamIdWorker, kGpuStreamPriorityWorker);
 

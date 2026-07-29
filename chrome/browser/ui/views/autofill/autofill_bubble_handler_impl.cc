@@ -122,23 +122,23 @@ AutofillBubbleBase* AutofillBubbleHandlerImpl::ShowSaveCreditCardBubble(
     content::WebContents* web_contents,
     SaveCardBubbleController* controller,
     bool is_user_gesture) {
-  switch (controller->GetBubbleType()) {
-    case BubbleType::LOCAL_SAVE:
-    case BubbleType::LOCAL_CVC_SAVE:
-    case BubbleType::UPLOAD_SAVE:
-    case BubbleType::UPLOAD_CVC_SAVE:
-    case BubbleType::UPLOAD_IN_PROGRESS:
+  switch (controller->GetPaymentsBubbleType()) {
+    case PaymentsBubbleType::kLocalSave:
+    case PaymentsBubbleType::kLocalCvcSave:
+    case PaymentsBubbleType::kUploadSave:
+    case PaymentsBubbleType::kUploadCvcSave:
+    case PaymentsBubbleType::kUploadInProgress:
       return ShowBubble<SaveCardOfferBubbleViews>(
           toolbar_button_provider_, kActionShowPaymentsBubbleOrPage,
           PageActionIconType::kSaveCard, is_user_gesture, web_contents,
           controller);
-    case BubbleType::MANAGE_CARDS:
+    case PaymentsBubbleType::kManageCards:
       return ShowBubble<SaveCardManageCardsBubbleViews>(
           toolbar_button_provider_, kActionShowPaymentsBubbleOrPage,
           PageActionIconType::kSaveCard, is_user_gesture, web_contents,
           controller);
-    case BubbleType::UPLOAD_COMPLETED:
-    case BubbleType::INACTIVE:
+    case PaymentsBubbleType::kUploadComplete:
+    case PaymentsBubbleType::kInactive:
       break;
   }
   NOTREACHED();

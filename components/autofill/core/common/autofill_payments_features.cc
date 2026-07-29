@@ -7,6 +7,12 @@
 namespace autofill::features {
 
 #if BUILDFLAG(IS_IOS)
+// When enabled, users are given the option to use their phone camera to scan
+// their credit card when adding it via Autofill iOS settings.
+BASE_FEATURE(kAutofillCreditCardScannerIos,
+             "AutofillCreditCardScannerIos",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, save card fix flow values for missing cardholder name and
 // expiry date won't be defaulted as detected on iOS.
 BASE_FEATURE(kAutofillDisableDefaultSaveCardFixFlowDetection,
@@ -32,7 +38,13 @@ BASE_FEATURE(kAutofillEnableAmountExtractionAllowlistDesktop,
 // of the allowlisted merchant websites.
 BASE_FEATURE(kAutofillEnableAmountExtractionDesktop,
              "AutofillEnableAmountExtractionDesktop",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 // Enables testing of the result of checkout amount extraction on desktop.
 // This flag will allow amount extraction to run on any website when a CC
@@ -44,7 +56,13 @@ BASE_FEATURE(kAutofillEnableAmountExtractionTesting,
 // When enabled, buy now pay later (BNPL) in Autofill will be offered.
 BASE_FEATURE(kAutofillEnableBuyNowPayLater,
              "AutofillEnableBuyNowPayLater",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 // When enabled, additional steps are required to autofill buy now pay later
 // (BNPL) issuers that are externally linked.
@@ -168,12 +186,10 @@ BASE_FEATURE(kAutofillEnableVirtualCardJavaPaymentsDataManager,
              "AutofillEnableVirtualCardJavaPaymentsDataManager",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, a form event will log to all of the parsed forms of the same
-// type on a webpage. This means credit card form events will log to all credit
-// card form types and address form events will log to all address form types."
-// TODO(crbug.com/359934323): Clean up when launched
-BASE_FEATURE(kAutofillEnableLogFormEventsToAllParsedFormTypes,
-             "AutofillEnableLogFormEventsToAllParsedFormTypes",
+// When enabled, Buy now pay later issuer allow lists will be loaded after
+// payment data syncing instead of credit card form parsing.
+BASE_FEATURE(kAutofillEnableLoadBnplAllowlistAfterSyncing,
+             "AutofillEnableLoadBnplAllowlistAfterSyncing",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, virtual card downstream enrollment will support multiple

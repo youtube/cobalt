@@ -23,6 +23,7 @@ import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
 import '../site_settings/geolocation_page.js';
 import '../site_settings/notifications_page.js';
+import '../site_settings/protected_content_page.js';
 import '../site_settings/settings_category_default_radio_group.js';
 import '../site_settings/smart_card_readers_page.js';
 import './privacy_guide/privacy_guide_dialog.js';
@@ -150,14 +151,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         },
       },
 
-      enableSecurityKeysSubpage_: {
-        type: Boolean,
-        readOnly: true,
-        value() {
-          return loadTimeData.getBoolean('enableSecurityKeysSubpage');
-        },
-      },
-
       // <if expr="is_chromeos">
       enableSmartCardReadersContentSetting_: {
         type: Boolean,
@@ -244,10 +237,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
             map.set(routes.PRIVACY_GUIDE.path, '#privacyGuideLinkRow');
           }
 
-          if (routes.PRIVACY_SANDBOX) {
-            map.set(routes.PRIVACY_SANDBOX.path, '#privacySandboxLinkRow');
-          }
-
           if (routes.INCOGNITO_TRACKING_PROTECTIONS) {
             map.set(routes.INCOGNITO_TRACKING_PROTECTIONS.path,
               '#incognitoTrackingProtectionsLinkRow');
@@ -257,11 +246,7 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         },
       },
 
-      searchFilter_: {
-        type: String,
-        value: '',
-        observer: 'updateAllSitesPageTitle_',
-      },
+      searchFilter_: String,
 
       /**
        * Expose ContentSettingsTypes enum to HTML bindings.
@@ -287,13 +272,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         value: ChooserType,
       },
 
-      shouldShowSafetyHub_: {
-        type: Boolean,
-        value() {
-          return !loadTimeData.getBoolean('isGuest');
-        },
-      },
-
       enableKeyboardLockPrompt_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableKeyboardLockPrompt'),
@@ -302,11 +280,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
       enableWebAppInstallation_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableWebAppInstallation'),
-      },
-
-      enableRelatedWebsiteSetsV2Ui_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('isRelatedWebsiteSetsV2UiEnabled'),
       },
 
       enableLocalNetworkAccessSetting_: {
@@ -336,8 +309,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         type: Boolean,
         value: false,
       },
-
-      allSitesPageTitle_: String,
     };
   }
 
@@ -353,7 +324,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private enablePaymentHandlerContentSetting_: boolean;
   declare private enableHandTrackingContentSetting_: boolean;
   declare private enableExperimentalWebPlatformFeatures_: boolean;
-  declare private enableSecurityKeysSubpage_: boolean;
   // <if expr="is_chromeos">
   declare private enableSmartCardReadersContentSetting_: boolean;
   // </if>
@@ -365,7 +335,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   private privateStateTokensEnabled_: boolean;
   declare private autoPictureInPictureEnabled_: boolean;
   declare private capturedSurfaceControlEnabled_: boolean;
-  declare private shouldShowSafetyHub_: boolean;
   declare private enableWebAppInstallation_: boolean;
   declare private enableLocalNetworkAccessSetting_: boolean;
   declare private focusConfig_: FocusConfig;
@@ -379,8 +348,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   private safetyHubBrowserProxy_: SafetyHubBrowserProxy =
       SafetyHubBrowserProxyImpl.getInstance();
   declare private enableKeyboardLockPrompt_: boolean;
-  declare private enableRelatedWebsiteSetsV2Ui_: boolean;
-  declare private allSitesPageTitle_: string;
   declare private enableIncognitoTrackingProtections_: boolean;
   declare private enableBundledSecuritySettings_: boolean;
   declare private dbdDeletionConfirmationToastLabel_: string;
@@ -402,8 +369,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         'onBlockAutoplayStatusChanged',
         (status: BlockAutoplayStatus) =>
             this.onBlockAutoplayStatusChanged_(status));
-
-    this.updateAllSitesPageTitle_();
   }
 
   override currentRouteChanged() {
@@ -547,19 +512,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
     }
   }
 
-  private updateAllSitesPageTitle_(): void {
-    const rwsPrefix = 'related:';
-    if (this.enableRelatedWebsiteSetsV2Ui_ &&
-        this.searchFilter_.length > rwsPrefix.length &&
-        this.searchFilter_.startsWith(rwsPrefix)) {
-      this.allSitesPageTitle_ = loadTimeData.getStringF(
-          'allSitesRwsFilterViewTitle',
-          this.searchFilter_.substring(rwsPrefix.length));
-    } else {
-      this.allSitesPageTitle_ = this.i18n('siteSettingsAllSites');
-    }
-  }
-
   private shouldShowAdPrivacy_(): boolean {
     return !this.isPrivacySandboxRestricted_ ||
         this.isPrivacySandboxRestrictedNoticeEnabled_;
@@ -569,6 +521,36 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
       e: CustomEvent<{deletionConfirmationText: string}>) {
     this.dbdDeletionConfirmationToastLabel_ = e.detail.deletionConfirmationText;
     this.shouldShowDbdDeletionConfirmationToast_ = true;
+  }
+
+  getAssociatedControlFor(childViewId: string): HTMLElement {
+    let triggerId: string|null = null;
+    switch (childViewId) {
+      case 'cookies':
+        triggerId = 'thirdPartyCookiesLinkRow';
+        break;
+      case 'securityKeys':
+        triggerId = 'securityLinkRow';
+        break;
+      case 'privacySandbox':
+      case 'privacySandboxAdMeasurement':
+      case 'privacySandboxFledge':
+      case 'privacySandboxManageTopics':
+      case 'privacySandboxTopics':
+        triggerId = 'privacySandboxLinkRow';
+        break;
+      // TODO(crbug.com/424223101): Add more child view IDs as they
+      // are migrated to the new architecture.
+      default:
+        assertNotReached();
+    }
+
+    assert(triggerId);
+
+    const control =
+        this.shadowRoot!.querySelector<HTMLElement>(`#${triggerId}`);
+    assert(control);
+    return control;
   }
 }
 

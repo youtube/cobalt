@@ -650,6 +650,9 @@
     {
       // Used to enable Blink side of features flags for Default Nav Transition.
       name: "BackForwardTransitions",
+      status: {
+        "Android": "stable",
+      },
     },
     {
       name: "BackgroundFetch",
@@ -700,6 +703,11 @@
     },
     {
       name: "BlinkRuntimeCallStats",
+    },
+    {
+      // https://chromestatus.com/feature/4830298126417920
+      name: "BlobBytes",
+      status: "experimental",
     },
     {
       name: "BlockingFocusWithoutUserActivation",
@@ -984,6 +992,11 @@
       name: "ColorInputDatalistLooksNormal",
       status: "stable",
     },
+    // Enable the rec2100-linear color space in CSS and PredefinedColorSpace.
+    {
+      name: "ColorSpaceRec2100Linear",
+      status: "experimental",
+    },
     {
       name: "CompositeBGColorAnimation",
       public: true,
@@ -1095,8 +1108,7 @@
       // info.
       name: "ControlledFrame",
       public: true,
-      status: "experimental",
-      base_feature_status: "disabled",
+      status: "stable",
     },
     {
       name: "CookieDeprecationFacilitatedTesting",
@@ -1121,6 +1133,7 @@
       status: "experimental",
       base_feature_status: "enabled",
       copied_from_base_feature_if: "overridden",
+      origin_trial_feature_name: "CrashReportingStorageAPI",
     },
     {
       // Allow WebAuthn relying parties to report information about existing
@@ -1270,11 +1283,6 @@
       status: "test",
     },
     {
-      // Allows getComputedStyle() and similar to get information about :visited colors.
-      // Only safe if PartitionVisitedLinkDatabaseWithSelfLinks is enabled.
-      name: "CSSDoNotHideVisitedColor",
-    },
-    {
       name: "CSSDynamicRangeLimit",
       status: "stable",
     },
@@ -1314,6 +1322,10 @@
       // https://chromestatus.com/feature/5157805733183488
       name: "CSSGapDecoration",
       status: "experimental",
+    },
+    {
+      // https://issues.chromium.org/issues/436140061
+      name: "CSSGapDecorationOptimized",
     },
     {
       // This needs to be kept as a runtime flag as long as we need to forcibly
@@ -1365,6 +1377,12 @@
       // https://chromestatus.com/feature/6289894144212992
       name: "CSSKeyframesRuleLength",
       status: "stable",
+    },
+    {
+      // Support for extended language ranges in :lang()
+      // https://chromestatus.com/feature/5071058079055872
+      name: "CSSLangExtendedRanges",
+      status: "experimental",
     },
     {
       name: "CSSLayoutAPI",
@@ -1488,11 +1506,6 @@
       depends_on: ["CSSReadingFlow"],
     },
     {
-      // crbug.com/359616070
-      name: "CSSRelativeColorLateResolveAlways",
-      status: "stable",
-    },
-    {
       // Non-standard 'auto' keyword for the CSS resize property. Used for
       // selectively enable resize corner for textarea via UA stylesheet, but
       // unintentionally exposed to author sheets. UA rule is now using
@@ -1562,11 +1575,6 @@
       base_feature: "CssSelectorFragmentAnchor",
     },
     {
-      // Ignore cycles in unused var()/attr() fallbacks.
-      name: "CSSShortCircuitVarAttr",
-      status: "stable",
-    },
-    {
       // sibling-index() and sibling-count()
       name: "CSSSiblingFunctions",
       status: "stable",
@@ -1602,6 +1610,11 @@
         "Win": "stable",
         "default": "experimental",
       },
+    },
+    {
+      // https://issues.chromium.org/40787216: CSS `text-align: match-parent` value
+      name: "CSSTextAlignMatchParent",
+      status: "experimental",
     },
     {
       // crbug.com/1463890: CSS `text-autospace` property
@@ -1960,16 +1973,6 @@
       status: {"Android": "stable"},
     },
     {
-      // crbug.com/341564372
-      name: "EditingFastDelete",
-      status: "stable",
-    },
-    {
-      // crbug.com/341564372
-      name: "EditingFastRichReplace",
-      status: "stable",
-    },
-    {
       name: "ElementCapture",
       status: {"Android": "", "default": "stable"},
     },
@@ -2071,12 +2074,6 @@
     {
       name: "FastPositionIterator",
       // Not enabled due to a RTL issue. crbug.com/1421016.
-    },
-    {
-      // crbug.com/414112253
-      name: "FastSelectionSync",
-      status: "stable",
-      depends_on: ["SelectionDeleteFromDocumentUaShadowFix"],
     },
     {
       name: "FedCm",
@@ -2368,13 +2365,6 @@
       status: "experimental",
     },
     {
-      // Don't create LayoutMultiColumnFlowThread objects, or any of the other
-      // legacy multicol objects.
-      name: "FlowThreadLess",
-      depends_on: ["LayoutBoxVisualLocation"],
-      status: "stable",
-    },
-    {
       name: "FluentOverlayScrollbars",
       // The associated base feature is defined in
       // ui/native_theme/native_theme_features.cc.
@@ -2527,6 +2517,14 @@
       browser_process_read_write_access: true,
     },
     {
+      // To filter only elements in the HTML namespace when calling
+      // getElementsByName().
+      // This was added in M141 and can be removed after M143.
+      // https://issues.chromium.org/issues/40502558
+      name: "GetElementsByNameOnlyHTMLElements",
+      status: "stable",
+    },
+    {
       name: "GetUserMediaEchoCancellationModes",
       status: "experimental",
     },
@@ -2596,6 +2594,15 @@
       name: "HTMLCommandActionsV2",
       status: "test",
     },
+    // Adds support for `command=toggle-interest`, for use by the command
+    // invokers API, targeting an interest invoker (with `interestfor`). This is
+    // a sub-feature of the HTMLInterestForAttribute feature.
+    // https://open-ui.org/components/interest-invokers.explainer/
+    {
+      name: "HTMLCommandActionToggleInterest",
+      status: "experimental",
+      depends_on: ["HTMLInterestForAttribute"],
+    },
     // Adds support for the 'request-close' command.
     // https://open-ui.org/components/invokers.explainer/
     {
@@ -2629,6 +2636,14 @@
       status: "experimental",
       origin_trial_feature_name: "HTMLInterestForAttribute",
       origin_trial_allows_third_party: true,
+    },
+    // Adds support for the `::interest-hint` pseudo element, which is a sub-
+    // feature of the HTMLInterestForAttribute feature.
+    // https://open-ui.org/components/interest-invokers.explainer/
+    {
+      name: "HTMLInterestForInterestHintPseudo",
+      status: "experimental",
+      depends_on: ["HTMLInterestForAttribute"],
     },
     {
       // Prevents the HTMLLinkElement processing model from being invoked when
@@ -2706,14 +2721,8 @@
       base_feature: "IncomingCallNotifications",
     },
     {
-       // When enabled, every traversable mainframe same-doc navigation will
-       // increment the `viz::LocalSurfaceId` from the impl thread.
-      name: "IncrementLocalSurfaceIdForMainframeSameDocNavigation",
-      status: {"Android": "stable"},
-    },
-    {
       name: "IndexedDbGetAllRecords",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "InertElementNonEditable",
@@ -2743,6 +2752,12 @@
       // non-trivial.
       name: "InnerHTMLParserFastpathLogFailure",
       status: "experimental",
+    },
+    {
+      // Enable DataTransfer propagation to input events for insertFromPaste,
+      // insertFromDrop, and insertReplacementText operations on content-editables.
+      name: "InputEventDataTransferForInsertCmd",
+      status: "test",
     },
     {
       // The HTML parser inserts a </select> end tag before inserting <input>
@@ -2858,14 +2873,6 @@
     },
     {
       name: "LayoutAddChildBeforeDescendantFix",
-      status: "stable",
-    },
-    {
-      // LayoutBox::PhysicalLocation() to return a truly visual offset - the
-      // offset of its first fragment relatively to the first fragment of its
-      // containing block, also when block-fragmented (used to be in the
-      // "stitched" flow-thread coordinate space).
-      name: "LayoutBoxVisualLocation",
       status: "stable",
     },
     {
@@ -3508,6 +3515,11 @@
       status: {"Android": "", "iOS": "", "default": "stable"},
     },
     {
+      name: "PagePopupCopyPaste",
+      depends_on: ["PagePopup"],
+      status: "stable",
+    },
+    {
       name: "PageRevealEvent",
       status: "stable",
     },
@@ -3729,6 +3741,12 @@
       base_feature: "none",
     },
     {
+      // When enabled, preserves dropEffect in drag event set during dragover
+      // events.
+      name: "PreserveDropEffect",
+      status: "stable",
+    },
+    {
       // When enabled, prevents undo to be applied if the enclosing block
       // is not editable
       name: "PreventUndoIfNotEditable",
@@ -3890,6 +3908,12 @@
       base_feature: "none",
     },
     {
+      // If enabled, the amount of RAM reported through the `Navigator`
+      // interface will be hard-coded to 8gb.
+      name: "ReduceDeviceMemory",
+      settable_from_internals: true,
+    },
+    {
       // If enabled, the number of CPU cores reported through the `Navigator`
       // interface will be hard-coded to 8.
       name: "ReduceHardwareConcurrency",
@@ -3931,8 +3955,9 @@
       status: {"Android": "", "default": "stable"},
     },
     {
+      public: true,
       name: "RegionCapture",
-      status: {"Android": "", "default": "stable"},
+      status: {"Android": "experimental", "iOS": "", "default": "stable"},
     },
     {
       name: "RelatedWebsitePartitionAPI",
@@ -4378,11 +4403,6 @@
       status: "stable",
     },
     {
-      // See https://crbug.com/417823377
-      name: "SelectionDeleteFromDocumentUaShadowFix",
-      status: "stable",
-    },
-    {
       // See https://crbug.com/395544401
       name: "SelectionUpdateToInitialSelectionInListify",
       status: "stable",
@@ -4612,6 +4632,7 @@
     },
     {
       name: "SoftNavigationDetectionPrePaintBasedAttribution",
+      status: "experimental",
       depends_on: ["SoftNavigationDetection"],
     },
     {
@@ -4733,6 +4754,12 @@
       // a kill switch in case we encounter issues with this optimization.
       name: "SvgEagerPresAttrStyleUpdate",
       status: "stable",
+    },
+    {
+      // Treat SVG documents in <object>/<embed> as replaced elements
+      // https://issues.chromium.org/41302806
+      name: "SVGEmbeddedAsReplacedElement",
+      status: "experimental",
     },
     {
       // Enables loading of external SVG resource documents for the 'clip-path',
@@ -4871,13 +4898,12 @@
       // crbug.com/414858401
       name: "TextareaLineEndingsAsBr",
       status: "stable",
-      depends_on: ["EditingFastRichReplace"],
     },
     {
       // crbug.com/414858401
       name: "TextareaMultipleIfcs",
       status: "stable",
-      depends_on: ["FastSelectionSync", "TextareaLineEndingsAsBr"],
+      depends_on: ["TextareaLineEndingsAsBr"],
     },
     {
       // crbug.com/341564372
@@ -4941,6 +4967,11 @@
       // crbug.com/431660829
       name: "TextSpacingTrimFallback2",
       depends_on: ["TextSpacingTrimFallback"],
+      status: "test",
+    },
+    {
+      // crbug.com/331123676
+      name: "TextSpacingTrimYuGothicUI",
       status: "stable",
     },
     // This feature is used to inform the renderer of a user bypass from the
@@ -5103,12 +5134,6 @@
       status: "stable",
     },
     {
-      // Ensures symbols are treated as word boundaries during traversal.
-      // See https://crbug.com/40252642
-      name: "TreatSymbolsAsWordBoundary",
-      status: "stable",
-    },
-    {
       name: "TrustedTypeBeforePolicyCreationEvent",
       status: "experimental",
     },
@@ -5181,6 +5206,13 @@
     {
       name: "UpdateSelectionOnNodeInsertion"
     },
+    // Fix for https://crbug.com/436624850
+    // Ensures trivial_text_ is updated after fragment creation from text
+    // by calling UpdateTrivialReplacementText()
+    {
+      name: "UpdateTrivalTextAfterFragmentCreationFromText",
+      status: "stable",
+    },
     {
       name: "URLPatternCompareComponent",
       status: "experimental",
@@ -5234,13 +5266,6 @@
     },
     {
       name: "UseShadowHostStyleCheckEditable",
-      status: "stable",
-    },
-    {
-      // For invalidation set tracking, we build a map from style rules to
-      // their containing sheets. When this flag is enabled, we use that same
-      // map for the Selector Stats feature.
-      name: "UseStyleRuleMapForSelectorStats",
       status: "stable",
     },
     {
@@ -5413,6 +5438,10 @@
       name: "WebAudioBypassOutputBufferingOptOut",
       public: true,
     },
+    {
+      // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-renderquantumsize
+      name: "WebAudioConfigurableRenderQuantum",
+    },
     // WebAuth is disabled on Android versions prior to N (7.0) due to lack of
     // supporting APIs, see runtime_features.cc.
     {
@@ -5469,12 +5498,6 @@
     {
       name: "WebAuthenticationJSONSerialization",
       status: "stable",
-    },
-    {
-      name: "WebAuthenticationNewBfCacheHandlingBlink",
-      // No status because this blink runtime feature doesn't work by itself.
-      // It's controlled by the corresponding Chromium feature which needs to
-      // be enabled to make the whole feature work.
     },
     // https://w3c.github.io/webauthn/#prf-extension
     {
@@ -5828,6 +5851,12 @@
     {
       name: "XMLSerializerConsistentDefaultNsDeclMatching",
       status: "test",
+    },
+    {
+      // A feature flag that controls whether XSLT is supported by the browser.
+      // crbug.com/435623334.
+      name: "XSLT",
+      status: "stable",
     },
     {
       // If enabled, the `getDisplayMedia()` family of APIs will ask for NV12

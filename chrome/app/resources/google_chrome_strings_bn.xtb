@@ -170,6 +170,7 @@
 <translation id="3003694935412297923">সব টাস্ক</translation>
 <translation id="3018957014024118866">এছাড়া, Chrome থেকেও ডেটা মুছে দিন (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">&amp;ChromeOS Flex আপডেট করার জন্য আবার চালু করুন</translation>
+<translation id="3037517125981011456">Chrome-এ সাইন-ইন করার প্রম্পট দেখাবে</translation>
 <translation id="3037838751736561277">Google Chrome পটভূমি মোডে রয়েছে।</translation>
 <translation id="3038232873781883849">ইনস্টল করার জন্য অপেক্ষা করা হচ্ছে...</translation>
 <translation id="3045032126857188731">যে ভাষায় অনুবাদ করা হয়েছে: <ph name="LANGUAGE" /></translation>
@@ -313,6 +314,7 @@
 <translation id="4747730611090640388">Chrome আপনার আগ্রহ অনুমান করতে পারে।  পরে, আপনি যে সাইটটি দেখেন সেটি আপনার দেখা বিজ্ঞাপনগুলিকে পছন্দমতো করার জন্য Chrome-কে আপনার আগ্রহগুলি দেখতে বলতে পারে।</translation>
 <translation id="475321580758063259">আপনার Google অ্যাকাউন্ট, <ph name="ACCOUNT_EMAIL" />-এ Chrome ডেটা ব্যবহার করা চালিয়ে যেতে Chrome আপডেট করুন</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Chrome-এর ভি৮ ইঞ্জিন সাইটের স্পিড বাড়িয়ে দেয় কিন্তু Chrome-এর অ্যাটাক প্রতিরোধ ক্ষমতা সামান্য কমে যায়</translation>
 <translation id="479167709087336770">এটি Google সার্চ-এ যে বানান পরীক্ষা করার টুল ব্যবহার করা হয় সেটিই ব্যবহার করে। আপনি ব্রাউজারে যে টেক্সট লেখেন, সেটি Google-এ পাঠানো হয়। সেটিংস থেকে আপনি এটি পরিবর্তন করতে পারেন।</translation>
 <translation id="4793679854893018356">Chrome কীভাবে আপনাকে নিরাপদে রাখে তা জানুন</translation>
 <translation id="4828579605166583682">Google Chrome, বর্তমানে থাকা পাসওয়ার্ড পরিবর্তনের চেষ্টা করছে। এটি করার অনুমতি দিতে, আপনার Windows-এর পাসওয়ার্ড টাইপ করুন।</translation>
@@ -403,6 +405,7 @@
 <translation id="5980111191913430208">অজানা সোর্স থেকে এক্সটেনশন, অ্যাপ এবং থিম আপনার ডিভাইসের ক্ষতি করতে পারে। Chrome শুধুমাত্র <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> থেকে সেগুলি ইনস্টল করার সাজেশন দেয়</translation>
 <translation id="6003112304606738118">ডাউনলোড হচ্ছে... <ph name="HOURS" /> ঘণ্টা বাকি আছে</translation>
 <translation id="6008161919456049856">পাসওয়ার্ড, পেমেন্ট পদ্ধতি এবং ঠিকানা যা আপনার Google অ্যাকাউন্টে সেভ করে রেখেছেন সেগুলি এই ডিভাইস থেকে সরিয়ে দেওয়া হবে। Chrome-এ সেগুলি পুনরায় ব্যবহার করতে, আবার সাইন-ইন করুন।</translation>
+<translation id="6009821354356307391">ফলো-আপের জন্য বলুন</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />Chrome-এর টুল<ph name="END_LINK" /> দিয়ে আপনি নিরাপদে ব্রাউজ ও কন্ট্রোল করতে পারবেন</translation>
 <translation id="6022659036123304283">Chrome-কে আপনার করে নিন</translation>
 <translation id="6025087594896450715">Google Chrome <ph name="REMAINING_TIME" />-এর মধ্যে রিস্টার্ট হবে</translation>
@@ -597,6 +600,7 @@
 <translation id="8342675569599923794">এই ফাইলটি বিপজ্জনক, তাই Chrome এটিকে অবরুদ্ধ করেছে।</translation>
 <translation id="8349094670477064572">আপনি যখনই Chrome-এ সাইন-ইন করবেন তখন নিজের Google অ্যাকাউন্টে পাসওয়ার্ড সেভ ও ব্যবহার এবং আরও অনেক কিছু করতে পারবেন। <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">এই ভাষায় অনুবাদ করুন</translation>
+<translation id="8366770919198174997">পারফর্ম্যান্স কমিয়ে দেয় তবে অ্যাটাকের হাত থেকে Chrome-কে আরও বেশি প্রতিরোধক করে তোলে</translation>
 <translation id="8370517070665726704">কপিরাইট <ph name="YEAR" /> Google LLC সব স্বত্ব সংরক্ষিত আছে।</translation>
 <translation id="8387459386171870978">Chrome ব্যবহার করা চালিয়ে যান</translation>
 <translation id="8394720698884623075">Chrome-এ স্টোর করা নিরাপদ নয় এমন সাইটের তালিকা থেকে সাইটগুলির URL পরীক্ষা করে দেখে</translation>
@@ -641,6 +645,7 @@
 <translation id="8843516219908676469">Chrome ফর্ম আরও ভালো বুঝতে পারে এবং আপনার জন্য আরও দ্রুত তা অটোফিল করতে পারে</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়}one{Chrome আপনাকে এগুলি সরিয়ে দেওয়ার সাজেশন দেয়}other{Chrome আপনাকে এগুলি সরিয়ে দেওয়ার সাজেশন দেয়}}</translation>
 <translation id="8862326446509486874">সিস্টেম-স্তরীয় ইনস্টলের জন্য আপনার কাছে যথাযথ অধিকারগুলি নেই৷ অ্যাডমিনিস্ট্রেটর হিসেবে আবার ইনস্টলারটি চালানোর চেষ্টা করুন৷</translation>
+<translation id="8865415417596392024">আপনার অ্যাকাউন্টের Chrome ডেটা</translation>
 <translation id="8883862939660515976">Google Lens-কে এই ছবির ব্যাপারে জিজ্ঞাসা করুন</translation>
 <translation id="8914504000324227558">Chrome আবার লঞ্চ করুন</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" /> থেকে আপনার Android ফোনে একটি নম্বর পাঠাতে, উভয় ডিভাইসের Chrome-এ সাইন-ইন করুন।</translation>

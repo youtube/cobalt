@@ -19,6 +19,12 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kApplicationAudioCaptureWin);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAAudioDriver);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseAAudioInput);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAAudioPerStreamDeviceSelection);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAlwaysUseAudioManagerOutputFramesPerBuffer);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAndroidAudioDeviceListener);
+#endif
+
+#if BUILDFLAG(IS_MAC)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMacAVFoundationPlayback);
 #endif
 
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kWebAudioRemoveAudioDestinationResampler);

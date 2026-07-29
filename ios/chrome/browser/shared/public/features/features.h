@@ -522,9 +522,6 @@ BASE_DECLARE_FEATURE(kDownloadAutoDeletionFeatureEnabled);
 // Whether the kDownloadAutoDeletion feature is enabled.
 bool IsDownloadAutoDeletionFeatureEnabled();
 
-// Feature flag that allows opening the downloaded PDF files in Chrome.
-BASE_DECLARE_FEATURE(kDownloadedPDFOpening);
-
 // Download List UI feature constants and types.
 extern const char kDownloadListUITypeParam[];
 
@@ -719,24 +716,6 @@ bool IsSegmentationTipsManagerEnabled();
 // Flag to not keep a strong reference to the spotlight index, as a tentative
 // memory improvement measure.
 BASE_DECLARE_FEATURE(kSpotlightNeverRetainIndex);
-
-// Feature that enables improvements for Save to Photos feature.
-BASE_DECLARE_FEATURE(kIOSSaveToPhotosImprovements);
-
-// A set of parameters to indicate which improvement to apply to the Save to
-// Photos feature.
-extern const char kSaveToPhotosContextMenuImprovementParam[];
-extern const char kSaveToPhotosTitleImprovementParam[];
-extern const char kSaveToPhotosAccountDefaultChoiceImprovementParam[];
-
-// Returns true if the Save to Photos action improvement is enabled.
-bool IsSaveToPhotosActionImprovementEnabled();
-
-// Returns true if the Save to Photos title improvement is enabled.
-bool IsSaveToPhotosTitleImprovementEnabled();
-
-// Returns true if the Save to Photos account picker improvement is enabled.
-bool IsSaveToPhotosAccountPickerImprovementEnabled();
 
 // Feature flag to enable app background refresh.
 // Use IsAppBackgroundRefreshEnabled() instead of this constant directly.
@@ -1039,12 +1018,6 @@ BASE_DECLARE_FEATURE(kContainedTabGroup);
 
 // Whether the feature associated with contained tab group is enabled.
 bool IsContainedTabGroupEnabled();
-
-// Feature flag to have more color for the tab groups.
-BASE_DECLARE_FEATURE(kColorfulTabGroup);
-
-// Whether the feature associated with colorful tab group is enabled.
-bool IsColorfulTabGroupEnabled();
 
 // Feature flag to highlight the app's features during the FRE.
 BASE_DECLARE_FEATURE(kBestOfAppFRE);

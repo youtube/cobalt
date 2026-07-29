@@ -96,11 +96,9 @@ executable("country_native_names_generator") {
 compiled_action("generate_country_native_names") {
   tool = ":country_native_names_generator"
   outputs = [ "$target_gen_dir/geo/country_native_names_inl.h" ]
-  args = [
-    "--output-file-path=" +
-        rebase_path("$target_gen_dir/geo/country_native_names_inl.h",
-                    root_build_dir),
-  ]
+  args = [ "--output-file-path=" +
+           rebase_path("$target_gen_dir/geo/country_native_names_inl.h",
+                       root_build_dir) ]
 }
 
 proto_library("amount_extraction_heuristic_regexes_proto") {
@@ -134,6 +132,8 @@ static_library("browser") {
     "crowdsourcing/randomized_encoder.h",
     "crowdsourcing/votes_uploader.cc",
     "crowdsourcing/votes_uploader.h",
+    "data_manager/addresses/account_name_email_store.cc",
+    "data_manager/addresses/account_name_email_store.h",
     "data_manager/addresses/address_data_cleaner.cc",
     "data_manager/addresses/address_data_cleaner.h",
     "data_manager/addresses/address_data_manager.cc",
@@ -504,6 +504,8 @@ static_library("browser") {
     "payments/autofill_wallet_data_type_controller.h",
     "payments/bnpl_manager.cc",
     "payments/bnpl_manager.h",
+    "payments/bnpl_strategy.cc",
+    "payments/bnpl_strategy.h",
     "payments/card_unmask_delegate.cc",
     "payments/card_unmask_delegate.h",
     "payments/client_behavior_constants.h",
@@ -655,6 +657,10 @@ static_library("browser") {
     "suggestions/autocomplete_suggestion_generator.h",
     "suggestions/autofill_ai/autofill_ai_suggestion_generator.cc",
     "suggestions/autofill_ai/autofill_ai_suggestion_generator.h",
+    "suggestions/compose_suggestion_generator.cc",
+    "suggestions/compose_suggestion_generator.h",
+    "suggestions/identity_credential_suggestion_generator.cc",
+    "suggestions/identity_credential_suggestion_generator.h",
     "suggestions/one_time_passwords/otp_suggestion_generator.cc",
     "suggestions/one_time_passwords/otp_suggestion_generator.h",
     "suggestions/payments/iban_suggestion_generator.cc",
@@ -811,6 +817,8 @@ static_library("browser") {
     sources += [
       "metrics/payments/credit_card_save_metrics_desktop.cc",
       "metrics/payments/credit_card_save_metrics_desktop.h",
+      "payments/desktop_bnpl_strategy.cc",
+      "payments/desktop_bnpl_strategy.h",
     ]
   }
 
@@ -826,6 +834,8 @@ static_library("browser") {
       "data_model/valuables/android/loyalty_card_android.h",
       "metrics/payments/credit_card_save_metrics_android.cc",
       "metrics/payments/credit_card_save_metrics_android.h",
+      "payments/android_bnpl_strategy.cc",
+      "payments/android_bnpl_strategy.h",
       "payments/autofill_save_iban_ui_info.cc",
       "payments/autofill_save_iban_ui_info.h",
       "ui/addresses/android/autofill_address_editor_ui_info_android.cc",
@@ -1049,6 +1059,7 @@ static_library("test_support") {
     "crowdsourcing/test_votes_uploader.h",
     "crowdsourcing/votes_uploader_test_api.cc",
     "crowdsourcing/votes_uploader_test_api.h",
+    "data_manager/addresses/account_name_email_store_test_api.h",
     "data_manager/addresses/address_data_cleaner_test_api.h",
     "data_manager/addresses/address_data_manager_test_api.h",
     "data_manager/addresses/address_data_manager_test_utils.cc",
@@ -1361,6 +1372,7 @@ source_set("unit_tests") {
     "crowdsourcing/determine_possible_field_types_unittest.cc",
     "crowdsourcing/disambiguate_possible_field_types_unittest.cc",
     "crowdsourcing/randomized_encoder_unittest.cc",
+    "data_manager/addresses/account_name_email_store_unittest.cc",
     "data_manager/addresses/address_data_cleaner_unittest.cc",
     "data_manager/addresses/address_data_manager_unittest.cc",
     "data_manager/addresses/home_and_work_metadata_store_unittest.cc",
@@ -1545,6 +1557,7 @@ source_set("unit_tests") {
     "suggestions/addresses/address_suggestion_generator_unittest.cc",
     "suggestions/autocomplete_suggestion_generator_unittests.cc",
     "suggestions/autofill_ai/autofill_ai_suggestion_generator_unittests.cc",
+    "suggestions/compose_suggestion_generator_unittests.cc",
     "suggestions/one_time_passwords/otp_suggestion_generator_unittest.cc",
     "suggestions/payments/iban_suggestion_generator_unittest.cc",
     "suggestions/payments/merchant_promo_code_suggestion_generator_unittest.cc",
@@ -1691,6 +1704,7 @@ source_set("unit_tests") {
     "//components/resources",
     "//components/search",
     "//components/security_state/core",
+    "//components/signin/public/base:test_support",
     "//components/signin/public/identity_manager:test_support",
     "//components/strings",
     "//components/sync",

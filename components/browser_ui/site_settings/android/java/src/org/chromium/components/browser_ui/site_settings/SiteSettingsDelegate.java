@@ -231,11 +231,6 @@ public interface SiteSettingsDelegate {
     void getBrowsingDataModel(Callback<BrowsingDataModel> callback);
 
     /**
-     * @return whether the Privacy Sandbox Rws UI should be shown in the Settings.
-     */
-    boolean shouldShowPrivacySandboxRwsUi();
-
-    /**
      * @return whether the Safety Hub is enabled.
      */
     boolean isSafetyHubEnabled();
@@ -244,6 +239,11 @@ public interface SiteSettingsDelegate {
      * @return whether the unused site permission autorevocation is enabled.
      */
     boolean isPermissionAutorevocationEnabled();
+
+    /**
+     * @return whether the related website sets UI is enabled.
+     */
+    boolean isRelatedWebsiteSetsUiEnabled();
 
     /** Enable/Disable unused site permission autorevocation. */
     void setPermissionAutorevocationEnabled(boolean isEnabled);

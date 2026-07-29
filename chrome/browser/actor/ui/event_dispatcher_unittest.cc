@@ -12,7 +12,7 @@
 #include "chrome/browser/actor/tools/type_tool_request.h"
 #include "chrome/browser/actor/tools/wait_tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
-#include "chrome/browser/actor/ui/mock_actor_ui_state_manager.h"
+#include "chrome/browser/actor/ui/mocks/mock_actor_ui_state_manager.h"
 #include "chrome/browser/actor/ui/ui_event.h"
 #include "chrome/common/actor/action_result.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -127,12 +127,12 @@ TEST_F(EventDispatcherTest, SyncActorTaskChange_OneEvent) {
       *mock_state_manager_,
       OnUiEvent(VariantWith<TaskStateChanged>(AllOf(
           Field(&TaskStateChanged::task_id, TaskId(999)),
-          Field(&TaskStateChanged::state, ActorTask::State::kPausedByClient)))))
+          Field(&TaskStateChanged::state, ActorTask::State::kPausedByActor)))))
       .Times(1);
   dispatcher_->OnActorTaskSyncChange(UiEventDispatcher::ChangeTaskState{
       .task_id = TaskId(999),
       .old_state = ActorTask::State::kActing,
-      .new_state = ActorTask::State::kPausedByClient});
+      .new_state = ActorTask::State::kPausedByActor});
 }
 
 TEST_F(EventDispatcherTest, SyncActorTaskChange_NewTask) {

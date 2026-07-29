@@ -26,17 +26,6 @@ BASE_FEATURE(kForceHistoryOptInScreen,
              "ForceHistoryOptInScreen",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Add history sync opt-in promo in the History Page.
-BASE_FEATURE(kHistoryPageHistorySyncPromo,
-             "HistoryPageHistorySyncPromo",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Makes the History Page history opt-in promo use a different CTA String.
-// No-op unless "HistoryPageHistorySyncPromo" is enabled.
-BASE_FEATURE(kHistoryPagePromoCtaStringVariation,
-             "HistoryPagePromoCtaStringVariation",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables a history sync educational tip in the magic stack on NTP.
 BASE_FEATURE(kHistoryOptInEducationalTip,
              "HistoryOptInEducationalTip",
@@ -188,7 +177,12 @@ BASE_FEATURE(kBoundSessionCredentialsKillSwitch,
 // Enables Chrome refresh tokens binding to a device.
 BASE_FEATURE(kEnableChromeRefreshTokenBinding,
              "EnableChromeRefreshTokenBinding",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs) {
   // Enterprise policy takes precedence over the feature value.
@@ -203,6 +197,11 @@ bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs) {
 // tokens, no matter if a refresh token is bound or not.
 BASE_FEATURE(kUseIssueTokenToFetchAccessTokens,
              "UseIssueTokenToFetchAccessTokens",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables binding the OAuthMultilogin cookies to a device.
+BASE_FEATURE(kEnableOAuthMultiloginCookiesBinding,
+             "EnableOAuthMultiloginCookiesBinding",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -232,6 +231,10 @@ BASE_FEATURE(kInterceptBubblesDismissibleByAvatarButton,
 
 BASE_FEATURE(kOfferMigrationToDiceUsers,
              "OfferMigrationToDiceUsers",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kRollbackDiceMigration,
+             "RollbackDiceMigration",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(base::TimeDelta,

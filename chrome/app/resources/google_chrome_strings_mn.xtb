@@ -172,6 +172,7 @@
 <translation id="3003694935412297923">Бүх ажил</translation>
 <translation id="3018957014024118866">Мөн Chrome-с өгөгдөл устгах (<ph name="URL" />)</translation>
 <translation id="3019382870990049182">&amp;ChromeOS Flex-г шинэчлэхийн тулд дахин ачаална уу</translation>
+<translation id="3037517125981011456">Chrome-д нэвтрэх сануулгыг харуулна</translation>
 <translation id="3037838751736561277">Google Chrome нь суурь горимд байна.</translation>
 <translation id="3038232873781883849">Суулгахыг хүлээж байна...</translation>
 <translation id="3045032126857188731">Орчуулсан хэл: <ph name="LANGUAGE" /></translation>
@@ -315,6 +316,7 @@
 <translation id="4747730611090640388">Chrome таны сонирхлыг тооцоолох боломжтой.  Дараа нь таны зочилсон сайт таны хардаг зарыг хувийн болгохын тулд Chrome-с таны сонирхлыг харахыг хүсэх боломжтой.</translation>
 <translation id="475321580758063259"><ph name="ACCOUNT_EMAIL" /> Google Бүртгэлдээ Chrome-н өгөгдлийг ашигласаар байхын тулд Chrome-г шинэчилнэ үү</translation>
 <translation id="4754614261631455953">Google Chrome Canary (mDNS-In)</translation>
+<translation id="4756182432527369254">Chrome-н V8 системээр сайтыг хурдасгах ч Chrome-г халдлагад арай тэсвэр багатай болгоно</translation>
 <translation id="479167709087336770">Энэ нь Google хайлтад ашигладаг зөв бичгийн ижил алдаа шалгагчийг ашигладаг. Таны хөтчид бичсэн текстийг Google-д илгээдэг. Та энэ ажиллах төлөвийг хүссэн үедээ тохиргоонд өөрчилж болно</translation>
 <translation id="4793679854893018356">Chrome таныг хэрхэн аюулгүй байлгадаг болохыг мэдэж авна уу</translation>
 <translation id="4828579605166583682">Google Chrome одоо байгаа нууц үгнүүдийг солихоор оролдож байна. Үүнийг зөвшөөрөхийн тулд Windows-н нууц үгээ бичнэ үү.</translation>
@@ -407,6 +409,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="5980111191913430208">Тодорхойгүй эх сурвалжийн өргөтгөл, апп, загварууд таны төхөөрөмжийг гэмтээх боломжтой. Chrome тэдгээрийг зөвхөн <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />-с суулгахыг зөвлөдөг</translation>
 <translation id="6003112304606738118">Татаж байна... <ph name="HOURS" /> цаг үлдсэн</translation>
 <translation id="6008161919456049856">Таны Google Бүртгэлдээ хадгалсан нууц үг, төлбөрийн хэрэгсэл, хаягуудыг энэ төхөөрөмжөөс хасна. Тэдгээрийг Chrome-д дахин ашиглахын тулд буцаж нэвтэрнэ үү.</translation>
+<translation id="6009821354356307391">Араас нь лавлаж асуух</translation>
 <translation id="6014316319780893079"><ph name="BEGIN_LINK" />Chrome-н хэрэгслийн<ph name="END_LINK" /> тусламжтайгаар та аюулгүй үзэх болон хяналтыг гартаа байлгах боломжтой</translation>
 <translation id="6022659036123304283">Chrome-г хүссэнээрээ тохируулаарай</translation>
 <translation id="6025087594896450715">Google Chrome-г <ph name="REMAINING_TIME" />-н дараа эхлүүлнэ</translation>
@@ -601,6 +604,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="8342675569599923794">Энэ файл аюултай тул Chrome блоклосон байна.</translation>
 <translation id="8349094670477064572">Та Chrome-д нэвтэрсэн үедээ өөрийн Google Бүртгэлд нууц үг болон бусад зүйлийг хадгалж, ашиглана. <ph name="LEARN_MORE" /></translation>
 <translation id="8362914115861174987">Дараах руу орчуулах</translation>
+<translation id="8366770919198174997">Гүйцэтгэлийг багасгах ч Chrome-г халдлагад илүү тэсвэртэй болгоно</translation>
 <translation id="8370517070665726704">Зохиогчийн эрх <ph name="YEAR" /> Google ХХК. Бүх эрх хуулиар хамгаалагдсан.</translation>
 <translation id="8387459386171870978">Chrome-г үргэлжлүүлэн ашиглах</translation>
 <translation id="8394720698884623075">Chrome-д хадгалсан аюултай сайтын жагсаалттай URL-г шалгана</translation>
@@ -645,6 +649,7 @@ Google Chrome таны тохируулгыг дахин сэргээх боло
 <translation id="8843516219908676469">Chrome маягтыг илүү сайн ойлгодог ба танд илүү хурдан автоматаар бөглөж өгөх боломжтой</translation>
 <translation id="8851180723659088381">{NUM_EXTENSIONS,plural, =1{Chrome танд үүнийг хасахыг зөвлөж байна.}other{Chrome танд тэдгээрийг хасахыг зөвлөж байна.}}</translation>
 <translation id="8862326446509486874">Танд системийн түвшинд суулгах зохих эрх байхгүй байна. Суулгагчийг админы хувиар дахин ажиллуулахыг оролдож үзнэ үү.</translation>
+<translation id="8865415417596392024">Таны бүртгэлийн Chrome-н өгөгдөл</translation>
 <translation id="8883862939660515976">Google Lens-с энэ зургийн тухай асуу</translation>
 <translation id="8914504000324227558">Chrome-г дахин эхлүүлэх</translation>
 <translation id="8922193594870374009"><ph name="ORIGIN" />-с Android утсандаа дугаар илгээхийн тулд хоёр төхөөрөмжийнхөө аль алинаас нь Chrome-д нэвтэрнэ үү.</translation>

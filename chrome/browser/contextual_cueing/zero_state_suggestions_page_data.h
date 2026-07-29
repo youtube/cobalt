@@ -18,6 +18,14 @@
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "content/public/browser/page_user_data.h"
 
+// Convenience macro for emitting OPTIMIZATION_GUIDE_LOGs where
+// optimization_keyed_service_ is defined.
+#define MODEL_EXECUTION_LOG(message)                                   \
+  OPTIMIZATION_GUIDE_LOG(                                              \
+      optimization_guide_common::mojom::LogSource::MODEL_EXECUTION,    \
+      optimization_guide_keyed_service_->GetOptimizationGuideLogger(), \
+      (message))
+
 class OptimizationGuideKeyedService;
 
 namespace content_extraction {
@@ -114,6 +122,9 @@ class ZeroStateSuggestionsPageData
       optimization_guide::OptimizationGuideDecision decision,
       const optimization_guide::OptimizationMetadata& metadata);
 
+  // Give up on extracting page content and signal no result.
+  void GiveUp();
+
   // Notifies all page context callbacks that page context has been collected
   // for the page.
   void InvokePageContextCallbacksIfComplete();
@@ -161,6 +172,8 @@ class ZeroStateSuggestionsPageData
 
   // Tracks the state for a page context request.
   PageContextCallbackList page_context_callbacks_;
+
+  bool timeout_scheduled_ = false;
 
   bool is_focused_ = false;
   // Not owned and guaranteed to outlive `this`.

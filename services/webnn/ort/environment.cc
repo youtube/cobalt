@@ -165,6 +165,16 @@ void ORT_API_CALL OrtCustomLoggingFunction(void* /*param*/,
 }  // namespace
 
 // static
+base::expected<scoped_refptr<Environment>, std::string>
+Environment::GetInstance(const gpu::GPUInfo& gpu_info) {
+  base::AutoLock auto_lock(lock_);
+  if (instance_) {
+    return base::WrapRefCounted(instance_);
+  }
+  return Create(gpu_info);
+}
+
+// static
 base::expected<scoped_refptr<Environment>, std::string> Environment::Create(
     const gpu::GPUInfo& gpu_info) {
   auto* platform_functions = PlatformFunctions::GetInstance();
@@ -242,9 +252,28 @@ base::expected<scoped_refptr<Environment>, std::string> Environment::Create(
 
 Environment::Environment(base::PassKey<Environment> /*pass_key*/,
                          ScopedOrtEnv env)
-    : env_(std::move(env)) {}
+    : base::subtle::RefCountedThreadSafeBase(
+          base::subtle::GetRefCountPreference<Environment>()),
+      env_(std::move(env)) {
+  CHECK_EQ(instance_, nullptr);
+  instance_ = this;
+}
 
 Environment::~Environment() = default;
+
+void Environment::AddRef() const {
+  base::subtle::RefCountedThreadSafeBase::AddRefWithCheck();
+}
+
+void Environment::Release() const {
+  base::AutoLock auto_lock(lock_);
+  if (base::subtle::RefCountedThreadSafeBase::Release()) {
+    ANALYZER_SKIP_THIS_PATH();
+    CHECK_EQ(instance_, this);
+    instance_ = nullptr;
+    delete this;
+  }
+}
 
 // Some EPs like OpenVINO EP haven't supported in-memory external weights in
 // model yet and will throw error during session creation if it's used, so we
@@ -258,8 +287,13 @@ bool Environment::IsExternalDataSupported(mojom::Device device_type) const {
   OrtHardwareDeviceType ort_device_type = GetOrtHardwareDeviceType(device_type);
   for (const auto* ep_device : ep_devices) {
     CHECK(ep_device);
-    if (ort_api->HardwareDevice_Type(ort_api->EpDevice_Device(ep_device)) ==
-        ort_device_type) {
+    OrtHardwareDeviceType ep_device_type =
+        ort_api->HardwareDevice_Type(ort_api->EpDevice_Device(ep_device));
+    // Check if the external data is supported when the EP device type
+    // matches the selected device type, or is CPU because CPU EPs might be
+    // selected by ORT as the fallback EP.
+    if (ep_device_type == ort_device_type ||
+        ep_device_type == OrtHardwareDeviceType_CPU) {
       const char* ep_name = ort_api->EpDevice_EpName(ep_device);
       // SAFETY: ORT guarantees that `ep_name` is valid and null-terminated.
       const auto& iter =
@@ -274,5 +308,9 @@ bool Environment::IsExternalDataSupported(mojom::Device device_type) const {
   }
   return true;
 }
+
+base::Lock Environment::lock_;
+
+raw_ptr<Environment> Environment::instance_ = nullptr;
 
 }  // namespace webnn::ort

@@ -34,7 +34,6 @@
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/logical_fragment.h"
 #include "third_party/blink/renderer/core/layout/oof_positioned_node.h"
 #include "third_party/blink/renderer/core/layout/paginated_root_layout_algorithm.h"
@@ -49,7 +48,6 @@
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -1427,11 +1425,6 @@ void OutOfFlowLayoutPart::LayoutOOFsInMulticol(
           converter.ToLogical(child.fragment->Size()).block_size;
     }
     fragment_mutator.UpdateOverflow();
-
-    // We've already written back to legacy for |multicol|, but if we added
-    // new columns to hold any OOF descendants, we need to extend the final
-    // size of the legacy flow thread to encompass those new columns.
-    multicol.MakeRoomForExtraColumns(additional_column_block_size);
   }
 
   // Any descendants should have been handled in
@@ -2925,40 +2918,6 @@ void OutOfFlowLayoutPart::AddOOFToFragmentainer(
         additional_fixedpos_offset);
   }
   algorithm->AppendOutOfFlowResult(result);
-
-  if (RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
-    // Copying back to the LayoutBox will be done later, when fragmented layout
-    // is complete. Only then can we know the physical offsets.
-    return;
-  }
-
-  // Copy the offset of the OOF node back to legacy such that it is relative
-  // to its containing block rather than the fragmentainer that it is being
-  // added to.
-  if (!descendant.break_token) {
-    const auto* container =
-        To<PhysicalBoxFragment>(descendant.containing_block_fragment.Get());
-
-    if (!container) {
-      // If we're paginated, we don't have a containing block fragment, but we
-      // need one now, to calcualte the position correctly for the legacy
-      // engine. Just pick the first page, which actually happens to be defined
-      // as the initial containing block:
-      // https://www.w3.org/TR/CSS22/page.html#page-box
-      DCHECK(container_builder_->Node().IsPaginatedRoot());
-      container = &GetChildFragment(0);
-    }
-
-    LogicalOffset legacy_offset =
-        descendant.offset_info.original_offset -
-        descendant.node_info.base_container_info.offset_to_border_box;
-    descendant.node_info.node.CopyChildFragmentPosition(
-        physical_fragment,
-        legacy_offset.ConvertToPhysical(
-            container->Style().GetWritingDirection(), container->Size(),
-            physical_fragment.Size()),
-        *container, /* previous_container_break_token */ nullptr);
-  }
 }
 
 ConstraintSpace OutOfFlowLayoutPart::GetFragmentainerConstraintSpace(
@@ -3060,8 +3019,7 @@ void OutOfFlowLayoutPart::ComputeStartFragmentIndexAndRelativeOffset(
 void OutOfFlowLayoutPart::SaveStaticPositionOnPaintLayer(
     LayoutBox* layout_box,
     LogicalStaticPosition position) const {
-  const LayoutObject* parent =
-      GetLayoutObjectForParentNode<const LayoutObject*>(layout_box);
+  const LayoutObject* parent = layout_box->Parent();
   const LayoutObject* container = container_builder_->GetLayoutObject();
   if (parent == container ||
       (parent->IsLayoutInline() && parent->ContainingBlock() == container)) {

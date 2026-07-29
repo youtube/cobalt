@@ -4639,8 +4639,8 @@ enum WebFeature {
   kWebAppManifestUpdate = 5331,
   kCSSEnvironmentVariable_PreferredTextScale = 5332,
   kButtonTypeAttrInvalidWithCommandOrCommandfor = 5333,
-  kCSSVarFallbackCycle = 5334,
-  kCSSAttrFallbackCycle = 5335,
+  kOBSOLETE_CSSVarFallbackCycle = 5334,
+  kOBSOLETE_CSSAttrFallbackCycle = 5335,
   // The items above roughly this point are available in the M135 branch.
   kCSSRainbowGradientPattern = 5336,
   kWebAppManifestStartUrl = 5337,
@@ -4934,6 +4934,18 @@ enum WebFeature {
   kWebAppManifestIconsLocalized = 5623,
   kHTMLControlledFrameElement = 5624,
   kSlowDeserialization = 5625,
+  kSharedWorkerStartOnAndroid = 5626,
+  kLocalNetworkAccessWithinSharedWorker = 5627,
+  kLocalNetworkAccessWithinDedicatedWorker = 5628,
+  kCSSPseudoParentInScope = 5629,
+  kInterestHintPseudoElement = 5630,
+  kCookieStoreEmptyPath = 5631,
+  kV8CookieListItem_Domain_AttributeGetter = 5632,
+  kV8CookieListItem_Path_AttributeGetter = 5633,
+  kV8CookieListItem_Expires_AttributeGetter = 5634,
+  kV8CookieListItem_Secure_AttributeGetter = 5635,
+  kV8CookieListItem_SameSite_AttributeGetter = 5636,
+  kV8CookieListItem_Partitioned_AttributeGetter = 5637,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

@@ -64,6 +64,10 @@ class FilledCardInformationBubbleControllerImpl
   GetCardImageForDescriptionView() const override;
   bool EducationalBodyHasLearnMoreLink() const override;
 
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
+
  protected:
   explicit FilledCardInformationBubbleControllerImpl(
       content::WebContents* web_contents);

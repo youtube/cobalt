@@ -9,14 +9,22 @@
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_client_view.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_web_contents_delegate.h"
 #include "chrome/browser/ui/webui_browser/webui_location_bar.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/sharing_message/sharing_dialog_data.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/mojom/page/draggable_region.mojom.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_delegate.h"
 
 namespace {
 
@@ -29,29 +37,75 @@ bool IsUsingLinuxSystemTheme(Profile* profile) {
 #endif
 }
 
+// WebShell is the WebContents that hosts the top-chrome WebUI. This UserData
+// establishes a link from WebShell to WebUIBrowserWindow.
+class WebShellWebContentsUserData : public base::SupportsUserData::Data {
+ public:
+  constexpr static char Key[] = "webshell-user-data";
+  explicit WebShellWebContentsUserData(WebUIBrowserWindow* browser_window)
+      : browser_window_(browser_window) {}
+
+  raw_ptr<WebUIBrowserWindow> browser_window_;
+};
+
 }  // namespace
+
+class WebUIBrowserWindow::WidgetDelegate : public views::WidgetDelegate {
+ public:
+  explicit WidgetDelegate(
+      WebUIBrowserWebContentsDelegate* web_contents_delegate);
+
+  views::ClientView* CreateClientView(views::Widget* widget) override;
+
+ private:
+  raw_ptr<WebUIBrowserWebContentsDelegate> web_contents_delegate_;
+};
 
 WebUIBrowserWindow::WebUIBrowserWindow(std::unique_ptr<Browser> browser)
     : browser_(std::move(browser)) {
   location_bar_ = std::make_unique<WebUILocationBar>(browser_.get());
+  web_contents_delegate_ = std::make_unique<WebUIBrowserWebContentsDelegate>();
+  widget_delegate_ =
+      std::make_unique<WidgetDelegate>(web_contents_delegate_.get());
   widget_ = std::make_unique<views::Widget>();
   views::Widget::InitParams params(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET);
   params.name = "WebUIBrowserWindow";
   params.bounds = gfx::Rect(0, 0, 800, 600);
+  params.delegate = widget_delegate_.get();
   widget_->Init(std::move(params));
+  widget_->MakeCloseSynchronous(base::BindRepeating(
+      &WebUIBrowserWindow::OnWindowCloseRequested, base::Unretained(this)));
   auto web_view = std::make_unique<views::WebView>(browser_->profile());
 
+  auto* ui_web_contents = web_view->GetWebContents();
+  web_contents_delegate_->SetUIWebContents(ui_web_contents);
+  ui_web_contents->SetDelegate(web_contents_delegate_.get());
+  ui_web_contents->SetUserData(
+      WebShellWebContentsUserData::Key,
+      std::make_unique<WebShellWebContentsUserData>(this));
+
   web_view->LoadInitialURL(GURL(chrome::kChromeUIWebuiBrowserURL));
-  // Sets the weview as the content view of the default ClientView.
-  // TODO(webium): make a subclass of ClientView so that non-client hit testing
-  // can be customized.
   web_view_ = widget_->SetClientContentsView(std::move(web_view));
 
   widget_->Show();
 }
 
 WebUIBrowserWindow::~WebUIBrowserWindow() = default;
+
+// static
+WebUIBrowserWindow* WebUIBrowserWindow::FromWebShellWebContents(
+    content::WebContents* web_contents) {
+  WebShellWebContentsUserData* user_data =
+      static_cast<WebShellWebContentsUserData*>(
+          web_contents->GetUserData(WebShellWebContentsUserData::Key));
+
+  if (!user_data) {
+    return nullptr;
+  }
+
+  return user_data->browser_window_;
+}
 
 void WebUIBrowserWindow::Show() {
   NOTIMPLEMENTED();
@@ -75,7 +129,15 @@ void WebUIBrowserWindow::SetBounds(const gfx::Rect& bounds) {
 }
 
 void WebUIBrowserWindow::Close() {
-  NOTIMPLEMENTED();
+  widget_->Close();
+
+  // This will not close the window immediately.
+  // Instead, we send the close request to the OS, then the OS notifies us that
+  // such a request has been made. This results in the invocation of
+  // OnWindowCloseRequested(), which gives unload handlers
+  // a chance to stop the closing. When all unload handlers are clear, Close()
+  // will be called again. This time the close request will go through and the
+  // window will be actually closed.
 }
 
 void WebUIBrowserWindow::Activate() {
@@ -205,7 +267,8 @@ void WebUIBrowserWindow::TemporarilyShowBookmarkBar(base::TimeDelta duration) {
   NOTIMPLEMENTED();
 }
 
-void WebUIBrowserWindow::UpdateDevTools() {
+void WebUIBrowserWindow::UpdateDevTools(
+    content::WebContents* inspected_web_contents) {
   NOTIMPLEMENTED();
 }
 
@@ -682,18 +745,15 @@ gfx::Rect WebUIBrowserWindow::GetBounds() const {
 }
 
 bool WebUIBrowserWindow::IsMaximized() const {
-  NOTIMPLEMENTED();
-  return false;
+  return widget_->IsMaximized();
 }
 
 bool WebUIBrowserWindow::IsMinimized() const {
-  NOTIMPLEMENTED();
-  return false;
+  return widget_->IsMinimized();
 }
 
 bool WebUIBrowserWindow::IsFullscreen() const {
-  NOTIMPLEMENTED();
-  return false;
+  return widget_->IsFullscreen();
 }
 
 gfx::Rect WebUIBrowserWindow::GetRestoredBounds() const {
@@ -707,17 +767,56 @@ ui::mojom::WindowShowState WebUIBrowserWindow::GetRestoredState() const {
 }
 
 void WebUIBrowserWindow::Maximize() {
-  NOTIMPLEMENTED();
+  widget_->Maximize();
 }
 
 void WebUIBrowserWindow::Minimize() {
-  NOTIMPLEMENTED();
+  widget_->Minimize();
 }
 
 void WebUIBrowserWindow::Restore() {
-  NOTIMPLEMENTED();
+  widget_->Restore();
 }
 
 void WebUIBrowserWindow::DestroyBrowser() {
-  NOTIMPLEMENTED();
+  web_view_ = nullptr;
+  widget_.reset();
+  // Defer destroy so that Browser and TabStripModel outlive WebContents.
+  // During shutdown WebContents might need access to them.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
+                                                                this);
+}
+
+void WebUIBrowserWindow::OnWindowCloseRequested(
+    views::Widget::ClosedReason close_reason) {
+  // TODO(webium): don't close a window during tab dragging.
+
+  // Give beforeunload handlers, the user, or policy the chance to cancel the
+  // close before we hide the window below.
+  if (const auto closing_status = browser_->HandleBeforeClose();
+      closing_status != BrowserClosingStatus::kPermitted) {
+    BrowserList::NotifyBrowserCloseCancelled(browser_.get(), closing_status);
+    return;
+  }
+
+  browser_->OnWindowClosing();
+  if (!browser_->tab_strip_model()->empty()) {
+    // Tab strip isn't empty.  Hide the frame (so it appears to have closed
+    // immediately) and close all the tabs, allowing the renderers to shut
+    // down. When the tab strip is empty we'll be called back again.
+    widget_->Hide();
+    return;
+  }
+
+  DestroyBrowser();
+}
+
+WebUIBrowserWindow::WidgetDelegate::WidgetDelegate(
+    WebUIBrowserWebContentsDelegate* web_contents_delegate)
+    : web_contents_delegate_(web_contents_delegate) {}
+
+views::ClientView* WebUIBrowserWindow::WidgetDelegate::CreateClientView(
+    views::Widget* widget) {
+  return new WebUIBrowserClientView(web_contents_delegate_, widget,
+                                    TransferOwnershipOfContentsView());
 }

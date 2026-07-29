@@ -176,6 +176,15 @@ class CORE_EXPORT StyleCascade {
                                  const CSSValue&,
                                  const TreeScope*);
 
+  // Resolve arbitrary substitution functions `var()`, `attr()`, `if()`, etc.
+  // within `value` in the context of the `element`.
+  //
+  // This is intended for use by the Inspector Agent.
+  static const CSSUnparsedDeclarationValue* ResolveSubstitutions(
+      StyleResolverState&,
+      const CSSUnparsedDeclarationValue& value,
+      const TreeScope*);
+
   // Interpret CSSUnparsedDeclarationValue value against a numeric literal
   // syntax. Used to resolve values in the range syntax of style queries.
   static const CSSValue* CoerceIntoNumericValue(
@@ -582,11 +591,6 @@ class CORE_EXPORT StyleCascade {
                            const CSSParserContext& context,
                            FunctionContext* function_context,
                            TokenSequence& out);
-
-  // TODO(crbug.com/416640817): Remove this function.
-  bool ResolveArgumentOrLocalInto(CSSVariableData* data,
-                                  const TokenSequence* fallback,
-                                  TokenSequence& out);
 
   // If `data` is non-nullptr, append that to `out`. Otherwise, consume
   // a fallback from the stream (starting with a kCommaToken),

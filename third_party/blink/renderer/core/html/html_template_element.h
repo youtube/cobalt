@@ -34,7 +34,7 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/template_content_document_fragment.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
-#include "third_party/blink/renderer/core/patching/dom_patch_status.h"
+#include "third_party/blink/renderer/core/patching/patch.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -79,8 +79,10 @@ class CORE_EXPORT HTMLTemplateElement final : public HTMLElement {
 
   void ResetOverrideInsertionTarget() { override_insertion_target_.Release(); }
 
-  void BeginPatch(ContainerNode& target, const String& src);
-  DOMPatchStatus* OutgoingPatch() { return patch_status_; }
+  // This returns true if this template is a valid patch and the patch has been
+  // processed.
+  bool ProcessPatch(ContainerNode& target);
+  Patch* OutgoingPatch() { return patch_status_; }
 
  private:
   void CloneNonAttributePropertiesFrom(const Element&,
@@ -90,7 +92,7 @@ class CORE_EXPORT HTMLTemplateElement final : public HTMLElement {
   mutable Member<TemplateContentDocumentFragment> content_;
 
   Member<ContainerNode> override_insertion_target_;
-  Member<DOMPatchStatus> patch_status_;
+  Member<Patch> patch_status_;
 };
 
 }  // namespace blink

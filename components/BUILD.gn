@@ -581,6 +581,7 @@ test("components_unittests") {
       "//components/fingerprinting_protection_filter/ios:unit_tests",
       "//components/image_fetcher/ios:unit_tests",
       "//components/language/ios/browser:unit_tests",
+      "//components/omnibox/composebox/ios:unit_tests",
       "//components/password_manager/core/common:unit_tests",
       "//components/password_manager/ios:unit_tests",
       "//components/previous_session_info:unit_tests",
@@ -727,6 +728,7 @@ test("components_unittests") {
   if (!is_android && !is_ios) {
     deps += [
       "//components/access_code_cast/common:unit_tests",
+      "//components/headless/console_message_logger:unit_tests",
       "//components/headless/screen_info:unit_tests",
       "//components/live_caption:unit_tests",
       "//components/soda:unit_tests",
@@ -1060,7 +1062,9 @@ if (use_blink) {
       "dom_distiller/content/browser/test/dom_distiller_js_browsertest.cc",
       "dom_distiller/content/browser/test/test_util.cc",
       "dom_distiller/content/browser/test/test_util.h",
+      "dom_distiller/content/browser/test/viewer_js_browsertest.cc",
       "optimization_guide/content/browser/frame_metadata_observer_browsertest.cc",
+      "optimization_guide/content/browser/page_content_metadata_observer_browsertest.cc",
       "optimization_guide/content/browser/page_content_proto_provider_browsertest.cc",
       "optimization_guide/content/renderer/page_text_agent_browsertest.cc",
       "paint_preview/renderer/paint_preview_recorder_browsertest.cc",
@@ -1111,6 +1115,7 @@ if (use_blink) {
       "//components/metrics:content",
       "//components/network_session_configurator/common",
       "//components/optimization_guide/content/browser",
+      "//components/optimization_guide/content/browser:test_support",
       "//components/optimization_guide/content/renderer",
       "//components/paint_preview/renderer",
       "//components/password_manager/content/browser",
@@ -1169,10 +1174,11 @@ if (use_blink) {
         "//testing/buildbot/filters:components_browsertests_use_blink_filters_bundle_data",
       ]
 
+      deps += [ "//components/test:optimization_guide_test_bundle_data" ]
+
       if (target_platform == "iphoneos") {
         entitlements_path = "//content/app/ios/appex/app.entitlements"
         deps += [
-          "//components/test:optimization_guide_test_bundle_data",
           "//content/test/ios/appex:test_content_process_bundle",
           "//content/test/ios/appex:test_gpu_process_bundle",
           "//content/test/ios/appex:test_network_process_bundle",

@@ -221,6 +221,7 @@
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-forward.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
 #include "third_party/blink/public/platform/resource_request_blocked_reason.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/compositor/compositor_lock.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
@@ -419,9 +420,7 @@ void AddAdditionalRequestHeaders(
   }
 
   // Add the "Sec-Purpose: prefetch;prerender" header to prerender navigations
-  // including subframe navigations. Add "Purpose: prefetch" as well for
-  // compatibility concerns (See
-  // https://github.com/WICG/nav-speculation/issues/133).
+  // including subframe navigations.
   if (frame_tree_node->frame_tree().is_prerendering()) {
     PrerenderHost::GetFromFrameTreeNode(*frame_tree_node)
         .AddAdditionalRequestHeaders(*headers, *frame_tree_node);
@@ -698,27 +697,23 @@ base::debug::CrashKeyString* GetNavigationRequestIsSameDocumentCrashKey() {
 }
 
 // Start a new nested async event with the given name.
-void EnterChildTraceEvent(const char* name, NavigationRequest* request) {
-  // Passing nullptr as the event name will match the end event with the last
-  // unmatched begin event.
-  TRACE_EVENT_NESTABLE_ASYNC_END0("navigation", nullptr,
-                                  request->GetNavigationId());
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("navigation", name,
-                                    request->GetNavigationId());
+void EnterChildTraceEvent(perfetto::StaticString name,
+                          NavigationRequest* request) {
+  TRACE_EVENT_END("navigation", perfetto::Track(request->GetNavigationId()));
+  TRACE_EVENT_BEGIN("navigation", name,
+                    perfetto::Track(request->GetNavigationId()));
 }
 
 // Start a new nested async event with the given name and args.
 template <typename ArgType>
-void EnterChildTraceEvent(const char* name,
+void EnterChildTraceEvent(perfetto::StaticString name,
                           NavigationRequest* request,
                           const char* arg_name,
                           ArgType arg_value) {
-  // Passing nullptr as the event name will match the end event with the last
-  // unmatched begin event.
-  TRACE_EVENT_NESTABLE_ASYNC_END0("navigation", nullptr,
-                                  request->GetNavigationId());
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      "navigation", name, request->GetNavigationId(), arg_name, arg_value);
+  TRACE_EVENT_END("navigation", perfetto::Track(request->GetNavigationId()));
+  TRACE_EVENT_BEGIN("navigation", name,
+                    perfetto::Track(request->GetNavigationId()), arg_name,
+                    arg_value);
 }
 
 network::mojom::RequestDestination GetDestinationFromFrameTreeNode(
@@ -1775,10 +1770,11 @@ NavigationRequest::NavigationRequest(
   // Ensure the blink::RuntimeFeatureStateContext is initialized.
   runtime_feature_state_context_ = blink::RuntimeFeatureStateContext();
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("navigation", "NavigationRequest",
-                                    navigation_id_, "navigation_request", this);
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("navigation", "Initializing",
-                                    navigation_id_);
+  TRACE_EVENT_BEGIN("navigation", "NavigationRequest",
+                    perfetto::Track(navigation_id_), "navigation_request",
+                    this);
+  TRACE_EVENT_BEGIN("navigation", "Initializing",
+                    perfetto::Track(navigation_id_));
 
   if (GetInitiatorFrameToken().has_value()) {
     RenderFrameHostImpl* initiator_rfh = RenderFrameHostImpl::FromFrameToken(
@@ -2207,11 +2203,11 @@ NavigationRequest::~NavigationRequest() {
   DCHECK(is_safe_to_delete_);
 #endif
 
-  // Close the last child event. Passing nullptr as the event name will match
-  // the end event with the last unmatched begin event.
-  TRACE_EVENT_NESTABLE_ASYNC_END0("navigation", nullptr, navigation_id_);
-  TRACE_EVENT_NESTABLE_ASYNC_END0("navigation", "NavigationRequest",
-                                  navigation_id_);
+  // Close "Initializing", or the last child event emitted in
+  // EnterChildTraceEvent().
+  TRACE_EVENT_END("navigation", perfetto::Track(navigation_id_));
+  TRACE_EVENT_END("navigation",
+                  /* NavigationRequest */ perfetto::Track(navigation_id_));
 
   // IMPORTANT NOTE: DO NOT return early from the destructor before this line.
   // Otherwise, a queued navigation might get stuck in a queueing state forever.
@@ -2309,10 +2305,12 @@ NavigationRequest::~NavigationRequest() {
     GetDelegate()->DidFinishNavigation(this);
     ProcessOriginAgentClusterEndResult();
     if (IsInMainFrame()) {
-      TRACE_EVENT_NESTABLE_ASYNC_END2(
-          "navigation", "Navigation StartToCommit",
-          TRACE_ID_WITH_SCOPE("StartToCommit", TRACE_ID_LOCAL(this)), "URL",
-          common_params_->url.spec(), "Net Error Code", net_error_);
+      // Navigation StartToCommit
+      TRACE_EVENT_END("navigation",
+                      perfetto::NamedTrack("StartToCommit",
+                                           reinterpret_cast<uintptr_t>(this)),
+                      "URL", common_params_->url.spec(), "Net Error Code",
+                      net_error_);
       MaybeRecordTraceEventsAndHistograms();
     }
     MaybeRecordNavigationStartAdjustments();
@@ -2762,16 +2760,12 @@ void NavigationRequest::BeginNavigationImpl() {
           frame_tree_node_->frame_tree().is_prerendering(),
           ui::PageTransitionFromInt(common_params_->transition),
           &should_override_url_loading)) {
-    if (prerender_frame_tree_node_id_.has_value() &&
-        !prerender_frame_tree_node_id_.value().is_null()) {
+    if (reserved_prerender_host_info_.has_value()) {
       // Prerender activation must not fail but some reports imply it can
       // actually be failing: crbug.com/408969974. This dump is useful for
       // debugging it.
-      PrerenderHostRegistry& registry = GetPrerenderHostRegistry();
       std::string prerender_type = GeneratePrerenderHistogramSuffix(
-          registry.GetPrerenderTriggerType(prerender_frame_tree_node_id()),
-          registry.GetPrerenderEmbedderHistogramSuffix(
-              prerender_frame_tree_node_id()));
+          GetPrerenderTriggerType(), GetPrerenderEmbedderHistogramSuffix());
       SCOPED_CRASH_KEY_STRING64("Bug411566699", "prerender_type",
                                 prerender_type);
       base::debug::DumpWithoutCrashing();
@@ -3206,11 +3200,11 @@ void NavigationRequest::StartNavigation() {
   if (IsInMainFrame()) {
     DCHECK(!common_params_->navigation_start.is_null());
     DCHECK(!blink::IsRendererDebugURL(common_params_->url));
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(
-        "navigation", "Navigation StartToCommit",
-        TRACE_ID_WITH_SCOPE("StartToCommit", TRACE_ID_LOCAL(this)),
-        common_params_->navigation_start, "Initial URL",
-        common_params_->url.spec());
+    TRACE_EVENT_BEGIN("navigation", "Navigation StartToCommit",
+                      perfetto::NamedTrack("StartToCommit",
+                                           reinterpret_cast<uintptr_t>(this)),
+                      common_params_->navigation_start, "Initial URL",
+                      common_params_->url.spec());
   }
 
   if (IsSameDocument()) {
@@ -3258,10 +3252,12 @@ void NavigationRequest::ResetForCrossDocumentRestart() {
   if (IsNavigationStarted()) {
     GetDelegate()->DidFinishNavigation(this);
     if (IsInMainFrame()) {
-      TRACE_EVENT_NESTABLE_ASYNC_END2(
-          "navigation", "Navigation StartToCommit",
-          TRACE_ID_WITH_SCOPE("StartToCommit", TRACE_ID_LOCAL(this)), "URL",
-          common_params_->url.spec(), "Net Error Code", net_error_);
+      // Navigation StartToCommit
+      TRACE_EVENT_END("navigation",
+                      perfetto::NamedTrack("StartToCommit",
+                                           reinterpret_cast<uintptr_t>(this)),
+                      "URL", common_params_->url.spec(), "Net Error Code",
+                      net_error_);
     }
   }
 
@@ -3802,29 +3798,38 @@ void NavigationRequest::CheckForIsolationOptIn(const GURL& url) {
 
 void NavigationRequest::AddOriginAgentClusterStateIfNecessary(
     const IsolationContext& isolation_context) {
-  // Normally for explicit opt-ins the origin is tracked when we create the
-  // SiteInstance, but there are two cases where that fails. (1) If process-
-  // isolation for OAC is not enabled we need to track opt-in here (used for
-  // origin-agent-cluster-by-default), and (2) if origin-keyed processes by
-  // default is enabled, then it's possible we got here due to using a
-  // speculative RenderFrameHost. In this latter case, the opt-in header had not
-  // arrived when the SiteInstance was created, so the origin was not tracked
-  // earlier.
-  bool is_opt_in_requested = IsOriginAgentClusterOptInRequested();
-  bool explicitly_requests_origin_keyed_process =
-      is_opt_in_requested &&
-      SiteIsolationPolicy::IsProcessIsolationForOriginAgentClusterEnabled();
+  std::optional<OriginAgentClusterIsolationState> oac_isolation_state;
+  if (IsOriginAgentClusterOptInRequested()) {
+    // Normally for explicit opt-ins the origin is tracked when we create the
+    // SiteInstance, but there are two cases where that fails. (1) If process-
+    // isolation for OAC is not enabled we need to track opt-in here (used for
+    // origin-agent-cluster-by-default), and (2) if origin-keyed processes by
+    // default is enabled, then it's possible we got here due to using a
+    // speculative RenderFrameHost. In this latter case, the opt-in header had
+    // not arrived when the SiteInstance was created, so the origin was not
+    // tracked earlier.
+    oac_isolation_state =
+        OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+            /*had_oac_request=*/true,
+            SiteIsolationPolicy::
+                IsProcessIsolationForOriginAgentClusterEnabled());
+  } else if (IsOriginAgentClusterOptOutRequested()) {
+    // Since opt-outs are asking not to have OAC or
+    // requires_origin_keyed_process, they don't get their own SiteInstance, and
+    // so we must register their opt-out here.
+    oac_isolation_state =
+        OriginAgentClusterIsolationState::CreateNonIsolatedByHeader();
+  }
 
-  // Since opt-outs are asking not to have OAC or requires_origin_keyed_process,
-  // they don't get their own SiteInstance, and so we must register their
-  // opt-out here.
-  bool is_opt_out_requested = IsOriginAgentClusterOptOutRequested();
+  if (!oac_isolation_state.has_value()) {
+    return;
+  }
 
   // We never register isolation state here unless it's explicitly requested.
-  if (!is_opt_in_requested && !is_opt_out_requested)
-    return;
-
-  bool should_isolate_origin = is_opt_in_requested;
+  CHECK(oac_isolation_state->logical_oac_status() ==
+            AgentClusterKey::OACStatus::kSiteKeyedByHeader ||
+        oac_isolation_state->logical_oac_status() ==
+            AgentClusterKey::OACStatus::kOriginKeyedByHeader);
 
   // Note: we don't handle IsIsolationImplied() cases here, since those only
   // occur when OAC-by-default is enabled, and in that case we only pro-actively
@@ -3844,10 +3849,8 @@ void NavigationRequest::AddOriginAgentClusterStateIfNecessary(
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   // If there is already a state registered for `origin` in `isolation_context`,
   // then the following call does nothing.
-  policy->AddOriginIsolationStateForBrowsingInstance(
-      isolation_context, origin,
-      should_isolate_origin /* is_origin_agent_cluster */,
-      explicitly_requests_origin_keyed_process);
+  policy->AddOriginAgentClusterStateForBrowsingInstance(
+      isolation_context, origin, oac_isolation_state.value());
 }
 
 bool NavigationRequest::IsOriginAgentClusterOptInRequested() {
@@ -3913,20 +3916,20 @@ void NavigationRequest::DetermineOriginAgentClusterEndResult() {
   const IsolationContext& isolation_context =
       GetRenderFrameHost()->GetSiteInstance()->GetIsolationContext();
 
-  bool is_requested = IsOriginAgentClusterOptInRequested();
-  bool expects_origin_agent_cluster = is_requested || IsIsolationImplied();
-  bool is_origin_keyed_process_implied =
-      IsIsolationImplied() &&
-      SiteIsolationPolicy::AreOriginKeyedProcessesEnabledByDefault();
-  bool requires_origin_keyed_process =
-      (is_requested || is_origin_keyed_process_implied) &&
-      SiteIsolationPolicy::IsProcessIsolationForOriginAgentClusterEnabled();
-
   OriginAgentClusterIsolationState requested_isolation_state =
-      expects_origin_agent_cluster
-          ? OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
-                requires_origin_keyed_process)
-          : OriginAgentClusterIsolationState::CreateNonIsolated();
+      OriginAgentClusterIsolationState::CreateForDefaultIsolation(
+          frame_tree_node_->navigator().controller().GetBrowserContext());
+
+  if (IsOriginAgentClusterOptInRequested()) {
+    requested_isolation_state =
+        OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+            /*had_oac_request=*/true,
+            SiteIsolationPolicy::
+                IsProcessIsolationForOriginAgentClusterEnabled());
+  } else if (IsOriginAgentClusterOptOutRequested()) {
+    requested_isolation_state =
+        OriginAgentClusterIsolationState::CreateNonIsolatedByHeader();
+  }
 
   const bool got_origin_agent_cluster =
       policy
@@ -3974,7 +3977,8 @@ void NavigationRequest::DetermineOriginAgentClusterEndResult() {
   } else {
     // When OAC is not enabled by default, report enum values that only indicate
     // if OAC was requested or not vs whether it took effect.
-    if (is_requested) {
+    if (requested_isolation_state.logical_oac_status() ==
+        AgentClusterKey::OACStatus::kOriginKeyedByHeader) {
       origin_agent_cluster_end_result_ =
           got_origin_agent_cluster
               ? OriginAgentClusterEndResult::kRequestedAndOriginKeyed
@@ -4153,42 +4157,34 @@ bool NavigationRequest::ShouldRequestSiteIsolationForCOOP() {
 }
 
 UrlInfo NavigationRequest::GetUrlInfo() {
-  // Compute the isolation request flags.  Note that multiple requests could be
-  // active simultaneously for the same navigation.
-  // We start by assuming that the default isolation will be used, and only
-  // change it if an explicit opt-in or opt-out request is seen. Depending on
-  // the value of OriginAgentClusterIsolationState::CreateForDefaultIsolation,
-  // default isolation could potentially be non-isolated, origin-agent-cluster,
-  // or origin-agent-cluster in an origin-keyed process. Note: the
-  // IsOriginIsolationImplied() case is handled via kDefault. It is the only
-  // case where the `Origin-Agent-Cluster` header is absent.
-  uint32_t isolation_flags = UrlInfo::OriginIsolationRequest::kDefault;
-
+  // If the navigation has an OAC header, pass along an
+  // OriginAgentClusterIsolationState request that represents the origin
+  // isolation requested by the OAC header (either opt-in or opt-out). If there
+  // is no OAC header, a final OAC state will be computed when creating the
+  // SiteInfo for this URLInfo based on the default state for the chosen
+  // BrowsingInstance.
+  std::optional<OriginAgentClusterIsolationState> oac_header_request;
   if (IsOriginAgentClusterOptOutRequested()) {
-    isolation_flags = UrlInfo::OriginIsolationRequest::kNone;
+    oac_header_request =
+        OriginAgentClusterIsolationState::CreateNonIsolatedByHeader();
   } else if (IsOriginAgentClusterOptInRequested()) {
     // An origin-keyed agent cluster is used if explicitly requested by header.
-    isolation_flags =
-        UrlInfo::OriginIsolationRequest::kOriginAgentClusterByHeader;
-    if (SiteIsolationPolicy::IsProcessIsolationForOriginAgentClusterEnabled()) {
-      // An origin-keyed process is used if requested by header.
-      isolation_flags |=
-          UrlInfo::OriginIsolationRequest::kRequiresOriginKeyedProcessByHeader;
-    }
+    oac_header_request =
+        OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+            /*had_oac_request=*/true,
+            SiteIsolationPolicy::
+                IsProcessIsolationForOriginAgentClusterEnabled());
   }
 
   // Compute the CrossOriginIsolationKey for the navigation.
   std::optional<AgentClusterKey::CrossOriginIsolationKey>
       cross_origin_isolation_key = ComputeCrossOriginIsolationKey();
 
-  auto isolation_request =
-      static_cast<UrlInfo::OriginIsolationRequest>(isolation_flags);
-
   // Compute the WebExposedIsolationInfo that will be bundled into UrlInfo.
   auto web_exposed_isolation_info = ComputeWebExposedIsolationInfo();
 
   UrlInfoInit url_info_init(GetURL());
-  url_info_init.WithOriginIsolationRequest(isolation_request)
+  url_info_init.WithOACHeaderRequest(oac_header_request)
       .WithCOOPSiteIsolation(ShouldRequestSiteIsolationForCOOP())
       .WithWebExposedIsolationInfo(web_exposed_isolation_info)
       .WithCrossOriginIsolationKey(cross_origin_isolation_key)
@@ -5129,16 +5125,12 @@ void NavigationRequest::OnRequestFailedInternal(
            error_page_content.has_value()));
   ScopedCrashKeys crash_keys(*this);
 
-  if (prerender_frame_tree_node_id_.has_value() &&
-      !prerender_frame_tree_node_id_.value().is_null()) {
+  if (reserved_prerender_host_info_.has_value()) {
     // Prerender activation must not fail but some reports imply it can actually
     // be failing: crbug.com/411566699, crbug.com/408969974. This dump is useful
     // for debugging it.
-    PrerenderHostRegistry& registry = GetPrerenderHostRegistry();
     std::string prerender_type = GeneratePrerenderHistogramSuffix(
-        registry.GetPrerenderTriggerType(prerender_frame_tree_node_id()),
-        registry.GetPrerenderEmbedderHistogramSuffix(
-            prerender_frame_tree_node_id()));
+        GetPrerenderTriggerType(), GetPrerenderEmbedderHistogramSuffix());
     SCOPED_CRASH_KEY_STRING64("Bug411566699", "prerender_type", prerender_type);
     base::debug::DumpWithoutCrashing();
   }
@@ -11496,8 +11488,8 @@ void NavigationRequest::MaybeRecordTraceEventsAndHistograms() {
   DCHECK(!blink::IsRendererDebugURL(common_params_->url));
   base::TimeTicks navigation_start_time = common_params_->navigation_start;
   DCHECK(!navigation_start_time.is_null());
-  const auto trace_id = TRACE_ID_WITH_SCOPE("NavigationBreakdown",
-                                            TRACE_ID_LOCAL(navigation_id_));
+  const auto trace_id =
+      perfetto::NamedTrack("NavigationBreakdown", navigation_id_);
   const base::TimeTicks loader_start_time =
       navigation_handle_timing_.loader_start_time;
   const base::TimeTicks first_request_start_time =
@@ -11505,41 +11497,38 @@ void NavigationRequest::MaybeRecordTraceEventsAndHistograms() {
   const base::TimeTicks navigation_commit_sent_time =
       navigation_handle_timing_.navigation_commit_sent_time;
 
-#define MAYBE_RECORD_TRACE_AND_HISTOGRAM0(name, begin_time, end_time)         \
-  do {                                                                        \
-    if (!begin_time.is_null() && !end_time.is_null() &&                       \
-        navigation_start_time <= begin_time &&                                \
-        end_time <= navigation_commit_sent_time) {                            \
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0("navigation", name,    \
-                                                       trace_id, begin_time); \
-      TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("navigation", name,      \
-                                                     trace_id, end_time);     \
-      if (record_metrics) {                                                   \
-        base::UmaHistogramTimes(                                              \
-            "Navigation.MainFrame.NewNavigation.IgnoreRestore."               \
-            "IsHTTPOrHTTPS." name ".Time2",                                   \
-            end_time - begin_time);                                           \
-      }                                                                       \
-    }                                                                         \
+#define MAYBE_RECORD_TRACE_AND_HISTOGRAM0(name, begin_time, end_time) \
+  do {                                                                \
+    if (!begin_time.is_null() && !end_time.is_null() &&               \
+        navigation_start_time <= begin_time &&                        \
+        end_time <= navigation_commit_sent_time) {                    \
+      TRACE_EVENT_BEGIN("navigation", name, trace_id, begin_time);    \
+      TRACE_EVENT_END("navigation", trace_id, end_time);              \
+      if (record_metrics) {                                           \
+        base::UmaHistogramTimes(                                      \
+            "Navigation.MainFrame.NewNavigation.IgnoreRestore."       \
+            "IsHTTPOrHTTPS." name ".Time2",                           \
+            end_time - begin_time);                                   \
+      }                                                               \
+    }                                                                 \
   } while (0)
 
-#define MAYBE_RECORD_TRACE_AND_HISTOGRAM1(name, begin_time, end_time,     \
-                                          arg1_name, arg1_val)            \
-  do {                                                                    \
-    if (!begin_time.is_null() && !end_time.is_null() &&                   \
-        navigation_start_time <= begin_time &&                            \
-        end_time <= navigation_commit_sent_time) {                        \
-      TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(                   \
-          "navigation", name, trace_id, begin_time, arg1_name, arg1_val); \
-      TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0("navigation", name,  \
-                                                     trace_id, end_time); \
-      if (record_metrics) {                                               \
-        base::UmaHistogramTimes(                                          \
-            "Navigation.MainFrame.NewNavigation.IgnoreRestore."           \
-            "IsHTTPOrHTTPS." name ".Time2",                               \
-            end_time - begin_time);                                       \
-      }                                                                   \
-    }                                                                     \
+#define MAYBE_RECORD_TRACE_AND_HISTOGRAM1(name, begin_time, end_time,        \
+                                          arg1_name, arg1_val)               \
+  do {                                                                       \
+    if (!begin_time.is_null() && !end_time.is_null() &&                      \
+        navigation_start_time <= begin_time &&                               \
+        end_time <= navigation_commit_sent_time) {                           \
+      TRACE_EVENT_BEGIN("navigation", name, trace_id, begin_time, arg1_name, \
+                        arg1_val);                                           \
+      TRACE_EVENT_END("navigation", trace_id, end_time);                     \
+      if (record_metrics) {                                                  \
+        base::UmaHistogramTimes(                                             \
+            "Navigation.MainFrame.NewNavigation.IgnoreRestore."              \
+            "IsHTTPOrHTTPS." name ".Time2",                                  \
+            end_time - begin_time);                                          \
+      }                                                                      \
+    }                                                                        \
   } while (0)
 
   MAYBE_RECORD_TRACE_AND_HISTOGRAM0("NavigationStartToBeginNavigation",
@@ -11696,14 +11685,11 @@ void NavigationRequest::MaybeRecordNavigationStartAdjustments() {
   base::UmaHistogramPercentage(histogram_name + ".Percentage", percentage);
 
   // Show trace events indicating where the adjustment occurred in time.
-  const auto trace_id = TRACE_ID_WITH_SCOPE("NavigationStartAdjustment",
-                                            TRACE_ID_LOCAL(navigation_id_));
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(
-      "navigation", "NavigationStartAdjustment", trace_id,
-      original_navigation_start_, "Percentage", percentage);
-  TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-      "navigation", "NavigationStartAdjustment", trace_id,
-      common_params().navigation_start);
+  const auto trace_id =
+      perfetto::NamedTrack("NavigationStartAdjustment", navigation_id_);
+  TRACE_EVENT_BEGIN("navigation", "NavigationStartAdjustment", trace_id,
+                    original_navigation_start_, "Percentage", percentage);
+  TRACE_EVENT_END("navigation", trace_id, common_params().navigation_start);
 }
 
 void NavigationRequest::WillStartBeforeUnload() {

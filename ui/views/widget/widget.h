@@ -603,9 +603,9 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
       gfx::NativeWindow context,
       const gfx::Rect& bounds = gfx::Rect());
 
-  // Closes all Widgets that aren't identified as "secondary widgets". Called
-  // during application shutdown when the last non-secondary widget is closed.
-  static void CloseAllSecondaryWidgets();
+  // Closes all platform Widgets. Called during application shutdown to ensure
+  // no platform Widgets remain.
+  static void CloseAllWidgets();
 
   // Retrieves the Widget implementation associated with the given
   // NativeView or Window, or NULL if the supplied handle has no associated
@@ -627,6 +627,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   // Returns all Widgets owned by |native_view| (including child widgets, but
   // not including itself).
   static Widgets GetAllOwnedWidgets(gfx::NativeView native_view);
+
+  // Iterates over all owned widgets, running `on_widget` for each. This is
+  // robust against widgets being destroyed during iteration.
+  static void ForEachOwnedWidget(gfx::NativeView native_view,
+                                 base::FunctionRef<void(Widget*)> on_widget);
 
   // https://crbug.com/391414831: This is only used by some views
   // implementation details for content::WebContents glue, and for ChromeOS.
@@ -876,9 +881,11 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   void CloseWithReason(ClosedReason closed_reason);
 
   // This method is used by clients to intercept calls to Close() from other
-  // code in //ui such as DialogDelegate. The only valid use case is to allow
-  // clients to implement a synchronous version of Close() by resetting the
-  // unique_ptr.
+  // code in //ui such as DialogDelegate. The callback is called when Close()
+  // is called, or when the user clicks the close button.
+  //
+  // Typically the client should reset the
+  // unique_ptr<Widget> in the callback.
   //
   //  widget_->MakeCloseSynchronous(
   //      base::BindOnce(&Client::CloseWidget, this));
@@ -894,6 +901,10 @@ class VIEWS_EXPORT Widget : public internal::NativeWidgetDelegate,
   //  Client::ClientCloseWidget() {
   //    CloseWidget(CloseReason::kUnspecified);
   //  }
+  //
+  // It is OK to not reset the Widget in the callback. This blocks the window
+  // from closing. Used for example in web page unload handlers that shows a
+  // dialog to the user to confirm whether to discard changes.
   void MakeCloseSynchronous(
       base::OnceCallback<void(ClosedReason)> override_close);
 

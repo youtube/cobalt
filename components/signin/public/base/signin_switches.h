@@ -115,6 +115,9 @@ bool IsChromeRefreshTokenBindingEnabled(const PrefService* profile_prefs);
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kUseIssueTokenToFetchAccessTokens);
+
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kEnableOAuthMultiloginCookiesBinding);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 // Enables a separate account-scoped storage for preferences.
@@ -162,6 +165,11 @@ BASE_DECLARE_FEATURE(kInterceptBubblesDismissibleByAvatarButton);
 // migrate to explicit browser sign-in.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kOfferMigrationToDiceUsers);
+
+// When enabled, rolls back the DICe migration for implicitly signed-in users.
+// Overrides `kOfferMigrationToDiceUsers`.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kRollbackDiceMigration);
 
 // The minimum delay after a browser startup before the dialog can be shown.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)

@@ -9,8 +9,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/color/color_provider_key.h"
 #include "ui/color/color_provider_source.h"
+#include "ui/views/widget/widget.h"
 
 namespace views {
 class WebView;
@@ -18,6 +20,7 @@ class Widget;
 }  // namespace views
 
 class WebUILocationBar;
+class WebUIBrowserWebContentsDelegate;
 class Browser;
 
 // A BrowserWindow implementation that uses WebUI for its primary UI. It still
@@ -27,6 +30,11 @@ class WebUIBrowserWindow : public BrowserWindow,
  public:
   explicit WebUIBrowserWindow(std::unique_ptr<Browser> browser);
   ~WebUIBrowserWindow() override;
+
+  // Returns the containing browser window for a WebContents that hosts
+  // WebShell.
+  static WebUIBrowserWindow* FromWebShellWebContents(
+      content::WebContents* web_contents);
 
   // BrowserWindow:
   gfx::NativeWindow GetNativeWindow() const override;
@@ -46,7 +54,7 @@ class WebUIBrowserWindow : public BrowserWindow,
   void BookmarkBarStateChanged(
       BookmarkBar::AnimateChangeType change_type) override;
   void TemporarilyShowBookmarkBar(base::TimeDelta duration) override;
-  void UpdateDevTools() override;
+  void UpdateDevTools(content::WebContents* inspected_web_contents) override;
   void UpdateLoadingAnimations(bool is_visible) override;
   void SetStarredState(bool is_starred) override;
   bool IsTabModalPopupDeprecated() const override;
@@ -219,10 +227,18 @@ class WebUIBrowserWindow : public BrowserWindow,
       ui::ColorProviderKey::ColorMode color_mode,
       ui::ColorProviderKey::ForcedColors forced_colors) const override;
 
+  Browser* browser() { return browser_.get(); }
+
  protected:
   void DestroyBrowser() override;
 
  private:
+  class WidgetDelegate;
+
+  void OnWindowCloseRequested(views::Widget::ClosedReason close_reason);
+
+  std::unique_ptr<WebUIBrowserWebContentsDelegate> web_contents_delegate_;
+  std::unique_ptr<WidgetDelegate> widget_delegate_;
   std::unique_ptr<Browser> browser_;
   std::unique_ptr<views::Widget> widget_;
   raw_ptr<views::WebView> web_view_ = nullptr;

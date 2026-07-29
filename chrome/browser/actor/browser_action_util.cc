@@ -661,15 +661,16 @@ void BuildActionsResultWithObservations(
   auto* actor_service = actor::ActorKeyedService::Get(profile);
   CHECK(actor_service);
 
-  for (const tabs::TabInterface* tab : tabs_to_fetch) {
+  for (tabs::TabInterface* tab : tabs_to_fetch) {
     apc::TabObservation* tab_observation = raw_response->add_tabs();
     tab_observation->set_id(tab->GetHandle().raw_value());
 
     // tab_observation can be Unretained because the underlying APC is owned by
     // the barrier which is ref-counted.
     actor_service->RequestTabObservation(
-        *tab, base::BindOnce(FetchCallback, barrier,
-                             base::Unretained(tab_observation)));
+        *tab, task.id(),
+        base::BindOnce(FetchCallback, barrier,
+                       base::Unretained(tab_observation)));
   }
 }
 
