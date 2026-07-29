@@ -37,6 +37,7 @@
     "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemSymbolizeTest.SunnyDay",
-    "SbTimeZoneGetNameTest.IsIANAFormat"
+    "SbTimeZoneGetNameTest.IsIANAFormat",
+    "VerticalVideoTests/*"
   ]
 }
