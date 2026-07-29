@@ -2186,7 +2186,7 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 #else
-
+#if GTEST_HAS_DEATH_TEST
 TEST(SQLInvalidDatabaseFlagsDeathTest, ExclusiveDatabaseLock) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -2199,6 +2199,7 @@ TEST(SQLInvalidDatabaseFlagsDeathTest, ExclusiveDatabaseLock) {
       { std::ignore = db.Open(db_path); },
       "exclusive_database_file_lock is only supported on Windows");
 }
+#endif
 
 #endif  // BUILDFLAG(IS_WIN)
 

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/rdkcentral/rdkservices/main/Tools/json_generator/schemas/interface.schema.json",
+  "jsonrpc": "2.0",
+  "info": {
+    "title": "Cobalt API",
+    "class": "Cobalt",
+    "description": "Cobalt JSON-RPC interface"
+  },
+  "common": {
+    "$ref": "common.json"
+  },
+  "include": {
+    "statecontrol": {
+      "$ref": "StateControl.json#"
+    },
+    "accessibility": {
+      "$ref": "Accessibility.json#"
+    }
+  },
+  "methods": {
+    "deeplink": {
+      "summary": "Sends a deep link to the application.\n\n### Events\n\nNo Events.",
+      "params": {
+        "description": "An application-specific link",
+        "type": "string"
+      },
+      "result": {
+        "type": "null"
+      }
+    }
+  },
+  "events": {
+    "closure": {
+      "summary": "Triggered when the application requests to close its window"
+    }
+  }
+}

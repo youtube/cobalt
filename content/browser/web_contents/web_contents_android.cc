@@ -506,6 +506,14 @@ void WebContentsAndroid::SetPrimaryPageImportance(JNIEnv* env,
       static_cast<ChildProcessImportance>(subframe_importance));
 }
 
+void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+  web_contents_->SetPageFrozen(true);
+}
+
+void WebContentsAndroid::OnResume(JNIEnv* env) {
+  web_contents_->SetPageFrozen(false);
+}
+
 void WebContentsAndroid::SuspendAllMediaPlayers(JNIEnv* env) {
   web_contents_->media_web_contents_observer()->SuspendAllMediaPlayers();
 }
