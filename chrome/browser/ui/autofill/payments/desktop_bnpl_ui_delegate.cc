@@ -27,15 +27,26 @@ void DesktopBnplUiDelegate::ShowSelectBnplIssuerUi(
     std::vector<BnplIssuerContext> bnpl_issuer_context,
     std::string app_locale,
     base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
-    base::OnceClosure cancel_callback) {
+    base::OnceClosure cancel_callback,
+    bool has_seen_ai_terms) {
   select_bnpl_issuer_dialog_controller_ =
-      std::make_unique<SelectBnplIssuerDialogControllerImpl>();
+      std::make_unique<SelectBnplIssuerDialogControllerImpl>(
+          client_->GetPaymentsAutofillClient());
   select_bnpl_issuer_dialog_controller_->ShowDialog(
       base::BindOnce(&CreateAndShowBnplIssuerSelectionDialog,
                      select_bnpl_issuer_dialog_controller_->GetWeakPtr(),
-                     base::Unretained(&client_->GetWebContents())),
+                     base::Unretained(&client_->GetWebContents()),
+                     has_seen_ai_terms),
       std::move(bnpl_issuer_context), std::move(app_locale),
       std::move(selected_issuer_callback), std::move(cancel_callback));
+}
+
+void DesktopBnplUiDelegate::UpdateBnplIssuerDialogUi(
+    std::vector<BnplIssuerContext> issuer_contexts) {
+  if (select_bnpl_issuer_dialog_controller_) {
+    select_bnpl_issuer_dialog_controller_->UpdateDialogWithIssuers(
+        std::move(issuer_contexts));
+  }
 }
 
 void DesktopBnplUiDelegate::RemoveSelectBnplIssuerOrProgressUi() {

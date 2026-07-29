@@ -110,11 +110,15 @@ GlicView* GlicFloatingUi::GetGlicView() const {
 }
 
 void GlicFloatingUi::CreateAndSetupWidget(gfx::Rect initial_bounds) {
-  glic_widget_ = GlicWidget::Create(profile_, initial_bounds,
-                                    glic_panel_hotkey_manager_->GetWeakPtr(),
-                                    user_resizable_);
+  auto glic_view =
+      std::make_unique<GlicView>(profile_, initial_bounds.size(),
+                                 glic_panel_hotkey_manager_->GetWeakPtr());
+  glic_delegate_ =
+      GlicWidget::CreateWidgetDelegate(std::move(glic_view), user_resizable_);
+  glic_widget_ = GlicWidget::Create(glic_delegate_.get(), profile_,
+                                    initial_bounds, user_resizable_);
+
   // TODO: Setup AccessibilityText.
-  GetGlicWidget()->SetZOrderLevel(ui::ZOrderLevel::kFloatingWindow);
 #if BUILDFLAG(IS_MAC)
   GetGlicWidget()->SetActivationIndependence(true);
   GetGlicWidget()->SetVisibleOnAllWorkspaces(true);
@@ -266,7 +270,7 @@ bool GlicFloatingUi::IsShowing() const {
 
 void GlicFloatingUi::Show(const ShowOptions& options) {
   FloatingPanelCanAttachChanged(source_tab_.Get() != nullptr);
-  instance_metrics_->OnShowInFloaty();
+  instance_metrics_->OnShowInFloaty(options);
   GlicProfileManager::GetInstance()->SetCurrentDetachedGlic(profile_);
   GetGlicWidget()->Show();
   GetGlicView()->SetWebContents(delegate_->host().webui_contents());
@@ -299,6 +303,7 @@ void GlicFloatingUi::Close() {
   glic_window_animator_.reset();
   glic_widget_observation_.Reset();
   glic_widget_.reset();
+  glic_delegate_.reset();
   user_resizable_ = false;
   // NOTE: `this` will be destroyed after this call.
   delegate_->WillCloseFor(FloatingEmbedderKey{});
@@ -319,6 +324,10 @@ void GlicFloatingUi::ClosePanel() {
 }
 
 void GlicFloatingUi::Focus() {
+  if (!IsShowing()) {
+    return;
+  }
+  GetGlicWidget()->Activate();
   if (auto* web_contents = delegate_->host().webui_contents()) {
     web_contents->Focus();
   }
@@ -430,6 +439,10 @@ void GlicFloatingUi::CaptureScreenshot(
   }
   screenshot_capturer_->CaptureScreenshot(GetGlicWidget()->GetNativeWindow(),
                                           std::move(callback));
+}
+
+std::string GlicFloatingUi::DescribeForTesting() {
+  return "FloatingUi";
 }
 
 }  // namespace glic

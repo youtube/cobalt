@@ -110,7 +110,6 @@ class WebView;
 class LensSearchController;
 class PrefService;
 class Profile;
-class SidePanelCoordinator;
 enum class SidePanelEntryHideReason;
 
 extern void* kLensOverlayPreselectionWidgetIdentifier;
@@ -180,10 +179,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     // Showing an overlay without results.
     kOverlay,
 
-    // TODO(crbug.com/450638028): Remove this state and only keep kOverlay.
-    // Showing an overlay with results.
-    kOverlayAndResults,
-
     // The UI is hidden, but the lens session is still active (e.g. side panel
     // is showing results). This differs from kBackground, where the tab is
     // inactive.
@@ -196,6 +191,16 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
     // Will be kOff soon.
     kClosing,
+
+    // The UI is in the process of being shown after being hidden. Will
+    // transition to kOverlay unless interrupted by the overlay becoming
+    // hidden from a tab switch or other similar process. In these cases, the
+    // overlay will transition to kHidden and will need to be reshown again.
+    kIsReshowing,
+
+    // In the process of fading out before being completely hidden. Will
+    // transition to kHidden.
+    kHiding,
   };
   State state() { return state_; }
 
@@ -217,15 +222,17 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     return initialization_data_->color_palette_;
   }
 
-  // Returns the results side panel coordinator
-  lens::LensOverlaySidePanelCoordinator* results_side_panel_coordinator() {
-    return results_side_panel_coordinator_.get();
-  }
-
   // When a tab is in the background, the WebContents may be discarded to save
   // memory. When a tab is in the foreground it is guaranteed to have a
   // WebContents.
   const content::WebContents* tab_contents() { return tab_->GetContents(); }
+
+  // Returns whether visual searches should be fulfilled by AIM rather than
+  // load immediately in the results panel.
+  bool use_aim_for_visual_search() { return use_aim_for_visual_search_; }
+
+  // Returns whether the overlay is in screenshot state.
+  bool is_screenshot_state() { return state_ == State::kScreenshot; }
 
   // Returns invocation time since epoch. Used to set up html source for metric
   // logging.
@@ -423,6 +430,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
     return initialization_data_->significant_region_boxes_;
   }
 
+  State backgrounded_state_for_testing() { return backgrounded_state_; }
+
   views::Widget* get_preselection_widget_for_testing() {
     return preselection_widget_.get();
   }
@@ -563,11 +572,11 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   void HandlePageContentUploadProgress(uint64_t position, uint64_t total);
 
   // Hides the overlay view and restores input to the tab contents web view.
+  // This does not change any overlay state.
   void HideOverlay();
 
-  // Hides the overlay, but also sets the state to kHidden if the
-  // side panel is bound.
-  void HideOverlayAndMaybeSetHiddenState();
+  // Hides the overlay, but also sets the state to kHidden.
+  void HideOverlayAndSetHiddenState();
 
   // Should only be called when the overlay is in kHidden state. This will
   // reshow the overlay using the current viewport screenshot and page context
@@ -745,6 +754,9 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
 
   // Returns true if the searchbox is a CONTEXTUAL_SEARCHBOX.
   bool IsContextualSearchbox();
+
+  // Returns true if the Lens results side panel is showing.
+  bool IsResultsSidePanelShowing();
 
   // Called when the UI needs to create the view to show in the overlay.
   raw_ptr<views::View> CreateViewForOverlay();
@@ -954,6 +966,11 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // exist.
   void SetOverlayWebViewOpacity(float opacity);
 
+  // Grants the permissions needed for contextualization if the non-blocking
+  // privacy notice is being used and the permissions have not already been
+  // granted.
+  void MaybeGrantLensOverlayPermissions();
+
   // Shorthand to grab the LensSearchboxController for this instance of Lens.
   lens::LensSearchboxController* GetLensSearchboxController();
 
@@ -1149,21 +1166,6 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   // Requests are only made if the WebUI has not already cached the languages
   // and none of the update cache conditions are met.
   std::unique_ptr<lens::LensOverlayLanguagesController> languages_controller_;
-
-  // General side panel coordinator responsible for all side panel interactions.
-  // Separate from the results_side_panel_coordinator because this controls
-  // interactions to other side panels as well, not just our results. The
-  // side_panel_coordinator lives with the browser view, so it should outlive
-  // this class. Therefore, if the controller is not in the kOff state, this can
-  // be assumed to be non-null.
-  raw_ptr<SidePanelCoordinator> side_panel_coordinator_ = nullptr;
-
-  // TODO(crbug.com/450336818): Remove this field and use the
-  // LensSearchController to get the side panel coordinator.
-  // Side panel coordinator for the side panel coordinator that controls the
-  // results side panel. Guaranteed to exist if the overlay is not `kOff`.
-  raw_ptr<lens::LensOverlaySidePanelCoordinator>
-      results_side_panel_coordinator_;
 
   // Layer delegate that handles blurring the background behind the WebUI.
   std::unique_ptr<lens::LensOverlayBlurLayerDelegate>

@@ -86,29 +86,6 @@ class GLOzoneEGLX11 : public GLOzoneEGL {
     }
   }
 
-  std::unique_ptr<NativePixmapGLBinding> ImportNativePixmap(
-      scoped_refptr<gfx::NativePixmap> pixmap,
-      gfx::BufferFormat plane_format,
-      gfx::BufferPlane plane,
-      gfx::Size plane_size,
-      const gfx::ColorSpace& color_space,
-      GLenum target,
-      GLuint texture_id) override {
-    switch (GetNativePixmapSupportType()) {
-      case NativePixmapSupportType::kDMABuf: {
-        return NativePixmapEGLBinding::Create(pixmap, plane_format, plane,
-                                              plane_size, color_space, target,
-                                              texture_id);
-      }
-      case NativePixmapSupportType::kX11Pixmap: {
-        return NativePixmapEGLX11Binding::Create(
-            pixmap, plane_format, plane_size, target, texture_id);
-      }
-      default:
-        return nullptr;
-    }
-  }
-
   scoped_refptr<gl::GLSurface> CreateViewGLSurface(
       gl::GLDisplay* display,
       gfx::AcceleratedWidget window) override {
@@ -160,6 +137,29 @@ class GLOzoneEGLX11 : public GLOzoneEGL {
   }
 
  private:
+  std::unique_ptr<NativePixmapGLBinding> ImportNativePixmap(
+      scoped_refptr<gfx::NativePixmap> pixmap,
+      viz::SharedImageFormat plane_format,
+      gfx::BufferPlane plane,
+      gfx::Size plane_size,
+      const gfx::ColorSpace& color_space,
+      GLenum target,
+      GLuint texture_id) override {
+    switch (GetNativePixmapSupportType()) {
+      case NativePixmapSupportType::kDMABuf: {
+        return NativePixmapEGLBinding::Create(pixmap, plane_format, plane,
+                                              plane_size, color_space, target,
+                                              texture_id);
+      }
+      case NativePixmapSupportType::kX11Pixmap: {
+        return NativePixmapEGLX11Binding::Create(
+            pixmap, plane_format, plane_size, target, texture_id);
+      }
+      default:
+        return nullptr;
+    }
+  }
+
   bool is_swiftshader_ = false;
 };
 
@@ -219,7 +219,7 @@ scoped_refptr<gfx::NativePixmap> X11SurfaceFactory::CreateNativePixmap(
     std::optional<gfx::Size> framebuffer_size) {
   scoped_refptr<gfx::NativePixmapDmaBuf> pixmap;
   auto buffer = ui::GpuMemoryBufferSupportX11::GetInstance()->CreateBuffer(
-      viz::SharedImageFormatToBufferFormat(format), size, usage);
+      format, size, usage);
   if (buffer) {
     gfx::NativePixmapHandle handle = buffer->ExportHandle();
     if (handle.planes.empty()) {
@@ -249,8 +249,7 @@ X11SurfaceFactory::CreateNativePixmapFromHandle(
   scoped_refptr<gfx::NativePixmapDmaBuf> pixmap;
   auto buffer =
       ui::GpuMemoryBufferSupportX11::GetInstance()->CreateBufferFromHandle(
-          size, viz::SharedImageFormatToBufferFormat(format),
-          std::move(handle));
+          size, format, std::move(handle));
   if (buffer) {
     gfx::NativePixmapHandle buffer_handle = buffer->ExportHandle();
     if (buffer_handle.planes.empty()) {

@@ -308,7 +308,9 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   }
 
   // State of the Address-Autofill pref.
-  if (!prefs->GetBoolean(prefs::kAutofillProfileEnabled)) {
+  if (!prefs->GetBoolean(prefs::kAutofillProfileEnabled) &&
+      !base::FeatureList::IsEnabled(
+          features::kAutofillAiIgnoresWhetherAddressPrefIsEnabled)) {
     MaybeOutputReason(debug_message, "Address Autofill is not enabled.");
     return false;
   }
@@ -413,9 +415,7 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
       case AutofillAiAction::kServerClassificationModel:
       case AutofillAiAction::kUseCachedServerClassificationModelResults:
         return base::FeatureList::IsEnabled(
-                   features::kAutofillAiIgnoreCapabilityCheck) &&
-               !features::kAutofillAiIgnoreCapabilityCheckOnlyForNonModelActions
-                    .Get();
+            features::kAutofillAiIgnoreCapabilityCheck);
     }
     NOTREACHED();
   }();
@@ -617,6 +617,18 @@ bool SetAutofillAiOptInStatus(AutofillClient& client,
 
   base::UmaHistogramEnumeration("Autofill.Ai.OptIn.Change", opt_in_status);
   return true;
+}
+
+[[nodiscard]] bool HasSetLocalAutofillAiOptInStatus(
+    const PrefService* prefs,
+    const signin::IdentityManager* identity_manager) {
+  const std::optional<GaiaIdHash> signed_in_hash =
+      GetAccountGaiaIdHash(identity_manager);
+  return syncer::GetAccountKeyedPrefValue(prefs, prefs::kAutofillAiOptInStatus,
+                                          GetDefaultGaiaIdHash()) ||
+         (signed_in_hash &&
+          syncer::GetAccountKeyedPrefValue(prefs, prefs::kAutofillAiOptInStatus,
+                                           *signed_in_hash));
 }
 
 }  // namespace autofill

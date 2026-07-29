@@ -347,8 +347,9 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
   self.badgeMediator.consumer = self.badgeViewController;
   // TODO(crbug.com/40670043): Use HandlerForProtocol after commands protocol
   // clean up.
-  self.badgeMediator.dispatcher = static_cast<id<BrowserCoordinatorCommands>>(
-      self.browser->GetCommandDispatcher());
+  self.badgeMediator.dispatcher =
+      static_cast<id<BrowserCoordinatorCommands, LocationBarBadgeCommands>>(
+          self.browser->GetCommandDispatcher());
   buttonFactory.delegate = self.badgeMediator;
   FullscreenController* fullscreenController =
       FullscreenController::FromBrowser(self.browser);
@@ -363,14 +364,16 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
     if (!IsLocationBarBadgeMigrationEnabled()) {
       self.incognitoBadgeViewController.visibilityDelegate =
           [self.viewController incognitoBadgeViewVisibilityDelegate];
+      [self.viewController
+          addChildViewController:self.incognitoBadgeViewController];
+      [self.viewController
+          setIncognitoBadgeView:self.incognitoBadgeViewController.view];
+      [self.incognitoBadgeViewController
+          didMoveToParentViewController:self.viewController];
+    } else {
+      [self.locationBarBadgeCoordinator
+          addIncognitoBadgeViewController:self.incognitoBadgeViewController];
     }
-
-    [self.viewController
-        addChildViewController:self.incognitoBadgeViewController];
-    [self.viewController
-        setIncognitoBadgeView:self.incognitoBadgeViewController.view];
-    [self.incognitoBadgeViewController
-        didMoveToParentViewController:self.viewController];
 
     self.incognitoBadgeMediator =
         [[IncognitoBadgeMediator alloc] initWithWebStateList:self.webStateList];
@@ -603,7 +606,7 @@ const size_t kMaxURLDisplayChars = 32 * 1024;
 }
 
 - (void)cancelOmniboxEdit {
-  if (base::FeatureList::IsEnabled(kAIMPrototype)) {
+  if (IsComposeboxIOSEnabled()) {
     id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
         self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
     [commands hideComposeboxImmediately:NO];

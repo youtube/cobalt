@@ -418,7 +418,7 @@ std::string SanitizeFrontendQueryParam(const std::string& key,
 
   if (key == "panel" &&
       (value == "elements" || value == "console" || value == "sources" ||
-       value == "network" || value == "resources")) {
+       value == "network" || value == "resources" || value == "performance")) {
     return value;
   }
 
@@ -2045,6 +2045,16 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
   prompt_api_dict.Set("allowWithoutGpu",
                       features::kDevToolsAiPromptApiAllowWithoutGpu.Get());
   response_dict.Set("devToolsAiPromptApi", std::move(prompt_api_dict));
+
+  if (base::FeatureList::IsEnabled(
+          ::features::kDevToolsAiAssistanceContextSelectionAgent)) {
+    base::Value::Dict devtools_context_selection_agent;
+    devtools_context_selection_agent.Set(
+        "enabled", base::FeatureList::IsEnabled(
+                       ::features::kDevToolsAiAssistanceContextSelectionAgent));
+    response_dict.Set("devToolsAiAssistanceContextSelectionAgent",
+                      std::move(devtools_context_selection_agent));
+  }
 
   base::Value response = base::Value(std::move(response_dict));
   std::move(callback).Run(&response);

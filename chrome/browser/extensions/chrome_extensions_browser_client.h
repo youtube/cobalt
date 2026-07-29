@@ -37,6 +37,10 @@ namespace url {
 class Origin;
 }  // namespace url
 
+namespace update_client {
+class Configurator;
+}
+
 namespace extensions {
 class ComponentExtensionResourceManager;
 class EventRouterForwarder;
@@ -164,6 +168,8 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
   void AttachExtensionTaskManagerTag(content::WebContents* web_contents,
                                      mojom::ViewType view_type) override;
   scoped_refptr<update_client::UpdateClient> CreateUpdateClient(
+      scoped_refptr<update_client::Configurator>) override;
+  scoped_refptr<update_client::Configurator> CreateUpdateClientConfigurator(
       content::BrowserContext* context) override;
   std::unique_ptr<ScopedExtensionUpdaterKeepAlive> CreateUpdaterKeepAlive(
       content::BrowserContext* context) override;
@@ -260,6 +266,10 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
                                        const ExtensionId& id) override;
   bool UpdatesFromWebstore(content::BrowserContext* context,
                            const Extension& extension) override;
+  scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
+  GetSafeBrowsingDatabaseManager() const override;
+  std::optional<safe_browsing::V4ProtocolConfig> GetV4ProtocolConfig()
+      const override;
 
   static void set_did_chrome_update_for_testing(bool did_update);
 

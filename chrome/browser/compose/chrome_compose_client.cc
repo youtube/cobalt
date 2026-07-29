@@ -108,7 +108,7 @@ ChromeComposeClient::FieldChangeObserver::FieldChangeObserver(
   autofill_managers_observation_.Observe(
       autofill::ContentAutofillClient::FromWebContents(web_contents),
       autofill::ScopedAutofillManagersObservation::InitializationPolicy::
-          kObservePreexistingManagers);
+          kObservePreexistingObjects);
 }
 
 ChromeComposeClient::FieldChangeObserver::~FieldChangeObserver() = default;
@@ -187,7 +187,7 @@ ChromeComposeClient::ChromeComposeClient(content::WebContents* web_contents)
   autofill_managers_observation_.Observe(
       autofill::ContentAutofillDriverFactory::FromWebContents(web_contents),
       autofill::ScopedAutofillManagersObservation::InitializationPolicy::
-          kObservePreexistingManagers);
+          kObservePreexistingObjects);
   nudge_tracker_.StartObserving(web_contents);
 }
 
@@ -961,8 +961,7 @@ void ChromeComposeClient::OnWebContentsFocused(
       if (auto* driver = autofill::ContentAutofillDriver::GetForRenderFrameHost(
               top_level_frame)) {
         GetManager().OpenCompose(
-            *driver, active_compose_ids_.value().second,
-            active_compose_ids_.value().first,
+            *driver, active_compose_ids_.value().first,
             compose::ComposeManagerImpl::UiEntryPoint::kContextMenu);
       }
     }

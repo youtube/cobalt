@@ -220,6 +220,10 @@ const char kUseFakeMjpegDecodeAccelerator[] =
 // Must also be used with kDisableAudioInput or kUseFakeDeviceForMediaStream.
 const char kUseFileForFakeAudioCapture[] = "use-file-for-fake-audio-capture";
 
+// Use a local TF Lite model for residual echo estimation in audio processing.
+const char kUseFileForNeuralResidualEchoEstimatorModel[] =
+    "use-file-for-neural-residual-echo-estimator-model";
+
 // Use an .y4m file to play as the webcam. See the comments in
 // media/capture/video/file_video_capture_device.h for more details.
 const char kUseFileForFakeVideoCapture[] = "use-file-for-fake-video-capture";
@@ -671,16 +675,6 @@ BASE_FEATURE(kMediaRemotingWithoutFullscreen,
 );
 #endif
 
-// Show picture-in-picture button in Global Media Controls.
-BASE_FEATURE(kGlobalMediaControlsPictureInPicture,
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
-
 // Enable selection of audio output device in Global Media Controls.
 BASE_FEATURE(kGlobalMediaControlsSeamlessTransfer,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -761,10 +755,6 @@ BASE_FEATURE(kV4L2H264TemporalLayerHWEncoding,
 // Inform video blitter of video color space.
 BASE_FEATURE(kVideoBlitColorAccuracy,
              "video-blit-color-accuracy",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Displays new video picture-in-picture controls for the 2024 UI update.
-BASE_FEATURE(kVideoPictureInPictureControlsUpdate2024,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // A video encoder is allowed to drop a frame in cast mirroring.
@@ -1021,8 +1011,7 @@ BASE_FEATURE(kContextMenuPictureInPictureAndroid,
 
 // Enables the use of a Surface (ANativeWindow) as the input for the
 // NdkVideoEncodeAccelerator on Android.
-BASE_FEATURE(kEnableSurfaceInputForAndroidVEA,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSurfaceInputForAndroidVEA, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables block model (LinearBlock) on supported devices.
 // TODO(crbug.com/327625558): Currently block model is buggy and can't be
@@ -1254,7 +1243,9 @@ BASE_FEATURE(kUseOutOfProcessVideoDecoding,
 );
 
 // Use shared image interface to transport video frame resources.
-BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_ENABLED_BY_DEFAULT);
+// TODO(crbug.com/457296322): Enable after fixing issue where SharedImages are
+// missing from the SharedImageManager.
+BASE_FEATURE(kUseSharedImageInOOPVDProcess, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

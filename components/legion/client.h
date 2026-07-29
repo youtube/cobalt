@@ -5,9 +5,11 @@
 #ifndef COMPONENTS_LEGION_CLIENT_H_
 #define COMPONENTS_LEGION_CLIENT_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
+#include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
 #include "components/legion/legion_common.h"
@@ -41,18 +43,22 @@ class Client {
   using OnGenerateContentRequestCompletedCallback = base::OnceCallback<void(
       base::expected<proto::GenerateContentResponse, ErrorCode> result)>;
 
-  static Client Create(network::mojom::NetworkContext* network_context,
-                       proto::FeatureName feature_name);
+  static std::unique_ptr<Client> Create(
+      network::mojom::NetworkContext* network_context,
+      proto::FeatureName feature_name);
 
-  static Client CreateWithUrl(const GURL& url,
-                              network::mojom::NetworkContext* network_context,
-                              proto::FeatureName feature_name);
+  static std::unique_ptr<Client> CreateWithUrl(
+      const GURL& url,
+      network::mojom::NetworkContext* network_context,
+      proto::FeatureName feature_name);
+
+  // Takes a URL without scheme and an api_key and returns a URL.
+  static GURL FormatUrl(const std::string& url, const std::string& api_key);
+
   ~Client();
 
   Client(const Client&) = delete;
   Client& operator=(const Client&) = delete;
-  Client(Client&&);
-  Client& operator=(Client&&);
 
   // Sends a request with a single text content.
   void SendTextRequest(const std::string& text,
@@ -71,12 +77,24 @@ class Client {
          proto::FeatureName feature_name);
 
   // Sends a request over the secure channel.
-  void SendRequest(
-      BinaryEncodedProtoRequest request,
-      base::OnceCallback<void(base::expected<BinaryEncodedProtoResponse, ErrorCode>)> callback);
+  void SendRequest(int32_t request_id,
+                   BinaryEncodedProtoRequest request,
+                   OnRequestCompletedCallback callback);
+
+  // Handles responses from the secure channel.
+  void OnResponseReceived(
+      base::expected<BinaryEncodedProtoResponse, ErrorCode> result);
+
+  // Fails all pending requests with the given error code.
+  void FailAllPendingRequests(ErrorCode error_code);
 
   std::unique_ptr<SecureChannel> secure_channel_;
   proto::FeatureName feature_name_;
+  int32_t next_request_id_{1};
+
+  // Callbacks for requests that have been sent to the secure channel but have
+  // not yet received a response.
+  base::flat_map<int32_t, OnRequestCompletedCallback> pending_requests_;
 };
 
 }  // namespace legion

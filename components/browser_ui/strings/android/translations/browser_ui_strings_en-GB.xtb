@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">Tap Apps, then tap Default apps</translation>
 <translation id="1415402041810619267">URL truncated</translation>
 <translation id="1415855080660575082">Let Chrome share your recent tabs with your device to see them in your device's app list and search results. You can turn this on or off in Chrome settings.</translation>
+<translation id="1420688843103859429">Navigate back and forth by swiping with two fingers on the touchpad</translation>
 <translation id="1432650420699700107">Sites can ask to connect to any device on your local network</translation>
 <translation id="1448064542941920355">Decrease zoom</translation>
 <translation id="1464044141348608623">Don't allow sites to know when you're actively using your device</translation>
@@ -218,7 +219,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="3285500645985761267">Allow related sites to see your activity in the group</translation>
 <translation id="3295019059349372795">Chapter 11: The Wonderful Emerald City of Oz</translation>
 <translation id="3295602654194328831">Hide info</translation>
-<translation id="3328801116991980348">Site information</translation>
 <translation id="3333961966071413176">All contacts</translation>
 <translation id="3360338140203645771">Delete saved zoom levels?</translation>
 <translation id="3362437373201486687">Scanning for Bluetooth devices</translation>
@@ -243,6 +243,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="3611658447322220736">Recently closed sites can finish sending and receiving data</translation>
 <translation id="3619294456800709762">Sites can enter picture-in-picture automatically</translation>
 <translation id="3628308229821498208">Suggested searches</translation>
+<translation id="363748948745453283">Using approximate location</translation>
 <translation id="3641456520301071208">Sites can ask for your location</translation>
 <translation id="3658847490588580244">Default browser bottom sheet</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> site in <ph name="RWS_OWNER" />’s group of sites that can see your activity in the group}other{<ph name="RWS_MEMBERS_COUNT" /> sites in <ph name="RWS_OWNER" />’s group of sites that can see your activity in the group}}</translation>
@@ -433,8 +434,10 @@ Advanced Protection controls these Chrome settings:
 <translation id="5750869797196646528">Hand tracking</translation>
 <translation id="5753570386948603678">Delete from history</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> blocked</translation>
+<translation id="5792627621688759634">Swipe between pages using a touchpad</translation>
 <translation id="5801457289562671820">Recommended by your organisation</translation>
 <translation id="5804241973901381774">Permissions</translation>
+<translation id="5817042798620209981">Site information, dialogue</translation>
 <translation id="5822675474983796325">Customise your new tab page bottom sheet opened at full height</translation>
 <translation id="5833899990800318936">Don't allow sites to use JavaScript</translation>
 <translation id="583673505367439042">Sites can ask to edit files and folders on your device</translation>

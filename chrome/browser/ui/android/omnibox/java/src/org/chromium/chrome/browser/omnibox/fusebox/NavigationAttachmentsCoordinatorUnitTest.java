@@ -8,11 +8,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
@@ -27,10 +30,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -61,21 +64,21 @@ import java.util.function.Function;
 /** Unit tests for {@link NavigationAttachmentsCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
 public class NavigationAttachmentsCoordinatorUnitTest {
-    public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    private @Mock ComposeBoxQueryControllerBridge.Natives mControllerMock;
-    private @Mock LocationBarDataProvider mLocationBarDataProvider;
-    private @Mock NavigationAttachmentsMediator mMediator;
-    private @Mock TabModelSelector mTabModelSelector;
-    private @Mock TabModel mTabModel;
-    private @Mock Bitmap mBitmap;
-    private @Mock Profile mProfile;
-    private @Mock TemplateUrlService mTemplateUrlService;
+    @Mock private ComposeBoxQueryControllerBridge.Natives mControllerMock;
+    @Mock private LocationBarDataProvider mLocationBarDataProvider;
+    @Mock private NavigationAttachmentsMediator mMediator;
+    @Mock private TabModelSelector mTabModelSelector;
+    @Mock private TabModel mTabModel;
+    @Mock private Bitmap mBitmap;
+    @Mock private Profile mProfile;
+    @Mock private TemplateUrlService mTemplateUrlService;
 
-    private Activity mActivity;
+    private ActivityController<TestActivity> mActivityController;
     private WindowAndroid mWindowAndroid;
     private NavigationAttachmentsCoordinator mCoordinator;
-    private ConstraintLayout mParent;
+
     private final ObservableSupplierImpl<Profile> mProfileSupplier = new ObservableSupplierImpl<>();
     private final ObservableSupplierImpl<TabModelSelector> mTabModelSelectorSupplier =
             new ObservableSupplierImpl<>(mTabModelSelector);
@@ -91,11 +94,12 @@ public class NavigationAttachmentsCoordinatorUnitTest {
     public void setUp() {
         ComposeBoxQueryControllerBridgeJni.setInstanceForTesting(mControllerMock);
 
-        mActivity = Robolectric.buildActivity(TestActivity.class).setup().get();
-        mWindowAndroid = new WindowAndroid(mActivity, false);
-        mParent = new ConstraintLayout(mActivity);
-        mActivity.setContentView(mParent);
-        LayoutInflater.from(mActivity).inflate(R.layout.fusebox_layout, mParent, true);
+        mActivityController = Robolectric.buildActivity(TestActivity.class).setup();
+        Activity activity = mActivityController.get();
+        mWindowAndroid = new WindowAndroid(activity, false);
+        ConstraintLayout parent = new ConstraintLayout(activity);
+        activity.setContentView(parent);
+        LayoutInflater.from(activity).inflate(R.layout.fusebox_layout, parent, true);
 
         OmniboxResourceProvider.setTabFaviconFactory(mTabFaviconFunction);
 
@@ -108,21 +112,22 @@ public class NavigationAttachmentsCoordinatorUnitTest {
 
         mCoordinator =
                 new NavigationAttachmentsCoordinator(
-                        mActivity,
+                        activity,
                         mWindowAndroid,
-                        mParent,
+                        parent,
                         mProfileSupplier,
                         mLocationBarDataProvider,
                         mTabModelSelectorSupplier,
                         mTemplateUrlServiceSupplier,
                         mAutocompleteRequestTypeSupplier);
 
-        // By default, make the Mediator available.
+        // By default, make the mediator available.
         mCoordinator.setMediatorForTesting(mMediator);
     }
 
     @After
     public void tearDown() {
+        mActivityController.close();
         mWindowAndroid.destroy();
     }
 
@@ -207,7 +212,7 @@ public class NavigationAttachmentsCoordinatorUnitTest {
                         PageClassification.OTHER);
 
         for (PageClassification pageClass : PageClassification.values()) {
-            Mockito.reset(mMediator);
+            reset(mMediator);
             doReturn(pageClass.getNumber())
                     .when(mLocationBarDataProvider)
                     .getPageClassification(anyInt());
@@ -215,11 +220,11 @@ public class NavigationAttachmentsCoordinatorUnitTest {
             mCoordinator.onUrlFocusChange(true);
 
             boolean shouldBeVisible = supportedPageClassifications.contains(pageClass);
-            Mockito.verify(mMediator).setToolbarVisible(shouldBeVisible);
+            verify(mMediator).setToolbarVisible(shouldBeVisible);
 
             if (shouldBeVisible) {
                 mCoordinator.onUrlFocusChange(false);
-                Mockito.verify(mMediator).setToolbarVisible(false);
+                verify(mMediator).setToolbarVisible(false);
             }
         }
     }
@@ -246,5 +251,44 @@ public class NavigationAttachmentsCoordinatorUnitTest {
         assertEquals(
                 AutocompleteRequestType.AI_MODE,
                 (long) mCoordinator.getAutocompleteRequestTypeSupplier().get());
+    }
+
+    @Test
+    public void getAttachmentTokens_returnsEmptyListWhenMediatorNotSet() {
+        List<String> tokens = mCoordinator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertTrue(tokens.isEmpty());
+    }
+
+    @Test
+    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
+    public void getAttachmentTokens_returnsEmptyListWhenMediatorHasNoAttachments() {
+        doReturn(/* nativeInstance= */ 1L).when(mControllerMock).init(any(Profile.class));
+        mProfileSupplier.set(mProfile);
+        ShadowLooper.idleMainLooper();
+
+        List<String> tokens = mCoordinator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertTrue(tokens.isEmpty());
+    }
+
+    @Test
+    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
+    public void getAttachmentTokens_returnsTokensWhenMediatorHasAttachments() {
+        doReturn(/* nativeInstance= */ 1L).when(mControllerMock).init(any(Profile.class));
+        mProfileSupplier.set(mProfile);
+        ShadowLooper.idleMainLooper();
+
+        // Mock mediator with attachment tokens.
+        var mockMediator = mock(NavigationAttachmentsMediator.class);
+        var testTokens = java.util.Arrays.asList("token1", "token2");
+        doReturn(testTokens).when(mockMediator).getAttachmentTokens();
+        mCoordinator.setMediatorForTesting(mockMediator);
+
+        var tokens = mCoordinator.getAttachmentTokens();
+        assertNotNull(tokens);
+        assertEquals(2, tokens.size());
+        assertEquals("token1", tokens.get(0));
+        assertEquals("token2", tokens.get(1));
     }
 }

@@ -20,6 +20,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/contextual_tasks_resources.h"
@@ -30,6 +31,7 @@
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -81,6 +83,14 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   // Add strings.js
   source->UseStringsJs();
 
+  static constexpr webui::LocalizedString kLocalizedStrings[] = {
+      {"openInNewTab", IDS_CONTEXTUAL_TASKS_MENU_OPEN_IN_NEW_TAB},
+      {"openChromeSettings", IDS_CONTEXTUAL_TASKS_MENU_OPEN_CHROME_SETTINGS},
+      {"myActivity", IDS_CONTEXTUAL_TASKS_MENU_MY_ACTIVITY},
+      {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
+  };
+  source->AddLocalizedStrings(kLocalizedStrings);
+
   // Support no file types.
   source->AddString("composeboxImageFileTypes", "");
   source->AddString("composeboxAttachmentFileTypes", "");
@@ -88,6 +98,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddInteger("composeboxFileMaxCount", 0);
   // Enable typed suggest.
   source->AddBoolean("composeboxShowTypedSuggest", true);
+  source->AddBoolean("composeboxShowTypedSuggestWithContext", false);
   // Disable ZPS.
   source->AddBoolean("composeboxShowZps", false);
   // Disable image context suggestions.
@@ -97,9 +108,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowContextMenuDescription", true);
   // Send event when escape is pressed.
   source->AddBoolean("composeboxCloseByEscape", true);
-  source->AddBoolean("dragAndDropEnabled", false);
-  source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
-  source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
 
   source->AddBoolean("isLensSearchbox", true);
   source->AddBoolean(
@@ -124,10 +132,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowCreateImageButton", false);
   source->AddBoolean("composeboxShowRecentTabChip", false);
   source->AddBoolean("composeboxShowSubmit", true);
-  source->AddBoolean("dragAndDropEnabled", true);
+  source->AddBoolean("composeboxContextDragAndDropEnabled", false);
   source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
   source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
+  source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", false);
 }
 
 ContextualTasksUI::~ContextualTasksUI() = default;
@@ -136,7 +145,8 @@ void ContextualTasksUI::CreatePageHandler(
     mojo::PendingRemote<contextual_tasks::mojom::Page> page,
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> page_handler) {
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
-      std::move(page), std::move(page_handler), web_ui(), this, ui_service_);
+      std::move(page_handler), web_ui(), this, ui_service_);
+  page_ = mojo::Remote(std::move(page));
 }
 
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
@@ -161,10 +171,21 @@ const std::optional<std::string>& ContextualTasksUI::GetThreadTitle() {
 
 void ContextualTasksUI::SetThreadTitle(std::optional<std::string> title) {
   thread_title_ = title;
+  if (page_) {
+    page_->SetThreadTitle(thread_title_.value_or(std::string()));
+  }
+}
+
+bool ContextualTasksUI::IsShownInTab() {
+  return tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
+}
+
+BrowserWindowInterface* ContextualTasksUI::GetBrowser() {
+  return FromWebContents(web_ui()->GetWebContents());
 }
 
 void ContextualTasksUI::CloseSidePanel() {
-  BrowserWindowInterface* browser = FromWebContents(web_ui()->GetWebContents());
+  auto* browser = webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
   auto* coordinator =
       contextual_tasks::ContextualTasksSidePanelCoordinator::From(browser);
   CHECK(coordinator);
@@ -220,6 +241,10 @@ void ContextualTasksUI::OnInnerWebContentsCreated(
   inner_web_contents_creation_observer_.reset();
 }
 
+void ContextualTasksUI::OnSidePanelStateChanged() {
+  page_->OnSidePanelStateChanged();
+}
+
 ContextualTasksUI::FrameNavObserver::FrameNavObserver(
     content::WebContents* web_contents,
     contextual_tasks::ContextualTasksUiService* ui_service,
@@ -229,7 +254,6 @@ ContextualTasksUI::FrameNavObserver::FrameNavObserver(
       ui_service_(ui_service),
       context_controller_(context_controller),
       task_info_delegate_(CHECK_DEREF(task_info_delegate)) {
-  browser_ = FromWebContents(web_contents);
 }
 
 void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
@@ -259,6 +283,11 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     task_info_delegate_->SetTaskId(std::nullopt);
     task_info_delegate_->SetThreadId(std::nullopt);
     task_info_delegate_->SetThreadTitle(std::nullopt);
+    if (!task_info_delegate_->IsShownInTab() &&
+        task_info_delegate_->GetBrowser()) {
+      ui_service_->OnTaskChangedInPanel(task_info_delegate_->GetBrowser(),
+                                        base::Uuid());
+    }
     return;
   }
 
@@ -302,8 +331,11 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       contextual_tasks::ThreadType::kAiMode, url_thread_id, mstk,
       task_info_delegate_->GetThreadTitle());
 
-  ui_service_->OnTaskChangedInPanel(browser_,
-                                    task_info_delegate_->GetTaskId().value());
+  if (!task_info_delegate_->IsShownInTab() &&
+      task_info_delegate_->GetBrowser()) {
+    ui_service_->OnTaskChangedInPanel(task_info_delegate_->GetBrowser(),
+                                      task_info_delegate_->GetTaskId().value());
+  }
 }
 
 ContextualTasksUI::InnerFrameCreationObvserver::InnerFrameCreationObvserver(

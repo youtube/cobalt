@@ -7,6 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/composebox/ui/composebox_navigation_consumer.h"
 #import "ios/chrome/browser/omnibox/ui/popup/omnibox_popup_presenter.h"
 
@@ -23,6 +24,9 @@
 @interface ComposeboxViewController
     : UIViewController <ComposeboxNavigationConsumer,
                         OmniboxPopupPresenterDelegate>
+
+// Creates an instance with the theme of the input plate.
+- (instancetype)initWithTheme:(ComposeboxTheme*)theme;
 
 // The delegate.
 @property(nonatomic, weak) id<ComposeboxViewControllerDelegate> delegate;

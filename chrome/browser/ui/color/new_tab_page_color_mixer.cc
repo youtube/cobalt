@@ -26,8 +26,10 @@ constexpr float kNtpElementLuminosityChangeForDarkBackgroundParam = 0.2f;
 
 constexpr SkColor kColorSysSurface3_Light = SkColorSetRGB(0xEF, 0xF3, 0xFA);
 constexpr SkColor kColorSysSurface_Light = SkColorSetRGB(0xFF, 0xFF, 0xFF);
-
+constexpr SkColor kColorGemSysColorPrimary_Light =
+    SkColorSetRGB(0x0B, 0x57, 0xD0);
 constexpr SkColor kColorSysStateHoverOnSubtle_Light = SkColorSetARGB(0x0F, 0x1F, 0x1F, 0x1F);
+constexpr SkColor kColorSysTonalOutline_Light = SkColorSetRGB(0xA8, 0xC7, 0xFA);
 
 ui::ColorTransform GetContrastingColorTransform(
     ui::ColorTransform input_transform,
@@ -248,6 +250,8 @@ void AddNewTabPageColorMixer(ui::ColorProvider* provider,
   ui::ColorTransform element_background_color = SelectBasedOnNtpBackground(
       kColorNewTabPageBackground, {gfx::kGoogleGrey900},
       GetContrastingColorTransform(kColorNewTabPageBackground));
+  ui::ColorTransform primary_foreground_color =
+      ui::GetColorWithMaxContrast(element_background_color);
 
   ui::ColorMixer& mixer = provider->AddMixer();
   mixer[kColorNewTabPageBackground] = {kColorToolbar};
@@ -302,13 +306,14 @@ void AddNewTabPageColorMixer(ui::ColorProvider* provider,
   mixer[kColorComposeboxOutlineHcm] = {
       dark_mode ? SkColorSetRGB(0xFF, 0xFF, 0xFF)
                 : SkColorSetRGB(0x00, 0x00, 0x00)};
-  mixer[kColorComposeboxRecentTabChipOutline] = {
-      ui::kColorSysTonalOutline};
+  mixer[kColorComposeboxRecentTabChipOutline] = {kColorSysTonalOutline_Light};
   mixer[kColorComposeboxScrimBackground] = {ui::kColorSysBase};
-  mixer[kColorComposeboxSubmitButton] = {
+  mixer[kColorComposeboxSubmitButtonBackground] = {
       SkColorSetRGB(0x0B, 0x50, 0xD0)};
   mixer[kColorComposeboxSuggestionActivity] = {
       ui::kColorSysOnSurfaceSubtle};
+  mixer[kColorComposeboxTabSelectorButtonSelected] = {
+      kColorGemSysColorPrimary_Light};
   mixer[kColorComposeboxTypeAhead] = {
       ui::SetAlpha({ui::kColorRefNeutral10}, 0x60)};
   mixer[kColorComposeboxTypeAheadChip] = {
@@ -343,6 +348,7 @@ void AddNewTabPageColorMixer(ui::ColorProvider* provider,
       ui::kColorSysOnPrimary};
   mixer[kColorComposeboxErrorScrimForeground] = {
       ui::kColorSysInverseSurface};
+  mixer[kColorComposeboxLink] = {gfx::kGoogleBlue700};
 
   mixer[kColorNewTabPageMostVisitedTileBackgroundUnthemed] = {
       gfx::kGoogleGrey100};
@@ -431,6 +437,12 @@ void AddNewTabPageColorMixer(ui::ColorProvider* provider,
                    /* 10% opacity */ 0.1 * SK_AlphaOPAQUE),
       ui::SetAlpha(gfx::kGoogleGrey900,
                    /* 10% opacity */ 0.1 * SK_AlphaOPAQUE));
+
+  mixer[kColorNewTabPageActionChipTextTitle] = {primary_foreground_color};
+  mixer[kColorNewTabPageActionChipTextBody] = {dark_mode ? SK_ColorWHITE
+                                                         : gfx::kGoogleGrey800};
+  mixer[kColorNewTabPageActionChipDeepSearchIcon] = {
+      dark_mode ? SK_ColorWHITE : gfx::kGoogleGrey800};
 }
 
 void AddWebThemeNewTabPageColors(ui::ColorMixer& mixer, bool dark_mode) {

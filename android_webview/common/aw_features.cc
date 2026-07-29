@@ -131,11 +131,6 @@ BASE_FEATURE(kWebViewPrefetchNativeLibrary, base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<bool> kWebViewPrefetchFromRenderer{
     &kWebViewPrefetchNativeLibrary, "WebViewPrefetchFromRenderer", true};
 
-// Include system bars in safe-area-inset CSS environment values for WebViews
-// that take up the entire screen
-BASE_FEATURE(kWebViewSafeAreaIncludesSystemBars,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled TYPE_SCROLLED accessibility events are sent every 100ms when user
 // is scrolling irrespective of GestureScrollUpdate being consumed or not.
 // If disabled events are sent on GSU consumed ack.
@@ -160,11 +155,6 @@ BASE_FEATURE(kWebViewWebauthn, base::FEATURE_ENABLED_BY_DEFAULT);
 // enabled.
 BASE_FEATURE(kWebViewRenderDocument, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// This enables getViewportInsetBottom which is used to resize the visual
-// viewport according to both the visible area of the WebView and any IME
-// overlap.
-BASE_FEATURE(kWebViewReportImeInsets, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled, if the developer hasn't overridden shouldInterceptRequest
 // (or provided the async version), we short circuit (return no response)
 // on the IO thread instead of calling the (empty) method on a background
@@ -175,7 +165,7 @@ BASE_FEATURE(kWebViewShortCircuitShouldInterceptRequest,
 // When enabled, WebView disables MSAA and doesn't auto sharpen mip-mapped
 // textures on very large screen devices (such as TVs). The exact criteria for
 // what qualifies for this can be found in AwGrContextOptionsProvider.java.
-BASE_FEATURE(kWebViewUseRenderingHeuristic, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebViewUseRenderingHeuristic, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, webview chromium initialization uses the startup tasks logic
 // where it runs the startup tasks asynchronously if startup is triggered from a
@@ -185,11 +175,6 @@ BASE_FEATURE(kWebViewUseRenderingHeuristic, base::FEATURE_DISABLED_BY_DEFAULT);
 // Note: WebViewUseStartupTasksLogicP2 and kWebViewStartupTasksYieldToNative
 // also enable the same behaviour as this flag.
 BASE_FEATURE(kWebViewUseStartupTasksLogic, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, observe WebView movements with a PreDrawListener and use those
-// events to re-calculate the visual viewport of the web contents.
-BASE_FEATURE(kWebViewUseViewPositionObserverForInsets,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, records histograms relating to app's cache size.
 BASE_FEATURE(kWebViewRecordAppCacheHistograms,

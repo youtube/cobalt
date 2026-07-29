@@ -38,7 +38,6 @@
 #include "chrome/browser/webauthn/webauthn_switches.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/network_session_configurator/common/network_switches.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/browser/render_frame_host.h"
@@ -930,7 +929,6 @@ class AuthenticatorWindowTest : public InProcessBrowserTest {
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
     command_line->AppendSwitchASCII(switches::kGaiaUrl,
                                     https_server_.base_url().spec());
     command_line->AppendSwitchASCII(
@@ -1020,9 +1018,6 @@ class QuitBrowserWhenKeysStored : public EnclaveManager::Observer {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&chrome::AttemptExit));
   }
-
-  // EnclaveManager::Observer
-  void OnStateUpdated() override {}
 
  private:
   raw_ptr<Browser> browser_;

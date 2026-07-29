@@ -145,8 +145,15 @@ void BwgTabHelper::ExecuteZeroStateSuggestions(
   }
 
   if (zero_state_suggestions_->suggestions.has_value()) {
-    std::move(callback).Run(ZeroStateSuggestionsAsNSArray(
-        zero_state_suggestions_->suggestions.value()));
+    // Ensure the cached suggestions are for the current URL.
+    if (web_state_->GetVisibleURL().GetWithoutRef() ==
+        zero_state_suggestions_->url) {
+      std::move(callback).Run(ZeroStateSuggestionsAsNSArray(
+          zero_state_suggestions_->suggestions.value()));
+    } else {
+      // The cached suggestions are stale and thus obsolete.
+      std::move(callback).Run(nil);
+    }
     return;
   }
 
@@ -324,13 +331,25 @@ void BwgTabHelper::DidStartNavigation(
   // Cancel the callback that runs on page load, since we're now going to a new
   // page.
   page_loaded_callback_.Reset();
-  weak_ptr_factory_.InvalidateWeakPtrs();
+
+  if (IsZeroStateSuggestionsEnabled()) {
+    const GURL& current_url = navigation_context->GetUrl().GetWithoutRef();
+    if (current_url != zero_state_suggestions_->url) {
+      weak_ptr_factory_.InvalidateWeakPtrs();
+      ClearZeroStateSuggestions();
+      zero_state_suggestions_->url = current_url;
+      optimization_guide_decider_->CanApplyOptimization(
+          current_url, optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
+          base::BindOnce(&BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
+                         weak_ptr_factory_.GetWeakPtr()));
+    }
+  }
 }
 
 void BwgTabHelper::DidFinishNavigation(
     web::WebState* web_state,
     web::NavigationContext* navigation_context) {
-  if (!IsAskGeminiChipEnabled() && !IsZeroStateSuggestionsEnabled()) {
+  if (!IsAskGeminiChipEnabled()) {
     return;
   }
 
@@ -353,21 +372,15 @@ void BwgTabHelper::DidFinishNavigation(
         base::BindOnce(&BwgTabHelper::OnOptimizationGuideDecision,
                        weak_ptr_factory_.GetWeakPtr(), current_url));
   }
-
-  if (IsZeroStateSuggestionsEnabled() &&
-      current_url != zero_state_suggestions_->url) {
-    ClearZeroStateSuggestions();
-    zero_state_suggestions_->url = current_url;
-    optimization_guide_decider_->CanApplyOptimization(
-        current_url, optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
-        base::BindOnce(&BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision,
-                       weak_ptr_factory_.GetWeakPtr()));
-  }
 }
 
 void BwgTabHelper::PageLoaded(
     web::WebState* web_state,
     web::PageLoadCompletionStatus load_completion_status) {
+  if (page_loaded_callback_) {
+    std::move(page_loaded_callback_).Run();
+  }
+
   if (IsWebPageReportedImagesSheetEnabled()) {
     PrepareWebPageReportedImagesSnackbar();
   }
@@ -466,6 +479,10 @@ std::optional<std::string> BwgTabHelper::GetURLOnLastInteraction() {
 }
 
 void BwgTabHelper::UpdateWebStateSnapshotInStorage() {
+  if (!cached_snapshot_) {
+    return;
+  }
+
   SnapshotTabHelper* snapshot_tab_helper =
       SnapshotTabHelper::FromWebState(web_state_);
 
@@ -473,9 +490,7 @@ void BwgTabHelper::UpdateWebStateSnapshotInStorage() {
     return;
   }
 
-  if (cached_snapshot_) {
-    snapshot_tab_helper->UpdateSnapshotStorageWithImage(cached_snapshot_);
-  }
+  snapshot_tab_helper->UpdateSnapshotStorageWithImage(cached_snapshot_);
 }
 
 void BwgTabHelper::OnOptimizationGuideDecision(
@@ -494,34 +509,8 @@ void BwgTabHelper::OnOptimizationGuideDecision(
 
   latest_load_contextual_cueing_metadata_ = metadata.ParsedMetadata<
       optimization_guide::proto::GlicContextualCueingMetadata>();
-  if (latest_load_contextual_cueing_metadata_) {
-    if (IsAskGeminiSnackbarEnabled()) {
-      SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
-      action.handler = ^{
-        [bwg_commands_handler_
-            startBWGFlowWithEntryPoint:bwg::EntryPoint::Promo];
-      };
-      action.title = [NSString stringWithFormat:@"✦ %@", @"Ask Gemini"];
-      SnackbarMessage* message =
-          [[SnackbarMessage alloc] initWithTitle:@"Ask about page?"];
-      message.action = action;
-      [snackbar_commands_handler_ showSnackbarMessage:message];
-    } else {
-      UIImage* badge_image =
-          [BWGUIUtils createGradientGeminiLogo:kBadgeSymbolPointSize];
-      NSString* cue_label = base::SysUTF8ToNSString(
-          latest_load_contextual_cueing_metadata_->cueing_configurations(0)
-              .cue_label());
-      LocationBarBadgeConfiguration* badge_config =
-          [[LocationBarBadgeConfiguration alloc]
-               initWithBadgeType:LocationBarBadgeType::kGeminiContextualCueChip
-              accessibilityLabel:cue_label
-                      badgeImage:badge_image];
-
-      badge_config.badgeText = cue_label;
-      badge_config.shouldHideBadgeAfterChipCollapse = true;
-      [location_bar_badge_commands_handler_ updateBadgeConfig:badge_config];
-    }
+  if (!latest_load_contextual_cueing_metadata_) {
+    return;
   }
 
   ProfileIOS* profile =
@@ -574,6 +563,12 @@ void BwgTabHelper::OnOptimizationGuideDecision(
 void BwgTabHelper::OnCanApplyZeroStateSuggestionsDecision(
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
+  // The URL has changed so the metadata is obsolete.
+  if (web_state_->GetVisibleURL().GetWithoutRef() !=
+      zero_state_suggestions_->url) {
+    return;
+  }
+
   zero_state_suggestions_->can_apply =
       decision == optimization_guide::OptimizationGuideDecision::kTrue;
 }

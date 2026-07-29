@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.os.Bundle;
 import android.os.Handler;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -28,6 +29,8 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.preference.PreferenceFragmentCompat;
+import androidx.preference.PreferenceGroup.PreferencePositionCallback;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.window.layout.WindowMetricsCalculator;
 
 import org.chromium.base.Log;
@@ -36,11 +39,21 @@ import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.settings.MainSettings;
 import org.chromium.chrome.browser.settings.MultiColumnSettings;
 import org.chromium.chrome.browser.settings.search.SettingsIndexData.SearchResults;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItemDecoration;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightParams;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightShape;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 
 /** The coordinator of search in Settings. TODO(jinsukkim): Build a proper MVC structure. */
@@ -55,10 +68,11 @@ public class SettingsSearchCoordinator {
     private final AppCompatActivity mActivity;
     private final BooleanSupplier mUseMultiColumnSupplier;
     private @Nullable final MultiColumnSettings mMultiColumnSettings;
+    private final Map<Fragment, ContainmentItemDecoration> mItemDecorations;
     private final Handler mHandler = new Handler();
     private @Nullable Fragment mResultsFragment;
     private @Nullable Runnable mSearchRunnable;
-
+    private @Nullable Runnable mRemoveResultChildViewListener;
     // Whether the back action handler for MultiColumnSettings was set. This is set lazily when
     // search UI gets focus for the first time.
     private boolean mMultiColumnSettingsBackActionHandlerSet;
@@ -105,11 +119,13 @@ public class SettingsSearchCoordinator {
     public SettingsSearchCoordinator(
             AppCompatActivity activity,
             BooleanSupplier useMultiColumnSupplier,
-            @Nullable MultiColumnSettings multiColumnSettings) {
+            @Nullable MultiColumnSettings multiColumnSettings,
+            Map<Fragment, ContainmentItemDecoration> itemDecorations) {
         mActivity = activity;
         mUseMultiColumnSupplier = useMultiColumnSupplier;
         mMultiColumnSettings = multiColumnSettings;
         mFragmentState = FS_SETTINGS;
+        mItemDecorations = itemDecorations;
     }
 
     /** Initializes search UI, sets up listeners, backpress action handler, etc. */
@@ -158,6 +174,9 @@ public class SettingsSearchCoordinator {
                         fragmentManager.getBackStackEntryAt(stackCount - 1).getName();
                 if (TextUtils.equals(FRAGMENT_TAG_RESULT, topStackEntry)) {
                     mFragmentState = FS_SEARCH;
+                    mActivity.findViewById(R.id.search_query_container).setVisibility(View.VISIBLE);
+                    EditText queryEdit = mActivity.findViewById(R.id.search_query);
+                    queryEdit.requestFocus();
                 }
             }
             clearFragment(/* addToBackStack= */ false);
@@ -183,14 +202,47 @@ public class SettingsSearchCoordinator {
         // This is done to avoid duplicate entries when parsing XML.
         mIndexData.clear();
 
-        for (SearchIndexProvider provider : SearchIndexProviderRegistry.ALL_PROVIDERS) {
-            // This handles both the default "dumb" parsers and our custom "smart" override in
-            // MainSettings.
+        List<SearchIndexProvider> providers = SearchIndexProviderRegistry.ALL_PROVIDERS;
+        Map<String, SearchIndexProvider> providerMap = createProviderMap(providers);
+        Set<String> processedFragments = new HashSet<>();
+
+        String mainSettingsClassName = MainSettings.class.getName();
+        SearchIndexProvider rootProvider = providerMap.get(mainSettingsClassName);
+
+        // The root provider needs to be registered.
+        assert rootProvider != null;
+
+        rootProvider.registerFragmentHeaders(
+                mActivity, mIndexData, providerMap, processedFragments);
+
+        for (SearchIndexProvider provider : providers) {
             provider.initPreferenceXml(mActivity, mIndexData);
-            // This handles dynamic text updates (e.g., TabArchiveSettingsFragment) and code-only
-            // entries (e.g., AboutChromeSettings).
+        }
+
+        // Allow providers to make runtime modifications (e.g., hide preferences). Sometimes we also
+        // need to update the title of a pref.
+        for (SearchIndexProvider provider : providers) {
             provider.updateDynamicPreferences(mActivity, mIndexData);
         }
+
+        // Resolve headers and remove any orphaned entries.
+        mIndexData.resolveIndex(mainSettingsClassName);
+    }
+
+    /**
+     * Creates a map from a fragment's class name to its corresponding SearchIndexProvider for
+     * efficient lookups.
+     *
+     * @param providers A list of {@link SearchIndexProvider}s.
+     * @return A map where keys are fragment class names and values are the providers.
+     */
+    private Map<String, SearchIndexProvider> createProviderMap(
+            List<SearchIndexProvider> providers) {
+        Map<String, SearchIndexProvider> providerMap = new HashMap<>();
+        for (SearchIndexProvider provider : providers) {
+            providerMap.put(provider.getPrefFragmentName(), provider);
+        }
+        return providerMap;
     }
 
     private void enterSearchState() {
@@ -400,14 +452,16 @@ public class SettingsSearchCoordinator {
      *
      * @param preferenceFragment Settings fragment to show.
      * @param key The key of the chosen preference in the fragment.
+     * @param extras The additional args required to launch the pref.
      */
-    private void onResultSelected(String preferenceFragment, String key) {
+    private void onResultSelected(String preferenceFragment, String key, Bundle extras) {
         try {
             EditText queryEdit = mActivity.findViewById(R.id.search_query);
             KeyboardUtils.hideAndroidSoftKeyboard(queryEdit);
             Class fragment = Class.forName(preferenceFragment);
             Constructor constructor = fragment.getConstructor();
             var pf = (PreferenceFragmentCompat) constructor.newInstance();
+            pf.setArguments(extras);
             FragmentManager fragmentManager = getSettingsFragmentManager();
             fragmentManager
                     .beginTransaction()
@@ -424,7 +478,7 @@ public class SettingsSearchCoordinator {
                                 @NonNull FragmentManager fm,
                                 @NonNull Fragment f,
                                 @NonNull Context context) {
-                            mHandler.post(() -> pf.scrollToPreference(pf.findPreference(key)));
+                            mHandler.post(() -> showResultPreference(pf, key));
                             fm.unregisterFragmentLifecycleCallbacks(this);
                         }
                     },
@@ -437,6 +491,75 @@ public class SettingsSearchCoordinator {
             Log.e(TAG, "Search result fragment cannot be opened: " + preferenceFragment);
             return;
         }
-        if (mFragmentState != FS_RESULTS) mFragmentState = FS_RESULTS;
+        if (mFragmentState != FS_RESULTS) {
+            mFragmentState = FS_RESULTS;
+            mActivity.findViewById(R.id.search_query_container).setVisibility(View.GONE);
+        }
+    }
+
+    private void showResultPreference(PreferenceFragmentCompat fragment, String key) {
+        RecyclerView listView = fragment.getListView();
+        assert listView.getAdapter() instanceof PreferencePositionCallback
+                : "Recycler adapter must implement PreferencePositionCallback";
+        var listAdapter = (PreferencePositionCallback) listView.getAdapter();
+
+        // Zero-based position of the preference view in listView.
+        int pos = listAdapter.getPreferenceAdapterPosition(key);
+        mRemoveResultChildViewListener = null;
+        listView.addOnChildAttachStateChangeListener(
+                new RecyclerView.OnChildAttachStateChangeListener() {
+                    @Override
+                    public void onChildViewAttachedToWindow(@NonNull View view) {
+                        // |attach| events for a preference view may be invoked multiple times,
+                        // intertwined with |detach| in close succession. We should use the last
+                        // event to highlight the corresponding preference view. The listener
+                        // is removed after that.
+                        var viewHolder = fragment.getListView().getChildViewHolder(view);
+                        if (pos == viewHolder.getBindingAdapterPosition()) {
+                            if (mRemoveResultChildViewListener != null) {
+                                mHandler.removeCallbacks(mRemoveResultChildViewListener);
+                            }
+                            mRemoveResultChildViewListener =
+                                    () -> {
+                                        ViewHighlighter.turnOnHighlight(
+                                                view, getHighlightParams(fragment, pos));
+                                        listView.removeOnChildAttachStateChangeListener(this);
+                                        mRemoveResultChildViewListener = null;
+                                    };
+                            mHandler.postDelayed(mRemoveResultChildViewListener, 200);
+                        }
+                    }
+
+                    @Override
+                    public void onChildViewDetachedFromWindow(@NonNull View view) {}
+                });
+
+        // OnScrollListener#onScrolled is always invoked after the recycler view layout pass
+        // is completed. Use this timing to scroll the preference.
+        listView.addOnScrollListener(
+                new RecyclerView.OnScrollListener() {
+                    @Override
+                    public void onScrollStateChanged(
+                            @NonNull RecyclerView recyclerView, int newState) {}
+
+                    @Override
+                    public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                        fragment.scrollToPreference(key);
+                        listView.removeOnScrollListener(this);
+                    }
+                });
+    }
+
+    private HighlightParams getHighlightParams(PreferenceFragmentCompat fragment, int pos) {
+        var highlightParams = new HighlightParams(HighlightShape.RECTANGLE);
+        var itemDecoration = mItemDecorations.get(fragment);
+        if (itemDecoration != null) {
+            var style = itemDecoration.getContainerStyle(pos);
+            if (style != null) {
+                highlightParams.setTopCornerRadius((int) style.getTopRadius());
+                highlightParams.setBottomCornerRadius((int) style.getBottomRadius());
+            }
+        }
+        return highlightParams;
     }
 }

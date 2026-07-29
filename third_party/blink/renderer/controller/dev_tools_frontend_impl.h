@@ -51,12 +51,11 @@ class LocalFrame;
 // it's host (mojom.DevToolsFrontendHost) is destroyed.
 class DevToolsFrontendImpl final
     : public GarbageCollected<DevToolsFrontendImpl>,
-      public Supplement<LocalFrame>,
       public mojom::blink::DevToolsFrontend,
       public InspectorFrontendClient,
       public WidgetCreationObserver {
  public:
-  static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   static void BindMojoRequest(
       LocalFrame*,
@@ -90,6 +89,7 @@ class DevToolsFrontendImpl final
   // InspectorFrontendClient implementation.
   void SendMessageToEmbedder(base::Value::Dict) override;
 
+  Member<LocalFrame> local_frame_;
   Member<DevToolsHost> devtools_host_;
   String api_script_;
   // The host_ must outlive the ExecutionContext of LocalFrame, so it should not

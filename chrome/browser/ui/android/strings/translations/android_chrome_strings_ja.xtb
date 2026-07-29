@@ -944,6 +944,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> 個のタブ - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> 個のタブ - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">プライバシー</translation>
 <translation id="504456571576643789">留意事項</translation>
+<translation id="5056587122125565772">画像を作成</translation>
 <translation id="506254248375231072">タブはありません</translation>
 <translation id="5075939510584558547">暗号化せずに保存</translation>
 <translation id="5085038751173179818">このサイトと Chrome にログインすると、すべてのデバイスで同じブックマークやその他の設定を使用できます</translation>
@@ -1053,7 +1054,9 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5596627076506792578">その他のオプション</translation>
 <translation id="5599455543593328020">シークレット モード</translation>
 <translation id="5601180634394228718">Chrome を使いやすくするためにデータを使用するその他の設定については、<ph name="BEGIN_LINK" />Google サービス<ph name="END_LINK" />をご覧ください。</translation>
+<translation id="5601924940067278327">すべてのデバイスで同じタブやその他の設定を使用できます</translation>
 <translation id="5611398002774823980">アカウントに保存</translation>
+<translation id="5613381935190035031">すべてのデバイスで同じタブやその他の設定を使用するには、Chrome に <ph name="EMAIL" /> としてログインしてください</translation>
 <translation id="5614625640221885312">ログインすると、すべてのデバイスで同じブックマーク、パスワード、その他の設定を使用できます</translation>
 <translation id="5619633276517849615">セーフ ブラウジングは組織によってオンにされています</translation>
 <translation id="5620163320393916465">保存されているパスワードはありません</translation>
@@ -1698,6 +1701,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8110024788458304985">Chrome の機能と動作の改善に協力する</translation>
 <translation id="8110087112193408731">Chrome のアクティビティを Digital Wellbeing で表示しますか？</translation>
 <translation id="8118117428362942925">わからないことがあるときは、保護者の方（<ph name="PARENT_NAME" />）に聞いてください</translation>
+<translation id="8118151008374483324">すべてのデバイスで同じタブやその他の設定を使用するには、Chrome にログインしてください</translation>
 <translation id="8120286190326371840">このデバイスに不正使用されたパスワードはありません</translation>
 <translation id="8122623268651408616">新しい順に並べ替え</translation>
 <translation id="8127542551745560481">ホームページを編集</translation>
@@ -1955,6 +1959,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="9212845824145208577">下に移動できません。ページの下のほうから始めてみてください。</translation>
 <translation id="9218430445555521422">デフォルトに設定</translation>
 <translation id="9219103736887031265">画像</translation>
+<translation id="9222198206152536936">すべてのデバイスで同じタブやその他の設定を使用するには、<ph name="EMAIL" /> としてログインしてください</translation>
 <translation id="924447568950697217">Google Chrome をデフォルトのブラウザにする</translation>
 <translation id="926205370408745186">Chrome のアクティビティを Digital Wellbeing から削除</translation>
 <translation id="927968626442779827">Google Chrome のライトモードをご活用ください</translation>

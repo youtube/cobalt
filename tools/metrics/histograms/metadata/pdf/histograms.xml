@@ -58,7 +58,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.EngineLifetime" units="ms" expires_after="2026-03-08">
+<histogram name="PDF.EngineLifetime" units="ms" expires_after="2026-05-10">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -68,7 +68,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.FirstPaintTime" units="ms" expires_after="2026-03-08">
+<histogram name="PDF.FirstPaintTime" units="ms" expires_after="2026-05-10">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>
@@ -80,7 +80,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2026-03-08">
+<histogram name="PDF.FormType" enum="PDFFormTypes" expires_after="2026-05-10">
   <owner>dhoss@chromium.org</owner>
   <owner>kmoon@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
@@ -96,6 +96,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Measures if PDFs opened in the PDF viewer have attachments. This is logged
     whenever a document is opened in the PDF viewer.
+  </summary>
+</histogram>
+
+<histogram name="PDF.InfoBar.SettingsResult" enum="PdfInfoBarSettingsResult"
+    expires_after="2026-04-25">
+  <owner>jessemckenna@google.com</owner>
+  <owner>davidbienvenu@chromium.org</owner>
+  <summary>
+    The result of showing the Windows settings UI to set Chrome as the default
+    PDF viewer. Recorded 30 seconds after the call to open the settings dialog
+    returns. Only recorded on Windows.
   </summary>
 </histogram>
 
@@ -242,7 +253,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="PDF.PageHasText" enum="Boolean" expires_after="2026-03-08">
+<histogram name="PDF.PageHasText" enum="Boolean" expires_after="2026-05-10">
   <owner>rhalavati@chromium.org</owner>
   <owner>thestig@chromium.org</owner>
   <summary>

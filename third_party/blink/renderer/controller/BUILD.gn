@@ -190,7 +190,16 @@ test("blink_unittests") {
     ]
   }
 
-  fuzztests = [ "BlinkAttributeFuzzTestFixture.NoElementAttributeCrashes" ]
+  fuzztests = [
+    "BlinkAttributeFuzzTestFixture.NoElementAttributeCrashes",
+    "AccessibilityDomScenarioRunner.HtmlAndAria",
+    "AccessibilityDomScenarioRunner.CanvasFallbackContent",
+    "AccessibilityDomScenarioRunner.SvgAndAria",
+    "AccessibilityDomScenarioRunner.MathMLAndAria",
+    "HTMLDomScenarioRunner.HTML",
+    "HTMLDomScenarioRunner.MathMLInHTML",
+    "HTMLDomScenarioRunner.SVGInHTML",
+  ]
 }
 
 test("blink_perf_tests") {

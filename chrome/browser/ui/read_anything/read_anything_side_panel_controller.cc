@@ -33,7 +33,6 @@
 #include "components/language/core/browser/language_model.h"
 #include "components/language/core/browser/language_model_manager.h"
 #include "components/language/core/common/locale_util.h"
-#include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "content/public/browser/render_frame_host.h"
 #include "read_anything_entry_point_controller.h"
 #include "read_anything_side_panel_controller.h"
@@ -243,6 +242,7 @@ bool ReadAnythingSidePanelController::IsActivePageDistillable() const {
 
 void ReadAnythingSidePanelController::TabForegrounded(tabs::TabInterface* tab) {
   UpdateIphVisibility();
+  CheckIfGoodCandidateForReadingMode();
 }
 
 void ReadAnythingSidePanelController::TabWillDetach(
@@ -281,8 +281,11 @@ void ReadAnythingSidePanelController::DidStopLoading() {
   // The page finished loading.
   loading_ = false;
   UpdateIphVisibility();
+  CheckIfGoodCandidateForReadingMode();
+}
 
-  if (!features::IsReadAnythingOmniboxChipEnabled()) {
+void ReadAnythingSidePanelController::CheckIfGoodCandidateForReadingMode() {
+  if (!features::IsReadAnythingOmniboxChipEnabled() || !tab_->IsActivated()) {
     return;
   }
 

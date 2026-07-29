@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {registerAllChildFrames} from '//components/autofill/ios/form_util/resources/child_frame_registration_test.js';
+import * as elementInferenceUtil from '//components/autofill/ios/form_util/resources/fill_element_inference.js';
 import * as inferenceUtil from '//components/autofill/ios/form_util/resources/fill_element_inference_util.js';
 import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
 import {CrWebApi, gCrWeb} from '//ios/web/public/js_messaging/resources/gcrweb.js';
@@ -25,11 +27,31 @@ fillApi.addFunction(
 fillApi.addFunction('getUniqueID', fillUtil.getUniqueID);
 fillApi.addFunction('hasTagName', inferenceUtil.hasTagName);
 fillApi.addFunction(
+    'inferLabelForElement', elementInferenceUtil.inferLabelForElement);
+fillApi.addFunction(
+    'inferLabelFromDefinitionList',
+    elementInferenceUtil.inferLabelFromDefinitionList);
+fillApi.addFunction(
+    'inferLabelFromDivTable', elementInferenceUtil.inferLabelFromDivTable);
+fillApi.addFunction(
+    'inferLabelFromEnclosingLabel',
+    elementInferenceUtil.inferLabelFromEnclosingLabel);
+fillApi.addFunction(
+    'inferLabelFromListItem', elementInferenceUtil.inferLabelFromListItem);
+fillApi.addFunction(
+    'inferLabelFromPrevious', elementInferenceUtil.inferLabelFromPrevious);
+fillApi.addFunction(
+    'inferLabelFromTableColumn',
+    elementInferenceUtil.inferLabelFromTableColumn);
+fillApi.addFunction(
+    'inferLabelFromTableRow', elementInferenceUtil.inferLabelFromTableRow);
+fillApi.addFunction(
     'isAutofillableElement', inferenceUtil.isAutofillableElement);
 fillApi.addFunction(
     'isAutofillableInputElement', inferenceUtil.isAutofillableInputElement);
 fillApi.addFunction('isCheckableElement', inferenceUtil.isCheckableElement);
 fillApi.addFunction('isSelectElement', inferenceUtil.isSelectElement);
+fillApi.addFunction('registerAllChildFrames', registerAllChildFrames);
 fillApi.addFunction('setInputElementValue', fillUtil.setInputElementValue);
 fillApi.addFunction('shouldAutocomplete', fillUtil.shouldAutocomplete);
 // go/keep-sorted end

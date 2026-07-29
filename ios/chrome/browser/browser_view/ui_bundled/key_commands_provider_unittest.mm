@@ -49,6 +49,7 @@
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_navigation_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_api.h"
 #import "ios/web/common/uikit_ui_util.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
@@ -172,6 +173,7 @@ class KeyCommandsProviderTest : public PlatformTest {
   }
 
   web::WebTaskEnvironment task_environment_;
+  IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
   raw_ptr<WebStateList, DanglingUntriaged> web_state_list_;
@@ -1016,7 +1018,8 @@ TEST_F(KeyCommandsProviderTest, ClearingBrowserDoesntCrash) {
 // Checks that some commands are not available in ReadingMode.
 TEST_F(KeyCommandsProviderTest, TestReadingMode) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(kEnableReaderMode);
+  scoped_feature_list.InitWithFeatures(
+      {kEnableReaderMode, kEnableReaderModeInUS}, {});
   // Open a tab with a URL.
   GURL url = GURL("https://test/url");
   auto web_state_unique = CreateFakeWebStateWithURL(url);

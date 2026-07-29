@@ -428,6 +428,13 @@ class PLATFORM_EXPORT CanvasResourceProviderBitmap
   scoped_refptr<StaticBitmapImage> Snapshot(
       FlushReason reason,
       ImageOrientation = ImageOrientationEnum::kDefault) override;
+  scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
+      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
+      ImageOrientation orientation = ImageOrientationEnum::kDefault) {
+    draw_callback(Canvas());
+    return Snapshot(FlushReason::kOther, orientation);
+  }
+
   void RasterRecord(cc::PaintRecord last_recording) override;
   bool WritePixels(const SkImageInfo& orig_info,
                    const void* pixels,
@@ -554,6 +561,10 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
   // This is a workaround to ensure WaitSyncToken() is still called even when
   // copying is effectively skipped due to a dummy WebGPU texture.
   void PrepareForWebGPUDummyMailbox();
+
+  scoped_refptr<CanvasResource> ProduceCanvasResource() {
+    return ProduceCanvasResource(FlushReason::kOther);
+  }
 
  private:
   scoped_refptr<CanvasResourceSharedImage> CreateResource();

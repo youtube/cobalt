@@ -715,6 +715,12 @@ class TabImpl implements Tab {
         return this == mCurrentTabSupplier.get();
     }
 
+    @Override
+    public boolean hasParentCollection() {
+        if (mNativeTabAndroid == 0 || mIsDestroyed) return false;
+        return TabImplJni.get().hasParentCollection(mNativeTabAndroid);
+    }
+
     /**
      * The parent tab for the current tab is set and the DelegateFactory is updated if it is not set
      * already. This happens only if the tab has been detached and the parent has not been set yet,
@@ -1271,12 +1277,18 @@ class TabImpl implements Tab {
         updateTitle();
 
         for (TabObserver observer : mObservers) observer.onDestroyed(this);
-        mObservers.clear();
+        boolean abortNavigationsFromTabClosures =
+                ChromeFeatureList.isEnabled(ChromeFeatureList.ABORT_NAVIGATIONS_FROM_TAB_CLOSURES);
+        if (abortNavigationsFromTabClosures) {
+            mUserDataHost.destroy();
+            destroyWebContents(true);
+        }
 
-        mUserDataHost.destroy();
+        mObservers.clear();
+        if (!abortNavigationsFromTabClosures) mUserDataHost.destroy();
         mTabViewManager.destroy();
         hideNativePage(false, null);
-        destroyWebContents(true);
+        if (!abortNavigationsFromTabClosures) destroyWebContents(true);
         if (mWebContentsState != null) {
             mWebContentsState.destroy();
             mWebContentsState = null;
@@ -2892,6 +2904,8 @@ class TabImpl implements Tab {
         void init(TabImpl caller, @JniType("Profile*") Profile profile, int id);
 
         void destroy(long nativeTabAndroid);
+
+        boolean hasParentCollection(long nativeTabAndroid);
 
         void initWebContents(
                 long nativeTabAndroid,

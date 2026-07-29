@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">依序輕觸「應用程式」和「預設應用程式」</translation>
 <translation id="1415402041810619267">已截斷網址</translation>
 <translation id="1415855080660575082">允許 Chrome 將最近開啟的分頁分享給裝置，讓這些資訊顯示在裝置的應用程式清單和搜尋結果。你可以前往 Chrome 設定頁面開啟或關閉這項功能。</translation>
+<translation id="1420688843103859429">用兩指在觸控板上滑動，即可瀏覽上一個或下一個頁面</translation>
 <translation id="1432650420699700107">網站可以要求連線到區域網路上的任何裝置</translation>
 <translation id="1448064542941920355">縮小</translation>
 <translation id="1464044141348608623">禁止網站偵測你使用裝置的時間</translation>
@@ -218,7 +219,6 @@
 <translation id="3285500645985761267">允許相關網站查看你在群組中的活動</translation>
 <translation id="3295019059349372795">第 11 章：奧茲國的翡翠城</translation>
 <translation id="3295602654194328831">隱藏資訊</translation>
-<translation id="3328801116991980348">網站資訊</translation>
 <translation id="3333961966071413176">所有聯絡人</translation>
 <translation id="3360338140203645771">要刪除儲存的縮放等級嗎？</translation>
 <translation id="3362437373201486687">正在掃描藍牙裝置</translation>
@@ -243,6 +243,7 @@
 <translation id="3611658447322220736">最近關閉的網站可以完成資料收發作業</translation>
 <translation id="3619294456800709762">網站可以自動進入子母畫面</translation>
 <translation id="3628308229821498208">建議搜尋</translation>
+<translation id="363748948745453283">使用大概位置</translation>
 <translation id="3641456520301071208">網站可以要求取得你的位置資訊</translation>
 <translation id="3658847490588580244">預設瀏覽器底部功能表</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{在 <ph name="RWS_OWNER" /> 的網站群組中，有 <ph name="RWS_MEMBERS_COUNT" /> 個網站可以查看你在群組中的活動}other{在 <ph name="RWS_OWNER" /> 的網站群組中，有 <ph name="RWS_MEMBERS_COUNT" /> 個網站可以查看你在群組中的活動}}</translation>
@@ -330,7 +331,7 @@
 <translation id="4479647676395637221">允許網站使用你的攝影機前，必須先詢問你 (建議)</translation>
 <translation id="4505788138578415521">已展開網址</translation>
 <translation id="4534723447064627427">如要允許 <ph name="APP_NAME" /> 存取裝置的麥克風，請一併在 <ph name="BEGIN_LINK" />Android 設定<ph name="END_LINK" />中開啟麥克風。</translation>
-<translation id="4566417217121906555">將麥克風設為靜音</translation>
+<translation id="4566417217121906555">關閉麥克風</translation>
 <translation id="4570913071927164677">詳細資料</translation>
 <translation id="4578289292431526768">開始設定</translation>
 <translation id="461356340001513807">讓你透過身分識別服務，使用自己的帳戶登入網站</translation>
@@ -433,8 +434,10 @@
 <translation id="5750869797196646528">手勢追蹤</translation>
 <translation id="5753570386948603678">從記錄中刪除</translation>
 <translation id="5771720122942595109">已封鎖「<ph name="PERMISSION_1" />」</translation>
+<translation id="5792627621688759634">使用觸控板滑動瀏覽頁面</translation>
 <translation id="5801457289562671820">貴機構推薦的設定</translation>
 <translation id="5804241973901381774">權限</translation>
+<translation id="5817042798620209981">網站資訊，對話方塊</translation>
 <translation id="5822675474983796325">自訂新分頁底部功能表已開啟，並顯示在整個畫面</translation>
 <translation id="5833899990800318936">禁止網站使用 JavaScript</translation>
 <translation id="583673505367439042">網站可以要求編輯裝置上的檔案和資料夾</translation>
@@ -675,7 +678,7 @@
 <translation id="8487700953926739672">可離線使用</translation>
 <translation id="848952951823693243">一律要求行動版網站</translation>
 <translation id="8492822722330266509">網頁可以傳送彈出式視窗和使用重新導向</translation>
-<translation id="8499083585497694743">將麥克風取消靜音</translation>
+<translation id="8499083585497694743">開啟麥克風</translation>
 <translation id="8514955299594277296">不允許網站在裝置上儲存資料 (不建議)</translation>
 <translation id="851751545965956758">禁止網站連線至裝置</translation>
 <translation id="8525306231823319788">全螢幕</translation>

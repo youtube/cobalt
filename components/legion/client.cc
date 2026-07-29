@@ -8,7 +8,9 @@
 #include <string>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/strings/strcat.h"
 #include "components/legion/attestation_handler_impl.h"
 #include "components/legion/features.h"
@@ -69,17 +71,22 @@ void OnRequestSent(
 }  // namespace
 
 // static
-Client Client::Create(network::mojom::NetworkContext* network_context,
-                      proto::FeatureName feature_name) {
-  auto url = GURL(base::StrCat({"wss://", legion::kLegionUrl.Get(),
-                                "?key=", legion::kLegionApiKey.Get()}));
-  return CreateWithUrl(url, network_context, feature_name);
+std::unique_ptr<Client> Client::Create(
+    network::mojom::NetworkContext* network_context,
+    proto::FeatureName feature_name) {
+  return CreateWithUrl(
+      FormatUrl(legion::kLegionUrl.Get(), legion::kLegionApiKey.Get()),
+      network_context, feature_name);
 }
 
 // static
-Client Client::CreateWithUrl(const GURL& url,
-                             network::mojom::NetworkContext* network_context,
-                             proto::FeatureName feature_name) {
+std::unique_ptr<Client> Client::CreateWithUrl(
+    const GURL& url,
+    network::mojom::NetworkContext* network_context,
+    proto::FeatureName feature_name) {
+  if (!base::FeatureList::IsEnabled(kLegion)) {
+    return nullptr;
+  }
   // Create dependencies for SecureChannelImpl.
   auto transport = std::make_unique<WebSocketClient>(
       url, base::BindRepeating(
@@ -92,31 +99,38 @@ Client Client::CreateWithUrl(const GURL& url,
       std::move(transport), std::move(secure_session),
       std::move(attestation_handler));
 
-  return Client(std::move(secure_channel), feature_name);
+  return base::WrapUnique(new Client(std::move(secure_channel), feature_name));
+}
+
+// static
+GURL Client::FormatUrl(const std::string& url, const std::string& api_key) {
+  return GURL(base::StrCat({"wss://", url, "?key=", api_key}));
 }
 
 Client::Client(std::unique_ptr<SecureChannel> secure_channel,
                proto::FeatureName feature_name)
-    : secure_channel_(std::move(secure_channel)),
-      feature_name_(feature_name) {
+    : secure_channel_(std::move(secure_channel)), feature_name_(feature_name) {
   CHECK(secure_channel_);
+  secure_channel_->SetResponseCallback(
+      base::BindRepeating(&Client::OnResponseReceived, base::Unretained(this)));
 }
 
 Client::~Client() = default;
 
-Client::Client(Client&&) = default;
-Client& Client::operator=(Client&&) = default;
-
-void Client::SendRequest(
-    BinaryEncodedProtoRequest request,
-    base::OnceCallback<void(base::expected<BinaryEncodedProtoResponse, ErrorCode>)>
-        callback) {
+void Client::SendRequest(int32_t request_id,
+                         BinaryEncodedProtoRequest request,
+                         OnRequestCompletedCallback callback) {
   DVLOG(1) << "SendRequest started.";
 
   DVLOG(1) << "Calling SecureChannelClient to execute the request.";
-  // The SecureChannel is responsible for using the underlying
-  // transport (WebSocketClient) to communicate with the service.
-  secure_channel_->Write(std::move(request), std::move(callback));
+  if (secure_channel_->Write(std::move(request))) {
+    auto [it, inserted] =
+        pending_requests_.emplace(request_id, std::move(callback));
+    CHECK(inserted);
+  } else {
+    // The channel is in a permanent failure state.
+    std::move(callback).Run(base::unexpected(ErrorCode::kError));
+  }
 }
 
 void Client::SendTextRequest(const std::string& text,
@@ -136,8 +150,12 @@ void Client::SendTextRequest(const std::string& text,
 void Client::SendGenerateContentRequest(
     const proto::GenerateContentRequest& request,
     OnGenerateContentRequestCompletedCallback callback) {
+  int32_t request_id = next_request_id_;
+  next_request_id_++;
+
   proto::LegionRequest request_proto;
   request_proto.set_feature_name(feature_name_);
+  request_proto.set_request_id(request_id);
   *request_proto.mutable_generate_content_request() = request;
 
   std::string serialized_request;
@@ -148,8 +166,48 @@ void Client::SendGenerateContentRequest(
   auto response_parsing_callback =
       base::BindOnce(&OnRequestSent, std::move(callback));
 
-  SendRequest(std::move(binary_encoded_proto_request),
+  SendRequest(request_id, std::move(binary_encoded_proto_request),
               std::move(response_parsing_callback));
+}
+
+void Client::FailAllPendingRequests(ErrorCode error_code) {
+  auto pending_requests = std::move(pending_requests_);
+  for (auto& entry : pending_requests) {
+    std::move(entry.second).Run(base::unexpected(error_code));
+  }
+}
+
+void Client::OnResponseReceived(
+    base::expected<BinaryEncodedProtoResponse, ErrorCode> result) {
+  if (!result.has_value()) {
+    // The secure channel is broken. Fail all pending requests.
+    FailAllPendingRequests(result.error());
+    return;
+  }
+
+  proto::LegionResponse legion_response;
+  if (!legion_response.ParseFromArray(result->data(), result->size())) {
+    LOG(ERROR) << "Failed to parse LegionResponse";
+    // This is a protocol error. We don't know which request this response was
+    // for, so we fail all of them.
+    FailAllPendingRequests(ErrorCode::kResponseParseError);
+    return;
+  }
+
+  auto it = pending_requests_.find(legion_response.request_id());
+  if (it == pending_requests_.end()) {
+    DLOG(ERROR) << "Received response for unknown request_id: "
+                << legion_response.request_id();
+    // This could be a response to a request that has already timed out and was
+    // removed from the pending list. In this case we should just ignore it and
+    // not cancel other pending requests.
+    return;
+  }
+
+  auto callback = std::move(it->second);
+  pending_requests_.erase(it);
+
+  std::move(callback).Run(std::move(result));
 }
 
 }  // namespace legion

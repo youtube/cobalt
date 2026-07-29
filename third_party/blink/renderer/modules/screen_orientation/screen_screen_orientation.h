@@ -16,15 +16,15 @@ class Screen;
 
 class ScreenScreenOrientation final
     : public GarbageCollected<ScreenScreenOrientation>,
-      public Supplement<Screen> {
+      public GarbageCollectedMixin {
  public:
-  static const char kSupplementName[];
+  static const unsigned kSupplementIndex;
 
   static ScreenScreenOrientation& From(Screen&);
 
   static ScreenOrientation* orientation(Screen&);
 
-  explicit ScreenScreenOrientation(Screen& screen);
+  explicit ScreenScreenOrientation() = default;
 
   void Trace(Visitor*) const override;
 

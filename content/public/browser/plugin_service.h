@@ -41,10 +41,9 @@ class CONTENT_EXPORT PluginService {
 
   // Tells all the renderer processes associated with the given browser context
   // to throw away their cache of the plugin list, and optionally also reload
-  // all the pages with plugins. If |browser_context| is nullptr, purges the
+  // all the pages with plugins. If `browser_context` is nullptr, purges the
   // cache in all renderers.
-  static void PurgePluginListCache(BrowserContext* browser_context,
-                                   bool reload_pages);
+  static void PurgePluginListCache(BrowserContext* browser_context);
 
   virtual ~PluginService() {}
 
@@ -57,7 +56,6 @@ class CONTENT_EXPORT PluginService {
   virtual bool GetPluginInfoArray(
       const GURL& url,
       const std::string& mime_type,
-      bool allow_wildcard,
       std::vector<WebPluginInfo>* info,
       std::vector<std::string>* actual_mime_types) = 0;
 
@@ -67,7 +65,6 @@ class CONTENT_EXPORT PluginService {
   virtual bool GetPluginInfo(content::BrowserContext* browser_context,
                              const GURL& url,
                              const std::string& mime_type,
-                             bool allow_wildcard,
                              bool* is_stale,
                              WebPluginInfo* info,
                              std::string* actual_mime_type) = 0;
@@ -79,11 +76,11 @@ class CONTENT_EXPORT PluginService {
 
   // Asynchronously loads plugins if necessary and then calls back to the
   // provided function on the calling sequence on completion.
-  virtual void GetPlugins(GetPluginsCallback callback) = 0;
+  virtual void GetPluginsAsync(GetPluginsCallback callback) = 0;
 
   // Synchronously loads plugins if necessary and returns the list of plugin
-  // infos.
-  virtual std::vector<WebPluginInfo> GetPluginsSynchronous() = 0;
+  // infos. This does not block and is safe to call on the UI thread.
+  virtual const std::vector<WebPluginInfo>& GetPlugins() = 0;
 
   virtual void SetFilter(PluginServiceFilter* filter) = 0;
   virtual PluginServiceFilter* GetFilter() = 0;

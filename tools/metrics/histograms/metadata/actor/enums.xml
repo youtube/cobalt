@@ -58,6 +58,7 @@ chromium-metrics-reviews@google.com.
   <int value="37" label="ExecutionEngineExistingAction"/>
   <int value="38" label="ExternalProtocolNavigationBlocked"/>
   <int value="100" label="NavigateInvalidUrl"/>
+  <int value="101" label="NavigateFailedToStart"/>
   <int value="200" label="ClickSuppressed"/>
   <int value="300" label="DragAndReleaseFromOffscreen"/>
   <int value="301" label="DragAndReleaseToOffscreen"/>
@@ -95,6 +96,11 @@ chromium-metrics-reviews@google.com.
   <int value="906" label="LoginDeviceReauthRequired"/>
   <int value="907" label="LoginDeviceReauthFailed"/>
   <int value="1000" label="MediaControlNoMedia"/>
+  <int value="1100" label="FormFillingAutofillUnavailable"/>
+  <int value="1101" label="FormFillingNoSuggestionsAvailable"/>
+  <int value="1102" label="FormFillingDialogError"/>
+  <int value="1103" label="FormFillingFieldNotFound"/>
+  <int value="1104" label="FormFillingUnknownAutofillError"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/actor.mojom:ActionResultCode) -->
@@ -119,6 +125,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/actor/ui/event_dispatcher.h:ComputedTargetResult) -->
 
+<!-- LINT.IfChange(GatingDecision) -->
+
+<enum name="GatingDecision">
+  <int value="0" label="kAllowSameOrigin"/>
+  <int value="1" label="kAllowByStaticList"/>
+  <int value="2" label="kBlockByStaticList"/>
+  <int value="3" label="kNeedsAsyncCheck"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/actor/execution_engine.h:GatingDecision) -->
+
 <!-- LINT.IfChange(GetDomNodeResult) -->
 
 <enum name="GetDomNodeResult">
@@ -139,6 +156,21 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/actor/ui/event_dispatcher.h:ModelPageTargetType) -->
+
+<!-- LINT.IfChange(PageStabilityOutcome) -->
+
+<enum name="PageStabilityOutcome">
+  <int value="0" label="kUnknown"/>
+  <int value="1" label="kNetworkAndMainThread"/>
+  <int value="2" label="kNetworkAndMainThreadDelayed"/>
+  <int value="3" label="kPaint"/>
+  <int value="4" label="kPaintDelayed"/>
+  <int value="5" label="kTimeout"/>
+  <int value="6" label="kRenderFrameGoingAway"/>
+  <int value="7" label="kMojoDisconnected"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/common/actor/page_stability_metrics_common.h:PageStabilityOutcome) -->
 
 <!-- LINT.IfChange(TimeOfUseResult) -->
 

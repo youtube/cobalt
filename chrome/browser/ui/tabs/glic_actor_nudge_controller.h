@@ -35,6 +35,12 @@ class GlicActorNudgeController {
 
   void OnStateUpdate(const ActorTaskNudgeState& actor_task_nudge_state);
 
+  // TODO(crbug.com/446871477): Add to actor/resources/common_resources post
+  // M143.
+  static constexpr std::u16string GetCheckTasksNudgeLabel() {
+    return u"Check your tasks";
+  }
+
  private:
   // Subscribe to updates from the GlicActorTaskIconManager.
   void RegisterActorNudgeStateCallback();
@@ -42,6 +48,10 @@ class GlicActorNudgeController {
   // Get the current actor nudge state and update the UI. Called on
   // window creation to maintain state across multiple windows.
   void UpdateCurrentActorNudgeState();
+
+  // Only update the nudge label if it's already showing, otherwise retrigger
+  // the nudge. Always shows the task list bubble after.
+  void UpdateNudgeLabelOrRetrigger(std::u16string nudge_label_text);
 
   const raw_ptr<Profile> profile_;
   raw_ptr<BrowserWindowInterface> browser_;

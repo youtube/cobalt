@@ -130,7 +130,7 @@ class ArcAppPerformanceTracingTest : public BrowserWithTestWindowTest {
 
     BrowserWithTestWindowTest::SetUp();
 
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
     tracing_helper_.SetUp(profile());
 
     ArcAppPerformanceTracing::SetFocusAppForTesting(
@@ -143,9 +143,11 @@ class ArcAppPerformanceTracingTest : public BrowserWithTestWindowTest {
     shell_root_surface_.reset();
 
     tracing_helper_.TearDown();
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
 
     BrowserWithTestWindowTest::TearDown();
+
+    arc_app_test_.PostProfileTearDown();
   }
 
   TestingProfile* CreateProfile(const std::string& profile_name) override {

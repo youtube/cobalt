@@ -7,6 +7,7 @@ import {ComposeboxElement, ComposeboxProxyImpl} from 'chrome://new-tab-page/lazy
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {FileUploadErrorType, FileUploadStatus} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
+import type {RecentTabChipElement} from 'chrome://resources/cr_components/composebox/recent_tab_chip.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
@@ -853,24 +854,23 @@ suite('NewTabPageComposeboxTest', () => {
         createAutocompleteResult({matches}));
     await microtasksFinished();
     assertTrue(await areMatchesShowing());
-    const matchEls =
-        composeboxElement.$.matches.shadowRoot.querySelectorAll(
-            'cr-composebox-match');
 
-    // Case 1: composeboxCloseByEscape_ = false. Escape should select the
-    // first suggestion.
+    // Case 1: composeboxCloseByEscape_ = false. Escape should clear the text.
     (composeboxElement as any).composeboxCloseByEscape_ = false;
-    assertFalse(matchEls[0]!.hasAttribute(Attributes.SELECTED));
     const closePromise = eventToPromise('close-composebox', composeboxElement);
     let closed = false;
     closePromise.then(() => closed = true);
+
+    composeboxElement.$.input.value = 'test';
+    composeboxElement.$.input.dispatchEvent(new Event('input'));
+    await microtasksFinished();
 
     composeboxElement.$.input.dispatchEvent(new KeyboardEvent(
         'keydown', {key: 'Escape', bubbles: true, composed: true}));
     await microtasksFinished();
 
     assertFalse(closed);
-    assertTrue(matchEls[0]!.hasAttribute(Attributes.SELECTED));
+    assertEquals('', composeboxElement.$.input.value);
 
     // Case 2: composeboxCloseByEscape_ = true. Escape should close the
     // composebox.
@@ -1926,6 +1926,10 @@ suite('NewTabPageComposeboxTest', () => {
     loadTimeData.overrideValues({'composeboxFileMaxCount': 1});
     createComposeboxElement();
 
+    searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
+      return Promise.resolve({token: {low: BigInt(123), high: BigInt(0)}});
+    });
+
     const pngFile1 = new File(['foo'], 'foo1.png', {type: 'image/png'});
     const pngFile2 = new File(['foo'], 'foo2.png', {type: 'image/png'});
     const dataTransfer = new DataTransfer();
@@ -1937,14 +1941,17 @@ suite('NewTabPageComposeboxTest', () => {
       cancelable: true,
       composed: true,
     });
+    const errorEventPromise =
+        eventToPromise('on-file-validation-error', composeboxElement.$.context);
 
     // Act.
     composeboxElement.$.input.dispatchEvent(pasteEvent);
+    await searchboxHandler.whenCalled(ADD_FILE_CONTEXT_FN);
     await microtasksFinished();
 
     // Assert.
-    // Check that no files were added.
-    assertEquals(0, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
+    // Check that only one files were added.
+    assertEquals(1, searchboxHandler.getCallCount(ADD_FILE_CONTEXT_FN));
 
     // Check that the "too many files" metric was recorded (Enum value 1).
     assertEquals(
@@ -1955,6 +1962,12 @@ suite('NewTabPageComposeboxTest', () => {
 
     // Check that the paste event was prevented.
     assertTrue(pasteEvent.defaultPrevented);
+
+    // Check whether the right error would show up.
+    const errorEvent = await errorEventPromise;
+    assertEquals(
+        loadTimeData.getString('maxFilesReachedError'),
+        errorEvent.detail.errorMessage);
   });
 
   test('pasting unsupported files fires validation error', async () => {
@@ -1981,7 +1994,7 @@ suite('NewTabPageComposeboxTest', () => {
     // Check that the correct error event was fired.
     const errorEvent = await errorEventPromise;
     assertEquals(
-        loadTimeData.getString('composeboxFileUploadImageProcessingError'),
+        loadTimeData.getString('composeFileTypesAllowedError'),
         errorEvent.detail.errorMessage);
 
     // Check that no files were added.
@@ -2017,6 +2030,335 @@ suite('NewTabPageComposeboxTest', () => {
         assertFalse(pasteEvent.defaultPrevented);
       });
 
+  test(
+      'pasting mixed files is processesed correctly ',
+      async () => {
+        // Arrange.
+        loadTimeData.overrideValues({'composeboxFileMaxCount': 5});
+        createComposeboxElement();
+        let i = 0;
+        searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
+          i += 1;
+          return Promise.resolve(
+              {token: {low: BigInt(i + 1), high: BigInt(i + 2)}});
+        });
+        const pngFile = new File(['foo'], 'foo.png', {type: 'image/png'});
+        const pdfFile = new File(['foo'], 'foo.pdf', {type: 'application/pdf'});
+
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(pngFile);
+        dataTransfer.items.add(pdfFile);
+        const pasteEvent = new ClipboardEvent('paste', {
+          clipboardData: dataTransfer,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        });
+
+        // Act.
+        composeboxElement.$.input.dispatchEvent(pasteEvent);
+
+        //Wait for both files to be processed (addFileContext called twice).
+        await waitForAddFileCallCount(2);
+        await microtasksFinished();
+
+        // Assert.
+        // Check if the Carousel received 2 files.
+        const files = composeboxElement.$.context.$.carousel.files;
+        assertEquals(files.length, 2);
+
+        //  Check if the image was identified as an image.
+        //  (has objectUrl) and the PDF was identified as a PDF (no objectUrl).
+        const imageFile = files.find(f => f.type.includes('image'));
+        const pdfFileInCarousel = files.find(f => f.type.includes('pdf'));
+
+        // Ensure we found both.
+        assertTrue(!!imageFile);
+        assertTrue(!!pdfFileInCarousel);
+
+        // Validate the image (it must have an objectUrl for preview).
+        assertTrue(
+            !!imageFile.objectUrl,
+            'Image file should have an objectUrl for preview');
+
+        // Validate the PDF (it must have null objectUrl to show the icon).
+        assertEquals(
+            pdfFileInCarousel.objectUrl, null,
+            'PDF file should have null objectUrl');
+      });
+
+  test('uploading 6 valid files when limit is 5 uploads 5 and shows error', async () => {
+    // Arrange.
+    loadTimeData.overrideValues({'composeboxFileMaxCount': 5});
+    createComposeboxElement();
+
+    let i = 0;
+    searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
+      i++;
+      return Promise.resolve({token: {low: BigInt(i), high: BigInt(0)}});
+    });
+
+    const validFiles = Array.from({length: 6}, (_, i) =>
+        new File(['foo'], `good${i}.png`, {type: 'image/png'}));
+
+    const dataTransfer = new DataTransfer();
+    validFiles.forEach(file => dataTransfer.items.add(file));
+
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    const errorEventPromise =
+        eventToPromise('on-file-validation-error', composeboxElement.$.context);
+
+    // Act.
+    composeboxElement.$.input.dispatchEvent(pasteEvent);
+
+    await waitForAddFileCallCount(5);
+    await microtasksFinished();
+
+    // Assert.
+    assertEquals(5, composeboxElement.$.context.$.carousel.files.length);
+
+    const errorEvent = await errorEventPromise;
+    assertEquals(
+        loadTimeData.getString('maxFilesReachedError'),
+        errorEvent.detail.errorMessage);
+
+    assertEquals(
+        1,
+        metrics.count(
+            'NewTabPage.Composebox.File.WebUI.UploadAttemptFailure',
+             1));
+  });
+
+test('upload mixed files over limit prioritizes max files error and uploads valid ones', async () => {
+  // Arrange.
+  loadTimeData.overrideValues({'composeboxFileMaxCount': 3});
+    createComposeboxElement();
+
+  let i = 0;
+    searchboxHandler.setResultMapperFor(ADD_FILE_CONTEXT_FN, () => {
+      i++;
+      return Promise.resolve({token: {low: BigInt(i), high: BigInt(0)}});
+    });
+
+    const files = [
+      new File(['foo'], 'good1.png', {type: 'image/png'}),
+      new File(['foo'], 'good2.png', {type: 'image/png'}),
+      new File(['foo'], 'good3.png', {type: 'image/png'}),
+      new File(['foo'], 'bad.txt', {type: 'text/plain'}),
+    ];
+
+    const dataTransfer = new DataTransfer();
+    files.forEach(file => dataTransfer.items.add(file));
+
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    const errorEventPromise =
+        eventToPromise('on-file-validation-error', composeboxElement.$.context);
+
+    // Act.
+    composeboxElement.$.input.dispatchEvent(pasteEvent);
+
+    await waitForAddFileCallCount(3);
+    await microtasksFinished();
+
+    // Assert.
+    assertEquals(3, composeboxElement.$.context.$.carousel.files.length);
+
+    const errorEvent = await errorEventPromise;
+    assertEquals(
+        loadTimeData.getString('maxFilesReachedError'),
+        errorEvent.detail.errorMessage);
+
+    assertEquals(
+        1,
+        metrics.count(
+            'NewTabPage.Composebox.File.WebUI.UploadAttemptFailure',
+            1));
+  });
+
+  test('isCollapsible attribute sets expanding state when true', async () => {
+    createComposeboxElement();
+    const collapsibleBox = composeboxElement;
+    (collapsibleBox as any).isCollapsible = true;
+    document.body.appendChild(collapsibleBox);
+    await collapsibleBox.updateComplete;
+
+    const collapsibleInput = collapsibleBox.$.input;
+    collapsibleBox.$.composebox.dispatchEvent(new FocusEvent('focusin'));
+    await collapsibleBox.updateComplete;
+    assertTrue(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Collapsible should be expanded initially due to focus event');
+
+    collapsibleBox.$.composebox.dispatchEvent(
+        new FocusEvent('focusout', {relatedTarget: document.body}));
+    await collapsibleBox.updateComplete;
+    assertFalse(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Collapsible should collapse on blur without text');
+
+    collapsibleBox.$.composebox.dispatchEvent(new FocusEvent('focusin'));
+    await collapsibleBox.updateComplete;
+    assertTrue(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Collapsible should expand on focus');
+
+    // Set text and re-test blur logic
+    collapsibleInput.value = 'some text';
+    collapsibleInput.dispatchEvent(new Event('input'));
+    await collapsibleBox.updateComplete;
+
+    collapsibleBox.$.composebox.dispatchEvent(
+        new FocusEvent('focusout', {relatedTarget: document.body}));
+    await collapsibleBox.updateComplete;
+    assertTrue(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Collapsible should stay expanded on blur with text');
+  });
+
+  test('isCollapsible attribute sets expanded state with file', async () => {
+    createComposeboxElement();
+    (composeboxElement as any).isCollapsible = true;
+    await microtasksFinished();
+
+    composeboxElement.$.composebox.dispatchEvent(new FocusEvent('focusin'));
+    await composeboxElement.updateComplete;
+    assertTrue(
+        composeboxElement.hasAttribute('expanding_'),
+        'Collapsible should be expanded initially due to focus event');
+
+    // Initially, carousel is not shown.
+    assertFalse(composeboxElement.hasAttribute('show-file-carousel_'));
+
+    // Set a thumbnail.
+    const thumbnailUrl = 'data:image/png;base64,sometestdata';
+    searchboxCallbackRouterRemote.addFileContext(FAKE_TOKEN_STRING, {
+      fileName: 'Visual Selection',
+      mimeType: 'image/png',
+      imageDataUrl: thumbnailUrl,
+      isDeletable: true,
+      selectionTime: new Date(),
+    } as SelectedFileInfo);
+    await microtasksFinished();
+
+    // Assert thumbnail is shown.
+    assertTrue(composeboxElement.hasAttribute('show-file-carousel_'));
+    const fileCarousel = composeboxElement.$.context.$.carousel;
+    assertTrue(!!fileCarousel);
+    await microtasksFinished();
+
+    composeboxElement.$.composebox.dispatchEvent(
+        new FocusEvent('focusout', {relatedTarget: document.body}));
+    await composeboxElement.updateComplete;
+    assertTrue(
+        composeboxElement.hasAttribute('expanding_'),
+        'Collapsible should remain expanded on blur with file');
+
+    // Delete the thumbnail.
+    const fileThumbnail =
+        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+    assertTrue(!!fileThumbnail);
+
+    const removeImgButton =
+        fileThumbnail.shadowRoot.querySelector<HTMLElement>('#removeImgButton');
+    assertTrue(!!removeImgButton);
+    removeImgButton.click();
+    await microtasksFinished();
+
+    // Focus the composebox again.
+    composeboxElement.$.composebox.dispatchEvent(new FocusEvent('focusin'));
+    await composeboxElement.updateComplete;
+    assertTrue(
+        composeboxElement.hasAttribute('expanding_'),
+        'Collapsible should still expand when focused in');
+
+    // Blur the composebox again.
+    composeboxElement.$.composebox.dispatchEvent(
+        new FocusEvent('focusout', {relatedTarget: document.body}));
+    await composeboxElement.updateComplete;
+    assertFalse(
+        composeboxElement.hasAttribute('expanding_'),
+        'Collapsible should collapse on blur with no file');
+  });
+
+  test('isCollapsible attribute sets expanded state when false', async () => {
+    createComposeboxElement();
+    const collapsibleBox = composeboxElement;
+    const collapsibleInput = collapsibleBox.$.input;
+    (collapsibleBox as any).isCollapsible = false;
+    await collapsibleBox.updateComplete;
+
+    // Blur the input first, since connectedCallback focuses it by default. This
+    // ensures the component is in a state where it can be collapsed.
+    collapsibleInput.blur();
+    await collapsibleBox.updateComplete;
+
+    assertTrue(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Non-collapsible should be expanded');
+  });
+
+  test('collapsible composebox collapses after query submitted', async () => {
+    createComposeboxElement();
+    const collapsibleBox = composeboxElement;
+    const collapsibleInput = collapsibleBox.$.input;
+    (collapsibleBox as any).isCollapsible = true;
+    await collapsibleBox.updateComplete;
+
+    collapsibleInput.focus();
+    collapsibleInput.value = 'some text';
+    collapsibleInput.dispatchEvent(new Event('input'));
+    await collapsibleBox.updateComplete;
+    assertTrue(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Collapsible should be expanded before submit');
+
+    // Mock an autocomplete result to allow submission.
+    const matches = [createSearchMatch({allowedToBeDefaultMatch: true})];
+    searchboxCallbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResult({
+          input: 'some text',
+          matches,
+        }));
+    await searchboxCallbackRouterRemote.$.flushForTesting();
+    await collapsibleBox.updateComplete;
+
+    // Submit query.
+    collapsibleBox.$.submitContainer.click();
+    await collapsibleBox.updateComplete;
+    await microtasksFinished();
+
+    assertStyle(composeboxElement.$.submitContainer, 'cursor', 'default');
+    assertEquals('', collapsibleInput.value, 'Input should be cleared');
+  });
+
+  test('isCollapsible attribute sets expanded state when false', async () => {
+    createComposeboxElement();
+    const collapsibleBox = composeboxElement;
+    const collapsibleInput = collapsibleBox.$.input;
+    (collapsibleBox as any).isCollapsible = false;
+    await collapsibleBox.updateComplete;
+
+    // Blur the input first, since connectedCallback focuses it by default. This
+    // ensures the component is in a state where it can be collapsed.
+    collapsibleInput.blur();
+    await collapsibleBox.updateComplete;
+
+    assertTrue(
+        collapsibleBox.hasAttribute('expanding_'),
+        'Non-collapsible should be expanded');
+  });
 
   suite('Context menu', () => {
     suiteSetup(() => {
@@ -2064,19 +2406,63 @@ suite('NewTabPageComposeboxTest', () => {
       assertEquals(files[0]!.name, sampleTabTitle);
     });
 
-    test('shows recent tab chip when suggestions are available', async () => {
-      const tabInfo = {
+    test('recent tab chip shows first available suggestion', async () => {
+      loadTimeData.overrideValues(
+        {composeboxShowZps: true, composeboxShowTypedSuggest: true});
+      const tabInfo1 = {
         tabId: 1,
-        title: 'Sample Tab',
-        url: {url: 'https://example.com'},
-        lastActive: {internalValue: 0n},
+        title: 'Tab 1',
+        url: {url: 'https://www.google.com/search?q=foo'},
+        showInRecentTabChip: false,
+      };
+      const tabInfo2 = {
+        tabId: 2,
+        title: 'Tab 2',
+        url: {url: 'https://www.example.com'},
+        showInRecentTabChip: true,
+      };
+      const tabInfo3 = {
+        tabId: 3,
+        title: 'Tab 3',
+        url: {url: 'https://www.chromium.org'},
+        showInRecentTabChip: true,
       };
       searchboxHandler.setResultFor(
-          'getRecentTabs', Promise.resolve({tabs: [tabInfo]}));
+          'getRecentTabs',
+          Promise.resolve({tabs: [tabInfo1, tabInfo2, tabInfo3]}));
       createComposeboxElement();
-      const recentTabChip = await getRecentTabChip();
-      assertTrue(
-          recentTabChip !== null, 'recent tab chip should not be visible');
+      await microtasksFinished();
+
+      // Add zps input.
+      composeboxElement.$.input.value = '';
+      composeboxElement.$.input.dispatchEvent(new Event('input'));
+      await microtasksFinished();
+
+      const composeboxDropdown =
+          composeboxElement.shadowRoot.querySelector<HTMLElement>('#matches');
+      assertTrue(!!composeboxDropdown);
+
+      // Recent tab chip should not show for no matches.
+      assertTrue(composeboxDropdown.hidden);
+      let recentTabChip = await getRecentTabChip();
+      assertFalse(!!recentTabChip);
+
+      const matches = [
+        createSearchMatch(),
+        createSearchMatch({fillIntoEdit: 'hello world 2'}),
+      ];
+      searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResult({
+            matches: matches,
+          }));
+      await microtasksFinished();
+
+      // Dropdown should show when matches are available.
+      assertFalse(composeboxDropdown.hidden);
+      recentTabChip = await getRecentTabChip();
+      assertTrue(!!recentTabChip);
+      assertEquals(tabInfo2, (recentTabChip as RecentTabChipElement).recentTab);
+      assertEquals(3, composeboxElement.$.context.tabSuggestions.length);
     });
 
     test('hides recent tab chip when tab is in context', async () => {
@@ -2084,6 +2470,7 @@ suite('NewTabPageComposeboxTest', () => {
         tabId: 1,
         title: 'Sample Tab',
         url: {url: 'https://example.com'},
+        showInRecentTabChip: true,
         lastActive: {internalValue: 0n},
       };
       searchboxHandler.setResultFor(
@@ -2093,8 +2480,18 @@ suite('NewTabPageComposeboxTest', () => {
       await microtasksFinished();
       await contextElement.updateComplete;
 
-      // Focus the input to simulate parent focus
-      composeboxElement.$.input.focus();
+      // Add zps matches to ensure recent tab chip is visible.
+      composeboxElement.$.input.value = '';
+      composeboxElement.$.input.dispatchEvent(new Event('input'));
+      await microtasksFinished();
+      const matches = [
+        createSearchMatch(),
+        createSearchMatch({fillIntoEdit: 'hello world 2'}),
+      ];
+      searchboxCallbackRouterRemote.autocompleteResultChanged(
+          createAutocompleteResult({
+            matches: matches,
+          }));
       await microtasksFinished();
 
       let recentTabChip = await getRecentTabChip();

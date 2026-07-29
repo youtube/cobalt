@@ -11,11 +11,13 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Looper;
@@ -55,6 +57,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
+import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.web_app_header.R;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
@@ -210,9 +213,12 @@ public class WebAppHeaderLayoutCoordinatorTest {
     private int getMinButtonWidth(@DisplayMode.EnumType int displayMode) {
         int totalWidth = 0;
 
-        // Back and reload buttons.
         if (displayMode == DisplayMode.MINIMAL_UI) {
+            // Back and reload buttons.
             totalWidth += HEADER_CONTROL_BUTTON_DP * 2;
+        } else if (displayMode == DisplayMode.WINDOW_CONTROLS_OVERLAY) {
+            // Toggle button, plus a 2-button buffer for the header content.
+            totalWidth += HEADER_CONTROL_BUTTON_DP * 3;
         }
         return totalWidth + BUTTON_PADDING_DP;
     }
@@ -232,21 +238,32 @@ public class WebAppHeaderLayoutCoordinatorTest {
                 mActivity.findViewById(R.id.back_button).isEnabled());
     }
 
-    private void verifyControlsVisibility(int expectedVisibility) {
-        assertEquals(
-                String.format(
-                        Locale.US,
-                        "Reload button visibility should be %s",
-                        expectedVisibility == View.VISIBLE ? "visible" : "gone"),
-                expectedVisibility,
-                mActivity.findViewById(R.id.refresh_button).getVisibility());
-        assertEquals(
-                String.format(
-                        Locale.US,
-                        "Back button visibility should be %s",
-                        expectedVisibility == View.VISIBLE ? "visible" : "gone"),
-                expectedVisibility,
-                mActivity.findViewById(R.id.back_button).getVisibility());
+    private void verifyControlsVisibility(
+            @DisplayMode.EnumType int displayMode, int expectedVisibility) {
+        if (displayMode == DisplayMode.MINIMAL_UI) {
+            assertEquals(
+                    String.format(
+                            Locale.US,
+                            "Reload button visibility should be %s",
+                            expectedVisibility == View.VISIBLE ? "visible" : "gone"),
+                    expectedVisibility,
+                    mActivity.findViewById(R.id.refresh_button).getVisibility());
+            assertEquals(
+                    String.format(
+                            Locale.US,
+                            "Back button visibility should be %s",
+                            expectedVisibility == View.VISIBLE ? "visible" : "gone"),
+                    expectedVisibility,
+                    mActivity.findViewById(R.id.back_button).getVisibility());
+        } else if (displayMode == DisplayMode.WINDOW_CONTROLS_OVERLAY) {
+            assertEquals(
+                    String.format(
+                            Locale.US,
+                            "Toggle button visibility should be %s",
+                            expectedVisibility == View.VISIBLE ? "visible" : "gone"),
+                    expectedVisibility,
+                    mActivity.findViewById(R.id.wco_toggle_button).getVisibility());
+        }
     }
 
     private void verifyHeaderContainsNonDraggableAreas(List<Rect> expectedNonDraggableAreas) {
@@ -322,7 +339,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         var reloadButton = mActivity.findViewById(R.id.refresh_button);
         var backButton = mActivity.findViewById(R.id.back_button);
 
-        verifyControlsVisibility(View.VISIBLE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.VISIBLE);
         assertTrue("Reload button should be enabled", reloadButton.isEnabled());
         assertFalse("Back button should be disabled", backButton.isEnabled());
         verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
@@ -348,7 +365,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         mShadowLooper.idle();
 
         // Verify buttons are not visible and the whole header is draggable.
-        verifyControlsVisibility(View.GONE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.GONE);
         verifyWholeHeaderIsDraggable();
     }
 
@@ -372,7 +389,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         mShadowLooper.idle();
 
         // Verify buttons visible and draggable area is updated.
-        verifyControlsVisibility(View.VISIBLE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.VISIBLE);
         verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
     }
 
@@ -397,7 +414,81 @@ public class WebAppHeaderLayoutCoordinatorTest {
                 /* isInDesktopWindow= */ true);
 
         notifyHeaderStateChanged();
-        verifyControlsVisibility(View.VISIBLE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.VISIBLE);
+    }
+
+    @Test
+    public void testWCOMinimizeWindow_ControlsDoNotFit_HideControls() {
+        // Init header in a window with enough space and wait for flexible area and layout updates
+        // to propagate.
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        setupDisplayMode(DisplayMode.WINDOW_CONTROLS_OVERLAY);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        // Emulate minimizing window.
+        int flexibleAreaWidth = getMinButtonWidth(DisplayMode.WINDOW_CONTROLS_OVERLAY) - 1;
+        setupDesktopWindowing(
+                new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
+                new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
+                /* isInDesktopWindow= */ true);
+        notifyHeaderStateChanged();
+        mShadowLooper.idle();
+
+        // Verify buttons are not visible and the whole header is draggable.
+        verifyControlsVisibility(DisplayMode.WINDOW_CONTROLS_OVERLAY, View.GONE);
+        verifyWholeHeaderIsDraggable();
+    }
+
+    @Test
+    public void testWCOMaximizeWindow_ControlsFit_ShowControls() {
+        // Emulate minimized window.
+        int flexibleAreaWidth = getMinButtonWidth(DisplayMode.WINDOW_CONTROLS_OVERLAY) - 1;
+        setupDesktopWindowing(
+                new Rect(0, 0, LEFT_INSET + flexibleAreaWidth + RIGHT_INSET, SCREEN_HEIGHT),
+                new Rect(LEFT_INSET, 0, LEFT_INSET + flexibleAreaWidth, SYS_APP_HEADER_HEIGHT),
+                /* isInDesktopWindow= */ true);
+
+        setupDisplayMode(DisplayMode.WINDOW_CONTROLS_OVERLAY);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+        mShadowLooper.idle();
+
+        // Emulate maximizing window.
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        notifyHeaderStateChanged();
+        mShadowLooper.idle();
+
+        // Verify buttons visible and draggable area is updated.
+        verifyControlsVisibility(DisplayMode.WINDOW_CONTROLS_OVERLAY, View.VISIBLE);
+        verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
+    }
+
+    @Test
+    public void testWCOMinimizeWindow_MinimumWidthMatchThreshold_KeepControlsVisible() {
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        setupDisplayMode(DisplayMode.WINDOW_CONTROLS_OVERLAY);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+
+        setupDesktopWindowing(
+                new Rect(
+                        0,
+                        0,
+                        LEFT_INSET
+                                + getMinButtonWidth(DisplayMode.WINDOW_CONTROLS_OVERLAY)
+                                + RIGHT_INSET,
+                        SCREEN_HEIGHT),
+                new Rect(
+                        LEFT_INSET,
+                        0,
+                        LEFT_INSET + getMinButtonWidth(DisplayMode.WINDOW_CONTROLS_OVERLAY),
+                        SYS_APP_HEADER_HEIGHT),
+                /* isInDesktopWindow= */ true);
+
+        notifyHeaderStateChanged();
+        verifyControlsVisibility(DisplayMode.WINDOW_CONTROLS_OVERLAY, View.VISIBLE);
     }
 
     @Test
@@ -466,7 +557,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         notifyHeaderStateChanged();
         mShadowLooper.idle();
 
-        verifyControlsVisibility(View.GONE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.GONE);
         var menuButton = mActivity.findViewById(R.id.menu_button_wrapper);
         assertTrue("Menu button should be gone", menuButton.getVisibility() == View.GONE);
         verifyWholeHeaderIsDraggable();
@@ -495,7 +586,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         mShadowLooper.idle();
 
         // Buttons should be visible and undraggable.
-        verifyControlsVisibility(View.VISIBLE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.VISIBLE);
         var menuButton = mActivity.findViewById(R.id.menu_button);
         assertTrue("Menu button should be visible", menuButton.getVisibility() == View.VISIBLE);
         verifyHeaderContainsNonDraggableAreas(mCoordinator.collectControlPositions());
@@ -515,7 +606,7 @@ public class WebAppHeaderLayoutCoordinatorTest {
         var backButton = mActivity.findViewById(R.id.back_button);
         var menuButton = mActivity.findViewById(R.id.menu_button);
 
-        verifyControlsVisibility(View.VISIBLE);
+        verifyControlsVisibility(DisplayMode.MINIMAL_UI, View.VISIBLE);
         assertTrue("Menu button should be visible", menuButton.getVisibility() == View.VISIBLE);
 
         assertTrue("Reload button should be enabled", reloadButton.isEnabled());
@@ -602,5 +693,20 @@ public class WebAppHeaderLayoutCoordinatorTest {
     @Test
     public void testDisplayModePiPUMA() {
         testDisplayModeUMA(DisplayMode.PICTURE_IN_PICTURE);
+    }
+
+    @Test
+    public void testWindowControlsOverlayToggleButtonColor() {
+        setupDesktopWindowing(/* isInDesktopWindow= */ true);
+        setupDisplayMode(DisplayMode.WINDOW_CONTROLS_OVERLAY);
+        setupTab(/* isLoading= */ false, /* canGoBack= */ false);
+        createCoordinator();
+
+        var tint = mock(ColorStateList.class);
+        mCoordinator.onTintChanged(tint, tint, BrandedColorScheme.APP_DEFAULT);
+        assertEquals(
+                "Tint change should be propagated to the toggle button",
+                mCoordinator.getToggleButtonImageTintList(),
+                tint);
     }
 }

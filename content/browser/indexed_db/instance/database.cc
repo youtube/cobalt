@@ -47,7 +47,6 @@
 #include "content/browser/indexed_db/instance/connection.h"
 #include "content/browser/indexed_db/instance/cursor.h"
 #include "content/browser/indexed_db/instance/database_callbacks.h"
-#include "content/browser/indexed_db/instance/factory_client.h"
 #include "content/browser/indexed_db/instance/index_writer.h"
 #include "content/browser/indexed_db/instance/pending_connection.h"
 #include "content/browser/indexed_db/instance/transaction.h"
@@ -302,8 +301,8 @@ void Database::RegisterAndScheduleTransaction(Transaction* transaction) {
   TRACE_EVENT1("IndexedDB", "Database::RegisterAndScheduleTransaction",
                "txn.id", transaction->id());
   // Locks for version change transactions are covered by `ConnectionRequest`.
-  DCHECK_NE(transaction->mode(),
-            blink::mojom::IDBTransactionMode::VersionChange);
+  CHECK_NE(transaction->mode(),
+           blink::mojom::IDBTransactionMode::VersionChange);
   std::vector<PartitionedLockManager::PartitionedLockRequest> lock_requests =
       BuildLockRequestsForTransaction(transaction->mode(),
                                       transaction->scope());
@@ -337,49 +336,31 @@ Status Database::RunTasks() {
   // complete.
   while (transactions_removed) {
     transactions_removed = false;
-    Transaction* finished_upgrade_transaction = nullptr;
-    bool upgrade_transaction_commmitted = false;
+    base::RepeatingClosure on_upgrade_transaction_finished;
     for (Connection* connection : connections_) {
       std::vector<int64_t> txns_to_remove;
-      for (const auto& id_txn_pair : connection->transactions()) {
-        Transaction* txn = id_txn_pair.second.get();
-        // Determine if the transaction's task queue should be processed.
+      for (auto const& [_, txn] : connection->transactions()) {
+        // Process the queue for transactions that are STARTED or COMMITTING.
         switch (txn->state()) {
-          case Transaction::FINISHED:
-            if (txn->mode() ==
-                blink::mojom::IDBTransactionMode::VersionChange) {
-              finished_upgrade_transaction = txn;
-              upgrade_transaction_commmitted = !txn->aborted();
-            }
-            txns_to_remove.push_back(id_txn_pair.first);
-            continue;
           case Transaction::CREATED:
             continue;
           case Transaction::STARTED:
           case Transaction::COMMITTING:
+            IDB_RETURN_IF_ERROR(txn->RunTasks());
+            break;
+          case Transaction::FINISHED:
             break;
         }
 
-        // Process the queue for transactions that are STARTED or COMMITTING.
-        // Add transactions that can be removed to a queue.
-        StatusOr<Transaction::RunTasksResult> task_result = txn->RunTasks();
-        if (!task_result.has_value()) {
-          return task_result.error();
-        }
-
-        switch (task_result.value()) {
-          case Transaction::RunTasksResult::kCommitted:
-          case Transaction::RunTasksResult::kAborted:
-            if (txn->mode() ==
-                blink::mojom::IDBTransactionMode::VersionChange) {
-              DCHECK(!finished_upgrade_transaction);
-              finished_upgrade_transaction = txn;
-              upgrade_transaction_commmitted = !txn->aborted();
-            }
-            txns_to_remove.push_back(txn->id());
-            break;
-          case Transaction::RunTasksResult::kNotFinished:
-            continue;
+        if (txn->state() == Transaction::FINISHED) {
+          if (txn->mode() == blink::mojom::IDBTransactionMode::VersionChange) {
+            CHECK(!on_upgrade_transaction_finished);
+            on_upgrade_transaction_finished = base::BindRepeating(
+                &ConnectionCoordinator::OnUpgradeTransactionFinished,
+                base::Unretained(&connection_coordinator_),
+                /*committed=*/!txn->aborted());
+          }
+          txns_to_remove.push_back(txn->id());
         }
       }
       // Do the removals.
@@ -387,9 +368,8 @@ Status Database::RunTasks() {
         connection->RemoveTransaction(id);
         transactions_removed = true;
       }
-      if (finished_upgrade_transaction) {
-        connection_coordinator_.OnUpgradeTransactionFinished(
-            upgrade_transaction_commmitted);
+      if (on_upgrade_transaction_finished) {
+        on_upgrade_transaction_finished.Run();
       }
     }
   }
@@ -406,7 +386,7 @@ size_t Database::GetNumTransactionsAcrossAllConnections() const {
 
 Status Database::ForceCloseAndRunTasks(const std::string& message) {
   if (!bucket_context_->ShouldUseSqlite()) {
-    DCHECK(!force_closing_);
+    CHECK(!force_closing_);
   } else if (force_closing_) {
     // Re-entrancy can validly occur if there's an error in the code below,
     // e.g. in `CloseAndReportForceClose`.
@@ -426,13 +406,13 @@ Status Database::ForceCloseAndRunTasks(const std::string& message) {
   Status status;
   do {
     std::tie(task_state, status) = connection_coordinator_.ExecuteTask(false);
-    DCHECK(task_state !=
-           ConnectionCoordinator::ExecuteTaskResult::kPendingAsyncWork)
+    CHECK(task_state !=
+          ConnectionCoordinator::ExecuteTaskResult::kPendingAsyncWork)
         << "There are no more connections, so all tasks should be able to "
            "complete synchronously.";
   } while (task_state != ConnectionCoordinator::ExecuteTaskResult::kDone &&
            task_state != ConnectionCoordinator::ExecuteTaskResult::kError);
-  DCHECK(connections_.empty());
+  CHECK(connections_.empty());
   bucket_context_->QueueRunTasks();
   return status;
 }
@@ -445,7 +425,7 @@ void Database::ScheduleOpenConnection(
 }
 
 void Database::ScheduleDeleteDatabase(
-    std::unique_ptr<FactoryClient> factory_client,
+    mojo::AssociatedRemote<blink::mojom::IDBFactoryClient> factory_client,
     base::OnceClosure on_deletion_complete) {
   connection_coordinator_.ScheduleDeleteDatabase(
       std::move(factory_client), std::move(on_deletion_complete));
@@ -456,7 +436,7 @@ Status Database::VersionChangeOperation(int64_t version,
   TRACE_EVENT1("IndexedDB", "Database::VersionChangeOperation", "txn.id",
                transaction->id());
   int64_t old_version = metadata().version;
-  DCHECK_GT(version, old_version);
+  CHECK_GT(version, old_version);
 
   IDB_RETURN_IF_ERROR(
       transaction->BackingStoreTransaction()->SetDatabaseVersion(version));
@@ -855,7 +835,7 @@ Status Database::OpenCursorOperation(
   StatusOr<std::unique_ptr<BackingStore::Cursor>> backing_store_cursor;
   if (params->index_id == IndexedDBIndexMetadata::kInvalidId) {
     if (params->cursor_type == CursorType::kKeyOnly) {
-      DCHECK_EQ(params->task_type, blink::mojom::IDBTaskType::Normal);
+      CHECK_EQ(params->task_type, blink::mojom::IDBTaskType::Normal);
       backing_store_cursor =
           transaction->BackingStoreTransaction()->OpenObjectStoreKeyCursor(
               params->object_store_id, params->key_range, params->direction);
@@ -865,7 +845,7 @@ Status Database::OpenCursorOperation(
               params->object_store_id, params->key_range, params->direction);
     }
   } else {
-    DCHECK_EQ(params->task_type, blink::mojom::IDBTaskType::Normal);
+    CHECK_EQ(params->task_type, blink::mojom::IDBTaskType::Normal);
     if (params->cursor_type == CursorType::kKeyOnly) {
       backing_store_cursor =
           transaction->BackingStoreTransaction()->OpenIndexKeyCursor(
@@ -1065,15 +1045,17 @@ std::unique_ptr<Connection> Database::CreateConnection(
     mojo::Remote<storage::mojom::IndexedDBClientStateChecker>
         client_state_checker,
     base::UnguessableToken client_token,
-    int scheduling_priority) {
+    int scheduling_priority,
+    base::OnceClosure on_connection_closed) {
   auto connection = std::make_unique<Connection>(
       *bucket_context_, weak_factory_.GetWeakPtr(),
       base::BindRepeating(&Database::VersionChangeIgnored,
                           weak_factory_.GetWeakPtr()),
-      base::BindOnce(&Database::ConnectionClosed, weak_factory_.GetWeakPtr()),
+      base::BindOnce(&Database::ConnectionClosed, weak_factory_.GetWeakPtr(),
+                     std::move(on_connection_closed)),
       std::move(database_callbacks), std::move(client_state_checker),
       client_token, scheduling_priority);
-  connections_.insert(connection.get());
+  connections_.push_back(connection.get());
   return connection;
 }
 
@@ -1126,14 +1108,17 @@ void Database::SendVersionChangeToAllConnections(int64_t old_version,
   }
 }
 
-void Database::ConnectionClosed(Connection* connection) {
+void Database::ConnectionClosed(base::OnceClosure forward_on_close,
+                                Connection& connection) {
   TRACE_EVENT0("IndexedDB", "Database::ConnectionClosed");
   // Ignore connection closes during force close to prevent re-entry.
   if (force_closing_) {
     return;
   }
-  connections_.erase(connection);
-  connection_coordinator_.OnConnectionClosed(connection);
+  CHECK(connections_.remove(&connection));
+  if (forward_on_close) {
+    std::move(forward_on_close).Run();
+  }
   if (connections_.empty()) {
     connection_coordinator_.OnNoConnections();
   }

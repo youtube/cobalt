@@ -220,6 +220,8 @@ BASE_DECLARE_FEATURE(kSideBySideKeyboardShortcut);
 
 bool IsSideBySideKeyboardShortcutEnabled();
 
+BASE_DECLARE_FEATURE(kSideBySideFocusClearing);
+
 BASE_DECLARE_FEATURE(kTabbedBrowserUseNewLayout);
 
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
@@ -336,10 +338,9 @@ BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 // of the browser.
 BASE_DECLARE_FEATURE(kToolbarHeightSidePanel);
 
-bool IsToolbarPinningEnabled();
-
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
 BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
+BASE_DECLARE_FEATURE(kEnterpriseBadgingForLocalManagemenetNtpFooter);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
@@ -417,10 +418,6 @@ BASE_DECLARE_FEATURE(kSavePasswordsContextualUi);
 // Add tab group colours when viewing tab groups using the top mac OS menu bar.
 BASE_DECLARE_FEATURE(kShowTabGroupsMacSystemMenu);
 #endif  // BUILDFLAG(IS_MAC)
-
-// Controls whether browser tab loading animations are driven by the compositor
-// vs. a repeating timer.
-BASE_DECLARE_FEATURE(kCompositorLoadingAnimations);
 
 // If enabled, the by date history will show in the side panel.
 BASE_DECLARE_FEATURE(kByDateHistoryInSidePanel);

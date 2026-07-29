@@ -51,21 +51,10 @@ std::vector<blink::mojom::AILanguageCodePtr> MakeLanguageCodeVector(
 
 class AIManagerTest : public AITestUtils::AITestBase {
  protected:
-  AIManagerTest()
-      : fake_broker_(optimization_guide::FakeAdaptationAsset({
-            .config =
-                [] {
-                  optimization_guide::proto::OnDeviceModelExecutionFeatureConfig
-                      config;
-                  config.set_can_skip_text_safety(true);
-                  config.set_feature(
-                      optimization_guide::proto::ModelExecutionFeature::
-                          MODEL_EXECUTION_FEATURE_PROMPT_API);
-                  return config;
-                }(),
-        })) {}
+  AIManagerTest() : fake_broker_({}) {}
 
   void SetUp() override {
+    fake_broker_.UpdateModelAdaptation(fake_asset_);
     AITestUtils::AITestBase::SetUp();
     SetupMockOptimizationGuideKeyedService();
     ai_manager_ =
@@ -81,7 +70,7 @@ class AIManagerTest : public AITestUtils::AITestBase {
   void SetupMockOptimizationGuideKeyedService() override {
     AITestUtils::AITestBase::SetupMockOptimizationGuideKeyedService();
 
-    ON_CALL(*mock_optimization_guide_keyed_service_, StartSession(_, _))
+    ON_CALL(*mock_optimization_guide_keyed_service_, StartSession(_, _, _))
         .WillByDefault(
             [&] { return std::make_unique<NiceMock<MockSession>>(&session_); });
     ON_CALL(session_, GetTokenLimits())
@@ -105,7 +94,7 @@ class AIManagerTest : public AITestUtils::AITestBase {
     ON_CALL(*mock_optimization_guide_keyed_service_, CreateModelBrokerClient())
         .WillByDefault([&]() {
           return std::make_unique<optimization_guide::ModelBrokerClient>(
-              fake_broker_.BindAndPassRemote());
+              fake_broker_.BindAndPassRemote(), nullptr);
         });
   }
 
@@ -115,6 +104,18 @@ class AIManagerTest : public AITestUtils::AITestBase {
   }
 
  private:
+  optimization_guide::FakeAdaptationAsset fake_asset_{{
+      .config =
+          [] {
+            optimization_guide::proto::OnDeviceModelExecutionFeatureConfig
+                config;
+            config.set_can_skip_text_safety(true);
+            config.set_feature(
+                optimization_guide::proto::ModelExecutionFeature::
+                    MODEL_EXECUTION_FEATURE_PROMPT_API);
+            return config;
+          }(),
+  }};
   testing::NiceMock<MockSession> session_;
   optimization_guide::FakeModelBroker fake_broker_;
 };

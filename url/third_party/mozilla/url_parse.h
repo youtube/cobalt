@@ -7,6 +7,7 @@
 
 #include <iosfwd>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "base/check.h"
@@ -38,7 +39,19 @@ struct Component {
   explicit Component(std::basic_string_view<CharT> view)
       : begin(0), len(base::checked_cast<int>(view.size())) {}
 
+  // Adjusts the beginning of the component by the given offset. This is useful
+  // for adjusting component offsets when they are relative to a substring
+  // rather than the original string. Crashes if `begin + offset` overflows.
+  void OffsetBy(size_t offset) {
+    size_t new_begin = static_cast<size_t>(begin) + offset;
+    begin = base::checked_cast<int>(new_begin);
+  }
+
   constexpr int end() const { return begin + len; }
+
+  // Returns the `end` value in size_t. This crashes if this object is
+  // not valid.
+  size_t CheckedEnd() const { return base::checked_cast<size_t>(end()); }
 
   // Returns true if this component is valid, meaning the length is given.
   // Valid components may be empty to record the fact that they exist.
@@ -65,6 +78,21 @@ struct Component {
     return std::basic_string_view(&source[begin], static_cast<size_t>(len));
   }
 
+  // Returns a string_view using `source` as a backend.
+  template <typename CharT>
+  std::basic_string_view<CharT> AsViewOn(
+      std::basic_string_view<CharT> source) const {
+    DCHECK(is_valid());
+    return source.substr(static_cast<size_t>(begin), static_cast<size_t>(len));
+  }
+
+  // Returns a string_view using `source` as a backend.
+  template <typename CharT>
+  std::basic_string_view<CharT> AsViewOn(
+      const std::basic_string<CharT>& source) const {
+    return AsViewOn(std::basic_string_view<CharT>(source));
+  }
+
   // Returns a std::optional<string_view> using `source` as a backend.
   // Returns std::nullopt if the component is invalid.
   template <typename CharT>
@@ -74,6 +102,25 @@ struct Component {
       return std::nullopt;
     }
     return std::basic_string_view(&source[begin], len);
+  }
+
+  // Returns a std::optional<string_view> using `source` as a backend.
+  // Returns std::nullopt if the component is invalid.
+  template <typename CharT>
+  std::optional<std::basic_string_view<CharT>> MaybeAsViewOn(
+      std::basic_string_view<CharT> source) const {
+    if (!is_valid()) {
+      return std::nullopt;
+    }
+    return source.substr(static_cast<size_t>(begin), static_cast<size_t>(len));
+  }
+
+  // Returns a std::optional<string_view> using `source` as a backend.
+  // Returns std::nullopt if the component is invalid.
+  template <typename CharT>
+  std::optional<std::basic_string_view<CharT>> MaybeAsViewOn(
+      const std::basic_string<CharT>& source) const {
+    return MaybeAsViewOn(std::basic_string_view<CharT>(source));
   }
 
   int begin;  // Byte offset in the string of this component.

@@ -272,7 +272,7 @@ chromium-metrics-reviews@google.com.
       label="Registration in a context that cannot set bound cookies"/>
   <int value="38" label="Network error"/>
   <int value="39" label="Proxy error"/>
-  <int value="40" label="Invalid configuration JSON"/>
+  <int value="40" label="Invalid configuration JSON (DEPRECATED 2)"/>
   <int value="41" label="Empty session config for registration"/>
   <int value="42" label="Invalid credentials configuration"/>
   <int value="43" label="Invalid credentials - empty or non-cookie type"/>
@@ -319,6 +319,7 @@ chromium-metrics-reviews@google.com.
   <int value="76"
       label="Site-scoped session has mismatch between host pattern and site"/>
   <int value="77" label="Signing quota exceeded"/>
+  <int value="78" label="Invalid configuration JSON"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/device_bound_sessions/session_error.h:DeviceBoundSessionError) -->
@@ -2934,6 +2935,8 @@ Called by update_net_trust_anchors.py.-->
   <int value="5" label="Automatic, by enterprise policy"/>
   <int value="6" label="Secure, by user choice"/>
   <int value="7" label="Secure, by enterprise policy"/>
+  <int value="8" label="Automatic with DoH fallback, by user choice"/>
+  <int value="9" label="Automatic with DoH fallback, by enterprise policy"/>
 </enum>
 
 <enum name="SharedDictionaryStoreError">
@@ -2964,9 +2967,9 @@ Called by update_net_trust_anchors.py.-->
   <int value="1" label="InvalidCapacity"/>
   <int value="2" label="InvalidMinimum"/>
   <int value="3" label="InvalidNoise"/>
-  <int value="4" label="SocketSoftCapInvalid"/>
-  <int value="5" label="SocketAllocationUnderflow"/>
-  <int value="6" label="SocketAllocationOverflow"/>
+  <int value="4" label="InvalidSocketSoftCap"/>
+  <int value="5" label="InvalidSocketInUse"/>
+  <int value="6" label="InvalidSocketAllocation"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/socket/socket_pool_additional_capacity.cc:SocketPoolAdditionalCapacityError) -->

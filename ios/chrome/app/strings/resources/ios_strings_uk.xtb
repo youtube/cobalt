@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Пошук у режимі ШІ</translation>
 <translation id="3557336313807607643">Додати до контактів</translation>
 <translation id="355765753469272474">Відмінити</translation>
+<translation id="3565012355885596568">Не вдалося завантажити зображення</translation>
 <translation id="3565930036634619844">Вкладка. <ph name="TAB_INDEX" /> з <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">В обліковому записі Google</translation>
 <translation id="3575234738189584619">Шукати через Об’єктив</translation>
@@ -1314,6 +1315,7 @@
 <translation id="6045460247888249350">Додайте назву</translation>
 <translation id="6052269326659653305">Змінити профіль</translation>
 <translation id="605721222689873409">РР</translation>
+<translation id="6058415747854995776">Зняти відео</translation>
 <translation id="6059830886158432458">Керуйте новинами й діями тут</translation>
 <translation id="6066301408025741299">Торкніться, щоб скасувати.</translation>
 <translation id="6074656473835429958">Отримувати сповіщення</translation>
@@ -1815,6 +1817,7 @@
 <translation id="7866872729285243843">Щоб мати доступ до списку читання на всіх своїх пристроях, увімкніть опцію "Список читання" в налаштуваннях.</translation>
 <translation id="7874107544081154809">Автоматично заповнити форму даними з клітинки "<ph name="CELL_ACCESSIBILITY_LABEL" />"</translation>
 <translation id="7879275349003161544">Показати завантаження</translation>
+<translation id="7882689957034389473">Зробити фото</translation>
 <translation id="7883882164760409935">У вас є повторно використані паролі.</translation>
 <translation id="7887174313503389866">Уважно перегляньте основні елементи керування конфіденційністю та безпекою. Переходьте до кожного окремого налаштування, щоб побачити більше параметрів.</translation>
 <translation id="7887198238286927132">Щоб захистити вашу конфіденційність, Chrome не буде автоматично заповнювати це поле.</translation>
@@ -1998,6 +2001,7 @@
 <translation id="8551311254462607218">В адресному рядку натисніть значок камери Google Об’єктива</translation>
 <translation id="8556590991644167667">{count,plural, =1{Ви відхилили {count} попередження}one{Ви відхилили {count} попередження}few{Ви відхилили {count} попередження}many{Ви відхилили {count} попереджень}other{Ви відхилили {count} попередження}}</translation>
 <translation id="8558046478684552694">Закрити групу.</translation>
+<translation id="8559858985063901027">Ключі доступу</translation>
 <translation id="8560253818350321773">Спочатку показувати продукти, які часто використовуються.</translation>
 <translation id="8561999115126307258">{count,plural, =1{Над клавіатурою показується {count} варіант пароля.}one{Над клавіатурою показується {count} варіант пароля.}few{Над клавіатурою показуються {count} варіанти пароля.}many{Над клавіатурою показуються {count} варіантів пароля.}other{Над клавіатурою показуються {count} варіанта пароля.}}</translation>
 <translation id="8564894539416715395">Сторінка нової вкладки</translation>

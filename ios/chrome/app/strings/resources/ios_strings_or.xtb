@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">AI ମୋଡ ମାଧ୍ୟମରେ ସର୍ଚ୍ଚ କରନ୍ତୁ</translation>
 <translation id="3557336313807607643">ଯୋଗାଯୋଗରେ ଯୋଗ କରନ୍ତୁ</translation>
 <translation id="355765753469272474">ଅନଡୁ କରନ୍ତୁ</translation>
+<translation id="3565012355885596568">ଇମେଜଗୁଡ଼ିକୁ ଲୋଡ କରାଯାଇପାରିଲା ନାହିଁ</translation>
 <translation id="3565930036634619844">ଟାବ। <ph name="NUMBER_OF_TABS" />ଟିରୁ <ph name="TAB_INDEX" />।</translation>
 <translation id="3572607909481582402">ଆପଣଙ୍କ Google ଆକାଉଣ୍ଟରେ</translation>
 <translation id="3575234738189584619">Lens ମାଧ୍ୟମରେ ସର୍ଚ୍ଚ କରନ୍ତୁ</translation>
@@ -1314,6 +1315,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="6045460247888249350">ଟାଇଟେଲ ଯୋଗ କରନ୍ତୁ</translation>
 <translation id="6052269326659653305">ପ୍ରୋଫାଇଲ ସୁଇଚ କରନ୍ତୁ</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">ଭିଡିଓ ନିଅନ୍ତୁ</translation>
 <translation id="6059830886158432458">ଏଠାରେ ଆପଣଙ୍କ ଷ୍ଟୋରୀ ଏବଂ କାର୍ଯ୍ୟକଳାପ ନିୟନ୍ତ୍ରଣ କରନ୍ତୁ</translation>
 <translation id="6066301408025741299">ବାତିଲ୍ କରିବା ପାଇଁ ଟାପ୍ କରନ୍ତୁ।</translation>
 <translation id="6074656473835429958">ବିଜ୍ଞପ୍ତିଗୁଡ଼ିକ ପାଆନ୍ତୁ</translation>
@@ -1815,6 +1817,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="7866872729285243843">ଆପଣଙ୍କର ସମସ୍ତ ଡିଭାଇସରେ ଆପଣଙ୍କ ପଢ଼ିବା ତାଲିକା ପାଇବାକୁ ସେଟିଂସରେ "ପଢ଼ିବା ତାଲିକା" ଚାଲୁ କରନ୍ତୁ।</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> ମାଧ୍ୟମରେ ଫର୍ମ ଅଟୋଫିଲ କରନ୍ତୁ</translation>
 <translation id="7879275349003161544">ଡାଉନଲୋଡଗୁଡ଼ିକୁ ଦେଖାନ୍ତୁ</translation>
+<translation id="7882689957034389473">ଫଟୋ ଉଠାନ୍ତୁ</translation>
 <translation id="7883882164760409935">ଆପଣଙ୍କ ପାଖରେ ପୁଣି ବ୍ୟବହାର କରାଯାଇଥିବା ପାସୱାର୍ଡଗୁଡ଼ିକ ଅଛି।</translation>
 <translation id="7887174313503389866">ମୁଖ୍ୟ ଗୋପନୀୟତା ଏବଂ ସୁରକ୍ଷା ନିୟନ୍ତ୍ରଣଗୁଡ଼ିକ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ। ଅଧିକ ବିକଳ୍ପ ପାଇଁ, ବ୍ୟକ୍ତିଗତ ସେଟିଂସକୁ ଯାଆନ୍ତୁ।</translation>
 <translation id="7887198238286927132">ଆପଣଙ୍କର ଗୋପନୀୟତାର ସୁରକ୍ଷା ପାଇଁ, ଏହି ଫିଲ୍ଡକୁ Chrome will ଅଟୋଫିଲ କରିବ ନାହିଁ।</translation>
@@ -1998,6 +2001,7 @@ Handoff, ନିଶ୍ଚିତ ରୂପେ ସେଟିଂସ୍‍ର ସା�
 <translation id="8551311254462607218">ଠିକଣା ବାରରେ, Google Lens କେମେରା ଆଇକନରେ ଟାପ କରନ୍ତୁ</translation>
 <translation id="8556590991644167667">{count,plural, =1{ଆପଣ {count}ଟି ଚେତାବନୀ ଖାରଜ କରିଛନ୍ତି}other{ଆପଣ {count}ଟି ଚେତାବନୀ ଖାରଜ କରିଛନ୍ତି}}</translation>
 <translation id="8558046478684552694">ଗୋଷ୍ଠୀକୁ ବନ୍ଦ କରନ୍ତୁ।</translation>
+<translation id="8559858985063901027">ପାସକୀଗୁଡ଼ିକ</translation>
 <translation id="8560253818350321773">ବାରମ୍ବାର ବ୍ୟବହାର କରାଯାଉଥିବା ଆଇଟମଗୁଡ଼ିକୁ ପ୍ରଥମେ ଦେଖାନ୍ତୁ।</translation>
 <translation id="8561999115126307258">{count,plural, =1{ଆପଣଙ୍କ କୀବୋର୍ଡ ଉପରେ ପାସୱାର୍ଡ ପାଇଁ {count} ବିକଳ୍ପ ଉପଲବ୍ଧ ଅଛି।}other{ଆପଣଙ୍କ କୀବୋର୍ଡ ଉପରେ ପାସୱାର୍ଡ ପାଇଁ {count} ବିକଳ୍ପ ଉପଲବ୍ଧ ଅଛି।}}</translation>
 <translation id="8564894539416715395">ନୂଆ ଟାବ ପୃଷ୍ଠା</translation>

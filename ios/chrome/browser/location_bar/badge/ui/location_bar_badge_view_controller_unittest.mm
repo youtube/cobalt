@@ -41,6 +41,11 @@ class LocationBarBadgeViewControllerTest : public PlatformTest {
 // Tests that the badge shows and hides correctly.
 TEST_F(LocationBarBadgeViewControllerTest, ShowAndHideBadge) {
   [view_controller_ view];
+  LocationBarBadgeConfiguration* config = [[LocationBarBadgeConfiguration alloc]
+       initWithBadgeType:LocationBarBadgeType::kReaderMode
+      accessibilityLabel:@"Reader Mode"
+              badgeImage:[[UIImage alloc] init]];
+  [view_controller_ setBadgeConfig:config];
   [view_controller_ showBadge];
   EXPECT_FALSE(view_controller_.view.hidden);
   [view_controller_ hideBadge];
@@ -51,11 +56,11 @@ TEST_F(LocationBarBadgeViewControllerTest, ShowAndHideBadge) {
 TEST_F(LocationBarBadgeViewControllerTest, BadgeTapped) {
   [view_controller_ view];
   LocationBarBadgeConfiguration* config = [[LocationBarBadgeConfiguration alloc]
-       initWithBadgeType:LocationBarBadgeType::kReaderMode
-      accessibilityLabel:@"Reader Mode"
+       initWithBadgeType:LocationBarBadgeType::kOverflow
+      accessibilityLabel:@"Overflow"
               badgeImage:[[UIImage alloc] init]];
   [view_controller_ setBadgeConfig:config];
-  OCMExpect([mock_mutator_ badgeTapped:LocationBarBadgeType::kReaderMode]);
+  OCMExpect([mock_mutator_ badgeTapped:LocationBarBadgeType::kOverflow]);
   [view_controller_ userTappedBadge];
   EXPECT_OCMOCK_VERIFY(mock_mutator_);
 }

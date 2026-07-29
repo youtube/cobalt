@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">Tryck på Appar och sedan på Standardappar</translation>
 <translation id="1415402041810619267">Webbadressen har trunkerats</translation>
 <translation id="1415855080660575082">Tillåt att Chrome delar dina senaste flikar med enheten så att du kan se dem i enhetens applista och sökresultat. Du kan aktivera eller inaktivera detta i Chrome-inställningarna.</translation>
+<translation id="1420688843103859429">Navigera framåt och bakåt genom att svepa med två fingrar på styrplattan</translation>
 <translation id="1432650420699700107">Webbplatser får begära tillstånd att ansluta till enheter i det lokala nätverket</translation>
 <translation id="1448064542941920355">Minska zoom</translation>
 <translation id="1464044141348608623">Tillåt inte att webbplatser vet om du använder din enhet aktivt</translation>
@@ -218,7 +219,6 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="3285500645985761267">Tillåt att relaterade webbplatser ser din aktivitet i gruppen</translation>
 <translation id="3295019059349372795">Kapitel 11: Den underbara Smaragdstaden</translation>
 <translation id="3295602654194328831">Dölj info</translation>
-<translation id="3328801116991980348">Platsinformation</translation>
 <translation id="3333961966071413176">Alla kontakter</translation>
 <translation id="3360338140203645771">Vill du radera sparade zoomnivåer?</translation>
 <translation id="3362437373201486687">Söker efter Bluetooth-enheter</translation>
@@ -243,6 +243,7 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="3611658447322220736">Webbplatser som stängts nyligen får fortsätta att skicka och ta emot data</translation>
 <translation id="3619294456800709762">Webbplatser kan öppna bild-i-bild automatiskt</translation>
 <translation id="3628308229821498208">Föreslagna sökningar</translation>
+<translation id="363748948745453283">Använder ungefärlig plats</translation>
 <translation id="3641456520301071208">Webbplatser får fråga efter din plats</translation>
 <translation id="3658847490588580244">Ark på nedre delen av standardwebbläsaren</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> webbplats i gruppen med webbplatser som tillhör <ph name="RWS_OWNER" />, som kan se din aktivitet i gruppen}other{<ph name="RWS_MEMBERS_COUNT" /> webbplatser i gruppen med webbplatser som tillhör <ph name="RWS_OWNER" />, som kan se din aktivitet i gruppen}}</translation>
@@ -433,8 +434,10 @@ Avancerat skydd styr följande Chrome-inställningar:
 <translation id="5750869797196646528">Handspårning</translation>
 <translation id="5753570386948603678">Radera från historiken</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> blockeras</translation>
+<translation id="5792627621688759634">Svep mellan sidor med en styrplatta</translation>
 <translation id="5801457289562671820">Rekommenderas av din organisation</translation>
 <translation id="5804241973901381774">Behörigheter</translation>
+<translation id="5817042798620209981">Webbplatsinformation, dialogruta</translation>
 <translation id="5822675474983796325">Arket på nedre delen av skärmen för att anpassa sidan ny flik har öppnats över hela skärmen</translation>
 <translation id="5833899990800318936">Tillåt inte att webbplatser använder JavaScript</translation>
 <translation id="583673505367439042">Webbplatser får begära tillstånd att redigera filer eller mappar på enheten</translation>

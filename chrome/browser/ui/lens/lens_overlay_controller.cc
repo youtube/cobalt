@@ -344,6 +344,7 @@ void LensOverlayController::TriggerOverlayFadeOutAnimation(
   if (state_ == State::kOff || IsOverlayClosing()) {
     return;
   }
+  state_ = State::kHiding;
 
   // Notify the overlay so it can do any animations or cleanup. The page_ is not
   // guaranteed to exist if CloseUIAsync is called during the setup process.
@@ -389,12 +390,10 @@ void LensOverlayController::CloseUI(
     permission_request_manager->RestorePrompt();
   }
 
-  results_side_panel_coordinator_ = nullptr;
   pre_initialization_objects_.reset();
   pre_initialization_text_.reset();
 
   side_panel_shown_subscription_ = base::CallbackListSubscription();
-  side_panel_coordinator_ = nullptr;
 
   // Re-enable mouse and keyboard events to the tab contents web view.
   auto* contents_web_view =
@@ -560,12 +559,12 @@ void LensOverlayController::TriggerCopy() {
 }
 
 bool LensOverlayController::IsOverlayShowing() const {
-  return state_ == State::kStartingWebUI || state_ == State::kOverlay ||
-         state_ == State::kOverlayAndResults;
+  return state_ == State::kStartingWebUI || state_ == State::kOverlay;
 }
 
 bool LensOverlayController::IsOverlayActive() const {
-  return IsOverlayShowing() || state_ == State::kHidden;
+  return IsOverlayShowing() || state_ == State::kHidden ||
+         state_ == State::kHiding || state_ == State::kIsReshowing;
 }
 
 bool LensOverlayController::HasRegionSelection() const {
@@ -658,6 +657,7 @@ void LensOverlayController::IssueEndTranslateModeRequestForTesting() {
 void LensOverlayController::IssueTranslateFullPageRequest(
     const std::string& source_language,
     const std::string& target_language) {
+  MaybeGrantLensOverlayPermissions();
   // Remove the selection thumbnail, if it exists.
   lens_search_controller_->ClearVisualSelectionThumbnail();
   ClearRegionSelection();
@@ -825,6 +825,10 @@ void LensOverlayController::FetchSupportedLanguages(
 }
 
 void LensOverlayController::FinishReshowOverlay() {
+  if (state_ != State::kIsReshowing) {
+    return;
+  }
+
   if (lens_overlay_blur_layer_delegate_) {
     content::RenderWidgetHost* live_page_widget_host =
         tab_->GetContents()
@@ -834,6 +838,7 @@ void LensOverlayController::FinishReshowOverlay() {
     lens_overlay_blur_layer_delegate_->Show(live_page_widget_host);
   }
   SetOverlayWebViewOpacity(1.0f);
+  state_ = State::kOverlay;
 }
 
 void LensOverlayController::TryShowTranslateFeaturePromo(
@@ -856,10 +861,7 @@ std::string LensOverlayController::GetInvocationSourceString() {
 
 content::WebContents*
 LensOverlayController::GetSidePanelWebContentsForTesting() {
-  if (!results_side_panel_coordinator_) {
-    return nullptr;
-  }
-  return results_side_panel_coordinator_->GetSidePanelWebContents();
+  return GetLensOverlaySidePanelCoordinator()->GetSidePanelWebContents();
 }
 
 const GURL& LensOverlayController::GetPageURLForTesting() {
@@ -934,8 +936,7 @@ void LensOverlayController::ShowUI(
 
   // If the side panel is already showing, then visual selections
   // are considered follow ups that should be fulfilled by AIM.
-  use_aim_for_visual_search_ =
-      GetLensOverlaySidePanelCoordinator()->IsEntryShowing();
+  use_aim_for_visual_search_ = IsResultsSidePanelShowing();
 
   // Increment the counter for the number of times the Lens Overlay has been
   // started.
@@ -948,17 +949,11 @@ void LensOverlayController::ShowUI(
   invocation_source_ = invocation_source;
   lens_overlay_query_controller_ = lens_overlay_query_controller;
 
-  // Grab reference to the side panel coordinator it not already done so.
-  if (!results_side_panel_coordinator_) {
-    results_side_panel_coordinator_ =
-        GetLensOverlaySidePanelCoordinator();
-  }
-
   Profile* profile =
       Profile::FromBrowserContext(tab_->GetContents()->GetBrowserContext());
-  side_panel_coordinator_ =
+  auto* side_panel_coordinator =
       tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_coordinator();
-  CHECK(side_panel_coordinator_);
+  CHECK(side_panel_coordinator);
 
   // Create the languages controller.
   languages_controller_ =
@@ -968,7 +963,7 @@ void LensOverlayController::ShowUI(
   SidePanelEntry::PanelType panel_type =
       GetLensOverlaySidePanelCoordinator()->GetPanelType();
   side_panel_shown_subscription_ =
-      side_panel_coordinator_->RegisterSidePanelShown(
+      side_panel_coordinator->RegisterSidePanelShown(
           panel_type,
           base::BindRepeating(&LensOverlayController::OnSidePanelDidOpen,
                               weak_factory_.GetWeakPtr()));
@@ -1019,12 +1014,12 @@ void LensOverlayController::ShowUI(
 
   // This should be the last thing called in ShowUI, so if something goes wrong
   // in capturing the screenshot, the state gets cleaned up correctly.
-  if (side_panel_coordinator_->IsSidePanelShowing(panel_type) &&
-      !results_side_panel_coordinator_->IsEntryShowing()) {
+  if (side_panel_coordinator->IsSidePanelShowing(panel_type) &&
+      !IsResultsSidePanelShowing()) {
     // Close the currently opened side panel synchronously if it's not the Lens
     // panel. Postpone the screenshot for a fixed time to allow reflow.
     state_ = State::kClosingOpenedSidePanel;
-    side_panel_coordinator_->Close(/*suppress_animations=*/true, panel_type);
+    side_panel_coordinator->Close(/*suppress_animations=*/true, panel_type);
     base::SingleThreadTaskRunner::GetCurrentDefault()
         ->PostNonNestableDelayedTask(
             FROM_HERE,
@@ -1175,7 +1170,7 @@ void LensOverlayController::SetTranslateMode(
     // request to end translate mode so the WebUI can update its state.
     if (initialization_data_->translate_options_.has_value()) {
       IssueEndTranslateModeRequest();
-      results_side_panel_coordinator_->SetSidePanelIsLoadingResults(true);
+      GetLensOverlaySidePanelCoordinator()->SetSidePanelIsLoadingResults(true);
     }
     // Disable translate mode by setting source and target languages to empty
     // strings. This is a no-op if translate mode is already disabled.
@@ -1215,7 +1210,7 @@ void LensOverlayController::ClearTextSelection() {
 }
 
 void LensOverlayController::ClearRegionSelection() {
-  if (!IsOverlayShowing()) {
+  if (!IsOverlayActive()) {
     return;
   }
   lens_search_controller_->ClearVisualSelectionThumbnail();
@@ -1237,6 +1232,18 @@ void LensOverlayController::OnSearchboxFocusChanged(bool focused) {
       // If the live page is showing and the searchbox becomes focused, showing
       // intent to issue a new query, upload the new page content for
       // contextualization.
+      GetContextualizationController()->TryUpdatePageContextualization(
+          base::BindOnce(&LensOverlayController::NotifyPageContentUpdated,
+                         weak_factory_.GetWeakPtr()));
+    }
+    if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
+        state() == State::kOverlay &&
+        !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_)) {
+      // If the non-blocking privacy notice is enabled, grant permissions on
+      // searchbox focus, then restart the query flow and upload page content
+      // for contextualization.
+      lens::GrantLensOverlayNeededPermissions(pref_service_);
+      lens_overlay_query_controller_->MaybeRestartQueryFlow();
       GetContextualizationController()->TryUpdatePageContextualization(
           base::BindOnce(&LensOverlayController::NotifyPageContentUpdated,
                          weak_factory_.GetWeakPtr()));
@@ -1282,12 +1289,12 @@ void LensOverlayController::IssueLensRequest(
 
   // TODO(crbug.com/428208291): The overlay can be in the hidden state and this
   // could be a query coming from the back stack which would make setting this
-  // to kOverlayAndResults incorrect. Check if the overlay is currently in that
-  // state to determine if this should be set to kOverlayAndResults or not. This
-  // should be fixed by moving the functionality to make Lens requests to a more
-  // appropriate location.
+  // to kOverlay incorrect. Check if the overlay is currently in that state to
+  // determine if this should be set to kOverlay or not. This should be fixed by
+  // moving the functionality to make Lens requests to a more appropriate
+  // location.
   if (state_ != State::kHidden) {
-    state_ = State::kOverlayAndResults;
+    state_ = State::kOverlay;
     MaybeLaunchSurvey();
   }
 }
@@ -1354,6 +1361,10 @@ void LensOverlayController::IssueContextualTextRequest(
 
 void LensOverlayController::AddOverlayStateToSearchQuery(
     lens::SearchQuery& search_query) {
+  if (!initialization_data_) {
+    return;
+  }
+
   // In the case where a query was triggered by a selection on the overlay or
   // use of the searchbox, initialization_data_ and
   // additional_search_query_params_ will have already been set. Record that
@@ -1523,7 +1534,7 @@ void LensOverlayController::SuppressGhostLoader() {
   if (page_) {
     page_->SuppressGhostLoader();
   }
-  results_side_panel_coordinator_->SuppressGhostLoader();
+  GetLensOverlaySidePanelCoordinator()->SuppressGhostLoader();
 }
 
 void LensOverlayController::SetLiveBlur(bool enabled) {
@@ -1664,8 +1675,7 @@ void LensOverlayController::InitializeOverlay(
 
   // Show the preselection overlay now that the overlay is initialized and ready
   // to be shown.
-  if (!pending_region_ &&
-      !GetLensOverlaySidePanelCoordinator()->IsEntryShowing()) {
+  if (!pending_region_ && !IsResultsSidePanelShowing()) {
     ShowPreselectionBubble();
   }
 
@@ -1681,12 +1691,7 @@ void LensOverlayController::InitializeOverlay(
             live_page_widget_host);
   }
 
-  const bool is_side_panel_open =
-      GetLensOverlaySidePanelCoordinator()
-          ->IsEntryShowing();
-  // TODO(crbug.com/450638028): Stop using kOverlayAndResults now that overlay
-  // controller should be separated from the side panel.
-  state_ = is_side_panel_open ? State::kOverlayAndResults : State::kOverlay;
+  state_ = State::kOverlay;
   lens_search_controller_->NotifyOverlayOpened();
 
   // Update the entry points state to ensure that the entry points are disabled
@@ -1774,9 +1779,8 @@ void LensOverlayController::InitializeOverlayUI(
           ? lens::MimeType::kUnknown
           : init_data.primary_content_type_);
 
-  // Only show the CSB if the side panel is not open.
-  bool is_side_panel_open =
-      GetLensOverlaySidePanelCoordinator()->IsEntryShowing();
+  // Only show the CSB if the results side panel is not open.
+  bool is_side_panel_open = IsResultsSidePanelShowing();
   page_->ShouldShowContextualSearchBox(!is_side_panel_open);
   // If should show CSB, and the CSB viewport thumbnail is enabled, send it now.
   if (lens::features::GetVisualSelectionUpdatesEnableCsbThumbnail()) {
@@ -1929,12 +1933,14 @@ void LensOverlayController::OnWidgetDestroying(views::Widget* widget) {
 void LensOverlayController::OnOmniboxFocusChanged(
     OmniboxFocusState state,
     OmniboxFocusChangeReason reason) {
-  if (state_ == LensOverlayController::State::kOverlay) {
-    if (state == OMNIBOX_FOCUS_NONE) {
-      ShowPreselectionBubble();
-    } else {
-      HidePreselectionBubble();
-    }
+  if (state_ != State::kOverlay || IsResultsSidePanelShowing()) {
+    return;
+  }
+
+  if (state == OMNIBOX_FOCUS_NONE) {
+    ShowPreselectionBubble();
+  } else {
+    HidePreselectionBubble();
   }
 }
 
@@ -2015,8 +2021,7 @@ float LensOverlayController::GetUiScaleFactor() {
 }
 
 void LensOverlayController::OnSidePanelDidOpen() {
-  if (side_panel_coordinator_->IsSidePanelEntryShowing(
-          SidePanelEntryKey(SidePanelEntry::Id::kLensOverlayResults))) {
+  if (IsResultsSidePanelShowing()) {
     SetOverlayRoundedCorner();
   } else {
     // If a side panel opens that is not ours, we must close the overlay.
@@ -2031,8 +2036,7 @@ void LensOverlayController::SetOverlayRoundedCorner() {
     return;
   }
 
-  const bool should_round_corner =
-      results_side_panel_coordinator_->IsEntryShowing();
+  const bool should_round_corner = IsResultsSidePanelShowing();
   const float radius =
       should_round_corner
           ? overlay_web_view_->GetLayoutProvider()->GetCornerRadiusMetric(
@@ -2114,8 +2118,7 @@ void LensOverlayController::TabForegrounded(tabs::TabInterface* tab) {
   if (backgrounded_state_ != State::kHidden) {
     ShowOverlay();
   }
-  if (backgrounded_state_ != State::kOverlayAndResults &&
-      backgrounded_state_ != State::kHidden) {
+  if (!IsResultsSidePanelShowing() && backgrounded_state_ != State::kHidden) {
     ShowPreselectionBubble();
   }
   if (lens::IsLensOverlayContextualSearchboxEnabled()) {
@@ -2135,12 +2138,18 @@ void LensOverlayController::TabWillEnterBackground(tabs::TabInterface* tab) {
 
   // If the overlay is active, background it.
   if (IsOverlayActive()) {
-    // If the overlay is currently showing, then we should hide the UI.
-    if (IsOverlayShowing()) {
+    const bool is_in_transitional_state =
+        state_ == State::kIsReshowing || state_ == State::kHiding;
+
+    // If the overlay is in a transitional state, the state to restore to is
+    // kHidden. Otherwise, restore to the current state.
+    backgrounded_state_ = is_in_transitional_state ? State::kHidden : state_;
+
+    // If the overlay UI is showing, hide it.
+    if (overlay_web_view_ && overlay_web_view_->GetVisible()) {
       HideOverlay();
     }
 
-    backgrounded_state_ = state_;
     state_ = State::kBackground;
     UpdateEntryPointsState();
 
@@ -2166,8 +2175,7 @@ void LensOverlayController::ActivityRequestedByOverlay(
 void LensOverlayController::AddBackgroundBlur() {
   // We do not blur unless the overlay is currently active and the blur delegate
   // was created.
-  if (!lens_overlay_blur_layer_delegate_ ||
-      (state_ != State::kOverlay && state_ != State::kOverlayAndResults)) {
+  if (!lens_overlay_blur_layer_delegate_ || (state_ != State::kOverlay)) {
     return;
   }
 
@@ -2219,6 +2227,7 @@ void LensOverlayController::InfoRequestedByOverlay(
 void LensOverlayController::IssueLensRegionRequest(
     lens::mojom::CenterRotatedBoxPtr region,
     bool is_click) {
+  MaybeGrantLensOverlayPermissions();
   IssueLensRequest(/*query_start_time=*/base::Time::Now(), std::move(region),
                    is_click ? lens::TAP_ON_EMPTY : lens::REGION_SEARCH,
                    std::nullopt);
@@ -2227,6 +2236,7 @@ void LensOverlayController::IssueLensRegionRequest(
 void LensOverlayController::IssueLensObjectRequest(
     lens::mojom::CenterRotatedBoxPtr region,
     bool is_mask_click) {
+  MaybeGrantLensOverlayPermissions();
   IssueLensRequest(
       /*query_start_time=*/base::Time::Now(), std::move(region),
       is_mask_click ? lens::TAP_ON_REGION_GLEAM : lens::TAP_ON_OBJECT,
@@ -2237,6 +2247,7 @@ void LensOverlayController::IssueTextSelectionRequest(const std::string& query,
                                                       int selection_start_index,
                                                       int selection_end_index,
                                                       bool is_translate) {
+  MaybeGrantLensOverlayPermissions();
   initialization_data_->additional_search_query_params_.clear();
   lens_selection_type_ =
       is_translate ? lens::SELECT_TRANSLATED_TEXT : lens::SELECT_TEXT_HIGHLIGHT;
@@ -2250,6 +2261,7 @@ void LensOverlayController::IssueTranslateSelectionRequest(
     const std::string& content_language,
     int selection_start_index,
     int selection_end_index) {
+  MaybeGrantLensOverlayPermissions();
   initialization_data_->additional_search_query_params_.clear();
   lens::AppendTranslateParamsToMap(
       initialization_data_->additional_search_query_params_, query, "auto");
@@ -2264,6 +2276,7 @@ void LensOverlayController::IssueMathSelectionRequest(
     const std::string& formula,
     int selection_start_index,
     int selection_end_index) {
+  MaybeGrantLensOverlayPermissions();
   initialization_data_->additional_search_query_params_.clear();
   lens::AppendStickinessSignalForFormula(
       initialization_data_->additional_search_query_params_, formula);
@@ -2292,7 +2305,7 @@ void LensOverlayController::IssueTextSelectionRequestInner(
   MaybeOpenSidePanel();
   GetLensSessionMetricsLogger()->RecordTimeToFirstInteraction(
       lens::LensOverlayFirstInteractionType::kTextSelect);
-  state_ = State::kOverlayAndResults;
+  state_ = State::kOverlay;
   MaybeLaunchSurvey();
 }
 
@@ -2306,7 +2319,7 @@ void LensOverlayController::ClosePreselectionBubble() {
 
 void LensOverlayController::ShowPreselectionBubble() {
   // Don't show the preselection bubble if the overlay is not being shown.
-  if (state() == State::kOverlayAndResults) {
+  if (IsResultsSidePanelShowing()) {
     return;
   }
 
@@ -2462,15 +2475,8 @@ void LensOverlayController::IssueSearchBoxRequestPart2(
 
   // If we are in the zero state, this request must have come from CSB. In that
   // case, hide the overlay to allow live page to show through.
-  if (state_ == State::kOverlay) {
+  if (!IsResultsSidePanelShowing() && state_ == State::kOverlay) {
     HideOverlay();
-  }
-
-  // If this a search query from the side panel search box with the overlay
-  // showing, keep the state as kOverlayAndResults. Else, the session is in
-  // a straight to SRP flow and the state is either kHidden or kOff depending
-  // on whether the overlay was open before the searchbox query was issued.
-  if (state_ != State::kOverlayAndResults) {
     state_ = overlay_view_ ? State::kHidden : State::kOff;
   }
 
@@ -2483,10 +2489,11 @@ void LensOverlayController::IssueSearchBoxRequestPart2(
   // Only set the side panel to loading if the page is context eligible because
   // otherwise there will be no results to load.
   bool is_context_eligible =
-      GetContextualizationController()->GetCurrentPageContextEligibility();
-  results_side_panel_coordinator_->SetSidePanelIsLoadingResults(
+      lens_search_controller_->lens_search_contextualization_controller()
+          ->GetCurrentPageContextEligibility();
+  GetLensOverlaySidePanelCoordinator()->SetSidePanelIsLoadingResults(
       is_context_eligible);
-  results_side_panel_coordinator_->SetShowProtectedErrorPage(
+  GetLensOverlaySidePanelCoordinator()->SetShowProtectedErrorPage(
       !is_context_eligible);
 
   // Update the entry points state here in case InitializeOverlay() was
@@ -2512,17 +2519,17 @@ void LensOverlayController::HandleStartQueryResponse(
   // on whether the query succeeded or not. If the side panel is not open, the
   // error page state can only change if the query failed since the first side
   // panel navigation will take care of recording whether the result was shown.
-  const bool is_side_panel_open =
-      results_side_panel_coordinator_->IsSidePanelBound();
+  auto* side_panel_coordinator = GetLensOverlaySidePanelCoordinator();
+  const bool is_side_panel_open = side_panel_coordinator->IsSidePanelBound();
   if (is_side_panel_open &&
-      !results_side_panel_coordinator_->IsShowingProtectedErrorPage()) {
-    results_side_panel_coordinator_->MaybeSetSidePanelShowErrorPage(
+      !side_panel_coordinator->IsShowingProtectedErrorPage()) {
+    side_panel_coordinator->MaybeSetSidePanelShowErrorPage(
         is_error,
         is_error
             ? lens::mojom::SidePanelResultStatus::kErrorPageShownStartQueryError
             : lens::mojom::SidePanelResultStatus::kResultShown);
   } else if (!is_side_panel_open && is_error) {
-    results_side_panel_coordinator_->MaybeSetSidePanelShowErrorPage(
+    side_panel_coordinator->MaybeSetSidePanelShowErrorPage(
         /*should_show_error_page=*/true,
         lens::mojom::SidePanelResultStatus::kErrorPageShownStartQueryError);
   }
@@ -2598,7 +2605,7 @@ void LensOverlayController::HandlePageContentUploadProgress(uint64_t position,
     }
   }
 
-  results_side_panel_coordinator_->SetPageContentUploadProgress(
+  GetLensOverlaySidePanelCoordinator()->SetPageContentUploadProgress(
       total > 0 ? static_cast<float>(position) / total : 1.0f);
 }
 
@@ -2636,21 +2643,18 @@ void LensOverlayController::HideOverlay() {
   NotifyIsOverlayShowing(false);
 }
 
-void LensOverlayController::HideOverlayAndMaybeSetHiddenState() {
-  // If the overlay is not showing, there is nothing to hide.
-  if (IsOverlayShowing()) {
-    HideOverlay();
+void LensOverlayController::HideOverlayAndSetHiddenState() {
+  if (state_ != State::kHiding) {
+    return;
   }
-
-  // If the side panel is open, set the overlay state to kHidden.
-  if (state_ == State::kOverlayAndResults) {
-    state_ = State::kHidden;
-  }
+  HideOverlay();
+  state_ = State::kHidden;
 }
 
 void LensOverlayController::ReshowOverlay() {
   // The overlay must be in the kHidden state to be restored properly.
   CHECK(state_ == State::kHidden);
+  state_ = State::kIsReshowing;
   use_aim_for_visual_search_ = true;
 
   // Clear any previous selections to ensure a clean state.
@@ -2859,7 +2863,7 @@ void LensOverlayController::NotifyPageContentUpdated() {
   if (page_) {
     page_->PageContentTypeChanged(page_content_type);
   }
-  results_side_panel_coordinator_->NotifyPageContentUpdated();
+  GetLensOverlaySidePanelCoordinator()->NotifyPageContentUpdated();
 }
 
 void LensOverlayController::UpdateEntryPointsState() {
@@ -2871,9 +2875,7 @@ void LensOverlayController::UpdateEntryPointsState() {
 }
 
 void LensOverlayController::NotifyIsOverlayShowing(bool is_showing) {
-  if (results_side_panel_coordinator_) {
-    results_side_panel_coordinator_->SetIsOverlayShowing(is_showing);
-  }
+  GetLensOverlaySidePanelCoordinator()->SetIsOverlayShowing(is_showing);
 }
 
 void LensOverlayController::OnPdfPartialPageTextRetrieved(
@@ -2898,15 +2900,6 @@ void LensOverlayController::OnPageContextUpdatedForSuggestion(
         SkBitmap(), SkBitmap(), lens::PaletteId::kFallback,
         lens_search_controller_->GetPageURL(),
         lens_search_controller_->GetPageTitle());
-  }
-
-  // TODO(crbug.com/404941800): Similar to above, this should be a CHECK or
-  // removed once the contextualization controller is separated from the
-  // overlay. For now, this is required to prevent failures when opening the
-  // side panel.
-  if (!results_side_panel_coordinator_) {
-    results_side_panel_coordinator_ =
-        GetLensOverlaySidePanelCoordinator();
   }
 
   CHECK(lens_overlay_query_controller_);
@@ -2951,6 +2944,10 @@ void LensOverlayController::OnScreenshotTaken(
 }
 
 void LensOverlayController::ReshowOverlayPart2() {
+  if (state_ != State::kIsReshowing) {
+    return;
+  }
+
   // Create the new RGB bitmap asynchronously to prevent the main thread from
   // blocking on the encoding.
   base::ThreadPool::PostTaskAndReplyWithResult(
@@ -2962,7 +2959,7 @@ void LensOverlayController::ReshowOverlayPart2() {
 }
 
 void LensOverlayController::ReshowOverlayPart3(const SkBitmap& rgb_screenshot) {
-  if (state_ == State::kOff || IsOverlayClosing()) {
+  if (state_ != State::kIsReshowing) {
     return;
   }
 
@@ -2979,11 +2976,6 @@ void LensOverlayController::ReshowOverlayPart3(const SkBitmap& rgb_screenshot) {
   if (lens_overlay_blur_layer_delegate_) {
     lens_overlay_blur_layer_delegate_->Hide();
   }
-
-  state_ = side_panel_coordinator_->IsSidePanelShowing(
-               GetLensOverlaySidePanelCoordinator()->GetPanelType())
-               ? State::kOverlayAndResults
-               : State::kOverlay;
 
   // Set the overlay web view opacity to near-zero instead of using
   // `SetVisible(false)`. Setting visibility to false prevents animation frames
@@ -3008,6 +3000,17 @@ void LensOverlayController::SetOverlayWebViewOpacity(float opacity) {
   ui::Layer* layer = overlay_web_view_->holder()->GetUILayer();
   if (layer) {
     layer->SetOpacity(opacity);
+  }
+}
+
+bool LensOverlayController::IsResultsSidePanelShowing() {
+  return GetLensOverlaySidePanelCoordinator()->IsEntryShowing();
+}
+
+void LensOverlayController::MaybeGrantLensOverlayPermissions() {
+  if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
+      !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_)) {
+    lens::GrantLensOverlayNeededPermissions(pref_service_);
   }
 }
 

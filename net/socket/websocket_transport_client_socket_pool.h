@@ -42,8 +42,7 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
     : public ClientSocketPool {
  public:
   WebSocketTransportClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
+      size_t socket_soft_cap,
       SocketPoolAdditionalCapacity additional_capacity,
       const ProxyChain& proxy_chain,
       const CommonConnectJobParams* common_connect_job_params);
@@ -81,7 +80,7 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
       const GroupId& group_id,
       scoped_refptr<SocketParams> params,
       const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
-      int num_sockets,
+      size_t num_sockets,
       bool fail_if_alias_requires_proxy_override,
       CompletionOnceCallback callback,
       const NetLogWithSource& net_log) override;
@@ -98,7 +97,7 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
   void CloseIdleSockets(const char* net_log_reason_utf8) override;
   void CloseIdleSocketsInGroup(const GroupId& group_id,
                                const char* net_log_reason_utf8) override;
-  int IdleSocketCount() const override;
+  size_t IdleSocketCount() const override;
   size_t IdleSocketCountInGroup(const GroupId& group_id) const override;
   LoadState GetLoadState(const GroupId& group_id,
                          const ClientSocketHandle* handle) const override;
@@ -220,8 +219,7 @@ class NET_EXPORT_PRIVATE WebSocketTransportClientSocketPool
   PendingConnectsMap pending_connects_;
   StalledRequestQueue stalled_request_queue_;
   StalledRequestMap stalled_request_map_;
-  const int max_sockets_;
-  int handed_out_socket_count_ = 0;
+  size_t handed_out_socket_count_ = 0;
   bool flushing_ = false;
 
   base::WeakPtrFactory<WebSocketTransportClientSocketPool> weak_factory_{this};

@@ -46,6 +46,7 @@
 #import "components/autofill/core/browser/suggestions/suggestion.h"
 #import "components/autofill/core/browser/suggestions/suggestion_type.h"
 #import "components/autofill/core/common/autofill_constants.h"
+#import "components/autofill/core/common/autofill_debug_features.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_payments_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
@@ -371,7 +372,6 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 
   if (suggestion.type == autofill::SuggestionType::kAddressEntry ||
       suggestion.type == autofill::SuggestionType::kCreditCardEntry ||
-      suggestion.type == autofill::SuggestionType::kCreateNewPlusAddress ||
       suggestion.type == autofill::SuggestionType::kVirtualCreditCardEntry ||
       suggestion.type ==
           autofill::SuggestionType::kAddressFieldByFieldFilling) {
@@ -546,7 +546,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
             (const std::vector<autofill::FormDataPredictions>&)forms
                         inFrame:(web::WebFrame*)frame {
   CHECK(base::FeatureList::IsEnabled(
-      autofill::features::test::kAutofillShowTypePredictions));
+      autofill::features::debug::kAutofillShowTypePredictions));
 
   base::Value::Dict predictionData;
   for (const auto& form : forms) {
@@ -632,9 +632,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
       // changes
       value = SysUTF16ToNSString(popup_suggestion.main_text.value);
     } else if (popup_suggestion.type ==
-                   autofill::SuggestionType::kFillExistingPlusAddress ||
-               popup_suggestion.type ==
-                   autofill::SuggestionType::kCreateNewPlusAddress) {
+               autofill::SuggestionType::kFillExistingPlusAddress) {
       // Show any plus_address suggestions.
       value = SysUTF16ToNSString(popup_suggestion.main_text.value);
       if (!popup_suggestion.labels.empty() &&

@@ -137,17 +137,11 @@ const char kHistogramLargestContentfulPaintCrossSiteSubFrame[] =
 const char kHistogramLargestContentfulPaintSetSpeculationRulesPrerender[] =
     "PageLoad.PaintTiming.NavigationToLargestContentfulPaint2."
     "SetSpeculationRulesPrerender";
-const char kHistogramLargestContentfulPaintIncognito[] =
-    "PageLoad.PaintTiming.NavigationToLargestContentfulPaint2.Incognito";
 const char kHistogramNumInteractions[] =
     "PageLoad.InteractiveTiming.NumInteractions";
 const char kHistogramUserInteractionLatencyHighPercentile2MaxEventDuration[] =
     "PageLoad.InteractiveTiming.UserInteractionLatency.HighPercentile2."
     "MaxEventDuration";
-const char
-    kHistogramUserInteractionLatencyHighPercentile2MaxEventDurationIncognito[] =
-        "PageLoad.InteractiveTiming.UserInteractionLatency.HighPercentile2."
-        "MaxEventDuration.Incognito";
 const char kHistogramInpOffset[] = "PageLoad.InteractiveTiming.INPOffset";
 const char kHistogramInpTime[] = "PageLoad.InteractiveTiming.INPTime";
 const char kHistogramWorstUserInteractionLatencyMaxEventDuration[] =
@@ -195,9 +189,6 @@ const char kHistogramLoadTypeFirstContentfulPaintForwardBackNoStore[] =
 const char kHistogramLoadTypeFirstContentfulPaintNewNavigation[] =
     "PageLoad.PaintTiming.NavigationToFirstContentfulPaint.LoadType."
     "NewNavigation";
-
-const char kHistogramFirstContentfulPaintIncognito[] =
-    "PageLoad.PaintTiming.NavigationToFirstContentfulPaint.Incognito";
 
 const char kHistogramPageTimingForegroundDuration[] =
     "PageLoad.PageTiming.ForegroundDuration";
@@ -315,13 +306,12 @@ const char kHistogramMemoryTotal[] =
 
 }  // namespace internal
 
-UmaPageLoadMetricsObserver::UmaPageLoadMetricsObserver(bool is_incognito)
+UmaPageLoadMetricsObserver::UmaPageLoadMetricsObserver()
     : transition_(ui::PAGE_TRANSITION_LINK),
       was_no_store_main_resource_(false),
       cache_bytes_(0),
       network_bytes_(0),
-      network_bytes_including_headers_(0),
-      is_incognito_(is_incognito) {
+      network_bytes_including_headers_(0) {
   // Emit a trigger to allow trace collection tied to navigations. For
   // simplicity, this signal happens during `WillStartRequest`, which is a bit
   // later than the `navigation_start` timestamp used in
@@ -451,11 +441,6 @@ void UmaPageLoadMetricsObserver::OnFirstContentfulPaintInPage(
     PAGE_LOAD_HISTOGRAM(internal::kHistogramParseStartToFirstContentfulPaint,
                         timing.paint_timing->first_contentful_paint.value() -
                             timing.parse_timing->parse_start.value());
-
-    if (is_incognito_) {
-      PAGE_LOAD_HISTOGRAM(internal::kHistogramFirstContentfulPaintIncognito,
-                          timing.paint_timing->first_contentful_paint.value());
-    }
 
     if (!GetDelegate().IsReloadAfterDiscard()) {
       PAGE_LOAD_HISTOGRAM(
@@ -949,11 +934,6 @@ void UmaPageLoadMetricsObserver::RecordTimingHistograms(
       EmitLCPTraceEvent(lcp_time);
       PAGE_LOAD_HISTOGRAM(internal::kHistogramLargestContentfulPaint, lcp_time);
 
-      if (is_incognito_) {
-        PAGE_LOAD_HISTOGRAM(internal::kHistogramLargestContentfulPaintIncognito,
-                            lcp_time);
-      }
-
       if (!GetDelegate().IsReloadAfterDiscard()) {
         PAGE_LOAD_HISTOGRAM(
             internal::kHistogramLargestContentfulPaintExcludeReloadAfterDiscard,
@@ -1013,14 +993,6 @@ void UmaPageLoadMetricsObserver::RecordNormalizedResponsivenessMetrics() {
   UmaHistogramCustomTimes(
       internal::kHistogramUserInteractionLatencyHighPercentile2MaxEventDuration,
       inp->interaction_latency, base::Milliseconds(1), base::Seconds(60), 50);
-
-  if (is_incognito_) {
-    UmaHistogramCustomTimes(
-        internal::
-            kHistogramUserInteractionLatencyHighPercentile2MaxEventDurationIncognito,
-        inp->interaction_latency, base::Milliseconds(1), base::Seconds(60), 50);
-  }
-
   base::TimeDelta interaction_time =
       inp->interaction_time - GetDelegate().GetNavigationStart();
   UmaHistogramCustomTimes(internal::kHistogramInpTime, interaction_time,

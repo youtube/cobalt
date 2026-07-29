@@ -40,6 +40,7 @@
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/prefs/pref_service.h"
 #include "components/sharing_message/features.h"
 #include "skia/ext/codec_utils.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -71,6 +72,24 @@ std::string ScaleBitmapAndEncodeToDataUri(SkBitmap bitmap) {
   }
 
   return skia::EncodePngAsDataUri(scaled_bitmap.pixmap());
+}
+
+bool UseNonBlockingPrivacyNotice(
+    lens::LensOverlayInvocationSource invocation_source) {
+  if (!lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled()) {
+    return false;
+  }
+  // Invocation sources that simply open the overlay without submitting a query
+  // are permitted to use the non-blocking privacy notice.
+  return (invocation_source == lens::LensOverlayInvocationSource::kAppMenu ||
+          invocation_source ==
+              lens::LensOverlayInvocationSource::kContentAreaContextMenuPage ||
+          invocation_source == lens::LensOverlayInvocationSource::kToolbar ||
+          invocation_source == lens::LensOverlayInvocationSource::kOmnibox ||
+          invocation_source ==
+              lens::LensOverlayInvocationSource::kOmniboxPageAction ||
+          invocation_source ==
+              lens::LensOverlayInvocationSource::kHomeworkActionChip);
 }
 
 }  // namespace
@@ -689,6 +708,13 @@ bool LensSearchController::RunLensEligibilityChecks(
     return false;
   }
 
+  // The non-blocking privacy notice permits the overlay to open without
+  // requesting user permission via the bubble.
+  if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
+      UseNonBlockingPrivacyNotice(invocation_source)) {
+    return true;
+  }
+
   // If the user hasn't granted permission, request user permission before
   // showing the UI.
   if (!lens::CanSharePageScreenshotWithLensOverlay(pref_service_) ||
@@ -726,7 +752,8 @@ void LensSearchController::OnThumbnailProcessed(
     bool is_region_selection,
     const std::string& thumbnail_uri) {
   lens_searchbox_controller_->SetSearchboxThumbnail(thumbnail_uri);
-  if (is_region_selection) {
+  if (is_region_selection &&
+      lens_overlay_controller_->use_aim_for_visual_search()) {
     lens_composebox_controller_->AddVisualSelectionContext(thumbnail_uri);
   }
 }
@@ -773,7 +800,11 @@ void LensSearchController::OnOverlayHidden(
 
   // Since the side panel is open and the overlay has smoothly faded out, hide
   // the overlay to restore state to the live page.
-  lens_overlay_controller_->HideOverlayAndMaybeSetHiddenState();
+  lens_overlay_controller_->HideOverlayAndSetHiddenState();
+  lens_overlay_controller_->ClearAllSelections();
+  // Any pending visual selection that had not yet been submitted should be
+  // cleared whenever the overlay is hidden.
+  lens_composebox_controller_->ClearVisualSelectionContext();
 }
 
 void LensSearchController::OnSidePanelWillHide(
@@ -791,6 +822,8 @@ void LensSearchController::OnSidePanelWillHide(
       state_ = State::kClosingSidePanel;
       last_dismissal_source_ =
           lens::LensOverlayDismissalSource::kSidePanelEntryReplaced;
+    } else if (reason == SidePanelEntryHideReason::kBackgrounded) {
+      TabWillEnterBackground(tab_);
     } else {
       // Trigger the close animation and notify the overlay that the side
       // panel is closing so that it can fade out the UI.
@@ -893,6 +926,16 @@ void LensSearchController::TabWillEnterBackground(tabs::TabInterface* tab) {
     return;
   }
 
+  // TODO(crbug.com/459478871): If the overlay is in an initializing state, then
+  // the entire Lens session is closed as there is no way to currently recover
+  // from this state. In the future, the side panel should remain open and the
+  // overlay should close.
+  if (lens_overlay_controller_->IsOverlayInitializing()) {
+    CloseLensSync(
+        lens::LensOverlayDismissalSource::kTabBackgroundedWhileInitializing);
+    return;
+  }
+
   // If no Lens UI is showing when the tab is backgrounded, then the entire Lens
   // session should be closed.
   if (!IsShowingUI()) {
@@ -940,7 +983,8 @@ void LensSearchController::OnPageContextUpdatedForZeroStateRequest(
           ->GetCurrentPageContextEligibility()) {
     // Create a region that consists of the entire viewport.
     auto full_viewport_region = lens::mojom::CenterRotatedBox::New();
-    full_viewport_region->box = gfx::RectF(/*x=*/0.5, /*y=*/0.5, /*width=*/1.0, /*height=*/1.0);
+    full_viewport_region->box =
+        gfx::RectF(/*x=*/0.5, /*y=*/0.5, /*width=*/1.0, /*height=*/1.0);
     full_viewport_region->coordinate_type =
         lens::mojom::CenterRotatedBox_CoordinateType::kNormalized;
 

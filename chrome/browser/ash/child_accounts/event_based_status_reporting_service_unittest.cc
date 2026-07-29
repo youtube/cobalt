@@ -143,7 +143,7 @@ class EventBasedStatusReportingServiceTest : public testing::Test {
     profile_->SetIsSupervisedProfile();
     // TODO(hidehiko): we should set up kChild account from the beginning,
     // but ArcAppTest does not support such a case. Fix the test helper.
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
 
     ChildStatusReportingServiceFactory::GetInstance()->SetTestingFactory(
         profile(),
@@ -171,8 +171,9 @@ class EventBasedStatusReportingServiceTest : public testing::Test {
 
   void TearDown() override {
     service_->Shutdown();
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     profile_.reset();
+    arc_app_test_.PostProfileTearDown();
     SystemClockClient::Shutdown();
     chromeos::PowerManagerClient::Shutdown();
 

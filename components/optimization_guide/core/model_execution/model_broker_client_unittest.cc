@@ -24,9 +24,11 @@ namespace optimization_guide {
 // Verify that a ModelBrokerClient that is not connected fails callbacks.
 TEST(ModelBrokerClientTest, DisconnectedClient) {
   base::test::TaskEnvironment task_environment_;
+  OptimizationGuideLogger logger;
 
   mojo::PendingReceiver<mojom::ModelBroker> receiver;
-  ModelBrokerClient client(receiver.InitWithNewPipeAndPassRemote());
+  ModelBrokerClient client(receiver.InitWithNewPipeAndPassRemote(),
+                           logger.GetWeakPtr());
   receiver.reset();
 
   base::test::TestFuture<ModelBrokerClient::CreateSessionResult> future;
@@ -42,9 +44,13 @@ TEST(ModelBrokerClientTest, DisconnectedClient) {
 // client will wait for the assets before resolving the callback.
 TEST(ModelBrokerClientTest, PendingClient) {
   base::test::TaskEnvironment task_environment_;
+  OptimizationGuideLogger logger;
   FakeAdaptationAsset fake_asset({.config = SimpleComposeConfig()});
-  FakeModelBroker fake_broker(fake_asset);
-  ModelBrokerClient client(fake_broker.BindAndPassRemote());
+  FakeModelBroker fake_broker({});
+  fake_broker.UpdateModelAdaptation(fake_asset);
+
+  ModelBrokerClient client(fake_broker.BindAndPassRemote(),
+                           logger.GetWeakPtr());
   EXPECT_FALSE(client.HasSubscriber(mojom::ModelBasedCapabilityKey::kTest));
 
   base::test::TestFuture<ModelBrokerClient::CreateSessionResult> future;
@@ -64,7 +70,8 @@ TEST(ModelBrokerClientTest, PendingClient) {
 // Verify that CreateSession works when all the assets are provided.
 TEST(ModelBrokerClientTest, ReadyWithSetupClient) {
   base::test::TaskEnvironment task_environment_;
-  FakeAdaptationAsset test_asset({
+  OptimizationGuideLogger logger;
+  FakeAdaptationAsset fake_asset({
       .config =
           []() {
             auto config = SimpleComposeConfig();
@@ -73,8 +80,11 @@ TEST(ModelBrokerClientTest, ReadyWithSetupClient) {
             return config;
           }(),
   });
-  FakeModelBroker fake_broker(test_asset);
-  ModelBrokerClient client(fake_broker.BindAndPassRemote());
+  FakeModelBroker fake_broker({});
+  fake_broker.UpdateModelAdaptation(fake_asset);
+
+  ModelBrokerClient client(fake_broker.BindAndPassRemote(),
+                           logger.GetWeakPtr());
   base::test::TestFuture<ModelBrokerClient::CreateSessionResult> future;
 
   // Requesting the feature we've provided assets for should succeed.
@@ -89,21 +99,18 @@ TEST(ModelBrokerClientTest, ReadyWithSetupClient) {
 TEST(ModelBrokerClientTest, UnavailableAdaptationRejectsSession) {
   base::test::TaskEnvironment task_environment{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  OptimizationGuideLogger logger;
   // Note: We pass a compose asset here, so the kTest feature will still be in
   // kPendingAsset status.
-  FakeAdaptationAsset compose_asset{{
+  FakeAdaptationAsset fake_asset{{
       .config = SimpleComposeConfig(),
   }};
-  FakeModelBroker broker{compose_asset};
-  // Mark feature used to trigger download.
-  // broker.broker_state().usage_tracker().OnDeviceEligibleFeatureUsed(
-  //     ModelBasedCapabilityKey::kTest);
-  OptimizationGuideLogger logger;
-  ModelProviderRegistry model_provider_{&logger};
-  auto asset_manager = broker.CreateAssetManager(&model_provider_);
+  FakeModelBroker broker({});
+  broker.UpdateModelAdaptation(fake_asset);
 
   mojo::PendingReceiver<mojom::ModelBroker> pending_broker;
-  ModelBrokerClient broker_client(broker.BindAndPassRemote());
+  ModelBrokerClient broker_client(broker.BindAndPassRemote(),
+                                  logger.GetWeakPtr());
 
   base::test::TestFuture<std::unique_ptr<OnDeviceSession>> session_future;
   broker_client.CreateSession(mojom::ModelBasedCapabilityKey::kTest,
@@ -118,7 +125,7 @@ TEST(ModelBrokerClientTest, UnavailableAdaptationRejectsSession) {
   // Emulate receiving info that a adaptation is not available from server.
   // Provider removes the target when the server says no matching model is
   // available.
-  model_provider_.RemoveModel(
+  broker.model_provider().RemoveModel(
       *features::internal::GetOptimizationTargetForCapability(
           ModelBasedCapabilityKey::kTest));
 

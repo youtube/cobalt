@@ -19,11 +19,18 @@ class TabCollectionObserver : public base::CheckedObserver {
   };
 
   // Notifies that tabs and collections are added starting at position.
+  // TODO(crbug.com/435179292): Remove insert_from_detached bool and pausing by
+  // proper selection model synchronization with collection updates.
+  // `insert_from_detached` is used to signal the client to read the whole
+  // subtree.
   virtual void OnChildrenAdded(const TabCollection::Position& position,
-                               const TabCollectionNodes& handles) {}
+                               const TabCollectionNodes& handles,
+                               bool insert_from_detached) {}
 
-  // Notifies that tabs and collections are removed.
-  virtual void OnChildrenRemoved(const TabCollectionNodes& handles) {}
+  // Notifies that tabs and collections are removed. `position` represents
+  // the start of the block after which all children are removed.
+  virtual void OnChildrenRemoved(const TabCollection::Position& position,
+                                 const TabCollectionNodes& handles) {}
 
   // Notifies that a tab or collection is moved to a position. node_data
   // contains the src information.

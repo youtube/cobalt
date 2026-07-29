@@ -9,12 +9,18 @@ import type {SearchboxElement} from './searchbox.js';
 export function getHtml(this: SearchboxElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
+<search-animated-glow animation-state="${this.animationState}">
+</search-animated-glow>
 ${this.ntpRealboxNextEnabled ? html`
 <ntp-error-scrim id="errorScrim"
     ?compact-mode="${this.searchboxLayoutMode === 'Compact'}">
 </ntp-error-scrim>` : nothing}
 <div id="inputWrapper" @focusout="${this.onInputWrapperFocusout_}"
-    @keydown="${this.onInputWrapperKeydown_}">
+    @keydown="${this.onInputWrapperKeydown_}"
+    @dragenter="${this.dragAndDropHandler?.handleDragEnter}"
+    @dragover="${this.dragAndDropHandler?.handleDragOver}"
+    @dragleave="${this.dragAndDropHandler?.handleDragLeave}"
+    @drop="${this.dragAndDropHandler?.handleDrop}">
   <input id="input" class="truncate" type="search" autocomplete="off"
       part="searchbox-input"
       spellcheck="false" aria-live="${this.inputAriaLive_}" role="combobox"
@@ -43,8 +49,7 @@ ${this.ntpRealboxNextEnabled ? html`
     </div>
   ` : nothing}
 
-  ${this.searchboxLayoutMode.startsWith('Tall') &&
-      this.composeButtonEnabled ? html`
+  ${this.composeButtonEnabled ? html`
     <cr-searchbox-compose-button id="composeButton"
         @compose-click="${this.onComposeButtonClick_}">
     </cr-searchbox-compose-button>
@@ -66,8 +71,7 @@ ${this.ntpRealboxNextEnabled ? html`
           @get-tab-preview="${this.getTabPreview_}"
           ?show-dropdown="${this.dropdownIsVisible}"
           ?show-voice-search="${this.shouldShowVoiceSearch_}"
-          searchbox-layout-mode="${this.searchboxLayoutMode}"
-          .parentFocused="${this.inputFocused_}">
+          searchbox-layout-mode="${this.searchboxLayoutMode}">
         <cr-searchbox-dropdown id="matches" part="searchbox-dropdown"
             exportparts="dropdown-content"
             role="listbox" .result="${this.result_}"
@@ -121,13 +125,6 @@ ${this.ntpRealboxNextEnabled ? html`
           title="${this.i18n('lensSearchButtonLabel')}">
       </button>
     </div>
-  ` : nothing}
-
-  ${!this.searchboxLayoutMode.startsWith('Tall') &&
-      this.composeButtonEnabled ? html`
-    <cr-searchbox-compose-button id="composeButton"
-        @compose-click="${this.onComposeButtonClick_}">
-    </cr-searchbox-compose-button>
   ` : nothing}
 
 <!--_html_template_end_-->`;

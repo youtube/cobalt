@@ -588,7 +588,9 @@ gfx::Image GtkUi::GetIconForContentType(const std::string& content_type,
     }
     gfx::ImageSkia image_skia =
         gfx::ImageSkia::CreateFromBitmap(bitmap, scale_int);
-    image_skia.MakeThreadSafe();
+    if (!image_skia.isNull()) {
+      image_skia.MakeThreadSafe();
+    }
     return gfx::Image(image_skia);
   }
   return gfx::Image();
@@ -634,6 +636,13 @@ ui::SelectFileDialog* GtkUi::CreateSelectFileDialog(
 ui::LinuxUi::WindowFrameAction GtkUi::GetWindowFrameAction(
     WindowFrameActionSource source) {
   return window_frame_actions_[source];
+}
+
+int GtkUi::GetWindowDragThresholdPx() const {
+  gint threshold = kDefaultWindowDragThreshold;
+  g_object_get(gtk_settings_get_default(), "gtk-dnd-drag-threshold", &threshold,
+               nullptr);
+  return threshold;
 }
 
 bool GtkUi::PreferDarkTheme() const {

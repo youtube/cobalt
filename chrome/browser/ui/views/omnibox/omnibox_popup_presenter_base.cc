@@ -8,12 +8,22 @@
 
 #include "base/feature_list.h"
 #include "base/notreached.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
+#include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/widget/native_widget.h"
+
+namespace omnibox {
+const void* kOmniboxWebUIPopupWidgetId = &kOmniboxWebUIPopupWidgetId;
+}
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(OmniboxPopupPresenterBase,
+                                      kRoundedResultsFrame);
 
 OmniboxPopupPresenterBase::OmniboxPopupPresenterBase(
     LocationBarView* location_bar_view)
@@ -27,41 +37,51 @@ OmniboxPopupPresenterBase::~OmniboxPopupPresenterBase() {
 }
 
 void OmniboxPopupPresenterBase::Show() {
+  EnsureWidgetCreated();
+
   widget_->ShowInactive();
 
   if (auto* content = GetWebUIContent()) {
+    SetWidgetContentHeight(content->GetPreferredSize().height());
     content->GetWebContents()->WasShown();
     if (ShouldReceiveFocus()) {
       widget_->Activate();
       content->RequestFocus();
+      content->ShowUI();
     }
   }
 }
 
 void OmniboxPopupPresenterBase::Hide() {
   // Only close if UI DevTools settings allow.
-  if (widget_->ShouldHandleNativeWidgetActivationChanged(false)) {
+  if (widget_ && widget_->ShouldHandleNativeWidgetActivationChanged(false)) {
     widget_->Hide();
+    if (auto* content = GetWebUIContent()) {
+      content->CloseUI();
+    }
   }
 }
 
 bool OmniboxPopupPresenterBase::IsShown() const {
-  return widget_->IsVisible();
+  return widget_ && widget_->IsVisible();
 }
 
 void OmniboxPopupPresenterBase::SetWidgetContentHeight(int content_height) {
-  // The width is known, and is the basis for consistent web content rendering
-  // so width is specified exactly; then only height adjusts dynamically.
-  gfx::Rect widget_bounds = location_bar_view_->GetBoundsInScreen();
-  if (ShouldShowLocationBarCutout()) {
-    widget_bounds.Inset(
-        -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
-    widget_bounds.set_height(widget_bounds.height() + content_height);
-  } else {
-    widget_bounds.set_height(std::max(content_height, widget_bounds.height()));
+  if (widget_) {
+    // The width is known, and is the basis for consistent web content rendering
+    // so width is specified exactly; then only height adjusts dynamically.
+    gfx::Rect widget_bounds = location_bar_view_->GetBoundsInScreen();
+    if (ShouldShowLocationBarCutout()) {
+      widget_bounds.Inset(
+          -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
+      widget_bounds.set_height(widget_bounds.height() + content_height);
+    } else {
+      widget_bounds.set_height(
+          std::max(content_height, widget_bounds.height()));
+    }
+    widget_bounds.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());
+    widget_->SetBounds(widget_bounds);
   }
-  widget_bounds.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());
-  widget_->SetBounds(widget_bounds);
 }
 
 views::View* OmniboxPopupPresenterBase::GetUIContainer() const {
@@ -80,6 +100,13 @@ void OmniboxPopupPresenterBase::SetWebUIContent(
     std::unique_ptr<OmniboxPopupWebUIBaseContent> webui_content) {
   omnibox_popup_webui_content_ =
       GetUIContainer()->AddChildView(std::move(webui_content));
+  EnsureWidgetCreated();
+}
+
+void OmniboxPopupPresenterBase::EnsureWidgetCreated() {
+  if (widget_) {
+    return;
+  }
   widget_ =
       std::make_unique<ThemeCopyingWidget>(location_bar_view_->GetWidget());
 
@@ -103,15 +130,19 @@ void OmniboxPopupPresenterBase::SetWebUIContent(
       &OmniboxPopupPresenterBase::OnWidgetClosed, base::Unretained(this)));
 
   widget_->Init(std::move(params));
-  widget_->SetContentsView(std::make_unique<RoundedOmniboxResultsFrame>(
-      owned_omnibox_popup_webui_container_.release(), location_bar_view_));
-
+  widget_->SetNativeWindowProperty(
+      views::kWidgetIdentifierKey,
+      const_cast<void*>(omnibox::kOmniboxWebUIPopupWidgetId));
+  auto rounded_frame = std::make_unique<RoundedOmniboxResultsFrame>(
+      owned_omnibox_popup_webui_container_.release(), location_bar_view_,
+      /*forward_mouse_events=*/ShouldShowLocationBarCutout());
+  rounded_frame->SetProperty(views::kElementIdentifierKey,
+                             kRoundedResultsFrame);
+  widget_->SetContentsView(std::move(rounded_frame));
   widget_->SetVisibilityChangedAnimationsEnabled(false);
 
   GetResultsFrame()->SetCutoutVisibility(ShouldShowLocationBarCutout());
 }
-
-void OmniboxPopupPresenterBase::WidgetDestroyed() {}
 
 bool OmniboxPopupPresenterBase::ShouldShowLocationBarCutout() const {
   return false;

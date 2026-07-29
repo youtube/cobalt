@@ -54,7 +54,7 @@
 #import "components/payments/core/payment_prefs.h"
 #import "components/plus_addresses/core/common/plus_address_prefs.h"
 #import "components/policy/core/browser/browser_policy_connector.h"
-#import "components/policy/core/browser/url_blocklist_manager.h"
+#import "components/policy/core/browser/url_list/url_blocklist_manager.h"
 #import "components/policy/core/common/local_test_policy_provider.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/policy/core/common/policy_statistics_collector.h"
@@ -124,7 +124,7 @@
 #import "ios/chrome/browser/prerender/model/prerender_pref.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_prefs.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_service.h"
-#import "ios/chrome/browser/reader_mode/model/reader_mode_prefs.h"
+#import "ios/chrome/browser/reader_mode/model/constants.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_constants.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -751,7 +751,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   variations::VariationsService::RegisterProfilePrefs(registry);
   ZeroSuggestProvider::RegisterProfilePrefs(registry);
   tab_resumption_prefs::RegisterProfilePrefs(registry);
-  reader_mode_prefs::RegisterProfilePrefs(registry);
 
   [BookmarkMediator registerProfilePrefs:registry];
   [BookmarkPathCache registerProfilePrefs:registry];
@@ -1072,6 +1071,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
   registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
 
+  // Prefs for the Synced Set Up Feature.
+  registry->RegisterIntegerPref(prefs::kSyncedSetUpImpressionCount, 0);
+
   // Deprecated 02/2025 (migrated to LocalState pref).
   registry->RegisterIntegerPref(prefs::kNTPLensEntryPointNewBadgeShownCount, 0);
 
@@ -1167,6 +1169,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Deprecated 10/2025.
   registry->RegisterStringPref(kLegacySyncSessionsGUID, std::string());
   registry->RegisterBooleanPref(prefs::kFingerprintingProtectionEnabled, true);
+
+  // Deprecated 11/2025.
+  registry->RegisterListPref(kReaderModeRecentlyUsedTimestampsPref);
 }
 
 // This method should be periodically pruned of year+ old migrations.
@@ -1366,6 +1371,9 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kLastUsedFeedForGoodVisitsKey);
   prefs->ClearPref(kLegacySyncSessionsGUID);
   prefs->ClearPref(prefs::kFingerprintingProtectionEnabled);
+
+  // Added 11/2025.
+  prefs->ClearPref(kReaderModeRecentlyUsedTimestampsPref);
 }
 
 void MigrateObsoleteUserDefault() {

@@ -70,9 +70,17 @@ class TabStateStorageDatabase {
   // Saves a node to the database.
   bool SaveNode(OpenTransaction* transaction,
                 int id,
+                std::string window_tag,
+                bool is_off_the_record,
                 TabStorageType type,
                 std::string payload,
                 std::string children);
+
+  // Saves a node payload to the database.
+  // This will silently fail if the node does not already exist.
+  bool SaveNodePayload(OpenTransaction* transaction,
+                       int id,
+                       std::string payload);
 
   // Saves the children of a node to the database.
   // This will silently fail if the node does not already exist.
@@ -91,7 +99,8 @@ class TabStateStorageDatabase {
   bool CloseTransaction(OpenTransaction* transaction);
 
   // Loads all nodes from the database.
-  std::vector<NodeState> LoadAllNodes();
+  std::vector<NodeState> LoadAllNodes(std::string window_tag,
+                                      bool is_off_the_record);
 
   // Clears all nodes from the database.
   void ClearAllNodes();

@@ -42,6 +42,7 @@ using l10n_util::GetNSStringF;
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityManagerObserver;
   raw_ptr<AuthenticationService, DanglingUntriaged> _authService;
+  trusted_vault::TrustedVaultUserActionTriggerForUMA _userActionTrigger;
 }
 
 - (instancetype)
@@ -49,8 +50,9 @@ using l10n_util::GetNSStringF;
                        browser:(Browser*)browser
                         intent:(SigninTrustedVaultDialogIntent)intent
               securityDomainID:(trusted_vault::SecurityDomainId)securityDomainID
-                       trigger:(syncer::TrustedVaultUserActionTriggerForUMA)
-                                   trigger {
+                       trigger:
+                           (trusted_vault::TrustedVaultUserActionTriggerForUMA)
+                               trigger {
   DCHECK_EQ(browser->type(), Browser::Type::kRegular);
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
@@ -61,6 +63,7 @@ using l10n_util::GetNSStringF;
     _identityManagerObserver =
         std::make_unique<signin::IdentityManagerObserverBridge>(
             _identityManager, self);
+    _userActionTrigger = trigger;
     switch (intent) {
       case SigninTrustedVaultDialogIntentFetchKeys:
         syncer::RecordKeyRetrievalTrigger(trigger);
@@ -100,7 +103,8 @@ using l10n_util::GetNSStringF;
       _dialogCancelCallback =
           TrustedVaultClientBackendFactory::GetForProfile(self.profile)
               ->Reauthentication(self.identity, _securityDomainID,
-                                 self.baseViewController, callback);
+                                 _userActionTrigger, self.baseViewController,
+                                 callback);
       break;
     case SigninTrustedVaultDialogIntentDegradedRecoverability:
       _dialogCancelCallback =

@@ -78,6 +78,9 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     request: {options?: OpenSettingsOptions},
     backgroundAllowed: true,
   },
+  glicBrowserOpenPasswordManagerSettingsPage: {
+    backgroundAllowed: true,
+  },
   glicBrowserClosePanel: {
     backgroundAllowed: true,
   },
@@ -195,6 +198,21 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   glicBrowserUninterruptActorTask: {
     request: {
       taskId: number,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserCreateActorTab: {
+    request: {
+      taskId: number,
+      options: {
+        initiatorTabId?: string,
+        initiatorWindowId?: string,
+        openInBackground?: boolean,
+      },
+    },
+    response: {
+      // Undefined on failure.
+      tabData?: TabDataPrivate,
     },
     backgroundAllowed: true,
   },
@@ -819,6 +837,8 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         InterruptActorTask: 74,
         UninterruptActorTask: 75,
         ActivateTab: 76,
+        CreateActorTab: 77,
+        OpenPasswordManagerSettingsPage: 78,
       };
       return {...result, MAX_VALUE: Math.max(...Object.values(result))};
     })();

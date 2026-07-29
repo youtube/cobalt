@@ -29,6 +29,7 @@
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/field_prediction_test_matchers.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
@@ -213,7 +214,7 @@ void AddFieldOverrideToForm(
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 // Creates the override specification passed as a parameter to
-// `features::test::kAutofillOverridePredictions`.
+// `features::debug::kAutofillOverridePredictions`.
 std::string CreateManualOverridePrediction(
     const std::vector<ManualOverride>& overrides) {
   std::vector<std::string> override_specs;
@@ -3124,12 +3125,12 @@ TEST_F(AutofillCrowdsourcingEncoding,
   // Only the prediction for the first field is overridden.
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction({{CalculateFormSignature(form),
                                         CalculateFieldSignatureForField(field1),
                                         {USERNAME}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3191,12 +3192,12 @@ TEST_F(
   // through".
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction(
            {{kFormSignature, kFieldSignature, {NAME_FIRST}},
             {kFormSignature, kFieldSignature, {}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3254,12 +3255,12 @@ TEST_F(
   // through".
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction(
            {{kFormSignature, kFieldSignature, {NAME_FIRST}},
             {kFormSignature, kFieldSignature, {}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3335,13 +3336,13 @@ TEST_F(
   // through".
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction(
            {{kFormSignature, kFieldSignature, {NAME_FIRST}},
             {kFormSignature, kFieldSignature, {}},
             {kFormSignature, kFieldSignature, {COMPANY_NAME}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3401,12 +3402,12 @@ TEST_F(AutofillCrowdsourcingEncoding,
   // Only the prediction for the first field is overridden.
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction({{CalculateAlternativeFormSignature(form),
                                         CalculateFieldSignatureForField(field1),
                                         {USERNAME}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3460,12 +3461,12 @@ TEST_F(
   // Only the prediction for the first field is overridden.
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction({{CalculateAlternativeFormSignature(form),
                                         CalculateFieldSignatureForField(field1),
                                         {USERNAME}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3516,13 +3517,13 @@ TEST_F(
   // overridden.
   base::test::ScopedFeatureList features;
   base::FieldTrialParams feature_parameters{
-      {features::test::kAutofillOverridePredictionsSpecification.name,
+      {features::debug::kAutofillOverridePredictionsSpecification.name,
        CreateManualOverridePrediction(
            {{CalculateAlternativeFormSignature(form),
              CalculateFieldSignatureForField(name_field),
              {USERNAME}}})}};
   features.InitAndEnableFeatureWithParameters(
-      features::test::kAutofillOverridePredictions, feature_parameters);
+      features::debug::kAutofillOverridePredictions, feature_parameters);
 
   // Make serialized API response.
   AutofillQueryResponse api_response;
@@ -3883,112 +3884,6 @@ TEST_F(AutofillCrowdsourcingEncoding,
   // the same signature.
   EXPECT_EQ(form.field(1)->server_type(), NAME_FIRST);
   EXPECT_EQ(form.field(2)->server_type(), EMAIL_ADDRESS);
-}
-
-// Test that experimental server predictions are not used.
-TEST_F(AutofillCrowdsourcingEncoding,
-       ExperimentalServerPredictionsAreSeparate) {
-  FormData form_data;
-  form_data.set_url(GURL("http://foo.com"));
-
-  // Add 6 fields.
-  for (int i = 0; i < 6; i++) {
-    FormFieldData field;
-    field.set_form_control_type(FormControlType::kInputText);
-    field.set_name(base::NumberToString16(i));
-    field.set_label((base::NumberToString16(i)));
-    field.set_renderer_id(test::MakeFieldRendererId());
-    test_api(form_data).Append(field);
-  }
-
-  FormStructure form(form_data);
-  ParseRationalizeAndSection(form);
-
-  const auto default_autofill_prediction = CreateFieldPrediction(
-      NAME_FIRST, FieldPrediction::SOURCE_AUTOFILL_DEFAULT);
-  const auto default_password_prediction = CreateFieldPrediction(
-      USERNAME, FieldPrediction::SOURCE_PASSWORDS_DEFAULT);
-  const auto experimental_prediction = CreateFieldPrediction(
-      EMAIL_ADDRESS, FieldPrediction::SOURCE_ALL_APPROVED_EXPERIMENTS);
-  const auto null_prediction = CreateFieldPrediction(
-      NO_SERVER_DATA, FieldPrediction::SOURCE_UNSPECIFIED);
-  const auto unknown_prediction_source = CreateFieldPrediction(
-      PHONE_HOME_NUMBER, FieldPrediction::SOURCE_UNSPECIFIED);
-
-  // Setup the query response. Default predictions must be returned by
-  // `server_type()` and `server_predictions()` as provided.
-  AutofillQueryResponse response;
-  auto* form_suggestion = response.add_form_suggestions();
-  // 2 default + 1 experimental predictions.
-  AddFieldPredictionsToForm(
-      form_data.fields()[0],
-      {default_autofill_prediction, default_password_prediction,
-       experimental_prediction},
-      form_suggestion);
-  // 1 default + 1 experimental predictions.
-  AddFieldPredictionsToForm(
-      form_data.fields()[1],
-      {default_autofill_prediction, experimental_prediction}, form_suggestion);
-  // 2 default predictions.
-  AddFieldPredictionsToForm(
-      form_data.fields()[2],
-      {default_autofill_prediction, default_password_prediction},
-      form_suggestion);
-  // 1 null + 1 experimental predictions.
-  AddFieldPredictionsToForm(form_data.fields()[3],
-                            {null_prediction, experimental_prediction},
-                            form_suggestion);
-  // 1 experimental prediction. The server doesn't do that, but we can defend
-  // against it anyway. The default prediction should be effectively
-  // `NO_SERVER_DATA`.
-  AddFieldPredictionsToForm(form_data.fields()[4], {experimental_prediction},
-                            form_suggestion);
-  // A prediction without the source specified.
-  AddFieldPredictionsToForm(form_data.fields()[5], {unknown_prediction_source},
-                            form_suggestion);
-
-  // Parse the response and update the field type predictions.
-  std::vector<raw_ptr<FormStructure, VectorExperimental>> forms{&form};
-  ParseServerPredictionsQueryResponse(SerializeAndEncode(response), forms,
-                                      test::GetEncodedSignatures(forms),
-                                      nullptr);
-
-  ASSERT_EQ(form.field_count(), 6U);
-  EXPECT_THAT(
-      form.fields(),
-      Each(Pointee(Property(&AutofillField::server_type,
-                            Not(AnyOf(experimental_prediction.type(),
-                                      unknown_prediction_source.type()))))))
-      << "server_type() must not return a type provided as an experiment.";
-
-  // `server_predictions` should only return default predictions.
-  EXPECT_THAT(form.field(0)->server_predictions(),
-              ElementsAre(EqualsPrediction(default_autofill_prediction),
-                          EqualsPrediction(default_password_prediction)));
-  EXPECT_THAT(form.field(1)->server_predictions(),
-              ElementsAre(EqualsPrediction(default_autofill_prediction)));
-  EXPECT_THAT(form.field(2)->server_predictions(),
-              ElementsAre(EqualsPrediction(default_autofill_prediction),
-                          EqualsPrediction(default_password_prediction)));
-  EXPECT_THAT(form.field(3)->server_predictions(),
-              ElementsAre(EqualsPrediction(null_prediction)));
-  EXPECT_THAT(form.field(4)->server_predictions(),
-              ElementsAre(EqualsPrediction(null_prediction)));
-  EXPECT_THAT(form.field(5)->server_predictions(),
-              ElementsAre(EqualsPrediction(null_prediction)));
-
-  // `experimental_server_predictions` should only return experimental
-  // predictions.
-  EXPECT_THAT(form.field(0)->experimental_server_predictions(),
-              ElementsAre(EqualsPrediction(experimental_prediction)));
-  EXPECT_THAT(form.field(1)->experimental_server_predictions(),
-              ElementsAre(EqualsPrediction(experimental_prediction)));
-  EXPECT_THAT(form.field(2)->experimental_server_predictions(), IsEmpty());
-  EXPECT_THAT(form.field(3)->experimental_server_predictions(),
-              ElementsAre(EqualsPrediction(experimental_prediction)));
-  EXPECT_THAT(form.field(4)->experimental_server_predictions(),
-              ElementsAre(EqualsPrediction(experimental_prediction)));
-  EXPECT_THAT(form.field(5)->experimental_server_predictions(), IsEmpty());
 }
 
 // Tests that the `run_autofill_ai_model` of the `AutofillQueryResponse` proto

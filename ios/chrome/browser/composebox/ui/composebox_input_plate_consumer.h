@@ -26,10 +26,13 @@
 - (void)hideSendButton:(BOOL)hidden;
 
 // Sets whether the "Attach current tab" action is enabled.
-- (void)setCanAttachTabAction:(BOOL)canAttachTabAction;
+- (void)setCanAttachCurrentTab:(BOOL)canAttachCurrentTab;
 
 // Sets whether AI mode is enabled.
 - (void)setAIModeEnabled:(BOOL)AIModeEnabled;
+
+// Whether to present in compact (single line) mode.
+- (void)setIsCompactMode:(BOOL)isCompactMode;
 
 @end
 

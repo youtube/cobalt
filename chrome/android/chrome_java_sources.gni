@@ -986,6 +986,7 @@ chrome_java_sources = [
   "java/src/org/chromium/chrome/browser/settings/MainSettings.java",
   "java/src/org/chromium/chrome/browser/settings/MultiColumnSettings.java",
   "java/src/org/chromium/chrome/browser/settings/MultiColumnTitleUpdater.java",
+  "java/src/org/chromium/chrome/browser/settings/SelectionDecoration.java",
   "java/src/org/chromium/chrome/browser/settings/SettingsActivity.java",
   "java/src/org/chromium/chrome/browser/settings/SettingsCustomTabLauncherImpl.java",
   "java/src/org/chromium/chrome/browser/settings/SettingsIntentUtil.java",
@@ -1159,6 +1160,7 @@ chrome_java_sources = [
   "java/src/org/chromium/chrome/browser/tasks/HomeSurfaceTracker.java",
   "java/src/org/chromium/chrome/browser/tasks/ReturnToChromeUtil.java",
   "java/src/org/chromium/chrome/browser/toolbar/AppThemeColorProvider.java",
+  "java/src/org/chromium/chrome/browser/toolbar/TabStripTopControlLayer.java",
   "java/src/org/chromium/chrome/browser/toolbar/ToolbarButtonInProductHelpController.java",
   "java/src/org/chromium/chrome/browser/toolbar/ToolbarIphController.java",
   "java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java",
@@ -1257,9 +1259,12 @@ chrome_java_sources = [
 if (enable_screen_capture) {
   chrome_java_sources += [
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerDialog.java",
-    "java/src/org/chromium/chrome/browser/media/MediaCapturePickerDialogBridge.java",
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerHeadlessFragment.java",
+    "java/src/org/chromium/chrome/browser/media/MediaCapturePickerInvoker.java",
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerItemProperties.java",
     "java/src/org/chromium/chrome/browser/media/MediaCapturePickerItemViewBinder.java",
+    "java/src/org/chromium/chrome/browser/media/MediaCapturePickerManager.java",
+    "java/src/org/chromium/chrome/browser/media/MediaCapturePickerManagerBridge.java",
+    "java/src/org/chromium/chrome/browser/media/MediaCapturePickerTabObserver.java",
   ]
 }

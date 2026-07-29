@@ -647,7 +647,10 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
-    @DisableFeatures(ContentFeatureList.ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE)
+    @DisableFeatures({
+        ContentFeatureList.ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE,
+        ContentFeatureList.ACCESSIBILITY_IMPROVE_LIVE_REGION_ANNOUNCE
+    })
     public void test_ariaLive() {
         performAriaTest("aria-live.html");
     }
@@ -661,7 +664,10 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
-    @DisableFeatures(ContentFeatureList.ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE)
+    @DisableFeatures({
+        ContentFeatureList.ACCESSIBILITY_DEPRECATE_TYPE_ANNOUNCE,
+        ContentFeatureList.ACCESSIBILITY_IMPROVE_LIVE_REGION_ANNOUNCE
+    })
     public void test_ariaLiveWithContent() {
         performAriaTest("aria-live-with-content.html");
     }
@@ -749,6 +755,12 @@ public class WebContentsAccessibilityTreeTest {
     @SmallTest
     public void test_ariaMismatchedTableAttr() {
         performAriaTest("aria-mismatched-table-attr.html");
+    }
+
+    @Test
+    @SmallTest
+    public void test_ariaModal() {
+        performAriaTest("aria-modal.html");
     }
 
     @Test

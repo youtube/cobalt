@@ -358,22 +358,9 @@ const base::FeatureParam<bool> kGlicActorUiStandaloneBorderGlow{
 const base::FeatureParam<base::TimeDelta> kGlicActorUiDebounceTimer{
     &kGlicActorUi, kGlicActorUiDebounceTimerName, base::Milliseconds(25)};
 
-// Controls renderer tool observation timeout when waiting on local
-// (non-network) work. This has no effect when kGlicActorPageStabilityMinWait is
-// enabled.
-const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityLocalTimeout{
-    &kGlicActor, "glic-actor-page-stability-local-timeout", base::Seconds(3)};
-
 // The overall observation timeout when waiting on a renderer tool to complete.
 const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityTimeout{
     &kGlicActor, "glic-actor-page-stability-timeout", base::Seconds(4)};
-
-// An artificial delay before signalling the tools that the page has become
-// stable. This has no effect when kGlicActorPageStabilityMinWait is enabled.
-const base::FeatureParam<base::TimeDelta>
-    kGlicActorPageStabilityInvokeCallbackDelay{
-        &kGlicActor, "glic-actor-page-stability-invoke-callback-delay",
-        base::Milliseconds(200)};
 
 // The minimum amount of time to wait for page stability before invoking the
 // callback.
@@ -445,11 +432,14 @@ BASE_FEATURE_ENUM_PARAM(GlicActorEnterprisePrefDefault,
                         GlicActorEnterprisePrefDefault::kForcedDisabled,
                         &kGlicActorEnterprisePrefDefaultOptions);
 
+const base::FeatureParam<bool> kGlicActorPolicyControlExemption{
+    &kGlicActor, "glic_actor_policy_control_exemption", false};
+
 BASE_FEATURE(kGlicActorPermissionsBypass, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActorToctouValidation, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicActorInternalPopups, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicActorInternalPopups, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicActorCoordinateScrollTool, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -477,6 +467,14 @@ BASE_FEATURE(kGlicActorSelectCancelsPopup, base::FEATURE_ENABLED_BY_DEFAULT);
 // Whether to add a small delay between mouse actions during the drag and
 // release tool
 BASE_FEATURE(kGlicActorSplitDragAndRelease, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Whether to trigger mouse move events with each click.
+BASE_FEATURE(kGlicActorMoveBeforeClick, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Delay between move event and click event.
+const base::FeatureParam<base::TimeDelta> kGlicActorMoveBeforeClickDelay{
+    &kGlicActorMoveBeforeClick, "glic-actor-move-before-click-delay",
+    base::Milliseconds(5)};
 
 // Controls whether the Glic's act-on-web capability is checked for managed
 // trial clients.
@@ -795,6 +793,8 @@ BASE_FEATURE(kGlicClosedCaptioning, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicDefaultTabContextSetting, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kGlicDefaultContextPinOnBind, base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicUnloadOnClose, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicApiActivationGating, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -819,6 +819,8 @@ BASE_FEATURE(kGlicPanelResetSizeAndLocationOnOpen,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicPersonalContext, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kGlicPopupWindowsEnabled, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicRecordActorJournal, base::FEATURE_ENABLED_BY_DEFAULT);
 extern const base::FeatureParam<int> kGlicRecordActorJournalFeedbackProductId{
@@ -848,10 +850,11 @@ const base::FeatureParam<int> kGlicTabFocusDataDebounceDelayMs{
 const base::FeatureParam<int> kGlicTabFocusDataMaxDebounces{
     &kGlicTabFocusDataDedupDebounce, "glic-tab-focus-data-max-debounces", 5};
 
-// Kill switch for activateTab API.
-BASE_FEATURE(kGlicActivateTabApi, base::FEATURE_ENABLED_BY_DEFAULT);
 // Kill switch for getTabById API.
 BASE_FEATURE(kGlicGetTabByIdApi, base::FEATURE_ENABLED_BY_DEFAULT);
+// Kill switch for openPasswordManagerSettingsPage API.
+BASE_FEATURE(kGlicOpenPasswordManagerSettingsPageApi,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicAssetsV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1455,26 +1458,6 @@ constexpr base::FeatureParam<int>
         /*name=*/"waiting_for_metrics_days", /*default_value=*/1};
 
 #if BUILDFLAG(IS_ANDROID)
-// Enables Safety Hub organic HaTS survey on Android.
-BASE_FEATURE(kSafetyHubAndroidOrganicSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<std::string> kSafetyHubAndroidOrganicTriggerId(
-    &kSafetyHubAndroidOrganicSurvey,
-    "trigger_id",
-    /*default_value=*/
-    "");
-
-// Enables Safety Hub HaTS survey on Android.
-BASE_FEATURE(kSafetyHubAndroidSurvey, base::FEATURE_DISABLED_BY_DEFAULT);
-
-constexpr base::FeatureParam<std::string> kSafetyHubAndroidTriggerId(
-    &kSafetyHubAndroidSurvey,
-    "trigger_id",
-    /*default_value=*/"");
-
-// Enables new triggers for the Safety Hub HaTS survey on Android.
-BASE_FEATURE(kSafetyHubAndroidSurveyV2, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables Weak and Reused passwords in Safety Hub.
 BASE_FEATURE(kSafetyHubWeakAndReusedPasswords,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1566,6 +1549,10 @@ BASE_FEATURE(kProcessPerSiteForDSE, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kConsiderDSEWarmUpPageAsSRP, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_CHROMEOS)
+// Enables Camera Cloud Storage for saving photos and videos on Google Drive
+// or OneDrive, controlled by CameraSaveLocation policy.
+BASE_FEATURE(kCameraCloudStorage, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables the SkyVault (cloud-first) changes, some of which are also controlled
 // by policies: removing local storage, saving downloads and screen captures to
 // the cloud, and related UX changes, primarily in the Files App.

@@ -277,7 +277,7 @@ void DesktopCaptureAccessHandler::ProcessScreenCaptureAccessRequest(
               pending_request->request.render_frame_id))) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::INVALID_STATE,
+             MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN,
              /*ui=*/nullptr);
     return;
   }
@@ -363,7 +363,7 @@ void DesktopCaptureAccessHandler::HandleRequest(
   if (allowed_capture_level == AllowedScreenCaptureLevel::kDisallowed) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::PERMISSION_DENIED,
+             MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY,
              /*ui=*/nullptr);
     return;
   }
@@ -380,7 +380,7 @@ void DesktopCaptureAccessHandler::HandleRequest(
     if (allowed_capture_level < AllowedScreenCaptureLevel::kDesktop) {
       std::move(pending_request->callback)
           .Run(blink::mojom::StreamDevicesSet(),
-               MediaStreamRequestResult::PERMISSION_DENIED,
+               MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY,
                /*ui=*/nullptr);
       return;
     }
@@ -436,7 +436,7 @@ void DesktopCaptureAccessHandler::HandleRequest(
   if (!IsMediaTypeAllowed(allowed_capture_level, media_id.type)) {
     std::move(pending_request->callback)
         .Run(blink::mojom::StreamDevicesSet(),
-             MediaStreamRequestResult::PERMISSION_DENIED,
+             MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY,
              /*ui=*/nullptr);
     return;
   }
@@ -595,6 +595,16 @@ void DesktopCaptureAccessHandler::ProcessQueuedAccessRequest(
       pending_request.request.window_audio_preference;
   picker_params.restricted_by_policy =
       (capture_level != AllowedScreenCaptureLevel::kUnrestricted);
+#if BUILDFLAG(IS_ANDROID)
+  picker_params.capture_this_tab =
+      pending_request.request.video_type ==
+      blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB;
+  picker_params.exclude_self_browser_surface =
+      pending_request.request.exclude_self_browser_surface;
+  picker_params.exclude_monitor_type_surfaces =
+      pending_request.request.exclude_monitor_type_surfaces;
+#endif
+
   pending_request.picker->Show(picker_params, std::move(source_lists),
                                std::move(done_callback));
 

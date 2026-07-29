@@ -6,6 +6,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/timer/timer.h"
 #include "base/trace_event/trace_event.h"
@@ -51,12 +52,14 @@ PrefetchMatchResolver::PrefetchMatchResolver(
     PrefetchServiceWorkerState expected_service_worker_state,
     bool is_nav_prerender,
     base::WeakPtr<PrerenderHost> prerender_host,
-    Callback callback)
+    Callback callback,
+    perfetto::Flow flow)
     : navigation_request_for_metrics_(std::move(navigation_request)),
       prefetch_service_(std::move(prefetch_service)),
       navigated_key_(std::move(navigated_key)),
       expected_service_worker_state_(expected_service_worker_state),
       callback_(std::move(callback)),
+      flow_(std::move(flow)),
       is_nav_prerender_(is_nav_prerender),
       prerender_host_for_metrics_(std::move(prerender_host)),
       prefetch_match_metrics_(std::make_unique<PrefetchMatchMetrics>()) {
@@ -94,8 +97,9 @@ void PrefetchMatchResolver::FindPrefetch(
     PrefetchServiceWorkerState expected_service_worker_state,
     base::WeakPtr<PrefetchServingPageMetricsContainer>
         serving_page_metrics_container,
-    Callback callback) {
-  TRACE_EVENT0("loading", "PrefetchMatchResolver::FindPrefetch");
+    Callback callback,
+    perfetto::Flow flow) {
+  TRACE_EVENT_BEGIN("loading", "PrefetchMatchResolver::FindPrefetch", flow);
 
   auto* frame_tree_node = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
   if (!frame_tree_node) {
@@ -141,12 +145,14 @@ void PrefetchMatchResolver::FindPrefetch(
     return prerender_host->GetWeakPtr();
   })();
 
+  TRACE_EVENT_END("loading");
+
   PrefetchMatchResolver::FindPrefetchInternal1(
       std::move(navigation_request), prefetch_service, std::move(navigated_key),
       expected_service_worker_state,
       frame_tree_node->frame_tree().is_prerendering(),
       std::move(prerender_host), std::move(serving_page_metrics_container),
-      std::move(callback));
+      std::move(callback), std::move(flow));
 }
 
 // static
@@ -162,7 +168,7 @@ void PrefetchMatchResolver::FindPrefetchForTesting(
       /*navigation_request=*/nullptr, prefetch_service,
       std::move(navigated_key), expected_service_worker_state, is_nav_prerender,
       /*prerender_host=*/nullptr, std::move(serving_page_metrics_container),
-      std::move(callback));
+      std::move(callback), perfetto::Flow::ProcessScoped(0));
 }
 
 // static
@@ -175,12 +181,13 @@ void PrefetchMatchResolver::FindPrefetchInternal1(
     base::WeakPtr<PrerenderHost> prerender_host,
     base::WeakPtr<PrefetchServingPageMetricsContainer>
         serving_page_metrics_container,
-    Callback callback) {
+    Callback callback,
+    perfetto::Flow flow) {
   // See the comment of `self_`.
   auto prefetch_match_resolver = base::WrapUnique(new PrefetchMatchResolver(
       std::move(navigation_request), prefetch_service.GetWeakPtr(),
       std::move(navigated_key), expected_service_worker_state, is_nav_prerender,
-      std::move(prerender_host), std::move(callback)));
+      std::move(prerender_host), std::move(callback), std::move(flow)));
   PrefetchMatchResolver& ref = *prefetch_match_resolver.get();
   ref.self_ = std::move(prefetch_match_resolver);
 
@@ -192,6 +199,9 @@ void PrefetchMatchResolver::FindPrefetchInternal2(
     PrefetchService& prefetch_service,
     base::WeakPtr<PrefetchServingPageMetricsContainer>
         serving_page_metrics_container) {
+  TRACE_EVENT_BEGIN("loading", "PrefetchMatchResolver::FindPrefetch", flow_,
+                    perfetto::Flow::FromPointer(this));
+
   auto [candidates, servable_states] = prefetch_service.CollectMatchCandidates(
       navigated_key_, is_nav_prerender_,
       std::move(serving_page_metrics_container));
@@ -248,6 +258,8 @@ void PrefetchMatchResolver::FindPrefetchInternal2(
   for (auto& candidate : candidates_) {
     switch (servable_states.at(candidate.first)) {
       case PrefetchServableState::kServable:
+        TRACE_EVENT_END("loading");
+
         // Got matching and servable.
         UnblockForMatch(candidate.first);
         return;
@@ -272,6 +284,8 @@ void PrefetchMatchResolver::FindPrefetchInternal2(
     StartWaitFor(candidate.first, servable_states.at(candidate.first));
   }
 
+  TRACE_EVENT_END("loading");
+
   if (candidates_.size() == 0) {
     UnblockForNoCandidates();
   }
@@ -282,6 +296,7 @@ void PrefetchMatchResolver::RegisterCandidate(
   auto candidate_data = std::make_unique<CandidateData>();
   TRACE_EVENT("loading", "PrefetchMatchResolver::RegisterCandidate",
               perfetto::Flow::FromPointer(candidate_data.get()));
+
   // #prefetch-key-availability
   //
   // Note that `CHECK(candidates_.contains(prefetch_key))` and
@@ -314,10 +329,13 @@ void PrefetchMatchResolver::RegisterCandidate(
 
 void PrefetchMatchResolver::StartWaitFor(const PrefetchKey& prefetch_key,
                                          PrefetchServableState servable_state) {
-  TRACE_EVENT("loading", "PrefetchMatchResolver::StartWaitFor");
+  TRACE_EVENT("loading", "PrefetchMatchResolver::StartWaitFor",
+              perfetto::Flow::FromPointer(this));
+
   // By #prefetch-key-availability
-  CHECK(candidates_.contains(prefetch_key));
-  auto& candidate_data = candidates_[prefetch_key];
+  auto it = candidates_.find(prefetch_key);
+  CHECK(it != candidates_.end());
+  CandidateData* candidate_data = it->second.get();
   CHECK(candidate_data->prefetch_container);
   PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
@@ -360,11 +378,13 @@ void PrefetchMatchResolver::UnregisterCandidate(
     bool is_served,
     PrefetchPotentialCandidateServingResult serving_result) {
   // By #prefetch-key-availability
-  CHECK(candidates_.contains(prefetch_key));
-  auto& candidate_data = candidates_[prefetch_key];
+  auto it = candidates_.find(prefetch_key);
+  CHECK(it != candidates_.end());
+  CandidateData* candidate_data = it->second.get();
   TRACE_EVENT("loading", "PrefetchMatchResolver::UnregisterCandidate",
-              perfetto::TerminatingFlow::FromPointer(candidate_data.get()),
+              perfetto::TerminatingFlow::FromPointer(candidate_data),
               "serving_result", static_cast<int>(serving_result));
+
   CHECK(candidate_data->prefetch_container);
   PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
@@ -392,7 +412,7 @@ void PrefetchMatchResolver::UnregisterCandidate(
                                            serving_result, is_nav_prerender_,
                                            GetBlockedDuration());
   prefetch_container.RemoveObserver(this);
-  candidates_.erase(prefetch_key);
+  candidates_.erase(it);
 }
 
 void PrefetchMatchResolver::OnWillBeDestroyed(
@@ -505,6 +525,28 @@ void PrefetchMatchResolver::OnDeterminedHead(
         }
       }();
 
+      // TODO(crbug.com/459617177): We observed
+      // `kNotServedOnDeterminedHeadWithNotServableUnknown` for prerender with
+      // prefetch ahead of prerender. To understand the behavior, we record an
+      // UMA.
+      //
+      // See also
+      // `.*PrefetchMatchMetrics.ExistsPaopThen.PotentialCandidateServingResultAndServableStateAndMatcherAction`.
+      //
+      // The difference is here we use `PrefetchContainer` of the target of
+      // `OnDeterminedHead()` and log per `OnDeterminedHead()` call that results
+      // unmatch. The other uses prefetch ahead of prerender and logs at the end
+      // of navigation with some conditions.
+      //
+      // Cardinality: `#PrefetchPotentialCandidateServingResult * 16 = 14 * 16 =
+      // 224.
+      base::UmaHistogramSparse(
+          "Prefetch.PrefetchMatchResolver.OnDeterminedHeadWithUnmatch."
+          "PotentialCandidateServingResultAndServableStateAndMatcherAction",
+          GetCodeOfPotentialCandidateServingResultAndServableStateAndMatcherAction(
+              potential_candidate_serving_result, servable_state,
+              match_resolver_action));
+
       MaybeUnblockForUnmatch(prefetch_container,
                              potential_candidate_serving_result);
       return;
@@ -539,8 +581,9 @@ void PrefetchMatchResolver::OnPrefetchCompletedOrFailed(
 
 void PrefetchMatchResolver::OnTimeout(PrefetchKey prefetch_key) {
   // `timeout_timer` is alive, which implies `candidate` is alive.
-  CHECK(candidates_.contains(prefetch_key));
-  auto& candidate_data = candidates_[prefetch_key];
+  auto it = candidates_.find(prefetch_key);
+  CHECK(it != candidates_.end());
+  CandidateData* candidate_data = it->second.get();
   CHECK(candidate_data->prefetch_container);
 
   MaybeUnblockForUnmatch(
@@ -549,11 +592,13 @@ void PrefetchMatchResolver::OnTimeout(PrefetchKey prefetch_key) {
 }
 
 void PrefetchMatchResolver::UnblockForMatch(const PrefetchKey& prefetch_key) {
-  TRACE_EVENT0("loading", "PrefetchMatchResolver::UnblockForMatch");
+  TRACE_EVENT_BEGIN("loading", "PrefetchMatchResolver::UnblockForMatch",
+                    perfetto::Flow::FromPointer(this));
 
   // By #prefetch-key-availability
-  CHECK(candidates_.contains(prefetch_key));
-  auto& candidate_data = candidates_[prefetch_key];
+  auto it = candidates_.find(prefetch_key);
+  CHECK(it != candidates_.end());
+  CandidateData* candidate_data = it->second.get();
   CHECK(candidate_data->prefetch_container);
   PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
@@ -595,16 +640,21 @@ void PrefetchMatchResolver::UnblockForMatch(const PrefetchKey& prefetch_key) {
   }
   CHECK(serving_handle);
 
+  TRACE_EVENT_END("loading");
+
   UnblockInternal(std::move(serving_handle));
 }
 
 void PrefetchMatchResolver::UnblockForNoCandidates() {
-  TRACE_EVENT0("loading", "PrefetchMatchResolver::UnblockForNoCandidates");
+  {
+    TRACE_EVENT("loading", "PrefetchMatchResolver::UnblockForNoCandidates",
+                perfetto::Flow::FromPointer(this));
 
-  if (prefetch_service_ && expected_service_worker_state_ ==
-                               PrefetchServiceWorkerState::kDisallowed) {
-    prefetch_service_->AddRecentUnmatchedNavigatedKeysForMetrics(
-        navigated_key_);
+    if (prefetch_service_ && expected_service_worker_state_ ==
+                                 PrefetchServiceWorkerState::kDisallowed) {
+      prefetch_service_->AddRecentUnmatchedNavigatedKeysForMetrics(
+          navigated_key_);
+    }
   }
 
   UnblockInternal({});
@@ -613,10 +663,13 @@ void PrefetchMatchResolver::UnblockForNoCandidates() {
 void PrefetchMatchResolver::MaybeUnblockForUnmatch(
     const PrefetchContainer& prefetch_container,
     PrefetchPotentialCandidateServingResult serving_result) {
-  TRACE_EVENT("loading", "PrefetchMatchResolver::MaybeUnblockForUnmatch");
+  {
+    TRACE_EVENT("loading", "PrefetchMatchResolver::MaybeUnblockForUnmatch",
+                perfetto::Flow::FromPointer(this));
 
-  UnregisterCandidate(prefetch_container.key(), /*is_served=*/false,
-                      serving_result);
+    UnregisterCandidate(prefetch_container.key(), /*is_served=*/false,
+                        serving_result);
+  }
 
   if (candidates_.size() == 0) {
     UnblockForNoCandidates();
@@ -630,8 +683,9 @@ void PrefetchMatchResolver::UnblockForCookiesChanged(const PrefetchKey& key) {
   // `PrefetchContainer::OnDetectedCookiesChange()`.
   for (auto& prefetch_key : Keys(candidates_)) {
     // By #prefetch-key-availability
-    CHECK(candidates_.contains(prefetch_key));
-    auto& candidate_data = candidates_[prefetch_key];
+    auto it = candidates_.find(prefetch_key);
+    CHECK(it != candidates_.end());
+    CandidateData* candidate_data = it->second.get();
     CHECK(candidate_data->prefetch_container);
     PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
@@ -649,6 +703,9 @@ void PrefetchMatchResolver::UnblockForCookiesChanged(const PrefetchKey& key) {
 
 void PrefetchMatchResolver::UnblockInternal(
     PrefetchServingHandle serving_handle) {
+  TRACE_EVENT_BEGIN("loading", "PrefetchMatchResolver::FindPrefetch",
+                    perfetto::Flow::FromPointer(this), flow_);
+
   // Postcondition: This resolver waits for no `PrefetchContainer`s when it has
   // been unblocking.
   CHECK_EQ(candidates_.size(), 0u);
@@ -679,6 +736,8 @@ void PrefetchMatchResolver::UnblockInternal(
 
   base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
                                                              std::move(self_));
+
+  TRACE_EVENT_END("loading");
 
   std::move(callback).Run(std::move(serving_handle));
 }

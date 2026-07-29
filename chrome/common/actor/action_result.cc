@@ -15,7 +15,11 @@ ActionResultWithLatencyInfo::ActionResultWithLatencyInfo(
     base::TimeTicks start_time,
     base::TimeTicks end_time,
     mojom::ActionResultPtr result)
-    : start_time(start_time), end_time(end_time), result(std::move(result)) {}
+    : start_time(start_time), end_time(end_time), result(std::move(result)) {
+  DCHECK(!start_time.is_null());
+  DCHECK(!end_time.is_null());
+  DCHECK_LE(start_time, end_time);
+}
 ActionResultWithLatencyInfo::ActionResultWithLatencyInfo(
     const ActionResultWithLatencyInfo& other)
     : start_time(other.start_time),
@@ -37,8 +41,11 @@ bool RequiresPageStabilization(const mojom::ActionResult& result) {
   return result.requires_page_stabilization;
 }
 
-mojom::ActionResultPtr MakeOkResult() {
-  return MakeResult(mojom::ActionResultCode::kOk, true);
+mojom::ActionResultPtr MakeOkResult(bool requires_page_stabilization) {
+  return mojom::ActionResult::New(
+      mojom::ActionResultCode::kOk, requires_page_stabilization, std::string(),
+      /*script_tool_response=*/std::nullopt,
+      /*execution_end_time=*/base::TimeTicks::Now());
 }
 
 mojom::ActionResultPtr MakeErrorResult() {
@@ -48,8 +55,11 @@ mojom::ActionResultPtr MakeErrorResult() {
 mojom::ActionResultPtr MakeResult(mojom::ActionResultCode code,
                                   bool requires_page_stabilization,
                                   std::string_view msg) {
+  // Use MakeOkResult for success.
+  DCHECK(!IsOk(code));
   return mojom::ActionResult::New(
-      code, requires_page_stabilization, std::string(msg), std::nullopt,
+      code, requires_page_stabilization, std::string(msg),
+      /*script_tool_response=*/std::nullopt,
       /*execution_end_time=*/base::TimeTicks::Now());
 }
 

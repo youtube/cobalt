@@ -167,26 +167,25 @@ constexpr int kDefaultCanvasHeight = 150;
 constexpr int kUndefinedQualityValue = -1.0;
 constexpr int kMinimumAccelerated2dCanvasSize = 128 * 129;
 
+}  // namespace
+
 // Tracks whether canvases should start out with acceleration disabled.
 class DisabledAccelerationCounterSupplement final
     : public GarbageCollected<DisabledAccelerationCounterSupplement>,
-      public Supplement<Document> {
+      public GarbageCollectedMixin {
  public:
-  static const char kSupplementName[];
-
   static DisabledAccelerationCounterSupplement& From(Document& d) {
     DisabledAccelerationCounterSupplement* supplement =
-        Supplement<Document>::From<DisabledAccelerationCounterSupplement>(d);
+        d.GetDisabledAccelerationCounterSupplement();
     if (!supplement) {
       supplement =
           MakeGarbageCollected<DisabledAccelerationCounterSupplement>(d);
-      ProvideTo(d, supplement);
+      d.SetDisabledAccelerationCounterSupplement(supplement);
     }
     return *supplement;
   }
 
-  explicit DisabledAccelerationCounterSupplement(Document& d)
-      : Supplement<Document>(d) {}
+  explicit DisabledAccelerationCounterSupplement(Document& d) : document_(d) {}
 
   // Called when acceleration has been disabled on a canvas.
   void IncrementDisabledCount() {
@@ -200,6 +199,8 @@ class DisabledAccelerationCounterSupplement final
     return acceleration_disabled_;
   }
 
+  void Trace(Visitor* visitor) const override { visitor->Trace(document_); }
+
  private:
   void UpdateAccelerationDisabled() {
     if (acceleration_disabled_) {
@@ -208,44 +209,37 @@ class DisabledAccelerationCounterSupplement final
     if (acceleration_disabled_count_ < kDisableAccelerationThreshold) {
       return;
     }
-    if (acceleration_disabled_count_ * 100 /
-            GetSupplementable()->GetNumberOfCanvases() >=
+    if (acceleration_disabled_count_ * 100 / document_->GetNumberOfCanvases() >=
         kDisableAccelerationPercent) {
       acceleration_disabled_ = true;
     }
   }
+
+  Member<Document> document_;
 
   // Number of canvases with acceleration disabled.
   unsigned acceleration_disabled_count_ = 0;
   bool acceleration_disabled_ = false;
 };
 
-// static
-const char DisabledAccelerationCounterSupplement::kSupplementName[] =
-    "DisabledAccelerationCounterSupplement";
-
 // Tracks whether `transferToGPUTexture()` has been invoked on any canvas
 // element created within the associated Document.
 class TransferToGPUTextureInvokedSupplement final
     : public GarbageCollected<TransferToGPUTextureInvokedSupplement>,
-      public Supplement<Document> {
+      public GarbageCollectedMixin {
  public:
-  static constexpr char kSupplementName[] =
-      "TransferToGPUTextureInvokedSupplement";
-
   static TransferToGPUTextureInvokedSupplement& From(Document& d) {
     TransferToGPUTextureInvokedSupplement* supplement =
-        Supplement<Document>::From<TransferToGPUTextureInvokedSupplement>(d);
+        d.GetTransferToGPUTextureInvokedSupplement();
     if (!supplement) {
       supplement =
           MakeGarbageCollected<TransferToGPUTextureInvokedSupplement>(d);
-      ProvideTo(d, supplement);
+      d.SetTransferToGPUTextureInvokedSupplement(supplement);
     }
     return *supplement;
   }
 
-  explicit TransferToGPUTextureInvokedSupplement(Document& d)
-      : Supplement<Document>(d) {}
+  explicit TransferToGPUTextureInvokedSupplement(Document& d) : document_(d) {}
 
   void SetTransferToGPUTextureWasInvoked() {
     transfer_to_gpu_texture_was_invoked_ = true;
@@ -255,9 +249,14 @@ class TransferToGPUTextureInvokedSupplement final
     return transfer_to_gpu_texture_was_invoked_;
   }
 
+  void Trace(Visitor* visitor) const override { visitor->Trace(document_); }
+
  private:
+  Member<Document> document_;
   bool transfer_to_gpu_texture_was_invoked_ = false;
 };
+
+namespace {
 
 // Adapter for wrapping a CanvasResourceReleaseCallback into a
 // viz::ReleaseCallback
@@ -1031,7 +1030,7 @@ void HTMLCanvasElement::NotifyListenersCanvasChanged() {
     if (!source_image) {
       SourceImageStatus status;
       source_image =
-          GetSourceImageForCanvasInternal(FlushReason::kDrawListener, &status);
+          GetSourceImageForCanvasInternal(FlushReason::kOther, &status);
       if (status != kNormalSourceImageStatus)
         continue;
     }
@@ -1166,7 +1165,7 @@ void HTMLCanvasElement::PaintInternal(GraphicsContext& context,
   // Grab a snapshot.
   scoped_refptr<StaticBitmapImage> snapshot =
       context_->PaintRenderingResultsToSnapshot(kFrontBuffer,
-                                                FlushReason::kPaint);
+                                                FlushReason::kOther);
 
   if (snapshot) {
     SkBlendMode composite_operator =
@@ -1369,8 +1368,7 @@ void HTMLCanvasElement::toBlob(V8BlobCallback* callback,
           mime_type, ImageEncoderUtils::kEncodeReasonToBlobCallback);
 
   CanvasAsyncBlobCreator* async_creator = nullptr;
-  scoped_refptr<StaticBitmapImage> image_bitmap =
-      Snapshot(FlushReason::kToBlob, kBackBuffer);
+  scoped_refptr<StaticBitmapImage> image_bitmap = Snapshot(kBackBuffer);
   if (image_bitmap) {
     auto* options = ImageEncodeOptions::Create();
     options->setType(ImageEncoderUtils::MimeTypeName(encoding_mime_type));
@@ -1524,7 +1522,7 @@ bool HTMLCanvasElement::ShouldAccelerate() const {
 }
 
 bool HTMLCanvasElement::CanStartSelection() const {
-  if (GetHitTestRegions().empty()) {
+  if (!layoutSubtree()) {
     return false;
   }
   return HTMLElement::CanStartSelection();
@@ -1533,16 +1531,6 @@ bool HTMLCanvasElement::CanStartSelection() const {
 bool HTMLCanvasElement::ShouldDisableAccelerationBecauseOfReadback() const {
   return DisabledAccelerationCounterSupplement::From(GetDocument())
       .ShouldDisableAcceleration();
-}
-
-void HTMLCanvasElement::SetHitTestRegions(
-    VectorOf<ElementHitTestRegion> hit_test_regions) {
-  hit_test_regions_ = std::move(hit_test_regions);
-}
-
-const VectorOf<HTMLCanvasElement::ElementHitTestRegion>&
-HTMLCanvasElement::GetHitTestRegions() const {
-  return hit_test_regions_;
 }
 
 void HTMLCanvasElement::NotifyGpuContextLost() {
@@ -1554,7 +1542,6 @@ void HTMLCanvasElement::NotifyGpuContextLost() {
 void HTMLCanvasElement::Trace(Visitor* visitor) const {
   visitor->Trace(listeners_);
   visitor->Trace(context_);
-  visitor->Trace(hit_test_regions_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   PageVisibilityObserver::Trace(visitor);
   CanvasRenderingContextHost::Trace(visitor);

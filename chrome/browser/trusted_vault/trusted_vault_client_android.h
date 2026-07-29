@@ -69,7 +69,7 @@ class TrustedVaultClientAndroid : public trusted_vault::TrustedVaultClient {
   void AddTrustedRecoveryMethodCompleted(JNIEnv* env, jint request_id);
 
   // Called from Java to notify that the keys in the vault may have changed.
-  void NotifyKeysChanged(JNIEnv* env);
+  void NotifyKeysChanged(JNIEnv* env, std::optional<jint> trigger);
 
   // Called from Java to notify that the recoverability of the vault may have
   // changed.
@@ -82,9 +82,12 @@ class TrustedVaultClientAndroid : public trusted_vault::TrustedVaultClient {
       const CoreAccountInfo& account_info,
       base::OnceCallback<void(const std::vector<std::vector<uint8_t>>&)> cb)
       override;
-  void StoreKeys(const GaiaId& gaia_id,
-                 const std::vector<std::vector<uint8_t>>& keys,
-                 int last_key_version) override;
+  void StoreKeys(
+      const GaiaId& gaia_id,
+      const std::vector<std::vector<uint8_t>>& keys,
+      int last_key_version,
+      std::optional<trusted_vault::TrustedVaultUserActionTriggerForUMA> trigger)
+      override;
   void MarkLocalKeysAsStale(const CoreAccountInfo& account_info,
                             base::OnceCallback<void(bool)> cb) override;
   void GetIsRecoverabilityDegraded(const CoreAccountInfo& account_info,

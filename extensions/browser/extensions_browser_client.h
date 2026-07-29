@@ -16,6 +16,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "components/safe_browsing/core/browser/db/v4_protocol_config.h"
 #include "content/public/browser/bluetooth_chooser.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "extensions/browser/extension_event_histogram_value.h"
@@ -64,6 +65,7 @@ class NetworkContext;
 }  // namespace network
 
 namespace update_client {
+class Configurator;
 class UpdateClient;
 }  // namespace update_client
 
@@ -82,6 +84,10 @@ class MediaDeviceSaltService;
 namespace custom_handlers {
 class ProtocolHandlerRegistry;
 }  // namespace custom_handlers
+
+namespace safe_browsing {
+class SafeBrowsingDatabaseManager;
+}  // namespace safe_browsing
 
 namespace extensions {
 
@@ -387,7 +393,11 @@ class ExtensionsBrowserClient {
 
   // Returns a new UpdateClient.
   virtual scoped_refptr<update_client::UpdateClient> CreateUpdateClient(
-      content::BrowserContext* context);
+      scoped_refptr<update_client::Configurator> configurator);
+
+  // Returns a new update_client::Configurator.
+  virtual scoped_refptr<update_client::Configurator>
+  CreateUpdateClientConfigurator(content::BrowserContext* context);
 
   // Returns a new ScopedExtensionUpdaterKeepAlive, or nullptr if the embedder
   // does not support keeping the context alive while the updater is running.
@@ -566,6 +576,14 @@ class ExtensionsBrowserClient {
   // Returns true if this extension's update URL is from webstore.
   virtual bool UpdatesFromWebstore(content::BrowserContext* context,
                                    const Extension& extension);
+
+  // Get the locally-managed database manager of the safe browsing service.
+  virtual scoped_refptr<safe_browsing::SafeBrowsingDatabaseManager>
+  GetSafeBrowsingDatabaseManager() const;
+
+  // Get the default v4 protocol config struct from the safe browsing service.
+  virtual std::optional<safe_browsing::V4ProtocolConfig> GetV4ProtocolConfig()
+      const;
 
  private:
   std::vector<std::unique_ptr<ExtensionsBrowserAPIProvider>> providers_;

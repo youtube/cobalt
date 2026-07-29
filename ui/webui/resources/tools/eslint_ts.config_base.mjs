@@ -7,7 +7,7 @@ import typescriptEslint from '../../../../third_party/node/node_modules/@typescr
 import tsParser from '../../../../third_party/node/node_modules/@typescript-eslint/parser/dist/index.js';
 import webUiEslint from './webui_eslint_plugin.js';
 
-export default [
+export const defaultConfig = [
   {
     languageOptions: {
       ecmaVersion: 2020,
@@ -47,7 +47,25 @@ export default [
       'eslint-plugin-lit': eslintPluginLit,
     },
     rules: {
+      'eslint-plugin-lit/binding-positions': 'error',
+      'eslint-plugin-lit/no-duplicate-template-bindings': 'error',
+      'eslint-plugin-lit/no-invalid-escape-sequences': 'error',
       'eslint-plugin-lit/no-invalid-html': 'error',
+      'eslint-plugin-lit/no-private-properties': ['error', {'private': '_$'}],
     },
   },
 ];
+
+// A dedicated config that is only added when
+// enable_web_component_missing_deps=true is passed to eslint_ts().
+// TODO(crbug.com/457866803): Move this to the defaultConfig above once all
+// violations are fixed.
+export const webComponentMissingDepsConfig = {
+  files: ['**/*.html.ts'],
+  plugins: {
+    'eslint-plugin-lit': eslintPluginLit,
+  },
+  rules: {
+    '@webui-eslint/web-component-missing-deps': 'error',
+  },
+};

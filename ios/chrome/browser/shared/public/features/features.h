@@ -283,30 +283,26 @@ BASE_DECLARE_FEATURE(kNTPMIAEntrypoint);
 // Like above, but applies regardless of client's locale.
 BASE_DECLARE_FEATURE(kNTPMIAEntrypointAllLocales);
 
-// When enabled the AIM ZPS entrypoint will open the AIM prototype which
-// contains temporary UI exploration for AIM.
-BASE_DECLARE_FEATURE(kAIMPrototype);
+// Autoattach current tab in Composebox.
+BASE_DECLARE_FEATURE(kComposeboxAutoattachTab);
 
-// Autoattach current tab in AIM prototype.
-BASE_DECLARE_FEATURE(kAIMPrototypeAutoattachTab);
+// Used to gate the immersive SRP in the Composebox.
+BASE_DECLARE_FEATURE(kComposeboxImmersiveSRP);
 
-// Used to gate the immersive SRP in the AIM prototype.
-BASE_DECLARE_FEATURE(kAIMPrototypeImmersiveSRP);
+// Variations of Composebox tab picker.
+extern const char kComposeboxTabPickerVariationParam[];
+extern const char kComposeboxTabPickerVariationParamCachedAPC[];
+extern const char kComposeboxTabPickerVariationParamOnFlightAPC[];
 
-// Variations of AIM prototype tab picker.
-extern const char kAIMPrototypeTabPickerParam[];
-extern const char kAIMPrototypeTabPickerParamCachedAPC[];
-extern const char kAIMPrototypeTabPickerParamOnFlightAPC[];
+// Feature flag for the tab picker in the Composebox.
+BASE_DECLARE_FEATURE(kComposeboxTabPickerVariation);
 
-// Feature flag for the tab picker in the aim prototype.
-BASE_DECLARE_FEATURE(kAIMPrototypeTabPicker);
+// Returns true is we should use cached APCs in the Composebox.
+bool IsComposeboxTabPickerCachedAPCEnabled();
 
-// Returns true is we should use cached APCs in the aim prototype.
-bool IsAimPrototypeTabPickerCachedAPCEnabled();
-
-// Variations of AIM prototype.
-extern const char kAIMPrototypeParam[];
-extern const char kAIMPrototypeParamAllOmniboxEntrypoints[];
+// Variations of Composebox.
+extern const char kComposeboxParam[];
+extern const char kComposeboxParamAllOmniboxEntrypoints[];
 
 // Feature for the DRS prototype.
 BASE_DECLARE_FEATURE(kOmniboxDRSPrototype);
@@ -646,8 +642,14 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // false otherwise.
 bool IsLiquidGlassEffectEnabled();
 
+// Feature flag to enable the default input accessory view.
+BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryDefaultView);
+
 // Feature flag to enable the two-bubble design for the Keyboard Accessory view.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryTwoBubble);
+
+// Returns true if the default input accessory view is enabled.
+bool IsIOSKeyboardAccessoryDefaultViewEnabled();
 
 // Returns true if the two-bubble design for the keyboard accessory view is
 // enabled.
@@ -1121,6 +1123,14 @@ BASE_DECLARE_FEATURE(kIOSSyncedSetUp);
 
 // Returns true if `kIOSSyncedSetUp` is enabled.
 bool IsSyncedSetUpEnabled();
+
+// Name of the Finch parameter controlling the maximum number of impressions
+// allowed for the Synced Set Up promo.
+extern const char kSyncedSetUpImpressionLimit[];
+
+// Returns the maximum number of impressions allowed for the Synced Set Up
+// promo, as specified by the `kSyncedSetUpImpressionLimit` Finch parameter.
+int GetSyncedSetUpImpressionLimit();
 
 // Enables the MultilineBrowserOmnibox feature.
 BASE_DECLARE_FEATURE(kMultilineBrowserOmnibox);

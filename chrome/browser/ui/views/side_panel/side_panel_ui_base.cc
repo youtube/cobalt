@@ -39,9 +39,7 @@ SidePanelUIBase::PanelData::PanelData()
     : waiter(std::make_unique<SidePanelEntryWaiter>()) {}
 SidePanelUIBase::PanelData::~PanelData() = default;
 
-SidePanelUIBase::SidePanelUIBase(Browser* browser)
-    : browser_(browser),
-      window_registry_(std::make_unique<SidePanelRegistry>(browser)) {
+SidePanelUIBase::SidePanelUIBase(Browser* browser) : browser_(browser) {
   for (auto panel_type : SidePanelEntry::PanelTypes::All()) {
     panel_data_[panel_type] = std::make_unique<PanelData>();
   }
@@ -52,16 +50,18 @@ SidePanelUIBase::~SidePanelUIBase() = default;
 
 void SidePanelUIBase::Show(
     SidePanelEntry::Id entry_id,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger) {
-  Show(SidePanelEntry::Key(entry_id), open_trigger);
+    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+    bool suppress_animations) {
+  Show(SidePanelEntry::Key(entry_id), open_trigger, suppress_animations);
 }
 
 void SidePanelUIBase::Show(
     SidePanelEntry::Key entry_key,
-    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger) {
+    std::optional<SidePanelUtil::SidePanelOpenTrigger> open_trigger,
+    bool suppress_animations) {
   std::optional<UniqueKey> unique_key = GetUniqueKeyForKey(entry_key);
   CHECK(unique_key.has_value());
-  Show(unique_key.value(), open_trigger, /*suppress_animations=*/false);
+  Show(unique_key.value(), open_trigger, suppress_animations);
 }
 
 std::optional<SidePanelEntry::Id> SidePanelUIBase::GetCurrentEntryId(
@@ -98,22 +98,23 @@ bool SidePanelUIBase::IsSidePanelEntryShowing(
   return false;
 }
 
-base::CallbackListSubscription SidePanelUIBase::RegisterSidePanelShown(
-    SidePanelEntry::PanelType type,
-    ShownCallback callback) {
-  return panel_data_[type]->shown_callback_list.Add(std::move(callback));
-}
-
 bool SidePanelUIBase::IsSidePanelEntryShowing(
     const SidePanelEntry::Key& entry_key,
     bool for_tab) const {
   for (const auto& [_, panel_data] : panel_data_) {
-    if (panel_data->current_key && panel_data->current_key->key == entry_key &&
-        panel_data->current_key->tab_handle.has_value() == for_tab) {
+    std::optional<UniqueKey> current_key = panel_data->current_key;
+    if (current_key && current_key->key == entry_key &&
+        current_key->tab_handle.has_value() == for_tab) {
       return true;
     }
   }
   return false;
+}
+
+base::CallbackListSubscription SidePanelUIBase::RegisterSidePanelShown(
+    SidePanelEntry::PanelType type,
+    ShownCallback callback) {
+  return panel_data_[type]->shown_callback_list.Add(std::move(callback));
 }
 
 void SidePanelUIBase::SetOpenedTimestamp(SidePanelEntry::PanelType type,
@@ -139,7 +140,7 @@ std::optional<SidePanelUIBase::UniqueKey> SidePanelUIBase::GetUniqueKeyForKey(
   }
 
   // For window-scoped side panels.
-  if (window_registry_->GetEntryForKey(entry_key)) {
+  if (SidePanelRegistry::From(browser_)->GetEntryForKey(entry_key)) {
     return UniqueKey{/*tab_handle=*/std::nullopt, entry_key};
   }
   return std::nullopt;
@@ -155,7 +156,7 @@ SidePanelEntry* SidePanelUIBase::GetEntryForUniqueKey(
       entry = tab_registry->GetEntryForKey(unique_key.key);
     }
   } else {
-    entry = window_registry_->GetEntryForKey(unique_key.key);
+    entry = SidePanelRegistry::From(browser_)->GetEntryForKey(unique_key.key);
   }
   return entry;
 }
@@ -206,11 +207,12 @@ SidePanelUIBase::GetNewActiveKeyOnTabChanged(SidePanelEntry::PanelType type) {
   }
 
   std::optional<UniqueKey> current_key = this->current_key(type);
-  if (current_key && window_registry_->GetEntryForKey(current_key->key)) {
+  SidePanelRegistry* const window_registry = SidePanelRegistry::From(browser_);
+  if (current_key && window_registry->GetEntryForKey(current_key->key)) {
     return GetUniqueKeyForKey(current_key->key);
   }
 
-  if (auto entry = window_registry_->GetActiveEntryFor(type)) {
+  if (auto entry = window_registry->GetActiveEntryFor(type)) {
     return GetUniqueKeyForKey((*entry)->key());
   }
 

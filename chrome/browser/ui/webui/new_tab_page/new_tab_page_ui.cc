@@ -60,6 +60,7 @@
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips_handler.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/aim_entrypoint_fieldtrial.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
@@ -572,11 +573,27 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       "searchboxShowComposeEntrypoint",
       (ntp_composebox::IsNtpSearchboxComposeEntrypointEnabled(profile) ||
        ntp_composebox::IsNtpComposeboxEnabled(profile)));
-  source->AddLocalizedString(
-      "searchBoxPlaceholder",
-      ntp_realbox::IsNtpRealboxNextEnabled(profile)
-          ? IDS_NTP_SEARCH_BOX_DYNAMIC_PLACEHOLDER_ASK_GOOGLE
-          : IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD);
+
+  if (ntp_realbox::IsNtpRealboxNextEnabled(profile)) {
+    switch (ntp_realbox::kSteadyPlaceholder.Get()) {
+      case ntp_realbox::PlaceholderText::ASK_OR_TYPE:
+        source->AddString("searchBoxPlaceholder",
+                          l10n_util::GetStringFUTF16(
+                              IDS_WEBUI_OMNIBOX_PLACEHOLDER_TEXT, u"Google"));
+        break;
+      case ntp_realbox::PlaceholderText::ASK:
+        source->AddLocalizedString(
+            "searchBoxPlaceholder",
+            IDS_NTP_SEARCH_BOX_DYNAMIC_PLACEHOLDER_ASK_GOOGLE);
+        break;
+      default:
+        NOTREACHED();
+    }
+  } else {
+    source->AddLocalizedString("searchBoxPlaceholder",
+                               IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD);
+  }
+
   source->AddBoolean("composeboxShowContextMenu",
                      ntp_composebox::kShowContextMenu.Get());
   source->AddBoolean("composeboxShowRecentTabChip",
@@ -585,6 +602,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                              IDS_NTP_COMPOSE_ASK_ABOUT_THIS_TAB_ARIA_LABEL);
   source->AddBoolean("composeboxShowContextMenuTabPreviews",
                      ntp_composebox::kShowContextMenuTabPreviews.Get());
+  source->AddBoolean("composeboxContextMenuEnableMultiTabSelection",
+                     ntp_composebox::kContextMenuEnableMultiTabSelection.Get());
   source->AddBoolean("searchboxShowComposebox",
                      ntp_composebox::IsNtpComposeboxEnabled(profile));
   source->AddBoolean("composeboxShowZps",
@@ -593,15 +612,16 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                      ntp_composebox::kShowComposeboxTypedSuggest.Get());
   source->AddBoolean("composeboxShowImageSuggest",
                      ntp_composebox::kShowComposeboxImageSuggestions.Get());
+  source->AddBoolean("composeboxShowTypedSuggestWithContext", false);
   source->AddBoolean("composeboxShowContextMenuDescription",
                      ntp_composebox::kShowContextMenuDescription.Get());
-  source->AddBoolean("dragAndDropEnabled",
-                     ntp_composebox::kEnableDragAndDrop.Get());
+  source->AddBoolean("composeboxContextDragAndDropEnabled",
+                     ntp_composebox::kEnableContextDragAndDrop.Get());
 
   source->AddBoolean("composeboxCloseByEscape",
-                     composebox_config.close_by_escape());
+                     ntp_composebox::kCloseComposeboxByEscape.Get());
   source->AddBoolean("composeboxCloseByClickOutside",
-                     composebox_config.close_by_click_outside());
+                     ntp_composebox::kCloseComposeboxByClickOutside.Get());
   source->AddBoolean("composeboxSmartComposeEnabled",
                      ntp_composebox::kShowSmartCompose.Get());
   const auto* aim_eligibility_service =
@@ -621,14 +641,23 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddBoolean("steadyComposeboxShowVoiceSearch",
                      ntp_composebox::kShowVoiceSearchInSteadyComposebox.Get());
 
-  source->AddBoolean("expandedComposeboxShowVoiceSearch",
-                     ntp_composebox::kShowVoiceSearchInExpandedComposebox.Get());
+  source->AddBoolean(
+      "expandedComposeboxShowVoiceSearch",
+      ntp_composebox::kShowVoiceSearchInExpandedComposebox.Get());
+  source->AddBoolean(
+      "addTabUploadDelayOnRecentTabChipClick",
+      ntp_composebox::kAddTabUploadDelayOnRecentTabChipClick.Get());
 
   // Action Chips LoadTimeData
   bool show_action_chips =
-      aim_eligibility_service && aim_eligibility_service->IsAimEligible() &&
+      aim_eligibility_service &&
+      aim_eligibility_service->IsDeepSearchEligible() &&
+      aim_eligibility_service->IsCreateImagesEligible() &&
       profile->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible);
   source->AddBoolean("actionChipsEnabled", show_action_chips);
+  source->AddBoolean(
+      "addTabUploadDelayOnActionChipClick",
+      ntp_features::kAddTabUploadDelayOnActionChipClick.Get());
 
   // User education browser promos.
   int browser_promo_limit = 0;
@@ -1094,8 +1123,7 @@ void NewTabPageUI::CreatePageHandler(
       SyncServiceFactory::GetForProfile(profile_),
       segmentation_platform::SegmentationPlatformServiceFactory::GetForProfile(
           profile_),
-      web_contents(), std::make_unique<NewTabPageFeaturePromoHelper>(),
-      navigation_start_time_, &module_id_details_);
+      web_contents(), navigation_start_time_, &module_id_details_);
 }
 
 void NewTabPageUI::ConnectToParentDocument(
@@ -1166,8 +1194,7 @@ void NewTabPageUI::CreatePageHandler(
 
   composebox_handler_ = std::make_unique<ComposeboxHandler>(
       std::move(pending_page_handler), std::move(pending_page),
-      std::move(pending_searchbox_handler),
-      profile_, web_contents());
+      std::move(pending_searchbox_handler), profile_, web_contents());
 
   // TODO(crbug.com/435288212): Move searchbox mojom to use factory pattern.
   composebox_handler_->SetPage(std::move(pending_searchbox_page));
@@ -1190,9 +1217,11 @@ void NewTabPageUI::CreateNtpPromoHandler(
 }
 
 void NewTabPageUI::CreateActionChipsHandler(
-    mojo::PendingReceiver<action_chips::mojom::ActionChipsHandler> handler) {
+    mojo::PendingReceiver<action_chips::mojom::ActionChipsHandler> handler,
+    mojo::PendingRemote<action_chips::mojom::Page> page) {
   action_chips_handler_ = std::make_unique<ActionChipsHandler>(
-      std::move(handler), profile_, web_ui());
+      std::move(handler), std::move(page), profile_, web_ui(),
+      TabIdGeneratorImpl::Get());
 }
 
 // OnColorProviderChanged can be called during the destruction process and

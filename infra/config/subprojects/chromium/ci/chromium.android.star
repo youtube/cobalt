@@ -31,6 +31,9 @@ ci.defaults.set(
     gardener_rotations = gardener_rotations.ANDROID,
     tree_closing_notifiers = ci_constants.DEFAULT_TREE_CLOSING_NOTIFIERS,
     execution_timeout = ci_constants.DEFAULT_EXECUTION_TIMEOUT,
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
     health_spec = health_spec.default(),
     service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
     shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
@@ -1219,10 +1222,10 @@ ci.builder(
         configs = [
             "android_builder_without_codecs",
             "android_with_static_analysis",
+            "arm",
             "cronet_android",
             "debug_static_builder",
             "remoteexec",
-            "arm_no_neon",
             "release_java",
         ],
     ),
@@ -1270,12 +1273,12 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "android_builder_without_codecs",
+            "arm",
             "cronet_android",
             "official_optimize",
             "release_builder",
             "remoteexec",
             "minimal_symbols",
-            "arm_no_neon",
             "strip_debug_info",
         ],
     ),

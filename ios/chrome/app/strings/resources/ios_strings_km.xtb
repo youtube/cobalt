@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">ស្វែងរក​ដោយប្រើ​មុខងារ AI</translation>
 <translation id="3557336313807607643">បញ្ចូល​ទៅ​ក្នុង​ទំនាក់ទំនង</translation>
 <translation id="355765753469272474">ត្រឡប់វិញ</translation>
+<translation id="3565012355885596568">មិនអាច​ផ្ទុក​រូបភាព​បានទេ</translation>
 <translation id="3565930036634619844">ផ្ទាំង។ <ph name="TAB_INDEX" /> នៃ <ph name="NUMBER_OF_TABS" />។</translation>
 <translation id="3572607909481582402">នៅក្នុង​គណនី Google របស់អ្នក</translation>
 <translation id="3575234738189584619">ស្វែងរកដោយប្រើ Lens</translation>
@@ -1314,6 +1315,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="6045460247888249350">បញ្ចូល​ចំណង​ជើង</translation>
 <translation id="6052269326659653305">ប្ដូរកម្រងព័ត៌មាន</translation>
 <translation id="605721222689873409">ឆ្នាំ</translation>
+<translation id="6058415747854995776">ថត​វីដេអូ</translation>
 <translation id="6059830886158432458">គ្រប់គ្រង​អត្ថបទ និង​សកម្មភាព​របស់អ្នក​នៅទីនេះ</translation>
 <translation id="6066301408025741299">ប៉ះដើម្បីបោះបង់</translation>
 <translation id="6074656473835429958">ទទួលបាន​ការជូនដំណឹង</translation>
@@ -1815,6 +1817,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="7866872729285243843">ដើម្បី​ទទួលបាន​បញ្ជីអាន​របស់អ្នក​នៅលើ​ឧបករណ៍​ទាំងអស់​របស់អ្នក សូមបើក “បញ្ជីអាន” នៅក្នុង​ការកំណត់។</translation>
 <translation id="7874107544081154809">បំពេញទម្រង់បែបបទដោយ <ph name="CELL_ACCESSIBILITY_LABEL" /> ដោយស្វ័យប្រវត្តិ</translation>
 <translation id="7879275349003161544">បង្ហាញការទាញយក​</translation>
+<translation id="7882689957034389473">ថតរូប</translation>
 <translation id="7883882164760409935">អ្នកមាន​ពាក្យសម្ងាត់​ដែលប្រើ​ឡើងវិញ។</translation>
 <translation id="7887174313503389866">ធ្វើទស្សនកិច្ច​ស្វែងយល់អំពី​ការគ្រប់គ្រងសុវត្ថិភាព និងឯកជនភាព​សំខាន់ៗ។ សម្រាប់ជម្រើស​ច្រើនទៀត សូមចូលទៅកាន់​ការកំណត់នីមួយៗ។</translation>
 <translation id="7887198238286927132">ដើម្បី​ការពារ​ឯកជនភាព​របស់អ្នក Chrome នឹងមិន​បំពេញ​កន្លែងបញ្ចូល​នេះដោយស្វ័យ​ប្រវត្តិទេ។</translation>
@@ -1998,6 +2001,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="8551311254462607218">នៅក្នុង​របារអាសយដ្ឋាន សូម​ចុចលើ​រូបកាមេរ៉ា Google Lens</translation>
 <translation id="8556590991644167667">{count,plural, =1{អ្នក​បាន​ច្រានចោល​សារប្រុងប្រយ័ត្ន {count}}other{អ្នក​បាន​ច្រានចោល​សារប្រុងប្រយ័ត្ន {count}}}</translation>
 <translation id="8558046478684552694">បិទក្រុម។</translation>
+<translation id="8559858985063901027">កូដសម្ងាត់</translation>
 <translation id="8560253818350321773">បង្ហាញ​ធាតុ​ដែលត្រូវបានប្រើញឹកញាប់​មុនគេ។</translation>
 <translation id="8561999115126307258">{count,plural, =1{មាន {count} ជម្រើស​សម្រាប់​ពាក្យសម្ងាត់​នៅខាងលើ​ក្ដារចុច​របស់អ្នក។}other{មាន {count} ជម្រើស​សម្រាប់​ពាក្យសម្ងាត់​នៅខាងលើ​ក្ដារចុច​របស់អ្នក។}}</translation>
 <translation id="8564894539416715395">ទំព័រផ្ទាំងថ្មី</translation>

@@ -11,6 +11,7 @@
 
 #import "base/notreached.h"
 #import "base/values.h"
+#import "components/prefs/pref_service.h"
 #import "components/sync_device_info/device_info_tracker.h"
 #import "components/sync_preferences/cross_device_pref_tracker/cross_device_pref_tracker.h"
 #import "components/sync_preferences/cross_device_pref_tracker/timestamped_pref_value.h"
@@ -19,6 +20,8 @@
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider.h"
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 
 namespace {
 
@@ -36,18 +39,6 @@ struct DeviceData {
 // A map of device GUID's to device data containing the devices' respective sets
 // of synced prefs and number of observed remote pref changes.
 using DeviceDataMap = std::map<std::string, DeviceData>;
-
-// Helper for copying a `TimestampedPrefValue`.
-sync_preferences::TimestampedPrefValue CloneTimestampedPrefValue(
-    const sync_preferences::TimestampedPrefValue& timestamped_value) {
-  sync_preferences::TimestampedPrefValue cloned_value;
-  cloned_value.value = timestamped_value.value.Clone();
-  cloned_value.last_observed_change_time =
-      timestamped_value.last_observed_change_time;
-  cloned_value.device_sync_cache_guid =
-      timestamped_value.device_sync_cache_guid;
-  return cloned_value;
-}
 
 // Helper for adding `DeviceData` entries related to a `DeviceDataMap`, using
 // prefs contained in `pref_map`.
@@ -78,8 +69,8 @@ void BuildDeviceDataMapFromPrefMap(
       if (it == device_data_entry.pref_map.end() ||
           pref_value.last_observed_change_time >=
               it->second.last_observed_change_time) {
-        device_data_entry.pref_map.insert_or_assign(
-            tracked_pref.first, CloneTimestampedPrefValue(pref_value));
+        device_data_entry.pref_map.insert_or_assign(tracked_pref.first,
+                                                    pref_value.Clone());
       }
 
       // Count total observed pref changes.
@@ -230,4 +221,21 @@ SceneState* GetEligibleSceneForSyncedSetUp(ProfileState* profile_state) {
 
   // All preconditions met.
   return active_scene;
+}
+
+bool CanShowSyncedSetUp(const PrefService* profile_pref_service) {
+  if (!profile_pref_service) {
+    return false;
+  }
+
+  // Impressions preference not registered.
+  if (!profile_pref_service->FindPreference(
+          prefs::kSyncedSetUpImpressionCount)) {
+    return false;
+  }
+
+  int impression_count =
+      profile_pref_service->GetInteger(prefs::kSyncedSetUpImpressionCount);
+
+  return impression_count < GetSyncedSetUpImpressionLimit();
 }

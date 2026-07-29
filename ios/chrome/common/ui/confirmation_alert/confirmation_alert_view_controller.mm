@@ -18,7 +18,6 @@
 
 namespace {
 
-const CGFloat kContentBottomInset = 20;
 const CGFloat kStackViewSpacing = 8;
 const CGFloat kStackViewSpacingAfterIllustration = 27;
 
@@ -67,7 +66,6 @@ const CGFloat kFaviconBadgeSideLength = 24;
   if (self) {
     self.actionDelegate = self;
     _customSpacingAfterImage = kStackViewSpacingAfterIllustration;
-    _customContentBottomInset = kContentBottomInset;
     _customSpacing = kStackViewSpacing;
     _showDismissBarButton = YES;
     _dismissBarButtonSystemItem = UIBarButtonSystemItemDone;
@@ -148,8 +146,7 @@ const CGFloat kFaviconBadgeSideLength = 24;
   // horizontal scroll.
   [NSLayoutConstraint activateConstraints:@[
     [self.stackView.bottomAnchor
-        constraintEqualToAnchor:self.contentView.bottomAnchor
-                       constant:-self.customContentBottomInset]
+        constraintEqualToAnchor:self.contentView.bottomAnchor]
   ]];
 
   CGFloat stackViewTopConstant = 0;
@@ -274,20 +271,22 @@ const CGFloat kFaviconBadgeSideLength = 24;
   // This is more reliable than self.stackView.bounds.size.width before a layout
   // pass.
   CGFloat availableWidth = self.widthLayoutGuide.layoutFrame.size.width;
+  CGSize fittingSize =
+      CGSizeMake(availableWidth, UILayoutFittingCompressedSize.height);
 
-  // Calculate the height of the main content stack view constrained by the
-  // available width.
+  // Calculate the height of the content view constrained by the available
+  // width.
   CGFloat height =
-      [self.stackView
-            systemLayoutSizeFittingSize:CGSizeMake(availableWidth,
-                                                   UILayoutFittingCompressedSize
-                                                       .height)
+      [self.contentView
+            systemLayoutSizeFittingSize:fittingSize
           withHorizontalFittingPriority:UILayoutPriorityRequired
                 verticalFittingPriority:UILayoutPriorityFittingSizeLevel]
           .height;
 
+  // Add the height of the button stack.
   height += [super buttonStackHeight];
 
+  // Add the height of the navigation bar if present.
   if (self.navigationBar) {
     // Ask the navigation bar for its intrinsic height instead of relying on its
     // frame.
@@ -295,14 +294,21 @@ const CGFloat kFaviconBadgeSideLength = 24;
                   systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
                   .height;
   } else {
+    // If no navigation bar, account for the top safe area and custom spacing.
+    height += CGRectGetMaxY(self.navigationController.navigationBar.frame);
     height += self.customSpacingBeforeImageIfNoNavigationBar;
   }
 
-  height += self.customContentBottomInset;
-  // The view's safe area might not be available when this method is called.
-  // Using the presenting view controller's safe area is a reliable fallback.
-  height += self.presentingViewController.view.safeAreaInsets.bottom;
   return height;
+}
+
+- (void)viewIsAppearing:(BOOL)animated {
+  [super viewIsAppearing:animated];
+  if (self.navigationController.navigationBar) {
+    // On iOS 26, the navigation bar is positioned differently in viewDidLoad
+    // and after. Make sure that the right position is taken into account.
+    [self.sheetPresentationController invalidateDetents];
+  }
 }
 
 #pragma mark - ButtonStackActionDelegate

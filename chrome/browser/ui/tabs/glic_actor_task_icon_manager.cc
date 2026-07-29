@@ -10,6 +10,13 @@
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/profiles/profile.h"
 
+namespace {
+bool ShouldDisplayInTaskListBubble(actor::ActorTask::State state) {
+  return state == actor::ActorTask::State::kPausedByActor ||
+         state == actor::ActorTask::State::kWaitingOnUser;
+}
+}  // namespace
+
 namespace tabs {
 
 using actor::ActorKeyedService;
@@ -47,6 +54,7 @@ void GlicActorTaskIconManager::RegisterSubscriptions() {
           ->RegisterActorTaskStateChange(base::BindRepeating(
               &GlicActorTaskIconManager::OnActorTaskStateUpdate,
               base::Unretained(this))));
+  // TODO(crbug.com/458391262) revisit or cleanup implementation here for m144.
   callback_subscriptions_.push_back(
       actor::ActorKeyedService::Get(profile_)
           ->GetActorUiStateManager()
@@ -72,6 +80,7 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
   }
   glic::GlicInstance* instance = instances.front();
   if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
+    UpdateTaskListBubble(task_id);
     UpdateTaskNudge();
   } else {
     UpdateTaskIcon(instance->IsShowing(),
@@ -79,6 +88,7 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
   }
 }
 
+// TODO(crbug.com/458391262) revisit or cleanup implementation here for m144.
 void GlicActorTaskIconManager::OnActorTaskStopped(
     actor::TaskId task_id,
     actor::ActorTask::State final_state,
@@ -90,6 +100,7 @@ void GlicActorTaskIconManager::OnActorTaskStopped(
   }
 }
 
+// TODO(crbug.com/458391262) revisit or cleanup implementation here for m144.
 void GlicActorTaskIconManager::ClearStoppedTasks() {
   has_unprocessed_completed_tasks_ = false;
   has_unprocessed_failed_tasks_ = false;
@@ -154,21 +165,58 @@ void GlicActorTaskIconManager::UpdateTaskNudge() {
       });
 
   ActorTaskNudgeState old_state = current_actor_task_nudge_state_;
-  if (!paused_or_yielded_actor_tasks.empty()) {
-    current_actor_task_nudge_state_.text =
-        ActorTaskNudgeState::Text::kNeedsAttention;
-  } else if (has_unprocessed_completed_tasks_) {
-    current_actor_task_nudge_state_.text =
-        ActorTaskNudgeState::Text::kCompleteTasks;
-  } else {
-    // If no tasks needing attention or completed, hide the nudge.
-    current_actor_task_nudge_state_.text = ActorTaskNudgeState::Text::kDefault;
+  if (base::FeatureList::IsEnabled(features::kGlicActorUiNudgeRedesign)) {
+    if (!paused_or_yielded_actor_tasks.empty() &&
+        !actor_task_list_bubble_rows_.empty()) {
+      current_actor_task_nudge_state_.text =
+          actor_task_list_bubble_rows_.size() > 1u
+              ? ActorTaskNudgeState::Text::kMultipleTasksNeedAttention
+              : ActorTaskNudgeState::Text::kNeedsAttention;
+    } else {
+      // If no tasks needing attention, hide the nudge.
+      current_actor_task_nudge_state_.text =
+          ActorTaskNudgeState::Text::kDefault;
+    }
+  }
+  // TODO(crbug.com/458391262) revisit or cleanup implementation here for m144.
+  else {
+    if (!paused_or_yielded_actor_tasks.empty()) {
+      current_actor_task_nudge_state_.text =
+          ActorTaskNudgeState::Text::kNeedsAttention;
+    } else if (has_unprocessed_completed_tasks_) {
+      current_actor_task_nudge_state_.text =
+          ActorTaskNudgeState::Text::kCompleteTasks;
+    } else {
+      // If no tasks needing attention or completed, hide the nudge.
+      current_actor_task_nudge_state_.text =
+          ActorTaskNudgeState::Text::kDefault;
+    }
   }
 
   if (old_state != current_actor_task_nudge_state_) {
     task_nudge_state_change_callback_list_.Notify(
         current_actor_task_nudge_state_);
   }
+}
+
+void GlicActorTaskIconManager::RemoveRowFromTaskListBubble(
+    actor::TaskId task_id) {
+  actor_task_list_bubble_rows_.erase(task_id);
+  UpdateTaskNudge();
+}
+
+void GlicActorTaskIconManager::UpdateTaskListBubble(actor::TaskId task_id) {
+  if (actor::ActorTask* task = actor_service_->GetTask(task_id)) {
+    if (ShouldDisplayInTaskListBubble(task->GetState())) {
+      ActorTaskListBubbleRowState task_state = {.task_id = task_id,
+                                                .title = task->title()};
+      actor_task_list_bubble_rows_.insert({task_state.task_id, task_state});
+      task_list_bubble_change_callback_list_.Notify(task_id);
+      return;
+    }
+  }
+  // Stopped ActorTasks will be cleared immediately so can safely remove.
+  actor_task_list_bubble_rows_.erase(task_id);
 }
 
 base::CallbackListSubscription
@@ -183,6 +231,12 @@ GlicActorTaskIconManager::RegisterTaskNudgeStateChange(
   return task_nudge_state_change_callback_list_.Add(std::move(callback));
 }
 
+base::CallbackListSubscription
+GlicActorTaskIconManager::RegisterTaskListBubbleStateChange(
+    TaskListBubbleChangeCallback callback) {
+  return task_list_bubble_change_callback_list_.Add(std::move(callback));
+}
+
 ActorTaskIconState GlicActorTaskIconManager::GetCurrentActorTaskIconState()
     const {
   return current_actor_task_icon_state_;
@@ -193,6 +247,7 @@ ActorTaskNudgeState GlicActorTaskIconManager::GetCurrentActorTaskNudgeState()
   return current_actor_task_nudge_state_;
 }
 
+// TODO(crbug.com/431015299): Clean up after redesign is launched.
 raw_ptr<tabs::TabInterface> GlicActorTaskIconManager::GetLastUpdatedTab() {
   if (!current_task_id_ || !actor_service_->GetTask(current_task_id_)) {
     return nullptr;
@@ -203,6 +258,17 @@ raw_ptr<tabs::TabInterface> GlicActorTaskIconManager::GetLastUpdatedTab() {
 
   // TODO(crbug.com/441064175): Will need to be updated for multi-tab actuation.
   return tabs.empty() ? nullptr : tabs.begin()->Get();
+}
+
+raw_ptr<tabs::TabInterface>
+GlicActorTaskIconManager::GetLastUpdatedTabForTaskId(actor::TaskId task_id) {
+  if (ActorTask* task = actor_service_->GetTask(task_id)) {
+    actor::ActorTask::TabHandleSet tabs = task->GetLastActedTabs();
+    // TODO(crbug.com/441064175): Will need to be updated for multi-tab
+    // actuation.
+    return tabs.empty() ? nullptr : tabs.begin()->Get();
+  }
+  return nullptr;
 }
 
 }  // namespace tabs

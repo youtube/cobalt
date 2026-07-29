@@ -38,11 +38,9 @@ class TextFragmentSelector;
 class CORE_EXPORT AnnotationAgentContainerImpl final
     : public GarbageCollected<AnnotationAgentContainerImpl>,
       public mojom::blink::AnnotationAgentContainer,
-      public Supplement<Document> {
+      public GarbageCollectedMixin {
  public:
   using PassKey = base::PassKey<AnnotationAgentContainerImpl>;
-
-  static const char kSupplementName[];
 
   class Observer : public GarbageCollectedMixin {
    public:
@@ -117,6 +115,8 @@ class CORE_EXPORT AnnotationAgentContainerImpl final
   // attachment. i.e. Parsing has finished and layout and style are clean.
   bool IsLifecycleCleanForAttachment() const;
 
+  Document& GetDocument() const;
+
  private:
   friend AnnotationAgentContainerImplTest;
 
@@ -132,8 +132,9 @@ class CORE_EXPORT AnnotationAgentContainerImpl final
 
   void ScheduleBeginMainFrame();
 
-  Document& GetDocument() const;
   LocalFrame& GetFrame() const;
+
+  Member<Document> document_;
 
   Member<AnnotationAgentGenerator> annotation_agent_generator_;
 

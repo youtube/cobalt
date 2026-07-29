@@ -109,7 +109,7 @@ class AppInfoDialogViewsTest : public BrowserWithTestWindowTest,
     BrowserWithTestWindowTest::SetUp();
 
 #if BUILDFLAG(IS_CHROMEOS)
-    arc_app_test_->SetUp(extension_environment_.profile());
+    arc_app_test_->PostProfileSetUp(extension_environment_.profile());
 
     shelf_model_ = std::make_unique<ash::ShelfModel>();
     browser_controller_.emplace();
@@ -135,11 +135,9 @@ class AppInfoDialogViewsTest : public BrowserWithTestWindowTest,
     chrome_shelf_controller_.reset();
     browser_controller_.reset();
     shelf_model_.reset();
-    if (arc_app_test_) {
-      arc_app_test_->TearDown();
-      arc_app_test_.reset();
-    }
-#endif
+    CHECK(arc_app_test_);
+    arc_app_test_->PreProfileTearDown();
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
     // The Browser class had dependencies on LocalState, which is owned by
     // |extension_environment_|.
@@ -154,6 +152,11 @@ class AppInfoDialogViewsTest : public BrowserWithTestWindowTest,
     extension_environment_.DeleteProfile();
 
     BrowserWithTestWindowTest::TearDown();
+
+#if BUILDFLAG(IS_CHROMEOS)
+    arc_app_test_->PostProfileTearDown();
+    arc_app_test_.reset();
+#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   TestingProfile* CreateProfile(const std::string& profile_name) override {

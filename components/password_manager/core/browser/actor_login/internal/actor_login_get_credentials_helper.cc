@@ -8,10 +8,13 @@
 
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/time/time.h"
 #include "components/autofill/core/common/save_password_progress_logger.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_quality_logger_interface.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_form_finder.h"
 #include "components/password_manager/core/browser/browser_save_password_progress_logger.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/form_fetcher_impl.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_form_cache.h"
@@ -19,6 +22,7 @@
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_interface.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
+#include "services/metrics/public/cpp/metrics_utils.h"
 #include "url/origin.h"
 
 namespace actor_login {
@@ -29,7 +33,11 @@ using autofill::SavePasswordProgressLogger;
 using password_manager::BrowserSavePasswordProgressLogger;
 using password_manager::PasswordManagerClient;
 
+using GetCredentialsOutcome = optimization_guide::proto::
+    ActorLoginQuality_GetCredentialsDetails_GetCredentialsOutcome;
 using Logger = autofill::SavePasswordProgressLogger;
+using PermissionDetails = optimization_guide::proto::
+    ActorLoginQuality_GetCredentialsDetails_PermissionDetails;
 
 std::unique_ptr<BrowserSavePasswordProgressLogger> GetLogger(
     PasswordManagerClient* client) {
@@ -76,6 +84,12 @@ void LogStatus(BrowserSavePasswordProgressLogger* logger,
   logger->LogNumber(label, value);
 }
 
+int64_t ComputeRequestDurationForLogs(base::TimeTicks start_time) {
+  base::TimeDelta request_duration = base::TimeTicks::Now() - start_time;
+  return ukm::GetSemanticBucketMinForDurationTiming(
+      request_duration.InMilliseconds());
+}
+
 Credential PasswordFormToCredential(
     url::Origin request_origin,
     bool immediately_available_to_login,
@@ -86,7 +100,7 @@ Credential PasswordFormToCredential(
   Credential credential;
   credential.username = form.username_value;
   credential.source_site_or_app =
-      ActorLoginFormFinder::GetSourceSiteOrAppFromUrl(form.url);
+      actor_login::ActorLoginFormFinder::GetSourceSiteOrAppFromUrl(form.url);
   credential.request_origin = request_origin;
   credential.immediatelyAvailableToLogin = immediately_available_to_login;
   credential.has_persistent_permission = form.actor_login_approved;
@@ -119,28 +133,59 @@ ActorLoginGetCredentialsHelper::ActorLoginGetCredentialsHelper(
     const url::Origin& origin,
     password_manager::PasswordManagerClient* client,
     password_manager::PasswordManagerInterface* password_manager,
+    base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
     CredentialsOrErrorReply callback)
     : request_origin_(origin),
       callback_(std::move(callback)),
-      password_manager_(password_manager) {
-  std::unique_ptr<BrowserSavePasswordProgressLogger> logger = GetLogger(client);
+      password_manager_(password_manager),
+      client_(client),
+      mqls_logger_(mqls_logger),
+      start_time_(base::TimeTicks::Now()),
+      login_form_finder_(std::make_unique<ActorLoginFormFinder>(client)) {
+  std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
+      GetLogger(client_);
   LogStatus(logger.get(),
             Logger::STRING_ACTOR_LOGIN_GET_CREDENTIALS_FETCHING_STARTED);
 
   // The check is added separately in order to differentiate between having
   // no signin form on the page and filling being disallowed.
-  if (!client->IsFillingEnabled(origin.GetURL())) {
+  if (!client_->IsFillingEnabled(origin.GetURL())) {
     LogStatus(logger.get(), Logger::STRING_ACTOR_LOGIN_FILLING_NOT_ALLOWED);
+    get_credentials_logs_.set_outcome(
+        OutcomeEnumToProtoType(GetCredentialsOutcomeMqls::kFillingNotAllowed));
+    get_credentials_logs_.set_getting_credentials_time_ms(
+        ComputeRequestDurationForLogs(start_time_));
     std::move(callback_).Run(
         base::unexpected(ActorLoginError::kFillingNotAllowed));
     return;
   }
-  password_manager::PasswordFormCache* form_cache =
-      password_manager_->GetPasswordFormCache();
-  ActorLoginFormFinder login_form_finder(client);
+
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kActorLoginFieldVisibilityCheck)) {
+    login_form_finder_->GetEligibleLoginFormManagersAsync(
+        request_origin_,
+        base::BindOnce(&ActorLoginGetCredentialsHelper::
+                           OnEligibleLoginFormManagersRetrieved,
+                       weak_ptr_factory_.GetWeakPtr()));
+  } else {
+    OnEligibleLoginFormManagersRetrieved(
+        login_form_finder_->GetEligibleLoginFormManagers(request_origin_));
+  }
+}
+
+ActorLoginGetCredentialsHelper::~ActorLoginGetCredentialsHelper() {
+  if (mqls_logger_) {
+    mqls_logger_->SetGetCredentialsDetails(std::move(get_credentials_logs_));
+  }
+}
+
+void ActorLoginGetCredentialsHelper::OnEligibleLoginFormManagersRetrieved(
+    std::vector<password_manager::PasswordFormManager*> eligible_managers) {
+  std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
+      GetLogger(client_);
+
   password_manager::PasswordFormManager* signin_form_manager =
-      form_cache ? login_form_finder.GetSigninFormManager(request_origin_)
-                 : nullptr;
+      ActorLoginFormFinder::GetSigninFormManager(eligible_managers);
 
   if (signin_form_manager) {
     immediately_available_to_login_ = true;
@@ -149,10 +194,10 @@ ActorLoginGetCredentialsHelper::ActorLoginGetCredentialsHelper(
     immediately_available_to_login_ = false;
     password_manager::PasswordFormDigest form_digest(
         password_manager::PasswordForm::Scheme::kHtml,
-        password_manager_util::GetSignonRealm(origin.GetURL()),
-        origin.GetURL());
+        password_manager_util::GetSignonRealm(request_origin_.GetURL()),
+        request_origin_.GetURL());
     owned_form_fetcher_ = std::make_unique<password_manager::FormFetcherImpl>(
-        std::move(form_digest), client,
+        std::move(form_digest), client_,
         /*should_migrate_http_passwords=*/false);
     form_fetcher_ = owned_form_fetcher_.get();
     form_fetcher_->Fetch();
@@ -167,8 +212,6 @@ ActorLoginGetCredentialsHelper::ActorLoginGetCredentialsHelper(
   // `ActorLoginGetCredentialsHelper` being destroyed).
   form_fetcher_->AddConsumer(this);
 }
-
-ActorLoginGetCredentialsHelper::~ActorLoginGetCredentialsHelper() = default;
 
 void ActorLoginGetCredentialsHelper::OnFetchCompleted() {
   std::unique_ptr<BrowserSavePasswordProgressLogger> logger =
@@ -185,8 +228,41 @@ void ActorLoginGetCredentialsHelper::OnFetchCompleted() {
   LogStatus(logger.get(),
             Logger::STRING_ACTOR_LOGIN_GET_CREDENTIALS_NUM_CREDENTIALS,
             static_cast<int>(result.size()));
+  if (mqls_logger_) {
+    BuildGetCredentialsOutcome(result);
+  }
 
   std::move(callback_).Run(std::move(result));
+}
+
+void ActorLoginGetCredentialsHelper::BuildGetCredentialsOutcome(
+    const std::vector<Credential>& result) {
+  get_credentials_logs_.set_getting_credentials_time_ms(
+      ComputeRequestDurationForLogs(start_time_));
+  if (result.empty()) {
+    get_credentials_logs_.set_outcome(
+        OutcomeEnumToProtoType(GetCredentialsOutcomeMqls::kNoCredentials));
+    return;
+  }
+
+  if (result[0].immediatelyAvailableToLogin) {
+    get_credentials_logs_.set_outcome(
+        OutcomeEnumToProtoType(GetCredentialsOutcomeMqls::kSignInFormExists));
+  } else {
+    get_credentials_logs_.set_outcome(
+        OutcomeEnumToProtoType(GetCredentialsOutcomeMqls::kNoSignInForm));
+  }
+
+  // If there is a credential with permission that can be used, it will
+  // be the only returned one.
+  if (result[0].has_persistent_permission) {
+    get_credentials_logs_.set_permission_details(PermissionEnumToProtoType(
+
+        PermissionDetailsMqls::kHasPermanentPermission));
+  } else {
+    get_credentials_logs_.set_permission_details(PermissionEnumToProtoType(
+        PermissionDetailsMqls::kNoPermanentPermission));
+  }
 }
 
 }  // namespace actor_login

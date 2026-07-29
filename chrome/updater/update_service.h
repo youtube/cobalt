@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/files/file_path.h"
-#include "base/files/file_util.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/version.h"
@@ -24,6 +23,8 @@ enum class PolicyFetchReason;
 }  // namespace policy
 
 namespace updater {
+
+using RpcError = int;
 
 enum class UpdaterScope;
 

@@ -127,7 +127,7 @@ class WebApkInstallTaskTest : public testing::Test {
     profile()->GetPrefs()->SetBoolean(
         apps::webapk_prefs::kGeneratedWebApksEnabled, false);
 
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
 
     auto* arc_bridge_service =
         arc_app_test_.arc_service_manager()->arc_bridge_service();
@@ -144,7 +144,12 @@ class WebApkInstallTaskTest : public testing::Test {
         &arc_features_getter_);
   }
 
-  void TearDown() override { arc_app_test_.TearDown(); }
+  void TearDown() override {
+    arc_app_test_.PreProfileTearDown();
+    profile_ = nullptr;
+    profile_manager_->DeleteAllTestingProfiles();
+    arc_app_test_.PostProfileTearDown();
+  }
 
   bool InstallWebApk(std::string app_id) {
     apps::WebApkInstallTask install_task(profile(), app_id);

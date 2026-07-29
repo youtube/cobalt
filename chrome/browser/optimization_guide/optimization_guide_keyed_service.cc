@@ -23,6 +23,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/component_updater/optimization_guide_on_device_model_installer.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
 #include "chrome/browser/optimization_guide/chrome_hints_manager.h"
@@ -182,7 +183,7 @@ OptimizationGuideKeyedService::CreateModelBrokerClient() {
   GetGlobalState().on_device_capability().BindModelBroker(
       remote.InitWithNewPipeAndPassReceiver());
   return std::make_unique<optimization_guide::ModelBrokerClient>(
-      std::move(remote));
+      std::move(remote), optimization_guide_logger_->GetWeakPtr());
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -302,8 +303,9 @@ void OptimizationGuideKeyedService::InitializeModelExecution(Profile* profile) {
     model_execution_features_controller_ =
         std::make_unique<optimization_guide::ModelExecutionFeaturesController>(
             profile->GetPrefs(), IdentityManagerFactory::GetForProfile(profile),
-            g_browser_process->local_state(), dogfood_status,
-            is_official_build);
+            g_browser_process->local_state(),
+            policy::ManagementServiceFactory::GetForProfile(profile),
+            dogfood_status, is_official_build);
 
     // Don't create logs uploader service when feature is disabled. All the
     // logs upload get route through this service which exists one per
@@ -432,9 +434,10 @@ void OptimizationGuideKeyedService::CanApplyOptimizationOnDemand(
 std::unique_ptr<optimization_guide::OnDeviceSession>
 OptimizationGuideKeyedService::StartSession(
     optimization_guide::ModelBasedCapabilityKey feature,
-    const optimization_guide::SessionConfigParams& config_params) {
-  return GetGlobalState().on_device_capability().StartSession(feature,
-                                                              config_params);
+    const optimization_guide::SessionConfigParams& config_params,
+    base::WeakPtr<OptimizationGuideLogger> logger) {
+  return GetGlobalState().on_device_capability().StartSession(
+      feature, config_params, logger);
 }
 
 void OptimizationGuideKeyedService::ExecuteModel(

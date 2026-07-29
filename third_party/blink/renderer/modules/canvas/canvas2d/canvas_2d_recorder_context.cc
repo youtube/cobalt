@@ -2409,7 +2409,7 @@ void Canvas2DRecorderContext::drawImage(CanvasImageSource* image_source,
     }
   } else {
     image = image_source->GetSourceImageForCanvas(
-        FlushReason::kDrawImage, &source_image_status, default_object_size);
+        FlushReason::kOther, &source_image_status, default_object_size);
     if (source_image_status == kUndecodableSourceImageStatus) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kInvalidStateError,
@@ -2618,8 +2618,8 @@ CanvasPattern* Canvas2DRecorderContext::createPattern(
 
   gfx::SizeF default_object_size(Width(), Height());
   scoped_refptr<Image> image_for_rendering =
-      image_source->GetSourceImageForCanvas(FlushReason::kCreatePattern,
-                                            &status, default_object_size);
+      image_source->GetSourceImageForCanvas(FlushReason::kOther, &status,
+                                            default_object_size);
 
   switch (status) {
     case kNormalSourceImageStatus:

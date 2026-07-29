@@ -82,7 +82,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       autofillIcon_: {
         type: String,
         value: () => loadTimeData.getBoolean('enableYourSavedInfoBranding') ?
-            'settings20:saved-info' :
+            'settings20:person-text' :
             'settings:assignment',
       },
     };
@@ -173,6 +173,12 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   private onAutofillClick_() {
     this.metricsBrowserProxy_.recordAutofillSettingsReferrer(
         'Autofill.AutofillAndPasswordsSettingsPage.VisitReferrer',
+        AutofillSettingsReferrer.SETTINGS_MENU);
+  }
+
+  private onYourSavedInfoClick_() {
+    this.metricsBrowserProxy_.recordAutofillSettingsReferrer(
+        'Autofill.YourSavedInfoSettingsPage.VisitReferrer',
         AutofillSettingsReferrer.SETTINGS_MENU);
   }
 

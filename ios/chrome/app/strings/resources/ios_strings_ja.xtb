@@ -38,7 +38,7 @@
 <translation id="1112015203684611006">印刷できませんでした。</translation>
 <translation id="1118569444314402022">ようこそ、<ph name="USER_NAME" /> さん</translation>
 <translation id="1121850836842642159">写真と画像</translation>
-<translation id="1122068467107743258">仕事</translation>
+<translation id="1122068467107743258">職場</translation>
 <translation id="1126696498560056882">このデバイスのアカウントを管理</translation>
 <translation id="1126809382673880764">危険なウェブサイト、ダウンロード、拡張機能から保護されていません。セーフ ブラウジングによる保護は、Gmail や Google 検索など他の Google サービスで利用可能な場合は、引き続き有効です。</translation>
 <translation id="1136104150802877429">商品レビューを表示</translation>
@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">AI モードで検索</translation>
 <translation id="3557336313807607643">連絡先に追加</translation>
 <translation id="355765753469272474">元に戻す</translation>
+<translation id="3565012355885596568">画像を読み込めませんでした</translation>
 <translation id="3565930036634619844">タブ <ph name="TAB_INDEX" />/<ph name="NUMBER_OF_TABS" />。</translation>
 <translation id="3572607909481582402">Google アカウント</translation>
 <translation id="3575234738189584619">レンズで検索</translation>
@@ -1314,6 +1315,7 @@
 <translation id="6045460247888249350">タイトルを追加</translation>
 <translation id="6052269326659653305">プロファイルを切り替え</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">動画を撮る</translation>
 <translation id="6059830886158432458">ここで記事やアクティビティを管理します</translation>
 <translation id="6066301408025741299">タップしてキャンセルします。</translation>
 <translation id="6074656473835429958">通知を受け取る</translation>
@@ -1815,6 +1817,7 @@
 <translation id="7866872729285243843">お使いのすべてのデバイスで同じリーディング リストを使用するには、設定で [リーディング リスト] をオンにします。</translation>
 <translation id="7874107544081154809">自動入力フォーム、<ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
 <translation id="7879275349003161544">ダウンロードを表示</translation>
+<translation id="7882689957034389473">写真を撮る</translation>
 <translation id="7883882164760409935">使い回しのパスワードがあります。</translation>
 <translation id="7887174313503389866">ガイドに沿って、プライバシーとセキュリティに関する重要な設定を確認します。その他のオプションについては、それぞれの設定で行います。</translation>
 <translation id="7887198238286927132">プライバシー保護のため、Chrome ではこの欄の自動入力は行われません。</translation>
@@ -1998,6 +2001,7 @@
 <translation id="8551311254462607218">アドレスバーで Google レンズのカメラアイコンをタップします</translation>
 <translation id="8556590991644167667">{count,plural, =1{{count} 件の警告を非表示にしました}other{{count} 件の警告を非表示にしました}}</translation>
 <translation id="8558046478684552694">グループを閉じる。</translation>
+<translation id="8559858985063901027">パスキー</translation>
 <translation id="8560253818350321773">よく使うアイテムを最初に表示します。</translation>
 <translation id="8561999115126307258">{count,plural, =1{キーボードの上部に利用可能なパスワードの候補が {count} 件表示されています。}other{キーボードの上部に利用可能なパスワードの候補が {count} 件表示されています。}}</translation>
 <translation id="8564894539416715395">新しいタブページ</translation>
@@ -2186,7 +2190,7 @@
 <translation id="926455622548529175">切り替えて削除</translation>
 <translation id="929748059769569925">選択したテキスト</translation>
 <translation id="932305336591073205">{count,plural, =1{タブを閉じる}other{タブを閉じる}}</translation>
-<translation id="932327136139879170">ホーム</translation>
+<translation id="932327136139879170">自宅</translation>
 <translation id="939472100615258482">現在のサイト</translation>
 <translation id="939598580284253335">パスフレーズを入力</translation>
 <translation id="939736085109172342">新しいフォルダ</translation>
@@ -2195,7 +2199,7 @@
 <translation id="945522503751344254">フィードバックを送信</translation>
 <translation id="94870150074703282">グループを削除しますか？</translation>
 <translation id="952704832371081537">キャンセル</translation>
-<translation id="95332591904104970">接続済みのアプリ</translation>
+<translation id="95332591904104970">アプリ連携</translation>
 <translation id="954667170699278022">リーディング リスト</translation>
 <translation id="956218893102219091">Gemini で最も正確な結果を得るには、IP アドレスに基づくおおよその現在地ではなく、正確な位置情報を使用してください。<ph name="BEGIN_LINK" />詳細<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">閲覧履歴データを削除</translation>

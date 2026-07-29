@@ -626,14 +626,6 @@ void PageInfo::RecordPageInfoAction(page_info::PageInfoAction action) {
       base::RecordAction(base::UserMetricsAction(
           "PageInfo.CookiesSubpage.SyncSettingsLinkClicked"));
       break;
-    case page_info::PAGE_INFO_PRIVACY_PAGE_TRACKING_PROTECTIONS_REENABLED:
-      base::RecordAction(base::UserMetricsAction(
-          "PageInfo.PrivacySubpage.TrackingProtectionsReenabled"));
-      break;
-    case page_info::PAGE_INFO_PRIVACY_PAGE_TRACKING_PROTECTIONS_PAUSED:
-      base::RecordAction(base::UserMetricsAction(
-          "PageInfo.PrivacySubpage.TrackingProtectionsPaused"));
-      break;
   }
 }
 
@@ -1414,10 +1406,6 @@ bool PageInfo::ShouldShowPermission(
     }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-    if (!base::FeatureList::IsEnabled(
-            blink::features::kMediaSessionEnterPictureInPicture)) {
-      return false;
-    }
     if (delegate_->HasAutoPictureInPictureBeenRegistered()) {
       return true;
     }

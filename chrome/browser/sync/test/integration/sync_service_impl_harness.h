@@ -120,8 +120,7 @@ class SyncServiceImplHarness {
 
   // Enables and configures sync.
   // Does not wait for sync to be ready to process changes -- callers need to
-  // ensure this by calling AwaitSyncSetupCompletion() or
-  // AwaitSyncTransportActive().
+  // ensure this by calling AwaitSyncTransportActive().
   [[nodiscard]] bool SetupSyncNoWaitForCompletion(
       SyncTestAccount account = SyncTestAccount::kDefaultAccount);
 
@@ -162,12 +161,6 @@ class SyncServiceImplHarness {
   // of engine initialization.
   [[nodiscard]] bool AwaitEngineInitialization();
 
-  // Blocks the caller until sync setup is complete, and sync-the-feature is
-  // active. Returns true if and only if sync setup completed successfully. Make
-  // sure to actually start sync setup (usually by calling SetupSync() or one of
-  // its variants) before.
-  [[nodiscard]] bool AwaitSyncSetupCompletion();
-
   // Blocks the caller until the sync transport layer is active. Returns true if
   // successful.
   [[nodiscard]] bool AwaitSyncTransportActive();
@@ -185,6 +178,10 @@ class SyncServiceImplHarness {
 
   // Returns the debug name for this profile. Used for logging.
   const std::string& profile_debug_name() const { return profile_debug_name_; }
+
+  // Enables history sync. This includes UserSelectableType::kHistory, and
+  // UserSelectableType::kTabs. Returns true on success.
+  [[nodiscard]] bool EnableHistorySyncNoWaitForCompletion();
 
   // Enables sync for a particular selectable sync type (will enable sync for
   // all corresponding datatypes). Returns true on success.

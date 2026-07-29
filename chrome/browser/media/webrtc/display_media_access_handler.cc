@@ -196,7 +196,7 @@ void DisplayMediaAccessHandler::HandleRequest(
       request.render_process_id, request.render_frame_id);
   if (!rfh || !rfh->IsActive()) {
     std::move(callback).Run(blink::mojom::StreamDevicesSet(),
-                            MediaStreamRequestResult::INVALID_STATE,
+                            MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN,
                             /*ui=*/nullptr);
     return;
   }
@@ -204,9 +204,10 @@ void DisplayMediaAccessHandler::HandleRequest(
   if (capture_policy::GetAllowedCaptureLevel(request.security_origin,
                                              web_contents) ==
       AllowedScreenCaptureLevel::kDisallowed) {
-    std::move(callback).Run(blink::mojom::StreamDevicesSet(),
-                            MediaStreamRequestResult::PERMISSION_DENIED,
-                            /*ui=*/nullptr);
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY,
+        /*ui=*/nullptr);
     return;
   }
 
@@ -269,9 +270,10 @@ void DisplayMediaAccessHandler::HandleRequest(
       bad_message::ReceivedBadMessage(
           rfh->GetProcess(), bad_message::BadMessageReason::
                                  RFH_DISPLAY_CAPTURE_PERMISSION_MISSING);
-      std::move(callback).Run(blink::mojom::StreamDevicesSet(),
-                              MediaStreamRequestResult::PERMISSION_DENIED,
-                              /*ui=*/nullptr);
+      std::move(callback).Run(
+          blink::mojom::StreamDevicesSet(),
+          MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY,
+          /*ui=*/nullptr);
       return;
     }
 
@@ -470,7 +472,8 @@ void DisplayMediaAccessHandler::ProcessQueuedAccessRequest(
 
   // If Capture is not allowed, then reject.
   if (capture_level == AllowedScreenCaptureLevel::kDisallowed) {
-    RejectRequest(web_contents, MediaStreamRequestResult::PERMISSION_DENIED);
+    RejectRequest(web_contents,
+                  MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY);
     return;
   }
 
@@ -586,6 +589,16 @@ void DisplayMediaAccessHandler::ProcessQueuedPickerRequest(
       (capture_level != AllowedScreenCaptureLevel::kUnrestricted);
   picker_params.preferred_display_surface =
       pending_request.request.preferred_display_surface;
+#if BUILDFLAG(IS_ANDROID)
+  picker_params.capture_this_tab =
+      pending_request.request.video_type ==
+      blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB;
+  picker_params.exclude_self_browser_surface =
+      pending_request.request.exclude_self_browser_surface;
+  picker_params.exclude_monitor_type_surfaces =
+      pending_request.request.exclude_monitor_type_surfaces;
+#endif
+
   pending_request.picker->Show(picker_params, std::move(source_lists),
                                std::move(done_callback));
 }

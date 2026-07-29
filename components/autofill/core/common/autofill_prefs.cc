@@ -39,6 +39,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(
       kAutofillAiIdentityEntitiesEnabled, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
+      kAutofillAiSyncedOptInStatus, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterIntegerPref(
       kAutofillAiLastVersionDeduped, 0,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
@@ -147,12 +150,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillEnableAiBasedAmountExtraction)) {
-    registry->RegisterBooleanPref(
-        kAutofillAmountExtractionAiTermsSeen, false,
-        user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-  }
+  registry->RegisterBooleanPref(
+      kAutofillAmountExtractionAiTermsSeen, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
   if (base::FeatureList::IsEnabled(
           features::kAutofillEnableSupportForHomeAndWork)) {
@@ -245,6 +245,14 @@ void SetAutofillProfileEnabled(PrefService* prefs, bool enabled) {
   using enum AutofillAddressOptInChange;
   base::UmaHistogramEnumeration("Autofill.Address.IsEnabled.Change",
                                 enabled ? kOptIn : kOptOut);
+}
+
+bool IsAutofillAiSyncedOptInStatusEnabled(const PrefService* prefs) {
+  return prefs->GetBoolean(kAutofillAiSyncedOptInStatus);
+}
+
+void SetAutofillAiSyncedOptInStatus(PrefService* prefs, bool enabled) {
+  prefs->SetBoolean(kAutofillAiSyncedOptInStatus, enabled);
 }
 
 bool IsPaymentMethodsMandatoryReauthEnabled(const PrefService* prefs) {

@@ -1138,23 +1138,21 @@ config("compiler") {
     "-Cdefault-linker-libraries",
   ]
 
-  if (rustc_nightly_capability) {
-    rustflags += [
-      # To make Rust .d files compatible with ninja
-      "-Zdep-info-omit-d-target",
+  rustflags += [
+    # To make Rust .d files compatible with ninja
+    "-Zdep-info-omit-d-target",
 
-      # If a macro panics during compilation, show which macro and where it is
-      # defined.
-      "-Zmacro-backtrace",
+    # If a macro panics during compilation, show which macro and where it is
+    # defined.
+    "-Zmacro-backtrace",
 
-      # For deterministic builds, keep the local machine's current working
-      # directory from appearing in build outputs.
-      "-Zremap-cwd-prefix=.",
+    # For deterministic builds, keep the local machine's current working
+    # directory from appearing in build outputs.
+    "-Zremap-cwd-prefix=.",
 
-      # We use clang-rt sanitizer runtimes.
-      "-Zexternal-clangrt",
-    ]
-  }
+    # We use clang-rt sanitizer runtimes.
+    "-Zexternal-clangrt",
+  ]
 
   if (!is_win || force_rustc_color_output) {
     # Colorize error output. The analogous flag is passed for clang. This must
@@ -1221,9 +1219,7 @@ config("compiler") {
 # Don't allow unstable features to be enabled by `#![feature()]` without
 # additional command line flags.
 config("disallow_unstable_features") {
-  if (rustc_nightly_capability) {
-    rustflags = [ "-Zallow-features=" ]
-  }
+  rustflags = [ "-Zallow-features=" ]
 }
 
 # The BUILDCONFIG file sets this config on targets by default, which means when
@@ -1863,7 +1859,13 @@ config("sanitize_c_array_bounds") {
       "-fsanitize-trap=array-bounds",
     ]
 
-    if (defined(ubsan_array_bounds_ignorelist_path)) {
+    # TODO(https://crbug.com/457303640): Like the warning_suppression.txt
+    # distribution issue, it appears that ICECC also does not distribute the
+    # array_bounds_ignorelist.txt file. Therefore, we temporarily disable the
+    # suppression/ignore lists for the sanitizer tools. Also we reported this
+    # issue to the icecc github repo -
+    # https://github.com/icecc/icecream/issues/649.
+    if (defined(ubsan_array_bounds_ignorelist_path) && cc_wrapper != "icecc") {
       rebased = rebase_path(ubsan_array_bounds_ignorelist_path, root_build_dir)
       cflags += [ "-fsanitize-ignorelist=$rebased" ]
     }

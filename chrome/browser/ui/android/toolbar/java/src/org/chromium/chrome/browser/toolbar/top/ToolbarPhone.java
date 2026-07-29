@@ -110,6 +110,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /** Phone specific toolbar implementation. */
 @NullMarked
@@ -401,7 +402,8 @@ public class ToolbarPhone extends ToolbarLayout
             @Nullable HomeButtonDisplay homeButtonDisplay,
             @Nullable ExtensionToolbarCoordinator extensionToolbarCoordinator,
             ThemeColorProvider themeColorProvider,
-            IncognitoStateProvider incognitoStateProvider) {
+            IncognitoStateProvider incognitoStateProvider,
+            @Nullable Supplier<Integer> incognitoWindowCountSupplier) {
         assert tabSwitcherButtonCoordinator != null;
         super.initialize(
                 toolbarDataProvider,
@@ -418,7 +420,8 @@ public class ToolbarPhone extends ToolbarLayout
                 homeButtonDisplay,
                 extensionToolbarCoordinator,
                 themeColorProvider,
-                incognitoStateProvider);
+                incognitoStateProvider,
+                /* incognitoWindowCountSupplier= */ null);
         mUserEducationHelper = userEducationHelper;
         mTrackerSupplier = trackerSupplier;
         mHomeButtonDisplay = assumeNonNull(homeButtonDisplay);
@@ -448,6 +451,12 @@ public class ToolbarPhone extends ToolbarLayout
         if (ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
             mActiveLocationBarBackgroundView.setBackground(mActiveLocationBarBackground);
             updateLocationBarBackgroundBounds(mLocationBarBackgroundBounds, mVisualState);
+        } else {
+            // With the refactor enabled, the drawable belongs to a different view
+            // (mActiveLocationBarBackgroundView) that handles its invalidations. Otherwise, we need
+            // to manually handle its invalidations since it's not registered as our background
+            // drawable.
+            mLocationBarBackground.setCallback(this);
         }
     }
 
@@ -460,7 +469,17 @@ public class ToolbarPhone extends ToolbarLayout
         mLocationBarBackground.setHairlineBehavior(
                 type == AutocompleteRequestType.AI_MODE
                         ? HairlineBehavior.RAINBOW
-                        : HairlineBehavior.MONOTONE);
+                        : HairlineBehavior.NONE);
+    }
+
+    @Override
+    public void invalidateDrawable(Drawable who) {
+        if (who == mLocationBarBackground
+                && mActiveLocationBarBackground == mLocationBarBackground) {
+            invalidate();
+        } else {
+            super.invalidateDrawable(who);
+        }
     }
 
     @Override
@@ -487,8 +506,10 @@ public class ToolbarPhone extends ToolbarLayout
                         context,
                         /* cornerRadiusPx= */ resources.getDimensionPixelSize(
                                 R.dimen.modern_toolbar_background_corner_radius),
-                        /* strokePx= */ resources.getDimensionPixelSize(R.dimen.chip_border_width),
-                        ContextCompat.getColor(context, R.color.color_on_surface_with_alpha_12));
+                        /* strokePx= */ resources.getDimensionPixelSize(
+                                R.dimen.fusebox_glif_stroke_width),
+                        /* blurStrokePx= */ resources.getDimensionPixelSize(
+                                R.dimen.fusebox_glif_blur_stroke_width));
         drawable.setBackgroundColor(
                 ContextCompat.getColor(context, R.color.toolbar_text_box_bg_color));
         return drawable;
@@ -1854,8 +1875,6 @@ public class ToolbarPhone extends ToolbarLayout
             @Nullable ColorStateList tint,
             @Nullable ColorStateList activityFocusTint,
             @BrandedColorScheme int brandedColorScheme) {
-        mHomeButtonDisplay.setForegroundColor(tint);
-
         if (mOptionalButtonCoordinator != null) {
             mOptionalButtonCoordinator.setIconForegroundColor(tint);
         }

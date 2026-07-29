@@ -152,6 +152,8 @@ const char* MediaStreamRequestResultToString(MediaStreamRequestResult value) {
       return "AUDIO_DEVICE_SOCKET_ERROR";
     case MediaStreamRequestResult::NO_TRANSIENT_ACTIVATION:
       return "NO_TRANSIENT_ACTIVATION";
+    case MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY:
+      return "CAPTURE_NOT_ALLOWED_BY_POLICY";
     case MediaStreamRequestResult::NUM_MEDIA_REQUEST_RESULTS:
       break;
   }
@@ -308,6 +310,7 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
     case MediaStreamRequestResult::OK:
       return "OK";
     case MediaStreamRequestResult::PERMISSION_DENIED:
+    case MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY:
       return "Permission denied";
     case MediaStreamRequestResult::PERMISSION_DISMISSED:
       return "Permission dismissed";
@@ -2361,7 +2364,7 @@ bool UserMediaProcessor::CancelRequest(UserMediaRequest* user_media_request) {
         break;
     }
     UpdateRequestResult(user_media_request->MediaRequestType(),
-                        MediaStreamRequestResult::REQUEST_CANCELLED);
+                        MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN);
     return true;
   }
   return false;
@@ -2380,8 +2383,9 @@ void UserMediaProcessor::DeleteUserMediaRequest(
 void UserMediaProcessor::StopAllProcessing() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (current_request_info_) {
+    auto result = MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN;
     UpdateRequestResult(current_request_info_->request()->MediaRequestType(),
-                        MediaStreamRequestResult::REQUEST_CANCELLED);
+                        result);
     switch (current_request_info_->state()) {
       case RequestInfo::State::kSentForGeneration:
         // Let the browser process know that the previously sent request must be
@@ -2396,6 +2400,7 @@ void UserMediaProcessor::StopAllProcessing() {
       case RequestInfo::State::kGenerated:
         break;
     }
+    current_request_info_->request()->Fail(result, ErrorCodeToString(result));
     current_request_info_ = nullptr;
   }
   request_completed_cb_.Reset();

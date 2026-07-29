@@ -6,6 +6,7 @@ ash/webui/camera_app_ui/resources/js/lib
 base
 base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base
 base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/containers
+base/allocator/partition_allocator/src/partition_alloc/shim
 base/android
 base/android/java/src/org/chromium/base
 base/containers
@@ -120,7 +121,6 @@ components/autofill/core/browser/form_parsing
 components/cast/named_message_port_connector
 components/cbor
 components/certificate_transparency
-components/component_updater/installer_policies
 components/domain_reliability
 components/enterprise/obfuscation/core
 components/gcm_driver
@@ -670,8 +670,8 @@ third_party/rust/chromium_crates_io/vendor/prost-v0_14
 third_party/rust/chromium_crates_io/vendor/qr_code-v2
 third_party/rust/chromium_crates_io/vendor/quote-v1
 third_party/rust/chromium_crates_io/vendor/quote-v1/.github/workflows
-third_party/rust/chromium_crates_io/vendor/read-fonts-v0_35/src/tables
-third_party/rust/chromium_crates_io/vendor/read-fonts-v0_35/src/tables/postscript
+third_party/rust/chromium_crates_io/vendor/read-fonts-v0_36/src/tables
+third_party/rust/chromium_crates_io/vendor/read-fonts-v0_36/src/tables/postscript
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/src/util
 third_party/rust/chromium_crates_io/vendor/regex-automata-v0_4/tests/dfa
@@ -709,8 +709,8 @@ third_party/rust/chromium_crates_io/vendor/winapi-util-v0_1/.github/workflows
 third_party/rust/chromium_crates_io/vendor/windows-sys-v0_52
 third_party/rust/chromium_crates_io/vendor/windows-sys-v0_52/src/Windows/Wdk/System/SystemServices
 third_party/rust/chromium_crates_io/vendor/windows-sys-v0_52/src/Windows/Win32/Networking/Clustering
-third_party/rust/chromium_crates_io/vendor/zip-v5
-third_party/rust/chromium_crates_io/vendor/zip-v5/src
+third_party/rust/chromium_crates_io/vendor/zip-v6
+third_party/rust/chromium_crates_io/vendor/zip-v6/src
 third_party/rust/miniz_oxide/v0_8
 third_party/screen-ai
 third_party/sentencepiece/src

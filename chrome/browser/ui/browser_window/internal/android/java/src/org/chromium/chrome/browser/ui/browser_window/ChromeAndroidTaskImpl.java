@@ -244,6 +244,32 @@ final class ChromeAndroidTaskImpl
     }
 
     @Override
+    public void onNativeInitializationFinished() {
+        if (mPendingTaskInfo == null) return;
+        synchronized (mActivityScopedObjectsLock) {
+            if (mActivityScopedObjects == null) return;
+            var activityWindowAndroid = mActivityScopedObjects.mActivityWindowAndroid;
+            // Transition from PENDING_CREATE to IDLE.
+            assert mState.get() == State.PENDING_CREATE;
+            assert mId == null;
+
+            mId = getActivity(activityWindowAndroid).getTaskId();
+
+            mState.set(State.IDLE);
+            dispatchPendingActionsLocked(activityWindowAndroid);
+
+            JniOnceCallback<Long> taskCreationCallbackForNative =
+                    mPendingTaskInfo.mTaskCreationCallbackForNative;
+            if (taskCreationCallbackForNative != null) {
+                taskCreationCallbackForNative.onResult(
+                        mAndroidBrowserWindow.getOrCreateNativePtr());
+            }
+
+            mPendingTaskInfo = null;
+        }
+    }
+
+    @Override
     public @Nullable ActivityWindowAndroid getActivityWindowAndroid() {
         synchronized (mActivityScopedObjectsLock) {
             return getActivityWindowAndroidInternalLocked(/* assertAlive= */ true);
@@ -258,7 +284,7 @@ final class ChromeAndroidTaskImpl
     @Override
     public void addFeature(ChromeAndroidTaskFeature feature) {
         synchronized (mFeaturesLock) {
-            assertAlive();
+            assertPendingCreateOrIdle();
             mFeatures.add(feature);
             feature.onAddedToTask();
         }
@@ -579,7 +605,8 @@ final class ChromeAndroidTaskImpl
         }
 
         if (mState.get() == State.PENDING_CREATE) {
-            mPendingActionManager.requestAction(PendingAction.MAXIMIZE);
+            // TODO(crbug.com/459857984): remove empty bound and set a correct bound.
+            mPendingActionManager.requestMaximize(new Rect());
             return;
         }
 
@@ -612,7 +639,8 @@ final class ChromeAndroidTaskImpl
             return;
         }
         if (mState.get() == State.PENDING_CREATE) {
-            mPendingActionManager.requestAction(PendingAction.RESTORE);
+            // TODO(crbug.com/459857984): remove empty bound and set a correct bound.
+            mPendingActionManager.requestRestore(new Rect());
             return;
         }
 
@@ -706,19 +734,13 @@ final class ChromeAndroidTaskImpl
             mActivityScopedObjects = activityScopedObjects;
 
             var activityWindowAndroid = activityScopedObjects.mActivityWindowAndroid;
-            switch (getState()) {
-                case PENDING_CREATE:
-                    assert mId == null;
-                    assert mPendingTaskInfo != null;
-                    break;
-                case IDLE:
-                    assert mPendingTaskInfo == null;
-                    assert mId != null;
-                    assert mId == getActivity(activityWindowAndroid).getTaskId()
-                            : "The new ActivityWindowAndroid doesn't belong to this Task.";
-                    break;
-                default:
-                    assert false : "Found unexpected Task state.";
+            assertPendingCreateOrIdle();
+            if (getState() == State.IDLE) {
+                assert mId != null;
+                assert mId == getActivity(activityWindowAndroid).getTaskId()
+                        : "The new ActivityWindowAndroid doesn't belong to this Task.";
+            } else {
+                assert mId == null;
             }
 
             // Register Activity LifecycleObservers
@@ -735,23 +757,6 @@ final class ChromeAndroidTaskImpl
             activityScopedObjects.mTabModel.addObserver(this);
             activityScopedObjects.mTabModel.associateWithBrowserWindow(
                     mAndroidBrowserWindow.getOrCreateNativePtr());
-
-            // Transition from PENDING_CREATE to IDLE.
-            if (mState.get() == State.PENDING_CREATE) {
-                mId = getActivity(activityWindowAndroid).getTaskId();
-
-                mState.set(State.IDLE);
-                dispatchPendingActionsLocked(activityWindowAndroid);
-
-                JniOnceCallback<Long> taskCreationCallbackForNative =
-                        assertNonNull(mPendingTaskInfo).mTaskCreationCallbackForNative;
-                if (taskCreationCallbackForNative != null) {
-                    taskCreationCallbackForNative.onResult(
-                            mAndroidBrowserWindow.getOrCreateNativePtr());
-                }
-
-                mPendingTaskInfo = null;
-            }
         }
     }
 
@@ -859,8 +864,7 @@ final class ChromeAndroidTaskImpl
     @GuardedBy("mActivityScopedObjectsLock")
     private Rect getCurrentBoundsInDpLocked(ActivityWindowAndroid activityWindowAndroid) {
         Rect boundsInPx = getCurrentBoundsInPxLocked(activityWindowAndroid);
-        return DisplayUtil.scaleToEnclosingRect(
-                boundsInPx, 1.0f / activityWindowAndroid.getDisplay().getDipScale());
+        return convertBoundsInPxToDp(boundsInPx, activityWindowAndroid.getDisplay());
     }
 
     @GuardedBy("mActivityScopedObjectsLock")
@@ -881,6 +885,11 @@ final class ChromeAndroidTaskImpl
     private void assertAlive() {
         assert mState.get() == State.IDLE || mState.get() == State.PENDING_UPDATE
                 : "This Task is not alive.";
+    }
+
+    private void assertPendingCreateOrIdle() {
+        assert mState.get() == State.IDLE || mState.get() == State.PENDING_CREATE
+                : "This Task is neither pending create nor idle.";
     }
 
     @GuardedBy("mActivityScopedObjectsLock")
@@ -971,7 +980,9 @@ final class ChromeAndroidTaskImpl
                         (pair) -> {
                             var actions =
                                     mPendingActionManager.getAndClearTargetPendingActions(
-                                            PendingAction.MAXIMIZE, PendingAction.SET_BOUNDS);
+                                            PendingAction.MAXIMIZE,
+                                            PendingAction.SET_BOUNDS,
+                                            PendingAction.RESTORE);
                             maybeSetStateIdle(actions);
                         },
                         (e) -> {
@@ -1033,7 +1044,8 @@ final class ChromeAndroidTaskImpl
         }
         Rect maxBoundsInPx =
                 ChromeAndroidTaskBoundsConstraints.getMaxBoundsInPx(activity.getWindowManager());
-        mPendingActionManager.requestAction(PendingAction.MAXIMIZE);
+        mPendingActionManager.requestMaximize(
+                convertBoundsInPxToDp(maxBoundsInPx, activityWindowAndroid.getDisplay()));
         mState.set(State.PENDING_UPDATE);
         setBoundsInPxLocked(activity, activityWindowAndroid.getDisplay(), maxBoundsInPx);
     }
@@ -1063,6 +1075,9 @@ final class ChromeAndroidTaskImpl
         if (isMinimizedInternalLocked(activityWindowAndroid)) {
             activateInternalLocked();
         }
+        mPendingActionManager.requestRestore(
+                convertBoundsInPxToDp(mRestoredBoundsInPx, activityWindowAndroid.getDisplay()));
+        mState.set(State.PENDING_UPDATE);
         setBoundsInPxLocked(activity, activityWindowAndroid.getDisplay(), mRestoredBoundsInPx);
     }
 
@@ -1091,6 +1106,11 @@ final class ChromeAndroidTaskImpl
             }
         }
         mState.set(State.IDLE);
+    }
+
+    @VisibleForTesting
+    static Rect convertBoundsInPxToDp(Rect boundsInPx, DisplayAndroid displayAndroid) {
+        return DisplayUtil.scaleToEnclosingRect(boundsInPx, 1.0f / displayAndroid.getDipScale());
     }
 
     @Nullable Rect getRestoredBoundsInPxForTesting() {

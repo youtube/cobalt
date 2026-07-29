@@ -10,17 +10,13 @@
 // template bloat because everything is inlined when anybody calls any of our
 // functions.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include <stddef.h>
 
 #include <array>
 #include <string>
 
 #include "base/component_export.h"
+#include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -209,23 +205,23 @@ void AppendStringOfType(std::u16string_view source,
 // the corresponding numerical value.
 //
 // See HexDigitToValue for the lookup.
-extern const char kCharToHexLookup[8];
+extern const std::array<char, 8> kCharToHexLookup;
 
 // Assumes the input is a valid hex digit! Call IsHexChar before using this.
 inline int HexCharToValue(unsigned char c) {
-  return c - kCharToHexLookup[c / 0x20];
+  return c - UNSAFE_TODO(kCharToHexLookup[c / 0x20]);
 }
 
-// Indicates if the given character is a dot or dot equivalent, returning the
+// Indicates if the start of `spec` is a dot or dot equivalent, returning the
 // number of characters taken by it. This will be one for a literal dot, 3 for
 // an escaped dot. If the character is not a dot, this will return 0.
 template <typename CHAR>
-inline size_t IsDot(const CHAR* spec, size_t offset, size_t end) {
-  if (spec[offset] == '.') {
+inline size_t IsDot(std::basic_string_view<CHAR> spec) {
+  if (spec[0] == '.') {
     return 1;
-  } else if (spec[offset] == '%' && offset + 3 <= end &&
-             spec[offset + 1] == '2' &&
-             (spec[offset + 2] == 'e' || spec[offset + 2] == 'E')) {
+  }
+  if (spec.size() >= 3 && spec[0] == '%' && spec[1] == '2' &&
+      (spec[2] == 'e' || spec[2] == 'E')) {
     // Found "%2e"
     return 3;
   }
@@ -266,9 +262,8 @@ extern const base_icu::UChar32 kUnicodeReplacementCharacter;
 // can be incremented in a loop and will be ready for the next character.
 // (for a single-byte ASCII character, it will not be changed).
 COMPONENT_EXPORT(URL)
-bool ReadUTFCharLossy(const char* str,
+bool ReadUtfCharLossy(std::string_view str,
                       size_t* begin,
-                      size_t length,
                       base_icu::UChar32* code_point_out);
 
 // Generic To-UTF-8 converter. This will call the given append method for each
@@ -338,9 +333,8 @@ inline void AppendUTF8EscapedValue(base_icu::UChar32 char_value,
 // can be incremented in a loop and will be ready for the next character.
 // (for a single-16-bit-word character, it will not be changed).
 COMPONENT_EXPORT(URL)
-bool ReadUTFCharLossy(const char16_t* str,
+bool ReadUtfCharLossy(std::u16string_view str,
                       size_t* begin,
-                      size_t length,
                       base_icu::UChar32* code_point_out);
 
 // Equivalent to U16_APPEND_UNSAFE in ICU but uses our output method.
@@ -375,29 +369,27 @@ inline void AppendUTF16Value(base_icu::UChar32 code_point,
 //
 // Assumes that ch[begin] is within range in the array, but does not assume
 // that any following characters are.
-inline bool AppendUTF8EscapedChar(const char16_t* str,
+inline bool AppendUtf8EscapedChar(std::u16string_view str,
                                   size_t* begin,
-                                  size_t length,
                                   CanonOutput* output) {
   // UTF-16 input. ReadUTFCharLossy will handle invalid characters for us and
   // give us the kUnicodeReplacementCharacter, so we don't have to do special
   // checking after failure, just pass through the failure to the caller.
   base_icu::UChar32 char_value;
-  bool success = ReadUTFCharLossy(str, begin, length, &char_value);
+  bool success = ReadUtfCharLossy(str, begin, &char_value);
   AppendUTF8EscapedValue(char_value, output);
   return success;
 }
 
 // Handles UTF-8 input. See the wide version above for usage.
-inline bool AppendUTF8EscapedChar(const char* str,
+inline bool AppendUtf8EscapedChar(std::string_view str,
                                   size_t* begin,
-                                  size_t length,
                                   CanonOutput* output) {
   // ReadUTFCharLossy will handle invalid characters for us and give us the
   // kUnicodeReplacementCharacter, so we don't have to do special checking
   // after failure, just pass through the failure to the caller.
   base_icu::UChar32 ch;
-  bool success = ReadUTFCharLossy(str, begin, length, &ch);
+  bool success = ReadUtfCharLossy(str, begin, &ch);
   AppendUTF8EscapedValue(ch, output);
   return success;
 }
@@ -425,11 +417,10 @@ inline bool Is8BitChar(char16_t c) {
 }
 
 template <typename CHAR>
-inline bool DecodeEscaped(const CHAR* spec,
+inline bool DecodeEscaped(std::basic_string_view<CHAR> spec,
                           size_t* begin,
-                          size_t end,
                           unsigned char* unescaped_value) {
-  if (*begin + 3 > end || !Is8BitChar(spec[*begin + 1]) ||
+  if (*begin + 3 > spec.length() || !Is8BitChar(spec[*begin + 1]) ||
       !Is8BitChar(spec[*begin + 2])) {
     // Invalid escape sequence because there's not enough room, or the
     // digits are not ASCII.
@@ -530,15 +521,15 @@ bool CanonicalizePartialPathInternal(std::u16string_view path,
                                      CanonOutput* output);
 
 // Find the position of a bona fide Windows drive letter in the given path. If
-// no leading drive letter is found, -1 is returned. This function correctly
+// no leading drive letter is found, `npos` is returned. This function correctly
 // treats /c:/foo and /./c:/foo as having drive letters, and /def/c:/foo as not
 // having a drive letter.
 //
 // Exported for tests.
 COMPONENT_EXPORT(URL)
-int FindWindowsDriveLetter(const char* spec, int begin, int end);
+size_t FindWindowsDriveLetter(std::optional<std::string_view> path);
 COMPONENT_EXPORT(URL)
-int FindWindowsDriveLetter(const char16_t* spec, int begin, int end);
+size_t FindWindowsDriveLetter(std::optional<std::u16string_view> path);
 
 // StringToUint64WithBase is implemented separately because std::strtoull (and
 // its variants like _stroui64 on Windows) are not guaranteed to be constexpr,

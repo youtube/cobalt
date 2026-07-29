@@ -16,15 +16,11 @@ import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
-import android.text.TextUtils;
 
-import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplier;
@@ -33,52 +29,63 @@ import org.chromium.base.task.AsyncTask;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
-import org.chromium.chrome.browser.omnibox.fusebox.AttachmentDetailsFetcher.AttachmentDetails;
-import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsRecyclerViewAdapter.NavigationAttachmentItemType;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentRecyclerViewAdapter.FuseboxAttachmentType;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.FuseboxAttachmentButtonType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.Clipboard;
+import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.MVCListAdapter;
-import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
-import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.permissions.AndroidPermissionDelegate;
 import org.chromium.url.GURL;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Mediator for the Navigation Attachments component. */
 @NullMarked
-class NavigationAttachmentsMediator {
-    // TODO(crbug.com/457825183): Supply this class name externally.
+public class NavigationAttachmentsMediator {
+    // TODO(crbug.com/457825183): Supply this class name and extra string externally.
     private static final String CHROME_ITEM_PICKER_ACTIVITY_CLASS =
             "org.chromium.chrome.browser.chrome_item_picker.ChromeItemPickerActivity";
-    private static final String MIMETYPE_IMAGE_ANY = "image/*";
+    public static final String EXTRA_ATTACHMENT_TAB_IDS = "TAB_IDS";
     private final Context mContext;
     private final WindowAndroid mWindowAndroid;
     private final AndroidPermissionDelegate mPermissionDelegate;
     private final PropertyModel mModel;
     private final NavigationAttachmentsPopup mPopup;
-    private final ModelList mModelList;
+    private final FuseboxAttachmentModelList mModelList;
     private final ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
-    private final Drawable mFallbackDrawable;
     private final ObservableSupplierImpl<@AutocompleteRequestType Integer>
             mAutocompleteRequestTypeSupplier;
     private final ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
-    private final @Px int mPopupItemIconSizePx;
+    private final Callback<@AutocompleteRequestType Integer> mOnAutocompleteRequestTypeChanged =
+            this::onAutocompleteRequestTypeChanged;
+
+    private void onAutocompleteRequestTypeChanged(@AutocompleteRequestType Integer type) {
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE, type);
+        boolean tabInputsEnabled = type != AutocompleteRequestType.IMAGE_GENERATION;
+        mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED, tabInputsEnabled);
+        // TODO(https://www.crbug.com/456274957): Also set enabled on select tabs
+        // button.
+    }
 
     NavigationAttachmentsMediator(
             Context context,
             WindowAndroid windowAndroid,
             PropertyModel model,
             NavigationAttachmentsViewHolder viewHolder,
-            ModelList modelList,
+            FuseboxAttachmentModelList modelList,
             ObservableSupplierImpl<@AutocompleteRequestType Integer>
                     autocompleteRequestTypeSupplier,
             ObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
@@ -90,17 +97,10 @@ class NavigationAttachmentsMediator {
         mPopup = viewHolder.popup;
         mModelList = modelList;
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
-        mFallbackDrawable =
-                AppCompatResources.getDrawable(mContext, R.drawable.ic_attach_file_24dp);
         mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
         mComposeBoxQueryControllerBridge = composeBoxQueryControllerBridge;
-        mPopupItemIconSizePx =
-                mContext.getResources().getDimensionPixelSize(R.dimen.fusebox_popup_item_icon_size);
 
-        mAutocompleteRequestTypeSupplier.addObserver(
-                (type) ->
-                        mModel.set(
-                                NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE, type));
+        mAutocompleteRequestTypeSupplier.addObserver(mOnAutocompleteRequestTypeChanged);
 
         mModel.set(
                 NavigationAttachmentsProperties.BUTTON_ADD_CLICKED, this::onToggleAttachmentsPopup);
@@ -113,19 +113,50 @@ class NavigationAttachmentsMediator {
         mModel.set(
                 NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED,
                 this::onRequestTypeButtonClicked);
-        mModel.set(NavigationAttachmentsProperties.POPUP_AI_MODE_CLICKED, this::activateAiMode);
+        mModel.set(
+                NavigationAttachmentsProperties.POPUP_AI_MODE_CLICKED,
+                () -> activateAiMode(AiModeActivationSource.TOOL_MENU));
+        mModel.set(
+                NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_CLICKED,
+                this::activateImageGeneration);
         mModel.set(
                 NavigationAttachmentsProperties.POPUP_TAB_PICKER_CLICKED, this::onTabPickerClicked);
+
+        mModel.set(
+                NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE,
+                mComposeBoxQueryControllerBridge.isPdfUploadEligible());
+        mModel.set(
+                NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE,
+                mComposeBoxQueryControllerBridge.isCreateImagesEligible());
+
+        mModelList.addObserver(
+                new ListObservable.ListObserver<>() {
+                    @Override
+                    public void onItemRangeInserted(ListObservable source, int index, int count) {
+                        onAttachmentsChanged();
+                    }
+
+                    @Override
+                    public void onItemRangeRemoved(ListObservable source, int index, int count) {
+                        onAttachmentsChanged();
+                    }
+                });
+        onAttachmentsChanged();
+    }
+
+    public void destroy() {
+        mAutocompleteRequestTypeSupplier.removeObserver(mOnAutocompleteRequestTypeChanged);
     }
 
     private void onRequestTypeButtonClicked() {
         switch (mAutocompleteRequestTypeSupplier.get()) {
             case AutocompleteRequestType.AI_MODE:
+            case AutocompleteRequestType.IMAGE_GENERATION:
                 activateSearchMode();
                 break;
 
             default:
-                activateAiMode();
+                activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
                 break;
         }
     }
@@ -136,18 +167,24 @@ class NavigationAttachmentsMediator {
         if (mAutocompleteRequestTypeSupplier.get() == AutocompleteRequestType.SEARCH) return;
         mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
 
-        mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, false);
-        mComposeBoxQueryControllerBridge.notifySessionAbandoned();
         mModelList.clear();
     }
 
     /** Activate AI Mode as the Next Request fulfillment type. */
-    void activateAiMode() {
+    void activateAiMode(@AiModeActivationSource int activationReason) {
         mPopup.dismiss();
         if (mAutocompleteRequestTypeSupplier.get() == AutocompleteRequestType.AI_MODE) return;
+        FuseboxMetrics.notifyAiModeActivated(activationReason);
         mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+    }
 
-        mComposeBoxQueryControllerBridge.notifySessionStarted();
+    /** Activate image generation as the Next Request fulfillment type. */
+    void activateImageGeneration() {
+        mPopup.dismiss();
+        if (mAutocompleteRequestTypeSupplier.get() == AutocompleteRequestType.IMAGE_GENERATION) {
+            return;
+        }
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
     }
 
     /**
@@ -157,6 +194,9 @@ class NavigationAttachmentsMediator {
      */
     void setToolbarVisible(boolean visible) {
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE, visible);
+        mModel.set(
+                NavigationAttachmentsProperties.COMPACT_UI,
+                OmniboxFeatures.sCompactFusebox.getValue());
     }
 
     public void setAutocompleteRequestTypeChangeable(boolean isChangeable) {
@@ -172,19 +212,19 @@ class NavigationAttachmentsMediator {
     }
 
     /**
-     * @return An {@link ObservableSupplier} that notifies observers when the autocomplete request
-     *     type changes.
-     */
-    ObservableSupplier<@AutocompleteRequestType Integer> getAutocompleteRequestTypeSupplier() {
-        return mAutocompleteRequestTypeSupplier;
-    }
-
-    /**
      * @param queryText The query text to be used for the AIM URL.
      * @return The URL for the AIM service.
      */
     GURL getAimUrl(String queryText) {
         return mComposeBoxQueryControllerBridge.getAimUrl(queryText);
+    }
+
+    /**
+     * @param queryText The query text to be used for the image generation URL.
+     * @return The URL for the image generation service.
+     */
+    GURL getImageGenerationUrl(String queryText) {
+        return mComposeBoxQueryControllerBridge.getImageGenerationUrl(queryText);
     }
 
     @VisibleForTesting
@@ -198,6 +238,7 @@ class NavigationAttachmentsMediator {
                     Clipboard.getInstance().hasImage());
             mPopup.show();
         }
+        FuseboxMetrics.notifyAttachmentsPopupToggled(!mPopup.isShowing(), mModel);
     }
 
     private void updateModelForCurrentTab() {
@@ -226,26 +267,9 @@ class NavigationAttachmentsMediator {
             mModel.set(
                     NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_CLICKED,
                     () -> onAddCurrentTab(currentTab));
-            Drawable drawable;
-            var favicon = OmniboxResourceProvider.getFaviconBitmapForTab(currentTab);
-            if (favicon != null) {
-                var bitmap =
-                        Bitmap.createScaledBitmap(
-                                favicon,
-                                mPopupItemIconSizePx,
-                                mPopupItemIconSizePx,
-                                /* filter= */ true);
-                drawable = new BitmapDrawable(mContext.getResources(), bitmap);
-                drawable.setBounds(0, 0, mPopupItemIconSizePx, mPopupItemIconSizePx);
-                mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_TINT, null);
-            } else {
-                drawable = assumeNonNull(mContext.getDrawable(R.drawable.ic_globe_24dp));
-                mModel.set(
-                        NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_TINT,
-                        mContext.getColorStateList(R.color.default_icon_color_tint_list));
-            }
-
-            mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_THUMBNAIL, drawable);
+            mModel.set(
+                    NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON,
+                    OmniboxResourceProvider.getFaviconBitmapForTab(currentTab));
         } else {
             mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE, false);
         }
@@ -253,31 +277,28 @@ class NavigationAttachmentsMediator {
 
     private void onAddCurrentTab(Tab tab) {
         if (mComposeBoxQueryControllerBridge == null) return;
-        activateAiMode();
-        @Nullable String token;
-        // Web contents can be null when a tab has not been reloaded during the current Chrome
-        // session. In this case, try to fetch cached web contents.
-        if (tab.getWebContents() != null) {
-            token = mComposeBoxQueryControllerBridge.addTabContext(tab);
-        } else {
-            token = mComposeBoxQueryControllerBridge.addTabContextFromCache(tab.getId());
-        }
+        activateAiMode(AiModeActivationSource.IMPLICIT);
 
-        addTabAttachment(tab, token);
+        var attachment = FuseboxAttachment.forTab(tab);
+
+        // Use FuseboxModelList's add method which handles upload automatically
+        mModelList.add(attachment);
     }
 
-    private void addTabAttachment(Tab tab, @Nullable String token) {
-        if (TextUtils.isEmpty(token)) return;
-        AttachmentDetails attachmentDetails =
-                new AttachmentDetails(
-                        NavigationAttachmentItemType.ATTACHMENT_TAB,
-                        new BitmapDrawable(
-                                mContext.getResources(),
-                                OmniboxResourceProvider.getFaviconBitmapForTab(tab)),
-                        tab.getTitle(),
-                        /* mimeType= */ "",
-                        /* data= */ new byte[] {});
-        addAttachment(attachmentDetails, token);
+    private void onAttachmentsChanged() {
+        mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, !mModelList.isEmpty());
+        mModel.set(
+                NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED,
+                !attachmentsContainType(FuseboxAttachmentType.ATTACHMENT_TAB));
+    }
+
+    private boolean attachmentsContainType(@FuseboxAttachmentType int target) {
+        for (MVCListAdapter.ListItem listItem : mModelList) {
+            if (listItem.type == target) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @VisibleForTesting
@@ -291,16 +312,13 @@ class NavigationAttachmentsMediator {
         }
 
         mWindowAndroid.showCancelableIntent(
-                intent,
-                (resultCode, data) -> onTabPickerResult(resultCode, data),
-                R.string.low_memory_error);
+                intent, this::onTabPickerResult, R.string.low_memory_error);
     }
 
     void onTabPickerResult(int resultCode, @Nullable Intent data) {
         if (resultCode != Activity.RESULT_OK || data == null || data.getExtras() == null) return;
         // Retrieve list of tab ids.
-        // TODO(haileywang): Fill with the real intent extra string when available.
-        long[] tabIds = data.getLongArrayExtra("TAB_IDS");
+        long[] tabIds = data.getLongArrayExtra(EXTRA_ATTACHMENT_TAB_IDS);
         if (tabIds == null) return;
         for (long tabId : tabIds) {
             TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
@@ -314,6 +332,7 @@ class NavigationAttachmentsMediator {
     @VisibleForTesting
     void onCameraClicked() {
         mPopup.dismiss();
+        FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CAMERA);
         if (mPermissionDelegate.hasPermission(Manifest.permission.CAMERA)) {
             launchCamera();
         } else {
@@ -349,14 +368,13 @@ class NavigationAttachmentsMediator {
                     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                     bitmap.compress(CompressFormat.PNG, 100, byteArrayOutputStream);
                     byte[] dataBytes = byteArrayOutputStream.toByteArray();
-                    AttachmentDetails attachmentDetails =
-                            new AttachmentDetails(
-                                    NavigationAttachmentItemType.ATTACHMENT_IMAGE,
+                    var attachment =
+                            FuseboxAttachment.forCameraImage(
                                     new BitmapDrawable(mContext.getResources(), bitmap),
                                     "",
                                     "image/png",
                                     dataBytes);
-                    uploadAndAddAttachment(attachmentDetails);
+                    uploadAndAddAttachment(attachment);
                 },
                 R.string.low_memory_error);
     }
@@ -365,18 +383,19 @@ class NavigationAttachmentsMediator {
     void onImagePickerClicked() {
         mPopup.dismiss();
 
+        FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.GALLERY);
         Intent i;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             i =
                     new Intent(MediaStore.ACTION_PICK_IMAGES)
-                            .setType(MIMETYPE_IMAGE_ANY)
+                            .setType(MimeTypeUtils.IMAGE_ANY_MIME_TYPE)
                             .putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, 10);
         } else {
             i =
                     new Intent(Intent.ACTION_PICK)
                             .setDataAndType(
                                     MediaStore.Images.Media.INTERNAL_CONTENT_URI,
-                                    MIMETYPE_IMAGE_ANY)
+                                    MimeTypeUtils.IMAGE_ANY_MIME_TYPE)
                             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         }
 
@@ -391,7 +410,7 @@ class NavigationAttachmentsMediator {
                     for (var uri : uris) {
                         fetchAttachmentDetails(
                                 uri,
-                                NavigationAttachmentItemType.ATTACHMENT_IMAGE,
+                                FuseboxAttachmentType.ATTACHMENT_IMAGE,
                                 this::uploadAndAddAttachment);
                     }
                 },
@@ -401,10 +420,11 @@ class NavigationAttachmentsMediator {
     @VisibleForTesting
     void onFilePickerClicked() {
         mPopup.dismiss();
+        FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.FILES);
         var i =
                 new Intent(Intent.ACTION_OPEN_DOCUMENT)
                         .addCategory(Intent.CATEGORY_OPENABLE)
-                        .setType("*/*")
+                        .setType(MimeTypeUtils.PDF_MIME_TYPE)
                         .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                         .addFlags(
                                 Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -419,7 +439,7 @@ class NavigationAttachmentsMediator {
                     for (var uri : uris) {
                         fetchAttachmentDetails(
                                 uri,
-                                NavigationAttachmentItemType.ATTACHMENT_ITEM,
+                                FuseboxAttachmentType.ATTACHMENT_FILE,
                                 this::uploadAndAddAttachment);
                     }
                 },
@@ -429,6 +449,7 @@ class NavigationAttachmentsMediator {
     @VisibleForTesting
     void onClipboardClicked() {
         mPopup.dismiss();
+        FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CLIPBOARD);
         new AsyncTask<byte[]>() {
             @Override
             protected byte[] doInBackground() {
@@ -443,24 +464,22 @@ class NavigationAttachmentsMediator {
                 Bitmap bitmap = BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.length);
                 if (bitmap == null) return;
 
-                AttachmentDetails attachmentDetails =
-                        new AttachmentDetails(
-                                NavigationAttachmentItemType.ATTACHMENT_IMAGE,
+                var attachment =
+                        FuseboxAttachment.forCameraImage(
                                 new BitmapDrawable(mContext.getResources(), bitmap),
                                 "",
                                 "image/png",
                                 pngBytes);
-                uploadAndAddAttachment(attachmentDetails);
+                uploadAndAddAttachment(attachment);
             }
         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
     @VisibleForTesting
     void fetchAttachmentDetails(
-            Uri uri,
-            @NavigationAttachmentItemType int type,
-            Callback<AttachmentDetailsFetcher.AttachmentDetails> callback) {
-        new AttachmentDetailsFetcher(mContext, mContext.getContentResolver(), uri, type, callback)
+            Uri uri, @FuseboxAttachmentType int type, Callback<FuseboxAttachment> callback) {
+        new FuseboxAttachmentDetailsFetcher(
+                        mContext, mContext.getContentResolver(), uri, type, callback)
                 .executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
@@ -469,49 +488,11 @@ class NavigationAttachmentsMediator {
      *
      * @param attachmentDetails The details of the attachment to add.
      */
-    /* package */ void uploadAndAddAttachment(
-            AttachmentDetailsFetcher.AttachmentDetails attachmentDetails) {
-        String token = uploadAttachment(attachmentDetails);
-        if (TextUtils.isEmpty(token)) return;
-        addAttachment(attachmentDetails, token);
-    }
+    /* package */ void uploadAndAddAttachment(FuseboxAttachment attachment) {
+        activateAiMode(AiModeActivationSource.IMPLICIT);
 
-    private void addAttachment(
-            AttachmentDetailsFetcher.AttachmentDetails attachmentDetails, String token) {
-        activateAiMode();
-
-        mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE, true);
-
-        PropertyModel model =
-                new PropertyModel.Builder(NavigationAttachmentItemProperties.ALL_KEYS)
-                        .with(
-                                NavigationAttachmentItemProperties.THUMBNAIL,
-                                attachmentDetails.thumbnail != null
-                                        ? attachmentDetails.thumbnail
-                                        : mFallbackDrawable)
-                        .with(NavigationAttachmentItemProperties.TITLE, attachmentDetails.title)
-                        .build();
-
-        var listItem = new MVCListAdapter.ListItem(attachmentDetails.itemType, model);
-        model.set(
-                NavigationAttachmentItemProperties.ON_REMOVE,
-                () -> removeAttachment(listItem, token));
-        mModelList.add(listItem);
-    }
-
-    /**
-     * Remove an attachment from the navigation attachments toolbar.
-     *
-     * @param token The token of the attachment to remove.
-     */
-    public void removeAttachment(ListItem item, String token) {
-        mModelList.remove(item);
-        mComposeBoxQueryControllerBridge.removeAttachment(token);
-    }
-
-    private @Nullable String uploadAttachment(AttachmentDetails attachmentDetails) {
-        return mComposeBoxQueryControllerBridge.addFile(
-                attachmentDetails.title, attachmentDetails.mimeType, attachmentDetails.data);
+        // Use FuseboxModelList's unified add method
+        mModelList.add(attachment);
     }
 
     // Parse GET_CONTENT response, extracting single- or multiple image selections.
@@ -528,5 +509,19 @@ class NavigationAttachmentsMediator {
             if (u != null) out.add(u);
         }
         return out;
+    }
+
+    /**
+     * @return List of attachment tokens, empty if no attachments.
+     */
+    public List<String> getAttachmentTokens() {
+        if (mModelList.size() == 0) return Collections.emptyList();
+        List<String> tokens = new ArrayList<>();
+        for (int i = 0; i < mModelList.size(); i++) {
+            PropertyModel model = mModelList.get(i).model;
+            var attachment = model.get(FuseboxAttachmentProperties.ATTACHMENT);
+            tokens.add(attachment.getToken());
+        }
+        return tokens;
     }
 }

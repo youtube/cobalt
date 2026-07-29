@@ -9,7 +9,8 @@
 namespace blink {
 
 // static
-const char ModelContextSupplement::kSupplementName[] = "ModelContextSupplement";
+const unsigned ModelContextSupplement::kSupplementIndex =
+    static_cast<unsigned>(Navigator::Supplements::kModelContextSupplement);
 
 // static
 ModelContextSupplement& ModelContextSupplement::From(Navigator& navigator) {
@@ -60,7 +61,7 @@ ModelContext* ModelContextSupplement::modelContext() {
 }
 
 ModelContextTesting* ModelContextSupplement::modelContextTesting() {
-  if (!model_context_testing_) {
+  if (!model_context_testing_ && modelContext()) {
     model_context_testing_ =
         MakeGarbageCollected<ModelContextTesting>(modelContext());
   }

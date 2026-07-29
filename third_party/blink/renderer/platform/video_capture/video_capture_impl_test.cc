@@ -19,17 +19,19 @@
 #include "base/test/task_environment.h"
 #include "base/token.h"
 #include "build/build_config.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/shared_image_capabilities.h"
 #include "media/capture/mojom/video_capture.mojom-blink.h"
 #include "media/capture/mojom/video_capture_buffer.mojom-blink.h"
 #include "media/capture/mojom/video_capture_types.mojom-blink.h"
+#include "media/video/mock_gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
-#include "third_party/blink/renderer/platform/video_capture/gpu_memory_buffer_test_support.h"
+#include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -42,6 +44,65 @@ using ::testing::SaveArg;
 using ::testing::WithArgs;
 
 namespace blink {
+
+namespace {
+
+class TestingPlatformSupportWithGpuFactories
+    : public IOTaskRunnerTestingPlatformSupport {
+ public:
+  TestingPlatformSupportWithGpuFactories();
+  ~TestingPlatformSupportWithGpuFactories() override;
+  media::GpuVideoAcceleratorFactories* GetGpuFactories() override;
+
+  void SetGpuCapabilities(gpu::Capabilities* capabilities);
+  void SetSharedImageCapabilities(
+      const gpu::SharedImageCapabilities& capabilities);
+
+ private:
+  scoped_refptr<gpu::TestSharedImageInterface> sii_;
+  std::unique_ptr<media::MockGpuVideoAcceleratorFactories> gpu_factories_;
+  base::Thread media_thread_;
+  raw_ptr<gpu::Capabilities> capabilities_ = nullptr;
+};
+
+TestingPlatformSupportWithGpuFactories::TestingPlatformSupportWithGpuFactories()
+    : sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()),
+      gpu_factories_(new media::MockGpuVideoAcceleratorFactories(sii_.get())),
+      media_thread_("TestingMediaThread") {
+  // Ensure that any mappable SharedImages created via this testing platform
+  // create fake GMBs internally.
+  sii_->UseTestGMBInSharedImageCreationWithBufferUsage();
+  gpu_factories_->SetVideoFrameOutputFormat(
+      media::GpuVideoAcceleratorFactories::OutputFormat::NV12);
+  media_thread_.Start();
+  ON_CALL(*gpu_factories_, GetTaskRunner())
+      .WillByDefault(testing::Return(media_thread_.task_runner()));
+  ON_CALL(*gpu_factories_, ContextCapabilities()).WillByDefault([&]() {
+    return capabilities_;
+  });
+}
+
+TestingPlatformSupportWithGpuFactories::
+    ~TestingPlatformSupportWithGpuFactories() {
+  media_thread_.Stop();
+}
+
+media::GpuVideoAcceleratorFactories*
+TestingPlatformSupportWithGpuFactories::GetGpuFactories() {
+  return gpu_factories_.get();
+}
+
+void TestingPlatformSupportWithGpuFactories::SetGpuCapabilities(
+    gpu::Capabilities* capabilities) {
+  capabilities_ = capabilities;
+}
+
+void TestingPlatformSupportWithGpuFactories::SetSharedImageCapabilities(
+    const gpu::SharedImageCapabilities& shared_image_capabilities) {
+  sii_->SetCapabilities(shared_image_capabilities);
+}
+
+}  // namespace
 
 void RunEmptyFormatsCallback(
     media::mojom::blink::VideoCaptureHost::GetDeviceSupportedFormatsCallback&
@@ -274,7 +335,7 @@ class VideoCaptureImplTest : public ::testing::Test {
   const base::UnguessableToken session_id_ = base::UnguessableToken::Create();
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  ScopedTestingPlatformSupport<TestingPlatformSupportForGpuMemoryBuffer>
+  ScopedTestingPlatformSupport<TestingPlatformSupportWithGpuFactories>
       platform_;
   std::unique_ptr<VideoCaptureImpl> video_capture_impl_;
   MockMojoVideoCaptureHost mock_video_capture_host_;

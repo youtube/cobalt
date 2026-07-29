@@ -55,6 +55,12 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
 
   const actor::ActorTask* GetActorTask();
 
+  // Returns the WebContents of the Glic guest.
+  content::WebContents* GetGlicContents();
+
+  // Returns the WebContents of the Glic host (WebUI).
+  content::WebContents* GetGlicHost(actor::TaskId& task_id);
+
   // Executes a BrowserAction and verifies it succeeds. Optionally takes an
   // error reason which, when provided, causes failure if the action is
   // successful or fails with an unexpected reason.
@@ -68,6 +74,9 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
   // NavigateAction, etc.
   MultiStep ExecuteAction(ActionProtoProvider proto_provider,
                           ExpectedErrorResult expected_result = {});
+
+  MultiStep ExecuteInGlic(
+      base::OnceCallback<void(content::WebContents*)> callback);
 
   MultiStep CreateTask(actor::TaskId& out_task, std::string_view title);
 
@@ -141,7 +150,7 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
 
   // After invoking APIs that don't return promises, we round trip to both the
   // client and host to make sure the call has made it to the browser.
-  MultiStep RoundTrip();
+  MultiStep RoundTrip(actor::TaskId& task_id);
 
   // Stops a running task by calling the glic StopActorTask API.
   // TODO(crbug.com/431760051): This needs to use the correct task_id but the
@@ -171,7 +180,7 @@ class GlicActorUiTest : public test::InteractiveGlicTest {
 
   // Waits for the glic getTabById for the task tab to satisfy the expected
   // foreground value.
-  MultiStep WaitForTaskTabForground(bool expected_foreground);
+  MultiStep WaitForTaskTabForeground(bool expected_foreground);
 
   // Returns a callback that returns the given string as the action proto. Meant
   // for testing error handling since this allows providing an invalid proto.

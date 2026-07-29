@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ta">
+<translation id="1004825134262590729">{count,plural, =1{{count} கடவுச்சாவி}other{{count} கடவுச்சாவிகள்}}</translation>
 <translation id="1005023885865154304">கடவுச்சொற்களைத் தானாக நிரப்புவதற்கான அமைப்புகளைத் திறக்கவும்</translation>
 <translation id="1005230401424685968">YYYY</translation>
 <translation id="1013952917065545813">சமீபத்தில் மூடிய தாவல்களை இங்கே மீண்டும் திறக்கலாம்</translation>
@@ -656,6 +657,7 @@
 <translation id="3547933853190131743">AI மோட் மூலம் தேடும்</translation>
 <translation id="3557336313807607643">தொடர்புகளில் சேர்</translation>
 <translation id="355765753469272474">செயல்தவிர்</translation>
+<translation id="3565012355885596568">படங்களை ஏற்ற முடியவில்லை</translation>
 <translation id="3565930036634619844">பக்கம். <ph name="TAB_INDEX" />/<ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">உங்கள் Google கணக்கில்</translation>
 <translation id="3575234738189584619">Lens மூலம் தேடலாம்</translation>
@@ -1314,6 +1316,7 @@
 <translation id="6045460247888249350">தலைப்பைச் சேருங்கள்</translation>
 <translation id="6052269326659653305">கணக்கை மாற்றுதல்</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">வீடியோ எடு</translation>
 <translation id="6059830886158432458">உங்கள் செய்திகளையும் செயல்பாட்டையும் இங்கே கட்டுப்படுத்தலாம்</translation>
 <translation id="6066301408025741299">ரத்துசெய்ய தட்டவும்.</translation>
 <translation id="6074656473835429958">அறிவிப்புகளைப் பெறுங்கள்</translation>
@@ -1815,6 +1818,7 @@
 <translation id="7866872729285243843">உங்களின் அனைத்து சாதனங்களிலும் வாசிப்புப் பட்டியலைப் பெற, அமைப்புகளில் “வாசிப்புப் பட்டியல்” என்பதை இயக்குங்கள்.</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> மூலம் படிவத்தைத் தானாக நிரப்பும்</translation>
 <translation id="7879275349003161544">பதிவிறக்கங்களைக் காட்டு</translation>
+<translation id="7882689957034389473">படமெடு</translation>
 <translation id="7883882164760409935">ஏற்கெனவே பயன்படுத்திய கடவுச்சொற்கள் உள்ளன.</translation>
 <translation id="7887174313503389866">முக்கியமான தனியுரிமை மற்றும் பாதுகாப்புக் கட்டுப்பாடுகள் குறித்த டெமோவைப் பாருங்கள். கூடுதல் விருப்பங்களுக்கு, தனிப்பட்ட அமைப்புகளுக்குச் செல்லவும்.</translation>
 <translation id="7887198238286927132">உங்கள் தனியுரிமையைப் பாதுகாக்க, Chrome இந்தப் புலத்தைத் தானாக நிரப்பாது.</translation>
@@ -1998,6 +2002,7 @@
 <translation id="8551311254462607218">முகவரிப் பட்டியில் உள்ள Google Lens கேமரா ஐகானைத் தட்டவும்</translation>
 <translation id="8556590991644167667">{count,plural, =1{{count} எச்சரிக்கையை நிராகரித்துள்ளீர்கள்}other{{count} எச்சரிக்கைகளை நிராகரித்துள்ளீர்கள்}}</translation>
 <translation id="8558046478684552694">குழுவை மூடும்.</translation>
+<translation id="8559858985063901027">கடவுக்குறியீடுகள்</translation>
 <translation id="8560253818350321773">அடிக்கடி பயன்படுத்தியவற்றை முதலில் காட்டும்.</translation>
 <translation id="8561999115126307258">{count,plural, =1{கடவுச்சொல்லுக்கான {count} விருப்பம் உங்கள் கீபோர்டுக்கு மேலே காட்டப்படுகிறது.}other{கடவுச்சொல்லுக்கான {count} விருப்பங்கள் உங்கள் கீபோர்டுக்கு மேலே காட்டப்படுகின்றன.}}</translation>
 <translation id="8564894539416715395">புதிய பக்கம்</translation>
@@ -2208,5 +2213,6 @@
 <translation id="984275831282074731">பேமெண்ட் முறைகள்</translation>
 <translation id="985379595344853742">எல்லா மறைநிலைப் பக்கங்களையும் மூடு</translation>
 <translation id="988141524645182168">பிற சாதனங்கள்</translation>
+<translation id="995174784802614337">{count,plural, =1{{count} கடவுச்சாவி இம்போர்ட் செய்யப்பட்டது}other{{count} கடவுச்சாவிகள் இம்போர்ட் செய்யப்பட்டன}}</translation>
 <translation id="999768147936949692">இப்போதைக்கு, குடும்ப உறுப்பினர்களுடன் மட்டுமே கடவுச்சொற்களைப் பகிர முடியும். உங்கள் குழுவில் இணைந்து Google முழுவதிலும் உங்களின் தயாரிப்புகள் மற்றும் சந்தாக்களில் இருந்து கூடுதல் பலன்களைப் பெற, <ph name="BEGIN_LINK" />குடும்ப உறுப்பினர்களை அழைத்திடுங்கள்<ph name="END_LINK" />.</translation>
 </translationbundle>

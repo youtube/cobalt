@@ -1472,9 +1472,8 @@ TEST_F(SessionServiceImplTest, EmptyResponseOnRegistration) {
   ScopedTestRegistrationFetcher scoped_test_fetcher(base::BindRepeating(
       [](RegistrationFetcher::RegistrationCompleteCallback callback) {
         std::move(callback).Run(
-            nullptr,
-            RegistrationResult(RegistrationResult::NoSessionConfigChange(),
-                               CookieAndLineAccessResultList()));
+            nullptr, RegistrationResult(
+                         SessionError{SessionError::kEmptySessionConfig}));
       }));
   auto fetch_param = RegistrationFetcherParam::CreateInstanceForTesting(
       kTestUrl, {crypto::SignatureVerifier::SignatureAlgorithm::ECDSA_SHA256},
@@ -1500,7 +1499,7 @@ TEST_F(SessionServiceImplTest, EmptyResponseOnRegistration) {
   EXPECT_FALSE(maybe_deferral);
 
   histograms.ExpectUniqueSample("Net.DeviceBoundSessions.RegistrationResult",
-                                SessionError::kInvalidConfigJson, 1);
+                                SessionError::kEmptySessionConfig, 1);
 }
 
 TEST_F(SessionServiceImplTest, EmptyResponseOnRefresh) {

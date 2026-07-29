@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "url/url_canon_internal.h"
 
 #include <errno.h>
@@ -46,7 +41,7 @@ size_t FindInitialQuerySafeString(std::string_view source) {
   for (i = 0; i < base::bits::AlignDown(source.length(), kChunkSize);
        i += kChunkSize) {
     char b __attribute__((vector_size(16)));
-    memcpy(&b, source.data() + i, sizeof(b));
+    UNSAFE_TODO(memcpy(&b, source.data() + i, sizeof(b)));
 
     // Compare each element with the ranges for CHAR_QUERY
     // (see kSharedCharTypeTable), vectorized so that it creates
@@ -92,7 +87,7 @@ void DoAppendStringOfType(std::basic_string_view<CHAR> source,
       // kUnicodeReplacementCharacter when the input is invalid, which is what
       // we want.
       base_icu::UChar32 code_point;
-      ReadUTFCharLossy(source.data(), &i, length, &code_point);
+      ReadUtfCharLossy(source, &i, &code_point);
       AppendUTF8EscapedValue(code_point, output);
     } else {
       // Just append the 7-bit character, possibly escaping it.
@@ -116,7 +111,7 @@ void DoAppendInvalidNarrowString(std::basic_string_view<CHAR> input,
     if (uch >= 0x80) {
       // Handle UTF-8/16 encodings. This call will correctly handle the error
       // case by appending the invalid character.
-      AppendUTF8EscapedChar(input.data(), &i, end, output);
+      AppendUtf8EscapedChar(input, &i, output);
     } else if (uch <= ' ' || uch == 0x7f) {
       // This function is for error handling, so we escape all control
       // characters and spaces, but not anything else since we lack
@@ -178,7 +173,7 @@ bool PrepareUTF16OverrideComponent(
 
 }  // namespace
 
-const char kCharToHexLookup[8] = {
+const std::array<char, 8> kCharToHexLookup = {{
     0,         // 0x00 - 0x1f
     '0',       // 0x20 - 0x3f: digits 0 - 9 are 0x30 - 0x39
     'A' - 10,  // 0x40 - 0x5f: letters A - F are 0x41 - 0x46
@@ -187,7 +182,7 @@ const char kCharToHexLookup[8] = {
     0,         // 0xA0 - 0xBF
     0,         // 0xC0 - 0xDF
     0,         // 0xE0 - 0xFF
-};
+}};
 
 const base_icu::UChar32 kUnicodeReplacementCharacter = 0xfffd;
 
@@ -203,22 +198,22 @@ void AppendStringOfType(std::u16string_view source,
   DoAppendStringOfType<char16_t, char16_t>(source, type, output);
 }
 
-bool ReadUTFCharLossy(const char* str,
+bool ReadUtfCharLossy(std::string_view str,
                       size_t* begin,
-                      size_t length,
                       base_icu::UChar32* code_point_out) {
-  if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out)) {
+  if (!base::ReadUnicodeCharacter(str.data(), str.length(), begin,
+                                  code_point_out)) {
     *code_point_out = kUnicodeReplacementCharacter;
     return false;
   }
   return true;
 }
 
-bool ReadUTFCharLossy(const char16_t* str,
+bool ReadUtfCharLossy(std::u16string_view str,
                       size_t* begin,
-                      size_t length,
                       base_icu::UChar32* code_point_out) {
-  if (!base::ReadUnicodeCharacter(str, length, begin, code_point_out)) {
+  if (!base::ReadUnicodeCharacter(str.data(), str.length(), begin,
+                                  code_point_out)) {
     *code_point_out = kUnicodeReplacementCharacter;
     return false;
   }
@@ -237,7 +232,7 @@ bool ConvertUTF16ToUTF8(std::u16string_view input, CanonOutput* output) {
   bool success = true;
   for (size_t i = 0; i < input.length(); i++) {
     base_icu::UChar32 code_point;
-    success &= ReadUTFCharLossy(input.data(), &i, input.length(), &code_point);
+    success &= ReadUtfCharLossy(input, &i, &code_point);
     AppendUTF8Value(code_point, output);
   }
   return success;
@@ -248,7 +243,7 @@ bool ConvertUTF8ToUTF16(std::string_view input,
   bool success = true;
   for (size_t i = 0; i < input.length(); i++) {
     base_icu::UChar32 code_point;
-    success &= ReadUTFCharLossy(input.data(), &i, input.length(), &code_point);
+    success &= ReadUtfCharLossy(input, &i, &code_point);
     AppendUTF16Value(code_point, output);
   }
   return success;
@@ -358,7 +353,7 @@ int _itoa_s(int value, char* buffer, size_t size_in_chars, int radix) {
   else
     return EINVAL;
 
-  int written = snprintf(buffer, size_in_chars, format_str, value);
+  int written = UNSAFE_TODO(snprintf(buffer, size_in_chars, format_str, value));
   if (static_cast<size_t>(written) >= size_in_chars) {
     // Output was truncated, or written was negative.
     return EINVAL;

@@ -74,7 +74,7 @@ class ArcKeyPermissionsManagerDelegateTest : public testing::Test {
     builder.SetPolicyService(std::move(policy_service_));
     profile_ = builder.Build();
 
-    arc_app_test_.SetUp(profile_.get());
+    arc_app_test_.PostProfileSetUp(profile_.get());
     app_instance_ = std::make_unique<arc::FakeAppInstance>(
         arc_app_test_.arc_app_list_prefs());
 
@@ -86,12 +86,13 @@ class ArcKeyPermissionsManagerDelegateTest : public testing::Test {
   }
 
   void TearDown() override {
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
     if (primary_user_delegate_) {
       ShutDownPrimaryUserDelegate();
     }
     system_delegate_.reset();
     profile_.reset();
+    arc_app_test_.PostProfileTearDown();
   }
 
  protected:

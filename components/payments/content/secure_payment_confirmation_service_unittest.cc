@@ -48,9 +48,12 @@ struct SecurePaymentConfirmationServiceDeleter {
   }
 };
 
-#if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_IOS)
 static const int32_t kAlgorithmIdentifier = 1;
 static const int32_t kAnotherAlgorithmIdentifier = 2;
+
+constexpr bool is_win = !!BUILDFLAG(IS_WIN);
+
 #endif
 
 }  // namespace
@@ -86,7 +89,8 @@ class SecurePaymentConfirmationServiceTestBase {
             /*browser_bound_key_store_keychain_access_group=*/""));
   }
 
-  content::BrowserTaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   content::TestBrowserContext context_;
   content::TestWebContentsFactory web_contents_factory_;
   raw_ptr<content::WebContents> web_contents_;
@@ -240,7 +244,7 @@ TEST_F(
       mock_secure_payment_confirmation_availability_callback_.Get());
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_IOS)
 
 struct CredentialTestParams {
   // The algorithm identifier supported by the fake browser bound key store.
@@ -383,10 +387,16 @@ TEST_P(SecurePaymentConfirmationServiceCredentialTest,
   fake_authenticator_response->info->raw_id = fake_credential_id_;
   fake_authenticator_response->info->client_data_json = fake_client_data_json_;
 
-  EXPECT_CALL(*mock_web_data_service_,
-              SetBrowserBoundKey(fake_credential_id_, fake_relying_party_id_,
-                                 GetParam().fake_key.GetIdentifier(),
-                                 /*last_used=*/Eq(std::nullopt), _));
+  // Last used time is only set on Windows platform.
+  std::optional<base::Time> last_used =
+      is_win ? std::optional<base::Time>(base::Time::NowFromSystemTime())
+             : std::nullopt;
+
+  EXPECT_CALL(
+      *mock_web_data_service_,
+      SetBrowserBoundKey(fake_credential_id_, fake_relying_party_id_,
+                         GetParam().fake_key.GetIdentifier(), last_used, _));
+
   ::blink::mojom::PaymentOptionsPtr actual_payment_options;
   EXPECT_CALL(*mock_internal_authenticator_, SetPaymentOptions(_))
       .Times(1)
@@ -459,6 +469,7 @@ TEST_P(SecurePaymentConfirmationServiceCredentialTest,
   ASSERT_FALSE(actual_payment_options.is_null());
   EXPECT_FALSE(actual_payment_options->browser_bound_public_key.has_value());
 }
-#endif
+
+#endif  // !BUILDFLAG(IS_IOS)
 
 }  // namespace payments

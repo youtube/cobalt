@@ -25,6 +25,8 @@ BASE_DECLARE_FEATURE(kActorLoginFieldVisibilityCheck);
 BASE_DECLARE_FEATURE(kActorLoginFillingHeuristics);
 BASE_DECLARE_FEATURE(kActorLoginLocalClassificationModel);
 BASE_DECLARE_FEATURE(kActorLoginReauthTaskRefocus);
+// Enables logging quality for actor login.
+BASE_DECLARE_FEATURE(kActorLoginQualityLogs);
 // Enables finding and filling forms in same-site iframes for actor login.
 BASE_DECLARE_FEATURE(kActorLoginSameSiteIframeSupport);
 // Enables Actor Login permissions UI in Password Manager settings
@@ -38,9 +40,6 @@ BASE_DECLARE_FEATURE(kAndroidSmsOtpFilling);
 
 // Enables using clientside form classifier predictions for password forms.
 BASE_DECLARE_FEATURE(kApplyClientsideModelPredictionsForPasswordTypes);
-
-// Enables using clientside form classifier predictions for OTP forms.
-BASE_DECLARE_FEATURE(kApplyClientsideModelPredictionsForOtps);
 
 // When enabled, updates to shared existing passwords from the same sender are
 // auto-approved.
@@ -226,6 +225,10 @@ BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
 // Runs the Password Change flow (enabled by kImprovedPasswordChangeService
 // feature flag) in a user-visible background tab.
 BASE_DECLARE_FEATURE(kRunPasswordChangeInBackgroundTab);
+
+// Removes country and language restrictions for password change. This allows to
+// control locale/country server side.
+BASE_DECLARE_FEATURE(kReduceRequirementsForPasswordChange);
 
 #if BUILDFLAG(IS_ANDROID)
 // The feature flag for reloading passwords when the trusted vault encryption

@@ -114,14 +114,18 @@
 #include "third_party/blink/renderer/core/dom/ignore_opens_during_unload_count_incrementer.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/editing/editor.h"
+#include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/ime/input_method_controller.h"
 #include "third_party/blink/renderer/core/editing/serializers/create_markup_options.h"
 #include "third_party/blink/renderer/core/editing/serializers/serialization.h"
+#include "third_party/blink/renderer/core/editing/spellcheck/spell_check_requester.h"
 #include "third_party/blink/renderer/core/editing/spellcheck/spell_checker.h"
+#include "third_party/blink/renderer/core/editing/suggestion/text_suggestion_backend_impl.h"
 #include "third_party/blink/renderer/core/editing/suggestion/text_suggestion_controller.h"
 #include "third_party/blink/renderer/core/editing/surrounding_text.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
+#include "third_party/blink/renderer/core/editing/visible_selection.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/message_event.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -530,8 +534,12 @@ void LocalFrame::Trace(Visitor* visitor) const {
   visitor->Trace(browser_interface_broker_proxy_);
   visitor->Trace(frame_visibility_observers_);
   visitor->Trace(window_controls_overlay_changed_delegate_);
+  visitor->Trace(image_downloader_impl_);
+  visitor->Trace(remote_object_gateway_factory_impl_);
+  visitor->Trace(remote_object_gateway_impl_);
+  visitor->Trace(text_suggestion_backend_impl_);
   Frame::Trace(visitor);
-  Supplementable<LocalFrame>::Trace(visitor);
+  visitor->Trace(dev_tools_frontend_impl_);
 }
 
 bool LocalFrame::IsLocalRoot() const {
@@ -812,7 +820,12 @@ bool LocalFrame::DetachImpl(FrameDetachType type) {
 
   probe::FrameDetachedFromParent(this, type);
 
-  supplements_.clear();
+  image_downloader_impl_ = nullptr;
+  remote_object_gateway_factory_impl_ = nullptr;
+  remote_object_gateway_impl_ = nullptr;
+  text_suggestion_backend_impl_ = nullptr;
+  dev_tools_frontend_impl_ = nullptr;
+
   frame_scheduler_.reset();
   mojo_handler_->DidDetachFrame();
   WeakIdentifierMap<LocalFrame>::NotifyObjectDestroyed(this);
@@ -1766,8 +1779,8 @@ void LocalFrame::ViewportSegmentsChanged(
   // "horizontal-viewport-segments" and "vertical-viewport-segments" features).
   MediaQueryAffectingValueChangedForLocalSubtree(MediaValueChange::kOther);
 
-  // Fullscreen element has its own document and uses the viewport media queries,
-  // so we need to make sure the media queries are re-evaluated.
+  // Fullscreen element has its own document and uses the viewport media
+  // queries, so we need to make sure the media queries are re-evaluated.
   if (Element* fullscreen = Fullscreen::FullscreenElementFrom(*GetDocument())) {
     GetDocument()->GetStyleEngine().MarkAllElementsForStyleRecalc(
         StyleChangeReasonForTracing::Create(style_change_reason::kFullscreen));
@@ -2284,7 +2297,7 @@ bool LocalFrame::CanNavigate(const Frame& target_frame,
     if (!target_domain.empty() && !destination_domain.empty() &&
         target_domain == destination_domain &&
         (target_frame.GetSecurityContext()->GetSecurityOrigin()->Protocol() ==
-             destination_url.Protocol())) {
+         destination_url.Protocol())) {
       return true;
     }
 
@@ -3088,7 +3101,6 @@ bool LocalFrame::SwapIn() {
   // Swap in `this`, which is a provisional frame to an existing frame.
   Frame* provisional_owner_frame = GetProvisionalOwnerFrame();
 
-
   // First, check if there's a previous main frame to be used for a main frame
   // LocalFrame <-> LocalFrame swap.
   Frame* previous_local_main_frame =
@@ -3218,7 +3230,8 @@ void LocalFrame::RequestExecuteScript(
 
   ScriptState* script_state = ToScriptState(this, *world);
   // TODO(https://crbug.com/435149285): Remove this block and revert back to
-  // CHECK(script_state) once the crash associated with the crbug above is resolved.
+  // CHECK(script_state) once the crash associated with the crbug above is
+  // resolved.
   if (!script_state) {
     SCOPED_CRASH_KEY_STRING256(
         "Blink", "request_execute_script_script",
@@ -4249,6 +4262,19 @@ void LocalFrame::NotifyFrameVisibilityChanged(
   for (auto observer : frame_visibility_observers_as_vector) {
     observer->FrameVisibilityChanged(visibility);
   }
+}
+
+// TODO(crbug.com/447973489) - Add test coverage for this method
+void LocalFrame::PerformSpellCheck() {
+  ContainerNode* container_node = HighestEditableRoot(
+      Selection().ComputeVisibleSelectionInDOMTree().Start());
+  if (!container_node) {
+    return;
+  }
+
+  const EphemeralRange range(Position(container_node, 0),
+                             Position::LastPositionInNode(*container_node));
+  GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(range);
 }
 
 }  // namespace blink

@@ -268,13 +268,14 @@ public abstract class MultiInstanceManager {
     }
 
     /**
-     * If there's only one window currently, opens the {@param loadUrlParams} in a new window.
-     * Otherwise, opens a dialog to select which window to move the {@param loadUrlParams} to.
+     * Opens a URL in another existing window or a new window.
      *
      * @param loadUrlParams The url to open.
      * @param parentTabId The ID of the parent tab.
+     * @param preferNew Whether we should prioritize launching the tab in a new window.
      */
-    public void openUrlInSelectedWindow(LoadUrlParams loadUrlParams, int parentTabId) {
+    public void openUrlInSelectedWindow(
+            LoadUrlParams loadUrlParams, int parentTabId, boolean preferNew) {
         // not implemented
     }
 
@@ -350,6 +351,15 @@ public abstract class MultiInstanceManager {
     public boolean closeChromeWindowIfEmpty(int instanceId) {
         return false;
     }
+
+    /**
+     * Close the window associated with a given task / activity. This will permanently and
+     * irreversibly delete persisted instance and tab state data.
+     *
+     * @param instanceId ID of the activity instance.
+     * @param source The {@link CloseWindowAppSource} that reflects the source of instance closure.
+     */
+    public void closeWindow(int instanceId, @CloseWindowAppSource int source) {}
 
     /**
      * Intended to be called on initialization. If there's only one window at the moment that has

@@ -209,6 +209,7 @@ enum ActorTaskPauseReason {
 };
 
 // @generate glic_api
+// Next version: 3
 // The reason/source of why an actor task was stopped.
 [Stable, Extensible]
 enum ActorTaskStopReason {
@@ -218,6 +219,10 @@ enum ActorTaskStopReason {
   kStoppedByUser = 1,
   // Actor task was stopped because the model reported a failure.
   [MinVersion=1] kModelError = 2,
+  // Actor task was stopped by choosing a new conversation.
+  [MinVersion=2] kUserStartedNewChat = 3,
+  // Actor task was stopped by choosing a previous conversation.
+  [MinVersion=2] kUserLoadedPreviousChat = 4,
 };
 
 // @generate glic_api
@@ -329,6 +334,8 @@ struct WebClientInitialState {
   bool enable_activate_tab;
   // Whether kGlicGetTabByIdApi is enabled.
   bool enable_get_tab_by_id;
+  // Whether kGlicOpenPasswordManagerSettingsPageApi is enabled.
+  bool enable_open_password_manager_settings_page;
 };
 
 // Options for getting tab context.
@@ -531,8 +538,14 @@ interface WebClientHandler {
   CreateTab(url.mojom.Url url, bool open_in_background, int32? window_id)
       => (TabData? tab_data);
 
+  // Creates a new popup window.
+  OpenLinkInPopup(url.mojom.Url url, int32 popup_width, int32 popup_height);
+
   // Opens the glic settings page.
   OpenGlicSettingsPage(OpenSettingsOptions options);
+
+  // Opens the password manager settings page.
+  OpenPasswordManagerSettingsPage();
 
   // Closes the Glic panel.
   ClosePanel();
@@ -661,8 +674,20 @@ interface WebClientHandler {
   // No-op if the task is not in the interrupted state.
   UninterruptActorTask(int32 task_id);
 
+  // Creates a new tab for an actor task to act in. The initiator tab and window
+  // are used to place the new tab in the window the task was started from,
+  // regardless of whether context from that initial tab was shared or not.
+  // Note: task_id is used primarily for the journal, the new tab isn't
+  // associated with the task in any way until acted on. Returns the TabData
+  // for the newly created tab or undefined if tab creation failed.
+  CreateActorTab(int32 task_id,
+                 bool open_in_background,
+                 int32? initiator_tab_id,
+                 int32? initiator_window_id) => (TabData? tab_data);
+
   // Foregrounds the given tab.
   // No-op if the tab doesn't exist or is already in the foreground.
+  [RuntimeFeature=glic.mojom.features.kGlicActivateTabApi]
   ActivateTab(int32 task_id);
 
   // Resize the widget hosting the WebUI to the given size.

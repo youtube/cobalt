@@ -12,13 +12,14 @@
 #include <string_view>
 #include <vector>
 
+#include "base/callback_list.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
-#include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/location_icon_view.h"
@@ -54,8 +55,10 @@ class CommandUpdater;
 class ContentSettingBubbleModelDelegate;
 class IntentChipButton;
 class OmniboxController;
+class OmniboxContextMenu;
 enum class OmniboxPart;
 class OmniboxPopupAimPresenter;
+class OmniboxPopupFileSelector;
 class OmniboxPopupView;
 class OmniboxViewViews;
 class OmniboxChipButton;
@@ -64,7 +67,6 @@ class PageActionIconContainerView;
 class PermissionDashboardView;
 class Profile;
 class SelectedKeywordView;
-class OmniboxContextMenu;
 
 namespace page_actions {
 class PageActionContainerView;
@@ -97,7 +99,6 @@ class LocationBarView
       public IconLabelBubbleView::Delegate,
       public LocationIconView::Delegate,
       public ContentSettingImageView::Delegate,
-      public OmniboxEditModel::Observer,
 #if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
       public device::GeolocationSystemPermissionManager::PermissionObserver,
 #endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
@@ -139,9 +140,6 @@ class LocationBarView
   // True if this instance has been initialized by calling Init, which can only
   // be called when the receiving instance is attached to a view container.
   bool IsInitialized() const;
-
-  // Called when the popup view becomes visible.
-  void OnPopupOpened();
 
   // Returns a background that paints an (optionally stroked) rounded rect with
   // the given color.
@@ -299,8 +297,17 @@ class LocationBarView
 
   SkColor GetBackgroundColorForTesting() const { return background_color_; }
 
-  OmniboxPopupView* GetOmniboxPopupView();
-  const OmniboxPopupView* GetOmniboxPopupView() const;
+  OmniboxPopupView* GetOmniboxPopupViewForTesting() {
+    return omnibox_popup_view_.get();
+  }
+
+  OmniboxPopupFileSelector* GetOmniboxPopupFileSelector() const {
+    return omnibox_popup_file_selector_.get();
+  }
+
+  OmniboxPopupAimPresenter* GetOmniboxPopupAimPresenter() const {
+    return omnibox_popup_aim_presenter_.get();
+  }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SecurityIndicatorTest, CheckIndicatorText);
@@ -364,13 +371,27 @@ class LocationBarView
   // `ime_inline_autocomplete_view_`, and `omnibox_additional_text_view_`.
   void SetOmniboxAdjacentText(views::Label* label, std::u16string_view text);
 
+  // Called when the popup state changes (classic, AIM, or none).
+  void OnPopupStateChanged(OmniboxPopupState old_state,
+                           OmniboxPopupState new_state);
+
+  // Callback to validate omnibox popup state is in sync with widget visibility.
+  // TODO(crbug.com/40251974): Remove this once state manager is proven
+  //  reliable.
+  void ValidatePopupState(OmniboxPopupState state);
+
+  // Clears the transition flag used to skip popup state validation during
+  // asynchronous widget hide/show transitions.
+  // TODO(crbug.com/40251974): Remove this once state manager is proven
+  //  reliable.
+  void ClearInPopupStateTransition();
+
   // LocationBar:
   void FocusSearch() override;
   void UpdateContentSettingsIcons() override;
   void SaveStateToContents(content::WebContents* contents) override;
   LocationBarTesting* GetLocationBarForTesting() override;
   void OnChanged() override;
-  void OnPopupVisibilityChanged() override;
 
   // LocationBarTesting:
   bool TestContentSettingImagePressed(size_t index) override;
@@ -401,13 +422,6 @@ class LocationBarView
   bool CanStartDragForView(View* sender,
                            const gfx::Point& press_pt,
                            const gfx::Point& p) override;
-
-  // OmniboxEditModel::Observer:
-  void OnSelectionChanged(OmniboxPopupSelection old_selection,
-                          OmniboxPopupSelection new_selection) override {}
-  void OnMatchIconUpdated(size_t match_index) override {}
-  void OnContentsChanged() override {}
-  void OnAiModeChanged(bool ai_mode) override;
 
   // PageActionIconView::Delegate:
   content::WebContents* GetWebContentsForPageActionIconView() override;
@@ -493,7 +507,7 @@ class LocationBarView
   // The presenter controlling the showing of the AI mode popup.
   std::unique_ptr<OmniboxPopupAimPresenter> omnibox_popup_aim_presenter_;
 
-  base::CallbackListSubscription popup_view_opened_subscription_;
+  base::CallbackListSubscription popup_state_changed_subscription_;
 
   // Our delegate.
   raw_ptr<Delegate> delegate_;
@@ -570,6 +584,7 @@ class LocationBarView
   raw_ptr<views::FocusManager> focus_manager_ = nullptr;
 
   std::unique_ptr<OmniboxContextMenu> omnibox_context_menu_;
+  std::unique_ptr<OmniboxPopupFileSelector> omnibox_popup_file_selector_;
 
   base::RepeatingCallback<void(OmniboxContextMenu*, gfx::Point)>
       run_omnibox_context_menu_callback_;
@@ -578,6 +593,12 @@ class LocationBarView
       ui::TouchUiController::Get()->RegisterCallback(
           base::BindRepeating(&LocationBarView::OnTouchUiChanged,
                               base::Unretained(this)));
+
+  // Used to skip popup state validation during asynchronous widget hide/show
+  // transitions.
+  // TODO(crbug.com/40251974): Remove this once state manager is proven
+  //  reliable.
+  bool in_popup_state_transition_ = false;
 
   base::WeakPtrFactory<LocationBarView> weak_factory_{this};
 };

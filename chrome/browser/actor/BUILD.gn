@@ -64,6 +64,7 @@ source_set("actor") {
     "//chrome/common",
     "//chrome/common:actor_webui_mojom",
     "//components/autofill/core/browser/integrators/glic:actor_form_filling_types",
+    "//components/download/content/public",
     "//components/optimization_guide/content/browser",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/password_manager/core/browser/actor_login:common",
@@ -97,6 +98,8 @@ source_set("impl") {
     "safety_list_manager.cc",
     "safety_list_manager.h",
     "site_policy.cc",
+    "tools/attempt_form_filling_tool.cc",
+    "tools/attempt_form_filling_tool.h",
     "tools/attempt_form_filling_tool_request.cc",
     "tools/attempt_login_tool.cc",
     "tools/attempt_login_tool.h",
@@ -156,6 +159,7 @@ source_set("impl") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_io_data",
     "//chrome/browser/safe_browsing",
+    "//chrome/browser/signin",
     "//chrome/browser/ui:browser_list",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/browser_window",
@@ -306,6 +310,8 @@ source_set("tools_test_support") {
   ]
   if (enable_glic) {
     sources = [
+      "tools/page_stability_test_util.cc",
+      "tools/page_stability_test_util.h",
       "tools/tools_test_util.cc",
       "tools/tools_test_util.h",
     ]
@@ -323,6 +329,7 @@ source_set("browser_tests") {
     ":test_support",
     ":tools_test_support",
     "ui:event_dispatcher",
+    "//chrome/browser/autofill/glic:test_support",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/ui",
@@ -347,6 +354,7 @@ source_set("browser_tests") {
       "actor_policy_checker_browsertest.cc",
       "execution_engine_browsertest.cc",
       "execution_engine_origin_gating_browsertest.cc",
+      "tools/attempt_form_filling_tool_browsertest.cc",
       "tools/attempt_login_tool_browsertest.cc",
       "tools/click_tool_browsertest.cc",
       "tools/drag_and_release_tool_browsertest.cc",
@@ -356,6 +364,7 @@ source_set("browser_tests") {
       "tools/navigate_tool_browsertest.cc",
       "tools/observation_delay_controller_browsertest.cc",
       "tools/page_stability_browsertest.cc",
+      "tools/page_stability_metrics_browsertest.cc",
       "tools/page_tool_browsertest.cc",
       "tools/script_tool_browsertest.cc",
       "tools/scroll_to_tool_browsertest.cc",

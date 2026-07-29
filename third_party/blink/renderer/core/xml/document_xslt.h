@@ -14,10 +14,8 @@ class Document;
 class ProcessingInstruction;
 
 class DocumentXSLT final : public GarbageCollected<DocumentXSLT>,
-                           public Supplement<Document> {
+                           public GarbageCollectedMixin {
  public:
-  static const char kSupplementName[];
-
   static void SetHasTransformSource(Document&);
 
   // The following static methods don't use any instance of DocumentXSLT.
@@ -31,7 +29,7 @@ class DocumentXSLT final : public GarbageCollected<DocumentXSLT>,
   static bool SheetLoaded(Document&, ProcessingInstruction*);
   static bool HasTransformSourceDocument(Document&);
 
-  explicit DocumentXSLT(Document&);
+  DocumentXSLT() = default;
   DocumentXSLT(const DocumentXSLT&) = delete;
   DocumentXSLT& operator=(const DocumentXSLT&) = delete;
   void Trace(Visitor*) const override;

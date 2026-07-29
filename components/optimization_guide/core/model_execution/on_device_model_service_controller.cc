@@ -158,16 +158,13 @@ OnDeviceModelServiceController::OnDeviceModelServiceController(
   service_client_->set_on_disconnect_fn(base::BindRepeating(
       &OnDeviceModelServiceController::OnServiceDisconnected,
       weak_ptr_factory_.GetWeakPtr()));
-}
-
-OnDeviceModelServiceController::~OnDeviceModelServiceController() = default;
-
-void OnDeviceModelServiceController::Init() {
   model_metadata_loader_.emplace(
       base::BindRepeating(&OnDeviceModelServiceController::UpdateModel,
                           weak_ptr_factory_.GetWeakPtr()),
       on_device_component_state_manager_);
 }
+
+OnDeviceModelServiceController::~OnDeviceModelServiceController() = default;
 
 OnDeviceModelEligibilityReason OnDeviceModelServiceController::CanCreateSession(
     ModelBasedCapabilityKey feature) {
@@ -179,6 +176,7 @@ OnDeviceModelEligibilityReason OnDeviceModelServiceController::CanCreateSession(
 
 std::unique_ptr<OnDeviceSession> OnDeviceModelServiceController::CreateSession(
     ModelBasedCapabilityKey feature,
+    base::WeakPtr<OptimizationGuideLogger> logger,
     const SessionConfigParams& config_params) {
   // Ensure an initial solution is computed to avoid giving kUnknown error.
   UpdateSolutionProvider(feature);
@@ -199,7 +197,7 @@ std::unique_ptr<OnDeviceSession> OnDeviceModelServiceController::CreateSession(
   return model_broker_impl_.GetSolutionProvider(feature)
       .local_subscriber()
       .client()
-      ->CreateSession(config_params);
+      ->CreateSession(config_params, logger);
 }
 
 void OnDeviceModelServiceController::SetLanguageDetectionModel(

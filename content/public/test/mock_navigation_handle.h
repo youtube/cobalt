@@ -167,8 +167,6 @@ class MockNavigationHandle : public NavigationHandle {
   }
   MOCK_METHOD1(RemoveRequestHeader, void(const std::string&));
   MOCK_METHOD2(SetRequestHeader, void(const std::string&, const std::string&));
-  MOCK_METHOD2(SetCorsExemptRequestHeader,
-               void(const std::string&, const std::string&));
   const net::HttpResponseHeaders* GetResponseHeaders() override {
     return response_headers_.get();
   }
@@ -252,10 +250,6 @@ class MockNavigationHandle : public NavigationHandle {
   MOCK_METHOD(std::optional<NavigationDiscardReason>,
               GetNavigationDiscardReason,
               ());
-  MOCK_METHOD(ProcessSelectionUserData&,
-              GetProcessSelectionUserData,
-              (),
-              (override));
 
 #if BUILDFLAG(IS_ANDROID)
   MOCK_METHOD(const base::android::JavaRef<jobject>&,
@@ -278,6 +272,11 @@ class MockNavigationHandle : public NavigationHandle {
       override {
     return nullptr;
   }
+
+  ProcessSelectionUserData& GetProcessSelectionUserData() override {
+    return process_selection_user_data_;
+  }
+
   MOCK_METHOD(void, SetIsAdTagged, ());
 
   blink::RuntimeFeatureStateContext& GetMutableRuntimeFeatureStateContext()
@@ -418,6 +417,7 @@ class MockNavigationHandle : public NavigationHandle {
   int initiator_process_id_ = ChildProcessHost::kInvalidUniqueID;
   bool was_started_from_context_menu_ = false;
   blink::RuntimeFeatureStateContext runtime_feature_state_context_;
+  ProcessSelectionUserData process_selection_user_data_;
 
   base::WeakPtrFactory<MockNavigationHandle> weak_factory_{this};
 };

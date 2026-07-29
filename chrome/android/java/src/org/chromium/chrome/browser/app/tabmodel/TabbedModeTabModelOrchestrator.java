@@ -29,6 +29,7 @@ import org.chromium.chrome.browser.crypto.CipherFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
@@ -52,6 +53,7 @@ import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabPersistentStoreObserver;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStoreImpl;
 import org.chromium.chrome.browser.tabmodel.TabbedModeTabPersistencePolicy;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.widget.Toast;
 
@@ -88,6 +90,8 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     private final boolean mTabMergingEnabled;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final CipherFactory mCipherFactory;
+    // Effectively final after createTabModels().
+    private String mWindowTag;
 
     private OneshotSupplier<ProfileProvider> mProfileProviderSupplier;
 
@@ -188,10 +192,13 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
                             activity.getString(R.string.unsupported_number_of_windows),
                             Toast.LENGTH_LONG)
                     .show();
+            mWindowTag = "";
             return false;
         }
 
         int assignedIndex = assumeNonNull(selectorAssignment).first;
+        assert assignedIndex != TabWindowManager.INVALID_WINDOW_ID;
+        mWindowTag = Integer.toString(assignedIndex);
 
         // Instantiate TabPersistentStore
         mTabPersistencePolicy =
@@ -216,7 +223,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             // For multi-instance on Android S, this is a restart after the upgrade or fresh
             // installation. Allow merging tabs from CTA/CTA2 used by the previous version
             // if present.
-            return MultiWindowUtils.getInstanceCount() == 0;
+            return MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ANY) == 0;
         }
 
         // Merge tabs if this TabModelSelector is for a ChromeTabbedActivity created in
@@ -280,10 +287,12 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
 
             TabCreatorManager shadowTabCreatorManager =
                     incognito -> incognito ? mIncognitoShadowTabCreator : mRegularShadowTabCreator;
+            assert mWindowTag != null && !mWindowTag.isEmpty();
             mShadowTabPersistentStore =
                     new TabStateStore(
                             TabStateStorageServiceFactory.getForProfile(profile),
                             mTabModelSelector,
+                            mWindowTag,
                             shadowTabCreatorManager);
 
             SupplierUtils.waitForAll(

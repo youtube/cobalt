@@ -191,6 +191,7 @@ test("components_unittests") {
     "//components/assist_ranker:unit_tests",
     "//components/attribution_reporting:unit_tests",
     "//components/autofill/core/browser:unit_tests",
+    "//components/autofill/core/browser/integrators/password_manager:unit_tests",
     "//components/autofill/core/common:unit_tests",
     "//components/base32:unit_tests",
     "//components/blocklist/opt_out_blocklist:unit_tests",
@@ -400,6 +401,7 @@ test("components_unittests") {
     "//components/wallet/core/browser:unit_tests",
     "//components/web_resource:unit_tests",
     "//components/webauthn/core/browser:unit_tests",
+    "//components/webauthn/core/browser/import:unit_tests",
     "//components/webdata/common:unit_tests",
     "//components/webdata_services:unit_tests",
     "//components/webui/flags:unit_tests",
@@ -413,7 +415,10 @@ test("components_unittests") {
     ]
   }
   if (is_android) {
-    deps += [ "//components/supervised_user/core/browser/android:unit_tests" ]
+    deps += [
+      "//components/security_state/content/android:unit_tests",
+      "//components/supervised_user/core/browser/android:unit_tests",
+    ]
   }
 
   if (build_allocation_stack_trace_recorder) {

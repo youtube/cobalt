@@ -16,11 +16,22 @@
 
 namespace {
 
+// Spacing between buttons in the stack.
 const CGFloat kButtonSpacing = 8.0;
+// Horizontal margin for the button stack.
 const CGFloat kButtonStackHorizontalMargin = 16.0;
 
+// Default bottom margin for the button stack.
 const CGFloat kButtonStackBottomMargin = 20.0;
+// Legacy bottom margin for the button stack.
 const CGFloat kLegacyButtonStackBottomMargin = 0.0;
+
+// Inset for the content view at the bottom, used when
+// `_addsContentViewBottomInset` is YES.
+const CGFloat kContentViewBottomInset = 20;
+
+// Height of the gradient view above the action buttons.
+const CGFloat kGradientHeight = 30;
 
 // The position of a button in the stack.
 typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
@@ -46,6 +57,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 @end
 
 @implementation ButtonStackViewController {
+  NSLayoutConstraint* _scrollContainerBottomToSafeAreaBottomConstraint;
   // Stack view for the action buttons.
   UIStackView* _actionStackView;
   // The bottom constraint for the action stack view against the safe area.
@@ -68,6 +80,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
     _configuration = configuration;
     _scrollEnabled = YES;
     _showsVerticalScrollIndicator = YES;
+    _addsContentViewBottomInset = YES;
     _showsGradientView = YES;
     _actionStackBottomMargin = kButtonStackBottomMargin;
   }
@@ -91,8 +104,9 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   _contentView.translatesAutoresizingMaskIntoConstraints = NO;
   [_scrollView addSubview:_contentView];
 
-  [self createAndConfigureButtons];
+  [self createButtons];
   [self setupConstraints];
+  [self reconfigureButtons];
   [self updateButtonState];
 }
 
@@ -104,32 +118,39 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
 
-  if (self.customGradientViewHeight > 0 && !_gradientMask) {
+  // Determine if the gradient should be visible.
+  BOOL scrollable =
+      _scrollView.contentSize.height > _scrollView.bounds.size.height;
+  CGFloat effectiveGradientHeight =
+      kGradientHeight - _scrollView.contentInset.bottom;
+  BOOL shouldShowGradient =
+      _showsGradientView && scrollable && (effectiveGradientHeight > 0);
+
+  if (!shouldShowGradient) {
+    _scrollContainerView.layer.mask = nil;
+    return;
+  }
+
+  // Create mask if it doesn't exist.
+  if (!_gradientMask) {
     _gradientMask = [CAGradientLayer layer];
     _gradientMask.endPoint = CGPointMake(0.0, 1.0);
-    UIColor* bottomColor = BlendColors(
-        [UIColor clearColor], self.view.backgroundColor,
-        _scrollView.contentInset.bottom / self.customGradientViewHeight);
+    UIColor* bottomColor =
+        BlendColors([UIColor clearColor], self.view.backgroundColor,
+                    _scrollView.contentInset.bottom / kGradientHeight);
     _gradientMask.colors =
         @[ (id)self.view.backgroundColor.CGColor, (id)bottomColor.CGColor ];
-    _scrollContainerView.layer.mask = _showsGradientView ? _gradientMask : nil;
   }
 
-  if (_gradientMask) {
-    CGFloat effectiveGradientHeight =
-        self.customGradientViewHeight - _scrollView.contentInset.bottom;
-    if (effectiveGradientHeight <= 0) {
-      return;
-    }
+  // Apply mask and calculate geometry.
+  _scrollContainerView.layer.mask = _gradientMask;
+  _gradientMask.frame = _scrollContainerView.bounds;
 
-    _gradientMask.frame = _scrollContainerView.bounds;
-
-    CGFloat startY =
-        (effectiveGradientHeight >= _gradientMask.frame.size.height)
-            ? 0.0
-            : 1.0 - (effectiveGradientHeight / _gradientMask.frame.size.height);
-    _gradientMask.startPoint = CGPointMake(0.0, startY);
-  }
+  CGFloat startY =
+      (effectiveGradientHeight >= _gradientMask.frame.size.height)
+          ? 0.0
+          : 1.0 - (effectiveGradientHeight / _gradientMask.frame.size.height);
+  _gradientMask.startPoint = CGPointMake(0.0, startY);
 }
 
 #pragma mark - Public
@@ -156,9 +177,15 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
           systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
           .height;
   if (stackHeight > 0) {
+    stackHeight += [self contentViewBottomInset];
     return stackHeight + self.actionStackBottomMargin;
   }
   return 0;
+}
+
+- (BOOL)hasVisibleButtons {
+  return !(_primaryActionButton.hidden && _secondaryActionButton.hidden &&
+           _tertiaryActionButton.hidden);
 }
 
 #pragma mark - ButtonStackConsumer
@@ -193,6 +220,9 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 }
 
 - (void)reloadConfiguration {
+  if (!self.isViewLoaded) {
+    return;
+  }
   [self reconfigureButtons];
   [self updateButtonState];
 }
@@ -216,15 +246,15 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
 
 - (void)setActionStackBottomMargin:(CGFloat)actionStackBottomMargin {
   _actionStackBottomMargin = actionStackBottomMargin;
-  if (_actionStackSafeAreaBottomConstraint) {
-    _actionStackSafeAreaBottomConstraint.constant = -_actionStackBottomMargin;
-  }
-  if (_actionStackBottomConstraint) {
-    _actionStackBottomConstraint.constant = -_actionStackBottomMargin;
-  }
+  [self reconfigureBottomConstraint];
 }
 
 #pragma mark - Private
+
+// Returns the bottom inset for the content view.
+- (CGFloat)contentViewBottomInset {
+  return _addsContentViewBottomInset ? kContentViewBottomInset : 0;
+}
 
 // Creates the scroll container view.
 - (UIView*)createScrollContainerView {
@@ -252,9 +282,8 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   return scrollView;
 }
 
-// Creates the button stack and configures the buttons based on the initial
-// configuration.
-- (void)createAndConfigureButtons {
+// Creates the button stack and the buttons.
+- (void)createButtons {
   _actionStackView = [[UIStackView alloc] init];
   _actionStackView.axis = UILayoutConstraintAxisVertical;
   _actionStackView.spacing = kButtonSpacing;
@@ -308,8 +337,6 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   }
 
   [self.view addSubview:_actionStackView];
-
-  [self reconfigureButtons];
 }
 
 // Updates the buttons' visibility, titles, and images based on the current
@@ -337,6 +364,31 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   self.actionStackBottomMargin = useLegacyBottomMargin
                                      ? kLegacyButtonStackBottomMargin
                                      : kButtonStackBottomMargin;
+
+  [self updateScrollContainerBottomConstraintPriority];
+  [self reconfigureBottomConstraint];
+}
+
+// Sets the constant to the two constraints at the bottom of the button stack.
+- (void)reconfigureBottomConstraint {
+  CGFloat contraintConstant = -self.actionStackBottomMargin;
+  if (![self hasVisibleButtons]) {
+    contraintConstant = 0;
+  }
+  _actionStackSafeAreaBottomConstraint.constant = contraintConstant;
+  _actionStackBottomConstraint.constant = contraintConstant;
+}
+
+// empty actions state is removed.
+// Dynamically updates the priority of the scroll container's bottom constraint.
+- (void)updateScrollContainerBottomConstraintPriority {
+  if ([self hasVisibleButtons]) {
+    _scrollContainerBottomToSafeAreaBottomConstraint.priority =
+        UILayoutPriorityDefaultLow - 1;
+  } else {
+    _scrollContainerBottomToSafeAreaBottomConstraint.priority =
+        UILayoutPriorityDefaultHigh;
+  }
 }
 
 // Configures a button with the given properties.
@@ -388,14 +440,22 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   UIView* view = self.view;
 
   // Scroll container view constraints.
+  // Ensure the scroll container expands to the bottom of the safe area when the
+  // action stack is empty.
+  _scrollContainerBottomToSafeAreaBottomConstraint =
+      [_scrollContainerView.bottomAnchor
+          constraintEqualToAnchor:safeAreaLayoutGuide.bottomAnchor];
+
   [NSLayoutConstraint activateConstraints:@[
     [_scrollContainerView.topAnchor constraintEqualToAnchor:view.topAnchor],
-    [_scrollContainerView.bottomAnchor
-        constraintEqualToAnchor:_actionStackView.topAnchor],
     [_scrollContainerView.leadingAnchor
         constraintEqualToAnchor:view.leadingAnchor],
     [_scrollContainerView.trailingAnchor
         constraintEqualToAnchor:view.trailingAnchor],
+    [_scrollContainerView.bottomAnchor
+        constraintEqualToAnchor:_actionStackView.topAnchor
+                       constant:-[self contentViewBottomInset]],
+    _scrollContainerBottomToSafeAreaBottomConstraint,
   ]];
   AddSameConstraints(_scrollView, _scrollContainerView);
 
@@ -408,18 +468,19 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
   // Ensures the content view either fills the scroll view (for short content)
   // or expands to enable scrolling (for long content).
   NSLayoutConstraint* contentViewHeightConstraint = [_contentView.heightAnchor
-      constraintEqualToAnchor:_scrollView.heightAnchor];
+      constraintGreaterThanOrEqualToAnchor:_scrollView.heightAnchor];
   contentViewHeightConstraint.priority = UILayoutPriorityDefaultLow;
 
   _actionStackSafeAreaBottomConstraint = [_actionStackView.bottomAnchor
-      constraintEqualToAnchor:safeAreaLayoutGuide.bottomAnchor
-                     constant:-self.actionStackBottomMargin];
+      constraintEqualToAnchor:safeAreaLayoutGuide.bottomAnchor];
   // Lower priority to avoid conflicts when the safe area bottom inset is zero.
   _actionStackSafeAreaBottomConstraint.priority = UILayoutPriorityDefaultHigh;
 
   _actionStackBottomConstraint = [_actionStackView.bottomAnchor
-      constraintLessThanOrEqualToAnchor:view.bottomAnchor
-                               constant:-self.actionStackBottomMargin];
+      constraintLessThanOrEqualToAnchor:view.bottomAnchor];
+
+  // Make sure that both constraints have the right constant.
+  [self reconfigureBottomConstraint];
 
   // Action stack view constraints.
   [NSLayoutConstraint activateConstraints:@[
@@ -429,6 +490,7 @@ typedef NS_ENUM(NSInteger, ButtonStackButtonPosition) {
     [_actionStackView.trailingAnchor
         constraintEqualToAnchor:safeAreaLayoutGuide.trailingAnchor
                        constant:-kButtonStackHorizontalMargin],
+    contentViewHeightConstraint,
     _actionStackBottomConstraint,
     _actionStackSafeAreaBottomConstraint,
   ]];

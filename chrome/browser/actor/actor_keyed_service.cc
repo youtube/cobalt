@@ -26,14 +26,24 @@
 #include "chrome/browser/actor/ui/actor_ui_state_manager.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/download_item_utils.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
+#include "ui/base/window_open_disposition.h"
 
 namespace {
 void RunLater(base::OnceClosure task) {
@@ -63,9 +73,24 @@ using ui::ActorUiStateManagerInterface;
 ActorKeyedService::ActorKeyedService(Profile* profile) : profile_(profile) {
   actor_ui_state_manager_ = std::make_unique<ui::ActorUiStateManager>(*this);
   policy_checker_ = std::make_unique<ActorPolicyChecker>(*this);
+  profile_observation_.Observe(profile_);
+}
+
+void ActorKeyedService::OnProfileInitializationComplete(Profile* profile) {
+  // `download_notifier_` is set up after profile initialization because
+  // `GetDownloadManager()` relies on other download services to be fully
+  // initialized which may not be true until the profile is initialized.
+  download_notifier_ = std::make_unique<download::AllDownloadItemNotifier>(
+      profile_->GetDownloadManager(), this);
 }
 
 ActorKeyedService::~ActorKeyedService() = default;
+
+void ActorKeyedService::Shutdown() {
+  // Ensure all tasks are stopped here so we don't cause them to stop in the
+  // dtor.
+  StopAllTasks(ActorTask::StoppedReason::kShutdown);
+}
 
 // static
 ActorKeyedService* ActorKeyedService::Get(content::BrowserContext* context) {
@@ -90,6 +115,98 @@ const ActorTask* ActorKeyedService::GetActingActorTaskForWebContents(
   }
 
   return nullptr;
+}
+
+void ActorKeyedService::CreateActorTab(TaskId task_id,
+                                       bool open_in_background,
+                                       tabs::TabHandle initiator_tab_handle,
+                                       SessionID initiator_window_id,
+                                       CreateActorTabCallback callback) {
+  GetJournal().Log(
+      GURL(), task_id, "CreateActorTab",
+      JournalDetailsBuilder()
+          .Add("task_id", task_id)
+          .Add("open_in_background", open_in_background)
+          .Add("initiator_tab_id", initiator_tab_handle.raw_value())
+          .Add("initiator_window_id", initiator_window_id.id())
+          .Build());
+  ActorTask* task = GetTask(task_id);
+  if (!task) {
+    GetJournal().Log(GURL(), task_id, "CreateActorTab",
+                     JournalDetailsBuilder().AddError("Invalid Task").Build());
+  }
+
+  BrowserWindowInterface* window_for_new_tab = nullptr;
+  tabs::TabInterface* initiator_tab = initiator_tab_handle.Get();
+
+  // If the initiating tab is still live, create the new tab in the same window.
+  if (initiator_tab) {
+    if (initiator_tab->IsInNormalWindow()) {
+      window_for_new_tab = initiator_tab->GetBrowserWindowInterface();
+      GetJournal().Log(GURL(), task_id, "CreateActorTab",
+                       JournalDetailsBuilder()
+                           .Add("Using initiator_tab's window",
+                                window_for_new_tab->GetSessionID().id())
+                           .Build());
+    }
+  } else {
+    // If the tab was closed, open it in the window it was in (at the time of
+    // task initiation).
+    window_for_new_tab =
+        BrowserWindowInterface::FromSessionID(initiator_window_id);
+    GetJournal().Log(
+        GURL(), task_id, "CreateActorTab",
+        JournalDetailsBuilder()
+            .Add("Using initiator_window", initiator_window_id.id())
+            .Build());
+  }
+
+  NavigateParams params(profile_.get(), GURL(url::kAboutBlankURL),
+                        ::ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+
+  if (window_for_new_tab) {
+    params.disposition = open_in_background
+                             ? WindowOpenDisposition::NEW_BACKGROUND_TAB
+                             : WindowOpenDisposition::NEW_FOREGROUND_TAB;
+    params.browser = window_for_new_tab;
+    params.window_action = NavigateParams::WindowAction::kNoAction;
+
+    if (initiator_tab) {
+      int initiator_index =
+          window_for_new_tab->GetTabStripModel()->GetIndexOfTab(initiator_tab);
+      if (initiator_index != TabStripModel::kNoTab) {
+        params.tabstrip_index = initiator_index + 1;
+      }
+    }
+  } else {
+    GetJournal().Log(
+        GURL(), task_id, "CreateActorTab",
+        JournalDetailsBuilder().Add("Creating New Window", "").Build());
+    // If window_for_new_tab is still null (e.g. the initiating window was
+    // closed) the tab will be created in a new window.
+    // TODO(b/454046200): Reconsider what should happen in this case.
+    params.disposition = WindowOpenDisposition::NEW_WINDOW;
+    params.window_action = NavigateParams::WindowAction::kShowWindow;
+  }
+
+  base::WeakPtr<content::NavigationHandle> handle = Navigate(&params);
+  if (!handle) {
+    GetJournal().Log(
+        GURL(), task_id, "CreateActorTab",
+        JournalDetailsBuilder().AddError("Failed creating navigation").Build());
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
+  content::WebContents* contents = handle->GetWebContents();
+  if (!contents) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
+  // It might be good to wait for this navigation to finish but given we're
+  // navigating to about:blank it probably doesn't matter in practice.
+  std::move(callback).Run(tabs::TabInterface::GetFromContents(contents));
 }
 
 base::WeakPtr<ActorKeyedService> ActorKeyedService::GetWeakPtr() {
@@ -170,7 +287,7 @@ void ActorKeyedService::NotifyTaskStateChanged(const ActorTask& task) {
 
 void ActorKeyedService::OnActOnWebCapabilityChanged(bool can_act_on_web) {
   if (!can_act_on_web) {
-    FailAllTasks();
+    StopAllTasks(ActorTask::StoppedReason::kChromeFailure);
   }
   act_on_web_capability_changed_callback_list_.Notify(can_act_on_web);
 }
@@ -317,12 +434,12 @@ void ActorKeyedService::OnActionsFinished(
                           index_of_failed_action, std::move(action_results)));
 }
 
-void ActorKeyedService::FailAllTasks() {
+void ActorKeyedService::StopAllTasks(ActorTask::StoppedReason stop_reason) {
   std::vector<TaskId> tasks_to_stop =
       FindTaskIdsInActive([](const ActorTask& task) { return true; });
-  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::FailAllTasks", {});
+  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::StopAllTasks", {});
   for (const auto& task_id : tasks_to_stop) {
-    StopTask(task_id, ActorTask::StoppedReason::kChromeFailure);
+    StopTask(task_id, stop_reason);
   }
 }
 
@@ -412,6 +529,16 @@ std::vector<TaskId> ActorKeyedService::FindTaskIdsInInactive(
     }
   }
   return result;
+}
+
+void ActorKeyedService::OnDownloadCreated(content::DownloadManager* manager,
+                                          download::DownloadItem* item) {
+  if (content::WebContents* web_contents =
+          content::DownloadItemUtils::GetWebContents(item)) {
+    if (GetActingActorTaskForWebContents(web_contents)) {
+      base::UmaHistogramBoolean("Actor.Download.DirectDownloadTriggered", true);
+    }
+  }
 }
 
 }  // namespace actor

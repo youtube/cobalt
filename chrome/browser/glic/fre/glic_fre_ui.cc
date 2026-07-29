@@ -91,6 +91,9 @@ GlicFreUI::GlicFreUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
 
   int reload_max_loading_time_ms = features::kGlicReloadMaxLoadingTimeMs.Get();
   source->AddInteger("reloadMaxLoadingTimeMs", reload_max_loading_time_ms);
+  source->AddBoolean("isUnifiedFre",
+                     GlicEnabling::IsUnifiedFreEnabled(
+                         Profile::FromBrowserContext(browser_context)));
   source->AddBoolean("caaGuestError", base::FeatureList::IsEnabled(
                                           features::kGlicCaaGuestError));
 }
@@ -108,7 +111,8 @@ void GlicFreUI::BindInterface(
 void GlicFreUI::CreatePageHandler(
     mojo::PendingReceiver<glic::mojom::FrePageHandler> receiver) {
   fre_page_handler_ = std::make_unique<GlicFrePageHandler>(
-      web_ui()->GetWebContents(), std::move(receiver));
+      /*is_unified_fre=*/false, web_ui()->GetWebContents(),
+      std::move(receiver));
 }
 
 }  // namespace glic

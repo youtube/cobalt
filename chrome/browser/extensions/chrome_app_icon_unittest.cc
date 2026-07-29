@@ -286,7 +286,7 @@ TEST_F(ChromeAppIconTest, ChromeBadging) {
   ArcAppTest arc_app_test;
   // TODO(crbug.com/454468678): This should be called before profile is created.
   arc_app_test.PreProfileSetUp();
-  arc_app_test.SetUp(profile());
+  arc_app_test.PostProfileSetUp(profile());
 
   TestAppIcon reference_icon(profile(), kTestAppId,
                              extension_misc::EXTENSION_ICON_MEDIUM);
@@ -322,7 +322,9 @@ TEST_F(ChromeAppIconTest, ChromeBadging) {
   arc_app_test.WaitForRemoveAllApps();
   EXPECT_TRUE(AreEqual(reference_icon.image_skia(), image_before_badging));
 
-  arc_app_test.TearDown();
+  arc_app_test.PreProfileTearDown();
+  // TODO(crbug.com/454468678): This should be called after profile is deleted.
+  arc_app_test.PostProfileTearDown();
 }
 
 #endif  // BUILDFLAG(IS_CHROMEOS)

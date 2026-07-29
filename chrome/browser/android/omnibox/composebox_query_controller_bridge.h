@@ -46,7 +46,10 @@ class ComposeboxQueryControllerBridge
       JNIEnv* env,
       long tab_id);
   GURL GetAimUrl(JNIEnv* env, std::string& query_text);
+  GURL GetImageGenerationUrl(JNIEnv* env, std::string& query_text);
   void RemoveAttachment(JNIEnv* env, const std::string& token);
+  bool IsPdfUploadEligible(JNIEnv* env);
+  bool IsCreateImagesEligible(JNIEnv* env);
 
   // ComposeboxQueryController::FileUploadStatusObserver:
   void OnFileUploadStatusChanged(

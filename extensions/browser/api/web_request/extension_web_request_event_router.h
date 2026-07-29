@@ -48,6 +48,12 @@ class WebRequestRulesRegistry;
 class WebRequestEventDetails;
 struct WebRequestInfo;
 
+inline constexpr int kWebRequestFilterValidSchemes =
+    URLPattern::SCHEME_HTTP | URLPattern::SCHEME_HTTPS |
+    URLPattern::SCHEME_FTP | URLPattern::SCHEME_FILE |
+    URLPattern::SCHEME_EXTENSION | URLPattern::SCHEME_WS |
+    URLPattern::SCHEME_WSS | URLPattern::SCHEME_UUID_IN_PACKAGE;
+
 class WebRequestEventRouter : public KeyedService {
  public:
   explicit WebRequestEventRouter(content::BrowserContext* browser_context);
@@ -95,6 +101,9 @@ class WebRequestEventRouter : public KeyedService {
     // an error message is provided, otherwise the error is internal (and
     // unexpected).
     bool InitFromValue(const base::Value::Dict& value, std::string* error);
+
+    // Serializes the filter to a dictionary value suitable for persistence.
+    base::Value::Dict ToValue() const;
 
     extensions::URLPatternSet urls;
     std::vector<WebRequestResourceType> types;
@@ -389,6 +398,17 @@ class WebRequestEventRouter : public KeyedService {
     EventListener& operator=(const EventListener&) = delete;
 
     ~EventListener();
+
+    // Deserializes a listener from a persisted dictionary value into its
+    // inactive (lazy) state. Returns nullptr on failure and sets `error`.
+    static std::unique_ptr<EventListener> InitFromLazyValue(
+        const base::Value::Dict& value,
+        const ExtensionId& extension_id,
+        content::BrowserContext* context,
+        std::string* error);
+
+    // Serializes a listener for persistence.
+    base::Value::Dict ToLazyValue() const;
 
     bool HasExtraHeaders() const {
       using extension_web_request_api_helpers::ExtraInfoSpec;

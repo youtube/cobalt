@@ -11,8 +11,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_view_host.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/extensions/extension_action_view_controller.h"
-#include "chrome/browser/ui/toolbar/toolbar_action_view_delegate.h"
+#include "chrome/browser/ui/extensions/extension_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/views/extensions/extension_action_platform_delegate_views.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
@@ -35,21 +34,17 @@ GURL GetDataUrlForImageModel(ui::ImageModel icon_model,
 
 }  // namespace
 
-class WebUIBrowserExtensionsContainer::ActionInfo
-    : public ToolbarActionViewDelegate {
+class WebUIBrowserExtensionsContainer::ActionInfo {
  public:
   ActionInfo(WebUIBrowserExtensionsContainer& extensions_container,
              Browser& browser,
-             std::unique_ptr<ExtensionActionViewController> controller)
+             std::unique_ptr<ExtensionActionViewModel> model)
       : extensions_container_(extensions_container),
         browser_(browser),
-        controller_(std::move(controller)) {
-    controller_->SetDelegate(this);
-  }
-
-  // ToolbarActionViewDelegate:
-  void UpdateState() override {
-    extensions_container_->NotifyOfOneAction(controller_->GetId());
+        model_(std::move(model)) {
+    model_->SetUpdateObserver(base::BindRepeating(
+        &WebUIBrowserExtensionsContainer::NotifyOfOneAction,
+        base::Unretained(extensions_container_), model_->GetId()));
   }
 
   ui::TrackedElement* GetAnchor() {
@@ -58,24 +53,24 @@ class WebUIBrowserExtensionsContainer::ActionInfo
     return extensions_container_->window_->GetExtensionsMenuButtonAnchor();
   }
 
-  ExtensionActionViewController* controller() { return controller_.get(); }
+  ExtensionActionViewModel* model() { return model_.get(); }
 
   extensions_bar::mojom::ExtensionActionInfoPtr ToMojo(
       WebUIBrowserWindow& window) const {
     content::WebContents* web_contents =
         browser_->tab_strip_model()->GetActiveWebContents();
     auto result = extensions_bar::mojom::ExtensionActionInfo::New();
-    result->id = controller_->GetId();
+    result->id = model_->GetId();
     result->accessible_name =
-        base::UTF16ToUTF8(controller_->GetAccessibleName(web_contents));
-    result->tooltip = base::UTF16ToUTF8(controller_->GetTooltip(web_contents));
+        base::UTF16ToUTF8(model_->GetAccessibleName(web_contents));
+    result->tooltip = base::UTF16ToUTF8(model_->GetTooltip(web_contents));
     result->is_visible =
         extensions_container_->IsActionVisibleOnToolbar(result->id);
 
     if (result->is_visible) {
       ui::ImageModel icon_model =
-          controller_->GetIcon(web_contents, gfx::Size(20, 20));
-      if (!controller_->IsEnabled(web_contents)) {
+          model_->GetIcon(web_contents, gfx::Size(20, 20));
+      if (!model_->IsEnabled(web_contents)) {
         icon_model = ui::GetDefaultDisabledIconFromImageModel(
             icon_model, window.GetColorProvider());
       }
@@ -89,7 +84,7 @@ class WebUIBrowserExtensionsContainer::ActionInfo
  private:
   const raw_ref<WebUIBrowserExtensionsContainer> extensions_container_;
   const raw_ref<Browser> browser_;
-  std::unique_ptr<ExtensionActionViewController> controller_;
+  std::unique_ptr<ExtensionActionViewModel> model_;
 };
 
 // This is based on ExtensionContextMenuController.
@@ -101,7 +96,7 @@ class WebUIBrowserExtensionsContainer::ContextMenu {
     auto it = extensions_container.actions_.find(action_id);
     CHECK(it != extensions_container.actions_.end());
 
-    ui::MenuModel* model = it->second->controller()->GetContextMenu(
+    ui::MenuModel* model = it->second->model()->GetContextMenu(
         extensions::ExtensionContextMenuModel::ContextMenuSource::
             kToolbarAction);
 
@@ -177,14 +172,14 @@ WebUIBrowserExtensionsContainer::WebUIBrowserExtensionsContainer(
 
 WebUIBrowserExtensionsContainer::~WebUIBrowserExtensionsContainer() {
   for (const auto& [_, action] : actions_) {
-    action->controller()->UnregisterCommand();
+    action->model()->UnregisterCommand();
   }
 }
 
-ToolbarActionViewController* WebUIBrowserExtensionsContainer::GetActionForId(
+ToolbarActionViewModel* WebUIBrowserExtensionsContainer::GetActionForId(
     const std::string& action_id) {
   auto it = actions_.find(action_id);
-  return it != actions_.end() ? it->second->controller() : nullptr;
+  return it != actions_.end() ? it->second->model() : nullptr;
 }
 
 std::optional<extensions::ExtensionId>
@@ -217,7 +212,7 @@ void WebUIBrowserExtensionsContainer::UndoPopOut() {
 }
 
 void WebUIBrowserExtensionsContainer::SetPopupOwner(
-    ToolbarActionViewController* popup_owner) {
+    ToolbarActionViewModel* popup_owner) {
   // We should never be setting a popup owner when one already exists, and
   // never unsetting one when one wasn't set.
   DCHECK((popup_owner_ != nullptr) ^ (popup_owner != nullptr));
@@ -314,7 +309,7 @@ void WebUIBrowserExtensionsContainer::OnToolbarActionRemoved(
   if (context_menu_ && context_menu_->action_id() == id) {
     context_menu_.reset();
   }
-  actions_[id]->controller()->UnregisterCommand();
+  actions_[id]->model()->UnregisterCommand();
   actions_.erase(id);
   if (page_) {
     page_->ActionRemoved(id);
@@ -385,8 +380,8 @@ void WebUIBrowserExtensionsContainer::NotifyActionPoppedOut(
 void WebUIBrowserExtensionsContainer::ExecuteUserAction(const std::string& id) {
   auto it = actions_.find(id);
   CHECK(it != actions_.end());
-  it->second->controller()->ExecuteUserAction(
-      ToolbarActionViewController::InvocationSource::kToolbarButton);
+  it->second->model()->ExecuteUserAction(
+      ToolbarActionViewModel::InvocationSource::kToolbarButton);
 }
 
 void WebUIBrowserExtensionsContainer::ShowContextMenu(
@@ -419,10 +414,10 @@ void WebUIBrowserExtensionsContainer::CreateActionForId(
     const ToolbarActionsModel::ActionId& action_id) {
   auto action_info = std::make_unique<ActionInfo>(
       *this, browser_.get(),
-      ExtensionActionViewController::Create(
+      ExtensionActionViewModel::Create(
           action_id, &browser_.get(),
           std::make_unique<ExtensionActionPlatformDelegateViews>(
               &browser_.get(), this)));
-  action_info->controller()->RegisterCommand();
+  action_info->model()->RegisterCommand();
   actions_[action_id] = std::move(action_info);
 }

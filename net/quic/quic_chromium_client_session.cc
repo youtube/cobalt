@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/quic/quic_chromium_client_session.h"
 
 #include <algorithm>
@@ -15,6 +10,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -1148,21 +1144,6 @@ QuicChromiumClientSession::~QuicChromiumClientSession() {
     return;
   }
 
-  // Sending one client_hello means we had zero handshake-round-trips.
-  int round_trip_handshakes = crypto_stream_->num_sent_client_hellos() - 1;
-
-  SSLInfo ssl_info;
-  // QUIC supports only secure urls.
-  if (GetSSLInfo(&ssl_info) && ssl_info.cert.get()) {
-    UMA_HISTOGRAM_CUSTOM_COUNTS("Net.QuicSession.ConnectRandomPortForHTTPS",
-                                round_trip_handshakes, 1, 3, 4);
-    if (require_confirmation_) {
-      UMA_HISTOGRAM_CUSTOM_COUNTS(
-          "Net.QuicSession.ConnectRandomPortRequiringConfirmationForHTTPS",
-          round_trip_handshakes, 1, 3, 4);
-    }
-  }
-
   const quic::QuicConnectionStats stats = connection()->GetStats();
 
   // The MTU used by QUIC is limited to a fairly small set of predefined values
@@ -1722,9 +1703,8 @@ quic::QuicSSLConfig QuicChromiumClientSession::GetSSLConfig() const {
   }
   if (!ssl_context_config.trust_anchor_ids.empty() &&
       base::FeatureList::IsEnabled(features::kTLSTrustAnchorIDs)) {
-    config.trust_anchor_ids =
-        base::as_string_view(SSLConfig::SelectTrustAnchorIDs(
-            trust_anchor_ids_, ssl_context_config.trust_anchor_ids));
+    config.trust_anchor_ids = base::as_string_view(
+        ssl_context_config.SelectTrustAnchorIDs(trust_anchor_ids_));
   }
   return config;
 }
@@ -1777,9 +1757,9 @@ void QuicChromiumClientSession::RegisterQuicConnectionClosePayload() {
       connection()->SerializeLargePacketNumberConnectionClosePacket(
           quic::QUIC_CLIENT_LOST_NETWORK_ACCESS,
           "App loses network access on Android");
-  base::span<uint8_t> payload(
-      (uint8_t*)connection_close_packet->encrypted_buffer,
-      connection_close_packet->encrypted_length);
+  auto payload = UNSAFE_TODO(
+      base::span<uint8_t>((uint8_t*)connection_close_packet->encrypted_buffer,
+                          connection_close_packet->encrypted_length));
   static_cast<QuicChromiumPacketWriter*>(connection()->writer())
       ->RegisterQuicConnectionClosePayload(payload);
 }

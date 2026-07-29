@@ -4,9 +4,18 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
-import android.content.res.Resources;
-import android.view.View;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.view.View;
+import android.widget.Button;
+
+import androidx.annotation.Px;
 import androidx.constraintlayout.widget.ConstraintSet;
 
 import org.chromium.build.annotations.NullMarked;
@@ -30,6 +39,8 @@ class NavigationAttachmentsViewBinder {
         } else if (propertyKey == NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE) {
             reanchorViewsForCompactFusebox(model, view);
             updateModeSelectorVisibility(model, view);
+        } else if (propertyKey == NavigationAttachmentsProperties.COMPACT_UI) {
+            reanchorViewsForCompactFusebox(model, view);
         } else if (propertyKey
                 == NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CLICKED) {
             view.requestType.setOnClickListener(
@@ -45,7 +56,7 @@ class NavigationAttachmentsViewBinder {
             boolean visible = model.get(NavigationAttachmentsProperties.ATTACHMENTS_VISIBLE);
             view.attachmentsView.setVisibility(visible ? View.VISIBLE : View.GONE);
         } else if (propertyKey == NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE) {
-            view.attachmentsToolbar.setVisibility(
+            view.addButton.setVisibility(
                     model.get(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE)
                             ? View.VISIBLE
                             : View.GONE);
@@ -55,11 +66,7 @@ class NavigationAttachmentsViewBinder {
                     v -> model.get(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED).run());
         } else if (propertyKey
                 == NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE) {
-            int visibility =
-                    model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE)
-                            ? View.VISIBLE
-                            : View.GONE;
-            view.popup.mAutocompleteRequestTypeGroup.setVisibility(visibility);
+            updateModeSelectorVisibility(model, view);
         } else if (propertyKey == NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED) {
             view.popup.mCameraButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED).run());
@@ -71,6 +78,23 @@ class NavigationAttachmentsViewBinder {
         } else if (propertyKey == NavigationAttachmentsProperties.POPUP_CLIPBOARD_CLICKED) {
             view.popup.mClipboardButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.POPUP_CLIPBOARD_CLICKED).run());
+        } else if (propertyKey
+                == NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED) {
+            view.popup.mCreateImageButton.setEnabled(
+                    model.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_ENABLED));
+        } else if (propertyKey
+                == NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE) {
+            // TODO(https://crbug.com/457465693): Set create image tool visibility.
+        } else if (propertyKey == NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_CLICKED) {
+            view.popup.mCreateImageButton.setOnClickListener(
+                    v ->
+                            model.get(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_CLICKED)
+                                    .run());
+        } else if (propertyKey == NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE) {
+            view.popup.mFileButton.setVisibility(
+                    model.get(NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE)
+                            ? View.VISIBLE
+                            : View.GONE);
         } else if (propertyKey == NavigationAttachmentsProperties.POPUP_FILE_CLICKED) {
             view.popup.mFileButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.POPUP_FILE_CLICKED).run());
@@ -80,25 +104,22 @@ class NavigationAttachmentsViewBinder {
         } else if (propertyKey == NavigationAttachmentsProperties.POPUP_TAB_PICKER_CLICKED) {
             view.popup.mTabButton.setOnClickListener(
                     v -> model.get(NavigationAttachmentsProperties.POPUP_TAB_PICKER_CLICKED).run());
-        } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE) {
-            view.popup.mAddCurrentTab.setVisibility(
-                    model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE)
-                            ? View.VISIBLE
-                            : View.GONE);
         } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_CLICKED) {
             view.popup.mAddCurrentTab.setOnClickListener(
                     v ->
                             model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_CLICKED)
                                     .run());
-        } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_THUMBNAIL) {
-            view.popup.mAddCurrentTab.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                    model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_THUMBNAIL),
-                    null,
-                    null,
-                    null);
-        } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_TINT) {
-            view.popup.mAddCurrentTab.setCompoundDrawableTintList(
-                    model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_TINT));
+        } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED) {
+            view.popup.mAddCurrentTab.setEnabled(
+                    model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED));
+        } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON) {
+            updateForCurrentTabFavicon(
+                    model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON), view);
+        } else if (propertyKey == NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE) {
+            view.popup.mAddCurrentTab.setVisibility(
+                    model.get(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE)
+                            ? View.VISIBLE
+                            : View.GONE);
         } else if (propertyKey == NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON) {
             updateModeSelectorVisibility(model, view);
         }
@@ -106,22 +127,33 @@ class NavigationAttachmentsViewBinder {
 
     static void updateModeSelectorVisibility(
             PropertyModel model, NavigationAttachmentsViewHolder views) {
+        boolean isRequestTypeChangeable =
+                model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE);
         boolean showFuseboxToolbar =
                 model.get(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE);
         boolean showDedicatedModeButton =
                 model.get(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON);
-        boolean isAiModeEnabled =
+        boolean isAiModeUsed =
                 model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE)
                         == AutocompleteRequestType.AI_MODE;
+        boolean isImageGenerationUsed =
+                model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE)
+                        == AutocompleteRequestType.IMAGE_GENERATION;
+        boolean isCustomModeUsed = isAiModeUsed || isImageGenerationUsed;
         Resources res = views.parentView.getResources();
 
         views.addButton.setVisibility(showFuseboxToolbar ? View.VISIBLE : View.GONE);
 
-        if (showFuseboxToolbar && (isAiModeEnabled || showDedicatedModeButton)) {
+        if (showFuseboxToolbar && (isCustomModeUsed || showDedicatedModeButton)) {
             views.requestType.setVisibility(View.VISIBLE);
 
-            if (isAiModeEnabled) {
+            if (isAiModeUsed) {
                 String hint = res.getString(R.string.ai_mode_entrypoint_label);
+                views.requestType.setText(hint);
+                views.requestType.setContentDescription(
+                        res.getString(R.string.accessibility_omnibox_reset_mode, hint));
+            } else if (isImageGenerationUsed) {
+                String hint = res.getString(R.string.omnibox_create_image);
                 views.requestType.setText(hint);
                 views.requestType.setContentDescription(
                         res.getString(R.string.accessibility_omnibox_reset_mode, hint));
@@ -138,39 +170,48 @@ class NavigationAttachmentsViewBinder {
             }
 
             views.requestType.setButtonColor(
-                    isAiModeEnabled
+                    isCustomModeUsed
                             ? res.getColorStateList(R.color.gm3_baseline_surface_container)
                             : res.getColorStateList(android.R.color.transparent));
 
             views.requestType.setBorderStyle(
-                    isAiModeEnabled
+                    isCustomModeUsed
                             ? RippleBackgroundHelper.BorderType.SOLID
                             : RippleBackgroundHelper.BorderType.DASHED);
 
             views.requestType.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                    res.getDrawable(R.drawable.search_spark_black_24dp),
+                    isImageGenerationUsed
+                            ? res.getDrawable(R.drawable.create_image_24dp)
+                            : res.getDrawable(R.drawable.search_spark_black_24dp),
                     null,
-                    isAiModeEnabled ? res.getDrawable(R.drawable.btn_close) : null,
+                    isCustomModeUsed ? res.getDrawable(R.drawable.btn_close) : null,
                     null);
         } else {
             views.requestType.setVisibility(View.GONE);
         }
 
-        views.popup.mAutocompleteRequestTypeGroup.setVisibility(
-                showDedicatedModeButton ? View.GONE : View.VISIBLE);
+        boolean isAiModeButtonVisible = isRequestTypeChangeable && !showDedicatedModeButton;
+        boolean isCreateImageButtonVisible =
+                isRequestTypeChangeable
+                        && model.get(
+                                NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE);
+        views.popup.mAiModeButton.setVisibility(isAiModeButtonVisible ? View.VISIBLE : View.GONE);
+        views.popup.mCreateImageButton.setVisibility(
+                isCreateImageButtonVisible ? View.VISIBLE : View.GONE);
+        views.popup.mRequestTypeDivider.setVisibility(
+                isAiModeButtonVisible || isCreateImageButtonVisible ? View.VISIBLE : View.GONE);
     }
 
     static void reanchorViewsForCompactFusebox(
             PropertyModel model, NavigationAttachmentsViewHolder views) {
-        if (!OmniboxFeatures.sCompactFusebox.getValue()) return;
-
-        boolean isSearchMode =
+        boolean shouldShowCompactUi =
                 model.get(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE)
-                        == AutocompleteRequestType.SEARCH;
+                                == AutocompleteRequestType.SEARCH
+                        && model.get(NavigationAttachmentsProperties.COMPACT_UI);
 
-        int topToTop = isSearchMode ? R.id.url_bar : ConstraintSet.UNSET;
-        int topToBottom = isSearchMode ? ConstraintSet.UNSET : R.id.url_bar;
-        int bottomToBottom = isSearchMode ? R.id.url_bar : ConstraintSet.PARENT_ID;
+        int topToTop = shouldShowCompactUi ? R.id.url_bar : ConstraintSet.UNSET;
+        int topToBottom = shouldShowCompactUi ? ConstraintSet.UNSET : R.id.url_bar;
+        int bottomToBottom = shouldShowCompactUi ? ConstraintSet.UNSET : ConstraintSet.PARENT_ID;
 
         var cs = new ConstraintSet();
         cs.clone(views.parentView);
@@ -191,5 +232,31 @@ class NavigationAttachmentsViewBinder {
         }
 
         cs.applyTo(views.parentView);
+    }
+
+    // TODO(https://crbug.com/460150759): Update to correctly tint for being disabled.
+    private static void updateForCurrentTabFavicon(
+            Bitmap favicon, NavigationAttachmentsViewHolder viewHolder) {
+        Context context = viewHolder.parentView.getContext();
+        Resources res = context.getResources();
+        Button addCurrentTabButton = viewHolder.popup.mAddCurrentTab;
+        final Drawable drawable;
+        final ColorStateList tint;
+        if (favicon != null) {
+            @Px int iconSizePx = res.getDimensionPixelSize(R.dimen.fusebox_popup_item_icon_size);
+            Bitmap bitmap =
+                    Bitmap.createScaledBitmap(favicon, iconSizePx, iconSizePx, /* filter= */ true);
+            drawable = new BitmapDrawable(res, bitmap);
+            drawable.setBounds(
+                    /* left= */ 0, /* top= */ 0, /* right= */ iconSizePx, /* bottom= */ iconSizePx);
+            tint = null;
+        } else {
+            drawable = assumeNonNull(context.getDrawable(R.drawable.ic_globe_24dp));
+            tint = context.getColorStateList(R.color.default_icon_color_tint_list);
+        }
+
+        addCurrentTabButton.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                drawable, /* top= */ null, /* end= */ null, /* bottom= */ null);
+        addCurrentTabButton.setCompoundDrawableTintList(tint);
     }
 }

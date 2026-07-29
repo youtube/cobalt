@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.settings.search;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -25,7 +26,7 @@ import java.util.List;
  */
 @RunWith(BaseRobolectricTestRunner.class)
 public class SettingsIndexDataTest {
-
+    private static final String ROOT_FRAGMENT = "RootFragment";
     private SettingsIndexData mIndexData;
 
     @Before
@@ -37,7 +38,7 @@ public class SettingsIndexDataTest {
     @Test
     public void testAddAndGetEntry() {
         SettingsIndexData.Entry entry =
-                new SettingsIndexData.Entry.Builder("key1", "Title 1", "Parent1")
+                new SettingsIndexData.Entry.Builder("key1", "key1", "Title 1", "Parent1")
                         .setHeader("Header 1")
                         .setSummary("Summary 1")
                         .build();
@@ -53,52 +54,101 @@ public class SettingsIndexDataTest {
     public void testAddEntry_throwsOnDuplicateKey() {
         mIndexData.addEntry(
                 "key1",
-                new SettingsIndexData.Entry.Builder("key1", "Title 1", "P1")
+                new SettingsIndexData.Entry.Builder("key1", "key1", "Title 1", "P1")
                         .setHeader("Header 1")
                         .build());
         // This second call with the same key should throw.
         mIndexData.addEntry(
                 "key1",
-                new SettingsIndexData.Entry.Builder("key1", "Title 2", "P2")
+                new SettingsIndexData.Entry.Builder("key1", "key1", "Title 2", "P2")
                         .setHeader("Header 2")
                         .build());
     }
 
-    /** Tests the hierarchical disabling logic of removeEntry. */
     @Test
-    public void testRemoveEntry_disablesTargetFragment() {
+    public void testRemoveEntry() {
         SettingsIndexData.Entry entry =
-                new SettingsIndexData.Entry.Builder("key1", "Title 1", "Parent1")
-                        .setHeader("Header 1")
-                        .setFragment("FragmentToDisable")
-                        .build();
-        mIndexData.addEntry("key1", entry);
-        assertFalse(mIndexData.isDisabledFragment("FragmentToDisable"));
-
-        mIndexData.removeEntry("key1");
-
-        assertNull("Entry should be removed.", mIndexData.getEntry("key1"));
-        assertTrue(
-                "Target fragment should now be disabled.",
-                mIndexData.isDisabledFragment("FragmentToDisable"));
-    }
-
-    /** Tests that simple removal does not disable the target fragment. */
-    @Test
-    public void testRemoveSimpleEntry_doesNotDisableTargetFragment() {
-        SettingsIndexData.Entry entry =
-                new SettingsIndexData.Entry.Builder("key1", "Title 1", "Parent1")
+                new SettingsIndexData.Entry.Builder("key1", "key1", "Title 1", "Parent1")
                         .setHeader("Header 1")
                         .setFragment("FragmentToKeep")
                         .build();
         mIndexData.addEntry("key1", entry);
 
-        mIndexData.removeSimpleEntry("key1");
+        mIndexData.removeEntry("key1");
 
         assertNull("Entry should be removed.", mIndexData.getEntry("key1"));
-        assertFalse(
-                "Target fragment should NOT be disabled.",
-                mIndexData.isDisabledFragment("FragmentToKeep"));
+    }
+
+    @Test
+    public void testFinalizeIndex_prunesOrphans() {
+        // Setup: A -> B -> C hierarchy.
+        // A is the top-level preference on the root screen.
+        mIndexData.addEntry(
+                "pref_A",
+                new SettingsIndexData.Entry.Builder("pref_A", "pref_A", "Title A", ROOT_FRAGMENT)
+                        .setFragment("FragmentB")
+                        .build());
+        mIndexData.addEntry(
+                "pref_B",
+                new SettingsIndexData.Entry.Builder("pref_B", "pref_B", "Title B", "FragmentB")
+                        .setFragment("FragmentC")
+                        .build());
+        mIndexData.addEntry(
+                "pref_C",
+                new SettingsIndexData.Entry.Builder("pref_C", "pref_C", "Title C", "FragmentC")
+                        .build());
+
+        mIndexData.addChildParentLink("FragmentB", "pref_A");
+        mIndexData.addChildParentLink("FragmentC", "pref_B");
+
+        mIndexData.removeEntry("pref_A");
+
+        mIndexData.resolveIndex(ROOT_FRAGMENT);
+
+        // Assertions:
+        assertNull("Parent link pref_A should be gone.", mIndexData.getEntry("pref_A"));
+        assertNull("Orphaned child pref_B should have been pruned.", mIndexData.getEntry("pref_B"));
+        assertNull(
+                "Orphaned grandchild pref_C should have been pruned.",
+                mIndexData.getEntry("pref_C"));
+    }
+
+    @Test
+    public void testFinalizeIndex_handlesMultiParentCorrectly() {
+        // Setup: A child fragment (FragmentC) is reachable from two different parents (A and B).
+        mIndexData.addEntry(
+                "pref_A",
+                new SettingsIndexData.Entry.Builder("pref_A", "pref_A", "Title A", ROOT_FRAGMENT)
+                        .setFragment("FragmentC")
+                        .build());
+        mIndexData.addEntry(
+                "pref_B",
+                new SettingsIndexData.Entry.Builder("pref_B", "pref_B", "Title B", ROOT_FRAGMENT)
+                        .setFragment("FragmentC")
+                        .build());
+        mIndexData.addEntry(
+                "pref_C",
+                new SettingsIndexData.Entry.Builder("pref_C", "pref_C", "Title C", "FragmentC")
+                        .build());
+
+        mIndexData.addChildParentLink("FragmentC", "pref_A");
+        mIndexData.addChildParentLink("FragmentC", "pref_B");
+
+        mIndexData.removeEntry("pref_A");
+
+        mIndexData.resolveIndex(ROOT_FRAGMENT);
+
+        assertNull("Pruned parent pref_A should be gone.", mIndexData.getEntry("pref_A"));
+        assertNotNull(
+                "The remaining parent link pref_B should still exist.",
+                mIndexData.getEntry("pref_B"));
+        assertNotNull(
+                "Child pref_C should NOT be pruned as it's still reachable.",
+                mIndexData.getEntry("pref_C"));
+        assertEquals(
+                "Child's header should be resolved via the remaining parent B.",
+                "Title B",
+                mIndexData.getEntry("pref_C").header);
     }
 
     /** Tests the core search functionality, including scoring and result ordering. */
@@ -107,18 +157,20 @@ public class SettingsIndexDataTest {
         // Setup: Add entries designed to test different scoring levels.
         mIndexData.addEntry(
                 "key_summary",
-                new SettingsIndexData.Entry.Builder("key_summary", "Other", "P1")
+                new SettingsIndexData.Entry.Builder("key_summary", "key_summary", "Other", "P1")
                         .setHeader("Header 1")
                         .setSummary("Contains the word privacy")
                         .build());
         mIndexData.addEntry(
                 "key_title_partial",
-                new SettingsIndexData.Entry.Builder("key_title_partial", "Privacy Guide", "P2")
+                new SettingsIndexData.Entry.Builder(
+                                "key_title_partial", "key_title_partial", "Privacy Guide", "P2")
                         .setHeader("Header 2")
                         .build());
         mIndexData.addEntry(
                 "key_title_exact",
-                new SettingsIndexData.Entry.Builder("key_title_exact", "Privacy", "P3")
+                new SettingsIndexData.Entry.Builder(
+                                "key_title_exact", "key_title_exact", "Privacy", "P3")
                         .setHeader("Header 2")
                         .build());
 
@@ -129,11 +181,11 @@ public class SettingsIndexDataTest {
         // Assertions:
         assertEquals("Should find all three matching entries.", 3, items.size());
         // 1. The exact title match should have the highest score and be first.
-        assertEquals("key_title_exact", items.get(0).key);
+        assertEquals("key_title_exact", items.get(0).id);
         // 2. The partial title match should be second.
-        assertEquals("key_title_partial", items.get(1).key);
+        assertEquals("key_title_partial", items.get(1).id);
         // 3. The summary match should have the lowest score and be last.
-        assertEquals("key_summary", items.get(2).key);
+        assertEquals("key_summary", items.get(2).id);
     }
 
     /** Tests that the text normalization (diacritic stripping) works correctly. */
@@ -142,7 +194,8 @@ public class SettingsIndexDataTest {
         // Setup: Add an entry with an accented character.
         mIndexData.addEntry(
                 "key_resume",
-                new SettingsIndexData.Entry.Builder("key_resume", "Resumé Settings", "P1")
+                new SettingsIndexData.Entry.Builder(
+                                "key_resume", "key_resume", "Resumé Settings", "P1")
                         .setHeader("Header 1")
                         .build());
 
@@ -151,7 +204,7 @@ public class SettingsIndexDataTest {
 
         // Assertion: The search should find the correct entry.
         assertEquals("Should find one match.", 1, results.getItems().size());
-        assertEquals("key_resume", results.getItems().get(0).key);
+        assertEquals("key_resume", results.getItems().get(0).id);
     }
 
     /** Tests that an empty or non-matching search returns no results. */
@@ -159,7 +212,7 @@ public class SettingsIndexDataTest {
     public void testSearch_noMatches() {
         mIndexData.addEntry(
                 "key1",
-                new SettingsIndexData.Entry.Builder("key1", "Title", "P1")
+                new SettingsIndexData.Entry.Builder("key1", "key1", "Title", "P1")
                         .setHeader("Header")
                         .setSummary("Summary")
                         .build());
@@ -170,5 +223,30 @@ public class SettingsIndexDataTest {
         assertTrue(
                 "Searching for an empty string should return empty results.",
                 mIndexData.search("").isEmpty());
+    }
+
+    @Test
+    public void testClear_removesAllEntriesAndRelationships() {
+        mIndexData.addEntry(
+                "key1",
+                new SettingsIndexData.Entry.Builder("key1", "key1", "Title 1", "ParentFragment")
+                        .build());
+        mIndexData.addChildParentLink("ChildFragment", "key1");
+
+        assertFalse(
+                "Entries map should not be empty before clear.",
+                mIndexData.getEntriesForTesting().isEmpty());
+        assertFalse(
+                "Parent-child map should not be empty before clear.",
+                mIndexData.getChildFragmentToParentKeysForTesting().isEmpty());
+
+        mIndexData.clear();
+
+        assertTrue(
+                "Entries map should be empty after clear.",
+                mIndexData.getEntriesForTesting().isEmpty());
+        assertTrue(
+                "Parent-child map should be empty after clear.",
+                mIndexData.getChildFragmentToParentKeysForTesting().isEmpty());
     }
 }

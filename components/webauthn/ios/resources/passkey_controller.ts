@@ -40,13 +40,206 @@ function isGpmAaguid(aaguid: Uint8Array): boolean {
  */
 const cachedNavigatorCredentials: CredentialsContainer = navigator.credentials;
 
-// Whether to attempt to handle modal passkeys requests directly in Chrome.
-let mayHandleModalPasskeyRequests: boolean = false;
+// A function will be defined here by the placeholder replacement.
+// It will be called to determine whether to attempt to handle modal
+// passkeys requests directly in the browser.
+declare const shouldHandleModalPasskeyRequests: () => boolean;
+
+/*! {{PLACEHOLDER_HANDLE_MODAL_PASSKEY_REQUESTS}} */
 
 // Returns whether a passkey request uses conditional mediation.
 function isConditionalMediation(
     options: CredentialRequestOptions|CredentialCreationOptions): boolean {
   return ('mediation' in options && options.mediation === 'conditional');
+}
+
+// Converts an array buffer to a base 64 encoded (forgiving policy) string.
+function arrayBufferToBase64(buffer: ArrayBufferLike): string {
+  // TODO(crbug.com/385174410): replace with binary.toBase64() on WebKit 18.2+.
+  const binary = new Uint8Array(buffer);
+  let base64 = '';
+  binary.forEach((byte) => {
+    base64 += String.fromCharCode(byte);
+  });
+
+  return btoa(base64);
+}
+
+// Converts a buffer source to a base 64 encoded (forgiving policy) string.
+function bufferSourceToBase64(buffer: BufferSource): string {
+  return arrayBufferToBase64(
+      buffer instanceof ArrayBuffer ? buffer : buffer.buffer);
+}
+
+// Options type containing both types of public key credential options.
+type Options =
+    PublicKeyCredentialCreationOptions|PublicKeyCredentialRequestOptions;
+
+// Checks if the object is a PublicKeyCredentialCreationOptions.
+function isCreationOptions(options: Options):
+    options is PublicKeyCredentialCreationOptions {
+  // Creation options have the 'user' field, Request options do not.
+  return (options as PublicKeyCredentialCreationOptions).user !== undefined;
+}
+
+// Interface containing all user related information.
+interface UserEntity {
+  id: string;
+  name: string;
+  displayName: string;
+}
+
+// Returns a dictionary of the user's entity.
+function extractUserEntity(user: PublicKeyCredentialUserEntity): UserEntity {
+  return {
+    'id': bufferSourceToBase64(user.id),
+    'name': user.name,
+    'displayName': user.displayName,
+  };
+}
+
+// Interface containing all relying party related information.
+interface RelyingPartyEntity {
+  id: string;
+  name?: string;
+}
+
+// Returns a dictionary of the relying party's entity.
+function extractRelyingPartyEntity(options: Options): RelyingPartyEntity {
+  if (isCreationOptions(options)) {
+    return {
+      'id': options.rp.id ?? document.location.host,
+      'name': options.rp.name,
+    };
+  } else {  // PublicKeyCredentialRequestOptions
+    return {
+      'id': options.rpId ?? document.location.host,
+    };
+  }
+}
+
+// Interface containing information about the request.
+interface RequestInformation {
+  challenge: string;
+  userVerification: string;
+  extensions: AuthenticationExtensionsClientInputs|undefined;
+}
+
+// Returns a dictionary of this request's information.
+function extractRequestInformation(options: Options): RequestInformation {
+  let uvRequirement: UserVerificationRequirement|undefined;
+  if (isCreationOptions(options)) {
+    uvRequirement = options.authenticatorSelection?.userVerification;
+  } else {  // PublicKeyCredentialRequestOptions
+    uvRequirement = options.userVerification;
+  }
+
+  return {
+    'challenge': bufferSourceToBase64(options.challenge),
+    'userVerification': uvRequirement ?? 'unknown',
+    'extensions': options.extensions,
+  };
+}
+
+// Utility function to ensure transports are expressed as an array of strings.
+function transportsAsStrings(transports?: AuthenticatorTransport[]): string[] {
+  return (transports ?? []).map(transport => transport as string);
+}
+
+// Interface containing information about the credential descriptors.
+interface SerializedDescriptor {
+  type: string;
+  id: string;
+  transports: string[];
+}
+
+// Serializes a PublicKeyCredentialDescriptor array to a serialized descriptors
+// array.
+function publicKeyCredentialDescriptorAsSerializedDescriptors(
+    descriptors?: PublicKeyCredentialDescriptor[]): SerializedDescriptor[] {
+  if (!descriptors) {
+    return [];
+  }
+
+  // Map the array and convert BufferSource to base64.
+  return descriptors.map((desc) => ({
+                           type: desc.type,
+                           id: bufferSourceToBase64(desc.id),
+                           transports: transportsAsStrings(desc.transports),
+                         }));
+}
+
+function createPublicKeyCredential(
+    id: string, authenticatorAttachment: string, rawId: ArrayBuffer,
+    response: AuthenticatorResponse): PublicKeyCredential {
+  return {
+    id: id,
+    type: 'public-key',
+    authenticatorAttachment: authenticatorAttachment,
+    rawId: rawId,
+    response: response,
+    getClientExtensionResults(): AuthenticationExtensionsClientOutputs {
+      // TODO(crbug.com/385174410): implement when adding extension support.
+      return {};
+    },
+    toJSON(): any {
+      return {
+        id: this.id,
+        type: this.type,
+        authenticatorAttachment: this.authenticatorAttachment,
+        rawId: this.rawId,
+        response: this.response,
+      };
+    },
+  };
+}
+
+// Resolve and reject functions types used by the deferred promise.
+type ResolveFunction<T> = (value: T|PromiseLike<T>) => void;
+type RejectFunction = (reason?: any) => void;
+
+// Class containing a promise and access to its resolve and reject method for
+// later use.
+class DeferredPublicKeyCredentialPromise {
+  // eslint-disable-next-line @typescript-eslint/explicit-member-accessibility
+  public promise: Promise<PublicKeyCredential>;
+  // eslint-disable-next-line @typescript-eslint/explicit-member-accessibility
+  public resolve!: ResolveFunction<PublicKeyCredential>;
+  // eslint-disable-next-line @typescript-eslint/explicit-member-accessibility
+  public reject!: RejectFunction;
+  // TODO(crbug.com/385174410): keep a map of promises with unique ids instead
+  // of a single promise.
+  static ongoingPromise: DeferredPublicKeyCredentialPromise|null = null;
+
+  constructor(timeoutMs?: number) {
+    this.promise = Promise.race([
+      new Promise<PublicKeyCredential>((resolve, reject) => {
+        this.resolve = (value) => {
+          resolve(value);
+          DeferredPublicKeyCredentialPromise.ongoingPromise = null;
+        };
+
+        this.reject = (reason) => {
+          reject(reason);
+          DeferredPublicKeyCredentialPromise.ongoingPromise = null;
+        };
+      }),
+      new Promise<PublicKeyCredential>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Promise timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      }),
+    ]);
+
+    DeferredPublicKeyCredentialPromise.ongoingPromise = this;
+  }
+}
+
+// Creates a deferred public key credential promise and return its credential
+// promise.
+function publicKeyCredentialPromise(timeoutMs: number|undefined):
+    Promise<Credential|null> {
+  return new DeferredPublicKeyCredentialPromise(timeoutMs).promise;
 }
 
 // Creates a passthrough registration request from the provided parameters.
@@ -99,16 +292,35 @@ function createPassthroughAttestationRequest(
 
 // Creates a registration request from the provided parameters.
 function createRegistrationRequest(
-    options?: CredentialCreationOptions|undefined): Promise<Credential|null> {
-  // TODO(crbug.com/385174410): Implement non passthrough path.
-  return createPassthroughRegistrationRequest(options);
+    publicKeyOptions: PublicKeyCredentialCreationOptions):
+    Promise<Credential|null> {
+  sendWebKitMessage(HANDLER_NAME, {
+    'event': 'handleCreateRequest',
+    'frameId': gCrWeb.getFrameId(),
+    'request': extractRequestInformation(publicKeyOptions),
+    'rpEntity': extractRelyingPartyEntity(publicKeyOptions),
+    'userEntity': extractUserEntity(publicKeyOptions.user),
+    'excludeCredentials': publicKeyCredentialDescriptorAsSerializedDescriptors(
+        publicKeyOptions.excludeCredentials),
+  });  // Attestation request
+
+  return publicKeyCredentialPromise(publicKeyOptions.timeout);
 }
 
 // Creates an attestation request from the provided parameters.
-function createAttestationRequest(options?: CredentialRequestOptions|undefined):
+function createAttestationRequest(
+    publicKeyOptions: PublicKeyCredentialRequestOptions):
     Promise<Credential|null> {
-  // TODO(crbug.com/385174410): Implement non passthrough path.
-  return createPassthroughAttestationRequest(options);
+  sendWebKitMessage(HANDLER_NAME, {
+    'event': 'handleGetRequest',
+    'frameId': gCrWeb.getFrameId(),
+    'request': extractRequestInformation(publicKeyOptions),
+    'rpEntity': extractRelyingPartyEntity(publicKeyOptions),
+    'allowCredentials': publicKeyCredentialDescriptorAsSerializedDescriptors(
+        publicKeyOptions.allowCredentials),
+  });  // Attestation request
+
+  return publicKeyCredentialPromise(publicKeyOptions.timeout);
 }
 
 /**
@@ -121,8 +333,11 @@ const credentialsContainer: CredentialsContainer = {
       return cachedNavigatorCredentials.get(options);
     }
 
-    if (mayHandleModalPasskeyRequests && !isConditionalMediation(options)) {
-      return createAttestationRequest(options);
+    if (shouldHandleModalPasskeyRequests() &&
+        !isConditionalMediation(options) && options.publicKey.challenge) {
+      return createAttestationRequest(options.publicKey).then(_ => {
+        return createPassthroughAttestationRequest(options);
+      });
     } else {
       return createPassthroughAttestationRequest(options);
     }
@@ -134,8 +349,12 @@ const credentialsContainer: CredentialsContainer = {
       return cachedNavigatorCredentials.create(options);
     }
 
-    if (mayHandleModalPasskeyRequests && !isConditionalMediation(options)) {
-      return createRegistrationRequest(options);
+    if (shouldHandleModalPasskeyRequests() &&
+        !isConditionalMediation(options) && options.publicKey.challenge &&
+        options.publicKey.user && options.publicKey.user.id) {
+      return createRegistrationRequest(options.publicKey).then(_ => {
+        return createPassthroughRegistrationRequest(options);
+      });
     } else {
       return createPassthroughRegistrationRequest(options);
     }
@@ -153,14 +372,17 @@ const credentialsContainer: CredentialsContainer = {
 // a workaround for the fact that `navigator.credentials` is readonly.
 Object.defineProperty(navigator, 'credentials', {value: credentialsContainer});
 
-// Sets whether Chrome is allowed to handle passkey requests directly.
-function setCanHandleModalPasskeyRequests(enabled: boolean) {
-  mayHandleModalPasskeyRequests = enabled;
+// Function called from C++ to yield the passkey request back to the OS.
+function deferToRenderer(): void {
+  const nullArray = new ArrayBuffer(0);
+  const emptyResponse: AuthenticatorResponse = {clientDataJSON: nullArray};
+  const emptyCredential: PublicKeyCredential =
+      createPublicKeyCredential('', '', nullArray, emptyResponse);
+  DeferredPublicKeyCredentialPromise.ongoingPromise?.resolve(emptyCredential);
 }
 
 const passkey = new CrWebApi();
 
-passkey.addFunction(
-    'setCanHandleModalPasskeyRequests', setCanHandleModalPasskeyRequests);
+passkey.addFunction('deferToRenderer', deferToRenderer);
 
 gCrWeb.registerApi('passkey', passkey);

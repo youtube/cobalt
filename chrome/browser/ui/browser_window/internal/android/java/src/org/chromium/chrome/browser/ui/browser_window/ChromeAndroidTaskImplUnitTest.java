@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
+import static android.os.Looper.getMainLooper;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -22,6 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.robolectric.Shadows.shadowOf;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
@@ -34,6 +37,7 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.Build;
+import android.util.Pair;
 import android.view.WindowMetrics;
 
 import org.junit.Assert;
@@ -49,6 +53,7 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.FakeTimeTestRule;
+import org.chromium.base.Promise;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
@@ -258,6 +263,7 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.setActivityScopedObjects(activityScopedObjects);
+        pendingTask.onNativeInitializationFinished();
 
         // Assert.
         assertEquals(taskId, (int) pendingTask.getId());
@@ -1265,6 +1271,42 @@ public class ChromeAndroidTaskImplUnitTest {
     }
 
     @Test
+    public void maximize_whenPendingUpdate_isMaximizeReturnsTrue() {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask =
+                (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var mockWindowAndroid =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityWindowAndroidMocks
+                        .mMockActivityWindowAndroid;
+        var apiDelegate = chromeAndroidTaskWithMockDeps.mMockAconfigFlaggedApiDelegate;
+        var promise = new Promise<Pair<Integer, Rect>>();
+        when(apiDelegate.moveTaskToWithPromise(any(), anyInt(), any())).thenReturn(promise);
+
+        // Act.
+        chromeAndroidTask.maximize();
+        assertEquals(
+                "Maximize should be pending after #maximize is triggered",
+                true,
+                chromeAndroidTask.getPendingActionManagerForTesting().isMaximizedFuture());
+        assertTrue("isMaximized is true while pending", chromeAndroidTask.isMaximized());
+        verify(apiDelegate).moveTaskToWithPromise(any(), anyInt(), any());
+        assertEquals(
+                "isMaximized returns maximized bounds while pending",
+                ChromeAndroidTaskImpl.convertBoundsInPxToDp(
+                        DEFAULT_MAXIMIZED_WINDOW_BOUNDS_IN_PX, mockWindowAndroid.getDisplay()),
+                chromeAndroidTask.getBoundsInDp());
+        promise.fulfill(Pair.create(0, DEFAULT_MAXIMIZED_WINDOW_BOUNDS_IN_PX));
+        shadowOf(getMainLooper()).idle();
+
+        // Assert
+        Assert.assertNull(
+                "Maximize should be not pending after #maximize is finished",
+                chromeAndroidTask.getPendingActionManagerForTesting().isMaximizedFuture());
+    }
+
+    @Test
     public void minimize_whenPendingCreate_enqueuesPendingAction() {
         // Arrange.
         var task =
@@ -1293,6 +1335,44 @@ public class ChromeAndroidTaskImplUnitTest {
         int[] pendingActions =
                 task.getPendingActionManagerForTesting().getPendingActionsForTesting();
         assertEquals(PendingAction.RESTORE, pendingActions[0]);
+    }
+
+    @Test
+    public void restore_whenPendingUpdate_restoreReturnsCorrectBounds() {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask =
+                (ChromeAndroidTaskImpl) chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var mockWindowAndroid =
+                chromeAndroidTaskWithMockDeps
+                        .mActivityWindowAndroidMocks
+                        .mMockActivityWindowAndroid;
+        var apiDelegate = chromeAndroidTaskWithMockDeps.mMockAconfigFlaggedApiDelegate;
+        var promise = new Promise<Pair<Integer, Rect>>();
+        when(apiDelegate.moveTaskToWithPromise(any(), anyInt(), any())).thenReturn(promise);
+
+        // Act.
+        chromeAndroidTask.maximize();
+        promise.fulfill(Pair.create(0, DEFAULT_MAXIMIZED_WINDOW_BOUNDS_IN_PX));
+        shadowOf(getMainLooper()).idle();
+
+        promise = new Promise<>();
+        when(apiDelegate.moveTaskToWithPromise(any(), anyInt(), any())).thenReturn(promise);
+        chromeAndroidTask.restore();
+
+        Assert.assertEquals(
+                "Should return pending bounds when restore is in progress",
+                ChromeAndroidTaskImpl.convertBoundsInPxToDp(
+                        DEFAULT_CURRENT_WINDOW_BOUNDS_IN_PX, mockWindowAndroid.getDisplay()),
+                chromeAndroidTask.getBoundsInDp());
+
+        promise.fulfill(Pair.create(0, DEFAULT_CURRENT_WINDOW_BOUNDS_IN_PX));
+        shadowOf(getMainLooper()).idle();
+
+        // Assert
+        Assert.assertNull(
+                "Restore should be not pending after #restore is finished",
+                chromeAndroidTask.getPendingActionManagerForTesting().getFutureBoundsInDp());
     }
 
     @Test
@@ -1662,6 +1742,7 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.setActivityScopedObjects(activityScopedObjects);
+        pendingTask.onNativeInitializationFinished();
 
         // Assert.
         verify(mockActivityManager).moveTaskToFront(taskId, 0);
@@ -1685,6 +1766,7 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.setActivityScopedObjects(activityScopedObjects);
+        pendingTask.onNativeInitializationFinished();
 
         // Assert.
         verify(mockActivity).finishAndRemoveTask();
@@ -1710,6 +1792,7 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         pendingTask.setActivityScopedObjects(activityScopedObjects);
+        pendingTask.onNativeInitializationFinished();
 
         // Assert.
         verify(mockActivityManager).moveTaskToFront(taskId, 0);
@@ -1729,6 +1812,7 @@ public class ChromeAndroidTaskImplUnitTest {
         // Act.
         chromeAndroidTask.setActivityScopedObjects(
                 chromeAndroidTaskWithMockDeps.mActivityScopedObjects);
+        chromeAndroidTask.onNativeInitializationFinished();
 
         // Assert.
         var boundsCaptor = ArgumentCaptor.forClass(Rect.class);
@@ -1752,6 +1836,7 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         chromeAndroidTask.setActivityScopedObjects(activityScopedObjects);
+        chromeAndroidTask.onNativeInitializationFinished();
 
         // Assert.
         verify(mockActivity).moveTaskToBack(true);
@@ -1780,6 +1865,7 @@ public class ChromeAndroidTaskImplUnitTest {
         // Act.
         chromeAndroidTask.setActivityScopedObjects(
                 chromeAndroidTaskWithMockDeps.mActivityScopedObjects);
+        chromeAndroidTask.onNativeInitializationFinished();
 
         // Assert.
         Rect expectedBoundsInPx = DisplayUtil.scaleToEnclosingRect(pendingBoundsInDp, dipScale);
@@ -1833,6 +1919,7 @@ public class ChromeAndroidTaskImplUnitTest {
         // Act.
         chromeAndroidTask.setActivityScopedObjects(
                 chromeAndroidTaskWithMockDeps.mActivityScopedObjects);
+        chromeAndroidTask.onNativeInitializationFinished();
 
         // Assert.
         Rect expectedBoundsInPx = DisplayUtil.scaleToEnclosingRect(pendingBoundsInDp, dipScale);
@@ -1854,6 +1941,7 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act.
         task.setActivityScopedObjects(activityScopedObjects);
+        task.onNativeInitializationFinished();
 
         // Assert.
         verify(pendingTaskInfo.mTaskCreationCallbackForNative)

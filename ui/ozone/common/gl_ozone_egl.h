@@ -5,7 +5,6 @@
 #ifndef UI_OZONE_COMMON_GL_OZONE_EGL_H_
 #define UI_OZONE_COMMON_GL_OZONE_EGL_H_
 
-#include "base/functional/callback.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "third_party/khronos/EGL/eglplatform.h"
 #include "ui/gl/gl_implementation.h"
@@ -39,12 +38,13 @@ class GLOzoneEGL : public GLOzone {
   bool CanImportNativePixmap(viz::SharedImageFormat format) override;
   std::unique_ptr<NativePixmapGLBinding> ImportNativePixmap(
       scoped_refptr<gfx::NativePixmap> pixmap,
-      gfx::BufferFormat plane_format,
+      viz::SharedImageFormat plane_format,
       gfx::BufferPlane plane,
       gfx::Size plane_size,
       const gfx::ColorSpace& color_space,
       GLenum target,
       GLuint texture_id) override;
+
   bool GetGLWindowSystemBindingInfo(
       const gl::GLVersionInfo& gl_info,
       gl::GLWindowSystemBindingInfo* info) override;

@@ -37,6 +37,8 @@ BASE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered,
 BASE_FEATURE(kApiRuntimeGetPlatformInfoNaClArch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebRequestSecurityInfo, base::FEATURE_DISABLED_BY_DEFAULT);
+
 ///////////////////////////////////////////////////////////////////////////////
 // Other Features
 ///////////////////////////////////////////////////////////////////////////////
@@ -176,8 +178,5 @@ BASE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableShouldShowPromotion, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableWebRequestCollapsedListeners,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

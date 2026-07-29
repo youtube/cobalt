@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/test_browser_window.h"
+#include "components/data_sharing/public/features.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
@@ -42,6 +43,7 @@
 #include "components/tabs/public/split_tab_visual_data.h"
 #include "components/tabs/public/tab_group.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/web_contents_tester.h"
 #include "extensions/browser/api_test_utils.h"
@@ -111,7 +113,11 @@ class TabsApiUnitTest : public ExtensionServiceTestBase {
   TabsApiUnitTest()
       : ExtensionServiceTestBase(
             std::make_unique<content::BrowserTaskEnvironment>(
-                base::test::TaskEnvironment::MainThreadType::UI)) {}
+                base::test::TaskEnvironment::MainThreadType::UI)) {
+    // TODO(b/459533932) : Remove the DataSharingJoinOnly flag from the disable list.
+    scoped_feature_list_.InitAndDisableFeature(
+        data_sharing::features::kDataSharingJoinOnly);
+  }
   ~TabsApiUnitTest() override = default;
 
   Browser* browser() { return browser_.get(); }
@@ -142,6 +148,8 @@ class TabsApiUnitTest : public ExtensionServiceTestBase {
   // The browser (and accompanying window).
   raw_ptr<TestBrowserWindow> browser_window_;
   std::unique_ptr<Browser> browser_;
+
+  base::test::ScopedFeatureList scoped_feature_list_;
 
 #if BUILDFLAG(IS_CHROMEOS)
   ash::AshTestHelper test_helper_;
@@ -2097,6 +2105,75 @@ TEST_F(TabsApiSideBySideUnitTest, TabsQueryWithSplitView) {
       RunTabsQueryFunction(profile(), extension.get(), args);
   EXPECT_EQ(2u, tabs_list_with_split.size());
   EXPECT_EQ(split_id, tabs_list_with_split[0].GetDict().FindInt("splitViewId"));
+}
+
+TEST_F(TabsApiSideBySideUnitTest, TabsUngroupSingleTabFromSplitView) {
+  ASSERT_TRUE(GetTabStripModel()->SupportsTabGroups());
+
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsUngroupSingleTabFromSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark the first two as
+  // split.
+  std::vector<content::WebContents*> wc = CreateAndGetWebContents(5);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Add tabs 0 and 1 to a group.
+  GetTabStripModel()->AddToNewGroup({0, 1});
+
+  // Use the TabsUngroupFunction to ungroup tab 1
+  auto function = base::MakeRefCounted<TabsUngroupFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([[%d]])";
+  const std::string args = base::StringPrintf(
+      kFormatArgs, sessions::SessionTabHelper::IdForTab(wc[1]).id());
+  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  // Expect the group to be deleted because all tabs were ungrouped from it but
+  // the split view will remain.
+  TabStripModel* tab_strip_model = GetTabStripModel();
+  EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(0));
+  EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(1));
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
+}
+
+TEST_F(TabsApiSideBySideUnitTest, TabsUngroupBothTabsFromSplitView) {
+  ASSERT_TRUE(GetTabStripModel()->SupportsTabGroups());
+
+  scoped_refptr<const Extension> extension =
+      ExtensionBuilder("TabsUngroupBothTabsFromSplitView").Build();
+
+  // Add a couple of web contents to the browser and mark the first two as
+  // split.
+  std::vector<content::WebContents*> wc = CreateAndGetWebContents(5);
+  GetTabStripModel()->ActivateTabAt(0);
+  GetTabStripModel()->AddToNewSplit({1}, split_tabs::SplitTabVisualData(),
+                                    split_tabs::SplitTabCreatedSource());
+
+  // Add tabs 0 and 1 to a group.
+  GetTabStripModel()->AddToNewGroup({0, 1});
+
+  // Use the TabsUngroupFunction to ungroup tabs 0 and 1
+  auto function = base::MakeRefCounted<TabsUngroupFunction>();
+  function->set_extension(extension);
+  constexpr char kFormatArgs[] = R"([[%d, %d]])";
+  const std::string args = base::StringPrintf(
+      kFormatArgs, sessions::SessionTabHelper::IdForTab(wc[0]).id(),
+      sessions::SessionTabHelper::IdForTab(wc[1]).id());
+  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), args, profile(),
+                                          api_test_utils::FunctionMode::kNone));
+
+  // Expect the group to be deleted because all tabs were ungrouped from it but
+  // the split view will remain.
+  TabStripModel* tab_strip_model = GetTabStripModel();
+  EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(0));
+  EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(1));
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(0).has_value());
+  EXPECT_TRUE(GetTabStripModel()->GetSplitForTab(1).has_value());
 }
 
 }  // namespace extensions

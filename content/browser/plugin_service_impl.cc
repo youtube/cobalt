@@ -50,15 +50,14 @@ PluginService* PluginService::GetInstance() {
   return PluginServiceImpl::GetInstance();
 }
 
-void PluginService::PurgePluginListCache(BrowserContext* browser_context,
-                                         bool reload_pages) {
+void PluginService::PurgePluginListCache(BrowserContext* browser_context) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   for (RenderProcessHost::iterator it = RenderProcessHost::AllHostsIterator();
        !it.IsAtEnd(); it.Advance()) {
     RenderProcessHost* host = it.GetCurrentValue();
     if (!browser_context || host->GetBrowserContext() == browser_context)
-      host->GetRendererInterface()->PurgePluginListCache(reload_pages);
+      host->GetRendererInterface()->PurgePluginListCache();
   }
 }
 
@@ -80,19 +79,17 @@ void PluginServiceImpl::Init() {
 bool PluginServiceImpl::GetPluginInfoArray(
     const GURL& url,
     const std::string& mime_type,
-    bool allow_wildcard,
     std::vector<WebPluginInfo>* plugins,
     std::vector<std::string>* actual_mime_types) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  return PluginList::Singleton()->GetPluginInfoArray(
-      url, mime_type, allow_wildcard, plugins, actual_mime_types);
+  return PluginList::Singleton()->GetPluginInfoArray(url, mime_type, plugins,
+                                                     actual_mime_types);
 }
 
 bool PluginServiceImpl::GetPluginInfo(content::BrowserContext* browser_context,
                                       const GURL& url,
                                       const std::string& mime_type,
-                                      bool allow_wildcard,
                                       bool* is_stale,
                                       WebPluginInfo* info,
                                       std::string* actual_mime_type) {
@@ -100,16 +97,17 @@ bool PluginServiceImpl::GetPluginInfo(content::BrowserContext* browser_context,
   std::vector<WebPluginInfo> plugins;
   std::vector<std::string> mime_types;
 
-  bool stale =
-      GetPluginInfoArray(url, mime_type, allow_wildcard, &plugins, &mime_types);
-  if (is_stale)
+  bool stale = GetPluginInfoArray(url, mime_type, &plugins, &mime_types);
+  if (is_stale) {
     *is_stale = stale;
+  }
 
   for (size_t i = 0; i < plugins.size(); ++i) {
     if (!filter_ || filter_->IsPluginAvailable(browser_context, plugins[i])) {
       *info = plugins[i];
-      if (actual_mime_type)
+      if (actual_mime_type) {
         *actual_mime_type = mime_types[i];
+      }
       return true;
     }
   }
@@ -120,10 +118,8 @@ std::optional<WebPluginInfo> PluginServiceImpl::GetPluginInfoByPathForTesting(
     const base::FilePath& plugin_path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  std::vector<WebPluginInfo> plugins;
-  PluginList::Singleton()->GetPluginsNoRefresh(&plugins);
-
-  for (const WebPluginInfo& plugin : plugins) {
+  for (const WebPluginInfo& plugin :
+       PluginList::Singleton()->GetPluginsForTesting()) {
     if (plugin.path == plugin_path) {
       return plugin;
     }
@@ -132,19 +128,17 @@ std::optional<WebPluginInfo> PluginServiceImpl::GetPluginInfoByPathForTesting(
   return std::nullopt;
 }
 
-void PluginServiceImpl::GetPlugins(GetPluginsCallback callback) {
+void PluginServiceImpl::GetPluginsAsync(GetPluginsCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // Run `callback` later, to stay compatible with prior behavior.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), GetPluginsSynchronous()));
+      FROM_HERE, base::BindOnce(std::move(callback), GetPlugins()));
 }
 
-std::vector<WebPluginInfo> PluginServiceImpl::GetPluginsSynchronous() {
+const std::vector<WebPluginInfo>& PluginServiceImpl::GetPlugins() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  std::vector<WebPluginInfo> plugins;
-  PluginList::Singleton()->GetPlugins(&plugins);
-  return plugins;
+  return PluginList::Singleton()->GetPlugins();
 }
 
 void PluginServiceImpl::RegisterPlugins() {

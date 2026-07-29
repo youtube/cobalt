@@ -12,6 +12,7 @@
 #include "base/metrics/user_metrics.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/service/glic_instance_metrics.h"
+#include "chrome/browser/glic/service/glic_state_tracker.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
 #include "chrome/common/chrome_features.h"
 
@@ -24,8 +25,18 @@ class ActiveSession {
   friend class GlicMetricsSessionManager;
   explicit ActiveSession(GlicMetricsSessionManager* owner,
                          bool initial_is_active,
-                         base::TimeTicks start_time)
-      : owner_(owner), is_active_(initial_is_active), start_time_(start_time) {
+                         base::TimeTicks start_time,
+                         int initial_pinned_tab_count)
+      : owner_(owner),
+        activity_tracker_(initial_is_active,
+                          "Glic.Instance.Session.UninterruptedActiveDuration"),
+        // Sessions are only started when the instance is visible.
+        visibility_tracker_(
+            true,
+            "Glic.Instance.Session.UninterruptedVisibleDuration"),
+        start_time_(start_time),
+        pinned_tab_count_(initial_pinned_tab_count),
+        session_max_pinned_tab_count_(initial_pinned_tab_count) {
     // base::Unretained is safe here because the timer is owned by this class,
     // so the callback will not be invoked after destruction.
     start_timer_.Start(
@@ -39,8 +50,8 @@ class ActiveSession {
 
   // Event handlers
   void OnVisibilityChanged(bool is_visible) {
-    HandleStateChange(is_visible, is_visible_, visibility_debounce_timer_,
-                      hidden_timer_,
+    HandleStateChange(is_visible, &visibility_tracker_,
+                      &visibility_debounce_timer_, &hidden_timer_,
                       features::kGlicMetricsSessionHiddenTimeout.Get(),
                       GlicMultiInstanceSessionEndReason::kHidden,
                       base::BindOnce(&ActiveSession::OnVisibilityDebounceFired,
@@ -48,8 +59,8 @@ class ActiveSession {
   }
 
   void OnActivationChanged(bool is_active) {
-    HandleStateChange(is_active, is_active_, activation_debounce_timer_,
-                      inactivity_timer_,
+    HandleStateChange(is_active, &activity_tracker_,
+                      &activation_debounce_timer_, &inactivity_timer_,
                       features::kGlicMetricsSessionInactivityTimeout.Get(),
                       GlicMultiInstanceSessionEndReason::kInactivity,
                       base::BindOnce(&ActiveSession::OnActivationDebounceFired,
@@ -58,6 +69,15 @@ class ActiveSession {
 
   void OnUserInputSubmitted(mojom::WebClientMode mode) {
     inputs_modes_used_.Put(mode);
+    if (pinned_tab_count_ > 1) {
+      input_submitted_with_multiple_pinned_tabs_ = true;
+    }
+  }
+
+  void SetPinnedTabCount(int tab_count) {
+    pinned_tab_count_ = tab_count;
+    session_max_pinned_tab_count_ =
+        std::max(session_max_pinned_tab_count_, tab_count);
   }
 
   void Start() {
@@ -73,7 +93,7 @@ class ActiveSession {
 
     // If the session starts while the instance is already inactive (but
     // visible), begin the inactivity timeout immediately.
-    if (!is_active_) {
+    if (!activity_tracker_.state()) {
       // base::Unretained is safe because the timer is a member of
       // `ActiveSession` which is owned by `owner_`. The timer will be
       // destroyed along with `ActiveSession` before the owner is destroyed.
@@ -111,6 +131,14 @@ class ActiveSession {
     return inputs_modes_used_;
   }
 
+  int session_max_pinned_tab_count() const {
+    return session_max_pinned_tab_count_;
+  }
+
+  bool input_submitted_with_multiple_pinned_tabs() const {
+    return input_submitted_with_multiple_pinned_tabs_;
+  }
+
  private:
   // Called when the visibility debounce timer fires. This means the instance
   // has been visible long enough to consider it truly visible again , so
@@ -125,16 +153,12 @@ class ActiveSession {
   // Manages debounce timers to ignore brief state flickers and end
   // timers to finish the session after prolonged inactive/hidden states.
   void HandleStateChange(bool new_state,
-                         bool& current_state,
-                         base::OneShotTimer& debounce_timer,
-                         base::OneShotTimer& end_timer,
+                         GlicStateTracker* tracker,
+                         base::OneShotTimer* debounce_timer,
+                         base::OneShotTimer* end_timer,
                          base::TimeDelta end_timeout,
                          GlicMultiInstanceSessionEndReason end_reason,
                          base::OnceClosure debounce_callback) {
-    if (new_state == current_state) {
-      return;
-    }
-
     // If the session hasn't started yet (is pending), a transition to
     // 'false' (hidden or inactive) immediately cancels it.
     if (state_ == State::kPending) {
@@ -142,19 +166,19 @@ class ActiveSession {
         owner_->FinishSession(end_reason);
         return;
       }
-      current_state = new_state;
+      tracker->OnStateChanged(new_state);
       return;
     }
 
-    current_state = new_state;
+    tracker->OnStateChanged(new_state);
 
     if (new_state) {
       // Transitioned to 'true' (active/visible).
       // If the 'end' timer was running (meaning we were previously
       // 'false'), start a debounce timer. If we stay 'true' long enough,
       // the debounce callback will fire and stop the 'end' timer.
-      if (end_timer.IsRunning()) {
-        debounce_timer.Start(
+      if (end_timer->IsRunning()) {
+        debounce_timer->Start(
             FROM_HERE, features::kGlicMetricsSessionRestartDebounceTimer.Get(),
             std::move(debounce_callback));
       }
@@ -163,16 +187,16 @@ class ActiveSession {
       // If a debounce timer was running, it means we briefly flickered to
       // 'true'. Stop the debounce timer and ignore this flicker (the
       // original 'end' timer continues running).
-      if (debounce_timer.IsRunning()) {
-        debounce_timer.Stop();
+      if (debounce_timer->IsRunning()) {
+        debounce_timer->Stop();
         return;
       }
 
       // Otherwise, this is a genuine transition to 'false'. Start the 'end'
       // timer to finish the session if we remain in this state too long.
-      end_timer.Start(FROM_HERE, end_timeout,
-                      base::BindOnce(&GlicMetricsSessionManager::FinishSession,
-                                     base::Unretained(owner_), end_reason));
+      end_timer->Start(FROM_HERE, end_timeout,
+                       base::BindOnce(&GlicMetricsSessionManager::FinishSession,
+                                      base::Unretained(owner_), end_reason));
     }
   }
 
@@ -183,8 +207,9 @@ class ActiveSession {
 
   const raw_ptr<GlicMetricsSessionManager> owner_;
   State state_ = State::kPending;
-  bool is_active_ = false;
-  bool is_visible_ = false;
+
+  GlicStateTracker activity_tracker_;
+  GlicStateTracker visibility_tracker_;
 
   base::OneShotTimer start_timer_;
   base::OneShotTimer hidden_timer_;
@@ -198,6 +223,9 @@ class ActiveSession {
                 mojom::WebClientMode::kMaxValue>
       inputs_modes_used_;
   base::flat_map<GlicInstanceEvent, int> event_counts_;
+  int pinned_tab_count_ = 0;
+  int session_max_pinned_tab_count_ = 0;
+  bool input_submitted_with_multiple_pinned_tabs_ = false;
 };
 
 // GlicMetricsSessionManager implementation
@@ -252,6 +280,12 @@ void GlicMetricsSessionManager::OnEvent(GlicInstanceEvent event) {
   }
 }
 
+void GlicMetricsSessionManager::SetPinnedTabCount(int tab_count) {
+  if (active_session_) {
+    active_session_->SetPinnedTabCount(tab_count);
+  }
+}
+
 int GlicMetricsSessionManager::GetEventCount(GlicInstanceEvent event) {
   if (active_session_) {
     return active_session_->GetEventCount(event);
@@ -268,8 +302,32 @@ void GlicMetricsSessionManager::FinishSession(
   if (active_session_->is_started()) {
     base::RecordAction(base::UserMetricsAction("Glic.Instance.Session.End"));
     base::UmaHistogramEnumeration("Glic.Instance.Session.EndReason", reason);
+    active_session_->activity_tracker_.Finalize();
+    active_session_->visibility_tracker_.Finalize();
+
     const base::TimeDelta session_duration =
         base::TimeTicks::Now() - active_session_->start_time();
+    const base::TimeDelta inactive_time =
+        session_duration - active_session_->activity_tracker_.total_duration();
+    const base::TimeDelta hidden_time =
+        session_duration -
+        active_session_->visibility_tracker_.total_duration();
+
+    base::UmaHistogramCustomTimes(
+        "Glic.Instance.Session.TotalActiveDuration",
+        active_session_->activity_tracker_.total_duration(),
+        base::Milliseconds(1), base::Hours(24), 50);
+    base::UmaHistogramCustomTimes("Glic.Instance.Session.TotalInactiveDuration",
+                                  inactive_time, base::Milliseconds(1),
+                                  base::Hours(24), 50);
+    base::UmaHistogramCustomTimes(
+        "Glic.Instance.Session.TotalVisibleDuration",
+        active_session_->visibility_tracker_.total_duration(),
+        base::Milliseconds(1), base::Hours(24), 50);
+    base::UmaHistogramCustomTimes("Glic.Instance.Session.TotalHiddenDuration",
+                                  hidden_time, base::Milliseconds(1),
+                                  base::Hours(24), 50);
+
     base::UmaHistogramCustomTimes("Glic.Instance.Session.Duration",
                                   session_duration, base::Milliseconds(1),
                                   base::Hours(1), 50);
@@ -296,6 +354,13 @@ void GlicMetricsSessionManager::FinishSession(
     base::UmaHistogramEnumeration("Glic.Instance.Session.InputModesUsed",
                                   modes_used);
 
+    base::UmaHistogramBoolean(
+        "Glic.Instance.Session.MultipleTabsPinnedInAnyTurn",
+        active_session_->input_submitted_with_multiple_pinned_tabs());
+    base::UmaHistogramCounts100(
+        "Glic.Instance.Session.MaxPinnedTabs",
+        active_session_->session_max_pinned_tab_count());
+
     owner_->OnSessionFinished();
   }
 
@@ -305,8 +370,9 @@ void GlicMetricsSessionManager::FinishSession(
 
 void GlicMetricsSessionManager::CreatePendingSession() {
   CHECK(!active_session_);
-  active_session_ = std::make_unique<ActiveSession>(this, owner_->is_active(),
-                                                    base::TimeTicks::Now());
+  active_session_ = std::make_unique<ActiveSession>(
+      this, owner_->is_active(), base::TimeTicks::Now(),
+      owner_->GetPinnedTabCount());
 }
 
 }  // namespace glic

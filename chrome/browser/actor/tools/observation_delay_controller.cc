@@ -12,6 +12,7 @@
 #include "base/state_transitions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_callbacks.h"
@@ -184,10 +185,26 @@ void ObservationDelayController::MoveToState(State new_state) {
                             bool) { std::move(post_move_to_done).Run(); },
                          PostMoveToStateClosure(State::kMaybeDelayForLcp));
 
-      // TODO(crbug.com/414662842): This should probably ensure an update from
-      // all/selected OOPIFS?
-      web_contents()->GetPrimaryMainFrame()->InsertVisualStateCallback(
-          std::move(callback));
+      if (base::FeatureList::IsEnabled(
+              actor::kGlicSkipAwaitVisualStateForNewTabs) &&
+          web_contents()->GetVisibility() != content::Visibility::VISIBLE &&
+          !web_contents()->IsBeingCaptured()) {
+        // If this is a new tab that is not yet being captured, we won't get
+        // visual updates, so we proceed to the next step.
+        // TODO(mcnee): Consider a more general approach of skipping this when
+        // the creator of this delay controller is not watching for page
+        // stability.
+        journal_->Log(
+            web_contents()->GetLastCommittedURL(), task_id_,
+            "ObservationDelay: Skip visual state update of non-captured tab",
+            {});
+        std::move(callback).Run(true);
+      } else {
+        // TODO(crbug.com/414662842): This should probably ensure an update from
+        // all/selected OOPIFS?
+        web_contents()->GetPrimaryMainFrame()->InsertVisualStateCallback(
+            std::move(callback));
+      }
       break;
     }
     case State::kMaybeDelayForLcp: {
@@ -229,6 +246,7 @@ void ObservationDelayController::MoveToState(State new_state) {
       // must be provided.
       CHECK(ready_callback_);
       wait_journal_entry_.reset();
+      page_stability_monitor_remote_.reset();
       PostFinishedTask(std::move(ready_callback_));
       break;
     }

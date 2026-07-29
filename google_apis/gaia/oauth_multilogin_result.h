@@ -72,7 +72,12 @@ enum class OAuthMultiloginDeviceBoundSessionParsingError {
   kInvalidDomain = 1,
   kRegisterPayloadRequiredFieldMissing = 2,
   kRegisterPayloadRequiredCredentialFieldMissing = 3,
-  kMaxValue = kRegisterPayloadRequiredCredentialFieldMissing,
+  kRegisterPayloadMalformedRefreshInitiator = 4,
+  kRegisterPayloadMalformedSessionScopeSpecification = 5,
+  kRegisterPayloadRequiredScopeFieldMissing = 6,
+  kRegisterPayloadInvalidScopeType = 7,
+  kRegisterPayloadInvalidCredentialType = 8,
+  kMaxValue = kRegisterPayloadInvalidCredentialType,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthMultiloginDeviceBoundSessionParsingError)
 
@@ -122,10 +127,13 @@ class COMPONENT_EXPORT(GOOGLE_APIS) OAuthMultiloginResult {
   // UNEXPECTED_SERVER_RESPONSE if JSON string cannot be parsed.
   // `cookie_decryptor` is optional and used only if the JSON response contains
   // "token_binding_directed_response" object.
+  // `standard_device_bound_session_credentials` indicates whether the response
+  // is expected to contain the DBSC standard session(s) format.
   OAuthMultiloginResult(
       const std::string& raw_data,
       int http_response_code,
-      const CookieDecryptor& cookie_decryptor = base::NullCallback());
+      const CookieDecryptor& cookie_decryptor = base::NullCallback(),
+      bool standard_device_bound_session_credentials = false);
 
   explicit OAuthMultiloginResult(OAuthMultiloginResponseStatus status);
   OAuthMultiloginResult(const OAuthMultiloginResult& other) = delete;
@@ -140,6 +148,14 @@ class COMPONENT_EXPORT(GOOGLE_APIS) OAuthMultiloginResult {
   const std::vector<DeviceBoundSession>& device_bound_sessions() const {
     return device_bound_sessions_;
   }
+
+  // Returns the list of bound sessions from the response that need to be
+  // registered.
+  //
+  // Returning a vector of pointers to avoid copying. The output vector is
+  // guaranteed to contain pointers to the `device_bound_sessions` elements.
+  std::vector<const DeviceBoundSession*> GetDeviceBoundSessionsToRegister()
+      const;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(OAuthMultiloginResultTest, TryParseCookiesFromValue);
@@ -158,7 +174,8 @@ class COMPONENT_EXPORT(GOOGLE_APIS) OAuthMultiloginResult {
   // It parses the device-bound sessions info from the response. It is expected
   // to be called only if the response status is `kOk`.
   void TryParseDeviceBoundSessionsFromValue(
-      const base::Value::Dict& json_value);
+      const base::Value::Dict& json_value,
+      bool standard_device_bound_session_credentials);
 
   std::vector<net::CanonicalCookie> cookies_;
   std::vector<FailedAccount> failed_accounts_;

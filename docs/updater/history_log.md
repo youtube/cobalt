@@ -93,14 +93,14 @@ The schema defines the following event types:
     * `cohort` (string): The cohort assignment of the app.
     * `brandCode` (string): The brand code of the app.
 
-### `OMAHA_REQUEST`: Omaha Request
+### `POST_REQUEST`: HTTP Post Request
 
-* **Description:** Recorded when an Omaha request is initiated or completed.
+* **Description:** Recorded when an HTTP POST request is initiated or completed.
 * **Bounds:**
   * `START`:
-    * `request` (string, required): The Omaha request payload.
+    * `request` (string, required): The base64-encoded HTTP request body.
   * `END`:
-    * `response` (string, required): The Omaha response payload.
+    * `response` (string): The base64-encoded HTTP response body.
 
 ### `LOAD_POLICY`: Load Policy
 
@@ -119,15 +119,13 @@ The schema defines the following event types:
 * **Bounds:**
   * `START`:
     * `appId` (string): The ID of the application being checked.
-    * `connectionMetered` (boolean): Whether the update is projected to occur on
-      a metered network connection.
     * `priority` (string): Enum: `"BACKGROUND"`, `"FOREGROUND"`.
-    * `installSource` (string): The source triggering the installation/update.
   * `END`:
-    * `outcome` (string): The result of the update operation. Enum: `"ERROR"`,
-      `"UP_TO_DATE"`, `"UPDATED"`.
-    * `version` (string): The version of the application which the updater tried
-      to update to.
+    * `outcome` (string): The result of the update operation. Enum: possible
+      values are the upper snake case UpdaterState::State enum labels defined in
+      UpdateService. Includes `"UPDATED"`, `"NO_UPDATE"`, and `"UPDATE_ERROR"`.
+    * `nextVersion` (string): The version of the application which the updater
+      tried to update to.
 
 ### `UPDATER_PROCESS`: Updater Process Lifetime
 
@@ -182,3 +180,6 @@ The schema defines the following event types:
     * `prevailingSource` (string, required): A indicating which key within
       `valuesBySource` contains the authoritative value used by the updater
       (e.g., `platform`).
+  * `policiesByAppId` (object, required): An object mapping application
+    identifiers to per-app policy sets. Each value in this map is an object with
+    the same structure as `policiesByName`, as defined above.

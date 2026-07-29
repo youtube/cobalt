@@ -163,16 +163,6 @@ BASE_FEATURE(kCopyFromSurfaceAlwaysCallCallback,
 // https://github.com/WICG/client-hints-infrastructure/blob/master/reliability.md#critical-ch
 BASE_FEATURE(kCriticalClientHint, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Delay the destructions of RenderFrameHostImpls during a navigation (on
-// Unload) or frame Detach, by delaying the call to
-// PendingDeletionCheckCompletedOnSubTree.
-BASE_FEATURE(kDelayRfhDestructionsOnUnloadAndDetach,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta>
-    kRfhDestructionsOnUnloadAndDetachTaskDelay{
-        &kDelayRfhDestructionsOnUnloadAndDetach, "task_delay",
-        base::TimeDelta()};
-
 // Enable document policy negotiation mechanism.
 BASE_FEATURE(kDocumentPolicyNegotiation, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -615,6 +605,10 @@ BASE_FEATURE(kServiceWorkerStaticRouterStartServiceWorker,
 // including changes to history.pushState().
 BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Handles blocking the file picker when a visible but inactive tab in a split
+// triggers it. This serves as a kill switch for crbug.com/444653104.
+BASE_FEATURE(kSideBySideFilePickerCancelling, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables skipping the early call to CommitPending when navigating away from a
 // crashed frame.

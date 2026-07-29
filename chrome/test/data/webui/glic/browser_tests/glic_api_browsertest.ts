@@ -97,6 +97,24 @@ class ApiTests extends ApiTestFixtureBase {
     this.host.setAudioDucking(false);
   }
 
+  async testPopupOpens() {
+    const link = document.createElement('a');
+    link.setAttribute('href', 'https://www.chromium.org');
+
+    // Attach a click listener to force opening as a popup with specific
+    // dimensions. Including features like width/height forces a new window
+    // instead of a tab.
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open(
+          link.getAttribute('href')!, 'popup_window',
+          'width=500,height=500,scrollbars=yes,resizable=yes');
+    });
+
+    document.body.appendChild(link);
+    link.click();
+  }
+
   async testCreateTabByClickingOnLinkDaisyChains() {
     assertDefined(this.host.getFocusedTabStateV2);
     assertDefined(this.host.getPinnedTabs);
@@ -133,6 +151,11 @@ class ApiTests extends ApiTestFixtureBase {
     // browser at the same time as exiting a test results in QuitBrowsers()
     // never exiting. This sleep avoids this problem.
     await sleep(500);
+  }
+
+  async testOpenPasswordManagerSettingsPage() {
+    assertDefined(this.host.openPasswordManagerSettingsPage);
+    this.host.openPasswordManagerSettingsPage();
   }
 
   async testGetPanelStateAttached() {
@@ -785,6 +808,36 @@ class ApiTests extends ApiTestFixtureBase {
     assertTrue(await defaultTabContextState.next() as boolean);
     await this.advanceToNextStep();
     assertFalse(await defaultTabContextState.next() as boolean);
+  }
+
+  async testPinOnBind() {
+    assertDefined(this.host.getDefaultTabContextPermissionState);
+    const defaultTabContextState =
+        observeSequence(this.host.getDefaultTabContextPermissionState());
+    assertTrue(await defaultTabContextState.next() as boolean);
+    assertDefined(this.host.getPinnedTabs);
+    const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
+
+    // The active tab should be automatically pinned on bind.
+    const pinnedTabs =
+        await pinnedTabsUpdates.waitFor(tabs => tabs.length === 1);
+    const activeTabId = this.getActiveTabId();
+    assertEquals(pinnedTabs[0]!.tabId, activeTabId);
+  }
+
+  async testNoPinOnBindWhenSettingOff() {
+    assertDefined(this.host.getPinnedTabs);
+    const pinnedTabsUpdates = observeSequence(this.host.getPinnedTabs());
+
+    // The initial value is an empty array.
+    const initialTabs = await pinnedTabsUpdates.next();
+    assertEquals(0, initialTabs.length);
+
+    // Wait briefly to ensure no unexpected updates arrive.
+    await sleep(200);
+    assertTrue(
+        pinnedTabsUpdates.isEmpty(),
+        'Pinned tabs should remain empty when auto-pinning is disabled.');
   }
 
   async testGetOsHotkeyState() {
@@ -1466,10 +1519,12 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.getContextFromTab);
     assertDefined(this.host.pinTabs);
     assertDefined(this.host.getPinnedTabs);
+    assertDefined(this.host.unpinTabs);
 
     // Fail getContextFromTab due to no tab context permission not granted.
     await this.host.setTabContextPermissionState(false);
     const tabId: string = this.getFocusedTabId();
+    await this.host.unpinTabs([tabId]);  // Unpin required for multi-instance.
     await assertRejects(this.host.getContextFromTab(tabId, {}), {
       withErrorMessage: 'tabContext failed: permission denied:' +
           ' context permission not enabled',
@@ -2238,11 +2293,9 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(this.host.getActOnWebCapability);
     const actOnWebCapabilitySequence =
         observeSequence(this.host.getActOnWebCapability());
-    let actOnWebCapability = await actOnWebCapabilitySequence.next();
-    assertEquals(actOnWebCapability, true);
+    await actOnWebCapabilitySequence.waitForValue(true);
     await this.advanceToNextStep();
-    actOnWebCapability = await actOnWebCapabilitySequence.next();
-    assertEquals(actOnWebCapability, false);
+    await actOnWebCapabilitySequence.waitForValue(false);
   }
 
   async testPanelWillOpenBeforeClientReady() {

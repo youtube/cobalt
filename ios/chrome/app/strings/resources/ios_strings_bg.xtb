@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">Търсене с режима с AI</translation>
 <translation id="3557336313807607643">Добавяне към контактите</translation>
 <translation id="355765753469272474">Отмяна</translation>
+<translation id="3565012355885596568">Изображенията не се заредиха</translation>
 <translation id="3565930036634619844">Раздел. <ph name="TAB_INDEX" /> от <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3572607909481582402">В профила ви в Google</translation>
 <translation id="3575234738189584619">Търсене с Обектив</translation>
@@ -1314,6 +1315,7 @@
 <translation id="6045460247888249350">Добавете заглавие</translation>
 <translation id="6052269326659653305">Превключване на потребителския профил</translation>
 <translation id="605721222689873409">ГГ</translation>
+<translation id="6058415747854995776">Заснемане на видеоклип</translation>
 <translation id="6059830886158432458">Управлявайте материалите и активността си тук</translation>
 <translation id="6066301408025741299">Докоснете, за да анулирате.</translation>
 <translation id="6074656473835429958">Получаване на известия</translation>
@@ -1815,6 +1817,7 @@
 <translation id="7866872729285243843">За да имате достъп до списъка си за четене на всичките си устройства, включете съответната опция от настройките.</translation>
 <translation id="7874107544081154809">Автоматично попълване на <ph name="CELL_ACCESSIBILITY_LABEL" /> във формуляра</translation>
 <translation id="7879275349003161544">Показване на изтеглянията</translation>
+<translation id="7882689957034389473">Правене на снимка</translation>
 <translation id="7883882164760409935">Имате повторно използвана парола.</translation>
 <translation id="7887174313503389866">Направете обиколка с упътване на ключовите контроли за поверителност и сигурност. За още опции отворете отделните настройки.</translation>
 <translation id="7887198238286927132">За да защити поверителността ви, Chrome няма да попълни автоматично това поле.</translation>
@@ -1998,6 +2001,7 @@
 <translation id="8551311254462607218">В адресната лента докоснете иконата на камерата на Google Обектив</translation>
 <translation id="8556590991644167667">{count,plural, =1{Отхвърлихте {count} предупреждение}other{Отхвърлихте {count} предупреждения}}</translation>
 <translation id="8558046478684552694">Затваряне на групата.</translation>
+<translation id="8559858985063901027">Кодове за достъп</translation>
 <translation id="8560253818350321773">Първо да се показват често използваните елементи.</translation>
 <translation id="8561999115126307258">{count,plural, =1{{count} опция за парола е налице над клавиатурата ви.}other{{count} опции за парола са налице над клавиатурата ви.}}</translation>
 <translation id="8564894539416715395">Нов раздел в браузъра</translation>

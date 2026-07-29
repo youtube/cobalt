@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/350788890): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "url/gurl.h"
 
 #include <stddef.h>
@@ -283,8 +278,7 @@ GURL GURL::DeprecatedGetOriginAsURL() const {
 
 GURL GURL::GetAsReferrer() const {
   if (!is_valid() ||
-      !url::IsReferrerScheme(
-          parsed_.scheme.maybe_as_string_view_on(spec_.data()))) {
+      !url::IsReferrerScheme(parsed_.scheme.MaybeAsViewOn(spec_))) {
     return GURL();
   }
 
@@ -336,7 +330,7 @@ GURL GURL::GetWithoutRef() const {
 }
 
 bool GURL::IsStandard() const {
-  return url::IsStandard(parsed_.scheme.maybe_as_string_view_on(spec_.data()));
+  return url::IsStandard(parsed_.scheme.MaybeAsViewOn(spec_));
 }
 
 bool GURL::IsAboutBlank() const {

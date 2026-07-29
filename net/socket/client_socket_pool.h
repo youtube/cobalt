@@ -287,7 +287,7 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
       const GroupId& group_id,
       scoped_refptr<SocketParams> params,
       const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
-      int num_sockets,
+      size_t num_sockets,
       bool fail_if_alias_requires_proxy_override,
       CompletionOnceCallback callback,
       const NetLogWithSource& net_log) = 0;
@@ -342,7 +342,7 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
                                        const char* net_log_reason_utf8) = 0;
 
   // The total number of idle sockets in the pool.
-  virtual int IdleSocketCount() const = 0;
+  virtual size_t IdleSocketCount() const = 0;
 
   // The total number of idle sockets in a connection group.
   virtual size_t IdleSocketCountInGroup(const GroupId& group_id) const = 0;
@@ -369,7 +369,8 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
   static void set_used_idle_socket_timeout(base::TimeDelta timeout);
 
  protected:
-  ClientSocketPool(SocketPoolAdditionalCapacity additional_capacity,
+  ClientSocketPool(size_t socket_soft_cap,
+                   SocketPoolAdditionalCapacity additional_capacity,
                    bool is_for_websockets,
                    const CommonConnectJobParams* common_connect_job_params,
                    std::unique_ptr<ConnectJobFactory> connect_job_factory);
@@ -389,12 +390,30 @@ class NET_EXPORT ClientSocketPool : public LowerLayeredPool {
       SocketTag socket_tag,
       ConnectJob::Delegate* delegate);
 
+  size_t SocketSoftCap() const { return socket_soft_cap_; }
+
   const SocketPoolAdditionalCapacity& AdditionalCapacity() const {
     return additional_capacity_;
   }
 
+  SocketPoolState State() const { return state_; }
+
+  void UpdateStateBeforeAllocation(size_t sockets_in_use);
+
+  void UpdateStateAfterRelease(size_t sockets_in_use);
+
  private:
-  SocketPoolAdditionalCapacity additional_capacity_;
+  // This section tracks information related to the overall pool capacity.
+  // `socket_soft_cap_` is the amount of sockets always available to the pool
+  // while additional sockets may be available via `additional_capacity_`
+  // depending on the configuration. `state_` tracks whether this pool has
+  // exhausted the available sockets (for the moment) or not. Due to
+  // randomization the exact amount of sockets available to this pool will
+  // fluctuate over time.
+  const size_t socket_soft_cap_;
+  const SocketPoolAdditionalCapacity additional_capacity_;
+  SocketPoolState state_ = SocketPoolState::kUncapped;
+
   const bool is_for_websockets_;
   const raw_ptr<const CommonConnectJobParams> common_connect_job_params_;
   const std::unique_ptr<ConnectJobFactory> connect_job_factory_;

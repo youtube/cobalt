@@ -93,6 +93,7 @@ source_set("impl") {
     "//chrome/browser/ui/toolbar/chrome_labs",
     "//chrome/browser/ui/webui/accessibility",
     "//chrome/browser/updates/announcement_notification",
+    "//chrome/browser/webauthn",
     "//components/blocked_content",
     "//components/bookmarks/common",
     "//components/breadcrumbs/core:status",
@@ -154,6 +155,7 @@ source_set("impl") {
     "//components/update_client",
     "//components/variations/service",
     "//components/visited_url_ranking/internal:internal_url_grouping",
+    "//components/wallet/core/common:prefs",
     "//components/webui/chrome_urls",
     "//components/webui/flags",
     "//services/preferences/public/cpp/tracked",
@@ -289,7 +291,10 @@ source_set("impl") {
   }
 
   if (is_win) {
-    deps += [ "//chrome/browser/os_crypt" ]
+    deps += [
+      "//chrome/browser/os_crypt",
+      "//chrome/browser/webnn",
+    ]
   }
 
   if (is_android) {

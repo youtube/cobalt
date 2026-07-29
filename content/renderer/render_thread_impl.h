@@ -41,7 +41,10 @@
 #include "content/common/renderer.mojom.h"
 #include "content/common/renderer_host.mojom.h"
 #include "content/public/renderer/render_thread.h"
+#include "content/renderer/blink_isolates_pressure_listener.h"
 #include "content/renderer/discardable_memory_utils.h"
+#include "content/renderer/memory_reclaimer_pressure_listener.h"
+#include "content/renderer/skia_graphics_pressure_listener.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "ipc/ipc_sync_channel.h"
 #include "media/media_buildflags.h"
@@ -412,7 +415,7 @@ class CONTENT_EXPORT RenderThreadImpl
   void OnSystemColorsChanged(int32_t aqua_color_variant) override;
   void UpdateSystemColorInfo(
       mojom::UpdateSystemColorInfoParamsPtr params) override;
-  void PurgePluginListCache(bool reload_pages) override;
+  void PurgePluginListCache() override;
   void PurgeResourceCache(PurgeResourceCacheCallback callback) override;
   void SetProcessState(base::Process::Priority priority,
                        mojom::RenderProcessVisibleState visible_state) override;
@@ -530,6 +533,12 @@ class CONTENT_EXPORT RenderThreadImpl
 
   std::unique_ptr<base::SyncMemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
+
+  MemoryReclaimerPressureListener memory_reclaimer_pressure_listener_;
+
+  SkiaGraphicsPressureListener skia_graphics_pressure_listener_;
+
+  BlinkIsolatesPressureListener blink_isolates_pressure_listener_;
 
   std::unique_ptr<viz::Gpu> gpu_;
 

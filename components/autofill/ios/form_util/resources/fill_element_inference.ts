@@ -6,7 +6,6 @@ import type {FormControlElement} from '//components/autofill/ios/form_util/resou
 import * as inferenceUtil from '//components/autofill/ios/form_util/resources/fill_element_inference_util.js';
 import {ancestorTagNames, buildInferredLabelIfValid, findChildText, findChildTextWithIgnoreList, isTraversableContainerElement} from '//components/autofill/ios/form_util/resources/fill_element_inference_util.js';
 import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
-import {gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 
 /**
  * Shared function for InferLabelFromPrevious() and InferLabelFromNext().
@@ -113,10 +112,10 @@ function inferLabelFromSibling(
  * @param element An element to examine.
  * @return The label of element.
  */
-gCrWebLegacy.fill.inferLabelFromPrevious =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+export function inferLabelFromPrevious(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   return inferLabelFromSibling(element, false);
-};
+}
 
 /**
  * Same as InferLabelFromPrevious(), but in the other direction.
@@ -208,8 +207,8 @@ function inferLabelFromValueAttr(element: FormControlElement):
  * @return The label of element.
  */
 // TODO(crbug.com/454044167): Cleanup autofill TS type casting.
-gCrWebLegacy.fill.inferLabelFromListItem =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+export function inferLabelFromListItem(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   if (!element) {
     return null;
   }
@@ -225,7 +224,7 @@ gCrWebLegacy.fill.inferLabelFromListItem =
   }
 
   return null;
-};
+}
 
 /**
  * Helper for |InferLabelForElement()| that infers a label, if possible, from
@@ -242,8 +241,8 @@ gCrWebLegacy.fill.inferLabelFromListItem =
  * @return The label of element.
  */
 // TODO(crbug.com/454044167): Cleanup autofill TS type casting.
-gCrWebLegacy.fill.inferLabelFromTableColumn =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+export function inferLabelFromTableColumn(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   if (!element) {
     return null;
   }
@@ -271,7 +270,7 @@ gCrWebLegacy.fill.inferLabelFromTableColumn =
   }
 
   return r;
-};
+}
 
 /**
  * Helper for |InferLabelForElement()| that infers a label, if possible, from
@@ -290,8 +289,8 @@ gCrWebLegacy.fill.inferLabelFromTableColumn =
  * @return The label of element.
  */
 // TODO(crbug.com/454044167): Cleanup autofill TS type casting.
-gCrWebLegacy.fill.inferLabelFromTableRow =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+export function inferLabelFromTableRow(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   if (!element) {
     return null;
   }
@@ -402,7 +401,7 @@ gCrWebLegacy.fill.inferLabelFromTableRow =
     previous = previous.previousSibling;
   }
   return r;
-};
+}
 
 /**
  * Helper for |InferLabelForElement()| that infers a label, if possible, from
@@ -415,8 +414,8 @@ gCrWebLegacy.fill.inferLabelFromTableRow =
  * @param element An element to examine.
  * @return The label of element.
  */
-gCrWebLegacy.fill.inferLabelFromEnclosingLabel =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+export function inferLabelFromEnclosingLabel(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   if (!element) {
     return null;
   }
@@ -428,7 +427,7 @@ gCrWebLegacy.fill.inferLabelFromEnclosingLabel =
     return buildInferredLabelIfValid(findChildText(node));
   }
   return null;
-};
+}
 
 /**
  * Helper for |InferLabelForElement()| that infers a label, if possible, from
@@ -452,8 +451,9 @@ gCrWebLegacy.fill.inferLabelFromEnclosingLabel =
  * @return The label of element.
  */
 // TODO(crbug.com/454044167): Cleanup autofill TS type casting.
-gCrWebLegacy.fill.inferLabelFromDivTable =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+
+export function inferLabelFromDivTable(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   if (!element) {
     return null;
   }
@@ -515,7 +515,7 @@ gCrWebLegacy.fill.inferLabelFromDivTable =
   }
 
   return r;
-};
+}
 
 /**
  * Helper for |InferLabelForElement()| that infers a label, if possible, from
@@ -529,8 +529,9 @@ gCrWebLegacy.fill.inferLabelFromDivTable =
  * @param element An element to examine.
  * @return The label of element.
  */
-gCrWebLegacy.fill.inferLabelFromDefinitionList =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+
+export function inferLabelFromDefinitionList(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   if (!element) {
     return null;
   }
@@ -556,7 +557,7 @@ gCrWebLegacy.fill.inferLabelFromDefinitionList =
   }
 
   return buildInferredLabelIfValid(findChildText(previous));
-};
+}
 
 /**
  * Infers corresponding label for |element| from surrounding context in the DOM,
@@ -568,8 +569,8 @@ gCrWebLegacy.fill.inferLabelFromDefinitionList =
  * @param element An element to examine.
  * @return The inferred label of element, or '' if none could be found.
  */
-gCrWebLegacy.fill.inferLabelForElement =
-    function(element: FormControlElement): inferenceUtil.InferredLabel|null {
+export function inferLabelForElement(element: FormControlElement):
+    inferenceUtil.InferredLabel|null {
   let r: inferenceUtil.InferredLabel|null = null;
   if (inferenceUtil.isCheckableElement(element)) {
     r = inferLabelFromNext(element);
@@ -578,7 +579,7 @@ gCrWebLegacy.fill.inferLabelForElement =
     }
   }
 
-  r = gCrWebLegacy.fill.inferLabelFromPrevious(element);
+  r = inferLabelFromPrevious(element);
   if (r) {
     return r;
   }
@@ -608,18 +609,18 @@ gCrWebLegacy.fill.inferLabelForElement =
 
     seenTagNames[tagName] = true;
     if (tagName === 'LABEL') {
-      r = gCrWebLegacy.fill.inferLabelFromEnclosingLabel(element);
+      r = inferLabelFromEnclosingLabel(element);
     } else if (tagName === 'DIV') {
-      r = gCrWebLegacy.fill.inferLabelFromDivTable(element);
+      r = inferLabelFromDivTable(element);
     } else if (tagName === 'TD') {
-      r = gCrWebLegacy.fill.inferLabelFromTableColumn(element);
+      r = inferLabelFromTableColumn(element);
       if (!r) {
-        r = gCrWebLegacy.fill.inferLabelFromTableRow(element);
+        r = inferLabelFromTableRow(element);
       }
     } else if (tagName === 'DD') {
-      r = gCrWebLegacy.fill.inferLabelFromDefinitionList(element);
+      r = inferLabelFromDefinitionList(element);
     } else if (tagName === 'LI') {
-      r = gCrWebLegacy.fill.inferLabelFromListItem(element);
+      r = inferLabelFromListItem(element);
     } else if (tagName === 'FIELDSET') {
       break;
     }
@@ -630,4 +631,4 @@ gCrWebLegacy.fill.inferLabelForElement =
   }
   // If we didn't find a label, check for the value attribute case.
   return inferLabelFromValueAttr(element);
-};
+}

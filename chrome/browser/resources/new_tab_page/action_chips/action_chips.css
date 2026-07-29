@@ -13,6 +13,21 @@
 :host {
   --chip-background-color: var(--color-new-tab-page-action-chip-background);
   --ntp-chips-container-width: 449px;
+  --chip-slide-duration: 1000ms;
+  --chip-fade-duration: 850ms;
+  --chip-animation-curve: cubic-bezier(0.38, 0.72, 0.00, 1.00);
+}
+
+@keyframes chips-slide {
+  to {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes chips-fade-in {
+  to {
+    opacity: 1;
+  }
 }
 
 .action-chips-wrapper {
@@ -26,7 +41,6 @@
   flex-wrap: wrap;
   gap: 14px;
   justify-content: center;
-  overflow: hidden;
   width: 100%;
 }
 
@@ -36,8 +50,9 @@
 }
 
 .deep-search {
-  background-image: url(chrome://new-tab-page/icons/deep_search.svg);
+  background-color: var(--color-sys-on-surface-subtle);
   background-size: 24px;
+  -webkit-mask-image: url(chrome://new-tab-page/icons/deep_search.svg);
 }
 
 .action-chip {
@@ -50,18 +65,57 @@
   gap: 12px;
   height: 56px;
   isolation: isolate;
+  opacity: 0;
   overflow: hidden;
   padding: 8px 14px;
   position: relative;
+  transform: translateY(-56px);
   width: 240px;
 }
 
-.action-chip:hover {
-  --chip-background-color:
-    var(--color-new-tab-page-action-chip-background-hover);
+.action-chips-container .action-chip:nth-child(1) {
+  animation:
+    chips-slide var(--chip-slide-duration) 250ms
+      var(--chip-animation-curve) forwards,
+    chips-fade-in var(--chip-fade-duration) 400ms
+      var(--chip-animation-curve) forwards;
+}
+
+.action-chips-container .action-chip:nth-child(2) {
+  animation:
+    chips-slide var(--chip-slide-duration) 280ms
+      var(--chip-animation-curve) forwards,
+    chips-fade-in var(--chip-fade-duration) 430ms
+      var(--chip-animation-curve) forwards;
+}
+
+.action-chips-container .action-chip:nth-child(3) {
+  animation:
+    chips-slide var(--chip-slide-duration) 310ms
+      var(--chip-animation-curve) forwards,
+    chips-fade-in var(--chip-fade-duration) 460ms
+      var(--chip-animation-curve) forwards;
+}
+
+.action-chip::before {
+  background-color: transparent;
+  content: '';
+  inset: 0;
+  position: absolute;
+  z-index: -1;
+}
+
+.action-chip:hover::before {
+  background-color: var(--color-new-tab-page-action-chip-background-hover);
 }
 
 .action-chip-icon-container {
+  border-radius: 100%;
+  height: 24px;
+  width: 24px;
+}
+
+.action-chip-recent-tab-favicon {
   border-radius: 100%;
   height: 24px;
   width: 24px;
@@ -72,16 +126,22 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .chip-title {
-  color: var(--ntp-theme-text-color);
+  color: var(--color-sys-on-surface);
   font-size: 14px;
   font-weight: 500;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .chip-body {
-  color: #474747;
+  color: var(--color-sys-on-surface-subtle);
   font-size: 12px;
   font-weight: 400;
 }
@@ -102,4 +162,8 @@
   :host {
     --ntp-chips-container-width: 746px;
   }
+}
+
+cr-button>span {
+  display: block;
 }

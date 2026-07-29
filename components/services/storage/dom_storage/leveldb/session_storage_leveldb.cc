@@ -19,8 +19,12 @@ DbStatus SessionStorageLevelDB::Open(
     const std::string& name,
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id) {
-  ASSIGN_OR_RETURN(leveldb_, DomStorageDatabaseLevelDB::Open(directory, name,
-                                                             memory_dump_id));
+  ASSIGN_OR_RETURN(
+      leveldb_,
+      DomStorageDatabaseLevelDB::Open(
+          directory, name, memory_dump_id, kSessionStorageLevelDBVersionKey,
+          /*min_supported_version=*/kSessionStorageLevelDBVersion,
+          /*max_supported_version=*/kSessionStorageLevelDBVersion));
   return DbStatus::OK();
 }
 
@@ -33,6 +37,12 @@ SessionStorageLevelDB::ReadAllMetadata() {
   // TODO(crbug.com/377242771): Implement `DomStorageDatabase` for session
   // storage to make backend swappable for SQLite.
   return base::unexpected(DbStatus::NotSupported(""));
+}
+
+DbStatus SessionStorageLevelDB::PutMetadata(Metadata metadata) {
+  // TODO(crbug.com/377242771): Implement `DomStorageDatabase` for session
+  // storage to make backend swappable for SQLite.
+  return DbStatus::NotSupported("");
 }
 
 DbStatus SessionStorageLevelDB::RewriteDB() {

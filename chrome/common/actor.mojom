@@ -255,6 +255,9 @@ enum ActionResultCode {
   // The requested URL was not valid.
   kNavigateInvalidUrl = 100,
 
+  // The navigation failed before it started.
+  kNavigateFailedToStart = 101,
+
   // Please see the comment above about adding new values.
 
   ///////////////////////////////////////////////////////////////////////
@@ -421,6 +424,28 @@ enum ActionResultCode {
 
   // The media control action failed because there is no media on the page.
   kMediaControlNoMedia = 1000,
+
+  // Please see the comment above about adding new values.
+
+  ///////////////////////////////////////////////////////////////////////
+  // Codes 1100-1199: Errors for form filling.
+
+  // Autofill is not available.
+  kFormFillingAutofillUnavailable = 1100,
+
+  // No autofill suggestions are available for the fields.
+  kFormFillingNoSuggestionsAvailable = 1101,
+
+  // The user could not choose a suggestion because of an error showing the
+  // suggestion selection dialog.
+  kFormFillingDialogError = 1102,
+
+  // The trigger field for form filling was not found. It could be that the page
+  // has changed since the action was requested.
+  kFormFillingFieldNotFound = 1103,
+
+  // An error occurred during autofill.
+  kFormFillingUnknownAutofillError = 1104,
 
   // Please see the comment above about adding new values.
 };

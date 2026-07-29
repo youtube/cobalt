@@ -27,6 +27,7 @@ class RenderFrame;
 namespace actor {
 
 class Journal;
+class PageStabilityMetrics;
 class PaintStabilityMonitor;
 
 // Helper class for monitoring page stability after tool usage. Its lifetime
@@ -65,6 +66,8 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   void Bind(mojo::PendingReceiver<mojom::PageStabilityMonitor> receiver);
 
  private:
+  friend class PageStabilityMetrics;
+
   enum class State {
     kInitial,
 
@@ -85,13 +88,19 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
     // Wait until the main thread is settled.
     kWaitForMainThreadIdle,
 
-    // Timeout states - these just log and and move to invoke callback state.
-    kTimeoutGlobal,
-    kTimeoutMainThread,
+    // The main thread is settled.
+    kMainThreadIdle,
 
-    // If `kGlicActorPageStabilityInvokeCallbackDelay` is set, the callback
-    // passed to NotifyWhenStable() will be delayed by said amount of time.
+    // Timeout state - this just logs and and moves to invoke callback state.
+    kTimeout,
+
+    // If `kGlicActorPageStabilityMinWait` is set, the callback passed to
+    // NotifyWhenStable() may be delayed until the said amount of time is
+    // reached.
     kMaybeDelayCallback,
+
+    // Delay the callback until the min wait time is reached.
+    kDelayCallback,
 
     // Invoke the callback passed to NotifyWhenStable and cleanup.
     kInvokeCallback,
@@ -103,6 +112,9 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
     // The `paint_stability_monitor_` has determined that paint stability has
     // been reached. This just moves to kInokeCallback.
     kPaintStabilityReached,
+
+    // The mojo pipeline gets disconnected. This just moves to kDone.
+    kMojoDisconnected,
 
     kDone
   } state_ = State::kInitial;
@@ -128,8 +140,6 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   base::OnceCallback<base::DelayedTaskHandle()>
   PostCancelableMoveToStateClosure(State new_state,
                                    base::TimeDelta delay = base::TimeDelta());
-
-  void SetTimeout(State timeout_type, base::TimeDelta delay);
 
   void DCheckStateTransition(State old_state, State new_state);
 
@@ -167,6 +177,9 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   // and don't move to `kStartMonitoring` when the delay expires in this case.
   base::DelayedTaskHandle start_monitoring_delayed_handle_;
 
+  // Amount of time to delay before invoking the callback.
+  base::TimeDelta callback_invoke_delay_;
+
   TaskId task_id_;
 
   base::raw_ref<Journal> journal_;
@@ -175,6 +188,8 @@ class PageStabilityMonitor : public content::RenderFrameObserver,
   // monitoring an unsupported interaction. This must be destroyed before
   // `journal_entry_` to avoid a dangling pointer.
   std::unique_ptr<PaintStabilityMonitor> paint_stability_monitor_;
+
+  std::unique_ptr<PageStabilityMetrics> metrics_;
 
   // The main thread may be idle and move to `kMaybeDelayCallback` while the
   // task to move to `kPaintStabilityReached` is in queue.

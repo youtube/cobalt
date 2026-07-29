@@ -22,6 +22,8 @@
 #include "chrome/common/actor/journal_details_builder.h"
 #include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/sessions/core/session_id.h"
+#include "components/tabs/public/tab_interface.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
 
 namespace glic {
@@ -69,8 +71,15 @@ void GlicActorTaskManager::PerformActionsFinished(
           .Add("result_code", base::ToString(result_code))
           .Build());
 
-  // Task is checked when calling PerformActions and it doesn't go away.
-  CHECK(task);
+  // Task has disappeared, clear the current task id.
+  if (!task) {
+    current_task_id_ = actor::TaskId();
+    optimization_guide::proto::ActionsResult response =
+        actor::BuildErrorActionsResult(
+            actor::mojom::ActionResultCode::kTaskWentAway, std::nullopt);
+    std::move(callback).Run(mojo_base::ProtoWrapper(response));
+    return;
+  }
 
   // The callback doesn't need any weak semantics since all it does is wrap the
   // result and pass it to the mojo callback. If `this` is destroyed the mojo
@@ -185,14 +194,20 @@ void GlicActorTaskManager::StopActorTask(
 
   actor::ActorTask::StoppedReason reason;
   switch (stop_reason) {
-    case glic::mojom::ActorTaskStopReason::kStoppedByUser:
-      reason = actor::ActorTask::StoppedReason::kStoppedByUser;
-      break;
     case glic::mojom::ActorTaskStopReason::kTaskComplete:
       reason = actor::ActorTask::StoppedReason::kTaskComplete;
       break;
+    case glic::mojom::ActorTaskStopReason::kStoppedByUser:
+      reason = actor::ActorTask::StoppedReason::kStoppedByUser;
+      break;
     case glic::mojom::ActorTaskStopReason::kModelError:
       reason = actor::ActorTask::StoppedReason::kModelError;
+      break;
+    case glic::mojom::ActorTaskStopReason::kUserStartedNewChat:
+      reason = actor::ActorTask::StoppedReason::kUserStartedNewChat;
+      break;
+    case glic::mojom::ActorTaskStopReason::kUserLoadedPreviousChat:
+      reason = actor::ActorTask::StoppedReason::kUserLoadedPreviousChat;
       break;
   }
 
@@ -365,6 +380,34 @@ void GlicActorTaskManager::UninterruptActorTask(actor::TaskId task_id) {
     return;
   }
   task->Uninterrupt();
+}
+
+void GlicActorTaskManager::CreateActorTab(
+    actor::TaskId task_id,
+    bool open_in_background,
+    const std::optional<int32_t>& initiator_tab_id,
+    const std::optional<int32_t>& initiator_window_id,
+    glic::mojom::WebClientHandler::CreateActorTabCallback callback) {
+  tabs::TabHandle initiator_tab_handle =
+      initiator_tab_id.has_value() ? tabs::TabHandle(*initiator_tab_id)
+                                   : tabs::TabHandle::Null();
+  SessionID initiator_window_session_id =
+      initiator_window_id.has_value()
+          ? SessionID::FromSerializedValue(*initiator_window_id)
+          : SessionID::InvalidValue();
+
+  actor_keyed_service_->CreateActorTab(
+      task_id, open_in_background, initiator_tab_handle,
+      initiator_window_session_id,
+      base::BindOnce(&GlicActorTaskManager::CreateActorTabFinished,
+                     GetWeakPtr(), std::move(callback)));
+}
+
+void GlicActorTaskManager::CreateActorTabFinished(
+    glic::mojom::WebClientHandler::CreateActorTabCallback callback,
+    tabs::TabInterface* new_tab) {
+  std::move(callback).Run(
+      CreateTabData(new_tab ? new_tab->GetContents() : nullptr));
 }
 
 void GlicActorTaskManager::CancelTask() {

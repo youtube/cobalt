@@ -33,6 +33,7 @@
 <translation id="1409338233051621926">Valitse Sovellukset ja sitten Oletussovellukset</translation>
 <translation id="1415402041810619267">URL näkyy lyhennettynä</translation>
 <translation id="1415855080660575082">Salli Chromen jakaa viimeaikaiset välilehdet laitteelle, jotta näet ne laitteen sovelluslistalla ja hakutuloksissa. Voit laittaa tämän päälle tai pois päältä Chromen asetuksista.</translation>
+<translation id="1420688843103859429">Siirry taakse- ja eteenpäin pyyhkäisemällä kosketuslevyllä kahdella sormella</translation>
 <translation id="1432650420699700107">Sivustot voivat pyytää lupaa yhdistää paikallisessa verkossa oleviin laitteisiin</translation>
 <translation id="1448064542941920355">Vähennä zoomausta</translation>
 <translation id="1464044141348608623">Älä salli sivustojen tietää, milloin käytät laitetta aktiivisesti</translation>
@@ -218,7 +219,6 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="3285500645985761267">Salli toisiinsa liittyvien sivustojen nähdä toimintasi ryhmässä</translation>
 <translation id="3295019059349372795">Luku 11: Ozin ihastuttava smaragdikaupunki</translation>
 <translation id="3295602654194328831">Piilota tiedot</translation>
-<translation id="3328801116991980348">Tietoja sivustosta</translation>
 <translation id="3333961966071413176">Kaikki kontaktit</translation>
 <translation id="3360338140203645771">Poistetaanko tallennetut zoomaustasot?</translation>
 <translation id="3362437373201486687">Haetaan Bluetooth-laitteita</translation>
@@ -243,6 +243,7 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="3611658447322220736">Äskettäin suljetut sivustot saavat viimeistellä datan lähetyksen ja vastaanoton</translation>
 <translation id="3619294456800709762">Sivustot voivat siirtyä pikkuruututilaan automaattisesti</translation>
 <translation id="3628308229821498208">Ehdotetut haut</translation>
+<translation id="363748948745453283">Likimääräinen sijainti käytössä</translation>
 <translation id="3641456520301071208">Sivustot voivat pyytää sijaintiasi</translation>
 <translation id="3658847490588580244">Oletusselainsyöte</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> sivusto osoitteen <ph name="RWS_OWNER" /> sivustoryhmässä (toimintasi siellä näkyy sivustoille)}other{<ph name="RWS_MEMBERS_COUNT" /> sivustoa osoitteen <ph name="RWS_OWNER" /> sivustoryhmässä (toimintasi siellä näkyy sivustoille)}}</translation>
@@ -433,8 +434,10 @@ Lisäsuojaus ohjaa näitä Chromen asetuksia:
 <translation id="5750869797196646528">Käsien seuranta</translation>
 <translation id="5753570386948603678">Poista historiasta</translation>
 <translation id="5771720122942595109"><ph name="PERMISSION_1" /> estetty</translation>
+<translation id="5792627621688759634">Pyyhkäise sivujen välillä kosketuslevyllä</translation>
 <translation id="5801457289562671820">Organisaation suosittelema</translation>
 <translation id="5804241973901381774">Luvat</translation>
+<translation id="5817042798620209981">Sivustotiedot, valintaikkuna</translation>
 <translation id="5822675474983796325">"Muuta Uusi välilehti ‑sivua" -alapaneeli avattu koko näytölle</translation>
 <translation id="5833899990800318936">Älä salli sivustojen käyttää JavaScriptiä</translation>
 <translation id="583673505367439042">Sivustot saavat muokata laitteen tiedostoja ja kansioita</translation>

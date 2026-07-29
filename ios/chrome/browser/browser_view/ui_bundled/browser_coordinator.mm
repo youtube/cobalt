@@ -301,6 +301,7 @@
 #import "ios/chrome/browser/sync/model/sync_error_browser_agent.h"
 #import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator.h"
 #import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator_delegate.h"
+#import "ios/chrome/browser/synced_set_up/utils/utils.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
 #import "ios/chrome/browser/tab_switcher/tab_strip/coordinator/tab_strip_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_action_type.h"
@@ -2651,13 +2652,13 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)performReauthToRetrieveTrustedVaultKey:
-    (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
+    (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger {
   [self showTrustedVaultReauthForFetchKeysWithTrigger:trigger];
 }
 
 - (void)showComposeboxFromEntrypoint:(ComposeboxEntrypoint)entrypoint
                            withQuery:(NSString*)query {
-  CHECK(base::FeatureList::IsEnabled(kAIMPrototype));
+  CHECK(base::FeatureList::IsEnabled(kComposeboxIOS));
   if (_composeboxCoordinator) {
     return;
   }
@@ -3127,10 +3128,16 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - BWGCommands
 
 - (void)startBWGFlowWithEntryPoint:(bwg::EntryPoint)entryPoint {
+  [self startBWGFlowWithImageAttachment:nil entryPoint:entryPoint];
+}
+
+- (void)startBWGFlowWithImageAttachment:(UIImage*)image
+                             entryPoint:(bwg::EntryPoint)entryPoint {
   _BWGCoordinator =
       [[BWGCoordinator alloc] initWithBaseViewController:self.viewController
                                                  browser:self.browser
                                           fromEntryPoint:entryPoint];
+  _BWGCoordinator.imageAttachment = image;
   [_BWGCoordinator start];
 }
 
@@ -3675,6 +3682,7 @@ const char kChromeAppStoreUrl[] =
 
 - (void)showSyncedSetUpWithDismissalCompletion:(ProceduralBlock)completion {
   CHECK(IsSyncedSetUpEnabled());
+  CHECK(CanShowSyncedSetUp(self.profile->GetPrefs()));
 
   _runAfterSyncedSetUpDismissal = [completion copy];
 
@@ -3996,14 +4004,14 @@ const char kChromeAppStoreUrl[] =
 }
 
 - (void)showTrustedVaultReauthForFetchKeysWithTrigger:
-    (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
+    (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger {
   [self showTrustedVaultReauthWithTrigger:trigger
                                    intent:
                                        SigninTrustedVaultDialogIntentFetchKeys];
 }
 
 - (void)showTrustedVaultReauthForDegradedRecoverabilityWithTrigger:
-    (syncer::TrustedVaultUserActionTriggerForUMA)trigger {
+    (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger {
   SigninTrustedVaultDialogIntent intent =
       SigninTrustedVaultDialogIntentDegradedRecoverability;
   [self showTrustedVaultReauthWithTrigger:trigger intent:intent];
@@ -4012,7 +4020,7 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - SyncPresenter helper
 
 - (void)showTrustedVaultReauthWithTrigger:
-            (syncer::TrustedVaultUserActionTriggerForUMA)trigger
+            (trusted_vault::TrustedVaultUserActionTriggerForUMA)trigger
                                    intent:
                                        (SigninTrustedVaultDialogIntent)intent {
   if (_trustedVaultReauthenticationCoordinator) {
@@ -4653,18 +4661,18 @@ const char kChromeAppStoreUrl[] =
 }
 #pragma mark - QuickDeleteCommands
 
-- (void)showQuickDeleteAndCanPerformTabsClosureAnimation:
-    (BOOL)canPerformTabsClosureAnimation {
+- (void)showQuickDeleteAndCanPerformRadialWipeAnimation:
+    (BOOL)canPerformRadialWipeAnimation {
   CHECK(!self.isOffTheRecord);
 
   [_quickDeleteCoordinator stop];
 
   _quickDeleteCoordinator = [[QuickDeleteCoordinator alloc]
-          initWithBaseViewController:
-              top_view_controller::TopPresentedViewControllerFrom(
-                  self.sceneState.window.rootViewController)
-                             browser:self.browser
-      canPerformTabsClosureAnimation:canPerformTabsClosureAnimation];
+         initWithBaseViewController:
+             top_view_controller::TopPresentedViewControllerFrom(
+                 self.sceneState.window.rootViewController)
+                            browser:self.browser
+      canPerformRadialWipeAnimation:canPerformRadialWipeAnimation];
   [_quickDeleteCoordinator start];
 }
 

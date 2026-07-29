@@ -4,6 +4,7 @@
 
 #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener_linux.h"
 
+#include <algorithm>
 #include <set>
 #include <string>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "dbus/object_path.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/base/accelerators/command.h"
+#include "ui/linux/linux_ui_delegate.h"
 
 namespace ui {
 
@@ -87,14 +89,14 @@ void GlobalAcceleratorListenerLinux::OnServiceStarted(
   global_shortcuts_proxy_ = bus_->GetObjectProxy(
       kPortalServiceName, dbus::ObjectPath(kPortalObjectPath));
 
-  global_shortcuts_proxy_->ConnectToSignal(
-      kGlobalShortcutsInterface, kSignalActivated,
+  dbus_utils::ConnectToSignal<"ost">(
+      global_shortcuts_proxy_, kGlobalShortcutsInterface, kSignalActivated,
       base::BindRepeating(&GlobalAcceleratorListenerLinux::OnActivatedSignal,
                           weak_ptr_factory_.GetWeakPtr()),
       base::BindOnce(&GlobalAcceleratorListenerLinux::OnSignalConnected,
                      weak_ptr_factory_.GetWeakPtr()));
 
-  if (!bound_commands_.empty()) {
+  if (HasGlobalShortcuts()) {
     CreateSession();
   }
 }
@@ -138,25 +140,24 @@ void GlobalAcceleratorListenerLinux::OnCommandsChanged(
     const std::string& accelerator_group_id,
     const std::string& profile_id,
     const ui::CommandMap& commands,
+    gfx::AcceleratedWidget widget,
     Observer* observer) {
   // If starting the service failed, there's no need to add the command list.
   if (!service_started_.value_or(true)) {
     return;
   }
 
+  context_window_ = widget;
+
   const std::string prefix =
       GetShortcutPrefix(accelerator_group_id, profile_id);
   for (const auto& [_, command] : commands) {
     std::string id = prefix + "-" + command.command_name();
-    if (bound_commands_.find(id) == bound_commands_.end()) {
-      bound_commands_[id] = {command, accelerator_group_id, observer};
-    }
+    bound_commands_[id] = {command, accelerator_group_id, observer};
   }
 
   // Only proceed if there is at least one global command.
-  if (std::none_of(
-          bound_commands_.begin(), bound_commands_.end(),
-          [](const auto& pair) { return pair.second.command.global(); })) {
+  if (!HasGlobalShortcuts()) {
     return;
   }
 
@@ -232,14 +233,23 @@ void GlobalAcceleratorListenerLinux::OnListShortcuts(
   // them.
   for (const auto& [modified_id, bound_cmd] : bound_commands_) {
     if (registered_ids.find(modified_id) == registered_ids.end()) {
-      BindShortcuts(*shortcuts);
+      auto* delegate = ui::LinuxUiDelegate::GetInstance();
+      if (delegate && context_window_ != gfx::kNullAcceleratedWidget) {
+        delegate->ExportWindowHandle(
+            context_window_,
+            base::BindOnce(&GlobalAcceleratorListenerLinux::BindShortcuts,
+                           weak_ptr_factory_.GetWeakPtr(),
+                           std::move(*shortcuts)));
+      } else {
+        BindShortcuts(std::move(*shortcuts), "");
+      }
       return;
     }
   }
 }
 
-void GlobalAcceleratorListenerLinux::BindShortcuts(
-    DbusShortcuts& old_shortcuts) {
+void GlobalAcceleratorListenerLinux::BindShortcuts(DbusShortcuts old_shortcuts,
+                                                   std::string parent_handle) {
   DbusShortcuts shortcuts;
   for (auto& old_shortcut : old_shortcuts) {
     const std::string& id = std::get<0>(old_shortcut);
@@ -266,7 +276,8 @@ void GlobalAcceleratorListenerLinux::BindShortcuts(
       kMethodBindShortcuts, dbus_xdg::Dictionary(),
       base::BindOnce(&GlobalAcceleratorListenerLinux::OnBindShortcuts,
                      weak_ptr_factory_.GetWeakPtr()),
-      session_proxy_->object_path(), std::move(shortcuts), std::string());
+      session_proxy_->object_path(), std::move(shortcuts),
+      std::move(parent_handle));
 }
 
 void GlobalAcceleratorListenerLinux::CloseSession() {
@@ -298,17 +309,14 @@ void GlobalAcceleratorListenerLinux::OnBindShortcuts(
   }
 }
 
-void GlobalAcceleratorListenerLinux::OnActivatedSignal(dbus::Signal* signal) {
-  dbus::MessageReader reader(signal);
-  dbus::ObjectPath session_handle;
-  std::string shortcut_id;
-  uint64_t timestamp;
-
-  if (!reader.PopObjectPath(&session_handle) ||
-      !reader.PopString(&shortcut_id) || !reader.PopUint64(&timestamp)) {
+void GlobalAcceleratorListenerLinux::OnActivatedSignal(
+    dbus_utils::ConnectToSignalResultSig<"ost"> result) {
+  if (!result.has_value()) {
     LOG(ERROR) << "Failed to parse Activated signal.";
     return;
   }
+
+  auto [session_handle, shortcut_id, timestamp] = std::move(result.value());
 
   // Only process the signal if it comes from our current session.
   if (!session_proxy_ || session_proxy_->object_path() != session_handle) {
@@ -333,6 +341,12 @@ void GlobalAcceleratorListenerLinux::OnSignalConnected(
     LOG(ERROR) << "Failed to connect to signal: " << interface_name << "."
                << signal_name;
   }
+}
+
+bool GlobalAcceleratorListenerLinux::HasGlobalShortcuts() const {
+  return std::ranges::any_of(bound_commands_, [](const auto& pair) {
+    return pair.second.command.global();
+  });
 }
 
 }  // namespace ui

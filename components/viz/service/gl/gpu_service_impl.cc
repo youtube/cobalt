@@ -46,6 +46,7 @@
 #include "gpu/command_buffer/service/sync_point_manager.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/config/gpu_info_collector.h"
+#include "gpu/config/gpu_preferences.h"
 #include "gpu/config/gpu_switches.h"
 #include "gpu/config/gpu_util.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
@@ -224,9 +225,16 @@ GpuServiceImpl::GpuServiceImpl(
       // outlives the DawnContextProvider.
       std::unique_ptr<gpu::webgpu::DawnCachingInterface> caching_interface;
       if (features::kSkiaGraphiteDawnUsePersistentCache.Get()) {
+        gpu::GpuPersistentCache::AsyncDiskWriteOpts async_opts;
+        async_opts.task_runner = base::ThreadPool::CreateSequencedTaskRunner(
+            {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+             base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN});
+        async_opts.max_pending_bytes_to_write =
+            gpu::GetDefaultGpuDiskCacheSize();
         caching_interface = dawn_caching_interface_factory_->CreateInstance(
             gpu::kGraphiteDawnGpuDiskCacheHandle,
-            std::make_unique<gpu::GpuPersistentCache>("GraphiteDawn"));
+            std::make_unique<gpu::GpuPersistentCache>("GraphiteDawn",
+                                                      std::move(async_opts)));
       } else {
         auto cache_blob_callback = base::BindRepeating(
             [](GpuServiceImpl* self, const std::string& key,
@@ -447,7 +455,9 @@ void GpuServiceImpl::InitializeWithHostInternal(
   scheduler_ = scheduler;
   shutdown_event_ = shutdown_event;
 
-  use_shader_cache_shm_count_ = std::move(use_shader_cache_shm_count);
+  use_shader_cache_shm_count_ =
+      base::MakeRefCounted<gpu::RefCountedGpuProcessShmCount>(
+          std::move(use_shader_cache_shm_count));
 
   mojo::Remote<mojom::GpuHost> gpu_host(std::move(pending_gpu_host));
 
@@ -466,7 +476,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
   gpu_channel_manager_ = std::make_unique<gpu::GpuChannelManager>(
       gpu_preferences_, this, watchdog_thread_.get(), main_runner_, io_runner_,
       scheduler_, sync_point_manager, shared_image_manager, gpu_feature_info_,
-      &use_shader_cache_shm_count_, std::move(default_offscreen_surface),
+      &use_shader_cache_shm_count_->data, std::move(default_offscreen_surface),
       vulkan_context_provider(), metal_context_provider(),
       dawn_context_provider(), dawn_caching_interface_factory(),
       gr_context_options_provider_);
@@ -502,7 +512,7 @@ void GpuServiceImpl::InitializeWithHostInternal(
         dawn_context_provider_->use_thread_safe_shared_context()) {
       dawn_context_provider_->InitializeThreadSafeGraphiteContext(
           gpu::GetDefaultGraphiteContextOptions(gpu_driver_bug_workarounds_),
-          &use_shader_cache_shm_count_);
+          &use_shader_cache_shm_count_->data);
     }
     params.dawn_context_provider = dawn_context_provider_.get();
 #endif
@@ -920,7 +930,8 @@ void GpuServiceImpl::SetChannelPersistentCacheParams(
 
   auto* cache = dawn_context_provider_->GetCachingInterface();
   CHECK(cache);
-  cache->InitializePersistentCache(std::move(backend_params));
+  cache->InitializePersistentCache(std::move(backend_params),
+                                   use_shader_cache_shm_count_);
 #endif
 }
 

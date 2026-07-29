@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.settings.search;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.os.Bundle;
 import android.text.TextUtils;
 
 import org.chromium.build.annotations.NullMarked;
@@ -13,12 +14,11 @@ import org.chromium.build.annotations.Nullable;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /** Data from Preferences used for settings search. This is a collection of data to be indexed. */
 @NullMarked
@@ -30,7 +30,8 @@ public class SettingsIndexData {
     public static final int PARTIAL_SUMMARY_MATCH = 3;
 
     private final Map<String, Entry> mEntries = new LinkedHashMap<>();
-    private final Set<String> mDisabledFragments = new HashSet<>();
+    // Map from a child fragment's class name to the list of preference keys that can link to it.
+    private final Map<String, List<String>> mChildFragmentToParentKeys = new HashMap<>();
 
     /**
      * Normalizes a string for search by converting it to lowercase and stripping diacritics.
@@ -58,7 +59,10 @@ public class SettingsIndexData {
      * that its state cannot be changed after creation.
      */
     public static class Entry {
-        /** Key defined for Preference/Fragment. */
+        /** The entry's globally unique id. */
+        public final String id;
+
+        /** The original key defined for Preference/Fragment. */
         public final String key;
 
         /** Title of Preference/Fragment. */
@@ -79,23 +83,30 @@ public class SettingsIndexData {
         /** Package path name of the immediate parent Fragment of this entry. */
         public final String parentFragment;
 
+        /** Extra arguments needed to launch a pref. */
+        public final Bundle extras;
+
         private final @Nullable String mTitleNormalized;
         private final @Nullable String mSummaryNormalized;
 
         private Entry(
+                String id,
                 String key,
                 String title,
                 @Nullable String header,
                 @Nullable String summary,
                 @Nullable String fragment,
+                Bundle extras,
                 String parentFragment,
                 @Nullable String titleNormalized,
                 @Nullable String summaryNormalized) {
+            this.id = id;
             this.key = key;
             this.title = title;
             this.header = header;
             this.summary = summary;
             this.fragment = fragment;
+            this.extras = extras;
             this.parentFragment = parentFragment;
             mTitleNormalized = titleNormalized;
             mSummaryNormalized = summaryNormalized;
@@ -106,25 +117,30 @@ public class SettingsIndexData {
          * be aware of the normalized fields.
          */
         public static class Builder {
+            private final String mId;
             private final String mKey;
-            private final String mTitle;
+            private String mTitle;
             private @Nullable String mHeader;
             private @Nullable String mSummary;
             private @Nullable String mFragment;
+            private Bundle mExtras;
             private final String mParentFragment;
 
             /**
              * Constructs a builder with the minimum required fields for creating a new {@link
              * Entry}.
              *
-             * @param key The unique key of the preference.
+             * @param id The unique id of the preference.
+             * @param key The key of the preference.
              * @param title The title of the preference.
              * @param parentFragment The class name of the fragment containing this preference.
              */
-            public Builder(String key, String title, String parentFragment) {
+            public Builder(String id, String key, String title, String parentFragment) {
+                mId = id;
                 mKey = key;
                 mTitle = title;
                 mParentFragment = parentFragment;
+                mExtras = new Bundle();
             }
 
             /**
@@ -133,12 +149,19 @@ public class SettingsIndexData {
              * @param original The original {@link Entry} to copy.
              */
             public Builder(Entry original) {
+                mId = original.id;
                 mKey = original.key;
                 mTitle = original.title;
                 mHeader = original.header;
                 mSummary = original.summary;
                 mFragment = original.fragment;
+                mExtras = original.extras;
                 mParentFragment = original.parentFragment;
+            }
+
+            public Builder setTitle(String title) {
+                mTitle = title;
+                return this;
             }
 
             public Builder setHeader(@Nullable String header) {
@@ -156,6 +179,11 @@ public class SettingsIndexData {
                 return this;
             }
 
+            public Builder setArguments(Bundle extras) {
+                mExtras = extras;
+                return this;
+            }
+
             /**
              * Creates an {@link Entry} object.
              *
@@ -166,11 +194,13 @@ public class SettingsIndexData {
                 String summaryNormalized = normalizeString(mSummary);
 
                 return new Entry(
+                        mId,
                         mKey,
                         mTitle,
                         mHeader,
                         mSummary,
                         mFragment,
+                        mExtras,
                         mParentFragment,
                         titleNormalized,
                         summaryNormalized);
@@ -209,24 +239,6 @@ public class SettingsIndexData {
     }
 
     /**
-     * Removes a preference entry from the index and performs hierarchical disabling.
-     *
-     * <p>If the removed entry is a fragment (i.e., its {@code fragment} field is not null), then it
-     * is added to the "disabled" list, to be able to disable all the children settings as well.
-     *
-     * @param key The unique key of the preference to remove.
-     */
-    public void removeEntry(String key) {
-        var entry = mEntries.get(key);
-        if (entry == null) return;
-
-        if (entry.fragment != null) {
-            setDisabledFragment(entry.fragment);
-        }
-        mEntries.remove(key);
-    }
-
-    /**
      * Removes a preference entry from the index without disabling its target fragment.
      *
      * <p>This method should be used when a link to a fragment is being hidden from one screen, but
@@ -239,27 +251,8 @@ public class SettingsIndexData {
      *
      * @param key The unique key of the preference link to remove.
      */
-    public void removeSimpleEntry(String key) {
+    public void removeEntry(String key) {
         mEntries.remove(key);
-    }
-
-    /**
-     * Mark a given {@link Fragment} as disabled. This makes it possible to disable all the children
-     * settings as well.
-     *
-     * @param fragment Full package name of a {@link Fragment}.
-     */
-    public void setDisabledFragment(String fragment) {
-        mDisabledFragments.add(fragment);
-    }
-
-    /**
-     * Whether a given {@link Fragment} is disabled.
-     *
-     * @param fragment Full package name of a {@link Fragment}.
-     */
-    public boolean isDisabledFragment(String fragment) {
-        return mDisabledFragments.contains(fragment);
     }
 
     /** Set the flag indicating the index became stale and needs reindexing. */
@@ -279,7 +272,117 @@ public class SettingsIndexData {
      */
     public void clear() {
         mEntries.clear();
-        mDisabledFragments.clear();
+        mChildFragmentToParentKeys.clear();
+    }
+
+    /**
+     * Registers a potential parent-child relationship between a preference and a fragment.
+     *
+     * @param childFragmentName The class name of the child fragment.
+     * @param parentPreferenceKey The key of the preference that links to the child fragment.
+     */
+    public void addChildParentLink(String childFragmentName, String parentPreferenceKey) {
+        mChildFragmentToParentKeys
+                .computeIfAbsent(childFragmentName, k -> new ArrayList<>())
+                .add(parentPreferenceKey);
+    }
+
+    /**
+     * Finalizes the index by resolving the correct header for each entry based on the currently
+     * visible preferences and removes any orphaned entries that no longer have a valid parent path.
+     *
+     * @param rootFragmentName The class name of the root fragment (e.g., MainSettings).
+     */
+    public void resolveIndex(String rootFragmentName) {
+        Map<String, String> resolvedHeaderCache = new HashMap<>();
+        List<String> entriesToRemove = new ArrayList<>();
+
+        for (Entry entry : mEntries.values()) {
+            // Root entries have their own title as the header.
+            if (entry.parentFragment.equals(rootFragmentName)) {
+                Entry updatedEntry = new Entry.Builder(entry).setHeader(entry.title).build();
+                updateEntry(entry.id, updatedEntry);
+                continue;
+            }
+
+            String header =
+                    findVisibleHeader(entry.parentFragment, resolvedHeaderCache, rootFragmentName);
+            if (header != null) {
+                Entry updatedEntry = new Entry.Builder(entry).setHeader(header).build();
+                updateEntry(entry.id, updatedEntry);
+            } else {
+                // This entry is an orphan, we mark it for removal.
+                entriesToRemove.add(entry.id);
+            }
+        }
+
+        for (String key : entriesToRemove) {
+            removeEntry(key);
+        }
+    }
+
+    /**
+     * Finds the header for a given fragment by searching upwards through its possible parents to
+     * find a visible top-level setting.
+     *
+     * <p>This method uses a cache to avoid re-computing results for the same fragment and to
+     * prevent infinite loops. A path is considered valid only if all its ancestor preferences still
+     * exist in the index after the pruning phase.
+     *
+     * @param fragmentName The fragment to find the header for.
+     * @param cache A map to store results of this traversal, preventing redundant work.
+     * @param rootFragmentName The fragment that acts as the root of the settings hierarchy
+     *     (MainSettings).
+     * @return The title of the top-level preference that leads to this fragment, or {@code null} if
+     *     no valid path back to the root can be found (i.e., the fragment is an orphan).
+     */
+    @Nullable
+    private String findVisibleHeader(
+            String fragmentName, Map<String, String> cache, String rootFragmentName) {
+        if (cache.containsKey(fragmentName)) {
+            return cache.get(fragmentName);
+        }
+
+        if (fragmentName.equals(rootFragmentName)) {
+            return null; // The root has no parent header.
+        }
+
+        List<String> parentKeys = mChildFragmentToParentKeys.get(fragmentName);
+        if (parentKeys == null) {
+            cache.put(fragmentName, null); // No registered parent.
+            return null;
+        }
+
+        // Find the valid parent preference that is still enabled. Given how our settings are
+        // structured, a preference only has one valid parent at run-time. Otherwise, this would be
+        // the first valid path.
+        for (String parentKey : parentKeys) {
+            Entry parentEntry = mEntries.get(parentKey);
+            if (parentEntry != null) {
+                // We have two scenarios here:
+                // 1- This is a top-level preference under the main view. Then the title is the
+                // header.
+                // 2- This is not a top-level preference. We need to traverse up to find our
+                // top-level preference that serves as an entry point for this pref.
+                if (parentEntry.parentFragment.equals(rootFragmentName)) {
+                    String header = parentEntry.title;
+                    cache.put(fragmentName, header);
+                    return header;
+                } else {
+                    String header =
+                            findVisibleHeader(parentEntry.parentFragment, cache, rootFragmentName);
+                    if (header != null) {
+                        cache.put(fragmentName, header);
+                        return header;
+                    }
+                }
+            }
+        }
+
+        // We assign null here to track that we did query this and it resulted in no header. This
+        // helps us avoid going up this path again.
+        cache.put(fragmentName, null);
+        return null;
     }
 
     /**
@@ -369,5 +472,9 @@ public class SettingsIndexData {
 
     Map<String, Entry> getEntriesForTesting() {
         return mEntries;
+    }
+
+    Map<String, List<String>> getChildFragmentToParentKeysForTesting() {
+        return mChildFragmentToParentKeys;
     }
 }

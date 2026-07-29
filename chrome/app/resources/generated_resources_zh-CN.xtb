@@ -185,7 +185,7 @@
 <translation id="1118738876271697201">系统未能确定设备型号或序列号。</translation>
 <translation id="111897705806685148">使用另一部设备中的通行密钥</translation>
 <translation id="1119447706177454957">内部错误</translation>
-<translation id="1122068467107743258">工作</translation>
+<translation id="1122068467107743258">工作单位</translation>
 <translation id="1122198203221319518">工具(&amp;T)</translation>
 <translation id="1122242684574577509">身份验证失败。请点击此处访问当前所用 Wi-Fi 网络（“<ph name="NETWORK_ID" />”）的登录页面。</translation>
 <translation id="1122587596907914265">风格独特的壁纸</translation>
@@ -613,6 +613,7 @@
 <translation id="1414648216875402825">您即将更新到 <ph name="PRODUCT_NAME" />的不稳定版本，其中含有尚处于开发阶段的功能。系统可能会出现崩溃和意外错误。继续操作前，请三思。</translation>
 <translation id="1415708812149920388">已被禁止读取剪贴板</translation>
 <translation id="1415990189994829608">这类会话不允许使用“<ph name="EXTENSION_NAME" />”（扩展程序 ID 为“<ph name="EXTENSION_ID" />”）。</translation>
+<translation id="141720836055413739">无法上传，请尝试其他文件格式。</translation>
 <translation id="1417428793154876133">{NUM_APPS,plural, =1{移除应用}other{移除应用}}</translation>
 <translation id="1417497355604638350">发送诊断数据和使用情况数据。</translation>
 <translation id="1418552618736477642">通知和应用</translation>
@@ -740,7 +741,7 @@
 <translation id="1504253885059472207">固定拆分视图</translation>
 <translation id="1504551620756424144">在 Windows 中，共享文件夹是位于 <ph name="BASE_DIR" /> 下。</translation>
 <translation id="1505494256539862015">导出密码</translation>
-<translation id="1505654899813338756">您可以为标签页分组，将彼此相关的网页保存在一起，并在所有设备上同步保存</translation>
+<translation id="1505654899813338756">您可以为标签页分组，让相关网页集中在一起，并在所有设备上同步保存</translation>
 <translation id="1506061864768559482">搜索引擎</translation>
 <translation id="1506187449813838456">调高音调</translation>
 <translation id="1507170440449692343">已阻止此网页使用您的摄像头。</translation>
@@ -1048,7 +1049,6 @@
 <translation id="1700517974991662022">访问过</translation>
 <translation id="1703331064825191675">再也不必费心记住您的密码</translation>
 <translation id="1703666494654169921">不允许网站使用虚拟现实设备或数据</translation>
-<translation id="1703849276368677471">工具</translation>
 <translation id="1704097193565924901">大写</translation>
 <translation id="1704230497453185209">不允许网站播放声音</translation>
 <translation id="1706586824377653884">此图标是由管理员添加的</translation>
@@ -1112,7 +1112,6 @@
 <translation id="1751335846119670066">帮我读</translation>
 <translation id="17513872634828108">目前打开的标签页</translation>
 <translation id="175196451752279553">重新打开关闭的标签页(&amp;E)</translation>
-<translation id="1752557850776261983">正在检查登录状态…</translation>
 <translation id="1753067873202720523">您的 Chromebook 在处于打开状态时可能无法充电。</translation>
 <translation id="1753557900380512635">室内</translation>
 <translation id="1753905327828125965">常去网站</translation>
@@ -1345,7 +1344,7 @@
 <translation id="1913749768968678106">投放、保存和分享</translation>
 <translation id="19147273405311768">将工具栏重置为默认设置</translation>
 <translation id="1915073950770830761">Canary</translation>
-<translation id="1915307458270490472">中止</translation>
+<translation id="1915307458270490472">挂断</translation>
 <translation id="1915734383465415025">商店编号</translation>
 <translation id="1916502483199172559">默认的红色头像</translation>
 <translation id="1916770123977586577">要将您更新后的设置应用到此网站，请重新加载此页面</translation>
@@ -1738,7 +1737,6 @@
 <translation id="2178614541317717477">CA 泄漏</translation>
 <translation id="2180620921879609685">屏蔽所有页面上的内容</translation>
 <translation id="2181821976797666341">政策</translation>
-<translation id="2181930382663745869">进行比较</translation>
 <translation id="2182058453334755893">已复制到您的剪贴板</translation>
 <translation id="2182419606502127232">包含我的服务器日志。</translation>
 <translation id="2183570493397356669">已停用“继续”按钮</translation>
@@ -1881,6 +1879,7 @@
 <translation id="2281863813036651454">用鼠标左键点击</translation>
 <translation id="2282146716419988068">GPU 进程</translation>
 <translation id="228293613124499805">您访问的大多数网站很可能会将数据保存到设备上，例如保存您的偏好设置或您与网站分享的信息，这通常是为了提升您的浏览体验。我们建议您保持此设置的开启状态。</translation>
+<translation id="2283599456633275070">旅游</translation>
 <translation id="2285109769884538519">{COUNT,plural, =0{在新标签页组中打开全部网址(&amp;N)}=1{在新标签页组中打开 1 个网址(&amp;N)}other{在新标签页组中打开全部（{COUNT} 个）网址(&amp;N)}}</translation>
 <translation id="2285942871162473373">无法识别您的指纹。请重试。</translation>
 <translation id="2287617382468007324">输出 IPP 地址</translation>
@@ -2861,6 +2860,7 @@
 <translation id="2946640296642327832">启用蓝牙</translation>
 <translation id="2947281105969315778">如需分享或加入标签页分组，您必须能够登录 Chrome</translation>
 <translation id="2947605845283690091">浏览网站，快才是王道。请花点时间立即<ph name="BEGIN_LINK" />检查一下您的扩展程序<ph name="END_LINK" />吧。</translation>
+<translation id="2948287943780377675">{FILE_COUNT,plural, =1{将文件拖放到此处}other{将文件拖放到此处}}</translation>
 <translation id="2948300991547862301">转到“<ph name="PAGE_TITLE" />”</translation>
 <translation id="29488703364906173">一款快速、简单且安全的网络浏览器，能很好满足现代网络对浏览器的要求。</translation>
 <translation id="2950666755714083615">立即注册</translation>
@@ -2970,6 +2970,7 @@
 <translation id="3019023222666709803">箭头工具</translation>
 <translation id="3019285239893817657">子页面按钮</translation>
 <translation id="3019595674945299805">VPN 服务</translation>
+<translation id="3020101754533552167">正在检查登录状态…</translation>
 <translation id="3020183492814296499">快捷方式</translation>
 <translation id="3020990233660977256">序列号：<ph name="SERIAL_NUMBER" /></translation>
 <translation id="3021065318976393105">使用电池时</translation>
@@ -3408,7 +3409,7 @@
 <translation id="3348131053948466246">建议的表情符号。按向上或向下箭头键即可浏览，按 Enter 键即可插入。</translation>
 <translation id="3348973040180736882">正在解压缩</translation>
 <translation id="3349933790966648062">内存占用</translation>
-<translation id="3350450887151703713">重放 10 秒</translation>
+<translation id="3350450887151703713">回放 10 秒</translation>
 <translation id="3351472127384196879">添加或寻找触控笔按钮</translation>
 <translation id="3353786022389205125">开启“从休眠状态唤醒时显示锁定屏幕”，然后重试</translation>
 <translation id="3354768182971982851">2022 年 12 月之后，旧版 Chrome 应用将无法在 Mac 设备上开启。您可查看是否有可用的新版本。</translation>
@@ -4024,6 +4025,7 @@
 <translation id="3756578970075173856">设置 PIN 码</translation>
 <translation id="3756806135608816820">网站可以请求寻找蓝牙设备</translation>
 <translation id="3757567010566591880">取消固定到工具栏</translation>
+<translation id="3757645900890881944">搜索工具</translation>
 <translation id="3757733214359997190">未找到任何网站</translation>
 <translation id="375841316537350618">正在下载代理脚本...</translation>
 <translation id="3758887577462995665">提示：</translation>
@@ -4471,7 +4473,7 @@
 <translation id="4044964245574571633">使用 Microsoft OneDrive 存储空间</translation>
 <translation id="4045196801416070837">设备提示音</translation>
 <translation id="4046013316139505482">这些扩展程序不需要查看和更改此网站上的信息。</translation>
-<translation id="4046123991198612571">下一曲</translation>
+<translation id="4046123991198612571">下一首</translation>
 <translation id="4046655456159965535">删除显示的数据？</translation>
 <translation id="4047345532928475040">无</translation>
 <translation id="4047581153955375979">USB4</translation>
@@ -5247,6 +5249,7 @@
 <translation id="4606551464649945562">不允许网站为您的周边环境创建 3D 地图或跟踪摄像头位置</translation>
 <translation id="4606933160360542263">自定义组合键：<ph name="KEY_COMBINATION" /></translation>
 <translation id="4607297000182742106">{GROUP_COUNT,plural, =1{要删除标签页分组吗？}other{要删除标签页分组吗？}}</translation>
+<translation id="4607763915939540711">{FILE_LIMIT,plural, =1{提问时最多可上传 1 个文件}other{提问时最多可上传 # 个文件}}</translation>
 <translation id="4608500690299898628">查找(&amp;F)...</translation>
 <translation id="4609164937357979319">账号选择</translation>
 <translation id="4610493438923139095">不可信</translation>
@@ -5270,6 +5273,7 @@
 <translation id="4622051949285931942">关闭自动更新？</translation>
 <translation id="4623167406982293031">验证账号</translation>
 <translation id="4623189117674524348">系统未能向此设备授予 API 访问权限。</translation>
+<translation id="4623894491222334521">身份文件</translation>
 <translation id="4624054169152573743">颜色主题</translation>
 <translation id="4625078469366263107">启用应用</translation>
 <translation id="4625905218692741757">默认颜色为灰色</translation>
@@ -6359,7 +6363,6 @@
 <translation id="5398497406011404839">隐藏的书签</translation>
 <translation id="5398572795982417028">页面引用超出范围，上限为 <ph name="MAXIMUM_PAGE" /></translation>
 <translation id="539882584649709174">帮助您在网络上撰写评价等简短文字</translation>
-<translation id="5400068721524309244">分享标签页时，系统会将标签页的网页内容和网址发送给 Google</translation>
 <translation id="5400196580536813396">不得查找或使用您的设备可访问的打印机</translation>
 <translation id="5400836586163650660">灰色</translation>
 <translation id="5402367795255837559">盲文</translation>
@@ -6779,7 +6782,6 @@
 <translation id="5689233503102158537">alt + 退格键</translation>
 <translation id="5689516760719285838">位置信息</translation>
 <translation id="56907980372820799">关联数据</translation>
-<translation id="5691581861107245578">根据您输入的内容，获取表情符号建议</translation>
 <translation id="5691772641933328258">无法识别指纹</translation>
 <translation id="5693255400847650006">麦克风正在使用中</translation>
 <translation id="5695046252726616755">按 Enter 键或空格键可查看更多选项。</translation>
@@ -8585,6 +8587,7 @@
 <translation id="6961327401577924850">网站通常会寻找蓝牙设备以实现某些功能（例如设置或同步低功耗信标、健康/健身智能手环或智能灯泡）</translation>
 <translation id="6963772203726867701">未检测到</translation>
 <translation id="6963872466817251924">文本光标突出显示工具</translation>
+<translation id="6964239097707154771">是 Chrome 的插件，可帮助您事半功倍</translation>
 <translation id="6964390816189577014">英雄</translation>
 <translation id="6964760285928603117">从分组中移除</translation>
 <translation id="6965382102122355670">确定</translation>
@@ -8897,6 +8900,7 @@
 <translation id="7186088072322679094">固定在工具栏中</translation>
 <translation id="7186303001964993981"><ph name="ORIGIN" /> 无法打开此文件夹，因为其中含有系统文件</translation>
 <translation id="7186568385131859684">控制 Google 服务如何使用浏览记录及您的其他数据</translation>
+<translation id="7186903260115204164">使用新的“绘图”工具添加手绘图、签名和突出显示内容</translation>
 <translation id="7188508872042490670">设备端网站数据</translation>
 <translation id="7189234443051076392">确保您的设备上有足够的空间</translation>
 <translation id="7189451821249468368">您没有足够的升级许可来注册此设备。请与销售代表联系，以购买更多升级许可。如果您认为自己不应看到这条消息，请与支持人员联系。</translation>
@@ -9527,7 +9531,6 @@
 <translation id="7629858978065675960">未知结果。</translation>
 <translation id="7630426712700473382">此设备由 <ph name="MANAGER" /> 管理，要求您每次使用前必须先登录。</translation>
 <translation id="7631014249255418691">已成功备份 Linux 应用和文件</translation>
-<translation id="7631722872321401342">您的设备上没有<ph name="LANGUAGE" />语音包。您可以在设置中安装语音包。</translation>
 <translation id="7631887513477658702">总是打开此类文件(&amp;A)</translation>
 <translation id="7632437836497571618">使用安全连接查找网站</translation>
 <translation id="7632948528260659758">以下自助服务终端应用未能成功更新：</translation>
@@ -10021,6 +10024,7 @@
 <translation id="7952904276017482715">预期 ID 是“<ph name="EXPECTED_ID" />”，但实际 ID 是“<ph name="NEW_ID" />”</translation>
 <translation id="7953236668995583915">重新加载此页面，即可在该网站上应用更新后的设置</translation>
 <translation id="7953669802889559161">输入法</translation>
+<translation id="7953955868932471628">管理快捷方式</translation>
 <translation id="7955105108888461311">当面请求</translation>
 <translation id="7955177647836564772">如果 Smart Lock 已开启且您的手机处于未锁定状态，您无需输入密码或 PIN 码</translation>
 <translation id="7956373551960864128">已保存的打印机</translation>
@@ -10831,7 +10835,7 @@
 <translation id="8497219075884839166">Windows 实用程序</translation>
 <translation id="8497819894150712946">通过 Chrome 保存</translation>
 <translation id="8498214519255567734">可让您更舒适地在黯淡的光线下查看屏幕或阅读文字</translation>
-<translation id="8499083585497694743">将麦克风取消静音</translation>
+<translation id="8499083585497694743">取消麦克风静音</translation>
 <translation id="8500044868721690197">此网站已被禁止控制您的 MIDI 设备以及为其重新编程</translation>
 <translation id="8500123638242682652">窗口已向上移动</translation>
 <translation id="8500132602331251964">应用有更新</translation>
@@ -10843,6 +10847,7 @@
 <translation id="8505669004895429027">节省少量内存</translation>
 <translation id="8507227974644337342">屏幕分辨率</translation>
 <translation id="850763987657366362">无法导入证书</translation>
+<translation id="8508532351844333131"><ph name="WEBSITE_ORIGIN" /> 想将信息保存到您的 Android 设备上</translation>
 <translation id="8509177919508253835">重置安全密钥并创建 PIN 码</translation>
 <translation id="8509646642152301857">拼写检查字典下载失败。</translation>
 <translation id="8509967119010808787">如要搜索您的标签页，请点击此处</translation>
@@ -11226,7 +11231,6 @@
 <translation id="876161309768861172">无法登录，请重试</translation>
 <translation id="8761945298804995673">该用户已存在</translation>
 <translation id="8762886931014513155">您的 <ph name="DEVICE_TYPE" /> 需要更新</translation>
-<translation id="8763170551806710928">显示条状标签</translation>
 <translation id="8763927697961133303">USB 设备</translation>
 <translation id="8766156860774051068">由您挑选</translation>
 <translation id="8766796754185931010">Kotoeri</translation>
@@ -11407,6 +11411,7 @@
 <translation id="8886745493279779790">查看闲置标签页</translation>
 <translation id="8888253246822647887">待完成升级后，您的应用即会打开。升级过程可能会持续几分钟。</translation>
 <translation id="8888459276890791557">您可以固定此侧边栏以方便访问</translation>
+<translation id="8888621340860433230">显示选项</translation>
 <translation id="8889294078294184559">随着您继续浏览，所访问的网站可从 Chrome 中获取上一个网站提供的相关信息来验证您可能是真实的用户</translation>
 <translation id="8889651696183044030"><ph name="ORIGIN" /> 可修改以下文件和文件夹</translation>
 <translation id="8890170499370378450">可能会产生移动数据费用</translation>
@@ -11912,7 +11917,7 @@
 <translation id="930991362911221750">允许“<ph name="APP_NAME" />”查看此标签页？</translation>
 <translation id="931273044114601262">允许在此网站上使用</translation>
 <translation id="93140074055951850">Android 应用被停止了</translation>
-<translation id="932327136139879170">首页</translation>
+<translation id="932327136139879170">家</translation>
 <translation id="932508678520956232">无法开始打印。</translation>
 <translation id="933427034780221291">{NUM_FILES,plural, =1{这个文件太大，无法进行安全检查。您只能上传不超过 50 MB 的文件。}other{这些文件中的部分文件太大，无法进行安全检查。您只能上传不超过 50 MB 的文件。}}</translation>
 <translation id="93343527085570547">如要依法提出内容更改请求，请前往<ph name="BEGIN_LINK1" />法律帮助页面<ph name="END_LINK1" />。系统可能会将部分账号和系统信息发送给 Google。我们会根据<ph name="BEGIN_LINK2" />隐私权政策<ph name="END_LINK2" />和<ph name="BEGIN_LINK3" />服务条款<ph name="END_LINK3" />使用您提供的信息，以解决技术问题并改进服务。</translation>

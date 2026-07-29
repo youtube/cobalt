@@ -23,6 +23,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
@@ -31,12 +32,14 @@ import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
 import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 import org.chromium.ui.widget.ViewRectProvider;
 import org.chromium.url.GURL;
+
+import java.util.Collections;
+import java.util.List;
 
 /** Coordinator for the Navigation Attachments component. */
 @NullMarked
@@ -49,7 +52,7 @@ public class NavigationAttachmentsCoordinator
     private final PropertyModel mModel;
     private final Context mContext;
     private final WindowAndroid mWindowAndroid;
-    private final ModelList mModelList = new ModelList();
+    private final FuseboxAttachmentModelList mModelList = new FuseboxAttachmentModelList();
     private final ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private @Nullable NavigationAttachmentsMediator mMediator;
     private @Nullable ComposeBoxQueryControllerBridge mComposeBoxQueryControllerBridge;
@@ -72,7 +75,7 @@ public class NavigationAttachmentsCoordinator
         mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
 
         if (!OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()
-                || parent.findViewById(R.id.location_bar_attachments_toolbar) == null) {
+                || parent.findViewById(R.id.fusebox_request_type) == null) {
             mViewHolder = null;
             mLocationBarDataProvider = null;
             mModel = new PropertyModel();
@@ -96,7 +99,7 @@ public class NavigationAttachmentsCoordinator
         var popup = new NavigationAttachmentsPopup(mContext, popupWindow, popupView);
         mViewHolder = new NavigationAttachmentsViewHolder(parent, popup);
 
-        var adapter = new NavigationAttachmentsRecyclerViewAdapter(mModelList);
+        var adapter = new FuseboxAttachmentRecyclerViewAdapter(mModelList);
         mViewHolder.attachmentsView.setAdapter(adapter);
 
         mModel =
@@ -127,6 +130,9 @@ public class NavigationAttachmentsCoordinator
         mComposeBoxQueryControllerBridge = ComposeBoxQueryControllerBridge.getForProfile(profile);
         if (mComposeBoxQueryControllerBridge == null) return;
 
+        // Set the bridge for the model list to enable tight coupling
+        mModelList.setComposeBoxQueryControllerBridge(mComposeBoxQueryControllerBridge);
+
         mMediator =
                 new NavigationAttachmentsMediator(
                         mContext,
@@ -140,14 +146,24 @@ public class NavigationAttachmentsCoordinator
     }
 
     public void destroy() {
-        mMediator = null;
+        if (mMediator != null) {
+            mMediator.destroy();
+            mMediator = null;
+        }
         if (mTemplateUrlService != null) {
             mTemplateUrlService.removeObserver(this);
         }
+        // Clear the model list bridge reference to prevent further operations
+        mModelList.setComposeBoxQueryControllerBridge(null);
         if (mComposeBoxQueryControllerBridge != null) {
             mComposeBoxQueryControllerBridge.destroy();
             mComposeBoxQueryControllerBridge = null;
         }
+    }
+
+    public void onAiModeActivatedFromNtp() {
+        if (mMediator == null) return;
+        mMediator.activateAiMode(AiModeActivationSource.NTP_BUTTON);
     }
 
     /** Called when the URL focus changes. */
@@ -174,6 +190,9 @@ public class NavigationAttachmentsCoordinator
         boolean isChangeable = hasFocus && isSupportedPageClass;
         mMediator.setAutocompleteRequestTypeChangeable(isChangeable);
         mMediator.setToolbarVisible(isChangeable);
+        if (isChangeable) {
+            FuseboxMetrics.notifyOmniboxSessionStarted();
+        }
     }
 
     // TemplateUrlServiceObserver
@@ -205,6 +224,12 @@ public class NavigationAttachmentsCoordinator
         return mMediator.getAimUrl(queryText);
     }
 
+    /** Returns the URL associated with the current image generation session. */
+    public GURL getImageGenerationUrl(String queryText) {
+        if (mMediator == null) return GURL.emptyGURL();
+        return mMediator.getImageGenerationUrl(queryText);
+    }
+
     public PropertyModel getModelForTesting() {
         return mModel;
     }
@@ -229,12 +254,37 @@ public class NavigationAttachmentsCoordinator
     }
 
     /**
-     * Whether the given mode allows "conventioanl" fulfillment of a valid typed url, i.e.
+     * Called when fusebox text wrapping changes.
+     *
+     * @param isWrapping true if text is wrapping (should show expanded UI), false for compact UI
+     */
+    public void onFuseboxTextWrappingChanged(boolean isWrapping) {
+        if (mMediator == null) return;
+        mModel.set(NavigationAttachmentsProperties.COMPACT_UI, !isWrapping);
+    }
+
+    /**
+     * @return List of attachment tokens, empty if no attachments or mediator unavailable.
+     */
+    public List<String> getAttachmentTokens() {
+        if (mMediator == null) {
+            return Collections.emptyList();
+        }
+        return mMediator.getAttachmentTokens();
+    }
+
+    /**
+     * Whether the given mode allows "conventional" fulfillment of a valid typed url, i.e.
      * navigating to that url directly. As an example of where this might return false: if if the
      * user types www.foo.com and presses enter with this mode active, they will be taken to some
      * DSE-specific landing page where www.foo.com is the input, not directly to foo.com *
      */
     public static boolean isConventionalFulfillmentType(@AutocompleteRequestType int mode) {
         return mode == AutocompleteRequestType.SEARCH;
+    }
+
+    public void notifyOmniboxSessionEnded(boolean userDidNavigate) {
+        FuseboxMetrics.notifyOmniboxSessionEnded(
+                userDidNavigate, mAutocompleteRequestTypeSupplier.get());
     }
 }

@@ -41,18 +41,16 @@
 
 namespace blink {
 
-const char PagePopupController::kSupplementName[] = "PagePopupController";
-
 PagePopupController* PagePopupController::From(Page& page) {
-  return Supplement<Page>::From<PagePopupController>(page);
+  return page.GetPagePopupController();
 }
 
 PagePopupController::PagePopupController(Page& page,
                                          PagePopup& popup,
                                          PagePopupClient* client)
-    : Supplement(page), popup_(popup), popup_client_(client) {
+    : page_(&page), popup_(popup), popup_client_(client) {
   DCHECK(client);
-  ProvideTo(page, this);
+  page.SetPagePopupController(this);
 }
 
 void PagePopupController::setValueAndClosePopup(int num_value,
@@ -126,7 +124,7 @@ void PagePopupController::setWindowRect(int x, int y, int width, int height) {
 
 void PagePopupController::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
-  Supplement<Page>::Trace(visitor);
+  visitor->Trace(page_);
 }
 
 void PagePopupController::setMenuListOptionsBoundsInAXTree(

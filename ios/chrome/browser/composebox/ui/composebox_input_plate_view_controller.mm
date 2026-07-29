@@ -47,7 +47,11 @@ const CGFloat kAIMButtonHeight = 36.0f;
 /// The width of the AIM mode button.
 const CGFloat kAIMButtonWidth = 94.0f;
 /// The spacing for the horizontal buttons stack view.
+const CGFloat kButtonsCompactSpacing = 4.0f;
 const CGFloat kButtonsStackViewSpacing = 6.0f;
+/// The spacing between the Lens and Voice buttons.
+const CGFloat kShortcutsSpacing = 24.0f;
+const CGFloat kShortcutsSpacingCompact = 16.0f;
 /// The spacing for the main vertical input plate stack view.
 const CGFloat kInputPlateStackViewSpacing = 10.0f;
 /// The vertical padding for the input plate stack view.
@@ -64,6 +68,8 @@ const CGFloat kAIMButtonSymbolPointSize = 12;
 const CGFloat kGenericButtonWidth = 24.0f;
 /// The height of the buttons created with `createButtonWithImage:`.
 const CGFloat kGenericButtonHeight = 32.0f;
+/// The dimension of the send button.
+const CGFloat kSendButtonDimension = 32.0f;
 
 /// The duration for the glow effect.
 const CGFloat kGlowEffectDuration = 1.0f;
@@ -75,6 +81,7 @@ const CGFloat kFadeViewWidth = 30.0f;
 /// The duration for the AIM button animation.
 const CGFloat kAIMButtonAnimationDuration = 0.25f;
 }  // namespace
+
 
 @interface ComposeboxInputPlateViewController () <
     UITextViewDelegate,
@@ -94,6 +101,9 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
 /// Edit view contained in `_omniboxContainer`.
 @property(nonatomic, strong) UIView<TextFieldViewContaining>* editView;
 
+/// Whether the UI is in compact (single line) mode.
+@property(nonatomic, assign) BOOL isCompactMode;
+
 @end
 
 @implementation ComposeboxInputPlateViewController {
@@ -111,6 +121,8 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   UIButton* _aimButton;
   /// The glow effect around the input plate container.
   UIView<GlowEffect>* _glowEffectView;
+  /// The plus button.
+  UIButton* _plusButton;
   /// The mic button for voice search.
   UIButton* _micButton;
   /// The lens button.
@@ -130,15 +142,19 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
 
   /// The cancellable callback for updating the glow effect.
   base::CancelableOnceClosure _updateGlowCallback;
+
+  // The theme of the composebox.
+  ComposeboxTheme* _theme;
 }
 
 /// ComposeboxAnimationContextProvider
 @synthesize inputPlateViewForAnimation = _inputPlateContainerView;
 
-- (instancetype)init {
+- (instancetype)initWithTheme:(ComposeboxTheme*)theme {
   self = [super init];
   if (self) {
     _omniboxContainer = [[UIView alloc] init];
+    _theme = theme;
   }
   return self;
 }
@@ -149,155 +165,33 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   // --- Bottom Input Area ---
 
   // Input plate container
-  _inputPlateContainerView = [[UIView alloc] init];
-  _inputPlateContainerView.translatesAutoresizingMaskIntoConstraints = NO;
-  _inputPlateContainerView.backgroundColor =
-      [UIColor colorNamed:kPrimaryBackgroundColor];
-  _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
-  _inputPlateContainerView.layer.shadowColor =
-      [UIColor colorNamed:kTextPrimaryColor].CGColor;
-  _inputPlateContainerView.layer.shadowOpacity = kInputPlateShadowOpacity;
-  _inputPlateContainerView.layer.shadowRadius = kInputPlateShadowRadius;
-  _inputPlateContainerView.layer.shadowOffset = CGSizeZero;
-  [self.view addSubview:_inputPlateContainerView];
-
-  _glowEffectView = ios::provider::CreateGlowEffect(
-      CGRectZero, kInputPlateCornerRadius, kGlowEffectWidth);
-  if (_glowEffectView) {
-    _glowEffectView.translatesAutoresizingMaskIntoConstraints = NO;
-    _glowEffectView.userInteractionEnabled = NO;
-    [self.view insertSubview:_glowEffectView
-                belowSubview:_inputPlateContainerView];
-    AddSameConstraintsWithInset(_inputPlateContainerView, _glowEffectView,
-                                kGlowEffectWidth);
-  }
+  [self setupInputPlateContainerView];
+  AddSameConstraints(_inputPlateContainerView, self.view);
 
   _omniboxContainer.translatesAutoresizingMaskIntoConstraints = NO;
 
   _micButton = [self createMicrophoneButton];
   _lensButton = [self createLensButton];
-
-  // Carousel view
-  UICollectionViewFlowLayout* layout =
-      [[UICollectionViewFlowLayout alloc] init];
-  layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-  layout.minimumLineSpacing = kCarouselItemSpacing;
-  _carouselView = [[UICollectionView alloc] initWithFrame:CGRectZero
-                                     collectionViewLayout:layout];
-  _carouselView.translatesAutoresizingMaskIntoConstraints = NO;
-  _carouselView.backgroundColor = UIColor.clearColor;
-  [_carouselView registerClass:[ComposeboxInputItemCell class]
-      forCellWithReuseIdentifier:kItemCellReuseIdentifier];
-  _dataSource = [self createDataSource];
-  _carouselView.dataSource = _dataSource;
-  _carouselView.delegate = self;
-  [_carouselView.heightAnchor constraintEqualToConstant:kCarouselHeight]
-      .active = YES;
-  _carouselView.showsHorizontalScrollIndicator = NO;
-
-  // Carousel container and fade view.
-  _carouselContainer = [[UIView alloc] init];
-  _carouselContainer.translatesAutoresizingMaskIntoConstraints = NO;
-  [_carouselContainer addSubview:_carouselView];
-  _carouselContainer.hidden = YES;
-  AddSameConstraints(_carouselContainer, _carouselView);
-
-  _trailingCarouselFadeView = [[UIView alloc] init];
-  _trailingCarouselFadeView.translatesAutoresizingMaskIntoConstraints = NO;
-  _trailingCarouselFadeView.userInteractionEnabled = NO;
-  _trailingCarouselFadeView.hidden = YES;
-  [_carouselContainer addSubview:_trailingCarouselFadeView];
-
-  _leadingCarouselFadeView = [[UIView alloc] init];
-  _leadingCarouselFadeView.translatesAutoresizingMaskIntoConstraints = NO;
-  _leadingCarouselFadeView.userInteractionEnabled = NO;
-  _leadingCarouselFadeView.hidden = YES;
-  [_carouselContainer addSubview:_leadingCarouselFadeView];
-
-  [_trailingCarouselFadeView.layer
-      insertSublayer:[self createGradientLayerForLeading:NO]
-             atIndex:0];
-  [_leadingCarouselFadeView.layer
-      insertSublayer:[self createGradientLayerForLeading:YES]
-             atIndex:0];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_trailingCarouselFadeView.trailingAnchor
-        constraintEqualToAnchor:_carouselContainer.trailingAnchor],
-    [_trailingCarouselFadeView.topAnchor
-        constraintEqualToAnchor:_carouselContainer.topAnchor],
-    [_trailingCarouselFadeView.bottomAnchor
-        constraintEqualToAnchor:_carouselContainer.bottomAnchor],
-    [_trailingCarouselFadeView.widthAnchor
-        constraintEqualToConstant:kFadeViewWidth],
-
-    [_leadingCarouselFadeView.leadingAnchor
-        constraintEqualToAnchor:_carouselContainer.leadingAnchor],
-    [_leadingCarouselFadeView.topAnchor
-        constraintEqualToAnchor:_carouselContainer.topAnchor],
-    [_leadingCarouselFadeView.bottomAnchor
-        constraintEqualToAnchor:_carouselContainer.bottomAnchor],
-    [_leadingCarouselFadeView.widthAnchor
-        constraintEqualToConstant:kFadeViewWidth],
-  ]];
-
-  // Action buttons
-  UIButton* plusButton = [self createPlusButton];
+  _plusButton = [self createPlusButton];
   _sendButton = [self createSendButton];
+  [self updatePlusButtonItems];
+  [self setupCarouselContainer];
 
-  _aimButton = [UIButton buttonWithType:UIButtonTypeSystem];
-  _aimButton.translatesAutoresizingMaskIntoConstraints = NO;
-  [_aimButton addTarget:self
-                 action:@selector(aimButtonTapped)
-       forControlEvents:UIControlEventTouchUpInside];
-  [self updateAIMButtonAppearance];
-
-  [_aimButton.heightAnchor constraintEqualToConstant:kAIMButtonHeight].active =
-      YES;
-  self.aimButtonWidthConstraint =
-      [_aimButton.widthAnchor constraintEqualToConstant:kAIMButtonWidth];
-  self.aimButtonWidthConstraint.active = YES;
-
-  // Horizontal stack view for buttons
-  UIView* spacerView = [[UIView alloc] init];
-  [spacerView setContentHuggingPriority:UILayoutPriorityFittingSizeLevel
-                                forAxis:UILayoutConstraintAxisHorizontal];
-  UIStackView* buttonsStackView =
-      [[UIStackView alloc] initWithArrangedSubviews:@[
-        plusButton, _aimButton, spacerView, _sendButton, _micButton, _lensButton
-      ]];
-  buttonsStackView.translatesAutoresizingMaskIntoConstraints = NO;
-  buttonsStackView.axis = UILayoutConstraintAxisHorizontal;
-  buttonsStackView.spacing = kButtonsStackViewSpacing;
-  buttonsStackView.alignment = UIStackViewAlignmentBottom;
-
-  // Main vertical stack view
-  _inputPlateStackView = [[UIStackView alloc] initWithArrangedSubviews:@[
-    _carouselContainer, _omniboxContainer, buttonsStackView
-  ]];
+  _inputPlateStackView =
+      [[UIStackView alloc] initWithArrangedSubviews:@[ _omniboxContainer ]];
   _inputPlateStackView.translatesAutoresizingMaskIntoConstraints = NO;
-  _inputPlateStackView.axis = UILayoutConstraintAxisVertical;
-  _inputPlateStackView.spacing = kInputPlateStackViewSpacing;
   [_inputPlateContainerView addSubview:_inputPlateStackView];
+  AddSameConstraintsWithInsets(
+      _inputPlateStackView, _inputPlateContainerView,
+      NSDirectionalEdgeInsetsMake(kInputPlateStackViewVerticalPadding,
+                                  kInputPlateStackViewLeadingPadding,
+                                  kInputPlateStackViewVerticalPadding,
+                                  kInputPlateStackViewTrailingPadding));
 
-  AddSameConstraints(_inputPlateContainerView, self.view);
+  [self updateInputPlateStackView];
 
-  // Layout.
-  [NSLayoutConstraint activateConstraints:@[
-    // Main Stack View in Plate.
-    [_inputPlateStackView.topAnchor
-        constraintEqualToAnchor:_inputPlateContainerView.topAnchor
-                       constant:kInputPlateStackViewVerticalPadding],
-    [_inputPlateStackView.bottomAnchor
-        constraintEqualToAnchor:_inputPlateContainerView.bottomAnchor
-                       constant:-kInputPlateStackViewVerticalPadding],
-    [_inputPlateStackView.leadingAnchor
-        constraintEqualToAnchor:_inputPlateContainerView.leadingAnchor
-                       constant:kInputPlateStackViewLeadingPadding],
-    [_inputPlateStackView.trailingAnchor
-        constraintEqualToAnchor:_inputPlateContainerView.trailingAnchor
-                       constant:-kInputPlateStackViewTrailingPadding],
-  ]];
+  [self registerForTraitChanges:@[ UITraitUserInterfaceStyle.class ]
+                     withAction:@selector(userInterfaceStyleChanged)];
 }
 
 - (void)viewDidLayoutSubviews {
@@ -351,8 +245,12 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
                   }];
 }
 
-- (void)setCanAttachTabAction:(BOOL)canAttachTabAction {
-  _canAttachCurrentTab = canAttachTabAction;
+- (void)setCanAttachCurrentTab:(BOOL)canAttachCurrentTab {
+  if (_canAttachCurrentTab == canAttachCurrentTab) {
+    return;
+  }
+  _canAttachCurrentTab = canAttachCurrentTab;
+  [self updatePlusButtonItems];
 }
 
 - (void)updateState:(ComposeboxInputItemState)state
@@ -385,6 +283,19 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
 
 - (void)hideSendButton:(BOOL)hidden {
   _sendButton.hidden = hidden;
+}
+
+- (void)setIsCompactMode:(BOOL)isCompactMode {
+  if (_isCompactMode == isCompactMode) {
+    return;
+  }
+  _isCompactMode = isCompactMode;
+
+  if (!self.viewLoaded) {
+    return;
+  }
+
+  [self updateInputPlateStackView];
 }
 
 #pragma mark - Actions
@@ -544,6 +455,11 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   }
 }
 
+- (void)userInterfaceStyleChanged {
+  [self updateAIMButtonAppearance];
+  [self updateDepthShadowAppearance];
+}
+
 #pragma mark - UICollectionViewDelegate
 
 - (void)scrollViewDidScroll:(UIScrollView*)scrollView {
@@ -571,6 +487,7 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
 
 - (UICollectionViewDiffableDataSource<NSString*, ComposeboxInputItem*>*)
     createDataSource {
+  __weak ComposeboxTheme* theme = _theme;
   return [[UICollectionViewDiffableDataSource alloc]
       initWithCollectionView:_carouselView
                 cellProvider:^UICollectionViewCell*(
@@ -581,13 +498,28 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
                           dequeueReusableCellWithReuseIdentifier:
                               kItemCellReuseIdentifier
                                                     forIndexPath:indexPath];
-                  [cell configureWithItem:item];
+                  [cell configureWithItem:item theme:theme];
                   cell.delegate = self;
                   return cell;
                 }];
 }
 
 #pragma mark - Private helpers
+
+- (void)updateDepthShadowAppearance {
+  if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark ||
+      _theme.isTopInputPlate) {
+    _inputPlateContainerView.layer.shadowOpacity = 0;
+  } else {
+    _inputPlateContainerView.layer.shadowColor =
+        [UIColor colorNamed:kTextPrimaryColor].CGColor;
+    _inputPlateContainerView.layer.shadowRadius = kInputPlateShadowRadius;
+    _inputPlateContainerView.layer.shadowOffset = CGSizeZero;
+    _inputPlateContainerView.layer.shadowOpacity = kInputPlateShadowOpacity;
+  }
+
+  [_inputPlateContainerView.layer setNeedsDisplay];
+}
 
 /// Updates the AIM button taking into account if the button should be minimize
 /// or not or if the mode is enable or not.
@@ -616,6 +548,7 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
     self.aimButtonWidthConstraint.constant = kAIMButtonWidth;
   }
 
+  _aimButton.layer.borderWidth = 0;
   if (self.AIModeEnabled) {
     config.background.backgroundColor = [UIColor colorNamed:kBlueHaloColor];
     config.baseForegroundColor = [UIColor colorNamed:kBlue600Color];
@@ -623,6 +556,11 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
     config.background.backgroundColor =
         [UIColor colorNamed:kSecondaryBackgroundColor];
     config.baseForegroundColor = [UIColor colorNamed:kTextPrimaryColor];
+
+    if (self.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark) {
+      _aimButton.layer.borderWidth = 1;
+      _aimButton.layer.borderColor = [UIColor colorNamed:kGrey200Color].CGColor;
+    }
   }
   _aimButton.configuration = config;
 }
@@ -638,7 +576,7 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
       YES;
   [button.heightAnchor constraintEqualToConstant:kGenericButtonHeight].active =
       YES;
-  button.tintColor = [UIColor colorNamed:kTextSecondaryColor];
+  button.tintColor = [UIColor colorNamed:kTextPrimaryColor];
   return button;
 }
 
@@ -650,19 +588,105 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
       setImage:DefaultSymbolWithPointSize(kPlusSymbol, kSymbolActionPointSize)
       forState:UIControlStateNormal];
   plusButton.translatesAutoresizingMaskIntoConstraints = NO;
-  plusButton.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
-  plusButton.layer.cornerRadius = kAIMButtonHeight / 2.0;
-  plusButton.tintColor = [UIColor colorNamed:kTextSecondaryColor];
+  plusButton.tintColor = [UIColor colorNamed:kTextPrimaryColor];
 
-  [plusButton.widthAnchor constraintEqualToConstant:kAIMButtonHeight].active =
-      YES;
-  [plusButton.heightAnchor constraintEqualToConstant:kAIMButtonHeight].active =
-      YES;
+  AddSizeConstraints(plusButton,
+                     CGSizeMake(kAIMButtonHeight, kAIMButtonHeight));
 
   [plusButton addTarget:self
                  action:@selector(plusButtonTouchDown)
        forControlEvents:UIControlEventTouchDown];
   plusButton.showsMenuAsPrimaryAction = YES;
+
+  return plusButton;
+}
+
+/// Returns the send button.
+- (UIButton*)createSendButton {
+  UIButton* sendButton =
+      [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
+  UIImageSymbolConfiguration* config = [UIImageSymbolConfiguration
+      configurationWithPointSize:24
+                          weight:UIImageSymbolWeightSemibold];
+
+  UIImage* image = SymbolWithPalette(
+      DefaultSymbolWithConfiguration(kRightArrowCircleFillSymbol, config), @[
+        [UIColor colorNamed:kSolidWhiteColor],
+        [UIColor colorNamed:kBlue500Color]
+      ]);
+  [sendButton setImage:image forState:UIControlStateNormal];
+
+  [sendButton addTarget:self
+                 action:@selector(sendButtonTapped)
+       forControlEvents:UIControlEventTouchUpInside];
+  AddSizeConstraints(sendButton,
+                     CGSizeMake(kSendButtonDimension, kSendButtonDimension));
+  return sendButton;
+}
+
+/// Returns the microphone button.
+- (UIButton*)createMicrophoneButton {
+  UIButton* micButton = [self
+      createButtonWithImage:DefaultSymbolWithPointSize(kMicrophoneSymbol,
+                                                       kSymbolActionPointSize)];
+  [micButton addTarget:self
+                action:@selector(micButtonTapped)
+      forControlEvents:UIControlEventTouchUpInside];
+  AddSizeConstraints(micButton,
+                     CGSizeMake(kGenericButtonWidth, kGenericButtonHeight));
+  return micButton;
+}
+
+/// Returns the lens button.
+- (UIButton*)createLensButton {
+  UIButton* lensButton = [self
+      createButtonWithImage:CustomSymbolWithPointSize(kCameraLensSymbol,
+                                                      kSymbolActionPointSize)];
+  [lensButton addTarget:self
+                 action:@selector(lensButtonTapped)
+       forControlEvents:UIControlEventTouchUpInside];
+
+  AddSizeConstraints(lensButton,
+                     CGSizeMake(kGenericButtonWidth, kGenericButtonHeight));
+  return lensButton;
+}
+
+- (UIView*)createToolbarView {
+  _aimButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  _aimButton.translatesAutoresizingMaskIntoConstraints = NO;
+  [_aimButton addTarget:self
+                 action:@selector(aimButtonTapped)
+       forControlEvents:UIControlEventTouchUpInside];
+  [self updateAIMButtonAppearance];
+
+  [_aimButton.heightAnchor constraintEqualToConstant:kAIMButtonHeight].active =
+      YES;
+  self.aimButtonWidthConstraint =
+      [_aimButton.widthAnchor constraintEqualToConstant:kAIMButtonWidth];
+  self.aimButtonWidthConstraint.active = YES;
+
+  // Horizontal stack view for buttons
+  UIView* spacerView = [[UIView alloc] init];
+  [spacerView setContentHuggingPriority:UILayoutPriorityFittingSizeLevel
+                                forAxis:UILayoutConstraintAxisHorizontal];
+  UIStackView* buttonsStackView =
+      [[UIStackView alloc] initWithArrangedSubviews:@[
+        _plusButton, _aimButton, spacerView, _sendButton, _micButton,
+        _lensButton
+      ]];
+  buttonsStackView.translatesAutoresizingMaskIntoConstraints = NO;
+  [buttonsStackView setCustomSpacing:kShortcutsSpacing afterView:_micButton];
+  buttonsStackView.axis = UILayoutConstraintAxisHorizontal;
+  buttonsStackView.spacing = kButtonsStackViewSpacing;
+  buttonsStackView.alignment = UIStackViewAlignmentFill;
+
+  return buttonsStackView;
+}
+
+- (void)updatePlusButtonItems {
+  if (!_plusButton) {
+    return;
+  }
 
   __weak __typeof__(self) weakSelf = self;
   UIAction* galleryAction = [UIAction
@@ -712,74 +736,138 @@ const CGFloat kAIMButtonAnimationDuration = 0.25f;
   NSMutableArray* menuItems = [NSMutableArray
       arrayWithObjects:fileAction, galleryAction, cameraAction, nil];
 
-  if (base::FeatureList::IsEnabled(kAIMPrototypeTabPicker)) {
-    UIAction* selectTabsAction = [UIAction
-        // TODO(crbug.com/40280872): Localize this string.
-        actionWithTitle:@"Attach tabs"
-                  image:DefaultSymbolWithPointSize(kNewTabGroupActionSymbol,
-                                                   kSymbolActionPointSize)
-             identifier:nil
-                handler:^(UIAction* action) {
-                  [weakSelf handleAttachTabs];
-                }];
-    [menuItems addObject:selectTabsAction];
-  }
+  UIAction* selectTabsAction = [UIAction
+      // TODO(crbug.com/40280872): Localize this string.
+      actionWithTitle:@"Attach tabs"
+                image:DefaultSymbolWithPointSize(kNewTabGroupActionSymbol,
+                                                 kSymbolActionPointSize)
+           identifier:nil
+              handler:^(UIAction* action) {
+                [weakSelf handleAttachTabs];
+              }];
+  [menuItems addObject:selectTabsAction];
 
-  if (_canAttachCurrentTab &&
-      !base::FeatureList::IsEnabled(kAIMPrototypeTabPicker)) {
+  if (_canAttachCurrentTab) {
     [menuItems addObject:attachCurrentTabAction];
   }
 
-  plusButton.menu = [UIMenu menuWithTitle:@"" children:menuItems];
-  return plusButton;
+  _plusButton.menu = [UIMenu menuWithTitle:@"" children:menuItems];
 }
 
-/// Returns the send button.
-- (UIButton*)createSendButton {
-  UIButton* sendButton =
-      [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
-  UIImageSymbolConfiguration* config = [UIImageSymbolConfiguration
-      configurationWithPointSize:24
-                          weight:UIImageSymbolWeightSemibold];
-  UIImage* image = SymbolWithPalette(
-      DefaultSymbolWithConfiguration(kRightArrowCircleFillSymbol, config),
-      @[ [UIColor whiteColor], [UIColor colorNamed:kBlue500Color] ]);
-  [sendButton setImage:image forState:UIControlStateNormal];
+- (void)setupCarouselContainer {
+  // Carousel view
+  UICollectionViewFlowLayout* layout =
+      [[UICollectionViewFlowLayout alloc] init];
+  layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
+  layout.minimumLineSpacing = kCarouselItemSpacing;
+  _carouselView = [[UICollectionView alloc] initWithFrame:CGRectZero
+                                     collectionViewLayout:layout];
+  _carouselView.translatesAutoresizingMaskIntoConstraints = NO;
+  _carouselView.backgroundColor = UIColor.clearColor;
+  [_carouselView registerClass:[ComposeboxInputItemCell class]
+      forCellWithReuseIdentifier:kItemCellReuseIdentifier];
+  _dataSource = [self createDataSource];
+  _carouselView.dataSource = _dataSource;
+  _carouselView.delegate = self;
+  [_carouselView.heightAnchor constraintEqualToConstant:kCarouselHeight]
+      .active = YES;
+  _carouselView.showsHorizontalScrollIndicator = NO;
 
-  [sendButton addTarget:self
-                 action:@selector(sendButtonTapped)
-       forControlEvents:UIControlEventTouchUpInside];
+  _carouselContainer = [[UIView alloc] init];
+  _carouselContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  [_carouselContainer addSubview:_carouselView];
+  _carouselContainer.hidden = YES;
+  AddSameConstraints(_carouselContainer, _carouselView);
 
-  return sendButton;
+  _trailingCarouselFadeView = [[UIView alloc] init];
+  _trailingCarouselFadeView.translatesAutoresizingMaskIntoConstraints = NO;
+  _trailingCarouselFadeView.userInteractionEnabled = NO;
+  _trailingCarouselFadeView.hidden = YES;
+  [_carouselContainer addSubview:_trailingCarouselFadeView];
+
+  _leadingCarouselFadeView = [[UIView alloc] init];
+  _leadingCarouselFadeView.translatesAutoresizingMaskIntoConstraints = NO;
+  _leadingCarouselFadeView.userInteractionEnabled = NO;
+  _leadingCarouselFadeView.hidden = YES;
+  [_carouselContainer addSubview:_leadingCarouselFadeView];
+
+  [_trailingCarouselFadeView.layer
+      insertSublayer:[self createGradientLayerForLeading:NO]
+             atIndex:0];
+  [_leadingCarouselFadeView.layer
+      insertSublayer:[self createGradientLayerForLeading:YES]
+             atIndex:0];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_trailingCarouselFadeView.trailingAnchor
+        constraintEqualToAnchor:_carouselContainer.trailingAnchor],
+    [_trailingCarouselFadeView.topAnchor
+        constraintEqualToAnchor:_carouselContainer.topAnchor],
+    [_trailingCarouselFadeView.bottomAnchor
+        constraintEqualToAnchor:_carouselContainer.bottomAnchor],
+    [_trailingCarouselFadeView.widthAnchor
+        constraintEqualToConstant:kFadeViewWidth],
+
+    [_leadingCarouselFadeView.leadingAnchor
+        constraintEqualToAnchor:_carouselContainer.leadingAnchor],
+    [_leadingCarouselFadeView.topAnchor
+        constraintEqualToAnchor:_carouselContainer.topAnchor],
+    [_leadingCarouselFadeView.bottomAnchor
+        constraintEqualToAnchor:_carouselContainer.bottomAnchor],
+    [_leadingCarouselFadeView.widthAnchor
+        constraintEqualToConstant:kFadeViewWidth],
+  ]];
 }
 
-/// Returns the microphone button.
-- (UIButton*)createMicrophoneButton {
-  UIButton* micButton = [self
-      createButtonWithImage:DefaultSymbolWithPointSize(kMicrophoneSymbol,
-                                                       kSymbolActionPointSize)];
-  [micButton addTarget:self
-                action:@selector(micButtonTapped)
-      forControlEvents:UIControlEventTouchUpInside];
-  micButton.tintColor = [UIColor blackColor];
-  AddSizeConstraints(micButton,
-                     CGSizeMake(kGenericButtonWidth, kGenericButtonHeight));
-  return micButton;
+- (void)setupInputPlateContainerView {
+  _inputPlateContainerView = [[UIView alloc] init];
+  _inputPlateContainerView.translatesAutoresizingMaskIntoConstraints = NO;
+  _inputPlateContainerView.backgroundColor = _theme.inputPlateBackgroundColor;
+  _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
+
+  [self updateDepthShadowAppearance];
+  [self.view addSubview:_inputPlateContainerView];
+
+  _glowEffectView = ios::provider::CreateGlowEffect(
+      CGRectZero, kInputPlateCornerRadius, kGlowEffectWidth);
+  if (_glowEffectView) {
+    _glowEffectView.translatesAutoresizingMaskIntoConstraints = NO;
+    _glowEffectView.userInteractionEnabled = NO;
+    [self.view insertSubview:_glowEffectView
+                belowSubview:_inputPlateContainerView];
+    AddSameConstraintsWithInset(_inputPlateContainerView, _glowEffectView,
+                                kGlowEffectWidth);
+  }
 }
 
-/// Returns the lens button.
-- (UIButton*)createLensButton {
-  UIButton* lensButton = [self
-      createButtonWithImage:CustomSymbolWithPointSize(kCameraLensSymbol,
-                                                      kSymbolActionPointSize)];
-  [lensButton addTarget:self
-                 action:@selector(lensButtonTapped)
-       forControlEvents:UIControlEventTouchUpInside];
-  lensButton.tintColor = [UIColor blackColor];
+- (void)updateInputPlateStackView {
+  for (UIView* arrangedSubview in _inputPlateStackView.arrangedSubviews) {
+    if (arrangedSubview != _omniboxContainer) {
+      [_inputPlateStackView removeArrangedSubview:arrangedSubview];
+      [arrangedSubview removeFromSuperview];
+    }
+  }
 
-  AddSizeConstraints(lensButton,
-                     CGSizeMake(kGenericButtonWidth, kGenericButtonHeight));
-  return lensButton;
+  if (self.isCompactMode) {
+    [_inputPlateStackView insertArrangedSubview:_plusButton atIndex:0];
+    [_inputPlateStackView addArrangedSubview:_micButton];
+    [_inputPlateStackView addArrangedSubview:_lensButton];
+
+    _inputPlateStackView.axis = UILayoutConstraintAxisHorizontal;
+    _inputPlateStackView.spacing = 0;
+    [_inputPlateStackView setCustomSpacing:kButtonsCompactSpacing
+                                 afterView:_plusButton];
+    [_inputPlateStackView setCustomSpacing:kShortcutsSpacingCompact
+                                 afterView:_micButton];
+  } else {
+    UIView* toolbarView = [self createToolbarView];
+    [_inputPlateStackView insertArrangedSubview:_carouselContainer atIndex:0];
+    [_inputPlateStackView addArrangedSubview:toolbarView];
+    _inputPlateStackView.axis = UILayoutConstraintAxisVertical;
+    _inputPlateStackView.spacing = kInputPlateStackViewSpacing;
+  }
+
+  [_editView hideLeadingImage:self.isCompactMode];
 }
 
 @end

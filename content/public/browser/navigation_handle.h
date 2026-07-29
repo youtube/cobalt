@@ -303,8 +303,9 @@ class CONTENT_EXPORT NavigationHandle : public base::SupportsUserData {
 
   // Navigation control flow --------------------------------------------------
 
-  // The net error code if an error happened prior to commit. Otherwise it will
-  // be net::OK.
+  // The net error code if an error happened prior to commit, or the navigation
+  // was aborted by the embedder (eg. tab closure, killed renderer). Otherwise
+  // it will be net::OK.
   virtual net::Error GetNetErrorCode() = 0;
 
   // The details why `net::Error` was emitted.
@@ -439,15 +440,6 @@ class CONTENT_EXPORT NavigationHandle : public base::SupportsUserData {
   // the headers will be applied to the redirected request.
   virtual void SetRequestHeader(const std::string& header_name,
                                 const std::string& header_value) = 0;
-
-  // Set a request's header that is exempt from CORS checks. This is only
-  // honored if the NetworkContext was configured to allow any cors exempt
-  // header (see
-  // |NetworkContext::mojom::allow_any_cors_exempt_header_for_browser|) or
-  // if |header_name| is specified in
-  // |NetworkContextParams::cors_exempt_header_list|.
-  virtual void SetCorsExemptRequestHeader(const std::string& header_name,
-                                          const std::string& header_value) = 0;
 
   // Set LCP Critical Path Predictor hint data to be passed along to the
   // renderer process on the navigation commit.

@@ -1220,6 +1220,7 @@ data/accessibility/aria/aria-mismatched-table-attr-expected-mac.txt
 data/accessibility/aria/aria-mismatched-table-attr-expected-uia-win.txt
 data/accessibility/aria/aria-mismatched-table-attr-expected-win.txt
 data/accessibility/aria/aria-mismatched-table-attr.html
+data/accessibility/aria/aria-modal-expected-android-external.txt
 data/accessibility/aria/aria-modal-expected-auralinux.txt
 data/accessibility/aria/aria-modal-expected-mac.txt
 data/accessibility/aria/aria-modal-expected-win.txt
@@ -6691,9 +6692,6 @@ data/attribution_reporting/interop/max_event_level_reports_per_source.json
 data/attribution_reporting/interop/max_trigger_state_cardinality.json
 data/attribution_reporting/interop/most_recent_source.json
 data/attribution_reporting/interop/multiple_destinations.json
-data/attribution_reporting/interop/navigation_retry_first_attempt.json
-data/attribution_reporting/interop/navigation_retry_second_attempt.json
-data/attribution_reporting/interop/navigation_retry_third_attempt.json
 data/attribution_reporting/interop/null_aggregatable_report.json
 data/attribution_reporting/interop/os_debug_reports.json
 data/attribution_reporting/interop/parse_failures.json
@@ -7703,6 +7701,8 @@ data/indexeddb/fill_quota.html
 data/indexeddb/fill_up_5k.html
 data/indexeddb/force_close_event.html
 data/indexeddb/force_close_event.js
+data/indexeddb/get_all_chunking.html
+data/indexeddb/get_all_chunking.js
 data/indexeddb/index_deletion_regression_tests.html
 data/indexeddb/index_deletion_regression_tests.js
 data/indexeddb/index_test.html
@@ -8220,12 +8220,6 @@ data/page_with_touch_start_janking_main_thread.html
 data/page_with_webotp.html
 data/page_with_wheel_handler.html
 data/pagehide_handler_force_layout.html
-data/partitioned_popins/iframe_allow_popins.html
-data/partitioned_popins/iframe_allow_popins.html.mock-http-headers
-data/partitioned_popins/iframes_allow_popins.html
-data/partitioned_popins/iframes_allow_popins.html.mock-http-headers
-data/partitioned_popins/wildcard_policy.html
-data/partitioned_popins/wildcard_policy.html.mock-http-headers
 data/paste_listener.html
 data/pause_schedule_task.html
 data/payments/payment_app.js

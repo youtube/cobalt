@@ -144,9 +144,15 @@ void ApplyCR2023OmniboxExpandedStateColors(ui::ColorMixer& mixer,
   // Update starter pack icon color.
   mixer[kColorOmniboxResultsStarterPackIcon] = {ui::kColorSysOnTonalContainer};
 
-  // Context menu hover color.
-  mixer[kColorOmniboxContextEntrypointHoverBackground] = {
-      ui::kColorSysStateHoverOnSubtle};
+  // Composebox-specific colors.
+  mixer[kColorOmniboxComposeboxChipBackground] = {ui::kColorSysSurface3};
+  mixer[kColorOmniboxComposeboxDivider] = {ui::kColorSysDivider};
+  mixer[kColorOmniboxComposeboxFaviconBackground] = {ui::kColorSysSurface};
+  mixer[kColorOmniboxComposeboxForegroundDisabled] = {
+      ui::kColorSysStateDisabled};
+  mixer[kColorOmniboxComposeboxPrimaryAction] = {ui::kColorSysPrimary};
+  mixer[kColorOmniboxComposeboxSubmitButtonBackground] = {
+      kColorOmniboxComposeboxPrimaryAction};
 }
 
 // Apply fallback Omnibox color mappings for CR2023 clients who are not eligible
@@ -173,8 +179,6 @@ void ApplyOmniboxCR2023FallbackColors(ui::ColorMixer& mixer,
       kColorOmniboxResultsButtonInkDropSelected, std::ceil(0.16f * 255.0f))};
 
   mixer[kColorOmniboxContextEntrypointText] = {ui::kColorSysOnSurface};
-  mixer[kColorOmniboxContextEntrypointHoverBackground] = {
-      ui::kColorSysStateHoverOnSubtle};
 }
 
 // Apply updates to the Omnibox color tokens per CR2023 guidelines.
@@ -439,6 +443,18 @@ void AddOmniboxColorMixer(ui::ColorProvider* provider,
       ui::SetAlpha(kColorOmniboxText, std::ceil(0.10f * 255.0f))};
   mixer[kColorOmniboxIconPressed] = {
       ui::SetAlpha(kColorOmniboxText, std::ceil(0.16f * 255.0f))};
+
+  // Composebox-specific colors.
+  mixer[kColorOmniboxComposeboxChipBackground] = ui::SelectBasedOnDarkInput(
+      kColorOmniboxResultsBackground, gfx::kGoogleGrey900, SK_ColorWHITE);
+  mixer[kColorOmniboxComposeboxDivider] = ui::SelectBasedOnDarkInput(
+      kColorOmniboxResultsBackground, gfx::kGoogleGrey700, gfx::kGoogleGrey200);
+  mixer[kColorOmniboxComposeboxFaviconBackground] = {
+      kColorOmniboxComposeboxChipBackground};
+  mixer[kColorOmniboxComposeboxForegroundDisabled] = {kColorOmniboxTextDimmed};
+  mixer[kColorOmniboxComposeboxSubmitButtonBackground] =
+      ui::SelectBasedOnDarkInput(kColorOmniboxResultsBackground,
+                                 gfx::kGoogleBlue200, gfx::kGoogleBlue600);
 
   // Override omnibox colors per CR2023 spec.
   ApplyOmniboxCR2023Colors(mixer, key);

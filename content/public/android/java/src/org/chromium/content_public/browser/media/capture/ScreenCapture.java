@@ -16,12 +16,14 @@ import android.hardware.display.VirtualDisplay;
 import android.media.Image.Plane;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.os.Build;
 import android.os.ConditionVariable;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.WindowManager;
 
 import androidx.activity.result.ActivityResult;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
@@ -97,7 +99,8 @@ public class ScreenCapture implements ImageHandler.Delegate {
     // Starting a MediaProjection session involves plumbing the results from the content picker,
     // which is done via ActivityResult. This class does not handle how that is achieved, but
     // requires this state to begin the session.
-    private static final AtomicReference<PickState> sNextPickState = new AtomicReference<>(null);
+    private static final AtomicReference<@Nullable PickState> sNextPickState =
+            new AtomicReference<>();
 
     // Starting a MediaProjection session requires a foreground service to be running. This class
     // does not handle how that is achieved, but `sLatch` provides a way for this class to wait
@@ -182,6 +185,7 @@ public class ScreenCapture implements ImageHandler.Delegate {
         return new ScreenCapture(nativeDesktopCapturerAndroid);
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @CalledByNative
     boolean startCapture() {
         final PickState pickState = sNextPickState.getAndSet(null);

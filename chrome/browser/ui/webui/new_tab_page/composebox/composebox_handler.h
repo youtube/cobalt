@@ -11,6 +11,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_handler.h"
+#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -22,12 +23,7 @@
 
 class Profile;
 
-// Value to hold the state of an AIM Tool.
-enum class AimToolState {
-  kDisabled = 0,
-  kEnabled = 1,
-  kMaxValue = kEnabled,
-};
+class TopChromeWebUIController;
 
 class ComposeboxHandler : public composebox::mojom::PageHandler,
                           public ContextualSearchboxHandler {
@@ -40,6 +36,10 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
       Profile* profile,
       content::WebContents* web_contents);
   ~ComposeboxHandler() override;
+
+  void SetEmbedder(base::WeakPtr<TopChromeWebUIController::Embedder> embedder) {
+    embedder_ = embedder;
+  }
 
   // composebox::mojom::PageHandler:
   void FocusChanged(bool focused) override;
@@ -66,6 +66,7 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
                    bool meta_key,
                    bool shift_key) override;
   void ClearFiles() override;
+  void ShowContextMenu(const gfx::Point& point) override;
 
   // This is called from either the ComposeboxOmniboxClient when a match is
   // present in navigation or for the PageHandler's `SubmitQuery()` when there
@@ -85,6 +86,7 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
   omnibox::ChromeAimToolsAndModels aim_tool_mode_ =
       omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
   raw_ptr<content::WebContents> web_contents_;
+  base::WeakPtr<TopChromeWebUIController::Embedder> embedder_;
 
   // These are located at the end of the list of member variables to ensure the
   // WebUI page is disconnected before other members are destroyed.

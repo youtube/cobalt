@@ -88,9 +88,24 @@ public class ComposeBoxQueryControllerBridge {
         return ComposeBoxQueryControllerBridgeJni.get().getAimUrl(mNativeInstance, queryText);
     }
 
+    GURL getImageGenerationUrl(String queryText) {
+        return ComposeBoxQueryControllerBridgeJni.get()
+                .getImageGenerationUrl(mNativeInstance, queryText);
+    }
+
     /** Remove the given file from the current session. */
     void removeAttachment(String token) {
         ComposeBoxQueryControllerBridgeJni.get().removeAttachment(mNativeInstance, token);
+    }
+
+    /** Returns whether the user is eligible for PDF uploads. */
+    boolean isPdfUploadEligible() {
+        return ComposeBoxQueryControllerBridgeJni.get().isPdfUploadEligible(mNativeInstance);
+    }
+
+    /** Returns whether the user is eligible for creating images. */
+    boolean isCreateImagesEligible() {
+        return ComposeBoxQueryControllerBridgeJni.get().isCreateImagesEligible(mNativeInstance);
     }
 
     @NativeMethods
@@ -125,6 +140,16 @@ public class ComposeBoxQueryControllerBridge {
         GURL getAimUrl(long nativeInstance, @JniType("std::string") String queryText);
 
         @NativeClassQualifiedName("ComposeboxQueryControllerBridge")
+        @JniType("GURL")
+        GURL getImageGenerationUrl(long nativeInstance, @JniType("std::string") String queryText);
+
+        @NativeClassQualifiedName("ComposeboxQueryControllerBridge")
         void removeAttachment(long nativeInstance, @JniType("std::string") String token);
+
+        @NativeClassQualifiedName("ComposeboxQueryControllerBridge")
+        boolean isPdfUploadEligible(long nativeInstance);
+
+        @NativeClassQualifiedName("ComposeboxQueryControllerBridge")
+        boolean isCreateImagesEligible(long nativeInstance);
     }
 }

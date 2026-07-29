@@ -4,9 +4,16 @@
 
 #import "components/webauthn/ios/passkey_java_script_feature.h"
 
+#import <AuthenticationServices/AuthenticationServices.h>
+
+#import "base/base64.h"
 #import "base/no_destructor.h"
+#import "base/strings/strcat.h"
+#import "base/strings/sys_string_conversions.h"
 #import "base/values.h"
+#import "components/webauthn/ios/features.h"
 #import "components/webauthn/ios/passkey_tab_helper.h"
+#import "ios/web/public/js_messaging/java_script_feature.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
 #import "ios/web/public/js_messaging/script_message.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
@@ -15,6 +22,253 @@ namespace {
 
 constexpr char kScriptName[] = "passkey_controller";
 constexpr char kHandlerName[] = "PasskeyInteractionHandler";
+
+// Placeholder logic.
+constexpr char kHandleModalPasskeyRequestsPlaceholder[] =
+    "/*! {{PLACEHOLDER_HANDLE_MODAL_PASSKEY_REQUESTS}} */";
+
+// Message event.
+constexpr char kEvent[] = "event";
+
+// Message event types.
+constexpr char kHandleGetRequest[] = "handleGetRequest";
+constexpr char kHandleCreateRequest[] = "handleCreateRequest";
+constexpr char kGetRequested[] = "getRequested";
+constexpr char kCreateRequested[] = "createRequested";
+constexpr char kCreateResolvedGpm[] = "createResolvedGpm";
+constexpr char kCreateResolvedNonGpm[] = "createResolvedNonGpm";
+constexpr char kGetResolved[] = "getResolved";
+
+// Frame ID for handle* events.
+constexpr char kFrameId[] = "frameId";
+
+// Common parameters of "handleGetRequest" and "handleCreateRequest" events.
+constexpr char kRequest[] = "request";
+constexpr char kRpEntity[] = "rpEntity";
+
+// Parameters exclusive to the "handleCreateRequest" event.
+constexpr char kUserEntity[] = "userEntity";
+constexpr char kExcludeCredentials[] = "excludeCredentials";
+
+// Parameter exclusive to the "handleGetRequest" event.
+constexpr char kAllowCredentials[] = "allowCredentials";
+
+// Members of the "request" dictionary.
+constexpr char kChallenge[] = "challenge";
+constexpr char kUserVerification[] = "userVerification";
+
+// Common members of the "rpEntity" and "userEntity" dictionaries.
+constexpr char kId[] = "id";
+constexpr char kName[] = "name";
+
+// Member exclusive to the "userEntity" dictionary.
+constexpr char kDisplayName[] = "displayName";
+
+// Member of the credential descriptors array.
+constexpr char kType[] = "type";
+constexpr char kTransports[] = "transports";
+
+// Parameters of the "getResolved" event.
+constexpr char kCredentialId[] = "credential_id";
+constexpr char kRpId[] = "rp_id";
+
+// Returns the placeholder replacements for the JavaScript feature script.
+web::JavaScriptFeature::FeatureScript::PlaceholderReplacements
+GetPlaceholderReplacements() {
+  // Overrides the placeholder for whether modal passkey requests can be handled
+  // by the browser.
+  bool handle_modal_passkey_requests =
+      base::FeatureList::IsEnabled(kIOSPasskeyModalLoginWithShim);
+  std::u16string full_script_block = base::StrCat(
+      {u"const shouldHandleModalPasskeyRequests = () => { return ",
+       handle_modal_passkey_requests ? u"true;" : u"false;", u" };"});
+  return @{
+    base::SysUTF8ToNSString(kHandleModalPasskeyRequestsPlaceholder) :
+        base::SysUTF16ToNSString(full_script_block),
+  };
+}
+
+// Decodes a base 64 encoded string into a data vector.
+// Returns an empty vector on failure.
+std::vector<uint8_t> Base64Decode(const std::string* base_64_string) {
+  std::vector<uint8_t> decoded_data;
+  if (!base_64_string || base_64_string->empty()) {
+    return decoded_data;
+  }
+
+  std::string decoded_string;
+  if (base::Base64Decode(*base_64_string, &decoded_string,
+                         base::Base64DecodePolicy::kStrict)) {
+    decoded_data.assign(decoded_string.begin(), decoded_string.end());
+  }
+
+  return decoded_data;
+}
+
+// Extracts all parameters required to build a PublicKeyCredentialUserEntity
+// object from the provided dictionary.
+device::PublicKeyCredentialUserEntity ExtractUserEntity(
+    const base::Value::Dict* dict) {
+  device::PublicKeyCredentialUserEntity user_entity;
+  if (!dict) {
+    return user_entity;
+  }
+
+  const std::string* id_base_64 = dict->FindString(kId);
+  std::vector<uint8_t> decoded_id = Base64Decode(id_base_64);
+  if (!decoded_id.empty()) {
+    user_entity.id = std::move(decoded_id);
+  }
+
+  const std::string* name = dict->FindString(kName);
+  if (name && !name->empty()) {
+    user_entity.name = *name;
+  }
+
+  const std::string* display_name = dict->FindString(kDisplayName);
+  if (display_name && !display_name->empty()) {
+    user_entity.display_name = *display_name;
+  }
+
+  return user_entity;
+}
+
+// Extracts all parameters required to build a PublicKeyCredentialRpEntity
+// object from the provided dictionary.
+device::PublicKeyCredentialRpEntity ExtractRpEntity(
+    const base::Value::Dict* dict) {
+  device::PublicKeyCredentialRpEntity rp_entity;
+  if (!dict) {
+    return rp_entity;
+  }
+
+  const std::string* id_str = dict->FindString(kId);
+  if (id_str && !id_str->empty()) {
+    rp_entity.id = *id_str;
+  }
+
+  const std::string* name = dict->FindString(kName);
+  if (name && !name->empty()) {
+    rp_entity.name = *name;
+  }
+
+  return rp_entity;
+}
+
+// Converts the provided string to a UserVerificationRequirement enum.
+device::UserVerificationRequirement ExtractUserVerification(
+    const std::string* user_verification) {
+  // TODO(crbug.com/385174410): Verifiy that this is the correct default value.
+  device::UserVerificationRequirement user_verification_requirement =
+      device::UserVerificationRequirement::kPreferred;
+
+  if (!user_verification || user_verification->empty()) {
+    return user_verification_requirement;
+  }
+
+  // TODO(crbug.com/385174410): Merge this code with
+  // UserVerificationPreferenceFromString().
+  NSString* user_verification_preference_string =
+      base::SysUTF8ToNSString(*user_verification);
+  if ([user_verification_preference_string
+          isEqualToString:
+              ASAuthorizationPublicKeyCredentialUserVerificationPreferenceRequired]) {
+    user_verification_requirement =
+        device::UserVerificationRequirement::kRequired;
+  } else if (
+      [user_verification_preference_string
+          isEqualToString:
+              ASAuthorizationPublicKeyCredentialUserVerificationPreferencePreferred]) {
+    user_verification_requirement =
+        device::UserVerificationRequirement::kPreferred;
+  } else if (
+      [user_verification_preference_string
+          isEqualToString:
+              ASAuthorizationPublicKeyCredentialUserVerificationPreferenceDiscouraged]) {
+    user_verification_requirement =
+        device::UserVerificationRequirement::kDiscouraged;
+  }
+
+  return user_verification_requirement;
+}
+
+// Reads a list of PublicKeyCredentialDescriptor from the provided list.
+std::vector<device::PublicKeyCredentialDescriptor> ExtractCredentials(
+    const base::Value::List* serialized_descriptors) {
+  std::vector<device::PublicKeyCredentialDescriptor> credential_descriptors;
+  if (!serialized_descriptors) {
+    return credential_descriptors;
+  }
+
+  for (const auto& serialized_descriptor : *serialized_descriptors) {
+    const base::Value::Dict& dict = serialized_descriptor.GetDict();
+    std::vector<uint8_t> decoded_id = Base64Decode(dict.FindString(kId));
+    if (decoded_id.empty()) {
+      continue;
+    }
+
+    // Only the public-key type is supported.
+    const std::string* type = dict.FindString(kType);
+    if (!type || *type != device::kPublicKey) {
+      continue;
+    }
+
+    device::PublicKeyCredentialDescriptor credential_descriptor(
+        device::CredentialType::kPublicKey, std::move(decoded_id));
+
+    // Read transport protocols.
+    const base::Value::List* transports = dict.FindList(kTransports);
+    if (transports) {
+      for (const auto& transport : *transports) {
+        std::optional<device::FidoTransportProtocol> fidoTransportProtocol =
+            device::ConvertToFidoTransportProtocol(transport.GetString());
+        if (fidoTransportProtocol.has_value()) {
+          credential_descriptor.transports.insert(
+              *fidoTransportProtocol);
+        }
+      }
+    }
+
+    credential_descriptors.emplace_back(credential_descriptor);
+  }
+
+  return credential_descriptors;
+}
+
+// Extracts all parameters required to build a RequestParams object from the
+// provided dictionary.
+PasskeyTabHelper::RequestParams ExtractRequestParams(
+    const base::Value::Dict* dict) {
+  if (!dict) {
+    return PasskeyTabHelper::RequestParams();
+  }
+
+  const std::string* frame_id = dict->FindString(kFrameId);
+
+  return PasskeyTabHelper::RequestParams(
+      frame_id ? *frame_id : "", ExtractRpEntity(dict->FindDict(kRpEntity)),
+      Base64Decode(dict->FindString(kChallenge)),
+      ExtractUserVerification(dict->FindString(kUserVerification)));
+}
+
+// Extracts all parameters required to build an ExtractAssertionRequestParams
+// object from the provided dictionary.
+PasskeyTabHelper::AssertionRequestParams ExtractAssertionRequestParams(
+    const base::Value::Dict& dict) {
+  return PasskeyTabHelper::AssertionRequestParams(
+      ExtractRequestParams(dict.FindDict(kRequest)),
+      ExtractCredentials(dict.FindList(kAllowCredentials)));
+}
+
+// Extracts all parameters required to build a RegistrationRequestParams object
+// from the provided dictionary.
+PasskeyTabHelper::RegistrationRequestParams ExtractRegistrationRequestParams(
+    const base::Value::Dict& dict) {
+  return PasskeyTabHelper::RegistrationRequestParams(
+      ExtractRequestParams(dict.FindDict(kRequest)),
+      ExtractUserEntity(dict.FindDict(kUserEntity)),
+      ExtractCredentials(dict.FindList(kExcludeCredentials)));
+}
 
 }  // namespace
 
@@ -35,28 +289,14 @@ PasskeyJavaScriptFeature::PasskeyJavaScriptFeature()
               // though it requires appropriate permissions policy to be set
               // (https://w3c.github.io/webauthn/#sctn-permissions-policy).
               FeatureScript::TargetFrames::kAllFrames,
-              FeatureScript::ReinjectionBehavior::kInjectOncePerWindow)},
+              FeatureScript::ReinjectionBehavior::kInjectOncePerWindow,
+              base::BindRepeating(&GetPlaceholderReplacements))},
           {web::java_script_features::GetCommonJavaScriptFeature()}) {}
 
 PasskeyJavaScriptFeature::~PasskeyJavaScriptFeature() = default;
 
-void PasskeyJavaScriptFeature::SetAllowModalLogin(web::WebState* web_state,
-                                                  bool allow_modal_login) {
-  if (!web_state) {
-    return;
-  }
-
-  web::WebFramesManager* web_frames_manager = GetWebFramesManager(web_state);
-  if (!web_frames_manager) {
-    return;
-  }
-
-  std::set<web::WebFrame*> web_frames = web_frames_manager->GetAllWebFrames();
-  base::Value::List parameters = base::Value::List().Append(allow_modal_login);
-  for (auto web_frame : web_frames) {
-    CallJavaScriptFunction(
-        web_frame, "passkey.setCanHandleModalPasskeyRequests", parameters);
-  }
+void PasskeyJavaScriptFeature::DeferToRenderer(web::WebFrame* web_frame) {
+  CallJavaScriptFunction(web_frame, "passkey.deferToRenderer", {});
 }
 
 std::optional<std::string>
@@ -90,14 +330,34 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
   }
 
   const base::Value::Dict& dict = body->GetDict();
-  const std::string* event = dict.FindString("event");
+  const std::string* event = dict.FindString(kEvent);
   if (!event || event->empty()) {
     return;
   }
 
-  // For those events there are no more expected arguments.
-  if (*event == "getRequested" || *event == "createRequested" ||
-      *event == "createResolvedGpm" || *event == "createResolvedNonGpm") {
+  if (*event == kHandleGetRequest) {
+    if (!base::FeatureList::IsEnabled(kIOSPasskeyModalLoginWithShim)) {
+      // TODO(crbug.com/369629469): Log metrics for unexpected events.
+      return;
+    }
+
+    passkey_tab_helper->LogEventFromString(kGetRequested);
+    passkey_tab_helper->HandleGetRequestedEvent(
+        ExtractAssertionRequestParams(dict));
+    return;
+  } else if (*event == kHandleCreateRequest) {
+    if (!base::FeatureList::IsEnabled(kIOSPasskeyModalLoginWithShim)) {
+      // TODO(crbug.com/369629469): Log metrics for unexpected events.
+      return;
+    }
+
+    passkey_tab_helper->LogEventFromString(kCreateRequested);
+    passkey_tab_helper->HandleCreateRequestedEvent(
+        ExtractRegistrationRequestParams(dict));
+    return;
+  } else if (*event == kGetRequested || *event == kCreateRequested ||
+             *event == kCreateResolvedGpm || *event == kCreateResolvedNonGpm) {
+    // For those events there are no more expected arguments.
     passkey_tab_helper->LogEventFromString(*event);
     return;
   }
@@ -105,9 +365,9 @@ void PasskeyJavaScriptFeature::ScriptMessageReceived(
   // Expected arguments for "getResolved" event:
   // credential_id: (string) base64url encoded identifer of the credential.
   // rp_id: (string) The relying party's identifier.
-  if (*event == "getResolved") {
-    const std::string* credential_id = dict.FindString("credential_id");
-    const std::string* rp_id = dict.FindString("rp_id");
+  if (*event == kGetResolved) {
+    const std::string* credential_id = dict.FindString(kCredentialId);
+    const std::string* rp_id = dict.FindString(kRpId);
     if (credential_id && !credential_id->empty() && rp_id && !rp_id->empty()) {
       passkey_tab_helper->HandleGetResolvedEvent(*credential_id, *rp_id);
     }

@@ -60,6 +60,8 @@ class XRRenderState : public ScriptWrappable {
   void OnFrameEnd();
   // Calls OnResize for each active layer.
   void OnResize();
+  // Dispatch "redraw" event for each active layer if needed.
+  void MaybeDispatchRedrawEvents();
 
   // Only used when removing an outputContext from the session because it was
   // bound to a different session.
@@ -77,6 +79,11 @@ class XRRenderState : public ScriptWrappable {
   void Trace(Visitor*) const override;
 
  private:
+  // Helper method to update the list of layers according to a new render state.
+  // It also adds the needs redraw state for newly added layers and resets the
+  // needs redraw state for removed layers.
+  void UpdateLayersState(FrozenArray<XRLayer>* layers);
+
   bool immersive_;
   double depth_near_ = 0.1;
   double depth_far_ = 1000.0;

@@ -211,16 +211,8 @@ void LensComposeboxController::AddVisualSelectionContext(
     return;
   }
 
-  // If there is existing visual selection context, mark it as expired. There
-  // should only be one visual selection context at a time. The UI should
-  // appropriately remove the existing thumbnail.
-  if (vsc_image_data_ && composebox_handler_) {
-    composebox_handler_->OnContextualInputStatusChanged(
-        vsc_image_data_->id,
-        composebox_query::mojom::FileUploadStatus::kUploadExpired,
-        std::nullopt);
-    vsc_image_data_.reset();
-  }
+  // Clear any existing visual selection context.
+  ClearVisualSelectionContext();
 
   vsc_image_data_.emplace(
       base::UnguessableToken::Create(),
@@ -233,16 +225,31 @@ void LensComposeboxController::AddVisualSelectionContext(
   }
 }
 
+void LensComposeboxController::ClearVisualSelectionContext() {
+  // If there is existing visual selection context, mark it as expired. There
+  // should only be one visual selection context at a time. The UI should
+  // appropriately remove the existing thumbnail.
+  if (vsc_image_data_ && composebox_handler_) {
+    composebox_handler_->OnContextualInputStatusChanged(
+        vsc_image_data_->id,
+        composebox_query::mojom::FileUploadStatus::kUploadExpired,
+        std::nullopt);
+  }
+  vsc_image_data_.reset();
+}
+
 void LensComposeboxController::DeleteContext(const base::UnguessableToken& id) {
   // If the id matches the visual selection context, delete it and notify
   // the overlay to clear the visual selection.
   if (vsc_image_data_ && vsc_image_data_->id == id) {
-    ClearVisualSelectionContext();
+    vsc_image_data_.reset();
+    lens_search_controller_->lens_overlay_controller()->ClearAllSelections();
   }
 }
 
 void LensComposeboxController::ClearFiles() {
   ClearVisualSelectionContext();
+  lens_search_controller_->lens_overlay_controller()->ClearAllSelections();
 }
 
 lens::LensSessionMetricsLogger*
@@ -255,7 +262,15 @@ LensComposeboxController::GetLensSuggestInputs() const {
   if (!lens::features::GetAimSuggestionsEnabled()) {
     return lens::proto::LensOverlaySuggestInputs();
   }
-  return suggest_inputs_;
+  lens::proto::LensOverlaySuggestInputs suggest_inputs = suggest_inputs_;
+  // If the overlay is closed and there is not a region selection in the
+  // composebox, clear the vsint param so that the server will not focus
+  // suggestions on the stale region.
+  if (!HasRegionSelection() &&
+      lens::features::ClearVsintWhenNoRegionSelection()) {
+    suggest_inputs.clear_encoded_visual_search_interaction_log_data();
+  }
+  return suggest_inputs;
 }
 
 void LensComposeboxController::UpdateSuggestInputs(
@@ -307,6 +322,9 @@ lens::ClientToAimMessage LensComposeboxController::BuildSubmitQueryMessage(
       overlay_controller->HasRegionSelection()) {
     lens_image_query_data->mutable_visual_search_interaction_data()->CopyFrom(
         visual_search_interaction_data.value());
+  } else {
+    lens_image_query_data->mutable_visual_search_interaction_data()->CopyFrom(
+        lens::LensOverlayVisualSearchInteractionData());
   }
   return client_to_aim_message;
 }
@@ -324,9 +342,10 @@ LensComposeboxController::BuildVisualSelectionFileInfo(
   return file_info;
 }
 
-void LensComposeboxController::ClearVisualSelectionContext() {
-  vsc_image_data_.reset();
-  lens_search_controller_->lens_overlay_controller()->ClearAllSelections();
+bool LensComposeboxController::HasRegionSelection() const {
+  const bool has_region_in_composebox = vsc_image_data_.has_value();
+  const bool has_region_in_overlay =
+      lens_search_controller_->lens_overlay_controller()->HasRegionSelection();
+  return has_region_in_overlay || has_region_in_composebox;
 }
-
 }  // namespace lens

@@ -54,10 +54,6 @@ String ToString(const mojom::blink::Selector& selector) {
 }
 }  // namespace
 
-// static
-const char AnnotationAgentContainerImpl::kSupplementName[] =
-    "AnnotationAgentContainerImpl";
-
 void AnnotationAgentContainerImpl::AddObserver(Observer* observer) {
   observers_.insert(observer);
 }
@@ -77,7 +73,7 @@ AnnotationAgentContainerImpl* AnnotationAgentContainerImpl::CreateIfNeeded(
   if (!container) {
     container =
         MakeGarbageCollected<AnnotationAgentContainerImpl>(document, PassKey());
-    Supplement<Document>::ProvideTo(document, container);
+    document.SetAnnotationAgentContainerImpl(container);
   }
 
   return container;
@@ -86,7 +82,7 @@ AnnotationAgentContainerImpl* AnnotationAgentContainerImpl::CreateIfNeeded(
 // static
 AnnotationAgentContainerImpl* AnnotationAgentContainerImpl::FromIfExists(
     Document& document) {
-  return Supplement<Document>::From<AnnotationAgentContainerImpl>(document);
+  return document.GetAnnotationAgentContainerImpl();
 }
 
 // static
@@ -122,8 +118,7 @@ void AnnotationAgentContainerImpl::BindReceiver(
 
 AnnotationAgentContainerImpl::AnnotationAgentContainerImpl(Document& document,
                                                            PassKey)
-    : Supplement<Document>(document),
-      receivers_(this, document.GetExecutionContext()) {
+    : document_(document), receivers_(this, document.GetExecutionContext()) {
   LocalFrame* frame = document.GetFrame();
   DCHECK(frame);
 
@@ -138,11 +133,11 @@ void AnnotationAgentContainerImpl::Bind(
 }
 
 void AnnotationAgentContainerImpl::Trace(Visitor* visitor) const {
+  visitor->Trace(document_);
   visitor->Trace(receivers_);
   visitor->Trace(agents_);
   visitor->Trace(annotation_agent_generator_);
   visitor->Trace(observers_);
-  Supplement<Document>::Trace(visitor);
 }
 
 void AnnotationAgentContainerImpl::PerformInitialAttachments() {
@@ -216,7 +211,7 @@ void AnnotationAgentContainerImpl::CreateAgent(
     std::optional<DOMNodeId> search_range_start_node_id) {
   TRACE_EVENT("blink", "AnnotationAgentContainerImpl::CreateAgent", "type",
               ToString(type), "selector", ToString(*selector));
-  DCHECK(GetSupplementable());
+  DCHECK(document_);
 
   AnnotationSelector* annotation_selector;
   switch (selector->which()) {
@@ -260,7 +255,7 @@ void AnnotationAgentContainerImpl::RemoveAgentsOfType(
   TRACE_EVENT("blink", "AnnotationAgentContainerImpl::RemoveAgentsOfType",
               "type", ToString(type));
   HeapVector<Member<AnnotationAgentImpl>> agents_to_reset;
-  EraseIf(agents_,[type, &agents_to_reset](AnnotationAgentImpl* agent) {
+  EraseIf(agents_, [type, &agents_to_reset](AnnotationAgentImpl* agent) {
     if (agent->GetType() == type) {
       agents_to_reset.push_back(agent);
       return true;
@@ -298,7 +293,7 @@ void AnnotationAgentContainerImpl::DidFinishSelectorGeneration(
 
   // If the document was detached then selector generation must have returned
   // an error.
-  CHECK(GetSupplementable());
+  CHECK(document_);
 
   // TODO(bokan): Why doesn't this clear selection?
   GetFrame().Selection().Clear();
@@ -380,7 +375,7 @@ void AnnotationAgentContainerImpl::ScheduleBeginMainFrame() {
 }
 
 Document& AnnotationAgentContainerImpl::GetDocument() const {
-  Document* document = GetSupplementable();
+  Document* document = document_;
   CHECK(document);
   return *document;
 }

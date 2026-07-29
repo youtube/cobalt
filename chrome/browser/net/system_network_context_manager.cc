@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/process/process_handle.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_split.h"
@@ -53,6 +54,7 @@
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/variations/net/omnibox_autofocus_http_headers.h"
 #include "components/variations/net/variations_http_headers.h"
 #include "components/variations/variations_associated_data.h"
 #include "components/version_info/version_info.h"
@@ -832,8 +834,9 @@ void SystemNetworkContextManager::OnNetworkServiceCreated(
 
   int max_connections_per_proxy =
       local_state_->GetInteger(prefs::kMaxConnectionsPerProxy);
-  if (max_connections_per_proxy != -1) {
-    network_service->SetMaxConnectionsPerProxyChain(max_connections_per_proxy);
+  if (max_connections_per_proxy >= 0) {
+    network_service->SetMaxConnectionsPerProxyChain(
+        base::saturated_cast<uint32_t>(max_connections_per_proxy));
   }
 
   network_service_network_context_.reset();
@@ -930,6 +933,7 @@ void SystemNetworkContextManager::AddSSLConfigToNetworkContextParams(
 void SystemNetworkContextManager::ConfigureDefaultNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params) {
   variations::UpdateCorsExemptHeaderForVariations(network_context_params);
+  variations::UpdateCorsExemptHeaderForOmniboxAutofocus(network_context_params);
   GoogleURLLoaderThrottle::UpdateCorsExemptHeader(network_context_params);
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
   request_header_integrity::RequestHeaderIntegrityURLLoaderThrottle::

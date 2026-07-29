@@ -304,7 +304,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     url_fetcher_ =
         std::make_unique<URLFetcher>(context_, well_known_url, net_log_source_);
     url_fetcher_->request().set_method("GET");
-    url_fetcher_->request().set_allow_credentials(false);
+    url_fetcher_->request().set_disallow_credentials();
     url_fetcher_->request().set_site_for_cookies(
         isolation_info_.site_for_cookies());
     url_fetcher_->request().set_initiator(original_request_initiator_);
@@ -354,7 +354,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     url_fetcher_ =
         std::make_unique<URLFetcher>(context_, well_known_url, net_log_source_);
     url_fetcher_->request().set_method("GET");
-    url_fetcher_->request().set_allow_credentials(false);
+    url_fetcher_->request().set_disallow_credentials();
     url_fetcher_->request().set_site_for_cookies(
         isolation_info_.site_for_cookies());
     url_fetcher_->request().set_initiator(original_request_initiator_);
@@ -547,7 +547,6 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     CHECK(IsSecure(fetcher_endpoint_));
     request.set_method("POST");
     request.SetLoadFlags(LOAD_DISABLE_CACHE);
-    request.set_allow_credentials(true);
 
     request.set_site_for_cookies(isolation_info_.site_for_cookies());
     request.set_initiator(original_request_initiator_);
@@ -645,11 +644,19 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
     }
 
     if (url_fetcher_->data_received().empty()) {
-      RunCallback(
-          RegistrationResult(RegistrationResult::NoSessionConfigChange(),
-                             url_fetcher_->maybe_stored_cookies()));
-      // `this` may be deleted.
-      return;
+      if (IsForRefreshRequest()) {
+        RunCallback(
+            RegistrationResult(RegistrationResult::NoSessionConfigChange(),
+                               url_fetcher_->maybe_stored_cookies()));
+        // `this` may be deleted.
+        return;
+      } else {
+        // No config changes is not allowed at registration.
+        RunCallback(RegistrationResult(
+            SessionError{SessionError::kEmptySessionConfig}));
+        // `this` may be deleted.
+        return;
+      }
     }
 
     base::expected<SessionParams, SessionError> params_or_error =
@@ -712,7 +719,7 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
       url_fetcher_ = std::make_unique<URLFetcher>(context_, well_known_url,
                                                   net_log_source_);
       url_fetcher_->request().set_method("GET");
-      url_fetcher_->request().set_allow_credentials(false);
+      url_fetcher_->request().set_disallow_credentials();
       url_fetcher_->request().set_site_for_cookies(
           isolation_info_.site_for_cookies());
       url_fetcher_->request().set_initiator(original_request_initiator_);
@@ -790,14 +797,16 @@ class RegistrationFetcherImpl : public RegistrationFetcher {
                               : NetLogEventType::DBSC_REGISTRATION_RESULT;
     url_fetcher_->request().net_log().AddEvent(result_event_type, [&]() {
       std::string result;
-      if (registration_result.is_session()) {
+      if (registration_result.is_session() ||
+          registration_result.is_no_session_config_change()) {
         result = IsForRefreshRequest() ? "refreshed" : "registered";
       } else {
         const SessionError& error = registration_result.error();
-        if (error.GetDeletionReason().has_value()) {
-          result = "session_ended";
+        if (IsForRefreshRequest()) {
+          result = error.GetDeletionReason().has_value() ? "session_ended"
+                                                         : "failed_continue";
         } else {
-          result = "failed_continue";
+          result = "registration_failed";
         }
       }
 

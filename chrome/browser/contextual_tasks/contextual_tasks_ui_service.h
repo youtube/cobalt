@@ -7,7 +7,6 @@
 
 #include <map>
 
-#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/frame_tree_node_id.h"
@@ -54,9 +53,11 @@ class ContextualTasksUiService : public KeyedService {
 
   // A notification to this service that a link in the AI thread was clicked by
   // the user. This will open a tab and associate it with the visible thread.
-  virtual void OnThreadLinkClicked(const GURL& url,
-                                   base::Uuid task_id,
-                                   base::WeakPtr<tabs::TabInterface> tab);
+  virtual void OnThreadLinkClicked(
+      const GURL& url,
+      base::Uuid task_id,
+      base::WeakPtr<tabs::TabInterface> tab,
+      base::WeakPtr<BrowserWindowInterface> browser);
 
   // A notification that a navigation is occurring. This method gives the
   // service the opportunity to prevent the navigation from happening in order
@@ -81,7 +82,8 @@ class ContextualTasksUiService : public KeyedService {
   virtual GURL GetDefaultAiPageUrl();
 
   // Called when the side panel in a given browser window started showing a new
-  // task.
+  // task. If |task_id| is invalid, the panel is in a zero-state that is waiting
+  // for user to create a new task.
   virtual void OnTaskChangedInPanel(
       BrowserWindowInterface* browser_window_interface,
       const base::Uuid& task_id);
@@ -89,12 +91,12 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is to an AI page.
   bool IsAiUrl(const GURL& url);
 
- private:
   // Associates a WebContents with a task, assuming the URL of the WebContents'
   // main frame or side panel is a contextual task URL.
   void AssociateWebContentsToTask(content::WebContents* web_contents,
                                   const base::Uuid& task_id);
 
+ private:
   const raw_ptr<Profile> profile_;
 
   raw_ptr<contextual_tasks::ContextualTasksContextController>

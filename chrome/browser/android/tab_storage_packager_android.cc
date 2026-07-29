@@ -15,6 +15,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/token.h"
 #include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/android/tab_android_conversions.h"
 #include "chrome/browser/android/tab_group_android.h"
 #include "chrome/browser/android/tab_group_features.h"
 #include "chrome/browser/profiles/profile.h"
@@ -106,11 +107,31 @@ TabStoragePackagerAndroid::TabStoragePackagerAndroid(Profile* profile)
       Java_TabStoragePackager_create(env, reinterpret_cast<intptr_t>(this)));
 }
 
+bool TabStoragePackagerAndroid::IsOffTheRecord(
+    const TabCollection* collection) const {
+  const TabCollection* root_collection = GetRootCollection(collection);
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return static_cast<bool>(Java_TabStoragePackager_isOffTheRecord(
+      env, java_obj_, profile_,
+      static_cast<const TabStripCollection*>(root_collection)));
+}
+
+std::string TabStoragePackagerAndroid::GetWindowTag(
+    const TabCollection* collection) const {
+  const TabCollection* root_collection = GetRootCollection(collection);
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_TabStoragePackager_getWindowTag(
+      env, java_obj_, profile_,
+      static_cast<const TabStripCollection*>(root_collection));
+}
+
 std::unique_ptr<StoragePackage> TabStoragePackagerAndroid::Package(
     const TabInterface* tab) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  long ptr_value = Java_TabStoragePackager_packageTab(
-      env, java_obj_, static_cast<const TabAndroid*>(tab));
+  long ptr_value = Java_TabStoragePackager_packageTab(env, java_obj_,
+                                                      ToTabAndroidChecked(tab));
   TabStoragePackage* data = reinterpret_cast<TabStoragePackage*>(ptr_value);
 
   return base::WrapUnique(data);

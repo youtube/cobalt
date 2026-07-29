@@ -60,6 +60,7 @@ import org.chromium.chrome.browser.lens.LensMetrics;
 import org.chromium.chrome.browser.lens.LensQueryParams;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.locale.LocaleManager;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBarCoordinator.SelectionState;
 import org.chromium.chrome.browser.omnibox.fusebox.NavigationAttachmentsCoordinator;
@@ -230,8 +231,9 @@ class LocationBarMediator
     private @Nullable SearchEngineUtils mSearchEngineUtils;
     private @Nullable AddToHomescreenCoordinator mAddToHomescreenCoordinatorForTesting;
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
-    private final ObservableSupplierImpl<@AutocompleteRequestType Integer>
+    private final ObservableSupplier<@AutocompleteRequestType Integer>
             mAutocompleteRequestTypeSupplier;
+    private final NavigationAttachmentsCoordinator mNavigationAttachmentsCoordinator;
     private final boolean mPersistEditingState;
 
     private final ButtonToolbarWidthConsumer mBookmarkButtonToolbarWidthConsumer;
@@ -239,6 +241,7 @@ class LocationBarMediator
     private final ButtonToolbarWidthConsumer mMicButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mLensButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mZoomButtonToolbarWidthConsumer;
+    private final @Nullable MultiInstanceManager mMultiInstanceManager;
 
     /*package */ LocationBarMediator(
             Context context,
@@ -259,12 +262,14 @@ class LocationBarMediator
             ObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             @Nullable BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
-            ObservableSupplierImpl<@AutocompleteRequestType Integer>
-                    autocompleteRequestTypeSupplier,
-            @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator) {
+            ObservableSupplier<@AutocompleteRequestType Integer> autocompleteRequestTypeSupplier,
+            @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator,
+            NavigationAttachmentsCoordinator navigationAttachmentsCoordinator,
+            @Nullable MultiInstanceManager multiInstanceManager) {
         mContext = context;
         mLocationBarLayout = locationBarLayout;
         mLocationBarDataProvider = locationBarDataProvider;
+        mNavigationAttachmentsCoordinator = navigationAttachmentsCoordinator;
         mLocationBarDataProvider.addObserver(this);
         mEmbedderUiOverrides = embedderUiOverrides;
         mOverrideUrlLoadingDelegate = overrideUrlLoadingDelegate;
@@ -329,6 +334,7 @@ class LocationBarMediator
                 OmniboxFeatures.sOmniboxImprovementForLFF.isEnabled()
                         && OmniboxFeatures.sOmniboxImprovementForLFFPersistEditingState.getValue()
                         && mIsTablet;
+        mMultiInstanceManager = multiInstanceManager;
     }
 
     /**
@@ -745,7 +751,10 @@ class LocationBarMediator
             }
 
             TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
-            if (omniboxLoadUrlParams.openInNewTab && tabModelSelector != null) {
+            if (omniboxLoadUrlParams.openInNewWindow && mMultiInstanceManager != null) {
+                mMultiInstanceManager.openUrlInSelectedWindow(
+                        loadUrlParams, currentTab.getParentId(), /* preferNew= */ true);
+            } else if (omniboxLoadUrlParams.openInNewTab && tabModelSelector != null) {
                 tabModelSelector.openNewTab(
                         loadUrlParams,
                         TabLaunchType.FROM_OMNIBOX,
@@ -1756,7 +1765,9 @@ class LocationBarMediator
 
         boolean urlHasFocus = mUrlHasFocus;
         if (shouldBeFocused) {
-            mAutocompleteRequestTypeSupplier.set(requestType);
+            if (requestType == AutocompleteRequestType.AI_MODE) {
+                mNavigationAttachmentsCoordinator.onAiModeActivatedFromNtp();
+            }
             if (!urlHasFocus) {
                 recordOmniboxFocusReason(reason);
                 // Record Lens button shown when Omnibox is focused.

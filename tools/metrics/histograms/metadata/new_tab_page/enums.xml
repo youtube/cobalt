@@ -26,36 +26,27 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
-<!-- LINT.IfChange(ActionChipsType) -->
-
-<enum name="ActionChipsType">
-  <int value="0" label="Create Image Chip"/>
-  <int value="1" label="Deep Search Chip"/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/resources/new_tab_page/action_chips/action_chips.ts:ActionChipsType) -->
-
-<enum name="AimToolState">
-  <int value="0" label="AIM Tool Disabled"/>
-  <int value="1" label="AIM Tool Enabled"/>
-</enum>
-
 <enum name="BooleanFromHTTPCache">
   <int value="0" label="Downloaded from network"/>
   <int value="1" label="HTTP cache hit"/>
 </enum>
+
+<!-- LINT.IfChange(ChipType) -->
+
+<enum name="ChipType">
+  <int value="0" label="Create Image Chip"/>
+  <int value="1" label="Deep Search Chip"/>
+  <int value="2" label="Recent Tab Chip"/>
+  <int value="3" label="Deep Dive Chip"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom:ChipType) -->
 
 <enum name="ComposeboxFileValidationError">
   <int value="0" label="No error"/>
   <int value="1" label="Too many files uploaded"/>
   <int value="2" label="File is empty"/>
   <int value="3" label="File size is too large"/>
-</enum>
-
-<enum name="ComposeboxSubmissionType">
-  <int value="0" label="Submission with no tools"/>
-  <int value="1" label="DeepSearch"/>
-  <int value="2" label="CreateImages"/>
 </enum>
 
 <enum name="FailToShowHomeSurfaceReason">
@@ -272,6 +263,15 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Wallpaper search inspiration image"/>
 </enum>
 
+<enum name="NtpBackgroundImageType">
+  <summary>The type of background image for the New Tab Page.</summary>
+  <int value="0" label="Default"/>
+  <int value="1" label="Upload image"/>
+  <int value="2" label="Chrome color"/>
+  <int value="3" label="Theme collection"/>
+  <int value="4" label="Color from hex"/>
+</enum>
+
 <enum name="NTPCalendarAction">
   <summary>Calendar module user actions</summary>
   <int value="0" label="Expanded event header clicked"/>
@@ -361,6 +361,9 @@ chromium-metrics-reviews@google.com.
   <summary/>
   <int value="0" label="Cancel"/>
   <int value="1" label="Save"/>
+  <int value="2" label="Pinch to resize"/>
+  <int value="3" label="Rotate screen"/>
+  <int value="4" label="Rotate screen and pinch to resize"/>
 </enum>
 
 <enum name="NTPCustomizeChromeBackgroundAction">
@@ -632,6 +635,7 @@ chromium-metrics-reviews@google.com.
   <int value="17" label="Open Glic settings"/>
   <int value="18" label="Prewarm Glic FRE"/>
   <int value="19" label="Open Split View"/>
+  <int value="20" label="Open Autofill Settings"/>
 </enum>
 
 <!-- LINT.ThenChange(//ui/webui/resources/js/browser_command/browser_command.mojom:Command) -->
@@ -689,7 +693,8 @@ chromium-metrics-reviews@google.com.
   <int value="30" label="From Longpress Foreground In Group"/>
   <int value="31" label="From Tab List Interface"/>
   <int value="32" label="From Link, Creating New Window"/>
-  <int value="33" label="Size"/>
+  <int value="33" label="From Tips Notifications"/>
+  <int value="34" label="Size"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/android/tab_model/tab_model.h:TabLaunchType) -->

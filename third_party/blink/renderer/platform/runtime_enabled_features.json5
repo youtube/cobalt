@@ -464,11 +464,6 @@
       name: "AllowContentInitiatedDataUrlNavigations",
       base_feature: "none",
     },
-    // Fix for https://crbug.com/41238177.
-    {
-      name: "AllowCopyingEmptyLastTableCell",
-      status: "stable",
-    },
     {
       name: "AllowPreloadingWithCSPMetaTag",
       status: "experimental",
@@ -760,7 +755,7 @@
     {
       // https://chromestatus.com/feature/4830298126417920
       name: "BlobBytes",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "BlockingFocusWithoutUserActivation",
@@ -979,7 +974,7 @@
       // hints (from 3Ps, or itself) via the getHighEntropyValues API.
       // crbug.com/385161047
       name: "ClientHintUAHighEntropyValuesPermissionPolicy",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Enables clipboardchange event API for listening for changes to the
@@ -987,7 +982,7 @@
       // https://chromestatus.com/feature/5085102657503232
       name: "ClipboardChangeEvent",
       origin_trial_feature_name: "ClipboardChangeEvent",
-      status: "experimental",
+      status: "stable",
     },
     // This ensures that clipboard event fires on a target node which is
     // focused in case no visible selection is present.
@@ -1102,6 +1097,18 @@
         "Android": "stable",
         "default": "",
       }
+    },
+    {
+      // When enabled, EventTriggers[1] will function via cc::EventTrigger
+      // objects that live on the compositor thread.
+      // [1] https://drafts.csswg.org/css-animations-2/#event-triggers
+      name: "CompositorEventTrigger"
+    },
+    {
+      // When enabled, TimelineTriggers[1] will function via cc::TimelineTrigger
+      // objects that live on the compositor thread.
+      // [1] https://drafts.csswg.org/css-animations-2/#timeline-triggers
+      name: "CompositorTimelineTrigger",
     },
     {
       name: "CompressionDictionaryTransport",
@@ -1269,9 +1276,9 @@
       status: "stable",
     },
     {
-      // Need a feature entry
+      // https://chromestatus.com/feature/6106160780017664
       name: "CSSCaretShape",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Support case-sensitive attribute selector modifier
@@ -2101,6 +2108,11 @@
       status: "experimental",
     },
     {
+      // See crbug.com/453919401 for more details.
+      name: "EquivalentEncompassRounding",
+      status: "stable",
+    },
+    {
       // `event.pseudoTarget` property to represent pseudo-elements in events. Returns `CSSPseudoElement` or null.
       name: "EventPseudoTargetProperty",
       status: "experimental",
@@ -2417,6 +2429,12 @@
     {
       // crbug.com/411739501
       name: "FixNextPositionCalculationInInsertList",
+      status: "stable",
+    },
+    {
+      // Fix for strikethrough toggle not working in empty
+      // contenteditable. See https://crbug.com/427915243
+      name: "FixStrikethroughToggleInEmptyContentEditable",
       status: "stable",
     },
     {
@@ -2752,6 +2770,11 @@
       status: "stable",
       base_feature: "none",
     },
+    {
+      name: "HstsTopLevelNavigationsOnly",
+      status: "experimental",
+      base_feature: "none",
+    },
     // The `anchor` attribute, supported by both anchor positioning and the
     // popover API.
     {
@@ -2764,6 +2787,12 @@
     {
       name: "HTMLCommandActionsV2",
       status: "test",
+    },
+    // Adds support for scroll commands such as 'page-up' and 'page-block-end'.
+    // https://github.com/danielsakhapov/declarative-scroll-commands-for-html-explainer
+    {
+      name: "HTMLCommandForScrollCommands",
+      status: "experimental",
     },
     // Adds support for the 'request-close' command.
     // https://open-ui.org/components/invokers.explainer/
@@ -3251,11 +3280,6 @@
       status: "stable",
     },
     {
-      name: "MediaSessionEnterPictureInPicture",
-      public: true,
-      status: "stable",
-    },
-    {
       name: "MediaSourceExperimental",
       status: "experimental",
     },
@@ -3264,10 +3288,6 @@
       status: "experimental",
       base_feature: "none",
       origin_trial_feature_name: "MediaSourceExtensionsForWebCodecs",
-    },
-    {
-      name: "MediaSourceNewAbortAndDuration",
-      status: "stable",
     },
     {
       name: "MediaStreamTrackTransfer",
@@ -3385,11 +3405,6 @@
       name: "NavigatorContentUtils",
       // Android does not yet support NavigatorContentUtils.
       status: {"Android": "", "default": "stable"},
-    },
-    {
-      // crbug.com/437612643
-      name: "NestedRubyMinMaxFix",
-      status: "stable",
     },
     {
       name: "NestedViewTransition",
@@ -3683,6 +3698,10 @@
       status: "experimental",
     },
     {
+      name: "PaintTimingRecordTimingForDetachedPaintedElements",
+      status: "stable",
+    },
+    {
       name: "PaintUnderInvalidationChecking",
       settable_from_internals: true,
     },
@@ -3694,10 +3713,6 @@
     {
       name: "PartialCompletionNotAllowedInMoveParagraphs",
       status: "stable",
-    },
-    {
-      name: "PartitionedPopins",
-      status: "experimental",
     },
     {
       name: "PartitionVisitedLinkDatabaseWithSelfLinks",
@@ -3908,7 +3923,7 @@
       // When enabled, preserves dropEffect in drag event set during dragover
       // events.
       name: "PreserveDropEffect",
-      status: "stable",
+      status: "test",
     },
     {
       // When enabled, prevents undo to be applied if the enclosing block
@@ -4062,7 +4077,7 @@
     // This feature is limited to Linux only.
     {
       name: "ReduceUserAgentDataLinuxPlatformVersion",
-      status: {"Linux": "experimental"},
+      status: {"Linux": "stable"},
     },
     // If enabled, the minor version of the User-Agent string will be reduced.
     // This User-Agent Reduction feature has been enabled starting from M101,
@@ -4213,6 +4228,10 @@
     {
       name: "ResourceTimingUseCORSForBodySizes",
       status: "test",
+    },
+    {
+      name: "RespectOverscrollBehaviorForScrollBubbling",
+      status: "stable",
     },
     {
       name: "ResponsiveIframes",
@@ -4447,6 +4466,9 @@
       name: "SecurePaymentConfirmationBrowserBoundKeys",
       status: {
         "Android": "stable",
+        "Mac": "experimental",
+        "Win": "experimental",
+        "iOS": "",
         "default": "test",
       },
     },
@@ -4677,7 +4699,7 @@
     },
     {
       name: "SideRelativeBackgroundPosition",
-      status: "experimental",
+      status: "stable",
       public: true,
     },
     {
@@ -4720,6 +4742,10 @@
     {
       name: "SkipUnselectableContentInSerialization",
       status: "stable",
+    },
+    {
+      name: "SmallerViewportUnits",
+      status: "experimental",
     },
     {
       name: "SmartCard",
@@ -4849,7 +4875,7 @@
     },
     {
       name: "Svg2Cascade",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SvgAnchorElementAttributes",
@@ -5630,6 +5656,13 @@
     // https://w3c.github.io/webauthn/#sctn-supplemental-public-keys-extension
     {
       name: "WebAuthenticationSupplementalPubKeys",
+      status: "experimental",
+    },
+    // Enables `uiMode` enumeration field in CredentialRequestOptions struct.
+    // This is an alternate API shape for `WebAuthenticationImmediateGet`.
+    // See https://github.com/w3c/webauthn/issues/2228.
+    {
+      name: "WebAuthenticationUiMode",
       status: "experimental",
     },
     // WebBluetooth is enabled by default on Android, ChromeOS, iOS, macOS and

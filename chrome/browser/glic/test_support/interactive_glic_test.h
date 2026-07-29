@@ -22,6 +22,7 @@
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -724,19 +725,24 @@ class InteractiveGlicTestMixin : public T {
         "attached to the other browser");
   }
 
-  auto CheckWidgetMinimumSize(const gfx::Size& size) {
-    // Size can't be smaller than the initial size.
-    auto expected_size = glic::GlicWidget::GetInitialSize();
-    expected_size.SetToMax(size);
-    return Api::CheckResult(
-        [this]() { return GetGlicWidget()->GetMinimumSize(); }, expected_size,
-        "CheckWidgetMinimumSize");
-  }
-
   auto CheckTabCount(int expected_count) {
     return Api::CheckResult(
         [this] { return browser()->tab_strip_model()->GetTabCount(); },
         expected_count, "CheckTabCount");
+  }
+
+  auto CheckPopupCount(int expected_count) {
+    return Api::CheckResult(
+        [] {
+          int popup_count = 0;
+          for (Browser* browser : *BrowserList::GetInstance()) {
+            if (browser && browser->is_type_popup()) {
+              popup_count++;
+            }
+          }
+          return popup_count;
+        },
+        expected_count, "CheckPopupCount");
   }
 
   auto CheckOcclusionTracked(bool expect_is_tracked) {
@@ -801,6 +807,7 @@ class InteractiveGlicTestMixin : public T {
   // Send a task state update to show the actor task icon in the tab strip.
   void StartTaskAndShowActorTaskIcon() {
     auto actor_service = actor::ActorKeyedService::Get(browser()->GetProfile());
+    actor_service->GetPolicyChecker().SetActOnWebForTesting(true);
     actor::TaskId task_id = actor_service->CreateTask();
     actor::ui::StartTask start_task_event(task_id);
     actor_service->GetActorUiStateManager()->OnUiEvent(start_task_event);

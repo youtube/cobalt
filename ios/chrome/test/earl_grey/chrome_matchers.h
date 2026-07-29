@@ -621,6 +621,9 @@ id<GREYMatcher> TabGroupActivityLabelOnGridCellAtIndex(unsigned int index);
 // Returns a matcher for the button that closes the tab grid.
 id<GREYMatcher> TabGridDoneButton();
 
+// Returns a matcher for the tab grid overflow menu button.
+id<GREYMatcher> TabGridOverflowMenuButton();
+
 // Returns a matcher for the button that reverts the close all tabs action
 // in the tab grid.
 id<GREYMatcher> TabGridUndoCloseAllButton();
@@ -978,6 +981,20 @@ id<GREYMatcher> FakeJoinFlowView();
 
 // Returns the matcher for the tab groups page of the tab grid.
 id<GREYMatcher> TabGroupsPanel();
+
+#pragma mark - Button Stack
+
+// Returns a matcher for the primary button in a button stack.
+id<GREYMatcher> ButtonStackPrimaryButton();
+
+// Returns a matcher for the secondary button in a button stack.
+id<GREYMatcher> ButtonStackSecondaryButton();
+
+// Returns a matcher for the tertiary button in a button stack.
+id<GREYMatcher> ButtonStackTertiaryButton();
+
+// Returns a matcher for the checkmark symbol in a button stack.
+id<GREYMatcher> ButtonStackCheckmarkSymbol();
 
 }  // namespace chrome_test_util
 

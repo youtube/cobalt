@@ -11,8 +11,11 @@ assert(is_win || is_mac || is_linux || is_chromeos || is_desktop_android)
 # dependencies this interface should not depend on anything else in //chrome.
 source_set("browser_window") {
   sources = [
+    "public/browser_collection_observer.h",
     "public/browser_window_interface.h",
     "public/browser_window_interface_iterator.h",
+    "public/global_browser_collection.h",
+    "public/profile_browser_collection.h",
   ]
   public_deps = [ "//content/public/browser" ]
   deps = [ "//ui/base/unowned_user_data" ]
@@ -47,6 +50,7 @@ if (!is_android) {
     testonly = true
     sources = [
       "internal/create_browser_window_browsertest.cc",
+      "internal/global_browser_collection_browsertest.cc",
       "public/browser_window_interface_iterator_browsertest.cc",
     ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]

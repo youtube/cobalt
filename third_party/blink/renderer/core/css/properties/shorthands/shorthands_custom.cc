@@ -61,8 +61,7 @@ bool IsResetOnlyAnimationProperty(CSSPropertyID property) {
 // Legacy parsing allows <string>s for animation-name.
 CSSValue* ConsumeAnimationValue(CSSPropertyID property,
                                 CSSParserTokenStream& stream,
-                                const CSSParserContext& context,
-                                bool use_legacy_parsing) {
+                                const CSSParserContext& context) {
   switch (property) {
     case CSSPropertyID::kAnimationDelay:
       return css_parsing_utils::ConsumeTime(
@@ -80,8 +79,7 @@ CSSValue* ConsumeAnimationValue(CSSPropertyID property,
     case CSSPropertyID::kAnimationIterationCount:
       return css_parsing_utils::ConsumeAnimationIterationCount(stream, context);
     case CSSPropertyID::kAnimationName:
-      return css_parsing_utils::ConsumeAnimationName(stream, context,
-                                                     use_legacy_parsing);
+      return css_parsing_utils::ConsumeAnimationName(stream, context);
     case CSSPropertyID::kAnimationPlayState:
       return css_parsing_utils::ConsumeIdent<CSSValueID::kRunning,
                                              CSSValueID::kPaused>(stream);
@@ -110,8 +108,7 @@ bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
       longhands(longhand_count);
   if (!css_parsing_utils::ConsumeAnimationShorthand(
           shorthand, longhands, ConsumeAnimationValue,
-          IsResetOnlyAnimationProperty, stream, context,
-          local_context.UseAliasParsing())) {
+          IsResetOnlyAnimationProperty, stream, context)) {
     return false;
   }
 
@@ -123,6 +120,35 @@ bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
   }
   return true;
 }
+
+namespace {
+
+enum class AnimationNameConflcit {
+  kNoConflict,
+  kTimingFunctionConflict,
+  kFillModeConflict,
+  kDirectionConflict,
+  kPlayStateConflict,
+};
+
+static AnimationNameConflcit CheckAnimationNameConflicts(
+    const AtomicString& name) {
+  if (ComputedStyleUtils::AnimationNameIsTimingFunction(name)) {
+    return AnimationNameConflcit::kTimingFunctionConflict;
+  }
+  if (ComputedStyleUtils::AnimationNameIsFillMode(name)) {
+    return AnimationNameConflcit::kFillModeConflict;
+  }
+  if (ComputedStyleUtils::AnimationNameIsDirection(name)) {
+    return AnimationNameConflcit::kDirectionConflict;
+  }
+  if (ComputedStyleUtils::AnimationNameIsPlayState(name)) {
+    return AnimationNameConflcit::kPlayStateConflict;
+  }
+  return AnimationNameConflcit::kNoConflict;
+}
+
+}  // namespace
 
 const CSSValue* CSSValueFromComputedAnimation(
     const StylePropertyShorthand& shorthand,
@@ -141,46 +167,75 @@ const CSSValue* CSSValueFromComputedAnimation(
     CSSValueList* animations_list = CSSValueList::CreateCommaSeparated();
     for (wtf_size_t i = 0; i < animation_data->NameList().size(); ++i) {
       CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-      list->Append(*ComputedStyleUtils::ValueForAnimationDuration(
-          CSSTimingData::GetRepeated(animation_data->DurationList(), i),
-          /* resolve_auto_to_zero */ true));
-      list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
-          CSSTimingData::GetRepeated(animation_data->TimingFunctionList(), i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationDelay(
-          CSSTimingData::GetRepeated(animation_data->DelayStartList(), i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationIterationCount(
-          CSSTimingData::GetRepeated(animation_data->IterationCountList(), i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationDirection(
-          CSSTimingData::GetRepeated(animation_data->DirectionList(), i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationFillMode(
-          CSSTimingData::GetRepeated(animation_data->FillModeList(), i)));
-      list->Append(*ComputedStyleUtils::ValueForAnimationPlayState(
-          CSSTimingData::GetRepeated(animation_data->PlayStateList(), i)));
-      list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(
-          animation_data->NameList()[i]));
+      const AtomicString& name = animation_data->NameList()[i];
+      AnimationNameConflcit conflict = CheckAnimationNameConflicts(name);
+      auto duration =
+          CSSTimingData::GetRepeated(animation_data->DurationList(), i);
+      if (duration != CSSAnimationData::InitialDuration()) {
+        list->Append(*ComputedStyleUtils::ValueForAnimationDuration(
+            duration,
+            /* resolve_auto_to_zero */ true));
+      }
+      if (auto timing_function = CSSTimingData::GetRepeated(
+              animation_data->TimingFunctionList(), i);
+          timing_function != CSSAnimationData::InitialTimingFunction() ||
+          conflict == AnimationNameConflcit::kTimingFunctionConflict) {
+        list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
+            timing_function));
+      }
+      if (auto delay_start =
+              CSSTimingData::GetRepeated(animation_data->DelayStartList(), i);
+          delay_start != CSSAnimationData::InitialDelayStart()) {
+        if (duration == CSSAnimationData::InitialDuration()) {
+          // If delay is specified without duration, we need to add the initial
+          // duration to keep the order of values correct.
+          list->Append(*ComputedStyleUtils::ValueForAnimationDuration(
+              CSSAnimationData::InitialDuration(),
+              /* resolve_auto_to_zero */ true));
+        }
+        list->Append(*ComputedStyleUtils::ValueForAnimationDelay(delay_start));
+      }
+      if (auto iteration_count = CSSTimingData::GetRepeated(
+              animation_data->IterationCountList(), i);
+          iteration_count != CSSAnimationData::InitialIterationCount()) {
+        list->Append(*ComputedStyleUtils::ValueForAnimationIterationCount(
+            iteration_count));
+      }
+      if (auto direction =
+              CSSTimingData::GetRepeated(animation_data->DirectionList(), i);
+          direction != CSSAnimationData::InitialDirection() ||
+          conflict == AnimationNameConflcit::kDirectionConflict) {
+        list->Append(
+            *ComputedStyleUtils::ValueForAnimationDirection(direction));
+      }
+      if (auto fill_mode =
+              CSSTimingData::GetRepeated(animation_data->FillModeList(), i);
+          fill_mode != CSSAnimationData::InitialFillMode() ||
+          conflict == AnimationNameConflcit::kFillModeConflict) {
+        list->Append(*ComputedStyleUtils::ValueForAnimationFillMode(fill_mode));
+      }
+      if (auto play_state =
+              CSSTimingData::GetRepeated(animation_data->PlayStateList(), i);
+          play_state != CSSAnimationData::InitialPlayState() ||
+          conflict == AnimationNameConflcit::kPlayStateConflict) {
+        list->Append(
+            *ComputedStyleUtils::ValueForAnimationPlayState(play_state));
+      }
+      if (name != CSSAnimationData::InitialName()) {
+        list->Append(*ComputedStyleUtils::ValueForAnimationName(name));
+      }
+      if (list->length() == 0) {
+        // All properties have their initial value, so use the initial value of
+        // the shorthand.
+        list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
+      }
       animations_list->Append(*list);
     }
     return animations_list;
   }
 
   CSSValueList* list = CSSValueList::CreateSpaceSeparated();
-  // animation-name default value.
   list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
-  list->Append(*ComputedStyleUtils::ValueForAnimationDuration(
-      CSSAnimationData::InitialDuration(),
-      /* resolve_auto_to_zero */ true));
-  list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
-      CSSAnimationData::InitialTimingFunction()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationDelay(
-      CSSAnimationData::InitialDelayStart()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationIterationCount(
-      CSSAnimationData::InitialIterationCount()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationDirection(
-      CSSAnimationData::InitialDirection()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationFillMode(
-      CSSAnimationData::InitialFillMode()));
-  list->Append(*ComputedStyleUtils::ValueForAnimationPlayState(
-      CSSAnimationData::InitialPlayState()));
   return list;
 }
 
@@ -1122,170 +1177,170 @@ const CSSValue* RuleBreak::CSSValueFromComputedStyleInternal(
       value_phase);
 }
 
-bool ColumnRuleOutset::ParseShorthand(
+bool ColumnRuleInset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  DCHECK_EQ(columnRuleOutsetShorthand().length(), 4u);
+  DCHECK_EQ(columnRuleInsetShorthand().length(), 4u);
 
-  CSSValue* rule_edge_start_outset = nullptr;
-  CSSValue* rule_edge_end_outset = nullptr;
-  CSSValue* rule_interior_start_outset = nullptr;
-  CSSValue* rule_interior_end_outset = nullptr;
+  CSSValue* rule_edge_start_inset = nullptr;
+  CSSValue* rule_edge_end_inset = nullptr;
+  CSSValue* rule_interior_start_inset = nullptr;
+  CSSValue* rule_interior_end_inset = nullptr;
 
-  if (!css_parsing_utils::ConsumeGapDecorationsRuleOutsetShorthand(
-          important, context, stream, rule_edge_start_outset,
-          rule_edge_end_outset, rule_interior_start_outset,
-          rule_interior_end_outset)) {
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleInsetShorthand(
+          important, context, stream, rule_edge_start_inset,
+          rule_edge_end_inset, rule_interior_start_inset,
+          rule_interior_end_inset)) {
     return false;
   }
 
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleEdgeStartOutset,
-      CSSPropertyID::kColumnRuleOutset, *rule_edge_start_outset, important,
+      CSSPropertyID::kColumnRuleEdgeStartInset, CSSPropertyID::kColumnRuleInset,
+      *rule_edge_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleEdgeEndOutset, CSSPropertyID::kColumnRuleOutset,
-      *rule_edge_end_outset, important,
+      CSSPropertyID::kColumnRuleEdgeEndInset, CSSPropertyID::kColumnRuleInset,
+      *rule_edge_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleInteriorStartOutset,
-      CSSPropertyID::kColumnRuleOutset, *rule_interior_start_outset, important,
+      CSSPropertyID::kColumnRuleInteriorStartInset,
+      CSSPropertyID::kColumnRuleInset, *rule_interior_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleInteriorEndOutset,
-      CSSPropertyID::kColumnRuleOutset, *rule_interior_end_outset, important,
+      CSSPropertyID::kColumnRuleInteriorEndInset,
+      CSSPropertyID::kColumnRuleInset, *rule_interior_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
   return true;
 }
 
-const CSSValue* ColumnRuleOutset::CSSValueFromComputedStyleInternal(
+const CSSValue* ColumnRuleInset::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForGapDecorationRuleOutsetShorthand(
-      columnRuleOutsetShorthand(), style, layout_object, allow_visited_style,
+  return ComputedStyleUtils::ValuesForGapDecorationRuleInsetShorthand(
+      columnRuleInsetShorthand(), style, layout_object, allow_visited_style,
       value_phase, CSSGapDecorationPropertyDirection::kColumn);
 }
 
-bool RowRuleOutset::ParseShorthand(
+bool RowRuleInset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  DCHECK_EQ(rowRuleOutsetShorthand().length(), 4u);
+  DCHECK_EQ(rowRuleInsetShorthand().length(), 4u);
 
-  CSSValue* rule_edge_start_outset = nullptr;
-  CSSValue* rule_edge_end_outset = nullptr;
-  CSSValue* rule_interior_start_outset = nullptr;
-  CSSValue* rule_interior_end_outset = nullptr;
+  CSSValue* rule_edge_start_inset = nullptr;
+  CSSValue* rule_edge_end_inset = nullptr;
+  CSSValue* rule_interior_start_inset = nullptr;
+  CSSValue* rule_interior_end_inset = nullptr;
 
-  if (!css_parsing_utils::ConsumeGapDecorationsRuleOutsetShorthand(
-          important, context, stream, rule_edge_start_outset,
-          rule_edge_end_outset, rule_interior_start_outset,
-          rule_interior_end_outset)) {
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleInsetShorthand(
+          important, context, stream, rule_edge_start_inset,
+          rule_edge_end_inset, rule_interior_start_inset,
+          rule_interior_end_inset)) {
     return false;
   }
 
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleEdgeStartOutset, CSSPropertyID::kRowRuleOutset,
-      *rule_edge_start_outset, important,
+      CSSPropertyID::kRowRuleEdgeStartInset, CSSPropertyID::kRowRuleInset,
+      *rule_edge_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleEdgeEndOutset, CSSPropertyID::kRowRuleOutset,
-      *rule_edge_end_outset, important,
+      CSSPropertyID::kRowRuleEdgeEndInset, CSSPropertyID::kRowRuleInset,
+      *rule_edge_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleInteriorStartOutset, CSSPropertyID::kRowRuleOutset,
-      *rule_interior_start_outset, important,
+      CSSPropertyID::kRowRuleInteriorStartInset, CSSPropertyID::kRowRuleInset,
+      *rule_interior_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleInteriorEndOutset, CSSPropertyID::kRowRuleOutset,
-      *rule_interior_end_outset, important,
+      CSSPropertyID::kRowRuleInteriorEndInset, CSSPropertyID::kRowRuleInset,
+      *rule_interior_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
   return true;
 }
 
-const CSSValue* RowRuleOutset::CSSValueFromComputedStyleInternal(
+const CSSValue* RowRuleInset::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForGapDecorationRuleOutsetShorthand(
-      rowRuleOutsetShorthand(), style, layout_object, allow_visited_style,
+  return ComputedStyleUtils::ValuesForGapDecorationRuleInsetShorthand(
+      rowRuleInsetShorthand(), style, layout_object, allow_visited_style,
       value_phase, CSSGapDecorationPropertyDirection::kRow);
 }
 
-bool RuleOutset::ParseShorthand(
+bool RuleInset::ParseShorthand(
     bool important,
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  DCHECK_EQ(ruleOutsetShorthand().length(), 8u);
+  DCHECK_EQ(ruleInsetShorthand().length(), 8u);
 
-  CSSValue* rule_edge_start_outset = nullptr;
-  CSSValue* rule_edge_end_outset = nullptr;
-  CSSValue* rule_interior_start_outset = nullptr;
-  CSSValue* rule_interior_end_outset = nullptr;
+  CSSValue* rule_edge_start_inset = nullptr;
+  CSSValue* rule_edge_end_inset = nullptr;
+  CSSValue* rule_interior_start_inset = nullptr;
+  CSSValue* rule_interior_end_inset = nullptr;
 
-  if (!css_parsing_utils::ConsumeGapDecorationsRuleOutsetShorthand(
-          important, context, stream, rule_edge_start_outset,
-          rule_edge_end_outset, rule_interior_start_outset,
-          rule_interior_end_outset)) {
+  if (!css_parsing_utils::ConsumeGapDecorationsRuleInsetShorthand(
+          important, context, stream, rule_edge_start_inset,
+          rule_edge_end_inset, rule_interior_start_inset,
+          rule_interior_end_inset)) {
     return false;
   }
 
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleEdgeStartOutset, CSSPropertyID::kRuleOutset,
-      *rule_edge_start_outset, important,
+      CSSPropertyID::kColumnRuleEdgeStartInset, CSSPropertyID::kRuleInset,
+      *rule_edge_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleEdgeEndOutset, CSSPropertyID::kRuleOutset,
-      *rule_edge_end_outset, important,
+      CSSPropertyID::kColumnRuleEdgeEndInset, CSSPropertyID::kRuleInset,
+      *rule_edge_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleInteriorStartOutset, CSSPropertyID::kRuleOutset,
-      *rule_interior_start_outset, important,
+      CSSPropertyID::kColumnRuleInteriorStartInset, CSSPropertyID::kRuleInset,
+      *rule_interior_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kColumnRuleInteriorEndOutset, CSSPropertyID::kRuleOutset,
-      *rule_interior_end_outset, important,
+      CSSPropertyID::kColumnRuleInteriorEndInset, CSSPropertyID::kRuleInset,
+      *rule_interior_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleEdgeStartOutset, CSSPropertyID::kRuleOutset,
-      *rule_edge_start_outset, important,
+      CSSPropertyID::kRowRuleEdgeStartInset, CSSPropertyID::kRuleInset,
+      *rule_edge_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleEdgeEndOutset, CSSPropertyID::kRuleOutset,
-      *rule_edge_end_outset, important,
+      CSSPropertyID::kRowRuleEdgeEndInset, CSSPropertyID::kRuleInset,
+      *rule_edge_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleInteriorStartOutset, CSSPropertyID::kRuleOutset,
-      *rule_interior_start_outset, important,
+      CSSPropertyID::kRowRuleInteriorStartInset, CSSPropertyID::kRuleInset,
+      *rule_interior_start_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
-      CSSPropertyID::kRowRuleInteriorEndOutset, CSSPropertyID::kRuleOutset,
-      *rule_interior_end_outset, important,
+      CSSPropertyID::kRowRuleInteriorEndInset, CSSPropertyID::kRuleInset,
+      *rule_interior_end_inset, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
 
   return true;
 }
 
-const CSSValue* RuleOutset::CSSValueFromComputedStyleInternal(
+const CSSValue* RuleInset::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValuesForBidirectionalGapRuleOutsetShorthand(
-      ruleOutsetShorthand(), style, layout_object, allow_visited_style,
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleInsetShorthand(
+      ruleInsetShorthand(), style, layout_object, allow_visited_style,
       value_phase);
 }
 
@@ -4327,8 +4382,7 @@ namespace {
 
 CSSValue* ConsumeTransitionValue(CSSPropertyID property,
                                  CSSParserTokenStream& stream,
-                                 const CSSParserContext& context,
-                                 bool use_legacy_parsing) {
+                                 const CSSParserContext& context) {
   switch (property) {
     case CSSPropertyID::kTransitionDelay:
       return css_parsing_utils::ConsumeTime(
@@ -4369,7 +4423,7 @@ bool Transition::ParseShorthand(
       longhands(longhand_count);
   if (!css_parsing_utils::ConsumeAnimationShorthand(
           shorthand, longhands, ConsumeTransitionValue, is_reset_only_function,
-          stream, context, local_context.UseAliasParsing())) {
+          stream, context)) {
     return false;
   }
 

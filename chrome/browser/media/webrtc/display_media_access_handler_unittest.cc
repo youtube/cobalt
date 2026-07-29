@@ -437,10 +437,11 @@ TEST_P(DisplayMediaAccessHandlerActiveRfhTest, ProcessRequest) {
                  /*expect_result=*/true, /*expect_picker=*/active_rfh_,
                  request);
 
-  EXPECT_EQ(result,
-            active_rfh_
-                ? blink::mojom::MediaStreamRequestResult::OK
-                : blink::mojom::MediaStreamRequestResult::INVALID_STATE);
+  EXPECT_EQ(
+      result,
+      active_rfh_
+          ? blink::mojom::MediaStreamRequestResult::OK
+          : blink::mojom::MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -917,8 +918,9 @@ TEST_F(DisplayMediaAccessHandlerTest,
 #endif
   EXPECT_FALSE(test_flags_[1].picker_created);
   EXPECT_FALSE(test_flags_[1].picker_deleted);
-  EXPECT_EQ(blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
-            results[1]);
+  EXPECT_EQ(
+      blink::mojom::MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY,
+      results[1]);
 }
 
 TEST_F(DisplayMediaAccessHandlerTest,

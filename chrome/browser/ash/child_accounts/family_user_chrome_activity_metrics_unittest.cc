@@ -19,9 +19,9 @@
 #include "chrome/browser/ash/child_accounts/apps/app_test_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_time_limit_utils.h"
 #include "chrome/browser/ash/child_accounts/time_limits/app_types.h"
-#include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/test_extension_system.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
@@ -29,7 +29,6 @@
 #include "chromeos/dbus/power/fake_power_manager_client.h"
 #include "chromeos/dbus/power_manager/idle.pb.h"
 #include "components/app_constants/constants.h"
-#include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/session_manager/core/fake_session_manager_delegate.h"
 #include "components/session_manager/core/session_manager.h"
@@ -76,10 +75,6 @@ class FamilyUserChromeActivityMetricsTest
     InitiateFamilyUserChromeActivityMetrics();
     WaitForAppServiceProxyReady(
         apps::AppServiceProxyFactory::GetForProfile(profile()));
-
-    ProtocolHandlerRegistryFactory::GetInstance()->SetTestingFactory(
-        profile(), custom_handlers::SimpleProtocolHandlerRegistryFactory::
-                       GetDefaultFactory());
 
     extensions::TestExtensionSystem* extension_system(
         static_cast<extensions::TestExtensionSystem*>(
@@ -195,7 +190,7 @@ TEST_F(FamilyUserChromeActivityMetricsTest, Basic) {
   params.window = another_browser_window.release();
   auto another_browser = Browser::DeprecatedCreateOwnedForTesting(params);
 
-  EXPECT_EQ(2U, BrowserList::GetInstance()->size());
+  EXPECT_EQ(2U, chrome::GetTotalBrowserCount());
 
   PushChromeAppInstance(another_browser->window()->GetNativeWindow(),
                         apps::InstanceState::kActive);
@@ -250,7 +245,7 @@ TEST_F(FamilyUserChromeActivityMetricsTest,
   PushChromeAppInstance(test_browser_->window()->GetNativeWindow(),
                         apps::InstanceState::kDestroyed);
   test_browser_.reset();
-  EXPECT_EQ(0U, BrowserList::GetInstance()->size());
+  EXPECT_EQ(0U, chrome::GetTotalBrowserCount());
   DestroyFamilyUserChromeActivityMetrics();
 
   histogram_tester.ExpectTotalCount(

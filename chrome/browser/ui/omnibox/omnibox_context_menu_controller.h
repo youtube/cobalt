@@ -12,11 +12,14 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "base/time/time.h"
+#include "base/unguessable_token.h"
+#include "components/omnibox/browser/searchbox.mojom.h"
 #include "ui/menus/simple_menu_model.h"
 #include "url/gurl.h"
 
-class BrowserWindowInterface;
 class FaviconService;
+class OmniboxPopupFileSelector;
+class OmniboxEditModel;
 
 namespace favicon_base {
 struct FaviconImageResult;
@@ -26,12 +29,30 @@ namespace ui {
 class ImageModel;
 }  // namespace ui
 
+namespace content {
+class WebContents;
+}  // namespace content
+
+namespace contextual_search {
+class ContextualSearchContextController;
+}
+
+namespace lens {
+struct ContextualInputData;
+}  // namespace lens
+
 // OmniboxContextMenuController creates and manages state for the context menu
 // shown for the omnibox.
 class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
  public:
-  explicit OmniboxContextMenuController(
-      BrowserWindowInterface* browser_window_interface);
+  explicit OmniboxContextMenuController(OmniboxPopupFileSelector* file_selector,
+                                        content::WebContents* web_contents);
+  struct TabInfo {
+    int tab_id;
+    std::u16string title;
+    GURL url;
+    base::TimeTicks last_active;
+  };
 
   OmniboxContextMenuController(const OmniboxContextMenuController&) = delete;
   OmniboxContextMenuController& operator=(const OmniboxContextMenuController&) =
@@ -42,6 +63,10 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   ui::SimpleMenuModel* menu_model() { return menu_model_.get(); }
 
   void ExecuteCommand(int command_id, int event_flags) override;
+  void AddTabContext(const TabInfo& tab_info);
+  void UpdateSearchboxContext(
+      std::optional<TabInfo> tab_info,
+      std::optional<searchbox::mojom::ToolMode> tool_mode);
 
  private:
   void BuildMenu();
@@ -63,6 +88,8 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   void AddStaticItems();
   // Adds a title with a localized string to the menu.
   void AddTitleWithStringId(int localization_id);
+  // Gets the most recent tabs.
+  std::vector<OmniboxContextMenuController::TabInfo> GetRecentTabs();
   // Adds the tabs favicon to the menu.
   void AddTabFavicon(int command_id,
                      const GURL& url,
@@ -71,15 +98,28 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   void OnFaviconDataAvailable(
       int command_id,
       const favicon_base::FaviconImageResult& image_result);
-  // Returns whether the tab is valid to be shown in the context menu.
-  bool IsValidTab(GURL url);
+
+  void OnGetTabPageContext(
+      const base::UnguessableToken& context_token,
+      const TabInfo& tab_info,
+      std::unique_ptr<lens::ContextualInputData> page_content_data);
+
+  void UpdateSearchboxContextToolMode(searchbox::mojom::ToolMode tool_mode);
+
+  raw_ptr<contextual_search::ContextualSearchContextController>
+  GetQueryController();
+  raw_ptr<OmniboxEditModel> GetEditModel();
 
   std::unique_ptr<ui::SimpleMenuModel> menu_model_;
-  raw_ptr<BrowserWindowInterface> browser_window_interface_;
+  base::WeakPtr<OmniboxPopupFileSelector> file_selector_;
+  base::WeakPtr<content::WebContents> web_contents_;
+  raw_ptr<OmniboxEditModel> edit_model_;
+
   // Needed for using FaviconService.
   base::CancelableTaskTracker cancelable_task_tracker_;
   raw_ptr<FaviconService> favicon_service_;
   int next_command_id_ = 0;
+
   base::WeakPtrFactory<OmniboxContextMenuController> weak_ptr_factory_{this};
 };
 

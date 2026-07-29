@@ -53,6 +53,7 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceState.MultiInstanceStateObserver;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
@@ -87,6 +88,7 @@ import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.messages.MessageDispatcher;
+import org.chromium.components.messages.MessageDispatcherProvider;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -212,7 +214,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                 (item) -> openInstance(item.instanceId, item.taskId),
                 (item) -> {
                     RecordUserAction.record("MobileMenuWindowManagerCloseInstance");
-                    closeInstance(item.instanceId, CloseWindowAppSource.WINDOW_MANAGER);
+                    closeWindow(item.instanceId, CloseWindowAppSource.WINDOW_MANAGER);
                     if (getCurrentInstanceId() != item.instanceId) {
                         // Initiate synced tab groups cleanup only if the closed instance is not the
                         // current one. If after closure of the current, second to last instance, a
@@ -261,15 +263,43 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                         : R.string.menu_move_to_other_window);
     }
 
+    /**
+     * Opens a URL in another window. The window in which the URL will be opened will depend on the
+     * following criteria, checked in order of priority:
+     *
+     * <ul>
+     *   <li>If there is exactly one window, a new window will be created.
+     *   <li>If {@code preferNew} is true, a new window will be attempted to be created. Note that
+     *       this will ensure that the URL is opened in a brand new window vs in a new activity
+     *       created for a restored inactive instance. However, an instance creation limit warning
+     *       message will be shown if instance limit is reached in this case.
+     *   <li>The target selector dialog will be presented to the user to pick a target window to
+     *       open the URL in.
+     * </ul>
+     */
     @Override
-    public void openUrlInSelectedWindow(LoadUrlParams loadUrlParams, int parentTabId) {
-        if (MultiWindowUtils.getInstanceCount() == 1) {
+    public void openUrlInSelectedWindow(
+            LoadUrlParams loadUrlParams, int parentTabId, boolean preferNew) {
+        if (MultiWindowUtils.getInstanceCount() == 1 || preferNew) {
+            if (preferNew && mMaxInstances <= MultiWindowUtils.getInstanceCount()) {
+                assumeNonNull(mActiveTab);
+                showInstanceCreationLimitMessage(
+                        MessageDispatcherProvider.from(mActiveTab.getWindowAndroid()));
+                return;
+            }
 
             ChromeAsyncTabLauncher chromeAsyncTabLauncher =
                     new ChromeAsyncTabLauncher(
                             ((ChromeTabbedActivity) mActivity).isIncognitoWindow());
+            // TODO(crbug.com/458761856): Determine the correct NewWindowAppSource instead of assume
+            // its always NewWindowAppSource.OTHER.
             chromeAsyncTabLauncher.launchTabInOtherWindow(
-                    loadUrlParams, mActivity, parentTabId, null, NewWindowAppSource.OTHER);
+                    loadUrlParams,
+                    mActivity,
+                    parentTabId,
+                    /* otherActivity= */ null,
+                    NewWindowAppSource.OTHER,
+                    preferNew);
             return;
         }
 
@@ -289,7 +319,8 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
                             mActivity,
                             parentTabId,
                             selectedActivity,
-                            NewWindowAppSource.OTHER);
+                            NewWindowAppSource.OTHER,
+                            preferNew);
                 },
                 getInstanceInfo(),
                 R.string.contextmenu_open_in_other_window);
@@ -573,7 +604,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
             if (ChromeFeatureList.sDisableInstanceLimit.isEnabled()
                     && isOlderThanSixMonths(readLastAccessedTime(i))
                     && type != InstanceInfo.Type.CURRENT) {
-                closeInstance(i, CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION);
+                closeWindow(i, CloseWindowAppSource.RETENTION_PERIOD_EXPIRATION);
                 continue;
             }
             result.add(
@@ -1068,7 +1099,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
 
         RecordHistogram.recordExactLinearHistogram(
                 "Android.MultiInstance.NumInstances",
-                MultiWindowUtils.getInstanceCount(),
+                MultiWindowUtils.getInstanceCountWithFallback(PersistedInstanceType.ANY),
                 TabWindowManager.MAX_SELECTORS + 1);
     }
 
@@ -1315,15 +1346,8 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
         IntentUtils.safeStartActivity(context, intent);
     }
 
-    /**
-     * Close a given task/activity instance. This will permanently delete the instance's persisted
-     * data including tab state.
-     *
-     * @param instanceId ID of the activity instance.
-     * @param source The {@link CloseWindowAppSource} that reflects the source of instance closure.
-     */
-    @VisibleForTesting
-    protected void closeInstance(int instanceId, @CloseWindowAppSource int source) {
+    @Override
+    public void closeWindow(int instanceId, @CloseWindowAppSource int source) {
         removeInstanceInfo(instanceId, source);
         TabModelSelector selector =
                 TabWindowManagerSingleton.getInstance().getTabModelSelectorById(instanceId);
@@ -1634,7 +1658,7 @@ class MultiInstanceManagerApi31 extends MultiInstanceManagerImpl implements Acti
             // ones left so as to close if it is empty.
             if (selector != null && selector.getTotalTabCount() == 0) {
                 Log.i(TAG, "Closing empty Chrome instance as no tabs exist.");
-                closeInstance(instanceId, CloseWindowAppSource.NO_TABS_IN_WINDOW);
+                closeWindow(instanceId, CloseWindowAppSource.NO_TABS_IN_WINDOW);
                 return true;
             }
         }

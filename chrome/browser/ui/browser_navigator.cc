@@ -518,13 +518,6 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
   }
   DCHECK(params->initiating_profile);
 
-  // If the created window is a partitioned popin, a valid source exists, and
-  // the disposition is NEW_POPUP then the resulting popup should be tab-modal.
-  // See: https://explainers-by-googlers.github.io/partitioned-popins/
-  params->is_tab_modal_popup_deprecated |=
-      params->window_features.is_partitioned_popin && params->source_contents &&
-      params->disposition == WindowOpenDisposition::NEW_POPUP;
-
 #if BUILDFLAG(IS_CHROMEOS)
   if (params->initiating_profile->IsOffTheRecord() &&
       params->initiating_profile->GetOTRProfileID().IsCaptivePortal() &&
@@ -705,7 +698,7 @@ base::WeakPtr<content::NavigationHandle> Navigate(NavigateParams* params) {
   }
   if (content::SiteIsolationPolicy::ShouldUrlUseApplicationIsolationLevel(
           params->initiating_profile, params->url)) {
-    CHECK(web_app::AppBrowserController::IsWebApp(params->browser));
+    CHECK(web_app::AppBrowserController::IsIsolatedWebApp(params->browser));
   }
 #if BUILDFLAG(IS_CHROMEOS)
   if (source_browser && source_browser != params->browser) {

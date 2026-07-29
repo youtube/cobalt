@@ -3547,16 +3547,18 @@ public class ChromeTabbedActivity extends ChromeActivity {
         if (mAuxiliarySearchController != null) {
             mAuxiliarySearchController.onDeferredStartup();
         }
+
+        NtpCustomizationMetricsUtils.recordNtpThemeType();
     }
 
     @Override
     protected void recordIntentToCreationTime(long timeMs) {
         super.recordIntentToCreationTime(timeMs);
         RecordHistogram.recordCustomTimesHistogram(
-                "MobileStartup.IntentToCreationTime.TabbedMode",
+                "MobileStartup.IntentToCreationTime2.TabbedMode",
                 timeMs,
                 1,
-                DateUtils.SECOND_IN_MILLIS * 30,
+                DateUtils.MINUTE_IN_MILLIS,
                 50);
     }
 
@@ -4316,8 +4318,10 @@ public class ChromeTabbedActivity extends ChromeActivity {
         return tab;
     }
 
-    private void maybeSetAppIdForViewIntent(Tab tab, Intent intent) {
+    private void maybeSetAppIdForViewIntent(@Nullable Tab tab, Intent intent) {
         if (!ChromeFeatureList.sAppSpecificHistoryViewIntent.isEnabled()) return;
+        // The tab object might be null if the tab is not created in current window.
+        if (tab == null) return;
 
         String appId =
                 IntentUtils.safeGetStringExtra(intent, IntentHandler.EXTRA_LAUNCHED_FROM_PACKAGE);

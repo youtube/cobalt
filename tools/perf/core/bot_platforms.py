@@ -38,7 +38,6 @@ class PerfPlatform(object):
                num_shards,
                platform_os,
                is_fyi=False,
-               is_calibration=False,
                run_reference_build=False,
                pinpoint_only=False,
                executables=None,
@@ -50,7 +49,6 @@ class PerfPlatform(object):
     # For sorting ignore case and "segments" in the bot name.
     self._sort_key = name.lower().replace('-', ' ')
     self._is_fyi = is_fyi
-    self._is_calibration = is_calibration
     self.run_reference_build = run_reference_build
     self.pinpoint_only = pinpoint_only
     self.executables = executables or frozenset()
@@ -119,12 +117,8 @@ class PerfPlatform(object):
     return self._is_fyi
 
   @property
-  def is_calibration(self):
-    return self._is_calibration
-
-  @property
   def is_official(self):
-    return not self._is_fyi and not self.is_calibration
+    return not self._is_fyi
 
   @property
   def builder_url(self):
@@ -609,16 +603,19 @@ _CROSSBENCH_WEBVIEW = frozenset([
         arguments=[
             '--wpr=crossbench_android_embedder_000.wprgo',
             '--skip-wpr-script-injection',
-            '--embedder=com.google.android.googlequicksearchbox',
+            '--embedder=../../clank/android_webview/tools/crossbench_config/cipd/arm64/Velvet_arm64.apk',
             '--splashscreen=skip',
             '--cuj-config=../../third_party/crossbench/config/team/woa/embedder_cuj_config.hjson',
             '--probe-config=../../clank/android_webview/tools/crossbench_config/'
             'agsa_probe_config.hjson',
             '--repetitions=50',
             '--cool-down-threshold=moderate',
-            '--http-request-timeout=15s',
-            '--action-runner=android',
+            '--http-request-timeout=10s',
             '--ignore-partial-failures',
+            '--embedder-process-name=googleapp',
+            '--embedder-setup-command-config=../../clank/android_webview/tools/crossbench_config/'
+            'agsa_setup_config.hjson',
+            '--embedder-drop-caches',
         ]),
 ])
 # pylint: enable=line-too-long
@@ -884,12 +881,6 @@ _LINUX_PERF_FYI_BENCHMARK_CONFIGS = PerfSuite([
     _GetBenchmarkConfig('speedometer2'),
     _GetBenchmarkConfig('speedometer2-minorms'),
     _GetBenchmarkConfig('speedometer3'),
-])
-_LINUX_PERF_CALIBRATION_BENCHMARK_CONFIGS = PerfSuite([
-    _GetBenchmarkConfig('speedometer2'),
-    _GetBenchmarkConfig('speedometer3'),
-    _GetBenchmarkConfig('blink_perf.shadow_dom'),
-    _GetBenchmarkConfig('system_health.common_desktop'),
 ])
 
 
@@ -1224,20 +1215,10 @@ CHROMEOS_KEVIN_PERF_FYI = PerfPlatform('chromeos-kevin-perf-fyi',
 LINUX_PERF_FYI = PerfPlatform('linux-perf-fyi',
                               '',
                               _LINUX_PERF_FYI_BENCHMARK_CONFIGS,
-                              4,
+                              1,
                               'linux',
                               crossbench=_CROSSBENCH_BENCHMARKS_ALL,
                               is_fyi=True)
-
-# Calibration bots
-LINUX_PERF_CALIBRATION = PerfPlatform(
-    'linux-perf-calibration',
-    'Ubuntu-18.04, 8 core, NVIDIA Quadro P400',
-    _LINUX_BENCHMARK_CONFIGS,
-    28,
-    'linux',
-    executables=_LINUX_EXECUTABLE_CONFIGS,
-    is_calibration=True)
 
 ALL_PLATFORMS = {
     p for p in locals().values() if isinstance(p, PerfPlatform)
@@ -1246,7 +1227,6 @@ PLATFORMS_BY_NAME = {p.name: p for p in ALL_PLATFORMS}
 FYI_PLATFORMS = {
     p for p in ALL_PLATFORMS if p.is_fyi
 }
-CALIBRATION_PLATFORMS = {p for p in ALL_PLATFORMS if p.is_calibration}
 OFFICIAL_PLATFORMS = {p for p in ALL_PLATFORMS if p.is_official}
 ALL_PLATFORM_NAMES = {
     p.name for p in ALL_PLATFORMS

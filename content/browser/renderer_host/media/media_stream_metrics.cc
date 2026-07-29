@@ -33,7 +33,7 @@ enum class MediaStreamRequestResult2 {
   kKillSwitchOn = 14,
   kSystemPermissionDenied = 15,
   kDeviceInUse = 16,
-  kRequestCancelled = 17,
+  kRequestCancelled = 17,  // Deprecated
   kStartTimeout = 18,
   kPermissionDeniedByUser = 19,
   kAudioDeviceSocketError = 20,
@@ -87,6 +87,10 @@ MediaStreamRequestResult2 MapResultToResult2(
     case MediaStreamRequestResult::AUDIO_DEVICE_SOCKET_ERROR:
       return MediaStreamRequestResult2::kAudioDeviceSocketError;
     case MediaStreamRequestResult::NO_TRANSIENT_ACTIVATION:
+      // TODO(crbug.com/453600255): Add a new value once all new enum values are
+      // added.
+      return MediaStreamRequestResult2::kPermissionDenied;
+    case MediaStreamRequestResult::CAPTURE_NOT_ALLOWED_BY_POLICY:
       // TODO(crbug.com/453600255): Add a new value once all new enum values are
       // added.
       return MediaStreamRequestResult2::kPermissionDenied;

@@ -88,6 +88,7 @@
 #include "storage/browser/file_system/file_system_context.h"
 #include "storage/browser/file_system/file_system_operation_runner.h"
 #include "storage/browser/file_system/file_system_url.h"
+#include "third_party/re2/src/re2/re2.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/origin.h"
@@ -181,12 +182,38 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
         : profile_(profile),
           event_name_(event_name),
           args_(args.Clone()),
-          caught_(caught) {}
+          caught_(caught) {
+      MaybeCacheFilename();
+    }
 
     Event(const Event&) = delete;
     Event& operator=(const Event&) = delete;
 
     const base::Time& caught() { return caught_; }
+
+    // Most of the tests in this file that deal with filenames compute the name
+    // in advance, then wait for an event with a matching filename. This
+    // doesn't work on Android, which uses content:// URIs that are difficult
+    // to reliably predict in advance (and lead to flaky tests). Instead we
+    // parse out the filename that is part of an event (if it exists), so we
+    // can check it after the event is processed. The JSON structure is:
+    // [ { "filename": { "current": "content://...." } } ].
+    void MaybeCacheFilename() {
+      CHECK(args_.is_list());
+      const base::Value::List& arg_list = args_.GetList();
+      if (arg_list.empty() || !arg_list[0].is_dict()) {
+        return;
+      }
+      const base::Value::Dict& main_dict = arg_list[0].GetDict();
+      const base::Value::Dict* filename_dict = main_dict.FindDict("filename");
+      if (!filename_dict) {
+        return;
+      }
+      const std::string* current_name = filename_dict->FindString("current");
+      if (current_name) {
+        filename_ = *current_name;
+      }
+    }
 
     bool Satisfies(const Event& other) const {
       return other.SatisfiedBy(*this);
@@ -231,11 +258,15 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
       return args_ == other.args_;
     }
 
+    // Dump all the components of an `Event` to a string for debugging.
     std::string Debug() {
-      return base::StringPrintf("Event(%p, %s, %f)", profile_.get(),
-                                event_name_.c_str(),
+      return base::StringPrintf("Event(%p, %s, %s, %s, %f)", profile_.get(),
+                                event_name_.c_str(), json_args_.c_str(),
+                                args_.DebugString().c_str(),
                                 caught_.InMillisecondsFSinceUnixEpoch());
     }
+
+    const std::string& filename() { return filename_; }
 
    private:
     raw_ptr<Profile> profile_;
@@ -243,6 +274,7 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
     std::string json_args_;
     base::Value args_;
     base::Time caught_;
+    std::string filename_;
   };
 
   // extensions::EventRouter::TestObserver:
@@ -256,6 +288,11 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
         Profile::FromBrowserContext(event.restrict_to_browser_context),
         event.event_name, base::Value(event.event_args.Clone()),
         base::Time::Now());
+    // Keep track of the last filename seen in the event stream. Don't overwrite
+    // with empty strings because some (most) events don't have filenames.
+    if (!new_event->filename().empty()) {
+      last_filename_ = new_event->filename();
+    }
     events_.push_back(base::WrapUnique(new_event));
     if (waiting_ && waiting_for_.get() && new_event->Satisfies(*waiting_for_)) {
       waiting_ = false;
@@ -277,8 +314,9 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
     waiting_for_ =
         std::make_unique<Event>(profile, event_name, args, base::Time());
     for (const auto& event : events_) {
-      if (event->Satisfies(*waiting_for_))
+      if (event->Satisfies(*waiting_for_)) {
         return true;
+      }
     }
     waiting_ = true;
     quit_closure_ = loop.QuitWhenIdleClosure();
@@ -307,9 +345,12 @@ class DownloadsEventsListener : public EventRouter::TestObserver {
 
   base::circular_deque<std::unique_ptr<Event>>* events() { return &events_; }
 
+  const std::string& last_filename() { return last_filename_; }
+
  private:
   bool waiting_;
   base::Time last_wait_;
+  std::string last_filename_;
   std::unique_ptr<Event> waiting_for_;
   base::circular_deque<std::unique_ptr<Event>> events_;
   raw_ptr<Profile> profile_;
@@ -1780,11 +1821,10 @@ IN_PROC_BROWSER_TEST_F(
       base::MakeRefCounted<DownloadsResumeFunction>(), off_item_arg);
   EXPECT_STREQ(errors::kNotResumable, error.c_str());
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that we can start a download and that the correct sequence of events is
 // fired for it.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_Basic) {
   LoadExtension("downloads_split");
@@ -1818,6 +1858,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"url\": \"%s\"}]",
                           download_url.c_str(),
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -1825,6 +1867,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -1832,12 +1875,14 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 // Test that we can start a download that gets redirected and that the correct
 // sequence of events is fired for it.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_Redirect) {
   LoadExtension("downloads_split");
@@ -1874,6 +1919,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"url\": \"%s\"}]",
                           download_final_url.spec().c_str(),
                           download_url.spec().c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -1881,6 +1928,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -1888,8 +1936,13 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test that we can start a download from an incognito context, and that the
 // download knows that it's incognito.
 // TODO(crbug.com/405219117): Support incognito on desktop Android. This is
@@ -1937,11 +1990,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\"}}]",
                           result_id)));
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that if file name with disallowed characters are provided, the
 // characters will be replaced.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Disallowed_Character_In_Filename) {
   LoadExtension("downloads_split");
@@ -1963,10 +2015,17 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   ASSERT_EQ(download_url, item->GetOriginalUrl().spec());
   std::unique_ptr<content::DownloadTestObserver> obs(CreateDownloadObserver(1));
   obs->WaitForFinished();
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   EXPECT_EQ(FILE_PATH_LITERAL("foo_bar"),
             item->GetFileNameToReportUser().value());
+#else
+  // TODO(crbug.com/405219117): Investigate why .txt is appended on Android.
+  // However, the goal of this test is to check for the removal of % from the
+  // filename, which is still tested by this branch.
+  EXPECT_EQ(FILE_PATH_LITERAL("foo_bar.txt"),
+            item->GetFileNameToReportUser().value());
+#endif
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 namespace {
 
@@ -2304,10 +2363,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
       "  \"url\": \"javascript:return false;\"}]"));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Valid URLs plus fragments are still valid URLs.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_URLFragment) {
   LoadExtension("downloads_split");
@@ -2335,6 +2391,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"paused\": false,"
                           "  \"url\": \"%s\"}]",
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -2342,6 +2400,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2349,14 +2408,15 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 // conflictAction may be specified without filename.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_ConflictAction) {
-  static char kFilename[] = "download.txt";
   LoadExtension("downloads_split");
   std::string download_url = "data:text/plain,hello";
   GoOnTheRecord();
@@ -2380,6 +2440,9 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"paused\": false,"
                           "  \"url\": \"%s\"}]",
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
+  static char kFilename[] = "download.txt";
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2388,6 +2451,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"%s\"}}]",
                           result_id,
                           GetFilename(kFilename).c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2395,6 +2459,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 
   result = RunFunctionAndReturnResult(
       base::MakeRefCounted<DownloadsDownloadFunction>(),
@@ -2417,6 +2485,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"paused\": false,"
                           "  \"url\": \"%s\"}]",
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2425,6 +2495,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"%s\"}}]",
                           result_id,
                           GetFilename(kFilename).c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2432,11 +2503,13 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 // Valid data URLs are valid URLs.
-// TODO(crbug.com/405219117): Fails on desktop Android, possibly due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_DataURL) {
   LoadExtension("downloads_split");
@@ -2464,6 +2537,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"paused\": false,"
                           "  \"url\": \"%s\"}]",
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2472,6 +2547,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"%s\"}}]",
                           result_id,
                           GetFilename("data.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2479,11 +2555,15 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Valid file URLs are valid URLs.
-// TODO(crbug.com/405219117): Fails on desktop Android, possibly due to path
-// handling differences.
+// TODO(crbug.com/405219117): Fails on desktop Android due to empty mime type.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_File) {
   GoOnTheRecord();
@@ -2574,10 +2654,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                          download_url.c_str())));
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Test that DownloadsDownloadFunction propagates |headers| to the URLRequest.
-// TODO(crbug.com/405219117): Fails on desktop Android, possibly due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_Headers) {
   LoadExtension("downloads_split");
@@ -2614,6 +2691,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"paused\": false,"
                           "  \"url\": \"%s\"}]",
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2622,6 +2701,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"%s\"}}]",
                           result_id,
                           GetFilename("headers-succeed.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2629,8 +2709,11 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that headers-succeed would fail if the resource requires the headers and
 // chrome fails to propagate them back to the server.  This tests both that
@@ -2721,11 +2804,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"complete\"}}]",
                           result_id)));
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that DownloadsDownloadFunction propagates the |method| and |body|
 // parameters to the URLRequest.
-// TODO(crbug.com/405219117): Fails on desktop Android, possibly due to
-// networking differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_Download_Post) {
   LoadExtension("downloads_split");
@@ -2760,6 +2842,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "  \"paused\": false,"
                           "  \"url\": \"%s\"}]",
                           download_url.c_str())));
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2768,6 +2852,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"%s\"}}]",
                           result_id,
                           GetFilename("post-succeed.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -2775,8 +2860,11 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Test that downloadPostSuccess would fail if the resource requires the POST
 // method, and chrome fails to propagate the |method| parameter back to the
@@ -2976,9 +3064,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   EXPECT_TRUE(base::ReadFileToString(item->GetTargetFilePath(), &disk_data));
   EXPECT_STREQ(kPayloadData, disk_data.c_str());
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_OnDeterminingFilename_NoChange) {
   GoOnTheRecord();
@@ -3026,6 +3113,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   EXPECT_EQ("", error);
 
   // The download should complete successfully.
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3033,6 +3122,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3040,6 +3130,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 // Disabled due to cross-platform flakes; http://crbug.com/370531.
@@ -3103,8 +3197,6 @@ IN_PROC_BROWSER_TEST_F(
                          result_id)));
 }
 
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_OnDeterminingFilename_Twice) {
   GoOnTheRecord();
@@ -3159,6 +3251,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   EXPECT_EQ(errors::kTooManyListeners, error);
 
   // The download should complete successfully.
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3166,14 +3260,18 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
       base::StringPrintf("[{\"id\": %d,"
                          "  \"state\": {"
                          "    \"previous\": \"in_progress\","
                          "    \"current\": \"complete\"}}]",
                          result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Tests downloadsInternal.determineFilename.
 // Regression test for https://crbug.com/815362.
@@ -3220,11 +3318,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
   EXPECT_FALSE(determine_result);  // No return value.
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Tests that overriding a safe file extension to a dangerous extension will not
 // trigger the dangerous prompt and will not change the extension.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(
     DownloadExtensionTest,
     DownloadExtensionTest_OnDeterminingFilename_DangerousOverride) {
@@ -3278,14 +3373,21 @@ IN_PROC_BROWSER_TEST_F(
                                          "    \"previous\": \"in_progress\","
                                          "    \"current\": \"complete\"}}]",
                                          result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  // Android uses content URIs.
+  EXPECT_TRUE(re2::RE2::FullMatch(item->GetTargetFilePath().value(),
+                                  "content://media/external/downloads/[0-9]+"));
+#else
   EXPECT_EQ(downloads_directory().AppendASCII("overridden.txt"),
             item->GetTargetFilePath());
+#endif
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 // Tests that overriding a dangerous file extension to a safe extension will
 // trigger the dangerous prompt and will not change the extension.
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
+// TODO(crbug.com/405219117): Port to desktop Android when the dangerous
+// download prompt is ported.
 IN_PROC_BROWSER_TEST_F(
     DownloadExtensionTest,
     DownloadExtensionTest_OnDeterminingFilename_SafeOverride) {
@@ -3360,9 +3462,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(downloads_directory().AppendASCII("overridden.swf"),
             item->GetTargetFilePath());
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(
     DownloadExtensionTest,
     DownloadExtensionTest_OnDeterminingFilename_ReferencesParentInvalid) {
@@ -3409,6 +3510,8 @@ IN_PROC_BROWSER_TEST_F(
       base::FilePath(FILE_PATH_LITERAL("sneaky/../../sneaky.txt")),
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3416,6 +3519,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3423,10 +3527,12 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
-// TODO(crbug.com/405219117): Fails on desktop Android, possible due to path
-// handling differences.
 IN_PROC_BROWSER_TEST_F(
     DownloadExtensionTest,
     DownloadExtensionTest_OnDeterminingFilename_IllegalFilename) {
@@ -3473,6 +3579,8 @@ IN_PROC_BROWSER_TEST_F(
       base::FilePath(FILE_PATH_LITERAL("<")),
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3480,6 +3588,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3487,6 +3596,10 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -3536,6 +3649,8 @@ IN_PROC_BROWSER_TEST_F(
           "My Computer.{20D04FE0-3AEA-1069-A2D8-08002B30309D}/foo")),
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3543,6 +3658,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3550,6 +3666,10 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -3598,6 +3718,8 @@ IN_PROC_BROWSER_TEST_F(
       base::FilePath(FILE_PATH_LITERAL("con.foo")),
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3605,6 +3727,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3612,6 +3735,10 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -3660,6 +3787,8 @@ IN_PROC_BROWSER_TEST_F(
       base::FilePath(FILE_PATH_LITERAL(".")),
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3667,6 +3796,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3674,6 +3804,10 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -3722,6 +3856,8 @@ IN_PROC_BROWSER_TEST_F(
       base::FilePath(FILE_PATH_LITERAL("..")),
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3729,6 +3865,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3736,6 +3873,10 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(
@@ -3785,6 +3926,8 @@ IN_PROC_BROWSER_TEST_F(
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_STREQ(errors::kInvalidFilename, error.c_str());
 
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3792,6 +3935,7 @@ IN_PROC_BROWSER_TEST_F(
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3799,6 +3943,10 @@ IN_PROC_BROWSER_TEST_F(
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 // Flaky. crbug.com/1147804
@@ -3910,6 +4058,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_EQ("", error);
 
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3917,6 +4067,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3924,6 +4075,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 
   // Start downloading a file.
   result = RunFunctionAndReturnResult(
@@ -3965,6 +4120,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
       downloads::FilenameConflictAction::kOverwrite, &error));
   EXPECT_EQ("", error);
 
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -3972,6 +4129,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -3979,6 +4137,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
@@ -4025,6 +4187,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
       downloads::FilenameConflictAction::kUniquify, &error));
   EXPECT_EQ("", error);
 
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(
       WaitFor(downloads::OnChanged::kEventName,
               base::StringPrintf("[{\"id\": %d,"
@@ -4032,6 +4196,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                                  "    \"previous\": \"\","
                                  "    \"current\": \"%s\"}}]",
                                  result_id, GetFilename("slow.txt").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -4039,6 +4204,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 
   // Start downloading a file.
   result = RunFunctionAndReturnResult(
@@ -4081,6 +4250,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
       downloads::FilenameConflictAction::kOverwrite, &error));
   EXPECT_EQ("", error);
 
+#if !BUILDFLAG(IS_ANDROID)
+  // See Event::MaybeCacheFilename() for why Android is treated differently.
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -4089,6 +4260,7 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"current\": \"%s\"}}]",
                           result_id,
                           GetFilename("foo").c_str())));
+#endif
   ASSERT_TRUE(WaitFor(downloads::OnChanged::kEventName,
                       base::StringPrintf(
                           "[{\"id\": %d,"
@@ -4096,6 +4268,10 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                           "    \"previous\": \"in_progress\","
                           "    \"current\": \"complete\"}}]",
                           result_id)));
+#if BUILDFLAG(IS_ANDROID)
+  EXPECT_TRUE(re2::RE2::FullMatch(events_listener()->last_filename(),
+                                  "content://media/external/downloads/[0-9]+"));
+#endif
 }
 
 // TODO test precedence rules: install_time
@@ -4158,6 +4334,8 @@ IN_PROC_BROWSER_TEST_F(
                           result_id)));
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+// TODO(crbug.com/405219117): Support incognito on desktop Android.
 // This test is flaky on Linux ASan LSan Tests bot. https://crbug.com/1114226
 #if ((BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
      defined(ADDRESS_SANITIZER))
@@ -4299,6 +4477,7 @@ IN_PROC_BROWSER_TEST_F(
                           result_id)));
 }
 
+// TODO(crbug.com/405219117): Support incognito on desktop Android.
 IN_PROC_BROWSER_TEST_F(
     DownloadExtensionTest,
     DownloadExtensionTest_OnDeterminingFilename_IncognitoSpanning) {
@@ -4522,6 +4701,8 @@ IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
 
 // Test that file deletion event is correctly generated after download
 // completion.
+// TODO(crbug.com/405219117): Fix on desktop Android. Currently crashes in
+// test teardown in ~ScopedCancellingItem.
 IN_PROC_BROWSER_TEST_F(DownloadExtensionTest,
                        DownloadExtensionTest_DeleteFileAfterCompletion) {
   ASSERT_TRUE(StartEmbeddedTestServer());

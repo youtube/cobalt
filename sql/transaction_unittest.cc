@@ -207,6 +207,26 @@ TEST_F(SQLTransactionTest, NestedRollback) {
   EXPECT_EQ(0, CountFoo());
 }
 
+TEST_F(SQLTransactionTest, TransactionCommitWithPendingWriter) {
+  ASSERT_TRUE(db_.Execute("CREATE TABLE rows (id)"));
+  ASSERT_TRUE(db_.Execute("INSERT INTO rows (id) VALUES (12)"));
+
+  Transaction transaction(&db_);
+  EXPECT_TRUE(transaction.Begin());
+
+  // The'RETURNING' clause changes the behavior of the statement to return a
+  // row. A pending write statement is kept alive in the sqlite connection.
+  Statement update(
+      db_.GetUniqueStatement("UPDATE rows SET id = 2 * id RETURNING id"));
+  EXPECT_TRUE(update.Step());
+
+  // The commit will fail due to the pending writer.
+  EXPECT_FALSE(transaction.Commit());
+
+  EXPECT_FALSE(update.Step());
+  EXPECT_TRUE(update.Succeeded());
+}
+
 TEST_F(SQLTransactionTest, TransactionCommitWithActiveReader) {
   Database other_db(sql::DatabaseOptions().set_exclusive_locking(false),
                     test::kTestTag);
@@ -260,6 +280,43 @@ TEST_F(SQLTransactionTest, TransactionCommitWithActiveTransaction) {
   // Statement is expected to work.
   EXPECT_TRUE(select.Step());
   ASSERT_TRUE(other_transaction.Commit());
+}
+
+TEST_F(SQLTransactionTest, TransactionOnRazedDB) {
+  ASSERT_TRUE(db_.Execute("CREATE TABLE rows(id INTEGER PRIMARY KEY)"));
+  ASSERT_TRUE(db_.Execute("INSERT INTO rows(id) VALUES(1)"));
+  ASSERT_TRUE(db_.Execute("INSERT INTO rows(id) VALUES(2)"));
+
+  Transaction transaction(&db_);
+  EXPECT_TRUE(transaction.Begin());
+
+  Statement select(db_.GetUniqueStatement("SELECT * FROM rows"));
+  EXPECT_TRUE(select.Step());
+
+  // Raze won't succeed if there is a pending transaction. The pending commit
+  // will succeed to apply the modifications.
+  EXPECT_FALSE(db_.Raze());
+  EXPECT_TRUE(transaction.Commit());
+}
+
+TEST_F(SQLTransactionTest, TransactionOnPoisonedDB) {
+  ASSERT_TRUE(db_.Execute("CREATE TABLE rows(id INTEGER PRIMARY KEY)"));
+  ASSERT_TRUE(db_.Execute("INSERT INTO rows(id) VALUES(1)"));
+
+  Transaction transaction(&db_);
+  EXPECT_TRUE(transaction.Begin());
+  db_.Poison();
+  EXPECT_FALSE(transaction.Commit());
+}
+
+TEST_F(SQLTransactionTest, TransactionOnClosedDB) {
+  ASSERT_TRUE(db_.Execute("CREATE TABLE rows(id INTEGER PRIMARY KEY)"));
+  ASSERT_TRUE(db_.Execute("INSERT INTO rows(id) VALUES(1)"));
+
+  Transaction transaction(&db_);
+  EXPECT_TRUE(transaction.Begin());
+  db_.Close();
+  EXPECT_FALSE(transaction.Commit());
 }
 
 TEST(SQLTransactionDatabaseDestroyedTest, BeginIsNoOp) {

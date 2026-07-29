@@ -6,7 +6,7 @@
 #define CHROME_BROWSER_UI_EXTENSIONS_EXTENSIONS_MENU_VIEW_MODEL_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
+#include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "extensions/browser/permissions_manager.h"
 #include "extensions/common/extension.h"
@@ -18,7 +18,7 @@ class WebContents;
 
 class BrowserWindowInterface;
 class ExtensionsMenuViewPlatformDelegate;
-class ToolbarActionViewController;
+class ToolbarActionViewModel;
 
 // The platform agnostic controller for the extensions menu.
 // TODO(crbug.com/449814184): Move the observers from
@@ -101,8 +101,8 @@ class ExtensionsMenuViewModel : public extensions::PermissionsManager::Observer,
   // Reloads the current web contents.
   void ReloadWebContents();
 
-  // Returns the menu item info for extension with `action_controller`.
-  MenuItemInfo GetMenuItemInfo(ToolbarActionViewController* action_controller);
+  // Returns the menu item info for extension with `model`.
+  MenuItemInfo GetMenuItemInfo(ToolbarActionViewModel* model);
 
   // PermissionsManager::Observer:
   void OnHostAccessRequestAdded(const extensions::ExtensionId& extension_id,

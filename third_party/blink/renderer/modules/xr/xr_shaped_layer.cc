@@ -23,6 +23,10 @@ XRShapedLayer::XRShapedLayer(const XRLayerInit* init,
   SetMipLevels(init->mipLevels());
 }
 
+bool XRShapedLayer::isStatic() const {
+  return is_static_;
+}
+
 void XRShapedLayer::setSpace(XRSpace* space) {
   xr_space_ = space;
   SetModified(true);
@@ -45,6 +49,10 @@ void XRShapedLayer::UpdateLayerBackend() {
     mutable_data->layer_data = CreateLayerSpecificData();
     layer_manager->UpdateCompositionLayer(layer_id(), std::move(mutable_data));
   }
+}
+
+bool XRShapedLayer::IsRedrawEventSupported() const {
+  return true;
 }
 
 void XRShapedLayer::Trace(Visitor* visitor) const {

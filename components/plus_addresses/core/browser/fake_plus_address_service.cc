@@ -95,34 +95,6 @@ size_t FakePlusAddressService::GetPlusAddressesCount() {
   return plus_profiles_.size();
 }
 
-void FakePlusAddressService::OnClickedRefreshInlineSuggestion(
-    const url::Origin& last_committed_primary_main_frame_origin,
-    base::span<const autofill::Suggestion> current_suggestions,
-    size_t current_suggestion_index,
-    UpdateSuggestionsCallback update_suggestions_callback) {
-  NOTIMPLEMENTED();
-}
-
-void FakePlusAddressService::OnShowedInlineSuggestion(
-    const url::Origin& primary_main_frame_origin,
-    base::span<const autofill::Suggestion> current_suggestions,
-    UpdateSuggestionsCallback update_suggestions_callback) {
-  NOTIMPLEMENTED();
-}
-
-void FakePlusAddressService::OnAcceptedInlineSuggestion(
-    const url::Origin& primary_main_frame_origin,
-    base::span<const autofill::Suggestion> current_suggestions,
-    size_t current_suggestion_index,
-    UpdateSuggestionsCallback update_suggestions_callback,
-    HideSuggestionsCallback hide_suggestions_callback,
-    PlusAddressCallback fill_field_callback,
-    ShowAffiliationErrorDialogCallback show_affiliation_error_dialog,
-    ShowErrorDialogCallback show_error_dialog,
-    base::OnceClosure reshow_suggestions) {
-  NOTIMPLEMENTED();
-}
-
 std::map<std::string, std::string>
 FakePlusAddressService::GetPlusAddressHatsData() const {
   return {{hats::kPlusAddressesCount, base::ToString(GetPlusProfiles().size())},
@@ -133,12 +105,6 @@ FakePlusAddressService::GetPlusAddressHatsData() const {
 bool FakePlusAddressService::IsPlusAddressFillingEnabled(
     const url::Origin& origin) const {
   return is_plus_address_filling_enabled_;
-}
-
-bool FakePlusAddressService::IsPlusAddressCreationEnabled(
-    const url::Origin& origin,
-    bool is_off_the_record) const {
-  return should_offer_creation_;
 }
 
 bool FakePlusAddressService::IsPlusAddress(
@@ -322,7 +288,6 @@ void FakePlusAddressService::ClearState() {
   should_fail_to_reserve_ = false;
   should_fail_to_refresh_ = false;
   is_plus_address_filling_enabled_ = false;
-  should_offer_creation_ = false;
   should_return_no_affiliated_plus_profiles_ = false;
   should_return_affiliated_plus_profile_on_confirm_ = false;
   should_return_quota_error_ = false;

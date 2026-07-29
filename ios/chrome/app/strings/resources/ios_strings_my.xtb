@@ -656,6 +656,7 @@
 <translation id="3547933853190131743">‘AI မုဒ်’ ဖြင့် ရှာရန်</translation>
 <translation id="3557336313807607643">အဆက်အသွယ်များသို့ ထည့်ရန်</translation>
 <translation id="355765753469272474">နောက်ပြန်ရန်</translation>
+<translation id="3565012355885596568">ပုံများကို ဖွင့်၍မရလိုက်ပါ</translation>
 <translation id="3565930036634619844">တဘ်။ <ph name="NUMBER_OF_TABS" /> အနက် <ph name="TAB_INDEX" />။</translation>
 <translation id="3572607909481582402">သင့် Google အကောင့်တွင်</translation>
 <translation id="3575234738189584619">Lens ဖြင့် ရှာဖွေရန်</translation>
@@ -1313,6 +1314,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="6045460247888249350">ခေါင်းစဉ်ထည့်ရန်</translation>
 <translation id="6052269326659653305">ပရိုဖိုင်ပြောင်းခြင်း</translation>
 <translation id="605721222689873409">YY</translation>
+<translation id="6058415747854995776">ဗီဒီယို ရိုက်ကူးရန်</translation>
 <translation id="6059830886158432458">သင့်သတင်းများနှင့် လုပ်ဆောင်ချက်ကို ဤနေရာတွင် ထိန်းချုပ်နိုင်သည်</translation>
 <translation id="6066301408025741299">မလုပ်တော့ပါ ထိပါ</translation>
 <translation id="6074656473835429958">အကြောင်းကြားချက်များ ရယူပါ</translation>
@@ -1814,6 +1816,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="7866872729285243843">သင်၏ ဖတ်ရန်စာရင်းများကို စက်အားလုံးတွင် ရယူနိုင်ရန် ဆက်တင်များတွင် “ဖတ်ရန် စာရင်း” ကိုဖွင့်ပါ။</translation>
 <translation id="7874107544081154809"><ph name="CELL_ACCESSIBILITY_LABEL" /> ဖြင့် ဖောင် အော်တိုဖြည့်ရန်</translation>
 <translation id="7879275349003161544">ဒေါင်းလုဒ် ပြပါ</translation>
+<translation id="7882689957034389473">ဓာတ်ပုံရိုက်ရန်</translation>
 <translation id="7883882164760409935">သင့်တွင် ပြန်သုံးထားသည့် စကားဝှက်များ ရှိသည်။</translation>
 <translation id="7887174313503389866">အဓိကကျသော ကိုယ်ရေးအချက်အလက်နှင့် လုံခြုံရေး ထိန်းချုပ်မှုများ လမ်းညွှန်ပြသမှုကို ကြည့်ရှုပါ။ အခြားရွေးချယ်စရာများအတွက် သီးခြားဆက်တင်များသို့ သွားပါ။</translation>
 <translation id="7887198238286927132">သင်၏ ကိုယ်ရေးအချက်အလက်ကို ကာကွယ်ရန် Chrome သည် ဤအကွက်တွင် အော်တိုဖြည့်မည် မဟုတ်ပါ။</translation>
@@ -1997,6 +2000,7 @@ Handoff ကို ဆက်တင်များ၏ ယေဘူယျအပိ�
 <translation id="8551311254462607218">လိပ်စာဘားတွင် Google Lens ကင်မရာသင်္ကေတကို တို့ပါ</translation>
 <translation id="8556590991644167667">{count,plural, =1{သတိပေးချက် {count} ခုကို ပယ်လိုက်သည်}other{သတိပေးချက် {count} ခုကို ပယ်လိုက်သည်}}</translation>
 <translation id="8558046478684552694">အုပ်စု ပိတ်ရန်။</translation>
+<translation id="8559858985063901027">လျှို့ဝှက်ကီးများ</translation>
 <translation id="8560253818350321773">မကြာခဏသုံးသော အရာများ အရင်ပြမည်။</translation>
 <translation id="8561999115126307258">{count,plural, =1{စကားဝှက်အတွက် ရွေးစရာ {count} ခု သင့်ကီးဘုတ်ပေါ်တွင် ရနိုင်သည်။}other{စကားဝှက်အတွက် ရွေးစရာ {count} ခု သင့်ကီးဘုတ်ပေါ်တွင် ရနိုင်သည်။}}</translation>
 <translation id="8564894539416715395">တဘ်စာမျက်နှာ အသစ်</translation>

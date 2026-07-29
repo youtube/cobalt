@@ -21,13 +21,27 @@ class SidePanelUI {
  public:
   // Open side panel with entry_id.
   virtual void Show(SidePanelEntryId entry_id,
-                    std::optional<SidePanelOpenTrigger> open_trigger) = 0;
-  void Show(SidePanelEntryId entry_id) { Show(entry_id, std::nullopt); }
+                    std::optional<SidePanelOpenTrigger> open_trigger,
+                    bool suppress_animations) = 0;
+  void Show(SidePanelEntryId entry_id,
+            std::optional<SidePanelOpenTrigger> open_trigger) {
+    Show(entry_id, open_trigger, /*suppress_animations=*/false);
+  }
+  void Show(SidePanelEntryId entry_id) {
+    Show(entry_id, std::nullopt, /*suppress_animations=*/false);
+  }
 
   // Open side panel with entry key.
   virtual void Show(SidePanelEntryKey entry_key,
-                    std::optional<SidePanelOpenTrigger> open_trigger) = 0;
-  void Show(SidePanelEntryKey entry_key) { Show(entry_key, std::nullopt); }
+                    std::optional<SidePanelOpenTrigger> open_trigger,
+                    bool suppress_animations) = 0;
+  void Show(SidePanelEntryKey entry_key,
+            std::optional<SidePanelOpenTrigger> open_trigger) {
+    Show(entry_key, open_trigger, /*suppress_animations=*/false);
+  }
+  void Show(SidePanelEntryKey entry_key) {
+    Show(entry_key, std::nullopt, /*suppress_animations=*/false);
+  }
 
   // Open side panel with entry key, animating from starting_bounds to its final
   // open position.
@@ -61,6 +75,11 @@ class SidePanelUI {
   // shown.
   virtual bool IsSidePanelEntryShowing(
       const SidePanelEntryKey& entry_key) const = 0;
+
+  // Similar to IsSidePanelEntryShowing, but restricts to either the tab-scoped
+  // or window-scoped registry.
+  virtual bool IsSidePanelEntryShowing(const SidePanelEntry::Key& entry_key,
+                                       bool for_tab) const = 0;
 
   // Register for this callback to detect when the side panel opens or changes.
   // If the open is animated, this will be called at the beginning of the

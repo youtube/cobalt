@@ -40,6 +40,7 @@
 #include "chrome/browser/media/media_engagement_service.h"
 #include "chrome/browser/metrics/desktop_session_duration/desktop_session_duration_observer.h"
 #include "chrome/browser/navigation_predictor/navigation_predictor_preconnect_client.h"
+#include "chrome/browser/net/http_auth_cache_status.h"
 #include "chrome/browser/net/net_error_tab_helper.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -155,7 +156,6 @@
 #include "pdf/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "rlz/buildflags/buildflags.h"
-#include "third_party/blink/public/common/features.h"
 #include "ui/accessibility/accessibility_features.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -173,7 +173,6 @@
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_tab_helper.h"
 #include "chrome/browser/plugins/plugin_observer_android.h"
-#include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/ui/android/context_menu_helper.h"
 #include "chrome/browser/ui/javascript_dialogs/javascript_tab_modal_dialog_manager_delegate_android.h"
 #include "components/facilitated_payments/core/features/features.h"
@@ -346,16 +345,14 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
       autofill::AutofillClientProviderFactory::GetForProfile(profile);
   autofill_client_provider.CreateClientForWebContents(web_contents);
 
-  if (base::FeatureList::IsEnabled(
-          blink::features::kMediaSessionEnterPictureInPicture)) {
 #if BUILDFLAG(IS_ANDROID)
-    if (base::FeatureList::IsEnabled(media::kAutoPictureInPictureAndroid)) {
-      AutoPictureInPictureTabHelper::CreateForWebContents(web_contents);
-    }
-#else
+  if (base::FeatureList::IsEnabled(media::kAutoPictureInPictureAndroid)) {
     AutoPictureInPictureTabHelper::CreateForWebContents(web_contents);
-#endif
   }
+#else
+  AutoPictureInPictureTabHelper::CreateForWebContents(web_contents);
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
   // The sensitive content client has to be instantiated after the autofill
   // client, because the sensitive content client starts a flow which uses
@@ -374,7 +371,6 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
     CreateFingerprintingProtectionWebContentsHelper(
         web_contents, profile->GetPrefs(),
         HostContentSettingsMapFactory::GetForProfile(profile),
-        TrackingProtectionSettingsFactory::GetForProfile(profile),
         profile->IsIncognitoProfile());
   }
 
@@ -382,6 +378,9 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   if (net::features::kIpPrivacyEnableUserBypass.Get()) {
     ip_protection::IpProtectionStatus::CreateForWebContents(web_contents);
   }
+  // Create the HttpAuthCacheStatus to start observing resource load
+  // completions.
+  HttpAuthCacheStatus::HttpAuthCacheStatus::CreateForWebContents(web_contents);
 #endif  // BUILDFLAG(IS_ANDROID)
   if (breadcrumbs::IsEnabled(g_browser_process->local_state())) {
     BreadcrumbManagerTabHelper::CreateForWebContents(web_contents);

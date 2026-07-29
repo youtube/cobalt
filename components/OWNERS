@@ -21,6 +21,7 @@ per-file browsing_data_strings.grdp=file://components/browsing_data/OWNERS
 per-file collaboration_strings.grdp=file://components/collaboration/OWNERS
 per-file commerce_strings.grdp=file://components/commerce_strings_grdp/OWNERS
 per-file compose_strings.grdp=file://components/compose_strings_grdp/OWNERS
+per-file contextual_tasks_strings.grdp=file://components/contextual_tasks/OWNERS
 per-file crash_strings.grdp=file://components/crash/OWNERS
 per-file dom_distiller_strings.grdp=file://components/dom_distiller/OWNERS
 per-file enterprise_strings.grdp=file://components/enterprise/OWNERS
@@ -70,6 +71,7 @@ per-file undo_strings.grdp=file://components/undo/OWNERS
 per-file user_data_importer_strings.grdp=file://components/user_data_importer/OWNERS
 per-file user_education_strings.grdp=file://components/user_education/OWNERS
 per-file version_ui_strings.grdp=file://components/webui/version/OWNERS
+per-file wallet_strings.grdp=file://components/wallet/OWNERS
 per-file web_contents_delegate_android_strings.grdp=file://components/embedder_support/android/delegate/OWNERS
 per-file webxr_strings.grdp=file://components/webxr/OWNERS
 

@@ -338,8 +338,8 @@ metrics::OmniboxInputType AutocompleteInput::Parse(
         http_parts.username.is_nonempty() &&
         http_parts.password.is_nonempty()) {
       // Recognize and re-classify queries like: `site:web.com @query`
-      auto tentative_password_sv = http_parts.password.as_string_view_on(
-          tentative_url_candidate.c_str());
+      auto tentative_password_sv =
+          http_parts.password.AsViewOn(tentative_url_candidate);
       if (tentative_password_sv.find(u' ') != tentative_password_sv.npos) {
         *canonicalized_url = GURL::EmptyGURL();
         return metrics::OmniboxInputType::QUERY;
@@ -964,6 +964,8 @@ void AutocompleteInput::Clear() {
   aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
   https_port_for_testing_ = 0;
   use_fake_https_for_https_upgrade_testing_ = false;
+  context_tab_title_.clear();
+  context_tab_url_ = GURL();
 }
 
 size_t AutocompleteInput::EstimateMemoryUsage() const {
@@ -977,6 +979,8 @@ size_t AutocompleteInput::EstimateMemoryUsage() const {
   res += base::trace_event::EstimateMemoryUsage(desired_tld_);
   res +=
       base::trace_event::EstimateMemoryUsage(terms_prefixed_by_http_or_https_);
+  res += base::trace_event::EstimateMemoryUsage(context_tab_title_);
+  res += base::trace_event::EstimateMemoryUsage(context_tab_url_);
 
   return res;
 }

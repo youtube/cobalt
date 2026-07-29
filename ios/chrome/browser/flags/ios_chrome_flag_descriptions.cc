@@ -15,33 +15,6 @@ const char kAIHubNewBadgeName[] = "AI Hub New Badge";
 const char kAIHubNewBadgeDescription[] =
     "Enables showing a new badge on the AI Hub button in the toolbar.";
 
-const char kAIMPrototypeAutoattachTabName[] =
-    "Automatically attach current tab within the AIM prototype";
-const char kAIMPrototypeAutoattachTabDescription[] =
-    "When enabled, the AIM prototype will automatically attach curent tab as "
-    "context.";
-
-const char kAIMPrototypeDevToolsName[] = "Enable AIM Prototype Dev Tools";
-const char kAIMPrototypeDevToolsDescription[] =
-    "Enables development tools for the AIM prototype, allowing simulation of "
-    "delays and failures.";
-
-const char kAIMPrototypeImmersiveSRPName[] =
-    "Enable the immersive SRP within the AIM prototype";
-const char kAIMPrototypeImmersiveSRPDescription[] =
-    "When enabled, the AIM prototype will open SRPs in an embedded web view.";
-
-const char kAIMPrototypeName[] = "Enable the AIM prototype";
-const char kAIMPrototypeDescription[] =
-    "When enabled the AIM ZPS entrypoint will open the AIM prototype which "
-    "contains temporary UI exploration for AIM.";
-
-const char kAIMPrototypeTabPickerName[] =
-    "Enable the tab picker within the AIM prototype";
-const char kAIMPrototypeTabPickerDescription[] =
-    "When enabled, users are offered the ability to attach multiple tabs in "
-    "the AIM prototype.";
-
 const char kAnimatedDefaultBrowserPromoInFREName[] =
     "Enable the animated Default Browser Promo in the FRE";
 const char kAnimatedDefaultBrowserPromoInFREDescription[] =
@@ -56,11 +29,6 @@ const char kAppleCalendarExperienceKitName[] = "Experience Kit Apple Calendar";
 const char kAppleCalendarExperienceKitDescription[] =
     "When enabled, long pressing on dates will trigger Experience Kit Apple "
     "Calendar event handling.";
-
-const char kApplyClientsideModelPredictionsForOtpsName[] =
-    "Apply clientside model predictions for OTPs.";
-const char kApplyClientsideModelPredictionsForOtpsDescription[] =
-    "Enable using clientside model predictions to fill OTP forms.";
 
 const char kApplyClientsideModelPredictionsForPasswordTypesName[] =
     "Apply clientside model predictions for password forms.";
@@ -328,10 +296,21 @@ const char kComposeboxAIMNudgeDescription[] =
     "Enables the AIM nudge button in the composebox, tapping on the button "
     "enables AIM. This is conditionned by AIM availability.";
 
+const char kComposeboxAutoattachTabName[] =
+    "Automatically attach current tab within the composebox";
+const char kComposeboxAutoattachTabDescription[] =
+    "When enabled, the composebox will automatically attach curent tab as "
+    "context.";
+
 const char kComposeboxCompactModeName[] = "ComposeboxCompactMode";
 const char kComposeboxCompactModeDescription[] =
     "Enables the compact composebox, adding attachment or enabling AIM will "
     "expand it to the regular size.";
+
+const char kComposeboxDevToolsName[] = "Enable Composebox Dev Tools";
+const char kComposeboxDevToolsDescription[] =
+    "Enables development tools for the composebox, allowing simulation of "
+    "delays and failures.";
 
 const char kComposeboxForceTopName[] = "ComposeboxForceTop";
 const char kComposeboxForceTopDescription[] =
@@ -340,6 +319,16 @@ const char kComposeboxForceTopDescription[] =
 const char kComposeboxIOSName[] = "ComposeboxIOS";
 const char kComposeboxIOSDescription[] =
     "Enables the composebox that replaces the regular omnibox in edit state.";
+
+const char kComposeboxImmersiveSRPName[] =
+    "Enable the immersive SRP within the composebox";
+const char kComposeboxImmersiveSRPDescription[] =
+    "When enabled, the composebox will open SRPs in an embedded web view.";
+
+const char kComposeboxTabPickerVariationName[] =
+    "Enable tab picker variation in the composebox";
+const char kComposeboxTabPickerVariationDescription[] =
+    "When enabled, the method of attaching tabs differs.";
 
 const char kConfirmationButtonSwapOrderName[] =
     "Swap Button Order in confirmation alerts";
@@ -425,6 +414,12 @@ const char kDefaultBrowserOffCyclePromoName[] =
     "Default Browser off-cycle promo";
 const char kDefaultBrowserOffCyclePromoDescription[] =
     "When enabled, an off-cycle default browser promo will be shown.";
+
+const char kDefaultBrowserPromoIpadInstructionsName[] =
+    "Default Browser Promo iPad Instructions";
+const char kDefaultBrowserPromoIpadInstructionsDescription[] =
+    "When enabled, displays default browser promo instructions specifically "
+    "adapted for iPad.";
 
 const char kDefaultBrowserPromoPropensityModelName[] =
     "Default Browser promo propensity model";
@@ -612,6 +607,11 @@ const char kEnhancedSafeBrowsingPromoDescription[] =
     "When enabled, the Enhanced Safe Browsing inline and infobar promos are "
     "displayed given certain preconditions are met.";
 
+const char kFRESignInHeaderTextUpdateName[] =
+    "Enable header text variations on the FRE sign-in page.";
+const char kFRESignInHeaderTextUpdateDescription[] =
+    "When enabled, the FRE sign-in page displays a different header text.";
+
 const char kFeedBackgroundRefreshName[] = "Enable feed background refresh";
 const char kFeedBackgroundRefreshDescription[] =
     "Schedules a feed background refresh after some minimum period of time has "
@@ -767,6 +767,12 @@ const char kIOSFuseboxName[] = "IOSFusebox";
 const char kIOSFuseboxDescription[] =
     "When enabled, shows the fusebox instead of the regular omnibox.";
 
+const char kIOSKeyboardAccessoryDefaultViewName[] =
+    "Default Input Accessory View";
+const char kIOSKeyboardAccessoryDefaultViewDescription[] =
+    "When enabled, a default Keyboard Accessory view with navigation buttons "
+    "is provided for a <select> HTML element.";
+
 const char kIOSKeyboardAccessoryTwoBubbleName[] =
     "Enable the two-bubble design for the Keyboard Accessory view";
 const char kIOSKeyboardAccessoryTwoBubbleDescription[] =
@@ -796,11 +802,6 @@ const char kIOSOmniboxAimShortcutName[] = "Enable the omnibox aim shortcut";
 const char kIOSOmniboxAimShortcutDescription[] =
     "When enabled, an aim shortcut entrypoint will be displayed when the "
     "omnibox is on edit mode.";
-
-const char kIOSOmniboxUseTextViewName[] = "AIM Omnibox use text view";
-const char kIOSOmniboxUseTextViewDescription[] =
-    "When enabled, the omnibox presented by AIM uses a multiline text view "
-    "instead of a text field.";
 
 const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
     "Remove section break for address detection.";
@@ -1088,6 +1089,11 @@ const char kMigrateIOSKeychainAccessibilityDescription[] =
 const char kMobilePromoOnDesktopName[] = "Mobile Promo On Desktop";
 const char kMobilePromoOnDesktopDescription[] =
     "When enabled, shows a mobile promo on the desktop new tab page.";
+
+const char kMostVisitedTilesCustomizationName[] =
+    "Most Visited Tiles Customization on iOS";
+const char kMostVisitedTilesCustomizationDescription[] =
+    "Enables customization of Most Visited tiles on the New Tab Page.";
 
 const char kMostVisitedTilesHorizontalRenderGroupName[] =
     "MVTiles Horizontal Render Group";
@@ -1403,11 +1409,6 @@ const char kRcapsDynamicProfileCountryDescription[] =
     "When enabled, Chrome updates the country associated with "
     "the profile on open";
 
-const char kReaderModeDebugInfoName[] = "Enables Reader Mode Debugging";
-const char kReaderModeDebugInfoDescription[] =
-    "Enables additional debug information for the Reader Mode feature such as "
-    "latency metrics.";
-
 const char kReaderModeName[] = "Enables Reader Mode";
 const char kReaderModeDescription[] =
     "Enables Reader Mode UI and entry points.";
@@ -1441,6 +1442,10 @@ const char kReaderModeTranslationWithInfobarName[] =
 const char kReaderModeTranslationWithInfobarDescription[] =
     "Enables translation of web pages in Reader Mode with Settings available "
     "via the infobar.";
+
+const char kReaderModeUSEnabledName[] = "Enables Reader Mode in US";
+const char kReaderModeUSEnabledDescription[] =
+    "Enables Reader Mode for users in the US. Requires reader-mode-enabled.";
 
 const char kRefactorToolbarsSizeName[] = "Refactor toolbars size";
 const char kRefactorToolbarsSizeDescription[] =
@@ -1582,12 +1587,6 @@ const char kStartSurfaceDescription[] =
 const char kStrokesAPIEnabledName[] = "Enable Strokes API for Lens";
 const char kStrokesAPIEnabledDescription[] =
     "When enabled, Lens will use the Strokes API.";
-
-const char kSuggestStrongPasswordInAddPasswordName[] =
-    "Suggest Strong password in add password page";
-const char kSuggestStrongPasswordInAddPasswordDescription[] =
-    "Add field suggest strong password in add password page if the user is "
-    "signed in and syncing passwords to their Google Account.";
 
 const char kSupervisedUserBlockInterstitialV3Name[] =
     "Enable URL filter interstitial V3";

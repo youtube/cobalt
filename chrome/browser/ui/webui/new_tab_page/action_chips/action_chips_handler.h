@@ -5,40 +5,48 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_NEW_TAB_PAGE_ACTION_CHIPS_ACTION_CHIPS_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_NEW_TAB_PAGE_ACTION_CHIPS_ACTION_CHIPS_HANDLER_H_
 
+#include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-forward.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
+#include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 
 class Profile;
 
-namespace content {
-class WebContents;
-}
-
-class ActionChipsHandler : public action_chips::mojom::ActionChipsHandler {
+class ActionChipsHandler : public action_chips::mojom::ActionChipsHandler,
+                           public TabStripModelObserver {
  public:
   ActionChipsHandler(
       mojo::PendingReceiver<action_chips::mojom::ActionChipsHandler> receiver,
+      mojo::PendingRemote<action_chips::mojom::Page> page,
       Profile* profile,
-      content::WebUI* web_ui);
+      content::WebUI* web_ui,
+      const TabIdGenerator* tab_id_generator);
   ActionChipsHandler(const ActionChipsHandler&) = delete;
   ActionChipsHandler& operator=(const ActionChipsHandler&) = delete;
   ~ActionChipsHandler() override;
 
-  // action_chips::mojom::ActionChipsHandler:
-  void GetMostRecentTab(GetMostRecentTabCallback callback) override;
+  void StartActionChipsRetrieval() override;
+
+  void OnTabStripModelChanged(
+      TabStripModel* tab_strip_model,
+      const TabStripModelChange& change,
+      const TabStripSelectionChange& selection) override;
 
  private:
-  // Helper function to find the most recent WebContents.
-  content::WebContents* FindMostRecentTab();
-
   mojo::Receiver<action_chips::mojom::ActionChipsHandler> receiver_;
+  mojo::Remote<action_chips::mojom::Page> page_;
   raw_ptr<Profile> profile_;
   raw_ptr<content::WebUI> web_ui_;
+  raw_ptr<const TabIdGenerator> tab_id_generator_;
 };
 
 #endif  // CHROME_BROWSER_UI_WEBUI_NEW_TAB_PAGE_ACTION_CHIPS_ACTION_CHIPS_HANDLER_H_

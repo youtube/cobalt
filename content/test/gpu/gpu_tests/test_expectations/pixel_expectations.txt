@@ -38,8 +38,9 @@
 #         google google-0xffff google-0xc0de
 #         imagination
 #         imagination-technologies
-#         intel intel-gen-9 intel-gen-12 intel-0xa2e intel-0xa011 intel-0x3e92
-#             intel-0x3e9b intel-0x4680 intel-0x46a8 intel-0x5912 intel-0x9bc5
+#         intel intel-gen-9 intel-gen-12 intel-0xa2e intel-0xa011 intel-0xe20c
+#             intel-0x3e92 intel-0x3e9b intel-0x4680 intel-0x46a8 intel-0x5912
+#             intel-0x9bc5
 #         microsoft microsoft-0xffff
 #         nvidia nvidia-0x1cb3 nvidia-0x2184 nvidia-0x2783
 #         qualcomm qualcomm-0x41333430 qualcomm-0x36333630 qualcomm-0x36334330 ]
@@ -412,6 +413,7 @@ crbug.com/286989320 [ win nvidia ] Pixel_MeetEffects* [ Failure Slow ]
 crbug.com/286989320 [ win qualcomm ] Pixel_MeetEffects* [ Failure Slow ]
 crbug.com/286989320 [ win intel-0x4680 ] Pixel_MeetEffects* [ Failure Slow ]
 crbug.com/286989320 [ win intel-0x9bc5 ] Pixel_MeetEffects* [ Failure ]
+crbug.com/286989320 [ win intel-0xe20c ] Pixel_MeetEffects* [ Failure ]
 
 # Slow on DCHECK builds being used on fuchsia builders.
 crbug.com/425745937 [ fuchsia web-engine-shell ] Pixel_ViewTransitionsCapture_TreesInViz [ Slow ]
@@ -504,9 +506,6 @@ crbug.com/370694819 [ angle-opengl asan graphite-disabled mac ] Pixel_WebGPUDest
 # Should be re-added when the conflicting Failure expectation is removed.
 # crbug.com/419469465 [ win intel-0x9bc5 ] Pixel_MeetEffects* [ RetryOnFailure ]
 
-# Failure on Win10 Nvidia bot
-crbug.com/420902568 [ win10 nvidia-0x2184 target-cpu-32 ] Pixel_MeetEffectsTruckerHat [ Failure ]
-
 # Video tests flakily cause Android Pixel 6 Ganesh to crash.
 crbug.com/421412516 [ android-chromium android-pixel-6 android-t angle-vulkan graphite-disabled passthrough ] Pixel_Video_Context_Loss_VP9 [ RetryOnFailure ]
 crbug.com/421412516 [ android android-chromium graphite-disabled passthrough angle-vulkan android-pixel-6 ] Pixel_Video_MP4_Rounded_Corner [ RetryOnFailure ]
@@ -555,6 +554,9 @@ crbug.com/437973213 [ android android-brya ] Pixel_Video_Context_Loss_VP9 [ Fail
 # Win11 Canvas Timeout
 crbug.com/446719056 [ win11 angle-d3d11 qualcomm-0x41333430 graphite-disabled ] Pixel_OffscreenCanvas2DResizeOnWorker [ Failure ]
 
+# Win11/Snapdragon X Elite
+crbug.com/458633864 [ win qualcomm-0x36334330 ] Pixel_MediaFoundationClearDirectComposition [ Failure ]
+
 # Pixel 10 failures
 crbug.com/446181110 [ android android-pixel-10 android-webview-instrumentation ] Pixel_CanvasLowLatency2D [ Failure ]
 crbug.com/446181110 [ android android-pixel-10 android-webview-instrumentation ] Pixel_CanvasLowLatency2DDrawImage [ Failure ]
@@ -576,7 +578,6 @@ crbug.com/446861923 [ android android-pixel-10 android-chromium ] Pixel_Video_VP
 
 
 # ViewTransitions capturing incorrect image
-crbug.com/446157733 [ android-pixel-4 angle-opengles graphite-disabled ] Pixel_ViewTransitionsCapture [ Failure ]
 crbug.com/446157733 [ android-pixel-6 angle-vulkan ] Pixel_ViewTransitionsCapture [ Failure ]
 
 #######################################################################

@@ -6,11 +6,13 @@ import("//ios/web/public/js_messaging/optimize_ts.gni")
 
 source_set("ios") {
   deps = [
+    ":features",
     ":passkey_controller_js",
     ":passkey_types",
     "//base",
     "//components/webauthn/core/browser:client_data",
     "//components/webauthn/core/browser:passkey_model",
+    "//device/fido",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
   ]
@@ -22,6 +24,8 @@ source_set("ios") {
     "passkey_tab_helper.h",
     "passkey_tab_helper.mm",
   ]
+
+  frameworks = [ "AuthenticationServices.framework" ]
 }
 
 source_set("passkey_types") {
@@ -69,6 +73,8 @@ source_set("js_tests") {
   testonly = true
   sources = [ "passkey_controller_javascript_test.mm" ]
   deps = [
+    ":features",
+    ":ios",
     ":passkey_controller_js",
     "//ios/web/public/test:javascript_test",
     "//ios/web/public/test:util",

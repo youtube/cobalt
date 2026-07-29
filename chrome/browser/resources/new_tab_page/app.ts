@@ -13,7 +13,7 @@ import 'chrome://resources/cr_components/composebox/composebox.js';
 
 import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
-import type {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
+import type {ContextualUpload} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
@@ -45,7 +45,7 @@ import type {LogoElement} from './logo.js';
 import {recordBoolean, recordDuration, recordEnumeration, recordLinearValue, recordLoadDuration, recordSparseValueWithPersistentHash} from './metrics_utils.js';
 import {ParentTrustedDocumentProxy} from './modules/microsoft_auth_frame_connector.js';
 import type {PageCallbackRouter, PageHandlerRemote, Theme} from './new_tab_page.mojom-webui.js';
-import {IphFeature, NtpBackgroundImageSource} from './new_tab_page.mojom-webui.js';
+import {NtpBackgroundImageSource} from './new_tab_page.mojom-webui.js';
 import {NewTabPageProxy} from './new_tab_page_proxy.js';
 import type {MicrosoftAuthUntrustedDocumentRemote} from './ntp_microsoft_auth_shared_ui.mojom-webui.js';
 import {ShowNtpPromosResult} from './ntp_promo.mojom-webui.js';
@@ -311,7 +311,6 @@ export class AppElement extends AppElementBase {
        * Whether the scrim is shown in Realbox Next.
        */
       showScrim_: {type: Boolean, reflect: true},
-      delayTabUpload: {type: Boolean, reflect: true},
     };
   }
 
@@ -390,7 +389,6 @@ export class AppElement extends AppElementBase {
   protected accessor searchboxInputFocused_: boolean = false;
   protected accessor composeboxInputFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
-  protected accessor delayTabUpload: boolean = false;
 
   private callbackRouter_: PageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -409,7 +407,7 @@ export class AppElement extends AppElementBase {
   private backgroundImageLoadStartEpoch_: number = 0;
   private backgroundImageLoadStart_: number = 0;
   private showWebstoreToastListenerId_: number|null = null;
-  private pendingComposeboxContextFiles_: ComposeboxFile[] = [];
+  private pendingComposeboxContextFiles_: ContextualUpload[] = [];
   private pendingComposeboxText_: string = '';
   private pendingComposeboxMode_: ComposeboxMode = ComposeboxMode.DEFAULT;
 
@@ -792,7 +790,6 @@ export class AppElement extends AppElementBase {
       this.registerHelpBubble(
           CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID,
           ['ntp-customize-buttons', '#customizeButton'], {fixed: true});
-      this.pageHandler_.maybeShowFeaturePromo(IphFeature.kCustomizeChrome);
       return true;
     }
     return false;
@@ -800,7 +797,7 @@ export class AppElement extends AppElementBase {
 
   protected onComposeboxInitialized_(e: CustomEvent<{
     initializeComposeboxState:
-        (text: string, files: ComposeboxFile[], mode: ComposeboxMode) => void,
+        (text: string, files: ContextualUpload[], mode: ComposeboxMode) => void,
   }>) {
     e.detail.initializeComposeboxState(
         this.pendingComposeboxText_, this.pendingComposeboxContextFiles_,
@@ -812,7 +809,7 @@ export class AppElement extends AppElementBase {
 
   protected openComposebox_(e: CustomEvent<{
     searchboxText: string,
-    contextFiles: ComposeboxFile[],
+    contextFiles: ContextualUpload[],
     mode: ComposeboxMode,
   }>) {
     if (e.detail.searchboxText) {
@@ -929,17 +926,6 @@ export class AppElement extends AppElementBase {
 
   protected onVoiceSearchOverlayClose_() {
     this.showVoiceSearchOverlay_ = false;
-  }
-
-  protected onActionChipClick_(e: CustomEvent<{
-    searchboxText: string,
-    contextFiles: ComposeboxFile[],
-    mode: ComposeboxMode,
-  }>) {
-    if (e.detail.contextFiles.length === 1) {
-      this.delayTabUpload = true;
-    }
-    this.openComposebox_(e);
   }
 
   /**

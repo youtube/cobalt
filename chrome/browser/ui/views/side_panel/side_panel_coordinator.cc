@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_waiter.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header_controller.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_toolbar_pinning_controller.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
@@ -45,7 +46,8 @@ SidePanelCoordinator::SidePanelCoordinator(BrowserView* browser_view)
 SidePanelCoordinator::~SidePanelCoordinator() = default;
 
 void SidePanelCoordinator::Init(Browser* browser) {
-  SidePanelUtil::PopulateGlobalEntries(browser, window_registry_.get());
+  SidePanelUtil::PopulateGlobalEntries(browser,
+                                       SidePanelRegistry::From(browser));
 }
 
 void SidePanelCoordinator::TearDownPreBrowserWindowDestruction() {
@@ -56,7 +58,8 @@ void SidePanelCoordinator::TearDownPreBrowserWindowDestruction() {
 }
 
 void SidePanelCoordinator::Close(SidePanelEntry::PanelType panel_type) {
-  Close(/*suppress_animations=*/false, panel_type);
+  Close(/*suppress_animations=*/false, panel_type,
+        SidePanelEntryHideReason::kSidePanelClosed);
 }
 
 void SidePanelCoordinator::Toggle(
@@ -138,7 +141,8 @@ void SidePanelCoordinator::Show(
     // side panel is closed.
     if (entry->type() == SidePanelEntry::PanelType::kToolbar &&
         IsSidePanelShowing(SidePanelEntry::PanelType::kContent)) {
-      Close(/*suppress_animations=*/true, SidePanelEntry::PanelType::kContent);
+      Close(/*suppress_animations=*/true, SidePanelEntry::PanelType::kContent,
+            SidePanelEntryHideReason::kSidePanelClosed);
     }
 
     if (entry->type() == SidePanelEntry::PanelType::kContent) {
@@ -210,7 +214,8 @@ void SidePanelCoordinator::Show(
 //   a window-scoped side-panel entry, and the window is closed via any
 //   mechanism, this method is not called.
 void SidePanelCoordinator::Close(bool suppress_animations,
-                                 SidePanelEntry::PanelType panel_type) {
+                                 SidePanelEntry::PanelType panel_type,
+                                 SidePanelEntryHideReason reason) {
   SidePanel* const side_panel = GetSidePanelFor(panel_type);
   if (!IsSidePanelShowing(panel_type) ||
       (!suppress_animations && side_panel->IsClosing())) {
@@ -223,7 +228,7 @@ void SidePanelCoordinator::Close(bool suppress_animations,
   }
   SidePanelEntry* entry = GetEntryForUniqueKey(*current_key(panel_type));
   if (entry) {
-    entry->OnEntryWillHide(SidePanelEntryHideReason::kSidePanelClosed);
+    entry->OnEntryWillHide(reason);
   }
 
   side_panel->Close(!suppress_animations);
@@ -235,7 +240,7 @@ SidePanelEntry* SidePanelCoordinator::GetEntryForKey(
     return contextual_entry;
   }
 
-  return window_registry_->GetEntryForKey(entry_key);
+  return SidePanelRegistry::From(browser_)->GetEntryForKey(entry_key);
 }
 
 void SidePanelCoordinator::PopulateSidePanel(
@@ -274,7 +279,14 @@ void SidePanelCoordinator::PopulateSidePanel(
 
   if (content_wrapper->children().size()) {
     if (previous_entry) {
-      previous_entry->OnEntryWillHide(SidePanelEntryHideReason::kReplaced);
+      if (open_trigger.has_value() &&
+          open_trigger.value() ==
+              SidePanelUtil::SidePanelOpenTrigger::kTabChanged) {
+        previous_entry->OnEntryWillHide(
+            SidePanelEntryHideReason::kBackgrounded);
+      } else {
+        previous_entry->OnEntryWillHide(SidePanelEntryHideReason::kReplaced);
+      }
       auto previous_entry_view = content_wrapper->RemoveChildViewT(
           content_wrapper->children().front());
       previous_entry->CacheView(std::move(previous_entry_view));
@@ -319,7 +331,7 @@ void SidePanelCoordinator::PopulateSidePanel(
 
 void SidePanelCoordinator::ClearCachedEntryViews(
     SidePanelEntry::PanelType type) {
-  window_registry_->ClearCachedEntryViews(type);
+  SidePanelRegistry::From(browser_)->ClearCachedEntryViews(type);
   TabStripModel* model = browser_view_->browser()->tab_strip_model();
   for (tabs::TabInterface* tab : *model) {
     tab->GetTabFeatures()->side_panel_registry()->ClearCachedEntryViews(type);
@@ -359,7 +371,8 @@ void SidePanelCoordinator::MaybeShowEntryOnTabStripModelChanged(
               content_wrapper->children().front());
           (*active_entry)->CacheView(std::move(current_entry_view));
         }
-        Close(/*suppress_animations=*/true, type);
+        Close(/*suppress_animations=*/true, type,
+              SidePanelEntryHideReason::kBackgrounded);
       }
     } else if (auto active_entry =
                    new_contextual_registry
@@ -417,7 +430,7 @@ void SidePanelCoordinator::OnViewVisibilityChanged(views::View* observed_view,
   if (auto* contextual_registry = GetActiveContextualRegistry()) {
     contextual_registry->ResetActiveEntryFor(side_panel->type());
   }
-  window_registry_->ResetActiveEntryFor(side_panel->type());
+  SidePanelRegistry::From(browser_)->ResetActiveEntryFor(side_panel->type());
   ClearCachedEntryViews(side_panel->type());
 
   // `OnEntryWillDeregister` (triggered by calling `OnEntryHidden`) may

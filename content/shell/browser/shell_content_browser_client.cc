@@ -19,7 +19,6 @@
 #include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/files/file.h"
-#include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
@@ -765,7 +764,8 @@ void ShellContentBrowserClient::OnNetworkServiceCreated(
         base::FeatureList::IsEnabled(net::features::kHappyEyeballsV3),
         /*secure_dns_mode=*/net::SecureDnsMode::kAutomatic,
         net::DnsOverHttpsConfig(),
-        /*additional_dns_types_enabled=*/true);
+        /*additional_dns_types_enabled=*/true,
+        /*fallback_doh_nameservers=*/{});
   }
 #endif
 }

@@ -5,13 +5,18 @@
 package org.chromium.chrome.browser.omnibox.fusebox;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,17 +31,17 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -63,35 +68,34 @@ public class NavigationAttachmentsViewBinderUnitTest {
         int COMPACT = 3;
     }
 
-    public @Rule MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
-    private @Mock AnchoredPopupWindow mPopupWindow;
+    @Mock private AnchoredPopupWindow mPopupWindow;
+
     private final PropertyModel mModel =
             new PropertyModel(NavigationAttachmentsProperties.ALL_KEYS);
 
-    private Activity mActivity;
-    private ConstraintLayout mParent;
+    private ActivityController<TestActivity> mActivityController;
     private NavigationAttachmentsViewHolder mViewHolder;
     private NavigationAttachmentsPopup mPopup;
-    private ViewGroup mPopupView;
 
     @Before
     public void setUp() {
-        // Replace .create().resume() with .setup() once we have a content view.
-        mActivity = Robolectric.buildActivity(TestActivity.class).create().resume().get();
+        mActivityController = Robolectric.buildActivity(TestActivity.class).setup();
+        Activity activity = mActivityController.get();
 
-        // Initialize location bar layout
-        mParent = new ConstraintLayout(mActivity);
-        LayoutInflater.from(mActivity).inflate(R.layout.location_bar, mParent);
+        // Initialize location bar layout.
+        ConstraintLayout parent = new ConstraintLayout(activity);
+        LayoutInflater.from(activity).inflate(R.layout.location_bar, parent);
 
-        mPopupView =
+        ViewGroup popupView =
                 (ViewGroup)
-                        LayoutInflater.from(mActivity)
-                                .inflate(R.layout.fusebox_context_popup, null);
-        doReturn(mPopupView).when(mPopupWindow).getContentView();
+                        LayoutInflater.from(activity)
+                                .inflate(R.layout.fusebox_context_popup, /* root= */ null);
+        doReturn(popupView).when(mPopupWindow).getContentView();
 
-        mPopup = new NavigationAttachmentsPopup(mActivity, mPopupWindow, mPopupView);
-        mViewHolder = new NavigationAttachmentsViewHolder(mParent, mPopup);
+        mPopup = new NavigationAttachmentsPopup(activity, mPopupWindow, popupView);
+        mViewHolder = new NavigationAttachmentsViewHolder(parent, mPopup);
 
         // Initialize workable defaults.
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE, true);
@@ -104,24 +108,24 @@ public class NavigationAttachmentsViewBinderUnitTest {
                 mModel, mViewHolder, NavigationAttachmentsViewBinder::bind);
     }
 
+    @After
+    public void tearDown() {
+        mActivityController.close();
+    }
+
     private void configureFusebox(@Variant int testCase, @AutocompleteRequestType int requestType) {
         OmniboxFeatures.sShowDedicatedModeButton.setForTesting(
                 testCase == Variant.DEDICATED_BUTTON
                         || testCase == Variant.DEDICATED_BUTTON_WITH_HINT);
         OmniboxFeatures.sShowTryAiModeHintInDedicatedModeButton.setForTesting(
                 testCase == Variant.DEDICATED_BUTTON_WITH_HINT);
-        OmniboxFeatures.sCompactFusebox.setForTesting(testCase == Variant.COMPACT);
 
         // Reflect the active state of the fusebox toolbar.
+        mModel.set(NavigationAttachmentsProperties.COMPACT_UI, testCase == Variant.COMPACT);
         mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE, requestType);
         mModel.set(
                 NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON,
                 OmniboxFeatures.sShowDedicatedModeButton.getValue());
-    }
-
-    @After
-    public void tearDown() {
-        mActivity.finish();
     }
 
     @Test
@@ -130,10 +134,10 @@ public class NavigationAttachmentsViewBinderUnitTest {
                 NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE,
                 AutocompleteRequestType.AI_MODE);
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE, true);
-        assertEquals(View.VISIBLE, mViewHolder.attachmentsToolbar.getVisibility());
+        assertEquals(View.VISIBLE, mViewHolder.addButton.getVisibility());
 
         mModel.set(NavigationAttachmentsProperties.ATTACHMENTS_TOOLBAR_VISIBLE, false);
-        assertEquals(View.GONE, mViewHolder.attachmentsToolbar.getVisibility());
+        assertEquals(View.GONE, mViewHolder.addButton.getVisibility());
     }
 
     @Test
@@ -157,10 +161,7 @@ public class NavigationAttachmentsViewBinderUnitTest {
         Runnable runnable = mock(Runnable.class);
         mModel.set(NavigationAttachmentsProperties.BUTTON_ADD_CLICKED, runnable);
 
-        ArgumentCaptor<View.OnClickListener> listenerCaptor =
-                ArgumentCaptor.forClass(View.OnClickListener.class);
         mViewHolder.addButton.performClick();
-
         verify(runnable).run();
     }
 
@@ -169,8 +170,6 @@ public class NavigationAttachmentsViewBinderUnitTest {
         Runnable runnable = mock(Runnable.class);
         mModel.set(NavigationAttachmentsProperties.POPUP_CAMERA_CLICKED, runnable);
 
-        ArgumentCaptor<View.OnClickListener> listenerCaptor =
-                ArgumentCaptor.forClass(View.OnClickListener.class);
         mPopup.mCameraButton.performClick();
         verify(runnable).run();
     }
@@ -180,8 +179,6 @@ public class NavigationAttachmentsViewBinderUnitTest {
         Runnable runnable = mock(Runnable.class);
         mModel.set(NavigationAttachmentsProperties.POPUP_GALLERY_CLICKED, runnable);
 
-        ArgumentCaptor<View.OnClickListener> listenerCaptor =
-                ArgumentCaptor.forClass(View.OnClickListener.class);
         mPopup.mGalleryButton.performClick();
         verify(runnable).run();
     }
@@ -191,8 +188,6 @@ public class NavigationAttachmentsViewBinderUnitTest {
         Runnable runnable = mock(Runnable.class);
         mModel.set(NavigationAttachmentsProperties.POPUP_FILE_CLICKED, runnable);
 
-        ArgumentCaptor<View.OnClickListener> listenerCaptor =
-                ArgumentCaptor.forClass(View.OnClickListener.class);
         mPopup.mFileButton.performClick();
         verify(runnable).run();
     }
@@ -202,8 +197,6 @@ public class NavigationAttachmentsViewBinderUnitTest {
         Runnable runnable = mock(Runnable.class);
         mModel.set(NavigationAttachmentsProperties.POPUP_TAB_PICKER_CLICKED, runnable);
 
-        ArgumentCaptor<View.OnClickListener> listenerCaptor =
-                ArgumentCaptor.forClass(View.OnClickListener.class);
         mPopup.mTabButton.performClick();
         verify(runnable).run();
     }
@@ -260,7 +253,7 @@ public class NavigationAttachmentsViewBinderUnitTest {
         var lp = (ConstraintLayout.LayoutParams) mViewHolder.addButton.getLayoutParams();
         assertEquals(R.id.url_bar, lp.topToTop);
         assertEquals(ConstraintSet.UNSET, lp.topToBottom);
-        assertEquals(R.id.url_bar, lp.bottomToBottom);
+        assertEquals(ConstraintSet.UNSET, lp.bottomToBottom);
     }
 
     @Test
@@ -286,16 +279,118 @@ public class NavigationAttachmentsViewBinderUnitTest {
     }
 
     @Test
+    public void fileButtonVisibility_setsVisibility() {
+        mModel.set(NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE, true);
+        assertEquals(View.VISIBLE, mPopup.mFileButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.POPUP_FILE_BUTTON_VISIBLE, false);
+        assertEquals(View.GONE, mPopup.mFileButton.getVisibility());
+    }
+
+    @Test
     public void addCurrentTabButton() {
         mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE, false);
         assertEquals(View.GONE, mPopup.mAddCurrentTab.getVisibility());
         mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_VISIBLE, true);
         assertEquals(View.VISIBLE, mPopup.mAddCurrentTab.getVisibility());
 
-        Drawable drawable = Mockito.spy(new ColorDrawable(Color.RED));
-        mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_THUMBNAIL, drawable);
-        // Verifying via getCompoundDrawables is hard because it requires manipulating the view to
-        // resolve its visibility, layout direction, and drawables. This lets us check indirectly.
-        verify(drawable).setCallback(mPopup.mAddCurrentTab);
+        assertNull(mPopup.mAddCurrentTab.getCompoundDrawables()[0]);
+
+        Bitmap favicon = UiUtils.createBitmap(/* size= */ 1, Color.RED);
+        mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON, favicon);
+        Drawable faviconDrawable = mPopup.mAddCurrentTab.getCompoundDrawablesRelative()[0];
+        assertNotNull(faviconDrawable);
+
+        mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_FAVICON, null);
+        Drawable fallbackDrawable = mPopup.mAddCurrentTab.getCompoundDrawablesRelative()[0];
+        assertNotNull(fallbackDrawable);
+        assertNotEquals(fallbackDrawable, faviconDrawable);
+    }
+
+    @Test
+    public void aiModeButtonVisibility() {
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, false);
+        mModel.set(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, false);
+        mModel.set(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON, false);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
+    }
+
+    @Test
+    public void createImageButtonVisibility() {
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, false);
+        mModel.set(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, false);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, false);
+        mModel.set(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.VISIBLE, mPopup.mCreateImageButton.getVisibility());
+    }
+
+    @Test
+    public void requestTypeDividerVisibility() {
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, false);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mRequestTypeDivider.getVisibility());
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.AUTOCOMPLETE_REQUEST_TYPE_CHANGEABLE, true);
+        mModel.set(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, false);
+        mModel.set(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.GONE, mPopup.mRequestTypeDivider.getVisibility());
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON, false);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.VISIBLE, mPopup.mRequestTypeDivider.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.GONE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON, true);
+        mModel.set(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.VISIBLE, mPopup.mRequestTypeDivider.getVisibility());
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mCreateImageButton.getVisibility());
+
+        mModel.set(NavigationAttachmentsProperties.SHOW_DEDICATED_MODE_BUTTON, false);
+        mModel.set(NavigationAttachmentsProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE, true);
+        NavigationAttachmentsViewBinder.updateModeSelectorVisibility(mModel, mViewHolder);
+        assertEquals(View.VISIBLE, mPopup.mRequestTypeDivider.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
+        assertEquals(View.VISIBLE, mPopup.mCreateImageButton.getVisibility());
+    }
+
+    @Test
+    public void testCurrentTabButtonEnabled() {
+        mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED, true);
+        assertTrue(mViewHolder.popup.mAddCurrentTab.isEnabled());
+        mModel.set(NavigationAttachmentsProperties.CURRENT_TAB_BUTTON_ENABLED, false);
+        assertFalse(mViewHolder.popup.mAddCurrentTab.isEnabled());
     }
 }

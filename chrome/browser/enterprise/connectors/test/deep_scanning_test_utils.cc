@@ -271,30 +271,6 @@ void EventReportValidator::ExpectDangerousDeepScanningResult(
           });
 }
 
-void EventReportValidator::ExpectSensitiveDataEvent(
-    chrome::cros::reporting::proto::DlpSensitiveDataEvent
-        expected_sensitive_data_event) {
-  EXPECT_CALL(*client_, UploadSecurityEvent)
-      .WillOnce(
-          [this, expected_sensitive_data_event](
-              bool include_device_info,
-              ::chrome::cros::reporting::proto::UploadEventsRequest request,
-              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
-                  callback) {
-            // There should only be 1 event per test.
-            ASSERT_EQ(1, request.events_size());
-            ASSERT_TRUE(request.events().Get(0).has_sensitive_data_event());
-            auto sensitive_data_event =
-                request.events().Get(0).sensitive_data_event();
-            EXPECT_THAT(sensitive_data_event,
-                        EqualsProto(expected_sensitive_data_event));
-
-            if (!done_closure_.is_null()) {
-              done_closure_.Run();
-            }
-          });
-}
-
 void EventReportValidator::ExpectSensitiveDataEvents(
     const std::vector<chrome::cros::reporting::proto::DlpSensitiveDataEvent>
         expected_sensitive_data_events,
@@ -396,42 +372,6 @@ void EventReportValidator::ExpectSensitiveDataEvent(
   scan_ids_[expected_filename] = expected_scan_id;
   content_transfer_method_ = expected_content_transfer_method;
   user_justification_ = expected_user_justification;
-  EXPECT_CALL(*client_, UploadSecurityEventReport)
-      .WillOnce(
-          [this](bool include_device_info, base::Value::Dict report,
-                 base::OnceCallback<void(policy::CloudPolicyClient::Result)>
-                     callback) {
-            ValidateReport(&report);
-            if (!done_closure_.is_null()) {
-              done_closure_.Run();
-            }
-          });
-}
-
-void EventReportValidator::ExpectDataControlsSensitiveDataEvent(
-    const std::string& expected_url,
-    const std::string& expected_tab_url,
-    const std::string& expected_source,
-    const std::string& expected_destination,
-    const std::set<std::string>* expected_mimetypes,
-    const std::string& expected_trigger,
-    const data_controls::Verdict::TriggeredRules& triggered_rules,
-    const std::string& expected_result,
-    const std::string& expected_profile_username,
-    const std::string& expected_profile_identifier,
-    int64_t expected_content_size) {
-  event_key_ = kKeySensitiveDataEvent;
-  url_ = expected_url;
-  tab_url_ = expected_tab_url;
-  source_ = expected_source;
-  destination_ = expected_destination;
-  data_controls_triggered_rules_ = triggered_rules;
-  mimetypes_ = expected_mimetypes;
-  trigger_ = expected_trigger;
-  content_size_ = expected_content_size;
-  data_controls_result_ = expected_result;
-  username_ = expected_profile_username;
-  profile_identifier_ = expected_profile_identifier;
   EXPECT_CALL(*client_, UploadSecurityEventReport)
       .WillOnce(
           [this](bool include_device_info, base::Value::Dict report,
@@ -869,7 +809,6 @@ void EventReportValidator::ValidateReport(const base::Value::Dict* report) {
   ValidateFederatedOrigin(event);
   ValidateIdentities(event);
   ValidateMimeType(event);
-  ValidateDataControlsAttributes(event);
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   ValidateDataMaskingAttributes(event);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
@@ -999,52 +938,6 @@ void EventReportValidator::ValidateFilenameMappedAttributes(
     }
     if (dlp_verdicts_.count(filename)) {
       ValidateDlpVerdict(value, dlp_verdicts_[filename]);
-    }
-  }
-}
-
-void EventReportValidator::ValidateDataControlsAttributes(
-    const base::Value::Dict* event) {
-  if (data_controls_result_) {
-    ValidateField(event, kKeyEventResult, data_controls_result_);
-
-    ASSERT_FALSE(data_controls_triggered_rules_.empty());
-    const base::Value::List* triggered_rules =
-        event->FindList(kKeyTriggeredRuleInfo);
-    ASSERT_TRUE(triggered_rules);
-    ASSERT_EQ(data_controls_triggered_rules_.size(), triggered_rules->size());
-    size_t i = 0;
-    for (const base::Value& rule : *triggered_rules) {
-      const std::string* name =
-          rule.GetDict().FindString(kKeyTriggeredRuleName);
-      ASSERT_TRUE(name);
-
-      // There should be a rule with the same index as in `triggered_rules`, but
-      // `data_controls_triggered_rules_` might be tracking it internally as a
-      // profile rule or machine rule so we need to check with two different
-      // keys.
-      data_controls::Verdict::TriggeredRule expected_rule;
-      if (data_controls_triggered_rules_.count({i, true})) {
-        expected_rule = data_controls_triggered_rules_[{i, true}];
-      } else if (data_controls_triggered_rules_.count({i, false})) {
-        expected_rule = data_controls_triggered_rules_[{i, false}];
-      } else {
-        NOTREACHED();
-      }
-
-      std::optional<int> id = rule.GetDict().FindInt(kKeyTriggeredRuleId);
-      if (id) {
-        int expected_rule_id = 0;
-        ASSERT_TRUE(
-            base::StringToInt(expected_rule.rule_id, &expected_rule_id));
-        ASSERT_EQ(expected_rule_id, *id);
-      } else {
-        ASSERT_TRUE(expected_rule.rule_id.empty())
-            << " Got rule_id " << expected_rule.rule_id
-            << " instead of nothing.";
-      }
-
-      ++i;
     }
   }
 }

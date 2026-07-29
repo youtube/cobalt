@@ -28,7 +28,6 @@
 #include "third_party/blink/public/common/page/color_provider_color_maps.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/page/page.mojom-blink.h"
-#include "third_party/blink/public/mojom/partitioned_popins/partitioned_popin_params.mojom.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
@@ -77,6 +76,7 @@
 #include "third_party/blink/renderer/core/page/link_highlight.h"
 #include "third_party/blink/renderer/core/page/page_animator.h"
 #include "third_party/blink/renderer/core/page/page_hidden_state.h"
+#include "third_party/blink/renderer/core/page/page_popup_controller.h"
 #include "third_party/blink/renderer/core/page/plugin_data.h"
 #include "third_party/blink/renderer/core/page/pointer_lock_controller.h"
 #include "third_party/blink/renderer/core/page/scoped_browsing_context_group_pauser.h"
@@ -167,10 +167,7 @@ void SetSafeAreaMaxEnvVariables(
 }  // namespace
 
 // Function defined in third_party/blink/public/web/blink.h.
-void ResetPluginCache(bool reload_pages) {
-  // At this point we already know that the browser has refreshed its list, so
-  // it is not necessary to force it to be regenerated.
-  DCHECK(!reload_pages);
+void ResetPluginCache() {
   Page::ResetPluginData();
 }
 
@@ -212,7 +209,6 @@ Page* Page::CreateNonOrdinary(
       base::PassKey<Page>(), chrome_client, agent_group_scheduler,
       /*browsing_context_group_token=*/base::UnguessableToken::Create(),
       color_provider_colors,
-      /*partitioned_popin_params=*/nullptr,
       /*is_ordinary=*/false);
 }
 
@@ -221,12 +217,10 @@ Page* Page::CreateOrdinary(
     Page* opener,
     AgentGroupScheduler& agent_group_scheduler,
     const base::UnguessableToken& browsing_context_group_token,
-    const ColorProviderColorMaps* color_provider_colors,
-    blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params) {
+    const ColorProviderColorMaps* color_provider_colors) {
   Page* page = MakeGarbageCollected<Page>(
       base::PassKey<Page>(), chrome_client, agent_group_scheduler,
       browsing_context_group_token, color_provider_colors,
-      std::move(partitioned_popin_params),
       /*is_ordinary=*/true);
   page->opener_ = opener;
 
@@ -251,7 +245,6 @@ Page::Page(base::PassKey<Page>,
            AgentGroupScheduler& agent_group_scheduler,
            const base::UnguessableToken& browsing_context_group_token,
            const ColorProviderColorMaps* color_provider_colors,
-           blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
            bool is_ordinary)
     : SettingsDelegate(std::make_unique<Settings>()),
       main_frame_(nullptr),
@@ -296,12 +289,6 @@ Page::Page(base::PassKey<Page>,
           MakeGarbageCollected<
               v8_compile_hints::V8CrowdsourcedCompileHintsConsumer>()),
       browsing_context_group_token_(browsing_context_group_token) {
-  if (partitioned_popin_params) {
-    partitioned_popin_opener_properties_ = PartitionedPopinOpenerProperties(
-        SecurityOrigin::CreateFromUrlOrigin(
-            partitioned_popin_params->opener_top_frame_origin),
-        partitioned_popin_params->opener_site_for_cookies);
-  }
   DCHECK(!AllPages().Contains(this));
   AllPages().insert(this);
 
@@ -521,22 +508,6 @@ void Page::TakePropertiesForLocalMainFrameSwap(Page* old_page) {
   // renderer-side opener is only set during construction and might be stale.
   // When we create the new page, we get the latest opener frame token, so the
   // new page's opener should be the most up-to-date opener.
-}
-
-bool Page::IsPartitionedPopin() const {
-  // The feature must be enabled if a popin site for cookies was set.
-  CHECK(RuntimeEnabledFeatures::PartitionedPopinsEnabled() ||
-        !partitioned_popin_opener_properties_);
-
-  return !!partitioned_popin_opener_properties_;
-}
-
-const PartitionedPopinOpenerProperties&
-Page::GetPartitionedPopinOpenerProperties() const {
-  // This function is only usable if we are in a popin.
-  CHECK(IsPartitionedPopin());
-
-  return *partitioned_popin_opener_properties_;
 }
 
 LocalFrame* Page::DeprecatedLocalMainFrame() const {
@@ -1378,7 +1349,12 @@ void Page::Trace(Visitor* visitor) const {
   visitor->Trace(v8_compile_hints_consumer_);
   visitor->Trace(close_task_handler_);
   visitor->Trace(opener_);
-  Supplementable<Page>::Trace(visitor);
+  visitor->Trace(storage_namespace_);
+  visitor->Trace(page_popup_controller_);
+  visitor->Trace(no_state_prefetch_client_);
+  visitor->Trace(audio_graph_tracer_);
+  visitor->Trace(internal_settings_);
+  Supplementable::Trace(visitor);
 }
 
 void Page::DidInitializeCompositing(cc::AnimationHost& host) {
@@ -1613,9 +1589,6 @@ void Page::SetAttributionSupport(
 
 template class CORE_TEMPLATE_EXPORT Supplement<Page>;
 
-const char InternalSettingsPageSupplementBase::kSupplementName[] =
-    "InternalSettings";
-
 // static
 void Page::PrepareForLeakDetection() {
   // Internal settings are ScriptWrappable and thus may retain documents
@@ -1623,7 +1596,7 @@ void Page::PrepareForLeakDetection() {
   // object through the Page supplement. Prepares for leak detection by removing
   // all InternalSetting objects from Pages.
   for (Page* page : OrdinaryPages()) {
-    page->RemoveSupplement<InternalSettingsPageSupplementBase>();
+    page->SetInternalSettings(ForwardDeclaredMember<InternalSettings>(nullptr));
 
     // V8CrowdsourcedCompileHintsProducer keeps v8::Script objects alive until
     // the page becomes interactive. Give it a chance to clean up.

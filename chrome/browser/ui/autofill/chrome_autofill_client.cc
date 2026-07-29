@@ -184,7 +184,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
-#include "chrome/browser/ui/plus_addresses/plus_address_error_dialog.h"
 #include "chrome/browser/ui/plus_addresses/plus_address_menu_model.h"  // nogncheck
 #include "chrome/browser/ui/tabs/public/tab_features.h"  // nogncheck
 #include "chrome/browser/ui/toasts/api/toast_id.h"
@@ -615,38 +614,6 @@ ChromeAutofillClient::GetIdentityCredentialDelegate() {
   return &identity_credential_delegate_;
 }
 
-void ChromeAutofillClient::OfferPlusAddressCreation(
-    const url::Origin& main_frame_origin,
-    bool is_manual_fallback,
-    PlusAddressCallback callback) {
-  // The controller is owned by `web_contents()` (via `WebContentsUserData`).
-  plus_addresses::PlusAddressCreationController* controller =
-      plus_addresses::PlusAddressCreationController::GetOrCreate(
-          web_contents());
-  controller->OfferCreation(main_frame_origin, is_manual_fallback,
-                            std::move(callback));
-}
-
-void ChromeAutofillClient::ShowPlusAddressError(
-    PlusAddressErrorDialogType error_dialog_type,
-    base::OnceClosure on_accepted) {
-#if !BUILDFLAG(IS_ANDROID)
-  plus_addresses::ShowInlineCreationErrorDialog(
-      web_contents(), error_dialog_type, std::move(on_accepted));
-#endif
-}
-
-void ChromeAutofillClient::ShowPlusAddressAffiliationError(
-    std::u16string affiliated_domain,
-    std::u16string affiliated_plus_address,
-    base::OnceClosure on_accepted) {
-#if !BUILDFLAG(IS_ANDROID)
-  plus_addresses::ShowInlineCreationAffiliationErrorDialog(
-      web_contents(), std::move(affiliated_domain),
-      std::move(affiliated_plus_address), std::move(on_accepted));
-#endif
-}
-
 PrefService* ChromeAutofillClient::GetPrefs() {
   return const_cast<PrefService*>(std::as_const(*this).GetPrefs());
 }
@@ -821,9 +788,15 @@ void ChromeAutofillClient::ShowAutofillSettings(
             autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
         chrome::ShowSettingsSubPage(browser, chrome::kAddressesSubPage);
         return;
-      case SuggestionType::kManageAutofillAi:
-        chrome::ShowSettingsSubPage(browser, chrome::kAutofillAiSubPage);
+      case SuggestionType::kManageAutofillAi: {
+        std::string_view sub_page =
+            base::FeatureList::IsEnabled(
+                autofill::features::kYourSavedInfoSettingsPage)
+                ? chrome::kYourSavedInfoSubPage
+                : chrome::kAutofillAiSubPage;
+        chrome::ShowSettingsSubPage(browser, sub_page);
         return;
+      }
       case SuggestionType::kManagePlusAddress:
         CHECK(base::FeatureList::IsEnabled(
             plus_addresses::features::kPlusAddressesEnabled));

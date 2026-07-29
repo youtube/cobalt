@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/strcat.h"
@@ -160,6 +161,10 @@ class AppTimeControllerTest : public testing::Test {
 };
 
 void AppTimeControllerTest::SetUp() {
+  // Fix the environment by specifying a device type.
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII("form-factor",
+                                                            "CHROMEBOOK");
+
   SystemClockClient::InitializeFake();
 
   // The tests are going to start at local midnight on January 1.
@@ -178,7 +183,7 @@ void AppTimeControllerTest::SetUp() {
   apps::AppServiceProxyFactory::GetForProfile(profile_.get())
       ->OverrideInnerIconLoaderForTesting(&icon_loader_);
 
-  arc_app_test_.SetUp(profile_.get());
+  arc_app_test_.PostProfileSetUp(profile_.get());
   arc_app_test_.app_instance()->set_icon_response_type(
       arc::FakeAppInstance::IconResponseType::ICON_RESPONSE_SKIP);
   task_environment_.RunUntilIdle();
@@ -191,7 +196,9 @@ void AppTimeControllerTest::SetUp() {
 void AppTimeControllerTest::TearDown() {
   test_api_.reset();
   controller_.reset();
-  arc_app_test_.TearDown();
+  arc_app_test_.PreProfileTearDown();
+  profile_.reset();
+  arc_app_test_.PostProfileTearDown();
   SystemClockClient::Shutdown();
 }
 

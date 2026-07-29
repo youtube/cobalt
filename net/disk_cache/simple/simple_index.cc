@@ -10,7 +10,6 @@
 #include <utility>
 
 #include "base/check_op.h"
-#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/pickle.h"
@@ -20,6 +19,7 @@
 #include "base/task/task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_usage_estimator.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/net_errors.h"
@@ -644,6 +644,8 @@ bool SimpleIndex::UpdateEntryIteratorSize(
 
 void SimpleIndex::MergeInitializingSet(
     std::unique_ptr<SimpleIndexLoadResult> load_result) {
+  TRACE_EVENT("disk_cache", "SimpleIndex::MergeInitializingSet", "cache_type_",
+              cache_type_);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   EntrySet* index_file_entries = &load_result->entries;

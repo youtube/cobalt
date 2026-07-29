@@ -23,6 +23,7 @@
 #include "components/lens/lens_bitmap_processing.h"
 #include "components/lens/tab_contextualization_controller.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
+#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/page_content_annotations/core/page_content_cache.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -51,7 +52,8 @@ ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
   auto query_controller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   query_controller_config_params->send_lns_surface = false;
-  query_controller_config_params->enable_multi_context_input_flow = false;
+  query_controller_config_params->enable_multi_context_input_flow =
+      OmniboxFieldTrial::kOmniboxMultimodalInputMultiContext.Get();
   query_controller_config_params->enable_viewport_images = true;
   query_controller_ = std::make_unique<ComposeboxQueryController>(
       IdentityManagerFactory::GetForProfile(profile),
@@ -189,6 +191,20 @@ GURL ComposeboxQueryControllerBridge::GetAimUrl(JNIEnv* env,
   return query_controller_->CreateSearchUrl(std::move(search_url_request_info));
 }
 
+GURL ComposeboxQueryControllerBridge::GetImageGenerationUrl(
+    JNIEnv* env,
+    std::string& query_text) {
+  // TODO(crbug.com/448149357): Update the bridge interface to take in
+  // additional params for the create search url request info.
+  std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
+      search_url_request_info = std::make_unique<
+          ComposeboxQueryController::CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = query_text;
+  search_url_request_info->query_start_time = base::Time::Now();
+  search_url_request_info->additional_params["imgn"] = "1";
+  return query_controller_->CreateSearchUrl(std::move(search_url_request_info));
+}
+
 void ComposeboxQueryControllerBridge::RemoveAttachment(
     JNIEnv* env,
     const std::string& token) {
@@ -197,6 +213,18 @@ void ComposeboxQueryControllerBridge::RemoveAttachment(
   if (unguessable_token.has_value()) {
     query_controller_->DeleteFile(unguessable_token.value());
   }
+}
+
+bool ComposeboxQueryControllerBridge::IsPdfUploadEligible(JNIEnv* env) {
+  AimEligibilityService* aim_service =
+      AimEligibilityServiceFactory::GetForProfile(profile_);
+  return aim_service && aim_service->IsPdfUploadEligible();
+}
+
+bool ComposeboxQueryControllerBridge::IsCreateImagesEligible(JNIEnv* env) {
+  AimEligibilityService* aim_service =
+      AimEligibilityServiceFactory::GetForProfile(profile_);
+  return aim_service && aim_service->IsCreateImagesEligible();
 }
 
 void ComposeboxQueryControllerBridge::OnFileUploadStatusChanged(
@@ -233,6 +261,7 @@ void ComposeboxQueryControllerBridge::OnGetPageContentFromCache(
   std::unique_ptr<lens::ContextualInputData> input_data =
       std::make_unique<lens::ContextualInputData>();
   input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->primary_content_type = lens::MimeType::kAnnotatedPageContent;
 
   // Page URL and Title.
   if (page_context->has_url()) {

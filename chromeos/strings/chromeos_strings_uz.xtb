@@ -1473,7 +1473,6 @@ Mazkur transkripsiyalar uchun transkripsiya modelini (&lt;100MB) yuklab oling.</
 <translation id="7425832472614771259"><ph name="LANGUAGE_NAME" /> transkripsiya modeli <ph name="PROGRESS_PERCENTAGE" />% yuklab olindi</translation>
 <translation id="7427315641433634153">MSCHAP</translation>
 <translation id="7438298994385592770">Bu APN faolsizlantirilmadi yoki olib tashlanmadi. <ph name="ATTACH" /> APN nuqtalari faolsizlantirilishi yoki olib tashlanishi kerak</translation>
-<translation id="7458359366992324037">Masofaviy displey</translation>
 <translation id="7458970041932198923">Avatarlarni koʻrish va sozlash uchun tarmoqqa ulaning va sahifani yangilang.</translation>
 <translation id="7469648432129124067">Portal aniqlandi</translation>
 <translation id="7481312909269577407">Oldinga</translation>
@@ -1636,6 +1635,7 @@ Mazkur transkripsiyalar uchun transkripsiya modelini (&lt;100MB) yuklab oling.</
 <translation id="8167413449582155132">Google AI yaratgan fon rasmi</translation>
 <translation id="8171020708598805594">Transkripsiyalarni avtomatik yaratish, Google AI yordamida yozuv xulosalarini olish va audio ichidan qidirish. Ovozli yozuvlarni hatto internetga ulanmagan holda yarating.</translation>
 <translation id="8179976553408161302">Enter</translation>
+<translation id="8181979490873420600">Dars vositalari ekran namoyishi</translation>
 <translation id="8183975772394450380">sohil</translation>
 <translation id="819278132617411009">Google AI yordamida unundorlikni oshiring</translation>
 <translation id="8200772114523450471">Davom ettirish</translation>

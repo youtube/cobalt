@@ -2201,6 +2201,14 @@ NavigationRequest::~NavigationRequest() {
   TRACE_EVENT_END("navigation",
                   /* NavigationRequest */ perfetto::Track(navigation_id_));
 
+  // If navigation has started but not finished, mark it as aborted for
+  // Navigation callbacks.
+  if (base::FeatureList::IsEnabled(
+          features::kAbortNavigationsFromTabClosures) &&
+      state_ < DID_COMMIT && net_error_ == net::OK) {
+    net_error_ = net::ERR_ABORTED;
+  }
+
   // IMPORTANT NOTE: DO NOT return early from the destructor before this line.
   // Otherwise, a queued navigation might get stuck in a queueing state forever.
   // This navigation has finished. See if there is another NavigationRequest
@@ -5536,8 +5544,6 @@ void NavigationRequest::OnStartChecksComplete(
   // TODO(clamy): Avoid cloning the navigation params and create the
   // ResourceRequest directly here.
   std::vector<std::unique_ptr<NavigationLoaderInterceptor>> interceptor;
-  net::HttpRequestHeaders cors_exempt_headers;
-  std::swap(cors_exempt_headers, cors_exempt_request_headers_);
 
   auto loader_type = NavigationURLLoader::LoaderType::kRegular;
   network::mojom::URLResponseHeadPtr cached_response_head = nullptr;
@@ -5605,7 +5611,6 @@ void NavigationRequest::OnStartChecksComplete(
                                    : nullptr,
           devtools_navigation_token(),
           frame_tree_node_->current_frame_host()->devtools_frame_token(),
-          std::move(cors_exempt_headers),
           BuildClientSecurityStateForNavigationFetch(),
           devtools_accepted_stream_types, is_pdf_, GetInitiatorProcessId(),
           initiator_document_token_, GetPreviousRenderFrameHostId(),
@@ -5944,11 +5949,9 @@ void NavigationRequest::OnRedirectChecksComplete(
     }
   }
 
-  net::HttpRequestHeaders cors_exempt_headers;
-  std::swap(cors_exempt_headers, cors_exempt_request_headers_);
   loader_->FollowRedirect(std::move(removed_headers),
                           std::move(modified_headers),
-                          std::move(cors_exempt_headers));
+                          /*modified_cors_exempt_headers=*/{});
 }
 
 void NavigationRequest::OnFailureChecksComplete(
@@ -9094,13 +9097,6 @@ void NavigationRequest::SetRequestHeader(const std::string& header_name,
                                          const std::string& header_value) {
   DCHECK(state_ == WILL_START_REQUEST || state_ == WILL_REDIRECT_REQUEST);
   modified_request_headers_.SetHeader(header_name, header_value);
-}
-
-void NavigationRequest::SetCorsExemptRequestHeader(
-    const std::string& header_name,
-    const std::string& header_value) {
-  DCHECK(state_ == WILL_START_REQUEST || state_ == WILL_REDIRECT_REQUEST);
-  cors_exempt_request_headers_.SetHeader(header_name, header_value);
 }
 
 void NavigationRequest::SetLCPPNavigationHint(

@@ -12,8 +12,6 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
@@ -102,12 +100,11 @@ void BrowserViewLayoutImplOld::Layout(views::View* browser_view) {
     views().window_scrim->SetBoundsRect(available_bounds);
   }
 
-  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
+  if (delegate().ShouldDrawVerticalTabStrip()) {
     LayoutVerticalTabStrip(available_bounds);
   }
 
-  views().main_container->SetBoundsRect(available_bounds);
-  gfx::Rect main_container_bounds = views().main_container->GetLocalBounds();
+  gfx::Rect main_container_bounds = available_bounds;
   main_container_bounds.set_y(available_bounds.y() +
                               delegate().GetTopInsetInBrowserView());
 
@@ -119,8 +116,7 @@ void BrowserViewLayoutImplOld::Layout(views::View* browser_view) {
   }
   LayoutToolbar(main_container_bounds);
 
-  dialog_top_y_ = main_container_bounds.y() + views().main_container->y() -
-                  kConstrainedWindowOverlap;
+  dialog_top_y_ = main_container_bounds.y() - kConstrainedWindowOverlap;
 
   LayoutBookmarkAndInfoBars(main_container_bounds);
 
@@ -205,8 +201,8 @@ BrowserViewLayoutImplOld::CalculateContentsContainerLayout(
     const gfx::Rect& available_bounds) const {
   gfx::Rect contents_container_bounds = available_bounds;
   int vertical_tab_offset = 0;
-  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
-    vertical_tab_offset = kVerticalTabStripWidth;
+  if (delegate().ShouldDrawVerticalTabStrip()) {
+    vertical_tab_offset = kMinVerticalTabStripWidth;
     contents_container_bounds.set_width(available_bounds.width() -
                                         vertical_tab_offset);
   }
@@ -334,13 +330,6 @@ void BrowserViewLayout::SetDelegateForTesting(
   views().browser_view->InvalidateLayout();
 }
 
-bool BrowserViewLayout::ShouldDisplayVerticalTabs() const {
-  return browser()
-      ->browser_window_features()
-      ->vertical_tab_strip_state_controller()
-      ->ShouldDisplayVerticalTabs();
-}
-
 void BrowserViewLayoutImplOld::LayoutTitleBarForWebApp(
     gfx::Rect& available_bounds) {
   TRACE_EVENT0("ui", "BrowserViewLayout::LayoutTitleBarForWebApp");
@@ -398,9 +387,9 @@ void BrowserViewLayoutImplOld::LayoutVerticalTabStrip(
   if (views().vertical_tab_strip_container &&
       views().vertical_tab_strip_container->GetVisible()) {
     views().vertical_tab_strip_container->SetBounds(
-        available_bounds.x(), available_bounds.y(), kVerticalTabStripWidth,
+        available_bounds.x(), available_bounds.y(), kMinVerticalTabStripWidth,
         available_bounds.height());
-    available_bounds.set_x(available_bounds.x() + kVerticalTabStripWidth);
+    available_bounds.set_x(available_bounds.x() + kMinVerticalTabStripWidth);
   }
 }
 
@@ -422,7 +411,7 @@ void BrowserViewLayoutImplOld::LayoutTabStripRegion(
         0, 0, 0, views().web_app_frame_toolbar->GetPreferredSize().width()));
   }
 
-  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
+  if (delegate().ShouldDrawVerticalTabStrip()) {
     SetViewVisibility(views().tab_strip_region_view, false);
   } else {
     SetViewVisibility(views().tab_strip_region_view, true);
@@ -453,11 +442,12 @@ void BrowserViewLayoutImplOld::LayoutToolbar(gfx::Rect& available_bounds) {
   bool toolbar_visible = delegate().IsToolbarVisible();
   SetViewVisibility(views().toolbar, toolbar_visible);
 
-  if (tabs::IsVerticalTabsFeatureEnabled() && ShouldDisplayVerticalTabs()) {
+  if (delegate().ShouldDrawVerticalTabStrip()) {
     gfx::Rect toolbar_bounds(
         delegate().GetBoundsForToolbarInVerticalTabBrowserView());
     toolbar_bounds.set_x(available_bounds.x());
-    toolbar_bounds.set_width(toolbar_bounds.width() - kVerticalTabStripWidth);
+    toolbar_bounds.set_width(toolbar_bounds.width() -
+                             kMinVerticalTabStripWidth);
     views().toolbar->SetBoundsRect(toolbar_bounds);
   } else {
     int height =
@@ -551,17 +541,6 @@ void BrowserViewLayoutImplOld::LayoutBookmarkBar(gfx::Rect& available_bounds) {
                                   available_bounds.width(),
                                   bookmark_bar_height);
   SetClipPathWithBottomAllowance(views().bookmark_bar);
-  if (!features::IsPixelCanvasRecordingEnabled()) {
-    // Make sure the contents separator is painted last as the background for
-    // BookmarkVieBar/ToolbarView may paint over it otherwise.
-    // TODO(https://crbug.com/41344902): Remove once the pixel canvas is enabled
-    // on all aura platforms.
-    if (views().top_container == views().bookmark_bar->parent()) {
-      views().top_container->ReorderChildView(
-          views().top_container_separator,
-          views().top_container->children().size());
-    }
-  }
 
   // Set visibility after setting bounds, as the visibility update uses the
   // bounds to determine if the mouse is hovering over a button.
@@ -580,8 +559,7 @@ void BrowserViewLayoutImplOld::LayoutInfoBar(gfx::Rect& available_bounds) {
       (delegate().IsTopControlsSlideBehaviorEnabled() &&
        delegate().GetTopControlsSlideBehaviorShownRatio() == 0.f)) {
     // Can be null in tests.
-    top = (views().main_container ? views().main_container->y() : 0) +
-          immersive_mode_controller->GetMinimumContentOffset();
+    top = immersive_mode_controller->GetMinimumContentOffset();
   }
   // The content usually starts at the bottom of the infobar. When there is an
   // extra infobar offset the infobar is shifted down while the content stays.

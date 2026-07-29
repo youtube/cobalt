@@ -880,12 +880,15 @@ class AppManagementPageHandlerArcTest
     arc_app_test_.set_initialize_real_intent_helper_bridge(true);
     arc_app_test_.PreProfileSetUp();
     AppManagementPageHandlerTestBase::SetUp();
-    arc_app_test_.SetUp(profile());
+    arc_app_test_.PostProfileSetUp(profile());
   }
 
   void TearDown() override {
     arc_app_test_.StopArcInstance();
-    arc_app_test_.TearDown();
+    arc_app_test_.PreProfileTearDown();
+    // TODO(crbug.com/454468678): This should be called after profile is
+    // deleted, but before TaskEnvironment is deleted.
+    arc_app_test_.PostProfileTearDown();
     AppManagementPageHandlerTestBase::TearDown();
   }
 

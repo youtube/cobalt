@@ -34,9 +34,6 @@
 
 namespace blink {
 
-// static
-const char PatchSupplement::kSupplementName[] = "Patch";
-
 namespace {
 
 std::variant<String, base::span<uint8_t>, std::monostate>
@@ -205,15 +202,15 @@ class SubtreePatchSink : public UnderlyingSinkBase {
 
 // static
 PatchSupplement* PatchSupplement::FromIfExists(const Document& document) {
-  return Supplement<Document>::From<PatchSupplement>(document);
+  return document.GetPatchSupplement();
 }
 
 // static
 PatchSupplement* PatchSupplement::From(Document& document) {
-  auto* supplement = Supplement<Document>::From<PatchSupplement>(document);
+  auto* supplement = document.GetPatchSupplement();
   if (!supplement) {
-    supplement = MakeGarbageCollected<PatchSupplement>(document);
-    Supplement<Document>::ProvideTo(document, supplement);
+    supplement = MakeGarbageCollected<PatchSupplement>();
+    document.SetPatchSupplement(supplement);
   }
   return supplement;
 }
@@ -278,7 +275,6 @@ WritableStream* PatchSupplement::CreateSubtreePatchStream(
 
 void PatchSupplement::Trace(Visitor* visitor) const {
   visitor->Trace(patches_);
-  Supplement<Document>::Trace(visitor);
 }
 
 }  // namespace blink
