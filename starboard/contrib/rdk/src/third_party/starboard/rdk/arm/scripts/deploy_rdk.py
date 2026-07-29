@@ -358,7 +358,7 @@ def launch_on_device(
                     script_args.append("--remote-debugging-port=9222")
 
                 user_override_args = param if param else []
-                override_args = script_args + user_override_args
+                override_args = remove_duplicate_sb_args(script_args, user_override_args)
 
                 config["sbmainargs"] = remove_duplicate_sb_args(cobalt_json_args, override_args)
 

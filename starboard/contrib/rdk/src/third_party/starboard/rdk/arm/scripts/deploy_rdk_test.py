@@ -612,6 +612,13 @@ class TestRemoveDuplicateSbArgs(unittest.TestCase):
             args = deploy_rdk.parse_args()
             self.assertEqual(args.param, ["--url=www.youtube.com/tv", "--enable-heap-profiling"])
 
+    def test_user_override_replaces_script_args(self):
+        """Verifies user override flags in --param replace script-added flags if keys collide."""
+        script_args = ["--remote-debugging-port=9222"]
+        user_override_args = ["--remote-debugging-port=9999"]
+        override_args = deploy_rdk.remove_duplicate_sb_args(script_args, user_override_args)
+        self.assertEqual(override_args, ["--remote-debugging-port=9999"])
+
 
 if __name__ == "__main__":
     unittest.main()
