@@ -24,6 +24,17 @@
 #include "media/media_buildflags.h"
 #include "media/mojo/services/mojo_media_client.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string>
+
+#include "media/base/starboard/starboard_renderer_config.h"
+#include "media/gpu/starboard/starboard_gpu_factory.h"
+
+namespace cobalt::media {
+class VideoGeometrySetterService;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class MediaGpuChannelManager;
@@ -59,6 +70,54 @@ struct VideoDecoderTraits {
   ~VideoDecoderTraits();
 };
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+using GetStarboardCommandBufferStubCB = StarboardGpuFactory::GetStubCB;
+
+// Encapsulate parameters to pass to StarboardRenderer.
+struct StarboardRendererTraits {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner;
+  mojo::PendingRemote<mojom::MediaLog> media_log_remote;
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service;
+  const base::UnguessableToken& overlay_plane_id;
+  base::TimeDelta audio_write_duration_local;
+  base::TimeDelta audio_write_duration_remote;
+  const std::string& max_video_capabilities;
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features;
+  const gfx::Size& viewport_size;
+  mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver;
+  mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote;
+
+  // StarboardRenderer uses this to post tasks on gpu thread.
+  GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb;
+  
+  // StarboardRenderer uses this to create an AndroidOverlay.
+  AndroidOverlayMojoFactoryCB android_overlay_factory_cb;
+
+  StarboardRendererTraits(
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
+      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service,
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
+      const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
+      const gfx::Size& viewport_size,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote,
+      GetStarboardCommandBufferStubCB
+          get_starboard_command_buffer_stub_cb);
+  StarboardRendererTraits(StarboardRendererTraits&& that) = default;
+  ~StarboardRendererTraits();
+};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
   gpu::GpuPreferences gpu_preferences;
   gpu::GpuDriverBugWorkarounds gpu_workarounds;
@@ -73,6 +132,10 @@ struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
   // is expected to be the GPU main thread task runner.
   base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   GpuMojoMediaClientTraits(
       const gpu::GpuPreferences& gpu_preferences,
       const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
@@ -80,7 +143,13 @@ struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {
       const gpu::GPUInfo& gpu_info,
       scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       AndroidOverlayMojoFactoryCB android_overlay_factory_cb,
-      base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager);
+      base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      );
+ 
   ~GpuMojoMediaClientTraits();
 };
 
@@ -120,6 +189,17 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
       RequestOverlayInfoCB request_overlay_info_cb,
       const gfx::ColorSpace& target_color_space,
       mojo::PendingRemote<mojom::VideoDecoder> oop_video_decoder) final;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<Renderer> CreateStarboardRenderer(
+      mojom::FrameInterfaceFactory* frame_interfaces,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const StarboardRendererConfig& config,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote) final;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<CdmFactory> CreateCdmFactory(
       mojom::FrameInterfaceFactory* interface_provider) final;
 
@@ -174,6 +254,13 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
   // anything here.
   virtual std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
       scoped_refptr<base::SequencedTaskRunner> task_runner);
+  
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Creates a platform-specific media::StarboardRenderer.
+  // This is used on Cobalt (android/linux).
+  virtual std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
+        StarboardRendererTraits traits);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Creates a CDM factory, right now only used on android and chromeos.
   virtual std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
@@ -184,6 +271,9 @@ class MEDIA_MOJO_EXPORT GpuMojoMediaClient : public MojoMediaClient {
   virtual std::optional<SupportedAudioDecoderConfigs>
   GetPlatformSupportedAudioDecoderConfigs();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   const gpu::GpuPreferences gpu_preferences_;
   const gpu::GpuDriverBugWorkarounds gpu_workarounds_;
   const gpu::GpuFeatureInfo gpu_feature_info_;

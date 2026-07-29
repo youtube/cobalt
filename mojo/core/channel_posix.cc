@@ -679,7 +679,20 @@ scoped_refptr<Channel> Channel::Create(
     ConnectionParams connection_params,
     HandlePolicy handle_policy,
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner) {
+<<<<<<< HEAD
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+=======
+#if BUILDFLAG(IS_ANDROID)
+  if (connection_params.endpoint().platform_handle().is_valid_binder()) {
+    return base::MakeRefCounted<ChannelBinder>(
+        delegate, std::move(connection_params), handle_policy,
+        std::move(io_task_runner));
+  }
+#endif
+
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD) && \
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
+>>>>>>> parent of a75095e7780 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return new ChannelLinux(delegate, std::move(connection_params), handle_policy,
                           io_task_runner);
 #else
@@ -688,6 +701,10 @@ scoped_refptr<Channel> Channel::Create(
 #endif
 }
 
+<<<<<<< HEAD
+=======
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> parent of a75095e7780 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
 // static
 bool Channel::SupportsChannelUpgrade() {

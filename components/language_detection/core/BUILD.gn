@@ -80,3 +80,10 @@ source_set("unit_tests") {
     "//components/translate/core/common:common",
   ]
 }
+
+if (is_cobalt) {
+  source_set("constants") {
+    sources = [ "constants.h" ]
+  }
+}
+

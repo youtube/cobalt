@@ -12,6 +12,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "build/build_config.h"
 #include "media/base/media.h"
 #include "media/base/media_client.h"
@@ -30,6 +31,11 @@
 // mime_util*.{cc,h} out of media/base to fix this.
 #include "media/base/android/media_codec_util.h"  // nogncheck
 #endif
+
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/sbmedia_interface.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media::internal {
 
@@ -444,7 +450,17 @@ void MimeUtil::AddContainerWithCodecs(std::string mime_type, CodecSet codecs) {
 }
 
 bool MimeUtil::IsSupportedMediaMimeType(std::string_view mime_type) const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SbMediaSupportType support_type =
+      GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+          std::string(mime_type).c_str(), "");
+  bool result = support_type != kSbMediaSupportTypeNotSupported;
+  DVLOG(1) << __func__ << "(" << mime_type << ") -> "
+           << base::ToString(result);
+  return result;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   return media_format_map_.contains(base::ToLowerASCII(mime_type));
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void MimeUtil::SplitCodecs(std::string_view codecs,
@@ -539,6 +555,25 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
     std::string_view mime_type,
     const std::vector<std::string>& codecs,
     bool is_encrypted) const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // MimeUtil::IsSupportedMediaFormat() might be used in MIMETypeRegistry for
+  // clear content.
+  DCHECK(!is_encrypted)
+      << __func__ << "can be used for non encrypted formats only in Chrobalt";
+
+  SbMediaSupportType support_type =
+      GetSbMediaInterface()->CanPlayMimeAndKeySystem(
+          std::string(mime_type).c_str(), "");
+  DVLOG(1) << __func__ << "(" << mime_type << ") -> " << support_type;
+  switch (support_type) {
+    case kSbMediaSupportTypeNotSupported:
+      return SupportsType::kNotSupported;
+    case kSbMediaSupportTypeMaybe:
+      return SupportsType::kMaybeSupported;
+    case kSbMediaSupportTypeProbably:
+      return SupportsType::kSupported;
+  }
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string mime_type_lower_case = base::ToLowerASCII(mime_type);
   std::vector<ParsedCodecResult> parsed_results;
   if (!ParseCodecStrings(mime_type_lower_case, codecs, &parsed_results)) {
@@ -562,6 +597,7 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
   }
 
   return AreSupportedCodecs(parsed_results, mime_type_lower_case, is_encrypted);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static

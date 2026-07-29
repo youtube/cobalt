@@ -26,6 +26,9 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_math.h"
 #include "base/strings/stringprintf.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/strings/string_number_conversions.h"
+#endif
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/tick_clock.h"
@@ -1227,6 +1230,10 @@ GpuImageDecodeCache::GpuImageDecodeCache(
     SkColorType color_type,
     size_t max_working_set_bytes,
     int max_texture_size,
+#if BUILDFLAG(IS_COBALT)
+    size_t max_persistent_cache_items,
+    size_t max_persistent_cache_memory_size,
+#endif
     RasterDarkModeFilter* const dark_mode_filter)
     : color_type_(color_type),
       use_transfer_cache_(use_transfer_cache),
@@ -1239,6 +1246,12 @@ GpuImageDecodeCache::GpuImageDecodeCache(
       persistent_cache_(PersistentCache::NO_AUTO_EVICT),
       max_working_set_bytes_(max_working_set_bytes),
       max_working_set_items_(kMaxItemsInWorkingSet),
+#if BUILDFLAG(IS_COBALT)
+      max_persistent_cache_items_(std::min<size_t>(
+          max_persistent_cache_items,
+          static_cast<size_t>(kNormalMaxItemsInCacheForGpu))),
+      max_persistent_cache_memory_size_(max_persistent_cache_memory_size),
+#endif
       dark_mode_filter_(dark_mode_filter) {
   if (base::SequencedTaskRunner::HasCurrentDefault()) {
     task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
@@ -2359,10 +2372,16 @@ bool GpuImageDecodeCache::ExceedsCacheLimits() const {
   if (aggressively_freeing_resources_) {
     items_limit = kSuspendedMaxItemsInCacheForGpu;
   } else {
+#if BUILDFLAG(IS_COBALT)
+    items_limit = max_persistent_cache_items_;
+  }
+  return persistent_cache_.size() > items_limit ||
+         persistent_cache_memory_size_ > max_persistent_cache_memory_size_;
+#else // BUILDFLAG(IS_COBALT)
     items_limit = kNormalMaxItemsInCacheForGpu;
   }
-
   return persistent_cache_.size() > items_limit;
+#endif // BUILDFLAG(IS_COBALT)
 }
 
 void GpuImageDecodeCache::InsertTransferCacheEntry(
