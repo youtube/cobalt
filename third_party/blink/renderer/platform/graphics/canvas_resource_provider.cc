@@ -60,7 +60,6 @@
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GpuTypes.h"
 #include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
-#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
 #include "third_party/skia/include/gpu/ganesh/GrTypes.h"
 #include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
 #include "third_party/skia/include/gpu/ganesh/gl/GrGLBackendSurface.h"
@@ -68,9 +67,7 @@
 
 namespace blink {
 
-BASE_FEATURE(kSkipRedundantWillDraw,
-             "SkipRedundantWillDraw",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSkipRedundantWillDraw, base::FEATURE_ENABLED_BY_DEFAULT);
 
 class FlushForImageListener {
   // With deferred rendering it's possible for a drawImage operation on a canvas
@@ -190,7 +187,20 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
       use_oop_rasterization_(is_accelerated && ContextProviderWrapper()
                                                    ->ContextProvider()
                                                    .GetCapabilities()
-                                                   .gpu_rasterization) {}
+                                                   .gpu_rasterization) {
+  CHECK(use_oop_rasterization_ || !is_accelerated_);
+
+  if (raster_context_provider_) {
+    raster_context_provider_->AddObserver(this);
+  }
+
+  resource_ = NewOrRecycledResource();
+  GetFlushForImageListener()->AddObserver(this);
+
+  if (resource_) {
+    EnsureWriteAccess();
+  }
+}
 
 CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
     gfx::Size size,
@@ -213,7 +223,33 @@ CanvasResourceProviderSharedImage::CanvasResourceProviderSharedImage(
       is_accelerated_(false),
       shared_image_usage_flags_(gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY),
       use_oop_rasterization_(false),
-      is_software_(true) {}
+      is_software_(true) {
+  if (shared_image_interface_provider_) {
+    shared_image_interface_provider_->AddGpuChannelLostObserver(this);
+  }
+}
+
+CanvasResourceProviderSharedImage::~CanvasResourceProviderSharedImage() {
+  UMA_HISTOGRAM_EXACT_LINEAR("Blink.Canvas.MaximumInflightResources",
+                             max_inflight_resources_, 20);
+  if (is_software_) {
+    if (shared_image_interface_provider_) {
+      shared_image_interface_provider_->RemoveGpuChannelLostObserver(this);
+    }
+    return;
+  }
+
+  if (raster_context_provider_) {
+    raster_context_provider_->RemoveObserver(this);
+  }
+
+  GetFlushForImageListener()->RemoveObserver(this);
+}
+
+base::WeakPtr<CanvasResourceProviderSharedImage>
+CanvasResourceProviderSharedImage::CreateWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
 
 scoped_refptr<CanvasResourceSharedImage>
 CanvasResourceProviderSharedImage::CreateResource() {
@@ -233,23 +269,6 @@ CanvasResourceProviderSharedImage::CreateResource() {
       Size(), GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
       ContextProviderWrapper(), CreateWeakPtr(), is_accelerated_,
       shared_image_usage_flags_);
-}
-
-void CanvasResourceProviderSharedImage::NotifyTexParamsModified(
-    const CanvasResource* resource) {
-  if (!is_accelerated_ || use_oop_rasterization_) {
-    return;
-  }
-
-  if (resource_.get() == resource) {
-    DCHECK(!current_resource_has_write_access_);
-    // Note that the call below is guarenteed to not issue any GPU work for
-    // the backend texture since we ensure that all skia work on the resource
-    // is issued before releasing write access.
-    auto tex = SkSurfaces::GetBackendTexture(
-        surface_.get(), SkSurfaces::BackendHandleAccess::kFlushRead);
-    GrBackendTextures::GLTextureParametersModified(&tex);
-  }
 }
 
 void CanvasResourceProviderSharedImage::OnContextLost() {
@@ -385,656 +404,554 @@ void CanvasResourceProviderSharedImage::ClearOldUnusedResources() {
   MaybePostUnusedResourcesReclaimTask();
 }
 
-// TODO(crbug.com/391648152): Fold this class into
-// CanvasResourceProviderSharedImage.
-class CanvasResourceProviderSharedImageImpl
-    : public CanvasResourceProviderSharedImage {
- public:
-  CanvasResourceProviderSharedImageImpl(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-      Delegate* delegate)
-      : CanvasResourceProviderSharedImage(size,
-                                          format,
-                                          alpha_type,
-                                          color_space,
-                                          shared_image_interface_provider,
-                                          delegate) {
-    if (shared_image_interface_provider_) {
-      shared_image_interface_provider_->AddGpuChannelLostObserver(this);
-    }
+bool CanvasResourceProviderSharedImage::ShouldReplaceTargetBuffer(
+    PaintImage::ContentId content_id) {
+  // If the canvas is single buffered, concurrent read/writes to the resource
+  // are allowed. Note that we ignore the resource lost case as well since
+  // that only indicates that we did not get a sync token for read/write
+  // synchronization which is not a requirement for single buffered canvas.
+  if (IsSingleBuffered()) {
+    return false;
   }
 
-  CanvasResourceProviderSharedImageImpl(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      base::WeakPtr<WebGraphicsContext3DProviderWrapper>
-          context_provider_wrapper,
-      bool is_accelerated,
-      gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate* delegate)
-      : CanvasResourceProviderSharedImage(size,
-                                          format,
-                                          alpha_type,
-                                          color_space,
-                                          std::move(context_provider_wrapper),
-                                          is_accelerated,
-                                          shared_image_usage_flags,
-                                          delegate) {
-    if (raster_context_provider_) {
-      raster_context_provider_->AddObserver(this);
-    }
-
-    resource_ = NewOrRecycledResource();
-    GetFlushForImageListener()->AddObserver(this);
-
-    if (resource_)
-      EnsureWriteAccess();
+  // If the resource was lost, we can not use it for writes again.
+  if (resource()->IsLost()) {
+    return true;
   }
 
-  ~CanvasResourceProviderSharedImageImpl() override {
-    UMA_HISTOGRAM_EXACT_LINEAR("Blink.Canvas.MaximumInflightResources",
-                               max_inflight_resources_, 20);
-    if (is_software_) {
-      if (shared_image_interface_provider_) {
-        shared_image_interface_provider_->RemoveGpuChannelLostObserver(this);
-      }
+  // We have the only ref to the resource which implies there are no active
+  // readers.
+  if (resource_->HasOneRef()) {
+    return false;
+  }
+
+  // Its possible to have deferred work in skia which uses this resource. Try
+  // flushing once to see if that releases the read refs. We can avoid a copy
+  // by queuing this work before writing to this resource.
+  if (is_accelerated_) {
+    // Another context may have a read reference to this resource. Flush the
+    // deferred queue in that context so that we don't need to copy.
+    GetFlushForImageListener()->NotifyFlushForImage(content_id);
+  }
+
+  return !resource_->HasOneRef();
+}
+
+void CanvasResourceProviderSharedImage::EnsureWriteAccess() {
+  DCHECK(resource_);
+  // In software mode, we don't need write access to the resource during
+  // drawing since it is executed on cpu memory managed by skia. We ensure
+  // exclusive access to the resource when the results are copied onto the
+  // GMB in EndWriteAccess.
+  DCHECK(resource_->HasOneRef() || IsSingleBuffered() || !is_accelerated_)
+      << "Write access requires exclusive access to the resource";
+  DCHECK(!resource()->is_cross_thread())
+      << "Write access is only allowed on the owning thread";
+
+  if (current_resource_has_write_access_ || IsGpuContextLost()) {
+    return;
+  }
+  current_resource_has_write_access_ = true;
+}
+
+void CanvasResourceProviderSharedImage::EndWriteAccess() {
+  DCHECK(!resource()->is_cross_thread());
+
+  if (!current_resource_has_write_access_ || IsGpuContextLost()) {
+    return;
+  }
+
+  if (is_accelerated_) {
+    // We reset |mode_| here since the draw commands which overwrite the
+    // complete canvas must have been flushed at this point without triggering
+    // copy-on-write.
+    mode_ = SkSurface::kRetain_ContentChangeMode;
+  } else {
+    // Currently we never use OOP raster when the resource is not accelerated
+    // so we check that assumption here.
+    DCHECK(!use_oop_rasterization_);
+    if (ShouldReplaceTargetBuffer()) {
+      resource_ = NewOrRecycledResource();
+    }
+    if (!resource() || !GetSkSurface()) {
       return;
     }
+    resource()->UploadSoftwareRenderingResults(GetSkSurface());
+  }
 
-    if (raster_context_provider_) {
-      raster_context_provider_->RemoveObserver(this);
+  current_resource_has_write_access_ = false;
+}
+
+void CanvasResourceProviderSharedImage::WillDrawInternal(
+    bool write_to_local_texture) {
+  DCHECK(resource_);
+
+  if (IsGpuContextLost()) {
+    return;
+  }
+
+  // Since the resource will be updated, the cached snapshot is no longer
+  // valid. Note that it is important to release this reference here to not
+  // trigger copy-on-write below from the resource ref in the snapshot.
+  // Note that this is valid for single buffered mode also, since while the
+  // resource/mailbox remains the same, the snapshot needs an updated sync
+  // token for these writes.
+  cached_snapshot_.reset();
+
+  // Determine if a copy is needed for accelerated resources. This could be
+  // for one of two reasons: (1) copy-on-write is required, or (2) the
+  // SharedImage usages with which this provider should create resources has
+  // changed since this resource was created (this can occur, for example,
+  // when a client requests the backing ClientSharedImage with a specific
+  // required set of usages for an external write). Note that for
+  // unaccelerated resources, neither of these apply: writes to the
+  // SharedImage are deferred to ProduceCanvasResource and hence
+  // copy-on-write is never needed here, and the set of SharedImage usages
+  // doesn't change over the lifetime of the provider.
+  if (is_accelerated_ && (ShouldReplaceTargetBuffer(cached_content_id_) ||
+                          !IsResourceUsable(resource_.get()))) {
+    cached_content_id_ = PaintImage::kInvalidContentId;
+    DCHECK(!current_resource_has_write_access_)
+        << "Write access must be released before sharing the resource";
+
+    auto old_resource = std::move(resource_);
+    auto* old_resource_shared_image =
+        static_cast<CanvasResourceSharedImage*>(old_resource.get());
+
+    if (!IsResourceUsable(old_resource.get())) {
+      // If this resource has become unusable, all cached resources have also
+      // become unusable. Drop them to ensure that a new usable resource gets
+      // created in the below call to NewOrRecycledResource().
+      ClearUnusedResources();
+    }
+    resource_ = NewOrRecycledResource();
+    DCHECK(IsResourceUsable(resource_.get()));
+
+    if (mode_ == SkSurface::kRetain_ContentChangeMode) {
+      auto old_mailbox =
+          old_resource_shared_image->GetClientSharedImage()->mailbox();
+      auto mailbox = resource()->GetClientSharedImage()->mailbox();
+
+      RasterInterface()->CopySharedImage(old_mailbox, mailbox, 0, 0, 0, 0,
+                                         Size().width(), Size().height());
+    } else if (use_oop_rasterization_) {
+      // If we're not copying over the previous contents, we need to ensure
+      // that the image is cleared on the next BeginRasterCHROMIUM.
+      is_cleared_ = false;
     }
 
-    GetFlushForImageListener()->RemoveObserver(this);
-    // Issue any skia work using this resource before destroying any buffer
-    // that may have a reference in skia.
-    if (is_accelerated_ && !use_oop_rasterization_)
-      FlushGrContext();
+    UMA_HISTOGRAM_BOOLEAN("Blink.Canvas.ContentChangeMode",
+                          mode_ == SkSurface::kRetain_ContentChangeMode);
+    mode_ = SkSurface::kRetain_ContentChangeMode;
   }
 
-  bool IsSoftwareSharedImageGpuChannelLost() const override {
-    if (!is_software_) {
-      return false;
-    }
-
-    return !shared_image_interface_provider_ ||
-           !shared_image_interface_provider_->SharedImageInterface();
+  if (write_to_local_texture) {
+    EnsureWriteAccess();
+  } else {
+    EndWriteAccess();
   }
 
-  bool IsValid() const final {
-    if (is_software_) {
-      return !IsSoftwareSharedImageGpuChannelLost() && GetSkSurface();
-    }
+  if (resource()) {
+    resource()->WillDraw();
+  }
+}
 
-    if (!use_oop_rasterization_)
-      return GetSkSurface() && !IsGpuContextLost();
-    else
-      return !IsGpuContextLost();
+void CanvasResourceProviderSharedImage::WillDraw() {
+  if (is_software_) {
+    return;
+  }
+  WillDrawInternal(true);
+}
+
+bool CanvasResourceProviderSharedImage::WritePixels(
+    const SkImageInfo& orig_info,
+    const void* pixels,
+    size_t row_bytes,
+    int x,
+    int y) {
+  if (!use_oop_rasterization_) {
+    return CanvasResourceProvider::WritePixels(orig_info, pixels, row_bytes, x,
+                                               y);
   }
 
-  bool IsSingleBuffered() const override {
-    return shared_image_usage_flags_.Has(
-        gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
-  }
-  bool HasUnusedResourcesForTesting() const override {
-    if (IsSingleBuffered()) {
-      return false;
-    }
-    return !unused_resources_.empty();
+  TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::WritePixels");
+  if (IsGpuContextLost()) {
+    return false;
   }
 
-  scoped_refptr<gpu::ClientSharedImage>
-  GetBackingClientSharedImageForExternalWrite(
-      gpu::SharedImageUsageSet required_shared_image_usages,
-      gpu::SyncToken& internal_access_sync_token,
-      bool* was_copy_performed) override {
-    // This may cause the current resource and all cached resources to become
-    // unusable. WillDrawInternal() will detect this case, drop all cached
-    // resources, and copy the current resource to a newly-created resource
-    // which will by definition be usable.
-    shared_image_usage_flags_.PutAll(required_shared_image_usages);
+  // TODO(crbug.com/352263194): This code calls WillDrawInternal(true)
+  // followed immediately by GetBackingClientSharedImageForOverwrite(), which
+  // calls WillDrawInternal(false). The former calls EnsureWriteAccess() and
+  // then the latter immediately calls EndWriteAccess(). Figure out what is
+  // actually intended here and either don't call the former (preserving
+  // current behavior) or call resource()->GetClientSharedImage() rather than
+  // the latter (if the current behavior is a bug).
+  WillDrawInternal(true);
 
-    DCHECK(is_accelerated_);
+  // End the internal write access before calling WillDrawInternal(), which
+  // has a precondition that there should be no current write access on the
+  // resource.
+  EndWriteAccess();
+  WillDrawInternal(false);
 
-    if (IsGpuContextLost())
+  auto client_si = resource()->GetClientSharedImage();
+  RasterInterface()->WritePixels(client_si->mailbox(), x, y,
+                                 client_si->GetTextureTarget(),
+                                 SkPixmap(orig_info, pixels, row_bytes));
+  resource()->GetSyncToken();
+
+  // If the overdraw optimization kicked in, we need to indicate that the
+  // pixels do not need to be cleared, otherwise the subsequent
+  // rasterizations will clobber canvas contents.
+  if (x <= 0 && y <= 0 && orig_info.width() >= Size().width() &&
+      orig_info.height() >= Size().height()) {
+    is_cleared_ = true;
+  }
+
+  return true;
+}
+
+bool CanvasResourceProviderSharedImage::OverwriteImage(
+    const scoped_refptr<gpu::ClientSharedImage>& shared_image,
+    const gfx::Rect& copy_rect,
+    const gpu::SyncToken& ready_sync_token,
+    gpu::SyncToken& completion_sync_token) {
+  gpu::raster::RasterInterface* raster = RasterInterface();
+  if (!raster) {
+    return false;
+  }
+
+  if (IsGpuContextLost()) {
+    return false;
+  }
+
+  EndWriteAccess();
+  WillDrawInternal(false);
+
+  auto dst_client_si = resource()->GetClientSharedImage();
+  if (!dst_client_si) {
+    return false;
+  }
+
+  std::unique_ptr<gpu::RasterScopedAccess> ri_access =
+      shared_image->BeginRasterAccess(raster, ready_sync_token,
+                                      /*readonly=*/true);
+  raster->CopySharedImage(shared_image->mailbox(), dst_client_si->mailbox(),
+                          /*xoffset=*/0,
+                          /*yoffset=*/0, copy_rect.x(), copy_rect.y(),
+                          copy_rect.width(), copy_rect.height());
+  completion_sync_token =
+      gpu::RasterScopedAccess::EndAccess(std::move(ri_access));
+  resource()->GetSyncToken();
+  return true;
+}
+
+scoped_refptr<CanvasResource>
+CanvasResourceProviderSharedImage::ProduceCanvasResource(FlushReason reason) {
+  TRACE_EVENT0("blink",
+               "CanvasResourceProviderSharedImage::ProduceCanvasResource");
+  if (is_software_) {
+    DCHECK(GetSkSurface());
+    scoped_refptr<CanvasResource> output_resource = NewOrRecycledResource();
+    if (!output_resource) {
       return nullptr;
-
-    // End the internal write access before calling WillDrawInternal(), which
-    // has a precondition that there should be no current write access on the
-    // resource.
-    EndWriteAccess();
-
-    const CanvasResource* const original_resource = resource_.get();
-    WillDrawInternal(false);
-    if (was_copy_performed != nullptr) {
-      *was_copy_performed = resource_.get() != original_resource;
     }
-
-    // NOTE: The above invocation of WillDrawInternal() ensures that this
-    // invocation of GetSyncToken() will generate a new sync token.
-    internal_access_sync_token = resource_->GetSyncToken();
-
-    return resource_->GetClientSharedImage();
-  }
-
-  void EndExternalWrite(
-      const gpu::SyncToken& external_write_sync_token) override {
-    resource()->EndExternalWrite(external_write_sync_token);
-  }
-
-  gpu::SharedImageUsageSet GetSharedImageUsageFlags() const override {
-    return shared_image_usage_flags_;
-  }
-
-  bool WritePixels(const SkImageInfo& orig_info,
-                   const void* pixels,
-                   size_t row_bytes,
-                   int x,
-                   int y) override {
-    if (!use_oop_rasterization_) {
-      return CanvasResourceProvider::WritePixels(orig_info, pixels, row_bytes,
-                                                 x, y);
-    }
-
-    TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::WritePixels");
-    if (IsGpuContextLost())
-      return false;
-
-    // TODO(crbug.com/352263194): This code calls WillDrawInternal(true)
-    // followed immediately by GetBackingClientSharedImageForOverwrite(), which
-    // calls WillDrawInternal(false). The former calls EnsureWriteAccess() and
-    // then the latter immediately calls EndWriteAccess(). Figure out what is
-    // actually intended here and either don't call the former (preserving
-    // current behavior) or call resource()->GetClientSharedImage() rather than
-    // the latter (if the current behavior is a bug).
-    WillDrawInternal(true);
-
-    // End the internal write access before calling WillDrawInternal(), which
-    // has a precondition that there should be no current write access on the
-    // resource.
-    EndWriteAccess();
-    WillDrawInternal(false);
-
-    auto client_si = resource()->GetClientSharedImage();
-    RasterInterface()->WritePixels(client_si->mailbox(), x, y,
-                                   client_si->GetTextureTarget(),
-                                   SkPixmap(orig_info, pixels, row_bytes));
-    resource()->GetSyncToken();
-
-    // If the overdraw optimization kicked in, we need to indicate that the
-    // pixels do not need to be cleared, otherwise the subsequent
-    // rasterizations will clobber canvas contents.
-    if (x <= 0 && y <= 0 && orig_info.width() >= Size().width() &&
-        orig_info.height() >= Size().height())
-      is_cleared_ = true;
-
-    return true;
-  }
-
-  bool OverwriteImage(const scoped_refptr<gpu::ClientSharedImage>& shared_image,
-                      const gfx::Rect& copy_rect,
-                      const gpu::SyncToken& ready_sync_token,
-                      gpu::SyncToken& completion_sync_token) override {
-    gpu::raster::RasterInterface* raster = RasterInterface();
-    if (!raster) {
-      return false;
-    }
-
-    if (IsGpuContextLost()) {
-      return false;
-    }
-
-    EndWriteAccess();
-    WillDrawInternal(false);
-
-    auto dst_client_si = resource()->GetClientSharedImage();
-    if (!dst_client_si) {
-      return false;
-    }
-
-    std::unique_ptr<gpu::RasterScopedAccess> ri_access =
-        shared_image->BeginRasterAccess(raster, ready_sync_token,
-                                        /*readonly=*/true);
-    raster->CopySharedImage(shared_image->mailbox(), dst_client_si->mailbox(),
-                            /*xoffset=*/0,
-                            /*yoffset=*/0, copy_rect.x(), copy_rect.y(),
-                            copy_rect.width(), copy_rect.height());
-    completion_sync_token =
-        gpu::RasterScopedAccess::EndAccess(std::move(ri_access));
-    resource()->GetSyncToken();
-    return true;
-  }
-
-  void ExternalCanvasDrawHelper(
-      base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback)
-      override {
-    if (base::FeatureList::IsEnabled(blink::kSkipRedundantWillDraw)) {
-      cached_snapshot_.reset();
-    } else {
-      // TODO(crbug.com/40183122): Video frames don't work without this
-      // conditional WillDraw(), but we are getting memory leak on CreatePattern
-      // with it. There should be a better way to solve this.
-      if (cached_snapshot_) {
-        WillDraw();
-      }
-    }
-
-    draw_callback(Canvas());
-  }
-
- protected:
-  scoped_refptr<CanvasResource> ProduceCanvasResource(
-      FlushReason reason) override {
-    TRACE_EVENT0("blink",
-                 "CanvasResourceProviderSharedImage::ProduceCanvasResource");
-    if (is_software_) {
-      DCHECK(GetSkSurface());
-      scoped_refptr<CanvasResource> output_resource = NewOrRecycledResource();
-      if (!output_resource) {
-        return nullptr;
-      }
-
-      // Getting the high entropy canvas operations should be done before
-      // flushing the canvas as flushing discards the recording (including the
-      // associated HighEntropyCanvasOpTypes).
-      HighEntropyCanvasOpType high_entropy_canvas_op_types =
-          GetRecorderHighEntropyCanvasOpTypes();
-      if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
-                                                  IsAccelerated())) {
-        output_resource->SetHighEntropyCanvasOpTypes(
-            high_entropy_canvas_op_types);
-      }
-      FlushCanvas(reason);
-
-      // Note that the resource *must* be a CanvasResourceSharedImage as this
-      // class creates CanvasResourceSharedImage instances exclusively.
-      static_cast<CanvasResourceSharedImage*>(output_resource.get())
-          ->UploadSoftwareRenderingResults(GetSkSurface());
-
-      return output_resource;
-    }
-
-    if (IsGpuContextLost())
-      return nullptr;
 
     // Getting the high entropy canvas operations should be done before
     // flushing the canvas as flushing discards the recording (including the
     // associated HighEntropyCanvasOpTypes).
     HighEntropyCanvasOpType high_entropy_canvas_op_types =
         GetRecorderHighEntropyCanvasOpTypes();
-    FlushCanvas(reason);
-    // Its important to end read access and ref the resource before the WillDraw
-    // call below. Since it relies on resource ref-count to trigger
-    // copy-on-write and asserts that we only have write access when the
-    // provider has the only ref to the resource, to ensure there are no other
-    // readers.
-    EndWriteAccess();
-    if (!resource_) {
-      return nullptr;
-    }
-    scoped_refptr<CanvasResource> resource = resource_;
-    if (ContextProviderWrapper()
-            ->ContextProvider()
-            .GetCapabilities()
-            .disable_2d_canvas_copy_on_write) {
-      // A readback operation may alter the texture parameters, which may affect
-      // the compositor's behavior. Therefore, we must trigger copy-on-write
-      // even though we are not technically writing to the texture, only to its
-      // parameters. This issue is Android-WebView specific: crbug.com/585250.
-      WillDraw();
-      resource->GetSyncToken();
-    }
-
     if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
                                                 IsAccelerated())) {
-      resource->SetHighEntropyCanvasOpTypes(high_entropy_canvas_op_types);
+      output_resource->SetHighEntropyCanvasOpTypes(
+          high_entropy_canvas_op_types);
     }
-    return resource;
+    FlushCanvas(reason);
+
+    // Note that the resource *must* be a CanvasResourceSharedImage as this
+    // class creates CanvasResourceSharedImage instances exclusively.
+    static_cast<CanvasResourceSharedImage*>(output_resource.get())
+        ->UploadSoftwareRenderingResults(GetSkSurface());
+
+    return output_resource;
   }
 
-  scoped_refptr<StaticBitmapImage> Snapshot(
-      FlushReason reason,
-      ImageOrientation orientation) override {
-    TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::Snapshot");
-    if (!IsValid())
-      return nullptr;
-
-    // We don't need to EndWriteAccess here since that's required to make the
-    // rendering results visible on the GpuMemoryBuffer while we return cpu
-    // memory, rendererd to by skia, here.
-    if (!is_accelerated_)
-      return SnapshotInternal(orientation, reason);
-
-    if (!cached_snapshot_) {
-      // Getting the high entropy canvas operations should be done before
-      // flushing the canvas as flushing discards the recording (including the
-      // associated HighEntropyCanvasOpTypes).
-      HighEntropyCanvasOpType high_entropy_canvas_op_types =
-          GetRecorderHighEntropyCanvasOpTypes();
-      FlushCanvas(reason);
-      EndWriteAccess();
-      cached_snapshot_ = resource_->Bitmap();
-      if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
-                                                  IsAccelerated())) {
-        cached_snapshot_->SetHighEntropyCanvasOpTypes(
-            high_entropy_canvas_op_types);
-      }
-
-      // We'll record its content_id to be used by the FlushForImageListener.
-      // This will be needed in WillDrawInternal, but we are doing it now, as we
-      // don't know if later on we will be in the same thread the
-      // cached_snapshot_ was created and we wouldn't be able to
-      // PaintImageForCurrentFrame in AcceleratedStaticBitmapImage just to check
-      // the content_id. ShouldReplaceTargetBuffer needs this ID in order to let
-      // other contexts know to flush to avoid unnecessary copy-on-writes.
-      if (cached_snapshot_) {
-        cached_content_id_ =
-            cached_snapshot_->PaintImageForCurrentFrame().GetContentIdForFrame(
-                0u);
-      }
-    }
-
-    DCHECK(cached_snapshot_);
-    DCHECK(!current_resource_has_write_access_);
-    return cached_snapshot_;
+  if (IsGpuContextLost()) {
+    return nullptr;
   }
 
-  void WillDrawInternal(bool write_to_local_texture) {
-    DCHECK(resource_);
+  // Getting the high entropy canvas operations should be done before
+  // flushing the canvas as flushing discards the recording (including the
+  // associated HighEntropyCanvasOpTypes).
+  HighEntropyCanvasOpType high_entropy_canvas_op_types =
+      GetRecorderHighEntropyCanvasOpTypes();
+  FlushCanvas(reason);
+  // Its important to end read access and ref the resource before the WillDraw
+  // call below. Since it relies on resource ref-count to trigger
+  // copy-on-write and asserts that we only have write access when the
+  // provider has the only ref to the resource, to ensure there are no other
+  // readers.
+  EndWriteAccess();
+  if (!resource_) {
+    return nullptr;
+  }
+  scoped_refptr<CanvasResource> resource = resource_;
+  if (ContextProviderWrapper()
+          ->ContextProvider()
+          .GetCapabilities()
+          .disable_2d_canvas_copy_on_write) {
+    // A readback operation may alter the texture parameters, which may affect
+    // the compositor's behavior. Therefore, we must trigger copy-on-write
+    // even though we are not technically writing to the texture, only to its
+    // parameters. This issue is Android-WebView specific: crbug.com/585250.
+    WillDraw();
+    resource->GetSyncToken();
+  }
 
-    if (IsGpuContextLost())
-      return;
+  if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
+                                              IsAccelerated())) {
+    resource->SetHighEntropyCanvasOpTypes(high_entropy_canvas_op_types);
+  }
+  return resource;
+}
 
-    // Since the resource will be updated, the cached snapshot is no longer
-    // valid. Note that it is important to release this reference here to not
-    // trigger copy-on-write below from the resource ref in the snapshot.
-    // Note that this is valid for single buffered mode also, since while the
-    // resource/mailbox remains the same, the snapshot needs an updated sync
-    // token for these writes.
+bool CanvasResourceProviderSharedImage::IsSoftwareSharedImageGpuChannelLost()
+    const {
+  if (!is_software_) {
+    return false;
+  }
+
+  return !shared_image_interface_provider_ ||
+         !shared_image_interface_provider_->SharedImageInterface();
+}
+
+bool CanvasResourceProviderSharedImage::IsValid() const {
+  if (is_software_) {
+    return !IsSoftwareSharedImageGpuChannelLost() && GetSkSurface();
+  }
+
+  if (!use_oop_rasterization_) {
+    return GetSkSurface() && !IsGpuContextLost();
+  } else {
+    return !IsGpuContextLost();
+  }
+}
+
+bool CanvasResourceProviderSharedImage::IsSingleBuffered() const {
+  return shared_image_usage_flags_.Has(
+      gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE);
+}
+bool CanvasResourceProviderSharedImage::HasUnusedResourcesForTesting() const {
+  if (IsSingleBuffered()) {
+    return false;
+  }
+  return !unused_resources_.empty();
+}
+
+scoped_refptr<gpu::ClientSharedImage>
+CanvasResourceProviderSharedImage::GetBackingClientSharedImageForExternalWrite(
+    gpu::SharedImageUsageSet required_shared_image_usages,
+    gpu::SyncToken& internal_access_sync_token,
+    bool* was_copy_performed) {
+  // This may cause the current resource and all cached resources to become
+  // unusable. WillDrawInternal() will detect this case, drop all cached
+  // resources, and copy the current resource to a newly-created resource
+  // which will by definition be usable.
+  shared_image_usage_flags_.PutAll(required_shared_image_usages);
+
+  DCHECK(is_accelerated_);
+
+  if (IsGpuContextLost()) {
+    return nullptr;
+  }
+
+  // End the internal write access before calling WillDrawInternal(), which
+  // has a precondition that there should be no current write access on the
+  // resource.
+  EndWriteAccess();
+
+  const CanvasResource* const original_resource = resource_.get();
+  WillDrawInternal(false);
+  if (was_copy_performed != nullptr) {
+    *was_copy_performed = resource_.get() != original_resource;
+  }
+
+  // NOTE: The above invocation of WillDrawInternal() ensures that this
+  // invocation of GetSyncToken() will generate a new sync token.
+  internal_access_sync_token = resource_->GetSyncToken();
+
+  return resource_->GetClientSharedImage();
+}
+
+void CanvasResourceProviderSharedImage::EndExternalWrite(
+    const gpu::SyncToken& external_write_sync_token) {
+  resource()->EndExternalWrite(external_write_sync_token);
+}
+
+gpu::SharedImageUsageSet
+CanvasResourceProviderSharedImage::GetSharedImageUsageFlags() const {
+  return shared_image_usage_flags_;
+}
+
+void CanvasResourceProviderSharedImage::ExternalCanvasDrawHelper(
+    base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback) {
+  if (base::FeatureList::IsEnabled(blink::kSkipRedundantWillDraw)) {
     cached_snapshot_.reset();
-
-    // Determine if a copy is needed for accelerated resources. This could be
-    // for one of two reasons: (1) copy-on-write is required, or (2) the
-    // SharedImage usages with which this provider should create resources has
-    // changed since this resource was created (this can occur, for example,
-    // when a client requests the backing ClientSharedImage with a specific
-    // required set of usages for an external write). Note that for
-    // unaccelerated resources, neither of these apply: writes to the
-    // SharedImage are deferred to ProduceCanvasResource and hence
-    // copy-on-write is never needed here, and the set of SharedImage usages
-    // doesn't change over the lifetime of the provider.
-    if (is_accelerated_ && (ShouldReplaceTargetBuffer(cached_content_id_) ||
-                            !IsResourceUsable(resource_.get()))) {
-      cached_content_id_ = PaintImage::kInvalidContentId;
-      DCHECK(!current_resource_has_write_access_)
-          << "Write access must be released before sharing the resource";
-
-      auto old_resource = std::move(resource_);
-      auto* old_resource_shared_image =
-          static_cast<CanvasResourceSharedImage*>(old_resource.get());
-
-      if (!IsResourceUsable(old_resource.get())) {
-        // If this resource has become unusable, all cached resources have also
-        // become unusable. Drop them to ensure that a new usable resource gets
-        // created in the below call to NewOrRecycledResource().
-        ClearUnusedResources();
-      }
-      resource_ = NewOrRecycledResource();
-      DCHECK(IsResourceUsable(resource_.get()));
-
-      if (!use_oop_rasterization_) {
-        TearDownSkSurface();
-      }
-
-      if (mode_ == SkSurface::kRetain_ContentChangeMode) {
-        auto old_mailbox =
-            old_resource_shared_image->GetClientSharedImage()->mailbox();
-        auto mailbox = resource()->GetClientSharedImage()->mailbox();
-
-        RasterInterface()->CopySharedImage(old_mailbox, mailbox, 0, 0, 0, 0,
-                                           Size().width(), Size().height());
-      } else if (use_oop_rasterization_) {
-        // If we're not copying over the previous contents, we need to ensure
-        // that the image is cleared on the next BeginRasterCHROMIUM.
-        is_cleared_ = false;
-      }
-
-      // In non-OOPR mode we need to update the client side SkSurface with the
-      // copied texture. Recreating SkSurface here matches the GPU process
-      // behaviour that will happen in OOPR mode.
-      if (!use_oop_rasterization_) {
-        EnsureWriteAccess();
-        GetSkSurface();
-      }
-      UMA_HISTOGRAM_BOOLEAN("Blink.Canvas.ContentChangeMode",
-                            mode_ == SkSurface::kRetain_ContentChangeMode);
-      mode_ = SkSurface::kRetain_ContentChangeMode;
-    }
-
-    if (write_to_local_texture)
-      EnsureWriteAccess();
-    else
-      EndWriteAccess();
-
-    if (resource()) {
-      resource()->WillDraw();
+  } else {
+    // TODO(crbug.com/40183122): Video frames don't work without this
+    // conditional WillDraw(), but we are getting memory leak on CreatePattern
+    // with it. There should be a better way to solve this.
+    if (cached_snapshot_) {
+      WillDraw();
     }
   }
 
-  void WillDraw() override {
-    if (is_software_) {
-      return;
-    }
-    WillDrawInternal(true);
+  draw_callback(Canvas());
+}
+
+scoped_refptr<StaticBitmapImage> CanvasResourceProviderSharedImage::Snapshot(
+    FlushReason reason,
+    ImageOrientation orientation) {
+  TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::Snapshot");
+  if (!IsValid()) {
+    return nullptr;
   }
 
-  void RasterRecord(cc::PaintRecord last_recording) override {
-    if (!use_oop_rasterization_) {
-      CanvasResourceProvider::RasterRecord(std::move(last_recording));
-      return;
-    }
-    WillDrawInternal(true);
-    const bool needs_clear = !is_cleared_;
-    is_cleared_ = true;
-    RasterRecordOOP(std::move(last_recording), needs_clear,
-                    resource()->GetClientSharedImage()->mailbox());
-    resource()->GetSyncToken();
+  // We don't need to EndWriteAccess here since that's required to make the
+  // rendering results visible on the GpuMemoryBuffer while we return cpu
+  // memory, rendererd to by skia, here.
+  if (!is_accelerated_) {
+    return SnapshotInternal(orientation, reason);
   }
 
-  bool ShouldReplaceTargetBuffer(
-      PaintImage::ContentId content_id = PaintImage::kInvalidContentId) {
-    // If the canvas is single buffered, concurrent read/writes to the resource
-    // are allowed. Note that we ignore the resource lost case as well since
-    // that only indicates that we did not get a sync token for read/write
-    // synchronization which is not a requirement for single buffered canvas.
-    if (IsSingleBuffered())
-      return false;
-
-    // If the resource was lost, we can not use it for writes again.
-    if (resource()->IsLost())
-      return true;
-
-    // We have the only ref to the resource which implies there are no active
-    // readers.
-    if (resource_->HasOneRef())
-      return false;
-
-    // Its possible to have deferred work in skia which uses this resource. Try
-    // flushing once to see if that releases the read refs. We can avoid a copy
-    // by queuing this work before writing to this resource.
-    if (is_accelerated_) {
-      // Another context may have a read reference to this resource. Flush the
-      // deferred queue in that context so that we don't need to copy.
-      GetFlushForImageListener()->NotifyFlushForImage(content_id);
-
-      if (!use_oop_rasterization_) {
-        skgpu::ganesh::FlushAndSubmit(surface_);
-      }
+  if (!cached_snapshot_) {
+    // Getting the high entropy canvas operations should be done before
+    // flushing the canvas as flushing discards the recording (including the
+    // associated HighEntropyCanvasOpTypes).
+    HighEntropyCanvasOpType high_entropy_canvas_op_types =
+        GetRecorderHighEntropyCanvasOpTypes();
+    FlushCanvas(reason);
+    EndWriteAccess();
+    cached_snapshot_ = resource_->Bitmap();
+    if (ShouldPropagateHighEntropyCanvasOpTypes(high_entropy_canvas_op_types,
+                                                IsAccelerated())) {
+      cached_snapshot_->SetHighEntropyCanvasOpTypes(
+          high_entropy_canvas_op_types);
     }
 
-    return !resource_->HasOneRef();
+    // We'll record its content_id to be used by the FlushForImageListener.
+    // This will be needed in WillDrawInternal, but we are doing it now, as we
+    // don't know if later on we will be in the same thread the
+    // cached_snapshot_ was created and we wouldn't be able to
+    // PaintImageForCurrentFrame in AcceleratedStaticBitmapImage just to check
+    // the content_id. ShouldReplaceTargetBuffer needs this ID in order to let
+    // other contexts know to flush to avoid
+    // CanvasResourceProviderSharedImage::unnecessary copy-on-writes.
+    if (cached_snapshot_) {
+      cached_content_id_ =
+          cached_snapshot_->PaintImageForCurrentFrame().GetContentIdForFrame(
+              0u);
+    }
   }
 
-  sk_sp<SkSurface> CreateSkSurface() const override {
-    TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::CreateSkSurface");
-    if (is_software_) {
-      const auto props = GetSkSurfaceProps();
-      return SkSurfaces::Raster(GetSkImageInfo(), &props);
-    }
+  DCHECK(cached_snapshot_);
+  DCHECK(!current_resource_has_write_access_);
+  return cached_snapshot_;
+}
 
-    if (IsGpuContextLost() || !resource_) {
-      return nullptr;
-    }
+void CanvasResourceProviderSharedImage::RasterRecord(
+    cc::PaintRecord last_recording) {
+  if (!use_oop_rasterization_) {
+    CanvasResourceProvider::RasterRecord(std::move(last_recording));
+    return;
+  }
+  WillDrawInternal(true);
+  const bool needs_clear = !is_cleared_;
+  is_cleared_ = true;
+  RasterRecordOOP(std::move(last_recording), needs_clear,
+                  resource()->GetClientSharedImage()->mailbox());
+  resource()->GetSyncToken();
+}
 
+sk_sp<SkSurface> CanvasResourceProviderSharedImage::CreateSkSurface() const {
+  TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::CreateSkSurface");
+  if (is_software_) {
     const auto props = GetSkSurfaceProps();
-    if (is_accelerated_) {
-      return SkSurfaces::WrapBackendTexture(
-          GetGrContext(), CreateGrTextureForResource(),
-          kTopLeft_GrSurfaceOrigin, 0 /* msaa_sample_count */,
-          GetSkImageInfo().colorType(), GetSkImageInfo().refColorSpace(),
-          &props);
-    }
-
-    // For software raster path, we render into cpu memory managed internally
-    // by SkSurface and copy the rendered results to the GMB before dispatching
-    // it to the display compositor.
-    return SkSurfaces::Raster(resource_->CreateSkImageInfo(), &props);
+    return SkSurfaces::Raster(GetSkImageInfo(), &props);
   }
 
-  GrBackendTexture CreateGrTextureForResource() const {
-    DCHECK(is_accelerated_);
-
-    return resource()->CreateGrTexture();
+  if (IsGpuContextLost() || !resource_) {
+    return nullptr;
   }
 
-  void FlushGrContext() {
-    DCHECK(is_accelerated_);
-
-    // The resource may have been imported and used in skia. Make sure any
-    // operations using this resource are flushed to the underlying context.
-    // Note that its not sufficient to flush the SkSurface here since it will
-    // only perform a GrContext flush if that SkSurface has any pending ops. And
-    // this resource may be written to or read from skia without using the
-    // SkSurface here.
-    if (IsGpuContextLost())
-      return;
-    GetGrContext()->flushAndSubmit();
+  const auto props = GetSkSurfaceProps();
+  if (is_accelerated_) {
+    // No longer supported post-OOP-C.
+    // TODO(crbug.com/391648152): Replace this conditional with a
+    // CHECK.
+    return nullptr;
   }
 
-  void EnsureWriteAccess() {
-    DCHECK(resource_);
-    // In software mode, we don't need write access to the resource during
-    // drawing since it is executed on cpu memory managed by skia. We ensure
-    // exclusive access to the resource when the results are copied onto the
-    // GMB in EndWriteAccess.
-    DCHECK(resource_->HasOneRef() || IsSingleBuffered() || !is_accelerated_)
-        << "Write access requires exclusive access to the resource";
-    DCHECK(!resource()->is_cross_thread())
-        << "Write access is only allowed on the owning thread";
+  // For software raster path, we render into cpu memory managed internally
+  // by SkSurface and copy the rendered results to the GMB before dispatching
+  // it to the display compositor.
+  return SkSurfaces::Raster(resource_->CreateSkImageInfo(), &props);
+}
 
-    if (current_resource_has_write_access_ || IsGpuContextLost())
-      return;
+GrBackendTexture CanvasResourceProviderSharedImage::CreateGrTextureForResource()
+    const {
+  DCHECK(is_accelerated_);
 
-    if (is_accelerated_ && !use_oop_rasterization_) {
-      resource()->BeginWriteAccess();
-    }
+  return resource()->CreateGrTexture();
+}
 
-    // For the non-accelerated path, we don't need a texture for writes since
-    // its on the CPU, but we set this bit to know whether the GMB needs to be
-    // updated.
-    current_resource_has_write_access_ = true;
+// For WebGpu RecyclableCanvasResource.
+void CanvasResourceProviderSharedImage::OnAcquireRecyclableCanvasResource() {
+  EnsureWriteAccess();
+}
+void CanvasResourceProviderSharedImage::OnDestroyRecyclableCanvasResource(
+    const gpu::SyncToken& sync_token) {
+  // RecyclableCanvasResource should be the only one that holds onto
+  // |resource_|.
+  DCHECK(resource_->HasOneRef());
+  resource_->WaitSyncToken(sync_token);
+}
+
+void CanvasResourceProviderSharedImage::OnFlushForImage(
+    cc::PaintImage::ContentId content_id) {
+  CanvasResourceProvider::OnFlushForImage(content_id);
+  if (cached_snapshot_ &&
+      cached_snapshot_->PaintImageForCurrentFrame().GetContentIdForFrame(0) ==
+          content_id) {
+    // This handles the case where the cached snapshot is referenced by an
+    // ImageBitmap that is being transferred to a worker.
+    cached_snapshot_.reset();
+  }
+}
+
+void CanvasResourceProviderSharedImage::OnMemoryDump(
+    base::trace_event::ProcessMemoryDump* pmd) {
+  if (is_software_) {
+    // This class creates software SharedImages only on demand and might not
+    // have one here - invoke the base class implementation of this method
+    // instead.
+    CanvasResourceProvider::OnMemoryDump(pmd);
+    return;
   }
 
-  void EndWriteAccess() {
-    DCHECK(!resource()->is_cross_thread());
+  std::string path = base::StringPrintf("canvas/ResourceProvider_0x%" PRIXPTR,
+                                        reinterpret_cast<uintptr_t>(this));
 
-    if (!current_resource_has_write_access_ || IsGpuContextLost())
-      return;
+  resource()->OnMemoryDump(pmd, path);
 
-    if (is_accelerated_) {
-      // We reset |mode_| here since the draw commands which overwrite the
-      // complete canvas must have been flushed at this point without triggering
-      // copy-on-write.
-      mode_ = SkSurface::kRetain_ContentChangeMode;
-
-      if (!use_oop_rasterization_) {
-        // Issue any skia work using this resource before releasing write
-        // access.
-        FlushGrContext();
-        resource()->EndWriteAccess();
-      }
-    } else {
-      // Currently we never use OOP raster when the resource is not accelerated
-      // so we check that assumption here.
-      DCHECK(!use_oop_rasterization_);
-      if (ShouldReplaceTargetBuffer())
-        resource_ = NewOrRecycledResource();
-      if (!resource() || !GetSkSurface()) {
-        return;
-      }
-      resource()->UploadSoftwareRenderingResults(GetSkSurface());
-    }
-
-    current_resource_has_write_access_ = false;
+  std::string cached_path = path + "/cached";
+  for (const auto& unused_resource : unused_resources_) {
+    auto* resource_pointer =
+        static_cast<CanvasResourceSharedImage*>(unused_resource.resource.get());
+    resource_pointer->OnMemoryDump(pmd, cached_path);
   }
-
-  // For WebGpu RecyclableCanvasResource.
-  void OnAcquireRecyclableCanvasResource() override { EnsureWriteAccess(); }
-  void OnDestroyRecyclableCanvasResource(
-      const gpu::SyncToken& sync_token) override {
-    // RecyclableCanvasResource should be the only one that holds onto
-    // |resource_|.
-    DCHECK(resource_->HasOneRef());
-    resource_->WaitSyncToken(sync_token);
-  }
-
-  void OnFlushForImage(cc::PaintImage::ContentId content_id) override {
-    CanvasResourceProvider::OnFlushForImage(content_id);
-    if (cached_snapshot_ &&
-        cached_snapshot_->PaintImageForCurrentFrame().GetContentIdForFrame(0) ==
-            content_id) {
-      // This handles the case where the cached snapshot is referenced by an
-      // ImageBitmap that is being transferred to a worker.
-      cached_snapshot_.reset();
-    }
-  }
-
- private:
-  void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) override {
-    if (is_software_) {
-      // This class creates software SharedImages only on demand and might not
-      // have one here - invoke the base class implementation of this method
-      // instead.
-      CanvasResourceProvider::OnMemoryDump(pmd);
-      return;
-    }
-
-    std::string path = base::StringPrintf("canvas/ResourceProvider_0x%" PRIXPTR,
-                                          reinterpret_cast<uintptr_t>(this));
-
-    resource()->OnMemoryDump(pmd, path);
-
-    std::string cached_path = path + "/cached";
-    for (const auto& unused_resource : unused_resources_) {
-      auto* resource_pointer = static_cast<CanvasResourceSharedImage*>(
-          unused_resource.resource.get());
-      resource_pointer->OnMemoryDump(pmd, cached_path);
-    }
-  }
-
-  base::WeakPtr<CanvasResourceProviderSharedImage> CreateWeakPtr() override {
-    return weak_ptr_factory_.GetWeakPtr();
-  }
-
-  base::WeakPtrFactory<CanvasResourceProviderSharedImageImpl> weak_ptr_factory_{
-      this};
-};
+}
 
 // * Renders to back buffer of a shared image swap chain.
 // * Presents swap chain and exports front buffer mailbox to compositor to
@@ -1135,25 +1052,9 @@ class CanvasResourceProviderSwapChain final : public CanvasResourceProvider {
 
   sk_sp<SkSurface> CreateSkSurface() const override {
     TRACE_EVENT0("blink", "CanvasResourceProviderSwapChain::CreateSkSurface");
-    if (IsGpuContextLost() || !resource_)
-      return nullptr;
 
-    GrGLTextureInfo texture_info = {};
-    texture_info.fID = resource_->GetBackBufferTextureId();
-    texture_info.fTarget =
-        resource_->GetBackBufferClientSharedImage()->GetTextureTarget();
-    texture_info.fFormat =
-        ContextProviderWrapper()->ContextProvider().GetGrGLTextureFormat(
-            GetSharedImageFormat());
-
-    auto backend_texture = GrBackendTextures::MakeGL(
-        Size().width(), Size().height(), skgpu::Mipmapped::kNo, texture_info);
-
-    const auto props = GetSkSurfaceProps();
-    return SkSurfaces::WrapBackendTexture(
-        GetGrContext(), backend_texture, kTopLeft_GrSurfaceOrigin,
-        0 /* msaa_sample_count */, GetSkImageInfo().colorType(),
-        GetSkImageInfo().refColorSpace(), &props);
+    // No longer supported post-OOP-C.
+    return nullptr;
   }
 
   void RasterRecord(cc::PaintRecord last_recording) override {
@@ -1196,11 +1097,6 @@ class CanvasResourceProviderSwapChain final : public CanvasResourceProvider {
     if (needs_flush_) {
       // This only flushes recorded draw ops.
       FlushCanvas(reason);
-      // Call flushAndSubmit() explicitly so that any non-draw-op rendering by
-      // Skia is flushed to GL.  This is needed specifically for WritePixels().
-      if (!use_oop_rasterization_)
-        GetGrContext()->flushAndSubmit();
-
       needs_flush_ = false;
     }
   }
@@ -1258,7 +1154,7 @@ CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
   CHECK(format == viz::SharedImageFormat::N32Format() ||
         format == viz::SinglePlaneFormat::kRGBA_F16);
 
-  auto provider = std::make_unique<CanvasResourceProviderSharedImageImpl>(
+  auto provider = std::make_unique<CanvasResourceProviderSharedImage>(
       size, format, alpha_type, color_space, shared_image_interface_provider,
       delegate);
   if (provider->IsValid()) {
@@ -1293,6 +1189,7 @@ CanvasResourceProvider::CreateSharedImageProvider(
   // If the context is lost we don't want to re-create it here, the resulting
   // resource provider would be invalid anyway
   if (!context_provider_wrapper ||
+      !context_provider_wrapper->ContextProvider().RasterInterface() ||
       context_provider_wrapper->ContextProvider().IsContextLost()) {
     return nullptr;
   }
@@ -1378,7 +1275,7 @@ CanvasResourceProvider::CreateSharedImageProvider(
   }
 #endif
 
-  auto provider = std::make_unique<CanvasResourceProviderSharedImageImpl>(
+  auto provider = std::make_unique<CanvasResourceProviderSharedImage>(
       size, format, alpha_type, color_space, context_provider_wrapper,
       is_accelerated, shared_image_usage_flags, delegate);
   if (provider->IsValid()) {
@@ -1865,12 +1762,6 @@ gpu::raster::RasterInterface* CanvasResourceProvider::RasterInterface() const {
   return context_provider_wrapper_->ContextProvider().RasterInterface();
 }
 
-GrDirectContext* CanvasResourceProvider::GetGrContext() const {
-  if (!context_provider_wrapper_)
-    return nullptr;
-  return context_provider_wrapper_->ContextProvider().GetGrContext();
-}
-
 SkSurfaceProps CanvasResourceProvider::GetSkSurfaceProps() const {
   const bool can_use_lcd_text = GetAlphaType() == kOpaque_SkAlphaType;
   return skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
@@ -2046,11 +1937,6 @@ void CanvasResourceProvider::RestoreBackBuffer(const cc::PaintImage& image) {
   // PaintImage::GetSwSkImage above
   sk_image->peekPixels(&map);
   WritePixels(map.info(), map.addr(), map.rowBytes(), /*x=*/0, /*y=*/0);
-}
-
-void CanvasResourceProvider::TearDownSkSurface() {
-  skia_canvas_ = nullptr;
-  surface_ = nullptr;
 }
 
 size_t CanvasResourceProvider::ComputeSurfaceSize() const {

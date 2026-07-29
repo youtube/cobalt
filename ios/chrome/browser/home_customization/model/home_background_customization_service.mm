@@ -84,16 +84,6 @@ HomeBackgroundCustomizationService::HomeBackgroundCustomizationService(
   pref_change_registrar_.Add(prefs::kNTPCustomBackgroundEnabledByPolicy,
                              callback);
 
-  // If the theme color is managed by an enterprise policy, this takes
-  // precedence over any user-selected theme. The background is set to the
-  // policy-defined color.
-  if (pref_service_->IsManagedPreference(themes::prefs::kPolicyThemeColor)) {
-    SetBackgroundColor(
-        pref_service_->GetInteger(themes::prefs::kPolicyThemeColor),
-        sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
-    return;
-  }
-
   LoadCurrentTheme();
 
   const base::Value::List& recently_used_backgrounds_list =
@@ -112,7 +102,10 @@ HomeBackgroundCustomizationService::HomeBackgroundCustomizationService(
     return;
   }
 
-  for (const base::Value& background_value : recently_used_backgrounds_list) {
+  // recently_used_backgrounds_ is an LRU cache, so the items need to be added
+  // in reverse order, so the oldest item is added first.
+  for (const base::Value& background_value :
+       base::Reversed(recently_used_backgrounds_list)) {
     if (background_value.is_string()) {
       recently_used_backgrounds_.Put(
           DecodeThemeSpecificsIos(background_value.GetString()));
@@ -193,6 +186,16 @@ HomeBackgroundCustomizationService::GetCurrentColorTheme() {
     return std::nullopt;
   }
 
+  // If policy theme is managed, just return that and bypass all local data.
+  if (pref_service_->IsManagedPreference(themes::prefs::kPolicyThemeColor)) {
+    sync_pb::UserColorTheme theme;
+    theme.set_color(
+        pref_service_->GetInteger(themes::prefs::kPolicyThemeColor));
+    theme.set_browser_color_variant(
+        sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
+    return theme;
+  }
+
   if (!current_theme_.has_user_color_theme()) {
     return std::nullopt;
   }
@@ -201,6 +204,10 @@ HomeBackgroundCustomizationService::GetCurrentColorTheme() {
 
 std::vector<RecentlyUsedBackground>
 HomeBackgroundCustomizationService::GetRecentlyUsedBackgrounds() {
+  if (IsCustomizationDisabledOrColorManagedByPolicy()) {
+    return {};
+  }
+
   std::vector<RecentlyUsedBackground> backgrounds;
   for (const RecentlyUsedBackgroundInternal& background :
        recently_used_backgrounds_) {
@@ -246,7 +253,7 @@ void HomeBackgroundCustomizationService::SetBackgroundColor(
     return;
   }
 
-  if (!pref_service_->GetBoolean(prefs::kNTPCustomBackgroundEnabledByPolicy)) {
+  if (IsCustomizationDisabledOrColorManagedByPolicy()) {
     return;
   }
 
@@ -345,7 +352,7 @@ void HomeBackgroundCustomizationService::StoreRecentlyUsedBackgroundsList() {
 
   base::Value::List recently_used_backgrounds_list;
   for (const RecentlyUsedBackgroundInternal& background :
-       base::Reversed(recently_used_backgrounds_)) {
+       recently_used_backgrounds_) {
     if (std::holds_alternative<sync_pb::ThemeSpecificsIos>(background)) {
       sync_pb::ThemeSpecificsIos theme =
           std::get<sync_pb::ThemeSpecificsIos>(background);
@@ -566,22 +573,7 @@ void HomeBackgroundCustomizationService::OnPolicyPrefsChanged(
   CHECK(themes::prefs::kPolicyThemeColor == name ||
         prefs::kNTPCustomBackgroundEnabledByPolicy == name);
 
-  // If the policy to enable custom backgrounds is set to false, clear any
-  // existing background and disable further customization.
-  if (!pref_service_->GetBoolean(prefs::kNTPCustomBackgroundEnabledByPolicy)) {
-    ClearCurrentBackground();
-    return;
-  }
-
-  // If a theme color is enforced by policy, set the background to that color.
-  if (pref_service_->IsManagedPreference(themes::prefs::kPolicyThemeColor)) {
-    SetBackgroundColor(
-        pref_service_->GetInteger(themes::prefs::kPolicyThemeColor),
-        sync_pb::UserColorTheme_BrowserColorVariant_TONAL_SPOT);
-    return;
-  }
-
-  // If policies are removed, restore the user's previously selected theme.
-  RestoreCurrentTheme();
+  // When policy changes, background may change, so make sure observers are
+  // updated.
   NotifyObserversOfBackgroundChange();
 }

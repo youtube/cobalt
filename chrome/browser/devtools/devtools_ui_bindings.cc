@@ -1977,6 +1977,10 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
 #else
   gdp_profiles_availability_dict.Set("enabled", false);
 #endif
+  gdp_profiles_availability_dict.Set(
+      "enterprisePolicyValue",
+      profile_->GetPrefs()->GetInteger(
+          prefs::kDevToolsGoogleDeveloperProgramProfileAvailability));
   response_dict.Set("devToolsGdpProfilesAvailability",
                     std::move(gdp_profiles_availability_dict));
 
@@ -1990,6 +1994,13 @@ void DevToolsUIBindings::GetHostConfig(DispatchCallback callback) {
       base::Value::Dict().Set(
           "enabled", base::FeatureList::IsEnabled(
                          ::features::kDevToolsIndividualRequestThrottling)));
+
+  base::Value::Dict starting_style_debugging;
+  starting_style_debugging.Set(
+      "enabled", base::FeatureList::IsEnabled(
+                     ::features::kDevToolsStartingStyleDebugging));
+  response_dict.Set("devToolsStartingStyleDebugging",
+                    std::move(starting_style_debugging));
 
   base::Value response = base::Value(std::move(response_dict));
   std::move(callback).Run(&response);

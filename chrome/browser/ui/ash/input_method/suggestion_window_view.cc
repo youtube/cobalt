@@ -79,10 +79,10 @@ SuggestionWindowView* SuggestionWindowView::Create(gfx::NativeView parent,
   return view;
 }
 
-std::unique_ptr<views::NonClientFrameView>
-SuggestionWindowView::CreateNonClientFrameView(views::Widget* widget) {
-  std::unique_ptr<views::NonClientFrameView> frame =
-      views::BubbleDialogDelegateView::CreateNonClientFrameView(widget);
+std::unique_ptr<views::FrameView> SuggestionWindowView::CreateFrameView(
+    views::Widget* widget) {
+  std::unique_ptr<views::FrameView> frame =
+      views::BubbleDialogDelegateView::CreateFrameView(widget);
   static_cast<views::BubbleFrameView*>(frame.get())
       ->SetBubbleBorder(GetBorderForWindow(WindowBorderType::Suggestion));
   return frame;

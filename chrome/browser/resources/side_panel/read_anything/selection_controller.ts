@@ -3,37 +3,110 @@
 // found in the LICENSE file.
 import {NodeStore} from './node_store.js';
 
-export interface SelectionWithIds {
+interface SelectionWithIds {
   anchorNodeId?: number;
   anchorOffset: number;
   focusNodeId?: number;
   focusOffset: number;
 }
 
+export interface SelectionEndpoint {
+  nodeId?: number;
+  offset: number;
+}
+
 // Handles the business logic for selection in the Reading mode panel.
 export class SelectionController {
   private nodeStore_: NodeStore = NodeStore.getInstance();
   private scrollingOnSelection_: boolean = false;
+  private currentSelection_: Selection|null = null;
 
-  getSelectionAdjustedForHighlights(
+  hasSelection(): boolean {
+    const selection = this.currentSelection_;
+    return (selection !== null) &&
+        (selection.anchorNode !== selection.focusNode ||
+         selection.anchorOffset !== selection.focusOffset);
+  }
+
+  getCurrentSelectionStart(): SelectionEndpoint {
+    const anchorNodeId = chrome.readingMode.startNodeId;
+    const anchorOffset = chrome.readingMode.startOffset;
+    const focusNodeId = chrome.readingMode.endNodeId;
+    const focusOffset = chrome.readingMode.endOffset;
+
+    // If only one of the ids is present, use that one.
+    let startingNodeId: number|undefined =
+        anchorNodeId ? anchorNodeId : focusNodeId;
+    let startingOffset = anchorNodeId ? anchorOffset : focusOffset;
+    // If both are present, start with the node that is sooner in the page.
+    if (anchorNodeId && focusNodeId) {
+      const selection = this.currentSelection_;
+      if (anchorNodeId === focusNodeId) {
+        startingOffset = Math.min(anchorOffset, focusOffset);
+      } else if (selection && selection.anchorNode && selection.focusNode) {
+        const pos =
+            selection.anchorNode.compareDocumentPosition(selection.focusNode);
+        const focusIsFirst = pos === Node.DOCUMENT_POSITION_PRECEDING;
+        startingNodeId = focusIsFirst ? focusNodeId : anchorNodeId;
+        startingOffset = focusIsFirst ? focusOffset : anchorOffset;
+      }
+    }
+
+    return {nodeId: startingNodeId, offset: startingOffset};
+  }
+
+  onSelectionChange(selection: Selection|null) {
+    this.currentSelection_ = selection;
+    if ((selection === null) || !selection.anchorNode || !selection.focusNode) {
+      // The selection was collapsed by clicking inside the selection.
+      chrome.readingMode.onCollapseSelection();
+      return;
+    }
+
+    const {anchorNodeId, anchorOffset, focusNodeId, focusOffset} =
+        this.getSelectionIds_(
+            selection.anchorNode, selection.anchorOffset, selection.focusNode,
+            selection.focusOffset);
+    if (!anchorNodeId || !focusNodeId) {
+      return;
+    }
+
+    // Only send this selection to the main panel if it is different than the
+    // current main panel selection.
+    const mainPanelAnchor =
+        this.nodeStore_.getDomNode(chrome.readingMode.startNodeId);
+    const mainPanelFocus =
+        this.nodeStore_.getDomNode(chrome.readingMode.endNodeId);
+    if (!mainPanelAnchor || !mainPanelAnchor.contains(selection.anchorNode) ||
+        !mainPanelFocus || !mainPanelFocus.contains(selection.focusNode) ||
+        selection.anchorOffset !== chrome.readingMode.startOffset ||
+        selection.focusOffset !== chrome.readingMode.endOffset) {
+      chrome.readingMode.onSelectionChange(
+          anchorNodeId, anchorOffset, focusNodeId, focusOffset);
+    }
+  }
+
+  private getSelectionIds_(
       anchorNode: Node, anchorOffset: number, focusNode: Node,
       focusOffset: number): SelectionWithIds {
     let anchorNodeId = this.nodeStore_.getAxId(anchorNode);
     let focusNodeId = this.nodeStore_.getAxId(focusNode);
     let adjustedAnchorOffset = anchorOffset;
     let adjustedFocusOffset = focusOffset;
-    if (!anchorNodeId) {
-      const ancestor = this.nodeStore_.getAncestor(anchorNode);
-      if (ancestor) {
-        anchorNodeId = this.nodeStore_.getAxId(ancestor.node);
-        adjustedAnchorOffset += ancestor.offset;
+    if (chrome.readingMode.isReadAloudEnabled) {
+      if (!anchorNodeId) {
+        const ancestor = this.nodeStore_.getAncestor(anchorNode);
+        if (ancestor) {
+          anchorNodeId = this.nodeStore_.getAxId(ancestor.node);
+          adjustedAnchorOffset += ancestor.offset;
+        }
       }
-    }
-    if (!focusNodeId) {
-      const ancestor = this.nodeStore_.getAncestor(focusNode);
-      if (ancestor) {
-        focusNodeId = this.nodeStore_.getAxId(ancestor.node);
-        adjustedFocusOffset += ancestor.offset;
+      if (!focusNodeId) {
+        const ancestor = this.nodeStore_.getAncestor(focusNode);
+        if (ancestor) {
+          focusNodeId = this.nodeStore_.getAxId(ancestor.node);
+          adjustedFocusOffset += ancestor.offset;
+        }
       }
     }
     return {
@@ -49,8 +122,12 @@ export class SelectionController {
     this.scrollingOnSelection_ = false;
   }
 
-  updateSelection(selection: Selection) {
-    selection.removeAllRanges();
+  updateSelection(selectionToUpdate: Selection|null) {
+    if (!selectionToUpdate) {
+      return;
+    }
+
+    selectionToUpdate.removeAllRanges();
     const range = new Range();
     const startNodeId = chrome.readingMode.startNodeId;
     const endNodeId = chrome.readingMode.endNodeId;
@@ -108,11 +185,11 @@ export class SelectionController {
       range.setStart(startNode, startOffset);
       range.setEnd(endNode, endOffset);
     } catch (err) {
-      selection.removeAllRanges();
+      selectionToUpdate.removeAllRanges();
       return;
     }
 
-    selection.addRange(range);
+    selectionToUpdate.addRange(range);
 
     // Scroll the start node into view. ScrollIntoView is available on the
     // Element class.

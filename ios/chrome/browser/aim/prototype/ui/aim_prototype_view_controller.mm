@@ -7,10 +7,11 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/unguessable_token.h"
 #import "build/branding_buildflags.h"
-#import "ios/chrome/browser/aim/prototype/ui/aim_image_cell.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_input_item.h"
+#import "ios/chrome/browser/aim/prototype/ui/aim_input_item_cell.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_animation_context_provider.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_prototype_mutator.h"
+#import "ios/chrome/browser/omnibox/ui/text_field_view_containing.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -18,10 +19,8 @@
 #import "ios/public/provider/chrome/browser/glow_effect/glow_effect_api.h"
 
 namespace {
-/// The reuse identifier for the image cells in the carousel.
-NSString* const kImageCellReuseIdentifier = @"AIMImageCell";
-/// The maximum number of lines for the text view before it starts scrolling.
-const int kMaxLines = 5;
+/// The reuse identifier for the input item cells in the carousel.
+NSString* const kItemCellReuseIdentifier = @"AIMInputItemCell";
 /// The identifier for the main section of the collection view.
 NSString* const kMainSectionIdentifier = @"MainSection";
 
@@ -31,26 +30,18 @@ const CGFloat kInputPlateCornerRadius = 24.0f;
 const float kInputPlateShadowOpacity = 0.2f;
 /// The shadow radius for the input plate container.
 const CGFloat kInputPlateShadowRadius = 20.0f;
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-/// The size of the logo image view.
-const CGFloat kLogoImageSize = 24.0f;
-/// The spacing between the logo and the text view.
-const CGFloat kLogoTextViewSpacing = 6.0f;
-#endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS
-/// The size of the items in the carousel.
-const CGFloat kCarouselItemSize = 48.0f;
 /// The spacing between items in the carousel.
-const CGFloat kCarouselItemSpacing = 12.0f;
+const CGFloat kCarouselItemSpacing = 6.0f;
 /// The height of the carousel view.
-const CGFloat kCarouselHeight = 48.0f;
+const CGFloat kCarouselHeight = 36.0f;
 /// The height of the AIM mode button.
-const CGFloat kAIMButtonHeight = 32.0f;
+const CGFloat kAIMButtonHeight = 36.0f;
 /// The width of the AIM mode button.
 const CGFloat kAIMButtonWidth = 94.0f;
 /// The spacing for the horizontal buttons stack view.
-const CGFloat kButtonsStackViewSpacing = 18.0f;
+const CGFloat kButtonsStackViewSpacing = 6.0f;
 /// The spacing for the main vertical input plate stack view.
-const CGFloat kInputPlateStackViewSpacing = 6.0f;
+const CGFloat kInputPlateStackViewSpacing = 16.0f;
 /// The padding for the close button.
 const CGFloat kCloseButtonPadding = 16.0f;
 /// The horizontal and bottom padding for the input plate container.
@@ -58,27 +49,53 @@ const CGFloat kInputPlatePadding = 10.0f;
 /// The vertical padding for the input plate stack view.
 const CGFloat kInputPlateStackViewVerticalPadding = 10.0f;
 /// The leading padding for the input plate stack view.
-const CGFloat kInputPlateStackViewLeadingPadding = 20.0f;
+const CGFloat kInputPlateStackViewLeadingPadding = 10.0f;
 /// The trailing padding for the input plate stack view.
 const CGFloat kInputPlateStackViewTrailingPadding = 12.0f;
 /// The font size for the AIM mode button title.
 const CGFloat kAIMButtonFontSize = 14.0f;
 /// The point size for the symbols in the AIM mode button.
-const CGFloat kAIMButtonSymbolPointSize = 12.0f;
+const CGFloat kAIMButtonSymbolPointSize = 12;
 /// The width of the buttons created with `createButtonWithImage:`.
 const CGFloat kGenericButtonWidth = 24.0f;
 /// The height of the buttons created with `createButtonWithImage:`.
 const CGFloat kGenericButtonHeight = 32.0f;
+
 /// The duration for the glow effect.
 const CGFloat kGlowEffectDuration = 1.0f;
 /// The width of the glow effect border.
 const CGFloat kGlowEffectWidth = 4.0f;
+
+/// The top padding between the omnibox container and the mic button.
+const CGFloat kMicButtonTopPadding = 2.0f;
+/// The trailing padding between the omnibox container and the mic button.
+const CGFloat kMicButtonTrailingPadding = 5.0f;
+
+/// The size for the close button.
+const CGFloat kCloseButtonSize = 30.0f;
+/// The alpha for the close button.
+const CGFloat kCloseButtonAlpha = 0.6f;
+/// The fade view width.
+const CGFloat kFadeViewWidth = 30.0f;
+/// The duration for the AIM button animation.
+const CGFloat kAIMButtonAnimationDuration = 0.25f;
 }
 
-@interface AIMPrototypeViewController () <UITextViewDelegate>
+@interface AIMPrototypeViewController () <UITextViewDelegate,
+                                          AIMInputItemCellDelegate,
+                                          UICollectionViewDelegate>
 
 /// Whether the AI mode is enabled.
 @property(nonatomic, assign) BOOL AIModeEnabled;
+
+/// Whether the carousel is scrollable.
+@property(nonatomic, assign) BOOL shouldMinimizeAimButton;
+
+/// The width constraint for the AIM button.
+@property(nonatomic, strong) NSLayoutConstraint* aimButtonWidthConstraint;
+
+/// Edit view contained in `_omniboxContainer`.
+@property(nonatomic, strong) UIView<TextFieldViewContaining>* editView;
 
 @end
 
@@ -91,32 +108,81 @@ const CGFloat kGlowEffectWidth = 4.0f;
   UIView* _inputPlateContainerView;
   /// The stack view for the input plate.
   UIStackView* _inputPlateStackView;
-  /// The label used as a placeholder for the text view.
-  UILabel* _placeholderLabel;
-  /// The constraint for the height of the text view.
-  NSLayoutConstraint* _textViewHeightConstraint;
-  /// The text view for user input.
-  UITextView* _textView;
+
   /// The button to toggle AI mode.
   UIButton* _aimButton;
   /// The glow effect around the input plate container.
   UIView<GlowEffect>* _glowEffectView;
+  /// The mic button for voice search.
+  UIButton* _micButton;
+  /// The fade view for the carousel's leading edge.
+  UIView* _leadingCarouselFadeView;
+  /// The fade view for the carousel's trailing edge.
+  UIView* _trailingCarouselFadeView;
+  /// The carousel container.
+  UIView* _carouselContainer;
+  /// Wether or not the current tab is attachable.
+  BOOL _canAttachCurrentTab;
+  /// Container for the omnibox.
+  UIView* _omniboxContainer;
+  /// Container for the omnibox popup.
+  UIView* _omniboxPopupContainer;
+  /// A spacer view used in the stack view.
+  UIView* _spacerView;
 }
 
 /// AIMPrototypeAnimationContextProvider
 @synthesize inputPlateViewForAnimation = _inputPlateContainerView;
-@synthesize textViewForAnimation = _textView;
+
+- (instancetype)init {
+  self = [super init];
+  if (self) {
+    _omniboxContainer = [[UIView alloc] init];
+    _omniboxPopupContainer = [[UIView alloc] init];
+  }
+  return self;
+}
 
 - (void)viewDidLoad {
   [super viewDidLoad];
 
   // Close button
-  UIButton* closeButton = [UIButton buttonWithType:UIButtonTypeClose];
+  UIButton* closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
   closeButton.translatesAutoresizingMaskIntoConstraints = NO;
+  UIImageSymbolConfiguration* symbolConfiguration = [UIImageSymbolConfiguration
+      configurationWithPointSize:kCloseButtonSize
+                          weight:UIImageSymbolWeightRegular
+                           scale:UIImageSymbolScaleMedium];
+  UIImage* buttonImage =
+      SymbolWithPalette(DefaultSymbolWithConfiguration(kXMarkCircleFillSymbol,
+                                                       symbolConfiguration),
+                        @[
+                          [[UIColor tertiaryLabelColor]
+                              colorWithAlphaComponent:kCloseButtonAlpha],
+                          [UIColor tertiarySystemFillColor]
+                        ]);
+  [closeButton setImage:buttonImage forState:UIControlStateNormal];
+
   [closeButton addTarget:self
                   action:@selector(closeButtonTapped)
         forControlEvents:UIControlEventTouchUpInside];
   [self.view addSubview:closeButton];
+
+  // Omnibox popup container.
+  _omniboxPopupContainer.hidden = YES;
+  _omniboxPopupContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  [self.view addSubview:_omniboxPopupContainer];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_omniboxPopupContainer.topAnchor
+        constraintEqualToAnchor:closeButton.bottomAnchor],
+    [_omniboxPopupContainer.leadingAnchor
+        constraintEqualToAnchor:self.view.leadingAnchor],
+    [_omniboxPopupContainer.trailingAnchor
+        constraintEqualToAnchor:self.view.trailingAnchor],
+    [_omniboxPopupContainer.bottomAnchor
+        constraintEqualToAnchor:self.view.bottomAnchor],
+  ]];
 
   // --- Bottom Input Area ---
 
@@ -143,126 +209,104 @@ const CGFloat kGlowEffectWidth = 4.0f;
     AddSameConstraints(_inputPlateContainerView, _glowEffectView);
   }
 
-  // Text view
-  _textView = [[UITextView alloc] init];
-  _textView.translatesAutoresizingMaskIntoConstraints = NO;
-  _textView.font =
-      [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
-  _textView.backgroundColor = UIColor.clearColor;
-  _textView.delegate = self;
-  _textView.scrollEnabled = NO;
-  _textView.autocapitalizationType = UITextAutocapitalizationTypeNone;
-  _textView.autocorrectionType = UITextAutocorrectionTypeNo;
-  _textView.spellCheckingType = UITextSpellCheckingTypeNo;
-  _textView.contentInsetAdjustmentBehavior =
-      UIScrollViewContentInsetAdjustmentNever;
-  _textView.returnKeyType = UIReturnKeyGo;
-  _textView.enablesReturnKeyAutomatically = YES;
-
-  // Calculate the initial height of the text view using `sizeThatFits:`. This
-  // ensures the initial height is calculated using the exact same logic as the
-  // dynamic resizing, which prevents a "jump" when the first character is
-  // entered.
-  CGFloat initialHeight =
-      [_textView
-          sizeThatFits:CGSizeMake(_textView.frame.size.width, CGFLOAT_MAX)]
-          .height;
-  _textViewHeightConstraint =
-      [_textView.heightAnchor constraintEqualToConstant:initialHeight];
-  _textViewHeightConstraint.active = YES;
-
-  // Container view for the text view and logo.
-  UIView* textViewContainer = [[UIView alloc] init];
-  textViewContainer.translatesAutoresizingMaskIntoConstraints = NO;
-
-  // The placeholder is added to the container behind the text view. Its
-  // baseline provides a stable anchor for the logo, solving the issue of the
-  // text view's baseline being unavailable when there is no text.
-  _placeholderLabel = [[UILabel alloc] init];
-  _placeholderLabel.translatesAutoresizingMaskIntoConstraints = NO;
-  // TODO(crbug.com/40280872): Localize this string.
-  _placeholderLabel.text = @"Ask anything";
-  _placeholderLabel.font = _textView.font;
-  _placeholderLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
-  [textViewContainer addSubview:_placeholderLabel];
-  [textViewContainer addSubview:_textView];
-
-  // Align placeholder with the text view's content area by constraining it
-  // directly to the text view's frame and then adding the internal insets.
-  UIEdgeInsets textInsets = _textView.textContainerInset;
-  CGFloat linePadding = _textView.textContainer.lineFragmentPadding;
+  _omniboxContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  _micButton = [self
+      createButtonWithImage:DefaultSymbolWithPointSize(kMicrophoneSymbol,
+                                                       kSymbolActionPointSize)];
+  [_micButton addTarget:self
+                 action:@selector(micButtonTapped)
+       forControlEvents:UIControlEventTouchUpInside];
+  [_omniboxContainer addSubview:_micButton];
   [NSLayoutConstraint activateConstraints:@[
-    [_placeholderLabel.topAnchor constraintEqualToAnchor:_textView.topAnchor
-                                                constant:textInsets.top],
-    [_placeholderLabel.leadingAnchor
-        constraintEqualToAnchor:_textView.leadingAnchor
-                       constant:textInsets.left + linePadding],
+    [_micButton.topAnchor constraintEqualToAnchor:_omniboxContainer.topAnchor
+                                         constant:kMicButtonTopPadding],
+    [_micButton.widthAnchor constraintEqualToConstant:kGenericButtonWidth],
+    [_micButton.heightAnchor constraintEqualToConstant:kGenericButtonHeight],
+    [_micButton.trailingAnchor
+        constraintEqualToAnchor:_omniboxContainer.trailingAnchor
+                       constant:-kMicButtonTrailingPadding],
   ]];
-
-#if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
-  UIImageView* logoImageView = [[UIImageView alloc]
-      initWithImage:MakeSymbolMulticolor(CustomSymbolWithPointSize(
-                        kGoogleIconSymbol, kSymbolActionPointSize))];
-  logoImageView.contentMode = UIViewContentModeCenter;
-  logoImageView.translatesAutoresizingMaskIntoConstraints = NO;
-  [textViewContainer addSubview:logoImageView];
-
-  // Layout logo and text view within the container.
-  [NSLayoutConstraint activateConstraints:@[
-    [logoImageView.leadingAnchor
-        constraintEqualToAnchor:textViewContainer.leadingAnchor],
-    // Align to the placeholder's vertical center, which is stable and
-    // represents the center of the first line of text.
-    [logoImageView.centerYAnchor
-        constraintEqualToAnchor:_placeholderLabel.centerYAnchor],
-    [logoImageView.widthAnchor constraintEqualToConstant:kLogoImageSize],
-    [logoImageView.heightAnchor constraintEqualToConstant:kLogoImageSize],
-
-    [_textView.leadingAnchor
-        constraintEqualToAnchor:logoImageView.trailingAnchor
-                       constant:kLogoTextViewSpacing],
-    [_textView.trailingAnchor
-        constraintEqualToAnchor:textViewContainer.trailingAnchor],
-    [_textView.topAnchor constraintEqualToAnchor:textViewContainer.topAnchor],
-    [_textView.bottomAnchor
-        constraintEqualToAnchor:textViewContainer.bottomAnchor],
-  ]];
-#else
-  // If no logo, text view fills the container.
-  [NSLayoutConstraint activateConstraints:@[
-    [_textView.leadingAnchor
-        constraintEqualToAnchor:textViewContainer.leadingAnchor],
-    [_textView.trailingAnchor
-        constraintEqualToAnchor:textViewContainer.trailingAnchor],
-    [_textView.topAnchor constraintEqualToAnchor:textViewContainer.topAnchor],
-    [_textView.bottomAnchor
-        constraintEqualToAnchor:textViewContainer.bottomAnchor],
-  ]];
-#endif
 
   // Carousel view
   UICollectionViewFlowLayout* layout =
       [[UICollectionViewFlowLayout alloc] init];
   layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-  layout.itemSize = CGSizeMake(kCarouselItemSize, kCarouselItemSize);
+  layout.estimatedItemSize = UICollectionViewFlowLayoutAutomaticSize;
   layout.minimumLineSpacing = kCarouselItemSpacing;
   _carouselView = [[UICollectionView alloc] initWithFrame:CGRectZero
                                      collectionViewLayout:layout];
   _carouselView.translatesAutoresizingMaskIntoConstraints = NO;
-  _carouselView.hidden = YES;
   _carouselView.backgroundColor = UIColor.clearColor;
-  [_carouselView registerClass:[AIMImageCell class]
-      forCellWithReuseIdentifier:kImageCellReuseIdentifier];
+  [_carouselView registerClass:[AIMInputItemCell class]
+      forCellWithReuseIdentifier:kItemCellReuseIdentifier];
   _dataSource = [self createDataSource];
   _carouselView.dataSource = _dataSource;
+  _carouselView.delegate = self;
   [_carouselView.heightAnchor constraintEqualToConstant:kCarouselHeight]
       .active = YES;
   _carouselView.showsHorizontalScrollIndicator = NO;
 
+  // Carousel container and fade view.
+  _carouselContainer = [[UIView alloc] init];
+  _carouselContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  [_carouselContainer addSubview:_carouselView];
+  AddSameConstraints(_carouselContainer, _carouselView);
+
+  _trailingCarouselFadeView = [[UIView alloc] init];
+  _trailingCarouselFadeView.translatesAutoresizingMaskIntoConstraints = NO;
+  _trailingCarouselFadeView.userInteractionEnabled = NO;
+  _trailingCarouselFadeView.hidden = YES;
+  [_carouselContainer addSubview:_trailingCarouselFadeView];
+
+  _leadingCarouselFadeView = [[UIView alloc] init];
+  _leadingCarouselFadeView.translatesAutoresizingMaskIntoConstraints = NO;
+  _leadingCarouselFadeView.userInteractionEnabled = NO;
+  _leadingCarouselFadeView.hidden = YES;
+  [_carouselContainer addSubview:_leadingCarouselFadeView];
+
+  [_trailingCarouselFadeView.layer
+      insertSublayer:[self createGradientLayerForLeading:NO]
+             atIndex:0];
+  [_leadingCarouselFadeView.layer
+      insertSublayer:[self createGradientLayerForLeading:YES]
+             atIndex:0];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_trailingCarouselFadeView.trailingAnchor
+        constraintEqualToAnchor:_carouselContainer.trailingAnchor],
+    [_trailingCarouselFadeView.topAnchor
+        constraintEqualToAnchor:_carouselContainer.topAnchor],
+    [_trailingCarouselFadeView.bottomAnchor
+        constraintEqualToAnchor:_carouselContainer.bottomAnchor],
+    [_trailingCarouselFadeView.widthAnchor
+        constraintEqualToConstant:kFadeViewWidth],
+
+    [_leadingCarouselFadeView.leadingAnchor
+        constraintEqualToAnchor:_carouselContainer.leadingAnchor],
+    [_leadingCarouselFadeView.topAnchor
+        constraintEqualToAnchor:_carouselContainer.topAnchor],
+    [_leadingCarouselFadeView.bottomAnchor
+        constraintEqualToAnchor:_carouselContainer.bottomAnchor],
+    [_leadingCarouselFadeView.widthAnchor
+        constraintEqualToConstant:kFadeViewWidth],
+  ]];
+
   // Action buttons
   UIButton* plusButton =
-      [self createButtonWithImage:DefaultSymbolWithPointSize(
-                                      kPlusSymbol, kSymbolActionPointSize)];
+      [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
+  [plusButton
+      setImage:DefaultSymbolWithPointSize(kPlusSymbol, kSymbolActionPointSize)
+      forState:UIControlStateNormal];
+  plusButton.translatesAutoresizingMaskIntoConstraints = NO;
+  plusButton.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
+  plusButton.layer.cornerRadius = kAIMButtonHeight / 2.0;
+  plusButton.tintColor = [UIColor colorNamed:kTextSecondaryColor];
+
+  [plusButton.widthAnchor constraintEqualToConstant:kAIMButtonHeight].active =
+      YES;
+  [plusButton.heightAnchor constraintEqualToConstant:kAIMButtonHeight].active =
+      YES;
+
   [plusButton addTarget:self
                  action:@selector(plusButtonTouchDown)
        forControlEvents:UIControlEventTouchDown];
@@ -312,11 +356,13 @@ const CGFloat kGlowEffectWidth = 4.0f;
                 [weakSelf.mutator attachCurrentTabContent];
               }];
 
-  plusButton.menu = [UIMenu
-      menuWithTitle:@""
-           children:@[
-             fileAction, galleryAction, cameraAction, attachCurrentTabAction
-           ]];
+  NSMutableArray* menuItems = [NSMutableArray
+      arrayWithObjects:fileAction, galleryAction, cameraAction, nil];
+  if (_canAttachCurrentTab) {
+    [menuItems addObject:attachCurrentTabAction];
+  }
+
+  plusButton.menu = [UIMenu menuWithTitle:@"" children:menuItems];
 
   _aimButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _aimButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -327,20 +373,17 @@ const CGFloat kGlowEffectWidth = 4.0f;
 
   [_aimButton.heightAnchor constraintEqualToConstant:kAIMButtonHeight].active =
       YES;
-  [_aimButton.widthAnchor constraintEqualToConstant:kAIMButtonWidth].active =
-      YES;
-
-  UIButton* micButton = [self
-      createButtonWithImage:DefaultSymbolWithPointSize(kMicrophoneSymbol,
-                                                       kSymbolActionPointSize)];
-  [micButton addTarget:self
-                action:@selector(micButtonTapped)
-      forControlEvents:UIControlEventTouchUpInside];
+  self.aimButtonWidthConstraint =
+      [_aimButton.widthAnchor constraintEqualToConstant:kAIMButtonWidth];
+  self.aimButtonWidthConstraint.active = YES;
 
   // Horizontal stack view for buttons
+  _spacerView = [[UIView alloc] init];
+  [_spacerView setContentHuggingPriority:UILayoutPriorityFittingSizeLevel
+                                 forAxis:UILayoutConstraintAxisHorizontal];
   UIStackView* buttonsStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[
-        plusButton, _aimButton, [UIView new], micButton
+        plusButton, _carouselContainer, _spacerView, _aimButton
       ]];
   buttonsStackView.translatesAutoresizingMaskIntoConstraints = NO;
   buttonsStackView.axis = UILayoutConstraintAxisHorizontal;
@@ -348,9 +391,8 @@ const CGFloat kGlowEffectWidth = 4.0f;
   buttonsStackView.alignment = UIStackViewAlignmentBottom;
 
   // Main vertical stack view
-  _inputPlateStackView = [[UIStackView alloc] initWithArrangedSubviews:@[
-    textViewContainer, _carouselView, buttonsStackView
-  ]];
+  _inputPlateStackView = [[UIStackView alloc]
+      initWithArrangedSubviews:@[ _omniboxContainer, buttonsStackView ]];
   _inputPlateStackView.translatesAutoresizingMaskIntoConstraints = NO;
   _inputPlateStackView.axis = UILayoutConstraintAxisVertical;
   _inputPlateStackView.spacing = kInputPlateStackViewSpacing;
@@ -365,6 +407,8 @@ const CGFloat kGlowEffectWidth = 4.0f;
     [closeButton.trailingAnchor
         constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor
                        constant:-kCloseButtonPadding],
+    [closeButton.heightAnchor constraintEqualToConstant:kCloseButtonSize],
+    [closeButton.widthAnchor constraintEqualToAnchor:closeButton.heightAnchor],
 
     // Input Plate.
     [_inputPlateContainerView.leadingAnchor
@@ -393,15 +437,79 @@ const CGFloat kGlowEffectWidth = 4.0f;
   ]];
 }
 
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+  // Update the gradient layer's frame.
+  _trailingCarouselFadeView.layer.sublayers.firstObject.frame =
+      _trailingCarouselFadeView.bounds;
+  _leadingCarouselFadeView.layer.sublayers.firstObject.frame =
+      _leadingCarouselFadeView.bounds;
+  [self updateInputPlateLayout];
+}
+
+#pragma mark - Public
+
+- (void)setEditView:(UIView<TextFieldViewContaining>*)editView {
+  _editView = editView;
+  _editView.translatesAutoresizingMaskIntoConstraints = NO;
+  [_omniboxContainer addSubview:editView];
+  AddSameConstraints(_editView, _omniboxContainer);
+}
+
+#pragma mark - OmniboxPopupPresenterDelegate
+
+- (UIView*)popupParentViewForPresenter:(OmniboxPopupPresenter*)presenter {
+  return _omniboxPopupContainer;
+}
+
+- (UIViewController*)popupParentViewControllerForPresenter:
+    (OmniboxPopupPresenter*)presenter {
+  return self;
+}
+
+- (UIColor*)popupBackgroundColorForPresenter:(OmniboxPopupPresenter*)presenter {
+  return [UIColor colorNamed:kPrimaryBackgroundColor];
+}
+
+- (GuideName*)omniboxGuideNameForPresenter:(OmniboxPopupPresenter*)presenter {
+  return nil;
+}
+
+- (void)popupDidOpenForPresenter:(OmniboxPopupPresenter*)presenter {
+  _omniboxPopupContainer.hidden = NO;
+}
+
+- (void)popupDidCloseForPresenter:(OmniboxPopupPresenter*)presenter {
+  _omniboxPopupContainer.hidden = YES;
+}
+
+#pragma mark - AIMInputItemCellDelegate
+
+- (void)aimInputItemCellDidTapCloseButton:(AIMInputItemCell*)cell {
+  NSIndexPath* indexPath = [_carouselView indexPathForCell:cell];
+  if (indexPath) {
+    AIMInputItem* item = [_dataSource itemIdentifierForIndexPath:indexPath];
+    [self.mutator removeItem:item];
+  }
+}
+
 #pragma mark - AIMPrototypeConsumer
 
 - (void)setItems:(NSArray<AIMInputItem*>*)items {
-  _carouselView.hidden = items.count == 0;
   NSDiffableDataSourceSnapshot<NSString*, AIMInputItem*>* snapshot =
       [[NSDiffableDataSourceSnapshot alloc] init];
   [snapshot appendSectionsWithIdentifiers:@[ kMainSectionIdentifier ]];
   [snapshot appendItemsWithIdentifiers:items];
-  [_dataSource applySnapshot:snapshot animatingDifferences:YES];
+  __weak __typeof__(self) weakSelf = self;
+  [_dataSource applySnapshot:snapshot
+        animatingDifferences:YES
+                  completion:^{
+                    [weakSelf updateInputPlateLayout];
+                  }];
+}
+
+- (void)setCanAttachTabAction:(BOOL)canAttachTabAction {
+  _canAttachCurrentTab = canAttachTabAction;
 }
 
 - (void)updateState:(AIMInputItemState)state
@@ -410,7 +518,7 @@ const CGFloat kGlowEffectWidth = 4.0f;
       _dataSource.snapshot;
   AIMInputItem* itemToUpdate;
   for (AIMInputItem* item in currentSnapshot.itemIdentifiers) {
-    if (item.fileToken == token) {
+    if (item.token == token) {
       itemToUpdate = item;
       break;
     }
@@ -427,37 +535,8 @@ const CGFloat kGlowEffectWidth = 4.0f;
   [_dataSource applySnapshot:newSnapshot animatingDifferences:YES];
 }
 
-#pragma mark - UITextViewDelegate
-
-// The final implementation in the omnibox is expected to use a UIKeyCommand
-// override to handle the return key. This delegate method is a temporary
-// solution for this prototype.
-- (BOOL)textView:(UITextView*)textView
-    shouldChangeTextInRange:(NSRange)range
-            replacementText:(NSString*)text {
-  if ([text isEqualToString:@"\n"]) {
-    [self.mutator sendText:textView.text];
-    textView.text = @"";
-    // Manually trigger textViewDidChange to update placeholder and layout.
-    [self textViewDidChange:textView];
-    return NO;
-  }
-  return YES;
-}
-
-- (void)textViewDidChange:(UITextView*)textView {
-  _placeholderLabel.hidden = textView.hasText;
-
-  // Recalculate textView height and update it to clip and scroll if necessary.
-  CGFloat verticalPadding =
-      _textView.textContainerInset.top + _textView.textContainerInset.bottom;
-  CGFloat maxHeight = (_textView.font.lineHeight * kMaxLines) + verticalPadding;
-  CGSize size = [_textView
-      sizeThatFits:CGSizeMake(_textView.frame.size.width, CGFLOAT_MAX)];
-  CGFloat newHeight = MIN(size.height, maxHeight);
-  _textViewHeightConstraint.constant = newHeight;
-  _textView.scrollEnabled = size.height > maxHeight;
-  [self.view layoutIfNeeded];
+- (void)hideMicButton:(BOOL)hidden {
+  _micButton.hidden = hidden;
 }
 
 #pragma mark - Actions
@@ -490,7 +569,57 @@ const CGFloat kGlowEffectWidth = 4.0f;
   [_glowEffectView stopGlow];
 }
 
+- (void)updateInputPlateLayout {
+  // Determine if the AIM button should be minimized.
+  BOOL shouldMinimize = self.shouldMinimizeAimButton;
+
+  BOOL isCarouselScrollable =
+      _carouselView.contentSize.width > _carouselView.bounds.size.width;
+  if (isCarouselScrollable) {
+    // If the carousel is scrollable, the button must be minimized.
+    shouldMinimize = YES;
+  } else {
+    // Calculate the unused space available within the carousel's frame.
+    CGFloat availableSpace =
+        _carouselView.bounds.size.width - _carouselView.contentSize.width;
+    // Calculate the extra width the AIM button needs to change from its
+    // minimized (circular) to its full expanded state.
+    CGFloat expansionWidthNeeded = kAIMButtonWidth - kAIMButtonHeight;
+
+    // If the available space is greater than the space needed for the button
+    // to expand, the button should not be minimized.
+    if (availableSpace > expansionWidthNeeded) {
+      shouldMinimize = NO;
+    }
+  }
+
+  // If the minimization state has changed, update the button's appearance and
+  // animate the layout change.
+  if (self.shouldMinimizeAimButton != shouldMinimize) {
+    _shouldMinimizeAimButton = shouldMinimize;
+    [self updateAIMButtonAppearance];
+    if (shouldMinimize) {
+      [UIView animateWithDuration:kAIMButtonAnimationDuration
+                       animations:^{
+                         [self.view layoutIfNeeded];
+                       }];
+    }
+  }
+
+  [self updateCarouselFade];
+}
+
 #pragma mark - Private
+
+- (void)updateCarouselFade {
+  CGFloat contentOffsetX = _carouselView.contentOffset.x;
+  CGFloat contentWidth = _carouselView.contentSize.width;
+  CGFloat boundsWidth = _carouselView.bounds.size.width;
+
+  _leadingCarouselFadeView.hidden = contentOffsetX <= 0;
+  _trailingCarouselFadeView.hidden =
+      contentOffsetX + boundsWidth >= contentWidth;
+}
 
 - (void)setAIModeEnabled:(BOOL)AIModeEnabled {
   if (AIModeEnabled == _AIModeEnabled) {
@@ -511,6 +640,31 @@ const CGFloat kGlowEffectWidth = 4.0f;
   }
 }
 
+#pragma mark - UICollectionViewDelegate
+
+- (void)scrollViewDidScroll:(UIScrollView*)scrollView {
+  [self updateCarouselFade];
+}
+
+- (CAGradientLayer*)createGradientLayerForLeading:(BOOL)isLeading {
+  CAGradientLayer* gradientLayer = [CAGradientLayer layer];
+  UIColor* transparentColor = [[UIColor colorNamed:kPrimaryBackgroundColor]
+      colorWithAlphaComponent:0.0];
+  UIColor* solidColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+
+  if (isLeading) {
+    gradientLayer.colors =
+        @[ (id)solidColor.CGColor, (id)transparentColor.CGColor ];
+  } else {
+    gradientLayer.colors =
+        @[ (id)transparentColor.CGColor, (id)solidColor.CGColor ];
+  }
+
+  gradientLayer.startPoint = CGPointMake(0.0, 0.5);
+  gradientLayer.endPoint = CGPointMake(1.0, 0.5);
+  return gradientLayer;
+}
+
 - (UICollectionViewDiffableDataSource<NSString*, AIMInputItem*>*)
     createDataSource {
   return [[UICollectionViewDiffableDataSource alloc]
@@ -518,11 +672,12 @@ const CGFloat kGlowEffectWidth = 4.0f;
                 cellProvider:^UICollectionViewCell*(
                     UICollectionView* collectionView, NSIndexPath* indexPath,
                     AIMInputItem* item) {
-                  AIMImageCell* cell = (AIMImageCell*)[collectionView
+                  AIMInputItemCell* cell = (AIMInputItemCell*)[collectionView
                       dequeueReusableCellWithReuseIdentifier:
-                          kImageCellReuseIdentifier
+                          kItemCellReuseIdentifier
                                                 forIndexPath:indexPath];
                   [cell configureWithItem:item];
+                  cell.delegate = self;
                   return cell;
                 }];
 }
@@ -531,27 +686,31 @@ const CGFloat kGlowEffectWidth = 4.0f;
   UIButtonConfiguration* config =
       [UIButtonConfiguration plainButtonConfiguration];
 
-  // Font setup
-  UIFont* font = [UIFont systemFontOfSize:kAIMButtonFontSize
-                                   weight:UIFontWeightMedium];
-  NSDictionary* attributes = @{NSFontAttributeName : font};
-  NSAttributedString* attributedTitle =
-      [[NSAttributedString alloc] initWithString:@"AI Mode"
-                                      attributes:attributes];
-  config.attributedTitle = attributedTitle;
-
-  config.contentInsets = NSDirectionalEdgeInsetsMake(5, 8, 5, 8);
-  config.imagePadding = 5;
   config.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+  config.image = CustomSymbolWithPointSize(kMagnifyingglassSparkSymbol,
+                                           kAIMButtonSymbolPointSize);
+
+  if (self.shouldMinimizeAimButton) {
+    self.aimButtonWidthConstraint.constant = kAIMButtonHeight;
+  } else {
+    // Font setup
+    UIFont* font = [UIFont systemFontOfSize:kAIMButtonFontSize
+                                     weight:UIFontWeightMedium];
+    NSDictionary* attributes = @{NSFontAttributeName : font};
+    NSAttributedString* attributedTitle =
+        [[NSAttributedString alloc] initWithString:@"AI Mode"
+                                        attributes:attributes];
+    config.attributedTitle = attributedTitle;
+
+    config.contentInsets = NSDirectionalEdgeInsetsMake(5, 8, 5, 8);
+    config.imagePadding = 5;
+    self.aimButtonWidthConstraint.constant = kAIMButtonWidth;
+  }
 
   if (self.AIModeEnabled) {
-    config.image =
-        DefaultSymbolWithPointSize(kCheckmarkSymbol, kAIMButtonSymbolPointSize);
-    config.background.backgroundColor = [UIColor colorNamed:kBlue100Color];
+    config.background.backgroundColor = [UIColor colorNamed:kBlueHaloColor];
     config.baseForegroundColor = [UIColor colorNamed:kBlue600Color];
   } else {
-    config.image = CustomSymbolWithPointSize(kMagnifyingglassSparkSymbol,
-                                             kAIMButtonSymbolPointSize);
     config.background.backgroundColor =
         [UIColor colorNamed:kSecondaryBackgroundColor];
     config.baseForegroundColor = [UIColor colorNamed:kTextPrimaryColor];

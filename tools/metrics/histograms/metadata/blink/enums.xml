@@ -81,6 +81,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Slow getImageData on GPU canvases"/>
 </enum>
 
+<!-- LINT.IfChange(CanvasHibernationEvent) -->
+
 <enum name="CanvasHibernationEvent">
   <int value="0" label="Scheduled"/>
   <int value="1"
@@ -89,13 +91,16 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Aborted due to visibility change"/>
   <int value="4" label="Aborted due to GPU Context loss"/>
   <int value="5" label="Aborted due to switch to unaccelerated rendering"/>
-  <int value="6" label="Aborted due to allocation failure"/>
-  <int value="7" label="Ended normally"/>
-  <int value="8" label="Ended with switch to background rendering"/>
-  <int value="9" label="Ended with fallback to software"/>
-  <int value="10" label="Ended with teardown"/>
-  <int value="11" label="Aborted because there was no surface"/>
+  <int value="6" label="Aborted due to allocation failure (obsolete)"/>
+  <int value="7" label="Aborted due to snapshot failure"/>
+  <int value="8" label="Ended normally"/>
+  <int value="9" label="Ended with switch to background rendering"/>
+  <int value="10" label="Ended with fallback to software"/>
+  <int value="11" label="Ended with teardown"/>
+  <int value="12" label="Aborted because there was no surface"/>
 </enum>
+
+<!-- LINT.ThenChange(//third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h:CanvasHibernationEvent) -->
 
 <enum name="CanvasOverdrawOp">
   <int value="0" label="None (should have 0 counts)"/>
@@ -6265,6 +6270,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5661" label="CSSPseudoElementUsesImplicitAnchor"/>
   <int value="5662" label="LineClampByLinesOverflows"/>
   <int value="5663" label="PointerRawUpdateEventsInInsecureContext"/>
+  <int value="5664" label="ReportToHeader"/>
+  <int value="5665" label="ReportingEndpointsHeader"/>
+  <int value="5666" label="OverscrollBehaviorWithOverflowHidden"/>
+  <int value="5667" label="WebCodecsAv1EncodingWithQP"/>
+  <int value="5668" label="ExternalSVGDocumentResources"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7986,8 +7996,8 @@ Called by update_use_counter_css.py.-->
   <int value="820" label="animation-trigger-range-end (obsolete)"/>
   <int value="821" label="animation-trigger-exit-range-start (obsolete)"/>
   <int value="822" label="animation-trigger-exit-range-end (obsolete)"/>
-  <int value="823" label="interest-show-delay"/>
-  <int value="824" label="interest-hide-delay"/>
+  <int value="823" label="interest-delay-start"/>
+  <int value="824" label="interest-delay-end"/>
   <int value="825" label="animation-trigger-range"/>
   <int value="826" label="animation-trigger-exit-range"/>
   <int value="827" label="interest-delay"/>
@@ -8040,7 +8050,7 @@ Called by update_use_counter_css.py.-->
   <int value="874" label="timeline-trigger-range-end"/>
   <int value="875" label="timeline-trigger-exit-range-start"/>
   <int value="876" label="timeline-trigger-exit-range-end"/>
-  <int value="877" label="timeline-trigger-timeline"/>
+  <int value="877" label="timeline-trigger-source"/>
   <int value="878" label="timeline-trigger"/>
   <int value="879" label="masonry"/>
   <int value="880" label="continue"/>
@@ -8048,6 +8058,8 @@ Called by update_use_counter_css.py.-->
   <int value="882" label="block-ellipsis"/>
   <int value="883" label="overscroll-area"/>
   <int value="884" label="overscroll-position"/>
+  <int value="885" label="font-language-override"/>
+  <int value="886" label="ruby-overhang"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8581,6 +8593,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="407" label="WebxrHandInput"/>
   <int value="408" label="WebxrHitTest"/>
   <int value="409" label="WebxrLightingEstimation"/>
+  <int value="410" label="Reporting"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

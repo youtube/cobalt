@@ -659,11 +659,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual void CrossProcessSubframeRenderProcessGone(
       RenderFrameHost* render_frame_host) {}
 
-  // Returns true if the given URL is in any of the NavigationEntries. This is
-  // used to determine if a URL is already in the navigation history of any of
-  // the tabs in a given browser context.
-  virtual bool IsURLAccessibleByHistoryNavigation(const GURL& url);
-
   // Temporary hack to determine whether to skip OOPIFs on the new tab page.
   // TODO(creis): Remove when https://crbug.com/566091 is fixed.
   virtual bool ShouldStayInParentProcessForNTP(const GURL& url,
@@ -1801,7 +1796,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Defines flags that can be passed to PreSpawnChild.
   enum ChildSpawnFlags {
     kChildSpawnFlagNone = 0,
-    kChildSpawnFlagRendererCodeIntegrity = 1 << 0,
   };
 
   // Defines flags that can be passed to GetAppContainerSidForSandboxType.
@@ -1846,10 +1840,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // should override this with their own unique name to ensure security of the
   // network service data.
   virtual std::wstring GetLPACCapabilityNameForNetworkService();
-
-  // Returns whether renderer code integrity is enabled.
-  // This is called on the UI thread.
-  virtual bool IsRendererCodeIntegrityEnabled();
 
   // Performs a fast and orderly shutdown of the browser. If present,
   // `control_type` is a CTRL_* value from a Windows console control handler;

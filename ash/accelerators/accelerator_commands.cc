@@ -23,7 +23,7 @@
 #include "ash/display/privacy_screen_controller.h"
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/focus/focus_cycler.h"
-#include "ash/frame/non_client_frame_view_ash.h"
+#include "ash/frame/frame_view_ash.h"
 #include "ash/game_dashboard/game_dashboard_controller.h"
 #include "ash/glanceables/glanceables_controller.h"
 #include "ash/ime/ime_controller_impl.h"
@@ -129,7 +129,6 @@
 namespace ash {
 
 const char kAccelWindowSnap[] = "Ash.Accelerators.WindowSnap";
-const char kAccelRotation[] = "Ash.Accelerators.Rotation.Usage";
 const char kAccelActivateDeskByIndex[] = "Ash.Accelerators.ActivateDeskByIndex";
 const char kAccelToggleQuickInsert[] = "Ash.Accelerators.TogglePicker.Action";
 
@@ -149,16 +148,6 @@ constexpr char kNotificationCenterTrayNoNotificationsToastId[] =
 // Toast IDs for the Toggle Camera Allowed shortcut.
 constexpr char kToggleCameraToastId[] = "toggle_camera_toast";
 constexpr char kCameraForceDisabledToastId[] = "camera_force_disabled_toast";
-
-// These values are written to logs.  New enum values can be added, but existing
-// enums must never be renumbered or deleted and reused.
-// Records the result of triggering the rotation accelerator.
-enum class RotationAcceleratorAction {
-  kCancelledDialog = 0,
-  kAcceptedDialog = 1,
-  kAlreadyAcceptedDialog = 2,
-  kMaxValue = kAlreadyAcceptedDialog,
-};
 
 // Record which desk is activated.
 enum class ActivateDeskAcceleratorAction {
@@ -180,10 +169,6 @@ enum class ToggleQuickInsertAction {
   kToggleQuickInsert = 1,
   kMaxValue = kToggleQuickInsert,
 };
-
-void RecordRotationAcceleratorAction(const RotationAcceleratorAction& action) {
-  UMA_HISTOGRAM_ENUMERATION(kAccelRotation, action);
-}
 
 void RecordActivateDeskByIndexAcceleratorAction(
     const ActivateDeskAcceleratorAction& action) {
@@ -318,15 +303,10 @@ void RotateScreenImpl() {
 }
 
 void OnRotationDialogAccepted() {
-  RecordRotationAcceleratorAction(RotationAcceleratorAction::kAcceptedDialog);
   RotateScreenImpl();
   Shell::Get()
       ->accessibility_controller()
       ->SetDisplayRotationAcceleratorDialogBeenAccepted();
-}
-
-void OnRotationDialogCancelled() {
-  RecordRotationAcceleratorAction(RotationAcceleratorAction::kCancelledDialog);
 }
 
 // Return false if the accessibility shortcuts have been disabled, or if
@@ -419,7 +399,7 @@ chromeos::FrameSizeButton* GetFrameSizeButton(aura::Window* window) {
   if (!window) {
     return nullptr;
   }
-  auto* frame_view = NonClientFrameViewAsh::Get(window);
+  auto* frame_view = FrameViewAsh::Get(window);
   if (!frame_view) {
     return nullptr;
   }
@@ -757,7 +737,7 @@ bool CanToggleResizeLockMenu() {
   if (!window) {
     return false;
   }
-  auto* frame_view = NonClientFrameViewAsh::Get(window);
+  auto* frame_view = FrameViewAsh::Get(window);
   return frame_view && frame_view->GetToggleResizeLockMenuCallback();
 }
 
@@ -1213,11 +1193,9 @@ void RotateScreen() {
         l10n_util::GetStringUTF16(IDS_ASH_CONTINUE_BUTTON),
         l10n_util::GetStringUTF16(IDS_APP_CANCEL),
         base::BindOnce(&OnRotationDialogAccepted),
-        base::BindOnce(&OnRotationDialogCancelled),
+        /*on_cancel_callback=*/base::DoNothing(),
         /*on_close_callback=*/base::DoNothing());
   } else {
-    RecordRotationAcceleratorAction(
-        RotationAcceleratorAction::kAlreadyAcceptedDialog);
     RotateScreenImpl();
   }
 }
@@ -1758,7 +1736,7 @@ void ToggleSnapGroupsMinimize() {
 
 void ToggleResizeLockMenu() {
   aura::Window* window = GetTargetWindow();
-  auto* frame_view = NonClientFrameViewAsh::Get(window);
+  auto* frame_view = FrameViewAsh::Get(window);
   frame_view->GetToggleResizeLockMenuCallback().Run();
 }
 
@@ -1803,13 +1781,13 @@ void ToggleMultitaskMenu() {
     multitask_menu_controller->ShowMultitaskMenu(window);
     return;
   }
-  auto* frame_view = NonClientFrameViewAsh::Get(window);
+  auto* frame_view = FrameViewAsh::Get(window);
   if (!frame_view) {
     // If `window` doesn't have a frame, it must be the multitask menu and have
     // a transient parent for `CanToggleMultitaskMenu()` to arrive here.
     auto* transient_parent = wm::GetTransientParent(window);
     DCHECK(transient_parent);
-    frame_view = NonClientFrameViewAsh::Get(transient_parent);
+    frame_view = FrameViewAsh::Get(transient_parent);
   }
   DCHECK(frame_view);
   auto* size_button =

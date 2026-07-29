@@ -17,12 +17,6 @@ BASE_FEATURE(kWebRtcAllowWgcScreenCapturer,
              "AllowWgcScreenCapturer",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled we will tell WebRTC that we want to use the
-// Windows.Graphics.Capture API based window capturer, if it is available.
-BASE_FEATURE(kWebRtcAllowWgcWindowCapturer,
-             "AllowWgcWindowCapturer",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // When enabled we will tell WebRTC that we want to use the 0Hz mode of the
 // Windows.Graphics.Capture API based {Screen/Window} capturer, if the WGC
 // capturer is available and enabled. In this mode, only frames with new content
@@ -32,7 +26,6 @@ BASE_FEATURE(kWebRtcAllowWgcWindowCapturer,
 BASE_FEATURE(kWebRtcAllowWgcScreenZeroHz,
              "AllowWgcScreenZeroHz",
              base::FEATURE_DISABLED_BY_DEFAULT);
-// This flag only has an effect if kWebRtcAllowWgcWindowCapturer is enabled.
 BASE_FEATURE(kWebRtcAllowWgcWindowZeroHz,
              "AllowWgcWindowZeroHz",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -83,13 +76,5 @@ BASE_FEATURE(kWebRtcAV1HWEncode,
              base::FEATURE_ENABLED_BY_DEFAULT
 #endif  // BUILDFLAG(IS_WIN)
 );
-
-#if BUILDFLAG(IS_ANDROID)
-// Kill-switch for using 48 kHz as sample rate for Audio Processing Module
-// processing on Android. When enabled, enforces a 16 kHz sample rate for audio
-// processing on Android.
-BASE_FEATURE(kWebRtcApm48kHzSampleRateOnAndroidKillSwitch,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 }  // namespace features

@@ -3,6 +3,7 @@
 <translationbundle lang="bg">
 <translation id="1010283278930414892">На това устройство няма запазени пароли</translation>
 <translation id="1011749477052068769">Преместване тук</translation>
+<translation id="1014083013111769343">Листът с предпочитания за режима на четене е отворен на пълната височина</translation>
 <translation id="1014147525163127655">На това устройство няма ключове за достъп за <ph name="ORIGIN" /></translation>
 <translation id="1016498331642356377">Бързо търсене с гласа ви. За да редактирате този пряк път, докоснете и задръжте.</translation>
 <translation id="1028699632127661925">Изпраща се до <ph name="DEVICE_NAME" />...</translation>
@@ -98,6 +99,7 @@
 <translation id="1407135791313364759">Отваряне на всички</translation>
 <translation id="1409879593029778104">Изтеглянето на „<ph name="FILE_NAME" />“ е предотвратено, защото файлът вече съществува.</translation>
 <translation id="1413446866325418126">Запазване на данни в профила ви в Google</translation>
+<translation id="1414919006379339073">Затваряне на текущия прозорец</translation>
 <translation id="1416550906796893042">Версия на приложението</translation>
 <translation id="1419753403124156396">Да се рестартира ли Chrome?</translation>
 <translation id="1428770807407000502">Да се изключи ли синхронизирането?</translation>
@@ -207,6 +209,7 @@
 <translation id="197288927597451399">Запазване</translation>
 <translation id="1973912524893600642">Запазване на данните</translation>
 <translation id="1974060860693918893">Разширени</translation>
+<translation id="1982274314082047220">Плъзнете нагоре, за да отворите листа с предпочитания за режима на четене</translation>
 <translation id="1984087999855033707">телефонен номер</translation>
 <translation id="1984417487208496350">Без защита (не се препоръчва)</translation>
 <translation id="1986685561493779662">Името вече съществува</translation>
@@ -428,6 +431,7 @@
 <translation id="2992473221983447149">Описания на изображенията</translation>
 <translation id="2996291259634659425">Създаване на пропуск</translation>
 <translation id="2996809686854298943">Изисква се URL адрес</translation>
+<translation id="3024215143424744261">Листът с предпочитания за режима на четене е затворен</translation>
 <translation id="3026955690410463085">Включване на връзката</translation>
 <translation id="3027644380269727216">Въз основа на активността ви в даден сайт. Тази настройка е включена.</translation>
 <translation id="3027950907978057636">От <ph name="APP_LABEL" /></translation>
@@ -1311,6 +1315,7 @@
 <translation id="696447261358045621">Излизане от режим „инкогнито“</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{Вижте <ph name="TABS_COUNT_ONE" /> раздел с нова активност в споделените групи раздели}other{Вижте <ph name="TABS_COUNT_MANY" /> раздела с нова активност в споделените групи раздели}}</translation>
+<translation id="6971555615916967190">Листът с предпочитания за режима на четене е отворен на половината височина</translation>
 <translation id="6971862865055170158">Отхвърляне</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" /> – нов или актуализиран раздел</translation>
 <translation id="6976811588313110624">Добавяне на нова клавишна комбинация.</translation>
@@ -1695,7 +1700,6 @@
 <translation id="8617240290563765734">Да се отвори ли предложеният URL адрес, посочен в изтегленото съдържание?</translation>
 <translation id="8635399646025169806">Искате ли да запазите групата раздели?</translation>
 <translation id="8636825310635137004">Включете синхронизирането, за да получите разделите си от другите си устройства.</translation>
-<translation id="864544049772947936">Управление на прозорците (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">Вход в(ъв) <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">Името на файла вече съществува</translation>
 <translation id="8676276370198826499">Регистрирайте се за <ph name="SITE_ETLD_PLUS_ONE" /> чрез <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

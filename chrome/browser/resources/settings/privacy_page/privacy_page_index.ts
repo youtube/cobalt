@@ -4,7 +4,6 @@
 
 import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
 import '/shared/settings/prefs/prefs.js';
-import '../basic_page/basic_page.js';
 import '../safety_hub/safety_hub_entry_point.js';
 import '../settings_page/settings_section.js';
 import '../settings_shared.css.js';
@@ -87,6 +86,11 @@ export class SettingsPrivacyPageIndexElement extends
       capturedSurfaceControlEnabled_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('capturedSurfaceControlEnabled'),
+      },
+
+      enableBundledSecuritySettings_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableBundledSecuritySettings'),
       },
 
       enableFederatedIdentityApiContentSetting_: {
@@ -189,6 +193,12 @@ export class SettingsPrivacyPageIndexElement extends
         readOnly: true,
         value: () => loadTimeData.getBoolean('isPrivacySandboxRestricted'),
       },
+
+      showPersistentPermissions_: {
+        type: Boolean,
+        readOnly: true,
+        value: () => loadTimeData.getBoolean('showPersistentPermissions'),
+      },
     };
   }
 
@@ -204,6 +214,7 @@ export class SettingsPrivacyPageIndexElement extends
   declare private showPrivacyGuidePromo_: boolean;
   declare private autoPictureInPictureEnabled_: boolean;
   declare private capturedSurfaceControlEnabled_: boolean;
+  declare private enableBundledSecuritySettings_: boolean;
   declare private enableFederatedIdentityApiContentSetting_: boolean;
   declare private enableExperimentalWebPlatformFeatures_: boolean;
   declare private enableHandTrackingContentSetting_: boolean;
@@ -221,6 +232,7 @@ export class SettingsPrivacyPageIndexElement extends
   declare private enableWebPrintingContentSetting_: boolean;
   declare private isAdPrivacyAvailable_: boolean;
   declare private isPrivacySandboxRestricted_: boolean;
+  declare private showPersistentPermissions_: boolean;
 
   private pendingViewSwitching_: PromiseResolver<void> = new PromiseResolver();
   private privacyGuidePromoWasShown_: boolean;
@@ -234,7 +246,7 @@ export class SettingsPrivacyPageIndexElement extends
   }
 
   private getDefaultViews_(): string[] {
-    const defaultViews = ['old'];
+    const defaultViews = ['privacy'];
 
     if (this.isPrivacyGuideAvailable) {
       defaultViews.push('privacyGuidePromo');
@@ -247,9 +259,12 @@ export class SettingsPrivacyPageIndexElement extends
     return defaultViews;
   }
 
-  private isPrivacyRoute_(route: Route, hasMigratedToPlugin: boolean): boolean {
-    return routes.PRIVACY.contains(route) &&
-        (route.hasMigratedToPlugin === hasMigratedToPlugin);
+  private isRouteHostedWithinPrivacyView_(route: Route): boolean {
+    const nestedRoutes = [routes.CLEAR_BROWSER_DATA];
+    if (loadTimeData.getBoolean('showPrivacyGuide')) {
+      nestedRoutes.push(routes.PRIVACY_GUIDE);
+    }
+    return nestedRoutes.includes(route);
   }
 
   // Return the list of view IDs to be displayed, or null if a view should
@@ -272,18 +287,17 @@ export class SettingsPrivacyPageIndexElement extends
         // of search results.
         return this.inSearchMode ? this.getDefaultViews_() : [];
       default: {
-        // Handle case where Privacy child route has migrated to the new
-        // architecture.
-        if (this.isPrivacyRoute_(route, /*hasMigratedToPlugin*/ true)) {
+        // Handle case of routes whose UIs are still hosted within
+        // settings-privacy-page.
+        if (this.isRouteHostedWithinPrivacyView_(route)) {
+          return ['privacy'];
+        }
+
+        // Handle case of a Privacy child route.
+        if (routes.PRIVACY.contains(route)) {
           const view = this.$.viewManager.querySelector(
               `[slot='view'][route-path='${route.path}']`);
           return view ? [view.id] : null;
-        }
-
-        // Handle case where Privacy child route has not migrated to the new
-        // architecture.
-        if (this.isPrivacyRoute_(route, /*hasMigratedToPlugin*/ false)) {
-          return ['old'];
         }
 
         // Nothing to do. Other parent elements are responsible for updating
@@ -355,7 +369,7 @@ export class SettingsPrivacyPageIndexElement extends
         (!!this.currentRoute && this.currentRoute === route);
   }
 
-  private renderOldView_(): boolean {
+  private renderPrivacyView_(): boolean {
     // <if expr="is_chromeos">
     if (getTopLevelRoute() === routes.PRIVACY &&
         this.currentRoute === routes.BASIC) {
@@ -367,8 +381,8 @@ export class SettingsPrivacyPageIndexElement extends
 
     return this.inSearchMode ||
         (!!this.currentRoute &&
-         this.isPrivacyRoute_(
-             this.currentRoute, /*hasMigratedToPlugin*/ false));
+         (this.currentRoute === routes.PRIVACY ||
+          this.isRouteHostedWithinPrivacyView_(this.currentRoute)));
   }
 
   private updatePrivacyGuidePromoVisibility_() {

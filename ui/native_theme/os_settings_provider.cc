@@ -6,6 +6,8 @@
 
 #include <array>
 #include <forward_list>
+#include <optional>
+#include <tuple>
 #include <utility>
 
 #include "base/callback_list.h"
@@ -16,11 +18,18 @@
 #include "base/time/time.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
+#include "third_party/skia/include/core/SkColor.h"
+#include "ui/color/color_provider_key.h"
+#include "ui/gfx/color_conversions.h"
+#include "ui/gfx/color_utils.h"
+#include "ui/native_theme/native_theme.h"
 
 // `OsSettingsProviderImpl` is an alias to a forward-declared type; to construct
 // it in `Get()` below, we must have the full type definition.
 #if BUILDFLAG(IS_ANDROID)
 #include "ui/native_theme/os_settings_provider_android.h"
+#elif BUILDFLAG(IS_CHROMEOS)
+#include "ui/native_theme/os_settings_provider_ash.h"
 #elif BUILDFLAG(IS_MAC)
 #include "ui/native_theme/os_settings_provider_mac.h"
 #elif BUILDFLAG(IS_WIN)
@@ -137,6 +146,81 @@ bool OsSettingsProvider::DarkColorSchemeAvailable() const {
   return true;
 }
 
+NativeTheme::PreferredColorScheme OsSettingsProvider::PreferredColorScheme()
+    const {
+  if (ForcedColorsActive()) {
+    // According to the spec, the preferred color scheme for web content is
+    // "dark" if the Canvas color has L<33% and "light" if L>67%, where "L" is
+    // LAB lightness. The Canvas color is mapped to the Window system color.
+    // https://www.w3.org/TR/css-color-adjust-1/#forced
+    if (const auto bg_color = Color(ColorId::kWindow)) {
+      const SkColor srgb_legacy = bg_color.value();
+      const auto [r, g, b] = gfx::SRGBLegacyToSRGB(SkColorGetR(srgb_legacy),
+                                                   SkColorGetG(srgb_legacy),
+                                                   SkColorGetB(srgb_legacy));
+      const auto [x, y, z] = gfx::SRGBToXYZD50(r, g, b);
+      const float lab_lightness = std::get<0>(gfx::XYZD50ToLab(x, y, z));
+      if (lab_lightness < 33.0f) {
+        return NativeTheme::PreferredColorScheme::kDark;
+      }
+      if (lab_lightness > 67.0f) {
+        return NativeTheme::PreferredColorScheme::kLight;
+      }
+    }
+  }
+
+  return NativeTheme::PreferredColorScheme::kNoPreference;
+}
+
+ColorProviderKey::UserColorSource OsSettingsProvider::PreferredColorSource()
+    const {
+  return ColorProviderKey::UserColorSource::kAccent;
+}
+
+NativeTheme::PreferredContrast OsSettingsProvider::PreferredContrast() const {
+  if (ForcedColorsActive()) {
+    // TODO(sartang@microsoft.com): Update the spec page at
+    // https://www.w3.org/TR/css-color-adjust-1/#forced, it currently does not
+    // mention the relation between forced-colors-active and prefers-contrast.
+    //
+    // According to spec [1], "in addition to forced-colors: active, the user
+    // agent must also match one of prefers-contrast: more or prefers-contrast:
+    // less if it can determine that the forced color palette chosen by the user
+    // has a particularly high or low contrast, and must make prefers-contrast:
+    // custom match otherwise".
+    //
+    // Using WCAG definitions [2], we have decided to match 'more' in Forced
+    // Colors Mode if the contrast ratio between the foreground and background
+    // color is 7:1 or greater.
+    //
+    // "A contrast ratio of 3:1 is the minimum level recommended by
+    // [[ISO-9241-3]] and [[ANSI-HFES-100-1988]] for standard text and
+    // vision"[2]. Given this, we will start by matching to 'less' in Forced
+    // Colors Mode if the contrast ratio between the foreground and background
+    // color is 2.5:1 or less.
+    //
+    // These ratios will act as an experimental baseline that we can adjust
+    // based on user feedback.
+    //
+    // [1]
+    // https://drafts.csswg.org/mediaqueries-5/#valdef-media-forced-colors-active
+    // [2] https://www.w3.org/WAI/WCAG21/Understanding/contrast-enhanced
+    if (const auto bg_color = Color(ColorId::kWindow),
+        fg_color = Color(ColorId::kWindowText);
+        bg_color.has_value() && fg_color.has_value()) {
+      const float contrast_ratio =
+          color_utils::GetContrastRatio(bg_color.value(), fg_color.value());
+      if (contrast_ratio >= 7) {
+        return NativeTheme::PreferredContrast::kMore;
+      }
+      return contrast_ratio <= 2.5 ? NativeTheme::PreferredContrast::kLess
+                                   : NativeTheme::PreferredContrast::kCustom;
+    }
+  }
+
+  return NativeTheme::PreferredContrast::kNoPreference;
+}
+
 bool OsSettingsProvider::PrefersReducedTransparency() const {
   return false;
 }
@@ -145,7 +229,20 @@ bool OsSettingsProvider::PrefersInvertedColors() const {
   return false;
 }
 
+bool OsSettingsProvider::ForcedColorsActive() const {
+  return false;
+}
+
+std::optional<SkColor> OsSettingsProvider::AccentColor() const {
+  return std::nullopt;
+}
+
 std::optional<SkColor> OsSettingsProvider::Color(ColorId color_id) const {
+  return std::nullopt;
+}
+
+std::optional<ColorProviderKey::SchemeVariant>
+OsSettingsProvider::SchemeVariant() const {
   return std::nullopt;
 }
 

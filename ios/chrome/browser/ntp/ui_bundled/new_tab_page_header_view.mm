@@ -526,7 +526,10 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
 
 - (void)updateButtonsForUserInterfaceStyle:(UIUserInterfaceStyle)style {
   // Variations containing MIA entry point force disable colors in the icons.
-  const BOOL forceDisableColors = self.shouldShowMIAEntrypoint;
+  const BOOL aimInQuickActions = GetNTPMIAEntrypointVariation() ==
+                                 NTPMIAEntrypointVariation::kAIMInQuickAction;
+  const BOOL forceDisableColors =
+      self.shouldShowMIAEntrypoint || aimInQuickActions;
   const BOOL darkUIStyle = style == UIUserInterfaceStyleDark;
   const BOOL useColorIcon = !darkUIStyle && !forceDisableColors;
 
@@ -1201,7 +1204,8 @@ CGFloat MIAAnimationOpacityForScrollProgress(CGFloat percent) {
                                              : FakeboxBottomColor(),
                                 pinnedColor, progress)];
 
-  UIColor* defaultTintColor = [UIColor colorNamed:kGrey700Color];
+  UIColor* defaultTintColor =
+      content_suggestions::DefaultIconTintColorWithAIMAllowed(_isAIMAllowed);
   UIColor* defaultDividerColor = [UIColor colorNamed:kGrey600Color];
   UIColor* tintColor = colorPalette ? BlendColors(colorPalette.tintColor,
                                                   defaultTintColor, progress)

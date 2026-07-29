@@ -164,13 +164,6 @@ public class ChildProcessConnectionMetrics {
         cancelEmitting();
     }
 
-    private boolean bindingManagerHasExclusiveVisibleBinding(ChildProcessConnection connection) {
-        if (mBindingManager != null) {
-            return mBindingManager.hasExclusiveVisibleBinding(connection);
-        }
-        return false;
-    }
-
     // These metrics are only emitted in the foreground.
     @VisibleForTesting
     void emitMetrics() {
@@ -201,11 +194,7 @@ public class ChildProcessConnectionMetrics {
                     break;
                 case ChildBindingState.VISIBLE:
                     visibleBindingCount++;
-                    if (bindingManagerHasExclusiveVisibleBinding(connection)) {
-                        contentWaivedBindingCount++;
-                    } else {
-                        contentVisibleBindingCount++;
-                    }
+                    contentVisibleBindingCount++;
                     break;
                 case ChildBindingState.NOT_PERCEPTIBLE:
                     notPerceptibleBindingCount++;
@@ -257,8 +246,23 @@ public class ChildProcessConnectionMetrics {
 
     private void emitBinderIpcCount() {
         assert LauncherThread.runningOnLauncherThread();
-        int bindServiceCount = BindService.getAndResetBindServiceCount();
+        BindService.BinderCallCounter counter = BindService.getAndResetBinderCallCounter();
+        if (counter == null) {
+            return;
+        }
         RecordHistogram.recordCount100000Histogram(
-                "Android.ChildProcessBinding.BinderIPC.Count", bindServiceCount);
+                "Android.ChildProcessBinding.BinderIPC.BindService.Count",
+                counter.mBindServiceCount);
+        RecordHistogram.recordCount100000Histogram(
+                "Android.ChildProcessBinding.BinderIPC.UnbindService.Count",
+                counter.mUnbindServiceCount);
+        RecordHistogram.recordCount100000Histogram(
+                "Android.ChildProcessBinding.BinderIPC.UpdateServiceGroup.Count",
+                counter.mUpdateServiceGroupCount);
+        RecordHistogram.recordCount100000Histogram(
+                "Android.ChildProcessBinding.BinderIPC.Total.Count",
+                counter.mBindServiceCount
+                        + counter.mUnbindServiceCount
+                        + counter.mUpdateServiceGroupCount);
     }
 }

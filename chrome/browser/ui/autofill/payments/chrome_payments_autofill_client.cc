@@ -260,6 +260,10 @@ void ChromePaymentsAutofillClient::ScanCreditCard(
                                               std::move(callback));
 }
 
+bool ChromePaymentsAutofillClient::LocalCardSaveIsSupported() {
+  return true;
+}
+
 void ChromePaymentsAutofillClient::ShowSaveCreditCardLocally(
     const CreditCard& card,
     SaveCreditCardOptions options,
@@ -949,6 +953,18 @@ bool ChromePaymentsAutofillClient::ShowTouchToFillProgress(
   // TTF should already be shown, so pass nullptr for `view`.
   return GetTouchToFillPaymentMethodController()->ShowProgressScreen(
       /*view=*/nullptr, delegate);
+#else
+  // Touch To Fill is not supported on Desktop.
+  NOTREACHED();
+#endif
+}
+
+bool ChromePaymentsAutofillClient::ShowTouchToFillBnplIssuers(
+    base::WeakPtr<TouchToFillDelegate> delegate,
+    base::span<const autofill::BnplIssuer> bnpl_issurs_to_suggest) {
+#if BUILDFLAG(IS_ANDROID)
+  return GetTouchToFillPaymentMethodController()->ShowBnplIssuers(
+      delegate, bnpl_issurs_to_suggest);
 #else
   // Touch To Fill is not supported on Desktop.
   NOTREACHED();

@@ -21,11 +21,12 @@ import androidx.preference.SwitchPreferenceCompat;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
 
 /** A Chrome switch preference that supports managed preferences. */
 @NullMarked
 public class ChromeSwitchPreference extends SwitchPreferenceCompat
-        implements CustomStyledPreference {
+        implements CustomStyledContainer {
     private @Nullable ManagedPreferenceDelegate mManagedPrefDelegate;
 
     /** The View for this preference. */
@@ -181,7 +182,6 @@ public class ChromeSwitchPreference extends SwitchPreferenceCompat
         mView.setBackgroundColor(mBackgroundColorInt);
     }
 
-    /** Returns the custom background style for the preference. */
     @Override
     public @BackgroundStyle int getCustomBackgroundStyle() {
         return mBackgroundStyle;

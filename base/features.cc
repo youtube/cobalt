@@ -112,8 +112,10 @@ BASE_FEATURE(kPartialLowEndModeOnMidRangeDevices,
 // Enable not perceptible binding without cpu priority boosting.
 BASE_FEATURE(kBackgroundNotPerceptibleBinding, FEATURE_DISABLED_BY_DEFAULT);
 
-// Whether to report frame metrics to the Android.FrameTimeline.* histograms.
-BASE_FEATURE(kCollectAndroidFrameTimelineMetrics, FEATURE_DISABLED_BY_DEFAULT);
+// Whether to use effective binding state to manage child process bindings.
+// ChildProcessConnection will binds at most 2 service connections only,
+// the connection for the effective binding state and waived binding.
+BASE_FEATURE(kEffectiveBindingState, FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, post registering PowerMonitor broadcast receiver to a background
 // thread,
@@ -121,6 +123,11 @@ BASE_FEATURE(kPostPowerMonitorBroadcastReceiverInitToBackground,
              FEATURE_ENABLED_BY_DEFAULT);
 // If enabled, getMyMemoryState IPC will be posted to background.
 BASE_FEATURE(kPostGetMyMemoryStateToBackground, FEATURE_ENABLED_BY_DEFAULT);
+
+// Use a single connection and rebindService() to manage the binding to a child
+// process service.
+BASE_FEATURE(kRebindingChildServiceConnectionController,
+             FEATURE_DISABLED_BY_DEFAULT);
 
 // Update child process binding state before unbinding.
 BASE_FEATURE(kUpdateStateBeforeUnbinding, FEATURE_DISABLED_BY_DEFAULT);

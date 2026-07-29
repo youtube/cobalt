@@ -28,6 +28,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.LazyOneshotSupplier;
+import org.chromium.base.supplier.LazyOneshotSupplierImpl;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -117,7 +118,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
      *     bookmark_bar view.
      * @param bookmarkBarView The bookmark_bar view that contains the entire bookmarks bar.
      */
-    public BookmarkBarMediator(
+    BookmarkBarMediator(
             Activity activity,
             PropertyModel allBookmarksButtonModel,
             Supplier<Pair<Integer, Integer>> controlsHeightSupplier,
@@ -168,6 +169,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         mBookmarkManagerOpenerSupplier = bookmarkManagerOpenerSupplier;
         mItemsRecyclerView = itemsRecyclerView;
         mBookmarkBarView = bookmarkBarView;
+        mBookmarkBarView.setContentDescription(
+                mActivity.getString(R.string.bookmark_bar_content_description));
     }
 
     /** Destroys the bookmark bar mediator. */
@@ -202,10 +205,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             @BookmarkBarItemsProvider.ObservationId int observationId,
             BookmarkItem item,
             int index) {
-        mItemsModel.add(
-                index,
-                BookmarkBarUtils.createListItemFor(
-                        this::onBookmarkItemClick, mActivity, mImageFetcher, item));
+        mItemsModel.add(index, createListItemFor(this::onBookmarkItemClick, mImageFetcher, item));
     }
 
     @Override
@@ -226,9 +226,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             BookmarkItem item,
             int index) {
         mItemsModel.update(
-                index,
-                BookmarkBarUtils.createListItemFor(
-                        this::onBookmarkItemClick, mActivity, mImageFetcher, item));
+                index, createListItemFor(this::onBookmarkItemClick, mImageFetcher, item));
     }
 
     @Override
@@ -238,9 +236,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             int index) {
         final List<ListItem> batch = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
-            batch.add(
-                    BookmarkBarUtils.createListItemFor(
-                            this::onBookmarkItemClick, mActivity, mImageFetcher, items.get(i)));
+            batch.add(createListItemFor(this::onBookmarkItemClick, mImageFetcher, items.get(i)));
         }
         mItemsModel.addAll(batch, index);
     }
@@ -316,17 +312,9 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         // this guard passes, so the data shows only actions that resulted in a change.
         runIfStillRelevantAfterFinishLoadingBookmarkModel(
                 (profileAfterLoading, modelAfterLoading) -> {
-                    // Get the id of the entire bookmarks bar.
-                    BookmarkId bookmarkBarDesktopFolderId =
-                            Optional.ofNullable(modelAfterLoading.getAccountDesktopFolderId())
-                                    .orElseGet(modelAfterLoading::getDesktopFolderId);
-
-                    if (bookmarkBarDesktopFolderId == null) return;
-
                     // Get an ordered list of all the children (both folders and web pages) of the
                     // bookmarks bar.
-                    List<BookmarkId> allBookmarkItems =
-                            modelAfterLoading.getChildIds(bookmarkBarDesktopFolderId);
+                    List<BookmarkId> allBookmarkItems = getBookmarkIdsForModel(modelAfterLoading);
 
                     // Get the index of the first hidden item from the LayoutManager.
                     int firstHiddenIndex =
@@ -435,7 +423,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                         mAnchoredPopupWindow.dismiss();
                     }
                 },
-                /* drillDownOverrideValue= */ true);
+                /* drillDownOverrideValue= */ true,
+                /* flyoutController= */ null);
 
         View popupContentView = popupListMenu.getContentView();
         // This is needed because list_menu_layout.xml already sets a background, and we want to
@@ -483,12 +472,12 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         // this observer, the dynamic sizing logic would only work on the root popups.
         final ListObservable.ListObserver<Void> sizeUpdaterObserver =
                 new ListObservable.ListObserver<>() {
-                    private void updatePopupSize(int count) {
+                    private void updatePopupSize() {
                         popupContentView.post(
                                 () -> {
                                     if (mAnchoredPopupWindow != null
                                             && mAnchoredPopupWindow.isShowing()) {
-                                        configurePopupWindowSize(popupListMenu, count);
+                                        configurePopupWindowSize(popupListMenu);
                                     }
                                 });
                     }
@@ -499,17 +488,17 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                             int index,
                             int count,
                             @Nullable Void payload) {
-                        updatePopupSize(count);
+                        updatePopupSize();
                     }
 
                     @Override
                     public void onItemRangeInserted(ListObservable source, int index, int count) {
-                        updatePopupSize(count);
+                        updatePopupSize();
                     }
 
                     @Override
                     public void onItemRangeRemoved(ListObservable source, int index, int count) {
-                        updatePopupSize(count);
+                        updatePopupSize();
                     }
                 };
 
@@ -522,7 +511,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
                     bookmarkItems.removeObserver(sizeUpdaterObserver);
                 });
 
-        configurePopupWindowSize(popupListMenu, bookmarkItems.size());
+        configurePopupWindowSize(popupListMenu);
         mAnchoredPopupWindow.show();
     }
 
@@ -557,7 +546,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
     }
 
     @VisibleForTesting
-    void configurePopupWindowSize(BasicListMenu popupListMenu, int count) {
+    void configurePopupWindowSize(BasicListMenu popupListMenu) {
         if (mAnchoredPopupWindow == null) {
             return;
         }
@@ -574,7 +563,8 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         int finalWidth = Math.min(maxWidthPx, availableWidth);
 
         // When we are in the empty state, there is a set height defined by the UI spec.
-        if (count == 0) {
+        if (popupListMenu.getContentAdapter() == null
+                || popupListMenu.getContentAdapter().getCount() == 0) {
             mAnchoredPopupWindow.setDesiredContentSize(
                     finalWidth,
                     resources.getDimensionPixelSize(R.dimen.bookmarks_bar_popup_min_height));
@@ -591,17 +581,7 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
         BookmarkModel bookmarkModel = BookmarkModel.getForProfile(mProfileSupplier.get());
         if (bookmarkModel == null) return INVALID_INDEX;
 
-        // Get the id of the entire bookmarks bar.
-        BookmarkId bookmarkBarFolderId =
-                Optional.ofNullable(bookmarkModel.getAccountDesktopFolderId())
-                        .orElseGet(bookmarkModel::getDesktopFolderId);
-        if (bookmarkBarFolderId == null) return INVALID_INDEX;
-
-        // Get an ordered list of all the children (both folders and web pages) of the bookmarks
-        // bar.
-        List<BookmarkId> childrenOfBookmarkBar = bookmarkModel.getChildIds(bookmarkBarFolderId);
-
-        return childrenOfBookmarkBar.indexOf(item.getId());
+        return getBookmarkIdsForModel(bookmarkModel).indexOf(item.getId());
     }
 
     private @Nullable View getAnchorViewForBookmark(BookmarkItem item) {
@@ -669,14 +649,22 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             childrenList.add(item);
         }
 
-        // TODO(crbug.com/430057288): Add metric for more submenu folder clicks.
+        View.OnClickListener clickListener =
+                (v) -> BookmarkBarUtils.recordClick(BookmarkBarClickType.POP_UP_FOLDER);
+
         final PropertyModel model =
                 new PropertyModel.Builder(ListMenuSubmenuItemProperties.ALL_KEYS)
                         .with(ListMenuItemProperties.TITLE, bookmarkItem.getTitle())
+                        .with(
+                                ListMenuItemProperties.CONTENT_DESCRIPTION,
+                                mActivity.getString(
+                                        R.string.bookmark_bar_folder_content_description,
+                                        bookmarkItem.getTitle()))
                         .with(ListMenuItemProperties.IS_TEXT_ELLIPSIZED_AT_END, true)
                         .with(ListMenuSubmenuItemProperties.SUBMENU_ITEMS, childrenList)
                         .with(ListMenuItemProperties.START_ICON_BITMAP, sFolderIconBitmap)
                         .with(ListMenuItemProperties.ENABLED, true)
+                        .with(ListMenuItemProperties.CLICK_LISTENER, clickListener)
                         .build();
 
         ListItem listItem = new ListItem(ListItemType.MENU_ITEM_WITH_SUBMENU, model);
@@ -894,6 +882,101 @@ class BookmarkBarMediator implements BookmarkBarItemsProvider.Observer {
             parent = parentView.getParent();
         }
         return null;
+    }
+
+    /**
+     * Gets the full list of BookmarkId's based on the given model. This will find all the account
+     * bookmark bar IDs, followed by the local bookmark bar IDs, since both should appear in the bar
+     * if they both exist.
+     *
+     * @param bookmarkModel The bookmark model to query bookmarks for.
+     * @return List of BookmarkId's for the bookmark bar of the given model.
+     */
+    private List<BookmarkId> getBookmarkIdsForModel(BookmarkModel bookmarkModel) {
+        BookmarkId accountDesktopFolderId = bookmarkModel.getAccountDesktopFolderId();
+        List<BookmarkId> bookmarkIds = new ArrayList<>();
+        if (accountDesktopFolderId != null) {
+            bookmarkIds.addAll(bookmarkModel.getChildIds(accountDesktopFolderId));
+        }
+
+        BookmarkId localFolderId = bookmarkModel.getDesktopFolderId();
+        if (localFolderId != null) {
+            bookmarkIds.addAll(bookmarkModel.getChildIds(localFolderId));
+        }
+
+        return bookmarkIds;
+    }
+
+    /**
+     * Creates a list item to render in the bookmark bar for the specified bookmark item.
+     *
+     * @param clickCallback The callback to invoke on list item click events.
+     * @param imageFetcher The image fetcher to use for rendering favicons.
+     * @param item The bookmark item for which to create a renderable list item.
+     * @return The created list item to render in the bookmark bar.
+     */
+    private ListItem createListItemFor(
+            BiConsumer<BookmarkItem, Integer> clickCallback,
+            @Nullable BookmarkImageFetcher imageFetcher,
+            BookmarkItem item) {
+
+        View.OnKeyListener keyListener =
+                (v, keyCode, event) -> {
+                    // Check whether the Enter key is released.
+                    if (event.getAction() == KeyEvent.ACTION_UP
+                            && keyCode == KeyEvent.KEYCODE_ENTER) {
+                        // clickCallback is an object that represents
+                        // BookmarkBarMediator#onBookmarkItemClick.
+                        clickCallback.accept(item, event.getMetaState());
+                        // Returning true handles the event, avoids triggering a normal click
+                        // (double action).
+                        return true;
+                    }
+                    // We do not handle other keys.
+                    return false;
+                };
+
+        PropertyModel.Builder modelBuilder =
+                new PropertyModel.Builder(BookmarkBarButtonProperties.ALL_KEYS)
+                        .with(
+                                BookmarkBarButtonProperties.CLICK_CALLBACK,
+                                (metaState) -> clickCallback.accept(item, metaState))
+                        .with(BookmarkBarButtonProperties.KEY_LISTENER, keyListener)
+                        .with(
+                                BookmarkBarButtonProperties.ICON_TINT_LIST_ID,
+                                item.isFolder()
+                                        ? R.color.default_icon_color_tint_list
+                                        : Resources.ID_NULL)
+                        .with(
+                                BookmarkBarButtonProperties.FOLDER_CONTENT_DESCRIPTION,
+                                item.isFolder()
+                                        ? mActivity.getString(
+                                                R.string.bookmark_bar_folder_content_description,
+                                                item.getTitle())
+                                        : null)
+                        .with(BookmarkBarButtonProperties.TITLE, item.getTitle());
+        if (imageFetcher != null) {
+            modelBuilder.with(
+                    BookmarkBarButtonProperties.ICON_SUPPLIER,
+                    createIconSupplierFor(imageFetcher, item));
+        }
+        return new ListItem(BookmarkBarUtils.ViewType.ITEM, modelBuilder.build());
+    }
+
+    private LazyOneshotSupplier<Drawable> createIconSupplierFor(
+            BookmarkImageFetcher imageFetcher, BookmarkItem item) {
+        if (item.isFolder()) {
+            return LazyOneshotSupplier.fromSupplier(
+                    () ->
+                            AppCompatResources.getDrawable(
+                                    mActivity, R.drawable.ic_folder_outline_24dp));
+        }
+        return new LazyOneshotSupplierImpl<>() {
+            @Override
+            public void doSet() {
+                imageFetcher.fetchFaviconForBookmark(item, this::set);
+            }
+        };
     }
 
     void setAnchoredPopupWindowForTesting(AnchoredPopupWindow anchoredPopupWindow) {

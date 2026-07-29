@@ -11,6 +11,7 @@
 
 #include "base/containers/flat_tree.h"
 #include "base/containers/span.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -25,7 +26,6 @@
 #include "components/lens/tab_contextualization_controller.h"
 #include "components/omnibox/browser/omnibox_controller.h"
 #include "content/public/browser/page_navigator.h"
-#include "content/public/common/url_constants.h"
 
 using composebox::SessionState;
 
@@ -93,8 +93,10 @@ void ComposeboxHandler::NotifySessionAbandoned() {
   metrics_recorder_->NotifySessionStateChanged(SessionState::kSessionAbandoned);
 }
 
-void ComposeboxHandler::SubmitQuery(const std::string& query_text,
-                                    WindowOpenDisposition disposition) {
+void ComposeboxHandler::SubmitQuery(
+    const std::string& query_text,
+    WindowOpenDisposition disposition,
+    std::map<std::string, std::string> additional_params) {
   // Update the query controller state to reflect any deleted contexts.
   std::erase_if(deleted_context_tokens_,
                 [this](const base::UnguessableToken& context_token) {
@@ -124,7 +126,8 @@ void ComposeboxHandler::SubmitQuery(const std::string& query_text,
   // with the query.
   base::Time query_start_time = base::Time::Now();
   metrics_recorder_->NotifySessionStateChanged(SessionState::kQuerySubmitted);
-  OpenUrl(query_controller_->CreateAimUrl(query_text, query_start_time),
+  OpenUrl(query_controller_->CreateAimUrl(query_text, query_start_time,
+                                          additional_params),
           disposition);
   metrics_recorder_->NotifySessionStateChanged(
       SessionState::kNavigationOccurred);
@@ -141,7 +144,7 @@ void ComposeboxHandler::SubmitQuery(const std::string& query_text,
   const WindowOpenDisposition disposition = ui::DispositionFromClick(
       /*middle_button=*/mouse_button == 1, alt_key, ctrl_key, meta_key,
       shift_key);
-  SubmitQuery(query_text, disposition);
+  SubmitQuery(query_text, disposition, /*additional_params=*/{});
 }
 
 void ComposeboxHandler::FocusChanged(bool focused) {
@@ -199,6 +202,8 @@ void ComposeboxHandler::AddTabContext(int32_t tab_id,
     return;
   }
 
+  RecordTabClickedMetric(tab);
+
   lens::TabContextualizationController* tab_contextualization_controller =
       tab->GetTabFeatures()->tab_contextualization_controller();
   auto token = base::UnguessableToken::Create();
@@ -209,12 +214,45 @@ void ComposeboxHandler::AddTabContext(int32_t tab_id,
   std::move(callback).Run(token);
 }
 
+void ComposeboxHandler::RecordTabClickedMetric(tabs::TabInterface* const tab) {
+  bool has_duplicate_title = false;
+  auto* browser_window_interface =
+      webui::GetBrowserWindowInterface(web_contents_);
+  if (browser_window_interface) {
+    auto* tab_strip_model = browser_window_interface->GetTabStripModel();
+    int tab_index = tab_strip_model->GetIndexOfTab(tab);
+    if (tab_index != TabStripModel::kNoTab) {
+      TabRendererData current_tab_renderer_data =
+          TabRendererData::FromTabInModel(tab_strip_model, tab_index);
+      const std::u16string& current_title = current_tab_renderer_data.title;
+
+      int title_count = 0;
+      for (int i = 0; i < tab_strip_model->count(); i++) {
+        TabRendererData tab_renderer_data =
+            TabRendererData::FromTabInModel(tab_strip_model, i);
+        if (tab_renderer_data.title == current_title) {
+          title_count++;
+        }
+      }
+      if (title_count > 1) {
+        has_duplicate_title = true;
+      }
+    }
+  }
+
+  UMA_HISTOGRAM_BOOLEAN("NewTabPage.Composebox.TabContextAdded", true);
+
+  UMA_HISTOGRAM_BOOLEAN("NewTabPage.Composebox.TabWithDuplicateTitleClicked",
+                        has_duplicate_title);
+}
+
 void ComposeboxHandler::DeleteContext(
     const base::UnguessableToken& context_token) {
   // It is possible to receive a call to delete a context before that context
   // has been created in the query controller. We queue all context tokens for
   // deletion at query submission time.
   deleted_context_tokens_.insert(context_token);
+  query_controller_->ClearSuggestInputs();
 }
 
 void ComposeboxHandler::OnGetTabPageContext(
@@ -228,57 +266,6 @@ void ComposeboxHandler::OnGetTabPageContext(
 void ComposeboxHandler::ClearFiles() {
   deleted_context_tokens_.clear();
   query_controller_->ClearFiles();
-}
-
-void ComposeboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
-  std::vector<composebox::mojom::TabInfoPtr> tabs;
-
-  auto* browser_window_interface =
-      webui::GetBrowserWindowInterface(web_contents_);
-  if (!browser_window_interface) {
-    std::move(callback).Run(std::move(tabs));
-    return;
-  }
-
-  // Iterate through the tab strip model, getting the data for each tab
-  auto* tab_strip_model = browser_window_interface->GetTabStripModel();
-  for (int i = 0; i < tab_strip_model->count(); i++) {
-    auto* web_contents = tab_strip_model->GetWebContentsAt(i);
-    tabs::TabInterface* const tab = tab_strip_model->GetTabAtIndex(i);
-    TabRendererData tab_renderer_data =
-        TabRendererData::FromTabInModel(tab_strip_model, i);
-    const auto& last_committed_url = tab_renderer_data.last_committed_url;
-    // Skip tabs that are still loading, and skip webui.
-    if (!last_committed_url.is_valid() || last_committed_url.is_empty() ||
-        last_committed_url.SchemeIs(content::kChromeUIScheme) ||
-        last_committed_url.SchemeIs(content::kChromeUIUntrustedScheme)) {
-      continue;
-    }
-    auto tab_data = composebox::mojom::TabInfo::New();
-    tab_data->tab_id = tab->GetHandle().raw_value();
-    tab_data->title = base::UTF16ToUTF8(tab_renderer_data.title);
-    tab_data->url = last_committed_url;
-    tab_data->last_active =
-        std::max(web_contents->GetLastActiveTimeTicks(),
-                 web_contents->GetLastInteractionTimeTicks());
-    tabs.push_back(std::move(tab_data));
-  }
-
-  // Sort the tabs by last active time, and truncate to the maximum number of
-  // tabs to return.
-  int max_tab_suggestions =
-      std::min(static_cast<int>(tabs.size()),
-               ntp_composebox::kContextMenuMaxTabSuggestions.Get());
-  std::partial_sort(
-      tabs.begin(), tabs.begin() + max_tab_suggestions, tabs.end(),
-      [](const composebox::mojom::TabInfoPtr& a,
-         const composebox::mojom::TabInfoPtr& b) {
-        return a->last_active > b->last_active;
-      });
-  tabs.resize(max_tab_suggestions);
-
-  // Invoke the callback with the results.
-  std::move(callback).Run(std::move(tabs));
 }
 
 void ComposeboxHandler::OnFileUploadStatusChanged(

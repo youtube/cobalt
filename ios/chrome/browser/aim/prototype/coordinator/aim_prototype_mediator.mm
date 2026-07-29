@@ -27,19 +27,28 @@
 #import "components/search_engines/util.h"
 #import "ios/chrome/browser/aim/prototype/public/features.h"
 #import "ios/chrome/browser/aim/prototype/ui/aim_input_item.h"
+#import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
+#import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/NSString+Chromium.h"
+#import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "net/base/url_util.h"
 #import "ui/base/page_transition_types.h"
+#import "ui/gfx/favicon_size.h"
 #import "url/gurl.h"
 
 namespace {
+
+/// Minimum number of whitespace to auto trigger AIM.
+constexpr size_t kMinWhitespaceTriggerAIM = 1;
+/// Minimum number of characters to auto trigger AIM.
+constexpr size_t kMinCharTriggerAIM = 10;
 
 // Reads data from a file URL. Runs on a background thread.
 NSData* ReadDataFromURL(GURL url) {
@@ -107,6 +116,14 @@ CreateInputDataFromAnnotatedPageContent(
   return input_data;
 }
 
+/// Returns the number of whitespace in `string`.
+size_t WhitespaceCount(const std::u16string& string) {
+  return std::count_if(
+      string.begin(), string.end(),
+      [](unsigned char c) { return std::isspace(c); }  // The condition
+  );
+}
+
 }  // namespace
 
 @implementation AIMPrototypeMediator {
@@ -124,6 +141,8 @@ CreateInputDataFromAnnotatedPageContent(
   raw_ptr<WebStateList> _webStateList;
   // A page context wrapper used to extract annotated page content (APC).
   PageContextWrapper* _pageContextWrapper;
+  // The favicon loader.
+  raw_ptr<FaviconLoader> _faviconLoader;
 }
 
 - (instancetype)initWithUrlLoadingBrowserAgent:
@@ -131,7 +150,8 @@ CreateInputDataFromAnnotatedPageContent(
                      composeboxQueryController:
                          (std::unique_ptr<ComposeboxQueryControllerIOS>)
                              composeboxQueryController
-                                  webStateList:(WebStateList*)webStateList {
+                                  webStateList:(WebStateList*)webStateList
+                                 faviconLoader:(FaviconLoader*)faviconLoader {
   self = [super init];
   if (self) {
     _items = [NSMutableArray array];
@@ -142,6 +162,7 @@ CreateInputDataFromAnnotatedPageContent(
             self, _composeboxQueryController.get());
     _composeboxQueryController->NotifySessionStarted();
     _webStateList = webStateList;
+    _faviconLoader = faviconLoader;
   }
   return self;
 }
@@ -149,8 +170,9 @@ CreateInputDataFromAnnotatedPageContent(
 - (void)disconnect {
   _composeboxQueryController->NotifySessionAbandoned();
   _urlLoadingBrowserAgent = nullptr;
-  _composeboxQueryController.reset();
+  _faviconLoader = nullptr;
   _composeboxObserverBridge.reset();
+  _composeboxQueryController.reset();
 }
 
 - (void)processImageItemProvider:(NSItemProvider*)itemProvider {
@@ -158,10 +180,11 @@ CreateInputDataFromAnnotatedPageContent(
     return;
   }
 
-  AIMInputItem* item = [[AIMInputItem alloc] init];
+  AIMInputItem* item = [[AIMInputItem alloc]
+      initWithAimInputItemType:AIMInputItemType::kAIMInputItemTypeImage];
   [_items addObject:item];
-  [self.consumer setItems:_items];
-  const base::UnguessableToken& token = item.fileToken;
+  [self updateConsumerItems];
+  const base::UnguessableToken& token = item.token;
 
   __weak __typeof(self) weakSelf = self;
   // Load the preview image.
@@ -185,11 +208,25 @@ CreateInputDataFromAnnotatedPageContent(
                 }];
 }
 
+- (void)setConsumer:(id<AIMPrototypeConsumer>)consumer {
+  _consumer = consumer;
+
+  if (!_webStateList) {
+    return;
+  }
+
+  web::WebState* webState = _webStateList->GetActiveWebState();
+  [_consumer
+      setCanAttachTabAction:webState && !IsUrlNtp(webState->GetVisibleURL())];
+}
+
 - (void)processPDFFileURL:(GURL)PDFFileURL {
-  AIMInputItem* item = [[AIMInputItem alloc] init];
+  AIMInputItem* item = [[AIMInputItem alloc]
+      initWithAimInputItemType:AIMInputItemType::kAIMInputItemTypeFile];
+  item.title = base::SysUTF8ToNSString(PDFFileURL.ExtractFileName());
   [_items addObject:item];
-  [self.consumer setItems:_items];
-  const base::UnguessableToken& token = item.fileToken;
+  [self updateConsumerItems];
+  const base::UnguessableToken& token = item.token;
 
   // Read the data in the background then call `onDataReadForItem`.
   __weak __typeof(self) weakSelf = self;
@@ -208,6 +245,16 @@ CreateInputDataFromAnnotatedPageContent(
 }
 
 #pragma mark - AIMPrototypeMutator
+
+- (void)removeItem:(AIMInputItem*)item {
+  [_items removeObject:item];
+
+  if (_composeboxQueryController) {
+    _composeboxQueryController->DeleteFile(item.token);
+  }
+
+  [self updateConsumerItems];
+}
 
 - (void)sendText:(NSString*)text {
   GURL URL = _composeboxQueryController->CreateAimUrl(
@@ -234,6 +281,13 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)setAIModeEnabled:(BOOL)enabled {
   _AIModeEnabled = enabled;
+  if (!_AIModeEnabled) {
+    if (_composeboxQueryController) {
+      _composeboxQueryController->ClearFiles();
+    }
+    [_items removeAllObjects];
+    [self.consumer setItems:_items];
+  }
 }
 
 - (void)attachCurrentTabContent {
@@ -252,6 +306,7 @@ CreateInputDataFromAnnotatedPageContent(
         }
       })];
   _pageContextWrapper.shouldGetAnnotatedPageContent = YES;
+  _pageContextWrapper.shouldGetSnapshot = YES;
   [_pageContextWrapper populatePageContextFieldsAsync];
 }
 
@@ -283,7 +338,7 @@ CreateInputDataFromAnnotatedPageContent(
       return;
   }
 
-  [self.consumer updateState:item.state forItemWithToken:item.fileToken];
+  [self.consumer updateState:item.state forItemWithToken:item.token];
 }
 
 #pragma mark - LoadQueryCommands
@@ -305,7 +360,22 @@ CreateInputDataFromAnnotatedPageContent(
   // overwriting the full-res image if it arrives first.
   if (previewImage && !item.previewImage) {
     item.previewImage = previewImage;
-    [self.consumer updateState:item.state forItemWithToken:item.fileToken];
+    [self.consumer updateState:item.state forItemWithToken:item.token];
+  }
+}
+
+// Handles the loaded favicon `image` for the item with the given `token`.
+- (void)didLoadFaviconIcon:(UIImage*)faviconImage
+          forItemWithToken:(const base::UnguessableToken&)token {
+  AIMInputItem* item = [self itemForToken:token];
+  if (!item) {
+    return;
+  }
+
+  // Update the item's leading icon with the latest fetched favicon.
+  if (faviconImage && faviconImage != item.leadingIconImage) {
+    item.leadingIconImage = faviconImage;
+    [self.consumer updateState:item.state forItemWithToken:item.token];
   }
 }
 
@@ -319,7 +389,7 @@ CreateInputDataFromAnnotatedPageContent(
 
   if (!image) {
     item.state = AIMInputItemState::kError;
-    [self.consumer updateState:item.state forItemWithToken:item.fileToken];
+    [self.consumer updateState:item.state forItemWithToken:item.token];
     return;
   }
 
@@ -341,11 +411,11 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   item.state = AIMInputItemState::kUploading;
-  [self.consumer updateState:item.state forItemWithToken:item.fileToken];
+  [self.consumer updateState:item.state forItemWithToken:item.token];
 
   if (!item.previewImage) {
     item.previewImage = image;
-    [self.consumer setItems:_items];
+    [self updateConsumerItems];
   }
 
   base::OnceClosure task;
@@ -393,13 +463,13 @@ CreateInputDataFromAnnotatedPageContent(
   image_options.compression_quality = 80;
 
   _composeboxQueryController->StartFileUploadFlow(
-      item.fileToken, std::move(input_data), image_options);
+      item.token, std::move(input_data), image_options);
 }
 
 // Returns the item with the given `token` or nil if not found.
 - (AIMInputItem*)itemForToken:(const base::UnguessableToken&)token {
   for (AIMInputItem* item in _items) {
-    if (item.fileToken == token) {
+    if (item.token == token) {
       return item;
     }
   }
@@ -410,25 +480,41 @@ CreateInputDataFromAnnotatedPageContent(
 // snapshot is generated.
 - (void)didGetPageContext:
     (PageContextWrapperCallbackResponse)pageContextResponse {
-  if (!pageContextResponse.has_value()) {
+  web::WebState* webState = _webStateList->GetActiveWebState();
+
+  if (!pageContextResponse.has_value() || !webState) {
     return;
   }
 
-  AIMInputItem* item = [[AIMInputItem alloc] init];
+  AIMInputItem* item = [[AIMInputItem alloc]
+      initWithAimInputItemType:AIMInputItemType::kAIMInputItemTypeTab];
+  item.title = base::SysUTF16ToNSString(webState->GetTitle());
   [_items addObject:item];
-  [self.consumer setItems:_items];
-  __block const base::UnguessableToken& token = item.fileToken;
+  [self updateConsumerItems];
+  __block const base::UnguessableToken& token = item.token;
 
   std::unique_ptr<optimization_guide::proto::PageContext> page_context =
       std::move(pageContextResponse.value());
 
-  web::WebState* webState = _webStateList->GetActiveWebState();
   __block std::unique_ptr<lens::ContextualInputData> input_data =
       CreateInputDataFromAnnotatedPageContent(
           base::WrapUnique(page_context->release_annotated_page_content()),
           webState);
 
   __weak __typeof(self) weakSelf = self;
+
+  /// Based on the favicon loader API, this callback could be called twice.
+  auto faviconLoadedBlock = ^(FaviconAttributes* attributes) {
+    if (attributes.faviconImage) {
+      [weakSelf didLoadFaviconIcon:attributes.faviconImage
+                  forItemWithToken:token];
+    }
+  };
+
+  _faviconLoader->FaviconForPageUrl(
+      webState->GetVisibleURL(), gfx::kFaviconSize, gfx::kFaviconSize,
+      /*fallback_to_google_server=*/true, faviconLoadedBlock);
+
   SnapshotTabHelper::FromWebState(webState)->RetrieveColorSnapshot(
       ^(UIImage* image) {
         [weakSelf didRetrieveColorSnapshot:image
@@ -471,13 +557,13 @@ CreateInputDataFromAnnotatedPageContent(
 
   if (!data) {
     item.state = AIMInputItemState::kError;
-    [self.consumer updateState:item.state forItemWithToken:item.fileToken];
+    [self.consumer updateState:item.state forItemWithToken:item.token];
     return;
   }
 
   // Start the file upload immediately.
   item.state = AIMInputItemState::kUploading;
-  [self.consumer updateState:item.state forItemWithToken:item.fileToken];
+  [self.consumer updateState:item.state forItemWithToken:item.token];
 
   std::unique_ptr<lens::ContextualInputData> inputData =
       std::make_unique<lens::ContextualInputData>();
@@ -491,7 +577,7 @@ CreateInputDataFromAnnotatedPageContent(
   inputData->context_input->push_back(
       lens::ContextualInput(std::move(vectorData), lens::MimeType::kPdf));
   _composeboxQueryController->StartFileUploadFlow(
-      item.fileToken, std::move(inputData), std::nullopt);
+      item.token, std::move(inputData), std::nullopt);
 
   // Concurrently, generate a preview for the UI.
   __weak __typeof(self) weakSelf = self;
@@ -526,9 +612,24 @@ CreateInputDataFromAnnotatedPageContent(
     base::OnceClosure completion = base::BindOnce(^{
       [weakSelf dismissAimPrototype];
     });
-    constexpr base::TimeDelta kDelay = base::Seconds(0);
+    constexpr base::TimeDelta kDelay = base::Seconds(0.5);
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE, std::move(completion), kDelay);
+  }
+}
+
+- (void)omniboxDidChangeText:(const std::u16string&)text
+               isSearchQuery:(BOOL)isSearchQuery
+         userInputInProgress:(BOOL)userInputInProgress {
+  // Update mic button visibility.
+  [self.consumer hideMicButton:text.length()];
+
+  // Auto trigger AIM if conditions are met.
+  if (!_AIModeEnabled && userInputInProgress && isSearchQuery) {
+    if (text.length() >= kMinCharTriggerAIM &&
+        WhitespaceCount(text) >= kMinWhitespaceTriggerAIM) {
+      [self.consumer setAIModeEnabled:YES];
+    }
   }
 }
 
@@ -536,6 +637,14 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)dismissAimPrototype {
   [self.delegate dismissAimPrototype];
+}
+
+/// Updates the consumer items and maybe trigger AIM.
+- (void)updateConsumerItems {
+  [self.consumer setItems:_items];
+  if (_items.count > 0) {
+    [self.consumer setAIModeEnabled:YES];
+  }
 }
 
 @end

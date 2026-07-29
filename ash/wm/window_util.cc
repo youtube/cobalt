@@ -10,7 +10,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
-#include "ash/multi_user/multi_user_window_manager_impl.h"
+#include "ash/multi_user/multi_user_window_manager.h"
 #include "ash/public/cpp/app_types_util.h"
 #include "ash/public/cpp/input_device_settings_controller.h"
 #include "ash/public/cpp/shell_window_ids.h"
@@ -771,7 +771,7 @@ views::DialogDelegate* AsDialogDelegate(aura::Window* transient_window) {
 
 bool ShouldShowForCurrentUser(aura::Window* window) {
   MultiUserWindowManager* multi_user_window_manager =
-      MultiUserWindowManagerImpl::Get();
+      MultiUserWindowManager::Get();
   if (!multi_user_window_manager)
     return true;
 

@@ -319,7 +319,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.Cellular.Apn.CustomApns.{CustomApnState}.Count"
-    units="count" expires_after="2026-01-14">
+    units="count" expires_after="2026-03-15">
   <owner>nikhilcn@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -553,7 +553,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.SmdsScan.{SmdsScanMethod}.ProfileCount"
-    units="units" expires_after="2026-01-14">
+    units="units" expires_after="2026-03-15">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -570,7 +570,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.SmdsScan.{SmdsType}.{UserErrorHandling}"
-    enum="ESimOperationResult" expires_after="2026-01-14">
+    enum="ESimOperationResult" expires_after="2026-03-15">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -591,7 +591,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.SmdsScanDuration2.{SmdsType}.{DurationType}"
-    units="ms" expires_after="2026-01-14">
+    units="ms" expires_after="2026-03-15">
   <owner>chadduffin@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -611,7 +611,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.Cellular.ESim.UserInstall.Method"
-    enum="ESimUserInstallMethod" expires_after="2026-01-14">
+    enum="ESimUserInstallMethod" expires_after="2026-03-15">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -623,7 +623,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Network.Ash.Cellular.ESim.UserInstall.{UserErrorHandling}.{Method}"
-    enum="ESimOperationResult" expires_after="2026-01-14">
+    enum="ESimOperationResult" expires_after="2026-03-15">
   <owner>chadduffin@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -691,7 +691,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.DefaultNetwork.MeterSubtype"
-    enum="NetworkTechnologyMeterSubtype" expires_after="2026-01-14">
+    enum="NetworkTechnologyMeterSubtype" expires_after="2026-03-15">
   <owner>hsuregan@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -996,7 +996,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.ConnectionResult.NonUserInitiated"
-    enum="ShillConnectResult" expires_after="2026-01-14">
+    enum="ShillConnectResult" expires_after="2026-03-15">
   <owner>jiajunz@google.com</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1008,7 +1008,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.ConnectionResult.UserInitiated"
-    enum="UserInitiatedNetworkConnectResult" expires_after="2026-01-14">
+    enum="UserInitiatedNetworkConnectResult" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1019,7 +1019,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.ConnectionResult.{Filtering}"
-    enum="ShillConnectResult" expires_after="2026-01-14">
+    enum="ShillConnectResult" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1039,7 +1039,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{NetworkType}.DisconnectionsWithoutUserAction"
-    enum="NetworkConnectionState" expires_after="2026-01-14">
+    enum="NetworkConnectionState" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1062,7 +1062,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Ash.{TechnologyType}.EnabledState.{Operation}.Result"
-    enum="BooleanSuccess" expires_after="2026-01-14">
+    enum="BooleanSuccess" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1263,7 +1263,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.EnableProfile.Result"
-    enum="HermesResponseStatus" expires_after="2026-01-14">
+    enum="HermesResponseStatus" expires_after="2026-03-15">
   <owner>khorimoto@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1275,7 +1275,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.Installation.NonUserErrorSuccessRate"
-    enum="HermesResponseStatus" expires_after="2026-01-14">
+    enum="HermesResponseStatus" expires_after="2026-03-15">
   <owner>nikhilcn@chromium.org</owner>
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
@@ -1321,7 +1321,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.InstallViaQrCode.Result{OperationType}"
-    enum="HermesResponseStatus" expires_after="2026-01-14">
+    enum="HermesResponseStatus" expires_after="2026-03-15">
   <owner>khorimoto@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1516,7 +1516,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.ESim.SetupFlowResult"
-    enum="ESimSetupFlowResult" expires_after="2026-01-14">
+    enum="ESimSetupFlowResult" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1676,7 +1676,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.CellularSetup.{Result}.Duration"
-    units="ms" expires_after="2026-01-14">
+    units="ms" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1694,7 +1694,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.ConnectionResult.All"
-    enum="ShillCellularConnectResult" expires_after="2026-01-14">
+    enum="ShillCellularConnectResult" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1713,7 +1713,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.ConnectionResult.UserInitiated"
-    enum="UserInitiatedCellularConnectResult" expires_after="2026-01-14">
+    enum="UserInitiatedCellularConnectResult" expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1757,7 +1757,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.ServiceAtLoginCount{PolicyState}"
-    units="units" expires_after="2026-01-14">
+    units="units" expires_after="2026-03-15">
   <owner>khorimoto@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -1792,7 +1792,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Cellular.{SimType}.Usage.Duration" units="seconds"
-    expires_after="2026-01-14">
+    expires_after="2026-03-15">
   <owner>hsuregan@chromium.org</owner>
   <owner>cros-device-enablement@google.com</owner>
   <summary>
@@ -2764,7 +2764,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Network.Shill.ConnectionDiagnosticsIssue"
-    enum="ConnectionDiagnosticsIssue" expires_after="2025-12-31">
+    enum="ConnectionDiagnosticsIssue" expires_after="2026-03-15">
   <owner>hugobenichi@google.com</owner>
   <owner>cros-network-metrics@google.com</owner>
   <summary>
@@ -5034,7 +5034,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.CorsURLLoaderFactory.CreateLoaderAndStart2.Duration"
-    units="microseconds" expires_after="2026-01-11">
+    units="microseconds" expires_after="2026-03-15">
   <owner>olivier@chromium.org</owner>
   <owner>cduvall@chromium.org</owner>
   <summary>
@@ -5107,62 +5107,6 @@ chromium-metrics-reviews@google.com.
     data files, and migrate the data if a migration is requested. This is
     reported each time a network context instance is created on the network
     service, even when the sandbox is not enabled or no migration is requested.
-  </summary>
-</histogram>
-
-<histogram name="NetworkService.IpProtection.AndroidAuthClient.AuthAndSignTime"
-    units="ms" expires_after="2026-01-22">
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/browser/ip_protection/OWNERS</owner>
-  <summary>
-    Records the time taken to perform a successful AuthAndSign request via the
-    Android auth client/service. The timer begins when the request is passed
-    onto the auth client, and thus does not include any time for which requests
-    are queued waiting for an auth client to be created.
-
-    This histogram applies only to WebView and will only be emitted if the
-    MaskedDomainList and EnableIpPrivacyProxy features are enabled. The
-    system-provided auth service must also be accessible and able to service
-    requests successfully. The histogram is emitted during auth token
-    generation, which may happen multiple times during a session.
-  </summary>
-</histogram>
-
-<histogram name="NetworkService.IpProtection.AndroidAuthClient.CreationTime"
-    units="ms" expires_after="2026-01-22">
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/browser/ip_protection/OWNERS</owner>
-  <summary>
-    Records the time taken to create an Android IP Protection auth client,
-    including binding to the system-provided auth service. Measured between
-    BlindSignMessageAndroidImpl::CreateIpProtectionAuthClient and
-    BlindSignMessageAndroidImpl::OnCreateIpProtectionAuthClientComplete.
-
-    This histogram applies only to WebView and will only be emitted if the
-    MaskedDomainList and EnableIpPrivacyProxy features are enabled. The
-    system-provided auth service must also be accessible, but not necessarily
-    able to service requests successfully. The histogram is typically emitted
-    only once for the first auth token generation workflow, but may happen
-    multiple times in the case of serious service-related errors.
-  </summary>
-</histogram>
-
-<histogram
-    name="NetworkService.IpProtection.AndroidAuthClient.GetInitialDataTime"
-    units="ms" expires_after="2026-01-22">
-  <owner>ashleynewson@chromium.org</owner>
-  <owner>src/android_webview/browser/ip_protection/OWNERS</owner>
-  <summary>
-    Records the time taken to perform a successful GetInitialData request via
-    the Android auth client/service. The timer begins when the request is passed
-    onto the auth client, and thus does not include any time for which requests
-    are queued waiting for an auth client to be created.
-
-    This histogram applies only to WebView and will only be emitted if the
-    MaskedDomainList and EnableIpPrivacyProxy features are enabled. The
-    system-provided auth service must also be accessible and able to service
-    requests successfully. The histogram is emitted during auth token
-    generation, which may happen multiple times during a session.
   </summary>
 </histogram>
 
@@ -5484,6 +5428,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="NetworkService.IpProtection.TokenDemandDuringBatchGeneration"
+    units="tokens" expires_after="2026-01-07">
+  <owner>jtoohill@google.com</owner>
+  <owner>awillia@chromium.org</owner>
+  <owner>src/components/ip_protection/OWNERS</owner>
+  <summary>
+    An upper bound on the number of tokens that might have been spent while a
+    call to TryGetAuthTokens was in flight. This includes both tokens that were
+    successfully spent from the cache, and requests that were not proxied
+    because the cache was empty. Emitted when TryGetAuthTokens finishes.
+  </summary>
+</histogram>
+
 <histogram name="NetworkService.IpProtection.TryGetAuthTokensErrors"
     enum="IpProtectionTokenBatchRequestError" expires_after="2026-03-08">
   <owner>linxinan@chromium.org</owner>
@@ -5550,7 +5507,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkService.MaskedDomainList.DiskUsage" units="KB"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>djmitche@chromium.org</owner>
   <owner>src/components/ip_protection/OWNERS</owner>
   <summary>
@@ -5642,7 +5599,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NetworkService.NetworkLoaderCompletionTime2.{Source}.{Priority}"
-    units="ms" expires_after="2025-12-28">
+    units="ms" expires_after="2026-03-15">
   <owner>hayato@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

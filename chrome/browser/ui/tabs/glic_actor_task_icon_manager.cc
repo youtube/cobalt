@@ -64,8 +64,18 @@ void GlicActorTaskIconManager::OnActorTaskStateUpdate(actor::TaskId task_id) {
   // Reset suppression every time a new actor task state change occurs.
   suppress_task_icon_text_ = false;
   current_task_id_ = task_id;
+
+  // Get the glic::GlicInstance associated with the task.
+  glic::GlicInstance* instance =
+      window_controller_->GetInstanceForTab(GetLastUpdatedTab());
+  if (!instance) {
+    return;
+  }
+
+  // TODO(crbug.com/445960367): Access all glic UI state through GlicInstance
+  // instead.
   UpdateTaskIcon(window_controller_->state(),
-                 window_controller_->host().GetPrimaryCurrentView());
+                 instance->host().GetPrimaryCurrentView());
 }
 
 void GlicActorTaskIconManager::Shutdown() {}
@@ -134,7 +144,14 @@ raw_ptr<tabs::TabInterface> GlicActorTaskIconManager::GetLastUpdatedTab() {
   if (!current_task_id_ || !actor_service_->GetTask(current_task_id_)) {
     return nullptr;
   }
-  return actor_service_->GetTask(current_task_id_)->GetLastActedTab().Get();
+  actor::ActorTask* task = actor_service_->GetTask(current_task_id_);
+
+  actor::ActorTask::TabHandleSet tabs = task->GetLastActedTabs();
+
+  // TODO(crbug.com/441064175): Will need to be updated for multi-tab actuation.
+  DCHECK_LE(tabs.size(), 1ul);
+
+  return tabs.empty() ? nullptr : tabs.begin()->Get();
 }
 
 }  // namespace tabs

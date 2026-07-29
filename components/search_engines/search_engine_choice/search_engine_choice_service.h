@@ -17,6 +17,7 @@
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 
 namespace policy {
+class ManagementService;
 class PolicyService;
 }
 namespace signin {
@@ -28,7 +29,7 @@ class VariationsService;
 namespace regional_capabilities {
 class RegionalCapabilitiesService;
 struct ChoiceScreenEligibilityConfig;
-}
+}  // namespace regional_capabilities
 namespace TemplateURLPrepopulateData {
 class Resolver;
 }
@@ -97,7 +98,8 @@ class SearchEngineChoiceService : public KeyedService {
       PrefService* local_state,
       regional_capabilities::RegionalCapabilitiesService& regional_capabilities,
       TemplateURLPrepopulateData::Resolver& prepopulate_data_resolver,
-      signin::IdentityManager& identity_manager);
+      signin::IdentityManager& identity_manager,
+      policy::ManagementService& management_service);
   ~SearchEngineChoiceService() override;
 
   // Runs the initialisation step for this service, checking consistency in the
@@ -131,6 +133,10 @@ class SearchEngineChoiceService : public KeyedService {
   // the legacy histograms are not recorded by `RecordProfileLoadEligibility()`
   void RecordLegacyStaticEligibility(
       SearchEngineChoiceScreenConditions condition);
+
+  // Indicates whether the choice screen can be shown on a surface with a
+  // particular "first run experience" status.
+  bool IsSurfaceEligible(bool is_first_run_experience_surface) const;
 #endif  // BUILDFLAG(IS_IOS)
 
   // Records the specified choice screen condition for relevant navigations.
@@ -204,6 +210,9 @@ class SearchEngineChoiceService : public KeyedService {
     // The user is not eligible for the choice screen based on their account
     // capabilities.
     kAccountNotEligible,
+    // The device is not eligible for the choice screen based on its management
+    // status.
+    kManaged,
   };
   ChoiceStatus EvaluateSearchProviderChoiceForTesting(
       const TemplateURLService& template_url_service);
@@ -269,6 +278,7 @@ class SearchEngineChoiceService : public KeyedService {
   const raw_ref<TemplateURLPrepopulateData::Resolver>
       prepopulate_data_resolver_;
   const raw_ref<signin::IdentityManager> identity_manager_;
+  const raw_ref<policy::ManagementService> management_service_;
   base::ObserverList<Observer> observers_;
 
   // Used to track whether `MaybeRecordChoiceScreenDisplayState()` has already

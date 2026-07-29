@@ -3,6 +3,7 @@
 <translationbundle lang="fr-CA">
 <translation id="1010283278930414892">Aucun mot de passe enregistré sur cet appareil</translation>
 <translation id="1011749477052068769">Déplacer ici</translation>
+<translation id="1014083013111769343">Préférences du mode Lecture ouvertes à pleine hauteur</translation>
 <translation id="1014147525163127655">Il n'existe aucune clé d'accès pour <ph name="ORIGIN" /> sur cet appareil</translation>
 <translation id="1016498331642356377">Effectuez une recherche rapide à l'aide de commandes vocales. Pour modifier ce raccourci, maintenez le doigt sur celui-ci.</translation>
 <translation id="1028699632127661925">Envoi à <ph name="DEVICE_NAME" /> en cours…</translation>
@@ -98,6 +99,7 @@ Afin d'accéder à plus de paramètres utilisant des données pour améliorer vo
 <translation id="1407135791313364759">Tout ouvrir</translation>
 <translation id="1409879593029778104">Le téléchargement de <ph name="FILE_NAME" /> n'a pas pu être effectué, car ce fichier existe déjà.</translation>
 <translation id="1413446866325418126">Enregistrer les données dans votre compte Google</translation>
+<translation id="1414919006379339073">Fermer la fenêtre actuelle</translation>
 <translation id="1416550906796893042">Version de l'application</translation>
 <translation id="1419753403124156396">Redémarrer Chrome?</translation>
 <translation id="1428770807407000502">Désactiver la synchronisation?</translation>
@@ -207,6 +209,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="197288927597451399">Garder</translation>
 <translation id="1973912524893600642">Conserver les données</translation>
 <translation id="1974060860693918893">Options avancées</translation>
+<translation id="1982274314082047220">Mode Lecture : balayer l'écran vers le haut pour afficher les préférences</translation>
 <translation id="1984087999855033707">numéro de téléphone</translation>
 <translation id="1984417487208496350">Aucune protection (non recommandé)</translation>
 <translation id="1986685561493779662">Ce nom existe déjà</translation>
@@ -428,6 +431,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="2992473221983447149">Descriptions des images</translation>
 <translation id="2996291259634659425">Créer une phrase de passe</translation>
 <translation id="2996809686854298943">URL requise</translation>
+<translation id="3024215143424744261">Préférences du mode Lecture fermées</translation>
 <translation id="3026955690410463085">Ajouter le lien</translation>
 <translation id="3027644380269727216">En fonction de votre activité sur un site. Ce paramètre est activé.</translation>
 <translation id="3027950907978057636">De <ph name="APP_LABEL" /></translation>
@@ -706,6 +710,7 @@ Seule une personne connaissant votre phrase de passe peut lire vos données chif
 <translation id="4380055775103003110">Si ce problème persiste, vous pouvez essayer d'autres solutions pour continuer sur <ph name="SITE_ETLD_PLUS_ONE" />.</translation>
 <translation id="4384468725000734951">Sogou est utilisé pour la recherche</translation>
 <translation id="4387647248986092471">Créer un verrouillage de profil du véhicule</translation>
+<translation id="4387817230000841154">Ouvrir les téléchargements</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{Onglets et groupes d'onglets non utilisés pendant 1 jour ou plus}one{Onglets et groupes d'onglets non utilisés pendant # jour ou plus}other{Onglets et groupes d'onglets non utilisés pendant # jours ou plus}}</translation>
 <translation id="4402611456429872546">Téléchargement de la langue <ph name="LANG" /> en cours…</translation>
 <translation id="4404568932422911380">Aucun favori</translation>
@@ -1311,6 +1316,7 @@ Par exemple, certains sites Web peuvent répondre à cette demande en diffusant 
 <translation id="696447261358045621">Désactiver le mode de navigation privée</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{Afficher <ph name="TABS_COUNT_ONE" /> onglet avec une nouvelle activité dans les groupes d'onglets partagés}one{Afficher <ph name="TABS_COUNT_MANY" /> onglet avec une nouvelle activité dans les groupes d'onglets partagés}other{Afficher <ph name="TABS_COUNT_MANY" /> onglets avec une nouvelle activité dans les groupes d'onglets partagés}}</translation>
+<translation id="6971555615916967190">Préférences du mode Lecture ouvertes à mi-hauteur</translation>
 <translation id="6971862865055170158">Ne pas approuver</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />, nouvel onglet ou onglet mis à jour</translation>
 <translation id="6976811588313110624">Ajouter un nouveau raccourci.</translation>
@@ -1695,7 +1701,6 @@ Pour modifier ce paramètre, <ph name="BEGIN_LINK" />supprimez les données Chro
 <translation id="8617240290563765734">Ouvrir l'URL suggérée du contenu téléchargé?</translation>
 <translation id="8635399646025169806">Conserver le groupe d'onglets?</translation>
 <translation id="8636825310635137004">Pour synchroniser vos onglets sur vos autres appareils, activez la synchronisation.</translation>
-<translation id="864544049772947936">Gérer les fenêtres (<ph name="INSTANCE_COUNTS" />)</translation>
 <translation id="8662474268934425487">Se connecter à <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">Ce nom de fichier existe déjà</translation>
 <translation id="8676276370198826499">S'inscrire à <ph name="SITE_ETLD_PLUS_ONE" /> avec <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>

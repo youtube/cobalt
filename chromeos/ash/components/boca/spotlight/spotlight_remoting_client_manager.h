@@ -7,12 +7,15 @@
 
 #include <memory>
 
+#include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread.h"
+#include "base/timer/timer.h"
 #include "chromeos/ash/components/boca/spotlight/remoting_client_io_proxy.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_constants.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_frame_consumer.h"
@@ -35,29 +38,70 @@ namespace ash::boca {
 
 class SpotlightRemotingClientManager {
  public:
-  SpotlightRemotingClientManager(
-      std::unique_ptr<SpotlightOAuthTokenFetcher> token_fetcher,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
   SpotlightRemotingClientManager(const SpotlightRemotingClientManager&) =
       delete;
   SpotlightRemotingClientManager& operator=(
       const SpotlightRemotingClientManager&) = delete;
-  ~SpotlightRemotingClientManager();
 
+  virtual ~SpotlightRemotingClientManager() = default;
+
+  virtual void StartCrdClient(
+      std::string crd_connection_code,
+      base::OnceClosure crd_session_ended_callback,
+      SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback,
+      SpotlightCrdStateUpdatedCallback status_updated_callback) = 0;
+
+  virtual void StopCrdClient() = 0;
+
+  virtual std::string GetDeviceRobotEmail() = 0;
+
+ protected:
+  SpotlightRemotingClientManager() = default;
+};
+
+class SpotlightRemotingClientManagerImpl
+    : public SpotlightRemotingClientManager {
+ public:
+  using CreateRemotingIOProxyCb =
+      base::RepeatingCallback<std::unique_ptr<RemotingClientIOProxy>(
+          std::unique_ptr<network::PendingSharedURLLoaderFactory>,
+          SpotlightFrameConsumer::FrameReceivedCallback,
+          SpotlightCrdStateUpdatedCallback)>;
+
+  SpotlightRemotingClientManagerImpl(
+      std::unique_ptr<SpotlightOAuthTokenFetcher> token_fetcher,
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      CreateRemotingIOProxyCb create_remoting_io_proxy_cb =
+          base::BindRepeating(&CreateRemotingIOProxy));
+
+  SpotlightRemotingClientManagerImpl(
+      const SpotlightRemotingClientManagerImpl&) = delete;
+  SpotlightRemotingClientManagerImpl& operator=(
+      const SpotlightRemotingClientManagerImpl&) = delete;
+  ~SpotlightRemotingClientManagerImpl() override;
+
+  // SpotlightRemotingClientManager:
   // Starts a `remoting::RemotingClient` using the `task_runner_`.
   void StartCrdClient(
       std::string crd_connection_code,
       base::OnceClosure crd_session_ended_callback,
       SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback,
-      SpotlightCrdStateUpdatedCallback status_updated_callback);
-
+      SpotlightCrdStateUpdatedCallback status_updated_callback) override;
   // Forwards the request to stop the crd client to the
   // `remoting_client_io_proxy_`.
-  void StopCrdClient();
-
-  std::string GetDeviceRobotEmail();
+  void StopCrdClient() override;
+  std::string GetDeviceRobotEmail() override;
 
  private:
+  using SequencedRemotingClientIOProxy =
+      base::SequenceBound<std::unique_ptr<RemotingClientIOProxy>>;
+
+  static std::unique_ptr<RemotingClientIOProxy> CreateRemotingIOProxy(
+      std::unique_ptr<network::PendingSharedURLLoaderFactory>
+          pending_url_loader_factory,
+      SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback,
+      SpotlightCrdStateUpdatedCallback status_updated_callback);
+
   // Receives the OAuth token on the main/UI thread and calls the
   // `remoting_client_io_proxy_` to start the crd session.
   void HandleOAuthTokenRetrieved(std::string crd_connection_code,
@@ -73,6 +117,8 @@ class SpotlightRemotingClientManager {
   void HandleFrameReceived(SkBitmap bitmap,
                            std::unique_ptr<webrtc::DesktopFrame> frame);
 
+  void Reset();
+
   SEQUENCE_CHECKER(sequence_checker_);
   bool session_in_progress_ = false;
   // Dedicated IO Thread to run the `remoting_client_io_proxy_`. Webrtc
@@ -83,12 +129,12 @@ class SpotlightRemotingClientManager {
   SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback_;
   SpotlightCrdStateUpdatedCallback status_updated_callback_;
   std::unique_ptr<SpotlightOAuthTokenFetcher> token_fetcher_;
-  // The `SpotlightRemotingClientManager` is owned by the main/UI thread
+  // The `SpotlightRemotingClientManagerImpl` is owned by the main/UI thread
   // however the remoting_client/webrtc processes on the IO sequence.
-  std::unique_ptr<base::SequenceBound<RemotingClientIOProxy>>
-      remoting_client_io_proxy_;
+  std::unique_ptr<SequencedRemotingClientIOProxy> remoting_client_io_proxy_;
+  base::OneShotTimer frame_timeout_timer_;
 
-  base::WeakPtrFactory<SpotlightRemotingClientManager> weak_factory_{this};
+  base::WeakPtrFactory<SpotlightRemotingClientManagerImpl> weak_factory_{this};
 };
 
 }  // namespace ash::boca

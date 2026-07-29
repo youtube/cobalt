@@ -85,6 +85,9 @@ class IpProtectionCoreImpl
   IpProtectionTokenManager* GetIpProtectionTokenManagerForTesting(
       ProxyLayer proxy_layer);
   IpProtectionProxyConfigManager* GetIpProtectionProxyConfigManagerForTesting();
+  std::optional<BlindSignedAuthToken> GetAuthTokenForTesting(
+      ProxyLayer proxy_layer,
+      const std::string& geo_id);
 
   std::optional<std::string> GetProbabilisticRevealToken(
       const GURL& url,
@@ -107,6 +110,8 @@ class IpProtectionCoreImpl
   // If `bypass_proxy` is set to `true`, all requests that would normally be
   // routed through the IP Protection proxy will instead bypass it.
   void SetBypassProxy(bool bypass_proxy) override;
+
+  void RecordTokenDemand(size_t chain_index) override;
 
  protected:
   // Set the enabled status of IP Protection.

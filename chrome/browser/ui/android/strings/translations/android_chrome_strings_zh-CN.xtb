@@ -3,6 +3,7 @@
 <translationbundle lang="zh-CN">
 <translation id="1010283278930414892">此设备上没有任何保存的密码</translation>
 <translation id="1011749477052068769">移至这里</translation>
+<translation id="1014083013111769343">已打开阅读模式偏好设置，并以最大高度显示</translation>
 <translation id="1014147525163127655">在此设备上未发现 <ph name="ORIGIN" /> 的任何通行密钥</translation>
 <translation id="1016498331642356377">使用语音快速搜索。若要修改此快捷方式，请轻触并按住这里。</translation>
 <translation id="1028699632127661925">正在发送到<ph name="DEVICE_NAME" />…</translation>
@@ -98,6 +99,7 @@
 <translation id="1407135791313364759">全部打开</translation>
 <translation id="1409879593029778104">系统已阻止下载 <ph name="FILE_NAME" />，因为文件已存在。</translation>
 <translation id="1413446866325418126">将数据保存到您的 Google 账号中</translation>
+<translation id="1414919006379339073">关闭当前窗口</translation>
 <translation id="1416550906796893042">应用版本</translation>
 <translation id="1419753403124156396">重启 Chrome？</translation>
 <translation id="1428770807407000502">关闭同步功能？</translation>
@@ -207,6 +209,7 @@
 <translation id="197288927597451399">保留</translation>
 <translation id="1973912524893600642">保留数据</translation>
 <translation id="1974060860693918893">高级</translation>
+<translation id="1982274314082047220">在阅读模式下向上滑动即可查看偏好设置</translation>
 <translation id="1984087999855033707">电话号码</translation>
 <translation id="1984417487208496350">不保护（不建议）</translation>
 <translation id="1986685561493779662">名称已存在</translation>
@@ -428,6 +431,7 @@
 <translation id="2992473221983447149">图片说明</translation>
 <translation id="2996291259634659425">创建密码</translation>
 <translation id="2996809686854298943">必须提供网址</translation>
+<translation id="3024215143424744261">已关闭阅读模式偏好设置</translation>
 <translation id="3026955690410463085">包括链接</translation>
 <translation id="3027644380269727216">根据您在网站上的活动推测得出。此设置已开启。</translation>
 <translation id="3027950907978057636">来自<ph name="APP_LABEL" /></translation>
@@ -706,6 +710,7 @@
 <translation id="4380055775103003110">如果此问题仍然存在，您可以尝试在 <ph name="SITE_ETLD_PLUS_ONE" /> 上通过其他方法继续操作。</translation>
 <translation id="4384468725000734951">目前使用的搜索引擎是搜狗</translation>
 <translation id="4387647248986092471">设置车载系统个人资料锁定方式</translation>
+<translation id="4387817230000841154">打开下载内容页面</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{1 天或更长时间未使用的标签页和标签页分组}other{# 天或更长时间未使用的标签页和标签页分组}}</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - 正在下载…</translation>
 <translation id="4404568932422911380">没有书签</translation>
@@ -1311,6 +1316,7 @@
 <translation id="696447261358045621">退出无痕模式</translation>
 <translation id="6965382102122355670">确定</translation>
 <translation id="6968350777423863208">{NUMBER_OF_TABS,plural, =1{查看在共享标签页分组中有新活动的 <ph name="TABS_COUNT_ONE" /> 个标签页}other{查看在共享标签页分组中有新活动的 <ph name="TABS_COUNT_MANY" /> 个标签页}}</translation>
+<translation id="6971555615916967190">已打开阅读模式偏好设置，并以一半高度显示</translation>
 <translation id="6971862865055170158">禁止</translation>
 <translation id="6976223255612495095"><ph name="TAB_TITLE" />，新标签页或更新后的标签页</translation>
 <translation id="6976811588313110624">添加新快捷键。</translation>
@@ -1693,7 +1699,6 @@
 <translation id="8617240290563765734">要打开下载的内容中指定的建议网址吗？</translation>
 <translation id="8635399646025169806">要保留标签页分组吗？</translation>
 <translation id="8636825310635137004">要访问您在其他设备上的标签页，请开启同步功能。</translation>
-<translation id="864544049772947936">管理窗口（<ph name="INSTANCE_COUNTS" /> 个）</translation>
 <translation id="8662474268934425487">登录 <ph name="SITE_ETLD_PLUS_ONE" /></translation>
 <translation id="8664979001105139458">文件名已存在</translation>
 <translation id="8676276370198826499">通过 <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> 注册 <ph name="SITE_ETLD_PLUS_ONE" /></translation>

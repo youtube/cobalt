@@ -23,11 +23,14 @@ import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeBridge;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpThemeBridge.ThemeCollectionSelectionListener;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.util.GlobalDiscardableReferencePool;
 import org.chromium.components.image_fetcher.ImageFetcher;
 import org.chromium.components.image_fetcher.ImageFetcherConfig;
 import org.chromium.components.image_fetcher.ImageFetcherFactory;
+import org.chromium.url.GURL;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +41,7 @@ public class NtpThemeCollectionsCoordinator {
     // TODO(crbug.com/423579377): Update the url for learn more button.
     private static final String LEARN_MORE_CLICK_URL =
             "https://support.google.com/chrome/?p=new_tab";
+    private static final int RECYCLE_VIEW_SPAN_COUNT = 3;
 
     private final List<BackgroundCollection> mThemeCollectionsList = new ArrayList<>();
     private final BottomSheetDelegate mBottomSheetDelegate;
@@ -48,6 +52,7 @@ public class NtpThemeCollectionsCoordinator {
     private final RecyclerView mThemeCollectionsBottomSheetRecyclerView;
     private final NtpThemeBridge mNtpThemeBridge;
     private final ImageFetcher mImageFetcher;
+    private final ThemeCollectionSelectionListener mThemeCollectionSelectionListener;
     private NtpThemeCollectionsAdapter mNtpThemeCollectionsAdapter;
     private @Nullable NtpSingleThemeCollectionCoordinator mNtpSingleThemeCollectionCoordinator;
 
@@ -86,7 +91,7 @@ public class NtpThemeCollectionsCoordinator {
                 mNtpThemeCollectionsBottomSheetView.findViewById(
                         R.id.theme_collections_recycler_view);
         mThemeCollectionsBottomSheetRecyclerView.setLayoutManager(
-                new GridLayoutManager(context, /* spanCount= */ 2));
+                new GridLayoutManager(context, RECYCLE_VIEW_SPAN_COUNT));
         mNtpThemeCollectionsAdapter =
                 new NtpThemeCollectionsAdapter(
                         mThemeCollectionsList,
@@ -103,7 +108,28 @@ public class NtpThemeCollectionsCoordinator {
                         mThemeCollectionsList.addAll(collections);
                     }
                     mNtpThemeCollectionsAdapter.setItems(mThemeCollectionsList);
+                    // Once items are loaded, expand to the half state.
+                    delegate.getBottomSheetController().expandSheet();
+
+                    // After setting items, apply the current selection from the manager.
+                    mNtpThemeCollectionsAdapter.setSelection(
+                            mNtpThemeBridge.getSelectedThemeCollectionId(),
+                            mNtpThemeBridge.getSelectedThemeCollectionImageUrl());
                 });
+
+        mThemeCollectionSelectionListener =
+                new ThemeCollectionSelectionListener() {
+                    @Override
+                    public void onThemeCollectionSelectionChanged(
+                            @Nullable String themeCollectionId,
+                            @Nullable GURL themeCollectionImageUrl) {
+                        if (mNtpThemeCollectionsAdapter != null) {
+                            mNtpThemeCollectionsAdapter.setSelection(
+                                    themeCollectionId, themeCollectionImageUrl);
+                        }
+                    }
+                };
+        mNtpThemeBridge.addListener(mThemeCollectionSelectionListener);
     }
 
     public void destroy() {
@@ -120,6 +146,8 @@ public class NtpThemeCollectionsCoordinator {
         if (mNtpSingleThemeCollectionCoordinator != null) {
             mNtpSingleThemeCollectionCoordinator.destroy();
         }
+
+        mNtpThemeBridge.removeListener(mThemeCollectionSelectionListener);
     }
 
     private void handleThemeCollectionClick(View view) {
@@ -131,9 +159,12 @@ public class NtpThemeCollectionsCoordinator {
         String collectionId = collection.id;
         String themeCollectionTitle = collection.label;
 
+        @SheetState
+        int currentBottomSheetState =
+                mBottomSheetDelegate.getBottomSheetController().getSheetState();
         if (mNtpSingleThemeCollectionCoordinator != null) {
             mNtpSingleThemeCollectionCoordinator.updateThemeCollection(
-                    collectionId, themeCollectionTitle);
+                    collectionId, themeCollectionTitle, currentBottomSheetState);
         } else {
             mNtpSingleThemeCollectionCoordinator =
                     new NtpSingleThemeCollectionCoordinator(
@@ -142,7 +173,8 @@ public class NtpThemeCollectionsCoordinator {
                             mNtpThemeBridge,
                             mImageFetcher,
                             collectionId,
-                            themeCollectionTitle);
+                            themeCollectionTitle,
+                            currentBottomSheetState);
         }
 
         mBottomSheetDelegate.showBottomSheet(BottomSheetType.SINGLE_THEME_COLLECTION);
@@ -165,5 +197,9 @@ public class NtpThemeCollectionsCoordinator {
     @Nullable
             NtpSingleThemeCollectionCoordinator getNtpSingleThemeCollectionCoordinatorForTesting() {
         return mNtpSingleThemeCollectionCoordinator;
+    }
+
+    NtpThemeBridge getNtpThemeBridgeForTesting() {
+        return mNtpThemeBridge;
     }
 }

@@ -737,7 +737,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.FileHandlersRegistration.Result" enum="BooleanSuccess"
-    expires_after="2026-01-04">
+    expires_after="2026-03-15">
   <owner>dibyapal@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2641,6 +2641,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebApp.TrustedIcons.ReadResult" enum="BooleanSuccess"
+    expires_after="2026-09-16">
+  <owner>dibyapal@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Measures the result of reading trusted icons from the disk, whenever there
+    is a need to fetch the app's icon to be shown on UX surfaces. A value of
+    false indicates that the reading happened from the fallback path. This is
+    measured in a variety of cases, like while loading chrome://apps. This is
+    not measured if the trusted icon feature is disabled.
+  </summary>
+</histogram>
+
 <histogram name="WebApp.Uninstall.NonSyncIncompleteCount"
     units="Partially uninstalled webapps" expires_after="2024-03-17">
   <owner>dmurph@chromium.org</owner>
@@ -2676,6 +2689,20 @@ chromium-metrics-reviews@google.com.
 
     Warning: this histogram was expired from 2022-05-22 through M106, data may
     be missing.
+  </summary>
+</histogram>
+
+<histogram name="WebApp.Update.ApplyPendingManifestUpdateResult"
+    enum="WebAppApplyPendingManifestUpdateResult" expires_after="2026-03-05">
+  <owner>msiem@chromium.org</owner>
+  <owner>pwa-team@google.com</owner>
+  <summary>
+    Records the result of web app manifest updating a security sensitive field
+    (name and icons). These fields are stored as a pending update info through
+    the manifest silent update command. Manifest updates for pending update
+    infos are triggered only if the user confirms the changes through the web
+    app update dialog. This operation can result in either or both the app name
+    or icons updating.
   </summary>
 </histogram>
 

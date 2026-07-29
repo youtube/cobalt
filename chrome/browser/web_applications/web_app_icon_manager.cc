@@ -24,6 +24,7 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/files/file.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -31,10 +32,12 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -44,6 +47,7 @@
 #include "chrome/browser/web_applications/file_utils_wrapper.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_icon_generator.h"
+#include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_install_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -51,6 +55,7 @@
 #include "chrome/common/chrome_features.h"
 #include "content/public/browser/browser_thread.h"
 #include "skia/ext/image_operations.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkColorType.h"
 #include "ui/base/resource/resource_scale_factor.h"
@@ -81,6 +86,12 @@ constexpr base::FilePath::CharType kPendingTrustedIconFolderName[] =
     FILE_PATH_LITERAL("Pending Trusted Icons");
 constexpr base::FilePath::CharType kPendingManifestIconFolderName[] =
     FILE_PATH_LITERAL("Pending Manifest Icons");
+
+// Records the result of reading trusted icons from disk to UMA.
+void RecordTrustedIconsReadResult(bool trusted_icon_used) {
+  base::UmaHistogramBoolean("WebApp.TrustedIcons.ReadResult",
+                            trusted_icon_used);
+}
 
 // This utility struct is to carry error logs between threads via return values.
 // If we weren't generating multithreaded errors we would just append the errors
@@ -213,6 +224,172 @@ base::FilePath GetIconFileName(const base::FilePath& web_apps_directory,
   return icons_dir.AppendASCII(base::StringPrintf("%i.png", icon_id.size));
 }
 
+// This function takes a directory path, and a list of file paths that are
+// expected in the directory. It will delete any files not in `keep_files`.
+// Returns if the operations all succeeded.
+TypedResult<bool> DeleteOtherFilesInDir(
+    const base::FilePath& directory,
+    const absl::flat_hash_set<base::FilePath>& keep_files) {
+  TypedResult<bool> result{.value = true};
+
+  if (!base::DirectoryExists(directory)) {
+    return result;
+  }
+
+  std::vector<base::FilePath> files_to_delete;
+  base::FileEnumerator dest_file_enumerator(directory,
+                                            /*recursive=*/false,
+                                            base::FileEnumerator::FILES);
+
+  dest_file_enumerator.ForEach([&](const base::FilePath& file_path) {
+    if (!keep_files.contains(file_path)) {
+      files_to_delete.push_back(std::move(file_path));
+    }
+  });
+
+  for (const base::FilePath& file_path : files_to_delete) {
+    if (!base::DeleteFile(file_path)) {
+      result.value = false;
+      result.error_log.push_back(
+          CreateError({"Failed to delete file: ", file_path.AsUTF8Unsafe()}));
+    }
+  }
+
+  return result;
+}
+
+// Returns the list of resulting files copied to the destination directory, or a
+// string error. This method does nothing if the source_dir is empty.
+TypedResult<bool> MaybeReplaceFilesInDirectoryDeleteRemaining(
+    const base::FilePath& source_dir,
+    const base::FilePath& dest_dir) {
+  absl::flat_hash_set<base::FilePath> replaced_files;
+
+  if (!base::DirectoryExists(source_dir)) {
+    return {.value = true};
+  }
+
+  base::File::Error file_error = base::File::FILE_OK;
+  if (!base::CreateDirectoryAndGetError(dest_dir, &file_error)) {
+    return {.error_log = {CreateError(
+                {"Failed to ensure directory ", dest_dir.AsUTF8Unsafe(),
+                 " was created: ", base::File::ErrorToString(file_error)})}};
+  }
+
+  base::FileEnumerator pending_iter(source_dir,
+                                    /*recursive=*/false,
+                                    base::FileEnumerator::FILES);
+  std::vector<std::string> error_messages;
+
+  pending_iter.ForEach([&](const base::FilePath& source_file) {
+    // The BaseName() ensures we only copy the file name itself (e.g.,
+    // "icon.png") and not the full path from 'source_dir'.
+    // Example: If source_file is '/tmp/pending_icons/any/96.png'
+    //          and dest_dir is '/data/icons/any'
+    //          source_file.BaseName() returns '96.png'.
+    //          dest_file becomes '/data/icons/any/96.png'
+    base::FilePath dest_file = dest_dir.Append(source_file.BaseName());
+    if (base::CopyFile(source_file, dest_file)) {
+      replaced_files.insert(std::move(dest_file));
+      return;
+    }
+
+    error_messages.push_back(
+        CreateError({"Could not copy file from ", source_file.AsUTF8Unsafe(),
+                     " to ", dest_file.AsUTF8Unsafe()}));
+  });
+
+  if (!error_messages.empty()) {
+    return {.error_log = std::move(error_messages)};
+  }
+
+  // Delete files in dest_dir that were NOT replaced.
+  TypedResult<bool> delete_result =
+      DeleteOtherFilesInDir(dest_dir, replaced_files);
+  if (delete_result.HasErrors()) {
+    return delete_result;
+  }
+
+  return {.value = true};
+}
+
+// This method takes two directories that are expected to be in the
+// 'manifest icon directory' format, where there are sub-directories per icon
+// purpose. This method will ensure the icon directories in the destination
+// directory contain (and only contains) the respective icons from the source
+// directory.
+TypedResult<bool> ReplacePurposedIcons(const base::FilePath& source_dir,
+                                       const base::FilePath& dest_dir) {
+  for (const IconPurpose& purpose : kIconPurposes) {
+    base::FilePath purpose_relative_dir =
+        GetRelativeDirectoryForPurpose(purpose);
+
+    base::FilePath source_purpose_dir = source_dir.Append(purpose_relative_dir);
+    base::FilePath dest_purpose_dir = dest_dir.Append(purpose_relative_dir);
+
+    auto replace_result = MaybeReplaceFilesInDirectoryDeleteRemaining(
+        source_purpose_dir, dest_purpose_dir);
+    if (replace_result.HasErrors()) {
+      return replace_result;
+    }
+  }
+
+  return {.value = true};
+}
+
+// Performs blocking I/O. May be called on another thread.
+// Copies all pending update icons (trusted and manifest) into their
+// corresponding non-pending directories. Returns false if any copy operation
+// has failed.
+TypedResult<bool> OverwriteAppIconsFromPendingIconsBlocking(
+    const base::FilePath& app_manifest_resources_directory,
+    const base::FilePath& app_trusted_icons_subdir,
+    const base::FilePath& app_pending_manifest_icons_subdir,
+    const base::FilePath& app_pending_trusted_icons_subdir) {
+  base::File::Error file_error = base::File::FILE_OK;
+  if (!base::CreateDirectoryAndGetError(app_manifest_resources_directory,
+                                        &file_error)) {
+    return {.error_log = {CreateError(
+                {"Failed to ensure directory ",
+                 app_manifest_resources_directory.AsUTF8Unsafe(),
+                 " was created: ", base::File::ErrorToString(file_error)})}};
+  }
+
+  if (!base::DirectoryExists(app_pending_manifest_icons_subdir)) {
+    return {.error_log = {CreateError(
+                {"App pending manifest directory not found: ",
+                 app_manifest_resources_directory.AsUTF8Unsafe()})}};
+  }
+
+  if (!base::CreateDirectoryAndGetError(app_trusted_icons_subdir,
+                                        &file_error)) {
+    return {.error_log = {CreateError(
+                {"Failed to ensure directory ",
+                 app_trusted_icons_subdir.AsUTF8Unsafe(),
+                 " was created: ", base::File::ErrorToString(file_error)})}};
+  }
+
+  if (!base::DirectoryExists(app_pending_trusted_icons_subdir)) {
+    return {.error_log = {CreateError(
+                {"App pending trusted directory not found: ",
+                 app_manifest_resources_directory.AsUTF8Unsafe()})}};
+  }
+
+  TypedResult<bool> manifest_result = ReplacePurposedIcons(
+      app_pending_manifest_icons_subdir, app_manifest_resources_directory);
+  if (manifest_result.HasErrors()) {
+    return manifest_result;
+  }
+
+  TypedResult<bool> trusted_result = ReplacePurposedIcons(
+      app_pending_trusted_icons_subdir, app_trusted_icons_subdir);
+  if (trusted_result.HasErrors()) {
+    return trusted_result;
+  }
+
+  return {.value = true};
+}
+
 // `web_apps_directory` is the path to the directory where all web app data is
 // stored for the relevant profile.
 base::FilePath GetManifestResourcesShortcutsMenuIconFileName(
@@ -230,19 +407,6 @@ base::FilePath GetManifestResourcesShortcutsMenuIconFileName(
 
   return manifest_shortcuts_menu_icon_dir.AppendASCII(
       base::NumberToString(icon_size_px) + ".png");
-}
-
-// `web_apps_directory` is the path to the directory where all web app data is
-// stored for the relevant profile.
-[[maybe_unused]] base::FilePath GetManifestResourcesOtherIconsFileName(
-    const base::FilePath& web_apps_directory,
-    const webapps::AppId& app_id,
-    const GURL& url,
-    int icon_size_px) {
-  return GetManifestResourcesDirectoryForApp(web_apps_directory, app_id)
-      .Append(GetOtherIconsRelativeDirectory())
-      .AppendASCII(GetDirectoryNameForUrl(url))
-      .AppendASCII(base::StringPrintf("%i.png", icon_size_px));
 }
 
 // Performs blocking I/O. May be called on another thread.
@@ -396,6 +560,7 @@ TypedResult<IconMetadataFromDisk> ReadTrustedIconsBlocking(
                              IconPurpose::MASKABLE, icon_sizes,
                              /*read_trusted_icons=*/true);
   if (!result.value.icons_map.empty()) {
+    RecordTrustedIconsReadResult(/*trusted_icon_used=*/true);
     result.value.purpose = IconPurpose::MASKABLE;
     return result;
   }
@@ -408,6 +573,7 @@ TypedResult<IconMetadataFromDisk> ReadTrustedIconsBlocking(
                              IconPurpose::ANY, icon_sizes,
                              /*read_trusted_icons=*/true);
   if (!result.value.icons_map.empty()) {
+    RecordTrustedIconsReadResult(/*trusted_icon_used=*/true);
     result.value.purpose = IconPurpose::ANY;
     return result;
   }
@@ -422,6 +588,7 @@ TypedResult<IconMetadataFromDisk> ReadTrustedIconsBlocking(
     result.value.purpose = purpose_for_fallback;
   }
 
+  RecordTrustedIconsReadResult(/*trusted_icon_used=*/false);
   return result;
 }
 
@@ -1210,7 +1377,8 @@ void WebAppIconManager::ReadTrustedIconsWithFallbackToManifestIcons(
       "ui", "WebAppIconManager::ReadTrustedIconsWithFallbackToManifestIcons");
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  if (!provider_->registrar_unsafe().GetAppById(app_id)) {
+  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
+  if (!web_app) {
     std::move(callback).Run(IconMetadataFromDisk());
     return;
   }
@@ -1461,6 +1629,34 @@ void WebAppIconManager::ReadSmallestCompressedIcon(
                      best_icon->is_trusted),
       base::BindOnce(&LogErrorsCallCallback<std::vector<uint8_t>>, GetWeakPtr(),
                      std::move(wrapped)));
+}
+
+void WebAppIconManager::OverwriteAppIconsFromPendingIcons(
+    const webapps::AppId& app_id,
+    base::PassKey<ApplyPendingManifestUpdateCommand>,
+    OverwriteAppIconsFromPendingIconsCallback callback) {
+  TRACE_EVENT0("ui", "WebAppIconManager::OverwriteIconsFromPendingIcons");
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!provider_->registrar_unsafe().IsInRegistrar(app_id)) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const base::FilePath app_manifest_resources_dir =
+      GetManifestResourcesDirectoryForApp(web_apps_directory_, app_id);
+  const base::FilePath trusted_dir =
+      app_manifest_resources_dir.Append(kTrustedIconFolderName);
+  const base::FilePath pending_manifest_dir =
+      app_manifest_resources_dir.Append(kPendingManifestIconFolderName);
+  const base::FilePath pending_trusted_dir =
+      app_manifest_resources_dir.Append(kPendingTrustedIconFolderName);
+
+  icon_task_runner_->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&OverwriteAppIconsFromPendingIconsBlocking,
+                     app_manifest_resources_dir, trusted_dir,
+                     pending_manifest_dir, pending_trusted_dir),
+      base::BindOnce(&LogErrorsCallCallback<bool>, GetWeakPtr(),
+                     std::move(callback)));
 }
 
 SkBitmap WebAppIconManager::GetFavicon(const webapps::AppId& app_id) const {

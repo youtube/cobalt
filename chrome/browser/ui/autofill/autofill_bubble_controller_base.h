@@ -20,6 +20,7 @@ namespace autofill {
 class AutofillBubbleBase;
 
 // Enum for the current showing state of the bubble.
+// TODO(crbug.com/445901842): Investigate if this can be removed.
 enum class BubbleState {
   // The bubble and the omnibox icon should be hidden.
   kHidden = 0,
@@ -35,6 +36,12 @@ class AutofillBubbleControllerBase : public BubbleControllerBase,
  public:
   explicit AutofillBubbleControllerBase(content::WebContents* web_contents);
   ~AutofillBubbleControllerBase() override;
+
+  // Calls the bubble manager to show the bubble if bubble manager is enabled.
+  // Otherwise just shows the bubble.
+  // `force_show` indicates to the bubble manager to show this bubble
+  // irrespective of its priority.
+  void QueueOrShowBubble(bool force_show = false);
 
   // BubbleControllerBase:
   void ShowBubble() override;
@@ -59,14 +66,8 @@ class AutofillBubbleControllerBase : public BubbleControllerBase,
   // is already queued to be shown.
   [[nodiscard]] bool MaySetUpBubble();
 
-  // Calls the bubble manager to show the bubble if bubble manager is enabled.
-  // Otherwise just shows the bubble.
-  // `force_show` indicates to the bubble manager to show this bubble
-  // irrespective of its priority.
-  void QueueOrShowBubble(bool force_show = false);
-
   // Setter for `bubble_view`.
-  void SetBubbleView(AutofillBubbleBase* bubble_view);
+  void SetBubbleView(AutofillBubbleBase& bubble_view);
 
   // Resets the `bubble_view` and informs the bubble manager about it.
   void ResetBubbleViewAndInformBubbleManager(bool show_next_bubble);

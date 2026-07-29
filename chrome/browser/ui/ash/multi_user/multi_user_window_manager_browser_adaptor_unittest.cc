@@ -13,9 +13,8 @@
 
 #include "ash/display/screen_orientation_controller.h"
 #include "ash/display/screen_orientation_controller_test_api.h"
-#include "ash/multi_user/multi_user_window_manager_impl.h"
+#include "ash/multi_user/multi_user_window_manager.h"
 #include "ash/multi_user/user_switch_animator.h"
-#include "ash/public/cpp/multi_user_window_manager.h"
 #include "ash/public/cpp/shelf_config.h"
 #include "ash/public/cpp/shell_window_ids.h"
 #include "ash/root_window_controller.h"
@@ -43,7 +42,6 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/cros_settings_holder.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
-#include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_helper.h"
 #include "chrome/browser/ui/ash/new_window/chrome_new_window_client.h"
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "chrome/browser/ui/ash/session/session_util.h"
@@ -176,8 +174,7 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
     SwitchActiveUser(account_id);
 
     base::TimeTicks now = base::TimeTicks::Now();
-    while (
-        ash::MultiUserWindowManagerImpl::Get()->IsAnimationRunningForTest()) {
+    while (ash::MultiUserWindowManager::Get()->IsAnimationRunningForTest()) {
       // This should never take longer then a second.
       ASSERT_GE(1000, (base::TimeTicks::Now() - now).InMilliseconds());
       base::RunLoop().RunUntilIdle();
@@ -197,7 +194,7 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
   }
 
   ash::MultiUserWindowManager* multi_user_window_manager() {
-    return MultiUserWindowManagerHelper::GetWindowManager();
+    return ash::Shell::Get()->multi_user_window_manager();
   }
 
   TestingProfileManager* profile_manager() { return profile_manager_.get(); }
@@ -239,7 +236,7 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
     // closer to the production one, or get rid of it to connect actual
     // UserManager and SessionManager in tests.
     if (user_manager_->GetPrimaryUser() == user) {
-      ash::MultiUserWindowManagerImpl::Get()->OnActiveUserSessionChanged(
+      ash::MultiUserWindowManager::Get()->OnActiveUserSessionChanged(
           user->GetAccountId());
     }
 
@@ -262,16 +259,9 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
     // Primary user log-in.
     LogInUser(ids[0]);
 
-    // After the primary user log-in, (and before any more user log-ins),
-    // create MultiUserWindowManagerBrowserAdaptor instance held by
-    // MultiUserWindowManagerHelper and initializes for the primary user,
-    // mirroring the timing of the initialization in the production.
-    // TODO(crbug.com/425160398): This should be simplified for the bug fix.
-    ::MultiUserWindowManagerHelper::CreateInstanceForTest();
-
     for (const AccountId& account_id : ids.subspan(1u)) {
       LogInUser(account_id);
-      ::MultiUserWindowManagerHelper::GetInstance()->AddUser(account_id);
+      multi_user_window_manager_browser_adaptor_->AddUser(account_id);
     }
   }
 
@@ -303,8 +293,8 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
 
   void ShowWindowForUserNoUserTransition(aura::Window* window,
                                          const AccountId& account_id) {
-    ash::MultiUserWindowManagerImpl::Get()->ShowWindowForUserIntern(window,
-                                                                    account_id);
+    ash::MultiUserWindowManager::Get()->ShowWindowForUserIntern(window,
+                                                                account_id);
   }
 
   // The FakeChromeUserManager does not automatically call the window
@@ -320,13 +310,13 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
 
   // Call next animation step.
   void AdvanceUserTransitionAnimation() {
-    ash::MultiUserWindowManagerImpl::Get()
+    ash::MultiUserWindowManager::Get()
         ->animation_->AdvanceUserTransitionAnimation();
   }
 
   // Return the user id of the wallpaper which is currently set.
   const std::string& GetWallpaperUserIdForTest() {
-    return ash::MultiUserWindowManagerImpl::Get()
+    return ash::MultiUserWindowManager::Get()
         ->animation_->wallpaper_user_id_for_test();
   }
 
@@ -348,9 +338,10 @@ class MultiUserWindowManagerBrowserAdaptorTest : public ChromeAshTestBase {
   std::unique_ptr<ash::UserLoginPermissionTracker>
       user_login_permission_tracker_;
 
-  // Owned by |user_manager_enabler_|.
   user_manager::ScopedUserManager user_manager_;
   std::unique_ptr<TestingProfileManager> profile_manager_;
+  std::unique_ptr<MultiUserWindowManagerBrowserAdaptor>
+      multi_user_window_manager_browser_adaptor_;
 
   // The maximized window manager (if enabled).
   std::unique_ptr<TabletModeWindowManager> tablet_mode_window_manager_;
@@ -373,12 +364,16 @@ void MultiUserWindowManagerBrowserAdaptorTest::SetUp() {
   ChromeAshTestBase::SetUp();
   GetSessionControllerClient()->set_pref_service_must_exist(true);
 
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_DISABLED);
 
   profile_manager_ = std::make_unique<TestingProfileManager>(
       TestingBrowserProcess::GetGlobal());
   ASSERT_TRUE(profile_manager_->SetUp());
+
+  multi_user_window_manager_browser_adaptor_ =
+      std::make_unique<MultiUserWindowManagerBrowserAdaptor>(
+          ash::Shell::Get()->multi_user_window_manager());
 }
 
 void MultiUserWindowManagerBrowserAdaptorTest::SetUpForThisManyWindows(
@@ -434,7 +429,7 @@ void MultiUserWindowManagerBrowserAdaptorTest::TearDown() {
     windows_.erase(windows_.begin());
   }
 
-  ::MultiUserWindowManagerHelper::DeleteInstance();
+  multi_user_window_manager_browser_adaptor_.reset();
   for (Profile* profile :
        profile_manager_->profile_manager()->GetLoadedProfiles()) {
     const AccountId* account_id = ash::AnnotatedAccountId::Get(profile);
@@ -506,8 +501,6 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest, BasicTests) {
   // Check the basic assumptions: All windows are visible and there is no owner.
   EXPECT_EQ("S[], S[], S[]", GetStatus());
   EXPECT_TRUE(multi_user_window_manager());
-  EXPECT_EQ(multi_user_window_manager(),
-            ::MultiUserWindowManagerHelper::GetWindowManager());
   EXPECT_FALSE(multi_user_window_manager()->AreWindowsSharedAmongUsers());
 
   // The owner of an unowned window should be empty and it should be shown on
@@ -1138,8 +1131,8 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest, FullUserSwitchAnimationTests) {
   SetUpForThisManyWindows(3);
 
   // Turn the use of delays and animation on.
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_FAST);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_FAST);
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), kAccountIdA);
   multi_user_window_manager()->SetWindowOwner(window(1), kAccountIdB);
@@ -1176,8 +1169,8 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest,
   SetUpForThisManyWindows(2);
 
   // Turn the use of delays and animation on.
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_FAST);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_FAST);
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), kAccountIdA);
   multi_user_window_manager()->SetWindowOwner(window(1), kAccountIdB);
@@ -1195,8 +1188,8 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest, AnimationSteps) {
   SetUpForThisManyWindows(3);
 
   // Turn the use of delays and animation on.
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_FAST);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_FAST);
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), kAccountIdA);
   multi_user_window_manager()->SetWindowOwner(window(1), kAccountIdB);
@@ -1255,8 +1248,8 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest,
   SetUpForThisManyWindows(3);
 
   // Turn the use of delays and animation on.
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_FAST);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_FAST);
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), kAccountIdA);
   WindowState::Get(window(0))->Maximize();
@@ -1299,8 +1292,8 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest,
   SetUpForThisManyWindows(3);
 
   // Turn the use of delays and animation on.
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_FAST);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_FAST);
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), kAccountIdA);
   multi_user_window_manager()->SetWindowOwner(window(1), kAccountIdB);
@@ -1344,8 +1337,8 @@ TEST_F(MultiUserWindowManagerBrowserAdaptorTest,
   SetUpForThisManyWindows(3);
 
   // Turn the use of delays and animation on.
-  ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-      ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_FAST);
+  ash::MultiUserWindowManager::Get()->SetAnimationSpeedForTest(
+      ash::MultiUserWindowManager::ANIMATION_SPEED_FAST);
   // Set some owners and make sure we got what we asked for.
   multi_user_window_manager()->SetWindowOwner(window(0), kAccountIdA);
   WindowState::Get(window(0))->Maximize();

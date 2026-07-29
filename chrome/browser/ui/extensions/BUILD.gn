@@ -234,6 +234,7 @@ source_set("unit_tests") {
       "//chrome/common/extensions",
       "//chrome/test:test_support",
       "//components/crx_file",
+      "//components/custom_handlers:test_support",
       "//components/proxy_config",
       "//components/search_engines",
       "//components/signin/public/base",
@@ -323,6 +324,7 @@ source_set("browser_tests") {
       "//ui/color:color_headers",
       "//ui/gfx",
       "//ui/native_theme",
+      "//ui/native_theme:test_support",
     ]
 
     if (is_linux) {

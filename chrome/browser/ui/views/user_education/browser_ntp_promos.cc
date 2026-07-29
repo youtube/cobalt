@@ -47,6 +47,11 @@ Profile* GetProfile(ContextPtr context) {
 
 NtpPromoSpecification::Eligibility CheckSignInPromoEligibility(
     ContextPtr context) {
+  // TODO(webium): add user education context for WebUI browser.
+  if (!context) {
+    return NtpPromoSpecification::Eligibility::kIneligible;
+  }
+
   auto* profile = GetProfile(context);
   if (!profile->GetPrefs()->GetBoolean(prefs::kSigninAllowed)) {
     return NtpPromoSpecification::Eligibility::kIneligible;
@@ -89,6 +94,10 @@ void InvokeSignInPromo(ContextPtr context) {
 
 NtpPromoSpecification::Eligibility CheckExtensionsPromoEligibility(
     ContextPtr context) {
+  // TODO(webium): add user education context for WebUI browser.
+  if (!context) {
+    return NtpPromoSpecification::Eligibility::kIneligible;
+  }
   return extensions::util::AnyCurrentlyInstalledExtensionIsFromWebstore(
              GetProfile(context))
              ? NtpPromoSpecification::Eligibility::kCompleted
@@ -96,15 +105,21 @@ NtpPromoSpecification::Eligibility CheckExtensionsPromoEligibility(
 }
 
 void InvokeExtensionsPromo(ContextPtr context) {
-  NavigateParams params(GetProfile(context),
-                        extension_urls::GetWebstoreLaunchURL(),
+  BrowserWindowInterface* const bwi =
+      context->AsA<BrowserUserEducationContext>()->GetBrowserView().browser();
+  NavigateParams params(bwi, extension_urls::GetWebstoreLaunchURL(),
                         ui::PAGE_TRANSITION_LINK);
-  params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  params.disposition = WindowOpenDisposition::CURRENT_TAB;
+  params.initiating_profile = GetProfile(context);
   Navigate(&params);
 }
 
 NtpPromoSpecification::Eligibility CheckCustomizationPromoEligibility(
     ContextPtr context) {
+  // TODO(webium): add user education context for WebUI browser.
+  if (!context) {
+    return NtpPromoSpecification::Eligibility::kIneligible;
+  }
   auto* profile = GetProfile(context);
   auto* background_service =
       NtpCustomBackgroundServiceFactory::GetForProfile(profile);
@@ -154,7 +169,7 @@ void MaybeRegisterNtpPromos(user_education::NtpPromoRegistry& registry) {
   registry.AddPromo(NtpPromoSpecification(
       kNtpSignInPromoId,
       NtpPromoContent("account_circle", IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS,
-                      IDS_NTP_SIGN_IN_PROMO_ACTION_BUTTON),
+                      IDS_NTP_SIGN_IN_PROMO_WITH_BOOKMARKS),
       base::BindRepeating(&CheckSignInPromoEligibility),
       base::BindRepeating(&SignInPromoShown),
       base::BindRepeating(&InvokeSignInPromo),
@@ -166,7 +181,7 @@ void MaybeRegisterNtpPromos(user_education::NtpPromoRegistry& registry) {
   registry.AddPromo(NtpPromoSpecification(
       kNtpCustomizationPromoId,
       NtpPromoContent("palette", IDS_NTP_CUSTOMIZATION_PROMO,
-                      IDS_NTP_CUSTOMIZATION_PROMO_ACTION_BUTTON),
+                      IDS_NTP_CUSTOMIZATION_PROMO),
       base::BindRepeating(&CheckCustomizationPromoEligibility),
       /*show_callback=*/base::DoNothing(),
       base::BindRepeating(&InvokeCustomizationPromo),
@@ -177,7 +192,7 @@ void MaybeRegisterNtpPromos(user_education::NtpPromoRegistry& registry) {
   registry.AddPromo(NtpPromoSpecification(
       kNtpExtensionsPromoId,
       NtpPromoContent("my_extensions", IDS_NTP_EXTENSIONS_PROMO,
-                      IDS_NTP_EXTENSIONS_PROMO_ACTION_BUTTON),
+                      IDS_NTP_EXTENSIONS_PROMO),
       base::BindRepeating(&CheckExtensionsPromoEligibility),
       /*show_callback=*/base::DoNothing(),
       base::BindRepeating(&InvokeExtensionsPromo),

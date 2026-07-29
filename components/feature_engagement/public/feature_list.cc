@@ -35,6 +35,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHAutoDarkUserEducationMessageFeature,
     &kIPHAutoDarkUserEducationMessageOptInFeature,
     &kIPHAppSpecificHistory,
+    &kIPHBookmarksBarFeature,
     &kIPHCCTHistory,
     &kIPHCCTMinimized,
     &kIPHDataSaverDetailFeature,
@@ -252,6 +253,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHReadingModeSidePanelFeature,
     &kIPHShoppingCollectionFeature,
     &kIPHSideBySidePinnableFeature,
+    &kIPHSideBySideTabSwitchFeature,
     &kIPHSidePanelGenericPinnableFeature,
     &kIPHSidePanelLensOverlayPinnableFeature,
     &kIPHSidePanelLensOverlayPinnableFollowupFeature,
@@ -336,6 +338,7 @@ const base::Feature* const kAllFeatures[] = {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     &kIPHDesktopPWAsLinkCapturingLaunch,
     &kIPHDesktopPWAsLinkCapturingLaunchAppInTab,
+    &kIPHSignInBenefitsFeature,
     &kIPHSupervisedUserProfileSigninFeature,
 #endif  // BUILDFLAG(IS_WIN) ||  BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 

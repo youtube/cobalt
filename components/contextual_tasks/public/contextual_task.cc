@@ -12,11 +12,16 @@
 
 namespace contextual_tasks {
 
-Chat::Chat(ChatType type,
-           const std::string& server_id,
-           const std::string& title)
-    : type(type), server_id(server_id), title(title) {}
-Chat::~Chat() = default;
+Thread::Thread(ThreadType type,
+               const std::string& server_id,
+               const std::string& title,
+               const std::string& conversation_turn_id)
+    : type(type),
+      server_id(server_id),
+      title(title),
+      conversation_turn_id(conversation_turn_id) {}
+Thread::Thread(const Thread& other) = default;
+Thread::~Thread() = default;
 
 ContextualTask::ContextualTask(const base::Uuid& task_id) : task_id_(task_id) {}
 ContextualTask::~ContextualTask() = default;
@@ -30,20 +35,19 @@ const base::Uuid& ContextualTask::GetTaskId() const {
   return task_id_;
 }
 
-void ContextualTask::AddChat(ChatType type,
-                             const std::string& server_id,
-                             const std::string& title) {
-  chat_.emplace(type, server_id, title);
+void ContextualTask::AddThread(const Thread& thread) {
+  thread_ = thread;
 }
 
-void ContextualTask::RemoveChat(ChatType type, const std::string& server_id) {
-  if (chat_ && chat_->type == type && chat_->server_id == server_id) {
-    chat_.reset();
+void ContextualTask::RemoveThread(ThreadType type,
+                                  const std::string& server_id) {
+  if (thread_ && thread_->type == type && thread_->server_id == server_id) {
+    thread_.reset();
   }
 }
 
-std::optional<Chat> ContextualTask::GetChat() const {
-  return chat_;
+std::optional<Thread> ContextualTask::GetThread() const {
+  return thread_;
 }
 
 void ContextualTask::AddUrl(const GURL& url) {

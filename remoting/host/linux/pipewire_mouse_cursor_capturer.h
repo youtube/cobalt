@@ -7,12 +7,16 @@
 
 #include <memory>
 
+#include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/thread_annotations.h"
+#include "remoting/host/linux/gnome_display_config_monitor.h"
 #include "remoting/host/linux/pipewire_capture_stream_manager.h"
+#include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
+#include "third_party/webrtc/modules/desktop_capture/mouse_cursor.h"
 #include "third_party/webrtc/modules/desktop_capture/mouse_cursor_monitor.h"
 #include "third_party/webrtc/modules/desktop_capture/shared_desktop_frame.h"
 
@@ -28,7 +32,8 @@ class PipewireMouseCursorCapturer {
   using Mode = webrtc::MouseCursorMonitor::Mode;
 
   explicit PipewireMouseCursorCapturer(
-      base::WeakPtr<const PipewireCaptureStreamManager> stream_manager);
+      base::WeakPtr<GnomeDisplayConfigMonitor> display_config_monitor,
+      base::WeakPtr<PipewireCaptureStreamManager> stream_manager);
   ~PipewireMouseCursorCapturer();
 
   // Sets a callback and the monitor mode. Pass nullptr to prevent the
@@ -45,6 +50,9 @@ class PipewireMouseCursorCapturer {
   base::WeakPtr<PipewireMouseCursorCapturer> GetWeakPtr();
 
  private:
+  void OnDisplayConfig(const GnomeDisplayConfig& config);
+  std::unique_ptr<webrtc::MouseCursor> ShareLatestCursor();
+
   raw_ptr<Callback> callback_ GUARDED_BY_CONTEXT(sequence_checker_);
   bool report_position_ GUARDED_BY_CONTEXT(sequence_checker_);
   // If this is set to true, the Capture() call will supply the latest cursor
@@ -56,7 +64,11 @@ class PipewireMouseCursorCapturer {
       GUARDED_BY_CONTEXT(sequence_checker_);
   webrtc::DesktopVector latest_cursor_hotspot_
       GUARDED_BY_CONTEXT(sequence_checker_);
-  base::WeakPtr<const PipewireCaptureStreamManager> stream_manager_
+  base::WeakPtr<PipewireCaptureStreamManager> stream_manager_
+      GUARDED_BY_CONTEXT(sequence_checker_);
+  std::unique_ptr<GnomeDisplayConfigMonitor::Subscription>
+      display_config_subscription_ GUARDED_BY_CONTEXT(sequence_checker_);
+  base::flat_map<webrtc::ScreenId, int> monitor_dpis_
       GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);

@@ -506,6 +506,12 @@
       status: "stable",
     },
     {
+      // Switch for https://crbug.com/445371140 which changes the initial value
+      // for position-visibility to 'anchors-visible' per current spec.
+      name: "AnchorsVisibleInitialValue",
+      status: "stable",
+    },
+    {
       name: "AndroidDownloadableFontsMatching",
       base_feature: "none",
       public: true,
@@ -645,6 +651,11 @@
     {
       name: "AvoidSelectionChangeOnCanvasClick",
       status: "stable"
+    },
+    {
+      // Killswitch for https://crbug.com/40947850.
+      name: "BackdropRootForClipPathWithBackdropFilter",
+      status: "stable",
     },
     // When enabled, enforces new interoperable semantics for 3D transforms.
     // See crbug.com/1008483.
@@ -876,6 +887,12 @@
       name: "CanvasHDR",
       status: "experimental",
     },
+    // This flag exists only for testing and should not be changed to stable.
+    // Used for canvas noising tests.
+    {
+      name: "CanvasInterventionsTest",
+      is_protected_feature: "true",
+    },
     {
       // crbug.com/389726691.
       name: "CanvasTextCacheLimit",
@@ -1016,6 +1033,14 @@
       // https://github.com/whatwg/html/pull/11255
       // https://issues.chromium.org/issues/414826954
       name: "CommandEventNotComposed",
+      status: "stable",
+    },
+    {
+      // Return an empty list from composedPath() when the event
+      // path is empty.
+      // This was added in M142 and can be removed after M144.
+      // https://issues.chromium.org/issues/444932649
+      name: "ComposedPathEmptyAfterDispatch",
       status: "stable",
     },
     {
@@ -1337,10 +1362,6 @@
       status: "experimental",
     },
     {
-      // https://issues.chromium.org/issues/436140061
-      name: "CSSGapDecorationOptimized",
-    },
-    {
       // This needs to be kept as a runtime flag as long as we need to forcibly
       // disable it for WebView on Android versions older than P. See
       // https://crrev.com/f311a84728272e30979432e8474089b3db3c67df
@@ -1377,14 +1398,6 @@
       // https://drafts.csswg.org/css-values-5/#if-notation.
       name: "CSSInlineIfForSupportsQueries",
       status: "stable",
-    },
-    {
-      // Support for the interest-delay shorthand property.
-      // The longhands are controlled by HTMLInterestForAttribute. The
-      // shorthand is controlled separately since shorthands can not be enabled
-      // by an origin trial.
-      name: "CSSInterestDelayShorthand",
-      status: "experimental",
     },
     {
       // https://chromestatus.com/feature/6289894144212992
@@ -1526,6 +1539,10 @@
     {
       name: "CSSRevertRule",
       status: "experimental",
+    },
+    {
+      name: "CSSRubyOverhang",
+      status: "test",
     },
     {
       name: "CSSSafePrintableInset",
@@ -1695,6 +1712,11 @@
       status: "experimental",
       depends_on: ["CustomizableSelectInPage"],
     },
+    // see crbug.com/341313078
+    {
+      name: "CustomScrollbarApplyMinimumThumbLength",
+      status: "stable",
+    },
     {
       // Replaces \r\n and \r with \n in setCustomValidity.
       // https://github.com/whatwg/html/pull/10350
@@ -1711,6 +1733,17 @@
       name: "DecoupleComputedBorderWidthFromStyle",
       public: true,
       status: "experimental",
+    },
+    {
+      // https://crbug.com/393631108
+      name: "DecoupleResolvedColumnRuleWidthFromStyle",
+      status: "experimental",
+    },
+    {
+      // Killswitch for https://crbug.com/400317114 fix.
+      // This lands in M142, and the flag can be removed in M144.
+      name: "DelegatesFocusTextControlInputFix",
+      status: "stable",
     },
     // This allows pages to opt out of the unload deprecation. Enabling this
     // allows unload event handers to be used in the frame regardless of any
@@ -2001,6 +2034,10 @@
       status: {"Android": "stable"},
     },
     {
+      name: "EditEmojiUnicode11",
+      status: "stable",
+    },
+    {
       public: true,
       name: "ElementCapture",
       status: {"Android": "experimental", "iOS": "", "default": "stable"},
@@ -2018,11 +2055,6 @@
       // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/ElementInternalsType/explainer.md
       name: "ElementInternalsDotType",
       status: "experimental",
-    },
-    {
-      // crbug.com/40118302
-      name: "EmptyReferenceFilterInvalidation",
-      status: "stable",
     },
     {
       name: "EnforceAnonymityExposure",
@@ -2420,10 +2452,18 @@
       base_feature: "none",
     },
     {
+      // https://open-ui.org/components/scoped-focusgroup.explainer/
       name: "Focusgroup",
       status: "experimental",
-      base_feature: "none",
       origin_trial_feature_name: "Focusgroup",
+    },
+    {
+      // 2-D grid navigation functionality of focusgroup is considered out of
+      // scope for the initial implementation.
+      // crbug.com/445992558
+      name: "FocusgroupGrid",
+      depends_on: ["Focusgroup"],
+      status: "experimental",
     },
     {
       name: "FontAccess",
@@ -2443,6 +2483,11 @@
       // crbug.com/40398871
       name: "FontFeatureSettingsDescriptor",
       status: "stable",
+    },
+    {
+      // crbug.com/41170551
+      name: "FontLanguageOverride",
+      status: "experimental",
     },
     {
       name: "FontMatchAliasesAsLastResort",
@@ -2681,14 +2726,12 @@
       name: "HTMLImageElementActualNaturalSize",
       status: "test",
     },
-    // Adds support for the experimental `interestfor`
-    // attributes, as specified in the open-ui "Interest Invokers" explainer.
+    // Adds support for the `interestfor` attribute. See crbug.com/326681249.
     // https://open-ui.org/components/interest-invokers.explainer/
+    // This shipped in M142 and the flag can be removed in M144.
     {
       name: "HTMLInterestForAttribute",
-      status: "experimental",
-      origin_trial_feature_name: "HTMLInterestForAttribute",
-      origin_trial_allows_third_party: true,
+      status: "stable",
     },
     // Adds support for the `::interest-hint` pseudo element, which is a sub-
     // feature of the HTMLInterestForAttribute feature.
@@ -2847,6 +2890,14 @@
       public: true,
     },
     {
+      // Adds `!important` to `[inert] {interactivity: auto}` in the UA
+      // stylesheet. Resolved in the CSSWG here:
+      // https://github.com/w3c/csswg-drafts/issues/12049#issuecomment-3303716541
+      // This killswitch is shipping in M142, and can ge removed in M144.
+      name: "InteractivityInertImportant",
+      status: "stable",
+    },
+    {
       name: "InterestGroupsInSharedStorageWorklet",
       public: true,
       status: "stable",
@@ -2929,6 +2980,14 @@
       // This is enabled by features::kLazyInitializeMediaControls.
     },
     {
+      // Allow triggering the word suggestion from left click.
+      // From crbug.com/433209485
+      name: "LeftClickToHandleSuggestion",
+      status: {
+        "Android": "stable"
+      }
+    },
+    {
       name: "LimitThirdPartyCookies",
       origin_trial_feature_name: "LimitThirdPartyCookies",
       status: "experimental",
@@ -2936,7 +2995,7 @@
     },
     {
       // Stop emitting U+FFFC Object Replacement Character for out-of-flow
-      // objects such as floating or out-of-flow positioned. crbgu.com/40658609
+      // objects such as floating or out-of-flow positioned. crbug.com/40658609
       name: "LineBreakOofNoOrc",
       status: "stable",
     },
@@ -3697,7 +3756,7 @@
     {
       // https://crbug.com/404479704
       name: "PointerRawUpdateOnlyInSecureContext",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "PositionOutsideTabSpanCheckSiblingNode",
@@ -4455,6 +4514,14 @@
       base_feature: "none",
     },
     {
+      // Separate defer and module script execution into individual tasks
+      // to comply with HTML spec requirement to "spin the event loop" between
+      // each script execution. This prevents long tasks and improves responsiveness.
+      // https://crbug.com/40894694
+      name: "SeparateDeferModuleScriptTasks",
+      status: "test",
+    },
+    {
       name: "Serial",
       status: "stable",
       base_feature: "WebSerialAPI",
@@ -4608,10 +4675,6 @@
       status: {"Android": "test"},
     },
     {
-      name: "SmilAutoSuspendOnLag",
-      status: "stable",
-    },
-    {
       name: "SmilKeyTimesKeyPointsAllowTrailingSemicolon",
       status: "stable",
     },
@@ -4626,12 +4689,11 @@
     },
     {
       name: "SoftNavigationDetectionAdvancedPaintAttribution",
-      status: "stable",
       depends_on: ["SoftNavigationDetection"],
     },
     {
       name: "SoftNavigationDetectionPrePaintBasedAttribution",
-      status: "experimental",
+      status: "stable",
       depends_on: ["SoftNavigationDetection"],
     },
     {
@@ -4711,6 +4773,13 @@
       name: "StorageBucketsLocks",
       status: "experimental",
     },
+    // Enforces that MIME types matched via *+json wildcards have HTTP token
+    // compliant type and subtype (rejects invalid characters) in addition to
+    // requiring a single slash.
+    {
+      name: "StrictJsonMimeTypeTokenValidation",
+      status: "experimental",
+    },
     {
       name: "StrictMimeTypesForWorkers",
       status: "experimental",
@@ -4748,7 +4817,7 @@
     },
     {
       name: "SvgEnableTextDecorationCssStyling",
-      status: "stable",
+      status: "experimental",
     },
     {
       // Enables loading of external SVG resource documents for the 'clip-path',
@@ -4769,11 +4838,20 @@
       status: "stable",
     },
     {
+      // Disable "external" XSLT stylesheets in SVGImage.
+      name: "SvgImageNoExternalXslt",
+      status: "stable",
+    },
+    {
       name: "SvgInlineRootPixelSnappingScaleAdjustment",
       status: "test",
     },
     {
       name: "SvgNoPixelSnappingScaleAdjustment",
+      status: "stable",
+    },
+    {
+      name: "SvgPartitionSVGDocumentResourcesInMemoryCache",
       status: "stable",
     },
     {
@@ -5834,6 +5912,10 @@
     {
       name: "WidthAndHeightStylePropertiesOnUseAndSymbol",
       status: "experimental",
+    },
+    {
+      name: "WindowControlsOverlay",
+      status: { "Android": "experimental", "default": "stable" },
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled
     // by default, and is here to allow this behavior to be re-enabled via Finch

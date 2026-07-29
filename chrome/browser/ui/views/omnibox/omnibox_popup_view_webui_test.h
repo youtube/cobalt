@@ -55,7 +55,8 @@ class OmniboxPopupViewWebUITest : public InProcessBrowserTest {
   OmniboxController* controller() { return omnibox_view()->controller(); }
   OmniboxEditModel* edit_model() { return omnibox_view()->model(); }
   OmniboxPopupViewWebUI* popup_view() {
-    return static_cast<OmniboxPopupViewWebUI*>(edit_model()->get_popup_view());
+    return static_cast<OmniboxPopupViewWebUI*>(
+        location_bar()->GetOmniboxPopupView());
   }
 
   SkColor GetSelectedColor(Browser* browser) {
@@ -68,12 +69,6 @@ class OmniboxPopupViewWebUITest : public InProcessBrowserTest {
     return BrowserView::GetBrowserViewForBrowser(browser)
         ->GetColorProvider()
         ->GetColor(kColorOmniboxResultsBackground);
-  }
-
-  void SetUseDarkColor(ui::NativeTheme::PreferredColorScheme color_scheme) {
-    BrowserView* browser_view =
-        BrowserView::GetBrowserViewForBrowser(browser());
-    browser_view->GetNativeTheme()->set_preferred_color_scheme(color_scheme);
   }
 
   // Some tests relies on the light/dark variants of the result background to be

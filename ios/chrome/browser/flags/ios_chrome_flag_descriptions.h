@@ -26,11 +26,17 @@ extern const char kAIMPrototypeDevToolsDescription[];
 extern const char kAIMPrototypeName[];
 extern const char kAIMPrototypeDescription[];
 
+extern const char kAskGeminiChipName[];
+extern const char kAskGeminiChipDescription[];
+
 extern const char kAIHubNewBadgeName[];
 extern const char kAIHubNewBadgeDescription[];
 
 extern const char kOmniboxDRSPrototypeName[];
 extern const char kOmniboxDRSPrototypeDescription[];
+
+extern const char kOmniboxGeminiPrototypeProviderName[];
+extern const char kOmniboxGeminiPrototypeProviderDescription[];
 
 extern const char kAppBackgroundRefreshName[];
 extern const char kAppBackgroundRefreshDescription[];
@@ -444,6 +450,9 @@ extern const char kIOSOmniboxAimServerEligibilityDescription[];
 extern const char kIOSOmniboxAimServerEligibilityEnName[];
 extern const char kIOSOmniboxAimServerEligibilityEnDescription[];
 
+extern const char kIOSOmniboxUseTextViewName[];
+extern const char kIOSOmniboxUseTextViewDescription[];
+
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksName[];
 extern const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[];
 
@@ -749,6 +758,9 @@ extern const char kOptimizationGuidePushNotificationClientDescription[];
 extern const char kPageActionMenuName[];
 extern const char kPageActionMenuDescription[];
 
+extern const char kProactiveSuggestionsFrameworkName[];
+extern const char kProactiveSuggestionsFrameworkDescription[];
+
 extern const char kGeminiCrossTabName[];
 extern const char kGeminiCrossTabDescription[];
 
@@ -768,9 +780,6 @@ extern const char kPageContentAnnotationsRemotePageMetadataDescription[];
 extern const char kPageContextAnchorTagsName[];
 extern const char kPageContextAnchorTagsDescription[];
 
-extern const char kPageImageServiceSalientImageName[];
-extern const char kPageImageServiceSalientImageDescription[];
-
 extern const char kPageInfoLastVisitedIOSName[];
 extern const char kPageInfoLastVisitedIOSDescription[];
 
@@ -785,6 +794,9 @@ extern const char kPasswordReuseDetectionDescription[];
 
 extern const char kPasswordSharingName[];
 extern const char kPasswordSharingDescription[];
+
+extern const char kPersistTabContextName[];
+extern const char kPersistTabContextDescription[];
 
 extern const char kPriceTrackingPromoName[];
 extern const char kPriceTrackingPromoDescription[];
@@ -914,6 +926,9 @@ extern const char kSignInButtonNoAvatarDescription[];
 
 extern const char kSkipDefaultBrowserPromoInFirstRunName[];
 extern const char kSkipDefaultBrowserPromoInFirstRunDescription[];
+
+extern const char kSmartTabGroupingName[];
+extern const char kSmartTabGroupingDescription[];
 
 extern const char kStrokesAPIEnabledName[];
 extern const char kStrokesAPIEnabledDescription[];

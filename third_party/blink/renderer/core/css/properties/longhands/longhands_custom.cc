@@ -860,7 +860,7 @@ const CSSValue* TimelineTriggerExitRangeEnd::InitialValue() const {
   return CSSIdentifierValue::Create(CSSValueID::kAuto);
 }
 
-const CSSValue* TimelineTriggerTimeline::ParseSingleValue(
+const CSSValue* TimelineTriggerSource::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context) const {
@@ -868,7 +868,7 @@ const CSSValue* TimelineTriggerTimeline::ParseSingleValue(
       css_parsing_utils::ConsumeAnimationTimeline, stream, context);
 }
 
-const CSSValue* TimelineTriggerTimeline::CSSValueFromComputedStyleInternal(
+const CSSValue* TimelineTriggerSource::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
@@ -877,7 +877,7 @@ const CSSValue* TimelineTriggerTimeline::CSSValueFromComputedStyleInternal(
       style.Animations(), style);
 }
 
-const CSSValue* TimelineTriggerTimeline::InitialValue() const {
+const CSSValue* TimelineTriggerSource::InitialValue() const {
   return CSSIdentifierValue::Create(CSSValueID::kAuto);
 }
 
@@ -4868,6 +4868,23 @@ const CSSValue* FontVariationSettings::CSSValueFromComputedStyleInternal(
   return ComputedStyleUtils::ValueForFontVariationSettings(style);
 }
 
+const CSSValue* FontLanguageOverride::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    const CSSParserLocalContext&) const {
+  DCHECK(RuntimeEnabledFeatures::FontLanguageOverrideEnabled());
+  return css_parsing_utils::ConsumeFontLanguageOverride(stream, context);
+}
+
+const CSSValue* FontLanguageOverride::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool,
+    CSSValuePhase) const {
+  DCHECK(RuntimeEnabledFeatures::FontLanguageOverrideEnabled());
+  return ComputedStyleUtils::ValueForFontLanguageOverride(style);
+}
+
 const CSSValue* FontWeight::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -5313,37 +5330,55 @@ const CSSValue* Height::CSSValueFromComputedStyleInternal(
                                                              style);
 }
 
-const CSSValue* InterestShowDelay::ParseSingleValue(
+// interest-delay-start: normal | <time>
+const CSSValue* InterestDelayStart::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context) const {
+  if (CSSValue* value =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kNormal>(stream)) {
+    return value;
+  }
   return css_parsing_utils::ConsumeTime(
       stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
 }
 
-const CSSValue* InterestShowDelay::CSSValueFromComputedStyleInternal(
+const CSSValue* InterestDelayStart::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return CSSNumericLiteralValue::Create(style.InterestShowDelay(),
+  const StyleInterestDelay& value = style.InterestDelayStart();
+  if (value.IsNormal()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNormal);
+  }
+  return CSSNumericLiteralValue::Create(value.DelaySeconds(),
                                         CSSPrimitiveValue::UnitType::kSeconds);
 }
 
-const CSSValue* InterestHideDelay::ParseSingleValue(
+// interest-delay-end: normal | <time>
+const CSSValue* InterestDelayEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     const CSSParserLocalContext& local_context) const {
+  if (CSSValue* value =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kNormal>(stream)) {
+    return value;
+  }
   return css_parsing_utils::ConsumeTime(
       stream, context, CSSPrimitiveValue::ValueRange::kNonNegative);
 }
 
-const CSSValue* InterestHideDelay::CSSValueFromComputedStyleInternal(
+const CSSValue* InterestDelayEnd::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return CSSNumericLiteralValue::Create(style.InterestHideDelay(),
+  const StyleInterestDelay& value = style.InterestDelayEnd();
+  if (value.IsNormal()) {
+    return CSSIdentifierValue::Create(CSSValueID::kNormal);
+  }
+  return CSSNumericLiteralValue::Create(value.DelaySeconds(),
                                         CSSPrimitiveValue::UnitType::kSeconds);
 }
 
@@ -11415,6 +11450,14 @@ const CSSValue* RubyAlign::CSSValueFromComputedStyleInternal(
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   return CSSIdentifierValue::Create(style.RubyAlign());
+}
+
+const CSSValue* RubyOverhang::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.RubyOverhang());
 }
 
 const CSSValue* WebkitRubyPosition::CSSValueFromComputedStyleInternal(

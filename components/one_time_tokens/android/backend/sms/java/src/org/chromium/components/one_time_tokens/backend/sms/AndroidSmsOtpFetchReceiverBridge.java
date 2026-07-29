@@ -5,8 +5,11 @@
 package org.chromium.components.one_time_tokens.backend.sms;
 
 import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.CommonStatusCodes;
 
 import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeClassQualifiedName;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
@@ -16,6 +19,7 @@ import org.chromium.build.annotations.NullMarked;
  * fetching backend that forwards operation callbacks to the native password manager.
  */
 @NullMarked
+@JNINamespace("one_time_tokens")
 class AndroidSmsOtpFetchReceiverBridge {
     private long mNativeReceiverBridge;
 
@@ -34,11 +38,15 @@ class AndroidSmsOtpFetchReceiverBridge {
                 .onOtpValueRetrieved(mNativeReceiverBridge, otpValue);
     }
 
-    void onOtpValueRetrievalError(ApiException exception) {
+    void onOtpValueRetrievalError(Exception exception) {
         if (mNativeReceiverBridge == 0) return;
 
+        int errorCode = CommonStatusCodes.ERROR;
+        if (exception instanceof ApiException) {
+            errorCode = ((ApiException) exception).getStatusCode();
+        }
         AndroidSmsOtpFetchReceiverBridgeJni.get()
-                .onOtpValueRetrievalError(mNativeReceiverBridge, exception.getStatusCode());
+                .onOtpValueRetrievalError(mNativeReceiverBridge, errorCode);
     }
 
     @CalledByNative
@@ -48,8 +56,10 @@ class AndroidSmsOtpFetchReceiverBridge {
 
     @NativeMethods
     interface Natives {
+        @NativeClassQualifiedName("one_time_tokens::AndroidSmsOtpFetchReceiverBridge")
         void onOtpValueRetrieved(long nativeAndroidSmsOtpFetchReceiverBridge, String otpValue);
 
+        @NativeClassQualifiedName("one_time_tokens::AndroidSmsOtpFetchReceiverBridge")
         void onOtpValueRetrievalError(
                 long nativeAndroidSmsOtpFetchReceiverBridge, int apiErrorCode);
     }

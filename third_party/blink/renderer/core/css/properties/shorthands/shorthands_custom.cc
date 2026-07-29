@@ -1756,6 +1756,12 @@ bool ConsumeFont(bool important,
         *CSSIdentifierValue::Create(CSSValueID::kNone), important,
         css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   }
+  if (RuntimeEnabledFeatures::FontLanguageOverrideEnabled()) {
+    css_parsing_utils::AddProperty(
+        CSSPropertyID::kFontLanguageOverride, CSSPropertyID::kFont,
+        *CSSIdentifierValue::Create(CSSValueID::kNormal), important,
+        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  }
   css_parsing_utils::AddProperty(
       CSSPropertyID::kFontKerning, CSSPropertyID::kFont,
       *CSSIdentifierValue::Create(CSSValueID::kAuto), important,
@@ -4051,7 +4057,7 @@ const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
                : *CSSIdentifierValue::Create(CSSValueID::kNone));
 
       list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
-          animation_data->TimelineTriggerTimelineList().at(i), style));
+          animation_data->TimelineTriggerSourceList().at(i), style));
 
       list->Append(*ComputedStyleUtils::ValueForAnimationTriggerBehavior(
           animation_data->TimelineTriggerBehaviorList().at(i)));
@@ -4077,7 +4083,7 @@ const CSSValue* TimelineTrigger::CSSValueFromComputedStyleInternal(
   CSSValueList* default_list = CSSValueList::CreateSpaceSeparated();
   default_list->Append(*CSSIdentifierValue::Create(CSSValueID::kNone));
   default_list->Append(*ComputedStyleUtils::ValueForAnimationTimeline(
-      CSSAnimationData::InitialTimelineTriggerTimeline(), style));
+      CSSAnimationData::InitialTimelineTriggerSource(), style));
   default_list->Append(*ComputedStyleUtils::ValueForAnimationTriggerBehavior(
       CSSAnimationData::InitialTimelineTriggerBehavior()));
   default_list->Append(*ComputedStyleUtils::ValueForAnimationRange(

@@ -33,7 +33,7 @@ class BrowserFrameViewMac : public BrowserFrameView,
                             public web_app::WebAppRegistrarObserver {
  public:
   // Mac implementation of BrowserFrameView.
-  BrowserFrameViewMac(BrowserWidget* frame, BrowserView* browser_view);
+  BrowserFrameViewMac(BrowserWidget* widget, BrowserView* browser_view);
 
   BrowserFrameViewMac(const BrowserFrameViewMac&) = delete;
   BrowserFrameViewMac& operator=(const BrowserFrameViewMac&) = delete;
@@ -54,7 +54,7 @@ class BrowserFrameViewMac : public BrowserFrameView,
   void PaintAsActiveChanged() override;
   void OnThemeChanged() override;
 
-  // views::NonClientFrameView:
+  // views::FrameView:
   gfx::Rect GetBoundsForClientView() const override;
   gfx::Rect GetWindowBoundsForClientBounds(
       const gfx::Rect& client_bounds) const override;

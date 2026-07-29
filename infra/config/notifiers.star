@@ -433,3 +433,15 @@ luci.builder_health_notifier(
     ignore_buckets = ["try"],
     notify_all_healthy = False,
 )
+
+luci.builder_health_notifier(
+    owner_email = "core-devices-eng@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)
+
+luci.builder_health_notifier(
+    owner_email = "chrome-fuzzing-core@google.com",
+    ignore_buckets = ["try"],
+    notify_all_healthy = False,
+)

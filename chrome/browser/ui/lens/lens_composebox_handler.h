@@ -40,8 +40,10 @@ class LensComposeboxHandler : public composebox::mojom::PageHandler,
   ~LensComposeboxHandler() override;
 
   // BaseComposeboxHandler:
-  void SubmitQuery(const std::string& query_text,
-                   WindowOpenDisposition disposition) override;
+  void SubmitQuery(
+      const std::string& query_text,
+      WindowOpenDisposition disposition,
+      std::map<std::string, std::string> additional_params) override;
 
   // composebox::mojom::PageHandler:
   void NotifySessionStarted() override;
@@ -59,7 +61,6 @@ class LensComposeboxHandler : public composebox::mojom::PageHandler,
   void AddTabContext(int32_t tab_id, AddTabContextCallback callback) override;
   void DeleteContext(const base::UnguessableToken& file_token) override;
   void ClearFiles() override;
-  void GetRecentTabs(GetRecentTabsCallback callback) override;
 
   // searchbox::mojom::PageHandler:
   void DeleteAutocompleteMatch(uint8_t line, const GURL& url) override;

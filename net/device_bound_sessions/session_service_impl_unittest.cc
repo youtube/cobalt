@@ -57,6 +57,13 @@ const std::string kOrigin2 = "https://example2.com";
 
 const std::string kChallenge = "challenge";
 
+const char* GetSessionChallengeHeaderName() {
+  return base::FeatureList::IsEnabled(
+             net::features::kDeviceBoundSessionsOriginTrialFeedback)
+             ? "Secure-Session-Challenge"
+             : "Sec-Session-Challenge";
+}
+
 // Matcher for SessionKeys
 auto ExpectId(std::string_view id) {
   return testing::Field(&SessionKey::id, Session::Id(std::string(id)));
@@ -89,8 +96,13 @@ class SessionServiceImplTest : public ::testing::Test,
  public:
   SessionServiceImplTest()
       : WithTaskEnvironment(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
-        context_(CreateTestURLRequestContextBuilder()->Build()),
-        unexportable_key_service_(task_manager_) {}
+        unexportable_key_service_(task_manager_) {
+    auto context_builder = CreateTestURLRequestContextBuilder();
+    auto network_delegate = std::make_unique<TestNetworkDelegate>();
+    network_delegate_ = network_delegate.get();
+    context_builder->set_network_delegate(std::move(network_delegate));
+    context_ = context_builder->Build();
+  }
 
   void SetUp() override {
     service_ = std::make_unique<SessionServiceImpl>(unexportable_key_service_,
@@ -98,6 +110,12 @@ class SessionServiceImplTest : public ::testing::Test,
                                                     /*store=*/nullptr);
   }
 
+  void TearDown() override {
+    // Reset the `network_delegate_` to avoid a dangling pointer.
+    network_delegate_ = nullptr;
+  }
+
+  TestNetworkDelegate* network_delegate() { return network_delegate_; }
   URLRequestContext* context() { return context_.get(); }
   SessionServiceImpl& service() { return *service_; }
   unexportable_keys::UnexportableKeyService* key_service() {
@@ -123,6 +141,7 @@ class SessionServiceImplTest : public ::testing::Test,
   }
 
  private:
+  raw_ptr<TestNetworkDelegate> network_delegate_;
   std::unique_ptr<URLRequestContext> context_;
   unexportable_keys::UnexportableKeyTaskManager task_manager_{
       crypto::UnexportableKeyProvider::Config()};
@@ -136,6 +155,30 @@ class SessionServiceImplNoRefreshQuotaTest : public SessionServiceImplTest {
   SessionServiceImplNoRefreshQuotaTest() {
     scoped_feature_list_.InitAndEnableFeatureWithParameters(
         net::features::kDeviceBoundSessions, {{"RefreshQuota", "false"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class SessionServiceImplTestWithOriginTrialFeedback
+    : public SessionServiceImplTest {
+ public:
+  SessionServiceImplTestWithOriginTrialFeedback() {
+    scoped_feature_list_.InitAndEnableFeature(
+        net::features::kDeviceBoundSessionsOriginTrialFeedback);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class SessionServiceImplTestWithoutOriginTrialFeedback
+    : public SessionServiceImplTest {
+ public:
+  SessionServiceImplTestWithoutOriginTrialFeedback() {
+    scoped_feature_list_.InitAndDisableFeature(
+        net::features::kDeviceBoundSessionsOriginTrialFeedback);
   }
 
  private:
@@ -211,17 +254,23 @@ TEST_F(SessionServiceImplTest, SetChallengeForBoundSession) {
   scoped_refptr<net::HttpResponseHeaders> headers =
       HttpResponseHeaders::Builder({1, 1}, "200 OK").Build();
   headers->AddHeader(
-      "Sec-Session-Challenge",
+      GetSessionChallengeHeaderName(),
       R"("challenge";id="SessionId", "challenge1";id="NonExisted")");
-  headers->AddHeader("Sec-Session-Challenge", R"("challenge2")");
+  headers->AddHeader(GetSessionChallengeHeaderName(), R"("challenge2")");
 
   std::vector<SessionChallengeParam> params =
       SessionChallengeParam::CreateIfValid(kTestUrl, headers.get());
 
   EXPECT_EQ(params.size(), 3U);
 
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+
   for (const auto& param : params) {
-    service().SetChallengeForBoundSession(base::DoNothing(), kTestUrl, param);
+    service().SetChallengeForBoundSession(base::DoNothing(), *request,
+                                          FirstPartySetMetadata(), param);
   }
 
   const Session* session =
@@ -232,6 +281,60 @@ TEST_F(SessionServiceImplTest, SetChallengeForBoundSession) {
   session = service().GetSession(
       {SchemefulSite(kTestUrl), Session::Id("NonExisted")});
   ASSERT_FALSE(session);
+}
+
+TEST_F(SessionServiceImplTestWithOriginTrialFeedback,
+       SetChallengeForBoundSessionBlockedCookies) {
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+
+  scoped_refptr<net::HttpResponseHeaders> headers =
+      HttpResponseHeaders::Builder({1, 1}, "200 OK").Build();
+  headers->AddHeader(GetSessionChallengeHeaderName(),
+                     R"("challenge";id="SessionId")");
+  std::vector<SessionChallengeParam> params =
+      SessionChallengeParam::CreateIfValid(kTestUrl, headers.get());
+
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+
+  network_delegate()->set_cookie_options(TestNetworkDelegate::NO_SET_COOKIE);
+
+  ASSERT_EQ(params.size(), 1U);
+  service().SetChallengeForBoundSession(base::DoNothing(), *request,
+                                        FirstPartySetMetadata(), params[0]);
+
+  const Session* session =
+      service().GetSession({SchemefulSite(kTestUrl), Session::Id(kSessionId)});
+  ASSERT_TRUE(session);
+  EXPECT_EQ(session->cached_challenge(), std::nullopt);
+}
+
+TEST_F(SessionServiceImplTestWithoutOriginTrialFeedback,
+       SetChallengeForBoundSessionBlockedCookies) {
+  AddSessionsForTesting({{kSessionId, kRefreshUrlString, kOrigin}});
+
+  scoped_refptr<net::HttpResponseHeaders> headers =
+      HttpResponseHeaders::Builder({1, 1}, "200 OK").Build();
+  headers->AddHeader(GetSessionChallengeHeaderName(),
+                     R"("challenge";id="SessionId")");
+  std::vector<SessionChallengeParam> params =
+      SessionChallengeParam::CreateIfValid(kTestUrl, headers.get());
+
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+
+  network_delegate()->set_cookie_options(TestNetworkDelegate::NO_SET_COOKIE);
+
+  ASSERT_EQ(params.size(), 1U);
+  service().SetChallengeForBoundSession(base::DoNothing(), *request,
+                                        FirstPartySetMetadata(), params[0]);
+
+  const Session* session =
+      service().GetSession({SchemefulSite(kTestUrl), Session::Id(kSessionId)});
+  ASSERT_TRUE(session);
+  EXPECT_EQ(session->cached_challenge(), "challenge");
 }
 
 TEST_F(SessionServiceImplTest, ExpiryExtendedOnUser) {
@@ -320,15 +423,22 @@ TEST_F(SessionServiceImplTest, AccessObserverCalledOnSetChallenge) {
 
   scoped_refptr<net::HttpResponseHeaders> headers =
       HttpResponseHeaders::Builder({1, 1}, "200 OK").Build();
-  headers->AddHeader("Sec-Session-Challenge", "\"challenge\";id=\"SessionId\"");
+  headers->AddHeader(GetSessionChallengeHeaderName(),
+                     "\"challenge\";id=\"SessionId\"");
 
   std::vector<SessionChallengeParam> params =
       SessionChallengeParam::CreateIfValid(kTestUrl, headers.get());
   ASSERT_EQ(params.size(), 1U);
 
+  net::TestDelegate delegate;
+  std::unique_ptr<URLRequest> request =
+      context()->CreateRequest(kTestUrl, IDLE, &delegate, kDummyAnnotation);
+  request->set_site_for_cookies(SiteForCookies::FromUrl(kTestUrl));
+
   base::test::TestFuture<SessionAccess> future;
   service().SetChallengeForBoundSession(
-      future.GetRepeatingCallback<const SessionAccess&>(), kTestUrl, params[0]);
+      future.GetRepeatingCallback<const SessionAccess&>(), *request,
+      FirstPartySetMetadata(), params[0]);
 
   SessionAccess access = future.Take();
   EXPECT_EQ(access.access_type, SessionAccess::AccessType::kUpdate);

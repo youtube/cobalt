@@ -18,9 +18,12 @@
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_provider.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/web_contents.h"
 
@@ -52,7 +55,6 @@ class GlicProfileManager;
 class GlicScreenshotCapturer;
 class GlicSharingManagerImpl;
 class GlicWindowController;
-class Host;
 class HostManager;
 
 enum class GlicPrewarmingChecksResult;
@@ -75,7 +77,8 @@ enum class GlicPrewarmingFreSource {
 // since pieces of this service are the ones that monitor this runtime
 // preference for changes and cause the UI to respond to it.
 class GlicKeyedService : public KeyedService,
-                         public GlicSharingManagerProvider {
+                         public GlicSharingManagerProvider,
+                         public Host::InstanceDelegate {
  public:
   explicit GlicKeyedService(
       Profile* profile,
@@ -114,19 +117,29 @@ class GlicKeyedService : public KeyedService,
   // soon.
   void PrepareForOpen();
 
-  // Fetch zero state suggestions for the active web contents.
-  void FetchZeroStateSuggestions(
-      bool is_first_run,
-      std::optional<std::vector<std::string>> supported_tools,
-      glic::mojom::WebClientHandler::
-          GetZeroStateSuggestionsForFocusedTabCallback callback);
-
   GlicEnabling& enabling() { return *enabling_.get(); }
 
   GlicMetrics* metrics() { return metrics_.get(); }
   GlicFreController& fre_controller();
   GlicWindowController& window_controller() const;
   GlicSharingManager& sharing_manager() override;
+
+  // Host::InstanceDelegate:
+  // TODO(crbug.com/445762814): InstanceDelegate methods should replace the
+  // existing methods of the same names.
+  void CreateTab() override;
+  void CreateTask() override;
+  void PerformActions() override;
+  void StopActorTask() override;
+  void PauseActorTask() override;
+  void ResumeActorTask() override;
+  void GetZeroStateSuggestionsAndSubscribe() override;
+  void GetZeroStateSuggestionsForFocusedTab() override;
+  void FetchZeroStateSuggestions(
+      bool is_first_run,
+      std::optional<std::vector<std::string>> supported_tools,
+      glic::mojom::WebClientHandler::
+          GetZeroStateSuggestionsForFocusedTabCallback callback) override;
 
   // Called when a webview guest is created within a chrome://glic WebUI.
   void GuestAdded(content::WebContents* guest_contents);
@@ -170,7 +183,8 @@ class GlicKeyedService : public KeyedService,
     return is_context_access_indicator_enabled_;
   }
 
-  void CreateTask(mojom::WebClientHandler::CreateTaskCallback callback);
+  void CreateTask(actor::webui::mojom::TaskOptionsPtr options,
+                  mojom::WebClientHandler::CreateTaskCallback callback);
   void PerformActions(const std::vector<uint8_t>& actions_proto,
                       mojom::WebClientHandler::PerformActionsCallback callback);
   void StopActorTask(actor::TaskId task_id,
@@ -214,7 +228,6 @@ class GlicKeyedService : public KeyedService,
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel level);
 
-  std::vector<Host*> GetAllHosts();
   HostManager& host_manager();
   GlicZeroStateSuggestionsManager& zero_state_suggestions_manager() {
     return *zero_state_suggestions_manager_;
@@ -226,9 +239,9 @@ class GlicKeyedService : public KeyedService,
   // chrome://glic.
   bool IsGlicWebUi(content::WebContents* web_contents);
 
-  // Get the Host associated with the given browser's active tab, or null
-  // if there is none. `bwi` can be null if preloaded with no browser open.
-  Host* GetHostForActiveTab(BrowserWindowInterface* bwi);
+  // Get the GlicInstance associated with the given browser's active tab, or
+  // null if there is none. `bwi` can be null if preloaded with no browser open.
+  GlicInstance* GetInstanceForActiveTab(BrowserWindowInterface* bwi);
 
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback

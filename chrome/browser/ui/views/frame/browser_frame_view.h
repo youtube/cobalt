@@ -17,7 +17,7 @@
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_f.h"
-#include "ui/views/window/non_client_view.h"
+#include "ui/views/window/frame_view.h"
 
 class BrowserView;
 
@@ -124,17 +124,17 @@ struct BrowserLayoutParams {
 // Concrete implementations are provided for each platform (e.g., Windows, Mac,
 // Linux) and are created by the factory function
 // `chrome::CreateBrowserFrameView`.
-class BrowserFrameView : public views::NonClientFrameView {
-  METADATA_HEADER(BrowserFrameView, views::NonClientFrameView)
+class BrowserFrameView : public views::FrameView {
+  METADATA_HEADER(BrowserFrameView, views::FrameView)
 
  public:
-  BrowserFrameView(BrowserWidget* frame, BrowserView* browser_view);
+  BrowserFrameView(BrowserWidget* browser_widget, BrowserView* browser_view);
   BrowserFrameView(const BrowserFrameView&) = delete;
   BrowserFrameView& operator=(const BrowserFrameView&) = delete;
   ~BrowserFrameView() override;
 
   BrowserView* browser_view() const { return browser_view_; }
-  BrowserWidget* frame() const { return frame_; }
+  BrowserWidget* browser_widget() const { return browser_widget_; }
 
   // Called after BrowserView has initialized its child views. This is a useful
   // hook for performing final setup that depends on other child views, like
@@ -258,7 +258,7 @@ class BrowserFrameView : public views::NonClientFrameView {
   // Sets the bounds of `frame_`.
   virtual void SetFrameBounds(const gfx::Rect& bounds);
 
-  // views::NonClientFrameView:
+  // views::FrameView:
   void Layout(PassKey) override;
   Views GetChildrenInZOrder() override;
 
@@ -316,12 +316,12 @@ class BrowserFrameView : public views::NonClientFrameView {
   // ui::EventHandler:
   void OnGestureEvent(ui::GestureEvent* event) override;
 
-  // views::NonClientFrameView:
+  // views::FrameView:
   int GetSystemMenuY() const override;
 #endif  // BUILDFLAG(IS_WIN)
 
   // The BrowserWidget that owns this view.
-  const raw_ptr<BrowserWidget, DanglingUntriaged> frame_;
+  const raw_ptr<BrowserWidget, DanglingUntriaged> browser_widget_;
 
   // The BrowserView hosted within `frame_`.
   const raw_ptr<BrowserView, DanglingUntriaged> browser_view_;
@@ -329,7 +329,7 @@ class BrowserFrameView : public views::NonClientFrameView {
   // Subscription to receive notifications when the frame's PaintAsActive state
   // changes.
   base::CallbackListSubscription paint_as_active_subscription_ =
-      frame_->RegisterPaintAsActiveChangedCallback(
+      browser_widget_->RegisterPaintAsActiveChangedCallback(
           base::BindRepeating(&BrowserFrameView::PaintAsActiveChanged,
                               base::Unretained(this)));
 };
@@ -340,7 +340,7 @@ namespace chrome {
 // implementations should define this in their respective
 // browser_view_factor_*.cc files.
 std::unique_ptr<BrowserFrameView> CreateBrowserFrameView(
-    BrowserWidget* frame,
+    BrowserWidget* browser_widget,
     BrowserView* browser_view);
 
 }  // namespace chrome

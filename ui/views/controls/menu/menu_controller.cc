@@ -1660,6 +1660,7 @@ void MenuController::SetSelection(MenuItemView* menu_item,
     SetHotTrackedButton(nullptr);
   }
 
+  auto this_ref = AsWeakPtr();
   // Notify an accessibility focus event on all menu items except for the root.
   bool ensure_focus_within_popup =
       menu_item && pending_item_changed &&
@@ -1676,7 +1677,13 @@ void MenuController::SetSelection(MenuItemView* menu_item,
     // the focus appears to be elsewhere.
     menu_item->GetViewAccessibility().SetPopupFocusOverride();
   }
-
+  // Possible fix for https:://crbug.com/443019015, in case menu_controller is
+  // getting deleted as a side effect of accessibility code above. The crash
+  // happens when accessibility has been turned on around the same time as
+  // opening the menu.
+  if (!this_ref) {
+    return;
+  }
   // Notify the old path it isn't selected.
   MenuDelegate* current_delegate =
       current_path.empty() ? nullptr : current_path.front()->GetDelegate();
@@ -2836,11 +2843,16 @@ gfx::Rect MenuController::CalculateBubbleMenuBounds(
             item->actual_menu_position() == MenuPosition::kAboveBounds) {
           // menu_size is expected to include not just the content size
           // but also the (border and shadow) insets, which can go offscreen.
-          max_height =
+          // When anchor_bounds is above or below monitor_bounds, max_height
+          // calculation will be larger than monitor+insets. To prevent
+          // std::clamp crashing due to y_max < y_min, std::min with current
+          // max_height.
+          max_height = std::min(
+              max_height,
               std::max(anchor_bounds.y() - monitor_bounds.y(),
                        monitor_bounds.bottom() - anchor_bounds.bottom()) -
-              (is_bubble_menu ? 0 : menu_config.touchable_anchor_offset) +
-              border_insets.height();
+                  (is_bubble_menu ? 0 : menu_config.touchable_anchor_offset) +
+                  border_insets.height());
         }
       }
       // The menu should always have a non-empty available area.

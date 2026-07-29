@@ -4,12 +4,15 @@
 
 #include "chrome/renderer/actor/tool_base.h"
 
+#include "base/feature_list.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/types/expected.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/renderer/actor/tool_utils.h"
 #include "content/public/renderer/render_frame.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
@@ -21,10 +24,33 @@
 #include "ui/gfx/geometry/point_conversions.h"
 #include "ui/gfx/geometry/vector2d_conversions.h"
 
-namespace actor {
-
+using base::UmaHistogramEnumeration;
 using blink::WebElement;
 using blink::WebNode;
+
+namespace actor {
+namespace {
+
+constexpr char kTimeOfUseValidationHistogram[] =
+    "Actor.Tools.TimeOfUseValidation";
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(TimeOfUseResult)
+enum class TimeOfUseResult {
+  kValid = 0,
+  kWrongNodeAtCoordinate = 1,
+  kTargetNodeInteractionPointObscured = 2,
+  kTargetNodeMissing = 3,
+  kTargetPointOutsideBoundingBox = 4,
+  kTargetNodeMissingGeometry = 5,
+  kNoValidApcNode = 6,
+  kMaxValue = kNoValidApcNode,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:TimeOfUseResult)
+
+}  // namespace
 
 base::TimeDelta ToolBase::ExecutionObservationDelay() const {
   return base::TimeDelta();
@@ -109,18 +135,21 @@ void ToolBase::EnsureTargetInView() {
 
 base::expected<ToolBase::ResolvedTarget, mojom::ActionResultPtr>
 ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
-  if (!observed_target_ || !observed_target_->node_attribute->dom_node_id) {
-    journal_->Log(
-        task_id_, "TimeOfUseValidation",
-        JournalDetailsBuilder().AddError("No valid APC node").Build());
-    return resolved_target;
-  }
-
   const blink::WebNode& target_node = resolved_target.node;
 
   // For coordinate target, check the observed node matches the live DOM hit
   // test target.
   if (target_->is_coordinate()) {
+    if (!observed_target_ || !observed_target_->node_attribute->dom_node_id) {
+      journal_->Log(
+          task_id_, "TimeOfUseValidation",
+          JournalDetailsBuilder().AddError("No valid APC node").Build());
+      UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
+                              TimeOfUseResult::kNoValidApcNode);
+      // TODO(crbug.com/445210509): return error for no apc found.
+      return resolved_target;
+    }
+
     if (target_node.GetDomNodeId() !=
         *observed_target_->node_attribute->dom_node_id) {
       journal_->Log(task_id_, "TimeOfUseValidation",
@@ -131,10 +160,16 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
                         .Add("target", NodeToDebugSring(target_node))
                         .AddError("Wrong Node At Location")
                         .Build());
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kObservedTargetElementChanged,
-                     "The element at the target location is not the same as "
-                     "the one observed."));
+      UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
+                              TimeOfUseResult::kWrongNodeAtCoordinate);
+      if (base::FeatureList::IsEnabled(features::kGlicActorToctouValidation)) {
+        return base::unexpected(
+            MakeResult(mojom::ActionResultCode::kObservedTargetElementChanged,
+                       "The element at the target location is not the same as "
+                       "the one observed."));
+      } else {
+        return resolved_target;
+      }
     }
   } else {
     CHECK(target_->is_dom_node_id());
@@ -145,7 +180,8 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
             resolved_target.point);
     const blink::WebElement hit_element = hit_test_result.GetElement();
     // The action target from APC is not as granular as the live DOM hit test.
-    if (!target_node.Contains(&hit_element)) {
+    // Include shadow host element as the hit test would land on those.
+    if (!target_node.ContainsIncludingHostElements(&hit_element)) {
       journal_->Log(task_id_, "TimeOfUseValidation",
                     JournalDetailsBuilder()
                         .Add("target_id", target_node.GetDomNodeId())
@@ -154,9 +190,22 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
                         .Add("hit_node", NodeToDebugSring(hit_element))
                         .AddError("Node covered by another node")
                         .Build());
+      UmaHistogramEnumeration(
+          kTimeOfUseValidationHistogram,
+          TimeOfUseResult::kTargetNodeInteractionPointObscured);
       return base::unexpected(MakeResult(
           mojom::ActionResultCode::kTargetNodeInteractionPointObscured,
           "The element's interaction point is obscured by other elements."));
+    }
+
+    if (!observed_target_ || !observed_target_->node_attribute->dom_node_id) {
+      journal_->Log(
+          task_id_, "TimeOfUseValidation",
+          JournalDetailsBuilder().AddError("No valid APC node").Build());
+      UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
+                              TimeOfUseResult::kNoValidApcNode);
+      // TODO(crbug.com/445210509): return error for no apc found.
+      return resolved_target;
     }
 
     if (!observed_target_->node_attribute->geometry) {
@@ -170,6 +219,8 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
               .Build());
       // TODO(crbug.com/418280472): return error after retry for failed task is
       // landed.
+      UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
+                              TimeOfUseResult::kTargetNodeMissingGeometry);
       return resolved_target;
     }
 
@@ -187,10 +238,14 @@ ToolBase::ValidateTimeOfUse(const ResolvedTarget& resolved_target) const {
                         .Build());
       // TODO(crbug.com/418280472): return error after retry for failed task is
       // landed.
+      UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
+                              TimeOfUseResult::kTargetPointOutsideBoundingBox);
       return resolved_target;
     }
   }
 
+  UmaHistogramEnumeration(kTimeOfUseValidationHistogram,
+                          TimeOfUseResult::kValid);
   return resolved_target;
 }
 

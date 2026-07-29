@@ -27,12 +27,8 @@ NativeThemeQt::NativeThemeQt(QtInterface* shim)
 
 NativeThemeQt::~NativeThemeQt() = default;
 
-void NativeThemeQt::ThemeChanged(bool prefer_dark_theme) {
-  set_preferred_color_scheme(
-      (IsForcedDarkMode() || prefer_dark_theme)
-          ? ui::NativeTheme::PreferredColorScheme::kDark
-          : ui::NativeTheme::PreferredColorScheme::kLight);
-  NotifyOnNativeThemeUpdated();
+void NativeThemeQt::OnQtThemeChanged() {
+  OnToolkitSettingsChanged(false);
 }
 
 DISABLE_CFI_VCALL
@@ -40,11 +36,11 @@ void NativeThemeQt::PaintFrameTopArea(
     cc::PaintCanvas* canvas,
     State state,
     const gfx::Rect& rect,
-    const FrameTopAreaExtraParams& frame_top_area) const {
+    const FrameTopAreaExtraParams& extra_params) const {
   auto image = shim_->DrawHeader(
-      rect.width(), rect.height(), frame_top_area.default_background_color,
-      frame_top_area.is_active ? ColorState::kNormal : ColorState::kInactive,
-      frame_top_area.use_custom_frame);
+      rect.width(), rect.height(), extra_params.default_background_color,
+      extra_params.is_active ? ColorState::kNormal : ColorState::kInactive,
+      extra_params.use_custom_frame);
   SkImageInfo image_info = SkImageInfo::Make(
       image.width, image.height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
   SkBitmap bitmap;

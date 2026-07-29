@@ -17,6 +17,9 @@
 <translation id="1131805035311359397">如要檢查密碼是否安全，且未受資料外洩或其他安全性問題影響，請<ph name="BEGIN_LINK" />登入 Chromium<ph name="END_LINK" />。</translation>
 <translation id="1153368717515616349">按一下 Chromium 選單</translation>
 <translation id="1157985233335035034">最近使用過的語言</translation>
+<translation id="1171831736360285680"><ph name="PARTNER_NAME" /> 所新增的擴充程式可能會變更 Chromium 的運作方式。
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="1184145431117212167">你的 Windows 版本不受支援，因此無法安裝。</translation>
 <translation id="1185134272377778587">關於 Chromium</translation>
 <translation id="1203500561924088507">多謝安裝。您必須先重新啟動瀏覽器，才能使用 <ph name="BUNDLE_NAME" />。</translation>
@@ -172,6 +175,7 @@
 <translation id="3068187312562070417">其他 Chromium 設定檔</translation>
 <translation id="3068515742935458733">將當機報告和<ph name="UMA_LINK" />傳送給 Google，助我們一臂之力，讓 Google Chrome 更臻完美</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{當時至少有一個 Chromium 擴充程式正在存取 1 部 USB 裝置}=1{至少有一個 Chromium 擴充程式正在存取 1 部 USB 裝置}other{至少有一個 Chromium 擴充程式正在存取 # 部 USB 裝置}}</translation>
+<translation id="3095811995836568724">Chromium 記錄</translation>
 <translation id="3101560983689755071">您的瀏覽記錄會影響系統顯示的廣告，以及下列由系統推測的興趣。為保障您的私隱，Chromium 每個月都會自動刪除您的興趣。除非您移除興趣，否則系統會重新整理興趣。</translation>
 <translation id="3103660991484857065">安裝程式無法解壓縮封存檔案，請重新下載 Chromium。</translation>
 <translation id="310459126943037700">工作結束唔到。</translation>

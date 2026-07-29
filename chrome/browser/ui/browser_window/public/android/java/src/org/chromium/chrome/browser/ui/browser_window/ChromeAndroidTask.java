@@ -50,10 +50,19 @@ import java.util.OptionalInt;
 public interface ChromeAndroidTask {
 
     /**
-     * Returns the ID of this {@link ChromeAndroidTask}, which is the same as defined by {@link
-     * android.app.TaskInfo#taskId}.
+     * Returns an {@link OptionalInt} holding the the ID of this {@link ChromeAndroidTask}, which is
+     * the same as defined by {@link android.app.TaskInfo#taskId}, if the {@link OptionalInt} is
+     * non-empty. The {@link OptionalInt} will be empty for a {@code State.PENDING} {@link
+     * ChromeAndroidTask} that is not yet associated with a live {@code ChromeActivity}.
      */
-    int getId();
+    OptionalInt getId();
+
+    /**
+     * Returns an {@link OptionalInt} holding the the pending task ID of this {@link
+     * ChromeAndroidTask}. The {@link OptionalInt} will be empty for a {@link ChromeAndroidTask}
+     * that is not in a {@code State.PENDING} state.
+     */
+    OptionalInt getPendingId();
 
     /**
      * Returns the browser window type of this {@link ChromeAndroidTask}.
@@ -135,6 +144,9 @@ public interface ChromeAndroidTask {
     /** Returns whether this {@link ChromeAndroidTask} is currently in fullscreen mode. */
     boolean isFullscreen();
 
+    /** Non-maximized bounds of the task even when currently maximized or minimized. */
+    Rect getRestoredBounds();
+
     /**
      * Returns the most recent timestamp when this {@link ChromeAndroidTask} became active, i.e.,
      * when its state changed from nonexistent or inactive (minimized/unfocused), to the active
@@ -179,6 +191,12 @@ public interface ChromeAndroidTask {
 
     /** Minimizes this {@link ChromeAndroidTask}. */
     void minimize();
+
+    /**
+     * Restores this {@link ChromeAndroidTask}. This positions the window to the last known position
+     * and size before it was maximized, minimized or fullscreen.
+     */
+    void restore();
 
     /**
      * Sets the {@link ChromeAndroidTask}'s size and position to the specified values.

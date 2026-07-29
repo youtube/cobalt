@@ -12,20 +12,20 @@ import android.widget.TextView;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
-import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.components.browser_ui.settings.CustomStyledPreference;
+import org.chromium.components.browser_ui.settings.ContainedRadioButtonGroupPreference;
 import org.chromium.components.browser_ui.settings.ManagedPreferenceDelegate;
 import org.chromium.components.browser_ui.settings.ManagedPreferencesUtils;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescription;
 import org.chromium.components.browser_ui.widget.RadioButtonWithDescriptionLayout;
 import org.chromium.components.browser_ui.widget.RadioButtonWithEditText;
 import org.chromium.components.browser_ui.widget.RadioButtonWithEditText.OnTextChangeListener;
+import org.chromium.components.browser_ui.widget.containment.CustomStyledContainer;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -36,10 +36,8 @@ import java.lang.annotation.RetentionPolicy;
  * represents customized URL set by partner or user.
  */
 @NullMarked
-public final class RadioButtonGroupHomepagePreference extends Preference
-        implements RadioGroup.OnCheckedChangeListener,
-                OnTextChangeListener,
-                CustomStyledPreference {
+public final class RadioButtonGroupHomepagePreference extends ContainedRadioButtonGroupPreference
+        implements RadioGroup.OnCheckedChangeListener, OnTextChangeListener, CustomStyledContainer {
     /** A data structure which holds the displayed value and the status for this preference. */
     static class PreferenceValues {
         /** The option that is checked in {@link RadioButtonGroupHomepagePreference}. */
@@ -285,10 +283,5 @@ public final class RadioButtonGroupHomepagePreference extends Preference
 
     View getViewForTesting() {
         return mView;
-    }
-
-    @Override
-    public @BackgroundStyle int getCustomBackgroundStyle() {
-        return BackgroundStyle.NONE;
     }
 }

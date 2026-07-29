@@ -160,8 +160,8 @@ void CSSToStyleMap::MapFillImage(StyleResolverState& state,
   CSSPropertyID property = layer->GetType() == EFillLayerType::kBackground
                                ? CSSPropertyID::kBackgroundImage
                                : CSSPropertyID::kMaskImage;
-  layer->SetImage(state.GetStyleImage(
-      property, state.ResolveGradient(state.ResolveLightDarkPair(value))));
+  layer->SetImage(
+      state.GetStyleImage(property, state.ResolveLightDarkPair(value)));
 }
 
 void CSSToStyleMap::MapFillRepeat(StyleResolverState&,
@@ -855,7 +855,7 @@ TimelineOffsetOrAuto CSSToStyleMap::MapAnimationTimelineTriggerExitRangeEnd(
   return TimelineOffsetOrAuto(MapAnimationRange(state, value, 100));
 }
 
-StyleTimeline CSSToStyleMap::MapAnimationTimelineTriggerTimeline(
+StyleTimeline CSSToStyleMap::MapAnimationTimelineTriggerSource(
     StyleResolverState& state,
     const CSSValue& value) {
   return MapAnimationTimeline(state, value);

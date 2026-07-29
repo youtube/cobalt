@@ -363,6 +363,7 @@ targets.binaries.windowed_test_launcher(
     args = [
         "--disable-extensions",
     ],
+    module_scheme = "gtest",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -555,6 +556,7 @@ targets.binaries.console_test_launcher(
 targets.binaries.generated_script(
     name = "chrome_private_code_test",
     label = "//chrome:chrome_private_code_test",
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(
@@ -626,6 +628,7 @@ targets.binaries.generated_script(
             "--upload-skia-json",
         ],
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.script(
@@ -713,6 +716,7 @@ targets.binaries.script(
     script = "//chrome/test/chromedriver/log_replay/client_replay_unittest.py",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "single",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -751,6 +755,7 @@ targets.binaries.script(
             "--smoke-test-mode",
         ],
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -784,6 +789,7 @@ targets.binaries.script(
             "--smoke-test-mode",
         ],
     ),
+    module_scheme = "flat",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -797,6 +803,7 @@ targets.binaries.script(
     label = "//build/fuchsia/test:component_storage_test",
     script = "//build/fuchsia/test/component_storage_test.py",
     skip_usage_check = True,
+    module_scheme = "single",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -955,6 +962,7 @@ targets.binaries.generated_script(
         "--fileserver",
         "--luci-chromium",
     ],
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(
@@ -991,6 +999,7 @@ targets.binaries.script(
             "--smoke-test-mode",
         ],
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -1196,6 +1205,7 @@ targets.binaries.generated_script(
             "--upload-skia-json",
         ],
     ),
+    module_scheme = "flat",
 )
 
 targets.binaries.console_test_launcher(
@@ -1559,6 +1569,7 @@ targets.binaries.generated_script(
     label = "//chrome/installer/mac:mac_signing_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "pyunit",
 )
 
 targets.binaries.generated_script(
@@ -1619,6 +1630,7 @@ targets.binaries.script(
         "../../chrome/test/mini_installer/run_mini_installer_tests.py",
         "--output-dir=${ISOLATED_OUTDIR}",
     ],
+    module_scheme = "flat",
 )
 
 targets.binaries.console_test_launcher(
@@ -1753,6 +1765,7 @@ targets.binaries.generated_script(
     label = "//build/rust/tests:build_rust_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "flat",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -1950,6 +1963,7 @@ targets.binaries.script(
         "../../content/test/gpu/run_telemetry_benchmark_fuchsia.py",
         "--per-test-logs-dir",
     ],
+    module_scheme = "single",
 )
 
 targets.binaries.script(
@@ -2276,6 +2290,7 @@ targets.binaries.script(
 targets.binaries.generated_script(
     name = "telemetry_perf_unittests",
     label = "//chrome/test:telemetry_perf_unittests",
+    module_scheme = "pyunit",
 )
 
 targets.binaries.generated_script(
@@ -2283,6 +2298,7 @@ targets.binaries.generated_script(
     label = "//chrome/test:telemetry_perf_unittests_android_chrome",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "pyunit",
 )
 
 targets.binaries.generated_script(
@@ -2290,11 +2306,13 @@ targets.binaries.generated_script(
     label = "//chrome/test:telemetry_perf_unittests_android_monochrome",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "pyunit",
 )
 
 targets.binaries.generated_script(
     name = "telemetry_unittests",
     label = "//chrome/test:telemetry_unittests",
+    module_scheme = "pyunit",
 )
 
 targets.binaries.console_test_launcher(
@@ -2489,6 +2507,7 @@ targets.binaries.console_test_launcher(
 targets.binaries.generated_script(
     name = "variations_desktop_smoke_tests",
     label = "//chrome/test/variations:variations_desktop_smoke_tests",
+    module_scheme = "flat",
 )
 
 targets.binaries.generated_script(
@@ -2526,6 +2545,7 @@ targets.binaries.script(
             "--smoke-test-mode",
         ],
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -2583,6 +2603,7 @@ targets.binaries.script(
             "--upload-skia-json",
         ],
     ),
+    module_scheme = "flat",
 )
 
 targets.binaries.script(
@@ -2862,6 +2883,7 @@ targets.binaries.generated_script(
     resultdb = targets.resultdb(
         enable = True,
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(

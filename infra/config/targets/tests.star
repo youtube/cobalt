@@ -515,26 +515,31 @@ targets.tests.gtest_test(
 targets.tests.script_test(
     name = "check_network_annotations",
     script = "check_network_annotations.py",
+    module_scheme = "single",
 )
 
 targets.tests.script_test(
     name = "check_static_initializers",
     script = "check_static_initializers.py",
+    module_scheme = "single",
 )
 
 targets.tests.script_test(
     name = "checkbins",
     script = "checkbins.py",
+    module_scheme = "single",
 )
 
 targets.tests.script_test(
     name = "checkdeps",
     script = "checkdeps.py",
+    module_scheme = "single",
 )
 
 targets.tests.script_test(
     name = "checkperms",
     script = "checkperms.py",
+    module_scheme = "single",
 )
 
 targets.tests.gtest_test(
@@ -703,6 +708,23 @@ targets.tests.isolated_script_test(
     ],
     args = [
         "--test-launcher-filter-file=../../third_party/blink/web_tests/TestLists/content_shell.filter",
+    ],
+    binary = "headless_shell_wpt",
+)
+
+targets.tests.isolated_script_test(
+    name = "headless_shell_wpt_tests_tracing",
+    mixins = [
+        "has_native_resultdb_integration",
+        "web-test-coverage",
+    ],
+    args = [
+        "--test-type",
+        "testharness",
+        "reftest",
+        "crashtest",
+        "print-reftest",
+        "--enable-per-test-tracing=blink*",
     ],
     binary = "headless_shell_wpt",
 )
@@ -1781,6 +1803,7 @@ targets.tests.isolated_script_test(
 targets.tests.script_test(
     name = "metrics_python_tests",
     script = "metrics_python_tests.py",
+    module_scheme = "pyunit",
 )
 
 targets.tests.gtest_test(
@@ -2531,6 +2554,7 @@ targets.tests.script_test(
     precommit_args = [
         "--no-update-sheet",
     ],
+    module_scheme = "single",
 )
 
 targets.tests.isolated_script_test(
@@ -3280,6 +3304,7 @@ targets.tests.gpu_telemetry_test(
 targets.tests.script_test(
     name = "webkit_lint",
     script = "blink_lint_expectations.py",
+    module_scheme = "single",
 )
 
 targets.tests.isolated_script_test(

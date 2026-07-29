@@ -59,6 +59,22 @@ static inline void TransformTextStringToXHTMLDocumentString(String& text) {
       "</html>\n";
 }
 
+XSLTProcessor::XSLTProcessor(PassKey, Document& document)
+    : document_(&document) {
+  CHECK(RuntimeEnabledFeatures::XSLTEnabled());
+
+  if (auto* window = document.domWindow()) {
+    window->AddConsoleMessage(
+        MakeGarbageCollected<ConsoleMessage>(
+            ConsoleMessage::Source::kDeprecation,
+            ConsoleMessage::Level::kWarning,
+            "crbug.com/435623334: This page uses XSLT, which being considered "
+            "for removal from the web. If that happens, it is possible that "
+            "this page will need to be updated to maintain functionality."),
+        /*discard_duplicates=*/true);
+  }
+}
+
 XSLTProcessor::~XSLTProcessor() = default;
 
 Document* XSLTProcessor::CreateDocumentFromSource(

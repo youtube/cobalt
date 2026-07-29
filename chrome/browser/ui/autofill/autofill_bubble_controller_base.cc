@@ -27,6 +27,12 @@ AutofillBubbleControllerBase::~AutofillBubbleControllerBase() {
 
 void AutofillBubbleControllerBase::OnVisibilityChanged(
     content::Visibility visibility) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillShowBubblesBasedOnPriorities)) {
+    // BubbleManager will handle the effects of tab changes.
+    return;
+  }
+
   if (visibility == content::Visibility::HIDDEN) {
     HideBubble(/*show_next_bubble=*/false);
   }
@@ -100,8 +106,8 @@ void AutofillBubbleControllerBase::QueueOrShowBubble(bool force_show) {
 }
 
 void AutofillBubbleControllerBase::SetBubbleView(
-    AutofillBubbleBase* bubble_view) {
-  bubble_view_ = bubble_view;
+    AutofillBubbleBase& bubble_view) {
+  bubble_view_ = &bubble_view;
 }
 
 void AutofillBubbleControllerBase::ResetBubbleViewAndInformBubbleManager(

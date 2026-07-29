@@ -48,6 +48,12 @@ class GURL;
 @property(readonly, nonatomic)
     HomeCustomizationFramingCoordinates* userUploadedFramingCoordinates;
 
+// The localized accessibility name associated with the configuration.
+@property(nonatomic, copy) NSString* accessibilityName;
+
+// The localized accessibility value associated with the configuration.
+@property(nonatomic, copy) NSString* accessibilityValue;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_HOME_CUSTOMIZATION_UI_BACKGROUND_CUSTOMIZATION_CONFIGURATION_H_

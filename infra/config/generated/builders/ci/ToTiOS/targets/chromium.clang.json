@@ -13,7 +13,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a321",
+          "17a324",
           "--xctest"
         ],
         "merge": {
@@ -35,7 +35,7 @@
             }
           ],
           "dimensions": {
-            "cpu": "x86-64",
+            "cpu": "arm64",
             "os": "Mac-15"
           },
           "named_caches": [
@@ -44,7 +44,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a321",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],
@@ -63,7 +63,7 @@
           "--out-dir",
           "${ISOLATED_OUTDIR}",
           "--xcode-build-version",
-          "17a321",
+          "17a324",
           "--xctest"
         ],
         "merge": {
@@ -85,7 +85,7 @@
             }
           ],
           "dimensions": {
-            "cpu": "x86-64",
+            "cpu": "arm64",
             "os": "Mac-15"
           },
           "named_caches": [
@@ -94,7 +94,7 @@
               "path": "Runtime-ios-18.2"
             },
             {
-              "name": "xcode_ios_17a321",
+              "name": "xcode_ios_17a324",
               "path": "Xcode.app"
             }
           ],

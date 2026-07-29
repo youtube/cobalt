@@ -34,6 +34,7 @@
 #include "sandbox/linux/seccomp-bpf-helpers/sigsys_handlers.h"
 #include "sandbox/linux/seccomp-bpf/sandbox_bpf.h"
 #include "sandbox/linux/system_headers/linux_futex.h"
+#include "sandbox/linux/system_headers/linux_memfd.h"
 #include "sandbox/linux/system_headers/linux_prctl.h"
 #include "sandbox/linux/system_headers/linux_ptrace.h"
 #include "sandbox/linux/system_headers/linux_syscalls.h"
@@ -556,9 +557,29 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno) {
       .Else(CrashSIGSYS());
 }
 
+constexpr unsigned int kDefaultAllowedMemfdFlags =
+    MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_NOEXEC_SEAL;
+
 SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMemfdCreate() {
+  return RestrictMemfdCreateWithFallback(CrashSIGSYS());
+}
+
+SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMemfdCreateWithExecMappings() {
   const Arg<int> flags(1);
-  return If((flags & ~(MFD_CLOEXEC | MFD_ALLOW_SEALING)) == 0, Allow())
+  return RestrictMemfdCreateWithFallback(
+      If((flags & ~(kDefaultAllowedMemfdFlags | MFD_EXEC)) == 0, Allow())
+          .Else(CrashSIGSYS()));
+}
+
+SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMemfdCreateWithFallback(
+    bpf_dsl::ResultExpr fallback) {
+  const Arg<int> flags(1);
+  // Allow MFD_NOEXEC_SEAL since it's a security feature and in fact it's the
+  // default depending on the value of the vm.memfd_noexec sysctl. Do not allow
+  // MFD_EXEC (which allows executable mappings) or MFD_HUGETLB (which allows
+  // access to huge pages, which are a complex kernel feature with some previous
+  // security bugs).
+  return If((flags & ~(kDefaultAllowedMemfdFlags)) == 0, Allow())
       // ChromeOS uses ~0 as the flags to check if memfd_create exists (will
       // return -EINVAL).
       // https://source.chromium.org/chromium/chromium/src/+/main:mojo/core/channel_linux.cc;drc=c4987dbe36be309f8db36cba174310cb8a23e989;l=918
@@ -567,7 +588,7 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictMemfdCreate() {
       // future, `flags` still encodes the huge page size which must be a power
       // of 2, which it will not be if every bit is set.
       .ElseIf(flags == ~0, Allow())
-      .Else(CrashSIGSYS());
+      .Else(std::move(fallback));
 }
 
 }  // namespace sandbox.

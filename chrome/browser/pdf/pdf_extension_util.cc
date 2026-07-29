@@ -43,10 +43,13 @@
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
+
+#if BUILDFLAG(ENABLE_PDF_INK2) || BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+#include "chrome/browser/profiles/profile.h"
+#endif  // BUILDFLAG(ENABLE_PDF_INK2) || BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
 namespace pdf_extension_util {
 
@@ -89,7 +92,6 @@ base::Value::Dict GetPdfViewerStrings() {
       {"downloadEdited", IDS_PDF_DOWNLOAD_EDITED},
       {"downloadOriginal", IDS_PDF_DOWNLOAD_ORIGINAL},
       {"labelPageNumber", IDS_PDF_LABEL_PAGE_NUMBER},
-      {"menu", IDS_MENU},
       {"moreActions", IDS_DOWNLOAD_MORE_ACTIONS},
       {"oversizeAttachmentWarning", IDS_PDF_OVERSIZE_ATTACHMENT_WARNING},
       {"passwordDialogTitle", IDS_PDF_PASSWORD_DIALOG_TITLE},
@@ -120,6 +122,7 @@ base::Value::Dict GetPdfViewerStrings() {
       {"rotationStateLabel180", IDS_PDF_ROTATION_STATE_LABEL_180},
       {"rotationStateLabel270", IDS_PDF_ROTATION_STATE_LABEL_270},
       {"searchifyInProgress", IDS_PDF_SEARCHIFY_IN_PROGRESS},
+      {"sidebarLabel", IDS_PDF_SIDEBAR_LABEL},
       {"thumbnailPageAriaLabel", IDS_PDF_THUMBNAIL_PAGE_ARIA_LABEL},
       {"tooltipAttachments", IDS_PDF_TOOLTIP_ATTACHMENTS},
       {"tooltipDocumentOutline", IDS_PDF_TOOLTIP_DOCUMENT_OUTLINE},
@@ -305,7 +308,8 @@ base::Value::Dict GetAdditionalData(content::BrowserContext* context) {
            use_ink2 && chrome_pdf::features::kPdfInk2TextAnnotations.Get());
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
   dict.Set("pdfGetSaveDataInBlocks",
-           chrome_pdf::features::IsPdfGetSaveDataInBlocksEnabled());
+           base::FeatureList::IsEnabled(
+               chrome_pdf::features::kPdfGetSaveDataInBlocks));
   dict.Set("pdfUseShowSaveFilePicker",
            base::FeatureList::IsEnabled(
                chrome_pdf::features::kPdfUseShowSaveFilePicker));
@@ -314,8 +318,10 @@ base::Value::Dict GetAdditionalData(content::BrowserContext* context) {
       base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchifySave));
 
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
-  dict.Set("pdfSaveToDrive",
-           base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSaveToDrive));
+  const bool save_to_drive_enabled =
+      base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSaveToDrive) &&
+      !Profile::FromBrowserContext(context)->IsIncognitoProfile();
+  dict.Set("pdfSaveToDrive", save_to_drive_enabled);
   dict.Set("pdfSaveToDriveHelpCenterURL",
            chrome::kPdfViewerSaveToDriveHelpCenterURL);
 #endif

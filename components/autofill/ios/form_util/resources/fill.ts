@@ -7,13 +7,20 @@ import '//components/autofill/ios/form_util/resources/fill_util.js';
 import * as fillConstants from '//components/autofill/ios/form_util/resources/fill_constants.js';
 import {inferLabelFromNext} from '//components/autofill/ios/form_util/resources/fill_element_inference.js';
 import * as inferenceUtil from '//components/autofill/ios/form_util/resources/fill_element_inference_util.js';
-import type * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
+import * as fillUtil from '//components/autofill/ios/form_util/resources/fill_util.js';
 import {gCrWeb, gCrWebLegacy} from '//ios/web/public/js_messaging/resources/gcrweb.js';
 import {isTextField, removeQueryAndReferenceFromURL} from '//ios/web/public/js_messaging/resources/utils.js';
 
 // This file provides methods used to fill forms in JavaScript.
 
 // Requires functions from form.ts and child_frame_registration_lib.ts.
+
+/**
+ * Retrieves the registered 'autofill_form_features' CrWebApi
+ * instance for use in this file.
+ */
+const autofillFormFeaturesApi =
+  gCrWeb.getRegisteredApi('autofill_form_features');
 
 declare global {
   // Defines an additional property, `__gcrweb`, on the Window object.
@@ -454,16 +461,15 @@ gCrWebLegacy.fill.webFormElementToFormData = function(
   const controlElements = gCrWebLegacy.form.getFormControlElements(formElement);
 
   let iframeElements = extractChildFrames &&
-      gCrWebLegacy.autofill_form_features.isAutofillAcrossIframesEnabled() ?
-      gCrWebLegacy.form.getIframeElements(formElement) :
+    autofillFormFeaturesApi.getFunction('isAutofillAcrossIframesEnabled')() ?
+    gCrWebLegacy.form.getIframeElements(formElement) :
       [];
 
   // To avoid performance bottlenecks, do not keep child frames if their
   // quantity exceeds the allowed threshold.
   if (iframeElements.length > fillConstants.MAX_EXTRACTABLE_FRAMES &&
-      gCrWebLegacy.autofill_form_features
-          .isAutofillAcrossIframesThrottlingEnabled()) {
-    iframeElements = [];
+    autofillFormFeaturesApi.getFunction('isAutofillAcrossIframesThrottlingEnabled')()) {
+      iframeElements = [];
   }
 
   return formOrFieldsetsToFormData(
@@ -563,7 +569,7 @@ gCrWebLegacy.fill.webFormControlElementToFormField = function(
     gCrWebLegacy.fill.getOptionStringsFromElement(element, field);
   }
 
-  let value = gCrWebLegacy.fill.value(element);
+  let value = fillUtil.valueForElement(element);
 
   // There is a constraint on the maximum data length in method
   // WebFormControlElementToFormField() in form_autofill_util.h in order to
@@ -684,9 +690,8 @@ gCrWebLegacy.fill.unownedFormElementsAndFieldSetsToFormData = function(
   // To avoid performance bottlenecks, do not keep child frames if their
   // quantity exceeds the allowed threshold.
   if (iframeElements.length > fillConstants.MAX_EXTRACTABLE_FRAMES &&
-      gCrWebLegacy.autofill_form_features
-          .isAutofillAcrossIframesThrottlingEnabled()) {
-    iframeElements = [];
+    autofillFormFeaturesApi.getFunction('isAutofillAcrossIframesThrottlingEnabled')()) {
+      iframeElements = [];
   }
 
   if (!restrictUnownedFieldsToFormlessCheckout) {

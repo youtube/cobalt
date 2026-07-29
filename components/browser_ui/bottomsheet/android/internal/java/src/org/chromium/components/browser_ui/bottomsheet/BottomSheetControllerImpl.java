@@ -6,11 +6,13 @@ package org.chromium.components.browser_ui.bottomsheet;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
@@ -700,15 +702,33 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
 
     @Override
     public @Nullable Integer getSheetBackgroundColor() {
-        if (mBottomSheet == null
-                || getCurrentSheetContent() == null
-                || !getCurrentSheetContent().hasSolidBackgroundColor()) {
+        if (mBottomSheet == null) {
             return null;
+        }
+
+        BottomSheetContent content = getCurrentSheetContent();
+        if (content == null || !content.hasSolidBackgroundColor()) {
+            return null;
+        }
+
+        @ColorInt int overrideColor = content.getSheetBackgroundColorOverride();
+        if (overrideColor != Color.TRANSPARENT) {
+            return overrideColor;
         }
         return mBottomSheet.getSheetBackgroundColor();
     }
 
+    @Override
+    public void onSheetBackgroundColorOverrideChanged() {
+        if (mBottomSheet == null) {
+            return;
+        }
+
+        mBottomSheet.onSheetBackgroundColorOverrideChanged();
+    }
+
     // ScrimCoordinator.Observer
+
     @Override
     public void scrimVisibilityChanged(boolean scrimVisible) {
         if (mBottomSheet == null) return;

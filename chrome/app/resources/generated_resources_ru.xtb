@@ -619,7 +619,7 @@
 <translation id="1418559532423038045">Виртуальная машина <ph name="VM_NAME" /> будет удалена с устройства <ph name="DEVICE_TYPE" />. Все приложения и данные на ней будут утеряны.</translation>
 <translation id="1418882096915998312">Идет регистрация лицензии Chrome Enterprise</translation>
 <translation id="1418954524306642206">Открыть файловую систему, чтобы выбрать PPD-файл для принтера</translation>
-<translation id="1419086691207546433">Чтобы выполнять задачи было проще, а работать в браузере – удобнее, добавьте расширения.</translation>
+<translation id="1419086691207546433">Чтобы выполнять задачи было проще, а работать в браузере – удобнее, добавьте расширения</translation>
 <translation id="1421334842435688311">Информация о местоположении в сотовой сети</translation>
 <translation id="1421514190500081936">Укажите причину, по которой вы хотите скачать эти данные:</translation>
 <translation id="1422159345171879700">Загрузить небезопасные скрипты</translation>
@@ -737,7 +737,6 @@
 <translation id="1500297251995790841">Неизвестное устройство [<ph name="VENDOR_ID" />:<ph name="PRODUCT_ID" />]</translation>
 <translation id="1500801317528437432">Подробнее о неподдерживаемых приложениях Chrome</translation>
 <translation id="1501480321619201731">Удалить группу</translation>
-<translation id="1503392482221435031">Автоматически отправлять статистику использования в Google. Отправку отчетов о сбоях можно включить или отключить в настройках устройства.</translation>
 <translation id="1503556098270577657">Вы вошли в аккаунт <ph name="USER_EMAIL" /> с помощью телефона Android.</translation>
 <translation id="150411034776756821">Удалить <ph name="SITE" /></translation>
 <translation id="1504253885059472207">Закрепить режим Split View</translation>
@@ -2179,6 +2178,7 @@
 <translation id="2471469610750100598">Черный (по умолчанию)</translation>
 <translation id="2471506181342525583">Есть доступ к вашим геоданным</translation>
 <translation id="2471632709106952369">Сравнительные таблицы</translation>
+<translation id="2472855537207709205">Сгруппировать все вкладки, не добавленные в группы</translation>
 <translation id="2473195200299095979">Перевести эту страницу</translation>
 <translation id="2475982808118771221">Произошел сбой.</translation>
 <translation id="2476435723907345463">Вы запретили использовать ключи доступа.</translation>
@@ -2672,7 +2672,7 @@
 <translation id="2805760958323556153">Для правила ExtensionInstallForcelist указано недопустимое значение. Обратитесь к администратору.</translation>
 <translation id="2805770823691782631">Дополнительные сведения</translation>
 <translation id="2806372837663997957">Устройство, с которым вы хотели поделиться файлом, не приняло его.</translation>
-<translation id="2806891468525657116">Ярлык уже добавлен</translation>
+<translation id="2806891468525657116">Ярлык уже добавлен.</translation>
 <translation id="2807517655263062534">Скачанные файлы появятся здесь</translation>
 <translation id="2808985063107661499">Назначение жестов "<ph name="MAIN_GESTURE" />", "<ph name="CONFLICTING_GESTURE_ONE" />" и "<ph name="CONFLICTING_GESTURE_TWO" />" может совпадать. Советуем выбрать другой жест.</translation>
 <translation id="2809346626032021864">Книги</translation>
@@ -2794,6 +2794,7 @@
 <translation id="2900247416110050639">Файлы Google Документов, Таблиц и Презентаций должны храниться на Google Диске. Локальные файлы будут перемещены, а другие – скопированы. Вы найдете их в папке "Google Диск" приложения "Файлы".</translation>
 <translation id="290105521672621980">Файл использует неподдерживаемые функции</translation>
 <translation id="2901348420151309559">Недавние фотографии и приложения</translation>
+<translation id="2901431118738474110">Ключ доступа больше не действителен. Он был удален с сайта <ph name="RPID" /> и скоро будет удален из этого сервиса. Подробнее &lt;a href='https://support.google.com/chrome/?p=passkeys'&gt;о ключах доступа&lt;/a&gt;…</translation>
 <translation id="2902127500170292085">Расширение "<ph name="EXTENSION_NAME" />" не может установить связь с принтером. Убедитесь, что он подключен и повторите попытку.</translation>
 <translation id="2902265136119311513">Гостевой режим</translation>
 <translation id="2902312830803030883">Другие действия</translation>
@@ -3024,7 +3025,6 @@
 <translation id="3048589239114571785">Воспроизвести (K)</translation>
 <translation id="3048742847101793553">Ваша организация заблокировала этот файл, поскольку его не удалось проверить.</translation>
 <translation id="3048917188684939573">Журналы трансляций и устройств</translation>
-<translation id="3049525403650329038">Чтобы получать более подходящие ответы, предоставьте Gemini доступ к содержимому страниц. Эти данные не используются для улучшения моделей генеративного ИИ.</translation>
 <translation id="3051250416341590778">Масштаб изображения на дисплее</translation>
 <translation id="3053013834507634016">Использование ключа сертификата</translation>
 <translation id="3053273573829329829">Включить PIN-код пользователя</translation>
@@ -4596,6 +4596,7 @@
 <translation id="4132364317545104286">Переименовать профиль eSIM</translation>
 <translation id="4132969033912447558">Возобновить скачивание файла "<ph name="FILE_NAME" />"</translation>
 <translation id="4133076602192971179">Чтобы сменить пароль, откройте приложение.</translation>
+<translation id="4133265950310064865">Улучшенная защита</translation>
 <translation id="4134838386867070505">Шаг 1 из 4. Опишите проблему</translation>
 <translation id="413534985210133938">Папка "<ph name="LOCAL_FOLDER" />" сохранена только на этом устройстве. Закладка станет недоступна на других устройствах, если вы переместите ее в папку "<ph name="LOCAL_FOLDER" />".</translation>
 <translation id="4135746311382563554">Дополнительные условия использования Chrome и Chrome OS</translation>
@@ -5040,7 +5041,7 @@
 <translation id="445099924538929605">Операционная система <ph name="DEVICE_OS" /> обнаружила активный модуль TPM, который может повысить надежность хранения данных.</translation>
 <translation id="4452898361839215358">или выберите PPD-файл. <ph name="LINK_BEGIN" />Подробнее…<ph name="LINK_END" /></translation>
 <translation id="4453430595102511050">Приложите палец к сканеру отпечатков в правом верхнем углу клавиатуры. Данные отпечатков пальцев надежно защищены и хранятся только на устройстве <ph name="DEVICE_TYPE" />.</translation>
-<translation id="4453946976636652378">Введите поисковый запрос в <ph name="SEARCH_ENGINE_NAME" /> или укажите URL</translation>
+<translation id="4453946976636652378">Выполните поиск в <ph name="SEARCH_ENGINE_NAME" /> или укажите URL</translation>
 <translation id="4457472090507035117">Голос:</translation>
 <translation id="4459169140545916303">Последние действия: <ph name="DEVICE_LAST_ACTIVATED_TIME" /> дн. назад</translation>
 <translation id="4460014764210899310">Разгруппировать</translation>
@@ -5214,6 +5215,7 @@
 <translation id="4581774856936278355">Не удалось восстановить данные Linux</translation>
 <translation id="4582297591746054421">Обычно сайтам нужен доступ к буферу обмена, чтобы использовать некоторые функции, например сохранять форматирование скопированного текста.</translation>
 <translation id="4582563038311694664">Сбросить все настройки</translation>
+<translation id="4584094413232466841">Удалить эту информацию из данных для автозаполнения Chrome?</translation>
 <translation id="4584770411839426377">Окно</translation>
 <translation id="4584836561445313300">Ваша организация сможет просматривать пароли и другие данные о работе в браузере и управлять ими.</translation>
 <translation id="4585793705637313973">Изменить страницу</translation>
@@ -7302,7 +7304,7 @@
 <translation id="6077189836672154517">Обновления и полезные советы по работе с <ph name="DEVICE_TYPE" /></translation>
 <translation id="6077476112742402730">Голосовой ввод</translation>
 <translation id="6078121669093215958">{0,plural, =1{Гость}one{# открытое окно в гостевом режиме}few{# открытых окна в гостевом режиме}many{# открытых окон в гостевом режиме}other{# открытого окна в гостевом режиме}}</translation>
-<translation id="6078323886959318429">Добавить</translation>
+<translation id="6078323886959318429">Добавить ярлык</translation>
 <translation id="6078752646384677957">Проверьте микрофон и уровни громкости.</translation>
 <translation id="608029822688206592">Сеть не найдена. Установите SIM-карту и повторите попытку.</translation>
 <translation id="6080689532560039067">Проверка системного времени</translation>
@@ -7916,7 +7918,6 @@
 <translation id="6525767484449074555">Нажмите "Установить"</translation>
 <translation id="6527303717912515753">Поделиться</translation>
 <translation id="6527574156657772563">Нет устройств. Чтобы подключить телефон к <ph name="DEVICE_TYPE" />, добавьте на мобильное устройство свой аккаунт Google. <ph name="LINK_BEGIN" />Подробнее…<ph name="LINK_END" /></translation>
-<translation id="652948702951888897">История Chrome</translation>
 <translation id="6530030995840538405">Сгенерированное изображение: <ph name="INDEX" />. Объект: <ph name="SUBJECT" />.</translation>
 <translation id="6530186581263215931">Эти настройки определяются администратором</translation>
 <translation id="6530267432324197764">Профилем управляет <ph name="MANAGER" /></translation>
@@ -9998,7 +9999,7 @@
 <translation id="7958828865373988933">Если вы хотите создать ключ доступа для приложения "<ph name="APP_NAME" />" на электронном ключе, вставьте его в USB-порт и нажмите на нем кнопку.</translation>
 <translation id="7959665254555683862">Новая вкладка инкогнито</translation>
 <translation id="7960540720012720106">Перейти к обзору окон</translation>
-<translation id="7961015016161918242">Нет</translation>
+<translation id="7961015016161918242">Никогда</translation>
 <translation id="7963001036288347286">Ускорение сенсорной панели</translation>
 <translation id="7963408577288987423">{COUNT,plural, =1{1 пароль}one{{COUNT} пароль}few{{COUNT} пароля}many{{COUNT} паролей}other{{COUNT} пароля}}</translation>
 <translation id="7963513503134856713">Окно перемещено вправо</translation>
@@ -11529,10 +11530,12 @@
 <translation id="8993945059918628059">Приложите палец к сканеру отпечатков. Данные отпечатков пальцев надежно защищены и хранятся только на устройстве <ph name="DEVICE_TYPE" />.</translation>
 <translation id="899403249577094719">URL базы сертификатов Netscape</translation>
 <translation id="8996978916555523196">{ACCOUNT_EXTENSIONS_COUNT,plural, =1{Расширение сохранено в аккаунте Google, но данные этого расширения, сохраненные только на текущем устройстве, могут быть удалены}one{Расширения сохранены в аккаунте Google, но их данные, сохраненные только на этом устройстве, могут быть удалены}few{Расширения сохранены в аккаунте Google, но их данные, сохраненные только на этом устройстве, могут быть удалены}many{Расширения сохранены в аккаунте Google, но их данные, сохраненные только на этом устройстве, могут быть удалены}other{Расширения сохранены в аккаунте Google, но их данные, сохраненные только на этом устройстве, могут быть удалены}}</translation>
+<translation id="8997659961727384862">Сгруппировать все вкладки, не добавленные в группы</translation>
 <translation id="8999027165951679951">Неактивная вкладка, освобождено <ph name="MEMORY_SAVINGS" /></translation>
 <translation id="8999560016882908256">Ошибка синтаксиса раздела: <ph name="ERROR_LINE" />.</translation>
 <translation id="8999651235576960439">Меньше движений на экране</translation>
 <translation id="9000185763019430629">Приложите палец к сканеру отпечатков на правой боковой части устройства <ph name="DEVICE_TYPE" />. Данные отпечатков пальцев надежно защищены и хранятся только на устройстве <ph name="DEVICE_TYPE" />.</translation>
+<translation id="900267527532832868">Ключ доступа больше не действителен. Он скоро будет удален из сервиса "<ph name="GOOGLE_PASSWORD_MANAGER" />".</translation>
 <translation id="9003031149571024583">Введите PIN-код. Знак <ph name="NUM_DIGIT" /> из 6. Чтобы удалить последнюю из введенных цифр, нажмите Backspace или Delete.</translation>
 <translation id="9003185744423389627">При подключении к серверу Диспетчера устройств произошла ошибка "<ph name="STATUS_TEXT" />" (<ph name="FAILURE_TIME" />).</translation>
 <translation id="90033698482696970">Выполнить автоматический поиск доступных профилей eSIM?</translation>

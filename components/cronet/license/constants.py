@@ -63,7 +63,7 @@ RAW_LICENSE_TO_FORMATTED_DETAILS = {
 # The current structure is Mapper(dictionary_key, expected_value, value_to_write)
 POST_PROCESS_OPERATION = {
     "url/third_party/mozilla/README.chromium": create_license_post_processing(
-        Mapper("License", ['MPLv2'], ["MPL 2.0"])),
+        Mapper("License", ['MPL-2'], ["MPL 2.0"])),
     "third_party/apache-portable-runtime/README.chromium": create_license_post_processing(
         Mapper("License", ['Apache-2.0', 'dso', 'Zlib', 'ISC', 'BSD-4-Clause-UC'], ["Apache 2.0"])),
     "third_party/compiler-rt/README.chromium": create_license_post_processing(
@@ -89,7 +89,7 @@ POST_PROCESS_OPERATION = {
     "third_party/quic_trace/README.chromium": create_license_post_processing(
         Mapper("Version", "git", "caa0a6eaba816ecb737f9a70782b7c80b8ac8dbc")),
     "third_party/metrics_proto/README.chromium": create_license_post_processing(
-        Mapper("URL", "This is the canonical public repository", "Piper")),
+        Mapper("URL", "Google Internal", "Piper")),
     "third_party/boringssl/src/pki/testdata/nist-pkits/README.chromium": create_license_post_processing(
         Mapper("License", [
             'Public Domain: United States Government Work under 17 U.S.C. 105'],

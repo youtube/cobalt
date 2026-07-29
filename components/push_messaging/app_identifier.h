@@ -17,9 +17,6 @@
 #include "base/time/time.h"
 #include "url/gurl.h"
 
-class PushMessagingAppIdentifier;
-class PushMessagingBrowserTestBase;
-
 namespace push_messaging {
 
 // The prefix used for all push messaging application ids.
@@ -48,6 +45,19 @@ class AppIdentifier final {
 
   // Generates a new app identifier, with partially random app_id.
   static AppIdentifier Generate(
+      const GURL& origin,
+      int64_t service_worker_registration_id,
+      const std::optional<base::Time>& expiration_time = std::nullopt);
+
+  // Creates an invalid AppIdentifier which will return is_null() and fail on
+  // DCheckValid(), accessing any fields triggers DCheck failure.
+  static AppIdentifier GenerateInvalid();
+
+  // Creates an AppIdentifier by directly forwarding the parameters to the
+  // constructor; the returned AppIdentifier instance will be checked by
+  // DCheckValid().
+  static AppIdentifier GenerateDirect(
+      const std::string& app_id,
       const GURL& origin,
       int64_t service_worker_registration_id,
       const std::optional<base::Time>& expiration_time = std::nullopt);
@@ -90,19 +100,7 @@ class AppIdentifier final {
   void DCheckValid() const;
 
  private:
-  // TODO(crbug.com/444713031): Reduce the use of friends to avoid the
-  // dependency leaking from //chrome to //components.
-  friend class PushMessagingAppIdentifierTest;
-  friend class ::PushMessagingBrowserTestBase;
-  FRIEND_TEST_ALL_PREFIXES(PushMessagingAppIdentifierTest, FindLegacy);
-  friend class ::PushMessagingAppIdentifier;
-
-  // Generates a new app identifier for legacy GCM (not modern InstanceID).
-  // Allows the derived class creating a legacy instance for tests.
-  static AppIdentifier LegacyGenerateForTesting(
-      const GURL& origin,
-      int64_t service_worker_registration_id,
-      const std::optional<base::Time>& expiration_time = std::nullopt);
+  friend class AppIdentifierTestSupport;
 
   static AppIdentifier GenerateInternal(
       const GURL& origin,

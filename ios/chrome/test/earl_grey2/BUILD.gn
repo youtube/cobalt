@@ -168,8 +168,8 @@ chrome_ios_eg2_test("ios_chrome_signin_eg2tests_module") {
   xcode_test_application_name = "ios_chrome_eg2tests"
 
   deps = [
+    "//ios/chrome/browser/authentication/account_menu/test:eg2_tests",
     "//ios/chrome/browser/authentication/ui_bundled:eg2_tests",
-    "//ios/chrome/browser/authentication/ui_bundled/account_menu:eg2_tests",
     "//ios/chrome/browser/authentication/ui_bundled/fullscreen_signin/test:eg2_tests",
     "//ios/chrome/browser/authentication/ui_bundled/signin:eg2_tests",
     "//ios/chrome/browser/authentication/ui_bundled/signin/consistency_promo_signin:eg2_tests",
@@ -211,6 +211,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/history/ui_bundled:eg2_tests",
     "//ios/chrome/browser/incognito_interstitial/ui_bundled:eg2_tests",
     "//ios/chrome/browser/infobars/ui_bundled:eg2_tests",
+    "//ios/chrome/browser/intelligence/bwg/ui:eg2_tests",
     "//ios/chrome/browser/keyboard/ui_bundled:eg2_tests",
     "//ios/chrome/browser/lens_overlay/ui:eg2_tests",
     "//ios/chrome/browser/link_to_text/ui_bundled:eg2_tests",
@@ -234,9 +235,10 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/reading_list/ui_bundled:eg2_tests",
     "//ios/chrome/browser/recent_tabs/ui_bundled:eg2_tests",
     "//ios/chrome/browser/sad_tab/ui_bundled:eg2_tests",
+    "//ios/chrome/browser/safari_data_import/test:eg2_tests",
     "//ios/chrome/browser/safe_mode/ui_bundled:eg2_tests",
     "//ios/chrome/browser/save_to_drive/ui_bundled:eg2_tests",
-    "//ios/chrome/browser/search_engine_choice/ui_bundled:eg2_tests",
+    "//ios/chrome/browser/search_engine_choice/coordinator:eg2_tests",
     "//ios/chrome/browser/search_with/ui_bundled:eg2_tests",
     "//ios/chrome/browser/send_tab_to_self/ui_bundled:eg2_tests",
     "//ios/chrome/browser/settings/model/sync/utils:eg2_tests",

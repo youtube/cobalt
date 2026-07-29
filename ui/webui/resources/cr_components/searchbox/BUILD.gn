@@ -23,8 +23,13 @@ build_webui("build") {
     "utils.ts",
   ]
   css_files = [
+    "searchbox_action.css",
     "searchbox_compose_button.css",
+    "searchbox_dropdown.css",
     "searchbox_dropdown_shared_style.css",
+    "searchbox_icon.css",
+    "searchbox_match.css",
+    "searchbox_thumbnail.css",
   ]
 
   ts_out_dir = "$root_gen_dir/ui/webui/resources/tsc/cr_components/searchbox"

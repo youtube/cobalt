@@ -19,6 +19,7 @@
 #include "chrome/browser/actor/task_id.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor_webui.mojom.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -45,7 +46,8 @@ class ActorTask {
   ActorTask() = delete;
   ActorTask(Profile* profile,
             std::unique_ptr<ExecutionEngine> execution_engine,
-            std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher);
+            std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
+            webui::mojom::TaskOptionsPtr options = nullptr);
   ActorTask(const ActorTask&) = delete;
   ActorTask& operator=(const ActorTask&) = delete;
   ~ActorTask();
@@ -55,6 +57,8 @@ class ActorTask {
   TaskId id() const { return id_; }
   // Can only be called by unit tests.
   void SetIdForTesting(int id);
+
+  const std::string& title() const { return title_; }
 
   // Once state leaves kCreated it should never go back. One state enters
   // kFinished or kCancelled it should never change.
@@ -105,21 +109,13 @@ class ActorTask {
   // Returns true if the given tab is part of this task's acting set.
   bool IsActingOnTab(tabs::TabHandle tab) const;
 
-  // Returns the tab to use to capture new context observations after an
-  // execution turn. In the future this will be extended to multiple tabs and
-  // windows. Currently this returns the first live tab in the set, since the
-  // actor framework doesn't yet support multi-tab.
-  // TODO(crbug.com/411462297): This will be replaced by GetTabs soon.
-  tabs::TabInterface* GetTabForObservation() const;
+  using TabHandleSet = absl::flat_hash_set<tabs::TabHandle>;
 
   // The set of tabs that have been acted on at any point during this task.
-  absl::flat_hash_set<tabs::TabHandle> GetTabs() const;
+  TabHandleSet GetTabs() const;
 
   // The set of tabs that were acted on by the last call to Act.
-  absl::flat_hash_set<tabs::TabHandle> GetLastActedTabs() const;
-
-  // The single tab that was acted on by the last call to Act.
-  tabs::TabHandle GetLastActedTab();
+  TabHandleSet GetLastActedTabs() const;
 
  private:
   struct ActingTabState {
@@ -156,6 +152,8 @@ class ActorTask {
 
   TaskId id_;
 
+  std::string title_;
+
   // A timer for the current state that is not paused.
   std::optional<base::ElapsedTimer> current_timer_ = base::ElapsedTimer();
   // An accumulation of elapsed times for previous "active" states.
@@ -167,9 +165,6 @@ class ActorTask {
 
   // Running number of steps this task has taken.
   size_t number_of_steps_ = 0;
-
-  // The last tab that was acutated on.
-  tabs::TabHandle last_actuated_tab_handle_;
 
   base::WeakPtrFactory<ui::UiEventDispatcher> ui_weak_ptr_factory_;
   base::WeakPtrFactory<ActorTask> weak_ptr_factory_{this};

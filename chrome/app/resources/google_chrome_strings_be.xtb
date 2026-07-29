@@ -449,6 +449,9 @@
 <translation id="6180522807229584611">Гэта ўкладка выкарыстоўвае дадатковыя рэсурсы. Дазвольце Chrome адключыць яе, каб павысіць прадукцыйнасць працы.</translation>
 <translation id="6182736845697986886">Выканаць усталяванне не ўдалося з-за ўнутранай памылкі сервера абнаўленняў.</translation>
 <translation id="6192058120268468905">Ваш уліковы запіс у Chrome</translation>
+<translation id="6220551899604141979">Праграма "<ph name="PARTNER_NAME" />" дадала пашырэнне, якое можа змяніць працу Chrome.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">Уваходнае правіла для Google Chrome, якое дазваляе трафік mDNS.</translation>
 <translation id="624230925347970731">Браўзер Chrome хутка будзе закрыты</translation>
 <translation id="6247557882553405851">Менеджар пароляў Google</translation>
@@ -477,6 +480,7 @@
 <translation id="6506909944137591434">Каб стварыць 3D-карту наваколля, Chrome запытвае дазвол на доступ да камеры</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" />: Google Chrome для распрацоўшчыкаў</translation>
 <translation id="6520670145826811516">Каб выкарыстоўваць месцазнаходжанне, дайце Chrome адпаведны доступ у <ph name="BEGIN_LINK" />сістэмных наладах<ph name="END_LINK" /></translation>
+<translation id="652948702951888897">Гісторыя праглядаў Chrome</translation>
 <translation id="6532945796722480006">Адкрыць Gemini ў Chrome Canary</translation>
 <translation id="6585124893636629274">Закрыць Gemini ў Chrome</translation>
 <translation id="659498884637196217">У Менеджары пароляў Google на гэтай прыладзе</translation>

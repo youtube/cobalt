@@ -191,8 +191,7 @@ std::unique_ptr<ui::DialogModel> CreatePasswordChangeFailedDialog(
 // Creates a BubbleFrameView to be used as the non-client frame view for the
 // toast widget. This frame view provides rounded corners and a custom
 // background color.
-std::unique_ptr<views::NonClientFrameView> CreateToastFrameView(
-    views::Widget* widget) {
+std::unique_ptr<views::FrameView> CreateToastFrameView(views::Widget* widget) {
   auto frame_view = std::make_unique<views::BubbleFrameView>(
       /*title_margins=*/gfx::Insets(), /*content_margins=*/gfx::Insets());
   auto border = std::make_unique<views::BubbleBorder>(
@@ -392,7 +391,7 @@ void PasswordChangeUIController::ShowToast(ToastOptions options) {
   toast_delegate->SetAccessibleWindowRole(ax::mojom::Role::kAlert);
   toast_delegate->SetAccessibleTitle(title);
   toast_delegate->SetShowCloseButton(false);
-  toast_delegate->SetNonClientFrameViewFactory(
+  toast_delegate->SetFrameViewFactory(
       base::BindRepeating(&CreateToastFrameView));
   toast_delegate_ = std::move(toast_delegate);
 
@@ -514,7 +513,7 @@ void PasswordChangeUIController::SkipLoginCheck() {
   LogToastEvent(
       PasswordChangeDelegate::State::kLoginFormDetectedUserCanContinue,
       PasswordChangeToastEvent::kContinue);
-  password_change_delegate_->ProceedToChangePassword();
+  password_change_delegate_->OnUserSkippedLoginCheck();
 }
 
 void PasswordChangeUIController::CloseDialogWidget(

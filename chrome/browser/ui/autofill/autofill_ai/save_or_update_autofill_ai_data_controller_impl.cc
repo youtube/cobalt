@@ -313,6 +313,12 @@ void SaveOrUpdateAutofillAiDataControllerImpl::OnGoToWalletLinkClicked() {
 
 void SaveOrUpdateAutofillAiDataControllerImpl::OnVisibilityChanged(
     content::Visibility visibility) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillShowBubblesBasedOnPriorities)) {
+    // BubbleManager will handle the effects of tab changes.
+    return;
+  }
+
   // TODO(crbug.com/441742849): Consider moving this logic to
   // `AutofillBubbleControllerBase`, for now keep it specific to this class to
   // avoid interfeering with other bubbles in transactions.
@@ -349,9 +355,9 @@ SaveOrUpdateAutofillAiDataControllerImpl::GetPageActionIconType() {
 
 void SaveOrUpdateAutofillAiDataControllerImpl::DoShowBubble() {
   Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  SetBubbleView(browser->window()
-                    ->GetAutofillBubbleHandler()
-                    ->ShowSaveAutofillAiDataBubble(web_contents(), this));
+  SetBubbleView(*browser->window()
+                     ->GetAutofillBubbleHandler()
+                     ->ShowSaveAutofillAiDataBubble(web_contents(), this));
   CHECK(bubble_view());
 }
 

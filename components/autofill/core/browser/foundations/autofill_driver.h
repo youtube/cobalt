@@ -295,7 +295,7 @@ class AutofillDriver {
   virtual void SendTypePredictionsToRenderer(const FormStructure& forms) = 0;
 
   // Exposes DOM Node IDs in an attribute "dom-node-id".
-  virtual void ExposeDomNodeIDs() = 0;
+  virtual void ExposeDomNodeIdsInAllFrames() = 0;
 
   // Tells the renderer to accept data list suggestions for |value|.
   virtual void RendererShouldAcceptDataListSuggestion(
@@ -332,6 +332,10 @@ class AutofillDriver {
       uint32_t number_of_ancestor_levels_to_search,
       base::OnceCallback<void(const std::string& amount)>
           response_callback) = 0;
+
+  virtual void DispatchEmailVerifiedEvent(
+      FieldGlobalId field_id,
+      const std::string& presentation_token) = 0;
 
  private:
   friend class AutofillDriverTestApi;

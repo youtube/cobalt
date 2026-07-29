@@ -9,6 +9,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import android.app.Notification;
+import android.os.Build;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.lifecycle.Stage;
@@ -21,9 +22,9 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.MinAndroidSdkLevel;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -46,13 +47,14 @@ import java.util.List;
 })
 @Batch(Batch.PER_CLASS)
 @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
+// For some reason these tests are flaky on earlier versions of Android.
+@MinAndroidSdkLevel(Build.VERSION_CODES.S)
 public final class UnsubscribedNotificationsNotificationTest {
     @Rule public NotificationTestRule mNotificationTestRule = new NotificationTestRule();
 
     @Test
     @SmallTest
     @Feature({"SafetyHubNotification"})
-    @DisabledTest(message = "Flaky. See crbug.com/441276761")
     public void testReviewNotification() throws Exception {
         UnsubscribedNotificationsNotificationManager.displayNotification(1);
         List<MockNotificationManagerProxy.NotificationEntry> notifications =
@@ -100,7 +102,15 @@ public final class UnsubscribedNotificationsNotificationTest {
         SettingsActivity settingsActivity =
                 ApplicationTestUtils.waitForActivityWithClass(
                         SettingsActivity.class,
-                        EnumSet.of(Stage.PAUSED, Stage.CREATED),
+                        // In SettingsSingleActivity mode, if there already
+                        // exists the settings activity, it will be reused.
+                        // In such cases, the activity state is set to
+                        // PAUSED, rather than CREATED.
+                        // Because there's no guarantee of the existing
+                        // settings activity, we wait for either condition.
+                        ChromeFeatureList.sSettingsSingleActivity.isEnabled()
+                                ? EnumSet.of(Stage.PAUSED, Stage.CREATED)
+                                : EnumSet.of(Stage.CREATED),
                         () -> {
                             try {
                                 notification.contentIntent.send();

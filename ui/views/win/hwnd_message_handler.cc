@@ -1053,10 +1053,7 @@ void HWNDMessageHandler::SetAspectRatio(float aspect_ratio,
   DCHECK_GT(aspect_ratio, 0.0f);
 
   aspect_ratio_ = aspect_ratio;
-
-  // Convert to pixels.
-  excluded_margin_ =
-      display::win::GetScreenWin()->DIPToScreenSize(hwnd(), excluded_margin);
+  excluded_margin_dip_ = excluded_margin;
 
   // When the aspect ratio is set, size the window to adhere to it. This keeps
   // the same origin point as the original window.
@@ -1417,7 +1414,10 @@ gfx::NativeViewAccessible HWNDMessageHandler::GetChildOfAXFragmentRoot() {
 }
 
 gfx::NativeViewAccessible HWNDMessageHandler::GetParentOfAXFragmentRoot() {
-  return nullptr;
+  if (!features::IsAccessibilityWinAXFragmentRootParentEnabled()) {
+    return nullptr;
+  }
+  return delegate_->GetParentNativeViewAccessible();
 }
 
 bool HWNDMessageHandler::IsAXFragmentRootAControlElement() {
@@ -2417,7 +2417,7 @@ LRESULT HWNDMessageHandler::OnNCActivate(UINT message,
 LRESULT HWNDMessageHandler::OnNCCalcSize(BOOL mode, LPARAM l_param) {
   // We only override the default handling if we need to specify a custom
   // non-client edge width. Note that in most cases "no insets" means no
-  // custom width, but in fullscreen mode or when the NonClientFrameView
+  // custom width, but in fullscreen mode or when the FrameView
   // requests it, we want a custom width of 0.
 
   // Let User32 handle the first nccalcsize for captioned windows
@@ -3851,9 +3851,11 @@ void HWNDMessageHandler::SizeWindowToAspectRatio(UINT param,
     max_size_param = max_window_size;
   }
 
+  gfx::Size excluded_margin = delegate_->DIPToScreenSize(excluded_margin_dip_);
+
   gfx::SizeRectToAspectRatioWithExcludedMargin(
       GetWindowResizeEdge(param), aspect_ratio_.value(), min_window_size,
-      max_size_param, excluded_margin_, *window_rect);
+      max_size_param, excluded_margin, *window_rect);
 }
 
 POINT HWNDMessageHandler::GetCursorPos() const {

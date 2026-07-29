@@ -243,10 +243,7 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       kHatsSurveyTriggerPermissionsPrompt,
       /*presupplied_trigger_id=*/std::nullopt,
       std::vector<std::string>{
-          permissions::kPermissionsPromptSurveyHadGestureKey,
-          permissions::kPermissionPromptSurveyPreviewVisibleKey,
-          permissions::kPermissionPromptSurveyPreviewDropdownInteractedKey,
-          permissions::kPermissionPromptSurveyPreviewWasCombinedKey},
+          permissions::kPermissionsPromptSurveyHadGestureKey},
       std::vector<std::string>{
           permissions::kPermissionsPromptSurveyPromptDispositionKey,
           permissions::kPermissionsPromptSurveyPromptDispositionReasonKey,
@@ -258,8 +255,7 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
           permissions::kPermissionPromptSurveyUrlKey,
           permissions::kPermissionPromptSurveyPepcPromptPositionKey,
           permissions::kPermissionPromptSurveyInitialPermissionStatusKey,
-          permissions::kPermissionPromptSurveyPreviewTimeToDecisionKey,
-          permissions::kPermissionPromptSurveyPreviewTimeToVisibleKey});
+          permissions::kPermissionPromptSurveyPromptOptionsKey});
 
   // Privacy sandbox always on sentiment survey
   survey_configs.emplace_back(
@@ -563,7 +559,12 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   // Privacy sandbox What's New survey
   survey_configs.emplace_back(  //
       &privacy_sandbox::kPrivacySandboxWhatsNewSurvey,
-      kHatsSurveyTriggerPrivacySandboxWhatsNewSurvey);
+      kHatsSurveyTriggerPrivacySandboxWhatsNewSurvey,
+      /*presupplied_trigger_id=*/std::nullopt,
+      /*product_specific_bits_data_fields=*/
+      std::vector<std::string>{},
+      /*product_specific_string_data_fields=*/
+      std::vector<std::string>{"What's New Scroll Depth"}),
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_COMPOSE)

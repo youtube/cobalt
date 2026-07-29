@@ -270,7 +270,7 @@ void AutofillDriverIOS::ExtractForm(
   NOTIMPLEMENTED();
 }
 
-void AutofillDriverIOS::ExposeDomNodeIDs() {}
+void AutofillDriverIOS::ExposeDomNodeIdsInAllFrames() {}
 
 void AutofillDriverIOS::SendTypePredictionsToRenderer(
     const FormStructure& form) {
@@ -777,6 +777,13 @@ void AutofillDriverIOS::RecordTriggeredFormExtractionMetrics() {
   base::UmaHistogramCounts10000(
       "Autofill.iOS.TriggeredFormExtractionFromDriver.LargeRange",
       form_extraction_trigger_count_);
+}
+
+void AutofillDriverIOS::DispatchEmailVerifiedEvent(
+    FieldGlobalId field_id,
+    const std::string& presentation_token) {
+  // TODO(crbug.com/380367784): Implement email verification on iOS.
+  NOTIMPLEMENTED();
 }
 
 }  // namespace autofill

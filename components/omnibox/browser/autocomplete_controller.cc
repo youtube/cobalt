@@ -45,7 +45,6 @@
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/actions/contextual_search_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_in_suggest.h"
-#include "components/omnibox/browser/actions/omnibox_answer_action.h"
 #include "components/omnibox/browser/actions/omnibox_pedal_provider.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
@@ -116,6 +115,10 @@
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/omnibox/browser/autocomplete_scoring_model_service.h"
+#endif
+
+#if BUILDFLAG(IS_IOS)
+#include "components/omnibox/browser/gemini_prototype_omnibox_provider.h"
 #endif
 
 constexpr bool kIsDesktop = !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS);
@@ -1329,6 +1332,12 @@ void AutocompleteController::InitializeSyncProviders(int provider_types) {
   if (provider_types & AutocompleteProvider::TYPE_BUILTIN) {
     providers_.push_back(new BuiltinProvider(provider_client_.get()));
   }
+#if BUILDFLAG(IS_IOS)
+  if (omnibox::IsGeminiPrototypeProviderEnabled()) {
+    providers_.push_back(
+        new GeminiPrototypeOmniboxProvider(provider_client_.get(), this));
+  }
+#endif
   if (provider_types & AutocompleteProvider::TYPE_HISTORY_QUICK) {
     history_quick_provider_ = new HistoryQuickProvider(provider_client_.get());
     providers_.push_back(history_quick_provider_.get());
@@ -1703,7 +1712,8 @@ bool AutocompleteController::CheckWhetherDefaultMatchChanged(
 
 void AutocompleteController::AttachActions() {
   // No actions should be attached for lens searchboxes.
-  if (omnibox::IsLensSearchbox(input_.current_page_classification())) {
+  if (omnibox::IsLensSearchbox(input_.current_page_classification()) ||
+      omnibox::IsComposebox(input_.current_page_classification())) {
     return;
   }
 
@@ -2100,20 +2110,14 @@ void AutocompleteController::UpdateSearchboxStats(AutocompleteResult* result) {
     for (auto& scoped_action : match->actions) {
       auto* action_in_suggest =
           OmniboxActionInSuggest::FromAction(scoped_action.get());
-      auto* answer_action =
-          OmniboxAnswerAction::FromAction(scoped_action.get());
 
-      TemplateURLRef::SearchTermsArgs* search_terms_args;
       if (action_in_suggest == nullptr ||
           !action_in_suggest->search_terms_args.has_value()) {
-        if (answer_action == nullptr) {
-          continue;
-        }
-        search_terms_args = &answer_action->search_terms_args;
-      } else {
-        search_terms_args = &action_in_suggest->search_terms_args.value();
+        continue;
       }
 
+      TemplateURLRef::SearchTermsArgs* search_terms_args;
+      search_terms_args = &action_in_suggest->search_terms_args.value();
       search_terms_args->searchbox_stats.MergeFrom(
           match->search_terms_args->searchbox_stats);
 

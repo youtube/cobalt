@@ -99,6 +99,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1407135791313364759">すべて開く</translation>
 <translation id="1409879593029778104"><ph name="FILE_NAME" /> は既に存在しているためダウンロードできませんでした。</translation>
 <translation id="1413446866325418126">Google アカウントにデータを保存する</translation>
+<translation id="1414919006379339073">現在のウィンドウを閉じる</translation>
 <translation id="1416550906796893042">アプリケーションのバージョン</translation>
 <translation id="1419753403124156396">Chrome を再起動しますか？</translation>
 <translation id="1428770807407000502">同期を OFF にしますか？</translation>
@@ -143,7 +144,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1671236975893690980">ダウンロードを待機しています...</translation>
 <translation id="1672586136351118594">次回から表示しない</translation>
 <translation id="1680919990519905526">Google レンズで画像を購入 <ph name="BEGIN_NEW" />New<ph name="END_NEW" /></translation>
-<translation id="1683774088349393383">\u0020<ph name="MONTHS_ARCHIVED" /> か月後に閉じられます</translation>
+<translation id="1683774088349393383">。その後 <ph name="MONTHS_ARCHIVED" /> か月後に閉じられます</translation>
 <translation id="1687482373098770139">まもなく、[フォロー中] に <ph name="SITE_NAME" /> のコンテンツや関連するコンテンツが表示されるようになります。フォローするサイトや検索は Google アカウントに保存されます。フォローはいつでも設定で管理できます。</translation>
 <translation id="1689333818294560261">ニックネーム</translation>
 <translation id="1696555181932908973"><ph name="SITE_ETLD_PLUS_ONE" /> で続行するには、別の方法をお試しください。</translation>
@@ -709,6 +710,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4380055775103003110">問題が解消しない場合は、<ph name="SITE_ETLD_PLUS_ONE" /> で続行するための別の方法をお試しください。</translation>
 <translation id="4384468725000734951">検索に Sogou を使用します</translation>
 <translation id="4387647248986092471">車のプロフィールのロックを作成</translation>
+<translation id="4387817230000841154">ダウンロードを開く</translation>
 <translation id="4401432223274567153">{INACTIVE_TIME_DAYS,plural, =1{タブとグループは 1 日以上使用されていません}other{タブとグループは # 日以上使用されていません}}</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - ダウンロードしています…</translation>
 <translation id="4404568932422911380">ブックマークがありません</translation>
@@ -1030,7 +1032,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5833984609253377421">リンクを共有</translation>
 <translation id="5839058148541733625">Chrome Dino</translation>
 <translation id="5841444063256914865">このまま「<ph name="FILE_NAME" />」をダウンロードしますか？</translation>
-<translation id="5842871376175639063"><ph name="DAYS_INACTIVE" /> 日間使用していないタブとタブグループはここに移動され、<ph name="AUTODELETE_SECTION" />。この動作は [<ph name="SETTINGS_TITLE" />] でいつでも変更できます。</translation>
+<translation id="5842871376175639063"><ph name="DAYS_INACTIVE" /> 日間使用していないタブとタブグループはここに移動されます<ph name="AUTODELETE_SECTION" />。この動作は [<ph name="SETTINGS_TITLE" />] でいつでも変更できます。</translation>
 <translation id="5848257610304005265"><ph name="APP_NAME" /> で PDF を開きますか？</translation>
 <translation id="5849288995120328556">共有を停止しますか？</translation>
 <translation id="5853623416121554550">一時停止中</translation>
@@ -1590,7 +1592,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8137562778192957619">このパスワードを覚えておく必要はありません。パスワードは Google パスワード マネージャーに保存されます。</translation>
 <translation id="8152331954420209374">レンズに移動</translation>
 <translation id="8163820386638255770">Google アカウントでパスワードを使用、保存するには、本人確認を行ってください</translation>
-<translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{（1 個）アクティブでないアイテム}other{（# 個）アクティブでないアイテム}}</translation>
+<translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{（1 個）非アクティブ アイテム}other{（# 個）非アクティブ アイテム}}</translation>
 <translation id="8186512483418048923">残り <ph name="FILES" /> ファイル</translation>
 <translation id="8190358571722158785">残り 1 日</translation>
 <translation id="8192765420340770300">ログインのボトムシートが画面全体に表示されています</translation>
@@ -1699,7 +1701,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8617240290563765734">ダウンロード コンテンツに指定されている URL を開きますか？</translation>
 <translation id="8635399646025169806">タブグループを保持しますか？</translation>
 <translation id="8636825310635137004">他のデバイスと同じタブを使用するには、同期を有効にします。</translation>
-<translation id="864544049772947936">ウィンドウ（<ph name="INSTANCE_COUNTS" /> 個）を管理</translation>
 <translation id="8662474268934425487"><ph name="SITE_ETLD_PLUS_ONE" /> にログイン</translation>
 <translation id="8664979001105139458">同じ名前のファイルが存在します</translation>
 <translation id="8676276370198826499"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> を使用して <ph name="SITE_ETLD_PLUS_ONE" /> にログイン</translation>

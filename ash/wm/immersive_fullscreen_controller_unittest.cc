@@ -13,7 +13,7 @@
 #include "ash/test/ash_test_base.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
-#include "ash/wm/test/test_non_client_frame_view_ash.h"
+#include "ash/wm/test/test_frame_view_ash.h"
 #include "ash/wm/window_state.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
@@ -107,7 +107,7 @@ class ImmersiveFullscreenControllerTest : public AshTestBase {
   }
 
   views::View* top_container() {
-    return NonClientFrameViewAsh::Get(window())->GetHeaderView();
+    return FrameViewAsh::Get(window())->GetHeaderView();
   }
 
   views::Widget* widget() { return widget_; }
@@ -115,7 +115,7 @@ class ImmersiveFullscreenControllerTest : public AshTestBase {
   aura::Window* window() { return widget_->GetNativeWindow(); }
 
   chromeos::HeaderView* immersive_delegate() {
-    return NonClientFrameViewAsh::Get(window())->GetHeaderView();
+    return FrameViewAsh::Get(window())->GetHeaderView();
   }
 
   // Access to private data from the controller.

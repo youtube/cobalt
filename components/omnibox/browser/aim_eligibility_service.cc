@@ -4,7 +4,9 @@
 
 #include "components/omnibox/browser/aim_eligibility_service.h"
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/base64.h"
@@ -34,9 +36,6 @@
 #include "url/gurl.h"
 
 namespace {
-
-// If disabled, AIM is completely turned off (kill switch).
-BASE_FEATURE(kAimEnabled, "AimEnabled", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // UMA histograms:
 // Histogram for the eligibility request status.
@@ -153,12 +152,50 @@ bool GetResponseFromPrefs(const PrefService* prefs,
 }  // namespace
 
 // static
+bool AimEligibilityService::GenericKillSwitchFeatureCheck(
+    const AimEligibilityService* aim_eligibility_service,
+    const base::Feature& feature,
+    const std::optional<std::reference_wrapper<const base::Feature>>
+        feature_en_us) {
+  // If the generic feature is overridden to be false, return false.
+  auto* feature_list = base::FeatureList::GetInstance();
+  if (feature_list && feature_list->IsFeatureOverridden(feature.name) &&
+      !base::FeatureList::IsEnabled(feature)) {
+    return false;
+  }
+
+  if (!aim_eligibility_service) {
+    return false;
+  }
+
+  // If the server eligibility is enabled, check overall eligibility alone.
+  // The service will control locale rollout so there's no need to check locale
+  // or the state of kMyFeature below.
+  if (aim_eligibility_service->IsServerEligibilityEnabled()) {
+    return aim_eligibility_service->IsAimEligible();
+  }
+
+  // If not locally eligible, return false.
+  if (!aim_eligibility_service->IsAimLocallyEligible()) {
+    return false;
+  }
+
+  // Otherwise, check the generic entrypoint feature.
+  return base::FeatureList::IsEnabled(feature) ||
+         (feature_en_us &&
+          base::FeatureList::IsEnabled(feature_en_us.value()) &&
+          aim_eligibility_service->IsLanguage("en") &&
+          aim_eligibility_service->IsCountry("us"));
+}
+
+// static
 void AimEligibilityService::RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterStringPref(kResponsePrefName, "");
   registry->RegisterIntegerPref(omnibox::kAIModeSettings,
                                 kAiModeAllowedDefault);
 }
 
+// static
 bool AimEligibilityService::IsAimAllowedByPolicy(const PrefService* prefs) {
   return prefs->GetInteger(omnibox::kAIModeSettings) == kAiModeAllowedDefault;
 }
@@ -172,7 +209,7 @@ AimEligibilityService::AimEligibilityService(
       template_url_service_(template_url_service),
       url_loader_factory_(url_loader_factory),
       identity_manager_(identity_manager) {
-  if (base::FeatureList::IsEnabled(kAimEnabled)) {
+  if (base::FeatureList::IsEnabled(omnibox::kAimEnabled)) {
     Initialize();
   }
 }
@@ -206,7 +243,7 @@ bool AimEligibilityService::IsServerEligibilityEnabled() const {
 
 bool AimEligibilityService::IsAimLocallyEligible() const {
   // Kill switch: If AIM is completely disabled, return false.
-  if (!base::FeatureList::IsEnabled(kAimEnabled)) {
+  if (!base::FeatureList::IsEnabled(omnibox::kAimEnabled)) {
     return false;
   }
 
@@ -251,7 +288,7 @@ bool AimEligibilityService::IsPdfUploadEligible() const {
 
 void AimEligibilityService::Initialize() {
   // The service should not be initialized if AIM is disabled.
-  CHECK(base::FeatureList::IsEnabled(kAimEnabled));
+  CHECK(base::FeatureList::IsEnabled(omnibox::kAimEnabled));
   // The service should not be initialized twice.
   CHECK(!initialized_);
 
@@ -275,15 +312,37 @@ void AimEligibilityService::Initialize() {
                           weak_factory_.GetWeakPtr()));
 
   LoadMostRecentResponse();
-  StartServerEligibilityRequest(RequestSource::kStartup);
+
+  if (base::FeatureList::IsEnabled(
+          omnibox::kAimServerRequestOnStartupEnabled)) {
+    StartServerEligibilityRequest(RequestSource::kStartup);
+  }
+
   if (identity_manager_) {
     identity_manager_observation_.Observe(identity_manager_);
   }
 }
 
+void AimEligibilityService::OnPrimaryAccountChanged(
+    const signin::PrimaryAccountChangeEvent& event) {
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kAimServerRequestOnIdentityChangeEnabled) ||
+      !omnibox::kRequestOnPrimaryAccountChanges.Get()) {
+    return;
+  }
+  // Change to the primary account might affect AIM eligibility.
+  // Refresh the server eligibility state.
+  StartServerEligibilityRequest(RequestSource::kPrimaryAccountChange);
+}
+
 void AimEligibilityService::OnAccountsInCookieUpdated(
     const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
     const GoogleServiceAuthError& error) {
+  if (!base::FeatureList::IsEnabled(
+          omnibox::kAimServerRequestOnIdentityChangeEnabled) ||
+      !omnibox::kRequestOnCookieJarChanges.Get()) {
+    return;
+  }
   // Change to the accounts in the cookie jar might affect AIM eligibility.
   // Refresh the server eligibility state.
   StartServerEligibilityRequest(RequestSource::kCookieChange);
@@ -400,6 +459,8 @@ std::string AimEligibilityService::GetHistogramNameSlicedByRequestSource(
         return ".Startup";
       case RequestSource::kCookieChange:
         return ".CookieChange";
+      case RequestSource::kPrimaryAccountChange:
+        return ".PrimaryAccountChange";
     }
     return "";
   };

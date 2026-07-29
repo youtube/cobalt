@@ -98,8 +98,8 @@
 #include "ui/color/color_provider_manager.h"
 #include "ui/color/color_provider_source.h"
 #include "ui/color/color_provider_utils.h"
+#include "ui/native_theme/mock_os_settings_provider.h"
 #include "ui/native_theme/native_theme.h"
-#include "ui/native_theme/test_native_theme.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -314,12 +314,6 @@ IN_PROC_BROWSER_TEST_F(OpenWindowFromNTPBrowserTest,
 class ForcedColorsTest : public testing::WithParamInterface<bool>,
                          public InProcessBrowserTest {
  protected:
-  ForcedColorsTest() : theme_client_(&test_theme_) {}
-
-  ~ForcedColorsTest() override {
-    CHECK_EQ(&theme_client_, SetBrowserClientForTesting(original_client_));
-  }
-
   static bool ForcedColorsActive() { return GetParam(); }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -327,36 +321,16 @@ class ForcedColorsTest : public testing::WithParamInterface<bool>,
                                     "ForcedColors");
   }
 
-  void SetUpOnMainThread() override {
-    InProcessBrowserTest::SetUpOnMainThread();
-    original_client_ = SetBrowserClientForTesting(&theme_client_);
+  ui::MockOsSettingsProvider& os_settings_provider() {
+    return os_settings_provider_;
   }
 
- protected:
-  ui::TestNativeTheme test_theme_;
-
  private:
-  raw_ptr<content::ContentBrowserClient> original_client_ = nullptr;
-
-  class ChromeContentBrowserClientWithWebTheme
-      : public ChromeContentBrowserClient {
-   public:
-    explicit ChromeContentBrowserClientWithWebTheme(
-        const ui::NativeTheme* theme)
-        : theme_(theme) {}
-
-   protected:
-    const ui::NativeTheme* GetWebTheme() const override { return theme_; }
-
-   private:
-    const raw_ptr<const ui::NativeTheme> theme_;
-  };
-
-  ChromeContentBrowserClientWithWebTheme theme_client_;
+  ui::MockOsSettingsProvider os_settings_provider_;
 };
 
 IN_PROC_BROWSER_TEST_P(ForcedColorsTest, ForcedColors) {
-  test_theme_.set_forced_colors(ForcedColorsActive());
+  os_settings_provider().SetForcedColorsActive(ForcedColorsActive());
   browser()
       ->tab_strip_model()
       ->GetActiveWebContents()
@@ -372,7 +346,7 @@ IN_PROC_BROWSER_TEST_P(ForcedColorsTest, ForcedColors) {
 }
 
 IN_PROC_BROWSER_TEST_P(ForcedColorsTest, ForcedColorsWithBlockList) {
-  test_theme_.set_forced_colors(ForcedColorsActive());
+  os_settings_provider().SetForcedColorsActive(ForcedColorsActive());
 
   const char* url = "https://foo.com";
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(url)));
@@ -467,15 +441,10 @@ class PrefersColorSchemeTest
     : public testing::WithParamInterface<std::tuple<bool, bool>>,
       public InProcessBrowserTest {
  public:
-  ~PrefersColorSchemeTest() override {
-    CHECK_EQ(&theme_client_, SetBrowserClientForTesting(original_client_));
-  }
-
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
 
-    original_client_ = SetBrowserClientForTesting(&theme_client_);
-    test_theme_.SetPreferredColorScheme(
+    os_settings_provider_.SetPreferredColorScheme(
         DarkOs() ? ui::NativeTheme::PreferredColorScheme::kDark
                  : ui::NativeTheme::PreferredColorScheme::kLight);
 
@@ -523,23 +492,7 @@ class PrefersColorSchemeTest
     return guest_view_manager_;
   }
 
-  ui::TestNativeTheme test_theme_;
-
  private:
-  class ChromeContentBrowserClientWithWebTheme
-      : public ChromeContentBrowserClient {
-   public:
-    explicit ChromeContentBrowserClientWithWebTheme(
-        const ui::NativeTheme* theme)
-        : theme_(theme) {}
-
-   protected:
-    const ui::NativeTheme* GetWebTheme() const override { return theme_; }
-
-   private:
-    const raw_ptr<const ui::NativeTheme> theme_;
-  };
-
   class MockColorProviderSource : public ui::ColorProviderSource {
    public:
     explicit MockColorProviderSource(bool is_dark) {
@@ -575,8 +528,7 @@ class PrefersColorSchemeTest
   static bool DarkOs() { return std::get<0>(GetParam()); }
   static bool DarkColorProvider() { return std::get<1>(GetParam()); }
 
-  raw_ptr<content::ContentBrowserClient> original_client_ = nullptr;
-  ChromeContentBrowserClientWithWebTheme theme_client_{&test_theme_};
+  ui::MockOsSettingsProvider os_settings_provider_;
   MockColorProviderSource color_provider_source_{DarkColorProvider()};
 #if BUILDFLAG(ENABLE_GLIC)
   glic::GlicTestEnvironment glic_test_environment_;
@@ -670,13 +622,9 @@ class PreferredRootScrollbarColorSchemeChromeClientTest
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    original_client_ = SetBrowserClientForTesting(&theme_client_);
-    const auto color_scheme =
+    os_settings_provider_.SetPreferredColorScheme(
         DarkMode() ? ui::NativeTheme::PreferredColorScheme::kDark
-                   : ui::NativeTheme::PreferredColorScheme::kLight;
-    test_theme_.SetPreferredColorScheme(color_scheme);
-    ui::NativeTheme::GetInstanceForNativeUi()->set_preferred_color_scheme(
-        color_scheme);
+                   : ui::NativeTheme::PreferredColorScheme::kLight);
     ThemeService* const theme_service =
         ThemeServiceFactory::GetForProfile(browser()->profile());
     if (UsesCustomTheme()) {
@@ -688,10 +636,6 @@ class PreferredRootScrollbarColorSchemeChromeClientTest
     } else {
       theme_service->UseDefaultTheme();
     }
-  }
-
-  ~PreferredRootScrollbarColorSchemeChromeClientTest() override {
-    CHECK_EQ(&theme_client_, SetBrowserClientForTesting(original_client_));
   }
 
  protected:
@@ -733,26 +677,10 @@ class PreferredRootScrollbarColorSchemeChromeClientTest
   }
 
  private:
-  class ChromeContentBrowserClientWithWebTheme
-      : public ChromeContentBrowserClient {
-   public:
-    explicit ChromeContentBrowserClientWithWebTheme(
-        const ui::NativeTheme* theme)
-        : theme_(theme) {}
-
-   protected:
-    const ui::NativeTheme* GetWebTheme() const override { return theme_; }
-
-   private:
-    const raw_ptr<const ui::NativeTheme> theme_;
-  };
-
   static bool DarkMode() { return std::get<0>(GetParam()); }
   static bool UsesCustomTheme() { return std::get<1>(GetParam()); }
 
-  raw_ptr<content::ContentBrowserClient> original_client_ = nullptr;
-  ui::TestNativeTheme test_theme_;
-  ChromeContentBrowserClientWithWebTheme theme_client_{&test_theme_};
+  ui::MockOsSettingsProvider os_settings_provider_;
   const SkColor theme_color_;
   base::test::ScopedFeatureList feature_list_;
 };
@@ -793,10 +721,6 @@ class PrefersContrastTest
     : public testing::WithParamInterface<ui::NativeTheme::PreferredContrast>,
       public InProcessBrowserTest {
  public:
-  ~PrefersContrastTest() override {
-    CHECK_EQ(&theme_client_, SetBrowserClientForTesting(original_client_));
-  }
-
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
                                     "PrefersContrast");
@@ -806,12 +730,7 @@ class PrefersContrastTest
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
-    original_client_ = SetBrowserClientForTesting(&theme_client_);
-    test_theme_.SetPreferredContrast(PreferredContrast());
-    browser()
-        ->tab_strip_model()
-        ->GetActiveWebContents()
-        ->OnWebPreferencesChanged();
+    os_settings_provider_.SetPreferredContrast(PreferredContrast());
   }
 
  protected:
@@ -828,29 +747,12 @@ class PrefersContrastTest
     }
   }
 
-  ui::TestNativeTheme test_theme_;
-
  private:
-  class ChromeContentBrowserClientWithWebTheme
-      : public ChromeContentBrowserClient {
-   public:
-    explicit ChromeContentBrowserClientWithWebTheme(
-        const ui::NativeTheme* theme)
-        : theme_(theme) {}
-
-   protected:
-    const ui::NativeTheme* GetWebTheme() const override { return theme_; }
-
-   private:
-    const raw_ptr<const ui::NativeTheme> theme_;
-  };
-
   static ui::NativeTheme::PreferredContrast PreferredContrast() {
     return GetParam();
   }
 
-  raw_ptr<content::ContentBrowserClient> original_client_ = nullptr;
-  ChromeContentBrowserClientWithWebTheme theme_client_{&test_theme_};
+  ui::MockOsSettingsProvider os_settings_provider_;
 };
 
 IN_PROC_BROWSER_TEST_P(PrefersContrastTest, PrefersContrast) {

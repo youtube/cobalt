@@ -6,12 +6,12 @@ package org.chromium.chrome.browser;
 
 import android.app.Activity;
 
-import org.chromium.base.jank_tracker.JankTracker;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tab_activity_glue.ActivityTabWebContentsDelegateAndroid;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
@@ -79,7 +79,6 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
     private final Supplier<@Nullable Tab> mCurrentTabSupplier;
     private final ActivityLifecycleDispatcher mLifecycleDispatcher;
     private final WindowAndroid mWindowAndroid;
-    private final JankTracker mJankTracker;
     private final Supplier<Toolbar> mToolbarSupplier;
     private final @Nullable HomeSurfaceTracker mHomeSurfaceTracker;
     private final ObservableSupplier<Integer> mTabStripHeightSupplier;
@@ -89,6 +88,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
     private final StartupMetricsTracker mStartupMetricsTracker;
     private final @Nullable ExclusiveAccessManager mExclusiveAccessManager;
     private @Nullable NativePageFactory mNativePageFactory;
+    private final BackPressManager mBackPressManager;
 
     public TabbedModeTabDelegateFactory(
             Activity activity,
@@ -109,7 +109,6 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
             Supplier<@Nullable Tab> currentTabSupplier,
             ActivityLifecycleDispatcher lifecycleDispatcher,
             WindowAndroid windowAndroid,
-            JankTracker jankTracker,
             Supplier<Toolbar> toolbarSupplier,
             @Nullable HomeSurfaceTracker homeSurfaceTracker,
             ObservableSupplier<TabContentManager> tabContentManagerSupplier,
@@ -118,7 +117,8 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
             StartupMetricsTracker startupMetricsTracker,
-            @Nullable ExclusiveAccessManager exclusiveAccessManager) {
+            @Nullable ExclusiveAccessManager exclusiveAccessManager,
+            BackPressManager backPressManager) {
         mActivity = activity;
         mAppBrowserControlsVisibilityDelegate = appBrowserControlsVisibilityDelegate;
         mShareDelegateSupplier = shareDelegateSupplier;
@@ -137,7 +137,6 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
         mCurrentTabSupplier = currentTabSupplier;
         mLifecycleDispatcher = lifecycleDispatcher;
         mWindowAndroid = windowAndroid;
-        mJankTracker = jankTracker;
         mToolbarSupplier = toolbarSupplier;
         mHomeSurfaceTracker = homeSurfaceTracker;
         mTabContentManagerSupplier = tabContentManagerSupplier;
@@ -147,6 +146,7 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
         mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
         mStartupMetricsTracker = startupMetricsTracker;
         mExclusiveAccessManager = exclusiveAccessManager;
+        mBackPressManager = backPressManager;
     }
 
     @Override
@@ -209,7 +209,6 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
                             mTabModelSelectorSupplier.get(),
                             mShareDelegateSupplier,
                             mWindowAndroid,
-                            mJankTracker,
                             mToolbarSupplier,
                             mHomeSurfaceTracker,
                             mTabContentManagerSupplier,
@@ -217,7 +216,8 @@ public class TabbedModeTabDelegateFactory implements TabDelegateFactory {
                             mModuleRegistrySupplier,
                             mEdgeToEdgeControllerSupplier,
                             mTopInsetCoordinatorSupplier,
-                            mStartupMetricsTracker);
+                            mStartupMetricsTracker,
+                            mBackPressManager);
         }
         return mNativePageFactory.createNativePage(url, candidatePage, tab, pdfInfo);
     }

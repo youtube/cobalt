@@ -4,8 +4,6 @@
 
 package org.chromium.base.process_launcher;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.content.Context;
 import android.content.Intent;
 
@@ -47,9 +45,9 @@ import javax.annotation.concurrent.GuardedBy;
     // This is also used as the initial binding before any priorities are set.
     private ChildServiceConnection mVisibleBinding;
 
-    // On Android Q+ a not perceptible binding will make the service priority below that of a
-    // perceptible process of a backgrounded app. Only created on Android Q+.
-    private @Nullable ChildServiceConnection mNotPerceptibleBinding;
+    // A not perceptible binding will make the service priority below that of a
+    // perceptible process of a backgrounded app.
+    private ChildServiceConnection mNotPerceptibleBinding;
 
     // Low priority binding maintained in the entire lifetime of the connection, i.e. between calls
     // to start() and stop().
@@ -90,17 +88,13 @@ import javax.annotation.concurrent.GuardedBy;
                 mConnectionFactory.createConnection(
                         mBindIntent, mDefaultBindFlags, mConnectionDelegate, mInstanceName);
 
-        if (ChildProcessConnection.supportNotPerceptibleBinding()) {
-            int flags = mDefaultBindFlags | Context.BIND_NOT_PERCEPTIBLE;
-            if (BaseFeatureList.sBackgroundNotPerceptibleBinding.isEnabled()) {
-                flags |= Context.BIND_NOT_FOREGROUND;
-            }
-            mNotPerceptibleBinding =
-                    mConnectionFactory.createConnection(
-                            mBindIntent, flags, mConnectionDelegate, mInstanceName);
-        } else {
-            mNotPerceptibleBinding = null;
+        int flags = mDefaultBindFlags | Context.BIND_NOT_PERCEPTIBLE;
+        if (BaseFeatureList.sBackgroundNotPerceptibleBinding.isEnabled()) {
+            flags |= Context.BIND_NOT_FOREGROUND;
         }
+        mNotPerceptibleBinding =
+                mConnectionFactory.createConnection(
+                        mBindIntent, flags, mConnectionDelegate, mInstanceName);
 
         mStrongBinding =
                 mConnectionFactory.createConnection(
@@ -168,9 +162,7 @@ import javax.annotation.concurrent.GuardedBy;
         // We must clear shared waived binding when we unbind a waived binding.
         clearSharedWaivedBinding();
         mWaivedBinding.unbindServiceConnection(null);
-        if (mNotPerceptibleBinding != null) {
-            mNotPerceptibleBinding.unbindServiceConnection(null);
-        }
+        mNotPerceptibleBinding.unbindServiceConnection(null);
         mVisibleBinding.unbindServiceConnection(null);
         if (!BaseFeatureList.sUpdateStateBeforeUnbinding.isEnabled()) {
             updateBindingState();
@@ -205,8 +197,7 @@ import javax.annotation.concurrent.GuardedBy;
     public void replaceService(Intent bindIntent) {
         boolean isStrongBindingBound = mStrongBinding.isBound();
         boolean isVisibleBindingBound = mVisibleBinding.isBound();
-        boolean isNotPerceptibleBindingBound =
-                mNotPerceptibleBinding != null && mNotPerceptibleBinding.isBound();
+        boolean isNotPerceptibleBindingBound = mNotPerceptibleBinding.isBound();
         boolean isWaivedBindingBound = mWaivedBinding.isBound();
 
         retireBindings();
@@ -227,7 +218,7 @@ import javax.annotation.concurrent.GuardedBy;
             }
         }
         if (isNotPerceptibleBindingBound) {
-            if (!assumeNonNull(mNotPerceptibleBinding).bindServiceConnection()) {
+            if (!mNotPerceptibleBinding.bindServiceConnection()) {
                 return;
             }
         }
@@ -239,11 +230,59 @@ import javax.annotation.concurrent.GuardedBy;
     private void retireBindings() {
         mStrongBinding.retire();
         mVisibleBinding.retire();
-        if (mNotPerceptibleBinding != null) {
-            mNotPerceptibleBinding.retire();
-        }
+        mNotPerceptibleBinding.retire();
         clearSharedWaivedBinding();
         mWaivedBinding.retire();
+    }
+
+    @Override
+    public void setEffectiveBindingState(@ChildBindingState int effectiveBindingState) {
+        assert effectiveBindingState != ChildBindingState.UNBOUND;
+        if (mUnbound) {
+            return;
+        }
+
+        // Bind the new effective binding state first.
+        switch (effectiveBindingState) {
+            case ChildBindingState.STRONG:
+                if (!mStrongBinding.isBound()) {
+                    mStrongBinding.bindServiceConnection();
+                }
+                updateBindingState();
+                break;
+            case ChildBindingState.VISIBLE:
+                if (!mVisibleBinding.isBound()) {
+                    mVisibleBinding.bindServiceConnection();
+                }
+                updateBindingState();
+                break;
+            case ChildBindingState.NOT_PERCEPTIBLE:
+                if (!mNotPerceptibleBinding.isBound()) {
+                    mNotPerceptibleBinding.bindServiceConnection();
+                }
+                updateBindingState();
+                break;
+            case ChildBindingState.WAIVED:
+                // do nothing
+                break;
+            case ChildBindingState.UNBOUND:
+            default:
+                assert false : "Unsupported effective binding state: " + effectiveBindingState;
+        }
+
+        // Unbind bindings that are not in the effective binding state. Unbinding is done in the
+        // reverse order of binding to make the getBindingState() result consistent.
+        if (effectiveBindingState != ChildBindingState.NOT_PERCEPTIBLE) {
+            if (mNotPerceptibleBinding != null) {
+                mNotPerceptibleBinding.unbindServiceConnection(() -> updateBindingState());
+            }
+        }
+        if (effectiveBindingState != ChildBindingState.VISIBLE) {
+            mVisibleBinding.unbindServiceConnection(() -> updateBindingState());
+        }
+        if (effectiveBindingState != ChildBindingState.STRONG) {
+            mStrongBinding.unbindServiceConnection(() -> updateBindingState());
+        }
     }
 
     @Override
@@ -280,19 +319,16 @@ import javax.annotation.concurrent.GuardedBy;
 
     @Override
     public void setNotPerceptibleBinding() {
-        assert mNotPerceptibleBinding != null;
-        assumeNonNull(mNotPerceptibleBinding).bindServiceConnection();
+        mNotPerceptibleBinding.bindServiceConnection();
         updateBindingState();
     }
 
     @Override
     public void unsetNotPerceptibleBinding() {
-        assert mNotPerceptibleBinding != null;
         if (BaseFeatureList.sUpdateStateBeforeUnbinding.isEnabled()) {
-            assumeNonNull(mNotPerceptibleBinding)
-                    .unbindServiceConnection(() -> updateBindingState());
+            mNotPerceptibleBinding.unbindServiceConnection(() -> updateBindingState());
         } else {
-            assumeNonNull(mNotPerceptibleBinding).unbindServiceConnection(null);
+            mNotPerceptibleBinding.unbindServiceConnection(null);
             updateBindingState();
         }
     }
@@ -334,7 +370,7 @@ import javax.annotation.concurrent.GuardedBy;
         s.append("bindings:");
         s.append(mWaivedBinding.isBound() ? "W" : " ");
         s.append(mVisibleBinding.isBound() ? "V" : " ");
-        s.append(mNotPerceptibleBinding != null && mNotPerceptibleBinding.isBound() ? "N" : " ");
+        s.append(mNotPerceptibleBinding.isBound() ? "N" : " ");
         s.append(mStrongBinding.isBound() ? "S" : " ");
         return s.toString();
     }
@@ -348,7 +384,7 @@ import javax.annotation.concurrent.GuardedBy;
             newBindingState = ChildBindingState.STRONG;
         } else if (mVisibleBinding.isBound()) {
             newBindingState = ChildBindingState.VISIBLE;
-        } else if (mNotPerceptibleBinding != null && mNotPerceptibleBinding.isBound()) {
+        } else if (mNotPerceptibleBinding.isBound()) {
             newBindingState = ChildBindingState.NOT_PERCEPTIBLE;
         } else {
             assert mWaivedBinding.isBound();

@@ -22,17 +22,20 @@
 #include "base/threading/platform_thread.h"
 #include "base/threading/sequence_bound.h"
 #include "base/threading/thread.h"
+#include "base/time/time.h"
 #include "chromeos/ash/components/boca/spotlight/remoting_client_io_proxy.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_constants.h"
 #include "chromeos/ash/components/boca/spotlight/spotlight_oauth_token_fetcher.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 
 namespace ash::boca {
 
-SpotlightRemotingClientManager::SpotlightRemotingClientManager(
+SpotlightRemotingClientManagerImpl::SpotlightRemotingClientManagerImpl(
     std::unique_ptr<SpotlightOAuthTokenFetcher> token_fetcher,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    CreateRemotingIOProxyCb create_remoting_io_proxy_cb)
     : io_thread_("Boca Spotlight IO"),
       token_fetcher_(std::move(token_fetcher)) {
   base::Thread::Options options;
@@ -40,27 +43,28 @@ SpotlightRemotingClientManager::SpotlightRemotingClientManager(
   // Thread will be processing incoming video frames.
   options.thread_type = base::ThreadType::kDisplayCritical;
   CHECK(io_thread_.StartWithOptions(std::move(options)));
-  remoting_client_io_proxy_ =
-      std::make_unique<base::SequenceBound<RemotingClientIOProxy>>(
-          io_thread_.task_runner(), url_loader_factory->Clone(),
+  remoting_client_io_proxy_ = std::make_unique<SequencedRemotingClientIOProxy>(
+      io_thread_.task_runner(),
+      create_remoting_io_proxy_cb.Run(
+          url_loader_factory->Clone(),
           base::BindPostTaskToCurrentDefault(base::BindRepeating(
-              &SpotlightRemotingClientManager::HandleFrameReceived,
+              &SpotlightRemotingClientManagerImpl::HandleFrameReceived,
               weak_factory_.GetWeakPtr())),
-          base::BindPostTaskToCurrentDefault(
-              base::BindRepeating(&SpotlightRemotingClientManager::UpdateState,
-                                  weak_factory_.GetWeakPtr())));
+          base::BindPostTaskToCurrentDefault(base::BindRepeating(
+              &SpotlightRemotingClientManagerImpl::UpdateState,
+              weak_factory_.GetWeakPtr()))));
 }
 
-SpotlightRemotingClientManager::~SpotlightRemotingClientManager() {
+SpotlightRemotingClientManagerImpl::~SpotlightRemotingClientManagerImpl() {
   // Because `remoting_client_io_proxy_` is sequence bound, the actual
   // destruction happens asynchronously on its task runner. Until this has
   // completed it is still possible for
-  // `SpotlightRemotingClientManager::HandleFrameReceived` and
-  //`SpotlightRemotingClientManager::UpdateState` to be called.
+  // `SpotlightRemotingClientManagerImpl::HandleFrameReceived` and
+  //`SpotlightRemotingClientManagerImpl::UpdateState` to be called.
   remoting_client_io_proxy_.reset();
 }
 
-void SpotlightRemotingClientManager::StartCrdClient(
+void SpotlightRemotingClientManagerImpl::StartCrdClient(
     std::string crd_connection_code,
     base::OnceClosure crd_session_ended_callback,
     SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback,
@@ -89,29 +93,37 @@ void SpotlightRemotingClientManager::StartCrdClient(
   status_updated_callback_ = std::move(status_updated_callback);
 
   token_fetcher_->Start((base::BindOnce(
-      &SpotlightRemotingClientManager::HandleOAuthTokenRetrieved,
+      &SpotlightRemotingClientManagerImpl::HandleOAuthTokenRetrieved,
       weak_factory_.GetWeakPtr(), std::move(crd_connection_code))));
 }
 
-void SpotlightRemotingClientManager::StopCrdClient() {
+void SpotlightRemotingClientManagerImpl::StopCrdClient() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!session_in_progress_) {
     return;
   }
 
   remoting_client_io_proxy_->AsyncCall(&RemotingClientIOProxy::StopCrdClient);
-
-  crd_session_ended_callback_.Reset();
-  frame_received_callback_.Reset();
-  status_updated_callback_.Reset();
-  session_in_progress_ = false;
+  Reset();
 }
 
-std::string SpotlightRemotingClientManager::GetDeviceRobotEmail() {
+std::string SpotlightRemotingClientManagerImpl::GetDeviceRobotEmail() {
   return token_fetcher_->GetDeviceRobotEmail();
 }
 
-void SpotlightRemotingClientManager::HandleOAuthTokenRetrieved(
+// static
+std::unique_ptr<RemotingClientIOProxy>
+SpotlightRemotingClientManagerImpl::CreateRemotingIOProxy(
+    std::unique_ptr<network::PendingSharedURLLoaderFactory>
+        pending_url_loader_factory,
+    SpotlightFrameConsumer::FrameReceivedCallback frame_received_callback,
+    SpotlightCrdStateUpdatedCallback status_updated_callback) {
+  return std::make_unique<RemotingClientIOProxyImpl>(
+      std::move(pending_url_loader_factory), std::move(frame_received_callback),
+      std::move(status_updated_callback));
+}
+
+void SpotlightRemotingClientManagerImpl::HandleOAuthTokenRetrieved(
     std::string crd_connection_code,
     std::optional<std::string> oauth_access_token) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -125,37 +137,54 @@ void SpotlightRemotingClientManager::HandleOAuthTokenRetrieved(
       .WithArgs(std::move(crd_connection_code),
                 std::move(oauth_access_token.value()), GetDeviceRobotEmail(),
                 base::BindPostTaskToCurrentDefault(base::BindOnce(
-                    &SpotlightRemotingClientManager::HandleCrdSessionEnded,
+                    &SpotlightRemotingClientManagerImpl::HandleCrdSessionEnded,
                     weak_factory_.GetWeakPtr())));
 }
 
-void SpotlightRemotingClientManager::HandleCrdSessionEnded() {
+void SpotlightRemotingClientManagerImpl::HandleCrdSessionEnded() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!crd_session_ended_callback_) {
     return;
   }
   std::move(crd_session_ended_callback_).Run();
-  frame_received_callback_.Reset();
-  status_updated_callback_.Reset();
-  session_in_progress_ = false;
+  Reset();
 }
 
-void SpotlightRemotingClientManager::UpdateState(CrdConnectionState state) {
+void SpotlightRemotingClientManagerImpl::UpdateState(CrdConnectionState state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!status_updated_callback_) {
     return;
   }
   status_updated_callback_.Run(state);
+  if (state == CrdConnectionState::kTimeout) {
+    remoting_client_io_proxy_->AsyncCall(&RemotingClientIOProxy::StopCrdClient);
+    Reset();
+  }
 }
 
-void SpotlightRemotingClientManager::HandleFrameReceived(
+void SpotlightRemotingClientManagerImpl::HandleFrameReceived(
     SkBitmap bitmap,
     std::unique_ptr<webrtc::DesktopFrame> frame) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!frame_received_callback_) {
     return;
   }
+  constexpr base::TimeDelta kFrameTimeout = base::Seconds(5);
+  frame_timeout_timer_.Stop();
+  frame_timeout_timer_.Start(
+      FROM_HERE, kFrameTimeout,
+      base::BindOnce(&SpotlightRemotingClientManagerImpl::UpdateState,
+                     weak_factory_.GetWeakPtr(), CrdConnectionState::kTimeout));
   frame_received_callback_.Run(std::move(bitmap), std::move(frame));
+}
+
+void SpotlightRemotingClientManagerImpl::Reset() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  crd_session_ended_callback_.Reset();
+  frame_received_callback_.Reset();
+  status_updated_callback_.Reset();
+  frame_timeout_timer_.Stop();
+  session_in_progress_ = false;
 }
 
 }  // namespace ash::boca

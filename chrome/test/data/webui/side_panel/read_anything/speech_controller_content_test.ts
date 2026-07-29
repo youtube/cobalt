@@ -22,6 +22,12 @@ suite('SpeechController', () => {
   let app: AppElement;
   let isSpeechActiveChanged: boolean;
 
+  function onPlayPauseToggle(text: string) {
+    const element = document.createElement('p');
+    element.textContent = text;
+    speechController.onPlayPauseToggle(element);
+  }
+
   function setDomNodes(axNodeIds: number[]): Node[] {
     const nodes: Node[] = [];
     axNodeIds.forEach(id => {
@@ -42,6 +48,10 @@ suite('SpeechController', () => {
     onEngineStateChange() {},
 
     onPreviewVoicePlaying() {},
+
+    onPlayingFromSelection() {
+
+    },
   };
 
   setup(async () => {
@@ -167,7 +177,7 @@ suite('SpeechController', () => {
     wordBoundaries.updateBoundary(4);
     speechController.onHighlightGranularityChange(
         chrome.readingMode.sentenceHighlighting);
-    speechController.onPlayPauseToggle(null, node as HTMLElement);
+    speechController.onPlayPauseToggle(node as HTMLElement);
     assertTrue(speechController.isSpeechActive());
     assertTrue(wordBoundaries.hasBoundaries());
     assertTrue(highlighter.hasCurrentGranularity());
@@ -199,7 +209,7 @@ suite('SpeechController', () => {
     readAloudModel.setInitialized(true);
     const node = setSimpleNodeStoreWithTextAndModel(text, readAloudModel);
 
-    speechController.onPlayPauseToggle(null, node as HTMLElement);
+    speechController.onPlayPauseToggle(node as HTMLElement);
     const spoken = await speech.whenCalled('speak');
     assertTrue(!!spoken.onstart);
     spoken.onstart(new SpeechSynthesisEvent('type', {utterance: spoken}));
@@ -214,12 +224,12 @@ suite('SpeechController', () => {
         const textContent = 'And our fame and our faces';
         const node =
             setSimpleNodeStoreWithTextAndModel(textContent, readAloudModel);
-        speechController.onPlayPauseToggle(null, node as HTMLElement);
-        speechController.onPlayPauseToggle(null, node as HTMLElement);
+        speechController.onPlayPauseToggle(node as HTMLElement);
+        speechController.onPlayPauseToggle(node as HTMLElement);
         wordBoundaries.updateBoundary(10);
         speech.reset();
 
-        speechController.onPlayPauseToggle(null, node as HTMLElement);
+        speechController.onPlayPauseToggle(node as HTMLElement);
 
         assertEquals(1, speech.getCallCount('speak'));
         assertEquals(1, speech.getCallCount('cancel'));
@@ -249,4 +259,88 @@ suite('SpeechController', () => {
     assertFalse(wordBoundaries.hasBoundaries());
     assertEquals(2, speech.getCallCount('cancel'));
   });
+
+  test('onVoiceMenuClose resume speech only if it was active before', () => {
+    const text = 'You must agree that baby';
+    setSimpleNodeStoreWithTextAndModel(text, readAloudModel);
+    speechController.onVoiceMenuOpen();
+
+    speechController.onVoiceMenuClose();
+
+    assertEquals(1, speech.getCallCount('cancel'));
+    assertEquals(0, speech.getCallCount('pause'));
+    assertEquals(0, speech.getCallCount('speak'));
+
+    onPlayPauseToggle(text);
+    speechController.onVoiceMenuOpen();
+    onPlayPauseToggle(text);
+    speech.reset();
+
+    speechController.onVoiceMenuClose();
+
+    assertEquals(1, speech.getCallCount('resume'));
+    assertEquals(0, speech.getCallCount('cancel'));
+    assertEquals(0, speech.getCallCount('speak'));
+  });
+
+  test('set previous reading position without saved state does nothing', () => {
+    const text = 'But I took your hand';
+    setSimpleNodeStoreWithTextAndModel(text, readAloudModel);
+    wordBoundaries.updateBoundary(4);
+    speechController.onHighlightGranularityChange(
+        chrome.readingMode.sentenceHighlighting);
+    onPlayPauseToggle(text);
+    onPlayPauseToggle(text);
+    assertTrue(speechController.hasSpeechBeenTriggered());
+    assertTrue(wordBoundaries.hasBoundaries());
+    assertTrue(highlighter.hasCurrentGranularity());
+
+    speechController.clearReadAloudState();
+    speechController.setPreviousReadingPositionIfExists();
+
+    assertFalse(speechController.hasSpeechBeenTriggered());
+    assertFalse(wordBoundaries.hasBoundaries());
+    assertFalse(highlighter.hasCurrentGranularity());
+  });
+
+  test('set previous reading position restores saved state', () => {
+    const text = 'And promised I\'d withstand';
+    setSimpleNodeStoreWithTextAndModel(text, readAloudModel);
+    wordBoundaries.updateBoundary(4);
+    speechController.onHighlightGranularityChange(
+        chrome.readingMode.sentenceHighlighting);
+    onPlayPauseToggle(text);
+    onPlayPauseToggle(text);
+    assertTrue(speechController.hasSpeechBeenTriggered());
+    assertTrue(wordBoundaries.hasBoundaries());
+    assertTrue(highlighter.hasCurrentGranularity());
+
+    speechController.saveReadAloudState();
+    speechController.clearReadAloudState();
+    speechController.setPreviousReadingPositionIfExists();
+
+    assertTrue(speechController.hasSpeechBeenTriggered());
+    assertTrue(wordBoundaries.hasBoundaries());
+    assertTrue(highlighter.hasCurrentGranularity());
+  });
+
+  test('onTabMuteStateChange updates speech volume', async () => {
+    const text = 'We\'ll bring the cinches';
+    readAloudModel.setInitialized(true);
+    setSimpleNodeStoreWithTextAndModel(text, readAloudModel);
+
+    speechController.onTabMuteStateChange(true);
+    onPlayPauseToggle(text);
+
+    let spoken = await speech.whenCalled('speak');
+    assertEquals(0, spoken.volume);
+
+    speech.reset();
+    speechController.onTabMuteStateChange(false);
+    onPlayPauseToggle(text);
+
+    spoken = await speech.whenCalled('speak');
+    assertEquals(1, spoken.volume);
+  });
+
 });

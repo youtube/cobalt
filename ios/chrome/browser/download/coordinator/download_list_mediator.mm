@@ -59,14 +59,19 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
 
   // Current search keyword applied to the download records.
   NSString* _currentSearchKeyword;
+
+  // Flag indicating if this is an incognito session.
+  BOOL _isIncognito;
 }
 
 - (instancetype)initWithDownloadRecordService:
-    (DownloadRecordService*)downloadRecordService {
+                    (DownloadRecordService*)downloadRecordService
+                                  isIncognito:(BOOL)isIncognito {
   self = [super init];
   if (self) {
     CHECK(downloadRecordService);
     _downloadRecordService = downloadRecordService;
+    _isIncognito = isIncognito;
     _observerBridge = std::make_unique<DownloadRecordObserverBridge>(self);
     _currentFilterType = DownloadFilterType::kAll;
     _currentSearchKeyword = @"";
@@ -125,26 +130,7 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
 #pragma mark - DownloadListMutator
 
 - (void)loadDownloadRecords {
-  CHECK(_isReady);
-
-  [self.consumer setLoadingState:YES];
-
-  // Clear cache since we're reloading all data.
-  [self invalidateSearchCache];
-
-  __weak __typeof__(self) weakSelf = self;
-  _downloadRecordService->GetAllDownloadsAsync(
-      base::BindOnce(^(std::vector<DownloadRecord> records) {
-        __strong __typeof__(weakSelf) strongSelf = weakSelf;
-        strongSelf.allRecords = std::move(records);
-        std::vector<DownloadRecord> recordsToDisplay =
-            [strongSelf applyFilterWithTypeAndKeyword:strongSelf.allRecords];
-
-        // Update cache.
-        strongSelf.filteredRecordsCache = recordsToDisplay;
-
-        [strongSelf setDownloadListItems:recordsToDisplay];
-      }));
+  [self loadDownloadRecordsWithLoading:YES];
 }
 
 - (void)syncRecordsIfNeeded {
@@ -152,16 +138,8 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
 
   // Implement logic to sync records with the file system in a future iteration.
 
-  // Clear cache during sync since data may have changed.
-  [self invalidateSearchCache];
-
-  std::vector<DownloadRecord> recordsToDisplay =
-      [self applyFilterWithTypeAndKeyword:self.allRecords];
-
-  // Update cache.
-  self.filteredRecordsCache = recordsToDisplay;
-
-  [self setDownloadListItems:recordsToDisplay];
+  // For sync operation, show loading indicator
+  [self loadDownloadRecordsWithLoading:YES];
 }
 
 - (void)filterRecordsWithType:(DownloadFilterType)type {
@@ -171,8 +149,6 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
 
   // Clear search cache when filter type changes.
   [self invalidateSearchCache];
-
-  [self.consumer setLoadingState:YES];
 
   std::vector<DownloadRecord> filteredRecords =
       [self applyFilterWithTypeAndKeyword:self.allRecords];
@@ -223,21 +199,91 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
 #pragma mark - DownloadRecordObserver Methods
 
 - (void)downloadRecordWasAdded:(const DownloadRecord&)record {
+  // Only update if record matches current incognito state.
+  if (!_isIncognito && record.is_incognito) {
+    return;
+  }
+
   [self invalidateSearchCache];
   [self updateConsumer];
 }
 
 - (void)downloadRecordWasUpdated:(const DownloadRecord&)record {
+  // Only update if record matches current incognito state.
+  if (!_isIncognito && record.is_incognito) {
+    return;
+  }
+
+  // Only update if the record exists in our cached allRecords.
+  NSString* recordID = base::SysUTF8ToNSString(record.download_id);
+  if (![self containsRecordsWithIDs:@[ recordID ]]) {
+    return;
+  }
+
   [self invalidateSearchCache];
   [self updateConsumer];
 }
 
 - (void)downloadsWereRemovedWithIDs:(NSArray<NSString*>*)downloadIDs {
+  // Check if any of the removed IDs exist in our cached allRecords.
+  if (![self containsRecordsWithIDs:downloadIDs]) {
+    return;
+  }
+
+  // Found matching records, update UI.
   [self invalidateSearchCache];
   [self updateConsumer];
 }
 
 #pragma mark - Private Methods
+
+// Loads download records with optional loading indicator.
+- (void)loadDownloadRecordsWithLoading:(BOOL)showLoading {
+  CHECK(_isReady);
+
+  if (showLoading) {
+    [self.consumer setLoadingState:YES];
+  }
+
+  // Clear cache since we're reloading all data.
+  [self invalidateSearchCache];
+
+  __weak __typeof__(self) weakSelf = self;
+  _downloadRecordService->GetAllDownloadsAsync(
+      base::BindOnce(^(std::vector<DownloadRecord> records) {
+        __strong __typeof__(weakSelf) strongSelf = weakSelf;
+        if (!strongSelf) {
+          return;
+        }
+        [strongSelf handleDownloadRecordsResult:std::move(records)
+                                    showLoading:showLoading];
+      }));
+}
+
+// Handles the result from GetAllDownloadsAsync by filtering and updating the
+// UI.
+- (void)handleDownloadRecordsResult:(std::vector<DownloadRecord>)records
+                        showLoading:(BOOL)showLoading {
+  // Filter incognito records at the data source level.
+  // If current session is not incognito, filter out incognito records.
+  std::vector<DownloadRecord> filteredByIncognito;
+  for (const auto& record : records) {
+    if (_isIncognito || !record.is_incognito) {
+      filteredByIncognito.push_back(record);
+    }
+  }
+
+  self.allRecords = std::move(filteredByIncognito);
+  std::vector<DownloadRecord> recordsToDisplay =
+      [self applyFilterWithTypeAndKeyword:self.allRecords];
+
+  // Update cache.
+  self.filteredRecordsCache = recordsToDisplay;
+  if (showLoading) {
+    [self.consumer setLoadingState:NO];
+  }
+  [self setDownloadListItems:recordsToDisplay];
+}
 
 // Applies the current filter type and keyword to the given records.
 - (std::vector<DownloadRecord>)applyFilterWithTypeAndKeyword:
@@ -245,12 +291,12 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
   std::vector<DownloadRecord> filteredRecords;
 
   for (const auto& record : records) {
-    // Apply filter type check
+    // Apply filter type check.
     BOOL matchesFilter =
         (_currentFilterType == DownloadFilterType::kAll) ||
         IsDownloadFilterMatch(record.mime_type, _currentFilterType);
 
-    // Apply keyword search check
+    // Apply keyword search check.
     BOOL matchesSearch = [self record:record
                        matchesKeyword:_currentSearchKeyword];
 
@@ -264,7 +310,7 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
 
 // Updates the consumer with the current download records.
 - (void)updateConsumer {
-  [self loadDownloadRecords];
+  [self loadDownloadRecordsWithLoading:NO];
 }
 
 // Handles the application did become active notification.
@@ -291,7 +337,6 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
     [items addObject:item];
   }
   [self.consumer setDownloadListItems:items.copy];
-  [self.consumer setLoadingState:NO];
   [self.consumer setEmptyState:(items.count == 0)];
 }
 
@@ -387,6 +432,21 @@ using base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents;
   }
 
   return filteredRecords;
+}
+
+// Checks if any of the provided download IDs exist in cached allRecords.
+- (BOOL)containsRecordsWithIDs:(NSArray<NSString*>*)downloadIDs {
+  // Create NSSet from downloadIDs for O(1) lookup time
+  NSSet<NSString*>* downloadIDSet = [NSSet setWithArray:downloadIDs];
+
+  // Loop through self.allRecords and check for set membership
+  for (const auto& record : self.allRecords) {
+    NSString* recordID = base::SysUTF8ToNSString(record.download_id);
+    if ([downloadIDSet containsObject:recordID]) {
+      return YES;
+    }
+  }
+  return NO;
 }
 
 // Invalidates the search cache when filter type changes.

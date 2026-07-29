@@ -186,19 +186,6 @@ class IpProtectionTelemetry {
   // Whether updating the MDL via component updater was successful.
   virtual void MdlUpdateSuccess(bool success) = 0;
 
-  // Time taken to create an Android IP Protection auth client, including
-  // binding to the system-provided auth service.
-  virtual void AndroidAuthClientCreationTime(base::TimeDelta duration) = 0;
-
-  // Time taken to perform a successful GetInitialData request via
-  // the Android auth client/service.
-  virtual void AndroidAuthClientGetInitialDataTime(
-      base::TimeDelta duration) = 0;
-
-  // Time taken to perform a successful AuthAndSign request via
-  // the Android auth client/service.
-  virtual void AndroidAuthClientAuthAndSignTime(base::TimeDelta duration) = 0;
-
   // Delay between the MDL manager being created and UpdateMaskedDomainList
   // first being called.
   virtual void MdlFirstUpdateTime(base::TimeDelta duration) = 0;
@@ -231,6 +218,10 @@ class IpProtectionTelemetry {
   virtual void RecordTokenCountEvent(ProxyLayer layer,
                                      IpProtectionTokenCountEvent event,
                                      int count) = 0;
+
+  // Records the number of tokens that were demanded while a token fetch was in
+  // flight.
+  virtual void TokenDemandDuringBatchGeneration(int count) = 0;
 };
 
 // Get the singleton instance of this type. This will be implemented by each

@@ -181,6 +181,13 @@ bool IsAccessibilityOnScreenAXModeEnabled() {
 }
 
 #if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kAccessibilityWinAXFragmentRootParent,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+bool IsAccessibilityWinAXFragmentRootParentEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityWinAXFragmentRootParent);
+}
+
 BASE_FEATURE(kFixNarratorWebContentContainment,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -354,6 +361,14 @@ bool IsAccessibilityInlineLineSeparatorsEnabled() {
       ::features::kAccessibilityInlineLineSeparators);
 }
 
+BASE_FEATURE(kAccessibilityMagnificationFollowsInputFocus,
+             "AccessibilityMagnificationFollowsInputFocus",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsAccessibilityMagnificationFollowsInputEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityMagnificationFollowsInputFocus);
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -501,5 +516,11 @@ bool IsWasmTtsEngineAutoInstallDisabled() {
       ::features::kWasmTtsEngineAutoInstallDisabled);
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+BASE_FEATURE(kAccessibilityHitTestPointCopy, base::FEATURE_ENABLED_BY_DEFAULT);
+bool IsAccessibilityHitTestPointCopyEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kAccessibilityHitTestPointCopy);
+}
 
 }  // namespace features

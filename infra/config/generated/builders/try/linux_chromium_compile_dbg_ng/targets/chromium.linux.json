@@ -1683,6 +1683,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test:telemetry_perf_unittests",
+        "module_scheme": "pyunit",
         "name": "telemetry_perf_unittests",
         "resultdb": {
           "enable": true
@@ -1707,6 +1708,7 @@
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
         "module_name": "//chrome/test:telemetry_unittests",
+        "module_scheme": "pyunit",
         "name": "telemetry_unittests",
         "resultdb": {
           "enable": true
@@ -1733,6 +1735,7 @@
           "script": "//tools/perf/process_perf_results.py"
         },
         "module_name": "//ui/views:views_perftests",
+        "module_scheme": "single",
         "name": "views_perftests",
         "swarming": {
           "dimensions": {

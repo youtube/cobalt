@@ -875,32 +875,6 @@ bool ExtensionTabUtil::GetTabById(int tab_id,
                      : nullptr)
           : nullptr;
 
-#if BUILDFLAG(IS_ANDROID)
-  // TODO(crbug.com/419057482): Remove this when we have a cross-platform window
-  // interface. Right now Android does not generate WindowController instances.
-  for (const TabModel* const tab_model : TabModelList::models()) {
-    if (tab_model->GetProfile() != profile &&
-        tab_model->GetProfile() != incognito_profile) {
-      continue;
-    }
-    for (int i = 0; i < tab_model->GetTabCount(); ++i) {
-      WebContents* contents = tab_model->GetWebContentsAt(i);
-      if (!contents) {
-        continue;
-      }
-      if (sessions::SessionTabHelper::IdForTab(contents).id() != tab_id) {
-        continue;
-      }
-      if (out_contents) {
-        *out_contents = contents;
-      }
-      if (out_tab_index) {
-        *out_tab_index = i;
-      }
-      return true;
-    }
-  }
-#else
   for (WindowController* window : *WindowControllerList::GetInstance()) {
     if (window->profile() != profile &&
         window->profile() != incognito_profile) {
@@ -923,7 +897,6 @@ bool ExtensionTabUtil::GetTabById(int tab_id,
       }
     }
   }
-#endif  // BUILDFLAG(IS_ANDROID)
 
   // Prerendering tab is not visible and it cannot be in `TabStripModel`, if the
   // tab id exists as a prerendering tab, and the API will returns
@@ -1568,41 +1541,6 @@ TabStripModel* ExtensionTabUtil::GetEditableTabStripModel(Browser* browser) {
   if (!IsTabStripEditable())
     return nullptr;
   return browser->tab_strip_model();
-}
-
-// static
-bool ExtensionTabUtil::TabIsInSavedTabGroup(content::WebContents* contents,
-                                            TabStripModel* tab_strip_model) {
-  // If the tab_strip_model is empty, find the contents in one of the browsers.
-  if (!tab_strip_model) {
-    CHECK(contents);
-    Browser* browser = chrome::FindBrowserWithTab(contents);
-
-    // if the webcontents isn't in any tabstrip, its not in a saved tab group.
-    if (!browser) {
-      return false;
-    }
-    tab_strip_model = browser->tab_strip_model();
-  }
-
-  tab_groups::TabGroupSyncService* tab_group_service =
-      tab_groups::TabGroupSyncServiceFactory::GetForProfile(
-          tab_strip_model->profile());
-
-  // If the service failed to start, then there are no saved tab groups.
-  if (!tab_group_service) {
-    return false;
-  }
-
-  // If the tab is not in a group, then its not going to be in a saved group.
-  int index = tab_strip_model->GetIndexOfWebContents(contents);
-  std::optional<tab_groups::TabGroupId> tab_group_id =
-      tab_strip_model->GetTabGroupForTab(index);
-  if (!tab_group_id.has_value()) {
-    return false;
-  }
-
-  return tab_group_service->GetGroup(tab_group_id.value()).has_value();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

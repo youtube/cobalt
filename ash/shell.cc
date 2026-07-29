@@ -85,8 +85,8 @@
 #include "ash/focus/ash_focus_rules.h"
 #include "ash/focus/focus_cycler.h"
 #include "ash/focus/shutdown_focus_rules.h"
+#include "ash/frame/frame_view_ash.h"
 #include "ash/frame/multitask_menu_nudge_delegate_ash.h"
-#include "ash/frame/non_client_frame_view_ash.h"
 #include "ash/frame/snap_controller_impl.h"
 #include "ash/frame_throttler/frame_throttling_controller.h"
 #include "ash/game_dashboard/game_dashboard_controller.h"
@@ -109,7 +109,7 @@
 #include "ash/metrics/unlock_throughput_recorder.h"
 #include "ash/metrics/user_metrics_recorder.h"
 #include "ash/multi_device_setup/multi_device_notification_presenter.h"
-#include "ash/multi_user/multi_user_window_manager_impl.h"
+#include "ash/multi_user/multi_user_window_manager.h"
 #include "ash/policy/policy_recommendation_restorer.h"
 #include "ash/projector/projector_controller_impl.h"
 #include "ash/public/cpp/accelerator_keycode_lookup_cache.h"
@@ -502,10 +502,10 @@ void Shell::UntrackTrackInputMethodBounds(
       ->RemoveInputMethodBoundsTrackerObserver(tracker);
 }
 
-std::unique_ptr<views::NonClientFrameView>
-Shell::CreateDefaultNonClientFrameView(views::Widget* widget) {
+std::unique_ptr<views::FrameView> Shell::CreateDefaultFrameView(
+    views::Widget* widget) {
   // Use translucent-style window frames for dialogs.
-  return std::make_unique<NonClientFrameViewAsh>(widget);
+  return std::make_unique<FrameViewAsh>(widget);
 }
 
 void Shell::OnCastingSessionStartedOrStopped(bool started) {
@@ -686,7 +686,7 @@ void Shell::RemoveAccessibilityEventHandler(ui::EventHandler* handler) {
 void Shell::RecreateMultiUserWindowManagerForTesting() {
   // Destroy the object before instantiating the next one explicitly.
   multi_user_window_manager_.reset();
-  multi_user_window_manager_ = std::make_unique<MultiUserWindowManagerImpl>();
+  multi_user_window_manager_ = std::make_unique<MultiUserWindowManager>();
 }
 
 WebAuthNDialogController* Shell::webauthn_dialog_controller() {
@@ -1344,7 +1344,7 @@ void Shell::Init(
   peripheral_battery_notifier_ = std::make_unique<PeripheralBatteryNotifier>(
       peripheral_battery_listener_.get());
   power_event_observer_ = std::make_unique<PowerEventObserver>();
-  multi_user_window_manager_ = std::make_unique<MultiUserWindowManagerImpl>();
+  multi_user_window_manager_ = std::make_unique<MultiUserWindowManager>();
   window_cycle_controller_ = std::make_unique<WindowCycleController>();
 
   capture_mode_controller_ = std::make_unique<CaptureModeController>(

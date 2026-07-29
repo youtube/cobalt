@@ -13,7 +13,6 @@ import android.view.View;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.jank_tracker.JankTracker;
 import org.chromium.base.supplier.DestroyableObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplier;
@@ -21,6 +20,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.download.home.DownloadPage;
+import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.BookmarkPage;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsMarginSupplier;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -76,7 +76,6 @@ public class NativePageFactory {
     private final TabModelSelector mTabModelSelector;
     private final Supplier<ShareDelegate> mShareDelegateSupplier;
     private final WindowAndroid mWindowAndroid;
-    private final JankTracker mJankTracker;
     private final Supplier<Toolbar> mToolbarSupplier;
     private final @Nullable HomeSurfaceTracker mHomeSurfaceTracker;
     private final ObservableSupplier<TabContentManager> mTabContentManagerSupplier;
@@ -89,6 +88,7 @@ public class NativePageFactory {
 
     private @Nullable NativePageBuilder mNativePageBuilder;
     private static @Nullable NativePage sTestPage;
+    private final BackPressManager mBackPressManager;
 
     public NativePageFactory(
             Activity activity,
@@ -100,7 +100,6 @@ public class NativePageFactory {
             TabModelSelector tabModelSelector,
             Supplier<ShareDelegate> shareDelegateSupplier,
             WindowAndroid windowAndroid,
-            JankTracker jankTracker,
             Supplier<Toolbar> toolbarSupplier,
             @Nullable HomeSurfaceTracker homeSurfaceTracker,
             ObservableSupplier<TabContentManager> tabContentManagerSupplier,
@@ -108,7 +107,8 @@ public class NativePageFactory {
             OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
             ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
-            StartupMetricsTracker startupMetricsTracker) {
+            StartupMetricsTracker startupMetricsTracker,
+            BackPressManager backPressManager) {
         mActivity = activity;
         mBottomSheetController = sheetController;
         mBrowserControlsManager = browserControlsManager;
@@ -118,7 +118,6 @@ public class NativePageFactory {
         mTabModelSelector = tabModelSelector;
         mShareDelegateSupplier = shareDelegateSupplier;
         mWindowAndroid = windowAndroid;
-        mJankTracker = jankTracker;
         mToolbarSupplier = toolbarSupplier;
         mHomeSurfaceTracker = homeSurfaceTracker;
         mTabContentManagerSupplier = tabContentManagerSupplier;
@@ -127,6 +126,7 @@ public class NativePageFactory {
         mEdgeToEdgeControllerSupplier = edgeToEdgeControllerSupplier;
         mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
         mStartupMetricsTracker = startupMetricsTracker;
+        mBackPressManager = backPressManager;
     }
 
     private NativePageBuilder getBuilder() {
@@ -143,7 +143,6 @@ public class NativePageFactory {
                             mTabModelSelector,
                             mShareDelegateSupplier,
                             mWindowAndroid,
-                            mJankTracker,
                             mToolbarSupplier,
                             mHomeSurfaceTracker,
                             mTabContentManagerSupplier,
@@ -151,7 +150,8 @@ public class NativePageFactory {
                             mModuleRegistrySupplier,
                             mEdgeToEdgeControllerSupplier,
                             mTopInsetCoordinatorSupplier,
-                            mStartupMetricsTracker);
+                            mStartupMetricsTracker,
+                            mBackPressManager);
         }
         return mNativePageBuilder;
     }
@@ -176,7 +176,6 @@ public class NativePageFactory {
         private final TabModelSelector mTabModelSelector;
         private final Supplier<ShareDelegate> mShareDelegateSupplier;
         private final WindowAndroid mWindowAndroid;
-        private final JankTracker mJankTracker;
         private final Supplier<Toolbar> mToolbarSupplier;
         private final @Nullable HomeSurfaceTracker mHomeSurfaceTracker;
         private final ObservableSupplier<TabContentManager> mTabContentManagerSupplier;
@@ -185,6 +184,7 @@ public class NativePageFactory {
         private final ObservableSupplier<EdgeToEdgeController> mEdgeToEdgeControllerSupplier;
         private final ObservableSupplier<TopInsetCoordinator> mTopInsetCoordinatorSupplier;
         private final StartupMetricsTracker mStartupMetricsTracker;
+        private final BackPressManager mBackPressManager;
 
         public NativePageBuilder(
                 Activity activity,
@@ -197,7 +197,6 @@ public class NativePageFactory {
                 TabModelSelector tabModelSelector,
                 Supplier<ShareDelegate> shareDelegateSupplier,
                 WindowAndroid windowAndroid,
-                JankTracker jankTracker,
                 Supplier<Toolbar> toolbarSupplier,
                 @Nullable HomeSurfaceTracker homeSurfaceTracker,
                 ObservableSupplier<TabContentManager> tabContentManagerSupplier,
@@ -205,7 +204,8 @@ public class NativePageFactory {
                 OneshotSupplier<ModuleRegistry> moduleRegistrySupplier,
                 ObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
                 ObservableSupplier<TopInsetCoordinator> topInsetCoordinatorSupplier,
-                StartupMetricsTracker startupMetricsTracker) {
+                StartupMetricsTracker startupMetricsTracker,
+                BackPressManager backPressManager) {
             mActivity = activity;
             mNewTabPageCreationTracker = newTabPageCreationTracker;
             mBottomSheetController = sheetController;
@@ -216,7 +216,6 @@ public class NativePageFactory {
             mTabModelSelector = tabModelSelector;
             mShareDelegateSupplier = shareDelegateSupplier;
             mWindowAndroid = windowAndroid;
-            mJankTracker = jankTracker;
             mToolbarSupplier = toolbarSupplier;
             mHomeSurfaceTracker = homeSurfaceTracker;
             mTabContentManagerSupplier = tabContentManagerSupplier;
@@ -225,6 +224,7 @@ public class NativePageFactory {
             mEdgeToEdgeControllerSupplier = edgeToEdgeControllerSupplier;
             mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
             mStartupMetricsTracker = startupMetricsTracker;
+            mBackPressManager = backPressManager;
         }
 
         protected NativePage buildNewTabPage(Tab tab, String url) {
@@ -255,7 +255,6 @@ public class NativePageFactory {
                     mBottomSheetController,
                     mShareDelegateSupplier,
                     mWindowAndroid,
-                    mJankTracker,
                     mToolbarSupplier,
                     mHomeSurfaceTracker,
                     mTabContentManagerSupplier,
@@ -275,7 +274,8 @@ public class NativePageFactory {
                             mBrowserControlsManager,
                             mTabModelSelector,
                             mEdgeToEdgeControllerSupplier),
-                    mActivity.getComponentName());
+                    mActivity.getComponentName(),
+                    mBackPressManager);
         }
 
         protected NativePage buildDownloadsPage(Tab tab) {

@@ -75,7 +75,7 @@ class UserActivityPowerManagerNotifier;
 }  // namespace ui
 
 namespace views {
-class NonClientFrameView;
+class FrameView;
 class Widget;
 namespace corewm {
 class TooltipController;
@@ -379,9 +379,9 @@ class ASH_EXPORT Shell : public SessionObserver,
   void TrackInputMethodBounds(ArcInputMethodBoundsTracker* tracker);
   void UntrackTrackInputMethodBounds(ArcInputMethodBoundsTracker* tracker);
 
-  // Creates a default views::NonClientFrameView for use by windows in the
+  // Creates a default views::FrameView for use by windows in the
   // Ash environment.
-  std::unique_ptr<views::NonClientFrameView> CreateDefaultNonClientFrameView(
+  std::unique_ptr<views::FrameView> CreateDefaultFrameView(
       views::Widget* widget);
 
   // Called when a casting session is started or stopped.

@@ -32,7 +32,6 @@
 #include "media/video/video_encode_accelerator.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "media/gpu/android/android_video_encode_accelerator.h"
 #include "media/gpu/android/ndk_video_encode_accelerator.h"
 #endif
 #if BUILDFLAG(IS_MAC)
@@ -75,14 +74,8 @@ std::unique_ptr<VideoEncodeAccelerator> CreateVaapiVEA() {
 
 #if BUILDFLAG(IS_ANDROID)
 std::unique_ptr<VideoEncodeAccelerator> CreateAndroidVEA() {
-  if (__builtin_available(android NDK_MEDIA_CODEC_MIN_API, *)) {
-    return base::WrapUnique<VideoEncodeAccelerator>(
-        new NdkVideoEncodeAccelerator(
-            base::SequencedTaskRunner::GetCurrentDefault()));
-  } else {
-    return base::WrapUnique<VideoEncodeAccelerator>(
-        new AndroidVideoEncodeAccelerator());
-  }
+  return base::WrapUnique<VideoEncodeAccelerator>(new NdkVideoEncodeAccelerator(
+      base::SequencedTaskRunner::GetCurrentDefault()));
 }
 #endif
 
@@ -130,8 +123,13 @@ std::unique_ptr<VideoEncodeAccelerator> CreateD3D12VEA(
     LOG(ERROR) << "Failed to get an adapter by LUID";
     return nullptr;
   }
+  ComD3D12Device d3d12_device = CreateD3D12Device(adapter.Get());
+  if (!d3d12_device) {
+    LOG(ERROR) << "Failed to create D3D12 device";
+    return nullptr;
+  }
   return base::WrapUnique<VideoEncodeAccelerator>(
-      new D3D12VideoEncodeAccelerator(CreateD3D12Device(adapter.Get()),
+      new D3D12VideoEncodeAccelerator(std::move(d3d12_device),
                                       gpu_workarounds));
 }
 #endif

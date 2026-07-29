@@ -9,6 +9,7 @@
 #import "ios/chrome/browser/omnibox/public/omnibox_ui_features.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_field_ios.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_text_input.h"
+#import "ios/chrome/browser/omnibox/ui/omnibox_text_view_ios.h"
 #import "ios/chrome/browser/omnibox/ui/omnibox_thumbnail_button.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -46,6 +47,8 @@ const CGFloat kLeadingImageTrailingMarginLensOverlay = 9;
 
 /// Space between the clear button and the edge of the omnibox.
 const CGFloat kTextInputViewClearButtonTrailingOffset = 4;
+/// The maximum number of lines for the text view before it starts scrolling.
+const int kMaxLines = 3;
 
 /// Clear button inset on all sides.
 const CGFloat kClearButtonInset = 4.0f;
@@ -53,21 +56,10 @@ const CGFloat kClearButtonInset = 4.0f;
 const CGFloat kClearButtonImageSize = 17.0f;
 const CGFloat kClearButtonSize = 28.0f;
 
-/// Creates and configures the text field.
-UIView<OmniboxTextInput>* CreateTextInput(
-    CGRect frame,
-    UIColor* text_color,
-    UIColor* tint_color,
-    OmniboxPresentationContext presentation_context) {
-  OmniboxTextFieldIOS* text_field =
-      [[OmniboxTextFieldIOS alloc] initWithFrame:frame
-                                       textColor:text_color
-                                       tintColor:tint_color
-                             presentationContext:presentation_context];
-  text_field.translatesAutoresizingMaskIntoConstraints = NO;
-  // Do not use the system clear button. Use a custom view instead.
-  text_field.clearButtonMode = UITextFieldViewModeNever;
-  return text_field;
+/// Whether the omnibox is using the text view instead of the text field.
+bool UseTextView(OmniboxPresentationContext presentation_context) {
+  return base::FeatureList::IsEnabled(kIOSOmniboxUseTextView) &&
+         presentation_context == OmniboxPresentationContext::kAIMPrototype;
 }
 
 /// Creates and configures the leading image view.
@@ -131,7 +123,7 @@ UIButton* CreateClearButton() {
 
 #pragma mark - OmniboxContainerView
 
-@interface OmniboxContainerView ()
+@interface OmniboxContainerView () <OmniboxTextViewHeightDelegate>
 
 // Redefined as readwrite.
 @property(nonatomic, strong) UIButton* clearButton;
@@ -145,6 +137,8 @@ UIButton* CreateClearButton() {
   OmniboxThumbnailButton* _thumbnailButton;
   // The text input view.
   UIView<OmniboxTextInput>* _textInputView;
+  // Stores the text view for height adjustment.
+  OmniboxTextViewIOS* _textView;
 
   /// The context in which the omnibox is presented.
   OmniboxPresentationContext _presentationContext;
@@ -155,6 +149,8 @@ UIButton* CreateClearButton() {
   // The constraint for the textfield's leading anchor when the thumbnail is
   // hidden.
   NSLayoutConstraint* _textInputViewLeadingToIconConstraint;
+  // Text input height constraint.
+  NSLayoutConstraint* _textInputHeightConstraint;
 }
 
 #pragma mark - Public
@@ -167,13 +163,12 @@ UIButton* CreateClearButton() {
   self = [super initWithFrame:frame];
   if (self) {
     _presentationContext = presentationContext;
-    _textInputView =
-        CreateTextInput(frame, textColor, textInputTint, presentationContext);
     _leadingImageView = CreateLeadingImageView(iconTint);
     self.clearButton = CreateClearButton();
+    [self createAndAddTextInputViewWithTextColor:textColor
+                                   textInputTint:textInputTint];
 
     [self addSubview:_leadingImageView];
-    [self addSubview:_textInputView];
     [self addSubview:self.clearButton];
 
     // Constraints.
@@ -183,6 +178,9 @@ UIButton* CreateClearButton() {
                                             UILayoutConstraintAxisHorizontal];
     [_textInputView setContentHuggingPriority:UILayoutPriorityDefaultLow
                                       forAxis:UILayoutConstraintAxisHorizontal];
+
+    NSLayoutAnchor* referenceCenterYAnchor =
+        _textInputView.viewForVerticalAlignment.centerYAnchor;
 
     CGFloat leadingImageLeadingOffset =
         _presentationContext == OmniboxPresentationContext::kLensOverlay
@@ -194,11 +192,11 @@ UIButton* CreateClearButton() {
           constraintEqualToAnchor:self.leadingAnchor
                          constant:leadingImageLeadingOffset],
       [_leadingImageView.centerYAnchor
-          constraintEqualToAnchor:self.centerYAnchor],
+          constraintEqualToAnchor:referenceCenterYAnchor],
       [_textInputView.topAnchor constraintEqualToAnchor:self.topAnchor],
       [_textInputView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
       [self.clearButton.centerYAnchor
-          constraintEqualToAnchor:self.centerYAnchor],
+          constraintEqualToAnchor:referenceCenterYAnchor],
       [self.clearButton.trailingAnchor
           constraintEqualToAnchor:self.trailingAnchor
                          constant:-kTextInputViewClearButtonTrailingOffset],
@@ -215,7 +213,7 @@ UIButton* CreateClearButton() {
             constraintEqualToAnchor:_leadingImageView.trailingAnchor
                            constant:kThumbnailImageLeadingMargin],
         [_thumbnailButton.centerYAnchor
-            constraintEqualToAnchor:self.centerYAnchor],
+            constraintEqualToAnchor:referenceCenterYAnchor]
       ]];
 
       // The textInputView can be anchored to the thumbnail (if visible) or the
@@ -285,10 +283,74 @@ UIButton* CreateClearButton() {
   return _textInputView;
 }
 
+- (void)updateTextViewHeight {
+  if (!_textView) {
+    return;
+  }
+  // Recalculate textView height and update it to clip and scroll if necessary.
+  CGFloat verticalPadding =
+      _textView.textContainerInset.top + _textView.textContainerInset.bottom;
+  CGFloat maxHeight = (_textView.font.lineHeight * kMaxLines) + verticalPadding;
+  CGSize size = [_textView
+      sizeThatFits:CGSizeMake(_textView.frame.size.width, CGFLOAT_MAX)];
+  CGFloat newHeight = MIN(size.height, maxHeight);
+  if (!_textInputHeightConstraint) {
+    _textInputHeightConstraint =
+        [_textView.heightAnchor constraintEqualToConstant:newHeight];
+    _textInputHeightConstraint.active = YES;
+  } else {
+    _textInputHeightConstraint.constant = newHeight;
+  }
+  _textView.scrollEnabled = size.height > maxHeight;
+}
+
 #pragma mark - TextFieldViewContaining
 
 - (UIView*)textFieldView {
   return _textInputView;
+}
+
+#pragma mark - Private
+
+/// Creates the text input view and adds it to the view hierarchy.
+- (void)createAndAddTextInputViewWithTextColor:(UIColor*)textColor
+                                 textInputTint:(UIColor*)textInputTint {
+  if (UseTextView(_presentationContext)) {
+    OmniboxTextViewIOS* textView =
+        [[OmniboxTextViewIOS alloc] initWithFrame:CGRectZero
+                                        textColor:textColor
+                                        tintColor:textInputTint
+                              presentationContext:_presentationContext];
+    textView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:textView];
+    // The placeholder must be added as a sibling to the textview. Constraints
+    // are handled internally in the text view.
+    UILabel* placeholderLabel = [[UILabel alloc] init];
+    placeholderLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:placeholderLabel];
+    textView.placeholderLabel = placeholderLabel;
+    textView.heightDelegate = self;
+    _textView = textView;
+    _textInputView = textView;
+    [self updateTextViewHeight];
+  } else {
+    OmniboxTextFieldIOS* textField =
+        [[OmniboxTextFieldIOS alloc] initWithFrame:CGRectZero
+                                         textColor:textColor
+                                         tintColor:textInputTint
+                               presentationContext:_presentationContext];
+    // Do not use the system clear button. Use a custom view instead.
+    textField.clearButtonMode = UITextFieldViewModeNever;
+    textField.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:textField];
+    _textInputView = textField;
+  }
+}
+
+#pragma mark - OmniboxTextViewHeightDelegate
+
+- (void)textViewContentChanged:(OmniboxTextViewIOS*)textView {
+  [self updateTextViewHeight];
 }
 
 @end

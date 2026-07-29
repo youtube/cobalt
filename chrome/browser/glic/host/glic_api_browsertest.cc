@@ -23,6 +23,7 @@
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/metrics/user_action_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
@@ -120,6 +121,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicApiTestWithDefaultTabContextEnabled",
       "GlicApiTestWithMqlsIdGetterEnabled",
       "GlicApiTestWithMqlsIdGetterDisabled",
+      "GlicApiTestRuntimeFeatureOff",
   };
 }
 
@@ -161,6 +163,7 @@ class GlicApiTestWithOneTab : public GlicApiTest {
     GlicApiTest::SetUpOnMainThread();
 
     histogram_tester = std::make_unique<base::HistogramTester>();
+    user_action_tester = std::make_unique<base::UserActionTester>();
     // Load the test page in a tab, so that there is some page context.
     RunTestSequence(InstrumentTab(kFirstTab),
                     NavigateWebContents(kFirstTab, page_url()),
@@ -186,6 +189,7 @@ class GlicApiTestWithOneTab : public GlicApiTest {
   }
 
   std::unique_ptr<base::HistogramTester> histogram_tester;
+  std::unique_ptr<base::UserActionTester> user_action_tester;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -432,8 +436,9 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testInitializeFailsWindowClosed) {
   window_controller().Close();
   ExecuteJsTest();
   WaitForWebUiState(mojom::WebUiState::kError);
-  histogram_tester.ExpectUniqueSample("Glic.Host.WebClientState.OnDestroy",
-                                      /*WEB_CLIENT_INITIALIZE_FAILED=*/2, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Glic.Host.WebClientState.OnDestroy",
+      /*sample=*/2 /*WEB_CLIENT_INITIALIZE_FAILED*/, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testInitializeFailsWindowOpen) {
@@ -631,7 +636,12 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithFastTimeout, testInitializeTimesOut) {
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testRequestHeader) {
   RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
                                  GlicInstrumentMode::kHostAndContents));
-  ExecuteJsTest();
+  const GURL cross_origin_rpc_url =
+      embedded_test_server()->GetURL("b.com", "/fake-rpc/cors");
+  ExecuteJsTest({.params = base::Value(base::Value::Dict().Set(
+      "rpcUrls", base::Value::List()
+                     .Append("/fake-rpc")
+                     .Append(cross_origin_rpc_url.spec())))});
 
   auto request_header_matcher =
       testing::AllOf(Contains(Pair("x-glic", "1")),
@@ -641,19 +651,26 @@ IN_PROC_BROWSER_TEST_F(GlicApiTest, testRequestHeader) {
                      Contains(Pair("x-glic-chrome-version",
                                    version_info::GetVersionNumber())));
 
-  auto main_request = std::ranges::find_if(
-      embedded_test_server_requests_, [&](const auto& request) {
-        return request.GetURL().path() == GetGuestURL().path();
-      });
-  ASSERT_NE(main_request, embedded_test_server_requests_.end());
+  auto find_request = [&](std::string_view path) {
+    const auto it = std::ranges::find_if(
+        embedded_test_server_requests_, [&](const auto& request) {
+          return request.GetURL().path() == path &&
+              request.method == net::test_server::METHOD_GET;
+        });
+    return it == embedded_test_server_requests_.end() ? nullptr : &(*it);
+  };
+
+  auto* main_request = find_request(GetGuestURL().path());
+  ASSERT_TRUE(main_request);
   EXPECT_THAT(main_request->headers, request_header_matcher);
 
-  auto rpc_request = std::ranges::find_if(
-      embedded_test_server_requests_, [&](const auto& request) {
-        return request.GetURL().path() == "/fake-rpc";
-      });
-  ASSERT_NE(rpc_request, embedded_test_server_requests_.end());
+  auto* rpc_request = find_request("/fake-rpc");
+  ASSERT_TRUE(rpc_request);
   EXPECT_THAT(rpc_request->headers, request_header_matcher);
+
+  auto* cross_origin_rpc_request = find_request("/fake-rpc/cors");
+  ASSERT_TRUE(cross_origin_rpc_request);
+  EXPECT_THAT(cross_origin_rpc_request->headers, request_header_matcher);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTest, testCreateTab) {
@@ -744,6 +761,54 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testOpenGlicSettingsPage) {
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testClosePanel) {
   ExecuteJsTest();
   RunTestSequence(WaitForHide(kGlicViewElementId));
+}
+
+class GlicApiTestRuntimeFeatureOff : public GlicApiTestWithOneTab {
+ public:
+  GlicApiTestRuntimeFeatureOff() {
+    with_feature_off_.InitAndDisableFeature(
+        mojom::features::kGlicAppendModelQualityClientId);
+  }
+
+ private:
+  base::test::ScopedFeatureList with_feature_off_;
+};
+
+// This tests what happens when a mojom RuntimeFeature method is called by
+// the host.
+// DONT DELETE THIS TEST when the method being called here is removed,
+// but instead update this test to call any other RuntimeFeature-protected
+// method.
+IN_PROC_BROWSER_TEST_F(GlicApiTestRuntimeFeatureOff,
+                       testErrorShownOnMojoPipeError) {
+  ExecuteJsTest();
+
+  auto* web_contents = FindGlicWebUIContents();
+  // Reach in to `GlicApiHost`'s handler to call a function that's gated by
+  // a disabled feature.
+  const char* script = R"js(
+(()=>{
+  if (!appController.webview.host.handler.getModelQualityClientId) {
+    return "Method not found";
+  }
+  appController.webview.host.handler.getModelQualityClientId();
+  return "Method called";
+})()
+)js";
+  auto result = content::EvalJs(web_contents->GetPrimaryMainFrame(), script);
+  ASSERT_EQ("Method called", result.ExtractString());
+
+  WaitForWebUiState(mojom::WebUiState::kError);
+  histogram_tester->ExpectUniqueSample("Glic.Host.WebClientState.OnDestroy",
+                                       9 /*MOJO_PIPE_CLOSED_UNEXPECTEDLY*/, 1);
+
+  // Verify the reload button works.
+  RunTestSequence(ExecuteJsAt(
+      test::kGlicHostElementId, {"#reload"}, "(el)=>el.click()",
+      InteractiveBrowserTestApi::ExecuteJsMode::kWaitForCompletion));
+
+  WaitForWebUiState(mojom::WebUiState::kReady);
+  ExecuteJsTest();
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testShowProfilePicker) {
@@ -1119,13 +1184,8 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testJournal) {
   ExecuteJsTest();
 }
 
-// TODO(crbug.com/438812885): This is flaky on MSAN.
-#if defined(SLOW_BINARY)
-#define MAYBE_testMetrics DISABLED_testMetrics
-#else
-#define MAYBE_testMetrics testMetrics
-#endif
-IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, MAYBE_testMetrics) {
+// TODO(crbug.com/438812885): This is flaky.
+IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, DISABLED_testMetrics) {
   browser()->profile()->GetPrefs()->SetBoolean(
       prefs::kGlicClosedCaptioningEnabled, true);
 
@@ -1139,6 +1199,14 @@ IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, MAYBE_testMetrics) {
 
   histogram_tester->ExpectUniqueSample("Glic.Response.ClosedCaptionsShown",
                                        true, 1);
+  EXPECT_EQ(1, user_action_tester->GetActionCount("GlicContextUploadStarted"));
+  EXPECT_EQ(1,
+            user_action_tester->GetActionCount("GlicContextUploadCompleted"));
+  EXPECT_EQ(1, user_action_tester->GetActionCount("GlicReactionModelled"));
+  EXPECT_EQ(1, user_action_tester->GetActionCount("GlicResponseStopByUser"));
+  histogram_tester->ExpectTotalCount("Glic.FirstReaction.Text.Modelled.Time",
+                                     1);
+  histogram_tester->ExpectTotalCount("Glic.TabContext.UploadTime", 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicApiTestWithOneTab, testScrollToFindsText) {
@@ -1886,6 +1954,8 @@ class GlicGetHostCapabilityApiTest
   GlicGetHostCapabilityApiTest() {
     const bool enable_features = GetParam();
     if (enable_features) {
+      // TODO(b/444002499) - add features::kGlicMultiInstance when test support
+      //  enabled.
       std::vector<base::test::FeatureRefAndParams> enabled_features = {
           {features::kGlicScrollTo, {{"glic-scroll-to-pdf", "true"}}},
           {features::kGlicPanelResetSizeAndLocationOnOpen, {}}};

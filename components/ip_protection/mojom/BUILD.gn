@@ -8,12 +8,14 @@ mojom("mojom") {
   generate_java = true
   sources = [
     "core.mojom",
+    "core_test.mojom",
     "data_types.mojom",
   ]
 
   public_deps = [
     "//mojo/public/mojom/base",
     "//services/network/public/mojom:mojom_network_param",
+    "//url/mojom:url_mojom_gurl"
   ]
   cpp_typemaps = [
     {

@@ -23,9 +23,7 @@ namespace {
 
 // Processed terminated by RenderProcessHost::Cleanup() is marked as
 // normal_termination in ChildExitObserver::TerminationInfo.
-BASE_FEATURE(kCleanupToBeNormalTermination,
-             "CleanupToBeNormalTermination",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCleanupToBeNormalTermination, base::FEATURE_DISABLED_BY_DEFAULT);
 
 void PopulateTerminationInfo(
     const content::ChildProcessTerminationInfo& content_info,
@@ -39,6 +37,8 @@ void PopulateTerminationInfo(
   info->renderer_was_subframe = content_info.renderer_was_subframe;
   info->is_spare_renderer = content_info.is_spare_renderer;
   info->has_spare_renderer = content_info.has_spare_renderer;
+  info->last_spare_renderer_creation_info =
+      content_info.last_spare_renderer_creation_info;
 }
 
 }  // namespace

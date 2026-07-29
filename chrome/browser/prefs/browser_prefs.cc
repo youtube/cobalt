@@ -1160,6 +1160,9 @@ constexpr char kObsoleteUpmAutoExportCsvNeedsDeletion[] =
 constexpr char kGaiaCookieLastListAccountsData[] =
     "gaia_cookie.last_list_accounts_data";
 
+constexpr char kRendererCodeIntegrityEnabledNeedsDeletion[] =
+    "renderer_code_integrity_enabled";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1284,6 +1287,10 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(
       kAutoScreenBrightnessMetricsUnsupportedAlsUserAdjustmentCount, 0);
 #endif
+
+  // Deprecated 09/2025.
+  registry->RegisterBooleanPref(kRendererCodeIntegrityEnabledNeedsDeletion,
+                                false);
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
@@ -1725,6 +1732,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   metrics::RegisterDemographicsLocalStatePrefs(registry);
   metrics::TabStatsTracker::RegisterPrefs(registry);
   network_time::NetworkTimeTracker::RegisterPrefs(registry);
+  omnibox::RegisterLocalStatePrefs(registry);
   optimization_guide::prefs::RegisterLocalStatePrefs(registry);
   optimization_guide::model_execution::prefs::RegisterLocalStatePrefs(registry);
   password_manager::PasswordManager::RegisterLocalPrefs(registry);
@@ -1912,7 +1920,6 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 
 #if BUILDFLAG(IS_WIN)
   OSCrypt::RegisterLocalPrefs(registry);
-  registry->RegisterBooleanPref(prefs::kRendererCodeIntegrityEnabled, true);
   registry->RegisterBooleanPref(prefs::kRendererAppContainerEnabled, true);
   registry->RegisterBooleanPref(prefs::kBlockBrowserLegacyExtensionPoints,
                                 true);
@@ -2436,6 +2443,11 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterDictionaryPref(prefs::kReportingEndpoints);
 
   registry->RegisterBooleanPref(prefs::kViewSourceLineWrappingEnabled, false);
+
+  // TODO(crbug.com/442891187): Move these to appropriate manager files when
+  // the policies logic is implemented.
+  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
+  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
 }
 
 void RegisterUserProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
@@ -2607,6 +2619,9 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
       kAutoScreenBrightnessMetricsNocturneUserAdjustmentCount);
   local_state->ClearPref(kAutoScreenBrightnessMetricsKohakuUserAdjustmentCount);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Added 09/2025
+  local_state->ClearPref(kRendererCodeIntegrityEnabledNeedsDeletion);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS

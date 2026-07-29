@@ -82,6 +82,16 @@ constexpr char kPromotionEligibilityCheckerName[] =
 constexpr char kPasswordManagerLeakDetectionName[] =
     "password_manager_leak_detection";
 constexpr char kAndroidManagementClientName[] = "android_management_client";
+constexpr char kArcBackgroundAuthCodeFetcherName[] =
+    "arc_background_auth_code_fetcher";
+constexpr char kGcmAccountTrackerName[] = "gcm_account_tracker";
+constexpr char kPolicyTokenForwarderName[] = "policy_token_forwarder";
+constexpr char kPluginVmLicenseCheckerName[] = "plugin_vm_license_checker";
+constexpr char kDrivefsAuthName[] = "drivefs_auth";
+constexpr char kNearbyPresenceServerClientName[] =
+    "nearby_presence_server_client";
+constexpr char kCryptAuthClientName[] = "crypt_auth_client";
+constexpr char kAmbientModeName[] = "ambient_mode";
 
 }  // namespace
 
@@ -344,6 +354,43 @@ OAuthConsumer GetOAuthConsumerFromId(OAuthConsumerId oauth_consumer_id) {
           /*name=*/kAndroidManagementClientName,
           /*scopes=*/{GaiaConstants::kDeviceManagementServiceOAuth,
                       GaiaConstants::kGoogleUserInfoEmail});
+    case OAuthConsumerId::kArcBackgroundAuthCodeFetcher:
+      return OAuthConsumer(
+          /*name=*/kArcBackgroundAuthCodeFetcherName,
+          /*scopes=*/{GaiaConstants::kOAuth1LoginScope});
+    case OAuthConsumerId::kGcmAccountTracker:
+      return OAuthConsumer(
+          /*name=*/kGcmAccountTrackerName,
+          /*scopes=*/{GaiaConstants::kGCMGroupServerOAuth2Scope,
+                      GaiaConstants::kGCMCheckinServerOAuth2Scope});
+    case OAuthConsumerId::kPolicyTokenForwarder:
+      return OAuthConsumer(
+          /*name=*/kPolicyTokenForwarderName,
+          /*scopes=*/{GaiaConstants::kDeviceManagementServiceOAuth,
+                      GaiaConstants::kGoogleUserInfoEmail});
+    case OAuthConsumerId::kPluginVmLicenseChecker:
+      return OAuthConsumer(
+          /*name=*/kPluginVmLicenseCheckerName,
+          /*scopes=*/{GaiaConstants::kLicenseCheckOAuth2Scope});
+    case OAuthConsumerId::kDrivefsAuth:
+      return OAuthConsumer(
+          /*name=*/kDrivefsAuthName,
+          /*scopes=*/{GaiaConstants::kClientChannelOAuth2Scope,
+                      GaiaConstants::kDriveOAuth2Scope,
+                      GaiaConstants::kExperimentsAndConfigsOAuth2Scope});
+    case OAuthConsumerId::kNearbyPresenceServerClient:
+      return OAuthConsumer(
+          /*name=*/kNearbyPresenceServerClientName,
+          /*scopes=*/{GaiaConstants::kNearbyPresenceOAuth2Scope});
+    case OAuthConsumerId::kCryptAuthClient:
+      return OAuthConsumer(
+          /*name=*/kCryptAuthClientName,
+          /*scopes=*/{GaiaConstants::kCryptAuthOAuth2Scope});
+    case OAuthConsumerId::kAmbientMode:
+      return OAuthConsumer(
+          /*name=*/kAmbientModeName,
+          /*scopes=*/{GaiaConstants::kPhotosOAuth2Scope,
+                      GaiaConstants::kCastBackdropOAuth2Scope});
   }
   NOTREACHED();
 }

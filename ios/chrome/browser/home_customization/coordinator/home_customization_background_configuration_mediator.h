@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_configuration_mutator.h"
+#import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
 
 namespace image_fetcher {
 class ImageFetcherService;
@@ -60,11 +61,18 @@ class UserUploadedImageManager;
 // Whether this mediator has changed the theme.
 @property(nonatomic, readonly) BOOL themeHasChanged;
 
+// The outcome of the user's background selection flow.
+@property(nonatomic, readwrite, assign)
+    BackgroundSelectionOutcome backgroundSelectionOutcome;
+
 // Provide a gallery of preset background configurations to the consumer.
 - (void)loadGalleryBackgroundConfigurations;
 
 // Provide the recently used background configurations to the consumer.
 - (void)loadRecentlyUsedBackgroundConfigurations;
+
+// Provide the color background configurations to the consumer.
+- (void)loadColorBackgroundConfigurations;
 
 // Saves the currently selected theme data, if it has been changed by this
 // mediator.

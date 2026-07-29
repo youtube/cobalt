@@ -794,12 +794,9 @@ void HostResolverManager::InitializeJobKeyAndIPAddress(
     effective_types.Remove(DnsQueryType::AAAA);
   }
 
-  // Optimistically enable feature-controlled queries. These queries may be
-  // skipped at a later point.
-
-  // `https_svcb_options_.enable` has precedence, so if enabled, ignore any
-  // other related features.
-  if (https_svcb_options_.enable && out_job_key.host.HasScheme()) {
+  // Optimistically enable HTTPS record. It may be skipped at a later point.
+  if (base::FeatureList::IsEnabled(features::kUseDnsHttpsSvcb) &&
+      out_job_key.host.HasScheme()) {
     static constexpr std::string_view kSchemesForHttpsQuery[] = {
         url::kHttpScheme, url::kHttpsScheme, url::kWsScheme, url::kWssScheme};
     if (base::Contains(kSchemesForHttpsQuery, out_job_key.host.GetScheme())) {
@@ -1472,7 +1469,7 @@ bool RequestWillUseWiFi(handles::NetworkHandle network) {
 void HostResolverManager::FinishIPv6ReachabilityCheck(
     CompletionOnceCallback callback,
     int rv) {
-  SetLastIPv6ProbeResult((rv == OK) ? true : false);
+  SetLastIPv6ProbeResult(rv == OK);
   std::move(callback).Run(OK);
   if (!ipv6_request_callbacks_.empty()) {
     std::vector<CompletionOnceCallback> tmp_request_callbacks;
@@ -1513,7 +1510,7 @@ int HostResolverManager::StartIPv6ReachabilityCheck(
         base::BindOnce(&HostResolverManager::FinishIPv6ReachabilityCheck,
                        weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
     if (rv != ERR_IO_PENDING) {
-      SetLastIPv6ProbeResult((rv == OK) ? true : false);
+      SetLastIPv6ProbeResult(rv == OK);
       rv = OK;
     }
     cached = false;

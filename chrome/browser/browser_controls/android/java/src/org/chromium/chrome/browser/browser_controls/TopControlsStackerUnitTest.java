@@ -234,7 +234,7 @@ public class TopControlsStackerUnitTest {
                         /* contributesToTotalHeight= */ true,
                         100);
         mTopControlsStacker.addControl(toolbar);
-        mTopControlsStacker.onControlsConstraintsChanged(
+        mTopControlsStacker.onOffsetTagsInfoChanged(
                 new BrowserControlsOffsetTagsInfo(),
                 new BrowserControlsOffsetTagsInfo(),
                 BrowserControlsState.SHOWN,
@@ -303,7 +303,7 @@ public class TopControlsStackerUnitTest {
                         100);
         mTopControlsStacker.addControl(toolbar);
         mTopControlsStacker.setScrollingDisabled(true);
-        mTopControlsStacker.onControlsConstraintsChanged(
+        mTopControlsStacker.onOffsetTagsInfoChanged(
                 new BrowserControlsOffsetTagsInfo(),
                 new BrowserControlsOffsetTagsInfo(),
                 BrowserControlsState.HIDDEN,
@@ -316,5 +316,47 @@ public class TopControlsStackerUnitTest {
         verify(mVisibilityDelegate).addObserver(mVisibilityCallbackCaptor.capture());
         mVisibilityCallbackCaptor.getValue().onResult(BrowserControlsState.SHOWN);
         verify(mBrowserControlsSizer).setTopControlsHeight(100, 100);
+    }
+
+    @Test
+    public void testIsLayerAtBottom() {
+        // Create test layers. The bookmark bar is hidden, and the hairline is visible but does not
+        // contribute to total height, so neither will prevent the above from being bottom layer.
+        TestLayer tabStrip =
+                new TestLayer(
+                        TopControlType.TABSTRIP,
+                        TopControlVisibility.VISIBLE,
+                        ScrollBehavior.DEFAULT_SCROLLABLE,
+                        /* contributesToTotalHeight= */ true,
+                        0);
+        TestLayer toolbar =
+                new TestLayer(
+                        TopControlType.TOOLBAR,
+                        TopControlVisibility.VISIBLE,
+                        ScrollBehavior.DEFAULT_SCROLLABLE,
+                        /* contributesToTotalHeight= */ true,
+                        0);
+        TestLayer bookmarkBar =
+                new TestLayer(
+                        TopControlType.BOOKMARK_BAR,
+                        TopControlVisibility.HIDDEN,
+                        ScrollBehavior.DEFAULT_SCROLLABLE,
+                        /* contributesToTotalHeight= */ true,
+                        0);
+
+        mTopControlsStacker.addControl(tabStrip);
+        mTopControlsStacker.addControl(toolbar);
+        mTopControlsStacker.addControl(bookmarkBar);
+
+        Assert.assertFalse(
+                "Layer is not at bottom if it has layers below it.",
+                mTopControlsStacker.isLayerAtBottom(TopControlType.TABSTRIP));
+        Assert.assertTrue(
+                "Layer is at bottom if it has no visible height-contributing layers below it.",
+                mTopControlsStacker.isLayerAtBottom(TopControlType.TOOLBAR));
+
+        Assert.assertFalse(
+                "Layers not in the current stack can never be at the bottom.",
+                mTopControlsStacker.isLayerAtBottom(TopControlType.HAIRLINE));
     }
 }

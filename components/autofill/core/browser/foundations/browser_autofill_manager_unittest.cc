@@ -151,6 +151,8 @@
 namespace autofill {
 namespace {
 
+using autofill_metrics::GetUkmEvents;
+using autofill_metrics::UkmEventsAre;
 using ::base::Bucket;
 using ::base::BucketsAre;
 using ::base::UTF8ToUTF16;
@@ -1170,7 +1172,6 @@ class BrowserAutofillManagerTest : public testing::Test {
 
     client_ = CreateAutofillClient();
     driver_ = CreateAutofillDriver();
-    driver_->set_autofill_manager(CreateAutofillManager());
 
     // Initialize the TestPersonalDataManager with some default data.
     CreateTestAutofillProfiles();
@@ -1184,7 +1185,7 @@ class BrowserAutofillManagerTest : public testing::Test {
   }
 
   void TearDown() override {
-    driver_.reset();
+    driver_ = nullptr;
     client_.reset();
   }
 
@@ -1192,11 +1193,20 @@ class BrowserAutofillManagerTest : public testing::Test {
   virtual std::unique_ptr<MockAutofillClient> CreateAutofillClient() {
     return MockAutofillClient::Create(&sync_service());
   }
-  virtual std::unique_ptr<NiceMock<MockAutofillDriver>> CreateAutofillDriver() {
-    return std::make_unique<NiceMock<MockAutofillDriver>>(&client());
+
+  // Called by SetUp(). May be overridden by deriving fixtures.
+  virtual NiceMock<MockAutofillDriver>* CreateAutofillDriver() {
+    auto driver = std::make_unique<NiceMock<MockAutofillDriver>>(&client());
+    NiceMock<MockAutofillDriver>* raw_driver = driver.get();
+    driver->set_autofill_manager(CreateAutofillManager(*driver));
+    client_->GetAutofillDriverFactory().TakeOwnership(std::move(driver));
+    return raw_driver;
   }
-  virtual std::unique_ptr<TestBrowserAutofillManager> CreateAutofillManager() {
-    return TestBrowserAutofillManager::Create(&driver());
+
+  // Called by SetUp(). May be overridden by deriving fixtures.
+  virtual std::unique_ptr<TestBrowserAutofillManager> CreateAutofillManager(
+      TestAutofillDriver& driver) {
+    return TestBrowserAutofillManager::Create(&driver);
   }
 
   void FastForwardBy(base::TimeDelta time_delta) {
@@ -1548,7 +1558,7 @@ class BrowserAutofillManagerTest : public testing::Test {
   test::AutofillUnitTestEnvironment autofill_test_environment_;
   syncer::TestSyncService sync_service_;
   std::unique_ptr<MockAutofillClient> client_;
-  std::unique_ptr<MockAutofillDriver> driver_;
+  raw_ptr<MockAutofillDriver> driver_ = nullptr;
 };
 
 // Test that the correct logger is returned for an address field.
@@ -1709,7 +1719,7 @@ TEST_F(BrowserAutofillManagerTest,
        GetProfileSuggestions_BlockSuggestionsAfterStrikeLimit) {
   auto simulate_user_ignored_suggestions = [&](const FormData& form,
                                                const FormFieldData& field) {
-    test_api(client().GetAutofillDriverFactory()).Reset(driver());
+    client().GetAutofillDriverFactory().Reset(driver());
     manager().AddSeenForm(form, {NAME_FIRST, NAME_LAST});
     OnAskForValuesToFill(form, field);
     // This ensures that the field has `did_trigger_suggestion_` set.
@@ -2346,7 +2356,7 @@ TEST_F(BrowserAutofillManagerTestValuables, GetSuggestions_LoyaltyCards) {
 
   // Make sure key metrics are logged.
   base::HistogramTester histogram_tester;
-  test_api(client().GetAutofillDriverFactory()).Reset(driver());
+  client().GetAutofillDriverFactory().Reset(driver());
   histogram_tester.ExpectBucketCount(
       "Autofill.KeyMetrics.FillingReadiness.LoyaltyCard", 1, 1);
   histogram_tester.ExpectBucketCount(
@@ -2355,17 +2365,22 @@ TEST_F(BrowserAutofillManagerTestValuables, GetSuggestions_LoyaltyCards) {
       "Autofill.KeyMetrics.FillingCorrectness.LoyaltyCard", 0);
   histogram_tester.ExpectBucketCount(
       "Autofill.KeyMetrics.FillingAssistance.LoyaltyCard", 0, 1);
-  autofill_metrics::VerifyUkm(
-      client().GetUkmRecorder(), form, UkmAutofillKeyMetricsType::kEntryName,
-      {{{UkmAutofillKeyMetricsType::kFillingReadinessName, 1},
-        {UkmAutofillKeyMetricsType::kFillingAcceptanceName, 0},
-        {UkmAutofillKeyMetricsType::kFillingAssistanceName, 0},
-        {UkmAutofillKeyMetricsType::kAutofillFillsName, 0},
-        {UkmAutofillKeyMetricsType::kFormElementUserModificationsName, 0},
-        {UkmAutofillKeyMetricsType::kFlowIdName, flow_id.value()},
-        {UkmAutofillKeyMetricsType::kFormTypesName,
-         AutofillMetrics::FormTypesToBitVector(
-             {FormTypeNameForLogging::kLoyaltyCardForm})}}});
+
+  using Ukm = UkmAutofillKeyMetricsType;
+  EXPECT_THAT(
+      GetUkmEvents(*client().GetUkmRecorder(), Ukm::kEntryName),
+      UkmEventsAre({{{Ukm::kFillingReadinessName, 1},
+                     {Ukm::kFillingAcceptanceName, 0},
+                     {Ukm::kFillingAssistanceName, 0},
+                     {Ukm::kAutofillFillsName, 0},
+                     {Ukm::kFormElementUserModificationsName, 0},
+                     {Ukm::kFlowIdName, flow_id.value()},
+                     {Ukm::kFormTypesName,
+                      AutofillMetrics::FormTypesToBitVector(
+                          {FormTypeNameForLogging::kLoyaltyCardForm})}}}));
+  EXPECT_THAT(autofill_metrics::GetEventUrls(*client().GetUkmRecorder(),
+                                             Ukm::kEntryName),
+              Each(form.main_frame_origin().GetURL()));
 }
 
 // Tests that when both email and loyalty card suggestions are available, they
@@ -3489,7 +3504,7 @@ TEST_P(BrowserAutofillManagerLogAblationTest, TestLogging) {
   }
 
   // Flush FormEventLoggers.
-  test_api(client().GetAutofillDriverFactory()).Reset(driver());
+  client().GetAutofillDriverFactory().Reset(driver());
 
   // Validate the recorded metrics.
   std::string form_type_str = (form_type == LogAblationFormType::kAddress ||
@@ -3743,7 +3758,7 @@ TEST_F(BrowserAutofillManagerTest, AutocompleteUnrecognizedFields_KeyMetrics) {
     FormSubmitted(form);
 
     base::HistogramTester histogram_tester;
-    test_api(client().GetAutofillDriverFactory()).Reset(driver());
+    client().GetAutofillDriverFactory().Reset(driver());
     histogram_tester.ExpectTotalCount(
         "Autofill.KeyMetrics.FillingAssistance.Address", 1);
   }
@@ -3756,7 +3771,7 @@ TEST_F(BrowserAutofillManagerTest, AutocompleteUnrecognizedFields_KeyMetrics) {
     FormSubmitted(form);
 
     base::HistogramTester histogram_tester;
-    test_api(client().GetAutofillDriverFactory()).Reset(driver());
+    client().GetAutofillDriverFactory().Reset(driver());
     histogram_tester.ExpectTotalCount(
         "Autofill.KeyMetrics.FillingAssistance.Address", 0);
   }
@@ -5287,7 +5302,7 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictions_ResetManager) {
   std::string response_string;
   ASSERT_TRUE(response.SerializeToString(&response_string));
   // Reset the manager (such as during a navigation).
-  test_api(client().GetAutofillDriverFactory()).Reset(driver());
+  client().GetAutofillDriverFactory().Reset(driver());
 
   base::HistogramTester histogram_tester;
   test_api(manager()).OnLoadedServerPredictions(
@@ -5689,7 +5704,7 @@ TEST_F(BrowserAutofillManagerTest,
                                     base::TimeTicks::Now());
 
   // Simulate a navigation so that the pending form is uploaded.
-  test_api(client().GetAutofillDriverFactory()).Reset(driver());
+  client().GetAutofillDriverFactory().Reset(driver());
 }
 
 // Test that unfocusing a filled form sends an upload with types matching the
@@ -7482,7 +7497,8 @@ class BrowserAutofillManagerTest_AutofillAi
     BrowserAutofillManagerTest::SetUp();
     client().set_entity_data_manager(std::make_unique<EntityDataManager>(
         client().GetPrefs(), client().GetIdentityManager(),
-        webdata_helper_.autofill_webdata_service(), /*history_service=*/nullptr,
+        client().GetSyncService(), webdata_helper_.autofill_webdata_service(),
+        /*history_service=*/nullptr,
         /*strike_database=*/nullptr));
     client().GetEntityDataManager()->AddOrUpdateEntityInstance(
         test::GetPassportEntityInstance());
@@ -8403,7 +8419,7 @@ TEST_F(BrowserAutofillManagerVotingTest, BlurVoteOnNavigation) {
   manager().OnFocusOnNonFormField();
 
   // Simulate a navigation. This is when the vote is sent.
-  test_api(client().GetAutofillDriverFactory()).Reset(driver());
+  client().GetAutofillDriverFactory().Reset(driver());
 }
 
 // Ensure that a submission vote blocks sending a blur vote for the same form

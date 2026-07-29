@@ -27,30 +27,24 @@
 
 namespace glic {
 
-// A Host::Delegate which does nothing. For chrome://glic tabs.
-class HostManager::DummyHostDelegate : public Host::Delegate {
- public:
-  ~DummyHostDelegate() override = default;
-  const mojom::PanelState& GetPanelState() const override {
-    return panel_state_;
-  }
-  void Resize(const gfx::Size& size,
-              base::TimeDelta duration,
-              base::OnceClosure callback) override {
-    std::move(callback).Run();
-  }
-  void SetDraggableAreas(
-      const std::vector<gfx::Rect>& draggable_areas) override {}
-  void EnableDragResize(bool enabled) override {}
-  void Attach() override {}
-  void Detach() override {}
-  void SetMinimumWidgetSize(const gfx::Size& size) override {}
-  bool IsShowing() const override { return true; }
+const mojom::PanelState& DummyHostDelegate::GetPanelState() const {
+  return panel_state_;
+}
+bool DummyHostDelegate::IsShowing() const {
+  return true;
+}
 
- private:
-  mojom::PanelState panel_state_ =
-      mojom::PanelState(mojom::PanelState_Kind::kDetached, std::nullopt);
-};
+void DummyHostDelegate::Resize(const gfx::Size& size,
+                               base::TimeDelta duration,
+                               base::OnceClosure callback) {
+  std::move(callback).Run();
+}
+
+void DummyHostDelegate::SwitchConversation(
+    const std::string& conversation_id,
+    mojom::WebClientHandler::SwitchConversationCallback callback) {
+  std::move(callback).Run(std::nullopt);
+}
 
 Host::PageHandlerInfo::PageHandlerInfo() = default;
 Host::PageHandlerInfo::~PageHandlerInfo() = default;
@@ -58,12 +52,18 @@ Host::PageHandlerInfo::PageHandlerInfo(PageHandlerInfo&&) = default;
 Host::PageHandlerInfo& Host::PageHandlerInfo::operator=(PageHandlerInfo&&) =
     default;
 
-// When no sharing manager provider is injected, we'll use the keyed service.
+// When no instance delegate or sharing manager provider is injected, we'll use
+// the keyed service.
 Host::Host(Profile* profile)
-    : profile_(profile), sharing_manager_provider_(nullptr) {}
+    : profile_(profile),
+      instance_delegate_(nullptr),
+      sharing_manager_provider_(nullptr) {}
 Host::Host(Profile* profile,
-           GlicSharingManagerProvider* sharing_manager_provider)
-    : profile_(profile), sharing_manager_provider_(sharing_manager_provider) {}
+           GlicSharingManagerProvider* sharing_manager_provider,
+           InstanceDelegate* instance_delegate)
+    : profile_(profile),
+      instance_delegate_(instance_delegate),
+      sharing_manager_provider_(sharing_manager_provider) {}
 Host::~Host() = default;
 
 void Host::Initialize(Delegate* delegate) {
@@ -83,20 +83,30 @@ void Host::CreateContents(bool initially_hidden) {
   }
 }
 
-// TODO(crbug.com/437140901): Send the CurrentView to the panel about to open.
-void Host::PanelWillOpen(mojom::InvocationSource invocation_source) {
+Host::PanelWillOpenOptions::PanelWillOpenOptions() = default;
+Host::PanelWillOpenOptions::~PanelWillOpenOptions() = default;
+Host::PanelWillOpenOptions::PanelWillOpenOptions(PanelWillOpenOptions&&) =
+    default;
+Host::PanelWillOpenOptions& Host::PanelWillOpenOptions::operator=(
+    PanelWillOpenOptions&&) = default;
+
+void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
+                         PanelWillOpenOptions options) {
   CHECK(delegate_);
   invocation_source_ = invocation_source;
   if (handler_info_ && handler_info_->web_client) {
     handler_info_->web_client->PanelWillOpen(
         mojom::PanelOpeningData::New(delegate_->GetPanelState().Clone(),
-                                     invocation_source),
+                                     invocation_source,
+                                     std::move(options.conversation_id)),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
-            base::Unretained(this),
-            // Unretained is safe because web_client is calling us.
-            base::Unretained(handler_info_->web_client)));
+            base::Unretained(this), handler_info_->web_client.get()));
+  } else {
+    pending_panel_open_options_ = std::move(options);
+    // TODO(crbug.com/426792593): Queue up the panel open event and send it
+    // when the web client is created.
   }
 }
 
@@ -106,6 +116,12 @@ void Host::PanelWasClosed() {
     handler_info_->web_client->PanelWasClosed(base::DoNothing());
     handler_info_->open_complete = false;
   }
+}
+
+void Host::SwitchConversation(
+    const std::string& conversation_id,
+    mojom::WebClientHandler::SwitchConversationCallback callback) {
+  delegate_->SwitchConversation(conversation_id, std::move(callback));
 }
 
 void Host::AddObserver(Observer* observer) {
@@ -153,6 +169,10 @@ GlicSharingManager& Host::sharing_manager() {
   return sharing_manager_provider_
              ? sharing_manager_provider_->sharing_manager()
              : glic_service().sharing_manager();
+}
+
+Host::InstanceDelegate& Host::instance_delegate() {
+  return instance_delegate_ ? *instance_delegate_ : glic_service();
 }
 
 GlicPageHandler* Host::page_handler() const {
@@ -220,9 +240,15 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
   CHECK(web_client);
   handler_info_->web_client = web_client;
   if (invocation_source_ && web_client) {
+    std::optional<std::string> conversation_id;
+    if (pending_panel_open_options_) {
+      conversation_id = std::move(pending_panel_open_options_->conversation_id);
+      pending_panel_open_options_.reset();
+    }
     web_client->PanelWillOpen(
         mojom::PanelOpeningData::New(delegate_->GetPanelState().Clone(),
-                                     *invocation_source_),
+                                     *invocation_source_,
+                                     std::move(conversation_id)),
         base::BindOnce(
             &Host::PanelWillOpenComplete,
             // Unretained is safe because web client is owned by `contents_`.
@@ -510,7 +536,11 @@ std::vector<Host*> HostManager::GetPrimaryHosts() {
   if (!window_controller_) {
     return {};
   }
-  return window_controller_->GetHosts();
+  std::vector<Host*> hosts;
+  for (GlicInstance* instance : window_controller_->GetInstances()) {
+    hosts.push_back(&instance->host());
+  }
+  return hosts;
 }
 
 }  // namespace glic

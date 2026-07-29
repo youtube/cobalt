@@ -127,7 +127,7 @@ class GradientBubbleFrameView : public views::BubbleFrameView {
 BEGIN_METADATA(GradientBubbleFrameView)
 END_METADATA
 
-std::unique_ptr<views::NonClientFrameView> CreateHandoffButtonFrameView(
+std::unique_ptr<views::FrameView> CreateHandoffButtonFrameView(
     views::Widget* widget) {
   const gfx::Insets content_padding = gfx::Insets::VH(12, 20);
   const gfx::Insets total_insets =
@@ -238,7 +238,7 @@ void HandoffButtonController::CreateAndShowButton(const std::u16string& text,
   widget_delegate->SetModalType(::ui::mojom::ModalType::kNone);
   widget_delegate->SetAccessibleWindowRole(ax::mojom::Role::kAlert);
   widget_delegate->SetShowCloseButton(false);
-  widget_delegate->SetNonClientFrameViewFactory(
+  widget_delegate->SetFrameViewFactory(
       base::BindRepeating(&CreateHandoffButtonFrameView));
   delegate_ = std::move(widget_delegate);
 

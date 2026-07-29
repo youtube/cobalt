@@ -13,7 +13,6 @@ component("native_theme") {
     "native_theme.h",
     "native_theme_base.cc",
     "native_theme_base.h",
-    "native_theme_constants_fluent.h",
     "native_theme_fluent.cc",
     "native_theme_fluent.h",
     "native_theme_observer.cc",
@@ -62,6 +61,13 @@ component("native_theme") {
     ]
   }
 
+  if (is_chromeos) {
+    sources += [
+      "os_settings_provider_ash.cc",
+      "os_settings_provider_ash.h",
+    ]
+  }
+
   if (is_mac) {
     frameworks = [
       "Accessibility.framework",
@@ -89,7 +95,7 @@ component("native_theme") {
       "os_settings_provider_win.h",
     ]
 
-    deps += [ "//ui/color:accent_color_observer" ]
+    public_deps += [ "//ui/color:accent_color_observer" ]
 
     libs = [ "uxtheme.lib" ]
   }
@@ -110,8 +116,6 @@ component("test_support") {
   sources = [
     "mock_os_settings_provider.cc",
     "mock_os_settings_provider.h",
-    "test_native_theme.cc",
-    "test_native_theme.h",
   ]
 
   defines = [ "IS_NATIVE_THEME_IMPL" ]
@@ -119,6 +123,7 @@ component("test_support") {
   deps = [
     ":native_theme",
     "//base",
+    "//ui/color:color_provider_key",
   ]
 }
 
@@ -129,6 +134,7 @@ test("native_theme_unittests") {
     "native_theme_base_unittest.cc",
     "native_theme_fluent_unittest.cc",
     "native_theme_unittest.cc",
+    "os_settings_provider_unittest.cc",
   ]
 
   deps = [
@@ -138,7 +144,6 @@ test("native_theme_unittests") {
     "//base/test:test_support",
     "//skia",
     "//testing/gtest",
-    "//ui/base",
     "//ui/color",
     "//ui/gfx:test_support",
     "//ui/gfx/geometry",
@@ -153,13 +158,6 @@ test("native_theme_unittests") {
   }
 
   if (is_win) {
-    sources += [
-      "caption_style_win_unittest.cc",
-      "native_theme_win_unittest.cc",
-    ]
-  }
-
-  if (use_aura) {
-    sources += [ "native_theme_aura_unittest.cc" ]
+    sources += [ "caption_style_win_unittest.cc" ]
   }
 }

@@ -33,6 +33,10 @@ namespace lens {
 struct ContextualInputData;
 }
 
+namespace tabs {
+class TabInterface;
+}
+
 class ComposeboxHandler
     : public composebox::mojom::PageHandler,
       public ComposeboxQueryController::FileUploadStatusObserver,
@@ -55,8 +59,12 @@ class ComposeboxHandler
   // present in navigation or for the PageHandler's `SubmitQuery()` when there
   // was no match present. The latter only happens when submit is clicked with
   // only a file and no input.
-  void SubmitQuery(const std::string& query_text,
-                   WindowOpenDisposition disposition) override;
+  // If there is a match present in navigation, `additional_params` from the
+  // match's `detination_url` will be appended during url creation.
+  void SubmitQuery(
+      const std::string& query_text,
+      WindowOpenDisposition disposition,
+      std::map<std::string, std::string> additional_params) override;
 
   // composebox::mojom::PageHandler:
   void NotifySessionStarted() override;
@@ -74,7 +82,6 @@ class ComposeboxHandler
   void AddTabContext(int32_t tab_id, AddTabContextCallback) override;
   void DeleteContext(const base::UnguessableToken& file_token) override;
   void ClearFiles() override;
-  void GetRecentTabs(GetRecentTabsCallback callback) override;
 
   // ComposeboxQueryController::FileUploadStatusObserver:
   void OnFileUploadStatusChanged(
@@ -102,6 +109,8 @@ class ComposeboxHandler
   void OnGetTabPageContext(
       const base::UnguessableToken& context_token,
       std::unique_ptr<lens::ContextualInputData> page_content_data);
+
+  void RecordTabClickedMetric(tabs::TabInterface* const tab);
 
   std::set<base::UnguessableToken> deleted_context_tokens_;
   std::unique_ptr<ComposeboxQueryController> query_controller_;

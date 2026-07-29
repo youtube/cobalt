@@ -21,13 +21,17 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+#include "base/strings/stringprintf.h"
 #include "chrome/browser/signin/bound_session_credentials/bound_session_cookie_refresh_service_factory.h"
 #include "chrome/browser/signin/bound_session_credentials/mock_bound_session_cookie_refresh_service.h"
+#include "net/base/features.h"
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 
 namespace {
 
-using testing::_;
+using ::testing::_;
+using ::testing::Property;
+using ::testing::SizeIs;
 
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 class TestResponseAdapter : public signin::ResponseAdapter {
@@ -42,9 +46,9 @@ class TestResponseAdapter : public signin::ResponseAdapter {
 
   ~TestResponseAdapter() override = default;
 
-  void SetHeader(const std::string& header_name,
-                 const std::string& header_value) {
-    headers_->SetHeader(header_name, header_value);
+  // `AddHeader()` does not modify any existing headers with the same name.
+  void AddHeader(std::string_view header_name, std::string_view header_value) {
+    headers_->AddHeader(header_name, header_value);
   }
   void SetRequestTopFrameOrigin(const url::Origin& origin) {
     request_top_frame_origin_ = origin;
@@ -104,18 +108,20 @@ MockBoundSessionCookieRefreshService* GetMockBoundSessionCookieRefreshService(
       BoundSessionCookieRefreshServiceFactory::GetForProfile(profile));
 }
 
-void SetValidRegistrationHeader(TestResponseAdapter* response_adapter) {
-  response_adapter->SetHeader(
-      "Sec-Session-Google-Registration",
-      "registration=startsession; supported-alg=ES256,RS256; "
-      "challenge=test_challenge;");
+void AddValidGoogleRegistrationHeader(TestResponseAdapter* response_adapter,
+                                      const std::string& registration_path) {
+  response_adapter->AddHeader(
+      "Sec-Session-Google-Registration-List",
+      base::StringPrintf("(ES256);path=\"%s\";challenge=\"Y2hhbGxlbmdl\"",
+                         registration_path.c_str()));
 }
 
-void SetValidRegistrationListHeader(TestResponseAdapter* response_adapter) {
-  response_adapter->SetHeader(
-      "Sec-Session-Google-Registration-List",
-      "(ES256);path=\"startsession\";challenge=\"Y2hhbGxlbmdl\","
-      "(ES256);path=\"startsession2\";challenge=\"Y2hhbGxlbmdlMg==\"");
+void AddValidStandardRegistrationHeader(TestResponseAdapter* response_adapter,
+                                        const std::string& registration_path) {
+  response_adapter->AddHeader(
+      "Sec-Session-Registration",
+      base::StringPrintf("(ES256);path=\"%s\";challenge=\"Y2hhbGxlbmdl\"",
+                         registration_path.c_str()));
 }
 
 class BoundSessionHeaderModificationDelegateImplTest : public testing::Test {
@@ -141,11 +147,12 @@ class BoundSessionHeaderModificationDelegateImplTest : public testing::Test {
 TEST_F(BoundSessionHeaderModificationDelegateImplTest, GaiaResponse) {
   const GURL response_url("https://accounts.google.com");
   TestResponseAdapter gaia_response_adapter(response_url);
-  SetValidRegistrationHeader(&gaia_response_adapter);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
   ASSERT_THAT(
       BoundSessionRegistrationFetcherParam::CreateFromHeaders(
           gaia_response_adapter.GetUrl(), gaia_response_adapter.GetHeaders()),
-      testing::SizeIs(1));
+      SizeIs(1));
 
   MockBoundSessionCookieRefreshService* mock_service =
       GetMockBoundSessionCookieRefreshService(testing_profile());
@@ -159,15 +166,16 @@ TEST_F(BoundSessionHeaderModificationDelegateImplTest, GaiaResponse) {
 
 TEST_F(BoundSessionHeaderModificationDelegateImplTest,
        GaiaMultiSessionResponse) {
-  base::test::ScopedFeatureList feature_list_{
-      kBoundSessionRegistrationListHeaderSupport};
   const GURL response_url("https://accounts.google.com");
   TestResponseAdapter gaia_response_adapter(response_url);
-  SetValidRegistrationListHeader(&gaia_response_adapter);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession2");
   ASSERT_THAT(
       BoundSessionRegistrationFetcherParam::CreateFromHeaders(
           gaia_response_adapter.GetUrl(), gaia_response_adapter.GetHeaders()),
-      testing::SizeIs(2));
+      SizeIs(2));
 
   MockBoundSessionCookieRefreshService* mock_service =
       GetMockBoundSessionCookieRefreshService(testing_profile());
@@ -187,11 +195,12 @@ TEST_F(BoundSessionHeaderModificationDelegateImplTest,
   TestResponseAdapter gaia_response_adapter(response_url);
   gaia_response_adapter.SetRequestTopFrameOrigin(
       url::Origin::Create(GURL("https://mail.google.com")));
-  SetValidRegistrationHeader(&gaia_response_adapter);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
   ASSERT_THAT(
       BoundSessionRegistrationFetcherParam::CreateFromHeaders(
           gaia_response_adapter.GetUrl(), gaia_response_adapter.GetHeaders()),
-      testing::SizeIs(1));
+      SizeIs(1));
 
   MockBoundSessionCookieRefreshService* mock_service =
       GetMockBoundSessionCookieRefreshService(testing_profile());
@@ -210,12 +219,13 @@ TEST_F(BoundSessionHeaderModificationDelegateImplTest, GaiaThirdPartyResponse) {
       GURL("https://accounts.google.com"));
   gaia_response_adapter.SetRequestTopFrameOrigin(
       url::Origin::Create(GURL("https://example.org")));
-  SetValidRegistrationHeader(&gaia_response_adapter);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
   // Header itself is set correctly.
   ASSERT_THAT(
       BoundSessionRegistrationFetcherParam::CreateFromHeaders(
           gaia_response_adapter.GetUrl(), gaia_response_adapter.GetHeaders()),
-      testing::SizeIs(1));
+      SizeIs(1));
 
   MockBoundSessionCookieRefreshService* mock_service =
       GetMockBoundSessionCookieRefreshService(testing_profile());
@@ -229,10 +239,11 @@ TEST_F(BoundSessionHeaderModificationDelegateImplTest, GaiaThirdPartyResponse) {
 
 TEST_F(BoundSessionHeaderModificationDelegateImplTest, NonGaiaResponse) {
   TestResponseAdapter response_adapter(GURL("https://google.com"));
-  SetValidRegistrationHeader(&response_adapter);
+  AddValidGoogleRegistrationHeader(&response_adapter,
+                                   /*registration_path=*/"startsession");
   ASSERT_THAT(BoundSessionRegistrationFetcherParam::CreateFromHeaders(
                   response_adapter.GetUrl(), response_adapter.GetHeaders()),
-              testing::SizeIs(1));
+              SizeIs(1));
   MockBoundSessionCookieRefreshService* mock_service =
       GetMockBoundSessionCookieRefreshService(testing_profile());
   ASSERT_TRUE(mock_service);
@@ -258,11 +269,12 @@ TEST(BoundSessionDisabledHeaderModificationDelegateImplTest,
       profile.get());
   const GURL response_url("https://accounts.google.com");
   TestResponseAdapter gaia_response_adapter(response_url);
-  SetValidRegistrationHeader(&gaia_response_adapter);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
   ASSERT_THAT(
       BoundSessionRegistrationFetcherParam::CreateFromHeaders(
           gaia_response_adapter.GetUrl(), gaia_response_adapter.GetHeaders()),
-      testing::SizeIs(1));
+      SizeIs(1));
 
   EXPECT_CALL(*mock_service, MaybeTerminateSession(response_url, _));
   EXPECT_CALL(*mock_service, CreateRegistrationRequest);
@@ -273,8 +285,8 @@ TEST(BoundSessionDisabledHeaderModificationDelegateImplTest,
      BoundSessionCookieRefreshServiceIsNull) {
   content::BrowserTaskEnvironment task_environment;
   // The feature state doesn't matter so let's pretend it's enabled.
-  base::test::ScopedFeatureList scoped_feature_list{
-      switches::kEnableBoundSessionCredentials};
+  base::test::ScopedFeatureList scoped_feature_list(
+      switches::kEnableBoundSessionCredentials);
 
   TestingProfile::Builder profile_builder;
   profile_builder.AddTestingFactory(
@@ -291,14 +303,141 @@ TEST(BoundSessionDisabledHeaderModificationDelegateImplTest,
       profile.get());
   const GURL response_url("https://accounts.google.com");
   TestResponseAdapter gaia_response_adapter(response_url);
-  SetValidRegistrationHeader(&gaia_response_adapter);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
   ASSERT_THAT(
       BoundSessionRegistrationFetcherParam::CreateFromHeaders(
           gaia_response_adapter.GetUrl(), gaia_response_adapter.GetHeaders()),
-      testing::SizeIs(1));
+      SizeIs(1));
 
   // This mainly verifies that no crashes happen.
   header_modification_delegate.ProcessResponse(&gaia_response_adapter, GURL());
+}
+
+TEST_F(BoundSessionHeaderModificationDelegateImplTest,
+       StandardRegistrationBlocksGoogleRegistration) {
+  base::test::ScopedFeatureList feature_list(
+      net::features::kDeviceBoundSessions);
+  const GURL response_url("https://accounts.google.com");
+  const std::string registration_path = "startsession";
+  TestResponseAdapter gaia_response_adapter(response_url);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter, registration_path);
+  AddValidStandardRegistrationHeader(&gaia_response_adapter, registration_path);
+
+  MockBoundSessionCookieRefreshService* mock_service =
+      GetMockBoundSessionCookieRefreshService(testing_profile());
+  ASSERT_TRUE(mock_service);
+
+  // Session terminations are still processed.
+  EXPECT_CALL(*mock_service, MaybeTerminateSession(response_url, _));
+  // New session registration should be blocked.
+  EXPECT_CALL(*mock_service, CreateRegistrationRequest).Times(0);
+  header_modification_delegate().ProcessResponse(&gaia_response_adapter,
+                                                 GURL());
+}
+
+TEST_F(BoundSessionHeaderModificationDelegateImplTest,
+       StandardRegistrationPartiallyBlocksGoogleRegistration) {
+  base::test::ScopedFeatureList feature_list(
+      net::features::kDeviceBoundSessions);
+  const GURL response_url("https://accounts.google.com");
+  const std::string common_registration_path = "common_startsession";
+  const std::string google_registration_path = "google_startsession";
+  TestResponseAdapter gaia_response_adapter(response_url);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   common_registration_path);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   google_registration_path);
+  AddValidStandardRegistrationHeader(&gaia_response_adapter,
+                                     common_registration_path);
+  AddValidStandardRegistrationHeader(
+      &gaia_response_adapter,
+      /*registration_path=*/"standard_startsession");
+
+  MockBoundSessionCookieRefreshService* mock_service =
+      GetMockBoundSessionCookieRefreshService(testing_profile());
+  ASSERT_TRUE(mock_service);
+
+  // Session terminations are still processed.
+  EXPECT_CALL(*mock_service, MaybeTerminateSession(response_url, _));
+  // Only the common session registration should be blocked.
+  EXPECT_CALL(*mock_service,
+              CreateRegistrationRequest(Property(
+                  &BoundSessionRegistrationFetcherParam::registration_endpoint,
+                  response_url.Resolve(google_registration_path))));
+  header_modification_delegate().ProcessResponse(&gaia_response_adapter,
+                                                 GURL());
+}
+
+TEST_F(BoundSessionHeaderModificationDelegateImplTest,
+       StandardFeatureIgnoredWithoutStandardRegistration) {
+  base::test::ScopedFeatureList feature_list(
+      net::features::kDeviceBoundSessions);
+  const GURL response_url("https://accounts.google.com");
+  TestResponseAdapter gaia_response_adapter(response_url);
+  // Only the Google registration is provided.
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"startsession");
+
+  MockBoundSessionCookieRefreshService* mock_service =
+      GetMockBoundSessionCookieRefreshService(testing_profile());
+  ASSERT_TRUE(mock_service);
+
+  // Session terminations are still processed.
+  EXPECT_CALL(*mock_service, MaybeTerminateSession(response_url, _));
+  // New session registration can proceed because the response didn't contain a
+  // standard registration header.
+  EXPECT_CALL(*mock_service, CreateRegistrationRequest);
+  header_modification_delegate().ProcessResponse(&gaia_response_adapter,
+                                                 GURL());
+}
+
+TEST_F(BoundSessionHeaderModificationDelegateImplTest,
+       StandardRegistrationIgnoredWhenPathsDontMatch) {
+  base::test::ScopedFeatureList feature_list(
+      net::features::kDeviceBoundSessions);
+  const GURL response_url("https://accounts.google.com");
+  TestResponseAdapter gaia_response_adapter(response_url);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter,
+                                   /*registration_path=*/"google_startsession");
+  AddValidStandardRegistrationHeader(
+      &gaia_response_adapter,
+      /*registration_path=*/"standard_startsession");
+
+  MockBoundSessionCookieRefreshService* mock_service =
+      GetMockBoundSessionCookieRefreshService(testing_profile());
+  ASSERT_TRUE(mock_service);
+
+  // Session terminations are still processed.
+  EXPECT_CALL(*mock_service, MaybeTerminateSession(response_url, _));
+  // New session registration can proceed because the standard registration path
+  // didn't match.
+  EXPECT_CALL(*mock_service, CreateRegistrationRequest);
+  header_modification_delegate().ProcessResponse(&gaia_response_adapter,
+                                                 GURL());
+}
+
+TEST_F(BoundSessionHeaderModificationDelegateImplTest,
+       StandardRegistrationIgnoredWhenStandardIsDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(net::features::kDeviceBoundSessions);
+  const GURL response_url("https://accounts.google.com");
+  const std::string registration_path = "startsession";
+  TestResponseAdapter gaia_response_adapter(response_url);
+  AddValidGoogleRegistrationHeader(&gaia_response_adapter, registration_path);
+  AddValidStandardRegistrationHeader(&gaia_response_adapter, registration_path);
+
+  MockBoundSessionCookieRefreshService* mock_service =
+      GetMockBoundSessionCookieRefreshService(testing_profile());
+  ASSERT_TRUE(mock_service);
+
+  // Session terminations are still processed.
+  EXPECT_CALL(*mock_service, MaybeTerminateSession(response_url, _));
+  // New session registration can proceed because the standard feature is
+  // disabled.
+  EXPECT_CALL(*mock_service, CreateRegistrationRequest);
+  header_modification_delegate().ProcessResponse(&gaia_response_adapter,
+                                                 GURL());
 }
 
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)

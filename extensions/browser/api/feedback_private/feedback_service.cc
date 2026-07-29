@@ -38,10 +38,8 @@
 #include "net/base/network_change_notifier.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "ash/public/cpp/assistant/controller/assistant_controller.h"
 #include "base/base64.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
-#include "chromeos/ash/services/assistant/public/cpp/assistant_service.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/storage_partition.h"
@@ -399,15 +397,6 @@ void FeedbackService::OnAllLogsFetched(
 
   DCHECK(feedback_data->attached_file_uuid().empty());
   DCHECK(feedback_data->screenshot_uuid().empty());
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Send feedback to Assistant server if triggered from Google Assistant.
-  if (feedback_data->from_assistant()) {
-    ash::AssistantController::Get()->SendAssistantFeedback(
-        feedback_data->assistant_debug_info_allowed(),
-        feedback_data->description(), feedback_data->image());
-  }
-#endif
 
   // Signal the feedback object that the data from the feedback page has been
   // filled - the object will manage sending of the actual report.

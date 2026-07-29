@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/omnibox/browser/omnibox_view.h"
@@ -22,26 +23,15 @@
 OmniboxPopupPresenter::OmniboxPopupPresenter(LocationBarView* location_bar_view,
                                              OmniboxController* controller)
     : views::WebView(location_bar_view->profile()),
-      location_bar_view_(location_bar_view),
-      widget_(nullptr),
-      requested_handler_(false) {
+      location_bar_view_(location_bar_view) {
   set_owned_by_client(OwnedByClientPassKey());
 
-  // Build URL with SessionID to ensure correct omnibox controller binding
-  // without relying on mutable state subject to timing and destruction issues.
-  // The webui's page handler (RealboxHandler) needs to know what omnibox
-  // controller to use, but the native pointer value can't safely be passed in,
-  // and hacks like getting last active browser or any other shared mutable
-  // state can result in subtle races and even use-after-free bugs. The
-  // window and its omnibox could destruct, or the browser changed, or even
-  // a new omnibox could be constructed to overwrite the shared value, within
-  // the time window of loading the URL in a separate process. Using a unique
-  // session ID avoids these problems and ensures that only the omnibox
-  // controller that owns this popup presenter will be selected.
-  const GURL url(
-      base::StringPrintf("%s?session_id=%d", chrome::kChromeUIOmniboxPopupURL,
-                         location_bar_view->browser()->session_id().id()));
-  LoadInitialURL(url);
+  // Make the OmniboxController available to the OmniboxPopupUI.
+  OmniboxPopupWebContentsHelper::CreateForWebContents(GetWebContents());
+  OmniboxPopupWebContentsHelper::FromWebContents(GetWebContents())
+      ->set_omnibox_controller(controller);
+
+  LoadInitialURL(GURL(chrome::kChromeUIOmniboxPopupURL));
 
   location_bar_view_->AddObserver(this);
 }
@@ -74,8 +64,8 @@ void OmniboxPopupPresenter::Show() {
 
     widget_->ShowInactive();
 
-    widget_->SetContentsView(
-        std::make_unique<RoundedOmniboxResultsFrame>(this, location_bar_view_));
+    widget_->SetContentsView(std::make_unique<RoundedOmniboxResultsFrame>(
+        this, location_bar_view_, /*is_webui=*/true));
     widget_->AddObserver(this);
   }
   RealboxHandler* handler = GetHandler();
@@ -128,8 +118,11 @@ void OmniboxPopupPresenter::OnPopupElementSizeChanged(gfx::Size size) {
     // TODO(crbug.com/40062053): Change max height according to max suggestion
     //  count and calculated row height, or use a more general maximum value.
     constexpr int kMaxHeight = 600;
+    // TODO(crbug.com/445458864): Temporarily set a min height of 1 to avoid the
+    // compositor from thinking the view is hidden.
+    const int temp_height = size.height() == 0 ? 1 : size.height();
     widget_bounds.set_height(widget_bounds.height() +
-                             std::min(kMaxHeight, size.height()));
+                             std::min(kMaxHeight, temp_height));
     widget_bounds.Inset(-RoundedOmniboxResultsFrame::GetShadowInsets());
     widget_->SetBounds(widget_bounds);
   }

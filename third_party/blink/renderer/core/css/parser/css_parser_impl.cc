@@ -2373,6 +2373,8 @@ StyleRuleFunction* CSSParserImpl::ConsumeFunctionRule(
 }
 
 StyleRuleMixin* CSSParserImpl::ConsumeMixinRule(CSSParserTokenStream& stream) {
+  wtf_size_t header_start = stream.LookAheadOffset();
+
   // @mixin must be top-level, and as such, we need to clear the arena
   // after we're done parsing it (like ConsumeStyleRule() does).
   if (in_nested_style_rule_) {
@@ -2415,6 +2417,12 @@ StyleRuleMixin* CSSParserImpl::ConsumeMixinRule(CSSParserTokenStream& stream) {
                                              CSSAtRuleID::kCSSAtRuleMixin)) {
     return nullptr;
   }
+  wtf_size_t header_end = stream.LookAheadOffset();
+
+  if (observer_) {
+    observer_->StartRuleHeader(StyleRule::kApplyMixin, header_start);
+    observer_->EndRuleHeader(header_end);
+  }
 
   // Parse the actual block.
   StyleRule* fake_parent_rule;
@@ -2431,7 +2439,7 @@ StyleRuleMixin* CSSParserImpl::ConsumeMixinRule(CSSParserTokenStream& stream) {
   // the selectors (and will be kept alive by them), it doesn't actually
   // contain the child rules and isn't used for anything anymore. Once
   // a mixin is actually used (in @apply), we clone all the rules and call
-  // Renest(), which changes all the parent references to @apply's parent.
+  // Clone(), which changes all the parent references to @apply's parent.
   fake_parent_rule->EnsureChildRules();
   return MakeGarbageCollected<StyleRuleMixin>(
       name, std::move(*parameters),
@@ -2442,6 +2450,10 @@ StyleRule* CSSParserImpl::ConsumeDeclarationListForMixins(
     CSSParserTokenStream& stream) {
   CSSParserTokenStream::BlockGuard guard(stream);
 
+  if (observer_) {
+    observer_->StartRuleBody(stream.Offset());
+  }
+
   // When we encounter a declaration list, the selector of our fake parent rule
   // will be _copied_, so it needs to be something sane; the implicit @nest rule
   // gives us the behavior that we want.
@@ -2449,60 +2461,94 @@ StyleRule* CSSParserImpl::ConsumeDeclarationListForMixins(
   dummy.SetLastInSelectorList(true);
   dummy.SetLastInComplexSelector(true);
 
-  StyleRule* fake_parent_rule = StyleRule::Create(base::span_from_ref(dummy));
+  // We do not use the properties for anything, but we need a valid pointer
+  // or we will have a crash when we try to clone the rule during apply.
+  ImmutableCSSPropertyValueSet* empty_properties =
+      ImmutableCSSPropertyValueSet::Create({},
+                                           CSSParserMode::kHTMLStandardMode);
+
+  StyleRule* fake_parent_rule =
+      StyleRule::Create(base::span_from_ref(dummy), empty_properties);
   HeapVector<Member<StyleRuleBase>, 4> child_rules;
   ConsumeRuleListOrNestedDeclarationList(stream, CSSNestingType::kNesting,
                                          fake_parent_rule, &child_rules);
   for (StyleRuleBase* child_rule : child_rules) {
     fake_parent_rule->AddChildRule(child_rule);
   }
+
+  if (observer_) {
+    observer_->EndRuleBody(stream.Offset());
+  }
+
   return fake_parent_rule;
 }
 
 StyleRuleApplyMixin* CSSParserImpl::ConsumeApplyMixinRule(
     CSSParserTokenStream& stream) {
   wtf_size_t header_start = stream.LookAheadOffset();
-  if (stream.Peek().GetType() != kIdentToken) {
+  if (stream.Peek().GetType() != kIdentToken &&
+      stream.Peek().GetType() != kFunctionToken) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleApplyMixin);
     return nullptr;  // Parse error.
   }
-  AtomicString name =
-      stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+  AtomicString name = stream.Peek().Value().ToAtomicString();
   if (!name.StartsWith("--")) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleApplyMixin);
     return nullptr;
   }
 
-  if (stream.AtEnd()) {
-    // Implicit semicolon at end of block.
-    return MakeGarbageCollected<StyleRuleApplyMixin>(name, nullptr);
+  // Parse arguments, if any.
+  HeapVector<String> arguments;
+  bool arguments_ok = true;
+  if (stream.Peek().GetType() == kIdentToken) {
+    // @apply --name ...
+    stream.ConsumeIncludingWhitespace();
+  } else {
+    // @apply --name( ...
+    CSSParserTokenStream::BlockGuard guard(stream);
+    arguments = CSSVariableParser::ConsumeFunctionArguments(
+        stream, std::numeric_limits<unsigned>::max());
+    arguments_ok = stream.AtEnd();
   }
-  if (stream.UncheckedPeek().GetType() == kSemicolonToken) {
-    // No declarations block, just a semicolon.
-    stream.UncheckedConsume();  // kSemicolonToken
-    return MakeGarbageCollected<StyleRuleApplyMixin>(name, nullptr);
+  if (!arguments_ok) {
+    ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleApplyMixin);
+    return nullptr;
+  }
+
+  stream.EnsureLookAhead();
+  wtf_size_t header_end = stream.LookAheadOffset();
+  if (observer_) {
+    observer_->StartRuleHeader(StyleRule::kApplyMixin, header_start);
+    observer_->EndRuleHeader(header_end);
+  }
+
+  if (stream.AtEnd() || stream.UncheckedPeek().GetType() == kSemicolonToken) {
+    // No declarations block, just a semicolon (possibly implicit.
+    if (!stream.AtEnd()) {
+      stream.UncheckedConsume();  // kSemicolonToken
+    }
+    if (observer_) {
+      // Devtools expects to see a rule body for every rule; it is
+      // the trigger for actually inserting the rule. So we need to
+      // include a fake empty body here, or the indexing will be
+      // messed up when the NestedDeclarations rules arrive.
+      observer_->StartRuleBody(stream.Offset());
+      observer_->EndRuleBody(stream.Offset());
+    }
+    return MakeGarbageCollected<StyleRuleApplyMixin>(name, std::move(arguments),
+                                                     nullptr);
   }
 
   if (stream.UncheckedPeek().GetType() != kLeftBraceToken) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleApplyMixin);
     return nullptr;  // Parse error.
   }
-  wtf_size_t header_end = stream.LookAheadOffset();
-
-  if (observer_) {
-    observer_->StartRuleHeader(StyleRule::kApplyMixin, header_start);
-    observer_->EndRuleHeader(header_end);
-    observer_->StartRuleBody(stream.Offset());
-  }
 
   // Parse the @contents block.
   StyleRule* fake_parent_rule_for_contents =
       ConsumeDeclarationListForMixins(stream);
-  if (observer_) {
-    observer_->EndRuleBody(stream.Offset());
-  }
   return MakeGarbageCollected<StyleRuleApplyMixin>(
-      name, fake_parent_rule_for_contents);
+      name, std::move(arguments), fake_parent_rule_for_contents);
 }
 
 StyleRuleContentsStatement* CSSParserImpl::ConsumeContentsRule(

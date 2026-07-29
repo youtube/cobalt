@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 
 #include "base/check.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -31,6 +32,7 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
+#include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -120,7 +122,15 @@ LensSearchController* LensSearchController::FromWebUIWebContents(
 // static.
 LensSearchController* LensSearchController::FromTabWebContents(
     content::WebContents* tab_web_contents) {
-  return From(tabs::TabInterface::GetFromContents(tab_web_contents));
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(tab_web_contents);
+  if (!tab) {
+    // TODO(crbug.com/444404134): Instead of calling MaybeGetFromContents(),
+    // callers should be ensuring that the web contents is a tab. Dump to try to
+    // identify when it is not.
+    base::debug::DumpWithoutCrashing();
+  }
+  return From(tab);
 }
 
 void LensSearchController::OpenLensOverlay(
@@ -151,8 +161,12 @@ void LensSearchController::OpenLensOverlay(
     return;
   }
 
-  // Setup all state necessary for this Lens session.
-  StartLensSession(invocation_source);
+  // If the overlay is already active, don't start a new session. This can
+  // happen if the side panel is open and the user reinvokes the overlay.
+  if (!lens_overlay_controller_->IsOverlayActive()) {
+    // Setup all state necessary for this Lens session.
+    StartLensSession(invocation_source);
+  }
 
   lens_overlay_controller_->ShowUI(invocation_source,
                                    lens_overlay_query_controller_.get());
@@ -658,7 +672,7 @@ void LensSearchController::OnOverlayHidden(
 
   // Since the side panel is open and the overlay has smoothly faded out, hide
   // the overlay to restore state to the live page.
-  lens_overlay_controller_->HideOverlayAndMaybeSetLivePageState();
+  lens_overlay_controller_->HideOverlayAndMaybeSetHiddenState();
 }
 
 void LensSearchController::OnSidePanelWillHide(

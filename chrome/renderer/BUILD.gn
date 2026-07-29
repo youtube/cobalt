@@ -202,6 +202,8 @@ static_library("renderer") {
     "//components/translate/core/common",
     "//components/translate/core/language_detection",
     "//components/visitedlink/renderer",
+    "//components/wallet/content/renderer",
+    "//components/wallet/core/common:features",
     "//components/web_cache/renderer",
     "//components/webapps/renderer",
     "//content/public/child",
@@ -236,6 +238,10 @@ static_library("renderer") {
     "//ui/surface",
     "//v8",
   ]
+
+  if (is_mac || is_win || is_linux || is_chromeos) {
+    deps += [ "//components/webapps/isolated_web_apps:scheme" ]
+  }
 
   data_deps = [ "//tools/v8_context_snapshot" ]
 

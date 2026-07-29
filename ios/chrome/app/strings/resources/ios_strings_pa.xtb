@@ -114,6 +114,7 @@
 <translation id="1429187656584513419">ਪਾਸਵਰਡ ਖੋਲ੍ਹੋ</translation>
 <translation id="1430915738399379752">ਪ੍ਰਿੰਟ ਕਰੋ</translation>
 <translation id="1433478348197382180">ਪੜ੍ਹਨ ਦਾ ਮੋਡ</translation>
+<translation id="1435271730600332883">AutoFill ਅਤੇ Passwords ਖੋਲ੍ਹੋ</translation>
 <translation id="1436671784520050284">ਸੈੱਟਅੱਪ ਜਾਰੀ ਰੱਖੋ</translation>
 <translation id="143681031165817424">ਪਤਾ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="1445276840641906250">ਇੱਕ ਹੀ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਤੁਹਾਡੀਆਂ ਸਾਰੀਆਂ ਟੈਬਾਂ</translation>
@@ -478,6 +479,7 @@
 <translation id="2797029671965852011">ਇਤਿਹਾਸ ਦਿਖਾਓ</translation>
 <translation id="2797302972324086597">ਦੇਸ਼ ਦਾ ਕੋਡ</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} ਫ਼ਾਈਲ}one{{COUNT} ਫ਼ਾਈਲ}other{{COUNT} ਫ਼ਾਈਲਾਂ}}</translation>
+<translation id="2816149645002567541">ਡਾਊਨਲੋਡ ਰੋਕਿਆ ਗਿਆ</translation>
 <translation id="2816489851009559785">ਮੀਨੂ → ਸੈਟਿੰਗਾਂ → ਪੂਰਵ-ਨਿਰਧਾਰਿਤ ਬ੍ਰਾਊਜ਼ਰ</translation>
 <translation id="2818821771744632548">ਤੁਹਾਨੂੰ ਤੁਹਾਡੇ iPhone ਰੀਸੈੱਟ ਕਰਨ ਦੇ ਹਿੱਸੇ ਵਜੋਂ ਆਪਣੇ ਖਾਤੇ <ph name="USER_NAME" /> ਤੋਂ ਸਾਈਨ-ਆਊਟ ਕੀਤਾ ਗਿਆ ਸੀ। ਦੁਬਾਰਾ ਸਾਈਨ-ਇਨ ਕਰਨ ਲਈ, ਹੇਠਾਂ "ਜਾਰੀ ਰੱਖੋ" 'ਤੇ ਟੈਪ ਕਰੋ।</translation>
 <translation id="2819667972867209401">ਚਾਲੂ ਹੋਣ 'ਤੇ, ਡਾਟਾ ਤੁਹਾਡੇ Google ਖਾਤੇ ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ। ਬੰਦ ਹੋਣ 'ਤੇ, ਡਾਟਾ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ ਅਤੇ ਸਾਈਨ-ਆਊਟ ਕਰਨ 'ਤੇ ਮਿਟਾ ਦਿੱਤਾ ਜਾਂਦਾ ਹੈ।</translation>
@@ -734,6 +736,7 @@
 <translation id="3921585859122905677">ਪਤਾ ਬਾਰ ਸਥਿਤੀ</translation>
 <translation id="3922185497376658606">ਵੈੱਬ-ਪੰਨੇ ਪ੍ਰੀਲੋਡ ਕਰੋ</translation>
 <translation id="3922395466317605522">ਮੀਨੂ ਨੂੰ ਵਿਉਂਤਬੱਧ ਕਰੋ</translation>
+<translation id="3926703470020109118">ਡਾਊਨਲੋਡ ਰੱਦ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="3929457972718048006">ਪਤੇ</translation>
 <translation id="3931215329146376310">{count,plural, =1{ਇਸ ਸਾਈਟ ਲਈ ਨਵਾਂ ਪਾਸਵਰਡ}one{ਇਸ ਸਾਈਟ ਲਈ ਨਵਾਂ ਪਾਸਵਰਡ}other{ਇਸ ਸਾਈਟ ਲਈ ਨਵੇਂ ਪਾਸਵਰਡ}}</translation>
 <translation id="3934905113567851655">ਆਕਾਰ ਬਦਲਣ ਲਈ ਚੂੰਢੀ ਭਰੋ</translation>
@@ -786,6 +789,7 @@
 <translation id="4113957097611235433">ਆਪਣੇ ਪਾਸਵਰਡ ਬਦਲੋ</translation>
 <translation id="4120936477286528673">ਇਹ ਸਾਈਟ ਵਾਰ-ਵਾਰ ਕੋਈ ਹੋਰ ਐਪਲੀਕੇਸ਼ਨ ਖੋਲ੍ਹਣ ਦੀ ਕੋਸ਼ਿਸ਼ ਕਰ ਰਹੀ ਹੈ।</translation>
 <translation id="4121993058175073134">ਨੈੱਟ-ਨਿਰਯਾਤ ਡਾਟਾ ਭੇਜਣ ਲਈ, ਕਿਰਪਾ ਕਰਕੇ ਸੈਟਿੰਗਾਂ ਐਪ ਵਿੱਚ ਆਪਣਾ ਈਮੇਲ ਖਾਤਾ ਸੰਰੂਪਿਤ ਕਰੋ।</translation>
+<translation id="4132991308423633339">ਪਾਸਵਰਡ ਅਤੇ ਪਾਸਕੀਆਂ ਨਿਰਯਾਤ ਕਰੋ…</translation>
 <translation id="4133139945030148655">ਤੁਸੀਂ ਪੂਰੀ ਤਰ੍ਹਾਂ ਤਿਆਰ ਹੋ</translation>
 <translation id="4133265950310064865">ਵਿਸਤ੍ਰਿਤ ਸੁਰੱਖਿਆ</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -833,6 +837,7 @@
 <translation id="4286718549648564014">ਪਤੇ ਨੂੰ ਤੁਹਾਡੇ ਖਾਤੇ <ph name="USER_EMAIL" /> 'ਤੇ ਲਿਜਾਇਆ ਗਿਆ</translation>
 <translation id="4287172530684295552">'ਪੜ੍ਹੇ ਹੋਏ' ਵਜੋਂ ਨਿਸ਼ਾਨਦੇਹੀ ਕਰੋ</translation>
 <translation id="428768789042547925">ਨਵਾਂ ਕੀ ਹੈ</translation>
+<translation id="428858055663163046">ਉਪਲਬਧ ਹੋਣ 'ਤੇ, ਤੁਸੀਂ ਇੱਥੋਂ ਆਪਣੀਆਂ ਡਾਊਨਲੋਡ ਕੀਤੀਆਂ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="429074084062258019">{count,plural, =1{ਟੈਬ ਨੂੰ ਗਰੁੱਪ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ}one{ਟੈਬ ਨੂੰ ਗਰੁੱਪ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ}other{ਟੈਬਾਂ ਨੂੰ ਗਰੁੱਪ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ}}</translation>
 <translation id="4302061870579014542">ਸਥਿਤੀ ਸੈੱਟ ਕਰੋ</translation>
 <translation id="4304713468139749426">ਪਾਸਵਰਡ ਪ੍ਰਬੰਧਕ</translation>
@@ -949,6 +954,7 @@
 <translation id="4749529195026091676">{count,plural, =1{{count} ਕਾਰਡ ਆਯਾਤ ਕੀਤਾ ਗਿਆ}one{{count} ਕਾਰਡ ਆਯਾਤ ਕੀਤਾ ਗਿਆ}other{{count} ਕਾਰਡ ਆਯਾਤ ਕੀਤੇ ਗਏ}}</translation>
 <translation id="4751645464639803239">ਨਵੀਂ ਇਨਕੋਗਨਿਟੋ ਟੈਬ</translation>
 <translation id="4752348350801431746">ਸੁਰੱਖਿਆ ਜਾਂਚ ਸੂਚਨਾਵਾਂ ਨੂੰ ਬੰਦ ਕਰੋ…</translation>
+<translation id="4759238208242260848">ਡਾਊਨਲੋਡਸ</translation>
 <translation id="4764612367328936189">ਤੁਹਾਡੀ ਸੰਸਥਾ ਤੁਹਾਨੂੰ ਸਿਰਫ਼ ਕੁਝ ਖਾਤਿਆਂ ਨਾਲ ਸਾਈਨ-ਇਨ ਕਰਨ ਦੀ ਆਗਿਆ ਦਿੰਦੀ ਹੈ। ਉਨ੍ਹਾਂ ਖਾਤਿਆਂ ਨੂੰ ਲੁਕਾਇਆ ਗਿਆ ਹੈ, ਜਿਨ੍ਹਾਂ ਨੂੰ ਆਗਿਆ ਨਹੀਂ ਹੈ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="4766112107778026136">Discover ਅਤੇ ਅਨੁਸਰਣ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ</translation>
 <translation id="4769198578611055647">ਇਸਦੀ ਮਦਦ ਨਾਲ, ਤੁਸੀਂ ਕਿਸੇ ਵੀ ਡੀਵਾਈਸ 'ਤੇ ਆਪਣੀਆਂ ਰੱਖਿਅਤ ਕੀਤੀਆਂ ਪਾਸਕੀਆਂ ਤੱਕ ਪਹੁੰਚ ਕਰ ਸਕਦੇ ਹੋ</translation>
@@ -1169,6 +1175,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="561269594905823128"><ph name="BEGIN_BOLD" />ਆਪਣੀ ਫ਼ਾਈਲ ਚੁਣੋ<ph name="END_BOLD" /> 'ਤੇ ਟੈਪ ਕਰੋ</translation>
 <translation id="5613297089029360427">ਨਵੀਨਤਮ ਮੁਤਾਬਲ ਕ੍ਰਮ-ਬੱਧ ਕਰੋ</translation>
 <translation id="5614553682702429503">ਕੀ ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰਨਾ ਹੈ?</translation>
+<translation id="5617769621178348890">Files ਐਪ ਵਿੱਚ ਖੋਲ੍ਹੋ</translation>
 <translation id="5619871095170816857">ਇਹ ਕਾਰਡ ਪਿਛਲੇ 24 ਘੰਟਿਆਂ ਦੇ ਅੰਦਰ ਤੁਹਾਡੇ ਸਾਰੇ ਸਿੰਕ ਕੀਤੇ ਡੀਵਾਈਸਾਂ ਵਿੱਚ ਤੁਹਾਡੀ ਪਿਛਲੀ ਵਾਰ ਵਰਤੀ ਗਈ ਖੁੱਲ੍ਹੀ ਟੈਬ ਨੂੰ ਦਿਖਾਉਂਦਾ ਹੈ।</translation>
 <translation id="5624120631404540903">ਪਾਸਵਰਡ ਵਿਵਸਥਿਤ ਕਰੋ</translation>
 <translation id="5624637933505983014">ਸਿੰਕ ਚਾਲੂ ਨਾ ਕਰੋ</translation>
@@ -1270,6 +1277,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="5956112131836209882">'ਟੈਬ ਗਰੁੱਪ' ਟੈਬ। <ph name="NUMBER_OF_TABS_IN_GROUP" /> ਵਿੱਚੋਂ <ph name="TAB_INDEX_IN_GROUP" />.</translation>
 <translation id="595769230373966252"><ph name="SEARCH_PROVIDER" /> ਨਾਲ ਖੋਜੋ</translation>
 <translation id="5963939892571022323">ਉਜਾਗਰ ਕੀਤੀ ਲਿਖਤ ਲਈ ਲਿੰਕ ਨਹੀਂ ਬਣਾਇਆ ਜਾ ਸਕਦਾ।</translation>
+<translation id="5968400720580217226">AI ਮੋਡ</translation>
 <translation id="5971459446352190251">QR ਕੋਡ ਖੋਜੋ</translation>
 <translation id="5971872012779224351">{count,plural, =1{1 ਬੁੱਕਮਾਰਕ ਮਿਟਾਇਆ ਗਿਆ}one{{count} ਬੁੱਕਮਾਰਕ ਮਿਟਾਇਆ ਗਿਆ}other{{count} ਬੁੱਕਮਾਰਕ ਮਿਟਾਏ ਗਏ}}</translation>
 <translation id="5972844218283131174">ਸਾਰਿਆਂ ਨੂੰ ਅਣ-ਚੁਣਿਆ ਕਰੋ</translation>
@@ -1415,6 +1423,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6452534462676960500">ਨਵੀਂ ਸਰਗਰਮੀ</translation>
 <translation id="6459411599807878608">ਵੇਰਵਿਆਂ ਨੂੰ ਲੁਕਾਇਆ ਗਿਆ</translation>
 <translation id="646394917185284261">ਫ਼ਾਈਲਾਂ</translation>
+<translation id="6472069383518492189">ਤੁਹਾਨੂੰ ਆਪਣੇ ਡਾਊਨਲੋਡ ਇੱਥੇ ਮਿਲਣਗੇ</translation>
 <translation id="6476253015009698798">ਇਸ ਪੰਨੇ ਲਈ ਕੀਮਤਾਂ ਦੀ ਟਰੈਕਿੰਗ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।</translation>
 <translation id="6476284679642588870">ਭੁਗਤਾਨ ਵਿਧੀਆਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ</translation>
 <translation id="6476800141292307438">ਪੰਨੇ ਦਾ <ph name="LANGUAGE" /> ਵਿੱਚ ਅਨੁਵਾਦ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ। ਵਿਕਲਪ ਸਕ੍ਰੀਨ ਦੇ ਹੇਠਲੇ ਪਾਸੇ ਉਪਲਬਧ ਹਨ।</translation>
@@ -1460,6 +1469,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6627583120233659107">ਫੋਲਡਰ ਸੰਪਾਦਿਤ ਕਰੋ</translation>
 <translation id="6629759408545977279">ਵੱਲੋਂ: <ph name="ORIGINATING_HOST" /></translation>
 <translation id="6634432609054530164">ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੇ ਇਨਕੋਗਨਿਟੋ ਮੋਡ ਨੂੰ ਬੰਦ ਕਰ ਦਿੱਤਾ ਹੈ</translation>
+<translation id="6637478299472506933">ਡਾਊਨਲੋਡ ਅਸਫਲ</translation>
 <translation id="6638511529934826365">ਲਿਖਤ ਨੂੰ ਜ਼ੂਮ ਕਰੋ…</translation>
 <translation id="6640268266988685324">ਟੈਬ ਖੋਲ੍ਹੋ</translation>
 <translation id="6641465290890659327">ਆਪਣੇ ਪਾਸਵਰਡ ਦੀ ਇੱਕ ਕਾਪੀ ਸਾਂਝੀ ਕਰੋ</translation>
@@ -1582,6 +1592,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="7102005569666697658">ਡਾਊਨਲੋਡ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">ਮੀਨੂ → ਸੈਟਿੰਗਾਂ → ਭੁਗਤਾਨ ਵਿਧੀਆਂ</translation>
 <translation id="7108338896283013870">ਲੁਕਾਓ</translation>
+<translation id="7127922377013221748">ਟੂਲਬਾਰ ਲੁਕਾਓ</translation>
 <translation id="7128693485119315539">ਤੁਹਾਡੀ ਸੰਸਥਾ ਨੂੰ ਤੁਹਾਡੇ ਪ੍ਰਬੰਧਿਤ ਕੀਤੇ ਖਾਤੇ ਨਾਲ ਸੰਬੰਧਿਤ ਬ੍ਰਾਊਜ਼ਿੰਗ ਡਾਟੇ ਨੂੰ ਦੇਖਣ ਅਤੇ ਉਸਦਾ ਪ੍ਰਬੰਧਨ ਕਰਨ ਦੀ ਲੋੜ ਹੋ ਸਕਦੀ ਹੈ, ਜਿਵੇਂ ਕਿ ਤੁਹਾਡਾ ਬ੍ਰਾਊਜ਼ਿੰਗ ਇਤਿਹਾਸ ਅਤੇ ਪਾਸਵਰਡ।</translation>
 <translation id="713215255510512027"><ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
 <translation id="7136892417564438900">ਕੈਮਰਾ ਉਪਲਬਧ ਨਹੀਂ ਹੈ</translation>
@@ -1892,6 +1903,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8283172974887967105">ਸੈੱਟ ਕਰੋ…</translation>
 <translation id="8289930144142009940"><ph name="FEATURE_NAME" /> ਸੂਚਨਾਵਾਂ ਬੰਦ ਕੀਤੀਆਂ</translation>
 <translation id="8290077367744012649">ਆਪਣੀਆਂ ਟੈਬਾਂ ਤੋਂ ਕੀਮਤਾਂ ਟਰੈਕ ਕਰੋ</translation>
+<translation id="8292893224181644074">ਡਾਊਨਲੋਡ ਪੂਰਾ ਹੋਇਆ</translation>
 <translation id="8299417921174340354">ਪਾਸਵਰਡਾਂ ਦੀ ਵਰਤੋਂ ਕਰਨ ਲਈ, ਤੁਹਾਨੂੰ ਪਹਿਲਾਂ ਆਪਣੇ ਡੀਵਾਈਸ 'ਤੇ ਪਾਸਕੋਡ ਸੈੱਟ ਕਰਨਾ ਲਾਜ਼ਮੀ ਹੈ।</translation>
 <translation id="8307481894409578819">ਇਹ ਫ਼ਾਈਲ ਅੱਪਲੋਡ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ</translation>
 <translation id="8319076807703933069">ਨਵੀਂ ਖੋਜ</translation>

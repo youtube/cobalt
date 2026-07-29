@@ -28,8 +28,15 @@ BASE_DECLARE_FEATURE(kAllowEyeDropperWGCScreenCapture);
 
 BASE_DECLARE_FEATURE(kCloseOmniboxPopupOnInactiveAreaClick);
 
+BASE_DECLARE_FEATURE(kCreateNewTabGroupAppMenuTopLevel);
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_DECLARE_FEATURE(kFewerUpdateConfirmations);
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+// Feature that manages the transition between old and new browser layout.
+BASE_DECLARE_FEATURE(kDesktopNewTopAreaLayoutFeature);
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -173,6 +180,11 @@ BASE_DECLARE_FEATURE_PARAM(
     kSideBySideDropTargetNudgeToFullTargetWidthPercentage);
 // The ratio of window width that will trigger a nudge to show/hide.
 BASE_DECLARE_FEATURE_PARAM(double, kSideBySideDropTargetNudgeShowRatio);
+// The total amount of times the nudge may be shown before we stop showing it.
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetNudgeShownLimit);
+// The total amount of times the drop target may be used with a link before we
+// stop showing the nudge.
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideDropTargetNudgeUsedLimit);
 
 enum class MiniToolbarActiveConfiguration {
   // Hides the toolbar in the active view.
@@ -188,11 +200,17 @@ BASE_DECLARE_FEATURE_PARAM(MiniToolbarActiveConfiguration,
 
 BASE_DECLARE_FEATURE_PARAM(int, kSideBySideSnapDistance);
 
+BASE_DECLARE_FEATURE_PARAM(int, kSideBySideIphTabSwitchCount);
+
 BASE_DECLARE_FEATURE(kSideBySideSessionRestore);
 
 bool IsRestoringSplitViewEnabled();
 
 BASE_DECLARE_FEATURE(kSideBySideLinkMenuNewBadge);
+
+BASE_DECLARE_FEATURE(kSideBySideKeyboardShortcut);
+
+bool IsSideBySideKeyboardShortcutEnabled();
 
 BASE_DECLARE_FEATURE(kTabDuplicateMetrics);
 
@@ -305,11 +323,9 @@ BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
 
 bool IsToolbarPinningEnabled();
 
-BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForAvatar);
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
 BASE_DECLARE_FEATURE(kEnterpriseBadgingForNtpFooter);
 BASE_DECLARE_FEATURE(kNTPFooterBadgingPolicies);
-BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingPolicies);
 BASE_DECLARE_FEATURE(kEnterpriseManagementDisclaimerUsesCustomLabel);
 BASE_DECLARE_FEATURE(kManagedProfileRequiredInterstitial);
 
@@ -371,6 +387,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationCollaborationMessaging);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationPriceTracking);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationAutofillMandatoryReauth);
 BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationClickToCall);
+BASE_DECLARE_FEATURE_PARAM(bool, kPageActionsMigrationSharingHub);
 
 // Determines whether the "save password" page action displays different UI if
 // the user has said to never save passwords for that site.

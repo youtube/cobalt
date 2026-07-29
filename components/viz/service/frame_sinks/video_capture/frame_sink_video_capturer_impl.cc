@@ -427,7 +427,6 @@ void FrameSinkVideoCapturerImpl::ChangeTarget(
     const std::optional<VideoCaptureTarget>& target,
     uint32_t sub_capture_version) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CHECK_GE(sub_capture_version, capture_version_sub_capture_);
 
   target_ = target;
 
@@ -498,6 +497,11 @@ void FrameSinkVideoCapturerImpl::Start(
   // Stop(), make that call on its behalf.
   consumer_.set_disconnect_handler(base::BindOnce(
       &FrameSinkVideoCapturerImpl::Stop, base::Unretained(this)));
+
+  // Inform the consumer of the change ahead of the first frame (which will
+  // essentially have the same message implicit in its metadata).
+  consumer_->OnNewCaptureVersion(capture_version());
+
   RefreshEntireSourceNow();
 }
 

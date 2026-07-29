@@ -7,6 +7,7 @@
 #import <optional>
 
 #import "base/check_deref.h"
+#import "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #import "components/autofill/core/browser/payments/credit_card_cvc_authenticator.h"
 #import "components/autofill/core/browser/payments/mandatory_reauth_manager.h"
@@ -35,13 +36,19 @@ IOSWebViewPaymentsAutofillClient::IOSWebViewPaymentsAutofillClient(
               client->GetIdentityManager(),
               &client->GetPersonalDataManager().payments_data_manager(),
               web_state->GetBrowserState()->IsOffTheRecord())),
-      web_state_(CHECK_DEREF(web_state)) {}
+      web_state_(CHECK_DEREF(web_state)) {
+  GetPaymentsDataManager().CleanupForCrbug445879524();
+}
 
 IOSWebViewPaymentsAutofillClient::~IOSWebViewPaymentsAutofillClient() = default;
 
 void IOSWebViewPaymentsAutofillClient::LoadRiskData(
     base::OnceCallback<void(const std::string&)> callback) {
   [bridge_ loadRiskData:std::move(callback)];
+}
+
+bool IOSWebViewPaymentsAutofillClient::LocalCardSaveIsSupported() {
+  return false;
 }
 
 void IOSWebViewPaymentsAutofillClient::ShowSaveCreditCardToCloud(
@@ -82,6 +89,24 @@ void IOSWebViewPaymentsAutofillClient::ShowUnmaskPrompt(
 void IOSWebViewPaymentsAutofillClient::OnUnmaskVerificationResult(
     payments::PaymentsAutofillClient::PaymentsRpcResult result) {
   [bridge_ didReceiveUnmaskVerificationResult:result];
+}
+
+void IOSWebViewPaymentsAutofillClient::ShowAutofillProgressDialog(
+    autofill::AutofillProgressDialogType autofill_progress_dialog_type,
+    base::OnceClosure cancel_callback) {
+  [bridge_ showAutofillProgressDialogOfType:autofill_progress_dialog_type
+                             cancelCallback:std::move(cancel_callback)];
+}
+
+void IOSWebViewPaymentsAutofillClient::CloseAutofillProgressDialog(
+    bool show_confirmation_before_closing,
+    base::OnceClosure no_interactive_authentication_callback) {
+  [bridge_
+      closeAutofillProgressDialogWithConfirmation:
+          show_confirmation_before_closing
+                               completionCallback:
+                                   std::move(
+                                       no_interactive_authentication_callback)];
 }
 
 CreditCardCvcAuthenticator&

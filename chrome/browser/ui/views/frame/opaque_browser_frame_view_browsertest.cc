@@ -101,7 +101,7 @@ class WebAppOpaqueBrowserFrameViewTest : public web_app::WebAppBrowserTestBase {
         web_app::LaunchWebAppBrowser(browser()->profile(), app_id);
 
     browser_view_ = BrowserView::GetBrowserViewForBrowser(app_browser);
-    views::NonClientFrameView* frame_view =
+    views::FrameView* frame_view =
         browser_view_->GetWidget()->non_client_view()->frame_view();
 
     // Not all platform configurations use OpaqueBrowserFrameView for their
@@ -177,7 +177,7 @@ IN_PROC_BROWSER_TEST_F(WebAppOpaqueBrowserFrameViewTest, SystemThemeColor) {
   // Read unthemed native frame color.
   SkColor native_frame_color =
       BrowserView::GetBrowserViewForBrowser(browser())
-          ->frame()
+          ->browser_widget()
           ->GetFrameView()
           ->GetFrameColor(BrowserFrameActiveState::kActive);
   SkColor expected_caption_color =
@@ -262,7 +262,7 @@ IN_PROC_BROWSER_TEST_F(WebAppOpaqueBrowserFrameViewTest, Fullscreen) {
     GTEST_SKIP();
   }
 
-  opaque_browser_frame_view_->frame()->SetFullscreen(true);
+  opaque_browser_frame_view_->browser_widget()->SetFullscreen(true);
   browser_view_->GetWidget()->LayoutRootViewIfNecessary();
 
   // Verify that all children except the ClientView are hidden when the window
@@ -330,7 +330,7 @@ class WebAppOpaqueBrowserFrameViewWindowControlsOverlayTest
     web_app::NavigateViaLinkClickToURLAndWait(app_browser, start_url);
 
     browser_view_ = BrowserView::GetBrowserViewForBrowser(app_browser);
-    views::NonClientFrameView* frame_view =
+    views::FrameView* frame_view =
         browser_view_->GetWidget()->non_client_view()->frame_view();
 
     // Not all platform configurations use OpaqueBrowserFrameView for their

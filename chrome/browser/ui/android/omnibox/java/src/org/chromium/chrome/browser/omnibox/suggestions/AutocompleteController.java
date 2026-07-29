@@ -14,7 +14,6 @@ import org.jni_zero.NativeMethods;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
-import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxAnswerAction;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler.VoiceResult;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
@@ -23,6 +22,7 @@ import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteResult;
 import org.chromium.components.omnibox.AutocompleteResult.VerificationPoint;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.url.GURL;
@@ -279,7 +279,8 @@ public class AutocompleteController {
             int pageClassification,
             long elapsedTimeSinceModified,
             int completedLength,
-            @Nullable WebContents webContents) {
+            @Nullable WebContents webContents,
+            @Nullable OmniboxAction action) {
         if (mNativeController == 0) return;
         if (!hasValidNativeObjectRef(match, VerificationPoint.SELECT_MATCH)) return;
 
@@ -293,7 +294,8 @@ public class AutocompleteController {
                         pageClassification,
                         elapsedTimeSinceModified,
                         completedLength,
-                        webContents);
+                        webContents,
+                        action != null ? action.getNativeInstance() : 0);
     }
 
     /**
@@ -370,34 +372,12 @@ public class AutocompleteController {
     }
 
     /**
-     * Returns the final url for navigating to the SRP for the given answer action. The returned URL
-     * is augmented with the final searchbox stats.
-     */
-    @Nullable
-    GURL getAnswerActionDestinationURL(
-            AutocompleteMatch match,
-            long elapsedTimeSinceInputChange,
-            OmniboxAnswerAction answerAction) {
-        if (mNativeController == 0) return null;
-        assert hasValidNativeObjectRef(match, VerificationPoint.UPDATE_MATCH);
-        if (!hasValidNativeObjectRef(match, VerificationPoint.UPDATE_MATCH)) return null;
-
-        return AutocompleteControllerJni.get()
-                .getAnswerActionDestinationURL(
-                        mNativeController,
-                        match.getNativeObjectRef(),
-                        elapsedTimeSinceInputChange,
-                        answerAction.getNativeInstance());
-    }
-
-    /**
      * Retrieves matching tab for suggestion at specific index.
      *
      * @param match the AutocompleteMatch to retrieve Tab info for
      * @return tab that hosts matching URL
      */
-    @Nullable
-    Tab getMatchingTabForSuggestion(AutocompleteMatch match) {
+    @Nullable Tab getMatchingTabForSuggestion(AutocompleteMatch match) {
         if (mNativeController == 0) return null;
         if (!hasValidNativeObjectRef(match, VerificationPoint.GET_MATCHING_TAB)) return null;
         return AutocompleteControllerJni.get()
@@ -461,7 +441,8 @@ public class AutocompleteController {
                 int pageClassification,
                 long elapsedTimeSinceModified,
                 int completedLength,
-                @Nullable WebContents webContents);
+                @Nullable WebContents webContents,
+                long nativeOmniboxAction);
 
         boolean onSuggestionTouchDown(
                 long nativeAutocompleteControllerAndroid,
@@ -487,12 +468,6 @@ public class AutocompleteController {
                 long nativeAutocompleteControllerAndroid,
                 long nativeAutocompleteMatch,
                 long elapsedTimeSinceInputChange);
-
-        GURL getAnswerActionDestinationURL(
-                long nativeAutocompleteControllerAndroid,
-                long nativeAutocompleteMatch,
-                long elapsedTimeSinceInputChange,
-                long nativeAnswerAction);
 
         Tab getMatchingTabForSuggestion(
                 long nativeAutocompleteControllerAndroid, long nativeAutocompleteMatch);

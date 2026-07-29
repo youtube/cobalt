@@ -55,7 +55,8 @@
         (id<SigninPromoViewMediatorDelegate>)signinPromoViewMediatorDelegate
            accountSettingsPresenter:
                (id<AccountSettingsPresenter>)accountSettingsPresenter {
-  DCHECK(browser);
+  CHECK(browser, base::NotFatalUntil::M145);
+  CHECK(syncService, base::NotFatalUntil::M145);
   self = [super init];
   if (self) {
     _delegate = delegate;
@@ -93,11 +94,16 @@
   return self;
 }
 
+- (void)dealloc {
+  CHECK(!_authServiceObserverBridge, base::NotFatalUntil::M145);
+}
+
 - (void)shutdown {
   [_signinPromoViewMediator disconnect];
   _signinPromoViewMediator = nil;
   _browser = nullptr;
   _identityManagerObserverBridge.reset();
+  _authServiceObserverBridge.reset();
 }
 
 - (void)setShouldShowSigninPromo:(BOOL)shouldShowSigninPromo {

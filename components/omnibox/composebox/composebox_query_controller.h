@@ -4,6 +4,7 @@
 
 #ifndef COMPONENTS_OMNIBOX_COMPOSEBOX_COMPOSEBOX_QUERY_CONTROLLER_H_
 #define COMPONENTS_OMNIBOX_COMPOSEBOX_COMPOSEBOX_QUERY_CONTROLLER_H_
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -190,7 +191,8 @@ class ComposeboxQueryController {
       std::string locale,
       TemplateURLService* template_url_service,
       variations::VariationsClient* variations_client,
-      bool send_lns_surface);
+      bool send_lns_surface,
+      bool enable_multi_context_input_flow);
   virtual ~ComposeboxQueryController();
 
   // Session management. Virtual for testing.
@@ -204,7 +206,9 @@ class ComposeboxQueryController {
 
   // Called when a query has been submitted. `query_start_time` is the time
   // that the user clicked the submit button.
-  GURL CreateAimUrl(const std::string& query_text, base::Time query_start_time);
+  GURL CreateAimUrl(const std::string& query_text,
+                    base::Time query_start_time,
+                    std::map<std::string, std::string> additional_params = {});
 
   // Observer management.
   void AddObserver(FileUploadStatusObserver* obs);
@@ -224,6 +228,9 @@ class ComposeboxQueryController {
 
   // Clear entire file cache.
   virtual void ClearFiles();
+
+  // Clears the suggest inputs.
+  virtual void ClearSuggestInputs();
 
   int num_files_in_request() { return num_files_in_request_; }
 
@@ -338,6 +345,14 @@ class ComposeboxQueryController {
       std::unique_ptr<lens::ContextualInputData> contextual_input_data,
       std::optional<lens::ImageEncodingOptions> options);
 
+  // Callback that takes the image request body proto and adds the pdf page
+  // index to it.
+  void AddPageIndexToImageUploadRequestAndContinue(
+      std::optional<size_t> pdf_page_index,
+      RequestBodyProtoCreatedCallback callback,
+      lens::LensOverlayServerRequest request,
+      std::optional<FileUploadErrorType> error_type);
+
   // Asynchronous handler for when an upload request body is ready.
   void OnUploadRequestBodyReady(const base::UnguessableToken& file_token,
                                 size_t request_index,
@@ -422,6 +437,9 @@ class ComposeboxQueryController {
   // TODO(crbug.com/430070871): Remove this once the server supports the
   // `lns_surface` parameter.
   bool send_lns_surface_ = false;
+
+  // Whether or not to use the multiple-input id request generation flow.
+  bool enable_multi_context_input_flow_ = false;
 
   lens::proto::LensOverlaySuggestInputs suggest_inputs_;
 

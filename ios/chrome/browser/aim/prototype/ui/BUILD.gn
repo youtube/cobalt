@@ -4,10 +4,12 @@
 
 source_set("ui") {
   sources = [
-    "aim_image_cell.h",
-    "aim_image_cell.mm",
     "aim_input_item.h",
     "aim_input_item.mm",
+    "aim_input_item_cell.h",
+    "aim_input_item_cell.mm",
+    "aim_input_item_view.h",
+    "aim_input_item_view.mm",
     "aim_prototype_animation_context_provider.h",
     "aim_prototype_consumer.h",
     "aim_prototype_container_view_controller.h",
@@ -23,8 +25,11 @@ source_set("ui") {
   deps = [
     "//base",
     "//build:branding_buildflags",
+    "//ios/chrome/browser/omnibox/ui:omnibox_internal",
+    "//ios/chrome/browser/omnibox/ui/popup",
     "//ios/chrome/browser/shared/ui/elements",
     "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
     "//ios/public/provider/chrome/browser/glow_effect:glow_effect_api",

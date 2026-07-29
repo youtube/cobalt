@@ -479,6 +479,7 @@
 <translation id="2797029671965852011">ಇತಿಹಾಸವನ್ನು ತೋರಿಸಿ</translation>
 <translation id="2797302972324086597">ರಾಷ್ಟ್ರ ಕೋಡ್</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT} ಫೈಲ್}one{{COUNT} ಫೈಲ್‌ಗಳು}other{{COUNT} ಫೈಲ್‌ಗಳು}}</translation>
+<translation id="2816149645002567541">ಡೌನ್‌ಲೋಡ್ ವಿರಾಮಗೊಳಿಸಲಾಗಿದೆ</translation>
 <translation id="2816489851009559785">ಮೆನು → ಸೆಟ್ಟಿಂಗ್‌ಗಳು → ಡೀಫಾಲ್ಟ್‌ ಬ್ರೌಸರ್‌</translation>
 <translation id="2818821771744632548">ನಿಮ್ಮ iPhone ರೀಸೆಟ್‌ನ ಭಾಗವಾಗಿ ನಿಮ್ಮ ಖಾತೆ <ph name="USER_NAME" /> ನಿಂದ ನಿಮ್ಮನ್ನು ಸೈನ್‌ಔಟ್ ಮಾಡಲಾಗಿದೆ. ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಲು, ಕೆಳಗೆ "ಮುಂದುವರಿಸಿ" ಟ್ಯಾಪ್ ಮಾಡಿ.</translation>
 <translation id="2819667972867209401">ಆನ್ ಆಗಿರುವಾಗ, ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ ಡೇಟಾವನ್ನು ಸೇವ್‌ ಮಾಡಲಾಗುತ್ತದೆ. ಆಫ್ ಆಗಿರುವಾಗ, ಡೇಟಾವನ್ನು ಈ ಸಾಧನದಲ್ಲಿ ಮಾತ್ರ ಸೇವ್‌ ಮಾಡಲಾಗುತ್ತದೆ ಮತ್ತು ನೀವು ಸೈನ್ ಔಟ್ ಮಾಡಿದರೆ ಅಳಿಸಲಾಗುತ್ತದೆ.</translation>
@@ -735,6 +736,7 @@
 <translation id="3921585859122905677">ವಿಳಾಸ ಪಟ್ಟಿಯ ಸ್ಥಾನ</translation>
 <translation id="3922185497376658606">ಪ್ರೀಲೋಡ್‌ ವೆಬ್‌ ಪುಟಗಳು</translation>
 <translation id="3922395466317605522">ಮೆನು ಕಸ್ಟಮೈಸ್ ಮಾಡಿ</translation>
+<translation id="3926703470020109118">ಡೌನ್‌ಲೋಡ್ ರದ್ದುಪಡಿಸಲಾಗಿದೆ</translation>
 <translation id="3929457972718048006">ವಿಳಾಸಗಳು</translation>
 <translation id="3931215329146376310">{count,plural, =1{ಈ ಸೈಟ್‌ನ ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌}one{ಈ ಸೈಟ್‌ಗಳ ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು}other{ಈ ಸೈಟ್‌ಗಳ ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು}}</translation>
 <translation id="3934905113567851655">ಮರುಗಾತ್ರಗೊಳಿಸಲು ಪಿಂಚ್ ಮಾಡಿ</translation>
@@ -787,6 +789,7 @@
 <translation id="4113957097611235433">ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಬದಲಾಯಿಸಿ</translation>
 <translation id="4120936477286528673">ಈ ಸೈಟ್‌ ಪದೇಪದೇ ಇನ್ನೊಂದು ಆ್ಯಪ್‌ ತೆರೆಯಲು ಪ್ರಯತ್ನಿಸುತ್ತಿದೆ.</translation>
 <translation id="4121993058175073134">ಒಟ್ಟು ರಫ್ತು ಡೇಟಾ ಕಳುಹಿಸಲು, ದಯವಿಟ್ಟು ನಿಮ್ಮ ಇಮೇಲ್ ಖಾತೆಯನ್ನು ಸೆಟ್ಟಿಂಗ್‌‌ಗಳ ಅಪ್ಲಿಕೇಶನ್‌‌ನಲ್ಲಿ ಕಾನ್ಫಿಗರ್ ಮಾಡಿ.</translation>
+<translation id="4132991308423633339">ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಮತ್ತು ಪಾಸ್‌ಕೀಗಳನ್ನು ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಮಾಡಿ…</translation>
 <translation id="4133139945030148655">ನೀವು ಎಲ್ಲ ರೀತಿಯಲ್ಲಿಯೂ ಸಿದ್ಧರಾಗಿದ್ದೀರಿ</translation>
 <translation id="4133265950310064865">ವರ್ಧಿತ ಸುರಕ್ಷತೆ</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -834,6 +837,7 @@
 <translation id="4286718549648564014">ವಿಳಾಸವನ್ನು ನಿಮ್ಮ ಖಾತೆಗೆ ಸರಿಸಲಾಗಿದೆ <ph name="USER_EMAIL" /></translation>
 <translation id="4287172530684295552">ಓದಿರುವುದು ಎಂದು ಗುರುತಿಸಿ</translation>
 <translation id="428768789042547925">ಹೊಸತೇನಿದೆ</translation>
+<translation id="428858055663163046">ನಿಮ್ಮ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಫೈಲ್‌ಗಳು ಲಭ್ಯವಿದ್ದಾಗ ನೀವು ಇಲ್ಲಿ ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಬಹುದು</translation>
 <translation id="429074084062258019">{count,plural, =1{ಗುಂಪಿಗೆ ಟ್ಯಾಬ್ ಸೇರಿಸಿ}one{ಗುಂಪಿಗೆ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಸೇರಿಸಿ}other{ಗುಂಪಿಗೆ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಸೇರಿಸಿ}}</translation>
 <translation id="4302061870579014542">ಸ್ಥಾನವನ್ನು ಸೆಟ್‌ ಮಾಡಿ</translation>
 <translation id="4304713468139749426">ಪಾಸ್‌ವರ್ಡ್ ನಿರ್ವಾಹಕ</translation>
@@ -950,6 +954,7 @@
 <translation id="4749529195026091676">{count,plural, =1{{count} ಕಾರ್ಡ್ ಅನ್ನು ಇಂಪೋರ್ಟ್ ಮಾಡಲಾಗಿದೆ}one{{count} ಕಾರ್ಡ್‌ಗಳನ್ನು ಇಂಪೋರ್ಟ್ ಮಾಡಲಾಗಿದೆ}other{{count} ಕಾರ್ಡ್‌ಗಳನ್ನು ಇಂಪೋರ್ಟ್ ಮಾಡಲಾಗಿದೆ}}</translation>
 <translation id="4751645464639803239">ಹೊಸ ಅದೃಶ್ಯ ಟ್ಯಾಬ್</translation>
 <translation id="4752348350801431746">ಸುರಕ್ಷತೆಯ ಪರಿಶೀಲನೆ ನೋಟಿಫಿಕೇಶನ್‌ಗಳನ್ನು ಆಫ್ ಮಾಡಿ…</translation>
+<translation id="4759238208242260848">ಡೌನ್‌ಲೋಡ್‌ಗಳು</translation>
 <translation id="4764612367328936189">ಕೆಲವು ಖಾತೆಗಳ ಮೂಲಕ ಮಾತ್ರ ಸೈನ್ ಇನ್ ಮಾಡಲು ನಿಮ್ಮ ಸಂಸ್ಥೆ ನಿಮಗೆ ಅನುಮತಿ ನೀಡುತ್ತದೆ. ಅನುಮತಿಸದ ಖಾತೆಗಳನ್ನು ಮರೆಮಾಡಲಾಗಿದೆ. <ph name="BEGIN_LINK" />ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ<ph name="END_LINK" /></translation>
 <translation id="4766112107778026136">ಅನ್ವೇಷಿಸಿ ಮತ್ತು ಫಾಲೋ ಮಾಡಿ</translation>
 <translation id="4769198578611055647">ಯಾವುದೇ ಸಾಧನದಲ್ಲಿ ಸೇವ್ ಮಾಡಿದ ಪಾಸ್‌ಕೀಗಳನ್ನು ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಲು ನಿಮಗೆ ಸಹಾಯ ಮಾಡುತ್ತದೆ</translation>
@@ -1170,6 +1175,7 @@
 <translation id="561269594905823128"><ph name="BEGIN_BOLD" />ನಿಮ್ಮ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ<ph name="END_BOLD" /> ಎಂಬುದನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
 <translation id="5613297089029360427">ಇತ್ತೀಚಿನ ಪ್ರಕಾರ ವಿಂಗಡಿಸಿ</translation>
 <translation id="5614553682702429503">ಪಾಸ್‌ವರ್ಡ್ ಉಳಿಸುವುದೇ?</translation>
+<translation id="5617769621178348890">ಫೈಲ್‌ಗಳು ಆ್ಯಪ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ</translation>
 <translation id="5619871095170816857">ಈ ಕಾರ್ಡ್ ಕಳೆದ 24 ಗಂಟೆಗಳಲ್ಲಿ ನಿಮ್ಮ ಎಲ್ಲಾ ಸಿಂಕ್ ಮಾಡಲಾದ ಸಾಧನಗಳಲ್ಲಿ ನೀವು ಕೊನೆಯದಾಗಿ ಬಳಸಿದ ತೆರೆದ ಟ್ಯಾಬ್ ಅನ್ನು ತೋರಿಸುತ್ತದೆ.</translation>
 <translation id="5624120631404540903">ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
 <translation id="5624637933505983014">ಸಿಂಕ್‌ ಅನ್ನು ಆನ್ ಮಾಡಬೇಡಿ</translation>
@@ -1271,6 +1277,7 @@
 <translation id="5956112131836209882">ಟ್ಯಾಬ್ ಗುಂಪು ಟ್ಯಾಬ್. <ph name="NUMBER_OF_TABS_IN_GROUP" /> ರಲ್ಲಿ <ph name="TAB_INDEX_IN_GROUP" />.</translation>
 <translation id="595769230373966252"><ph name="SEARCH_PROVIDER" /> ಮೂಲಕ ಹುಡುಕಿ</translation>
 <translation id="5963939892571022323">ಹೈಲೈಟ್ ಮಾಡುವುದಕ್ಕಾಗಿ ಲಿಂಕ್ ಅನ್ನು ರಚಿಸಲು ಸಾದ್ಯವಿಲ್ಲ.</translation>
+<translation id="5968400720580217226">AI ಮೋಡ್</translation>
 <translation id="5971459446352190251">QR ಕೋಡ್‌ ಅನ್ನು ಹುಡುಕಿ</translation>
 <translation id="5971872012779224351">{count,plural, =1{1 ಬುಕ್‌ಮಾರ್ಕ್ ಅನ್ನು ಅಳಿಸಲಾಗಿದೆ}one{{count} ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ಅಳಿಸಲಾಗಿದೆ}other{{count} ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ಅಳಿಸಲಾಗಿದೆ}}</translation>
 <translation id="5972844218283131174">ಎಲ್ಲಾ ಆಯ್ಕೆಯನ್ನು ರದ್ದುಮಾಡಿ</translation>
@@ -1416,6 +1423,7 @@
 <translation id="6452534462676960500">ಹೊಸ ಚಟುವಟಿಕೆ</translation>
 <translation id="6459411599807878608">ವಿವರಗಳನ್ನು ಮರೆಮಾಡಲಾಗಿದೆ</translation>
 <translation id="646394917185284261">Files</translation>
+<translation id="6472069383518492189">ನಿಮ್ಮ ಡೌನ್‌ಲೋಡ್‌ಗಳನ್ನು ನೀವು ಇಲ್ಲಿ ಕಾಣಬಹುದು</translation>
 <translation id="6476253015009698798">ಈ ಪುಟಕ್ಕಾಗಿ ಬೆಲೆ ಟ್ರ್ಯಾಕಿಂಗ್ ಲಭ್ಯವಿಲ್ಲ.</translation>
 <translation id="6476284679642588870">ಪಾವತಿ ವಿಧಾನಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
 <translation id="6476800141292307438">ಪುಟವನ್ನು <ph name="LANGUAGE" /> ಭಾಷೆಗೆ ಅನುವಾದಿಸಲಾಗುತ್ತಿದೆ. ಪರದೆಯ ಕೆಳಭಾಗದ ಸಮೀಪದಲ್ಲಿ ಆಯ್ಕೆಗಳು ಲಭ್ಯವಿವೆ.</translation>
@@ -1461,6 +1469,7 @@
 <translation id="6627583120233659107">ಫೋಲ್ಡರ್ ಎಡಿಟ್ ಮಾಡಿ</translation>
 <translation id="6629759408545977279">ಇಂದ: <ph name="ORIGINATING_HOST" /></translation>
 <translation id="6634432609054530164">ನಿಮ್ಮ ಸಂಸ್ಥೆಯು, ಅಜ್ಞಾತ ಮೋಡ್ ಅನ್ನು ಆಫ್ ಮಾಡಿದೆ</translation>
+<translation id="6637478299472506933">ಡೌನ್‌ಲೋಡ್ ವಿಫಲವಾಗಿದೆ</translation>
 <translation id="6638511529934826365">ಪಠ್ಯವನ್ನು ಝೂಮ್ ಮಾಡಿ…</translation>
 <translation id="6640268266988685324">ಟ್ಯಾಬ್ ತೆರೆಯಿರಿ</translation>
 <translation id="6641465290890659327">ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ನ ಕಾಪಿಯನ್ನು ಹಂಚಿಕೊಳ್ಳಿ</translation>
@@ -1583,6 +1592,7 @@
 <translation id="7102005569666697658">ಡೌನ್‌ಲೋಡ್‌ ಮಾಡಲಾಗುತ್ತಿದೆ… <ph name="FILE_SIZE" /></translation>
 <translation id="7104701424653979232">ಮೆನು → ಸೆಟ್ಟಿಂಗ್‌ಗಳು → ಪಾವತಿ ವಿಧಾನಗಳು</translation>
 <translation id="7108338896283013870">ಮರೆಮಾಡಿ</translation>
+<translation id="7127922377013221748">ಪರಿಕರ ಪಟ್ಟಿ ಮರೆಮಾಡಿ</translation>
 <translation id="7128693485119315539">ನಿಮ್ಮ ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್‌ಗಳಂತಹ ನಿಮ್ಮ ನಿರ್ವಹಿಸಲಾದ ಖಾತೆಗೆ ಸಂಬಂಧಿಸಿರುವ ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ನಿಮ್ಮ ಸಂಸ್ಥೆಯು ನೋಡಬೇಕಾಗಬಹುದು ಮತ್ತು ನಿರ್ವಹಿಸಬೇಕಾಗಬಹುದು.</translation>
 <translation id="713215255510512027"><ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
 <translation id="7136892417564438900">ಕ್ಯಾಮರಾ ಲಭ್ಯವಿಲ್ಲ</translation>
@@ -1893,6 +1903,7 @@
 <translation id="8283172974887967105">ಸೆಟ್ ಮಾಡಿ…</translation>
 <translation id="8289930144142009940"><ph name="FEATURE_NAME" /> ನೋಟಿಫಿಕೇಶನ್‌ಗಳನ್ನು ಆಫ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="8290077367744012649">ನಿಮ್ಮ ಟ್ಯಾಬ್‌ಗಳಿಂದ ಬೆಲೆಗಳನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ</translation>
+<translation id="8292893224181644074">ಡೌನ್‌ಲೋಡ್ ಪೂರ್ಣಗೊಂಡಿದೆ</translation>
 <translation id="8299417921174340354">ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಬಳಸಲು, ನೀವು ಮೊದಲು ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಪಾಸ್‌ಕೋಡ್ ಅನ್ನು ಹೊಂದಿಸಬೇಕು.</translation>
 <translation id="8307481894409578819">ಈ ಫೈಲ್ ಅನ್ನು ಅಪ್‌ಲೋಡ್‌ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</translation>
 <translation id="8319076807703933069">ಹೊಸ ಹುಡುಕಾಟ</translation>

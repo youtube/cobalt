@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/cookie_controls/roll_back_mode_b_infobar_delegate.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/infobars/confirm_infobar_creator.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/infobars/content/content_infobar_manager.h"
@@ -14,16 +15,19 @@
 #include "ui/gfx/text_constants.h"
 
 // static
-void RollBackModeBInfoBarDelegate::Create(
+infobars::InfoBar* RollBackModeBInfoBarDelegate::Create(
     infobars::ContentInfoBarManager* infobar_manager) {
-  infobar_manager->AddInfoBar(
+  return infobar_manager->AddInfoBar(
       CreateConfirmInfoBar(std::unique_ptr<ConfirmInfoBarDelegate>(
           new RollBackModeBInfoBarDelegate())));
 }
 
 RollBackModeBInfoBarDelegate::RollBackModeBInfoBarDelegate() = default;
 
-RollBackModeBInfoBarDelegate::~RollBackModeBInfoBarDelegate() = default;
+RollBackModeBInfoBarDelegate::~RollBackModeBInfoBarDelegate() {
+  base::UmaHistogramBoolean(
+      "Privacy.3PCD.RollbackNotice.AutomaticallyDismissed", !user_action_);
+}
 
 infobars::InfoBarDelegate::InfoBarIdentifier
 RollBackModeBInfoBarDelegate::GetIdentifier() const {
@@ -40,9 +44,19 @@ std::u16string RollBackModeBInfoBarDelegate::GetMessageText() const {
 
 bool RollBackModeBInfoBarDelegate::Cancel() {
   // The "cancel" button is a link to cookie settings.
+  user_action_ = true;
+  base::UmaHistogramEnumeration("Privacy.3PCD.RollbackNotice.Action",
+                                RollBack3pcdNoticeAction::kSettings);
   infobar()->owner()->OpenURL(GURL(chrome::kChromeUICookieSettingsURL),
-                              WindowOpenDisposition::SWITCH_TO_TAB);
-  return true;
+                              WindowOpenDisposition::NEW_FOREGROUND_TAB);
+  return false;
+}
+
+bool RollBackModeBInfoBarDelegate::Accept() {
+  user_action_ = true;
+  base::UmaHistogramEnumeration("Privacy.3PCD.RollbackNotice.Action",
+                                RollBack3pcdNoticeAction::kGotIt);
+  return ConfirmInfoBarDelegate::Accept();
 }
 
 std::u16string RollBackModeBInfoBarDelegate::GetButtonLabel(

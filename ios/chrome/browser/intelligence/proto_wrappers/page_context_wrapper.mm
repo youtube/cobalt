@@ -19,6 +19,8 @@
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/task/bind_post_task.h"
+#import "base/task/sequenced_task_runner.h"
 #import "base/time/time.h"
 #import "base/timer/timer.h"
 #import "base/token.h"
@@ -186,6 +188,9 @@ result.links = linksArray;
   // tree is constructed on the fly as values are returned from JavaScript.
   std::unique_ptr<optimization_guide::proto::AnnotatedPageContent> _rootAPCNode;
 
+  // The string which aggregates all iframes' innerTexts.
+  std::unique_ptr<std::string> _innerText;
+
   // Whether the PageContext should be detached. Likely a protected page.
   BOOL _forceDetachPageContext;
 
@@ -247,11 +252,14 @@ result.links = linksArray;
   // Use a `BarrierClosure` to ensure all async tasks are completed before
   // executing the overall completion callback. The BarrierClosure will wait
   // until the `pageContextBarrier` callback is itself run
-  // `_asyncTasksToComplete` times.
-  base::RepeatingClosure pageContextBarrier =
-      base::BarrierClosure(_asyncTasksToComplete, base::BindOnce(^{
-                             [weakSelf asyncWorkCompletedForPageContext];
-                           }));
+  // `_asyncTasksToComplete` times, then post the completion handler to execute
+  // on the next loop of the current sequence.
+  base::RepeatingClosure pageContextBarrier = base::BarrierClosure(
+      _asyncTasksToComplete,
+      base::BindPostTask(base::SequencedTaskRunner::GetCurrentDefault(),
+                         base::BindOnce(^{
+                           [weakSelf asyncWorkCompletedForPageContext];
+                         })));
 
   // Asynchronous work. *IMPORTANT NOTES*:
   // When adding async tasks below, an accompanying setter should also be
@@ -265,7 +273,7 @@ result.links = linksArray;
     [self processSnapshotWithBarrier:pageContextBarrier];
   }
 
-  if (_shouldGetAnnotatedPageContent) {
+  if (_shouldGetAnnotatedPageContent || _shouldGetInnerText) {
     [self processAnnotatedPageContentWithBarrier:pageContextBarrier];
   }
 
@@ -289,8 +297,8 @@ result.links = linksArray;
     return;
   }
 
-  _asyncTasksToComplete += shouldGetSnapshot ? 1 : -1;
   _shouldGetSnapshot = shouldGetSnapshot;
+  _asyncTasksToComplete += shouldGetSnapshot ? 1 : -1;
 }
 
 // Sets the flag to enabled/disabled, and increments/decrements accordingly the
@@ -300,8 +308,8 @@ result.links = linksArray;
     return;
   }
 
-  _asyncTasksToComplete += shouldGetFullPagePDF ? 1 : -1;
   _shouldGetFullPagePDF = shouldGetFullPagePDF;
+  _asyncTasksToComplete += shouldGetFullPagePDF ? 1 : -1;
 }
 
 // Sets the flag to enabled/disabled, and increments/decrements accordingly the
@@ -311,8 +319,29 @@ result.links = linksArray;
     return;
   }
 
-  _asyncTasksToComplete += shouldGetAnnotatedPageContent ? 1 : -1;
   _shouldGetAnnotatedPageContent = shouldGetAnnotatedPageContent;
+
+  // Only update `_asyncTasksToComplete` if `_shouldGetInnerText` is false,
+  // since they both affect the same async task.
+  if (!_shouldGetInnerText) {
+    _asyncTasksToComplete += shouldGetAnnotatedPageContent ? 1 : -1;
+  }
+}
+
+// Sets the flag to enabled/disabled, and increments/decrements accordingly the
+// total amount of async tasks gating the completion callback.
+- (void)setShouldGetInnerText:(BOOL)shouldGetInnerText {
+  if (shouldGetInnerText == _shouldGetInnerText) {
+    return;
+  }
+
+  _shouldGetInnerText = shouldGetInnerText;
+
+  // Only update `_asyncTasksToComplete` if `_shouldGetAnnotatedPageContent` is
+  // false, since they both affect the same async task.
+  if (!_shouldGetAnnotatedPageContent) {
+    _asyncTasksToComplete += shouldGetInnerText ? 1 : -1;
+  }
 }
 
 #pragma mark - Private
@@ -371,8 +400,14 @@ result.links = linksArray;
 // Get the WebState's AnnotatedPageContent filled with innerTexts. The barrier's
 // callback will be executed for all codepaths in this method.
 - (void)processAnnotatedPageContentWithBarrier:(base::RepeatingClosure)barrier {
-  [_pageContextMetrics
-      executionStartedForTask:PageContextTask::kAnnotatedPageContent];
+  if (_shouldGetAnnotatedPageContent) {
+    [_pageContextMetrics
+        executionStartedForTask:PageContextTask::kAnnotatedPageContent];
+  }
+
+  if (_shouldGetInnerText) {
+    [_pageContextMetrics executionStartedForTask:PageContextTask::kInnerText];
+  }
 
   std::set<web::WebFrame*> webFrames =
       _webState->GetPageWorldWebFramesManager()->GetAllWebFrames();
@@ -380,9 +415,18 @@ result.links = linksArray;
       _webState->GetPageWorldWebFramesManager()->GetMainWebFrame();
 
   if (webFrames.empty() || !mainFrame) {
-    [_pageContextMetrics
-        executionFinishedForTask:PageContextTask::kAnnotatedPageContent
-            withCompletionStatus:PageContextCompletionStatus::kFailure];
+    if (_shouldGetAnnotatedPageContent) {
+      [_pageContextMetrics
+          executionFinishedForTask:PageContextTask::kAnnotatedPageContent
+              withCompletionStatus:PageContextCompletionStatus::kFailure];
+    }
+
+    if (_shouldGetInnerText) {
+      [_pageContextMetrics
+          executionFinishedForTask:PageContextTask::kInnerText
+              withCompletionStatus:PageContextCompletionStatus::kFailure];
+    }
+
     barrier.Run();
     return;
   }
@@ -396,6 +440,9 @@ result.links = linksArray;
   _rootAPCNode->mutable_root_node()
       ->mutable_content_attributes()
       ->set_attribute_type(optimization_guide::proto::CONTENT_ATTRIBUTE_ROOT);
+
+  // Create the aggregated innerText string.
+  _innerText = std::make_unique<std::string>();
 
   // Use a `BarrierClosure` to ensure the JavaScript is done executing in
   // all WebFrames before executing the page context barrier `barrier`,
@@ -490,6 +537,9 @@ result.links = linksArray;
   } else if (_shouldGetAnnotatedPageContent &&
              !_pageContext->has_annotated_page_content()) {
     response = base::unexpected(PageContextWrapperError::kAPCError);
+    completionStatus = PageContextCompletionStatus::kFailure;
+  } else if (_shouldGetInnerText && !_pageContext->has_inner_text()) {
+    response = base::unexpected(PageContextWrapperError::kInnerTextError);
     completionStatus = PageContextCompletionStatus::kFailure;
   } else if (_shouldGetSnapshot && !_pageContext->has_tab_screenshot()) {
     response = base::unexpected(PageContextWrapperError::kScreenshotError);
@@ -614,9 +664,19 @@ result.links = linksArray;
       value->GetDict().FindBool(kShouldDetachPageContext);
   if (shouldDetachPageContext.has_value() && shouldDetachPageContext.value()) {
     _forceDetachPageContext = YES;
-    [_pageContextMetrics
-        executionFinishedForTask:PageContextTask::kAnnotatedPageContent
-            withCompletionStatus:PageContextCompletionStatus::kProtected];
+
+    if (_shouldGetAnnotatedPageContent) {
+      [_pageContextMetrics
+          executionFinishedForTask:PageContextTask::kAnnotatedPageContent
+              withCompletionStatus:PageContextCompletionStatus::kProtected];
+    }
+
+    if (_shouldGetInnerText) {
+      [_pageContextMetrics
+          executionFinishedForTask:PageContextTask::kInnerText
+              withCompletionStatus:PageContextCompletionStatus::kProtected];
+    }
+
     return;
   }
 
@@ -643,11 +703,21 @@ result.links = linksArray;
 
 // Set the constructed APC tree on the PageContext proto.
 - (void)webFramesAnnotatedPageContentFetchCompleted {
-  _pageContext->set_allocated_annotated_page_content(_rootAPCNode.release());
+  if (_shouldGetInnerText) {
+    _pageContext->set_allocated_inner_text(_innerText.release());
 
-  [_pageContextMetrics
-      executionFinishedForTask:PageContextTask::kAnnotatedPageContent
-          withCompletionStatus:PageContextCompletionStatus::kSuccess];
+    [_pageContextMetrics
+        executionFinishedForTask:PageContextTask::kInnerText
+            withCompletionStatus:PageContextCompletionStatus::kSuccess];
+  }
+
+  if (_shouldGetAnnotatedPageContent) {
+    _pageContext->set_allocated_annotated_page_content(_rootAPCNode.release());
+
+    [_pageContextMetrics
+        executionFinishedForTask:PageContextTask::kAnnotatedPageContent
+            withCompletionStatus:PageContextCompletionStatus::kSuccess];
+  }
 }
 
 // Populate the main frame's ContentNode subtree with the correct nodes and
@@ -728,6 +798,10 @@ result.links = linksArray;
   childTextNode->mutable_content_attributes()
       ->mutable_text_data()
       ->set_text_content(trimmedText);
+
+  if (_shouldGetInnerText) {
+    _innerText->append(trimmedText);
+  }
 }
 
 // Populate the ContentNode subtree for an iframe with the correct values. Also

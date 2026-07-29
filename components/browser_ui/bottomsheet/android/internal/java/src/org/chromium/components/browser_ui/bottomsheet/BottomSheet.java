@@ -105,6 +105,9 @@ class BottomSheet extends FrameLayout
     /** The view that contains the sheet. */
     private ViewGroup mSheetContainer;
 
+    /** The view that contains the sheet background color. */
+    private View mSheetBackground;
+
     /** For detecting scroll and fling events on the bottom sheet. */
     private final BottomSheetSwipeDetector mGestureDetector;
 
@@ -325,6 +328,7 @@ class BottomSheet extends FrameLayout
             int bottomMargin) {
         mEdgeToEdgeBottomInsetSupplier = edgeToEdgeBottomInsetSupplier;
         mSheetContainer = (ViewGroup) getParent();
+        mSheetBackground = findViewById(R.id.background);
         onAppHeaderHeightChanged(appHeaderHeight);
         setBottomMargin(bottomMargin);
 
@@ -1434,11 +1438,25 @@ class BottomSheet extends FrameLayout
         mSheetContainer.setLayoutParams(layoutParams);
     }
 
+    void onSheetBackgroundColorOverrideChanged() {
+        updateBackgroundColor();
+        for (BottomSheetObserver o : mObservers) {
+            o.onSheetBackgroundColorOverrideChanged();
+        }
+    }
+
     @VisibleForTesting
     void updateBackgroundColor() {
         if (mSheetContent == null) return;
 
-        View background = findViewById(R.id.background);
+        if (mSheetContent.hasSolidBackgroundColor()) {
+            int overrideColor = mSheetContent.getSheetBackgroundColorOverride();
+            if (overrideColor != Color.TRANSPARENT) {
+                udpateSheetBgColorTint(overrideColor);
+                return;
+            }
+        }
+
         int colorNoScrim = SemanticColorUtils.getSheetBgColor(getContext());
         int colorOnScrim = getSheetOnScrimBackgroundColor(getContext());
 
@@ -1449,10 +1467,7 @@ class BottomSheet extends FrameLayout
         boolean isResizableSheet = isHalfStateEnabled() || isPeekStateEnabled();
         if (!isResizableSheet || maxOffset <= minOffset || colorOnScrim == colorNoScrim) {
             int newColor = mSheetContent.hasCustomScrimLifecycle() ? colorNoScrim : colorOnScrim;
-            if (mSheetBgColor != newColor) {
-                mSheetBgColor = newColor;
-                background.setBackgroundTintList(ColorStateList.valueOf(mSheetBgColor));
-            }
+            udpateSheetBgColorTint(newColor);
             return;
         }
 
@@ -1463,10 +1478,13 @@ class BottomSheet extends FrameLayout
                         /* baseColor= */ colorNoScrim,
                         /* overlayColor= */ colorOnScrim,
                         colorRatio);
-        if (mSheetBgColor != newColor) {
-            mSheetBgColor = newColor;
-            background.setBackgroundTintList(ColorStateList.valueOf(mSheetBgColor));
-        }
+        udpateSheetBgColorTint(newColor);
+    }
+
+    private void udpateSheetBgColorTint(@ColorInt int newColor) {
+        if (mSheetBgColor == newColor) return;
+        mSheetBgColor = newColor;
+        mSheetBackground.setBackgroundTintList(ColorStateList.valueOf(mSheetBgColor));
     }
 
     private void ensureContentIsWrapped(boolean animate) {
@@ -1501,6 +1519,10 @@ class BottomSheet extends FrameLayout
     void setSheetContainerForTesting(ViewGroup sheetContainer) {
         mSheetContainer = sheetContainer;
         mContainerHeight = sheetContainer.getHeight();
+    }
+
+    void setSheetBackgroundForTesting(View sheetBackground) {
+        mSheetBackground = sheetBackground;
     }
 
     void setToolbarHolderForTesting(TouchRestrictingFrameLayout toolbarHolder) {

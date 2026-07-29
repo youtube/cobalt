@@ -427,7 +427,7 @@ int QuicSessionRequest::Request(
       HostPortPair::FromURL(url), privacy_mode, proxy_chain, session_usage,
       socket_tag, network_anonymization_key, secure_dns_policy,
       require_dns_https_alpn, disable_cert_verification_network_fetches);
-  bool use_dns_aliases = session_usage == SessionUsage::kProxy ? false : true;
+  bool use_dns_aliases = session_usage != SessionUsage::kProxy;
 
   int rv = pool_->RequestSession(
       session_key_, std::move(destination), quic_version,
@@ -546,11 +546,11 @@ QuicSessionPool::QuicCryptoClientConfigOwner::QuicCryptoClientConfigOwner(
           FROM_HERE, base::MemoryPressureListenerTag::kQuicSessionPool,
           base::BindRepeating(&QuicCryptoClientConfigOwner::OnMemoryPressure,
                               base::Unretained(this)));
-  if (quic_session_pool_->ssl_config_service_->GetSSLContextConfig()
-          .post_quantum_key_agreement_enabled) {
-    config_.set_preferred_groups({SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519,
-                                  SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1});
-  }
+  config_.set_preferred_groups(
+      quic_session_pool_->ssl_config_service_->GetSSLContextConfig()
+          .GetSupportedGroups());
+  // TODO(crbug.com/445967223): Also set client key shares. This depends on
+  // changes in QUICHE.
 }
 QuicSessionPool::QuicCryptoClientConfigOwner::~QuicCryptoClientConfigOwner() {
   DCHECK_EQ(num_refs_, 0);

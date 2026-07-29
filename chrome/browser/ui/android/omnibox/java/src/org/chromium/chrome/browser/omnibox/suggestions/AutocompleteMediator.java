@@ -43,7 +43,6 @@ import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController.OnSuggestionsReceivedListener;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteDelegate.AutocompleteLoadCallback;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionFactoryImpl;
-import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxAnswerAction;
 import org.chromium.chrome.browser.omnibox.suggestions.basic.BasicSuggestionProcessor.BookmarkState;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -543,7 +542,8 @@ class AutocompleteMediator
                 if (maybeSwitchToTab(suggestion)) {
                     // This bypasses the execution flow that captures histograms for all other
                     // cases.
-                    recordMetrics(suggestion, matchIndex, WindowOpenDisposition.SWITCH_TO_TAB);
+                    recordMetrics(
+                            suggestion, null, matchIndex, WindowOpenDisposition.SWITCH_TO_TAB);
                     return;
                 }
             }
@@ -593,37 +593,12 @@ class AutocompleteMediator
 
     @Override
     public void onOmniboxActionClicked(OmniboxAction action, int position) {
-        if (action instanceof OmniboxAnswerAction omniboxAnswerAction) {
-            Optional<AutocompleteMatch> associatedSuggestion =
-                    mAutocompleteResult
-                            .map(AutocompleteResult::getSuggestionsList)
-                            .map((list) -> list.get(position));
-            if (!associatedSuggestion.isPresent()) {
-                return;
-            }
-
-            // Allow the action to record execution-related metrics before we navigate away.
-            action.execute(mOmniboxActionDelegate);
-            // onSuggestionClicked will post a call to finishInteraction, so we don't need to call
-            // it immediately.
-            loadUrlForOmniboxMatch(
-                    0,
-                    associatedSuggestion.get(),
-                    mAutocomplete
-                            .map(
-                                    a ->
-                                            a.getAnswerActionDestinationURL(
-                                                    associatedSuggestion.get(),
-                                                    mLastActionUpTimestamp,
-                                                    omniboxAnswerAction))
-                            .orElse(associatedSuggestion.get().getUrl()),
-                    getElapsedTimeSinceInputChange(),
-                    false,
-                    false);
-        } else {
-            action.execute(mOmniboxActionDelegate);
-            finishInteraction();
+        var match = getSuggestionAt(position);
+        if (match != null) {
+            recordMetrics(match, action, position, WindowOpenDisposition.CURRENT_TAB);
         }
+        action.execute(mOmniboxActionDelegate);
+        finishInteraction();
     }
 
     /**
@@ -659,7 +634,7 @@ class AutocompleteMediator
     @Override
     public void onSwitchToTab(AutocompleteMatch match, int matchIndex) {
         if (maybeSwitchToTab(match)) {
-            recordMetrics(match, matchIndex, WindowOpenDisposition.SWITCH_TO_TAB);
+            recordMetrics(match, null, matchIndex, WindowOpenDisposition.SWITCH_TO_TAB);
         } else {
             onSuggestionClicked(match, matchIndex, match.getUrl());
         }
@@ -1073,7 +1048,7 @@ class AutocompleteMediator
             int transition = suggestion.getTransition();
             int type = suggestion.getType();
 
-            recordMetrics(suggestion, matchIndex, WindowOpenDisposition.CURRENT_TAB);
+            recordMetrics(suggestion, null, matchIndex, WindowOpenDisposition.CURRENT_TAB);
             if (type == OmniboxSuggestionType.URL_WHAT_YOU_TYPED
                     && mUrlBarEditingTextProvider.wasLastEditPaste()) {
                 // It's important to use the page transition from the suggestion or we might end
@@ -1262,8 +1237,13 @@ class AutocompleteMediator
      * @param match the selected AutocompleteMatch
      * @param suggestionLine the index of the suggestion line that holds selected match
      * @param disposition the window open disposition
+     * @param action the OmniboxAction associated with the suggestion
      */
-    private void recordMetrics(AutocompleteMatch match, int suggestionLine, int disposition) {
+    private void recordMetrics(
+            AutocompleteMatch match,
+            @Nullable OmniboxAction action,
+            int suggestionLine,
+            int disposition) {
         if (mAutocompleteResult.isEmpty()) return;
 
         boolean autocompleteResultIsFromCache =
@@ -1295,7 +1275,8 @@ class AutocompleteMediator
                                 mAutocompleteInput.getPageClassification(),
                                 elapsedTimeSinceModified,
                                 autocompleteLength,
-                                webContents));
+                                webContents,
+                                action));
     }
 
     @Override
@@ -1463,6 +1444,15 @@ class AutocompleteMediator
 
     private void onToolbarPositionChanged(@ControlsPosition Integer newPosition) {
         mListPropertyModel.set(SuggestionListProperties.TOOLBAR_POSITION, newPosition);
+        if (isActive()) {
+            // Hacky solution: rebuild the list if we're active when the position changes,
+            // triggering recalculation of refine arrow icon. TODO(http://crbug.com/446058347):
+            // refactor to enable updates to the icon property of the model once the list is already
+            // built.
+            onTextChanged(
+                    mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
+                    /* isOnFocusContext= */ false);
+        }
     }
 
     /** Returns the current AutocompleteInput instance. */

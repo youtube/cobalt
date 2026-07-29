@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {type WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActiveBrowserInfo, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AnnotatedPageData, ChromeVersion, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {WebClientInitialState} from '../glic.mojom-webui.js';
+import type {ActiveBrowserInfo, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AnnotatedPageData, ChromeVersion, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, Screenshot, ScrollToParams, SelectCredentialDialogRequest, SelectCredentialDialogResponse, TabContextOptions, TabContextResult, TabData, TaskOptions, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -91,6 +91,20 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicBrowserSwitchConversation: {
+    request: {
+      conversationId: string,
+    },
+    response: {},
+    backgroundAllowed: true,
+  },
+  glicBrowserRegisterConversation: {
+    request: {
+      conversationId: string,
+    },
+    response: {},
+    backgroundAllowed: true,
+  },
   glicBrowserGetContextFromFocusedTab: {
     request: {
       options: TabContextOptions,
@@ -130,6 +144,9 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     backgroundAllowed: true,
   },
   glicBrowserCreateTask: {
+    request: {
+      taskOptions?: TaskOptions,
+    },
     response: {
       taskId: number,
     },
@@ -318,6 +335,18 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     request: {
       mode: number,
     },
+    backgroundAllowed: true,
+  },
+  glicBrowserOnReaction: {
+    backgroundAllowed: true,
+    request: {
+      reactionType: MetricUserInputReactionType,
+    },
+  },
+  glicBrowserOnContextUploadStarted: {
+    backgroundAllowed: true,
+  },
+  glicBrowserOnContextUploadCompleted: {
     backgroundAllowed: true,
   },
   glicBrowserOnResponseStarted: {
@@ -599,6 +628,15 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicWebClientRequestToShowConfirmationDialog: {
+    request: {
+      request: UserConfirmationDialogRequestPrivate,
+    },
+    response: {
+      response: UserConfirmationDialogResponsePrivate,
+    },
+    backgroundAllowed: true,
+  },
 }>;
 
 
@@ -609,7 +647,7 @@ export type HostRequestEnumNamesType = {
   [K in keyof HostRequestTypes as RemoveStringPrefix<K, 'glicBrowser'>]: number;
 };
 
-// LINT.IfChange(HOST_REQUEST_TYPES)
+// LINT.IfChange(ApiRequestType)
 // New values here must be added to histograms.xml and to enums.xml.
 export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
     (() => {
@@ -677,6 +715,11 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         PerformActions: 61,
         OnViewChanged: 62,
         SubscribeToPageMetadata: 63,
+        SwitchConversation: 64,
+        RegisterConversation: 65,
+        OnReaction: 66,
+        OnContextUploadCompleted: 67,
+        OnContextUploadStarted: 68,
       };
       return {...result, MAX_VALUE: Math.max(...Object.values(result))};
     })();
@@ -850,6 +893,23 @@ export enum SelectCredentialDialogErrorReason {
 export declare interface SelectCredentialDialogResponsePrivate extends
     SelectCredentialDialogResponse {
   errorReason?: SelectCredentialDialogErrorReason;
+}
+
+export declare interface UserConfirmationDialogRequestPrivate extends
+    Omit<UserConfirmationDialogRequest, 'onDialogClosed'> {}
+
+export enum UserConfirmationDialogErrorReason {
+  // The hosting WebUI received the request, but the web client has not
+  // subscribed to the request yet. We couldn't show the dialog in this case.
+  DIALOG_PROMISE_NO_SUBSCRIBER = 0,
+  // The task requested a new user confirmation dialog before the current
+  // one completed.
+  PREEMPTED_BY_NEW_REQUEST = 1,
+}
+
+export declare interface UserConfirmationDialogResponsePrivate extends
+    UserConfirmationDialogResponse {
+  errorReason?: UserConfirmationDialogErrorReason;
 }
 
 export class ErrorWithReasonImpl<T extends keyof ErrorReasonTypes> extends Error

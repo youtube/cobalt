@@ -444,6 +444,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kServiceWorkerAutoPreloadEnabled,
     prefs::kServiceWorkerAutoPreloadEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kIncognitoModeBlocklist,
+    policy_prefs::kIncognitoModeBlocklist,
+    base::Value::Type::LIST },
+  { key::kIncognitoModeAllowlist,
+    policy_prefs::kIncognitoModeAllowlist,
+    base::Value::Type::LIST },
 // Policies for all platforms - End
 #if BUILDFLAG(IS_ANDROID)
   { key::kAccessibilityPerformanceFilteringAllowed,
@@ -1021,6 +1027,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kPostQuantumKeyAgreementEnabled,
     prefs::kPostQuantumKeyAgreementEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kPreferSlowKexAlgorithms,
+    prefs::kPreferSlowKexAlgorithms,
+    base::Value::Type::STRING },
   { key::kTLS13EarlyDataEnabled,
     prefs::kTLS13EarlyDataEnabled,
     base::Value::Type::BOOLEAN },
@@ -1853,9 +1862,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kApplicationLocaleValue,
     language::prefs::kApplicationLocale,
     base::Value::Type::STRING },
-  { key::kRendererCodeIntegrityEnabled,
-    prefs::kRendererCodeIntegrityEnabled,
-    base::Value::Type::BOOLEAN },
   { key::kRendererAppContainerEnabled,
     prefs::kRendererAppContainerEnabled,
     base::Value::Type::BOOLEAN },
@@ -2306,6 +2312,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDevToolsGenAiSettings,
     prefs::kDevToolsGenAiSettings,
     base::Value::Type::INTEGER },
+  { key::kDevToolsGoogleDeveloperProgramProfileAvailability,
+    prefs::kDevToolsGoogleDeveloperProgramProfileAvailability,
+    base::Value::Type::INTEGER },
 #endif
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -2411,7 +2420,7 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kNTPFooterManagementNoticeEnabled,
     prefs::kNTPFooterManagementNoticeEnabled,
     base::Value::Type::BOOLEAN },
-#endif // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   { key::kAIModeSettings,
     omnibox::kAIModeSettings,
     base::Value::Type::INTEGER },

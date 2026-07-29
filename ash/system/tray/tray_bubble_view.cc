@@ -61,7 +61,7 @@
 
 using views::BubbleBorder;
 using views::BubbleFrameView;
-using views::NonClientFrameView;
+using views::FrameView;
 using views::View;
 using views::ViewsDelegate;
 using views::Widget;
@@ -363,7 +363,7 @@ TrayBubbleView::TrayBubbleView(const InitParams& init_params)
         init_params.translucent && chromeos::features::IsSystemBlurEnabled();
 
     // A translucent TrayBubbleView initializes the widget with NOT_DRAWN_LAYER.
-    // Therefore the BubbleFrameView(NonClientFrameView) that provides the
+    // Therefore the BubbleFrameView(FrameView) that provides the
     // background will not be painted. Therefore TrayBubbleView should paint its
     // own background.
     SetBackground(views::CreateSolidBackground(
@@ -549,8 +549,7 @@ void TrayBubbleView::OnWidgetBoundsChanged(views::Widget* widget,
   Shell::Get()->system_tray_notifier()->NotifyTrayBubbleBoundsChanged(this);
 }
 
-std::unique_ptr<NonClientFrameView> TrayBubbleView::CreateNonClientFrameView(
-    Widget* widget) {
+std::unique_ptr<FrameView> TrayBubbleView::CreateFrameView(Widget* widget) {
   // Create the customized bubble border.
   std::unique_ptr<BubbleBorder> bubble_border =
       std::make_unique<BubbleBorder>(arrow(), BubbleBorder::NO_SHADOW);
@@ -564,7 +563,7 @@ std::unique_ptr<NonClientFrameView> TrayBubbleView::CreateNonClientFrameView(
     bubble_border->set_insets(params_.insets.value());
   }
 
-  auto frame = BubbleDialogDelegateView::CreateNonClientFrameView(widget);
+  auto frame = BubbleDialogDelegateView::CreateFrameView(widget);
   auto* frame_ptr = static_cast<views::BubbleFrameView*>(frame.get());
   frame_ptr->SetBubbleBorder(std::move(bubble_border));
   if (params_.anchor_mode == AnchorMode::kView) {

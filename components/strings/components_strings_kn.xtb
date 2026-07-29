@@ -826,6 +826,7 @@
 <translation id="2348509731468399833">ದರ ಟ್ರ್ಯಾಕಿಂಗ್ ಅನ್ನು ನಿಲ್ಲಿಸಲಾಗಿದೆ.</translation>
 <translation id="2349957959687031096">ಅಜ್ಞಾತ ಟ್ಯಾಬ್ ತೆರೆಯಿರಿ ಬಟನ್, ಖಾಸಗಿಯಾಗಿ ಬ್ರೌಸ್ ಮಾಡಲು ಹೊಸ ಅಜ್ಞಾತ ಟ್ಯಾಬ್ ಒಂದನ್ನು ತೆರೆಯಲು ಸಕ್ರಿಯಗೊಳಿಸಿ</translation>
 <translation id="2350796302381711542"><ph name="REPLACED_HANDLER_TITLE" /> ನ ಬದಲಿಗೆ ಎಲ್ಲಾ <ph name="PROTOCOL" /> ಲಿಂಕ್‌ಗಳನ್ನು ತೆರೆಯಲು <ph name="HANDLER_HOSTNAME" /> ಗೆ ಅನುಮತಿಸುವುದೇ?</translation>
+<translation id="2351718832234620840">ಈ ಸರ್ವರ್ Chromium ನಿಂದ ಅಥವಾ ವೆಬ್ ಟ್ರಾಫಿಕ್ ಎನ್‌ಕ್ರಿಪ್ಶನ್‌ಗಾಗಿ ನಿಮ್ಮ ಸಿಸ್ಟಮ್ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ವಿಶ್ವಾಸಾರ್ಹವಲ್ಲದ ಭದ್ರತಾ ಪ್ರಮಾಣಪತ್ರವನ್ನು ಬಳಸುತ್ತಿರುವುದರಿಂದ ಅದು <ph name="DOMAIN" /> ಎಂದು ಸಾಬೀತುಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಇದು ತಪ್ಪಾದ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ಅಥವಾ ದಾಳಿಕೋರರು ನಿಮ್ಮ ಕನೆಕ್ಷನ್‌ಗೆ ಅಡ್ಡಿಪಡಿಸಿರುವುದರಿಂದ ಉಂಟಾಗಿರಬಹುದು.</translation>
 <translation id="2353297238722298836">ಕ್ಯಾಮೆರಾ ಮತ್ತು ಮೈಕ್ರೊಫೋನ್ ಗಳನ್ನು ಅನುಮತಿಸಲಾಗಿದೆ</translation>
 <translation id="2354001756790975382">ಇತರ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು</translation>
 <translation id="2355395290879513365">ಈ ಸೈಟ್‌ನಲ್ಲಿ ನೀವು ನೋಡುತ್ತಿರುವ ಚಿತ್ರಗಳನ್ನು ವೀಕ್ಷಿಸಲು ಮತ್ತು ಅವುಗಳನ್ನು ಮಾರ್ಪಡಿಸುವ ಮೂಲಕ ನಿಮ್ಮನ್ನು ವಂಚಿಸಲು ದಾಳಿಕೋರರಿಗೆ ಸಾಧ್ಯವಾಗುತ್ತಿರಬಹುದು.</translation>
@@ -971,6 +972,7 @@
 <translation id="2573170131138724450">ದೂರದರ್ಶನಗಳು</translation>
 <translation id="257674075312929031">ಗುಂಪು</translation>
 <translation id="2580031090587209073">ಹಂಚಿಕೊಳ್ಳುವಿಕೆ ಆಯ್ಕೆಗಳು</translation>
+<translation id="258027838577899739">ಇತಿಹಾಸದಿಂದ ಎಲ್ಲವನ್ನೂ ಅಳಿಸಿ</translation>
 <translation id="258135245577667916"><ph name="USER_DISPLAY_NAME" /> ಅವರು ಟ್ಯಾಬ್ ಅನ್ನು ಸೇರಿಸಿದ್ದಾರೆ</translation>
 <translation id="2586657967955657006">ಕ್ಲಿಪ್‌ಬೋರ್ಡ್</translation>
 <translation id="2587841377698384444">ಡೈರೆಕ್ಟರಿ API ID:</translation>
@@ -995,6 +997,7 @@
 <translation id="2625385379895617796">ನಿಮ್ಮ ಗಡಿಯಾರವು ಮುಂದೆ ಇದೆ</translation>
 <translation id="262745152991669301">USB ಸಾಧನಗಳಿಗೆ ಕನೆಕ್ಟ್ ಮಾಡಲು ಕೇಳಬಹುದು</translation>
 <translation id="2627847595568876492">PDF ನಿಂದ ಪಠ್ಯವನ್ನು ಎಕ್ಸ್‌ಟ್ರ್ಯಾಕ್ಟ್‌ ಮಾಡಲಾಗುತ್ತಿದೆ...</translation>
+<translation id="2628025184666666186">ಈ ಸರ್ವರ್ Chrome ನಿಂದ ಅಥವಾ ವೆಬ್ ಟ್ರಾಫಿಕ್ ಎನ್‌ಕ್ರಿಪ್ಶನ್‌ಗಾಗಿ ನಿಮ್ಮ ಸಿಸ್ಟಮ್ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ವಿಶ್ವಾಸಾರ್ಹವಲ್ಲದ ಭದ್ರತಾ ಪ್ರಮಾಣಪತ್ರವನ್ನು ಬಳಸುತ್ತಿರುವುದರಿಂದ ಅದು <ph name="DOMAIN" /> ಎಂದು ಸಾಬೀತುಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಇದು ತಪ್ಪಾದ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ಅಥವಾ ದಾಳಿಕೋರರು ನಿಮ್ಮ ಕನೆಕ್ಷನ್‌ಗೆ ಅಡ್ಡಿಪಡಿಸಿರುವುದರಿಂದ ಉಂಟಾಗಿರಬಹುದು.</translation>
 <translation id="2628224721443278970">Microsoft OneDrive ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="2634124572758952069"><ph name="HOST_NAME" /> ನ ಸರ್ವರ್ IP ವಿಳಾಸ ಕಂಡುಬರಲಿಲ್ಲ.</translation>
 <translation id="2638567100095052009"><ph name="FEATURED_SEARCH_LIST" /> ಗಳಾದ್ಯಂತ ಹುಡುಕಲು @ ಎಂದು ಟೈಪ್ ಮಾಡಿ</translation>
@@ -1067,7 +1070,6 @@
 <translation id="273785062888389088">HVAC ಮತ್ತು ಹವಾಮಾನ ನಿಯಂತ್ರಣ</translation>
 <translation id="2740531572673183784">ಸರಿ</translation>
 <translation id="2742128390261873684">ಮನೆಯ ಯಾಂತ್ರೀಕರಣ</translation>
-<translation id="2742870351467570537">ಆಯ್ಕೆಮಾಡಿದ ಐಟಂಗಳನ್ನು ತೆಗೆದುಹಾಕಿ</translation>
 <translation id="2743512410823092182">ಡಿಜೆ ಸಂಪನ್ಮೂಲಗಳು ಮತ್ತು ಉಪಕರಣ</translation>
 <translation id="2743934314332613923">ಡ್ರೈವಿಂಗ್ ಲೈಸೆನ್ಸ್ ಅಪ್‌ಡೇಟ್‌ ಮಾಡಬೇಕೆ?</translation>
 <translation id="2759299890026163685">ಪುನಃ ಪ್ರಯತ್ನಿಸುವ ಮೊದಲು ನೀವು ಸ್ಥಿರವಾದ ಇಂಟರ್‌ನೆಟ್ ಕನೆಕ್ಷನ್ ಅನ್ನು ಹೊಂದಿದ್ದೀರಿ ಎಂಬುದನ್ನು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ</translation>
@@ -1248,6 +1250,7 @@
 <translation id="3086579638707268289">ವೆಬ್‌ನಲ್ಲಿನ ನಿಮ್ಮ ಚಟುವಟಿಕೆಯನ್ನು ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡಲಾಗುತ್ತಿದೆ</translation>
 <translation id="3087734570205094154">ಕೆಳಗೆ</translation>
 <translation id="3090667236485488075">ಗ್ಲಾಸ್</translation>
+<translation id="3093122472063815077">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ಪ್ರಗತಿ ಸ್ಕ್ರೀನ್‌ ಅರ್ಧ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ.</translation>
 <translation id="3094051226187213523">ಈ ಸಲಹೆಯೊಂದಿಗೆ AI ಮೋಡ್ ಅನ್ನು ತೆರೆಯಿರಿ.</translation>
 <translation id="3095940652251934233">Statement</translation>
 <translation id="3098513225387949945">ನಿರ್ಲಕ್ಷಿಸಲಾಗಿದೆ ಏಕೆಂದರೆ ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿದ ಪಟ್ಟಿಯು '*' ಗೆ ಸಮಾನವಾದ ಪ್ಯಾಟರ್ನ್ ಅನ್ನು ಹೊಂದಿದೆ, ಇದು ನೀತಿಯನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸುವುದಕ್ಕೆ ಸಮನಾಗಿರುತ್ತದೆ.</translation>
@@ -1876,6 +1879,7 @@
 <translation id="4099048595830172239">ಗೌಪ್ಯ ಕಂಟೆಂಟ್ ಕಾಣಿಸಿಕೊಂಡಾಗ ನಿಮ್ಮ ಸ್ಕ್ರೀನ್ ಅನ್ನು <ph name="APPLICATION_TITLE" /> ಜೊತೆಗೆ ಹಂಚಿಕೊಳ್ಳಲು ನಿರ್ವಾಹಕರ ನೀತಿಯು ಶಿಫಾರಸು ಮಾಡುವುದಿಲ್ಲ:</translation>
 <translation id="4099391883283080991"><ph name="CUSTOMIZE_CHROME_FONTS_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome ನಲ್ಲಿ ಫಾಂಟ್ ಗಾತ್ರಗಳು ಮತ್ತು ಟೈಪ್‌ಫೇಸ್‌ಗಳನ್ನು ಕಸ್ಟಮೈಸ್ ಮಾಡಲು Tab ಒತ್ತಿ, ನಂತರ Enter ಒತ್ತಿ</translation>
 <translation id="4101413244023615925">ಪಠ್ಯ ಮತ್ತು ಗ್ರಾಫಿಕ್</translation>
+<translation id="4101917550061398111">ಆಯ್ಕೆಮಾಡಿದ ಐಟಂಗಳನ್ನು ಅಳಿಸಿ</translation>
 <translation id="4102567721634170493">ಸ್ಥಳೀಯ ಸುದ್ದಿ</translation>
 <translation id="4103249731201008433">ಸಾಧನದ ಸರಣಿಯ ಸಂಖ್ಯೆ ಅಮಾನ್ಯವಾಗಿದೆ</translation>
 <translation id="4103592298805904008">ಕಾರ್ಡ್‌ಬೋರ್ಡ್ (ಸಿಂಗಲ್‌ ವಾಲ್‌)</translation>
@@ -1911,6 +1915,7 @@
 <translation id="4148925816941278100">American Express</translation>
 <translation id="4150099059797363385">ಎನ್ವಲಪ್ ಚೈನೀಸ್ #4</translation>
 <translation id="4152318981910038897">{COUNT,plural, =1{ಪುಟ 1}one{ಪುಟ {COUNT}}other{ಪುಟ {COUNT}}}</translation>
+<translation id="4152495263075154876">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ಪ್ರಗತಿ ಸ್ಕ್ರೀನ್‌ ಅನ್ನು ಮುಚ್ಚಲಾಗಿದೆ.</translation>
 <translation id="4152670763139331043">{NUM_TABS,plural, =1{1 ಟ್ಯಾಬ್}one{# ಟ್ಯಾಬ್‌ಗಳು}other{# ಟ್ಯಾಬ್‌ಗಳು}}</translation>
 <translation id="4153446078232988116"><ph name="SITE" /> HTTPS ನೊಂದಿಗೆ ಸುರಕ್ಷಿತ ಕನೆಕ್ಷನ್ ಅನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ</translation>
 <translation id="4154277373259957087">ಪಾವತಿ ವಿಧಾನಗಳನ್ನು ಭರ್ತಿ ಮಾಡುವ ಮುನ್ನ Chrome ಇದು ನೀವೇ ಎಂಬುದನ್ನು ಈಗ ಪರಿಶೀಲಿಸುತ್ತದೆ. ನೀವು ಇದನ್ನು <ph name="IDS_AUTOFILL_MANDATORY_REAUTH_CONFIRMATION_SETTINGS_LINK" /> ನಲ್ಲಿ ಯಾವಾಗ ಬೇಕಾದರೂ ಅಪ್‌ಡೇಟ್ ಮಾಡಬಹುದು.</translation>
@@ -2575,6 +2580,7 @@
 <translation id="5255583962255635076">ನಿಮ್ಮ ಉದ್ಯೋಗ ಪ್ರೊಫೈಲ್‌ನಲ್ಲಿ ಬ್ರೌಸರ್ ನೀತಿಗಳನ್ನು ಅನ್ವಯಿಸಲಾಗಿದೆ</translation>
 <translation id="5255690596502591079">ಹೇಗಿದ್ದರೂ ಕ್ಯಾಪ್ಚರ್ ಮಾಡಿ</translation>
 <translation id="5255771248404149177">ನಿಮ್ಮ ಕಾರ್ಡ್ ಒದಗಿಸುವವರು ಅದು ನೀವೇ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಲು ಬಯಸುತ್ತಾರೆ</translation>
+<translation id="525579853540851404">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ಪ್ರಗತಿ ಸ್ಕ್ರೀನ್‌. ಕೀಬೋರ್ಡ್ ಅನ್ನು ಮರೆಮಾಡಲಾಗಿದೆ.</translation>
 <translation id="5255833070095767006">350 x 460 ಮಿಮೀ</translation>
 <translation id="5257739419779698609">{0,plural, =1{ನಿರ್ವಾಹಕರ ನೀತಿಯು ಈ ಫೈಲ್ ಅನ್ನು <ph name="DESTINATION_NAME" /> ಗೆ ನಕಲಿಸಲು ಶಿಫಾರಸು ಮಾಡುವುದಿಲ್ಲ}one{ನಿರ್ವಾಹಕರ ನೀತಿಯು ಈ ಫೈಲ್‌ಗಳನ್ನು <ph name="DESTINATION_NAME" /> ಗೆ ನಕಲಿಸಲು ಶಿಫಾರಸು ಮಾಡುವುದಿಲ್ಲ}other{ನಿರ್ವಾಹಕರ ನೀತಿಯು ಈ ಫೈಲ್‌ಗಳನ್ನು <ph name="DESTINATION_NAME" /> ಗೆ ನಕಲಿಸಲು ಶಿಫಾರಸು ಮಾಡುವುದಿಲ್ಲ}}</translation>
 <translation id="5258473597674772367">"<ph name="GROUP_NAME" />" ಟ್ಯಾಬ್ ಗುಂಪು ಇನ್ನು ಮುಂದೆ ಲಭ್ಯವಿಲ್ಲ</translation>
@@ -2675,7 +2681,6 @@
 <translation id="5423269318075950257">ಬೆಲೆಯನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ</translation>
 <translation id="5425082381151187189">ಮನೆ ಮತ್ತು ಒಳಾಂಗಣ ಅಲಂಕಾರ</translation>
 <translation id="5426179911063097041">ನಿಮಗೆ ಅಧಿಸೂಚನೆಗಳನ್ನು ಕಳುಹಿಸಲು <ph name="SITE" /> ಬಯಸುತ್ತದೆ</translation>
-<translation id="5430298929874300616">ಬುಕ್‌ಮಾರ್ಕ್‌ ತೆಗೆದುಹಾಕಿ</translation>
 <translation id="5431318178759467895">ಬಣ್ಣ</translation>
 <translation id="5433756542371550806">ಕಮಾಂಡ್‌-ಲೈನ್‌ ವೇರಿಯೇಶನ್‌</translation>
 <translation id="5434798570900738152">ಈ ಕೆಳಗಿನ ಮಾಹಿತಿಯನ್ನು Chromium <ph name="BEGIN_EMPHASIS" />ಸೇವ್ ಮಾಡಲಾಗುವುದಿಲ್ಲ<ph name="END_EMPHASIS" />:
@@ -2873,6 +2878,7 @@
 <translation id="5750869797196646528">ಹ್ಯಾಂಡ್‌ ಟ್ರ್ಯಾಕಿಂಗ್‌</translation>
 <translation id="5752327398324808817">ಒಂದು ಅಥವಾ ಎರಡು ಪದಗಳನ್ನು ನಮೂದಿಸಿ</translation>
 <translation id="5752519522101347518">ಬ್ಯಾಂಕ್‌ ದೃಢೀಕರಣದ ವೆಬ್‌ಸೈಟ್‌ ಲೋಡ್ ಆಗುತ್ತಿದೆ</translation>
+<translation id="5753570386948603678">ಇತಿಹಾಸದಲ್ಲಿರುವುದನ್ನು ಅಳಿಸಿ</translation>
 <translation id="5759751709240058861">ನಿಮ್ಮ ಕ್ಯಾಮರಾವನ್ನು ಬಳಸಿ ಮತ್ತು ಸರಿಸಿ</translation>
 <translation id="5763042198335101085">ಮಾನ್ಯವಾದ ಇಮೇಲ್ ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ</translation>
 <translation id="5764725887548570807">ಅಮಾನ್ಯ ಮೂಲ ಫಾರ್ಮ್ಯಾಟ್.</translation>
@@ -3088,8 +3094,8 @@
 <translation id="6122181661879998141">ನಿಮ್ಮ ಕಾರ್ಡ್‌ನ ಮುಂಭಾಗ</translation>
 <translation id="6124058285696691147">ಲಗತ್ತನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</translation>
 <translation id="6124432979022149706">Chrome ಎಂಟರ್‌ಪ್ರೈಸ್ ಕನೆಕ್ಟರ್‌ಗಳು</translation>
+<translation id="6124996493718543728">ಈಗ ಖರೀದಿಸಿ, ನಂತರ ಪಾವತಿಸಿ ಪ್ರಗತಿ ಸ್ಕ್ರೀನ್‌ ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ.</translation>
 <translation id="6126565365696310362">ಎನ್ವಲಪ್ ಚೈನೀಸ್ #2</translation>
-<translation id="6127379762771434464">ಐಟಂ ತೆಗೆದುಹಾಕಲಾಗಿದೆ</translation>
 <translation id="6131824478727057281">ಸ್ಥಳ</translation>
 <translation id="6133320744616005677">ಅನುಮತಿಯನ್ನು ಮುಂದುವರಿಸಿ</translation>
 <translation id="6133984428121856852">ಫೈಲ್ ವಿಸ್ತರಣೆಯು ಖಾಲಿಯಾಗಿದೆ ಅಥವಾ ಸರಿಯಾಗಿ ರೂಪಿಸಲಾಗಿಲ್ಲ.</translation>
@@ -3103,7 +3109,6 @@
 <translation id="6151417162996330722">ಸರ್ವರ್ ಪ್ರಮಾಣಪತ್ರವು ತುಂಬಾ ಉದ್ದವಾದ ವಾಯಿದೆ ಅವಧಿಯನ್ನು ಹೊಂದಿದೆ.</translation>
 <translation id="6153243098246946146"><ph name="WIDTH" /> × <ph name="HEIGHT" /> ಇಂಚು (<ph name="ORIENTATION" />)</translation>
 <translation id="615506061184576470">ರನ್ನಿಂಗ್ ಮತ್ತು ವಾಕಿಂಗ್</translation>
-<translation id="6157754950574419155">ಇತಿಹಾಸದಿಂದ ಎಲ್ಲವನ್ನು ತೆಗೆದುಹಾಕಿ</translation>
 <translation id="6157877588268064908">ಶಿಪ್ಪಿಂಗ್ ವಿಧಾನಗಳು ಹಾಗೂ ಆವಶ್ಯಕತೆಗಳನ್ನು ನೋಡಲು, ಒಂದು ವಿಳಾಸವನ್ನು ಆಯ್ಕೆ ಮಾಡಿ</translation>
 <translation id="6159554577634054750">ಕೀಟ ನಿಯಂತ್ರಣ</translation>
 <translation id="6159908896951210943">ಔಪಚಾರಿಕ</translation>
@@ -3791,6 +3796,7 @@
 <translation id="7292031607255951991">ಸ್ವೀಕೃತದಾರರ ಹೆಸರು</translation>
 <translation id="7298195798382681320">ಶಿಫಾರಸು ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="7299471494012161875">ಡಿಸ್‌ಪ್ಲೇ ಪರಿಕರಗಳನ್ನು ಲಗತ್ತಿಸಲಾಗಿದೆ</translation>
+<translation id="7299721129597238157">ಬುಕ್‌ಮಾರ್ಕ್ ಅಳಿಸಿ</translation>
 <translation id="7299769361777046949">Google Wallet ನಲ್ಲಿ ಲಾಯಲ್ಟಿ ಕಾರ್ಡ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
 <translation id="7304030187361489308">ಅಧಿಕ</translation>
 <translation id="7304562222803846232">Google ಖಾತೆಯ ಗೌಪ್ಯತೆ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
@@ -3894,6 +3900,7 @@
 <translation id="7450577240311017924">ಸಿಂಕ್ ಅನ್ನು ನಿರ್ವಹಿಸಿ ಬಟನ್, Chrome ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ನೀವು ಯಾವ ಮಾಹಿತಿಯನ್ನು ಸಿಂಕ್ ಮಾಡುತ್ತೀರಿ ಎಂಬುದನ್ನು ನಿರ್ವಹಿಸಲು ಸಕ್ರಿಯಗೊಳಿಸಿ</translation>
 <translation id="7451311239929941790">ಈ ಸಮಸ್ಯೆಯ ಕುರಿತು <ph name="BEGIN_LINK" />ಇನ್ನಷ್ಟು ತಿಳಿಯುವಿಕೆ<ph name="END_LINK" />.</translation>
 <translation id="745208957946308667">Dino ಗೇಮ್, ಆಡಲು ಸ್ಪೇಸ್ ಒತ್ತಿರಿ</translation>
+<translation id="7453849010505253492">ಈ ಸರ್ವರ್ Chrome ನಿಂದ ಅಥವಾ ವೆಬ್ ಟ್ರಾಫಿಕ್ ಎನ್‌ಕ್ರಿಪ್ಶನ್‌ಗಾಗಿ ನಿಮ್ಮ ಸಿಸ್ಟಮ್ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ವಿಶ್ವಾಸಾರ್ಹವಲ್ಲದ ಭದ್ರತಾ ಪ್ರಮಾಣಪತ್ರವನ್ನು ಬಳಸುತ್ತಿರುವುದರಿಂದ ಅದು <ph name="DOMAIN" /> ಎಂದು ಸಾಬೀತುಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಇದು ತಪ್ಪಾದ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ಅಥವಾ ದಾಳಿಕೋರರು ನಿಮ್ಮ ಕನೆಕ್ಷನ್‌ಗೆ ಅಡ್ಡಿಪಡಿಸಿರುವುದರಿಂದ ಉಂಟಾಗಿರಬಹುದು. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />ಪ್ರಮಾಣಪತ್ರವನ್ನು ವೀಕ್ಷಿಸಿ<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="7454377933424667109">ಕ್ಲೌಡ್ ಖಾತೆ</translation>
 <translation id="7455133967321480974">ಜಾಗತಿಕ ಡಿಫಾಲ್ಟ್ ಬಳಸಿ (ನಿರ್ಬಂಧಿಸಿ)</translation>
 <translation id="7455452752247248289">ಎಂಟರ್‌ಪ್ರೈಸ್ ಟೆಕ್ನಾಲಜಿ</translation>
@@ -4001,6 +4008,7 @@
 <translation id="7613889955535752492">ಅವಧಿ ಮೀರುವ ಸಮಯ: <ph name="EXPIRATION_MONTH" />/<ph name="EXPIRATION_YEAR" /></translation>
 <translation id="7614494068621678628"><ph name="MANAGE_PASSWORDS_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ವೀಕ್ಷಿಸಲು ಮತ್ತು ನಿರ್ವಹಿಸಲು Tab ಒತ್ತಿ, ನಂತರ Enter ಒತ್ತಿರಿ</translation>
 <translation id="7615932826417658001">ಗುರುತಿನ ಚೀಟಿ ಸೇರಿಸಿ</translation>
+<translation id="7616390733770379387">ಇವುಗಳನ್ನು ರ‍್ಯಾಂಡಮ್ ಆರ್ಡರ್‌ನಲ್ಲಿ ತೋರಿಸಲಾಗುತ್ತದೆ.</translation>
 <translation id="7616645509853975347">ನಿಮ್ಮ ನಿರ್ವಾಹಕರು ನಿಮ್ಮ ಬ್ರೌಸರ್‌ನಲ್ಲಿ Chrome Enterprise ಕನೆಕ್ಟರ್‌ಗಳನ್ನು ಆನ್ ಮಾಡಿದ್ದಾರೆ. ನಿಮ್ಮ ಕೆಲವೊಂದು ಡೇಟಾಕ್ಕೆ ಈ ಕನೆಕ್ಟರ್‌ಗಳು ಆ್ಯಕ್ಸೆಸ್ ಹೊಂದಿರುತ್ತವೆ.</translation>
 <translation id="7617825962482469577">ಎನ್ವಲಪ್ C7/C6</translation>
 <translation id="7618270539713451657">ಸಮರ ಕಲೆಗಳು</translation>
@@ -4226,6 +4234,7 @@
 <translation id="7992044431894087211"><ph name="APPLICATION_TITLE" /> ಜೊತೆ ಸ್ಕ್ರೀನ್‌‌ ಹಂಚಿಕೊಳ್ಳುವುದನ್ನು ಪುನರಾರಂಭಿಸಲಾಗಿದೆ</translation>
 <translation id="7995512525968007366">ನಿರ್ದಿಷ್ಟಪಡಿಸಲಾಗಿಲ್ಲ</translation>
 <translation id="7997855386298213183">ಹಂಚಿಕೊಳ್ಳಲಾಗಿರುವ ಟ್ಯಾಬ್‌ಗಳು</translation>
+<translation id="8001912761979890298">ಈ ಸರ್ವರ್ Chromium ನಿಂದ ಅಥವಾ ವೆಬ್ ಟ್ರಾಫಿಕ್ ಎನ್‌ಕ್ರಿಪ್ಶನ್‌ಗಾಗಿ ನಿಮ್ಮ ಸಿಸ್ಟಮ್ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ವಿಶ್ವಾಸಾರ್ಹವಲ್ಲದ ಭದ್ರತಾ ಪ್ರಮಾಣಪತ್ರವನ್ನು ಬಳಸುತ್ತಿರುವುದರಿಂದ ಅದು <ph name="DOMAIN" /> ಎಂದು ಸಾಬೀತುಪಡಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಇದು ತಪ್ಪಾದ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ಅಥವಾ ದಾಳಿಕೋರರು ನಿಮ್ಮ ಕನೆಕ್ಷನ್‌ಗೆ ಅಡ್ಡಿಪಡಿಸಿರುವುದರಿಂದ ಉಂಟಾಗಿರಬಹುದು. <ph name="BEGIN_VIEW_CERTIFICATE_LINK" />ಪ್ರಮಾಣಪತ್ರವನ್ನು ವೀಕ್ಷಿಸಿ<ph name="END_VIEW_CERTIFICATE_LINK" /></translation>
 <translation id="800218591365569300">ಮೆಮೊರಿ ಮುಕ್ತಗೊಳಿಸಲು ಇತರ ಟ್ಯಾಬ್‌ಗಳನ್ನು ಅಥವಾ ಪ್ರೋಗ್ರಾಂಗಳನ್ನು ಮುಚ್ಚಲು ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="8002230960325005199">ಸಂಬಂಧಿತ ಸೈಟ್‌ಗಳನ್ನು ಹೊಸ ಟ್ಯಾಬ್‌ನಲ್ಲಿ ನೋಡಿ</translation>
 <translation id="8003046808285812021">“<ph name="SEARCH_TERMS" />”</translation>
@@ -4567,6 +4576,7 @@
 <translation id="8564466070529550495">ವರ್ಚುವಲ್‌ ಕಾರ್ಡ್‌ ಇದೀಗ ಲಭ್ಯವಿಲ್ಲ, ನಂತರ ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.</translation>
 <translation id="8564985650692024650">ನೀವು ಇತರ ಸೈಟ್‌ಗಳಲ್ಲಿ ಪಾಸ್‌ವರ್ಡ್‌ ಅನ್ನು ಮರುಬಳಕೆ ಮಾಡಿದ್ದಲ್ಲಿ ನಿಮ್ಮ <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> ಪಾಸವರ್ಡ್ ಅನ್ನು ಮರುಹೊಂದಿಸಲು Chromium ಶಿಫಾರಸು ಮಾಡುತ್ತದೆ.</translation>
 <translation id="8570895683659698018">ಹವ್ಯಾಸಗಳು ಮತ್ತು ವಿರಾಮ</translation>
+<translation id="8574570240981266561">ಐಟಂ ಅನ್ನು ಅಳಿಸಲಾಗಿದೆ</translation>
 <translation id="8574841453995331336">ರೆಫ್ರಿಜರೇಟರ್‌ಗಳು ಮತ್ತು ಫ್ರೀಝರ್‌ಗಳು</translation>
 <translation id="8577192028579836704">ಎಲ್ಲಾ ಆಯ್ಕೆಗಳು ಸಾಮಾನ್ಯವಾಗಿ <ph name="TYPICAL_PRICE" /></translation>
 <translation id="8577348305244205642">ವರ್ಚುವಲ್ ಕಾರ್ಡ್ ಲಭ್ಯವಿಲ್ಲ</translation>
@@ -4825,6 +4835,7 @@
 <translation id="9045525010788763347"><ph name="RESULT_MODIFIED_DATE" /> - <ph name="RESULT_PRODUCT_SOURCE" /></translation>
 <translation id="9046578823518542618"><ph name="URL" /> ನಿಮ್ಮ ಸ್ಥಳೀಯ ನೆಟ್‌ವರ್ಕ್‌ನಲ್ಲಿರುವ ಯಾವುದೇ ಸಾಧನವನ್ನು ಹುಡುಕಲು ಮತ್ತು ಕನೆಕ್ಟ್ ಆಗಲು ಬಯಸುತ್ತದೆ</translation>
 <translation id="9046864189129893978">ಮೈಕ್ರೊಫೋನ್‌ಗಳು (<ph name="MICS_COUNT" />)</translation>
+<translation id="9047528041803621289">ನಿಮ್ಮ ಡೀಫಾಲ್ಟ್ ನಿಮಗೆ ವೆಬ್‌ನಲ್ಲಿ ಹುಡುಕಲು ಅನುಮತಿಸುತ್ತದೆ. ನೀವು ಅದನ್ನು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು.</translation>
 <translation id="9048035366624198823">ಈ ಕ್ರಿಯೆಗಳಿಗೆ <ph name="POLICY_NAME" /> ನೀತಿಯನ್ನು <ph name="POLICY_VALUE" />: <ph name="ACTION_LIST" /> ಗೆ ಸೆಟ್ ಮಾಡುವ ಅಗತ್ಯವಿದೆ.</translation>
 <translation id="9048662076076074925">24 x 36 ಇಂಚು</translation>
 <translation id="9049981332609050619">ನೀವು <ph name="DOMAIN" /> ಅನ್ನು ತಲುಪಲು ಪ್ರಯತ್ನಿಸಿರುವಿರಿ, ಆದರೆ ಸರ್ವರ್ ಅಮಾನ್ಯ ಪ್ರಮಾಣಪತ್ರವನ್ನು ನೀಡಿದೆ.</translation>

@@ -618,6 +618,13 @@ class ColorPaletteControllerNotificationTest
 
 TEST_F(ColorPaletteControllerNotificationTest,
        OneNotificationOnActiveUserChange) {
+  // When the active user changes below, the `ColorPaletteController` will
+  // attempt to set the `ui::NativeTheme` to light mode. Ensure the
+  // `ui::NativeTheme` is not currently in light mode, or it will not think
+  // anything has actually changed, and elide the call to its observers.
+  ui::NativeTheme::GetInstanceForNativeUi()->set_preferred_color_scheme(
+      ui::NativeTheme::PreferredColorScheme::kDark);
+
   // A login should trigger a `ColorPaletteController` update, which in turn
   // should trigger a `ui::NativeTheme` notification.
   TestObserver observer;
@@ -625,8 +632,9 @@ TEST_F(ColorPaletteControllerNotificationTest,
       &observer);
   observation.Observe(ui::NativeTheme::GetInstanceForNativeUi());
   SimulateUserLogin(kAccountId);
-  // Called twice. Once for wallpaper update, then for active user pref change.
-  EXPECT_EQ(2, observer.call_count());
+  // Called at least twice. Once for wallpaper update, then for active user pref
+  // change.
+  EXPECT_GE(observer.call_count(), 2);
 }
 
 class ColorPaletteControllerLocalPrefTest

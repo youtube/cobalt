@@ -8,15 +8,22 @@
 
 #include "base/scoped_observation.h"
 #include "ui/accessibility/android/accessibility_state.h"
+#include "ui/native_theme/native_theme.h"
 
 namespace ui {
 
 OsSettingsProviderAndroid::OsSettingsProviderAndroid()
     : OsSettingsProvider(PriorityLevel::kProduction) {
-  accessibility_state_observation_.Observe(ui::AccessibilityState::Get());
+  accessibility_state_observation_.Observe(AccessibilityState::Get());
 }
 
 OsSettingsProviderAndroid::~OsSettingsProviderAndroid() = default;
+
+NativeTheme::PreferredContrast OsSettingsProviderAndroid::PreferredContrast()
+    const {
+  return high_contrast_enabled_ ? NativeTheme::PreferredContrast::kMore
+                                : NativeTheme::PreferredContrast::kNoPreference;
+}
 
 bool OsSettingsProviderAndroid::PrefersReducedTransparency() const {
   return high_contrast_enabled_;

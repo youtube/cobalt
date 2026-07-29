@@ -479,6 +479,7 @@
 <translation id="2797029671965852011">ইতিহাস দেখান</translation>
 <translation id="2797302972324086597">দেশের কোড</translation>
 <translation id="2810376924814601526">{COUNT,plural, =1{{COUNT}টি ফাইল}one{{COUNT}টি ফাইল}other{{COUNT}টি ফাইল}}</translation>
+<translation id="2816149645002567541">ডাউনলোড পজ করা হয়েছে</translation>
 <translation id="2816489851009559785">মেনু → সেটিংস → ডিফল্ট ব্রাউজার</translation>
 <translation id="2818821771744632548">আপনার iPhone রিসেটের অংশ হিসেবে আপনার অ্যাকাউন্ট <ph name="USER_NAME" /> থেকে সাইন-আউট হয়ে গেছেন। আবার সাইন ইন করতে, নিচে "চালিয়ে যান" বিকল্পে ট্যাপ করুন।</translation>
 <translation id="2819667972867209401">চালু করা থাকলে, আপনার Google অ্যাকাউন্টে ডেটা সেভ করা হয়। বন্ধ করা থাকলে, ডেটা শুধু এই ডিভাইসে সেভ করা হয় এবং আপনি সাইন-আউট করলে তা মুছে ফেলা হয়।</translation>
@@ -735,6 +736,7 @@
 <translation id="3921585859122905677">অ্যাড্রেস বারের পজিশন</translation>
 <translation id="3922185497376658606">ওয়েবপেজ প্রিলোড করুন</translation>
 <translation id="3922395466317605522">মেনু কাস্টমাইজ করুন</translation>
+<translation id="3926703470020109118">ডাউনলোড বাতিল করা হয়েছে</translation>
 <translation id="3929457972718048006">ঠিকানা</translation>
 <translation id="3931215329146376310">{count,plural, =1{এই সাইটের জন্য নতুন পাসওয়ার্ড}one{এই সাইটের জন্য নতুন পাসওয়ার্ড}other{এই সাইটের জন্য নতুন পাসওয়ার্ড}}</translation>
 <translation id="3934905113567851655">সাইজ পরিবর্তন করতে পিঞ্চ করুন</translation>
@@ -787,6 +789,7 @@
 <translation id="4113957097611235433">আপনার পাসওয়ার্ড পরিবর্তন করুন</translation>
 <translation id="4120936477286528673">এই সাইটটি বারংবার অন্য একটি অ্যাপ্লিকেশন খোলার চেষ্টা করছে।</translation>
 <translation id="4121993058175073134">নেট-রপ্তানি ডেটা পাঠানোর জন্য, অনুগ্রহ করে সিস্টেম অ্যাপে আপনার ইমেল অ্যাকাউন্ট কনফিগার করুন৷</translation>
+<translation id="4132991308423633339">পাসওয়ার্ড ও পাসকী এক্সপোর্ট করুন…</translation>
 <translation id="4133139945030148655">আপনি সবকিছু সেট-আপ করেছেন</translation>
 <translation id="4133265950310064865">উন্নত সুরক্ষা</translation>
 <translation id="4145507240503767005"><ph name="SEARCH_ENGINE_NAME" />, <ph name="SEARCH_ENGINE_DOMAIN" /></translation>
@@ -834,6 +837,7 @@
 <translation id="4286718549648564014">আপনার অ্যাকাউন্ট <ph name="USER_EMAIL" />-এ ঠিকানা সরানো হয়েছে</translation>
 <translation id="4287172530684295552">পড়া হয়েছে হিসেবে চিহ্নিত করুন</translation>
 <translation id="428768789042547925">নতুন কী আছে</translation>
+<translation id="428858055663163046">উপলভ্য থাকলে আপনি এখানে নিজের ডাউনলোড করা ফাইল অ্যাক্সেস করতে পারবেন</translation>
 <translation id="429074084062258019">{count,plural, =1{গ্রুপে ট্যাব যোগ করুন}one{গ্রুপে ট্যাব যোগ করুন}other{গ্রুপে ট্যাব যোগ করুন}}</translation>
 <translation id="4302061870579014542">পজিশন সেট করুন</translation>
 <translation id="4304713468139749426">পাসওয়ার্ড ম্যানেজার</translation>
@@ -950,6 +954,7 @@
 <translation id="4749529195026091676">{count,plural, =1{{count}টি কার্ড ইমপোর্ট করা হয়েছে}one{{count}টি কার্ড ইমপোর্ট করা হয়েছে}other{{count}টি কার্ড ইমপোর্ট করা হয়েছে}}</translation>
 <translation id="4751645464639803239">নতুন ছদ্মবেশী ট্যাব খুলুন</translation>
 <translation id="4752348350801431746">নিরাপত্তা সংক্রান্ত পরীক্ষার বিজ্ঞপ্তি বন্ধ করুন…</translation>
+<translation id="4759238208242260848">ডাউনলোড</translation>
 <translation id="4764612367328936189">আপনার সংস্থা আপনাকে শুধু কিছু নির্দিষ্ট অ্যাকাউন্ট ব্যবহার করে সাইন-ইন করার অনুমতি দিয়েছে। অনুমোদন করা হয়নি এমন অ্যাকাউন্ট লুকানো আছে। <ph name="BEGIN_LINK" />আরও জানুন<ph name="END_LINK" /></translation>
 <translation id="4766112107778026136">ডিসকভার ও ফলো</translation>
 <translation id="4769198578611055647">যেকোনও ডিভাইসে আপনাকে সেভ করা পাসকী অ্যাক্সেস করতে সাহায্য করে</translation>
@@ -1171,6 +1176,7 @@
 <translation id="561269594905823128"><ph name="BEGIN_BOLD" />আপনার ফাইল বেছে নিন<ph name="END_BOLD" /> বিকল্পে ট্যাপ করুন</translation>
 <translation id="5613297089029360427">লেটেস্ট অনুযায়ী সাজান</translation>
 <translation id="5614553682702429503">পাসওয়ার্ড সেভ করবেন?</translation>
+<translation id="5617769621178348890">Files অ্যাপে খুলুন</translation>
 <translation id="5619871095170816857">এই কার্ড শেষ ২৪ ঘণ্টায় আপনার সিঙ্ক করা সমস্ত ডিভাইসে শেষবার ব্যবহার করা ট্যাব দেখায়।</translation>
 <translation id="5624120631404540903">পাসওয়ার্ডগুলি পরিচালনা করুন</translation>
 <translation id="5624637933505983014">সিঙ্ক চালু করবেন না</translation>
@@ -1272,6 +1278,7 @@
 <translation id="5956112131836209882">ট্যাব গ্রুপের ট্যাব। <ph name="NUMBER_OF_TABS_IN_GROUP" />টির মধ্যে <ph name="TAB_INDEX_IN_GROUP" /> নম্বর।</translation>
 <translation id="595769230373966252"><ph name="SEARCH_PROVIDER" /> ব্যবহার করে সার্চ করুন</translation>
 <translation id="5963939892571022323">হাইলাইট করা টেক্সটের লিঙ্ক তৈরি করা যায়নি।</translation>
+<translation id="5968400720580217226">AI মোড</translation>
 <translation id="5971459446352190251">QR কোড খুঁজুন</translation>
 <translation id="5971872012779224351">{count,plural, =1{১টি বুকমার্ক মুছে ফেলা হয়েছে}one{{count}টি বুকমার্ক মুছে ফেলা হয়েছে}other{{count}টি বুকমার্ক মুছে ফেলা হয়েছে}}</translation>
 <translation id="5972844218283131174">সবগুলি অনির্বাচন করুন</translation>
@@ -1417,6 +1424,7 @@
 <translation id="6452534462676960500">নতুন অ্যাক্টিভিটি</translation>
 <translation id="6459411599807878608">বিবরণ লুকানো আছে</translation>
 <translation id="646394917185284261">ফাইল</translation>
+<translation id="6472069383518492189">আপনার ডাউনলোড করা ফাইল এখানে দেখতে পাবেন</translation>
 <translation id="6476253015009698798">এই পৃষ্ঠার জন্য দাম ট্র্যাক করার সুবিধা উপলভ্য নেই।</translation>
 <translation id="6476284679642588870">পেমেন্টের পদ্ধতি ম্যানেজ করুন</translation>
 <translation id="6476800141292307438">পৃষ্ঠাটি <ph name="LANGUAGE" /> ভাষাতে অনুবাদ হচ্ছে। স্ক্রিনের নিচের দিকে বিকল্পগুলি দেওয়া আছে।</translation>
@@ -1462,6 +1470,7 @@
 <translation id="6627583120233659107">ফোল্ডার সম্পাদনা করুন</translation>
 <translation id="6629759408545977279">প্রেরক: <ph name="ORIGINATING_HOST" /></translation>
 <translation id="6634432609054530164">আপনার সংস্থা, 'ছদ্মবেশী মোড' বন্ধ করে দিয়েছে</translation>
+<translation id="6637478299472506933">ডাউনলোড ব্যর্থ হয়েছে</translation>
 <translation id="6638511529934826365">টেক্সট জুম করা…</translation>
 <translation id="6640268266988685324">ট্যাব খুলুন</translation>
 <translation id="6641465290890659327">আপনার পাসওয়ার্ডের একটি কপি শেয়ার করুন</translation>
@@ -1584,6 +1593,7 @@
 <translation id="7102005569666697658"><ph name="FILE_SIZE" /> ডাউনলোড করা হচ্ছে…</translation>
 <translation id="7104701424653979232">মেনু → সেটিংস → পেমেন্ট পদ্ধতি</translation>
 <translation id="7108338896283013870">লুকান</translation>
+<translation id="7127922377013221748">সরঞ্জামদণ্ড গোপন করুন</translation>
 <translation id="7128693485119315539">আপনার ম্যানেজ করা অ্যাকাউন্টের সাথে যুক্ত থাকা ব্রাউজ করা ডেটা, আপনার প্রতিষ্ঠান দেখতে চাইতে পারে, যেমন আপনার ব্রাউজিং ইতিহাস ও পাসওয়ার্ড।</translation>
 <translation id="713215255510512027"><ph name="FILENAME" /> (<ph name="FILESIZE" />)</translation>
 <translation id="7136892417564438900">ক্যামেরা অনুপলব্ধ</translation>
@@ -1894,6 +1904,7 @@
 <translation id="8283172974887967105">সেট করুন…</translation>
 <translation id="8289930144142009940"><ph name="FEATURE_NAME" /> সম্পর্কিত বিজ্ঞপ্তি বন্ধ করুন</translation>
 <translation id="8290077367744012649">আপনার ট্যাব থেকে দাম ট্র্যাক করুন</translation>
+<translation id="8292893224181644074">ডাউনলোড করা হয়ে গেছে</translation>
 <translation id="8299417921174340354">পাসওয়ার্ড ব্যবহার করার জন্য, আপনাকে ডিভাইসে প্রথমে একটি পাসকোড সেট করতে হবে।</translation>
 <translation id="8307481894409578819">এই ফাইলটি আপলোড করা যায়নি</translation>
 <translation id="8319076807703933069">নতুন ট্যাবে সার্চ করুন</translation>

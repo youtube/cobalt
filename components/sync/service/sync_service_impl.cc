@@ -26,6 +26,8 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "components/os_crypt/async/browser/os_crypt_async.h"
+#include "components/os_crypt/async/common/encryptor.h"
 #include "components/signin/public/base/gaia_id_hash.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_switches.h"
@@ -82,7 +84,6 @@ namespace syncer {
 namespace {
 
 BASE_FEATURE(kSyncUnsubscribeFromTypesWithPermanentErrors,
-             "SyncUnsubscribeFromTypesWithPermanentErrors",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -163,7 +164,7 @@ EngineComponentsFactory::Switches EngineSwitchesFromCommandLine() {
       EngineComponentsFactory::BACKOFF_NORMAL,
       /*force_short_nudge_delay_for_test=*/false};
 
-  base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
+  const base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   if (cl->HasSwitch(kSyncShortInitialRetryOverride)) {
     factory_switches.backoff_override =
         EngineComponentsFactory::BACKOFF_SHORT_INITIAL_RETRY_OVERRIDE;
@@ -218,6 +219,7 @@ SyncServiceImpl::SyncServiceImpl(InitParams init_params)
     : sync_client_(std::move(init_params.sync_client)),
       create_http_post_provider_factory_(
           std::move(init_params.create_http_post_provider_factory)),
+      os_crypt_async_(init_params.os_crypt_async),
       sync_prefs_(sync_client_->GetPrefService()),
       identity_manager_(sync_prefs_.IsLocalSyncEnabled()
                             ? nullptr
@@ -235,6 +237,8 @@ SyncServiceImpl::SyncServiceImpl(InitParams init_params)
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(sync_client_);
   DCHECK(IsLocalSyncEnabled() || identity_manager_ != nullptr);
+  CHECK_EQ(base::FeatureList::IsEnabled(syncer::kSyncUseOsCryptAsync),
+           os_crypt_async_ != nullptr);
 
   // If Sync is disabled via command line flag, then SyncServiceImpl
   // shouldn't be instantiated.
@@ -396,7 +400,7 @@ void SyncServiceImpl::Initialize(DataTypeController::TypeVector controllers) {
       deferring_first_start_since_ = base::Time::Now();
       base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
           FROM_HERE,
-          base::BindOnce(&SyncServiceImpl::TryStartImpl,
+          base::BindOnce(&SyncServiceImpl::TryStart,
                          weak_factory_.GetWeakPtr()),
           GetDeferredInitDelay());
     }
@@ -534,17 +538,46 @@ void SyncServiceImpl::OnDataTypeRequestsSyncStartup(DataType type) {
 }
 
 void SyncServiceImpl::TryStart() {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&SyncServiceImpl::TryStartImpl,
-                                weak_factory_.GetWeakPtr()));
+  if (base::FeatureList::IsEnabled(syncer::kSyncUseOsCryptAsync)) {
+    CHECK(os_crypt_async_);
+    // It's possible for this to be called multiple times before the callback
+    // runs (e.g. if the user signs out and back in again). This is safe, as
+    // OSCryptAsync will just queue the callbacks and run them once the
+    // encryptor is available. The first call to TryStartImpl() that succeeds
+    // will create the engine, and subsequent ones will be no-ops.
+    os_crypt_async_->GetInstance(
+        base::BindOnce(&SyncServiceImpl::OnEncryptorGottenForTryStart,
+                       weak_factory_.GetWeakPtr(), base::TimeTicks::Now()));
+  } else {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&SyncServiceImpl::TryStartImpl,
+                                  weak_factory_.GetWeakPtr(),
+                                  base::TimeTicks::Now(), std::nullopt));
+  }
 }
 
-void SyncServiceImpl::TryStartImpl() {
+void SyncServiceImpl::OnEncryptorGottenForTryStart(
+    base::TimeTicks try_start_time,
+    os_crypt_async::Encryptor encryptor) {
+  TryStartImpl(try_start_time, std::move(encryptor));
+}
+
+void SyncServiceImpl::TryStartImpl(
+    base::TimeTicks try_start_time,
+    std::optional<os_crypt_async::Encryptor> encryptor) {
   base::Time deferral_time;
   std::swap(deferring_first_start_since_, deferral_time);
 
   if (engine_ || !IsEngineAllowedToRun()) {
     return;
+  }
+
+  std::unique_ptr<os_crypt_async::Encryptor> encryptor_ptr;
+  if (encryptor) {
+    base::UmaHistogramTimes("Sync.EncryptorReceivedTime",
+                            base::TimeTicks::Now() - try_start_time);
+    encryptor_ptr =
+        std::make_unique<os_crypt_async::Encryptor>(std::move(*encryptor));
   }
 
   if (!deferral_time.is_null()) {
@@ -601,6 +634,8 @@ void SyncServiceImpl::TryStartImpl() {
   params.engine_components_factory =
       std::make_unique<EngineComponentsFactoryImpl>(
           EngineSwitchesFromCommandLine());
+
+  params.encryptor = std::move(encryptor_ptr);
 
   if (!IsLocalSyncEnabled()) {
     auth_manager_->ConnectionOpened();
@@ -1903,9 +1938,9 @@ void SyncServiceImpl::OnAccountsInCookieUpdatedWithCallback(
     return;
   }
 
-  bool cookie_jar_mismatch = HasCookieJarMismatch(
+  const bool cookie_jar_mismatch = HasCookieJarMismatch(
       accounts_in_cookie_jar_info.GetPotentiallyInvalidSignedInAccounts());
-  bool cookie_jar_empty =
+  const bool cookie_jar_empty =
       accounts_in_cookie_jar_info.GetPotentiallyInvalidSignedInAccounts()
           .empty();
 

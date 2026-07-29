@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "components/lens/lens_features.h"
+#include "components/lens/lens_url_utils.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -273,7 +274,7 @@ LensSearchboxController::GetPageClassification() const {
   const LensOverlayController::State state =
       lens_search_controller_->lens_overlay_controller()->state();
   bool state_supports_contextualization =
-      state == LensOverlayController::State::kLivePageAndResults ||
+      state == LensOverlayController::State::kHidden ||
       state == LensOverlayController::State::kOverlay ||
       (state == LensOverlayController::State::kOff &&
        lens_search_controller_->lens_search_contextualization_controller()

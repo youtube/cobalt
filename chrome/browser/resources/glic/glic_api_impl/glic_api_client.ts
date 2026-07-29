@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {ActiveBrowserInfo, AnnotatedPageData, ChromeVersion, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, Journal, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResizeWindowOptions, Screenshot, ScrollToParams, SelectCredentialDialogRequest, TabContextOptions, TabContextResult, TabData, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActiveBrowserInfo, AnnotatedPageData, ChromeVersion, CreateTabOptions, DraggableArea, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicBrowserHostJournal, GlicBrowserHostMetrics, GlicHostRegistry, GlicWebClient, Journal, Observable, ObservableValue, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, ResizeWindowOptions, Screenshot, ScrollToParams, SelectCredentialDialogRequest, TabContextOptions, TabContextResult, TabData, TaskOptions, UserConfirmationDialogRequest, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 import {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, HostCapability} from '../glic_api/glic_api.js';
 import {ObservableValue as ObservableValueImpl, Subject} from '../observable.js';
 
 import {replaceProperties} from './conversions.js';
 import {newSenderId, PostMessageRequestReceiver, PostMessageRequestSender} from './post_message_transport.js';
 import type {ResponseExtras} from './post_message_transport.js';
-import type {AnnotatedPageDataPrivate, CredentialPrivate, FocusedTabDataPrivate, PdfDocumentDataPrivate, PinCandidatePrivate, RequestRequestType, RequestResponseType, RgbaImage, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, TabContextResultPrivate, TabDataPrivate, TransferableException, WebClientRequestTypes} from './request_types.js';
-import {ImageAlphaType, ImageColorType, newTransferableException, SelectCredentialDialogErrorReason} from './request_types.js';
+import type {AnnotatedPageDataPrivate, CredentialPrivate, FocusedTabDataPrivate, PdfDocumentDataPrivate, PinCandidatePrivate, RequestRequestType, RequestResponseType, RgbaImage, SelectCredentialDialogRequestPrivate, SelectCredentialDialogResponsePrivate, TabContextResultPrivate, TabDataPrivate, TransferableException, UserConfirmationDialogRequestPrivate, UserConfirmationDialogResponsePrivate, WebClientRequestTypes} from './request_types.js';
+import {ImageAlphaType, ImageColorType, newTransferableException, SelectCredentialDialogErrorReason, UserConfirmationDialogErrorReason} from './request_types.js';
 
 
 // Web client side of the Glic API.
@@ -176,6 +176,8 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
 
   glicWebClientNotifyPinnedTabsChanged(payload: {tabData: TabDataPrivate[]}):
       void {
+    // MOJO_RUNTIME_FEATURE_GATED NotifyPinnedTabsChanged
+    // No gating necessary here, this is called by the browser.
     this.cachedPinnedTabs =
         payload.tabData.map((x) => convertTabDataFromPrivate(x));
     this.host.pinnedTabs?.assignAndSignal(this.cachedPinnedTabs);
@@ -183,6 +185,8 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
 
   glicWebClientNotifyPinnedTabDataChanged(payload: {tabData: TabDataPrivate}):
       void {
+    // MOJO_RUNTIME_FEATURE_GATED NotifyPinnedTabDataChanged
+    // No gating necessary here, this is called by the browser.
     if (!this.cachedPinnedTabs) {
       return;
     }
@@ -273,6 +277,34 @@ class WebClientMessageHandler implements WebClientMessageHandlerInterface {
       this.host.selectCredentialDialogRequestSubject.next(requestWithCallback);
     });
   }
+
+  glicWebClientRequestToShowConfirmationDialog(payload: {
+    request: UserConfirmationDialogRequestPrivate,
+  }): Promise<{response: UserConfirmationDialogResponsePrivate}> {
+    return new Promise(resolve => {
+      if (!this.host.userConfirmationDialogRequestSubject
+               .hasActiveSubscription()) {
+        // Since there is no subscriber, respond to the browser immediately as
+        // if the user denied the request.
+        window.console.warn(
+            'GlicWebClient: no subscriber for ' +
+            'userConfirmationDialogRequest()!');
+        resolve({
+          response: {
+            permissionGranted: false,
+            errorReason:
+                UserConfirmationDialogErrorReason.DIALOG_PROMISE_NO_SUBSCRIBER,
+          },
+        });
+        return;
+      }
+      const requestWithCallback: UserConfirmationDialogRequest = {
+        ...payload.request,
+        onDialogClosed: resolve,
+      };
+      this.host.userConfirmationDialogRequestSubject.next(requestWithCallback);
+    });
+  }
 }
 
 class GlicBrowserHostImpl implements GlicBrowserHost {
@@ -320,6 +352,8 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
       new Map();
   readonly selectCredentialDialogRequestSubject =
       new Subject<SelectCredentialDialogRequest>();
+  readonly userConfirmationDialogRequestSubject =
+      new Subject<UserConfirmationDialogRequest>();
 
   constructor(public webClient: GlicWebClient, windowProxy: WindowProxy) {
     // TODO(harringtond): Ideally, we could ensure we only process requests from
@@ -386,6 +420,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     // results in a mojo pipe closure.
     if (!this.hostCapabilities.has(
             HostCapability.GET_MODEL_QUALITY_CLIENT_ID)) {
+      // MOJO_RUNTIME_FEATURE_GATED GetModelQualityClientId
       this.getModelQualityClientId = undefined;
     }
 
@@ -411,6 +446,7 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
 
     if (!state.enableZeroStateSuggestions) {
       this.getZeroStateSuggestionsForFocusedTab = undefined;
+      // MOJO_RUNTIME_FEATURE_GATED GetZeroStateSuggestionsAndSubscribe
       this.getZeroStateSuggestions = undefined;
     }
 
@@ -429,23 +465,29 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     }
 
     if (!state.enableMultiTab) {
+      // MOJO_RUNTIME_FEATURE_GATED GetContextFromTab
       this.getContextFromTab = undefined;
       this.getPinnedTabs = undefined;
+      // MOJO_RUNTIME_FEATURE_GATED SubscribeToPinCandidates
       this.getPinCandidates = undefined;
+      // MOJO_RUNTIME_FEATURE_GATED PinTabs
       this.pinTabs = undefined;
+      // MOJO_RUNTIME_FEATURE_GATED SetMaximumNumberOfPinnedTabs
       this.setMaximumNumberOfPinnedTabs = undefined;
+      // MOJO_RUNTIME_FEATURE_GATED UnpinTabs
       this.unpinTabs = undefined;
+      // MOJO_RUNTIME_FEATURE_GATED UnpinAllTabs
       this.unpinAllTabs = undefined;
     }
 
     if (!state.enableGetContextActor) {
+      // MOJO_RUNTIME_FEATURE_GATED GetContextForActorFromTab
       this.getContextForActorFromTab = undefined;
     }
 
     if (!state.enableGetPageMetadata) {
       this.getPageMetadata = undefined;
     }
-
   }
 
   webClientInitialized(
@@ -529,6 +571,16 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return result.modelQualityClientId;
   }
 
+  async switchConversation(conversationId: string): Promise<void> {
+    await this.sender.requestWithResponse(
+        'glicBrowserSwitchConversation', {conversationId});
+  }
+
+  async registerConversation(conversationId: string): Promise<void> {
+    await this.sender.requestWithResponse(
+        'glicBrowserRegisterConversation', {conversationId});
+  }
+
   async getContextFromFocusedTab(options: TabContextOptions):
       Promise<TabContextResult> {
     const context = await this.sender.requestWithResponse(
@@ -556,9 +608,9 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
     return convertTabContextResultFromPrivate(result.tabContextResult);
   }
 
-  async createTask?(): Promise<number> {
+  async createTask?(taskOptions?: TaskOptions): Promise<number> {
     const result = await this.sender.requestWithResponse(
-        'glicBrowserCreateTask', undefined);
+        'glicBrowserCreateTask', {taskOptions});
     return result.taskId;
   }
 
@@ -891,6 +943,11 @@ class GlicBrowserHostImpl implements GlicBrowserHost {
       (): Observable<SelectCredentialDialogRequest> {
     return this.selectCredentialDialogRequestSubject;
   }
+
+  selectUserConfirmationDialogRequestHandler():
+      Observable<UserConfirmationDialogRequest> {
+    return this.userConfirmationDialogRequestSubject;
+  }
 }
 
 class GlicBrowserHostJournalImpl implements GlicBrowserHostJournal {
@@ -946,6 +1003,20 @@ class GlicBrowserHostMetricsImpl implements GlicBrowserHostMetrics {
 
   onUserInputSubmitted(mode: number): void {
     this.sender.requestNoResponse('glicBrowserOnUserInputSubmitted', {mode});
+  }
+
+  onReaction(reactionType: number): void {
+    this.sender.requestNoResponse('glicBrowserOnReaction', {reactionType});
+  }
+
+  onContextUploadStarted(): void {
+    this.sender.requestNoResponse(
+        'glicBrowserOnContextUploadStarted', undefined);
+  }
+
+  onContextUploadCompleted(): void {
+    this.sender.requestNoResponse(
+        'glicBrowserOnContextUploadCompleted', undefined);
   }
 
   onResponseStarted(): void {

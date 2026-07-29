@@ -28,7 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821 amd-0x7340 amd-0x7480
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
+#             amd-0x7340 amd-0x7480
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -62,6 +63,7 @@
 # tags: [ mesa_lt_19.1
 #         mesa_ge_21.0
 #         mesa_ge_23.2
+#         mesa_ge_24.2
 #         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
 #         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
@@ -372,6 +374,7 @@ crbug.com/401988385 [ chromeos angle-opengles mesa_ge_21.0 passthrough ] conform
 # edge of the 60s timeout.
 [ fuchsia web-engine-shell ] conformance/extensions/webgl-compressed-texture-astc.html [ Slow ]
 [ fuchsia web-engine-shell ] conformance/glsl/bugs/complex-glsl-does-not-crash.html [ Slow ]
+[ fuchsia web-engine-shell ] conformance/glsl/misc/shader-uniform-packing-restrictions.html [ Slow ]
 crbug.com/1490427 [ fuchsia web-engine-shell ] conformance/uniforms/no-over-optimization-on-uniform-array-* [ Slow ]
 
 ###################
@@ -416,9 +419,7 @@ crbug.com/angleproject/6358 [ no-passthrough ] conformance/programs/program-test
 # Fuchsia failures #
 ####################
 
-crbug.com/1490427 [ fuchsia fuchsia-board-qemu-x64 ] conformance/textures/misc/canvas-teximage-after-multiple-drawimages.html [ Failure ]
 crbug.com/1490427 [ fuchsia fuchsia-board-qemu-x64 ] conformance/textures/misc/image-decoder-to-texture.html [ Failure ]
-crbug.com/1490427 [ fuchsia fuchsia-board-qemu-x64 ] conformance/textures/misc/texparameter-test.html [ Failure ]
 crbug.com/1490427 [ fuchsia fuchsia-board-qemu-x64 ] conformance/textures/misc/texture-srgb-upload.html [ Failure ]
 crbug.com/1490427 [ fuchsia fuchsia-board-qemu-x64 ] conformance/textures/misc/texture-video-transparent.html [ Failure ]
 crbug.com/1490427 [ fuchsia fuchsia-board-qemu-x64 ] conformance/textures/misc/tex-video-using-tex-unit-non-zero.html [ Failure ]
@@ -530,7 +531,7 @@ crbug.com/1021428 [ linux angle-vulkan passthrough intel ] WebglExtension_WEBGL_
 
 
 # Need to investigate failure on basically all devices with passthrough on Android.
-crbug.com/angleproject/5038 [ android passthrough ] conformance/extensions/ext-color-buffer-half-float.html [ Failure ]
+crbug.com/angleproject/5038 [ android angle-opengles mobile passthrough ] conformance/extensions/ext-color-buffer-half-float.html [ Failure ]
 
 # Failure on validating command decoder only; won't fix.
 crbug.com/angleproject/5038 [ android no-passthrough qualcomm renderer-skia-gl ] conformance/extensions/ext-color-buffer-half-float.html [ Failure ]

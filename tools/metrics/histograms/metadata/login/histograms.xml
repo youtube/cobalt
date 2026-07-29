@@ -42,7 +42,8 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Login.BrowserShutdownTime" units="ms"
     expires_after="2026-09-15">
-  <owner>xiyuan@chromium.org</owner>
+  <owner>hidehiko@chromium.org</owner>
+  <owner>junis@google.com</owner>
   <owner>cros-oac@google.com</owner>
   <summary>
     Tracks the browser process shutdown time from when SIGTERM is sent to the
@@ -152,7 +153,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Login.IsTokenHandleInSyncWithRefreshToken" enum="Boolean"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>sinhak@chromium.org</owner>
   <owner>cros-lurs@google.com</owner>
   <summary>
@@ -340,8 +341,8 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Login.SwitchToFeatureFlagMappingStatus"
     enum="LoginFeatureFlagMappingStatus" expires_after="2022-04-10">
-  <owner>mnissler@chromium.org</owner>
-  <owner>xiyuan@chromium.org</owner>
+  <owner>hidehiko@chromium.org</owner>
+  <owner>junis@google.com</owner>
   <summary>
     Tracks whether switches were mapped to feature flags in session_manager for
     compatibility. session_manager does this and emits UMA samples when

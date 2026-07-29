@@ -22,7 +22,6 @@
 #include "chrome/browser/task_manager/common/task_manager_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome_feature_list.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/browser_sync/browser_sync_switches.h"
@@ -80,6 +79,7 @@
 #include "services/device/public/cpp/device_features.h"
 #include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/base/ui_base_features.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -138,8 +138,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &data_sharing::features::kDataSharingEnableUpdateChromeUI,
     &download::features::kEnableSavePackageForOffTheRecord,
     &download::features::kSmartSuggestionForLargeDownloads,
-    &base::features::kCollectAndroidFrameTimelineMetrics,
     &download::features::kDownloadNotificationServiceUnifiedAPI,
+    &features::kAccessibilityMagnificationFollowsInputFocus,
     &features::kAndroidAnimatedProgressBarInBrowser,
     &features::kAndroidAnimatedProgressBarInViz,
     &features::kAndroidBcivBottomControls,
@@ -199,13 +199,10 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAdaptiveButtonInTopToolbarCustomizationV2,
     &kAdaptiveButtonInTopToolbarPageSummary,
     &kAllowTabClosingUponMinimization,
-    &kAndroidAppIntegration,
-    &kAndroidAppIntegrationV2,
     &kNewTabPageCustomization,
     &kNewTabPageCustomizationV2,
     &kNewTabPageCustomizationToolbarButton,
     &kNewTabPageCustomizationForMvt,
-    &kAndroidAppIntegrationWithFavicon,
     &kAndroidAppIntegrationMultiDataSource,
     &kAndroidAppearanceSettings,
     &kAndroidBookmarkBar,
@@ -238,7 +235,6 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kAndroidTabSkipSaveTabsKillswitch,
     &kAndroidThemeModule,
     &kAndroidThemeResourceProvider,
-    &kAndroidTipsNotifications,
     &kAndroidToolbarScrollAblation,
     &kAndroidUseAdminsForEnterpriseInfo,
     &kAndroidWindowPopupLargeScreen,
@@ -344,6 +340,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &kLegacyTabStateDeprecation,
     &kLockBackPressHandlerAtStart,
     &kLockTopControlsOnLargeTablets,
+    &kLockTopControlsOnLargeTabletsV2,
     &kIncognitoNtpSmallIcon,
     &kIncognitoScreenshot,
     &kIncognitoThemeOverlayTesting,
@@ -465,6 +462,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &password_manager::features::kBiometricAuthIdentityCheck,
     &password_manager::features::kBiometricTouchToFill,
     &password_manager::features::kPasswordFormGroupedAffiliations,
+    &permissions::features::kAndroidWindowManagementWebApi,
     &permissions::features::kPermissionsPromptSurvey,
     &permissions::features::kPermissionDedicatedCpssSettingAndroid,
     &permissions::features::kPermissionSiteSettingsRadioButton,
@@ -480,6 +478,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &privacy_sandbox::kPrivacySandboxAdTopicsContentParity,
     &privacy_sandbox::kPrivacySandboxSentimentSurvey,
     &privacy_sandbox::kRelatedWebsiteSetsUi,
+    &privacy_sandbox::kRollBackModeB,
     &privacy_sandbox::kTrackingProtectionUserBypassPwa,
     &privacy_sandbox::kTrackingProtectionUserBypassPwaTrigger,
     &safe_browsing::kHashPrefixRealTimeLookups,
@@ -542,10 +541,6 @@ BASE_FEATURE(kAdaptiveButtonInTopToolbarPageSummary,
 BASE_FEATURE(kAllowTabClosingUponMinimization,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAndroidAppIntegration, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kAndroidAppIntegrationV2, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kAndroidAppIntegrationMultiDataSource,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -557,9 +552,6 @@ BASE_FEATURE(kNewTabPageCustomizationToolbarButton,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNewTabPageCustomizationForMvt, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kAndroidAppIntegrationWithFavicon,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidAppearanceSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -582,6 +574,8 @@ BASE_FEATURE(kAndroidProgressBarVisualUpdate,
 
 BASE_FEATURE(kAndroidComposeplate, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAndroidComposeplateAllLocales, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAndroidNoVisibleHintForDifferentTLD,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -590,7 +584,7 @@ BASE_FEATURE(kAndroidOmniboxFocusedNewTabPage,
 
 BASE_FEATURE(kAndroidOpenPdfInlineBackport, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kAndroidPdfAssistContent, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAndroidPdfAssistContent, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidSettingsContainment, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -631,8 +625,6 @@ BASE_FEATURE(kAndroidTabSkipSaveTabsKillswitch,
 BASE_FEATURE(kAndroidThemeModule, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidThemeResourceProvider, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kAndroidTipsNotifications, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAndroidToolbarScrollAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -846,7 +838,7 @@ BASE_FEATURE(kEdgeToEdgeMonitorConfigurations,
 
 BASE_FEATURE(kEdgeToEdgeEverywhere, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEdgeToEdgeTablet, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEdgeToEdgeTablet, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEdgeToEdgeUseBackupNavbarInsets,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -893,6 +885,9 @@ BASE_FEATURE(kLoadNativeEarly, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kLockBackPressHandlerAtStart, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLockTopControlsOnLargeTablets, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kLockTopControlsOnLargeTabletsV2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIncognitoNtpSmallIcon, base::FEATURE_DISABLED_BY_DEFAULT);
 

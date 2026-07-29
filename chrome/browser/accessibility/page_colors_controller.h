@@ -51,7 +51,7 @@ class PageColorsController : public KeyedService,
   static void MigrateObsoleteProfilePrefs(PrefService* profile_prefs);
 
   // ui::NativeThemeObserver:
-  void OnPreferredContrastChanged(ui::NativeTheme* observed_theme) override;
+  void OnNativeThemeUpdated(ui::NativeTheme* observed_theme) override;
 
   // Requests that the web theme base its forced colors on `page_colors`,
   // subject to relevant prefs and native theme state.
@@ -61,12 +61,6 @@ class PageColorsController : public KeyedService,
   // Updates the web theme's forced colors and other state based on relevant
   // prefs. If anything changed, notifies the web theme's observers.
   void RecomputePageColors();
-
-  // This function makes use of different states such as the
-  // kRequestedPageColors, kApplyPageColorsOnlyOnIncreasedContrast and OS
-  // increased contrast state to calculate the used page colors.
-  ui::NativeTheme::PageColors CalculatePageColors(
-      const ui::NativeTheme& native_theme);
 
   base::ScopedObservation<ui::NativeTheme, ui::NativeThemeObserver>
       theme_observation_{this};

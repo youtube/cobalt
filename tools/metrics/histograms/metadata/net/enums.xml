@@ -265,6 +265,8 @@ chromium-metrics-reviews@google.com.
   <int value="34" label="Federated session invalid"/>
   <int value="35" label="Federated key invalid"/>
   <int value="36" label="Too many relying origin labels in .well-known"/>
+  <int value="37"
+      label="Registration in a context that cannot set bound cookies"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/device_bound_sessions/session_error.h:DeviceBoundSessionError) -->
@@ -586,6 +588,28 @@ chromium-metrics-reviews@google.com.
     The request used HTTP and was redirected due to HSTS.
   </int>
 </enum>
+
+<!-- LINT.IfChange(HttpsNotAttemptedReason) -->
+
+<enum name="HttpsNotAttemptedReason">
+  <int value="0" label="Unknown">The reason is unknown.</int>
+  <int value="1" label="QueryingHttpsDisabled">Querying HTTPS is disabled.</int>
+  <int value="2" label="BuiltInResolverDisabled">
+    Built-in DNS resolver is disabled.
+  </int>
+  <int value="3" label="NoDnsClient">No DnsClient.</int>
+  <int value="4" label="FallbackFromInsecureTransactionPreferred">
+    DnsTask wasn't scheduled because it hadn't been working for a while.
+  </int>
+  <int value="5" label="InsecureDnsTaskDisabled">
+    Insecure DnsTask was not allowed to query HTTPS.
+  </int>
+  <int value="6" label="FallbackToSystemTaskAfterDnsTask">
+    DnsTask was executed but fell back to the system task.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//net/dns/host_resolver_manager_job.h:HttpsNotAttemptedReason) -->
 
 <enum name="HttpssvcDnsRcode">
   <summary>

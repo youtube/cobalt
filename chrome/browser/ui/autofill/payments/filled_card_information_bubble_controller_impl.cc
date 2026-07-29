@@ -360,6 +360,12 @@ void FilledCardInformationBubbleControllerImpl::PrimaryPageChanged(
 
 void FilledCardInformationBubbleControllerImpl::OnVisibilityChanged(
     content::Visibility visibility) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillShowBubblesBasedOnPriorities)) {
+    // BubbleManager will handle the effects of tab changes.
+    return;
+  }
+
   // If the bubble hasn't been shown yet due to changing the tab during
   // kFilledCardInformationBubbleDelay, show the bubble after switching back
   // to the tab.
@@ -386,10 +392,10 @@ void FilledCardInformationBubbleControllerImpl::DoShowBubble() {
   weak_ptr_factory_.InvalidateWeakPtrs();
 
   Browser* browser = chrome::FindBrowserWithTab(web_contents());
-  SetBubbleView(browser->window()
-                    ->GetAutofillBubbleHandler()
-                    ->ShowFilledCardInformationBubble(web_contents(), this,
-                                                      is_user_gesture_));
+  SetBubbleView(*browser->window()
+                     ->GetAutofillBubbleHandler()
+                     ->ShowFilledCardInformationBubble(web_contents(), this,
+                                                       is_user_gesture_));
   DCHECK(bubble_view());
   bubble_has_been_shown_ = true;
 

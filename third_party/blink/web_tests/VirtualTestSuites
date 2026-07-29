@@ -400,23 +400,24 @@
     "owners": ["samomekarajr@microsoft.com", "almaher@microsoft.com", "javiercon@microsoft.com"]
   },
   {
-    "prefix": "css-gap-decorations-optimized",
-    "platforms": ["Linux"],
-    "bases": [
-      "external/wpt/css/css-gaps",
-      "external/wpt/css/css-multicol"],
-    "args": ["--enable-blink-features=CSSGapDecorationOptimized"],
-    "expires": "Sep 1, 2026",
-    "owners": ["samomekarajr@microsoft.com", "javiercon@microsoft.com"]
-  },
-  {
     "prefix": "computed-width-values-depend-on-style-values",
     "platforms": ["Linux"],
     "bases": [
       "external/wpt/css/css-typed-om/the-stylepropertymap/properties/border-width.html",
-      "external/wpt/css/css-typed-om/the-stylepropertymap/properties/outline-width.html"
+      "external/wpt/css/css-typed-om/the-stylepropertymap/properties/outline-width.html",
+      "fast/replaced/no-focus-ring-object.html",
+      "fast/replaced/no-focus-ring-embed.html",
+      "external/wpt/css/css-gaps/parsing",
+      "fast/css/getComputedStyle/getComputedStyle-column-rule.html",
+      "fast/css/getComputedStyle/getComputedStyle-outline-shorthand.html",
+      "external/wpt/css/css-multicol/animation/column-rule-width-interpolation.html",
+      "external/wpt/css/css-multicol/parsing/",
+      "external/wpt/css/css-ui/parsing/canonical-order-outline-sub-properties-001.html",
+      "external/wpt/css/css-ui/parsing/outline-width-computed.html",
+      "external/wpt/css/cssom/cssom-getPropertyValue-common-checks.html"
     ],
-    "args": ["--disable-blink-features=DecoupleComputedBorderWidthFromStyle"],
+    "args": ["--disable-blink-features=DecoupleComputedBorderWidthFromStyle",
+             "--disable-blink-features=DecoupleResolvedColumnRuleWidthFromStyle"],
     "expires": "Apr 30, 2026",
     "owners": ["samomekarajr@microsoft.com", "kbabbitt@microsoft.com"]
   },
@@ -4488,6 +4489,7 @@
       "synthetic_gestures",
       "transitions",
       "view-transition",
+      "wpt_internal/html/script-execution",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
       "external/wpt/trusted-types/navigate-to-javascript-url-001.html",
@@ -4510,6 +4512,7 @@
       "external/wpt/scheduler/tentative/yield/yield-priority-idle-callbacks.html",
       "http/tests/devtools/isolated-code-cache",
       "external/wpt/css/css-view-transitions",
+      "wpt_internal/html/script-execution",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
       "view-transition",

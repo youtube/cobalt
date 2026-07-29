@@ -241,6 +241,107 @@ SharedImageFormat GetSharedImageFormat(gfx::BufferFormat buffer_format) {
   NOTREACHED();
 }
 
+size_t SharedMemoryOffsetForSharedImageFormat(SharedImageFormat format,
+                                              int plane_index,
+                                              const gfx::Size& size) {
+  if (format.is_single_plane()) {
+    return 0;
+  }
+
+  size_t offset = 0;
+  for (int plane = 0; plane < plane_index; ++plane) {
+    std::optional<size_t> plane_size =
+        format.MaybeEstimatedPlaneSizeInBytes(plane, size);
+    if (!plane_size) {
+      DLOG(ERROR) << "Could not calculate plane size for plane " << plane;
+      return 0;
+    }
+    offset += *plane_size;
+  }
+  return offset;
+}
+
+std::optional<size_t> SharedMemoryRowSizeForSharedImageFormat(
+    SharedImageFormat format,
+    int plane_index,
+    int width) {
+  if (!format.IsValidPlaneIndex(plane_index)) {
+    return std::nullopt;
+  }
+
+  if (format.is_single_plane()) {
+    DCHECK_EQ(plane_index, 0);
+
+    auto bits_per_row = format.BitsPerPixel();
+    // This should work as this code should not be called for ETC1 formats.
+    CHECK_EQ(bits_per_row % 8, 0);
+
+    base::CheckedNumeric<size_t> bytes_per_row = bits_per_row / 8;
+    bytes_per_row *= width;
+
+    // Row size must be aligned to 4 bytes.
+    bytes_per_row += 3;
+    bytes_per_row -= bytes_per_row % 4;
+    if (!bytes_per_row.IsValid()) {
+      return std::nullopt;
+    }
+
+    return bytes_per_row.ValueOrDie();
+  }
+
+  int plane_width =
+      format.GetPlaneSize(plane_index, gfx::Size(width, 0)).width();
+  int num_channels = format.NumChannelsInPlane(plane_index);
+
+  base::CheckedNumeric<size_t> bytes_per_row =
+      format.MultiplanarStorageBytesPerChannel();
+  bytes_per_row *= num_channels;
+  bytes_per_row *= plane_width;
+
+  if (!bytes_per_row.IsValid()) {
+    return std::nullopt;
+  }
+
+  return bytes_per_row.ValueOrDie();
+}
+
+std::optional<size_t> SharedMemoryPlaneSizeForSharedImageFormat(
+    SharedImageFormat format,
+    int plane_index,
+    const gfx::Size& size) {
+  std::optional<size_t> row_size = SharedMemoryRowSizeForSharedImageFormat(
+      format, plane_index, base::checked_cast<size_t>(size.width()));
+  if (!row_size) {
+    return std::nullopt;
+  }
+  base::CheckedNumeric<size_t> plane_size = row_size.value();
+  plane_size *= format.GetPlaneSize(plane_index, size).height();
+  if (!plane_size.IsValid()) {
+    return std::nullopt;
+  }
+
+  return plane_size.ValueOrDie();
+}
+
+std::optional<size_t> SharedMemorySizeForSharedImageFormat(
+    SharedImageFormat format,
+    const gfx::Size& size) {
+  base::CheckedNumeric<size_t> buffer_size = 0;
+  for (int plane = 0; plane < format.NumberOfPlanes(); plane++) {
+    auto plane_size =
+        SharedMemoryPlaneSizeForSharedImageFormat(format, plane, size);
+    if (!plane_size) {
+      return std::nullopt;
+    }
+    buffer_size += plane_size.value();
+    if (!buffer_size.IsValid()) {
+      return std::nullopt;
+    }
+  }
+
+  return buffer_size.ValueOrDie();
+}
+
 // static
 unsigned int
 SharedImageFormatRestrictedSinglePlaneUtils::ToGLTextureStorageFormat(
@@ -287,6 +388,11 @@ SharedImageFormatRestrictedSinglePlaneUtils::ToGLTextureStorageFormat(
 gfx::BufferFormat
 SharedImageFormatToBufferFormatRestrictedUtils::ToBufferFormat(
     SharedImageFormat format) {
+  if (!HasEquivalentBufferFormat(format)) {
+    DUMP_WILL_BE_NOTREACHED() << "format=" << format.ToString();
+    return gfx::BufferFormat::RGBA_8888;
+  }
+
   if (format.is_single_plane()) {
     return SinglePlaneSharedImageFormatToBufferFormat(format);
   }

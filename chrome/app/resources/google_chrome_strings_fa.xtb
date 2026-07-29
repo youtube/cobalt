@@ -442,6 +442,9 @@
 <translation id="6180522807229584611">‏این برگه از منابع اضافی استفاده می‌کند. برای بهبود عملکرد، اجازه دهید Chrome آن را غیرفعال کند.</translation>
 <translation id="6182736845697986886">نصب به‌دلیل وجود خطای داخلی در سرور به‌روزرسانی انجام نشد.</translation>
 <translation id="6192058120268468905">‏حساب شما در Chrome</translation>
+<translation id="6220551899604141979">‏‫<ph name="PARTNER_NAME" /> افزونه‌ای اضافه کرده است که ممکن است نحوه کارکرد Chrome را تغییر دهد.
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">‏قانون ورودی برای Google Chrome به منظور اجازه به ترافیک mDNS.</translation>
 <translation id="624230925347970731">‏Chrome به‌زودی بسته می‌شود</translation>
 <translation id="6247557882553405851">‏مدیر گذرواژه Google</translation>
@@ -470,6 +473,7 @@
 <translation id="6506909944137591434">‏Chrome برای ایجاد نقشه سه‌بعدی از محیط اطرافتان به اجازه دوربین نیاز دارد</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Dev</translation>
 <translation id="6520670145826811516">‏برای استفاده از مکان، در <ph name="BEGIN_LINK" />تنظیمات سیستم<ph name="END_LINK" /> به Chrome دسترسی دهید</translation>
+<translation id="652948702951888897">‏سابقه Chrome</translation>
 <translation id="6532945796722480006">‏باز کردن «Gemini در Chrome Canary»</translation>
 <translation id="6585124893636629274">‏بستن «Gemini در Chrome»</translation>
 <translation id="659498884637196217">‏در «مدیر گذرواژه Google» در این دستگاه</translation>

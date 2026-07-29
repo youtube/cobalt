@@ -19,7 +19,8 @@ class NativeThemeQt : public ui::NativeThemeAura {
   NativeThemeQt& operator=(const NativeThemeQt&) = delete;
   ~NativeThemeQt() override;
 
-  void ThemeChanged(bool prefer_dark_theme);
+  // Updates toolkit-related settings.
+  void OnQtThemeChanged();
 
  protected:
   // ui::NativeThemeAura:
@@ -27,7 +28,7 @@ class NativeThemeQt : public ui::NativeThemeAura {
       cc::PaintCanvas* canvas,
       State state,
       const gfx::Rect& rect,
-      const FrameTopAreaExtraParams& frame_top_area) const override;
+      const FrameTopAreaExtraParams& extra_params) const override;
 
  private:
   // IMPORTANT NOTE: All members that use `shim_` must be decorated with

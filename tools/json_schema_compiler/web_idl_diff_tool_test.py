@@ -21,6 +21,8 @@ class WebIdlDiffToolTest(unittest.TestCase):
     # remove the old parser, these can all be deleted and this test removed.
     converted_schemas = [
         ('alarms.idl', 'alarms.webidl'),
+        ('app_current_window_internal.idl',
+         'app_current_window_internal.webidl'),
         ('bluetooth.idl', 'bluetooth.webidl'),
         ('dns.idl', 'dns.webidl'),
         ('audio.idl', 'audio.webidl'),
@@ -29,6 +31,10 @@ class WebIdlDiffToolTest(unittest.TestCase):
         ('virtual_keyboard.idl', 'virtual_keyboard.webidl'),
         ('webcam_private.idl', 'webcam_private.webidl'),
         ('extension_options_internal.idl', 'extension_options_internal.webidl'),
+        ('system_cpu.idl', 'system_cpu.webidl'),
+        ('system_memory.idl', 'system_memory.webidl'),
+        ('system_network.idl', 'system_network.webidl'),
+        ('system_storage.idl', 'system_storage.webidl'),
     ]
     # LoadAndReturnUnifiedDiff expects file paths relative to the repo root.
     converted_schema_path = 'tools/json_schema_compiler/test/converted_schemas/'

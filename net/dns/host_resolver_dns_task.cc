@@ -388,6 +388,7 @@ DnsQueryTypeSet HostResolverDnsTask::MaybeDisableAdditionalQueries(
 
   if (types.Has(DnsQueryType::HTTPS)) {
     if (!secure_ && !client_->CanQueryAdditionalTypesViaInsecureDns()) {
+      https_disabled_ = true;
       types.Remove(DnsQueryType::HTTPS);
     } else {
       DCHECK(!httpssvc_metrics_);
@@ -1103,7 +1104,7 @@ void HostResolverDnsTask::MaybeStartTimeoutTimer() {
   base::TimeDelta timeout_min;
 
   if (AnyOfTypeTransactionsRemain({DnsQueryType::HTTPS})) {
-    DCHECK(https_svcb_options_.enable);
+    DCHECK(base::FeatureList::IsEnabled(features::kUseDnsHttpsSvcb));
 
     if (secure_) {
       timeout_max = https_svcb_options_.secure_extra_time_max;

@@ -450,6 +450,9 @@ Google Chrome သည် သင်၏ ဆက်တင်များကို ပ
 <translation id="6180522807229584611">ဤတဘ်သည် အပိုဆောင်းရင်းမြစ်များကို သုံးနေသည်။ သင့်စွမ်းဆောင်ရည် ပိုကောင်းစေရန် ၎င်းကို Chrome အား ပိတ်ခွင့်ပြုပါ။</translation>
 <translation id="6182736845697986886">အပ်ဒိတ်ဆာဗာတွင် အတွင်းပိုင်းအမှားဖြစ်သွားသောကြောင့် ထည့်သွင်းမှုမအောင်မြင်ပါ။</translation>
 <translation id="6192058120268468905">Chrome ရှိ သင့်အကောင့်</translation>
+<translation id="6220551899604141979"><ph name="PARTNER_NAME" /> သည် Chrome အလုပ်လုပ်ပုံကို ပြောင်းလဲနိုင်သည့် နောက်ဆက်တွဲ ထည့်လိုက်ပါသည်။
+
+<ph name="EXTENSION_NAME" /></translation>
 <translation id="6235018212288296708">Google Chrome အတွက် mDNS သွားလာမှု ခွင့်ပြုရေး အဝင် စည်းကမ်းချက်</translation>
 <translation id="624230925347970731">မကြာမီ Chrome ပိတ်ပါတော့မည်</translation>
 <translation id="6247557882553405851">Google စကားဝှက်မန်နေဂျာ</translation>
@@ -478,6 +481,7 @@ Google Chrome သည် သင်၏ ဆက်တင်များကို ပ
 <translation id="6506909944137591434">Chrome သည် သင့်ပတ်ဝန်းကျင်ကို 3D မြေပုံဖန်တီးရန် ကင်မရာခွင့်ပြုချက် လိုအပ်သည်</translation>
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Dev</translation>
 <translation id="6520670145826811516">သင့်တည်နေရာသုံးရန် <ph name="BEGIN_LINK" />စနစ် ဆက်တင်များ<ph name="END_LINK" /> တွင် Chrome သုံးခွင့် ပေးပါ</translation>
+<translation id="652948702951888897">Chrome မှတ်တမ်း</translation>
 <translation id="6532945796722480006">Chrome Canary တွင် Gemini ဖွင့်ပါ</translation>
 <translation id="6585124893636629274">Chrome တွင် Gemini ပိတ်ရန်</translation>
 <translation id="659498884637196217">ဤစက်ရှိ ‘Google စကားဝှက်မန်နေဂျာ’ တွင်</translation>

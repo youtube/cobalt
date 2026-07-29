@@ -28,7 +28,8 @@
 #         web-engine-shell
 #         cros-chrome ]
 # GPU
-# tags: [ amd amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821 amd-0x7340 amd-0x7480
+# tags: [ amd amd-0x150e amd-0x1900 amd-0x6613 amd-0x679e amd-0x67ef amd-0x6821
+#             amd-0x7340 amd-0x7480
 #         apple apple-apple-m1 apple-apple-m2 apple-apple-m3
 #             apple-angle-metal-renderer:-apple-m1
 #             apple-angle-metal-renderer:-apple-m2
@@ -62,6 +63,7 @@
 # tags: [ mesa_lt_19.1
 #         mesa_ge_21.0
 #         mesa_ge_23.2
+#         mesa_ge_24.2
 #         nvidia_ge_31.0.15.4601 nvidia_lt_31.0.15.4601
 #         nvidia_ge_535.183.01 nvidia_lt_535.183.01 ]
 # ASan
@@ -107,6 +109,9 @@ crbug.com/1417006 [ fuchsia web-engine-shell ] ExpectedColor_MediaRecorderFromVi
 # point. This is for things like tests that fail in a way that negatively and
 # significantly impacts other tests, e.g. killing the test device.
 
+# Slow on DCHECK and need extra time to address.
+crbug.com/425745937 [ fuchsia web-engine-shell ] ExpectedColor_maps [ Skip ]
+
 ###################
 # Failures/Flakes #
 ###################
@@ -115,7 +120,6 @@ crbug.com/1417006 [ fuchsia web-engine-shell ] ExpectedColor_MediaRecorderFromVi
 
 
 # Flakes on Intel Mac with a larger shifted image
-crbug.com/425653491 [ angle-metal asan graphite-enabled intel-0x3e9b no-clang-coverage release sonoma ] ExpectedColor_MediaRecorderFromVideoElement [ Failure ]
 crbug.com/425653491 [ angle-metal graphite-enabled intel-0x3e9b no-asan no-clang-coverage release sequoia ] ExpectedColor_MediaRecorderFromVideoElement [ Failure ]
 
 # Flakes on Android DEMUXER_ERROR_COULD_NOT_OPEN

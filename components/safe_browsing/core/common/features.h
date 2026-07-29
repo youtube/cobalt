@@ -45,6 +45,14 @@ extern const base::FeatureParam<int> kCsdClipboardCopyApiMaxLength;
 extern const base::FeatureParam<int> kCsdClipboardCopyApiMinLength;
 extern const base::FeatureParam<double> kCsdClipboardCopyApiSampleRate;
 
+// Enables sending a CSD ping on the detection of a credit card form.
+BASE_DECLARE_FEATURE(kClientSideDetectionCreditCardForm);
+// Sets the high-confidence allowlist acceptance rate for determining whether
+// to send a CSD ping triggered by a credit card form.
+extern const base::FeatureParam<double> kCsdCreditCardFormHCAcceptanceRate;
+// Sets the percentage of credit card forms that trigger a CSD ping.
+extern const base::FeatureParam<double> kCsdCreditCardFormSampleRate;
+
 BASE_DECLARE_FEATURE(kClientSideDetectionDebuggingMetadataCache);
 
 // Killswitch for Llama forced trigger info redirect chain check.
@@ -173,6 +181,12 @@ BASE_DECLARE_FEATURE(kEsbAsASyncedSetting);
 // - features will not depend on the SBER preference value,
 //   safebrowsing.scout_reporting_enabled
 BASE_DECLARE_FEATURE(kExtendedReportingRemovePrefDependency);
+
+// Controls whether Safe Browsing Extended Reporting (SBER) is deprecated for
+// Chrome on iOS.
+// This has the same behavior as kExtendedReportingRemovePrefDependency but
+// is separate for rollout purposes.
+BASE_DECLARE_FEATURE(kExtendedReportingRemovePrefDependencyIos);
 
 // Allows the Extension Telemetry Service to accept and use configurations
 // sent by the server.

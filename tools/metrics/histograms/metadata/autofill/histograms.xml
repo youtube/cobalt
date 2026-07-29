@@ -56,6 +56,8 @@ chromium-metrics-reviews@google.com.
   <variant name=".NationalIdCard"
       summary="Emitted for national id card forms only."/>
   <variant name=".Passport" summary="Emitted for passport forms only."/>
+  <variant name=".RedressNumber"
+      summary="Emitted for redress number forms only."/>
   <variant name=".Vehicle"
       summary="Emitted for vehicle information forms only."/>
 </variants>
@@ -949,7 +951,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.AddressesDeletedForDisuse" units="addresses"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>battre@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -974,7 +976,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram name="Autofill.AddressProfileImportCountrySpecificFieldRequirements"
     enum="AutofillAddressProfileImportCountrySpecificFieldRequirement"
-    expires_after="2025-12-12">
+    expires_after="2026-03-15">
   <owner>koerber@google.com</owner>
   <owner>battre@chromium.org</owner>
   <summary>
@@ -1122,7 +1124,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram
-    name="Autofill.Ai.Deduplication.NumberOfLocalEntitiesConsidered.{EntityType}"
+    name="Autofill.Ai.Deduplication.NumberOfLocalEntitiesConsidered{EntityType}"
     enum="Boolean" expires_after="2025-12-12">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -1146,7 +1148,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram
-    name="Autofill.Ai.Deduplication.NumberOfLocalEntitiesDeduped.{EntityType}"
+    name="Autofill.Ai.Deduplication.NumberOfLocalEntitiesDeduped{EntityType}"
     enum="Boolean" expires_after="2025-12-12">
   <owner>brunobraga@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -1266,7 +1268,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Ai.KeyMetrics{KeyMetric}{EntityGranularity}"
-    enum="Boolean" expires_after="2025-12-12">
+    enum="Boolean" expires_after="2026-03-15">
   <owner>jihadghanna@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -1464,14 +1466,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
     so by an user action or not.
   </summary>
   <token key="PromptType" variants="Autofill.Ai.PromptTypes"/>
-  <token key="EntityType">
-    <variant name=".DriversLicense" summary="Driver license entity"/>
-    <variant name=".KnownTravelerNumber"
-        summary="Known traveler number entity"/>
-    <variant name=".NationalIdCard" summary="National ID card entity"/>
-    <variant name=".Passport" summary="Passport entity"/>
-    <variant name=".Vehicle" summary="Vehicle entity"/>
-  </token>
+  <token key="EntityType" variants="Autofill.Ai.EntityType"/>
 </histogram>
 
 <histogram
@@ -4024,7 +4019,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.iOS.FormActivity.SendRatio" units="%"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>vincb@google.com</owner>
   <owner>eic@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -4066,7 +4061,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.iOS.FormActivity.{Outcome}Count" units="count"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>vincb@google.com</owner>
   <owner>eic@google.com</owner>
   <owner>bling-transactions@google.com</owner>
@@ -5132,7 +5127,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.PaymentsNetworkInterface.RequestLatency.GetCardUploadDetails{Result}"
-    units="ms" expires_after="2026-01-11">
+    units="ms" expires_after="2026-03-15">
   <owner>darwinyang@google.com</owner>
   <owner>chrome-payments-team@google.com</owner>
   <summary>
@@ -5230,7 +5225,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram
     name="Autofill.PopupInteraction.PopupLevel.{AutofillPopupInteractionLevel}.{FillingProduct}"
-    enum="AutofillPopupInteraction" expires_after="2026-01-11">
+    enum="AutofillPopupInteraction" expires_after="2026-03-15">
   <owner>brunobraga@google.com</owner>
   <owner>jkeitel@google.com</owner>
   <summary>
@@ -5276,7 +5271,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </token>
 </histogram>
 
-<histogram name="Autofill.ProfileImport.HomeAndWorkAffectedType"
+<histogram name="Autofill.ProfileImport.HomeAndWorkSupersetAffectedType"
     enum="AutofillSettingsVisibleTypes" expires_after="2026-05-01">
   <owner>fleimgruber@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
@@ -5641,7 +5636,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 
 <histogram name="Autofill.ProfileTokenQuality.StoredObservationTypes.{Type}"
     enum="AutofillProfileTokenQualityObservationType"
-    expires_after="2026-01-11">
+    expires_after="2026-03-15">
   <owner>fleimgruber@google.com</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>
@@ -5783,7 +5778,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
 </histogram>
 
 <histogram name="Autofill.Query.RequestDuration" units="ms"
-    expires_after="2025-12-12">
+    expires_after="2026-03-15">
   <owner>battre@chromium.org</owner>
   <owner>chrome-autofill-alerts@google.com</owner>
   <summary>The duration of a network request for a query.</summary>
@@ -5970,8 +5965,8 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
-<histogram name="Autofill.SaveAndFill.DialogShown.{SaveType}"
-    enum="SaveAndFillDialogResult" expires_after="2026-06-01">
+<histogram name="Autofill.SaveAndFill.DialogShown.{SaveType}" enum="Boolean"
+    expires_after="2026-06-01">
   <owner>averina@google.com</owner>
   <owner>siyua@chromium.org</owner>
   <owner>payments-autofill-team@google.com</owner>

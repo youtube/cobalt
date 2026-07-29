@@ -577,7 +577,7 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void EnvironmentVariableChanged();
   void InvalidateEnvDependentStylesIfNeeded();
 
-  bool HasComplexSafaAreaConstraints();
+  bool HasComplexSafeAreaConstraints();
   void SetNeedsToUpdateComplexSafeAreaConstraints();
 
   void MarkAllElementsForStyleRecalc(const StyleChangeReasonForTracing& reason);
@@ -921,8 +921,6 @@ class CORE_EXPORT StyleEngine final : public GarbageCollected<StyleEngine>,
   void RecalcPositionTryStyleForPseudoElement(PseudoElement& pseudo_element,
                                               const StyleRecalcChange,
                                               const StyleRecalcContext&);
-
-  void RebuildTransitionPseudoLayoutTrees();
 
   // We may need to update whitespaces in the layout tree after a flat tree
   // removal which caused a layout subtree to be detached.

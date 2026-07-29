@@ -749,6 +749,12 @@ SaveCardBubbleControllerImpl::IgnoreWindowActivationForTesting() {
 
 void SaveCardBubbleControllerImpl::OnVisibilityChanged(
     content::Visibility visibility) {
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillShowBubblesBasedOnPriorities)) {
+    // BubbleManager will handle the effects of tab changes.
+    return;
+  }
+
   if (visibility == content::Visibility::VISIBLE &&
       (was_url_opened_ ||
        current_bubble_type_ == PaymentsBubbleType::kUploadComplete)) {
@@ -770,13 +776,15 @@ void SaveCardBubbleControllerImpl::DoShowBubble() {
 
   Browser* browser = chrome::FindBrowserWithTab(web_contents());
   if (current_bubble_type_ == PaymentsBubbleType::kUploadComplete) {
-    SetBubbleView(browser->window()
-                      ->GetAutofillBubbleHandler()
-                      ->ShowSaveCardConfirmationBubble(web_contents(), this));
+    SetBubbleView(*browser->window()
+                       ->GetAutofillBubbleHandler()
+                       ->ShowSaveCardConfirmationBubble(web_contents(), this));
   } else {
     SetBubbleView(
-        browser->window()->GetAutofillBubbleHandler()->ShowSaveCreditCardBubble(
-            web_contents(), this, is_triggered_by_user_gesture_));
+        *browser->window()
+             ->GetAutofillBubbleHandler()
+             ->ShowSaveCreditCardBubble(web_contents(), this,
+                                        is_triggered_by_user_gesture_));
   }
   CHECK(bubble_view());
 
