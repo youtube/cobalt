@@ -25,6 +25,22 @@
 
 namespace blink {
 
+#if BUILDFLAG(IS_COBALT)
+namespace {
+const char* MemoryPressureLevelToString(base::MemoryPressureLevel level) {
+  switch (level) {
+    case base::MEMORY_PRESSURE_LEVEL_NONE:
+      return "NONE";
+    case base::MEMORY_PRESSURE_LEVEL_MODERATE:
+      return "MODERATE";
+    case base::MEMORY_PRESSURE_LEVEL_CRITICAL:
+      return "CRITICAL";
+  }
+  return "UNKNOWN";
+}
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
+
 // Function defined in third_party/blink/public/web/blink.h.
 void DecommitFreeableMemory() {
   CHECK(IsMainThread());
@@ -110,6 +126,10 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
     base::MemoryPressureLevel level) {
   TRACE_EVENT1("blink", "MemoryPressureListenerRegistry::onMemoryPressure",
                "level", level);
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Blink handling OnMemoryPressure, level: " << level
+            << " (" << MemoryPressureLevelToString(level) << ")";
+#endif  // BUILDFLAG(IS_COBALT)
   CHECK(IsMainThread());
   for (auto& client : clients_)
     client->OnMemoryPressure(level);

@@ -5,4 +5,7 @@
 import("//build/config/chrome_build.gni")
 
 # iOS and Fuchsia don't support DevTools front-end.
-enable_devtools_frontend = !is_ios && !is_fuchsia
+enable_devtools_frontend = !is_ios && !is_fuchsia && !is_cobalt
+
+enable_devtools_backend =
+    enable_devtools_frontend || !(is_cobalt && cobalt_is_release_build)
